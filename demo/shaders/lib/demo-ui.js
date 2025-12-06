@@ -18,7 +18,7 @@
  * });
  */
 
-import { compile, unparse } from '../../../shaders/src/lang/index.js';
+import { compile, unparse, lex, parse } from '../../../shaders/src/lang/index.js';
 import { 
     CanvasRenderer, 
     getEffect, 
@@ -70,6 +70,34 @@ export function formatEnumName(name) {
  */
 export function formatValue(value, spec, enums = {}) {
     const type = spec?.type || (typeof spec === 'string' ? spec : 'float');
+    
+    // Handle variable reference marker - output just the variable name
+    if (value && typeof value === 'object' && value._varRef) {
+        return value._varRef;
+    }
+    
+    // Handle oscillator configuration objects
+    if (value && typeof value === 'object' && value.oscillator === true) {
+        const oscTypeNames = ['sine', 'tri', 'saw', 'sawInv', 'square', 'noise'];
+        const typeName = oscTypeNames[value.oscType] || 'sine';
+        const parts = [`type: oscKind.${typeName}`];
+        if (value.min !== undefined && value.min !== 0) {
+            parts.push(`min: ${value.min}`);
+        }
+        if (value.max !== undefined && value.max !== 1) {
+            parts.push(`max: ${value.max}`);
+        }
+        if (value.speed !== undefined && value.speed !== 1) {
+            parts.push(`speed: ${value.speed}`);
+        }
+        if (value.offset !== undefined && value.offset !== 0) {
+            parts.push(`offset: ${value.offset}`);
+        }
+        if (value.seed !== undefined && value.seed !== 1) {
+            parts.push(`seed: ${value.seed}`);
+        }
+        return `osc(${parts.join(', ')})`;
+    }
     
     // If spec has inline choices, look up the enum name
     if (spec?.choices && typeof value === 'number') {
@@ -218,8 +246,24 @@ export function extractEffectsFromDsl(dsl) {
     if (!dsl || typeof dsl !== 'string') return effects;
 
     try {
+        // Parse to get original AST with raw kwargs (before validation resolves variables)
+        const tokens = lex(dsl);
+        const ast = parse(tokens);
+        
+        // Also compile to get resolved args
         const result = compile(dsl);
         if (!result || !result.plans) return effects;
+
+        // Build a map from the original parsed AST to get raw kwargs
+        const originalKwargs = [];
+        if (ast.plans) {
+            for (const plan of ast.plans) {
+                if (!plan.chain) continue;
+                for (const step of plan.chain) {
+                    originalKwargs.push(step.kwargs || {});
+                }
+            }
+        }
 
         let globalStepIndex = 0;
         for (const plan of result.plans) {
@@ -239,6 +283,7 @@ export function extractEffectsFromDsl(dsl) {
                     name: shortName,
                     fullName: fullOpName,
                     args: step.args || {},
+                    rawKwargs: originalKwargs[globalStepIndex] || {},
                     stepIndex: globalStepIndex,
                     temp: step.temp
                 });
@@ -742,6 +787,14 @@ export class DemoUI {
                 compiled.searchNamespaces = searchMatch[1].split(/\s*,\s*/);
             }
             
+            // Extract let declarations from original DSL to preserve them
+            const letDeclarations = [];
+            const letRegex = /^let\s+(\w+)\s*=\s*(.+)$/gm;
+            let letMatch;
+            while ((letMatch = letRegex.exec(currentDslText)) !== null) {
+                letDeclarations.push(letMatch[0]);
+            }
+            
             const getEffectDefCallback = (effectName, namespace) => {
                 let def = getEffect(effectName);
                 if (def) return def;
@@ -755,10 +808,26 @@ export class DemoUI {
                 return null;
             };
             
-            return unparse(compiled, overrides, {
+            let result = unparse(compiled, overrides, {
                 customFormatter: this._boundFormatValue,
                 getEffectDef: getEffectDefCallback
             });
+            
+            // Prepend let declarations after search directive
+            if (letDeclarations.length > 0 && result) {
+                const lines = result.split('\n');
+                const searchLineIndex = lines.findIndex(l => l.trim().startsWith('search '));
+                if (searchLineIndex >= 0) {
+                    // Insert let declarations after search line
+                    lines.splice(searchLineIndex + 1, 0, '', ...letDeclarations, '');
+                } else {
+                    // No search line, prepend let declarations
+                    lines.unshift(...letDeclarations, '');
+                }
+                result = lines.join('\n');
+            }
+            
+            return result;
         } catch (err) {
             console.warn('Failed to regenerate DSL:', err);
             return null;
@@ -1372,6 +1441,29 @@ export class DemoUI {
         if (value === undefined) {
             value = cloneParamValue(spec.default);
         }
+        
+        // Check original raw kwargs for variable reference
+        const rawKwarg = effectInfo.rawKwargs?.[key];
+        
+        // If this param is controlled by an oscillator (or is a variable reference that 
+        // resolves to an oscillator), show "automatic" and store the ORIGINAL reference.
+        if (value && typeof value === 'object' && value.oscillator === true) {
+            // If the original was a variable reference (Ident), store that so we can
+            // output "scale: o" instead of inlining the oscillator
+            if (rawKwarg && rawKwarg.type === 'Ident') {
+                this._effectParameterValues[effectKey][key] = { _varRef: rawKwarg.name };
+            }
+            // Otherwise don't store anything - let the original value pass through
+            
+            const autoLabel = document.createElement('span');
+            autoLabel.className = 'control-value';
+            autoLabel.textContent = 'automatic';
+            autoLabel.style.fontStyle = 'italic';
+            autoLabel.style.opacity = '0.7';
+            controlGroup.appendChild(autoLabel);
+            return controlGroup;
+        }
+        
         this._effectParameterValues[effectKey][key] = value;
 
         // Create control based on type
@@ -1697,6 +1789,14 @@ export class DemoUI {
                 
                 for (const [paramName, value] of Object.entries(params)) {
                     if (value === undefined || value === null) continue;
+                    
+                    // Skip oscillator-controlled parameters - these use _varRef markers
+                    // to preserve the original variable reference in DSL output, but the
+                    // actual oscillator value is already stored in pass.uniforms and should
+                    // not be overwritten
+                    if (value && typeof value === 'object' && value._varRef) {
+                        continue;
+                    }
                     
                     if (paramName === 'zoom') {
                         zoomChanged = true;

@@ -971,5 +971,8 @@ export function validate(ast) {
         if (compiled) plans.push(compiled)
     }
 
-    return {plans, diagnostics: diagnosticsList, render}
+    // Include original variable declarations for unparsing
+    const vars = ast.vars || []
+
+    return {plans, diagnostics: diagnosticsList, render, vars}
 }

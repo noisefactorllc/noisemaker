@@ -21,29 +21,29 @@ import { WebGPUBackend } from './backends/webgpu.js'
 const TAU = Math.PI * 2
 
 function oscSine(t) {
-    // Half-cycle sine: 0 → 1 → 0 over t=0..1
-    return Math.sin((t % 1) * Math.PI)
+    // Smooth continuous sine: 0->1->0 over t=0..1, no discontinuity at wrap
+    return (1.0 - Math.cos(t * TAU)) * 0.5
 }
 
 function oscTri(t) {
-    // Triangle wave: 0 → 1 → 0 over t=0..1
-    const tf = t % 1
-    return 1 - Math.abs(tf * 2 - 1)
+    // Triangle wave: 0->1->0 over t=0..1
+    const tf = t - Math.floor(t)
+    return 1.0 - Math.abs(tf * 2.0 - 1.0)
 }
 
 function oscSaw(t) {
-    // Sawtooth: 0 → 1 over t=0..1
-    return t % 1
+    // Sawtooth: 0->1 over t=0..1
+    return t - Math.floor(t)
 }
 
 function oscSawInv(t) {
-    // Inverted sawtooth: 1 → 0 over t=0..1
-    return 1 - (t % 1)
+    // Inverted sawtooth: 1->0 over t=0..1
+    return 1.0 - (t - Math.floor(t))
 }
 
 function oscSquare(t) {
     // Square wave: 0 or 1
-    return (t % 1) >= 0.5 ? 1 : 0
+    return (t - Math.floor(t)) >= 0.5 ? 1.0 : 0.0
 }
 
 // Simple hash for noise
@@ -804,9 +804,10 @@ export class Pipeline {
      */
     resolveUniformValue(value, time) {
         // Check if this is an oscillator configuration
+        // Note: `time` is already normalized 0-1 from CanvasRenderer
         if (value && typeof value === 'object' && value.oscillator === true) {
-            const normalizedTime = (time / this.animationDuration) % 1
-            return evaluateOscillator(value, normalizedTime)
+            const result = evaluateOscillator(value, time)
+            return result
         }
         return value
     }

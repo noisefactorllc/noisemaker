@@ -11,6 +11,58 @@
 const oscKindNames = ['sine', 'tri', 'saw', 'sawInv', 'square', 'noise'];
 
 /**
+ * Format an AST expression node back to DSL
+ * @param {object} expr - Expression AST node
+ * @returns {string} DSL representation
+ */
+function formatExpr(expr) {
+    if (!expr || typeof expr !== 'object') {
+        return String(expr);
+    }
+    
+    switch (expr.type) {
+        case 'Number':
+            return String(expr.value);
+        case 'Boolean':
+            return expr.value ? 'true' : 'false';
+        case 'String':
+            return `"${expr.value}"`;
+        case 'Ident':
+            return expr.name;
+        case 'Member':
+            return expr.path.join('.');
+        case 'Oscillator': {
+            let typeName = 'sine';
+            if (expr.oscType?.type === 'Ident') {
+                typeName = expr.oscType.name;
+            } else if (expr.oscType?.type === 'Member') {
+                typeName = expr.oscType.path[expr.oscType.path.length - 1];
+            }
+            const parts = [`type: oscKind.${typeName}`];
+            if (expr.min?.type === 'Number' && expr.min.value !== 0) {
+                parts.push(`min: ${expr.min.value}`);
+            }
+            if (expr.max?.type === 'Number' && expr.max.value !== 1) {
+                parts.push(`max: ${expr.max.value}`);
+            }
+            if (expr.speed?.type === 'Number' && expr.speed.value !== 1) {
+                parts.push(`speed: ${expr.speed.value}`);
+            }
+            if (expr.offset?.type === 'Number' && expr.offset.value !== 0) {
+                parts.push(`offset: ${expr.offset.value}`);
+            }
+            if (expr.seed?.type === 'Number' && expr.seed.value !== 1) {
+                parts.push(`seed: ${expr.seed.value}`);
+            }
+            return `osc(${parts.join(', ')})`;
+        }
+        default:
+            // Fallback for other expression types
+            return String(expr);
+    }
+}
+
+/**
  * Format an oscillator value for DSL output
  * @param {object} osc - Oscillator configuration object
  * @returns {string} DSL representation of the oscillator
