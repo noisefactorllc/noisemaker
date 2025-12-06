@@ -1139,7 +1139,7 @@ export class DemoUI {
     _createShaderEditorSection(effectInfo, effectDef, toggleBtn) {
         const section = document.createElement('div');
         section.className = 'shader-editor-section';
-        section.style.cssText = 'display: none; margin-top: 0.75rem; border-top: 1px solid color-mix(in srgb, var(--accent3) 15%, transparent 85%); padding-top: 0.75rem;';
+        section.style.cssText = 'display: none; margin-top: 0.75rem; padding-top: 0.75rem;';
         
         // Program selector
         const programNames = Object.keys(effectDef.shaders);
@@ -1167,17 +1167,22 @@ export class DemoUI {
         textarea.style.cssText = 'width: 100%; min-height: 200px; resize: vertical; background: color-mix(in srgb, var(--color1) 60%, transparent 40%); border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%); border-radius: var(--ui-corner-radius-small); font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; font-size: 0.625rem; line-height: 1.4; color: var(--color5); padding: 0.5rem; box-sizing: border-box;';
         section.appendChild(textarea);
         
+        // Button container
+        const btnContainer = document.createElement('div');
+        btnContainer.style.cssText = 'display: flex; gap: 0.5rem; margin-top: 0.5rem;';
+        section.appendChild(btnContainer);
+
         // Apply button
         const applyBtn = document.createElement('button');
         applyBtn.textContent = 'apply shader';
-        applyBtn.style.cssText = 'margin-top: 0.5rem; width: 100%; padding: 0.375rem 0.75rem; background: color-mix(in srgb, var(--accent3) 30%, transparent 70%); border: 1px solid color-mix(in srgb, var(--accent3) 50%, transparent 50%); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: Nunito, sans-serif; font-size: 0.6875rem; font-weight: 600; cursor: pointer;';
-        section.appendChild(applyBtn);
+        applyBtn.style.cssText = 'flex: 1; padding: 0.375rem 0.75rem; background: color-mix(in srgb, var(--accent3) 30%, transparent 70%); border: 1px solid color-mix(in srgb, var(--accent3) 50%, transparent 50%); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: Nunito, sans-serif; font-size: 0.6875rem; font-weight: 600; cursor: pointer;';
+        btnContainer.appendChild(applyBtn);
         
         // Reset button
         const resetBtn = document.createElement('button');
         resetBtn.textContent = 'reset to original';
-        resetBtn.style.cssText = 'margin-top: 0.25rem; width: 100%; padding: 0.375rem 0.75rem; background: transparent; border: 1px solid color-mix(in srgb, var(--accent3) 30%, transparent 70%); border-radius: var(--ui-corner-radius-small); color: var(--color5); font-family: Nunito, sans-serif; font-size: 0.6875rem; font-weight: 600; cursor: pointer;';
-        section.appendChild(resetBtn);
+        resetBtn.style.cssText = 'flex: 1; padding: 0.375rem 0.75rem; background: transparent; border: 1px solid color-mix(in srgb, var(--accent3) 30%, transparent 70%); border-radius: var(--ui-corner-radius-small); color: var(--color5); font-family: Nunito, sans-serif; font-size: 0.6875rem; font-weight: 600; cursor: pointer;';
+        btnContainer.appendChild(resetBtn);
         
         // Toggle visibility via the code button in title bar
         if (toggleBtn) {
