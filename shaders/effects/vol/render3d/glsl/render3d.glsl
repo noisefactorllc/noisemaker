@@ -87,17 +87,21 @@ vec4 sampleVolume(vec3 worldPos) {
 // Uses red channel as the density/SDF field
 float getField(vec3 p) {
     float val = sampleVolume(p).r;
-    // Return signed distance from threshold
-    // Negative inside (val < threshold), positive outside
-    float field = val - threshold;
-    return invert == 1 ? -field : field;
+    // Invert volume: invert the density so empty space becomes solid and vice versa
+    if (invert == 1) {
+        val = 1.0 - val;
+    }
+    return val - threshold;
 }
 
 // Check if a voxel is solid (below threshold, matching SDF convention)
 bool isVoxelSolid(ivec3 voxel) {
     float val = sampleVoxel(voxel).r;
-    bool solid = val < threshold;
-    return invert == 1 ? !solid : solid;
+    // Invert volume: invert the density so empty space becomes solid and vice versa
+    if (invert == 1) {
+        val = 1.0 - val;
+    }
+    return val < threshold;
 }
 
 // Convert world position to voxel coordinates
@@ -274,6 +278,14 @@ IsoHit isosurfaceTrace(vec3 ro, vec3 rd) {
     // March through volume
     float t = tStart;
     float prevField = getField(ro + rd * t);
+    
+    // If we start inside solid (e.g., inverted volume), hit the bounding box surface
+    if (prevField < 0.0) {
+        result.hit = true;
+        result.dist = tStart;
+        result.pos = ro + rd * tStart;
+        return result;
+    }
     
     for (int i = 0; i < MAX_STEPS; i++) {
         t += stepSize;

@@ -84,23 +84,22 @@ fn sampleVolume(worldPos: vec3<f32>) -> vec4<f32> {
 
 // Get the scalar field value at a point (what we're finding the isosurface of)
 fn getField(p: vec3<f32>) -> f32 {
-    let val = sampleVolume(p).r;
-    // Return signed distance from threshold
-    var field = val - threshold;
+    var val = sampleVolume(p).r;
+    // Invert volume: invert the density so empty space becomes solid and vice versa
     if (invert == 1) {
-        field = -field;
+        val = 1.0 - val;
     }
-    return field;
+    return val - threshold;
 }
 
 // Check if a voxel is solid (below threshold, matching SDF convention)
 fn isVoxelSolid(voxel: vec3<i32>) -> bool {
-    let val = sampleVoxel(voxel).r;
-    let solid = val < threshold;
+    var val = sampleVoxel(voxel).r;
+    // Invert volume: invert the density so empty space becomes solid and vice versa
     if (invert == 1) {
-        return !solid;
+        val = 1.0 - val;
     }
-    return solid;
+    return val < threshold;
 }
 
 // Convert world position to voxel coordinates
@@ -272,6 +271,14 @@ fn isosurfaceTrace(ro: vec3<f32>, rd: vec3<f32>) -> IsoHit {
     
     var t = tStart;
     var prevField = getField(ro + rd * t);
+    
+    // If we start inside solid (e.g., inverted volume), hit the bounding box surface
+    if (prevField < 0.0) {
+        result.hit = true;
+        result.dist = tStart;
+        result.pos = ro + rd * tStart;
+        return result;
+    }
     
     for (var i: i32 = 0; i < MAX_STEPS; i = i + 1) {
         t = t + stepSize;
