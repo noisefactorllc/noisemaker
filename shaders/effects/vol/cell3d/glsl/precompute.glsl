@@ -133,7 +133,7 @@ void main() {
     } else {
         normalizer = 0.6;    // Chebyshev
     }
-    float normalizedDist = clamp(dist / normalizer, 0.0, 1.0);
+    float normalizedDist = 1.0 - clamp(dist / normalizer, 0.0, 1.0);
     
     // Generate color from cell ID (for RGB mode)
     float h1 = fract(cellId * 0.0127);

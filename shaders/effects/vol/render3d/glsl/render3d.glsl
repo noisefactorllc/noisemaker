@@ -85,23 +85,24 @@ vec4 sampleVolume(vec3 worldPos) {
 
 // Get the scalar field value at a point (what we're finding the isosurface of)
 // Uses red channel as the density/SDF field
+// Convention: HIGH values = SOLID, field < 0 = inside solid
 float getField(vec3 p) {
     float val = sampleVolume(p).r;
     // Invert volume: invert the density so empty space becomes solid and vice versa
     if (invert == 1) {
         val = 1.0 - val;
     }
-    return val - threshold;
+    return threshold - val;
 }
 
-// Check if a voxel is solid (below threshold, matching SDF convention)
+// Check if a voxel is solid (above threshold - high values = solid)
 bool isVoxelSolid(ivec3 voxel) {
     float val = sampleVoxel(voxel).r;
     // Invert volume: invert the density so empty space becomes solid and vice versa
     if (invert == 1) {
         val = 1.0 - val;
     }
-    return val < threshold;
+    return val > threshold;
 }
 
 // Convert world position to voxel coordinates

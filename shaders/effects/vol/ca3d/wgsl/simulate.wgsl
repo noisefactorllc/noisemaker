@@ -170,7 +170,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             }
         }
         
-        return vec4<f32>(alive, age, 0.0, 1.0);
+        return vec4<f32>(alive, alive, alive, 1.0);
     }
     
     // Count neighbors based on neighborhood mode
@@ -217,5 +217,5 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         finalAlive = mix(finalAlive, seedLum, weight * 0.01);
     }
     
-    return vec4<f32>(finalAlive, finalAge, 0.0, 1.0);
+    return vec4<f32>(finalAlive, finalAlive, finalAlive, 1.0);
 }

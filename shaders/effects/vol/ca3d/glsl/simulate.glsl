@@ -188,7 +188,7 @@ void main() {
             }
         }
         
-        fragColor = vec4(alive, age, 0.0, 1.0);
+        fragColor = vec4(alive, alive, alive, 1.0);
         return;
     }
     
@@ -236,5 +236,5 @@ void main() {
         finalAlive = mix(finalAlive, seedLum, weight * 0.01);
     }
     
-    fragColor = vec4(finalAlive, finalAge, 0.0, 1.0);
+    fragColor = vec4(finalAlive, finalAlive, finalAlive, 1.0);
 }

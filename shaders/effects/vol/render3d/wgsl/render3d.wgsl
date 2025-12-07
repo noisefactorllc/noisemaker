@@ -83,23 +83,24 @@ fn sampleVolume(worldPos: vec3<f32>) -> vec4<f32> {
 }
 
 // Get the scalar field value at a point (what we're finding the isosurface of)
+// Convention: HIGH values = SOLID, field < 0 = inside solid
 fn getField(p: vec3<f32>) -> f32 {
     var val = sampleVolume(p).r;
     // Invert volume: invert the density so empty space becomes solid and vice versa
     if (invert == 1) {
         val = 1.0 - val;
     }
-    return val - threshold;
+    return threshold - val;
 }
 
-// Check if a voxel is solid (below threshold, matching SDF convention)
+// Check if a voxel is solid (above threshold - high values = solid)
 fn isVoxelSolid(voxel: vec3<i32>) -> bool {
     var val = sampleVoxel(voxel).r;
     // Invert volume: invert the density so empty space becomes solid and vice versa
     if (invert == 1) {
         val = 1.0 - val;
     }
-    return val < threshold;
+    return val > threshold;
 }
 
 // Convert world position to voxel coordinates

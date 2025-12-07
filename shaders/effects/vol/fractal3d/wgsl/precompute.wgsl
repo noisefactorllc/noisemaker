@@ -258,7 +258,7 @@ fn main(@builtin(position) position: vec4<f32>) -> FragOutput {
     // Normalize distance to 0-1 range for storage
     // Small distances = inside/near surface, large = outside
     let dist = result.x;
-    let normalizedDist = clamp(dist * 2.0 + 0.5, 0.0, 1.0);
+    let normalizedDist = 1.0 - clamp(dist * 2.0 + 0.5, 0.0, 1.0);
     
     // Normalize trap value
     let trap = clamp(result.y * 0.5, 0.0, 1.0);

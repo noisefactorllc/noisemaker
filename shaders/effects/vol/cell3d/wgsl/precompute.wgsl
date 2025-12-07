@@ -117,7 +117,7 @@ fn main(@builtin(position) position: vec4<f32>) -> FragOutput {
     } else {
         normalizer = 0.6;    // Chebyshev
     }
-    let normalizedDist = clamp(dist / normalizer, 0.0, 1.0);
+    let normalizedDist = 1.0 - clamp(dist / normalizer, 0.0, 1.0);
     
     // Generate color from cell ID (for RGB mode)
     let h1 = fract(cellId * 0.0127);
