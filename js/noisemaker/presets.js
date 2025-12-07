@@ -214,6 +214,15 @@ function evaluateSettings(template) {
 
 let _SOURCE
 
+/**
+ * Get the raw presets DSL source string.
+ * 
+ * @returns {string} The raw DSL source
+ */
+export function getPresetsSource() {
+  return _SOURCE || ''
+}
+
 // Custom presets path for CLI usage
 let _customPresetsPath = null
 

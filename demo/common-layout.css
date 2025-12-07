@@ -85,7 +85,6 @@ main.landing-shell h1 {
   margin: 0;
   font-size: clamp(28px, 5vw, 44px);
   letter-spacing: 0.08em;
-  text-transform: lowercase;
   color: color-mix(in srgb, var(--accent3) 80%, var(--color7) 20%);
 }
 

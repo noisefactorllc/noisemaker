@@ -6,7 +6,7 @@
  */
 
 // Language & Compiler
-export { lex, parse, compile } from './lang/index.js'
+export { lex, parse, compile, unparse, applyParameterUpdates, formatValue } from './lang/index.js'
 export { registerOp } from './lang/ops.js'
 export { registerStarterOps, registerValidatorHook } from './lang/validator.js'
 
@@ -29,7 +29,17 @@ import { compileGraph, createRuntime, recompile } from './runtime/compiler.js'
 export { compileGraph, createRuntime, recompile }
 
 // Renderer
-export { CanvasRenderer } from './renderer/canvas.js'
+export { 
+    CanvasRenderer,
+    cloneParamValue,
+    isValidIdentifier,
+    sanitizeEnumName,
+    hasTexSurfaceParam,
+    needsInputTex3d,
+    is3dGenerator,
+    is3dProcessor,
+    isStarterEffect
+} from './renderer/canvas.js'
 
 /**
  * Convenience function to create a complete rendering environment
