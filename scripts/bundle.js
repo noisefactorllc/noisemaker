@@ -34,6 +34,9 @@ const sharedOptions = {
     NOISEMAKER_PRESETS_DSL: JSON.stringify(presetsSource),
     __NOISEMAKER_DISABLE_EFFECT_VALIDATION__: 'true',
   },
+  // Mark Node.js built-ins as external so dynamic imports in setPresetsPath
+  // don't break browser bundling (the function is Node-only anyway)
+  external: ['node:fs', 'node:path'],
   legalComments: 'none',
   logLevel: 'warning',
   logOverride: {
