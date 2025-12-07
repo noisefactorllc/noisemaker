@@ -136,6 +136,7 @@ export class BrowserSession {
             port: options.port || SERVER_PORT,
             headless: options.headless !== false,
             backend: options.backend || 'webgl2',
+            useBundles: options.useBundles || false,
             ...options
         }
 
@@ -193,8 +194,11 @@ export class BrowserSession {
             this.consoleMessages.push({ type: 'pageerror', text: error.message })
         })
 
-        // Navigate to demo page
-        await this.page.goto(`${this.baseUrl}/demo/shaders/`, { waitUntil: 'networkidle' })
+        // Navigate to demo page (with bundles param if enabled)
+        const demoUrl = this.options.useBundles
+            ? `${this.baseUrl}/demo/shaders/?bundles=1`
+            : `${this.baseUrl}/demo/shaders/`
+        await this.page.goto(demoUrl, { waitUntil: 'networkidle' })
 
         // Wait for app to be ready
         await this.page.waitForFunction(() => {

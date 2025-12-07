@@ -5,7 +5,7 @@
 // Mono-only version (no palette support).
 
 struct Uniforms {
-    data : array<vec4<f32>, 8>,
+    data : array<vec4<f32>, 2>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;

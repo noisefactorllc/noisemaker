@@ -922,9 +922,12 @@ export class Pipeline {
             surface.read = surface.write
             surface.write = temp
 
-            // Update frameReadTextures to match
+            // Update frameReadTextures and frameWriteTextures to match
             if (this.frameReadTextures) {
                 this.frameReadTextures.set(globalName, surface.read)
+            }
+            if (this.frameWriteTextures) {
+                this.frameWriteTextures.set(globalName, surface.write)
             }
         }
     }
@@ -1024,11 +1027,11 @@ export class Pipeline {
         for (const outputName of Object.values(pass.outputs)) {
             if (typeof outputName !== 'string') continue
 
-            // Handle global surface writes
-            if (outputName.startsWith('global_')) {
+            // Handle global surface writes (both global_ and globalName patterns)
+            const surfaceName = this.parseGlobalName(outputName)
+            if (surfaceName) {
                 if (!this.frameReadTextures) continue
 
-                const surfaceName = outputName.replace('global_', '')
                 const writeId = state.writeSurfaces?.[surfaceName]
                 if (!writeId) continue
 

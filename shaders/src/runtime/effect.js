@@ -29,11 +29,14 @@ export class Effect {
         if (config.name) this.name = config.name
         if (config.namespace) this.namespace = config.namespace
         if (config.func) this.func = config.func
+        if (config.description) this.description = config.description
         if (config.globals) this.globals = config.globals
         if (config.passes) this.passes = config.passes
         if (config.textures) this.textures = config.textures
         if (config.outputTex3d) this.outputTex3d = config.outputTex3d
         if (config.outputGeo) this.outputGeo = config.outputGeo
+        if (config.uniformLayout) this.uniformLayout = config.uniformLayout
+        if (config.uniformLayouts) this.uniformLayouts = config.uniformLayouts
 
         // Allow lifecycle hooks via config
         if (config.onInit) this._configOnInit = config.onInit

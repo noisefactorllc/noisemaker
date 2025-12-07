@@ -313,6 +313,15 @@ export function getBackendFromURL() {
 }
 
 /**
+ * Get bundle mode from URL query parameter
+ * @returns {boolean} Whether to use pre-built bundles
+ */
+export function getUseBundlesFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('bundles') === '1' || params.get('bundles') === 'true';
+}
+
+/**
  * Get effect from URL query parameter
  * @returns {string|null} Effect path (namespace/name) or null
  */

@@ -125,6 +125,7 @@ function parseArgs() {
         runAlgEquiv: false,
         runPassthrough: false,
         skipVision: false,
+        useBundles: false,
         verbose: false
     }
 
@@ -156,6 +157,8 @@ function parseArgs() {
             parsed.runPassthrough = true
         } else if (arg === '--no-vision') {
             parsed.skipVision = true
+        } else if (arg === '--bundles') {
+            parsed.useBundles = true
         } else if (arg === '--verbose') {
             parsed.verbose = true
         } else if (!arg.startsWith('--')) {
@@ -700,11 +703,12 @@ async function main() {
         return
     }
 
-    console.log(`\nStarting browser session (backend: ${args.backend})...`)
+    console.log(`\nStarting browser session (backend: ${args.backend}${args.useBundles ? ', bundles: true' : ''})...`)
 
     // Setup: Create browser session
     const session = new BrowserSession({
         backend: args.backend,
+        useBundles: args.useBundles,
         headless: false  // Use headed mode for better debugging
     })
 

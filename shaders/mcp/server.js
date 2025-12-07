@@ -93,6 +93,10 @@ const TOOLS = [
                     type: 'string',
                     enum: ['webgl2', 'webgpu'],
                     description: 'Rendering backend to use (required)'
+                },
+                use_bundles: {
+                    type: 'boolean',
+                    description: 'Use pre-built effect bundles instead of loading from source'
                 }
             },
             required: ['backend']
@@ -136,6 +140,10 @@ const TOOLS = [
                             description: 'Uniform overrides'
                         }
                     }
+                },
+                use_bundles: {
+                    type: 'boolean',
+                    description: 'Use pre-built effect bundles instead of loading from source'
                 }
             },
             required: ['backend']
@@ -173,6 +181,10 @@ const TOOLS = [
                         seed: { type: 'number' },
                         uniforms: { type: 'object', additionalProperties: true }
                     }
+                },
+                use_bundles: {
+                    type: 'boolean',
+                    description: 'Use pre-built effect bundles instead of loading from source'
                 }
             },
             required: ['prompt', 'backend']
@@ -213,6 +225,10 @@ const TOOLS = [
                     type: 'string',
                     enum: ['webgl2', 'webgpu'],
                     description: 'Rendering backend (required)'
+                },
+                use_bundles: {
+                    type: 'boolean',
+                    description: 'Use pre-built effect bundles instead of loading from source'
                 }
             },
             required: ['target_fps', 'backend']
@@ -236,6 +252,10 @@ const TOOLS = [
                     type: 'string',
                     enum: ['webgl2', 'webgpu'],
                     description: 'Rendering backend (required)'
+                },
+                use_bundles: {
+                    type: 'boolean',
+                    description: 'Use pre-built effect bundles instead of loading from source'
                 }
             },
             required: ['backend']
@@ -259,6 +279,10 @@ const TOOLS = [
                     type: 'string',
                     enum: ['webgl2', 'webgpu'],
                     description: 'Rendering backend (required)'
+                },
+                use_bundles: {
+                    type: 'boolean',
+                    description: 'Use pre-built effect bundles instead of loading from source'
                 }
             },
             required: ['backend']
@@ -298,6 +322,10 @@ const TOOLS = [
                             description: 'Uniform overrides'
                         }
                     }
+                },
+                use_bundles: {
+                    type: 'boolean',
+                    description: 'Use pre-built effect bundles instead of loading from source'
                 }
             },
             required: ['dsl', 'backend']
@@ -404,13 +432,14 @@ async function resolveEffects(session, patterns) {
 async function runBrowserTest(args, testFn) {
     const patterns = parseEffects(args)
     const backend = args.backend
+    const useBundles = args.use_bundles || false
 
     if (!backend) {
         throw new Error('backend parameter is required')
     }
 
     // Setup: Create fresh browser session
-    const session = new BrowserSession({ backend, headless: true })
+    const session = new BrowserSession({ backend, headless: true, useBundles })
 
     try {
         await session.setup()
@@ -525,6 +554,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             case 'runDslProgram': {
                 const dsl = args.dsl
                 const backend = args.backend
+                const useBundles = args.use_bundles || false
                 const testCase = args.test_case || {}
 
                 if (!dsl) {
@@ -535,7 +565,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 }
 
                 // Setup: Create fresh browser session
-                const session = new BrowserSession({ backend, headless: true })
+                const session = new BrowserSession({ backend, headless: true, useBundles })
 
                 try {
                     await session.setup()

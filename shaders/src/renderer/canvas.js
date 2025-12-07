@@ -171,6 +171,8 @@ export class CanvasRenderer {
      * @param {number} [options.height=1024] - Render height
      * @param {string} [options.basePath='../../shaders'] - Base path for shader assets
      * @param {boolean} [options.preferWebGPU=false] - Use WebGPU backend
+     * @param {boolean} [options.useBundles=false] - Load effects from pre-built bundles
+     * @param {string} [options.bundlePath='../../dist/effects'] - Base path for effect bundles
      * @param {function} [options.onFrame] - Callback after each frame (receives frameCount)
      * @param {function} [options.onFPS] - Callback when FPS updates (receives fps value)
      * @param {function} [options.onError] - Callback on render error
@@ -185,6 +187,10 @@ export class CanvasRenderer {
         this._height = options.height || 1024
         this._basePath = options.basePath || '../../shaders'
         this._preferWebGPU = options.preferWebGPU || false
+
+        // Bundle loading mode
+        this._useBundles = options.useBundles || false
+        this._bundlePath = options.bundlePath || '../../dist/effects'
 
         // Callbacks
         this._onFrame = options.onFrame || null
@@ -295,6 +301,16 @@ export class CanvasRenderer {
     /** @returns {HTMLCanvasElement} Canvas element */
     get canvas() {
         return this._canvas
+    }
+
+    /** @returns {boolean} Whether using bundle mode */
+    get useBundles() {
+        return this._useBundles
+    }
+
+    /** @returns {string} Bundle path */
+    get bundlePath() {
+        return this._bundlePath
     }
 
     // =========================================================================
@@ -807,6 +823,33 @@ export class CanvasRenderer {
     }
 
     /**
+     * Load effect from a pre-built bundle (definition + shaders inlined)
+     * @param {string} namespace - Effect namespace
+     * @param {string} effectName - Effect name
+     * @returns {Promise<object>} Effect object with shaders already attached
+     */
+    async loadEffectFromBundle(namespace, effectName) {
+        const effectId = `${namespace}/${effectName}`
+        const bundleUrl = `${this._bundlePath}/${namespace}/${effectName}.js`
+
+        try {
+            const module = await import(bundleUrl)
+            const exported = module.default
+
+            if (!exported) {
+                throw new Error(`No default export in bundle ${effectId}`)
+            }
+
+            // The bundle exports an Effect instance with shaders already attached
+            const instance = (typeof exported === 'function') ? new exported() : exported
+            return { namespace, name: effectName, instance }
+        } catch (err) {
+            console.error(`Failed to load bundle for ${effectId}:`, err)
+            throw err
+        }
+    }
+
+    /**
      * Load a single effect on demand (with caching)
      * @param {string} effectId - Effect ID (namespace/name)
      * @param {object} [options] - Loading options
@@ -833,18 +876,23 @@ export class CanvasRenderer {
 
         const loadPromise = (async () => {
             try {
-                if (onProgress) onProgress({ effectId, stage: 'definition', status: 'loading' })
+                let effect
 
-                // Load definition
-                const effect = await this.loadEffectDefinition(namespace, effectName)
+                if (this._useBundles) {
+                    // Bundle mode: single import with shaders inlined
+                    if (onProgress) onProgress({ effectId, stage: 'bundle', status: 'loading' })
+                    effect = await this.loadEffectFromBundle(namespace, effectName)
+                    if (onProgress) onProgress({ effectId, stage: 'bundle', status: 'done' })
+                } else {
+                    // Hot-load mode: separate definition and shader fetches
+                    if (onProgress) onProgress({ effectId, stage: 'definition', status: 'loading' })
+                    effect = await this.loadEffectDefinition(namespace, effectName)
+                    if (onProgress) onProgress({ effectId, stage: 'definition', status: 'done' })
 
-                if (onProgress) onProgress({ effectId, stage: 'definition', status: 'done' })
-                if (onProgress) onProgress({ effectId, stage: 'shaders', status: 'loading' })
-
-                // Load shaders
-                await this.loadEffectShaders(effect)
-
-                if (onProgress) onProgress({ effectId, stage: 'shaders', status: 'done' })
+                    if (onProgress) onProgress({ effectId, stage: 'shaders', status: 'loading' })
+                    await this.loadEffectShaders(effect)
+                    if (onProgress) onProgress({ effectId, stage: 'shaders', status: 'done' })
+                }
 
                 // Register with runtime
                 const choicesToRegister = this.registerEffectWithRuntime(effect)

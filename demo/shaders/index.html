@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Noisemaker Rendering Pipeline - live demo</title>
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23000'/%3E%3Cpath d='M2 2h12v12H2z' fill='%23f0f'/%3E%3C/svg%3E">
+    <title>Noisemaker Shaders Demo</title>
     <link rel="stylesheet" href="../common.css" />
     <link rel="stylesheet" href="colors.css" />
     <link rel="stylesheet" href="layout.css" />
@@ -21,7 +20,7 @@
     <div id="app-container" style="display: none;">
         <div id="left-panel">
             <div class="shader-module">
-                <div class="module-title">Noisemaker Rendering Pipeline</div>
+                <div class="module-title">Pipeline</div>
                 <div class="module-content">
                     <div class="control-group">
                         <div class="control-header">
@@ -56,7 +55,7 @@
             </div>
 
             <div class="shader-module">
-                <div class="module-title">DSL Program</div>
+                <div class="module-title">Program</div>
                 <div class="module-content">
                     <textarea id="dsl-editor" spellcheck="false" style="margin: 0; padding: 0.5rem; width: 100%; min-height: 120px; resize: vertical; background: color-mix(in srgb, var(--color1) 60%, transparent 40%); border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%); border-radius: var(--ui-corner-radius-small); font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace; font-size: 0.6875rem; line-height: 1.4; color: var(--color5); box-sizing: border-box;"></textarea>
                     <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
@@ -228,6 +227,7 @@
             DemoUI, 
             extractEffectNamesFromDsl,
             getBackendFromURL,
+            getUseBundlesFromURL,
             getEffectFromURL
         } from './lib/demo-ui.js';
 
@@ -259,6 +259,8 @@
         // The CanvasRenderer imports are resolved from the canvas.js module location,
         // so we need an absolute path to avoid double-pathing issues
         const shaderBasePath = new URL('../../shaders', import.meta.url).href;
+        const bundleBasePath = new URL('../../dist/effects', import.meta.url).href;
+        const useBundles = getUseBundlesFromURL();
         
         // Initialize with viewport dimensions (accounting for device pixel ratio)
         const dpr = window.devicePixelRatio || 1;
@@ -276,6 +278,8 @@
             height: initialHeight,
             basePath: shaderBasePath,
             preferWebGPU: false,
+            useBundles: useBundles,
+            bundlePath: bundleBasePath,
             onFPS: (fps) => {
                 if (fpsCounterEl) {
                     fpsCounterEl.textContent = `${fps} fps`;
@@ -285,6 +289,10 @@
                 console.error('Renderer error:', err);
             }
         });
+        
+        if (useBundles) {
+            console.log('[Demo] Using pre-built effect bundles from:', bundleBasePath);
+        }
 
         // Handle window resize - update pipeline and canvas resolution
         function handleResize() {
@@ -314,7 +322,7 @@
         });
 
         // =====================================================================
-        // Test Harness Globals (MUST MAINTAIN for MCP compatibility)
+        // Test Harness Globals
         // =====================================================================
         
         window.__noisemakerCurrentBackend = () => renderer.backend;
@@ -393,7 +401,15 @@
             try {
                 const results = await renderer.loadEffects(effectIds, {
                     onProgress: ({ effectId, stage, status }) => {
-                        if (stage === 'definition' && status === 'loading') {
+                        // Bundle mode: single import with shaders inlined
+                        if (stage === 'bundle' && status === 'loading') {
+                            ui.addToLoadingQueue(`bundle-${effectId}`, `${effectId}.js`);
+                            ui.updateLoadingQueueItem(`bundle-${effectId}`, 'loading');
+                        } else if (stage === 'bundle' && status === 'done') {
+                            ui.updateLoadingQueueItem(`bundle-${effectId}`, 'done');
+                        }
+                        // Hot-load mode: separate definition and shader fetches
+                        else if (stage === 'definition' && status === 'loading') {
                             ui.addToLoadingQueue(`def-${effectId}`, `${effectId}/definition.js`);
                             ui.updateLoadingQueueItem(`def-${effectId}`, 'loading');
                         } else if (stage === 'definition' && status === 'done') {
@@ -403,7 +419,7 @@
                         } else if (stage === 'shaders' && status === 'done') {
                             ui.updateLoadingQueueItem(`shaders-${effectId}`, 'done');
                         } else if (status === 'error') {
-                            const queueItem = [`def-${effectId}`, `shaders-${effectId}`]
+                            const queueItem = [`bundle-${effectId}`, `def-${effectId}`, `shaders-${effectId}`]
                                 .find(id => ui._loadingState.queue.find(i => i.id === id && i.status === 'loading'));
                             if (queueItem) {
                                 ui.updateLoadingQueueItem(queueItem, 'error');
