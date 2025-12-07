@@ -104,3 +104,47 @@ The render loop must be allocation-free and DOM-free:
 - **No `console.log()`** — remove debug logging from hot paths
 
 These constraints ensure stable 60 FPS rendering regardless of effect complexity.
+
+## Bundling
+
+Shader effects can be bundled into standalone JavaScript modules for distribution. This eliminates the need for runtime lazy-loading of individual shader files.
+
+### Building Bundles
+
+```bash
+npm run bundle:shaders
+```
+
+This produces bundles in `dist/shaders/`:
+
+| Bundle | Description |
+|--------|-------------|
+| `noisemaker-shaders-core.esm.js` | Runtime only (no effects) |
+| `noisemaker-shaders-<namespace>.esm.js` | Per-namespace effect bundles |
+| `noisemaker-shaders-all.esm.js` | All namespaces combined |
+| `*.min.js` | Minified IIFE variants |
+
+### Using Bundles
+
+```javascript
+// Import a namespace bundle
+import synthBundle from './dist/shaders/noisemaker-shaders-synth.esm.js';
+
+// Create renderer and register effects from bundle
+const renderer = new CanvasRenderer({ canvas, width: 512, height: 512 });
+renderer.registerEffectsFromBundle(synthBundle);
+
+// Initialize enums and compile
+await renderer.initEnums();
+await renderer.compile('noise().write(o0)');
+renderer.start();
+```
+
+### Bundle vs Lazy Loading
+
+| Approach | Use Case |
+|----------|----------|
+| **Bundle** | CDN distribution, offline apps, known effect sets |
+| **Lazy Loading** | Large apps, dynamic effect discovery, development |
+
+Both approaches can coexist—bundle core effects, lazy-load extras.

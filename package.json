@@ -13,6 +13,7 @@
     "build:cli": "node scripts/build-cli.js",
     "build:standalone": "npm run build:cli && node scripts/build-standalone-cli.js",
     "bundle": "node scripts/bundle.js",
+    "bundle:shaders": "node scripts/bundle-shaders.js",
     "regress": "node scripts/regress.js",
     "test:shaders": "node shaders/tests/headless.test.js --size 128 --time 0.0 --seed 0",
     "image-regress": "python scripts/image_regression.py",

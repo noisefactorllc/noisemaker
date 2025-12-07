@@ -917,6 +917,125 @@ export class CanvasRenderer {
     }
     
     // =========================================================================
+    // Bundle Loading
+    // =========================================================================
+    
+    /**
+     * Register effects from a pre-bundled namespace module.
+     * 
+     * Use this as an alternative to lazy-loading when you've imported
+     * a namespace bundle (e.g., noisemaker-shaders-filter.esm.js).
+     * 
+     * @example
+     * import filterBundle from './noisemaker-shaders-filter.esm.js';
+     * await renderer.registerEffectsFromBundle(filterBundle);
+     * 
+     * @param {object} bundle - Bundle module with { namespace, effects, registerAll }
+     * @returns {number} Number of effects registered
+     */
+    registerEffectsFromBundle(bundle) {
+        if (!bundle || !bundle.effects || !bundle.namespace) {
+            console.warn('[registerEffectsFromBundle] Invalid bundle format');
+            return 0;
+        }
+        
+        const namespace = bundle.namespace;
+        let count = 0;
+        
+        for (const [effectName, effectDef] of Object.entries(bundle.effects)) {
+            const effectId = `${namespace}/${effectName}`;
+            
+            // Skip if already loaded
+            if (this._loadedEffects.has(effectId)) {
+                continue;
+            }
+            
+            // Create effect wrapper matching lazy-load structure
+            const effect = {
+                namespace,
+                name: effectName,
+                instance: effectDef
+            };
+            
+            // Register with runtime
+            const choicesToRegister = this.registerEffectWithRuntime(effect);
+            if (choicesToRegister && Object.keys(choicesToRegister).length > 0) {
+                // Synchronously update enums (async merge deferred)
+                this._pendingEnumMerges = this._pendingEnumMerges || [];
+                this._pendingEnumMerges.push(choicesToRegister);
+            }
+            
+            // Register as starter op if applicable
+            this.registerStarterOpForEffect(effect);
+            
+            // Cache the loaded effect
+            this._loadedEffects.set(effectId, effect);
+            count++;
+        }
+        
+        // Process any pending enum merges
+        if (this._pendingEnumMerges && this._pendingEnumMerges.length > 0) {
+            const merges = this._pendingEnumMerges;
+            this._pendingEnumMerges = [];
+            Promise.all(merges.map(m => mergeIntoEnums(m)))
+                .then(results => {
+                    for (const result of results) {
+                        if (result) this._enums = result;
+                    }
+                });
+        }
+        
+        return count;
+    }
+    
+    /**
+     * Register effects from multiple bundles.
+     * 
+     * @example
+     * import filterBundle from './noisemaker-shaders-filter.esm.js';
+     * import synthBundle from './noisemaker-shaders-synth.esm.js';
+     * renderer.registerEffectsFromBundles([filterBundle, synthBundle]);
+     * 
+     * @param {object[]} bundles - Array of bundle modules
+     * @returns {number} Total number of effects registered
+     */
+    registerEffectsFromBundles(bundles) {
+        let total = 0;
+        for (const bundle of bundles) {
+            total += this.registerEffectsFromBundle(bundle);
+        }
+        return total;
+    }
+    
+    /**
+     * Check if an effect is available (loaded from bundle or lazy-loaded).
+     * @param {string} effectId - Effect ID (namespace/name)
+     * @returns {boolean}
+     */
+    hasEffect(effectId) {
+        return this._loadedEffects.has(effectId);
+    }
+    
+    /**
+     * Get all loaded effect IDs.
+     * @returns {string[]}
+     */
+    getLoadedEffectIds() {
+        return Array.from(this._loadedEffects.keys());
+    }
+    
+    /**
+     * Get loaded effect IDs for a specific namespace.
+     * @param {string} namespace - Namespace to filter by
+     * @returns {string[]}
+     */
+    getLoadedEffectIdsByNamespace(namespace) {
+        const prefix = `${namespace}/`;
+        return Array.from(this._loadedEffects.keys())
+            .filter(id => id.startsWith(prefix));
+    }
+    
+    // =========================================================================
     // External Texture Handling (for media input effects)
     // =========================================================================
     

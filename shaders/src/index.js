@@ -28,6 +28,9 @@ export { Pipeline, createPipeline }
 import { compileGraph, createRuntime, recompile } from './runtime/compiler.js'
 export { compileGraph, createRuntime, recompile }
 
+// Renderer
+export { CanvasRenderer } from './renderer/canvas.js'
+
 /**
  * Convenience function to create a complete rendering environment
  * @param {HTMLCanvasElement} canvas - Canvas element to render to
