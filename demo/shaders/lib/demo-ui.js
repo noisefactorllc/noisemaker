@@ -935,6 +935,53 @@ export class DemoUI {
                 titleDiv.appendChild(codeBtn);
             }
 
+            // Reset button
+            const resetBtn = document.createElement('button');
+            resetBtn.className = 'module-skip-btn';
+            resetBtn.textContent = 'reset';
+            resetBtn.title = 'Reset all parameters to defaults';
+            resetBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                const effectKey = `step_${effectInfo.stepIndex}`;
+                const wasSkipped = this._effectParameterValues[effectKey]?._skip;
+                
+                // Reset parameters to defaults
+                this._effectParameterValues[effectKey] = {};
+                if (wasSkipped) {
+                    this._effectParameterValues[effectKey]._skip = true;
+                }
+                
+                for (const [key, spec] of Object.entries(effectDef.globals)) {
+                    if (spec.default !== undefined) {
+                        this._effectParameterValues[effectKey][key] = cloneParamValue(spec.default);
+                    }
+                }
+                
+                // Update UI controls
+                const controlsContainer = moduleDiv.querySelector(`#controls-${effectInfo.stepIndex}`);
+                if (controlsContainer) {
+                    controlsContainer.innerHTML = '';
+                    for (const [key, spec] of Object.entries(effectDef.globals)) {
+                        if (spec.ui && spec.ui.control === false) continue;
+                        
+                        const controlGroup = this._createControlGroup(
+                            key, 
+                            spec, 
+                            { ...effectInfo, args: {} }, // Empty args forces use of defaults
+                            effectKey
+                        );
+                        if (controlGroup) {
+                            controlsContainer.appendChild(controlGroup);
+                        }
+                    }
+                }
+                
+                this._updateDslFromEffectParams();
+                this.showStatus(`reset ${effectInfo.name} to defaults`, 'success');
+            });
+            titleDiv.appendChild(resetBtn);
+
             // Delete button
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'module-skip-btn';

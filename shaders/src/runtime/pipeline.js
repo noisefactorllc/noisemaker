@@ -604,7 +604,7 @@ export class Pipeline {
         // Check if this uniform affects any texture dimensions
         if (oldValue !== value && this.graph && this.graph.textures) {
             let affectsTextures = false
-            for (const [texId, spec] of this.graph.textures.entries()) {
+            for (const [_texId, spec] of this.graph.textures.entries()) {
                 if (this.dimensionReferencesParam(spec.width, name) ||
                     this.dimensionReferencesParam(spec.height, name) ||
                     (spec.depth && this.dimensionReferencesParam(spec.depth, name))) {

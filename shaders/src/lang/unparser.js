@@ -15,7 +15,7 @@ const oscKindNames = ['sine', 'tri', 'saw', 'sawInv', 'square', 'noise'];
  * @param {object} expr - Expression AST node
  * @returns {string} DSL representation
  */
-function formatExpr(expr) {
+function _formatExpr(expr) {
     if (!expr || typeof expr !== 'object') {
         return String(expr);
     }
