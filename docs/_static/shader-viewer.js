@@ -144,10 +144,11 @@
             msg.className = 'no-params-message';
             msg.textContent = 'No adjustable parameters';
             container.appendChild(msg);
-            return {};
+            return { values: {}, uniformMap: {} };
         }
 
         const values = {};
+        const uniformMap = {};  // Maps control key to uniform name
         const globals = effect.globals;
 
         for (const [key, spec] of Object.entries(globals)) {
@@ -155,10 +156,11 @@
             if (spec.type === 'surface') continue;
 
             values[key] = spec.default;
+            uniformMap[key] = spec.uniform || key;  // Use spec.uniform if available
 
             createControl(container, key, spec, values[key], (k, v) => {
                 values[k] = v;
-                onChange(values);
+                onChange(values, uniformMap);
             });
         }
 
@@ -169,7 +171,7 @@
             container.appendChild(msg);
         }
 
-        return values;
+        return { values, uniformMap };
     }
 
     async function initShaderViewer(container) {
@@ -439,15 +441,17 @@
                 currentEffect = placeholderEntry;
 
                 // Build controls
-                currentUniforms = buildControlsForEffect(paramsContainer, currentEffect.instance, (newValues) => {
+                const controlResult = buildControlsForEffect(paramsContainer, currentEffect.instance, (newValues, uniformMap) => {
                     currentUniforms = newValues;
-                    // Update renderer uniforms
+                    // Update renderer uniforms using the correct uniform names
                     if (renderer._pipeline) {
                         for (const [k, v] of Object.entries(newValues)) {
-                            renderer._pipeline.setUniform(k, v);
+                            const uniformName = uniformMap[k] || k;
+                            renderer._pipeline.setUniform(uniformName, v);
                         }
                     }
                 });
+                currentUniforms = controlResult.values;
 
                 // Dispose old pipeline before building new one - matches demo exactly
                 await renderer.dispose({ loseContext: false, resetCanvas: false });
