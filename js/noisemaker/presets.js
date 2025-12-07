@@ -216,7 +216,7 @@ let _SOURCE
 
 /**
  * Get the raw presets DSL source string.
- * 
+ *
  * @returns {string} The raw DSL source
  */
 export function getPresetsSource() {

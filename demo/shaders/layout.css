@@ -211,7 +211,7 @@ body.full-bleed-mode #canvas {
 }
 
 .module-content {
-  padding: 0.5rem;
+  padding: 0.75rem;
 }
 
 .shader-module.collapsed .module-content {

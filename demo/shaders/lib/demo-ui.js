@@ -1160,7 +1160,7 @@ export class DemoUI {
 
             const controlsDiv = document.createElement('div');
             controlsDiv.id = `controls-${effectInfo.stepIndex}`;
-            controlsDiv.style.cssText = 'background: transparent; border: 1px solid color-mix(in srgb, var(--accent3) 15%, transparent 85%); border-radius: var(--ui-corner-radius); padding: 0.75rem; display: grid; grid-template-columns: 1fr 1fr; column-gap: 1em; row-gap: 0.5rem;';
+            controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; column-gap: 1em; row-gap: 0.5rem;';
 
             const effectKey = `step_${effectInfo.stepIndex}`;
             this._effectParameterValues[effectKey] = {};

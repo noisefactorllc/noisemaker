@@ -138,7 +138,7 @@ class EffectSelect extends HTMLElement {
                     display: block;
                     position: relative;
                     font-family: Nunito, sans-serif;
-                    width: 100%;
+                    width: 280px;
                 }
 
                 :host(.open) {
@@ -147,15 +147,16 @@ class EffectSelect extends HTMLElement {
 
                 .select-trigger {
                     width: 100%;
-                    padding: 0.25rem 0.375rem;
+                    padding: 0.375rem 0.5rem;
                     padding-right: 1.5rem;
-                    background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
-                    border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+                    background: color-mix(in srgb, var(--color2, #101522) 95%, transparent 5%);
+                    border: 1px solid color-mix(in srgb, var(--accent3) 35%, transparent 65%);
                     border-radius: var(--ui-corner-radius-small, 0.375rem);
                     color: var(--color6, #d9deeb);
                     font-family: Nunito, sans-serif;
                     font-size: 0.6875rem;
-                    font-weight: 560;
+                    font-weight: 600;
+                    font-variation-settings: 'wght' 600;
                     outline: none;
                     cursor: pointer;
                     transition: all 0.15s ease;
@@ -165,6 +166,18 @@ class EffectSelect extends HTMLElement {
                     text-overflow: ellipsis;
                     position: relative;
                     box-sizing: border-box;
+                }
+
+                .trigger-name {
+                    font-size: 0.6875rem;
+                    font-weight: 600;
+                    color: var(--color6, #d9deeb);
+                }
+
+                .trigger-description {
+                    font-size: 0.625rem;
+                    font-weight: 400;
+                    color: color-mix(in srgb, var(--color5, #98a7c8) 70%, transparent 30%);
                 }
 
                 .select-trigger::after {
@@ -262,7 +275,6 @@ class EffectSelect extends HTMLElement {
                     font-size: 0.625rem;
                     font-weight: 400;
                     color: color-mix(in srgb, var(--color5, #98a7c8) 70%, transparent 30%);
-                    margin-left: 0.25rem;
                 }
 
                 /* Scrollbar styling */
@@ -355,9 +367,11 @@ class EffectSelect extends HTMLElement {
         const selectedEffect = this._flatOptions.find(opt => opt.value === this._value);
         if (selectedEffect) {
             const displayName = camelToSpaceCase(selectedEffect.name);
-            trigger.textContent = selectedEffect.description 
-                ? `${displayName}: ${selectedEffect.description}`
-                : displayName;
+            if (selectedEffect.description) {
+                trigger.innerHTML = `<span class="trigger-name">${displayName}</span><span class="trigger-description">: ${selectedEffect.description}</span>`;
+            } else {
+                trigger.innerHTML = `<span class="trigger-name">${displayName}</span>`;
+            }
         } else {
             trigger.textContent = 'Select effect...';
         }

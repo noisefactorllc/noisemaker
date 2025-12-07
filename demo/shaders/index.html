@@ -19,17 +19,21 @@
     <div id="loading" class="loading">loading effects...</div>
     <div id="app-container" style="display: none;">
         <div id="left-panel">
-            <div class="shader-module">
-                <div class="module-title">Pipeline</div>
-                <div class="module-content">
-                    <div class="control-group">
+            <div class="shader-module" id="pipeline-module">
+                <div class="module-title">
+                    <span class="module-title-text">Pipeline</span>
+                    <span style="flex: 1;"></span>
+                    <button id="pipeline-code-btn" class="module-skip-btn" title="Edit DSL program">code</button>
+                </div>
+                <div class="module-content" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <div class="control-group" style="margin-bottom: 0;">
                         <div class="control-header">
                             <label for="effect-select" class="control-label">effect</label>
                         </div>
                         <effect-select id="effect-select"></effect-select>
                     </div>
 
-                    <div class="control-group" style="display: flex; flex-direction: row !important; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; flex-direction: row; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
                         <label class="radio-option" style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6);">
                             <input type="radio" name="backend" value="glsl" checked>
                             <span>glsl</span>
@@ -51,15 +55,13 @@
                         </label>
                         <span id="fps-counter" style="font-size: 0.75rem; color: var(--color5); font-variant-numeric: tabular-nums; min-width: 5ch;">-- fps</span>
                     </div>
-                </div>
-            </div>
 
-            <div class="shader-module">
-                <div class="module-title">Program</div>
-                <div class="module-content">
-                    <textarea id="dsl-editor" spellcheck="false" style="margin: 0; padding: 0.5rem; width: 100%; min-height: 120px; resize: vertical; background: color-mix(in srgb, var(--color1) 85%, transparent 15%); border: 1px solid color-mix(in srgb, var(--accent3) 50%, transparent 50%); border-radius: var(--ui-corner-radius-small); font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace; font-size: 0.6875rem; line-height: 1.4; color: var(--color5); box-sizing: border-box;"></textarea>
-                    <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                        <button id="dsl-run-btn" style="flex: 1; padding: 0.375rem 0.75rem; background: color-mix(in srgb, var(--accent3) 70%, transparent 30%); border: 1px solid color-mix(in srgb, var(--accent3) 75%, transparent 25%); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: Nunito, sans-serif; font-size: 0.6875rem; font-weight: 600; cursor: pointer; transition: all 0.15s ease;">run</button>
+                    <!-- DSL Editor Section (hidden by default) -->
+                    <div id="dsl-editor-section" style="display: none;">
+                        <textarea id="dsl-editor" spellcheck="false" style="margin: 0; padding: 0.5rem; width: 100%; min-height: 120px; resize: vertical; background: color-mix(in srgb, var(--color1) 85%, transparent 15%); border: 1px solid color-mix(in srgb, var(--accent3) 50%, transparent 50%); border-radius: var(--ui-corner-radius-small); font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace; font-size: 0.6875rem; line-height: 1.4; color: var(--color5); box-sizing: border-box;"></textarea>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                            <button id="dsl-run-btn" style="flex: 1; padding: 0.375rem 0.75rem; background: color-mix(in srgb, var(--accent3) 70%, transparent 30%); border: 1px solid color-mix(in srgb, var(--accent3) 75%, transparent 25%); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: Nunito, sans-serif; font-size: 0.6875rem; font-weight: 600; cursor: pointer; transition: all 0.15s ease;">run</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -635,6 +637,16 @@
         // DSL run button
         dslRunBtn.addEventListener('click', async () => {
             await rebuildPipelineFromDsl();
+        });
+
+        // Pipeline code button toggle
+        const pipelineCodeBtn = document.getElementById('pipeline-code-btn');
+        const dslEditorSection = document.getElementById('dsl-editor-section');
+        pipelineCodeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isVisible = dslEditorSection.style.display !== 'none';
+            dslEditorSection.style.display = isVisible ? 'none' : 'block';
+            pipelineCodeBtn.classList.toggle('active', !isVisible);
         });
 
         // DSL editor keyboard shortcut (Ctrl+Enter or Cmd+Enter to run)

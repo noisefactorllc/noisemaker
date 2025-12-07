@@ -29,7 +29,7 @@ import { compileGraph, createRuntime, recompile } from './runtime/compiler.js'
 export { compileGraph, createRuntime, recompile }
 
 // Renderer
-export { 
+export {
     CanvasRenderer,
     cloneParamValue,
     isValidIdentifier,
