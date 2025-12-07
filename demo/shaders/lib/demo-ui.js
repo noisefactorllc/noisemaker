@@ -726,10 +726,12 @@ export class DemoUI {
             }
             const paramString = params.join(', ');
             const generatorDsl = `noise3d(volumeSize: x${consumerVolumeSize})`;
+            // render3d IS the renderer - don't append another .render3d() call
+            const renderSuffix = funcName === 'render3d' ? '' : '.render3d()';
             if (paramString) {
-                return `search vol\n${generatorDsl}.${funcName}(${paramString}).render3d().write(o0)`;
+                return `search vol\n${generatorDsl}.${funcName}(${paramString})${renderSuffix}.write(o0)`;
             }
-            return `search vol\n${generatorDsl}.${funcName}().render3d().write(o0)`;
+            return `search vol\n${generatorDsl}.${funcName}()${renderSuffix}.write(o0)`;
         } else {
             const params = [];
             if (effect.instance.globals) {

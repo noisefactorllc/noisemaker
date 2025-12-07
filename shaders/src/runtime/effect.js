@@ -32,6 +32,8 @@ export class Effect {
         if (config.globals) this.globals = config.globals;
         if (config.passes) this.passes = config.passes;
         if (config.textures) this.textures = config.textures;
+        if (config.outputTex3d) this.outputTex3d = config.outputTex3d;
+        if (config.outputGeo) this.outputGeo = config.outputGeo;
         
         // Allow lifecycle hooks via config
         if (config.onInit) this._configOnInit = config.onInit;
