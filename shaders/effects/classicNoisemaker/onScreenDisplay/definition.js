@@ -8,6 +8,8 @@ export default new Effect({
   name: "OnScreenDisplay",
   namespace: "classicNoisemaker",
   func: "onScreenDisplay",
+
+  description: "On-screen display overlay",
   globals: {},
   passes: [
     {

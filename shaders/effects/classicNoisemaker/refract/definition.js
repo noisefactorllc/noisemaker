@@ -8,6 +8,8 @@ export default new Effect({
   name: "Refract",
   namespace: "classicNoisemaker",
   func: "refract",
+
+  description: "Refraction distortion",
   globals: {
     displacement: {
       type: "float",

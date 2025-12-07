@@ -4,6 +4,8 @@ export default new Effect({
   name: "Add",
   namespace: "classicBasics",
   func: "add",
+
+  description: "Additive blend between inputs",
   globals: {
     "tex": {
         "type": "surface",

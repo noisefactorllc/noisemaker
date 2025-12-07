@@ -9,6 +9,8 @@ export default new Effect({
   name: "DensityMap",
   namespace: "classicNoisemaker",
   func: "densityMap",
+
+  description: "Density-based mapping",
   globals: {},
   textures: {
     _minmax1: { width: 32, height: 32, format: "rgba32float" },

@@ -7,6 +7,8 @@ export default new Effect({
   name: "Vignette",
   namespace: "classicNoisemaker",
   func: "vignette",
+
+  description: "Vignette darkening",
   globals: {
     brightness: {
       type: "float",

@@ -17,6 +17,8 @@ export default new Effect({
   name: "Cell3D",
   namespace: "vol",
   func: "cell3d",
+
+  description: "3D cellular/Voronoi noise volume",
   textures: {
     volumeCache: { 
       width: { param: 'volumeSize', default: 64 }, 

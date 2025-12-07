@@ -4,6 +4,8 @@ export default new Effect({
   name: "Composite",
   namespace: "classicNoisedeck",
   func: "composite",
+
+  description: "Multi-layer compositing",
   globals: {
     tex: {
       type: "surface",

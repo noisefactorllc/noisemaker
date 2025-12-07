@@ -4,6 +4,8 @@ export default new Effect({
   name: "Sat",
   namespace: "classicBasics",
   func: "saturation",
+
+  description: "Saturation adjustment",
   globals: {
     "a": {
         "type": "float",

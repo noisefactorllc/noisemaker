@@ -8,6 +8,8 @@ export default new Effect({
   name: "Dla",
   namespace: "stateful",
   func: "dla",
+
+  description: "Diffusion-limited aggregation",
   globals: {
     padding: {
         type: "float",

@@ -8,6 +8,8 @@ export default new Effect({
   name: "Voronoi",
   namespace: "classicNoisemaker",
   func: "voronoi",
+
+  description: "Voronoi cell pattern",
   globals: {
     diagramType: {
         type: "integer",

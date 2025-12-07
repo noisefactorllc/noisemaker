@@ -4,6 +4,8 @@ export default new Effect({
   name: "Apply Hue",
   namespace: "mixer",
   func: "applyHue",
+
+  description: "Apply hue from source B",
   globals: {
     tex: {
       type: "surface",

@@ -4,6 +4,8 @@ export default new Effect({
   name: "BitEffects",
   namespace: "classicNoisedeck",
   func: "bitEffects",
+
+  description: "Bit-crushing and digital artifacts",
   uniformLayout: {
         resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },

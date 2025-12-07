@@ -4,6 +4,8 @@ export default new Effect({
   name: "Exclusion",
   namespace: "mixer",
   func: "exclusion",
+
+  description: "Softer inversion than difference",
   globals: {
     tex: {
       type: "surface",

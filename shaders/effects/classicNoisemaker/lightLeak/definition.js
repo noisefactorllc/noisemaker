@@ -8,6 +8,8 @@ export default new Effect({
   name: "LightLeak",
   namespace: "classicNoisemaker",
   func: "lightLeak",
+
+  description: "Film light leak overlay",
   globals: {
     alpha: {
         type: "float",

@@ -8,6 +8,8 @@ export default new Effect({
   name: "Reverb",
   namespace: "classicNoisemaker",
   func: "reverb",
+
+  description: "Visual reverb/echo effect",
   globals: {
     iterations: {
         type: "int",

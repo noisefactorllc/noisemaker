@@ -7,6 +7,8 @@ export default new Effect({
   name: "Polar",
   namespace: "filter",
   func: "polar",
+
+  description: "Polar and vortex coordinate transforms",
   globals: {
     mode: {
       type: "int",

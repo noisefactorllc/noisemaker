@@ -4,6 +4,8 @@ export default new Effect({
   name: "Ca",
   namespace: "stateful",
   func: "ca",
+
+  description: "2D cellular automata with rule presets",
   uniformLayouts: {
     ca: {
       resolution: { slot: 0, components: 'xy' },

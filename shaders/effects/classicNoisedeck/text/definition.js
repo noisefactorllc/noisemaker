@@ -4,6 +4,8 @@ export default new Effect({
   name: "Text",
   namespace: "classicNoisedeck",
   func: "text",
+
+  description: "Text overlay renderer",
   uniformLayout: {
         resolution: { slot: 0, components: 'xy' },
     glyphUV1: { slot: 1, components: 'xy' },

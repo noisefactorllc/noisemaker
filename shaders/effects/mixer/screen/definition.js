@@ -4,6 +4,8 @@ export default new Effect({
   name: "Screen",
   namespace: "mixer",
   func: "screen",
+
+  description: "Inverse of multiply, lightening result",
   globals: {
     tex: {
       type: "surface",

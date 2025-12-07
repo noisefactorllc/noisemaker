@@ -4,6 +4,8 @@ export default new Effect({
   name: "Subtract",
   namespace: "mixer",
   func: "subtract",
+
+  description: "Subtract source B from input",
   globals: {
     tex: {
       type: "surface",

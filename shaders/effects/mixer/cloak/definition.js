@@ -4,6 +4,8 @@ export default new Effect({
   name: "Cloak",
   namespace: "mixer",
   func: "cloak",
+
+  description: "Transparency cloaking effect",
   globals: {
     tex: {
       type: "surface",

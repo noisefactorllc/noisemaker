@@ -16,6 +16,8 @@ export default new Effect({
   name: "Flow",
   namespace: "stateful",
   func: "flow",
+
+  description: "Agent-based flow field with behaviors",
   textures: {
     globalFlowState1: { width: 512, height: 512, format: "rgba16f" },
     globalFlowState2: { width: 512, height: 512, format: "rgba16f" },

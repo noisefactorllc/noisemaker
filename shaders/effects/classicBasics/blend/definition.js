@@ -4,6 +4,8 @@ export default new Effect({
   name: "Blend",
   namespace: "classicBasics",
   func: "blend",
+
+  description: "Configurable blend between sources",
   globals: {
     "tex": {
         "type": "surface",

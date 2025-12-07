@@ -4,6 +4,8 @@ export default new Effect({
   name: "Inv",
   namespace: "classicBasics",
   func: "invert",
+
+  description: "Color inversion",
   globals: {
     "a": {
         "type": "float",

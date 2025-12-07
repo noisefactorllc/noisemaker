@@ -8,6 +8,8 @@ export default new Effect({
   name: "Emboss",
   namespace: "filter",
   func: "emboss",
+
+  description: "Emboss effect creating raised relief appearance",
   globals: {
     amount: {
       type: "float",

@@ -8,6 +8,8 @@ export default new Effect({
   name: "Palette",
   namespace: "classicNoisemaker",
   func: "palette",
+
+  description: "Color palette application",
   globals: {
     paletteIndex: {
         type: "member",

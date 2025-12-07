@@ -4,6 +4,8 @@ export default new Effect({
   name: "Bright",
   namespace: "classicBasics",
   func: "brightness",
+
+  description: "Brightness adjustment",
   globals: {
     "a": {
         "type": "float",

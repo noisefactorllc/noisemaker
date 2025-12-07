@@ -8,6 +8,8 @@ export default new Effect({
   name: "Vaseline",
   namespace: "classicNoisemaker",
   func: "vaseline",
+
+  description: "Vaseline lens blur effect",
   globals: {
     alpha: {
         type: "float",

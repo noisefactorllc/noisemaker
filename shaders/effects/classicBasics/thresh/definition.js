@@ -4,6 +4,8 @@ export default new Effect({
   name: "Thresh",
   namespace: "nd",
   func: "thresh",
+
+  description: "Threshold/step function",
   globals: {
     "level": {
         "type": "float",

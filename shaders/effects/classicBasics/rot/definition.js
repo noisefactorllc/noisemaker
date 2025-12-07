@@ -4,6 +4,8 @@ export default new Effect({
   name: "Rot",
   namespace: "classicBasics",
   func: "rot",
+
+  description: "Rotation transform",
   globals: {
     "angle": {
         "type": "float",

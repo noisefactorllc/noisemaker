@@ -8,6 +8,8 @@ export default new Effect({
   name: "SpookyTicker",
   namespace: "classicNoisemaker",
   func: "spookyTicker",
+
+  description: "Spooky scrolling text",
   globals: {
     speed: {
       type: "float",

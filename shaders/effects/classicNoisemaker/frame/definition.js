@@ -8,6 +8,8 @@ export default new Effect({
   name: "Frame",
   namespace: "classicNoisemaker",
   func: "frame",
+
+  description: "Decorative frame overlay",
   globals: {
     speed: {
       type: "float",

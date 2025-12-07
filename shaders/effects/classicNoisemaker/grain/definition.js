@@ -8,6 +8,8 @@ export default new Effect({
   name: "Grain",
   namespace: "classicNoisemaker",
   func: "grain",
+
+  description: "Film grain overlay",
   globals: {
     alpha: {
         type: "float",

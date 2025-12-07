@@ -11,6 +11,8 @@ export default class ColorLab extends Effect {
   namespace = "classicNoisedeck";
   func = "colorLab";
 
+  description = "Color manipulation lab";
+
   globals = {
     seed: {
       type: "int",

@@ -8,6 +8,8 @@ export default new Effect({
   name: "LensDistortion",
   namespace: "classicNoisemaker",
   func: "lensDistortion",
+
+  description: "Lens barrel/pincushion distortion",
   globals: {
     displacement: {
         type: "float",

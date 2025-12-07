@@ -7,6 +7,8 @@ export default new Effect({
   name: "Vortex",
   namespace: "classicNoisemaker",
   func: "vortex",
+
+  description: "Vortex/spiral distortion",
   globals: {
     displacement: {
       type: "float",

@@ -8,6 +8,8 @@ export default new Effect({
   name: "Edge",
   namespace: "filter",
   func: "edge",
+
+  description: "Edge detection using convolution kernel",
   globals: {
     amount: {
       type: "float",

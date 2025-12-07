@@ -4,6 +4,8 @@ export default new Effect({
   name: "Splat",
   namespace: "classicNoisedeck",
   func: "splat",
+
+  description: "Splatter paint effect",
   globals: {
     useSplats: {
       type: "boolean",

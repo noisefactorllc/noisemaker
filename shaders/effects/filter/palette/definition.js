@@ -8,6 +8,8 @@ export default new Effect({
   name: "Palette",
   namespace: "filter",
   func: "palette",
+
+  description: "Apply cosine color palettes based on luminance",
   globals: {
     paletteIndex: {
       type: "member",

@@ -4,6 +4,8 @@ export default new Effect({
   name: "Soft Light",
   namespace: "mixer",
   func: "softLight",
+
+  description: "Gentle overlay effect",
   globals: {
     tex: {
       type: "surface",

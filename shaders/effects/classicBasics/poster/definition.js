@@ -4,6 +4,8 @@ export default new Effect({
   name: "Poster",
   namespace: "classicBasics",
   func: "poster",
+
+  description: "Posterization effect",
   globals: {
     "levels": {
         "type": "float",

@@ -8,6 +8,8 @@ export default new Effect({
   name: "Shadow",
   namespace: "classicNoisemaker",
   func: "shadow",
+
+  description: "Drop shadow effect",
   globals: {
     alpha: {
         type: "float",

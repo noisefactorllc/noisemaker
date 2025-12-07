@@ -4,6 +4,8 @@ export default new Effect({
   name: "Wave",
   namespace: "classicBasics",
   func: "wave",
+
+  description: "Wave distortion",
   globals: {
     "oscType": {
         "type": "member",

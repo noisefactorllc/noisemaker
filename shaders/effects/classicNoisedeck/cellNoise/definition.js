@@ -11,6 +11,8 @@ export default class CellNoise extends Effect {
   namespace = "classicNoisedeck";
   func = "cellNoise";
 
+  description = "Cellular noise patterns";
+
 
   // WGSL uniform packing layout - maps uniform names to vec4 slots/components
   uniformLayout = {

@@ -4,6 +4,8 @@ export default new Effect({
   name: "Pattern",
   namespace: "classicNoisedeck",
   func: "pattern",
+
+  description: "Pattern generator",
   uniformLayout: {
         resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },

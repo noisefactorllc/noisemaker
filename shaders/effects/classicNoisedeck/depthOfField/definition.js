@@ -4,6 +4,8 @@ export default new Effect({
   name: "DepthOfField",
   namespace: "classicNoisedeck",
   func: "depthOfField",
+
+  description: "Depth of field blur simulation",
   uniformLayout: {
         resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },

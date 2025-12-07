@@ -13,6 +13,8 @@ export default new Effect({
   name: "Cf",
   namespace: "stateful",
   func: "cf",
+
+  description: "Convolution feedback with blur and sharpen",
   globals: {
     sharpenRadius: {
       type: "int",

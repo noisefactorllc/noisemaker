@@ -4,6 +4,8 @@ export default new Effect({
   name: "Diff",
   namespace: "classicBasics",
   func: "diff",
+
+  description: "Absolute difference blend",
   globals: {
     "tex": {
         "type": "surface",

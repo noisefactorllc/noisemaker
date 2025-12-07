@@ -29,6 +29,8 @@ export default new Effect({
   name: "Flow3D",
   namespace: "vol",
   func: "flow3d",
+
+  description: "3D agent-based flow field",
   textures: {
     volumeCache: { 
       width: { param: 'volumeSize', default: 32 }, 

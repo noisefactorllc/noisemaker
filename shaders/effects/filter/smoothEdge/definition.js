@@ -8,6 +8,8 @@ export default new Effect({
   name: "SmoothEdge",
   namespace: "filter",
   func: "smoothEdge",
+
+  description: "Edge detection with Gaussian smoothing",
   globals: {
     amount: {
       type: "float",

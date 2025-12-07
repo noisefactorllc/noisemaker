@@ -8,6 +8,8 @@ export default new Effect({
   name: "Sharpen",
   namespace: "filter",
   func: "sharpen",
+
+  description: "Sharpen using convolution",
   globals: {
     amount: {
       type: "float",

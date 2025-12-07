@@ -7,6 +7,8 @@ export default new Effect({
   name: "PrismaticAberration",
   namespace: "filter",
   func: "prismaticAberration",
+
+  description: "Prismatic aberration with hue controls",
   globals: {
     aberrationAmt: {
       type: "float",

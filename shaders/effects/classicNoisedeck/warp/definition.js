@@ -4,6 +4,8 @@ export default new Effect({
   name: "Warp",
   namespace: "classicNoisedeck",
   func: "warp",
+
+  description: "Warp distortion",
   globals: {
     distortionType: {
       type: "int",

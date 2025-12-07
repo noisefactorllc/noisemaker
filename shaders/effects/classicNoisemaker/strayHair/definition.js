@@ -8,6 +8,8 @@ export default new Effect({
   name: "StrayHair",
   namespace: "classicNoisemaker",
   func: "strayHair",
+
+  description: "Stray hair overlay",
   globals: {
     seed: {
         type: "number",

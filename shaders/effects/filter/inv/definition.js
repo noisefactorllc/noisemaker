@@ -8,6 +8,8 @@ export default new Effect({
   name: "Inv",
   namespace: "filter",
   func: "inv",
+
+  description: "Invert image luminance",
   uniformLayout: {},
   globals: {},
   passes: [

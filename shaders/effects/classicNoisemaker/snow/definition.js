@@ -8,6 +8,8 @@ export default new Effect({
   name: "Snow",
   namespace: "classicNoisemaker",
   func: "snow",
+
+  description: "TV snow/static noise",
   globals: {
     alpha: {
         type: "float",

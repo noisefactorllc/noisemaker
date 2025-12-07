@@ -13,6 +13,8 @@ export default new Effect({
   name: "Clouds",
   namespace: "classicNoisemaker",
   func: "clouds",
+
+  description: "Cloud texture generator",
   globals: {
     speed: {
       type: "float",

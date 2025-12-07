@@ -8,6 +8,8 @@ export default new Effect({
   name: "LensWarp",
   namespace: "classicNoisemaker",
   func: "lensWarp",
+
+  description: "Lens warp distortion",
   globals: {
     displacement: {
         type: "float",

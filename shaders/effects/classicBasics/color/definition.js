@@ -4,6 +4,8 @@ export default new Effect({
   name: "Col",
   namespace: "classicBasics",
   func: "color",
+
+  description: "Solid color generator",
   globals: {
     "r": {
         "type": "float",

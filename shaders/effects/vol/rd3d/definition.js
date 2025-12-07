@@ -17,6 +17,8 @@ export default new Effect({
   name: "Rd3D",
   namespace: "vol",
   func: "rd3d",
+
+  description: "3D reaction-diffusion simulation",
   textures: {
     volumeCache: { 
       width: { param: 'volumeSize', default: 32 }, 

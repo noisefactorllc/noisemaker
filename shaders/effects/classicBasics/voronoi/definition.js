@@ -4,6 +4,8 @@ export default new Effect({
   name: "Voronoi",
   namespace: "classicBasics",
   func: "voronoi",
+
+  description: "Voronoi cell noise",
   globals: {
     "scale": {
         "type": "float",

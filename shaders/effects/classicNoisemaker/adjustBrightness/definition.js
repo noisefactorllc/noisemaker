@@ -8,6 +8,8 @@ export default new Effect({
   name: "AdjustBrightness",
   namespace: "classicNoisemaker",
   func: "adjustBrightness",
+
+  description: "Brightness adjustment",
   globals: {
     amount: {
         type: "float",

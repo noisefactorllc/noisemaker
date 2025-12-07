@@ -11,6 +11,8 @@ export default class Noise extends Effect {
   namespace = "classicNoisedeck";
   func = "noise";
 
+  description = "Noise pattern generator";
+
   // WGSL uniform packing layout - maps uniform names to vec4 slots/components
   uniformLayout = {
     resolution: { slot: 0, components: 'xy' },

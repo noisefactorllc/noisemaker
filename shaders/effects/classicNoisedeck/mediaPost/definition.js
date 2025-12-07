@@ -4,6 +4,8 @@ export default new Effect({
   name: "MediaPost",
   namespace: "classicNoisedeck",
   func: "mediaPost",
+
+  description: "Media post-processing",
   globals: {
     seed: {
       type: "int",

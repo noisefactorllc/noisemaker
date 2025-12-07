@@ -8,6 +8,8 @@ export default new Effect({
   name: "Tunnel",
   namespace: "filter",
   func: "tunnel",
+
+  description: "Perspective tunnel effect with shape options",
   globals: {
     shape: {
       type: "int",

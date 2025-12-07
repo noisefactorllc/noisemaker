@@ -8,6 +8,8 @@ export default new Effect({
   name: "Grime",
   namespace: "classicNoisemaker",
   func: "grime",
+
+  description: "Grunge/grime texture overlay",
   globals: {
     strength: {
         type: "float",

@@ -4,6 +4,8 @@ export default new Effect({
   name: "Kaleido",
   namespace: "classicNoisedeck",
   func: "kaleido",
+
+  description: "Kaleidoscope effect",
   globals: {
     kaleido: {
       type: "int",

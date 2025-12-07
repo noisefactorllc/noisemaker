@@ -4,6 +4,8 @@ export default new Effect({
   name: "Add",
   namespace: "mixer",
   func: "add",
+
+  description: "Additive blend creating lighter result",
   globals: {
     tex: {
       type: "surface",

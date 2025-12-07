@@ -4,6 +4,8 @@ export default new Effect({
   name: "Cont",
   namespace: "classicBasics",
   func: "contrast",
+
+  description: "Contrast adjustment",
   globals: {
     "a": {
         "type": "float",

@@ -8,6 +8,8 @@ export default new Effect({
   name: "Fibers",
   namespace: "classicNoisemaker",
   func: "fibers",
+
+  description: "Fiber texture generator",
   globals: {
     speed: {
       type: "float",

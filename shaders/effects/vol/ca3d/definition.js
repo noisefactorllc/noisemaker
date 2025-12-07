@@ -17,6 +17,8 @@ export default new Effect({
   name: "Ca3D",
   namespace: "vol",
   func: "ca3d",
+
+  description: "3D cellular automata simulation",
   textures: {
     volumeCache: { 
       width: { param: 'volumeSize', default: 32 }, 

@@ -7,6 +7,8 @@ export default new Effect({
   name: "ValueRefract",
   namespace: "classicNoisemaker",
   func: "valueRefract",
+
+  description: "Value-based refraction",
   globals: {
     displacement: {
       type: "float",

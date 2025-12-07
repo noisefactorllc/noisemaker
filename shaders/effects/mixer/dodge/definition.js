@@ -4,6 +4,8 @@ export default new Effect({
   name: "Dodge",
   namespace: "mixer",
   func: "dodge",
+
+  description: "Color dodge creating bright highlights",
   globals: {
     tex: {
       type: "surface",

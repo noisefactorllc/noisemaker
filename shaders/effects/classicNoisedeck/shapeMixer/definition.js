@@ -11,6 +11,8 @@ export default class ShapeMixer extends Effect {
   namespace = "classicNoisedeck";
   func = "shapeMixer";
 
+  description = "Shape-based mixing";
+
   globals = {
     blendMode: {
       type: "int",

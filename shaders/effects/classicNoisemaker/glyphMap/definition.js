@@ -8,6 +8,8 @@ export default new Effect({
   name: "GlyphMap",
   namespace: "classicNoisemaker",
   func: "glyphMap",
+
+  description: "ASCII/glyph art conversion",
   globals: {
     colorize: {
         type: "boolean",

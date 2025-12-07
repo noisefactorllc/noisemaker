@@ -4,6 +4,8 @@ export default new Effect({
   name: "VNoise",
   namespace: "synth",
   func: "vnoise",
+
+  description: "Value noise with multiple interpolation types",
   uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },

@@ -4,6 +4,8 @@ export default new Effect({
   name: "DisplaceMixer",
   namespace: "classicNoisedeck",
   func: "displaceMixer",
+
+  description: "Displacement-based mixing",
   globals: {
     tex: {
       type: "surface",

@@ -7,6 +7,8 @@ export default new Effect({
   name: "Vhs",
   namespace: "classicNoisemaker",
   func: "vhs",
+
+  description: "VHS tape artifacts",
   globals: {
     speed: {
       type: "float",

@@ -15,6 +15,8 @@ export default new Effect({
   name: "ConvFeedback",
   namespace: "classicNoisemaker",
   func: "convFeedback",
+
+  description: "Convolution feedback loop",
   globals: {
     alpha: {
         type: "float",

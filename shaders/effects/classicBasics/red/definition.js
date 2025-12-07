@@ -4,6 +4,8 @@ export default new Effect({
   name: "R",
   namespace: "classicBasics",
   func: "red",
+
+  description: "Red channel adjustment",
   globals: {
     "scale": {
         "type": "float",

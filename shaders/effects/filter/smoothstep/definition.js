@@ -8,6 +8,8 @@ export default new Effect({
   name: "Smoothstep",
   namespace: "filter",
   func: "smoothstep",
+
+  description: "Smooth Hermite interpolation between edges",
   globals: {
     edge0: {
       type: "float",

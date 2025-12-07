@@ -8,6 +8,8 @@ export default new Effect({
   name: "Ridge",
   namespace: "classicNoisemaker",
   func: "ridge",
+
+  description: "Ridge/crease enhancement",
   globals: {},
   passes: [
     {

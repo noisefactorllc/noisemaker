@@ -4,6 +4,8 @@ export default new Effect({
   name: "Pixelate",
   namespace: "classicBasics",
   func: "pixelate",
+
+  description: "Pixelation effect",
   globals: {
     "x": {
         "type": "float",

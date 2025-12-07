@@ -4,6 +4,8 @@ export default new Effect({
   name: "Repeat",
   namespace: "classicBasics",
   func: "repeat",
+
+  description: "Tiling repeat",
   globals: {
     "x": {
         "type": "float",

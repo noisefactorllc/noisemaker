@@ -4,6 +4,8 @@ export default new Effect({
   name: "Translate",
   namespace: "classicBasics",
   func: "translate",
+
+  description: "Translation offset",
   globals: {
     "x": {
         "type": "float",

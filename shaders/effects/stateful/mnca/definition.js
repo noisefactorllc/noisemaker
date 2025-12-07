@@ -4,6 +4,8 @@ export default new Effect({
   name: "Mnca",
   namespace: "stateful",
   func: "mnca",
+
+  description: "Multi-neighborhood cellular automata",
   uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },

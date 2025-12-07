@@ -7,6 +7,8 @@ export default new Effect({
   name: "Lens",
   namespace: "filter",
   func: "lens",
+
+  description: "Barrel or pincushion lens distortion",
   globals: {
     displacement: {
       type: "float",

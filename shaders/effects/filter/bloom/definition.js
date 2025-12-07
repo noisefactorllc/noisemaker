@@ -13,6 +13,8 @@ export default new Effect({
   name: "Bloom",
   namespace: "filter",
   func: "bloom",
+
+  description: "Multi-pass bloom with bright-pass extraction and configurable glow",
   globals: {
     threshold: {
       type: "float",

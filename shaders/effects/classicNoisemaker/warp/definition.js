@@ -7,6 +7,8 @@ export default new Effect({
   name: "Warp",
   namespace: "classicNoisemaker",
   func: "warp",
+
+  description: "Perlin warp distortion",
   globals: {
     frequency: {
       type: "float",

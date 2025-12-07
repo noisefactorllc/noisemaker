@@ -24,6 +24,8 @@ export default new Effect({
   name: "Render3D",
   namespace: "vol",
   func: "render3d",
+
+  description: "Universal 3D volume raymarcher",
   textures: {
     screenGeoBuffer: {
       width: "resolution",

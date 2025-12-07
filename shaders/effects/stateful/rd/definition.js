@@ -4,6 +4,8 @@ export default new Effect({
   name: "Rd",
   namespace: "stateful",
   func: "rd",
+
+  description: "Gray-Scott reaction-diffusion",
   uniformLayouts: {
     rd: {
       resolution: { slot: 0, components: 'xy' },

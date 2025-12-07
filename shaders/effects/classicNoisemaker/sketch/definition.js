@@ -8,6 +8,8 @@ export default new Effect({
   name: "Sketch",
   namespace: "classicNoisemaker",
   func: "sketch",
+
+  description: "Sketch/pencil effect",
   globals: {},
   passes: [
     {

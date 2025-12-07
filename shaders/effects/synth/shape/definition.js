@@ -4,6 +4,8 @@ export default new Effect({
   name: "Shape",
   namespace: "synth",
   func: "shape",
+
+  description: "Dual-loop shape pattern generator",
   uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },

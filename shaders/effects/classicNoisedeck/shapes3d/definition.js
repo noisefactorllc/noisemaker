@@ -11,6 +11,8 @@ export default class Shapes3D extends Effect {
   namespace = "classicNoisedeck";
   func = "shapes3d";
 
+  description = "3D geometric shapes";
+
   // WGSL uniform packing layout - contiguous vec3/vec4 layout
   uniformLayout = {
     resolution: { slot: 0, components: 'xy' },

@@ -4,6 +4,8 @@ export default new Effect({
   name: "Noise",
   namespace: "classicBasics",
   func: "noise",
+
+  description: "Simplex noise generator",
   globals: {
     "scale": {
         "type": "float",

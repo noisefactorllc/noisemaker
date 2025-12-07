@@ -8,6 +8,8 @@ export default new Effect({
   name: "Sine",
   namespace: "classicNoisemaker",
   func: "sine",
+
+  description: "Sine wave distortion",
   globals: {
     amount: {
         type: "float",

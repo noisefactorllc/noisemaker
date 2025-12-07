@@ -8,6 +8,8 @@ export default new Effect({
   name: "Lowpoly",
   namespace: "classicNoisemaker",
   func: "lowpoly",
+
+  description: "Low-polygon style render",
   globals: {
     distrib: {
         type: "enum",

@@ -8,6 +8,8 @@ export default new Effect({
   name: "Fxaa",
   namespace: "classicNoisemaker",
   func: "fxaa",
+
+  description: "Fast approximate anti-aliasing",
   globals: {},
   passes: [
     {

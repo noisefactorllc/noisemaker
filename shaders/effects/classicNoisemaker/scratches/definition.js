@@ -8,6 +8,8 @@ export default new Effect({
   name: "Scratches",
   namespace: "classicNoisemaker",
   func: "scratches",
+
+  description: "Film scratch overlay",
   globals: {
     speed: {
       type: "float",

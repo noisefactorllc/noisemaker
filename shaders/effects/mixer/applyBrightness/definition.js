@@ -4,6 +4,8 @@ export default new Effect({
   name: "Apply Brightness",
   namespace: "mixer",
   func: "applyBrightness",
+
+  description: "Apply brightness from source B",
   globals: {
     tex: {
       type: "surface",

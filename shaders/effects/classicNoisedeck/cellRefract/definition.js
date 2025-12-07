@@ -4,6 +4,8 @@ export default new Effect({
   name: "CellRefract",
   namespace: "classicNoisedeck",
   func: "cellRefract",
+
+  description: "Cell-based refraction",
   globals: {
     metric: {
       type: "int",

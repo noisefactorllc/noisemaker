@@ -1873,7 +1873,9 @@ export async function checkEffectStructure(effectId, options = {}) {
         // Required uniform issues (system uniforms not properly declared)
         requiredUniformIssues: [],
         // Structural parity between GLSL and WGSL (1:1 file mapping)
-        structuralParityIssues: []
+        structuralParityIssues: [],
+        // Missing description field in definition
+        missingDescription: false
     };
     
     try {
@@ -1913,10 +1915,31 @@ export async function checkEffectStructure(effectId, options = {}) {
             }
         }
         
+        // Check for required description field
+        // Supports both object property (description: "...") and class property (description = "...")
+        const hasDescription = /\bdescription\s*[=:]\s*["'][^"']+["']/.test(definitionSource);
+        if (!hasDescription) {
+            result.missingDescription = true;
+        }
+        
         // Extract passes section from definition
         // Look for passes = [ ... ] or passes: [ ... ]
-        const passesMatch = definitionSource.match(/passes\s*[=:]\s*\[([\s\S]*?)\];/);
-        const passesSection = passesMatch ? passesMatch[1] : '';
+        // Match the entire passes array content, handling nested brackets
+        // We look for the closing ] that's at the beginning of a line (with optional indentation)
+        // or followed by newline/end-of-object patterns
+        let passesSection = '';
+        const passesStart = definitionSource.match(/passes\s*[=:]\s*\[/);
+        if (passesStart) {
+            const startIdx = passesStart.index + passesStart[0].length;
+            let depth = 1;
+            let i = startIdx;
+            while (i < definitionSource.length && depth > 0) {
+                if (definitionSource[i] === '[') depth++;
+                else if (definitionSource[i] === ']') depth--;
+                i++;
+            }
+            passesSection = definitionSource.substring(startIdx, i - 1);
+        }
         
         // Extract pass programs and types from passes section only
         const referencedPrograms = new Set();
@@ -2187,18 +2210,36 @@ export async function checkEffectStructure(effectId, options = {}) {
         let shaderFiles = [];
         
         try {
-            shaderFiles = fs.readdirSync(shaderDirPath)
-                .filter(f => f.endsWith(shaderExt))
-                .map(f => f.replace(shaderExt, ''));
+            const allFiles = fs.readdirSync(shaderDirPath);
+            
+            if (backend === 'webgl2') {
+                // For GLSL, collect unique program names from:
+                // - Combined shaders: name.glsl -> "name"
+                // - Split shaders: name.vert + name.frag -> "name"
+                const programNamesOnDisk = new Set();
+                for (const f of allFiles) {
+                    if (f.endsWith('.glsl')) {
+                        programNamesOnDisk.add(f.replace('.glsl', ''));
+                    } else if (f.endsWith('.vert') || f.endsWith('.frag')) {
+                        programNamesOnDisk.add(f.replace(/\.(vert|frag)$/, ''));
+                    }
+                }
+                shaderFiles = [...programNamesOnDisk];
+            } else {
+                // For WGSL, just .wgsl files
+                shaderFiles = allFiles
+                    .filter(f => f.endsWith(shaderExt))
+                    .map(f => f.replace(shaderExt, ''));
+            }
         } catch (err) {
             // Shader directory doesn't exist - that's a bigger problem, but not what we're testing here
             return result;
         }
         
-        // Find unused files
+        // Find unused files (shader programs on disk that aren't referenced in passes)
         for (const file of shaderFiles) {
             if (!referencedPrograms.has(file)) {
-                result.unusedFiles.push(file + shaderExt);
+                result.unusedFiles.push(file + (backend === 'webgl2' ? '.glsl (or .vert/.frag)' : shaderExt));
             }
         }
         

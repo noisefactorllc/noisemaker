@@ -7,6 +7,8 @@ export default new Effect({
   name: "Wobble",
   namespace: "classicNoisemaker",
   func: "wobble",
+
+  description: "Wobble animation effect",
   globals: {
     speed: {
       type: "float",

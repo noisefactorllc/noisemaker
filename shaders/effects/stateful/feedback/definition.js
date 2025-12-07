@@ -12,6 +12,8 @@ export default new Effect({
   name: "Feedback",
   namespace: "filter",
   func: "feedback",
+
+  description: "Feedback loop with blend modes and transforms",
   globals: {
     blendMode: {
       type: "int",

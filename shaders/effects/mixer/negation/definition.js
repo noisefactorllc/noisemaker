@@ -4,6 +4,8 @@ export default new Effect({
   name: "Negation",
   namespace: "mixer",
   func: "negation",
+
+  description: "Inverted difference blend",
   globals: {
     tex: {
       type: "surface",

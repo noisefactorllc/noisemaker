@@ -8,6 +8,8 @@ export default new Effect({
   name: "GlowingEdges",
   namespace: "classicNoisemaker",
   func: "glowingEdges",
+
+  description: "Glowing edge detection",
   globals: {
     sobelMetric: {
         type: "int",

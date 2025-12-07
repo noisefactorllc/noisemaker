@@ -4,6 +4,8 @@ export default new Effect({
   name: "Sub",
   namespace: "classicBasics",
   func: "sub",
+
+  description: "Subtractive blend",
   globals: {
     "amount": {
         "type": "float",

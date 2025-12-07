@@ -4,6 +4,8 @@ export default new Effect({
   name: "Noise",
   namespace: "synth",
   func: "noise",
+
+  description: "Simplex noise with octave layering",
   globals: {
     "scale": {
         "type": "float",

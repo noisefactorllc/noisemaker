@@ -7,6 +7,8 @@ export default new Effect({
   name: "Translate",
   namespace: "filter",
   func: "translate",
+
+  description: "Translate image in X and Y",
   globals: {
     x: {
       type: "float",

@@ -11,6 +11,7 @@ export default class Media extends Effect {
   name = "Media";
   namespace = "synth";
   func = "media";
+  description = "Video/camera input with transforms";
 
   // Mark this as requiring external texture updates
   externalTexture = "imageTex";

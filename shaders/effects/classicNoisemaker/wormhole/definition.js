@@ -7,6 +7,8 @@ export default new Effect({
   name: "Wormhole",
   namespace: "classicNoisemaker",
   func: "wormhole",
+
+  description: "Wormhole tunnel effect",
   globals: {
     kink: {
       type: "float",

@@ -8,6 +8,8 @@ export default new Effect({
   name: "Kaleido",
   namespace: "classicNoisemaker",
   func: "kaleido",
+
+  description: "Kaleidoscope mirror effect",
   globals: {
     sides: {
         type: "float",

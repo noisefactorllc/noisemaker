@@ -4,6 +4,8 @@ export default new Effect({
   name: "Layer",
   namespace: "classicBasics",
   func: "layer",
+
+  description: "Layer compositing",
   globals: {
     "tex": {
         "type": "surface",

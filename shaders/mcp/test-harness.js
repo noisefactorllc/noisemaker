@@ -265,6 +265,9 @@ async function runStructureOnlyMode(args) {
         if (structureResult.hasInlineShaders) {
             issues.push('inline shaders');
         }
+        if (structureResult.missingDescription) {
+            issues.push('missing description');
+        }
         if (structureResult.namingIssues?.length > 0) {
             issues.push(`${structureResult.namingIssues.length} naming issue(s)`);
         }
@@ -373,6 +376,13 @@ async function testEffect(session, effectId, options) {
             return results;
         } else {
             console.log(`  ✓ no inline shaders`);
+        }
+        
+        // Check for missing description
+        if (structureResult.missingDescription) {
+            console.log(`  ❌ missing description field in definition.js`);
+        } else {
+            console.log(`  ✓ has description`);
         }
         
         // Report naming convention issues

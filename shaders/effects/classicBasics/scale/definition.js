@@ -4,6 +4,8 @@ export default new Effect({
   name: "Scale",
   namespace: "classicBasics",
   func: "scale",
+
+  description: "Scale transform",
   globals: {
     "x": {
         "type": "float",

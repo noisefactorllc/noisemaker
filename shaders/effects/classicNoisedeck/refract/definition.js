@@ -4,6 +4,8 @@ export default new Effect({
   name: "Refract",
   namespace: "classicNoisedeck",
   func: "refract",
+
+  description: "Refraction distortion",
   globals: {
     seed: {
       type: "int",

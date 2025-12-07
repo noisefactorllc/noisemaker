@@ -17,6 +17,8 @@ export default new Effect({
   name: "Shape3D",
   namespace: "vol",
   func: "shape3d",
+
+  description: "3D polyhedral shape generator",
   textures: {
     volumeCache: { 
       width: { param: 'volumeSize', default: 64 }, 

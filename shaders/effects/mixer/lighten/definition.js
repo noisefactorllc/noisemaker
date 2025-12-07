@@ -4,6 +4,8 @@ export default new Effect({
   name: "Lighten",
   namespace: "mixer",
   func: "lighten",
+
+  description: "Take maximum of each channel",
   globals: {
     tex: {
       type: "surface",

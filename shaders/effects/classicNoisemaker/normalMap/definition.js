@@ -8,6 +8,8 @@ export default new Effect({
   name: "NormalMap",
   namespace: "classicNoisemaker",
   func: "normalMap",
+
+  description: "Normal map generation",
   globals: {},
   passes: [
     {

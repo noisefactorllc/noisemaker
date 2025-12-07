@@ -10,6 +10,8 @@ export default new Effect({
   name: "Text",
   namespace: "synth",
   func: "text",
+
+  description: "Text renderer to texture",
   externalTexture: "textTex",
   globals: {
     // Note: Most text parameters are controlled via the UI module

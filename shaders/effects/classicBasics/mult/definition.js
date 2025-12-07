@@ -4,6 +4,8 @@ export default new Effect({
   name: "Mult",
   namespace: "classicBasics",
   func: "mult",
+
+  description: "Multiply blend",
   globals: {
     "amount": {
         "type": "float",

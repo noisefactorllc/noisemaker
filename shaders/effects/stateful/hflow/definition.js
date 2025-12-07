@@ -22,6 +22,8 @@ export default new Effect({
   name: "Hflow",
   namespace: "stateful",
   func: "hflow",
+
+  description: "Hydraulic erosion flow simulation",
   textures: {
     globalHflowState1: { width: 256, height: 256, format: "rgba16f" },
     globalHflowState2: { width: 256, height: 256, format: "rgba16f" },

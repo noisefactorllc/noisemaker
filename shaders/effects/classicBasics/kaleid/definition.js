@@ -4,6 +4,8 @@ export default new Effect({
   name: "Kaleid",
   namespace: "classicBasics",
   func: "kaleid",
+
+  description: "Kaleidoscopic mirroring",
   globals: {
     "n": {
         "type": "float",

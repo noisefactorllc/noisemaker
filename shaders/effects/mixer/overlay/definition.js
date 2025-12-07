@@ -4,6 +4,8 @@ export default new Effect({
   name: "Overlay",
   namespace: "mixer",
   func: "overlay",
+
+  description: "Multiply/screen based on base layer",
   globals: {
     tex: {
       type: "surface",

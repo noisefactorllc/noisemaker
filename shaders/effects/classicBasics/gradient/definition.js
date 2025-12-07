@@ -4,6 +4,8 @@ export default new Effect({
   name: "Gradient",
   namespace: "classicBasics",
   func: "gradient",
+
+  description: "Gradient color generator",
   globals: {
     "speed": {
         "type": "float",

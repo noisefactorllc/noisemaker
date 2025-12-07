@@ -8,6 +8,8 @@ export default new Effect({
   name: "Blur",
   namespace: "classicNoisemaker",
   func: "blur",
+
+  description: "Gaussian blur",
   globals: {
     amount: {
         type: "float",

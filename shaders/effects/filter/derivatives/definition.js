@@ -8,6 +8,8 @@ export default new Effect({
   name: "Derivatives",
   namespace: "filter",
   func: "derivatives",
+
+  description: "Derivative-based edge detection",
   globals: {
     amount: {
       type: "float",

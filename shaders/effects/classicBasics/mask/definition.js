@@ -4,6 +4,8 @@ export default new Effect({
   name: "Mask",
   namespace: "classicBasics",
   func: "mask",
+
+  description: "Alpha mask blend",
   globals: {
     "tex": {
         "type": "surface",

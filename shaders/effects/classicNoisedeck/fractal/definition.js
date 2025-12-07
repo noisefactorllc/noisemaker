@@ -11,6 +11,8 @@ export default class Fractal extends Effect {
   namespace = "classicNoisedeck";
   func = "fractal";
 
+  description = "Fractal pattern generator";
+
   // WGSL uniform packing layout - contiguous vec3/vec4 layout
   uniformLayout = {
     resolution: { slot: 0, components: 'xy' },

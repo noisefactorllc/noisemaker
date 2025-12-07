@@ -4,6 +4,8 @@ export default new Effect({
   name: "Physarum",
   namespace: "stateful",
   func: "physarum",
+
+  description: "Physarum slime mold simulation",
   textures: {
     globalPhysarumState: { width: 1000, height: 1000, format: "rgba32f" },
     globalPhysarumTrail: { width: "100%", height: "100%", format: "rgba16f" }

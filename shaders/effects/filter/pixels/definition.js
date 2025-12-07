@@ -8,6 +8,8 @@ export default new Effect({
   name: "Pixels",
   namespace: "filter",
   func: "pixels",
+
+  description: "Pixelation effect for retro look",
   globals: {
     size: {
       type: "float",

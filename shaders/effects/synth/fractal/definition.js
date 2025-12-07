@@ -9,6 +9,8 @@ export default new Effect({
   name: "Fractal",
   namespace: "synth",
   func: "fractal",
+
+  description: "Julia, Mandelbrot, Newton fractal explorer",
   uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },

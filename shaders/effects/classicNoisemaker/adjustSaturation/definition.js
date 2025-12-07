@@ -8,6 +8,8 @@ export default new Effect({
   name: "AdjustSaturation",
   namespace: "classicNoisemaker",
   func: "adjustSaturation",
+
+  description: "Saturation adjustment",
   globals: {
     amount: {
         type: "float",

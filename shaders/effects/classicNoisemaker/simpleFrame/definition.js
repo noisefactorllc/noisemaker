@@ -8,6 +8,8 @@ export default new Effect({
   name: "SimpleFrame",
   namespace: "classicNoisemaker",
   func: "simpleFrame",
+
+  description: "Simple border frame",
   globals: {
     brightness: {
         type: "float",

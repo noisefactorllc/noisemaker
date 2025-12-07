@@ -8,6 +8,8 @@ export default new Effect({
   name: "Ripple",
   namespace: "classicNoisemaker",
   func: "ripple",
+
+  description: "Ripple wave distortion",
   globals: {
     freq: {
         type: "float",

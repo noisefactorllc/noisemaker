@@ -8,6 +8,8 @@ export default new Effect({
   name: "Reindex",
   namespace: "classicNoisemaker",
   func: "reindex",
+
+  description: "Palette reindexing",
   globals: {
     displacement: {
         type: "float",

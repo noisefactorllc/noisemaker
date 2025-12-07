@@ -15,6 +15,8 @@ export default new Effect({
   name: "Normalize",
   namespace: "classicNoisemaker",
   func: "normalize",
+
+  description: "Value normalization",
   globals: {},
   textures: {
     // Pyramid reduction textures

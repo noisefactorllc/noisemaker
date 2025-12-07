@@ -8,6 +8,8 @@ export default new Effect({
   name: "Sobel",
   namespace: "classicNoisemaker",
   func: "sobel",
+
+  description: "Sobel edge detection",
   globals: {
     distMetric: {
         type: "enum",

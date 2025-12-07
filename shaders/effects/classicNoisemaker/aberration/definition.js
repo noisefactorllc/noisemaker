@@ -7,6 +7,8 @@ export default new Effect({
   name: "Aberration",
   namespace: "classicNoisemaker",
   func: "aberration",
+
+  description: "Chromatic aberration",
   globals: {
     displacement: {
       type: "float",

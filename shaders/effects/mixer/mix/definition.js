@@ -4,6 +4,8 @@ export default new Effect({
   name: "Mix",
   namespace: "mixer",
   func: "mix",
+
+  description: "Linear interpolation between inputs",
   globals: {
     tex: {
       type: "surface",

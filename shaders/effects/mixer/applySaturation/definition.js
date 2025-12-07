@@ -4,6 +4,8 @@ export default new Effect({
   name: "Apply Saturation",
   namespace: "mixer",
   func: "applySaturation",
+
+  description: "Apply saturation from source B",
   globals: {
     tex: {
       type: "surface",

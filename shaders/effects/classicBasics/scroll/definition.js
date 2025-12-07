@@ -4,6 +4,8 @@ export default new Effect({
   name: "Scroll",
   namespace: "classicBasics",
   func: "scroll",
+
+  description: "Scrolling offset animation",
   globals: {
     "x": {
         "type": "float",

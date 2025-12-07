@@ -4,6 +4,8 @@ export default new Effect({
   name: "Sum",
   namespace: "classicBasics",
   func: "sum",
+
+  description: "Sum blend with clamping",
   globals: {
     "scale": {
         "type": "float",

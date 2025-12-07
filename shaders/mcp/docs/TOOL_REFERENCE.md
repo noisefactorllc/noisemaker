@@ -624,6 +624,7 @@ This is an **on-disk tool** - no browser session is required.
 | `naming_violation` | File or uniform doesn't follow conventions |
 | `leaked_uniform` | Uniform in shader but not in definition |
 | `undefined_uniform` | Uniform in definition but not in shader |
+| `missing_description` | Effect definition lacks a description field |
 
 ### Example
 

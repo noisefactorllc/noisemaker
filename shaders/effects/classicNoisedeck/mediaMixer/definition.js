@@ -4,6 +4,8 @@ export default new Effect({
   name: "MediaMixer",
   namespace: "classicNoisedeck",
   func: "mediaMixer",
+
+  description: "Media blending and mixing",
   externalTexture: "imageTex",
   globals: {
     tex: {

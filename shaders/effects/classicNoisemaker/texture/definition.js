@@ -8,6 +8,8 @@ export default new Effect({
   name: "Texture",
   namespace: "classicNoisemaker",
   func: "texture",
+
+  description: "Texture overlay blend",
   globals: {},
   passes: [
     {

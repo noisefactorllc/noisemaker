@@ -15,6 +15,8 @@ export default new Effect({
   name: "PixelSort",
   namespace: "classicNoisemaker",
   func: "pixelSort",
+
+  description: "Pixel sorting glitch effect",
   globals: {
     angled: {
         type: "float",

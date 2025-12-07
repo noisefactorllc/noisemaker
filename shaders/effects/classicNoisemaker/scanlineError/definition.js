@@ -8,6 +8,8 @@ export default new Effect({
   name: "ScanlineError",
   namespace: "classicNoisemaker",
   func: "scanlineError",
+
+  description: "Scanline glitch effect",
   globals: {
     speed: {
       type: "float",

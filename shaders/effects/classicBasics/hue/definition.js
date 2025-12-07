@@ -4,6 +4,8 @@ export default new Effect({
   name: "Hue",
   namespace: "classicBasics",
   func: "hue",
+
+  description: "Hue rotation",
   globals: {
     "hue": {
         "type": "float",

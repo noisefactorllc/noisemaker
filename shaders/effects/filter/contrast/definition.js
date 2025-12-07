@@ -8,6 +8,8 @@ export default new Effect({
   name: "Contrast",
   namespace: "filter",
   func: "contrast",
+
+  description: "Adjust image contrast",
   globals: {
     amount: {
       type: "float",

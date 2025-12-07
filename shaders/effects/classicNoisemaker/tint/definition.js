@@ -8,6 +8,8 @@ export default new Effect({
   name: "Tint",
   namespace: "classicNoisemaker",
   func: "tint",
+
+  description: "Color tint overlay",
   globals: {
     alpha: {
         type: "float",

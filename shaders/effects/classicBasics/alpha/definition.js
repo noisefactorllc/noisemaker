@@ -4,6 +4,8 @@ export default new Effect({
   name: "A",
   namespace: "classicBasics",
   func: "alpha",
+
+  description: "Alpha transparency blend",
   globals: {
     "scale": {
         "type": "float",

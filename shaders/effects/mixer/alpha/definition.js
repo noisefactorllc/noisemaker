@@ -4,6 +4,8 @@ export default new Effect({
   name: "Alpha",
   namespace: "mixer",
   func: "alpha",
+
+  description: "Alpha transparency blend",
   globals: {
     tex: {
       type: "surface",

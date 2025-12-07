@@ -8,6 +8,8 @@ export default new Effect({
   name: "Rotate",
   namespace: "classicNoisemaker",
   func: "rotate",
+
+  description: "Rotation transform",
   globals: {
     angle: {
         type: "float",

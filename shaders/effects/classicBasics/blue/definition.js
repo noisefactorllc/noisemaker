@@ -4,6 +4,8 @@ export default new Effect({
   name: "B",
   namespace: "classicBasics",
   func: "blue",
+
+  description: "Blue channel adjustment",
   globals: {
     "scale": {
         "type": "float",

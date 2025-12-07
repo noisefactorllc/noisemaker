@@ -4,6 +4,8 @@ export default new Effect({
   name: "Shape",
   namespace: "classicBasics",
   func: "shape",
+
+  description: "Geometric shape generator",
   globals: {
     "sides": {
         "type": "float",

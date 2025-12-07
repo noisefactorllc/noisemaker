@@ -8,6 +8,8 @@ export default new Effect({
   name: "Posterize",
   namespace: "classicNoisemaker",
   func: "posterize",
+
+  description: "Posterization/color reduction",
   globals: {
     levels: {
         type: "float",

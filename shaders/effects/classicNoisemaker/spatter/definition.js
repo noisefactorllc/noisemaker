@@ -8,6 +8,8 @@ export default new Effect({
   name: "Spatter",
   namespace: "classicNoisemaker",
   func: "spatter",
+
+  description: "Paint spatter effect",
   globals: {
     color: {
         type: "boolean",

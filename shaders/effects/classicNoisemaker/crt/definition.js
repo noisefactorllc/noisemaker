@@ -8,6 +8,8 @@ export default new Effect({
   name: "Crt",
   namespace: "classicNoisemaker",
   func: "crt",
+
+  description: "CRT monitor simulation",
   globals: {
     speed: {
       type: "float",

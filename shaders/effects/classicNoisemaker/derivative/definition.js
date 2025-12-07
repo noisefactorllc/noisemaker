@@ -8,6 +8,8 @@ export default new Effect({
   name: "Derivative",
   namespace: "classicNoisemaker",
   func: "derivative",
+
+  description: "Derivative edge detection",
   globals: {
     distMetric: {
         type: "enum",

@@ -8,6 +8,8 @@ export default new Effect({
   name: "Outline",
   namespace: "classicNoisemaker",
   func: "outline",
+
+  description: "Outline/edge stroke",
   globals: {
     sobelMetric: {
         type: "enum",
