@@ -29,7 +29,7 @@ Animated simplex noise.
 - **Default:** `0.5`.
 - **Range:** 0–1.
 - **Description:** Span of hues to cycle through (0=none, 0.5=100%, 1=200%).
-### `ridged`
+### `ridges`
 - **Type:** Boolean.
 - **Default:** `false`.
 - **Description:** Enables ridged multifractal noise.

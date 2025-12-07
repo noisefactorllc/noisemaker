@@ -10,7 +10,7 @@ import { Effect } from '../../../src/runtime/effect.js';
  */
 export default new Effect({
   name: "Feedback",
-  namespace: "filter",
+  namespace: "stateful",
   func: "feedback",
 
   description: "Feedback loop with blend modes and transforms",

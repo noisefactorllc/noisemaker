@@ -18,7 +18,7 @@
 
 ### `speed`
 - **Type:** Number.
-- **Default:** `1.0`.
+- **Default:** `4.0`.
 - **Range:** 0–10.
 - **Description:** Controls how fast the oscillator pattern moves along the orthogonal axis.
 

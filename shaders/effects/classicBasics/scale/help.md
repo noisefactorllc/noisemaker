@@ -11,7 +11,7 @@ Scale about a center point.
 - **Description:** Horizontal factor or coordinate.
 ### `y`
 - **Type:** Number.
-- **Default:** Inherits from `x`.
+- **Default:** `0`.
 - **Range:** 0–10.
 - **Description:** Vertical factor or coordinate.
 ### `centerX`

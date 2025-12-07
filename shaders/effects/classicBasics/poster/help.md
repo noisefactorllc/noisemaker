@@ -4,7 +4,7 @@ Reduce color precision. Aliases: `posterize`, `post`.
 
 ## Arguments
 
-### `bins`
+### `levels`
 - **Type:** Number.
 - **Default:** `3`.
 - **Range:** 1–256.
@@ -26,5 +26,5 @@ noise().poster(3, 0.6).write()
 ### Keyword
 
 ```dsl
-noise().poster(bins: 3, gamma: 0.6).write()
+noise().poster(levels: 3, gamma: 0.6).write()
 ```
