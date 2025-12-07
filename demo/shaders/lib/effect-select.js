@@ -147,16 +147,15 @@ class EffectSelect extends HTMLElement {
 
                 .select-trigger {
                     width: 100%;
-                    padding: 0.375rem 0.5rem;
+                    padding: 0.25rem 0.375rem;
                     padding-right: 1.5rem;
-                    background: color-mix(in srgb, var(--color2, #101522) 95%, transparent 5%);
-                    border: 1px solid color-mix(in srgb, var(--accent3) 35%, transparent 65%);
+                    background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
+                    border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
                     border-radius: var(--ui-corner-radius-small, 0.375rem);
                     color: var(--color6, #d9deeb);
                     font-family: Nunito, sans-serif;
                     font-size: 0.6875rem;
-                    font-weight: 600;
-                    font-variation-settings: 'wght' 600;
+                    font-weight: 560;
                     outline: none;
                     cursor: pointer;
                     transition: all 0.15s ease;
@@ -177,7 +176,7 @@ class EffectSelect extends HTMLElement {
                 .trigger-description {
                     font-size: 0.625rem;
                     font-weight: 400;
-                    color: color-mix(in srgb, var(--color5, #98a7c8) 70%, transparent 30%);
+                    color: var(--color5, #98a7c8);
                 }
 
                 .select-trigger::after {
@@ -274,7 +273,7 @@ class EffectSelect extends HTMLElement {
                 .option-description {
                     font-size: 0.625rem;
                     font-weight: 400;
-                    color: color-mix(in srgb, var(--color5, #98a7c8) 70%, transparent 30%);
+                    color: var(--color5, #98a7c8);
                 }
 
                 /* Scrollbar styling */
