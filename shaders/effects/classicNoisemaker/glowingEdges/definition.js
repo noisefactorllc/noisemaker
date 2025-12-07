@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Glowing Edges
@@ -51,4 +51,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

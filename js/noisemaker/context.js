@@ -1,26 +1,26 @@
 export class Context {
   constructor(canvas = null, debug = false) {
-    this.canvas = canvas;
-    this.debug = Boolean(debug);
-    this.forceCPU = true;
-    this.isCPU = true;
-    this.device = null;
-    this.queue = null;
+    this.canvas = canvas
+    this.debug = Boolean(debug)
+    this.forceCPU = true
+    this.isCPU = true
+    this.device = null
+    this.queue = null
   }
 
   async initWebGPU() {
     if (this.debug) {
-      console.warn('[noisemaker] WebGPU support has been removed; CPU mode only');
+      console.warn('[noisemaker] WebGPU support has been removed; CPU mode only')
     }
-    return false;
+    return false
   }
 
   frame() {
-    throw new Error('WebGPU pipelines are no longer available.');
+    throw new Error('WebGPU pipelines are no longer available.')
   }
 
   safeSubmit() {
-    throw new Error('WebGPU pipelines are no longer available.');
+    throw new Error('WebGPU pipelines are no longer available.')
   }
 
   flush() {}
@@ -28,4 +28,4 @@ export class Context {
   destroy() {}
 }
 
-export default Context;
+export default Context

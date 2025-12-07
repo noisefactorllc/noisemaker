@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * nu/translate - Translate image X and Y
@@ -47,4 +47,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

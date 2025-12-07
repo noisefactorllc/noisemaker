@@ -1,14 +1,14 @@
-import { PointDistribution, ValueMask } from './constants.js';
-import { Masks, maskShape } from './masks.js';
-import { random as simplexRandom } from './simplex.js';
-import { random as seededRandom, setSeed as setUtilSeed } from './util.js';
+import { PointDistribution, ValueMask } from './constants.js'
+import { Masks, maskShape } from './masks.js'
+import { random as simplexRandom } from './simplex.js'
+import { random as seededRandom, setSeed as setUtilSeed } from './util.js'
 
 function isGrid(distrib) {
-  return distrib >= PointDistribution.square && distrib < PointDistribution.spiral;
+  return distrib >= PointDistribution.square && distrib < PointDistribution.spiral
 }
 
 function isCircular(distrib) {
-  return distrib >= PointDistribution.circular;
+  return distrib >= PointDistribution.circular
 }
 
 export function pointCloud(
@@ -24,80 +24,80 @@ export function pointCloud(
     seed,
   } = {}
 ) {
-  if (!freq) return [[], []];
+  if (!freq) return [[], []]
 
-  if (seed !== undefined) setUtilSeed(seed);
+  if (seed !== undefined) setUtilSeed(seed)
 
-  const x = [];
-  const y = [];
+  const x = []
+  const y = []
 
-  let width, height;
+  let width, height
   if (!shape) {
-    width = 1;
-    height = 1;
+    width = 1
+    height = 1
   } else {
-    height = shape[0];
-    width = shape[1];
+    height = shape[0]
+    width = shape[1]
   }
 
   if (typeof distrib === 'string') {
     if (PointDistribution[distrib] !== undefined) {
-      distrib = PointDistribution[distrib];
+      distrib = PointDistribution[distrib]
     } else if (ValueMask[distrib] !== undefined) {
-      distrib = ValueMask[distrib];
+      distrib = ValueMask[distrib]
     }
   }
 
-  const isMask = Object.values(ValueMask).includes(distrib);
+  const isMask = Object.values(ValueMask).includes(distrib)
 
-  const rangeX = width * 0.5;
-  const rangeY = height * 0.5;
+  const rangeX = width * 0.5
+  const rangeY = height * 0.5
 
   if (isMask) {
-    const mask = Masks[distrib];
-    const [maskHeight, maskWidth] = maskShape(distrib);
-    const xSpace = width / maskWidth;
-    const ySpace = height / maskHeight;
-    const xMargin = xSpace * 0.5;
-    const yMargin = ySpace * 0.5;
+    const mask = Masks[distrib]
+    const [maskHeight, maskWidth] = maskShape(distrib)
+    const xSpace = width / maskWidth
+    const ySpace = height / maskHeight
+    const xMargin = xSpace * 0.5
+    const yMargin = ySpace * 0.5
 
     for (let mx = 0; mx < maskWidth; mx++) {
       for (let my = 0; my < maskHeight; my++) {
-        let pixel = mask[my][mx];
-        if (Array.isArray(pixel)) pixel = pixel.reduce((a, b) => a + b, 0);
+        let pixel = mask[my][mx]
+        if (Array.isArray(pixel)) pixel = pixel.reduce((a, b) => a + b, 0)
 
-        let xDrift = 0;
-        let yDrift = 0;
+        let xDrift = 0
+        let yDrift = 0
         if (drift) {
-          xDrift = simplexRandom(time, undefined, speed) * drift / freq * width;
-          yDrift = simplexRandom(time, undefined, speed) * drift / freq * height;
+          xDrift = simplexRandom(time, undefined, speed) * drift / freq * width
+          yDrift = simplexRandom(time, undefined, speed) * drift / freq * height
         }
 
         if (pixel !== 0) {
-          x.push(Math.trunc(xMargin + mx * xSpace + xDrift));
-          y.push(Math.trunc(yMargin + my * ySpace + yDrift));
+          x.push(Math.trunc(xMargin + mx * xSpace + xDrift))
+          y.push(Math.trunc(yMargin + my * ySpace + yDrift))
         }
       }
     }
 
-    return [x, y];
+    return [x, y]
   }
 
-  let pointFunc = rand;
-  const seen = new Set();
-  const active = [];
+  let pointFunc = rand
+  const seen = new Set()
+  const active = []
 
   if (isGrid(distrib)) {
-    pointFunc = squareGrid;
-    active.push({ x: 0, y: 0, gen: 1 });
+    pointFunc = squareGrid
+    active.push({ x: 0, y: 0, gen: 1 })
   } else if (distrib === PointDistribution.spiral) {
-    pointFunc = spiral;
-    active.push({ x: rangeY, y: rangeX, gen: 1 });
+    pointFunc = spiral
+    active.push({ x: rangeY, y: rangeX, gen: 1 })
   } else if (isCircular(distrib)) {
-    pointFunc = circular;
-    active.push({ x: rangeY, y: rangeX, gen: 1 });
+    pointFunc = circular
+    active.push({ x: rangeY, y: rangeX, gen: 1 })
   } else {
-    active.push({ x: rangeY, y: rangeX, gen: 1 });
+    active.push({ x: rangeY, y: rangeX, gen: 1 })
   }
 
   // Match Python's point_cloud behavior: the initial active point is stored
@@ -106,12 +106,12 @@ export function pointCloud(
   // emits it again. By including the generation here, we replicate that quirk
   // and ensure the first point appears in the output for distributions like
   // ``spiral``.
-  seen.add(`${active[0].x},${active[0].y},${active[0].gen}`);
+  seen.add(`${active[0].x},${active[0].y},${active[0].gen}`)
 
   while (active.length) {
-    const { x: cx, y: cy, gen } = active.pop();
+    const { x: cx, y: cy, gen } = active.pop()
     if (gen <= generations) {
-      const multiplier = Math.max(2 * (gen - 1), 1);
+      const multiplier = Math.max(2 * (gen - 1), 1)
       const [xs, ys] = pointFunc({
         freq,
         distrib,
@@ -125,43 +125,43 @@ export function pointCloud(
         generation: gen,
         time,
         speed: speed * 0.1,
-      });
+      })
 
       for (let i = 0; i < xs.length; i++) {
-        let xPoint = xs[i];
-        let yPoint = ys[i];
-        const key = `${xPoint},${yPoint}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        active.push({ x: xPoint, y: yPoint, gen: gen + 1 });
+        let xPoint = xs[i]
+        let yPoint = ys[i]
+        const key = `${xPoint},${yPoint}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        active.push({ x: xPoint, y: yPoint, gen: gen + 1 })
 
-        let xDrift = 0;
-        let yDrift = 0;
+        let xDrift = 0
+        let yDrift = 0
         if (drift) {
-          xDrift = simplexRandom(time, undefined, speed) * drift;
-          yDrift = simplexRandom(time, undefined, speed) * drift;
+          xDrift = simplexRandom(time, undefined, speed) * drift
+          yDrift = simplexRandom(time, undefined, speed) * drift
         }
 
         if (!shape) {
-          xPoint = (xPoint + xDrift / freq) % 1;
-          yPoint = (yPoint + yDrift / freq) % 1;
+          xPoint = (xPoint + xDrift / freq) % 1
+          yPoint = (yPoint + yDrift / freq) % 1
         } else {
-          xPoint = Math.trunc(xPoint + (xDrift / freq * width)) % width;
-          yPoint = Math.trunc(yPoint + (yDrift / freq * height)) % height;
+          xPoint = Math.trunc(xPoint + (xDrift / freq * width)) % width
+          yPoint = Math.trunc(yPoint + (yDrift / freq * height)) % height
         }
 
-        x.push(xPoint);
-        y.push(yPoint);
+        x.push(xPoint)
+        y.push(yPoint)
       }
     }
   }
 
-  return [x, y];
+  return [x, y]
 }
 
 export function cloudPoints(count, { seed } = {}) {
   // RNG: count^2 * 2 calls via rand (x then y)
-  return pointCloud(count, { distrib: PointDistribution.random, seed });
+  return pointCloud(count, { distrib: PointDistribution.random, seed })
 }
 
 export function rand({
@@ -174,16 +174,16 @@ export function rand({
   height = 1,
   seed,
 } = {}) {
-  if (seed !== undefined) setUtilSeed(seed);
-  const x = [];
-  const y = [];
+  if (seed !== undefined) setUtilSeed(seed)
+  const x = []
+  const y = []
   for (let i = 0; i < freq * freq; i++) {
-    const _x = (centerX + (seededRandom() * (rangeX * 2) - rangeX)) % width; // RNG[x]
-    const _y = (centerY + (seededRandom() * (rangeY * 2) - rangeY)) % height; // RNG[y]
-    x.push(_x);
-    y.push(_y);
+    const _x = (centerX + (seededRandom() * (rangeX * 2) - rangeX)) % width // RNG[x]
+    const _y = (centerY + (seededRandom() * (rangeY * 2) - rangeY)) % height // RNG[y]
+    x.push(_x)
+    y.push(_y)
   }
-  return [x, y];
+  return [x, y]
 }
 
 export function squareGrid({
@@ -197,37 +197,37 @@ export function squareGrid({
   width = 1,
   height = 1,
 } = {}) {
-  const x = [];
-  const y = [];
-  const driftAmount = 0.5 / freq;
-  let drift;
+  const x = []
+  const y = []
+  const driftAmount = 0.5 / freq
+  let drift
   if (freq % 2 === 0) {
-    drift = corners ? driftAmount : 0;
+    drift = corners ? driftAmount : 0
   } else {
-    drift = corners ? 0 : driftAmount;
+    drift = corners ? 0 : driftAmount
   }
 
   for (let a = 0; a < freq; a++) {
     for (let b = 0; b < freq; b++) {
-      if (distrib === PointDistribution.waffle && b % 2 === 0 && a % 2 === 0) continue;
-      if (distrib === PointDistribution.chess && a % 2 === b % 2) continue;
+      if (distrib === PointDistribution.waffle && b % 2 === 0 && a % 2 === 0) continue
+      if (distrib === PointDistribution.chess && a % 2 === b % 2) continue
 
-      let xDrift = 0;
-      let yDrift = 0;
+      let xDrift = 0
+      let yDrift = 0
       if (distrib === PointDistribution.h_hex) {
-        xDrift = b % 2 === 1 ? driftAmount : 0;
+        xDrift = b % 2 === 1 ? driftAmount : 0
       }
       if (distrib === PointDistribution.v_hex) {
-        yDrift = a % 2 === 1 ? 0 : driftAmount;
+        yDrift = a % 2 === 1 ? 0 : driftAmount
       }
 
-      const _x = (centerX + (((a / freq) + drift + xDrift) * rangeX * 2)) % width;
-      const _y = (centerY + (((b / freq) + drift + yDrift) * rangeY * 2)) % height;
-      x.push(_x);
-      y.push(_y);
+      const _x = (centerX + (((a / freq) + drift + xDrift) * rangeX * 2)) % width
+      const _y = (centerY + (((b / freq) + drift + yDrift) * rangeY * 2)) % height
+      x.push(_x)
+      y.push(_y)
     }
   }
-  return [x, y];
+  return [x, y]
 }
 
 export function spiral({
@@ -240,18 +240,18 @@ export function spiral({
   height = 1,
   seed,
 } = {}) {
-  if (seed !== undefined) setUtilSeed(seed);
-  const kink = 0.5 + seededRandom() * 0.5;
-  const x = [];
-  const y = [];
-  const count = freq * freq;
+  if (seed !== undefined) setUtilSeed(seed)
+  const kink = 0.5 + seededRandom() * 0.5
+  const x = []
+  const y = []
+  const count = freq * freq
   for (let i = 0; i < count; i++) {
-    const fract = i / count;
-    const degrees = fract * 360 * (Math.PI / 180) * kink;
-    x.push((centerX + Math.sin(degrees) * fract * rangeX) % width);
-    y.push((centerY + Math.cos(degrees) * fract * rangeY) % height);
+    const fract = i / count
+    const degrees = fract * 360 * (Math.PI / 180) * kink
+    x.push((centerX + Math.sin(degrees) * fract * rangeX) % width)
+    y.push((centerY + Math.cos(degrees) * fract * rangeY) % height)
   }
-  return [x, y];
+  return [x, y]
 }
 
 export function circular({
@@ -265,30 +265,30 @@ export function circular({
   height = 1,
   seed,
 } = {}) {
-  if (seed !== undefined) setUtilSeed(seed);
-  const x = [];
-  const y = [];
-  const ringCount = freq;
-  const dotCount = freq;
-  x.push(centerX);
-  y.push(centerY);
-  const rotation = (1 / dotCount) * 360 * (Math.PI / 180);
-  const kink = 0.5 + seededRandom() * 0.5;
+  if (seed !== undefined) setUtilSeed(seed)
+  const x = []
+  const y = []
+  const ringCount = freq
+  const dotCount = freq
+  x.push(centerX)
+  y.push(centerY)
+  const rotation = (1 / dotCount) * 360 * (Math.PI / 180)
+  const kink = 0.5 + seededRandom() * 0.5
   for (let i = 1; i <= ringCount; i++) {
-    const distFract = i / ringCount;
+    const distFract = i / ringCount
     for (let j = 1; j <= dotCount; j++) {
-      let rads = j * rotation;
+      let rads = j * rotation
       if (distrib === PointDistribution.circular) {
-        rads += rotation * 0.5 * i;
+        rads += rotation * 0.5 * i
       }
       if (distrib === PointDistribution.rotating) {
-        rads += rotation * distFract * kink;
+        rads += rotation * distFract * kink
       }
-      const xPoint = centerX + Math.sin(rads) * distFract * rangeX;
-      const yPoint = centerY + Math.cos(rads) * distFract * rangeY;
-      x.push(xPoint % width);
-      y.push(yPoint % height);
+      const xPoint = centerX + Math.sin(rads) * distFract * rangeX
+      const yPoint = centerY + Math.cos(rads) * distFract * rangeY
+      x.push(xPoint % width)
+      y.push(yPoint % height)
     }
   }
-  return [x, y];
+  return [x, y]
 }

@@ -34,12 +34,12 @@
  * Boolean        ::= 'true' | 'false'
  * Color          ::= '#' HexDigit HexDigit HexDigit ( HexDigit HexDigit HexDigit )?
  * HexDigit       ::= Digit | 'A'…'F' | 'a'…'f'
- * 
+ *
  * Special Call Transformations:
  * - read(surface) → src(surface)  (alias for src)
  * - read3d(tex3d, geo) → Read3D node
  * - osc(oscKind, ...) → Oscillator node
- * 
+ *
  * @param {Array} tokens Token stream from the lexer
  * @returns {object} AST
  */
@@ -94,12 +94,12 @@ export function parse(tokens) {
 
     /**
      * Transform an osc() call into an Oscillator AST node.
-     * 
+     *
      * Oscillator signature:
      * osc(type, min?, max?, speed?, offset?, seed?)
-     * 
+     *
      * All params except 'type' are optional and support kwargs.
-     * 
+     *
      * type: oscKind enum (sine, tri, saw, sawInv, square, noise)
      * min: minimum output value (default 0)
      * max: maximum output value (default 1)
@@ -299,10 +299,10 @@ export function parse(tokens) {
         if (!programSearchOrder || programSearchOrder.length === 0) {
             throw new SyntaxError("Missing required 'search' directive. Every program must start with 'search <namespace>, ...' to specify namespace search order.")
         }
-        
+
         const program = { type: 'Program', plans, render }
         if (vars.length) { program.vars = vars }
-        
+
         const searchOrder = programSearchOrder.slice()
         let namespaceMeta = cloneNamespaceMeta({
             imports: programNamespace.imports,
@@ -412,7 +412,7 @@ export function parse(tokens) {
         const chain = parseChain()
         let write = null
         let write3d = null
-        
+
         // Check for .write() or .write3d()
         if (peek().type === 'DOT') {
             const nextType = tokens[current + 1]?.type
@@ -437,7 +437,7 @@ export function parse(tokens) {
                 // Parse tex3d reference
                 let tex3d = null
                 if (peek().type === 'IDENT' || peek().type === 'OUTPUT_REF') {
-                    tex3d = peek().type === 'OUTPUT_REF' 
+                    tex3d = peek().type === 'OUTPUT_REF'
                         ? {type: 'OutputRef', name: advance().lexeme}
                         : {type: 'Ident', name: advance().lexeme}
                 } else {
@@ -459,7 +459,7 @@ export function parse(tokens) {
         }
         // If no .write() is present, write remains null.
         // The validator will check if this is allowed (e.g. for non-generator chains or nested usage).
-        
+
         return {chain, write, write3d}
     }
 

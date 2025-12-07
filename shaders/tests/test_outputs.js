@@ -35,18 +35,18 @@ class MockBackend extends Backend {
     destroyTexture(id) {
         this.textures.delete(id)
     }
-    
+
     resize() {}
 }
 
 test('Verify 8 Outputs', async () => {
     const backend = new MockBackend()
     const pipeline = new Pipeline(null, backend)
-    
+
     await pipeline.init()
-    
+
     const expectedOutputs = ['o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7']
-    
+
     for (const name of expectedOutputs) {
         const surface = pipeline.surfaces.get(name)
         if (!surface) {
@@ -56,9 +56,9 @@ test('Verify 8 Outputs', async () => {
             throw new Error(`Surface ${name} is missing read/write buffers`)
         }
     }
-    
+
     // Verify no extra outputs (optional, but good for sanity)
-    // Note: surfaces map might contain other things if the implementation changes, 
+    // Note: surfaces map might contain other things if the implementation changes,
     // but currently it only holds global surfaces.
     // Let's just check that we have at least these 8.
 })
@@ -67,7 +67,7 @@ test('Parse o7 Output', () => {
     const code = 'search basics\nnoise().write(o7)'
     const tokens = lex(code)
     const ast = parse(tokens)
-    
+
     // AST structure: { plans: [ { chain: [...], write: { type: 'OutputRef', name: 'o7' } } ] }
     const plan = ast.plans[0]
     if (plan.write.name !== 'o7') {

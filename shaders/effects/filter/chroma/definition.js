@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * nu/chroma - Isolate specific color with range and feathering
@@ -60,4 +60,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

@@ -1,17 +1,17 @@
-import { Effect } from '../../../src/runtime/effect.js';
-import { stdEnums } from '../../../src/lang/std_enums.js';
+import { Effect } from '../../../src/runtime/effect.js'
+import { stdEnums } from '../../../src/lang/std_enums.js'
 
-const paletteChoices = {};
+const paletteChoices = {}
 for (const [key, val] of Object.entries(stdEnums.palette)) {
-  paletteChoices[key] = val.value;
+  paletteChoices[key] = val.value
 }
 
 export default class ShapeMixer extends Effect {
-  name = "ShapeMixer";
-  namespace = "classicNoisedeck";
-  func = "shapeMixer";
+  name = "ShapeMixer"
+  namespace = "classicNoisedeck"
+  func = "shapeMixer"
 
-  description = "Shape-based mixing";
+  description = "Shape-based mixing"
 
   globals = {
     blendMode: {
@@ -226,7 +226,7 @@ export default class ShapeMixer extends Effect {
         control: "slider"
       }
     }
-  };
+  }
 
   passes = [
     {
@@ -241,5 +241,5 @@ export default class ShapeMixer extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
+  ]
 }

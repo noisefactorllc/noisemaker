@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Text effect - renders text to a texture and displays it.
@@ -24,4 +24,4 @@ export default new Effect({
     inputs: { textTex: "textTex" },
     outputs: { fragColor: "outputTex" }
   }]
-});
+})

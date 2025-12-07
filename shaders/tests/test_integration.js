@@ -104,11 +104,11 @@ registerEffect('basics.blend', BlendEffect)
 test('Integration - Simple Generator', () => {
     const source = 'search basics\nsolid(1, 0, 0).write(o0)'
     const graph = compileGraph(source)
-    
+
     if (!graph) {
         throw new Error('Graph compilation failed')
     }
-    
+
     if (!graph.passes || graph.passes.length === 0) {
         throw new Error('No passes generated')
     }
@@ -117,11 +117,11 @@ test('Integration - Simple Generator', () => {
 test('Integration - Chain with Parameters', () => {
     const source = 'search basics\nwave(20).write(o0)'
     const graph = compileGraph(source)
-    
+
     if (!graph || !graph.passes) {
         throw new Error('Graph compilation failed')
     }
-    
+
     const pass = graph.passes[0]
     if (!pass) {
         throw new Error('No pass generated')
@@ -131,7 +131,7 @@ test('Integration - Chain with Parameters', () => {
 test('Integration - Texture Allocation', () => {
     const source = 'search basics\nsolid(1, 0.5, 0).write(o0)'
     const graph = compileGraph(source)
-    
+
     if (!graph.textures) {
         throw new Error('No textures in graph')
     }
@@ -140,7 +140,7 @@ test('Integration - Texture Allocation', () => {
 test('Integration - Resource Allocation', () => {
     const source = 'search basics\nsolid(1, 0, 0).write(o0)'
     const graph = compileGraph(source)
-    
+
     if (!graph.allocations) {
         throw new Error('No resource allocations')
     }
@@ -152,7 +152,7 @@ test('Integration - Multiple Outputs', () => {
         'search basics\nsolid(0, 1, 0).write(o1)',
         'search basics\nsolid(0, 0, 1).write(o2)'
     ]
-    
+
     for (const source of sources) {
         const graph = compileGraph(source)
         if (!graph || !graph.passes) {
@@ -164,15 +164,15 @@ test('Integration - Multiple Outputs', () => {
 test('Integration - Graph Metadata', () => {
     const source = 'search basics\nsolid(1, 1, 1).write(o0)'
     const graph = compileGraph(source)
-    
+
     if (!graph.id) {
         throw new Error('Graph missing ID')
     }
-    
+
     if (!graph.compiledAt) {
         throw new Error('Graph missing compiledAt timestamp')
     }
-    
+
     if (graph.source !== source) {
         throw new Error('Graph source mismatch')
     }
@@ -180,17 +180,17 @@ test('Integration - Graph Metadata', () => {
 
 test('Integration - Hash Consistency', () => {
     const source = 'search basics\nsolid(1, 0, 0).write(o0)'
-    
+
     const graph1 = compileGraph(source)
     const graph2 = compileGraph(source)
-    
+
     if (graph1.id !== graph2.id) {
         throw new Error('Graph IDs should be identical for same source')
     }
-    
+
     const differentSource = 'search basics\nsolid(0, 1, 0).write(o0)'
     const graph3 = compileGraph(differentSource)
-    
+
     if (graph1.id === graph3.id) {
         throw new Error('Graph IDs should differ for different source')
     }
@@ -200,7 +200,7 @@ test('Integration - Render Surface from last write', () => {
     // When no render() directive, renderSurface should be the last surface written
     const source = 'search basics\nsolid(1, 0, 0).write(o2)'
     const graph = compileGraph(source)
-    
+
     if (graph.renderSurface !== 'o2') {
         throw new Error(`Expected renderSurface='o2', got '${graph.renderSurface}'`)
     }
@@ -210,7 +210,7 @@ test('Integration - Render Surface with multiple writes', () => {
     // With multiple writes, renderSurface should be the last one
     const source = 'search basics\nsolid(1, 0, 0).write(o1)\nsolid(0, 1, 0).write(o5)'
     const graph = compileGraph(source)
-    
+
     if (graph.renderSurface !== 'o5') {
         throw new Error(`Expected renderSurface='o5', got '${graph.renderSurface}'`)
     }
@@ -220,7 +220,7 @@ test('Integration - Render Surface default to o0', () => {
     // Default case: write to o0
     const source = 'search basics\nsolid(1, 0, 0).write(o0)'
     const graph = compileGraph(source)
-    
+
     if (graph.renderSurface !== 'o0') {
         throw new Error(`Expected renderSurface='o0', got '${graph.renderSurface}'`)
     }

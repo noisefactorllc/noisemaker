@@ -1,13 +1,13 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Conv Feedback
  * Iterative blur+sharpen feedback effect.
- * 
+ *
  * Uses selfTex (previous frame's output) for frame-by-frame accumulation.
  * Each frame applies one blur+sharpen iteration to the accumulated result.
  * The effect converges after ~100 frames.
- * 
+ *
  * Usage: search nm
  *        noise(seed: 1).convFeedback(alpha: 0.5).out(o0)
  */
@@ -62,4 +62,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

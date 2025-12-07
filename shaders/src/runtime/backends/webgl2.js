@@ -26,12 +26,12 @@ export class WebGL2Backend extends Backend {
      */
     parseGlobalName(texId) {
         if (typeof texId !== 'string') return null
-        
+
         // Pattern 1: "global_name" (underscore separator)
         if (texId.startsWith('global_')) {
             return texId.replace('global_', '')
         }
-        
+
         // Pattern 2: "globalName" (camelCase)
         if (texId.startsWith('global') && texId.length > 6) {
             const suffix = texId.slice(6)
@@ -41,30 +41,30 @@ export class WebGL2Backend extends Backend {
                 return suffix.charAt(0).toLowerCase() + suffix.slice(1)
             }
         }
-        
+
         return null
     }
 
     async init() {
         const gl = this.gl
-        
+
         // Enable extensions for floating point textures
         if (!gl.getExtension('EXT_color_buffer_float')) {
-            console.warn('EXT_color_buffer_float not supported');
+            console.warn('EXT_color_buffer_float not supported')
         }
         if (!gl.getExtension('OES_texture_float_linear')) {
-            console.warn('OES_texture_float_linear not supported');
+            console.warn('OES_texture_float_linear not supported')
         }
 
         // Get capabilities
         this.maxTextureUnits = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS)
-        
+
         // Create full-screen quad VAO
         this.fullscreenVAO = this.createFullscreenVAO()
         this.emptyVAO = gl.createVertexArray()
         this.presentProgram = this.createPresentProgram()
         this.defaultTexture = this.createDefaultTexture()
-        
+
         return Promise.resolve()
     }
 
@@ -92,27 +92,27 @@ export class WebGL2Backend extends Backend {
         void main() {
             fragColor = texture(u_texture, v_texCoord);
         }`
-        
+
         const vertShader = this.compileShader(gl.VERTEX_SHADER, vs)
         const fragShader = this.compileShader(gl.FRAGMENT_SHADER, fs)
-        
+
         const program = gl.createProgram()
         gl.attachShader(program, vertShader)
         gl.attachShader(program, fragShader)
-        
+
         // Ensure a_position is at location 0 to match VAO
         gl.bindAttribLocation(program, 0, 'a_position')
-        
+
         gl.linkProgram(program)
-        
+
         if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
             console.error('Failed to link present program')
             return null
         }
-        
+
         gl.deleteShader(vertShader)
         gl.deleteShader(fragShader)
-        
+
         return {
             handle: program,
             uniforms: {
@@ -123,14 +123,14 @@ export class WebGL2Backend extends Backend {
 
     createFullscreenVAO() {
         const gl = this.gl
-        
+
         // Create vertex buffer with full-screen triangle
         const positions = FULLSCREEN_TRIANGLE_POSITIONS
-        
+
         const buffer = gl.createBuffer()
         gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
         gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW)
-        
+
         // Create VAO
         const vao = gl.createVertexArray()
         gl.bindVertexArray(vao)
@@ -138,19 +138,19 @@ export class WebGL2Backend extends Backend {
         gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0)
         gl.bindVertexArray(null)
         gl.bindBuffer(gl.ARRAY_BUFFER, null)
-        
+
         return vao
     }
 
     createTexture(id, spec) {
         const gl = this.gl
         const texture = gl.createTexture()
-        
+
         gl.bindTexture(gl.TEXTURE_2D, texture)
-        
+
         // Resolve format
         const glFormat = this.resolveFormat(spec.format)
-        
+
         // Allocate texture storage
         gl.texImage2D(
             gl.TEXTURE_2D,
@@ -163,15 +163,15 @@ export class WebGL2Backend extends Backend {
             glFormat.type,
             null
         )
-        
+
         // Set texture parameters
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-        
+
         gl.bindTexture(gl.TEXTURE_2D, null)
-        
+
         this.textures.set(id, {
             handle: texture,
             width: spec.width,
@@ -179,19 +179,19 @@ export class WebGL2Backend extends Backend {
             format: spec.format,
             glFormat
         })
-        
+
         // Create FBO if this will be a render target
         if (spec.usage && spec.usage.includes('render')) {
             this.createFBO(id, texture)
         }
-        
+
         return texture
     }
 
     createFBO(id, texture) {
         const gl = this.gl
         const fbo = gl.createFramebuffer()
-        
+
         gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
         gl.framebufferTexture2D(
             gl.FRAMEBUFFER,
@@ -200,13 +200,13 @@ export class WebGL2Backend extends Backend {
             texture,
             0
         )
-        
+
         // Check FBO status
         const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER)
         if (status !== gl.FRAMEBUFFER_COMPLETE) {
             console.error(`FBO incomplete for texture ${id}: ${status}`)
         }
-        
+
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         this.fbos.set(id, fbo)
     }
@@ -219,15 +219,15 @@ export class WebGL2Backend extends Backend {
      */
     createMRTFBO(id, textures) {
         const gl = this.gl
-        
+
         // Check if already cached
         if (this.fbos.has(id)) {
             return this.fbos.get(id)
         }
-        
+
         const fbo = gl.createFramebuffer()
         gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
-        
+
         const drawBuffers = []
         for (let i = 0; i < textures.length; i++) {
             const attachment = gl.COLOR_ATTACHMENT0 + i
@@ -240,16 +240,16 @@ export class WebGL2Backend extends Backend {
             )
             drawBuffers.push(attachment)
         }
-        
+
         // Enable all color attachments for writing
         gl.drawBuffers(drawBuffers)
-        
+
         // Check FBO status
         const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER)
         if (status !== gl.FRAMEBUFFER_COMPLETE) {
             console.error(`MRT FBO incomplete for ${id}: ${status}`)
         }
-        
+
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         this.fbos.set(id, fbo)
         return fbo
@@ -263,12 +263,12 @@ export class WebGL2Backend extends Backend {
     createTexture3D(id, spec) {
         const gl = this.gl
         const texture = gl.createTexture()
-        
+
         gl.bindTexture(gl.TEXTURE_3D, texture)
-        
+
         // Resolve format
         const glFormat = this.resolveFormat(spec.format)
-        
+
         // Allocate 3D texture storage
         gl.texImage3D(
             gl.TEXTURE_3D,
@@ -282,7 +282,7 @@ export class WebGL2Backend extends Backend {
             glFormat.type,
             null
         )
-        
+
         // Set texture parameters - use LINEAR for trilinear filtering support
         const filterMode = spec.filter === 'nearest' ? gl.NEAREST : gl.LINEAR
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, filterMode)
@@ -290,9 +290,9 @@ export class WebGL2Backend extends Backend {
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
         gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE)
-        
+
         gl.bindTexture(gl.TEXTURE_3D, null)
-        
+
         this.textures.set(id, {
             handle: texture,
             width: spec.width,
@@ -302,7 +302,7 @@ export class WebGL2Backend extends Backend {
             glFormat,
             is3D: true
         })
-        
+
         return texture
     }
 
@@ -317,9 +317,9 @@ export class WebGL2Backend extends Backend {
     updateTextureFromSource(id, source, options = {}) {
         const gl = this.gl
         let tex = this.textures.get(id)
-        
+
         const flipY = options.flipY !== false
-        
+
         // Get source dimensions
         let width, height
         if (source instanceof HTMLVideoElement) {
@@ -335,26 +335,26 @@ export class WebGL2Backend extends Backend {
             console.warn(`[updateTextureFromSource] Unknown source type for ${id}`)
             return { width: 0, height: 0 }
         }
-        
+
         if (width === 0 || height === 0) {
             return { width: 0, height: 0 }
         }
-        
+
         // Create texture if it doesn't exist or if dimensions changed
         if (!tex || tex.width !== width || tex.height !== height) {
             if (tex) {
                 gl.deleteTexture(tex.handle)
             }
-            
+
             const texture = gl.createTexture()
             gl.bindTexture(gl.TEXTURE_2D, texture)
-            
+
             // Set texture parameters for video/image sampling
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-            
+
             tex = {
                 handle: texture,
                 width,
@@ -365,10 +365,10 @@ export class WebGL2Backend extends Backend {
             }
             this.textures.set(id, tex)
         }
-        
+
         gl.bindTexture(gl.TEXTURE_2D, tex.handle)
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, flipY)
-        
+
         // Upload the source to the texture
         gl.texImage2D(
             gl.TEXTURE_2D,
@@ -378,29 +378,29 @@ export class WebGL2Backend extends Backend {
             gl.UNSIGNED_BYTE,
             source
         )
-        
+
         gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false)
         gl.bindTexture(gl.TEXTURE_2D, null)
-        
+
         return { width, height }
     }
 
     destroyTexture(id) {
         const gl = this.gl
         const tex = this.textures.get(id)
-        
+
         if (tex) {
             gl.deleteTexture(tex.handle)
             this.textures.delete(id)
         }
-        
+
         // Delete single-texture FBO for this texture
         const fbo = this.fbos.get(id)
         if (fbo) {
             gl.deleteFramebuffer(fbo)
             this.fbos.delete(id)
         }
-        
+
         // Also invalidate any MRT FBOs that reference this texture
         // MRT FBO IDs contain the texture IDs in their name (e.g., "mrt_node_0_pass_0_texA_texB")
         const mrtToDelete = []
@@ -425,12 +425,12 @@ export class WebGL2Backend extends Backend {
         const gl = this.gl
         const srcTex = this.textures.get(srcId)
         const dstTex = this.textures.get(dstId)
-        
+
         if (!srcTex || !dstTex) {
             console.warn(`[copyTexture] Missing texture: src=${srcId} (${!!srcTex}), dst=${dstId} (${!!dstTex})`)
             return
         }
-        
+
         // Use blitFramebuffer for efficient texture copy
         // Create temporary FBOs if needed
         let readFbo = this.fbos.get(srcId)
@@ -441,7 +441,7 @@ export class WebGL2Backend extends Backend {
         } else {
             gl.bindFramebuffer(gl.READ_FRAMEBUFFER, readFbo)
         }
-        
+
         let drawFbo = this.fbos.get(dstId)
         if (!drawFbo) {
             drawFbo = gl.createFramebuffer()
@@ -452,7 +452,7 @@ export class WebGL2Backend extends Backend {
         } else {
             gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, drawFbo)
         }
-        
+
         // Blit the texture
         gl.blitFramebuffer(
             0, 0, srcTex.width, srcTex.height,
@@ -460,7 +460,7 @@ export class WebGL2Backend extends Backend {
             gl.COLOR_BUFFER_BIT,
             gl.NEAREST
         )
-        
+
         // Unbind
         gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null)
         gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null)
@@ -468,29 +468,29 @@ export class WebGL2Backend extends Backend {
 
     async compileProgram(id, spec) {
         const gl = this.gl
-        
+
         // Inject defines
         const source = this.injectDefines(spec.source || spec.glsl || spec.fragment, spec.defines || {})
-        
+
         // Compile vertex shader
         const vsSource = spec.vertex || DEFAULT_VERTEX_SHADER
         const usingDefaultVertex = !spec.vertex
         const vertShader = this.compileShader(gl.VERTEX_SHADER, vsSource)
-        
+
         // Compile fragment shader
         const fragShader = this.compileShader(gl.FRAGMENT_SHADER, source)
-        
+
         // Link program
         const program = gl.createProgram()
         gl.attachShader(program, vertShader)
         gl.attachShader(program, fragShader)
-        
+
         if (usingDefaultVertex) {
             gl.bindAttribLocation(program, 0, 'a_position')
         }
-        
+
         gl.linkProgram(program)
-        
+
         if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
             const log = gl.getProgramInfoLog(program)
             throw {
@@ -499,24 +499,24 @@ export class WebGL2Backend extends Backend {
                 program: id
             }
         }
-        
+
         // Clean up shaders
         gl.deleteShader(vertShader)
         gl.deleteShader(fragShader)
-        
+
         // Extract uniforms and attribute locations
         const uniforms = this.extractUniforms(program)
         const attributes = {
             a_position: gl.getAttribLocation(program, 'a_position'),
             aPosition: gl.getAttribLocation(program, 'aPosition')
         }
-        
+
         const compiledProgram = {
             handle: program,
             uniforms,
             attributes
         }
-        
+
         this.programs.set(id, compiledProgram)
         return compiledProgram
     }
@@ -524,10 +524,10 @@ export class WebGL2Backend extends Backend {
     compileShader(type, source) {
         const gl = this.gl
         const shader = gl.createShader(type)
-        
+
         gl.shaderSource(shader, source)
         gl.compileShader(shader)
-        
+
         if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
             const log = gl.getShaderInfoLog(shader)
             gl.deleteShader(shader)
@@ -537,20 +537,20 @@ export class WebGL2Backend extends Backend {
                 source
             }
         }
-        
+
         return shader
     }
 
     injectDefines(source, defines) {
         let injected = '#version 300 es\nprecision highp float;\n'
-        
+
         for (const [key, value] of Object.entries(defines)) {
             injected += `#define ${key} ${value}\n`
         }
-        
+
         // Remove any existing version directive from source
         const cleaned = source.replace(/^\s*#version.*$/m, '')
-        
+
         return injected + cleaned
     }
 
@@ -558,32 +558,32 @@ export class WebGL2Backend extends Backend {
         const gl = this.gl
         const uniforms = {}
         const count = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS)
-        
+
         for (let i = 0; i < count; i++) {
             const info = gl.getActiveUniform(program, i)
             const location = gl.getUniformLocation(program, info.name)
-            
+
             uniforms[info.name] = {
                 location,
                 type: info.type,
                 size: info.size
             }
         }
-        
+
         return uniforms
     }
 
     executePass(pass, state) {
         const gl = this.gl
-        
+
         // WebGL2 GPGPU: Convert passes with compute-style conventions to render passes
         // Compute shaders don't exist in WebGL2, so we use fragment shaders
         // with fullscreen triangles as a GPGPU fallback
         const needsConversion = pass.storageTextures || (pass.outputs && pass.outputs.outputBuffer)
         const effectivePass = needsConversion ? this.convertComputeToRender(pass) : pass
-        
+
         const program = this.programs.get(effectivePass.program)
-        
+
         if (!program) {
             console.error(`Program ${effectivePass.program} not found for pass ${effectivePass.id}`)
             throw {
@@ -592,26 +592,26 @@ export class WebGL2Backend extends Backend {
                 program: effectivePass.program
             }
         }
-        
+
         // Use program
         gl.useProgram(program.handle)
-        
+
         // Check for MRT (Multiple Render Targets)
         const outputKeys = Object.keys(effectivePass.outputs || {})
         const isMRT = effectivePass.drawBuffers > 1 || outputKeys.length > 1
-        
+
         let fbo = null
         let viewportTex = null
         let outputId = null  // Track primary output for reference (used by points draw mode)
-        
+
         if (isMRT) {
             // MRT pass - bind multiple outputs
             const textures = []
             const resolvedOutputIds = []
-            
+
             for (const outputKey of outputKeys) {
                 let currentOutputId = effectivePass.outputs[outputKey]
-                
+
                 // Resolve global surface to current write buffer
                 const globalName = this.parseGlobalName(currentOutputId)
                 if (globalName) {
@@ -619,7 +619,7 @@ export class WebGL2Backend extends Backend {
                         currentOutputId = state.writeSurfaces[globalName]
                     }
                 }
-                
+
                 // Resolve feedback surface to current write buffer
                 if (currentOutputId.startsWith('feedback_')) {
                     const feedbackName = currentOutputId.replace('feedback_', '')
@@ -627,10 +627,10 @@ export class WebGL2Backend extends Backend {
                         currentOutputId = state.writeFeedbackSurfaces[feedbackName]
                     }
                 }
-                
+
                 // Track first output as primary reference
                 if (!outputId) outputId = currentOutputId
-                
+
                 resolvedOutputIds.push(currentOutputId)
                 const tex = this.textures.get(currentOutputId)
                 if (tex) {
@@ -640,7 +640,7 @@ export class WebGL2Backend extends Backend {
                     console.warn(`[executePass MRT] Texture not found for ${currentOutputId} in pass ${effectivePass.id}`)
                 }
             }
-            
+
             if (textures.length > 0) {
                 // Create unique ID for this MRT configuration
                 const mrtId = `mrt_${effectivePass.id}_${resolvedOutputIds.join('_')}`
@@ -649,7 +649,7 @@ export class WebGL2Backend extends Backend {
         } else {
             // Single output pass
             outputId = effectivePass.outputs?.color || Object.values(effectivePass.outputs || {})[0]
-            
+
             // Resolve global surface to current write buffer
             const globalName = this.parseGlobalName(outputId)
             if (globalName) {
@@ -657,7 +657,7 @@ export class WebGL2Backend extends Backend {
                     outputId = state.writeSurfaces[globalName]
                 }
             }
-            
+
             // Resolve feedback surface to current write buffer
             if (outputId && outputId.startsWith('feedback_')) {
                 const feedbackName = outputId.replace('feedback_', '')
@@ -670,12 +670,12 @@ export class WebGL2Backend extends Backend {
             if (!fbo && outputId !== 'screen') {
                 console.warn(`[executePass] FBO not found for ${outputId} in pass ${effectivePass.id}`)
             }
-            
+
             viewportTex = this.textures.get(outputId)
         }
-        
+
         gl.bindFramebuffer(gl.FRAMEBUFFER, fbo || null)
-        
+
         // For MRT, we need to call drawBuffers again after binding the FBO
         if (isMRT && fbo) {
             const drawBuffers = []
@@ -684,7 +684,7 @@ export class WebGL2Backend extends Backend {
             }
             gl.drawBuffers(drawBuffers)
         }
-        
+
         // Set viewport
         if (viewportTex) {
             gl.viewport(0, 0, viewportTex.width, viewportTex.height)
@@ -697,13 +697,13 @@ export class WebGL2Backend extends Backend {
         // DEBUG: Clear to random color to verify FBO write
         // gl.clearColor(Math.random(), Math.random(), Math.random(), 1.0)
         // gl.clear(gl.COLOR_BUFFER_BIT)
-        
+
         // Bind input textures
         this.bindTextures(effectivePass, program, state)
-        
+
         // Bind uniforms
         this.bindUniforms(effectivePass, program, state)
-        
+
         // Handle Blending
         if (effectivePass.blend) {
             gl.enable(gl.BLEND)
@@ -725,7 +725,7 @@ export class WebGL2Backend extends Backend {
             if (count === 'auto' || count === 'screen' || count === 'input') {
                 // Determine count based on mode
                 let refTex = null
-                
+
                 if (count === 'input' && effectivePass.inputs && effectivePass.inputs.inputTex) {
                     // Use input texture dimensions
                     const inputId = effectivePass.inputs.inputTex
@@ -750,7 +750,7 @@ export class WebGL2Backend extends Backend {
                     count = gl.drawingBufferWidth * gl.drawingBufferHeight
                 }
             }
-            
+
             gl.bindVertexArray(this.emptyVAO)
             gl.drawArrays(gl.POINTS, 0, count)
             gl.bindVertexArray(null)
@@ -760,7 +760,7 @@ export class WebGL2Backend extends Backend {
             gl.drawArrays(gl.TRIANGLES, 0, FULLSCREEN_TRIANGLE_VERTEX_COUNT)
             gl.bindVertexArray(null)
         }
-        
+
         // Check for errors - drain all errors from the queue
         let error = gl.getError()
         while (error !== gl.NO_ERROR) {
@@ -770,7 +770,7 @@ export class WebGL2Backend extends Backend {
             console.error(`WebGL Error ${error} in pass ${effectivePass.id} (effect: ${effectivePass.effectKey || 'unknown'}, program: ${effectivePass.program}, output: ${outputId}, inputs: ${inputIds})`)
             error = gl.getError()
         }
-        
+
         // Unbind
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.useProgram(null)
@@ -789,7 +789,7 @@ export class WebGL2Backend extends Backend {
             type: 'render',
             _originalType: 'compute'
         }
-        
+
         // Map compute outputs to render outputs
         // Compute shaders typically write to storage buffers/textures
         // For GPGPU, we write to framebuffer color attachments
@@ -800,7 +800,7 @@ export class WebGL2Backend extends Backend {
                 renderPass.outputs[key] = texId
             }
         }
-        
+
         // If outputs exist but use compute conventions (outputBuffer -> fragColor)
         if (pass.outputs) {
             renderPass.outputs = {}
@@ -810,21 +810,21 @@ export class WebGL2Backend extends Backend {
                 renderPass.outputs[normalizedKey] = texId
             }
         }
-        
+
         // Ensure we have at least one output
         if (!renderPass.outputs || Object.keys(renderPass.outputs).length === 0) {
             renderPass.outputs = { color: 'outputTex' }
         }
-        
+
         return renderPass
     }
 
     bindTextures(pass, program, state) {
         const gl = this.gl
         let unit = 0
-        
+
         if (!pass.inputs) return
-        
+
         for (const [samplerName, texId] of Object.entries(pass.inputs)) {
             if (unit >= this.maxTextureUnits) {
                 throw {
@@ -833,7 +833,7 @@ export class WebGL2Backend extends Backend {
                     limit: this.maxTextureUnits
                 }
             }
-            
+
             // Get texture from state or textures map
             let texture
             const globalName = this.parseGlobalName(texId)
@@ -847,27 +847,27 @@ export class WebGL2Backend extends Backend {
             } else {
                 texture = this.textures.get(texId)?.handle
             }
-            
+
             // If texture is missing, use default texture (transparent black)
             // This handles cases where a pipeline reads from an uninitialized surface
             // (e.g. reading o0 before writing to it) without crashing or warning.
             if (!texture) {
                 texture = this.defaultTexture
             }
-            
+
             // Check if this is a 3D texture
             const texInfo = this.textures.get(texId)
             const is3D = texInfo?.is3D
-            
+
             gl.activeTexture(gl.TEXTURE0 + unit)
             gl.bindTexture(is3D ? gl.TEXTURE_3D : gl.TEXTURE_2D, texture || null)
-            
+
             // Bind sampler uniform
             const uniform = program.uniforms[samplerName]
             if (uniform) {
                 gl.uniform1i(uniform.location, unit)
             }
-            
+
             unit++
         }
     }
@@ -875,7 +875,7 @@ export class WebGL2Backend extends Backend {
     bindUniforms(pass, program, state) {
         const gl = this.gl
         const programUniforms = program.uniforms
-        
+
         // Bind pass uniforms first (from DSL/effect defaults)
         if (pass.uniforms) {
             for (const name in pass.uniforms) {
@@ -886,7 +886,7 @@ export class WebGL2Backend extends Backend {
                 this._setUniform(gl, uniform, value)
             }
         }
-        
+
         // Then bind globalUniforms on top (allows runtime overrides)
         if (state.globalUniforms) {
             for (const name in state.globalUniforms) {
@@ -898,7 +898,7 @@ export class WebGL2Backend extends Backend {
             }
         }
     }
-    
+
     /** @private Helper to set a single uniform value */
     _setUniform(gl, uniform, value) {
         const loc = uniform.location
@@ -948,27 +948,27 @@ export class WebGL2Backend extends Backend {
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight)
-        
+
         // Clear the screen first
         gl.clearColor(0, 0, 0, 1)
         gl.clear(gl.COLOR_BUFFER_BIT)
-        
+
         gl.useProgram(this.presentProgram.handle)
-        
+
         gl.activeTexture(gl.TEXTURE0)
         gl.bindTexture(gl.TEXTURE_2D, tex.handle)
         gl.uniform1i(this.presentProgram.uniforms.texture, 0)
-        
+
         gl.bindVertexArray(this.fullscreenVAO)
         gl.drawArrays(gl.TRIANGLES, 0, FULLSCREEN_TRIANGLE_VERTEX_COUNT)
-        
+
         const error = gl.getError()
         if (error !== gl.NO_ERROR) {
             console.error(`WebGL Error in present: ${error}`)
         }
 
         gl.bindVertexArray(null)
-        
+
         gl.useProgram(null)
     }
 
@@ -1028,7 +1028,7 @@ export class WebGL2Backend extends Backend {
 
     resolveFormat(format) {
         const gl = this.gl
-        
+
         const formats = {
             'rgba8': {
                 internalFormat: gl.RGBA8,
@@ -1061,7 +1061,7 @@ export class WebGL2Backend extends Backend {
                 type: gl.FLOAT
             }
         }
-        
+
         return formats[format] || formats['rgba8']
     }
 
@@ -1073,7 +1073,7 @@ export class WebGL2Backend extends Backend {
     resolveBlendFactor(factor) {
         const gl = this.gl
         if (typeof factor === 'number') return factor
-        
+
         const factors = {
             'ZERO': gl.ZERO,
             'ONE': gl.ONE,
@@ -1102,7 +1102,7 @@ export class WebGL2Backend extends Backend {
             'dst-alpha': gl.DST_ALPHA,
             'one-minus-dst-alpha': gl.ONE_MINUS_DST_ALPHA
         }
-        
+
         return factors[factor] || gl.ONE
     }
 

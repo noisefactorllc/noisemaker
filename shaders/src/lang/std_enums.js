@@ -1,10 +1,10 @@
-import palettes from '../palettes.js';
+import palettes from '../palettes.js'
 
 // Generate palette enum from palettes.js definitions
-const paletteEnum = {};
+const paletteEnum = {}
 Object.keys(palettes).forEach((name, index) => {
-    paletteEnum[name] = { type: 'Number', value: index };
-});
+    paletteEnum[name] = { type: 'Number', value: index }
+})
 
 // Oscillator kind enum for osc() function
 const oscKindEnum = {
@@ -14,7 +14,7 @@ const oscKindEnum = {
     sawInv: { type: 'Number', value: 3 },    // 1 -> 0
     square: { type: 'Number', value: 4 },    // on/off
     noise: { type: 'Number', value: 5 }      // periodic 2D noise
-};
+}
 
 export const stdEnums = {
     color: {

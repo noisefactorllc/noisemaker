@@ -1,12 +1,12 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Pixel Sort - GPGPU Implementation
- * 
+ *
  * Multi-pass GPGPU pipeline using textures as data buffers:
  * 1. Prepare: Pad to square, rotate by angle, optionally invert for darkest
  * 2. Luminance: Compute per-pixel luminance → store in texture
- * 3. Find Brightest: Find brightest x per row → store in texture  
+ * 3. Find Brightest: Find brightest x per row → store in texture
  * 4. Compute Rank: For each pixel, count brighter pixels → store rank
  * 5. Gather: Use ranks to gather sorted pixels with alignment
  * 6. Finalize: Rotate back, max blend with original
@@ -122,4 +122,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

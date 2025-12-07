@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Convolve
@@ -107,4 +107,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

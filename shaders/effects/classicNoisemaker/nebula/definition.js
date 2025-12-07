@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Nebula
@@ -23,4 +23,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

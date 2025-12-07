@@ -1,5 +1,5 @@
-import fs from 'fs';
-import path from 'path';
+import fs from 'fs'
+import path from 'path'
 
 const modules = [
   'constants.js',
@@ -17,14 +17,14 @@ const modules = [
   'glyphs.js',
   'tensor.js',
   'context.js'
-];
+]
 
-const distDir = path.resolve('dist');
-fs.mkdirSync(distDir, { recursive: true });
+const distDir = path.resolve('dist')
+fs.mkdirSync(distDir, { recursive: true })
 
 // ES module bundle that re-exports individual modules
-const esm = modules.map(m => `export * from '../js/noisemaker/${m}';`).join('\n');
-fs.writeFileSync(path.join(distDir, 'noisemaker.mjs'), esm);
+const esm = modules.map(m => `export * from '../js/noisemaker/${m}';`).join('\n')
+fs.writeFileSync(path.join(distDir, 'noisemaker.mjs'), esm)
 
 // UMD wrapper that dynamically imports the ES module
 const umd = `(function(root, factory){\n` +
@@ -35,7 +35,7 @@ const umd = `(function(root, factory){\n` +
 `  }\n` +
 `}(this, function(){\n` +
 `  return import('./noisemaker.mjs');\n` +
-`}));\n`;
-fs.writeFileSync(path.join(distDir, 'noisemaker.umd.js'), umd);
+`}));\n`
+fs.writeFileSync(path.join(distDir, 'noisemaker.umd.js'), umd)
 
-console.log('Built ES module and UMD bundles to dist/');
+console.log('Built ES module and UMD bundles to dist/')

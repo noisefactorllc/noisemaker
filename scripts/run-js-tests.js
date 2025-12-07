@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import path from 'node:path'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRoot = path.resolve(__dirname, '..');
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const repoRoot = path.resolve(__dirname, '..')
 
 /**
  * Ordered list of test modules and helpers.
@@ -40,29 +40,29 @@ const testEntries = [
   { file: 'test/evaluator.test.js', parity: false },
   { file: 'test/encoder.test.js', parity: true }, // Requires WebGPU context infrastructure
   { file: 'test/cli.test.js', parity: false }
-];
+]
 
-const skipParity = process.argv.includes('--skip-parity');
-const forwardedArgs = process.argv.filter((arg) => arg !== '--skip-parity');
+const skipParity = process.argv.includes('--skip-parity')
+const forwardedArgs = process.argv.filter((arg) => arg !== '--skip-parity')
 
 // Set environment variable to skip fixture tests when running non-parity suite
 if (skipParity) {
-  process.env.SKIP_FIXTURES = '1';
+  process.env.SKIP_FIXTURES = '1'
 }
 
 for (const entry of testEntries) {
   if (skipParity && entry.parity) {
-    continue;
+    continue
   }
 
-  const resolved = path.resolve(repoRoot, entry.file);
-  const runArgs = [resolved, ...forwardedArgs];
+  const resolved = path.resolve(repoRoot, entry.file)
+  const runArgs = [resolved, ...forwardedArgs]
   const result = spawnSync('node', runArgs, {
     cwd: repoRoot,
     stdio: 'inherit'
-  });
+  })
 
   if (result.status !== 0) {
-    process.exit(result.status ?? 1);
+    process.exit(result.status ?? 1)
   }
 }

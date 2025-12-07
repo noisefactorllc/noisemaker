@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * nu/fractal - Mono-only fractal explorer
@@ -222,4 +222,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

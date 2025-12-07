@@ -9,4 +9,3 @@ _PALETTES_FILE = os.path.join(_SHARE_DIR, "palettes.json")
 
 with open(_PALETTES_FILE) as f:
     PALETTES: dict[str, dict[str, list[float]]] = json.load(f)
-

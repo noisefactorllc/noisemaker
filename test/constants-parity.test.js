@@ -1,7 +1,7 @@
-import assert from 'assert';
-import { spawnSync } from 'child_process';
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import assert from 'assert'
+import { spawnSync } from 'child_process'
+import { fileURLToPath } from 'url'
+import { dirname, resolve } from 'path'
 import {
   DistanceMetric,
   InterpolationType,
@@ -25,10 +25,10 @@ import {
   flowMembers,
   wormBehaviorAll,
   colorSpaceMembers,
-} from '../js/noisemaker/constants.js';
+} from '../js/noisemaker/constants.js'
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(__dirname, '..');
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const repoRoot = resolve(__dirname, '..')
 
 function getPythonData() {
   const py = `
@@ -77,15 +77,15 @@ data = {
     }
 }
 print(json.dumps(data))
-`;
-  const res = spawnSync('python3', ['-c', py], { cwd: repoRoot, encoding: 'utf8' });
+`
+  const res = spawnSync('python3', ['-c', py], { cwd: repoRoot, encoding: 'utf8' })
   if (res.status !== 0) {
-    throw new Error(res.stderr);
+    throw new Error(res.stderr)
   }
-  return JSON.parse(res.stdout);
+  return JSON.parse(res.stdout)
 }
 
-const pyData = getPythonData();
+const pyData = getPythonData()
 const enums = {
   DistanceMetric,
   InterpolationType,
@@ -95,37 +95,37 @@ const enums = {
   VoronoiDiagramType,
   WormBehavior,
   ColorSpace,
-};
+}
 
 for (const [name, jsEnum] of Object.entries(enums)) {
-  const pyEnum = pyData[name];
+  const pyEnum = pyData[name]
   for (const [k, v] of Object.entries(pyEnum)) {
-    assert.strictEqual(jsEnum[k], v, `Mismatch for ${name}.${k}`);
+    assert.strictEqual(jsEnum[k], v, `Mismatch for ${name}.${k}`)
   }
   for (const [k, v] of Object.entries(jsEnum)) {
-    assert.strictEqual(pyEnum[k], v, `Extra JS member ${name}.${k}`);
+    assert.strictEqual(pyEnum[k], v, `Extra JS member ${name}.${k}`)
   }
 }
 
-const sort = (arr) => arr.slice().sort((a, b) => a - b);
-const groups = pyData.groups;
+const sort = (arr) => arr.slice().sort((a, b) => a - b)
+const groups = pyData.groups
 
-assert.deepStrictEqual(sort(distanceMetricAll()), sort(groups.DistanceMetric.all), 'DistanceMetric.all mismatch');
-assert.deepStrictEqual(sort(distanceMetricAbsoluteMembers()), sort(groups.DistanceMetric.absolute_members), 'DistanceMetric.absolute_members mismatch');
-assert.deepStrictEqual(sort(distanceMetricSignedMembers()), sort(groups.DistanceMetric.signed_members), 'DistanceMetric.signed_members mismatch');
+assert.deepStrictEqual(sort(distanceMetricAll()), sort(groups.DistanceMetric.all), 'DistanceMetric.all mismatch')
+assert.deepStrictEqual(sort(distanceMetricAbsoluteMembers()), sort(groups.DistanceMetric.absolute_members), 'DistanceMetric.absolute_members mismatch')
+assert.deepStrictEqual(sort(distanceMetricSignedMembers()), sort(groups.DistanceMetric.signed_members), 'DistanceMetric.signed_members mismatch')
 
-assert.deepStrictEqual(sort(gridMembers), sort(groups.PointDistribution.grid_members), 'PointDistribution.grid_members mismatch');
-assert.deepStrictEqual(sort(circularMembers), sort(groups.PointDistribution.circular_members), 'PointDistribution.circular_members mismatch');
+assert.deepStrictEqual(sort(gridMembers), sort(groups.PointDistribution.grid_members), 'PointDistribution.grid_members mismatch')
+assert.deepStrictEqual(sort(circularMembers), sort(groups.PointDistribution.circular_members), 'PointDistribution.circular_members mismatch')
 
-assert.deepStrictEqual(sort(valueMaskProceduralMembers), sort(groups.ValueMask.procedural_members), 'ValueMask.procedural_members mismatch');
-assert.deepStrictEqual(sort(valueMaskNonproceduralMembers), sort(groups.ValueMask.nonprocedural_members), 'ValueMask.nonprocedural_members mismatch');
-assert.deepStrictEqual(sort(valueMaskConv2dMembers), sort(groups.ValueMask.conv2d_members), 'ValueMask.conv2d_members mismatch');
-assert.deepStrictEqual(sort(valueMaskGridMembers), sort(groups.ValueMask.grid_members), 'ValueMask.grid_members mismatch');
-assert.deepStrictEqual(sort(valueMaskRgbMembers), sort(groups.ValueMask.rgb_members), 'ValueMask.rgb_members mismatch');
-assert.deepStrictEqual(sort(valueMaskGlyphMembers), sort(groups.ValueMask.glyph_members), 'ValueMask.glyph_members mismatch');
+assert.deepStrictEqual(sort(valueMaskProceduralMembers), sort(groups.ValueMask.procedural_members), 'ValueMask.procedural_members mismatch')
+assert.deepStrictEqual(sort(valueMaskNonproceduralMembers), sort(groups.ValueMask.nonprocedural_members), 'ValueMask.nonprocedural_members mismatch')
+assert.deepStrictEqual(sort(valueMaskConv2dMembers), sort(groups.ValueMask.conv2d_members), 'ValueMask.conv2d_members mismatch')
+assert.deepStrictEqual(sort(valueMaskGridMembers), sort(groups.ValueMask.grid_members), 'ValueMask.grid_members mismatch')
+assert.deepStrictEqual(sort(valueMaskRgbMembers), sort(groups.ValueMask.rgb_members), 'ValueMask.rgb_members mismatch')
+assert.deepStrictEqual(sort(valueMaskGlyphMembers), sort(groups.ValueMask.glyph_members), 'ValueMask.glyph_members mismatch')
 
-assert.deepStrictEqual(sort(flowMembers), sort(groups.VoronoiDiagramType.flow_members), 'VoronoiDiagramType.flow_members mismatch');
-assert.deepStrictEqual(sort(wormBehaviorAll), sort(groups.WormBehavior.all), 'WormBehavior.all mismatch');
-assert.deepStrictEqual(sort(colorSpaceMembers()), sort(groups.ColorSpace.color_members), 'ColorSpace.color_members mismatch');
+assert.deepStrictEqual(sort(flowMembers), sort(groups.VoronoiDiagramType.flow_members), 'VoronoiDiagramType.flow_members mismatch')
+assert.deepStrictEqual(sort(wormBehaviorAll), sort(groups.WormBehavior.all), 'WormBehavior.all mismatch')
+assert.deepStrictEqual(sort(colorSpaceMembers()), sort(groups.ColorSpace.color_members), 'ColorSpace.color_members mismatch')
 
-console.log('constants parity ok');
+console.log('constants parity ok')

@@ -1,17 +1,17 @@
-import { Effect } from '../../../src/runtime/effect.js';
-import { stdEnums } from '../../../src/lang/std_enums.js';
+import { Effect } from '../../../src/runtime/effect.js'
+import { stdEnums } from '../../../src/lang/std_enums.js'
 
-const paletteChoices = {};
+const paletteChoices = {}
 for (const [key, val] of Object.entries(stdEnums.palette)) {
-  paletteChoices[key] = val.value;
+  paletteChoices[key] = val.value
 }
 
 export default class Shapes extends Effect {
-  name = "Shapes";
-  namespace = "classicNoisedeck";
-  func = "shapes";
+  name = "Shapes"
+  namespace = "classicNoisedeck"
+  func = "shapes"
 
-  description = "Geometric shapes generator";
+  description = "Geometric shapes generator"
 
 
   // WGSL uniform packing layout - maps uniform names to vec4 slots/components
@@ -34,7 +34,7 @@ export default class Shapes extends Effect {
     paletteFreq: { slot: 5, components: 'xyz' },
     repeatPalette: { slot: 5, components: 'w' },
     palettePhase: { slot: 6, components: 'xyz' }
-  };
+  }
   globals = {
     loopAOffset: {
       type: "int",
@@ -274,7 +274,7 @@ export default class Shapes extends Effect {
         control: "slider"
       }
     }
-  };
+  }
 
   passes = [
     {
@@ -287,5 +287,5 @@ export default class Shapes extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
+  ]
 }

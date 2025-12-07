@@ -1,14 +1,14 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Flow - Agent-based flow field effect with temporal accumulation
- * 
+ *
  * Architecture (GPGPU via render passes):
  * - Uses fragment shaders with MRT for agent simulation
  * - Global surfaces for agent state (position/dir, color, age) with ping-pong
  * - Trail accumulation via point-sprite deposit pass
  * - Multi-pass: agent -> deposit -> diffuse -> blend
- * 
+ *
  * Agent format: [x, y, rot, stride] [r, g, b, seed] [age, behavior, 0, 0]
  * Stored across 3 state textures using MRT
  */
@@ -211,4 +211,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

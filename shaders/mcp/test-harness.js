@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Shader Effect Test Harness
- * 
+ *
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║  CRITICAL: DO NOT WEAKEN THESE TESTS                                         ║
  * ║                                                                              ║
@@ -18,20 +18,20 @@
  * ║  If a shader doesn't work, FIX THE SHADER, not the test.                     ║
  * ║  Always fix forward. Never mask problems.                                    ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
- * 
+ *
  * Usage:
  *   node test-harness.js [flags]
- * 
+ *
  * Required flags:
  *   --backend <backend>       "webgl2" or "webgpu" (REQUIRED)
- * 
+ *
  * Alternative backend flags:
  *   --webgl2, --glsl          Use WebGL2/GLSL backend
  *   --webgpu, --wgsl          Use WebGPU/WGSL backend
- * 
+ *
  * Effect selection:
  *   --effects <patterns>      CSV of effect IDs or glob patterns (default: "classicBasics/noise")
- * 
+ *
  * Test selection:
  *   --all                     Run ALL optional tests
  *   --benchmark               Run FPS test (~500ms per effect)
@@ -41,10 +41,10 @@
  *   --alg-equiv               Test GLSL/WGSL algorithmic equivalence (requires .openai key)
  *   --passthrough             Test that filter effects do NOT pass through input unchanged
  *   --no-vision               Skip AI vision validation
- * 
+ *
  * Other flags:
  *   --verbose                 Show additional diagnostic info
- * 
+ *
  * Examples:
  *   node test-harness.js --effects classicBasics/noise --backend webgl2
  *   node test-harness.js --effects "classicBasics/*" --webgl2 --benchmark
@@ -53,21 +53,21 @@
  *   node test-harness.js --structure-only --effects "classicNoisedeck/*" --webgl2
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { 
-    BrowserSession, 
-    checkEffectStructureOnDisk, 
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import {
+    BrowserSession,
+    checkEffectStructureOnDisk,
     checkAlgEquivOnDisk,
     matchEffects,
     gracePeriod
-} from './browser-harness.js';
-import { getOpenAIApiKey } from './core-operations.js';
+} from './browser-harness.js'
+import { getOpenAIApiKey } from './core-operations.js'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PROJECT_ROOT = path.resolve(__dirname, '../..');
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const PROJECT_ROOT = path.resolve(__dirname, '../..')
 
 // =========================================================================
 // EXEMPTION SETS - STRICT: No more exemptions are permitted
@@ -81,21 +81,21 @@ const MONOCHROME_EXEMPT_EFFECTS = new Set([
     'classicBasics/alpha',       // Extracts alpha channel as grayscale - input noise has alpha=1.0
     'classicBasics/shape',       // Outputs a shape on solid background - "solid" tag is valid
     'classicBasics/solid',       // Outputs a solid fill color by design
-]);
+])
 
 /**
  * Effects exempt from "essentially blank" output check.
  */
 const BLANK_EXEMPT_EFFECTS = new Set([
     // STRICT: No more exemptions are permitted
-]);
+])
 
 /**
  * Effects exempt from transparent output check.
  */
 const TRANSPARENT_EXEMPT_EFFECTS = new Set([
     // Media input effects now load a default test image, so they produce visible output
-]);
+])
 
 /**
  * Effects exempt from passthrough check.
@@ -106,14 +106,14 @@ const PASSTHROUGH_EXEMPT_EFFECTS = new Set([
     'classicNoisemaker/fxaa',            // FXAA anti-aliasing only modifies edge pixels - subtle effect on smooth noise input
     'classicNoisemaker/onScreenDisplay', // OSD overlays text/UI elements - mostly passes through underlying image
     'classicNoisemaker/strayHair',       // Hair overlay effect - sparse thin lines over image preserve most pixels
-]);
+])
 
 // =========================================================================
 // CLI ARGUMENT PARSING
 // =========================================================================
 
 function parseArgs() {
-    const args = process.argv.slice(2);
+    const args = process.argv.slice(2)
     const parsed = {
         effects: [],
         backend: null,
@@ -126,59 +126,59 @@ function parseArgs() {
         runPassthrough: false,
         skipVision: false,
         verbose: false
-    };
-    
+    }
+
     for (let i = 0; i < args.length; i++) {
-        const arg = args[i];
-        
+        const arg = args[i]
+
         if (arg === '--effects' && i + 1 < args.length) {
-            parsed.effects = args[++i].split(',').map(e => e.trim()).filter(e => e);
+            parsed.effects = args[++i].split(',').map(e => e.trim()).filter(e => e)
         } else if (arg === '--backend' && i + 1 < args.length) {
-            parsed.backend = args[++i];
+            parsed.backend = args[++i]
         } else if (arg === '--webgl2' || arg === '--glsl') {
-            parsed.backend = 'webgl2';
+            parsed.backend = 'webgl2'
         } else if (arg === '--webgpu' || arg === '--wgsl') {
-            parsed.backend = 'webgpu';
+            parsed.backend = 'webgpu'
         } else if (arg === '--all') {
-            parsed.runAll = true;
+            parsed.runAll = true
         } else if (arg === '--benchmark') {
-            parsed.runBenchmark = true;
+            parsed.runBenchmark = true
         } else if (arg === '--uniforms') {
-            parsed.runUniforms = true;
+            parsed.runUniforms = true
         } else if (arg === '--structure') {
-            parsed.runStructure = true;
+            parsed.runStructure = true
         } else if (arg === '--structure-only') {
-            parsed.runStructureOnly = true;
-            parsed.runStructure = true;
+            parsed.runStructureOnly = true
+            parsed.runStructure = true
         } else if (arg === '--alg-equiv') {
-            parsed.runAlgEquiv = true;
+            parsed.runAlgEquiv = true
         } else if (arg === '--passthrough') {
-            parsed.runPassthrough = true;
+            parsed.runPassthrough = true
         } else if (arg === '--no-vision') {
-            parsed.skipVision = true;
+            parsed.skipVision = true
         } else if (arg === '--verbose') {
-            parsed.verbose = true;
+            parsed.verbose = true
         } else if (!arg.startsWith('--')) {
             // Legacy support: positional argument is a pattern
-            parsed.effects.push(arg);
+            parsed.effects.push(arg)
         }
     }
-    
+
     // Apply --all
     if (parsed.runAll) {
-        parsed.runBenchmark = true;
-        parsed.runUniforms = true;
-        parsed.runStructure = true;
-        parsed.runAlgEquiv = true;
-        parsed.runPassthrough = true;
+        parsed.runBenchmark = true
+        parsed.runUniforms = true
+        parsed.runStructure = true
+        parsed.runAlgEquiv = true
+        parsed.runPassthrough = true
     }
-    
+
     // Default effects
     if (parsed.effects.length === 0) {
-        parsed.effects = ['classicBasics/noise'];
+        parsed.effects = ['classicBasics/noise']
     }
-    
-    return parsed;
+
+    return parsed
 }
 
 // =========================================================================
@@ -190,30 +190,30 @@ function parseArgs() {
  * Returns array of effect IDs like "classicBasics/noise", "classicNoisemaker/worms", etc.
  */
 function discoverEffectsFromDisk() {
-    const effectsDir = path.join(PROJECT_ROOT, 'shaders', 'effects');
-    const effects = [];
-    
+    const effectsDir = path.join(PROJECT_ROOT, 'shaders', 'effects')
+    const effects = []
+
     // List namespace directories
     const namespaces = fs.readdirSync(effectsDir, { withFileTypes: true })
         .filter(d => d.isDirectory() && !d.name.startsWith('.'))
-        .map(d => d.name);
-    
+        .map(d => d.name)
+
     for (const namespace of namespaces) {
-        const namespaceDir = path.join(effectsDir, namespace);
+        const namespaceDir = path.join(effectsDir, namespace)
         const effectNames = fs.readdirSync(namespaceDir, { withFileTypes: true })
             .filter(d => d.isDirectory() && !d.name.startsWith('.'))
-            .map(d => d.name);
-        
+            .map(d => d.name)
+
         for (const effectName of effectNames) {
             // Verify it has a definition.js
-            const defPath = path.join(namespaceDir, effectName, 'definition.js');
+            const defPath = path.join(namespaceDir, effectName, 'definition.js')
             if (fs.existsSync(defPath)) {
-                effects.push(`${namespace}/${effectName}`);
+                effects.push(`${namespace}/${effectName}`)
             }
         }
     }
-    
-    return effects.sort();
+
+    return effects.sort()
 }
 
 /**
@@ -221,110 +221,110 @@ function discoverEffectsFromDisk() {
  * Uses filesystem to discover effects and runs on-disk checks.
  */
 async function runStructureOnlyMode(args) {
-    console.log(`\n[STRUCTURE-ONLY MODE] No browser will be launched.`);
-    console.log(`Backend: ${args.backend}\n`);
-    
+    console.log(`\n[STRUCTURE-ONLY MODE] No browser will be launched.`)
+    console.log(`Backend: ${args.backend}\n`)
+
     // Discover effects from filesystem
-    const allEffects = discoverEffectsFromDisk();
-    console.log(`Found ${allEffects.length} effects on disk.`);
-    
+    const allEffects = discoverEffectsFromDisk()
+    console.log(`Found ${allEffects.length} effects on disk.`)
+
     // Match patterns
-    const matchedEffectsSet = new Set();
+    const matchedEffectsSet = new Set()
     for (const pattern of args.effects) {
-        const matches = matchEffects(allEffects, pattern);
+        const matches = matchEffects(allEffects, pattern)
         if (matches.length === 0) {
-            console.log(`No effects matched pattern: ${pattern}`);
+            console.log(`No effects matched pattern: ${pattern}`)
         }
         for (const m of matches) {
-            matchedEffectsSet.add(m);
+            matchedEffectsSet.add(m)
         }
     }
-    
-    const matchedEffects = Array.from(matchedEffectsSet).sort();
-    
+
+    const matchedEffects = Array.from(matchedEffectsSet).sort()
+
     if (matchedEffects.length === 0) {
-        console.log('No effects matched. Exiting.');
-        return;
+        console.log('No effects matched. Exiting.')
+        return
     }
-    
-    console.log(`Testing ${matchedEffects.length} effect(s):\n`);
-    
-    const results = [];
-    const startTime = Date.now();
-    let passedCount = 0;
-    let failedCount = 0;
-    
+
+    console.log(`Testing ${matchedEffects.length} effect(s):\n`)
+
+    const results = []
+    const startTime = Date.now()
+    let passedCount = 0
+    let failedCount = 0
+
     // Main loop: Test each effect
     for (const effectId of matchedEffects) {
-        const t0 = Date.now();
-        const structureResult = await checkEffectStructureOnDisk(effectId, { backend: args.backend });
-        const elapsed = Date.now() - t0;
-        
+        const t0 = Date.now()
+        const structureResult = await checkEffectStructureOnDisk(effectId, { backend: args.backend })
+        const elapsed = Date.now() - t0
+
         // Determine pass/fail
-        const issues = [];
+        const issues = []
         if (structureResult.hasInlineShaders) {
-            issues.push('inline shaders');
+            issues.push('inline shaders')
         }
         if (structureResult.missingDescription) {
-            issues.push('missing description');
+            issues.push('missing description')
         }
         if (structureResult.namingIssues?.length > 0) {
-            issues.push(`${structureResult.namingIssues.length} naming issue(s)`);
+            issues.push(`${structureResult.namingIssues.length} naming issue(s)`)
         }
         if (structureResult.unusedFiles?.length > 0) {
-            issues.push(`${structureResult.unusedFiles.length} unused file(s)`);
+            issues.push(`${structureResult.unusedFiles.length} unused file(s)`)
         }
         if (structureResult.leakedInternalUniforms?.length > 0) {
-            issues.push(`${structureResult.leakedInternalUniforms.length} leaked uniform(s)`);
+            issues.push(`${structureResult.leakedInternalUniforms.length} leaked uniform(s)`)
         }
         if (structureResult.splitShaderIssues?.length > 0) {
-            issues.push(`${structureResult.splitShaderIssues.length} split shader issue(s)`);
+            issues.push(`${structureResult.splitShaderIssues.length} split shader issue(s)`)
         }
         if (structureResult.structuralParityIssues?.length > 0) {
-            issues.push(`${structureResult.structuralParityIssues.length} parity issue(s)`);
+            issues.push(`${structureResult.structuralParityIssues.length} parity issue(s)`)
         }
         if (structureResult.requiredUniformIssues?.length > 0) {
-            issues.push(`${structureResult.requiredUniformIssues.length} uniform decl issue(s)`);
+            issues.push(`${structureResult.requiredUniformIssues.length} uniform decl issue(s)`)
         }
-        
-        const passed = issues.length === 0;
+
+        const passed = issues.length === 0
         if (passed) {
-            passedCount++;
-            console.log(`✓ ${effectId} [${elapsed}ms]`);
+            passedCount++
+            console.log(`✓ ${effectId} [${elapsed}ms]`)
         } else {
-            failedCount++;
-            console.log(`❌ ${effectId}: ${issues.join(', ')} [${elapsed}ms]`);
-            
+            failedCount++
+            console.log(`❌ ${effectId}: ${issues.join(', ')} [${elapsed}ms]`)
+
             // Print details in verbose mode or if naming issues
             if (args.verbose || structureResult.namingIssues?.length > 0) {
                 for (const issue of (structureResult.namingIssues || [])) {
                     if (issue.expected) {
-                        console.log(`   ${issue.type}: "${issue.name}" → "${issue.expected}"`);
+                        console.log(`   ${issue.type}: "${issue.name}" → "${issue.expected}"`)
                     } else {
-                        console.log(`   ${issue.type}: "${issue.name}" - ${issue.reason}`);
+                        console.log(`   ${issue.type}: "${issue.name}" - ${issue.reason}`)
                     }
                 }
             }
         }
-        
-        results.push({ effectId, structure: structureResult, passed });
+
+        results.push({ effectId, structure: structureResult, passed })
     }
-    
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+
     // Summary
-    console.log(`\n=== Summary ===`);
+    console.log(`\n=== Summary ===`)
     if (failedCount > 0) {
-        console.log(`\n❌ FAILED: ${failedCount}/${results.length} effects`);
+        console.log(`\n❌ FAILED: ${failedCount}/${results.length} effects`)
     } else {
-        console.log(`\n✅ ALL ${results.length} EFFECTS PASSED`);
+        console.log(`\n✅ ALL ${results.length} EFFECTS PASSED`)
     }
-    console.log(`${passedCount}/${results.length} passed in ${elapsed}s`);
-    
+    console.log(`${passedCount}/${results.length} passed in ${elapsed}s`)
+
     if (failedCount > 0) {
-        process.exit(1);
+        process.exit(1)
     }
-    process.exit(0);
+    process.exit(0)
 }
 
 // =========================================================================
@@ -332,277 +332,277 @@ async function runStructureOnlyMode(args) {
 // =========================================================================
 
 async function testEffect(session, effectId, options) {
-    const results = { 
-        effectId, 
-        compile: null, 
-        render: null, 
+    const results = {
+        effectId,
+        compile: null,
+        render: null,
         isMonochrome: false,
-        uniforms: null, 
+        uniforms: null,
         uniformsFailed: false,
-        structure: null, 
-        algEquiv: null, 
+        structure: null,
+        algEquiv: null,
         algEquivDivergent: false,
         passthrough: null,
         passthroughFailed: false,
-        benchmark: null, 
+        benchmark: null,
         benchmarkFailed: false,
-        vision: null, 
+        vision: null,
         visionFailed: false,
-        consoleErrors: [] 
-    };
-    const timings = [];
-    const backend = options.backend;
-    let t0 = Date.now();
-    
+        consoleErrors: []
+    }
+    const timings = []
+    const backend = options.backend
+    let t0 = Date.now()
+
     // Clear console messages
-    session.clearConsoleMessages();
-    
+    session.clearConsoleMessages()
+
     // Structure test (runs before compilation, uses filesystem)
     if (options.runStructure) {
-        t0 = Date.now();
-        const structureResult = await checkEffectStructureOnDisk(effectId, { backend });
-        timings.push(`structure:${Date.now() - t0}ms`);
-        results.structure = structureResult;
-        
+        t0 = Date.now()
+        const structureResult = await checkEffectStructureOnDisk(effectId, { backend })
+        timings.push(`structure:${Date.now() - t0}ms`)
+        results.structure = structureResult
+
         // CRITICAL: Check for inline shaders - this is a HARD FAIL
         if (structureResult.hasInlineShaders) {
-            console.log(`  ❌ INLINE SHADERS DETECTED - FORBIDDEN`);
+            console.log(`  ❌ INLINE SHADERS DETECTED - FORBIDDEN`)
             for (const loc of structureResult.inlineShaderLocations) {
-                console.log(`     Line ${loc.line}: ${loc.type}`);
-                console.log(`       ${loc.snippet}...`);
+                console.log(`     Line ${loc.line}: ${loc.type}`)
+                console.log(`       ${loc.snippet}...`)
             }
-            console.log(`  All shaders MUST be in separate files under glsl/ or wgsl/ directories.`);
-            results.compile = 'error';
-            return results;
+            console.log(`  All shaders MUST be in separate files under glsl/ or wgsl/ directories.`)
+            results.compile = 'error'
+            return results
         } else {
-            console.log(`  ✓ no inline shaders`);
+            console.log(`  ✓ no inline shaders`)
         }
-        
+
         // Check for missing description
         if (structureResult.missingDescription) {
-            console.log(`  ❌ missing description field in definition.js`);
+            console.log(`  ❌ missing description field in definition.js`)
         } else {
-            console.log(`  ✓ has description`);
+            console.log(`  ✓ has description`)
         }
-        
+
         // Report naming convention issues
         if (structureResult.namingIssues?.length > 0) {
-            console.log(`  ❌ naming issues (${structureResult.namingIssues.length}):`);
+            console.log(`  ❌ naming issues (${structureResult.namingIssues.length}):`)
             for (const issue of structureResult.namingIssues) {
                 if (issue.expected) {
-                    console.log(`     ${issue.type}: "${issue.name}" → expected "${issue.expected}"`);
+                    console.log(`     ${issue.type}: "${issue.name}" → expected "${issue.expected}"`)
                 } else {
-                    console.log(`     ${issue.type}: "${issue.name}" - ${issue.reason}`);
+                    console.log(`     ${issue.type}: "${issue.name}" - ${issue.reason}`)
                 }
             }
         } else {
-            console.log(`  ✓ naming conventions (camelCase)`);
+            console.log(`  ✓ naming conventions (camelCase)`)
         }
-        
+
         // Report unused files
         if (structureResult.unusedFiles?.length > 0) {
-            console.log(`  ❌ unused files: ${structureResult.unusedFiles.join(', ')}`);
+            console.log(`  ❌ unused files: ${structureResult.unusedFiles.join(', ')}`)
         } else if (structureResult.unusedFiles) {
-            console.log(`  ✓ no unused shader files`);
+            console.log(`  ✓ no unused shader files`)
         }
-        
+
         // Report leaked internal uniforms
         if (structureResult.leakedInternalUniforms?.length > 0) {
-            console.log(`  ❌ leaked internal uniforms: ${structureResult.leakedInternalUniforms.join(', ')}`);
+            console.log(`  ❌ leaked internal uniforms: ${structureResult.leakedInternalUniforms.join(', ')}`)
         } else {
-            console.log(`  ✓ no leaked internal uniforms`);
+            console.log(`  ✓ no leaked internal uniforms`)
         }
-        
+
         // Report split shader issues (GLSL only)
         if (structureResult.splitShaderIssues?.length > 0) {
-            console.log(`  ❌ split shader issues:`);
+            console.log(`  ❌ split shader issues:`)
             for (const issue of structureResult.splitShaderIssues) {
-                console.log(`     ${issue.message}`);
+                console.log(`     ${issue.message}`)
             }
         } else if (backend === 'webgl2') {
-            console.log(`  ✓ split shaders consistent`);
+            console.log(`  ✓ split shaders consistent`)
         }
-        
+
         // Report required uniform issues
         if (structureResult.requiredUniformIssues?.length > 0) {
-            console.log(`  ❌ required uniform issues (${structureResult.requiredUniformIssues.length}):`);
+            console.log(`  ❌ required uniform issues (${structureResult.requiredUniformIssues.length}):`)
             for (const issue of structureResult.requiredUniformIssues) {
-                console.log(`     ${issue.file}: ${issue.message}`);
+                console.log(`     ${issue.file}: ${issue.message}`)
             }
         } else {
-            console.log(`  ✓ required uniforms declared`);
+            console.log(`  ✓ required uniforms declared`)
         }
-        
+
         // Report structural parity issues
         if (structureResult.structuralParityIssues?.length > 0) {
-            console.log(`  ❌ structural parity issues (${structureResult.structuralParityIssues.length}):`);
+            console.log(`  ❌ structural parity issues (${structureResult.structuralParityIssues.length}):`)
             for (const issue of structureResult.structuralParityIssues) {
-                console.log(`     ${issue.message}`);
+                console.log(`     ${issue.message}`)
             }
         } else {
-            console.log(`  ✓ GLSL ↔ WGSL structural parity`);
+            console.log(`  ✓ GLSL ↔ WGSL structural parity`)
         }
-        
-        t0 = Date.now();
+
+        t0 = Date.now()
     }
-    
+
     // Algorithmic equivalence test (uses filesystem + AI)
     if (options.runAlgEquiv) {
         if (!getOpenAIApiKey()) {
-            console.log(`  ⊘ alg-equiv: skipped (no .openai key)`);
+            console.log(`  ⊘ alg-equiv: skipped (no .openai key)`)
         } else {
-            t0 = Date.now();
-            const algEquivResult = await checkAlgEquivOnDisk(effectId);
-            timings.push(`alg-equiv:${Date.now() - t0}ms`);
-            results.algEquiv = algEquivResult;
-            
+            t0 = Date.now()
+            const algEquivResult = await checkAlgEquivOnDisk(effectId)
+            timings.push(`alg-equiv:${Date.now() - t0}ms`)
+            results.algEquiv = algEquivResult
+
             if (algEquivResult.status === 'divergent') {
-                results.algEquivDivergent = true;
-                console.log(`  ❌ ALG-EQUIV DIVERGENT`);
+                results.algEquivDivergent = true
+                console.log(`  ❌ ALG-EQUIV DIVERGENT`)
                 for (const pair of algEquivResult.pairs.filter(p => p.parity === 'divergent')) {
-                    console.log(`    ${pair.program}: ${pair.notes}`);
+                    console.log(`    ${pair.program}: ${pair.notes}`)
                     if (pair.concerns?.length > 0) {
                         for (const concern of pair.concerns) {
-                            console.log(`      - ${concern}`);
+                            console.log(`      - ${concern}`)
                         }
                     }
                 }
             } else if (algEquivResult.status === 'error') {
-                results.algEquivDivergent = true;
-                console.log(`  ❌ alg-equiv: ${algEquivResult.summary}`);
+                results.algEquivDivergent = true
+                console.log(`  ❌ alg-equiv: ${algEquivResult.summary}`)
             } else if (algEquivResult.status === 'ok' && algEquivResult.pairs.length > 0) {
-                console.log(`  ✓ alg-equiv: ${algEquivResult.pairs.length} pairs equivalent`);
+                console.log(`  ✓ alg-equiv: ${algEquivResult.pairs.length} pairs equivalent`)
             } else {
-                results.algEquivDivergent = true;
-                console.log(`  ❌ alg-equiv: ${algEquivResult.summary || 'Unknown error'}`);
+                results.algEquivDivergent = true
+                console.log(`  ❌ alg-equiv: ${algEquivResult.summary || 'Unknown error'}`)
             }
-            
-            t0 = Date.now();
+
+            t0 = Date.now()
         }
     }
-    
+
     // Compile
-    const compileResult = await session.compileEffect(effectId);
-    timings.push(`compile:${Date.now() - t0}ms`);
-    t0 = Date.now();
-    results.compile = compileResult.status;
-    
+    const compileResult = await session.compileEffect(effectId)
+    timings.push(`compile:${Date.now() - t0}ms`)
+    t0 = Date.now()
+    results.compile = compileResult.status
+
     if (compileResult.status === 'error') {
-        console.log(`  ❌ compile: ${compileResult.message}`);
-        return results;
+        console.log(`  ❌ compile: ${compileResult.message}`)
+        return results
     }
-    console.log(`  ✓ compile`);
-    
+    console.log(`  ✓ compile`)
+
     // Render (skip compile since already loaded)
-    const renderResult = await session.renderEffectFrame(effectId, { skipCompile: true, warmupFrames: 10 });
-    timings.push(`render:${Date.now() - t0}ms`);
-    t0 = Date.now();
-    results.render = renderResult.status;
-    
-    const isMonochromeExempt = MONOCHROME_EXEMPT_EFFECTS.has(effectId);
-    const isTransparentExempt = TRANSPARENT_EXEMPT_EFFECTS.has(effectId);
-    const isBlankExempt = BLANK_EXEMPT_EFFECTS.has(effectId);
-    
-    results.isMonochrome = (renderResult.metrics?.is_monochrome || false) && !isMonochromeExempt && !isTransparentExempt;
-    results.isMonochromeExempt = isMonochromeExempt && (renderResult.metrics?.is_monochrome || false);
-    results.isEssentiallyBlank = (renderResult.metrics?.is_essentially_blank || false) && !isTransparentExempt && !isBlankExempt;
-    results.isBlankExempt = isBlankExempt && (renderResult.metrics?.is_essentially_blank || false);
-    results.isAllTransparent = (renderResult.metrics?.is_all_transparent || false) && !isTransparentExempt;
-    results.isTransparentExempt = isTransparentExempt && (renderResult.metrics?.is_all_transparent || false);
-    
+    const renderResult = await session.renderEffectFrame(effectId, { skipCompile: true, warmupFrames: 10 })
+    timings.push(`render:${Date.now() - t0}ms`)
+    t0 = Date.now()
+    results.render = renderResult.status
+
+    const isMonochromeExempt = MONOCHROME_EXEMPT_EFFECTS.has(effectId)
+    const isTransparentExempt = TRANSPARENT_EXEMPT_EFFECTS.has(effectId)
+    const isBlankExempt = BLANK_EXEMPT_EFFECTS.has(effectId)
+
+    results.isMonochrome = (renderResult.metrics?.is_monochrome || false) && !isMonochromeExempt && !isTransparentExempt
+    results.isMonochromeExempt = isMonochromeExempt && (renderResult.metrics?.is_monochrome || false)
+    results.isEssentiallyBlank = (renderResult.metrics?.is_essentially_blank || false) && !isTransparentExempt && !isBlankExempt
+    results.isBlankExempt = isBlankExempt && (renderResult.metrics?.is_essentially_blank || false)
+    results.isAllTransparent = (renderResult.metrics?.is_all_transparent || false) && !isTransparentExempt
+    results.isTransparentExempt = isTransparentExempt && (renderResult.metrics?.is_all_transparent || false)
+
     if (renderResult.status === 'error') {
-        console.log(`  ❌ render: ${renderResult.error}`);
-        const consoleErrors = session.getConsoleMessages();
+        console.log(`  ❌ render: ${renderResult.error}`)
+        const consoleErrors = session.getConsoleMessages()
         if (consoleErrors.length > 0) {
-            console.log(`  Console errors:`);
+            console.log(`  Console errors:`)
             for (const msg of consoleErrors.slice(0, 10)) {
-                console.log(`    ${msg.type}: ${msg.text.slice(0, 500)}`);
+                console.log(`    ${msg.type}: ${msg.text.slice(0, 500)}`)
             }
         }
     } else if (renderResult.metrics?.is_all_transparent && !isTransparentExempt) {
-        console.log(`  ❌ render: FULLY TRANSPARENT (alpha=0 everywhere, mean_alpha=${renderResult.metrics.mean_alpha?.toFixed(4)})`);
+        console.log(`  ❌ render: FULLY TRANSPARENT (alpha=0 everywhere, mean_alpha=${renderResult.metrics.mean_alpha?.toFixed(4)})`)
     } else if (isTransparentExempt && renderResult.metrics?.is_all_transparent) {
-        console.log(`  ⊘ render: transparent (exempt - expected for ${effectId})`);
+        console.log(`  ⊘ render: transparent (exempt - expected for ${effectId})`)
     } else if (isBlankExempt && renderResult.metrics?.is_essentially_blank) {
-        console.log(`  ⊘ render: essentially blank (exempt - edge detection on smooth noise)`);
+        console.log(`  ⊘ render: essentially blank (exempt - edge detection on smooth noise)`)
     } else if (renderResult.metrics?.is_essentially_blank) {
-        const m = renderResult.metrics;
-        console.log(`  ❌ render: ESSENTIALLY BLANK (mean_rgb=[${m.mean_rgb.map(v => v.toFixed(4)).join(', ')}], ${m.unique_sampled_colors} colors)`);
+        const m = renderResult.metrics
+        console.log(`  ❌ render: ESSENTIALLY BLANK (mean_rgb=[${m.mean_rgb.map(v => v.toFixed(4)).join(', ')}], ${m.unique_sampled_colors} colors)`)
     } else if (renderResult.metrics?.is_monochrome && !isMonochromeExempt) {
-        console.log(`  ❌ render: monochrome output (${renderResult.metrics.unique_sampled_colors} colors)`);
+        console.log(`  ❌ render: monochrome output (${renderResult.metrics.unique_sampled_colors} colors)`)
     } else if (results.isMonochromeExempt) {
-        console.log(`  ⊘ render: monochrome (exempt - expected for ${effectId})`);
+        console.log(`  ⊘ render: monochrome (exempt - expected for ${effectId})`)
     } else {
-        console.log(`  ✓ render (${renderResult.metrics?.unique_sampled_colors} colors)`);
+        console.log(`  ✓ render (${renderResult.metrics?.unique_sampled_colors} colors)`)
     }
-    
+
     // Uniform responsiveness test
     if (options.runUniforms) {
-        t0 = Date.now();
-        const uniformResult = await session.testUniformResponsiveness(effectId, { skipCompile: true });
-        timings.push(`uniforms:${Date.now() - t0}ms`);
-        results.uniforms = uniformResult.status;
-        
+        t0 = Date.now()
+        const uniformResult = await session.testUniformResponsiveness(effectId, { skipCompile: true })
+        timings.push(`uniforms:${Date.now() - t0}ms`)
+        results.uniforms = uniformResult.status
+
         if (uniformResult.status === 'skipped') {
-            console.log(`  ⊘ uniforms: ${uniformResult.details}`);
+            console.log(`  ⊘ uniforms: ${uniformResult.details}`)
         } else if (uniformResult.status === 'ok') {
-            console.log(`  ✓ uniforms: ${uniformResult.tested_uniforms.join(', ')}`);
+            console.log(`  ✓ uniforms: ${uniformResult.tested_uniforms.join(', ')}`)
         } else {
-            results.uniformsFailed = true;
-            console.log(`  ❌ uniforms: ${uniformResult.details} [${uniformResult.tested_uniforms.join(', ')}]`);
+            results.uniformsFailed = true
+            console.log(`  ❌ uniforms: ${uniformResult.details} [${uniformResult.tested_uniforms.join(', ')}]`)
         }
     }
-    
+
     // Passthrough test
     if (options.runPassthrough) {
-        t0 = Date.now();
-        const isPassthroughExempt = PASSTHROUGH_EXEMPT_EFFECTS.has(effectId);
-        
+        t0 = Date.now()
+        const isPassthroughExempt = PASSTHROUGH_EXEMPT_EFFECTS.has(effectId)
+
         if (isPassthroughExempt) {
-            results.passthrough = 'skipped';
-            console.log(`  ⊘ passthrough: exempt (effect preserves average colors by design)`);
+            results.passthrough = 'skipped'
+            console.log(`  ⊘ passthrough: exempt (effect preserves average colors by design)`)
         } else {
-            const passthroughResult = await session.testNoPassthrough(effectId, { skipCompile: true });
-            timings.push(`passthrough:${Date.now() - t0}ms`);
-            results.passthrough = passthroughResult.status;
-            
+            const passthroughResult = await session.testNoPassthrough(effectId, { skipCompile: true })
+            timings.push(`passthrough:${Date.now() - t0}ms`)
+            results.passthrough = passthroughResult.status
+
             if (passthroughResult.status === 'skipped') {
-                console.log(`  ⊘ passthrough: ${passthroughResult.details}`);
+                console.log(`  ⊘ passthrough: ${passthroughResult.details}`)
             } else if (passthroughResult.status === 'ok') {
-                console.log(`  ✓ passthrough: ${passthroughResult.details}`);
+                console.log(`  ✓ passthrough: ${passthroughResult.details}`)
             } else if (passthroughResult.status === 'passthrough') {
-                results.passthroughFailed = true;
-                console.log(`  ❌ PASSTHROUGH DETECTED: ${passthroughResult.details}`);
+                results.passthroughFailed = true
+                console.log(`  ❌ PASSTHROUGH DETECTED: ${passthroughResult.details}`)
             } else {
-                results.passthroughFailed = true;
-                console.log(`  ❌ passthrough: ${passthroughResult.details}`);
+                results.passthroughFailed = true
+                console.log(`  ❌ passthrough: ${passthroughResult.details}`)
             }
         }
     }
-    
+
     // Benchmark
     if (options.runBenchmark) {
-        t0 = Date.now();
+        t0 = Date.now()
         const benchResult = await session.benchmarkEffectFps(effectId, {
             targetFps: 30,
             durationSeconds: 0.5,
             skipCompile: true
-        });
-        timings.push(`benchmark:${Date.now() - t0}ms`);
-        results.benchmark = benchResult.achieved_fps;
+        })
+        timings.push(`benchmark:${Date.now() - t0}ms`)
+        results.benchmark = benchResult.achieved_fps
         if (benchResult.achieved_fps < 30) {
-            results.benchmarkFailed = true;
-            console.log(`  ❌ benchmark: ${benchResult.achieved_fps} fps (below 30 fps target)`);
+            results.benchmarkFailed = true
+            console.log(`  ❌ benchmark: ${benchResult.achieved_fps} fps (below 30 fps target)`)
         } else {
-            console.log(`  ✓ benchmark: ${benchResult.achieved_fps} fps`);
+            console.log(`  ✓ benchmark: ${benchResult.achieved_fps} fps`)
         }
     }
-    
+
     // Reset uniforms before vision test
-    await session.resetUniformsToDefaults();
-    
+    await session.resetUniformsToDefaults()
+
     // Vision validation
-    const hasApiKey = !!getOpenAIApiKey();
+    const hasApiKey = !!getOpenAIApiKey()
     if (hasApiKey && !options.skipVision) {
         const prompt = `Is this shader output valid?
 Valid = shows actual visual content (patterns, colors, textures, effects, colorful mosaic, grid of colors)
@@ -611,68 +611,68 @@ Invalid = completely blank, solid color only, or obviously broken/corrupted
 CRITICAL TRANSPARENCY CHECK: If you see a GRAY AND WHITE checkerboard pattern (like Photoshop's transparency background), this means the output is TRANSPARENT. Tag as "transparency-background". This is different from colorful grids/mosaics which are valid.
 
 Only include these tags if problems exist: "blank", "solid", "broken", "invalid", "transparency-background".
-Do NOT tag colorful patterns or mosaics as problematic - those are valid outputs.`;
-        
-        const visionResult = await session.describeEffectFrame(effectId, prompt, { skipCompile: true, captureImage: true });
-        results.vision = visionResult.status;
-        
+Do NOT tag colorful patterns or mosaics as problematic - those are valid outputs.`
+
+        const visionResult = await session.describeEffectFrame(effectId, prompt, { skipCompile: true, captureImage: true })
+        results.vision = visionResult.status
+
         if (visionResult.error) {
-            results.visionFailed = true;
-            console.log(`  ❌ vision: ${visionResult.error}`);
+            results.visionFailed = true
+            console.log(`  ❌ vision: ${visionResult.error}`)
         } else if (visionResult.vision) {
-            const desc = String(visionResult.vision.description || '').toLowerCase();
-            const tags = (visionResult.vision.tags || []).map(t => String(t).toLowerCase());
-            const notes = String(visionResult.vision.notes || '').toLowerCase();
-            const allText = `${desc} ${tags.join(' ')} ${notes}`;
-            
-            const isMonoExempt = MONOCHROME_EXEMPT_EFFECTS.has(effectId);
-            const isTransExempt = TRANSPARENT_EXEMPT_EFFECTS.has(effectId);
-            let baseFailureIndicators = ['blank', 'solid color', 'broken', 'invalid', 'corrupted', 'empty', 'nothing', 'transparency-background'];
+            const desc = String(visionResult.vision.description || '').toLowerCase()
+            const tags = (visionResult.vision.tags || []).map(t => String(t).toLowerCase())
+            const notes = String(visionResult.vision.notes || '').toLowerCase()
+            const allText = `${desc} ${tags.join(' ')} ${notes}`
+
+            const isMonoExempt = MONOCHROME_EXEMPT_EFFECTS.has(effectId)
+            const isTransExempt = TRANSPARENT_EXEMPT_EFFECTS.has(effectId)
+            let baseFailureIndicators = ['blank', 'solid color', 'broken', 'invalid', 'corrupted', 'empty', 'nothing', 'transparency-background']
             if (isMonoExempt) {
-                baseFailureIndicators = baseFailureIndicators.filter(i => i !== 'solid color' && i !== 'blank' && i !== 'empty' && i !== 'nothing' && i !== 'invalid');
+                baseFailureIndicators = baseFailureIndicators.filter(i => i !== 'solid color' && i !== 'blank' && i !== 'empty' && i !== 'nothing' && i !== 'invalid')
             }
             if (isTransExempt) {
-                baseFailureIndicators = baseFailureIndicators.filter(i => i !== 'transparency-background' && i !== 'blank' && i !== 'empty' && i !== 'nothing' && i !== 'invalid');
+                baseFailureIndicators = baseFailureIndicators.filter(i => i !== 'transparency-background' && i !== 'blank' && i !== 'empty' && i !== 'nothing' && i !== 'invalid')
             }
-            const hasFailureIndicator = baseFailureIndicators.some(indicator => allText.includes(indicator));
-            
+            const hasFailureIndicator = baseFailureIndicators.some(indicator => allText.includes(indicator))
+
             const problemTags = tags.filter(t => {
-                if (t === 'broken' || t === 'corrupted' || t === 'artifact') return true;
-                if (t === 'transparency-background' && !isTransExempt) return true;
-                if (isMonoExempt || isTransExempt) return false;
-                return t === 'blank' || t === 'solid' || t === 'empty' || t === 'invalid';
-            });
-            
+                if (t === 'broken' || t === 'corrupted' || t === 'artifact') return true
+                if (t === 'transparency-background' && !isTransExempt) return true
+                if (isMonoExempt || isTransExempt) return false
+                return t === 'blank' || t === 'solid' || t === 'empty' || t === 'invalid'
+            })
+
             if (hasFailureIndicator || problemTags.length > 0) {
-                results.visionFailed = true;
-                const reason = problemTags.length > 0 ? problemTags.join(', ') : desc.slice(0, 100);
-                console.log(`  ❌ vision: INVALID OUTPUT - ${reason}`);
+                results.visionFailed = true
+                const reason = problemTags.length > 0 ? problemTags.join(', ') : desc.slice(0, 100)
+                console.log(`  ❌ vision: INVALID OUTPUT - ${reason}`)
             } else {
-                console.log(`  ✓ vision: ${visionResult.vision.tags?.slice(0, 3).join(', ') || desc.slice(0, 50)}`);
+                console.log(`  ✓ vision: ${visionResult.vision.tags?.slice(0, 3).join(', ') || desc.slice(0, 50)}`)
             }
         }
     }
-    
+
     // Capture console errors
-    const allConsoleMessages = session.getConsoleMessages();
-    results.consoleErrors = allConsoleMessages.filter(m => 
+    const allConsoleMessages = session.getConsoleMessages()
+    results.consoleErrors = allConsoleMessages.filter(m =>
         m.type === 'error' || m.type === 'warning' || m.type === 'pageerror'
-    );
-    
+    )
+
     if (results.consoleErrors.length > 0) {
-        console.log(`  ❌ console errors: ${results.consoleErrors.length} error(s)/warning(s)`);
+        console.log(`  ❌ console errors: ${results.consoleErrors.length} error(s)/warning(s)`)
         if (options.verbose) {
             for (const msg of results.consoleErrors.slice(0, 5)) {
-                console.log(`    ${msg.type}: ${msg.text.slice(0, 200)}`);
+                console.log(`    ${msg.type}: ${msg.text.slice(0, 200)}`)
             }
         }
     }
-    
+
     // Reset uniforms at end
-    await session.resetUniformsToDefaults();
-    
-    console.log(`  [${timings.join(', ')}]`);
-    return results;
+    await session.resetUniformsToDefaults()
+
+    console.log(`  [${timings.join(', ')}]`)
+    return results
 }
 
 // =========================================================================
@@ -680,177 +680,177 @@ Do NOT tag colorful patterns or mosaics as problematic - those are valid outputs
 // =========================================================================
 
 async function main() {
-    const nag = "⚠️ This is a long-running, expensive test suite. Don't run it multiple times unless you really need to. Capture the results in a log and review the log.";
-    console.log(nag);
+    const nag = "⚠️ This is a long-running, expensive test suite. Don't run it multiple times unless you really need to. Capture the results in a log and review the log."
+    console.log(nag)
 
-    const args = parseArgs();
-    
+    const args = parseArgs()
+
     // Validate backend
     if (!args.backend) {
-        console.error('ERROR: Backend flag is REQUIRED.');
-        console.error('  Use --backend webgl2 or --webgl2 or --glsl for WebGL2/GLSL');
-        console.error('  Use --backend webgpu or --webgpu or --wgsl for WebGPU/WGSL');
-        console.error('\nExample: node test-harness.js --effects classicBasics/noise --backend webgl2');
-        process.exit(1);
+        console.error('ERROR: Backend flag is REQUIRED.')
+        console.error('  Use --backend webgl2 or --webgl2 or --glsl for WebGL2/GLSL')
+        console.error('  Use --backend webgpu or --webgpu or --wgsl for WebGPU/WGSL')
+        console.error('\nExample: node test-harness.js --effects classicBasics/noise --backend webgl2')
+        process.exit(1)
     }
-    
+
     // Structure-only mode: skip browser, run on-disk checks
     if (args.runStructureOnly) {
-        await runStructureOnlyMode(args);
-        return;
+        await runStructureOnlyMode(args)
+        return
     }
-    
-    console.log(`\nStarting browser session (backend: ${args.backend})...`);
-    
+
+    console.log(`\nStarting browser session (backend: ${args.backend})...`)
+
     // Setup: Create browser session
-    const session = new BrowserSession({ 
-        backend: args.backend, 
+    const session = new BrowserSession({
+        backend: args.backend,
         headless: false  // Use headed mode for better debugging
-    });
-    
+    })
+
     try {
-        await session.setup();
-        
+        await session.setup()
+
         // Resolve effect patterns
-        const allEffects = await session.listEffects();
-        const matchedEffectsSet = new Set();
-        
+        const allEffects = await session.listEffects()
+        const matchedEffectsSet = new Set()
+
         for (const pattern of args.effects) {
-            const matches = matchEffects(allEffects, pattern);
+            const matches = matchEffects(allEffects, pattern)
             if (matches.length === 0) {
-                console.log(`No effects matched pattern: ${pattern}`);
-                console.log(`Available: ${allEffects.slice(0, 10).join(', ')}...`);
+                console.log(`No effects matched pattern: ${pattern}`)
+                console.log(`Available: ${allEffects.slice(0, 10).join(', ')}...`)
             }
             for (const m of matches) {
-                matchedEffectsSet.add(m);
+                matchedEffectsSet.add(m)
             }
         }
-        
-        const matchedEffects = Array.from(matchedEffectsSet).sort();
-        
+
+        const matchedEffects = Array.from(matchedEffectsSet).sort()
+
         if (matchedEffects.length === 0) {
-            console.log('No effects matched. Exiting.');
-            await session.teardown();
-            return;
+            console.log('No effects matched. Exiting.')
+            await session.teardown()
+            return
         }
-        
-        console.log(`\nTesting ${matchedEffects.length} effect(s):\n`);
-        
-        const results = [];
-        const startTime = Date.now();
-        
+
+        console.log(`\nTesting ${matchedEffects.length} effect(s):\n`)
+
+        const results = []
+        const startTime = Date.now()
+
         // Main loop: Test each effect
         for (const effectId of matchedEffects) {
-            console.log(`\n────────────────────────────────────────────────────────────────────────────────`);
-            console.log(`[${effectId}] (${args.backend})`);
-            
-            const result = await testEffect(session, effectId, args);
-            results.push(result);
-            
+            console.log(`\n────────────────────────────────────────────────────────────────────────────────`)
+            console.log(`[${effectId}] (${args.backend})`)
+
+            const result = await testEffect(session, effectId, args)
+            results.push(result)
+
             // Grace period between effects
-            await gracePeriod();
+            await gracePeriod()
         }
-        
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        
+
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+
         // =====================================================================
         // STRICT PASS/FAIL DETERMINATION
         // =====================================================================
         const passed = results.filter(r => {
-            if (r.compile !== 'ok') return false;
-            if (r.render !== 'ok') return false;
-            if (r.isMonochrome) return false;
-            if (r.isEssentiallyBlank) return false;
-            if (r.isAllTransparent) return false;
-            if (r.consoleErrors?.length > 0) return false;
-            if (r.uniformsFailed) return false;
-            if (r.passthroughFailed) return false;
-            if (r.benchmarkFailed) return false;
-            if (r.visionFailed) return false;
-            if (r.algEquivDivergent) return false;
-            if (args.runStructure && r.structure?.namingIssues?.length > 0) return false;
-            if (args.runStructure && r.structure?.unusedFiles?.length > 0) return false;
-            if (args.runStructure && r.structure?.leakedInternalUniforms?.length > 0) return false;
-            if (args.runStructure && r.structure?.splitShaderIssues?.length > 0) return false;
-            if (args.runStructure && r.structure?.structuralParityIssues?.length > 0) return false;
-            if (args.runStructure && r.structure?.requiredUniformIssues?.length > 0) return false;
-            return true;
-        }).length;
-        
+            if (r.compile !== 'ok') return false
+            if (r.render !== 'ok') return false
+            if (r.isMonochrome) return false
+            if (r.isEssentiallyBlank) return false
+            if (r.isAllTransparent) return false
+            if (r.consoleErrors?.length > 0) return false
+            if (r.uniformsFailed) return false
+            if (r.passthroughFailed) return false
+            if (r.benchmarkFailed) return false
+            if (r.visionFailed) return false
+            if (r.algEquivDivergent) return false
+            if (args.runStructure && r.structure?.namingIssues?.length > 0) return false
+            if (args.runStructure && r.structure?.unusedFiles?.length > 0) return false
+            if (args.runStructure && r.structure?.leakedInternalUniforms?.length > 0) return false
+            if (args.runStructure && r.structure?.splitShaderIssues?.length > 0) return false
+            if (args.runStructure && r.structure?.structuralParityIssues?.length > 0) return false
+            if (args.runStructure && r.structure?.requiredUniformIssues?.length > 0) return false
+            return true
+        }).length
+
         const failed = results.filter(r => {
-            if (r.compile !== 'ok') return true;
-            if (r.render !== 'ok') return true;
-            if (r.isMonochrome) return true;
-            if (r.isEssentiallyBlank) return true;
-            if (r.isAllTransparent) return true;
-            if (r.consoleErrors?.length > 0) return true;
-            if (r.uniformsFailed) return true;
-            if (r.passthroughFailed) return true;
-            if (r.benchmarkFailed) return true;
-            if (r.visionFailed) return true;
-            if (r.algEquivDivergent) return true;
-            if (args.runStructure && r.structure?.namingIssues?.length > 0) return true;
-            if (args.runStructure && r.structure?.unusedFiles?.length > 0) return true;
-            if (args.runStructure && r.structure?.leakedInternalUniforms?.length > 0) return true;
-            if (args.runStructure && r.structure?.splitShaderIssues?.length > 0) return true;
-            if (args.runStructure && r.structure?.structuralParityIssues?.length > 0) return true;
-            if (args.runStructure && r.structure?.requiredUniformIssues?.length > 0) return true;
-            return false;
-        });
-        
+            if (r.compile !== 'ok') return true
+            if (r.render !== 'ok') return true
+            if (r.isMonochrome) return true
+            if (r.isEssentiallyBlank) return true
+            if (r.isAllTransparent) return true
+            if (r.consoleErrors?.length > 0) return true
+            if (r.uniformsFailed) return true
+            if (r.passthroughFailed) return true
+            if (r.benchmarkFailed) return true
+            if (r.visionFailed) return true
+            if (r.algEquivDivergent) return true
+            if (args.runStructure && r.structure?.namingIssues?.length > 0) return true
+            if (args.runStructure && r.structure?.unusedFiles?.length > 0) return true
+            if (args.runStructure && r.structure?.leakedInternalUniforms?.length > 0) return true
+            if (args.runStructure && r.structure?.splitShaderIssues?.length > 0) return true
+            if (args.runStructure && r.structure?.structuralParityIssues?.length > 0) return true
+            if (args.runStructure && r.structure?.requiredUniformIssues?.length > 0) return true
+            return false
+        })
+
         // Summary
-        console.log(`\n=== Summary ===`);
+        console.log(`\n=== Summary ===`)
         if (failed.length > 0) {
-            console.log(`\n${'❌'.repeat(3)} FAILED: ${failed.length}/${results.length} effects ${'❌'.repeat(3)}`);
-            console.log(``);
+            console.log(`\n${'❌'.repeat(3)} FAILED: ${failed.length}/${results.length} effects ${'❌'.repeat(3)}`)
+            console.log(``)
             for (const r of failed) {
-                const reasons = [];
-                if (r.compile !== 'ok') reasons.push(`compile: ${r.compile}`);
-                if (r.render !== 'ok') reasons.push(`render: ${r.render}`);
-                if (r.isMonochrome) reasons.push('monochrome output');
-                if (r.isEssentiallyBlank) reasons.push('blank output');
-                if (r.isAllTransparent) reasons.push('transparent output');
-                if (r.consoleErrors?.length > 0) reasons.push(`${r.consoleErrors.length} console error(s)`);
-                if (r.uniformsFailed) reasons.push('uniforms unresponsive');
-                if (r.passthroughFailed) reasons.push('passthrough (no-op)');
-                if (r.benchmarkFailed) reasons.push('below target FPS');
-                if (r.visionFailed) reasons.push('vision check failed');
-                if (r.algEquivDivergent) reasons.push('GLSL/WGSL divergent');
-                if (args.runStructure && r.structure?.namingIssues?.length > 0) reasons.push(`${r.structure.namingIssues.length} naming issue(s)`);
-                if (args.runStructure && r.structure?.unusedFiles?.length > 0) reasons.push(`${r.structure.unusedFiles.length} unused file(s)`);
-                if (args.runStructure && r.structure?.leakedInternalUniforms?.length > 0) reasons.push(`${r.structure.leakedInternalUniforms.length} leaked uniform(s)`);
-                if (args.runStructure && r.structure?.splitShaderIssues?.length > 0) reasons.push(`${r.structure.splitShaderIssues.length} split shader issue(s)`);
-                if (args.runStructure && r.structure?.structuralParityIssues?.length > 0) reasons.push(`${r.structure.structuralParityIssues.length} parity issue(s)`);
-                if (args.runStructure && r.structure?.requiredUniformIssues?.length > 0) reasons.push(`${r.structure.requiredUniformIssues.length} missing uniform decl(s)`);
-                console.log(`  ❌ ${r.effectId}: ${reasons.join(', ')}`);
+                const reasons = []
+                if (r.compile !== 'ok') reasons.push(`compile: ${r.compile}`)
+                if (r.render !== 'ok') reasons.push(`render: ${r.render}`)
+                if (r.isMonochrome) reasons.push('monochrome output')
+                if (r.isEssentiallyBlank) reasons.push('blank output')
+                if (r.isAllTransparent) reasons.push('transparent output')
+                if (r.consoleErrors?.length > 0) reasons.push(`${r.consoleErrors.length} console error(s)`)
+                if (r.uniformsFailed) reasons.push('uniforms unresponsive')
+                if (r.passthroughFailed) reasons.push('passthrough (no-op)')
+                if (r.benchmarkFailed) reasons.push('below target FPS')
+                if (r.visionFailed) reasons.push('vision check failed')
+                if (r.algEquivDivergent) reasons.push('GLSL/WGSL divergent')
+                if (args.runStructure && r.structure?.namingIssues?.length > 0) reasons.push(`${r.structure.namingIssues.length} naming issue(s)`)
+                if (args.runStructure && r.structure?.unusedFiles?.length > 0) reasons.push(`${r.structure.unusedFiles.length} unused file(s)`)
+                if (args.runStructure && r.structure?.leakedInternalUniforms?.length > 0) reasons.push(`${r.structure.leakedInternalUniforms.length} leaked uniform(s)`)
+                if (args.runStructure && r.structure?.splitShaderIssues?.length > 0) reasons.push(`${r.structure.splitShaderIssues.length} split shader issue(s)`)
+                if (args.runStructure && r.structure?.structuralParityIssues?.length > 0) reasons.push(`${r.structure.structuralParityIssues.length} parity issue(s)`)
+                if (args.runStructure && r.structure?.requiredUniformIssues?.length > 0) reasons.push(`${r.structure.requiredUniformIssues.length} missing uniform decl(s)`)
+                console.log(`  ❌ ${r.effectId}: ${reasons.join(', ')}`)
             }
-            console.log(``);
+            console.log(``)
         } else {
-            console.log(`\n✅ ALL ${results.length} EFFECTS PASSED ✅`);
+            console.log(`\n✅ ALL ${results.length} EFFECTS PASSED ✅`)
         }
-        console.log(`${passed}/${results.length} passed in ${elapsed}s`);
-        console.log(`${(elapsed / results.length).toFixed(2)}s per effect (excluding browser startup)`);
-        
+        console.log(`${passed}/${results.length} passed in ${elapsed}s`)
+        console.log(`${(elapsed / results.length).toFixed(2)}s per effect (excluding browser startup)`)
+
         // Teardown
-        await session.teardown();
-        
-        console.log(nag);
-        
+        await session.teardown()
+
+        console.log(nag)
+
         if (failed.length > 0) {
-            console.log(`\n❌ TEST RUN FAILED - fix the issues above`);
-            process.exit(1);
+            console.log(`\n❌ TEST RUN FAILED - fix the issues above`)
+            process.exit(1)
         }
-        
-        process.exit(0);
-        
+
+        process.exit(0)
+
     } catch (error) {
-        console.error('Test failed:', error);
-        await session.teardown();
-        process.exit(1);
+        console.error('Test failed:', error)
+        await session.teardown()
+        process.exit(1)
     }
 }
 
 main().catch((error) => {
-    console.error(error);
-    process.exit(1);
-});
+    console.error(error)
+    process.exit(1)
+})

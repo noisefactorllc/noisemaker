@@ -1,17 +1,17 @@
-import { Effect } from '../../../src/runtime/effect.js';
-import { stdEnums } from '../../../src/lang/std_enums.js';
+import { Effect } from '../../../src/runtime/effect.js'
+import { stdEnums } from '../../../src/lang/std_enums.js'
 
-const paletteChoices = {};
+const paletteChoices = {}
 for (const [key, val] of Object.entries(stdEnums.palette)) {
-  paletteChoices[key] = val.value;
+  paletteChoices[key] = val.value
 }
 
 export default class Fractal extends Effect {
-  name = "Fractal";
-  namespace = "classicNoisedeck";
-  func = "fractal";
+  name = "Fractal"
+  namespace = "classicNoisedeck"
+  func = "fractal"
 
-  description = "Fractal pattern generator";
+  description = "Fractal pattern generator"
 
   // WGSL uniform packing layout - contiguous vec3/vec4 layout
   uniformLayout = {
@@ -43,7 +43,7 @@ export default class Fractal extends Effect {
     palettePhase: { slot: 8, components: 'xyz' },
     cutoff: { slot: 8, components: 'w' },
     backgroundColor: { slot: 9, components: 'xyz' }
-  };
+  }
 
   globals = {
     seed: {
@@ -342,7 +342,7 @@ export default class Fractal extends Effect {
         control: "slider"
       }
     }
-  };
+  }
 
   passes = [
     {
@@ -355,5 +355,5 @@ export default class Fractal extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
+  ]
 }

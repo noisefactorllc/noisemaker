@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Grain
@@ -52,4 +52,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Spooky Ticker
@@ -39,4 +39,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

@@ -1,90 +1,90 @@
-const legacyEnums = {};
-let mutableEnums = legacyEnums;
-let frozenEnums = null;
+const legacyEnums = {}
+let mutableEnums = legacyEnums
+let frozenEnums = null
 
 /**
  * Deep merge source into target, recursively merging nested objects
  * Creates new objects as needed to avoid mutating frozen objects
  */
 function deepMerge(target, source) {
-  if (!source || typeof source !== 'object') return target;
-  
+  if (!source || typeof source !== 'object') return target
+
   for (const key of Object.keys(source)) {
-    const sourceVal = source[key];
-    const targetVal = target[key];
-    
+    const sourceVal = source[key]
+    const targetVal = target[key]
+
     // If both are plain objects (not arrays, not enum entries with 'type'), recurse
     if (sourceVal && typeof sourceVal === 'object' && !Array.isArray(sourceVal) &&
         targetVal && typeof targetVal === 'object' && !Array.isArray(targetVal) &&
         !('type' in sourceVal)) {
       // Create a new object if target is frozen
       if (Object.isFrozen(targetVal)) {
-        target[key] = deepMerge({ ...targetVal }, sourceVal);
+        target[key] = deepMerge({ ...targetVal }, sourceVal)
       } else {
-        deepMerge(targetVal, sourceVal);
+        deepMerge(targetVal, sourceVal)
       }
     } else {
       // Otherwise just assign (overwrites or adds)
-      target[key] = sourceVal;
+      target[key] = sourceVal
     }
   }
-  return target;
+  return target
 }
 
 /**
  * Deep clone an object
  */
 function deepClone(obj) {
-  if (!obj || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(deepClone);
-  
-  const clone = {};
+  if (!obj || typeof obj !== 'object') return obj
+  if (Array.isArray(obj)) return obj.map(deepClone)
+
+  const clone = {}
   for (const key of Object.keys(obj)) {
-    clone[key] = deepClone(obj[key]);
+    clone[key] = deepClone(obj[key])
   }
-  return clone;
+  return clone
 }
 
 function cloneEnumTree(source, mergeEnumsFn) {
   if (mergeEnumsFn) {
-    const clone = {};
-    mergeEnumsFn(clone, source);
-    return clone;
+    const clone = {}
+    mergeEnumsFn(clone, source)
+    return clone
   } else {
     // Deep clone for frozen copy
-    return deepClone(source);
+    return deepClone(source)
   }
 }
 
 function deepFreezeEnumTree(node) {
-  if (!node || typeof node !== 'object' || Object.isFrozen(node)) { return node; }
-  Object.freeze(node);
+  if (!node || typeof node !== 'object' || Object.isFrozen(node)) { return node }
+  Object.freeze(node)
   Object.values(node).forEach((child) => {
     if (child && typeof child === 'object') {
-      deepFreezeEnumTree(child);
+      deepFreezeEnumTree(child)
     }
-  });
-  return node;
+  })
+  return node
 }
 
 function rebuildFrozenEnums(mergeEnumsFn) {
-  const clone = cloneEnumTree(mutableEnums, mergeEnumsFn);
-  frozenEnums = deepFreezeEnumTree(clone);
+  const clone = cloneEnumTree(mutableEnums, mergeEnumsFn)
+  frozenEnums = deepFreezeEnumTree(clone)
 }
 
 export async function mergeIntoEnums(source, mergeEnumsFn) {
-  if (!source || typeof source !== 'object') { return frozenEnums; }
+  if (!source || typeof source !== 'object') { return frozenEnums }
   if (mergeEnumsFn) {
-      mergeEnumsFn(mutableEnums, source);
+      mergeEnumsFn(mutableEnums, source)
   } else {
       // Use deep merge to properly handle nested namespace paths
-      deepMerge(mutableEnums, source);
+      deepMerge(mutableEnums, source)
   }
-  rebuildFrozenEnums(mergeEnumsFn);
-  return frozenEnums;
+  rebuildFrozenEnums(mergeEnumsFn)
+  return frozenEnums
 }
 
 // Initialize with empty enums
-rebuildFrozenEnums();
+rebuildFrozenEnums()
 
-export { frozenEnums as default };
+export { frozenEnums as default }

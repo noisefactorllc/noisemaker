@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * nu/step - Adjustable step threshold
@@ -36,4 +36,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

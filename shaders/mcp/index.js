@@ -1,6 +1,6 @@
 /**
  * Noisemaker Shader MCP Tools - Public API
- * 
+ *
  * Export the core operations and browser harness for use by tests
  * and other consumers.
  */
@@ -16,9 +16,9 @@ export {
     waitForCompileStatus,
     getOpenAIApiKey,
     STATUS_TIMEOUT
-} from './core-operations.js';
+} from './core-operations.js'
 
 export {
     BrowserHarness,
     createBrowserHarness
-} from './browser-harness.js';
+} from './browser-harness.js'

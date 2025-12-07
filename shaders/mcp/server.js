@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
  * MCP Server for Shader Effect Testing
- * 
+ *
  * This MCP server exposes shader testing capabilities as tools that can be
  * used by VS Code Copilot coding agent. It provides:
- * 
+ *
  * BROWSER-BASED TOOLS (require browser session):
  * - compileEffect: Compile a shader and verify it compiles cleanly
  * - renderEffectFrame: Render a frame and check for monochrome/blank output
@@ -12,12 +12,12 @@
  * - benchmarkEffectFPS: Verify shader can sustain target framerate
  * - testUniformResponsiveness: Verify uniform controls affect output
  * - testNoPassthrough: Verify filter effects modify their input
- * 
+ *
  * ON-DISK TOOLS (no browser required):
  * - checkEffectStructure: Detect unused files, naming issues, leaked uniforms
  * - checkAlgEquiv: Compare GLSL/WGSL algorithmic equivalence
  * - generateShaderManifest: Rebuild shader manifest
- * 
+ *
  * Each browser-based tool invocation:
  * 1. Creates a fresh browser session
  * 2. Loads the demo UI and configures the backend
@@ -26,27 +26,27 @@
  * 5. Returns structured results
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js'
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
     CallToolRequestSchema,
     ListToolsRequestSchema,
-} from '@modelcontextprotocol/sdk/types.js';
-import { spawn } from 'child_process';
-import path from 'path';
-import { fileURLToPath } from 'url';
+} from '@modelcontextprotocol/sdk/types.js'
+import { spawn } from 'child_process'
+import path from 'path'
+import { fileURLToPath } from 'url'
 
-import { 
-    BrowserSession, 
-    checkEffectStructureOnDisk, 
+import {
+    BrowserSession,
+    checkEffectStructureOnDisk,
     checkAlgEquivOnDisk,
     matchEffects,
     gracePeriod
-} from './browser-harness.js';
+} from './browser-harness.js'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PROJECT_ROOT = path.resolve(__dirname, '../..');
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const PROJECT_ROOT = path.resolve(__dirname, '../..')
 
 const server = new Server(
     {
@@ -58,15 +58,15 @@ const server = new Server(
             tools: {},
         },
     }
-);
+)
 
 /**
  * Tool definitions with new camelCase naming convention.
- * 
+ *
  * Browser-based tools accept:
  * - effect_id or effects: Single effect ID or CSV of effect IDs/glob patterns
  * - backend: "webgl2" or "webgpu" (required)
- * 
+ *
  * On-disk tools accept:
  * - effect_id or effects: Single effect ID or CSV of effect IDs/glob patterns
  * - backend: May be required for some tools
@@ -303,7 +303,7 @@ const TOOLS = [
             required: ['dsl', 'backend']
         }
     },
-    
+
     // =========================================================================
     // ON-DISK TOOLS (no browser required)
     // =========================================================================
@@ -357,7 +357,7 @@ const TOOLS = [
             required: []
         }
     }
-];
+]
 
 /**
  * Parse effects from arguments.
@@ -365,12 +365,12 @@ const TOOLS = [
  */
 function parseEffects(args) {
     if (args.effects) {
-        return args.effects.split(',').map(e => e.trim()).filter(e => e);
+        return args.effects.split(',').map(e => e.trim()).filter(e => e)
     }
     if (args.effect_id) {
-        return [args.effect_id];
+        return [args.effect_id]
     }
-    return [];
+    return []
 }
 
 /**
@@ -378,23 +378,23 @@ function parseEffects(args) {
  */
 async function resolveEffects(session, patterns) {
     if (patterns.length === 0) {
-        throw new Error('No effects specified. Provide effect_id or effects parameter.');
+        throw new Error('No effects specified. Provide effect_id or effects parameter.')
     }
-    
-    const allEffects = await session.listEffects();
-    const resolved = new Set();
-    
+
+    const allEffects = await session.listEffects()
+    const resolved = new Set()
+
     for (const pattern of patterns) {
-        const matches = matchEffects(allEffects, pattern);
+        const matches = matchEffects(allEffects, pattern)
         if (matches.length === 0) {
-            throw new Error(`No effects matched pattern: ${pattern}`);
+            throw new Error(`No effects matched pattern: ${pattern}`)
         }
         for (const m of matches) {
-            resolved.add(m);
+            resolved.add(m)
         }
     }
-    
-    return Array.from(resolved).sort();
+
+    return Array.from(resolved).sort()
 }
 
 /**
@@ -402,44 +402,44 @@ async function resolveEffects(session, patterns) {
  * Follows the common main loop pattern.
  */
 async function runBrowserTest(args, testFn) {
-    const patterns = parseEffects(args);
-    const backend = args.backend;
-    
+    const patterns = parseEffects(args)
+    const backend = args.backend
+
     if (!backend) {
-        throw new Error('backend parameter is required');
+        throw new Error('backend parameter is required')
     }
-    
+
     // Setup: Create fresh browser session
-    const session = new BrowserSession({ backend, headless: true });
-    
+    const session = new BrowserSession({ backend, headless: true })
+
     try {
-        await session.setup();
-        
+        await session.setup()
+
         // Resolve effect patterns
-        const effectIds = await resolveEffects(session, patterns);
-        
+        const effectIds = await resolveEffects(session, patterns)
+
         // Main loop: Test each effect
-        const results = {};
+        const results = {}
         for (const effectId of effectIds) {
             try {
-                results[effectId] = await testFn(session, effectId, args);
+                results[effectId] = await testFn(session, effectId, args)
             } catch (err) {
-                results[effectId] = { status: 'error', error: err.message };
+                results[effectId] = { status: 'error', error: err.message }
             }
-            
+
             // Grace period between effects
-            await gracePeriod();
+            await gracePeriod()
         }
-        
+
         return {
             backend,
             effects_tested: effectIds.length,
             results
-        };
-        
+        }
+
     } finally {
         // Teardown: Close browser session
-        await session.teardown();
+        await session.teardown()
     }
 }
 
@@ -447,245 +447,245 @@ async function runBrowserTest(args, testFn) {
  * Handle list tools request
  */
 server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return { tools: TOOLS };
-});
+    return { tools: TOOLS }
+})
 
 /**
  * Handle tool call request
  */
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params;
-    
+    const { name, arguments: args } = request.params
+
     try {
-        let result;
-        
+        let result
+
         switch (name) {
             // =================================================================
             // BROWSER-BASED TOOLS
             // =================================================================
-            
+
             case 'compileEffect': {
                 result = await runBrowserTest(args, async (session, effectId) => {
-                    return await session.compileEffect(effectId);
-                });
-                break;
+                    return await session.compileEffect(effectId)
+                })
+                break
             }
-            
+
             case 'renderEffectFrame': {
-                const testCase = args.test_case || {};
+                const testCase = args.test_case || {}
                 result = await runBrowserTest(args, async (session, effectId) => {
                     return await session.renderEffectFrame(effectId, {
                         time: testCase.time,
                         resolution: testCase.resolution,
                         seed: testCase.seed,
                         uniforms: testCase.uniforms
-                    });
-                });
-                break;
+                    })
+                })
+                break
             }
-            
+
             case 'describeEffectFrame': {
-                const testCase = args.test_case || {};
+                const testCase = args.test_case || {}
                 result = await runBrowserTest(args, async (session, effectId) => {
                     return await session.describeEffectFrame(effectId, args.prompt, {
                         time: testCase.time,
                         resolution: testCase.resolution,
                         seed: testCase.seed,
                         uniforms: testCase.uniforms
-                    });
-                });
-                break;
+                    })
+                })
+                break
             }
-            
+
             case 'benchmarkEffectFPS': {
                 result = await runBrowserTest(args, async (session, effectId) => {
                     return await session.benchmarkEffectFps(effectId, {
                         targetFps: args.target_fps,
                         durationSeconds: args.duration_seconds,
                         resolution: args.resolution
-                    });
-                });
-                break;
+                    })
+                })
+                break
             }
-            
+
             case 'testUniformResponsiveness': {
                 result = await runBrowserTest(args, async (session, effectId) => {
-                    return await session.testUniformResponsiveness(effectId);
-                });
-                break;
+                    return await session.testUniformResponsiveness(effectId)
+                })
+                break
             }
-            
+
             case 'testNoPassthrough': {
                 result = await runBrowserTest(args, async (session, effectId) => {
-                    return await session.testNoPassthrough(effectId);
-                });
-                break;
+                    return await session.testNoPassthrough(effectId)
+                })
+                break
             }
-            
+
             case 'runDslProgram': {
-                const dsl = args.dsl;
-                const backend = args.backend;
-                const testCase = args.test_case || {};
-                
+                const dsl = args.dsl
+                const backend = args.backend
+                const testCase = args.test_case || {}
+
                 if (!dsl) {
-                    throw new Error('dsl parameter is required');
+                    throw new Error('dsl parameter is required')
                 }
                 if (!backend) {
-                    throw new Error('backend parameter is required');
+                    throw new Error('backend parameter is required')
                 }
-                
+
                 // Setup: Create fresh browser session
-                const session = new BrowserSession({ backend, headless: true });
-                
+                const session = new BrowserSession({ backend, headless: true })
+
                 try {
-                    await session.setup();
-                    
+                    await session.setup()
+
                     // Run DSL program
                     const dslResult = await session.runDslProgram(dsl, {
                         time: testCase.time,
                         resolution: testCase.resolution,
                         seed: testCase.seed,
                         uniforms: testCase.uniforms
-                    });
-                    
+                    })
+
                     result = {
                         backend,
                         dsl,
                         ...dslResult
-                    };
-                    
+                    }
+
                 } finally {
-                    await session.teardown();
+                    await session.teardown()
                 }
-                break;
+                break
             }
-            
+
             // =================================================================
             // ON-DISK TOOLS (no browser required)
             // =================================================================
-            
+
             case 'checkEffectStructure': {
-                const patterns = parseEffects(args);
-                const backend = args.backend;
-                
+                const patterns = parseEffects(args)
+                const backend = args.backend
+
                 if (!backend) {
-                    throw new Error('backend parameter is required');
+                    throw new Error('backend parameter is required')
                 }
-                
+
                 // For on-disk tools, we need to get effect list differently
                 // or just pass the patterns through as-is
-                const results = {};
+                const results = {}
                 for (const pattern of patterns) {
                     // If it's an exact effect ID, use it directly
                     if (!pattern.includes('*') && !pattern.includes('?') && !pattern.startsWith('/')) {
                         try {
-                            results[pattern] = await checkEffectStructureOnDisk(pattern, { backend });
+                            results[pattern] = await checkEffectStructureOnDisk(pattern, { backend })
                         } catch (err) {
-                            results[pattern] = { status: 'error', error: err.message };
+                            results[pattern] = { status: 'error', error: err.message }
                         }
                     } else {
                         // For glob patterns, we'd need to resolve them
                         // For now, just report that patterns require browser
-                        results[pattern] = { 
-                            status: 'error', 
-                            error: 'Glob patterns require browser session to resolve. Use exact effect IDs for on-disk tools.' 
-                        };
+                        results[pattern] = {
+                            status: 'error',
+                            error: 'Glob patterns require browser session to resolve. Use exact effect IDs for on-disk tools.'
+                        }
                     }
                 }
-                
+
                 result = {
                     backend,
                     effects_tested: Object.keys(results).length,
                     results
-                };
-                break;
+                }
+                break
             }
-            
+
             case 'checkAlgEquiv': {
-                const patterns = parseEffects(args);
-                
-                const results = {};
+                const patterns = parseEffects(args)
+
+                const results = {}
                 for (const pattern of patterns) {
                     if (!pattern.includes('*') && !pattern.includes('?') && !pattern.startsWith('/')) {
                         try {
-                            results[pattern] = await checkAlgEquivOnDisk(pattern);
+                            results[pattern] = await checkAlgEquivOnDisk(pattern)
                         } catch (err) {
-                            results[pattern] = { status: 'error', error: err.message };
+                            results[pattern] = { status: 'error', error: err.message }
                         }
                     } else {
-                        results[pattern] = { 
-                            status: 'error', 
-                            error: 'Glob patterns require browser session to resolve. Use exact effect IDs for on-disk tools.' 
-                        };
+                        results[pattern] = {
+                            status: 'error',
+                            error: 'Glob patterns require browser session to resolve. Use exact effect IDs for on-disk tools.'
+                        }
                     }
                 }
-                
+
                 result = {
                     effects_tested: Object.keys(results).length,
                     results
-                };
-                break;
+                }
+                break
             }
-            
+
             case 'generateShaderManifest': {
                 result = await new Promise((resolve) => {
-                    const scriptPath = path.join(PROJECT_ROOT, 'shaders/scripts/generate_shader_manifest.py');
-                    
+                    const scriptPath = path.join(PROJECT_ROOT, 'shaders/scripts/generate_shader_manifest.py')
+
                     const proc = spawn('python3', [scriptPath], {
                         cwd: PROJECT_ROOT,
                         stdio: ['ignore', 'pipe', 'pipe']
-                    });
-                    
-                    let stdout = '';
-                    let stderr = '';
-                    
+                    })
+
+                    let stdout = ''
+                    let stderr = ''
+
                     proc.stdout.on('data', (data) => {
-                        stdout += data.toString();
-                    });
-                    
+                        stdout += data.toString()
+                    })
+
                     proc.stderr.on('data', (data) => {
-                        stderr += data.toString();
-                    });
-                    
+                        stderr += data.toString()
+                    })
+
                     proc.on('close', (code) => {
                         resolve({
                             status: code === 0 ? 'ok' : 'error',
                             exit_code: code,
                             stdout: stdout.trim(),
                             stderr: stderr.trim()
-                        });
-                    });
-                    
+                        })
+                    })
+
                     proc.on('error', (err) => {
                         resolve({
                             status: 'error',
                             error: `Failed to spawn process: ${err.message}`
-                        });
-                    });
-                    
+                        })
+                    })
+
                     // Timeout after 30 seconds
                     setTimeout(() => {
-                        proc.kill('SIGTERM');
+                        proc.kill('SIGTERM')
                         resolve({
                             status: 'error',
                             error: 'Process timed out after 30 seconds'
-                        });
-                    }, 30000);
-                });
-                break;
+                        })
+                    }, 30000)
+                })
+                break
             }
-            
+
             default:
-                throw new Error(`Unknown tool: ${name}`);
+                throw new Error(`Unknown tool: ${name}`)
         }
-        
+
         return {
             content: [{
                 type: 'text',
                 text: JSON.stringify(result, null, 2)
             }]
-        };
-        
+        }
+
     } catch (error) {
         return {
             content: [{
@@ -696,20 +696,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 }, null, 2)
             }],
             isError: true
-        };
+        }
     }
-});
+})
 
 /**
  * Start the server
  */
 async function main() {
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
-    console.error('Noisemaker Shader Tools MCP server v2.0.0 running on stdio');
+    const transport = new StdioServerTransport()
+    await server.connect(transport)
+    console.error('Noisemaker Shader Tools MCP server v2.0.0 running on stdio')
 }
 
 main().catch((error) => {
-    console.error('Fatal error:', error);
-    process.exit(1);
-});
+    console.error('Fatal error:', error)
+    process.exit(1)
+})

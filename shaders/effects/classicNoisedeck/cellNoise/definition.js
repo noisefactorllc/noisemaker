@@ -1,17 +1,17 @@
-import { Effect } from '../../../src/runtime/effect.js';
-import { stdEnums } from '../../../src/lang/std_enums.js';
+import { Effect } from '../../../src/runtime/effect.js'
+import { stdEnums } from '../../../src/lang/std_enums.js'
 
-const paletteChoices = {};
+const paletteChoices = {}
 for (const [key, val] of Object.entries(stdEnums.palette)) {
-  paletteChoices[key] = val.value;
+  paletteChoices[key] = val.value
 }
 
 export default class CellNoise extends Effect {
-  name = "CellNoise";
-  namespace = "classicNoisedeck";
-  func = "cellNoise";
+  name = "CellNoise"
+  namespace = "classicNoisedeck"
+  func = "cellNoise"
 
-  description = "Cellular noise patterns";
+  description = "Cellular noise patterns"
 
 
   // WGSL uniform packing layout - maps uniform names to vec4 slots/components
@@ -37,7 +37,7 @@ export default class CellNoise extends Effect {
     texSource: { slot: 7, components: 'x' },
     texInfluence: { slot: 7, components: 'y' },
     texIntensity: { slot: 7, components: 'z' }
-  };
+  }
   globals = {
     metric: {
       type: "int",
@@ -276,7 +276,7 @@ export default class CellNoise extends Effect {
         control: "slider"
       }
     }
-  };
+  }
 
   passes = [
     {
@@ -289,5 +289,5 @@ export default class CellNoise extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
+  ]
 }

@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * nu/palette - Apply cosine color palettes
@@ -46,4 +46,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

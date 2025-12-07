@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * nu/tunnel - Perspective tunnel effect
@@ -76,4 +76,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

@@ -1,25 +1,25 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * vol/flow3d - 3D agent-based flow field effect with volume accumulation
- * 
+ *
  * Direct and faithful port of nu/flow to 3D.
  * Can be used standalone or chained after another 3D effect.
- * 
+ *
  * Usage:
  *   flow3d(volumeSize: x32).render3d().write(o0)
  *   noise3d().flow3d().render3d().write(o0)  // uses noise3d's volume size
- * 
+ *
  * If inputTex3d is provided from upstream, its dimensions take precedence
  * over volumeSize. Otherwise, allocates fresh volumes.
- * 
+ *
  * Architecture:
  * - Agent state stored in 2D textures (position, color, age) with MRT
  * - Agents sample from input 3D volume (inputTex3d) for color AND flow direction
  * - Trail accumulation stored in 3D volume atlas
  * - Blend pass combines input 3D volume with trail → blended volume
  * - Multi-pass: agent -> diffuse -> deposit -> blend -> geometry
- * 
+ *
  * Agent format (matching 2D flow):
  * - state1: [x, y, z, rotRand]        - 3D position + per-agent rotation random
  * - state2: [r, g, b, seed]           - color + seed
@@ -32,10 +32,10 @@ export default new Effect({
 
   description: "3D agent-based flow field",
   textures: {
-    volumeCache: { 
-      width: { param: 'volumeSize', default: 32 }, 
-      height: { param: 'volumeSize', power: 2, default: 1024 }, 
-      format: "rgba16f" 
+    volumeCache: {
+      width: { param: 'volumeSize', default: 32 },
+      height: { param: 'volumeSize', power: 2, default: 1024 },
+      format: "rgba16f"
     },
     geoBuffer: {
       width: { param: 'volumeSize', default: 32 },
@@ -220,7 +220,7 @@ export default new Effect({
     {
       name: "diffuse",
       program: "diffuse",
-      viewport: { 
+      viewport: {
         width: { param: 'volumeSize', default: 32, inputOverride: 'inputTex3d' },
         height: { param: 'volumeSize', power: 2, default: 1024, inputOverride: 'inputTex3d' }
       },
@@ -240,7 +240,7 @@ export default new Effect({
       drawMode: "points",
       count: 262144,
       blend: true,
-      viewport: { 
+      viewport: {
         width: { param: 'volumeSize', default: 32, inputOverride: 'inputTex3d' },
         height: { param: 'volumeSize', power: 2, default: 1024, inputOverride: 'inputTex3d' }
       },
@@ -259,7 +259,7 @@ export default new Effect({
     {
       name: "blend",
       program: "blend",
-      viewport: { 
+      viewport: {
         width: { param: 'volumeSize', default: 32, inputOverride: 'inputTex3d' },
         height: { param: 'volumeSize', power: 2, default: 1024, inputOverride: 'inputTex3d' }
       },
@@ -277,4 +277,4 @@ export default new Effect({
   ],
   outputGeo: "geoBuffer",
   outputTex3d: "globalFlow3dBlended"
-});
+})

@@ -1,8 +1,8 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Feedback - Feedback post-processing effect
- * 
+ *
  * Synth effect that blends the live input with a feedback buffer using
  * various blend modes. Includes transform controls (scale, rotation),
  * color controls (hue, intensity), lens effects (distortion, aberration),
@@ -207,4 +207,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * nu/vignette - Radial vignette with brightness blend
@@ -47,4 +47,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

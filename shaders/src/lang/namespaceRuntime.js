@@ -70,7 +70,7 @@ export function resolveCallTarget(callName, callNamespace = null) {
             metadata: null
         }
     }
-    
+
     // No namespace? Use the call name as-is. The DSL file is the source of truth.
     if (!callNamespace) {
         return {
@@ -84,24 +84,24 @@ export function resolveCallTarget(callName, callNamespace = null) {
             metadata: null
         }
     }
-    
+
     // Extract namespace preference
     const namespacePreference = normalizeNamespacePreference(callNamespace)
     const preferredNamespaceId = Array.isArray(namespacePreference) && namespacePreference.length
         ? namespacePreference[0]
         : (typeof namespacePreference === 'string' ? namespacePreference : null)
-    
+
     // With explicit namespace, get the specific record
     let record = null
     if (preferredNamespaceId) {
         record = getCanonicalNamespaceRecord(preferredNamespaceId, normalizedName)
     }
-    
+
     // Fall back to general metadata lookup
     const metadata = record || getNamespaceMetadata(normalizedName)
     const bestRecord = pickBestRecord({ metadata, namespacePreference, fallbackName: normalizedName })
     const finalRecord = bestRecord || record || metadata
-    
+
     const canonicalName = finalRecord?.canonicalName || normalizedName
     const namespacedName = finalRecord?.namespacedName || null
     const namespaceId = finalRecord?.namespace || preferredNamespaceId || null

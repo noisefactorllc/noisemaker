@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * nu/warp - Perlin noise-based warp distortion
@@ -70,4 +70,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

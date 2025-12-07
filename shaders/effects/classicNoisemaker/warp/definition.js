@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Warp - multi-octave displacement using noise
@@ -90,4 +90,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

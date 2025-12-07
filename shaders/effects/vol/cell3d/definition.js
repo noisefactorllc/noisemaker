@@ -1,15 +1,15 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * vol/cell3d - 3D cellular/Voronoi noise volume generator
- * 
+ *
  * Generates a 3D cell noise volume stored as a 2D atlas texture.
  * Can be used standalone or chained after another 3D effect.
- * 
+ *
  * Usage:
  *   cell3d(volumeSize: x64).render3d().write(o0)
  *   noise3d().cell3d().render3d().write(o0)  // uses noise3d's volume size
- * 
+ *
  * If inputTex3d is provided from upstream, its dimensions take precedence
  * over volumeSize. Otherwise, allocates fresh volumeCache and geoBuffer.
  */
@@ -20,10 +20,10 @@ export default new Effect({
 
   description: "3D cellular/Voronoi noise volume",
   textures: {
-    volumeCache: { 
-      width: { param: 'volumeSize', default: 64 }, 
-      height: { param: 'volumeSize', power: 2, default: 4096 }, 
-      format: "rgba16f" 
+    volumeCache: {
+      width: { param: 'volumeSize', default: 64 },
+      height: { param: 'volumeSize', power: 2, default: 4096 },
+      format: "rgba16f"
     },
     geoBuffer: {
       width: { param: 'volumeSize', default: 64 },
@@ -107,7 +107,7 @@ export default new Effect({
       name: "precompute",
       program: "precompute",
       drawBuffers: 2,
-      viewport: { 
+      viewport: {
         width: { param: 'volumeSize', default: 64 },
         height: { param: 'volumeSize', power: 2, default: 4096 }
       },
@@ -120,4 +120,4 @@ export default new Effect({
   ],
   outputTex3d: "volumeCache",
   outputGeo: "geoBuffer"
-});
+})

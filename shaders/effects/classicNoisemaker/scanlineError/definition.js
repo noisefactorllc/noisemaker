@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Scanline Error
@@ -63,4 +63,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

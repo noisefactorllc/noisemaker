@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Ripple
@@ -92,4 +92,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

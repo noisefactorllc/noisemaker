@@ -1,7 +1,7 @@
-import { tokenize } from './tokenizer.js';
-import { parse } from './parser.js';
-import { evaluate } from './evaluator.js';
-import { defaultContext } from './builtins.js';
+import { tokenize } from './tokenizer.js'
+import { parse } from './parser.js'
+import { evaluate } from './evaluator.js'
+import { defaultContext } from './builtins.js'
 
 /**
  * Parse and evaluate a Preset DSL source string.
@@ -15,7 +15,7 @@ import { defaultContext } from './builtins.js';
  * @returns {*} result of evaluating the program
  */
 export function parsePresetDSL(source, context = defaultContext) {
-  const tokens = tokenize(source);
-  const ast = parse(tokens, false);
-  return evaluate(ast, context);
+  const tokens = tokenize(source)
+  const ast = parse(tokens, false)
+  return evaluate(ast, context)
 }

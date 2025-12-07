@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * nu/rot - Rotate image 0..1 (0..360 degrees)
@@ -35,4 +35,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

@@ -1,14 +1,14 @@
-import { setSeed } from '../../js/noisemaker/rng.js';
-import { setSeed as setValueSeed, values as valueValues } from '../../js/noisemaker/value.js';
-import { basic } from '../../js/noisemaker/generators.js';
-import * as effects from '../../js/noisemaker/effects.js';
+import { setSeed } from '../../js/noisemaker/rng.js'
+import { setSeed as setValueSeed, values as valueValues } from '../../js/noisemaker/value.js'
+import { basic } from '../../js/noisemaker/generators.js'
+import * as effects from '../../js/noisemaker/effects.js'
 
-const [,, name, seedStr] = process.argv;
-const seed = parseInt(seedStr, 10);
+const [,, name, seedStr] = process.argv
+const seed = parseInt(seedStr, 10)
 
-setSeed(seed);
-setValueSeed(seed);
-const base = await basic(2, [128, 128, 3], { hueRotation: 0 });
+setSeed(seed)
+setValueSeed(seed)
+const base = await basic(2, [128, 128, 3], { hueRotation: 0 })
 
 const EFFECTS = {
   adjust_hue: effects.adjustHueEffect,
@@ -27,8 +27,8 @@ const EFFECTS = {
   normalize: effects.normalizeEffect,
   palette: effects.palette,
   color_map: async (tensor, shape, time, speed) => {
-    const clut = await valueValues([4, 4], shape, { ctx: tensor.ctx, time, speed });
-    return effects.colorMap(tensor, shape, time, speed, clut);
+    const clut = await valueValues([4, 4], shape, { ctx: tensor.ctx, time, speed })
+    return effects.colorMap(tensor, shape, time, speed, clut)
   },
   false_color: effects.falseColor,
   warp: effects.warp,
@@ -84,13 +84,13 @@ const EFFECTS = {
   vortex: effects.vortex,
   wormhole: effects.wormhole,
   worms: effects.worms,
-};
-
-const fn = EFFECTS[name];
-if (!fn) {
-  throw new Error(`Unknown effect ${name}`);
 }
-const tensor = await fn(base, [128, 128, 3], 0, 1);
-const arr = await tensor.read();
-const buf = Buffer.from(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength));
-console.log(buf.toString('base64'));
+
+const fn = EFFECTS[name]
+if (!fn) {
+  throw new Error(`Unknown effect ${name}`)
+}
+const tensor = await fn(base, [128, 128, 3], 0, 1)
+const arr = await tensor.read()
+const buf = Buffer.from(new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength))
+console.log(buf.toString('base64'))

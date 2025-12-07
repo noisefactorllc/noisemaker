@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * nu/smoothstep - Adjustable smoothstep thresholds
@@ -48,4 +48,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

@@ -1,17 +1,17 @@
-import { Effect } from '../../../src/runtime/effect.js';
-import { stdEnums } from '../../../src/lang/std_enums.js';
+import { Effect } from '../../../src/runtime/effect.js'
+import { stdEnums } from '../../../src/lang/std_enums.js'
 
-const paletteChoices = {};
+const paletteChoices = {}
 for (const [key, val] of Object.entries(stdEnums.palette)) {
-  paletteChoices[key] = val.value;
+  paletteChoices[key] = val.value
 }
 
 export default class ColorLab extends Effect {
-  name = "ColorLab";
-  namespace = "classicNoisedeck";
-  func = "colorLab";
+  name = "ColorLab"
+  namespace = "classicNoisedeck"
+  func = "colorLab"
 
-  description = "Color manipulation lab";
+  description = "Color manipulation lab"
 
   globals = {
     seed: {
@@ -226,7 +226,7 @@ export default class ColorLab extends Effect {
         control: "dropdown"
       }
     }
-  };
+  }
 
   passes = [
     {
@@ -240,5 +240,5 @@ export default class ColorLab extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
+  ]
 }

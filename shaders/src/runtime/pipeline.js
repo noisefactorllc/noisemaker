@@ -9,7 +9,7 @@ import { WebGPUBackend } from './backends/webgpu.js'
 /**
  * Oscillator evaluation functions.
  * Each returns a value between 0 and 1 based on the time phase.
- * 
+ *
  * Oscillator types:
  * 0: sine    - 0 → 1 → 0 (smooth)
  * 1: tri     - 0 → 1 → 0 (linear)
@@ -64,12 +64,12 @@ function noise2D(px, py, s) {
     let fy = py - iy
     fx = fx * fx * (3 - 2 * fx)
     fy = fy * fy * (3 - 2 * fy)
-    
+
     const a = hash21(ix, iy, s)
     const b = hash21(ix + 1, iy, s)
     const c = hash21(ix, iy + 1, s)
     const d = hash21(ix + 1, iy + 1, s)
-    
+
     return a * (1 - fx) * (1 - fy) + b * fx * (1 - fy) + c * (1 - fx) * fy + d * fx * fy
 }
 
@@ -87,7 +87,7 @@ function oscNoise(t, seed) {
 
 /**
  * Evaluate an oscillator value based on current time and animation duration.
- * 
+ *
  * @param {object} osc - Oscillator configuration
  * @param {number} osc.oscType - 0:sine, 1:tri, 2:saw, 3:sawInv, 4:square, 5:noise
  * @param {number} osc.min - Minimum output value
@@ -100,10 +100,10 @@ function oscNoise(t, seed) {
  */
 function evaluateOscillator(osc, normalizedTime) {
     const { oscType, min, max, speed, offset, seed } = osc
-    
+
     // Apply speed and offset
     const t = normalizedTime * speed + offset
-    
+
     // Get raw oscillator value (0..1)
     let value
     switch (oscType) {
@@ -115,7 +115,7 @@ function evaluateOscillator(osc, normalizedTime) {
         case 5: value = oscNoise(t, seed); break
         default: value = 0
     }
-    
+
     // Map to min..max range
     return min + value * (max - min)
 }
@@ -218,25 +218,25 @@ export class Pipeline {
     /**
      * Resize the pipeline
      * @param {number} width - Width in pixels
-     * @param {number} height - Height in pixels  
+     * @param {number} height - Height in pixels
      * @param {number} [zoom=1] - Zoom factor for effect surfaces
      */
     resize(width, height, zoom = 1) {
         this.width = width
         this.height = height
         this.zoom = zoom
-        
+
         // Create/recreate global surfaces
         this.createSurfaces()
-        
+
         // Recreate textures with screen-relative dimensions
         // Collect default uniforms from passes for parameter-based texture sizing
         const defaultUniforms = this.collectDefaultUniforms()
         this.recreateTextures(defaultUniforms)
-        
+
         this.backend.resize(width, height)
     }
-    
+
     /**
      * Collect default uniform values from all passes
      * Used for resolving parameter-based texture dimensions
@@ -264,12 +264,12 @@ export class Pipeline {
      */
     parseGlobalName(texId) {
         if (typeof texId !== 'string') return null
-        
+
         // Pattern 1: "global_name" (underscore separator)
         if (texId.startsWith('global_')) {
             return texId.replace('global_', '')
         }
-        
+
         // Pattern 2: "globalName" (camelCase)
         if (texId.startsWith('global') && texId.length > 6) {
             const suffix = texId.slice(6)
@@ -279,7 +279,7 @@ export class Pipeline {
                 return suffix.charAt(0).toLowerCase() + suffix.slice(1)
             }
         }
-        
+
         return null
     }
 
@@ -290,21 +290,21 @@ export class Pipeline {
      */
     parseFeedbackName(texId) {
         if (typeof texId !== 'string') return null
-        
+
         if (texId.startsWith('feedback_')) {
             return texId.replace('feedback_', '')
         }
-        
+
         return null
     }
 
     createSurfaces() {
         const surfaceNames = new Set(['o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7'])
         const feedbackNames = new Set(['f0', 'f1', 'f2', 'f3'])
-        
+
         // Collect default uniforms for parameter-based texture sizing
         const defaultUniforms = this.collectDefaultUniforms()
-        
+
         // Scan graph for other globals and feedbacks
         if (this.graph && this.graph.passes) {
             for (const pass of this.graph.passes) {
@@ -346,12 +346,12 @@ export class Pipeline {
                 this.backend.destroyTexture(`global_${name}_read`)
                 this.backend.destroyTexture(`global_${name}_write`)
             }
-            
+
             // Calculate scaled dimensions for zoom-sensitive surfaces
             let surfaceWidth = this.width
             let surfaceHeight = this.height
             let surfaceFormat = 'rgba16f'
-            
+
             // Check if there's a texture spec for this surface in graph.textures
             // This handles effect-defined textures that need ping-pong buffering
             // Support both naming conventions: "global_name" and "globalName"
@@ -375,7 +375,7 @@ export class Pipeline {
                     surfaceHeight = Math.max(1, Math.round(this.height / effectiveZoom))
                 }
             }
-            
+
             // Create double-buffered surface
             // Include 'storage' usage for compute shader output
             this.backend.createTexture(`global_${name}_read`, {
@@ -384,14 +384,14 @@ export class Pipeline {
                 format: surfaceFormat,
                 usage: ['render', 'sample', 'copySrc', 'storage']
             })
-            
+
             this.backend.createTexture(`global_${name}_write`, {
                 width: surfaceWidth,
                 height: surfaceHeight,
                 format: surfaceFormat,
                 usage: ['render', 'sample', 'copySrc', 'storage']
             })
-            
+
             this.surfaces.set(name, {
                 read: `global_${name}_read`,
                 write: `global_${name}_write`,
@@ -409,12 +409,12 @@ export class Pipeline {
                 this.backend.destroyTexture(`feedback_${name}_read`)
                 this.backend.destroyTexture(`feedback_${name}_write`)
             }
-            
+
             // Feedback surfaces are screen-sized rgba16f
             const surfaceWidth = this.width
             const surfaceHeight = this.height
             const surfaceFormat = 'rgba16f'
-            
+
             // Create double-buffered feedback surface
             this.backend.createTexture(`feedback_${name}_read`, {
                 width: surfaceWidth,
@@ -422,14 +422,14 @@ export class Pipeline {
                 format: surfaceFormat,
                 usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
             })
-            
+
             this.backend.createTexture(`feedback_${name}_write`, {
                 width: surfaceWidth,
                 height: surfaceHeight,
                 format: surfaceFormat,
                 usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
             })
-            
+
             this.feedbackSurfaces.set(name, {
                 read: `feedback_${name}_read`,
                 write: `feedback_${name}_write`,
@@ -465,13 +465,13 @@ export class Pipeline {
      */
     recreateTextures(uniforms = {}) {
         if (!this.graph || !this.graph.textures) return
-        
+
         for (const [texId, spec] of this.graph.textures.entries()) {
             // Check if this is a global surface (double-buffered)
             // Global surfaces use naming like "global_node_X_caState" in textures map
             // but the surface is stored as "caState" with read/write variants
             const isGlobalSurface = texId.startsWith('global_') || texId.startsWith('global')
-            
+
             // For global surfaces, only resize if they have parameter-dependent dimensions
             if (isGlobalSurface) {
                 const hasParamWidth = this.isParameterDependentDimension(spec.width)
@@ -480,11 +480,11 @@ export class Pipeline {
                     continue  // Fixed-size global, skip
                 }
             }
-            
+
             // Resolve dimensions with current uniforms
             const width = this.resolveDimension(spec.width, this.width, uniforms)
             const height = this.resolveDimension(spec.height, this.height, uniforms)
-            
+
             if (isGlobalSurface) {
                 // Handle double-buffered global surface
                 // Extract the surface name from the texture ID
@@ -505,25 +505,25 @@ export class Pipeline {
                     const suffix = texId.slice(6)
                     surfaceName = suffix.charAt(0).toLowerCase() + suffix.slice(1)
                 }
-                
+
                 if (!surfaceName || !this.surfaces.has(surfaceName)) {
                     continue  // Can't find matching surface
                 }
-                
+
                 const surface = this.surfaces.get(surfaceName)
                 const readTexId = surface.read
                 const writeTexId = surface.write
-                
+
                 // Check if size changed
                 const existingTex = this.backend.textures?.get?.(readTexId)
                 if (existingTex && existingTex.width === width && existingTex.height === height) {
                     continue  // No change needed
                 }
-                
+
                 // Destroy old textures
                 this.backend.destroyTexture(readTexId)
                 this.backend.destroyTexture(writeTexId)
-                
+
                 // Recreate double-buffered surface with new dimensions
                 const format = spec.format || 'rgba16f'
                 this.backend.createTexture(readTexId, {
@@ -548,10 +548,10 @@ export class Pipeline {
                         continue  // No change needed
                     }
                 }
-                
+
                 // Destroy old texture
                 this.backend.destroyTexture(texId)
-                
+
                 // Create texture (2D or 3D based on spec)
                 if (spec.is3D) {
                     const depth = this.resolveDimension(spec.depth, width, uniforms)
@@ -590,7 +590,7 @@ export class Pipeline {
     setUniform(name, value) {
         const oldValue = this.globalUniforms[name]
         this.globalUniforms[name] = value
-        
+
         // Also update the uniform in all passes that reference it
         if (this.graph && this.graph.passes) {
             for (const pass of this.graph.passes) {
@@ -599,7 +599,7 @@ export class Pipeline {
                 }
             }
         }
-        
+
         // Check if this uniform affects any texture dimensions
         if (oldValue !== value && this.graph && this.graph.textures) {
             let affectsTextures = false
@@ -611,7 +611,7 @@ export class Pipeline {
                     break
                 }
             }
-            
+
             if (affectsTextures) {
                 this.updateParameterTextures(this.globalUniforms)
             }
@@ -638,35 +638,35 @@ export class Pipeline {
         if (typeof spec === 'number') {
             return Math.max(1, Math.floor(spec))
         }
-        
+
         if (spec === 'screen' || spec === 'auto') {
             return screenSize
         }
-        
+
         if (typeof spec === 'string' && spec.endsWith('%')) {
             const percent = parseFloat(spec)
             return Math.max(1, Math.floor(screenSize * percent / 100))
         }
-        
+
         if (typeof spec === 'object') {
             // Handle parameter reference: { param: 'volumeSize' }
             if (spec.param !== undefined) {
                 const paramValue = uniforms[spec.param] ?? spec.default ?? 64
                 let value = paramValue
-                
+
                 // Apply multiplier if specified: { param: 'volumeSize', multiply: 2 }
                 if (spec.multiply !== undefined) {
                     value *= spec.multiply
                 }
-                
+
                 // Apply power if specified: { param: 'volumeSize', power: 2 } means value^2
                 if (spec.power !== undefined) {
                     value = Math.pow(value, spec.power)
                 }
-                
+
                 return Math.max(1, Math.floor(value))
             }
-            
+
             // Handle scale-based spec
             if (spec.scale !== undefined) {
                 let computed = Math.floor(screenSize * spec.scale)
@@ -681,7 +681,7 @@ export class Pipeline {
                 return Math.max(1, computed)
             }
         }
-        
+
         return screenSize
     }
 
@@ -691,10 +691,10 @@ export class Pipeline {
     render(time = 0) {
         const deltaTime = this.lastTime > 0 ? time - this.lastTime : 0
         this.lastTime = time
-        
+
         // Update global uniforms
         this.updateGlobalUniforms(time, deltaTime)
-        
+
         // Initialize per-frame surface bindings so within-frame reads see fresh writes
         // Clear and reuse Maps to avoid per-frame allocation
         this.frameReadTextures.clear()
@@ -703,30 +703,30 @@ export class Pipeline {
             this.frameReadTextures.set(name, surface.read)
             this.frameWriteTextures.set(name, surface.write)  // Start by writing to write buffer
         }
-        
+
         // Note: feedback surfaces always read from previous frame (no frameReadTextures update)
         // We do NOT reset dirty flags here - they're set during pass execution
         // and cleared after blitFeedbackSurfaces at frame end
 
         // Begin frame
         this.backend.beginFrame(this.getFrameState())
-        
+
         // Execute passes
         if (this.graph && this.graph.passes) {
             try {
                 for (let i = 0; i < this.graph.passes.length; i++) {
-                    const originalPass = this.graph.passes[i];
+                    const originalPass = this.graph.passes[i]
                     // Check pass conditions
                     if (this.shouldSkipPass(originalPass)) {
                         continue
                     }
-                    
+
                     // Resolve oscillators in pass uniforms for this frame
                     const pass = this.resolvePassUniforms(originalPass, time)
-                    
+
                     // Determine iteration count (repeat N times per frame)
                     const repeatCount = this.resolveRepeatCount(pass)
-                    
+
                     for (let iter = 0; iter < repeatCount; iter++) {
                         // Execute pass
                         try {
@@ -734,10 +734,10 @@ export class Pipeline {
                             this.backend.executePass(pass, state)
                             this.updateFrameSurfaceBindings(pass, state)
                         } catch (err) {
-                            console.error('[Pipeline.render] ERROR executing pass:', pass.id, err);
-                            throw err;
+                            console.error('[Pipeline.render] ERROR executing pass:', pass.id, err)
+                            throw err
                         }
-                        
+
                         // Swap global surface read/write pointers for ping-pong between iterations
                         if (repeatCount > 1) {
                             this.swapIterationBuffers(pass)
@@ -745,18 +745,18 @@ export class Pipeline {
                     }
                 }
             } catch (loopErr) {
-                console.error('[Pipeline.render] LOOP ERROR:', loopErr);
-                throw loopErr;
+                console.error('[Pipeline.render] LOOP ERROR:', loopErr)
+                throw loopErr
             }
         }
-        
+
         // End frame
         this.backend.endFrame()
-        
+
         // Blit feedback surface writes to reads (ping-pong)
         // This preserves the written content for next frame's reads
         this.blitFeedbackSurfaces()
-        
+
         // Present the render surface to screen
         // Use explicit render() directive, or the last surface written to, or default to o0
         const renderSurfaceName = this.graph?.renderSurface || 'o0'
@@ -765,7 +765,7 @@ export class Pipeline {
             const presentId = this.frameReadTextures?.get(renderSurfaceName) ?? renderSurface.read
             this.backend.present(presentId)
         }
-        
+
         // Swap double buffers for global surfaces
         this.swapBuffers()
 
@@ -819,10 +819,10 @@ export class Pipeline {
      */
     resolvePassUniforms(pass, time) {
         if (!pass.uniforms) return pass
-        
+
         const resolvedUniforms = {}
         let hasOscillators = false
-        
+
         for (const [name, value] of Object.entries(pass.uniforms)) {
             const resolved = this.resolveUniformValue(value, time)
             resolvedUniforms[name] = resolved
@@ -830,7 +830,7 @@ export class Pipeline {
                 hasOscillators = true
             }
         }
-        
+
         // Only create a new pass object if we resolved oscillators
         if (hasOscillators) {
             return { ...pass, uniforms: resolvedUniforms }
@@ -843,9 +843,9 @@ export class Pipeline {
      */
     shouldSkipPass(pass) {
         if (!pass.conditions) return false
-        
+
         const { skipIf, runIf } = pass.conditions
-        
+
         // Check skipIf conditions - skip if ANY condition matches
         if (skipIf) {
             for (const condition of skipIf) {
@@ -855,7 +855,7 @@ export class Pipeline {
                 }
             }
         }
-        
+
         // Check runIf conditions - skip if ANY condition doesn't match
         if (runIf) {
             let shouldRun = true
@@ -870,7 +870,7 @@ export class Pipeline {
                 return true
             }
         }
-        
+
         return false
     }
 
@@ -882,12 +882,12 @@ export class Pipeline {
      */
     resolveRepeatCount(pass) {
         if (!pass.repeat) return 1
-        
+
         // If repeat is a number, use it directly
         if (typeof pass.repeat === 'number') {
             return Math.max(1, Math.floor(pass.repeat))
         }
-        
+
         // If repeat is a string, treat it as a uniform name
         if (typeof pass.repeat === 'string') {
             const value = this.globalUniforms[pass.repeat] ?? pass.uniforms?.[pass.repeat]
@@ -895,7 +895,7 @@ export class Pipeline {
                 return Math.max(1, Math.floor(value))
             }
         }
-        
+
         return 1
     }
 
@@ -909,19 +909,19 @@ export class Pipeline {
 
         for (const outputName of Object.values(pass.outputs)) {
             if (typeof outputName !== 'string') continue
-            
+
             // Only swap global surfaces (not feedback surfaces)
             const globalName = this.parseGlobalName(outputName)
             if (!globalName) continue
-            
+
             const surface = this.surfaces.get(globalName)
             if (!surface) continue
-            
+
             // Swap read/write pointers
             const temp = surface.read
             surface.read = surface.write
             surface.write = temp
-            
+
             // Update frameReadTextures to match
             if (this.frameReadTextures) {
                 this.frameReadTextures.set(globalName, surface.read)
@@ -935,7 +935,7 @@ export class Pipeline {
     swapBuffers() {
         for (const surface of this.surfaces.values()) {
             surface.currentFrame = this.frameIndex
-            
+
             // Swap read/write pointers
             const temp = surface.read
             surface.read = surface.write
@@ -953,7 +953,7 @@ export class Pipeline {
         const writeSurfaceMap = state.writeSurfaces
         const feedbackSurfaceMap = state.feedbackSurfaces
         const writeFeedbackMap = state.writeFeedbackSurfaces
-        
+
         // Clear previous frame's surface entries
         for (const key in surfaceMap) {
             delete surfaceMap[key]
@@ -967,7 +967,7 @@ export class Pipeline {
         for (const key in writeFeedbackMap) {
             delete writeFeedbackMap[key]
         }
-        
+
         // Build surfaces map with current read textures
         for (const [name, surface] of this.surfaces.entries()) {
             const readTextureId = this.frameReadTextures.get(name) ?? surface.read
@@ -979,7 +979,7 @@ export class Pipeline {
             // This ensures multiple passes writing to the same surface all write to the same buffer
             writeSurfaceMap[name] = this.frameWriteTextures.get(name) ?? surface.write
         }
-        
+
         // Build feedback surfaces map
         // Reads always come from 'read' buffer (previous frame's content)
         // Writes go to 'write' buffer
@@ -990,7 +990,7 @@ export class Pipeline {
             }
             writeFeedbackMap[name] = surface.write
         }
-        
+
         // Update scalar state fields
         state.frameIndex = this.frameIndex
         state.time = this.lastTime
@@ -998,7 +998,7 @@ export class Pipeline {
         state.graph = this.graph
         state.screenWidth = this.width
         state.screenHeight = this.height
-        
+
         return state
     }
 
@@ -1010,7 +1010,7 @@ export class Pipeline {
         const name = surfaceName || this.graph?.renderSurface || 'o0'
         const surface = this.surfaces.get(name)
         if (!surface) return null
-        
+
         return this.backend.textures.get(surface.read)
     }
 
@@ -1023,11 +1023,11 @@ export class Pipeline {
 
         for (const outputName of Object.values(pass.outputs)) {
             if (typeof outputName !== 'string') continue
-            
+
             // Handle global surface writes
             if (outputName.startsWith('global_')) {
                 if (!this.frameReadTextures) continue
-                
+
                 const surfaceName = outputName.replace('global_', '')
                 const writeId = state.writeSurfaces?.[surfaceName]
                 if (!writeId) continue
@@ -1035,7 +1035,7 @@ export class Pipeline {
                 // Subsequent passes in this frame should sample the freshly written texture
                 this.frameReadTextures.set(surfaceName, writeId)
             }
-            
+
             // Handle feedback surface writes
             if (outputName.startsWith('feedback_')) {
                 const feedbackName = outputName.replace('feedback_', '')
@@ -1057,7 +1057,7 @@ export class Pipeline {
     blitFeedbackSurfaces() {
         for (const surface of this.feedbackSurfaces.values()) {
             if (!surface.dirty) continue
-            
+
             // Blit write → read using the backend's copy capability
             this.backend.copyTexture(surface.write, surface.read)
             surface.dirty = false
@@ -1074,7 +1074,7 @@ export class Pipeline {
             this.backend.destroyTexture(`global_${name}_write`)
         }
         this.surfaces.clear()
-        
+
         // Destroy all feedback surfaces
         for (const [name] of this.feedbackSurfaces) {
             this.backend.destroyTexture(`feedback_${name}_read`)
@@ -1115,7 +1115,7 @@ export class Pipeline {
  */
 export async function createPipeline(graph, options = {}) {
     let backend
-    
+
     // Determine backend
     if (options.preferWebGPU && await WebGPUBackend.isAvailable()) {
         const adapter = await navigator.gpu.requestAdapter()
@@ -1141,9 +1141,9 @@ export async function createPipeline(graph, options = {}) {
     } else {
         throw new Error('No backend available or canvas not provided')
     }
-    
+
     const pipeline = new Pipeline(graph, backend)
     await pipeline.init(options.width || 800, options.height || 600, options.zoom || 1)
-    
+
     return pipeline
 }

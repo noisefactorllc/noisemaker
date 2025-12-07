@@ -1,124 +1,124 @@
-import * as constants from '../constants.js';
-import { PALETTES as _PALETTES } from '../../../shaders/src/palettes.js';
+import * as constants from '../constants.js'
+import { PALETTES as _PALETTES } from '../../../shaders/src/palettes.js'
 import {
   coin_flip as _coin_flip,
   enum_range as _enum_range,
   random_member as _random_member,
   stash as _stash,
   PRESETS as _PRESETS,
-} from '../presets.js';
-import { Preset as _Preset } from '../composer.js';
-import { random as _random, randomInt as _random_int } from '../util.js';
-import { random as _rngRandom } from '../rng.js';
-import { maskShape as _maskShape, squareMasks as _squareMasks } from '../masks.js';
+} from '../presets.js'
+import { Preset as _Preset } from '../composer.js'
+import { random as _random, randomInt as _random_int } from '../util.js'
+import { random as _rngRandom } from '../rng.js'
+import { maskShape as _maskShape, squareMasks as _squareMasks } from '../masks.js'
 
-export * from '../constants.js';
+export * from '../constants.js'
 
 const settingsProxy = new Proxy(
   {},
   {
     get: (_, prop) => (settings) => settings[prop],
   },
-);
+)
 
-export const surfaces = Object.freeze({ settings: settingsProxy });
+export const surfaces = Object.freeze({ settings: settingsProxy })
 
 export function coin_flip(...args) {
   if (args.length !== 0) {
-    throw new Error(`coin_flip() takes no arguments, received ${args.length}`);
+    throw new Error(`coin_flip() takes no arguments, received ${args.length}`)
   }
-  return _coin_flip();
+  return _coin_flip()
 }
 
 export function enum_range(...args) {
   if (args.length !== 2) {
-    throw new Error(`enum_range(a, b) requires exactly 2 arguments, received ${args.length}`);
+    throw new Error(`enum_range(a, b) requires exactly 2 arguments, received ${args.length}`)
   }
-  const [a, b] = args;
+  const [a, b] = args
   if (typeof a !== 'number' || typeof b !== 'number') {
-    throw new Error('enum_range(a, b) requires numeric arguments');
+    throw new Error('enum_range(a, b) requires numeric arguments')
   }
-  return _enum_range(a, b);
+  return _enum_range(a, b)
 }
 
 export function random_member(...collections) {
   if (collections.length === 0) {
-    throw new Error('random_member() requires at least one iterable argument');
+    throw new Error('random_member() requires at least one iterable argument')
   }
-  return _random_member(...collections);
+  return _random_member(...collections)
 }
 
 export function stash(...args) {
   if (args.length === 0 || args.length > 2) {
-    throw new Error(`stash(key[, value]) expects 1 or 2 arguments, received ${args.length}`);
+    throw new Error(`stash(key[, value]) expects 1 or 2 arguments, received ${args.length}`)
   }
-  const [key, value] = args;
+  const [key, value] = args
   if (typeof key !== 'string') {
-    throw new Error('stash(key[, value]) key must be a string');
+    throw new Error('stash(key[, value]) key must be a string')
   }
   return (settings = {}) =>
-    _stash(key, typeof value === 'function' ? value(settings) : value);
+    _stash(key, typeof value === 'function' ? value(settings) : value)
 }
 
 export function random(...args) {
   if (args.length !== 0) {
-    throw new Error(`random() takes no arguments, received ${args.length}`);
+    throw new Error(`random() takes no arguments, received ${args.length}`)
   }
-  return _random();
+  return _random()
 }
 
 export function random_int(...args) {
   if (args.length !== 2) {
-    throw new Error(`random_int(a, b) requires exactly 2 arguments, received ${args.length}`);
+    throw new Error(`random_int(a, b) requires exactly 2 arguments, received ${args.length}`)
   }
-  const [a, b] = args;
+  const [a, b] = args
   if (typeof a !== 'number' || typeof b !== 'number') {
-    throw new Error('random_int(a, b) requires numeric arguments');
+    throw new Error('random_int(a, b) requires numeric arguments')
   }
-  return _random_int(a, b);
+  return _random_int(a, b)
 }
 
-coin_flip.__thunk = true;
-random_member.__thunk = true;
-random.__thunk = true;
-random_int.__thunk = true;
+coin_flip.__thunk = true
+random_member.__thunk = true
+random.__thunk = true
+random_int.__thunk = true
 
 export function mask_freq(...args) {
   if (args.length !== 2) {
-    throw new Error(`mask_freq(mask, repeat) requires exactly 2 arguments, received ${args.length}`);
+    throw new Error(`mask_freq(mask, repeat) requires exactly 2 arguments, received ${args.length}`)
   }
-  const [mask, repeat] = args;
-  const [h, w] = _maskShape(mask);
-  return [Math.floor(h * 0.5 + h * repeat), Math.floor(w * 0.5 + w * repeat)];
+  const [mask, repeat] = args
+  const [h, w] = _maskShape(mask)
+  return [Math.floor(h * 0.5 + h * repeat), Math.floor(w * 0.5 + w * repeat)]
 }
 
 export function preset(...args) {
   if (args.length === 0 || args.length > 2) {
-    throw new Error(`preset(name[, settings]) expects 1 or 2 arguments, received ${args.length}`);
+    throw new Error(`preset(name[, settings]) expects 1 or 2 arguments, received ${args.length}`)
   }
-  const [name, settings = {}] = args;
+  const [name, settings = {}] = args
   if (typeof name !== 'string') {
-    throw new Error('preset(name[, settings]) name must be a string');
+    throw new Error('preset(name[, settings]) name must be a string')
   }
   // Return a thunk that will instantiate the preset when invoked. This
   // avoids recursive construction while the preset table itself is being
   // evaluated from the DSL. The thunk accepts parent settings so nested
   // presets can resolve dynamic values.
   return (parentSettings = {}) => {
-    const resolved = {};
+    const resolved = {}
     for (const [k, v] of Object.entries(settings)) {
-      resolved[k] = typeof v === 'function' ? v(parentSettings) : v;
+      resolved[k] = typeof v === 'function' ? v(parentSettings) : v
     }
-    const presets = _PRESETS();
+    const presets = _PRESETS()
     // Python's DSL ``preset()`` helper routes through ``noisemaker.presets.Preset``,
     // which rebuilds the preset table when instantiating nested presets. Consume
     // the same three RNG samples here to mirror that extra ``PRESETS()`` call
     // without re-evaluating the table in JavaScript.
-    _rngRandom();
-    _rngRandom();
-    _rngRandom();
-    return new _Preset(name, presets, resolved);
-  };
+    _rngRandom()
+    _rngRandom()
+    _rngRandom()
+    return new _Preset(name, presets, resolved)
+  }
 }
 
 export const operations = Object.freeze({
@@ -144,9 +144,9 @@ export const operations = Object.freeze({
   worm_behavior_all: constants.wormBehaviorAll,
   mask_shape: _maskShape,
   square_masks: _squareMasks,
-});
+})
 
-export const enums = { ...constants, PALETTES: _PALETTES };
+export const enums = { ...constants, PALETTES: _PALETTES }
 
 // Map enum/object method names used in the DSL to functions exposed in
 // `operations`.  This allows expressions like `DistanceMetric.absolute_members()`
@@ -177,11 +177,11 @@ export const enumMethods = Object.freeze({
     mask_shape: operations.mask_shape,
     square_masks: operations.square_masks,
   },
-});
+})
 
 export const defaultContext = {
   surfaces,
   operations,
   enums,
   enumMethods,
-};
+}

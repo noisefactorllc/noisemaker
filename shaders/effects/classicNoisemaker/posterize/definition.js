@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Posterize
@@ -48,4 +48,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

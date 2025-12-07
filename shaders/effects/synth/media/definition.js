@@ -1,20 +1,20 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Media - Video/camera input with transform controls
- * 
+ *
  * Synth effect that displays camera or uploaded media with positioning,
  * tiling, flip/mirror, and transform controls. Supports motion blur via
  * feedback texture.
  */
 export default class Media extends Effect {
-  name = "Media";
-  namespace = "synth";
-  func = "media";
-  description = "Video/camera input with transforms";
+  name = "Media"
+  namespace = "synth"
+  func = "media"
+  description = "Video/camera input with transforms"
 
   // Mark this as requiring external texture updates
-  externalTexture = "imageTex";
+  externalTexture = "imageTex"
 
   // WGSL uniform packing layout - maps uniform names to vec4 slots/components
   uniformLayout = {
@@ -32,7 +32,7 @@ export default class Media extends Effect {
     backgroundColor: { slot: 3, components: 'xyz' },
     motionBlur: { slot: 3, components: 'w' },
     imageSize: { slot: 4, components: 'xy' }
-  };
+  }
 
   globals = {
     position: {
@@ -196,7 +196,7 @@ export default class Media extends Effect {
         control: false
       }
     }
-  };
+  }
 
   textures = {
     _selfTex: {
@@ -204,7 +204,7 @@ export default class Media extends Effect {
       height: "input",
       format: "rgba8unorm"
     }
-  };
+  }
 
   passes = [
     {
@@ -228,14 +228,14 @@ export default class Media extends Effect {
         fragColor: "_selfTex"
       }
     }
-  ];
+  ]
 
   /**
    * Called when effect is initialized. Set up default image size.
    */
   onInit() {
-    this.state.imageWidth = 1;
-    this.state.imageHeight = 1;
+    this.state.imageWidth = 1
+    this.state.imageHeight = 1
   }
 
   /**
@@ -245,14 +245,14 @@ export default class Media extends Effect {
   onUpdate() {
     return {
       imageSize: [this.state.imageWidth || 1, this.state.imageHeight || 1]
-    };
+    }
   }
 
   /**
    * Update media dimensions - called when video/image source changes
    */
   setMediaDimensions(width, height) {
-    this.state.imageWidth = width;
-    this.state.imageHeight = height;
+    this.state.imageWidth = width
+    this.state.imageHeight = height
   }
 }

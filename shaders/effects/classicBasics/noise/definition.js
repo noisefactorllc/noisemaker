@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
   name: "Noise",
@@ -63,4 +63,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

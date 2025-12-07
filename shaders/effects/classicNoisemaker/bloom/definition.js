@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Bloom
@@ -6,7 +6,7 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Two-pass bloom effect with downsample and bicubic upsample.
  * Pass 1: Downsample input with highlight boost to smaller texture
  * Pass 2: Bicubic upsample and blend with original
- * 
+ *
  * Mirrors the reference implementation in _to-port/nm/bloom/bloom.wgsl
  */
 export default new Effect({
@@ -64,4 +64,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

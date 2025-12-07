@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * nu/srgb2oklab - Reinterpret RGB channels as OKLab
@@ -24,4 +24,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

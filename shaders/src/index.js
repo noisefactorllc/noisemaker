@@ -41,14 +41,14 @@ export { CanvasRenderer } from './renderer/canvas.js'
 export async function createNoisemakerPipeline(canvas, source, options = {}) {
     const width = canvas.width || 800
     const height = canvas.height || 600
-    
+
     const pipeline = await createRuntime(source, {
         canvas,
         width,
         height,
         preferWebGPU: options.preferWebGPU ?? true
     })
-    
+
     return pipeline
 }
 

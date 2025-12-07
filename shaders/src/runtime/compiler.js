@@ -18,7 +18,7 @@ import { createPipeline } from './pipeline.js'
 export function compileGraph(source, options = {}) {
     // Stage 1: Parse and validate DSL
     const compilationResult = compile(source)
-    
+
     if (compilationResult.diagnostics && compilationResult.diagnostics.length > 0) {
         const errors = compilationResult.diagnostics.filter(d => d.severity === 'error')
         if (errors.length > 0) {
@@ -28,23 +28,23 @@ export function compileGraph(source, options = {}) {
             }
         }
     }
-    
+
     // Stage 2: Expand logical graph into render passes
     const { passes, errors: expandErrors, programs, textureSpecs, renderSurface } = expand(
         compilationResult,
         { shaderOverrides: options.shaderOverrides }
     )
-    
+
     if (expandErrors && expandErrors.length > 0) {
         throw {
             code: 'ERR_EXPANSION_FAILED',
             errors: expandErrors
         }
     }
-    
+
     // Stage 3: Allocate resources (texture pooling)
     const allocations = allocateResources(passes)
-    
+
     // Stage 4: Build execution graph
     const graph = {
         id: hashSource(source),
@@ -56,7 +56,7 @@ export function compileGraph(source, options = {}) {
         renderSurface, // Which surface to present to screen (e.g., 'o0', 'o2')
         compiledAt: Date.now()
     }
-    
+
     return graph
 }
 
@@ -82,7 +82,7 @@ function extractTextureSpecs(passes, options, textureSpecs = {}) {
     const textures = new Map()
     const defaultWidth = options.width || 800
     const defaultHeight = options.height || 600
-    
+
     // First, add all effect-defined texture specs (including global_ textures)
     // This ensures custom dimensions are available for pipeline surface creation
     for (const [texId, effectSpec] of Object.entries(textureSpecs)) {
@@ -100,7 +100,7 @@ function extractTextureSpecs(passes, options, textureSpecs = {}) {
         }
         textures.set(texId, spec)
     }
-    
+
     // Then collect output textures from passes that aren't already defined
     for (const pass of passes) {
         if (pass.outputs) {
@@ -108,7 +108,7 @@ function extractTextureSpecs(passes, options, textureSpecs = {}) {
                 // Skip global_ textures (handled via surfaces) and already-defined textures
                 if (texId.startsWith('global_')) continue
                 if (textures.has(texId)) continue
-                
+
                 textures.set(texId, {
                     width: defaultWidth,
                     height: defaultHeight,
@@ -118,7 +118,7 @@ function extractTextureSpecs(passes, options, textureSpecs = {}) {
             }
         }
     }
-    
+
     return textures
 }
 
@@ -150,16 +150,16 @@ export function recompile(pipeline, newSource, options = {}) {
             height: pipeline.height,
             shaderOverrides: options.shaderOverrides
         })
-        
+
         // Swap graph on pipeline
         pipeline.graph = newGraph
-        
+
         // Recreate global surfaces and textures to reflect new graph requirements
         pipeline.createSurfaces()
-        
+
         // Recreate textures
         pipeline.recreateTextures()
-        
+
         return newGraph
     } catch (error) {
         console.error('Recompilation failed:', error)

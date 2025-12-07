@@ -54,6 +54,8 @@ export default [
         },
       ],
       'no-undef': 'error',
+      'semi': ['error', 'never'],
+      'no-trailing-spaces': 'error',
     },
   },
 ];

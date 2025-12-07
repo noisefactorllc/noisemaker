@@ -1,22 +1,22 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * render3d - Universal 3D volume renderer
- * 
+ *
  * This built-in effect extracts the common raymarching/rendering logic from all 3D effects
  * (noise3d, cell3d, shape3d, fractal3d, rd3d, ca3d, flow3d) into a reusable pipeline node.
- * 
+ *
  * It takes a 3D volume (inputTex3d) and renders it to 2D (outputTex) with optional geometry
  * buffer output (geoBuffer) for downstream post-processing.
- * 
+ *
  * Two rendering modes:
  * - isosurface (filtering=0): Smooth raymarching with trilinear interpolation and bisection
  * - voxel (filtering=1): DDA voxel traversal with flat face shading
- * 
+ *
  * Usage in DSL:
  *   noise3d().render3d().out(o0)
  *   cell3d().render3d(threshold: 0.3, filtering: 1).out(o0)
- * 
+ *
  * This effect is a DIRECT PORT of the common rendering logic - no new functionality added.
  * The goal is unification, not enhancement.
  */
@@ -126,4 +126,4 @@ export default new Effect({
   ],
   outputGeo: "screenGeoBuffer",
   outputTex3d: "inputTex3d"
-});
+})

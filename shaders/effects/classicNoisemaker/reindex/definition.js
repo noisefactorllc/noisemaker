@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Reindex
@@ -67,4 +67,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

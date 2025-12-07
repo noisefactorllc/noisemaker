@@ -1,16 +1,16 @@
 /**
  * Tests for Oscillator support in the Polymorphic DSL
- * 
+ *
  * Oscillators are time-varying values that can be used as inputs for effect parameters.
  * They generate looping values synchronized with the animation duration.
  */
 
-import { lex } from '../src/lang/lexer.js';
-import { parse } from '../src/lang/parser.js';
-import { registerStarterOps } from '../src/lang/validator.js';
-import { compile } from '../src/lang/index.js';
-import { formatValue } from '../src/lang/unparser.js';
-import { registerOp } from '../src/lang/ops.js';
+import { lex } from '../src/lang/lexer.js'
+import { parse } from '../src/lang/parser.js'
+import { registerStarterOps } from '../src/lang/validator.js'
+import { compile } from '../src/lang/index.js'
+import { formatValue } from '../src/lang/unparser.js'
+import { registerOp } from '../src/lang/ops.js'
 
 // Register test ops
 registerOp('basics.noise', {
@@ -20,42 +20,42 @@ registerOp('basics.noise', {
         { name: 'octaves', type: 'int', default: 1 },
         { name: 'rotation', type: 'float', default: 0 }
     ]
-});
+})
 
 registerOp('basics.bloom', {
     name: 'bloom',
     args: [
         { name: 'amount', type: 'float', default: 0.5 }
     ]
-});
+})
 
-registerStarterOps(['basics.noise']);
+registerStarterOps(['basics.noise'])
 
-let passCount = 0;
-let failCount = 0;
+let passCount = 0
+let failCount = 0
 
 function test(name, fn) {
     try {
-        console.log(`Running test: ${name}`);
-        fn();
-        console.log(`PASS: ${name}`);
-        passCount++;
+        console.log(`Running test: ${name}`)
+        fn()
+        console.log(`PASS: ${name}`)
+        passCount++
     } catch (e) {
-        console.error(`FAIL: ${name}`);
-        console.error(e.message);
-        failCount++;
+        console.error(`FAIL: ${name}`)
+        console.error(e.message)
+        failCount++
     }
 }
 
 function assert(condition, message) {
     if (!condition) {
-        throw new Error(message || 'Assertion failed');
+        throw new Error(message || 'Assertion failed')
     }
 }
 
 function assertEqual(actual, expected, message) {
     if (actual !== expected) {
-        throw new Error(`${message || 'Assertion failed'}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+        throw new Error(`${message || 'Assertion failed'}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`)
     }
 }
 
@@ -64,76 +64,76 @@ function assertEqual(actual, expected, message) {
 // ============================================================================
 
 test('Parser: Basic oscillator with type only', () => {
-    const tokens = lex('search basics\nnoise(scale: osc(type: oscKind.sine)).write(o0)');
-    const ast = parse(tokens);
-    
+    const tokens = lex('search basics\nnoise(scale: osc(type: oscKind.sine)).write(o0)')
+    const ast = parse(tokens)
+
     // Find the oscillator in the call args
-    const noiseCall = ast.plans[0].chain[0];
-    assert(noiseCall.name === 'noise', 'Expected noise call');
-    assert(noiseCall.kwargs, 'Expected kwargs');
-    
-    const scaleArg = noiseCall.kwargs.scale;
-    assert(scaleArg, 'Expected scale kwarg');
-    assert(scaleArg.type === 'Oscillator', `Expected Oscillator type, got ${scaleArg.type}`);
-    assert(scaleArg.oscType.type === 'Member', 'Expected oscType to be Member');
-    assert(scaleArg.oscType.path.join('.') === 'oscKind.sine', 'Expected oscKind.sine');
-});
+    const noiseCall = ast.plans[0].chain[0]
+    assert(noiseCall.name === 'noise', 'Expected noise call')
+    assert(noiseCall.kwargs, 'Expected kwargs')
+
+    const scaleArg = noiseCall.kwargs.scale
+    assert(scaleArg, 'Expected scale kwarg')
+    assert(scaleArg.type === 'Oscillator', `Expected Oscillator type, got ${scaleArg.type}`)
+    assert(scaleArg.oscType.type === 'Member', 'Expected oscType to be Member')
+    assert(scaleArg.oscType.path.join('.') === 'oscKind.sine', 'Expected oscKind.sine')
+})
 
 test('Parser: Oscillator with all parameters', () => {
-    const code = 'search basics\nnoise(scale: osc(type: oscKind.tri, min: 2, max: 8, speed: 2, offset: 0.25, seed: 42)).write(o0)';
-    const tokens = lex(code);
-    const ast = parse(tokens);
-    
-    const scaleArg = ast.plans[0].chain[0].kwargs.scale;
-    assert(scaleArg.type === 'Oscillator', 'Expected Oscillator type');
-    assertEqual(scaleArg.min.value, 2, 'Expected min 2');
-    assertEqual(scaleArg.max.value, 8, 'Expected max 8');
-    assertEqual(scaleArg.speed.value, 2, 'Expected speed 2');
-    assertEqual(scaleArg.offset.value, 0.25, 'Expected offset 0.25');
-    assertEqual(scaleArg.seed.value, 42, 'Expected seed 42');
-});
+    const code = 'search basics\nnoise(scale: osc(type: oscKind.tri, min: 2, max: 8, speed: 2, offset: 0.25, seed: 42)).write(o0)'
+    const tokens = lex(code)
+    const ast = parse(tokens)
+
+    const scaleArg = ast.plans[0].chain[0].kwargs.scale
+    assert(scaleArg.type === 'Oscillator', 'Expected Oscillator type')
+    assertEqual(scaleArg.min.value, 2, 'Expected min 2')
+    assertEqual(scaleArg.max.value, 8, 'Expected max 8')
+    assertEqual(scaleArg.speed.value, 2, 'Expected speed 2')
+    assertEqual(scaleArg.offset.value, 0.25, 'Expected offset 0.25')
+    assertEqual(scaleArg.seed.value, 42, 'Expected seed 42')
+})
 
 test('Parser: Oscillator with positional arguments', () => {
-    const code = 'search basics\nnoise(scale: osc(oscKind.saw, 1, 5)).write(o0)';
-    const tokens = lex(code);
-    const ast = parse(tokens);
-    
-    const scaleArg = ast.plans[0].chain[0].kwargs.scale;
-    assert(scaleArg.type === 'Oscillator', 'Expected Oscillator type');
-    assert(scaleArg.oscType.path.join('.') === 'oscKind.saw', 'Expected oscKind.saw');
-    assertEqual(scaleArg.min.value, 1, 'Expected min 1');
-    assertEqual(scaleArg.max.value, 5, 'Expected max 5');
-});
+    const code = 'search basics\nnoise(scale: osc(oscKind.saw, 1, 5)).write(o0)'
+    const tokens = lex(code)
+    const ast = parse(tokens)
+
+    const scaleArg = ast.plans[0].chain[0].kwargs.scale
+    assert(scaleArg.type === 'Oscillator', 'Expected Oscillator type')
+    assert(scaleArg.oscType.path.join('.') === 'oscKind.saw', 'Expected oscKind.saw')
+    assertEqual(scaleArg.min.value, 1, 'Expected min 1')
+    assertEqual(scaleArg.max.value, 5, 'Expected max 5')
+})
 
 test('Parser: Oscillator stored in variable', () => {
-    const code = 'search basics\nlet myOsc = osc(type: oscKind.sine, min: 0, max: 10)\nnoise(scale: myOsc).write(o0)';
-    const tokens = lex(code);
-    const ast = parse(tokens);
-    
+    const code = 'search basics\nlet myOsc = osc(type: oscKind.sine, min: 0, max: 10)\nnoise(scale: myOsc).write(o0)'
+    const tokens = lex(code)
+    const ast = parse(tokens)
+
     // Check variable assignment
-    assert(ast.vars.length === 1, 'Expected 1 variable');
-    const varExpr = ast.vars[0].expr;
-    assert(varExpr.type === 'Oscillator', 'Expected Oscillator type in variable');
-});
+    assert(ast.vars.length === 1, 'Expected 1 variable')
+    const varExpr = ast.vars[0].expr
+    assert(varExpr.type === 'Oscillator', 'Expected Oscillator type in variable')
+})
 
 // ============================================================================
 // Validator Tests
 // ============================================================================
 
 test('Validator: Oscillator resolves to oscillator config', () => {
-    const result = compile('search basics\nnoise(scale: osc(type: oscKind.sine, min: 2, max: 8)).write(o0)');
-    
+    const result = compile('search basics\nnoise(scale: osc(type: oscKind.sine, min: 2, max: 8)).write(o0)')
+
     // Find the compiled step
-    const step = result.plans[0].chain[0];
-    assert(step.args, 'Expected args');
-    
-    const scaleArg = step.args.scale;
-    assert(scaleArg, 'Expected scale arg');
-    assert(scaleArg.oscillator === true, 'Expected oscillator flag');
-    assertEqual(scaleArg.oscType, 0, 'Expected oscType 0 (sine)');
-    assertEqual(scaleArg.min, 2, 'Expected min 2');
-    assertEqual(scaleArg.max, 8, 'Expected max 8');
-});
+    const step = result.plans[0].chain[0]
+    assert(step.args, 'Expected args')
+
+    const scaleArg = step.args.scale
+    assert(scaleArg, 'Expected scale arg')
+    assert(scaleArg.oscillator === true, 'Expected oscillator flag')
+    assertEqual(scaleArg.oscType, 0, 'Expected oscType 0 (sine)')
+    assertEqual(scaleArg.min, 2, 'Expected min 2')
+    assertEqual(scaleArg.max, 8, 'Expected max 8')
+})
 
 test('Validator: Different oscillator types resolve to correct values', () => {
     const types = [
@@ -143,25 +143,25 @@ test('Validator: Different oscillator types resolve to correct values', () => {
         ['sawInv', 3],
         ['square', 4],
         ['noise', 5]
-    ];
-    
+    ]
+
     for (const [typeName, expectedValue] of types) {
-        const result = compile(`search basics\nnoise(scale: osc(type: oscKind.${typeName})).write(o0)`);
-        const scaleArg = result.plans[0].chain[0].args.scale;
-        assertEqual(scaleArg.oscType, expectedValue, `Expected oscType ${expectedValue} for ${typeName}`);
+        const result = compile(`search basics\nnoise(scale: osc(type: oscKind.${typeName})).write(o0)`)
+        const scaleArg = result.plans[0].chain[0].args.scale
+        assertEqual(scaleArg.oscType, expectedValue, `Expected oscType ${expectedValue} for ${typeName}`)
     }
-});
+})
 
 test('Validator: Oscillator defaults are applied correctly', () => {
-    const result = compile('search basics\nnoise(scale: osc(type: oscKind.sine)).write(o0)');
-    const scaleArg = result.plans[0].chain[0].args.scale;
-    
-    assertEqual(scaleArg.min, 0, 'Expected default min 0');
-    assertEqual(scaleArg.max, 1, 'Expected default max 1');
-    assertEqual(scaleArg.speed, 1, 'Expected default speed 1');
-    assertEqual(scaleArg.offset, 0, 'Expected default offset 0');
-    assertEqual(scaleArg.seed, 1, 'Expected default seed 1');
-});
+    const result = compile('search basics\nnoise(scale: osc(type: oscKind.sine)).write(o0)')
+    const scaleArg = result.plans[0].chain[0].args.scale
+
+    assertEqual(scaleArg.min, 0, 'Expected default min 0')
+    assertEqual(scaleArg.max, 1, 'Expected default max 1')
+    assertEqual(scaleArg.speed, 1, 'Expected default speed 1')
+    assertEqual(scaleArg.offset, 0, 'Expected default offset 0')
+    assertEqual(scaleArg.seed, 1, 'Expected default seed 1')
+})
 
 // ============================================================================
 // Unparser Tests (Round-trip)
@@ -176,14 +176,14 @@ test('Unparser: formatValue handles oscillator config', () => {
         speed: 1,
         offset: 0,
         seed: 1
-    };
-    
-    const formatted = formatValue(oscConfig);
-    assert(formatted.includes('osc('), 'Expected osc( in output');
-    assert(formatted.includes('oscKind.sine'), 'Expected oscKind.sine');
-    assert(formatted.includes('min: 2'), 'Expected min: 2');
-    assert(formatted.includes('max: 8'), 'Expected max: 8');
-});
+    }
+
+    const formatted = formatValue(oscConfig)
+    assert(formatted.includes('osc('), 'Expected osc( in output')
+    assert(formatted.includes('oscKind.sine'), 'Expected oscKind.sine')
+    assert(formatted.includes('min: 2'), 'Expected min: 2')
+    assert(formatted.includes('max: 8'), 'Expected max: 8')
+})
 
 test('Unparser: formatValue omits default values', () => {
     const oscConfig = {
@@ -194,19 +194,19 @@ test('Unparser: formatValue omits default values', () => {
         speed: 1,
         offset: 0,
         seed: 1
-    };
-    
-    const formatted = formatValue(oscConfig);
+    }
+
+    const formatted = formatValue(oscConfig)
     // Only type should be included since all others are default
-    assert(!formatted.includes('min:'), 'Should not include default min');
-    assert(!formatted.includes('max:'), 'Should not include default max');
-    assert(!formatted.includes('speed:'), 'Should not include default speed');
-    assert(!formatted.includes('offset:'), 'Should not include default offset');
-});
+    assert(!formatted.includes('min:'), 'Should not include default min')
+    assert(!formatted.includes('max:'), 'Should not include default max')
+    assert(!formatted.includes('speed:'), 'Should not include default speed')
+    assert(!formatted.includes('offset:'), 'Should not include default offset')
+})
 
 test('Unparser: All oscillator types format correctly', () => {
-    const types = ['sine', 'tri', 'saw', 'sawInv', 'square', 'noise'];
-    
+    const types = ['sine', 'tri', 'saw', 'sawInv', 'square', 'noise']
+
     for (let i = 0; i < types.length; i++) {
         const oscConfig = {
             oscillator: true,
@@ -216,54 +216,54 @@ test('Unparser: All oscillator types format correctly', () => {
             speed: 1,
             offset: 0,
             seed: 1
-        };
-        
-        const formatted = formatValue(oscConfig);
-        assert(formatted.includes(`oscKind.${types[i]}`), `Expected oscKind.${types[i]} in ${formatted}`);
+        }
+
+        const formatted = formatValue(oscConfig)
+        assert(formatted.includes(`oscKind.${types[i]}`), `Expected oscKind.${types[i]} in ${formatted}`)
     }
-});
+})
 
 // ============================================================================
 // Integration Tests
 // ============================================================================
 
 test('Integration: Full compile and unparse round-trip', () => {
-    const original = 'search basics\nnoise(scale: osc(type: oscKind.sine, min: 2, max: 8)).write(o0)';
-    const compiled = compile(original);
-    
+    const original = 'search basics\nnoise(scale: osc(type: oscKind.sine, min: 2, max: 8)).write(o0)'
+    const compiled = compile(original)
+
     // Verify compilation produced oscillator config
-    const scaleArg = compiled.plans[0].chain[0].args.scale;
-    assert(scaleArg.oscillator === true, 'Expected oscillator in compiled output');
-    
+    const scaleArg = compiled.plans[0].chain[0].args.scale
+    assert(scaleArg.oscillator === true, 'Expected oscillator in compiled output')
+
     // The unparser should be able to format this back
     // Note: We can't do exact string comparison because the unparser may reorder/format differently
-});
+})
 
 test('Integration: Oscillator in complex chain', () => {
     const code = `search basics
 let scaleOsc = osc(type: oscKind.saw, min: 1, max: 10, speed: 2)
-noise(scale: scaleOsc).bloom(amount: 0.5).write(o0)`;
-    
-    const compiled = compile(code);
-    assert(compiled.plans.length === 1, 'Expected 1 plan');
-    
+noise(scale: scaleOsc).bloom(amount: 0.5).write(o0)`
+
+    const compiled = compile(code)
+    assert(compiled.plans.length === 1, 'Expected 1 plan')
+
     // First step should have oscillator
-    const noiseStep = compiled.plans[0].chain[0];
-    assert(noiseStep.args.scale.oscillator === true, 'Expected oscillator in noise scale');
-    assertEqual(noiseStep.args.scale.oscType, 2, 'Expected saw type (2)');
-    assertEqual(noiseStep.args.scale.speed, 2, 'Expected speed 2');
-});
+    const noiseStep = compiled.plans[0].chain[0]
+    assert(noiseStep.args.scale.oscillator === true, 'Expected oscillator in noise scale')
+    assertEqual(noiseStep.args.scale.oscType, 2, 'Expected saw type (2)')
+    assertEqual(noiseStep.args.scale.speed, 2, 'Expected speed 2')
+})
 
 // ============================================================================
 // Summary
 // ============================================================================
 
-console.log('\n========================================');
-console.log(`Oscillator Tests Complete`);
-console.log(`Passed: ${passCount}`);
-console.log(`Failed: ${failCount}`);
-console.log('========================================');
+console.log('\n========================================')
+console.log(`Oscillator Tests Complete`)
+console.log(`Passed: ${passCount}`)
+console.log(`Failed: ${failCount}`)
+console.log('========================================')
 
 if (failCount > 0) {
-    process.exit(1);
+    process.exit(1)
 }

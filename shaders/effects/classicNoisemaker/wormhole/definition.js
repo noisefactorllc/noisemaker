@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Wormhole - per-pixel field flow driven by luminance
@@ -77,4 +77,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

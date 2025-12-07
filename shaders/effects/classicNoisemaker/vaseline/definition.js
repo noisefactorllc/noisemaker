@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Vaseline - intense bloom at edges, blending to original toward center
@@ -54,4 +54,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

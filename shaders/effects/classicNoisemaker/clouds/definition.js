@@ -1,8 +1,8 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Clouds - Top-down cloud cover effect
- * 
+ *
  * Multi-pass rendering:
  * 1. Generate ridged multires noise control at 25% resolution, with warp
  * 2. Reduce to find global min/max of control for proper normalization
@@ -99,4 +99,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

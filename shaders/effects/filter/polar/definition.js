@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * nu/polar - Polar and vortex coordinate transforms
@@ -72,4 +72,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

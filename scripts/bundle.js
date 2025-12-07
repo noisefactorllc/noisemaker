@@ -4,26 +4,26 @@
  * Produces IIFE, minified, and ESM outputs with presets inlined.
  */
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { build } from 'esbuild';
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+import { build } from 'esbuild'
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, '..');
-const entryPoint = path.join(repoRoot, 'js', 'noisemaker', 'index.js');
-const distDir = path.join(repoRoot, 'dist');
-const presetsDslPath = path.join(repoRoot, 'share', 'dsl', 'presets.dsl');
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const repoRoot = path.resolve(__dirname, '..')
+const entryPoint = path.join(repoRoot, 'js', 'noisemaker', 'index.js')
+const distDir = path.join(repoRoot, 'dist')
+const presetsDslPath = path.join(repoRoot, 'share', 'dsl', 'presets.dsl')
 
 if (!fs.existsSync(entryPoint)) {
-  console.error(`Bundle entry point not found: ${entryPoint}`);
-  process.exit(1);
+  console.error(`Bundle entry point not found: ${entryPoint}`)
+  process.exit(1)
 }
 
-const presetsSource = fs.readFileSync(presetsDslPath, 'utf8');
-fs.mkdirSync(distDir, { recursive: true });
+const presetsSource = fs.readFileSync(presetsDslPath, 'utf8')
+fs.mkdirSync(distDir, { recursive: true })
 
-const banner = `/**\n * Noisemaker.js - Procedural Noise Generation\n * Bundled on ${new Date().toISOString()}\n */`;
+const banner = `/**\n * Noisemaker.js - Procedural Noise Generation\n * Bundled on ${new Date().toISOString()}\n */`
 
 const sharedOptions = {
   entryPoints: [entryPoint],
@@ -42,10 +42,10 @@ const sharedOptions = {
   logOverride: {
     'empty-import-meta': 'silent',  // Expected: import.meta is replaced by define
   },
-};
+}
 
 async function buildBundle() {
-  console.log('Bundling Noisemaker with esbuild...');
+  console.log('Bundling Noisemaker with esbuild...')
 
   await build({
     ...sharedOptions,
@@ -54,7 +54,7 @@ async function buildBundle() {
     outfile: path.join(distDir, 'noisemaker.bundle.js'),
     minify: false,
     banner: { js: banner },
-  });
+  })
 
   await build({
     ...sharedOptions,
@@ -63,7 +63,7 @@ async function buildBundle() {
     outfile: path.join(distDir, 'noisemaker.min.js'),
     minify: true,
     banner: { js: banner },
-  });
+  })
 
   await build({
     ...sharedOptions,
@@ -71,7 +71,7 @@ async function buildBundle() {
     outfile: path.join(distDir, 'noisemaker.esm.js'),
     minify: false,
     banner: { js: banner },
-  });
+  })
 
   await build({
     ...sharedOptions,
@@ -79,16 +79,16 @@ async function buildBundle() {
     outfile: path.join(distDir, 'noisemaker.cjs'),
     minify: false,
     banner: { js: banner },
-  });
+  })
 
-  console.log('✓ Bundles written to dist/');
-  console.log('  - noisemaker.bundle.js');
-  console.log('  - noisemaker.min.js');
-  console.log('  - noisemaker.esm.js');
-  console.log('  - noisemaker.cjs');
+  console.log('✓ Bundles written to dist/')
+  console.log('  - noisemaker.bundle.js')
+  console.log('  - noisemaker.min.js')
+  console.log('  - noisemaker.esm.js')
+  console.log('  - noisemaker.cjs')
 }
 
 buildBundle().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+  console.error(err)
+  process.exit(1)
+})

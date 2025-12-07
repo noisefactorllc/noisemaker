@@ -1,10 +1,10 @@
 /**
  * Base class for all Effects.
  * Represents the runtime embodiment of an Effect Definition.
- * 
+ *
  * Can be instantiated directly with a config object for data-only effects:
  *   new Effect({ name: "Blur", namespace: "filter", globals: {...}, passes: [...] })
- * 
+ *
  * Or subclassed for effects needing lifecycle methods:
  *   class Media extends Effect { onInit() {...} onUpdate() {...} }
  */
@@ -22,30 +22,30 @@ export class Effect {
      * @param {Function} [config.onDestroy] - Lifecycle hook: called on destroy
      */
     constructor(config = {}) {
-        this.state = {};
-        this.uniforms = {};
-        
+        this.state = {}
+        this.uniforms = {}
+
         // Apply config properties
-        if (config.name) this.name = config.name;
-        if (config.namespace) this.namespace = config.namespace;
-        if (config.func) this.func = config.func;
-        if (config.globals) this.globals = config.globals;
-        if (config.passes) this.passes = config.passes;
-        if (config.textures) this.textures = config.textures;
-        if (config.outputTex3d) this.outputTex3d = config.outputTex3d;
-        if (config.outputGeo) this.outputGeo = config.outputGeo;
-        
+        if (config.name) this.name = config.name
+        if (config.namespace) this.namespace = config.namespace
+        if (config.func) this.func = config.func
+        if (config.globals) this.globals = config.globals
+        if (config.passes) this.passes = config.passes
+        if (config.textures) this.textures = config.textures
+        if (config.outputTex3d) this.outputTex3d = config.outputTex3d
+        if (config.outputGeo) this.outputGeo = config.outputGeo
+
         // Allow lifecycle hooks via config
-        if (config.onInit) this._configOnInit = config.onInit;
-        if (config.onUpdate) this._configOnUpdate = config.onUpdate;
-        if (config.onDestroy) this._configOnDestroy = config.onDestroy;
+        if (config.onInit) this._configOnInit = config.onInit
+        if (config.onUpdate) this._configOnUpdate = config.onUpdate
+        if (config.onDestroy) this._configOnDestroy = config.onDestroy
     }
 
     /**
      * Called once when the effect is initialized.
      */
     onInit() {
-        if (this._configOnInit) this._configOnInit.call(this);
+        if (this._configOnInit) this._configOnInit.call(this)
     }
 
     /**
@@ -54,14 +54,14 @@ export class Effect {
      * @returns {object} Uniforms to bind
      */
     onUpdate(context) {
-        if (this._configOnUpdate) return this._configOnUpdate.call(this, context);
-        return {};
+        if (this._configOnUpdate) return this._configOnUpdate.call(this, context)
+        return {}
     }
 
     /**
      * Called when the effect is destroyed.
      */
     onDestroy() {
-        if (this._configOnDestroy) this._configOnDestroy.call(this);
+        if (this._configOnDestroy) this._configOnDestroy.call(this)
     }
 }

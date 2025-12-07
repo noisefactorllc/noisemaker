@@ -196,7 +196,7 @@ export function validate(ast) {
                 // Actually, partial application usually appends?
                 // "Positional Arguments: Appended to the stored arguments." (LANGUAGE.md)
                 // My previous logic was: mergedArgs[i] = call.args[i] (Override/Overlay)
-                
+
                 // Let's fix this to APPEND.
                 const callArgs = call.args || []
                 for (let i = 0; i < callArgs.length; i++) {
@@ -412,7 +412,7 @@ export function validate(ast) {
 
     function compileChainStatement(stmt) {
         const chain = []
-        
+
         // Check for S006: Starter chain missing write()
         const chainNode = { type: 'Chain', chain: stmt.chain }
         if (!stmt.write && isStarterChain(chainNode)) {
@@ -445,7 +445,7 @@ export function validate(ast) {
                     current = idx
                     continue
                 }
-                
+
                 // Handle Read3D node (pipeline built-in for reading 3D textures)
                 if (original.type === 'Read3D') {
                     const tex3d = original.tex3d?.name ? { kind: 'tex3d', name: original.tex3d.name } : null
@@ -466,7 +466,7 @@ export function validate(ast) {
                     current = idx
                     continue
                 }
-                
+
                 const call = resolveCall({...original})
                 const effectiveNamespace = call.namespace || { searchOrder: programSearchOrder }
                 const resolution = resolveCallTarget(call.name, effectiveNamespace)
@@ -844,18 +844,18 @@ export function validate(ast) {
                         args[argKey] = value
                     }
                 }
-                
+
                 // Handle _skip meta-argument (skip this step in the pipeline)
                 if (kw && kw._skip !== undefined) {
-                    const skipNode = kw._skip;
+                    const skipNode = kw._skip
                     if (skipNode && skipNode.type === 'Boolean') {
-                        args._skip = skipNode.value;
+                        args._skip = skipNode.value
                     } else {
-                        args._skip = false;
+                        args._skip = false
                     }
-                    seen.add('_skip');
+                    seen.add('_skip')
                 }
-                
+
                 if (kw) {
                     for (const key of Object.keys(kw)) {
                         if (!seen.has(key)) {

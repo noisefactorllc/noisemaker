@@ -1,49 +1,49 @@
-import { getEffect } from './registry.js';
-import { stdEnums } from '../lang/std_enums.js';
+import { getEffect } from './registry.js'
+import { stdEnums } from '../lang/std_enums.js'
 
 /**
  * Expands the Logical Graph (plans) into a Render Graph (passes).
- * 
+ *
  * ## Texture Pipeline
- * 
+ *
  * Effects can use standard 2D textures or 3D volumetric textures:
- * 
+ *
  * ### 2D Textures (standard pipeline)
  * - `inputTex` - 2D input from previous effect in chain
  * - `outputTex` - 2D output to next effect in chain
- * 
+ *
  * ### 3D Textures (volumetric pipeline)
  * - `inputTex3d` - 3D volume input from previous effect
  * - `outputTex3d` - 3D volume output to next effect
- * 
+ *
  * 3D textures can be defined in effect `textures3d` property for true 3D storage:
  * ```javascript
  * textures3d = {
  *   myVolume: { width: 64, height: 64, depth: 64, format: 'rgba16f' }
  * }
  * ```
- * 
+ *
  * Alternatively, effects can expose an existing internal texture (like a 2D atlas
  * representing 3D volume data) as the 3D output using the `outputTex3d` property:
  * ```javascript
  * // Declare the internal texture that holds 3D volume data
  * outputTex3d = "volumeCache";
  * ```
- * 
+ *
  * ### Geometry Buffer (geoBuffer pipeline)
  * - `inputGeo` - Geometry buffer input from previous effect (normals + depth)
  * - `outputGeo` - Geometry buffer output to next effect
- * 
+ *
  * The geometry buffer contains precomputed surface normals and depth from
  * 3D raymarched effects, enabling downstream post-processing without re-raymarching:
  * ```javascript
  * // Expose geoBuffer as the geometry output
  * outputGeo = "geoBuffer";
  * ```
- * 
+ *
  * Note: WebGL2 can sample 3D textures but cannot render directly to them.
  * For compute-style writes to 3D textures, use WebGPU backend.
- * 
+ *
  * @param {object} compilationResult { plans, diagnostics, render }
  * @param {object} [options] - Expansion options
  * @param {object} [options.shaderOverrides] - Per-step shader overrides, keyed by step index
@@ -51,124 +51,124 @@ import { stdEnums } from '../lang/std_enums.js';
  * @returns {object} { passes, errors, programs, textureSpecs, renderSurface }
  */
 export function expand(compilationResult, options = {}) {
-    const shaderOverrides = options.shaderOverrides || {};
-    const passes = [];
-    const errors = [];
-    const programs = {};
-    const textureSpecs = {}; // nodeId_texName -> { width, height, format, is3D?, depth? }
-    const textureMap = new Map(); // logical_id -> virtual_texture_id
-    let lastWrittenSurface = null; // Track the last surface written to
+    const shaderOverrides = options.shaderOverrides || {}
+    const passes = []
+    const errors = []
+    const programs = {}
+    const textureSpecs = {} // nodeId_texName -> { width, height, format, is3D?, depth? }
+    const textureMap = new Map() // logical_id -> virtual_texture_id
+    let lastWrittenSurface = null // Track the last surface written to
 
     // Helper to resolve enum paths
     const resolveEnum = (path) => {
-        const parts = path.split('.');
-        let node = stdEnums;
+        const parts = path.split('.')
+        let node = stdEnums
         for (const part of parts) {
             if (node && node[part]) {
-                node = node[part];
+                node = node[part]
             } else {
-                return null;
+                return null
             }
         }
-        return node && node.value !== undefined ? node.value : null;
-    };
+        return node && node.value !== undefined ? node.value : null
+    }
 
     // 1. Expand each plan into passes
     for (const plan of compilationResult.plans) {
         // Each plan is a chain of effects
         // We need to track the "current" output texture as we traverse the chain
-        let currentInput = null;      // 2D pipeline texture
-        let currentInput3d = null;    // 3D pipeline texture (for volumetric effects)
-        let currentInputGeo = null;   // Geometry buffer texture (normals + depth)
-        
+        let currentInput = null      // 2D pipeline texture
+        let currentInput3d = null    // 3D pipeline texture (for volumetric effects)
+        let currentInputGeo = null   // Geometry buffer texture (normals + depth)
+
         // Pipeline uniforms accumulate from upstream effects for downstream consumption
         // Example: noise3d sets volumeSize, ca3d uses it without declaring it
-        const pipelineUniforms = {};
-        
+        const pipelineUniforms = {}
+
         for (const step of plan.chain) {
             // Handle builtin read operations - these just set the current input
             if (step.builtin && step.op === '_read') {
-                const tex = step.args?.tex;
+                const tex = step.args?.tex
                 if (tex && tex.kind === 'output') {
-                    currentInput = tex.name;  // e.g., 'o0'
+                    currentInput = tex.name  // e.g., 'o0'
                 }
-                continue;
+                continue
             }
             if (step.builtin && step.op === '_read3d') {
-                const tex3d = step.args?.tex3d;
-                const geo = step.args?.geo;
+                const tex3d = step.args?.tex3d
+                const geo = step.args?.geo
                 if (tex3d) {
-                    currentInput3d = tex3d.name || tex3d;
+                    currentInput3d = tex3d.name || tex3d
                 }
                 if (geo) {
-                    currentInputGeo = geo.name || geo;
+                    currentInputGeo = geo.name || geo
                 }
-                continue;
+                continue
             }
-            
+
             // Handle _skip flag - skip this effect in the pipeline
             // When an effect is skipped, we pass through the current input unchanged
             // The step still gets a nodeId for tracking, but no passes are generated
             if (step.args?._skip === true) {
                 // Register a passthrough so downstream steps can find the input
-                const nodeId = `node_${step.temp}`;
+                const nodeId = `node_${step.temp}`
                 if (currentInput) {
-                    textureMap.set(`${nodeId}_out`, currentInput);
+                    textureMap.set(`${nodeId}_out`, currentInput)
                 }
                 if (currentInput3d) {
-                    textureMap.set(`${nodeId}_out3d`, currentInput3d);
+                    textureMap.set(`${nodeId}_out3d`, currentInput3d)
                 }
                 if (currentInputGeo) {
-                    textureMap.set(`${nodeId}_outGeo`, currentInputGeo);
+                    textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
                 }
-                continue;
+                continue
             }
-            
-            const effectName = step.op;
-            const effectDef = getEffect(effectName);
-            
+
+            const effectName = step.op
+            const effectDef = getEffect(effectName)
+
             if (!effectDef) {
-                errors.push({ message: `Effect '${effectName}' not found`, step });
-                continue;
+                errors.push({ message: `Effect '${effectName}' not found`, step })
+                continue
             }
 
             // Collect programs - check for per-step shader overrides first
             // Overrides are keyed by step.temp (the unique step index)
-            const stepOverrides = shaderOverrides[step.temp];
-            const shadersSource = stepOverrides || effectDef.shaders;
-            
+            const stepOverrides = shaderOverrides[step.temp]
+            const shadersSource = stepOverrides || effectDef.shaders
+
             if (shadersSource) {
                 for (const [progName, shaders] of Object.entries(shadersSource)) {
                     // For overrides, we need a unique program name per step to avoid conflicts
-                    const uniqueProgName = stepOverrides ? `${progName}_step${step.temp}` : progName;
-                    
+                    const uniqueProgName = stepOverrides ? `${progName}_step${step.temp}` : progName
+
                     if (!programs[uniqueProgName]) {
                         // Support both per-program layouts (uniformLayouts) and legacy single layout (uniformLayout)
                         // Per-program layouts take precedence
-                        const programLayout = effectDef.uniformLayouts?.[progName] || effectDef.uniformLayout;
+                        const programLayout = effectDef.uniformLayouts?.[progName] || effectDef.uniformLayout
                         programs[uniqueProgName] = {
                             ...shaders,
                             uniformLayout: programLayout
-                        };
+                        }
                     }
                 }
             }
 
             // Generate a unique ID for this effect instance
-            const nodeId = `node_${step.temp}`;
+            const nodeId = `node_${step.temp}`
 
             // Helper to check if a texture name indicates a global/double-buffered texture
             // Textures starting with 'global' in effect definitions need ping-pong buffering
-            const isGlobalTexture = (texName) => texName.startsWith('global');
+            const isGlobalTexture = (texName) => texName.startsWith('global')
 
             // Collect texture specs from effect definition
             // Textures starting with 'global' get the global_ prefix for double-buffering
             if (effectDef.textures) {
                 for (const [texName, spec] of Object.entries(effectDef.textures)) {
-                    const virtualTexId = isGlobalTexture(texName) 
+                    const virtualTexId = isGlobalTexture(texName)
                         ? `global_${nodeId}_${texName}`  // Use global_ prefix for double-buffering
-                        : `${nodeId}_${texName}`;
-                    textureSpecs[virtualTexId] = { ...spec };
+                        : `${nodeId}_${texName}`
+                    textureSpecs[virtualTexId] = { ...spec }
                 }
             }
 
@@ -176,10 +176,10 @@ export function expand(compilationResult, options = {}) {
             // 3D textures are used for volumetric data and caching
             if (effectDef.textures3d) {
                 for (const [texName, spec] of Object.entries(effectDef.textures3d)) {
-                    const virtualTexId = isGlobalTexture(texName) 
+                    const virtualTexId = isGlobalTexture(texName)
                         ? `global_${nodeId}_${texName}`
-                        : `${nodeId}_${texName}`;
-                    textureSpecs[virtualTexId] = { ...spec, is3D: true };
+                        : `${nodeId}_${texName}`
+                    textureSpecs[virtualTexId] = { ...spec, is3D: true }
                 }
             }
 
@@ -188,11 +188,11 @@ export function expand(compilationResult, options = {}) {
             // If step.from is a number, it refers to a previous temp output.
             if (step.from !== null) {
                 // Find the output texture of the previous node
-                const prevNodeId = `node_${step.from}`;
+                const prevNodeId = `node_${step.from}`
                 // The output of the previous node is usually its 'outputTex'
                 // We need to track what the "main" output of a node is.
                 // For now, assume 'outputTex' is the main output.
-                currentInput = textureMap.get(`${prevNodeId}_out`);
+                currentInput = textureMap.get(`${prevNodeId}_out`)
             }
 
             // Process globals BEFORE passes loop to ensure downstream effects can use
@@ -203,64 +203,64 @@ export function expand(compilationResult, options = {}) {
                     if (def.uniform && def.default !== undefined) {
                         // Skip if already set from upstream (preserve pipeline inheritance)
                         if (pipelineUniforms[def.uniform] !== undefined) {
-                            continue;
+                            continue
                         }
-                        let val = def.default;
+                        let val = def.default
                         if (def.type === 'member' && typeof val === 'string') {
-                            const resolved = resolveEnum(val);
-                            if (resolved !== null) val = resolved;
+                            const resolved = resolveEnum(val)
+                            if (resolved !== null) val = resolved
                         }
                         // Accumulate for downstream effects
-                        pipelineUniforms[def.uniform] = val;
+                        pipelineUniforms[def.uniform] = val
                     }
                 }
             }
-            
+
             // Also process step.args to capture user-specified parameter values
             // (e.g., noise3d(volumeSize: x32) should set volumeSize=32 in the pipeline)
             if (step.args) {
                 for (const [argName, arg] of Object.entries(step.args)) {
-                    const isObjectArg = arg !== null && typeof arg === 'object';
-                    
+                    const isObjectArg = arg !== null && typeof arg === 'object'
+
                     // Skip texture arguments
                     if (isObjectArg && (arg.kind === 'temp' || arg.kind === 'output' || arg.kind === 'source' || arg.kind === 'feedback')) {
-                        continue;
+                        continue
                     }
-                    
+
                     // Resolve uniform name from globals
-                    let uniformName = argName;
+                    let uniformName = argName
                     if (effectDef.globals && effectDef.globals[argName] && effectDef.globals[argName].uniform) {
-                        uniformName = effectDef.globals[argName].uniform;
+                        uniformName = effectDef.globals[argName].uniform
                     }
-                    
+
                     // If this effect has a 3D input from upstream, inherit volumeSize
                     // rather than using the local arg value
                     if (uniformName === 'volumeSize' && currentInput3d && pipelineUniforms['volumeSize'] !== undefined) {
-                        continue;
+                        continue
                     }
-                    
+
                     // Extract value
-                    let resolvedValue;
+                    let resolvedValue
                     if (isObjectArg && arg.value !== undefined) {
-                        resolvedValue = arg.value;
+                        resolvedValue = arg.value
                     } else {
-                        resolvedValue = arg;
+                        resolvedValue = arg
                     }
-                    pipelineUniforms[uniformName] = resolvedValue;
+                    pipelineUniforms[uniformName] = resolvedValue
                 }
             }
 
             // Expand passes
-            const effectPasses = effectDef.passes || [];
+            const effectPasses = effectDef.passes || []
             for (let i = 0; i < effectPasses.length; i++) {
-                const passDef = effectPasses[i];
-                const passId = `${nodeId}_pass_${i}`;
-                
+                const passDef = effectPasses[i]
+                const passId = `${nodeId}_pass_${i}`
+
                 // Use unique program name if this step has shader overrides
-                const programName = stepOverrides 
-                    ? `${passDef.program}_step${step.temp}` 
-                    : passDef.program;
-                
+                const programName = stepOverrides
+                    ? `${passDef.program}_step${step.temp}`
+                    : passDef.program
+
                 const pass = {
                     id: passId,
                     program: programName,
@@ -275,17 +275,17 @@ export function expand(compilationResult, options = {}) {
                     inputs: {},
                     outputs: {},
                     uniforms: {}
-                };
+                }
 
                 // Attach metadata so downstream consumers can map passes back to their effect definitions
-                pass.effectKey = effectName;
-                pass.effectFunc = effectDef.func || effectName;
-                pass.effectNamespace = effectDef.namespace || null;
-                pass.nodeId = nodeId;
+                pass.effectKey = effectName
+                pass.effectFunc = effectDef.func || effectName
+                pass.effectNamespace = effectDef.namespace || null
+                pass.nodeId = nodeId
 
                 // Start with pipeline uniforms inherited from upstream effects
                 // This allows downstream effects to use uniforms like volumeSize without redeclaring them
-                pass.uniforms = { ...pipelineUniforms };
+                pass.uniforms = { ...pipelineUniforms }
 
                 // Initialize uniforms with defaults only if not already set from upstream
                 // This preserves pipeline inheritance (e.g., volumeSize from noise3d to ca3d)
@@ -294,16 +294,16 @@ export function expand(compilationResult, options = {}) {
                         if (def.uniform && def.default !== undefined) {
                             // Skip if already set from upstream (preserve pipeline inheritance)
                             if (pass.uniforms[def.uniform] !== undefined) {
-                                continue;
+                                continue
                             }
-                            let val = def.default;
+                            let val = def.default
                             if (def.type === 'member' && typeof val === 'string') {
-                                const resolved = resolveEnum(val);
-                                if (resolved !== null) val = resolved;
+                                const resolved = resolveEnum(val)
+                                if (resolved !== null) val = resolved
                             }
-                            pass.uniforms[def.uniform] = val;
+                            pass.uniforms[def.uniform] = val
                             // Accumulate for downstream effects
-                            pipelineUniforms[def.uniform] = val;
+                            pipelineUniforms[def.uniform] = val
                         }
                     }
                 }
@@ -311,35 +311,35 @@ export function expand(compilationResult, options = {}) {
                 // Map Uniforms
                 if (step.args) {
                     for (const [argName, arg] of Object.entries(step.args)) {
-                        const isObjectArg = arg !== null && typeof arg === 'object';
+                        const isObjectArg = arg !== null && typeof arg === 'object'
 
                         // Skip texture arguments (handled in inputs)
                         if (isObjectArg && (arg.kind === 'temp' || arg.kind === 'output' || arg.kind === 'source' || arg.kind === 'feedback')) {
-                            continue;
+                            continue
                         }
-                        
+
                         // Resolve uniform name from globals
-                        let uniformName = argName;
+                        let uniformName = argName
                         if (effectDef.globals && effectDef.globals[argName] && effectDef.globals[argName].uniform) {
-                            uniformName = effectDef.globals[argName].uniform;
+                            uniformName = effectDef.globals[argName].uniform
                         }
-                        
+
                         // If this effect has a 3D input from upstream, inherit volumeSize
                         // rather than using the local arg value
                         if (uniformName === 'volumeSize' && currentInput3d && pipelineUniforms['volumeSize'] !== undefined) {
-                            continue;
+                            continue
                         }
-                        
+
                         // Extract value
-                        let resolvedValue;
+                        let resolvedValue
                         if (isObjectArg && arg.value !== undefined) {
-                            resolvedValue = arg.value;
+                            resolvedValue = arg.value
                         } else {
-                            resolvedValue = arg;
+                            resolvedValue = arg
                         }
-                        pass.uniforms[uniformName] = resolvedValue;
+                        pass.uniforms[uniformName] = resolvedValue
                         // Accumulate for downstream effects
-                        pipelineUniforms[uniformName] = resolvedValue;
+                        pipelineUniforms[uniformName] = resolvedValue
                     }
                 }
 
@@ -347,103 +347,103 @@ export function expand(compilationResult, options = {}) {
                 if (passDef.inputs) {
                     for (const [uniformName, texRef] of Object.entries(passDef.inputs)) {
                         // Handle standard and legacy pipeline inputs (2D)
-                        const isPipelineInput = 
+                        const isPipelineInput =
                             texRef === 'inputTex' ||
                             texRef === 'src' ||
-                            (texRef.startsWith('o') && !isNaN(parseInt(texRef.slice(1))));
+                            (texRef.startsWith('o') && !isNaN(parseInt(texRef.slice(1))))
 
                         // Handle 3D pipeline input
-                        const isPipelineInput3d = texRef === 'inputTex3d';
-                        
+                        const isPipelineInput3d = texRef === 'inputTex3d'
+
                         // Handle geometry buffer pipeline input
-                        const isPipelineInputGeo = texRef === 'inputGeo';
+                        const isPipelineInputGeo = texRef === 'inputGeo'
 
                         if (isPipelineInput) {
-                            pass.inputs[uniformName] = currentInput || texRef;
+                            pass.inputs[uniformName] = currentInput || texRef
                         } else if (isPipelineInput3d) {
                             // 3D pipeline input - look for 3D output from previous node
-                            pass.inputs[uniformName] = currentInput3d || texRef;
+                            pass.inputs[uniformName] = currentInput3d || texRef
                         } else if (isPipelineInputGeo) {
                             // Geometry buffer pipeline input - look for geo output from previous node
-                            pass.inputs[uniformName] = currentInputGeo || texRef;
+                            pass.inputs[uniformName] = currentInputGeo || texRef
                         } else if (texRef === 'noise') {
-                            pass.inputs[uniformName] = 'global_noise';
+                            pass.inputs[uniformName] = 'global_noise'
                         } else if (texRef === 'feedback' || texRef === 'selfTex') {
                             // Handle feedback texture (selfTex is an alias for feedback)
                             // Read from the surface we're writing to for this chain
                             if (plan.write) {
-                                const outName = typeof plan.write === 'object' ? plan.write.name : plan.write;
-                                const outKind = plan.write.kind || 'output';
-                                const prefix = outKind === 'feedback' ? 'feedback' : 'global';
-                                pass.inputs[uniformName] = `${prefix}_${outName}`;
+                                const outName = typeof plan.write === 'object' ? plan.write.name : plan.write
+                                const outKind = plan.write.kind || 'output'
+                                const prefix = outKind === 'feedback' ? 'feedback' : 'global'
+                                pass.inputs[uniformName] = `${prefix}_${outName}`
                             } else {
                                 // No explicit write target, default to o0
-                                pass.inputs[uniformName] = 'global_o0';
+                                pass.inputs[uniformName] = 'global_o0'
                             }
                         } else if (effectDef.externalTexture && texRef === effectDef.externalTexture) {
                             // External texture input (e.g., camera/video) - preserve as-is for dynamic binding
                             // The texture will be created/updated via updateTextureFromSource()
-                            pass.inputs[uniformName] = texRef;
+                            pass.inputs[uniformName] = texRef
                         } else if (step.args && Object.prototype.hasOwnProperty.call(step.args, texRef)) {
                             // Reference to an argument (e.g. blend(tex: ...))
-                            const arg = step.args[texRef];
+                            const arg = step.args[texRef]
 
                             // Null/undefined arguments indicate intentionally unbound inputs
                             if (arg == null) {
-                                continue;
+                                continue
                             }
 
                             if (arg.kind === 'temp') {
-                                pass.inputs[uniformName] = textureMap.get(`node_${arg.index}_out`);
+                                pass.inputs[uniformName] = textureMap.get(`node_${arg.index}_out`)
                             } else if (arg.kind === 'output') {
-                                pass.inputs[uniformName] = `global_${arg.name}`; // e.g. global_o0
+                                pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_o0
                             } else if (arg.kind === 'feedback') {
-                                pass.inputs[uniformName] = `feedback_${arg.name}`; // e.g. feedback_f0
+                                pass.inputs[uniformName] = `feedback_${arg.name}` // e.g. feedback_f0
                             } else if (arg.kind === 'source') {
-                                pass.inputs[uniformName] = `global_${arg.name}`; // e.g. global_o0
+                                pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_o0
                             } else if (typeof arg === 'string') {
                                 // Allow direct string bindings to legacy texture ids
                                 if (arg.startsWith('global_')) {
-                                    pass.inputs[uniformName] = arg;
+                                    pass.inputs[uniformName] = arg
                                 } else if (/^o[0-7]$/.test(arg)) {
-                                    pass.inputs[uniformName] = `global_${arg}`;
+                                    pass.inputs[uniformName] = `global_${arg}`
                                 } else if (/^f[0-3]$/.test(arg)) {
-                                    pass.inputs[uniformName] = `feedback_${arg}`;
+                                    pass.inputs[uniformName] = `feedback_${arg}`
                                 } else {
-                                    pass.inputs[uniformName] = arg;
+                                    pass.inputs[uniformName] = arg
                                 }
                             }
                         } else if (effectDef.globals && effectDef.globals[texRef] && effectDef.globals[texRef].default !== undefined) {
                             // Parameter with default value - resolve the default
-                            const defaultVal = effectDef.globals[texRef].default;
+                            const defaultVal = effectDef.globals[texRef].default
                             if (defaultVal === 'inputTex' || defaultVal === 'inputColor' || defaultVal === 'src') {
-                                pass.inputs[uniformName] = currentInput || defaultVal;
+                                pass.inputs[uniformName] = currentInput || defaultVal
                             } else if (/^o[0-7]$/.test(defaultVal)) {
-                                pass.inputs[uniformName] = `global_${defaultVal}`;
+                                pass.inputs[uniformName] = `global_${defaultVal}`
                             } else if (/^f[0-3]$/.test(defaultVal)) {
-                                pass.inputs[uniformName] = `feedback_${defaultVal}`;
+                                pass.inputs[uniformName] = `feedback_${defaultVal}`
                             } else if (defaultVal.startsWith('global_')) {
-                                pass.inputs[uniformName] = defaultVal;
+                                pass.inputs[uniformName] = defaultVal
                             } else if (defaultVal.startsWith('feedback_')) {
-                                pass.inputs[uniformName] = defaultVal;
+                                pass.inputs[uniformName] = defaultVal
                             } else {
-                                pass.inputs[uniformName] = defaultVal;
+                                pass.inputs[uniformName] = defaultVal
                             }
                         } else if (texRef.startsWith('global_')) {
                             // Explicit global reference
-                            pass.inputs[uniformName] = texRef;
+                            pass.inputs[uniformName] = texRef
                         } else if (texRef.startsWith('feedback_')) {
                             // Explicit feedback reference
-                            pass.inputs[uniformName] = texRef;
+                            pass.inputs[uniformName] = texRef
                         } else if (isGlobalTexture(texRef)) {
                             // Effect texture starting with 'global' - use global_ prefix for double-buffering
-                            pass.inputs[uniformName] = `global_${nodeId}_${texRef}`;
+                            pass.inputs[uniformName] = `global_${nodeId}_${texRef}`
                         } else if (texRef === 'outputTex') {
                             // Reference to this node's main output (e.g., in feedback passes)
-                            pass.inputs[uniformName] = `${nodeId}_out`;
+                            pass.inputs[uniformName] = `${nodeId}_out`
                         } else {
                             // Internal texture or explicit reference
-                            pass.inputs[uniformName] = `${nodeId}_${texRef}`;
+                            pass.inputs[uniformName] = `${nodeId}_${texRef}`
                         }
                     }
                 }
@@ -451,118 +451,118 @@ export function expand(compilationResult, options = {}) {
                 // Map Outputs
                 if (passDef.outputs) {
                     for (const [attachment, texRef] of Object.entries(passDef.outputs)) {
-                        let virtualTex;
+                        let virtualTex
                         if (texRef === 'outputTex') {
                             // This is the main 2D output of this node
                             // OPTIMIZATION: If this is the last step and last pass, write directly to global output
-                            const isLastStep = step === plan.chain[plan.chain.length - 1];
-                            const isLastPass = i === effectPasses.length - 1;
-                            
+                            const isLastStep = step === plan.chain[plan.chain.length - 1]
+                            const isLastPass = i === effectPasses.length - 1
+
                             if (isLastStep && isLastPass && plan.write) {
-                                const outName = typeof plan.write === 'object' ? plan.write.name : plan.write;
-                                const outKind = plan.write.kind || 'output';
-                                const prefix = outKind === 'feedback' ? 'feedback' : 'global';
-                                virtualTex = `${prefix}_${outName}`;
-                                
+                                const outName = typeof plan.write === 'object' ? plan.write.name : plan.write
+                                const outKind = plan.write.kind || 'output'
+                                const prefix = outKind === 'feedback' ? 'feedback' : 'global'
+                                virtualTex = `${prefix}_${outName}`
+
                                 // Track this as the last written surface (for render surface determination)
                                 if (outKind === 'output') {
-                                    lastWrittenSurface = outName;
+                                    lastWrittenSurface = outName
                                 }
                             } else {
-                                virtualTex = `${nodeId}_out`;
+                                virtualTex = `${nodeId}_out`
                             }
-                            textureMap.set(virtualTex, virtualTex); // Register
-                            textureMap.set(`${nodeId}_out`, virtualTex); // Also register as node output
+                            textureMap.set(virtualTex, virtualTex) // Register
+                            textureMap.set(`${nodeId}_out`, virtualTex) // Also register as node output
                         } else if (texRef === 'outputTex3d') {
                             // This is the main 3D output of this node (for volumetric effects)
-                            virtualTex = `${nodeId}_out3d`;
-                            textureMap.set(`${nodeId}_out3d`, virtualTex); // Register 3D output
+                            virtualTex = `${nodeId}_out3d`
+                            textureMap.set(`${nodeId}_out3d`, virtualTex) // Register 3D output
                         } else if (texRef === 'inputTex3d') {
                             // Pipeline reference - write back to the 3D texture we received
-                            virtualTex = currentInput3d || `${nodeId}_inputTex3d`;
+                            virtualTex = currentInput3d || `${nodeId}_inputTex3d`
                         } else if (texRef === 'inputGeo') {
                             // Pipeline reference - write back to the geo texture we received
-                            virtualTex = currentInputGeo || `${nodeId}_inputGeo`;
+                            virtualTex = currentInputGeo || `${nodeId}_inputGeo`
                         } else if (texRef.startsWith('global_')) {
-                            virtualTex = texRef;
+                            virtualTex = texRef
                         } else if (texRef.startsWith('feedback_')) {
-                            virtualTex = texRef;
+                            virtualTex = texRef
                         } else if (isGlobalTexture(texRef)) {
                             // Effect texture starting with 'global' - use global_ prefix for double-buffering
-                            virtualTex = `global_${nodeId}_${texRef}`;
+                            virtualTex = `global_${nodeId}_${texRef}`
                         } else {
-                            virtualTex = `${nodeId}_${texRef}`;
+                            virtualTex = `${nodeId}_${texRef}`
                         }
-                        pass.outputs[attachment] = virtualTex;
+                        pass.outputs[attachment] = virtualTex
                     }
                 }
 
-                passes.push(pass);
+                passes.push(pass)
             }
-            
+
             // Update currentInput for the next step in the chain
-            currentInput = textureMap.get(`${nodeId}_out`);
+            currentInput = textureMap.get(`${nodeId}_out`)
             // Update currentInput3d if this node produced a 3D output
-            const out3d = textureMap.get(`${nodeId}_out3d`);
+            const out3d = textureMap.get(`${nodeId}_out3d`)
             if (out3d) {
-                currentInput3d = out3d;
+                currentInput3d = out3d
             }
-            
+
             // Check if the effect definition declares an explicit outputTex3d property.
             // This allows effects to expose an internal texture (like a volume cache) as
             // the 3D output without requiring a separate render pass.
             if (effectDef.outputTex3d && !out3d) {
-                const internalTexName = effectDef.outputTex3d;
+                const internalTexName = effectDef.outputTex3d
                 // If outputTex3d is "inputTex3d", it means this effect passes through the input 3D texture
                 // (possibly after modifying it in-place). Don't create a new texture name.
                 if (internalTexName === 'inputTex3d') {
                     // currentInput3d already points to the 3D texture from the previous node
                     // Just ensure downstream effects can find it
                     if (currentInput3d) {
-                        textureMap.set(`${nodeId}_out3d`, currentInput3d);
+                        textureMap.set(`${nodeId}_out3d`, currentInput3d)
                     }
                 } else {
                     // Map the internal texture to the 3D pipeline
                     // Use same naming convention as texture spec registration (line 145-148):
                     // Textures starting with 'global' use the global_ prefix for double-buffering
-                    const isGlobalTex = internalTexName.startsWith('global');
-                    const virtualTexId = isGlobalTex 
+                    const isGlobalTex = internalTexName.startsWith('global')
+                    const virtualTexId = isGlobalTex
                         ? `global_${nodeId}_${internalTexName}`  // Match texture spec registration
-                        : `${nodeId}_${internalTexName}`;
-                    textureMap.set(`${nodeId}_out3d`, virtualTexId);
-                    currentInput3d = virtualTexId;
+                        : `${nodeId}_${internalTexName}`
+                    textureMap.set(`${nodeId}_out3d`, virtualTexId)
+                    currentInput3d = virtualTexId
                 }
             }
-            
+
             // Check if the effect definition declares an explicit outputGeo property.
             // This allows effects to expose a geometry buffer (normals + depth) as
             // a pipeline output for downstream post-processing effects.
             if (effectDef.outputGeo) {
-                const geoTexName = effectDef.outputGeo;
+                const geoTexName = effectDef.outputGeo
                 // If outputGeo is "inputGeo", it means this effect passes through the input geo texture
                 if (geoTexName === 'inputGeo') {
                     if (currentInputGeo) {
-                        textureMap.set(`${nodeId}_outGeo`, currentInputGeo);
+                        textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
                     }
                 } else {
-                    const virtualGeoId = `${nodeId}_${geoTexName}`;
-                    textureMap.set(`${nodeId}_outGeo`, virtualGeoId);
-                    currentInputGeo = virtualGeoId;
+                    const virtualGeoId = `${nodeId}_${geoTexName}`
+                    textureMap.set(`${nodeId}_outGeo`, virtualGeoId)
+                    currentInputGeo = virtualGeoId
                 }
             }
         }
 
         // Handle the final output of the chain (.write(o0) or .write(f0))
         if (plan.write && currentInput) {
-            const outName = typeof plan.write === 'object' ? plan.write.name : plan.write;
-            const outKind = plan.write.kind || 'output';
-            
+            const outName = typeof plan.write === 'object' ? plan.write.name : plan.write
+            const outKind = plan.write.kind || 'output'
+
             // Track the last written surface (only for output surfaces, not feedback)
             if (outKind === 'output') {
-                lastWrittenSurface = outName; // e.g., 'o0', 'o2'
+                lastWrittenSurface = outName // e.g., 'o0', 'o2'
             }
-            const prefix = outKind === 'feedback' ? 'feedback' : 'global';
-            const targetSurface = `${prefix}_${outName}`;
+            const prefix = outKind === 'feedback' ? 'feedback' : 'global'
+            const targetSurface = `${prefix}_${outName}`
 
             // Only add blit if the current input is not already the target surface
             if (currentInput !== targetSurface) {
@@ -573,8 +573,8 @@ export function expand(compilationResult, options = {}) {
                     inputs: { src: currentInput },
                     outputs: { color: targetSurface },
                     uniforms: {}
-                };
-                passes.push(blitPass);
+                }
+                passes.push(blitPass)
 
                 if (!programs['blit']) {
                 programs['blit'] = {
@@ -601,7 +601,7 @@ export function expand(compilationResult, options = {}) {
                         }
                     `,
                     fragmentEntryPoint: 'main'
-                };
+                }
             }
             }
         }
@@ -611,15 +611,15 @@ export function expand(compilationResult, options = {}) {
     // 1. Explicit render() directive takes precedence
     // 2. Fall back to the last surface written to in the program
     // 3. Default to 'o0' if nothing was written
-    let renderSurface;
+    let renderSurface
     if (compilationResult.render !== null && compilationResult.render !== undefined) {
         // render is an integer 0-7 from validator
-        renderSurface = `o${compilationResult.render}`;
+        renderSurface = `o${compilationResult.render}`
     } else if (lastWrittenSurface) {
-        renderSurface = lastWrittenSurface;
+        renderSurface = lastWrittenSurface
     } else {
-        renderSurface = 'o0';
+        renderSurface = 'o0'
     }
 
-    return { passes, errors, programs, textureSpecs, renderSurface };
+    return { passes, errors, programs, textureSpecs, renderSurface }
 }

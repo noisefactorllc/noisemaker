@@ -1,9 +1,9 @@
 /**
  * WebGPU Backend Implementation
- * 
+ *
  * Implements the Noisemaker Rendering Pipeline specification for WebGPU.
  * Handles render and compute passes, texture management, and uniform buffers.
- * 
+ *
  * [MODIFIED 2024-01-XX] Added GPGPU fallback and entry point detection
  */
 
@@ -21,7 +21,7 @@ function float16ToFloat32(h) {
     const sign = (h >> 15) & 0x1
     const exponent = (h >> 10) & 0x1f
     const mantissa = h & 0x3ff
-    
+
     if (exponent === 0) {
         // Denormalized number or zero
         if (mantissa === 0) {
@@ -37,7 +37,7 @@ function float16ToFloat32(h) {
         }
         return NaN
     }
-    
+
     // Normalized number
     const f = 1 + mantissa / 1024
     return (sign ? -1 : 1) * f * Math.pow(2, exponent - 15)
@@ -58,11 +58,11 @@ export class WebGPUBackend extends Backend {
         this.canvasFormat = (typeof navigator !== 'undefined' && navigator.gpu?.getPreferredCanvasFormat)
             ? navigator.gpu.getPreferredCanvasFormat()
             : null
-        
+
         // Uniform buffer pool for efficient buffer reuse
         this.uniformBufferPool = []
         this.activeUniformBuffers = []
-        
+
         // Listen for uncaptured errors
         this.device.addEventListener('uncapturederror', (event) => {
             console.error('WebGPU uncaptured error:', event.error?.message || event.error)
@@ -76,12 +76,12 @@ export class WebGPUBackend extends Backend {
      */
     parseGlobalName(texId) {
         if (typeof texId !== 'string') return null
-        
+
         // Pattern 1: "global_name" (underscore separator)
         if (texId.startsWith('global_')) {
             return texId.replace('global_', '')
         }
-        
+
         // Pattern 2: "globalName" (camelCase)
         if (texId.startsWith('global') && texId.length > 6) {
             const suffix = texId.slice(6)
@@ -89,7 +89,7 @@ export class WebGPUBackend extends Backend {
                 return suffix.charAt(0).toLowerCase() + suffix.slice(1)
             }
         }
-        
+
         return null
     }
 
@@ -100,11 +100,11 @@ export class WebGPUBackend extends Backend {
      */
     parseFeedbackName(texId) {
         if (typeof texId !== 'string') return null
-        
+
         if (texId.startsWith('feedback_')) {
             return texId.replace('feedback_', '')
         }
-        
+
         return null
     }
 
@@ -116,7 +116,7 @@ export class WebGPUBackend extends Backend {
             addressModeU: 'clamp-to-edge',
             addressModeV: 'clamp-to-edge'
         }))
-        
+
         // Create nearest sampler for pixel-perfect sampling
         this.samplers.set('nearest', this.device.createSampler({
             minFilter: 'nearest',
@@ -124,7 +124,7 @@ export class WebGPUBackend extends Backend {
             addressModeU: 'clamp-to-edge',
             addressModeV: 'clamp-to-edge'
         }))
-        
+
         // Create repeat sampler for tiling textures
         this.samplers.set('repeat', this.device.createSampler({
             minFilter: 'linear',
@@ -132,7 +132,7 @@ export class WebGPUBackend extends Backend {
             addressModeU: 'repeat',
             addressModeV: 'repeat'
         }))
-        
+
         // Create a 1x1 black dummy texture for shaders that declare optional inputs
         const dummyTexture = this.device.createTexture({
             size: { width: 1, height: 1, depthOrArrayLayers: 1 },
@@ -147,7 +147,7 @@ export class WebGPUBackend extends Backend {
             { width: 1, height: 1, depthOrArrayLayers: 1 }
         )
         this.dummyTextureView = dummyTexture.createView()
-        
+
         return Promise.resolve()
     }
 
@@ -155,7 +155,7 @@ export class WebGPUBackend extends Backend {
         const format = this.resolveFormat(spec.format)
         // Include copySrc in default usage to allow readback for testing/debugging
         const usage = this.resolveUsage(spec.usage || ['render', 'sample', 'copySrc'])
-        
+
         const texture = this.device.createTexture({
             size: {
                 width: spec.width,
@@ -165,9 +165,9 @@ export class WebGPUBackend extends Backend {
             format,
             usage
         })
-        
+
         const view = texture.createView()
-        
+
         this.textures.set(id, {
             handle: texture,
             view,
@@ -177,7 +177,7 @@ export class WebGPUBackend extends Backend {
             gpuFormat: format,
             usage  // Store the usage flags for later checks
         })
-        
+
         return texture
     }
 
@@ -189,7 +189,7 @@ export class WebGPUBackend extends Backend {
         const format = this.resolveFormat(spec.format)
         // Include storage usage for compute shader write access
         const usage = this.resolveUsage(spec.usage || ['storage', 'sample', 'copySrc'])
-        
+
         const texture = this.device.createTexture({
             size: {
                 width: spec.width,
@@ -200,9 +200,9 @@ export class WebGPUBackend extends Backend {
             format,
             usage
         })
-        
+
         const view = texture.createView({ dimension: '3d' })
-        
+
         this.textures.set(id, {
             handle: texture,
             view,
@@ -214,7 +214,7 @@ export class WebGPUBackend extends Backend {
             usage,
             is3D: true
         })
-        
+
         return texture
     }
 
@@ -236,7 +236,7 @@ export class WebGPUBackend extends Backend {
      */
     async updateTextureFromSource(id, source, options = {}) {
         let tex = this.textures.get(id)
-        
+
         // Get source dimensions
         let width, height
         if (source instanceof HTMLVideoElement) {
@@ -252,29 +252,29 @@ export class WebGPUBackend extends Backend {
             console.warn(`[updateTextureFromSource] Unknown source type for ${id}`)
             return { width: 0, height: 0 }
         }
-        
+
         if (width === 0 || height === 0) {
             return { width: 0, height: 0 }
         }
-        
+
         const flipY = options.flipY !== false
-        
+
         // Create texture if it doesn't exist or if dimensions changed
         if (!tex || tex.width !== width || tex.height !== height) {
             if (tex) {
                 tex.handle.destroy()
             }
-            
+
             const texture = this.device.createTexture({
                 size: { width, height, depthOrArrayLayers: 1 },
                 format: 'rgba8unorm',
-                usage: GPUTextureUsage.TEXTURE_BINDING | 
-                       GPUTextureUsage.COPY_DST | 
+                usage: GPUTextureUsage.TEXTURE_BINDING |
+                       GPUTextureUsage.COPY_DST |
                        GPUTextureUsage.RENDER_ATTACHMENT
             })
-            
+
             const view = texture.createView()
-            
+
             tex = {
                 handle: texture,
                 view,
@@ -286,14 +286,14 @@ export class WebGPUBackend extends Backend {
             }
             this.textures.set(id, tex)
         }
-        
+
         // Use copyExternalImageToTexture for efficient video/image upload
         this.device.queue.copyExternalImageToTexture(
             { source, flipY },
             { texture: tex.handle },
             { width, height }
         )
-        
+
         return { width, height }
     }
 
@@ -306,21 +306,21 @@ export class WebGPUBackend extends Backend {
     copyTexture(srcId, dstId) {
         const srcTex = this.textures.get(srcId)
         const dstTex = this.textures.get(dstId)
-        
+
         if (!srcTex || !dstTex) {
             console.warn(`[copyTexture] Missing texture: src=${srcId} (${!!srcTex}), dst=${dstId} (${!!dstTex})`)
             return
         }
-        
+
         // Create a command encoder for the copy operation
         const commandEncoder = this.device.createCommandEncoder()
-        
+
         commandEncoder.copyTextureToTexture(
             { texture: srcTex.handle },
             { texture: dstTex.handle },
             [srcTex.width, srcTex.height, 1]
         )
-        
+
         // Submit immediately
         this.device.queue.submit([commandEncoder.finish()])
     }
@@ -332,21 +332,21 @@ export class WebGPUBackend extends Backend {
     resolveWGSLSource(spec) {
         // Prefer explicit WGSL source
         if (spec.wgsl) return spec.wgsl
-        
+
         // Fall back to generic source field
         if (spec.source) return spec.source
-        
+
         // For fragment shaders, might be under 'fragment' key
         if (spec.fragment && !spec.fragment.includes('#version')) {
             return spec.fragment
         }
-        
+
         return null
     }
 
     async compileProgram(id, spec) {
         const source = this.resolveWGSLSource(spec)
-        
+
         if (!source) {
             throw {
                 code: 'ERR_NO_WGSL_SOURCE',
@@ -354,14 +354,14 @@ export class WebGPUBackend extends Backend {
                 program: id
             }
         }
-        
+
         // Inject defines
         const processedSource = this.injectDefines(source, spec.defines || {})
-        
+
         // Detect shader type from source - @compute vs @fragment
         const hasComputeEntry = /@compute\s/.test(processedSource)
         const hasFragmentEntry = /@fragment\s/.test(processedSource)
-        
+
         // Detect entry point names from source
         const detectedEntryPoints = this.detectEntryPoints(processedSource)
         const enhancedSpec = {
@@ -370,47 +370,47 @@ export class WebGPUBackend extends Backend {
             vertexEntryPoint: detectedEntryPoints.vertex || spec.vertexEntryPoint,
             computeEntryPoint: detectedEntryPoints.compute || spec.computeEntryPoint
         }
-        
+
         // IMPORTANT: If shader has @compute but no @fragment, ALWAYS compile as compute
         // This handles cases where definition says "render" but WGSL is a compute shader
         if (hasComputeEntry && !hasFragmentEntry) {
             return this.compileComputeProgram(id, processedSource, enhancedSpec)
         }
-        
+
         // If shader has @fragment, compile as render (even if it also has @compute)
         if (hasFragmentEntry) {
             return this.compileRenderProgram(id, processedSource, enhancedSpec)
         }
-        
+
         // Fallback: compile as render
         return this.compileRenderProgram(id, processedSource, enhancedSpec)
     }
-    
+
     /**
      * Detect entry point names from WGSL source.
      * Looks for @vertex fn name and @fragment fn name patterns.
      */
     detectEntryPoints(source) {
         const result = { vertex: null, fragment: null, compute: null }
-        
+
         // Match @vertex fn name
         const vertexMatch = /@vertex\s*\n?\s*fn\s+(\w+)/.exec(source)
         if (vertexMatch) {
             result.vertex = vertexMatch[1]
         }
-        
+
         // Match @fragment fn name
         const fragmentMatch = /@fragment\s*\n?\s*fn\s+(\w+)/.exec(source)
         if (fragmentMatch) {
             result.fragment = fragmentMatch[1]
         }
-        
+
         // Match @compute fn name
         const computeMatch = /@compute[^f]*fn\s+(\w+)/.exec(source)
         if (computeMatch) {
             result.compute = computeMatch[1]
         }
-        
+
         return result
     }
 
@@ -420,15 +420,15 @@ export class WebGPUBackend extends Backend {
      */
     parseEntryPointBindings(source, bindings) {
         const entryPointBindings = new Map()
-        
+
         // Find all entry points with their function bodies
         const entryPointRegex = /@(?:compute|vertex|fragment)[^f]*fn\s+(\w+)\s*\([^)]*\)[^{]*\{/g
         let match
-        
+
         while ((match = entryPointRegex.exec(source)) !== null) {
             const entryPoint = match[1]
             const startIdx = match.index + match[0].length
-            
+
             // Find the matching closing brace (simple brace counting)
             let braceCount = 1
             let endIdx = startIdx
@@ -437,10 +437,10 @@ export class WebGPUBackend extends Backend {
                 else if (source[i] === '}') braceCount--
                 endIdx = i
             }
-            
+
             const functionBody = source.slice(startIdx, endIdx)
             const usedBindings = new Set()
-            
+
             // Check which binding names are referenced in this function body
             for (const binding of bindings) {
                 // Look for the binding name as a word (not part of another identifier)
@@ -449,10 +449,10 @@ export class WebGPUBackend extends Backend {
                     usedBindings.add(binding.binding)
                 }
             }
-            
+
             entryPointBindings.set(entryPoint, usedBindings)
         }
-        
+
         return entryPointBindings
     }
 
@@ -485,7 +485,7 @@ export class WebGPUBackend extends Backend {
 
         // Create pipelines map for multi-entry-point support
         const pipelines = new Map()
-        
+
         // Create default pipeline for the first/specified entry point
         const defaultEntryPoint = spec.computeEntryPoint || entryPoints[0] || 'main'
         const defaultPipeline = this.device.createComputePipeline({
@@ -517,10 +517,10 @@ export class WebGPUBackend extends Backend {
     async compileRenderProgram(id, source, spec) {
         // Parse binding declarations from the shader
         let bindings = this.parseShaderBindings(source)
-        
+
         // Check if source contains @vertex (combined shader)
         const hasVertex = /@vertex\s/.test(source)
-        
+
         // Compile module (will be used for both vertex and fragment if combined)
         const mainModule = this.device.createShaderModule({ code: source })
         const moduleInfo = await mainModule.getCompilationInfo()
@@ -555,7 +555,7 @@ export class WebGPUBackend extends Backend {
             }
 
             vertexEntryPoint = spec.vertexEntryPoint || DEFAULT_VERTEX_ENTRY_POINT
-            
+
             // Parse vertex shader bindings and merge with fragment bindings
             const vertexBindings = this.parseShaderBindings(vertexSource)
             if (vertexBindings.length > 0) {
@@ -608,10 +608,10 @@ export class WebGPUBackend extends Backend {
 
         // Create pipeline cache for different output formats/blend modes
         const pipelineCache = new Map()
-        const initialKey = this.getPipelineKey({ 
-            topology: spec?.topology, 
-            blend: spec?.blend, 
-            format: outputFormat 
+        const initialKey = this.getPipelineKey({
+            topology: spec?.topology,
+            blend: spec?.blend,
+            format: outputFormat
         })
         pipelineCache.set(initialKey, pipeline)
 
@@ -636,14 +636,14 @@ export class WebGPUBackend extends Backend {
 
     /**
      * Parse WGSL shader to extract packed uniform layout.
-     * 
+     *
      * Supports multiple patterns:
      * 1. Array-based: uniforms.data[N].xyz unpacking statements
      * 2. Named struct with comments: struct FooParams { field : vec4<f32>, // (name1, name2, name3, name4) }
      * 3. Named struct with params. prefix: let x = params.field.x; patterns
-     * 
+     *
      * Returns an array of {name, slot, components} sorted by slot then component offset.
-     * 
+     *
      * @param {string} source - WGSL shader source
      * @returns {Array<{name: string, slot: number, components: string}>|null}
      */
@@ -653,55 +653,55 @@ export class WebGPUBackend extends Backend {
         if (byteLayout && byteLayout.length > 0) {
             return { type: 'byte', layout: byteLayout }
         }
-        
+
         // Try to parse named struct with comment annotations
         const namedStructLayout = this.parseNamedStructLayout(source)
         if (namedStructLayout && namedStructLayout.length > 0) {
             return namedStructLayout
         }
-        
+
         // Try to parse params.field.component access patterns
         const paramsAccessLayout = this.parseParamsAccessLayout(source)
         if (paramsAccessLayout && paramsAccessLayout.length > 0) {
             return paramsAccessLayout
         }
-        
+
         // Fall back to array-based pattern (uniforms.data[N])
         if (!source.includes('uniforms.data[')) {
             return null
         }
-        
+
         const layout = []
         // Match various unpacking patterns:
         // - varName = uniforms.data[N].xyz;
-        // - let varName: type = uniforms.data[N].xyz;  
+        // - let varName: type = uniforms.data[N].xyz;
         // - varName = i32(uniforms.data[N].x);
         // - varName = uniforms.data[N].xyz > 0.5; (for booleans)
         // - varName = max(1, i32(uniforms.data[N].w)); (for clamped values)
         // The regex captures the variable name (which may follow 'let' and have a type annotation)
         // IMPORTANT: [^\n=]+ prevents matching across newlines/equals, avoiding greedy struct field capture
         const unpackRegex = /(?:let\s+)?(\w+)(?:\s*:\s*[^\n=]+)?\s*=\s*(?:max\s*\([^,]+,\s*)?(?:i32\s*\(\s*)?uniforms\.data\[(\d+)\]\.([xyzw]+)/g
-        
+
         let match
         while ((match = unpackRegex.exec(source)) !== null) {
             const name = match[1]
             const slot = parseInt(match[2], 10)
             const components = match[3]
-            
+
             layout.push({ name, slot, components })
         }
-        
+
         if (layout.length === 0) {
             return null
         }
-        
+
         // Sort by slot, then by component offset (x=0, y=1, z=2, w=3)
         const componentOrder = { x: 0, y: 1, z: 2, w: 3 }
         layout.sort((a, b) => {
             if (a.slot !== b.slot) return a.slot - b.slot
             return componentOrder[a.components[0]] - componentOrder[b.components[0]]
         })
-        
+
         return layout
     }
 
@@ -709,11 +709,11 @@ export class WebGPUBackend extends Backend {
      * Parse WGSL struct layout with byte offsets for direct field access patterns.
      * Handles structs where fields are accessed as u.fieldName (not u.field.component).
      * Calculates proper WGSL alignment for each field.
-     * 
+     *
      * NOTE: This function skips structs that have comment annotations with component names
      * like `// (width, height, channels, frequency)` - those should be handled by
      * parseNamedStructLayout instead which maps individual uniform names to struct components.
-     * 
+     *
      * @param {string} source - WGSL shader source
      * @returns {Array<{name: string, offset: number, size: number, type: string}>|null}
      */
@@ -721,18 +721,18 @@ export class WebGPUBackend extends Backend {
         // Find struct definitions named Uniforms, Params, etc.
         const structRegex = /struct\s+(\w*(?:Params|Uniforms|Config|Settings))\s*\{([^}]+)\}/gi
         const structMatch = structRegex.exec(source)
-        
+
         if (!structMatch) {
             return null
         }
-        
+
         const structBody = structMatch[2]
-        
+
         // Skip structs that contain array fields - they use different packing
         if (/\barray\s*</.test(structBody)) {
             return null
         }
-        
+
         // Skip structs that have comment annotations with component names
         // These should be handled by parseNamedStructLayout which properly maps
         // individual uniform names (width, height, time, etc.) to struct field components
@@ -740,44 +740,44 @@ export class WebGPUBackend extends Backend {
         if (/\/\/\s*\([^)]+\)/.test(structBody)) {
             return null
         }
-        
+
         // Check if this struct is used as a uniform binding with a simple variable name
         // Pattern: var<uniform> u: Uniforms; or var<uniform> params: SomeParams;
         const structName = structMatch[1]
         const bindingRegex = new RegExp(`var<uniform>\\s+(\\w+)\\s*:\\s*${structName}\\s*;`)
         const bindingMatch = bindingRegex.exec(source)
-        
+
         if (!bindingMatch) {
             return null
         }
-        
+
         const uniformVarName = bindingMatch[1]
-        
+
         // Parse fields with WGSL type syntax
         // Handles: fieldName: f32, fieldName: vec2f, fieldName: vec3<f32>, etc.
         const fieldRegex = /(\w+)\s*:\s*(f32|i32|u32|vec2f|vec3f|vec4f|vec2<f32>|vec3<f32>|vec4<f32>|vec2i|vec3i|vec4i|vec2<i32>|vec3<i32>|vec4<i32>|vec2u|vec3u|vec4u|vec2<u32>|vec3<u32>|vec4<u32>)/gi
-        
+
         const layout = []
         let offset = 0
         let maxAlign = 4  // Track max alignment for struct size rounding
-        
+
         let fieldMatch
         while ((fieldMatch = fieldRegex.exec(structBody)) !== null) {
             const fieldName = fieldMatch[1]
             const fieldType = fieldMatch[2].toLowerCase()
-            
+
             const { size, align, baseType, components } = this.getWgslTypeInfo(fieldType)
             maxAlign = Math.max(maxAlign, align)
-            
+
             // Apply alignment
             offset = Math.ceil(offset / align) * align
-            
+
             // Skip padding/internal fields from the layout, but still advance offset
             if (fieldName.startsWith('_') || fieldName.toLowerCase().startsWith('pad')) {
                 offset += size
                 continue
             }
-            
+
             layout.push({
                 name: fieldName,
                 offset,
@@ -785,20 +785,20 @@ export class WebGPUBackend extends Backend {
                 type: baseType,
                 components
             })
-            
+
             offset += size
         }
-        
+
         // WGSL struct size must be multiple of largest member alignment
         const structSize = Math.ceil(offset / maxAlign) * maxAlign
-        
+
         // Verify that the struct variable is used in shader code
         // Check for patterns like: u.fieldName
         const usageRegex = new RegExp(`${uniformVarName}\\.(\\w+)`)
         if (!usageRegex.test(source)) {
             return null
         }
-        
+
         // Return layout with structSize metadata
         if (layout.length > 0) {
             layout.structSize = structSize
@@ -844,33 +844,33 @@ export class WebGPUBackend extends Backend {
      *       dims_freq : vec4<f32>,  // (width, height, channels, frequency)
      *       settings : vec4<f32>,   // (octaves, displacement, splineOrder, _)
      *   }
-     * 
+     *
      * @param {string} source - WGSL shader source
      * @returns {Array<{name: string, slot: number, components: string}>|null}
      */
     parseNamedStructLayout(source) {
         const layout = []
         const componentNames = ['x', 'y', 'z', 'w']
-        
+
         // Find struct definitions that look like param structs (name ends with Params, Uniforms, etc.)
         const structRegex = /struct\s+(\w*(?:Params|Uniforms|Config|Settings))\s*\{([^}]+)\}/gi
-        
+
         let structMatch
         while ((structMatch = structRegex.exec(source)) !== null) {
             const structBody = structMatch[2]
             let slot = 0
-            
+
             // Parse each field in the struct
             // Pattern: fieldName : type, // (name1, name2, name3, name4)
             // Also handles fields without comments
             const fieldRegex = /(\w+)\s*:\s*(vec[234]<f32>|f32|i32|u32|array<[^>]+>)[^,;\n]*(?:,|;)?\s*(?:\/\/\s*\(([^)]+)\))?/gi
-            
+
             let fieldMatch
             while ((fieldMatch = fieldRegex.exec(structBody)) !== null) {
                 const fieldName = fieldMatch[1]
                 const fieldType = fieldMatch[2]
                 const commentNames = fieldMatch[3]
-                
+
                 // Determine field size in vec4 slots
                 let numComponents = 4 // Default to vec4
                 if (fieldType === 'f32' || fieldType === 'i32' || fieldType === 'u32') {
@@ -882,15 +882,15 @@ export class WebGPUBackend extends Backend {
                 } else if (fieldType.startsWith('vec4')) {
                     numComponents = 4
                 }
-                
+
                 if (commentNames) {
                     // Parse comment: (name1, name2, name3, name4) or (name1, name2, _, _)
                     const names = commentNames.split(',').map(n => n.trim())
-                    
+
                     for (let i = 0; i < Math.min(names.length, numComponents); i++) {
                         const name = names[i]
                         // Skip placeholders like '_', 'pad', 'unused', 'padding', '_pad0', etc.
-                        if (name && name !== '_' && !name.toLowerCase().startsWith('pad') && 
+                        if (name && name !== '_' && !name.toLowerCase().startsWith('pad') &&
                             !name.toLowerCase().startsWith('unused') && !name.startsWith('_')) {
                             layout.push({
                                 name,
@@ -910,12 +910,12 @@ export class WebGPUBackend extends Backend {
                         })
                     }
                 }
-                
+
                 // Advance slot counter (each vec4 is one slot, smaller types also take one slot due to WGSL padding)
                 slot++
             }
         }
-        
+
         return layout.length > 0 ? layout : null
     }
 
@@ -924,44 +924,44 @@ export class WebGPUBackend extends Backend {
      * Looks for patterns like:
      *   let frequency = params.dims_freq.w;
      *   let time = params.settings.y;
-     * 
+     *
      * This works with named structs by analyzing how fields are accessed.
-     * 
+     *
      * @param {string} source - WGSL shader source
      * @returns {Array<{name: string, slot: number, components: string}>|null}
      */
     parseParamsAccessLayout(source) {
         const layout = []
         const fieldSlots = new Map() // Map field name to slot index
-        
+
         // First, parse the struct to get field order
         const structRegex = /struct\s+\w*(?:Params|Uniforms|Config|Settings)\s*\{([^}]+)\}/gi
         const structMatch = structRegex.exec(source)
-        
+
         if (!structMatch) {
             return null
         }
-        
+
         const structBody = structMatch[1]
         const fieldOrderRegex = /(\w+)\s*:\s*(?:vec[234]<f32>|f32|i32|u32|array<[^>]+>)/gi
-        
+
         let slot = 0
         let fieldMatch
         while ((fieldMatch = fieldOrderRegex.exec(structBody)) !== null) {
             fieldSlots.set(fieldMatch[1], slot)
             slot++
         }
-        
+
         // Now parse access patterns: let varName = params.fieldName.component;
         // or: varName = params.fieldName.component;
         const accessRegex = /(?:let\s+)?(\w+)(?:\s*:\s*[^=\n]+)?\s*=\s*(?:i32\s*\(\s*)?params\.(\w+)\.([xyzw]+)/g
-        
+
         let accessMatch
         while ((accessMatch = accessRegex.exec(source)) !== null) {
             const varName = accessMatch[1]
             const fieldName = accessMatch[2]
             const components = accessMatch[3]
-            
+
             const fieldSlot = fieldSlots.get(fieldName)
             if (fieldSlot !== undefined) {
                 layout.push({
@@ -971,27 +971,27 @@ export class WebGPUBackend extends Backend {
                 })
             }
         }
-        
+
         // Sort by slot, then by component offset
         const componentOrder = { x: 0, y: 1, z: 2, w: 3 }
         layout.sort((a, b) => {
             if (a.slot !== b.slot) return a.slot - b.slot
             return componentOrder[a.components[0]] - componentOrder[b.components[0]]
         })
-        
+
         return layout.length > 0 ? layout : null
     }
 
     /**
      * Parse WGSL shader source to extract binding declarations.
      * Returns an array of binding info objects sorted by binding index.
-     * 
+     *
      * @param {string} source - WGSL shader source
      * @returns {Array<{binding: number, group: number, type: string, name: string}>}
      */
     parseShaderBindings(source) {
         const bindings = []
-        
+
         // Match @group(N) @binding(M) var<...> name or @group(N) @binding(M) var name
         // Patterns:
         // @group(0) @binding(0) var<uniform> name: type;
@@ -999,7 +999,7 @@ export class WebGPUBackend extends Backend {
         // @group(0) @binding(0) var name: sampler;
         // @group(0) @binding(0) var name: texture_storage_2d<rgba16float, write>;
         const bindingRegex = /@group\s*\(\s*(\d+)\s*\)\s*@binding\s*\(\s*(\d+)\s*\)\s*var(?:<([^>]+)>)?\s+(\w+)\s*:\s*([^;]+)/g
-        
+
         let match
         while ((match = bindingRegex.exec(source)) !== null) {
             const group = parseInt(match[1], 10)
@@ -1007,7 +1007,7 @@ export class WebGPUBackend extends Backend {
             const storage = match[3] || '' // e.g., 'uniform', 'storage, read_write'
             const name = match[4]
             const typeDecl = match[5].trim()
-            
+
             // Determine binding type
             let bindingType = 'unknown'
             if (typeDecl.includes('texture_storage_2d')) {
@@ -1021,7 +1021,7 @@ export class WebGPUBackend extends Backend {
             } else if (storage.includes('storage')) {
                 bindingType = 'storage'
             }
-            
+
             bindings.push({
                 group,
                 binding,
@@ -1031,13 +1031,13 @@ export class WebGPUBackend extends Backend {
                 typeDecl
             })
         }
-        
+
         // Sort by group then binding
         bindings.sort((a, b) => {
             if (a.group !== b.group) return a.group - b.group
             return a.binding - b.binding
         })
-        
+
         return bindings
     }
 
@@ -1054,9 +1054,9 @@ export class WebGPUBackend extends Backend {
         if (!defines || Object.keys(defines).length === 0) {
             return source
         }
-        
+
         let injected = ''
-        
+
         for (const [key, value] of Object.entries(defines)) {
             // WGSL uses const declarations instead of #define
             if (typeof value === 'boolean') {
@@ -1071,14 +1071,14 @@ export class WebGPUBackend extends Backend {
                 injected += `const ${key} = ${value};\n`
             }
         }
-        
+
         return injected + source
     }
 
     executePass(pass, state) {
         const program = this.programs.get(pass.program)
-        
-        
+
+
         if (!program) {
             throw {
                 code: 'ERR_PROGRAM_NOT_FOUND',
@@ -1086,7 +1086,7 @@ export class WebGPUBackend extends Backend {
                 program: pass.program
             }
         }
-        
+
         if (program.isCompute) {
             this.executeComputePass(pass, program, state)
         } else {
@@ -1098,12 +1098,12 @@ export class WebGPUBackend extends Backend {
         // Check for MRT (Multiple Render Targets)
         const outputKeys = Object.keys(pass.outputs || {})
         const isMRT = pass.drawBuffers > 1 || outputKeys.length > 1
-        
+
         if (isMRT) {
             this.executeMRTRenderPass(pass, program, state, outputKeys)
             return
         }
-        
+
         // Single output pass (original logic)
         let outputId = pass.outputs.color || Object.values(pass.outputs)[0]
 
@@ -1114,7 +1114,7 @@ export class WebGPUBackend extends Backend {
                 outputId = state.writeSurfaces[outputSurfaceName]
             }
         }
-        
+
         // Resolve feedback output to current write buffer
         const feedbackSurfaceName = this.parseFeedbackName(outputId)
         if (feedbackSurfaceName) {
@@ -1150,7 +1150,7 @@ export class WebGPUBackend extends Backend {
 
         // Resolve viewport
         const viewport = this.resolveViewport(pass, outputTex)
-        
+
         // Configure color attachment
         const colorAttachment = {
             view: targetView,
@@ -1162,22 +1162,22 @@ export class WebGPUBackend extends Backend {
         // Begin render pass
         const renderPassDescriptor = { colorAttachments: [colorAttachment] }
         const passEncoder = this.commandEncoder.beginRenderPass(renderPassDescriptor)
-        
+
         // Get or create pipeline for this output format - do this BEFORE creating bind group
         const resolvedFormat = outputTex.gpuFormat || outputTex.format || program.outputFormat
-        
+
         const pipeline = this.resolveRenderPipeline(program, {
             blend: pass.blend,
             topology: pass.drawMode === 'points' ? 'point-list' : 'triangle-list',
             format: resolvedFormat
         })
-        
+
         // Create bind group for this pass using the ACTUAL pipeline's layout
         const bindGroup = this.createBindGroup(pass, program, state, pipeline)
-        
+
         passEncoder.setPipeline(pipeline)
         passEncoder.setBindGroup(0, bindGroup)
-        
+
         if (viewport) {
             passEncoder.setViewport(viewport.x, viewport.y, viewport.w, viewport.h, 0, 1)
         }
@@ -1189,10 +1189,10 @@ export class WebGPUBackend extends Backend {
         } else {
             passEncoder.draw(3, 1, 0, 0) // Full-screen triangle
         }
-        
+
         passEncoder.end()
     }
-    
+
     /**
      * Execute a render pass with Multiple Render Targets (MRT)
      * Used for agent simulation passes that output to multiple state textures
@@ -1201,11 +1201,11 @@ export class WebGPUBackend extends Backend {
         const colorAttachments = []
         const formats = []
         let viewportTex = null
-        
+
         // Resolve each output texture
         for (const outputKey of outputKeys) {
             let outputId = pass.outputs[outputKey]
-            
+
             // Resolve global output to current write buffer
             const outputSurfaceName = this.parseGlobalName(outputId)
             if (outputSurfaceName) {
@@ -1213,7 +1213,7 @@ export class WebGPUBackend extends Backend {
                     outputId = state.writeSurfaces[outputSurfaceName]
                 }
             }
-            
+
             // Resolve feedback output to current write buffer
             const feedbackSurfaceName = this.parseFeedbackName(outputId)
             if (feedbackSurfaceName) {
@@ -1221,18 +1221,18 @@ export class WebGPUBackend extends Backend {
                     outputId = state.writeFeedbackSurfaces[feedbackSurfaceName]
                 }
             }
-            
+
             const tex = this.textures.get(outputId) || state.surfaces?.[outputId]
             if (!tex) {
                 console.warn(`[executeMRTRenderPass] Texture not found for ${outputId} in pass ${pass.id}`)
                 continue
             }
-            
+
             if (!viewportTex) viewportTex = tex
-            
+
             const resolvedFormat = tex.gpuFormat || this.resolveFormat(tex.format || 'rgba16float')
             formats.push(resolvedFormat)
-            
+
             colorAttachments.push({
                 view: tex.view,
                 clearValue: { r: 0, g: 0, b: 0, a: 0 },
@@ -1240,37 +1240,37 @@ export class WebGPUBackend extends Backend {
                 storeOp: 'store'
             })
         }
-        
+
         if (colorAttachments.length === 0) {
             throw {
                 code: 'ERR_NO_MRT_OUTPUTS',
                 pass: pass.id
             }
         }
-        
+
         // Get or create MRT pipeline
         const pipeline = this.resolveMRTRenderPipeline(program, {
             blend: pass.blend,
             topology: pass.drawMode === 'points' ? 'point-list' : 'triangle-list',
             formats
         })
-        
+
         // Begin render pass with multiple color attachments
         const passEncoder = this.commandEncoder.beginRenderPass({
             colorAttachments
         })
-        
+
         // Set viewport from first output texture
         if (viewportTex) {
             passEncoder.setViewport(0, 0, viewportTex.width, viewportTex.height, 0, 1)
         }
-        
+
         // Create bind group for this pass
         const bindGroup = this.createBindGroup(pass, program, state, pipeline)
-        
+
         passEncoder.setPipeline(pipeline)
         passEncoder.setBindGroup(0, bindGroup)
-        
+
         // Draw
         if (pass.drawMode === 'points') {
             const count = this.resolvePointCount(pass, state, null, viewportTex)
@@ -1278,23 +1278,23 @@ export class WebGPUBackend extends Backend {
         } else {
             passEncoder.draw(3, 1, 0, 0) // Full-screen triangle
         }
-        
+
         passEncoder.end()
     }
-    
+
     /**
      * Get or create a render pipeline with multiple render targets
      */
     resolveMRTRenderPipeline(program, { blend, topology, formats }) {
         const key = `mrt_${topology || 'triangle-list'}_${formats.join('_')}_${blend ? JSON.stringify(blend) : 'noblend'}`
-        
+
         if (!program.pipelineCache.has(key)) {
             // Build targets array for all outputs
             const targets = formats.map(format => ({
                 format,
                 blend: this.resolveBlendState(blend)
             }))
-            
+
             const pipeline = this.device.createRenderPipeline({
                 layout: 'auto',
                 vertex: {
@@ -1310,10 +1310,10 @@ export class WebGPUBackend extends Backend {
                     topology: topology || 'triangle-list'
                 }
             })
-            
+
             program.pipelineCache.set(key, pipeline)
         }
-        
+
         return program.pipelineCache.get(key)
     }
 
@@ -1430,12 +1430,12 @@ export class WebGPUBackend extends Backend {
      */
     getComputePipeline(program, entryPoint) {
         const targetEntryPoint = entryPoint || program.entryPoint || 'main'
-        
+
         // Check if pipeline already exists for this entry point
         if (program.pipelines?.has(targetEntryPoint)) {
             return program.pipelines.get(targetEntryPoint)
         }
-        
+
         // Create new pipeline for this entry point
         const pipeline = this.device.createComputePipeline({
             layout: 'auto',
@@ -1444,19 +1444,19 @@ export class WebGPUBackend extends Backend {
                 entryPoint: targetEntryPoint
             }
         })
-        
+
         // Cache it
         if (program.pipelines) {
             program.pipelines.set(targetEntryPoint, pipeline)
         }
-        
+
         return pipeline
     }
 
     executeComputePass(pass, program, state) {
         // Get the pipeline for this pass's entry point (supports multi-entry-point shaders)
         const pipeline = this.getComputePipeline(program, pass.entryPoint)
-        
+
         // Create bind group for this pass using the specific pipeline
         const bindGroup = this.createBindGroup(pass, program, state, pipeline)
 
@@ -1469,10 +1469,10 @@ export class WebGPUBackend extends Backend {
         passEncoder.setBindGroup(0, bindGroup)
         passEncoder.dispatchWorkgroups(workgroups[0], workgroups[1], workgroups[2])
         passEncoder.end()
-        
+
         // Check if this compute pass writes to an output buffer and needs a buffer-to-texture copy
         // Support both naming conventions: output_buffer (snake_case) and outputBuffer (camelCase)
-        const outputBufferBinding = program.bindings?.find(b => 
+        const outputBufferBinding = program.bindings?.find(b =>
             (b.name === 'output_buffer' || b.name === 'outputBuffer') && b.type === 'storage'
         )
         if (outputBufferBinding && pass.outputs) {
@@ -1511,7 +1511,7 @@ export class WebGPUBackend extends Backend {
         // Fall back to screen dimensions from state
         const width = state?.screenWidth
         const height = state?.screenHeight
-        
+
         if (width && height) {
             return [
                 Math.ceil(width / 8),
@@ -1529,7 +1529,7 @@ export class WebGPUBackend extends Backend {
 
     /**
      * Create a bind group for a pass.
-     * 
+     *
      * Uses the parsed shader bindings to create entries that match what the shader expects.
      * This handles the various binding conventions used in existing WGSL shaders:
      * - Individual uniform bindings (one per uniform variable)
@@ -1540,44 +1540,44 @@ export class WebGPUBackend extends Backend {
     createBindGroup(pass, program, state, pipeline = null) {
         const entries = []
         let bindings = program.bindings || []
-        
+
         // Use the passed pipeline or fall back to program's default pipeline
         const targetPipeline = pipeline || program.pipeline
-        
-        
+
+
         // For multi-entry-point compute shaders, filter bindings based on pass inputs/outputs
         // This prevents including bindings that are optimized out by WebGPU for this entry point
         if (pass.entryPoint && program.isCompute) {
             const neededBindingNames = new Set()
-            
+
             // Add all input names
             if (pass.inputs) {
                 for (const inputName of Object.keys(pass.inputs)) {
                     neededBindingNames.add(inputName)
                 }
             }
-            
+
             // Add all output names
             if (pass.outputs) {
                 for (const outputName of Object.keys(pass.outputs)) {
                     neededBindingNames.add(outputName)
                 }
             }
-            
+
             // Always include uniform buffer (params) - it's always needed
             neededBindingNames.add('params')
-            
+
             // Always include storage buffers - they're used for compute output
             for (const binding of bindings) {
                 if (binding.type === 'storage') {
                     neededBindingNames.add(binding.name)
                 }
             }
-            
+
             // Filter bindings to only those explicitly used by this pass
             bindings = bindings.filter(b => neededBindingNames.has(b.name))
         }
-        
+
         // Helper to get uniform value with proper precedence (global overrides pass)
         const getUniform = (name) => {
             if (state.globalUniforms && name in state.globalUniforms) {
@@ -1588,19 +1588,19 @@ export class WebGPUBackend extends Backend {
             }
             return undefined
         }
-        
+
         // Map input names to texture views
         const textureMap = new Map()
         if (pass.inputs) {
             for (const [inputName, texId] of Object.entries(pass.inputs)) {
                 let textureView
-                
+
                 // Parse global texture reference
                 const surfaceName = this.parseGlobalName(texId)
-                
+
                 // Parse feedback texture reference
                 const feedbackName = this.parseFeedbackName(texId)
-                
+
                 if (surfaceName) {
                     const surfaceObj = state.surfaces?.[surfaceName]
                     textureView = surfaceObj?.view
@@ -1612,7 +1612,7 @@ export class WebGPUBackend extends Backend {
                     const tex = this.textures.get(texId)
                     textureView = tex?.view
                 }
-                
+
                 if (textureView) {
                     textureMap.set(inputName, textureView)
                     // Also map by common alias patterns
@@ -1624,13 +1624,13 @@ export class WebGPUBackend extends Backend {
                 }
             }
         }
-        
+
         // Create entries based on parsed shader bindings
         for (const binding of bindings) {
             if (binding.group !== 0) continue // Only support group 0 for now
-            
+
             const entry = { binding: binding.binding }
-            
+
             if (binding.type === 'texture') {
                 // Find the texture view for this binding
                 let view = textureMap.get(binding.name)
@@ -1648,12 +1648,12 @@ export class WebGPUBackend extends Backend {
                         view = textureMap.values().next().value
                     }
                 }
-                
+
                 // Use dummy texture if no view found - ensures bind group completeness
                 if (!view) {
                     view = this.dummyTextureView
                 }
-                
+
                 if (view) {
                     entry.resource = view
                     entries.push(entry)
@@ -1664,12 +1664,12 @@ export class WebGPUBackend extends Backend {
                 entries.push(entry)
             } else if (binding.type === 'uniform') {
                 // Check if this is a struct or individual uniform
-                const isStruct = binding.typeDecl && !binding.typeDecl.includes('<') && 
-                    binding.typeDecl !== 'f32' && binding.typeDecl !== 'i32' && 
+                const isStruct = binding.typeDecl && !binding.typeDecl.includes('<') &&
+                    binding.typeDecl !== 'f32' && binding.typeDecl !== 'i32' &&
                     binding.typeDecl !== 'u32' && binding.typeDecl !== 'bool' &&
                     !binding.typeDecl.startsWith('vec') && !binding.typeDecl.startsWith('mat')
 
-                
+
                 if (isStruct) {
                     // This looks like a struct - create full uniform buffer
                     // Pass program to access packedUniformLayout
@@ -1682,9 +1682,9 @@ export class WebGPUBackend extends Backend {
                     // Individual uniform - create small buffer for this value
                     // Use 0 as default for missing/invalid uniforms to ensure bind group completeness
                     let value = getUniform(binding.name)
-                    
+
                     // Handle missing, null, or invalid values by providing sensible defaults
-                    if (value === undefined || value === null || 
+                    if (value === undefined || value === null ||
                         (typeof value !== 'number' && typeof value !== 'boolean' && !Array.isArray(value))) {
                         // Provide sensible defaults based on type
                         if (binding.typeDecl === 'i32' || binding.typeDecl === 'u32') {
@@ -1722,19 +1722,19 @@ export class WebGPUBackend extends Backend {
                 }
             }
         }
-        
+
         // If no bindings were parsed (maybe older shader format), fall back to legacy approach
         if (bindings.length === 0) {
             return this.createLegacyBindGroup(pass, program, state)
         }
-        
-        
+
+
         // Create bind group using the target pipeline's layout
         // Handle multi-entry-point shaders where some bindings may be optimized out
         // Use a loop to remove all problematic bindings
         let currentEntries = entries.slice()  // Copy entries array
         const maxRetries = 10
-        
+
         for (let attempt = 0; attempt < maxRetries; attempt++) {
             try {
                 const bindGroup = this.device.createBindGroup({
@@ -1745,24 +1745,24 @@ export class WebGPUBackend extends Backend {
             } catch (err) {
                 const errStr = err.message || String(err)
                 const bindingMatch = /binding index (\d+) not present/.exec(errStr)
-                
+
                 if (bindingMatch) {
                     const problemBinding = parseInt(bindingMatch[1], 10)
                     const beforeLength = currentEntries.length
                     currentEntries = currentEntries.filter(e => e.binding !== problemBinding)
-                    
+
                     // If we removed an entry, try again
                     if (currentEntries.length < beforeLength) {
                         continue
                     }
                 }
-                
+
                 // If we can't fix the error, throw it
                 console.error('Failed to create bind group:', err)
                 throw err
             }
         }
-        
+
         // If we exhausted retries, throw an error
         throw new Error('Failed to create bind group after multiple retries')
     }
@@ -1772,7 +1772,7 @@ export class WebGPUBackend extends Backend {
      */
     createSingleUniformBuffer(value, typeDecl) {
         let data
-        
+
         if (typeof value === 'boolean') {
             data = new Int32Array([value ? 1 : 0])
         } else if (typeof value === 'number') {
@@ -1792,14 +1792,14 @@ export class WebGPUBackend extends Backend {
                 data = new Float32Array(value)
             }
         }
-        
+
         if (!data) return null
-        
+
         const buffer = this.device.createBuffer({
             size: Math.max(data.byteLength, 16), // Minimum 16 bytes for alignment
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         })
-        
+
         this.queue.writeBuffer(buffer, 0, data)
         return buffer
     }
@@ -1807,7 +1807,7 @@ export class WebGPUBackend extends Backend {
     /**
      * Create or get a storage buffer for compute shaders.
      * Storage buffers persist across passes within an effect.
-     * 
+     *
      * @param {object} binding - Parsed binding info from shader
      * @param {object} pass - Pass definition
      * @param {object} state - Current render state (includes screenWidth, screenHeight)
@@ -1815,15 +1815,15 @@ export class WebGPUBackend extends Backend {
      */
     createStorageBuffer(binding, pass, state) {
         const bufferName = binding.name
-        
+
         // Check if buffer already exists
         if (this.storageBuffers.has(bufferName)) {
             return this.storageBuffers.get(bufferName)
         }
-        
+
         // Determine buffer size based on binding type and context
         let byteSize = 0
-        
+
         // For output buffers (both naming conventions): 4 floats per pixel (RGBA) * width * height
         if (bufferName === 'output_buffer' || bufferName === 'outputBuffer') {
             const width = state?.screenWidth || 1280
@@ -1855,16 +1855,16 @@ export class WebGPUBackend extends Backend {
             const height = state?.screenHeight || 720
             byteSize = width * height * 4 * 4
         }
-        
+
         // Ensure minimum size and alignment
         byteSize = Math.max(256, byteSize)
         byteSize = Math.ceil(byteSize / 256) * 256 // Align to 256 bytes
-        
+
         const buffer = this.device.createBuffer({
             size: byteSize,
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
         })
-        
+
         this.storageBuffers.set(bufferName, buffer)
         return buffer
     }
@@ -1872,7 +1872,7 @@ export class WebGPUBackend extends Backend {
     /**
      * Create a storage texture view for compute shader output.
      * Storage textures allow direct writes from compute shaders via textureStore().
-     * 
+     *
      * @param {object} binding - Parsed binding info from shader
      * @param {object} pass - Pass definition
      * @param {object} state - Current render state
@@ -1883,8 +1883,8 @@ export class WebGPUBackend extends Backend {
         // Look in pass.storageTextures for mapping: shader_name -> texture_id
         const storageTextures = pass.storageTextures || {}
         const textureId = storageTextures[binding.name]
-        
-        
+
+
         if (!textureId) {
             // Default to outputTex if no explicit mapping
             if (binding.name === 'output_texture') {
@@ -1893,12 +1893,12 @@ export class WebGPUBackend extends Backend {
             console.warn(`No storage texture mapping for ${binding.name}`)
             return null
         }
-        
+
         // Map textureId to actual texture via state.writeSurfaces
         if (textureId === 'outputTex') {
             return this.getOutputStorageView(state)
         }
-        
+
         // Check if it's a surface reference (o0-o7)
         const surfacePattern = /^o[0-7]$/
         if (surfacePattern.test(textureId)) {
@@ -1910,7 +1910,7 @@ export class WebGPUBackend extends Backend {
                 }
             }
         }
-        
+
         // Check if it's a global surface reference
         const surfaceName = this.parseGlobalName(textureId)
         if (surfaceName) {
@@ -1922,13 +1922,13 @@ export class WebGPUBackend extends Backend {
                 }
             }
         }
-        
+
         // Look up in textures map
         const texture = this.textures.get(textureId)
         if (texture) {
             return texture.view
         }
-        
+
         console.warn(`Storage texture ${textureId} not found`)
         return null
     }
@@ -1946,31 +1946,31 @@ export class WebGPUBackend extends Backend {
                 return texture.view
             }
         }
-        
+
         // Fallback: create a temporary storage texture if surface not available
         console.warn('Surface o0 write texture not found, using fallback storage texture')
         const width = state?.screenWidth || 1280
         const height = state?.screenHeight || 720
         const key = `outputStorage_${width}x${height}`
-        
+
         if (!this.storageTextures) {
             this.storageTextures = new Map()
         }
-        
+
         if (this.storageTextures.has(key)) {
             return this.storageTextures.get(key).view
         }
-        
+
         const texture = this.device.createTexture({
             size: { width, height },
             format: 'rgba16float',
-            usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING | 
+            usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING |
                    GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT
         })
-        
+
         const view = texture.createView()
         this.storageTextures.set(key, { texture, view, width, height })
-        
+
         return view
     }
 
@@ -1980,25 +1980,25 @@ export class WebGPUBackend extends Backend {
     createLegacyBindGroup(pass, program, state) {
         const entries = []
         let binding = 0
-        
+
         // Bind input textures (alternating texture/sampler)
         if (pass.inputs) {
             for (const [samplerName, texId] of Object.entries(pass.inputs)) {
                 let textureView
-                
+
                 const surfaceName = this.parseGlobalName(texId)
                 if (surfaceName) {
                     textureView = state.surfaces?.[surfaceName]?.view
                 } else {
                     textureView = this.textures.get(texId)?.view
                 }
-                
+
                 if (textureView) {
                     entries.push({
                         binding: binding++,
                         resource: textureView
                     })
-                    
+
                     const samplerType = pass.samplerTypes?.[samplerName] || 'default'
                     entries.push({
                         binding: binding++,
@@ -2007,7 +2007,7 @@ export class WebGPUBackend extends Backend {
                 }
             }
         }
-        
+
         // Create uniform buffer if needed
         if (pass.uniforms || state.globalUniforms) {
             const uniformBuffer = this.createUniformBuffer(pass, state)
@@ -2020,18 +2020,18 @@ export class WebGPUBackend extends Backend {
                 })
             }
         }
-        
+
         const bindGroup = this.device.createBindGroup({
             layout: program.pipeline.getBindGroupLayout(0),
             entries
         })
-        
+
         return bindGroup
     }
 
     /**
      * Create a uniform buffer with proper std140 alignment.
-     * 
+     *
      * Alignment rules (simplified for common types):
      * - float, int, uint, bool: 4-byte align
      * - vec2: 8-byte align
@@ -2043,32 +2043,32 @@ export class WebGPUBackend extends Backend {
         // Pass uniforms first (from DSL/effect defaults), then globalUniforms on top
         // This allows runtime overrides (like test uniforms) to take precedence
         const uniforms = { ...pass.uniforms, ...state.globalUniforms }
-        
+
         if (Object.keys(uniforms).length === 0) {
             return null
         }
-        
+
         // Check if program has a packed uniform layout
         const packedLayout = program?.packedUniformLayout
-        
+
         // Pack uniforms into buffer using layout if available
-        const data = packedLayout 
+        const data = packedLayout
             ? this.packUniformsWithLayout(uniforms, packedLayout)
             : this.packUniforms(uniforms)
-        
+
         // Get or create buffer from pool
         let buffer = this.getBufferFromPool(data.byteLength)
-        
+
         if (!buffer) {
             buffer = this.device.createBuffer({
                 size: Math.max(data.byteLength, 16), // Minimum 16 bytes
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
             })
         }
-        
+
         this.queue.writeBuffer(buffer, 0, data)
         this.activeUniformBuffers.push(buffer)
-        
+
         return buffer
     }
 
@@ -2101,7 +2101,7 @@ export class WebGPUBackend extends Backend {
                 estimatedSize += 4
             }
         }
-        
+
         // Round up to next 16 bytes and add padding for struct compatibility
         // Many compute shaders use vec4-packed structs up to 256 bytes
         const bufferSize = Math.max(256, Math.ceil((estimatedSize + 64) / 16) * 16)
@@ -2115,7 +2115,7 @@ export class WebGPUBackend extends Backend {
 
         for (const [name, value] of Object.entries(uniforms)) {
             if (value === undefined || value === null) continue
-            
+
             if (typeof value === 'boolean') {
                 // bool -> i32
                 offset = alignTo(offset, 4)
@@ -2189,12 +2189,12 @@ export class WebGPUBackend extends Backend {
     /**
      * Pack uniforms into an ArrayBuffer according to a parsed layout.
      * The layout specifies where each uniform should be placed in the array<vec4<f32>, N> struct.
-     * 
+     *
      * Supports three layout formats:
      * 1. Byte layout (from parseWgslStructByteLayout): { type: 'byte', layout: [...] }
      * 2. Array format (from shader parsing): [{ name: 'time', slot: 0, components: 'z' }, ...]
      * 3. Object format (from effect definition): { time: { slot: 0, components: 'z' }, ... }
-     * 
+     *
      * @param {Object} uniforms - Map of uniform names to values
      * @param {Array|Object} layout - Layout specification
      * @returns {Uint8Array}
@@ -2204,7 +2204,7 @@ export class WebGPUBackend extends Backend {
         if (layout && layout.type === 'byte' && Array.isArray(layout.layout)) {
             return this.packUniformsWithByteLayout(uniforms, layout.layout)
         }
-        
+
         // Normalize layout to array format
         let layoutArray = layout
         if (!Array.isArray(layout)) {
@@ -2214,28 +2214,28 @@ export class WebGPUBackend extends Backend {
                 layoutArray.push({ name, slot: spec.slot, components: spec.components })
             }
         }
-        
+
         // Find the maximum slot index to determine buffer size
         let maxSlot = 0
         for (const entry of layoutArray) {
             maxSlot = Math.max(maxSlot, entry.slot)
         }
-        
+
         // Each slot is a vec4 (16 bytes)
         const bufferSize = (maxSlot + 1) * 16
         const buffer = new ArrayBuffer(bufferSize)
         const view = new DataView(buffer)
-        
+
         // Component offset mapping
         const componentOffset = { x: 0, y: 4, z: 8, w: 12 }
-        
+
         // Helper to resolve uniform value with built-in aliases
         const resolveUniformValue = (name, uniforms) => {
             // Direct lookup first
             if (uniforms[name] !== undefined) {
                 return uniforms[name]
             }
-            
+
             // Built-in aliases for common uniforms
             // Many shader structs use width/height but pipeline provides resolution array
             if (name === 'width' && uniforms.resolution) {
@@ -2248,23 +2248,23 @@ export class WebGPUBackend extends Backend {
             if (name === 'channels') {
                 return 4.0
             }
-            
+
             return undefined
         }
-        
+
         for (const entry of layoutArray) {
             const value = resolveUniformValue(entry.name, uniforms)
             if (value === undefined || value === null) {
                 continue
             }
-            
+
             const slotOffset = entry.slot * 16
-            
+
             if (entry.components.length === 1) {
                 // Single component (x, y, z, or w)
                 const compOff = componentOffset[entry.components]
                 const offset = slotOffset + compOff
-                
+
                 if (typeof value === 'boolean') {
                     view.setFloat32(offset, value ? 1.0 : 0.0, true)
                 } else if (typeof value === 'number') {
@@ -2274,7 +2274,7 @@ export class WebGPUBackend extends Backend {
                 // Two components (xy, yz, etc.)
                 const startComp = entry.components[0]
                 const offset = slotOffset + componentOffset[startComp]
-                
+
                 if (Array.isArray(value)) {
                     for (let i = 0; i < Math.min(value.length, 2); i++) {
                         view.setFloat32(offset + i * 4, value[i], true)
@@ -2286,7 +2286,7 @@ export class WebGPUBackend extends Backend {
                 // Three components (xyz)
                 const startComp = entry.components[0]
                 const offset = slotOffset + componentOffset[startComp]
-                
+
                 if (Array.isArray(value)) {
                     for (let i = 0; i < Math.min(value.length, 3); i++) {
                         view.setFloat32(offset + i * 4, value[i], true)
@@ -2297,7 +2297,7 @@ export class WebGPUBackend extends Backend {
             } else if (entry.components.length === 4) {
                 // Four components (xyzw)
                 const offset = slotOffset
-                
+
                 if (Array.isArray(value)) {
                     for (let i = 0; i < Math.min(value.length, 4); i++) {
                         view.setFloat32(offset + i * 4, value[i], true)
@@ -2307,14 +2307,14 @@ export class WebGPUBackend extends Backend {
                 }
             }
         }
-        
+
         return new Uint8Array(buffer)
     }
 
     /**
      * Pack uniforms into an ArrayBuffer using byte-based layout.
      * Each entry specifies exact byte offset and type for the uniform.
-     * 
+     *
      * @param {Object} uniforms - Map of uniform names to values
      * @param {Array<{name: string, offset: number, size: number, type: string, components: number}>} layout
      * @returns {Uint8Array}
@@ -2327,19 +2327,19 @@ export class WebGPUBackend extends Backend {
                 totalSize = Math.max(totalSize, entry.offset + entry.size)
             }
         }
-        
+
         // Round up to 16-byte alignment for uniform buffer
         const bufferSize = Math.ceil(totalSize / 16) * 16
         const buffer = new ArrayBuffer(Math.max(bufferSize, 16))
         const view = new DataView(buffer)
-        
+
         // Helper to resolve uniform value with built-in aliases
         const resolveUniformValue = (name, uniforms) => {
             // Direct lookup first
             if (uniforms[name] !== undefined) {
                 return uniforms[name]
             }
-            
+
             // Built-in aliases for common uniforms
             // Many shader structs use width/height but pipeline provides resolution array
             if (name === 'width' && uniforms.resolution) {
@@ -2352,18 +2352,18 @@ export class WebGPUBackend extends Backend {
             if (name === 'channels' || name === 'channelCount') {
                 return 4.0
             }
-            
+
             return undefined
         }
-        
+
         for (const entry of layout) {
             const value = resolveUniformValue(entry.name, uniforms)
             if (value === undefined || value === null) {
                 continue
             }
-            
+
             const { offset, type, components } = entry
-            
+
             if (components === 1) {
                 // Scalar value
                 if (typeof value === 'boolean') {
@@ -2404,7 +2404,7 @@ export class WebGPUBackend extends Backend {
                 }
             }
         }
-        
+
         return new Uint8Array(buffer)
     }
 
@@ -2414,7 +2414,7 @@ export class WebGPUBackend extends Backend {
             const buffer = this.activeUniformBuffers.pop()
             this.uniformBufferPool.push(buffer)
         }
-        
+
         // Create command encoder for this frame
         this.commandEncoder = this.device.createCommandEncoder()
     }
@@ -2430,19 +2430,19 @@ export class WebGPUBackend extends Backend {
 
     present(textureId) {
         if (!this.context) return
-        
+
         const tex = this.textures.get(textureId)
         if (!tex) return
-        
+
         // Use a render pass to blit the texture to the canvas
         // This handles format conversion (e.g., rgba16float -> bgra8unorm)
         const pipeline = this.getBlitPipeline()
         const bindGroup = this.createBlitBindGroup(tex)
-        
+
         const commandEncoder = this.device.createCommandEncoder()
         const canvasTexture = this.context.getCurrentTexture()
         const canvasView = canvasTexture.createView()
-        
+
         const renderPass = commandEncoder.beginRenderPass({
             colorAttachments: [{
                 view: canvasView,
@@ -2451,12 +2451,12 @@ export class WebGPUBackend extends Backend {
                 storeOp: 'store'
             }]
         })
-        
+
         renderPass.setPipeline(pipeline)
         renderPass.setBindGroup(0, bindGroup)
         renderPass.draw(3, 1, 0, 0) // Full-screen triangle
         renderPass.end()
-        
+
         this.queue.submit([commandEncoder.finish()])
     }
 
@@ -2493,13 +2493,13 @@ export class WebGPUBackend extends Backend {
         this.context = null
         this.queue = null
     }
-    
+
     /**
      * Get or create the blit pipeline for presenting to canvas
      */
     getBlitPipeline() {
         if (this._blitPipeline) return this._blitPipeline
-        
+
         const blitShaderSource = `
             struct VertexOutput {
                 @builtin(position) position: vec4<f32>,
@@ -2532,9 +2532,9 @@ export class WebGPUBackend extends Backend {
                 return textureSample(srcTex, srcSampler, input.uv);
             }
         `
-        
+
         const module = this.device.createShaderModule({ code: blitShaderSource })
-        
+
         this._blitPipeline = this.device.createRenderPipeline({
             layout: 'auto',
             vertex: {
@@ -2552,17 +2552,17 @@ export class WebGPUBackend extends Backend {
                 topology: 'triangle-list'
             }
         })
-        
+
         return this._blitPipeline
     }
-    
+
     /**
      * Create a bind group for blitting a texture to the canvas
      */
     createBlitBindGroup(tex) {
         const pipeline = this.getBlitPipeline()
         const sampler = this.samplers.get('default')
-        
+
         return this.device.createBindGroup({
             layout: pipeline.getBindGroupLayout(0),
             entries: [
@@ -2586,11 +2586,11 @@ export class WebGPUBackend extends Backend {
         if (this._bufferToTextureRenderPipelines?.has(cacheKey)) {
             return this._bufferToTextureRenderPipelines.get(cacheKey)
         }
-        
+
         if (!this._bufferToTextureRenderPipelines) {
             this._bufferToTextureRenderPipelines = new Map()
         }
-        
+
         const shaderSource = `
             struct BufferToTextureParams {
                 width: u32,
@@ -2641,9 +2641,9 @@ export class WebGPUBackend extends Backend {
                 );
             }
         `
-        
+
         const module = this.device.createShaderModule({ code: shaderSource })
-        
+
         const pipeline = this.device.createRenderPipeline({
             layout: 'auto',
             vertex: {
@@ -2659,11 +2659,11 @@ export class WebGPUBackend extends Backend {
                 topology: 'triangle-list'
             }
         })
-        
+
         this._bufferToTextureRenderPipelines.set(cacheKey, pipeline)
         return pipeline
     }
-    
+
     /**
      * Copy data from output_buffer storage buffer to a texture.
      * Uses a render pass with a fullscreen triangle to read from the buffer
@@ -2676,7 +2676,7 @@ export class WebGPUBackend extends Backend {
             console.warn(`[copyBufferToTexture] ${bufferName} not found`)
             return
         }
-        
+
         // Resolve the output texture
         let outputTex = null
         const surfaceName = this.parseGlobalName(outputId)
@@ -2696,15 +2696,15 @@ export class WebGPUBackend extends Backend {
         if (!outputTex) {
             outputTex = this.textures.get(outputId)
         }
-        
+
         if (!outputTex) {
             console.warn(`[copyBufferToTexture] Output texture not found: ${outputId}`)
             return
         }
-        
+
         const width = state.screenWidth || outputTex.width
         const height = state.screenHeight || outputTex.height
-        
+
         // Create params uniform buffer
         const paramsData = new Uint32Array([width, height, 0, 0])
         const paramsBuffer = this.device.createBuffer({
@@ -2712,11 +2712,11 @@ export class WebGPUBackend extends Backend {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
         })
         this.queue.writeBuffer(paramsBuffer, 0, paramsData)
-        
+
         // Get the pipeline for this texture format
         const format = outputTex.gpuFormat || 'rgba8unorm'
         const pipeline = this.getBufferToTextureRenderPipeline(format)
-        
+
         // Create bind group
         const bindGroup = this.device.createBindGroup({
             layout: pipeline.getBindGroupLayout(0),
@@ -2725,7 +2725,7 @@ export class WebGPUBackend extends Backend {
                 { binding: 1, resource: { buffer: paramsBuffer } }
             ]
         })
-        
+
         // Execute the render pass
         const passEncoder = this.commandEncoder.beginRenderPass({
             colorAttachments: [{
@@ -2739,7 +2739,7 @@ export class WebGPUBackend extends Backend {
         passEncoder.setBindGroup(0, bindGroup)
         passEncoder.draw(3, 1, 0, 0)  // Fullscreen triangle
         passEncoder.end()
-        
+
         // Clean up params buffer
         this.activeUniformBuffers.push(paramsBuffer)
     }
@@ -2768,13 +2768,13 @@ export class WebGPUBackend extends Backend {
             'r32float': 'r32float',
             'bgra8unorm': 'bgra8unorm'
         }
-        
+
         return formats[format] || format || 'rgba8unorm'
     }
 
     resolveUsage(usageArray) {
         let usage = 0
-        
+
         for (const u of usageArray) {
             switch (u) {
                 case 'render':
@@ -2794,7 +2794,7 @@ export class WebGPUBackend extends Backend {
                     break
             }
         }
-        
+
         return usage
     }
 
@@ -2815,7 +2815,7 @@ export class WebGPUBackend extends Backend {
         }
 
         const { handle, width, height, gpuFormat } = tex
-        
+
         // Determine bytes per pixel based on format
         let bytesPerPixel = 4 // Default for rgba8unorm
         if (gpuFormat === 'rgba16float') {
@@ -2823,7 +2823,7 @@ export class WebGPUBackend extends Backend {
         } else if (gpuFormat === 'rgba32float') {
             bytesPerPixel = 16 // 4 bytes per channel * 4 channels
         }
-        
+
         const bytesPerRow = Math.ceil(width * bytesPerPixel / 256) * 256 // Align to 256 bytes
         const bufferSize = bytesPerRow * height
 
@@ -2845,10 +2845,10 @@ export class WebGPUBackend extends Backend {
         // Map and read the buffer
         await stagingBuffer.mapAsync(GPUMapMode.READ)
         const mappedRange = stagingBuffer.getMappedRange()
-        
+
         // Convert to Uint8Array output (0-255 per channel)
         const data = new Uint8Array(width * height * 4)
-        
+
         if (gpuFormat === 'rgba16float') {
             // Read as float16 and convert to uint8
             const srcData = new Uint16Array(mappedRange)
@@ -2899,7 +2899,7 @@ export class WebGPUBackend extends Backend {
         if (typeof navigator === 'undefined' || !navigator.gpu) {
             return false
         }
-        
+
         try {
             const adapter = await navigator.gpu.requestAdapter()
             return !!adapter

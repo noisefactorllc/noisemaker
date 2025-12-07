@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Vignette - normalize input and blend edges toward constant brightness
@@ -47,4 +47,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

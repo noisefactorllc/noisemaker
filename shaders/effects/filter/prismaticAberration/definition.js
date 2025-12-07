@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * filter/prismaticAberration - Prismatic aberration effect
@@ -87,4 +87,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

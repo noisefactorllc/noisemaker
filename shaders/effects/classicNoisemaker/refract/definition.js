@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Refract
@@ -101,4 +101,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

@@ -1,164 +1,164 @@
-import masksData from '../../share/masks.json' with { type: "json" };
-import { ValueMask, isValueMaskProcedural } from './constants.js';
-import { Tensor } from './tensor.js';
-import { loadGlyphs } from './glyphs.js';
-import { simplex } from './simplex.js';
-import { random, randomInt } from './util.js';
+import masksData from '../../share/masks.json' with { type: "json" }
+import { ValueMask, isValueMaskProcedural } from './constants.js'
+import { Tensor } from './tensor.js'
+import { loadGlyphs } from './glyphs.js'
+import { simplex } from './simplex.js'
+import { random, randomInt } from './util.js'
 
 function uvRandom(uvNoise, uvX, uvY) {
-  return (uvNoise[uvY][uvX] + random()) % 1;
+  return (uvNoise[uvY][uvX] + random()) % 1
 }
 
 function _invaders({ x, y, row, shape, uvNoise, uvX, uvY }) {
-  const height = shape[0];
-  const width = shape[1];
+  const height = shape[0]
+  const width = shape[1]
   if (y % height === 0 || x % width === 0) {
-    return 0;
+    return 0
   }
   if (x % width > width / 2) {
-    return row[x - Math.floor(((x % width) - width / 2) * 2)];
+    return row[x - Math.floor(((x % width) - width / 2) * 2)]
   }
-  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0;
+  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0
 }
 
 function whiteBear(opts) {
-  return _invaders(opts);
+  return _invaders(opts)
 }
 
 function matrix({ x, y, shape, uvNoise, uvX, uvY }) {
-  const height = shape[0];
-  const width = shape[1];
-  if (y % height === 0 || x % width === 0) return 0;
-  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0;
+  const height = shape[0]
+  const width = shape[1]
+  if (y % height === 0 || x % width === 0) return 0
+  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0
 }
 
 function letters({ x, y, shape, uvNoise, uvX, uvY }) {
-  const height = shape[0];
-  const width = shape[1];
-  const xMod = x % width;
-  const yMod = y % height;
-  if (xMod === 0 || yMod === 0) return 0;
-  if (width - xMod === 1 || height - yMod === 1) return 0;
-  if (xMod % 2 === 0 && yMod % 2 === 0) return 0;
+  const height = shape[0]
+  const width = shape[1]
+  const xMod = x % width
+  const yMod = y % height
+  if (xMod === 0 || yMod === 0) return 0
+  if (width - xMod === 1 || height - yMod === 1) return 0
+  if (xMod % 2 === 0 && yMod % 2 === 0) return 0
   if (x % 2 === 0 || y % 2 === 0) {
-    return uvRandom(uvNoise, uvX, uvY) > 0.25 ? 1 : 0;
+    return uvRandom(uvNoise, uvX, uvY) > 0.25 ? 1 : 0
   }
-  return uvRandom(uvNoise, uvX, uvY) > 0.75 ? 1 : 0;
+  return uvRandom(uvNoise, uvX, uvY) > 0.75 ? 1 : 0
 }
 
 function iching({ x, y, row, shape, uvNoise, uvX, uvY }) {
-  const height = shape[0];
-  const width = shape[1];
-  const xMod = x % width;
-  const yMod = y % height;
-  if (xMod === 0 || yMod === 0) return 0;
-  if (width - xMod === 1 || height - yMod === 1) return 0;
-  if (y % 2 === 0) return 0;
-  if (x % 2 === 1 && xMod !== 3 && xMod !== 4) return 1;
-  if (x % 2 === 0) return row[x - 1];
-  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0;
+  const height = shape[0]
+  const width = shape[1]
+  const xMod = x % width
+  const yMod = y % height
+  if (xMod === 0 || yMod === 0) return 0
+  if (width - xMod === 1 || height - yMod === 1) return 0
+  if (y % 2 === 0) return 0
+  if (x % 2 === 1 && xMod !== 3 && xMod !== 4) return 1
+  if (x % 2 === 0) return row[x - 1]
+  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0
 }
 
 function ideogram({ x, y, shape, uvNoise, uvX, uvY }) {
-  const height = shape[0];
-  const width = shape[1];
-  const xMod = x % width;
-  const yMod = y % height;
-  if (xMod === 0 || yMod === 0) return 0;
-  if (width - xMod === 1 || height - yMod === 1) return 0;
-  if (xMod % 2 === 1 && yMod % 2 === 1) return 0;
-  return uvRandom(uvNoise, uvX, uvY) > 0.5 ? 1 : 0;
+  const height = shape[0]
+  const width = shape[1]
+  const xMod = x % width
+  const yMod = y % height
+  if (xMod === 0 || yMod === 0) return 0
+  if (width - xMod === 1 || height - yMod === 1) return 0
+  if (xMod % 2 === 1 && yMod % 2 === 1) return 0
+  return uvRandom(uvNoise, uvX, uvY) > 0.5 ? 1 : 0
 }
 
 function script({ x, y, row, shape, uvNoise, uvX, uvY }) {
-  const height = shape[0];
-  const width = shape[1];
-  const xStep = x % width;
-  const yStep = y % height;
-  if (x > 0 && (x + y) % 2 === 1) return row[x - 1];
-  if (yStep === 0) return 0;
-  if ([1, 3, 6].includes(yStep)) return uvRandom(uvNoise, uvX, uvY) > 0.25 ? 1 : 0;
-  if ([2, 4, 5].includes(yStep)) return uvRandom(uvNoise, uvX, uvY) > 0.9 ? 1 : 0;
-  if (xStep === 0) return 0;
-  if (width - xStep === 0 || height - yStep === 0) return 0;
-  if (xStep % 2 === 0 && yStep % 2 === 0) return 0;
-  if (yStep === height - 1) return 0;
-  return uvRandom(uvNoise, uvX, uvY) > 0.5 ? 1 : 0;
+  const height = shape[0]
+  const width = shape[1]
+  const xStep = x % width
+  const yStep = y % height
+  if (x > 0 && (x + y) % 2 === 1) return row[x - 1]
+  if (yStep === 0) return 0
+  if ([1, 3, 6].includes(yStep)) return uvRandom(uvNoise, uvX, uvY) > 0.25 ? 1 : 0
+  if ([2, 4, 5].includes(yStep)) return uvRandom(uvNoise, uvX, uvY) > 0.9 ? 1 : 0
+  if (xStep === 0) return 0
+  if (width - xStep === 0 || height - yStep === 0) return 0
+  if (xStep % 2 === 0 && yStep % 2 === 0) return 0
+  if (yStep === height - 1) return 0
+  return uvRandom(uvNoise, uvX, uvY) > 0.5 ? 1 : 0
 }
 
 function tromino({ x, y, shape, uvNoise, uvX, uvY, atlas }) {
-  if (!atlas || atlas.length === 0) return 0;
-  let texX = x % shape[1];
-  let texY = y % shape[0];
-  const uvValue = uvNoise[uvY][uvX] * (atlas.length - 1);
-  const uvFloor = Math.floor(uvValue);
-  const uvFract = uvValue - uvFloor;
-  const uvHeight = uvNoise.length;
-  const uvWidth = uvNoise[0].length;
-  const float2 = uvNoise[(uvY + Math.floor(shape[0] * 0.5)) % uvHeight][uvX];
-  const float3 = uvNoise[uvY][(uvX + Math.floor(shape[1] * 0.5)) % uvWidth];
+  if (!atlas || atlas.length === 0) return 0
+  let texX = x % shape[1]
+  let texY = y % shape[0]
+  const uvValue = uvNoise[uvY][uvX] * (atlas.length - 1)
+  const uvFloor = Math.floor(uvValue)
+  const uvFract = uvValue - uvFloor
+  const uvHeight = uvNoise.length
+  const uvWidth = uvNoise[0].length
+  const float2 = uvNoise[(uvY + Math.floor(shape[0] * 0.5)) % uvHeight][uvX]
+  const float3 = uvNoise[uvY][(uvX + Math.floor(shape[1] * 0.5)) % uvWidth]
   if (uvFract < 0.5) {
-    const _x = texX;
-    texX = texY;
-    texY = _x;
+    const _x = texX
+    texX = texY
+    texY = _x
   }
   if (float2 < 0.5) {
-    texX = shape[1] - texX - 1;
+    texX = shape[1] - texX - 1
   }
   if (float3 < 0.5) {
-    texY = shape[0] - texY - 1;
+    texY = shape[0] - texY - 1
   }
   // Ensure indices are within bounds of the atlas tile
-  const tile = atlas[uvFloor];
-  if (!tile) return 0;
-  const tileHeight = tile.length;
-  const tileWidth = tile[0] ? tile[0].length : 0;
-  texY = Math.min(texY, tileHeight - 1);
-  texX = Math.min(texX, tileWidth - 1);
-  return tile[texY][texX];
+  const tile = atlas[uvFloor]
+  if (!tile) return 0
+  const tileHeight = tile.length
+  const tileWidth = tile[0] ? tile[0].length : 0
+  texY = Math.min(texY, tileHeight - 1)
+  texX = Math.min(texX, tileWidth - 1)
+  return tile[texY][texX]
 }
 
 function _randomAtlasTile({ x, y, shape, uvNoise, uvX, uvY, atlas }) {
-  if (!atlas || atlas.length === 0) return 0;
-  const uvHeight = uvNoise.length;
+  if (!atlas || atlas.length === 0) return 0
+  const uvHeight = uvNoise.length
 
-  let texX = x % shape[1];
-  let texY = y % shape[0];
+  let texX = x % shape[1]
+  let texY = y % shape[0]
 
-  const wrap01 = (value) => ((value % 1) + 1) % 1;
-  const uvValueRaw = uvNoise[uvY][uvX];
-  const uvValue = wrap01(uvValueRaw) * atlas.length;
-  const index = Math.min(Math.floor(uvValue), atlas.length - 1);
-  const frac = uvValue - Math.floor(uvValue);
+  const wrap01 = (value) => ((value % 1) + 1) % 1
+  const uvValueRaw = uvNoise[uvY][uvX]
+  const uvValue = wrap01(uvValueRaw) * atlas.length
+  const index = Math.min(Math.floor(uvValue), atlas.length - 1)
+  const frac = uvValue - Math.floor(uvValue)
 
-  const rot = Math.floor(frac * 4);
+  const rot = Math.floor(frac * 4)
   if (rot === 1) {
-    const t = texX;
-    texX = texY;
-    texY = shape[0] - t - 1;
+    const t = texX
+    texX = texY
+    texY = shape[0] - t - 1
   } else if (rot === 2) {
-    texX = shape[1] - texX - 1;
-    texY = shape[0] - texY - 1;
+    texX = shape[1] - texX - 1
+    texY = shape[0] - texY - 1
   } else if (rot === 3) {
-    const t = texX;
-    texX = shape[1] - texY - 1;
-    texY = t;
+    const t = texX
+    texX = shape[1] - texY - 1
+    texY = t
   }
 
-  const flip = wrap01(uvNoise[(uvY + 1) % uvHeight][uvX]);
+  const flip = wrap01(uvNoise[(uvY + 1) % uvHeight][uvX])
   if (flip < 0.5) {
-    texX = shape[1] - texX - 1;
+    texX = shape[1] - texX - 1
   }
 
-  return atlas[index % atlas.length][texY][texX];
+  return atlas[index % atlas.length][texY][texX]
 }
 
 function truchetCurves(opts) {
-  return _randomAtlasTile(opts);
+  return _randomAtlasTile(opts)
 }
 
 function truchetTile(opts) {
-  return _randomAtlasTile(opts);
+  return _randomAtlasTile(opts)
 }
 
 function barCode({ uvNoise, uvX }) {
@@ -170,46 +170,46 @@ function barCode({ uvNoise, uvX }) {
   // bars. The Python reference simply compares the noise value
   // directly to 0.5, so do the same here to restore proper masking
   // behaviour.
-  return uvNoise[0][uvX] < 0.5 ? 1 : 0;
+  return uvNoise[0][uvX] < 0.5 ? 1 : 0
 }
 
 function barCodeShort({ uvNoise, uvX }) {
   // `bar_code_short` is the same as `bar_code` but with a smaller
   // atlas; replicate the corrected logic.
-  return uvNoise[0][uvX] < 0.5 ? 1 : 0;
+  return uvNoise[0][uvX] < 0.5 ? 1 : 0
 }
 
 function fakeQr({ x, y, glyphShape, uvNoise }) {
-  const modules = 33;
-  const h = glyphShape[0];
-  const w = glyphShape[1];
-  const moduleX = Math.floor((x / w) * modules);
-  const moduleY = Math.floor((y / h) * modules);
+  const modules = 33
+  const h = glyphShape[0]
+  const w = glyphShape[1]
+  const moduleX = Math.floor((x / w) * modules)
+  const moduleY = Math.floor((y / h) * modules)
 
   const finderAt = (ox, oy) =>
-    moduleX >= ox && moduleX < ox + 7 && moduleY >= oy && moduleY < oy + 7;
+    moduleX >= ox && moduleX < ox + 7 && moduleY >= oy && moduleY < oy + 7
 
   if (
     finderAt(0, 0) ||
     finderAt(modules - 7, 0) ||
     finderAt(0, modules - 7)
   ) {
-    const ox = finderAt(modules - 7, 0) ? modules - 7 : 0;
-    const oy = finderAt(0, modules - 7) ? modules - 7 : 0;
-    const lx = moduleX - ox;
-    const ly = moduleY - oy;
-    if (lx === 0 || ly === 0 || lx === 6 || ly === 6) return 1;
-    if (lx >= 2 && lx <= 4 && ly >= 2 && ly <= 4) return 1;
-    return 0;
+    const ox = finderAt(modules - 7, 0) ? modules - 7 : 0
+    const oy = finderAt(0, modules - 7) ? modules - 7 : 0
+    const lx = moduleX - ox
+    const ly = moduleY - oy
+    if (lx === 0 || ly === 0 || lx === 6 || ly === 6) return 1
+    if (lx >= 2 && lx <= 4 && ly >= 2 && ly <= 4) return 1
+    return 0
   }
 
-  const noiseY = Math.floor((moduleY / modules) * uvNoise.length) % uvNoise.length;
-  const noiseX = Math.floor((moduleX / modules) * uvNoise[0].length) % uvNoise[0].length;
-  return uvRandom(uvNoise, noiseX, noiseY) > 0.5 ? 1 : 0;
+  const noiseY = Math.floor((moduleY / modules) * uvNoise.length) % uvNoise.length
+  const noiseX = Math.floor((moduleX / modules) * uvNoise[0].length) % uvNoise[0].length
+  return uvRandom(uvNoise, noiseX, noiseY) > 0.5 ? 1 : 0
 }
 
 function dropout({ uvNoise, uvX, uvY }) {
-  return uvRandom(uvNoise, uvX, uvY) < 0.25 ? 1 : 0;
+  return uvRandom(uvNoise, uvX, uvY) < 0.25 ? 1 : 0
 }
 
 const ARECIBO_DNA_TEMPLATE = [
@@ -224,45 +224,45 @@ const ARECIBO_DNA_TEMPLATE = [
   [0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 1, 0, 0, 0],
   [0, 0, 1, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 1, 0, 0],
   [0, 1, 0, 0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 0, 0, 0, 1, 0],
-];
+]
 
 function wrapIndex(value, size) {
-  const truncated = Math.trunc(value);
-  const result = truncated % size;
-  return result < 0 ? result + size : result;
+  const truncated = Math.trunc(value)
+  const result = truncated % size
+  return result < 0 ? result + size : result
 }
 
 function areciboNum({ x, y, shape, uvNoise, uvX, uvY }) {
-  const texX = x % shape[1];
-  const texY = y % shape[0];
-  if (texY === 0 || texY === shape[0] - 1 || texX === 0) return 0;
-  if (texY === shape[0] - 2) return texX === 1 ? 1 : 0;
-  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0;
+  const texX = x % shape[1]
+  const texY = y % shape[0]
+  if (texY === 0 || texY === shape[0] - 1 || texX === 0) return 0
+  if (texY === shape[0] - 2) return texX === 1 ? 1 : 0
+  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0
 }
 
 function areciboNucleotide({ x, y, shape, uvNoise, uvX, uvY }) {
-  const texX = x % shape[1];
-  const texY = y % shape[0];
-  if (texY === 0 || texY === shape[0] - 1 || texX === 0) return 0;
-  if (texY === shape[0] - 2) return 1;
-  if (texY < shape[0] - 3 && texX > shape[1] - 2) return 0;
-  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0;
+  const texX = x % shape[1]
+  const texY = y % shape[0]
+  if (texY === 0 || texY === shape[0] - 1 || texX === 0) return 0
+  if (texY === shape[0] - 2) return 1
+  if (texY < shape[0] - 3 && texX > shape[1] - 2) return 0
+  return uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0
 }
 
 function areciboDna({ x, y, shape, uvNoise, uvX, uvY }) {
-  const texX = wrapIndex(x, shape[1]);
-  const texY = wrapIndex(y, shape[0]);
-  const value = ARECIBO_DNA_TEMPLATE[texY][texX];
-  return value === -1 ? (uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0) : value;
+  const texX = wrapIndex(x, shape[1])
+  const texY = wrapIndex(y, shape[0])
+  const value = ARECIBO_DNA_TEMPLATE[texY][texX]
+  return value === -1 ? (uvRandom(uvNoise, uvX, uvY) < 0.5 ? 1 : 0) : value
 }
 
 function arecibo({ x, y, shape, uvNoise, uvX, uvY, glyphShape }) {
-  const thirdHeight = glyphShape[0] / 3;
-  const halfWidth = glyphShape[1] / 2;
-  const dnaHalfWidth = maskShape(ValueMask.arecibo_dna)[1] * 0.5;
+  const thirdHeight = glyphShape[0] / 3
+  const halfWidth = glyphShape[1] / 2
+  const dnaHalfWidth = maskShape(ValueMask.arecibo_dna)[1] * 0.5
 
   if (x > halfWidth - dnaHalfWidth && x < halfWidth + dnaHalfWidth) {
-    const dnaX = Math.trunc(x - halfWidth - dnaHalfWidth);
+    const dnaX = Math.trunc(x - halfWidth - dnaHalfWidth)
     return areciboDna({
       x: dnaX,
       y,
@@ -270,11 +270,11 @@ function arecibo({ x, y, shape, uvNoise, uvX, uvY, glyphShape }) {
       uvNoise,
       uvX,
       uvY,
-    });
+    })
   }
 
   if (x > halfWidth - (dnaHalfWidth + 2) && x < halfWidth + dnaHalfWidth + 1) {
-    return 0;
+    return 0
   }
 
   if (y < thirdHeight) {
@@ -285,7 +285,7 @@ function arecibo({ x, y, shape, uvNoise, uvX, uvY, glyphShape }) {
       uvNoise,
       uvX,
       uvY,
-    });
+    })
   }
 
   if (y < thirdHeight * 2) {
@@ -296,7 +296,7 @@ function arecibo({ x, y, shape, uvNoise, uvX, uvY, glyphShape }) {
       uvNoise,
       uvX,
       uvY,
-    });
+    })
   }
 
   return areciboNum({
@@ -306,21 +306,21 @@ function arecibo({ x, y, shape, uvNoise, uvX, uvY, glyphShape }) {
     uvNoise,
     uvX,
     uvY,
-  });
+  })
 }
 
 function _glyphFromAtlasRange({ x, y, shape, uvX, uvY, uvNoise, atlas }) {
-  if (!atlas || atlas.length === 0) return 0;
-  let glyphIndex = Math.floor(uvNoise[uvY][uvX] * atlas.length);
-  glyphIndex = Math.min(Math.max(glyphIndex, 0), atlas.length - 1);
-  return atlas[glyphIndex][y % shape[0]][x % shape[1]];
+  if (!atlas || atlas.length === 0) return 0
+  let glyphIndex = Math.floor(uvNoise[uvY][uvX] * atlas.length)
+  glyphIndex = Math.min(Math.max(glyphIndex, 0), atlas.length - 1)
+  return atlas[glyphIndex][y % shape[0]][x % shape[1]]
 }
 
 // Bitmap masks encoded as nested arrays or procedural functions
 
-const StaticMasks = {};
+const StaticMasks = {}
 for (const [name, value] of Object.entries(masksData.Masks)) {
-  StaticMasks[ValueMask[name]] = value;
+  StaticMasks[ValueMask[name]] = value
 }
 
 export const Masks = {
@@ -330,10 +330,10 @@ export const Masks = {
   [ValueMask.alphanum_numeric]: _glyphFromAtlasRange,
   [ValueMask.alphanum_hex]: _glyphFromAtlasRange,
   [ValueMask.truetype]: ({ x, y, shape, uvX, uvY, uvNoise, atlas }) => {
-    if (!atlas || !atlas.length) return 0;
-    const value = Math.max(0, Math.min(1, uvNoise[uvY][uvX]));
-    const glyph = atlas[Math.floor(value * (atlas.length - 1))];
-    return glyph[y % shape[0]][x % shape[1]];
+    if (!atlas || !atlas.length) return 0
+    const value = Math.max(0, Math.min(1, uvNoise[uvY][uvX]))
+    const glyph = atlas[Math.floor(value * (atlas.length - 1))]
+    return glyph[y % shape[0]][x % shape[1]]
   },
   [ValueMask.halftone]: _glyphFromAtlasRange,
   [ValueMask.lcd]: _glyphFromAtlasRange,
@@ -364,16 +364,16 @@ export const Masks = {
   [ValueMask.tromino]: tromino,
 
   [ValueMask.truchet_lines]: ({ x, y, shape }) => {
-    const tile = 2;
-    const ox = Math.floor(x / tile);
-    const oy = Math.floor(y / tile);
-    const orient = (ox + oy) % 2;
-    const lx = x % tile;
-    const ly = y % tile;
+    const tile = 2
+    const ox = Math.floor(x / tile)
+    const oy = Math.floor(y / tile)
+    const orient = (ox + oy) % 2
+    const lx = x % tile
+    const ly = y % tile
     if (orient === 0) {
-      return lx === ly ? 1 : 0;
+      return lx === ly ? 1 : 0
     }
-    return lx + ly === tile - 1 ? 1 : 0;
+    return lx + ly === tile - 1 ? 1 : 0
   },
   [ValueMask.truchet_curves]: truchetCurves,
   [ValueMask.truchet_tile]: truchetTile,
@@ -385,7 +385,7 @@ export const Masks = {
   [ValueMask.invaders_large]: _invaders,
   [ValueMask.invaders_square]: _invaders,
   [ValueMask.white_bear]: whiteBear,
-};
+}
 
 // Shapes for procedural masks
 const ProceduralShapes = {
@@ -417,8 +417,8 @@ const ProceduralShapes = {
   [ValueMask.letters]: () => [randomInt(3, 4) * 2 + 1, randomInt(3, 4) * 2 + 1, 1],
   [ValueMask.iching]: [14, 8, 1],
   [ValueMask.ideogram]: () => {
-    const s = randomInt(4, 6) * 2;
-    return [s, s, 1];
+    const s = randomInt(4, 6) * 2
+    return [s, s, 1]
   },
   [ValueMask.script]: () => [randomInt(7, 9), randomInt(12, 24), 1],
   [ValueMask.tromino]: [4, 4, 1],
@@ -428,63 +428,63 @@ const ProceduralShapes = {
   [ValueMask.bar_code]: [24, 1, 1],
   [ValueMask.bar_code_short]: [10, 1, 1],
   [ValueMask.fake_qr]: () => {
-    const s = randomInt(25, 50);
-    return [s, s, 1];
+    const s = randomInt(25, 50)
+    return [s, s, 1]
   },
   [ValueMask.dropout]: [10, 10, 1],
   [ValueMask.invaders]: () => [randomInt(5, 7), randomInt(6, 12), 1],
   [ValueMask.invaders_large]: [18, 18, 1],
   [ValueMask.invaders_square]: [6, 6, 1],
   [ValueMask.white_bear]: [4, 4, 1],
-};
+}
 
-export const maskAtlas = new Map();
+export const maskAtlas = new Map()
 
 export function maskShape(mask) {
   if (ProceduralShapes[mask]) {
-    const shape = ProceduralShapes[mask];
-    return typeof shape === 'function' ? shape() : [...shape];
+    const shape = ProceduralShapes[mask]
+    return typeof shape === 'function' ? shape() : [...shape]
   }
-  const m = Masks[mask];
-  const height = m.length;
-  const width = m[0].length;
-  const channels = Array.isArray(m[0][0]) ? m[0][0].length : 1;
-  return [height, width, channels];
+  const m = Masks[mask]
+  const height = m.length
+  const width = m[0].length
+  const channels = Array.isArray(m[0][0]) ? m[0][0].length : 1
+  return [height, width, channels]
 }
 
 export function getAtlas(mask) {
-  if (maskAtlas.has(mask)) return maskAtlas.get(mask);
-  let atlas = null;
+  if (maskAtlas.has(mask)) return maskAtlas.get(mask)
+  let atlas = null
   if (mask === ValueMask.truetype) {
-    atlas = loadGlyphs([15, 15, 1]);
+    atlas = loadGlyphs([15, 15, 1])
   } else if (isValueMaskProcedural(mask)) {
-    const entry = Object.entries(ValueMask).find(([, v]) => v === mask);
+    const entry = Object.entries(ValueMask).find(([, v]) => v === mask)
     if (entry) {
-      const name = entry[0];
-      const base = name.replace(/_(binary|numeric|hex)$/, '');
+      const name = entry[0]
+      const base = name.replace(/_(binary|numeric|hex)$/, '')
       if (name.endsWith('_binary')) {
         atlas = [
           Masks[ValueMask[`${base}_0`]],
           Masks[ValueMask[`${base}_1`]],
-        ].filter(Boolean);
+        ].filter(Boolean)
       } else if (name.endsWith('_numeric')) {
         atlas = Array.from('0123456789')
           .map((d) => Masks[ValueMask[`${base}_${d}`]])
-          .filter(Boolean);
+          .filter(Boolean)
       } else if (name.endsWith('_hex')) {
         atlas = Object.entries(ValueMask)
           .filter(([k]) => k.startsWith(`${base}_`) && /^[0-9a-f]$/.test(k.slice(base.length + 1)))
           .map(([, v]) => Masks[v])
-          .filter(Boolean);
+          .filter(Boolean)
       } else {
         atlas = Object.entries(ValueMask)
           .filter(([k, v]) => k.startsWith(`${name}_`) && Masks[v] && typeof Masks[v] !== 'function')
-          .map(([, v]) => Masks[v]);
+          .map(([, v]) => Masks[v])
       }
     }
   }
-  maskAtlas.set(mask, atlas);
-  return atlas;
+  maskAtlas.set(mask, atlas)
+  return atlas
 }
 
 const preloadMasks = [
@@ -504,8 +504,8 @@ const preloadMasks = [
   ValueMask.bank_ocr,
   ValueMask.mcpaint,
   ValueMask.emoji,
-];
-preloadMasks.forEach((m) => getAtlas(m));
+]
+preloadMasks.forEach((m) => getAtlas(m))
 
 export function maskValues(mask, glyphShape = null, opts = {}) {
   const {
@@ -514,41 +514,41 @@ export function maskValues(mask, glyphShape = null, opts = {}) {
     time = 0,
     speed = 1,
     uvNoise: uvNoiseOverride = null,
-  } = opts;
-  const shape = maskShape(mask);
-  if (!glyphShape) glyphShape = [...shape];
-  if (shape.length === 3) glyphShape[2] = shape[2];
+  } = opts
+  const shape = maskShape(mask)
+  if (!glyphShape) glyphShape = [...shape]
+  if (shape.length === 3) glyphShape[2] = shape[2]
 
-  const atlasData = atlas ?? getAtlas(mask);
+  const atlasData = atlas ?? getAtlas(mask)
 
-  const [h, w, c] = glyphShape;
-  const data = new Float32Array(h * w * c);
-  const fn = Masks[mask];
+  const [h, w, c] = glyphShape
+  const data = new Float32Array(h * w * c)
+  const fn = Masks[mask]
 
-  const uvShape = [Math.floor(h / shape[0]) || 1, Math.floor(w / shape[1]) || 1];
-  let uvNoise;
+  const uvShape = [Math.floor(h / shape[0]) || 1, Math.floor(w / shape[1]) || 1]
+  let uvNoise
   if (uvNoiseOverride) {
-    uvNoise = uvNoiseOverride;
+    uvNoise = uvNoiseOverride
   } else {
     const noiseTensor = simplex([...uvShape, 1], {
       time,
       seed: randomInt(1, 65536),
       speed,
-    });
-    const noiseData = Array.from(noiseTensor.read());
-    uvNoise = [];
+    })
+    const noiseData = Array.from(noiseTensor.read())
+    uvNoise = []
     for (let yy = 0; yy < uvShape[0]; yy++) {
-      uvNoise[yy] = noiseData.slice(yy * uvShape[1], (yy + 1) * uvShape[1]);
+      uvNoise[yy] = noiseData.slice(yy * uvShape[1], (yy + 1) * uvShape[1])
     }
   }
 
   for (let y = 0; y < h; y++) {
-    const maskRow = [];
+    const maskRow = []
     for (let x = 0; x < w; x++) {
-      let pixel;
+      let pixel
       if (typeof fn === 'function') {
-        const uvY = Math.floor((y / h) * uvShape[0]);
-        const uvX = Math.floor((x / w) * uvShape[1]);
+        const uvY = Math.floor((y / h) * uvShape[0])
+        const uvX = Math.floor((x / w) * uvShape[1])
         pixel = fn({
           x,
           y,
@@ -559,31 +559,31 @@ export function maskValues(mask, glyphShape = null, opts = {}) {
           uvY,
           atlas: atlasData,
           glyphShape,
-        });
+        })
       } else {
-        pixel = fn[y % shape[0]][x % shape[1]];
+        pixel = fn[y % shape[0]][x % shape[1]]
       }
-      if (!Array.isArray(pixel)) pixel = [pixel];
-      if (inverse) pixel = pixel.map((v) => 1 - v);
+      if (!Array.isArray(pixel)) pixel = [pixel]
+      if (inverse) pixel = pixel.map((v) => 1 - v)
       for (let k = 0; k < c; k++) {
-        data[(y * w + x) * c + k] = pixel[k % pixel.length];
+        data[(y * w + x) * c + k] = pixel[k % pixel.length]
       }
       // Store the full pixel so procedural masks can reference prior
       // channel values (parity with Python implementation)
-      maskRow.push(pixel);
+      maskRow.push(pixel)
     }
   }
 
-  return [Tensor.fromArray(null, data, glyphShape), atlasData];
+  return [Tensor.fromArray(null, data, glyphShape), atlasData]
 }
 
 export function squareMasks() {
-  const squares = [];
+  const squares = []
   for (const mask of Object.values(ValueMask)) {
-    if (typeof mask !== 'number') continue;
-    if (typeof ProceduralShapes[mask] === 'function') continue;
-    const [h, w] = maskShape(mask);
-    if (h === w) squares.push(mask);
+    if (typeof mask !== 'number') continue
+    if (typeof ProceduralShapes[mask] === 'function') continue
+    const [h, w] = maskShape(mask)
+    if (h === w) squares.push(mask)
   }
-  return squares;
+  return squares
 }

@@ -1,19 +1,19 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Hydraulic Flow - Agent-based gradient-descent flow field effect
- * 
+ *
  * Architecture (GPGPU via render passes):
  * - Uses fragment shaders with MRT for agent simulation
  * - `global`-prefixed textures get automatic ping-pong (read previous, write current)
  * - Trail accumulation via point-sprite deposit pass
  * - Multi-pass: init -> agent -> deposit -> blend
- * 
+ *
  * Agent format: [x, y, x_dir, y_dir] [r, g, b, inertia] [age, 0, 0, 0]
  * Stored across 3 state textures using MRT
  * Agent count: 256x256 = 65536 agents
- * 
- * Trail flow: 
+ *
+ * Trail flow:
  *   init: copy previous trail with decay (preserves accumulation)
  *   deposit: add agent points (additive)
  *   blend: combine trail with input
@@ -179,4 +179,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Fibers
@@ -125,4 +125,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

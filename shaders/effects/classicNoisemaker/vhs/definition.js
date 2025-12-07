@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * VHS - bad VHS tracking effect
@@ -35,4 +35,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

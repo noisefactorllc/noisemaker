@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * nu/blur - Gaussian blur with configurable kernel size
@@ -65,4 +65,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

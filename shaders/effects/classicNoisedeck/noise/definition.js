@@ -1,17 +1,17 @@
-import { Effect } from '../../../src/runtime/effect.js';
-import { stdEnums } from '../../../src/lang/std_enums.js';
+import { Effect } from '../../../src/runtime/effect.js'
+import { stdEnums } from '../../../src/lang/std_enums.js'
 
-const paletteChoices = {};
+const paletteChoices = {}
 for (const [key, val] of Object.entries(stdEnums.palette)) {
-  paletteChoices[key] = val.value;
+  paletteChoices[key] = val.value
 }
 
 export default class Noise extends Effect {
-  name = "Noise";
-  namespace = "classicNoisedeck";
-  func = "noise";
+  name = "Noise"
+  namespace = "classicNoisedeck"
+  func = "noise"
 
-  description = "Noise pattern generator";
+  description = "Noise pattern generator"
 
   // WGSL uniform packing layout - maps uniform names to vec4 slots/components
   uniformLayout = {
@@ -43,7 +43,7 @@ export default class Noise extends Effect {
     paletteAmp: { slot: 8, components: 'xyz' },
     paletteFreq: { slot: 9, components: 'xyz' },
     palettePhase: { slot: 10, components: 'xyz' }
-  };
+  }
 
   globals = {
     aspect: {
@@ -376,7 +376,7 @@ export default class Noise extends Effect {
         hidden: true
       }
     }
-  };
+  }
 
   passes = [
     {
@@ -389,5 +389,5 @@ export default class Noise extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
+  ]
 }

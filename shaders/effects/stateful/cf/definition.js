@@ -1,11 +1,11 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * nu/cf - Convolution Feedback
- * 
+ *
  * Multi-pass sharpen + blur feedback effect.
  * Blends the processed result with previous frame output for temporal feedback.
- * 
+ *
  * Uses internal surfaces for feedback, not user surfaces.
  * Configurable kernel sizes and amounts for both operations.
  */
@@ -125,4 +125,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

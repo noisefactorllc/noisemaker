@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
   name: "Mix",
@@ -29,4 +29,4 @@ export default new Effect({
       outputs: { fragColor: "outputTex" }
     }
   ]
-});
+})

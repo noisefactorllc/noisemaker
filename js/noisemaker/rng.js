@@ -1,83 +1,83 @@
-let _callCount = 0;
-const TAU = Math.PI * 2;
+let _callCount = 0
+const TAU = Math.PI * 2
 
 function normalizeCount(shape) {
     if (shape === undefined || shape === null) {
-        return 1;
+        return 1
     }
 
     if (Array.isArray(shape)) {
         if (shape.length === 0) {
-            return 1;
+            return 1
         }
-        let total = 1;
+        let total = 1
         for (const dim of shape) {
-            const value = Math.trunc(dim);
+            const value = Math.trunc(dim)
             if (!Number.isFinite(value) || value <= 0) {
-                return 0;
+                return 0
             }
-            total *= value;
+            total *= value
         }
-        return total;
+        return total
     }
 
-    const value = Math.trunc(shape);
+    const value = Math.trunc(shape)
     if (!Number.isFinite(value) || value <= 0) {
-        return 0;
+        return 0
     }
-    return value;
+    return value
 }
 
 function buildArray(count) {
-    return count > 0 ? new Float32Array(count) : new Float32Array(0);
+    return count > 0 ? new Float32Array(count) : new Float32Array(0)
 }
 
 export function uniform(count, min = 0, max = 1) {
     if (count === undefined || count === null) {
-        return min + (max - min) * random();
+        return min + (max - min) * random()
     }
 
-    const total = normalizeCount(count);
-    const out = buildArray(total);
-    const span = max - min;
+    const total = normalizeCount(count)
+    const out = buildArray(total)
+    const span = max - min
     for (let i = 0; i < total; i++) {
-        out[i] = Math.fround(min + span * random());
+        out[i] = Math.fround(min + span * random())
     }
-    return out;
+    return out
 }
 
 export function normal(count, mean = 0, stddev = 1) {
     if (count === undefined || count === null) {
-        let u1 = 0;
+        let u1 = 0
         do {
-            u1 = random();
-        } while (u1 <= 0);
-        const u2 = random();
-        const mag = Math.sqrt(-2 * Math.log(u1));
-        const z0 = mag * Math.cos(TAU * u2);
-        return Math.fround(mean + stddev * z0);
+            u1 = random()
+        } while (u1 <= 0)
+        const u2 = random()
+        const mag = Math.sqrt(-2 * Math.log(u1))
+        const z0 = mag * Math.cos(TAU * u2)
+        return Math.fround(mean + stddev * z0)
     }
 
-    const total = normalizeCount(count);
-    const out = buildArray(total);
-    let index = 0;
+    const total = normalizeCount(count)
+    const out = buildArray(total)
+    let index = 0
     while (index < total) {
-        let u1 = 0;
+        let u1 = 0
         do {
-            u1 = random();
-        } while (u1 <= 0);
-        const u2 = random();
-        const mag = Math.sqrt(-2 * Math.log(u1));
-        const z0 = mag * Math.cos(TAU * u2);
-        out[index] = Math.fround(mean + stddev * z0);
-        index += 1;
+            u1 = random()
+        } while (u1 <= 0)
+        const u2 = random()
+        const mag = Math.sqrt(-2 * Math.log(u1))
+        const z0 = mag * Math.cos(TAU * u2)
+        out[index] = Math.fround(mean + stddev * z0)
+        index += 1
         if (index < total) {
-            const z1 = mag * Math.sin(TAU * u2);
-            out[index] = Math.fround(mean + stddev * z1);
-            index += 1;
+            const z1 = mag * Math.sin(TAU * u2)
+            out[index] = Math.fround(mean + stddev * z1)
+            index += 1
         }
     }
-    return out;
+    return out
 }
 
 export class Random {
@@ -87,8 +87,8 @@ export class Random {
      * @param {number} seed - The seed
      */
     constructor(seed) {
-        if (seed === undefined || seed === null) { seed = Date.now(); }
-        this.state = seed >>> 0;
+        if (seed === undefined || seed === null) { seed = Date.now() }
+        this.state = seed >>> 0
     }
 
     /**
@@ -97,12 +97,12 @@ export class Random {
      * @returns {number}
      */
     random() {
-        _callCount++;
-        let t = (this.state + 0x6D2B79F5) >>> 0;
-        t = Math.imul(t ^ (t >>> 15), t | 1) >>> 0;
-        t ^= (t + Math.imul(t ^ (t >>> 7), t | 61)) >>> 0;
-        this.state = t >>> 0;
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+        _callCount++
+        let t = (this.state + 0x6D2B79F5) >>> 0
+        t = Math.imul(t ^ (t >>> 15), t | 1) >>> 0
+        t ^= (t + Math.imul(t ^ (t >>> 7), t | 61)) >>> 0
+        this.state = t >>> 0
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
     }
 
     /**
@@ -112,7 +112,7 @@ export class Random {
      * @returns {number}
      */
     float(min = 0, max = 1) {
-        return this.random() * (max - min) + min;
+        return this.random() * (max - min) + min
     }
 
     /**
@@ -123,9 +123,9 @@ export class Random {
      */
     randomInt(min, max) {
         if (max < min) {
-            [min, max] = [max, min];
+            [min, max] = [max, min]
         }
-        return Math.floor(this.random() * (max - min + 1)) + min;
+        return Math.floor(this.random() * (max - min + 1)) + min
     }
 
     /**
@@ -134,19 +134,19 @@ export class Random {
      * @returns item
      */
     choice(arr) {
-        return arr[this.randomInt(0, arr.length - 1)];
+        return arr[this.randomInt(0, arr.length - 1)]
     }
 
     floatFixed(min = 0, max = 1) {
-        return parseFloat(this.float(min, max).toFixed(2));
+        return parseFloat(this.float(min, max).toFixed(2))
     }
 
     int(min, max) {
-        return Math.floor(this.float(min, max));
+        return Math.floor(this.float(min, max))
     }
 
     item(arr) {
-        return this.choice(arr);
+        return this.choice(arr)
     }
 
     /**
@@ -155,9 +155,9 @@ export class Random {
      * @returns value
      */
     object(obj) {
-        const keys = Object.keys(obj);
-        const index = Math.floor(this.random() * keys.length);
-        return obj[keys[index]];
+        const keys = Object.keys(obj)
+        const index = Math.floor(this.random() * keys.length)
+        return obj[keys[index]]
     }
 
     /**
@@ -165,12 +165,12 @@ export class Random {
      * @returns {string}
      */
     hexColor() {
-        const chars = 'abcdef0123456789'.split('');
-        let color = '#';
+        const chars = 'abcdef0123456789'.split('')
+        let color = '#'
         for (let i = 0; i < 6; i++) {
-            color += this.item(chars);
+            color += this.item(chars)
         }
-        return color;
+        return color
     }
 
     /**
@@ -187,11 +187,11 @@ export class Random {
             [0x1F800, 0x1F8FF], // Supplemental Arrows-C
             [0x1F900, 0x1F9FF], // Supplemental Symbols and Pictographs
             [0x1FA00, 0x1FA6F]  // Chess Symbols
-        ];
+        ]
 
-        const [rangeStart, rangeEnd] = this.item(emojiRange);
-        const randomCodePoint = Math.floor(this.random() * (rangeEnd - rangeStart + 1)) + rangeStart;
-        return String.fromCodePoint(randomCodePoint);
+        const [rangeStart, rangeEnd] = this.item(emojiRange)
+        const randomCodePoint = Math.floor(this.random() * (rangeEnd - rangeStart + 1)) + rangeStart
+        return String.fromCodePoint(randomCodePoint)
     }
 
     /**
@@ -199,55 +199,55 @@ export class Random {
      * @returns {string}
      */
     ruleset() {
-        const b = ['B'];
-        const s = ['S'];
+        const b = ['B']
+        const s = ['S']
 
         for (let i = 0; i <= 8; i++) {
-            if (this.random() > 0.75) b.push(i);
-            if (this.random() > 0.75) s.push(i);
+            if (this.random() > 0.75) b.push(i)
+            if (this.random() > 0.75) s.push(i)
         }
 
-        if (b.length === 1) b.push(3);
-        if (s.length === 1) s.push(4);
+        if (b.length === 1) b.push(3)
+        if (s.length === 1) s.push(4)
 
-        return `${b.join('')}${s.join('')}`;
+        return `${b.join('')}${s.join('')}`
     }
 }
 
-let _baseSeed = 0x12345678;
-let _rng = new Random(_baseSeed);
+let _baseSeed = 0x12345678
+let _rng = new Random(_baseSeed)
 
 export function setSeed(s) {
-    _baseSeed = s >>> 0;
-    _rng = new Random(_baseSeed);
+    _baseSeed = s >>> 0
+    _rng = new Random(_baseSeed)
 }
 
 export function getSeed() {
-    return _rng.state >>> 0;
+    return _rng.state >>> 0
 }
 
 export function getBaseSeed() {
-    return _baseSeed >>> 0;
+    return _baseSeed >>> 0
 }
 
 export function random() {
-    return _rng.random();
+    return _rng.random()
 }
 
 export function randomInt(min, max) {
-    return _rng.randomInt(min, max);
+    return _rng.randomInt(min, max)
 }
 
 export function choice(arr) {
-    return _rng.choice(arr);
+    return _rng.choice(arr)
 }
 
-export { _rng as rng };
+export { _rng as rng }
 
 export function resetCallCount() {
-    _callCount = 0;
+    _callCount = 0
 }
 
 export function getCallCount() {
-    return _callCount;
+    return _callCount
 }

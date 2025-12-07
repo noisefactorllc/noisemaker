@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * filter/chromaticAberration - Chromatic aberration effect
@@ -45,4 +45,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

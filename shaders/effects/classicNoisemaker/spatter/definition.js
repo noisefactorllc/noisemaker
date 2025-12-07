@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Spatter
@@ -33,4 +33,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

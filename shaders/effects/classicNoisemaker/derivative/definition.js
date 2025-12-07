@@ -1,4 +1,4 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Derivative
@@ -53,4 +53,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

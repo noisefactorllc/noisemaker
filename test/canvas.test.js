@@ -1,50 +1,50 @@
-import assert from 'assert';
-import { render } from '../js/noisemaker/composer.js';
-import { Context } from '../js/noisemaker/context.js';
-import { ColorSpace, ValueDistribution } from '../js/noisemaker/constants.js';
+import assert from 'assert'
+import { render } from '../js/noisemaker/composer.js'
+import { Context } from '../js/noisemaker/context.js'
+import { ColorSpace, ValueDistribution } from '../js/noisemaker/constants.js'
 
 class FakeImageData {
   constructor(widthOrData, heightOrWidth, maybeHeight) {
     if (widthOrData instanceof Uint8ClampedArray) {
-      this.data = widthOrData;
-      this.width = heightOrWidth ?? 0;
-      this.height = maybeHeight ?? 0;
+      this.data = widthOrData
+      this.width = heightOrWidth ?? 0
+      this.height = maybeHeight ?? 0
     } else {
-      const width = Number(widthOrData ?? 0);
-      const height = Number(heightOrWidth ?? 0);
-      this.width = width;
-      this.height = height;
-      this.data = new Uint8ClampedArray(width * height * 4);
+      const width = Number(widthOrData ?? 0)
+      const height = Number(heightOrWidth ?? 0)
+      this.width = width
+      this.height = height
+      this.data = new Uint8ClampedArray(width * height * 4)
     }
   }
 }
 
-global.ImageData = FakeImageData;
+global.ImageData = FakeImageData
 
-const DEBUG = false; // Set true to diagnose shader issues.
+const DEBUG = false // Set true to diagnose shader issues.
 
 const fakeCtx2d = {
   img: null,
   createImageData(w, h) {
-    this.img = { data: new Uint8ClampedArray(w * h * 4) };
-    return this.img;
+    this.img = { data: new Uint8ClampedArray(w * h * 4) }
+    return this.img
   },
   putImageData(img) {
-    this.img = img;
+    this.img = img
   }
-};
+}
 
 const fakeCanvas = {
   width: 0,
   height: 0,
   getContext(type) {
-    if (type === 'webgl2') return null;
-    if (type === '2d') return fakeCtx2d;
-    return null;
+    if (type === 'webgl2') return null
+    if (type === '2d') return fakeCtx2d
+    return null
   }
-};
+}
 
-const ctx = new Context(fakeCanvas, DEBUG);
+const ctx = new Context(fakeCanvas, DEBUG)
 
 // grayscale sanity check
 const presets = {
@@ -52,12 +52,12 @@ const presets = {
     settings: () => ({ color_space: ColorSpace.grayscale }),
     generator: (settings) => ({ color_space: settings.color_space }),
   }
-};
-await render('gray', 0, { ctx, width: 2, height: 2, presets });
-let data = fakeCtx2d.img.data;
+}
+await render('gray', 0, { ctx, width: 2, height: 2, presets })
+let data = fakeCtx2d.img.data
 for (let i = 0; i < data.length; i += 4) {
-  assert.strictEqual(data[i], data[i + 1]);
-  assert.strictEqual(data[i], data[i + 2]);
+  assert.strictEqual(data[i], data[i + 1])
+  assert.strictEqual(data[i], data[i + 2])
 }
 
 // row gradient: ensure X direction is left-to-right
@@ -74,15 +74,15 @@ await render('row', 0, {
         }),
       },
   },
-});
-data = fakeCtx2d.img.data;
-const rowPx = (x, y) => data[(y * 3 + x) * 4];
-assert.strictEqual(rowPx(0, 0), 0);
-assert.strictEqual(rowPx(1, 0), 128);
-assert.strictEqual(rowPx(2, 0), 255);
-assert.strictEqual(rowPx(0, 1), 0);
-assert.strictEqual(rowPx(1, 1), 128);
-assert.strictEqual(rowPx(2, 1), 255);
+})
+data = fakeCtx2d.img.data
+const rowPx = (x, y) => data[(y * 3 + x) * 4]
+assert.strictEqual(rowPx(0, 0), 0)
+assert.strictEqual(rowPx(1, 0), 128)
+assert.strictEqual(rowPx(2, 0), 255)
+assert.strictEqual(rowPx(0, 1), 0)
+assert.strictEqual(rowPx(1, 1), 128)
+assert.strictEqual(rowPx(2, 1), 255)
 
 // column gradient: ensure Y direction is top-to-bottom
 await render('column', 0, {
@@ -98,14 +98,14 @@ await render('column', 0, {
         }),
       },
   },
-});
-data = fakeCtx2d.img.data;
-const colPx = (x, y) => data[(y * 2 + x) * 4];
-assert.strictEqual(colPx(0, 0), 0);
-assert.strictEqual(colPx(1, 0), 0);
-assert.strictEqual(colPx(0, 1), 128);
-assert.strictEqual(colPx(1, 1), 128);
-assert.strictEqual(colPx(0, 2), 255);
-assert.strictEqual(colPx(1, 2), 255);
+})
+data = fakeCtx2d.img.data
+const colPx = (x, y) => data[(y * 2 + x) * 4]
+assert.strictEqual(colPx(0, 0), 0)
+assert.strictEqual(colPx(1, 0), 0)
+assert.strictEqual(colPx(0, 1), 128)
+assert.strictEqual(colPx(1, 1), 128)
+assert.strictEqual(colPx(0, 2), 255)
+assert.strictEqual(colPx(1, 2), 255)
 
-console.log('canvas tests passed');
+console.log('canvas tests passed')

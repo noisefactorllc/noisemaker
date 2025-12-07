@@ -1,12 +1,12 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * filter/bloom - Multi-pass N-tap bloom effect
- * 
+ *
  * Pass 1: Bright-pass extraction with threshold + soft knee
  * Pass 2: N-tap bloom gather using golden angle spiral kernel
  * Pass 3: Composite bloom into scene with tint and intensity
- * 
+ *
  * All math in linear color space.
  */
 export default new Effect({
@@ -131,4 +131,4 @@ export default new Effect({
       }
     }
   ]
-});
+})

@@ -1,4 +1,4 @@
-const PRESET_KEYS = new Set(['layers', 'settings', 'generator', 'octaves', 'post', 'final', 'unique']);
+const PRESET_KEYS = new Set(['layers', 'settings', 'generator', 'octaves', 'post', 'final', 'unique'])
 
 // Improved error reporting so that diagnostics include location information.
 // This greatly simplifies debugging of complex DSL programs like the preset
@@ -6,90 +6,90 @@ const PRESET_KEYS = new Set(['layers', 'settings', 'generator', 'octaves', 'post
 // to track down.  When a parse error occurs we now surface both the token's
 // textual value and its line/column position within the source.
 function unexpected(token) {
-  const val = token ? `${token.value} (line ${token.line}, column ${token.column})` : 'EOF';
-  throw new Error(`Unexpected token: ${val}`);
+  const val = token ? `${token.value} (line ${token.line}, column ${token.column})` : 'EOF'
+  throw new Error(`Unexpected token: ${val}`)
 }
 
 export function parse(tokens, enforcePresetKeys = true) {
-  let i = 0;
+  let i = 0
 
   function peek(offset = 0) {
-    return tokens[i + offset];
+    return tokens[i + offset]
   }
 
   function peekIs(type, offset = 0) {
-    const t = peek(offset);
-    return t && t.type === type;
+    const t = peek(offset)
+    return t && t.type === type
   }
 
   function consume(type) {
-    const t = peek();
+    const t = peek()
     if (!t || (type && t.type !== type)) {
-      unexpected(t);
+      unexpected(t)
     }
-    i++;
-    return t;
+    i++
+    return t
   }
 
   function match(type) {
     if (peekIs(type)) {
-      i++;
-      return true;
+      i++
+      return true
     }
-    return false;
+    return false
   }
 
   function parseProgram() {
-    const t = peek();
+    const t = peek()
     if (t && t.type === '{') {
-      const body = parseObjectExpr(enforcePresetKeys);
-      if (i !== tokens.length) unexpected(peek());
-      return { type: 'Program', body };
+      const body = parseObjectExpr(enforcePresetKeys)
+      if (i !== tokens.length) unexpected(peek())
+      return { type: 'Program', body }
     }
-    const expr = parseExpression();
-    if (i !== tokens.length) unexpected(peek());
-    return { type: 'Program', body: expr };
+    const expr = parseExpression()
+    if (i !== tokens.length) unexpected(peek())
+    return { type: 'Program', body: expr }
   }
 
   function parseObjectExpr(enforceKeys = false) {
-    consume('{');
-    const properties = [];
-    const seen = new Set();
+    consume('{')
+    const properties = []
+    const seen = new Set()
     while (!peekIs('}')) {
-      const keyTok = peek();
+      const keyTok = peek()
       if (!keyTok || (keyTok.type !== 'identifier' && keyTok.type !== 'string')) {
-        unexpected(keyTok);
+        unexpected(keyTok)
       }
-      const key = consume(keyTok.type).value;
+      const key = consume(keyTok.type).value
       if (seen.has(key)) {
-        throw new Error(`Duplicate key: ${key}`);
+        throw new Error(`Duplicate key: ${key}`)
       }
       if (enforceKeys && !PRESET_KEYS.has(key)) {
-        throw new Error(`Unknown key: ${key}`);
+        throw new Error(`Unknown key: ${key}`)
       }
-      seen.add(key);
-      consume(':');
-      const value = parseExpression();
-      properties.push({ key, value });
+      seen.add(key)
+      consume(':')
+      const value = parseExpression()
+      properties.push({ key, value })
       if (!match(',')) {
-        break;
+        break
       }
     }
-    consume('}');
-    return { type: 'ObjectExpr', properties };
+    consume('}')
+    return { type: 'ObjectExpr', properties }
   }
 
   function parseArrayExpr() {
-    consume('[');
-    const elements = [];
+    consume('[')
+    const elements = []
     while (!peekIs(']')) {
-      elements.push(parseExpression());
+      elements.push(parseExpression())
       if (!match(',')) {
-        break;
+        break
       }
     }
-    consume(']');
-    return { type: 'ArrayExpr', elements };
+    consume(']')
+    return { type: 'ArrayExpr', elements }
   }
 
   // Entry point for all expressions.  The grammar supports binary
@@ -97,184 +97,184 @@ export function parse(tokens, enforcePresetKeys = true) {
   // therefore parse using a precedence climbing approach starting at
   // addition/subtraction.
   function parseExpression() {
-    return parseTernary();
+    return parseTernary()
   }
 
   function parseTernary() {
-    let node = parseComparison();
+    let node = parseComparison()
     if (peekIs('identifier') && peek().value === 'if') {
-      consume('identifier'); // 'if'
-      const testExpr = parseTernary();
-      const elseTok = consume('identifier');
-      if (elseTok.value !== 'else') unexpected(elseTok);
-      const falseExpr = parseTernary();
-      return { type: 'TernaryExpr', test: testExpr, consequent: node, alternate: falseExpr };
+      consume('identifier') // 'if'
+      const testExpr = parseTernary()
+      const elseTok = consume('identifier')
+      if (elseTok.value !== 'else') unexpected(elseTok)
+      const falseExpr = parseTernary()
+      return { type: 'TernaryExpr', test: testExpr, consequent: node, alternate: falseExpr }
     } else if (match('?')) {
-      const trueExpr = parseTernary();
-      consume(':');
-      const falseExpr = parseTernary();
-      return { type: 'TernaryExpr', test: node, consequent: trueExpr, alternate: falseExpr };
+      const trueExpr = parseTernary()
+      consume(':')
+      const falseExpr = parseTernary()
+      return { type: 'TernaryExpr', test: node, consequent: trueExpr, alternate: falseExpr }
     }
-    return node;
+    return node
   }
 
   function parseComparison() {
-    let node = parseAdd();
+    let node = parseAdd()
     while (true) {
-      const t = peek();
+      const t = peek()
       if (t && (t.type === '<' || t.type === '>')) {
-        consume(t.type);
-        const right = parseAdd();
-        node = { type: 'BinaryExpr', operator: t.type, left: node, right };
+        consume(t.type)
+        const right = parseAdd()
+        node = { type: 'BinaryExpr', operator: t.type, left: node, right }
       } else {
-        break;
+        break
       }
     }
-    return node;
+    return node
   }
 
   function parseAdd() {
-    let node = parseMul();
+    let node = parseMul()
     while (true) {
-      const t = peek();
+      const t = peek()
       if (t && (t.type === '+' || t.type === '-')) {
-        consume(t.type);
-        const right = parseMul();
-        node = { type: 'BinaryExpr', operator: t.type, left: node, right };
+        consume(t.type)
+        const right = parseMul()
+        node = { type: 'BinaryExpr', operator: t.type, left: node, right }
       } else {
-        break;
+        break
       }
     }
-    return node;
+    return node
   }
 
   function parseMul() {
-    let node = parseUnary();
+    let node = parseUnary()
     while (true) {
-      const t = peek();
+      const t = peek()
       if (t && (t.type === '*' || t.type === '/')) {
-        consume(t.type);
+        consume(t.type)
         // Allow unary expressions on the right-hand side of a multiply or
         // divide.  Using `parsePrimary` here meant constructs like `1 * -2`
         // or `1 * +2` would fail to parse, producing an "Unexpected token: +"
         // or "Unexpected token: -" error.  By delegating to `parseUnary` we
         // permit prefix operators in these positions.
-        const right = parseUnary();
-        node = { type: 'BinaryExpr', operator: t.type, left: node, right };
+        const right = parseUnary()
+        node = { type: 'BinaryExpr', operator: t.type, left: node, right }
       } else {
-        break;
+        break
       }
     }
-    return node;
+    return node
   }
 
   function parseUnary() {
-    const t = peek();
+    const t = peek()
     if (t && (t.type === '+' || t.type === '-')) {
-      consume(t.type);
-      const argument = parseUnary();
-      return { type: 'UnaryExpr', operator: t.type, argument };
+      consume(t.type)
+      const argument = parseUnary()
+      return { type: 'UnaryExpr', operator: t.type, argument }
     }
-    return parsePrimary();
+    return parsePrimary()
   }
 
   function parseCallChain() {
-    let node = parseSingleCall();
+    let node = parseSingleCall()
     while (match('.')) {
-      const next = parseSingleCall();
-      next.input = node;
-      node = next;
+      const next = parseSingleCall()
+      next.input = node
+      node = next
     }
-    return node;
+    return node
   }
 
   function parseSingleCall() {
-    const callee = parseIdentifier();
-    consume('(');
-    const args = parseArgList(')');
-    return { type: 'CallExpr', callee, args };
+    const callee = parseIdentifier()
+    consume('(')
+    const args = parseArgList(')')
+    return { type: 'CallExpr', callee, args }
   }
 
   function parseArgList(endToken) {
-    const positional = [];
-    const named = {};
-    let usingNamed = null;
+    const positional = []
+    const named = {}
+    let usingNamed = null
     while (!peekIs(endToken)) {
-      const arg = parseArg();
+      const arg = parseArg()
       if (arg.named) {
         if (usingNamed === false) {
-          throw new Error('Cannot mix positional and named arguments');
+          throw new Error('Cannot mix positional and named arguments')
         }
-        usingNamed = true;
+        usingNamed = true
         if (Object.prototype.hasOwnProperty.call(named, arg.name)) {
-          throw new Error(`Duplicate argument: ${arg.name}`);
+          throw new Error(`Duplicate argument: ${arg.name}`)
         }
-        named[arg.name] = arg.value;
+        named[arg.name] = arg.value
       } else {
         if (usingNamed === true) {
-          throw new Error('Cannot mix positional and named arguments');
+          throw new Error('Cannot mix positional and named arguments')
         }
-        usingNamed = false;
-        positional.push(arg.value);
+        usingNamed = false
+        positional.push(arg.value)
       }
       if (!match(',')) {
-        break;
+        break
       }
     }
-    consume(endToken);
-    return usingNamed === true ? { named } : { positional };
+    consume(endToken)
+    return usingNamed === true ? { named } : { positional }
   }
 
   function parseArg() {
-    const t = peek();
-    const next = peek(1);
+    const t = peek()
+    const next = peek(1)
     if (t.type === 'identifier' && (next?.type === ':' || next?.type === '=')) {
-      const name = consume('identifier').value;
-      consume(next.type);
-      const value = parseExpression();
-      return { named: true, name, value };
+      const name = consume('identifier').value
+      consume(next.type)
+      const value = parseExpression()
+      return { named: true, name, value }
     }
-    return { value: parseExpression() };
+    return { value: parseExpression() }
   }
 
   function parseIdentifier() {
-    const token = consume('identifier');
-    return { type: 'Identifier', name: token.value };
+    const token = consume('identifier')
+    return { type: 'Identifier', name: token.value }
   }
 
   function parsePrimary() {
-    const t = peek();
+    const t = peek()
     if (t.type === 'number') {
-      consume('number');
-      return { type: 'NumberLiteral', value: t.value };
+      consume('number')
+      return { type: 'NumberLiteral', value: t.value }
     }
     if (t.type === 'string') {
-      consume('string');
-      return { type: 'StringLiteral', value: t.value };
+      consume('string')
+      return { type: 'StringLiteral', value: t.value }
     }
     if (t.type === 'color') {
-      consume('color');
-      return { type: 'StringLiteral', value: t.value };
+      consume('color')
+      return { type: 'StringLiteral', value: t.value }
     }
     if (t.type === 'boolean') {
-      consume('boolean');
-      return { type: 'BooleanLiteral', value: t.value };
+      consume('boolean')
+      return { type: 'BooleanLiteral', value: t.value }
     }
     if (t.type === 'null') {
-      consume('null');
-      return { type: 'NullLiteral', value: null };
+      consume('null')
+      return { type: 'NullLiteral', value: null }
     }
     if (t.type === '[') {
-      return parseArrayExpr();
+      return parseArrayExpr()
     }
     if (t.type === '{') {
-      return parseObjectExpr();
+      return parseObjectExpr()
     }
     if (t.type === '(') {
-      consume('(');
-      const expr = parseExpression();
-      consume(')');
-      return expr;
+      consume('(')
+      const expr = parseExpression()
+      consume(')')
+      return expr
     }
     if (
       t.type === 'identifier' &&
@@ -283,39 +283,39 @@ export function parse(tokens, enforcePresetKeys = true) {
       peek(2)?.type === 'identifier' &&
       peek(2).value === 'PI'
     ) {
-      consume('identifier');
-      consume('.');
-      consume('identifier');
-      return { type: 'NumberLiteral', value: Math.PI };
+      consume('identifier')
+      consume('.')
+      consume('identifier')
+      return { type: 'NumberLiteral', value: Math.PI }
     }
     if (t.type === 'identifier') {
       if (peek(1)?.type === '(') {
-        return parseCallChain();
+        return parseCallChain()
       }
-      const id = parseIdentifier();
+      const id = parseIdentifier()
       if (match('.')) {
-        let member = parseIdentifier();
-        let node = { type: 'MemberExpr', object: id, property: member };
+        let member = parseIdentifier()
+        let node = { type: 'MemberExpr', object: id, property: member }
         while (match('.')) {
-          member = parseIdentifier();
-          node = { type: 'MemberExpr', object: node, property: member };
+          member = parseIdentifier()
+          node = { type: 'MemberExpr', object: node, property: member }
         }
         if (match('(')) {
-          const args = parseArgList(')');
-          node = { type: 'CallExpr', callee: node, args };
+          const args = parseArgList(')')
+          node = { type: 'CallExpr', callee: node, args }
           while (match('.')) {
-            const next = parseSingleCall();
-            next.input = node;
-            node = next;
+            const next = parseSingleCall()
+            next.input = node
+            node = next
           }
-          return node;
+          return node
         }
-        return node;
+        return node
       }
-      return id;
+      return id
     }
-    unexpected(t);
+    unexpected(t)
   }
 
-  return parseProgram();
+  return parseProgram()
 }

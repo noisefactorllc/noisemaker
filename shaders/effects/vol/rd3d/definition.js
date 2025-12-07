@@ -1,15 +1,15 @@
-import { Effect } from '../../../src/runtime/effect.js';
+import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * vol/rd3d - 3D reaction-diffusion simulation
- * 
+ *
  * Generates a 3D reaction-diffusion volume stored as a 2D atlas texture.
  * Can be used standalone or chained after another 3D effect.
- * 
+ *
  * Usage:
  *   rd3d(volumeSize: x32).render3d().write(o0)
  *   noise3d().rd3d().render3d().write(o0)  // uses noise3d's volume size
- * 
+ *
  * If inputTex3d is provided from upstream, its dimensions take precedence
  * over volumeSize. Otherwise, allocates fresh volumes.
  */
@@ -20,10 +20,10 @@ export default new Effect({
 
   description: "3D reaction-diffusion simulation",
   textures: {
-    volumeCache: { 
-      width: { param: 'volumeSize', default: 32 }, 
-      height: { param: 'volumeSize', power: 2, default: 1024 }, 
-      format: "rgba16f" 
+    volumeCache: {
+      width: { param: 'volumeSize', default: 32 },
+      height: { param: 'volumeSize', power: 2, default: 1024 },
+      format: "rgba16f"
     },
     geoBuffer: {
       width: { param: 'volumeSize', default: 32 },
@@ -32,10 +32,10 @@ export default new Effect({
     },
     // State texture for reaction-diffusion simulation
     // Uses 'global' prefix for automatic ping-pong double-buffering by pipeline
-    globalRdState: { 
-      width: { param: 'volumeSize', default: 32 }, 
-      height: { param: 'volumeSize', power: 2, default: 1024 }, 
-      format: "rgba16f" 
+    globalRdState: {
+      width: { param: 'volumeSize', default: 32 },
+      height: { param: 'volumeSize', power: 2, default: 1024 },
+      format: "rgba16f"
     }
   },
   globals: {
@@ -157,7 +157,7 @@ export default new Effect({
       name: "simulate",
       program: "simulate",
       repeat: "iterations",
-      viewport: { 
+      viewport: {
         width: { param: 'volumeSize', default: 32, inputOverride: 'inputTex3d' },
         height: { param: 'volumeSize', power: 2, default: 1024, inputOverride: 'inputTex3d' }
       },
@@ -172,4 +172,4 @@ export default new Effect({
   ],
   outputTex3d: "globalRdState",
   outputGeo: "geoBuffer"
-});
+})
