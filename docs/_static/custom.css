@@ -540,3 +540,268 @@ body:not([data-theme="light"]) .preset-viewer-code {
         max-width: 384px;
     }
 }
+
+/* ========================================
+   Shader Viewer (Shaders docs)
+   ======================================== */
+
+.shader-viewer-container {
+    margin: 2em 0;
+}
+
+.shader-viewer-example {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+.shader-viewer-canvas-wrapper {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+    overflow: visible;
+    flex-shrink: 0;
+}
+
+.shader-viewer-canvas {
+    display: block;
+    width: 384px;
+    height: 384px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    background: #1a1a1a;
+    margin: 0;
+    padding: 0;
+    transition: opacity 0.3s ease-in;
+}
+
+body[data-theme="dark"] .shader-viewer-canvas,
+body:not([data-theme="light"]) .shader-viewer-canvas {
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.shader-viewer-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 16px 24px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    pointer-events: none;
+    z-index: 50;
+    display: none;
+}
+
+body[data-theme="dark"] .shader-viewer-loading,
+body:not([data-theme="light"]) .shader-viewer-loading {
+    background: rgba(40, 40, 40, 0.95) !important;
+    border-color: #555 !important;
+    color: #ddd !important;
+}
+
+.shader-viewer-controls {
+    flex: 1;
+    min-width: 200px;
+    max-width: 100%;
+    max-height: 384px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+body[data-theme="dark"] .shader-viewer-controls,
+body:not([data-theme="light"]) .shader-viewer-controls {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.shader-viewer-select-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.shader-viewer-select-wrapper label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-foreground-secondary);
+}
+
+.shader-viewer-select {
+    padding: 8px 12px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    background: var(--color-background-primary);
+    color: var(--color-foreground-primary);
+    cursor: pointer;
+}
+
+body[data-theme="dark"] .shader-viewer-select,
+body:not([data-theme="light"]) .shader-viewer-select {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.shader-viewer-params {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.shader-viewer-params-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-foreground-secondary);
+    margin-bottom: 8px;
+}
+
+/* Individual shader control - matches noisemaker-live-control style */
+.shader-live-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.shader-live-control:last-child {
+    margin-bottom: 0;
+}
+
+.shader-live-control label {
+    flex-shrink: 0;
+    width: 80px;
+    font-size: 12px;
+    font-weight: 400;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.shader-live-control input[type="number"],
+.shader-live-control input[type="range"],
+.shader-live-control input[type="text"],
+.shader-live-control input[type="checkbox"],
+.shader-live-control select {
+    flex: 1;
+    min-width: 0;
+    padding: 2px 4px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+body[data-theme="dark"] .shader-live-control input[type="number"],
+body[data-theme="dark"] .shader-live-control input[type="range"],
+body[data-theme="dark"] .shader-live-control input[type="text"],
+body[data-theme="dark"] .shader-live-control input[type="checkbox"],
+body[data-theme="dark"] .shader-live-control select,
+body:not([data-theme="light"]) .shader-live-control input[type="number"],
+body:not([data-theme="light"]) .shader-live-control input[type="range"],
+body:not([data-theme="light"]) .shader-live-control input[type="text"],
+body:not([data-theme="light"]) .shader-live-control input[type="checkbox"],
+body:not([data-theme="light"]) .shader-live-control select {
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.shader-live-control input[type="checkbox"] {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+}
+
+.shader-live-control input[type="range"] {
+    padding: 0;
+    height: 18px;
+}
+
+.shader-live-control .control-value {
+    flex-shrink: 0;
+    width: 50px;
+    font-size: 11px;
+    font-family: var(--font-stack--monospace);
+    text-align: right;
+}
+
+.shader-viewer-error {
+    padding: 12px;
+    background: #ffe6e6;
+    border: 1px solid #ffcccc;
+    border-radius: 6px;
+    color: #cc0000;
+    font-size: 13px;
+}
+
+body[data-theme="dark"] .shader-viewer-error,
+body:not([data-theme="light"]) .shader-viewer-error {
+    background: rgba(204, 0, 0, 0.1);
+    border-color: rgba(204, 0, 0, 0.3);
+    color: #ff6666;
+}
+
+/* Random button for shader viewer */
+.shader-viewer-random {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+    line-height: normal;
+}
+
+.shader-viewer-random:hover {
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+    transform: translateY(-1px);
+}
+
+body[data-theme="dark"] .shader-viewer-random,
+body:not([data-theme="light"]) .shader-viewer-random {
+    background: rgba(60, 60, 60, 0.9) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    color: #eee !important;
+}
+
+body[data-theme="dark"] .shader-viewer-random:hover,
+body:not([data-theme="light"]) .shader-viewer-random:hover {
+    background: rgba(80, 80, 80, 1) !important;
+}
+
+@media (max-width: 768px) {
+    .shader-viewer-example {
+        flex-direction: column;
+    }
+    
+    .shader-viewer-canvas {
+        max-width: 100%;
+        height: auto;
+    }
+    
+    .shader-viewer-controls {
+        width: 100%;
+    }
+}

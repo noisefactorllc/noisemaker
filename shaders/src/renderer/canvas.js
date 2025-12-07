@@ -851,7 +851,22 @@ export class CanvasRenderer {
             }
 
             // The bundle exports an Effect instance with shaders already attached
-            const instance = (typeof exported === 'function') ? new exported() : exported
+            // For class-based definitions, shaders are added as a static property
+            // on the class, so we need to copy them to the instance
+            let instance
+            if (typeof exported === 'function') {
+                instance = new exported()
+                // Copy shaders from class static property to instance
+                if (exported.shaders && !instance.shaders) {
+                    instance.shaders = exported.shaders
+                }
+                // Copy help from class static property to instance
+                if (exported.help && !instance.help) {
+                    instance.help = exported.help
+                }
+            } else {
+                instance = exported
+            }
             return { namespace, name: effectName, instance }
         } catch (err) {
             console.error(`Failed to load bundle for ${effectId}:`, err)
