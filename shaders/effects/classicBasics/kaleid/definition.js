@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Kaleid extends Effect {
-  name = "Kaleid";
-  namespace = "classicBasics";
-  func = "kaleid";
-
-  globals = {
+export default new Effect({
+  name: "Kaleid",
+  namespace: "classicBasics",
+  func: "kaleid",
+  globals: {
     "n": {
         "type": "float",
         "default": 3,
@@ -13,9 +12,8 @@ export default class Kaleid extends Effect {
         "max": 20,
         "uniform": "n"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "kaleid",
@@ -26,5 +24,5 @@ export default class Kaleid extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

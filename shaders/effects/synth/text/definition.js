@@ -6,24 +6,20 @@ import { Effect } from '../../../src/runtime/effect.js';
  * This is a synth-type effect that generates visuals from text input.
  * The text is rendered to a 2D canvas on the CPU side and uploaded as a texture.
  */
-export default class Text extends Effect {
-  name = "Text";
-  namespace = "synth";
-  func = "text";
-
-  // Mark this as requiring external texture updates
-  externalTexture = "textTex";
-
-  globals = {
+export default new Effect({
+  name: "Text",
+  namespace: "synth",
+  func: "text",
+  externalTexture: "textTex",
+  globals: {
     // Note: Most text parameters are controlled via the UI module
     // and applied during CPU-side text rendering. The shader just
     // displays the pre-rendered texture.
-  };
-
-  passes = [{
+  },
+  passes: [{
     name: "text",
     program: "text",
     inputs: { textTex: "textTex" },
     outputs: { fragColor: "outputTex" }
-  }];
-}
+  }]
+});

@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Outline
  * Multi-pass edge detection that darkens the base image where edges are detected
  */
-export default class Outline extends Effect {
-  name = "Outline";
-  namespace = "classicNoisemaker";
-  func = "outline";
-
-  globals = {
+export default new Effect({
+  name: "Outline",
+  namespace: "classicNoisemaker",
+  func: "outline",
+  globals: {
     sobelMetric: {
         type: "enum",
         default: 1,
@@ -27,14 +26,12 @@ export default class Outline extends Effect {
             control: "checkbox"
         }
     }
-  };
-
-  textures = {
+  },
+  textures: {
     outlineValueMap: { width: "100%", height: "100%", format: "rgba16f" },
     outlineEdges: { width: "100%", height: "100%", format: "rgba16f" }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "valueMap",
       program: "outlineValueMap",
@@ -66,5 +63,5 @@ export default class Outline extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

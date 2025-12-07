@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Composite extends Effect {
-  name = "Composite";
-  namespace = "classicNoisedeck";
-  func = "composite";
-
-  globals = {
+export default new Effect({
+  name: "Composite",
+  namespace: "classicNoisedeck",
+  func: "composite",
+  globals: {
     tex: {
       type: "surface",
       default: "inputTex",
@@ -83,9 +82,8 @@ export default class Composite extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "composite",
@@ -98,5 +96,5 @@ export default class Composite extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

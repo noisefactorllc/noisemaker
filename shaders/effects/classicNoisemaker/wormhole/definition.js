@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * Wormhole - per-pixel field flow driven by luminance
  */
-export default class Wormhole extends Effect {
-  name = "Wormhole";
-  namespace = "classicNoisemaker";
-  func = "wormhole";
-
-  globals = {
+export default new Effect({
+  name: "Wormhole",
+  namespace: "classicNoisemaker",
+  func: "wormhole",
+  globals: {
     kink: {
       type: "float",
       default: 1,
@@ -57,9 +56,8 @@ export default class Wormhole extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "wormhole",
@@ -76,5 +74,5 @@ export default class Wormhole extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

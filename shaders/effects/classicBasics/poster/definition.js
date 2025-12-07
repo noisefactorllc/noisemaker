@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Poster extends Effect {
-  name = "Poster";
-  namespace = "classicBasics";
-  func = "poster";
-
-  globals = {
+export default new Effect({
+  name: "Poster",
+  namespace: "classicBasics",
+  func: "poster",
+  globals: {
     "levels": {
         "type": "float",
         "default": 3,
@@ -20,9 +19,8 @@ export default class Poster extends Effect {
         "max": 10,
         "uniform": "gamma"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "poster",
@@ -33,5 +31,5 @@ export default class Poster extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

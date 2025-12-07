@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/outline - Sobel-based outline effect
  * Subtracts edge detection from original for outline effect
  */
-export default class Outline extends Effect {
-  name = "Outline";
-  namespace = "filter";
-  func = "outline";
-
-  globals = {
+export default new Effect({
+  name: "Outline",
+  namespace: "filter",
+  func: "outline",
+  globals: {
     amount: {
       type: "float",
       default: 1.0,
@@ -21,9 +20,8 @@ export default class Outline extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "outline",
@@ -34,5 +32,5 @@ export default class Outline extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

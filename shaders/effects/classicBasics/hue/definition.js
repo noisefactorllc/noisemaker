@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Hue extends Effect {
-  name = "Hue";
-  namespace = "classicBasics";
-  func = "hue";
-
-  globals = {
+export default new Effect({
+  name: "Hue",
+  namespace: "classicBasics",
+  func: "hue",
+  globals: {
     "hue": {
         "type": "float",
         "default": 0.4,
@@ -13,9 +12,8 @@ export default class Hue extends Effect {
         "max": 1,
         "uniform": "hue"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "hue",
@@ -26,5 +24,5 @@ export default class Hue extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

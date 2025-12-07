@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Simple Frame
  * /shaders/effects/simple_frame/simple_frame.wgsl
  */
-export default class SimpleFrame extends Effect {
-  name = "SimpleFrame";
-  namespace = "classicNoisemaker";
-  func = "simpleFrame";
-
-  globals = {
+export default new Effect({
+  name: "SimpleFrame",
+  namespace: "classicNoisemaker",
+  func: "simpleFrame",
+  globals: {
     brightness: {
         type: "float",
         default: 0,
@@ -22,12 +21,8 @@ export default class SimpleFrame extends Effect {
             control: "slider"
         }
     }
-};
-
-  // TODO: Define passes based on shader requirements
-  // This effect was originally implemented as a WebGPU compute shader.
-  // A render pass implementation needs to be created for GLSL/WebGL2 compatibility.
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "simpleFrame",
@@ -41,5 +36,5 @@ export default class SimpleFrame extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

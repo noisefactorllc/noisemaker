@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class A extends Effect {
-  name = "A";
-  namespace = "classicBasics";
-  func = "alpha";
-
-  globals = {
+export default new Effect({
+  name: "A",
+  namespace: "classicBasics",
+  func: "alpha",
+  globals: {
     "scale": {
         "type": "float",
         "default": 1,
@@ -20,9 +19,8 @@ export default class A extends Effect {
         "max": 10,
         "uniform": "offset"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "a",
@@ -33,5 +31,5 @@ export default class A extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

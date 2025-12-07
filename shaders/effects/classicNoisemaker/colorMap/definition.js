@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Color Map
  * /shaders/effects/color_map/color_map.wgsl
  */
-export default class ColorMap extends Effect {
-  name = "ColorMap";
-  namespace = "classicNoisemaker";
-  func = "colorMap";
-
-  globals = {
+export default new Effect({
+  name: "ColorMap",
+  namespace: "classicNoisemaker",
+  func: "colorMap",
+  globals: {
     tex: {
         type: "surface",
         default: "inputTex",
@@ -39,9 +38,8 @@ export default class ColorMap extends Effect {
             control: "checkbox"
         }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "reduce1",
       program: "reduce1",
@@ -78,5 +76,5 @@ export default class ColorMap extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

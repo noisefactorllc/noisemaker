@@ -1,13 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Ca extends Effect {
-  name = "Ca";
-  namespace = "stateful";
-  func = "ca";
-
-
-  // WGSL uniform packing layouts (per-program for multi-pass effects)
-  uniformLayouts = {
+export default new Effect({
+  name: "Ca",
+  namespace: "stateful",
+  func: "ca",
+  uniformLayouts: {
     ca: {
       resolution: { slot: 0, components: 'xy' },
       time: { slot: 0, components: 'z' },
@@ -29,10 +26,9 @@ export default class Ca extends Effect {
       surviveMask2: { slot: 6, components: 'xy' },
       source: { slot: 6, components: 'z' }
     }
-  };
-  textures = {};
-
-  globals = {
+  },
+  textures: {},
+  globals: {
     zoom: {
       type: "int",
       default: 32,
@@ -159,9 +155,8 @@ export default class Ca extends Effect {
       },
       uniform: "source"
     },
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "update",
       program: "caFb",
@@ -186,5 +181,5 @@ export default class Ca extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

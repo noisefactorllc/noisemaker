@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Exclusion extends Effect {
-  name = "Exclusion";
-  namespace = "mixer";
-  func = "exclusion";
-
-  globals = {
+export default new Effect({
+  name: "Exclusion",
+  namespace: "mixer",
+  func: "exclusion",
+  globals: {
     tex: {
       type: "surface",
       default: "inputTex",
@@ -19,14 +18,13 @@ export default class Exclusion extends Effect {
       max: 100,
       ui: { label: "mix", control: "slider" }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "exclusion",
       inputs: { tex0: "inputTex", tex1: "tex" },
       outputs: { fragColor: "outputTex" }
     }
-  ];
-}
+  ]
+});

@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Palette extends Effect {
-  name = "Palette";
-  namespace = "classicNoisedeck";
-  func = "palette";
-
-  globals = {
+export default new Effect({
+  name: "Palette",
+  namespace: "classicNoisedeck",
+  func: "palette",
+  globals: {
     paletteType: {
       type: "int",
       default: 0,
@@ -242,9 +241,8 @@ export default class Palette extends Effect {
         control: "dropdown"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "palette",
@@ -256,5 +254,5 @@ export default class Palette extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

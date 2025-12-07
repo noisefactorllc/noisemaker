@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * DLA (Diffusion-Limited Aggregation)
  * Mono-only version derived from nm/dla
  */
-export default class Dla extends Effect {
-  name = "Dla";
-  namespace = "stateful";
-  func = "dla";
-
-  globals = {
+export default new Effect({
+  name: "Dla",
+  namespace: "stateful",
+  func: "dla",
+  globals: {
     padding: {
         type: "float",
         default: 2,
@@ -70,16 +69,12 @@ export default class Dla extends Effect {
             control: "slider"
         }
     }
-};
-
-  // Agent state texture: 256x256 agents = 65536 walkers
-  // Each pixel stores: xy = position, z = seed, w = stuck flag
-  textures = {
+},
+  textures: {
     globalGridState: { width: "100%", height: "100%", format: "rgba16f" },
     globalAgentState: { width: 256, height: 256, format: "rgba16f" }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "decayGrid",
       program: "initFromPrev",
@@ -145,5 +140,5 @@ export default class Dla extends Effect {
         dlaOutColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

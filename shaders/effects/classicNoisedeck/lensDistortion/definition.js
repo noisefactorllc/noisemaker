@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class LensDistortion extends Effect {
-  name = "LensDistortion";
-  namespace = "classicNoisedeck";
-  func = "lensDistortion";
-
-  globals = {
+export default new Effect({
+  name: "LensDistortion",
+  namespace: "classicNoisedeck",
+  func: "lensDistortion",
+  globals: {
     seed: {
       type: "int",
       default: 1,
@@ -198,9 +197,8 @@ export default class LensDistortion extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "lensDistortion",
@@ -212,5 +210,5 @@ export default class LensDistortion extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

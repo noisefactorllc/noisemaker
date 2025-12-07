@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Subtract extends Effect {
-  name = "Subtract";
-  namespace = "mixer";
-  func = "subtract";
-
-  globals = {
+export default new Effect({
+  name: "Subtract",
+  namespace: "mixer",
+  func: "subtract",
+  globals: {
     tex: {
       type: "surface",
       default: "inputTex",
@@ -19,14 +18,13 @@ export default class Subtract extends Effect {
       max: 100,
       ui: { label: "mix", control: "slider" }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "subtract",
       inputs: { tex0: "inputTex", tex1: "tex" },
       outputs: { fragColor: "outputTex" }
     }
-  ];
-}
+  ]
+});

@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/blur - Gaussian blur with configurable kernel size
  * Separable 2-pass blur for efficiency
  */
-export default class Blur extends Effect {
-  name = "Blur";
-  namespace = "filter";
-  func = "blur";
-
-  globals = {
+export default new Effect({
+  name: "Blur",
+  namespace: "filter",
+  func: "blur",
+  globals: {
     radiusX: {
       type: "float",
       default: 5.0,
@@ -34,17 +33,15 @@ export default class Blur extends Effect {
         control: "slider"
       }
     }
-  };
-
-  textures = {
+  },
+  textures: {
     _blurTemp: {
       width: "input",
       height: "input",
       format: "rgba8unorm"
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "blurH",
       program: "blurH",
@@ -65,5 +62,5 @@ export default class Blur extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

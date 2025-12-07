@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * filter/prismaticAberration - Prismatic aberration effect
  */
-export default class PrismaticAberration extends Effect {
-  name = "PrismaticAberration";
-  namespace = "filter";
-  func = "prismaticAberration";
-
-  globals = {
+export default new Effect({
+  name: "PrismaticAberration",
+  namespace: "filter",
+  func: "prismaticAberration",
+  globals: {
     aberrationAmt: {
       type: "float",
       default: 50,
@@ -73,9 +72,8 @@ export default class PrismaticAberration extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "prismaticAberration",
@@ -86,5 +84,5 @@ export default class PrismaticAberration extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

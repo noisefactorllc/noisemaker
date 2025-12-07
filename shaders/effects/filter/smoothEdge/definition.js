@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/smoothEdge - Smooth edge detection effect
  * Edge detection with Gaussian smoothing
  */
-export default class SmoothEdge extends Effect {
-  name = "SmoothEdge";
-  namespace = "filter";
-  func = "smoothEdge";
-
-  globals = {
+export default new Effect({
+  name: "SmoothEdge",
+  namespace: "filter",
+  func: "smoothEdge",
+  globals: {
     amount: {
       type: "float",
       default: 1.0,
@@ -21,9 +20,8 @@ export default class SmoothEdge extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "smoothEdge",
@@ -34,5 +32,5 @@ export default class SmoothEdge extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

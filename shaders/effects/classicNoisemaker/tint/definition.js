@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Tint
  * /shaders/effects/tint/tint.wgsl
  */
-export default class Tint extends Effect {
-  name = "Tint";
-  namespace = "classicNoisemaker";
-  func = "tint";
-
-  globals = {
+export default new Effect({
+  name: "Tint",
+  namespace: "classicNoisemaker",
+  func: "tint",
+  globals: {
     alpha: {
         type: "float",
         default: 0.5,
@@ -22,9 +21,8 @@ export default class Tint extends Effect {
             control: "slider"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "tint",
@@ -35,5 +33,5 @@ export default class Tint extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

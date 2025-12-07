@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Voronoi extends Effect {
-  name = "Voronoi";
-  namespace = "classicBasics";
-  func = "voronoi";
-
-  globals = {
+export default new Effect({
+  name: "Voronoi",
+  namespace: "classicBasics",
+  func: "voronoi",
+  globals: {
     "scale": {
         "type": "float",
         "default": 5,
@@ -27,9 +26,8 @@ export default class Voronoi extends Effect {
         "max": 1,
         "uniform": "blend"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "voronoi",
@@ -38,5 +36,5 @@ export default class Voronoi extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

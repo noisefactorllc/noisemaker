@@ -642,13 +642,16 @@ export class CanvasRenderer {
         
         try {
             const module = await import(`${basePath}/definition.js`);
-            const EffectClass = module.default;
+            const exported = module.default;
             
-            if (!EffectClass) {
+            if (!exported) {
                 throw new Error(`No default export in ${effectId}/definition.js`);
             }
             
-            const instance = new EffectClass();
+            // Support both patterns:
+            // 1. new Effect({...}) - exported is already an Effect instance (has state property)
+            // 2. class Foo extends Effect - exported is a class to instantiate (is a function)
+            const instance = (typeof exported === 'function') ? new exported() : exported;
             return { namespace, name: effectName, instance };
         } catch (err) {
             console.error(`Failed to load definition for ${effectId}:`, err);

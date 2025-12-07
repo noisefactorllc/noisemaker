@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Frame
  * Vintage film frame effect with vignette, grime, scratches, grain
  */
-export default class Frame extends Effect {
-  name = "Frame";
-  namespace = "classicNoisemaker";
-  func = "frame";
-
-  globals = {
+export default new Effect({
+  name: "Frame",
+  namespace: "classicNoisemaker",
+  func: "frame",
+  globals: {
     speed: {
       type: "float",
       default: 1.0,
@@ -22,9 +21,8 @@ export default class Frame extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "frame",
@@ -35,5 +33,5 @@ export default class Frame extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

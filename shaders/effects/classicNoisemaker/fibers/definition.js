@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Fibers
  * /shaders/effects/fibers/fibers.wgsl
  */
-export default class Fibers extends Effect {
-  name = "Fibers";
-  namespace = "classicNoisemaker";
-  func = "fibers";
-
-  globals = {
+export default new Effect({
+  name: "Fibers",
+  namespace: "classicNoisemaker",
+  func: "fibers",
+  globals: {
     speed: {
       type: "float",
       default: 1.0,
@@ -65,9 +64,8 @@ export default class Fibers extends Effect {
         step: 1,
         ui: { label: "Lifetime", control: "slider" }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "updateAgents",
       program: "updateAgents",
@@ -124,5 +122,5 @@ export default class Fibers extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

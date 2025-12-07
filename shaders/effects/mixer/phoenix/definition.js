@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Phoenix extends Effect {
-  name = "Phoenix";
-  namespace = "mixer";
-  func = "phoenix";
-
-  globals = {
+export default new Effect({
+  name: "Phoenix",
+  namespace: "mixer",
+  func: "phoenix",
+  globals: {
     tex: {
       type: "surface",
       default: "inputTex",
@@ -19,14 +18,13 @@ export default class Phoenix extends Effect {
       max: 100,
       ui: { label: "mix", control: "slider" }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "phoenix",
       inputs: { tex0: "inputTex", tex1: "tex" },
       outputs: { fragColor: "outputTex" }
     }
-  ];
-}
+  ]
+});

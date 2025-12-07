@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/brightness - Multiply brightness
  * Simple brightness adjustment (0..10)
  */
-export default class Brightness extends Effect {
-  name = "Brightness";
-  namespace = "filter";
-  func = "brightness";
-
-  globals = {
+export default new Effect({
+  name: "Brightness",
+  namespace: "filter",
+  func: "brightness",
+  globals: {
     amount: {
       type: "float",
       default: 1,
@@ -21,9 +20,8 @@ export default class Brightness extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "brightness",
@@ -34,5 +32,5 @@ export default class Brightness extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

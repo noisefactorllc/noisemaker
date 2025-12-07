@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * ValueRefract - noise-driven refraction distortion
  */
-export default class ValueRefract extends Effect {
-  name = "ValueRefract";
-  namespace = "classicNoisemaker";
-  func = "valueRefract";
-
-  globals = {
+export default new Effect({
+  name: "ValueRefract",
+  namespace: "classicNoisemaker",
+  func: "valueRefract",
+  globals: {
     displacement: {
       type: "float",
       default: 0.5,
@@ -33,9 +32,8 @@ export default class ValueRefract extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "valueRefract",
@@ -50,5 +48,5 @@ export default class ValueRefract extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class ApplyHue extends Effect {
-  name = "Apply Hue";
-  namespace = "mixer";
-  func = "applyHue";
-
-  globals = {
+export default new Effect({
+  name: "Apply Hue",
+  namespace: "mixer",
+  func: "applyHue",
+  globals: {
     tex: {
       type: "surface",
       default: "inputTex",
@@ -19,14 +18,13 @@ export default class ApplyHue extends Effect {
       max: 100,
       ui: { label: "mix", control: "slider" }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "applyHue",
       inputs: { tex0: "inputTex", tex1: "tex" },
       outputs: { fragColor: "outputTex" }
     }
-  ];
-}
+  ]
+});

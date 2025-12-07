@@ -11,12 +11,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Usage: search nm
  *        noise(seed: 1).convFeedback(alpha: 0.5).out(o0)
  */
-export default class ConvFeedback extends Effect {
-  name = "ConvFeedback";
-  namespace = "classicNoisemaker";
-  func = "convFeedback";
-
-  globals = {
+export default new Effect({
+  name: "ConvFeedback",
+  namespace: "classicNoisemaker",
+  func: "convFeedback",
+  globals: {
     alpha: {
         type: "float",
         default: 0.5,
@@ -29,16 +28,11 @@ export default class ConvFeedback extends Effect {
             control: "slider"
         }
     }
-  };
-
-  // Internal texture for intermediate blur result
-  textures = {
+  },
+  textures: {
     _blurred: { width: "100%", height: "100%", format: "rgba16f" }
-  };
-
-  // Two-pass feedback: blur then sharpen
-  // selfTex provides previous frame's output for accumulation
-  passes = [
+  },
+  passes: [
     // Pass 1: Blur the input
     {
       name: "blur",
@@ -65,5 +59,5 @@ export default class ConvFeedback extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

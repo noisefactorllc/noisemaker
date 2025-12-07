@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Mult extends Effect {
-  name = "Mult";
-  namespace = "classicBasics";
-  func = "mult";
-
-  globals = {
+export default new Effect({
+  name: "Mult",
+  namespace: "classicBasics",
+  func: "mult",
+  globals: {
     "amount": {
         "type": "float",
         "default": 1,
@@ -20,9 +19,8 @@ export default class Mult extends Effect {
         "label": "source surface"
       }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "mult",
@@ -34,5 +32,5 @@ export default class Mult extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

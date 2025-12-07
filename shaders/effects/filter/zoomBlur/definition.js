@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/zoomBlur - Zoom/radial blur effect
  * Creates a radial blur emanating from the center
  */
-export default class ZoomBlur extends Effect {
-  name = "ZoomBlur";
-  namespace = "filter";
-  func = "zoomBlur";
-
-  globals = {
+export default new Effect({
+  name: "ZoomBlur",
+  namespace: "filter",
+  func: "zoomBlur",
+  globals: {
     strength: {
       type: "float",
       default: 0.5,
@@ -21,9 +20,8 @@ export default class ZoomBlur extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "zoomBlur",
@@ -34,5 +32,5 @@ export default class ZoomBlur extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Scroll extends Effect {
-  name = "Scroll";
-  namespace = "classicBasics";
-  func = "scroll";
-
-  globals = {
+export default new Effect({
+  name: "Scroll",
+  namespace: "classicBasics",
+  func: "scroll",
+  globals: {
     "x": {
         "type": "float",
         "default": 0,
@@ -34,9 +33,8 @@ export default class Scroll extends Effect {
         "max": 10,
         "uniform": "speedY"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "scroll",
@@ -47,5 +45,5 @@ export default class Scroll extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

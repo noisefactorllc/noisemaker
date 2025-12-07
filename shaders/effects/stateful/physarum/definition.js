@@ -1,17 +1,14 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Physarum extends Effect {
-  name = "Physarum";
-  namespace = "stateful";
-  func = "physarum";
-
-  // Explicit texture definitions for proper ping-pong handling
-  textures = {
+export default new Effect({
+  name: "Physarum",
+  namespace: "stateful",
+  func: "physarum",
+  textures: {
     globalPhysarumState: { width: 1000, height: 1000, format: "rgba32f" },
     globalPhysarumTrail: { width: "100%", height: "100%", format: "rgba16f" }
-  };
-
-  globals = {
+  },
+  globals: {
     zoom: {
       type: "int",
       default: 1,
@@ -195,9 +192,8 @@ export default class Physarum extends Effect {
         category: "util"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "initFromPrev",
       program: "initFromPrev",
@@ -251,5 +247,5 @@ export default class Physarum extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

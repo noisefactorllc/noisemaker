@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Stray Hair
  * /shaders/effects/stray_hair/stray_hair.wgsl
  */
-export default class StrayHair extends Effect {
-  name = "StrayHair";
-  namespace = "classicNoisemaker";
-  func = "strayHair";
-
-  globals = {
+export default new Effect({
+  name: "StrayHair",
+  namespace: "classicNoisemaker",
+  func: "strayHair",
+  globals: {
     seed: {
         type: "number",
         default: 0,
@@ -22,9 +21,8 @@ export default class StrayHair extends Effect {
             control: "slider"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "strayHair",
@@ -38,5 +36,5 @@ export default class StrayHair extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

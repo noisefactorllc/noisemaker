@@ -9,12 +9,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Uses internal surfaces for feedback, not user surfaces.
  * Configurable kernel sizes and amounts for both operations.
  */
-export default class Cf extends Effect {
-  name = "Cf";
-  namespace = "stateful";
-  func = "cf";
-
-  globals = {
+export default new Effect({
+  name: "Cf",
+  namespace: "stateful",
+  func: "cf",
+  globals: {
     sharpenRadius: {
       type: "int",
       default: 1,
@@ -75,10 +74,8 @@ export default class Cf extends Effect {
         control: "slider"
       }
     }
-  };
-
-  // Internal textures for intermediate results and feedback
-  textures = {
+  },
+  textures: {
     _cfSharpened: {
       width: "input",
       height: "input",
@@ -89,10 +86,8 @@ export default class Cf extends Effect {
       height: "input",
       format: "rgba8unorm"
     }
-  };
-
-  // Three-pass pipeline: sharpen -> blur -> blend with feedback
-  passes = [
+  },
+  passes: [
     // Pass 1: Sharpen the feedback texture (selfTex from previous frame)
     {
       name: "sharpen",
@@ -127,5 +122,5 @@ export default class Cf extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -1,13 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Pattern extends Effect {
-  name = "Pattern";
-  namespace = "classicNoisedeck";
-  func = "pattern";
-
-
-  // WGSL uniform packing layout - maps uniform names to vec4 slots/components
-  uniformLayout = {
+export default new Effect({
+  name: "Pattern",
+  namespace: "classicNoisedeck",
+  func: "pattern",
+  uniformLayout: {
         resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
@@ -21,8 +18,8 @@ export default class Pattern extends Effect {
     sharpness: { slot: 2, components: 'w' },
     color1: { slot: 3, components: 'xyz' },
     color2: { slot: 4, components: 'xyz' }
-  };
-  globals = {
+  },
+  globals: {
     patternType: {
       type: "int",
       default: 1,
@@ -160,9 +157,8 @@ export default class Pattern extends Effect {
         control: "color"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "pattern",
@@ -173,5 +169,5 @@ export default class Pattern extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

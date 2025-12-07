@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Lighten extends Effect {
-  name = "Lighten";
-  namespace = "mixer";
-  func = "lighten";
-
-  globals = {
+export default new Effect({
+  name: "Lighten",
+  namespace: "mixer",
+  func: "lighten",
+  globals: {
     tex: {
       type: "surface",
       default: "inputTex",
@@ -19,14 +18,13 @@ export default class Lighten extends Effect {
       max: 100,
       ui: { label: "mix", control: "slider" }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "lighten",
       inputs: { tex0: "inputTex", tex1: "tex" },
       outputs: { fragColor: "outputTex" }
     }
-  ];
-}
+  ]
+});

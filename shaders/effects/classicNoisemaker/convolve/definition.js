@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Convolve
  * /shaders/effects/convolve/convolve.wgsl
  */
-export default class Convolve extends Effect {
-  name = "Convolve";
-  namespace = "classicNoisemaker";
-  func = "convolve";
-
-  globals = {
+export default new Effect({
+  name: "Convolve",
+  namespace: "classicNoisemaker",
+  func: "convolve",
+  globals: {
     kernel: {
         type: "int",
         default: 800,
@@ -46,16 +45,13 @@ export default class Convolve extends Effect {
             control: "slider"
         }
     }
-  };
-
-  // Internal textures for convolution and min/max reduction
-  textures = {
+  },
+  textures: {
     _convolved: { format: "rgba32f" },
     _minmax1: { width: 32, height: 32, format: "rgba32f" },
     _minmaxGlobal: { width: 1, height: 1, format: "rgba32f" }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "convolve",
       program: "convolveRender",
@@ -108,5 +104,5 @@ export default class Convolve extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

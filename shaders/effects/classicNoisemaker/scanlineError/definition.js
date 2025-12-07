@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Scanline Error
  * /shaders/effects/scanline_error/scanline_error.wgsl
  */
-export default class ScanlineError extends Effect {
-  name = "ScanlineError";
-  namespace = "classicNoisemaker";
-  func = "scanlineError";
-
-    globals = {
+export default new Effect({
+  name: "ScanlineError",
+  namespace: "classicNoisemaker",
+  func: "scanlineError",
+  globals: {
     speed: {
       type: "float",
       default: 1,
@@ -43,9 +42,8 @@ export default class ScanlineError extends Effect {
         control: "checkbox"
       }
     }
-    };
-
-  passes = [
+    },
+  passes: [
     {
       name: "main",
       program: "scanlineError",
@@ -62,5 +60,5 @@ export default class ScanlineError extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

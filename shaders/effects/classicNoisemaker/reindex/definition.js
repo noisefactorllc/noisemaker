@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Reindex
  * WebGL port of the Noisemaker reindex effect.
  */
-export default class Reindex extends Effect {
-  name = "Reindex";
-  namespace = "classicNoisemaker";
-  func = "reindex";
-
-  globals = {
+export default new Effect({
+  name: "Reindex",
+  namespace: "classicNoisemaker",
+  func: "reindex",
+  globals: {
     displacement: {
         type: "float",
         default: 0.5,
@@ -22,9 +21,8 @@ export default class Reindex extends Effect {
             control: "slider"
         }
     }
-  };
-
-  textures = {
+  },
+  textures: {
     statsTiles: {
       format: "rgba16f"
     },
@@ -33,9 +31,8 @@ export default class Reindex extends Effect {
       height: 1,
       format: "rgba16f"
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "stats",
       program: "nmReindexStats",
@@ -67,5 +64,5 @@ export default class Reindex extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

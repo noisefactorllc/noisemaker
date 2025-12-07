@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/smoothstep - Adjustable smoothstep thresholds
  * Creates smooth transition between edge0 and edge1
  */
-export default class Smoothstep extends Effect {
-  name = "Smoothstep";
-  namespace = "filter";
-  func = "smoothstep";
-
-  globals = {
+export default new Effect({
+  name: "Smoothstep",
+  namespace: "filter",
+  func: "smoothstep",
+  globals: {
     edge0: {
       type: "float",
       default: 0.0,
@@ -34,9 +33,8 @@ export default class Smoothstep extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "smoothstep",
@@ -47,5 +45,5 @@ export default class Smoothstep extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

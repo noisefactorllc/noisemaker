@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class SoftLight extends Effect {
-  name = "Soft Light";
-  namespace = "mixer";
-  func = "softLight";
-
-  globals = {
+export default new Effect({
+  name: "Soft Light",
+  namespace: "mixer",
+  func: "softLight",
+  globals: {
     tex: {
       type: "surface",
       default: "inputTex",
@@ -19,14 +18,13 @@ export default class SoftLight extends Effect {
       max: 100,
       ui: { label: "mix", control: "slider" }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "softLight",
       inputs: { tex0: "inputTex", tex1: "tex" },
       outputs: { fragColor: "outputTex" }
     }
-  ];
-}
+  ]
+});

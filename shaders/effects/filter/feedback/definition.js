@@ -8,12 +8,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * color controls (hue, intensity), lens effects (distortion, aberration),
  * and refraction controls.
  */
-export default class Feedback extends Effect {
-  name = "Feedback";
-  namespace = "filter";
-  func = "feedback";
-
-  globals = {
+export default new Effect({
+  name: "Feedback",
+  namespace: "filter",
+  func: "feedback",
+  globals: {
     blendMode: {
       type: "int",
       default: 10,
@@ -175,18 +174,15 @@ export default class Feedback extends Effect {
         category: "lens"
       }
     }
-  };
-
-  // Internal texture for feedback buffer
-  textures = {
+  },
+  textures: {
     _selfTex: {
       width: "input",
       height: "input",
       format: "rgba8unorm"
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "feedback",
@@ -208,5 +204,5 @@ export default class Feedback extends Effect {
         fragColor: "_selfTex"
       }
     }
-  ];
-}
+  ]
+});

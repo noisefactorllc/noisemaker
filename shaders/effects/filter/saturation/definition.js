@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/saturation - Multiply saturation
  * Simple saturation adjustment (0..4)
  */
-export default class Saturation extends Effect {
-  name = "Saturation";
-  namespace = "filter";
-  func = "saturation";
-
-  globals = {
+export default new Effect({
+  name: "Saturation",
+  namespace: "filter",
+  func: "saturation",
+  globals: {
     amount: {
       type: "float",
       default: 1,
@@ -21,9 +20,8 @@ export default class Saturation extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "saturation",
@@ -34,5 +32,5 @@ export default class Saturation extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

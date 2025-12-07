@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Sat extends Effect {
-  name = "Sat";
-  namespace = "classicBasics";
-  func = "saturation";
-
-  globals = {
+export default new Effect({
+  name: "Sat",
+  namespace: "classicBasics",
+  func: "saturation",
+  globals: {
     "a": {
         "type": "float",
         "default": 1,
@@ -13,9 +12,8 @@ export default class Sat extends Effect {
         "max": 10,
         "uniform": "a"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "sat",
@@ -26,5 +24,5 @@ export default class Sat extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

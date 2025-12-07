@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/sharpen - Sharpen convolution effect
  * Enhances image detail and edges
  */
-export default class Sharpen extends Effect {
-  name = "Sharpen";
-  namespace = "filter";
-  func = "sharpen";
-
-  globals = {
+export default new Effect({
+  name: "Sharpen",
+  namespace: "filter",
+  func: "sharpen",
+  globals: {
     amount: {
       type: "float",
       default: 1.0,
@@ -21,9 +20,8 @@ export default class Sharpen extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "sharpen",
@@ -34,5 +32,5 @@ export default class Sharpen extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

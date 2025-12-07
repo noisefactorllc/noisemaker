@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Pixelate extends Effect {
-  name = "Pixelate";
-  namespace = "classicBasics";
-  func = "pixelate";
-
-  globals = {
+export default new Effect({
+  name: "Pixelate",
+  namespace: "classicBasics",
+  func: "pixelate",
+  globals: {
     "x": {
         "type": "float",
         "default": 20,
@@ -20,9 +19,8 @@ export default class Pixelate extends Effect {
         "max": 1000,
         "uniform": "y"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "pixelate",
@@ -33,5 +31,5 @@ export default class Pixelate extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

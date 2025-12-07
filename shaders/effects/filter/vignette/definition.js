@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * nu/vignette - Radial vignette with brightness blend
  */
-export default class Vignette extends Effect {
-  name = "Vignette";
-  namespace = "filter";
-  func = "vignette";
-
-  globals = {
+export default new Effect({
+  name: "Vignette",
+  namespace: "filter",
+  func: "vignette",
+  globals: {
     brightness: {
       type: "float",
       default: 0,
@@ -33,9 +32,8 @@ export default class Vignette extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "vignette",
@@ -46,5 +44,5 @@ export default class Vignette extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

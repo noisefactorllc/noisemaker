@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Derivative
  * /shaders/effects/derivative/derivative.wgsl
  */
-export default class Derivative extends Effect {
-  name = "Derivative";
-  namespace = "classicNoisemaker";
-  func = "derivative";
-
-  globals = {
+export default new Effect({
+  name: "Derivative",
+  namespace: "classicNoisemaker",
+  func: "derivative",
+  globals: {
     distMetric: {
         type: "enum",
         default: 1,
@@ -39,9 +38,8 @@ export default class Derivative extends Effect {
             control: "slider"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "derivative",
@@ -52,5 +50,5 @@ export default class Derivative extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

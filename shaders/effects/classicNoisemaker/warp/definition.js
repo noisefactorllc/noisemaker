@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * Warp - multi-octave displacement using noise
  */
-export default class Warp extends Effect {
-  name = "Warp";
-  namespace = "classicNoisemaker";
-  func = "warp";
-
-  globals = {
+export default new Effect({
+  name: "Warp",
+  namespace: "classicNoisemaker",
+  func: "warp",
+  globals: {
     frequency: {
       type: "float",
       default: 2,
@@ -69,9 +68,8 @@ export default class Warp extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "warp",
@@ -89,5 +87,5 @@ export default class Warp extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

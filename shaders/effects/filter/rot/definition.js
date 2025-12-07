@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * nu/rot - Rotate image 0..1 (0..360 degrees)
  */
-export default class Rot extends Effect {
-  name = "Rotate";
-  namespace = "filter";
-  func = "rot";
-
-  globals = {
+export default new Effect({
+  name: "Rotate",
+  namespace: "filter",
+  func: "rot",
+  globals: {
     rotation: {
       type: "float",
       default: 0,
@@ -21,9 +20,8 @@ export default class Rot extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "rot",
@@ -34,5 +32,5 @@ export default class Rot extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -8,18 +8,18 @@ An "Effect" is a self-contained unit that transforms inputs to outputs using one
 1. Schema
 ---------
 
-The Effect Definition is a JavaScript class (or a JSON object that resolves to one) that adheres to the following schema.
+Effect definitions are created using the ``Effect`` constructor with a configuration object. This is the primary and recommended approach.
 
 .. code-block:: javascript
 
-   import { Effect } from 'noisemaker/shader-effects';
+   import { Effect } from '../../../src/runtime/effect.js';
 
-   export default class SimpleBloom extends Effect {
-     name = "SimpleBloom";
-     namespace = "examples";
-     func = "bloom";
+   export default new Effect({
+     name: "SimpleBloom",
+     namespace: "examples",
+     func: "bloom",
 
-     globals = {
+     globals: {
        intensity: {
          type: "float",
          default: 0.5,
@@ -34,13 +34,13 @@ The Effect Definition is a JavaScript class (or a JSON object that resolves to o
          max: 1,
          ui: { label: "Threshold", control: "slider" }
        }
-     };
+     },
 
-     textures = {
+     textures: {
        downsampled: { width: "25%", height: "25%", format: "rgba16f" }
-     };
+     },
 
-     passes = [
+     passes: [
        {
          name: "downsample",
          type: "render",
@@ -64,8 +64,8 @@ The Effect Definition is a JavaScript class (or a JSON object that resolves to o
            color: "outputColor"
          }
        }
-     ];
-   }
+     ]
+   });
 
 2. Key Concepts
 ---------------
@@ -90,7 +90,7 @@ Effects are typically authored as a directory containing a definition file, shad
 .. code-block:: text
 
    my-effect/
-   ├── definition.js       # Exports the Effect Class
+   ├── definition.js       # Exports new Effect({...}) or Effect subclass
    ├── glsl/
    │   └── my-shader.glsl  # WebGL implementation
    ├── wgsl/
@@ -143,120 +143,197 @@ To promote consistency and reduce duplication, common enumerations are defined i
 
 The runtime resolves the string value (e.g., ``"linear"``) to its integer counterpart (``1``) before binding to the shader.
 
-5. Lifecycle Methods
---------------------
+5. Lifecycle Methods (Class-Based Effects)
+-------------------------------------------
 
-For effects requiring CPU-side state management (e.g., simulation steps, complex time-keeping, or audio analysis), the Effect Class implements lifecycle methods.
+Most effects are purely declarative and use the ``new Effect({...})`` pattern shown above. However, for effects requiring CPU-side state management (e.g., simulation steps, complex time-keeping, or audio analysis), you can either:
 
-**Method Contract:**
-The runtime invokes these methods at specific stages. This allows for stateful logic that persists across frames.
+1. **Pass lifecycle functions in the config** (simpler):
 
 .. code-block:: javascript
 
-   // Inside the Effect Class
+   import { Effect } from '../../../src/runtime/effect.js';
 
-   // Called once when the effect is loaded.
+   export default new Effect({
+     name: "PulseEffect",
+     namespace: "examples",
+     func: "pulse",
+
+     globals: {
+       speed: { type: "float", default: 1.0 },
+       intensity: { type: "float", default: 0.5 }
+     },
+
+     passes: [
+       { name: "main", program: "pulse", outputs: { color: "outputTex" } }
+     ],
+
+     // Lifecycle hooks as config properties
+     onInit() {
+       this.state.phase = 0;
+     },
+
+     onUpdate({ time, delta, uniforms }) {
+       this.state.phase += delta * uniforms.speed;
+       return {
+         u_pulse: Math.sin(this.state.phase) * uniforms.intensity
+       };
+     }
+   });
+
+2. **Subclass Effect** (for complex cases with additional methods):
+
+.. code-block:: javascript
+
+   import { Effect } from '../../../src/runtime/effect.js';
+
+   export default class MediaEffect extends Effect {
+     name = "Media";
+     namespace = "synth";
+     func = "media";
+
+     globals = { /* ... */ };
+     passes = [ /* ... */ ];
+
+     onInit() {
+       this.state.imageWidth = 1;
+       this.state.imageHeight = 1;
+     }
+
+     onUpdate(_context) {
+       return {
+         imageSize: [this.state.imageWidth || 1, this.state.imageHeight || 1]
+       };
+     }
+
+     // Additional custom methods
+     setMediaDimensions(width, height) {
+       this.state.imageWidth = width;
+       this.state.imageHeight = height;
+     }
+   }
+
+**When to use class-based effects:**
+
+- You need custom methods beyond lifecycle hooks
+- You have complex module-level setup (e.g., building enum choices from imports)
+- The effect requires external resource management
+
+**Lifecycle Method Contract:**
+
+The runtime invokes these methods at specific stages:
+
+- ``onInit()``: Called once when the effect is loaded. Initialize state here.
+- ``onUpdate({ time, delta, uniforms })``: Called every frame before rendering. Return an object of computed uniforms.
+- ``onDestroy()``: Called when the effect is removed. Clean up resources here.
+
+.. code-block:: javascript
+
+   // Lifecycle methods can be defined in config or as class methods
+
    onInit() {
      this.state.generation = 0;
      this.state.lastUpdate = 0;
    }
 
-   // Called every frame before rendering.
-   // Use this to update state and compute dynamic uniforms.
    onUpdate({ time, delta, uniforms }) {
-     // Example: Update generation only every 100ms
+     // Update state periodically
      if (time - this.state.lastUpdate > 0.1) {
        this.state.generation++;
        this.state.lastUpdate = time;
      }
 
-     // Return an object to override or inject uniform values for this frame
+     // Return computed uniforms for this frame
      return {
        u_generation: this.state.generation,
        u_computed_value: Math.sin(time) * uniforms.intensity
      };
    }
 
-   // Called when the effect is removed/destroyed.
    onDestroy() {
      // Cleanup resources (e.g., event listeners, audio contexts)
    }
 
-**Note:** While the declarative pipeline handles rendering loops and ping-ponging, these methods are essential for logic that cannot be expressed purely in shaders or static graphs.
+6. Effect Constructor Reference
+-------------------------------
 
-6. Effect Class
----------------
+The ``Effect`` constructor accepts a configuration object with the following properties:
 
-To support complex effects and promote code reuse, the pipeline provides a single base class: ``Effect``. **The Class IS the Definition.**
+**Required:**
 
-The JSON schema (Section 1) is the declarative data aspect of the definition, while the Class is the runtime embodiment. When ``hooks.js`` exports a default class extending ``Effect``, the runtime uses it as the definition.
+- ``name`` (string): Display name for the effect
+- ``passes`` (array): One or more render/compute passes
 
-6.1 The ``Effect`` Base Class
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+**Optional:**
 
-The ``Effect`` class provides the foundation for all effects, from simple single-pass filters to complex multi-pass simulations.
+- ``namespace`` (string): Logical grouping (e.g., ``"filter"``, ``"synth"``, ``"mixer"``)
+- ``func`` (string): DSL function name (defaults to lowercase ``name``)
+- ``globals`` (object): Uniform parameters exposed to shaders and UI
+- ``textures`` (object): Internal render targets
+- ``onInit`` (function): Lifecycle hook called once on load
+- ``onUpdate`` (function): Lifecycle hook called every frame
+- ``onDestroy`` (function): Lifecycle hook called on cleanup
 
-**Features:**
-
-
-* **Automatic Uniform Management:** Automatically maps ``globals`` defined in the JSON to internal state.
-* **Lifecycle Methods:** Provides ``onInit``, ``onUpdate``, and ``onDestroy`` methods.
-* **Buffer Management:** Helpers for managing custom storage buffers or textures that persist across frames.
-* **Ping-Pong Helpers:** Utilities for managing double-buffered state (read/write swapping) beyond the declarative ``pingpong`` property.
-* **Dynamic Dispatch:** Methods to influence the execution of passes dynamically (e.g., skipping passes based on state).
-* **Helper Utilities:** Access to common utilities via ``this.context``.
-
-**Example:**
+**Example - Minimal Effect:**
 
 .. code-block:: javascript
 
-   import { Effect } from 'noisemaker/shader-effects';
+   import { Effect } from '../../../src/runtime/effect.js';
 
-   export default class PulseEffect extends Effect {
-     onInit() {
-       this.state.phase = 0;
-     }
+   export default new Effect({
+     name: "Invert",
+     namespace: "filter",
+     func: "inv",
+     passes: [
+       {
+         name: "main",
+         program: "invert",
+         inputs: { inputTex: "inputTex" },
+         outputs: { fragColor: "outputTex" }
+       }
+     ]
+   });
 
-     onUpdate({ time, delta, uniforms }) {
-       // Update internal state
-       this.state.phase += delta * uniforms.speed;
-
-       // Return computed uniforms to be bound to the shader
-       return {
-         u_pulse: Math.sin(this.state.phase) * uniforms.intensity
-       };
-     }
-   }
-
-**Complex Example:**
+**Example - Effect with Globals and Textures:**
 
 .. code-block:: javascript
 
-   import { Effect } from 'noisemaker/shader-effects';
+   import { Effect } from '../../../src/runtime/effect.js';
 
-   export default class WormsEffect extends Effect {
-     onInit() {
-       // Initialize custom simulation state
-       this.agents = new Float32Array(1000 * 4);
-       this.initAgents();
-     }
+   export default new Effect({
+     name: "Blur",
+     namespace: "filter",
+     func: "blur",
 
-     onUpdate({ time }) {
-       // Perform CPU-side simulation steps if needed
-       this.updateAgents(time);
+     globals: {
+       radiusX: { type: "float", default: 5.0, min: 0, max: 50, uniform: "radiusX" },
+       radiusY: { type: "float", default: 5.0, min: 0, max: 50, uniform: "radiusY" }
+     },
 
-       // Return uniforms, including binding custom buffers if supported
-       return {
-         u_agent_count: 1000,
-         u_time: time
-       };
-     }
-   }
+     textures: {
+       _blurTemp: { width: "input", height: "input", format: "rgba8unorm" }
+     },
+
+     passes: [
+       {
+         name: "blurH",
+         program: "blurH",
+         inputs: { inputTex: "inputTex" },
+         outputs: { fragColor: "_blurTemp" }
+       },
+       {
+         name: "blurV",
+         program: "blurV",
+         inputs: { inputTex: "_blurTemp" },
+         outputs: { fragColor: "outputTex" }
+       }
+     ]
+   });
 
 7. Formal JSON Schema (Informative)
 -----------------------------------
 
-The following normative shape defines an ``EffectDefinition``. Validation MUST apply before graph compilation. Regular expressions shown in ``/.../`` form.
+The following normative shape defines the Effect configuration object. Validation MUST apply before graph compilation. Regular expressions shown in ``/.../`` form.
 
 .. code-block:: javascript
 

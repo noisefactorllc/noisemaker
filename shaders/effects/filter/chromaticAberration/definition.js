@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * filter/chromaticAberration - Chromatic aberration effect
  */
-export default class ChromaticAberration extends Effect {
-  name = "ChromaticAberration";
-  namespace = "filter";
-  func = "chromaticAberration";
-
-  globals = {
+export default new Effect({
+  name: "ChromaticAberration",
+  namespace: "filter",
+  func: "chromaticAberration",
+  globals: {
     aberrationAmt: {
       type: "float",
       default: 50,
@@ -31,9 +30,8 @@ export default class ChromaticAberration extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "chromaticAberration",
@@ -44,5 +42,5 @@ export default class ChromaticAberration extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

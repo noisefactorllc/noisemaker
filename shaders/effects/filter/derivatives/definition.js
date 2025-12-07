@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/derivatives - Derivative-based edge detection
  * Computes image derivatives to highlight edges
  */
-export default class Derivatives extends Effect {
-  name = "Derivatives";
-  namespace = "filter";
-  func = "derivatives";
-
-  globals = {
+export default new Effect({
+  name: "Derivatives",
+  namespace: "filter",
+  func: "derivatives",
+  globals: {
     amount: {
       type: "float",
       default: 1.0,
@@ -21,9 +20,8 @@ export default class Derivatives extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "derivatives",
@@ -34,5 +32,5 @@ export default class Derivatives extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

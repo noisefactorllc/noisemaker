@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Shadow
  * /shaders/effects/shadow/shadow.wgsl
  */
-export default class Shadow extends Effect {
-  name = "Shadow";
-  namespace = "classicNoisemaker";
-  func = "shadow";
-
-  globals = {
+export default new Effect({
+  name: "Shadow",
+  namespace: "classicNoisemaker",
+  func: "shadow",
+  globals: {
     alpha: {
         type: "float",
         default: 1,
@@ -22,15 +21,13 @@ export default class Shadow extends Effect {
             control: "slider"
         }
     }
-};
-
-  textures = {
+},
+  textures: {
     shadowValueMap: { width: "100%", height: "100%", format: "rgba16f" },
     shadowSobel: { width: "100%", height: "100%", format: "rgba16f" },
     shadowSharpen: { width: "100%", height: "100%", format: "rgba16f" }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "valueMap",
       program: "shadowValueMap",
@@ -73,5 +70,5 @@ export default class Shadow extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

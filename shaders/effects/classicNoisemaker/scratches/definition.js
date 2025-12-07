@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Scratches
  * /shaders/effects/scratches/scratches.wgsl
  */
-export default class Scratches extends Effect {
-  name = "Scratches";
-  namespace = "classicNoisemaker";
-  func = "scratches";
-
-  globals = {
+export default new Effect({
+  name: "Scratches",
+  namespace: "classicNoisemaker",
+  func: "scratches",
+  globals: {
     speed: {
       type: "float",
       default: 1,
@@ -43,13 +42,11 @@ export default class Scratches extends Effect {
         control: "checkbox"
       }
     }
-  };
-
-  textures = {
+  },
+  textures: {
     scratchMask: { width: "100%", height: "100%", format: "rgba16f" }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "mask",
       program: "scratchesMask",
@@ -80,5 +77,5 @@ export default class Scratches extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

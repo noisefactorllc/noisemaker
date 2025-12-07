@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/palette - Apply cosine color palettes
  * Uses luminance to sample from one of 55 cosine palettes
  */
-export default class Palette extends Effect {
-  name = "Palette";
-  namespace = "filter";
-  func = "palette";
-
-  globals = {
+export default new Effect({
+  name: "Palette",
+  namespace: "filter",
+  func: "palette",
+  globals: {
     paletteIndex: {
       type: "member",
       default: "palette.afterimage",
@@ -32,9 +31,8 @@ export default class Palette extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "palette",
@@ -45,5 +43,5 @@ export default class Palette extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

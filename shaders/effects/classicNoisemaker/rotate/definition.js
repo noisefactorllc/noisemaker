@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Rotate
  * /shaders/effects/rotate/rotate.wgsl
  */
-export default class Rotate extends Effect {
-  name = "Rotate";
-  namespace = "classicNoisemaker";
-  func = "rotate";
-
-  globals = {
+export default new Effect({
+  name: "Rotate",
+  namespace: "classicNoisemaker",
+  func: "rotate",
+  globals: {
     angle: {
         type: "float",
         default: 0,
@@ -22,9 +21,8 @@ export default class Rotate extends Effect {
             control: "slider"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "rotate",
@@ -38,5 +36,5 @@ export default class Rotate extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

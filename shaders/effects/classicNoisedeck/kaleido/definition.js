@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Kaleido extends Effect {
-  name = "Kaleido";
-  namespace = "classicNoisedeck";
-  func = "kaleido";
-
-  globals = {
+export default new Effect({
+  name: "Kaleido",
+  namespace: "classicNoisedeck",
+  func: "kaleido",
+  globals: {
     kaleido: {
       type: "int",
       default: 8,
@@ -164,9 +163,8 @@ export default class Kaleido extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "kaleido",
@@ -178,5 +176,5 @@ export default class Kaleido extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Posterize
  * /shaders/effects/posterize/posterize.wgsl
  */
-export default class Posterize extends Effect {
-  name = "Posterize";
-  namespace = "classicNoisemaker";
-  func = "posterize";
-
-  globals = {
+export default new Effect({
+  name: "Posterize",
+  namespace: "classicNoisemaker",
+  func: "posterize",
+  globals: {
     levels: {
         type: "float",
         default: 5,
@@ -34,9 +33,8 @@ export default class Posterize extends Effect {
             control: "slider"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "posterize",
@@ -47,5 +45,5 @@ export default class Posterize extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

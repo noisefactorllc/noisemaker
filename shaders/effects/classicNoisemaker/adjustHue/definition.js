@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Adjust Hue
  * /shaders/effects/adjust_hue/adjust_hue.wgsl
  */
-export default class AdjustHue extends Effect {
-  name = "AdjustHue";
-  namespace = "classicNoisemaker";
-  func = "adjustHue";
-
-  globals = {
+export default new Effect({
+  name: "AdjustHue",
+  namespace: "classicNoisemaker",
+  func: "adjustHue",
+  globals: {
     amount: {
         type: "float",
         default: 0.25,
@@ -22,9 +21,8 @@ export default class AdjustHue extends Effect {
             control: "slider"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "adjustHue",
@@ -38,5 +36,5 @@ export default class AdjustHue extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

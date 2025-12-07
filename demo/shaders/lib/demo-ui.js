@@ -136,8 +136,14 @@ export function formatValue(value, spec, enums = {}) {
         return value ? 'true' : 'false';
     }
     if (type === 'surface') {
+        // Handle object surface references (e.g., {kind: 'output', name: 'o1'})
+        if (value && typeof value === 'object' && value.name) {
+            return `src(${value.name})`;
+        }
         if (typeof value !== 'string' || value.length === 0) {
-            return 'src(o0)';
+            // Use spec default if available, otherwise use inputTex as the standard default
+            const defaultSurface = spec?.default || 'inputTex';
+            return `src(${defaultSurface})`;
         }
         if (value.includes('(')) {
             return value;

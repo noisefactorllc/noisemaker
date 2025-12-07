@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class MediaPost extends Effect {
-  name = "MediaPost";
-  namespace = "classicNoisedeck";
-  func = "mediaPost";
-
-  globals = {
+export default new Effect({
+  name: "MediaPost",
+  namespace: "classicNoisedeck",
+  func: "mediaPost",
+  globals: {
     seed: {
       type: "int",
       default: 1,
@@ -117,9 +116,8 @@ export default class MediaPost extends Effect {
         control: false
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "mediaPost",
@@ -132,5 +130,5 @@ export default class MediaPost extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

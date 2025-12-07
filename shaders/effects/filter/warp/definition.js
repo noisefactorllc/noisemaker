@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/warp - Perlin noise-based warp distortion
  * Direct port of nd.warp's perlin mode
  */
-export default class Warp extends Effect {
-  name = "Warp";
-  namespace = "filter";
-  func = "warp";
-
-  globals = {
+export default new Effect({
+  name: "Warp",
+  namespace: "filter",
+  func: "warp",
+  globals: {
     strength: {
       type: "float",
       default: 25,
@@ -56,9 +55,8 @@ export default class Warp extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "warp",
@@ -69,5 +67,5 @@ export default class Warp extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

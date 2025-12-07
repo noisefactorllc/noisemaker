@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class CellRefract extends Effect {
-  name = "CellRefract";
-  namespace = "classicNoisedeck";
-  func = "cellRefract";
-
-  globals = {
+export default new Effect({
+  name: "CellRefract",
+  namespace: "classicNoisedeck",
+  func: "cellRefract",
+  globals: {
     metric: {
       type: "int",
       default: 1,
@@ -159,9 +158,8 @@ export default class CellRefract extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "cellRefract",
@@ -173,5 +171,5 @@ export default class CellRefract extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

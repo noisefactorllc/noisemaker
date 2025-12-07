@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Wave extends Effect {
-  name = "Wave";
-  namespace = "classicBasics";
-  func = "wave";
-
-  globals = {
+export default new Effect({
+  name: "Wave",
+  namespace: "classicBasics",
+  func: "wave",
+  globals: {
     "oscType": {
         "type": "member",
         "default": "oscType.sine",
@@ -44,9 +43,8 @@ export default class Wave extends Effect {
         "step": 1,
         "uniform": "seed"
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "wave",
@@ -55,5 +53,5 @@ export default class Wave extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Glowing Edges
  * Single-pass edge glow effect based on Sobel edge detection
  */
-export default class GlowingEdges extends Effect {
-  name = "GlowingEdges";
-  namespace = "classicNoisemaker";
-  func = "glowingEdges";
-
-  globals = {
+export default new Effect({
+  name: "GlowingEdges",
+  namespace: "classicNoisemaker",
+  func: "glowingEdges",
+  globals: {
     sobelMetric: {
         type: "int",
         default: 1,
@@ -33,9 +32,8 @@ export default class GlowingEdges extends Effect {
             control: "slider"
         }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "glowingEdges",
@@ -50,5 +48,5 @@ export default class GlowingEdges extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

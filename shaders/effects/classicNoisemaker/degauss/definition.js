@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Degauss
  * /shaders/effects/degauss/degauss.wgsl
  */
-export default class Degauss extends Effect {
-  name = "Degauss";
-  namespace = "classicNoisemaker";
-  func = "degauss";
-
-  globals = {
+export default new Effect({
+  name: "Degauss",
+  namespace: "classicNoisemaker",
+  func: "degauss",
+  globals: {
     displacement: {
         type: "float",
         default: 0.0625,
@@ -34,9 +33,8 @@ export default class Degauss extends Effect {
             control: "slider"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "degauss",
@@ -47,5 +45,5 @@ export default class Degauss extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

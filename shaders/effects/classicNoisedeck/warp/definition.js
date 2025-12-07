@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Warp extends Effect {
-  name = "Warp";
-  namespace = "classicNoisedeck";
-  func = "warp";
-
-  globals = {
+export default new Effect({
+  name: "Warp",
+  namespace: "classicNoisedeck",
+  func: "warp",
+  globals: {
     distortionType: {
       type: "int",
       default: 10,
@@ -150,9 +149,8 @@ export default class Warp extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "warp",
@@ -164,5 +162,5 @@ export default class Warp extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

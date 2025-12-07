@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Coalesce extends Effect {
-  name = "Coalesce";
-  namespace = "classicNoisedeck";
-  func = "coalesce";
-
-  globals = {
+export default new Effect({
+  name: "Coalesce",
+  namespace: "classicNoisedeck",
+  func: "coalesce",
+  globals: {
     tex: {
       type: "surface",
       default: "inputTex",
@@ -116,9 +115,8 @@ export default class Coalesce extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "coalesce",
@@ -131,5 +129,5 @@ export default class Coalesce extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

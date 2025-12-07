@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Add extends Effect {
-  name = "Add";
-  namespace = "classicBasics";
-  func = "add";
-
-  globals = {
+export default new Effect({
+  name: "Add",
+  namespace: "classicBasics",
+  func: "add",
+  globals: {
     "tex": {
         "type": "surface",
         "default": "inputTex",
@@ -20,9 +19,8 @@ export default class Add extends Effect {
         "max": 1,
         "uniform": "amount"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "add",
@@ -34,5 +32,5 @@ export default class Add extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

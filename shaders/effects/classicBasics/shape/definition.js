@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Shape extends Effect {
-  name = "Shape";
-  namespace = "classicBasics";
-  func = "shape";
-
-  globals = {
+export default new Effect({
+  name: "Shape",
+  namespace: "classicBasics",
+  func: "shape",
+  globals: {
     "sides": {
         "type": "float",
         "default": 3,
@@ -27,9 +26,8 @@ export default class Shape extends Effect {
         "max": 1,
         "uniform": "smoothing"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "shape",
@@ -38,5 +36,5 @@ export default class Shape extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

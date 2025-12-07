@@ -1,13 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Rd extends Effect {
-  name = "Rd";
-  namespace = "stateful";
-  func = "rd";
-
-
-  // WGSL uniform packing layouts (per-program for multi-pass effects)
-  uniformLayouts = {
+export default new Effect({
+  name: "Rd",
+  namespace: "stateful",
+  func: "rd",
+  uniformLayouts: {
     rd: {
       resolution: { slot: 0, components: 'xy' },
       time: { slot: 0, components: 'z' },
@@ -29,8 +26,8 @@ export default class Rd extends Effect {
       sourceR2: { slot: 3, components: 'y' },
       seed: { slot: 8, components: 'w' }
     }
-  };
-  globals = {
+  },
+  globals: {
     seed: {
       type: "int",
       default: 1,
@@ -227,9 +224,8 @@ export default class Rd extends Effect {
         control: "dropdown"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "simulate",
       program: "rdFb",
@@ -252,5 +248,5 @@ export default class Rd extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

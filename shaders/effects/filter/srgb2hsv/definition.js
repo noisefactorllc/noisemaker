@@ -4,16 +4,13 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/srgb2hsv - Reinterpret RGB as HSV
  * Treats RGB channels as HSV values and converts to RGB
  */
-export default class Hsv extends Effect {
-  name = "Hsv";
-  namespace = "filter";
-  func = "srgb2hsv";
-
-  uniformLayout = {};
-
-  globals = {};
-
-  passes = [
+export default new Effect({
+  name: "Hsv",
+  namespace: "filter",
+  func: "srgb2hsv",
+  uniformLayout: {},
+  globals: {},
+  passes: [
     {
       name: "render",
       program: "hsv",
@@ -24,5 +21,5 @@ export default class Hsv extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

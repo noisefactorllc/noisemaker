@@ -1,13 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class DepthOfField extends Effect {
-  name = "DepthOfField";
-  namespace = "classicNoisedeck";
-  func = "depthOfField";
-
-
-  // WGSL uniform packing layout - maps uniform names to vec4 slots/components
-  uniformLayout = {
+export default new Effect({
+  name: "DepthOfField",
+  namespace: "classicNoisedeck",
+  func: "depthOfField",
+  uniformLayout: {
         resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
@@ -15,8 +12,8 @@ export default class DepthOfField extends Effect {
     aperture: { slot: 1, components: 'y' },
     sampleBias: { slot: 1, components: 'z' },
     depthSource: { slot: 1, components: 'w' }
-  };
-  globals = {
+  },
+  globals: {
     tex: {
       type: "surface",
       default: "inputTex",
@@ -81,9 +78,8 @@ export default class DepthOfField extends Effect {
         control: "dropdown"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "depthOfField",
@@ -96,5 +92,5 @@ export default class DepthOfField extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

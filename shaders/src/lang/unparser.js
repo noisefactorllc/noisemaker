@@ -217,8 +217,11 @@ function formatValue(value, spec, customFormatter) {
         if (value.type === 'Boolean') {
             return value.value ? 'true' : 'false';
         }
-        // Surface reference
+        // Surface reference - wrap in src() if spec indicates surface type
         if (value.kind === 'output' || value.kind === 'feedback' || value.kind === 'source') {
+            if (spec && spec.type === 'surface') {
+                return `src(${value.name})`;
+            }
             return value.name;
         }
     }

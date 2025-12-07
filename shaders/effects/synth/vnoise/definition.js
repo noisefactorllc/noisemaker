@@ -1,13 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class VNoise extends Effect {
-  name = "VNoise";
-  namespace = "synth";
-  func = "vnoise";
-
-  // WGSL uniform packing layout - maps uniform names to vec4 slots/components
-  // Simplified: removed palette-related uniforms and hsv uniforms
-  uniformLayout = {
+export default new Effect({
+  name: "VNoise",
+  namespace: "synth",
+  func: "vnoise",
+  uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     aspectRatio: { slot: 0, components: 'w' },
@@ -22,9 +19,8 @@ export default class VNoise extends Effect {
     ridges: { slot: 3, components: 'x' },
     wrap: { slot: 3, components: 'y' },
     colorMode: { slot: 3, components: 'z' }
-  };
-
-  globals = {
+  },
+  globals: {
     aspect: {
       type: "float",
       default: null,
@@ -182,9 +178,8 @@ export default class VNoise extends Effect {
         control: "dropdown"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "vnoise",
@@ -195,5 +190,5 @@ export default class VNoise extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * CRT
  * /shaders/effects/crt/crt.wgsl
  */
-export default class Crt extends Effect {
-  name = "Crt";
-  namespace = "classicNoisemaker";
-  func = "crt";
-
-  globals = {
+export default new Effect({
+  name: "Crt",
+  namespace: "classicNoisemaker",
+  func: "crt",
+  globals: {
     speed: {
       type: "float",
       default: 1.0,
@@ -22,9 +21,8 @@ export default class Crt extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "crt",
@@ -35,5 +33,5 @@ export default class Crt extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

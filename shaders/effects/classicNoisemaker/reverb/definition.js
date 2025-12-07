@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Reverb
  * Simple multi-pass reverb: each iteration blends image with 50% scaled version
  */
-export default class Reverb extends Effect {
-  name = "Reverb";
-  namespace = "classicNoisemaker";
-  func = "reverb";
-
-  globals = {
+export default new Effect({
+  name: "Reverb",
+  namespace: "classicNoisemaker",
+  func: "reverb",
+  globals: {
     iterations: {
         type: "int",
         default: 3,
@@ -31,9 +30,8 @@ export default class Reverb extends Effect {
             control: "checkbox"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "reverb",
@@ -48,5 +46,5 @@ export default class Reverb extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

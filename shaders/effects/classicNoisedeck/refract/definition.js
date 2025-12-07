@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Refract extends Effect {
-  name = "Refract";
-  namespace = "classicNoisedeck";
-  func = "refract";
-
-  globals = {
+export default new Effect({
+  name: "Refract",
+  namespace: "classicNoisedeck",
+  func: "refract",
+  globals: {
     seed: {
       type: "int",
       default: 1,
@@ -106,9 +105,8 @@ export default class Refract extends Effect {
         control: "dropdown"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "refract",
@@ -120,5 +118,5 @@ export default class Refract extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

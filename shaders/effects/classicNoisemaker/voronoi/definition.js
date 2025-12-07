@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Voronoi
  * /shaders/effects/voronoi/voronoi.wgsl
  */
-export default class Voronoi extends Effect {
-  name = "Voronoi";
-  namespace = "classicNoisemaker";
-  func = "voronoi";
-
-  globals = {
+export default new Effect({
+  name: "Voronoi",
+  namespace: "classicNoisemaker",
+  func: "voronoi",
+  globals: {
     diagramType: {
         type: "integer",
         default: 1,
@@ -175,9 +174,8 @@ export default class Voronoi extends Effect {
             control: "checkbox"
         }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "voronoi",
@@ -199,5 +197,5 @@ export default class Voronoi extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Spatter
  * /shaders/effects/spatter/spatter.wgsl
  */
-export default class Spatter extends Effect {
-  name = "Spatter";
-  namespace = "classicNoisemaker";
-  func = "spatter";
-
-  globals = {
+export default new Effect({
+  name: "Spatter",
+  namespace: "classicNoisemaker",
+  func: "spatter",
+  globals: {
     color: {
         type: "boolean",
         default: true,
@@ -19,9 +18,8 @@ export default class Spatter extends Effect {
             control: "checkbox"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "spatter",
@@ -32,5 +30,5 @@ export default class Spatter extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

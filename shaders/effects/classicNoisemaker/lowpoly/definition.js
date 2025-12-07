@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Lowpoly
  * /shaders/effects/lowpoly/lowpoly.wgsl
  */
-export default class Lowpoly extends Effect {
-  name = "Lowpoly";
-  namespace = "classicNoisemaker";
-  func = "lowpoly";
-
-  globals = {
+export default new Effect({
+  name: "Lowpoly",
+  namespace: "classicNoisemaker",
+  func: "lowpoly",
+  globals: {
     distrib: {
         type: "enum",
         default: 1000000,
@@ -38,9 +37,8 @@ export default class Lowpoly extends Effect {
             label: "Distance Metric"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "lowpoly",
@@ -56,5 +54,5 @@ export default class Lowpoly extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

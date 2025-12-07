@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Kaleido
  * Creates a kaleidoscope mirror effect by reflecting the source texture into wedge slices.
  */
-export default class Kaleido extends Effect {
-  name = "Kaleido";
-  namespace = "classicNoisemaker";
-  func = "kaleido";
-
-  globals = {
+export default new Effect({
+  name: "Kaleido",
+  namespace: "classicNoisemaker",
+  func: "kaleido",
+  globals: {
     sides: {
         type: "float",
         default: 6,
@@ -96,9 +95,8 @@ export default class Kaleido extends Effect {
             control: "checkbox"
         }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "kaleido",
@@ -109,5 +107,5 @@ export default class Kaleido extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

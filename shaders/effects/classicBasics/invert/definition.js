@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Inv extends Effect {
-  name = "Inv";
-  namespace = "classicBasics";
-  func = "invert";
-
-  globals = {
+export default new Effect({
+  name: "Inv",
+  namespace: "classicBasics",
+  func: "invert",
+  globals: {
     "a": {
         "type": "float",
         "default": 1,
@@ -13,9 +12,8 @@ export default class Inv extends Effect {
         "max": 1,
         "uniform": "a"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "inv",
@@ -26,5 +24,5 @@ export default class Inv extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

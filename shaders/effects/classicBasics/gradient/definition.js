@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Gradient extends Effect {
-  name = "Gradient";
-  namespace = "classicBasics";
-  func = "gradient";
-
-  globals = {
+export default new Effect({
+  name: "Gradient",
+  namespace: "classicBasics",
+  func: "gradient",
+  globals: {
     "speed": {
         "type": "float",
         "default": 0,
@@ -13,9 +12,8 @@ export default class Gradient extends Effect {
         "max": 10,
         "uniform": "speed"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "gradient",
@@ -24,5 +22,5 @@ export default class Gradient extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

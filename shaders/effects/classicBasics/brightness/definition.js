@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Bright extends Effect {
-  name = "Bright";
-  namespace = "classicBasics";
-  func = "brightness";
-
-  globals = {
+export default new Effect({
+  name: "Bright",
+  namespace: "classicBasics",
+  func: "brightness",
+  globals: {
     "a": {
         "type": "float",
         "default": 0,
@@ -13,9 +12,8 @@ export default class Bright extends Effect {
         "max": 1,
         "uniform": "a"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "bright",
@@ -26,5 +24,5 @@ export default class Bright extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -1,13 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class BitEffects extends Effect {
-  name = "BitEffects";
-  namespace = "classicNoisedeck";
-  func = "bitEffects";
-
-
-  // WGSL uniform packing layout - maps uniform names to vec4 slots/components
-  uniformLayout = {
+export default new Effect({
+  name: "BitEffects",
+  namespace: "classicNoisedeck",
+  func: "bitEffects",
+  uniformLayout: {
         resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
@@ -26,8 +23,8 @@ export default class BitEffects extends Effect {
     hueRange: { slot: 4, components: 'x' },
     hueRotation: { slot: 4, components: 'y' },
     baseHueRange: { slot: 4, components: 'z' }
-  };
-  globals = {
+  },
+  globals: {
     mode: {
       type: "int",
       default: 1,
@@ -232,9 +229,8 @@ export default class BitEffects extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "bitEffects",
@@ -245,5 +241,5 @@ export default class BitEffects extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

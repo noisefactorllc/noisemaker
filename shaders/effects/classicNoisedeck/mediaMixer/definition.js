@@ -1,14 +1,11 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class MediaMixer extends Effect {
-  name = "MediaMixer";
-  namespace = "classicNoisedeck";
-  func = "mediaMixer";
-
-  // Mark this as requiring external texture updates
-  externalTexture = "imageTex";
-
-  globals = {
+export default new Effect({
+  name: "MediaMixer",
+  namespace: "classicNoisedeck",
+  func: "mediaMixer",
+  externalTexture: "imageTex",
+  globals: {
     tex: {
       type: "surface",
       default: "inputTex",
@@ -143,9 +140,8 @@ export default class MediaMixer extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "mediaMixer",
@@ -159,5 +155,5 @@ export default class MediaMixer extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

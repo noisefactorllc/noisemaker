@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Blend extends Effect {
-  name = "Blend";
-  namespace = "classicBasics";
-  func = "blend";
-
-  globals = {
+export default new Effect({
+  name: "Blend",
+  namespace: "classicBasics",
+  func: "blend",
+  globals: {
     "tex": {
         "type": "surface",
         "default": "inputTex",
@@ -20,9 +19,8 @@ export default class Blend extends Effect {
         "max": 1,
         "uniform": "amount"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "blend",
@@ -34,5 +32,5 @@ export default class Blend extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

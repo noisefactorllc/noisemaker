@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Sine
  * /shaders/effects/sine/sine.wgsl
  */
-export default class Sine extends Effect {
-  name = "Sine";
-  namespace = "classicNoisemaker";
-  func = "sine";
-
-  globals = {
+export default new Effect({
+  name: "Sine",
+  namespace: "classicNoisemaker",
+  func: "sine",
+  globals: {
     amount: {
         type: "float",
         default: 3,
@@ -31,12 +30,8 @@ export default class Sine extends Effect {
             control: "checkbox"
         }
     }
-};
-
-  // TODO: Define passes based on shader requirements
-  // This effect was originally implemented as a WebGPU compute shader.
-  // A render pass implementation needs to be created for GLSL/WebGL2 compatibility.
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "sine",
@@ -47,5 +42,5 @@ export default class Sine extends Effect {
         outputBuffer: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -11,21 +11,18 @@ import { Effect } from '../../../src/runtime/effect.js';
  * 
  * For 800x600: 800/16=50, 600/16=38 → 50x38 → 4x3 → 1x1
  */
-export default class Normalize extends Effect {
-  name = "Normalize";
-  namespace = "classicNoisemaker";
-  func = "normalize";
-
-  globals = {};
-
-  textures = {
+export default new Effect({
+  name: "Normalize",
+  namespace: "classicNoisemaker",
+  func: "normalize",
+  globals: {},
+  textures: {
     // Pyramid reduction textures
     reduce1: { width: "6.25%", height: "6.25%", format: "rgba16f" },  // 1/16
     reduce2: { width: "0.4%", height: "0.4%", format: "rgba16f" },    // 1/256  
     stats: { width: 1, height: 1, format: "rgba16f" }                 // Final 1x1
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "reduce",
       program: "reduce",
@@ -67,5 +64,5 @@ export default class Normalize extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

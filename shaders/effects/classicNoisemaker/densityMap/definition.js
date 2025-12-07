@@ -5,20 +5,16 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Normalizes image values based on min/max.
  * Uses a two-stage reduction to find global min/max.
  */
-export default class DensityMap extends Effect {
-  name = "DensityMap";
-  namespace = "classicNoisemaker";
-  func = "densityMap";
-
-  globals = {};
-
-  // Internal textures for min/max reduction
-  textures = {
+export default new Effect({
+  name: "DensityMap",
+  namespace: "classicNoisemaker",
+  func: "densityMap",
+  globals: {},
+  textures: {
     _minmax1: { width: 32, height: 32, format: "rgba32float" },
     _minmaxGlobal: { width: 1, height: 1, format: "rgba32float" }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "reduce1",
       program: "reduce1",
@@ -52,5 +48,5 @@ export default class DensityMap extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

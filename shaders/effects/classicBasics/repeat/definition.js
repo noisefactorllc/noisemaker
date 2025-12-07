@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Repeat extends Effect {
-  name = "Repeat";
-  namespace = "classicBasics";
-  func = "repeat";
-
-  globals = {
+export default new Effect({
+  name: "Repeat",
+  namespace: "classicBasics",
+  func: "repeat",
+  globals: {
     "x": {
         "type": "float",
         "default": 3,
@@ -34,9 +33,8 @@ export default class Repeat extends Effect {
         "max": 1,
         "uniform": "offsetY"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "repeat",
@@ -47,5 +45,5 @@ export default class Repeat extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

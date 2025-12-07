@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/contrast - Adjust contrast
  * Simple contrast adjustment (0..1 maps to 0..2x)
  */
-export default class Contrast extends Effect {
-  name = "Contrast";
-  namespace = "filter";
-  func = "contrast";
-
-  globals = {
+export default new Effect({
+  name: "Contrast",
+  namespace: "filter",
+  func: "contrast",
+  globals: {
     amount: {
       type: "float",
       default: 0.5,
@@ -21,9 +20,8 @@ export default class Contrast extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "contrast",
@@ -34,5 +32,5 @@ export default class Contrast extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

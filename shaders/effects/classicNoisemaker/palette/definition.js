@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Palette
  * /shaders/effects/palette/palette.wgsl
  */
-export default class Palette extends Effect {
-  name = "Palette";
-  namespace = "classicNoisemaker";
-  func = "palette";
-
-  globals = {
+export default new Effect({
+  name: "Palette",
+  namespace: "classicNoisemaker",
+  func: "palette",
+  globals: {
     paletteIndex: {
         type: "member",
         default: "palette.afterimage",
@@ -32,9 +31,8 @@ export default class Palette extends Effect {
             control: "slider"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "palette",
@@ -45,5 +43,5 @@ export default class Palette extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

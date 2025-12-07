@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * nu/lens - Lens distortion (barrel/pincushion)
  */
-export default class Lens extends Effect {
-  name = "Lens";
-  namespace = "filter";
-  func = "lens";
-
-  globals = {
+export default new Effect({
+  name: "Lens",
+  namespace: "filter",
+  func: "lens",
+  globals: {
     displacement: {
       type: "float",
       default: 0,
@@ -21,9 +20,8 @@ export default class Lens extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "lens",
@@ -34,5 +32,5 @@ export default class Lens extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

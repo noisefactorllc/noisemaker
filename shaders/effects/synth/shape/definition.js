@@ -1,12 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Shape extends Effect {
-  name = "Shape";
-  namespace = "synth";
-  func = "shape";
-
-  // WGSL uniform packing layout - simplified (no palette)
-  uniformLayout = {
+export default new Effect({
+  name: "Shape",
+  namespace: "synth",
+  func: "shape",
+  uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
@@ -17,9 +15,8 @@ export default class Shape extends Effect {
     loopBScale: { slot: 2, components: 'x' },
     loopAAmp: { slot: 2, components: 'y' },
     loopBAmp: { slot: 2, components: 'z' }
-  };
-
-  globals = {
+  },
+  globals: {
     loopAOffset: {
       type: "int",
       default: 40,
@@ -164,9 +161,8 @@ export default class Shape extends Effect {
         control: "checkbox"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "shape",
@@ -175,5 +171,5 @@ export default class Shape extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

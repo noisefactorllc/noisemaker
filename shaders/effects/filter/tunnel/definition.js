@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/tunnel - Perspective tunnel effect
  * Based on Inigo Quilez's tunnel shader
  */
-export default class Tunnel extends Effect {
-  name = "Tunnel";
-  namespace = "filter";
-  func = "tunnel";
-
-  globals = {
+export default new Effect({
+  name: "Tunnel",
+  namespace: "filter",
+  func: "tunnel",
+  globals: {
     shape: {
       type: "int",
       default: 0,
@@ -62,9 +61,8 @@ export default class Tunnel extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "tunnel",
@@ -75,5 +73,5 @@ export default class Tunnel extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

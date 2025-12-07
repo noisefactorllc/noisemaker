@@ -20,22 +20,18 @@ import { Effect } from '../../../src/runtime/effect.js';
  * This effect is a DIRECT PORT of the common rendering logic - no new functionality added.
  * The goal is unification, not enhancement.
  */
-export default class Render3D extends Effect {
-  name = "Render3D";
-  namespace = "vol";
-  func = "render3d";
-
-  // Screen-space geometry buffer for post-processing (normals + depth at screen resolution)
-  textures = {
+export default new Effect({
+  name: "Render3D",
+  namespace: "vol",
+  func: "render3d",
+  textures: {
     screenGeoBuffer: {
       width: "resolution",
       height: "resolution",
       format: "rgba16f"
     }
-  };
-
-  // Common uniforms from all 3D effects
-  globals = {
+  },
+  globals: {
     "volumeSize": {
         "type": "int",
         "default": 64,
@@ -110,9 +106,8 @@ export default class Render3D extends Effect {
             "label": "background alpha"
         }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "render3d",
@@ -126,11 +121,7 @@ export default class Render3D extends Effect {
         geoOut: "screenGeoBuffer"
       }
     }
-  ];
-
-  // Expose screen-space geometry buffer for downstream post-processing
-  outputGeo = "screenGeoBuffer";
-
-  // Pass through the 3D volume for downstream effects that may need it
-  outputTex3d = "inputTex3d";
-}
+  ],
+  outputGeo: "screenGeoBuffer",
+  outputTex3d: "inputTex3d"
+});

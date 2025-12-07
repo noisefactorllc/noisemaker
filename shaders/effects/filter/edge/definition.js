@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/edge - Edge detection using convolution kernel
  * Highlights edges in the image
  */
-export default class Edge extends Effect {
-  name = "Edge";
-  namespace = "filter";
-  func = "edge";
-
-  globals = {
+export default new Effect({
+  name: "Edge",
+  namespace: "filter",
+  func: "edge",
+  globals: {
     amount: {
       type: "float",
       default: 1.0,
@@ -21,9 +20,8 @@ export default class Edge extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "edge",
@@ -34,5 +32,5 @@ export default class Edge extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class ApplySaturation extends Effect {
-  name = "Apply Saturation";
-  namespace = "mixer";
-  func = "applySaturation";
-
-  globals = {
+export default new Effect({
+  name: "Apply Saturation",
+  namespace: "mixer",
+  func: "applySaturation",
+  globals: {
     tex: {
       type: "surface",
       default: "inputTex",
@@ -19,14 +18,13 @@ export default class ApplySaturation extends Effect {
       max: 100,
       ui: { label: "mix", control: "slider" }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "applySaturation",
       inputs: { tex0: "inputTex", tex1: "tex" },
       outputs: { fragColor: "outputTex" }
     }
-  ];
-}
+  ]
+});

@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Adjust Contrast
  * /shaders/effects/adjust_contrast/adjust_contrast.wgsl
  */
-export default class AdjustContrast extends Effect {
-  name = "AdjustContrast";
-  namespace = "classicNoisemaker";
-  func = "adjustContrast";
-
-  globals = {
+export default new Effect({
+  name: "AdjustContrast",
+  namespace: "classicNoisemaker",
+  func: "adjustContrast",
+  globals: {
     amount: {
         type: "float",
         default: 1.25,
@@ -22,9 +21,8 @@ export default class AdjustContrast extends Effect {
             control: "slider"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "adjustContrast",
@@ -35,5 +33,5 @@ export default class AdjustContrast extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

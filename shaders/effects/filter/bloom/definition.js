@@ -9,12 +9,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * 
  * All math in linear color space.
  */
-export default class Bloom extends Effect {
-  name = "Bloom";
-  namespace = "filter";
-  func = "bloom";
-
-  globals = {
+export default new Effect({
+  name: "Bloom",
+  namespace: "filter",
+  func: "bloom",
+  globals: {
     threshold: {
       type: "float",
       default: 0.8,
@@ -84,10 +83,8 @@ export default class Bloom extends Effect {
         control: "color"
       }
     }
-  };
-
-  // Internal textures for bloom pipeline
-  textures = {
+  },
+  textures: {
     _brightTex: {
       width: "input",
       height: "input",
@@ -98,9 +95,8 @@ export default class Bloom extends Effect {
       height: "input",
       format: "rgba16float"
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "brightPass",
       program: "brightPass",
@@ -132,5 +128,5 @@ export default class Bloom extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

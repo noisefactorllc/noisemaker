@@ -25,14 +25,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * - state2: [r, g, b, seed]           - color + seed
  * - state3: [age, initialized, strideRand, 0] - age, init flag, stride random
  */
-export default class Flow3D extends Effect {
-  name = "Flow3D";
-  namespace = "vol";
-  func = "flow3d";
-
-  // 3D volumes stored as 2D atlas: volumeSize x (volumeSize * volumeSize)
-  // If inputTex3d is provided, its dimensions take precedence
-  textures = {
+export default new Effect({
+  name: "Flow3D",
+  namespace: "vol",
+  func: "flow3d",
+  textures: {
     volumeCache: { 
       width: { param: 'volumeSize', default: 32 }, 
       height: { param: 'volumeSize', power: 2, default: 1024 }, 
@@ -71,9 +68,8 @@ export default class Flow3D extends Effect {
       height: { param: 'volumeSize', power: 2, default: 1024 },
       format: "rgba16f"
     }
-  };
-
-  globals = {
+  },
+  globals: {
     "volumeSize": {
       "type": "int",
       "default": 32,
@@ -191,9 +187,8 @@ export default class Flow3D extends Effect {
         "control": "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "agent",
       program: "agent",
@@ -277,11 +272,7 @@ export default class Flow3D extends Effect {
         fragColor: "globalFlow3dBlended"
       }
     }
-  ];
-
-  // Expose geometry buffer for downstream effects
-  outputGeo = "geoBuffer";
-
-  // Expose the blended volume as the 3D output
-  outputTex3d = "globalFlow3dBlended";
-}
+  ],
+  outputGeo: "geoBuffer",
+  outputTex3d: "globalFlow3dBlended"
+});

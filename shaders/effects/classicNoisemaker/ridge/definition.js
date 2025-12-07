@@ -4,17 +4,12 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Ridge
  * /shaders/effects/ridge/ridge.wgsl
  */
-export default class Ridge extends Effect {
-  name = "Ridge";
-  namespace = "classicNoisemaker";
-  func = "ridge";
-
-  globals = {};
-
-  // TODO: Define passes based on shader requirements
-  // This effect was originally implemented as a WebGPU compute shader.
-  // A render pass implementation needs to be created for GLSL/WebGL2 compatibility.
-  passes = [
+export default new Effect({
+  name: "Ridge",
+  namespace: "classicNoisemaker",
+  func: "ridge",
+  globals: {},
+  passes: [
     {
       name: "main",
       program: "ridge",
@@ -25,5 +20,5 @@ export default class Ridge extends Effect {
         outputBuffer: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

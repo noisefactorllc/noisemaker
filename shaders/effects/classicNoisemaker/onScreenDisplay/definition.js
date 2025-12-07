@@ -4,14 +4,12 @@ import { Effect } from '../../../src/runtime/effect.js';
  * On-Screen Display
  * /shaders/effects/on_screen_display/on_screen_display.wgsl
  */
-export default class OnScreenDisplay extends Effect {
-  name = "OnScreenDisplay";
-  namespace = "classicNoisemaker";
-  func = "onScreenDisplay";
-
-  globals = {};
-
-  passes = [
+export default new Effect({
+  name: "OnScreenDisplay",
+  namespace: "classicNoisemaker",
+  func: "onScreenDisplay",
+  globals: {},
+  passes: [
     {
       name: "main",
       program: "onScreenDisplay",
@@ -22,5 +20,5 @@ export default class OnScreenDisplay extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

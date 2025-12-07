@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Lens Warp
  * /shaders/effects/lens_warp/lens_warp.wgsl
  */
-export default class LensWarp extends Effect {
-  name = "LensWarp";
-  namespace = "classicNoisemaker";
-  func = "lensWarp";
-
-  globals = {
+export default new Effect({
+  name: "LensWarp",
+  namespace: "classicNoisemaker",
+  func: "lensWarp",
+  globals: {
     displacement: {
         type: "float",
         default: 0.0625,
@@ -22,12 +21,8 @@ export default class LensWarp extends Effect {
             control: "slider"
         }
     }
-};
-
-  // TODO: Define passes based on shader requirements
-  // This effect was originally implemented as a WebGPU compute shader.
-  // A render pass implementation needs to be created for GLSL/WebGL2 compatibility.
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "lensWarp",
@@ -41,5 +36,5 @@ export default class LensWarp extends Effect {
         outputBuffer: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

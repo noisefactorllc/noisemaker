@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Thresh extends Effect {
-  name = "Thresh";
-  namespace = "nd";
-  func = "thresh";
-
-  globals = {
+export default new Effect({
+  name: "Thresh",
+  namespace: "nd",
+  func: "thresh",
+  globals: {
     "level": {
         "type": "float",
         "default": 0.5,
@@ -20,9 +19,8 @@ export default class Thresh extends Effect {
         "max": 1,
         "uniform": "sharpness"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "thresh",
@@ -33,5 +31,5 @@ export default class Thresh extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

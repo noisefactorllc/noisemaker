@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Noise extends Effect {
-  name = "Noise";
-  namespace = "synth";
-  func = "noise";
-
-  globals = {
+export default new Effect({
+  name: "Noise",
+  namespace: "synth",
+  func: "noise",
+  globals: {
     "scale": {
         "type": "float",
         "default": 25,
@@ -45,9 +44,8 @@ export default class Noise extends Effect {
         "max": 100,
         "uniform": "seed"
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "noise",
@@ -56,5 +54,5 @@ export default class Noise extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

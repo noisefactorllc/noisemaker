@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * nu/translate - Translate image X and Y
  */
-export default class Translate extends Effect {
-  name = "Translate";
-  namespace = "filter";
-  func = "translate";
-
-  globals = {
+export default new Effect({
+  name: "Translate",
+  namespace: "filter",
+  func: "translate",
+  globals: {
     x: {
       type: "float",
       default: 0,
@@ -33,9 +32,8 @@ export default class Translate extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "translate",
@@ -46,5 +44,5 @@ export default class Translate extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

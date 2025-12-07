@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Effects extends Effect {
-  name = "Effects";
-  namespace = "classicNoisedeck";
-  func = "effects";
-
-  globals = {
+export default new Effect({
+  name: "Effects",
+  namespace: "classicNoisedeck",
+  func: "effects",
+  globals: {
     seed: {
       type: "int",
       default: 1,
@@ -149,9 +148,8 @@ export default class Effects extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "effects",
@@ -163,5 +161,5 @@ export default class Effects extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

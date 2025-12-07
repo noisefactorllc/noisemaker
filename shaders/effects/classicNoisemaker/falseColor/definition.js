@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * False Color
  * /shaders/effects/false_color/false_color.wgsl
  */
-export default class FalseColor extends Effect {
-  name = "FalseColor";
-  namespace = "classicNoisemaker";
-  func = "falseColor";
-
-  globals = {
+export default new Effect({
+  name: "FalseColor",
+  namespace: "classicNoisemaker",
+  func: "falseColor",
+  globals: {
     horizontal: {
         type: "boolean",
         default: false,
@@ -31,12 +30,8 @@ export default class FalseColor extends Effect {
             control: "slider"
         }
     }
-};
-
-  // TODO: Define passes based on shader requirements
-  // This effect was originally implemented as a WebGPU compute shader.
-  // A render pass implementation needs to be created for GLSL/WebGL2 compatibility.
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "falseColor",
@@ -53,5 +48,5 @@ export default class FalseColor extends Effect {
         outputBuffer: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

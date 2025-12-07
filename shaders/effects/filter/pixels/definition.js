@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/pixels - Pixelation effect
  * Reduces image resolution for retro pixel art look
  */
-export default class Pixels extends Effect {
-  name = "Pixels";
-  namespace = "filter";
-  func = "pixels";
-
-  globals = {
+export default new Effect({
+  name: "Pixels",
+  namespace: "filter",
+  func: "pixels",
+  globals: {
     size: {
       type: "float",
       default: 4.0,
@@ -21,9 +20,8 @@ export default class Pixels extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "pixels",
@@ -34,5 +32,5 @@ export default class Pixels extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Solid extends Effect {
-  name = "Solid";
-  namespace = "classicBasics";
-  func = "solid";
-
-  globals = {
+export default new Effect({
+  name: "Solid",
+  namespace: "classicBasics",
+  func: "solid",
+  globals: {
     "r": {
         "type": "float",
         "default": 0.5,
@@ -27,9 +26,8 @@ export default class Solid extends Effect {
         "max": 1,
         "uniform": "b"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "solid",
@@ -38,5 +36,5 @@ export default class Solid extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

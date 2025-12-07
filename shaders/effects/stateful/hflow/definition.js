@@ -18,22 +18,17 @@ import { Effect } from '../../../src/runtime/effect.js';
  *   deposit: add agent points (additive)
  *   blend: combine trail with input
  */
-export default class Hflow extends Effect {
-  name = "Hflow";
-  namespace = "stateful";
-  func = "hflow";
-  
-  // State textures with `global` prefix for automatic ping-pong
-  // Agent state: 256x256 = 65536 agents
-  // Trail: single texture with ping-pong for accumulation
-  textures = {
+export default new Effect({
+  name: "Hflow",
+  namespace: "stateful",
+  func: "hflow",
+  textures: {
     globalHflowState1: { width: 256, height: 256, format: "rgba16f" },
     globalHflowState2: { width: 256, height: 256, format: "rgba16f" },
     globalHflowState3: { width: 256, height: 256, format: "rgba16f" },
     globalHflowTrail: { width: "100%", height: "100%", format: "rgba16f" }
-  };
-
-  globals = {
+  },
+  globals: {
     density: {
       type: "float",
       default: 5,
@@ -121,9 +116,8 @@ export default class Hflow extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     // Pass 0: Copy previous trail with decay to preserve accumulation
     // globalHflowTrail ping-pong: read previous, write current with fade
     {
@@ -182,5 +176,5 @@ export default class Hflow extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/sobel - Sobel edge detection effect
  * Classic Sobel operator for edge detection
  */
-export default class Sobel extends Effect {
-  name = "Sobel";
-  namespace = "filter";
-  func = "sobel";
-
-  globals = {
+export default new Effect({
+  name: "Sobel",
+  namespace: "filter",
+  func: "sobel",
+  globals: {
     amount: {
       type: "float",
       default: 1.0,
@@ -21,9 +20,8 @@ export default class Sobel extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "sobel",
@@ -34,5 +32,5 @@ export default class Sobel extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

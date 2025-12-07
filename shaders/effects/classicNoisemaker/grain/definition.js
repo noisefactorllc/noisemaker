@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Grain
  * Animated film grain overlay
  */
-export default class Grain extends Effect {
-  name = "Grain";
-  namespace = "classicNoisemaker";
-  func = "grain";
-
-  globals = {
+export default new Effect({
+  name: "Grain",
+  namespace: "classicNoisemaker",
+  func: "grain",
+  globals: {
     alpha: {
         type: "float",
         default: 0.25,
@@ -34,9 +33,8 @@ export default class Grain extends Effect {
             control: "slider"
         }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "grain",
@@ -51,5 +49,5 @@ export default class Grain extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

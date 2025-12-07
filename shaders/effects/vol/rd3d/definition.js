@@ -13,14 +13,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * If inputTex3d is provided from upstream, its dimensions take precedence
  * over volumeSize. Otherwise, allocates fresh volumes.
  */
-export default class Rd3D extends Effect {
-  name = "Rd3D";
-  namespace = "vol";
-  func = "rd3d";
-
-  // 3D volumes stored as 2D atlas: volumeSize x (volumeSize * volumeSize)
-  // If inputTex3d is provided, its dimensions take precedence
-  textures = {
+export default new Effect({
+  name: "Rd3D",
+  namespace: "vol",
+  func: "rd3d",
+  textures: {
     volumeCache: { 
       width: { param: 'volumeSize', default: 32 }, 
       height: { param: 'volumeSize', power: 2, default: 1024 }, 
@@ -38,9 +35,8 @@ export default class Rd3D extends Effect {
       height: { param: 'volumeSize', power: 2, default: 1024 }, 
       format: "rgba16f" 
     }
-  };
-
-  globals = {
+  },
+  globals: {
     "volumeSize": {
       "type": "int",
       "default": 32,
@@ -153,9 +149,8 @@ export default class Rd3D extends Effect {
             "control": "slider"
         }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "simulate",
       program: "simulate",
@@ -172,9 +167,7 @@ export default class Rd3D extends Effect {
         color: "globalRdState"
       }
     }
-  ];
-
-  // Expose volume for downstream effects
-  outputTex3d = "globalRdState";
-  outputGeo = "geoBuffer";
-}
+  ],
+  outputTex3d: "globalRdState",
+  outputGeo: "geoBuffer"
+});

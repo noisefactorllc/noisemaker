@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/emboss - Emboss convolution effect
  * Creates a raised relief appearance
  */
-export default class Emboss extends Effect {
-  name = "Emboss";
-  namespace = "filter";
-  func = "emboss";
-
-  globals = {
+export default new Effect({
+  name: "Emboss",
+  namespace: "filter",
+  func: "emboss",
+  globals: {
     amount: {
       type: "float",
       default: 1.0,
@@ -21,9 +20,8 @@ export default class Emboss extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "emboss",
@@ -34,5 +32,5 @@ export default class Emboss extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

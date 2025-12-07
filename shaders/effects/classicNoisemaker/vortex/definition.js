@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * Vortex - swirling distortion from center
  */
-export default class Vortex extends Effect {
-  name = "Vortex";
-  namespace = "classicNoisemaker";
-  func = "vortex";
-
-  globals = {
+export default new Effect({
+  name: "Vortex",
+  namespace: "classicNoisemaker",
+  func: "vortex",
+  globals: {
     displacement: {
       type: "float",
       default: 1.0,
@@ -33,9 +32,8 @@ export default class Vortex extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "vortex",
@@ -50,5 +48,5 @@ export default class Vortex extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

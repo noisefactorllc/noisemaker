@@ -11,12 +11,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * 5. Gather: Use ranks to gather sorted pixels with alignment
  * 6. Finalize: Rotate back, max blend with original
  */
-export default class PixelSort extends Effect {
-  name = "PixelSort";
-  namespace = "classicNoisemaker";
-  func = "pixelSort";
-
-  globals = {
+export default new Effect({
+  name: "PixelSort",
+  namespace: "classicNoisemaker",
+  func: "pixelSort",
+  globals: {
     angled: {
         type: "float",
         default: 0,
@@ -38,17 +37,15 @@ export default class PixelSort extends Effect {
             control: "checkbox"
         }
     }
-  };
-
-  textures = {
+  },
+  textures: {
     prepared: { width: "100%", height: "100%", format: "rgba16f" },
     luminance: { width: "100%", height: "100%", format: "rgba16f" },
     brightest: { width: "100%", height: "100%", format: "rgba16f" },
     rank: { width: "100%", height: "100%", format: "rgba16f" },
     sorted: { width: "100%", height: "100%", format: "rgba16f" }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "prepare",
       program: "prepare",
@@ -122,5 +119,5 @@ export default class PixelSort extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

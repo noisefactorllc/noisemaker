@@ -4,14 +4,12 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Texture
  * /shaders/effects/texture/texture.wgsl
  */
-export default class Texture extends Effect {
-  name = "Texture";
-  namespace = "classicNoisemaker";
-  func = "texture";
-
-  globals = {};
-
-  passes = [
+export default new Effect({
+  name: "Texture",
+  namespace: "classicNoisemaker",
+  func: "texture",
+  globals: {},
+  passes: [
     {
       name: "main",
       program: "texture",
@@ -22,5 +20,5 @@ export default class Texture extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

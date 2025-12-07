@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Cont extends Effect {
-  name = "Cont";
-  namespace = "classicBasics";
-  func = "contrast";
-
-  globals = {
+export default new Effect({
+  name: "Cont",
+  namespace: "classicBasics",
+  func: "contrast",
+  globals: {
     "a": {
         "type": "float",
         "default": 1,
@@ -13,9 +12,8 @@ export default class Cont extends Effect {
         "max": 10,
         "uniform": "a"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "cont",
@@ -26,5 +24,5 @@ export default class Cont extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Refract
  * /shaders/effects/refract/refract.wgsl
  */
-export default class Refract extends Effect {
-  name = "Refract";
-  namespace = "classicNoisemaker";
-  func = "refract";
-
-  globals = {
+export default new Effect({
+  name: "Refract",
+  namespace: "classicNoisemaker",
+  func: "refract",
+  globals: {
     displacement: {
       type: "float",
       default: 0.5,
@@ -79,9 +78,8 @@ export default class Refract extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "refract",
@@ -100,5 +98,5 @@ export default class Refract extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

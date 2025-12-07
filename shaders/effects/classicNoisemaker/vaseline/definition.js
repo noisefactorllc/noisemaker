@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Vaseline - intense bloom at edges, blending to original toward center
  * Uses same N-tap bloom approach as bloom effect, with edge mask
  */
-export default class Vaseline extends Effect {
-  name = "Vaseline";
-  namespace = "classicNoisemaker";
-  func = "vaseline";
-
-  globals = {
+export default new Effect({
+  name: "Vaseline",
+  namespace: "classicNoisemaker",
+  func: "vaseline",
+  globals: {
     alpha: {
         type: "float",
         default: 0.5,
@@ -22,18 +21,15 @@ export default class Vaseline extends Effect {
             control: "slider"
         }
     }
-  };
-
-  // Internal texture for downsampled bloom data
-  textures = {
+  },
+  textures: {
     _vaselineDownsample: {
       width: 64,
       height: 64,
       format: "rgba16float"
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "downsample",
       program: "downsample",
@@ -55,5 +51,5 @@ export default class Vaseline extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

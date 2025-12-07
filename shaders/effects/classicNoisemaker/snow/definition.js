@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Snow
  * /shaders/effects/snow/snow.wgsl
  */
-export default class Snow extends Effect {
-  name = "Snow";
-  namespace = "classicNoisemaker";
-  func = "snow";
-
-  globals = {
+export default new Effect({
+  name: "Snow",
+  namespace: "classicNoisemaker",
+  func: "snow",
+  globals: {
     alpha: {
         type: "float",
         default: 0.25,
@@ -34,12 +33,8 @@ export default class Snow extends Effect {
             control: "slider"
         }
     }
-};
-
-  // TODO: Define passes based on shader requirements
-  // This effect was originally implemented as a WebGPU compute shader.
-  // A render pass implementation needs to be created for GLSL/WebGL2 compatibility.
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "snow",
@@ -54,5 +49,5 @@ export default class Snow extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -5,13 +5,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Removed: palette colorization, hsv colorMode, hueRange, all palette uniforms
  * Output: grayscale intensity based on escape iteration
  */
-export default class Fractal extends Effect {
-  name = "Fractal";
-  namespace = "synth";
-  func = "fractal";
-
-  // WGSL uniform packing layout - reduced for mono-only
-  uniformLayout = {
+export default new Effect({
+  name: "Fractal",
+  namespace: "synth",
+  func: "fractal",
+  uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
@@ -30,9 +28,8 @@ export default class Fractal extends Effect {
     backgroundColor: { slot: 4, components: 'xyz' },
     backgroundOpacity: { slot: 4, components: 'w' },
     cutoff: { slot: 5, components: 'x' }
-  };
-
-  globals = {
+  },
+  globals: {
     seed: {
       type: "int",
       default: 1,
@@ -210,9 +207,8 @@ export default class Fractal extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "fractal",
@@ -223,5 +219,5 @@ export default class Fractal extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

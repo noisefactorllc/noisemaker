@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Sub extends Effect {
-  name = "Sub";
-  namespace = "classicBasics";
-  func = "sub";
-
-  globals = {
+export default new Effect({
+  name: "Sub",
+  namespace: "classicBasics",
+  func: "sub",
+  globals: {
     "amount": {
         "type": "float",
         "default": 1,
@@ -20,9 +19,8 @@ export default class Sub extends Effect {
         "label": "source surface"
       }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "sub",
@@ -34,5 +32,5 @@ export default class Sub extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

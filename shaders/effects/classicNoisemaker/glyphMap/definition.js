@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Glyph Map
  * Maps input values to glyph indices from an atlas texture
  */
-export default class GlyphMap extends Effect {
-  name = "GlyphMap";
-  namespace = "classicNoisemaker";
-  func = "glyphMap";
-
-  globals = {
+export default new Effect({
+  name: "GlyphMap",
+  namespace: "classicNoisemaker",
+  func: "glyphMap",
+  globals: {
     colorize: {
         type: "boolean",
         default: true,
@@ -95,9 +94,8 @@ export default class GlyphMap extends Effect {
             label: "Spline Order"
         }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "glyphMap",
@@ -108,5 +106,5 @@ export default class GlyphMap extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

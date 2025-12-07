@@ -12,22 +12,17 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Agent format: [x, y, rot, stride] [r, g, b, seed] [age, behavior, 0, 0]
  * Stored across 3 state textures using MRT
  */
-export default class Flow extends Effect {
-  name = "Flow";
-  namespace = "stateful";
-  func = "flow";
-
-  // State textures with `global` prefix for automatic ping-pong
-  // Agent state: 512x512 = 262144 agents
-  // Trail: single texture with ping-pong for accumulation
-  textures = {
+export default new Effect({
+  name: "Flow",
+  namespace: "stateful",
+  func: "flow",
+  textures: {
     globalFlowState1: { width: 512, height: 512, format: "rgba16f" },
     globalFlowState2: { width: 512, height: 512, format: "rgba16f" },
     globalFlowState3: { width: 512, height: 512, format: "rgba16f" },
     globalFlowTrail: { width: "100%", height: "100%", format: "rgba16f" }
-  };
-
-  globals = {
+  },
+  globals: {
     behavior: {
       type: "int",
       default: 1,
@@ -139,9 +134,8 @@ export default class Flow extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     // Pass 0: Copy previous trail with decay to preserve accumulation
     // globalFlowTrail ping-pong: read previous, write current with fade
     {
@@ -214,5 +208,5 @@ export default class Flow extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Ripple
  * /shaders/effects/ripple/ripple.wgsl
  */
-export default class Ripple extends Effect {
-  name = "Ripple";
-  namespace = "classicNoisemaker";
-  func = "ripple";
-
-  globals = {
+export default new Effect({
+  name: "Ripple",
+  namespace: "classicNoisemaker",
+  func: "ripple",
+  globals: {
     freq: {
         type: "float",
         default: 3,
@@ -70,9 +69,8 @@ export default class Ripple extends Effect {
             control: "slider"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "ripple",
@@ -91,5 +89,5 @@ export default class Ripple extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

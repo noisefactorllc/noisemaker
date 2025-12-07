@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Sobel
  * /shaders/effects/sobel/sobel.wgsl
  */
-export default class Sobel extends Effect {
-  name = "Sobel";
-  namespace = "classicNoisemaker";
-  func = "sobel";
-
-  globals = {
+export default new Effect({
+  name: "Sobel",
+  namespace: "classicNoisemaker",
+  func: "sobel",
+  globals: {
     distMetric: {
         type: "enum",
         default: 1,
@@ -30,9 +29,8 @@ export default class Sobel extends Effect {
             control: "slider"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "sobel",
@@ -43,5 +41,5 @@ export default class Sobel extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

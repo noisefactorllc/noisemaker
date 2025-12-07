@@ -1,15 +1,11 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class MediaInput extends Effect {
-  name = "MediaInput";
-  namespace = "classicNoisedeck";
-  func = "mediaInput";
-
-  // Mark this as requiring external texture updates
-  externalTexture = "imageTex";
-
-  // WGSL uniform packing layout - maps uniform names to vec4 slots/components
-  uniformLayout = {
+export default new Effect({
+  name: "MediaInput",
+  namespace: "classicNoisedeck",
+  func: "mediaInput",
+  externalTexture: "imageTex",
+  uniformLayout: {
         resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
@@ -23,8 +19,8 @@ export default class MediaInput extends Effect {
     backgroundOpacity: { slot: 2, components: 'w' },
     backgroundColor: { slot: 3, components: 'xyz' },
     imageSize: { slot: 4, components: 'xy' }
-  };
-  globals = {
+  },
+  globals: {
     seed: {
       type: "int",
       default: 1,
@@ -191,9 +187,8 @@ export default class MediaInput extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "mediaInput",
@@ -205,5 +200,5 @@ export default class MediaInput extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

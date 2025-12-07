@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Splat extends Effect {
-  name = "Splat";
-  namespace = "classicNoisedeck";
-  func = "splat";
-
-  globals = {
+export default new Effect({
+  name: "Splat",
+  namespace: "classicNoisedeck",
+  func: "splat",
+  globals: {
     useSplats: {
       type: "boolean",
       default: true,
@@ -160,9 +159,8 @@ export default class Splat extends Effect {
         control: "color"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "splat",
@@ -174,5 +172,5 @@ export default class Splat extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * Wobble - offsets the entire frame using noise-driven jitter
  */
-export default class Wobble extends Effect {
-  name = "Wobble";
-  namespace = "classicNoisemaker";
-  func = "wobble";
-
-  globals = {
+export default new Effect({
+  name: "Wobble",
+  namespace: "classicNoisemaker",
+  func: "wobble",
+  globals: {
     speed: {
       type: "float",
       default: 1.0,
@@ -21,9 +20,8 @@ export default class Wobble extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "wobble",
@@ -38,5 +36,5 @@ export default class Wobble extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

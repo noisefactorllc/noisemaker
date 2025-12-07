@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Blur
  * Two-pass blur: downsample to coarse buffer, then upsample with interpolation
  */
-export default class Blur extends Effect {
-  name = "Blur";
-  namespace = "classicNoisemaker";
-  func = "blur";
-
-  globals = {
+export default new Effect({
+  name: "Blur",
+  namespace: "classicNoisemaker",
+  func: "blur",
+  globals: {
     amount: {
         type: "float",
         default: 10,
@@ -34,19 +33,15 @@ export default class Blur extends Effect {
             control: "slider"
         }
     }
-  };
-
-  // Internal texture for downsample buffer
-  textures = {
+  },
+  textures: {
     blurDownsample: {
       width: 64,
       height: 64,
       format: "rgba16float"
     }
-  };
-
-  // Two-pass blur: downsample to coarse buffer, then upsample with interpolation
-  passes = [
+  },
+  passes: [
     {
       name: "downsample",
       program: "blur",
@@ -69,5 +64,5 @@ export default class Blur extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

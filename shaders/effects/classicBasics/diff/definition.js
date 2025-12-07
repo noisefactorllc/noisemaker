@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Diff extends Effect {
-  name = "Diff";
-  namespace = "classicBasics";
-  func = "diff";
-
-  globals = {
+export default new Effect({
+  name: "Diff",
+  namespace: "classicBasics",
+  func: "diff",
+  globals: {
     "tex": {
         "type": "surface",
         "default": "inputTex",
@@ -14,9 +13,8 @@ export default class Diff extends Effect {
             "label": "source surface"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "diff",
@@ -28,5 +26,5 @@ export default class Diff extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

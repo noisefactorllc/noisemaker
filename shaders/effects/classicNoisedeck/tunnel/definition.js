@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Tunnel extends Effect {
-  name = "Tunnel";
-  namespace = "classicNoisedeck";
-  func = "tunnel";
-
-  globals = {
+export default new Effect({
+  name: "Tunnel",
+  namespace: "classicNoisedeck",
+  func: "tunnel",
+  globals: {
     seed: {
       type: "int",
       default: 1,
@@ -112,9 +111,8 @@ export default class Tunnel extends Effect {
         control: "checkbox"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "tunnel",
@@ -126,5 +124,5 @@ export default class Tunnel extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

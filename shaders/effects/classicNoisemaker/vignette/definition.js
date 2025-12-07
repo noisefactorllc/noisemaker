@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * Vignette - normalize input and blend edges toward constant brightness
  */
-export default class Vignette extends Effect {
-  name = "Vignette";
-  namespace = "classicNoisemaker";
-  func = "vignette";
-
-  globals = {
+export default new Effect({
+  name: "Vignette",
+  namespace: "classicNoisemaker",
+  func: "vignette",
+  globals: {
     brightness: {
       type: "float",
       default: 0,
@@ -33,9 +32,8 @@ export default class Vignette extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "vignette",
@@ -46,5 +44,5 @@ export default class Vignette extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

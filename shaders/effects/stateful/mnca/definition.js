@@ -1,12 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Mnca extends Effect {
-  name = "Mnca";
-  namespace = "stateful";
-  func = "mnca";
-
-  // WGSL uniform packing layout
-  uniformLayout = {
+export default new Effect({
+  name: "Mnca",
+  namespace: "stateful",
+  func: "mnca",
+  uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     deltaTime: { slot: 0, components: 'w' },
@@ -32,11 +30,9 @@ export default class Mnca extends Effect {
     n2v2: { slot: 4, components: 'w' },
 
     n2r2: { slot: 5, components: 'x' }
-  };
-
-  textures = {};
-
-  globals = {
+  },
+  textures: {},
+  globals: {
     zoom: {
       type: "int",
       default: 8,
@@ -257,9 +253,8 @@ export default class Mnca extends Effect {
       },
       uniform: "source"
     },
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "update",
       program: "mncaFb",
@@ -284,5 +279,5 @@ export default class Mnca extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

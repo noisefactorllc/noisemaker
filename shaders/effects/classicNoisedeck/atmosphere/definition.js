@@ -1,13 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Atmosphere extends Effect {
-  name = "Atmosphere";
-  namespace = "classicNoisedeck";
-  func = "atmosphere";
-
-
-  // WGSL uniform packing layout - maps uniform names to vec4 slots/components
-  uniformLayout = {
+export default new Effect({
+  name: "Atmosphere",
+  namespace: "classicNoisedeck",
+  func: "atmosphere",
+  uniformLayout: {
         resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
@@ -26,8 +23,8 @@ export default class Atmosphere extends Effect {
     color2: { slot: 5, components: 'xyzw' },
     color3: { slot: 6, components: 'xyzw' },
     color4: { slot: 7, components: 'xyzw' }
-  };
-  globals = {
+  },
+  globals: {
     noiseType: {
       type: "int",
       default: 1,
@@ -162,9 +159,8 @@ export default class Atmosphere extends Effect {
       ui: { label: "Color 4", control: "color" },
       uniform: "color4"
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "atmosphere",
@@ -176,5 +172,5 @@ export default class Atmosphere extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

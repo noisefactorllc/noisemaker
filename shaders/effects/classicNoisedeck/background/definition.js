@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Background extends Effect {
-  name = "Background";
-  namespace = "classicNoisedeck";
-  func = "background";
-
-  globals = {
+export default new Effect({
+  name: "Background",
+  namespace: "classicNoisedeck",
+  func: "background",
+  globals: {
     backgroundType: {
       type: "int",
       default: 10,
@@ -49,9 +48,8 @@ export default class Background extends Effect {
       uniform: "color2",
       ui: { label: "Color 2", control: "color" }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "background",
@@ -59,5 +57,5 @@ export default class Background extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

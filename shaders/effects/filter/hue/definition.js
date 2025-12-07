@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/hue - Rotate hue
  * Simple hue rotation effect (0..1 maps to full rotation)
  */
-export default class Hue extends Effect {
-  name = "Hue";
-  namespace = "filter";
-  func = "hue";
-
-  globals = {
+export default new Effect({
+  name: "Hue",
+  namespace: "filter",
+  func: "hue",
+  globals: {
     amount: {
       type: "float",
       default: 0,
@@ -21,9 +20,8 @@ export default class Hue extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "hue",
@@ -34,5 +32,5 @@ export default class Hue extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

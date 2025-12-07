@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * nu/polar - Polar and vortex coordinate transforms
  */
-export default class Polar extends Effect {
-  name = "Polar";
-  namespace = "filter";
-  func = "polar";
-
-  globals = {
+export default new Effect({
+  name: "Polar",
+  namespace: "filter",
+  func: "polar",
+  globals: {
     mode: {
       type: "int",
       default: 0,
@@ -58,9 +57,8 @@ export default class Polar extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "polar",
@@ -71,5 +69,5 @@ export default class Polar extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

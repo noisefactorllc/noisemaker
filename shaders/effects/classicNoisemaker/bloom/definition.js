@@ -9,12 +9,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * 
  * Mirrors the reference implementation in _to-port/nm/bloom/bloom.wgsl
  */
-export default class Bloom extends Effect {
-  name = "Bloom";
-  namespace = "classicNoisemaker";
-  func = "bloom";
-
-  globals = {
+export default new Effect({
+  name: "Bloom",
+  namespace: "classicNoisemaker",
+  func: "bloom",
+  globals: {
     alpha: {
       type: "float",
       default: 0.5,
@@ -32,18 +31,15 @@ export default class Bloom extends Effect {
       default: [64, 64],
       uniform: "downsampleSize"
     }
-  };
-
-  // Internal texture for downsampled bloom data
-  textures = {
+  },
+  textures: {
     _bloomDownsample: {
       width: 64,
       height: 64,
       format: "rgba16float"
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "downsample",
       program: "downsample",
@@ -65,5 +61,5 @@ export default class Bloom extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/chroma - Isolate specific color with range and feathering
  * Outputs mono mask based on color distance from target hue
  */
-export default class Chroma extends Effect {
-  name = "Chroma";
-  namespace = "filter";
-  func = "chroma";
-
-  globals = {
+export default new Effect({
+  name: "Chroma",
+  namespace: "filter",
+  func: "chroma",
+  globals: {
     targetHue: {
       type: "float",
       default: 0.33,
@@ -46,9 +45,8 @@ export default class Chroma extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "chroma",
@@ -59,5 +57,5 @@ export default class Chroma extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

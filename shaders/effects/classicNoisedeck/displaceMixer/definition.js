@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class DisplaceMixer extends Effect {
-  name = "DisplaceMixer";
-  namespace = "classicNoisedeck";
-  func = "displaceMixer";
-
-  globals = {
+export default new Effect({
+  name: "DisplaceMixer",
+  namespace: "classicNoisedeck",
+  func: "displaceMixer",
+  globals: {
     tex: {
       type: "surface",
       default: "inputTex",
@@ -98,9 +97,8 @@ export default class DisplaceMixer extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "displaceMixer",
@@ -113,5 +111,5 @@ export default class DisplaceMixer extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

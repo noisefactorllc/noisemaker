@@ -1,21 +1,18 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Text extends Effect {
-  name = "Text";
-  namespace = "classicNoisedeck";
-  func = "text";
-
-
-  // WGSL uniform packing layout - maps uniform names to vec4 slots/components
-  uniformLayout = {
+export default new Effect({
+  name: "Text",
+  namespace: "classicNoisedeck",
+  func: "text",
+  uniformLayout: {
         resolution: { slot: 0, components: 'xy' },
     glyphUV1: { slot: 1, components: 'xy' },
     glyphUV2: { slot: 1, components: 'zw' },
     scale: { slot: 2, components: 'x' },
     offset: { slot: 2, components: 'yz' },
     color: { slot: 3, components: 'xyz' }
-  };
-  globals = {
+  },
+  globals: {
     seed: {
       type: "int",
       default: 1,
@@ -165,9 +162,8 @@ export default class Text extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "text",
@@ -179,5 +175,5 @@ export default class Text extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

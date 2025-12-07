@@ -1,12 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Cell extends Effect {
-  name = "Cell";
-  namespace = "synth";
-  func = "cell";
-
-  // WGSL uniform packing layout - maps uniform names to vec4 slots/components
-  uniformLayout = {
+export default new Effect({
+  name: "Cell",
+  namespace: "synth",
+  func: "cell",
+  uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
@@ -19,9 +17,8 @@ export default class Cell extends Effect {
     texSource: { slot: 2, components: 'z' },
     texInfluence: { slot: 2, components: 'w' },
     texIntensity: { slot: 3, components: 'x' }
-  };
-
-  globals = {
+  },
+  globals: {
     metric: {
       type: "int",
       default: 0,
@@ -151,9 +148,8 @@ export default class Cell extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "cell",
@@ -164,5 +160,5 @@ export default class Cell extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

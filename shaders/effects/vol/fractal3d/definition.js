@@ -13,14 +13,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * If inputTex3d is provided from upstream, its dimensions take precedence
  * over volumeSize. Otherwise, allocates fresh volumeCache and geoBuffer.
  */
-export default class Fractal3D extends Effect {
-  name = "Fractal3D";
-  namespace = "vol";
-  func = "fractal3d";
-
-  // 3D volume stored as 2D atlas: volumeSize x (volumeSize * volumeSize)
-  // If inputTex3d is provided, its dimensions take precedence
-  textures = {
+export default new Effect({
+  name: "Fractal3D",
+  namespace: "vol",
+  func: "fractal3d",
+  textures: {
     volumeCache: { 
       width: { param: 'volumeSize', default: 64 }, 
       height: { param: 'volumeSize', power: 2, default: 4096 }, 
@@ -31,9 +28,8 @@ export default class Fractal3D extends Effect {
       height: { param: 'volumeSize', power: 2, default: 4096 },
       format: "rgba16f"
     }
-  };
-
-  globals = {
+  },
+  globals: {
     "volumeSize": {
       "type": "int",
       "default": 64,
@@ -151,9 +147,8 @@ export default class Fractal3D extends Effect {
       max: 100,
       uniform: "seed"
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "precompute",
       program: "precompute",
@@ -168,9 +163,7 @@ export default class Fractal3D extends Effect {
         geoOut: "geoBuffer"
       }
     }
-  ];
-
-  // Expose volume for downstream effects
-  outputTex3d = "volumeCache";
-  outputGeo = "geoBuffer";
-}
+  ],
+  outputTex3d: "volumeCache",
+  outputGeo: "geoBuffer"
+});

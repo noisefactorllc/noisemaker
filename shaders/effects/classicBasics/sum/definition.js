@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Sum extends Effect {
-  name = "Sum";
-  namespace = "classicBasics";
-  func = "sum";
-
-  globals = {
+export default new Effect({
+  name: "Sum",
+  namespace: "classicBasics",
+  func: "sum",
+  globals: {
     "scale": {
         "type": "float",
         "default": 1,
@@ -13,9 +12,8 @@ export default class Sum extends Effect {
         "max": 10,
         "uniform": "scale"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "sum",
@@ -26,5 +24,5 @@ export default class Sum extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

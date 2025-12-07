@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * VHS - bad VHS tracking effect
  */
-export default class Vhs extends Effect {
-  name = "Vhs";
-  namespace = "classicNoisemaker";
-  func = "vhs";
-
-  globals = {
+export default new Effect({
+  name: "Vhs",
+  namespace: "classicNoisemaker",
+  func: "vhs",
+  globals: {
     speed: {
       type: "float",
       default: 1.0,
@@ -21,9 +20,8 @@ export default class Vhs extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "vhs",
@@ -34,5 +32,5 @@ export default class Vhs extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

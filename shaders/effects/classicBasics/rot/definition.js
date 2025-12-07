@@ -1,11 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js';
 
-export default class Rot extends Effect {
-  name = "Rot";
-  namespace = "classicBasics";
-  func = "rot";
-
-  globals = {
+export default new Effect({
+  name: "Rot",
+  namespace: "classicBasics",
+  func: "rot",
+  globals: {
     "angle": {
         "type": "float",
         "default": 0,
@@ -20,9 +19,8 @@ export default class Rot extends Effect {
         "max": 10,
         "uniform": "speed"
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "rot",
@@ -33,5 +31,5 @@ export default class Rot extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

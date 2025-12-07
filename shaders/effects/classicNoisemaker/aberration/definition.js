@@ -3,12 +3,11 @@ import { Effect } from '../../../src/runtime/effect.js';
 /**
  * classicNoisemaker/aberration - Chromatic aberration effect
  */
-export default class Aberration extends Effect {
-  name = "Aberration";
-  namespace = "classicNoisemaker";
-  func = "aberration";
-
-  globals = {
+export default new Effect({
+  name: "Aberration",
+  namespace: "classicNoisemaker",
+  func: "aberration",
+  globals: {
     displacement: {
       type: "float",
       default: 0.02,
@@ -21,9 +20,8 @@ export default class Aberration extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "chromaticAberration",
@@ -34,5 +32,5 @@ export default class Aberration extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

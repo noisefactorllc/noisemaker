@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Grime
  * Dusty speckles and grime overlay
  */
-export default class Grime extends Effect {
-  name = "Grime";
-  namespace = "classicNoisemaker";
-  func = "grime";
-
-  globals = {
+export default new Effect({
+  name: "Grime",
+  namespace: "classicNoisemaker",
+  func: "grime",
+  globals: {
     strength: {
         type: "float",
         default: 1,
@@ -46,9 +45,8 @@ export default class Grime extends Effect {
             control: "slider"
         }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "main",
       program: "grime",
@@ -64,5 +62,5 @@ export default class Grime extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

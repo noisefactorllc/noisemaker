@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * Adjust Saturation
  * /shaders/effects/adjust_saturation/adjust_saturation.wgsl
  */
-export default class AdjustSaturation extends Effect {
-  name = "AdjustSaturation";
-  namespace = "classicNoisemaker";
-  func = "adjustSaturation";
-
-  globals = {
+export default new Effect({
+  name: "AdjustSaturation",
+  namespace: "classicNoisemaker",
+  func: "adjustSaturation",
+  globals: {
     amount: {
         type: "float",
         default: 0.75,
@@ -22,9 +21,8 @@ export default class AdjustSaturation extends Effect {
             control: "slider"
         }
     }
-};
-
-  passes = [
+},
+  passes: [
     {
       name: "main",
       program: "adjustSaturation",
@@ -35,5 +33,5 @@ export default class AdjustSaturation extends Effect {
         color: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/posterize - Color posterization effect
  * Reduces color levels for poster-like appearance
  */
-export default class Posterize extends Effect {
-  name = "Posterize";
-  namespace = "filter";
-  func = "posterize";
-
-  globals = {
+export default new Effect({
+  name: "Posterize",
+  namespace: "filter",
+  func: "posterize",
+  globals: {
     levels: {
       type: "float",
       default: 4.0,
@@ -21,9 +20,8 @@ export default class Posterize extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "posterize",
@@ -34,5 +32,5 @@ export default class Posterize extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});

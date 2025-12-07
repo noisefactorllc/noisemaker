@@ -4,12 +4,11 @@ import { Effect } from '../../../src/runtime/effect.js';
  * nu/step - Adjustable step threshold
  * Creates hard edge at threshold value
  */
-export default class Step extends Effect {
-  name = "Step";
-  namespace = "filter";
-  func = "step";
-
-  globals = {
+export default new Effect({
+  name: "Step",
+  namespace: "filter",
+  func: "step",
+  globals: {
     threshold: {
       type: "float",
       default: 0.5,
@@ -22,9 +21,8 @@ export default class Step extends Effect {
         control: "slider"
       }
     }
-  };
-
-  passes = [
+  },
+  passes: [
     {
       name: "render",
       program: "step",
@@ -35,5 +33,5 @@ export default class Step extends Effect {
         fragColor: "outputTex"
       }
     }
-  ];
-}
+  ]
+});
