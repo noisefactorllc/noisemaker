@@ -51,4 +51,7 @@ build:
       - ls -lh docs/_static/noisemaker-shaders-core.min.js
       # Copy effect mini-bundles to docs static directory
       - cp -r dist/effects docs/_static/
+      # Copy manifest.json to effects directory
+      - cp shaders/effects/manifest.json docs/_static/effects/
+      - ls -lh docs/_static/effects/manifest.json
       - ls -lh docs/_static/effects/
