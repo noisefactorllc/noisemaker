@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { PALETTES, samplePalette } from '../js/noisemaker/palettes.js';
+import { PALETTES, samplePalette } from '../shaders/src/palettes.js';
 
 function arraysClose(a, b, eps = 1e-6) {
   assert.strictEqual(a.length, b.length);
@@ -10,12 +10,12 @@ function arraysClose(a, b, eps = 1e-6) {
 
 // ensure palettes are exported
 assert.ok(PALETTES.grayscale);
-assert.ok(PALETTES.rainbow);
+assert.ok(PALETTES.hypercolor);
 
-// known sample values
-arraysClose(samplePalette('grayscale', 0), [0.9619397662556434, 0.9619397662556434, 0.9619397662556434]);
-arraysClose(samplePalette('rainbow', 0), [0.9619397662556434, 0.10978479633083504, 0.4451328444544776]);
-arraysClose(samplePalette('rainbow', 0.5), [0, 0.7408768370508578, 0.740876837050858]);
+// known sample values (validated against Python)
+arraysClose(samplePalette('grayscale', 0), [0.9619397662556433, 0.9619397662556433, 0.9619397662556433]);
+arraysClose(samplePalette('hypercolor', 0), [1.2439416985052072, 0.8790748587125117, 0.4895436930642642]);
+arraysClose(samplePalette('hypercolor', 0.5), [0.0577177227653477, 0.20208660251050242, 0.32675983715483087]);
 
 assert.throws(() => samplePalette('bogus', 0));
 

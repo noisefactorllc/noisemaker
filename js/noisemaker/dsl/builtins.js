@@ -1,5 +1,5 @@
 import * as constants from '../constants.js';
-import { PALETTES as _PALETTES } from '../palettes.js';
+import { PALETTES as _PALETTES } from '../../../shaders/src/palettes.js';
 import {
   coin_flip as _coin_flip,
   enum_range as _enum_range,

@@ -21,7 +21,7 @@ import {
   convolution,
   fxaa,
 } from "./value.js";
-import { PALETTES } from "./palettes.js";
+import { PALETTES } from "../../shaders/src/palettes.js";
 import {
   simplex,
   random as simplexRandom,

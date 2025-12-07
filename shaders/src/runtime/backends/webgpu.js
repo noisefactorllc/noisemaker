@@ -1106,7 +1106,6 @@ export class WebGPUBackend extends Backend {
         
         // Single output pass (original logic)
         let outputId = pass.outputs.color || Object.values(pass.outputs)[0]
-        const _originalOutputId = outputId
 
         // Resolve global output to current write buffer
         const outputSurfaceName = this.parseGlobalName(outputId)
@@ -2409,7 +2408,7 @@ export class WebGPUBackend extends Backend {
         return new Uint8Array(buffer)
     }
 
-    beginFrame(_state) {
+    beginFrame() {
         // Return active buffers to pool
         while (this.activeUniformBuffers.length > 0) {
             const buffer = this.activeUniformBuffers.pop()
@@ -2461,7 +2460,7 @@ export class WebGPUBackend extends Backend {
         this.queue.submit([commandEncoder.finish()])
     }
 
-    destroy(_options = {}) {
+    destroy() {
         for (const id of Array.from(this.textures.keys())) {
             this.destroyTexture(id)
         }
@@ -2745,7 +2744,7 @@ export class WebGPUBackend extends Backend {
         this.activeUniformBuffers.push(paramsBuffer)
     }
 
-    resize(_width, _height) {
+    resize() {
         // Textures will be recreated by the pipeline when dimensions change
     }
 
@@ -2819,13 +2818,10 @@ export class WebGPUBackend extends Backend {
         
         // Determine bytes per pixel based on format
         let bytesPerPixel = 4 // Default for rgba8unorm
-        let _isFloat = false
         if (gpuFormat === 'rgba16float') {
             bytesPerPixel = 8 // 2 bytes per channel * 4 channels
-            _isFloat = true
         } else if (gpuFormat === 'rgba32float') {
             bytesPerPixel = 16 // 4 bytes per channel * 4 channels
-            _isFloat = true
         }
         
         const bytesPerRow = Math.ceil(width * bytesPerPixel / 256) * 256 // Align to 256 bytes

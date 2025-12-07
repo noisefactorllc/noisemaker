@@ -36,7 +36,7 @@ class MockBackend extends Backend {
         this.textures.delete(id)
     }
     
-    resize(_w, _h) {}
+    resize() {}
 }
 
 test('Verify 8 Outputs', async () => {

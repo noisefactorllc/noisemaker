@@ -1137,9 +1137,8 @@ export class CanvasRenderer {
     /**
      * Build uniform bindings for the current effect
      * @param {object} effect - Effect object
-     * @param {object} _parameterValues - Current parameter values (reserved for future use)
      */
-    buildUniformBindings(effect, _parameterValues) {
+    buildUniformBindings(effect) {
         this._uniformBindings = new Map();
         
         if (!this._pipeline || !this._pipeline.graph || !Array.isArray(this._pipeline.graph.passes)) {
@@ -1183,16 +1182,14 @@ export class CanvasRenderer {
      * Apply parameter values to the pipeline
      * @param {object} effect - Current effect
      * @param {object} parameterValues - Parameter values to apply
-     * @param {object} [_options] - Options (reserved for future use)
-     * @param {boolean} [_options.silent=false] - Suppress status messages
      */
-    applyParameterValues(effect, parameterValues, _options = {}) {
+    applyParameterValues(effect, parameterValues) {
         if (!this._pipeline || !effect || !effect.instance) {
             return;
         }
         
         if (!this._uniformBindings.size) {
-            this.buildUniformBindings(effect, parameterValues);
+            this.buildUniformBindings(effect);
         }
         
         const globals = effect.instance.globals || {};

@@ -322,7 +322,7 @@ export class BrowserSession {
             
             const globals = effect.instance.globals;
             
-            for (const [_key, spec] of Object.entries(globals)) {
+            for (const spec of Object.values(globals)) {
                 if (!spec.uniform) continue;
                 
                 const defaultVal = spec.default ?? spec.min ?? 0;
@@ -490,7 +490,6 @@ export class BrowserSession {
      */
     async testUniformResponsiveness(effectId, options = {}) {
         this.clearConsoleMessages();
-        const _backend = this.options.backend;
         
         if (!options.skipCompile) {
             const compileResult = await this.compileEffect(effectId);

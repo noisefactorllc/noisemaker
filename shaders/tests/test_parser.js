@@ -90,7 +90,7 @@ test('Search Directive - Single Namespace', 'search nd\nnoise(10).write(o0)', (a
     if (!ast.namespace) throw new Error('Expected namespace metadata');
     if (!ast.namespace.searchOrder) throw new Error('Expected searchOrder');
     if (ast.namespace.searchOrder.length !== 1) throw new Error('Expected 1 namespace in searchOrder');
-    if (ast.namespace.searchOrder[0] !== 'classicNoisedeck') throw new Error('Expected nd in searchOrder');
+    if (ast.namespace.searchOrder[0] !== 'nd') throw new Error('Expected nd in searchOrder');
     if (ast.plans.length !== 1) throw new Error('Expected 1 plan');
 });
 
@@ -98,12 +98,12 @@ test('Search Directive - Multiple Namespaces', 'search nd, basics, nm\nnoise(10)
     if (!ast.namespace) throw new Error('Expected namespace metadata');
     if (!ast.namespace.searchOrder) throw new Error('Expected searchOrder');
     if (ast.namespace.searchOrder.length !== 3) throw new Error('Expected 3 namespaces in searchOrder');
-    if (ast.namespace.searchOrder[0] !== 'classicNoisedeck') throw new Error('Expected nd first');
+    if (ast.namespace.searchOrder[0] !== 'nd') throw new Error('Expected nd first');
     if (ast.namespace.searchOrder[1] !== 'basics') throw new Error('Expected basics second');
-    if (ast.namespace.searchOrder[2] !== 'classicNoisemaker') throw new Error('Expected nm third');
+    if (ast.namespace.searchOrder[2] !== 'nm') throw new Error('Expected nm third');
 });
 
-test('Missing Search Directive - Should Error', 'noise(10).write(o0)', (_ast) => {
+test('Missing Search Directive - Should Error', 'noise(10).write(o0)', () => {
     throw new Error('Should have thrown SyntaxError for missing search directive');
 }, (e) => {
     // This test expects an error
@@ -113,7 +113,7 @@ test('Missing Search Directive - Should Error', 'noise(10).write(o0)', (_ast) =>
     return true;
 });
 
-test('Inline Namespace - Should Error', 'search nd\nnd.noise(10).write(o0)', (_ast) => {
+test('Inline Namespace - Should Error', 'search nd\nnd.noise(10).write(o0)', () => {
     throw new Error('Should have thrown SyntaxError for inline namespace');
 }, (e) => {
     // This test expects an error

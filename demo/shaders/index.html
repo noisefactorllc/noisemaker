@@ -508,8 +508,8 @@
                 
                 window.__noisemakerRenderingPipeline = renderer.pipeline;
 
-                renderer.buildUniformBindings(currentEffect, ui.parameterValues);
-                renderer.applyParameterValues(currentEffect, ui.parameterValues, { silent: true });
+                renderer.buildUniformBindings(currentEffect);
+                renderer.applyParameterValues(currentEffect, ui.parameterValues);
                 
                 ui.createEffectControlsFromDsl(dsl);
 

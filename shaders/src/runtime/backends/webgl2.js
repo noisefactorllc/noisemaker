@@ -928,7 +928,7 @@ export class WebGL2Backend extends Backend {
         }
     }
 
-    beginFrame(_state) {
+    beginFrame() {
         const gl = this.gl
         gl.clearColor(0, 0, 0, 0)
     }
@@ -972,7 +972,7 @@ export class WebGL2Backend extends Backend {
         gl.useProgram(null)
     }
 
-    resize(_width, _height) {
+    resize() {
         // Canvas resize is handled externally
         // We'll recreate textures in the pipeline when needed
     }

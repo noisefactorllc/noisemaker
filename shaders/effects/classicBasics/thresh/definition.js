@@ -2,7 +2,7 @@ import { Effect } from '../../../src/runtime/effect.js';
 
 export default new Effect({
   name: "Thresh",
-  namespace: "nd",
+  namespace: "classicBasics",
   func: "thresh",
 
   description: "Threshold/step function",

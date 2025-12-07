@@ -211,7 +211,7 @@ export * from '${srcPath}';
 /**
  * Generate an all-in-one module combining core + all namespaces
  */
-function generateAllModule(namespaces, manifest) {
+function generateAllModule(namespaces) {
     const imports = [];
     const registrations = [];
     
@@ -250,7 +250,7 @@ ${namespaces.filter(ns => discoverEffects(ns).length > 0).map(ns => {
 /**
  * Build bundles for a single namespace
  */
-async function buildNamespaceBundle(namespace, manifest, options = {}) {
+async function buildNamespaceBundle(namespace, manifest) {
     const moduleCode = generateNamespaceModule(namespace, manifest);
     if (!moduleCode) {
         console.log(`  ⚠ No effects found in namespace: ${namespace}`);
@@ -357,7 +357,7 @@ async function buildAllBundle(namespaces, manifest) {
     }
     
     // Write the all-in-one module
-    const allCode = generateAllModule(namespaces, manifest);
+    const allCode = generateAllModule(namespaces);
     const tempFile = path.join(tempDir, 'all.js');
     fs.writeFileSync(tempFile, allCode);
     

@@ -493,7 +493,6 @@ export class Pipeline {
                 if (texId.startsWith('global_')) {
                     // "global_node_0_caState" -> find the surface name after last underscore segment
                     // Actually, we need to match against our surfaces Map
-                    const _parts = texId.replace('global_', '').split('_')
                     // Try to find matching surface - could be "caState" or "node_0_caState"
                     for (const name of this.surfaces.keys()) {
                         if (texId.includes(name) || texId.endsWith(name)) {
@@ -604,7 +603,7 @@ export class Pipeline {
         // Check if this uniform affects any texture dimensions
         if (oldValue !== value && this.graph && this.graph.textures) {
             let affectsTextures = false
-            for (const [_texId, spec] of this.graph.textures.entries()) {
+            for (const spec of this.graph.textures.values()) {
                 if (this.dimensionReferencesParam(spec.width, name) ||
                     this.dimensionReferencesParam(spec.height, name) ||
                     (spec.depth && this.dimensionReferencesParam(spec.depth, name))) {
@@ -934,7 +933,7 @@ export class Pipeline {
      * Swap double-buffered surfaces
      */
     swapBuffers() {
-        for (const [_, surface] of this.surfaces.entries()) {
+        for (const surface of this.surfaces.values()) {
             surface.currentFrame = this.frameIndex
             
             // Swap read/write pointers
@@ -1056,7 +1055,7 @@ export class Pipeline {
      * for the next frame's reads.
      */
     blitFeedbackSurfaces() {
-        for (const [_name, surface] of this.feedbackSurfaces.entries()) {
+        for (const surface of this.feedbackSurfaces.values()) {
             if (!surface.dirty) continue
             
             // Blit write → read using the backend's copy capability

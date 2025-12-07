@@ -145,7 +145,7 @@ async function exerciseParameterControls(page) {
 
 test.describe.configure({ mode: 'serial' });
 
-test('demo renders all available effects without console errors', async ({ page, browserName: _browserName }) => {
+test('demo renders all available effects without console errors', async ({ page }) => {
   const consoleMessages = [];
   
   // Allow BACKEND env var to select 'glsl' or 'wgsl', or auto-detect based on WebGPU availability
@@ -286,7 +286,7 @@ test('demo renders all available effects without console errors', async ({ page,
                 return false;
               }
 
-              const { data, width: _width, height: _height } = result;
+              const { data } = result;
               const stride = 17;
               const firstR = data[0];
               const firstG = data[1];

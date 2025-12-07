@@ -11,7 +11,7 @@ export * from './masks.js';
 export * from './effectsRegistry.js';
 export * from './effects.js';
 export * from './composer.js';
-export * from './palettes.js';
+export * from '../../shaders/src/palettes.js';
 export * from './presets.js';
 export * from './util.js';
 export * from './oklab.js';

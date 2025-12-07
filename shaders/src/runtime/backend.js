@@ -3,6 +3,8 @@
  * Defines the contract that both WebGL2 and WebGPU backends must implement.
  */
 
+/* eslint-disable no-unused-vars */
+
 export class Backend {
     constructor(context) {
         this.context = context
@@ -25,7 +27,7 @@ export class Backend {
      * @param {object} spec - { width, height, format, usage }
      * @returns {object} Texture handle
      */
-    createTexture(_id, _spec) {
+    createTexture(id, spec) {
         throw new Error('Backend.createTexture() must be implemented')
     }
 
@@ -35,7 +37,7 @@ export class Backend {
      * @param {object} spec - { width, height, depth, format, usage }
      * @returns {object} Texture handle
      */
-    createTexture3D(_id, _spec) {
+    createTexture3D(id, spec) {
         throw new Error('Backend.createTexture3D() must be implemented')
     }
 
@@ -43,7 +45,7 @@ export class Backend {
      * Destroy a texture
      * @param {string} id - Physical texture ID
      */
-    destroyTexture(_id) {
+    destroyTexture(id) {
         throw new Error('Backend.destroyTexture() must be implemented')
     }
 
@@ -53,7 +55,7 @@ export class Backend {
      * @param {object} spec - { source, type, defines }
      * @returns {Promise<object>} Compiled program/pipeline
      */
-    async compileProgram(_id, _spec) {
+    async compileProgram(id, spec) {
         throw new Error('Backend.compileProgram() must be implemented')
     }
 
@@ -62,7 +64,7 @@ export class Backend {
      * @param {object} pass - Pass specification
      * @param {object} state - Current frame state
      */
-    executePass(_pass, _state) {
+    executePass(pass, state) {
         throw new Error('Backend.executePass() must be implemented')
     }
 
@@ -70,7 +72,7 @@ export class Backend {
      * Begin a frame
      * @param {object} state - Frame state
      */
-    beginFrame(_state) {
+    beginFrame(state) {
         throw new Error('Backend.beginFrame() must be implemented')
     }
 
@@ -86,7 +88,7 @@ export class Backend {
      * @param {number} width
      * @param {number} height
      */
-    resize(_width, _height) {
+    resize(width, height) {
         throw new Error('Backend.resize() must be implemented')
     }
 
@@ -96,7 +98,7 @@ export class Backend {
      * @param {string} srcId - Source texture ID
      * @param {string} dstId - Destination texture ID
      */
-    copyTexture(_srcId, _dstId) {
+    copyTexture(srcId, dstId) {
         throw new Error('Backend.copyTexture() must be implemented')
     }
 
@@ -118,9 +120,11 @@ export class Backend {
 
     /**
      * Destroy backend resources
-     * @param {object} _options
+     * @param {object} options
      */
-    destroy(_options = {}) {
+    destroy(options = {}) {
         // Optional for concrete backends
     }
 }
+
+/* eslint-enable no-unused-vars */

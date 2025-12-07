@@ -70,7 +70,7 @@ class MockBackend extends Backend {
         })
     }
 
-    beginFrame(_state) {
+    beginFrame() {
         this.frameCount++
     }
 
@@ -78,7 +78,7 @@ class MockBackend extends Backend {
         // no-op
     }
 
-    resize(_width, _height) {
+    resize() {
         // no-op
     }
 

@@ -290,7 +290,7 @@ export function expand(compilationResult, options = {}) {
                 // Initialize uniforms with defaults only if not already set from upstream
                 // This preserves pipeline inheritance (e.g., volumeSize from noise3d to ca3d)
                 if (effectDef.globals) {
-                    for (const [_key, def] of Object.entries(effectDef.globals)) {
+                    for (const def of Object.values(effectDef.globals)) {
                         if (def.uniform && def.default !== undefined) {
                             // Skip if already set from upstream (preserve pipeline inheritance)
                             if (pass.uniforms[def.uniform] !== undefined) {

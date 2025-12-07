@@ -242,7 +242,7 @@ export default class Media extends Effect {
    * Called every frame before rendering.
    * Updates imageSize uniform from current media dimensions.
    */
-  onUpdate(_context) {
+  onUpdate() {
     return {
       imageSize: [this.state.imageWidth || 1, this.state.imageHeight || 1]
     };

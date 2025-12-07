@@ -628,7 +628,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             }
             
             case 'generateShaderManifest': {
-                result = await new Promise((resolve, _reject) => {
+                result = await new Promise((resolve) => {
                     const scriptPath = path.join(PROJECT_ROOT, 'shaders/scripts/generate_shader_manifest.py');
                     
                     const proc = spawn('python3', [scriptPath], {

@@ -12,27 +12,6 @@ const oscKindNames = ['sine', 'tri', 'saw', 'sawInv', 'square', 'noise'];
 
 /**
  * Format an AST expression node back to DSL
- * @param {object} expr - Expression AST node
- * @returns {string} DSL representation
- */
-function _formatExpr(expr) {
-    if (!expr || typeof expr !== 'object') {
-        return String(expr);
-    }
-    
-    switch (expr.type) {
-        case 'Number':
-            return String(expr.value);
-        case 'Boolean':
-            return expr.value ? 'true' : 'false';
-        case 'String':
-            return `"${expr.value}"`;
-        case 'Ident':
-            return expr.name;
-        case 'Member':
-            return expr.path.join('.');
-        case 'Oscillator': {
-            let typeName = 'sine';
             if (expr.oscType?.type === 'Ident') {
                 typeName = expr.oscType.name;
             } else if (expr.oscType?.type === 'Member') {

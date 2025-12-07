@@ -48,9 +48,8 @@ export default [
       'no-unused-vars': [
         'error',
         {
-          argsIgnorePattern: '^_|^shape$|^time$|^speed$',
-          varsIgnorePattern: '^_|^h$|^w$|^c$',
-          destructuredArrayIgnorePattern: '^_',
+          argsIgnorePattern: '^shape$|^time$|^speed$',
+          varsIgnorePattern: '^h$|^w$|^c$',
           caughtErrors: 'none',
         },
       ],
