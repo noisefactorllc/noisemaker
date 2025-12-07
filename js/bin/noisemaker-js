@@ -7,7 +7,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 
 import { Preset } from '../noisemaker/composer.js';
-import { PRESETS } from '../noisemaker/presets.js';
+import { PRESETS, setPresetsPath } from '../noisemaker/presets.js';
 import { Context } from '../noisemaker/context.js';
 import { setSeed as setUtilSeed } from '../noisemaker/util.js';
 import { setSeed as setValueSeed } from '../noisemaker/value.js';
@@ -40,6 +40,7 @@ const GENERATE_HELP = `Usage: noisemaker-js generate [OPTIONS] PRESET_NAME
   Generate a .png or .jpg from preset
 
 Options:
+  --presets FILE          Path to a custom presets DSL file
   --width INTEGER         Output width, in pixels  [default: 1024]
   --height INTEGER        Output height, in pixels  [default: 1024]
   --time FLOAT            Time value for Z axis (simplex only)
@@ -62,6 +63,7 @@ function formatApplyHelp() {
   Apply an effect to a .png or .jpg image
 
 Options:
+  --presets FILE   Path to a custom presets DSL file
   --seed INTEGER   Random seed. Might not affect all things.
   --filename FILE  Filename for image output (should end with .png or .jpg)
                    [default: mangled.png]
@@ -97,6 +99,7 @@ function parseGenerateOptions(tokens) {
     debugPrint: false,
     debugOut: null,
     helpPresets: false,
+    presets: null,
   };
 
   const flagOptions = new Set(['with-alpha', 'with-supersample', 'with-fxaa', 'debug-print', 'help-presets']);
@@ -153,6 +156,9 @@ function parseGenerateOptions(tokens) {
     }
 
     switch (key) {
+      case 'presets':
+        options.presets = value;
+        break;
       case 'filename':
         options.filename = value;
         break;
@@ -207,6 +213,7 @@ function parseApplyOptions(tokens) {
     noResize: false,
     withFxaa: false,
     helpPresets: false,
+    presets: null,
   };
 
   const flagOptions = new Set(['no-resize', 'with-fxaa', 'help-presets']);
@@ -259,6 +266,9 @@ function parseApplyOptions(tokens) {
     }
 
     switch (key) {
+      case 'presets':
+        options.presets = value;
+        break;
       case 'filename':
         options.filename = value;
         break;
@@ -397,6 +407,11 @@ function instantiatePreset(presetName, presets, seed, opts = {}) {
 
 let cachedGeneratorNames = null;
 let cachedEffectNames = null;
+
+function clearPresetCaches() {
+  cachedGeneratorNames = null;
+  cachedEffectNames = null;
+}
 
 function getGeneratorPresetNames() {
   if (cachedGeneratorNames) {
@@ -697,6 +712,12 @@ async function handleGenerate(args) {
   const { helpRequested, presetName, optionTokens } = splitGenerateArgs(args);
   const options = parseGenerateOptions(optionTokens);
 
+  // Load custom presets file if specified
+  if (options.presets) {
+    await setPresetsPath(options.presets);
+    clearPresetCaches();
+  }
+
   if (helpRequested || options.help) {
     printGenerateHelp();
     return 0;
@@ -760,6 +781,12 @@ async function handleGenerate(args) {
 async function handleApply(args) {
   const { helpRequested, presetName, inputFilename, optionTokens } = splitApplyArgs(args);
   const options = parseApplyOptions(optionTokens);
+
+  // Load custom presets file if specified
+  if (options.presets) {
+    await setPresetsPath(options.presets);
+    clearPresetCaches();
+  }
 
   if (helpRequested || options.help) {
     const helpMessage = formatApplyHelp();

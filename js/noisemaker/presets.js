@@ -214,6 +214,39 @@ function evaluateSettings(template) {
 
 let _SOURCE;
 
+// Custom presets path for CLI usage
+let _customPresetsPath = null;
+
+/**
+ * Set a custom path for the presets DSL file.
+ * When set, presets will be loaded from this path instead of the default
+ * share/dsl/presets.dsl location. Set to null to revert to the default.
+ *
+ * @param {string|null} path - Path to a .dsl file containing preset definitions, or null to use default.
+ */
+export async function setPresetsPath(path) {
+  if (path !== null) {
+    // Load from the custom path
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const resolvedPath = resolve(path);
+    _SOURCE = readFileSync(resolvedPath, 'utf8');
+    _customPresetsPath = resolvedPath;
+  } else {
+    // Reset to default - the module will need to be reloaded for default behavior
+    _customPresetsPath = null;
+  }
+}
+
+/**
+ * Get the current presets DSL file path (if using a custom path).
+ *
+ * @returns {string|null} The custom presets path, or null if using default.
+ */
+export function getPresetsPath() {
+  return _customPresetsPath;
+}
+
 function resolveDslCandidates() {
   const seen = new Set();
   const candidates = [];

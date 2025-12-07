@@ -9,6 +9,38 @@ import noisemaker.rng as random
 from noisemaker.composer import Preset as ComposerPreset
 from noisemaker.dsl import parse_preset_dsl
 
+# Global override for custom presets file path
+_custom_presets_path: Path | None = None
+
+
+def set_presets_path(path: str | Path | None) -> None:
+    """Set a custom path for the presets DSL file.
+
+    When set, presets will be loaded from this path instead of the default
+    share/dsl/presets.dsl location. Set to None to revert to the default.
+
+    Args:
+        path: Path to a .dsl file containing preset definitions, or None to use default.
+    """
+    global _custom_presets_path
+    if path is not None:
+        _custom_presets_path = Path(path).resolve()
+    else:
+        _custom_presets_path = None
+    # Clear the cache so presets are reloaded from the new path
+    _cached_dsl_presets.cache_clear()
+
+
+def get_presets_path() -> Path:
+    """Get the current presets DSL file path.
+
+    Returns:
+        Path to the presets DSL file (either custom or default).
+    """
+    if _custom_presets_path is not None:
+        return _custom_presets_path
+    return Path(__file__).resolve().parent.parent / "share" / "dsl" / "presets.dsl"
+
 
 @lru_cache(maxsize=1)
 def _cached_dsl_presets() -> dict[str, Any]:
@@ -18,9 +50,9 @@ def _cached_dsl_presets() -> dict[str, Any]:
     Restores the original RNG seed after loading.
 
     Returns:
-        Dictionary of parsed preset definitions from presets.dsl.
+        Dictionary of parsed preset definitions from the presets DSL file.
     """
-    dsl_path = Path(__file__).resolve().parent.parent / "share" / "dsl" / "presets.dsl"
+    dsl_path = get_presets_path()
 
     seed_before = random.get_seed()
     random.set_seed(0)

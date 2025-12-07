@@ -24,6 +24,17 @@ Additional options include `--time`, `--speed`, `--with-alpha`, and `--debug`
 to mirror the browser controls. The CLI writes a PNG file to the requested
 location and creates parent directories as needed.
 
+### Custom Presets
+
+You can use your own presets file with the `--presets` option:
+
+```bash
+noisemaker-js generate my-preset --presets ./my-presets.dsl --filename custom.png
+```
+
+This allows you to define custom presets in a separate DSL file. Your custom
+file should follow the same syntax as the built-in `share/dsl/presets.dsl`.
+
 ## Vanilla JS effects registry
 
 The Vanilla JavaScript port includes an `effectsRegistry` helper that tracks all

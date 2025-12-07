@@ -15,7 +15,7 @@ import noisemaker.generators as generators
 import noisemaker.util as util
 import noisemaker.value as value
 from noisemaker.composer import EFFECT_PRESETS, GENERATOR_PRESETS, reload_presets
-from noisemaker.presets import PRESETS, Preset
+from noisemaker.presets import PRESETS, Preset, set_presets_path
 
 MAX_SEED_VALUE = 2**32 - 1
 
@@ -27,6 +27,26 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 
 reload_presets(PRESETS)
+
+
+def _set_presets_path(ctx: click.Context, param: click.Parameter, value: str | None) -> None:
+    """Eager callback to set custom presets path before other options are processed."""
+    if value is None or ctx.resilient_parsing:
+        return
+    set_presets_path(value)
+    reload_presets(PRESETS)
+
+
+def presets_path_option(f):
+    """Decorator to add --presets option to commands that use preset collections."""
+    return click.option(
+        "--presets",
+        type=click.Path(exists=True, dir_okay=False, resolve_path=True),
+        help="Path to a custom presets DSL file.",
+        is_eager=True,
+        expose_value=False,
+        callback=_set_presets_path,
+    )(f)
 
 
 @click.group(
@@ -81,6 +101,7 @@ def _show_effect_presets(ctx: click.Context, param: click.Parameter, value: bool
 
 
 @main.command(help="Generate a .png or .jpg from preset")
+@presets_path_option
 @cli.option(
     "--help-presets", is_flag=True, is_eager=True, expose_value=False, callback=_show_generator_presets, help="Show available generator presets and exit."
 )
@@ -272,6 +293,7 @@ def _debug_print(seed, preset, with_alpha, with_supersample, with_fxaa, with_ups
 
 
 @main.command(help="Apply an effect to a .png or .jpg image")
+@presets_path_option
 @cli.option("--help-presets", is_flag=True, is_eager=True, expose_value=False, callback=_show_effect_presets, help="Show available effect presets and exit.")
 @cli.seed_option()
 @cli.filename_option(default="mangled.png")
@@ -333,6 +355,7 @@ def apply(ctx, seed, filename, no_resize, with_fxaa, time, speed, preset_name, i
 
 
 @main.command(help="Generate an animation from preset")
+@presets_path_option
 @cli.width_option(default=512)
 @cli.height_option(default=512)
 @cli.seed_option()
@@ -505,6 +528,7 @@ def animate(
 
 
 @main.command("magic-mashup", help="Animated collage from a directory of directories of frames")
+@presets_path_option
 @cli.input_dir_option(required=True)
 @cli.width_option(default=512)
 @cli.height_option(default=512)
@@ -687,6 +711,7 @@ def magic_mashup(ctx, input_dir, width, height, seed, effect_preset, filename, s
 
 
 @main.command(help="Blend a directory of .png or .jpg images")
+@presets_path_option
 @cli.input_dir_option(required=True)
 @cli.filename_option(default="mashup.png")
 @click.option("--control-filename", help="Control image filename (optional)")
