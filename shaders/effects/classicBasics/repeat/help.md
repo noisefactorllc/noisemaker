@@ -30,11 +30,11 @@ Tile the image.
 ### Positional
 
 ```dsl
-noise().repeat(4, 2).out()
+noise().repeat(4, 2).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().repeat(x: 4, y: 2).out()
+noise().repeat(x: 4, y: 2).write()
 ```

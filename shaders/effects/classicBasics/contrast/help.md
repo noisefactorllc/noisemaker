@@ -16,13 +16,13 @@ Adjust contrast in the 0–10 range. Alias: `cont`.
 ### Positional
 
 ```dsl
-noise().cont(2).out()
+noise().cont(2).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().cont(a: 2).out()
+noise().cont(a: 2).write()
 ```
 
 ````

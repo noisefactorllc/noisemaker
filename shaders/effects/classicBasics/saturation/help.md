@@ -15,11 +15,11 @@ Adjust saturation in the 0–10 range. Alias: `sat`.
 ### Positional
 
 ```dsl
-noise().sat(1.5).out()
+noise().sat(1.5).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().sat(a: 1.5).out()
+noise().sat(a: 1.5).write()
 ```

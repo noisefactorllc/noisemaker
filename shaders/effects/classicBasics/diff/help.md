@@ -15,13 +15,13 @@ Difference blend.
 ### Positional
 
 ```dsl
-noise().diff(noise()).out()
+noise().diff(noise()).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().diff(tex: noise()).out()
+noise().diff(tex: noise()).write()
 ```
 
 ````

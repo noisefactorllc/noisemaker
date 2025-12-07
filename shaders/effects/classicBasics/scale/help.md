@@ -30,11 +30,11 @@ Scale about a center point.
 ### Positional
 
 ```dsl
-noise().scale(1.5).out()
+noise().scale(1.5).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().scale(x: 1.5).out()
+noise().scale(x: 1.5).write()
 ```

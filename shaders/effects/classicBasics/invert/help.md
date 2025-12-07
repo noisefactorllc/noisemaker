@@ -16,13 +16,13 @@ Invert colors. Alias: `inv`.
 ### Positional
 
 ```dsl
-noise().invert().out()
+noise().invert().write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().invert().out()
+noise().invert().write()
 ```
 
 ````

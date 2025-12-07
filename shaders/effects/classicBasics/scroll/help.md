@@ -30,11 +30,11 @@ Move the image over time.
 ### Positional
 
 ```dsl
-noise().scroll(0.1, -0.1).out()
+noise().scroll(0.1, -0.1).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().scroll(x: 0.1, y: -0.1).out()
+noise().scroll(x: 0.1, y: -0.1).write()
 ```

@@ -20,11 +20,11 @@ Shift the image horizontally and vertically.
 ### Positional
 
 ```dsl
-noise().translate(0.1, 0.2).out()
+noise().translate(0.1, 0.2).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().translate(x: 0.1, y: 0.2).out()
+noise().translate(x: 0.1, y: 0.2).write()
 ```

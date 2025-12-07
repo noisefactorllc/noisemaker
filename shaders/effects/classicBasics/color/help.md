@@ -25,11 +25,11 @@ Colorize the incoming signal by applying per-channel multipliers. Alias: `col`.
 ### Positional
 
 ```dsl
-noise().col(#ff0000).out()
+noise().col(#ff0000).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().col(r: #ff0000).out()
+noise().col(r: #ff0000).write()
 ```

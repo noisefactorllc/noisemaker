@@ -20,11 +20,11 @@ Reduce color precision. Aliases: `posterize`, `post`.
 ### Positional
 
 ```dsl
-noise().poster(3, 0.6).out()
+noise().poster(3, 0.6).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().poster(bins: 3, gamma: 0.6).out()
+noise().poster(bins: 3, gamma: 0.6).write()
 ```

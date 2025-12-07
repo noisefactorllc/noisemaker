@@ -16,13 +16,13 @@ Horizontal color gradient; argument sets rotation speed.
 ### Positional
 
 ```dsl
-gradient(0.1).out()
+gradient(0.1).write()
 ```
 
 ### Keyword
 
 ```dsl
-gradient(speed: 0.1).out()
+gradient(speed: 0.1).write()
 ```
 
 ````

@@ -21,13 +21,13 @@ Extract the green channel from the incoming image. Alias: `g`.
 ### Positional
 
 ```dsl
-noise().g(0.5, 0.1).out()
+noise().g(0.5, 0.1).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().g(scale: 0.5, offset: 0.1).out()
+noise().g(scale: 0.5, offset: 0.1).write()
 ```
 
 ````

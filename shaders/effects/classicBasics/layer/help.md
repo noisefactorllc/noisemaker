@@ -15,13 +15,13 @@ Overlay another texture on top of the current chain.
 ### Positional
 
 ```dsl
-noise().layer(noise()).out()
+noise().layer(noise()).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().layer(tex: noise()).out()
+noise().layer(tex: noise()).write()
 ```
 
 ````

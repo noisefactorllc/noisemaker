@@ -19,11 +19,11 @@ Subtract another texture.
 ### Positional
 
 ```dsl
-noise().sub(noise(), 0.5).out()
+noise().sub(noise(), 0.5).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().sub(tex: noise(), amount: 0.5).out()
+noise().sub(tex: noise(), amount: 0.5).write()
 ```

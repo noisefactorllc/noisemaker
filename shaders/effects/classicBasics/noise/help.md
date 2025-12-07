@@ -44,11 +44,11 @@ Animated simplex noise.
 ### Positional
 
 ```dsl
-noise(4, 2).out()
+noise(4, 2).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise(scale: 4, octaves: 2).out()
+noise(scale: 4, octaves: 2).write()
 ```

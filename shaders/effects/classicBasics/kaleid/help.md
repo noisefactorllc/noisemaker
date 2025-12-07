@@ -16,13 +16,13 @@ Kaleidoscope by n slices.
 ### Positional
 
 ```dsl
-noise().kaleid(5).out()
+noise().kaleid(5).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().kaleid(n: 5).out()
+noise().kaleid(n: 5).write()
 ```
 
 ````

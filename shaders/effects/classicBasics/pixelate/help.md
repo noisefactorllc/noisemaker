@@ -20,11 +20,11 @@ Blocky pixel effect.
 ### Positional
 
 ```dsl
-noise().pixelate(40, 10).out()
+noise().pixelate(40, 10).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().pixelate(x: 40, y: 10).out()
+noise().pixelate(x: 40, y: 10).write()
 ```

@@ -25,11 +25,11 @@ Polygon shape.
 ### Positional
 
 ```dsl
-shape(4).out()
+shape(4).write()
 ```
 
 ### Keyword
 
 ```dsl
-shape(sides: 4).out()
+shape(sides: 4).write()
 ```

@@ -15,11 +15,11 @@ Adjust brightness (-1..1). Alias: `brightness`.
 ### Positional
 
 ```dsl
-noise().bright(0.5).out()
+noise().bright(0.5).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().bright(a: 0.5).out()
+noise().bright(a: 0.5).write()
 ```

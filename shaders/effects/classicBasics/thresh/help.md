@@ -20,11 +20,11 @@ Threshold effect.
 ### Positional
 
 ```dsl
-noise().thresh(0.3, 0.2).out()
+noise().thresh(0.3, 0.2).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().thresh(level: 0.3, sharpness: 0.2).out()
+noise().thresh(level: 0.3, sharpness: 0.2).write()
 ```

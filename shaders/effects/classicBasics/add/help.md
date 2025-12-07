@@ -20,13 +20,13 @@ Additive mix with another texture.
 ### Positional
 
 ```dsl
-noise().add(noise(), 0.5).out()
+noise().add(noise(), 0.5).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().add(tex: noise(), amount: 0.5).out()
+noise().add(tex: noise(), amount: 0.5).write()
 ```
 
 ````

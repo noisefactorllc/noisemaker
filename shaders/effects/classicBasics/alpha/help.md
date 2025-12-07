@@ -20,11 +20,11 @@ Isolate alpha channel.
 ### Positional
 
 ```dsl
-noise().a(0.5, 0.1).out()
+noise().a(0.5, 0.1).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().a(scale: 0.5, offset: 0.1).out()
+noise().a(scale: 0.5, offset: 0.1).write()
 ```

@@ -25,11 +25,11 @@ Cell-like pattern.
 ### Positional
 
 ```dsl
-voronoi(8, 0.2).out()
+voronoi(8, 0.2).write()
 ```
 
 ### Keyword
 
 ```dsl
-voronoi(scale: 8, speed: 0.2).out()
+voronoi(scale: 8, speed: 0.2).write()
 ```

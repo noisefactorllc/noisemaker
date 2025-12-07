@@ -20,11 +20,11 @@ Extract the red channel from the incoming image.
 ### Positional
 
 ```dsl
-noise().r(0.5, 0.1).out()
+noise().r(0.5, 0.1).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().r(scale: 0.5, offset: 0.1).out()
+noise().r(scale: 0.5, offset: 0.1).write()
 ```

@@ -21,13 +21,13 @@ Extract the blue channel from the incoming image.
 ### Positional
 
 ```dsl
-noise().b(0.5, 0.1).out()
+noise().b(0.5, 0.1).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().b(scale: 0.5, offset: 0.1).out()
+noise().b(scale: 0.5, offset: 0.1).write()
 ```
 
 ````

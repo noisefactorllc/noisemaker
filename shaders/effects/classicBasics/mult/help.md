@@ -19,11 +19,11 @@ Multiply blend with another texture.
 ### Positional
 
 ```dsl
-noise().mult(noise(), 0.8).out()
+noise().mult(noise(), 0.8).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().mult(tex: noise(), amount: 0.8).out()
+noise().mult(tex: noise(), amount: 0.8).write()
 ```

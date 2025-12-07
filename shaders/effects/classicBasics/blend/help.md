@@ -19,11 +19,11 @@ Cross-fade with another texture.
 ### Positional
 
 ```dsl
-noise().blend(noise(), 0.3).out()
+noise().blend(noise(), 0.3).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().blend(tex: noise(), amount: 0.3).out()
+noise().blend(tex: noise(), amount: 0.3).write()
 ```

@@ -15,13 +15,13 @@ Alpha mask.
 ### Positional
 
 ```dsl
-noise().mask(noise()).out()
+noise().mask(noise()).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().mask(tex: noise()).out()
+noise().mask(tex: noise()).write()
 ```
 
 ````

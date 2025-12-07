@@ -20,11 +20,11 @@ Turn the image with optional animation.
 ### Positional
 
 ```dsl
-noise().rot(0.5).out()
+noise().rot(0.5).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().rot(angle: 0.5).out()
+noise().rot(angle: 0.5).write()
 ```

@@ -39,11 +39,11 @@
 ### Positional
 
 ```dsl
-osc(oscType.sine, 2, 1.0, 0, 0).out()
+osc(oscType.sine, 2, 1.0, 0, 0).write()
 ```
 
 ### Keyword
 
 ```dsl
-osc(oscType: oscType.noise, frequency: 4, speed: 2.0, rotation: 45, seed: 42).out()
+osc(oscType: oscType.noise, frequency: 4, speed: 2.0, rotation: 45, seed: 42).write()
 ```

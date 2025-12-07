@@ -16,13 +16,13 @@ Hue rotation.
 ### Positional
 
 ```dsl
-noise().hue(0.4).out()
+noise().hue(0.4).write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().hue(hue: 0.4).out()
+noise().hue(hue: 0.4).write()
 ```
 
 ````

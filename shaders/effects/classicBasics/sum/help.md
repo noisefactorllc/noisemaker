@@ -15,11 +15,11 @@ Average RGB channels.
 ### Positional
 
 ```dsl
-noise().sum().out()
+noise().sum().write()
 ```
 
 ### Keyword
 
 ```dsl
-noise().sum().out()
+noise().sum().write()
 ```

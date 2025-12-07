@@ -25,11 +25,11 @@ Flat color.
 ### Positional
 
 ```dsl
-solid(#ff0000).out()
+solid(#ff0000).write()
 ```
 
 ### Keyword
 
 ```dsl
-solid(r: #ff0000).out()
+solid(r: #ff0000).write()
 ```
