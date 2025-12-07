@@ -213,6 +213,11 @@ class EffectSelect extends HTMLElement {
                     display: block;
                 }
 
+                :host(.flip-up) .dropdown {
+                    top: auto;
+                    bottom: calc(100% + 0.25rem);
+                }
+
                 .group-header {
                     padding: 0.5rem 0.5rem 0.25rem;
                     font-size: 0.625rem;
@@ -444,13 +449,27 @@ class EffectSelect extends HTMLElement {
         this._isOpen = true;
         this.classList.add('open');
         
+        // Determine if we need to flip upward
+        const dropdown = this.shadowRoot.querySelector('.dropdown');
+        const trigger = this.shadowRoot.querySelector('.select-trigger');
+        const triggerRect = trigger.getBoundingClientRect();
+        const dropdownHeight = Math.min(400, this._flatOptions.length * 28 + 100); // Estimate
+        const spaceBelow = window.innerHeight - triggerRect.bottom;
+        const spaceAbove = triggerRect.top;
+        
+        // Flip up if not enough space below but enough above
+        if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+            this.classList.add('flip-up');
+        } else {
+            this.classList.remove('flip-up');
+        }
+        
         // Set initial focus to selected item
         const selectedIdx = this._flatOptions.findIndex(opt => opt.value === this._value);
         this._focusedIndex = selectedIdx >= 0 ? selectedIdx : 0;
         this._updateFocusedOption();
         
         // Scroll selected into view
-        const dropdown = this.shadowRoot.querySelector('.dropdown');
         const selectedOption = dropdown.querySelector('.option.selected');
         if (selectedOption) {
             selectedOption.scrollIntoView({ block: 'center' });
@@ -460,6 +479,7 @@ class EffectSelect extends HTMLElement {
     _closeDropdown() {
         this._isOpen = false;
         this.classList.remove('open');
+        this.classList.remove('flip-up');
         this._focusedIndex = -1;
         this._clearFocus();
     }
