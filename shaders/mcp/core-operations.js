@@ -114,10 +114,10 @@ export async function compileEffect(page, effectId, options = {}) {
         if (select) {
             // Check if effectId exists in dropdown options
             // Handle both native select and custom web component
-            const options = select.options || [];
-            const optionsList = typeof options.map === 'function' 
+            const options = select.options || []
+            const optionsList = typeof options.map === 'function'
                 ? options  // Custom component: already an array
-                : Array.from(options);  // Native select: convert NodeList
+                : Array.from(options)  // Native select: convert NodeList
             const optionExists = optionsList.some(opt => opt.value === effectId)
             if (!optionExists) {
                 console.error(`[compileEffect] Effect "${effectId}" not found in dropdown! Available options:`,

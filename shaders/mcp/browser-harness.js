@@ -209,18 +209,18 @@ export class BrowserSession {
         // Wait for effects to load (check either native select or custom component)
         await this.page.waitForFunction(
             () => {
-                const select = document.getElementById('effect-select');
-                if (!select) return false;
+                const select = document.getElementById('effect-select')
+                if (!select) return false
                 // Native select: check options
-                if (select.options && select.options.length > 0) return true;
+                if (select.options && select.options.length > 0) return true
                 // Custom component: check if setEffects was called (has _flatOptions)
-                if (select._flatOptions && select._flatOptions.length > 0) return true;
+                if (select._flatOptions && select._flatOptions.length > 0) return true
                 // Custom component: check shadow DOM for options
                 if (select.shadowRoot) {
-                    const options = select.shadowRoot.querySelectorAll('.option');
-                    return options.length > 0;
+                    const options = select.shadowRoot.querySelectorAll('.option')
+                    return options.length > 0
                 }
-                return false;
+                return false
             },
             { timeout: STATUS_TIMEOUT }
         )
@@ -309,20 +309,20 @@ export class BrowserSession {
      */
     async listEffects() {
         return await this.page.evaluate(() => {
-            const select = document.getElementById('effect-select');
-            if (!select) return [];
-            
+            const select = document.getElementById('effect-select')
+            if (!select) return []
+
             // Custom web component: use options property
             if (select.options && typeof select.options.map === 'function') {
-                return select.options.map(opt => opt.value).filter(v => v);
+                return select.options.map(opt => opt.value).filter(v => v)
             }
-            
+
             // Native select fallback
             if (select.options) {
-                return Array.from(select.options).map(opt => opt.value).filter(v => v);
+                return Array.from(select.options).map(opt => opt.value).filter(v => v)
             }
-            
-            return [];
+
+            return []
         })
     }
 
@@ -466,16 +466,16 @@ export class BrowserSession {
                 }, { timeout: STATUS_TIMEOUT })
                 await page.waitForFunction(
                     () => {
-                        const select = document.getElementById('effect-select');
-                        if (!select) return false;
+                        const select = document.getElementById('effect-select')
+                        if (!select) return false
                         // Custom web component: check options.length
-                        if (select.options && select.options.length > 0) return true;
+                        if (select.options && select.options.length > 0) return true
                         // Custom component: check shadow DOM for options
                         if (select.shadowRoot) {
-                            const options = select.shadowRoot.querySelectorAll('.option');
-                            return options.length > 0;
+                            const options = select.shadowRoot.querySelectorAll('.option')
+                            return options.length > 0
                         }
-                        return false;
+                        return false
                     },
                     { timeout: STATUS_TIMEOUT }
                 )
