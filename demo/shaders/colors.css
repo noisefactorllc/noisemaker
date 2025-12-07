@@ -12,8 +12,8 @@
   --surface-opacity: 85%;
   --surface-transparency: 15%;
   --glass-blur-strength: blur(20px);
-  --module-surface-opacity: 50%;
-  --module-surface-transparency: 50%;
-  --module-header-opacity: 29%;
-  --module-header-transparency: 71%;
+  --module-surface-opacity: 85%;
+  --module-surface-transparency: 15%;
+  --module-header-opacity: 75%;
+  --module-header-transparency: 25%;
 }

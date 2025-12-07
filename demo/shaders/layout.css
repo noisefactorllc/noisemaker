@@ -67,7 +67,6 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
 }
 
 /* Fixed canvas mode (default) */
@@ -84,11 +83,9 @@ body:not(.full-bleed-mode) #canvas-container {
 
 body.fixed-canvas-mode #canvas,
 body:not(.full-bleed-mode) #canvas {
-  /* Scale to fit available space while maintaining 1:1 aspect ratio */
-  width: min(calc(100vw - 540px - 4rem), calc(100vh - 4rem));
-  height: min(calc(100vw - 540px - 4rem), calc(100vh - 4rem));
-  max-width: 100%;
-  max-height: 100%;
+  /* Square canvas, scales to fit available space, max 1024x1024 */
+  width: min(1024px, calc(100vw - 540px - 4rem), calc(100vh - 4rem));
+  height: min(1024px, calc(100vw - 540px - 4rem), calc(100vh - 4rem));
   border: 1px solid color-mix(in srgb, var(--accent3) 30%, transparent 70%);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
@@ -153,7 +150,7 @@ body.full-bleed-mode #canvas {
   backdrop-filter: var(--glass-blur-strength);
   border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
   border-radius: var(--ui-corner-radius);
-  overflow: visible;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -164,6 +161,7 @@ body.full-bleed-mode #canvas {
 /* Raise z-index when effect-select dropdown is open */
 .shader-module:has(effect-select.open) {
   z-index: 100;
+  overflow: visible;
 }
 
 .module-title {
