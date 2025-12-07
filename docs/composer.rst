@@ -9,6 +9,12 @@ Presets are authored with the **Composer DSL**, a domain-specific language for d
    **JavaScript Compatibility**: The Composer DSL is shared between Python and JavaScript implementations.
    See :doc:`javascript` for using presets in the browser.
 
+.. note::
+   **Two DSLs**: Noisemaker has two distinct domain-specific languages:
+
+   * **Composer DSL** (this document) — A declarative DSL for CPU-based compositions using Python/JavaScript effects. Presets describe *what* to generate via layered configurations.
+   * **Polymorphic DSL** — An imperative DSL for GPU-based shader compositions. See :doc:`shaders/language` for details.
+
 Overview
 --------
 
@@ -22,6 +28,31 @@ The Composer DSL allows you to define presets as JSON-like objects with speciali
 
 The canonical preset library lives in :file:`share/dsl/presets.dsl` and is parsed by :mod:`noisemaker.dsl`. Both the reference Python implementation and the JavaScript port consume that file, so any change to the DSL immediately applies to both environments.
 
+Custom Presets
+~~~~~~~~~~~~~~
+
+You can create your own presets in a separate DSL file and use them with the CLI:
+
+.. code-block:: bash
+
+    # Use a custom presets file
+    noisemaker generate my-preset --presets ~/my-presets.dsl -o custom.png
+
+Custom preset files follow the same DSL syntax as the built-in :file:`presets.dsl`. You can reference the built-in file as a template. Custom presets can layer on top of each other but cannot inherit from the built-in presets unless they are included in the same file.
+
+For programmatic usage in Python:
+
+.. code-block:: python
+
+    from noisemaker.presets import set_presets_path, Preset
+
+    # Set custom presets file
+    set_presets_path('/path/to/my-presets.dsl')
+
+    # Now use presets from the custom file
+    preset = Preset('my-custom-preset')
+    preset.render(seed=42, shape=[1024, 1024, 3], filename='output.png')
+
 Philosophy
 ~~~~~~~~~~
 
@@ -34,6 +65,67 @@ At a high level, each preset answers five key questions:
 3. What are the noise generation parameters? (``generator``)
 4. Which effects should be applied to each octave? (``octaves``)
 5. Which effects should be applied after flattening layers? (``post`` and ``final``)
+
+Grammar
+-------
+
+The DSL follows a strict grammar for parsing and validation. Programs are parsed into an abstract syntax tree (AST) and evaluated against a whitelist of operations and surfaces—the evaluator never invokes ``eval`` or ``Function``.
+
+.. code-block:: text
+
+    Program        ::= Chain ('.' 'out' '(' OutputRef? ')' )?
+    Chain          ::= Expr ('.' Call)*
+    Expr           ::= Ident '(' ArgList? ')'
+    Call           ::= Ident '(' ArgList? ')'
+    ArgList        ::= Arg (',' Arg)* ','?
+    Arg            ::= NumberExpr | String | Boolean | Color
+                     | Ident | Enum | OutputRef | SourceRef | Null
+                     | List | Dict
+    NumberExpr     ::= Primary
+                     | NumberExpr ( '+' | '-' | '*' | '/' ) NumberExpr
+                     | NumberExpr '?' NumberExpr ':' NumberExpr
+    Primary        ::= Number | Boolean | Null | 'Math.PI'
+                     | Ident | Enum | Call | MemberExpr
+                     | '(' NumberExpr ')'
+    Call           ::= (Ident | MemberExpr) '(' ArgList? ')'
+    MemberExpr     ::= Ident '.' Ident
+    List           ::= '[' ArgList? ']'
+    Dict           ::= '{' (DictEntry (',' DictEntry)* ','?)? '}'
+    DictEntry      ::= (String | Ident) ':' Arg
+    Enum           ::= Ident '.' Ident
+    OutputRef      ::= 'o' Digit
+    Ident          ::= Letter ( Letter | Digit | '_' )*
+    Number         ::= Digit+ ('.' Digit+)?
+    String         ::= '"' [^"\n]* '"'
+    Digit          ::= '0'…'9'
+    Letter         ::= 'A'…'Z' | 'a'…'z'
+    Boolean        ::= 'true' | 'false'
+    Null           ::= 'null'
+    Color          ::= '#' HexDigit HexDigit HexDigit
+                     (HexDigit HexDigit HexDigit)?
+    HexDigit       ::= Digit | 'A'…'F' | 'a'…'f'
+
+Grammar Notes
+~~~~~~~~~~~~~
+
+* Floats may omit the leading zero (e.g., ``.5``).
+* Trailing commas in lists, dictionaries, and argument lists are allowed.
+* ``Enum`` resolves to JavaScript enum objects exported from ``constants.js``.
+* Whitespace and comments are skipped between tokens.
+* Single-line comments use ``//`` and run until the newline.
+* Block comments use ``/* … */`` and must be terminated before end of file.
+
+Naming Conventions
+~~~~~~~~~~~~~~~~~~
+
+* Preset names use **kebab-case** (e.g., ``"acid-wash"``).
+* Preset setting keys use **snake_case** (e.g., ``bloom_alpha``).
+* Function wrappers and argument keys use **snake_case** (e.g., ``random_int``).
+* Enum wrapper members use **snake_case** (e.g., ``ColorSpace.rgb``).
+* Underlying implementations:
+
+  * Python enums and functions use ``snake_case``.
+  * JavaScript enums and functions use ``camelCase``.
 
 Preset Keys
 -----------

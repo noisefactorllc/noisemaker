@@ -54,6 +54,7 @@ Generate a .png or .jpg image from a preset.
 **Preset Discovery:**
 
 - ``--help-presets`` - List available generator presets (including ``random``) and exit
+- ``--presets FILE`` - Path to a custom presets DSL file (allows user-defined presets)
 
 **Common Options:**
 
@@ -96,6 +97,9 @@ Generate a .png or .jpg image from a preset.
     # Generate and apply AI upscaling
     noisemaker generate fractal-smoke --with-upscale -o hires.png
 
+    # Use a custom presets file
+    noisemaker generate my-preset --presets ~/my-presets.dsl -o custom.png
+
 animate
 ~~~~~~~
 
@@ -111,6 +115,7 @@ Generate an animation (MP4 or GIF) from a preset.
 
 **Common Options:**
 
+- ``--presets FILE`` - Path to a custom presets DSL file (allows user-defined presets)
 - ``--width INTEGER`` - Output width in pixels (default: 512)
 - ``--height INTEGER`` - Output height in pixels (default: 512)
 - ``--filename FILE`` - Output filename (default: animation.mp4)
@@ -164,6 +169,7 @@ Apply an effect preset to an existing .png or .jpg image.
 **Preset Discovery:**
 
 - ``--help-presets`` - List available effect presets (including ``random``) and exit
+- ``--presets FILE`` - Path to a custom presets DSL file (allows user-defined presets)
 
 **Options:**
 
@@ -189,6 +195,9 @@ Apply an effect preset to an existing .png or .jpg image.
 
     # Apply time-based effect
     noisemaker apply worms photo.png --time 0.5 -o warped.png
+
+    # Use a custom presets file
+    noisemaker apply my-effect photo.jpg --presets ~/my-presets.dsl -o custom.png
 
 mashup
 ~~~~~~
