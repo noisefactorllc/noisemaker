@@ -113,13 +113,20 @@ export async function compileEffect(page, effectId, options = {}) {
         const select = document.getElementById('effect-select')
         if (select) {
             // Check if effectId exists in dropdown options
-            const optionExists = Array.from(select.options).some(opt => opt.value === effectId)
+            // Handle both native select and custom web component
+            const options = select.options || [];
+            const optionsList = typeof options.map === 'function' 
+                ? options  // Custom component: already an array
+                : Array.from(options);  // Native select: convert NodeList
+            const optionExists = optionsList.some(opt => opt.value === effectId)
             if (!optionExists) {
                 console.error(`[compileEffect] Effect "${effectId}" not found in dropdown! Available options:`,
-                    Array.from(select.options).map(o => o.value).filter(v => v).join(', '))
+                    optionsList.map(o => o.value).filter(v => v).join(', '))
                 return { state: 'error', message: `Effect "${effectId}" not found in effect selector` }
             }
             select.value = effectId
+            // Dispatch change event - the custom component handles this automatically
+            // when value is set, but explicit dispatch ensures compatibility
             select.dispatchEvent(new Event('change', { bubbles: true }))
         }
 

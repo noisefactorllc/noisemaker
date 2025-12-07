@@ -2,6 +2,7 @@
 """Generate a single top-level shader manifest for all effects."""
 
 import json
+import re
 from pathlib import Path
 
 # Resolve paths relative to this script's location
@@ -9,6 +10,25 @@ SCRIPT_DIR = Path(__file__).parent.resolve()
 PROJECT_ROOT = SCRIPT_DIR.parent.parent  # shaders/scripts -> shaders -> project root
 EFFECTS_ROOT = PROJECT_ROOT / "shaders" / "effects"
 OUTPUT_FILE = EFFECTS_ROOT / "manifest.json"
+
+# Regex to extract description from definition.js
+DESCRIPTION_RE = re.compile(r'description:\s*["\']([^"\']*)["\']')
+
+
+def extract_description(effect_dir):
+    """Extract description from definition.js."""
+    definition_file = effect_dir / "definition.js"
+    if not definition_file.exists():
+        return None
+    try:
+        content = definition_file.read_text(encoding="utf-8")
+        match = DESCRIPTION_RE.search(content)
+        if match:
+            return match.group(1)
+    except Exception:
+        pass
+    return None
+
 
 def scan_effect(effect_dir):
     """Scan shader files for a single effect."""
@@ -62,6 +82,10 @@ def main():
             
             effect_id = f"{namespace}/{effect_dir.name}"
             effect_manifest = scan_effect(effect_dir)
+            # Extract and include description if available
+            description = extract_description(effect_dir)
+            if description:
+                effect_manifest["description"] = description
             # Include all effects that have a definition.js, even if they have no shaders
             manifest[effect_id] = effect_manifest
     

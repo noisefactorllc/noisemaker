@@ -26,7 +26,7 @@
                         <div class="control-header">
                             <label for="effect-select" class="control-label">effect</label>
                         </div>
-                        <select id="effect-select" class="control-select"></select>
+                        <effect-select id="effect-select"></effect-select>
                     </div>
 
                     <div class="control-group" style="display: flex; flex-direction: row !important; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
@@ -223,6 +223,7 @@
         // =====================================================================
         
         import { CanvasRenderer, getEffect } from '../../shaders/src/renderer/canvas.js';
+        import { EffectSelect } from './lib/effect-select.js';
         import { 
             DemoUI, 
             extractEffectNamesFromDsl,
@@ -368,9 +369,11 @@
             for (const dir of effectDirs) {
                 const effectNames = renderer.getEffectsFromManifest(dir.namespace);
                 for (const effectName of effectNames) {
+                    const effectId = `${dir.namespace}/${effectName}`;
                     effects.push({
                         namespace: dir.namespace,
                         name: effectName,
+                        description: renderer.getEffectDescription(effectId),
                         instance: null,
                         loaded: false
                     });
@@ -651,7 +654,9 @@
         // Effect selector
         let allLoadedEffects = [];
         effectSelect.addEventListener('change', async (e) => {
-            await selectEffect(e.target.value, allLoadedEffects);
+            // Support both custom element (detail.value) and native select (target.value)
+            const value = e.detail?.value ?? e.target.value;
+            await selectEffect(value, allLoadedEffects);
         });
 
         // =====================================================================
@@ -1048,8 +1053,8 @@
                 }
 
                 // Select effect (from URL or first available)
-                if (!selectedEffect && effectSelect.options.length > 0) {
-                    selectedEffect = effectSelect.value;
+                if (!selectedEffect && effects.length > 0) {
+                    selectedEffect = effectSelect.value || `${effects[0].namespace}/${effects[0].name}`;
                 }
 
                 if (selectedEffect) {

@@ -206,9 +206,22 @@ export class BrowserSession {
             return !!app && window.getComputedStyle(app).display !== 'none'
         }, { timeout: STATUS_TIMEOUT })
 
-        // Wait for effects to load
+        // Wait for effects to load (check either native select or custom component)
         await this.page.waitForFunction(
-            () => document.querySelectorAll('#effect-select option').length > 0,
+            () => {
+                const select = document.getElementById('effect-select');
+                if (!select) return false;
+                // Native select: check options
+                if (select.options && select.options.length > 0) return true;
+                // Custom component: check if setEffects was called (has _flatOptions)
+                if (select._flatOptions && select._flatOptions.length > 0) return true;
+                // Custom component: check shadow DOM for options
+                if (select.shadowRoot) {
+                    const options = select.shadowRoot.querySelectorAll('.option');
+                    return options.length > 0;
+                }
+                return false;
+            },
             { timeout: STATUS_TIMEOUT }
         )
 
@@ -295,10 +308,22 @@ export class BrowserSession {
      * List available effects.
      */
     async listEffects() {
-        return await this.page.$$eval(
-            '#effect-select option',
-            options => options.map(opt => opt.value).filter(v => v)
-        )
+        return await this.page.evaluate(() => {
+            const select = document.getElementById('effect-select');
+            if (!select) return [];
+            
+            // Custom web component: use options property
+            if (select.options && typeof select.options.map === 'function') {
+                return select.options.map(opt => opt.value).filter(v => v);
+            }
+            
+            // Native select fallback
+            if (select.options) {
+                return Array.from(select.options).map(opt => opt.value).filter(v => v);
+            }
+            
+            return [];
+        })
     }
 
     /**
@@ -440,7 +465,18 @@ export class BrowserSession {
                     return !!app && window.getComputedStyle(app).display !== 'none'
                 }, { timeout: STATUS_TIMEOUT })
                 await page.waitForFunction(
-                    () => document.querySelectorAll('#effect-select option').length > 0,
+                    () => {
+                        const select = document.getElementById('effect-select');
+                        if (!select) return false;
+                        // Custom web component: check options.length
+                        if (select.options && select.options.length > 0) return true;
+                        // Custom component: check shadow DOM for options
+                        if (select.shadowRoot) {
+                            const options = select.shadowRoot.querySelectorAll('.option');
+                            return options.length > 0;
+                        }
+                        return false;
+                    },
                     { timeout: STATUS_TIMEOUT }
                 )
 

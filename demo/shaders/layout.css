@@ -157,6 +157,13 @@ body.full-bleed-mode #canvas {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* Raise z-index when effect-select dropdown is open */
+.shader-module:has(effect-select.open) {
+  z-index: 100;
 }
 
 .module-title {

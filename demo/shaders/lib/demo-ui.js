@@ -532,44 +532,57 @@ export class DemoUI {
     
     /**
      * Populate the effect selector dropdown
-     * @param {Array} effects - Array of effect objects
+     * @param {Array} effects - Array of effect objects with namespace, name, and optional description
      */
     populateEffectSelector(effects) {
         if (!this._effectSelect) return;
         
         this._allEffects = effects;
-        this._effectSelect.innerHTML = '';
         
-        const grouped = {};
-        effects.forEach(effect => {
-            if (!grouped[effect.namespace]) {
-                grouped[effect.namespace] = [];
-            }
-            grouped[effect.namespace].push(effect);
-        });
-
-        const sortedNamespaces = Object.keys(grouped).sort((a, b) => {
-            const aIsClassic = a.startsWith('classic');
-            const bIsClassic = b.startsWith('classic');
-            if (aIsClassic && !bIsClassic) return 1;
-            if (!aIsClassic && bIsClassic) return -1;
-            return a.localeCompare(b);
-        });
-
-        sortedNamespaces.forEach(namespace => {
-            const effectList = grouped[namespace];
-            const optgroup = document.createElement('optgroup');
-            optgroup.label = camelToSpaceCase(namespace);
+        // Check if this is a custom effect-select component
+        if (typeof this._effectSelect.setEffects === 'function') {
+            this._effectSelect.setEffects(effects);
+        } else {
+            // Fallback to native select element
+            this._effectSelect.innerHTML = '';
             
-            effectList.sort((a, b) => a.name.localeCompare(b.name)).forEach(effect => {
-                const option = document.createElement('option');
-                option.value = `${namespace}/${effect.name}`;
-                option.textContent = camelToSpaceCase(effect.name);
-                optgroup.appendChild(option);
+            const grouped = {};
+            effects.forEach(effect => {
+                if (!grouped[effect.namespace]) {
+                    grouped[effect.namespace] = [];
+                }
+                grouped[effect.namespace].push(effect);
             });
-            
-            this._effectSelect.appendChild(optgroup);
-        });
+
+            const sortedNamespaces = Object.keys(grouped).sort((a, b) => {
+                const aIsClassic = a.startsWith('classic');
+                const bIsClassic = b.startsWith('classic');
+                if (aIsClassic && !bIsClassic) return 1;
+                if (!aIsClassic && bIsClassic) return -1;
+                return a.localeCompare(b);
+            });
+
+            sortedNamespaces.forEach(namespace => {
+                const effectList = grouped[namespace];
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = camelToSpaceCase(namespace);
+                
+                effectList.sort((a, b) => a.name.localeCompare(b.name)).forEach(effect => {
+                    const option = document.createElement('option');
+                    option.value = `${namespace}/${effect.name}`;
+                    const effectName = camelToSpaceCase(effect.name);
+                    // Include description if available
+                    if (effect.description) {
+                        option.textContent = `${effectName}: ${effect.description}`;
+                    } else {
+                        option.textContent = effectName;
+                    }
+                    optgroup.appendChild(option);
+                });
+                
+                this._effectSelect.appendChild(optgroup);
+            });
+        }
     }
     
     /**
@@ -579,10 +592,16 @@ export class DemoUI {
     setSelectedEffect(effectPath) {
         if (!this._effectSelect) return;
         
-        for (let i = 0; i < this._effectSelect.options.length; i++) {
-            if (this._effectSelect.options[i].value === effectPath) {
-                this._effectSelect.selectedIndex = i;
-                break;
+        // Check if this is a custom effect-select component
+        if (typeof this._effectSelect.setEffects === 'function') {
+            this._effectSelect.value = effectPath;
+        } else {
+            // Fallback to native select element
+            for (let i = 0; i < this._effectSelect.options.length; i++) {
+                if (this._effectSelect.options[i].value === effectPath) {
+                    this._effectSelect.selectedIndex = i;
+                    break;
+                }
             }
         }
     }

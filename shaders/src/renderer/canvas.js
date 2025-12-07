@@ -647,6 +647,16 @@ export class CanvasRenderer {
     }
 
     /**
+     * Get effect description from manifest
+     * @param {string} effectId - Effect ID (namespace/name)
+     * @returns {string|null} Description or null if not found
+     */
+    getEffectDescription(effectId) {
+        const entry = this._manifest?.[effectId]
+        return entry?.description ?? null
+    }
+
+    /**
      * Load effect definition
      * @param {string} namespace - Effect namespace
      * @param {string} effectName - Effect name
