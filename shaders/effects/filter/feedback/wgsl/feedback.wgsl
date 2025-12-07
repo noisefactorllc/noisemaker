@@ -275,16 +275,16 @@ fn getImage(st_in: vec2<f32>) -> vec4<f32> {
     // chromatic aberration
     let aberrationOffset = map(uniforms.aberrationAmt, 0.0, 100.0, 0.0, 0.1) * centerDist * PI * 0.5;
 
-    // Flip Y when sampling selfTex to match render orientation
-    let flippedSt = vec2<f32>(st.x, 1.0 - st.y);
+    // Sample selfTex directly - no Y flip needed in WGSL since input.uv
+    // coordinate space already matches texture storage orientation
 
     let redOffset = mix(clamp(st.x + aberrationOffset, 0.0, 1.0), st.x, st.x);
-    let red = textureSample(selfTex, texSampler, vec2<f32>(redOffset, flippedSt.y));
+    let red = textureSample(selfTex, texSampler, vec2<f32>(redOffset, st.y));
 
-    let green = textureSample(selfTex, texSampler, flippedSt);
+    let green = textureSample(selfTex, texSampler, st);
 
     let blueOffset = mix(st.x, clamp(st.x - aberrationOffset, 0.0, 1.0), st.x);
-    let blue = textureSample(selfTex, texSampler, vec2<f32>(blueOffset, flippedSt.y));
+    let blue = textureSample(selfTex, texSampler, vec2<f32>(blueOffset, st.y));
 
     var tex = vec4<f32>(red.r, green.g, blue.b, 1.0);
     tex = vec4<f32>(tex.rgb * tex.a, tex.a);
