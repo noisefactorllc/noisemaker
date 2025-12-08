@@ -27,6 +27,11 @@ class EffectSelect extends HTMLElement {
         this._selectedIndex = -1;
         this._focusedIndex = -1;
         this._flatOptions = []; // Flat list for keyboard navigation
+        
+        // Type-ahead search state (mimics native select behavior)
+        this._searchString = '';
+        this._searchTimeout = null;
+        this._lastSearchTime = 0;
     }
 
     connectedCallback() {
@@ -416,14 +421,73 @@ class EffectSelect extends HTMLElement {
         trigger.addEventListener('keydown', (e) => {
             switch (e.key) {
                 case 'Enter':
+                    e.preventDefault();
+                    if (this._isOpen) {
+                        // Select focused item (if any) and close dropdown
+                        if (this._focusedIndex >= 0 && this._focusedIndex < this._flatOptions.length) {
+                            this._selectOption(this._flatOptions[this._focusedIndex].value);
+                        } else {
+                            this._closeDropdown();
+                        }
+                    } else {
+                        this._openDropdown();
+                    }
+                    break;
                 case ' ':
-                case 'ArrowDown':
                     e.preventDefault();
                     this._openDropdown();
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (!this._isOpen) {
+                        // When closed, arrow down moves to next option (like native select)
+                        this._moveSelection(1);
+                    } else {
+                        // When open, move focus down
+                        this._moveFocus(1);
+                    }
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (!this._isOpen) {
+                        // When closed, arrow up moves to previous option (like native select)
+                        this._moveSelection(-1);
+                    } else {
+                        // When open, move focus up
+                        this._moveFocus(-1);
+                    }
                     break;
                 case 'Escape':
                     this._closeDropdown();
                     break;
+                case 'Home':
+                    e.preventDefault();
+                    if (this._flatOptions.length > 0) {
+                        if (this._isOpen) {
+                            this._focusedIndex = 0;
+                            this._updateFocusedOption();
+                        } else {
+                            this._selectOption(this._flatOptions[0].value);
+                        }
+                    }
+                    break;
+                case 'End':
+                    e.preventDefault();
+                    if (this._flatOptions.length > 0) {
+                        if (this._isOpen) {
+                            this._focusedIndex = this._flatOptions.length - 1;
+                            this._updateFocusedOption();
+                        } else {
+                            this._selectOption(this._flatOptions[this._flatOptions.length - 1].value);
+                        }
+                    }
+                    break;
+                default:
+                    // Handle type-ahead for printable characters
+                    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                        e.preventDefault();
+                        this._handleTypeAhead(e.key);
+                    }
             }
         });
 
@@ -446,6 +510,26 @@ class EffectSelect extends HTMLElement {
                 case 'Escape':
                     this._closeDropdown();
                     break;
+                case 'Home':
+                    e.preventDefault();
+                    if (this._flatOptions.length > 0) {
+                        this._focusedIndex = 0;
+                        this._updateFocusedOption();
+                    }
+                    break;
+                case 'End':
+                    e.preventDefault();
+                    if (this._flatOptions.length > 0) {
+                        this._focusedIndex = this._flatOptions.length - 1;
+                        this._updateFocusedOption();
+                    }
+                    break;
+                default:
+                    // Handle type-ahead for printable characters when dropdown is open
+                    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                        e.preventDefault();
+                        this._handleTypeAhead(e.key);
+                    }
             }
         });
     }
@@ -520,6 +604,25 @@ class EffectSelect extends HTMLElement {
         this._updateFocusedOption();
     }
 
+    /**
+     * Move selection when dropdown is closed (arrow keys change value directly like native select)
+     * @param {number} direction - 1 for next, -1 for previous
+     */
+    _moveSelection(direction) {
+        if (this._flatOptions.length === 0) return;
+        
+        const currentIdx = this._flatOptions.findIndex(opt => opt.value === this._value);
+        let newIdx = currentIdx + direction;
+        
+        // Clamp to bounds (don't wrap when closed, like native select)
+        if (newIdx < 0) newIdx = 0;
+        if (newIdx >= this._flatOptions.length) newIdx = this._flatOptions.length - 1;
+        
+        if (newIdx !== currentIdx) {
+            this._selectOption(this._flatOptions[newIdx].value);
+        }
+    }
+
     _updateFocusedOption() {
         this._clearFocus();
         
@@ -539,6 +642,106 @@ class EffectSelect extends HTMLElement {
         dropdown.querySelectorAll('.option.focused').forEach(opt => {
             opt.classList.remove('focused');
         });
+    }
+
+    /**
+     * Handle type-ahead search like a native select element.
+     * - Typing a single character jumps to the first matching option
+     * - Typing quickly builds a multi-character search string
+     * - Repeating the same character cycles through matching options
+     * @param {string} char - The character typed
+     */
+    _handleTypeAhead(char) {
+        const now = Date.now();
+        const timeSinceLastKey = now - this._lastSearchTime;
+        this._lastSearchTime = now;
+
+        // Clear the search timeout
+        if (this._searchTimeout) {
+            clearTimeout(this._searchTimeout);
+        }
+
+        // If more than 500ms since last keypress, start a new search
+        // (native select typically uses ~500-1000ms)
+        if (timeSinceLastKey > 500) {
+            this._searchString = '';
+        }
+
+        const previousSearch = this._searchString;
+        this._searchString += char.toLowerCase();
+
+        // Reset search string after delay (like native select)
+        this._searchTimeout = setTimeout(() => {
+            this._searchString = '';
+        }, 1000);
+
+        // Get display names for matching
+        const optionsWithNames = this._flatOptions.map((opt, idx) => ({
+            ...opt,
+            idx,
+            displayName: camelToSpaceCase(opt.name).toLowerCase()
+        }));
+
+        // Find matching options
+        let matchingOptions = optionsWithNames.filter(opt => 
+            opt.displayName.startsWith(this._searchString)
+        );
+
+        // If no match with full string but we just added a repeated character,
+        // cycle through options starting with that character
+        if (matchingOptions.length === 0 && this._searchString.length > 1) {
+            // Try matching with just the new character
+            const singleCharMatches = optionsWithNames.filter(opt =>
+                opt.displayName.startsWith(char.toLowerCase())
+            );
+            
+            if (singleCharMatches.length > 0) {
+                // Reset to single character search
+                this._searchString = char.toLowerCase();
+                matchingOptions = singleCharMatches;
+            }
+        }
+
+        // If single character is repeated (e.g., "aaa"), cycle through matches
+        const isRepeatedChar = this._searchString.length > 1 && 
+            this._searchString.split('').every(c => c === this._searchString[0]);
+        
+        if (isRepeatedChar && previousSearch.length > 0) {
+            const singleCharMatches = optionsWithNames.filter(opt =>
+                opt.displayName.startsWith(this._searchString[0])
+            );
+            
+            if (singleCharMatches.length > 1) {
+                // Find current position in the cycle
+                const currentIdx = this._isOpen ? this._focusedIndex : this.selectedIndex;
+                const currentMatchIdx = singleCharMatches.findIndex(opt => opt.idx === currentIdx);
+                
+                // Move to next match (with wrap)
+                const nextMatchIdx = (currentMatchIdx + 1) % singleCharMatches.length;
+                const targetIdx = singleCharMatches[nextMatchIdx].idx;
+                
+                if (this._isOpen) {
+                    this._focusedIndex = targetIdx;
+                    this._updateFocusedOption();
+                } else {
+                    this._selectOption(this._flatOptions[targetIdx].value);
+                }
+                return;
+            }
+        }
+
+        // Jump to first match
+        if (matchingOptions.length > 0) {
+            const targetIdx = matchingOptions[0].idx;
+            
+            if (this._isOpen) {
+                this._focusedIndex = targetIdx;
+                this._updateFocusedOption();
+            } else {
+                // When closed, select the option directly (like native select)
+                this._selectOption(this._flatOptions[targetIdx].value);
+            }
+        }
     }
 }
 
