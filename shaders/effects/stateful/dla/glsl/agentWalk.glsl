@@ -10,6 +10,7 @@ uniform float padding;
 uniform float density;
 uniform float speed;
 uniform float seedDensity;
+uniform bool resetState;
 
 layout(location = 0) out vec4 dlaOutColor;
 
@@ -75,7 +76,7 @@ void main() {
     float seed = prev.z;
     float stuckPrev = prev.w;
 
-    if (frame <= 1 || seed <= 0.0) {
+    if (frame <= 1 || seed <= 0.0 || resetState) {
         seed = hash21(uv + float(frame) * 0.013) + 0.6180339887;
         pos = spawnPosition(uv, seed);
         stuckPrev = 0.0;

@@ -12,6 +12,7 @@ struct VertexOutput {
 @group(0) @binding(3) var<uniform> density: f32;
 @group(0) @binding(4) var<uniform> frame: i32;
 @group(0) @binding(5) var<uniform> alpha: f32;
+@group(0) @binding(6) var<uniform> resetState: i32;
 
 fn hash11(p_in: f32) -> f32 {
     var p = fract(p_in * 0.1031);
@@ -43,7 +44,7 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     let radial = smoothstep(0.18, 0.02, length(uv - 0.5));
     var seedWeight = 0.0;
     
-    if (frame <= 1) {
+    if (frame <= 1 || resetState != 0) {
         let densityScale = clamp(seedDensity * 900.0, 0.0, 0.98);
         seedWeight = step(1.0 - densityScale, rng) * radial;
     } else if (energy < 0.015) {

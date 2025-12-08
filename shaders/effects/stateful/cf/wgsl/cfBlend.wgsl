@@ -9,7 +9,7 @@ struct Uniforms {
     sharpenAmount: f32,
     blurAmount: f32,
     intensity: f32,
-    _pad1: f32,
+    resetState: i32,
     _pad2: f32,
     _pad3: f32,
 }
@@ -28,6 +28,12 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     let coord = vec2<i32>(in.position.xy);
     
     let input = textureLoad(inputTex, coord, 0);
+    
+    // If resetState is true, bypass feedback and return input directly
+    if (uniforms.resetState != 0) {
+        return input;
+    }
+    
     let feedback = textureLoad(feedbackTex, coord, 0);
     
     // Blend input with processed feedback based on intensity

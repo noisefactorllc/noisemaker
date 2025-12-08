@@ -1554,7 +1554,10 @@ export class DemoUI {
         this._effectParameterValues[effectKey][key] = value;
 
         // Create control based on type
-        if (spec.type === 'boolean') {
+        // Check for button control first (momentary boolean button)
+        if (spec.ui?.control === 'button') {
+            this._createButtonControl(controlGroup, key, spec, effectKey);
+        } else if (spec.type === 'boolean') {
             this._createBooleanControl(controlGroup, key, value, effectKey);
         } else if (spec.choices) {
             this._createChoicesControl(controlGroup, key, spec, value, effectKey);
@@ -1583,6 +1586,60 @@ export class DemoUI {
             this._onControlChange();
         });
         container.appendChild(checkbox);
+    }
+    
+    /** 
+     * Create a momentary button control for boolean uniforms
+     * Button sets uniform to true, then resets to false after one frame
+     * @private 
+     */
+    _createButtonControl(container, key, spec, effectKey) {
+        const button = document.createElement('button');
+        button.className = 'control-button';
+        button.textContent = spec.ui?.buttonLabel || 'reset';
+        button.title = spec.ui?.label || key;
+        
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            
+            const pipeline = this._renderer.pipeline;
+            if (!pipeline) {
+                return;
+            }
+            
+            const uniformName = spec.uniform || key;
+            
+            // Set directly on globalUniforms (source of truth for runtime overrides)
+            pipeline.globalUniforms[uniformName] = true;
+            
+            // Also set on pass.uniforms for passes that have the uniform
+            if (pipeline.graph && pipeline.graph.passes) {
+                for (const pass of pipeline.graph.passes) {
+                    if (pass.uniforms) {
+                        pass.uniforms[uniformName] = true;
+                    }
+                }
+            }
+            
+            // Reset to false after render completes
+            // Use 3 nested rAF to ensure: 1) sync to frame, 2) render happens, 3) reset after
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        pipeline.globalUniforms[uniformName] = false;
+                        if (pipeline.graph && pipeline.graph.passes) {
+                            for (const pass of pipeline.graph.passes) {
+                                if (pass.uniforms) {
+                                    pass.uniforms[uniformName] = false;
+                                }
+                            }
+                        }
+                    });
+                });
+            });
+        });
+        
+        container.appendChild(button);
     }
     
     /** @private */

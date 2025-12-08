@@ -184,14 +184,13 @@ export default new Effect({
       }
     },
     resetState: {
-      type: "button",
+      type: "boolean",
       default: false,
       uniform: "resetState",
       ui: {
-        label: "state",
-        type: "button",
+        control: "button",
         buttonLabel: "reset",
-        category: "util"
+        label: "state"
       }
     }
   },

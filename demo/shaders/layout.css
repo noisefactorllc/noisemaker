@@ -414,6 +414,31 @@ body.full-bleed-mode #canvas {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent3) 25%, transparent 75%);
 }
 
+.control-button {
+  padding: 0.25rem 0.5rem;
+  background: color-mix(in srgb, var(--accent3) 20%, transparent 80%);
+  border: 1px solid color-mix(in srgb, var(--accent3) 35%, transparent 65%);
+  border-radius: var(--ui-corner-radius-small);
+  color: var(--color6);
+  font-family: Nunito, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variation-settings: 'wght' 600;
+  text-transform: lowercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.control-button:hover {
+  background: color-mix(in srgb, var(--accent3) 35%, transparent 65%);
+  border-color: var(--accent3);
+}
+
+.control-button:active {
+  background: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
+  transform: translateY(1px);
+}
+
 .control-number {
   padding: 0.25rem 0.375rem;
   background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);

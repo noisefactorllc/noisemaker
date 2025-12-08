@@ -24,6 +24,7 @@ struct Uniforms {
     refractBAmt: f32,
     refractADir: f32,
     refractBDir: f32,
+    resetState: i32,
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -331,6 +332,11 @@ fn cloak(st: vec2<f32>) -> vec4<f32> {
 @fragment
 fn main(input: VertexOutput) -> @location(0) vec4<f32> {
     let uv = vec2<f32>(input.uv.x, 1.0 - input.uv.y);
+    
+    // If resetState is true, bypass feedback and return input directly
+    if (uniforms.resetState != 0) {
+        return textureSample(inputTex, texSampler, uv);
+    }
 
     var color: vec4<f32>;
 

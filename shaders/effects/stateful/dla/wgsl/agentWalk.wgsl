@@ -13,6 +13,7 @@ struct VertexOutput {
 @group(0) @binding(4) var<uniform> frame: i32;
 @group(0) @binding(5) var<uniform> density: f32;
 @group(0) @binding(6) var<uniform> seedDensity: f32;
+@group(0) @binding(7) var<uniform> resetState: i32;
 
 fn hash11(v: f32) -> f32 {
     var v2 = fract(v * 0.1031);
@@ -82,8 +83,8 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     var seed = prev.z;
     var stuckPrev = prev.w;
     
-    // Init or reset on first frame or invalid seed
-    if (frame <= 1 || seed <= 0.0) {
+    // Init or reset on first frame, invalid seed, or resetState requested
+    if (frame <= 1 || seed <= 0.0 || resetState != 0) {
         seed = hash21(uv + f32(frame) * 0.013) + 0.6180339887;
         pos = spawnPosition(uv, &seed);
         stuckPrev = 0.0;

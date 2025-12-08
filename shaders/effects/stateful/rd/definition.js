@@ -26,10 +26,21 @@ export default new Effect({
       sourceK: { slot: 2, components: 'w' },
       sourceR1: { slot: 3, components: 'x' },
       sourceR2: { slot: 3, components: 'y' },
+      resetState: { slot: 3, components: 'z' },
       seed: { slot: 8, components: 'w' }
     }
   },
   globals: {
+    resetState: {
+      type: "boolean",
+      default: false,
+      uniform: "resetState",
+      ui: {
+        control: "button",
+        buttonLabel: "reset",
+        label: "state"
+      }
+    },
     seed: {
       type: "int",
       default: 1,

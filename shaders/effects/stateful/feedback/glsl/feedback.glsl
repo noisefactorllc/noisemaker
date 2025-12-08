@@ -36,6 +36,7 @@ uniform float refractAAmt;
 uniform float refractBAmt;
 uniform float refractADir;
 uniform float refractBDir;
+uniform bool resetState;
 
 out vec4 fragColor;
 
@@ -312,6 +313,12 @@ vec4 getImage(vec2 st) {
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution;
     uv.y = 1.0 - uv.y;
+    
+    // If resetState is true, bypass feedback and return input directly
+    if (resetState) {
+        fragColor = texture(inputTex, uv);
+        return;
+    }
 
     vec4 color = vec4(0.0);
 

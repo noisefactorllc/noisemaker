@@ -15,6 +15,16 @@ export default new Effect({
 
   description: "Feedback loop with blend modes and transforms",
   globals: {
+    resetState: {
+      type: "boolean",
+      default: false,
+      uniform: "resetState",
+      ui: {
+        control: "button",
+        buttonLabel: "reset",
+        label: "state"
+      }
+    },
     blendMode: {
       type: "int",
       default: 10,

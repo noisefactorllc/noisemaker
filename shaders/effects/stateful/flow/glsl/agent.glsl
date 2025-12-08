@@ -15,6 +15,7 @@ uniform float time;
 uniform float lifetime;
 uniform float behavior;
 uniform float density;
+uniform bool resetState;
 
 layout(location = 0) out vec4 outState1;
 layout(location = 1) out vec4 outState2;
@@ -145,8 +146,8 @@ void main() {
     int totalAgents = width * height;  // Max possible agents (texture size)
     int agentIndex = coord.x + coord.y * width;
     
-    // Check if this agent needs initialization
-    if (initialized < 0.5) {
+    // Check if this agent needs initialization or reset requested
+    if (initialized < 0.5 || resetState) {
         // Initialize agent at random position
         vec2 pos = hash2(agentSeed);
         flow_x = pos.x * float(width);

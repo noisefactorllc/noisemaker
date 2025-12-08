@@ -21,6 +21,7 @@ struct Outputs {
 @group(0) @binding(9) var<uniform> time: f32;
 @group(0) @binding(10) var<uniform> lifetime: f32;
 @group(0) @binding(11) var<uniform> behavior: f32;
+@group(0) @binding(12) var<uniform> resetState: i32;
 // Note: density is only used in deposit pass, not here
 
 const TAU : f32 = 6.283185307179586;
@@ -151,8 +152,8 @@ fn main(@builtin(position) position : vec4<f32>) -> Outputs {
     let totalAgents = width * height;  // Max possible agents (texture size)
     let agentIndex = coord.x + coord.y * width;
     
-    // Check if this agent needs initialization
-    if (initialized < 0.5) {
+    // Check if this agent needs initialization or reset requested
+    if (initialized < 0.5 || resetState != 0) {
         let pos = hash2(agentSeed);
         flow_x = pos.x * f32(width);
         flow_y = pos.y * f32(height);

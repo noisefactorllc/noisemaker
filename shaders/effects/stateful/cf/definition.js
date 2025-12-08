@@ -16,6 +16,16 @@ export default new Effect({
 
   description: "Convolution feedback with blur and sharpen",
   globals: {
+    resetState: {
+      type: "boolean",
+      default: false,
+      uniform: "resetState",
+      ui: {
+        control: "button",
+        buttonLabel: "reset",
+        label: "state"
+      }
+    },
     sharpenRadius: {
       type: "int",
       default: 1,

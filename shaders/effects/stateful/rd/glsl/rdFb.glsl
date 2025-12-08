@@ -26,6 +26,7 @@ uniform int sourceR2;
 uniform float zoom;
 
 uniform sampler2D inputTex;
+uniform bool resetState;
 
 out vec4 fragColor;
 #define aspectRatio resolution.x / resolution.y
@@ -66,11 +67,11 @@ void main() {
 	float a = tex.r;
 	float b = tex.g;
 
-    // Check if buffer is empty (first frame initialization)
+    // Check if buffer is empty (first frame initialization) or reset requested
     // Sample all channels to detect truly empty buffer
     bool bufferIsEmpty = (tex.r == 0.0 && tex.g == 0.0 && tex.b == 0.0 && tex.a == 0.0);
     
-    if (bufferIsEmpty) {
+    if (bufferIsEmpty || resetState) {
         // Initialize: A=1 everywhere, B=1 at sparse random locations
         a = 1.0;
         b = 0.0;

@@ -62,12 +62,12 @@ export default new Effect({
     resetState: {
       type: "boolean",
       default: false,
+      uniform: "resetState",
       ui: {
         control: "button",
         buttonLabel: "reset",
-        category: "control"
-      },
-      uniform: "resetState"
+        label: "state"
+      }
     },
     smoothing: {
       type: "int",

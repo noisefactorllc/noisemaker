@@ -514,6 +514,17 @@
 
         if (randomButton) {
             randomButton.addEventListener('click', () => {
+                // Reseed all effects in the chain
+                if (renderer._pipeline && renderer._pipeline.graph && renderer._pipeline.graph.passes) {
+                    for (const pass of renderer._pipeline.graph.passes) {
+                        if (pass.uniforms && 'seed' in pass.uniforms) {
+                            const newSeed = Math.random() * 100;
+                            pass.uniforms.seed = newSeed;
+                        }
+                    }
+                }
+
+                // Also update the global seed uniform if the current effect has one
                 if (currentEffect && currentEffect.instance && currentEffect.instance.globals && currentEffect.instance.globals.seed) {
                     const newSeed = Math.random() * 100;
                     currentUniforms.seed = newSeed;
@@ -521,6 +532,33 @@
                         renderer._pipeline.setUniform('seed', newSeed);
                     }
                 }
+
+                // Reset stateful effects by setting resetState uniform
+                // Stateful effects check this uniform to reinitialize their state
+                if (renderer._pipeline && renderer._pipeline.graph && renderer._pipeline.graph.passes) {
+                    for (const pass of renderer._pipeline.graph.passes) {
+                        if (pass.uniforms && 'resetState' in pass.uniforms) {
+                            pass.uniforms.resetState = true;
+                        }
+                    }
+                }
+                if (renderer._pipeline) {
+                    renderer._pipeline.setUniform('resetState', true);
+                }
+
+                // Clear resetState after one frame so it doesn't keep resetting
+                requestAnimationFrame(() => {
+                    if (renderer._pipeline && renderer._pipeline.graph && renderer._pipeline.graph.passes) {
+                        for (const pass of renderer._pipeline.graph.passes) {
+                            if (pass.uniforms && 'resetState' in pass.uniforms) {
+                                pass.uniforms.resetState = false;
+                            }
+                        }
+                    }
+                    if (renderer._pipeline) {
+                        renderer._pipeline.setUniform('resetState', false);
+                    }
+                });
             });
         }
 

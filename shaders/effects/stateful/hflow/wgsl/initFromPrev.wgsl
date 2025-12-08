@@ -4,7 +4,7 @@
 struct Uniforms {
     resolution: vec2<f32>,
     intensity: f32,
-    _pad: f32,
+    resetState: i32,
 }
 
 @group(0) @binding(0) var u_sampler: sampler;
@@ -13,6 +13,11 @@ struct Uniforms {
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    // If resetState is true, clear the trail
+    if (uniforms.resetState != 0) {
+        return vec4<f32>(0.0);
+    }
+    
     let uv = position.xy / uniforms.resolution;
     let prev = textureSample(prevTrailTex, u_sampler, uv);
     

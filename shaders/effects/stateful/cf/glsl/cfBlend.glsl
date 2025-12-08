@@ -11,6 +11,7 @@ precision highp int;
 uniform sampler2D inputTex;
 uniform sampler2D feedbackTex;
 uniform float intensity;
+uniform bool resetState;
 
 out vec4 fragColor;
 
@@ -18,6 +19,13 @@ void main() {
     ivec2 coord = ivec2(gl_FragCoord.xy);
     
     vec4 inputColor = texelFetch(inputTex, coord, 0);
+    
+    // If resetState is true, bypass feedback and return input directly
+    if (resetState) {
+        fragColor = inputColor;
+        return;
+    }
+    
     vec4 feedback = texelFetch(feedbackTex, coord, 0);
     
     // Blend input with processed feedback based on intensity

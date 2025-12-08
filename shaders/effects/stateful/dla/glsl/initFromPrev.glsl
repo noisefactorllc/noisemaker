@@ -9,6 +9,7 @@ uniform float seedDensity;
 uniform float padding;
 uniform float density;
 uniform float alpha;
+uniform bool resetState;
 
 layout(location = 0) out vec4 dlaOutColor;
 
@@ -40,7 +41,7 @@ void main() {
     float radial = smoothstep(0.18, 0.02, length(uv - 0.5));
     float seedWeight = 0.0;
 
-    if (frame <= 1) {
+    if (frame <= 1 || resetState) {
         float densityScale = clamp(seedDensity * 900.0, 0.0, 0.98);
         seedWeight = step(1.0 - densityScale, rng) * radial;
     } else if (energy < 0.015) {

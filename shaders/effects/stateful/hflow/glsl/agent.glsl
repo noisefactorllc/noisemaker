@@ -13,6 +13,7 @@ uniform float time;
 uniform float inverse;
 uniform float xyBlend;
 uniform float wormLifetime;
+uniform bool resetState;
 
 layout(location = 0) out vec4 outState1;
 layout(location = 1) out vec4 outState2;
@@ -100,8 +101,8 @@ void main() {
     uint agent_id = uint(coord.y * stateSize.x + coord.x);
     uint total_agents = uint(stateSize.x * stateSize.y);
 
-    // Initialization: detect uninitialized state (all zeros)
-    bool needs_init = (x == 0.0 && y == 0.0 && x_dir == 0.0 && y_dir == 0.0);
+    // Initialization: detect uninitialized state (all zeros) or reset requested
+    bool needs_init = (x == 0.0 && y == 0.0 && x_dir == 0.0 && y_dir == 0.0) || resetState;
     if (needs_init) {
         // Initialize agent at random position
         vec2 pos = hash2(agent_id);

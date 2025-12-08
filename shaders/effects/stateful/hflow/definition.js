@@ -117,6 +117,16 @@ export default new Effect({
         label: "Input Intensity",
         control: "slider"
       }
+    },
+    resetState: {
+      type: "boolean",
+      default: false,
+      uniform: "resetState",
+      ui: {
+        control: "button",
+        buttonLabel: "reset",
+        label: "state"
+      }
     }
   },
   passes: [

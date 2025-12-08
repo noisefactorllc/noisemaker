@@ -12,6 +12,7 @@ struct Uniforms {
     inverse: f32,
     xyBlend: f32,
     wormLifetime: f32,
+    resetState: i32,
 }
 
 struct Outputs {
@@ -109,8 +110,8 @@ fn main(@builtin(position) position: vec4<f32>) -> Outputs {
     let agent_id = u32(coord.y * stateSize.x + coord.x);
     let total_agents = u32(stateSize.x * stateSize.y);
     
-    // Initialization: detect uninitialized state (all zeros)
-    let needs_init = (x == 0.0 && y == 0.0 && x_dir == 0.0 && y_dir == 0.0);
+    // Initialization: detect uninitialized state (all zeros) or reset requested
+    let needs_init = (x == 0.0 && y == 0.0 && x_dir == 0.0 && y_dir == 0.0) || uniforms.resetState != 0;
     if (needs_init) {
         // Initialize agent at random position
         let pos = hash2(agent_id);
