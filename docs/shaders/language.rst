@@ -169,18 +169,18 @@ Every program **must** begin with a ``search`` directive that defines the namesp
 
 .. code-block:: none
 
-  search classicNoisedeck, classicBasics
+  search synth, filter
   noise3d(seed: 1).translate(x: 0, y: 0).write(o0)
 
-When a function like ``noise3d()`` is called, the runtime walks the search order (``classicNoisedeck``, then ``classicBasics``) until a matching effect is found.
+When a function like ``noise3d()`` is called, the runtime walks the search order (``synth``, then ``filter``) until a matching effect is found.
 
 **Resolution Rules:**
 
 #. **Mandatory Search Directive:** Every program must start with ``search <namespace>, ...`` to specify which namespaces to search and in what order.
 #. **Unqualified Identifiers:** Calls like ``noise()`` walk the search order until a matching effect is found.
-#. **Overrides:** The ``from("ns", fn())`` helper allows sourcing an operation from a specific namespace temporarily (e.g., ``from("classicBasics", noise())``).
+#. **Overrides:** The ``from("ns", fn())`` helper allows sourcing an operation from a specific namespace temporarily (e.g., ``from("synth", noise())``).
 
-**Note:** Inline namespace prefixes (e.g., ``classicNoisedeck.noise()``) are **forbidden** in program chains. Use the ``search`` directive or ``from()`` helper instead.
+**Note:** Inline namespace prefixes (e.g., ``synth.noise()``) are **forbidden** in program chains. Use the ``search`` directive or ``from()`` helper instead.
 
 Enums
 -----
@@ -260,14 +260,14 @@ Usage Examples
 
 .. code-block:: none
 
-   search classicBasics
+   search synth
    noise(scale: osc(type: oscKind.sine, min: 2, max: 8)).write(o0)
 
 **Using variables for reusable oscillators:**
 
 .. code-block:: none
 
-   search classicBasics
+   search synth
    let scaleOsc = osc(type: oscKind.sine, min: 2, max: 8)
    let rotOsc = osc(type: oscKind.saw, min: 0, max: 360)
    noise(scale: scaleOsc, rotation: rotOsc).write(o0)
@@ -276,7 +276,7 @@ Usage Examples
 
 .. code-block:: none
 
-   search classicBasics
+   search synth
    // speed: 2 means the oscillator completes 2 cycles per animation loop
    noise(scale: osc(type: oscKind.tri, min: 1, max: 10, speed: 2)).write(o0)
 
@@ -284,7 +284,7 @@ Usage Examples
 
 .. code-block:: none
 
-   search classicBasics
+   search synth
    let osc1 = osc(type: oscKind.sine, offset: 0)
    let osc2 = osc(type: oscKind.sine, offset: 0.25)
    let osc3 = osc(type: oscKind.sine, offset: 0.5)
@@ -294,7 +294,7 @@ Usage Examples
 
 .. code-block:: none
 
-   search classicBasics
+   search synth
    noise(scale: osc(type: oscKind.noise, min: 2, max: 8, seed: 42)).write(o0)
 
 Runtime Behavior

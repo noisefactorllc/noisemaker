@@ -18,7 +18,7 @@ Quick Start
    npx playwright install chromium
 
    # Test the harness
-   node shaders/mcp/test-harness.js --effects classicBasics/noise --backend webgl2
+   node shaders/mcp/test-harness.js --effects synth/noise --backend webgl2
 
 For AI vision features, create a ``.openai`` file at the project root containing your OpenAI API key.
 
@@ -107,7 +107,7 @@ Compile a shader effect and verify it compiles cleanly.
    * - ``effect_id``
      - string
      - Yes
-     - Effect identifier (e.g., ``"classicBasics/noise"``)
+     - Effect identifier (e.g., ``"synth/noise"``)
    * - ``backend``
      - string
      - Yes
@@ -118,7 +118,7 @@ Compile a shader effect and verify it compiles cleanly.
 .. code-block:: json
 
    {
-     "effect_id": "classicBasics/noise",
+     "effect_id": "synth/noise",
      "backend": "webgl2",
      "success": true,
      "passes": [
@@ -264,10 +264,10 @@ Render a frame and get an AI vision description using GPT-4 Vision.
 .. code-block:: json
 
    {
-     "effect_id": "classicNoisemaker/worms",
+     "effect_id": "stateful/physarum",
      "backend": "webgl2",
      "success": true,
-     "description": "Organic worm-like trails on a dark background with gradient coloration.",
+     "description": "Organic slime mold-like trails on a dark background with gradient coloration.",
      "tags": ["organic", "trails", "gradient"],
      "notes": "No visible artifacts.",
      "console_errors": []
@@ -318,7 +318,7 @@ Benchmark a shader to verify it can sustain a target framerate.
 .. code-block:: json
 
    {
-     "effect_id": "classicBasics/noise",
+     "effect_id": "synth/noise",
      "backend": "webgl2",
      "success": true,
      "target_fps": 60,
@@ -364,7 +364,7 @@ Verify that uniform controls affect the visual output.
 .. code-block:: json
 
    {
-     "effect_id": "classicNoisemaker/worms",
+     "effect_id": "stateful/physarum",
      "backend": "webgl2",
      "success": true,
      "uniforms_tested": 5,
@@ -513,16 +513,16 @@ Examples
 .. code-block:: bash
 
    # Basic compile + render + vision check
-   node test-harness.js --effects classicBasics/noise --backend webgl2
+   node test-harness.js --effects synth/noise --backend webgl2
 
    # Multiple effects with glob pattern
-   node test-harness.js --effects "classicBasics/*" --webgl2 --benchmark
+   node test-harness.js --effects "synth/*" --webgl2 --benchmark
 
    # All tests on WebGPU
-   node test-harness.js --effects "nm/*" --webgpu --all
+   node test-harness.js --effects "stateful/*" --webgpu --all
 
    # Structure check (no browser)
-   node test-harness.js --effects "classicNoisemaker/worms" --webgl2 --structure
+   node test-harness.js --effects "stateful/physarum" --webgl2 --structure
 
 Agent Workflow
 --------------
@@ -536,32 +536,32 @@ After modifying a shader effect:
 
    .. code-block:: text
 
-      → compileEffect({ effect_id: "classicBasics/noise", backend: "webgl2" })
+      → compileEffect({ effect_id: "synth/noise", backend: "webgl2" })
 
 2. **Render check**: Verify non-monochrome output
 
    .. code-block:: text
 
-      → renderEffectFrame({ effect_id: "classicBasics/noise", backend: "webgl2" })
+      → renderEffectFrame({ effect_id: "synth/noise", backend: "webgl2" })
 
 3. **Structure check**: Catch unused files or leaked uniforms
 
    .. code-block:: text
 
-      → checkEffectStructure({ effect_id: "classicBasics/noise", backend: "webgl2" })
+      → checkEffectStructure({ effect_id: "synth/noise", backend: "webgl2" })
 
 4. **Uniform check**: Verify controls affect output
 
    .. code-block:: text
 
-      → testUniformResponsiveness({ effect_id: "classicBasics/noise", backend: "webgl2" })
+      → testUniformResponsiveness({ effect_id: "synth/noise", backend: "webgl2" })
 
 5. **Vision check** (if debugging visual issues):
 
    .. code-block:: text
 
       → describeEffectFrame({
-          effect_id: "classicBasics/noise",
+          effect_id: "synth/noise",
           backend: "webgl2",
           prompt: "Describe the pattern and any artifacts"
         })

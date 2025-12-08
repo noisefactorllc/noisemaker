@@ -97,7 +97,7 @@ This stage resolves symbols, validates types, and constructs a high-level graph 
 ^^^^^^^^^^^^^^^^^^^^^
 
 
-* **Search Order Resolution:** The ``search`` directive (if present) defines the namespace search order for the program. If omitted, the default order ``['classicBasics', 'classicNoisedeck']`` is used.
+* **Search Order Resolution:** The ``search`` directive (if present) defines the namespace search order for the program. If omitted, the default order ``['synth', 'filter']`` is used.
 * **Namespace Lookup:** Resolves function names (e.g., ``osc``) to Effect Definitions by walking the search order until a match is found.
 * **Variable Scope:** Tracks ``let`` assignments and resolves variable references.
 
