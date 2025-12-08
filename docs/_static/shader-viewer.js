@@ -379,10 +379,12 @@
                 return '';
             }
 
-            // Build search directive - always include synth for noise() starter
+            // Build search directive
+            // Classic namespaces stay in their lane - no cross-namespace search
+            // classicNoisemaker needs synth for noise() starter (it has no noise module)
             let searchNs = effect.namespace;
             if (effect.namespace === 'classicNoisemaker') {
-                searchNs = 'classicNoisemaker, classicBasics, synth';
+                searchNs = 'classicNoisemaker, synth';
             } else if (['filter', 'mixer', 'stateful'].includes(effect.namespace)) {
                 searchNs = `${effect.namespace}, synth`;
             }

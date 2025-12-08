@@ -31,18 +31,6 @@ fn computeVignetteMask(uv: vec2<f32>, dims: vec2<f32>) -> f32 {
     return normalizedDist * normalizedDist;
 }
 
-fn normalizeColor(color: vec4<f32>) -> vec4<f32> {
-    let minVal = min(min(color.r, color.g), color.b);
-    let maxVal = max(max(color.r, color.g), color.b);
-    let range = maxVal - minVal;
-    
-    if (range <= 0.0) {
-        return color;
-    }
-    
-    return vec4<f32>((color.rgb - vec3<f32>(minVal)) / vec3<f32>(range), color.a);
-}
-
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
@@ -50,15 +38,12 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     
     let texel = textureSample(inputTex, inputSampler, uv);
     
-    // Normalize per-pixel
-    let normalized = normalizeColor(texel);
-    
     let mask = computeVignetteMask(uv, texSize);
     
     // Apply brightness to RGB only, preserve alpha
     let brightnessRgb = vec3<f32>(uniforms.vignetteBrightness);
-    let edgeBlend = mix(normalized.rgb, brightnessRgb, mask);
-    let finalRgb = mix(normalized.rgb, edgeBlend, uniforms.vignetteAlpha);
+    let edgeBlend = mix(texel.rgb, brightnessRgb, mask);
+    let finalRgb = mix(texel.rgb, edgeBlend, uniforms.vignetteAlpha);
     
-    return vec4<f32>(finalRgb, normalized.a);
+    return vec4<f32>(finalRgb, texel.a);
 }

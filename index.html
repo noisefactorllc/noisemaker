@@ -15,12 +15,63 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="./demo/common.css" />
+  <style>
+    /* Override palette to complement logo's magenta/green on black */
+    :root {
+      --color1: #0a0a0a;
+      --color2: #141414;
+      --color3: #1e1e1e;
+      --color4: #2a2a2a;
+      --color5: #888;
+      --color6: #ccc;
+      --color7: #f0f0f0;
+      --accent1: #1a1a1a;
+      --accent2: #252525;
+      --accent3: #ff00c1;
+      --accent4: #ff66d9;
+      --neon-green: #33ff00;
+    }
+    .landing-logo {
+      width: clamp(64px, 12vw, 96px);
+      height: auto;
+      margin: 0 auto;
+    }
+    main.landing-shell footer {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: clamp(16px, 3vw, 28px);
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      color: var(--color5);
+    }
+    main.landing-shell footer a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--color5);
+      transition: color 0.15s ease;
+    }
+    main.landing-shell footer a:hover {
+      color: var(--color7);
+    }
+    main.landing-shell footer svg {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+    }
+    a.demo-card:hover,
+    a.demo-card:focus-visible {
+      border-color: var(--neon-green);
+    }
+  </style>
 </head>
 <body class="landing-page">
   <main class="landing-shell">
     <header>
+      <img src="noisemaker.png" alt="Noisemaker" class="landing-logo" />
       <h1>Noisemaker</h1>
-      <p>Noisemaker is a collection of creative coding effects for Python or JavaScript.</p>
+      <p>A collection of creative coding effects for Python or JavaScript.</p>
     </header>
 
     <section class="demo-grid">
@@ -37,6 +88,16 @@
         <span class="demo-summary">gpu programs in webgl2 &amp; webgpu</span>
       </a>
     </section>
+
+    <footer>
+      <a href="https://noisefactor.io/">
+        <span>Noise Factor LLC</span>
+      </a>
+      <a href="https://github.com/noisedeck/noisemaker" title="View on GitHub">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        <span>GitHub</span>
+      </a>
+    </footer>
   </main>
 </body>
 </html>
