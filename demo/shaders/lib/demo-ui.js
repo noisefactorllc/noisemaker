@@ -466,7 +466,8 @@ export class DemoUI {
         if (!media || !media.source || !this._renderer._pipeline) return;
         
         const texId = media.textureId || 'imageTex';
-        const result = this._renderer.updateTextureFromSource(texId, media.source, { flipY: true });
+        // Don't flip Y - the mediaInput shader handles UV flipping internally (st.y = 1.0 - st.y)
+        const result = this._renderer.updateTextureFromSource(texId, media.source, { flipY: false });
         
         if (result.width > 0 && result.height > 0) {
             // Update imageSize uniform for this specific step (not globally)
@@ -488,7 +489,6 @@ export class DemoUI {
     _createMediaInputSection(stepIndex, textureId, effectDef) {
         const section = document.createElement('div');
         section.className = 'media-input-section';
-        section.style.cssText = 'margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--color3);';
         
         // Initialize media state for this step
         if (!this._mediaInputs.has(stepIndex)) {
@@ -504,7 +504,6 @@ export class DemoUI {
         // Source type selector (file vs camera)
         const sourceGroup = document.createElement('div');
         sourceGroup.className = 'control-group';
-        sourceGroup.style.gridColumn = '1 / -1';
         
         const sourceLabel = document.createElement('label');
         sourceLabel.className = 'control-label';
@@ -512,13 +511,12 @@ export class DemoUI {
         sourceGroup.appendChild(sourceLabel);
         
         const sourceRadios = document.createElement('div');
-        sourceRadios.style.cssText = 'display: flex; gap: 1rem;';
+        sourceRadios.className = 'media-source-radios';
         
         const radioName = `media-source-${stepIndex}`;
         
         ['file', 'camera'].forEach(type => {
             const radioLabel = document.createElement('label');
-            radioLabel.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6); cursor: pointer;';
             
             const radio = document.createElement('input');
             radio.type = 'radio';
@@ -537,7 +535,6 @@ export class DemoUI {
         // File input group
         const fileGroup = document.createElement('div');
         fileGroup.className = 'control-group media-file-group';
-        fileGroup.style.gridColumn = '1 / -1';
         fileGroup.dataset.stepIndex = stepIndex;
         
         const fileLabel = document.createElement('label');
@@ -548,7 +545,7 @@ export class DemoUI {
         const fileInput = document.createElement('input');
         fileInput.type = 'file';
         fileInput.accept = 'image/*,video/*';
-        fileInput.style.cssText = 'font-size: 0.6875rem; color: var(--color6);';
+        fileInput.className = 'media-file-input';
         fileInput.dataset.stepIndex = stepIndex;
         fileInput.dataset.textureId = textureId;
         
@@ -560,7 +557,7 @@ export class DemoUI {
         // Camera group (hidden by default)
         const cameraGroup = document.createElement('div');
         cameraGroup.className = 'control-group media-camera-group';
-        cameraGroup.style.cssText = 'grid-column: 1 / -1; display: none;';
+        cameraGroup.style.display = 'none';
         cameraGroup.dataset.stepIndex = stepIndex;
         
         const cameraLabel = document.createElement('label');
@@ -575,18 +572,16 @@ export class DemoUI {
         cameraGroup.appendChild(cameraSelect);
         
         const cameraButtons = document.createElement('div');
-        cameraButtons.style.cssText = 'display: flex; gap: 0.5rem; margin-top: 0.5rem;';
+        cameraButtons.className = 'media-camera-buttons';
         
         const startBtn = document.createElement('button');
         startBtn.className = 'module-skip-btn';
         startBtn.textContent = 'start';
-        startBtn.style.flex = '1';
         startBtn.addEventListener('click', () => this._startCamera(stepIndex, cameraSelect.value, textureId));
         
         const stopBtn = document.createElement('button');
         stopBtn.className = 'module-skip-btn';
         stopBtn.textContent = 'stop';
-        stopBtn.style.flex = '1';
         stopBtn.disabled = true;
         stopBtn.addEventListener('click', () => this._stopCamera(stepIndex));
         
@@ -604,11 +599,14 @@ export class DemoUI {
         // Status display
         const statusGroup = document.createElement('div');
         statusGroup.className = 'control-group';
-        statusGroup.style.gridColumn = '1 / -1';
+        
+        const statusLabel = document.createElement('label');
+        statusLabel.className = 'control-label';
+        statusLabel.textContent = 'status';
+        statusGroup.appendChild(statusLabel);
         
         const statusSpan = document.createElement('span');
         statusSpan.className = 'media-status';
-        statusSpan.style.cssText = 'font-size: 0.6875rem; color: var(--color5);';
         statusSpan.textContent = 'no media loaded';
         statusSpan.dataset.stepIndex = stepIndex;
         
@@ -700,7 +698,16 @@ export class DemoUI {
      * @private
      */
     async _populateCameraList(stepIndex, selectEl) {
+        const media = this._mediaInputs.get(stepIndex);
+        
         try {
+            // First, request camera permission to get proper device labels
+            // This triggers the browser's permission prompt if not already granted
+            const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            // Stop the temp stream immediately - we just needed permission
+            tempStream.getTracks().forEach(track => track.stop());
+            
+            // Now enumerate devices - labels will be available after permission granted
             const devices = await navigator.mediaDevices.enumerateDevices();
             const videoDevices = devices.filter(d => d.kind === 'videoinput');
             
@@ -711,12 +718,18 @@ export class DemoUI {
                 option.textContent = device.label || `Camera ${idx + 1}`;
                 selectEl.appendChild(option);
             });
-        } catch (err) {
-            console.error('Failed to enumerate devices:', err);
-            const media = this._mediaInputs.get(stepIndex);
+            
             if (media?.statusEl) {
-                media.statusEl.textContent = 'camera access denied';
+                media.statusEl.textContent = videoDevices.length > 0 
+                    ? `${videoDevices.length} camera(s) found` 
+                    : 'no cameras found';
             }
+        } catch (err) {
+            console.error('Failed to access camera:', err);
+            if (media?.statusEl) {
+                media.statusEl.textContent = `camera error: ${err.message}`;
+            }
+            selectEl.innerHTML = '<option value="">camera access denied</option>';
         }
     }
     
