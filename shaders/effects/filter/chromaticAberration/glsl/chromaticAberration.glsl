@@ -37,10 +37,12 @@ void main() {
     float blueOffset = mix(uv.x, clamp(uv.x - aberrationOffset, 0.0, 1.0), uv.x);
     vec4 blue = texture(inputTex, vec2(blueOffset, uv.y));
 
-    // chromatic aberration
-    vec4 aberrated = vec4(red.r, green.g, blue.b, green.a);
+    // chromatic aberration - extract color fringing edges only
+    vec3 aberrated = vec3(red.r, green.g, blue.b);
+    vec3 edges = aberrated - green.rgb;
 
-    // blend with original
-    float blend = map(passthru, 0.0, 100.0, 0.0, 1.0);
-    fragColor = mix(aberrated, green, blend);
+    // scale original by passthru and add to edges
+    vec3 original = green.rgb * map(passthru, 0.0, 100.0, 0.0, 2.0);
+
+    fragColor = vec4(min(edges + original, 1.0), green.a);
 }

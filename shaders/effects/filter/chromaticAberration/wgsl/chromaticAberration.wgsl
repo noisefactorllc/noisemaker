@@ -43,10 +43,12 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let blueOffset = mix(uv.x, clamp(uv.x - aberrationOffset, 0.0, 1.0), uv.x);
     let blue = textureSample(inputTex, samp, vec2f(blueOffset, uv.y));
 
-    // chromatic aberration
-    let aberrated = vec4f(red.r, green.g, blue.b, green.a);
+    // chromatic aberration - extract color fringing edges only
+    let aberrated = vec3f(red.r, green.g, blue.b);
+    let edges = aberrated - green.rgb;
 
-    // blend with original
-    let blend = mapVal(u.passthru, 0.0, 100.0, 0.0, 1.0);
-    return mix(aberrated, green, blend);
+    // scale original by passthru and add to edges
+    let original = green.rgb * mapVal(u.passthru, 0.0, 100.0, 0.0, 2.0);
+
+    return vec4f(min(edges + original, vec3f(1.0)), green.a);
 }
