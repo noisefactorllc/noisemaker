@@ -1638,6 +1638,15 @@ export class DemoUI {
                 }
             }
 
+            // Show message if effect has no controls
+            if (controlsDiv.children.length === 0) {
+                const noControlsMsg = document.createElement('div');
+                noControlsMsg.className = 'no-controls-message';
+                noControlsMsg.textContent = 'This effect has no controls.';
+                noControlsMsg.style.cssText = 'grid-column: 1 / -1; color: var(--color5); font-size: 0.75rem; font-style: italic; padding: 0.5rem 0; text-align: center;';
+                controlsDiv.appendChild(noControlsMsg);
+            }
+
             contentDiv.appendChild(controlsDiv);
             
             // Add shader editor section if effect has shaders
