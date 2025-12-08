@@ -22,6 +22,17 @@ export default new Effect({
             label: "Alpha",
             control: "slider"
         }
+    },
+    seed: {
+        type: "int",
+        default: 1,
+        uniform: "seed",
+        min: 1,
+        max: 100,
+        ui: {
+            label: "Seed",
+            control: "slider"
+        }
     }
 },
   passes: [

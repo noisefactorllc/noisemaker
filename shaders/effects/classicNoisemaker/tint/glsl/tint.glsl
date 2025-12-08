@@ -6,8 +6,8 @@ precision highp int;
 // Tint effect: remap hue with deterministic RNG and blend with the source.
 
 uniform sampler2D inputTex;
-uniform float time;
 uniform float alpha;
+uniform float seed;
 
 in vec2 v_texCoord;
 out vec4 fragColor;
@@ -23,10 +23,30 @@ float positive_fract(float value) {
     return value - floor(value);
 }
 
-// Simple hash function for random numbers
-float hash21(vec2 p) {
-    float h = dot(p, vec2(127.1, 311.7));
-    return fract(sin(h) * 43758.5453123);
+// Deterministic RNG using xorshift-like algorithm (matches WGSL)
+uint rotate_left(uint value, uint shift) {
+    uint amount = shift & 31u;
+    return (value << amount) | (value >> (32u - amount));
+}
+
+uint seed_from_params(float width, float height, float seedVal) {
+    uint width_bits = floatBitsToUint(width);
+    uint height_bits = floatBitsToUint(height);
+    uint seed_bits = floatBitsToUint(seedVal);
+    uint hash = 0x12345678u ^ width_bits;
+    hash = hash ^ rotate_left(height_bits ^ 0x9e3779b9u, 7u);
+    hash = hash ^ rotate_left(seed_bits ^ 0xc2b2ae35u, 3u);
+    return hash;
+}
+
+float rng_next(inout uint state) {
+    uint t = state + 0x6d2b79f5u;
+    t = (t ^ (t >> 15u)) * (t | 1u);
+    t = t ^ (t + ((t ^ (t >> 7u)) * (t | 61u)));
+    uint masked = t & 0xffffffffu;
+    state = masked;
+    uint sample_val = (t ^ (t >> 14u)) & 0xffffffffu;
+    return float(sample_val) * UINT32_SCALE;
 }
 
 vec3 rgb_to_hsv(vec3 rgb) {
@@ -94,9 +114,10 @@ void main() {
         return;
     }
 
-    // Generate random values based on time and seed
-    float random_a = hash21(vec2(time * 17.3, dims.x));
-    float random_b = hash21(vec2(time * 31.7, dims.y));
+    // Generate deterministic random values based on seed and dimensions
+    uint rng_state = seed_from_params(dims.x, dims.y, seed);
+    float random_a = rng_next(rng_state);
+    float random_b = rng_next(rng_state);
 
     vec3 base_rgb = clamp(texel.rgb, 0.0, 1.0);
     float hue_source = base_rgb.x * ONE_THIRD + random_a * ONE_THIRD + random_b;
