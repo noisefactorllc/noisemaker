@@ -6,94 +6,75 @@
   <title>Noisemaker JS Demo</title>
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="../common.css" />
+  <link rel="stylesheet" href="colors.css" />
+  <link rel="stylesheet" href="layout.css" />
 </head>
-<body class="two-column-layout js-demo-layout">
-  <aside>
-    <h1><a href="../index.html">Noisemaker</a> JS Demo</h1>
-    <details id="controls" class="details-expando controls-expando" open>
-      <summary>Program</summary>
-      <div class="details-expando__content">
-        <label class="control-group control-group--preset field">
-          <span class="field-label">Preset</span>
-          <select id="preset"></select>
-        </label>
-        <div class="button-row">
-          <button id="randomPreset">Random Preset</button>
-          <button id="reroll">Re-roll</button>
+<body>
+  <div id="app-container">
+    <div id="left-panel">
+      <div class="shader-module" id="program-module">
+        <div class="module-title">
+          <span class="module-title-text">Noisemaker JS Demo (CPU)</span>
         </div>
-      </div>
-    </details>
-    <details id="codePanel" class="details-expando code-expando">
-      <summary>Preset details</summary>
-      <div class="details-expando__content code-expando__content">
-        <div id="tabs">
-          <button id="tabFormula" class="active">Formula</button>
-          <button id="tabEvaluated">Evaluated</button>
-        </div>
-        <div class="code-content">
-          <pre id="presetFormula"></pre>
-          <pre id="presetEvaluated"></pre>
-        </div>
-      </div>
-    </details>
-    <details id="developmentExpando" class="details-expando development-expando">
-      <summary>Development</summary>
-      <div class="development-controls">
-        <label class="control-group control-group--seed field">
-          <span class="field-label">Seed</span>
-          <input id="seedInput" type="number" step="1" value="42" />
-        </label>
-        <div class="control-group control-group--dimensions field">
-          <span class="field-label">Dimensions</span>
-          <div class="field-row">
-            <label class="inline-field">
-              <span>Width</span>
-              <input id="canvasWidthInput" type="number" min="1" step="1" value="1024" />
-            </label>
-            <label class="inline-field">
-              <span>Height</span>
-              <input id="canvasHeightInput" type="number" min="1" step="1" value="1024" />
-            </label>
+        <div class="module-content" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div class="control-group control-group--full-width">
+            <select id="preset" class="control-select"></select>
+          </div>
+          <div class="button-row">
+            <button id="randomPreset" class="control-button">Random Preset</button>
+            <button id="reroll" class="control-button">Re-roll</button>
           </div>
         </div>
-        <!--
-        <div class="control-group control-group--animation field">
-          <span class="field-label">Animation</span>
-          <div class="field-row">
-            <label class="inline-field">
-              <span>FPS</span>
-              <input id="fpsInput" type="number" min="1" step="1" value="30" />
-            </label>
-            <label class="inline-field">
-              <span>Duration (s)</span>
-              <input id="durationInput" type="number" min="0.1" step="0.1" value="15" />
-            </label>
+      </div>
+
+      <div class="shader-module" id="code-module">
+        <div class="module-title">
+          <span class="module-title-text">Preset Details</span>
+        </div>
+        <div class="module-content">
+          <div id="tabs">
+            <button id="tabFormula" class="active">Formula</button>
+            <button id="tabEvaluated">Evaluated</button>
+          </div>
+          <div class="code-content">
+            <pre id="presetFormula"></pre>
+            <pre id="presetEvaluated"></pre>
           </div>
         </div>
-        <div class="control-group control-group--toggles">
-          <label class="toggle-control">
-            <span>Animate</span>
-            <input type="checkbox" id="animateToggle" />
-          </label>
+      </div>
+
+      <div class="shader-module collapsed" id="development-module">
+        <div class="module-title">
+          <span class="module-title-text">Development</span>
         </div>
-        -->
+        <div class="module-content" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div style="display: flex; flex-direction: row; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6);">
+              <span>seed</span>
+              <input id="seedInput" type="number" step="1" value="42" class="control-number" style="width: 5rem;" />
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6);">
+              <span>width</span>
+              <input id="canvasWidthInput" type="number" min="1" step="1" value="1024" class="control-number" style="width: 4.5rem;" />
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6);">
+              <span>height</span>
+              <input id="canvasHeightInput" type="number" min="1" step="1" value="1024" class="control-number" style="width: 4.5rem;" />
+            </label>
+          </div>
+          <div id="status"></div>
+        </div>
       </div>
-      <div class="development-debug">
-        <div id="status"></div>
-      </div>
-    </details>
-  </aside>
-  <main>
-    <canvas id="noise" width="1024" height="1024"></canvas>
-    <div id="loadingOverlay" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(7, 9, 13, 0.85); padding: 20px 32px; border-radius: 12px; border: 1px solid rgba(165, 184, 255, 0.25); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); font-size: 16px; color: #a5b8ff; font-weight: 600; pointer-events: none; z-index: 1000;">
-      <span id="loadingText">Rendering (0%)</span>
     </div>
-    <div id="errorBanner"></div>
-    <!-- Stage Outputs UI removed -->
-  </main>
-  <style>
-    main { position: relative; }
-  </style>
+
+    <div id="canvas-container">
+      <canvas id="noise" width="1024" height="1024"></canvas>
+      <div id="loadingOverlay" style="display: none;">
+        <span id="loadingText">Rendering (0%)</span>
+      </div>
+      <div id="errorBanner"></div>
+    </div>
+  </div>
     <script type="module">
   import { Context } from '../../js/noisemaker/context.js';
   import { render, Preset } from '../../js/noisemaker/composer.js';
@@ -934,6 +915,15 @@
     }
 
     showTab('formula');
+
+    // Module collapse/expand functionality
+    document.querySelectorAll('.shader-module .module-title').forEach(title => {
+      // Skip header module
+      if (title.closest('#header-module')) return;
+      title.addEventListener('click', () => {
+        title.closest('.shader-module').classList.toggle('collapsed');
+      });
+    });
   </script>
 
 </body>

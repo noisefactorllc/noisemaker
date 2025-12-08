@@ -1,0 +1,512 @@
+/**
+ * Noisemaker JS Demo - Layout & Structure
+ * 
+ * This file mirrors the shaders demo layout exactly:
+ * identical padding, spacing, widths, positioning, and component styling.
+ */
+
+:root {
+  /* UI sizing tokens - match shaders demo values */
+  --ui-corner-radius: 0.5rem;
+  --ui-corner-radius-small: 0.375rem;
+  --ui-corner-radius-large: 0.75rem;
+  --ui-corner-radius-pill: 999px;
+  
+  /* Chrome opacity tokens for glass effects */
+  --ui-chrome-highlight-blend: 86%;
+  --ui-chrome-highlight-tint: 14%;
+  --ui-chrome-shadow-blend: 72%;
+  --ui-chrome-shadow-shade: 28%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  transition: background-color 0.3s ease;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Nunito, sans-serif;
+  font-weight: 580;
+  font-stretch: 108%;
+  font-variation-settings: 'wght' 580;
+  letter-spacing: 0.01em;
+  background: var(--color1);
+  color: var(--color6);
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+  text-size-adjust: none;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+#app-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Left panel - matches shaders demo exactly */
+#left-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  border: none;
+  z-index: 1000;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+}
+
+#left-panel::-webkit-scrollbar {
+  display: none; /* Chrome/Safari/Opera */
+}
+
+/* Canvas container - matches shaders demo fixed canvas mode */
+#canvas-container {
+  position: fixed;
+  top: 0;
+  left: 540px;
+  width: calc(100vw - 540px);
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+#canvas-container canvas {
+  /* Square canvas, scales to fit available space, max 1024x1024 */
+  width: min(1024px, calc(100vw - 540px - 4rem), calc(100vh - 4rem));
+  height: min(1024px, calc(100vw - 540px - 4rem), calc(100vh - 4rem));
+  border: 1px solid color-mix(in srgb, var(--accent3) 30%, transparent 70%);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  /* Checkerboard pattern to show alpha transparency */
+  background: 
+    repeating-conic-gradient(
+      color-mix(in srgb, var(--color2) 60%, var(--color1) 40%) 0% 25%, 
+      color-mix(in srgb, var(--color3) 50%, var(--color2) 50%) 0% 50%
+    ) 
+    50% / 20px 20px;
+}
+
+/* Shader module styling - matches shaders demo exactly */
+.shader-module {
+  background: color-mix(
+    in srgb,
+    var(--color2) var(--module-surface-opacity),
+    transparent var(--module-surface-transparency)
+  );
+  backdrop-filter: var(--glass-blur-strength);
+  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+  border-radius: var(--ui-corner-radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.module-title {
+  background: color-mix(
+    in srgb,
+    var(--module-shared-accent) var(--module-header-opacity),
+    transparent var(--module-header-transparency)
+  );
+  border-bottom: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+  padding: 0.625em 0.875em;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variation-settings: 'wght' 700;
+  color: color-mix(in srgb, var(--color6) 90%, var(--accent3) 10%);
+  text-transform: lowercase;
+  letter-spacing: 0.05em;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5em;
+  cursor: pointer;
+}
+
+.module-title-text {
+  display: inline;
+}
+
+.module-title:hover {
+  background: color-mix(
+    in srgb,
+    var(--module-shared-accent) calc(var(--module-header-opacity) + 5%),
+    transparent calc(var(--module-header-transparency) - 5%)
+  );
+}
+
+.module-title::before {
+  content: '▼';
+  font-size: 0.65rem;
+  transition: transform 0.2s ease;
+  order: -1;
+}
+
+.shader-module.collapsed .module-title::before {
+  transform: rotate(-90deg);
+}
+
+/* Header module - no collapse functionality */
+#header-module .module-title::before {
+  display: none;
+}
+
+#header-module .module-title {
+  padding: 0.75em 0.875em;
+}
+
+#header-module .module-title a:hover {
+  color: var(--accent3);
+}
+
+.module-content {
+  padding: 0.5rem;
+}
+
+.shader-module.collapsed .module-content {
+  display: none !important;
+}
+
+/* Control group styling - matches shaders demo */
+.control-group {
+  display: grid;
+  grid-template-columns: 80px 1fr 35px;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.control-group.control-group--full-width {
+  grid-template-columns: 1fr;
+}
+
+.control-header {
+  display: contents;
+}
+
+.control-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variation-settings: 'wght' 600;
+  color: color-mix(in srgb, var(--color6) 85%, var(--accent3) 15%);
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.control-value {
+  font-size: 0.625rem;
+  font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+  color: color-mix(in srgb, var(--color5) 90%, var(--accent3) 10%);
+  text-align: left;
+}
+
+/* Select styling - matches shaders demo */
+.control-select {
+  width: 100%;
+  padding: 0.25rem 0.375rem;
+  background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
+  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+  border-radius: var(--ui-corner-radius-small);
+  color: var(--color6);
+  font-family: Nunito, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 560;
+  font-variation-settings: 'wght' 560;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.control-select:hover {
+  background: color-mix(in srgb, var(--accent3) 22%, transparent 78%);
+  border-color: color-mix(in srgb, var(--accent3) 35%, transparent 65%);
+}
+
+.control-select:focus {
+  border-color: var(--accent3);
+  background: color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+}
+
+/* Button styling - matches shaders demo */
+.control-button {
+  padding: 0.25rem 0.5rem;
+  background: color-mix(in srgb, var(--accent3) 20%, transparent 80%);
+  border: 1px solid color-mix(in srgb, var(--accent3) 35%, transparent 65%);
+  border-radius: var(--ui-corner-radius-small);
+  color: var(--color6);
+  font-family: Nunito, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variation-settings: 'wght' 600;
+  text-transform: lowercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.control-button:hover {
+  background: color-mix(in srgb, var(--accent3) 35%, transparent 65%);
+  border-color: var(--accent3);
+}
+
+.control-button:active {
+  background: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
+  transform: translateY(1px);
+}
+
+.control-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Number input styling - matches shaders demo */
+.control-number {
+  padding: 0.25rem 0.375rem;
+  background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
+  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+  border-radius: var(--ui-corner-radius-small);
+  color: var(--color6);
+  font-family: Nunito, sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 560;
+  font-variation-settings: 'wght' 560;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.control-number:hover {
+  background: color-mix(in srgb, var(--accent3) 22%, transparent 78%);
+  border-color: color-mix(in srgb, var(--accent3) 35%, transparent 65%);
+}
+
+.control-number:focus {
+  border-color: var(--accent3);
+  background: color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+}
+
+/* Hide number input spinners for cleaner look */
+.control-number::-webkit-outer-spin-button,
+.control-number::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+.control-number {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Button row styling */
+.button-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Code panel styling - matches shaders demo */
+.code-content {
+  background: color-mix(in srgb, var(--color1) 85%, transparent 15%);
+  border: 1px solid color-mix(in srgb, var(--accent3) 50%, transparent 50%);
+  border-radius: var(--ui-corner-radius-small);
+  overflow: hidden;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.code-content pre {
+  margin: 0;
+  padding: 0.5rem;
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  color: var(--color5);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Tabs styling - matches shaders demo */
+#tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+#tabs button {
+  padding: 0.25rem 0.5rem;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+  border-radius: var(--ui-corner-radius-small);
+  color: color-mix(in srgb, var(--color5) 70%, transparent 30%);
+  font-family: Nunito, sans-serif;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: lowercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+#tabs button:hover {
+  background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
+  border-color: color-mix(in srgb, var(--accent3) 40%, transparent 60%);
+  color: var(--color6);
+}
+
+#tabs button.active {
+  background: color-mix(in srgb, var(--accent3) 30%, transparent 70%);
+  border-color: var(--accent3);
+  color: var(--color6);
+}
+
+/* Status styling */
+#status {
+  font-size: 0.625rem;
+  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  color: var(--color5);
+  line-height: 1.4;
+  padding: 0.25rem 0;
+}
+
+/* Error banner styling - matches shaders demo */
+#errorBanner {
+  position: absolute;
+  left: 50%;
+  bottom: 2rem;
+  transform: translateX(-50%);
+  width: min(90%, 420px);
+  padding: 0.75rem 1rem;
+  background: color-mix(in srgb, var(--red, #ff5b6b) 12%, var(--color1) 88%);
+  border: 1px solid color-mix(in srgb, var(--red, #ff5b6b) 40%, transparent 60%);
+  border-radius: var(--ui-corner-radius-small);
+  color: color-mix(in srgb, var(--red, #ff5b6b) 35%, var(--color6) 65%);
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  z-index: 1001;
+}
+
+#errorBanner:empty {
+  display: none;
+}
+
+/* Loading overlay styling - matches shaders demo */
+#loadingOverlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: color-mix(in srgb, var(--color1) 90%, transparent 10%);
+  backdrop-filter: blur(8px);
+  padding: 1rem 1.5rem;
+  border-radius: var(--ui-corner-radius);
+  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  font-size: 0.875rem;
+  color: var(--accent3);
+  font-weight: 600;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* Field row for inline inputs */
+.field-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.inline-field {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+  color: var(--color6);
+}
+
+.inline-field span {
+  color: color-mix(in srgb, var(--color5) 80%, var(--accent3) 20%);
+  font-size: 0.625rem;
+  text-transform: lowercase;
+}
+
+.inline-field input {
+  width: 4.5rem;
+}
+
+/* Loading state */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  font-size: 0.75rem;
+  color: var(--color5);
+}
+
+/* Responsive adjustments */
+@media (max-width: 960px) {
+  #left-panel {
+    position: relative;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+  
+  #canvas-container {
+    position: relative;
+    left: 0;
+    width: 100%;
+    height: auto;
+    min-height: 50vh;
+    padding: 1rem;
+  }
+  
+  #canvas-container canvas {
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    max-height: 60vh;
+  }
+  
+  body {
+    overflow: auto;
+    height: auto;
+  }
+  
+  #app-container {
+    height: auto;
+    display: flex;
+    flex-direction: column;
+  }
+}

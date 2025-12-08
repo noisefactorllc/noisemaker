@@ -1,0 +1,19 @@
+/**
+ * Noisemaker JS Demo - Color Overrides
+ * 
+ * This file contains color-related CSS variables specific to the JS demo.
+ * It extends the base colors from common-colors.css.
+ */
+
+:root {
+  --ui-accent: color-mix(in srgb, var(--accent3) 80%, var(--color7) 20%);
+  --ui-neutral: var(--color6);
+  --module-shared-accent: color-mix(in srgb, var(--accent1) 85%, var(--color6) 15%);
+  --surface-opacity: 85%;
+  --surface-transparency: 15%;
+  --glass-blur-strength: blur(20px);
+  --module-surface-opacity: 85%;
+  --module-surface-transparency: 15%;
+  --module-header-opacity: 75%;
+  --module-header-transparency: 25%;
+}
