@@ -5,8 +5,8 @@ Compiler Spec
 
 The Noisemaker Rendering Pipeline compiler is responsible for transforming high-level Polymorphic DSL code into an executable GPU Render Graph. It bridges the gap between the user's intent (DSL) and the machine's execution model (Pipeline).
 
-1. Compilation Pipeline
------------------------
+Compilation Pipeline
+--------------------
 
 The compilation process occurs in four distinct stages:
 
@@ -26,8 +26,8 @@ The compilation process occurs in four distinct stages:
 
 ----
 
-2. Stage 1: Parsing
--------------------
+Stage 1: Parsing
+----------------
 
 The parser converts the raw string input into a structured tree representation.
 
@@ -35,7 +35,7 @@ The parser converts the raw string input into a structured tree representation.
 * **Input:** ``string`` (e.g., ``osc(10).write(o0)``)
 * **Output:** ``ProgramNode`` (AST Root)
 
-2.1 Lexical Analysis
+1.1 Lexical Analysis
 ^^^^^^^^^^^^^^^^^^^^
 
 The lexer tokenizes the input, handling:
@@ -48,7 +48,7 @@ The lexer tokenizes the input, handling:
 * **Special Tokens:** ``OUTPUT_REF`` (``o0``), ``SOURCE_REF`` (``src``), ``HEX`` (``#ff0000``).
 * **Keywords:** ``out``, ``render``, ``let``, ``if``, ``loop``, etc.
 
-2.2 Syntax Analysis
+1.2 Syntax Analysis
 ^^^^^^^^^^^^^^^^^^^
 
 The parser constructs the AST based on the grammar defined in :ref:`Polymorphic DSL <shader-language>`. Unlike traditional ESTree-like structures, the Polymorphic parser produces a specialized AST optimized for the pipeline's needs.
@@ -84,8 +84,8 @@ The parser constructs the AST based on the grammar defined in :ref:`Polymorphic 
 
 ----
 
-3. Stage 2: Analysis (AST → Logical Graph)
-------------------------------------------
+Stage 2: Analysis (AST → Logical Graph)
+---------------------------------------
 
 This stage resolves symbols, validates types, and constructs a high-level graph of Effect instances.
 
@@ -93,7 +93,7 @@ This stage resolves symbols, validates types, and constructs a high-level graph 
 * **Input:** ``ProgramNode``
 * **Output:** ``LogicalGraph`` (Nodes = Effects, Edges = Data Flow)
 
-3.1 Symbol Resolution
+2.1 Symbol Resolution
 ^^^^^^^^^^^^^^^^^^^^^
 
 
@@ -101,7 +101,7 @@ This stage resolves symbols, validates types, and constructs a high-level graph 
 * **Namespace Lookup:** Resolves function names (e.g., ``osc``) to Effect Definitions by walking the search order until a match is found.
 * **Variable Scope:** Tracks ``let`` assignments and resolves variable references.
 
-3.2 Chain Analysis
+2.2 Chain Analysis
 ^^^^^^^^^^^^^^^^^^
 
 Since the AST already represents chains as flat arrays, the analyzer iterates sequentially through the ``chain`` list.
@@ -115,7 +115,7 @@ Since the AST already represents chains as flat arrays, the analyzer iterates se
    * Resolves named arguments (``freq: 10``) vs positional (``10``).
    * Coerces types (e.g., ``int`` → ``float``).
 
-3.3 Logical Graph Construction
+2.3 Logical Graph Construction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Nodes are created for each effect instance. Edges are created to represent the flow of the ``outputColor`` from one effect to the ``inputColor`` of the next.
@@ -134,8 +134,8 @@ Nodes are created for each effect instance. Edges are created to represent the f
 
 ----
 
-4. Stage 3: Expansion (Logical Graph → Render Graph)
-----------------------------------------------------
+Stage 3: Expansion (Logical Graph → Render Graph)
+-------------------------------------------------
 
 This stage lowers the high-level Effects into their constituent GPU Passes.
 
@@ -143,7 +143,7 @@ This stage lowers the high-level Effects into their constituent GPU Passes.
 * **Input:** ``LogicalGraph``
 * **Output:** ``RenderGraph`` (Nodes = Passes, Edges = Texture Dependencies)
 
-4.1 Pass Expansion
+3.1 Pass Expansion
 ^^^^^^^^^^^^^^^^^^
 
 For each Logical Node, the compiler looks up the ``passes`` array in the Effect Definition.
@@ -165,7 +165,7 @@ For each Logical Node, the compiler looks up the ``passes`` array in the Effect 
    * Maps logical texture names to unique resource IDs (e.g., ``tex_node1_downsampled``).
    * Injects ``defines`` based on static parameters.
 
-4.2 Shader Program Compilation
+3.2 Shader Program Compilation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This is where the "Single Effect → GPU Program" transformation happens.
@@ -197,8 +197,8 @@ This is where the "Single Effect → GPU Program" transformation happens.
 
 ----
 
-5. Stage 4: Assembly (Render Graph → Executable Pipeline)
----------------------------------------------------------
+Stage 4: Assembly (Render Graph → Executable Pipeline)
+------------------------------------------------------
 
 The final stage prepares the graph for execution by the runtime.
 
@@ -206,7 +206,7 @@ The final stage prepares the graph for execution by the runtime.
 * **Input:** ``RenderGraph``
 * **Output:** ``ExecutionPlan`` (Sorted List of Commands)
 
-5.1 Topological Sort
+4.1 Topological Sort
 ^^^^^^^^^^^^^^^^^^^^
 
 Orders the passes so that all dependencies are satisfied before a pass is executed.
@@ -215,7 +215,7 @@ Orders the passes so that all dependencies are satisfied before a pass is execut
 * **Algorithm:** Kahn's Algorithm.
 * **Cycle Detection:** Identifies feedback loops. If a loop is found, it must be broken by a ``persistent`` texture (reading from the previous frame).
 
-5.2 Resource Optimization
+4.2 Resource Optimization
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Performs liveness analysis to minimize VRAM usage.
@@ -224,7 +224,7 @@ Performs liveness analysis to minimize VRAM usage.
 * **Liveness Interval:** Calculates ``[first_write, last_read]`` for each texture.
 * **Pooling:** Assigns physical GPU textures from a shared pool to virtual texture IDs. Two virtual textures with non-overlapping intervals can share the same physical texture.
 
-5.3 Command Generation
+4.3 Command Generation
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Generates the linear list of commands for the GPU driver.
@@ -237,8 +237,8 @@ Generates the linear list of commands for the GPU driver.
 
 ----
 
-6. Error Codes & Stages
------------------------
+Error Codes & Stages
+--------------------
 
 The following table maps error codes to the compilation stage where they are raised.
 
