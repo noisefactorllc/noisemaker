@@ -282,6 +282,7 @@ export function expand(compilationResult, options = {}) {
                 pass.effectFunc = effectDef.func || effectName
                 pass.effectNamespace = effectDef.namespace || null
                 pass.nodeId = nodeId
+                pass.stepIndex = step.temp  // Track which step this pass belongs to
 
                 // Start with pipeline uniforms inherited from upstream effects
                 // This allows downstream effects to use uniforms like volumeSize without redeclaring them
@@ -381,9 +382,10 @@ export function expand(compilationResult, options = {}) {
                                 pass.inputs[uniformName] = 'global_o0'
                             }
                         } else if (effectDef.externalTexture && texRef === effectDef.externalTexture) {
-                            // External texture input (e.g., camera/video) - preserve as-is for dynamic binding
+                            // External texture input (e.g., camera/video) - use per-step texture ID
+                            // Each media effect instance gets its own texture (imageTex_step_0, imageTex_step_1, etc.)
                             // The texture will be created/updated via updateTextureFromSource()
-                            pass.inputs[uniformName] = texRef
+                            pass.inputs[uniformName] = `${texRef}_step_${step.temp}`
                         } else if (step.args && Object.prototype.hasOwnProperty.call(step.args, texRef)) {
                             // Reference to an argument (e.g. blend(tex: ...))
                             const arg = step.args[texRef]

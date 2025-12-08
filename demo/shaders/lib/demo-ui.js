@@ -383,6 +383,11 @@ export class DemoUI {
         this._parsedDslStructure = [];
         this._allEffects = [];
         
+        // Media input state per step
+        // Map: stepIndex -> { source, stream, videoEl, imageEl, textureId, updateFrame }
+        this._mediaInputs = new Map();
+        this._mediaUpdateFrame = null;
+        
         // Loading state
         this._loadingState = {
             queue: [],
@@ -392,6 +397,433 @@ export class DemoUI {
         
         // Bind the formatValue function with enums context
         this._boundFormatValue = (value, spec) => formatValue(value, spec, this._renderer.enums);
+        
+        // Start the media update loop
+        this._startMediaUpdateLoop();
+    }
+    
+    // =========================================================================
+    // Media Input Management
+    // =========================================================================
+    
+    /**
+     * Start the continuous media update loop
+     * @private
+     */
+    _startMediaUpdateLoop() {
+        if (this._mediaUpdateFrame) return;
+        
+        const update = () => {
+            this._updateAllMediaTextures();
+            this._mediaUpdateFrame = requestAnimationFrame(update);
+        };
+        
+        update();
+    }
+    
+    /**
+     * Stop the media update loop
+     * @private
+     */
+    _stopMediaUpdateLoop() {
+        if (this._mediaUpdateFrame) {
+            cancelAnimationFrame(this._mediaUpdateFrame);
+            this._mediaUpdateFrame = null;
+        }
+    }
+    
+    /**
+     * Update all media textures that need continuous updates (video/camera)
+     * @private
+     */
+    _updateAllMediaTextures() {
+        let anyUpdated = false;
+        for (const [stepIndex, media] of this._mediaInputs) {
+            if (!media.source) continue;
+            
+            // Only update video sources continuously
+            if (media.source instanceof HTMLVideoElement) {
+                if (!media.source.paused && media.source.videoWidth > 0) {
+                    this._updateMediaTexture(stepIndex);
+                    anyUpdated = true;
+                }
+            }
+        }
+        
+        // Apply step-specific parameter values (including imageSize) to the pipeline
+        if (anyUpdated && this._renderer.applyStepParameterValues) {
+            this._renderer.applyStepParameterValues(this._effectParameterValues);
+        }
+    }
+    
+    /**
+     * Update a single media texture
+     * @param {number} stepIndex - Step index
+     * @private
+     */
+    _updateMediaTexture(stepIndex) {
+        const media = this._mediaInputs.get(stepIndex);
+        if (!media || !media.source || !this._renderer._pipeline) return;
+        
+        const texId = media.textureId || 'imageTex';
+        const result = this._renderer.updateTextureFromSource(texId, media.source, { flipY: true });
+        
+        if (result.width > 0 && result.height > 0) {
+            // Update imageSize uniform for this specific step (not globally)
+            const effectKey = `step_${stepIndex}`;
+            if (this._effectParameterValues[effectKey]) {
+                this._effectParameterValues[effectKey].imageSize = [result.width, result.height];
+            }
+        }
+    }
+    
+    /**
+     * Create media input controls section for an effect
+     * @param {number} stepIndex - Step index for this effect
+     * @param {string} textureId - Texture ID (e.g., 'imageTex')
+     * @param {object} effectDef - Effect definition
+     * @returns {HTMLElement} Media input controls container
+     * @private
+     */
+    _createMediaInputSection(stepIndex, textureId, effectDef) {
+        const section = document.createElement('div');
+        section.className = 'media-input-section';
+        section.style.cssText = 'margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--color3);';
+        
+        // Initialize media state for this step
+        if (!this._mediaInputs.has(stepIndex)) {
+            this._mediaInputs.set(stepIndex, {
+                source: null,
+                stream: null,
+                videoEl: null,
+                imageEl: null,
+                textureId: textureId
+            });
+        }
+        
+        // Source type selector (file vs camera)
+        const sourceGroup = document.createElement('div');
+        sourceGroup.className = 'control-group';
+        sourceGroup.style.gridColumn = '1 / -1';
+        
+        const sourceLabel = document.createElement('label');
+        sourceLabel.className = 'control-label';
+        sourceLabel.textContent = 'media source';
+        sourceGroup.appendChild(sourceLabel);
+        
+        const sourceRadios = document.createElement('div');
+        sourceRadios.style.cssText = 'display: flex; gap: 1rem;';
+        
+        const radioName = `media-source-${stepIndex}`;
+        
+        ['file', 'camera'].forEach(type => {
+            const radioLabel = document.createElement('label');
+            radioLabel.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6); cursor: pointer;';
+            
+            const radio = document.createElement('input');
+            radio.type = 'radio';
+            radio.name = radioName;
+            radio.value = type;
+            radio.checked = type === 'file';
+            
+            radioLabel.appendChild(radio);
+            radioLabel.appendChild(document.createTextNode(type));
+            sourceRadios.appendChild(radioLabel);
+        });
+        
+        sourceGroup.appendChild(sourceRadios);
+        section.appendChild(sourceGroup);
+        
+        // File input group
+        const fileGroup = document.createElement('div');
+        fileGroup.className = 'control-group media-file-group';
+        fileGroup.style.gridColumn = '1 / -1';
+        fileGroup.dataset.stepIndex = stepIndex;
+        
+        const fileLabel = document.createElement('label');
+        fileLabel.className = 'control-label';
+        fileLabel.textContent = 'media file';
+        fileGroup.appendChild(fileLabel);
+        
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*,video/*';
+        fileInput.style.cssText = 'font-size: 0.6875rem; color: var(--color6);';
+        fileInput.dataset.stepIndex = stepIndex;
+        fileInput.dataset.textureId = textureId;
+        
+        fileInput.addEventListener('change', (e) => this._handleMediaFileChange(e, stepIndex, textureId));
+        
+        fileGroup.appendChild(fileInput);
+        section.appendChild(fileGroup);
+        
+        // Camera group (hidden by default)
+        const cameraGroup = document.createElement('div');
+        cameraGroup.className = 'control-group media-camera-group';
+        cameraGroup.style.cssText = 'grid-column: 1 / -1; display: none;';
+        cameraGroup.dataset.stepIndex = stepIndex;
+        
+        const cameraLabel = document.createElement('label');
+        cameraLabel.className = 'control-label';
+        cameraLabel.textContent = 'camera';
+        cameraGroup.appendChild(cameraLabel);
+        
+        const cameraSelect = document.createElement('select');
+        cameraSelect.className = 'control-select';
+        cameraSelect.innerHTML = '<option value="">select camera...</option>';
+        cameraSelect.dataset.stepIndex = stepIndex;
+        cameraGroup.appendChild(cameraSelect);
+        
+        const cameraButtons = document.createElement('div');
+        cameraButtons.style.cssText = 'display: flex; gap: 0.5rem; margin-top: 0.5rem;';
+        
+        const startBtn = document.createElement('button');
+        startBtn.className = 'module-skip-btn';
+        startBtn.textContent = 'start';
+        startBtn.style.flex = '1';
+        startBtn.addEventListener('click', () => this._startCamera(stepIndex, cameraSelect.value, textureId));
+        
+        const stopBtn = document.createElement('button');
+        stopBtn.className = 'module-skip-btn';
+        stopBtn.textContent = 'stop';
+        stopBtn.style.flex = '1';
+        stopBtn.disabled = true;
+        stopBtn.addEventListener('click', () => this._stopCamera(stepIndex));
+        
+        cameraButtons.appendChild(startBtn);
+        cameraButtons.appendChild(stopBtn);
+        cameraGroup.appendChild(cameraButtons);
+        
+        // Store button refs in the section for later access
+        cameraGroup._startBtn = startBtn;
+        cameraGroup._stopBtn = stopBtn;
+        cameraGroup._select = cameraSelect;
+        
+        section.appendChild(cameraGroup);
+        
+        // Status display
+        const statusGroup = document.createElement('div');
+        statusGroup.className = 'control-group';
+        statusGroup.style.gridColumn = '1 / -1';
+        
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'media-status';
+        statusSpan.style.cssText = 'font-size: 0.6875rem; color: var(--color5);';
+        statusSpan.textContent = 'no media loaded';
+        statusSpan.dataset.stepIndex = stepIndex;
+        
+        statusGroup.appendChild(statusSpan);
+        section.appendChild(statusGroup);
+        
+        // Hidden video/image elements for this step
+        const video = document.createElement('video');
+        video.style.display = 'none';
+        video.loop = true;
+        video.muted = true;
+        video.playsInline = true;
+        section.appendChild(video);
+        
+        const image = document.createElement('img');
+        image.style.display = 'none';
+        section.appendChild(image);
+        
+        // Store refs in media state
+        const mediaState = this._mediaInputs.get(stepIndex);
+        mediaState.videoEl = video;
+        mediaState.imageEl = image;
+        mediaState.statusEl = statusSpan;
+        mediaState.cameraGroup = cameraGroup;
+        mediaState.fileGroup = fileGroup;
+        
+        // Radio button change handler
+        sourceRadios.addEventListener('change', (e) => {
+            if (e.target.value === 'camera') {
+                fileGroup.style.display = 'none';
+                cameraGroup.style.display = 'block';
+                this._populateCameraList(stepIndex, cameraSelect);
+            } else {
+                fileGroup.style.display = 'block';
+                cameraGroup.style.display = 'none';
+                this._stopCamera(stepIndex);
+            }
+        });
+        
+        // Load default test image
+        this._loadDefaultMediaImage(stepIndex, textureId);
+        
+        return section;
+    }
+    
+    /**
+     * Handle media file change
+     * @private
+     */
+    _handleMediaFileChange(e, stepIndex, textureId) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const media = this._mediaInputs.get(stepIndex);
+        if (!media) return;
+        
+        const url = URL.createObjectURL(file);
+        
+        if (file.type.startsWith('video/')) {
+            media.videoEl.src = url;
+            media.videoEl.load();
+            
+            media.videoEl.onloadedmetadata = () => {
+                media.source = media.videoEl;
+                media.statusEl.textContent = `video: ${media.videoEl.videoWidth}x${media.videoEl.videoHeight}`;
+                media.videoEl.play();
+                this._updateMediaTexture(stepIndex);
+                // Apply step-specific parameters to the pipeline
+                if (this._renderer.applyStepParameterValues) {
+                    this._renderer.applyStepParameterValues(this._effectParameterValues);
+                }
+            };
+        } else if (file.type.startsWith('image/')) {
+            media.imageEl.src = url;
+            media.imageEl.onload = () => {
+                media.source = media.imageEl;
+                media.statusEl.textContent = `image: ${media.imageEl.naturalWidth}x${media.imageEl.naturalHeight}`;
+                this._updateMediaTexture(stepIndex);
+                // Apply step-specific parameters to the pipeline
+                if (this._renderer.applyStepParameterValues) {
+                    this._renderer.applyStepParameterValues(this._effectParameterValues);
+                }
+            };
+        }
+    }
+    
+    /**
+     * Populate camera list for a step
+     * @private
+     */
+    async _populateCameraList(stepIndex, selectEl) {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(d => d.kind === 'videoinput');
+            
+            selectEl.innerHTML = '<option value="">select camera...</option>';
+            videoDevices.forEach((device, idx) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.textContent = device.label || `Camera ${idx + 1}`;
+                selectEl.appendChild(option);
+            });
+        } catch (err) {
+            console.error('Failed to enumerate devices:', err);
+            const media = this._mediaInputs.get(stepIndex);
+            if (media?.statusEl) {
+                media.statusEl.textContent = 'camera access denied';
+            }
+        }
+    }
+    
+    /**
+     * Start camera for a step
+     * @private
+     */
+    async _startCamera(stepIndex, deviceId, textureId) {
+        if (!deviceId) {
+            const media = this._mediaInputs.get(stepIndex);
+            if (media?.statusEl) {
+                media.statusEl.textContent = 'please select a camera';
+            }
+            return;
+        }
+        
+        const media = this._mediaInputs.get(stepIndex);
+        if (!media) return;
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { deviceId: { exact: deviceId } }
+            });
+            
+            media.stream = stream;
+            media.videoEl.srcObject = stream;
+            await media.videoEl.play();
+            
+            media.source = media.videoEl;
+            media.statusEl.textContent = `camera: ${media.videoEl.videoWidth}x${media.videoEl.videoHeight}`;
+            
+            // Update button states
+            if (media.cameraGroup) {
+                media.cameraGroup._startBtn.disabled = true;
+                media.cameraGroup._stopBtn.disabled = false;
+            }
+            
+            this._updateMediaTexture(stepIndex);
+            // Apply step-specific parameters to the pipeline
+            if (this._renderer.applyStepParameterValues) {
+                this._renderer.applyStepParameterValues(this._effectParameterValues);
+            }
+        } catch (err) {
+            console.error('Failed to start camera:', err);
+            media.statusEl.textContent = `camera error: ${err.message}`;
+        }
+    }
+    
+    /**
+     * Stop camera for a step
+     * @private
+     */
+    _stopCamera(stepIndex) {
+        const media = this._mediaInputs.get(stepIndex);
+        if (!media) return;
+        
+        if (media.stream) {
+            media.stream.getTracks().forEach(track => track.stop());
+            media.stream = null;
+        }
+        
+        media.videoEl.srcObject = null;
+        media.source = null;
+        media.statusEl.textContent = 'camera stopped';
+        
+        // Update button states
+        if (media.cameraGroup) {
+            media.cameraGroup._startBtn.disabled = false;
+            media.cameraGroup._stopBtn.disabled = true;
+        }
+    }
+    
+    /**
+     * Stop all cameras and clean up media state
+     */
+    stopAllMedia() {
+        for (const [stepIndex, media] of this._mediaInputs) {
+            if (media.stream) {
+                media.stream.getTracks().forEach(track => track.stop());
+            }
+        }
+        this._mediaInputs.clear();
+    }
+    
+    /**
+     * Load default test image for a step
+     * @private
+     */
+    async _loadDefaultMediaImage(stepIndex, textureId) {
+        const media = this._mediaInputs.get(stepIndex);
+        if (!media) return;
+        
+        const img = new Image();
+        img.onload = () => {
+            media.source = img;
+            media.imageEl.src = img.src;
+            media.statusEl.textContent = `default: ${img.naturalWidth}x${img.naturalHeight}`;
+            this._updateMediaTexture(stepIndex);
+            // Apply step-specific parameters to the pipeline
+            if (this._renderer.applyStepParameterValues) {
+                this._renderer.applyStepParameterValues(this._effectParameterValues);
+            }
+        };
+        img.onerror = () => {
+            media.statusEl.textContent = 'no media loaded';
+        };
+        img.src = 'img/testcard.png';
     }
     
     // =========================================================================
@@ -887,6 +1319,9 @@ export class DemoUI {
     createEffectControlsFromDsl(dsl) {
         if (!this._controlsContainer) return;
         
+        // Clean up existing media inputs before rebuilding controls
+        this.stopAllMedia();
+        
         this._controlsContainer.innerHTML = '';
         this._effectParameterValues = {};
         this._writeTargetOverrides = {};
@@ -1196,6 +1631,18 @@ export class DemoUI {
             if (effectDef.shaders) {
                 const shaderSection = this._createShaderEditorSection(effectInfo, effectDef, codeBtn);
                 contentDiv.appendChild(shaderSection);
+            }
+            
+            // Add media input section if effect has externalTexture
+            // Use per-step texture ID (e.g., imageTex_step_0) to allow independent media per effect
+            if (effectDef.externalTexture) {
+                const stepTextureId = `${effectDef.externalTexture}_step_${effectInfo.stepIndex}`;
+                const mediaSection = this._createMediaInputSection(
+                    effectInfo.stepIndex, 
+                    stepTextureId, 
+                    effectDef
+                );
+                contentDiv.appendChild(mediaSection);
             }
             
             moduleDiv.appendChild(contentDiv);

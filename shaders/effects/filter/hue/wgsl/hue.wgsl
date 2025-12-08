@@ -6,6 +6,10 @@ struct Uniforms {
     data: array<vec4<f32>, 1>,
 };
 
+fn mapVal(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
+    return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
+}
+
 @group(0) @binding(0) var inputSampler: sampler;
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
@@ -50,13 +54,15 @@ fn hsv2rgb(hsv: vec3<f32>) -> vec3<f32> {
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let amount = uniforms.data[0].x;
+    let rotation = uniforms.data[0].x;
+    let hueRange = uniforms.data[0].y;
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = pos.xy / texSize;
     var color = textureSample(inputTex, inputSampler, uv);
 
     var hsv = rgb2hsv(color.rgb);
-    hsv.x = fract(hsv.x + amount);
+    // Scale hue by hueRange (0-200 maps to 0-2x), then add rotation (0-360 degrees)
+    hsv.x = fract(hsv.x * mapVal(hueRange, 0.0, 200.0, 0.0, 2.0) + (rotation / 360.0));
     color = vec4<f32>(hsv2rgb(hsv), color.a);
 
     return color;

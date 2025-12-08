@@ -7,9 +7,14 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
-uniform float amount;
+uniform float rotation;
+uniform float hueRange;
 
 out vec4 fragColor;
+
+float map(float value, float inMin, float inMax, float outMin, float outMax) {
+    return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
+}
 
 vec3 rgb2hsv(vec3 rgb) {
     float r = rgb.r, g = rgb.g, b = rgb.b;
@@ -54,7 +59,8 @@ void main() {
     vec4 color = texture(inputTex, uv);
 
     vec3 hsv = rgb2hsv(color.rgb);
-    hsv.x = fract(hsv.x + amount);
+    // Scale hue by hueRange (0-200 maps to 0-2x), then add rotation (0-360 degrees)
+    hsv.x = fract(hsv.x * map(hueRange, 0.0, 200.0, 0.0, 2.0) + (rotation / 360.0));
     color.rgb = hsv2rgb(hsv);
 
     fragColor = color;

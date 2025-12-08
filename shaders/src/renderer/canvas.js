@@ -1291,6 +1291,45 @@ export class CanvasRenderer {
             }
         }
     }
+
+    /**
+     * Apply per-step parameter values to the pipeline.
+     * This allows different instances of the same effect to have different uniform values.
+     * @param {object} stepParameterValues - Map of step_N -> {paramName: value}
+     */
+    applyStepParameterValues(stepParameterValues) {
+        if (!this._pipeline || !this._pipeline.graph || !Array.isArray(this._pipeline.graph.passes)) {
+            return
+        }
+
+        // Iterate through all passes and apply step-specific values
+        for (const pass of this._pipeline.graph.passes) {
+            if (!pass || pass.stepIndex === undefined) continue
+
+            const stepKey = `step_${pass.stepIndex}`
+            const stepParams = stepParameterValues[stepKey]
+            if (!stepParams) continue
+
+            // Get the effect definition for this pass
+            const effectKey = pass.effectKey
+            const effectDef = effectKey ? getEffect(effectKey) : null
+            if (!effectDef || !effectDef.globals) continue
+
+            // Apply each step-specific parameter to this pass's uniforms
+            for (const [paramName, value] of Object.entries(stepParams)) {
+                if (paramName === '_skip') continue  // Skip internal flags
+
+                const spec = effectDef.globals[paramName]
+                if (!spec || spec.type === 'surface') continue
+
+                const uniformName = spec.uniform || paramName
+                if (!pass.uniforms || !(uniformName in pass.uniforms)) continue
+
+                const converted = this.convertParameterForUniform(value, spec)
+                pass.uniforms[uniformName] = Array.isArray(converted) ? converted.slice() : converted
+            }
+        }
+    }
 }
 
 // Re-export getEffect for convenience

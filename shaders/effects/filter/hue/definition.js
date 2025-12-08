@@ -11,14 +11,25 @@ export default new Effect({
 
   description: "Rotate image hue",
   globals: {
-    amount: {
+    rotation: {
       type: "float",
       default: 0,
-      uniform: "amount",
+      uniform: "rotation",
       min: 0,
-      max: 1,
+      max: 360,
       ui: {
-        label: "Amount",
+        label: "Rotation",
+        control: "slider"
+      }
+    },
+    hueRange: {
+      type: "float",
+      default: 100,
+      uniform: "hueRange",
+      min: 0,
+      max: 200,
+      ui: {
+        label: "Hue Range",
         control: "slider"
       }
     }
