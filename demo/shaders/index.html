@@ -23,6 +23,7 @@
                 <div class="module-title">
                     <span class="module-title-text">Pipeline</span>
                     <span style="flex: 1;"></span>
+                    <button id="pause-play-btn" class="module-skip-btn" title="Pause/play animation">pause</button>
                     <button id="pipeline-code-btn" class="module-skip-btn" title="Edit DSL program">code</button>
                 </div>
                 <div class="module-content" style="display: flex; flex-direction: column; gap: 0.75rem;">
@@ -306,6 +307,47 @@
         // Initial resize to ensure correct dimensions
         handleResize();
 
+        // =====================================================================
+        // Pause/Play State
+        // =====================================================================
+        
+        let isPaused = false;
+        let pausedNormalizedTime = 0;
+        const pausePlayBtn = document.getElementById('pause-play-btn');
+        
+        function setPaused(paused) {
+            if (paused && !isPaused) {
+                // Capture the current normalized time when pausing
+                const elapsedSeconds = (performance.now() - renderer._loopStartTime) / 1000;
+                pausedNormalizedTime = (elapsedSeconds % renderer._loopDuration) / renderer._loopDuration;
+            } else if (!paused && isPaused) {
+                // When resuming, adjust loopStartTime so time continues from where we paused
+                const now = performance.now();
+                const pausedElapsedSeconds = pausedNormalizedTime * renderer._loopDuration;
+                renderer._loopStartTime = now - (pausedElapsedSeconds * 1000);
+            }
+            isPaused = paused;
+            pausePlayBtn.textContent = paused ? 'play' : 'pause';
+            pausePlayBtn.classList.toggle('active', paused);
+            if (paused) {
+                renderer.stop();
+            } else {
+                renderer.start();
+            }
+        }
+        
+        pausePlayBtn.addEventListener('click', () => {
+            setPaused(!isPaused);
+        });
+        
+        // Render a single frame when controls change while paused
+        function renderSingleFrameIfPaused() {
+            if (isPaused && renderer.pipeline) {
+                // Use the fixed paused time
+                renderer.render(pausedNormalizedTime);
+            }
+        }
+
         const ui = new DemoUI(renderer, {
             effectSelect,
             dslEditor,
@@ -315,7 +357,8 @@
             loadingDialog,
             loadingDialogTitle,
             loadingDialogStatus,
-            loadingDialogProgress
+            loadingDialogProgress,
+            onControlChange: renderSingleFrameIfPaused
         });
 
         // =====================================================================

@@ -356,6 +356,7 @@ export class DemoUI {
      * @param {HTMLElement} [options.loadingDialogTitle] - Loading dialog title
      * @param {HTMLElement} [options.loadingDialogStatus] - Loading dialog status
      * @param {HTMLElement} [options.loadingDialogProgress] - Loading dialog progress bar
+     * @param {function} [options.onControlChange] - Callback when a control value changes
      */
     constructor(renderer, options = {}) {
         this._renderer = renderer;
@@ -370,6 +371,9 @@ export class DemoUI {
         this._loadingDialogTitle = options.loadingDialogTitle;
         this._loadingDialogStatus = options.loadingDialogStatus;
         this._loadingDialogProgress = options.loadingDialogProgress;
+        
+        // Callbacks
+        this._onControlChangeCallback = options.onControlChange || null;
         
         // State
         this._parameterValues = {};
@@ -1829,6 +1833,9 @@ export class DemoUI {
     _onControlChange() {
         this._applyEffectParameterValues();
         this._updateDslFromEffectParams();
+        if (this._onControlChangeCallback) {
+            this._onControlChangeCallback();
+        }
     }
     
     /**
