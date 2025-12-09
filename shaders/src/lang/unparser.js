@@ -211,7 +211,7 @@ function formatValue(value, spec, customFormatter) {
 /**
  * Unparse a Call node
  * @param {object} call - Call AST node
- * @param {object} options - Unparse options (includes customFormatter)
+ * @param {object} options - Unparse options (includes customFormatter, multilineKwargs)
  * @returns {string} DSL source for the call
  */
 function unparseCall(call, options = {}) {
@@ -219,6 +219,7 @@ function unparseCall(call, options = {}) {
     const parts = []
     const customFormatter = options.customFormatter || null
     const specs = options.specs || {}
+    const multilineKwargs = options.multilineKwargs !== false // default true
 
     // Handle kwargs (named arguments)
     if (call.kwargs && Object.keys(call.kwargs).length > 0) {
@@ -248,6 +249,13 @@ function unparseCall(call, options = {}) {
         for (const arg of call.args) {
             parts.push(formatValue(arg, null, customFormatter))
         }
+    }
+
+    // Use multiline formatting for kwargs (named arguments), inline for positional args only
+    const hasKwargs = call.kwargs && Object.keys(call.kwargs).length > 0 && parts.length > 0
+    if (multilineKwargs && hasKwargs) {
+        // Multiline format: line break + 4 spaces before each kwarg, line break before closing paren
+        return `${name}(\n${parts.map(p => `    ${p}`).join(',\n')}\n)`
     }
 
     return `${name}(${parts.join(', ')})`
@@ -348,16 +356,19 @@ export function unparse(compiled, overrides = {}, options = {}) {
     const getEffectDef = options.getEffectDef || null
     const searchNamespaces = compiled.searchNamespaces || []
 
-    // Add search directive if present
+    // Add search directive if present (with two line breaks after)
     if (searchNamespaces.length > 0) {
         lines.push(`search ${searchNamespaces.join(', ')}`)
+        lines.push('') // First blank line after search
     }
 
     // Track global step index across all plans
     let globalStepIndex = 0
 
     // Process each plan
-    for (const plan of (compiled.plans || [])) {
+    const plans = compiled.plans || []
+    for (let planIndex = 0; planIndex < plans.length; planIndex++) {
+        const plan = plans[planIndex]
         if (!plan.chain || plan.chain.length === 0) continue
 
         const callParts = []
@@ -462,10 +473,17 @@ export function unparse(compiled, overrides = {}, options = {}) {
         }
 
         lines.push(line)
+
+        // Add blank line after chain statement (two line breaks between chains)
+        // Don't add after the last plan
+        if (planIndex < plans.length - 1) {
+            lines.push('')
+        }
     }
 
     // Add render directive if present
     if (compiled.render) {
+        lines.push('')  // Blank line before render
         lines.push(`render(${compiled.render.name})`)
     }
 

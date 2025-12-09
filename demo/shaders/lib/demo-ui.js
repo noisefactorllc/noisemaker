@@ -1079,6 +1079,20 @@ export class DemoUI {
     }
     
     /**
+     * Format an effect call with parameters using multiline style
+     * @param {string} funcName - Function name
+     * @param {string[]} params - Array of "key: value" strings
+     * @returns {string} Formatted call string
+     */
+    _formatEffectCall(funcName, params) {
+        if (params.length === 0) {
+            return `${funcName}()`;
+        }
+        // Multiline format: line break + 4 spaces before each param, line break before closing paren
+        return `${funcName}(\n${params.map(p => `    ${p}`).join(',\n')}\n)`;
+    }
+    
+    /**
      * Build DSL source from an effect and parameter values
      * @param {object} effect - Effect object
      * @returns {string} Generated DSL
@@ -1088,7 +1102,7 @@ export class DemoUI {
             return '';
         }
 
-        // Build search directive
+        // Build search directive (with two line breaks after)
         // Classic namespaces stay in their lane - no cross-namespace search
         // classicNoisemaker needs synth for noise() starter (it has no noise module)
         let searchNs = effect.namespace;
@@ -1097,7 +1111,7 @@ export class DemoUI {
         } else if (['filter', 'mixer', 'stateful'].includes(effect.namespace)) {
             searchNs = `${effect.namespace}, synth`;
         }
-        const searchDirective = searchNs ? `search ${searchNs}\n` : '';
+        const searchDirective = searchNs ? `search ${searchNs}\n\n` : '';
         const funcName = effect.instance.func;
 
         const starter = isStarterEffect(effect);
@@ -1124,8 +1138,8 @@ export class DemoUI {
                     params.push(`${key}: ${this._boundFormatValue(value, spec)}`);
                 }
             }
-            const paramString = params.join(', ');
-            return `search vol\n${funcName}(${paramString}).render3d().write(o0)`;
+            const effectCall = this._formatEffectCall(funcName, params);
+            return `search vol\n\n${effectCall}.render3d().write(o0)`;
         }
 
         if (starter) {
@@ -1148,17 +1162,17 @@ export class DemoUI {
                     params.push(`${key}: ${this._boundFormatValue(value, spec)}`);
                 }
             }
-            const paramString = params.join(', ');
             
             if (hasTex) {
                 const sourceSurface = 'o1';
                 const outputSurface = 'o0';
-                const paramsWithTex = paramString 
-                    ? `tex: read(${sourceSurface}), ${paramString}` 
-                    : `tex: read(${sourceSurface})`;
-                return `${searchDirective}noise(seed: 1, ridges: true).write(${sourceSurface})\n${funcName}(${paramsWithTex}).write(${outputSurface})`;
+                // Add tex as first param for effects with texture input
+                const paramsWithTex = [`tex: read(${sourceSurface})`, ...params];
+                const effectCall = this._formatEffectCall(funcName, paramsWithTex);
+                return `${searchDirective}noise(\n    seed: 1,\n    ridges: true\n).write(${sourceSurface})\n\n${effectCall}.write(${outputSurface})`;
             }
-            return `${searchDirective}${funcName}(${paramString}).write(o0)`;
+            const effectCall = this._formatEffectCall(funcName, params);
+            return `${searchDirective}${effectCall}.write(o0)`;
         } else if (hasTex) {
             const params = [`tex: read(o1)`];
             if (effect.instance.globals) {
@@ -1180,8 +1194,8 @@ export class DemoUI {
                     params.push(`${key}: ${this._boundFormatValue(value, spec)}`);
                 }
             }
-            const paramString = params.join(', ');
-            return `${searchDirective}noise(seed: 1, ridges: true).write(o1)\nnoise(seed: 2, ridges: true).${funcName}(${paramString}).write(o0)`;
+            const effectCall = this._formatEffectCall(funcName, params);
+            return `${searchDirective}noise(\n    seed: 1,\n    ridges: true\n).write(o1)\n\nnoise(\n    seed: 2,\n    ridges: true\n).${effectCall}.write(o0)`;
         } else if (is3dProcessor(effect)) {
             const params = [];
             let consumerVolumeSize = 32;
@@ -1204,14 +1218,11 @@ export class DemoUI {
                     params.push(`${key}: ${this._boundFormatValue(value, spec)}`);
                 }
             }
-            const paramString = params.join(', ');
-            const generatorDsl = `noise3d(volumeSize: x${consumerVolumeSize})`;
+            const generatorDsl = `noise3d(\n    volumeSize: x${consumerVolumeSize}\n)`;
+            const effectCall = this._formatEffectCall(funcName, params);
             // render3d IS the renderer - don't append another .render3d() call
             const renderSuffix = funcName === 'render3d' ? '' : '.render3d()';
-            if (paramString) {
-                return `search vol\n${generatorDsl}.${funcName}(${paramString})${renderSuffix}.write(o0)`;
-            }
-            return `search vol\n${generatorDsl}.${funcName}()${renderSuffix}.write(o0)`;
+            return `search vol\n\n${generatorDsl}.${effectCall}${renderSuffix}.write(o0)`;
         } else {
             const params = [];
             if (effect.instance.globals) {
@@ -1232,8 +1243,8 @@ export class DemoUI {
                     params.push(`${key}: ${this._boundFormatValue(value, spec)}`);
                 }
             }
-            const paramString = params.join(', ');
-            return `${searchDirective}noise(seed: 1, ridges: true).${funcName}(${paramString}).write(o0)`;
+            const effectCall = this._formatEffectCall(funcName, params);
+            return `${searchDirective}noise(\n    seed: 1,\n    ridges: true\n).${effectCall}.write(o0)`;
         }
     }
     

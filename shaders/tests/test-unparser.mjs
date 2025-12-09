@@ -47,12 +47,18 @@ test('Basic unparse with single effect', () => {
                 chain: [
                     { op: 'basics.noise', args: { scale: 3 } }
                 ],
-                out: { kind: 'output', name: 'o0' }
+                write: { kind: 'output', name: 'o0' }
             }
         ]
     };
     const result = unparse(compiled, {}, {});
-    assertEqual(result, 'search basics\nnoise(scale: 3).out(o0)', 'Basic unparse');
+    // New multiline format: two line breaks after search, uniforms on separate lines
+    const expected = `search basics
+
+noise(
+    scale: 3
+).write(o0)`;
+    assertEqual(result, expected, 'Basic unparse');
 });
 
 // Test 2: Multiple same-named effects with step-specific overrides
@@ -62,14 +68,14 @@ test('Step-specific overrides with multiple same-named effects', () => {
         plans: [
             {
                 chain: [{ op: 'basics.noise', args: { scale: 3, seed: 1 } }],
-                out: { kind: 'output', name: 'o1' }
+                write: { kind: 'output', name: 'o1' }
             },
             {
                 chain: [
                     { op: 'basics.noise', args: { scale: 5, seed: 2 } },
                     { op: 'basics.add', args: { amount: 0.5 } }
                 ],
-                out: { kind: 'output', name: 'o0' }
+                write: { kind: 'output', name: 'o0' }
             }
         ]
     };
@@ -94,7 +100,7 @@ test('Namespace stripping for search namespaces', () => {
         plans: [
             {
                 chain: [{ op: 'nm.blur', args: { radius: 5 } }],
-                out: { kind: 'output', name: 'o0' }
+                write: { kind: 'output', name: 'o0' }
             }
         ]
     };
@@ -113,12 +119,20 @@ test('Multiple search namespaces with mixed effects', () => {
                     { op: 'basics.noise', args: { scale: 3 } },
                     { op: 'nm.blur', args: { radius: 5 } }
                 ],
-                out: { kind: 'output', name: 'o0' }
+                write: { kind: 'output', name: 'o0' }
             }
         ]
     };
     const result = unparse(compiled, {}, {});
-    assertEqual(result, 'search basics, nm\nnoise(scale: 3).blur(radius: 5).out(o0)', 'Multiple namespaces');
+    // New multiline format
+    const expected = `search basics, nm
+
+noise(
+    scale: 3
+).blur(
+    radius: 5
+).write(o0)`;
+    assertEqual(result, expected, 'Multiple namespaces');
 });
 
 // Test 5: Output reference handling
@@ -128,12 +142,12 @@ test('Output reference as object', () => {
         plans: [
             {
                 chain: [{ op: 'basics.noise', args: { scale: 3 } }],
-                out: { kind: 'output', name: 'o5' }
+                write: { kind: 'output', name: 'o5' }
             }
         ]
     };
     const result = unparse(compiled, {}, {});
-    assertIncludes(result, '.out(o5)', 'Should have .out(o5)');
+    assertIncludes(result, '.write(o5)', 'Should have .write(o5)');
 });
 
 // Test 6: No search namespaces
@@ -143,7 +157,7 @@ test('No search namespaces - keep full qualified names', () => {
         plans: [
             {
                 chain: [{ op: 'basics.noise', args: { scale: 3 } }],
-                out: { kind: 'output', name: 'o0' }
+                write: { kind: 'output', name: 'o0' }
             }
         ]
     };
