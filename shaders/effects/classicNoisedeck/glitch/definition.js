@@ -15,7 +15,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     glitchiness: {
@@ -70,7 +71,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "scanlines",
-        control: "slider"
+        control: "slider",
+        category: "effects"
       }
     },
     snowAmt: {
@@ -81,7 +83,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "snow",
-        control: "slider"
+        control: "slider",
+        category: "effects"
       }
     },
     vignetteAmt: {
@@ -92,7 +95,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "vignette",
-        control: "slider"
+        control: "slider",
+        category: "effects"
       }
     },
     distortion: {
@@ -103,7 +107,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "lens",
-        control: "slider"
+        control: "slider",
+        category: "distortion"
       }
     },
     aspectLens: {
@@ -112,7 +117,8 @@ export default new Effect({
       uniform: "aspectLens",
       ui: {
         label: "1:1 aspect",
-        control: "checkbox"
+        control: "checkbox",
+        category: "distortion"
       }
     },
     kernel: {

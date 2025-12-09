@@ -59,7 +59,8 @@ export default new Effect({
       max: 5,
       ui: {
         label: "scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     rotateAmt: {
@@ -70,7 +71,8 @@ export default new Effect({
       max: 180,
       ui: {
         label: "rotation",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     strength: {
@@ -92,7 +94,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "noise seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     wrap: {
@@ -117,7 +120,8 @@ export default new Effect({
       max: 5,
       ui: {
         label: "center",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     aspectLens: {
@@ -137,7 +141,8 @@ export default new Effect({
       max: 5,
       ui: {
         label: "speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     rotation: {
@@ -148,9 +153,10 @@ export default new Effect({
       max: 5,
       ui: {
         label: "rot speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
-    }
+    },
   },
   passes: [
     {

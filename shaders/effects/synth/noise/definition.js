@@ -62,7 +62,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "horiz scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     yScale: {
@@ -73,7 +74,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "vert scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     ridges: {
@@ -102,7 +104,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     loopOffset: {
@@ -133,7 +136,8 @@ export default new Effect({
       },
       ui: {
         label: "loop offset",
-        control: "dropdown"
+        control: "dropdown",
+        category: "animation"
       }
     },
     loopScale: {
@@ -144,7 +148,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "loop scale",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     loopAmp: {
@@ -155,7 +160,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "loop power",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     colorMode: {
@@ -168,7 +174,8 @@ export default new Effect({
       },
       ui: {
         label: "color mode",
-        control: "dropdown"
+        control: "dropdown",
+        category: "color"
       }
     }
   },

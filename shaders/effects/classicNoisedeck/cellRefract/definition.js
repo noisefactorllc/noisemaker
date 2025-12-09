@@ -32,7 +32,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     cellScale: {
@@ -43,7 +44,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "cell scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     cellSmooth: {
@@ -76,7 +78,8 @@ export default new Effect({
       max: 5,
       ui: {
         label: "speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     kernel: {
@@ -100,7 +103,8 @@ export default new Effect({
       },
       ui: {
         label: "effect",
-        control: "dropdown"
+        control: "dropdown",
+        category: "effect"
       }
     },
     effectWidth: {
@@ -111,7 +115,8 @@ export default new Effect({
       max: 10,
       ui: {
         label: "effect width",
-        control: "slider"
+        control: "slider",
+        category: "effect"
       }
     },
     refractAmt: {
@@ -122,7 +127,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "refract",
-        control: "slider"
+        control: "slider",
+        category: "refract"
       }
     },
     refractDir: {
@@ -133,7 +139,8 @@ export default new Effect({
       max: 360,
       ui: {
         label: "refract dir",
-        control: "slider"
+        control: "slider",
+        category: "refract"
       }
     },
     wrap: {
@@ -146,7 +153,8 @@ export default new Effect({
       },
       ui: {
         label: "wrap",
-        control: "dropdown"
+        control: "dropdown",
+        category: "refract"
       }
     },
     seed: {
@@ -157,7 +165,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     }
   },

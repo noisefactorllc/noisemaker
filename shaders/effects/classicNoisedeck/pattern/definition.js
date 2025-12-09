@@ -53,7 +53,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     skewAmt: {
@@ -64,7 +65,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "skew",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     rotation: {
@@ -75,7 +77,8 @@ export default new Effect({
       max: 180,
       ui: {
         label: "rotate",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     lineWidth: {
@@ -97,7 +100,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "truchet seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     animation: {
@@ -127,7 +131,8 @@ export default new Effect({
       max: 10,
       ui: {
         label: "speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     sharpness: {
@@ -147,7 +152,8 @@ export default new Effect({
       uniform: "color1",
       ui: {
         label: "color 1",
-        control: "color"
+        control: "color",
+        category: "color"
       }
     },
     color2: {
@@ -156,7 +162,8 @@ export default new Effect({
       uniform: "color2",
       ui: {
         label: "color 2",
-        control: "color"
+        control: "color",
+        category: "color"
       }
     }
   },

@@ -90,7 +90,9 @@ export function expand(compilationResult, options = {}) {
             if (step.builtin && step.op === '_read') {
                 const tex = step.args?.tex
                 if (tex && tex.kind === 'output') {
-                    currentInput = tex.name  // e.g., 'o0'
+                    currentInput = `global_${tex.name}`  // e.g., 'global_o0'
+                } else if (tex && tex.kind === 'feedback') {
+                    currentInput = `feedback_${tex.name}`  // e.g., 'feedback_f0'
                 }
                 continue
             }

@@ -15,7 +15,8 @@ export default new Effect({
       max: 32,
       ui: {
         label: "sides",
-        control: "slider"
+        control: "slider",
+        category: "general"
       }
     },
     metric: {
@@ -32,7 +33,8 @@ export default new Effect({
       },
       ui: {
         label: "shape",
-        control: "dropdown"
+        control: "dropdown",
+        category: "general"
       }
     },
     direction: {
@@ -46,7 +48,8 @@ export default new Effect({
       },
       ui: {
         label: "rotate",
-        control: "dropdown"
+        control: "dropdown",
+        category: "animation"
       }
     },
     loopOffset: {
@@ -86,7 +89,8 @@ export default new Effect({
       },
       ui: {
         label: "loop offset",
-        control: "dropdown"
+        control: "dropdown",
+        category: "animation"
       }
     },
     loopScale: {
@@ -97,7 +101,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "loop scale",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     loopAmp: {
@@ -108,7 +113,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "loop power",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     seed: {
@@ -119,7 +125,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     wrap: {
@@ -128,7 +135,8 @@ export default new Effect({
       uniform: "wrap",
       ui: {
         label: "wrap",
-        control: "checkbox"
+        control: "checkbox",
+        category: "animation"
       }
     },
     kernel: {
@@ -151,7 +159,8 @@ export default new Effect({
       },
       ui: {
         label: "effect",
-        control: "dropdown"
+        control: "dropdown",
+        category: "effect"
       }
     },
     effectWidth: {
@@ -162,7 +171,8 @@ export default new Effect({
       max: 10,
       ui: {
         label: "effect width",
-        control: "slider"
+        control: "slider",
+        category: "effect"
       }
     }
   },

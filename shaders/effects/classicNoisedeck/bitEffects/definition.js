@@ -37,7 +37,8 @@ export default new Effect({
       },
       ui: {
         label: "mode",
-        control: "dropdown"
+        control: "dropdown",
+        category: "general"
       }
     },
     loopAmp: {
@@ -48,7 +49,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     formula: {
@@ -61,7 +63,8 @@ export default new Effect({
       },
       ui: {
         label: "formula",
-        control: "dropdown"
+        control: "dropdown",
+        category: "bit field"
       }
     },
     n: {
@@ -72,7 +75,8 @@ export default new Effect({
       max: 200,
       ui: {
         label: "mod",
-        control: "slider"
+        control: "slider",
+        category: "bit field"
       }
     },
     colorScheme: {
@@ -97,7 +101,8 @@ export default new Effect({
       },
       ui: {
         label: "colors",
-        control: "dropdown"
+        control: "dropdown",
+        category: "bit field"
       }
     },
     interp: {
@@ -110,7 +115,8 @@ export default new Effect({
       },
       ui: {
         label: "blend",
-        control: "dropdown"
+        control: "dropdown",
+        category: "bit field"
       }
     },
     scale: {
@@ -121,7 +127,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     rotation: {
@@ -132,7 +139,8 @@ export default new Effect({
       max: 180,
       ui: {
         label: "rotate",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     maskFormula: {
@@ -147,7 +155,8 @@ export default new Effect({
       },
       ui: {
         label: "formula",
-        control: "dropdown"
+        control: "dropdown",
+        category: "bit mask"
       }
     },
     tiles: {
@@ -158,7 +167,8 @@ export default new Effect({
       max: 40,
       ui: {
         label: "tiles",
-        control: "slider"
+        control: "slider",
+        category: "bit mask"
       }
     },
     complexity: {
@@ -169,7 +179,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "complexity",
-        control: "slider"
+        control: "slider",
+        category: "bit mask"
       }
     },
     maskColorScheme: {
@@ -184,7 +195,8 @@ export default new Effect({
       },
       ui: {
         label: "color space",
-        control: "dropdown"
+        control: "dropdown",
+        category: "bit mask"
       }
     },
     baseHueRange: {
@@ -195,7 +207,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "hue variants",
-        control: "slider"
+        control: "slider",
+        category: "bit mask"
       }
     },
     hueRotation: {
@@ -206,7 +219,8 @@ export default new Effect({
       max: 360,
       ui: {
         label: "hue rotate",
-        control: "slider"
+        control: "slider",
+        category: "bit mask"
       }
     },
     hueRange: {
@@ -217,7 +231,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "hue range",
-        control: "slider"
+        control: "slider",
+        category: "bit mask"
       }
     },
     seed: {
@@ -228,7 +243,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     }
   },

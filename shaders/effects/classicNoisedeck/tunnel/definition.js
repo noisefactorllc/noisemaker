@@ -15,7 +15,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     distortionType: {
@@ -68,7 +69,8 @@ export default new Effect({
       max: 5,
       ui: {
         label: "speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     rotation: {
@@ -79,7 +81,8 @@ export default new Effect({
       max: 5,
       ui: {
         label: "rotation",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     center: {
@@ -90,7 +93,8 @@ export default new Effect({
       max: 5,
       ui: {
         label: "center",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     scale: {
@@ -101,7 +105,8 @@ export default new Effect({
       max: 5,
       ui: {
         label: "scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     aspectLens: {

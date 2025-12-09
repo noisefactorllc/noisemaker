@@ -35,7 +35,7 @@ export default new Effect({
         simplex: 1,
         quadTap: 2
       },
-      ui: { label: "Noise Type", control: "dropdown" },
+      ui: { label: "Noise Type", control: "dropdown", category: "general" },
       uniform: "noiseType"
     },
     interp: {
@@ -54,7 +54,7 @@ export default new Effect({
         sine: 11,
         quintic: 12
       },
-      ui: { label: "Interpolation", control: "dropdown" },
+      ui: { label: "Interpolation", control: "dropdown", category: "general" },
       uniform: "interp"
     },
     noiseScale: {
@@ -62,7 +62,7 @@ export default new Effect({
       default: 85,
       min: 1,
       max: 200,
-      ui: { label: "Scale", control: "slider" },
+      ui: { label: "Scale", control: "slider", category: "transform" },
       uniform: "noiseScale"
     },
     loopAmp: {
@@ -70,7 +70,7 @@ export default new Effect({
       default: 25,
       min: 0,
       max: 100,
-      ui: { label: "Loop Amp", control: "slider" },
+      ui: { label: "Loop Amp", control: "slider", category: "animation" },
       uniform: "loopAmp"
     },
     refractAmt: {
@@ -78,19 +78,19 @@ export default new Effect({
       default: 5,
       min: 0,
       max: 100,
-      ui: { label: "Refract", control: "slider" },
+      ui: { label: "Refract", control: "slider", category: "general" },
       uniform: "refractAmt"
     },
     ridges: {
       type: "boolean",
       default: true,
-      ui: { label: "Ridges", control: "checkbox" },
+      ui: { label: "Ridges", control: "checkbox", category: "general" },
       uniform: "ridges"
     },
     wrap: {
       type: "boolean",
       default: true,
-      ui: { label: "Wrap", control: "checkbox" },
+      ui: { label: "Wrap", control: "checkbox", category: "general" },
       uniform: "wrap"
     },
     seed: {
@@ -98,7 +98,7 @@ export default new Effect({
       default: 44,
       min: 0,
       max: 100,
-      ui: { label: "Seed", control: "slider" },
+      ui: { label: "Seed", control: "slider", category: "util" },
       uniform: "seed"
     },
     colorMode: {
@@ -110,7 +110,7 @@ export default new Effect({
         "hsv": 2,
         "oklab": 3
       },
-      ui: { label: "Color Mode", control: "dropdown" },
+      ui: { label: "Color Mode", control: "dropdown", category: "color" },
       uniform: "colorMode"
     },
     hueRotation: {
@@ -118,7 +118,7 @@ export default new Effect({
       default: 180,
       min: 0,
       max: 360,
-      ui: { label: "Hue Rotation", control: "slider" },
+      ui: { label: "Hue Rotation", control: "slider", category: "color" },
       uniform: "hueRotation"
     },
     hueRange: {
@@ -126,7 +126,7 @@ export default new Effect({
       default: 25,
       min: 0,
       max: 100,
-      ui: { label: "Hue Range", control: "slider" },
+      ui: { label: "Hue Range", control: "slider", category: "color" },
       uniform: "hueRange"
     },
     intensity: {
@@ -134,31 +134,31 @@ export default new Effect({
       default: 0,
       min: -100,
       max: 100,
-      ui: { label: "Intensity", control: "slider" },
+      ui: { label: "Intensity", control: "slider", category: "color" },
       uniform: "intensity"
     },
     color1: {
       type: "vec4",
       default: [1, 0, 0, 1],
-      ui: { label: "Color 1", control: "color" },
+      ui: { label: "Color 1", control: "color", category: "color" },
       uniform: "color1"
     },
     color2: {
       type: "vec4",
       default: [0, 1, 0, 1],
-      ui: { label: "Color 2", control: "color" },
+      ui: { label: "Color 2", control: "color", category: "color" },
       uniform: "color2"
     },
     color3: {
       type: "vec4",
       default: [0, 0, 1, 1],
-      ui: { label: "Color 3", control: "color" },
+      ui: { label: "Color 3", control: "color", category: "color" },
       uniform: "color3"
     },
     color4: {
       type: "vec4",
       default: [1, 1, 0, 1],
-      ui: { label: "Color 4", control: "color" },
+      ui: { label: "Color 4", control: "color", category: "color" },
       uniform: "color4"
     }
   },

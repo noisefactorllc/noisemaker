@@ -94,7 +94,8 @@ export default class Noise extends Effect {
       max: 100,
       ui: {
         label: "horiz scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     yScale: {
@@ -105,7 +106,8 @@ export default class Noise extends Effect {
       max: 100,
       ui: {
         label: "vert scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     ridges: {
@@ -159,7 +161,8 @@ export default class Noise extends Effect {
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     loopOffset: {
@@ -190,7 +193,8 @@ export default class Noise extends Effect {
       },
       ui: {
         label: "loop offset",
-        control: "dropdown"
+        control: "dropdown",
+        category: "animation"
       }
     },
     loopScale: {
@@ -201,7 +205,8 @@ export default class Noise extends Effect {
       max: 100,
       ui: {
         label: "loop scale",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     loopAmp: {
@@ -212,7 +217,8 @@ export default class Noise extends Effect {
       max: 100,
       ui: {
         label: "loop power",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     kaleido: {
@@ -223,7 +229,8 @@ export default class Noise extends Effect {
       max: 32,
       ui: {
         label: "kaleido sides",
-        control: "slider"
+        control: "slider",
+        category: "kaleido"
       }
     },
     metric: {
@@ -240,7 +247,8 @@ export default class Noise extends Effect {
       },
       ui: {
         label: "kaleido shape",
-        control: "dropdown"
+        control: "dropdown",
+        category: "kaleido"
       }
     },
     colorMode: {
@@ -257,7 +265,8 @@ export default class Noise extends Effect {
       },
       ui: {
         label: "color space",
-        control: "dropdown"
+        control: "dropdown",
+        category: "color"
       }
     },
     paletteMode: {
@@ -276,7 +285,8 @@ export default class Noise extends Effect {
       max: 360,
       ui: {
         label: "hue rotate",
-        control: "slider"
+        control: "slider",
+        category: "color"
       }
     },
     hueRange: {
@@ -287,7 +297,8 @@ export default class Noise extends Effect {
       max: 100,
       ui: {
         label: "hue range",
-        control: "slider"
+        control: "slider",
+        category: "color"
       }
     },
     palette: {
@@ -297,7 +308,8 @@ export default class Noise extends Effect {
       choices: paletteChoices,
       ui: {
         label: "palette",
-        control: "dropdown"
+        control: "dropdown",
+        category: "palette"
       }
     },
     cyclePalette: {
@@ -311,7 +323,8 @@ export default class Noise extends Effect {
       },
       ui: {
         label: "cycle palette",
-        control: "dropdown"
+        control: "dropdown",
+        category: "palette"
       }
     },
     rotatePalette: {
@@ -322,7 +335,8 @@ export default class Noise extends Effect {
       max: 100,
       ui: {
         label: "rotate palette",
-        control: "slider"
+        control: "slider",
+        category: "palette"
       }
     },
     repeatPalette: {
@@ -333,7 +347,8 @@ export default class Noise extends Effect {
       max: 5,
       ui: {
         label: "repeat palette",
-        control: "slider"
+        control: "slider",
+        category: "palette"
       }
     },
     paletteOffset: {

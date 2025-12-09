@@ -62,7 +62,8 @@ export default new Effect({
       uniform: "color1",
       ui: {
         label: "color 1",
-        control: "color"
+        control: "color",
+        category: "five color"
       }
     },
     color2: {
@@ -71,7 +72,8 @@ export default new Effect({
       uniform: "color2",
       ui: {
         label: "color 2",
-        control: "color"
+        control: "color",
+        category: "five color"
       }
     },
     color3: {
@@ -80,7 +82,8 @@ export default new Effect({
       uniform: "color3",
       ui: {
         label: "color 3",
-        control: "color"
+        control: "color",
+        category: "five color"
       }
     },
     color4: {
@@ -89,7 +92,8 @@ export default new Effect({
       uniform: "color4",
       ui: {
         label: "color 4",
-        control: "color"
+        control: "color",
+        category: "five color"
       }
     },
     color5: {
@@ -98,7 +102,8 @@ export default new Effect({
       uniform: "color5",
       ui: {
         label: "color 5",
-        control: "color"
+        control: "color",
+        category: "five color"
       }
     },
     tint: {
@@ -107,7 +112,8 @@ export default new Effect({
       uniform: "tint",
       ui: {
         label: "tint",
-        control: "color"
+        control: "color",
+        category: "five color"
       }
     },
     smoother: {
@@ -116,7 +122,8 @@ export default new Effect({
       uniform: "smoother",
       ui: {
         label: "smoother",
-        control: "checkbox"
+        control: "checkbox",
+        category: "five color"
       }
     },
     seed: {
@@ -127,7 +134,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     offsetR: {
@@ -138,7 +146,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "offset R",
-        control: "slider"
+        control: "slider",
+        category: "cosine"
       }
     },
     phaseR: {
@@ -149,7 +158,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "phase R",
-        control: "slider"
+        control: "slider",
+        category: "cosine"
       }
     },
     offsetG: {
@@ -160,7 +170,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "offset G",
-        control: "slider"
+        control: "slider",
+        category: "cosine"
       }
     },
     phaseG: {
@@ -171,7 +182,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "phase G",
-        control: "slider"
+        control: "slider",
+        category: "cosine"
       }
     },
     offsetB: {
@@ -182,7 +194,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "offset B",
-        control: "slider"
+        control: "slider",
+        category: "cosine"
       }
     },
     phaseB: {
@@ -193,7 +206,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "phase B",
-        control: "slider"
+        control: "slider",
+        category: "cosine"
       }
     },
     ampR: {
@@ -204,7 +218,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "amp R",
-        control: "slider"
+        control: "slider",
+        category: "cosine"
       }
     },
     ampG: {
@@ -215,7 +230,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "amp G",
-        control: "slider"
+        control: "slider",
+        category: "cosine"
       }
     },
     ampB: {
@@ -226,7 +242,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "amp B",
-        control: "slider"
+        control: "slider",
+        category: "cosine"
       }
     },
     colorMode: {
@@ -240,7 +257,8 @@ export default new Effect({
       },
       ui: {
         label: "mode",
-        control: "dropdown"
+        control: "dropdown",
+        category: "cosine"
       }
     }
   },

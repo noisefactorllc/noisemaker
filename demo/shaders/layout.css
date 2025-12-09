@@ -164,6 +164,10 @@ body.full-bleed-mode #canvas {
   overflow: visible;
 }
 
+.shader-module:has(effect-select.open) .module-content {
+  overflow: visible;
+}
+
 .module-title {
   background: color-mix(
     in srgb,
@@ -212,6 +216,7 @@ body.full-bleed-mode #canvas {
 
 .module-content {
   padding: 0.5rem;
+  overflow: hidden;
 }
 
 .shader-module.collapsed .module-content {
@@ -311,6 +316,40 @@ body.full-bleed-mode #canvas {
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.25rem;
+}
+
+/* Category group - wraps controls in a category */
+.category-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-column: 1 / -1;
+  gap: 0.5rem;
+  position: relative;
+}
+
+/* First control in category - no longer needs positioning */
+.control-group.category-first {
+}
+
+/* Category label - upper left of category, shows on hover */
+.category-label {
+  position: absolute;
+  top: -0.5rem;
+  left: -0.25rem;
+  font-size: 0.5rem;
+  visibility: hidden;
+}
+
+.category-group:hover .category-label {
+  visibility: visible;
+}
+
+/* Category separator - full-width line between category groups */
+.category-separator {
+  grid-column: 1 / -1;
+  height: 1px;
+  background: color-mix(in srgb, var(--accent3) 12%, transparent 88%);
+  margin: 0 -0.5rem;
 }
 
 .control-header {

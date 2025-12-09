@@ -15,7 +15,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     shape: {
@@ -55,7 +56,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "loop scale",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     loopAmp: {
@@ -66,7 +68,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "loop power",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     aspectLens: {
@@ -88,7 +91,8 @@ export default new Effect({
       },
       ui: {
         label: "mode",
-        control: "dropdown"
+        control: "dropdown",
+        category: "aberration"
       }
     },
     aberrationAmt: {
@@ -99,7 +103,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "aberration",
-        control: "slider"
+        control: "slider",
+        category: "aberration"
       }
     },
     blendMode: {
@@ -112,7 +117,8 @@ export default new Effect({
       },
       ui: {
         label: "blend",
-        control: "dropdown"
+        control: "dropdown",
+        category: "aberration"
       }
     },
     modulate: {
@@ -121,7 +127,8 @@ export default new Effect({
       uniform: "modulate",
       ui: {
         label: "modulate",
-        control: "checkbox"
+        control: "checkbox",
+        category: "aberration"
       }
     },
     tint: {
@@ -130,7 +137,8 @@ export default new Effect({
       uniform: "tint",
       ui: {
         label: "tint",
-        control: "color"
+        control: "color",
+        category: "effect"
       }
     },
     opacity: {
@@ -141,7 +149,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "tint opacity",
-        control: "slider"
+        control: "slider",
+        category: "effect"
       }
     },
     hueRotation: {
@@ -152,7 +161,8 @@ export default new Effect({
       max: 360,
       ui: {
         label: "hue rotate",
-        control: "slider"
+        control: "slider",
+        category: "aberration"
       }
     },
     hueRange: {
@@ -163,7 +173,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "hue range",
-        control: "slider"
+        control: "slider",
+        category: "aberration"
       }
     },
     saturation: {
@@ -174,7 +185,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "saturation",
-        control: "slider"
+        control: "slider",
+        category: "aberration"
       }
     },
     passthru: {
@@ -185,7 +197,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "passthru",
-        control: "slider"
+        control: "slider",
+        category: "aberration"
       }
     },
     vignetteAmt: {
@@ -196,7 +209,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "vignette",
-        control: "slider"
+        control: "slider",
+        category: "effect"
       }
     }
   },

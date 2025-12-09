@@ -22,7 +22,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     blendMode: {
@@ -81,7 +82,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "refract a→b",
-        control: "slider"
+        control: "slider",
+        category: "refract"
       }
     },
     refractBAmt: {
@@ -92,7 +94,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "refract b→a",
-        control: "slider"
+        control: "slider",
+        category: "refract"
       }
     },
     refractADir: {
@@ -103,7 +106,8 @@ export default new Effect({
       max: 360,
       ui: {
         label: "refract dir a",
-        control: "slider"
+        control: "slider",
+        category: "refract"
       }
     },
     refractBDir: {
@@ -114,7 +118,8 @@ export default new Effect({
       max: 360,
       ui: {
         label: "refract dir b",
-        control: "slider"
+        control: "slider",
+        category: "refract"
       }
     }
   },

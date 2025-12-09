@@ -22,7 +22,8 @@ export default class ColorLab extends Effect {
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     colorMode: {
@@ -48,7 +49,8 @@ export default class ColorLab extends Effect {
       choices: paletteChoices,
       ui: {
         label: "palette",
-        control: "dropdown"
+        control: "dropdown",
+        category: "palette"
       }
     },
     paletteMode: {
@@ -110,7 +112,8 @@ export default class ColorLab extends Effect {
       },
       ui: {
         label: "cycle palette",
-        control: "dropdown"
+        control: "dropdown",
+        category: "palette"
       }
     },
     rotatePalette: {
@@ -121,7 +124,8 @@ export default class ColorLab extends Effect {
       max: 100,
       ui: {
         label: "rotate palette",
-        control: "slider"
+        control: "slider",
+        category: "palette"
       }
     },
     repeatPalette: {
@@ -132,7 +136,8 @@ export default class ColorLab extends Effect {
       max: 5,
       ui: {
         label: "repeat palette",
-        control: "slider"
+        control: "slider",
+        category: "palette"
       }
     },
     hueRotation: {
@@ -143,7 +148,8 @@ export default class ColorLab extends Effect {
       max: 360,
       ui: {
         label: "hue rotate",
-        control: "slider"
+        control: "slider",
+        category: "adjustments"
       }
     },
     hueRange: {
@@ -154,7 +160,8 @@ export default class ColorLab extends Effect {
       max: 200,
       ui: {
         label: "hue range",
-        control: "slider"
+        control: "slider",
+        category: "adjustments"
       }
     },
     saturation: {
@@ -165,7 +172,8 @@ export default class ColorLab extends Effect {
       max: 100,
       ui: {
         label: "saturation",
-        control: "slider"
+        control: "slider",
+        category: "adjustments"
       }
     },
     invert: {
@@ -174,7 +182,8 @@ export default class ColorLab extends Effect {
       uniform: "invert",
       ui: {
         label: "invert",
-        control: "checkbox"
+        control: "checkbox",
+        category: "adjustments"
       }
     },
     brightness: {
@@ -185,7 +194,8 @@ export default class ColorLab extends Effect {
       max: 100,
       ui: {
         label: "brightness",
-        control: "slider"
+        control: "slider",
+        category: "adjustments"
       }
     },
     contrast: {
@@ -196,7 +206,8 @@ export default class ColorLab extends Effect {
       max: 100,
       ui: {
         label: "contrast",
-        control: "slider"
+        control: "slider",
+        category: "adjustments"
       }
     },
     levels: {
@@ -207,7 +218,8 @@ export default class ColorLab extends Effect {
       max: 32,
       ui: {
         label: "posterize",
-        control: "slider"
+        control: "slider",
+        category: "effects"
       }
     },
     dither: {
@@ -223,7 +235,8 @@ export default class ColorLab extends Effect {
       },
       ui: {
         label: "dither",
-        control: "dropdown"
+        control: "dropdown",
+        category: "effects"
       }
     }
   }

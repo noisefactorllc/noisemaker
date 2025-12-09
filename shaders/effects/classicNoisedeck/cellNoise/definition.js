@@ -53,7 +53,8 @@ export default class CellNoise extends Effect {
       },
       ui: {
         label: "metric",
-        control: "dropdown"
+        control: "dropdown",
+        category: "general"
       }
     },
     scale: {
@@ -64,7 +65,8 @@ export default class CellNoise extends Effect {
       max: 100,
       ui: {
         label: "noise scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     cellScale: {
@@ -75,7 +77,8 @@ export default class CellNoise extends Effect {
       max: 100,
       ui: {
         label: "cell scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     cellSmooth: {
@@ -86,7 +89,8 @@ export default class CellNoise extends Effect {
       max: 100,
       ui: {
         label: "cell smooth",
-        control: "slider"
+        control: "slider",
+        category: "general"
       }
     },
     cellVariation: {
@@ -97,7 +101,8 @@ export default class CellNoise extends Effect {
       max: 100,
       ui: {
         label: "cell variation",
-        control: "slider"
+        control: "slider",
+        category: "general"
       }
     },
     loopAmp: {
@@ -108,7 +113,8 @@ export default class CellNoise extends Effect {
       max: 5,
       ui: {
         label: "speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     paletteMode: {
@@ -127,7 +133,8 @@ export default class CellNoise extends Effect {
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     colorMode: {
@@ -141,7 +148,8 @@ export default class CellNoise extends Effect {
       },
       ui: {
         label: "color space",
-        control: "dropdown"
+        control: "dropdown",
+        category: "color"
       }
     },
     palette: {
@@ -151,7 +159,8 @@ export default class CellNoise extends Effect {
       choices: paletteChoices,
       ui: {
         label: "palette",
-        control: "dropdown"
+        control: "dropdown",
+        category: "palette"
       }
     },
     paletteOffset: {
@@ -175,7 +184,8 @@ export default class CellNoise extends Effect {
       },
       ui: {
         label: "cycle palette",
-        control: "dropdown"
+        control: "dropdown",
+        category: "palette"
       }
     },
     paletteAmp: {
@@ -196,7 +206,8 @@ export default class CellNoise extends Effect {
       max: 100,
       ui: {
         label: "rotate palette",
-        control: "slider"
+        control: "slider",
+        category: "palette"
       }
     },
     paletteFreq: {
@@ -217,7 +228,8 @@ export default class CellNoise extends Effect {
       max: 5,
       ui: {
         label: "repeat palette",
-        control: "slider"
+        control: "slider",
+        category: "palette"
       }
     },
     palettePhase: {
@@ -240,7 +252,8 @@ export default class CellNoise extends Effect {
       },
       ui: {
         label: "tex source",
-        control: "dropdown"
+        control: "dropdown",
+        category: "texture"
       }
     },
     texInfluence: {
@@ -262,7 +275,8 @@ export default class CellNoise extends Effect {
       },
       ui: {
         label: "influence",
-        control: "dropdown"
+        control: "dropdown",
+        category: "texture"
       }
     },
     texIntensity: {
@@ -273,7 +287,8 @@ export default class CellNoise extends Effect {
       max: 100,
       ui: {
         label: "intensity",
-        control: "slider"
+        control: "slider",
+        category: "texture"
       }
     }
   }

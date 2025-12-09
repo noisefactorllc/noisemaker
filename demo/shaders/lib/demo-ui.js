@@ -30,6 +30,7 @@ import {
     isValidIdentifier,
     sanitizeEnumName
 } from '../../../shaders/src/renderer/canvas.js';
+import { groupGlobalsByCategory } from '../../../shaders/src/runtime/effect.js';
 
 /**
  * Convert camelCase to space-separated lowercase words
@@ -1444,17 +1445,51 @@ export class DemoUI {
                 const controlsContainer = moduleDiv.querySelector(`#controls-${effectInfo.stepIndex}`);
                 if (controlsContainer) {
                     controlsContainer.innerHTML = '';
-                    for (const [key, spec] of Object.entries(effectDef.globals)) {
-                        if (spec.ui && spec.ui.control === false) continue;
+                    
+                    // Render controls grouped by category
+                    const grouped = groupGlobalsByCategory(effectDef.globals);
+                    const categoryNames = Object.keys(grouped);
+                    const showCategoryLabels = categoryNames.length > 1;
+                    
+                    for (let catIdx = 0; catIdx < categoryNames.length; catIdx++) {
+                        const category = categoryNames[catIdx];
+                        const items = grouped[category];
+                        const isLastCategory = catIdx === categoryNames.length - 1;
                         
-                        const controlGroup = this._createControlGroup(
-                            key, 
-                            spec, 
-                            { ...effectInfo, args: {} }, // Empty args forces use of defaults
-                            effectKey
-                        );
-                        if (controlGroup) {
-                            controlsContainer.appendChild(controlGroup);
+                        // Create category group wrapper
+                        const categoryGroup = document.createElement('div');
+                        categoryGroup.className = 'category-group';
+                        categoryGroup.dataset.category = category;
+                        
+                        // Add hover label if multiple categories
+                        if (showCategoryLabels) {
+                            const label = document.createElement('div');
+                            label.className = 'category-label';
+                            label.textContent = category;
+                            categoryGroup.appendChild(label);
+                        }
+                        
+                        for (let itemIdx = 0; itemIdx < items.length; itemIdx++) {
+                            const [key, spec] = items[itemIdx];
+                            
+                            const controlGroup = this._createControlGroup(
+                                key, 
+                                spec, 
+                                { ...effectInfo, args: {} }, // Empty args forces use of defaults
+                                effectKey
+                            );
+                            if (controlGroup) {
+                                categoryGroup.appendChild(controlGroup);
+                            }
+                        }
+                        
+                        controlsContainer.appendChild(categoryGroup);
+                        
+                        // Add full-width separator after category (except last category)
+                        if (!isLastCategory) {
+                            const separator = document.createElement('div');
+                            separator.className = 'category-separator';
+                            controlsContainer.appendChild(separator);
                         }
                     }
                 }
@@ -1624,17 +1659,50 @@ export class DemoUI {
                 this._effectParameterValues[effectKey]._skip = true;
             }
 
-            for (const [key, spec] of Object.entries(effectDef.globals)) {
-                if (spec.ui && spec.ui.control === false) continue;
-
-                const controlGroup = this._createControlGroup(
-                    key, 
-                    spec, 
-                    effectInfo, 
-                    effectKey
-                );
-                if (controlGroup) {
-                    controlsDiv.appendChild(controlGroup);
+            // Render controls grouped by category
+            const grouped = groupGlobalsByCategory(effectDef.globals);
+            const categoryNames = Object.keys(grouped);
+            const showCategoryLabels = categoryNames.length > 1;
+            
+            for (let catIdx = 0; catIdx < categoryNames.length; catIdx++) {
+                const category = categoryNames[catIdx];
+                const items = grouped[category];
+                const isLastCategory = catIdx === categoryNames.length - 1;
+                
+                // Create category group wrapper
+                const categoryGroup = document.createElement('div');
+                categoryGroup.className = 'category-group';
+                categoryGroup.dataset.category = category;
+                
+                // Add hover label if multiple categories
+                if (showCategoryLabels) {
+                    const label = document.createElement('div');
+                    label.className = 'category-label';
+                    label.textContent = category;
+                    categoryGroup.appendChild(label);
+                }
+                
+                for (let itemIdx = 0; itemIdx < items.length; itemIdx++) {
+                    const [key, spec] = items[itemIdx];
+                    
+                    const controlGroup = this._createControlGroup(
+                        key, 
+                        spec, 
+                        effectInfo, 
+                        effectKey
+                    );
+                    if (controlGroup) {
+                        categoryGroup.appendChild(controlGroup);
+                    }
+                }
+                
+                controlsDiv.appendChild(categoryGroup);
+                
+                // Add full-width separator after category (except last category)
+                if (!isLastCategory) {
+                    const separator = document.createElement('div');
+                    separator.className = 'category-separator';
+                    controlsDiv.appendChild(separator);
                 }
             }
 

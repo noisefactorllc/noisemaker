@@ -15,7 +15,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     effect: {
@@ -81,7 +82,8 @@ export default new Effect({
       },
       ui: {
         label: "flip/mirror",
-        control: "dropdown"
+        control: "dropdown",
+        category: "orientation"
       }
     },
     scaleAmt: {
@@ -92,7 +94,8 @@ export default new Effect({
       max: 400,
       ui: {
         label: "scale %",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     rotation: {
@@ -103,7 +106,8 @@ export default new Effect({
       max: 180,
       ui: {
         label: "rotate",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     offsetX: {
@@ -114,7 +118,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "offset x",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     offsetY: {
@@ -125,7 +130,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "offset y",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     intensity: {
@@ -136,7 +142,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "intensity",
-        control: "slider"
+        control: "slider",
+        category: "adjustments"
       }
     },
     saturation: {
@@ -147,7 +154,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "saturation",
-        control: "slider"
+        control: "slider",
+        category: "adjustments"
       }
     }
   },

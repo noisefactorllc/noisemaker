@@ -186,7 +186,8 @@ export default class Shapes3D extends Effect {
       max: 180,
       ui: {
         label: "spin",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     flip: {
@@ -197,7 +198,8 @@ export default class Shapes3D extends Effect {
       max: 180,
       ui: {
         label: "flip",
-        control: "slider"
+        control: "slider",
+        category: "orientation"
       }
     },
     spinSpeed: {
@@ -208,7 +210,8 @@ export default class Shapes3D extends Effect {
       max: 10,
       ui: {
         label: "spin speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     flipSpeed: {
@@ -219,7 +222,8 @@ export default class Shapes3D extends Effect {
       max: 10,
       ui: {
         label: "flip speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     cameraDist: {
@@ -239,7 +243,8 @@ export default class Shapes3D extends Effect {
       uniform: "backgroundColor",
       ui: {
         label: "bkg color",
-        control: "color"
+        control: "color",
+        category: "color"
       }
     },
     backgroundOpacity: {
@@ -250,7 +255,8 @@ export default class Shapes3D extends Effect {
       max: 100,
       ui: {
         label: "bkg opacity",
-        control: "slider"
+        control: "slider",
+        category: "color"
       }
     },
     colorMode: {
@@ -264,7 +270,8 @@ export default class Shapes3D extends Effect {
       },
       ui: {
         label: "color mode",
-        control: "dropdown"
+        control: "dropdown",
+        category: "color"
       }
     },
     source: {
@@ -277,7 +284,8 @@ export default class Shapes3D extends Effect {
       },
       ui: {
         label: "tex source",
-        control: "dropdown"
+        control: "dropdown",
+        category: "color"
       }
     },
     palette: {
@@ -287,7 +295,8 @@ export default class Shapes3D extends Effect {
       choices: paletteChoices,
       ui: {
         label: "palette",
-        control: "dropdown"
+        control: "dropdown",
+        category: "palette"
       }
     },
     cyclePalette: {
@@ -301,7 +310,8 @@ export default class Shapes3D extends Effect {
       },
       ui: {
         label: "cycle palette",
-        control: "dropdown"
+        control: "dropdown",
+        category: "palette"
       }
     },
     rotatePalette: {
@@ -312,7 +322,8 @@ export default class Shapes3D extends Effect {
       max: 100,
       ui: {
         label: "rotate palette",
-        control: "slider"
+        control: "slider",
+        category: "palette"
       }
     },
     repeatPalette: {
@@ -323,7 +334,8 @@ export default class Shapes3D extends Effect {
       max: 5,
       ui: {
         label: "repeat palette",
-        control: "slider"
+        control: "slider",
+        category: "palette"
       }
     },
     wrap: {
@@ -394,7 +406,8 @@ export default class Shapes3D extends Effect {
       uniform: "repetition",
       ui: {
         label: "repeat",
-        control: "checkbox"
+        control: "checkbox",
+        category: "repetition"
       }
     },
     animation: {
@@ -407,7 +420,8 @@ export default class Shapes3D extends Effect {
       },
       ui: {
         label: "rotation",
-        control: "dropdown"
+        control: "dropdown",
+        category: "repetition"
       }
     },
     flythroughSpeed: {
@@ -418,7 +432,8 @@ export default class Shapes3D extends Effect {
       max: 10,
       ui: {
         label: "flythrough",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     spacing: {
@@ -429,7 +444,8 @@ export default class Shapes3D extends Effect {
       max: 20,
       ui: {
         label: "spacing",
-        control: "slider"
+        control: "slider",
+        category: "repetition"
       }
     }
   }

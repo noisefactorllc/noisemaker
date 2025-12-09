@@ -33,7 +33,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     offsetX: {
@@ -44,7 +45,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "offset x",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     offsetY: {
@@ -55,7 +57,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "offset y",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     ridges: {
@@ -79,7 +82,8 @@ export default new Effect({
       },
       ui: {
         label: "color mode",
-        control: "dropdown"
+        control: "dropdown",
+        category: "color"
       }
     },
     hueRotation: {
@@ -90,7 +94,8 @@ export default new Effect({
       max: 360,
       ui: {
         label: "hue rotate",
-        control: "slider"
+        control: "slider",
+        category: "color"
       }
     },
     hueRange: {
@@ -101,7 +106,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "hue range",
-        control: "slider"
+        control: "slider",
+        category: "color"
       }
     },
     speed: {
@@ -112,7 +118,8 @@ export default new Effect({
       max: 10,
       ui: {
         label: "speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     seed: {
@@ -123,7 +130,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     }
   },

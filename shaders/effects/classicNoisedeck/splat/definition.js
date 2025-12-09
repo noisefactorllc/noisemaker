@@ -22,7 +22,8 @@ export default new Effect({
       uniform: "useSpecks",
       ui: {
         label: "specks",
-        control: "checkbox"
+        control: "checkbox",
+        category: "specks"
       }
     },
     splatScale: {
@@ -33,7 +34,8 @@ export default new Effect({
       max: 5,
       ui: {
         label: "splat scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     splatCutoff: {
@@ -55,7 +57,8 @@ export default new Effect({
       max: 5,
       ui: {
         label: "splat speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     splatSeed: {
@@ -101,7 +104,8 @@ export default new Effect({
       max: 5,
       ui: {
         label: "speck scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     speckCutoff: {
@@ -112,7 +116,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "speck cutoff",
-        control: "slider"
+        control: "slider",
+        category: "specks"
       }
     },
     speckSpeed: {
@@ -123,7 +128,8 @@ export default new Effect({
       max: 5,
       ui: {
         label: "speck speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     speckSeed: {
@@ -134,7 +140,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "speck seed",
-        control: "slider"
+        control: "slider",
+        category: "specks"
       }
     },
     speckMode: {
@@ -149,7 +156,8 @@ export default new Effect({
       },
       ui: {
         label: "speck mode",
-        control: "dropdown"
+        control: "dropdown",
+        category: "specks"
       }
     },
     speckColor: {
@@ -158,7 +166,8 @@ export default new Effect({
       uniform: "speckColor",
       ui: {
         label: "speck color",
-        control: "color"
+        control: "color",
+        category: "specks"
       }
     }
   },

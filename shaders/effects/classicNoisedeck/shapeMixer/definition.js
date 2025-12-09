@@ -73,7 +73,8 @@ export default class ShapeMixer extends Effect {
       },
       ui: {
         label: "shape",
-        control: "dropdown"
+        control: "dropdown",
+        category: "animation"
       }
     },
     loopScale: {
@@ -84,7 +85,8 @@ export default class ShapeMixer extends Effect {
       max: 100,
       ui: {
         label: "shape scale",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     animate: {
@@ -108,7 +110,8 @@ export default class ShapeMixer extends Effect {
       choices: paletteChoices,
       ui: {
         label: "palette",
-        control: "dropdown"
+        control: "dropdown",
+        category: "palette"
       }
     },
     paletteMode: {
@@ -170,7 +173,8 @@ export default class ShapeMixer extends Effect {
       },
       ui: {
         label: "cycle palette",
-        control: "dropdown"
+        control: "dropdown",
+        category: "palette"
       }
     },
     rotatePalette: {
@@ -181,7 +185,8 @@ export default class ShapeMixer extends Effect {
       max: 100,
       ui: {
         label: "rotate palette",
-        control: "slider"
+        control: "slider",
+        category: "palette"
       }
     },
     repeatPalette: {
@@ -192,7 +197,8 @@ export default class ShapeMixer extends Effect {
       max: 5,
       ui: {
         label: "repeat palette",
-        control: "slider"
+        control: "slider",
+        category: "palette"
       }
     },
     levels: {
@@ -203,7 +209,8 @@ export default class ShapeMixer extends Effect {
       max: 32,
       ui: {
         label: "posterize",
-        control: "slider"
+        control: "slider",
+        category: "color"
       }
     },
     wrap: {
@@ -212,7 +219,8 @@ export default class ShapeMixer extends Effect {
       uniform: "wrap",
       ui: {
         label: "noise wrap",
-        control: "checkbox"
+        control: "checkbox",
+        category: "noise"
       }
     },
     seed: {
@@ -223,7 +231,8 @@ export default class ShapeMixer extends Effect {
       max: 100,
       ui: {
         label: "noise seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     }
   }

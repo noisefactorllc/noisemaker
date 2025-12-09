@@ -23,7 +23,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     glyphUV1: {
@@ -108,7 +109,8 @@ export default new Effect({
       max: 1500,
       ui: {
         label: "scale",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     rotation: {
@@ -119,7 +121,8 @@ export default new Effect({
       max: 180,
       ui: {
         label: "rotate",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     offsetX: {
@@ -130,7 +133,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "offset x",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     offsetY: {
@@ -141,7 +145,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "offset y",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     backgroundColor: {
@@ -150,7 +155,8 @@ export default new Effect({
       uniform: "backgroundColor",
       ui: {
         label: "bkg color",
-        control: "color"
+        control: "color",
+        category: "background"
       }
     },
     backgroundOpacity: {
@@ -161,7 +167,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "bkg opacity",
-        control: "slider"
+        control: "slider",
+        category: "background"
       }
     }
   },

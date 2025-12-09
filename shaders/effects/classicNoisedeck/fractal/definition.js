@@ -88,7 +88,8 @@ export default class Fractal extends Effect {
       max: 130,
       ui: {
         label: "zoom",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     rotation: {
@@ -99,7 +100,8 @@ export default class Fractal extends Effect {
       max: 180,
       ui: {
         label: "rotate",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     speed: {
@@ -110,7 +112,8 @@ export default class Fractal extends Effect {
       max: 100,
       ui: {
         label: "speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     offsetX: {
@@ -121,7 +124,8 @@ export default class Fractal extends Effect {
       max: 100,
       ui: {
         label: "offset x",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     offsetY: {
@@ -132,7 +136,8 @@ export default class Fractal extends Effect {
       max: 100,
       ui: {
         label: "offset y",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     centerX: {
@@ -143,7 +148,8 @@ export default class Fractal extends Effect {
       max: 100,
       ui: {
         label: "center x",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     centerY: {
@@ -154,7 +160,8 @@ export default class Fractal extends Effect {
       max: 100,
       ui: {
         label: "center y",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     mode: {
@@ -167,7 +174,8 @@ export default class Fractal extends Effect {
       },
       ui: {
         label: "mode",
-        control: "dropdown"
+        control: "dropdown",
+        category: "rendering"
       }
     },
     iterations: {
@@ -178,7 +186,8 @@ export default class Fractal extends Effect {
       max: 50,
       ui: {
         label: "iterations",
-        control: "slider"
+        control: "slider",
+        category: "rendering"
       }
     },
     colorMode: {
@@ -192,7 +201,8 @@ export default class Fractal extends Effect {
       },
       ui: {
         label: "color space",
-        control: "dropdown"
+        control: "dropdown",
+        category: "color"
       }
     },
     palette: {
@@ -202,7 +212,8 @@ export default class Fractal extends Effect {
       choices: paletteChoices,
       ui: {
         label: "palette",
-        control: "dropdown"
+        control: "dropdown",
+        category: "palette"
       }
     },
     paletteMode: {
@@ -264,7 +275,8 @@ export default class Fractal extends Effect {
       },
       ui: {
         label: "cycle palette",
-        control: "dropdown"
+        control: "dropdown",
+        category: "palette"
       }
     },
     rotatePalette: {
@@ -275,7 +287,8 @@ export default class Fractal extends Effect {
       max: 100,
       ui: {
         label: "rotate palette",
-        control: "slider"
+        control: "slider",
+        category: "palette"
       }
     },
     repeatPalette: {
@@ -286,7 +299,8 @@ export default class Fractal extends Effect {
       max: 5,
       ui: {
         label: "repeat palette",
-        control: "slider"
+        control: "slider",
+        category: "palette"
       }
     },
     hueRange: {
@@ -297,7 +311,8 @@ export default class Fractal extends Effect {
       max: 100,
       ui: {
         label: "hue range",
-        control: "slider"
+        control: "slider",
+        category: "color"
       }
     },
     levels: {
@@ -308,7 +323,8 @@ export default class Fractal extends Effect {
       max: 32,
       ui: {
         label: "posterize",
-        control: "slider"
+        control: "slider",
+        category: "color"
       }
     },
     backgroundColor: {
@@ -317,7 +333,8 @@ export default class Fractal extends Effect {
       uniform: "backgroundColor",
       ui: {
         label: "bkg color",
-        control: "color"
+        control: "color",
+        category: "background"
       }
     },
     backgroundOpacity: {
@@ -328,7 +345,8 @@ export default class Fractal extends Effect {
       max: 100,
       ui: {
         label: "bkg opacity",
-        control: "slider"
+        control: "slider",
+        category: "background"
       }
     },
     cutoff: {
@@ -339,7 +357,8 @@ export default class Fractal extends Effect {
       max: 100,
       ui: {
         label: "cutoff",
-        control: "slider"
+        control: "slider",
+        category: "background"
       }
     }
   }

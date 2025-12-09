@@ -73,7 +73,8 @@ export default class Shapes extends Effect {
       },
       ui: {
         label: "loop a",
-        control: "dropdown"
+        control: "dropdown",
+        category: "animation"
       }
     },
     loopBOffset: {
@@ -113,7 +114,8 @@ export default class Shapes extends Effect {
       },
       ui: {
         label: "loop b",
-        control: "dropdown"
+        control: "dropdown",
+        category: "animation"
       }
     },
     loopAScale: {
@@ -124,7 +126,8 @@ export default class Shapes extends Effect {
       max: 100,
       ui: {
         label: "a scale",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     loopBScale: {
@@ -135,7 +138,8 @@ export default class Shapes extends Effect {
       max: 100,
       ui: {
         label: "b scale",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     loopAAmp: {
@@ -146,7 +150,8 @@ export default class Shapes extends Effect {
       max: 100,
       ui: {
         label: "a power",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     loopBAmp: {
@@ -157,7 +162,8 @@ export default class Shapes extends Effect {
       max: 100,
       ui: {
         label: "b power",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     seed: {
@@ -168,7 +174,8 @@ export default class Shapes extends Effect {
       max: 100,
       ui: {
         label: "noise seed",
-        control: "slider"
+        control: "slider",
+        category: "util"
       }
     },
     wrap: {
@@ -187,7 +194,8 @@ export default class Shapes extends Effect {
       choices: paletteChoices,
       ui: {
         label: "palette",
-        control: "dropdown"
+        control: "dropdown",
+        category: "palette"
       }
     },
     paletteMode: {
@@ -249,7 +257,8 @@ export default class Shapes extends Effect {
       },
       ui: {
         label: "cycle palette",
-        control: "dropdown"
+        control: "dropdown",
+        category: "palette"
       }
     },
     rotatePalette: {
@@ -260,7 +269,8 @@ export default class Shapes extends Effect {
       max: 100,
       ui: {
         label: "rotate palette",
-        control: "slider"
+        control: "slider",
+        category: "palette"
       }
     },
     repeatPalette: {
@@ -271,7 +281,8 @@ export default class Shapes extends Effect {
       max: 5,
       ui: {
         label: "repeat palette",
-        control: "slider"
+        control: "slider",
+        category: "palette"
       }
     }
   }
