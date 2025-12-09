@@ -111,7 +111,7 @@ export function getUniformCategory(spec) {
  * Group globals by their category.
  * Returns an object mapping category names to arrays of [key, spec] pairs.
  * Categories are returned in order of first occurrence, with 'general' last.
- * 
+ *
  * @param {object} globals - The globals object from an effect definition
  * @param {object} [options] - Options
  * @param {boolean} [options.includeHidden=false] - Include globals with ui.control === false
@@ -121,15 +121,15 @@ export function groupGlobalsByCategory(globals, options = {}) {
     const { includeHidden = false } = options
     const categories = {}
     const categoryOrder = []
-    
+
     if (!globals) return categories
-    
+
     for (const [key, spec] of Object.entries(globals)) {
         // Skip hidden controls unless requested
         if (!includeHidden && spec.ui?.control === false) continue
-        
+
         const category = getUniformCategory(spec)
-        
+
         if (!categories[category]) {
             categories[category] = []
             // Track order, but defer 'general' to the end
@@ -137,21 +137,21 @@ export function groupGlobalsByCategory(globals, options = {}) {
                 categoryOrder.push(category)
             }
         }
-        
+
         categories[category].push([key, spec])
     }
-    
+
     // Add 'general' at the end if it exists
     if (categories[DEFAULT_CATEGORY]) {
         categoryOrder.push(DEFAULT_CATEGORY)
     }
-    
+
     // Return ordered object
     const ordered = {}
     for (const cat of categoryOrder) {
         ordered[cat] = categories[cat]
     }
-    
+
     return ordered
 }
 
