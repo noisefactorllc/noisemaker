@@ -6,7 +6,7 @@
  */
 
 // Language & Compiler
-export { lex, parse, compile, unparse, applyParameterUpdates, formatValue } from './lang/index.js'
+export { lex, parse, compile, unparse, applyParameterUpdates, formatValue, replaceEffect, listSteps, getCompatibleReplacements } from './lang/index.js'
 export { registerOp } from './lang/ops.js'
 export { registerStarterOps, registerValidatorHook } from './lang/validator.js'
 

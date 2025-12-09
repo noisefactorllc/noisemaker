@@ -174,22 +174,53 @@ export function replaceEffect(compiled, stepIndex, newEffectName, newArgs = {}, 
         }
     }
 
-    // Apply provided args
+    // Apply provided args (with rounding for floats - max 3 decimal places)
     for (const [key, value] of Object.entries(newArgs)) {
-        finalArgs[key] = value
+        if (typeof value === 'number' && !Number.isInteger(value)) {
+            finalArgs[key] = Math.round(value * 1000) / 1000
+        } else {
+            finalArgs[key] = value
+        }
     }
 
     // Get the resolved effect name (with namespace if needed)
     let resolvedNewName = newEffectName
-    if (!newEffectName.includes('.')) {
+    let effectNamespace = null
+
+    if (newEffectName.includes('.')) {
+        // Already namespaced - extract namespace
+        const parts = newEffectName.split('.')
+        effectNamespace = parts[0]
+        // Verify it exists
+        if (!ops[newEffectName]) {
+            return { success: false, error: `Effect '${newEffectName}' not found` }
+        }
+        resolvedNewName = newEffectName
+    } else {
         // Try to find the namespaced version
         for (const ns of searchOrder) {
             const namespacedName = `${ns}.${newEffectName}`
             if (ops[namespacedName]) {
                 resolvedNewName = namespacedName
+                effectNamespace = ns
                 break
             }
         }
+        // If not found in search order, try all registered ops
+        if (!effectNamespace) {
+            for (const opName of Object.keys(ops)) {
+                if (opName.endsWith(`.${newEffectName}`)) {
+                    resolvedNewName = opName
+                    effectNamespace = opName.split('.')[0]
+                    break
+                }
+            }
+        }
+    }
+
+    // Ensure the namespace is in searchNamespaces so unparser can strip it
+    if (effectNamespace && !newProgram.searchNamespaces.includes(effectNamespace)) {
+        newProgram.searchNamespaces = [...newProgram.searchNamespaces, effectNamespace]
     }
 
     // Update the step
@@ -198,12 +229,11 @@ export function replaceEffect(compiled, stepIndex, newEffectName, newArgs = {}, 
     newStep.args = finalArgs
 
     // Update namespace info if needed
-    if (resolvedNewName.includes('.')) {
-        const [namespace] = resolvedNewName.split('.')
+    if (effectNamespace) {
         if (!newStep.namespace) {
             newStep.namespace = {}
         }
-        newStep.namespace.resolved = namespace
+        newStep.namespace.resolved = effectNamespace
     }
 
     return { success: true, program: newProgram }

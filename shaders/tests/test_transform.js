@@ -54,8 +54,24 @@ registerOp('basics.gradient', {
     ]
 })
 
+// Register effects in a different namespace for cross-namespace tests
+registerOp('vol.fractal', {
+    name: 'fractal',
+    args: [
+        { name: 'scale', type: 'float', default: 10 },
+        { name: 'octaves', type: 'float', default: 4 }
+    ]
+})
+
+registerOp('vol.distort', {
+    name: 'distort',
+    args: [
+        { name: 'amount', type: 'float', default: 0.5 }
+    ]
+})
+
 // Register starters
-registerStarterOps(['basics.noise', 'basics.voronoi', 'basics.gradient'])
+registerStarterOps(['basics.noise', 'basics.voronoi', 'basics.gradient', 'vol.fractal'])
 
 function compile(code) {
     const tokens = lex(code)
@@ -263,6 +279,71 @@ test('getCompatibleReplacements - invalid step index', () => {
 
     assertFalse(result.success, 'Should fail')
     assertTrue(result.error.includes('not found'), 'Error should mention not found')
+})
+
+// ============================================================================
+// Cross-namespace replacement tests
+// ============================================================================
+
+test('replaceEffect - cross-namespace starter replacement', () => {
+    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+    const noiseStepIndex = steps[0].stepIndex
+
+    // Replace basics.noise with vol.fractal (different namespace)
+    const result = replaceEffect(compiled, noiseStepIndex, 'vol.fractal', { scale: 20 })
+
+    assertTrue(result.success, 'Cross-namespace replacement should succeed')
+    assertEqual(result.program.plans[0].chain[0].op, 'vol.fractal', 'Effect should be replaced')
+    assertTrue(result.program.searchNamespaces.includes('vol'), 'New namespace should be added to searchNamespaces')
+})
+
+test('replaceEffect - cross-namespace filter replacement', () => {
+    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+    const kaleidStepIndex = steps[1].stepIndex
+
+    // Replace basics.kaleid with vol.distort (different namespace)
+    const result = replaceEffect(compiled, kaleidStepIndex, 'vol.distort', { amount: 0.8 })
+
+    assertTrue(result.success, 'Cross-namespace replacement should succeed')
+    assertEqual(result.program.plans[0].chain[1].op, 'vol.distort', 'Effect should be replaced')
+    assertTrue(result.program.searchNamespaces.includes('vol'), 'New namespace should be added to searchNamespaces')
+})
+
+test('replaceEffect - cross-namespace unparse produces valid DSL', () => {
+    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+    const noiseStepIndex = steps[0].stepIndex
+
+    // Replace with effect from different namespace
+    const result = replaceEffect(compiled, noiseStepIndex, 'vol.fractal')
+
+    assertTrue(result.success, 'Replacement should succeed')
+
+    // Unparse and verify no namespace prefix in call (it should be stripped)
+    const dsl = unparse(result.program)
+
+    // The search directive should include both namespaces
+    assertTrue(dsl.includes('search basics, vol') || dsl.includes('search basics,vol'), 
+        'Search directive should include both namespaces')
+
+    // The effect call should NOT have namespace prefix (it gets stripped by unparser)
+    assertFalse(dsl.includes('vol.fractal('), 'Effect call should not have namespace prefix')
+    assertTrue(dsl.includes('fractal('), 'Effect call should use bare name')
+})
+
+test('replaceEffect - same namespace does not duplicate searchNamespaces', () => {
+    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+    const noiseStepIndex = steps[0].stepIndex
+
+    // Replace with effect from same namespace
+    const result = replaceEffect(compiled, noiseStepIndex, 'basics.voronoi')
+
+    assertTrue(result.success, 'Replacement should succeed')
+    assertEqual(result.program.searchNamespaces.length, 1, 'Should not duplicate namespace')
+    assertEqual(result.program.searchNamespaces[0], 'basics', 'Should keep original namespace')
 })
 
 console.log('\nAll transform tests completed!')

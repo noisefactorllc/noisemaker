@@ -351,7 +351,7 @@ export function validate(ast) {
                 const fn = new Function('state', `with(state){ return ${expr.src}; }`)
                 return {fn: (state) => toBoolean(fn(state))}
             } catch {
-                pushDiag('S001', expr)
+                pushDiag('S001', expr, `Invalid function expression: '${expr.src?.slice(0, 50) || 'unknown'}'`)
                 return false
             }
         }
@@ -368,7 +368,7 @@ export function validate(ast) {
             const cur = resolveEnum(expr.path)
             if (typeof cur === 'number') return toBoolean(cur)
             if (cur !== undefined) return toBoolean(cur)
-            pushDiag('S001', expr)
+            pushDiag('S001', expr, `Unknown enum path: '${expr.path?.join('.') || 'unknown'}'`)
             return false
         }
         return false
@@ -494,7 +494,7 @@ export function validate(ast) {
                     }
                 }
                 if (!spec) {
-                    pushDiag('S001', original)
+                    pushDiag('S001', original, `Unknown effect: '${call.name}'`)
                     continue
                 }
                 if (opName === 'prev') {
@@ -572,8 +572,21 @@ export function validate(ast) {
                                 args[argKey] = surf
                                 continue
                             }
-                            const code = node && node.type === 'Ident' && !symbols.has(node.name) ? 'S003' : 'S001'
-                            pushDiag(code, node)
+                            // Only report error if there's no default to fall back to
+                            if (!def.default) {
+                                if (!node) {
+                                    pushDiag('S001', call, `Missing required surface argument '${def.name}' for ${call.name}()`)
+                                } else if (node.type === 'Ident' && !symbols.has(node.name)) {
+                                    pushDiag('S003', node, `Undefined variable '${node.name}' for '${def.name}' in ${call.name}()`)
+                                } else {
+                                    const nodeName = node.name || node.path?.join('.') || node.value || node.type || 'invalid'
+                                    pushDiag('S001', node, `Invalid surface reference '${nodeName}' for '${def.name}' in ${call.name}()`)
+                                }
+                            }
+                            // Fall back to default surface when resolution fails
+                            if (def.default) {
+                                surf = toSurface({ type: 'Ident', name: def.default }) || { kind: 'pipeline', name: def.default }
+                            }
                         }
                         args[argKey] = surf
                     } else if (def.type === 'string') {
@@ -631,7 +644,7 @@ export function validate(ast) {
                                 const fn = new Function('state', `with(state){ return ${node.src}; }`)
                                 value = {fn: (state) => !!fn(state)}
                             } catch {
-                                pushDiag('S001', node)
+                                pushDiag('S001', node, `Invalid function for '${def.name}': '${node.src?.slice(0, 50) || 'unknown'}'`)
                                 value = def.default !== undefined ? !!def.default : false
                             }
                         } else if (node && node.type === 'Ident' && stateValues.has(node.name)) {
@@ -672,7 +685,7 @@ export function validate(ast) {
                         if (typeof resolved !== 'number') {
                             path = applyEnumPrefix(path || [], prefix)
                             if (prefix && path && !pathStartsWith(path, prefix)) {
-                                pushDiag('S001', node || call)
+                                pushDiag('S001', node || call, `Invalid enum value for '${def.name}': expected path starting with '${prefix.join('.')}'`)
                                 path = prefix.slice()
                             }
                             resolved = path ? resolveEnum(path) : undefined
@@ -712,7 +725,7 @@ export function validate(ast) {
                                 const fn = new Function('state', `with(state){ return ${node.src}; }`)
                                 value = {fn, min:def.min, max:def.max}
                             } catch {
-                                pushDiag('S001', node)
+                                pushDiag('S001', node, `Invalid function for '${def.name}': '${node.src?.slice(0, 50) || 'unknown'}'`)
                                 value = def.default
                             }
                         } else if (node && node.type === 'Oscillator') {
@@ -773,7 +786,7 @@ export function validate(ast) {
                                     pushDiag('S002', node)
                                 }
                             } else {
-                                pushDiag('S001', node)
+                                pushDiag('S001', node, `Cannot resolve enum value for '${def.name}': '${node?.path?.join('.') || node?.name || 'unknown'}'`)
                                 value = def.default
                             }
                         } else if (node && node.type === 'Ident' && stateValues.has(node.name)) {
