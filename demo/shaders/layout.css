@@ -218,8 +218,8 @@ body.full-bleed-mode #canvas {
   display: none;
 }
 
-/* Skip button styles */
-.module-skip-btn {
+/* Action button styles */
+.action-btn {
   padding: 0.15rem 0.4rem;
   font-size: 0.6rem;
   font-family: Nunito, sans-serif;
@@ -233,13 +233,13 @@ body.full-bleed-mode #canvas {
   transition: all 0.15s ease;
 }
 
-.module-skip-btn:hover {
+.action-btn:hover {
   background: color-mix(in srgb, var(--accent3) 20%, transparent 80%);
   border-color: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
   color: var(--color6);
 }
 
-.module-skip-btn.active {
+.action-btn.active {
   background: color-mix(in srgb, var(--accent3) 40%, transparent 60%);
   border-color: var(--accent3);
   color: var(--color6);
@@ -691,7 +691,7 @@ body.full-bleed-mode #canvas {
   gap: 0.5rem;
 }
 
-.media-camera-buttons .module-skip-btn {
+.media-camera-buttons .action-btn {
   flex: 1;
 }
 

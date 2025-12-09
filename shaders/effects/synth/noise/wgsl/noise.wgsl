@@ -415,7 +415,6 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
     var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
     var st = position.xy / resolution.y;
-    st.y = 1.0 - st.y;
     let centered = st - vec2<f32>(aspectRatio * 0.5, 0.5);
 
     var freq = vec2<f32>(1.0);

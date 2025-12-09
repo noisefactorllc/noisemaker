@@ -575,12 +575,12 @@ export class DemoUI {
         cameraButtons.className = 'media-camera-buttons';
         
         const startBtn = document.createElement('button');
-        startBtn.className = 'module-skip-btn';
+        startBtn.className = 'action-btn';
         startBtn.textContent = 'start';
         startBtn.addEventListener('click', () => this._startCamera(stepIndex, cameraSelect.value, textureId));
         
         const stopBtn = document.createElement('button');
-        stopBtn.className = 'module-skip-btn';
+        stopBtn.className = 'action-btn';
         stopBtn.textContent = 'stop';
         stopBtn.disabled = true;
         stopBtn.addEventListener('click', () => this._stopCamera(stepIndex));
@@ -1411,7 +1411,7 @@ export class DemoUI {
             let codeBtn = null;
             if (effectDef.shaders) {
                 codeBtn = document.createElement('button');
-                codeBtn.className = 'module-skip-btn';
+                codeBtn.className = 'action-btn';
                 codeBtn.textContent = 'code';
                 codeBtn.title = 'Edit shader source code';
                 titleDiv.appendChild(codeBtn);
@@ -1419,7 +1419,7 @@ export class DemoUI {
 
             // Reset button
             const resetBtn = document.createElement('button');
-            resetBtn.className = 'module-skip-btn';
+            resetBtn.className = 'action-btn';
             resetBtn.textContent = 'reset';
             resetBtn.title = 'Reset all parameters to defaults';
             resetBtn.addEventListener('click', (e) => {
@@ -1466,7 +1466,7 @@ export class DemoUI {
 
             // Delete button
             const deleteBtn = document.createElement('button');
-            deleteBtn.className = 'module-skip-btn';
+            deleteBtn.className = 'action-btn';
             deleteBtn.textContent = 'delete';
             deleteBtn.title = 'Remove this effect from the pipeline';
             deleteBtn.addEventListener('click', async (e) => {
@@ -1566,7 +1566,7 @@ export class DemoUI {
             
             // Skip button
             const skipBtn = document.createElement('button');
-            skipBtn.className = 'module-skip-btn';
+            skipBtn.className = 'action-btn';
             skipBtn.textContent = 'skip';
             skipBtn.title = 'Skip this effect in the pipeline';
             skipBtn.addEventListener('click', async (e) => {
