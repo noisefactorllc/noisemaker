@@ -33,4 +33,6 @@ Additional platform-specific guides:
 
 ## License
 
-Noisemaker is released under the [MIT License](LICENSE).
+Noisemaker is released under the [MIT License](LICENSE). Use of name in derivative products is subject to the [Trademark Policy](TRADEMARK.md).
+
+Copyright © 2017–2025 Noise Factor LLC

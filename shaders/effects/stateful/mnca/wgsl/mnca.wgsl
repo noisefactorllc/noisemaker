@@ -1,6 +1,3 @@
-// Copyright 2025 Noise Factor LLC
-// Licensed under the MIT License
-
 // Cellular automata display pass (WGSL).
 
 struct Uniforms {

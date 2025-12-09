@@ -1,3 +1,5 @@
+// Noisemaker.js - Procedural Noise Generation
+//
 // Aggregated exports used for bundling Noisemaker into a single-file build.
 // This module re-exports the public API across the JavaScript implementation
 // so that esbuild can generate an IIFE/ESM bundle with parity to the modular

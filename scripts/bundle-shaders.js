@@ -66,7 +66,13 @@ async function buildCoreBundle() {
     const tempFile = path.join(tempDir, 'core.js')
     fs.writeFileSync(tempFile, generateCoreModule())
 
-    const banner = `/**\n * Noisemaker Shaders - Core Runtime\n * Includes: CanvasRenderer + UIController + EffectSelect\n * Bundled on ${new Date().toISOString()}\n */`
+    const banner = `/**
+ * Noisemaker Shaders - Core Runtime
+ * Includes: CanvasRenderer + UIController + EffectSelect
+ * Copyright (c) 2017-2025 Noise Factor LLC
+ * SPDX-License-Identifier: MIT
+ * Bundled on ${new Date().toISOString()}
+ */`
 
     const sharedOptions = {
         entryPoints: [tempFile],

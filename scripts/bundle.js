@@ -23,7 +23,12 @@ if (!fs.existsSync(entryPoint)) {
 const presetsSource = fs.readFileSync(presetsDslPath, 'utf8')
 fs.mkdirSync(distDir, { recursive: true })
 
-const banner = `/**\n * Noisemaker.js - Procedural Noise Generation\n * Bundled on ${new Date().toISOString()}\n */`
+const banner = `/**
+ * Noisemaker.js - Procedural Noise Generation
+ * Copyright (c) 2017-2025 Noise Factor LLC
+ * SPDX-License-Identifier: MIT
+ * Bundled on ${new Date().toISOString()}
+ */`
 
 const sharedOptions = {
   entryPoints: [entryPoint],
