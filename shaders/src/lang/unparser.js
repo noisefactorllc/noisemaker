@@ -95,12 +95,12 @@ function formatValue(value, spec, customFormatter) {
     }
 
     if (typeof value === 'number') {
-        // Format numbers nicely - avoid excessive precision
+        // Format numbers nicely - limit to 3 decimal places
         if (Number.isInteger(value)) {
             return String(value)
         }
-        // Round to reasonable precision
-        const rounded = Math.round(value * 1000000) / 1000000
+        // Round to 3 decimal places
+        const rounded = Math.round(value * 1000) / 1000
         return String(rounded)
     }
 
