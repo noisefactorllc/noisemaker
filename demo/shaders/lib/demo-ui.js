@@ -5,11 +5,11 @@
  * Works in conjunction with CanvasRenderer for the rendering pipeline.
  * 
  * @example
- * import { DemoUI } from './lib/demo-ui.js';
+ * import { UIController } from './lib/demo-ui.js';
  * import { CanvasRenderer } from '../../shaders/src/renderer/canvas.js';
  * 
  * const renderer = new CanvasRenderer({ canvas, ... });
- * const ui = new DemoUI(renderer, {
+ * const ui = new UIController(renderer, {
  *     effectSelect: document.getElementById('effect-select'),
  *     dslEditor: document.getElementById('dsl-editor'),
  *     controlsContainer: document.getElementById('effect-controls-container'),
@@ -341,11 +341,11 @@ export function getEffectFromURL() {
 }
 
 /**
- * DemoUI class - handles all UI interactions for the shader demo
+ * UIController class - handles all UI interactions for the shader demo
  */
-export class DemoUI {
+export class UIController {
     /**
-     * Create a new DemoUI instance
+     * Create a new UIController instance
      * @param {CanvasRenderer} renderer - The canvas renderer instance
      * @param {object} options - UI element references
      * @param {HTMLSelectElement} options.effectSelect - Effect selector element

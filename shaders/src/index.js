@@ -11,8 +11,8 @@ export { registerOp } from './lang/ops.js'
 export { registerStarterOps, registerValidatorHook } from './lang/validator.js'
 
 // Runtime Core
-import { Effect } from './runtime/effect.js'
-export { Effect }
+import { Effect, groupGlobalsByCategory, getUniformCategory, getCategories, DEFAULT_CATEGORY } from './runtime/effect.js'
+export { Effect, groupGlobalsByCategory, getUniformCategory, getCategories, DEFAULT_CATEGORY }
 export { registerEffect, getEffect, getAllEffects } from './runtime/registry.js'
 export { expand } from './runtime/expander.js'
 export { analyzeLiveness, allocateResources } from './runtime/resources.js'

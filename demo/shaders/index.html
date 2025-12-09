@@ -172,13 +172,13 @@
 
     <script type="module">
         // =====================================================================
-        // Noisemaker Shader Demo - Wired with CanvasRenderer + DemoUI
+        // Noisemaker Shader Demo - Wired with CanvasRenderer + UIController
         // =====================================================================
         
         import { CanvasRenderer, getEffect } from '../../shaders/src/renderer/canvas.js';
         import { EffectSelect } from './lib/effect-select.js';
         import { 
-            DemoUI, 
+            UIController, 
             extractEffectNamesFromDsl,
             getBackendFromURL,
             getUseBundlesFromURL,
@@ -298,7 +298,7 @@
             }
         }
 
-        const ui = new DemoUI(renderer, {
+        const ui = new UIController(renderer, {
             effectSelect,
             dslEditor,
             controlsContainer: effectControlsContainer,

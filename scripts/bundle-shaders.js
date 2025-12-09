@@ -9,6 +9,8 @@
  *   dist/shaders/
  *     noisemaker-shaders-core.esm.js       - Core runtime (ESM)
  *     noisemaker-shaders-core.min.js       - Core runtime (minified IIFE)
+ *     noisemaker-shaders-demo.esm.js       - Demo UI libraries (ESM)
+ *     noisemaker-shaders-demo.min.js       - Demo UI libraries (minified IIFE)
  *   dist/effects/{namespace}/{effectName}.js - Per-effect mini-bundles
  *
  * Usage:
@@ -25,6 +27,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
 const shadersDir = path.join(repoRoot, 'shaders')
 const srcDir = path.join(shadersDir, 'src')
+const demoDir = path.join(repoRoot, 'demo', 'shaders', 'lib')
 const distDir = path.join(repoRoot, 'dist', 'shaders')
 
 /**
@@ -92,6 +95,69 @@ async function buildCoreBundle() {
 }
 
 /**
+ * Generate the demo UI entry point
+ */
+function generateDemoModule() {
+    const srcPath = relPath(path.join(srcDir, 'index.js'))
+    const demoUiPath = relPath(path.join(demoDir, 'demo-ui.js'))
+    const effectSelectPath = relPath(path.join(demoDir, 'effect-select.js'))
+    return `
+// Noisemaker Shader Demo - Demo UI Libraries
+// Re-exports the shader runtime plus demo UI components
+
+// Core runtime exports
+export * from '${srcPath}';
+
+// Demo UI exports
+export * from '${demoUiPath}';
+export { EffectSelect } from '${effectSelectPath}';
+`
+}
+
+/**
+ * Build the demo UI bundle (core + demo libraries)
+ */
+async function buildDemoBundle() {
+    const tempDir = path.join(distDir, '.temp')
+    fs.mkdirSync(tempDir, { recursive: true })
+
+    const tempFile = path.join(tempDir, 'demo.js')
+    fs.writeFileSync(tempFile, generateDemoModule())
+
+    const banner = `/**\n * Noisemaker Shaders - Demo UI Libraries\n * Includes: Core Runtime + CanvasRenderer + UIController + EffectSelect\n * Bundled on ${new Date().toISOString()}\n */`
+
+    const sharedOptions = {
+        entryPoints: [tempFile],
+        bundle: true,
+        platform: 'browser',
+        target: ['es2020'],
+        legalComments: 'none',
+        logLevel: 'warning',
+    }
+
+    // ESM build
+    await build({
+        ...sharedOptions,
+        format: 'esm',
+        outfile: path.join(distDir, 'noisemaker-shaders-demo.esm.js'),
+        minify: false,
+        banner: { js: banner },
+    })
+
+    // Minified IIFE build
+    await build({
+        ...sharedOptions,
+        format: 'iife',
+        globalName: 'NoisemakerShadersDemo',
+        outfile: path.join(distDir, 'noisemaker-shaders-demo.min.js'),
+        minify: true,
+        banner: { js: banner },
+    })
+
+    console.log('  ✓ demo (core + UIController + EffectSelect)')
+}
+
+/**
  * Clean up temp files
  */
 function cleanup() {
@@ -114,6 +180,10 @@ async function main() {
         // Build core runtime only
         console.log('\nBuilding core runtime...')
         await buildCoreBundle()
+
+        // Build demo UI bundle
+        console.log('\nBuilding demo UI bundle...')
+        await buildDemoBundle()
 
         console.log('\n✓ Shader bundle written to dist/shaders/')
 
