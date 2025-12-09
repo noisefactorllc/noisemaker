@@ -45,7 +45,7 @@ The lexer tokenizes the input, handling:
 * Literals (``10``, ``#ff0000``, ``"string"``)
 * Operators (``.``, ``(``, ``)``)
 * Comments (``//``, ``/* ... */``)
-* **Special Tokens:** ``OUTPUT_REF`` (``o0``), ``SOURCE_REF`` (``src``), ``HEX`` (``#ff0000``).
+* **Special Tokens:** ``OUTPUT_REF`` (``o0``), ``HEX`` (``#ff0000``).
 * **Keywords:** ``out``, ``render``, ``let``, ``if``, ``loop``, etc.
 
 1.2 Syntax Analysis

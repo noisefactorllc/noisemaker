@@ -28,12 +28,11 @@ Grammar
    Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | Func | '(' Expr ')'
    Call           ::= Ident '(' ArgList? ')'
    ArgList        ::= Arg ( ',' Arg )* ','?
-   Arg            ::= NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | Func
+   Arg            ::= NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | Func
    NumberExpr     ::= Number | 'Math.PI' | '(' NumberExpr ')' | NumberExpr ( '+' | '-' | '*' | '/' ) NumberExpr
    Member         ::= Ident ( '.' Ident )+
    Func           ::= '(' ')' '=>' Expr
    OutputRef      ::= 'o' Digit+
-   SourceRef      ::= 'src'
    Ident          ::= Letter ( Letter | Digit | '_' )*
    Number         ::= Digit+ ( '.' Digit+ )?
    String         ::= '"' [^"\n]* '"'
@@ -54,7 +53,7 @@ Grammar
 
 
 * Any chain that begins with a generator **must** terminate with ``.write(<surface>)``; omitting ``.write()`` on a generator chain yields diagnostic ``S006``.
-* Chains that extend an existing surface (e.g., reading via ``src(o0)`` and applying additional nodes) may omit ``.write()`` only when they are nested inside another chain that eventually writes to a surface.
+* Chains that extend an existing surface (e.g., reading via ``read(o0)`` and applying additional nodes) may omit ``.write()`` only when they are nested inside another chain that eventually writes to a surface.
 
 **Generators:**
 A chain must start with a Generator function (an effect with no inputs).
@@ -354,7 +353,7 @@ The DSL allows writing to named outputs (Surfaces) and reading from them.
 
 * **Global Surfaces:** ``o0``, ``o1``, ``o2``, ``o3``, ``o4``, ``o5``, ``o6``, ``o7`` are persistent textures.
 * **Output:** ``.write(o0)`` marks the chain as writing to ``o0``.
-* **Input:** ``read(o0)`` or ``src(o0)`` creates a read dependency on ``o0``.
+* **Input:** ``read(o0)`` creates a read dependency on ``o0``.
 
 Feedback Loops
 ^^^^^^^^^^^^^^

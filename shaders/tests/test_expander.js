@@ -68,7 +68,7 @@ test('Expand Simple Chain', 'search basics\nosc(10).write(o0)', (result) => {
     if (pass.outputs.color !== 'global_o0') throw new Error(`Expected output global_o0, got ${pass.outputs.color}`)
 })
 
-test('Expand Blend Chain', 'search basics\nosc(10).blend(src(o0)).write(o1)', (result) => {
+test('Expand Blend Chain', 'search basics\nosc(10).blend(read(o0)).write(o1)', (result) => {
     if (result.errors.length > 0) throw new Error(result.errors[0].message)
     // osc -> blend
     // osc is node_0. blend is node_1.

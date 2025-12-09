@@ -142,7 +142,7 @@ export function isStarterEffect(effect) {
     if (passes.length === 0) return true
 
     const pipelineInputs = [
-        'inputTex', 'inputTex3d', 'src',
+        'inputTex', 'inputTex3d',
         'o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7'
     ]
 

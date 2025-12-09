@@ -138,17 +138,17 @@ export function formatValue(value, spec, enums = {}) {
     if (type === 'surface') {
         // Handle object surface references (e.g., {kind: 'output', name: 'o1'})
         if (value && typeof value === 'object' && value.name) {
-            return `src(${value.name})`;
+            return `read(${value.name})`;
         }
         if (typeof value !== 'string' || value.length === 0) {
             // Use spec default if available, otherwise use inputTex as the standard default
             const defaultSurface = spec?.default || 'inputTex';
-            return `src(${defaultSurface})`;
+            return `read(${defaultSurface})`;
         }
         if (value.includes('(')) {
             return value;
         }
-        return `src(${value})`;
+        return `read(${value})`;
     }
     if (type === 'member') {
         return value;
@@ -207,7 +207,7 @@ export function extractEffectNamesFromDsl(dsl, manifest) {
                 name = parts[1];
             }
             
-            const builtins = ['src', 'out', 'vec2', 'vec3', 'vec4'];
+            const builtins = ['read', 'out', 'vec2', 'vec3', 'vec4'];
             if (builtins.includes(name)) continue;
             
             if (!namespace && searchNamespaces.length > 0) {
@@ -1153,13 +1153,13 @@ export class DemoUI {
                 const sourceSurface = 'o1';
                 const outputSurface = 'o0';
                 const paramsWithTex = paramString 
-                    ? `tex: src(${sourceSurface}), ${paramString}` 
-                    : `tex: src(${sourceSurface})`;
+                    ? `tex: read(${sourceSurface}), ${paramString}` 
+                    : `tex: read(${sourceSurface})`;
                 return `${searchDirective}noise(seed: 1, ridges: true).write(${sourceSurface})\n${funcName}(${paramsWithTex}).write(${outputSurface})`;
             }
             return `${searchDirective}${funcName}(${paramString}).write(o0)`;
         } else if (hasTex) {
-            const params = [`tex: src(o1)`];
+            const params = [`tex: read(o1)`];
             if (effect.instance.globals) {
                 for (const [key, spec] of Object.entries(effect.instance.globals)) {
                     if (key === 'tex' && spec.type === 'surface') continue;
@@ -2329,8 +2329,8 @@ export class DemoUI {
         // Parse current value to get the surface ID
         let currentSurface = spec.default || 'o1';
         if (typeof value === 'string') {
-            // Handle src(o1) format or plain o1/f0 format
-            const match = value.match(/src\(([^)]+)\)|^(o[0-7]|f[0-3])$/);
+            // Handle read(o1) format or plain o1/f0 format
+            const match = value.match(/read\(([^)]+)\)|^(o[0-7]|f[0-3])$/);
             if (match) {
                 currentSurface = match[1] || match[2];
             } else if (value) {
@@ -2347,8 +2347,8 @@ export class DemoUI {
         });
         
         select.addEventListener('change', async (e) => {
-            // Store as src(surfaceId) format for DSL
-            this._effectParameterValues[effectKey][key] = `src(${e.target.value})`;
+            // Store as read(surfaceId) format for DSL
+            this._effectParameterValues[effectKey][key] = `read(${e.target.value})`;
             // Surface changes require a full pipeline recompile (not just uniform updates)
             this._updateDslFromEffectParams();
             await this._recompilePipeline();

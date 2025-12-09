@@ -1619,7 +1619,6 @@ export class WebGPUBackend extends Backend {
                     if (inputName === 'inputTex') {
                         textureMap.set('tex0', textureView)
                         textureMap.set('inputColor', textureView)
-                        textureMap.set('src', textureView)
                     }
                 }
             }

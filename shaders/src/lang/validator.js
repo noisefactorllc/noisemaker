@@ -12,7 +12,7 @@ const STARTER_OPS = new Set([
     'gradient','noise','osc','solid'
 ])
 
-const SURFACE_PASSTHROUGH_CALLS = new Set(['src', 'read'])
+const SURFACE_PASSTHROUGH_CALLS = new Set(['read'])
 const validatorHooks = {}
 
 export function registerValidatorHook(name, hook) {

@@ -36,7 +36,7 @@
  * HexDigit       ::= Digit | 'A'…'F' | 'a'…'f'
  *
  * Special Call Transformations:
- * - read(surface) → src(surface)  (alias for src)
+ * - read(surface) → Read node for surface textures
  * - read3d(tex3d, geo) → Read3D node
  * - osc(oscKind, ...) → Oscillator node
  *

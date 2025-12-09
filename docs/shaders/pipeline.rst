@@ -456,7 +456,7 @@ This ping-pong blitting strategy ensures temporal coherence for feedback effects
    osc(10).write(f0)
    
    // Read previous frame from f0, blend with new content, output to screen
-   src(f0).blend(osc(20), 0.1).write(o0)
+   read(f0).blend(osc(20), 0.1).write(o0)
 
 8.1 Resize Behavior
 ^^^^^^^^^^^^^^^^^^^^

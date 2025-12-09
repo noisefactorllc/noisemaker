@@ -350,7 +350,6 @@ export function expand(compilationResult, options = {}) {
                         // Handle standard and legacy pipeline inputs (2D)
                         const isPipelineInput =
                             texRef === 'inputTex' ||
-                            texRef === 'src' ||
                             (texRef.startsWith('o') && !isNaN(parseInt(texRef.slice(1))))
 
                         // Handle 3D pipeline input
@@ -418,7 +417,7 @@ export function expand(compilationResult, options = {}) {
                         } else if (effectDef.globals && effectDef.globals[texRef] && effectDef.globals[texRef].default !== undefined) {
                             // Parameter with default value - resolve the default
                             const defaultVal = effectDef.globals[texRef].default
-                            if (defaultVal === 'inputTex' || defaultVal === 'inputColor' || defaultVal === 'src') {
+                            if (defaultVal === 'inputTex' || defaultVal === 'inputColor') {
                                 pass.inputs[uniformName] = currentInput || defaultVal
                             } else if (/^o[0-7]$/.test(defaultVal)) {
                                 pass.inputs[uniformName] = `global_${defaultVal}`
