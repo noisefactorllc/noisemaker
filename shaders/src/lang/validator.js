@@ -974,5 +974,8 @@ export function validate(ast) {
     // Include original variable declarations for unparsing
     const vars = ast.vars || []
 
-    return {plans, diagnostics: diagnosticsList, render, vars}
+    // Include search order for transform operations
+    const searchNamespaces = programSearchOrder || []
+
+    return {plans, diagnostics: diagnosticsList, render, vars, searchNamespaces}
 }

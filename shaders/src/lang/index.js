@@ -2,6 +2,7 @@ import {lex} from './lexer.js'
 import {parse} from './parser.js'
 import {validate} from './validator.js'
 import {unparse, applyParameterUpdates, formatValue} from './unparser.js'
+import {replaceEffect, listSteps, getCompatibleReplacements} from './transform.js'
 
 /**
  * Compiles source string into a validated AST (Planned Chain)
@@ -14,4 +15,4 @@ export function compile(src) {
     return validate(ast)
 }
 
-export { lex, parse, validate, unparse, applyParameterUpdates, formatValue }
+export { lex, parse, validate, unparse, applyParameterUpdates, formatValue, replaceEffect, listSteps, getCompatibleReplacements }
