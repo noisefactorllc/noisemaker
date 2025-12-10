@@ -669,10 +669,9 @@ Do NOT tag colorful patterns or mosaics as problematic - those are valid outputs
 
     if (results.consoleErrors.length > 0) {
         console.log(`  ❌ console errors: ${results.consoleErrors.length} error(s)/warning(s)`)
-        if (options.verbose) {
-            for (const msg of results.consoleErrors.slice(0, 5)) {
-                console.log(`    ${msg.type}: ${msg.text.slice(0, 200)}`)
-            }
+        // Always show console errors. Any spam is bad
+        for (const msg of results.consoleErrors.slice(0, 10)) {
+            console.log(`    ${msg.type}: ${msg.text.slice(0, 300)}`)
         }
     }
 
