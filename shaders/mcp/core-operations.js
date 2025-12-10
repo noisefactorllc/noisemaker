@@ -20,7 +20,8 @@ const __dirname = path.dirname(__filename)
 const PROJECT_ROOT = path.resolve(__dirname, '../..')
 
 // Timeout for shader compilation status checks (ms)
-export const STATUS_TIMEOUT = 10000
+// Use longer timeout in CI environment
+export const STATUS_TIMEOUT = process.env.CI ? 120000 : 10000
 
 /**
  * Get OpenAI API key from .openai file or environment variable
