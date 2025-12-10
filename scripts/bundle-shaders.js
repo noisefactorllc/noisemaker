@@ -43,9 +43,10 @@ function generateCoreModule() {
     const srcPath = relPath(path.join(srcDir, 'index.js'))
     const demoUiPath = relPath(path.join(demoDir, 'demo-ui.js'))
     const effectSelectPath = relPath(path.join(demoDir, 'effect-select.js'))
+    const toggleSwitchPath = relPath(path.join(demoDir, 'toggle-switch.js'))
     return `
 // Noisemaker Shader Runtime - Core Module
-// Includes: Core runtime + CanvasRenderer + UIController + EffectSelect
+// Includes: Core runtime + CanvasRenderer + UIController + EffectSelect + ToggleSwitch
 
 // Core runtime exports
 export * from '${srcPath}';
@@ -53,6 +54,7 @@ export * from '${srcPath}';
 // Demo UI exports
 export * from '${demoUiPath}';
 export { EffectSelect } from '${effectSelectPath}';
+export { ToggleSwitch } from '${toggleSwitchPath}';
 `
 }
 

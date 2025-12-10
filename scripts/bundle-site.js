@@ -204,7 +204,7 @@ function copyFonts() {
 }
 
 /**
- * Copy and transform shader demo lib files (demo-ui.js, effect-select.js)
+ * Copy and transform shader demo lib files (demo-ui.js, effect-select.js, toggle-switch.js)
  * Transforms imports to use bundled core library
  */
 function copyShaderDemoLib() {
@@ -217,6 +217,12 @@ function copyShaderDemoLib() {
     const effectSelectSrc = path.join(libDir, 'effect-select.js')
     if (fs.existsSync(effectSelectSrc)) {
         copyFile(effectSelectSrc, path.join(destLibDir, 'effect-select.js'))
+    }
+
+    // Copy toggle-switch.js as-is (no imports)
+    const toggleSwitchSrc = path.join(libDir, 'toggle-switch.js')
+    if (fs.existsSync(toggleSwitchSrc)) {
+        copyFile(toggleSwitchSrc, path.join(destLibDir, 'toggle-switch.js'))
     }
 
     // Transform demo-ui.js to use bundled imports
