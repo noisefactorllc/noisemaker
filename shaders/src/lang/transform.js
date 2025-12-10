@@ -126,9 +126,6 @@ export function replaceEffect(compiled, stepIndex, newEffectName, newArgs = {}, 
     const { planIndex, chainIndex, step } = location
     const oldEffectName = step.op
 
-    // Check if old effect is a starter
-    const oldIsStarter = checkIsStarter(oldEffectName, searchOrder)
-
     // Also check position in chain - first effect in chain is "starter position"
     const isStarterPosition = chainIndex === 0
 

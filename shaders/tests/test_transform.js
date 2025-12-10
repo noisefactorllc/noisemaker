@@ -325,7 +325,7 @@ test('replaceEffect - cross-namespace unparse produces valid DSL', () => {
     const dsl = unparse(result.program)
 
     // The search directive should include both namespaces
-    assertTrue(dsl.includes('search basics, vol') || dsl.includes('search basics,vol'), 
+    assertTrue(dsl.includes('search basics, vol') || dsl.includes('search basics,vol'),
         'Search directive should include both namespaces')
 
     // The effect call should NOT have namespace prefix (it gets stripped by unparser)
