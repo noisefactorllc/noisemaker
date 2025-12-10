@@ -41,8 +41,6 @@ async function exerciseParameterControls(page) {
   const toggleCount = await toggleLocator.count()
   for (let i = 0; i < toggleCount; i += 1) {
     const toggle = toggleLocator.nth(i)
-    // Get initial checked state via JS property
-    const initial = await toggle.evaluate(el => el.checked)
     // Toggle by clicking (which fires change event)
     await toggle.click()
     // Toggle back

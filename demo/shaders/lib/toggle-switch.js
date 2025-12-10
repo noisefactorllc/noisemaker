@@ -116,13 +116,12 @@ class ToggleSwitch extends HTMLElement {
                     height: 1rem;
                     background: color-mix(in srgb, var(--color4, #26314f) 60%, var(--color3, #1b2538) 40%);
                     border-radius: var(--ui-corner-radius-pill, 999px);
-                    border: 1px solid color-mix(in srgb, var(--accent3, #a5b8ff) 20%, transparent 80%);
-                    transition: background 0.15s ease, border-color 0.15s ease;
+                    transition: background 0.15s ease;
                     box-sizing: border-box;
                 }
 
                 :host(:hover) .toggle-track {
-                    border-color: color-mix(in srgb, var(--accent3, #a5b8ff) 40%, transparent 60%);
+                    background: color-mix(in srgb, var(--color4, #26314f) 75%, var(--color3, #1b2538) 25%);
                 }
 
                 :host(:focus-visible) {
@@ -130,17 +129,15 @@ class ToggleSwitch extends HTMLElement {
                 }
 
                 :host(:focus-visible) .toggle-track {
-                    border-color: var(--accent3, #a5b8ff);
                     box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent3, #a5b8ff) 25%, transparent 75%);
                 }
 
                 .toggle-track.checked {
                     background: color-mix(in srgb, var(--accent3, #a5b8ff) 35%, var(--color3, #1b2538) 65%);
-                    border-color: color-mix(in srgb, var(--accent3, #a5b8ff) 50%, transparent 50%);
                 }
 
                 :host(:hover) .toggle-track.checked {
-                    border-color: color-mix(in srgb, var(--accent3, #a5b8ff) 65%, transparent 35%);
+                    background: color-mix(in srgb, var(--accent3, #a5b8ff) 45%, var(--color3, #1b2538) 55%);
                 }
 
                 .toggle-thumb {
