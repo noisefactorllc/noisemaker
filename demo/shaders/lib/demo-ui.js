@@ -2128,14 +2128,13 @@ export class UIController {
     
     /** @private */
     _createBooleanControl(container, key, value, effectKey) {
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = !!value;
-        checkbox.addEventListener('change', (e) => {
+        const toggle = document.createElement('toggle-switch');
+        toggle.checked = !!value;
+        toggle.addEventListener('change', (e) => {
             this._effectParameterValues[effectKey][key] = e.target.checked;
             this._onControlChange();
         });
-        container.appendChild(checkbox);
+        container.appendChild(toggle);
     }
     
     /** 

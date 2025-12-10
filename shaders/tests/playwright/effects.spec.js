@@ -36,14 +36,17 @@ async function exerciseParameterControls(page) {
   // Allow controls to render after the effect switches
   await page.waitForTimeout(5)
 
-  // Toggle any checkboxes to ensure uniform updates propagate
-  const checkboxLocator = parametersRoot.locator('input[type="checkbox"]')
-  const checkboxCount = await checkboxLocator.count()
-  for (let i = 0; i < checkboxCount; i += 1) {
-    const checkbox = checkboxLocator.nth(i)
-    const initial = await checkbox.isChecked()
-    await checkbox.setChecked(!initial)
-    await checkbox.setChecked(initial)
+  // Toggle any toggle-switch components to ensure uniform updates propagate
+  const toggleLocator = parametersRoot.locator('toggle-switch')
+  const toggleCount = await toggleLocator.count()
+  for (let i = 0; i < toggleCount; i += 1) {
+    const toggle = toggleLocator.nth(i)
+    // Get initial checked state via JS property
+    const initial = await toggle.evaluate(el => el.checked)
+    // Toggle by clicking (which fires change event)
+    await toggle.click()
+    // Toggle back
+    await toggle.click()
   }
 
   // Walk all select inputs and choose a deterministic alternate option when available
