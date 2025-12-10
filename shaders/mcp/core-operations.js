@@ -284,14 +284,14 @@ export function computeImageMetrics(data, width, height) {
  * @param {[number,number]} [options.resolution] - Resolution [width, height]
  * @param {number} [options.seed] - Random seed
  * @param {Record<string,any>} [options.uniforms] - Uniform overrides
- * @param {number} [options.warmupFrames=10] - Frames to wait before capture (default 10 for stability)
+ * @param {number} [options.warmupFrames] - Frames to wait before capture (default 2 in CI, 10 locally)
  * @returns {Promise<{status: 'ok'|'error', frame: {image_uri: string, width: number, height: number}, metrics: object}>}
  */
 export async function renderEffectFrame(page, effectId, options = {}) {
     if (!options.backend) {
         throw new Error('FATAL: backend parameter is REQUIRED. Pass { backend: "webgl2" } or { backend: "webgpu" }')
     }
-    const warmupFrames = options.warmupFrames ?? 10
+    const warmupFrames = options.warmupFrames ?? (process.env.CI ? 2 : 10)
     const skipCompile = options.skipCompile ?? false
 
     // Compile the effect (unless already done)

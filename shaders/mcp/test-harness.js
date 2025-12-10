@@ -502,7 +502,7 @@ async function testEffect(session, effectId, options) {
     console.log(`  ✓ compile`)
 
     // Render (skip compile since already loaded)
-    const renderResult = await session.renderEffectFrame(effectId, { skipCompile: true, warmupFrames: 10 })
+    const renderResult = await session.renderEffectFrame(effectId, { skipCompile: true })
     timings.push(`render:${Date.now() - t0}ms`)
     t0 = Date.now()
     results.render = renderResult.status
