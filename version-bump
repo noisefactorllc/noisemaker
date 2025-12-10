@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+import sys
+import re
+from pathlib import Path
+
+def bump_version(new_version):
+    # (file_path, regex_pattern, replacement_template)
+    # We use multiline anchors (^) to ensure we match the full key/variable name
+    # and avoid partial matches (e.g. matching "target-version" when looking for "version").
+    files_to_update = [
+        (
+            "pyproject.toml",
+            r'(?m)^version = "[^"]+"',
+            f'version = "{new_version}"'
+        ),
+        (
+            "noisemaker/__init__.py",
+            r'(?m)^__version__ = "[^"]+"',
+            f'__version__ = "{new_version}"'
+        ),
+        (
+            "noisemaker/scripts/noisemaker.py",
+            r'(?m)^__version__ = "[^"]+"',
+            f'__version__ = "{new_version}"'
+        ),
+        (
+            "js/bin/noisemaker-js",
+            r"(?m)^const VERSION = '[^']+';",
+            f"const VERSION = '{new_version}';"
+        ),
+        (
+            "package.json",
+            r'(?m)^  "version": "[^"]+"',
+            f'  "version": "{new_version}"'
+        ),
+    ]
+
+    for file_path, pattern, replacement in files_to_update:
+        path = Path(file_path)
+        if not path.exists():
+            print(f"Warning: {file_path} not found.")
+            continue
+
+        content = path.read_text()
+        # re.sub doesn't take flags in the 3rd arg, so we embed (?m) in the pattern
+        new_content = re.sub(pattern, replacement, content)
+
+        if content != new_content:
+            path.write_text(new_content)
+            print(f"Updated {file_path}")
+        else:
+            print(f"No changes needed for {file_path} (or pattern not found)")
+
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: ./version-bump <new_version>")
+        sys.exit(1)
+
+    new_version = sys.argv[1]
+    bump_version(new_version)
