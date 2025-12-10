@@ -12,7 +12,8 @@ EFFECTS_ROOT = PROJECT_ROOT / "shaders" / "effects"
 OUTPUT_FILE = EFFECTS_ROOT / "manifest.json"
 
 # Regex to extract description from definition.js
-DESCRIPTION_RE = re.compile(r'description:\s*["\']([^"\']*)["\']')
+# Matches both object literal (description: "...") and class field (description = "...") syntax
+DESCRIPTION_RE = re.compile(r'description[:\s=]+["\']([^"\']*)["\']')
 
 # Known pipeline inputs that indicate a non-starter effect
 PIPELINE_INPUTS = {

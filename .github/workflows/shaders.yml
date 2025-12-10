@@ -1,0 +1,107 @@
+name: Shaders
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'shaders/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/shaders.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'shaders/**'
+      - 'scripts/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/shaders.yml'
+
+jobs:
+  test:
+    name: Shader tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --include=dev
+
+    - name: Install Playwright browsers
+      run: npx playwright install chromium
+
+    - name: Run shader compile test
+      run: npm run test:shaders:compile
+
+    - name: Run shader structure tests
+      run: npm run test:shaders:structure
+
+  bundle:
+    name: Bundle shaders
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --include=dev
+
+    - name: Build shader bundles
+      run: npm run bundle:shaders
+
+  deploy-site:
+    name: Deploy site (shaders)
+    runs-on: ubuntu-latest
+    needs: bundle
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --include=dev
+
+    - name: Build site bundle
+      run: npm run bundle:site
+
+    - name: Sync site to S3
+      uses: noisedeck/s3-sync-action@master
+      with:
+        args: --follow-symlinks --delete
+      env:
+        AWS_S3_BUCKET: 'noisemaker-app'
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: 'us-east-1'
+        SOURCE_DIR: 'dist/site'
+
+    - name: Invalidate CloudFront
+      uses: noisedeck/invalidate-cloudfront-action@master
+      env:
+        DISTRIBUTION: 'E2WFGASGJ5OT8S'
+        PATHS: '/*'
+        AWS_REGION: 'us-east-1'
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

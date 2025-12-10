@@ -178,7 +178,12 @@ function parseArgs() {
 
     // Default effects
     if (parsed.effects.length === 0) {
-        parsed.effects = ['classicBasics/noise']
+        // In structure-only mode, default to all effects
+        if (parsed.runStructureOnly) {
+            parsed.effects = ['*/*']
+        } else {
+            parsed.effects = ['classicBasics/noise']
+        }
     }
 
     return parsed
@@ -709,7 +714,7 @@ async function main() {
     const session = new BrowserSession({
         backend: args.backend,
         useBundles: args.useBundles,
-        headless: false  // Use headed mode for better debugging
+        headless: true  // Headless for CI; use MCP tools for headed debugging
     })
 
     try {
