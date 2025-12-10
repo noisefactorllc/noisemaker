@@ -663,8 +663,20 @@ Do NOT tag colorful patterns or mosaics as problematic - those are valid outputs
 
     // Capture console errors
     const allConsoleMessages = session.getConsoleMessages()
+
+    // Filter out known benign warnings that are unavoidable in CI:
+    // - GPU driver ReadPixels stall warnings (expected when capturing frames)
+    // Only skip these in CI - locally we want to see everything
+    const isKnownBenignCI = (msg) => {
+        if (!process.env.CI) return false
+        if (msg.text.includes('GPU stall due to ReadPixels')) return true
+        if (msg.text.includes('GL Driver Message') && msg.text.includes('Performance')) return true
+        return false
+    }
+
     results.consoleErrors = allConsoleMessages.filter(m =>
-        m.type === 'error' || m.type === 'warning' || m.type === 'pageerror'
+        (m.type === 'error' || m.type === 'warning' || m.type === 'pageerror') &&
+        !isKnownBenignCI(m)
     )
 
     if (results.consoleErrors.length > 0) {
