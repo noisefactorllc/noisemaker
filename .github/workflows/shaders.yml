@@ -39,7 +39,7 @@ jobs:
       run: npx playwright install chromium
 
     - name: Run shader compile and render test
-      run: npm run test:shaders:render
+      run: npm run test:shaders:render:webgl2
 
     - name: Run shader structure tests
       run: npm run test:shaders:structure
