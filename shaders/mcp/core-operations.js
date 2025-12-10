@@ -309,7 +309,8 @@ export async function renderEffectFrame(page, effectId, options = {}) {
 
     // Wait for the page's natural render loop to run warmup frames
     // Use a longer timeout since we're waiting for actual frame renders
-    const FRAME_WAIT_TIMEOUT = 5000  // 5 seconds should be plenty for 10 frames
+    // CI environments run on CPU (software rendering) which is extremely slow
+    const FRAME_WAIT_TIMEOUT = process.env.CI ? 60000 : 5000
 
     // Apply uniform overrides BEFORE warmup so they take effect during rendering
     // Use setUniform method to trigger texture resizing for dimension params
@@ -1262,7 +1263,8 @@ export async function testNoPassthrough(page, effectId, options = {}) {
     })
 
     // Wait for warmup frames to apply the uniform changes
-    const FRAME_WAIT_TIMEOUT = 5000
+    // CI environments run on CPU (software rendering) which is extremely slow
+    const FRAME_WAIT_TIMEOUT = process.env.CI ? 60000 : 5000
 
     await page.evaluate(() => {
         delete window.__noisemakerTestBaselineFrame

@@ -38,8 +38,8 @@ jobs:
     - name: Install Playwright browsers
       run: npx playwright install chromium
 
-    - name: Run shader compile test
-      run: npm run test:shaders:compile
+    - name: Run shader compile and render test
+      run: npm run test:shaders:render
 
     - name: Run shader structure tests
       run: npm run test:shaders:structure

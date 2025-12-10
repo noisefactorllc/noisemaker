@@ -161,8 +161,11 @@ export class BrowserSession {
 
         // Launch browser
         this.browser = await chromium.launch(getBrowserLaunchOptions(this.options.headless))
+
+        // Use smaller viewport in CI for faster software rendering
+        const viewportSize = process.env.CI ? { width: 256, height: 256 } : { width: 1280, height: 720 }
         this.context = await this.browser.newContext({
-            viewport: { width: 1280, height: 720 },
+            viewport: viewportSize,
             ignoreHTTPSErrors: true
         })
 
