@@ -3,7 +3,7 @@
 Polymorphic DSL
 ===============
 
-Polymorphic is the DSL powering the Noisemaker Rendering Pipeline, enabling live-coding visuals by chaining functions like ``noise().bloom().write()``. The Polymorphic DSL serves as the high-level builder for the pipeline, allowing users to define complex, multi-pass effects declaratively.
+Polymorphic is the high level language powering the Noisemaker Rendering Pipeline, enabling live-coding visuals by chaining functions that evaluate to native shader graphs. The Polymorphic DSL serves as the high-level builder for the pipeline, allowing users to define complex, multi-pass effects declaratively.
 
 The language evaluates to a Directed Acyclic Graph (DAG) of render passes executed on the GPU. Each valid program must materialize its generator chains into explicit outputs so that the pipeline can schedule and double-buffer them deterministically.
 
