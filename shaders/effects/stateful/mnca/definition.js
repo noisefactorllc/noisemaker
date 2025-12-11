@@ -262,7 +262,7 @@ export default new Effect({
       program: "mncaFb",
       inputs: {
         bufTex: "globalMncaState",
-        seedTex: "inputTex"
+        inputTex: "inputTex"
       },
       outputs: {
         fragColor: "globalMncaState"

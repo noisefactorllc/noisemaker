@@ -152,7 +152,7 @@ export default new Effect({
         stateTex1: "globalHflowState1",
         stateTex2: "globalHflowState2",
         stateTex3: "globalHflowState3",
-        mixerTex: "inputTex"
+        inputTex: "inputTex"
       },
       outputs: {
         outState1: "globalHflowState1",

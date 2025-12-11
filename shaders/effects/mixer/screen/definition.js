@@ -25,7 +25,7 @@ export default new Effect({
     {
       name: "render",
       program: "screen",
-      inputs: { tex0: "inputTex", tex1: "tex" },
+      inputs: { inputTex: "inputTex", tex: "tex" },
       outputs: { fragColor: "outputTex" }
     }
   ]

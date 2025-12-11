@@ -164,7 +164,7 @@ export default new Effect({
       program: "caFb",
       inputs: {
         bufTex: "globalCaState",
-        seedTex: "inputTex"
+        inputTex: "inputTex"
       },
       outputs: {
         fragColor: "globalCaState"

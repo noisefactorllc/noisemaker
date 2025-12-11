@@ -91,8 +91,8 @@ export default new Effect({
       name: "render",
       program: "composite",
       inputs: {
-              tex0: "inputTex",
-              tex1: "tex"
+              inputTex: "inputTex",
+              tex: "tex"
             }
 ,
       outputs: {

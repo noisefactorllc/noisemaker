@@ -177,7 +177,7 @@ export default new Effect({
       name: "render",
       program: "text",
       inputs: {
-        textTex: "inputTex"
+        inputTex: "inputTex"
       },
 
       outputs: {

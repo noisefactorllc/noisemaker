@@ -1885,7 +1885,9 @@ export async function checkEffectStructure(effectId, options = {}) {
         // Structural parity between GLSL and WGSL (1:1 file mapping)
         structuralParityIssues: [],
         // Missing description field in definition
-        missingDescription: false
+        missingDescription: false,
+        // Input binding issues (e.g., tex0: "inputTex" instead of inputTex: "inputTex")
+        inputBindingIssues: []
     }
 
     try {
@@ -2129,7 +2131,8 @@ export async function checkEffectStructure(effectId, options = {}) {
 
         // 6. Check texture/surface names in passes (inputs and outputs)
         // Parse inputs and outputs objects from passes
-        const inputsMatches = passesSection.matchAll(/inputs:\s*\{([^}]+)\}/g)
+        // Use [\s\S]+? to match across newlines (multiline inputs blocks)
+        const inputsMatches = passesSection.matchAll(/inputs:\s*\{([\s\S]+?)\}/g)
         for (const inputsMatch of inputsMatches) {
             const inputsContent = inputsMatch[1]
             const textureRefs = inputsContent.matchAll(/(\w+):\s*["']([^"']+)["']/g)
@@ -2156,10 +2159,31 @@ export async function checkEffectStructure(effectId, options = {}) {
                         reason: texCheck.reason
                     })
                 }
+
+                // CRITICAL: Check input binding conventions
+                // Only acceptable patterns:
+                //   inputTex: "inputTex"  (standard filter input)
+                //   tex: "tex"            (mixer secondary input)
+                // Using inputTex as a value with a different key is FORBIDDEN
+                if (textureName === 'inputTex' && inputKey !== 'inputTex') {
+                    result.inputBindingIssues.push({
+                        key: inputKey,
+                        value: textureName,
+                        reason: `invalid binding "${inputKey}: inputTex" - must use "inputTex: inputTex"`
+                    })
+                }
+                if (textureName === 'tex' && inputKey !== 'tex') {
+                    result.inputBindingIssues.push({
+                        key: inputKey,
+                        value: textureName,
+                        reason: `invalid binding "${inputKey}: tex" - must use "tex: tex"`
+                    })
+                }
             }
         }
 
-        const outputsMatches = passesSection.matchAll(/outputs:\s*\{([^}]+)\}/g)
+        // Use [\s\S]+? to match across newlines (multiline outputs blocks)
+        const outputsMatches = passesSection.matchAll(/outputs:\s*\{([\s\S]+?)\}/g)
         for (const outputsMatch of outputsMatches) {
             const outputsContent = outputsMatch[1]
             const textureRefs = outputsContent.matchAll(/(\w+):\s*["']([^"']+)["']/g)

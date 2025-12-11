@@ -131,8 +131,7 @@ export default new Effect({
       name: "render",
       program: "mediaPost",
       inputs: {
-        inputTex: "inputTex",
-        imageTex: "inputTex"
+        inputTex: "inputTex"
       },
 
       outputs: {

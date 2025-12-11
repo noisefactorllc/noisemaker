@@ -55,7 +55,8 @@ def is_starter_effect(effect_dir):
 
         # Look for passes array
         # This is a simplified parse - look for inputs in passes
-        passes_match = re.search(r'passes:\s*\[', content)
+        # Support both object literal (passes: [) and class field (passes = [) syntax
+        passes_match = re.search(r'passes\s*[=:]\s*\[', content)
         if not passes_match:
             # No passes = starter effect (or not properly defined)
             return True
@@ -65,14 +66,16 @@ def is_starter_effect(effect_dir):
         # Also check for input keys that reference pipeline surfaces
         for pipeline_input in PIPELINE_INPUTS:
             # Check for input bindings like: inputTex: "inputTex"
-            pattern1 = rf'\binputs:\s*\{{[^}}]*{pipeline_input}\s*:'
+            # Use [\s\S] to match across newlines in multiline inputs blocks
+            pattern1 = rf'\binputs:\s*\{{[\s\S]*?{pipeline_input}\s*:'
             if re.search(pattern1, content):
                 return False
 
             # Check for input values like: someInput: "inputTex"
             pattern2 = rf':\s*["\']?{pipeline_input}["\']?\s*[,\}}]'
             # Only count if it's in an inputs block
-            inputs_section = re.findall(r'inputs:\s*\{[^}]*\}', content)
+            # Use [\s\S] instead of [^}] to match across newlines in multiline inputs blocks
+            inputs_section = re.findall(r'inputs:\s*\{[\s\S]*?\}', content)
             for inputs in inputs_section:
                 if re.search(pattern2, inputs):
                     return False

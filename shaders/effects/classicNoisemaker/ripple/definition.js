@@ -77,8 +77,7 @@ export default new Effect({
       name: "main",
       program: "ripple",
       inputs: {
-        inputTex: "inputTex",
-        referenceTexture: "inputTex"
+        inputTex: "inputTex"
       },
       uniforms: {
         freq: "freq",

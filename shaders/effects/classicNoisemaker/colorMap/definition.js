@@ -67,7 +67,7 @@ export default new Effect({
       program: "colorMapRender",
       inputs: {
         inputTex: "inputTex",
-        clutTexture: "tex",
+        tex: "tex",
         statsTex: "statsTex"
       },
       uniforms: {

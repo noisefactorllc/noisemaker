@@ -109,8 +109,7 @@ export default new Effect({
       name: "finalize",
       program: "finalize",
       inputs: {
-        inputTex: "sorted",
-        originalTex: "inputTex"
+        inputTex: "sorted"
       },
       uniforms: {
         resolution: "resolution",

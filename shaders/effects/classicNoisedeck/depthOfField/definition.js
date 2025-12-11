@@ -87,8 +87,8 @@ export default new Effect({
       name: "render",
       program: "depthOfField",
       inputs: {
-              tex0: "inputTex",
-              tex1: "tex"
+              inputTex: "inputTex",
+              tex: "tex"
             }
 ,
       outputs: {

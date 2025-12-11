@@ -173,7 +173,7 @@ export default new Effect({
         stateTex1: "globalFlowState1",
         stateTex2: "globalFlowState2",
         stateTex3: "globalFlowState3",
-        mixerTex: "inputTex"
+        inputTex: "inputTex"
       },
       uniforms: {
         behavior: "behavior",
@@ -210,7 +210,7 @@ export default new Effect({
       name: "blend",
       program: "blend",
       inputs: {
-        mixerTex: "inputTex",
+        inputTex: "inputTex",
         trailTex: "globalFlowTrail"
       },
       uniforms: {

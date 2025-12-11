@@ -242,10 +242,8 @@ export default class ShapeMixer extends Effect {
       name: "render",
       program: "shapeMixer",
       inputs: {
-              tex0: "inputTex",
-              tex1: "inputTex"
-            }
-,
+        inputTex: "inputTex"
+      },
       outputs: {
         fragColor: "outputTex"
       }
