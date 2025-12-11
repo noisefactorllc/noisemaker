@@ -134,7 +134,7 @@ export function validate(ast) {
         return `[${node.type || 'unknown'}]`
     }
     const plans = []
-    const render = ast.render ? parseInt(ast.render.name.slice(1), 10) : null
+    const render = ast.render ? ast.render.name : null
     let tempIndex = 0
 
     const programSearchOrder = ast.namespace?.searchOrder

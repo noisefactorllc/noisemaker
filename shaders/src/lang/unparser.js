@@ -481,10 +481,10 @@ export function unparse(compiled, overrides = {}, options = {}) {
         }
     }
 
-    // Add render directive if present
+    // Add render directive if present (surface name: o0-o7 or f0-f3)
     if (compiled.render) {
-        lines.push('')  // Blank line before render
-        lines.push(`render(${compiled.render.name})`)
+        lines.push('')
+        lines.push(`render(${compiled.render})`)
     }
 
     return lines.join('\n')

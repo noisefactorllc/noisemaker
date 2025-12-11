@@ -165,6 +165,70 @@ test('No search namespaces - keep full qualified names', () => {
     assertIncludes(result, 'basics.noise(', 'Should have full qualified name');
 });
 
+// Test 7: Render directive with o surface
+test('Render directive - o1 surface', () => {
+    const compiled = {
+        searchNamespaces: ['basics'],
+        render: 'o1',
+        plans: [
+            {
+                chain: [{ op: 'basics.noise', args: { scale: 3 } }],
+                write: { kind: 'output', name: 'o1' }
+            }
+        ]
+    };
+    const result = unparse(compiled, {}, {});
+    assertIncludes(result, 'render(o1)', 'Should output render(o1)');
+});
+
+// Test 8: Render directive with o0 surface
+test('Render directive - o0 surface', () => {
+    const compiled = {
+        searchNamespaces: ['basics'],
+        render: 'o0',
+        plans: [
+            {
+                chain: [{ op: 'basics.noise', args: { scale: 3 } }],
+                write: { kind: 'output', name: 'o0' }
+            }
+        ]
+    };
+    const result = unparse(compiled, {}, {});
+    assertIncludes(result, 'render(o0)', 'Should output render(o0)');
+});
+
+// Test 9: Render directive with f surface
+test('Render directive - f2 feedback surface', () => {
+    const compiled = {
+        searchNamespaces: ['basics'],
+        render: 'f2',
+        plans: [
+            {
+                chain: [{ op: 'basics.noise', args: { scale: 3 } }],
+                write: { kind: 'output', name: 'o0' }
+            }
+        ]
+    };
+    const result = unparse(compiled, {}, {});
+    assertIncludes(result, 'render(f2)', 'Should output render(f2)');
+});
+
+// Test 10: No render directive (render=null)
+test('Render directive - null (no directive)', () => {
+    const compiled = {
+        searchNamespaces: ['basics'],
+        render: null,
+        plans: [
+            {
+                chain: [{ op: 'basics.noise', args: { scale: 3 } }],
+                write: { kind: 'output', name: 'o0' }
+            }
+        ]
+    };
+    const result = unparse(compiled, {}, {});
+    assertNotIncludes(result, 'render(', 'Should not output render() when render is null');
+});
+
 // Summary
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

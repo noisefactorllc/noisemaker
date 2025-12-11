@@ -611,13 +611,12 @@ export function expand(compilationResult, options = {}) {
     }
 
     // Determine the render surface:
-    // 1. Explicit render() directive takes precedence
+    // 1. Explicit render() directive takes precedence (o0-o7 or f0-f3)
     // 2. Fall back to the last surface written to in the program
     // 3. Default to 'o0' if nothing was written
     let renderSurface
-    if (compilationResult.render !== null && compilationResult.render !== undefined) {
-        // render is an integer 0-7 from validator
-        renderSurface = `o${compilationResult.render}`
+    if (compilationResult.render) {
+        renderSurface = compilationResult.render
     } else if (lastWrittenSurface) {
         renderSurface = lastWrittenSurface
     } else {

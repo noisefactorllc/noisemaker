@@ -2147,6 +2147,7 @@ export class UIController {
         button.className = 'control-button';
         button.textContent = spec.ui?.buttonLabel || 'reset';
         button.title = spec.ui?.label || key;
+        button.dataset.buttonType = spec.ui?.buttonLabel || 'reset';
         
         button.addEventListener('click', (e) => {
             e.stopPropagation();
