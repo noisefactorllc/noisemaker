@@ -94,6 +94,15 @@ async function buildCoreBundle() {
         banner: { js: banner },
     })
 
+    // Minified ESM build
+    await build({
+        ...sharedOptions,
+        format: 'esm',
+        outfile: path.join(distDir, 'noisemaker-shaders-core.esm.min.js'),
+        minify: true,
+        banner: { js: banner },
+    })
+
     // Minified IIFE build
     await build({
         ...sharedOptions,

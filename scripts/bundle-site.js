@@ -101,9 +101,8 @@ function transformJsDemoHtml() {
 
         // Close the async IIFE at the end of the script
         html = html.replace(
-            /(\s*showTab\('formula'\);)\s*<\/script>\s*<\/body>/,
-            `$1
-    })();
+            /(\s*}\);\s*)(<\/script>\s*<\/body>)/,
+            `$1})();
   </script>
 
 </body>`
@@ -132,7 +131,7 @@ function transformShadersDemoHtml() {
         `<script type="importmap">
     {
         "imports": {
-            "noisemaker/shader-effects": "../../lib/shaders/noisemaker-shaders-core.esm.js"
+            "noisemaker/shader-effects": "../../lib/shaders/noisemaker-shaders-core.esm.min.js"
         }
     }
     </script>`
@@ -141,7 +140,18 @@ function transformShadersDemoHtml() {
     // Replace runtime imports with bundled versions
     html = html.replace(
         /import \{ CanvasRenderer, getEffect \} from '\.\.\/\.\.\/shaders\/src\/renderer\/canvas\.js';/,
-        `import { CanvasRenderer, getEffect } from '../../lib/shaders/noisemaker-shaders-core.esm.js';`
+        `import { CanvasRenderer, getEffect } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
+    )
+
+    // Replace EffectSelect and ToggleSwitch imports with bundled core (they're included in the bundle)
+    // The source has './lib/effect-select.js' (relative from demo/shaders/)
+    html = html.replace(
+        /import \{ EffectSelect \} from '\.\/lib\/effect-select\.js';/,
+        `import { EffectSelect } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
+    )
+    html = html.replace(
+        /import \{ ToggleSwitch \} from '\.\/lib\/toggle-switch\.js';/,
+        `import { ToggleSwitch } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
     )
 
     // Update basePath references to use bundled paths
@@ -176,6 +186,8 @@ function copyCssFiles() {
         'demo/common.css',
         'demo/common-colors.css',
         'demo/common-layout.css',
+        'demo/js/colors.css',
+        'demo/js/layout.css',
         'demo/shaders/colors.css',
         'demo/shaders/layout.css'
     ]
@@ -233,7 +245,7 @@ function copyShaderDemoLib() {
         // Replace the lang import
         content = content.replace(
             /import \{ compile, unparse, lex, parse \} from '\.\.\/\.\.\/\.\.\/shaders\/src\/lang\/index\.js';/,
-            `import { compile, unparse, lex, parse } from '../../../lib/shaders/noisemaker-shaders-core.esm.js';`
+            `import { compile, unparse, lex, parse } from '../../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
         )
 
         // Replace the canvas.js imports
@@ -249,7 +261,13 @@ function copyShaderDemoLib() {
     is3dProcessor,
     isValidIdentifier,
     sanitizeEnumName
-} from '../../../lib/shaders/noisemaker-shaders-core.esm.js';`
+} from '../../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
+        )
+
+        // Replace the effect.js import (groupGlobalsByCategory is exported from core)
+        content = content.replace(
+            /import \{ groupGlobalsByCategory \} from '\.\.\/\.\.\/\.\.\/shaders\/src\/runtime\/effect\.js';/,
+            `import { groupGlobalsByCategory } from '../../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
         )
 
         fs.writeFileSync(path.join(destLibDir, 'demo-ui.js'), content)
@@ -268,6 +286,26 @@ function copyShaderDemoImages() {
     if (fs.existsSync(imgDir)) {
         copyDir(imgDir, destImgDir)
         console.log('  ✓ demo/shaders/img/')
+    }
+}
+
+/**
+ * Copy logo image for landing page
+ */
+function copyLogoImage() {
+    const src = path.join(repoRoot, 'noisemaker.png')
+    const dest = path.join(siteDir, 'noisemaker.png')
+    if (fs.existsSync(src)) {
+        copyFile(src, dest)
+        console.log('  ✓ noisemaker.png')
+    }
+
+    // Copy favicon
+    const faviconSrc = path.join(repoRoot, 'favicon.ico')
+    const faviconDest = path.join(siteDir, 'favicon.ico')
+    if (fs.existsSync(faviconSrc)) {
+        copyFile(faviconSrc, faviconDest)
+        console.log('  ✓ favicon.ico')
     }
 }
 
@@ -331,7 +369,7 @@ async function main() {
 
     // Ensure bundles exist
     const jsBundle = path.join(distDir, 'noisemaker.min.js')
-    const shaderBundle = path.join(distDir, 'shaders', 'noisemaker-shaders-core.esm.js')
+    const shaderBundle = path.join(distDir, 'shaders', 'noisemaker-shaders-core.esm.min.js')
     const effectsBundle = path.join(distDir, 'effects')
 
     if (!fs.existsSync(jsBundle)) {
@@ -366,6 +404,9 @@ async function main() {
     // Copy shader demo lib and images
     copyShaderDemoLib()
     copyShaderDemoImages()
+
+    // Copy logo image
+    copyLogoImage()
 
     // Copy bundled libraries
     copyBundledLibs()
