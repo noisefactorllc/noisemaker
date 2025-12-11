@@ -166,7 +166,7 @@ export default new Effect({
     },
     colorMode: {
       type: "int",
-      default: 0,
+      default: 1,
       uniform: "colorMode",
       choices: {
         mono: 0,
