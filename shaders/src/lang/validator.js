@@ -7,10 +7,7 @@ import { resolveCallTarget } from './namespaceRuntime.js'
 
 const stateSurfaces = new Set(['time','frame','mouse','resolution','seed','a'])
 const stateValues = new Set(['time','frame','mouse','resolution','seed','a','u1','u2','u3','u4','s1','s2','b1','b2','a1','a2','deltaTime'])
-const STARTER_OPS = new Set([
-    'cell','fractal','n','n3','pattern','shapes','noisemaker',
-    'gradient','noise','osc','solid'
-])
+const STARTER_OPS = new Set()
 
 const SURFACE_PASSTHROUGH_CALLS = new Set(['read'])
 const validatorHooks = {}

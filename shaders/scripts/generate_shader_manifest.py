@@ -61,23 +61,17 @@ def is_starter_effect(effect_dir):
             # No passes = starter effect (or not properly defined)
             return True
 
-        # Find the passes section and check for pipeline inputs
-        # Look for patterns like: inputTex: "inputTex" or inputTex: 'inputTex'
-        # Also check for input keys that reference pipeline surfaces
-        for pipeline_input in PIPELINE_INPUTS:
-            # Check for input bindings like: inputTex: "inputTex"
-            # Use [\s\S] to match across newlines in multiline inputs blocks
-            pattern1 = rf'\binputs:\s*\{{[\s\S]*?{pipeline_input}\s*:'
-            if re.search(pattern1, content):
-                return False
-
-            # Check for input values like: someInput: "inputTex"
-            pattern2 = rf':\s*["\']?{pipeline_input}["\']?\s*[,\}}]'
-            # Only count if it's in an inputs block
-            # Use [\s\S] instead of [^}] to match across newlines in multiline inputs blocks
-            inputs_section = re.findall(r'inputs:\s*\{[\s\S]*?\}', content)
-            for inputs in inputs_section:
-                if re.search(pattern2, inputs):
+        # Find the passes section and check for pipeline inputs as VALUES
+        # What matters is the VALUE being bound, not the key name
+        # e.g., `someTex: "inputTex"` means reading from pipeline input
+        # but `inputTex: "outputTex"` does NOT mean reading from pipeline input
+        inputs_sections = re.findall(r'inputs:\s*\{[\s\S]*?\}', content)
+        for inputs in inputs_sections:
+            for pipeline_input in PIPELINE_INPUTS:
+                # Check for input values like: someKey: "inputTex" or someKey: 'inputTex'
+                # The pipeline input must be a quoted string VALUE, not a key
+                pattern = rf':\s*["\']{pipeline_input}["\']'
+                if re.search(pattern, inputs):
                     return False
 
         # No pipeline inputs found in any pass

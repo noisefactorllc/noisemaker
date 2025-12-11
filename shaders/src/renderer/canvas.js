@@ -620,6 +620,23 @@ export class CanvasRenderer {
             throw new Error('Could not load shader manifest - lazy loading requires manifest.json')
         }
 
+        // Register starter ops from manifest
+        const starterNames = []
+        for (const [effectId, entry] of Object.entries(this._manifest)) {
+            if (entry.starter) {
+                // effectId is like "synth/media" - extract namespace and name
+                const parts = effectId.split('/')
+                if (parts.length === 2) {
+                    const [namespace, name] = parts
+                    starterNames.push(name)
+                    starterNames.push(`${namespace}.${name}`)
+                }
+            }
+        }
+        if (starterNames.length > 0) {
+            registerStarterOps(starterNames)
+        }
+
         // Initialize enums
         this._enums = await mergeIntoEnums(stdEnums)
 
