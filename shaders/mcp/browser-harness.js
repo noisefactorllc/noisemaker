@@ -25,7 +25,9 @@ import {
     checkEffectStructure,
     checkShaderParity,
     testNoPassthrough,
+    testPixelParity,
     isFilterEffect,
+    isStatefulEffect,
     STATUS_TIMEOUT
 } from './core-operations.js'
 
@@ -684,10 +686,32 @@ export class BrowserSession {
     }
 
     /**
+     * Test pixel-for-pixel parity between GLSL and WGSL renderings.
+     * Renders the effect at frame 0 with both backends and compares pixels.
+     */
+    async testPixelParity(effectId, options = {}) {
+        this.clearConsoleMessages()
+        const result = await testPixelParity(this.page, effectId, options)
+
+        if (this.consoleMessages.length > 0) {
+            result.console_errors = this.consoleMessages.map(m => m.text)
+        }
+
+        return result
+    }
+
+    /**
      * Check if an effect is a filter-type effect.
      */
     async isFilterEffect(effectId) {
         return await isFilterEffect(effectId)
+    }
+
+    /**
+     * Check if an effect is stateful (uses feedback loops or accumulates state).
+     */
+    async isStatefulEffect(effectId) {
+        return isStatefulEffect(effectId)
     }
 }
 

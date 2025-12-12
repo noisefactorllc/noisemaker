@@ -67,6 +67,8 @@ These tools launch a browser session for rendering:
      - Verify uniform controls affect output
    * - ``testNoPassthrough``
      - Verify filter effects modify input
+   * - ``testPixelParity``
+     - Test GLSL/WGSL pixel-for-pixel equivalence
 
 On-Disk Tools
 ^^^^^^^^^^^^^
@@ -399,6 +401,75 @@ Test that a filter effect modifies its input (not a passthrough).
 
 The test fails if input and output textures are >99% similar.
 
+testPixelParity
+^^^^^^^^^^^^^^^
+
+Test pixel-for-pixel parity between GLSL (WebGL2) and WGSL (WebGPU) shader outputs.
+
+**Parameters:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 15 15 50
+
+   * - Parameter
+     - Type
+     - Required
+     - Description
+   * - ``effect_id``
+     - string
+     - Yes*
+     - Effect identifier
+   * - ``effects``
+     - string
+     - Yes*
+     - CSV of effect IDs or glob patterns
+   * - ``epsilon``
+     - number
+     - No
+     - Max per-channel difference allowed (default: 1)
+   * - ``seed``
+     - number
+     - No
+     - Random seed for reproducibility (default: 42)
+
+\*Either ``effect_id`` or ``effects`` must be provided.
+
+**Behavior:**
+
+1. Renders effect at time=0 with paused engine on WebGL2
+2. Captures canvas pixels
+3. Renders same effect at time=0 on WebGPU
+4. Captures canvas pixels
+5. Compares pixel arrays, allowing Y-flip compensation
+6. Reports mismatch statistics
+
+**Stateful Effects:**
+
+Effects with feedback loops (e.g., ``physarum``, ``worms``) are automatically skipped since their output depends on accumulated state.
+
+**Example Response:**
+
+.. code-block:: json
+
+   {
+     "effects_tested": 1,
+     "epsilon": 1,
+     "seed": 42,
+     "results": {
+       "classicBasics/noise": {
+         "status": "ok",
+         "maxDiff": 0,
+         "meanDiff": 0,
+         "mismatchCount": 0,
+         "mismatchPercent": "0.0000",
+         "resolution": [1024, 1024],
+         "isYFlipped": true,
+         "details": "GLSL ↔ WGSL pixel parity: maxDiff=0 [WGSL Y-FLIPPED]"
+       }
+     }
+   }
+
 checkEffectStructure
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -505,6 +576,7 @@ Test Selection Flags
    --structure     # Check naming, unused files, leaked uniforms
    --alg-equiv     # Check GLSL/WGSL algorithmic equivalence
    --passthrough   # Check filter effects don't pass through input
+   --pixel-parity  # Test GLSL/WGSL pixel-for-pixel equivalence
    --no-vision     # Skip AI vision validation
 
 Examples

@@ -40,6 +40,7 @@
  *   --structure-only          Run ONLY structure tests (no browser, filesystem-based)
  *   --alg-equiv               Test GLSL/WGSL algorithmic equivalence (requires .openai key)
  *   --passthrough             Test that filter effects do NOT pass through input unchanged
+ *   --pixel-parity            Test GLSL/WGSL pixel-for-pixel output parity at frame 0
  *   --no-vision               Skip AI vision validation
  *
  * Other flags:
@@ -124,6 +125,7 @@ function parseArgs() {
         runStructureOnly: false,
         runAlgEquiv: false,
         runPassthrough: false,
+        runPixelParity: false,
         skipVision: false,
         useBundles: false,
         verbose: false
@@ -155,6 +157,8 @@ function parseArgs() {
             parsed.runAlgEquiv = true
         } else if (arg === '--passthrough') {
             parsed.runPassthrough = true
+        } else if (arg === '--pixel-parity') {
+            parsed.runPixelParity = true
         } else if (arg === '--no-vision') {
             parsed.skipVision = true
         } else if (arg === '--bundles') {
@@ -174,6 +178,7 @@ function parseArgs() {
         parsed.runStructure = true
         parsed.runAlgEquiv = true
         parsed.runPassthrough = true
+        parsed.runPixelParity = true
     }
 
     // Default effects
@@ -352,6 +357,8 @@ async function testEffect(session, effectId, options) {
         algEquivDivergent: false,
         passthrough: null,
         passthroughFailed: false,
+        pixelParity: null,
+        pixelParityFailed: false,
         benchmark: null,
         benchmarkFailed: false,
         vision: null,
@@ -588,6 +595,26 @@ async function testEffect(session, effectId, options) {
         }
     }
 
+    // Pixel parity test (GLSL ↔ WGSL)
+    if (options.runPixelParity) {
+        t0 = Date.now()
+        const pixelParityResult = await session.testPixelParity(effectId, { epsilon: 1, seed: 42 })
+        timings.push(`pixel-parity:${Date.now() - t0}ms`)
+        results.pixelParity = pixelParityResult.status
+
+        if (pixelParityResult.status === 'skipped') {
+            console.log(`  ⊘ pixel-parity: ${pixelParityResult.details}`)
+        } else if (pixelParityResult.status === 'ok') {
+            console.log(`  ✓ pixel-parity: ${pixelParityResult.details}`)
+        } else if (pixelParityResult.status === 'mismatch') {
+            results.pixelParityFailed = true
+            console.log(`  ❌ PIXEL MISMATCH: ${pixelParityResult.details}`)
+        } else {
+            results.pixelParityFailed = true
+            console.log(`  ❌ pixel-parity: ${pixelParityResult.details}`)
+        }
+    }
+
     // Benchmark
     if (options.runBenchmark) {
         t0 = Date.now()
@@ -721,11 +748,17 @@ async function main() {
 
     console.log(`\nStarting browser session (backend: ${args.backend}${args.useBundles ? ', bundles: true' : ''})...`)
 
+    // Pixel parity tests require headed mode for WebGPU support
+    const needsHeaded = args.runPixelParity
+    if (needsHeaded) {
+        console.log('  (headed mode for WebGPU pixel parity testing)')
+    }
+
     // Setup: Create browser session
     const session = new BrowserSession({
         backend: args.backend,
         useBundles: args.useBundles,
-        headless: true  // Headless for CI; use MCP tools for headed debugging
+        headless: !needsHeaded  // Headed for pixel parity, headless otherwise
     })
 
     try {
@@ -785,6 +818,7 @@ async function main() {
             if (r.consoleErrors?.length > 0) return false
             if (r.uniformsFailed) return false
             if (r.passthroughFailed) return false
+            if (r.pixelParityFailed) return false
             if (r.benchmarkFailed) return false
             if (r.visionFailed) return false
             if (r.algEquivDivergent) return false
@@ -806,6 +840,7 @@ async function main() {
             if (r.consoleErrors?.length > 0) return true
             if (r.uniformsFailed) return true
             if (r.passthroughFailed) return true
+            if (r.pixelParityFailed) return true
             if (r.benchmarkFailed) return true
             if (r.visionFailed) return true
             if (r.algEquivDivergent) return true
@@ -833,6 +868,7 @@ async function main() {
                 if (r.consoleErrors?.length > 0) reasons.push(`${r.consoleErrors.length} console error(s)`)
                 if (r.uniformsFailed) reasons.push('uniforms unresponsive')
                 if (r.passthroughFailed) reasons.push('passthrough (no-op)')
+                if (r.pixelParityFailed) reasons.push('GLSL/WGSL pixel mismatch')
                 if (r.benchmarkFailed) reasons.push('below target FPS')
                 if (r.visionFailed) reasons.push('vision check failed')
                 if (r.algEquivDivergent) reasons.push('GLSL/WGSL divergent')

@@ -289,6 +289,38 @@ const TOOLS = [
         }
     },
     {
+        name: 'testPixelParity',
+        description: 'Test pixel-for-pixel parity between GLSL (WebGL2) and WGSL (WebGPU) shader outputs. Renders effect at frame 0 with both backends and compares pixels. Skips stateful effects. Fails if pixel values differ beyond epsilon tolerance.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                effect_id: {
+                    type: 'string',
+                    description: 'Single effect identifier'
+                },
+                effects: {
+                    type: 'string',
+                    description: 'CSV of effect IDs or glob patterns'
+                },
+                epsilon: {
+                    type: 'number',
+                    default: 1,
+                    description: 'Maximum per-channel pixel difference allowed (0-255 scale). Default: 1'
+                },
+                seed: {
+                    type: 'number',
+                    default: 42,
+                    description: 'Random seed for reproducible noise generation'
+                },
+                use_bundles: {
+                    type: 'boolean',
+                    description: 'Use pre-built effect bundles instead of loading from source'
+                }
+            },
+            required: []
+        }
+    },
+    {
         name: 'runDslProgram',
         description: 'Compile and run a DSL program, rendering a single frame and returning image metrics. Use this to test arbitrary DSL compositions without pre-defined effects.',
         inputSchema: {
@@ -548,6 +580,49 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 result = await runBrowserTest(args, async (session, effectId) => {
                     return await session.testNoPassthrough(effectId)
                 })
+                break
+            }
+
+            case 'testPixelParity': {
+                // This test needs BOTH backends, so we handle it specially
+                // It always uses WebGL2 first, then WebGPU
+                const patterns = parseEffects(args)
+                const useBundles = args.use_bundles || false
+                const epsilon = args.epsilon ?? 1
+                const seed = args.seed ?? 42
+
+                // Setup: Create fresh browser session (starts with webgl2)
+                const session = new BrowserSession({ backend: 'webgl2', headless: true, useBundles })
+
+                try {
+                    await session.setup()
+
+                    // Resolve effect patterns
+                    const effectIds = await resolveEffects(session, patterns)
+
+                    // Main loop: Test each effect
+                    const results = {}
+                    for (const effectId of effectIds) {
+                        try {
+                            results[effectId] = await session.testPixelParity(effectId, { epsilon, seed })
+                        } catch (err) {
+                            results[effectId] = { status: 'error', error: err.message }
+                        }
+
+                        // Grace period between effects
+                        await gracePeriod()
+                    }
+
+                    result = {
+                        effects_tested: effectIds.length,
+                        epsilon,
+                        seed,
+                        results
+                    }
+
+                } finally {
+                    await session.teardown()
+                }
                 break
             }
 

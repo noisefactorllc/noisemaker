@@ -5,6 +5,11 @@
 @group(0) @binding(3) var<uniform> aspect: f32;
 @group(0) @binding(4) var<uniform> n: f32;
 
+// GLSL-compatible mod function (floored remainder, always positive for positive divisor)
+fn glsl_mod(x: f32, y: f32) -> f32 {
+  return x - y * floor(x / y);
+}
+
 /* Kaleidoscope effect by folding angle into n symmetric slices. */
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
@@ -14,10 +19,10 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   let r = length(st);
   var a = atan2(st.y, st.x);
   let m = 6.2831853 / n;
-  a = a - m * floor(a / m);
+  a = glsl_mod(a, m);
   var uv = vec2<f32>(cos(a), sin(a)) * r;
   uv.x = uv.x / aspect;
   uv += vec2<f32>(0.5, 0.5);
-  let rgb = textureSample(inputTex, samp, uv).rgb;
+  let rgb = textureSample(inputTex, samp, vec2<f32>(uv.x, 1.0 - uv.y)).rgb;
   return vec4<f32>(rgb, 1.0);
 }

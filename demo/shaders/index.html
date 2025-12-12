@@ -326,6 +326,15 @@
         window.__noisemakerGetLoopDuration = () => renderer.loopDuration;
         window.__noisemakerGetFPS = () => renderer.targetFPS;
         window.__noisemakerRegistry = { getEffect };
+        
+        // Expose renderer for test harness (pause, render single frame, etc.)
+        window.__noisemakerCanvasRenderer = renderer;
+        
+        // Expose pause/play controls for test harness
+        window.__noisemakerSetPaused = (paused) => setPaused(paused);
+        window.__noisemakerIsPaused = () => isPaused;
+        window.__noisemakerSetPausedTime = (t) => { pausedNormalizedTime = t; };
+        window.__noisemakerGetCanvas = () => renderer.canvas;
 
         // Sync frame count from renderer
         const originalOnFrame = renderer._onFrame;

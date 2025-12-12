@@ -14,5 +14,5 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   let size = vec2<f32>(x, y);
   st = floor(st * size) / size;
   st.x = st.x / aspect;
-  return vec4<f32>(textureSample(inputTex, samp, st).rgb, 1.0);
+  return vec4<f32>(textureSample(inputTex, samp, vec2<f32>(st.x, 1.0 - st.y)).rgb, 1.0);
 }

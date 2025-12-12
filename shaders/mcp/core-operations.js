@@ -89,20 +89,14 @@ export async function compileEffect(page, effectId, options = {}) {
             const radio = document.querySelector(`input[name="backend"][value="${targetBackend}"]`)
             if (radio) {
                 radio.click()
-                // Wait for backend switch to complete - pipeline must be rebuilt
+                // Wait for backend switch to complete - just check pipeline backend
                 const switchStart = Date.now()
+                const expectedBackend = targetBackend === 'wgsl' ? 'webgpu' : 'webgl2'
                 while (Date.now() - switchStart < timeout) {
-                    // Check that:
-                    // 1. The status shows "switched to X"
-                    // 2. The pipeline exists and has the correct backend
-                    const status = document.getElementById('status')
-                    const text = (status?.textContent || '').toLowerCase()
                     const pipeline = window.__noisemakerRenderingPipeline
                     const pipelineBackend = pipeline?.backend?.getName?.()?.toLowerCase() || ''
-                    const expectedBackend = targetBackend === 'wgsl' ? 'webgpu' : 'webgl2'
 
-                    if (text.includes(`switched to ${targetBackend}`) &&
-                        pipelineBackend.includes(expectedBackend.toLowerCase())) {
+                    if (pipelineBackend.includes(expectedBackend.toLowerCase())) {
                         break
                     }
                     await new Promise(r => setTimeout(r, 10))
@@ -1686,6 +1680,239 @@ export async function testNoPassthrough(page, effectId, options = {}) {
         debug: result.debug,
         uniformDebug: result.uniformDebug,
         passUniformsDebug: result.passUniformsDebug
+    }
+}
+
+/**
+ * Stateful effects that are skipped in pixel parity tests.
+ * These effects use feedback loops or accumulate state across frames,
+ * so comparing frame 0 output between backends is not meaningful.
+ */
+const STATEFUL_EFFECTS = new Set([
+    'stateful/ca',
+    'stateful/cf',
+    'stateful/dla',
+    'stateful/feedback',
+    'stateful/flow',
+    'stateful/hflow',
+    'stateful/mnca',
+    'stateful/physarum',
+    'stateful/rd',
+])
+
+/**
+ * Check if an effect is stateful (uses feedback loops or accumulates state).
+ * @param {string} effectId - Effect identifier
+ * @returns {boolean}
+ */
+export function isStatefulEffect(effectId) {
+    // Effects in the stateful namespace are always stateful
+    if (effectId.startsWith('stateful/')) return true
+    // Also check the explicit set for any exceptions
+    return STATEFUL_EFFECTS.has(effectId)
+}
+
+/**
+ * Test pixel-for-pixel parity between GLSL (WebGL2) and WGSL (WebGPU) renderings.
+ *
+ * This test:
+ * 1. Skips stateful effects (they require multiple frames to produce meaningful output)
+ * 2. PAUSES the render loop and renders exactly one frame at time=0 with WebGL2/GLSL
+ * 3. Switches to WebGPU/WGSL and renders exactly one frame at time=0
+ * 4. Compares the pixel data with a tight epsilon for floating-point tolerance
+ * 5. If mismatch is significant, tries Y-flipping the WGSL output and comparing again
+ * 6. Reports whether the WGSL output appears to be Y-flipped relative to GLSL
+ *
+ * The test uses the same DSL program and seed for both backends to ensure
+ * the same procedural content is generated.
+ *
+ * @param {import('@playwright/test').Page} page - Playwright page with demo loaded
+ * @param {string} effectId - Effect identifier (e.g., "classicBasics/noise")
+ * @param {object} options
+ * @param {number} [options.epsilon=1] - Maximum per-channel difference allowed (0-255 scale)
+ * @param {number} [options.seed=42] - Random seed for reproducible noise
+ * @returns {Promise<{status: 'ok'|'error'|'skipped'|'mismatch', maxDiff: number, meanDiff: number, mismatchCount: number, isYFlipped: boolean, details: string}>}
+ */
+export async function testPixelParity(page, effectId, options = {}) {
+    const epsilon = options.epsilon ?? 1  // Allow 1/255 difference for float precision
+    const seed = options.seed ?? 42
+
+    // Check if this is a stateful effect
+    if (isStatefulEffect(effectId)) {
+        return {
+            status: 'skipped',
+            maxDiff: null,
+            meanDiff: null,
+            mismatchCount: null,
+            isYFlipped: false,
+            details: 'Stateful effect - pixel parity test not applicable'
+        }
+    }
+
+    // Helper to capture canvas pixels with a specific backend
+    // Stores pixels in window object to avoid JSON serialization overhead
+    async function captureWithBackend(targetBackend) {
+        const backendLabel = targetBackend === 'wgsl' ? 'webgpu' : 'webgl2'
+
+        // Compile the effect (compileEffect handles backend switching internally)
+        const compileResult = await compileEffect(page, effectId, { backend: backendLabel })
+        if (compileResult.status === 'error') {
+            return { error: `${backendLabel} compile failed: ${compileResult.message}` }
+        }
+
+        // Pause, set time=0, render, and store pixels in window for comparison
+        const result = await page.evaluate(async ({ seed, storageKey }) => {
+            const renderer = window.__noisemakerCanvasRenderer
+            const pipeline = window.__noisemakerRenderingPipeline
+            const canvas = window.__noisemakerGetCanvas?.() || renderer?.canvas
+
+            if (!pipeline) return { error: 'Pipeline not available' }
+            if (!canvas) return { error: 'Canvas not available' }
+
+            // 1. Pause the engine
+            window.__noisemakerSetPaused?.(true)
+
+            // 2. Set paused time to 0
+            window.__noisemakerSetPausedTime?.(0)
+
+            // 3. Set seed in uniforms
+            if (pipeline.globalUniforms) pipeline.globalUniforms.seed = seed
+            for (const pass of pipeline.graph?.passes || []) {
+                if (pass.uniforms) pass.uniforms.seed = seed
+            }
+
+            // 4. Render at time 0
+            await new Promise(resolve => {
+                requestAnimationFrame(() => {
+                    renderer.render(0)
+                    resolve()
+                })
+            })
+
+            // 5. Read pixels from canvas and store in window (avoid JSON serialization)
+            const width = canvas.width
+            const height = canvas.height
+            const offscreen = new OffscreenCanvas(width, height)
+            const ctx = offscreen.getContext('2d')
+            ctx.drawImage(canvas, 0, 0)
+            const imageData = ctx.getImageData(0, 0, width, height)
+
+            window[storageKey] = { width, height, data: imageData.data }
+
+            // 6. Resume the engine
+            window.__noisemakerSetPaused?.(false)
+
+            return { width, height, backendName: pipeline.backend?.getName?.() || 'unknown' }
+        }, { seed, storageKey: `__pixelParity_${targetBackend}` })
+
+        return result
+    }
+
+    // Capture GLSL pixels
+    const glslResult = await captureWithBackend('glsl')
+    if (glslResult.error) {
+        return {
+            status: 'error',
+            maxDiff: null,
+            meanDiff: null,
+            mismatchCount: null,
+            isYFlipped: false,
+            details: glslResult.error
+        }
+    }
+
+    // Capture WGSL pixels
+    const wgslResult = await captureWithBackend('wgsl')
+    if (wgslResult.error) {
+        return {
+            status: 'error',
+            maxDiff: null,
+            meanDiff: null,
+            mismatchCount: null,
+            isYFlipped: false,
+            details: wgslResult.error
+        }
+    }
+
+    // Compare dimensions
+    if (glslResult.width !== wgslResult.width || glslResult.height !== wgslResult.height) {
+        return {
+            status: 'error',
+            maxDiff: null,
+            meanDiff: null,
+            mismatchCount: null,
+            isYFlipped: false,
+            details: `Dimension mismatch: GLSL ${glslResult.width}x${glslResult.height} vs WGSL ${wgslResult.width}x${wgslResult.height}`
+        }
+    }
+
+    // Compare pixels IN THE BROWSER to avoid JSON serialization of 4MB arrays
+    const comparison = await page.evaluate(({ epsilon }) => {
+        const glsl = window.__pixelParity_glsl
+        const wgsl = window.__pixelParity_wgsl
+
+        if (!glsl || !wgsl) return { error: 'Pixel data not found' }
+
+        const { width, height } = glsl
+        const glslData = glsl.data
+        const wgslData = wgsl.data
+        const pixelCount = width * height
+
+        function comparePixels(data1, data2, eps) {
+            let maxD = 0, totalD = 0, mismatchCnt = 0
+            for (let i = 0; i < data1.length; i++) {
+                const diff = Math.abs(data1[i] - data2[i])
+                if (diff > maxD) maxD = diff
+                totalD += diff
+                if (diff > eps) mismatchCnt++
+            }
+            return { maxDiff: maxD, meanDiff: totalD / data1.length, mismatchCount: mismatchCnt, mismatchPercent: mismatchCnt / (pixelCount * 4) * 100 }
+        }
+
+        function flipY(data, w, h) {
+            const flipped = new Uint8ClampedArray(data.length)
+            const rowSize = w * 4
+            for (let y = 0; y < h; y++) {
+                const srcRow = y * rowSize, dstRow = (h - 1 - y) * rowSize
+                for (let x = 0; x < rowSize; x++) flipped[dstRow + x] = data[srcRow + x]
+            }
+            return flipped
+        }
+
+        const normalResult = comparePixels(glslData, wgslData, epsilon)
+        let isYFlipped = false, finalResult = normalResult
+
+        if (normalResult.mismatchPercent > 5) {
+            const flippedResult = comparePixels(glslData, flipY(wgslData, width, height), epsilon)
+            if (flippedResult.mismatchPercent / normalResult.mismatchPercent < 0.5 || flippedResult.mismatchPercent < 5) {
+                isYFlipped = true
+                finalResult = flippedResult
+            }
+        }
+
+        delete window.__pixelParity_glsl
+        delete window.__pixelParity_wgsl
+
+        return { width, height, ...finalResult, isYFlipped }
+    }, { epsilon })
+
+    if (comparison.error) {
+        return { status: 'error', maxDiff: null, meanDiff: null, mismatchCount: null, isYFlipped: false, details: comparison.error }
+    }
+
+    const hasMismatch = comparison.maxDiff > epsilon
+
+    return {
+        status: hasMismatch ? 'mismatch' : 'ok',
+        maxDiff: comparison.maxDiff,
+        meanDiff: comparison.meanDiff,
+        mismatchCount: comparison.mismatchCount,
+        mismatchPercent: comparison.mismatchPercent.toFixed(4),
+        resolution: [comparison.width, comparison.height],
+        isYFlipped: comparison.isYFlipped,
+        details: hasMismatch
+            ? `PIXEL MISMATCH: maxDiff=${comparison.maxDiff} (epsilon=${epsilon}), ${comparison.mismatchCount} channels differ (${comparison.mismatchPercent.toFixed(2)}%)${comparison.isYFlipped ? ' [WGSL Y-FLIPPED]' : ''}`
+            : `GLSL ↔ WGSL pixel parity: maxDiff=${comparison.maxDiff}, meanDiff=${comparison.meanDiff.toFixed(4)}${comparison.isYFlipped ? ' [WGSL Y-FLIPPED]' : ''}`
     }
 }
 
