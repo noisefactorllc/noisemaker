@@ -345,10 +345,13 @@ The following normative shape defines the Effect configuration object. Validatio
      "properties": {
        "name": { "type": "string", "pattern": "^[A-Za-z0-9_\-]{1,64}$" },
        "namespace": { "type": "string", "pattern": "^[a-zA-Z0-9]+$", "default": "synth" },
+       "func": { "type": "string", "description": "DSL function name for this effect" },
        "version": { "type": "string", "pattern": "^\d+\.\d+\.\d+$", "default": "1.0.0" },
        "globals": { "type": "object", "additionalProperties": { "$ref": "#/definitions/uniformSpec" } },
        "textures": { "type": "object", "additionalProperties": { "$ref": "#/definitions/textureSpec" } },
        "passes": { "type": "array", "minItems": 1, "items": { "$ref": "#/definitions/passSpec" } },
+       "outputTex3d": { "type": "string", "description": "Internal texture name to expose as 3D volume output" },
+       "outputGeo": { "type": "string", "description": "Internal texture name to expose as geometry buffer output" },
        "meta": { "type": "object" }
      },
      "definitions": {
@@ -383,9 +386,10 @@ The following normative shape defines the Effect configuration object. Validatio
        "dimensionSpec": {
          "oneOf": [
            {"type": "number", "minimum": 1},
-           {"type": "string", "enum": ["screen","auto"]},
+           {"type": "string", "enum": ["screen","auto","input"]},
            {"type": "string", "pattern": "^(?:100|[1-9]?[0-9])%$"},
-           {"type": "object", "required": ["scale"], "properties": {"scale": {"type":"number"}, "clamp": {"type":"object", "properties": {"min": {"type":"number"}, "max": {"type":"number"}}}}}
+           {"type": "object", "required": ["scale"], "properties": {"scale": {"type":"number"}, "clamp": {"type":"object", "properties": {"min": {"type":"number"}, "max": {"type":"number"}}}}},
+           {"type": "object", "required": ["param"], "properties": {"param": {"type":"string"}, "default": {"type":"number"}, "multiply": {"type":"number"}, "power": {"type":"number"}, "inputOverride": {"type":"string"}}}
          ]
        },
        "textureSpec": {
@@ -400,7 +404,7 @@ The following normative shape defines the Effect configuration object. Validatio
          },
          "required": ["format"],
          "additionalProperties": false,
-         "description": "Implicit textures (inputTex, outputColor) bypass this schema and are synthesized by the runtime."
+         "description": "User-defined textures. Reserved names (inputTex, outputTex, inputTex3d, inputGeo) are synthesized by the runtime."
        },
        "passSpec": {
          "type": "object",
@@ -464,39 +468,85 @@ Formats MUST map to backend-supported subsets:
 * WebGL required: ``rgba8``, ``rgba16f``, ``rgba32f (if EXT_color_buffer_float)``, ``r8``.
 * WebGPU required subset: ``rgba8unorm``, ``rgba16float``, ``rgba32float``, ``bgra8unorm``, depth formats as available.
 
-7.1 Dimension Resolution Algorithm
+7.1 Reserved Texture Names
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The runtime synthesizes these textures automatically. Do not define them in ``textures``.
+
+**2D Pipeline (standard):**
+
+* ``inputTex`` — 2D input from the previous effect in the chain
+* ``outputTex`` — 2D output to the next effect in the chain
+
+**3D Pipeline (volumetric):**
+
+* ``inputTex3d`` — 3D volume input from the previous effect
+* ``outputTex3d`` — Effect-level property pointing to an internal texture to expose as 3D output
+
+**Geometry Pipeline:**
+
+* ``inputGeo`` — Geometry buffer (normals + depth) from upstream raymarched effect
+* ``outputGeo`` — Effect-level property pointing to an internal texture to expose as geometry output
+
+Effects that produce 3D volumes or geometry buffers declare the output at effect level:
+
+.. code-block:: javascript
+
+   export default new Effect({
+     name: "VolumeGenerator",
+     namespace: "vol",
+     textures: {
+       volumeCache: { width: 64, height: 4096, format: "rgba16float" },
+       geoBuffer: { width: "screen", height: "screen", format: "rgba16float" }
+     },
+     passes: [ /* ... */ ],
+     outputTex3d: "volumeCache",  // Expose volumeCache as 3D output
+     outputGeo: "geoBuffer"       // Expose geoBuffer as geometry output
+   });
+
+7.2 Dimension Resolution Algorithm
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For each texture dimension (``width`` or ``height``), resolve to integer pixels:
 
 .. code-block:: js
 
-   function resolveDimension(spec, axis, screenSize) {
+   function resolveDimension(spec, screenSize, uniforms = {}) {
      if (typeof spec === 'number') return Math.max(1, Math.floor(spec))
-     if (spec === 'screen') return screenSize[axis]
-     if (spec === 'auto') return screenSize[axis] // Reserved; currently = screen
+     if (spec === 'screen' || spec === 'auto') return screenSize
+     if (spec === 'input') return screenSize  // Match input texture dimensions
 
      if (typeof spec === 'string' && spec.endsWith('%')) {
        const percent = parseFloat(spec)
-       const computed = Math.floor(screenSize[axis] * percent / 100)
-       return Math.max(1, computed)
+       return Math.max(1, Math.floor(screenSize * percent / 100))
      }
 
-     if (typeof spec === 'object' && spec.scale !== undefined) {
-       let computed = Math.floor(screenSize[axis] * spec.scale)
-       if (spec.clamp) {
-         if (spec.clamp.min !== undefined) computed = Math.max(spec.clamp.min, computed)
-         if (spec.clamp.max !== undefined) computed = Math.min(spec.clamp.max, computed)
+     if (typeof spec === 'object') {
+       // Param-based: { param: 'volumeSize', default: 64, multiply: 2, power: 2 }
+       if (spec.param !== undefined) {
+         let value = uniforms[spec.param] ?? spec.default ?? 64
+         if (spec.multiply !== undefined) value *= spec.multiply
+         if (spec.power !== undefined) value = Math.pow(value, spec.power)
+         return Math.max(1, Math.floor(value))
        }
-       return Math.max(1, computed)
+
+       // Scale-based: { scale: 0.5, clamp: { min: 64, max: 512 } }
+       if (spec.scale !== undefined) {
+         let computed = Math.floor(screenSize * spec.scale)
+         if (spec.clamp) {
+           if (spec.clamp.min !== undefined) computed = Math.max(spec.clamp.min, computed)
+           if (spec.clamp.max !== undefined) computed = Math.min(spec.clamp.max, computed)
+         }
+         return Math.max(1, computed)
+       }
      }
 
-     throw new Error('ERR_INVALID_DIMENSION')
+     return screenSize  // Fallback
    }
 
 All dimensions MUST be positive integers. Fractional results round down; minimum 1px enforced.
 
-7.2 Format Negotiation
+7.3 Format Negotiation
 ^^^^^^^^^^^^^^^^^^^^^^
 
 When an effect requests a format unsupported by the active backend:
