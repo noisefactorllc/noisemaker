@@ -10,8 +10,8 @@
 precision highp float;
 precision highp int;
 
-uniform sampler2D tex0;
-uniform sampler2D tex1;
+uniform sampler2D inputTex;
+uniform sampler2D tex;
 uniform sampler2D imageTex;
 uniform vec2 imageSize;
 uniform int source;
@@ -138,8 +138,8 @@ void main() {
     vec2 st = gl_FragCoord.xy / resolution;
     st.y = 1.0 - st.y;
 
-    vec4 color1 = texture(tex0, st);
-    vec4 color2 = texture(tex1, st);
+    vec4 color1 = texture(inputTex, st);
+    vec4 color2 = texture(tex, st);
     vec4 mixer = getImage(st);
 
     float luminosity = 0.2126 * mixer.r + 0.7152 * mixer.g + 0.0722 * mixer.b;

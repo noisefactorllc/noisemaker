@@ -9,8 +9,8 @@
 precision highp float;
 precision highp int;
 
-uniform sampler2D tex0;
-uniform sampler2D tex1;
+uniform sampler2D inputTex;
+uniform sampler2D tex;
 uniform vec2 resolution;
 uniform float time;
 uniform float seed;
@@ -191,8 +191,8 @@ void main() {
     vec2 st = gl_FragCoord.xy / resolution;
     st.y = 1.0 - st.y;
 
-    vec4 color1 = texture(tex0, st);
-    vec4 color2 = texture(tex1, st);
+    vec4 color1 = texture(inputTex, st);
+    vec4 color2 = texture(tex, st);
 
     color.rgb = blend(color1.rgb, color2.rgb);
     color.a = mix(color1.a, color2.a, mixAmt * 0.01);

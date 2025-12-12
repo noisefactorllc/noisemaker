@@ -4,7 +4,7 @@ precision highp float;
 uniform vec2 resolution;
 uniform float aspect;
 uniform float n;
-uniform sampler2D tex0;
+uniform sampler2D inputTex;
 
 out vec4 fragColor;
 
@@ -20,5 +20,5 @@ void main(){
   vec2 uv = vec2(cos(a), sin(a)) * r;
   uv.x /= aspect;
   uv += 0.5;
-  fragColor = vec4(texture(tex0, uv).rgb, 1.0);
+  fragColor = vec4(texture(inputTex, uv).rgb, 1.0);
 }

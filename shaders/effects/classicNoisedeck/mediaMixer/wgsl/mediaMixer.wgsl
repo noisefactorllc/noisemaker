@@ -4,8 +4,8 @@
  */
 
 @group(0) @binding(0) var samp: sampler;
-@group(0) @binding(1) var tex0: texture_2d<f32>;
-@group(0) @binding(2) var tex1: texture_2d<f32>;
+@group(0) @binding(1) var inputTex: texture_2d<f32>;
+@group(0) @binding(2) var tex: texture_2d<f32>;
 @group(0) @binding(3) var imageTex: texture_2d<f32>;
 @group(0) @binding(4) var<uniform> u: Uniforms;
 
@@ -117,8 +117,8 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     var st = fragCoord.xy / u.resolution;
     st.y = 1.0 - st.y;
 
-    let color1 = textureSample(tex0, samp, st);
-    let color2 = textureSample(tex1, samp, st);
+    let color1 = textureSample(inputTex, samp, st);
+    let color2 = textureSample(tex, samp, st);
     let mixer = getImage(fragCoord);
 
     let luminosity = (0.2126 * mixer.r + 0.7152 * mixer.g + 0.0722 * mixer.b) * (u.cutoff * 0.01);

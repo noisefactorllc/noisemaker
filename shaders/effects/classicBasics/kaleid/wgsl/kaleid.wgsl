@@ -1,6 +1,6 @@
 // WGSL version – WebGPU
 @group(0) @binding(0) var samp: sampler;
-@group(0) @binding(1) var tex0: texture_2d<f32>;
+@group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> resolution: vec2<f32>;
 @group(0) @binding(3) var<uniform> aspect: f32;
 @group(0) @binding(4) var<uniform> n: f32;
@@ -18,6 +18,6 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   var uv = vec2<f32>(cos(a), sin(a)) * r;
   uv.x = uv.x / aspect;
   uv += vec2<f32>(0.5, 0.5);
-  let rgb = textureSample(tex0, samp, uv).rgb;
+  let rgb = textureSample(inputTex, samp, uv).rgb;
   return vec4<f32>(rgb, 1.0);
 }

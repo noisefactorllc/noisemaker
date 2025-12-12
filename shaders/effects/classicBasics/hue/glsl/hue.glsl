@@ -1,7 +1,7 @@
 #version 300 es
 precision highp float;
 
-uniform sampler2D tex0;
+uniform sampler2D inputTex;
 uniform float hue;
 
 out vec4 fragColor;
@@ -23,8 +23,8 @@ vec3 hsv2rgb(vec3 c){
 
 /* Rotates hue in HSV space. */
 void main(){
-  vec2 st = gl_FragCoord.xy / vec2(textureSize(tex0,0));
-  vec4 c = texture(tex0, st);
+  vec2 st = gl_FragCoord.xy / vec2(textureSize(inputTex,0));
+  vec4 c = texture(inputTex, st);
   vec3 hsv = rgb2hsv(c.rgb);
   hsv.x = fract(hsv.x + hue);
   vec3 rgb = hsv2rgb(hsv);

@@ -2180,7 +2180,21 @@ export async function checkEffectStructure(effectId, options = {}) {
                 // Only acceptable patterns:
                 //   inputTex: "inputTex"  (standard filter input)
                 //   tex: "tex"            (mixer secondary input)
-                // Using inputTex as a value with a different key is FORBIDDEN
+                // FORBIDDEN patterns:
+                //   tex0, tex1, etc. as keys - these are legacy and must not be used
+                //   Using inputTex as a value with a different key
+                //   Using tex as a value with a different key
+
+                // BANNED: tex0, tex1, tex2, etc. as keys
+                if (/^tex\d+$/.test(inputKey)) {
+                    result.inputBindingIssues.push({
+                        key: inputKey,
+                        value: textureName,
+                        reason: `BANNED key "${inputKey}" - use "inputTex" for pipeline input, "tex" for mixer secondary input`
+                    })
+                }
+
+                // Key must match value for inputTex and tex
                 if (textureName === 'inputTex' && inputKey !== 'inputTex') {
                     result.inputBindingIssues.push({
                         key: inputKey,

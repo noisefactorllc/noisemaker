@@ -27,8 +27,8 @@ export default new Effect({
       name: "main",
       program: "blend",
       inputs: {
-      "tex0": "inputTex",
-      "tex1": "tex"
+      "inputTex": "inputTex",
+      "tex": "tex"
 },
       outputs: {
         color: "outputTex"

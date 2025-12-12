@@ -1,16 +1,16 @@
 #version 300 es
 precision highp float;
 
-uniform sampler2D tex0;
-uniform sampler2D tex1;
+uniform sampler2D inputTex;
+uniform sampler2D tex;
 uniform float amount;
 
 out vec4 fragColor;
 
-/* Adds tex1 over tex0 scaled by amount. */
+/* Adds tex over inputTex scaled by amount. */
 void main(){
-  vec2 st = gl_FragCoord.xy / vec2(textureSize(tex0,0));
-  vec4 a = texture(tex0, st);
-  vec3 b = texture(tex1, st).rgb * amount;
+  vec2 st = gl_FragCoord.xy / vec2(textureSize(inputTex,0));
+  vec4 a = texture(inputTex, st);
+  vec3 b = texture(tex, st).rgb * amount;
   fragColor = vec4(a.rgb + b, 1.0);
 }

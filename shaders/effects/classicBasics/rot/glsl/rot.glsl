@@ -6,7 +6,7 @@ uniform float aspect;
 uniform float time;
 uniform float angle;
 uniform float speed;
-uniform sampler2D tex0;
+uniform sampler2D inputTex;
 
 out vec4 fragColor;
 
@@ -20,5 +20,5 @@ void main(){
   st = rot * st;
   st.x /= aspect;
   st += 0.5;
-  fragColor = vec4(texture(tex0, st).rgb, 1.0);
+  fragColor = vec4(texture(inputTex, st).rgb, 1.0);
 }

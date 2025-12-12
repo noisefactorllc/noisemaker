@@ -8,8 +8,8 @@ const PI : f32 = 3.14159265359;
 const TAU : f32 = 6.28318530718;
 
 @group(0) @binding(0) var samp : sampler;
-@group(0) @binding(1) var tex0 : texture_2d<f32>;
-@group(0) @binding(2) var tex1 : texture_2d<f32>;
+@group(0) @binding(1) var inputTex : texture_2d<f32>;
+@group(0) @binding(2) var tex : texture_2d<f32>;
 @group(0) @binding(3) var<uniform> intensity : f32;
 @group(0) @binding(4) var<uniform> direction : f32;
 @group(0) @binding(5) var<uniform> mode : i32;
@@ -108,12 +108,12 @@ fn wrapCoords(st_in : vec2<f32>) -> vec2<f32> {
 
 @fragment
 fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
-    let dims = vec2<f32>(textureDimensions(tex0, 0));
+    let dims = vec2<f32>(textureDimensions(inputTex, 0));
     var st = position.xy / dims;
     st.y = 1.0 - st.y;
 
-    let color1 = textureSample(tex0, samp, st);
-    let color2 = textureSample(tex1, samp, st);
+    let color1 = textureSample(inputTex, samp, st);
+    let color2 = textureSample(tex, samp, st);
 
     var color = vec4<f32>(0.0, 0.0, 1.0, 1.0);
     var uv = st;
@@ -125,27 +125,27 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
             uv.x = uv.x + cos(len * TAU) * (intensity * 0.001);
             uv.y = uv.y + sin(len * TAU) * (intensity * 0.001);
             uv = wrapCoords(uv);
-            color = textureSample(tex1, samp, uv);
+            color = textureSample(tex, samp, uv);
         } else {
             let len = length(color2.rgb) + direction / 360.0;
             uv.x = uv.x + cos(len * TAU) * (intensity * 0.001);
             uv.y = uv.y + sin(len * TAU) * (intensity * 0.001);
             uv = wrapCoords(uv);
-            color = textureSample(tex0, samp, uv);
+            color = textureSample(inputTex, samp, uv);
         }
     } else if (mode == 1) {
         // refract
         if (displaceSource == 0) {
-            color = refractMap(st, tex0, tex1);
+            color = refractMap(st, inputTex, tex);
         } else {
-            color = refractMap(st, tex1, tex0);
+            color = refractMap(st, tex, inputTex);
         }
     } else if (mode == 2) {
         // reflect
         if (displaceSource == 0) {
-            color = reflectMap(st, tex0, tex1);
+            color = reflectMap(st, inputTex, tex);
         } else {
-            color = reflectMap(st, tex1, tex0);
+            color = reflectMap(st, tex, inputTex);
         }
     }
 

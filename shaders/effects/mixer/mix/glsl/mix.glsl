@@ -1,8 +1,8 @@
 #version 300 es
 precision highp float;
 
-uniform sampler2D tex0;
-uniform sampler2D tex1;
+uniform sampler2D inputTex;
+uniform sampler2D tex;
 uniform vec2 resolution;
 uniform float mixAmt;
 out vec4 fragColor;
@@ -15,8 +15,8 @@ void main() {
     vec2 st = gl_FragCoord.xy / resolution;
     
 
-    vec4 color1 = texture(tex0, st);
-    vec4 color2 = texture(tex1, st);
+    vec4 color1 = texture(inputTex, st);
+    vec4 color2 = texture(tex, st);
 
     // mix blend: average of both colors
     vec4 middle = (color1 + color2) * 0.5;

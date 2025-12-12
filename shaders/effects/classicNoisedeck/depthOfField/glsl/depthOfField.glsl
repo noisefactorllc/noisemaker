@@ -9,8 +9,8 @@
 precision highp float;
 precision highp int;
 
-uniform sampler2D tex0;
-uniform sampler2D tex1;
+uniform sampler2D inputTex;
+uniform sampler2D tex;
 uniform vec2 resolution;
 uniform float time;
 uniform float seed;
@@ -57,11 +57,11 @@ void main() {
 	uv.y = 1.0 - uv.y;
     vec4 color = vec4(1.0);
     if (depthSource == 0) {
-        color = depthOfField(tex1, tex0, uv, resolution);
+        color = depthOfField(tex, inputTex, uv, resolution);
     } else {
-        color = depthOfField(tex0, tex1, uv, resolution);
+        color = depthOfField(inputTex, tex, uv, resolution);
     }
     
-    color.a = max(texture(tex0, uv).a, texture(tex1, uv).a);
+    color.a = max(texture(inputTex, uv).a, texture(tex, uv).a);
     fragColor = color;
 }

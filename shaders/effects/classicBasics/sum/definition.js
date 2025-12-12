@@ -20,7 +20,7 @@ export default new Effect({
       name: "main",
       program: "sum",
       inputs: {
-      "tex0": "inputTex"
+      "inputTex": "inputTex"
 },
       outputs: {
         color: "outputTex"

@@ -27,7 +27,7 @@ export default new Effect({
       name: "main",
       program: "rot",
       inputs: {
-      "tex0": "inputTex"
+      "inputTex": "inputTex"
 },
       outputs: {
         color: "outputTex"

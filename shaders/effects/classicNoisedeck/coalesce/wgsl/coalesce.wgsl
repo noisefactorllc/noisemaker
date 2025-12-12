@@ -8,8 +8,8 @@ const PI : f32 = 3.14159265359;
 const TAU : f32 = 6.28318530718;
 
 @group(0) @binding(0) var samp : sampler;
-@group(0) @binding(1) var tex0 : texture_2d<f32>;
-@group(0) @binding(2) var tex1 : texture_2d<f32>;
+@group(0) @binding(1) var inputTex : texture_2d<f32>;
+@group(0) @binding(2) var tex : texture_2d<f32>;
 @group(0) @binding(3) var<uniform> blendMode : i32;
 @group(0) @binding(4) var<uniform> mixAmt : f32;
 @group(0) @binding(5) var<uniform> refractAAmt : f32;
@@ -40,8 +40,8 @@ fn cloak(st : vec2<f32>) -> vec4<f32> {
     let ra = map_range(refractAAmt, 0.0, 100.0, 0.0, 0.125);
     let rb = map_range(refractBAmt, 0.0, 100.0, 0.0, 0.125);
 
-    let leftColor = textureSample(tex0, samp, st);
-    let rightColor = textureSample(tex1, samp, st);
+    let leftColor = textureSample(inputTex, samp, st);
+    let rightColor = textureSample(tex, samp, st);
 
     // When the mixer is all the way to the left, we see left refracted by right
     var leftUV = st;
@@ -49,7 +49,7 @@ fn cloak(st : vec2<f32>) -> vec4<f32> {
     leftUV.x = leftUV.x + cos(rightLen * TAU) * ra;
     leftUV.y = leftUV.y + sin(rightLen * TAU) * ra;
 
-    let leftRefracted = textureSample(tex0, samp, fract(leftUV));
+    let leftRefracted = textureSample(inputTex, samp, fract(leftUV));
 
     // When the mixer is all the way to the right, we see right refracted by left
     var rightUV = st;
@@ -57,7 +57,7 @@ fn cloak(st : vec2<f32>) -> vec4<f32> {
     rightUV.x = rightUV.x + cos(leftLen * TAU) * rb;
     rightUV.y = rightUV.y + sin(leftLen * TAU) * rb;
 
-    let rightRefracted = textureSample(tex1, samp, fract(rightUV));
+    let rightRefracted = textureSample(tex, samp, fract(rightUV));
 
     // As the mixer approaches midpoint, mix the two refracted outputs using the same
     // logic as the "reflect" mode in coalesce.
@@ -272,7 +272,7 @@ fn blend_colors(color1 : vec4<f32>, color2 : vec4<f32>, mode : i32, factor_in : 
 
 @fragment
 fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
-    let dims = vec2<f32>(textureDimensions(tex0, 0));
+    let dims = vec2<f32>(textureDimensions(inputTex, 0));
     var st = position.xy / dims;
     st.y = 1.0 - st.y;
 
@@ -284,8 +284,8 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
         let ra = map_range(refractAAmt, 0.0, 100.0, 0.0, 0.125);
         let rb = map_range(refractBAmt, 0.0, 100.0, 0.0, 0.125);
 
-        let leftColor = textureSample(tex0, samp, st);
-        let rightColor = textureSample(tex1, samp, st);
+        let leftColor = textureSample(inputTex, samp, st);
+        let rightColor = textureSample(tex, samp, st);
 
         // refract a->b
         var leftUV = st;
@@ -299,8 +299,8 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
         rightUV.x = rightUV.x + cos(leftLen * TAU) * rb;
         rightUV.y = rightUV.y + sin(leftLen * TAU) * rb;
 
-        let color1 = textureSample(tex0, samp, leftUV);
-        let color2 = textureSample(tex1, samp, rightUV);
+        let color1 = textureSample(inputTex, samp, leftUV);
+        let color2 = textureSample(tex, samp, rightUV);
 
         color = vec4<f32>(blend_colors(color1, color2, blendMode, mixAmt), max(color1.a, color2.a));
     }

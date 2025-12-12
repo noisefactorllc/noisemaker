@@ -8,8 +8,8 @@ const PI : f32 = 3.14159265359;
 const TAU : f32 = 6.28318530718;
 
 @group(0) @binding(0) var samp : sampler;
-@group(0) @binding(1) var tex0 : texture_2d<f32>;
-@group(0) @binding(2) var tex1 : texture_2d<f32>;
+@group(0) @binding(1) var inputTex : texture_2d<f32>;
+@group(0) @binding(2) var tex : texture_2d<f32>;
 @group(0) @binding(3) var<uniform> inputColor : vec3<f32>;
 @group(0) @binding(4) var<uniform> blendMode : i32;
 @group(0) @binding(5) var<uniform> range : f32;
@@ -180,12 +180,12 @@ fn blend_colors(color1_in : vec3<f32>, color2_in : vec3<f32>) -> vec3<f32> {
 
 @fragment
 fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
-    let dims = vec2<f32>(textureDimensions(tex0, 0));
+    let dims = vec2<f32>(textureDimensions(inputTex, 0));
     var st = position.xy / dims;
     st.y = 1.0 - st.y;
 
-    let color1 = textureSample(tex0, samp, st);
-    let color2 = textureSample(tex1, samp, st);
+    let color1 = textureSample(inputTex, samp, st);
+    let color2 = textureSample(tex, samp, st);
 
     var color = vec4<f32>(0.0, 0.0, 1.0, 1.0);
     color = vec4<f32>(blend_colors(color1.rgb, color2.rgb), mix(color1.a, color2.a, mixAmt * 0.01));

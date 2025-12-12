@@ -9,8 +9,8 @@
 precision highp float;
 precision highp int;
 
-uniform sampler2D tex0;
-uniform sampler2D tex1;
+uniform sampler2D inputTex;
+uniform sampler2D tex;
 uniform vec2 resolution;
 uniform float time;
 uniform float intensity;
@@ -147,8 +147,8 @@ void main() {
     vec2 st = gl_FragCoord.xy / resolution;
     st.y = 1.0 - st.y;
 
-    vec4 color1 = texture(tex0, st);
-    vec4 color2 = texture(tex1, st);
+    vec4 color1 = texture(inputTex, st);
+    vec4 color2 = texture(tex, st);
 
     float lum = 0.0;
     vec2 uv = st;
@@ -161,28 +161,28 @@ void main() {
             uv.x += cos(len * TAU) * (intensity * 0.001);
             uv.y += sin(len * TAU) * (intensity * 0.001);
             uv = wrapCoords(uv);
-            color = texture(tex1, uv);
+            color = texture(tex, uv);
         } else {
             lum = 0.3 * color2.r + 0.59 * color2.g + 0.11 * color2.b;
             float len = length(color2.rgb) + direction / 360.0;
             uv.x += cos(len * TAU) * (intensity * 0.001);
             uv.y += sin(len * TAU) * (intensity * 0.001);
             uv = wrapCoords(uv);
-            color = texture(tex0, uv);
+            color = texture(inputTex, uv);
         }
     } else if (mode == 1) {
         // refract
         if (displaceSource == 0) {
-            color = refractMap(st, tex0, tex1);
+            color = refractMap(st, inputTex, tex);
         } else {
-            color = refractMap(st, tex1, tex0);
+            color = refractMap(st, tex, inputTex);
         }
     } else if (mode == 2) {
         // reflect
         if (displaceSource == 0) {
-            color = reflectMap(st, tex0, tex1);
+            color = reflectMap(st, inputTex, tex);
         } else {
-            color = reflectMap(st, tex1, tex0);
+            color = reflectMap(st, tex, inputTex);
         }
     }
 

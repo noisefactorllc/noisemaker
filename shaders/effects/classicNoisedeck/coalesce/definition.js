@@ -128,10 +128,9 @@ export default new Effect({
       name: "render",
       program: "coalesce",
       inputs: {
-              tex0: "inputTex",
-              tex1: "tex"
-            }
-,
+        inputTex: "inputTex",
+        tex: "tex"
+      },
       outputs: {
         fragColor: "outputTex"
       }

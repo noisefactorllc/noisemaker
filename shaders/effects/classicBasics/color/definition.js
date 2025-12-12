@@ -34,7 +34,7 @@ export default new Effect({
       name: "main",
       program: "col",
       inputs: {
-      "tex0": "inputTex"
+      "inputTex": "inputTex"
 },
       outputs: {
         color: "outputTex"

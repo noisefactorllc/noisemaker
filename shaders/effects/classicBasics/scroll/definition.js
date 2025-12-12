@@ -41,7 +41,7 @@ export default new Effect({
       name: "main",
       program: "scroll",
       inputs: {
-      "tex0": "inputTex"
+      "inputTex": "inputTex"
 },
       outputs: {
         color: "outputTex"

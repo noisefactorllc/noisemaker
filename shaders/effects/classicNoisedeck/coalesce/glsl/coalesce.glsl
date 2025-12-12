@@ -10,8 +10,8 @@
 precision highp float;
 precision highp int;
 
-uniform sampler2D tex0;
-uniform sampler2D tex1;
+uniform sampler2D inputTex;
+uniform sampler2D tex;
 uniform vec2 resolution;
 uniform float time;
 uniform float seed;
@@ -44,8 +44,8 @@ vec4 cloak(vec2 st) {
     float ra = map(refractAAmt, 0.0, 100.0, 0.0, 0.125);
     float rb = map(refractBAmt, 0.0, 100.0, 0.0, 0.125);
 
-    vec4 leftColor = texture(tex0, st);
-    vec4 rightColor = texture(tex1, st);
+    vec4 leftColor = texture(inputTex, st);
+    vec4 rightColor = texture(tex, st);
 
     // When the mixer is all the way to the left, we see left refracted by right
     vec2 leftUV = vec2(st);
@@ -53,7 +53,7 @@ vec4 cloak(vec2 st) {
     leftUV.x += cos(rightLen * TAU) * ra;
     leftUV.y += sin(rightLen * TAU) * ra;
 
-    vec4 leftRefracted = texture(tex0, fract(leftUV));
+    vec4 leftRefracted = texture(inputTex, fract(leftUV));
 
     // When the mixer is all the way to the right, we see right refracted by left
     vec2 rightUV = vec2(st);
@@ -61,7 +61,7 @@ vec4 cloak(vec2 st) {
     rightUV.x += cos(leftLen * TAU) * rb;
     rightUV.y += sin(leftLen * TAU) * rb;
 
-    vec4 rightRefracted = texture(tex1, fract(rightUV));
+    vec4 rightRefracted = texture(tex, fract(rightUV));
 
     // As the mixer approaches midpoint, mix the two refracted outputs using the same
     // logic as the "reflect" mode in coalesce.
@@ -265,8 +265,8 @@ void main() {
         float ra = map(refractAAmt, 0.0, 100.0, 0.0, 0.125);
         float rb = map(refractBAmt, 0.0, 100.0, 0.0, 0.125);
 
-        vec4 leftColor = texture(tex0, st);
-        vec4 rightColor = texture(tex1, st);
+        vec4 leftColor = texture(inputTex, st);
+        vec4 rightColor = texture(tex, st);
 
         // refract a->b
         vec2 leftUV = vec2(st);
@@ -284,8 +284,8 @@ void main() {
 
         //rightUV += refract(normalize(rightColor.rgb), normalize(leftColor.rgb), refractBAmt * 0.005).xz;
 
-        vec4 color1 = texture(tex0, leftUV);
-        vec4 color2 = texture(tex1, rightUV);
+        vec4 color1 = texture(inputTex, leftUV);
+        vec4 color2 = texture(tex, rightUV);
 
         color.rgb = blend(color1, color2, blendMode, mixAmt);
         color.a = max(color1.a, color2.a);

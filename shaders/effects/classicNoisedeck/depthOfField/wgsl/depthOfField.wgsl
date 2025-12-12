@@ -9,8 +9,8 @@ struct Uniforms {
 };
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var samp : sampler;
-@group(0) @binding(2) var tex0 : texture_2d<f32>;
-@group(0) @binding(3) var tex1 : texture_2d<f32>;
+@group(0) @binding(2) var inputTex : texture_2d<f32>;
+@group(0) @binding(3) var tex : texture_2d<f32>;
 
 fn computeBlurFactor(depth: f32, focalDistance: f32, aperture: f32) -> f32 {
     let blur = abs(depth - (focalDistance * 0.01)) * aperture;
@@ -49,13 +49,13 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     var color: vec4<f32>;
     if (depthSource == 0) {
-        color = depthOfField(tex1, tex0, uv, resolution, focalDistance, aperture, sampleBias);
+        color = depthOfField(tex, inputTex, uv, resolution, focalDistance, aperture, sampleBias);
     } else {
-        color = depthOfField(tex0, tex1, uv, resolution, focalDistance, aperture, sampleBias);
+        color = depthOfField(inputTex, tex, uv, resolution, focalDistance, aperture, sampleBias);
     }
 
-    let alpha1 = textureSample(tex0, samp, uv).a;
-    let alpha2 = textureSample(tex1, samp, uv).a;
+    let alpha1 = textureSample(inputTex, samp, uv).a;
+    let alpha2 = textureSample(tex, samp, uv).a;
     color.a = max(alpha1, alpha2);
     return color;
 }
