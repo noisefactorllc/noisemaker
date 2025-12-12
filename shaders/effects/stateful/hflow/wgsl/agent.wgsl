@@ -25,7 +25,7 @@ struct Outputs {
 @group(0) @binding(0) var stateTex1: texture_2d<f32>;
 @group(0) @binding(1) var stateTex2: texture_2d<f32>;
 @group(0) @binding(2) var stateTex3: texture_2d<f32>;
-@group(0) @binding(3) var mixerTex: texture_2d<f32>;
+@group(0) @binding(3) var inputTex: texture_2d<f32>;
 @group(0) @binding(4) var<uniform> uniforms: Uniforms;
 
 fn hash2(seed: u32) -> vec2<f32> {
@@ -77,7 +77,7 @@ fn oklab_l(rgb: vec3<f32>) -> f32 {
 fn fetch_texel(x: i32, y: i32, width: i32, height: i32) -> vec4<f32> {
     let wrapped_x = wrap_int(x, width);
     let wrapped_y = wrap_int(y, height);
-    return textureLoad(mixerTex, vec2<i32>(wrapped_x, wrapped_y), 0);
+    return textureLoad(inputTex, vec2<i32>(wrapped_x, wrapped_y), 0);
 }
 
 fn luminance_at(x: i32, y: i32, width: i32, height: i32) -> f32 {
@@ -132,7 +132,7 @@ fn main(@builtin(position) position: vec4<f32>) -> Outputs {
         // Sample initial color from input
         let init_xi = wrap_int(i32(floor(x)), width);
         let init_yi = wrap_int(i32(floor(y)), height);
-        let init_sample = textureLoad(mixerTex, vec2<i32>(init_xi, init_yi), 0);
+        let init_sample = textureLoad(inputTex, vec2<i32>(init_xi, init_yi), 0);
         cr = init_sample.x;
         cg = init_sample.y;
         cb = init_sample.z;
@@ -161,7 +161,7 @@ fn main(@builtin(position) position: vec4<f32>) -> Outputs {
     if (needs_initial_color) {
         let init_xi = wrap_int(i32(floor(x)), width);
         let init_yi = wrap_int(i32(floor(y)), height);
-        let init_sample = textureLoad(mixerTex, vec2<i32>(init_xi, init_yi), 0);
+        let init_sample = textureLoad(inputTex, vec2<i32>(init_xi, init_yi), 0);
         cr = init_sample.x;
         cg = init_sample.y;
         cb = init_sample.z;
@@ -175,7 +175,7 @@ fn main(@builtin(position) position: vec4<f32>) -> Outputs {
         y = pos.y * uniforms.resolution.y;
         let spawn_xi = wrap_int(i32(floor(x)), width);
         let spawn_yi = wrap_int(i32(floor(y)), height);
-        let spawn_sample = textureLoad(mixerTex, vec2<i32>(spawn_xi, spawn_yi), 0);
+        let spawn_sample = textureLoad(inputTex, vec2<i32>(spawn_xi, spawn_yi), 0);
         cr = spawn_sample.x;
         cg = spawn_sample.y;
         cb = spawn_sample.z;

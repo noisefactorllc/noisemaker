@@ -12,7 +12,7 @@ struct Outputs {
 @group(0) @binding(0) var stateTex1: texture_2d<f32>;
 @group(0) @binding(1) var stateTex2: texture_2d<f32>;
 @group(0) @binding(2) var stateTex3: texture_2d<f32>;
-@group(0) @binding(3) var mixerTex: texture_2d<f32>;
+@group(0) @binding(3) var inputTex: texture_2d<f32>;
 @group(0) @binding(4) var<uniform> resolution: vec2<f32>;
 @group(0) @binding(5) var<uniform> stride: f32;
 @group(0) @binding(6) var<uniform> strideDeviation: f32;
@@ -168,7 +168,7 @@ fn main(@builtin(position) position : vec4<f32>) -> Outputs {
         
         let xi = wrap_int(i32(flow_x), width);
         let yi = wrap_int(i32(flow_y), height);
-        let inputColor = textureLoad(mixerTex, vec2<i32>(xi, yi), 0);
+        let inputColor = textureLoad(inputTex, vec2<i32>(xi, yi), 0);
         cr = inputColor.r;
         cg = inputColor.g;
         cb = inputColor.b;
@@ -197,7 +197,7 @@ fn main(@builtin(position) position : vec4<f32>) -> Outputs {
         // Sample new color
         let xi = wrap_int(i32(flow_x), width);
         let yi = wrap_int(i32(flow_y), height);
-        let inputColor = textureLoad(mixerTex, vec2<i32>(xi, yi), 0);
+        let inputColor = textureLoad(inputTex, vec2<i32>(xi, yi), 0);
         cr = inputColor.r;
         cg = inputColor.g;
         cb = inputColor.b;
@@ -208,7 +208,7 @@ fn main(@builtin(position) position : vec4<f32>) -> Outputs {
     // Sample input texture at current position
     let xi = wrap_int(i32(flow_x), width);
     let yi = wrap_int(i32(flow_y), height);
-    let texel = textureLoad(mixerTex, vec2<i32>(xi, yi), 0);
+    let texel = textureLoad(inputTex, vec2<i32>(xi, yi), 0);
     let indexValue = oklab_l(texel.rgb);
     
     // Compute rotation bias based on behavior uniform (computed each frame!)

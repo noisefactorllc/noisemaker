@@ -6,7 +6,7 @@ uniform vec2 resolution;
 uniform sampler2D stateTex1;
 uniform sampler2D stateTex2;
 uniform sampler2D stateTex3;
-uniform sampler2D mixerTex;
+uniform sampler2D inputTex;
 uniform float stride;
 uniform float quantize;
 uniform float time;
@@ -70,7 +70,7 @@ float oklab_l(vec3 rgb) {
 vec4 fetch_texel(int x, int y, int width, int height) {
     int wrapped_x = wrap_int(x, width);
     int wrapped_y = wrap_int(y, height);
-    return texelFetch(mixerTex, ivec2(wrapped_x, wrapped_y), 0);
+    return texelFetch(inputTex, ivec2(wrapped_x, wrapped_y), 0);
 }
 
 float luminance_at(int x, int y, int width, int height) {
@@ -123,7 +123,7 @@ void main() {
         // Sample initial color from input
         int init_xi = wrap_int(int(floor(x)), width);
         int init_yi = wrap_int(int(floor(y)), height);
-        vec4 init_sample = texelFetch(mixerTex, ivec2(init_xi, init_yi), 0);
+        vec4 init_sample = texelFetch(inputTex, ivec2(init_xi, init_yi), 0);
         cr = init_sample.x;
         cg = init_sample.y;
         cb = init_sample.z;
@@ -151,7 +151,7 @@ void main() {
     if (needs_initial_color) {
         int init_xi = wrap_int(int(floor(x)), width);
         int init_yi = wrap_int(int(floor(y)), height);
-        vec4 init_sample = texelFetch(mixerTex, ivec2(init_xi, init_yi), 0);
+        vec4 init_sample = texelFetch(inputTex, ivec2(init_xi, init_yi), 0);
         cr = init_sample.x;
         cg = init_sample.y;
         cb = init_sample.z;
@@ -165,7 +165,7 @@ void main() {
         y = pos.y * resolution.y;
         int spawn_xi = wrap_int(int(floor(x)), width);
         int spawn_yi = wrap_int(int(floor(y)), height);
-        vec4 spawn_sample = texelFetch(mixerTex, ivec2(spawn_xi, spawn_yi), 0);
+        vec4 spawn_sample = texelFetch(inputTex, ivec2(spawn_xi, spawn_yi), 0);
         cr = spawn_sample.x;
         cg = spawn_sample.y;
         cb = spawn_sample.z;

@@ -6,7 +6,7 @@ uniform vec2 resolution;
 uniform sampler2D stateTex1;
 uniform sampler2D stateTex2;
 uniform sampler2D stateTex3;
-uniform sampler2D mixerTex;
+uniform sampler2D inputTex;
 uniform float stride;
 uniform float strideDeviation;
 uniform float kink;
@@ -164,7 +164,7 @@ void main() {
         // Sample color from input
         int xi = wrap_int(int(flow_x), width);
         int yi = wrap_int(int(flow_y), height);
-        vec4 inputColor = texelFetch(mixerTex, ivec2(xi, yi), 0);
+        vec4 inputColor = texelFetch(inputTex, ivec2(xi, yi), 0);
         cr = inputColor.r;
         cg = inputColor.g;
         cb = inputColor.b;
@@ -193,7 +193,7 @@ void main() {
         // Sample new color
         int xi = wrap_int(int(flow_x), width);
         int yi = wrap_int(int(flow_y), height);
-        vec4 inputColor = texelFetch(mixerTex, ivec2(xi, yi), 0);
+        vec4 inputColor = texelFetch(inputTex, ivec2(xi, yi), 0);
         cr = inputColor.r;
         cg = inputColor.g;
         cb = inputColor.b;
@@ -204,7 +204,7 @@ void main() {
     // Sample input texture at current position for flow direction
     int xi = wrap_int(int(flow_x), width);
     int yi = wrap_int(int(flow_y), height);
-    vec4 texel = texelFetch(mixerTex, ivec2(xi, yi), 0);
+    vec4 texel = texelFetch(inputTex, ivec2(xi, yi), 0);
     float indexValue = oklab_l(texel.rgb);
     
     // Compute rotation bias based on behavior uniform (computed each frame!)
