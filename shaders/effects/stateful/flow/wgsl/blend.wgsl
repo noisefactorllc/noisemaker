@@ -1,7 +1,7 @@
 // Flow blend pass - combines input with accumulated trails
 
 @group(0) @binding(0) var u_sampler : sampler;
-@group(0) @binding(1) var mixerTex : texture_2d<f32>;
+@group(0) @binding(1) var inputTex : texture_2d<f32>;
 @group(0) @binding(2) var trailTex : texture_2d<f32>;
 @group(0) @binding(3) var<uniform> resolution : vec2<f32>;
 @group(0) @binding(4) var<uniform> inputIntensity : f32;
@@ -13,7 +13,7 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let flippedUV = vec2<f32>(uv.x, 1.0 - uv.y);
     
     let inputIntensityValue = inputIntensity / 100.0;
-    let baseSample = textureSample(mixerTex, u_sampler, flippedUV);
+    let baseSample = textureSample(inputTex, u_sampler, flippedUV);
     let baseColor = vec4<f32>(baseSample.rgb * inputIntensityValue, baseSample.a);
     
     let trailColor = textureSample(trailTex, u_sampler, uv);

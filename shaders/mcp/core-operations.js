@@ -1903,7 +1903,9 @@ export async function checkEffectStructure(effectId, options = {}) {
         // Missing description field in definition
         missingDescription: false,
         // Input binding issues (e.g., tex0: "inputTex" instead of inputTex: "inputTex")
-        inputBindingIssues: []
+        inputBindingIssues: [],
+        // Shader/definition uniform name mismatches (shader expects different uniform name than definition provides)
+        uniformMismatches: []
     }
 
     try {
@@ -2176,16 +2178,14 @@ export async function checkEffectStructure(effectId, options = {}) {
                     })
                 }
 
-                // CRITICAL: Check input binding conventions
+                // Check input binding conventions
                 // Only acceptable patterns:
                 //   inputTex: "inputTex"  (standard filter input)
                 //   tex: "tex"            (mixer secondary input)
                 // FORBIDDEN patterns:
-                //   tex0, tex1, etc. as keys - these are legacy and must not be used
+                //   tex0, tex1, etc. as keys
                 //   Using inputTex as a value with a different key
                 //   Using tex as a value with a different key
-
-                // BANNED: tex0, tex1, tex2, etc. as keys
                 if (/^tex\d+$/.test(inputKey)) {
                     result.inputBindingIssues.push({
                         key: inputKey,
@@ -2407,6 +2407,149 @@ export async function checkEffectStructure(effectId, options = {}) {
                             })
                         }
                     }
+                } catch (readErr) {
+                    // Can't read shader file - skip
+                }
+            }
+        }
+
+        // =====================================================================
+        // SHADER/DEFINITION UNIFORM MISMATCH VALIDATION
+        // =====================================================================
+        // The definition's pass inputs specify what uniform names the shader should use.
+        // e.g., inputs: { inputTex: "inputTex" } means the shader must have:
+        //   GLSL: uniform sampler2D inputTex;
+        //   WGSL: @binding(...) var inputTex: texture_2d<f32>;
+        // If the shader uses a different name (e.g., mixerTex), it's a mismatch.
+        //
+        // BANNED uniform names that should never appear in shaders:
+        // - mixerTex: legacy name, use inputTex or tex instead
+
+        const BANNED_UNIFORM_NAMES = ['mixerTex']
+
+        // Build a map of pass program -> expected input uniform names
+        const passInputsByProgram = new Map()
+        const passBlockRegex = /\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/g
+        let passMatch
+        const passesContentCopy = passesSection  // Use the already-extracted passes section
+
+        while ((passMatch = passBlockRegex.exec(passesContentCopy)) !== null) {
+            const passBlock = passMatch[1]
+
+            // Extract program name
+            const programMatch = passBlock.match(/program:\s*["']([^"']+)["']/)
+            if (!programMatch) continue
+            const programName = programMatch[1]
+
+            // Extract input keys (the left side of the colon, which becomes the shader uniform name)
+            const inputsMatch = passBlock.match(/inputs:\s*\{([\s\S]+?)\}/)
+            if (inputsMatch) {
+                const inputsContent = inputsMatch[1]
+                const inputKeys = []
+                const inputKeyMatches = inputsContent.matchAll(/(\w+):\s*["'][^"']+["']/g)
+                for (const km of inputKeyMatches) {
+                    inputKeys.push(km[1])
+                }
+
+                if (!passInputsByProgram.has(programName)) {
+                    passInputsByProgram.set(programName, new Set())
+                }
+                for (const key of inputKeys) {
+                    passInputsByProgram.get(programName).add(key)
+                }
+            }
+        }
+
+        // Now check each shader file for:
+        // 1. Banned uniform names (e.g., mixerTex)
+        // 2. Texture uniforms that don't match the expected inputs from the definition
+
+        for (const programName of referencedPrograms) {
+            const expectedInputs = passInputsByProgram.get(programName) || new Set()
+
+            // Determine which shader files to check
+            const filesToCheck = []
+
+            if (backend === 'webgl2') {
+                const vertPath = path.join(shaderDirPath, `${programName}.vert`)
+                const fragPath = path.join(shaderDirPath, `${programName}.frag`)
+                const combinedPath = path.join(shaderDirPath, `${programName}.glsl`)
+
+                if (fs.existsSync(fragPath)) filesToCheck.push({ path: fragPath, name: `${programName}.frag` })
+                if (fs.existsSync(combinedPath)) filesToCheck.push({ path: combinedPath, name: `${programName}.glsl` })
+                // Vertex shaders typically don't have texture samplers, but check anyway
+                if (fs.existsSync(vertPath)) filesToCheck.push({ path: vertPath, name: `${programName}.vert` })
+            } else {
+                const wgslPath = path.join(shaderDirPath, `${programName}.wgsl`)
+                if (fs.existsSync(wgslPath)) filesToCheck.push({ path: wgslPath, name: `${programName}.wgsl` })
+            }
+
+            for (const { path: filePath, name: fileName } of filesToCheck) {
+                try {
+                    const shaderSource = fs.readFileSync(filePath, 'utf-8')
+
+                    // Extract texture uniform declarations
+                    // GLSL: uniform sampler2D texName;
+                    // WGSL: @binding(...) var texName: texture_2d<f32>;
+                    const textureUniforms = []
+
+                    if (backend === 'webgl2') {
+                        // Match GLSL sampler declarations
+                        const glslSamplerPattern = /uniform\s+sampler2D\s+(\w+)\s*;/g
+                        let samplerMatch
+                        while ((samplerMatch = glslSamplerPattern.exec(shaderSource)) !== null) {
+                            textureUniforms.push(samplerMatch[1])
+                        }
+                    } else {
+                        // Match WGSL texture declarations
+                        const wgslTexturePattern = /@binding\s*\(\s*\d+\s*\)\s*var\s+(\w+)\s*:\s*texture_2d/g
+                        let texMatch
+                        while ((texMatch = wgslTexturePattern.exec(shaderSource)) !== null) {
+                            textureUniforms.push(texMatch[1])
+                        }
+                    }
+
+                    // Check for banned names
+                    for (const uniformName of textureUniforms) {
+                        if (BANNED_UNIFORM_NAMES.includes(uniformName)) {
+                            result.uniformMismatches.push({
+                                file: fileName,
+                                program: programName,
+                                uniform: uniformName,
+                                type: 'banned',
+                                message: `BANNED uniform name "${uniformName}" found in shader - use "inputTex" or "tex" instead`
+                            })
+                        }
+                    }
+
+                    // Check for mismatches: shader has texture uniform not in definition inputs
+                    // Skip system/internal textures that don't need definition mapping
+                    const SYSTEM_TEXTURES = ['outputTex', 'framebuffer']
+                    const INTERNAL_PREFIXES = ['global', '_', 'state', 'prev']
+
+                    for (const uniformName of textureUniforms) {
+                        // Skip system textures
+                        if (SYSTEM_TEXTURES.includes(uniformName)) continue
+
+                        // Skip internal/global textures (effect's own state textures)
+                        const isInternal = INTERNAL_PREFIXES.some(prefix =>
+                            uniformName.startsWith(prefix) || uniformName.startsWith(prefix.toLowerCase())
+                        )
+                        if (isInternal) continue
+
+                        // Check if this texture uniform is expected from the definition
+                        if (!expectedInputs.has(uniformName)) {
+                            result.uniformMismatches.push({
+                                file: fileName,
+                                program: programName,
+                                uniform: uniformName,
+                                expected: [...expectedInputs],
+                                type: 'unexpected',
+                                message: `Shader declares texture uniform "${uniformName}" but definition inputs only provide: [${[...expectedInputs].join(', ') || 'none'}]`
+                            })
+                        }
+                    }
+
                 } catch (readErr) {
                     // Can't read shader file - skip
                 }

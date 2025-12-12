@@ -1,7 +1,7 @@
 #version 300 es
 precision highp float;
 
-uniform sampler2D mixerTex;
+uniform sampler2D inputTex;
 uniform sampler2D trailTex;
 uniform vec2 resolution;
 uniform float inputIntensity;
@@ -13,7 +13,7 @@ void main() {
     vec2 flippedUV = vec2(uv.x, 1.0 - uv.y);
     
     float inputIntensityValue = inputIntensity / 100.0;
-    vec4 baseSample = texture(mixerTex, flippedUV);
+    vec4 baseSample = texture(inputTex, flippedUV);
     vec4 baseColor = vec4(baseSample.rgb * inputIntensityValue, baseSample.a);
     
     vec4 trailColor = texture(trailTex, uv);
