@@ -19,6 +19,10 @@ DESCRIPTION_RE = re.compile(r'description[:\s=]+["\']([^"\']*)["\']')
 # Matches both object literal (externalTexture: "...") and class field (externalTexture = "...") syntax
 EXTERNAL_TEXTURE_RE = re.compile(r'externalTexture[:\s=]+["\']([^"\']*)["\']')
 
+# Regex to detect tex global with type: "surface"
+# Matches: tex: { ... type: "surface" ... } or tex = { ... type: "surface" ... }
+TEX_SURFACE_RE = re.compile(r'tex[:\s=]\s*\{[^}]*type[:\s=]\s*["\']surface["\']', re.DOTALL)
+
 # Known pipeline inputs that indicate a non-starter effect
 PIPELINE_INPUTS = {
     'inputTex', 'inputTex3d',
@@ -54,6 +58,19 @@ def extract_external_texture(effect_dir):
     except Exception:
         pass
     return None
+
+
+def has_tex_surface(effect_dir):
+    """Check if effect has globals.tex.type === 'surface'."""
+    definition_file = effect_dir / "definition.js"
+    if not definition_file.exists():
+        return False
+    try:
+        content = definition_file.read_text(encoding="utf-8")
+        return bool(TEX_SURFACE_RE.search(content))
+    except Exception:
+        pass
+    return False
 
 
 def is_starter_effect(effect_dir):
@@ -164,6 +181,9 @@ def main():
             external_texture = extract_external_texture(effect_dir)
             if external_texture:
                 effect_manifest["externalTexture"] = external_texture
+            # Check if effect has tex global with type surface
+            if has_tex_surface(effect_dir):
+                effect_manifest["hasTex"] = True
             # Include all effects that have a definition.js, even if they have no shaders
             manifest[effect_id] = effect_manifest
     
