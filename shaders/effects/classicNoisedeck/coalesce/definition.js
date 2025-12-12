@@ -128,8 +128,8 @@ export default new Effect({
       name: "render",
       program: "coalesce",
       inputs: {
-              inputTex: "inputTex",
-              tex: "tex"
+              tex0: "inputTex",
+              tex1: "tex"
             }
 ,
       outputs: {

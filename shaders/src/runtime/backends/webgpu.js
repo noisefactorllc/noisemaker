@@ -1934,20 +1934,23 @@ export class WebGPUBackend extends Backend {
 
     /**
      * Get the storage texture view for compute output.
-     * Uses the surface's write texture (o0 by default) which has STORAGE_BINDING usage.
+     * Uses the render surface's write texture which has STORAGE_BINDING usage.
      */
     getOutputStorageView(state) {
-        // Default to o0 surface's write texture
-        const writeTex = state?.writeSurfaces?.['o0']
-        if (writeTex) {
-            const texture = this.textures.get(writeTex)
-            if (texture) {
-                return texture.view
+        // Use the graph's render surface, not a hardcoded default
+        const renderSurfaceName = state?.graph?.renderSurface
+        if (renderSurfaceName) {
+            const writeTex = state?.writeSurfaces?.[renderSurfaceName]
+            if (writeTex) {
+                const texture = this.textures.get(writeTex)
+                if (texture) {
+                    return texture.view
+                }
             }
         }
 
         // Fallback: create a temporary storage texture if surface not available
-        console.warn('Surface o0 write texture not found, using fallback storage texture')
+        console.warn('Render surface write texture not found, using fallback storage texture')
         const width = state?.screenWidth || 1280
         const height = state?.screenHeight || 720
         const key = `outputStorage_${width}x${height}`
@@ -2686,10 +2689,13 @@ export class WebGPUBackend extends Backend {
             }
         }
         if (!outputTex && outputId === 'outputTex') {
-            // Try to get o0's write texture
-            const writeTexId = state.writeSurfaces?.['o0']
-            if (writeTexId) {
-                outputTex = this.textures.get(writeTexId)
+            // Try to get the render surface's write texture
+            const renderSurfaceName = state?.graph?.renderSurface
+            if (renderSurfaceName) {
+                const writeTexId = state.writeSurfaces?.[renderSurfaceName]
+                if (writeTexId) {
+                    outputTex = this.textures.get(writeTexId)
+                }
             }
         }
         if (!outputTex) {

@@ -416,7 +416,12 @@ export function validate(ast) {
              pushDiag('S006', stmt.chain[0])
         }
 
-        const writeName = stmt.write ? stmt.write.name : 'o0'
+        // write target must be explicit
+        if (!stmt.write) {
+            pushDiag('S001', stmt.chain[0], 'Chain must have explicit write() target')
+            return null
+        }
+        const writeName = stmt.write.name
         const states = []
 
         function processChain(calls, input, options = {}) {

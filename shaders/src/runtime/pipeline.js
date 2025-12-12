@@ -758,8 +758,12 @@ export class Pipeline {
         this.blitFeedbackSurfaces()
 
         // Present the render surface to screen
-        // Use explicit render() directive, or the last surface written to, or default to o0
-        const renderSurfaceName = this.graph?.renderSurface || 'o0'
+        // Use explicit render() directive or the last surface written to
+        const renderSurfaceName = this.graph?.renderSurface
+        if (!renderSurfaceName) {
+            console.warn('[Pipeline.render] No renderSurface specified in graph')
+            return
+        }
         const renderSurface = this.surfaces.get(renderSurfaceName)
         if (renderSurface && this.backend.present) {
             const presentId = this.frameReadTextures?.get(renderSurfaceName) ?? renderSurface.read
@@ -1007,10 +1011,11 @@ export class Pipeline {
 
     /**
      * Get the output texture for a surface
-     * @param {string} surfaceName - Surface name (defaults to graph.renderSurface or 'o0')
+     * @param {string} surfaceName - Surface name (defaults to graph.renderSurface)
      */
     getOutput(surfaceName) {
-        const name = surfaceName || this.graph?.renderSurface || 'o0'
+        const name = surfaceName || this.graph?.renderSurface
+        if (!name) return null
         const surface = this.surfaces.get(name)
         if (!surface) return null
 

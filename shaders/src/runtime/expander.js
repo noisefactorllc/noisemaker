@@ -379,8 +379,8 @@ export function expand(compilationResult, options = {}) {
                                 const prefix = outKind === 'feedback' ? 'feedback' : 'global'
                                 pass.inputs[uniformName] = `${prefix}_${outName}`
                             } else {
-                                // No explicit write target, default to o0
-                                pass.inputs[uniformName] = 'global_o0'
+                                // No explicit write target
+                                pass.inputs[uniformName] = currentInput || 'global_inputTex'
                             }
                         } else if (effectDef.externalTexture && texRef === effectDef.externalTexture) {
                             // External texture input (e.g., camera/video) - use per-step texture ID
@@ -611,16 +611,17 @@ export function expand(compilationResult, options = {}) {
     }
 
     // Determine the render surface:
-    // 1. Explicit render() directive takes precedence (o0-o7 or f0-f3)
+    // 1. Explicit render() directive takes precedence
     // 2. Fall back to the last surface written to in the program
-    // 3. Default to 'o0' if nothing was written
+    // 3. Error if no surface was written
     let renderSurface
     if (compilationResult.render) {
         renderSurface = compilationResult.render
     } else if (lastWrittenSurface) {
         renderSurface = lastWrittenSurface
     } else {
-        renderSurface = 'o0'
+        errors.push({ message: 'No render surface specified and no write() found - add render(oN) or write(oN)' })
+        renderSurface = null
     }
 
     return { passes, errors, programs, textureSpecs, renderSurface }

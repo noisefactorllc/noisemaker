@@ -404,10 +404,16 @@ export async function renderEffectFrame(page, effectId, options = {}) {
 
         const backend = pipeline.backend
         const backendName = backend?.getName?.() || 'WebGL2'
-        const surface = pipeline.surfaces?.get('o0')
+
+        // Read from the render surface specified by the graph
+        const renderSurfaceName = pipeline.graph?.renderSurface
+        if (!renderSurfaceName) {
+            return { error: 'No renderSurface specified in graph' }
+        }
+        const surface = pipeline.surfaces?.get(renderSurfaceName)
 
         if (!surface) {
-            return { error: 'Surface o0 not found' }
+            return { error: `Surface ${renderSurfaceName} not found` }
         }
 
         let data, width, height
@@ -742,10 +748,16 @@ export async function runDslProgram(page, dsl, options = {}) {
 
         const backendObj = pipeline.backend
         const backendName = backendObj?.getName?.() || 'WebGL2'
-        const surface = pipeline.surfaces?.get('o0')
+
+        // Read from the render surface specified by the graph
+        const renderSurfaceName = pipeline.graph?.renderSurface
+        if (!renderSurfaceName) {
+            return { status: 'error', error: 'No renderSurface specified in graph' }
+        }
+        const surface = pipeline.surfaces?.get(renderSurfaceName)
 
         if (!surface) {
-            return { status: 'error', error: 'Surface o0 not found' }
+            return { status: 'error', error: `Surface ${renderSurfaceName} not found` }
         }
 
         let data, width, height
@@ -1343,19 +1355,20 @@ export async function testNoPassthrough(page, effectId, options = {}) {
             }
         }
 
-        // If not found, look for the pass that outputs to o0 and find its input
+        // If not found, look for the pass that outputs to the render surface and find its input
         // This handles nd effects where inputTex is resolved during expansion
-        if (!filterPass) {
+        const renderSurfaceName = pipeline.graph?.renderSurface
+        if (!filterPass && renderSurfaceName) {
             for (let i = passes.length - 1; i >= 0; i--) {
                 const pass = passes[i]
                 if (!pass.outputs) continue
 
-                // Check if this pass outputs to o0
-                const outputsToO0 = Object.values(pass.outputs).some(v =>
-                    v === 'global_o0' || v === 'o0' || v.includes('_o0')
+                // Check if this pass outputs to the render surface
+                const outputsToRenderSurface = Object.values(pass.outputs).some(v =>
+                    v === `global_${renderSurfaceName}` || v === renderSurfaceName || v.includes(`_${renderSurfaceName}`)
                 )
 
-                if (outputsToO0 && pass.inputs) {
+                if (outputsToRenderSurface && pass.inputs) {
                     filterPass = pass
                     // Find the first input that looks like a previous pass output or chain texture
                     // These typically look like: node_0_out, _chain_0, etc.
@@ -1388,10 +1401,13 @@ export async function testNoPassthrough(page, effectId, options = {}) {
             }
         }
 
-        // Get the output surface (o0)
-        const outputSurface = pipeline.surfaces?.get('o0')
+        // Get the output surface (the render surface)
+        if (!renderSurfaceName) {
+            return { error: 'No renderSurface specified in graph' }
+        }
+        const outputSurface = pipeline.surfaces?.get(renderSurfaceName)
         if (!outputSurface) {
-            return { error: 'Output surface o0 not found' }
+            return { error: `Output surface ${renderSurfaceName} not found` }
         }
 
         // Read pixel data from both textures

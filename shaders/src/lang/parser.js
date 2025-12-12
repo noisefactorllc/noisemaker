@@ -424,12 +424,10 @@ export function parse(tokens) {
                     write = {type: 'OutputRef', name: advance().lexeme}
                 } else if (peek().type === 'FEEDBACK_REF') {
                     write = {type: 'FeedbackRef', name: advance().lexeme}
+                } else {
+                    throw new SyntaxError(`write() requires an explicit surface reference (e.g., o0, o1, f0) at line ${peek().line} col ${peek().col}`)
                 }
                 expect('RPAREN', "Expect ')'")
-                // default to o0 when .write() has no argument
-                if (!write) {
-                    write = {type: 'OutputRef', name: 'o0'}
-                }
             } else if (nextType === 'WRITE3D') {
                 advance() // consume '.'
                 advance() // consume 'write3d'
