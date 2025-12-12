@@ -15,6 +15,10 @@ OUTPUT_FILE = EFFECTS_ROOT / "manifest.json"
 # Matches both object literal (description: "...") and class field (description = "...") syntax
 DESCRIPTION_RE = re.compile(r'description[:\s=]+["\']([^"\']*)["\']')
 
+# Regex to extract externalTexture from definition.js
+# Matches both object literal (externalTexture: "...") and class field (externalTexture = "...") syntax
+EXTERNAL_TEXTURE_RE = re.compile(r'externalTexture[:\s=]+["\']([^"\']*)["\']')
+
 # Known pipeline inputs that indicate a non-starter effect
 PIPELINE_INPUTS = {
     'inputTex', 'inputTex3d',
@@ -30,6 +34,21 @@ def extract_description(effect_dir):
     try:
         content = definition_file.read_text(encoding="utf-8")
         match = DESCRIPTION_RE.search(content)
+        if match:
+            return match.group(1)
+    except Exception:
+        pass
+    return None
+
+
+def extract_external_texture(effect_dir):
+    """Extract externalTexture from definition.js."""
+    definition_file = effect_dir / "definition.js"
+    if not definition_file.exists():
+        return None
+    try:
+        content = definition_file.read_text(encoding="utf-8")
+        match = EXTERNAL_TEXTURE_RE.search(content)
         if match:
             return match.group(1)
     except Exception:
@@ -141,6 +160,10 @@ def main():
             starter = is_starter_effect(effect_dir)
             if starter is not None:
                 effect_manifest["starter"] = starter
+            # Extract and include externalTexture if available
+            external_texture = extract_external_texture(effect_dir)
+            if external_texture:
+                effect_manifest["externalTexture"] = external_texture
             # Include all effects that have a definition.js, even if they have no shaders
             manifest[effect_id] = effect_manifest
     
