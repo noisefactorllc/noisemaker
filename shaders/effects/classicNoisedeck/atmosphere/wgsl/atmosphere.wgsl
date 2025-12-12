@@ -19,8 +19,6 @@ struct Uniforms {
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
-@group(0) @binding(1) var samp: sampler;
-@group(0) @binding(2) var noiseTex: texture_2d<f32>;
 
 // Unpack uniforms at module scope for use in helper functions
 var<private> resolution: vec2<f32>;
@@ -435,6 +433,12 @@ fn constant(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
     return periodicFunction(rand.y - scaledTime);
 }
 
+fn constantOffset(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32, offset: vec2<i32>) -> f32 {
+    let rand: vec3<f32> = randomFromLatticeWithOffset(st, xFreq, yFreq, s, offset);
+    var scaledTime: f32 = periodicFunction(rand.x - time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.25);
+    return periodicFunction(rand.y - scaledTime);
+}
+
 // ---- 3×3 quadratic interpolation ----
 // Replaces legacy bicubic 4×4 (16 taps) with 3×3 kernel (9 taps)
 // Performance: ~1.8× faster in fBm chains
@@ -462,21 +466,21 @@ fn quadratic3x3Value(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
     let lattice = vec2<f32>(st.x * xFreq, st.y * yFreq);
     let f = fract(lattice);
     
-    // Sample 3×3 grid (9 taps)
+    // Sample 3×3 grid (9 taps) using grid offsets
     // Row -1 (y-1)
-    let v00 = constant(st + vec2<f32>(-1.0/xFreq, -1.0/yFreq), xFreq, yFreq, s);
-    let v10 = constant(st + vec2<f32>(0.0, -1.0/yFreq), xFreq, yFreq, s);
-    let v20 = constant(st + vec2<f32>(1.0/xFreq, -1.0/yFreq), xFreq, yFreq, s);
+    let v00 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(-1, -1));
+    let v10 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, -1));
+    let v20 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, -1));
     
     // Row 0 (y)
-    let v01 = constant(st + vec2<f32>(-1.0/xFreq, 0.0), xFreq, yFreq, s);
-    let v11 = constant(st, xFreq, yFreq, s);
-    let v21 = constant(st + vec2<f32>(1.0/xFreq, 0.0), xFreq, yFreq, s);
+    let v01 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(-1, 0));
+    let v11 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, 0));
+    let v21 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, 0));
     
     // Row 1 (y+1)
-    let v02 = constant(st + vec2<f32>(-1.0/xFreq, 1.0/yFreq), xFreq, yFreq, s);
-    let v12 = constant(st + vec2<f32>(0.0, 1.0/yFreq), xFreq, yFreq, s);
-    let v22 = constant(st + vec2<f32>(1.0/xFreq, 1.0/yFreq), xFreq, yFreq, s);
+    let v02 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(-1, 1));
+    let v12 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, 1));
+    let v22 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, 1));
     
     // Quadratic interpolation along x for each row
     let y0 = quadratic3(v00, v10, v20, f.x);
@@ -491,18 +495,18 @@ fn catmullRom3x3Value(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
     let lattice = vec2<f32>(st.x * xFreq, st.y * yFreq);
     let f = fract(lattice);
     
-    // Sample 3×3 grid (9 taps)
-    let v00 = constant(st + vec2<f32>(-1.0/xFreq, -1.0/yFreq), xFreq, yFreq, s);
-    let v10 = constant(st + vec2<f32>(0.0, -1.0/yFreq), xFreq, yFreq, s);
-    let v20 = constant(st + vec2<f32>(1.0/xFreq, -1.0/yFreq), xFreq, yFreq, s);
+    // Sample 3×3 grid (9 taps) using grid offsets
+    let v00 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(-1, -1));
+    let v10 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, -1));
+    let v20 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, -1));
     
-    let v01 = constant(st + vec2<f32>(-1.0/xFreq, 0.0), xFreq, yFreq, s);
-    let v11 = constant(st, xFreq, yFreq, s);
-    let v21 = constant(st + vec2<f32>(1.0/xFreq, 0.0), xFreq, yFreq, s);
+    let v01 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(-1, 0));
+    let v11 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, 0));
+    let v21 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, 0));
     
-    let v02 = constant(st + vec2<f32>(-1.0/xFreq, 1.0/yFreq), xFreq, yFreq, s);
-    let v12 = constant(st + vec2<f32>(0.0, 1.0/yFreq), xFreq, yFreq, s);
-    let v22 = constant(st + vec2<f32>(1.0/xFreq, 1.0/yFreq), xFreq, yFreq, s);
+    let v02 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(-1, 1));
+    let v12 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, 1));
+    let v22 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, 1));
     
     let y0 = catmullRom3(v00, v10, v20, f.x);
     let y1 = catmullRom3(v01, v11, v21, f.x);
@@ -540,93 +544,27 @@ fn blendLinearOrCosine(a: f32, b: f32, amount: f32, interp: i32) -> f32 {
     return mix(a, b, smoothstep(0.0, 1.0, amount));
 }
 
-// texture-based bicubic for better performance
-// from http://www.java-gaming.org/index.php?topic=35123.0
-fn cubic(v: f32) -> vec4<f32> {
-    var n: vec4<f32> = vec4<f32>(1.0, 2.0, 3.0, 4.0) - v;
-    var s: vec4<f32> = n * n * n;
-    var x: f32 = s.x;
-    var y: f32 = s.y - 4.0 * s.x;
-    var z: f32 = s.z - 4.0 * s.y + 6.0 * s.x;
-    var w: f32 = 6.0 - x - y - z;
-    return vec4<f32>(x, y, z, w) * (1.0/6.0);
-}
-
-fn textureBicubic(texCoords: vec2<f32>, xFreq: f32, yFreq: f32, _seed: f32, blend: f32) -> f32 {
-    var coords: vec2<f32> = texCoords;
-    coords.x *= resolution.x / resolution.y;
-    coords.x *= xFreq * xFreq / resolution.x * 0.5;
-    coords.y *= xFreq * yFreq / resolution.y * 0.5;
-    coords -= vec2<f32>(resolution.x / resolution.y * 0.5, 0.5);
-
-    var texSize: vec2<f32> = vec2<f32>(512.0);
-    var invTexSize: vec2<f32> = 1.0 / texSize;
-
-    coords = coords * texSize - 0.5;
-    // Map to avoid image crease
-    coords.x = modulo(coords.x + map(_seed, -255.0, 255.0, 1.0, 100.0), texSize.x);
-
-    var fxy: vec2<f32> = fract(coords);
-    coords -= fxy;
-
-    var xcubic: vec4<f32> = cubic(fxy.x);
-    var ycubic: vec4<f32> = cubic(fxy.y);
-
-    var c: vec4<f32> = coords.xxyy + vec2<f32>(-0.5, 1.5).xyxy;
-
-    var s: vec4<f32> = vec4<f32>(xcubic.xz + xcubic.yw, ycubic.xz + ycubic.yw);
-    var offset: vec4<f32> = c + vec4<f32> (xcubic.yw, ycubic.yw) / s;
-
-    offset *= invTexSize.xxyy;
-
-    // Use textureSampleLevel to allow calling from non-uniform control flow
-    var sample0: f32 = textureSampleLevel(noiseTex, samp, offset.xz, 0.0).r;
-    var sample1: f32 = textureSampleLevel(noiseTex, samp, offset.yz, 0.0).r;
-    var sample2: f32 = textureSampleLevel(noiseTex, samp, offset.xw, 0.0).r;
-    var sample3: f32 = textureSampleLevel(noiseTex, samp, offset.yw, 0.0).r;
-
-    var sx: f32 = s.x / (s.x + s.y);
-    var sy: f32 = s.z / (s.z + s.w);
-
-    var temp: f32 = mix(mix(sample3, sample2, sx), mix(sample1, sample0, sx), sy);
-    return periodicFunction(temp * 4.0 - blend);
-}
-// end texture-based bicubic
-
 fn bicubicValue(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
-    // Neighbor Distance
-    var ndX: f32 = 1.0 / xFreq;
-    var ndY: f32 = 1.0 / yFreq;
+    // Sample 4x4 grid using offset-based sampling
+    var x0y0: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(-1, -1));
+    var x0y1: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(-1, 0));
+    var x0y2: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(-1, 1));
+    var x0y3: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(-1, 2));
 
-    var u0: f32 = st.x - ndX;
-    var u1: f32 = st.x;
-    var u2: f32 = st.x + ndX;
-    var u3: f32 = st.x + ndX + ndX;
+    var x1y0: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, -1));
+    var x1y1: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, 0));
+    var x1y2: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, 1));
+    var x1y3: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, 2));
 
-    var v0: f32 = st.y - ndY;
-    var v1: f32 = st.y;
-    var v2: f32 = st.y + ndY;
-    var v3: f32 = st.y + ndY + ndY;
+    var x2y0: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, -1));
+    var x2y1: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, 0));
+    var x2y2: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, 1));
+    var x2y3: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, 2));
 
-    var x0y0: f32 = constant(vec2<f32>(u0, v0), xFreq, yFreq, s);
-    var x0y1: f32 = constant(vec2<f32>(u0, v1), xFreq, yFreq, s);
-    var x0y2: f32 = constant(vec2<f32>(u0, v2), xFreq, yFreq, s);
-    var x0y3: f32 = constant(vec2<f32>(u0, v3), xFreq, yFreq, s);
-
-    var x1y0: f32 = constant(vec2<f32>(u1, v0), xFreq, yFreq, s);
-    var x1y1: f32 = constant(st, xFreq, yFreq, s);
-    var x1y2: f32 = constant(vec2<f32>(u1, v2), xFreq, yFreq, s);
-    var x1y3: f32 = constant(vec2<f32>(u1, v3), xFreq, yFreq, s);
-
-    var x2y0: f32 = constant(vec2<f32>(u2, v0), xFreq, yFreq, s);
-    var x2y1: f32 = constant(vec2<f32>(u2, v1), xFreq, yFreq, s);
-    var x2y2: f32 = constant(vec2<f32>(u2, v2), xFreq, yFreq, s);
-    var x2y3: f32 = constant(vec2<f32>(u2, v3), xFreq, yFreq, s);
-
-    var x3y0: f32 = constant(vec2<f32>(u3, v0), xFreq, yFreq, s);
-    var x3y1: f32 = constant(vec2<f32>(u3, v1), xFreq, yFreq, s);
-    var x3y2: f32 = constant(vec2<f32>(u3, v2), xFreq, yFreq, s);
-    var x3y3: f32 = constant(vec2<f32>(u3, v3), xFreq, yFreq, s);
+    var x3y0: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(2, -1));
+    var x3y1: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(2, 0));
+    var x3y2: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(2, 1));
+    var x3y3: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(2, 2));
 
     var uv: vec2<f32> = vec2<f32>(st.x * xFreq, st.y * yFreq);
 
@@ -639,39 +577,26 @@ fn bicubicValue(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
 }
 
 fn catmullRom4x4Value(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
-    // Neighbor Distance
-    var ndX: f32 = 1.0 / xFreq;
-    var ndY: f32 = 1.0 / yFreq;
+    // Sample 4x4 grid using offset-based sampling
+    var x0y0: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(-1, -1));
+    var x0y1: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(-1, 0));
+    var x0y2: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(-1, 1));
+    var x0y3: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(-1, 2));
 
-    var u0: f32 = st.x - ndX;
-    var u1: f32 = st.x;
-    var u2: f32 = st.x + ndX;
-    var u3: f32 = st.x + ndX + ndX;
+    var x1y0: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, -1));
+    var x1y1: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, 0));
+    var x1y2: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, 1));
+    var x1y3: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, 2));
 
-    var v0: f32 = st.y - ndY;
-    var v1: f32 = st.y;
-    var v2: f32 = st.y + ndY;
-    var v3: f32 = st.y + ndY + ndY;
+    var x2y0: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, -1));
+    var x2y1: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, 0));
+    var x2y2: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, 1));
+    var x2y3: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, 2));
 
-    var x0y0: f32 = constant(vec2<f32>(u0, v0), xFreq, yFreq, s);
-    var x0y1: f32 = constant(vec2<f32>(u0, v1), xFreq, yFreq, s);
-    var x0y2: f32 = constant(vec2<f32>(u0, v2), xFreq, yFreq, s);
-    var x0y3: f32 = constant(vec2<f32>(u0, v3), xFreq, yFreq, s);
-
-    var x1y0: f32 = constant(vec2<f32>(u1, v0), xFreq, yFreq, s);
-    var x1y1: f32 = constant(st, xFreq, yFreq, s);
-    var x1y2: f32 = constant(vec2<f32>(u1, v2), xFreq, yFreq, s);
-    var x1y3: f32 = constant(vec2<f32>(u1, v3), xFreq, yFreq, s);
-
-    var x2y0: f32 = constant(vec2<f32>(u2, v0), xFreq, yFreq, s);
-    var x2y1: f32 = constant(vec2<f32>(u2, v1), xFreq, yFreq, s);
-    var x2y2: f32 = constant(vec2<f32>(u2, v2), xFreq, yFreq, s);
-    var x2y3: f32 = constant(vec2<f32>(u2, v3), xFreq, yFreq, s);
-
-    var x3y0: f32 = constant(vec2<f32>(u3, v0), xFreq, yFreq, s);
-    var x3y1: f32 = constant(vec2<f32>(u3, v1), xFreq, yFreq, s);
-    var x3y2: f32 = constant(vec2<f32>(u3, v2), xFreq, yFreq, s);
-    var x3y3: f32 = constant(vec2<f32>(u3, v3), xFreq, yFreq, s);
+    var x3y0: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(2, -1));
+    var x3y1: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(2, 0));
+    var x3y2: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(2, 1));
+    var x3y3: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(2, 2));
 
     var uv: vec2<f32> = vec2<f32>(st.x * xFreq, st.y * yFreq);
 
@@ -686,56 +611,48 @@ fn catmullRom4x4Value(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
 fn value(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
     let interpVal: i32 = i32(interp);
 
+    // 0 = constant (nearest neighbor)
+    if (interpVal == 0) {
+        return constant(st, xFreq, yFreq, s);
+    }
+
+    // 3 = catmullRom3x3 (9 taps)
     if (interpVal == 3) {
-        // 3×3 quadratic B-spline (9 taps)
-        return quadratic3x3Value(st, xFreq, yFreq, s);
-    }
-
-    if (interpVal == 4) {
-        // budget - texture bicubic
-        let bicubicLoopSample: f32 = textureBicubic(st, xFreq, yFreq, s + 50.0, time);
-        let bicubicScaledTime: f32 = bicubicLoopSample * loopAmp * 0.0025;
-        return textureBicubic(st, xFreq, yFreq, s, bicubicScaledTime);
-    }
-
-    if (interpVal == 5) {
-        // 4×4 cubic B-spline (16 taps)
-        return bicubicValue(st, xFreq, yFreq, s);
-    }
-
-    if (interpVal == 7) {
-        // 3×3 Catmull-Rom (9 taps)
         return catmullRom3x3Value(st, xFreq, yFreq, s);
     }
 
-    if (interpVal == 8) {
-        // 4×4 Catmull-Rom (16 taps)
+    // 4 = catmullRom4x4 (16 taps)
+    if (interpVal == 4) {
         return catmullRom4x4Value(st, xFreq, yFreq, s);
     }
 
+    // 5 = bSpline3x3 / quadratic (9 taps)
+    if (interpVal == 5) {
+        return quadratic3x3Value(st, xFreq, yFreq, s);
+    }
+
+    // 6 = bSpline4x4 / bicubic (16 taps)
+    if (interpVal == 6) {
+        return bicubicValue(st, xFreq, yFreq, s);
+    }
+
+    // 10 = simplex
     if (interpVal == 10) {
         let simplexLoopSample: f32 = simplexValue(st, xFreq, yFreq, s + 50.0, time) * loopAmp * 0.0025;
         return simplexValue(st, xFreq, yFreq, s, simplexLoopSample);
     }
 
+    // 11 = sine
     if (interpVal == 11) {
         let sineLoopSample: f32 = sineNoise(st, xFreq, yFreq, s + 50.0, time) * loopAmp * 0.0025;
         return sineNoise(st, xFreq, yFreq, s, sineLoopSample);
     }
 
-    var x1y1: f32 = constant(st, xFreq, yFreq, s);
-
-    if (interpVal == 0) {
-        return x1y1;
-    }
-
-    // Neighbor Distance
-    var ndX: f32 = 1.0 / xFreq;
-    var ndY: f32 = 1.0 / yFreq;
-
-    var x1y2: f32 = constant(vec2<f32>(st.x, st.y + ndY), xFreq, yFreq, s);
-    var x2y1: f32 = constant(vec2<f32>(st.x + ndX, st.y), xFreq, yFreq, s);
-    var x2y2: f32 = constant(vec2<f32>(st.x + ndX, st.y + ndY), xFreq, yFreq, s);
+    // 1 = linear, 2 = hermite: 2x2 bilinear interpolation with offset-based sampling
+    var x1y1: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, 0));
+    var x1y2: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(0, 1));
+    var x2y1: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, 0));
+    var x2y2: f32 = constantOffset(st, xFreq, yFreq, s, vec2<i32>(1, 1));
 
     var uv: vec2<f32> = vec2<f32>(st.x * xFreq, st.y * yFreq);
 

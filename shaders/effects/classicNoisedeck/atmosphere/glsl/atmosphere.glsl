@@ -360,6 +360,12 @@ float constant(vec2 st, float xFreq, float yFreq, float s) {
     return periodicFunction(rand.y - scaledTime);
 }
 
+float constantOffset(vec2 st, float xFreq, float yFreq, float s, ivec2 offset) {
+    vec3 rand = randomFromLatticeWithOffset(st, xFreq, yFreq, s, offset);
+    float scaledTime = periodicFunction(rand.x - time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.25);
+    return periodicFunction(rand.y - scaledTime);
+}
+
 // ---- 3×3 quadratic B-spline interpolation ----
 // Replaces legacy bicubic 4×4 (16 taps) with 3×3 kernel (9 taps)
 // Performance: ~1.8× faster in fBm chains
@@ -388,21 +394,21 @@ float quadratic3x3Value(vec2 st, float xFreq, float yFreq, float s) {
     vec2 lattice = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(lattice);
     
-    // Sample 3×3 grid (9 taps)
+    // Sample 3×3 grid (9 taps) using proper offset-based sampling
     // Row -1 (y-1)
-    float v00 = constant(st + vec2(-1.0/xFreq, -1.0/yFreq), xFreq, yFreq, s);
-    float v10 = constant(st + vec2(0.0, -1.0/yFreq), xFreq, yFreq, s);
-    float v20 = constant(st + vec2(1.0/xFreq, -1.0/yFreq), xFreq, yFreq, s);
+    float v00 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, -1));
+    float v10 = constantOffset(st, xFreq, yFreq, s, ivec2( 0, -1));
+    float v20 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, -1));
     
     // Row 0 (y)
-    float v01 = constant(st + vec2(-1.0/xFreq, 0.0), xFreq, yFreq, s);
+    float v01 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, 0));
     float v11 = constant(st, xFreq, yFreq, s);
-    float v21 = constant(st + vec2(1.0/xFreq, 0.0), xFreq, yFreq, s);
+    float v21 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, 0));
     
     // Row 1 (y+1)
-    float v02 = constant(st + vec2(-1.0/xFreq, 1.0/yFreq), xFreq, yFreq, s);
-    float v12 = constant(st + vec2(0.0, 1.0/yFreq), xFreq, yFreq, s);
-    float v22 = constant(st + vec2(1.0/xFreq, 1.0/yFreq), xFreq, yFreq, s);
+    float v02 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, 1));
+    float v12 = constantOffset(st, xFreq, yFreq, s, ivec2( 0, 1));
+    float v22 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, 1));
     
     // Quadratic interpolation along x for each row
     float y0 = quadratic3(v00, v10, v20, f.x);
@@ -417,21 +423,18 @@ float catmullRom3x3Value(vec2 st, float xFreq, float yFreq, float s) {
     vec2 lattice = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(lattice);
     
-    // Sample 3×3 grid (9 taps)
-    // Row -1 (y-1)
-    float v00 = constant(st + vec2(-1.0/xFreq, -1.0/yFreq), xFreq, yFreq, s);
-    float v10 = constant(st + vec2(0.0, -1.0/yFreq), xFreq, yFreq, s);
-    float v20 = constant(st + vec2(1.0/xFreq, -1.0/yFreq), xFreq, yFreq, s);
+    // Sample 3×3 grid (9 taps) using proper offset-based sampling
+    float v00 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, -1));
+    float v10 = constantOffset(st, xFreq, yFreq, s, ivec2( 0, -1));
+    float v20 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, -1));
     
-    // Row 0 (y)
-    float v01 = constant(st + vec2(-1.0/xFreq, 0.0), xFreq, yFreq, s);
+    float v01 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, 0));
     float v11 = constant(st, xFreq, yFreq, s);
-    float v21 = constant(st + vec2(1.0/xFreq, 0.0), xFreq, yFreq, s);
+    float v21 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, 0));
     
-    // Row 1 (y+1)
-    float v02 = constant(st + vec2(-1.0/xFreq, 1.0/yFreq), xFreq, yFreq, s);
-    float v12 = constant(st + vec2(0.0, 1.0/yFreq), xFreq, yFreq, s);
-    float v22 = constant(st + vec2(1.0/xFreq, 1.0/yFreq), xFreq, yFreq, s);
+    float v02 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, 1));
+    float v12 = constantOffset(st, xFreq, yFreq, s, ivec2( 0, 1));
+    float v22 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, 1));
     
     // Catmull-Rom interpolation along x for each row
     float y0 = catmullRom3(v00, v10, v20, f.x);
@@ -526,141 +529,125 @@ float textureBicubic(vec2 texCoords, float xFreq, float yFreq, float _seed, floa
 // end texture-based bicubic
 
 float bicubicValue(vec2 st, float xFreq, float yFreq, float s) {
-    // Neighbor Distance
-    float ndX = 1.0 / xFreq;
-    float ndY = 1.0 / yFreq;
-
-    float u0 = st.x - ndX;
-    float u1 = st.x;
-    float u2 = st.x + ndX;
-    float u3 = st.x + ndX + ndX;
-
-    float v0 = st.y - ndY;
-    float v1 = st.y;
-    float v2 = st.y + ndY;
-    float v3 = st.y + ndY + ndY;
-
-    float x0y0 = constant(vec2(u0, v0), xFreq, yFreq, s);
-    float x0y1 = constant(vec2(u0, v1), xFreq, yFreq, s);
-    float x0y2 = constant(vec2(u0, v2), xFreq, yFreq, s);
-    float x0y3 = constant(vec2(u0, v3), xFreq, yFreq, s);
-
-    float x1y0 = constant(vec2(u1, v0), xFreq, yFreq, s);
-    float x1y1 = constant(st, xFreq, yFreq, s);
-    float x1y2 = constant(vec2(u1, v2), xFreq, yFreq, s);
-    float x1y3 = constant(vec2(u1, v3), xFreq, yFreq, s);
-
-    float x2y0 = constant(vec2(u2, v0), xFreq, yFreq, s);
-    float x2y1 = constant(vec2(u2, v1), xFreq, yFreq, s);
-    float x2y2 = constant(vec2(u2, v2), xFreq, yFreq, s);
-    float x2y3 = constant(vec2(u2, v3), xFreq, yFreq, s);
-
-    float x3y0 = constant(vec2(u3, v0), xFreq, yFreq, s);
-    float x3y1 = constant(vec2(u3, v1), xFreq, yFreq, s);
-    float x3y2 = constant(vec2(u3, v2), xFreq, yFreq, s);
-    float x3y3 = constant(vec2(u3, v3), xFreq, yFreq, s);
-
     vec2 uv = vec2(st.x * xFreq, st.y * yFreq);
+    vec2 f = fract(uv);
 
-    float y0 = blendBicubic(x0y0, x1y0, x2y0, x3y0, fract(uv.x));
-    float y1 = blendBicubic(x0y1, x1y1, x2y1, x3y1, fract(uv.x));
-    float y2 = blendBicubic(x0y2, x1y2, x2y2, x3y2, fract(uv.x));
-    float y3 = blendBicubic(x0y3, x1y3, x2y3, x3y3, fract(uv.x));
+    // Sample 4×4 grid using offset-based sampling
+    float x0y0 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, -1));
+    float x0y1 = constantOffset(st, xFreq, yFreq, s, ivec2(-1,  0));
+    float x0y2 = constantOffset(st, xFreq, yFreq, s, ivec2(-1,  1));
+    float x0y3 = constantOffset(st, xFreq, yFreq, s, ivec2(-1,  2));
 
-    return clamp(blendBicubic(y0, y1, y2, y3, fract(uv.y)), 0.0, 1.0);
+    float x1y0 = constantOffset(st, xFreq, yFreq, s, ivec2( 0, -1));
+    float x1y1 = constant(st, xFreq, yFreq, s);
+    float x1y2 = constantOffset(st, xFreq, yFreq, s, ivec2( 0,  1));
+    float x1y3 = constantOffset(st, xFreq, yFreq, s, ivec2( 0,  2));
+
+    float x2y0 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, -1));
+    float x2y1 = constantOffset(st, xFreq, yFreq, s, ivec2( 1,  0));
+    float x2y2 = constantOffset(st, xFreq, yFreq, s, ivec2( 1,  1));
+    float x2y3 = constantOffset(st, xFreq, yFreq, s, ivec2( 1,  2));
+
+    float x3y0 = constantOffset(st, xFreq, yFreq, s, ivec2( 2, -1));
+    float x3y1 = constantOffset(st, xFreq, yFreq, s, ivec2( 2,  0));
+    float x3y2 = constantOffset(st, xFreq, yFreq, s, ivec2( 2,  1));
+    float x3y3 = constantOffset(st, xFreq, yFreq, s, ivec2( 2,  2));
+
+    float y0 = blendBicubic(x0y0, x1y0, x2y0, x3y0, f.x);
+    float y1 = blendBicubic(x0y1, x1y1, x2y1, x3y1, f.x);
+    float y2 = blendBicubic(x0y2, x1y2, x2y2, x3y2, f.x);
+    float y3 = blendBicubic(x0y3, x1y3, x2y3, x3y3, f.x);
+
+    return clamp(blendBicubic(y0, y1, y2, y3, f.y), 0.0, 1.0);
 }
 
 float catmullRom4x4Value(vec2 st, float xFreq, float yFreq, float s) {
-    // Neighbor Distance
-    float ndX = 1.0 / xFreq;
-    float ndY = 1.0 / yFreq;
-
-    float u0 = st.x - ndX;
-    float u1 = st.x;
-    float u2 = st.x + ndX;
-    float u3 = st.x + ndX + ndX;
-
-    float v0 = st.y - ndY;
-    float v1 = st.y;
-    float v2 = st.y + ndY;
-    float v3 = st.y + ndY + ndY;
-
-    float x0y0 = constant(vec2(u0, v0), xFreq, yFreq, s);
-    float x0y1 = constant(vec2(u0, v1), xFreq, yFreq, s);
-    float x0y2 = constant(vec2(u0, v2), xFreq, yFreq, s);
-    float x0y3 = constant(vec2(u0, v3), xFreq, yFreq, s);
-
-    float x1y0 = constant(vec2(u1, v0), xFreq, yFreq, s);
-    float x1y1 = constant(st, xFreq, yFreq, s);
-    float x1y2 = constant(vec2(u1, v2), xFreq, yFreq, s);
-    float x1y3 = constant(vec2(u1, v3), xFreq, yFreq, s);
-
-    float x2y0 = constant(vec2(u2, v0), xFreq, yFreq, s);
-    float x2y1 = constant(vec2(u2, v1), xFreq, yFreq, s);
-    float x2y2 = constant(vec2(u2, v2), xFreq, yFreq, s);
-    float x2y3 = constant(vec2(u2, v3), xFreq, yFreq, s);
-
-    float x3y0 = constant(vec2(u3, v0), xFreq, yFreq, s);
-    float x3y1 = constant(vec2(u3, v1), xFreq, yFreq, s);
-    float x3y2 = constant(vec2(u3, v2), xFreq, yFreq, s);
-    float x3y3 = constant(vec2(u3, v3), xFreq, yFreq, s);
-
     vec2 uv = vec2(st.x * xFreq, st.y * yFreq);
+    vec2 f = fract(uv);
 
-    float y0 = catmullRom4(x0y0, x1y0, x2y0, x3y0, fract(uv.x));
-    float y1 = catmullRom4(x0y1, x1y1, x2y1, x3y1, fract(uv.x));
-    float y2 = catmullRom4(x0y2, x1y2, x2y2, x3y2, fract(uv.x));
-    float y3 = catmullRom4(x0y3, x1y3, x2y3, x3y3, fract(uv.x));
+    // Sample 4×4 grid using offset-based sampling
+    float x0y0 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, -1));
+    float x0y1 = constantOffset(st, xFreq, yFreq, s, ivec2(-1,  0));
+    float x0y2 = constantOffset(st, xFreq, yFreq, s, ivec2(-1,  1));
+    float x0y3 = constantOffset(st, xFreq, yFreq, s, ivec2(-1,  2));
 
-    return clamp(catmullRom4(y0, y1, y2, y3, fract(uv.y)), 0.0, 1.0);
+    float x1y0 = constantOffset(st, xFreq, yFreq, s, ivec2( 0, -1));
+    float x1y1 = constant(st, xFreq, yFreq, s);
+    float x1y2 = constantOffset(st, xFreq, yFreq, s, ivec2( 0,  1));
+    float x1y3 = constantOffset(st, xFreq, yFreq, s, ivec2( 0,  2));
+
+    float x2y0 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, -1));
+    float x2y1 = constantOffset(st, xFreq, yFreq, s, ivec2( 1,  0));
+    float x2y2 = constantOffset(st, xFreq, yFreq, s, ivec2( 1,  1));
+    float x2y3 = constantOffset(st, xFreq, yFreq, s, ivec2( 1,  2));
+
+    float x3y0 = constantOffset(st, xFreq, yFreq, s, ivec2( 2, -1));
+    float x3y1 = constantOffset(st, xFreq, yFreq, s, ivec2( 2,  0));
+    float x3y2 = constantOffset(st, xFreq, yFreq, s, ivec2( 2,  1));
+    float x3y3 = constantOffset(st, xFreq, yFreq, s, ivec2( 2,  2));
+
+    float y0 = catmullRom4(x0y0, x1y0, x2y0, x3y0, f.x);
+    float y1 = catmullRom4(x0y1, x1y1, x2y1, x3y1, f.x);
+    float y2 = catmullRom4(x0y2, x1y2, x2y2, x3y2, f.x);
+    float y3 = catmullRom4(x0y3, x1y3, x2y3, x3y3, f.x);
+
+    return clamp(catmullRom4(y0, y1, y2, y3, f.y), 0.0, 1.0);
 }
 
 float value(vec2 st, float xFreq, float yFreq, float s) {
     float scaledTime = 1.0;
+    
+    // 0 = constant (no interpolation)
+    if (interp == 0) {
+        return constant(st, xFreq, yFreq, s);
+    }
+    
+    // 3 = catmullRom3x3 (9 taps)
     if (interp == 3) {
-        // 3×3 quadratic B-spline (9 taps)
-        return quadratic3x3Value(st, xFreq, yFreq, s);
-    } else if (interp == 4) {
-        // budget - texture bicubic
-        scaledTime = textureBicubic(st, xFreq, yFreq, s + 50.0, time) * loopAmp * 0.0025;
-        return textureBicubic(st, xFreq, yFreq, s, scaledTime);
-    } else if (interp == 5) {
-        // 4×4 cubic B-spline (16 taps)
-        return bicubicValue(st, xFreq, yFreq, s);
-    } else if (interp == 7) {
-        // 3×3 Catmull-Rom (9 taps)
         return catmullRom3x3Value(st, xFreq, yFreq, s);
-    } else if (interp == 8) {
-        // 4×4 Catmull-Rom (16 taps)
+    }
+    
+    // 4 = catmullRom4x4 (16 taps)
+    if (interp == 4) {
         return catmullRom4x4Value(st, xFreq, yFreq, s);
-    } else if (interp == 10) {
+    }
+    
+    // 5 = bSpline3x3 (9 taps)
+    if (interp == 5) {
+        return quadratic3x3Value(st, xFreq, yFreq, s);
+    }
+    
+    // 6 = bSpline4x4 (16 taps)
+    if (interp == 6) {
+        return bicubicValue(st, xFreq, yFreq, s);
+    }
+    
+    // 10 = simplex
+    if (interp == 10) {
         scaledTime = simplexValue(st, xFreq, yFreq, s + 50.0, time) * loopAmp * 0.0025;
         return simplexValue(st, xFreq, yFreq, s, scaledTime);
-    } else if (interp == 11) {
+    }
+    
+    // 11 = sine
+    if (interp == 11) {
         scaledTime = sineNoise(st, xFreq, yFreq, s + 50.0, time) * loopAmp * 0.0025;
         return sineNoise(st, xFreq, yFreq, s, scaledTime);
     }
 
-    float x1y1 = constant(st, xFreq, yFreq, s);
-
-    if (interp == 0) {
-        return x1y1;
-    }
-
-    // Neighbor Distance
-    float ndX = 1.0 / xFreq;
-    float ndY = 1.0 / yFreq;
-
-    float x1y2 = constant(vec2(st.x, st.y + ndY), xFreq, yFreq, s);
-    float x2y1 = constant(vec2(st.x + ndX, st.y), xFreq, yFreq, s);
-    float x2y2 = constant(vec2(st.x + ndX, st.y + ndY), xFreq, yFreq, s);
-
+    // 1 = linear, 2 = hermite (2x2 bilinear interpolation)
     vec2 uv = vec2(st.x * xFreq, st.y * yFreq);
+    vec2 f = fract(uv);
+    
+    // Sample 2x2 grid using offset-based sampling
+    float x0y0 = constant(st, xFreq, yFreq, s);
+    float x1y0 = constantOffset(st, xFreq, yFreq, s, ivec2(1, 0));
+    float x0y1 = constantOffset(st, xFreq, yFreq, s, ivec2(0, 1));
+    float x1y1 = constantOffset(st, xFreq, yFreq, s, ivec2(1, 1));
 
-    float a = blendLinearOrCosine(x1y1, x2y1, fract(uv.x), interp);
-    float b = blendLinearOrCosine(x1y2, x2y2, fract(uv.x), interp);
+    float a = blendLinearOrCosine(x0y0, x1y0, f.x, interp);
+    float b = blendLinearOrCosine(x0y1, x1y1, f.x, interp);
 
-    return clamp(blendLinearOrCosine(a, b, fract(uv.y), interp), 0.0, 1.0);
+    return clamp(blendLinearOrCosine(a, b, f.y, interp), 0.0, 1.0);
 }
 
 vec3 noise(vec2 st, float s) {

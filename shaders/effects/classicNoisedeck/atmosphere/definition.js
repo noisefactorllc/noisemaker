@@ -42,17 +42,15 @@ export default new Effect({
       type: "int",
       default: 10,
       choices: {
-        linear: 0,
-        linearMix: 1,
+        constant: 0,
+        linear: 1,
         hermite: 2,
-        quadraticBSpline: 3,
-        bicubicTexture: 4,
-        cubicBSpline: 5,
-        catmullRom: 7,
-        catmullRom4x4: 8,
+        catmullRom3x3: 3,
+        catmullRom4x4: 4,
+        bSpline3x3: 5,
+        bSpline4x4: 6,
         simplex: 10,
-        sine: 11,
-        quintic: 12
+        sine: 11
       },
       ui: { label: "Interpolation", control: "dropdown", category: "general" },
       uniform: "interp"
@@ -167,7 +165,6 @@ export default new Effect({
       name: "render",
       program: "atmosphere",
       inputs: {
-        noiseTex: "noise"
       },
 
       outputs: {
