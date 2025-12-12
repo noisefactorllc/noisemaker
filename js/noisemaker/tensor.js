@@ -50,10 +50,6 @@ export class Tensor {
     return new Tensor(ctx, array, shape)
   }
 
-  static fromGPUBuffer() {
-    throw new Error('WebGPU support has been removed; GPU buffers are unavailable.')
-  }
-
   read() {
     return this.data.slice()
   }

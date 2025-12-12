@@ -104,7 +104,6 @@ Currently configured in `generators.js` with sensible defaults optimized for 60f
 
 Potential improvements:
 - **Worker threads**: Offload rendering to Web Workers for true parallelism
-- **WebGPU compute**: Move CPU-heavy operations to GPU compute shaders
 - **Adaptive yielding**: Adjust yield frequency based on frame rate measurements
 - **Progress callbacks**: Expose progress events for custom UI indicators
 - **Render cancellation**: Allow aborting long-running renders

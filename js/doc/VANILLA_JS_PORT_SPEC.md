@@ -4,10 +4,6 @@ The JS porting project aims for a 1:1 surface-level port of Noisemaker's Python 
 
 CLI tools are not included.
 
-## WebGPU Bifurcation
-
-**Note:** The WebGPU implementation has been bifurcated from the main JavaScript implementation. This vanilla JS port currently uses CPU-based rendering with TypedArrays. The WebGPU shader-based implementation exists as a separate parallel effort under `/shaders`.
-
 ## When in doubt
 
 When in doubt: refer to what the Python version is doing, and just do what it does. The Python version is our baseline reference implementation.
@@ -142,7 +138,7 @@ The library is organised as ES modules inside `src/`.
 
 ## 5. Implementation Roadmap
 
-1. **Core infrastructure:** WebGPU context manager, `Tensor` wrapper, shader compilation utilities.
+1. **Core infrastructure:** `Tensor` wrapper, rendering utilities.
 2. **Noise foundations:** implement `constants`, `simplex`, `value` (basic distributions, blending, distance).
 3. **Point/mask utilities:** `points`, `masks`, glyph atlas.
 4. **Effect framework:** `effectsRegistry` and initial subset of effects for parity tests.
@@ -154,4 +150,4 @@ The library is organised as ES modules inside `src/`.
 
 * No command‑line interface or Stable Diffusion integrations.
 * No automatic documentation generation; the spec itself is authoritative during the port.
-* Future enhancements may leverage WebGPU once widely available, but initial target remains WebGPU.
+* GPU-accelerated rendering is handled by the separate `/shaders` implementation.
