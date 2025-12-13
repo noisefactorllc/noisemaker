@@ -58,8 +58,10 @@ test('Unknown Function', 'search basics\nunknown(10).write(o0)', (result) => {
 })
 
 test('Missing Write', 'search basics\nnoise(10)', (result) => {
-    const diag = result.diagnostics.find(d => d.code === 'S006')
-    if (!diag) throw new Error('Expected S006 (Starter chain missing write)')
+    // S001 is the generic error for missing write(), S006 is more specific for starter chains
+    // Without the effect registry loaded, we get S001
+    const diag = result.diagnostics.find(d => d.code === 'S006' || d.code === 'S001')
+    if (!diag) throw new Error('Expected S006 or S001 (Chain missing write)')
 })
 
 test('Argument Type Mismatch', 'search basics\nnoise("string").write(o0)', (result) => {

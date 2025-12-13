@@ -13,10 +13,11 @@
  * Continue       ::= 'continue'
  * Return         ::= 'return' Expr?
  * VarAssign      ::= 'let' Ident '=' Expr
- * ChainStmt      ::= Chain WriteDirective?
- * WriteDirective ::= '.write(' (OutputRef | FeedbackRef)? ')'
- *                  | '.write3d(' Ident ',' Ident ')'
- * Chain          ::= Call ('.' Call)*
+ * ChainStmt      ::= Chain
+ * Chain          ::= ChainElement ('.' ChainElement)*
+ * ChainElement   ::= Call | WriteNode | Write3DNode
+ * WriteNode      ::= 'write' '(' (OutputRef | FeedbackRef) ')'     // Chainable - writes to surface & passes through
+ * Write3DNode    ::= 'write3d' '(' Ident ',' Ident ')'
  * Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | FeedbackRef | SourceRef | Func | '(' Expr ')'
  * Call           ::= Ident '(' ArgList? ')'
  * ArgList        ::= Arg (',' Arg)* ','?
@@ -410,53 +411,20 @@ export function parse(tokens) {
         }
 
         const chain = parseChain()
+        // Extract write/write3d only if the chain TERMINATES with a Write/Write3D node
+        // Chains must end with write() - mid-chain writes don't count as terminal
         let write = null
         let write3d = null
-
-        // Check for .write() or .write3d()
-        if (peek().type === 'DOT') {
-            const nextType = tokens[current + 1]?.type
-            if (nextType === 'WRITE') {
-                advance() // consume '.'
-                advance() // consume 'write'
-                expect('LPAREN', "Expect '('")
-                if (peek().type === 'OUTPUT_REF') {
-                    write = {type: 'OutputRef', name: advance().lexeme}
-                } else if (peek().type === 'FEEDBACK_REF') {
-                    write = {type: 'FeedbackRef', name: advance().lexeme}
-                } else {
-                    throw new SyntaxError(`write() requires an explicit surface reference (e.g., o0, o1, f0) at line ${peek().line} col ${peek().col}`)
-                }
-                expect('RPAREN', "Expect ')'")
-            } else if (nextType === 'WRITE3D') {
-                advance() // consume '.'
-                advance() // consume 'write3d'
-                expect('LPAREN', "Expect '('")
-                // Parse tex3d reference
-                let tex3d = null
-                if (peek().type === 'IDENT' || peek().type === 'OUTPUT_REF') {
-                    tex3d = peek().type === 'OUTPUT_REF'
-                        ? {type: 'OutputRef', name: advance().lexeme}
-                        : {type: 'Ident', name: advance().lexeme}
-                } else {
-                    throw new SyntaxError(`Expected tex3d reference in write3d() at line ${peek().line} col ${peek().col}`)
-                }
-                expect('COMMA', "Expect ',' between tex3d and geo in write3d()")
-                // Parse geo reference
-                let geo = null
-                if (peek().type === 'IDENT' || peek().type === 'OUTPUT_REF') {
-                    geo = peek().type === 'OUTPUT_REF'
-                        ? {type: 'OutputRef', name: advance().lexeme}
-                        : {type: 'Ident', name: advance().lexeme}
-                } else {
-                    throw new SyntaxError(`Expected geo reference in write3d() at line ${peek().line} col ${peek().col}`)
-                }
-                expect('RPAREN', "Expect ')'")
-                write3d = {tex3d, geo}
+        if (chain.length > 0) {
+            const lastNode = chain[chain.length - 1]
+            if (lastNode.type === 'Write') {
+                write = lastNode.surface
+            } else if (lastNode.type === 'Write3D') {
+                write3d = { tex3d: lastNode.tex3d, geo: lastNode.geo }
             }
         }
-        // If no .write() is present, write remains null.
-        // The validator will check if this is allowed (e.g. for non-generator chains or nested usage).
+        // If chain doesn't end with write(), write remains null.
+        // The validator will produce S006 for starter chains missing terminal write().
 
         return {chain, write, write3d}
     }
@@ -468,14 +436,74 @@ export function parse(tokens) {
             if (nextType === 'WRITE' || nextType === 'WRITE3D') {
                 if (context === 'expression') {
                     const t = tokens[current + 1]
-                    throw new SyntaxError(`'.write()' is only allowed at the end of a statement at line ${t.line} col ${t.col}`)
+                    throw new SyntaxError(`'.write()' is only allowed in statement context at line ${t.line} col ${t.col}`)
                 }
-                break
+                // Parse write/write3d as a node in the chain (chainable)
+                advance() // consume '.'
+                const writeNode = parseWriteCall()
+                calls.push(writeNode)
+                // Continue parsing - write is now chainable
+                continue
             }
             advance() // consume '.'
             calls.push(parseCall())
         }
         return calls
+    }
+
+    function parseWriteCall() {
+        const tokenType = peek().type
+        const tokenLine = peek().line
+        const tokenCol = peek().col
+
+        if (tokenType === 'WRITE') {
+            advance() // consume 'write'
+            expect('LPAREN', "Expect '('")
+            let surface = null
+            if (peek().type === 'OUTPUT_REF') {
+                surface = { type: 'OutputRef', name: advance().lexeme }
+            } else if (peek().type === 'FEEDBACK_REF') {
+                surface = { type: 'FeedbackRef', name: advance().lexeme }
+            } else {
+                throw new SyntaxError(`write() requires an explicit surface reference (e.g., o0, o1, f0) at line ${peek().line} col ${peek().col}`)
+            }
+            expect('RPAREN', "Expect ')'")
+            return {
+                type: 'Write',
+                surface: surface,
+                loc: { line: tokenLine, col: tokenCol }
+            }
+        } else if (tokenType === 'WRITE3D') {
+            advance() // consume 'write3d'
+            expect('LPAREN', "Expect '('")
+            // Parse tex3d reference
+            let tex3d = null
+            if (peek().type === 'IDENT' || peek().type === 'OUTPUT_REF') {
+                tex3d = peek().type === 'OUTPUT_REF'
+                    ? { type: 'OutputRef', name: advance().lexeme }
+                    : { type: 'Ident', name: advance().lexeme }
+            } else {
+                throw new SyntaxError(`Expected tex3d reference in write3d() at line ${peek().line} col ${peek().col}`)
+            }
+            expect('COMMA', "Expect ',' between tex3d and geo in write3d()")
+            // Parse geo reference
+            let geo = null
+            if (peek().type === 'IDENT' || peek().type === 'OUTPUT_REF') {
+                geo = peek().type === 'OUTPUT_REF'
+                    ? { type: 'OutputRef', name: advance().lexeme }
+                    : { type: 'Ident', name: advance().lexeme }
+            } else {
+                throw new SyntaxError(`Expected geo reference in write3d() at line ${peek().line} col ${peek().col}`)
+            }
+            expect('RPAREN', "Expect ')'")
+            return {
+                type: 'Write3D',
+                tex3d: tex3d,
+                geo: geo,
+                loc: { line: tokenLine, col: tokenCol }
+            }
+        }
+        throw new SyntaxError(`Expected write or write3d at line ${tokenLine} col ${tokenCol}`)
     }
 
     function parseCall() {

@@ -80,6 +80,7 @@ export function expand(compilationResult, options = {}) {
         let currentInput = null      // 2D pipeline texture
         let currentInput3d = null    // 3D pipeline texture (for volumetric effects)
         let currentInputGeo = null   // Geometry buffer texture (normals + depth)
+        let lastInlineWriteTarget = null  // Track the last inline write target to avoid redundant final blit
 
         // Pipeline uniforms accumulate from upstream effects for downstream consumption
         // Example: noise3d sets volumeSize, ca3d uses it without declaring it
@@ -114,6 +115,80 @@ export function expand(compilationResult, options = {}) {
                 if (currentInputGeo) textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
                 continue
             }
+
+            // Handle builtin write operations - these output to a surface AND pass through
+            // This makes write() chainable: noise().write(o0).blur() works
+            if (step.builtin && step.op === '_write') {
+                const tex = step.args?.tex
+                if (tex && currentInput) {
+                    const prefix = tex.kind === 'feedback' ? 'feedback' : 'global'
+                    const targetSurface = `${prefix}_${tex.name}`
+
+                    // Only add blit if the current input is not already the target surface
+                    if (currentInput !== targetSurface) {
+                        const nodeId = `node_${step.temp}`
+                        const blitPass = {
+                            id: `${nodeId}_write_blit`,
+                            program: 'blit',
+                            type: 'render',
+                            inputs: { src: currentInput },
+                            outputs: { color: targetSurface },
+                            uniforms: {},
+                            nodeId: nodeId,
+                            stepIndex: step.temp
+                        }
+                        passes.push(blitPass)
+
+                        // Ensure blit program exists
+                        if (!programs['blit']) {
+                            programs['blit'] = {
+                                fragment: `#version 300 es
+                                    precision highp float;
+                                    in vec2 v_texCoord;
+                                    uniform sampler2D src;
+                                    out vec4 fragColor;
+                                    void main() {
+                                        fragColor = texture(src, v_texCoord);
+                                    }`,
+                                wgsl: `
+                                    struct FragmentInput {
+                                        @builtin(position) position: vec4<f32>,
+                                        @location(0) uv: vec2<f32>,
+                                    }
+
+                                    @group(0) @binding(0) var src: texture_2d<f32>;
+                                    @group(0) @binding(1) var srcSampler: sampler;
+
+                                    @fragment
+                                    fn main(in: FragmentInput) -> @location(0) vec4<f32> {
+                                        return textureSample(src, srcSampler, in.uv);
+                                    }
+                                `,
+                                fragmentEntryPoint: 'main'
+                            }
+                        }
+
+                        // Track last written surface for render directive
+                        if (tex.kind === 'output') {
+                            lastWrittenSurface = tex.name
+                        }
+
+                        // Track this inline write target so we can skip redundant final blit
+                        lastInlineWriteTarget = { kind: tex.kind, name: tex.name }
+                    }
+
+                    // Pass through: the output of write() is the same texture that was written
+                    // This allows chaining: noise().write(o0).blur() - blur receives the texture
+                    const nodeId = `node_${step.temp}`
+                    textureMap.set(`${nodeId}_out`, currentInput)
+                    // currentInput stays the same - we pass through the input texture
+                }
+                continue
+            }
+
+            // Clear lastInlineWriteTarget if we process any non-write step
+            // (since the chain continued after the write, we need the final blit)
+            lastInlineWriteTarget = null
 
             // Handle _skip flag - skip this effect in the pipeline
             // When an effect is skipped, we pass through the current input unchanged
@@ -571,6 +646,16 @@ export function expand(compilationResult, options = {}) {
             if (outKind === 'output') {
                 lastWrittenSurface = outName // e.g., 'o0', 'o2'
             }
+
+            // Skip the final blit if the last step was an inline write to the same surface
+            // This avoids redundant blits when write() is at the end of the chain
+            const alreadyWritten = lastInlineWriteTarget &&
+                lastInlineWriteTarget.kind === outKind &&
+                lastInlineWriteTarget.name === outName
+            if (alreadyWritten) {
+                continue
+            }
+
             const prefix = outKind === 'feedback' ? 'feedback' : 'global'
             const targetSurface = `${prefix}_${outName}`
 

@@ -40,8 +40,10 @@ function test(name, code, check, expectError = null) {
 test('Simple Chain', 'search basics\nnoise(10).write(o0)', (ast) => {
     if (ast.plans.length !== 1) throw new Error('Expected 1 plan')
     const plan = ast.plans[0]
-    if (plan.chain.length !== 1) throw new Error('Expected 1 call in chain')
+    // Chain now includes both the Call and the Write node (write is chainable)
+    if (plan.chain.length !== 2) throw new Error('Expected 2 elements in chain (Call + Write)')
     if (plan.chain[0].name !== 'noise') throw new Error('Expected noise')
+    if (plan.chain[1].type !== 'Write') throw new Error('Expected Write node')
     if (plan.write.name !== 'o0') throw new Error('Expected write o0')
 })
 
@@ -126,16 +128,20 @@ test('Inline Namespace - Should Error', 'search nd\nnd.noise(10).write(o0)', () 
 test('read() creates Read node', 'search basics\nread(o0).write(o1)', (ast) => {
     if (ast.plans.length !== 1) throw new Error('Expected 1 plan')
     const plan = ast.plans[0]
-    if (plan.chain.length !== 1) throw new Error('Expected 1 call in chain')
+    // Chain now includes both the Read and the Write node (write is chainable)
+    if (plan.chain.length !== 2) throw new Error('Expected 2 elements in chain (Read + Write)')
     // read() creates a Read node (pipeline built-in)
     if (plan.chain[0].type !== 'Read') throw new Error('Expected Read node type')
     if (plan.chain[0].surface.name !== 'o0') throw new Error('Expected surface o0')
+    if (plan.chain[1].type !== 'Write') throw new Error('Expected Write node')
     if (plan.write.name !== 'o1') throw new Error('Expected write o1')
 })
 
 test('write3d parses correctly', 'search basics\nnoise(10).write3d(vol0, geo0)', (ast) => {
     if (ast.plans.length !== 1) throw new Error('Expected 1 plan')
     const plan = ast.plans[0]
+    // Chain includes Call + Write3D node
+    if (plan.chain.length !== 2) throw new Error('Expected 2 elements in chain (Call + Write3D)')
     if (!plan.write3d) throw new Error('Expected write3d')
     if (plan.write3d.tex3d.name !== 'vol0') throw new Error('Expected tex3d vol0')
     if (plan.write3d.geo.name !== 'geo0') throw new Error('Expected geo geo0')

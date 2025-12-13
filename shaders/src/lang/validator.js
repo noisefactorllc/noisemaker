@@ -469,6 +469,30 @@ export function validate(ast) {
                     continue
                 }
 
+                // Handle Write node (pipeline built-in for writing to surfaces - chainable)
+                if (original.type === 'Write') {
+                    const surface = toSurface(original.surface)
+                    if (!surface) {
+                        pushDiag('S001', original, 'write() requires a valid surface reference')
+                        continue
+                    }
+                    if (current === null) {
+                        pushDiag('S005', original, 'write() requires an input - cannot be first in chain')
+                        continue
+                    }
+                    const idx = tempIndex++
+                    const step = {
+                        op: '_write',
+                        args: { tex: surface },
+                        from: current,
+                        temp: idx,
+                        builtin: true
+                    }
+                    chain.push(step)
+                    current = idx
+                    continue
+                }
+
                 const call = resolveCall({...original})
                 const effectiveNamespace = call.namespace || { searchOrder: programSearchOrder }
                 const resolution = resolveCallTarget(call.name, effectiveNamespace)

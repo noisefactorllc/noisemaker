@@ -23,8 +23,10 @@ Grammar
    Continue       ::= 'continue'
    Return         ::= 'return' Expr?
    VarAssign      ::= 'let' Ident '=' Expr
-   ChainStmt      ::= Chain ('.write(' OutputRef? ')')?
-   Chain          ::= Call ( '.' Call )*
+   ChainStmt      ::= Chain
+   Chain          ::= ChainElement ( '.' ChainElement )*
+   ChainElement   ::= Call | WriteCall
+   WriteCall      ::= 'write' '(' OutputRef ')'
    Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | Func | '(' Expr ')'
    Call           ::= Ident '(' ArgList? ')'
    ArgList        ::= Arg ( ',' Arg )* ','?
@@ -52,8 +54,17 @@ Grammar
 **Output Materialization:**
 
 
-* Any chain that begins with a generator **must** terminate with ``.write(<surface>)``; omitting ``.write()`` on a generator chain yields diagnostic ``S006``.
+* Any chain that begins with a generator **must** terminate with ``.write(<surface>)``; omitting the terminal ``.write()`` on a generator chain yields diagnostic ``S006``.
 * Chains that extend an existing surface (e.g., reading via ``read(o0)`` and applying additional nodes) may omit ``.write()`` only when they are nested inside another chain that eventually writes to a surface.
+
+**Chainable Writes:**
+
+
+* ``.write(<surface>)`` can appear **anywhere** in a chain, including mid-chain.
+* When ``.write()`` appears mid-chain, it writes the current result to the specified surface and **passes the texture through** to the next node in the chain.
+* Multiple ``.write()`` calls in a single chain write to multiple surfaces.
+* **Chains must still terminate with** ``.write()`` — mid-chain writes alone are not sufficient.
+* Example: ``noise().write(o0).blur().write(o1)`` writes the noise to ``o0``, then blurs and writes the result to ``o1``.
 
 **Generators:**
 A chain must start with a Generator function (an effect with no inputs).
@@ -330,6 +341,10 @@ The DSL provides symmetric operations for reading and writing textures:
   
   - Example: ``noise(10).write(o0)``
   - Surfaces: ``o0``-``o7`` (global), ``f0``-``f3`` (feedback)
+  - **Chainable:** ``write()`` can appear mid-chain, passing the texture through to subsequent nodes.
+  
+    - Example: ``noise().write(o0).blur().write(o1)`` — writes noise to ``o0``, then blurs and writes to ``o1``.
+    - Example: ``noise().write(o0).invert().write(o1)`` — ``o0`` has the original noise, ``o1`` has the inverted version.
 
 * **read(surface):** Reads from a 2D surface. Built-in to the pipeline, no namespace required.
   
