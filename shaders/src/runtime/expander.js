@@ -94,6 +94,9 @@ export function expand(compilationResult, options = {}) {
                 } else if (tex && tex.kind === 'feedback') {
                     currentInput = `feedback_${tex.name}`  // e.g., 'feedback_f0'
                 }
+                // Register the read output so subsequent steps can find it via step.from
+                const nodeId = `node_${step.temp}`
+                textureMap.set(`${nodeId}_out`, currentInput)
                 continue
             }
             if (step.builtin && step.op === '_read3d') {
@@ -105,6 +108,10 @@ export function expand(compilationResult, options = {}) {
                 if (geo) {
                     currentInputGeo = geo.name || geo
                 }
+                // Register the read3d output so subsequent steps can find it via step.from
+                const nodeId = `node_${step.temp}`
+                if (currentInput3d) textureMap.set(`${nodeId}_out3d`, currentInput3d)
+                if (currentInputGeo) textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
                 continue
             }
 
