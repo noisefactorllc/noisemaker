@@ -1366,17 +1366,19 @@ export class UIController {
         if (effects.length === 0) return;
 
         // Build a map of stepIndex -> planIndex for write module placement
+        // Track last non-builtin step for each plan (builtins like _write don't have controls)
         let globalStepIndex = 0;
         const stepToPlan = new Map();
-        const planLastStep = new Map();
+        const planLastNonBuiltinStep = new Map();
         for (let planIndex = 0; planIndex < compiled.plans.length; planIndex++) {
             const plan = compiled.plans[planIndex];
             if (!plan.chain) continue;
-            const chainLength = plan.chain.length;
-            for (let i = 0; i < chainLength; i++) {
+            for (let i = 0; i < plan.chain.length; i++) {
+                const step = plan.chain[i];
                 stepToPlan.set(globalStepIndex, planIndex);
-                if (i === chainLength - 1) {
-                    planLastStep.set(planIndex, globalStepIndex);
+                // Track last non-builtin step (builtin steps like _write don't have UI controls)
+                if (!step.builtin) {
+                    planLastNonBuiltinStep.set(planIndex, globalStepIndex);
                 }
                 globalStepIndex++;
             }
@@ -1749,10 +1751,10 @@ export class UIController {
             moduleDiv.appendChild(contentDiv);
             this._controlsContainer.appendChild(moduleDiv);
 
-            // Add write module after the last step of each plan
+            // Add write module after the last non-builtin step of each plan
             const planIndex = stepToPlan.get(effectInfo.stepIndex);
-            const lastStepOfPlan = planLastStep.get(planIndex);
-            if (effectInfo.stepIndex === lastStepOfPlan && planIndex !== undefined) {
+            const lastNonBuiltinStep = planLastNonBuiltinStep.get(planIndex);
+            if (effectInfo.stepIndex === lastNonBuiltinStep && planIndex !== undefined) {
                 const plan = compiled.plans[planIndex];
                 if (plan.write) {
                     const writeModule = this._createWriteModule(planIndex, plan.write);
