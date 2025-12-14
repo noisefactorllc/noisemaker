@@ -21,11 +21,11 @@ EXTERNAL_TEXTURE_RE = re.compile(r'externalTexture[:\s=]+["\']([^"\']*)["\']')
 
 # Regex to extract tags array from definition.js
 # Matches: tags: ["tag1", "tag2"] or tags = ["tag1", "tag2"]
-TAGS_RE = re.compile(r'tags[:\s=]\s*\[([^\]]*)\]')
+TAGS_RE = re.compile(r'\btags\s*[:=]\s*\[([^\]]*)\]')
 
 # Regex to detect tex global with type: "surface"
 # Matches: tex: { ... type: "surface" ... } or tex = { ... type: "surface" ... }
-TEX_SURFACE_RE = re.compile(r'tex[:\s=]\s*\{[^}]*type[:\s=]\s*["\']surface["\']', re.DOTALL)
+TEX_SURFACE_RE = re.compile(r'\btex\s*[:=]\s*\{[^}]*type\s*[:=]\s*["\']surface["\']', re.DOTALL)
 
 # Known pipeline inputs that indicate a non-starter effect
 PIPELINE_INPUTS = {
