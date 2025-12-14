@@ -5,8 +5,8 @@
  */
 
 struct Uniforms {
-    gradeLutPreset: i32,
-    gradeLutIntensity: f32,
+    gradePreset: i32,
+    gradeAlpha: f32,
 }
 
 @group(0) @binding(0) var inputTex: texture_2d<f32>;
@@ -280,57 +280,135 @@ fn lutPsychedelic(rgb_in: vec3f) -> vec3f {
     return clamp(rgb, vec3f(0.0), vec3f(1.0));
 }
 
+// Hard Light - Extreme contrast for metallic/shiny appearance
+fn lutHardLight(rgb_in: vec3f) -> vec3f {
+    let l = luma(rgb_in);
+    
+    // Hard light blend mode simulation
+    var result: vec3f;
+    result.r = select(1.0 - 2.0 * (1.0 - rgb_in.r) * (1.0 - l), 2.0 * rgb_in.r * l, rgb_in.r < 0.5);
+    result.g = select(1.0 - 2.0 * (1.0 - rgb_in.g) * (1.0 - l), 2.0 * rgb_in.g * l, rgb_in.g < 0.5);
+    result.b = select(1.0 - 2.0 * (1.0 - rgb_in.b) * (1.0 - l), 2.0 * rgb_in.b * l, rgb_in.b < 0.5);
+    
+    // Boost overall contrast
+    result = (result - 0.5) * 1.4 + 0.5;
+    
+    // Add slight cool metallic tint to highlights
+    let highlightMask = smoothstep(0.5, 1.0, l);
+    result.b += highlightMask * 0.05;
+    
+    return clamp(result, vec3f(0.0), vec3f(1.0));
+}
+
+// Posterize - Quantize luminance for banded noise effect
+fn lutPosterize(rgb_in: vec3f) -> vec3f {
+    let l = luma(rgb_in);
+    
+    // Quantize to discrete levels
+    let levels = 6.0;
+    let quantized = floor(l * levels + 0.5) / levels;
+    
+    // Map to a color ramp for visual interest
+    var ramp: vec3f;
+    if (quantized < 0.2) {
+        ramp = vec3f(0.1, 0.05, 0.15);  // Deep purple-black
+    } else if (quantized < 0.4) {
+        ramp = vec3f(0.3, 0.2, 0.4);    // Dark purple
+    } else if (quantized < 0.6) {
+        ramp = vec3f(0.5, 0.4, 0.6);    // Medium purple
+    } else if (quantized < 0.8) {
+        ramp = vec3f(0.8, 0.6, 0.5);    // Warm highlight
+    } else {
+        ramp = vec3f(1.0, 0.9, 0.8);    // Bright cream
+    }
+    
+    // Blend with original color for some hue preservation
+    let hsl = rgbToHsl(rgb_in);
+    var rampHsl = rgbToHsl(ramp);
+    rampHsl.x = mix(rampHsl.x, hsl.x, 0.3);
+    
+    return hslToRgb(rampHsl);
+}
+
+// Solarize - Partial inversion creates wild band separation
+fn lutSolarize(rgb_in: vec3f) -> vec3f {
+    let l = luma(rgb_in);
+    
+    // Invert values above threshold, creating bands
+    let threshold = 0.5;
+    var result: vec3f;
+    result.r = select(2.0 * (1.0 - rgb_in.r), 2.0 * rgb_in.r, rgb_in.r <= threshold);
+    result.g = select(2.0 * (1.0 - rgb_in.g), 2.0 * rgb_in.g, rgb_in.g <= threshold);
+    result.b = select(2.0 * (1.0 - rgb_in.b), 2.0 * rgb_in.b, rgb_in.b <= threshold);
+    
+    // Boost saturation for more dramatic effect
+    var hsl = rgbToHsl(result);
+    hsl.y = min(hsl.y * 1.5, 1.0);
+    result = hslToRgb(hsl);
+    
+    // Add slight contrast
+    result = (result - 0.5) * 1.1 + 0.5;
+    
+    return clamp(result, vec3f(0.0), vec3f(1.0));
+}
+
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let coord = vec2i(fragCoord.xy);
     let color = textureLoad(inputTex, coord, 0);
     
-    if (uniforms.gradeLutPreset == 0 || uniforms.gradeLutIntensity <= 0.0) {
+    if (uniforms.gradePreset == 0 || uniforms.gradeAlpha <= 0.0) {
         return color;
     }
     
     var rgb = srgbToLinear(color.rgb);
     var graded = rgb;
     
-    if (uniforms.gradeLutPreset == 1) {
+    if (uniforms.gradePreset == 1) {
         graded = lutTealOrange(rgb);
-    } else if (uniforms.gradeLutPreset == 2) {
+    } else if (uniforms.gradePreset == 2) {
         graded = lutWarmFilm(rgb);
-    } else if (uniforms.gradeLutPreset == 3) {
+    } else if (uniforms.gradePreset == 3) {
         graded = lutCoolShadows(rgb);
-    } else if (uniforms.gradeLutPreset == 4) {
+    } else if (uniforms.gradePreset == 4) {
         graded = lutBleachBypass(rgb);
-    } else if (uniforms.gradeLutPreset == 5) {
+    } else if (uniforms.gradePreset == 5) {
         graded = lutCrossProcess(rgb);
-    } else if (uniforms.gradeLutPreset == 6) {
+    } else if (uniforms.gradePreset == 6) {
         graded = lutCinematic(rgb);
-    } else if (uniforms.gradeLutPreset == 7) {
+    } else if (uniforms.gradePreset == 7) {
         graded = lutDayForNight(rgb);
-    } else if (uniforms.gradeLutPreset == 8) {
+    } else if (uniforms.gradePreset == 8) {
         graded = lutVintage(rgb);
-    } else if (uniforms.gradeLutPreset == 9) {
+    } else if (uniforms.gradePreset == 9) {
         graded = lutNoir(rgb);
-    } else if (uniforms.gradeLutPreset == 10) {
+    } else if (uniforms.gradePreset == 10) {
         graded = lutSepia(rgb);
-    } else if (uniforms.gradeLutPreset == 11) {
+    } else if (uniforms.gradePreset == 11) {
         graded = lutInfrared(rgb);
-    } else if (uniforms.gradeLutPreset == 12) {
+    } else if (uniforms.gradePreset == 12) {
         graded = lutTechnicolor(rgb);
-    } else if (uniforms.gradeLutPreset == 13) {
+    } else if (uniforms.gradePreset == 13) {
         graded = lutNeon(rgb);
-    } else if (uniforms.gradeLutPreset == 14) {
+    } else if (uniforms.gradePreset == 14) {
         graded = lutMatrix(rgb);
-    } else if (uniforms.gradeLutPreset == 15) {
+    } else if (uniforms.gradePreset == 15) {
         graded = lutUnderwater(rgb);
-    } else if (uniforms.gradeLutPreset == 16) {
+    } else if (uniforms.gradePreset == 16) {
         graded = lutSunset(rgb);
-    } else if (uniforms.gradeLutPreset == 17) {
+    } else if (uniforms.gradePreset == 17) {
         graded = lutMonochrome(rgb);
-    } else if (uniforms.gradeLutPreset == 18) {
+    } else if (uniforms.gradePreset == 18) {
         graded = lutPsychedelic(rgb);
+    } else if (uniforms.gradePreset == 20) {
+        graded = lutHardLight(rgb);
+    } else if (uniforms.gradePreset == 21) {
+        graded = lutPosterize(rgb);
+    } else if (uniforms.gradePreset == 22) {
+        graded = lutSolarize(rgb);
     }
     
-    rgb = mix(rgb, graded, uniforms.gradeLutIntensity);
+    rgb = mix(rgb, graded, uniforms.gradeAlpha);
     rgb = linearToSrgb(max(rgb, vec3f(0.0)));
     
     return vec4f(rgb, color.a);

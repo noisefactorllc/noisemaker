@@ -329,6 +329,45 @@ body.full-bleed-mode #canvas {
   font-size: 0.7em;
 }
 
+/* Category tag bar - shows collapsed categories as clickable tags */
+.category-tag-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent3) 12%, transparent 88%);
+}
+
+/* When all categories collapsed, no border or padding below tag bar */
+.category-tag-bar:not(:has(~ .category-group:not(.collapsed))) {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.category-tag-bar:empty {
+  display: none;
+}
+
+.category-tag {
+  font-size: 0.5625rem;
+  font-weight: 500;
+  padding: 0.1rem 0.35rem;
+  background: color-mix(in srgb, var(--accent3) 12%, transparent 88%);
+  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+  border-radius: var(--ui-corner-radius-small);
+  color: color-mix(in srgb, var(--color5) 85%, var(--accent3) 15%);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+}
+
+.category-tag:hover {
+  background: color-mix(in srgb, var(--accent3) 20%, transparent 80%);
+  border-color: color-mix(in srgb, var(--accent3) 40%, transparent 60%);
+}
+
 /* Category group - wraps controls in a category */
 .category-group {
   display: grid;
@@ -338,29 +377,59 @@ body.full-bleed-mode #canvas {
   position: relative;
 }
 
+/* Collapsed category - hidden */
+.category-group.collapsed {
+  display: none;
+}
+
 /* First control in category - no longer needs positioning */
 .control-group.category-first {
 }
 
-/* Category label - upper left of category, shows on hover */
+/* Category label - now used as expanded header */
 .category-label {
-  position: absolute;
-  top: -0.5rem;
-  left: -0.25rem;
-  font-size: 0.5rem;
-  visibility: hidden;
-}
-
-.category-group:hover .category-label {
-  visibility: visible;
-}
-
-/* Category separator - full-width line between category groups */
-.category-separator {
   grid-column: 1 / -1;
-  height: 1px;
-  background: color-mix(in srgb, var(--accent3) 12%, transparent 88%);
-  margin: 0 -0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variation-settings: 'wght' 600;
+  color: color-mix(in srgb, var(--color5) 85%, var(--accent3) 15%);
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+  border-top: 1px solid color-mix(in srgb, var(--accent3) 12%, transparent 88%);
+  margin: 0.5rem -0.5rem 0;
+  padding: 0.5rem 0.5rem 0;
+}
+
+/* First category label - no margin or border above when after tag bar */
+.category-group:first-child .category-label,
+.category-tag-bar ~ .category-group:not(.collapsed) .category-label {
+  margin-top: 0;
+  border-top: none;
+}
+
+/* Restore border for non-first visible categories */
+.category-group:not(.collapsed) ~ .category-group:not(.collapsed) .category-label {
+  border-top: 1px solid color-mix(in srgb, var(--accent3) 12%, transparent 88%);
+}
+
+/* When tag bar is hidden, pull first category up to cancel module padding */
+.category-tag-bar[style*="display"] ~ .category-group:not(.collapsed) .category-label {
+  margin-top: -0.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--accent3) 12%, transparent 88%);
+}
+
+.category-label .category-close {
+  cursor: pointer;
+  font-size: 0.625rem;
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+}
+
+.category-label .category-close:hover {
+  opacity: 1;
 }
 
 .control-header {

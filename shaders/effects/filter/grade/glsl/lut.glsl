@@ -9,8 +9,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
-uniform int gradeLutPreset;      // 0=none, 1=tealOrange, 2=warmFilm, 3=coolShadows, 4=bleachBypass, 5=crossProcess
-uniform float gradeLutIntensity; // 0-1 blend with original
+uniform int gradePreset;      // 0=none, 1=tealOrange, 2=warmFilm, 3=coolShadows, 4=bleachBypass, 5=crossProcess
+uniform float gradeAlpha; // 0-1 blend with original
 
 out vec4 fragColor;
 
@@ -387,12 +387,92 @@ vec3 lutPsychedelic(vec3 rgb) {
     return clamp(rgb, 0.0, 1.0);
 }
 
+// Hard Light - Extreme contrast for metallic/shiny appearance
+vec3 lutHardLight(vec3 rgb) {
+    float l = luma(rgb);
+    
+    // Hard light blend mode simulation
+    vec3 result;
+    for (int i = 0; i < 3; i++) {
+        if (rgb[i] < 0.5) {
+            result[i] = 2.0 * rgb[i] * l;
+        } else {
+            result[i] = 1.0 - 2.0 * (1.0 - rgb[i]) * (1.0 - l);
+        }
+    }
+    
+    // Boost overall contrast
+    result = (result - 0.5) * 1.4 + 0.5;
+    
+    // Add slight cool metallic tint to highlights
+    float highlightMask = smoothstep(0.5, 1.0, l);
+    result.b += highlightMask * 0.05;
+    
+    return clamp(result, 0.0, 1.0);
+}
+
+// Posterize - Quantize luminance for banded noise effect
+vec3 lutPosterize(vec3 rgb) {
+    float l = luma(rgb);
+    
+    // Quantize to discrete levels
+    float levels = 6.0;
+    float quantized = floor(l * levels + 0.5) / levels;
+    
+    // Map to a color ramp for visual interest
+    vec3 ramp;
+    if (quantized < 0.2) {
+        ramp = vec3(0.1, 0.05, 0.15);  // Deep purple-black
+    } else if (quantized < 0.4) {
+        ramp = vec3(0.3, 0.2, 0.4);    // Dark purple
+    } else if (quantized < 0.6) {
+        ramp = vec3(0.5, 0.4, 0.6);    // Medium purple
+    } else if (quantized < 0.8) {
+        ramp = vec3(0.8, 0.6, 0.5);    // Warm highlight
+    } else {
+        ramp = vec3(1.0, 0.9, 0.8);    // Bright cream
+    }
+    
+    // Blend with original color for some hue preservation
+    vec3 hsl = rgbToHsl(rgb);
+    vec3 rampHsl = rgbToHsl(ramp);
+    rampHsl.x = mix(rampHsl.x, hsl.x, 0.3);
+    
+    return hslToRgb(rampHsl);
+}
+
+// Solarize - Partial inversion creates wild band separation
+vec3 lutSolarize(vec3 rgb) {
+    float l = luma(rgb);
+    
+    // Invert values above threshold, creating bands
+    float threshold = 0.5;
+    vec3 result;
+    for (int i = 0; i < 3; i++) {
+        if (rgb[i] > threshold) {
+            result[i] = 2.0 * (1.0 - rgb[i]);
+        } else {
+            result[i] = 2.0 * rgb[i];
+        }
+    }
+    
+    // Boost saturation for more dramatic effect
+    vec3 hsl = rgbToHsl(result);
+    hsl.y = min(hsl.y * 1.5, 1.0);
+    result = hslToRgb(hsl);
+    
+    // Add slight contrast
+    result = (result - 0.5) * 1.1 + 0.5;
+    
+    return clamp(result, 0.0, 1.0);
+}
+
 void main() {
     ivec2 coord = ivec2(gl_FragCoord.xy);
     vec4 color = texelFetch(inputTex, coord, 0);
     
     // Early exit if no LUT selected
-    if (gradeLutPreset == 0 || gradeLutIntensity <= 0.0) {
+    if (gradePreset == 0 || gradeAlpha <= 0.0) {
         fragColor = color;
         return;
     }
@@ -401,46 +481,52 @@ void main() {
     vec3 graded = rgb;
     
     // Apply selected LUT preset
-    if (gradeLutPreset == 1) {
+    if (gradePreset == 1) {
         graded = lutTealOrange(rgb);
-    } else if (gradeLutPreset == 2) {
+    } else if (gradePreset == 2) {
         graded = lutWarmFilm(rgb);
-    } else if (gradeLutPreset == 3) {
+    } else if (gradePreset == 3) {
         graded = lutCoolShadows(rgb);
-    } else if (gradeLutPreset == 4) {
+    } else if (gradePreset == 4) {
         graded = lutBleachBypass(rgb);
-    } else if (gradeLutPreset == 5) {
+    } else if (gradePreset == 5) {
         graded = lutCrossProcess(rgb);
-    } else if (gradeLutPreset == 6) {
+    } else if (gradePreset == 6) {
         graded = lutCinematic(rgb);
-    } else if (gradeLutPreset == 7) {
+    } else if (gradePreset == 7) {
         graded = lutDayForNight(rgb);
-    } else if (gradeLutPreset == 8) {
+    } else if (gradePreset == 8) {
         graded = lutVintage(rgb);
-    } else if (gradeLutPreset == 9) {
+    } else if (gradePreset == 9) {
         graded = lutNoir(rgb);
-    } else if (gradeLutPreset == 10) {
+    } else if (gradePreset == 10) {
         graded = lutSepia(rgb);
-    } else if (gradeLutPreset == 11) {
+    } else if (gradePreset == 11) {
         graded = lutInfrared(rgb);
-    } else if (gradeLutPreset == 12) {
+    } else if (gradePreset == 12) {
         graded = lutTechnicolor(rgb);
-    } else if (gradeLutPreset == 13) {
+    } else if (gradePreset == 13) {
         graded = lutNeon(rgb);
-    } else if (gradeLutPreset == 14) {
+    } else if (gradePreset == 14) {
         graded = lutMatrix(rgb);
-    } else if (gradeLutPreset == 15) {
+    } else if (gradePreset == 15) {
         graded = lutUnderwater(rgb);
-    } else if (gradeLutPreset == 16) {
+    } else if (gradePreset == 16) {
         graded = lutSunset(rgb);
-    } else if (gradeLutPreset == 17) {
+    } else if (gradePreset == 17) {
         graded = lutMonochrome(rgb);
-    } else if (gradeLutPreset == 18) {
+    } else if (gradePreset == 18) {
         graded = lutPsychedelic(rgb);
+    } else if (gradePreset == 20) {
+        graded = lutHardLight(rgb);
+    } else if (gradePreset == 21) {
+        graded = lutPosterize(rgb);
+    } else if (gradePreset == 22) {
+        graded = lutSolarize(rgb);
     }
     
     // Blend with original based on intensity
-    rgb = mix(rgb, graded, gradeLutIntensity);
+    rgb = mix(rgb, graded, gradeAlpha);
     
     // Encode back to sRGB
     rgb = linearToSrgb(max(rgb, vec3(0.0)));

@@ -638,7 +638,7 @@ export class BrowserSession {
         // These uniforms only affect output when their parent controls are active
         const uniformContexts = {
             // LUT intensity needs a preset selected
-            gradeLutIntensity: { gradeLutPreset: 1 },
+            gradeAlpha: { gradePreset: 1 },
             // Split tone balance needs a tint active
             gradeSplitToneBalance: { gradeShadowTint: [0.7, 0.5, 0.3] },
             // Wheel balance needs a wheel active

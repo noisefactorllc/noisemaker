@@ -1568,7 +1568,7 @@ export class UIController {
                     for (let catIdx = 0; catIdx < categoryNames.length; catIdx++) {
                         const category = categoryNames[catIdx]
                         const items = grouped[category]
-                        const isLastCategory = catIdx === categoryNames.length - 1
+                        // const isLastCategory = catIdx === categoryNames.length - 1
 
                         // Create category group wrapper
                         const categoryGroup = document.createElement('div')
@@ -1598,13 +1598,6 @@ export class UIController {
                         }
 
                         controlsContainer.appendChild(categoryGroup)
-
-                        // Add full-width separator after category (except last category)
-                        if (!isLastCategory) {
-                            const separator = document.createElement('div')
-                            separator.className = 'category-separator'
-                            controlsContainer.appendChild(separator)
-                        }
                     }
                 }
 
@@ -1782,7 +1775,7 @@ export class UIController {
 
             const controlsDiv = document.createElement('div')
             controlsDiv.id = `controls-${effectInfo.stepIndex}`
-            controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; column-gap: 1em; row-gap: 0.5rem;'
+            controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; column-gap: 1em;'
 
             const effectKey = `step_${effectInfo.stepIndex}`
 
@@ -1806,22 +1799,82 @@ export class UIController {
             const grouped = groupGlobalsByCategory(effectDef.globals)
             const categoryNames = Object.keys(grouped)
             const showCategoryLabels = categoryNames.length > 1
+            const hasMultipleCategories = categoryNames.length > 1
+
+            // Create tag bar for collapsed categories (only if multiple categories)
+            let tagBar = null
+            if (hasMultipleCategories) {
+                tagBar = document.createElement('div')
+                tagBar.className = 'category-tag-bar'
+                controlsDiv.appendChild(tagBar)
+            }
 
             for (let catIdx = 0; catIdx < categoryNames.length; catIdx++) {
                 const category = categoryNames[catIdx]
                 const items = grouped[category]
-                const isLastCategory = catIdx === categoryNames.length - 1
+                // const isLastCategory = catIdx === categoryNames.length - 1
 
                 // Create category group wrapper
                 const categoryGroup = document.createElement('div')
                 categoryGroup.className = 'category-group'
                 categoryGroup.dataset.category = category
 
-                // Add hover label if multiple categories
+                // Multi-category effects start collapsed (except first category)
+                const isFirstCategory = catIdx === 0
+                if (hasMultipleCategories) {
+                    if (!isFirstCategory) {
+                        categoryGroup.classList.add('collapsed')
+                    }
+
+                    // Create tag for this category
+                    const tag = document.createElement('span')
+                    tag.className = 'category-tag'
+                    tag.textContent = category + '…'
+                    tag.dataset.category = category
+                    // First category tag starts hidden
+                    if (isFirstCategory) {
+                        tag.style.display = 'none'
+                    }
+                    tag.addEventListener('click', () => {
+                        // Expand this category
+                        categoryGroup.classList.remove('collapsed')
+                        // Hide the tag
+                        tag.style.display = 'none'
+                        // Hide tag bar if all tags are hidden
+                        const visibleTags = tagBar.querySelectorAll('.category-tag:not([style*="display: none"])')
+                        if (visibleTags.length === 0) {
+                            tagBar.style.display = 'none'
+                        }
+                    })
+                    tagBar.appendChild(tag)
+                }
+
+                // Add category label with close button (if multiple categories)
                 if (showCategoryLabels) {
                     const label = document.createElement('div')
                     label.className = 'category-label'
-                    label.textContent = category
+
+                    if (hasMultipleCategories) {
+                        const closeBtn = document.createElement('span')
+                        closeBtn.className = 'category-close'
+                        closeBtn.textContent = '✕'
+                        closeBtn.title = 'Collapse category'
+                        closeBtn.addEventListener('click', () => {
+                            // Collapse this category
+                            categoryGroup.classList.add('collapsed')
+                            // Show the tag again
+                            const tag = tagBar.querySelector(`[data-category="${category}"]`)
+                            if (tag) tag.style.display = ''
+                            // Show tag bar
+                            tagBar.style.display = ''
+                        })
+                        label.appendChild(closeBtn)
+                    }
+
+                    const labelText = document.createElement('span')
+                    labelText.textContent = category
+                    label.appendChild(labelText)
+
                     categoryGroup.appendChild(label)
                 }
 
@@ -1840,13 +1893,6 @@ export class UIController {
                 }
 
                 controlsDiv.appendChild(categoryGroup)
-
-                // Add full-width separator after category (except last category)
-                if (!isLastCategory) {
-                    const separator = document.createElement('div')
-                    separator.className = 'category-separator'
-                    controlsDiv.appendChild(separator)
-                }
             }
 
             // Show message if effect has no controls
