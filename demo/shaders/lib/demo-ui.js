@@ -2373,7 +2373,7 @@ export class UIController {
             this._createButtonControl(controlGroup, key, spec, effectKey);
         } else if (spec.ui?.control === 'checkbox' || spec.type === 'boolean') {
             // checkbox control for int uniforms that act as booleans (0/1)
-            this._createBooleanControl(controlGroup, key, value, effectKey);
+            this._createBooleanControl(controlGroup, key, value, effectKey, spec);
         } else if (spec.ui?.control === 'color' || spec.type === 'vec4' || spec.type === 'vec3') {
             // Color picker for vec3/vec4 or explicit color control
             this._createColorControl(controlGroup, key, value, effectKey, spec);
@@ -2393,13 +2393,22 @@ export class UIController {
     }
     
     /** @private */
-    _createBooleanControl(container, key, value, effectKey) {
+    _createBooleanControl(container, key, value, effectKey, spec) {
         const toggle = document.createElement('toggle-switch');
         toggle.checked = !!value;
         toggle.addEventListener('change', (e) => {
             this._effectParameterValues[effectKey][key] = e.target.checked;
             this._onControlChange();
         });
+        
+        // Double-click to reset to default
+        toggle.addEventListener('dblclick', () => {
+            const defaultVal = spec?.default !== undefined ? !!spec.default : false;
+            toggle.checked = defaultVal;
+            this._effectParameterValues[effectKey][key] = defaultVal;
+            this._onControlChange();
+        });
+        
         container.appendChild(toggle);
     }
     
@@ -2509,6 +2518,25 @@ export class UIController {
             this._effectParameterValues[effectKey][key] = parsedValue;
             this._onControlChange();
         });
+        
+        // Double-click to reset to default
+        select.addEventListener('dblclick', () => {
+            const defaultVal = spec.default;
+            // Find the option matching the default value
+            for (let i = 0; i < select.options.length; i++) {
+                const raw = select.options[i].dataset?.paramValue;
+                let optionVal = null;
+                if (raw !== undefined) {
+                    try { optionVal = JSON.parse(raw); } catch (_) { optionVal = raw; }
+                }
+                if ((defaultVal === null && optionVal === null) || defaultVal === optionVal) {
+                    select.selectedIndex = i;
+                    break;
+                }
+            }
+            this._effectParameterValues[effectKey][key] = defaultVal;
+            this._onControlChange();
+        });
 
         container.appendChild(select);
     }
@@ -2544,6 +2572,15 @@ export class UIController {
                 this._effectParameterValues[effectKey][key] = parseInt(e.target.value, 10);
                 this._onControlChange();
             });
+            
+            // Double-click to reset to default
+            select.addEventListener('dblclick', () => {
+                const defaultVal = spec.default !== undefined ? spec.default : 0;
+                select.value = defaultVal;
+                this._effectParameterValues[effectKey][key] = defaultVal;
+                this._onControlChange();
+            });
+            
             container.appendChild(select);
         } else {
             // Fallback to slider
@@ -2556,6 +2593,15 @@ export class UIController {
                 this._effectParameterValues[effectKey][key] = parseInt(e.target.value, 10);
                 this._onControlChange();
             });
+            
+            // Double-click to reset to default
+            slider.addEventListener('dblclick', () => {
+                const defaultVal = spec.default !== undefined ? parseInt(spec.default, 10) : parseInt(slider.min, 10);
+                slider.value = defaultVal;
+                this._effectParameterValues[effectKey][key] = defaultVal;
+                this._onControlChange();
+            });
+            
             container.appendChild(slider);
         }
     }
@@ -2598,6 +2644,17 @@ export class UIController {
                     this._effectParameterValues[effectKey][key] = e.target.value;
                     this._onControlChange();
                 });
+                
+                // Double-click to reset to default
+                select.addEventListener('dblclick', () => {
+                    const defaultVal = spec.default;
+                    if (defaultVal !== undefined) {
+                        select.value = defaultVal;
+                        this._effectParameterValues[effectKey][key] = defaultVal;
+                        this._onControlChange();
+                    }
+                });
+                
                 container.appendChild(select);
             }
         }
@@ -2629,6 +2686,16 @@ export class UIController {
         });
         
         slider.addEventListener('change', () => {
+            this._onControlChange();
+        });
+        
+        // Double-click to reset to default
+        slider.addEventListener('dblclick', () => {
+            const defaultVal = spec.default !== undefined ? spec.default : parseFloat(slider.min);
+            const numVal = spec.type === 'int' ? parseInt(defaultVal) : parseFloat(defaultVal);
+            slider.value = numVal;
+            valueDisplay.textContent = formatVal(numVal, spec.type === 'int');
+            this._effectParameterValues[effectKey][key] = numVal;
             this._onControlChange();
         });
     }
@@ -2665,6 +2732,18 @@ export class UIController {
             }
             this._onControlChange();
         });
+        
+        // Double-click to reset to default
+        colorInput.addEventListener('dblclick', () => {
+            const defaultVal = spec?.default;
+            if (Array.isArray(defaultVal)) {
+                const toHex = (n) => Math.round(n * 255).toString(16).padStart(2, '0');
+                colorInput.value = `#${toHex(defaultVal[0])}${toHex(defaultVal[1])}${toHex(defaultVal[2])}`;
+                this._effectParameterValues[effectKey][key] = [...defaultVal];
+                this._onControlChange();
+            }
+        });
+        
         container.appendChild(colorInput);
     }
     
