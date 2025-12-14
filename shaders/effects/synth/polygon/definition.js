@@ -1,9 +1,9 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
-  name: "Shape",
-  namespace: "filter",
-  func: "shape",
+  name: "Polygon",
+  namespace: "synth",
+  func: "polygon",
 
   description: "Geometric shape generator",
   globals: {

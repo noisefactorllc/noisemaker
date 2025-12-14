@@ -2,7 +2,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
   name: "Solid",
-  namespace: "filter",
+  namespace: "synth",
   func: "solid",
 
   description: "Solid color fill",

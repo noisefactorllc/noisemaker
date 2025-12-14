@@ -2,7 +2,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
   name: "Osc2D",
-  namespace: "filter",
+  namespace: "synth",
   func: "osc2d",
 
   description: "2D oscillator pattern",

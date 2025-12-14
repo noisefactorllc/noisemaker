@@ -12,12 +12,24 @@ uniform float time;
 uniform float strength;
 uniform float scale;
 uniform float seed;
-uniform float speed;
+uniform int speed;
+uniform int wrap;
+uniform float rotation;
 
 out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
+
+vec2 rotate2D(vec2 st, float rot, float aspectRatio) {
+    st.x *= aspectRatio;
+    float angle = rot * PI;
+    st -= vec2(0.5 * aspectRatio, 0.5);
+    st = mat2(cos(angle), -sin(angle), sin(angle), cos(angle)) * st;
+    st += vec2(0.5 * aspectRatio, 0.5);
+    st.x /= aspectRatio;
+    return st;
+}
 
 // PCG PRNG
 uvec3 pcg(uvec3 v) {
@@ -49,7 +61,7 @@ float smoothlerp(float x, float a, float b) {
 
 float grid(vec2 st, vec2 cell) {
     float angle = prng(vec3(cell, 1.0)).r * TAU;
-    angle += time * TAU * speed;
+    angle += time * TAU * float(speed);
     vec2 gradient = vec2(cos(angle), sin(angle));
     vec2 dist = st - cell;
     return dot(gradient, dist);
@@ -72,9 +84,27 @@ void main() {
     float aspectRatio = resolution.x / resolution.y;
     vec2 uv = gl_FragCoord.xy / resolution;
 
+    // Apply rotation before distortion
+    uv = rotate2D(uv, rotation / 180.0, aspectRatio);
+
     // Perlin warp
     uv.x += (perlinNoise(uv * vec2(aspectRatio, 1.0) + seed, vec2(abs(scale * 3.0))) - 0.5) * strength * 0.01;
     uv.y += (perlinNoise(uv * vec2(aspectRatio, 1.0) + seed + 10.0, vec2(abs(scale * 3.0))) - 0.5) * strength * 0.01;
+
+    // Apply wrap mode
+    if (wrap == 0) {
+        // mirror
+        uv = abs(mod(uv + 1.0, 2.0) - 1.0);
+    } else if (wrap == 1) {
+        // repeat
+        uv = mod(uv, 1.0);
+    } else {
+        // clamp
+        uv = clamp(uv, 0.0, 1.0);
+    }
+
+    // Reverse rotation after distortion
+    uv = rotate2D(uv, -rotation / 180.0, aspectRatio);
 
     fragColor = texture(inputTex, uv);
 }

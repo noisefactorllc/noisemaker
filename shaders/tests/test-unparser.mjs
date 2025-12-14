@@ -52,12 +52,11 @@ test('Basic unparse with single effect', () => {
         ]
     };
     const result = unparse(compiled, {}, {});
-    // New multiline format: two line breaks after search, uniforms on separate lines
+    // 1-2 params stay inline, chain on separate lines with 2-space indent
     const expected = `search basics
 
-noise(
-    scale: 3
-).write(o0)`;
+noise(scale: 3)
+  .write(o0)`;
     assertEqual(result, expected, 'Basic unparse');
 });
 
@@ -124,14 +123,12 @@ test('Multiple search namespaces with mixed effects', () => {
         ]
     };
     const result = unparse(compiled, {}, {});
-    // New multiline format
+    // 1-2 params inline, chain on separate lines with 2-space indent
     const expected = `search basics, nm
 
-noise(
-    scale: 3
-).blur(
-    radius: 5
-).write(o0)`;
+noise(scale: 3)
+  .blur(radius: 5)
+  .write(o0)`;
     assertEqual(result, expected, 'Multiple namespaces');
 });
 
@@ -147,7 +144,8 @@ test('Output reference as object', () => {
         ]
     };
     const result = unparse(compiled, {}, {});
-    assertIncludes(result, '.write(o5)', 'Should have .write(o5)');
+    // Write is on its own line with 2-space indent
+    assertIncludes(result, '\n  .write(o5)', 'Should have .write(o5) on new line with 2-space indent');
 });
 
 // Test 6: No search namespaces

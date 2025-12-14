@@ -1,41 +1,41 @@
 /**
  * Toggle Switch Web Component
- * 
+ *
  * A slider-style toggle for boolean values, replacing the default HTML checkbox.
  * Styled to match the Noisedeck design language.
- * 
+ *
  * @module ui/toggleSwitch
  */
 
 /**
  * ToggleSwitch - Web component for boolean value toggles
  * @extends HTMLElement
- * 
+ *
  * @example
  * <toggle-switch checked></toggle-switch>
- * 
+ *
  * @fires change - Fires when the toggle state changes
  */
 class ToggleSwitch extends HTMLElement {
     constructor() {
-        super();
-        this.attachShadow({ mode: 'open' });
-        
+        super()
+        this.attachShadow({ mode: 'open' })
+
         /** @type {boolean} */
-        this._checked = false;
-        
+        this._checked = false
+
         /** @type {boolean} */
-        this._disabled = false;
-        
-        this._render();
+        this._disabled = false
+
+        this._render()
     }
 
     static get observedAttributes() {
-        return ['checked', 'disabled'];
+        return ['checked', 'disabled']
     }
 
     connectedCallback() {
-        this._setupEventListeners();
+        this._setupEventListeners()
     }
 
     disconnectedCallback() {
@@ -44,49 +44,49 @@ class ToggleSwitch extends HTMLElement {
 
     attributeChangedCallback(name, oldVal, newVal) {
         if (name === 'checked') {
-            this._checked = newVal !== null;
-            this._updateVisualState();
+            this._checked = newVal !== null
+            this._updateVisualState()
         } else if (name === 'disabled') {
-            this._disabled = newVal !== null;
-            this._updateVisualState();
+            this._disabled = newVal !== null
+            this._updateVisualState()
         }
     }
 
     /** @returns {boolean} Current checked state */
     get checked() {
-        return this._checked;
+        return this._checked
     }
 
     /** @param {boolean} val - New checked state */
     set checked(val) {
-        const newVal = Boolean(val);
+        const newVal = Boolean(val)
         if (this._checked !== newVal) {
-            this._checked = newVal;
+            this._checked = newVal
             if (newVal) {
-                this.setAttribute('checked', '');
+                this.setAttribute('checked', '')
             } else {
-                this.removeAttribute('checked');
+                this.removeAttribute('checked')
             }
-            this._updateVisualState();
+            this._updateVisualState()
         }
     }
 
     /** @returns {boolean} Current disabled state */
     get disabled() {
-        return this._disabled;
+        return this._disabled
     }
 
     /** @param {boolean} val - New disabled state */
     set disabled(val) {
-        const newVal = Boolean(val);
+        const newVal = Boolean(val)
         if (this._disabled !== newVal) {
-            this._disabled = newVal;
+            this._disabled = newVal
             if (newVal) {
-                this.setAttribute('disabled', '');
+                this.setAttribute('disabled', '')
             } else {
-                this.removeAttribute('disabled');
+                this.removeAttribute('disabled')
             }
-            this._updateVisualState();
+            this._updateVisualState()
         }
     }
 
@@ -170,7 +170,7 @@ class ToggleSwitch extends HTMLElement {
             <div class="toggle-track" role="switch" aria-checked="false" tabindex="0">
                 <div class="toggle-thumb"></div>
             </div>
-        `;
+        `
     }
 
     /**
@@ -178,29 +178,29 @@ class ToggleSwitch extends HTMLElement {
      * @private
      */
     _setupEventListeners() {
-        const track = this.shadowRoot.querySelector('.toggle-track');
-        
+        const track = this.shadowRoot.querySelector('.toggle-track')
+
         track.addEventListener('click', (e) => {
-            if (this._disabled) return;
-            e.preventDefault();
-            e.stopPropagation();
-            this._toggle();
-        });
+            if (this._disabled) return
+            e.preventDefault()
+            e.stopPropagation()
+            this._toggle()
+        })
 
         // Also listen on host element for clicks that miss the track
         this.addEventListener('click', (e) => {
-            if (this._disabled) return;
-            e.preventDefault();
-            this._toggle();
-        });
+            if (this._disabled) return
+            e.preventDefault()
+            this._toggle()
+        })
 
         track.addEventListener('keydown', (e) => {
-            if (this._disabled) return;
+            if (this._disabled) return
             if (e.key === ' ' || e.key === 'Enter') {
-                e.preventDefault();
-                this._toggle();
+                e.preventDefault()
+                this._toggle()
             }
-        });
+        })
     }
 
     /**
@@ -208,8 +208,8 @@ class ToggleSwitch extends HTMLElement {
      * @private
      */
     _toggle() {
-        this.checked = !this._checked;
-        this.dispatchEvent(new Event('change', { bubbles: true }));
+        this.checked = !this._checked
+        this.dispatchEvent(new Event('change', { bubbles: true }))
     }
 
     /**
@@ -217,19 +217,19 @@ class ToggleSwitch extends HTMLElement {
      * @private
      */
     _updateVisualState() {
-        const track = this.shadowRoot.querySelector('.toggle-track');
-        if (!track) return;
-        
+        const track = this.shadowRoot.querySelector('.toggle-track')
+        if (!track) return
+
         if (this._checked) {
-            track.classList.add('checked');
-            track.setAttribute('aria-checked', 'true');
+            track.classList.add('checked')
+            track.setAttribute('aria-checked', 'true')
         } else {
-            track.classList.remove('checked');
-            track.setAttribute('aria-checked', 'false');
+            track.classList.remove('checked')
+            track.setAttribute('aria-checked', 'false')
         }
     }
 }
 
-customElements.define('toggle-switch', ToggleSwitch);
+customElements.define('toggle-switch', ToggleSwitch)
 
-export { ToggleSwitch };
+export { ToggleSwitch }

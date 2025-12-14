@@ -248,11 +248,11 @@ function unparseCall(call, options = {}) {
         }
     }
 
-    // Use multiline formatting for kwargs (named arguments), inline for positional args only
+    // Use multiline formatting only if more than 2 kwargs; 1-2 params stay inline
     const hasKwargs = call.kwargs && Object.keys(call.kwargs).length > 0 && parts.length > 0
-    if (multilineKwargs && hasKwargs) {
-        // Multiline format: line break + 4 spaces before each kwarg, line break before closing paren
-        return `${name}(\n${parts.map(p => `    ${p}`).join(',\n')}\n)`
+    if (multilineKwargs && hasKwargs && parts.length > 2) {
+        // Multiline format: line break + 2 spaces before each kwarg, line break before closing paren
+        return `${name}(\n${parts.map(p => `  ${p}`).join(',\n')}\n)`
     }
 
     return `${name}(${parts.join(', ')})`
@@ -265,7 +265,9 @@ function unparseCall(call, options = {}) {
  * @returns {string} DSL source for the chain
  */
 function unparseChain(chain, options = {}) {
-    return chain.map(call => unparseCall(call, options)).join('.')
+    const parts = chain.map(call => unparseCall(call, options))
+    // Join with line break after closing paren, 2-space indent on next line
+    return parts.join('\n  .')
 }
 
 /**
@@ -328,7 +330,8 @@ function unparsePlan(plan, options = {}) {
         callParts.push(unparseCall(call, options))
     }
 
-    result = callParts.join('.')
+    // Join chain parts with line break and 2-space indent
+    result = callParts.join('\n  .')
 
     // Check if chain already ends with a _write step (chainable writes are now inline)
     const lastStep = plan.chain[plan.chain.length - 1]
@@ -336,13 +339,13 @@ function unparsePlan(plan, options = {}) {
 
     // Add write directive only if chain doesn't already end with _write
     if (plan.write && !chainEndsWithWrite) {
-        result += `.write(${plan.write})`
+        result += `\n  .write(${plan.write})`
     }
     // Add write3d directive
     if (plan.write3d) {
         const tex3d = plan.write3d.tex3d?.name || plan.write3d.tex3d
         const geo = plan.write3d.geo?.name || plan.write3d.geo
-        result += `.write3d(${tex3d}, ${geo})`
+        result += `\n  .write3d(${tex3d}, ${geo})`
     }
 
     return result
@@ -472,7 +475,8 @@ export function unparse(compiled, overrides = {}, options = {}) {
             globalStepIndex++
         }
 
-        let line = callParts.join('.')
+        // Join chain parts with line break and 2-space indent
+        let line = callParts.join('\n  .')
 
         // Check if chain already ends with a _write step (chainable writes are now inline)
         const lastStep = plan.chain[plan.chain.length - 1]
@@ -481,13 +485,13 @@ export function unparse(compiled, overrides = {}, options = {}) {
         // Add write directive only if chain doesn't already end with _write
         if (plan.write && !chainEndsWithWrite) {
             const writeName = typeof plan.write === 'string' ? plan.write : plan.write.name
-            line += `.write(${writeName})`
+            line += `\n  .write(${writeName})`
         }
         // Add write3d directive
         if (plan.write3d) {
             const tex3d = plan.write3d.tex3d?.name || plan.write3d.tex3d
             const geo = plan.write3d.geo?.name || plan.write3d.geo
-            line += `.write3d(${tex3d}, ${geo})`
+            line += `\n  .write3d(${tex3d}, ${geo})`
         }
 
         lines.push(line)

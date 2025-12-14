@@ -1,15 +1,15 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * nu/warp - Perlin noise-based warp distortion
- * Direct port of nd.warp's perlin mode
+ * filter/waves - Sine wave distortion
+ * Direct port of nd.warp's waves mode
  */
 export default new Effect({
-  name: "Warp",
+  name: "Waves",
   namespace: "filter",
-  func: "warp",
+  func: "waves",
 
-  description: "Perlin noise-based warp distortion",
+  description: "Sine wave distortion",
   globals: {
     strength: {
       type: "float",
@@ -30,17 +30,6 @@ export default new Effect({
       max: 5,
       ui: {
         label: "Scale",
-        control: "slider"
-      }
-    },
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "Seed",
         control: "slider"
       }
     },
@@ -84,7 +73,7 @@ export default new Effect({
   passes: [
     {
       name: "render",
-      program: "warp",
+      program: "waves",
       inputs: {
         inputTex: "inputTex"
       },

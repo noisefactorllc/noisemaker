@@ -1,15 +1,15 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * nu/warp - Perlin noise-based warp distortion
- * Direct port of nd.warp's perlin mode
+ * filter/bulge - Bulge distortion
+ * Direct port of nd.warp's bulge mode
  */
 export default new Effect({
-  name: "Warp",
+  name: "Bulge",
   namespace: "filter",
-  func: "warp",
+  func: "bulge",
 
-  description: "Perlin noise-based warp distortion",
+  description: "Bulge distortion from center",
   globals: {
     strength: {
       type: "float",
@@ -22,37 +22,13 @@ export default new Effect({
         control: "slider"
       }
     },
-    scale: {
-      type: "float",
-      default: 1,
-      uniform: "scale",
-      min: -5,
-      max: 5,
+    aspectLens: {
+      type: "boolean",
+      default: true,
+      uniform: "aspectLens",
       ui: {
-        label: "Scale",
-        control: "slider"
-      }
-    },
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "Seed",
-        control: "slider"
-      }
-    },
-    speed: {
-      type: "int",
-      default: 0,
-      uniform: "speed",
-      min: -5,
-      max: 5,
-      ui: {
-        label: "Speed",
-        control: "slider"
+        label: "1:1 Aspect",
+        control: "checkbox"
       }
     },
     wrap: {
@@ -84,7 +60,7 @@ export default new Effect({
   passes: [
     {
       name: "render",
-      program: "warp",
+      program: "bulge",
       inputs: {
         inputTex: "inputTex"
       },

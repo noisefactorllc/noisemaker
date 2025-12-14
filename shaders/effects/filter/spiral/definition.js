@@ -1,46 +1,24 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * nu/warp - Perlin noise-based warp distortion
- * Direct port of nd.warp's perlin mode
+ * filter/spiral - Spiral distortion
+ * Direct port of nd.warp's spiral modes (CW/CCW combined)
  */
 export default new Effect({
-  name: "Warp",
+  name: "Spiral",
   namespace: "filter",
-  func: "warp",
+  func: "spiral",
 
-  description: "Perlin noise-based warp distortion",
+  description: "Spiral distortion",
   globals: {
     strength: {
       type: "float",
       default: 25,
       uniform: "strength",
-      min: 0,
+      min: -100,
       max: 100,
       ui: {
         label: "Strength",
-        control: "slider"
-      }
-    },
-    scale: {
-      type: "float",
-      default: 1,
-      uniform: "scale",
-      min: -5,
-      max: 5,
-      ui: {
-        label: "Scale",
-        control: "slider"
-      }
-    },
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "Seed",
         control: "slider"
       }
     },
@@ -53,6 +31,15 @@ export default new Effect({
       ui: {
         label: "Speed",
         control: "slider"
+      }
+    },
+    aspectLens: {
+      type: "boolean",
+      default: true,
+      uniform: "aspectLens",
+      ui: {
+        label: "1:1 Aspect",
+        control: "checkbox"
       }
     },
     wrap: {
@@ -84,7 +71,7 @@ export default new Effect({
   passes: [
     {
       name: "render",
-      program: "warp",
+      program: "spiral",
       inputs: {
         inputTex: "inputTex"
       },

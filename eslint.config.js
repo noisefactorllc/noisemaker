@@ -14,7 +14,7 @@ export default [
   },
   {
     ...pluginJs.configs.recommended,
-    files: ['js/**/*.js', 'scripts/**/*.js', 'test/**/*.js', 'shaders/**/*.js'],
+    files: ['js/**/*.js', 'scripts/**/*.js', 'test/**/*.js', 'shaders/**/*.js', 'demo/**/*.js'],
     languageOptions: {
       ...pluginJs.configs.recommended.languageOptions,
       ecmaVersion: 'latest',

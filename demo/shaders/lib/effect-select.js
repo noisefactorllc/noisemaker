@@ -1,6 +1,6 @@
 /**
  * Custom Effect Selector Web Component
- * 
+ *
  * A stylable dropdown replacement that supports rich formatting for effect names
  * and descriptions, with grouped categories.
  */
@@ -14,56 +14,56 @@ function camelToSpaceCase(str) {
     return str
         .replace(/([a-z])([A-Z])/g, '$1 $2')
         .replace(/([A-Z])([A-Z][a-z])/g, '$1 $2')
-        .toLowerCase();
+        .toLowerCase()
 }
 
 class EffectSelect extends HTMLElement {
     constructor() {
-        super();
-        this.attachShadow({ mode: 'open' });
-        this._effects = [];
-        this._value = '';
-        this._isOpen = false;
-        this._selectedIndex = -1;
-        this._focusedIndex = -1;
-        this._flatOptions = []; // Flat list for keyboard navigation
-        
+        super()
+        this.attachShadow({ mode: 'open' })
+        this._effects = []
+        this._value = ''
+        this._isOpen = false
+        this._selectedIndex = -1
+        this._focusedIndex = -1
+        this._flatOptions = [] // Flat list for keyboard navigation
+
         // Type-ahead search state (mimics native select behavior)
-        this._searchString = '';
-        this._searchTimeout = null;
-        this._lastSearchTime = 0;
+        this._searchString = ''
+        this._searchTimeout = null
+        this._lastSearchTime = 0
     }
 
     connectedCallback() {
-        this._render();
-        this._setupEventListeners();
+        this._render()
+        this._setupEventListeners()
     }
 
     static get observedAttributes() {
-        return ['value'];
+        return ['value']
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
         if (name === 'value' && oldValue !== newValue) {
-            this._value = newValue;
-            this._updateDisplay();
+            this._value = newValue
+            this._updateDisplay()
         }
     }
 
     get value() {
-        return this._value;
+        return this._value
     }
 
     set value(val) {
-        const oldValue = this._value;
-        this._value = val;
-        this.setAttribute('value', val);
-        this._updateDisplay();
-        
+        const oldValue = this._value
+        this._value = val
+        this.setAttribute('value', val)
+        this._updateDisplay()
+
         // If value changed, dispatch change event (for test harness compatibility)
         // This ensures setting .value programmatically triggers change handlers
         if (oldValue !== val && this._flatOptions.some(opt => opt.value === val)) {
-            this.dispatchEvent(new Event('change', { bubbles: true }));
+            this.dispatchEvent(new Event('change', { bubbles: true }))
         }
     }
 
@@ -71,12 +71,12 @@ class EffectSelect extends HTMLElement {
      * Get the selected index (native select compatibility)
      */
     get selectedIndex() {
-        return this._flatOptions.findIndex(opt => opt.value === this._value);
+        return this._flatOptions.findIndex(opt => opt.value === this._value)
     }
 
     set selectedIndex(idx) {
         if (idx >= 0 && idx < this._flatOptions.length) {
-            this.value = this._flatOptions[idx].value;
+            this.value = this._flatOptions[idx].value
         }
     }
 
@@ -87,11 +87,11 @@ class EffectSelect extends HTMLElement {
     get options() {
         return this._flatOptions.map(opt => ({
             value: opt.value,
-            text: opt.description 
+            text: opt.description
                 ? `${camelToSpaceCase(opt.name)}: ${opt.description}`
                 : camelToSpaceCase(opt.name),
             selected: opt.value === this._value
-        }));
+        }))
     }
 
     /**
@@ -99,30 +99,30 @@ class EffectSelect extends HTMLElement {
      * @param {Array} effects - Array of { namespace, name, description? }
      */
     setEffects(effects) {
-        this._effects = effects;
-        this._buildFlatOptions();
-        this._renderDropdown();
-        this._updateDisplay();
+        this._effects = effects
+        this._buildFlatOptions()
+        this._renderDropdown()
+        this._updateDisplay()
     }
 
     _buildFlatOptions() {
-        this._flatOptions = [];
-        const grouped = {};
-        
+        this._flatOptions = []
+        const grouped = {}
+
         this._effects.forEach(effect => {
             if (!grouped[effect.namespace]) {
-                grouped[effect.namespace] = [];
+                grouped[effect.namespace] = []
             }
-            grouped[effect.namespace].push(effect);
-        });
+            grouped[effect.namespace].push(effect)
+        })
 
         const sortedNamespaces = Object.keys(grouped).sort((a, b) => {
-            const aIsClassic = a.startsWith('classic');
-            const bIsClassic = b.startsWith('classic');
-            if (aIsClassic && !bIsClassic) return 1;
-            if (!aIsClassic && bIsClassic) return -1;
-            return a.localeCompare(b);
-        });
+            const aIsClassic = a.startsWith('classic')
+            const bIsClassic = b.startsWith('classic')
+            if (aIsClassic && !bIsClassic) return 1
+            if (!aIsClassic && bIsClassic) return -1
+            return a.localeCompare(b)
+        })
 
         sortedNamespaces.forEach(namespace => {
             grouped[namespace].sort((a, b) => a.name.localeCompare(b.name)).forEach(effect => {
@@ -131,9 +131,9 @@ class EffectSelect extends HTMLElement {
                     namespace,
                     name: effect.name,
                     description: effect.description || ''
-                });
-            });
-        });
+                })
+            })
+        })
     }
 
     _render() {
@@ -308,300 +308,300 @@ class EffectSelect extends HTMLElement {
                 <span class="trigger-text">Select effect...</span>
             </button>
             <div class="dropdown" role="listbox"></div>
-        `;
+        `
     }
 
     _renderDropdown() {
-        const dropdown = this.shadowRoot.querySelector('.dropdown');
-        if (!dropdown) return;
+        const dropdown = this.shadowRoot.querySelector('.dropdown')
+        if (!dropdown) return
 
-        dropdown.innerHTML = '';
+        dropdown.innerHTML = ''
 
-        const grouped = {};
+        const grouped = {}
         this._effects.forEach(effect => {
             if (!grouped[effect.namespace]) {
-                grouped[effect.namespace] = [];
+                grouped[effect.namespace] = []
             }
-            grouped[effect.namespace].push(effect);
-        });
+            grouped[effect.namespace].push(effect)
+        })
 
         const sortedNamespaces = Object.keys(grouped).sort((a, b) => {
-            const aIsClassic = a.startsWith('classic');
-            const bIsClassic = b.startsWith('classic');
-            if (aIsClassic && !bIsClassic) return 1;
-            if (!aIsClassic && bIsClassic) return -1;
-            return a.localeCompare(b);
-        });
+            const aIsClassic = a.startsWith('classic')
+            const bIsClassic = b.startsWith('classic')
+            if (aIsClassic && !bIsClassic) return 1
+            if (!aIsClassic && bIsClassic) return -1
+            return a.localeCompare(b)
+        })
 
         sortedNamespaces.forEach(namespace => {
-            const header = document.createElement('div');
-            header.className = 'group-header';
-            header.textContent = camelToSpaceCase(namespace);
-            dropdown.appendChild(header);
+            const header = document.createElement('div')
+            header.className = 'group-header'
+            header.textContent = camelToSpaceCase(namespace)
+            dropdown.appendChild(header)
 
             grouped[namespace].sort((a, b) => a.name.localeCompare(b.name)).forEach(effect => {
-                const option = document.createElement('div');
-                option.className = 'option';
-                option.dataset.value = `${namespace}/${effect.name}`;
-                option.setAttribute('role', 'option');
+                const option = document.createElement('div')
+                option.className = 'option'
+                option.dataset.value = `${namespace}/${effect.name}`
+                option.setAttribute('role', 'option')
 
-                const nameSpan = document.createElement('span');
-                nameSpan.className = 'option-name';
-                nameSpan.textContent = camelToSpaceCase(effect.name);
-                option.appendChild(nameSpan);
+                const nameSpan = document.createElement('span')
+                nameSpan.className = 'option-name'
+                nameSpan.textContent = camelToSpaceCase(effect.name)
+                option.appendChild(nameSpan)
 
                 if (effect.description) {
-                    const descSpan = document.createElement('span');
-                    descSpan.className = 'option-description';
-                    descSpan.textContent = `: ${effect.description}`;
-                    option.appendChild(descSpan);
+                    const descSpan = document.createElement('span')
+                    descSpan.className = 'option-description'
+                    descSpan.textContent = `: ${effect.description}`
+                    option.appendChild(descSpan)
                 }
 
-                dropdown.appendChild(option);
-            });
-        });
+                dropdown.appendChild(option)
+            })
+        })
 
-        this._updateSelectedOption();
+        this._updateSelectedOption()
     }
 
     _updateDisplay() {
-        const trigger = this.shadowRoot.querySelector('.trigger-text');
-        if (!trigger) return;
+        const trigger = this.shadowRoot.querySelector('.trigger-text')
+        if (!trigger) return
 
-        const selectedEffect = this._flatOptions.find(opt => opt.value === this._value);
+        const selectedEffect = this._flatOptions.find(opt => opt.value === this._value)
         if (selectedEffect) {
-            const displayName = camelToSpaceCase(selectedEffect.name);
+            const displayName = camelToSpaceCase(selectedEffect.name)
             if (selectedEffect.description) {
-                trigger.innerHTML = `<span class="trigger-name">${displayName}</span><span class="trigger-description">: ${selectedEffect.description}</span>`;
+                trigger.innerHTML = `<span class="trigger-name">${displayName}</span><span class="trigger-description">: ${selectedEffect.description}</span>`
             } else {
-                trigger.innerHTML = `<span class="trigger-name">${displayName}</span>`;
+                trigger.innerHTML = `<span class="trigger-name">${displayName}</span>`
             }
         } else {
-            trigger.textContent = 'Select effect...';
+            trigger.textContent = 'Select effect...'
         }
 
-        this._updateSelectedOption();
+        this._updateSelectedOption()
     }
 
     _updateSelectedOption() {
-        const dropdown = this.shadowRoot.querySelector('.dropdown');
-        if (!dropdown) return;
+        const dropdown = this.shadowRoot.querySelector('.dropdown')
+        if (!dropdown) return
 
         dropdown.querySelectorAll('.option').forEach(opt => {
-            opt.classList.toggle('selected', opt.dataset.value === this._value);
-        });
+            opt.classList.toggle('selected', opt.dataset.value === this._value)
+        })
     }
 
     _setupEventListeners() {
-        const trigger = this.shadowRoot.querySelector('.select-trigger');
-        const dropdown = this.shadowRoot.querySelector('.dropdown');
+        const trigger = this.shadowRoot.querySelector('.select-trigger')
+        const dropdown = this.shadowRoot.querySelector('.dropdown')
 
         // Toggle dropdown on trigger click
         trigger.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this._toggleDropdown();
-        });
+            e.stopPropagation()
+            this._toggleDropdown()
+        })
 
         // Handle option clicks
         dropdown.addEventListener('click', (e) => {
-            const option = e.target.closest('.option');
+            const option = e.target.closest('.option')
             if (option) {
-                this._selectOption(option.dataset.value);
+                this._selectOption(option.dataset.value)
             }
-        });
+        })
 
         // Close on outside click
         document.addEventListener('click', (e) => {
             if (!this.contains(e.target)) {
-                this._closeDropdown();
+                this._closeDropdown()
             }
-        });
+        })
 
         // Keyboard navigation
         trigger.addEventListener('keydown', (e) => {
             switch (e.key) {
                 case 'Enter':
-                    e.preventDefault();
+                    e.preventDefault()
                     if (this._isOpen) {
                         // Select focused item (if any) and close dropdown
                         if (this._focusedIndex >= 0 && this._focusedIndex < this._flatOptions.length) {
-                            this._selectOption(this._flatOptions[this._focusedIndex].value);
+                            this._selectOption(this._flatOptions[this._focusedIndex].value)
                         } else {
-                            this._closeDropdown();
+                            this._closeDropdown()
                         }
                     } else {
-                        this._openDropdown();
+                        this._openDropdown()
                     }
-                    break;
+                    break
                 case ' ':
-                    e.preventDefault();
-                    this._openDropdown();
-                    break;
+                    e.preventDefault()
+                    this._openDropdown()
+                    break
                 case 'ArrowDown':
-                    e.preventDefault();
+                    e.preventDefault()
                     if (!this._isOpen) {
                         // When closed, arrow down moves to next option (like native select)
-                        this._moveSelection(1);
+                        this._moveSelection(1)
                     } else {
                         // When open, move focus down
-                        this._moveFocus(1);
+                        this._moveFocus(1)
                     }
-                    break;
+                    break
                 case 'ArrowUp':
-                    e.preventDefault();
+                    e.preventDefault()
                     if (!this._isOpen) {
                         // When closed, arrow up moves to previous option (like native select)
-                        this._moveSelection(-1);
+                        this._moveSelection(-1)
                     } else {
                         // When open, move focus up
-                        this._moveFocus(-1);
+                        this._moveFocus(-1)
                     }
-                    break;
+                    break
                 case 'Escape':
-                    this._closeDropdown();
-                    break;
+                    this._closeDropdown()
+                    break
                 case 'Home':
-                    e.preventDefault();
+                    e.preventDefault()
                     if (this._flatOptions.length > 0) {
                         if (this._isOpen) {
-                            this._focusedIndex = 0;
-                            this._updateFocusedOption();
+                            this._focusedIndex = 0
+                            this._updateFocusedOption()
                         } else {
-                            this._selectOption(this._flatOptions[0].value);
+                            this._selectOption(this._flatOptions[0].value)
                         }
                     }
-                    break;
+                    break
                 case 'End':
-                    e.preventDefault();
+                    e.preventDefault()
                     if (this._flatOptions.length > 0) {
                         if (this._isOpen) {
-                            this._focusedIndex = this._flatOptions.length - 1;
-                            this._updateFocusedOption();
+                            this._focusedIndex = this._flatOptions.length - 1
+                            this._updateFocusedOption()
                         } else {
-                            this._selectOption(this._flatOptions[this._flatOptions.length - 1].value);
+                            this._selectOption(this._flatOptions[this._flatOptions.length - 1].value)
                         }
                     }
-                    break;
+                    break
                 default:
                     // Handle type-ahead for printable characters
                     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                        e.preventDefault();
-                        this._handleTypeAhead(e.key);
+                        e.preventDefault()
+                        this._handleTypeAhead(e.key)
                     }
             }
-        });
+        })
 
         dropdown.addEventListener('keydown', (e) => {
             switch (e.key) {
                 case 'ArrowDown':
-                    e.preventDefault();
-                    this._moveFocus(1);
-                    break;
+                    e.preventDefault()
+                    this._moveFocus(1)
+                    break
                 case 'ArrowUp':
-                    e.preventDefault();
-                    this._moveFocus(-1);
-                    break;
+                    e.preventDefault()
+                    this._moveFocus(-1)
+                    break
                 case 'Enter':
-                    e.preventDefault();
+                    e.preventDefault()
                     if (this._focusedIndex >= 0) {
-                        this._selectOption(this._flatOptions[this._focusedIndex].value);
+                        this._selectOption(this._flatOptions[this._focusedIndex].value)
                     }
-                    break;
+                    break
                 case 'Escape':
-                    this._closeDropdown();
-                    break;
+                    this._closeDropdown()
+                    break
                 case 'Home':
-                    e.preventDefault();
+                    e.preventDefault()
                     if (this._flatOptions.length > 0) {
-                        this._focusedIndex = 0;
-                        this._updateFocusedOption();
+                        this._focusedIndex = 0
+                        this._updateFocusedOption()
                     }
-                    break;
+                    break
                 case 'End':
-                    e.preventDefault();
+                    e.preventDefault()
                     if (this._flatOptions.length > 0) {
-                        this._focusedIndex = this._flatOptions.length - 1;
-                        this._updateFocusedOption();
+                        this._focusedIndex = this._flatOptions.length - 1
+                        this._updateFocusedOption()
                     }
-                    break;
+                    break
                 default:
                     // Handle type-ahead for printable characters when dropdown is open
                     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                        e.preventDefault();
-                        this._handleTypeAhead(e.key);
+                        e.preventDefault()
+                        this._handleTypeAhead(e.key)
                     }
             }
-        });
+        })
     }
 
     _toggleDropdown() {
         if (this._isOpen) {
-            this._closeDropdown();
+            this._closeDropdown()
         } else {
-            this._openDropdown();
+            this._openDropdown()
         }
     }
 
     _openDropdown() {
-        this._isOpen = true;
-        this.classList.add('open');
-        
+        this._isOpen = true
+        this.classList.add('open')
+
         // Determine if we need to flip upward
-        const dropdown = this.shadowRoot.querySelector('.dropdown');
-        const trigger = this.shadowRoot.querySelector('.select-trigger');
-        const triggerRect = trigger.getBoundingClientRect();
-        const dropdownHeight = Math.min(400, this._flatOptions.length * 28 + 100); // Estimate
-        const spaceBelow = window.innerHeight - triggerRect.bottom;
-        const spaceAbove = triggerRect.top;
-        
+        const dropdown = this.shadowRoot.querySelector('.dropdown')
+        const trigger = this.shadowRoot.querySelector('.select-trigger')
+        const triggerRect = trigger.getBoundingClientRect()
+        const dropdownHeight = Math.min(400, this._flatOptions.length * 28 + 100) // Estimate
+        const spaceBelow = window.innerHeight - triggerRect.bottom
+        const spaceAbove = triggerRect.top
+
         // Flip up if not enough space below but enough above
         if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
-            this.classList.add('flip-up');
+            this.classList.add('flip-up')
         } else {
-            this.classList.remove('flip-up');
+            this.classList.remove('flip-up')
         }
-        
+
         // Set initial focus to selected item
-        const selectedIdx = this._flatOptions.findIndex(opt => opt.value === this._value);
-        this._focusedIndex = selectedIdx >= 0 ? selectedIdx : 0;
-        this._updateFocusedOption();
-        
+        const selectedIdx = this._flatOptions.findIndex(opt => opt.value === this._value)
+        this._focusedIndex = selectedIdx >= 0 ? selectedIdx : 0
+        this._updateFocusedOption()
+
         // Scroll selected into view
-        const selectedOption = dropdown.querySelector('.option.selected');
+        const selectedOption = dropdown.querySelector('.option.selected')
         if (selectedOption) {
-            selectedOption.scrollIntoView({ block: 'center' });
+            selectedOption.scrollIntoView({ block: 'center' })
         }
     }
 
     _closeDropdown() {
-        this._isOpen = false;
-        this.classList.remove('open');
-        this.classList.remove('flip-up');
-        this._focusedIndex = -1;
-        this._clearFocus();
+        this._isOpen = false
+        this.classList.remove('open')
+        this.classList.remove('flip-up')
+        this._focusedIndex = -1
+        this._clearFocus()
     }
 
     _selectOption(value) {
-        this._value = value;
-        this.setAttribute('value', value);
-        this._updateDisplay();
-        this._closeDropdown();
-        
+        this._value = value
+        this.setAttribute('value', value)
+        this._updateDisplay()
+        this._closeDropdown()
+
         // Dispatch change event
         this.dispatchEvent(new CustomEvent('change', {
             bubbles: true,
             detail: { value }
-        }));
+        }))
     }
 
     _moveFocus(direction) {
-        if (this._flatOptions.length === 0) return;
-        
-        this._focusedIndex += direction;
-        if (this._focusedIndex < 0) this._focusedIndex = this._flatOptions.length - 1;
-        if (this._focusedIndex >= this._flatOptions.length) this._focusedIndex = 0;
-        
-        this._updateFocusedOption();
+        if (this._flatOptions.length === 0) return
+
+        this._focusedIndex += direction
+        if (this._focusedIndex < 0) this._focusedIndex = this._flatOptions.length - 1
+        if (this._focusedIndex >= this._flatOptions.length) this._focusedIndex = 0
+
+        this._updateFocusedOption()
     }
 
     /**
@@ -609,39 +609,39 @@ class EffectSelect extends HTMLElement {
      * @param {number} direction - 1 for next, -1 for previous
      */
     _moveSelection(direction) {
-        if (this._flatOptions.length === 0) return;
-        
-        const currentIdx = this._flatOptions.findIndex(opt => opt.value === this._value);
-        let newIdx = currentIdx + direction;
-        
+        if (this._flatOptions.length === 0) return
+
+        const currentIdx = this._flatOptions.findIndex(opt => opt.value === this._value)
+        let newIdx = currentIdx + direction
+
         // Clamp to bounds (don't wrap when closed, like native select)
-        if (newIdx < 0) newIdx = 0;
-        if (newIdx >= this._flatOptions.length) newIdx = this._flatOptions.length - 1;
-        
+        if (newIdx < 0) newIdx = 0
+        if (newIdx >= this._flatOptions.length) newIdx = this._flatOptions.length - 1
+
         if (newIdx !== currentIdx) {
-            this._selectOption(this._flatOptions[newIdx].value);
+            this._selectOption(this._flatOptions[newIdx].value)
         }
     }
 
     _updateFocusedOption() {
-        this._clearFocus();
-        
+        this._clearFocus()
+
         if (this._focusedIndex >= 0 && this._focusedIndex < this._flatOptions.length) {
-            const value = this._flatOptions[this._focusedIndex].value;
-            const dropdown = this.shadowRoot.querySelector('.dropdown');
-            const option = dropdown.querySelector(`.option[data-value="${CSS.escape(value)}"]`);
+            const value = this._flatOptions[this._focusedIndex].value
+            const dropdown = this.shadowRoot.querySelector('.dropdown')
+            const option = dropdown.querySelector(`.option[data-value="${CSS.escape(value)}"]`)
             if (option) {
-                option.classList.add('focused');
-                option.scrollIntoView({ block: 'nearest' });
+                option.classList.add('focused')
+                option.scrollIntoView({ block: 'nearest' })
             }
         }
     }
 
     _clearFocus() {
-        const dropdown = this.shadowRoot.querySelector('.dropdown');
+        const dropdown = this.shadowRoot.querySelector('.dropdown')
         dropdown.querySelectorAll('.option.focused').forEach(opt => {
-            opt.classList.remove('focused');
-        });
+            opt.classList.remove('focused')
+        })
     }
 
     /**
@@ -652,40 +652,40 @@ class EffectSelect extends HTMLElement {
      * @param {string} char - The character typed
      */
     _handleTypeAhead(char) {
-        const now = Date.now();
-        const timeSinceLastKey = now - this._lastSearchTime;
-        this._lastSearchTime = now;
+        const now = Date.now()
+        const timeSinceLastKey = now - this._lastSearchTime
+        this._lastSearchTime = now
 
         // Clear the search timeout
         if (this._searchTimeout) {
-            clearTimeout(this._searchTimeout);
+            clearTimeout(this._searchTimeout)
         }
 
         // If more than 500ms since last keypress, start a new search
         // (native select typically uses ~500-1000ms)
         if (timeSinceLastKey > 500) {
-            this._searchString = '';
+            this._searchString = ''
         }
 
-        const previousSearch = this._searchString;
-        this._searchString += char.toLowerCase();
+        const previousSearch = this._searchString
+        this._searchString += char.toLowerCase()
 
         // Reset search string after delay (like native select)
         this._searchTimeout = setTimeout(() => {
-            this._searchString = '';
-        }, 1000);
+            this._searchString = ''
+        }, 1000)
 
         // Get display names for matching
         const optionsWithNames = this._flatOptions.map((opt, idx) => ({
             ...opt,
             idx,
             displayName: camelToSpaceCase(opt.name).toLowerCase()
-        }));
+        }))
 
         // Find matching options
-        let matchingOptions = optionsWithNames.filter(opt => 
+        let matchingOptions = optionsWithNames.filter(opt =>
             opt.displayName.startsWith(this._searchString)
-        );
+        )
 
         // If no match with full string but we just added a repeated character,
         // cycle through options starting with that character
@@ -693,58 +693,58 @@ class EffectSelect extends HTMLElement {
             // Try matching with just the new character
             const singleCharMatches = optionsWithNames.filter(opt =>
                 opt.displayName.startsWith(char.toLowerCase())
-            );
-            
+            )
+
             if (singleCharMatches.length > 0) {
                 // Reset to single character search
-                this._searchString = char.toLowerCase();
-                matchingOptions = singleCharMatches;
+                this._searchString = char.toLowerCase()
+                matchingOptions = singleCharMatches
             }
         }
 
         // If single character is repeated (e.g., "aaa"), cycle through matches
-        const isRepeatedChar = this._searchString.length > 1 && 
-            this._searchString.split('').every(c => c === this._searchString[0]);
-        
+        const isRepeatedChar = this._searchString.length > 1 &&
+            this._searchString.split('').every(c => c === this._searchString[0])
+
         if (isRepeatedChar && previousSearch.length > 0) {
             const singleCharMatches = optionsWithNames.filter(opt =>
                 opt.displayName.startsWith(this._searchString[0])
-            );
-            
+            )
+
             if (singleCharMatches.length > 1) {
                 // Find current position in the cycle
-                const currentIdx = this._isOpen ? this._focusedIndex : this.selectedIndex;
-                const currentMatchIdx = singleCharMatches.findIndex(opt => opt.idx === currentIdx);
-                
+                const currentIdx = this._isOpen ? this._focusedIndex : this.selectedIndex
+                const currentMatchIdx = singleCharMatches.findIndex(opt => opt.idx === currentIdx)
+
                 // Move to next match (with wrap)
-                const nextMatchIdx = (currentMatchIdx + 1) % singleCharMatches.length;
-                const targetIdx = singleCharMatches[nextMatchIdx].idx;
-                
+                const nextMatchIdx = (currentMatchIdx + 1) % singleCharMatches.length
+                const targetIdx = singleCharMatches[nextMatchIdx].idx
+
                 if (this._isOpen) {
-                    this._focusedIndex = targetIdx;
-                    this._updateFocusedOption();
+                    this._focusedIndex = targetIdx
+                    this._updateFocusedOption()
                 } else {
-                    this._selectOption(this._flatOptions[targetIdx].value);
+                    this._selectOption(this._flatOptions[targetIdx].value)
                 }
-                return;
+                return
             }
         }
 
         // Jump to first match
         if (matchingOptions.length > 0) {
-            const targetIdx = matchingOptions[0].idx;
-            
+            const targetIdx = matchingOptions[0].idx
+
             if (this._isOpen) {
-                this._focusedIndex = targetIdx;
-                this._updateFocusedOption();
+                this._focusedIndex = targetIdx
+                this._updateFocusedOption()
             } else {
                 // When closed, select the option directly (like native select)
-                this._selectOption(this._flatOptions[targetIdx].value);
+                this._selectOption(this._flatOptions[targetIdx].value)
             }
         }
     }
 }
 
-customElements.define('effect-select', EffectSelect);
+customElements.define('effect-select', EffectSelect)
 
-export { EffectSelect };
+export { EffectSelect }
