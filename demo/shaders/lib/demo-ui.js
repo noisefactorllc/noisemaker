@@ -1366,25 +1366,64 @@ export class UIController {
         if (effects.length === 0) return;
 
         // Build a map of stepIndex -> planIndex for write module placement
-        // Track last non-builtin step for each plan (builtins like _write don't have controls)
         let globalStepIndex = 0;
         const stepToPlan = new Map();
-        const planLastNonBuiltinStep = new Map();
         for (let planIndex = 0; planIndex < compiled.plans.length; planIndex++) {
             const plan = compiled.plans[planIndex];
             if (!plan.chain) continue;
             for (let i = 0; i < plan.chain.length; i++) {
-                const step = plan.chain[i];
                 stepToPlan.set(globalStepIndex, planIndex);
-                // Track last non-builtin step (builtin steps like _write don't have UI controls)
-                if (!step.builtin) {
-                    planLastNonBuiltinStep.set(planIndex, globalStepIndex);
-                }
                 globalStepIndex++;
             }
         }
 
+        // Pre-compute which steps are mid-chain writes and which are followed by mid-chain writes
+        const midChainWriteSteps = new Set();
+        const stepsBeforeMidChainWrite = new Set();
+        for (let i = 0; i < effects.length; i++) {
+            const effectInfo = effects[i];
+            if (effectInfo.effectKey === '_write') {
+                const planIndex = stepToPlan.get(effectInfo.stepIndex);
+                const isLastStepInPlan = effectInfo.stepIndex === Math.max(...effects.filter(e => stepToPlan.get(e.stepIndex) === planIndex).map(e => e.stepIndex));
+                if (!isLastStepInPlan) {
+                    midChainWriteSteps.add(effectInfo.stepIndex);
+                    // Find the previous rendered step (skip _read builtins)
+                    for (let j = i - 1; j >= 0; j--) {
+                        const prev = effects[j];
+                        if (prev.effectKey !== '_read' && prev.effectKey !== '_read3d') {
+                            stepsBeforeMidChainWrite.add(prev.stepIndex);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        let prevWasMidChainWrite = false;
+        
         for (const effectInfo of effects) {
+            // Handle builtin _write steps - render as write module
+            if (effectInfo.effectKey === '_write') {
+                const planIndex = stepToPlan.get(effectInfo.stepIndex);
+                // Get the write target from THIS step's args, not the plan's terminal write
+                const writeTarget = effectInfo.args?.tex;
+                if (writeTarget) {
+                    // Check if this is a mid-chain write (not the last step in the plan's chain)
+                    const isLastStepInPlan = effectInfo.stepIndex === Math.max(...effects.filter(e => stepToPlan.get(e.stepIndex) === planIndex).map(e => e.stepIndex));
+                    const isMidChain = !isLastStepInPlan;
+                    
+                    const writeModule = this._createWriteModule(planIndex, writeTarget, isMidChain, prevWasMidChainWrite);
+                    this._controlsContainer.appendChild(writeModule);
+                    prevWasMidChainWrite = isMidChain;
+                }
+                continue;
+            }
+            
+            // Handle builtin _read steps - skip (no UI controls needed)
+            if (effectInfo.effectKey === '_read' || effectInfo.effectKey === '_read3d') {
+                continue;
+            }
+
             let effectDef = getEffect(effectInfo.effectKey);
             if (!effectDef && effectInfo.namespace) {
                 effectDef = getEffect(`${effectInfo.namespace}.${effectInfo.name}`);
@@ -1399,6 +1438,22 @@ export class UIController {
             moduleDiv.className = 'shader-module';
             moduleDiv.dataset.stepIndex = effectInfo.stepIndex;
             moduleDiv.dataset.effectName = effectInfo.name;
+            
+            // If previous module was a mid-chain write, remove top gap and radius
+            if (prevWasMidChainWrite) {
+                moduleDiv.style.marginTop = '0';
+                moduleDiv.style.borderTopLeftRadius = '0';
+                moduleDiv.style.borderTopRightRadius = '0';
+            }
+            
+            // If this step is followed by a mid-chain write, remove bottom gap and radius
+            if (stepsBeforeMidChainWrite.has(effectInfo.stepIndex)) {
+                moduleDiv.style.marginBottom = '0';
+                moduleDiv.style.borderBottomLeftRadius = '0';
+                moduleDiv.style.borderBottomRightRadius = '0';
+            }
+            
+            prevWasMidChainWrite = false;
 
             const titleDiv = document.createElement('div');
             titleDiv.className = 'module-title';
@@ -1750,30 +1805,27 @@ export class UIController {
             
             moduleDiv.appendChild(contentDiv);
             this._controlsContainer.appendChild(moduleDiv);
-
-            // Add write module after the last non-builtin step of each plan
-            const planIndex = stepToPlan.get(effectInfo.stepIndex);
-            const lastNonBuiltinStep = planLastNonBuiltinStep.get(planIndex);
-            if (effectInfo.stepIndex === lastNonBuiltinStep && planIndex !== undefined) {
-                const plan = compiled.plans[planIndex];
-                if (plan.write) {
-                    const writeModule = this._createWriteModule(planIndex, plan.write);
-                    this._controlsContainer.appendChild(writeModule);
-                }
-            }
         }
     }
 
     /**
      * Create a write module for a plan
      * @private
+     * @param {number} planIndex - The plan index
+     * @param {object} writeTarget - The write target surface
+     * @param {boolean} isMidChain - Whether this is a mid-chain write (not terminal)
+     * @param {boolean} prevWasMidChainWrite - Whether the previous module was a mid-chain write
      */
-    _createWriteModule(planIndex, writeTarget) {
+    _createWriteModule(planIndex, writeTarget, isMidChain = false, prevWasMidChainWrite = false) {
         const moduleDiv = document.createElement('div');
         moduleDiv.className = 'shader-module';
         moduleDiv.dataset.planIndex = planIndex;
         moduleDiv.dataset.effectName = 'write';
-        moduleDiv.style.marginBottom = '0.5em';
+        
+        // Mark mid-chain writes with data attribute for CSS targeting
+        if (isMidChain) {
+            moduleDiv.dataset.midChain = 'true';
+        }
 
         const titleDiv = document.createElement('div');
         titleDiv.className = 'module-title';

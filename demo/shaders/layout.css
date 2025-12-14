@@ -653,9 +653,21 @@ body.full-bleed-mode #canvas {
   border-bottom: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
 }
 
-/* Restore spacing after a chain ends (after write node) */
-#effect-controls-container .shader-module[data-effect-name="write"] {
+/* Restore spacing after a chain ends (after terminal write node, not mid-chain) */
+#effect-controls-container .shader-module[data-effect-name="write"]:not([data-mid-chain="true"]) {
   margin-bottom: 0.5rem !important;
+}
+
+/* Mid-chain writes: no bottom radius, connect to next module */
+#effect-controls-container .shader-module[data-mid-chain="true"] {
+  border-bottom-left-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+}
+
+/* Module following a mid-chain write: no top radius, connect to previous */
+#effect-controls-container .shader-module[data-mid-chain="true"] + .shader-module {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
 }
 
 /* =========================================================================
