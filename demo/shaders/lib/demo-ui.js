@@ -381,6 +381,8 @@ export class UIController {
         this._effectParameterValues = {}; // Map: step_N -> {param: value}
         this._shaderOverrides = {}; // Map: stepIndex -> { programName: { glsl?, wgsl?, fragment?, vertex? } }
         this._writeTargetOverrides = {}; // Map: planIndex -> surfaceName (e.g., 'o0', 'f1')
+        this._writeStepTargetOverrides = {}; // Map: stepIndex -> surfaceName for mid-chain writes
+        this._readSourceOverrides = {}; // Map: stepIndex -> surfaceName for read() source
         this._parsedDslStructure = [];
         this._allEffects = [];
         
@@ -1281,6 +1283,44 @@ export class UIController {
                 }
             }
             
+            // Apply read source overrides
+            if (this._readSourceOverrides) {
+                let globalStepIndex = 0;
+                for (const plan of compiled.plans) {
+                    if (!plan.chain) continue;
+                    for (const step of plan.chain) {
+                        if (step.builtin && step.op === '_read' && this._readSourceOverrides[globalStepIndex] !== undefined) {
+                            const targetName = this._readSourceOverrides[globalStepIndex];
+                            const isOutput = targetName.startsWith('o');
+                            step.args.tex = {
+                                kind: isOutput ? 'output' : 'feedback',
+                                name: targetName
+                            };
+                        }
+                        globalStepIndex++;
+                    }
+                }
+            }
+            
+            // Apply mid-chain write target overrides (by stepIndex)
+            if (this._writeStepTargetOverrides) {
+                let globalStepIndex = 0;
+                for (const plan of compiled.plans) {
+                    if (!plan.chain) continue;
+                    for (const step of plan.chain) {
+                        if (step.builtin && step.op === '_write' && this._writeStepTargetOverrides[globalStepIndex] !== undefined) {
+                            const targetName = this._writeStepTargetOverrides[globalStepIndex];
+                            const isOutput = targetName.startsWith('o');
+                            step.args.tex = {
+                                kind: isOutput ? 'output' : 'feedback',
+                                name: targetName
+                            };
+                        }
+                        globalStepIndex++;
+                    }
+                }
+            }
+            
             const searchMatch = currentDslText.match(/^search\s+(\S.*?)$/m);
             if (searchMatch) {
                 compiled.searchNamespaces = searchMatch[1].split(/\s*,\s*/);
@@ -1350,6 +1390,8 @@ export class UIController {
         this._controlsContainer.innerHTML = '';
         this._effectParameterValues = {};
         this._writeTargetOverrides = {};
+        this._writeStepTargetOverrides = {};
+        this._readSourceOverrides = {};
 
         // Parse DSL to get plans with write targets
         let compiled = null;
@@ -1412,7 +1454,7 @@ export class UIController {
                     const isLastStepInPlan = effectInfo.stepIndex === Math.max(...effects.filter(e => stepToPlan.get(e.stepIndex) === planIndex).map(e => e.stepIndex));
                     const isMidChain = !isLastStepInPlan;
                     
-                    const writeModule = this._createWriteModule(planIndex, writeTarget, isMidChain, prevWasMidChainWrite);
+                    const writeModule = this._createWriteModule(planIndex, effectInfo.stepIndex, writeTarget, isMidChain, prevWasMidChainWrite);
                     this._controlsContainer.appendChild(writeModule);
                     prevWasMidChainWrite = isMidChain;
                 }
@@ -1633,15 +1675,34 @@ export class UIController {
                                         const namespace = newHead.namespace?.namespace || newHead.namespace?.resolved || null;
                                         const def = getEffectDefCallback(newHead.op, namespace);
                                         
-                                        // If def found and NOT a starter effect, prepend read(o0).
+                                        // If def found and NOT a starter effect, prepend read().
                                         // If def NOT found, assume it needs input (safer to have redundant read than invalid chain).
                                         const needsInput = !def || !isStarterEffect({ instance: def });
                                         
                                         if (needsInput) {
+                                            // Try to find a sensible surface to read from:
+                                            // 1. If there's a previous plan, read from its write target
+                                            // 2. Otherwise, default to the current plan's write target (feedback pattern)
+                                            // 3. Fall back to o0 if nothing else is available
+                                            let readSurface = { kind: 'output', name: 'o0' };
+                                            if (p > 0) {
+                                                const prevPlan = compiled.plans[p - 1];
+                                                if (prevPlan.write) {
+                                                    readSurface = typeof prevPlan.write === 'object' 
+                                                        ? prevPlan.write 
+                                                        : { kind: 'output', name: prevPlan.write };
+                                                }
+                                            } else if (plan.write) {
+                                                // Same plan's write target (useful for feedback loops)
+                                                readSurface = typeof plan.write === 'object'
+                                                    ? plan.write
+                                                    : { kind: 'output', name: plan.write };
+                                            }
+                                            
                                             plan.chain.unshift({
                                                 builtin: true,
                                                 op: '_read',
-                                                args: { tex: 'o0' }
+                                                args: { tex: readSurface }
                                             });
                                         }
                                     }
@@ -1822,14 +1883,16 @@ export class UIController {
      * Create a write module for a plan
      * @private
      * @param {number} planIndex - The plan index
+     * @param {number} stepIndex - The step index for this write
      * @param {object} writeTarget - The write target surface
      * @param {boolean} isMidChain - Whether this is a mid-chain write (not terminal)
      * @param {boolean} prevWasMidChainWrite - Whether the previous module was a mid-chain write
      */
-    _createWriteModule(planIndex, writeTarget, isMidChain = false, prevWasMidChainWrite = false) {
+    _createWriteModule(planIndex, stepIndex, writeTarget, isMidChain = false, prevWasMidChainWrite = false) {
         const moduleDiv = document.createElement('div');
         moduleDiv.className = 'shader-module';
         moduleDiv.dataset.planIndex = planIndex;
+        moduleDiv.dataset.stepIndex = stepIndex;
         moduleDiv.dataset.effectName = 'write';
         
         // Mark mid-chain writes with data attribute for CSS targeting
@@ -1887,7 +1950,13 @@ export class UIController {
         select.value = currentTarget;
 
         select.addEventListener('change', (e) => {
-            this._writeTargetOverrides[planIndex] = e.target.value;
+            if (isMidChain) {
+                // Mid-chain writes are tracked by stepIndex
+                this._writeStepTargetOverrides[stepIndex] = e.target.value;
+            } else {
+                // Terminal writes are tracked by planIndex
+                this._writeTargetOverrides[planIndex] = e.target.value;
+            }
             this._onControlChange();
         });
 
@@ -1962,9 +2031,6 @@ export class UIController {
 
         select.addEventListener('change', (e) => {
             // Store read source override and trigger recompile
-            if (!this._readSourceOverrides) {
-                this._readSourceOverrides = {};
-            }
             this._readSourceOverrides[stepIndex] = e.target.value;
             this._onControlChange();
         });
@@ -2715,6 +2781,8 @@ export class UIController {
     clearShaderOverrides() {
         this._shaderOverrides = {};
         this._writeTargetOverrides = {};
+        this._writeStepTargetOverrides = {};
+        this._readSourceOverrides = {};
     }
     
     /**

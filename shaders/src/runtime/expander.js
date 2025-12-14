@@ -169,9 +169,8 @@ export function expand(compilationResult, options = {}) {
                         }
 
                         // Track last written surface for render directive
-                        if (tex.kind === 'output') {
-                            lastWrittenSurface = tex.name
-                        }
+                        // Both output and feedback surfaces can be render targets
+                        lastWrittenSurface = tex.name
 
                         // Track this inline write target so we can skip redundant final blit
                         lastInlineWriteTarget = { kind: tex.kind, name: tex.name }
@@ -550,9 +549,7 @@ export function expand(compilationResult, options = {}) {
                                 virtualTex = `${prefix}_${outName}`
 
                                 // Track this as the last written surface (for render surface determination)
-                                if (outKind === 'output') {
-                                    lastWrittenSurface = outName
-                                }
+                                lastWrittenSurface = outName
                             } else {
                                 virtualTex = `${nodeId}_out`
                             }
@@ -642,10 +639,8 @@ export function expand(compilationResult, options = {}) {
             const outName = typeof plan.write === 'object' ? plan.write.name : plan.write
             const outKind = plan.write.kind || 'output'
 
-            // Track the last written surface (only for output surfaces, not feedback)
-            if (outKind === 'output') {
-                lastWrittenSurface = outName // e.g., 'o0', 'o2'
-            }
+            // Track the last written surface (both output and feedback surfaces)
+            lastWrittenSurface = outName
 
             // Skip the final blit if the last step was an inline write to the same surface
             // This avoids redundant blits when write() is at the end of the chain

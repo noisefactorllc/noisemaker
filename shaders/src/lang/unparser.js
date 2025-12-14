@@ -300,6 +300,12 @@ function unparsePlan(plan, options = {}) {
             callParts.push(`read3d(${tex3dName}, ${geoName})`)
             continue
         }
+        // Handle built-in _write step (mid-chain writes)
+        if (step.op === '_write' && step.builtin) {
+            const texName = step.args?.tex?.name || step.args?.tex
+            callParts.push(`write(${texName})`)
+            continue
+        }
 
         const call = {
             name: step.op,
@@ -327,8 +333,12 @@ function unparsePlan(plan, options = {}) {
 
     result = callParts.join('.')
 
-    // Add write directive
-    if (plan.write) {
+    // Check if chain already ends with a _write step (chainable writes are now inline)
+    const lastStep = plan.chain[plan.chain.length - 1]
+    const chainEndsWithWrite = lastStep && lastStep.builtin && lastStep.op === '_write'
+
+    // Add write directive only if chain doesn't already end with _write
+    if (plan.write && !chainEndsWithWrite) {
         result += `.write(${plan.write})`
     }
     // Add write3d directive
@@ -385,6 +395,13 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 const tex3d = step.args?.tex3d?.name || step.args?.tex3d
                 const geo = step.args?.geo?.name || step.args?.geo
                 callParts.push(`read3d(${tex3d}, ${geo})`)
+                globalStepIndex++
+                continue
+            }
+            // Handle builtin write operations (mid-chain writes)
+            if (step.builtin && step.op === '_write') {
+                const texName = step.args?.tex?.name || step.args?.tex
+                callParts.push(`write(${texName})`)
                 globalStepIndex++
                 continue
             }
@@ -460,8 +477,12 @@ export function unparse(compiled, overrides = {}, options = {}) {
 
         let line = callParts.join('.')
 
-        // Add write directive
-        if (plan.write) {
+        // Check if chain already ends with a _write step (chainable writes are now inline)
+        const lastStep = plan.chain[plan.chain.length - 1]
+        const chainEndsWithWrite = lastStep && lastStep.builtin && lastStep.op === '_write'
+
+        // Add write directive only if chain doesn't already end with _write
+        if (plan.write && !chainEndsWithWrite) {
             const writeName = typeof plan.write === 'string' ? plan.write : plan.write.name
             line += `.write(${writeName})`
         }
