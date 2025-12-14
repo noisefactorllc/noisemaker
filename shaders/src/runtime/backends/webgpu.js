@@ -93,21 +93,6 @@ export class WebGPUBackend extends Backend {
         return null
     }
 
-    /**
-     * Parse a feedback texture reference and extract the surface name.
-     * Supports "feedback_name" pattern (e.g., "feedback_f0").
-     * Returns null if not a feedback reference.
-     */
-    parseFeedbackName(texId) {
-        if (typeof texId !== 'string') return null
-
-        if (texId.startsWith('feedback_')) {
-            return texId.replace('feedback_', '')
-        }
-
-        return null
-    }
-
     async init() {
         // Create default sampler (linear filtering)
         this.samplers.set('default', this.device.createSampler({
@@ -299,7 +284,7 @@ export class WebGPUBackend extends Backend {
 
     /**
      * Copy one texture to another (blit operation).
-     * Used for feedback surface ping-pong updates.
+     * Used for surface copy operations.
      * @param {string} srcId - Source texture ID
      * @param {string} dstId - Destination texture ID
      */
@@ -1115,14 +1100,6 @@ export class WebGPUBackend extends Backend {
             }
         }
 
-        // Resolve feedback output to current write buffer
-        const feedbackSurfaceName = this.parseFeedbackName(outputId)
-        if (feedbackSurfaceName) {
-            if (state.writeFeedbackSurfaces && state.writeFeedbackSurfaces[feedbackSurfaceName]) {
-                outputId = state.writeFeedbackSurfaces[feedbackSurfaceName]
-            }
-        }
-
         let outputTex = this.textures.get(outputId) || state.surfaces?.[outputId]
         let targetView = outputTex?.view
 
@@ -1211,14 +1188,6 @@ export class WebGPUBackend extends Backend {
             if (outputSurfaceName) {
                 if (state.writeSurfaces && state.writeSurfaces[outputSurfaceName]) {
                     outputId = state.writeSurfaces[outputSurfaceName]
-                }
-            }
-
-            // Resolve feedback output to current write buffer
-            const feedbackSurfaceName = this.parseFeedbackName(outputId)
-            if (feedbackSurfaceName) {
-                if (state.writeFeedbackSurfaces && state.writeFeedbackSurfaces[feedbackSurfaceName]) {
-                    outputId = state.writeFeedbackSurfaces[feedbackSurfaceName]
                 }
             }
 
@@ -1598,16 +1567,9 @@ export class WebGPUBackend extends Backend {
                 // Parse global texture reference
                 const surfaceName = this.parseGlobalName(texId)
 
-                // Parse feedback texture reference
-                const feedbackName = this.parseFeedbackName(texId)
-
                 if (surfaceName) {
                     const surfaceObj = state.surfaces?.[surfaceName]
                     textureView = surfaceObj?.view
-                } else if (feedbackName) {
-                    // Feedback surfaces always read from previous frame's content
-                    const feedbackObj = state.feedbackSurfaces?.[feedbackName]
-                    textureView = feedbackObj?.view
                 } else {
                     const tex = this.textures.get(texId)
                     textureView = tex?.view

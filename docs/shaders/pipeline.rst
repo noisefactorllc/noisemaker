@@ -388,11 +388,7 @@ The buffer is allocated with a fixed initial size (e.g., 256 bytes). If the requ
 8.0 Surface Types
 ^^^^^^^^^^^^^^^^^
 
-The pipeline provides two types of magic surfaces:
-
-**Global Surfaces** (``o0``..``o7``): Standard double-buffered surfaces where reading within a frame sees any writes made earlier in that same frame.
-
-**Feedback Surfaces** (``f0``..``f3``): Special surfaces where reads **always** return the previous frame's content, regardless of when writes occur in the current frame. This is the official mechanism for achieving temporal feedback effects.
+The pipeline provides **Global Surfaces** (``o0``..``o7``): Standard double-buffered surfaces where reading within a frame sees any writes made earlier in that same frame.
 
 Global surfaces (``o0``.. ``o7``) defined implicitly:
 
@@ -409,54 +405,20 @@ Global surfaces (``o0``.. ``o7``) defined implicitly:
      o7: { format: 'rgba16f', width: 'screen', height: 'screen', doubleBuffered: true }
    }
 
-Feedback surfaces (``f0``..``f3``) defined implicitly:
-
-.. code-block:: js
-
-   feedbackSurfaceTable = {
-     f0: { format: 'rgba16f', width: 'screen', height: 'screen', feedbackMode: true },
-     f1: { format: 'rgba16f', width: 'screen', height: 'screen', feedbackMode: true },
-     f2: { format: 'rgba16f', width: 'screen', height: 'screen', feedbackMode: true },
-     f3: { format: 'rgba16f', width: 'screen', height: 'screen', feedbackMode: true }
-   }
-
 **CRITICAL: User-Only Surfaces**
 
-Surfaces ``o0``..``o7`` and ``f0``..``f3`` are **reserved exclusively for user composition** and **MUST NOT** be hardwired within effect definitions. Effects requiring internal feedback or temporary storage must allocate their own internal surfaces (e.g., ``_feedbackBuffer``, ``_temp0``) in their ``textures`` property. Hardwiring these surfaces within an effect definition will corrupt the user's composition graph.
+Surfaces ``o0``..``o7`` are **reserved exclusively for user composition** and **MUST NOT** be hardwired within effect definitions. Effects requiring internal feedback or temporary storage must allocate their own internal surfaces (e.g., ``_feedbackBuffer``, ``_temp0``) in their ``textures`` property. Hardwiring these surfaces within an effect definition will corrupt the user's composition graph.
 
 **Terminology:**
 
 
 * ``doubleBuffered``: The surface has two physical textures (read/write) swapped every frame. This allows reading the previous frame's content while writing the current frame.
-* ``feedbackMode``: The surface uses ping-pong blitting instead of swapping. Reads always return previous frame's content; writes go to a separate buffer that is blitted to the read buffer at frame end.
-* ``persistent``: The surface's content is preserved across frames (and resizes). All global and feedback surfaces are effectively persistent. Internal textures can be marked ``persistent: true`` to enable feedback effects.
+* ``persistent``: The surface's content is preserved across frames (and resizes). All global surfaces are effectively persistent. Internal textures can be marked ``persistent: true`` to enable feedback effects.
 
 8.0.1 Global Surface Behavior
 """""""""""""""""""""""""""""
 
 Frame index ``F`` selects read buffer = ``(F-1) mod 2``, write buffer = ``F mod 2``. A chain writing ``.write(o0)`` targets write buffer; chains reading ``o0`` before its write in frame use read buffer. After a write to ``oN``, subsequent reads in the same frame see the freshly written content. Validation forbids multiple writes to same surface in a frame unless explicitly marked ``compositeAllowed`` (future extension) (``ERR_SURFACE_MULTIWRITE``).
-
-8.0.2 Feedback Surface Behavior
-"""""""""""""""""""""""""""""""
-
-Feedback surfaces (``f0``..``f3``) use a different strategy:
-
-#. **Reading**: Always returns the previous frame's content. Even if ``f0`` is written earlier in the current frame, subsequent reads in the same frame still see the previous frame's data.
-#. **Writing**: Writes go to a separate "write" buffer.
-#. **Frame End**: After all passes complete, any feedback surface that was written to has its write buffer blitted (copied) to its read buffer.
-#. **Next Frame**: The blitted content becomes the "previous frame" data for the next frame's reads.
-
-This ping-pong blitting strategy ensures temporal coherence for feedback effects like motion blur, trails, and accumulation buffers.
-
-**Example Usage:**
-
-.. code-block:: text
-
-   // Write current frame to feedback surface
-   osc(10).write(f0)
-   
-   // Read previous frame from f0, blend with new content, output to screen
-   read(f0).blend(osc(20), 0.1).write(o0)
 
 8.1 Resize Behavior
 ^^^^^^^^^^^^^^^^^^^^
@@ -466,7 +428,7 @@ When screen dimensions change:
 
 #. **Detection:** Compare ``(currentWidth, currentHeight)`` to cached ``(lastWidth, lastHeight)`` before frame execution.
 #. **Invalidation:** If changed, mark all ``dimension='screen'`` or ``dimension='%'`` textures for reallocation.
-#. **Preserve Persistent:** Global and feedback surfaces (``oN``, ``fN``) preserve content if ``persistent=true`` via blit to temporary, resize, blit back.
+#. **Preserve Persistent:** Global surfaces (``oN``) preserve content if ``persistent=true`` via blit to temporary, resize, blit back.
 
    * **Fallback:** If the new format is incompatible with the old format (e.g., channel count change), the blit is skipped and the surface is cleared to transparent black.
 

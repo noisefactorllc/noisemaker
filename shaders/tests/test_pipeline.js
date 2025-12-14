@@ -284,61 +284,6 @@ test('Pipeline - Pass Condition Skip', async () => {
     }
 })
 
-test('Pipeline - Feedback Surfaces', async () => {
-    const backend = new MockBackend()
-
-    // Add copyTexture to mock backend
-    backend.copyTexture = function(srcId, dstId) {
-        this.copies = this.copies || []
-        this.copies.push({ src: srcId, dst: dstId })
-    }
-
-    const graph = { passes: [], textures: new Map() }
-
-    const pipeline = new Pipeline(graph, backend)
-    await pipeline.init(800, 600)
-
-    // Check that feedback surfaces were created
-    if (pipeline.feedbackSurfaces.size !== 4) {
-        throw new Error(`Expected 4 feedback surfaces, got ${pipeline.feedbackSurfaces.size}`)
-    }
-
-    const f0 = pipeline.feedbackSurfaces.get('f0')
-    if (!f0 || !f0.read || !f0.write) {
-        throw new Error('Feedback surface f0 not created correctly')
-    }
-
-    // Initially not dirty
-    if (f0.dirty) {
-        throw new Error('Feedback surface should not be dirty initially')
-    }
-
-    // Mark feedback surface as written
-    pipeline.markFeedbackDirty('f0')
-
-    if (!f0.dirty) {
-        throw new Error('Feedback surface should be dirty after markFeedbackDirty')
-    }
-
-    // Render a frame - should blit dirty feedback surfaces
-    backend.copies = []
-    pipeline.render(0)
-
-    // Check that blit happened (write -> read)
-    if (backend.copies.length !== 1) {
-        throw new Error(`Expected 1 copy operation, got ${backend.copies.length}`)
-    }
-
-    if (backend.copies[0].src !== f0.write || backend.copies[0].dst !== f0.read) {
-        throw new Error('Feedback blit did not copy write to read')
-    }
-
-    // After frame, dirty should be cleared
-    if (f0.dirty) {
-        throw new Error('Feedback surface should not be dirty after frame')
-    }
-})
-
 test('Pipeline - Render Surface Selection', async () => {
     // Test that graph.renderSurface determines which surface is presented
 

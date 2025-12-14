@@ -94,7 +94,7 @@ export class Backend {
 
     /**
      * Copy one texture to another (blit operation)
-     * Used for feedback surface ping-pong updates.
+     * Used for surface copy operations.
      * @param {string} srcId - Source texture ID
      * @param {string} dstId - Destination texture ID
      */

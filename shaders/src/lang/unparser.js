@@ -178,9 +178,6 @@ function formatValue(value, spec, customFormatter) {
         if (value.type === 'OutputRef') {
             return value.name
         }
-        if (value.type === 'FeedbackRef') {
-            return value.name
-        }
         if (value.type === 'SourceRef') {
             return value.name
         }
@@ -502,7 +499,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
         }
     }
 
-    // Add render directive if present (surface name: o0-o7 or f0-f3)
+    // Add render directive if present (surface name: o0-o7)
     if (compiled.render) {
         lines.push('')
         lines.push(`render(${compiled.render})`)

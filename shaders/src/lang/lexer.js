@@ -65,12 +65,12 @@ export function lex(src) {
             continue
         }
 
-        // output, source, or feedback reference
-        if ((ch === 'o' || ch === 's' || ch === 'f') && isDigit(src[i + 1])) {
+        // output or source reference
+        if ((ch === 'o' || ch === 's') && isDigit(src[i + 1])) {
             let j = i + 1
             while (j < src.length && isDigit(src[j])) j++
             const lexeme = src.slice(i, j)
-            const tokenType = ch === 'o' ? 'OUTPUT_REF' : ch === 'f' ? 'FEEDBACK_REF' : 'SOURCE_REF'
+            const tokenType = ch === 'o' ? 'OUTPUT_REF' : 'SOURCE_REF'
             add(tokenType, lexeme, startLine, startCol)
             col += j - i
             i = j

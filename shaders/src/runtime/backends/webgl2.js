@@ -417,7 +417,7 @@ export class WebGL2Backend extends Backend {
 
     /**
      * Copy one texture to another (blit operation).
-     * Used for feedback surface ping-pong updates.
+     * Used for surface copy operations.
      * @param {string} srcId - Source texture ID
      * @param {string} dstId - Destination texture ID
      */
@@ -620,14 +620,6 @@ export class WebGL2Backend extends Backend {
                     }
                 }
 
-                // Resolve feedback surface to current write buffer
-                if (currentOutputId.startsWith('feedback_')) {
-                    const feedbackName = currentOutputId.replace('feedback_', '')
-                    if (state.writeFeedbackSurfaces && state.writeFeedbackSurfaces[feedbackName]) {
-                        currentOutputId = state.writeFeedbackSurfaces[feedbackName]
-                    }
-                }
-
                 // Track first output as primary reference
                 if (!outputId) outputId = currentOutputId
 
@@ -655,14 +647,6 @@ export class WebGL2Backend extends Backend {
             if (globalName) {
                 if (state.writeSurfaces && state.writeSurfaces[globalName]) {
                     outputId = state.writeSurfaces[globalName]
-                }
-            }
-
-            // Resolve feedback surface to current write buffer
-            if (outputId && outputId.startsWith('feedback_')) {
-                const feedbackName = outputId.replace('feedback_', '')
-                if (state.writeFeedbackSurfaces && state.writeFeedbackSurfaces[feedbackName]) {
-                    outputId = state.writeFeedbackSurfaces[feedbackName]
                 }
             }
 
@@ -840,10 +824,6 @@ export class WebGL2Backend extends Backend {
             if (globalName) {
                 // Global surface
                 texture = state.surfaces?.[globalName]?.handle
-            } else if (texId.startsWith('feedback_')) {
-                // Feedback surface - always read from 'read' buffer (previous frame)
-                const feedbackName = texId.replace('feedback_', '')
-                texture = state.feedbackSurfaces?.[feedbackName]?.handle
             } else {
                 texture = this.textures.get(texId)?.handle
             }

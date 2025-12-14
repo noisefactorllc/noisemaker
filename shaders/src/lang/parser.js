@@ -16,17 +16,16 @@
  * ChainStmt      ::= Chain
  * Chain          ::= ChainElement ('.' ChainElement)*
  * ChainElement   ::= Call | WriteNode | Write3DNode
- * WriteNode      ::= 'write' '(' (OutputRef | FeedbackRef) ')'     // Chainable - writes to surface & passes through
+ * WriteNode      ::= 'write' '(' OutputRef ')'     // Chainable - writes to surface & passes through
  * Write3DNode    ::= 'write3d' '(' Ident ',' Ident ')'
- * Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | FeedbackRef | SourceRef | Func | '(' Expr ')'
+ * Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | Func | '(' Expr ')'
  * Call           ::= Ident '(' ArgList? ')'
  * ArgList        ::= Arg (',' Arg)* ','?
- * Arg            ::= NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | FeedbackRef | SourceRef | Func
+ * Arg            ::= NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | Func
  * NumberExpr     ::= Number | 'Math.PI' | '(' NumberExpr ')' | NumberExpr ( '+' | '-' | '*' | '/' ) NumberExpr
  * Member         ::= Ident ('.' Ident)+
  * Func           ::= '(' ')' '=>' Expr
  * OutputRef      ::= 'o' Digit         // Global surface (o0-o7)
- * FeedbackRef    ::= 'f' Digit         // Feedback surface (f0-f3)
  * Ident          ::= Letter ( Letter | Digit | '_' )*
  * Number         ::= Digit+ ( '.' Digit+ )?
  * String         ::= '"' [^"\n]* '"'
@@ -67,12 +66,12 @@ export function parse(tokens) {
 
     const exprStartTokens = new Set([
         'PLUS', 'MINUS', 'NUMBER', 'STRING', 'HEX', 'FUNC',
-        'IDENT', 'OUTPUT_REF', 'FEEDBACK_REF', 'SOURCE_REF', 'LPAREN',
+        'IDENT', 'OUTPUT_REF', 'SOURCE_REF', 'LPAREN',
         'TRUE', 'FALSE'
     ])
 
     const memberTokenTypes = new Set([
-        'IDENT', 'SOURCE_REF', 'OUTPUT_REF', 'FEEDBACK_REF',
+        'IDENT', 'SOURCE_REF', 'OUTPUT_REF',
         'LET', 'RENDER', 'TRUE', 'FALSE', 'IF', 'ELIF', 'ELSE',
         'LOOP', 'BREAK', 'CONTINUE', 'RETURN', 'WRITE', 'WRITE3D'
     ])
@@ -462,10 +461,8 @@ export function parse(tokens) {
             let surface = null
             if (peek().type === 'OUTPUT_REF') {
                 surface = { type: 'OutputRef', name: advance().lexeme }
-            } else if (peek().type === 'FEEDBACK_REF') {
-                surface = { type: 'FeedbackRef', name: advance().lexeme }
             } else {
-                throw new SyntaxError(`write() requires an explicit surface reference (e.g., o0, o1, f0) at line ${peek().line} col ${peek().col}`)
+                throw new SyntaxError(`write() requires an explicit surface reference (e.g., o0, o1) at line ${peek().line} col ${peek().col}`)
             }
             expect('RPAREN', "Expect ')'")
             return {
@@ -703,9 +700,6 @@ export function parse(tokens) {
             case 'OUTPUT_REF':
                 advance()
                 return {type: 'OutputRef', name: token.lexeme}
-            case 'FEEDBACK_REF':
-                advance()
-                return {type: 'FeedbackRef', name: token.lexeme}
             case 'SOURCE_REF':
                 advance()
                 return {type: 'SourceRef', name: token.lexeme}

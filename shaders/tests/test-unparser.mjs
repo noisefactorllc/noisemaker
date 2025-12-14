@@ -197,22 +197,6 @@ test('Render directive - o0 surface', () => {
     assertIncludes(result, 'render(o0)', 'Should output render(o0)');
 });
 
-// Test 9: Render directive with f surface
-test('Render directive - f2 feedback surface', () => {
-    const compiled = {
-        searchNamespaces: ['basics'],
-        render: 'f2',
-        plans: [
-            {
-                chain: [{ op: 'basics.noise', args: { scale: 3 } }],
-                write: { kind: 'output', name: 'o0' }
-            }
-        ]
-    };
-    const result = unparse(compiled, {}, {});
-    assertIncludes(result, 'render(f2)', 'Should output render(f2)');
-});
-
 // Test 10: No render directive (render=null)
 test('Render directive - null (no directive)', () => {
     const compiled = {

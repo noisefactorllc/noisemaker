@@ -92,8 +92,6 @@ export function expand(compilationResult, options = {}) {
                 const tex = step.args?.tex
                 if (tex && tex.kind === 'output') {
                     currentInput = `global_${tex.name}`  // e.g., 'global_o0'
-                } else if (tex && tex.kind === 'feedback') {
-                    currentInput = `feedback_${tex.name}`  // e.g., 'feedback_f0'
                 }
                 // Register the read output so subsequent steps can find it via step.from
                 const nodeId = `node_${step.temp}`
@@ -121,8 +119,7 @@ export function expand(compilationResult, options = {}) {
             if (step.builtin && step.op === '_write') {
                 const tex = step.args?.tex
                 if (tex && currentInput) {
-                    const prefix = tex.kind === 'feedback' ? 'feedback' : 'global'
-                    const targetSurface = `${prefix}_${tex.name}`
+                    const targetSurface = `global_${tex.name}`
 
                     // Only add blit if the current input is not already the target surface
                     if (currentInput !== targetSurface) {
@@ -171,7 +168,6 @@ export function expand(compilationResult, options = {}) {
                         }
 
                         // Track last written surface for render directive
-                        // Both output and feedback surfaces can be render targets
                         lastWrittenSurface = tex.name
 
                         // Track this inline write target so we can skip redundant final blit
@@ -483,8 +479,6 @@ export function expand(compilationResult, options = {}) {
                                 pass.inputs[uniformName] = textureMap.get(`node_${arg.index}_out`)
                             } else if (arg.kind === 'output') {
                                 pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_o0
-                            } else if (arg.kind === 'feedback') {
-                                pass.inputs[uniformName] = `feedback_${arg.name}` // e.g. feedback_f0
                             } else if (arg.kind === 'source') {
                                 pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_o0
                             } else if (typeof arg === 'string') {
@@ -493,8 +487,6 @@ export function expand(compilationResult, options = {}) {
                                     pass.inputs[uniformName] = arg
                                 } else if (/^o[0-7]$/.test(arg)) {
                                     pass.inputs[uniformName] = `global_${arg}`
-                                } else if (/^f[0-3]$/.test(arg)) {
-                                    pass.inputs[uniformName] = `feedback_${arg}`
                                 } else {
                                     pass.inputs[uniformName] = arg
                                 }
@@ -506,20 +498,13 @@ export function expand(compilationResult, options = {}) {
                                 pass.inputs[uniformName] = currentInput || defaultVal
                             } else if (/^o[0-7]$/.test(defaultVal)) {
                                 pass.inputs[uniformName] = `global_${defaultVal}`
-                            } else if (/^f[0-3]$/.test(defaultVal)) {
-                                pass.inputs[uniformName] = `feedback_${defaultVal}`
                             } else if (defaultVal.startsWith('global_')) {
-                                pass.inputs[uniformName] = defaultVal
-                            } else if (defaultVal.startsWith('feedback_')) {
                                 pass.inputs[uniformName] = defaultVal
                             } else {
                                 pass.inputs[uniformName] = defaultVal
                             }
                         } else if (texRef.startsWith('global_')) {
                             // Explicit global reference
-                            pass.inputs[uniformName] = texRef
-                        } else if (texRef.startsWith('feedback_')) {
-                            // Explicit feedback reference
                             pass.inputs[uniformName] = texRef
                         } else if (isGlobalTexture(texRef)) {
                             // Effect texture starting with 'global' - use global_ prefix for double-buffering
@@ -636,25 +621,23 @@ export function expand(compilationResult, options = {}) {
             }
         }
 
-        // Handle the final output of the chain (.write(o0) or .write(f0))
+        // Handle the final output of the chain (.write(o0))
         if (plan.write && currentInput) {
             const outName = typeof plan.write === 'object' ? plan.write.name : plan.write
-            const outKind = plan.write.kind || 'output'
 
-            // Track the last written surface (both output and feedback surfaces)
+            // Track the last written surface
             lastWrittenSurface = outName
 
             // Skip the final blit if the last step was an inline write to the same surface
             // This avoids redundant blits when write() is at the end of the chain
             const alreadyWritten = lastInlineWriteTarget &&
-                lastInlineWriteTarget.kind === outKind &&
+                lastInlineWriteTarget.kind === 'output' &&
                 lastInlineWriteTarget.name === outName
             if (alreadyWritten) {
                 continue
             }
 
-            const prefix = outKind === 'feedback' ? 'feedback' : 'global'
-            const targetSurface = `${prefix}_${outName}`
+            const targetSurface = `global_${outName}`
 
             // Only add blit if the current input is not already the target surface
             if (currentInput !== targetSurface) {

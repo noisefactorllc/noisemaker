@@ -65,7 +65,6 @@ function toBoolean(value) {
 function toSurface(arg) {
     if (!arg) return null
     if (arg.type === 'OutputRef') return {kind:'output', name:arg.name}
-    if (arg.type === 'FeedbackRef') return {kind:'feedback', name:arg.name}
     if (arg.type === 'SourceRef') return {kind:'source', name:arg.name}
     if (arg.type === 'Ident' && stateSurfaces.has(arg.name)) return {kind:'state', name:arg.name}
     return null
@@ -946,11 +945,7 @@ export function validate(ast) {
         const finalIndex = processChain(stmt.chain, null)
         let writeSurf = null
         if (stmt.write) {
-            if (stmt.write.type === 'FeedbackRef') {
-                writeSurf = {kind:'feedback', name: stmt.write.name}
-            } else {
-                writeSurf = {kind:'output', name: stmt.write.name}
-            }
+            writeSurf = {kind:'output', name: stmt.write.name}
         }
         return {chain, write: writeSurf, final: finalIndex, states}
     }
