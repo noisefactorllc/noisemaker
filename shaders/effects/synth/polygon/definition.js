@@ -4,6 +4,7 @@ export default new Effect({
   name: "Polygon",
   namespace: "synth",
   func: "polygon",
+  tags: ["geometric"],
 
   description: "Geometric shape generator",
   globals: {

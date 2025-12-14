@@ -4,6 +4,7 @@ export default new Effect({
   name: "Dodge",
   namespace: "mixer",
   func: "dodge",
+  tags: ["math"],
 
   description: "Color dodge creating bright highlights",
   globals: {

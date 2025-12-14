@@ -4,6 +4,7 @@ export default new Effect({
   name: "Repeat",
   namespace: "filter",
   func: "repeat",
+  tags: ["transform"],
 
   description: "Tiling repeat",
   globals: {

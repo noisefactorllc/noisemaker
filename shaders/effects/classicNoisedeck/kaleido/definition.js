@@ -4,6 +4,7 @@ export default new Effect({
   name: "Kaleido",
   namespace: "classicNoisedeck",
   func: "kaleido",
+  tags: ["geometric", "transform"],
 
   description: "Kaleidoscope effect",
   globals: {

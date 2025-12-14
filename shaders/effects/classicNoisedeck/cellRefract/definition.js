@@ -4,6 +4,7 @@ export default new Effect({
   name: "CellRefract",
   namespace: "classicNoisedeck",
   func: "cellRefract",
+  tags: ["distort", "noise"],
 
   description: "Cell-based refraction",
   globals: {

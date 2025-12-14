@@ -4,6 +4,7 @@ export default new Effect({
   name: "Splat",
   namespace: "classicNoisedeck",
   func: "splat",
+  tags: ["noise"],
 
   description: "Splatter paint effect",
   globals: {

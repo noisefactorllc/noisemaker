@@ -17,6 +17,7 @@ export default new Effect({
   name: "Rd3D",
   namespace: "vol",
   func: "rd3d",
+  tags: ["math"],
 
   description: "3D reaction-diffusion simulation",
   textures: {

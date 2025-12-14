@@ -10,6 +10,7 @@ export default class Shapes extends Effect {
   name = "Shapes"
   namespace = "classicNoisedeck"
   func = "shapes"
+  tags = ["geometric", "noise"]
 
   description = "Geometric shapes generator"
 

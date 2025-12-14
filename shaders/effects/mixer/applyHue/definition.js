@@ -4,6 +4,7 @@ export default new Effect({
   name: "Apply Hue",
   namespace: "mixer",
   func: "applyHue",
+  tags: ["color"],
 
   description: "Apply hue from source B",
   globals: {

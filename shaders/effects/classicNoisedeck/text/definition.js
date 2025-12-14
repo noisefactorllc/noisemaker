@@ -4,6 +4,7 @@ export default new Effect({
   name: "Text",
   namespace: "classicNoisedeck",
   func: "text",
+  tags: ["util"],
 
   description: "Text overlay renderer",
   uniformLayout: {

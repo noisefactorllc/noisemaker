@@ -4,6 +4,7 @@ export default new Effect({
   name: "Add",
   namespace: "mixer",
   func: "add",
+  tags: ["math"],
 
   description: "Additive blend creating lighter result",
   globals: {

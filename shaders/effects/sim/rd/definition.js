@@ -4,6 +4,7 @@ export default new Effect({
   name: "Rd",
   namespace: "sim",
   func: "rd",
+  tags: ["math"],
 
   description: "Gray-Scott reaction-diffusion",
   uniformLayouts: {

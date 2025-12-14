@@ -10,6 +10,7 @@ export default new Effect({
   name: "Text",
   namespace: "synth",
   func: "text",
+  tags: ["util"],
 
   description: "Text renderer to texture",
   externalTexture: "textTex",

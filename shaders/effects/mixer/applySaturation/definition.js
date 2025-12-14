@@ -4,6 +4,7 @@ export default new Effect({
   name: "Apply Saturation",
   namespace: "mixer",
   func: "applySaturation",
+  tags: ["color"],
 
   description: "Apply saturation from source B",
   globals: {

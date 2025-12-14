@@ -8,6 +8,7 @@ export default new Effect({
   name: "LitEdge",
   namespace: "filter",
   func: "litEdge",
+  tags: ["util"],
 
   description: "Edge detection combined with original for lit edges",
   globals: {

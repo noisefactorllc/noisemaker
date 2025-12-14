@@ -4,6 +4,7 @@ export default new Effect({
   name: "Physarum",
   namespace: "sim",
   func: "physarum",
+  tags: ["math"],
 
   description: "Physarum slime mold simulation",
   textures: {

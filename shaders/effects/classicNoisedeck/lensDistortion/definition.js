@@ -4,6 +4,7 @@ export default new Effect({
   name: "LensDistortion",
   namespace: "classicNoisedeck",
   func: "lensDistortion",
+  tags: ["distort", "color"],
 
   description: "Lens distortion simulation",
   globals: {

@@ -12,6 +12,7 @@ export default new Effect({
   name: "Feedback",
   namespace: "sim",
   func: "feedback",
+  tags: ["util"],
 
   description: "Feedback loop with blend modes and transforms",
   globals: {

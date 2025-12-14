@@ -4,6 +4,7 @@ export default new Effect({
   name: "Atmosphere",
   namespace: "classicNoisedeck",
   func: "atmosphere",
+  tags: ["noise"],
 
   description: "Atmospheric fog and haze",
   uniformLayout: {

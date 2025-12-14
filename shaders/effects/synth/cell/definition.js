@@ -4,6 +4,7 @@ export default new Effect({
   name: "Cell",
   namespace: "synth",
   func: "cell",
+  tags: ["noise", "geometric"],
 
   description: "Cellular/Voronoi noise with distance metrics",
   uniformLayout: {

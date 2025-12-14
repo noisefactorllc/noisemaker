@@ -8,6 +8,7 @@ export default new Effect({
   name: "Bulge",
   namespace: "filter",
   func: "bulge",
+  tags: ["distort"],
 
   description: "Bulge distortion from center",
   globals: {

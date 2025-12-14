@@ -4,6 +4,7 @@ export default new Effect({
   name: "Scroll",
   namespace: "filter",
   func: "scroll",
+  tags: ["transform"],
 
   description: "Scrolling offset animation",
   globals: {

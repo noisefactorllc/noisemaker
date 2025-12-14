@@ -8,6 +8,7 @@ export default new Effect({
   name: "Contrast",
   namespace: "filter",
   func: "contrast",
+  tags: ["color"],
 
   description: "Adjust image contrast",
   globals: {

@@ -4,6 +4,7 @@ export default new Effect({
   name: "Solid",
   namespace: "synth",
   func: "solid",
+  tags: ["util", "color"],
 
   description: "Solid color fill",
   globals: {

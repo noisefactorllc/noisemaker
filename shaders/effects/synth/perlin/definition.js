@@ -4,6 +4,7 @@ export default new Effect({
   name: "Perlin",
   namespace: "synth",
   func: "perlin",
+  tags: ["noise", "math"],
 
   description: "Perlin-like noise with a periodic Z",
   globals: {

@@ -8,6 +8,7 @@ export default new Effect({
   name: "Brightness",
   namespace: "filter",
   func: "brightness",
+  tags: ["color"],
 
   description: "Adjust image brightness by multiplication",
   globals: {

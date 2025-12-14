@@ -8,6 +8,7 @@ export default new Effect({
   name: "Posterize",
   namespace: "filter",
   func: "posterize",
+  tags: ["color"],
 
   description: "Reduce color levels for poster effect",
   globals: {

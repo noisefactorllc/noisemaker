@@ -4,6 +4,7 @@ export default new Effect({
   name: "Soft Light",
   namespace: "mixer",
   func: "softLight",
+  tags: ["math"],
 
   description: "Gentle overlay effect",
   globals: {

@@ -8,6 +8,7 @@ export default new Effect({
   name: "Hue",
   namespace: "filter",
   func: "hue",
+  tags: ["color"],
 
   description: "Rotate image hue",
   globals: {

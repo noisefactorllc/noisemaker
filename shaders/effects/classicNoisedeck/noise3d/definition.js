@@ -4,6 +4,7 @@ export default new Effect({
   name: "Noise3d",
   namespace: "classicNoisedeck",
   func: "noise3d",
+  tags: ["noise", "math", "geometric"],
 
   description: "3D noise volume",
   globals: {

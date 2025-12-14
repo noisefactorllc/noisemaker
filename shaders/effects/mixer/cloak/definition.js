@@ -4,6 +4,7 @@ export default new Effect({
   name: "Cloak",
   namespace: "mixer",
   func: "cloak",
+  tags: ["math"],
 
   description: "Transparency cloaking effect",
   globals: {

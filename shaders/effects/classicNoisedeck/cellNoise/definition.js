@@ -10,6 +10,7 @@ export default class CellNoise extends Effect {
   name = "CellNoise"
   namespace = "classicNoisedeck"
   func = "cellNoise"
+  tags = ["noise", "geometric"]
 
   description = "Cellular noise patterns"
 

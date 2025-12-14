@@ -17,6 +17,7 @@ export default new Effect({
   name: "Fractal3D",
   namespace: "vol",
   func: "fractal3d",
+  tags: ["math"],
 
   description: "3D Mandelbulb/Mandelcube fractals",
   textures: {

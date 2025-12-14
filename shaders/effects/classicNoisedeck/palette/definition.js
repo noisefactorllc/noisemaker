@@ -4,6 +4,7 @@ export default new Effect({
   name: "Palette",
   namespace: "classicNoisedeck",
   func: "palette",
+  tags: ["color"],
 
   description: "Color palette mapping",
   globals: {

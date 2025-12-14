@@ -8,6 +8,7 @@ export default new Effect({
   name: "Dla",
   namespace: "sim",
   func: "dla",
+  tags: ["math"],
 
   description: "Diffusion-limited aggregation",
   globals: {

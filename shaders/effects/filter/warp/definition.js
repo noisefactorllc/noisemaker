@@ -8,6 +8,7 @@ export default new Effect({
   name: "Warp",
   namespace: "filter",
   func: "warp",
+  tags: ["distort"],
 
   description: "Perlin noise-based warp distortion",
   globals: {

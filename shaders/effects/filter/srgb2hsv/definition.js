@@ -8,6 +8,7 @@ export default new Effect({
   name: "Hsv",
   namespace: "filter",
   func: "srgb2hsv",
+  tags: ["color", "util"],
 
   description: "Interpret RGB as HSV and convert",
   uniformLayout: {},

@@ -4,6 +4,7 @@ export default new Effect({
   name: "Shape",
   namespace: "synth",
   func: "shape",
+  tags: ["geometric", "noise"],
 
   description: "Dual-loop shape pattern generator",
   uniformLayout: {

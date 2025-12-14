@@ -4,6 +4,7 @@ export default new Effect({
   name: "Coalesce",
   namespace: "classicNoisedeck",
   func: "coalesce",
+  tags: ["color", "distort"],
 
   description: "Coalescing blend effect",
   globals: {

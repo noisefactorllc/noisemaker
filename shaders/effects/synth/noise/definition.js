@@ -4,6 +4,7 @@ export default new Effect({
   name: "Noise",
   namespace: "synth",
   func: "noise",
+  tags: ["noise", "math"],
 
   description: "Value noise with multiple interpolation types",
   uniformLayout: {

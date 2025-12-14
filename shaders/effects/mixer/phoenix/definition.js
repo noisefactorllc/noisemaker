@@ -4,6 +4,7 @@ export default new Effect({
   name: "Phoenix",
   namespace: "mixer",
   func: "phoenix",
+  tags: ["math"],
 
   description: "Unique blend: min + max - abs(a-b)",
   globals: {

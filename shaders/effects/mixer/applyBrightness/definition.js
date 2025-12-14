@@ -4,6 +4,7 @@ export default new Effect({
   name: "Apply Brightness",
   namespace: "mixer",
   func: "applyBrightness",
+  tags: ["color"],
 
   description: "Apply brightness from source B",
   globals: {

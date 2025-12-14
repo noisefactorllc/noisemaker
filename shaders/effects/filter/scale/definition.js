@@ -4,6 +4,7 @@ export default new Effect({
   name: "Scale",
   namespace: "filter",
   func: "scale",
+  tags: ["transform"],
 
   description: "Scale transform",
   globals: {

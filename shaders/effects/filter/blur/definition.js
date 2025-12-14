@@ -8,6 +8,7 @@ export default new Effect({
   name: "Blur",
   namespace: "filter",
   func: "blur",
+  tags: ["util"],
 
   description: "Gaussian blur with separate X and Y radius controls",
   globals: {

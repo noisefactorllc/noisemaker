@@ -4,6 +4,7 @@ export default new Effect({
   name: "Ca",
   namespace: "sim",
   func: "ca",
+  tags: ["math"],
 
   description: "2D cellular automata with rule presets",
   uniformLayouts: {

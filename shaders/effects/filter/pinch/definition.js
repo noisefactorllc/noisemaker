@@ -8,6 +8,7 @@ export default new Effect({
   name: "Pinch",
   namespace: "filter",
   func: "pinch",
+  tags: ["distort"],
 
   description: "Pinch distortion toward center",
   globals: {

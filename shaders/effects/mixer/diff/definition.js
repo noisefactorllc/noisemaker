@@ -4,6 +4,7 @@ export default new Effect({
   name: "Difference",
   namespace: "mixer",
   func: "diff",
+  tags: ["math"],
 
   description: "Absolute difference between inputs",
   globals: {

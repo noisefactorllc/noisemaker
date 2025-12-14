@@ -4,6 +4,7 @@ export default new Effect({
   name: "Thresh",
   namespace: "filter",
   func: "thresh",
+  tags: ["color", "util"],
 
   description: "Threshold/step function",
   globals: {

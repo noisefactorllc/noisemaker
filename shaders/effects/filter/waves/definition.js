@@ -8,6 +8,7 @@ export default new Effect({
   name: "Waves",
   namespace: "filter",
   func: "waves",
+  tags: ["distort"],
 
   description: "Sine wave distortion",
   globals: {

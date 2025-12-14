@@ -4,6 +4,7 @@ export default new Effect({
   name: "Mnca",
   namespace: "sim",
   func: "mnca",
+  tags: ["math"],
 
   description: "Multi-neighborhood cellular automata",
   uniformLayout: {

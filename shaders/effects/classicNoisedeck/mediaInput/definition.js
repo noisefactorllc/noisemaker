@@ -4,6 +4,7 @@ export default new Effect({
   name: "MediaInput",
   namespace: "classicNoisedeck",
   func: "mediaInput",
+  tags: ["util", "transform"],
 
   description: "Media input source",
   externalTexture: "imageTex",

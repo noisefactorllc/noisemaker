@@ -4,6 +4,7 @@ export default new Effect({
   name: "Exclusion",
   namespace: "mixer",
   func: "exclusion",
+  tags: ["math"],
 
   description: "Softer inversion than difference",
   globals: {

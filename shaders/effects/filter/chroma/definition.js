@@ -8,6 +8,7 @@ export default new Effect({
   name: "Chroma",
   namespace: "filter",
   func: "chroma",
+  tags: ["color"],
 
   description: "Isolate specific hue range with feathering",
   globals: {

@@ -4,6 +4,7 @@ export default new Effect({
   name: "Background",
   namespace: "classicNoisedeck",
   func: "background",
+  tags: ["geometric"],
 
   description: "Background layer generator",
   globals: {

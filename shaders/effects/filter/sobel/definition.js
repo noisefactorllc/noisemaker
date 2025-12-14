@@ -8,6 +8,7 @@ export default new Effect({
   name: "Sobel",
   namespace: "filter",
   func: "sobel",
+  tags: ["util"],
 
   description: "Classic Sobel edge detection",
   globals: {

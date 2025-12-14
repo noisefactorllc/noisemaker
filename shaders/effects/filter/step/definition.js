@@ -8,6 +8,7 @@ export default new Effect({
   name: "Step",
   namespace: "filter",
   func: "step",
+  tags: ["color", "util"],
 
   description: "Hard threshold at specified value",
   globals: {

@@ -8,6 +8,7 @@ export default new Effect({
   name: "Spiral",
   namespace: "filter",
   func: "spiral",
+  tags: ["distort"],
 
   description: "Spiral distortion",
   globals: {

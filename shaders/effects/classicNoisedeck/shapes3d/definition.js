@@ -10,6 +10,7 @@ export default class Shapes3D extends Effect {
   name = "Shapes3d"
   namespace = "classicNoisedeck"
   func = "shapes3d"
+  tags = ["geometric", "math"]
 
   description = "3D geometric shapes"
 

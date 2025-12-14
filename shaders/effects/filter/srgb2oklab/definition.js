@@ -8,6 +8,7 @@ export default new Effect({
   name: "Oklab",
   namespace: "filter",
   func: "srgb2oklab",
+  tags: ["color", "util"],
 
   description: "Interpret RGB as OKLab and convert",
   uniformLayout: {},

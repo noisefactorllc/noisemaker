@@ -4,6 +4,7 @@ export default new Effect({
   name: "Effects",
   namespace: "classicNoisedeck",
   func: "effects",
+  tags: ["color", "distort"],
 
   description: "Multi-effect processor",
   globals: {

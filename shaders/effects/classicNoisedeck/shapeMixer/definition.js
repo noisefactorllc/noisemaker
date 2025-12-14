@@ -10,6 +10,7 @@ export default class ShapeMixer extends Effect {
   name = "ShapeMixer"
   namespace = "classicNoisedeck"
   func = "shapeMixer"
+  tags = ["geometric", "color"]
 
   description = "Shape-based mixing"
 

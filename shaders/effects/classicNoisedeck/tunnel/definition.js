@@ -4,6 +4,7 @@ export default new Effect({
   name: "Tunnel",
   namespace: "classicNoisedeck",
   func: "tunnel",
+  tags: ["distort", "transform", "geometric"],
 
   description: "Tunnel perspective effect",
   globals: {

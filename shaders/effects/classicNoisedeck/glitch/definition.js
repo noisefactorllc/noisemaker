@@ -4,6 +4,7 @@ export default new Effect({
   name: "Glitch",
   namespace: "classicNoisedeck",
   func: "glitch",
+  tags: ["distort", "noise"],
 
   description: "Digital glitch effects",
   globals: {

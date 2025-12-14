@@ -7,6 +7,7 @@ export default new Effect({
   name: "Rotate",
   namespace: "filter",
   func: "rot",
+  tags: ["transform"],
 
   description: "Rotate image by specified angle",
   globals: {

@@ -8,6 +8,7 @@ export default new Effect({
   name: "Inv",
   namespace: "filter",
   func: "inv",
+  tags: ["color"],
 
   description: "Invert image luminance",
   uniformLayout: {},

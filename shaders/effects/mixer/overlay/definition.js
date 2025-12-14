@@ -4,6 +4,7 @@ export default new Effect({
   name: "Overlay",
   namespace: "mixer",
   func: "overlay",
+  tags: ["math"],
 
   description: "Multiply/screen based on base layer",
   globals: {

@@ -7,6 +7,7 @@ export default new Effect({
   name: "Translate",
   namespace: "filter",
   func: "translate",
+  tags: ["transform"],
 
   description: "Translate image in X and Y",
   globals: {

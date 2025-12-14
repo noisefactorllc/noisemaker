@@ -4,6 +4,7 @@ export default new Effect({
   name: "Tint",
   namespace: "filter",
   func: "tint",
+  tags: ["color"],
 
   description: "Colorize input texture by RGB value",
   globals: {

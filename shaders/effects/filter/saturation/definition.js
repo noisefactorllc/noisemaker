@@ -8,6 +8,7 @@ export default new Effect({
   name: "Saturation",
   namespace: "filter",
   func: "saturation",
+  tags: ["color"],
 
   description: "Adjust image saturation",
   globals: {

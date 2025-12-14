@@ -16,6 +16,7 @@ export default new Effect({
   name: "Grade",
   namespace: "filter",
   func: "grade",
+  tags: ["color", "util"],
 
   description: "Professional multi-stage color grading pipeline",
 
