@@ -9,11 +9,16 @@ export default new Effect({
   description: "Geometric shape generator",
   globals: {
     "sides": {
-        "type": "float",
-        "default": 3,
-        "min": 0,
-        "max": 100,
-        "uniform": "sides"
+      "type": "int",
+      "default": 3,
+      "min": 3,
+      "max": 100,
+      "step": 1,
+      "uniform": "sides",
+      "ui": {
+        "label": "Sides",
+        "control": "slider"
+      }
     },
     "radius": {
         "type": "float",

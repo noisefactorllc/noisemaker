@@ -3,7 +3,7 @@ precision highp float;
 
 uniform vec2 resolution;
 uniform float aspect;
-uniform float sides;
+uniform int sides;
 uniform float radius;
 uniform float smoothing;
 
@@ -20,7 +20,8 @@ void main(){
   vec2 st = gl_FragCoord.xy / resolution;
   st = (st - 0.5) * 2.0;
   st.x *= aspect;
-  float d = polygon(st, sides);
+  float sidesF = float(max(sides, 3));
+  float d = polygon(st, sidesF);
   float m = smoothstep(radius, radius - smoothing, d);
   fragColor = vec4(vec3(m),1.0);
 }

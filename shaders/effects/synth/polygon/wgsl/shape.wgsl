@@ -1,7 +1,7 @@
 // WGSL version – WebGPU
 @group(0) @binding(0) var<uniform> resolution: vec2<f32>;
 @group(0) @binding(1) var<uniform> aspect: f32;
-@group(0) @binding(2) var<uniform> sides: f32;
+@group(0) @binding(2) var<uniform> sides: i32;
 @group(0) @binding(3) var<uniform> radius: f32;
 @group(0) @binding(4) var<uniform> smoothing: f32;
 
@@ -17,7 +17,8 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   var st = position.xy / resolution;
   st = (st - vec2<f32>(0.5, 0.5)) * 2.0;
   st.x *= aspect;
-  let d = polygon(st, sides);
+  let sidesF = f32(max(sides, 3));
+  let d = polygon(st, sidesF);
   let m = smoothstep(radius, radius - smoothing, d);
   return vec4<f32>(vec3<f32>(m), 1.0);
 }
