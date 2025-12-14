@@ -168,7 +168,6 @@ Classic Namespaces
 
 In addition to the actively developed and maintained namespaces above, the following namespaces were ported from older versions of our products. Each namespace offers a different take on how runtime composition can work.
 
-* ``classicBasics``: During early iterations of our new pipeline, we needed a few shaders to quickly test with. This minimal subset of Hydra-like shaders offers a familiar entry point for live coders.
 * ``classicNoisedeck``: These are complex and often slower shaders brought over from the "Classic" Noisedeck.app shader graph.
 * ``classicNoisemaker``: This effect collection is an attempt at a faithful reproduction of Noisemaker's Python effects in shader language.
 

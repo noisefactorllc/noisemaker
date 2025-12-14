@@ -206,12 +206,12 @@ test('demo renders all available effects without console errors', async ({ page 
     .filter(Boolean)
 
   if (effectOnlyEnv.length > 0) {
-    // Support both exact matches and namespace prefixes (e.g., "basics" matches "classicBasics/noise")
+    // Support both exact matches and namespace prefixes (e.g., "nm" matches "nm/worms")
     effectValues = effectValues.filter(effect => {
       for (const filter of effectOnlyEnv) {
         // Exact match
         if (effect === filter) return true
-        // Namespace prefix match (e.g., "basics" matches "classicBasics/noise")
+        // Namespace prefix match (e.g., "nm" matches "nm/worms")
         if (effect.startsWith(filter + '/')) return true
       }
       return false
@@ -255,11 +255,11 @@ test('demo renders all available effects without console errors', async ({ page 
       }, { timeout: STATUS_TIMEOUT }, baselineState)
 
       // Verify that the rendered output has more than one color
-      // nd/physarum and classicBasics/prev rely on warm-up/feedback before diverging from black.
+      // nd/physarum and stateful/prev rely on warm-up/feedback before diverging from black.
 
       // ***STOP***: Do *NOT* add effects to this list without explicit permission
       // nd/shape-mixer: Uses palette cycling with time - test readback sees uniform color at snapshot
-      const skipColorCheck = ['classicBasics/alpha', 'classicBasics/solid', 'classicBasics/prev', 'classicNoisedeck/shape-mixer'].includes(effect)
+      const skipColorCheck = ['filter/a', 'filter/solid', 'stateful/prev', 'classicNoisedeck/shape-mixer'].includes(effect)
         || effect.includes('feedback')
       if (!skipColorCheck) {
         const hasMultipleColors = await page.evaluate(async (effectName) => {

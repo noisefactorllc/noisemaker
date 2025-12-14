@@ -222,7 +222,7 @@ export function extractEffectNamesFromDsl(dsl, manifest) {
             }
             
             if (!namespace) {
-                for (const ns of ['classicBasics', 'classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth', 'stateful']) {
+                for (const ns of ['classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth', 'stateful']) {
                     const testId = `${ns}/${name}`;
                     if (manifest[testId]) {
                         namespace = ns;

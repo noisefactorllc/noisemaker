@@ -49,7 +49,7 @@ Compile a shader effect and verify it compiles cleanly. Returns detailed pass-le
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `effect_id` | string | Yes | Effect identifier (e.g., `"classicBasics/noise"`, `"classicNoisemaker/worms"`) |
+| `effect_id` | string | Yes | Effect identifier (e.g., `"synth/noise"`, `"classicNoisemaker/worms"`) |
 | `backend` | string | Yes | Rendering backend: `"webgl2"` or `"webgpu"` |
 
 ### Output Schema
@@ -75,7 +75,7 @@ Compile a shader effect and verify it compiles cleanly. Returns detailed pass-le
 **Request:**
 ```json
 {
-  "effect_id": "classicBasics/noise",
+  "effect_id": "synth/noise",
   "backend": "webgl2"
 }
 ```
@@ -83,7 +83,7 @@ Compile a shader effect and verify it compiles cleanly. Returns detailed pass-le
 **Response:**
 ```json
 {
-  "effect_id": "classicBasics/noise",
+  "effect_id": "synth/noise",
   "backend": "webgl2",
   "success": true,
   "passes": [
@@ -164,7 +164,7 @@ Render a single frame of a shader effect and analyze if the output is monochrome
 **Request:**
 ```json
 {
-  "effect_id": "classicBasics/noise",
+  "effect_id": "synth/noise",
   "backend": "webgl2",
   "test_case": {
     "time": 1.0,
@@ -176,7 +176,7 @@ Render a single frame of a shader effect and analyze if the output is monochrome
 **Response:**
 ```json
 {
-  "effect_id": "classicBasics/noise",
+  "effect_id": "synth/noise",
   "backend": "webgl2",
   "success": true,
   "metrics": {
@@ -425,7 +425,7 @@ Benchmark a shader effect to verify it can sustain a target framerate. Runs the 
 **Request:**
 ```json
 {
-  "effect_id": "classicBasics/noise",
+  "effect_id": "synth/noise",
   "backend": "webgl2",
   "target_fps": 60,
   "duration_seconds": 3
@@ -435,7 +435,7 @@ Benchmark a shader effect to verify it can sustain a target framerate. Runs the 
 **Response:**
 ```json
 {
-  "effect_id": "classicBasics/noise",
+  "effect_id": "synth/noise",
   "backend": "webgl2",
   "success": true,
   "target_fps": 60,
@@ -817,16 +817,16 @@ The test harness provides a command-line interface for running tests.
 
 ```bash
 # Basic compile + render + vision check
-node test-harness.js --effects classicBasics/noise --backend webgl2
+node test-harness.js --effects synth/noise --backend webgl2
 
 # Multiple effects with glob pattern
-node test-harness.js --effects "classicBasics/*" --webgl2 --benchmark
+node test-harness.js --effects "synth/*" --webgl2 --benchmark
 
 # All tests on WebGPU
 node test-harness.js --effects "classicNoisemaker/*" --webgpu --all
 
 # Multiple specific effects
-node test-harness.js --effects "classicBasics/noise,nm/worms" --glsl --uniforms
+node test-harness.js --effects "synth/noise,nm/worms" --glsl --uniforms
 
 # Structure check (on-disk, no browser)
 node test-harness.js --effects "classicNoisemaker/worms" --structure

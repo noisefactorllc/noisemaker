@@ -457,7 +457,7 @@ Effects with feedback loops (e.g., ``physarum``, ``worms``) are automatically sk
      "epsilon": 1,
      "seed": 42,
      "results": {
-       "classicBasics/noise": {
+       "synth/noise": {
          "status": "ok",
          "maxDiff": 0,
          "meanDiff": 0,

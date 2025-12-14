@@ -75,7 +75,7 @@ The explicit setup/teardown per call ensures reliability and prevents stale stat
 
 ```bash
 cd /path/to/py-noisemaker
-node shaders/mcp/test-harness.js --effects classicBasics/noise --backend webgl2
+node shaders/mcp/test-harness.js --effects synth/noise --backend webgl2
 ```
 
 Expected output:
@@ -83,10 +83,10 @@ Expected output:
 Starting browser session...
 Backend: webgl2
 
-=== Compile Check: classicBasics/noise ===
+=== Compile Check: synth/noise ===
 ✓ Compiled successfully
 
-=== Render Check: classicBasics/noise ===
+=== Render Check: synth/noise ===
 ✓ Rendered (not monochrome)
   unique_colors: 847
   luma_variance: 5312.4
@@ -97,7 +97,7 @@ Browser session closed.
 ### Test multiple effects:
 
 ```bash
-node shaders/mcp/test-harness.js --effects "classicBasics/*" --webgl2
+node shaders/mcp/test-harness.js --effects "synth/*" --webgl2
 
 # With all tests
 node shaders/mcp/test-harness.js --effects "classicNoisemaker/worms" --webgl2 --all
@@ -159,12 +159,12 @@ All browser-based tools require a `backend` parameter:
 When calling via MCP, specify in the request:
 ```json
 {
-  "effect_id": "classicBasics/noise",
+  "effect_id": "synth/noise",
   "backend": "webgl2"
 }
 ```
 
 When using the CLI:
 ```bash
-node test-harness.js --effects classicBasics/noise --backend webgl2
+node test-harness.js --effects synth/noise --backend webgl2
 ```

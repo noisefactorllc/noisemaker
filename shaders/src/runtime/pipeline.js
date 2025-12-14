@@ -843,7 +843,7 @@ export class Pipeline {
         for (const outputName of Object.values(pass.outputs)) {
             if (typeof outputName !== 'string') continue
 
-            // Only swap global surfaces
+            // Only swap global surfaces (not feedback surfaces)
             const globalName = this.parseGlobalName(outputName)
             if (!globalName) continue
 

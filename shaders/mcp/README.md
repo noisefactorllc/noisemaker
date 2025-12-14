@@ -9,7 +9,7 @@ MCP (Model Context Protocol) server exposing shader testing tools for VS Code Co
 npm install
 
 # Test the harness
-node shaders/mcp/test-harness.js --effects classicBasics/noise --backend webgl2
+node shaders/mcp/test-harness.js --effects synth/noise --backend webgl2
 ```
 
 ## Documentation
@@ -120,16 +120,16 @@ node test-harness.js --effects <patterns> --backend <backend> [flags]
 
 ```bash
 # Basic compile + render + vision check
-node test-harness.js --effects classicBasics/noise --backend webgl2
+node test-harness.js --effects synth/noise --backend webgl2
 
 # Multiple effects with glob pattern
-node test-harness.js --effects "classicBasics/*" --webgl2 --benchmark
+node test-harness.js --effects "synth/*" --webgl2 --benchmark
 
 # All tests on WebGPU
 node test-harness.js --effects "nm/*" --webgpu --all
 
 # Multiple specific effects
-node test-harness.js --effects "classicBasics/noise,nm/worms" --glsl --uniforms
+node test-harness.js --effects "synth/noise,nm/worms" --glsl --uniforms
 ```
 
 See [Tool Reference](docs/TOOL_REFERENCE.md) for complete flag documentation.

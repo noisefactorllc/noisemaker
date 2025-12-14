@@ -30,7 +30,7 @@
  *   --webgpu, --wgsl          Use WebGPU/WGSL backend
  *
  * Effect selection:
- *   --effects <patterns>      CSV of effect IDs or glob patterns (default: "classicBasics/noise")
+ *   --effects <patterns>      CSV of effect IDs or glob patterns (default: "synth/noise")
  *
  * Test selection:
  *   --all                     Run ALL optional tests
@@ -47,10 +47,10 @@
  *   --verbose                 Show additional diagnostic info
  *
  * Examples:
- *   node test-harness.js --effects classicBasics/noise --backend webgl2
- *   node test-harness.js --effects "classicBasics/*" --webgl2 --benchmark
+ *   node test-harness.js --effects synth/noise --backend webgl2
+ *   node test-harness.js --effects "synth/*" --webgl2 --benchmark
  *   node test-harness.js --effects "classicNoisemaker/*" --webgpu --all
- *   node test-harness.js --effects "classicBasics/noise,nm/worms" --glsl --uniforms
+ *   node test-harness.js --effects "synth/noise,nm/worms" --glsl --uniforms
  *   node test-harness.js --structure-only --effects "classicNoisedeck/*" --webgl2
  */
 
@@ -79,9 +79,9 @@ const PROJECT_ROOT = path.resolve(__dirname, '../..')
  * These effects are DESIGNED to output a single color by their nature.
  */
 const MONOCHROME_EXEMPT_EFFECTS = new Set([
-    'classicBasics/alpha',       // Extracts alpha channel as grayscale - input noise has alpha=1.0
-    'classicBasics/shape',       // Outputs a shape on solid background - "solid" tag is valid
-    'classicBasics/solid',       // Outputs a solid fill color by design
+    'filter/a',       // Extracts alpha channel as grayscale - input noise has alpha=1.0
+    'filter/shape',       // Outputs a shape on solid background - "solid" tag is valid
+    'filter/solid',       // Outputs a solid fill color by design
 ])
 
 /**
@@ -102,7 +102,7 @@ const TRANSPARENT_EXEMPT_EFFECTS = new Set([
  * Effects exempt from passthrough check.
  */
 const PASSTHROUGH_EXEMPT_EFFECTS = new Set([
-    'classicBasics/pixelate',    // Pixelate groups colors into blocks - preserves average but changes structure
+    'filter/pixelate',    // Pixelate groups colors into blocks - preserves average but changes structure
     'classicNoisemaker/aberration',      // Chromatic aberration uses edge mask (pow(dist, 3)) - center unchanged, edges shifted
     'classicNoisemaker/fxaa',            // FXAA anti-aliasing only modifies edge pixels - subtle effect on smooth noise input
     'classicNoisemaker/onScreenDisplay', // OSD overlays text/UI elements - mostly passes through underlying image
@@ -187,7 +187,7 @@ function parseArgs() {
         if (parsed.runStructureOnly) {
             parsed.effects = ['*/*']
         } else {
-            parsed.effects = ['classicBasics/noise']
+            parsed.effects = ['synth/noise']
         }
     }
 
@@ -200,7 +200,7 @@ function parseArgs() {
 
 /**
  * Discover all effects from the filesystem.
- * Returns array of effect IDs like "classicBasics/noise", "classicNoisemaker/worms", etc.
+ * Returns array of effect IDs like "synth/noise", "classicNoisemaker/worms", etc.
  */
 function discoverEffectsFromDisk() {
     const effectsDir = path.join(PROJECT_ROOT, 'shaders', 'effects')
@@ -736,7 +736,7 @@ async function main() {
         console.error('ERROR: Backend flag is REQUIRED.')
         console.error('  Use --backend webgl2 or --webgl2 or --glsl for WebGL2/GLSL')
         console.error('  Use --backend webgpu or --webgpu or --wgsl for WebGPU/WGSL')
-        console.error('\nExample: node test-harness.js --effects classicBasics/noise --backend webgl2')
+        console.error('\nExample: node test-harness.js --effects synth/noise --backend webgl2')
         process.exit(1)
     }
 

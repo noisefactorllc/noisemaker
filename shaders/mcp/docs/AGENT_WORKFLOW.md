@@ -7,14 +7,14 @@ This guide shows how a coding agent should use the MCP shader tools during devel
 ### 1. After Modifying a Shader
 
 ```
-Agent: [edits shaders/effects/classicBasics/noise/definition.js]
+Agent: [edits shaders/effects/synth/noise/definition.js]
 
 Agent: Let me verify the shader compiles...
-→ compileEffect({ effect_id: "classicBasics/noise", backend: "webgl2" })
+→ compileEffect({ effect_id: "synth/noise", backend: "webgl2" })
 
 Response:
 {
-  "effect_id": "classicBasics/noise",
+  "effect_id": "synth/noise",
   "backend": "webgl2",
   "success": true,
   "passes": [{ "pass_id": "main", "compiled": true, "errors": [] }],
@@ -22,11 +22,11 @@ Response:
 }
 
 Agent: Compilation successful. Let me check the visual output...
-→ renderEffectFrame({ effect_id: "classicBasics/noise", backend: "webgl2" })
+→ renderEffectFrame({ effect_id: "synth/noise", backend: "webgl2" })
 
 Response:
 {
-  "effect_id": "classicBasics/noise",
+  "effect_id": "synth/noise",
   "backend": "webgl2",
   "success": true,
   "metrics": {
@@ -44,11 +44,11 @@ Agent: The shader produces varied visual output. Done.
 
 ```
 Agent: [edits shader, introduces syntax error]
-→ compileEffect({ effect_id: "classicBasics/noise", backend: "webgl2" })
+→ compileEffect({ effect_id: "synth/noise", backend: "webgl2" })
 
 Response:
 {
-  "effect_id": "classicBasics/noise",
+  "effect_id": "synth/noise",
   "backend": "webgl2",
   "success": false,
   "passes": [{
@@ -61,7 +61,7 @@ Response:
 
 Agent: Syntax error on line 42. Let me fix that...
 [fixes the error]
-→ compileEffect({ effect_id: "classicBasics/noise", backend: "webgl2" })
+→ compileEffect({ effect_id: "synth/noise", backend: "webgl2" })
 
 Response:
 {
@@ -74,14 +74,14 @@ Response:
 ```
 Agent: The shader compiles but something looks wrong...
 → describeEffectFrame({
-    effect_id: "classicBasics/noise",
+    effect_id: "synth/noise",
     backend: "webgl2",
     prompt: "Does this look like smooth gradient noise? Are there any artifacts?"
   })
 
 Response:
 {
-  "effect_id": "classicBasics/noise",
+  "effect_id": "synth/noise",
   "backend": "webgl2",
   "success": true,
   "description": "The image shows blocky, pixelated noise rather than smooth gradients. There appear to be banding artifacts in the color transitions.",
@@ -305,8 +305,8 @@ The `describeEffectFrame` tool calls OpenAI's GPT-4o vision model. Use it when:
 Effect IDs match the directory structure under `shaders/effects/`:
 
 ```
-classicBasics/noise      → shaders/effects/classicBasics/noise/
-classicBasics/solid      → shaders/effects/classicBasics/solid/
+synth/noise      → shaders/effects/synth/noise/
+filter/solid      → shaders/effects/filter/solid/
 nd/physarum       → shaders/effects/nd/physarum/
 nm/worms          → shaders/effects/nm/worms/
 ```
@@ -315,10 +315,10 @@ nm/worms          → shaders/effects/nm/worms/
 
 ```bash
 # Basic compile + render + vision check
-node test-harness.js --effects classicBasics/noise --backend webgl2
+node test-harness.js --effects synth/noise --backend webgl2
 
 # Multiple effects with glob pattern
-node test-harness.js --effects "classicBasics/*" --webgl2 --benchmark
+node test-harness.js --effects "synth/*" --webgl2 --benchmark
 
 # All tests on WebGPU
 node test-harness.js --effects "classicNoisemaker/*" --webgpu --all

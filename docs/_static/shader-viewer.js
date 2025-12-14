@@ -30,7 +30,6 @@
         { namespace: 'synth' },
         { namespace: 'stateful' },
         { namespace: 'vol' },
-        { namespace: 'classicBasics' },
         { namespace: 'classicNoisedeck' },
         { namespace: 'classicNoisemaker' }
     ];
@@ -349,7 +348,7 @@
                     }
                     
                     if (!namespace) {
-                        for (const ns of ['classicBasics', 'classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth', 'stateful']) {
+                        for (const ns of ['classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth', 'stateful']) {
                             const testId = `${ns}/${name}`;
                             if (manifest[testId]) {
                                 namespace = ns;

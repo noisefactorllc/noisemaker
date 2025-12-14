@@ -113,19 +113,19 @@ Effects like `erosion_worms` and `physarum` follow this structure:
 When working on shaders, you have access to MCP tools for testing effects:
 
 - **`compile_effect`**: Verify a shader compiles cleanly
-  - Input: `{ effect_id: "classicBasics/noise", backend?: "webgl2" | "webgpu" }`
+  - Input: `{ effect_id: "synth/noise", backend?: "webgl2" | "webgpu" }`
   - Returns compilation status and pass-level diagnostics
 
 - **`render_effect_frame`**: Render a frame and check for visual issues
-  - Input: `{ effect_id: "classicBasics/noise", test_case?: { time?, resolution?, uniforms? } }`
+  - Input: `{ effect_id: "synth/noise", test_case?: { time?, resolution?, uniforms? } }`
   - Returns image metrics (mean/std RGB, luma variance, unique colors, is_monochrome)
 
 - **`describe_effect_frame`**: Get AI vision analysis of rendered output
-  - Input: `{ effect_id: "classicBasics/noise", prompt: "Describe the pattern" }`
+  - Input: `{ effect_id: "synth/noise", prompt: "Describe the pattern" }`
   - Returns vision description, tags, and notes
 
 - **`benchmark_effect_fps`**: Verify shader can sustain target framerate
-  - Input: `{ effect_id: "classicBasics/noise", target_fps: 60, duration_seconds?: 5 }`
+  - Input: `{ effect_id: "synth/noise", target_fps: 60, duration_seconds?: 5 }`
   - Returns achieved FPS, meets_target boolean, and frame timing stats
 
 **Workflow**: After modifying a shader effect:

@@ -66,7 +66,7 @@ export async function waitForCompileStatus(page) {
  * Compile a shader effect and return structured diagnostics
  *
  * @param {import('@playwright/test').Page} page - Playwright page with demo loaded
- * @param {string} effectId - Effect identifier (e.g., "classicBasics/noise")
+ * @param {string} effectId - Effect identifier (e.g., "synth/noise")
  * @param {object} options
  * @param {'webgl2'|'webgpu'} options.backend - Rendering backend (REQUIRED)
  * @returns {Promise<{status: 'ok'|'error', backend: string, passes: Array<{id: string, status: 'ok'|'error', errors?: Array}>}>}
@@ -1727,7 +1727,7 @@ export function isStatefulEffect(effectId) {
  * the same procedural content is generated.
  *
  * @param {import('@playwright/test').Page} page - Playwright page with demo loaded
- * @param {string} effectId - Effect identifier (e.g., "classicBasics/noise")
+ * @param {string} effectId - Effect identifier (e.g., "synth/noise")
  * @param {object} options
  * @param {number} [options.epsilon=1] - Maximum per-channel difference allowed (0-255 scale)
  * @param {number} [options.seed=42] - Random seed for reproducible noise
@@ -1922,7 +1922,7 @@ export async function testPixelParity(page, effectId, options = {}) {
  */
 const COMPUTE_PASS_EXEMPT_EFFECTS = new Set([
     // Simple filter chains
-    'classicBasics/blend', 'classicBasics/layer', 'classicBasics/mask', 'classicBasics/modulate',
+    'mixer/blend', 'mixer/layer', 'mixer/mask', 'mixer/modulate',
     // Effects with legitimate multi-pass render pipelines (blur, bloom, etc.)
     'classicNoisemaker/blur',  // Multi-pass gaussian blur is fine as render passes
     'classicNoisemaker/bloom', // Blur + composite is fine
@@ -2911,7 +2911,7 @@ export async function checkEffectStructure(effectId, options = {}) {
  * Uses OpenAI API to compare shader pairs and determine if they implement
  * equivalent algorithms, accounting for language differences between GLSL and WGSL.
  *
- * @param {string} effectId - Effect identifier (e.g., "classicBasics/noise")
+ * @param {string} effectId - Effect identifier (e.g., "synth/noise")
  * @param {object} options
  * @param {string} [options.apiKey] - OpenAI API key (falls back to .openai file)
  * @param {string} [options.model='gpt-4o'] - Model to use for comparison

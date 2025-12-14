@@ -1,4 +1,4 @@
-import Noise from '../effects/classicBasics/noise/definition.js'
+import Noise from '../effects/synth/noise/definition.js'
 import { expand } from '../src/runtime/expander.js'
 import { registerEffect } from '../src/runtime/registry.js'
 

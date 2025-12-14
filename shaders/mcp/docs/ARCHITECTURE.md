@@ -95,7 +95,7 @@ Each browser-based tool invocation follows this lifecycle:
 
 ### Tool Call Flow
 
-1. Agent invokes tool (e.g., `compileEffect({ effect_id: "classicBasics/noise", backend: "webgl2" })`)
+1. Agent invokes tool (e.g., `compileEffect({ effect_id: "synth/noise", backend: "webgl2" })`)
 2. MCP server receives JSON-RPC request over stdio
 3. Server calls browser harness method (e.g., `harness.compileEffect()`)
 4. Harness creates fresh session, runs test, tears down
