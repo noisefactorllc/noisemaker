@@ -25,17 +25,14 @@ export default new Effect({
       type: "int",
       default: 0,
       uniform: "paletteRotation",
-      min: -1,
-      max: 1,
-      step: 1,
+      choices: {
+        none: 0,
+        fwd: 1,
+        back: -1
+      },
       ui: {
         label: "Rotation",
-        control: "dropdown",
-        options: [
-          { value: -1, label: "Backward" },
-          { value: 0, label: "None" },
-          { value: 1, label: "Forward" }
-        ]
+        control: "dropdown"
       }
     },
     paletteOffset: {

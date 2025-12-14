@@ -536,5 +536,8 @@ void main() {
         finalColor = paletteColor;
     }
 
-    fragColor = vec4(finalColor, inputColor.a);
+    // Blend between original and palette color based on alpha
+    vec3 blendedColor = mix(inputColor.rgb, finalColor, alpha);
+
+    fragColor = vec4(blendedColor, inputColor.a);
 }

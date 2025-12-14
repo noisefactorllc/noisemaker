@@ -262,5 +262,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         finalColor = paletteColor;
     }
 
-    return vec4f(finalColor, inputColor.a);
+    // Blend between original and palette color based on alpha
+    let alpha = uniforms.data[1].x;
+    let blendedColor = mix(inputColor.rgb, finalColor, alpha);
+
+    return vec4f(blendedColor, inputColor.a);
 }
