@@ -8,6 +8,11 @@
  * Or subclassed for effects needing lifecycle methods:
  *   class Media extends Effect { onInit() {...} onUpdate() {...} }
  *
+ * Tags:
+ *   Effects can be tagged with curated labels for discovery and categorization.
+ *   Valid tags are defined in tags.js. Namespace acts as an implicit tag.
+ *   Example: tags: ["color", "distort"]
+ *
  * Global (uniform) specification:
  *   Each entry in globals defines a parameter/uniform with:
  *   - type: "float" | "int" | "boolean" | "vec2" | "vec3" | "vec4"
@@ -38,6 +43,7 @@ export class Effect {
      * @param {string} [config.name] - Effect display name
      * @param {string} [config.namespace] - Effect namespace (synth, filter, mixer, etc.)
      * @param {string} [config.func] - DSL function name
+     * @param {string[]} [config.tags] - Effect tags for categorization (from VALID_TAGS)
      * @param {object} [config.globals] - Effect parameters/uniforms
      * @param {Array} [config.passes] - Render passes
      * @param {object} [config.textures] - Internal texture allocations
@@ -54,6 +60,7 @@ export class Effect {
         if (config.namespace) this.namespace = config.namespace
         if (config.func) this.func = config.func
         if (config.description) this.description = config.description
+        if (config.tags) this.tags = config.tags
         if (config.globals) this.globals = config.globals
         if (config.passes) this.passes = config.passes
         if (config.textures) this.textures = config.textures

@@ -2494,10 +2494,10 @@ export class UIController {
         const select = document.createElement('select')
         select.className = 'control-select'
 
-        // Validate: spaces in enum keys are BANNED
+        // Warn about spaces in enum keys (deprecated, should use camelCase)
         for (const name of Object.keys(spec.choices)) {
             if (name.includes(' ')) {
-                throw new Error(`Spaces in enum keys are banned: "${name}" in choices for "${key}". Use camelCase instead.`)
+                console.warn(`[Noisemaker] Deprecated: spaces in enum key "${name}" for "${key}". Use camelCase instead.`)
             }
         }
 

@@ -40,15 +40,15 @@ export default class Media extends Effect {
       default: 4,
       uniform: "position",
       choices: {
-        "top left": 0,
-        "top center": 1,
-        "top right": 2,
-        "mid left": 3,
-        "mid center": 4,
-        "mid right": 5,
-        "bottom left": 6,
-        "bottom center": 7,
-        "bottom right": 8
+        topLeft: 0,
+        topCenter: 1,
+        topRight: 2,
+        midLeft: 3,
+        midCenter: 4,
+        midRight: 5,
+        bottomLeft: 6,
+        bottomCenter: 7,
+        bottomRight: 8
       },
       ui: {
         label: "position",
@@ -61,10 +61,10 @@ export default class Media extends Effect {
       default: 0,
       uniform: "tiling",
       choices: {
-        "none": 0,
-        "horiz and vert": 1,
-        "horiz only": 2,
-        "vert only": 3
+        none: 0,
+        horizAndVert: 1,
+        horizOnly: 2,
+        vertOnly: 3
       },
       ui: {
         label: "tiling",
@@ -77,18 +77,18 @@ export default class Media extends Effect {
       default: 0,
       uniform: "flip",
       choices: {
-        "none": 0,
-        "all": 1,
-        "horizontal": 2,
-        "vertical": 3,
-        "mirror l→r": 11,
-        "mirror l←r": 12,
-        "mirror u→d": 13,
-        "mirror u←d": 14,
-        "mirror l→r u→d": 15,
-        "mirror l→r u←d": 16,
-        "mirror l←r u→d": 17,
-        "mirror l←r u←d": 18
+        none: 0,
+        all: 1,
+        horizontal: 2,
+        vertical: 3,
+        mirrorLtoR: 11,
+        mirrorRtoL: 12,
+        mirrorUtoD: 13,
+        mirrorDtoU: 14,
+        mirrorLtoRUtoD: 15,
+        mirrorLtoRDtoU: 16,
+        mirrorRtoLUtoD: 17,
+        mirrorRtoLDtoU: 18
       },
       ui: {
         label: "flip/mirror",

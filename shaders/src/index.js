@@ -17,6 +17,19 @@ export { registerEffect, getEffect, getAllEffects } from './runtime/registry.js'
 export { expand } from './runtime/expander.js'
 export { analyzeLiveness, allocateResources } from './runtime/resources.js'
 
+// Tags & Namespaces
+export {
+    TAG_DEFINITIONS,
+    NAMESPACE_DESCRIPTIONS,
+    VALID_TAGS,
+    VALID_NAMESPACES,
+    isValidTag,
+    isValidNamespace,
+    getTagDefinition,
+    getNamespaceDescription,
+    validateTags
+} from './runtime/tags.js'
+
 // Backend & Pipeline
 export { Backend } from './runtime/backend.js'
 export { WebGL2Backend } from './runtime/backends/webgl2.js'

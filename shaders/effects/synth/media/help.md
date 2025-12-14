@@ -6,9 +6,9 @@ Video/camera input with transform controls. Displays camera or uploaded media wi
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| position | int | mid center | top left/center/right, mid left/center/right, bottom left/center/right | Anchor position |
-| tiling | int | none | none, horiz and vert, horiz only, vert only | Tiling mode |
-| flip | int | none | none, all, horizontal, vertical, mirror l→r, mirror l←r, mirror u→d, mirror u←d, etc. | Flip/mirror mode |
+| position | int | midCenter | topLeft/topCenter/topRight, midLeft/midCenter/midRight, bottomLeft/bottomCenter/bottomRight | Anchor position |
+| tiling | int | none | none, horizAndVert, horizOnly, vertOnly | Tiling mode |
+| flip | int | none | none, all, horizontal, vertical, mirrorLtoR, mirrorRtoL, mirrorUtoD, mirrorDtoU, etc. | Flip/mirror mode |
 | scaleAmt | float | 100 | 25–400 | Scale percentage |
 | rotation | float | 0 | -180–180 | Rotation angle |
 | offsetX | float | 0 | -100–100 | Horizontal offset |

@@ -19,6 +19,10 @@ DESCRIPTION_RE = re.compile(r'description[:\s=]+["\']([^"\']*)["\']')
 # Matches both object literal (externalTexture: "...") and class field (externalTexture = "...") syntax
 EXTERNAL_TEXTURE_RE = re.compile(r'externalTexture[:\s=]+["\']([^"\']*)["\']')
 
+# Regex to extract tags array from definition.js
+# Matches: tags: ["tag1", "tag2"] or tags = ["tag1", "tag2"]
+TAGS_RE = re.compile(r'tags[:\s=]\s*\[([^\]]*)\]')
+
 # Regex to detect tex global with type: "surface"
 # Matches: tex: { ... type: "surface" ... } or tex = { ... type: "surface" ... }
 TEX_SURFACE_RE = re.compile(r'tex[:\s=]\s*\{[^}]*type[:\s=]\s*["\']surface["\']', re.DOTALL)
@@ -71,6 +75,24 @@ def has_tex_surface(effect_dir):
     except Exception:
         pass
     return False
+
+
+def extract_tags(effect_dir):
+    """Extract tags array from definition.js."""
+    definition_file = effect_dir / "definition.js"
+    if not definition_file.exists():
+        return None
+    try:
+        content = definition_file.read_text(encoding="utf-8")
+        match = TAGS_RE.search(content)
+        if match:
+            # Parse the array contents - extract quoted strings
+            array_content = match.group(1)
+            tags = re.findall(r'["\']([^"\']+)["\']', array_content)
+            return tags if tags else None
+    except Exception:
+        pass
+    return None
 
 
 def is_starter_effect(effect_dir):
@@ -184,6 +206,10 @@ def main():
             # Check if effect has tex global with type surface
             if has_tex_surface(effect_dir):
                 effect_manifest["hasTex"] = True
+            # Extract and include tags if available
+            tags = extract_tags(effect_dir)
+            if tags:
+                effect_manifest["tags"] = tags
             # Include all effects that have a definition.js, even if they have no shaders
             manifest[effect_id] = effect_manifest
     

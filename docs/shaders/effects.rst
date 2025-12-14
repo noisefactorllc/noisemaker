@@ -82,6 +82,97 @@ Effect definitions are created using the ``Effect`` constructor with a configura
   * ``iterations``: Number of times to run this pass.
   * ``pingpong``: Array of two texture names to swap input/output roles during iterations.
 
+2b. Tags and Namespaces
+-----------------------
+
+Effects can be categorized using **tags** and **namespaces** to help users discover and reason about available effects.
+
+**Namespaces**
+
+Namespace is the primary categorization and acts as an implicit tag. Each effect belongs to exactly one namespace.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 80
+
+   * - Namespace
+     - Description
+   * - ``classicNoisedeck``
+     - Complex shaders ported from the original noisedeck.app pipeline
+   * - ``classicNoisemaker``
+     - Shader implementations of classic noisemaker effects
+   * - ``synth``
+     - Generator modules
+   * - ``mixer``
+     - Blend two sources from A to B
+   * - ``filter``
+     - Apply special effects to input
+   * - ``stateful``
+     - Feedback-like effects that keep state
+   * - ``vol``
+     - Experimental volumetric pipeline
+
+**Tags**
+
+Tags are curated labels for additional categorization. An effect may have multiple tags. Tags are optional and defined globally.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 85
+
+   * - Tag
+     - Description
+   * - ``color``
+     - Color manipulation
+   * - ``distort``
+     - Input distortion
+   * - ``geometric``
+     - Shapes
+   * - ``math``
+     - Very mathy
+   * - ``noise``
+     - Very noisy
+   * - ``transform``
+     - Moves stuff around
+   * - ``util``
+     - Utility function
+
+**Usage in Effect Definitions:**
+
+.. code-block:: javascript
+
+   import { Effect } from '../../../src/runtime/effect.js';
+
+   export default new Effect({
+     name: "Warp",
+     namespace: "filter",
+     func: "warp",
+     tags: ["distort", "noise"],  // Multiple tags allowed
+
+     globals: { /* ... */ },
+     passes: [ /* ... */ ]
+   });
+
+**Tag Validation:**
+
+Tags are validated against the curated list in ``shaders/src/runtime/tags.js``. Invalid tags will be flagged during development. The ``validateTags()`` function can be used for programmatic validation:
+
+.. code-block:: javascript
+
+   import { validateTags, isValidTag } from '../../../src/runtime/tags.js';
+
+   // Check a single tag
+   isValidTag('color');  // true
+   isValidTag('foobar'); // false
+
+   // Validate an array of tags
+   validateTags(['color', 'distort']);  // { valid: true, invalidTags: [] }
+   validateTags(['color', 'invalid']);  // { valid: false, invalidTags: ['invalid'] }
+
+**UI Rendering:**
+
+In the demo UI, tags are rendered to the right of the namespace badge. Namespace appears prominently (as the "important tag"), with additional tags displayed in a lighter style.
+
 3. On-Disk Layout
 -----------------
 
@@ -314,6 +405,7 @@ The ``Effect`` constructor accepts a configuration object with the following pro
 
 - ``namespace`` (string): Logical grouping (e.g., ``"filter"``, ``"synth"``, ``"mixer"``)
 - ``func`` (string): DSL function name (defaults to lowercase ``name``)
+- ``tags`` (array): Curated tags for categorization (see section 2b)
 - ``globals`` (object): Uniform parameters exposed to shaders and UI
 - ``textures`` (object): Internal render targets
 - ``onInit`` (function): Lifecycle hook called once on load
@@ -392,6 +484,11 @@ The following normative shape defines the Effect configuration object. Validatio
        "name": { "type": "string", "pattern": "^[A-Za-z0-9_\-]{1,64}$" },
        "namespace": { "type": "string", "pattern": "^[a-zA-Z0-9]+$", "default": "synth" },
        "func": { "type": "string", "description": "DSL function name for this effect" },
+       "tags": { 
+         "type": "array", 
+         "items": { "type": "string", "enum": ["color", "distort", "geometric", "math", "noise", "transform", "util"] },
+         "description": "Curated tags for effect categorization"
+       },
        "version": { "type": "string", "pattern": "^\d+\.\d+\.\d+$", "default": "1.0.0" },
        "globals": { "type": "object", "additionalProperties": { "$ref": "#/definitions/uniformSpec" } },
        "textures": { "type": "object", "additionalProperties": { "$ref": "#/definitions/textureSpec" } },
