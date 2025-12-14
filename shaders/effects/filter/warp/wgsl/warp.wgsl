@@ -71,7 +71,6 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let aspectRatio = texSize.x / texSize.y;
     var uv = pos.xy / texSize;
-    uv.y = 1.0 - uv.y;
 
     let strength = uniforms.strength;
     let scale = uniforms.scale;

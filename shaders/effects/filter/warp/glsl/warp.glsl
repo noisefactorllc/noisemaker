@@ -71,7 +71,6 @@ float perlinNoise(vec2 st, vec2 noiseScale) {
 void main() {
     float aspectRatio = resolution.x / resolution.y;
     vec2 uv = gl_FragCoord.xy / resolution;
-    uv.y = 1.0 - uv.y;
 
     // Perlin warp
     uv.x += (perlinNoise(uv * vec2(aspectRatio, 1.0) + seed, vec2(abs(scale * 3.0))) - 0.5) * strength * 0.01;

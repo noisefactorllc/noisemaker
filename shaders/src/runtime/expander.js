@@ -161,7 +161,9 @@ export function expand(compilationResult, options = {}) {
 
                                     @fragment
                                     fn main(in: FragmentInput) -> @location(0) vec4<f32> {
-                                        return textureSample(src, srcSampler, in.uv);
+                                        // Flip Y to match WebGPU texture coordinate convention
+                                        let uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
+                                        return textureSample(src, srcSampler, uv);
                                     }
                                 `,
                                 fragmentEntryPoint: 'main'
@@ -665,34 +667,6 @@ export function expand(compilationResult, options = {}) {
                     uniforms: {}
                 }
                 passes.push(blitPass)
-
-                if (!programs['blit']) {
-                programs['blit'] = {
-                    fragment: `#version 300 es
-                        precision highp float;
-                        in vec2 v_texCoord;
-                        uniform sampler2D src;
-                        out vec4 fragColor;
-                        void main() {
-                            fragColor = texture(src, v_texCoord);
-                        }`,
-                    wgsl: `
-                        struct FragmentInput {
-                            @builtin(position) position: vec4<f32>,
-                            @location(0) uv: vec2<f32>,
-                        }
-
-                        @group(0) @binding(0) var src: texture_2d<f32>;
-                        @group(0) @binding(1) var srcSampler: sampler;
-
-                        @fragment
-                        fn main(in: FragmentInput) -> @location(0) vec4<f32> {
-                            return textureSample(src, srcSampler, in.uv);
-                        }
-                    `,
-                    fragmentEntryPoint: 'main'
-                }
-            }
             }
         }
     }
