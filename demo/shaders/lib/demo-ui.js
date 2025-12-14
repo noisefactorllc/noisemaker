@@ -379,6 +379,7 @@ export class UIController {
         // State
         this._parameterValues = {};
         this._effectParameterValues = {}; // Map: step_N -> {param: value}
+        this._dependentControls = []; // Array of {element, effectKey, paramKey, enabledBy, enabledByKey}
         this._shaderOverrides = {}; // Map: stepIndex -> { programName: { glsl?, wgsl?, fragment?, vertex? } }
         this._writeTargetOverrides = {}; // Map: planIndex -> surfaceName (e.g., 'o0', 'f1')
         this._writeStepTargetOverrides = {}; // Map: stepIndex -> surfaceName for mid-chain writes
@@ -1387,8 +1388,24 @@ export class UIController {
         // Clean up existing media inputs before rebuilding controls
         this.stopAllMedia();
         
+        // PRESERVE existing parameter values keyed by effectName+stepIndex
+        const previousValues = {};
+        const previousEffectNames = {};
+        if (this._effectParameterValues) {
+            for (const [key, values] of Object.entries(this._effectParameterValues)) {
+                previousValues[key] = { ...values };
+            }
+        }
+        if (this._parsedDslStructure) {
+            for (const effectInfo of this._parsedDslStructure) {
+                const key = `step_${effectInfo.stepIndex}`;
+                previousEffectNames[key] = effectInfo.effectKey || effectInfo.name;
+            }
+        }
+        
         this._controlsContainer.innerHTML = '';
         this._effectParameterValues = {};
+        this._dependentControls = [];
         this._writeTargetOverrides = {};
         this._writeStepTargetOverrides = {};
         this._readSourceOverrides = {};
@@ -1791,7 +1808,17 @@ export class UIController {
             controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; column-gap: 1em; row-gap: 0.5rem;';
 
             const effectKey = `step_${effectInfo.stepIndex}`;
-            this._effectParameterValues[effectKey] = {};
+            
+            // Check if this step had the SAME effect before - if so, restore its values
+            const currentEffectName = effectInfo.effectKey || effectInfo.name;
+            const previousEffectName = previousEffectNames[effectKey];
+            if (previousEffectName === currentEffectName && previousValues[effectKey]) {
+                // Same effect at same position - restore all previous values
+                this._effectParameterValues[effectKey] = { ...previousValues[effectKey] };
+            } else {
+                // Different effect or new step - start fresh
+                this._effectParameterValues[effectKey] = {};
+            }
             
             // Initialize _skip from parsed args if present
             if (effectInfo.args?._skip === true) {
@@ -1877,6 +1904,9 @@ export class UIController {
             moduleDiv.appendChild(contentDiv);
             this._controlsContainer.appendChild(moduleDiv);
         }
+        
+        // Update initial disabled state of dependent controls
+        this._updateDependentControls();
     }
 
     /**
@@ -2273,17 +2303,43 @@ export class UIController {
      * @private
      */
     _createControlGroup(key, spec, effectInfo, effectKey) {
+        // Skip hidden controls (control: false hides from UI but preserves metadata)
+        if (spec.ui?.control === false) {
+            return null;
+        }
+        
         const controlGroup = document.createElement('div');
         controlGroup.className = 'control-group';
 
         const label = document.createElement('label');
         label.className = 'control-label';
         label.textContent = spec.ui?.label || key;
+        
+        // Add hint as tooltip if provided
+        if (spec.ui?.hint) {
+            label.title = spec.ui.hint;
+        }
         controlGroup.appendChild(label);
 
-        // Get value from DSL args or use default
-        let value = effectInfo.args[key];
-        if (value === undefined) {
+        // Track dependent controls for dynamic enable/disable
+        if (spec.ui?.enabledBy) {
+            this._dependentControls.push({
+                element: controlGroup,
+                effectKey,
+                paramKey: key,
+                enabledBy: spec.ui.enabledBy
+            });
+        }
+
+        // Get value: prefer already-preserved value, then DSL args, then default
+        let value;
+        const preservedValue = this._effectParameterValues[effectKey]?.[key];
+        if (preservedValue !== undefined) {
+            // Use preserved value from previous session (e.g., when adding another effect)
+            value = preservedValue;
+        } else if (effectInfo.args[key] !== undefined) {
+            value = effectInfo.args[key];
+        } else {
             value = cloneParamValue(spec.default);
         }
         
@@ -2315,8 +2371,12 @@ export class UIController {
         // Check for button control first (momentary boolean button)
         if (spec.ui?.control === 'button') {
             this._createButtonControl(controlGroup, key, spec, effectKey);
-        } else if (spec.type === 'boolean') {
+        } else if (spec.ui?.control === 'checkbox' || spec.type === 'boolean') {
+            // checkbox control for int uniforms that act as booleans (0/1)
             this._createBooleanControl(controlGroup, key, value, effectKey);
+        } else if (spec.ui?.control === 'color' || spec.type === 'vec4' || spec.type === 'vec3') {
+            // Color picker for vec3/vec4 or explicit color control
+            this._createColorControl(controlGroup, key, value, effectKey, spec);
         } else if (spec.choices) {
             this._createChoicesControl(controlGroup, key, spec, value, effectKey);
         } else if (spec.enum && spec.type === 'int') {
@@ -2325,8 +2385,6 @@ export class UIController {
             this._createMemberControl(controlGroup, key, spec, value, effectKey);
         } else if (spec.type === 'float' || spec.type === 'int') {
             this._createSliderControl(controlGroup, key, spec, value, effectKey);
-        } else if (spec.type === 'vec4') {
-            this._createColorControl(controlGroup, key, value, effectKey);
         } else if (spec.type === 'surface') {
             this._createSurfaceControl(controlGroup, key, spec, value, effectKey);
         }
@@ -2404,6 +2462,13 @@ export class UIController {
     _createChoicesControl(container, key, spec, value, effectKey) {
         const select = document.createElement('select');
         select.className = 'control-select';
+
+        // Validate: spaces in enum keys are BANNED
+        for (const name of Object.keys(spec.choices)) {
+            if (name.includes(' ')) {
+                throw new Error(`Spaces in enum keys are banned: "${name}" in choices for "${key}". Use camelCase instead.`);
+            }
+        }
 
         let selectedValue = null;
         let optionIndex = 0;
@@ -2569,24 +2634,35 @@ export class UIController {
     }
     
     /** @private */
-    _createColorControl(container, key, value, effectKey) {
+    _createColorControl(container, key, value, effectKey, spec) {
         const colorInput = document.createElement('input');
         colorInput.type = 'color';
+        colorInput.className = 'control-color';
         
         if (Array.isArray(value)) {
             const toHex = (n) => Math.round(n * 255).toString(16).padStart(2, '0');
             colorInput.value = `#${toHex(value[0])}${toHex(value[1])}${toHex(value[2])}`;
         }
 
+        const isVec4 = spec?.type === 'vec4';
+
         colorInput.addEventListener('input', (e) => {
             const hex = e.target.value;
             const r = parseInt(hex.slice(1, 3), 16) / 255;
             const g = parseInt(hex.slice(3, 5), 16) / 255;
             const b = parseInt(hex.slice(5, 7), 16) / 255;
-            const a = Array.isArray(this._effectParameterValues[effectKey][key]) 
-                ? this._effectParameterValues[effectKey][key][3] 
-                : 1;
-            this._effectParameterValues[effectKey][key] = [r, g, b, a];
+            
+            if (isVec4) {
+                // For vec4, preserve alpha or default to 1
+                const currentVal = this._effectParameterValues[effectKey][key];
+                const a = (Array.isArray(currentVal) && currentVal.length >= 4 && typeof currentVal[3] === 'number')
+                    ? currentVal[3]
+                    : 1;
+                this._effectParameterValues[effectKey][key] = [r, g, b, a];
+            } else {
+                // For vec3, only store 3 components
+                this._effectParameterValues[effectKey][key] = [r, g, b];
+            }
             this._onControlChange();
         });
         container.appendChild(colorInput);
@@ -2647,10 +2723,61 @@ export class UIController {
     /** @private Called when a control value changes */
     _onControlChange() {
         this._applyEffectParameterValues();
+        this._updateDependentControls();
         this._updateDslFromEffectParams();
         if (this._onControlChangeCallback) {
             this._onControlChangeCallback();
         }
+    }
+    
+    /**
+     * Update disabled state of dependent controls based on their enabledBy values
+     * @private
+     */
+    _updateDependentControls() {
+        for (const dep of this._dependentControls) {
+            const { element, effectKey, enabledBy } = dep;
+            const params = this._effectParameterValues[effectKey];
+            if (!params) continue;
+            
+            const enablerValue = params[enabledBy];
+            const isEnabled = this._isControlEnabled(enablerValue);
+            
+            if (isEnabled) {
+                element.classList.remove('disabled');
+            } else {
+                element.classList.add('disabled');
+            }
+        }
+    }
+    
+    /**
+     * Check if a control's enabler value means the dependent control should be enabled
+     * @private
+     */
+    _isControlEnabled(value) {
+        if (value === undefined || value === null) return false;
+        
+        // Boolean: must be true
+        if (typeof value === 'boolean') return value;
+        
+        // Number: must be non-zero
+        if (typeof value === 'number') return value !== 0;
+        
+        // Array (vec3/vec4): check if any component differs from neutral 0.5
+        if (Array.isArray(value)) {
+            // For color wheels, neutral is [0.5, 0.5, 0.5] or [0.5, 0.5, 0.5, 1]
+            return value.some((v, i) => {
+                if (i === 3) return false; // Alpha doesn't count
+                return Math.abs(v - 0.5) > 0.01;
+            });
+        }
+        
+        // String: non-empty
+        if (typeof value === 'string') return value.length > 0;
+        
+        // Object: truthy
+        return !!value;
     }
     
     /**
@@ -2713,10 +2840,14 @@ export class UIController {
                     }
                     
                     const uniformName = spec?.uniform || paramName;
+                    const converted = this._renderer.convertParameterForUniform(value, spec);
+                    const finalValue = Array.isArray(converted) ? converted.slice() : converted;
                     
+                    // Update ONLY this step's pass.uniforms - NOT globalUniforms
+                    // This prevents one effect from stomping another effect's uniforms
+                    // when they share the same uniform names (e.g., two grade() effects)
                     if (uniformName in pass.uniforms) {
-                        const converted = this._renderer.convertParameterForUniform(value, spec);
-                        pass.uniforms[uniformName] = Array.isArray(converted) ? converted.slice() : converted;
+                        pass.uniforms[uniformName] = finalValue;
                     }
                 }
             }

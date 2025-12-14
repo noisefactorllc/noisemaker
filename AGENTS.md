@@ -1,5 +1,16 @@
 You're working on Noisemaker, a procedural noise generation algorithm playground, written in Python. Read the README.md.
 
+## Critical Rules
+
+### ONE WAY ONLY
+
+You are **BANNED** from adding more than one way to do something. If a pattern exists, use it. Do not add aliases, alternatives, or "also supports" options.
+
+Examples of violations:
+- Adding `group:` when `category:` already exists
+- Adding `colour:` when `color:` already exists  
+- Supporting both camelCase and snake_case for the same field
+
 ## Bootstrapping the Python environment
 
 **Note:** Noisemaker requires Python 3.10+. Modern build system using pyproject.toml.

@@ -5,7 +5,7 @@ export default new Effect({
   namespace: "filter",
   func: "r",
 
-  description: "Red channel adjustment",
+  description: "Red channel isolation",
   globals: {
     "scale": {
         "type": "float",

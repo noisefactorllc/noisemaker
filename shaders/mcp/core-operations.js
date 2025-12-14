@@ -2235,14 +2235,14 @@ export async function checkEffectStructure(effectId, options = {}) {
         let globalsSection = ''
 
         // First try to match empty globals on a single line
-        const emptyGlobalsMatch = definitionSource.match(/globals\s*=\s*\{\s*\};/)
+        const emptyGlobalsMatch = definitionSource.match(/globals\s*[:=]\s*\{\s*\}[;,]?/)
         if (emptyGlobalsMatch) {
             // Empty globals, nothing to check
             globalsSection = ''
         } else {
             // Try to match multi-line globals block
-            // The block ends with }; at the same indent level as globals (2 spaces for class properties)
-            const multiLineMatch = definitionSource.match(/globals\s*=\s*\{([\s\S]*?)\n {2}\};/)
+            // The block ends with }, or }; at the same indent level as globals (2 spaces for class properties)
+            const multiLineMatch = definitionSource.match(/globals\s*[:=]\s*\{([\s\S]*?)\n {2}\}[;,]?/)
             globalsSection = multiLineMatch ? multiLineMatch[1] : ''
         }
 
@@ -2371,6 +2371,21 @@ export async function checkEffectStructure(effectId, options = {}) {
                         reason: keyCheck.reason
                     })
                 }
+            }
+        }
+
+        // 5b. Check UI category names - MUST be camelCase
+        // Categories are specified in ui.category: "categoryName"
+        const categoryMatches = globalsSection.matchAll(/category:\s*["']([^"']+)["']/g)
+        for (const match of categoryMatches) {
+            const categoryName = match[1]
+            const categoryCheck = checkCamelCase(categoryName)
+            if (!categoryCheck.valid) {
+                result.namingIssues.push({
+                    type: 'category',
+                    name: categoryName,
+                    reason: categoryCheck.reason
+                })
             }
         }
 

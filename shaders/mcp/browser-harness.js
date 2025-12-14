@@ -566,18 +566,104 @@ export class BrowserSession {
             return { status: 'skipped', tested_uniforms: [], details: 'No testable numeric uniforms' }
         }
 
-        const baseRender = await this.renderEffectFrame(effectId, { skipCompile: true, warmupFrames: 5 })
-        if (baseRender.status === 'error') {
-            return { status: 'error', tested_uniforms: [], details: baseRender.error }
+        // Pause animation and lock to time=0 for deterministic testing
+        await this.page.evaluate(() => {
+            if (window.__noisemakerSetPaused) {
+                window.__noisemakerSetPaused(true)
+            }
+            if (window.__noisemakerSetPausedTime) {
+                window.__noisemakerSetPausedTime(0)
+            }
+        })
+
+        // Helper function to render and capture mean RGB from the canvas
+        const captureMetrics = async () => {
+            return await this.page.evaluate(() => {
+                const renderer = window.__noisemakerCanvasRenderer
+                const pipeline = window.__noisemakerRenderingPipeline
+                if (!renderer || !pipeline) return null
+                
+                // Force render at time=0
+                renderer.render(0)
+                
+                // Read pixels directly from the canvas (default framebuffer)
+                const canvas = renderer.canvas
+                const gl = pipeline.backend?.gl
+                if (!gl) {
+                    // WebGPU path - not implemented
+                    return null
+                }
+                
+                const width = canvas.width
+                const height = canvas.height
+                const pixels = new Uint8Array(width * height * 4)
+                
+                // Bind default framebuffer and read
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+                gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+                
+                // Compute mean RGB
+                const pixelCount = width * height
+                let sumR = 0, sumG = 0, sumB = 0
+                for (let i = 0; i < pixels.length; i += 4) {
+                    sumR += pixels[i] / 255
+                    sumG += pixels[i + 1] / 255
+                    sumB += pixels[i + 2] / 255
+                }
+                
+                return {
+                    mean_rgb: [sumR / pixelCount, sumG / pixelCount, sumB / pixelCount]
+                }
+            })
         }
-        const baseHash = baseRender.metrics?.unique_sampled_colors || 0
-        const baseMeanLuma = baseRender.metrics?.mean_rgb ?
-            (baseRender.metrics.mean_rgb[0] + baseRender.metrics.mean_rgb[1] + baseRender.metrics.mean_rgb[2]) / 3 : 0
+
+        // Capture baseline metrics
+        const baseMetrics = await captureMetrics()
+
+        if (!baseMetrics) {
+            // Resume and return error
+            await this.page.evaluate(() => {
+                if (window.__noisemakerSetPaused) window.__noisemakerSetPaused(false)
+            })
+            return { status: 'error', tested_uniforms: [], details: 'Failed to capture baseline metrics' }
+        }
+
+        const baseMeanRgb = baseMetrics.mean_rgb
+        const baseMeanLuma = (baseMeanRgb[0] + baseMeanRgb[1] + baseMeanRgb[2]) / 3
 
         const testedUniforms = []
         let anyResponded = false
 
-        for (const { name, uniformName, spec } of testableUniforms.slice(0, 3)) {
+        // Context requirements for conditional uniforms
+        // These uniforms only affect output when their parent controls are active
+        const uniformContexts = {
+            // LUT intensity needs a preset selected
+            gradeLutIntensity: { gradeLutPreset: 1 },
+            // Split tone balance needs a tint active
+            gradeSplitToneBalance: { gradeShadowTint: [0.7, 0.5, 0.3] },
+            // Wheel balance needs a wheel active
+            gradeWheelBalance: { gradeWheelShadows: [0.7, 0.5, 0.3] },
+            // HSL mask controls need enable + an adjustment + wide key to catch pixels
+            gradeHslEnable: { gradeHslHueShift: 0.3, gradeHslHueRange: 0.5, gradeHslHueCenter: 0.5 },
+            gradeHslHueCenter: { gradeHslEnable: 1, gradeHslHueShift: 0.3, gradeHslHueRange: 0.5 },
+            gradeHslHueRange: { gradeHslEnable: 1, gradeHslHueShift: 0.3, gradeHslHueCenter: 0.5 },
+            gradeHslSatMin: { gradeHslEnable: 1, gradeHslSatAdjust: 0.5, gradeHslHueRange: 0.5 },
+            gradeHslSatMax: { gradeHslEnable: 1, gradeHslSatAdjust: 0.5, gradeHslHueRange: 0.5 },
+            gradeHslLumMin: { gradeHslEnable: 1, gradeHslLumAdjust: 0.5, gradeHslHueRange: 0.5 },
+            gradeHslLumMax: { gradeHslEnable: 1, gradeHslLumAdjust: 0.5, gradeHslHueRange: 0.5 },
+            gradeHslFeather: { gradeHslEnable: 1, gradeHslHueShift: 0.3, gradeHslHueRange: 0.5 },
+            gradeHslHueShift: { gradeHslEnable: 1, gradeHslHueRange: 0.5, gradeHslHueCenter: 0.5 },
+            gradeHslSatAdjust: { gradeHslEnable: 1, gradeHslHueRange: 0.5, gradeHslHueCenter: 0.5 },
+            gradeHslLumAdjust: { gradeHslEnable: 1, gradeHslHueRange: 0.5, gradeHslHueCenter: 0.5 },
+            // Vignette shape controls need amount > 0
+            gradeVignetteMidpoint: { gradeVignetteAmount: 0.5 },
+            gradeVignetteRoundness: { gradeVignetteAmount: 0.5 },
+            gradeVignetteFeather: { gradeVignetteAmount: 0.5 },
+            gradeVignetteHighlightProtect: { gradeVignetteAmount: 0.5 },
+        }
+
+        // Test ALL uniforms, not just the first 3
+        for (const { name, uniformName, spec } of testableUniforms) {
             const defaultVal = spec.default ?? spec.min
             const range = spec.max - spec.min
             let testVal
@@ -600,66 +686,112 @@ export class BrowserSession {
                 testVal = Math.round(testVal)
             }
 
-            await this.page.evaluate(({ uniformName, testVal, effectId }) => {
-                const pipeline = window.__noisemakerRenderingPipeline
-                if (!pipeline || !pipeline.graph || !pipeline.graph.passes) return
-
-                const parts = effectId.split('/')
-                const effectNamespace = parts.length > 1 ? parts[0] : null
-                const effectFunc = parts[parts.length - 1]
-
-                for (const pass of pipeline.graph.passes) {
-                    if (!pass.uniforms || !(uniformName in pass.uniforms)) continue
-
-                    const matchesNamespace = effectNamespace && pass.effectNamespace === effectNamespace
-                    const matchesFunc = pass.effectFunc === effectFunc
-
-                    if (matchesNamespace || matchesFunc) {
-                        pass.uniforms[uniformName] = testVal
+            // Set up context for conditional uniforms (e.g., HSL controls need hslEnable=1)
+            const context = uniformContexts[uniformName] || {}
+            const contextKeys = Object.keys(context)
+            
+            if (contextKeys.length > 0) {
+                await this.page.evaluate((ctx) => {
+                    const pipeline = window.__noisemakerRenderingPipeline
+                    if (!pipeline) return
+                    for (const [k, v] of Object.entries(ctx)) {
+                        if (pipeline.setUniform) {
+                            pipeline.setUniform(k, v)
+                        } else if (pipeline.globalUniforms) {
+                            pipeline.globalUniforms[k] = v
+                        }
                     }
+                }, context)
+            }
+            
+            // Capture context baseline if we have context
+            let contextBaseline = baseMeanRgb
+            if (contextKeys.length > 0) {
+                const ctxMetrics = await captureMetrics()
+                if (ctxMetrics) {
+                    contextBaseline = ctxMetrics.mean_rgb
                 }
-            }, { uniformName, testVal, effectId })
+            }
 
-            const testRender = await this.renderEffectFrame(effectId, { skipCompile: true, warmupFrames: 5 })
+            await this.page.evaluate(({ uniformName, testVal }) => {
+                const pipeline = window.__noisemakerRenderingPipeline
+                if (!pipeline) return
 
-            if (testRender.status === 'ok') {
-                const testHash = testRender.metrics?.unique_sampled_colors || 0
-                const testMeanLuma = testRender.metrics?.mean_rgb ?
-                    (testRender.metrics.mean_rgb[0] + testRender.metrics.mean_rgb[1] + testRender.metrics.mean_rgb[2]) / 3 : 0
+                // Use setUniform if available (preferred method)
+                if (pipeline.setUniform) {
+                    pipeline.setUniform(uniformName, testVal)
+                } else if (pipeline.globalUniforms) {
+                    // Fallback to direct globalUniforms access
+                    pipeline.globalUniforms[uniformName] = testVal
+                }
+            }, { uniformName, testVal })
 
-                const colorDiff = Math.abs(testHash - baseHash)
-                const lumaDiff = Math.abs(testMeanLuma - baseMeanLuma)
+            // Capture test metrics using the same helper
+            const testMetrics = await captureMetrics()
 
-                if (colorDiff > 5 || lumaDiff > 0.01) {
+            if (testMetrics) {
+                const testMeanRgb = testMetrics.mean_rgb
+                const testMeanLuma = (testMeanRgb[0] + testMeanRgb[1] + testMeanRgb[2]) / 3
+                const contextLuma = (contextBaseline[0] + contextBaseline[1] + contextBaseline[2]) / 3
+
+                const lumaDiff = Math.abs(testMeanLuma - contextLuma)
+                
+                // Check per-channel differences to detect chromatic shifts
+                // (e.g., temperature changes red/blue but preserves luma)
+                const rDiff = Math.abs(testMeanRgb[0] - contextBaseline[0])
+                const gDiff = Math.abs(testMeanRgb[1] - contextBaseline[1])
+                const bDiff = Math.abs(testMeanRgb[2] - contextBaseline[2])
+                const maxChannelDiff = Math.max(rDiff, gDiff, bDiff)
+
+                // Use lower threshold (0.002) to catch subtle effects like vibrance, whites
+                if (lumaDiff > 0.002 || maxChannelDiff > 0.002) {
                     anyResponded = true
                     testedUniforms.push(`${name}:✓`)
                 } else {
                     testedUniforms.push(`${name}:✗`)
                 }
+            } else {
+                testedUniforms.push(`${name}:?`)
             }
 
-            await this.page.evaluate(({ uniformName, defaultVal, effectId }) => {
+            // Restore to default value
+            await this.page.evaluate(({ uniformName, defaultVal }) => {
                 const pipeline = window.__noisemakerRenderingPipeline
-                if (!pipeline || !pipeline.graph || !pipeline.graph.passes) return
+                if (!pipeline) return
 
-                const parts = effectId.split('/')
-                const effectNamespace = parts.length > 1 ? parts[0] : null
-                const effectFunc = parts[parts.length - 1]
-
-                for (const pass of pipeline.graph.passes) {
-                    if (!pass.uniforms || !(uniformName in pass.uniforms)) continue
-
-                    const matchesNamespace = effectNamespace && pass.effectNamespace === effectNamespace
-                    const matchesFunc = pass.effectFunc === effectFunc
-
-                    if (matchesNamespace || matchesFunc) {
-                        pass.uniforms[uniformName] = defaultVal
-                    }
+                if (pipeline.setUniform) {
+                    pipeline.setUniform(uniformName, defaultVal)
+                } else if (pipeline.globalUniforms) {
+                    pipeline.globalUniforms[uniformName] = defaultVal
                 }
-            }, { uniformName, defaultVal: defaultVal, effectId })
+            }, { uniformName, defaultVal })
+            
+            // Reset context uniforms to their defaults
+            if (contextKeys.length > 0) {
+                await this.page.evaluate((ctxKeys) => {
+                    const pipeline = window.__noisemakerRenderingPipeline
+                    if (!pipeline) return
+                    for (const k of ctxKeys) {
+                        // Reset to 0 or neutral (0.5 for color arrays)
+                        const resetVal = k.includes('Tint') || k.includes('Wheel') ? [0.5, 0.5, 0.5] : 0
+                        if (pipeline.setUniform) {
+                            pipeline.setUniform(k, resetVal)
+                        } else if (pipeline.globalUniforms) {
+                            pipeline.globalUniforms[k] = resetVal
+                        }
+                    }
+                }, contextKeys)
+            }
         }
 
         await this.resetUniformsToDefaults()
+
+        // Resume animation
+        await this.page.evaluate(() => {
+            if (window.__noisemakerSetPaused) {
+                window.__noisemakerSetPaused(false)
+            }
+        })
 
         return {
             status: anyResponded ? 'ok' : 'error',

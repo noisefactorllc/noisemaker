@@ -1208,6 +1208,10 @@ export class CanvasRenderer {
             case 'button':
                 return !!value
             case 'int':
+                // Handle boolean values (from checkbox controls) by converting to 0/1
+                if (typeof value === 'boolean') {
+                    return value ? 1 : 0
+                }
                 return typeof value === 'number' ? Math.round(value) : parseInt(value, 10)
             case 'float':
                 return typeof value === 'number' ? value : parseFloat(value)

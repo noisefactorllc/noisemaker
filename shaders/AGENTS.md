@@ -13,6 +13,18 @@ This guide is for AI coding agents working on the Noisemaker shader effects coll
 | WGSL structs | Members end with `,` (comma), not `;` |
 | DOM in render loop | **FORBIDDEN** — use event-driven state updates |
 | Per-frame allocations | Avoid `new Map()`, object spreads — reuse and mutate |
+| One way only | **BANNED** from adding multiple ways to do the same thing |
+
+## Critical Rules
+
+### ONE WAY ONLY
+
+You are **BANNED** from adding more than one way to do something. If a pattern exists, use it. Do not add aliases, alternatives, or "also supports" options.
+
+Examples of violations:
+- Adding `group:` when `category:` already exists
+- Adding `colour:` when `color:` already exists
+- Supporting both camelCase and snake_case for the same field
 
 ## Compute Pass Semantics
 

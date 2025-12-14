@@ -183,6 +183,14 @@ class ToggleSwitch extends HTMLElement {
         track.addEventListener('click', (e) => {
             if (this._disabled) return;
             e.preventDefault();
+            e.stopPropagation();
+            this._toggle();
+        });
+
+        // Also listen on host element for clicks that miss the track
+        this.addEventListener('click', (e) => {
+            if (this._disabled) return;
+            e.preventDefault();
             this._toggle();
         });
 

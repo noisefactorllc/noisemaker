@@ -318,6 +318,17 @@ body.full-bleed-mode #canvas {
   margin-bottom: 0.25rem;
 }
 
+/* Disabled control - dependent on another control that is inactive */
+.control-group.disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.control-group.disabled .control-label::after {
+  content: ' ⚡';
+  font-size: 0.7em;
+}
+
 /* Category group - wraps controls in a category */
 .category-group {
   display: grid;
@@ -374,6 +385,33 @@ body.full-bleed-mode #canvas {
   font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
   color: color-mix(in srgb, var(--color5) 90%, var(--accent3) 10%);
   text-align: left;
+}
+
+/* Color picker input */
+.control-color {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--accent3) 35%, transparent 65%);
+  border-radius: var(--ui-corner-radius-small);
+  background: transparent;
+  cursor: pointer;
+}
+
+.control-color::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.control-color::-webkit-color-swatch {
+  border: none;
+  border-radius: calc(var(--ui-corner-radius-small) - 2px);
+}
+
+.control-color::-moz-color-swatch {
+  border: none;
+  border-radius: calc(var(--ui-corner-radius-small) - 2px);
 }
 
 .control-slider {

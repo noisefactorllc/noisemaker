@@ -143,6 +143,52 @@ To promote consistency and reduce duplication, common enumerations are defined i
 
 The runtime resolves the string value (e.g., ``"linear"``) to its integer counterpart (``1``) before binding to the shader.
 
+4b. UI Categories
+-----------------
+
+Uniform controls can be visually grouped in the demo UI using the ``ui.category`` property. Categories allow complex effects with many parameters to organize their controls into logical sections.
+
+**Category Requirements:**
+
+- Category names **MUST** be camelCase (start with lowercase letter, no spaces/underscores/hyphens)
+- Categories appear in order of first occurrence in the globals object
+- Controls without a category default to ``"general"`` (displayed last)
+- The UI shows category labels on hover and renders separators between groups
+
+**Example:**
+
+.. code-block:: javascript
+
+   globals: {
+     temperature: {
+       type: "float",
+       default: 0,
+       uniform: "gradeTemperature",
+       ui: {
+         label: "Temperature",
+         control: "slider",
+         category: "primary"      // camelCase required
+       }
+     },
+     hslHueCenter: {
+       type: "float",
+       default: 0,
+       uniform: "gradeHslHueCenter",
+       ui: {
+         label: "Hue Center",
+         control: "slider",
+         category: "hslSecondary", // camelCase, no spaces
+         enabledBy: "hslEnable"    // Only enabled when hslEnable is truthy
+       }
+     }
+   }
+
+**BANNED:**
+
+- ``category: "Primary"`` — PascalCase forbidden
+- ``category: "HSL Secondary"`` — spaces forbidden
+- ``category: "hsl_secondary"`` — underscores forbidden
+
 5. Lifecycle Methods (Class-Based Effects)
 -------------------------------------------
 
@@ -374,7 +420,10 @@ The following normative shape defines the Effect configuration object. Validatio
              "type": "object",
              "properties": {
                "label": { "type": "string" },
-               "control": { "type": "string", "enum": ["slider", "dropdown", "color", "checkbox"] }
+               "control": { "type": "string", "enum": ["slider", "dropdown", "color", "checkbox"] },
+               "category": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$", "description": "UI grouping category (MUST be camelCase)" },
+               "hint": { "type": "string", "description": "Tooltip text for the control" },
+               "enabledBy": { "type": "string", "description": "Name of another global that must be truthy for this control to be enabled" }
              }
            },
            "requires": {

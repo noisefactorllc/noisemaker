@@ -5,7 +5,7 @@ export default new Effect({
   namespace: "filter",
   func: "a",
 
-  description: "Alpha transparency blend",
+  description: "Alpha channel isolation",
   globals: {
     "scale": {
         "type": "float",

@@ -5,7 +5,7 @@ export default new Effect({
   namespace: "filter",
   func: "b",
 
-  description: "Blue channel adjustment",
+  description: "Blue channel isolation",
   globals: {
     "scale": {
         "type": "float",
