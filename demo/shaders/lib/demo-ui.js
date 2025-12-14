@@ -220,7 +220,7 @@ export function extractEffectNamesFromDsl(dsl, manifest) {
             }
 
             if (!namespace) {
-                for (const ns of ['classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth', 'stateful']) {
+                for (const ns of ['classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth', 'sim']) {
                     const testId = `${ns}/${name}`
                     if (manifest[testId]) {
                         namespace = ns
@@ -1135,7 +1135,7 @@ export class UIController {
         let searchNs = effect.namespace
         if (effect.namespace === 'classicNoisemaker') {
             searchNs = 'classicNoisemaker, synth'
-        } else if (['filter', 'mixer', 'stateful'].includes(effect.namespace)) {
+        } else if (['filter', 'mixer', 'sim'].includes(effect.namespace)) {
             searchNs = `${effect.namespace}, synth`
         }
         const searchDirective = searchNs ? `search ${searchNs}\n\n` : ''

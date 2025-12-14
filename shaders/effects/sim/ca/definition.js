@@ -2,7 +2,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
   name: "Ca",
-  namespace: "stateful",
+  namespace: "sim",
   func: "ca",
 
   description: "2D cellular automata with rule presets",

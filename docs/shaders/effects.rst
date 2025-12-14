@@ -107,8 +107,8 @@ Namespace is the primary categorization and acts as an implicit tag. Each effect
      - Blend two sources from A to B
    * - ``filter``
      - Apply special effects to input
-   * - ``stateful``
-     - Feedback-like effects that keep state
+   * - ``sim``
+     - Simulations with temporal state
    * - ``vol``
      - Experimental volumetric pipeline
 

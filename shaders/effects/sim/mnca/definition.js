@@ -2,7 +2,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
   name: "Mnca",
-  namespace: "stateful",
+  namespace: "sim",
   func: "mnca",
 
   description: "Multi-neighborhood cellular automata",

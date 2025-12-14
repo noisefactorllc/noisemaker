@@ -266,7 +266,7 @@ Render a frame and get an AI vision description using GPT-4 Vision.
 .. code-block:: json
 
    {
-     "effect_id": "stateful/physarum",
+     "effect_id": "sim/physarum",
      "backend": "webgl2",
      "success": true,
      "description": "Organic slime mold-like trails on a dark background with gradient coloration.",
@@ -366,7 +366,7 @@ Verify that uniform controls affect the visual output.
 .. code-block:: json
 
    {
-     "effect_id": "stateful/physarum",
+     "effect_id": "sim/physarum",
      "backend": "webgl2",
      "success": true,
      "uniforms_tested": 5,
@@ -444,7 +444,7 @@ Test pixel-for-pixel parity between GLSL (WebGL2) and WGSL (WebGPU) shader outpu
 5. Compares pixel arrays, allowing Y-flip compensation
 6. Reports mismatch statistics
 
-**Stateful Effects:**
+**Sim Effects:**
 
 Effects with feedback loops (e.g., ``physarum``, ``worms``) are automatically skipped since their output depends on accumulated state.
 
@@ -591,10 +591,10 @@ Examples
    node test-harness.js --effects "synth/*" --webgl2 --benchmark
 
    # All tests on WebGPU
-   node test-harness.js --effects "stateful/*" --webgpu --all
+   node test-harness.js --effects "sim/*" --webgpu --all
 
    # Structure check (no browser)
-   node test-harness.js --effects "stateful/physarum" --webgl2 --structure
+   node test-harness.js --effects "sim/physarum" --webgl2 --structure
 
 Agent Workflow
 --------------

@@ -11,7 +11,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Cf",
-  namespace: "stateful",
+  namespace: "sim",
   func: "cf",
 
   description: "Convolution feedback with blur and sharpen",

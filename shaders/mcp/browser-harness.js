@@ -27,7 +27,7 @@ import {
     testNoPassthrough,
     testPixelParity,
     isFilterEffect,
-    isStatefulEffect,
+    isSimEffect,
     STATUS_TIMEOUT
 } from './core-operations.js'
 
@@ -840,10 +840,10 @@ export class BrowserSession {
     }
 
     /**
-     * Check if an effect is stateful (uses feedback loops or accumulates state).
+     * Check if an effect is a sim effect (uses feedback loops or accumulates state).
      */
-    async isStatefulEffect(effectId) {
-        return isStatefulEffect(effectId)
+    async isSimEffect(effectId) {
+        return isSimEffect(effectId)
     }
 }
 

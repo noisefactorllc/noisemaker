@@ -6,7 +6,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Dla",
-  namespace: "stateful",
+  namespace: "sim",
   func: "dla",
 
   description: "Diffusion-limited aggregation",

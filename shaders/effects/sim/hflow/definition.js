@@ -20,7 +20,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Hflow",
-  namespace: "stateful",
+  namespace: "sim",
   func: "hflow",
 
   description: "Hydraulic erosion flow simulation",

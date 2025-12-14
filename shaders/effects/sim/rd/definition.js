@@ -2,7 +2,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
   name: "Rd",
-  namespace: "stateful",
+  namespace: "sim",
   func: "rd",
 
   description: "Gray-Scott reaction-diffusion",

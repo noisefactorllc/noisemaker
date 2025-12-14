@@ -160,7 +160,7 @@ These namespaces are actively developed and maintained:
 * ``synth``: Generator effects that create patterns from scratch (noise, shapes, fractals)
 * ``filter``: Single-input effects that transform images (blur, color adjustment, distortion)
 * ``mixer``: Two-input effects that combine images (blend modes, compositing)
-* ``stateful``: Effects with temporal state or feedback (cellular automata, simulations)
+* ``sim``: Simulations with temporal state or feedback (cellular automata, simulations)
 * ``vol``: 3D volumetric generators and processors
 
 Classic Namespaces

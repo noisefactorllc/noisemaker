@@ -1684,39 +1684,39 @@ export async function testNoPassthrough(page, effectId, options = {}) {
 }
 
 /**
- * Stateful effects that are skipped in pixel parity tests.
+ * Sim effects that are skipped in pixel parity tests.
  * These effects use feedback loops or accumulate state across frames,
  * so comparing frame 0 output between backends is not meaningful.
  */
-const STATEFUL_EFFECTS = new Set([
-    'stateful/ca',
-    'stateful/cf',
-    'stateful/dla',
-    'stateful/feedback',
-    'stateful/flow',
-    'stateful/hflow',
-    'stateful/mnca',
-    'stateful/physarum',
-    'stateful/rd',
+const SIM_EFFECTS = new Set([
+    'sim/ca',
+    'sim/cf',
+    'sim/dla',
+    'sim/feedback',
+    'sim/flow',
+    'sim/hflow',
+    'sim/mnca',
+    'sim/physarum',
+    'sim/rd',
 ])
 
 /**
- * Check if an effect is stateful (uses feedback loops or accumulates state).
+ * Check if an effect is a sim effect (uses feedback loops or accumulates state).
  * @param {string} effectId - Effect identifier
  * @returns {boolean}
  */
-export function isStatefulEffect(effectId) {
-    // Effects in the stateful namespace are always stateful
-    if (effectId.startsWith('stateful/')) return true
+export function isSimEffect(effectId) {
+    // Effects in the sim namespace are always sim effects
+    if (effectId.startsWith('sim/')) return true
     // Also check the explicit set for any exceptions
-    return STATEFUL_EFFECTS.has(effectId)
+    return SIM_EFFECTS.has(effectId)
 }
 
 /**
  * Test pixel-for-pixel parity between GLSL (WebGL2) and WGSL (WebGPU) renderings.
  *
  * This test:
- * 1. Skips stateful effects (they require multiple frames to produce meaningful output)
+ * 1. Skips sim effects (they require multiple frames to produce meaningful output)
  * 2. PAUSES the render loop and renders exactly one frame at time=0 with WebGL2/GLSL
  * 3. Switches to WebGPU/WGSL and renders exactly one frame at time=0
  * 4. Compares the pixel data with a tight epsilon for floating-point tolerance
@@ -1737,15 +1737,15 @@ export async function testPixelParity(page, effectId, options = {}) {
     const epsilon = options.epsilon ?? 1  // Allow 1/255 difference for float precision
     const seed = options.seed ?? 42
 
-    // Check if this is a stateful effect
-    if (isStatefulEffect(effectId)) {
+    // Check if this is a sim effect
+    if (isSimEffect(effectId)) {
         return {
             status: 'skipped',
             maxDiff: null,
             meanDiff: null,
             mismatchCount: null,
             isYFlipped: false,
-            details: 'Stateful effect - pixel parity test not applicable'
+            details: 'Sim effect - pixel parity test not applicable'
         }
     }
 

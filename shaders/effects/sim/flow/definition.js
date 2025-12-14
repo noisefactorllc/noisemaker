@@ -14,7 +14,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Flow",
-  namespace: "stateful",
+  namespace: "sim",
   func: "flow",
 
   description: "Agent-based flow field with behaviors",

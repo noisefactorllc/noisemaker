@@ -28,7 +28,7 @@
         { namespace: 'filter' },
         { namespace: 'mixer' },
         { namespace: 'synth' },
-        { namespace: 'stateful' },
+        { namespace: 'sim' },
         { namespace: 'vol' },
         { namespace: 'classicNoisedeck' },
         { namespace: 'classicNoisemaker' }
@@ -348,7 +348,7 @@
                     }
                     
                     if (!namespace) {
-                        for (const ns of ['classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth', 'stateful']) {
+                        for (const ns of ['classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth', 'sim']) {
                             const testId = `${ns}/${name}`;
                             if (manifest[testId]) {
                                 namespace = ns;
@@ -384,7 +384,7 @@
             let searchNs = effect.namespace;
             if (effect.namespace === 'classicNoisemaker') {
                 searchNs = 'classicNoisemaker, synth';
-            } else if (['filter', 'mixer', 'stateful'].includes(effect.namespace)) {
+            } else if (['filter', 'mixer', 'sim'].includes(effect.namespace)) {
                 searchNs = `${effect.namespace}, synth`;
             }
             const searchDirective = searchNs ? `search ${searchNs}\n` : '';
@@ -534,8 +534,8 @@
                     }
                 }
 
-                // Reset stateful effects by setting resetState uniform
-                // Stateful effects check this uniform to reinitialize their state
+                // Reset sim effects by setting resetState uniform
+                // Sim effects check this uniform to reinitialize their state
                 if (renderer._pipeline && renderer._pipeline.graph && renderer._pipeline.graph.passes) {
                     for (const pass of renderer._pipeline.graph.passes) {
                         if (pass.uniforms && 'resetState' in pass.uniforms) {

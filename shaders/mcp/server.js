@@ -290,7 +290,7 @@ const TOOLS = [
     },
     {
         name: 'testPixelParity',
-        description: 'Test pixel-for-pixel parity between GLSL (WebGL2) and WGSL (WebGPU) shader outputs. Renders effect at frame 0 with both backends and compares pixels. Skips stateful effects. Fails if pixel values differ beyond epsilon tolerance.',
+        description: 'Test pixel-for-pixel parity between GLSL (WebGL2) and WGSL (WebGPU) shader outputs. Renders effect at frame 0 with both backends and compares pixels. Skips sim effects. Fails if pixel values differ beyond epsilon tolerance.',
         inputSchema: {
             type: 'object',
             properties: {

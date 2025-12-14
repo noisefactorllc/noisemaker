@@ -2,7 +2,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
   name: "Physarum",
-  namespace: "stateful",
+  namespace: "sim",
   func: "physarum",
 
   description: "Physarum slime mold simulation",

@@ -71,9 +71,9 @@ export const NAMESPACE_DESCRIPTIONS = Object.freeze({
         id: 'filter',
         description: 'Apply special effects to input'
     },
-    stateful: {
-        id: 'stateful',
-        description: 'Feedback-like effects that keep state'
+    sim: {
+        id: 'sim',
+        description: 'Simulations with temporal state'
     },
     vol: {
         id: 'vol',
