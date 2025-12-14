@@ -8,6 +8,7 @@ export default new Effect({
   name: "Crt",
   namespace: "classicNoisemaker",
   func: "crt",
+  tags: ["util"],
 
   description: "CRT monitor simulation",
   globals: {

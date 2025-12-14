@@ -8,6 +8,7 @@ export default new Effect({
   name: "Kaleido",
   namespace: "classicNoisemaker",
   func: "kaleido",
+  tags: ["geometric", "transform"],
 
   description: "Kaleidoscope mirror effect",
   globals: {

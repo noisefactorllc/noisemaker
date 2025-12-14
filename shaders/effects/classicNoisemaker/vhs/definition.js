@@ -6,6 +6,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Vhs",
   namespace: "classicNoisemaker",
+  tags: ["distort"],
   func: "vhs",
 
   description: "VHS tape artifacts",

@@ -6,6 +6,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Warp",
   namespace: "classicNoisemaker",
+  tags: ["distort"],
   func: "warp",
 
   description: "Perlin warp distortion",

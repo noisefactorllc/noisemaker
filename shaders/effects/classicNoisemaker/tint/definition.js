@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Tint",
   namespace: "classicNoisemaker",
+  tags: ["color"],
   func: "tint",
 
   description: "Color tint overlay",

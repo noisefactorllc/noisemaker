@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "ScanlineError",
   namespace: "classicNoisemaker",
+  tags: ["distort"],
   func: "scanlineError",
 
   description: "Scanline glitch effect",

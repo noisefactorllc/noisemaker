@@ -15,6 +15,7 @@ export default new Effect({
   name: "Normalize",
   namespace: "classicNoisemaker",
   func: "normalize",
+  tags: ["util"],
 
   description: "Value normalization",
   globals: {},

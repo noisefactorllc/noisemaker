@@ -6,6 +6,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Wormhole",
   namespace: "classicNoisemaker",
+  tags: ["distort"],
   func: "wormhole",
 
   description: "Wormhole tunnel effect",

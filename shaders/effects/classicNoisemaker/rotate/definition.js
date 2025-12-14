@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Rotate",
   namespace: "classicNoisemaker",
+  tags: ["transform"],
   func: "rotate",
 
   description: "Rotation transform",

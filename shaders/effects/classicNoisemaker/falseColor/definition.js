@@ -8,6 +8,7 @@ export default new Effect({
   name: "FalseColor",
   namespace: "classicNoisemaker",
   func: "falseColor",
+  tags: ["color"],
 
   description: "False color mapping",
   globals: {

@@ -13,6 +13,7 @@ export default new Effect({
   name: "Clouds",
   namespace: "classicNoisemaker",
   func: "clouds",
+  tags: ["noise"],
 
   description: "Cloud texture generator",
   globals: {

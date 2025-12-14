@@ -6,6 +6,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Vortex",
   namespace: "classicNoisemaker",
+  tags: ["distort"],
   func: "vortex",
 
   description: "Vortex/spiral distortion",

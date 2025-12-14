@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Palette",
   namespace: "classicNoisemaker",
+  tags: ["color"],
   func: "palette",
 
   description: "Color palette application",

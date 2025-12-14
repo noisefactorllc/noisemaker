@@ -8,6 +8,7 @@ export default new Effect({
   name: "AdjustHue",
   namespace: "classicNoisemaker",
   func: "adjustHue",
+  tags: ["color"],
 
   description: "Hue rotation adjustment",
   globals: {

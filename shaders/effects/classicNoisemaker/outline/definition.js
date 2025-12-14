@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Outline",
   namespace: "classicNoisemaker",
+  tags: ["util"],
   func: "outline",
 
   description: "Outline/edge stroke",

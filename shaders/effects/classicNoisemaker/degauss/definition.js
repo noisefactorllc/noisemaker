@@ -8,6 +8,7 @@ export default new Effect({
   name: "Degauss",
   namespace: "classicNoisemaker",
   func: "degauss",
+  tags: ["distort"],
 
   description: "CRT degauss effect",
   globals: {

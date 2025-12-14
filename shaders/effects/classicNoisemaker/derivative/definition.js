@@ -8,6 +8,7 @@ export default new Effect({
   name: "Derivative",
   namespace: "classicNoisemaker",
   func: "derivative",
+  tags: ["math"],
 
   description: "Derivative edge detection",
   globals: {

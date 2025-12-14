@@ -8,6 +8,7 @@ export default new Effect({
   name: "GlowingEdges",
   namespace: "classicNoisemaker",
   func: "glowingEdges",
+  tags: ["util"],
 
   description: "Glowing edge detection",
   globals: {

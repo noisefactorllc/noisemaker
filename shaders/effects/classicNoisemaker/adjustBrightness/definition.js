@@ -8,6 +8,7 @@ export default new Effect({
   name: "AdjustBrightness",
   namespace: "classicNoisemaker",
   func: "adjustBrightness",
+  tags: ["color"],
 
   description: "Brightness adjustment",
   globals: {

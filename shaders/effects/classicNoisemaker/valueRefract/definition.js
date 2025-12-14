@@ -6,6 +6,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "ValueRefract",
   namespace: "classicNoisemaker",
+  tags: ["distort"],
   func: "valueRefract",
 
   description: "Value-based refraction",

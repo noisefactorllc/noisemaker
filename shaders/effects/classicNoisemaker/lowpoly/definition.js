@@ -8,6 +8,7 @@ export default new Effect({
   name: "Lowpoly",
   namespace: "classicNoisemaker",
   func: "lowpoly",
+  tags: ["geometric"],
 
   description: "Low-polygon style render",
   globals: {

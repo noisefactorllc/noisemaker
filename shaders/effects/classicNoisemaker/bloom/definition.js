@@ -13,6 +13,7 @@ export default new Effect({
   name: "Bloom",
   namespace: "classicNoisemaker",
   func: "bloom",
+  tags: ["util"],
 
   description: "Bloom/glow effect",
   globals: {

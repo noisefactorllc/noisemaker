@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Texture",
   namespace: "classicNoisemaker",
+  tags: ["noise"],
   func: "texture",
 
   description: "Texture overlay blend",

@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "SimpleFrame",
   namespace: "classicNoisemaker",
+  tags: ["util"],
   func: "simpleFrame",
 
   description: "Simple border frame",

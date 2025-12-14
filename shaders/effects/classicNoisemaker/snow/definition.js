@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Snow",
   namespace: "classicNoisemaker",
+  tags: ["noise"],
   func: "snow",
 
   description: "TV snow/static noise",

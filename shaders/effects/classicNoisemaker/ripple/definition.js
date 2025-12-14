@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Ripple",
   namespace: "classicNoisemaker",
+  tags: ["distort"],
   func: "ripple",
 
   description: "Ripple wave distortion",

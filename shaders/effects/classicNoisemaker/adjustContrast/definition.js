@@ -8,6 +8,7 @@ export default new Effect({
   name: "AdjustContrast",
   namespace: "classicNoisemaker",
   func: "adjustContrast",
+  tags: ["color"],
 
   description: "Contrast adjustment",
   globals: {

@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Sine",
   namespace: "classicNoisemaker",
+  tags: ["distort"],
   func: "sine",
 
   description: "Sine wave distortion",

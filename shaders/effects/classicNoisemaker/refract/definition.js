@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Refract",
   namespace: "classicNoisemaker",
+  tags: ["distort"],
   func: "refract",
 
   description: "Refraction distortion",

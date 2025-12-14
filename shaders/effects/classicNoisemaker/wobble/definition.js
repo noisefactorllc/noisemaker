@@ -6,6 +6,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Wobble",
   namespace: "classicNoisemaker",
+  tags: ["transform"],
   func: "wobble",
 
   description: "Wobble animation effect",

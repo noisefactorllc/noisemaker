@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Shadow",
   namespace: "classicNoisemaker",
+  tags: ["util"],
   func: "shadow",
 
   description: "Drop shadow effect",

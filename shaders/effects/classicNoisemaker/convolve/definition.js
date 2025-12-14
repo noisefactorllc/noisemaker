@@ -8,6 +8,7 @@ export default new Effect({
   name: "Convolve",
   namespace: "classicNoisemaker",
   func: "convolve",
+  tags: ["math"],
 
   description: "Convolution kernel filter",
   globals: {

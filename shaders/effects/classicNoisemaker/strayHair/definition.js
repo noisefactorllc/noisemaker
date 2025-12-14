@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "StrayHair",
   namespace: "classicNoisemaker",
+  tags: ["noise"],
   func: "strayHair",
 
   description: "Stray hair overlay",

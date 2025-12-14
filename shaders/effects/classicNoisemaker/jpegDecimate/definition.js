@@ -8,6 +8,7 @@ export default new Effect({
   name: "JpegDecimate",
   namespace: "classicNoisemaker",
   func: "jpegDecimate",
+  tags: ["util"],
 
   description: "JPEG compression artifacts",
   globals: {},

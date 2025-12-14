@@ -8,6 +8,7 @@ export default new Effect({
   name: "Nebula",
   namespace: "classicNoisemaker",
   func: "nebula",
+  tags: ["noise"],
 
   description: "Nebula/space cloud generator",
   globals: {},

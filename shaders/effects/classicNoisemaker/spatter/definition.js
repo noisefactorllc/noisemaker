@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Spatter",
   namespace: "classicNoisemaker",
+  tags: ["noise"],
   func: "spatter",
 
   description: "Paint spatter effect",

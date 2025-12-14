@@ -7,6 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Reindex",
   namespace: "classicNoisemaker",
+  tags: ["color"],
   func: "reindex",
 
   description: "Palette reindexing",

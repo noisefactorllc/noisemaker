@@ -7,6 +7,7 @@ export default new Effect({
   name: "Aberration",
   namespace: "classicNoisemaker",
   func: "aberration",
+  tags: ["color"],
 
   description: "Chromatic aberration",
   globals: {

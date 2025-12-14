@@ -8,6 +8,7 @@ export default new Effect({
   name: "Fibers",
   namespace: "classicNoisemaker",
   func: "fibers",
+  tags: ["noise"],
 
   description: "Fiber texture generator",
   globals: {

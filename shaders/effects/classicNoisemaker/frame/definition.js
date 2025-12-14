@@ -8,6 +8,7 @@ export default new Effect({
   name: "Frame",
   namespace: "classicNoisemaker",
   func: "frame",
+  tags: ["util"],
 
   description: "Decorative frame overlay",
   globals: {

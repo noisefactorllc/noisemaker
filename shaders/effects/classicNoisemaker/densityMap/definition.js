@@ -9,6 +9,7 @@ export default new Effect({
   name: "DensityMap",
   namespace: "classicNoisemaker",
   func: "densityMap",
+  tags: ["util"],
 
   description: "Density-based mapping",
   globals: {},

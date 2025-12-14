@@ -8,6 +8,7 @@ export default new Effect({
   name: "ColorMap",
   namespace: "classicNoisemaker",
   func: "colorMap",
+  tags: ["color"],
 
   description: "Color mapping and LUT",
   globals: {
