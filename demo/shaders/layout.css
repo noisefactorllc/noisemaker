@@ -638,9 +638,10 @@ body.full-bleed-mode #canvas {
   border-bottom: none; /* Prevent double borders */
 }
 
-/* Start of a chain: First child OR element after a write node */
+/* Start of a chain: First child, read node, OR element after a terminal write node */
 #effect-controls-container .shader-module:first-child,
-#effect-controls-container .shader-module[data-effect-name="write"] + .shader-module {
+#effect-controls-container .shader-module[data-effect-name="read"],
+#effect-controls-container .shader-module[data-effect-name="write"]:not([data-mid-chain="true"]) + .shader-module {
   border-top-left-radius: var(--ui-corner-radius);
   border-top-right-radius: var(--ui-corner-radius);
 }

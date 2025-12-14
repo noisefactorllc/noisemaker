@@ -1419,8 +1419,18 @@ export class UIController {
                 continue;
             }
             
-            // Handle builtin _read steps - skip (no UI controls needed)
-            if (effectInfo.effectKey === '_read' || effectInfo.effectKey === '_read3d') {
+            // Handle builtin _read steps - render as read module
+            if (effectInfo.effectKey === '_read') {
+                const readSource = effectInfo.args?.tex;
+                if (readSource) {
+                    const readModule = this._createReadModule(effectInfo.stepIndex, readSource);
+                    this._controlsContainer.appendChild(readModule);
+                }
+                continue;
+            }
+            
+            // Handle builtin _read3d steps - skip for now (no UI controls)
+            if (effectInfo.effectKey === '_read3d') {
                 continue;
             }
 
@@ -1878,6 +1888,84 @@ export class UIController {
 
         select.addEventListener('change', (e) => {
             this._writeTargetOverrides[planIndex] = e.target.value;
+            this._onControlChange();
+        });
+
+        controlGroup.appendChild(select);
+        controlsDiv.appendChild(controlGroup);
+        contentDiv.appendChild(controlsDiv);
+        moduleDiv.appendChild(contentDiv);
+
+        return moduleDiv;
+    }
+
+    /**
+     * Create a read module for a step
+     * @private
+     * @param {number} stepIndex - The step index
+     * @param {object} readSource - The read source surface
+     */
+    _createReadModule(stepIndex, readSource) {
+        const moduleDiv = document.createElement('div');
+        moduleDiv.className = 'shader-module';
+        moduleDiv.dataset.stepIndex = stepIndex;
+        moduleDiv.dataset.effectName = 'read';
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'module-title';
+        titleDiv.textContent = 'read';
+        titleDiv.addEventListener('click', () => {
+            moduleDiv.classList.toggle('collapsed');
+        });
+        moduleDiv.appendChild(titleDiv);
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'module-content';
+
+        const controlsDiv = document.createElement('div');
+        controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;';
+
+        // Create source dropdown
+        const controlGroup = document.createElement('div');
+        controlGroup.className = 'control-group';
+
+        const header = document.createElement('div');
+        header.className = 'control-header';
+        
+        const label = document.createElement('label');
+        label.className = 'control-label';
+        label.textContent = 'surface';
+        header.appendChild(label);
+        controlGroup.appendChild(header);
+
+        const select = document.createElement('select');
+        select.className = 'control-select';
+
+        // Add output surfaces o0-o7
+        for (let i = 0; i < 8; i++) {
+            const option = document.createElement('option');
+            option.value = `o${i}`;
+            option.textContent = `o${i}`;
+            select.appendChild(option);
+        }
+        // Add feedback surfaces f0-f3
+        for (let i = 0; i < 4; i++) {
+            const option = document.createElement('option');
+            option.value = `f${i}`;
+            option.textContent = `f${i}`;
+            select.appendChild(option);
+        }
+
+        // Set current value
+        const currentSource = typeof readSource === 'string' ? readSource : readSource.name;
+        select.value = currentSource;
+
+        select.addEventListener('change', (e) => {
+            // Store read source override and trigger recompile
+            if (!this._readSourceOverrides) {
+                this._readSourceOverrides = {};
+            }
+            this._readSourceOverrides[stepIndex] = e.target.value;
             this._onControlChange();
         });
 
