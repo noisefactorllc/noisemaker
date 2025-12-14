@@ -17,6 +17,12 @@ const oscKindEnum = {
 }
 
 export const stdEnums = {
+    channel: {
+        r: { type: 'Number', value: 0 },
+        g: { type: 'Number', value: 1 },
+        b: { type: 'Number', value: 2 },
+        a: { type: 'Number', value: 3 }
+    },
     color: {
         mono: { type: 'Number', value: 0 },
         rgb: { type: 'Number', value: 1 },

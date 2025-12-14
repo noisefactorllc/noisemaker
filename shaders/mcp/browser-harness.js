@@ -582,10 +582,10 @@ export class BrowserSession {
                 const renderer = window.__noisemakerCanvasRenderer
                 const pipeline = window.__noisemakerRenderingPipeline
                 if (!renderer || !pipeline) return null
-                
+
                 // Force render at time=0
                 renderer.render(0)
-                
+
                 // Read pixels directly from the canvas (default framebuffer)
                 const canvas = renderer.canvas
                 const gl = pipeline.backend?.gl
@@ -593,15 +593,15 @@ export class BrowserSession {
                     // WebGPU path - not implemented
                     return null
                 }
-                
+
                 const width = canvas.width
                 const height = canvas.height
                 const pixels = new Uint8Array(width * height * 4)
-                
+
                 // Bind default framebuffer and read
                 gl.bindFramebuffer(gl.FRAMEBUFFER, null)
                 gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
-                
+
                 // Compute mean RGB
                 const pixelCount = width * height
                 let sumR = 0, sumG = 0, sumB = 0
@@ -610,7 +610,7 @@ export class BrowserSession {
                     sumG += pixels[i + 1] / 255
                     sumB += pixels[i + 2] / 255
                 }
-                
+
                 return {
                     mean_rgb: [sumR / pixelCount, sumG / pixelCount, sumB / pixelCount]
                 }
@@ -629,7 +629,7 @@ export class BrowserSession {
         }
 
         const baseMeanRgb = baseMetrics.mean_rgb
-        const baseMeanLuma = (baseMeanRgb[0] + baseMeanRgb[1] + baseMeanRgb[2]) / 3
+        // const baseMeanLuma = (baseMeanRgb[0] + baseMeanRgb[1] + baseMeanRgb[2]) / 3
 
         const testedUniforms = []
         let anyResponded = false
@@ -689,7 +689,7 @@ export class BrowserSession {
             // Set up context for conditional uniforms (e.g., HSL controls need hslEnable=1)
             const context = uniformContexts[uniformName] || {}
             const contextKeys = Object.keys(context)
-            
+
             if (contextKeys.length > 0) {
                 await this.page.evaluate((ctx) => {
                     const pipeline = window.__noisemakerRenderingPipeline
@@ -703,7 +703,7 @@ export class BrowserSession {
                     }
                 }, context)
             }
-            
+
             // Capture context baseline if we have context
             let contextBaseline = baseMeanRgb
             if (contextKeys.length > 0) {
@@ -735,7 +735,7 @@ export class BrowserSession {
                 const contextLuma = (contextBaseline[0] + contextBaseline[1] + contextBaseline[2]) / 3
 
                 const lumaDiff = Math.abs(testMeanLuma - contextLuma)
-                
+
                 // Check per-channel differences to detect chromatic shifts
                 // (e.g., temperature changes red/blue but preserves luma)
                 const rDiff = Math.abs(testMeanRgb[0] - contextBaseline[0])
@@ -765,7 +765,7 @@ export class BrowserSession {
                     pipeline.globalUniforms[uniformName] = defaultVal
                 }
             }, { uniformName, defaultVal })
-            
+
             // Reset context uniforms to their defaults
             if (contextKeys.length > 0) {
                 await this.page.evaluate((ctxKeys) => {
