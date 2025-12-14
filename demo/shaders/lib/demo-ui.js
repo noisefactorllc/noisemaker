@@ -1365,18 +1365,21 @@ export class UIController {
         // Clean up existing media inputs before rebuilding controls
         this.stopAllMedia()
 
-        // PRESERVE existing parameter values keyed by effectName+stepIndex
-        const previousValues = {}
-        const previousEffectNames = {}
-        if (this._effectParameterValues) {
-            for (const [key, values] of Object.entries(this._effectParameterValues)) {
-                previousValues[key] = { ...values }
-            }
-        }
-        if (this._parsedDslStructure) {
+        // PRESERVE existing parameter values keyed by effect occurrence (name + nth occurrence)
+        // This ensures that inserting/removing unrelated effects doesn't reset values
+        const previousValuesByOccurrence = {}
+        if (this._parsedDslStructure && this._effectParameterValues) {
+            const occurrenceCount = {}
             for (const effectInfo of this._parsedDslStructure) {
-                const key = `step_${effectInfo.stepIndex}`
-                previousEffectNames[key] = effectInfo.effectKey || effectInfo.name
+                const effectName = effectInfo.effectKey || effectInfo.name
+                const occurrence = occurrenceCount[effectName] || 0
+                occurrenceCount[effectName] = occurrence + 1
+
+                const stepKey = `step_${effectInfo.stepIndex}`
+                if (this._effectParameterValues[stepKey]) {
+                    const occurrenceKey = `${effectName}#${occurrence}`
+                    previousValuesByOccurrence[occurrenceKey] = { ...this._effectParameterValues[stepKey] }
+                }
             }
         }
 
@@ -1437,9 +1440,19 @@ export class UIController {
 
         let prevWasMidChainWrite = false
 
+        // Track occurrence count for each effect name during iteration
+        const currentOccurrenceCount = {}
+
         for (const effectInfo of effects) {
+            // Track occurrence for ALL effects (including builtins) to keep counts consistent
+            const effectName = effectInfo.effectKey || effectInfo.name
+            if (currentOccurrenceCount[effectName] === undefined) {
+                currentOccurrenceCount[effectName] = 0
+            }
+
             // Handle builtin _write steps - render as write module
             if (effectInfo.effectKey === '_write') {
+                currentOccurrenceCount[effectName]++
                 const planIndex = stepToPlan.get(effectInfo.stepIndex)
                 // Get the write target from THIS step's args, not the plan's terminal write
                 const writeTarget = effectInfo.args?.tex
@@ -1457,6 +1470,7 @@ export class UIController {
 
             // Handle builtin _read steps - render as read module
             if (effectInfo.effectKey === '_read') {
+                currentOccurrenceCount[effectName]++
                 const readSource = effectInfo.args?.tex
                 if (readSource) {
                     const readModule = this._createReadModule(effectInfo.stepIndex, readSource)
@@ -1467,6 +1481,7 @@ export class UIController {
 
             // Handle builtin _read3d steps - skip for now (no UI controls)
             if (effectInfo.effectKey === '_read3d') {
+                currentOccurrenceCount[effectName]++
                 continue
             }
 
@@ -1478,7 +1493,11 @@ export class UIController {
                 effectDef = getEffect(effectInfo.name)
             }
 
-            if (!effectDef || !effectDef.globals) continue
+            if (!effectDef || !effectDef.globals) {
+                // Still need to track occurrence even if no controls rendered
+                currentOccurrenceCount[effectName]++
+                continue
+            }
 
             const moduleDiv = document.createElement('div')
             moduleDiv.className = 'shader-module'
@@ -1779,14 +1798,17 @@ export class UIController {
 
             const effectKey = `step_${effectInfo.stepIndex}`
 
-            // Check if this step had the SAME effect before - if so, restore its values
+            // Get occurrence for this effect name (already tracked/initialized at loop start)
             const currentEffectName = effectInfo.effectKey || effectInfo.name
-            const previousEffectName = previousEffectNames[effectKey]
-            if (previousEffectName === currentEffectName && previousValues[effectKey]) {
-                // Same effect at same position - restore all previous values
-                this._effectParameterValues[effectKey] = { ...previousValues[effectKey] }
+            const occurrence = currentOccurrenceCount[currentEffectName]
+            currentOccurrenceCount[currentEffectName]++
+            const occurrenceKey = `${currentEffectName}#${occurrence}`
+
+            // Restore values by occurrence key (position-independent)
+            if (previousValuesByOccurrence[occurrenceKey]) {
+                this._effectParameterValues[effectKey] = { ...previousValuesByOccurrence[occurrenceKey] }
             } else {
-                // Different effect or new step - start fresh
+                // New effect - start fresh
                 this._effectParameterValues[effectKey] = {}
             }
 
