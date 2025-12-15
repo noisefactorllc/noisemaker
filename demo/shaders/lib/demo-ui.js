@@ -2949,7 +2949,10 @@ export class UIController {
 
         // Parse current value to get the surface ID
         let currentSurface = spec.default || 'o1'
-        if (typeof value === 'string') {
+        if (value && typeof value === 'object' && value.name) {
+            // Handle object surface references from DSL compiler (e.g., {kind: 'output', name: 'o1'})
+            currentSurface = value.name
+        } else if (typeof value === 'string') {
             // Handle read(o1) format or plain o1/f0 format
             const match = value.match(/read\(([^)]+)\)|^(o[0-7]|f[0-3])$/)
             if (match) {
