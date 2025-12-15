@@ -27,7 +27,7 @@ const PALETTES: array<PaletteEntry, 55> = array<PaletteEntry, 55>(
         vec4f(0.93, 0.97, 0.52, 0.0),
         vec4f(0.21, 0.41, 0.56, 0.0),
     ),
-    // 2: 5g
+    // 2: fiveG
     PaletteEntry(
         vec4f(0.56851584, 0.7740668, 0.23485267, 0.0),
         vec4f(1, 1, 1, 0.0),

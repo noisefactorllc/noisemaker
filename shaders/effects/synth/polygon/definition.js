@@ -33,6 +33,17 @@ export default new Effect({
         "min": 0,
         "max": 1,
         "uniform": "smoothing"
+    },
+    "rotation": {
+        "type": "float",
+        "default": 0,
+        "min": 0,
+        "max": 6.283185307,
+        "uniform": "rotation",
+        "ui": {
+            "label": "Rotation",
+            "control": "slider"
+        }
     }
 },
   passes: [

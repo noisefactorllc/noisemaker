@@ -4,6 +4,7 @@
 @group(0) @binding(2) var<uniform> sides: i32;
 @group(0) @binding(3) var<uniform> radius: f32;
 @group(0) @binding(4) var<uniform> smoothing: f32;
+@group(0) @binding(5) var<uniform> rotation: f32;
 
 /* Regular polygon distance field built from polar math; draws a soft-edged shape. */
 fn polygon(st: vec2<f32>, sides: f32) -> f32 {
@@ -17,6 +18,10 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   var st = position.xy / resolution;
   st = (st - vec2<f32>(0.5, 0.5)) * 2.0;
   st.x *= aspect;
+  // Apply rotation
+  let c = cos(rotation);
+  let s = sin(rotation);
+  st = vec2<f32>(st.x * c - st.y * s, st.x * s + st.y * c);
   let sidesF = f32(max(sides, 3));
   let d = polygon(st, sidesF);
   let m = smoothstep(radius, radius - smoothing, d);

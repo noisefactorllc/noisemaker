@@ -27,9 +27,9 @@ struct PaletteEntry {
 // Palette data array (55 entries, index 0 is passthrough so entries start at 1)
 // Modes: 0 = RGB, 1 = HSV, 2 = OkLab
 const palettes: array<PaletteEntry, 55> = array<PaletteEntry, 55>(
-    // 1: 1970sShirt (rgb)
+    // 1: seventiesShirt (rgb)
     PaletteEntry(vec4f(0.76, 0.88, 0.37, 0.0), vec4f(1.0, 1.0, 1.0, 0.0), vec4f(0.93, 0.97, 0.52, 0.0), vec4f(0.21, 0.41, 0.56, 0.0)),
-    // 2: 5g (rgb)
+    // 2: fiveG (rgb)
     PaletteEntry(vec4f(0.56851584, 0.7740668, 0.23485267, 0.0), vec4f(1.0, 1.0, 1.0, 0.0), vec4f(0.5, 0.5, 0.5, 0.0), vec4f(0.727029, 0.08039695, 0.10427457, 0.0)),
     // 3: afterimage (rgb)
     PaletteEntry(vec4f(0.5, 0.5, 0.5, 0.0), vec4f(1.0, 1.0, 1.0, 0.0), vec4f(0.5, 0.5, 0.5, 0.0), vec4f(0.3, 0.2, 0.2, 0.0)),

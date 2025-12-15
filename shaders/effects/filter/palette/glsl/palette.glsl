@@ -32,14 +32,14 @@ struct PaletteEntry {
 
 const int PALETTE_COUNT = 55;
 const PaletteEntry PALETTES[PALETTE_COUNT] = PaletteEntry[PALETTE_COUNT](
-    // 1: 1970sShirt (rgb)
+    // 1: seventiesShirt (rgb)
     PaletteEntry(
         vec4(0.76, 0.88, 0.37, 0.0),
         vec4(1.0, 1.0, 1.0, 0.0),
         vec4(0.93, 0.97, 0.52, 0.0),
         vec4(0.21, 0.41, 0.56, 0.0)
     ),
-    // 2: 5g (rgb)
+    // 2: fiveG (rgb)
     PaletteEntry(
         vec4(0.56851584, 0.7740668, 0.23485267, 0.0),
         vec4(1.0, 1.0, 1.0, 0.0),

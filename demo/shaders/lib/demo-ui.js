@@ -2076,10 +2076,21 @@ export class UIController {
         const currentDsl = this.getDsl()
         if (!currentDsl) return
 
+        let compiled
         try {
-            const compiled = compile(currentDsl)
-            if (!compiled || !compiled.plans) return
+            compiled = compile(currentDsl)
+        } catch (err) {
+            console.error('Failed to compile DSL for deletion:', err)
+            this.showStatus('cannot delete: DSL has syntax errors', 'error')
+            return
+        }
+        
+        if (!compiled || !compiled.plans) {
+            this.showStatus('cannot delete: compilation failed', 'error')
+            return
+        }
 
+        try {
             // Preserve search namespaces
             const searchMatch = currentDsl.match(/^search\s+(\S.*?)$/m)
             if (searchMatch) {

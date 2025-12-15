@@ -6,6 +6,7 @@ uniform float aspect;
 uniform int sides;
 uniform float radius;
 uniform float smoothing;
+uniform float rotation;
 
 out vec4 fragColor;
 
@@ -20,6 +21,10 @@ void main(){
   vec2 st = gl_FragCoord.xy / resolution;
   st = (st - 0.5) * 2.0;
   st.x *= aspect;
+  // Apply rotation
+  float c = cos(rotation);
+  float s = sin(rotation);
+  st = vec2(st.x * c - st.y * s, st.x * s + st.y * c);
   float sidesF = float(max(sides, 3));
   float d = polygon(st, sidesF);
   float m = smoothstep(radius, radius - smoothing, d);
