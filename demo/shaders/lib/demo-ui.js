@@ -2084,7 +2084,7 @@ export class UIController {
             this.showStatus('cannot delete: DSL has syntax errors', 'error')
             return
         }
-        
+
         if (!compiled || !compiled.plans) {
             this.showStatus('cannot delete: compilation failed', 'error')
             return
@@ -2171,7 +2171,7 @@ export class UIController {
                             compiled.plans.splice(p, 1)
                         } else {
                             // Check if only _write nodes remain - if so, delete the plan
-                            const hasNonWriteStep = plan.chain.some(step => 
+                            const hasNonWriteStep = plan.chain.some(step =>
                                 !(step.builtin && step.op === '_write')
                             )
                             if (!hasNonWriteStep) {

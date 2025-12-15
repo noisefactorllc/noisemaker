@@ -957,6 +957,14 @@ export async function benchmarkEffectFps(page, effectId, options = {}) {
         }
     }
 
+    // Reset frame time stats before benchmark
+    await page.evaluate(() => {
+        const renderer = window.__noisemakerCanvasRenderer
+        if (renderer && renderer.resetFrameTimeStats) {
+            renderer.resetFrameTimeStats()
+        }
+    })
+
     // Run the benchmark - sample the frame counter from the render loop
     const stats = await page.evaluate(async (durationMs) => {
         const startFrame = window.__noisemakerFrameCount || 0
@@ -971,10 +979,18 @@ export async function benchmarkEffectFps(page, effectId, options = {}) {
         const frameCount = endFrame - startFrame
         const totalTime = endTime - startTime
 
+        // Get frame time jitter stats from renderer
+        let jitterStats = null
+        const renderer = window.__noisemakerCanvasRenderer
+        if (renderer && renderer.getFrameTimeStats) {
+            jitterStats = renderer.getFrameTimeStats()
+        }
+
         return {
             frame_count: frameCount,
             total_time_ms: totalTime,
-            avg_frame_time_ms: frameCount > 0 ? totalTime / frameCount : 0
+            avg_frame_time_ms: frameCount > 0 ? totalTime / frameCount : 0,
+            jitter: jitterStats
         }
     }, durationSeconds * 1000)
 
@@ -991,15 +1007,25 @@ export async function benchmarkEffectFps(page, effectId, options = {}) {
 
     const achievedFps = stats.frame_count / (stats.total_time_ms / 1000)
 
+    // Build stats object with jitter info
+    const resultStats = {
+        frame_count: stats.frame_count,
+        avg_frame_time_ms: Math.round(stats.avg_frame_time_ms * 100) / 100
+    }
+
+    // Add jitter metrics if available
+    if (stats.jitter && stats.jitter.count > 0) {
+        resultStats.jitter_ms = Math.round(stats.jitter.std * 100) / 100
+        resultStats.min_frame_time_ms = Math.round(stats.jitter.min * 100) / 100
+        resultStats.max_frame_time_ms = Math.round(stats.jitter.max * 100) / 100
+    }
+
     return {
         status: 'ok',
         backend,
         achieved_fps: Math.round(achievedFps * 100) / 100,
         meets_target: achievedFps >= targetFps,
-        stats: {
-            frame_count: stats.frame_count,
-            avg_frame_time_ms: Math.round(stats.avg_frame_time_ms * 100) / 100
-        }
+        stats: resultStats
     }
 }
 

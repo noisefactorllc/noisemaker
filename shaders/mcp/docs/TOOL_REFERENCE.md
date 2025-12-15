@@ -374,7 +374,7 @@ Requires an OpenAI API key in the `.openai` file at the project root.
 
 ## benchmarkEffectFPS
 
-Benchmark a shader effect to verify it can sustain a target framerate. Runs the effect for a specified duration and measures frame times.
+Benchmark a shader effect to verify it can sustain a target framerate. Runs the effect for a specified duration and measures frame times, including jitter (frame time variance).
 
 ### Input Schema
 
@@ -408,17 +408,27 @@ Benchmark a shader effect to verify it can sustain a target framerate. Runs the 
   "target_fps": "number",
   "achieved_fps": "number",
   "meets_target": "boolean",
-  "frame_times": {
-    "min_ms": "number",
-    "max_ms": "number",
-    "avg_ms": "number",
-    "p95_ms": "number"
+  "stats": {
+    "frame_count": "number",
+    "avg_frame_time_ms": "number",
+    "jitter_ms": "number",
+    "min_frame_time_ms": "number",
+    "max_frame_time_ms": "number"
   },
-  "total_frames": "number",
-  "duration_seconds": "number",
   "console_errors": ["string"]
 }
 ```
+
+### Jitter Metrics
+
+The `jitter_ms` field reports the standard deviation of frame render times. Lower values indicate smoother animation:
+
+| Jitter (ms) | Quality |
+|-------------|---------|
+| < 1.0 | Excellent - very smooth |
+| 1.0 - 3.0 | Good - minor variation |
+| 3.0 - 8.0 | Fair - noticeable stutters |
+| > 8.0 | Poor - jerky animation |
 
 ### Example
 
@@ -439,16 +449,15 @@ Benchmark a shader effect to verify it can sustain a target framerate. Runs the 
   "backend": "webgl2",
   "success": true,
   "target_fps": 60,
-  "achieved_fps": 142.7,
+  "achieved_fps": 59.88,
   "meets_target": true,
-  "frame_times": {
-    "min_ms": 5.2,
-    "max_ms": 12.8,
-    "avg_ms": 7.0,
-    "p95_ms": 9.3
+  "stats": {
+    "frame_count": 180,
+    "avg_frame_time_ms": 16.7,
+    "jitter_ms": 0.94,
+    "min_frame_time_ms": 0.1,
+    "max_frame_time_ms": 2.3
   },
-  "total_frames": 428,
-  "duration_seconds": 3,
   "console_errors": []
 }
 ```

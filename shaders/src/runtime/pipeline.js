@@ -146,6 +146,14 @@ export class Pipeline {
             screenWidth: 0,
             screenHeight: 0
         }
+        // Pre-allocated surface key arrays to avoid allocation during getFrameState
+        this._surfaceKeys = []
+        this._writeSurfaceKeys = []
+        // Pre-allocated pass proxy for oscillator resolution (avoids per-frame object spread)
+        this._oscillatorPassProxy = {
+            uniforms: {}
+        }
+        this._resolvedUniforms = {}  // Reused for oscillator resolution
     }
 
     /**
@@ -746,17 +754,24 @@ export class Pipeline {
 
     /**
      * Resolve all oscillators in pass uniforms for the current frame.
+     * Uses a pre-allocated proxy object to avoid per-frame allocations.
      * @param {Object} pass - The pass definition
      * @param {number} time - Current time in seconds
-     * @returns {Object} Pass with resolved uniforms
+     * @returns {Object} Pass or proxy with resolved uniforms
      */
     resolvePassUniforms(pass, time) {
         if (!pass.uniforms) return pass
 
-        const resolvedUniforms = {}
+        const resolvedUniforms = this._resolvedUniforms
         let hasOscillators = false
 
-        for (const [name, value] of Object.entries(pass.uniforms)) {
+        // Clear resolved uniforms (set to undefined to avoid delete deopt)
+        for (const key in resolvedUniforms) {
+            resolvedUniforms[key] = undefined
+        }
+
+        for (const name in pass.uniforms) {
+            const value = pass.uniforms[name]
             const resolved = this.resolveUniformValue(value, time)
             resolvedUniforms[name] = resolved
             if (resolved !== value) {
@@ -764,11 +779,36 @@ export class Pipeline {
             }
         }
 
-        // Only create a new pass object if we resolved oscillators
-        if (hasOscillators) {
-            return { ...pass, uniforms: resolvedUniforms }
+        // If no oscillators, return original pass
+        if (!hasOscillators) {
+            return pass
         }
-        return pass
+
+        // Use pre-allocated proxy object to avoid per-frame allocation
+        // Copy all pass properties to proxy (this is rare - only for oscillator passes)
+        const proxy = this._oscillatorPassProxy
+        proxy.id = pass.id
+        proxy.program = pass.program
+        proxy.inputs = pass.inputs
+        proxy.outputs = pass.outputs
+        proxy.clear = pass.clear
+        proxy.blend = pass.blend
+        proxy.drawMode = pass.drawMode
+        proxy.count = pass.count
+        proxy.repeat = pass.repeat
+        proxy.conditions = pass.conditions
+        proxy.viewport = pass.viewport
+        proxy.drawBuffers = pass.drawBuffers
+        proxy.storageTextures = pass.storageTextures
+        proxy.samplerTypes = pass.samplerTypes
+        proxy.entryPoint = pass.entryPoint
+
+        // Swap uniform references (avoid copying values)
+        const proxyUniforms = proxy.uniforms
+        proxy.uniforms = resolvedUniforms
+        this._resolvedUniforms = proxyUniforms
+
+        return proxy
     }
 
     /**
@@ -888,13 +928,19 @@ export class Pipeline {
         const surfaceMap = state.surfaces
         const writeSurfaceMap = state.writeSurfaces
 
-        // Clear previous frame's surface entries
-        for (const key in surfaceMap) {
-            delete surfaceMap[key]
+        // Clear previous frame's surface entries by setting to undefined
+        // (delete causes hidden class deoptimization)
+        const oldSurfaceKeys = this._surfaceKeys
+        const oldWriteSurfaceKeys = this._writeSurfaceKeys
+        for (let i = 0; i < oldSurfaceKeys.length; i++) {
+            surfaceMap[oldSurfaceKeys[i]] = undefined
         }
-        for (const key in writeSurfaceMap) {
-            delete writeSurfaceMap[key]
+        for (let i = 0; i < oldWriteSurfaceKeys.length; i++) {
+            writeSurfaceMap[oldWriteSurfaceKeys[i]] = undefined
         }
+        // Reset key arrays (reuse same arrays)
+        oldSurfaceKeys.length = 0
+        oldWriteSurfaceKeys.length = 0
 
         // Build surfaces map with current read textures
         for (const [name, surface] of this.surfaces.entries()) {
@@ -902,10 +948,13 @@ export class Pipeline {
             const tex = this.backend.textures.get(readTextureId)
             if (tex) {
                 surfaceMap[name] = tex
+                oldSurfaceKeys.push(name)
             }
             // Use the frame's write target (set at frame start, doesn't change during frame)
             // This ensures multiple passes writing to the same surface all write to the same buffer
-            writeSurfaceMap[name] = this.frameWriteTextures.get(name) ?? surface.write
+            const writeTarget = this.frameWriteTextures.get(name) ?? surface.write
+            writeSurfaceMap[name] = writeTarget
+            oldWriteSurfaceKeys.push(name)
         }
 
         // Update scalar state fields

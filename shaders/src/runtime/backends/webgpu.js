@@ -63,6 +63,17 @@ export class WebGPUBackend extends Backend {
         this.uniformBufferPool = []
         this.activeUniformBuffers = []
 
+        // Pre-allocated objects for hot path to avoid per-frame GC pressure
+        this._mergedUniforms = {}  // Reused in createUniformBuffer
+        this._mergedUniformKeys = []  // Track keys to clear efficiently
+        // Pre-allocated typed arrays for single uniform buffers (common sizes)
+        this._singleUniformFloat32 = new Float32Array(4)  // Up to vec4
+        this._singleUniformInt32 = new Int32Array(4)  // Up to vec4
+        // Pre-allocated uniform buffer data (reuse for packUniforms)
+        this._uniformBufferData = new ArrayBuffer(512)  // Large enough for most cases
+        this._uniformDataView = new DataView(this._uniformBufferData)
+        this._uniformBufferSize = 512
+
         // Listen for uncaptured errors
         this.device.addEventListener('uncapturederror', (event) => {
             console.error('WebGPU uncaptured error:', event.error?.message || event.error)
@@ -1692,76 +1703,115 @@ export class WebGPUBackend extends Backend {
 
         // Create bind group using the target pipeline's layout
         // Handle multi-entry-point shaders where some bindings may be optimized out
-        // Use a loop to remove all problematic bindings
-        let currentEntries = entries.slice()  // Copy entries array
-        const maxRetries = 10
+        // Try direct creation first (most common case - no optimized-out bindings)
+        try {
+            return this.device.createBindGroup({
+                layout: targetPipeline.getBindGroupLayout(0),
+                entries
+            })
+        } catch (err) {
+            // Fall back to retry loop only on binding errors
+            const errStr = err.message || String(err)
+            if (!errStr.includes('binding index')) {
+                throw err
+            }
 
-        for (let attempt = 0; attempt < maxRetries; attempt++) {
-            try {
-                const bindGroup = this.device.createBindGroup({
-                    layout: targetPipeline.getBindGroupLayout(0),
-                    entries: currentEntries
-                })
-                return bindGroup
-            } catch (err) {
-                const errStr = err.message || String(err)
+            // Use retry loop with filtered entries (rare case)
+            let currentEntries = entries
+            const maxRetries = 10
+
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
                 const bindingMatch = /binding index (\d+) not present/.exec(errStr)
-
                 if (bindingMatch) {
                     const problemBinding = parseInt(bindingMatch[1], 10)
-                    const beforeLength = currentEntries.length
+                    // Filter in place to avoid allocation on subsequent retries
                     currentEntries = currentEntries.filter(e => e.binding !== problemBinding)
 
-                    // If we removed an entry, try again
-                    if (currentEntries.length < beforeLength) {
+                    try {
+                        return this.device.createBindGroup({
+                            layout: targetPipeline.getBindGroupLayout(0),
+                            entries: currentEntries
+                        })
+                    } catch (retryErr) {
+                        const retryErrStr = retryErr.message || String(retryErr)
+                        if (!retryErrStr.includes('binding index')) {
+                            throw retryErr
+                        }
                         continue
                     }
                 }
-
-                // If we can't fix the error, throw it
-                console.error('Failed to create bind group:', err)
-                throw err
+                break
             }
-        }
 
-        // If we exhausted retries, throw an error
-        throw new Error('Failed to create bind group after multiple retries')
+            throw err
+        }
     }
 
     /**
      * Create a buffer for a single uniform value.
+     * Reuses pre-allocated typed arrays to minimize per-frame allocations.
      */
     createSingleUniformBuffer(value, typeDecl) {
         let data
+        let byteLength
 
         if (typeof value === 'boolean') {
-            data = new Int32Array([value ? 1 : 0])
+            // Reuse pre-allocated int32 array
+            this._singleUniformInt32[0] = value ? 1 : 0
+            data = this._singleUniformInt32
+            byteLength = 4
         } else if (typeof value === 'number') {
             if (typeDecl === 'i32' || typeDecl === 'u32') {
-                data = new Int32Array([Math.round(value)])
+                this._singleUniformInt32[0] = Math.round(value)
+                data = this._singleUniformInt32
+                byteLength = 4
             } else {
-                data = new Float32Array([value])
+                this._singleUniformFloat32[0] = value
+                data = this._singleUniformFloat32
+                byteLength = 4
             }
         } else if (Array.isArray(value)) {
+            // Reuse pre-allocated float32 array for vectors
+            const arr = this._singleUniformFloat32
             if (value.length === 2) {
-                // vec2 - needs 8 byte alignment
-                data = new Float32Array(value)
-            } else if (value.length === 3 || value.length === 4) {
-                // vec3/vec4 - needs 16 byte alignment, pad vec3 to vec4
-                data = new Float32Array(value.length === 3 ? [...value, 0] : value)
+                arr[0] = value[0]
+                arr[1] = value[1]
+                byteLength = 8
+            } else if (value.length === 3) {
+                arr[0] = value[0]
+                arr[1] = value[1]
+                arr[2] = value[2]
+                arr[3] = 0  // Pad vec3 to vec4
+                byteLength = 16
+            } else if (value.length === 4) {
+                arr[0] = value[0]
+                arr[1] = value[1]
+                arr[2] = value[2]
+                arr[3] = value[3]
+                byteLength = 16
             } else {
+                // Fallback for other sizes - must allocate
                 data = new Float32Array(value)
+                byteLength = data.byteLength
             }
+            if (!data) data = arr
         }
 
         if (!data) return null
 
-        const buffer = this.device.createBuffer({
-            size: Math.max(data.byteLength, 16), // Minimum 16 bytes for alignment
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-        })
+        // Get buffer from pool or create new one
+        const bufferSize = Math.max(byteLength, 16)
+        let buffer = this.getBufferFromPool(bufferSize)
 
-        this.queue.writeBuffer(buffer, 0, data)
+        if (!buffer) {
+            buffer = this.device.createBuffer({
+                size: bufferSize,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+            })
+        }
+
+        // Write only the needed bytes (use subarray to avoid allocation)
+        this.queue.writeBuffer(buffer, 0, data.buffer, data.byteOffset, byteLength)
         return buffer
     }
 
@@ -2004,11 +2054,42 @@ export class WebGPUBackend extends Backend {
      * - mat4: 64 bytes (4 x vec4)
      */
     createUniformBuffer(pass, state, program = null) {
+        // Merge uniforms into pre-allocated object to avoid per-frame allocation
         // Pass uniforms first (from DSL/effect defaults), then globalUniforms on top
-        // This allows runtime overrides (like test uniforms) to take precedence
-        const uniforms = { ...pass.uniforms, ...state.globalUniforms }
+        const merged = this._mergedUniforms
+        const mergedKeys = this._mergedUniformKeys
 
-        if (Object.keys(uniforms).length === 0) {
+        // Clear previous keys (set to undefined to avoid delete deopt)
+        for (let i = 0; i < mergedKeys.length; i++) {
+            merged[mergedKeys[i]] = undefined
+        }
+        mergedKeys.length = 0
+
+        // Copy pass uniforms
+        if (pass.uniforms) {
+            for (const key in pass.uniforms) {
+                const val = pass.uniforms[key]
+                if (val !== undefined) {
+                    merged[key] = val
+                    mergedKeys.push(key)
+                }
+            }
+        }
+
+        // Copy/override with global uniforms
+        if (state.globalUniforms) {
+            for (const key in state.globalUniforms) {
+                const val = state.globalUniforms[key]
+                if (val !== undefined) {
+                    if (merged[key] === undefined) {
+                        mergedKeys.push(key)
+                    }
+                    merged[key] = val
+                }
+            }
+        }
+
+        if (mergedKeys.length === 0) {
             return null
         }
 
@@ -2017,8 +2098,8 @@ export class WebGPUBackend extends Backend {
 
         // Pack uniforms into buffer using layout if available
         const data = packedLayout
-            ? this.packUniformsWithLayout(uniforms, packedLayout)
-            : this.packUniforms(uniforms)
+            ? this.packUniformsWithLayout(merged, packedLayout)
+            : this.packUniforms(merged)
 
         // Get or create buffer from pool
         let buffer = this.getBufferFromPool(data.byteLength)
@@ -2052,11 +2133,14 @@ export class WebGPUBackend extends Backend {
 
     /**
      * Pack uniforms into an ArrayBuffer following std140 alignment rules.
+     * Reuses pre-allocated buffer when possible to minimize per-frame allocations.
      */
     packUniforms(uniforms) {
         // Calculate required size (rough estimate)
         let estimatedSize = 0
-        for (const value of Object.values(uniforms)) {
+        for (const key in uniforms) {
+            const value = uniforms[key]
+            if (value === undefined) continue
             if (typeof value === 'number') {
                 estimatedSize += 4
             } else if (Array.isArray(value)) {
@@ -2069,15 +2153,29 @@ export class WebGPUBackend extends Backend {
         // Round up to next 16 bytes and add padding for struct compatibility
         // Many compute shaders use vec4-packed structs up to 256 bytes
         const bufferSize = Math.max(256, Math.ceil((estimatedSize + 64) / 16) * 16)
-        const buffer = new ArrayBuffer(bufferSize)
-        const view = new DataView(buffer)
+
+        // Reuse pre-allocated buffer if large enough, otherwise allocate new one
+        let buffer, view
+        if (bufferSize <= this._uniformBufferSize) {
+            buffer = this._uniformBufferData
+            view = this._uniformDataView
+        } else {
+            // Need larger buffer - allocate and cache for future reuse
+            this._uniformBufferData = new ArrayBuffer(bufferSize)
+            this._uniformDataView = new DataView(this._uniformBufferData)
+            this._uniformBufferSize = bufferSize
+            buffer = this._uniformBufferData
+            view = this._uniformDataView
+        }
+
         let offset = 0
 
         const alignTo = (currentOffset, alignment) => {
             return Math.ceil(currentOffset / alignment) * alignment
         }
 
-        for (const [name, value] of Object.entries(uniforms)) {
+        for (const name in uniforms) {
+            const value = uniforms[name]
             if (value === undefined || value === null) continue
 
             if (typeof value === 'boolean') {

@@ -222,6 +222,13 @@ export class CanvasRenderer {
         this._fpsLastUpdateTime = performance.now()
         this._currentFPS = 0
 
+        // Frame time tracking for jitter measurement (circular buffer)
+        this._frameTimeBufferSize = 120  // Track last ~2 seconds at 60fps
+        this._frameTimeBuffer = new Float32Array(this._frameTimeBufferSize)
+        this._frameTimeIndex = 0
+        this._frameTimeCount = 0
+        this._lastRenderTime = 0
+
         // Lazy loading infrastructure
         this._manifest = {}
         this._loadedEffects = new Map()
@@ -271,6 +278,54 @@ export class CanvasRenderer {
     /** @returns {number} Loop duration in seconds */
     get loopDuration() {
         return this._loopDuration
+    }
+
+    /** @returns {number} Last frame render time in ms */
+    get lastRenderTime() {
+        return this._lastRenderTime
+    }
+
+    /**
+     * Get frame time statistics for jitter measurement
+     * @returns {{mean: number, std: number, min: number, max: number, count: number}}
+     */
+    getFrameTimeStats() {
+        if (this._frameTimeCount === 0) {
+            return { mean: 0, std: 0, min: 0, max: 0, count: 0 }
+        }
+
+        const count = this._frameTimeCount
+        let sum = 0
+        let min = Infinity
+        let max = -Infinity
+
+        for (let i = 0; i < count; i++) {
+            const t = this._frameTimeBuffer[i]
+            sum += t
+            if (t < min) min = t
+            if (t > max) max = t
+        }
+
+        const mean = sum / count
+
+        // Calculate standard deviation (jitter)
+        let sumSq = 0
+        for (let i = 0; i < count; i++) {
+            const diff = this._frameTimeBuffer[i] - mean
+            sumSq += diff * diff
+        }
+        const std = Math.sqrt(sumSq / count)
+
+        return { mean, std, min, max, count }
+    }
+
+    /**
+     * Reset frame time tracking buffer
+     */
+    resetFrameTimeStats() {
+        this._frameTimeIndex = 0
+        this._frameTimeCount = 0
+        this._lastRenderTime = 0
     }
 
     /** @returns {string} Current DSL source */
@@ -448,9 +503,21 @@ export class CanvasRenderer {
 
         if (this._pipeline) {
             try {
+                const renderStart = performance.now()
                 const elapsedSeconds = (time - this._loopStartTime) / 1000
                 const normalizedTime = (elapsedSeconds % this._loopDuration) / this._loopDuration
                 this._pipeline.render(normalizedTime)
+                const renderEnd = performance.now()
+
+                // Track frame time for jitter measurement
+                const frameTime = renderEnd - renderStart
+                this._frameTimeBuffer[this._frameTimeIndex] = frameTime
+                this._frameTimeIndex = (this._frameTimeIndex + 1) % this._frameTimeBufferSize
+                if (this._frameTimeCount < this._frameTimeBufferSize) {
+                    this._frameTimeCount++
+                }
+                this._lastRenderTime = frameTime
+
                 this._frameCount++
 
                 if (this._onFrame) {

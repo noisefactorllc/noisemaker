@@ -282,7 +282,7 @@ Render a frame and get an AI vision description using GPT-4 Vision.
 benchmarkEffectFPS
 ^^^^^^^^^^^^^^^^^^
 
-Benchmark a shader to verify it can sustain a target framerate.
+Benchmark a shader to verify it can sustain a target framerate. Measures frame times and jitter (frame time variance).
 
 **Parameters:**
 
@@ -315,6 +315,25 @@ Benchmark a shader to verify it can sustain a target framerate.
      - No
      - Resolution for benchmark
 
+**Jitter Metrics:**
+
+The ``jitter_ms`` field reports the standard deviation of frame render times. Lower values indicate smoother animation:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 70
+
+   * - Jitter (ms)
+     - Quality
+   * - < 1.0
+     - Excellent - very smooth
+   * - 1.0 - 3.0
+     - Good - minor variation
+   * - 3.0 - 8.0
+     - Fair - noticeable stutters
+   * - > 8.0
+     - Poor - jerky animation
+
 **Example Response:**
 
 .. code-block:: json
@@ -324,16 +343,15 @@ Benchmark a shader to verify it can sustain a target framerate.
      "backend": "webgl2",
      "success": true,
      "target_fps": 60,
-     "achieved_fps": 142.7,
+     "achieved_fps": 59.88,
      "meets_target": true,
-     "frame_times": {
-       "min_ms": 5.2,
-       "max_ms": 12.8,
-       "avg_ms": 7.0,
-       "p95_ms": 9.3
+     "stats": {
+       "frame_count": 180,
+       "avg_frame_time_ms": 16.7,
+       "jitter_ms": 0.94,
+       "min_frame_time_ms": 0.1,
+       "max_frame_time_ms": 2.3
      },
-     "total_frames": 428,
-     "duration_seconds": 3,
      "console_errors": []
    }
 

@@ -625,11 +625,16 @@ async function testEffect(session, effectId, options) {
         })
         timings.push(`benchmark:${Date.now() - t0}ms`)
         results.benchmark = benchResult.achieved_fps
+        results.benchmarkStats = benchResult.stats
         if (benchResult.achieved_fps < 30) {
             results.benchmarkFailed = true
             console.log(`  ❌ benchmark: ${benchResult.achieved_fps} fps (below 30 fps target)`)
         } else {
-            console.log(`  ✓ benchmark: ${benchResult.achieved_fps} fps`)
+            // Include jitter in output if available
+            const jitterInfo = benchResult.stats?.jitter_ms !== undefined
+                ? `, jitter: ${benchResult.stats.jitter_ms}ms`
+                : ''
+            console.log(`  ✓ benchmark: ${benchResult.achieved_fps} fps${jitterInfo}`)
         }
     }
 
