@@ -4,14 +4,14 @@
  *
  * Each effect gets a single self-contained bundle with:
  * - The effect definition
- * - All shader sources (GLSL/WGSL) inlined and minified
+ * - All shader sources (GLSL/WGSL) inlined (optionally minified)
  * - Help documentation (help.md)
  *
  * Output structure:
  *   dist/effects/{namespace}/{effectName}.js
  *
  * Usage:
- *   node scripts/bundle-effects.js [--namespace <name>] [--effect <name>]
+ *   node scripts/bundle-effects.js [--namespace <name>] [--effect <name>] [--minify-shaders]
  */
 
 import fs from 'fs'
@@ -72,9 +72,9 @@ function readHelpFile(namespace, effectName) {
 }
 
 /**
- * Load all shader sources for an effect based on manifest (minified)
+ * Load all shader sources for an effect based on manifest.
  */
-function loadEffectShaders(namespace, effectName, manifest) {
+function loadEffectShaders(namespace, effectName, manifest, minifyShaders) {
     const effectId = `${namespace}/${effectName}`
     const effectManifest = manifest[effectId]
     const effectDir = path.join(effectsDir, namespace, effectName)
@@ -83,6 +83,8 @@ function loadEffectShaders(namespace, effectName, manifest) {
 
     const shaders = {}
 
+    const maybeMinify = (src) => (minifyShaders ? minifyShader(src) : src)
+
     // Load GLSL shaders
     if (effectManifest.glsl) {
         for (const [prog, info] of Object.entries(effectManifest.glsl)) {
@@ -90,15 +92,15 @@ function loadEffectShaders(namespace, effectName, manifest) {
 
             if (info === 'combined') {
                 const src = readShaderSource(path.join(effectDir, 'glsl', `${prog}.glsl`))
-                if (src) shaders[prog].glsl = minifyShader(src)
+                if (src) shaders[prog].glsl = maybeMinify(src)
             } else if (typeof info === 'object') {
                 if (info.v) {
                     const src = readShaderSource(path.join(effectDir, 'glsl', `${prog}.vert`))
-                    if (src) shaders[prog].vertex = minifyShader(src)
+                    if (src) shaders[prog].vertex = maybeMinify(src)
                 }
                 if (info.f) {
                     const src = readShaderSource(path.join(effectDir, 'glsl', `${prog}.frag`))
-                    if (src) shaders[prog].fragment = minifyShader(src)
+                    if (src) shaders[prog].fragment = maybeMinify(src)
                 }
             }
         }
@@ -111,7 +113,7 @@ function loadEffectShaders(namespace, effectName, manifest) {
 
             if (info === 1 || info === 'combined') {
                 const src = readShaderSource(path.join(effectDir, 'wgsl', `${prog}.wgsl`))
-                if (src) shaders[prog].wgsl = minifyShader(src)
+                if (src) shaders[prog].wgsl = maybeMinify(src)
             }
         }
     }
@@ -129,10 +131,10 @@ function relPath(tempDir, target) {
 /**
  * Generate a self-contained effect module with inlined shaders
  */
-function generateEffectModule(namespace, effectName, manifest, tempDir) {
+function generateEffectModule(namespace, effectName, manifest, tempDir, minifyShaders) {
     const effectDir = path.join(effectsDir, namespace, effectName)
     const definitionPath = relPath(tempDir, path.join(effectDir, 'definition.js'))
-    const shaders = loadEffectShaders(namespace, effectName, manifest)
+    const shaders = loadEffectShaders(namespace, effectName, manifest, minifyShaders)
     const helpContent = readHelpFile(namespace, effectName)
 
     const code = `
@@ -175,11 +177,11 @@ export default effectDef;
 /**
  * Build mini-bundle for a single effect
  */
-async function buildEffectBundle(namespace, effectName, manifest) {
+async function buildEffectBundle(namespace, effectName, manifest, minifyShaders) {
     const tempDir = path.join(distDir, '.temp', namespace)
     fs.mkdirSync(tempDir, { recursive: true })
 
-    const moduleCode = generateEffectModule(namespace, effectName, manifest, tempDir)
+    const moduleCode = generateEffectModule(namespace, effectName, manifest, tempDir, minifyShaders)
     const tempFile = path.join(tempDir, `${effectName}.entry.js`)
     fs.writeFileSync(tempFile, moduleCode)
 
@@ -225,7 +227,10 @@ async function main() {
         ? args[args.indexOf('--effect') + 1]
         : null
 
+    const minifyShaders = args.includes('--minify-shaders')
+
     console.log('Building effect mini-bundles with esbuild...')
+    console.log(`  - inlined shader minification: ${minifyShaders ? 'on' : 'off'}`)
 
     // Read manifest
     if (!fs.existsSync(manifestPath)) {
@@ -255,7 +260,7 @@ async function main() {
             console.log(`\nBuilding ${ns}/ (${effectsToBuild.length} effects)...`)
 
             for (const effectName of effectsToBuild) {
-                await buildEffectBundle(ns, effectName, manifest)
+                await buildEffectBundle(ns, effectName, manifest, minifyShaders)
                 builtEffects++
                 process.stdout.write(`  ✓ ${effectName}\n`)
             }

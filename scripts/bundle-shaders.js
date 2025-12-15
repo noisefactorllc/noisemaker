@@ -12,7 +12,7 @@
  *   dist/effects/{namespace}/{effectName}.js - Per-effect mini-bundles
  *
  * Usage:
- *   node scripts/bundle-shaders.js
+ *   node scripts/bundle-shaders.js [--minify-shaders]
  */
 
 import fs from 'fs'
@@ -130,6 +130,9 @@ function cleanup() {
  * Main entry point
  */
 async function main() {
+    const args = process.argv.slice(2)
+    const minifyShaders = args.includes('--minify-shaders')
+
     console.log('Bundling Noisemaker Shaders with esbuild...')
 
     // Ensure output directory exists
@@ -155,7 +158,10 @@ async function main() {
         // Build effect mini-bundles
         console.log('\nBuilding effect mini-bundles...')
         const bundleEffectsPath = path.join(__dirname, 'bundle-effects.js')
-        execSync(`node "${bundleEffectsPath}"`, { stdio: 'inherit' })
+        execSync(
+            `node "${bundleEffectsPath}"${minifyShaders ? ' --minify-shaders' : ''}`,
+            { stdio: 'inherit' }
+        )
 
     } finally {
         cleanup()

@@ -45,7 +45,7 @@ build:
       - cp dist/noisemaker.min.js docs/_static/
       - ls -lh docs/_static/noisemaker.min.js
       # Build shader bundles
-      - npm run bundle:shaders
+      - npm run bundle:shaders -- --minify-shaders
       # Copy shader core bundle to docs static directory
       - cp dist/shaders/noisemaker-shaders-core.min.js docs/_static/
       - ls -lh docs/_static/noisemaker-shaders-core.min.js
