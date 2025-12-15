@@ -27,10 +27,10 @@ import { mergeIntoEnums } from '../lang/enums.js'
 import { stdEnums } from '../lang/std_enums.js'
 
 // Known 3D generator effects (self-initialize volumes)
-const KNOWN_3D_GENERATORS = ['noise3d', 'cell3d', 'shape3d', 'fractal3d']
+const KNOWN_3D_GENERATORS = ['noise3d', 'cell3d', 'shape3d', 'fractal3d', 'ca3d', 'rd3d']
 
 // Known 3D processor effects (modify volumes, need inputTex3d)
-const KNOWN_3D_PROCESSORS = ['flow3d', 'rd3d', 'ca3d', 'render3d']
+const KNOWN_3D_PROCESSORS = ['flow3d', 'render3d']
 
 /**
  * Deep clone a parameter value

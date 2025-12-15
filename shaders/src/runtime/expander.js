@@ -102,10 +102,20 @@ export function expand(compilationResult, options = {}) {
                 const tex3d = step.args?.tex3d
                 const geo = step.args?.geo
                 if (tex3d) {
-                    currentInput3d = tex3d.name || tex3d
+                    // Handle VolRef (vol0-vol7) or plain name
+                    if (tex3d.kind === 'vol' || tex3d.type === 'VolRef') {
+                        currentInput3d = `global_${tex3d.name}`  // e.g., 'global_vol0'
+                    } else {
+                        currentInput3d = tex3d.name || tex3d
+                    }
                 }
                 if (geo) {
-                    currentInputGeo = geo.name || geo
+                    // Handle GeoRef (geo0-geo7) or plain name
+                    if (geo.kind === 'geo' || geo.type === 'GeoRef') {
+                        currentInputGeo = `global_${geo.name}`  // e.g., 'global_geo0'
+                    } else {
+                        currentInputGeo = geo.name || geo
+                    }
                 }
                 // Register the read3d output so subsequent steps can find it via step.from
                 const nodeId = `node_${step.temp}`
@@ -180,6 +190,92 @@ export function expand(compilationResult, options = {}) {
                     textureMap.set(`${nodeId}_out`, currentInput)
                     // currentInput stays the same - we pass through the input texture
                 }
+                continue
+            }
+
+            // Handle builtin write3d operations - write 3D volume and geometry to global surfaces
+            // This makes write3d() chainable: noise3d().write3d(vol0, geo0).render3d() works
+            if (step.builtin && step.op === '_write3d') {
+                const tex3d = step.args?.tex3d
+                const geo = step.args?.geo
+                const nodeId = `node_${step.temp}`
+
+                // Blit 3D volume to target global surface
+                if (tex3d && currentInput3d) {
+                    const targetVol = `global_${tex3d.name}`
+
+                    // Only add blit if the current input is not already the target
+                    if (currentInput3d !== targetVol) {
+                        const blitPass = {
+                            id: `${nodeId}_write3d_vol_blit`,
+                            program: 'blit',
+                            type: 'render',
+                            inputs: { src: currentInput3d },
+                            outputs: { color: targetVol },
+                            uniforms: {},
+                            nodeId: nodeId,
+                            stepIndex: step.temp
+                        }
+                        passes.push(blitPass)
+
+                        // Ensure blit program exists
+                        if (!programs['blit']) {
+                            programs['blit'] = {
+                                fragment: `#version 300 es
+                                    precision highp float;
+                                    in vec2 v_texCoord;
+                                    uniform sampler2D src;
+                                    out vec4 fragColor;
+                                    void main() {
+                                        fragColor = texture(src, v_texCoord);
+                                    }`,
+                                wgsl: `
+                                    struct FragmentInput {
+                                        @builtin(position) position: vec4<f32>,
+                                        @location(0) uv: vec2<f32>,
+                                    }
+
+                                    @group(0) @binding(0) var src: texture_2d<f32>;
+                                    @group(0) @binding(1) var srcSampler: sampler;
+
+                                    @fragment
+                                    fn main(in: FragmentInput) -> @location(0) vec4<f32> {
+                                        // Flip Y to match WebGPU texture coordinate convention
+                                        let uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
+                                        return textureSample(src, srcSampler, uv);
+                                    }
+                                `,
+                                fragmentEntryPoint: 'main'
+                            }
+                        }
+                    }
+                }
+
+                // Blit geometry buffer to target global surface
+                if (geo && currentInputGeo) {
+                    const targetGeo = `global_${geo.name}`
+
+                    // Only add blit if the current input is not already the target
+                    if (currentInputGeo !== targetGeo) {
+                        const geoBlitPass = {
+                            id: `${nodeId}_write3d_geo_blit`,
+                            program: 'blit',
+                            type: 'render',
+                            inputs: { src: currentInputGeo },
+                            outputs: { color: targetGeo },
+                            uniforms: {},
+                            nodeId: nodeId,
+                            stepIndex: step.temp
+                        }
+                        passes.push(geoBlitPass)
+                    }
+                }
+
+                // Pass through: the outputs of write3d() are the same textures that were written
+                textureMap.set(`${nodeId}_out`, currentInput)
+                textureMap.set(`${nodeId}_out3d`, currentInput3d)
+                textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
+                // currentInput3d and currentInputGeo stay the same - we pass through
                 continue
             }
 
@@ -481,11 +577,19 @@ export function expand(compilationResult, options = {}) {
                                 pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_o0
                             } else if (arg.kind === 'source') {
                                 pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_o0
+                            } else if (arg.kind === 'vol') {
+                                pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_vol0
+                            } else if (arg.kind === 'geo') {
+                                pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_geo0
                             } else if (typeof arg === 'string') {
                                 // Allow direct string bindings to legacy texture ids
                                 if (arg.startsWith('global_')) {
                                     pass.inputs[uniformName] = arg
                                 } else if (/^o[0-7]$/.test(arg)) {
+                                    pass.inputs[uniformName] = `global_${arg}`
+                                } else if (/^vol[0-7]$/.test(arg)) {
+                                    pass.inputs[uniformName] = `global_${arg}`
+                                } else if (/^geo[0-7]$/.test(arg)) {
                                     pass.inputs[uniformName] = `global_${arg}`
                                 } else {
                                     pass.inputs[uniformName] = arg
@@ -497,6 +601,10 @@ export function expand(compilationResult, options = {}) {
                             if (defaultVal === 'inputTex' || defaultVal === 'inputColor') {
                                 pass.inputs[uniformName] = currentInput || defaultVal
                             } else if (/^o[0-7]$/.test(defaultVal)) {
+                                pass.inputs[uniformName] = `global_${defaultVal}`
+                            } else if (/^vol[0-7]$/.test(defaultVal)) {
+                                pass.inputs[uniformName] = `global_${defaultVal}`
+                            } else if (/^geo[0-7]$/.test(defaultVal)) {
                                 pass.inputs[uniformName] = `global_${defaultVal}`
                             } else if (defaultVal.startsWith('global_')) {
                                 pass.inputs[uniformName] = defaultVal

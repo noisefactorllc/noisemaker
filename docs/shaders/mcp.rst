@@ -268,7 +268,7 @@ Render a frame and get an AI vision description using GPT-4 Vision.
 .. code-block:: json
 
    {
-     "effect_id": "sim/physarum",
+     "effect_id": "synth/physarum",
      "backend": "webgl2",
      "success": true,
      "description": "Organic slime mold-like trails on a dark background with gradient coloration.",
@@ -386,7 +386,7 @@ Verify that uniform controls affect the visual output.
 .. code-block:: json
 
    {
-     "effect_id": "sim/physarum",
+     "effect_id": "synth/physarum",
      "backend": "webgl2",
      "success": true,
      "uniforms_tested": 5,
@@ -697,10 +697,10 @@ Examples
    node test-harness.js --effects "synth/*" --webgl2 --benchmark
 
    # All tests on WebGPU with AI analysis
-   node test-harness.js --effects "sim/*" --webgpu --all --with-ai
+   node test-harness.js --effects "synth/ca,synth/physarum" --webgpu --all --with-ai
 
    # Structure check (no browser)
-   node test-harness.js --effects "sim/physarum" --webgl2 --structure
+   node test-harness.js --effects "synth/physarum" --webgl2 --structure
 
    # Branching analysis with AI
    node test-harness.js --effects synth/noise --webgl2 --branching --with-ai

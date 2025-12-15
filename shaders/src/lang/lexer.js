@@ -77,6 +77,28 @@ export function lex(src) {
             continue
         }
 
+        // volume reference (vol0-vol7)
+        if (ch === 'v' && src[i + 1] === 'o' && src[i + 2] === 'l' && isDigit(src[i + 3])) {
+            let j = i + 3
+            while (j < src.length && isDigit(src[j])) j++
+            const lexeme = src.slice(i, j)
+            add('VOL_REF', lexeme, startLine, startCol)
+            col += j - i
+            i = j
+            continue
+        }
+
+        // geometry reference (geo0-geo7)
+        if (ch === 'g' && src[i + 1] === 'e' && src[i + 2] === 'o' && isDigit(src[i + 3])) {
+            let j = i + 3
+            while (j < src.length && isDigit(src[j])) j++
+            const lexeme = src.slice(i, j)
+            add('GEO_REF', lexeme, startLine, startCol)
+            col += j - i
+            i = j
+            continue
+        }
+
         // html hex color literal
         if (ch === '#') {
             let j = i + 1

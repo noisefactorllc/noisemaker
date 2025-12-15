@@ -177,6 +177,12 @@ function formatValue(value, spec, customFormatter) {
         if (value.type === 'SourceRef') {
             return value.name
         }
+        if (value.type === 'VolRef') {
+            return value.name
+        }
+        if (value.type === 'GeoRef') {
+            return value.name
+        }
         if (value.type === 'Member') {
             return value.path.join('.')
         }

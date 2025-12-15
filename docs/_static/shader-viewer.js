@@ -28,7 +28,6 @@
         { namespace: 'filter' },
         { namespace: 'mixer' },
         { namespace: 'synth' },
-        { namespace: 'sim' },
         { namespace: 'vol' },
         { namespace: 'classicNoisedeck' },
         { namespace: 'classicNoisemaker' }
@@ -385,7 +384,7 @@
             let searchNs = effect.namespace;
             if (effect.namespace === 'classicNoisemaker') {
                 searchNs = 'classicNoisemaker, synth';
-            } else if (['filter', 'mixer', 'sim'].includes(effect.namespace)) {
+            } else if (['filter', 'mixer'].includes(effect.namespace)) {
                 searchNs = `${effect.namespace}, synth`;
             }
             const searchDirective = searchNs ? `search ${searchNs}\n` : '';

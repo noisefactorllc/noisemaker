@@ -2,9 +2,8 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
   name: "Rd",
-  namespace: "sim",
   func: "rd",
-  tags: ["math"],
+  tags: ["math", "sim"],
 
   description: "Gray-Scott reaction-diffusion",
   uniformLayouts: {

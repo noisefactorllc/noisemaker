@@ -66,12 +66,12 @@ export function parse(tokens) {
 
     const exprStartTokens = new Set([
         'PLUS', 'MINUS', 'NUMBER', 'HEX', 'FUNC',
-        'IDENT', 'OUTPUT_REF', 'SOURCE_REF', 'LPAREN',
+        'IDENT', 'OUTPUT_REF', 'SOURCE_REF', 'VOL_REF', 'GEO_REF', 'LPAREN',
         'TRUE', 'FALSE'
     ])
 
     const memberTokenTypes = new Set([
-        'IDENT', 'SOURCE_REF', 'OUTPUT_REF',
+        'IDENT', 'SOURCE_REF', 'OUTPUT_REF', 'VOL_REF', 'GEO_REF',
         'LET', 'RENDER', 'TRUE', 'FALSE', 'IF', 'ELIF', 'ELSE',
         'LOOP', 'BREAK', 'CONTINUE', 'RETURN', 'WRITE', 'WRITE3D'
     ])
@@ -475,20 +475,26 @@ export function parse(tokens) {
             expect('LPAREN', "Expect '('")
             // Parse tex3d reference
             let tex3d = null
-            if (peek().type === 'IDENT' || peek().type === 'OUTPUT_REF') {
-                tex3d = peek().type === 'OUTPUT_REF'
+            if (peek().type === 'IDENT' || peek().type === 'OUTPUT_REF' || peek().type === 'VOL_REF') {
+                const tokType = peek().type
+                tex3d = tokType === 'OUTPUT_REF'
                     ? { type: 'OutputRef', name: advance().lexeme }
-                    : { type: 'Ident', name: advance().lexeme }
+                    : tokType === 'VOL_REF'
+                        ? { type: 'VolRef', name: advance().lexeme }
+                        : { type: 'Ident', name: advance().lexeme }
             } else {
                 throw new SyntaxError(`Expected tex3d reference in write3d() at line ${peek().line} col ${peek().col}`)
             }
             expect('COMMA', "Expect ',' between tex3d and geo in write3d()")
             // Parse geo reference
             let geo = null
-            if (peek().type === 'IDENT' || peek().type === 'OUTPUT_REF') {
-                geo = peek().type === 'OUTPUT_REF'
+            if (peek().type === 'IDENT' || peek().type === 'OUTPUT_REF' || peek().type === 'GEO_REF') {
+                const tokType = peek().type
+                geo = tokType === 'OUTPUT_REF'
                     ? { type: 'OutputRef', name: advance().lexeme }
-                    : { type: 'Ident', name: advance().lexeme }
+                    : tokType === 'GEO_REF'
+                        ? { type: 'GeoRef', name: advance().lexeme }
+                        : { type: 'Ident', name: advance().lexeme }
             } else {
                 throw new SyntaxError(`Expected geo reference in write3d() at line ${peek().line} col ${peek().col}`)
             }
@@ -700,6 +706,12 @@ export function parse(tokens) {
             case 'SOURCE_REF':
                 advance()
                 return {type: 'SourceRef', name: token.lexeme}
+            case 'VOL_REF':
+                advance()
+                return {type: 'VolRef', name: token.lexeme}
+            case 'GEO_REF':
+                advance()
+                return {type: 'GeoRef', name: token.lexeme}
             case 'LPAREN': {
                 advance()
                 const expr = parseAdditive()

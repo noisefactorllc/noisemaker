@@ -25,16 +25,20 @@ Grammar
    VarAssign      ::= 'let' Ident '=' Expr
    ChainStmt      ::= Chain
    Chain          ::= ChainElement ( '.' ChainElement )*
-   ChainElement   ::= Call | WriteCall
+   ChainElement   ::= Call | WriteCall | Write3DCall
    WriteCall      ::= 'write' '(' OutputRef ')'
-   Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | Func | '(' Expr ')'
+   Write3DCall    ::= 'write3d' '(' ( VolRef | Ident ) ',' ( GeoRef | Ident ) ')'
+   Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | VolRef | GeoRef | Func | '(' Expr ')'
    Call           ::= Ident '(' ArgList? ')'
    ArgList        ::= Arg ( ',' Arg )* ','?
-   Arg            ::= NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | Func
+   Arg            ::= NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | VolRef | GeoRef | Func
    NumberExpr     ::= Number | 'Math.PI' | '(' NumberExpr ')' | NumberExpr ( '+' | '-' | '*' | '/' ) NumberExpr
    Member         ::= Ident ( '.' Ident )+
    Func           ::= '(' ')' '=>' Expr
    OutputRef      ::= 'o' Digit+
+   VolRef         ::= 'vol' Digit+
+   GeoRef         ::= 'geo' Digit+
+   SourceRef      ::= 's' Digit+
    Ident          ::= Letter ( Letter | Digit | '_' )*
    Number         ::= Digit+ ( '.' Digit+ )?
    String         ::= '"' [^"\n]* '"'
@@ -364,10 +368,20 @@ Surfaces and Outputs
 
 The DSL allows writing to named outputs (Surfaces) and reading from them.
 
+**2D Surfaces:**
 
-* **Global Surfaces:** ``o0``, ``o1``, ``o2``, ``o3``, ``o4``, ``o5``, ``o6``, ``o7`` are persistent textures.
+* **Global Surfaces:** ``o0``, ``o1``, ``o2``, ``o3``, ``o4``, ``o5``, ``o6``, ``o7`` are persistent 2D textures.
 * **Output:** ``.write(o0)`` marks the chain as writing to ``o0``.
 * **Input:** ``read(o0)`` creates a read dependency on ``o0``.
+
+**3D Volume Surfaces:**
+
+* **Global Volumes:** ``vol0``, ``vol1``, ``vol2``, ``vol3``, ``vol4``, ``vol5``, ``vol6``, ``vol7`` are persistent 3D texture volumes (default 64³).
+* **Global Geometry Buffers:** ``geo0``, ``geo1``, ``geo2``, ``geo3``, ``geo4``, ``geo5``, ``geo6``, ``geo7`` are 2D geometry buffers storing surface normals and depth from raymarched effects.
+* **Output:** ``.write3d(vol0, geo0)`` writes 3D volume data and geometry to the specified surfaces.
+* **Input:** ``read3d(vol0, geo0)`` reads from a volume and its associated geometry buffer.
+
+The geometry buffers store precomputed raymarching results (xyz=surface normal, w=depth), enabling downstream post-processing effects without re-raymarching.
 
 Feedback Loops
 ^^^^^^^^^^^^^^

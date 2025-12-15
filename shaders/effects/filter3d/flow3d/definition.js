@@ -1,7 +1,7 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * vol/flow3d - 3D agent-based flow field effect with volume accumulation
+ * filter3d/flow3d - 3D agent-based flow field effect with volume accumulation
  *
  * Direct and faithful port of nu/flow to 3D.
  * Can be used standalone or chained after another 3D effect.
@@ -27,9 +27,9 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Flow3D",
-  namespace: "vol",
+  namespace: "filter3d",
   func: "flow3d",
-  tags: ["math"],
+  tags: ["math", "vol"],
 
   description: "3D agent-based flow field",
   textures: {

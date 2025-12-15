@@ -14,9 +14,8 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "LoopEnd",
-  namespace: "sim",
   func: "loopEnd",
-  tags: ["util"],
+  tags: ["util", "sim"],
 
   description: "End accumulator loop, write back to feedback buffer",
   globals: {},

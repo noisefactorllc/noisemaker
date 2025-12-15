@@ -20,9 +20,9 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Hflow",
-  namespace: "sim",
+  namespace: "filter",
   func: "hflow",
-  tags: ["math"],
+  tags: ["math", "sim"],
 
   description: "Hydraulic erosion flow simulation",
   textures: {
@@ -32,11 +32,6 @@ export default new Effect({
     globalHflowTrail: { width: "100%", height: "100%", format: "rgba16f" }
   },
   globals: {
-    tex: {
-      type: "surface",
-      default: "inputTex",
-      ui: { label: "texture" }
-    },
     density: {
       type: "float",
       default: 5,
@@ -158,7 +153,7 @@ export default new Effect({
         stateTex1: "globalHflowState1",
         stateTex2: "globalHflowState2",
         stateTex3: "globalHflowState3",
-        inputTex: "tex"
+        inputTex: "inputTex"
       },
       outputs: {
         outState1: "globalHflowState1",
@@ -187,7 +182,7 @@ export default new Effect({
       name: "blend",
       program: "blend",
       inputs: {
-        inputTex: "tex",
+        inputTex: "inputTex",
         trailTex: "globalHflowTrail"
       },
       outputs: {

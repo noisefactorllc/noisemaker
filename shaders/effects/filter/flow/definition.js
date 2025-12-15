@@ -14,9 +14,9 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Flow",
-  namespace: "sim",
+  namespace: "filter",
   func: "flow",
-  tags: ["math"],
+  tags: ["math", "sim"],
 
   description: "Agent-based flow field with behaviors",
   textures: {
@@ -26,11 +26,6 @@ export default new Effect({
     globalFlowTrail: { width: "100%", height: "100%", format: "rgba16f" }
   },
   globals: {
-    tex: {
-      type: "surface",
-      default: "inputTex",
-      ui: { label: "texture" }
-    },
     behavior: {
       type: "int",
       default: 1,
@@ -179,7 +174,7 @@ export default new Effect({
         stateTex1: "globalFlowState1",
         stateTex2: "globalFlowState2",
         stateTex3: "globalFlowState3",
-        inputTex: "tex"
+        inputTex: "inputTex"
       },
       uniforms: {
         behavior: "behavior",
@@ -216,7 +211,7 @@ export default new Effect({
       name: "blend",
       program: "blend",
       inputs: {
-        inputTex: "tex",
+        inputTex: "inputTex",
         trailTex: "globalFlowTrail"
       },
       uniforms: {

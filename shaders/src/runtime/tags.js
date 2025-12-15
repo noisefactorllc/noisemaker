@@ -38,6 +38,10 @@ export const TAG_DEFINITIONS = Object.freeze({
     util: {
         id: 'util',
         description: 'Utility function'
+    },
+    sim: {
+        id: 'sim',
+        description: 'Simulations with temporal state'
     }
 })
 
@@ -70,10 +74,6 @@ export const NAMESPACE_DESCRIPTIONS = Object.freeze({
     filter: {
         id: 'filter',
         description: 'Apply special effects to input'
-    },
-    sim: {
-        id: 'sim',
-        description: 'Simulations with temporal state'
     },
     vol: {
         id: 'vol',

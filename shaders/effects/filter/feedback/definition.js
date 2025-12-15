@@ -10,9 +10,8 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Feedback",
-  namespace: "sim",
   func: "feedback",
-  tags: ["util"],
+  tags: ["util", "sim"],
 
   description: "Feedback loop with blend modes and transforms",
   globals: {

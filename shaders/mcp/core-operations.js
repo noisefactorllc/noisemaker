@@ -1715,15 +1715,17 @@ export async function testNoPassthrough(page, effectId, options = {}) {
  * so comparing frame 0 output between backends is not meaningful.
  */
 const SIM_EFFECTS = new Set([
-    'sim/ca',
-    'sim/cf',
-    'sim/dla',
-    'sim/feedback',
-    'sim/flow',
-    'sim/hflow',
-    'sim/mnca',
-    'sim/physarum',
-    'sim/rd',
+    'synth/ca',
+    'synth/cf',
+    'synth/dla',
+    'filter/feedback',
+    'synth/flow',
+    'synth/hflow',
+    'synth/mnca',
+    'synth/physarum',
+    'synth/rd',
+    'filter/loopBegin',
+    'filter/loopEnd',
 ])
 
 /**
@@ -1732,9 +1734,6 @@ const SIM_EFFECTS = new Set([
  * @returns {boolean}
  */
 export function isSimEffect(effectId) {
-    // Effects in the sim namespace are always sim effects
-    if (effectId.startsWith('sim/')) return true
-    // Also check the explicit set for any exceptions
     return SIM_EFFECTS.has(effectId)
 }
 

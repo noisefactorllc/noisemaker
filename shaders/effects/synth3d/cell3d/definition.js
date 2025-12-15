@@ -1,7 +1,7 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * vol/cell3d - 3D cellular/Voronoi noise volume generator
+ * synth3d/cell3d - 3D cellular/Voronoi noise volume generator
  *
  * Generates a 3D cell noise volume stored as a 2D atlas texture.
  * Can be used standalone or chained after another 3D effect.
@@ -15,9 +15,9 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Cell3D",
-  namespace: "vol",
+  namespace: "synth3d",
   func: "cell3d",
-  tags: ["noise"],
+  tags: ["noise", "vol"],
 
   description: "3D cellular/Voronoi noise volume",
   textures: {

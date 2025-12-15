@@ -259,7 +259,7 @@ test('demo renders all available effects without console errors', async ({ page 
 
       // ***STOP***: Do *NOT* add effects to this list without explicit permission
       // nd/shape-mixer: Uses palette cycling with time - test readback sees uniform color at snapshot
-      const skipColorCheck = ['filter/a', 'filter/solid', 'sim/prev', 'classicNoisedeck/shape-mixer'].includes(effect)
+      const skipColorCheck = ['filter/a', 'filter/solid', 'classicNoisedeck/shape-mixer'].includes(effect)
         || effect.includes('feedback')
       if (!skipColorCheck) {
         const hasMultipleColors = await page.evaluate(async (effectName) => {

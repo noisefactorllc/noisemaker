@@ -6,9 +6,8 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Dla",
-  namespace: "sim",
   func: "dla",
-  tags: ["math"],
+  tags: ["math", "sim"],
 
   description: "Diffusion-limited aggregation",
   globals: {

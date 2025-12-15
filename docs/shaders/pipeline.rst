@@ -388,9 +388,15 @@ The buffer is allocated with a fixed initial size (e.g., 256 bytes). If the requ
 8.0 Surface Types
 ^^^^^^^^^^^^^^^^^
 
-The pipeline provides **Global Surfaces** (``o0``..``o7``): Standard double-buffered surfaces where reading within a frame sees any writes made earlier in that same frame.
+The pipeline provides several types of global surfaces:
 
-Global surfaces (``o0``.. ``o7``) defined implicitly:
+**2D Surfaces** (``o0``..``o7``): Standard double-buffered surfaces where reading within a frame sees any writes made earlier in that same frame.
+
+**3D Volume Surfaces** (``vol0``..``vol7``): Persistent 3D texture volumes for volumetric effects. Default size is 64×64×64.
+
+**Geometry Buffers** (``geo0``..``geo7``): Screen-sized 2D textures storing precomputed raymarching results (xyz=surface normal, w=depth). These enable downstream post-processing without re-raymarching.
+
+Global 2D surfaces (``o0``.. ``o7``) defined implicitly:
 
 .. code-block:: js
 
@@ -405,9 +411,29 @@ Global surfaces (``o0``.. ``o7``) defined implicitly:
      o7: { format: 'rgba16f', width: 'screen', height: 'screen', doubleBuffered: true }
    }
 
+Global 3D volume surfaces (``vol0``.. ``vol7``) defined implicitly:
+
+.. code-block:: js
+
+   volumeTable = {
+     vol0: { format: 'rgba16f', width: 64, height: 64, depth: 64, is3D: true },
+     vol1: { format: 'rgba16f', width: 64, height: 64, depth: 64, is3D: true },
+     // ... vol2 through vol7
+   }
+
+Global geometry buffers (``geo0``.. ``geo7``) defined implicitly:
+
+.. code-block:: js
+
+   geoBufferTable = {
+     geo0: { format: 'rgba16f', width: 'screen', height: 'screen', doubleBuffered: true },
+     geo1: { format: 'rgba16f', width: 'screen', height: 'screen', doubleBuffered: true },
+     // ... geo2 through geo7
+   }
+
 **CRITICAL: User-Only Surfaces**
 
-Surfaces ``o0``..``o7`` are **reserved exclusively for user composition** and **MUST NOT** be hardwired within effect definitions. Effects requiring internal feedback or temporary storage must allocate their own internal surfaces (e.g., ``_feedbackBuffer``, ``_temp0``) in their ``textures`` property. Hardwiring these surfaces within an effect definition will corrupt the user's composition graph.
+Surfaces ``o0``..``o7``, ``vol0``..``vol7``, and ``geo0``..``geo7`` are **reserved exclusively for user composition** and **MUST NOT** be hardwired within effect definitions. Effects requiring internal feedback or temporary storage must allocate their own internal surfaces (e.g., ``_feedbackBuffer``, ``_temp0``) in their ``textures`` property. Hardwiring these surfaces within an effect definition will corrupt the user's composition graph.
 
 **Terminology:**
 

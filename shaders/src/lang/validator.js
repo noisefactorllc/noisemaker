@@ -435,8 +435,19 @@ export function validate(ast) {
 
                 // Handle Read3D node (pipeline built-in for reading 3D textures)
                 if (original.type === 'Read3D') {
-                    const tex3d = original.tex3d?.name ? { kind: 'tex3d', name: original.tex3d.name } : null
-                    const geo = original.geo?.name ? { kind: 'geo', name: original.geo.name } : null
+                    // Preserve the type for VolRef/GeoRef vs plain Ident
+                    const tex3d = original.tex3d?.name
+                        ? {
+                            kind: original.tex3d.type === 'VolRef' ? 'vol' : 'tex3d',
+                            name: original.tex3d.name
+                        }
+                        : null
+                    const geo = original.geo?.name
+                        ? {
+                            kind: original.geo.type === 'GeoRef' ? 'geo' : 'geo',
+                            name: original.geo.name
+                        }
+                        : null
                     if (!tex3d || !geo) {
                         pushDiag('S001', original, 'read3d() requires tex3d and geo references')
                         continue
@@ -469,6 +480,41 @@ export function validate(ast) {
                     const step = {
                         op: '_write',
                         args: { tex: surface },
+                        from: current,
+                        temp: idx,
+                        builtin: true
+                    }
+                    chain.push(step)
+                    current = idx
+                    continue
+                }
+
+                // Handle Write3D node (pipeline built-in for writing 3D volumes and geometry - chainable)
+                if (original.type === 'Write3D') {
+                    const tex3d = original.tex3d?.name
+                        ? {
+                            kind: original.tex3d.type === 'VolRef' ? 'vol' : 'tex3d',
+                            name: original.tex3d.name
+                        }
+                        : null
+                    const geo = original.geo?.name
+                        ? {
+                            kind: original.geo.type === 'GeoRef' ? 'geo' : 'geo',
+                            name: original.geo.name
+                        }
+                        : null
+                    if (!tex3d || !geo) {
+                        pushDiag('S001', original, 'write3d() requires tex3d and geo references')
+                        continue
+                    }
+                    if (current === null) {
+                        pushDiag('S005', original, 'write3d() requires an input - cannot be first in chain')
+                        continue
+                    }
+                    const idx = tempIndex++
+                    const step = {
+                        op: '_write3d',
+                        args: { tex3d, geo },
                         from: current,
                         temp: idx,
                         builtin: true

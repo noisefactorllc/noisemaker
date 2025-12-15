@@ -1,23 +1,20 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * vol/ca3d - 3D cellular automata simulation
+ * synth3d/ca3d - 3D cellular automata simulation
  *
  * Generates a 3D CA volume stored as a 2D atlas texture.
- * Can be used standalone or chained after another 3D effect.
+ * Reads seed input from global volume surface (vol0-vol7).
  *
  * Usage:
  *   ca3d(volumeSize: x32).render3d().write(o0)
- *   noise3d().ca3d().render3d().write(o0)  // uses noise3d's volume size
- *
- * If inputTex3d is provided from upstream, its dimensions take precedence
- * over volumeSize. Otherwise, allocates fresh volumes.
+ *   ca3d(source: vol1).render3d().write(o0)  // reads seed from vol1
  */
 export default new Effect({
   name: "Ca3D",
-  namespace: "vol",
+  namespace: "synth3d",
   func: "ca3d",
-  tags: ["math"],
+  tags: ["math", "vol"],
 
   description: "3D cellular automata simulation",
   textures: {
@@ -155,6 +152,20 @@ export default new Effect({
             "label": "input weight",
             "control": "slider"
         }
+    },
+    "source": {
+        "type": "volume",
+        "default": "vol0",
+        "ui": {
+            "label": "source volume"
+        }
+    },
+    "geoSource": {
+        "type": "geometry",
+        "default": "geo0",
+        "ui": {
+            "label": "source geometry"
+        }
     }
   },
   passes: [
@@ -162,12 +173,12 @@ export default new Effect({
       name: "simulate",
       program: "simulate",
       viewport: {
-        width: { param: 'volumeSize', default: 32, inputOverride: 'inputTex3d' },
-        height: { param: 'volumeSize', power: 2, default: 1024, inputOverride: 'inputTex3d' }
+        width: { param: 'volumeSize', default: 32 },
+        height: { param: 'volumeSize', power: 2, default: 1024 }
       },
       inputs: {
         stateTex: "globalCaState",
-        seedTex: "inputTex3d"
+        seedTex: "source"
       },
       outputs: {
         color: "globalCaState"

@@ -291,6 +291,12 @@ export class Pipeline {
     createSurfaces() {
         const surfaceNames = new Set(['o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7'])
 
+        // Global geometry buffers (geo0-geo7) - 2D textures with normals + depth
+        const geoBufferNames = new Set(['geo0', 'geo1', 'geo2', 'geo3', 'geo4', 'geo5', 'geo6', 'geo7'])
+
+        // Global 3D volume buffers (vol0-vol7)
+        const volumeNames = new Set(['vol0', 'vol1', 'vol2', 'vol3', 'vol4', 'vol5', 'vol6', 'vol7'])
+
         // Collect default uniforms for parameter-based texture sizing
         const defaultUniforms = this.collectDefaultUniforms()
 
@@ -321,13 +327,6 @@ export class Pipeline {
 
         // Create global surfaces (o0-o7 and dynamic globals)
         for (const name of surfaceNames) {
-            // Destroy old surface if exists
-            const oldSurface = this.surfaces.get(name)
-            if (oldSurface) {
-                this.backend.destroyTexture(`global_${name}_read`)
-                this.backend.destroyTexture(`global_${name}_write`)
-            }
-
             // Calculate scaled dimensions for zoom-sensitive surfaces
             let surfaceWidth = this.width
             let surfaceHeight = this.height
@@ -357,6 +356,21 @@ export class Pipeline {
                 }
             }
 
+            // Check if existing surface can be reused (preserves sim state on recompile)
+            const oldSurface = this.surfaces.get(name)
+            if (oldSurface) {
+                const existingTex = this.backend.textures?.get?.(oldSurface.read)
+                if (existingTex &&
+                    existingTex.width === surfaceWidth &&
+                    existingTex.height === surfaceHeight) {
+                    // Surface exists with correct dimensions, preserve it
+                    continue
+                }
+                // Dimensions changed, destroy old surface
+                this.backend.destroyTexture(`global_${name}_read`)
+                this.backend.destroyTexture(`global_${name}_write`)
+            }
+
             // Create double-buffered surface
             // Include 'storage' usage for compute shader output
             this.backend.createTexture(`global_${name}_read`, {
@@ -370,6 +384,83 @@ export class Pipeline {
                 width: surfaceWidth,
                 height: surfaceHeight,
                 format: surfaceFormat,
+                usage: ['render', 'sample', 'copySrc', 'storage']
+            })
+
+            this.surfaces.set(name, {
+                read: `global_${name}_read`,
+                write: `global_${name}_write`,
+                currentFrame: 0
+            })
+        }
+
+        // Create geometry buffers (geo0-geo7) - 2D textures with normals + depth
+        // These store precomputed raymarching results for post-processing
+        for (const name of geoBufferNames) {
+            const oldSurface = this.surfaces.get(name)
+            if (oldSurface) {
+                const existingTex = this.backend.textures?.get?.(oldSurface.read)
+                if (existingTex &&
+                    existingTex.width === this.width &&
+                    existingTex.height === this.height) {
+                    continue
+                }
+                this.backend.destroyTexture(`global_${name}_read`)
+                this.backend.destroyTexture(`global_${name}_write`)
+            }
+
+            // Geometry buffers are screen-sized, RGBA16F (xyz=normal, w=depth)
+            this.backend.createTexture(`global_${name}_read`, {
+                width: this.width,
+                height: this.height,
+                format: 'rgba16f',
+                usage: ['render', 'sample', 'copySrc', 'storage']
+            })
+
+            this.backend.createTexture(`global_${name}_write`, {
+                width: this.width,
+                height: this.height,
+                format: 'rgba16f',
+                usage: ['render', 'sample', 'copySrc', 'storage']
+            })
+
+            this.surfaces.set(name, {
+                read: `global_${name}_read`,
+                write: `global_${name}_write`,
+                currentFrame: 0
+            })
+        }
+
+        // Create 3D volume buffers (vol0-vol7) as 2D atlas textures
+        // Using 64x4096 (64^3 stored as 64 slices of 64x64)
+        // This matches the atlas layout used by effects like ca3d, rd3d, noise3d
+        const volumeSliceSize = 64
+        const volumeAtlasHeight = volumeSliceSize * volumeSliceSize // 64 * 64 = 4096
+        for (const name of volumeNames) {
+            const oldSurface = this.surfaces.get(name)
+            if (oldSurface) {
+                const existingTex = this.backend.textures?.get?.(oldSurface.read)
+                if (existingTex &&
+                    existingTex.width === volumeSliceSize &&
+                    existingTex.height === volumeAtlasHeight) {
+                    continue
+                }
+                this.backend.destroyTexture(`global_${name}_read`)
+                this.backend.destroyTexture(`global_${name}_write`)
+            }
+
+            // Volume atlases are volumeSliceSize x volumeSliceSize^2, RGBA16F
+            this.backend.createTexture(`global_${name}_read`, {
+                width: volumeSliceSize,
+                height: volumeAtlasHeight,
+                format: 'rgba16f',
+                usage: ['render', 'sample', 'copySrc', 'storage']
+            })
+
+            this.backend.createTexture(`global_${name}_write`, {
+                width: volumeSliceSize,
+                height: volumeAtlasHeight,
+                format: 'rgba16f',
                 usage: ['render', 'sample', 'copySrc', 'storage']
             })
 
@@ -634,7 +725,13 @@ export class Pipeline {
      * Execute a single frame
      */
     render(time = 0) {
-        const deltaTime = this.lastTime > 0 ? time - this.lastTime : 0
+        // Handle deltaTime carefully - time is normalized 0-1 and wraps
+        // When time wraps from ~1 to ~0, use a small positive delta instead of negative
+        let deltaTime = this.lastTime > 0 ? time - this.lastTime : 0
+        if (deltaTime < 0) {
+            // Time wrapped around, use a reasonable small delta
+            deltaTime = 1.0 / 60.0 / 10.0  // Approximate one frame at 60fps normalized to 10s loop
+        }
         this.lastTime = time
 
         // Update global uniforms

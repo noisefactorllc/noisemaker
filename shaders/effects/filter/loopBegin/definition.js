@@ -15,9 +15,8 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "LoopBegin",
-  namespace: "sim",
   func: "loopBegin",
-  tags: ["util"],
+  tags: ["util", "sim"],
 
   description: "Start accumulator loop, read from feedback buffer",
   globals: {

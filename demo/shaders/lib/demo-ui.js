@@ -149,6 +149,26 @@ export function formatValue(value, spec, enums = {}) {
         }
         return `read(${value})`
     }
+    if (type === 'volume') {
+        // Handle object volume references (e.g., {kind: 'vol', name: 'vol0'})
+        if (value && typeof value === 'object' && value.name) {
+            return value.name
+        }
+        if (typeof value !== 'string' || value.length === 0) {
+            return spec?.default || 'vol0'
+        }
+        return value
+    }
+    if (type === 'geometry') {
+        // Handle object geometry references (e.g., {kind: 'geo', name: 'geo0'})
+        if (value && typeof value === 'object' && value.name) {
+            return value.name
+        }
+        if (typeof value !== 'string' || value.length === 0) {
+            return spec?.default || 'geo0'
+        }
+        return value
+    }
     if (type === 'member') {
         return value
     }
@@ -220,7 +240,7 @@ export function extractEffectNamesFromDsl(dsl, manifest) {
             }
 
             if (!namespace) {
-                for (const ns of ['classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth', 'sim']) {
+                for (const ns of ['classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth']) {
                     const testId = `${ns}/${name}`
                     if (manifest[testId]) {
                         namespace = ns
@@ -382,6 +402,8 @@ export class UIController {
         this._writeTargetOverrides = {} // Map: planIndex -> surfaceName (e.g., 'o0', 'o1')
         this._writeStepTargetOverrides = {} // Map: stepIndex -> surfaceName for mid-chain writes
         this._readSourceOverrides = {} // Map: stepIndex -> surfaceName for read() source
+        this._read3dVolOverrides = {} // Map: stepIndex -> volName for read3d() volume source (vol0-vol7)
+        this._read3dGeoOverrides = {} // Map: stepIndex -> geoName for read3d() geometry source (geo0-geo7)
         this._parsedDslStructure = []
         this._allEffects = []
 
@@ -1135,7 +1157,7 @@ export class UIController {
         let searchNs = effect.namespace
         if (effect.namespace === 'classicNoisemaker') {
             searchNs = 'classicNoisemaker, synth'
-        } else if (['filter', 'mixer', 'sim'].includes(effect.namespace)) {
+        } else if (['filter', 'mixer'].includes(effect.namespace)) {
             searchNs = `${effect.namespace}, synth`
         }
         const searchDirective = searchNs ? `search ${searchNs}\n\n` : ''
@@ -1154,7 +1176,7 @@ export class UIController {
         if (is3dGenerator(effect)) {
             const kwargs = this._buildKwargs(effect.instance.globals, this._parameterValues)
             const effectCall = fmtCall(funcName, kwargs)
-            return `search vol\n\n${effectCall}\n  .render3d()\n  .write(o0)`
+            return `search synth3d, filter3d\n\n${effectCall}\n  .render3d()\n  .write(o0)`
         }
 
         if (starter) {
@@ -1220,7 +1242,7 @@ export class UIController {
             const effectCall = fmtCall(funcName, kwargs)
             // render3d IS the renderer - don't append another .render3d() call
             const renderSuffix = funcName === 'render3d' ? '' : '\n  .render3d()'
-            return `search vol\n\n${generatorCall}\n  .${effectCall}${renderSuffix}\n  .write(o0)`
+            return `search synth3d, filter3d\n\n${generatorCall}\n  .${effectCall}${renderSuffix}\n  .write(o0)`
         } else {
             const kwargs = this._buildKwargs(effect.instance.globals, this._parameterValues)
             const effectCall = fmtCall(funcName, kwargs)
@@ -1273,6 +1295,35 @@ export class UIController {
                             step.args.tex = {
                                 kind: isOutput ? 'output' : 'feedback',
                                 name: targetName
+                            }
+                        }
+                        globalStepIndex++
+                    }
+                }
+            }
+
+            // Apply read3d volume and geometry overrides
+            if (this._read3dVolOverrides || this._read3dGeoOverrides) {
+                let globalStepIndex = 0
+                for (const plan of compiled.plans) {
+                    if (!plan.chain) continue
+                    for (const step of plan.chain) {
+                        if (step.builtin && step.op === '_read3d') {
+                            // Apply volume override
+                            if (this._read3dVolOverrides && this._read3dVolOverrides[globalStepIndex] !== undefined) {
+                                const volName = this._read3dVolOverrides[globalStepIndex]
+                                step.args.tex3d = {
+                                    kind: 'vol',
+                                    name: volName
+                                }
+                            }
+                            // Apply geometry override
+                            if (this._read3dGeoOverrides && this._read3dGeoOverrides[globalStepIndex] !== undefined) {
+                                const geoName = this._read3dGeoOverrides[globalStepIndex]
+                                step.args.geo = {
+                                    kind: 'geo',
+                                    name: geoName
+                                }
                             }
                         }
                         globalStepIndex++
@@ -1389,6 +1440,8 @@ export class UIController {
         this._writeTargetOverrides = {}
         this._writeStepTargetOverrides = {}
         this._readSourceOverrides = {}
+        this._read3dVolOverrides = {}
+        this._read3dGeoOverrides = {}
 
         // Parse DSL to get plans with write targets
         let compiled = null
@@ -1479,8 +1532,11 @@ export class UIController {
                 continue
             }
 
-            // Handle builtin _read3d steps - skip for now (no UI controls)
+            // Handle builtin _read3d steps - create UI module with vol/geo dropdowns
             if (effectInfo.effectKey === '_read3d') {
+                const read3dSource = effectInfo.rawStep?.args || {}
+                const read3dModule = this._createRead3dModule(effectInfo.stepIndex, read3dSource)
+                this._controlsContainer.appendChild(read3dModule)
                 currentOccurrenceCount[effectName]++
                 continue
             }
@@ -2117,6 +2173,160 @@ export class UIController {
     }
 
     /**
+     * Create a read3d module for a step
+     * @private
+     * @param {number} stepIndex - The step index
+     * @param {object} read3dSource - The read3d source containing tex3d and geo
+     */
+    _createRead3dModule(stepIndex, read3dSource) {
+        const moduleDiv = document.createElement('div')
+        moduleDiv.className = 'shader-module'
+        moduleDiv.dataset.stepIndex = stepIndex
+        moduleDiv.dataset.effectName = 'read3d'
+
+        const titleDiv = document.createElement('div')
+        titleDiv.className = 'module-title'
+
+        // Title text
+        const titleText = document.createElement('span')
+        titleText.className = 'module-title-text'
+        titleText.textContent = 'read3d'
+        titleDiv.appendChild(titleText)
+
+        // Spacer to push buttons to the right
+        const spacer = document.createElement('span')
+        spacer.style.flex = '1'
+        titleDiv.appendChild(spacer)
+
+        // Delete button
+        const deleteBtn = document.createElement('button')
+        deleteBtn.className = 'action-btn tooltip'
+        deleteBtn.textContent = 'delete'
+        deleteBtn.dataset.title = 'Remove this read3d from the pipeline'
+        deleteBtn.setAttribute('aria-label', 'Remove this read3d from the pipeline')
+        deleteBtn.addEventListener('click', async (e) => {
+            e.stopPropagation()
+            await this._deleteStepAtIndex(stepIndex)
+        })
+        titleDiv.appendChild(deleteBtn)
+
+        // Skip button
+        const skipBtn = document.createElement('button')
+        skipBtn.className = 'action-btn tooltip'
+        skipBtn.textContent = 'skip'
+        skipBtn.dataset.title = 'Skip this read3d in the pipeline'
+        skipBtn.setAttribute('aria-label', 'Skip this read3d in the pipeline')
+        skipBtn.addEventListener('click', async (e) => {
+            e.stopPropagation()
+            const isSkipped = moduleDiv.classList.toggle('skipped')
+            skipBtn.textContent = isSkipped ? 'unskip' : 'skip'
+            skipBtn.classList.toggle('active', isSkipped)
+
+            if (isSkipped) {
+                moduleDiv.classList.add('collapsed')
+            } else {
+                moduleDiv.classList.remove('collapsed')
+            }
+
+            await this._toggleStepSkipAtIndex(stepIndex, isSkipped)
+        })
+        titleDiv.appendChild(skipBtn)
+
+        // Click on title bar to expand/collapse
+        titleDiv.addEventListener('click', () => {
+            if (moduleDiv.classList.contains('skipped')) {
+                return
+            }
+            moduleDiv.classList.toggle('collapsed')
+        })
+
+        moduleDiv.appendChild(titleDiv)
+
+        const contentDiv = document.createElement('div')
+        contentDiv.className = 'module-content'
+
+        const controlsDiv = document.createElement('div')
+        controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;'
+
+        // Create volume dropdown (vol0-vol7)
+        const volGroup = document.createElement('div')
+        volGroup.className = 'control-group'
+
+        const volHeader = document.createElement('div')
+        volHeader.className = 'control-header'
+
+        const volLabel = document.createElement('label')
+        volLabel.className = 'control-label'
+        volLabel.textContent = 'volume'
+        volHeader.appendChild(volLabel)
+        volGroup.appendChild(volHeader)
+
+        const volSelect = document.createElement('select')
+        volSelect.className = 'control-select'
+
+        // Add volume surfaces vol0-vol7
+        for (let i = 0; i < 8; i++) {
+            const option = document.createElement('option')
+            option.value = `vol${i}`
+            option.textContent = `vol${i}`
+            volSelect.appendChild(option)
+        }
+
+        // Set current value
+        const currentVol = read3dSource.tex3d?.name || 'vol0'
+        volSelect.value = currentVol
+
+        volSelect.addEventListener('change', (e) => {
+            this._read3dVolOverrides[stepIndex] = e.target.value
+            this._onControlChange()
+        })
+
+        volGroup.appendChild(volSelect)
+        controlsDiv.appendChild(volGroup)
+
+        // Create geometry dropdown (geo0-geo7)
+        const geoGroup = document.createElement('div')
+        geoGroup.className = 'control-group'
+
+        const geoHeader = document.createElement('div')
+        geoHeader.className = 'control-header'
+
+        const geoLabel = document.createElement('label')
+        geoLabel.className = 'control-label'
+        geoLabel.textContent = 'geometry'
+        geoHeader.appendChild(geoLabel)
+        geoGroup.appendChild(geoHeader)
+
+        const geoSelect = document.createElement('select')
+        geoSelect.className = 'control-select'
+
+        // Add geometry surfaces geo0-geo7
+        for (let i = 0; i < 8; i++) {
+            const option = document.createElement('option')
+            option.value = `geo${i}`
+            option.textContent = `geo${i}`
+            geoSelect.appendChild(option)
+        }
+
+        // Set current value
+        const currentGeo = read3dSource.geo?.name || 'geo0'
+        geoSelect.value = currentGeo
+
+        geoSelect.addEventListener('change', (e) => {
+            this._read3dGeoOverrides[stepIndex] = e.target.value
+            this._onControlChange()
+        })
+
+        geoGroup.appendChild(geoSelect)
+        controlsDiv.appendChild(geoGroup)
+
+        contentDiv.appendChild(controlsDiv)
+        moduleDiv.appendChild(contentDiv)
+
+        return moduleDiv
+    }
+
+    /**
      * Delete a step from the pipeline by its global step index.
      * Extracted for reuse by both effect modules and read modules.
      * @private
@@ -2615,6 +2825,10 @@ export class UIController {
             this._createSliderControl(controlGroup, key, spec, value, effectKey)
         } else if (spec.type === 'surface') {
             this._createSurfaceControl(controlGroup, key, spec, value, effectKey)
+        } else if (spec.type === 'volume') {
+            this._createVolumeControl(controlGroup, key, spec, value, effectKey)
+        } else if (spec.type === 'geometry') {
+            this._createGeometryControl(controlGroup, key, spec, value, effectKey)
         }
 
         return controlGroup
@@ -3027,6 +3241,108 @@ export class UIController {
         container.appendChild(select)
     }
 
+    /** @private */
+    _createVolumeControl(container, key, spec, value, effectKey) {
+        const select = document.createElement('select')
+        select.className = 'control-select'
+
+        // Available volumes: vol0-vol7
+        const volumes = [
+            { id: 'vol0', label: 'vol0' },
+            { id: 'vol1', label: 'vol1' },
+            { id: 'vol2', label: 'vol2' },
+            { id: 'vol3', label: 'vol3' },
+            { id: 'vol4', label: 'vol4' },
+            { id: 'vol5', label: 'vol5' },
+            { id: 'vol6', label: 'vol6' },
+            { id: 'vol7', label: 'vol7' }
+        ]
+
+        // Parse current value to get the volume ID
+        let currentVolume = spec.default || 'vol0'
+        if (value && typeof value === 'object' && value.name) {
+            // Handle object volume references from DSL compiler (e.g., {kind: 'vol', name: 'vol0'})
+            currentVolume = value.name
+        } else if (typeof value === 'string') {
+            // Handle vol0-vol7 format
+            const match = value.match(/^(vol[0-7])$/)
+            if (match) {
+                currentVolume = match[1]
+            } else if (value) {
+                currentVolume = value
+            }
+        }
+
+        volumes.forEach(volume => {
+            const option = document.createElement('option')
+            option.value = volume.id
+            option.textContent = volume.label
+            option.selected = volume.id === currentVolume
+            select.appendChild(option)
+        })
+
+        select.addEventListener('change', async (e) => {
+            // Store as plain volume ID for DSL
+            this._effectParameterValues[effectKey][key] = e.target.value
+            // Volume changes require a full pipeline recompile (not just uniform updates)
+            this._updateDslFromEffectParams()
+            await this._recompilePipeline()
+        })
+
+        container.appendChild(select)
+    }
+
+    /** @private */
+    _createGeometryControl(container, key, spec, value, effectKey) {
+        const select = document.createElement('select')
+        select.className = 'control-select'
+
+        // Available geometry buffers: geo0-geo7
+        const geometries = [
+            { id: 'geo0', label: 'geo0' },
+            { id: 'geo1', label: 'geo1' },
+            { id: 'geo2', label: 'geo2' },
+            { id: 'geo3', label: 'geo3' },
+            { id: 'geo4', label: 'geo4' },
+            { id: 'geo5', label: 'geo5' },
+            { id: 'geo6', label: 'geo6' },
+            { id: 'geo7', label: 'geo7' }
+        ]
+
+        // Parse current value to get the geometry ID
+        let currentGeometry = spec.default || 'geo0'
+        if (value && typeof value === 'object' && value.name) {
+            // Handle object geometry references from DSL compiler (e.g., {kind: 'geo', name: 'geo0'})
+            currentGeometry = value.name
+        } else if (typeof value === 'string') {
+            // Handle geo0-geo7 format
+            const match = value.match(/^(geo[0-7])$/)
+            if (match) {
+                currentGeometry = match[1]
+            } else if (value) {
+                currentGeometry = value
+            }
+        }
+
+        geometries.forEach(geometry => {
+            const option = document.createElement('option')
+            option.value = geometry.id
+            option.textContent = geometry.label
+            option.selected = geometry.id === currentGeometry
+            select.appendChild(option)
+        })
+
+        select.addEventListener('change', async (e) => {
+            // Store as plain geometry ID for DSL
+            this._effectParameterValues[effectKey][key] = e.target.value
+            // Geometry changes require a full pipeline recompile (not just uniform updates)
+            this._updateDslFromEffectParams()
+            await this._recompilePipeline()
+        })
+
+        container.appendChild(select)
+    }
+
     /** @private Called when a control value changes */
     _onControlChange() {
         this._applyEffectParameterValues()
@@ -3221,6 +3537,8 @@ export class UIController {
         this._writeTargetOverrides = {}
         this._writeStepTargetOverrides = {}
         this._readSourceOverrides = {}
+        this._read3dVolOverrides = {}
+        this._read3dGeoOverrides = {}
     }
 
     /**

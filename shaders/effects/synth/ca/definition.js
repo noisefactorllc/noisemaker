@@ -2,9 +2,8 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
   name: "Ca",
-  namespace: "sim",
   func: "ca",
-  tags: ["math"],
+  tags: ["math", "sim"],
 
   description: "2D cellular automata with rule presets",
   uniformLayouts: {

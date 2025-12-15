@@ -1,23 +1,20 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * vol/rd3d - 3D reaction-diffusion simulation
+ * synth3d/rd3d - 3D reaction-diffusion simulation
  *
  * Generates a 3D reaction-diffusion volume stored as a 2D atlas texture.
- * Can be used standalone or chained after another 3D effect.
+ * Reads seed input from global volume surface (vol0-vol7).
  *
  * Usage:
  *   rd3d(volumeSize: x32).render3d().write(o0)
- *   noise3d().rd3d().render3d().write(o0)  // uses noise3d's volume size
- *
- * If inputTex3d is provided from upstream, its dimensions take precedence
- * over volumeSize. Otherwise, allocates fresh volumes.
+ *   rd3d(source: vol1).render3d().write(o0)  // reads seed from vol1
  */
 export default new Effect({
   name: "Rd3D",
-  namespace: "vol",
+  namespace: "synth3d",
   func: "rd3d",
-  tags: ["math"],
+  tags: ["math", "vol"],
 
   description: "3D reaction-diffusion simulation",
   textures: {
@@ -161,6 +158,20 @@ export default new Effect({
             "label": "input weight",
             "control": "slider"
         }
+    },
+    "source": {
+        "type": "volume",
+        "default": "vol0",
+        "ui": {
+            "label": "source volume"
+        }
+    },
+    "geoSource": {
+        "type": "geometry",
+        "default": "geo0",
+        "ui": {
+            "label": "source geometry"
+        }
     }
   },
   passes: [
@@ -169,12 +180,12 @@ export default new Effect({
       program: "simulate",
       repeat: "iterations",
       viewport: {
-        width: { param: 'volumeSize', default: 32, inputOverride: 'inputTex3d' },
-        height: { param: 'volumeSize', power: 2, default: 1024, inputOverride: 'inputTex3d' }
+        width: { param: 'volumeSize', default: 32 },
+        height: { param: 'volumeSize', power: 2, default: 1024 }
       },
       inputs: {
         stateTex: "globalRdState",
-        seedTex: "inputTex3d"
+        seedTex: "source"
       },
       outputs: {
         color: "globalRdState"

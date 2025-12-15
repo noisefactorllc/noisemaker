@@ -2,9 +2,8 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
   name: "Mnca",
-  namespace: "sim",
   func: "mnca",
-  tags: ["math"],
+  tags: ["math", "sim"],
 
   description: "Multi-neighborhood cellular automata",
   uniformLayout: {

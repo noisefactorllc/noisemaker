@@ -1,25 +1,25 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * vol/shape3d - 3D polyhedral shape volume generator
+ * synth3d/fractal3d - 3D fractal volume generator
  *
- * Generates a 3D shape volume stored as a 2D atlas texture.
+ * Generates 3D fractal volumes (Mandelbulb, Mandelcube, Julia variants).
  * Can be used standalone or chained after another 3D effect.
  *
  * Usage:
- *   shape3d(volumeSize: x64).render3d().write(o0)
- *   noise3d().shape3d().render3d().write(o0)  // uses noise3d's volume size
+ *   fractal3d(volumeSize: x64).render3d().write(o0)
+ *   noise3d().fractal3d().render3d().write(o0)  // uses noise3d's volume size
  *
  * If inputTex3d is provided from upstream, its dimensions take precedence
  * over volumeSize. Otherwise, allocates fresh volumeCache and geoBuffer.
  */
 export default new Effect({
-  name: "Shape3D",
-  namespace: "vol",
-  func: "shape3d",
-  tags: ["geometric"],
+  name: "Fractal3D",
+  namespace: "synth3d",
+  func: "fractal3d",
+  tags: ["math", "vol"],
 
-  description: "3D polyhedral shape generator",
+  description: "3D Mandelbulb/Mandelcube fractals",
   textures: {
     volumeCache: {
       width: { param: 'volumeSize', default: 64 },
@@ -48,104 +48,84 @@ export default new Effect({
         "control": "dropdown"
       }
     },
-    loopAOffset: {
+    fractalType: {
       type: "int",
-      default: 40,
-      uniform: "loopAOffset",
+      default: 0,
+      uniform: "fractalType",
       choices: {
-        "Platonic Solids:": null,
-        tetrahedron: 10,
-        cube: 20,
-        octahedron: 30,
-        dodecahedron: 40,
-        icosahedron: 50,
-        "Other Primitives:": null,
-        sphere: 100,
-        torus: 110,
-        cylinder: 120,
-        cone: 130,
-        capsule: 140
+        mandelbulb: 0,
+        mandelcube: 1,
+        juliaBulb: 2,
+        juliaCube: 3
       },
       ui: {
-        label: "loop a",
+        label: "type",
         control: "dropdown"
       }
     },
-    loopBOffset: {
+    power: {
+      type: "float",
+      default: 8,
+      min: 2,
+      max: 16,
+      uniform: "power",
+      ui: {
+        label: "power",
+        control: "slider"
+      }
+    },
+    iterations: {
       type: "int",
-      default: 30,
-      uniform: "loopBOffset",
-      choices: {
-        "Platonic Solids:": null,
-        tetrahedron: 10,
-        cube: 20,
-        octahedron: 30,
-        dodecahedron: 40,
-        icosahedron: 50,
-        "Other Primitives:": null,
-        sphere: 100,
-        torus: 110,
-        cylinder: 120,
-        cone: 130,
-        capsule: 140
-      },
-      ui: {
-        label: "loop b",
-        control: "dropdown"
-      }
-    },
-    loopAScale: {
-      type: "float",
-      default: 1,
-      uniform: "loopAScale",
+      default: 10,
       min: 1,
-      max: 100,
+      max: 20,
+      uniform: "iterations",
       ui: {
-        label: "a scale",
+        label: "iterations",
         control: "slider"
       }
     },
-    loopBScale: {
+    bailout: {
       type: "float",
-      default: 1,
-      uniform: "loopBScale",
+      default: 2,
       min: 1,
-      max: 100,
+      max: 8,
+      uniform: "bailout",
       ui: {
-        label: "b scale",
+        label: "bailout",
         control: "slider"
       }
     },
-    loopAAmp: {
+    juliaX: {
       type: "float",
-      default: 50,
-      uniform: "loopAAmp",
+      default: 0,
       min: -100,
       max: 100,
+      uniform: "juliaX",
       ui: {
-        label: "a power",
+        label: "julia X",
         control: "slider"
       }
     },
-    loopBAmp: {
+    juliaY: {
       type: "float",
-      default: 50,
-      uniform: "loopBAmp",
+      default: 0,
       min: -100,
       max: 100,
+      uniform: "juliaY",
       ui: {
-        label: "b power",
+        label: "julia Y",
         control: "slider"
       }
     },
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
+    juliaZ: {
+      type: "float",
+      default: 0,
+      min: -100,
       max: 100,
+      uniform: "juliaZ",
       ui: {
-        label: "noise seed",
+        label: "julia Z",
         control: "slider"
       }
     },
@@ -155,12 +135,20 @@ export default new Effect({
       uniform: "colorMode",
       choices: {
         "mono": 0,
-        "rgb": 1
+        orbitTrap: 1,
+        "iteration": 2
       },
       ui: {
         label: "color mode",
         control: "dropdown"
       }
+    },
+    seed: {
+      type: "float",
+      default: 0,
+      min: 0,
+      max: 100,
+      uniform: "seed"
     }
   },
   passes: [
