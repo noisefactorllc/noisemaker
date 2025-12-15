@@ -579,7 +579,11 @@
                 window.__noisemakerRenderingPipeline = renderer.pipeline;
                 
                 if (rebuildControls) {
-                    ui.createEffectControlsFromDsl(dsl);
+                    // Try to sync values to existing controls first
+                    // Only rebuild if structure changed
+                    if (!ui.syncControlsFromDsl(dsl)) {
+                        ui.createEffectControlsFromDsl(dsl);
+                    }
                 }
                 
                 ui.showStatus('compiled successfully', 'success');

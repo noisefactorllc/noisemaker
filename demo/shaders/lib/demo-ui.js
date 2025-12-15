@@ -1852,6 +1852,70 @@ export class UIController {
     }
 
     /**
+     * Sync control values from DSL without rebuilding controls.
+     * Updates existing controls to reflect values parsed from DSL.
+     * @param {string} dsl - DSL source
+     * @returns {boolean} True if sync succeeded, false if structure changed (needs rebuild)
+     */
+    syncControlsFromDsl(dsl) {
+        if (!this._controlsContainer || !this._parsedDslStructure) return false
+
+        const effects = extractEffectsFromDsl(dsl)
+        if (!effects || effects.length === 0) return false
+
+        // Check if structure changed (different effects or count)
+        if (effects.length !== this._parsedDslStructure.length) return false
+        for (let i = 0; i < effects.length; i++) {
+            if (effects[i].effectKey !== this._parsedDslStructure[i].effectKey) return false
+        }
+
+        // Structure is the same - sync values to controls
+        for (const effectInfo of effects) {
+            const effectKey = `step_${effectInfo.stepIndex}`
+            const moduleDiv = this._controlsContainer.querySelector(`[data-step-index="${effectInfo.stepIndex}"]`)
+            if (!moduleDiv) continue
+
+            for (const [key, value] of Object.entries(effectInfo.args)) {
+                if (key === '_skip') continue
+                if (value && typeof value === 'object' && value.oscillator) continue
+
+                // Update stored value
+                if (this._effectParameterValues[effectKey]) {
+                    this._effectParameterValues[effectKey][key] = value
+                }
+
+                // Find and update the control
+                const controlGroup = moduleDiv.querySelector(`[data-param-key="${key}"]`)
+                if (!controlGroup) continue
+
+                const slider = controlGroup.querySelector('input[type="range"]')
+                const select = controlGroup.querySelector('select')
+                const toggle = controlGroup.querySelector('toggle-switch')
+                const colorInput = controlGroup.querySelector('input[type="color"]')
+
+                if (slider) {
+                    slider.value = value
+                    const valueDisplay = controlGroup.querySelector('.control-value')
+                    if (valueDisplay) valueDisplay.textContent = value
+                } else if (select) {
+                    select.value = String(value)
+                } else if (toggle) {
+                    toggle.checked = !!value
+                } else if (colorInput && Array.isArray(value)) {
+                    // Convert vec3/vec4 to hex
+                    const r = Math.round(value[0] * 255)
+                    const g = Math.round(value[1] * 255)
+                    const b = Math.round(value[2] * 255)
+                    colorInput.value = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+                }
+            }
+        }
+
+        this._updateDependentControls()
+        return true
+    }
+
+    /**
      * Create a write module for a plan
      * @private
      * @param {number} planIndex - The plan index
@@ -2473,7 +2537,7 @@ export class UIController {
 
         const controlGroup = document.createElement('div')
         controlGroup.className = 'control-group'
-
+        controlGroup.dataset.paramKey = key
         const label = document.createElement('label')
         label.className = 'control-label'
         label.textContent = spec.ui?.label || key
