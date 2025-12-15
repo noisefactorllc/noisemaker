@@ -12,10 +12,3 @@
 | juliaZ | float | 0 | -100–100 | Julia constant Z |
 | colorMode | int | mono | mono, orbitTrap, iteration | Color mode |
 | seed | float | 0 | 0–100 | Random seed |
-
-## Usage
-
-```dsl
-fractal3d(fractalType: "mandelbulb", power: 8).render3d().write(o0)
-fractal3d(fractalType: "juliaBulb", juliaX: 50).render3d().write(o0)
-```

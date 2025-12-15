@@ -18,9 +18,3 @@
 | backgroundColor | vec3 | [0, 0, 0] | color | Background color |
 | backgroundOpacity | float | 100 | 0–100 | Background opacity |
 | cutoff | float | 0 | 0–100 | Cutoff threshold |
-
-## Usage
-
-```dsl
-fractal(fractalType: "mandelbrot", zoomAmt: 50).write(o0)
-```

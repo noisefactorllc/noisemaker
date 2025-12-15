@@ -6,13 +6,6 @@
 - **Blur Amount** (0-1): Mix between original and blurred (0 = no blur, 1 = full blur)
 - **Intensity** (0-1): How much feedback blends into the output (0 = input only, 1 = full feedback)
 
-## Usage
-
-```js
-noise().cf().out(o0)
-noise().cf({ sharpenAmount: 1.5, blurAmount: 0.5, intensity: 0.8 }).out(o0)
-```
-
 ## Algorithm
 
 1. **Sharpen**: Unsharp mask on feedback texture (selfTex)

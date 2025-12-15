@@ -10,9 +10,3 @@
 | loopBAmp | float | 50 | -100–100 | Loop B power/amplitude |
 | seed | int | 1 | 1–100 | Noise seed |
 | wrap | boolean | true | — | Enable edge wrapping |
-
-## Usage
-
-```dsl
-shape(loopAOffset: "hexagon", loopBOffset: "circle").write(o0)
-```

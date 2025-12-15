@@ -11,10 +11,3 @@
 | loopBAmp | float | 50 | -100–100 | Shape B power/influence |
 | seed | int | 1 | 1–100 | Noise seed |
 | colorMode | int | mono | mono, rgb | Color mode |
-
-## Usage
-
-```dsl
-shape3d(loopAOffset: "icosahedron", loopBOffset: "sphere").render3d().write(o0)
-shape3d(loopAOffset: "torus", loopAAmp: 75).render3d().write(o0)
-```

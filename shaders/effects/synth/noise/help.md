@@ -13,9 +13,3 @@
 | loopScale | float | 75 | 1–100 | Loop scale |
 | loopAmp | float | 25 | -100–100 | Loop power/amplitude |
 | colorMode | int | mono | mono, rgb | Output color mode |
-
-## Usage
-
-```dsl
-vnoise(noiseType: "hermite", octaves: 4, ridges: true).write(o0)
-```

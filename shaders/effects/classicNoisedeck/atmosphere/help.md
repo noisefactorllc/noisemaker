@@ -1,15 +1,3 @@
-## Usage
-
-```dsl
-atmosphere(
-  noiseType: 1,
-  noiseScale: 85,
-  colorMode: 2,
-  color1: #ff0000,
-  color2: #00ff00
-)
-```
-
 ## Parameters
 
 *   **noiseType**: 1 (Simplex), 2 (Quad Tap).

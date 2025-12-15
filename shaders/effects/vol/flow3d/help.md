@@ -11,10 +11,3 @@
 | intensity | float | 90 | 0–100 | Trail persistence |
 | inputIntensity | float | 50 | 0–100 | Input volume intensity |
 | lifetime | float | 30 | 0–60 | Agent lifetime |
-
-## Usage
-
-```dsl
-flow3d(behavior: "meandering", density: 30).render3d().write(o0)
-noise3d().flow3d().render3d().write(o0)  // chain from noise
-```

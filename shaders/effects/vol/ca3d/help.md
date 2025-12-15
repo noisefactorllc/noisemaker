@@ -11,10 +11,3 @@
 | density | float | 50 | 1–100 | Initial density percentage |
 | colorMode | int | mono | mono, age | Color mode |
 | weight | float | 0 | 0–100 | Input weight from upstream |
-
-## Usage
-
-```dsl
-ca3d(ruleIndex: "crystalGrowth", speed: 2).render3d().write(o0)
-noise3d().ca3d().render3d().write(o0)  // chain from noise
-```

@@ -12,9 +12,3 @@
 | texSource | int | none | none, input | Texture source for modulation |
 | texInfluence | int | cellScale | cellScale, noiseScale, add, divide, min, max, mod, multiply, subtract | How texture influences output |
 | texIntensity | float | 100 | 0–100 | Texture influence intensity |
-
-## Usage
-
-```dsl
-cell(metric: "hexagon", cellScale: 50).write(o0)
-```

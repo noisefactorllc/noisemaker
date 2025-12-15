@@ -13,13 +13,6 @@
 | colorMode | int | mono | mono, gradient | Color mode |
 | weight | float | 0 | 0–100 | Input weight from upstream |
 
-## Usage
-
-```dsl
-rd3d(feed: 55, kill: 62).render3d().write(o0)
-noise3d().rd3d().render3d().write(o0)  // chain from noise
-```
-
 ## Notes
 
 Adjust feed and kill rates to achieve different pattern types. Common ranges:

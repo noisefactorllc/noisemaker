@@ -12,9 +12,3 @@
 | backgroundColor | vec3 | [0, 0, 0] | color | Background color |
 | backgroundOpacity | float | 0 | 0–100 | Background opacity |
 | motionBlur | float | 0 | 0–100 | Motion blur amount |
-
-## Usage
-
-```dsl
-media(scaleAmt: 150, rotation: 45).write(o0)
-```

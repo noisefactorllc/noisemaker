@@ -7,9 +7,3 @@
 | colorMode | int | rgb | mono, rgb | Output color mode |
 | ridges | boolean | false | — | Enable ridged noise |
 | seed | float | 0 | 0–100 | Random seed |
-
-## Usage
-
-```dsl
-noise(scale: 50, octaves: 3, ridges: true).write(o0)
-```

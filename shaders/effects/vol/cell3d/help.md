@@ -8,10 +8,3 @@
 | cellVariation | float | 50 | 0–100 | Cell variation |
 | seed | float | 1 | 0–100 | Random seed |
 | colorMode | int | mono | mono, rgb | Color mode |
-
-## Usage
-
-```dsl
-cell3d(metric: "manhattan", scale: 5).render3d().write(o0)
-noise3d().cell3d().render3d().write(o0)  // chain from noise
-```

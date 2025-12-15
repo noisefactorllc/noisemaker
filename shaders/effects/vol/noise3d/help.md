@@ -8,10 +8,3 @@
 | colorMode | int | mono | mono, rgb | Color mode |
 | ridges | boolean | false | — | Enable ridged noise |
 | seed | float | 0 | 0–100 | Random seed |
-
-## Usage
-
-```dsl
-noise3d(scale: 5, octaves: 3).render3d().write(o0)
-noise3d(ridges: true).cell3d().render3d().write(o0)  // chain effects
-```

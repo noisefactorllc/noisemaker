@@ -1,9 +1,3 @@
-## Usage
-
-```dsl
-background(type: 10, color1: #ff0000, color2: #0000ff)
-```
-
 ## Parameters
 
 *   **type**: The type of background (Solid, Horizontal Gradient, Vertical Gradient, Radial Gradient).

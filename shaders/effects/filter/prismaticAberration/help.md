@@ -8,9 +8,3 @@
 | hueRange | float | 0 | 0–100 | Hue variation range |
 | saturation | float | 0 | -100–100 | Saturation adjustment |
 | passthru | float | 50 | 0–100 | Blend with original |
-
-## Usage
-
-```dsl
-read().prismaticAberration(aberration: 75, hueRotate: 45).write(o0)
-```
