@@ -1,16 +1,16 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * nu/hue - Rotate hue
- * Simple hue rotation effect (0..1 maps to full rotation)
+ * filter/hs - Hue and Saturation
+ * Combined hue rotation and saturation adjustment
  */
 export default new Effect({
-  name: "Hue",
+  name: "HS",
   namespace: "filter",
-  func: "hue",
-  tags: ["color"],
+  func: "hs",
+  tags: ["color", "util"],
 
-  description: "Rotate image hue",
+  description: "Adjust hue and/or saturation",
   globals: {
     rotation: {
       type: "float",
@@ -19,7 +19,7 @@ export default new Effect({
       min: 0,
       max: 360,
       ui: {
-        label: "Rotation",
+        label: "Hue Rotation",
         control: "slider"
       }
     },
@@ -33,12 +33,23 @@ export default new Effect({
         label: "Hue Range",
         control: "slider"
       }
+    },
+    saturation: {
+      type: "float",
+      default: 1,
+      uniform: "saturation",
+      min: 0,
+      max: 4,
+      ui: {
+        label: "Saturation",
+        control: "slider"
+      }
     }
   },
   passes: [
     {
       name: "render",
-      program: "hue",
+      program: "hs",
       inputs: {
         inputTex: "inputTex"
       },

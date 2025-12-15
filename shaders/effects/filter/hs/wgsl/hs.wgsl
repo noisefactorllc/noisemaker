@@ -1,5 +1,5 @@
 /*
- * Hue rotation effect
+ * Hue and saturation adjustment effect
  */
 
 struct Uniforms {
@@ -56,13 +56,21 @@ fn hsv2rgb(hsv: vec3<f32>) -> vec3<f32> {
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let rotation = uniforms.data[0].x;
     let hueRange = uniforms.data[0].y;
+    let saturation = uniforms.data[0].z;
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = pos.xy / texSize;
     var color = textureSample(inputTex, inputSampler, uv);
 
+    // Convert to HSV
     var hsv = rgb2hsv(color.rgb);
-    // Scale hue by hueRange (0-200 maps to 0-2x), then add rotation (0-360 degrees)
+
+    // Apply hue rotation and range scaling
     hsv.x = fract(hsv.x * mapVal(hueRange, 0.0, 200.0, 0.0, 2.0) + (rotation / 360.0));
+
+    // Apply saturation
+    hsv.y = hsv.y * saturation;
+
+    // Convert back to RGB
     color = vec4<f32>(hsv2rgb(hsv), color.a);
 
     return color;

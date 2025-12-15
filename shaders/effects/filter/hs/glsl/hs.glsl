@@ -1,5 +1,5 @@
 /*
- * Hue rotation effect
+ * Hue and saturation adjustment effect
  */
 
 #ifdef GL_ES
@@ -9,6 +9,7 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform float rotation;
 uniform float hueRange;
+uniform float saturation;
 
 out vec4 fragColor;
 
@@ -58,9 +59,16 @@ void main() {
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
     vec4 color = texture(inputTex, uv);
 
+    // Convert to HSV
     vec3 hsv = rgb2hsv(color.rgb);
-    // Scale hue by hueRange (0-200 maps to 0-2x), then add rotation (0-360 degrees)
+
+    // Apply hue rotation and range scaling
     hsv.x = fract(hsv.x * map(hueRange, 0.0, 200.0, 0.0, 2.0) + (rotation / 360.0));
+
+    // Apply saturation
+    hsv.y *= saturation;
+
+    // Convert back to RGB
     color.rgb = hsv2rgb(hsv);
 
     fragColor = color;
