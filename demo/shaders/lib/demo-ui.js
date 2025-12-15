@@ -2120,52 +2120,26 @@ export class UIController {
                 for (let s = 0; s < plan.chain.length; s++) {
                     if (globalStepIndex === targetStepIndex) {
                         const deletedStep = plan.chain[s]
-                        const deletedWasRead = deletedStep.builtin && (deletedStep.op === '_read' || deletedStep.op === '_read3d')
+
+                        // Deleting a starter effect should remove the entire chain.
+                        // We do not leave "dangling" steps behind, and we do not insert placeholders.
+                        if (s === 0 && deletedStep && !deletedStep.builtin) {
+                            const namespace = deletedStep.namespace?.namespace || deletedStep.namespace?.resolved || null
+                            const def = getEffectDefCallback(deletedStep.op, namespace)
+                            const deletedIsStarter = !!(def && isStarterEffect({ instance: def }))
+
+                            if (deletedIsStarter) {
+                                compiled.plans.splice(p, 1)
+                                found = true
+                                break
+                            }
+                        }
+
                         plan.chain.splice(s, 1)
 
                         // If we removed the head of the chain and there are remaining steps,
-                        // ensure the new head has a valid input source if needed.
-                        // But DON'T auto-insert a read if we just deleted a read (user intent).
-                        if (s === 0 && plan.chain.length > 0 && !deletedWasRead) {
-                            const newHead = plan.chain[0]
-                            const isReadOp = newHead.builtin && (newHead.op === '_read' || newHead.op === '_read3d')
-
-                            if (!isReadOp) {
-                                const namespace = newHead.namespace?.namespace || newHead.namespace?.resolved || null
-                                const def = getEffectDefCallback(newHead.op, namespace)
-
-                                // If def found and NOT a starter effect, prepend read().
-                                // If def NOT found, assume it needs input (safer to have redundant read than invalid chain).
-                                const needsInput = !def || !isStarterEffect({ instance: def })
-
-                                if (needsInput) {
-                                    // Try to find a sensible surface to read from:
-                                    // 1. If there's a previous plan, read from its write target
-                                    // 2. Otherwise, default to the current plan's write target (feedback pattern)
-                                    // 3. Fall back to o0 if nothing else is available
-                                    let readSurface = { kind: 'output', name: 'o0' }
-                                    if (p > 0) {
-                                        const prevPlan = compiled.plans[p - 1]
-                                        if (prevPlan.write) {
-                                            readSurface = typeof prevPlan.write === 'object'
-                                                ? prevPlan.write
-                                                : { kind: 'output', name: prevPlan.write }
-                                        }
-                                    } else if (plan.write) {
-                                        // Same plan's write target (useful for feedback loops)
-                                        readSurface = typeof plan.write === 'object'
-                                            ? plan.write
-                                            : { kind: 'output', name: plan.write }
-                                    }
-
-                                    plan.chain.unshift({
-                                        builtin: true,
-                                        op: '_read',
-                                        args: { tex: readSurface }
-                                    })
-                                }
-                            }
-                        }
+                        // do not auto-insert placeholder ops (e.g., read()). Deletion must not
+                        // mutate semantics beyond removal.
 
                         if (plan.chain.length === 0) {
                             compiled.plans.splice(p, 1)
