@@ -40,6 +40,7 @@ import {
     BrowserSession,
     checkEffectStructureOnDisk,
     checkAlgEquivOnDisk,
+    analyzeBranchingOnDisk,
     matchEffects,
     gracePeriod
 } from './browser-harness.js'
@@ -409,6 +410,29 @@ const TOOLS = [
         }
     },
     {
+        name: 'analyzeBranching',
+        description: 'Analyze shader code for unnecessary branching that could be flattened. Uses AI to identify opportunities to reduce conditional branching by applying uniform values directly. Understands that some branching is necessary for complex effects. Does NOT require a browser.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                effect_id: {
+                    type: 'string',
+                    description: 'Single effect identifier'
+                },
+                effects: {
+                    type: 'string',
+                    description: 'CSV of effect IDs or glob patterns'
+                },
+                backend: {
+                    type: 'string',
+                    enum: ['webgl2', 'webgpu'],
+                    description: 'Which shader language to analyze (required)'
+                }
+            },
+            required: ['backend']
+        }
+    },
+    {
         name: 'generateShaderManifest',
         description: 'Regenerate the shader manifest by running the manifest generation script. Does NOT require a browser.',
         inputSchema: {
@@ -726,6 +750,38 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 }
 
                 result = {
+                    effects_tested: Object.keys(results).length,
+                    results
+                }
+                break
+            }
+
+            case 'analyzeBranching': {
+                const patterns = parseEffects(args)
+                const backend = args.backend
+
+                if (!backend) {
+                    throw new Error('backend parameter is required')
+                }
+
+                const results = {}
+                for (const pattern of patterns) {
+                    if (!pattern.includes('*') && !pattern.includes('?') && !pattern.startsWith('/')) {
+                        try {
+                            results[pattern] = await analyzeBranchingOnDisk(pattern, { backend })
+                        } catch (err) {
+                            results[pattern] = { status: 'error', error: err.message }
+                        }
+                    } else {
+                        results[pattern] = {
+                            status: 'error',
+                            error: 'Glob patterns require browser session to resolve. Use exact effect IDs for on-disk tools.'
+                        }
+                    }
+                }
+
+                result = {
+                    backend,
                     effects_tested: Object.keys(results).length,
                     results
                 }

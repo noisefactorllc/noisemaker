@@ -85,6 +85,8 @@ These tools run without a browser:
      - Detect unused files, naming issues, leaked uniforms
    * - ``checkAlgEquiv``
      - Compare GLSL/WGSL algorithmic equivalence
+   * - ``analyzeBranching``
+     - Identify unnecessary branching that could be flattened
    * - ``generateShaderManifest``
      - Rebuild shader manifest from disk
 
@@ -557,6 +559,90 @@ Only flags truly divergent algorithms, not language-specific syntax differences.
 
    Requires an OpenAI API key in the ``.openai`` file.
 
+analyzeBranching
+^^^^^^^^^^^^^^^^
+
+Analyze shader code for unnecessary branching that could be flattened. No browser required.
+
+**Parameters:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 15 15 50
+
+   * - Parameter
+     - Type
+     - Required
+     - Description
+   * - ``effect_id``
+     - string
+     - Yes
+     - Effect identifier
+   * - ``backend``
+     - string
+     - Yes
+     - ``"webgl2"`` or ``"webgpu"``
+
+**What It Flags:**
+
+- ``if``/``else`` branches that select between simple arithmetic operations
+- Boolean uniform checks that guard trivial operations
+- Switch statements over uniform enums that could use lookup tables
+
+**What It Accepts:**
+
+- Early-out conditions for performance (discard, return)
+- Branches that select fundamentally different algorithms
+- Loop control flow based on uniforms
+- Complex feature toggles
+
+**Severity Levels:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 80
+
+   * - Severity
+     - Meaning
+   * - ``high``
+     - Hot inner loops with avoidable branching, significant GPU thread divergence
+   * - ``medium``
+     - Per-fragment branches that could be flattened with math
+   * - ``low``
+     - Minor opportunities, negligible performance impact
+
+**Example Response:**
+
+.. code-block:: json
+
+   {
+     "backend": "webgl2",
+     "effects_tested": 1,
+     "results": {
+       "synth/noise": {
+         "status": "warning",
+         "shaders": [
+           {
+             "file": "noise.glsl",
+             "opportunities": [
+               {
+                 "location": "line 302, inside multires()",
+                 "description": "Boolean check for 'ridges' uniform guards a simple abs() call. Can flatten with: color = mix(color, 1.0 - abs(color * 2.0 - 1.0), float(ridges))",
+                 "severity": "medium"
+               }
+             ],
+             "notes": "Overall well-optimized shader with minimal unnecessary branching."
+           }
+         ],
+         "summary": "synth/noise (webgl2): 1 shader(s) analyzed, 1 opportunity/ies (1 medium)"
+       }
+     }
+   }
+
+.. note::
+
+   Requires an OpenAI API key in the ``.openai`` file. Returns ``"warning"`` status when 2 or more opportunities are found.
+
 generateShaderManifest
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -592,27 +678,32 @@ Test Selection Flags
    --benchmark     # Run FPS test
    --uniforms      # Test uniform responsiveness
    --structure     # Check naming, unused files, leaked uniforms
-   --alg-equiv     # Check GLSL/WGSL algorithmic equivalence
+   --alg-equiv     # Check GLSL/WGSL algorithmic equivalence (requires --with-ai)
+   --branching     # Analyze shaders for unnecessary branching (requires --with-ai)
    --passthrough   # Check filter effects don't pass through input
    --pixel-parity  # Test GLSL/WGSL pixel-for-pixel equivalence
-   --no-vision     # Skip AI vision validation
+   --with-ai       # Enable AI-based tests (alg-equiv, branching, vision)
+   --no-vision     # Skip AI vision validation (even with --with-ai)
 
 Examples
 ^^^^^^^^
 
 .. code-block:: bash
 
-   # Basic compile + render + vision check
+   # Basic compile + render (no AI)
    node test-harness.js --effects synth/noise --backend webgl2
 
    # Multiple effects with glob pattern
    node test-harness.js --effects "synth/*" --webgl2 --benchmark
 
-   # All tests on WebGPU
-   node test-harness.js --effects "sim/*" --webgpu --all
+   # All tests on WebGPU with AI analysis
+   node test-harness.js --effects "sim/*" --webgpu --all --with-ai
 
    # Structure check (no browser)
    node test-harness.js --effects "sim/physarum" --webgl2 --structure
+
+   # Branching analysis with AI
+   node test-harness.js --effects synth/noise --webgl2 --branching --with-ai
 
 Agent Workflow
 --------------
@@ -646,7 +737,13 @@ After modifying a shader effect:
 
       → testUniformResponsiveness({ effect_id: "synth/noise", backend: "webgl2" })
 
-5. **Vision check** (if debugging visual issues):
+5. **Branching analysis** (identify optimization opportunities):
+
+   .. code-block:: text
+
+      → analyzeBranching({ effect_id: "synth/noise", backend: "webgl2" })
+
+6. **Vision check** (if debugging visual issues):
 
    .. code-block:: text
 

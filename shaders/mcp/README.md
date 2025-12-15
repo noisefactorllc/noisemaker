@@ -41,6 +41,7 @@ node shaders/mcp/test-harness.js --effects synth/noise --backend webgl2
 |------|---------|
 | `checkEffectStructure` | Detect unused files, naming issues, leaked uniforms |
 | `checkAlgEquiv` | Compare GLSL/WGSL algorithmic equivalence |
+| `analyzeBranching` | Identify unnecessary branching that could be flattened |
 | `generateShaderManifest` | Rebuild shader manifest |
 
 See [Tool Reference](docs/TOOL_REFERENCE.md) for complete input/output schemas.
@@ -113,6 +114,7 @@ node test-harness.js --effects <patterns> --backend <backend> [flags]
 | `--uniforms` | Test uniform responsiveness |
 | `--structure` | Check naming, unused files, leaked uniforms |
 | `--alg-equiv` | Check GLSL/WGSL algorithmic equivalence |
+| `--branching` | Analyze shaders for unnecessary branching |
 | `--passthrough` | Check filter effects don't pass through input |
 | `--no-vision` | Skip AI vision validation |
 

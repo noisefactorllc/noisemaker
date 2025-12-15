@@ -3213,3 +3213,272 @@ Are these implementations algorithmically equivalent?`
         summary: summaryParts.join(', ')
     }
 }
+
+/**
+ * Analyze shader code for unnecessary branching that could be flattened.
+ *
+ * Uses OpenAI API to analyze shader source files and identify opportunities
+ * to reduce conditional branching by applying uniform values directly.
+ * Understands that some branching is necessary for complex effects.
+ *
+ * @param {string} effectId - Effect identifier (e.g., "synth/noise")
+ * @param {object} options
+ * @param {'webgl2'|'webgpu'} options.backend - Which shader language to analyze (REQUIRED)
+ * @param {string} [options.apiKey] - OpenAI API key (falls back to .openai file)
+ * @param {string} [options.model='gpt-4o'] - Model to use for analysis
+ * @returns {Promise<{status: 'ok'|'warning'|'error', shaders: Array<{file: string, opportunities: Array<{location: string, description: string, severity: 'low'|'medium'|'high'}>, notes?: string}>, summary: string}>}
+ */
+export async function analyzeBranching(effectId, options = {}) {
+    if (!options.backend) {
+        return {
+            status: 'error',
+            shaders: [],
+            summary: 'backend parameter is REQUIRED. Pass { backend: "webgl2" } or { backend: "webgpu" }'
+        }
+    }
+
+    const apiKey = options.apiKey || getOpenAIApiKey()
+    if (!apiKey) {
+        return {
+            status: 'error',
+            shaders: [],
+            summary: 'No OpenAI API key found. Create .openai file in project root.'
+        }
+    }
+
+    const model = options.model || 'gpt-4o'
+    const backend = options.backend
+
+    // Parse effect ID to get directory path
+    const [namespace, effectName] = effectId.split('/')
+    const effectDir = path.join(PROJECT_ROOT, 'shaders', 'effects', namespace, effectName)
+
+    // Determine shader directory based on backend
+    const shaderDir = backend === 'webgpu'
+        ? path.join(effectDir, 'wgsl')
+        : path.join(effectDir, 'glsl')
+    const shaderExt = backend === 'webgpu' ? '.wgsl' : ['.glsl', '.vert', '.frag']
+
+    // Read effect definition for context
+    let definitionSource = ''
+    try {
+        const definitionPath = path.join(effectDir, 'definition.js')
+        definitionSource = fs.readFileSync(definitionPath, 'utf-8')
+    } catch {
+        return {
+            status: 'error',
+            shaders: [],
+            summary: `Could not read definition.js for ${effectId}`
+        }
+    }
+
+    // Collect shader files
+    let shaderFiles = []
+    try {
+        const files = fs.readdirSync(shaderDir)
+        const extensions = Array.isArray(shaderExt) ? shaderExt : [shaderExt]
+        shaderFiles = files.filter(f => extensions.some(ext => f.endsWith(ext)))
+    } catch {
+        return {
+            status: 'error',
+            shaders: [],
+            summary: `No ${backend === 'webgpu' ? 'WGSL' : 'GLSL'} shaders found for ${effectId}`
+        }
+    }
+
+    if (shaderFiles.length === 0) {
+        return {
+            status: 'ok',
+            shaders: [],
+            summary: `${effectId}: No shaders to analyze for ${backend}`
+        }
+    }
+
+    // Read all shader source files
+    const shaderSources = []
+    for (const file of shaderFiles) {
+        const filePath = path.join(shaderDir, file)
+        try {
+            const source = fs.readFileSync(filePath, 'utf-8')
+            shaderSources.push({ file, source })
+        } catch {
+            // Skip unreadable files
+        }
+    }
+
+    if (shaderSources.length === 0) {
+        return {
+            status: 'error',
+            shaders: [],
+            summary: `Could not read shader files for ${effectId}`
+        }
+    }
+
+    // Build the analysis prompt
+    const language = backend === 'webgpu' ? 'WGSL' : 'GLSL'
+
+    const systemPrompt = `You are a senior GPU shader developer performing code review on ${language} shaders.
+
+Your task is to identify UNNECESSARY branching that could be flattened by applying uniform values directly.
+
+CONTEXT: These shaders are part of a real-time graphics pipeline. The effect definition (provided below) shows:
+- "globals": User-controllable parameters with uniforms, types, defaults, and ranges
+- "passes": How shaders are connected in the rendering graph
+- "uniformLayout": How uniforms are packed into vec4 slots
+
+WHAT TO FLAG (unnecessary branching):
+- if/else branches that select between simple arithmetic operations based on a uniform
+  Example: \`if (mode == 0) color *= 0.5; else color *= 1.5;\`
+  Better: Precompute the multiplier on CPU or use mix() with step()
+- Switch statements over uniform enums that could use lookup tables or math
+- Boolean uniform checks that guard trivial operations
+  Example: \`if (enabled) result += offset;\`
+  Better: \`result += offset * float(enabled);\`
+
+WHAT IS ACCEPTABLE (necessary branching):
+- Early-out conditions for performance (discard, return on boundary checks)
+- Branches that select fundamentally different algorithms (e.g., noise type selection)
+- Loop control flow based on uniform iteration counts
+- Branches in vertex shaders for different geometry modes
+- Complex feature toggles that would require multiple textures/passes otherwise
+
+SEVERITY LEVELS:
+- "high": Hot inner loops with avoidable branching, significant GPU thread divergence
+- "medium": Per-fragment branches that could be flattened with math
+- "low": Minor opportunities, negligible performance impact
+
+Respond with JSON:
+{
+  "shaders": [
+    {
+      "file": "shader.glsl",
+      "opportunities": [
+        {
+          "location": "line 42, inside main()",
+          "description": "Boolean check for 'ridges' uniform guards a simple abs() call. Can flatten with: result = mix(result, abs(result), float(ridges))",
+          "severity": "medium"
+        }
+      ],
+      "notes": "Overall well-optimized shader with minimal unnecessary branching."
+    }
+  ],
+  "summary": "Brief overall assessment"
+}
+
+If no opportunities exist, return empty opportunities array with a note that the shader is well-optimized.
+Do NOT flag necessary complexity or algorithmic branches - focus only on low-hanging fruit.`
+
+    // Build attachments: definition + all shader files
+    const attachments = [
+        {
+            type: 'text',
+            text: `=== Effect Definition (definition.js) ===\n${definitionSource}`
+        }
+    ]
+
+    for (const { file, source } of shaderSources) {
+        attachments.push({
+            type: 'text',
+            text: `=== ${file} ===\n${source}`
+        })
+    }
+
+    const userPrompt = `Analyze these ${language} shaders for unnecessary branching opportunities.
+Effect: ${effectId}
+Backend: ${backend}
+
+Review each shader file and identify places where conditional branching could be replaced with branchless math or uniform-driven computation.`
+
+    try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    {
+                        role: 'user',
+                        content: [
+                            { type: 'text', text: userPrompt },
+                            ...attachments.map(a => ({ type: 'text', text: a.text }))
+                        ]
+                    }
+                ],
+                max_tokens: 2000,
+                response_format: { type: 'json_object' }
+            })
+        })
+
+        if (!response.ok) {
+            const errorText = await response.text()
+            return {
+                status: 'error',
+                shaders: [],
+                summary: `API error: ${response.status} - ${errorText.slice(0, 200)}`
+            }
+        }
+
+        const data = await response.json()
+        const content = data.choices?.[0]?.message?.content
+
+        if (!content) {
+            return {
+                status: 'error',
+                shaders: [],
+                summary: 'No response from model'
+            }
+        }
+
+        const analysis = JSON.parse(content)
+
+        // Count opportunities by severity
+        let totalOpportunities = 0
+        let highCount = 0
+        let mediumCount = 0
+        let lowCount = 0
+
+        for (const shader of analysis.shaders || []) {
+            for (const opp of shader.opportunities || []) {
+                totalOpportunities++
+                if (opp.severity === 'high') highCount++
+                else if (opp.severity === 'medium') mediumCount++
+                else lowCount++
+            }
+        }
+
+        // Determine status
+        let status = 'ok'
+        if (totalOpportunities >= 2) {
+            status = 'warning'
+        }
+
+        // Build summary
+        let summaryParts = [`${effectId} (${backend}): ${shaderSources.length} shader(s) analyzed`]
+        if (totalOpportunities === 0) {
+            summaryParts.push('no unnecessary branching found')
+        } else {
+            const counts = []
+            if (highCount > 0) counts.push(`${highCount} high`)
+            if (mediumCount > 0) counts.push(`${mediumCount} medium`)
+            if (lowCount > 0) counts.push(`${lowCount} low`)
+            summaryParts.push(`${totalOpportunities} opportunity/ies (${counts.join(', ')})`)
+        }
+
+        return {
+            status,
+            shaders: analysis.shaders || [],
+            summary: summaryParts.join(', ')
+        }
+
+    } catch (err) {
+        return {
+            status: 'error',
+            shaders: [],
+            summary: `Analysis failed: ${err.message}`
+        }
+    }
+}

@@ -24,6 +24,7 @@ import {
     describeEffectFrame,
     checkEffectStructure,
     checkShaderParity,
+    analyzeBranching,
     testNoPassthrough,
     testPixelParity,
     isFilterEffect,
@@ -865,6 +866,14 @@ export async function checkEffectStructureOnDisk(effectId, options = {}) {
  */
 export async function checkAlgEquivOnDisk(effectId, options = {}) {
     return await checkShaderParity(effectId, options)
+}
+
+/**
+ * Analyze shader code for unnecessary branching.
+ * This is an on-disk operation with AI analysis - no browser needed.
+ */
+export async function analyzeBranchingOnDisk(effectId, options = {}) {
+    return await analyzeBranching(effectId, options)
 }
 
 /**

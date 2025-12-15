@@ -12,6 +12,7 @@ export {
     describeEffectFrame,
     checkEffectStructure,
     checkShaderParity,
+    analyzeBranching,
     computeImageMetrics,
     waitForCompileStatus,
     getOpenAIApiKey,

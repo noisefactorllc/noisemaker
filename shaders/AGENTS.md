@@ -155,6 +155,7 @@ After modifying a shader effect:
 
 Additional validation tools:
 - `check_alg_equiv`: Verify GLSL/WGSL produce equivalent results
+- `analyze_branching`: Identify unnecessary branching that could be flattened
 - `test_no_passthrough`: Verify filter effects modify their input
 - `benchmark_effect_fps`: Check performance meets target FPS
 - `run_dsl_program`: Compile and run arbitrary DSL code for ad-hoc testing

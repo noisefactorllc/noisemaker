@@ -38,10 +38,12 @@
  *   --uniforms                Test that uniform controls affect output
  *   --structure               Test for unused files, naming conventions, leaked uniforms
  *   --structure-only          Run ONLY structure tests (no browser, filesystem-based)
- *   --alg-equiv               Test GLSL/WGSL algorithmic equivalence (requires .openai key)
+ *   --alg-equiv               Test GLSL/WGSL algorithmic equivalence (requires --with-ai)
+ *   --branching               Analyze shaders for unnecessary branching (requires --with-ai)
  *   --passthrough             Test that filter effects do NOT pass through input unchanged
  *   --pixel-parity            Test GLSL/WGSL pixel-for-pixel output parity at frame 0
- *   --no-vision               Skip AI vision validation
+ *   --with-ai                 Enable AI-based tests (alg-equiv, branching, vision)
+ *   --no-vision               Skip AI vision validation (even with --with-ai)
  *
  * Other flags:
  *   --verbose                 Show additional diagnostic info
@@ -61,6 +63,7 @@ import {
     BrowserSession,
     checkEffectStructureOnDisk,
     checkAlgEquivOnDisk,
+    analyzeBranchingOnDisk,
     matchEffects,
     gracePeriod
 } from './browser-harness.js'
@@ -124,8 +127,10 @@ function parseArgs() {
         runStructure: false,
         runStructureOnly: false,
         runAlgEquiv: false,
+        runBranching: false,
         runPassthrough: false,
         runPixelParity: false,
+        withAi: false,
         skipVision: false,
         useBundles: false,
         verbose: false
@@ -155,10 +160,14 @@ function parseArgs() {
             parsed.runStructure = true
         } else if (arg === '--alg-equiv') {
             parsed.runAlgEquiv = true
+        } else if (arg === '--branching') {
+            parsed.runBranching = true
         } else if (arg === '--passthrough') {
             parsed.runPassthrough = true
         } else if (arg === '--pixel-parity') {
             parsed.runPixelParity = true
+        } else if (arg === '--with-ai') {
+            parsed.withAi = true
         } else if (arg === '--no-vision') {
             parsed.skipVision = true
         } else if (arg === '--bundles') {
@@ -177,6 +186,7 @@ function parseArgs() {
         parsed.runUniforms = true
         parsed.runStructure = true
         parsed.runAlgEquiv = true
+        parsed.runBranching = true
         parsed.runPassthrough = true
         parsed.runPixelParity = true
     }
@@ -355,6 +365,8 @@ async function testEffect(session, effectId, options) {
         structure: null,
         algEquiv: null,
         algEquivDivergent: false,
+        branching: null,
+        branchingWarning: false,
         passthrough: null,
         passthroughFailed: false,
         pixelParity: null,
@@ -463,7 +475,9 @@ async function testEffect(session, effectId, options) {
 
     // Algorithmic equivalence test (uses filesystem + AI)
     if (options.runAlgEquiv) {
-        if (!getOpenAIApiKey()) {
+        if (!options.withAi) {
+            console.log(`  ⊘ alg-equiv: skipped (--with-ai not specified)`)
+        } else if (!getOpenAIApiKey()) {
             console.log(`  ⊘ alg-equiv: skipped (no .openai key)`)
         } else {
             t0 = Date.now()
@@ -490,6 +504,52 @@ async function testEffect(session, effectId, options) {
             } else {
                 results.algEquivDivergent = true
                 console.log(`  ❌ alg-equiv: ${algEquivResult.summary || 'Unknown error'}`)
+            }
+
+            t0 = Date.now()
+        }
+    }
+
+    // Branching analysis (uses filesystem + AI)
+    if (options.runBranching) {
+        if (!options.withAi) {
+            console.log(`  ⊘ branching: skipped (--with-ai not specified)`)
+        } else if (!getOpenAIApiKey()) {
+            console.log(`  ⊘ branching: skipped (no .openai key)`)
+        } else {
+            t0 = Date.now()
+            const branchingResult = await analyzeBranchingOnDisk(effectId, { backend })
+            timings.push(`branching:${Date.now() - t0}ms`)
+            results.branching = branchingResult
+
+            // Count total opportunities
+            let totalOpportunities = 0
+            for (const shader of branchingResult.shaders || []) {
+                totalOpportunities += (shader.opportunities || []).length
+            }
+
+            if (branchingResult.status === 'error') {
+                results.branchingWarning = true
+                console.log(`  ❌ branching: ${branchingResult.summary}`)
+            } else if (branchingResult.status === 'warning' || totalOpportunities > 0) {
+                if (branchingResult.status === 'warning') {
+                    results.branchingWarning = true
+                }
+                console.log(`  ${branchingResult.status === 'warning' ? '⚠' : 'ℹ'} branching: ${totalOpportunities} opportunity/ies found`)
+                for (const shader of branchingResult.shaders || []) {
+                    if (shader.opportunities?.length > 0) {
+                        console.log(`    ${shader.file}:`)
+                        for (const opp of shader.opportunities) {
+                            const sev = opp.severity === 'high' ? '❗' : opp.severity === 'medium' ? '⚠' : 'ℹ'
+                            console.log(`      ${sev} ${opp.location}: ${opp.description}`)
+                        }
+                    }
+                    if (shader.notes) {
+                        console.log(`    Note: ${shader.notes}`)
+                    }
+                }
+            } else {
+                console.log(`  ✓ branching: ${branchingResult.summary}`)
             }
 
             t0 = Date.now()
@@ -643,7 +703,7 @@ async function testEffect(session, effectId, options) {
 
     // Vision validation
     const hasApiKey = !!getOpenAIApiKey()
-    if (hasApiKey && !options.skipVision) {
+    if (hasApiKey && options.withAi && !options.skipVision) {
         const prompt = `Is this shader output valid?
 Valid = shows actual visual content (patterns, colors, textures, effects, colorful mosaic, grid of colors)
 Invalid = completely blank, solid color only, or obviously broken/corrupted
