@@ -19,7 +19,7 @@ export default new Effect({
   func: "loopBegin",
   tags: ["util"],
 
-  description: "Start accumulator loop with lighten blend",
+  description: "Start accumulator loop, read from feedback buffer",
   globals: {
     alpha: {
       type: "float",
