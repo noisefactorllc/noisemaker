@@ -187,7 +187,7 @@ When a function like ``noise3d()`` is called, the runtime walks the search order
 
 #. **Mandatory Search Directive:** Every program must start with ``search <namespace>, ...`` to specify which namespaces to search and in what order.
 #. **Unqualified Identifiers:** Calls like ``noise()`` walk the search order until a matching effect is found.
-#. **Overrides:** The ``from("ns", fn())`` helper allows sourcing an operation from a specific namespace temporarily (e.g., ``from("synth", noise())``).
+#. **Overrides:** The ``from(ns, fn())`` helper allows sourcing an operation from a specific namespace temporarily (e.g., ``from(synth, noise())``).
 
 **Note:** Inline namespace prefixes (e.g., ``synth.noise()``) are **forbidden** in program chains. Use the ``search`` directive or ``from()`` helper instead.
 

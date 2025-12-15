@@ -596,17 +596,6 @@ export function validate(ast) {
                             }
                         }
                         args[argKey] = surf
-                    } else if (def.type === 'string') {
-                        let value
-                        if (node && node.type === 'String') {
-                            value = node.value
-                        } else {
-                            if (node && node.type && node.type !== 'Ident') {
-                                pushDiag('S002', node)
-                            }
-                            value = def.default
-                        }
-                        args[argKey] = value
                     } else if (def.type === 'color') {
                         let value
                         if (node && node.type === 'Color') {
@@ -671,8 +660,6 @@ export function validate(ast) {
                         let path = null
                         if (node && node.type === 'Member') {
                             path = normalizeMemberPath(node.path)
-                        } else if (node && node.type === 'String') {
-                            path = normalizeMemberPath(node.value)
                         } else if (node && (node.type === 'Number' || node.type === 'Boolean')) {
                             args[argKey] = node.type === 'Boolean' ? (node.value ? 1 : 0) : node.value
                             continue
@@ -821,16 +808,7 @@ export function validate(ast) {
                                 pushDiag('S003', node)
                                 value = def.default
                             }
-                        } else if (node && node.type === 'String' && def.choices) {
-                            // Try to resolve quoted string against inline choices (e.g., "5g")
-                            const choiceVal = def.choices[node.value]
-                            if (typeof choiceVal === 'number') {
-                                value = clamp(choiceVal, def.min, def.max)
-                            } else {
-                                pushDiag('S003', node)
-                                value = def.default
-                            }
-                        } else if (node && node.type === 'String' && def.enum) {
+                        } else if (node && node.type === 'Ident' && def.enum) {
                             // Try to resolve quoted string as enum value within the param's enum path
                             const prefix = normalizeMemberPath(def.enum)
                             const path = prefix ? prefix.concat([node.value]) : [node.value]

@@ -65,7 +65,7 @@ export function parse(tokens) {
     }
 
     const exprStartTokens = new Set([
-        'PLUS', 'MINUS', 'NUMBER', 'STRING', 'HEX', 'FUNC',
+        'PLUS', 'MINUS', 'NUMBER', 'HEX', 'FUNC',
         'IDENT', 'OUTPUT_REF', 'SOURCE_REF', 'LPAREN',
         'TRUE', 'FALSE'
     ])
@@ -164,10 +164,10 @@ export function parse(tokens) {
             fail("'from' requires exactly two arguments (namespace, call)")
         }
         const [namespaceArg, targetArg] = args
-        if (!namespaceArg || namespaceArg.type !== 'String' || typeof namespaceArg.value !== 'string') {
-            fail("'from' namespace argument must be a string literal")
+        if (!namespaceArg || (namespaceArg.type !== 'Ident' && namespaceArg.type !== 'Member')) {
+            fail("'from' namespace argument must be an identifier")
         }
-        const namespaceName = namespaceArg.value.trim()
+        const namespaceName = namespaceArg.type === 'Member' ? namespaceArg.path.join('.') : namespaceArg.name
         if (!namespaceName) {
             fail("'from' namespace argument must be non-empty")
         }
@@ -630,9 +630,6 @@ export function parse(tokens) {
             case 'NUMBER':
                 advance()
                 return {type: 'Number', value: parseFloat(token.lexeme)}
-            case 'STRING':
-                advance()
-                return {type: 'String', value: token.lexeme}
             case 'HEX': {
                 advance()
                 const hex = token.lexeme.slice(1)

@@ -105,12 +105,8 @@ function formatValue(value, spec, customFormatter) {
     }
 
     if (typeof value === 'string') {
-        // Check if it's an enum path (contains dots and no spaces)
-        if (value.includes('.') && !value.includes(' ')) {
-            return value // Enum path, no quotes
-        }
-        // Regular string, quote it
-        return `"${value.replace(/"/g, '\\"')}"`
+        // Strings are identifiers or enum paths - never quote them
+        return value
     }
 
     if (Array.isArray(value)) {
@@ -185,9 +181,6 @@ function formatValue(value, spec, customFormatter) {
             return value.path.join('.')
         }
         if (value.type === 'Number') {
-            return formatValue(value.value, spec, customFormatter)
-        }
-        if (value.type === 'String') {
             return formatValue(value.value, spec, customFormatter)
         }
         if (value.type === 'Boolean') {

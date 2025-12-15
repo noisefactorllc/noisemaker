@@ -162,8 +162,8 @@ export function formatValue(value, spec, enums = {}) {
     if (type === 'vec2' && Array.isArray(value)) {
         return `vec2(${value.join(', ')})`
     }
-    if (type === 'palette' || type === 'string' || type === 'text') {
-        return `"${value}"`
+    if (type === 'palette') {
+        return value
     }
     // float, int
     return value
@@ -1164,14 +1164,14 @@ export class UIController {
                 const sourceSurface = 'o1'
                 const outputSurface = 'o0'
                 // Add tex as first param for effects with texture input
-                const kwargsWithTex = { tex: `read(${sourceSurface})`, ...kwargs }
+                const kwargsWithTex = { tex: { type: 'Read', surface: sourceSurface }, ...kwargs }
                 const effectCall = fmtCall(funcName, kwargsWithTex)
                 return `${searchDirective}${noiseCall}\n  .write(${sourceSurface})\n\n${effectCall}\n  .write(${outputSurface})`
             }
             const effectCall = fmtCall(funcName, kwargs)
             return `${searchDirective}${effectCall}\n  .write(o0)`
         } else if (hasTex) {
-            const kwargs = { tex: 'read(o1)' }
+            const kwargs = { tex: { type: 'Read', surface: 'o1' } }
             if (effect.instance.globals) {
                 for (const [key, spec] of Object.entries(effect.instance.globals)) {
                     if (key === 'tex' && spec.type === 'surface') continue

@@ -143,36 +143,7 @@ export function lex(src) {
         if (ch === '/') { add('SLASH', '/', startLine, startCol); i++; col++; continue }
 
         if (ch === '"' || ch === '\'') {
-            const quote = ch
-            let j = i + 1
-            let str = ''
-            while (j < src.length) {
-                const current = src[j]
-                if (current === '\\') {
-                    const next = src[j + 1]
-                    if (next === quote || next === '\\') {
-                        str += next
-                        j += 2
-                        continue
-                    }
-                }
-                if (current === quote) {
-                    break
-                }
-                if (current === '\n') {
-                    throw new SyntaxError(`Unterminated string at line ${startLine} col ${startCol}`)
-                }
-                str += current
-                j++
-            }
-            if (j >= src.length || src[j] !== quote) {
-                throw new SyntaxError(`Unterminated string at line ${startLine} col ${startCol}`)
-            }
-            add('STRING', str, startLine, startCol)
-            const len = j - i + 1
-            i = j + 1
-            col += len
-            continue
+            throw new SyntaxError(`Quoted strings are not allowed in DSL at line ${line} col ${col}`)
         }
 
         if (isDigit(ch)) {

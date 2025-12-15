@@ -47,17 +47,17 @@ export default new Effect({
       }
     },
     font: {
-      type: "string",
-      default: "sansSerif",
+      type: "member",
+      default: 4,
       uniform: "font",
       choices: {
-        cursive: "cursive",
-        fantasy: "fantasy",
-        monospace: "monospace",
-        nunito: "Nunito",
-        sansSerif: "sans-serif",
-        serif: "serif",
-        vcr: "vcr"
+        cursive: 0,
+        fantasy: 1,
+        monospace: 2,
+        nunito: 3,
+        sansSerif: 4,
+        serif: 5,
+        vcr: 6
       },
       ui: {
         label: "font",
@@ -65,8 +65,8 @@ export default new Effect({
       }
     },
     text: {
-      type: "text",
-      default: "hello world",
+      type: "member",
+      default: 0,
       uniform: "text",
       ui: {
         label: "text",
