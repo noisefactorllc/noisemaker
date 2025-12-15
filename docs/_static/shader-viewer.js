@@ -286,7 +286,8 @@
                 option.value = `${namespace}/${effect.name}`;
                 option.textContent = camelToSpaceCase(effect.name);
                 if (effect.description) {
-                    option.title = effect.description;
+                    option.classList.add('tooltip');
+                    option.dataset.title = effect.description;
                 }
                 optgroup.appendChild(option);
             });

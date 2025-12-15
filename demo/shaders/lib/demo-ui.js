@@ -1545,17 +1545,19 @@ export class UIController {
             let codeBtn = null
             if (effectDef.shaders) {
                 codeBtn = document.createElement('button')
-                codeBtn.className = 'action-btn'
+                codeBtn.className = 'action-btn tooltip'
                 codeBtn.textContent = 'code'
-                codeBtn.title = 'Edit shader source code'
+                codeBtn.dataset.title = 'Edit shader source code'
+                codeBtn.setAttribute('aria-label', 'Edit shader source code')
                 titleDiv.appendChild(codeBtn)
             }
 
             // Reset button
             const resetBtn = document.createElement('button')
-            resetBtn.className = 'action-btn'
+            resetBtn.className = 'action-btn tooltip'
             resetBtn.textContent = 'reset'
-            resetBtn.title = 'Reset all parameters to defaults'
+            resetBtn.dataset.title = 'Reset all parameters to defaults'
+            resetBtn.setAttribute('aria-label', 'Reset all parameters to defaults')
             resetBtn.addEventListener('click', (e) => {
                 e.stopPropagation()
 
@@ -1627,9 +1629,10 @@ export class UIController {
 
             // Delete button
             const deleteBtn = document.createElement('button')
-            deleteBtn.className = 'action-btn'
+            deleteBtn.className = 'action-btn tooltip'
             deleteBtn.textContent = 'delete'
-            deleteBtn.title = 'Remove this effect from the pipeline'
+            deleteBtn.dataset.title = 'Remove this effect from the pipeline'
+            deleteBtn.setAttribute('aria-label', 'Remove this effect from the pipeline')
             deleteBtn.addEventListener('click', async (e) => {
                 e.stopPropagation()
 
@@ -1746,9 +1749,10 @@ export class UIController {
 
             // Skip button
             const skipBtn = document.createElement('button')
-            skipBtn.className = 'action-btn'
+            skipBtn.className = 'action-btn tooltip'
             skipBtn.textContent = 'skip'
-            skipBtn.title = 'Skip this effect in the pipeline'
+            skipBtn.dataset.title = 'Skip this effect in the pipeline'
+            skipBtn.setAttribute('aria-label', 'Skip this effect in the pipeline')
             skipBtn.addEventListener('click', async (e) => {
                 e.stopPropagation()
                 const isSkipped = moduleDiv.classList.toggle('skipped')
@@ -1878,9 +1882,10 @@ export class UIController {
 
                     if (hasMultipleCategories) {
                         const closeBtn = document.createElement('span')
-                        closeBtn.className = 'category-close'
+                        closeBtn.className = 'category-close tooltip'
                         closeBtn.textContent = '✕'
-                        closeBtn.title = 'Collapse category'
+                        closeBtn.dataset.title = 'Collapse category'
+                        closeBtn.setAttribute('aria-label', 'Collapse category')
                         closeBtn.addEventListener('click', () => {
                             // Collapse this category
                             categoryGroup.classList.add('collapsed')
@@ -2361,7 +2366,8 @@ export class UIController {
 
         // Add hint as tooltip if provided
         if (spec.ui?.hint) {
-            label.title = spec.ui.hint
+            label.classList.add('tooltip')
+            label.dataset.title = spec.ui.hint
         }
         controlGroup.appendChild(label)
 
@@ -2463,9 +2469,10 @@ export class UIController {
      */
     _createButtonControl(container, key, spec) {
         const button = document.createElement('button')
-        button.className = 'control-button'
+        button.className = 'control-button tooltip'
         button.textContent = spec.ui?.buttonLabel || 'reset'
-        button.title = spec.ui?.label || key
+        button.dataset.title = spec.ui?.label || key
+        button.setAttribute('aria-label', spec.ui?.label || key)
         button.dataset.buttonType = spec.ui?.buttonLabel || 'reset'
 
         button.addEventListener('click', (e) => {
