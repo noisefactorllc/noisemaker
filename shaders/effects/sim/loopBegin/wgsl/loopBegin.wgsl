@@ -1,5 +1,5 @@
 /**
- * accumStart - Blend input with accumulator buffer using lighten mode
+ * loopBegin - Blend input with accumulator buffer using lighten mode
  *
  * Reads from the shared accumulator texture (feedback from previous frame)
  * and blends with the current input using max (lighten) blend mode.

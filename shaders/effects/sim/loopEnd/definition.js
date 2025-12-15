@@ -1,21 +1,21 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * accumEnd - Complete accumulator feedback loop
+ * loopEnd - Complete accumulator feedback loop
  *
  * Writes the chain result back to the shared accumulator buffer,
- * completing the feedback loop started by accumStart.
+ * completing the feedback loop started by loopBegin.
  *
  * Usage:
- *   accumStart(alpha: 50).blur().accumEnd()
+ *   loopBegin(alpha: 50).blur().loopEnd()
  *
  * This writes the final processed result back to the same accumulator
- * texture that accumStart reads from, creating a feedback loop.
+ * texture that loopBegin reads from, creating a feedback loop.
  */
 export default new Effect({
-  name: "AccumEnd",
+  name: "LoopEnd",
   namespace: "sim",
-  func: "accumEnd",
+  func: "loopEnd",
   tags: ["util"],
 
   description: "End accumulator loop, write back to feedback buffer",

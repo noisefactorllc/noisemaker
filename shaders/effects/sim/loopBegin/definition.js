@@ -1,22 +1,22 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * accumStart - Start accumulator feedback loop
+ * loopBegin - Start accumulator feedback loop
  *
  * Reads from a shared accumulator buffer and blends with the incoming texture
- * using lighten (max) mode. Use accumEnd to complete the feedback loop.
+ * using lighten (max) mode. Use loopEnd to complete the feedback loop.
  *
  * Usage:
- *   accumStart(alpha: 50).blur().accumEnd()
+ *   loopBegin(alpha: 50).blur().loopEnd()
  *
  * This is equivalent to manually setting up:
  *   noise().write(o0)
  *   read(o1).lighten(tex: read(o0)).blur().write(o1)
  */
 export default new Effect({
-  name: "AccumStart",
+  name: "LoopBegin",
   namespace: "sim",
-  func: "accumStart",
+  func: "loopBegin",
   tags: ["util"],
 
   description: "Start accumulator loop with lighten blend",
@@ -47,7 +47,7 @@ export default new Effect({
   passes: [
     {
       name: "accumBlend",
-      program: "accumStart",
+      program: "loopBegin",
       inputs: {
         inputTex: "inputTex",
         accumTex: "global_accum"
