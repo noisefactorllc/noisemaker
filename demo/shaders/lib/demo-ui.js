@@ -1635,115 +1635,7 @@ export class UIController {
             deleteBtn.setAttribute('aria-label', 'Remove this effect from the pipeline')
             deleteBtn.addEventListener('click', async (e) => {
                 e.stopPropagation()
-
-                const currentDsl = this.getDsl()
-                if (!currentDsl) return
-
-                try {
-                    const compiled = compile(currentDsl)
-                    if (!compiled || !compiled.plans) return
-
-                    // Preserve search namespaces
-                    const searchMatch = currentDsl.match(/^search\s+(\S.*?)$/m)
-                    if (searchMatch) {
-                        compiled.searchNamespaces = searchMatch[1].split(/\s*,\s*/)
-                    }
-
-                    const targetStepIndex = effectInfo.stepIndex
-                    let globalStepIndex = 0
-                    let found = false
-
-                    const getEffectDefCallback = (effectName, namespace) => {
-                        let def = getEffect(effectName)
-                        if (def) return def
-
-                        if (namespace) {
-                            def = getEffect(`${namespace}/${effectName}`) ||
-                                  getEffect(`${namespace}.${effectName}`)
-                            if (def) return def
-                        }
-
-                        return null
-                    }
-
-                    for (let p = 0; p < compiled.plans.length; p++) {
-                        const plan = compiled.plans[p]
-                        if (!plan.chain) continue
-
-                        for (let s = 0; s < plan.chain.length; s++) {
-                            if (globalStepIndex === targetStepIndex) {
-                                plan.chain.splice(s, 1)
-
-                                // If we removed the head of the chain and there are remaining steps,
-                                // ensure the new head has a valid input source if needed.
-                                if (s === 0 && plan.chain.length > 0) {
-                                    const newHead = plan.chain[0]
-                                    const isReadOp = newHead.builtin && (newHead.op === '_read' || newHead.op === '_read3d')
-
-                                    if (!isReadOp) {
-                                        const namespace = newHead.namespace?.namespace || newHead.namespace?.resolved || null
-                                        const def = getEffectDefCallback(newHead.op, namespace)
-
-                                        // If def found and NOT a starter effect, prepend read().
-                                        // If def NOT found, assume it needs input (safer to have redundant read than invalid chain).
-                                        const needsInput = !def || !isStarterEffect({ instance: def })
-
-                                        if (needsInput) {
-                                            // Try to find a sensible surface to read from:
-                                            // 1. If there's a previous plan, read from its write target
-                                            // 2. Otherwise, default to the current plan's write target (feedback pattern)
-                                            // 3. Fall back to o0 if nothing else is available
-                                            let readSurface = { kind: 'output', name: 'o0' }
-                                            if (p > 0) {
-                                                const prevPlan = compiled.plans[p - 1]
-                                                if (prevPlan.write) {
-                                                    readSurface = typeof prevPlan.write === 'object'
-                                                        ? prevPlan.write
-                                                        : { kind: 'output', name: prevPlan.write }
-                                                }
-                                            } else if (plan.write) {
-                                                // Same plan's write target (useful for feedback loops)
-                                                readSurface = typeof plan.write === 'object'
-                                                    ? plan.write
-                                                    : { kind: 'output', name: plan.write }
-                                            }
-
-                                            plan.chain.unshift({
-                                                builtin: true,
-                                                op: '_read',
-                                                args: { tex: readSurface }
-                                            })
-                                        }
-                                    }
-                                }
-
-                                if (plan.chain.length === 0) {
-                                    compiled.plans.splice(p, 1)
-                                }
-                                found = true
-                                break
-                            }
-                            globalStepIndex++
-                        }
-                        if (found) break
-                    }
-
-                    if (found) {
-                        const newDsl = unparse(compiled, {}, {
-                            customFormatter: this._boundFormatValue,
-                            getEffectDef: getEffectDefCallback
-                        })
-
-                        this.setDsl(newDsl)
-                        this._renderer.currentDsl = newDsl
-
-                        this.createEffectControlsFromDsl(newDsl)
-                        await this._recompilePipeline()
-                    }
-                } catch (err) {
-                    console.error('Failed to delete effect:', err)
-                    this.showStatus('failed to delete effect', 'error')
-                }
+                await this._deleteStepAtIndex(effectInfo.stepIndex)
             })
             titleDiv.appendChild(deleteBtn)
 
@@ -2061,10 +1953,62 @@ export class UIController {
 
         const titleDiv = document.createElement('div')
         titleDiv.className = 'module-title'
-        titleDiv.textContent = 'read'
+
+        // Title text
+        const titleText = document.createElement('span')
+        titleText.className = 'module-title-text'
+        titleText.textContent = 'read'
+        titleDiv.appendChild(titleText)
+
+        // Spacer to push buttons to the right
+        const spacer = document.createElement('span')
+        spacer.style.flex = '1'
+        titleDiv.appendChild(spacer)
+
+        // Delete button
+        const deleteBtn = document.createElement('button')
+        deleteBtn.className = 'action-btn tooltip'
+        deleteBtn.textContent = 'delete'
+        deleteBtn.dataset.title = 'Remove this read from the pipeline'
+        deleteBtn.setAttribute('aria-label', 'Remove this read from the pipeline')
+        deleteBtn.addEventListener('click', async (e) => {
+            e.stopPropagation()
+            await this._deleteStepAtIndex(stepIndex)
+        })
+        titleDiv.appendChild(deleteBtn)
+
+        // Skip button
+        const skipBtn = document.createElement('button')
+        skipBtn.className = 'action-btn tooltip'
+        skipBtn.textContent = 'skip'
+        skipBtn.dataset.title = 'Skip this read in the pipeline'
+        skipBtn.setAttribute('aria-label', 'Skip this read in the pipeline')
+        skipBtn.addEventListener('click', async (e) => {
+            e.stopPropagation()
+            const isSkipped = moduleDiv.classList.toggle('skipped')
+            skipBtn.textContent = isSkipped ? 'unskip' : 'skip'
+            skipBtn.classList.toggle('active', isSkipped)
+
+            // When skipped, collapse the module; when unskipped, expand it
+            if (isSkipped) {
+                moduleDiv.classList.add('collapsed')
+            } else {
+                moduleDiv.classList.remove('collapsed')
+            }
+
+            // Toggle skip in DSL and recompile
+            await this._toggleStepSkipAtIndex(stepIndex, isSkipped)
+        })
+        titleDiv.appendChild(skipBtn)
+
+        // Click on title bar to expand/collapse
         titleDiv.addEventListener('click', () => {
+            if (moduleDiv.classList.contains('skipped')) {
+                return
+            }
             moduleDiv.classList.toggle('collapsed')
         })
+
         moduleDiv.appendChild(titleDiv)
 
         const contentDiv = document.createElement('div')
@@ -2120,6 +2064,205 @@ export class UIController {
         moduleDiv.appendChild(contentDiv)
 
         return moduleDiv
+    }
+
+    /**
+     * Delete a step from the pipeline by its global step index.
+     * Extracted for reuse by both effect modules and read modules.
+     * @private
+     * @param {number} targetStepIndex - The global step index to delete
+     */
+    async _deleteStepAtIndex(targetStepIndex) {
+        const currentDsl = this.getDsl()
+        if (!currentDsl) return
+
+        try {
+            const compiled = compile(currentDsl)
+            if (!compiled || !compiled.plans) return
+
+            // Preserve search namespaces
+            const searchMatch = currentDsl.match(/^search\s+(\S.*?)$/m)
+            if (searchMatch) {
+                compiled.searchNamespaces = searchMatch[1].split(/\s*,\s*/)
+            }
+
+            let globalStepIndex = 0
+            let found = false
+
+            const getEffectDefCallback = (effectName, namespace) => {
+                let def = getEffect(effectName)
+                if (def) return def
+
+                if (namespace) {
+                    def = getEffect(`${namespace}/${effectName}`) ||
+                          getEffect(`${namespace}.${effectName}`)
+                    if (def) return def
+                }
+
+                return null
+            }
+
+            for (let p = 0; p < compiled.plans.length; p++) {
+                const plan = compiled.plans[p]
+                if (!plan.chain) continue
+
+                for (let s = 0; s < plan.chain.length; s++) {
+                    if (globalStepIndex === targetStepIndex) {
+                        const deletedStep = plan.chain[s]
+                        const deletedWasRead = deletedStep.builtin && (deletedStep.op === '_read' || deletedStep.op === '_read3d')
+                        plan.chain.splice(s, 1)
+
+                        // If we removed the head of the chain and there are remaining steps,
+                        // ensure the new head has a valid input source if needed.
+                        // But DON'T auto-insert a read if we just deleted a read (user intent).
+                        if (s === 0 && plan.chain.length > 0 && !deletedWasRead) {
+                            const newHead = plan.chain[0]
+                            const isReadOp = newHead.builtin && (newHead.op === '_read' || newHead.op === '_read3d')
+
+                            if (!isReadOp) {
+                                const namespace = newHead.namespace?.namespace || newHead.namespace?.resolved || null
+                                const def = getEffectDefCallback(newHead.op, namespace)
+
+                                // If def found and NOT a starter effect, prepend read().
+                                // If def NOT found, assume it needs input (safer to have redundant read than invalid chain).
+                                const needsInput = !def || !isStarterEffect({ instance: def })
+
+                                if (needsInput) {
+                                    // Try to find a sensible surface to read from:
+                                    // 1. If there's a previous plan, read from its write target
+                                    // 2. Otherwise, default to the current plan's write target (feedback pattern)
+                                    // 3. Fall back to o0 if nothing else is available
+                                    let readSurface = { kind: 'output', name: 'o0' }
+                                    if (p > 0) {
+                                        const prevPlan = compiled.plans[p - 1]
+                                        if (prevPlan.write) {
+                                            readSurface = typeof prevPlan.write === 'object'
+                                                ? prevPlan.write
+                                                : { kind: 'output', name: prevPlan.write }
+                                        }
+                                    } else if (plan.write) {
+                                        // Same plan's write target (useful for feedback loops)
+                                        readSurface = typeof plan.write === 'object'
+                                            ? plan.write
+                                            : { kind: 'output', name: plan.write }
+                                    }
+
+                                    plan.chain.unshift({
+                                        builtin: true,
+                                        op: '_read',
+                                        args: { tex: readSurface }
+                                    })
+                                }
+                            }
+                        }
+
+                        if (plan.chain.length === 0) {
+                            compiled.plans.splice(p, 1)
+                        } else {
+                            // Check if only _write nodes remain - if so, delete the plan
+                            const hasNonWriteStep = plan.chain.some(step => 
+                                !(step.builtin && step.op === '_write')
+                            )
+                            if (!hasNonWriteStep) {
+                                compiled.plans.splice(p, 1)
+                            }
+                        }
+                        found = true
+                        break
+                    }
+                    globalStepIndex++
+                }
+                if (found) break
+            }
+
+            if (found) {
+                const newDsl = unparse(compiled, {}, {
+                    customFormatter: this._boundFormatValue,
+                    getEffectDef: getEffectDefCallback
+                })
+
+                this.setDsl(newDsl)
+                this._renderer.currentDsl = newDsl
+
+                this.createEffectControlsFromDsl(newDsl)
+                await this._recompilePipeline()
+            }
+        } catch (err) {
+            console.error('Failed to delete step:', err)
+            this.showStatus('failed to delete step', 'error')
+        }
+    }
+
+    /**
+     * Toggle the skip state of a step by its global step index.
+     * For builtin steps like _read, this modifies the DSL directly.
+     * @private
+     * @param {number} targetStepIndex - The global step index to toggle
+     * @param {boolean} isSkipped - Whether the step should be skipped
+     */
+    async _toggleStepSkipAtIndex(targetStepIndex, isSkipped) {
+        const currentDsl = this.getDsl()
+        if (!currentDsl) return
+
+        try {
+            const compiled = compile(currentDsl)
+            if (!compiled || !compiled.plans) return
+
+            // Preserve search namespaces
+            const searchMatch = currentDsl.match(/^search\s+(\S.*?)$/m)
+            if (searchMatch) {
+                compiled.searchNamespaces = searchMatch[1].split(/\s*,\s*/)
+            }
+
+            let globalStepIndex = 0
+            let found = false
+
+            const getEffectDefCallback = (effectName, namespace) => {
+                let def = getEffect(effectName)
+                if (def) return def
+
+                if (namespace) {
+                    def = getEffect(`${namespace}/${effectName}`) ||
+                          getEffect(`${namespace}.${effectName}`)
+                    if (def) return def
+                }
+
+                return null
+            }
+
+            for (let p = 0; p < compiled.plans.length; p++) {
+                const plan = compiled.plans[p]
+                if (!plan.chain) continue
+
+                for (let s = 0; s < plan.chain.length; s++) {
+                    if (globalStepIndex === targetStepIndex) {
+                        const step = plan.chain[s]
+                        if (!step.args) step.args = {}
+                        step.args._skip = isSkipped
+                        found = true
+                        break
+                    }
+                    globalStepIndex++
+                }
+                if (found) break
+            }
+
+            if (found) {
+                const newDsl = unparse(compiled, {}, {
+                    customFormatter: this._boundFormatValue,
+                    getEffectDef: getEffectDefCallback
+                })
+
+                this.setDsl(newDsl)
+                this._renderer.currentDsl = newDsl
+
+                this.createEffectControlsFromDsl(newDsl)
+                await this._recompilePipeline()
+            }
+        } catch (err) {
+            console.error('Failed to toggle step skip:', err)
+            this.showStatus('failed to toggle skip', 'error')
+        }
     }
 
     /**

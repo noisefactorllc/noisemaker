@@ -3,7 +3,6 @@ import enums from './enums.js'
 import { stdEnums } from './std_enums.js'
 import { ops } from './ops.js'
 import { normalizeMemberPath, pathStartsWith, applyEnumPrefix } from './enumPaths.js'
-import { resolveCallTarget } from './namespaceRuntime.js'
 
 const stateSurfaces = new Set(['time','frame','mouse','resolution','seed','a'])
 const stateValues = new Set(['time','frame','mouse','resolution','seed','a','u1','u2','u3','u4','s1','s2','b1','b2','a1','a2','deltaTime'])
@@ -370,38 +369,25 @@ export function validate(ast) {
         return false
     }
 
-        function buildNamespaceSnapshot(callNamespace, resolution = null) {
-            const snapshot = {}
-            const record = resolution?.namespaceRecord || resolution?.metadata || null
-            if (record) {
-                snapshot.namespace = record.namespace || null
-                snapshot.canonicalName = record.canonicalName || null
-                snapshot.exportName = record.exportName || null
-                snapshot.namespacedName = record.namespacedName || null
-                snapshot.featureFlag = record.featureFlag || null
-                snapshot.exportsEnabled = record.exportsEnabled === true
-                snapshot.module = record.module || null
-                if (Array.isArray(record.legacyNames)) {
-                    snapshot.legacyNames = record.legacyNames.slice()
-                }
-            }
-            if (callNamespace && typeof callNamespace === 'object') {
-                snapshot.call = {
+        function buildNamespaceSnapshot(callNamespace) {
+            if (!callNamespace || typeof callNamespace !== 'object') { return null }
+            const snapshot = {
+                call: {
                     name: typeof callNamespace.name === 'string' ? callNamespace.name : null,
                     resolved: typeof callNamespace.resolved === 'string' ? callNamespace.resolved : null,
                     explicit: !!callNamespace.explicit,
                     source: typeof callNamespace.source === 'string' ? callNamespace.source : null
                 }
-                if (Array.isArray(callNamespace.searchOrder)) {
-                    snapshot.call.searchOrder = Object.freeze(callNamespace.searchOrder.slice())
-                }
-                if (callNamespace.fromOverride) {
-                    snapshot.call.fromOverride = true
-                }
             }
-            if (Object.keys(snapshot).length === 0) { return null }
-            if (Array.isArray(snapshot.legacyNames)) {
-                snapshot.legacyNames = Object.freeze(snapshot.legacyNames)
+            if (Array.isArray(callNamespace.searchOrder)) {
+                snapshot.call.searchOrder = Object.freeze(callNamespace.searchOrder.slice())
+            }
+            if (callNamespace.fromOverride) {
+                snapshot.call.fromOverride = true
+            }
+            // Copy resolved as top-level for downstream consumers
+            if (callNamespace.resolved) {
+                snapshot.resolved = callNamespace.resolved
             }
             return Object.freeze(snapshot)
         }
@@ -494,14 +480,10 @@ export function validate(ast) {
 
                 const call = resolveCall({...original})
                 const effectiveNamespace = call.namespace || { searchOrder: programSearchOrder }
-                const resolution = resolveCallTarget(call.name, effectiveNamespace)
                 let opName = null
                 let spec = null
 
                 const candidateNames = []
-                if (resolution.namespacedName) {
-                    candidateNames.push(resolution.namespacedName)
-                }
                 if (call.namespace && call.namespace.resolved) {
                     candidateNames.push(`${call.namespace.resolved}.${call.name}`)
                 }
@@ -525,7 +507,7 @@ export function validate(ast) {
                 if (opName === 'prev') {
                     const idx = tempIndex++
                     const args = {tex:{kind:'output', name: writeName}}
-                    const namespaceSnapshot = buildNamespaceSnapshot(call.namespace, resolution)
+                    const namespaceSnapshot = buildNamespaceSnapshot(call.namespace)
                     const step = {op: opName, args, from: current, temp: idx}
                     if (namespaceSnapshot) { step.namespace = namespaceSnapshot }
                     chain.push(step)
@@ -933,7 +915,7 @@ export function validate(ast) {
                     }
                 }
                 const idx = tempIndex++
-                const namespaceSnapshot = buildNamespaceSnapshot(call.namespace, resolution)
+                const namespaceSnapshot = buildNamespaceSnapshot(call.namespace)
                 const step = {op: opName, args, from: fromInput, temp: idx}
                 if (namespaceSnapshot) { step.namespace = namespaceSnapshot }
                 chain.push(step)

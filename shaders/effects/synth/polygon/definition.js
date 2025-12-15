@@ -12,7 +12,7 @@ export default new Effect({
       "type": "int",
       "default": 3,
       "min": 3,
-      "max": 100,
+      "max": 64,
       "step": 1,
       "uniform": "sides",
       "ui": {
