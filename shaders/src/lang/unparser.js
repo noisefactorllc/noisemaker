@@ -217,6 +217,9 @@ function unparseCall(call, options = {}) {
     const customFormatter = options.customFormatter || null
     const specs = options.specs || {}
     const multilineKwargs = options.multilineKwargs !== false // default true
+    const baseIndent = Number.isFinite(options.indent) ? options.indent : 0
+    const parentIndent = ' '.repeat(Math.max(0, baseIndent))
+    const childIndent = ' '.repeat(Math.max(0, baseIndent + 2))
 
     // Handle kwargs (named arguments)
     if (call.kwargs && Object.keys(call.kwargs).length > 0) {
@@ -251,8 +254,9 @@ function unparseCall(call, options = {}) {
     // Use multiline formatting only if more than 2 kwargs; 1-2 params stay inline
     const hasKwargs = call.kwargs && Object.keys(call.kwargs).length > 0 && parts.length > 0
     if (multilineKwargs && hasKwargs && parts.length > 2) {
-        // Multiline format: line break + 2 spaces before each kwarg, line break before closing paren
-        return `${name}(\n${parts.map(p => `  ${p}`).join(',\n')}\n)`
+        // Multiline format: args indented 1 level (2 spaces) below parent's indent level
+        // Parent indent is 0 for first call in chain, 2 for subsequent chained calls.
+        return `${name}(\n${parts.map(p => `${childIndent}${p}`).join(',\n')}\n${parentIndent})`
     }
 
     return `${name}(${parts.join(', ')})`
@@ -265,7 +269,7 @@ function unparseCall(call, options = {}) {
  * @returns {string} DSL source for the chain
  */
 function unparseChain(chain, options = {}) {
-    const parts = chain.map(call => unparseCall(call, options))
+    const parts = chain.map((call, idx) => unparseCall(call, { ...options, indent: idx === 0 ? 0 : 2 }))
     // Join with line break after closing paren, 2-space indent on next line
     return parts.join('\n  .')
 }
@@ -327,7 +331,7 @@ function unparsePlan(plan, options = {}) {
             }
         }
 
-        callParts.push(unparseCall(call, options))
+        callParts.push(unparseCall(call, { ...options, indent: callParts.length === 0 ? 0 : 2 }))
     }
 
     // Join chain parts with line break and 2-space indent
@@ -471,7 +475,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
             // Build specs map from effect definition
             const specs = effectDef?.globals || {}
 
-            callParts.push(unparseCall(call, { customFormatter, specs }))
+            callParts.push(unparseCall(call, { customFormatter, specs, indent: callParts.length === 0 ? 0 : 2 }))
             globalStepIndex++
         }
 

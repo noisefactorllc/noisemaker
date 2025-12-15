@@ -132,6 +132,34 @@ noise(scale: 3)
     assertEqual(result, expected, 'Multiple namespaces');
 });
 
+// Test 4b: Multiline kwargs indent relative to chain indent
+test('Multiline kwargs indent one level below chain indent', () => {
+    const compiled = {
+        searchNamespaces: ['basics', 'nm'],
+        plans: [
+            {
+                chain: [
+                    { op: 'basics.noise', args: { scale: 3 } },
+                    { op: 'nm.warp', args: { displacement: 0.5, octaves: 3, freq: 2 } }
+                ],
+                write: { kind: 'output', name: 'o0' }
+            }
+        ]
+    };
+
+    const result = unparse(compiled, {}, {});
+    const expected = `search basics, nm
+
+noise(scale: 3)
+  .warp(
+    displacement: 0.5,
+    octaves: 3,
+    freq: 2
+  )
+  .write(o0)`;
+    assertEqual(result, expected, 'Multiline kwargs indent should be relative to chain indent');
+});
+
 // Test 5: Output reference handling
 test('Output reference as object', () => {
     const compiled = {
