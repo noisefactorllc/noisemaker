@@ -379,7 +379,7 @@ export class UIController {
         this._effectParameterValues = {} // Map: step_N -> {param: value}
         this._dependentControls = [] // Array of {element, effectKey, paramKey, enabledBy, enabledByKey}
         this._shaderOverrides = {} // Map: stepIndex -> { programName: { glsl?, wgsl?, fragment?, vertex? } }
-        this._writeTargetOverrides = {} // Map: planIndex -> surfaceName (e.g., 'o0', 'f1')
+        this._writeTargetOverrides = {} // Map: planIndex -> surfaceName (e.g., 'o0', 'o1')
         this._writeStepTargetOverrides = {} // Map: stepIndex -> surfaceName for mid-chain writes
         this._readSourceOverrides = {} // Map: stepIndex -> surfaceName for read() source
         this._parsedDslStructure = []
@@ -1908,13 +1908,6 @@ export class UIController {
             option.textContent = `o${i}`
             select.appendChild(option)
         }
-        // Add feedback surfaces f0-f3
-        for (let i = 0; i < 4; i++) {
-            const option = document.createElement('option')
-            option.value = `f${i}`
-            option.textContent = `f${i}`
-            select.appendChild(option)
-        }
 
         // Set current value
         const currentTarget = typeof writeTarget === 'string' ? writeTarget : writeTarget.name
@@ -2038,13 +2031,6 @@ export class UIController {
             const option = document.createElement('option')
             option.value = `o${i}`
             option.textContent = `o${i}`
-            select.appendChild(option)
-        }
-        // Add feedback surfaces f0-f3
-        for (let i = 0; i < 4; i++) {
-            const option = document.createElement('option')
-            option.value = `f${i}`
-            option.textContent = `f${i}`
             select.appendChild(option)
         }
 
@@ -2931,20 +2917,16 @@ export class UIController {
         const select = document.createElement('select')
         select.className = 'control-select'
 
-        // Available surfaces: o0-o7 for output surfaces, f0-f3 for feedback surfaces
+        // Available surfaces: o0-o7 for output surfaces
         const surfaces = [
-            { id: 'o0', label: 'o0 (output)' },
+            { id: 'o0', label: 'o0' },
             { id: 'o1', label: 'o1' },
             { id: 'o2', label: 'o2' },
             { id: 'o3', label: 'o3' },
             { id: 'o4', label: 'o4' },
             { id: 'o5', label: 'o5' },
             { id: 'o6', label: 'o6' },
-            { id: 'o7', label: 'o7' },
-            { id: 'f0', label: 'f0 (feedback)' },
-            { id: 'f1', label: 'f1' },
-            { id: 'f2', label: 'f2' },
-            { id: 'f3', label: 'f3' }
+            { id: 'o7', label: 'o7' }
         ]
 
         // Parse current value to get the surface ID
@@ -2953,8 +2935,8 @@ export class UIController {
             // Handle object surface references from DSL compiler (e.g., {kind: 'output', name: 'o1'})
             currentSurface = value.name
         } else if (typeof value === 'string') {
-            // Handle read(o1) format or plain o1/f0 format
-            const match = value.match(/read\(([^)]+)\)|^(o[0-7]|f[0-3])$/)
+            // Handle read(o1) format or plain o1 format
+            const match = value.match(/read\(([^)]+)\)|^(o[0-7])$/)
             if (match) {
                 currentSurface = match[1] || match[2]
             } else if (value) {

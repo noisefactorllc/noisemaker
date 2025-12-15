@@ -339,7 +339,7 @@ The DSL provides symmetric operations for reading and writing textures:
 * **write(surface):** Writes the chain output to a 2D surface.
   
   - Example: ``noise(10).write(o0)``
-  - Surfaces: ``o0``-``o7`` (global), ``f0``-``f3`` (feedback)
+  - Surfaces: ``o0``-``o7`` (global)
   - **Chainable:** ``write()`` can appear mid-chain, passing the texture through to subsequent nodes.
   
     - Example: ``noise().write(o0).blur().write(o1)`` — writes noise to ``o0``, then blurs and writes to ``o1``.
