@@ -22,23 +22,23 @@ export default new Effect({
   globals: {},
   passes: [
     {
-      name: "passthrough",
-      program: "accumEnd",
+      name: "feedback",
+      program: "copy",
+      inputs: {
+        inputTex: "inputTex"
+      },
+      outputs: {
+        fragColor: "global_accum"
+      }
+    },
+    {
+      name: "output",
+      program: "copy",
       inputs: {
         inputTex: "inputTex"
       },
       outputs: {
         fragColor: "outputTex"
-      }
-    },
-    {
-      name: "feedback",
-      program: "copy",
-      inputs: {
-        inputTex: "outputTex"
-      },
-      outputs: {
-        fragColor: "global_accum"
       }
     }
   ]
