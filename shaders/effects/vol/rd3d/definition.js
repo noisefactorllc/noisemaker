@@ -62,6 +62,16 @@ export default new Effect({
         "max": 100,
         "uniform": "seed"
     },
+    "resetState": {
+      "type": "boolean",
+      "default": false,
+      "uniform": "resetState",
+      "ui": {
+        "control": "button",
+        "buttonLabel": "reset",
+        "category": "control"
+      }
+    },
     "iterations": {
       "type": "int",
       "default": 8,

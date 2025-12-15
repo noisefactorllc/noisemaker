@@ -14,6 +14,9 @@
 @group(0) @binding(7) var<uniform> weight: f32;
 @group(0) @binding(8) var stateTex: texture_2d<f32>;
 @group(0) @binding(9) var seedTex: texture_2d<f32>;  // 3D input volume atlas (inputTex3d)
+@group(0) @binding(10) var<uniform> iterations: i32;
+@group(0) @binding(11) var<uniform> colorMode: i32;
+@group(0) @binding(12) var<uniform> resetState: i32;
 
 // Hash for initialization
 fn hash3(p: vec3<f32>, s: f32) -> f32 {
@@ -44,7 +47,8 @@ fn sampleSeed(voxel: vec3<i32>, volSize: i32) -> vec4<f32> {
     return textureLoad(seedTex, atlasTexel(voxel, volSize), 0);
 }
 
-// 3D Laplacian using 6-neighbor stencil, normalized
+// 3D Laplacian using 6-neighbor stencil
+// Standard discrete Laplacian for uniform 3D grid
 fn laplacian3D(voxel: vec3<i32>, volSize: i32) -> vec2<f32> {
     let center = sampleState(voxel, volSize);
     
@@ -56,9 +60,10 @@ fn laplacian3D(voxel: vec3<i32>, volSize: i32) -> vec2<f32> {
     let zp = sampleState(voxel + vec3<i32>(0, 0, 1), volSize);
     let zn = sampleState(voxel + vec3<i32>(0, 0, -1), volSize);
     
-    // Discrete Laplacian for uniform grid, normalized
-    let neighborSum = (xp.rg + xn.rg + yp.rg + yn.rg + zp.rg + zn.rg) / 6.0;
-    let lap = neighborSum - center.rg;
+    // Standard discrete 3D Laplacian: sum of neighbors - 6 * center
+    // This is the proper second-order finite difference in 3D
+    let neighborSum = xp.rg + xn.rg + yp.rg + yn.rg + zp.rg + zn.rg;
+    let lap = neighborSum - 6.0 * center.rg;
     
     return lap;
 }
@@ -85,57 +90,58 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     var a = state.r;  // Chemical A concentration
     var b = state.g;  // Chemical B concentration
     
-    // Self-initialization: detect empty buffer (first frame)
+    // Self-initialization: detect empty buffer (first frame) or reset requested
     let bufferIsEmpty = (state.r == 0.0 && state.g == 0.0 && state.b == 0.0 && state.a == 0.0);
     
-    if (bufferIsEmpty) {
-        // Check if we have input from seedTex (inputTex3d)
-        let seedVal = sampleSeed(voxel, volSize);
-        let hasSeedInput = (seedVal.r > 0.0 || seedVal.g > 0.0 || seedVal.b > 0.0);
-        
-        let p = vec3<f32>(f32(x), f32(y), f32(z));
-        
-        if (hasSeedInput) {
-            // Use seed texture luminance to seed chemical B
-            let lum = 0.299 * seedVal.r + 0.587 * seedVal.g + 0.114 * seedVal.b;
-            a = 1.0;
-            if (lum > 0.5) {
-                b = 1.0;
-            } else {
-                b = 0.0;
-            }
+    if (bufferIsEmpty || resetState != 0) {
+        a = 1.0;
+        b = 0.0;
+
+        if (resetState != 0) {
+            // Reset behavior: reseed a 4x4x4 cube at the center of the volume.
+            // For even sizes, this is indices [N/2-2 .. N/2+1] (inclusive).
+            let start: i32 = max(0, (volSize / 2) - 2);
+            let end: i32 = min(volSize - 1, start + 3);
+            let inCenterCube = (x >= start && x <= end && y >= start && y <= end && z >= start && z <= end);
+            if (inCenterCube) { b = 1.0; }
         } else {
-            // Initialize: A=1 everywhere, B=1 at sparse random locations
-            a = 1.0;
-            b = 0.0;
-            if (hash3(p, seed) > 0.97) {
-                b = 1.0;
-            }
-            // Also seed some spherical regions
-            let center1 = vec3<f32>(volSizeF * 0.3, volSizeF * 0.5, volSizeF * 0.5);
-            let center2 = vec3<f32>(volSizeF * 0.7, volSizeF * 0.4, volSizeF * 0.6);
-            let center3 = vec3<f32>(volSizeF * 0.5, volSizeF * 0.6, volSizeF * 0.3);
-            let radius = volSizeF * 0.08;
-            if (length(p - center1) < radius ||
-                length(p - center2) < radius ||
-                length(p - center3) < radius) {
-                b = 1.0;
+            // First-frame init: if we have input from seedTex (inputTex3d), use it.
+            let seedVal = sampleSeed(voxel, volSize);
+            let hasSeedInput = (seedVal.r > 0.0 || seedVal.g > 0.0 || seedVal.b > 0.0);
+
+            if (hasSeedInput) {
+                let lum = 0.299 * seedVal.r + 0.587 * seedVal.g + 0.114 * seedVal.b;
+                if (lum > 0.5) {
+                    b = 1.0;
+                }
+            } else {
+                // Fallback: sparse random seeding of B
+                let p = vec3<f32>(f32(x), f32(y), f32(z));
+                if (hash3(p, seed) > 0.97) {
+                    b = 1.0;
+                }
             }
         }
+
         return vec4<f32>(a, b, 0.0, 1.0);
     }
     
     // Compute Laplacian for diffusion
     let lap = laplacian3D(voxel, volSize);
     
-    // Gray-Scott parameters (scaled from UI values - matching 2D rd)
-    let f = feed * 0.001;       // Feed rate
-    let k = kill * 0.001;       // Kill rate
-    let r1 = rate1 * 0.01;      // Diffusion rate A (same scale as 2D)
-    let r2 = rate2 * 0.01;      // Diffusion rate B (same scale as 2D)
-    let s = speed * 0.01;       // Time step (same scale as 2D)
+    // Gray-Scott parameters (scaled from UI values)
+    // Note: Laplacian in 3D is 6x larger than normalized form,
+    // so we scale diffusion rates down by 6 to maintain stability
+    let f = feed * 0.001;        // Feed rate
+    let k = kill * 0.001;        // Kill rate
+    let r1 = rate1 * 0.01 / 6.0;   // Diffusion rate A (scaled for 3D)
+    let r2 = rate2 * 0.01 / 6.0;   // Diffusion rate B (scaled for 3D)
+    // This pass is executed `iterations` times per frame (pipeline repeat).
+    // Scale timestep per-iteration so "speed" behaves like a per-frame control.
+    let iterF = max(1.0, f32(iterations));
+    let s = (speed * 0.01) / iterF;
     
-    // Gray-Scott reaction-diffusion equations (matching 2D rd form)
+    // Gray-Scott reaction-diffusion equations
     var newA = clamp(a + (r1 * lap.x - a * b * b + f * (1.0 - a)) * s, 0.0, 1.0);
     var newB = clamp(b + (r2 * lap.y + a * b * b - (k + f) * b) * s, 0.0, 1.0);
     
@@ -147,5 +153,15 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         newB = mix(newB, seedLum, weight * 0.01);
     }
     
-    return vec4<f32>(newA, newB, 0.0, 1.0);
+    // `render3d` treats the red channel as the density/SDF field.
+    // For Gray-Scott, chemical B is typically the visible concentration.
+    let density = newB;
+    var outRgb: vec3<f32>;
+    if (colorMode == 0) {
+        outRgb = vec3<f32>(density);
+    } else {
+        outRgb = vec3<f32>(density, newA, 1.0 - density);
+    }
+
+    return vec4<f32>(outRgb, 1.0);
 }
