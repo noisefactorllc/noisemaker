@@ -1,7 +1,3 @@
-# Cell3D
-
-3D cellular/Voronoi noise volume generator. Creates organic 3D cell structures with configurable distance metrics.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

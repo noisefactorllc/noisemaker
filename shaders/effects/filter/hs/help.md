@@ -1,7 +1,3 @@
-# HS (Hue/Saturation)
-
-Adjust image hue rotation and saturation.
-
 ## Parameters
 
 - **Hue Rotation** (0-360, default 0): Rotates hue around the color wheel in degrees.

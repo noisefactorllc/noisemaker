@@ -1,7 +1,3 @@
-# Alpha
-
-Alpha blend mode. Blends source B over the input using alpha transparency.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

@@ -1,7 +1,3 @@
-# Pixel Sort
-
-Toggle the pixel sort effect on or off.
-
 ## Parameters
 
 - **Angle**: Sorting angle in degrees. 0 = axis-aligned, or use animated angle.

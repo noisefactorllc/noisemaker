@@ -1,7 +1,3 @@
-# Render3D
-
-Universal 3D volume renderer. Converts 3D volume data to 2D output using raymarching. Supports isosurface and voxel rendering modes.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

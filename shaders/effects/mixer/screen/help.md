@@ -1,7 +1,3 @@
-# Screen
-
-Screen blend mode. Inverse of multiply, lightening the result. Black is neutral. Creates a projection-like effect.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

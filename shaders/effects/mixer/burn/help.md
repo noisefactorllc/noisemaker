@@ -1,7 +1,3 @@
-# Burn
-
-Color burn blend mode. Darkens the input by increasing contrast based on source B. Creates deep, saturated shadows.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

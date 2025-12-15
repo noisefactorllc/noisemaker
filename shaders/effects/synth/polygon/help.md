@@ -1,8 +1,3 @@
-````markdown
-# shape
-
-Polygon shape.
-
 ## Arguments
 
 ### `sides`

@@ -1,7 +1,3 @@
-# Blur
-
-Gaussian blur with configurable kernel size. Uses an efficient separable 2-pass blur.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

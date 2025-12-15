@@ -1,7 +1,3 @@
-# Noise
-
-Simplex noise generator with octave layering. Creates smooth, organic noise patterns with optional ridged mode.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

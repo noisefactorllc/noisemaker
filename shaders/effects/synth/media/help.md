@@ -1,7 +1,3 @@
-# Media
-
-Video/camera input with transform controls. Displays camera or uploaded media with positioning, tiling, flip/mirror, and transform options. Supports motion blur via feedback.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

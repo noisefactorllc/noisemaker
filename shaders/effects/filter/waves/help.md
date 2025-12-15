@@ -1,7 +1,3 @@
-# Waves
-
-Sine wave distortion effect that creates horizontal wavy displacement.
-
 ## Parameters
 
 - **Strength**: Controls the amplitude of the wave distortion

@@ -1,7 +1,3 @@
-# VNoise
-
-Value noise generator with multiple interpolation types. Creates smooth noise patterns with loop-based distortion and various noise algorithms.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

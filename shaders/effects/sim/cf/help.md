@@ -1,11 +1,3 @@
-# Convolution Feedback
-
-Multi-pass temporal feedback effect using sharpen and blur convolutions.
-
-Reads from the previous frame's output (selfTex), applies sharpen and blur
-processing, then blends the result back with the current input. This creates
-evolving feedback patterns over time.
-
 ## Parameters
 
 - **Sharpen Radius** (1-5): Kernel size for the sharpen pass

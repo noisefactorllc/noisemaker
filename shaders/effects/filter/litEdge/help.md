@@ -1,7 +1,3 @@
-# Lit Edge
-
-Lit edge detection effect. Combines edge detection with the original image to create illuminated edges.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

@@ -1,8 +1,3 @@
-````markdown
-# thresh
-
-Threshold effect.
-
 ## Arguments
 
 ### `level`

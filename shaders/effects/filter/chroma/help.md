@@ -1,7 +1,3 @@
-# Chroma
-
-Isolates a specific color range with feathering. Outputs a monochrome mask based on color distance from the target hue.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

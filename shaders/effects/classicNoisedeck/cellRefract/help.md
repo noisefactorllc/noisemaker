@@ -1,3 +1,0 @@
-# CellRefract
-
-Effect description.

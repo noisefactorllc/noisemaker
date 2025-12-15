@@ -1,3 +1,0 @@
-# LensDistortion
-
-Effect description.

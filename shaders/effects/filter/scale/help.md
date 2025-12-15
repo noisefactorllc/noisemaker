@@ -1,8 +1,3 @@
-````markdown
-# scale
-
-Scale about a center point.
-
 ## Arguments
 
 ### `x`

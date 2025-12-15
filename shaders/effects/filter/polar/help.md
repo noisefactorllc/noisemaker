@@ -1,7 +1,3 @@
-# Polar
-
-Polar and vortex coordinate transforms. Converts Cartesian coordinates to polar or applies vortex distortion.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

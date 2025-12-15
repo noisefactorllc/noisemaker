@@ -1,7 +1,3 @@
-# Chromatic Aberration
-
-Simulates lens chromatic aberration by separating and offsetting color channels, creating color fringing at edges.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

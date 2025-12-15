@@ -1,7 +1,3 @@
-# Vignette
-
-Radial vignette effect. Darkens the edges of the image with a configurable brightness blend.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

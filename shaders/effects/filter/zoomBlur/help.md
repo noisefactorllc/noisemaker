@@ -1,7 +1,3 @@
-# Zoom Blur
-
-Radial blur emanating from the center. Creates a zoom/motion effect.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

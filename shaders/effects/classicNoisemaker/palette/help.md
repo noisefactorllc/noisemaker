@@ -1,7 +1,3 @@
-# Palette
-
-Toggle the palette effect on or off.
-
 ## Parameters
 
 - **Palette Index**: Select which cosine palette to apply (0-37).

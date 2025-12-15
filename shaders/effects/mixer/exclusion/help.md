@@ -1,7 +1,3 @@
-# Exclusion
-
-Exclusion blend mode. Similar to difference but with lower contrast. Creates a softer inversion effect.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

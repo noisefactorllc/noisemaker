@@ -1,7 +1,3 @@
-# Glowing Edges
-
-Toggle the glowing edges effect.
-
 ## Parameters
 
 - **Sobel Metric**: Distance metric for Sobel operator magnitude.

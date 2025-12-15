@@ -1,7 +1,3 @@
-# Overlay
-
-Overlay blend mode. Combines multiply and screen based on the base layer. Dark base colors darken, light base colors lighten.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

@@ -1,7 +1,3 @@
-# Palette
-
-Applies cosine color palettes to the image. Uses luminance to sample from one of 55 cosine palettes.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

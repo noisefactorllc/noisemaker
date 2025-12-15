@@ -1,7 +1,3 @@
-# Voronoi
-
-Toggle the voronoi effect on or off.
-
 ## Parameters
 
 - **Diagram Type**: 0=None (passthrough), 1=Range, 2=Color Range, 3=Regions, 4=Color Regions, 5=Range Regions, 6=Flow, 7=Color Flow.

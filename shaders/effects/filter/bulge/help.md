@@ -1,7 +1,3 @@
-# Bulge
-
-Bulge distortion effect that pushes pixels outward from the center.
-
 ## Parameters
 
 - **Strength**: Controls the intensity of the bulge effect

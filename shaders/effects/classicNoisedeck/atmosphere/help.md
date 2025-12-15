@@ -1,8 +1,3 @@
-# Atmosphere
-
-Low-frequency noise synthesizer that merges the historical caustic, moodscape, and quad tap shaders.
-Generates layered volumetric clouds and gradients with deterministic noise.
-
 ## Usage
 
 ```dsl

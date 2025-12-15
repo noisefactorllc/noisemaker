@@ -1,7 +1,3 @@
-# Fractal
-
-Fractal explorer for Julia, Mandelbrot, and Newton fractals. Generates grayscale intensity based on escape iteration with zoom, pan, and animation controls.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

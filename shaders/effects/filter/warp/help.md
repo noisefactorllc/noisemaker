@@ -1,7 +1,3 @@
-# Warp
-
-Perlin noise-based warp distortion. Direct port of nd.warp's Perlin mode. Distorts the image using animated noise.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

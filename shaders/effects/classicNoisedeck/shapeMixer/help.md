@@ -1,3 +1,0 @@
-# ShapeMixer
-
-Effect description.

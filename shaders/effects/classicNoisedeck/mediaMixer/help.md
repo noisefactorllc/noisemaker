@@ -1,3 +1,0 @@
-# MediaMixer
-
-Effect description.

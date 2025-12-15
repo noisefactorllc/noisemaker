@@ -1,7 +1,3 @@
-# Smoothstep
-
-Creates a smooth Hermite interpolation between two edge values. Useful for creating smooth thresholds.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

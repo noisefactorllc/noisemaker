@@ -1,7 +1,3 @@
-# BC (Brightness/Contrast)
-
-Adjust image brightness and/or contrast.
-
 ## Parameters
 
 - **Brightness** (0-10, default 1): Multiplies pixel values. Values < 1 darken, values > 1 brighten.

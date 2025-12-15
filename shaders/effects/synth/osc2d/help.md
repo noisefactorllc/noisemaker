@@ -1,8 +1,3 @@
-````markdown
-# osc2d
-
-2D oscillator pattern with values repeating along one axis. The oscillator smoothly transitions from 0 to 1 and back to 0 over the duration.
-
 ## Arguments
 
 ### `oscType`

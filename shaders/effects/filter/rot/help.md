@@ -1,7 +1,3 @@
-# Rotate
-
-Rotates the image. Values from 0–1 map to 0–360 degrees.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

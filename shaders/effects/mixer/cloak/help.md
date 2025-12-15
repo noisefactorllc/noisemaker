@@ -1,7 +1,3 @@
-# Cloak
-
-Cloak blend mode. Creates a transparency/cloaking effect by blending based on luminance difference.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

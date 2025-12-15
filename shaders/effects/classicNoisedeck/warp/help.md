@@ -1,3 +1,0 @@
-# Warp
-
-Effect description.

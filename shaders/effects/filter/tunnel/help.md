@@ -1,7 +1,3 @@
-# Tunnel
-
-Perspective tunnel effect. Based on Inigo Quilez's shader technique. Creates an infinite tunnel with various shapes.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

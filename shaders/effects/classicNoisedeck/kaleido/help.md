@@ -1,3 +1,0 @@
-# Kaleido
-
-Effect description.

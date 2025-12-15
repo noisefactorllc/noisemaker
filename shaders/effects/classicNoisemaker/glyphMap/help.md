@@ -1,7 +1,3 @@
-# Glyph Map
-
-Toggle glyph mapping on or off.
-
 ## Parameters
 
 - **Colorize**: Apply source image color to glyphs.

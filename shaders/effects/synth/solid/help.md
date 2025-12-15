@@ -1,8 +1,3 @@
-````markdown
-# solid
-
-Flat color.
-
 ## Arguments
 
 ### `r`

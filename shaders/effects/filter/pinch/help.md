@@ -1,7 +1,3 @@
-# Pinch
-
-Pinch distortion effect that pulls pixels toward the center.
-
 ## Parameters
 
 - **Strength**: Controls the intensity of the pinch effect

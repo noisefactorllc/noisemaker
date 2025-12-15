@@ -1,8 +1,3 @@
-````markdown
-# scroll
-
-Move the image over time.
-
 ## Arguments
 
 ### `x`

@@ -1,7 +1,3 @@
-# CA3D
-
-3D cellular automata simulation. Generates evolving 3D structures based on various rule sets. Supports chaining from other 3D effects.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

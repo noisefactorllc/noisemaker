@@ -1,7 +1,3 @@
-# Translate
-
-Translates (moves) the image in X and Y directions.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

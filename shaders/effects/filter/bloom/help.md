@@ -1,7 +1,3 @@
-# Bloom
-
-Multi-pass bloom effect with bright-pass extraction and N-tap gather using a golden angle spiral kernel. Adds a soft glow to bright areas of the image. All math is performed in linear color space.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

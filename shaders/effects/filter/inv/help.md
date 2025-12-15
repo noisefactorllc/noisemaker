@@ -1,7 +1,3 @@
-# Invert
-
-Inverts the luminance of the image: `1.0 - brightness`.
-
 ## Parameters
 
 This effect has no parameters.

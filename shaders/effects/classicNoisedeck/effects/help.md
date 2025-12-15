@@ -1,3 +1,0 @@
-# Effects
-
-Effect description.

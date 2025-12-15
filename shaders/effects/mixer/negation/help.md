@@ -1,7 +1,3 @@
-# Negation
-
-Negation blend mode. Inverts the difference blend, creating a unique color inversion effect.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

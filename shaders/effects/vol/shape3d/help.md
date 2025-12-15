@@ -1,7 +1,3 @@
-# Shape3D
-
-3D polyhedral shape volume generator. Combines two signed distance functions (platonic solids and primitives) with configurable blending.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

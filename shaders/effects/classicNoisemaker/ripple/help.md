@@ -1,7 +1,3 @@
-# Ripple
-
-Toggle the ripple effect on or off.
-
 ## Parameters
 
 - **Frequency**: Ripple frequency.

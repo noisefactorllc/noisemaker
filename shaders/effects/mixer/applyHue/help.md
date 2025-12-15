@@ -1,7 +1,3 @@
-# Apply Hue
-
-Applies hue from source B to the input. Transfers the hue component while preserving saturation and lightness.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

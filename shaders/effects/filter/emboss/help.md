@@ -1,7 +1,3 @@
-# Emboss
-
-Emboss convolution effect. Creates a raised relief appearance as if the image is pressed into metal.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

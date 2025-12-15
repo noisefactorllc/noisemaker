@@ -1,7 +1,3 @@
-# Sharpen
-
-Sharpen convolution effect. Enhances image detail and edges.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

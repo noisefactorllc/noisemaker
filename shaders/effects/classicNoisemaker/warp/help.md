@@ -1,7 +1,3 @@
-# Warp
-
-Toggle the warp effect on or off.
-
 ## Parameters
 
 - **Frequency**: Base frequency for noise.

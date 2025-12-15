@@ -1,7 +1,3 @@
-# Cell
-
-Cellular/Voronoi noise generator with distance metric options. Creates organic cell-like patterns with configurable smoothing and variation.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

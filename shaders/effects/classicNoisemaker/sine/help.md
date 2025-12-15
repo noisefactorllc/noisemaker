@@ -1,7 +1,3 @@
-# Sine
-
-Toggle the sine effect on or off.
-
 ## Parameters
 
 - **Amount**: Sine wave amplitude.

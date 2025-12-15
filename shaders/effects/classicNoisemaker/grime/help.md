@@ -1,7 +1,3 @@
-# Grime
-
-Toggle grime effect on or off.
-
 ## Parameters
 
 - **Strength**: Overall effect strength multiplier (1.0 = Python reference)

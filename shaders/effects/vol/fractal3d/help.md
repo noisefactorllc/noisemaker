@@ -1,7 +1,3 @@
-# Fractal3D
-
-3D fractal volume generator. Creates Mandelbulb, Mandelcube, and Julia variant fractals in 3D space.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

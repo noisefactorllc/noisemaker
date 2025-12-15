@@ -1,7 +1,3 @@
-# Subtract
-
-Subtract blend mode. Subtracts source B from input, darkening the result. Values are clamped to prevent underflow.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

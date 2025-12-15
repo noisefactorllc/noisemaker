@@ -1,7 +1,3 @@
-# Apply Saturation
-
-Applies saturation from source B to the input. Transfers the saturation component while preserving hue and lightness.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

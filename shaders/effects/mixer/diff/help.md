@@ -1,7 +1,3 @@
-# Difference
-
-Difference blend mode. Computes the absolute difference between input and source B, creating high contrast where colors differ.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

@@ -1,7 +1,3 @@
-# Multiply
-
-Multiply blend mode. Multiplies input and source B pixel values, darkening the result. White is neutral.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

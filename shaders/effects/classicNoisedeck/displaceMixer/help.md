@@ -1,3 +1,0 @@
-# DisplaceMixer
-
-Effect description.

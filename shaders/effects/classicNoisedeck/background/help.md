@@ -1,7 +1,3 @@
-# Background
-
-Solid color and gradient background generator with rotation and opacity control.
-
 ## Usage
 
 ```dsl

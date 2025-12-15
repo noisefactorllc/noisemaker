@@ -1,7 +1,3 @@
-# Step
-
-Creates a hard edge at a threshold value. Pixels below the threshold become black, above become white.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

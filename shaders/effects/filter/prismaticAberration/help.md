@@ -1,7 +1,3 @@
-# Prismatic Aberration
-
-Prismatic aberration effect with hue controls. Chromatic displacement with configurable color shifting.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

@@ -1,7 +1,3 @@
-# Kaleido
-
-Toggle kaleidoscope effect on or off.
-
 ## Parameters
 
 - **Sides**: Number of kaleidoscope wedges.

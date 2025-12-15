@@ -1,7 +1,3 @@
-# Reverb
-
-Toggle the reverb effect on or off.
-
 ## Parameters
 
 - **Octaves**: Number of octaves for reverb layers.

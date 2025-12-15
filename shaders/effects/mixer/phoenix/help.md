@@ -1,7 +1,3 @@
-# Phoenix
-
-Phoenix blend mode. Computes min + max - abs(a-b), creating unique color combinations.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

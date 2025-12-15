@@ -1,3 +1,0 @@
-# ColorLab
-
-Effect description.

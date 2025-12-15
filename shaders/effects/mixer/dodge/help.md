@@ -1,7 +1,3 @@
-# Dodge
-
-Color dodge blend mode. Lightens the input by decreasing contrast based on source B. Creates bright, washed-out highlights.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

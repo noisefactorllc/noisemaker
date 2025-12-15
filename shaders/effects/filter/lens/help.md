@@ -1,7 +1,3 @@
-# Lens
-
-Lens distortion effect. Applies barrel or pincushion distortion to the image.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

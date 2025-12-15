@@ -1,8 +1,3 @@
-````markdown
-# repeat
-
-Tile the image.
-
 ## Arguments
 
 ### `x`

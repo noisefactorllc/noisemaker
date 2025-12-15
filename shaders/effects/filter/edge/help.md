@@ -1,7 +1,3 @@
-# Edge
-
-Edge detection using convolution kernel. Highlights edges in the image.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

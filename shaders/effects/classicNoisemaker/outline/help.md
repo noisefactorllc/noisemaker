@@ -1,7 +1,3 @@
-# Outline
-
-Outline effect
-
 ## Parameters
 
 - **Sobel Metric**: No description

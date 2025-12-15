@@ -1,7 +1,3 @@
-# RD3D
-
-3D reaction-diffusion simulation. Implements Gray-Scott reaction-diffusion in 3D with controllable feed and kill rates.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

@@ -1,7 +1,3 @@
-# Lighten
-
-Lighten blend mode. Takes the maximum of each channel from input and source B, resulting in a lighter image.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

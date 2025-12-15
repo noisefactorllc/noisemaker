@@ -1,7 +1,3 @@
-# Refract
-
-Toggle the refract effect on or off.
-
 ## Parameters
 
 - **Displacement**: Strength of the refraction displacement.

@@ -1,7 +1,3 @@
-# Shape
-
-Dual-loop shape generator. Combines two shape functions (polygons, scans, noise, rings) with configurable scale and power for complex pattern generation.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

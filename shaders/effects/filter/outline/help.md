@@ -1,7 +1,3 @@
-# Outline
-
-Sobel-based outline effect. Subtracts edge detection from the original image to create an outline effect.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

@@ -1,7 +1,3 @@
-# Pixels
-
-Pixelation effect. Reduces image resolution for a retro pixel art look.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

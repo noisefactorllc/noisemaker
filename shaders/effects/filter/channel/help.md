@@ -1,7 +1,3 @@
-# channel
-
-Extract a single channel (red, green, blue, or alpha) from the incoming image as grayscale.
-
 ## Arguments
 
 ### `channel`

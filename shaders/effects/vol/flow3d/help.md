@@ -1,7 +1,3 @@
-# Flow3D
-
-3D agent-based flow field effect with volume accumulation. Direct port of the 2D flow effect to 3D. Agents traverse 3D space leaving trails.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

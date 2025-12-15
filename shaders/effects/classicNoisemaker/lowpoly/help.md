@@ -1,7 +1,3 @@
-# Lowpoly
-
-Toggle the low-poly faceting pass.
-
 ## Parameters
 
 - **Point Distribution**: Seed layout used to generate Voronoi cells.

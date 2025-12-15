@@ -1,7 +1,3 @@
-# Noise3D
-
-3D simplex noise volume generator. Creates smooth 3D noise volumes with optional ridged mode and octave layering.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

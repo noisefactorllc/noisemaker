@@ -1,3 +1,0 @@
-# Splat
-
-Effect description.

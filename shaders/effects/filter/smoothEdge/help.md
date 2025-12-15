@@ -1,7 +1,3 @@
-# Smooth Edge
-
-Edge detection with Gaussian smoothing. Produces softer edges than standard edge detection.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

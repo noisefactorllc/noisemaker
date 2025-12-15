@@ -1,7 +1,3 @@
-# Soft Light
-
-Soft light blend mode. A gentler version of overlay. Creates subtle lighting effects without harsh contrast.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

@@ -1,7 +1,3 @@
-# Posterize
-
-Color posterization effect. Reduces color levels for a poster-like appearance.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

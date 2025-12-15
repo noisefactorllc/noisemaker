@@ -1,3 +1,0 @@
-# Refract
-
-Effect description.

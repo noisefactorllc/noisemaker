@@ -1,7 +1,3 @@
-# Wormhole
-
-Toggle the wormhole effect on or off.
-
 ## Parameters
 
 - **Kink**: Path twistiness.

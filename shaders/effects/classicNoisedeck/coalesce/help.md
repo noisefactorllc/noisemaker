@@ -1,3 +1,0 @@
-# Coalesce
-
-Effect description.

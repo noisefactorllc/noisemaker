@@ -1,8 +1,3 @@
-````markdown
-# colorize
-
-Colorize the incoming signal by applying per-channel multipliers.
-
 ## Arguments
 
 ### `r`

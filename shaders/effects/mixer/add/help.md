@@ -1,7 +1,3 @@
-# Add
-
-Additive blend mode. Adds pixel values from source B to the input, creating a lighter result. Values are clamped to prevent overflow.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

@@ -1,7 +1,3 @@
-# Derivative
-
-Distance calculation method
-
 ## Parameters
 
 - **Distance Metric**: Distance calculation method

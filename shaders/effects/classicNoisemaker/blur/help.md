@@ -1,7 +1,3 @@
-# Blur
-
-Toggle the blur pass on or off.
-
 ## Parameters
 
 - **Amount**: Downsample factor that controls blur radius.

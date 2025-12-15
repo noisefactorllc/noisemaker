@@ -1,3 +1,0 @@
-# DepthOfField
-
-Effect description.

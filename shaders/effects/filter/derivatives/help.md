@@ -1,7 +1,3 @@
-# Derivatives
-
-Derivative-based edge detection. Computes image derivatives to highlight edges and gradients.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

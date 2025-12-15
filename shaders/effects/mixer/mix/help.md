@@ -1,7 +1,3 @@
-# Mix
-
-Linear interpolation blend mode. Linearly interpolates between input and source B based on mix amount.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

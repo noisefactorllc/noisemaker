@@ -1,7 +1,3 @@
-# Spiral
-
-Spiral distortion effect that twists pixels around the center.
-
 ## Parameters
 
 - **Strength**: Controls the intensity and direction of the spiral twist (positive = clockwise, negative = counter-clockwise)

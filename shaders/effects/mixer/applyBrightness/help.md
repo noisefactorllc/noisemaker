@@ -1,7 +1,3 @@
-# Apply Brightness
-
-Applies brightness from source B to the input. Uses the luminance of source B to modulate the brightness of the input.
-
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
