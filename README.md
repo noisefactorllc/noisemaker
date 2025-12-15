@@ -27,8 +27,8 @@ Issues and pull requests are welcome! Review the [Code of Conduct](CODE_OF_CONDU
 Additional platform-specific guides:
 
 - Python development and API details live in the docs linked above
-- Browser integration is covered in the [JavaScript README](js/README-JS.md)
-- WebGPU shaders are documented in the [Shaders README](shaders/README-SHADERS.md)
+- JavaScript presets port is covered in the [JavaScript README](js/README-JS.md)
+- Shader effects port is documented in the [Shaders README](shaders/README-SHADERS.md)
 - Container workflows appear in the [Docker README](README-DOCKER.md)
 
 ## License
