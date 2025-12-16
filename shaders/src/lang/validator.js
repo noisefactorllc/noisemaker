@@ -915,19 +915,6 @@ export function validate(ast) {
                                 pushDiag('S003', node)
                                 value = def.default
                             }
-                        } else if (node && node.type === 'Ident' && def.enum) {
-                            // Try to resolve quoted string as enum value within the param's enum path
-                            const prefix = normalizeMemberPath(def.enum)
-                            const path = prefix ? prefix.concat([node.value]) : [node.value]
-                            const resolved = resolveEnum(path)
-                            if (typeof resolved === 'number') {
-                                value = clamp(resolved, def.min, def.max)
-                            } else if (resolved && resolved.type === 'Number') {
-                                value = clamp(resolved.value, def.min, def.max)
-                            } else {
-                                pushDiag('S003', node)
-                                value = def.default
-                            }
                         } else {
                             if (node && node.type === 'Ident' && !stateValues.has(node.name)) {
                                 pushDiag('S003', node)

@@ -1,13 +1,13 @@
 // DLA - Save Cluster Pass (deposit agents)
-// Vertex shader reads agent positions from state texture
-// Fragment shader writes cluster color to output
 
 @group(0) @binding(0) var agentTex: texture_2d<f32>;
-@group(0) @binding(1) var<uniform> alpha: f32;
+@group(0) @binding(1) var colorTex: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> deposit: f32;
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) v_weight: f32,
+    @location(1) v_color: vec3<f32>,
 }
 
 @vertex
@@ -21,10 +21,12 @@ fn vertexMain(@builtin(vertex_index) vertexID: u32) -> VertexOutput {
     let coord = vec2<i32>(x, y);
     
     let state = textureLoad(agentTex, coord, 0);
+    let color = textureLoad(colorTex, coord, 0);
     let weight = clamp(state.w, 0.0, 1.0);
     
     var out: VertexOutput;
     out.v_weight = weight;
+    out.v_color = color.rgb;
     
     if (weight < 0.5) {
         out.position = vec4<f32>(-2.0, -2.0, 0.0, 1.0);
@@ -32,15 +34,10 @@ fn vertexMain(@builtin(vertex_index) vertexID: u32) -> VertexOutput {
     }
     
     // state.xy contains position in [0,1] range
-    let clip = state.xy * 2.0 - 1.0;
+    var clip = state.xy * 2.0 - 1.0;
+    clip.y = -clip.y; // Flip Y for WebGPU NDC
     out.position = vec4<f32>(clip, 0.0, 1.0);
     return out;
-}
-
-fn falloff(coord: vec2<f32>) -> f32 {
-    let centered = coord * 2.0 - 1.0;
-    let d = dot(centered, centered);
-    return clamp(1.0 - d, 0.0, 1.0);
 }
 
 @fragment
@@ -49,8 +46,8 @@ fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {
         discard;
     }
     
-    let energy = in.v_weight * clamp(alpha + 0.1, 0.0, 1.2);
+    // Energy deposit controlled by uniform, using sampled color
+    let energy = in.v_weight * deposit;
     
-    // Mono output: grayscale only
-    return vec4<f32>(energy, energy, energy, energy);
+    return vec4<f32>(in.v_color * energy, energy);
 }

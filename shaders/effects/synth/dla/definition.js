@@ -13,67 +13,111 @@ export default new Effect({
   globals: {
     tex: {
       type: "surface",
-      default: "inputTex",
+      default: "null",
       ui: { label: "texture" }
     },
-    padding: {
+    intensity: {
         type: "float",
-        default: 2,
-        uniform: "padding",
-        min: 1,
-        max: 8,
-        step: 0.5,
+        default: 98,
+        uniform: "intensity",
+        min: 0,
+        max: 100,
+        step: 1,
         ui: {
-            label: "Padding",
-            control: "slider"
+            label: "trail intensity",
+            control: "slider",
+            category: "blending"
         }
     },
-    seedDensity: {
+    inputIntensity: {
         type: "float",
-        default: 0.005,
-        uniform: "seedDensity",
-        min: 0.001,
-        max: 0.1,
-        step: 0.001,
+        default: 0,
+        uniform: "inputIntensity",
+        min: 0,
+        max: 100,
+        step: 1,
         ui: {
-            label: "Seed Density",
-            control: "slider"
+            label: "input intensity",
+            control: "slider",
+            category: "blending"
+        }
+    },
+    inputWeight: {
+        type: "float",
+        default: 15,
+        uniform: "inputWeight",
+        min: 0,
+        max: 100,
+        step: 1,
+        ui: {
+            label: "input weight",
+            control: "slider",
+            category: "blending"
+        }
+    },
+    decay: {
+        type: "float",
+        default: 0.25,
+        uniform: "decay",
+        min: 0,
+        max: 0.5,
+        step: 0.01,
+        ui: {
+            label: "decay",
+            control: "slider",
+            category: "chemistry"
+        }
+    },
+    deposit: {
+        type: "float",
+        default: 17.5,
+        uniform: "deposit",
+        min: 0.5,
+        max: 20.0,
+        step: 0.5,
+        ui: {
+            label: "deposit",
+            control: "slider",
+            category: "chemistry"
         }
     },
     density: {
         type: "float",
-        default: 0.2,
+        default: 75,
         uniform: "density",
-        min: 0.01,
-        max: 0.8,
-        step: 0.01,
+        min: 0,
+        max: 100,
+        step: 1,
         ui: {
-            label: "Walker Density",
-            control: "slider"
+            label: "density",
+            control: "slider",
+            category: "agents"
         }
     },
-    speed: {
+    attrition: {
         type: "float",
-        default: 1,
-        uniform: "speed",
-        min: 0.1,
-        max: 4,
+        default: 7.5,
+        uniform: "attrition",
+        min: 0,
+        max: 10,
         step: 0.1,
         ui: {
-            label: "Speed",
-            control: "slider"
+            label: "attrition",
+            control: "slider",
+            category: "agents"
         }
     },
-    alpha: {
+    stride: {
         type: "float",
-        default: 0.75,
-        uniform: "alpha",
-        min: 0,
-        max: 1,
-        step: 0.05,
+        default: 15,
+        uniform: "stride",
+        min: 1,
+        max: 50,
+        step: 1,
         ui: {
-            label: "Alpha",
-            control: "slider"
+            label: "stride",
+            control: "slider",
+            category: "agents"
         }
     },
     resetState: {
@@ -89,9 +133,13 @@ export default new Effect({
 },
   textures: {
     globalGridState: { width: "100%", height: "100%", format: "rgba16f" },
-    globalAgentState: { width: 256, height: 256, format: "rgba16f" }
+    globalAgentState: { width: 256, height: 256, format: "rgba16f" },
+    globalAgentColor: { width: 256, height: 256, format: "rgba16f" },
+    globalVisualTrail: { width: "100%", height: "100%", format: "rgba16f" },
+    tempGrid: { width: "100%", height: "100%", format: "rgba16f" }
   },
   passes: [
+    // Decay simulation grid (what agents sense)
     {
       name: "decayGrid",
       program: "initFromPrev",
@@ -99,61 +147,110 @@ export default new Effect({
         gridTex: "globalGridState"
       },
       uniforms: {
-        padding: "padding",
-        seedDensity: "seedDensity",
-        density: "density",
+        decay: "decay",
         frame: "frame",
-        alpha: "alpha",
         resetState: "resetState"
       },
       outputs: {
-        dlaOutColor: "globalGridState"
+        dlaOutColor: "tempGrid"
       }
     },
+    // Decay visual trail (what user sees) - intensity controls persistence
+    {
+      name: "diffuseTrail",
+      program: "diffuse",
+      inputs: {
+        sourceTex: "globalVisualTrail"
+      },
+      uniforms: {
+        intensity: "intensity",
+        resetState: "resetState"
+      },
+      outputs: {
+        fragColor: "globalVisualTrail"
+      }
+    },
+    // Agents walk using simulation grid
     {
       name: "simulateAgents",
       program: "agentWalk",
+      drawBuffers: 2,
       inputs: {
         agentTex: "globalAgentState",
-        gridTex: "globalGridState"
+        colorTex: "globalAgentColor",
+        gridTex: "globalGridState",
+        tex: "tex"
       },
       uniforms: {
-        padding: "padding",
-        speed: "speed",
-        frame: "frame",
+        inputWeight: "inputWeight",
+        attrition: "attrition",
+        stride: "stride",
         density: "density",
-        seedDensity: "seedDensity",
+        frame: "frame",
         resetState: "resetState"
       },
       outputs: {
-        dlaOutColor: "globalAgentState"
+        outState: "globalAgentState",
+        outColor: "globalAgentColor"
       }
     },
+    // Deposit agents to simulation grid
     {
-      name: "depositAgents",
+      name: "depositAgentsToSim",
       program: "saveCluster",
       drawMode: "points",
-      count: 65536,  // 256x256 agents
+      count: 65536,
       blend: ["one", "one"],
       inputs: {
-        agentTex: "globalAgentState"
+        agentTex: "globalAgentState",
+        colorTex: "globalAgentColor"
       },
       uniforms: {
-        alpha: "alpha"
+        deposit: "deposit"
       },
       outputs: {
-        dlaOutColor: "globalGridState"
+        dlaOutColor: "tempGrid"
       }
     },
+    // Deposit agents to visual trail
+    {
+      name: "depositAgentsToVisual",
+      program: "saveCluster",
+      drawMode: "points",
+      count: 65536,
+      blend: ["one", "one"],
+      inputs: {
+        agentTex: "globalAgentState",
+        colorTex: "globalAgentColor"
+      },
+      uniforms: {
+        deposit: "deposit"
+      },
+      outputs: {
+        dlaOutColor: "globalVisualTrail"
+      }
+    },
+    // Save simulation grid state
+    {
+      name: "saveState",
+      program: "clampedCopy",
+      inputs: {
+        tex: "tempGrid"
+      },
+      outputs: {
+        outColor: "globalGridState"
+      }
+    },
+    // Final blend - visual trail with input
     {
       name: "finalBlend",
       program: "finalBlend",
       inputs: {
-        gridTex: "globalGridState",
-        inputTex: "tex"
+        gridTex: "globalVisualTrail",
+        tex: "tex"
       },
       uniforms: {
-        alpha: "alpha"
+        inputIntensity: "inputIntensity"
       },
       outputs: {
         dlaOutColor: "outputTex"

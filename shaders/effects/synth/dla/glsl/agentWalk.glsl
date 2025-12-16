@@ -3,16 +3,18 @@
 precision highp float;
 
 uniform sampler2D agentTex;
+uniform sampler2D colorTex;
 uniform sampler2D gridTex;
-uniform vec2 resolution;
+uniform sampler2D tex;
 uniform int frame;
-uniform float padding;
+uniform float inputWeight;
+uniform float attrition;
+uniform float stride;
 uniform float density;
-uniform float speed;
-uniform float seedDensity;
 uniform bool resetState;
 
-layout(location = 0) out vec4 dlaOutColor;
+layout(location = 0) out vec4 outState;
+layout(location = 1) out vec4 outColor;
 
 float hash11(float v) {
     v = fract(v * 0.1031);
@@ -50,7 +52,8 @@ float sampleCluster(vec2 uv) {
 }
 
 float neighborhood(vec2 uv, float radius) {
-    vec2 texel = radius * vec2(1.0 / resolution.x, 1.0 / resolution.y);
+    vec2 gridDims = vec2(textureSize(gridTex, 0));
+    vec2 texel = radius / gridDims;
     float accum = 0.0;
     accum += sampleCluster(uv);
     accum += sampleCluster(uv + vec2(texel.x, 0.0));
@@ -60,57 +63,113 @@ float neighborhood(vec2 uv, float radius) {
     return accum * 0.2;
 }
 
-vec2 spawnPosition(vec2 uv, inout float seed) {
+vec2 spawnPosition(vec2 uv, inout float seed, sampler2D grid) {
+    // Try to find a spawn position away from existing structure
+    // Use threshold of 0.05 (half the sticking threshold) to spawn safely away
+    for (int attempt = 0; attempt < 8; attempt++) {
+        float rx = rand(seed);
+        float ry = rand(seed);
+        vec2 jitter = vec2(hash21(uv + seed), hash21(uv + seed * 1.7));
+        vec2 candidate = wrap01(vec2(rx, ry) + jitter * 0.15);
+        
+        // Check if this spot is clear of structure
+        float nearby = texture(grid, candidate).a;
+        if (nearby < 0.05) {
+            return candidate;
+        }
+        seed = nextSeed(seed);
+    }
+    // Fallback: return last attempt anyway
     float rx = rand(seed);
     float ry = rand(seed);
-    vec2 jitter = vec2(hash21(uv + seed), hash21(uv + seed * 1.7));
-    return wrap01(vec2(rx, ry) + jitter * 0.15);
+    return wrap01(vec2(rx, ry));
 }
 
 void main() {
     vec2 agentDims = vec2(textureSize(agentTex, 0));
     vec2 uv = (gl_FragCoord.xy - 0.5) / agentDims;
 
+    // Density check: if agent index is above density threshold, kill it
+    float densityNorm = density / 100.0;
+    float agentId = hash21(uv * 123.45); 
+    if (agentId > densityNorm) {
+        outState = vec4(0.0); 
+        outColor = vec4(0.0);
+        return;
+    }
+
     vec4 prev = texture(agentTex, uv);
+    vec4 prevColor = texture(colorTex, uv);
     vec2 pos = prev.xy;
     float seed = prev.z;
     float stuckPrev = prev.w;
+    vec3 agentColor = prevColor.rgb;
 
-    if (frame <= 1 || seed <= 0.0 || resetState) {
+    bool respawn = false;
+    if (frame <= 1 || seed <= 0.0 || resetState) respawn = true;
+    if (stuckPrev > 0.5) respawn = true;
+    
+    // Attrition: random death (0-10% → 0-0.1)
+    float attritionNorm = attrition / 100.0;
+    if (rand(seed) < attritionNorm) respawn = true;
+
+    bool justSpawned = respawn;
+    if (respawn) {
         seed = hash21(uv + float(frame) * 0.013) + 0.6180339887;
-        pos = spawnPosition(uv, seed);
+        pos = spawnPosition(uv, seed, gridTex);
         stuckPrev = 0.0;
+        
+        // Sample color from input at spawn position
+        vec2 texDims = vec2(textureSize(tex, 0));
+        ivec2 texCoord = ivec2(pos * texDims);
+        vec4 inputColor = texelFetch(tex, texCoord, 0);
+        agentColor = inputColor.rgb;
     }
 
-    if (stuckPrev > 0.5) {
-        seed = nextSeed(seed + hash11(dot(uv, vec2(17.0, 23.0))));
-        pos = spawnPosition(uv + seed, seed);
-        stuckPrev = 0.0;
-    }
-
-    float texel = 1.0 / max(resolution.x, resolution.y);
-    float baseStep = max(padding, 1.0) * texel;
-    float wander = mix(0.8, 2.5, clamp(density, 0.0, 1.0));
-    wander += seedDensity * 6.0;
-    float speedScale = clamp(speed, 0.25, 6.0);
+    vec2 gridDims = vec2(textureSize(gridTex, 0));
+    float texel = 1.0 / max(gridDims.x, gridDims.y);
+    
+    // Stride controls step size (10 = 1 pixel roughly)
+    float baseStep = (stride / 10.0) * texel;
 
     float local = neighborhood(pos, 4.0);
     float proximity = smoothstep(0.015, 0.12, local);
 
-    vec2 stepDir = randomDirection(seed);
-    float stepSize = mix(7.0, 1.25, proximity) * baseStep * speedScale;
-    stepDir += randomDirection(seed) * (wander - 0.8) * baseStep * 0.25;
+    // Direction
+    vec2 randomDir = randomDirection(seed);
+    
+    // Input influence
+    float inputW = inputWeight / 100.0;
+    vec2 inputDir = vec2(0.0);
+    if (inputW > 0.0) {
+        vec4 inputVal = texture(tex, pos);
+        // Assume input is flow-like (0.5 centered)
+        inputDir = inputVal.xy * 2.0 - 1.0;
+        if (length(inputDir) < 0.01) inputDir = randomDir;
+        else inputDir = normalize(inputDir);
+    }
+    
+    vec2 stepDir = normalize(mix(randomDir, inputDir, inputW));
+
+    // Step size directly from stride (stride=10 means 1 pixel)
+    // Slow down near structure for finer aggregation
+    float stepSize = (stride / 10.0) * texel * mix(3.0, 0.5, proximity);
+    
+    // Add some wander/jitter
+    stepDir += randomDirection(seed) * 0.3;
+    stepDir = normalize(stepDir);
 
     vec2 candidate = wrap01(pos + stepDir * stepSize);
-    float jitterStrength = 0.35 + seedDensity * 1.5;
-    candidate += (rand(seed) - 0.5) * texel * jitterStrength * vec2(0.75, -0.65);
-    candidate = wrap01(candidate);
+    
+    // Check for sticking - need nearby structure but empty local spot
+    // Use higher threshold (0.1) so agents only stick near actual cluster, not diffused trail
+    float here = sampleCluster(candidate);
+    float nearby = neighborhood(candidate, 3.0);
+    float stuck = 0.0;
+    if (!justSpawned && nearby > 0.1 && here < 0.5) {
+        stuck = 1.0;
+    }
 
-    float neighbourhood = neighborhood(candidate, 2.0);
-    float threshold = mix(0.06, 0.02, proximity);
-    float stuck = neighbourhood > threshold ? 1.0 : 0.0;
-
-    vec2 resultPos = candidate;
-
-    dlaOutColor = vec4(resultPos, max(seed, 1e-4), stuck);
+    outState = vec4(candidate, max(seed, 1e-4), stuck);
+    outColor = vec4(agentColor, 1.0);
 }

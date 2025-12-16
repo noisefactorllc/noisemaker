@@ -1157,7 +1157,8 @@ export async function createPipeline(graph, options = {}) {
                 context.configure({
                     device: device,
                     format: navigator.gpu.getPreferredCanvasFormat(),
-                    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_DST
+                    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_DST,
+                    alphaMode: 'premultiplied'
                 })
             }
         }

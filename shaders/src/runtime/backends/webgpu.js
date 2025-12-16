@@ -135,10 +135,10 @@ export class WebGPUBackend extends Backend {
             format: 'rgba8unorm',
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
         })
-        // Initialize to black
+        // Initialize to transparent black
         this.device.queue.writeTexture(
             { texture: dummyTexture },
-            new Uint8Array([0, 0, 0, 255]),
+            new Uint8Array([0, 0, 0, 0]),
             { bytesPerRow: 4 },
             { width: 1, height: 1, depthOrArrayLayers: 1 }
         )
@@ -1615,10 +1615,9 @@ export class WebGPUBackend extends Backend {
                             view = textureMap.get(inputKeys[idx])
                         }
                     }
-                    if (!view) {
-                        // Use first available texture as fallback
-                        view = textureMap.values().next().value
-                    }
+                    // Removed aggressive fallback to first available texture
+                    // This allows falling through to dummyTextureView (transparent black)
+                    // which is correct for optional/unbound textures.
                 }
 
                 // Use dummy texture if no view found - ensures bind group completeness
@@ -2508,7 +2507,7 @@ export class WebGPUBackend extends Backend {
         const renderPass = commandEncoder.beginRenderPass({
             colorAttachments: [{
                 view: canvasView,
-                clearValue: { r: 0, g: 0, b: 0, a: 1 },
+                clearValue: { r: 0, g: 0, b: 0, a: 0 },
                 loadOp: 'clear',
                 storeOp: 'store'
             }]
