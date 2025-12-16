@@ -141,7 +141,6 @@ void main() {
     float initialized = state3.y;
     
     uint agentSeed = uint(coord.x + coord.y * width);
-    uint baseSeed = agentSeed + uint(time * 1000.0);
     
     // Compute total agent count for Random Mix behavior
     int totalAgents = width * height;  // Max possible agents (texture size)
@@ -176,19 +175,23 @@ void main() {
     }
     
     // Check for respawn based on attrition (percentage of agents respawning per frame)
-    // Use per-agent random combined with time to get different agents each frame
-    float respawnRand = hash(agentSeed + uint(time * 60.0));
+    // Use robust hashing to avoid correlation between selection and position
+    uint time_seed = uint(time * 60.0);
+    uint check_seed = agentSeed + time_seed * 747796405u;
+    float respawnRand = hash(check_seed);
     float attritionRate = attrition * 0.01;  // Convert 0-10% to 0-0.1
     bool shouldRespawn = attrition > 0.0 && respawnRand < attritionRate;
     
     if (shouldRespawn) {
         // Respawn at new random location
-        vec2 pos = hash2(baseSeed);
+        // Decorrelate position seed from check seed
+        uint pos_seed = check_seed ^ 2891336453u;
+        vec2 pos = hash2(pos_seed);
         flow_x = pos.x * float(width);
         flow_y = pos.y * float(height);
         
         // New random for rotation variation
-        rotRand = hash(baseSeed + 200u);
+        rotRand = hash(pos_seed + 200u);
         
         // Sample new color (flip Y to match blend pass orientation)
         int xi = wrap_int(int(flow_x), width);
@@ -198,10 +201,9 @@ void main() {
         cg = inputColor.g;
         cb = inputColor.b;
         
+        seed_f = float(pos_seed);
         age = 0.0;
-    }
-    
-    // Sample input texture at current position for flow direction (flip Y to match blend pass orientation)
+    }    // Sample input texture at current position for flow direction (flip Y to match blend pass orientation)
     int xi = wrap_int(int(flow_x), width);
     int yi = height - 1 - wrap_int(int(flow_y), height);
     vec4 texel = texelFetch(inputTex, ivec2(xi, yi), 0);

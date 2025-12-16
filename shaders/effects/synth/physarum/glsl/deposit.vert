@@ -1,9 +1,11 @@
 #version 300 es
 precision highp float;
 uniform sampler2D stateTex;
+uniform sampler2D colorTex;
 uniform vec2 resolution;
 uniform float density;
 out vec2 vUV;
+out vec4 vColor;
 
 void main() {
     ivec2 size = textureSize(stateTex, 0);
@@ -27,6 +29,7 @@ void main() {
 
     // Use texelFetch for exact texel (no interpolation for agent state)
     vec4 agent = texelFetch(stateTex, ivec2(x, y), 0);
+    vColor = texelFetch(colorTex, ivec2(x, y), 0);
     vec2 clip = agent.xy / resolution * 2.0 - 1.0;
     gl_Position = vec4(clip, 0.0, 1.0);
     gl_PointSize = 1.0;

@@ -8,6 +8,7 @@ export default new Effect({
   description: "Physarum slime mold simulation",
   textures: {
     globalPhysarumState: { width: 1000, height: 1000, format: "rgba32f" },
+    globalPhysarumColor: { width: 1000, height: 1000, format: "rgba16f" },
     globalPhysarumTrail: { width: "100%", height: "100%", format: "rgba16f" }
   },
   globals: {
@@ -15,25 +16,6 @@ export default new Effect({
       type: "surface",
       default: "inputTex",
       ui: { label: "texture" }
-    },
-    zoom: {
-      type: "int",
-      default: 1,
-      uniform: "zoom",
-      choices: {
-        x1: 1,
-        x2: 2,
-        x4: 4,
-        x8: 8,
-        x16: 16,
-        x32: 32,
-        x64: 64
-      },
-      ui: {
-        label: "zoom",
-        type: "option",
-        category: "transform"
-      }
     },
     deltaTime: {
       type: "float",
@@ -116,7 +98,7 @@ export default new Effect({
       max: 100,
       step: 1,
       ui: {
-        label: "intensity",
+        label: "trail intensity",
         type: "float",
         category: "blending"
       }
@@ -231,11 +213,13 @@ export default new Effect({
       program: "agent",
       inputs: {
         stateTex: "globalPhysarumState",
+        colorTex: "globalPhysarumColor",
         bufTex: "globalPhysarumTrail",
         inputTex: "tex"
       },
       outputs: {
-        fragColor: "globalPhysarumState"
+        fragColor: "globalPhysarumState",
+        outColor: "globalPhysarumColor"
       },
       uniforms: {
         spawnPattern: "spawnPattern"
@@ -249,6 +233,7 @@ export default new Effect({
       blend: true,
       inputs: {
         stateTex: "globalPhysarumState",
+        colorTex: "globalPhysarumColor",
         inputTex: "tex"
       },
       uniforms: {

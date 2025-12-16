@@ -138,7 +138,10 @@ void main() {
     }
     
     // Respawn logic using attrition (percentage of agents respawning per frame)
-    float respawn_rand = hash2(agent_id + uint(time * 60.0)).x;
+    // Use robust hashing to avoid correlation between selection and position
+    uint time_seed = uint(time * 60.0);
+    uint check_seed = agent_id + time_seed * 747796405u;
+    float respawn_rand = hash2(check_seed).x;
     float attrition_rate = attrition * 0.01;  // Convert 0-10% to 0-0.1
     bool respawn_check = attrition > 0.0 && respawn_rand < attrition_rate;
     
@@ -154,7 +157,7 @@ void main() {
     }
     
     if (respawn_check) {
-        uint seed = agent_id + uint(time * 1000.0);
+        uint seed = check_seed ^ 2891336453u;
         vec2 pos = hash2(seed);
         x = pos.x * resolution.x;
         y = pos.y * resolution.y;

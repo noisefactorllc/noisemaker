@@ -5,9 +5,10 @@
  */
 
 @group(0) @binding(0) var stateTex: texture_2d<f32>;
-@group(0) @binding(1) var bufTex: texture_2d<f32>;
-@group(0) @binding(2) var inputTex: texture_2d<f32>;
-@group(0) @binding(3) var<uniform> u: Uniforms;
+@group(0) @binding(1) var colorTex: texture_2d<f32>;
+@group(0) @binding(2) var bufTex: texture_2d<f32>;
+@group(0) @binding(3) var inputTex: texture_2d<f32>;
+@group(0) @binding(4) var<uniform> u: Uniforms;
 
 struct Uniforms {
     time: f32,
@@ -31,6 +32,10 @@ const TAU: f32 = 6.28318530718;
 
 fn hash(n: f32) -> f32 {
     return fract(sin(n) * 43758.5453123);
+}
+
+fn hash2(n: f32) -> vec2f {
+    return vec2f(hash(n), hash(n + 1.0));
 }
 
 fn wrap_int(value: i32, size: i32) -> i32 {
@@ -83,13 +88,19 @@ fn sampleExternalField(x: i32, y: i32, width: i32, height: i32, inputWeightVal: 
     return luminance(sampleInputAt(x, y, width, height)) * blend * 0.05;
 }
 
+struct Outputs {
+    @location(0) state: vec4f,
+    @location(1) color: vec4f,
+}
+
 @fragment
-fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
+fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     let stateSize = vec2<i32>(textureDimensions(stateTex, 0));
     let coord = vec2<i32>(i32(fragCoord.x), i32(fragCoord.y));
     
     // Read current agent state using textureLoad (exact texel, no interpolation)
     let agent = textureLoad(stateTex, coord, 0);
+    let agentColor = textureLoad(colorTex, coord, 0);
     var pos = agent.xy;
     var heading = agent.z;
     var age = agent.w;
@@ -98,8 +109,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let height = i32(u.resolution.y);
 
     // Initialization / Reset
-    let needsInit = u.resetState != 0 || (pos.x == 0.0 && pos.y == 0.0 && age == 0.0);
-    if (needsInit) {
+    if (u.resetState != 0 || (pos.x == 0.0 && pos.y == 0.0 && age == 0.0)) {
         let agentIndex = f32(coord.y * stateSize.x + coord.x);
         let seed = u.time + agentIndex;
         
@@ -131,23 +141,30 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         
         pos = wrapPosition(pos, u.resolution);
         age = hash(seed + 3.0) * 10.0;  // Random initial age spread
-        return vec4f(pos, heading, age);
+        
+        let initColor = vec4f(sampleInputAt(i32(pos.x), i32(pos.y), width, height), 1.0);
+        return Outputs(vec4f(pos, heading, age), initColor);
     }
 
     // Attrition respawn logic (0 = disabled)
     // Percentage of agents that respawn randomly each frame
     if (u.attrition > 0.0) {
-        let agentIndex = f32(coord.y * stateSize.x + coord.x);
-        let respawnRand = hash(u.time * 60.0 + agentIndex);
+        let agentIndex = u32(coord.y * stateSize.x + coord.x);
+        let time_seed = u32(u.time * 60.0);
+        let check_seed = agentIndex + time_seed * 747796405u;
+        let respawnRand = hash(f32(check_seed));
         let attritionRate = u.attrition * 0.01;  // Convert 0-10% to 0-0.1
         
         if (respawnRand < attritionRate) {
-            let seed = u.time * agentIndex;
-            pos.x = hash(seed) * u.resolution.x;
-            pos.y = hash(seed + 1.0) * u.resolution.y;
-            heading = hash(seed + 2.0) * TAU;
+            let pos_seed = check_seed ^ 2891336453u;
+            let rand_pos = hash2(f32(pos_seed));
+            pos.x = rand_pos.x * u.resolution.x;
+            pos.y = rand_pos.y * u.resolution.y;
+            heading = hash(f32(pos_seed + 2u)) * TAU;
             age = 0.0;
-            return vec4f(pos, heading, age);
+            
+            let respawnColor = vec4f(sampleInputAt(i32(pos.x), i32(pos.y), width, height), 1.0);
+            return Outputs(vec4f(pos, heading, age), respawnColor);
         }
     }
 
@@ -195,5 +212,5 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     // Update age
     age += 0.016;
 
-    return vec4f(pos, heading, age);
+    return Outputs(vec4f(pos, heading, age), agentColor);
 }

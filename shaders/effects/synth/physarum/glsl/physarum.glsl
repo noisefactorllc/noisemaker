@@ -18,9 +18,9 @@ vec3 sampleInputColor(vec2 uv) {
 
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution;
-    float trail = texture(bufTex, uv).r;
-    float tone = trail / (1.0 + trail);
-    vec3 color = vec3(tone);
+    vec3 trail = texture(bufTex, uv).rgb;
+    vec3 tone = trail / (1.0 + trail);
+    vec3 color = tone;
     
     // Blend input texture at output stage (like worms), not in feedback loop
     if (inputIntensity > 0.0) {

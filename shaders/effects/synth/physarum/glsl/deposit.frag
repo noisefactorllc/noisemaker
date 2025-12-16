@@ -4,6 +4,7 @@ uniform float depositAmount;
 uniform float weight;
 uniform sampler2D inputTex;
 in vec2 vUV;
+in vec4 vColor;
 out vec4 fragColor;
 
 float luminance(vec3 color) {
@@ -27,5 +28,5 @@ void main() {
         float gain = mix(1.0, mix(0.25, 2.0, inputValue), blend);
         deposit *= gain;
     }
-    fragColor = vec4(deposit, 0.0, 0.0, 1.0);
+    fragColor = vec4(vColor.rgb * deposit, 1.0);
 }

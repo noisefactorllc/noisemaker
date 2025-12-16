@@ -148,7 +148,10 @@ fn main(@builtin(position) position: vec4<f32>) -> Outputs {
     }
     
     // Respawn logic using attrition (percentage of agents respawning per frame)
-    let respawn_rand = hash2(agent_id + u32(uniforms.time * 60.0)).x;
+    // Use robust hashing to avoid correlation between selection and position
+    let time_seed = u32(uniforms.time * 60.0);
+    let check_seed = agent_id + time_seed * 747796405u;
+    let respawn_rand = hash2(check_seed).x;
     let attrition_rate = uniforms.attrition * 0.01;  // Convert 0-10% to 0-0.1
     let respawn_check = uniforms.attrition > 0.0 && respawn_rand < attrition_rate;
     
@@ -164,7 +167,7 @@ fn main(@builtin(position) position: vec4<f32>) -> Outputs {
     }
     
     if (respawn_check) {
-        let seed = agent_id + u32(uniforms.time * 1000.0);
+        let seed = check_seed ^ 2891336453u;
         let pos = hash2(seed);
         x = pos.x * uniforms.resolution.x;
         y = pos.y * uniforms.resolution.y;

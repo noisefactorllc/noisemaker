@@ -181,19 +181,23 @@ fn main(@builtin(position) position : vec4<f32>) -> Outputs {
     }
     
     // Check for respawn based on attrition (percentage of agents respawning per frame)
-    // Use per-agent random combined with time to get different agents each frame
-    let respawnRand = hash(agentSeed + u32(time * 60.0));
+    // Use robust hashing to avoid correlation between selection and position
+    let time_seed = u32(time * 60.0);
+    let check_seed = agentSeed + time_seed * 747796405u;
+    let respawnRand = hash(check_seed);
     let attritionRate = attrition * 0.01;  // Convert 0-10% to 0-0.1
     let shouldRespawn = attrition > 0.0 && respawnRand < attritionRate;
     
     if (shouldRespawn) {
         // Respawn at new random location
-        let pos = hash2(baseSeed);
+        // Decorrelate position seed from check seed
+        let pos_seed = check_seed ^ 2891336453u;
+        let pos = hash2(pos_seed);
         flow_x = pos.x * f32(width);
         flow_y = pos.y * f32(height);
         
         // New random for rotation variation
-        rotRand = hash(baseSeed + 200u);
+        rotRand = hash(pos_seed + 200u);
         
         // Sample new color (flip Y to match blend pass orientation)
         let xi = wrap_int(i32(flow_x), width);
@@ -203,10 +207,9 @@ fn main(@builtin(position) position : vec4<f32>) -> Outputs {
         cg = inputColor.g;
         cb = inputColor.b;
         
+        seed_f = f32(pos_seed);
         age = 0.0;
-    }
-    
-    // Sample input texture at current position (flip Y to match blend pass orientation)
+    }    // Sample input texture at current position (flip Y to match blend pass orientation)
     let xi = wrap_int(i32(flow_x), width);
     let yi = height - 1 - wrap_int(i32(flow_y), height);
     let texel = textureLoad(inputTex, vec2<i32>(xi, yi), 0);

@@ -26,9 +26,9 @@ fn sampleInputColor(uv: vec2f) -> vec3f {
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let uv = fragCoord.xy / u.resolution;
-    let trail = textureSample(bufTex, samp, uv).r;
+    let trail = textureSample(bufTex, samp, uv).rgb;
     let tone = trail / (1.0 + trail);
-    var color = vec3f(tone);
+    var color = tone;
     
     // Blend input texture at output stage
     if (u.inputIntensity > 0.0) {

@@ -99,7 +99,7 @@ export default new Effect({
       max: 100,
       step: 1,
       ui: {
-        label: "intensity",
+        label: "trail intensity",
         control: "slider",
         category: "blending"
       }

@@ -6,9 +6,10 @@
  */
 
 @group(0) @binding(0) var stateTex: texture_2d<f32>;
-@group(0) @binding(1) var inputTex: texture_2d<f32>;
-@group(0) @binding(2) var inputSampler: sampler;
-@group(0) @binding(3) var<uniform> u: Uniforms;
+@group(0) @binding(1) var colorTex: texture_2d<f32>;
+@group(0) @binding(2) var inputTex: texture_2d<f32>;
+@group(0) @binding(3) var inputSampler: sampler;
+@group(0) @binding(4) var<uniform> u: Uniforms;
 
 struct Uniforms {
     time: f32,
@@ -25,6 +26,7 @@ struct Uniforms {
 struct VertexOutput {
     @builtin(position) position: vec4f,
     @location(0) vUV: vec2f,
+    @location(1) vColor: vec4f,
 }
 
 @vertex
@@ -50,11 +52,13 @@ fn vertexMain(@builtin(vertex_index) vertexID: u32) -> VertexOutput {
 
     // Use textureLoad for exact texel (no interpolation for agent state)
     let agent = textureLoad(stateTex, vec2<i32>(x, y), 0);
+    let agentColor = textureLoad(colorTex, vec2<i32>(x, y), 0);
     let clip = agent.xy / u.resolution * 2.0 - 1.0;
     
     var out: VertexOutput;
     out.position = vec4f(clip, 0.0, 1.0);
     out.vUV = agent.xy / u.resolution;
+    out.vColor = agentColor;
     return out;
 }
 
@@ -80,5 +84,5 @@ fn fragmentMain(in: VertexOutput) -> @location(0) vec4f {
         let gain = mix(1.0, mix(0.25, 2.0, inputValue), blend);
         deposit *= gain;
     }
-    return vec4f(deposit, 0.0, 0.0, 1.0);
+    return vec4f(in.vColor.rgb * deposit, 1.0);
 }

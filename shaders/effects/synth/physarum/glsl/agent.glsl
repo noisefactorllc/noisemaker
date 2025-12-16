@@ -4,6 +4,7 @@ precision highp int;
 
 uniform vec2 resolution;
 uniform sampler2D stateTex;
+uniform sampler2D colorTex;
 uniform sampler2D bufTex;
 uniform float moveSpeed;
 uniform float turnSpeed;
@@ -17,9 +18,24 @@ uniform sampler2D inputTex;
 uniform bool resetState;
 uniform int spawnPattern;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
+layout(location = 1) out vec4 outColor;
 
 // Simple hash function for pseudo-random numbers
+uint hash_uint(uint seed) {
+    uint state = seed * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+float hash(uint seed) {
+    return float(hash_uint(seed)) / 4294967295.0;
+}
+
+vec2 hash2(uint seed) {
+    return vec2(hash(seed), hash(seed + 1u));
+}
+
 float hash(float n) {
     return fract(sin(n) * 43758.5453123);
 }
@@ -51,6 +67,7 @@ void main() {
     ivec2 stateSize = textureSize(stateTex, 0);
     vec2 uv = (gl_FragCoord.xy + vec2(0.5)) / vec2(stateSize);
     vec4 agent = texture(stateTex, uv);
+    vec4 agentColor = texture(colorTex, uv);
     vec2 pos = agent.xy;
     float heading = agent.z;
     float age = agent.w;
@@ -89,24 +106,29 @@ void main() {
         pos = wrapPosition(pos, resolution);
         age = hash(seed + 3.0) * 10.0;  // Random initial age spread
         fragColor = vec4(pos, heading, age);
+        outColor = vec4(sampleInputColor(pos / resolution), 1.0);
         return;
     }
 
     // Attrition respawn logic (0 = disabled)
     // Percentage of agents that respawn randomly each frame
     if (attrition > 0.0) {
-        float agentIndex = gl_FragCoord.y * float(stateSize.x) + gl_FragCoord.x;
-        float respawnRand = hash(time * 60.0 + agentIndex);
+        uint agent_id = uint(gl_FragCoord.y * float(stateSize.x) + gl_FragCoord.x);
+        uint time_seed = uint(time * 60.0);
+        uint check_seed = agent_id + time_seed * 747796405u;
+        float respawnRand = hash(check_seed);
         float attritionRate = attrition * 0.01;  // Convert 0-10% to 0-0.1
         
         if (respawnRand < attritionRate) {
             // Respawn at random position
-            float seed = time * agentIndex;
-            pos.x = hash(seed) * resolution.x;
-            pos.y = hash(seed + 1.0) * resolution.y;
-            heading = hash(seed + 2.0) * 6.28318530718;
+            uint pos_seed = check_seed ^ 2891336453u;
+            vec2 rand_pos = hash2(pos_seed);
+            pos.x = rand_pos.x * resolution.x;
+            pos.y = rand_pos.y * resolution.y;
+            heading = hash(pos_seed + 2u) * 6.28318530718;
             age = 0.0;
             fragColor = vec4(pos, heading, age);
+            outColor = vec4(sampleInputColor(pos / resolution), 1.0);
             return;
         }
     }
@@ -125,9 +147,9 @@ void main() {
     sensorPosR = wrapPosition(sensorPosR, resolution);
 
     // Sample trail map + external field
-    float valF = texture(bufTex, sensorPosF / resolution).r + sampleExternalField(sensorPosF / resolution, inputWeight);
-    float valL = texture(bufTex, sensorPosL / resolution).r + sampleExternalField(sensorPosL / resolution, inputWeight);
-    float valR = texture(bufTex, sensorPosR / resolution).r + sampleExternalField(sensorPosR / resolution, inputWeight);
+    float valF = luminance(texture(bufTex, sensorPosF / resolution).rgb) + sampleExternalField(sensorPosF / resolution, inputWeight);
+    float valL = luminance(texture(bufTex, sensorPosL / resolution).rgb) + sampleExternalField(sensorPosL / resolution, inputWeight);
+    float valR = luminance(texture(bufTex, sensorPosR / resolution).rgb) + sampleExternalField(sensorPosR / resolution, inputWeight);
 
     // Steering
     if (valF > valL && valF > valR) {
@@ -158,4 +180,5 @@ void main() {
     age += 0.016;
 
     fragColor = vec4(pos, heading, age);
+    outColor = agentColor;
 }
