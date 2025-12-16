@@ -660,6 +660,9 @@ export class CanvasRenderer {
                 shaderOverrides
             })
         } else {
+            // Update zoom so recompile uses the correct value for surface creation
+            this._pipeline.zoom = zoom
+
             const newGraph = recompile(this._pipeline, dsl, { shaderOverrides })
             if (!newGraph) {
                 const previousPipeline = this._pipeline
