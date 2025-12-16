@@ -3,7 +3,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Physarum",
   func: "physarum",
-  tags: ["math", "sim"],
+  tags: ["sim"],
 
   description: "Physarum slime mold simulation",
   textures: {

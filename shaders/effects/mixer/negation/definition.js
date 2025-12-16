@@ -4,7 +4,7 @@ export default new Effect({
   name: "Negation",
   namespace: "mixer",
   func: "negation",
-  tags: ["math"],
+  tags: [],
 
   description: "Inverted difference blend",
   globals: {

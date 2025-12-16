@@ -16,7 +16,7 @@ export default new Effect({
   name: "Flow",
   namespace: "filter",
   func: "flow",
-  tags: ["math", "sim"],
+  tags: ["sim"],
 
   description: "Agent-based flow field with behaviors",
   textures: {

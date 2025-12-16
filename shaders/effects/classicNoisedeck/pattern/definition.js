@@ -4,7 +4,7 @@ export default new Effect({
   name: "Pattern",
   namespace: "classicNoisedeck",
   func: "pattern",
-  tags: ["geometric", "math"],
+  tags: ["geometric"],
 
   description: "Pattern generator",
   uniformLayout: {

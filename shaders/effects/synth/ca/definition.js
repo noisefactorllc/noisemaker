@@ -3,7 +3,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Ca",
   func: "ca",
-  tags: ["math", "sim"],
+  tags: ["sim"],
 
   description: "2D cellular automata with rule presets",
   uniformLayouts: {

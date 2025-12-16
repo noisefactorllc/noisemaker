@@ -4,7 +4,7 @@ export default new Effect({
   name: "Osc2D",
   namespace: "synth",
   func: "osc2d",
-  tags: ["math", "geometric"],
+  tags: ["geometric"],
 
   description: "2D oscillator pattern",
   globals: {

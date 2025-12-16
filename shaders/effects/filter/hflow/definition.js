@@ -22,7 +22,7 @@ export default new Effect({
   name: "Hflow",
   namespace: "filter",
   func: "hflow",
-  tags: ["math", "sim"],
+  tags: ["sim"],
 
   description: "Hydraulic erosion flow simulation",
   textures: {

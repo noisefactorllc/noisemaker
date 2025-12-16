@@ -4,7 +4,7 @@ export default new Effect({
   name: "Darken",
   namespace: "mixer",
   func: "darken",
-  tags: ["math"],
+  tags: [],
 
   description: "Take minimum of each channel",
   globals: {

@@ -23,10 +23,6 @@ export const TAG_DEFINITIONS = Object.freeze({
         id: 'geometric',
         description: 'Shapes'
     },
-    math: {
-        id: 'math',
-        description: 'Very mathy'
-    },
     noise: {
         id: 'noise',
         description: 'Very noisy'

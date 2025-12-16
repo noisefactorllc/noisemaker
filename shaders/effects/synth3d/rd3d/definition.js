@@ -14,7 +14,7 @@ export default new Effect({
   name: "Rd3D",
   namespace: "synth3d",
   func: "rd3d",
-  tags: ["math", "3d"],
+  tags: ["3d"],
 
   description: "3D reaction-diffusion simulation",
   textures: {

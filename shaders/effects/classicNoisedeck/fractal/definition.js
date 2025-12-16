@@ -10,7 +10,7 @@ export default class Fractal extends Effect {
   name = "Fractal"
   namespace = "classicNoisedeck"
   func = "fractal"
-  tags = ["math", "geometric"]
+  tags = ["geometric"]
 
   description = "Fractal pattern generator"
 

@@ -3,7 +3,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Mnca",
   func: "mnca",
-  tags: ["math", "sim"],
+  tags: ["sim"],
 
   description: "Multi-neighborhood cellular automata",
   uniformLayout: {

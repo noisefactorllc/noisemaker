@@ -4,7 +4,7 @@ export default new Effect({
   name: "BitEffects",
   namespace: "classicNoisedeck",
   func: "bitEffects",
-  tags: ["math", "geometric"],
+  tags: ["geometric"],
 
   description: "Bit-crushing and digital artifacts",
   uniformLayout: {

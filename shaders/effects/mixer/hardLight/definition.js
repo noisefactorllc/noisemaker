@@ -4,7 +4,7 @@ export default new Effect({
   name: "Hard Light",
   namespace: "mixer",
   func: "hardLight",
-  tags: ["math"],
+  tags: [],
 
   description: "Multiply/screen based on blend layer",
   globals: {

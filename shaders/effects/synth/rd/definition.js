@@ -3,7 +3,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Rd",
   func: "rd",
-  tags: ["math", "sim"],
+  tags: ["sim"],
 
   description: "Gray-Scott reaction-diffusion",
   uniformLayouts: {

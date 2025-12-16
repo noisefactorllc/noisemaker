@@ -4,7 +4,7 @@ export default new Effect({
   name: "Subtract",
   namespace: "mixer",
   func: "subtract",
-  tags: ["math"],
+  tags: [],
 
   description: "Subtract source B from input",
   globals: {

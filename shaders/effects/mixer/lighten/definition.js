@@ -4,7 +4,7 @@ export default new Effect({
   name: "Lighten",
   namespace: "mixer",
   func: "lighten",
-  tags: ["math"],
+  tags: [],
 
   description: "Take maximum of each channel",
   globals: {

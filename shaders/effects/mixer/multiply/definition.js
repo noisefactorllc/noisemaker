@@ -4,7 +4,7 @@ export default new Effect({
   name: "Multiply",
   namespace: "mixer",
   func: "multiply",
-  tags: ["math"],
+  tags: [],
 
   description: "Multiply pixels, darkening result",
   globals: {

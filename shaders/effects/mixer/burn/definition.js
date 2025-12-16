@@ -4,7 +4,7 @@ export default new Effect({
   name: "Burn",
   namespace: "mixer",
   func: "burn",
-  tags: ["math"],
+  tags: [],
 
   description: "Color burn creating deep shadows",
   globals: {

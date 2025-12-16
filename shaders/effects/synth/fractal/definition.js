@@ -9,7 +9,7 @@ export default new Effect({
   name: "Fractal",
   namespace: "synth",
   func: "fractal",
-  tags: ["math", "geometric"],
+  tags: ["geometric"],
 
   description: "Julia, Mandelbrot, Newton fractal explorer",
   uniformLayout: {

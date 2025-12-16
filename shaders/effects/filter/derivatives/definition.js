@@ -8,7 +8,7 @@ export default new Effect({
   name: "Derivatives",
   namespace: "filter",
   func: "derivatives",
-  tags: ["math"],
+  tags: [],
 
   description: "Derivative-based edge detection",
   globals: {
