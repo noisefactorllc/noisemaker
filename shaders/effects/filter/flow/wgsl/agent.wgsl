@@ -19,9 +19,10 @@ struct Outputs {
 @group(0) @binding(7) var<uniform> kink: f32;
 @group(0) @binding(8) var<uniform> quantize: f32;
 @group(0) @binding(9) var<uniform> time: f32;
-@group(0) @binding(10) var<uniform> lifetime: f32;
-@group(0) @binding(11) var<uniform> behavior: f32;
-@group(0) @binding(12) var<uniform> resetState: i32;
+@group(0) @binding(10) var<uniform> attrition: f32;
+@group(0) @binding(11) var<uniform> inputWeight: f32;
+@group(0) @binding(12) var<uniform> behavior: f32;
+@group(0) @binding(13) var<uniform> resetState: i32;
 // Note: density is only used in deposit pass, not here
 
 const TAU : f32 = 6.283185307179586;
@@ -166,8 +167,9 @@ fn main(@builtin(position) position : vec4<f32>) -> Outputs {
         // Actual deviation factor computed each frame using strideDeviation uniform
         strideRand = hash(agentSeed + 300u) - 0.5;  // Range [-0.5, 0.5]
         
+        // Flip Y to match blend pass orientation
         let xi = wrap_int(i32(flow_x), width);
-        let yi = wrap_int(i32(flow_y), height);
+        let yi = height - 1 - wrap_int(i32(flow_y), height);
         let inputColor = textureLoad(inputTex, vec2<i32>(xi, yi), 0);
         cr = inputColor.r;
         cg = inputColor.g;
@@ -178,12 +180,11 @@ fn main(@builtin(position) position : vec4<f32>) -> Outputs {
         initialized = 1.0;
     }
     
-    // Check for respawn based on lifetime (literal seconds)
-    // Each agent gets a staggered start based on index so they don't all respawn at once
-    let agentPhase = f32(agentIndex) / f32(max(totalAgents, 1));
-    let staggeredAge = age + agentPhase * lifetime;
-    
-    let shouldRespawn = lifetime > 0.0 && staggeredAge >= lifetime;
+    // Check for respawn based on attrition (percentage of agents respawning per frame)
+    // Use per-agent random combined with time to get different agents each frame
+    let respawnRand = hash(agentSeed + u32(time * 60.0));
+    let attritionRate = attrition * 0.01;  // Convert 0-10% to 0-0.1
+    let shouldRespawn = attrition > 0.0 && respawnRand < attritionRate;
     
     if (shouldRespawn) {
         // Respawn at new random location
@@ -194,9 +195,9 @@ fn main(@builtin(position) position : vec4<f32>) -> Outputs {
         // New random for rotation variation
         rotRand = hash(baseSeed + 200u);
         
-        // Sample new color
+        // Sample new color (flip Y to match blend pass orientation)
         let xi = wrap_int(i32(flow_x), width);
-        let yi = wrap_int(i32(flow_y), height);
+        let yi = height - 1 - wrap_int(i32(flow_y), height);
         let inputColor = textureLoad(inputTex, vec2<i32>(xi, yi), 0);
         cr = inputColor.r;
         cg = inputColor.g;
@@ -205,11 +206,16 @@ fn main(@builtin(position) position : vec4<f32>) -> Outputs {
         age = 0.0;
     }
     
-    // Sample input texture at current position
+    // Sample input texture at current position (flip Y to match blend pass orientation)
     let xi = wrap_int(i32(flow_x), width);
-    let yi = wrap_int(i32(flow_y), height);
+    let yi = height - 1 - wrap_int(i32(flow_y), height);
     let texel = textureLoad(inputTex, vec2<i32>(xi, yi), 0);
-    let indexValue = oklab_l(texel.rgb);
+    let inputLuma = oklab_l(texel.rgb);
+    
+    // inputWeight controls how much the input texture influences flow direction
+    // 0 = purely random/behavior-based, 100 = fully input-driven
+    let weightBlend = clamp(inputWeight * 0.01, 0.0, 1.0);
+    let indexValue = mix(0.5, inputLuma, weightBlend);
     
     // Compute rotation bias based on behavior uniform (computed each frame!)
     // baseHeading is constant across all agents (seed 0)
@@ -223,11 +229,11 @@ fn main(@builtin(position) position : vec4<f32>) -> Outputs {
         finalAngle = round(finalAngle);
     }
     
-    // Compute actual stride: uniform stride * resolution scale * per-agent deviation
+    // Compute actual stride: stride is in 1/10th of pixels, so divide by 10
     // strideRand is per-agent random [-0.5, 0.5], strideDeviation uniform controls magnitude
     let scale = max(f32(max(width, height)) / 1024.0, 1.0);
     let devFactor = 1.0 + strideRand * 2.0 * strideDeviation;
-    let actualStride = max(0.1, stride * scale * devFactor);
+    let actualStride = max(0.1, (stride * 0.1) * scale * devFactor);
     
     // Move agent
     var newX = flow_x + sin(finalAngle) * actualStride;

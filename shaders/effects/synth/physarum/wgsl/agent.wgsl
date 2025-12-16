@@ -20,8 +20,9 @@ struct Uniforms {
     turnSpeed: f32,
     sensorAngle: f32,
     sensorDistance: f32,
-    lifetime: f32,
-    weight: f32,
+    attrition: f32,
+    density: f32,
+    inputWeight: f32,
     resetState: i32,
     spawnPattern: i32,
 }
@@ -72,12 +73,14 @@ fn sampleInputAt(x: i32, y: i32, width: i32, height: i32) -> vec3f {
     return textureLoad(inputTex, vec2<i32>(wx, wy), 0).rgb;
 }
 
-fn sampleExternalField(x: i32, y: i32, width: i32, height: i32, weightVal: f32) -> f32 {
-    if (weightVal <= 0.0) {
+fn sampleExternalField(x: i32, y: i32, width: i32, height: i32, inputWeightVal: f32) -> f32 {
+    if (inputWeightVal <= 0.0) {
         return 0.0;
     }
-    let blend = clamp(weightVal * 0.01, 0.0, 1.0);
-    return luminance(sampleInputAt(x, y, width, height)) * blend;
+    let blend = clamp(inputWeightVal * 0.01, 0.0, 1.0);
+    // Scale to trail-comparable values (trail deposits are ~0.05)
+    // This provides a gentle bias toward bright areas without overwhelming trail signal
+    return luminance(sampleInputAt(x, y, width, height)) * blend * 0.05;
 }
 
 @fragment
@@ -127,22 +130,23 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         }
         
         pos = wrapPosition(pos, u.resolution);
-        age = hash(seed + 3.0) * u.lifetime;
+        age = hash(seed + 3.0) * 10.0;  // Random initial age spread
         return vec4f(pos, heading, age);
     }
 
-    // Lifetime respawn logic (0 = disabled)
-    if (u.lifetime > 0.0) {
+    // Attrition respawn logic (0 = disabled)
+    // Percentage of agents that respawn randomly each frame
+    if (u.attrition > 0.0) {
         let agentIndex = f32(coord.y * stateSize.x + coord.x);
-        let agentFraction = agentIndex / f32(stateSize.x * stateSize.y);
-        let spawnOffset = agentFraction * u.lifetime;
+        let respawnRand = hash(u.time * 60.0 + agentIndex);
+        let attritionRate = u.attrition * 0.01;  // Convert 0-10% to 0-0.1
         
-        if (age > u.lifetime) {
+        if (respawnRand < attritionRate) {
             let seed = u.time * agentIndex;
             pos.x = hash(seed) * u.resolution.x;
             pos.y = hash(seed + 1.0) * u.resolution.y;
             heading = hash(seed + 2.0) * TAU;
-            age = spawnOffset;
+            age = 0.0;
             return vec4f(pos, heading, age);
         }
     }
@@ -158,11 +162,11 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
     // Sample trail map + external field using integer coordinates (textureLoad)
     let valF = sampleBufAt(i32(sensorPosF.x), i32(sensorPosF.y), width, height) + 
-               sampleExternalField(i32(sensorPosF.x), i32(sensorPosF.y), width, height, u.weight);
+               sampleExternalField(i32(sensorPosF.x), i32(sensorPosF.y), width, height, u.inputWeight);
     let valL = sampleBufAt(i32(sensorPosL.x), i32(sensorPosL.y), width, height) + 
-               sampleExternalField(i32(sensorPosL.x), i32(sensorPosL.y), width, height, u.weight);
+               sampleExternalField(i32(sensorPosL.x), i32(sensorPosL.y), width, height, u.inputWeight);
     let valR = sampleBufAt(i32(sensorPosR.x), i32(sensorPosR.y), width, height) + 
-               sampleExternalField(i32(sensorPosR.x), i32(sensorPosR.y), width, height, u.weight);
+               sampleExternalField(i32(sensorPosR.x), i32(sensorPosR.y), width, height, u.inputWeight);
 
     // Steering
     if (valF > valL && valF > valR) {
@@ -179,7 +183,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     // Move
     let dir = vec2f(cos(heading), sin(heading));
     var speedScale = 1.0;
-    let blend = clamp(u.weight * 0.01, 0.0, 1.0);
+    let blend = clamp(u.inputWeight * 0.01, 0.0, 1.0);
     if (blend > 0.0) {
         // Use raw luminance for speed modulation (not scaled by weight)
         let localInput = luminance(sampleInputAt(i32(pos.x), i32(pos.y), width, height));

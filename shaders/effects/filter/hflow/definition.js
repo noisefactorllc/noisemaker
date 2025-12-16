@@ -36,24 +36,39 @@ export default new Effect({
       type: "float",
       default: 5,
       uniform: "density",
-      min: 1,
+      min: 0,
       max: 100,
       step: 1,
       ui: {
-        label: "Density",
-        control: "slider"
+        label: "density",
+        control: "slider",
+        category: "agents"
+      }
+    },
+    attrition: {
+      type: "float",
+      default: 1,
+      uniform: "attrition",
+      min: 0,
+      max: 10,
+      step: 0.1,
+      ui: {
+        label: "attrition",
+        control: "slider",
+        category: "agents"
       }
     },
     stride: {
       type: "float",
-      default: 1,
+      default: 10,
       uniform: "stride",
-      min: 0.1,
-      max: 10,
-      step: 0.1,
+      min: 1,
+      max: 1000,
+      step: 1,
       ui: {
-        label: "Stride",
-        control: "slider"
+        label: "stride",
+        control: "slider",
+        category: "agents"
       }
     },
     quantize: {
@@ -61,8 +76,19 @@ export default new Effect({
       default: false,
       uniform: "quantize",
       ui: {
-        label: "Quantize",
-        control: "checkbox"
+        label: "quantize",
+        control: "checkbox",
+        category: "agents"
+      }
+    },
+    inverse: {
+      type: "boolean",
+      default: false,
+      uniform: "inverse",
+      ui: {
+        label: "inverse",
+        control: "checkbox",
+        category: "agents"
       }
     },
     intensity: {
@@ -73,38 +99,9 @@ export default new Effect({
       max: 100,
       step: 1,
       ui: {
-        label: "Trail Persistence",
-        control: "slider"
-      }
-    },
-    inverse: {
-      type: "boolean",
-      default: false,
-      uniform: "inverse",
-      ui: {
-        label: "Inverse",
-        control: "checkbox"
-      }
-    },
-    xyBlend: {
-      type: "boolean",
-      default: false,
-      uniform: "xyBlend",
-      ui: {
-        label: "XY Blend",
-        control: "checkbox"
-      }
-    },
-    wormLifetime: {
-      type: "float",
-      default: 30,
-      uniform: "wormLifetime",
-      min: 0,
-      max: 60,
-      step: 1,
-      ui: {
-        label: "Lifetime",
-        control: "slider"
+        label: "intensity",
+        control: "slider",
+        category: "blending"
       }
     },
     inputIntensity: {
@@ -115,8 +112,22 @@ export default new Effect({
       max: 100,
       step: 1,
       ui: {
-        label: "Input Intensity",
-        control: "slider"
+        label: "input intensity",
+        control: "slider",
+        category: "blending"
+      }
+    },
+    inputWeight: {
+      type: "float",
+      default: 100,
+      uniform: "inputWeight",
+      min: 0,
+      max: 100,
+      step: 1,
+      ui: {
+        label: "input weight",
+        control: "slider",
+        category: "blending"
       }
     },
     resetState: {
@@ -139,6 +150,9 @@ export default new Effect({
       inputs: {
         prevTrailTex: "globalHflowTrail"
       },
+      uniforms: {
+        intensity: "intensity"
+      },
       outputs: {
         fragColor: "globalHflowTrail"
       }
@@ -154,6 +168,13 @@ export default new Effect({
         stateTex2: "globalHflowState2",
         stateTex3: "globalHflowState3",
         inputTex: "inputTex"
+      },
+      uniforms: {
+        stride: "stride",
+        quantize: "quantize",
+        inverse: "inverse",
+        attrition: "attrition",
+        inputWeight: "inputWeight"
       },
       outputs: {
         outState1: "globalHflowState1",
@@ -184,6 +205,9 @@ export default new Effect({
       inputs: {
         inputTex: "inputTex",
         trailTex: "globalHflowTrail"
+      },
+      uniforms: {
+        inputIntensity: "inputIntensity"
       },
       outputs: {
         fragColor: "outputTex"

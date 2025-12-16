@@ -11,8 +11,8 @@ uniform float stride;
 uniform float quantize;
 uniform float time;
 uniform float inverse;
-uniform float xyBlend;
-uniform float wormLifetime;
+uniform float attrition;
+uniform float inputWeight;
 uniform bool resetState;
 
 layout(location = 0) out vec4 outState1;
@@ -137,15 +137,10 @@ void main() {
         return;
     }
     
-    // Respawn logic
-    float normalized_lifetime = wormLifetime / 60.0;
-    float normalized_index = float(agent_id) / float(total_agents);
-    float agent_phase = fract(normalized_index);
-    float time_in_cycle = fract(time + agent_phase);
-    float prev_time_in_cycle = fract(time - (1.0 / 60.0) + agent_phase);
-    bool respawn_check = wormLifetime > 0.0 && normalized_lifetime > 0.0 &&
-                         time_in_cycle < normalized_lifetime &&
-                         prev_time_in_cycle >= normalized_lifetime;
+    // Respawn logic using attrition (percentage of agents respawning per frame)
+    float respawn_rand = hash2(agent_id + uint(time * 60.0)).x;
+    float attrition_rate = attrition * 0.01;  // Convert 0-10% to 0-0.1
+    bool respawn_check = attrition > 0.0 && respawn_rand < attrition_rate;
     
     bool needs_initial_color = age < 0.0;
     if (needs_initial_color) {
@@ -206,7 +201,8 @@ void main() {
     
     float glen = length(vec2(gx, gy));
     if (glen > 1e-6) {
-        float scale = stride / glen;
+        // Stride is in 1/10th of pixels, so divide by 10
+        float scale = (stride * 0.1) / glen;
         gx *= scale;
         gy *= scale;
     } else {
@@ -214,8 +210,13 @@ void main() {
         gy = 0.0;
     }
     
-    x_dir = mix(x_dir, gx, inertia);
-    y_dir = mix(y_dir, gy, inertia);
+    // inputWeight controls how much the gradient influences direction
+    // 0 = pure inertia (keep current direction), 100 = fully gradient-driven
+    float weightBlend = clamp(inputWeight * 0.01, 0.0, 1.0);
+    float effectiveInertia = inertia * weightBlend;
+    
+    x_dir = mix(x_dir, gx, effectiveInertia);
+    y_dir = mix(y_dir, gy, effectiveInertia);
     
     x = wrap_float(x + x_dir, resolution.x);
     y = wrap_float(y + y_dir, resolution.y);

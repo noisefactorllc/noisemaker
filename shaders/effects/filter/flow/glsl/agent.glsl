@@ -12,7 +12,8 @@ uniform float strideDeviation;
 uniform float kink;
 uniform float quantize;
 uniform float time;
-uniform float lifetime;
+uniform float attrition;
+uniform float inputWeight;
 uniform float behavior;
 uniform float density;
 uniform bool resetState;
@@ -161,9 +162,9 @@ void main() {
         // Actual deviation factor computed each frame using strideDeviation uniform
         strideRand = hash(agentSeed + 300u) - 0.5;  // Range [-0.5, 0.5]
         
-        // Sample color from input
+        // Sample color from input (flip Y to match blend pass orientation)
         int xi = wrap_int(int(flow_x), width);
-        int yi = wrap_int(int(flow_y), height);
+        int yi = height - 1 - wrap_int(int(flow_y), height);
         vec4 inputColor = texelFetch(inputTex, ivec2(xi, yi), 0);
         cr = inputColor.r;
         cg = inputColor.g;
@@ -174,12 +175,11 @@ void main() {
         initialized = 1.0;
     }
     
-    // Check for respawn based on lifetime (literal seconds)
-    // Each agent gets a staggered start based on index so they don't all respawn at once
-    float agentPhase = float(agentIndex) / float(max(totalAgents, 1));
-    float staggeredAge = age + agentPhase * lifetime;
-    
-    bool shouldRespawn = lifetime > 0.0 && staggeredAge >= lifetime;
+    // Check for respawn based on attrition (percentage of agents respawning per frame)
+    // Use per-agent random combined with time to get different agents each frame
+    float respawnRand = hash(agentSeed + uint(time * 60.0));
+    float attritionRate = attrition * 0.01;  // Convert 0-10% to 0-0.1
+    bool shouldRespawn = attrition > 0.0 && respawnRand < attritionRate;
     
     if (shouldRespawn) {
         // Respawn at new random location
@@ -190,9 +190,9 @@ void main() {
         // New random for rotation variation
         rotRand = hash(baseSeed + 200u);
         
-        // Sample new color
+        // Sample new color (flip Y to match blend pass orientation)
         int xi = wrap_int(int(flow_x), width);
-        int yi = wrap_int(int(flow_y), height);
+        int yi = height - 1 - wrap_int(int(flow_y), height);
         vec4 inputColor = texelFetch(inputTex, ivec2(xi, yi), 0);
         cr = inputColor.r;
         cg = inputColor.g;
@@ -201,11 +201,16 @@ void main() {
         age = 0.0;
     }
     
-    // Sample input texture at current position for flow direction
+    // Sample input texture at current position for flow direction (flip Y to match blend pass orientation)
     int xi = wrap_int(int(flow_x), width);
-    int yi = wrap_int(int(flow_y), height);
+    int yi = height - 1 - wrap_int(int(flow_y), height);
     vec4 texel = texelFetch(inputTex, ivec2(xi, yi), 0);
-    float indexValue = oklab_l(texel.rgb);
+    float inputLuma = oklab_l(texel.rgb);
+    
+    // inputWeight controls how much the input texture influences flow direction
+    // 0 = purely random/behavior-based, 100 = fully input-driven
+    float weightBlend = clamp(inputWeight * 0.01, 0.0, 1.0);
+    float indexValue = mix(0.5, inputLuma, weightBlend);
     
     // Compute rotation bias based on behavior uniform (computed each frame!)
     // baseHeading is constant across all agents (seed 0)
@@ -220,11 +225,11 @@ void main() {
         finalAngle = round(finalAngle);
     }
     
-    // Compute actual stride: uniform stride * resolution scale * per-agent deviation
+    // Compute actual stride: stride is in 1/10th of pixels, so divide by 10
     // strideRand is per-agent random [-0.5, 0.5], strideDeviation uniform controls magnitude
     float scale = max(float(max(width, height)) / 1024.0, 1.0);
     float devFactor = 1.0 + strideRand * 2.0 * strideDeviation;
-    float actualStride = max(0.1, stride * scale * devFactor);
+    float actualStride = max(0.1, (stride * 0.1) * scale * devFactor);
     
     // Move agent
     float newX = flow_x + sin(finalAngle) * actualStride;

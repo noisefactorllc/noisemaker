@@ -10,8 +10,8 @@ struct Uniforms {
     quantize: f32,
     time: f32,
     inverse: f32,
-    xyBlend: f32,
-    wormLifetime: f32,
+    attrition: f32,
+    inputWeight: f32,
     resetState: i32,
 }
 
@@ -147,15 +147,10 @@ fn main(@builtin(position) position: vec4<f32>) -> Outputs {
         );
     }
     
-    // Respawn logic
-    let normalized_lifetime = uniforms.wormLifetime / 60.0;
-    let normalized_index = f32(agent_id) / f32(total_agents);
-    let agent_phase = fract(normalized_index);
-    let time_in_cycle = fract(uniforms.time + agent_phase);
-    let prev_time_in_cycle = fract(uniforms.time - (1.0 / 60.0) + agent_phase);
-    let respawn_check = uniforms.wormLifetime > 0.0 && normalized_lifetime > 0.0 &&
-                        time_in_cycle < normalized_lifetime &&
-                        prev_time_in_cycle >= normalized_lifetime;
+    // Respawn logic using attrition (percentage of agents respawning per frame)
+    let respawn_rand = hash2(agent_id + u32(uniforms.time * 60.0)).x;
+    let attrition_rate = uniforms.attrition * 0.01;  // Convert 0-10% to 0-0.1
+    let respawn_check = uniforms.attrition > 0.0 && respawn_rand < attrition_rate;
     
     let needs_initial_color = age < 0.0;
     if (needs_initial_color) {
@@ -216,7 +211,8 @@ fn main(@builtin(position) position: vec4<f32>) -> Outputs {
     
     let glen = length(vec2<f32>(gx, gy));
     if (glen > 1e-6) {
-        let scale = uniforms.stride / glen;
+        // Stride is in 1/10th of pixels, so divide by 10
+        let scale = (uniforms.stride * 0.1) / glen;
         gx = gx * scale;
         gy = gy * scale;
     } else {
@@ -224,8 +220,13 @@ fn main(@builtin(position) position: vec4<f32>) -> Outputs {
         gy = 0.0;
     }
     
-    x_dir = mix(x_dir, gx, inertia);
-    y_dir = mix(y_dir, gy, inertia);
+    // inputWeight controls how much the gradient influences direction
+    // 0 = pure inertia (keep current direction), 100 = fully gradient-driven
+    let weightBlend = clamp(uniforms.inputWeight * 0.01, 0.0, 1.0);
+    let effectiveInertia = inertia * weightBlend;
+    
+    x_dir = mix(x_dir, gx, effectiveInertia);
+    y_dir = mix(y_dir, gy, effectiveInertia);
     
     x = wrap_float(x + x_dir, uniforms.resolution.x);
     y = wrap_float(y + y_dir, uniforms.resolution.y);

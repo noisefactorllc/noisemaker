@@ -19,6 +19,7 @@ struct Uniforms {
     aspect: f32,
     depositAmount: f32,
     weight: f32,
+    density: f32,
 }
 
 struct VertexOutput {
@@ -31,6 +32,19 @@ fn vertexMain(@builtin(vertex_index) vertexID: u32) -> VertexOutput {
     let size = vec2<i32>(textureDimensions(stateTex, 0));
     let w = size.x;
     let h = size.y;
+    let totalAgents = w * h;
+    
+    // Calculate max active agents based on density (0-100%)
+    let maxAgents = i32(f32(totalAgents) * u.density * 0.01);
+    
+    // Skip if beyond agent count
+    if (i32(vertexID) >= maxAgents) {
+        var out: VertexOutput;
+        out.position = vec4f(2.0, 2.0, 0.0, 1.0); // Off-screen
+        out.vUV = vec2f(0.0);
+        return out;
+    }
+    
     let x = i32(vertexID) % w;
     let y = i32(vertexID) / w;
 

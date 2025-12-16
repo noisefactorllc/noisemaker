@@ -40,32 +40,48 @@ export default new Effect({
         meandering: 10
       },
       ui: {
-        label: "Behavior",
-        control: "dropdown"
+        label: "behavior",
+        control: "dropdown",
+        category: "agents"
       }
     },
     density: {
       type: "float",
       default: 20,
       uniform: "density",
-      min: 1,
+      min: 0,
       max: 100,
       step: 1,
       ui: {
-        label: "Density",
-        control: "slider"
+        label: "density",
+        control: "slider",
+        category: "agents"
+      }
+    },
+    attrition: {
+      type: "float",
+      default: 1,
+      uniform: "attrition",
+      min: 0,
+      max: 10,
+      step: 0.1,
+      ui: {
+        label: "attrition",
+        control: "slider",
+        category: "agents"
       }
     },
     stride: {
       type: "float",
-      default: 1,
+      default: 10,
       uniform: "stride",
-      min: 0.1,
-      max: 10,
-      step: 0.1,
+      min: 1,
+      max: 1000,
+      step: 1,
       ui: {
-        label: "Stride",
-        control: "slider"
+        label: "stride",
+        control: "slider",
+        category: "agents"
       }
     },
     strideDeviation: {
@@ -76,8 +92,9 @@ export default new Effect({
       max: 0.5,
       step: 0.01,
       ui: {
-        label: "Stride Deviation",
-        control: "slider"
+        label: "stride deviation",
+        control: "slider",
+        category: "agents"
       }
     },
     kink: {
@@ -88,8 +105,9 @@ export default new Effect({
       max: 10,
       step: 0.1,
       ui: {
-        label: "Kink",
-        control: "slider"
+        label: "kink",
+        control: "slider",
+        category: "agents"
       }
     },
     quantize: {
@@ -97,8 +115,9 @@ export default new Effect({
       default: false,
       uniform: "quantize",
       ui: {
-        label: "Quantize",
-        control: "checkbox"
+        label: "quantize",
+        control: "checkbox",
+        category: "agents"
       }
     },
     intensity: {
@@ -109,8 +128,9 @@ export default new Effect({
       max: 100,
       step: 1,
       ui: {
-        label: "Trail Persistence",
-        control: "slider"
+        label: "intensity",
+        control: "slider",
+        category: "blending"
       }
     },
     inputIntensity: {
@@ -121,20 +141,22 @@ export default new Effect({
       max: 100,
       step: 1,
       ui: {
-        label: "Input Intensity",
-        control: "slider"
+        label: "input intensity",
+        control: "slider",
+        category: "blending"
       }
     },
-    lifetime: {
+    inputWeight: {
       type: "float",
-      default: 30,
-      uniform: "lifetime",
+      default: 100,
+      uniform: "inputWeight",
       min: 0,
-      max: 60,
+      max: 100,
       step: 1,
       ui: {
-        label: "Lifetime",
-        control: "slider"
+        label: "input weight",
+        control: "slider",
+        category: "blending"
       }
     },
     resetState: {
@@ -183,7 +205,8 @@ export default new Effect({
         strideDeviation: "strideDeviation",
         kink: "kink",
         quantize: "quantize",
-        lifetime: "lifetime"
+        attrition: "attrition",
+        inputWeight: "inputWeight"
       },
       outputs: {
         outState1: "globalFlowState1",

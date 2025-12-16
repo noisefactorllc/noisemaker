@@ -10,8 +10,9 @@ uniform float turnSpeed;
 uniform float sensorAngle;
 uniform float sensorDistance;
 uniform float time;
-uniform float lifetime;
-uniform float weight;
+uniform float attrition;
+uniform float density;
+uniform float inputWeight;
 uniform sampler2D inputTex;
 uniform bool resetState;
 uniform int spawnPattern;
@@ -36,12 +37,14 @@ vec3 sampleInputColor(vec2 uv) {
     return texture(inputTex, flippedUV).rgb;
 }
 
-float sampleExternalField(vec2 uv, float weightVal) {
-    if (weightVal <= 0.0) {
+float sampleExternalField(vec2 uv, float inputWeightVal) {
+    if (inputWeightVal <= 0.0) {
         return 0.0;
     }
-    float blend = clamp(weightVal * 0.01, 0.0, 1.0);
-    return luminance(sampleInputColor(uv)) * blend;
+    float blend = clamp(inputWeightVal * 0.01, 0.0, 1.0);
+    // Scale to trail-comparable values (trail deposits are ~0.05)
+    // This provides a gentle bias toward bright areas without overwhelming trail signal
+    return luminance(sampleInputColor(uv)) * blend * 0.05;
 }
 
 void main() {
@@ -84,26 +87,27 @@ void main() {
         }
         
         pos = wrapPosition(pos, resolution);
-        age = hash(seed + 3.0) * lifetime;
+        age = hash(seed + 3.0) * 10.0;  // Random initial age spread
         fragColor = vec4(pos, heading, age);
         return;
     }
 
-    // Lifetime respawn logic (0 = disabled)
-    if (lifetime > 0.0) {
-        // Calculate unique offset for this agent based on position in texture
+    // Attrition respawn logic (0 = disabled)
+    // Percentage of agents that respawn randomly each frame
+    if (attrition > 0.0) {
         float agentIndex = gl_FragCoord.y * float(stateSize.x) + gl_FragCoord.x;
-        float agentFraction = agentIndex / float(stateSize.x * stateSize.y);
-        float spawnOffset = agentFraction * lifetime;
+        float respawnRand = hash(time * 60.0 + agentIndex);
+        float attritionRate = attrition * 0.01;  // Convert 0-10% to 0-0.1
         
-        // Check if this agent should respawn
-        if (age > lifetime) {
+        if (respawnRand < attritionRate) {
             // Respawn at random position
             float seed = time * agentIndex;
             pos.x = hash(seed) * resolution.x;
             pos.y = hash(seed + 1.0) * resolution.y;
             heading = hash(seed + 2.0) * 6.28318530718;
-            age = spawnOffset;
+            age = 0.0;
+            fragColor = vec4(pos, heading, age);
+            return;
         }
     }
 
@@ -121,9 +125,9 @@ void main() {
     sensorPosR = wrapPosition(sensorPosR, resolution);
 
     // Sample trail map + external field
-    float valF = texture(bufTex, sensorPosF / resolution).r + sampleExternalField(sensorPosF / resolution, weight);
-    float valL = texture(bufTex, sensorPosL / resolution).r + sampleExternalField(sensorPosL / resolution, weight);
-    float valR = texture(bufTex, sensorPosR / resolution).r + sampleExternalField(sensorPosR / resolution, weight);
+    float valF = texture(bufTex, sensorPosF / resolution).r + sampleExternalField(sensorPosF / resolution, inputWeight);
+    float valL = texture(bufTex, sensorPosL / resolution).r + sampleExternalField(sensorPosL / resolution, inputWeight);
+    float valR = texture(bufTex, sensorPosR / resolution).r + sampleExternalField(sensorPosR / resolution, inputWeight);
 
     // Steering
     if (valF > valL && valF > valR) {
@@ -140,7 +144,7 @@ void main() {
     // Move
     vec2 dir = vec2(cos(heading), sin(heading));
     float speedScale = 1.0;
-    float blend = clamp(weight * 0.01, 0.0, 1.0);
+    float blend = clamp(inputWeight * 0.01, 0.0, 1.0);
     if (blend > 0.0) {
         // Use raw luminance for speed modulation (not scaled by weight)
         float localInput = luminance(sampleInputColor(pos / resolution));

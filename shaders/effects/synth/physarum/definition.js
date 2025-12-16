@@ -118,7 +118,7 @@ export default new Effect({
       ui: {
         label: "intensity",
         type: "float",
-        category: "input"
+        category: "blending"
       }
     },
     depositAmount: {
@@ -134,29 +134,42 @@ export default new Effect({
         category: "chemistry"
       }
     },
-    lifetime: {
+    density: {
       type: "float",
-      default: 10.998912608250976,
-      uniform: "lifetime",
+      default: 100,
+      uniform: "density",
       min: 0,
-      max: 60,
+      max: 100,
+      step: 1,
       ui: {
-        label: "lifetime",
+        label: "density",
         type: "float",
-        step: 1,
         category: "agents"
       }
     },
-    weight: {
+    attrition: {
+      type: "float",
+      default: 1,
+      uniform: "attrition",
+      min: 0,
+      max: 10,
+      step: 0.1,
+      ui: {
+        label: "attrition",
+        type: "float",
+        category: "agents"
+      }
+    },
+    inputWeight: {
       type: "float",
       default: 0,
-      uniform: "weight",
+      uniform: "inputWeight",
       min: 0,
       max: 100,
       ui: {
         label: "input weight",
         type: "float",
-        category: "input"
+        category: "blending"
       }
     },
     inputIntensity: {
@@ -169,7 +182,7 @@ export default new Effect({
       ui: {
         label: "input intensity",
         type: "float",
-        category: "input"
+        category: "blending"
       }
     },
     spawnPattern: {
@@ -237,6 +250,9 @@ export default new Effect({
       inputs: {
         stateTex: "globalPhysarumState",
         inputTex: "tex"
+      },
+      uniforms: {
+        density: "density"
       },
       outputs: {
         fragColor: "globalPhysarumTrail"
