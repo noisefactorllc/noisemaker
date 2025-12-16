@@ -52,7 +52,9 @@ void main() {
     vec2 corner = resolution / minRes;
 
     float dist01 = clamp01(distanceMetric(p, corner, metric));
-    float mask = pow(dist01, max(power, 0.0));
+    // Remap power from -100..100 to 0.1..50
+    float scaledPower = mix(0.1, 50.0, (power + 100.0) / 200.0);
+    float mask = pow(dist01, scaledPower);
 
     vec4 color = mix(centerColor, edgeColor, mask);
     color.a = max(edgeColor.a, centerColor.a);

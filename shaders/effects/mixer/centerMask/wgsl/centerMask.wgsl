@@ -48,7 +48,9 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let corner = dims / minRes;
 
     let dist01 = clamp01(distance_metric(p, corner, metric));
-    let mask = pow(dist01, max(power, 0.0));
+    // Remap power from -100..100 to 0.1..50
+    let scaledPower = mix(0.1, 50.0, (power + 100.0) / 200.0);
+    let mask = pow(dist01, scaledPower);
 
     var color = mix(centerColor, edgeColor, mask);
     color.a = max(edgeColor.a, centerColor.a);

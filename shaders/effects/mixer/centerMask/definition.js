@@ -27,13 +27,13 @@ export default new Effect({
         control: "dropdown"
       }
     },
-    power: {
+    mixAmt: {
       type: "float",
-      default: 2,
+      default: 0,
       uniform: "power",
-      min: 0.1,
-      max: 50,
-      ui: { label: "power", control: "slider" }
+      min: -100,
+      max: 100,
+      ui: { label: "mix", control: "slider" }
     }
   },
   passes: [
