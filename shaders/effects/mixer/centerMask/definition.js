@@ -18,14 +18,22 @@ export default new Effect({
       default: 2,
       uniform: "metric",
       choices: {
-        euclidean: 0,
-        manhattan: 1,
-        chebyshev: 2
+        circle: 0,
+        diamond: 1,
+        square: 2
       },
       ui: {
         label: "distance metric",
         control: "dropdown"
       }
+    },
+    hardness: {
+      type: "float",
+      default: 0,
+      uniform: "hardness",
+      min: 0,
+      max: 100,
+      ui: { label: "edge hardness", control: "slider" }
     },
     mixAmt: {
       type: "float",

@@ -3,6 +3,7 @@
 @group(0) @binding(2) var tex : texture_2d<f32>;
 @group(0) @binding(3) var<uniform> power : f32;
 @group(0) @binding(4) var<uniform> metric : i32;
+@group(0) @binding(5) var<uniform> hardness : f32;
 
 fn clamp01(x: f32) -> f32 {
     return clamp(x, 0.0, 1.0);
@@ -48,9 +49,23 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let corner = dims / minRes;
 
     let dist01 = clamp01(distance_metric(p, corner, metric));
-    // Remap power from -100..100 to 0.1..50
-    let scaledPower = mix(0.1, 50.0, (power + 100.0) / 200.0);
-    let mask = pow(dist01, scaledPower);
+    // Remap power from -100..100 to 0.1..25.05 (Old 0 maps to New 100)
+    let scaledPower = mix(0.1, 25.05, (power + 100.0) / 200.0);
+    var mask = pow(dist01, scaledPower);
+
+    // Apply hardness
+    let h = clamp(hardness / 100.0, 0.0, 0.995);
+    let width = (1.0 - h) * 0.5;
+    mask = smoothstep(0.5 - width, 0.5 + width, mask);
+
+    // Edge fading:
+    // power < -95: fade to edgeColor (mask=1)
+    // power > 95: fade to centerColor (mask=0)
+    let f_low = clamp((power + 100.0) / 5.0, 0.0, 1.0);
+    let f_high = clamp((100.0 - power) / 5.0, 0.0, 1.0);
+
+    mask = mix(1.0, mask, f_low);
+    mask = mask * f_high;
 
     var color = mix(centerColor, edgeColor, mask);
     color.a = max(edgeColor.a, centerColor.a);
