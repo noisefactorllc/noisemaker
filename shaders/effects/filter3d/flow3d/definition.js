@@ -29,7 +29,7 @@ export default new Effect({
   name: "Flow3D",
   namespace: "filter3d",
   func: "flow3d",
-  tags: ["math", "vol"],
+  tags: ["math", "3d"],
 
   description: "3D agent-based flow field",
   textures: {

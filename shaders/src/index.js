@@ -48,6 +48,8 @@ export {
     isValidIdentifier,
     sanitizeEnumName,
     hasTexSurfaceParam,
+    hasExplicitTexParam,
+    getVolGeoParams,
     needsInputTex3d,
     is3dGenerator,
     is3dProcessor,

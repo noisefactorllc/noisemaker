@@ -28,7 +28,8 @@
         { namespace: 'filter' },
         { namespace: 'mixer' },
         { namespace: 'synth' },
-        { namespace: 'vol' },
+        { namespace: 'synth3d' },
+        { namespace: 'filter3d' },
         { namespace: 'classicNoisedeck' },
         { namespace: 'classicNoisemaker' }
     ];

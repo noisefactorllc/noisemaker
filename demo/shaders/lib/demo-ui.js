@@ -24,6 +24,8 @@ import {
     cloneParamValue,
     isStarterEffect,
     hasTexSurfaceParam,
+    hasExplicitTexParam,
+    getVolGeoParams,
     is3dGenerator,
     is3dProcessor,
     sanitizeEnumName
@@ -404,6 +406,8 @@ export class UIController {
         this._readSourceOverrides = {} // Map: stepIndex -> surfaceName for read() source
         this._read3dVolOverrides = {} // Map: stepIndex -> volName for read3d() volume source (vol0-vol7)
         this._read3dGeoOverrides = {} // Map: stepIndex -> geoName for read3d() geometry source (geo0-geo7)
+        this._write3dVolOverrides = {} // Map: stepIndex -> volName for write3d() volume target (vol0-vol7)
+        this._write3dGeoOverrides = {} // Map: stepIndex -> geoName for write3d() geometry target (geo0-geo7)
         this._parsedDslStructure = []
         this._allEffects = []
 
@@ -1165,6 +1169,9 @@ export class UIController {
 
         const starter = isStarterEffect(effect)
         const hasTex = hasTexSurfaceParam(effect)
+        const hasExplicitTex = hasExplicitTexParam(effect)
+        const { volParam, geoParam } = getVolGeoParams(effect)
+        const hasVolGeo = volParam && geoParam
 
         // Helper to format a call
         const fmtCall = (name, kwargs) => this._formatEffectCall(name, kwargs)
@@ -1174,17 +1181,93 @@ export class UIController {
 
         // 3D volume generators
         if (is3dGenerator(effect)) {
-            const kwargs = this._buildKwargs(effect.instance.globals, this._parameterValues)
+            let consumerVolumeSize = 32
+            const kwargs = {}
+            if (effect.instance.globals) {
+                for (const [key, spec] of Object.entries(effect.instance.globals)) {
+                    // Skip vol/geo params - we'll set them explicitly if present
+                    if (key === volParam || key === geoParam) continue
+                    const value = this._parameterValues[key]
+                    if (value === undefined || value === null) continue
+                    if (key === 'volumeSize') consumerVolumeSize = value
+
+                    // Skip _skip: false
+                    if (key === '_skip' && value === false) continue
+
+                    // Check against default value
+                    if (spec.default !== undefined) {
+                        const formattedValue = this._boundFormatValue(value, spec)
+                        const formattedDefault = this._boundFormatValue(spec.default, spec)
+                        if (formattedValue === formattedDefault) continue
+                    }
+
+                    kwargs[key] = value
+                }
+            }
+
+            // If generator has vol/geo params, generate 3D input for seeding
+            if (hasVolGeo) {
+                kwargs[volParam] = { type: 'Read3D', tex3d: { type: 'VolRef', name: 'vol0' }, geo: null }
+                kwargs[geoParam] = { type: 'Read3D', tex3d: { type: 'GeoRef', name: 'geo0' }, geo: null }
+                const generatorCall = fmtCall('noise3d', { volumeSize: `x${consumerVolumeSize}` })
+                const effectCall = fmtCall(funcName, kwargs)
+                return `search synth3d, filter3d\n\n${generatorCall}\n  .write3d(vol0, geo0)\n\n${effectCall}\n  .render3d()\n  .write(o0)`
+            }
+
             const effectCall = fmtCall(funcName, kwargs)
             return `search synth3d, filter3d\n\n${effectCall}\n  .render3d()\n  .write(o0)`
+        }
+
+        // Effects with explicit vol/geo parameters (not pipeline inputs)
+        // Generate 3D input and pass to vol/geo params
+        if (hasVolGeo) {
+            let consumerVolumeSize = 32
+            const kwargs = {}
+            if (effect.instance.globals) {
+                for (const [key, spec] of Object.entries(effect.instance.globals)) {
+                    // Skip vol/geo params - we'll set them explicitly
+                    if (key === volParam || key === geoParam) continue
+                    const value = this._parameterValues[key]
+                    if (value === undefined || value === null) continue
+                    if (key === 'volumeSize') consumerVolumeSize = value
+
+                    // Skip _skip: false
+                    if (key === '_skip' && value === false) continue
+
+                    // Check against default value
+                    if (spec.default !== undefined) {
+                        const formattedValue = this._boundFormatValue(value, spec)
+                        const formattedDefault = this._boundFormatValue(spec.default, spec)
+                        if (formattedValue === formattedDefault) continue
+                    }
+
+                    kwargs[key] = value
+                }
+            }
+            // Add vol/geo params with read3d() references
+            kwargs[volParam] = { type: 'Read3D', tex3d: { type: 'VolRef', name: 'vol0' }, geo: null }
+            kwargs[geoParam] = { type: 'Read3D', tex3d: { type: 'GeoRef', name: 'geo0' }, geo: null }
+            const generatorCall = fmtCall('noise3d', { volumeSize: `x${consumerVolumeSize}` })
+            const effectCall = fmtCall(funcName, kwargs)
+            return `search synth3d, filter3d\n\n${generatorCall}\n  .write3d(vol0, geo0)\n\n${effectCall}\n  .render3d()\n  .write(o0)`
+        }
+
+        // Effects with explicit tex param (not inputTex default) - generate input
+        if (hasExplicitTex) {
+            const kwargs = this._buildKwargs(effect.instance.globals, this._parameterValues)
+            // Override tex with read(o0)
+            kwargs.tex = { type: 'Read', surface: 'o0' }
+            const effectCall = fmtCall(funcName, kwargs)
+            return `${searchDirective}${noiseCall}\n  .write(o0)\n\n${effectCall}\n  .write(o1)`
         }
 
         if (starter) {
             const kwargs = this._buildKwargs(effect.instance.globals, this._parameterValues)
 
             if (hasTex) {
-                const sourceSurface = 'o1'
-                const outputSurface = 'o0'
+                // First chain writes to o0, effect reads from o0 and writes to o1
+                const sourceSurface = 'o0'
+                const outputSurface = 'o1'
                 // Add tex as first param for effects with texture input
                 const kwargsWithTex = { tex: { type: 'Read', surface: sourceSurface }, ...kwargs }
                 const effectCall = fmtCall(funcName, kwargsWithTex)
@@ -1193,7 +1276,8 @@ export class UIController {
             const effectCall = fmtCall(funcName, kwargs)
             return `${searchDirective}${effectCall}\n  .write(o0)`
         } else if (hasTex) {
-            const kwargs = { tex: { type: 'Read', surface: 'o1' } }
+            // First chain writes to o0, second chain writes through effect to o1
+            const kwargs = { tex: { type: 'Read', surface: 'o0' } }
             if (effect.instance.globals) {
                 for (const [key, spec] of Object.entries(effect.instance.globals)) {
                     if (key === 'tex' && spec.type === 'surface') continue
@@ -1215,7 +1299,7 @@ export class UIController {
             }
             const effectCall = fmtCall(funcName, kwargs)
             const noiseCall2 = fmtCall('noise', { seed: 2, ridges: true })
-            return `${searchDirective}${noiseCall}\n  .write(o1)\n\n${noiseCall2}\n  .${effectCall}\n  .write(o0)`
+            return `${searchDirective}${noiseCall}\n  .write(o0)\n\n${noiseCall2}\n  .${effectCall}\n  .write(o1)`
         } else if (is3dProcessor(effect)) {
             let consumerVolumeSize = 32
             const kwargs = {}
@@ -1320,6 +1404,35 @@ export class UIController {
                             // Apply geometry override
                             if (this._read3dGeoOverrides && this._read3dGeoOverrides[globalStepIndex] !== undefined) {
                                 const geoName = this._read3dGeoOverrides[globalStepIndex]
+                                step.args.geo = {
+                                    kind: 'geo',
+                                    name: geoName
+                                }
+                            }
+                        }
+                        globalStepIndex++
+                    }
+                }
+            }
+
+            // Apply write3d volume and geometry overrides
+            if (this._write3dVolOverrides || this._write3dGeoOverrides) {
+                let globalStepIndex = 0
+                for (const plan of compiled.plans) {
+                    if (!plan.chain) continue
+                    for (const step of plan.chain) {
+                        if (step.builtin && step.op === '_write3d') {
+                            // Apply volume override
+                            if (this._write3dVolOverrides && this._write3dVolOverrides[globalStepIndex] !== undefined) {
+                                const volName = this._write3dVolOverrides[globalStepIndex]
+                                step.args.tex3d = {
+                                    kind: 'vol',
+                                    name: volName
+                                }
+                            }
+                            // Apply geometry override
+                            if (this._write3dGeoOverrides && this._write3dGeoOverrides[globalStepIndex] !== undefined) {
+                                const geoName = this._write3dGeoOverrides[globalStepIndex]
                                 step.args.geo = {
                                     kind: 'geo',
                                     name: geoName
@@ -1442,6 +1555,8 @@ export class UIController {
         this._readSourceOverrides = {}
         this._read3dVolOverrides = {}
         this._read3dGeoOverrides = {}
+        this._write3dVolOverrides = {}
+        this._write3dGeoOverrides = {}
 
         // Parse DSL to get plans with write targets
         let compiled = null
@@ -1534,10 +1649,26 @@ export class UIController {
 
             // Handle builtin _read3d steps - create UI module with vol/geo dropdowns
             if (effectInfo.effectKey === '_read3d') {
-                const read3dSource = effectInfo.rawStep?.args || {}
+                const read3dSource = effectInfo.args || {}
                 const read3dModule = this._createRead3dModule(effectInfo.stepIndex, read3dSource)
                 this._controlsContainer.appendChild(read3dModule)
                 currentOccurrenceCount[effectName]++
+                continue
+            }
+
+            // Handle builtin _write3d steps - render as write3d module (exactly like _write)
+            if (effectInfo.effectKey === '_write3d') {
+                currentOccurrenceCount[effectName]++
+                const planIndex = stepToPlan.get(effectInfo.stepIndex)
+                const write3dArgs = effectInfo.args || {}
+                if (write3dArgs.tex3d) {
+                    // Check if this is a mid-chain write3d (not the last step in the plan's chain)
+                    const isLastStepInPlan = effectInfo.stepIndex === Math.max(...effects.filter(e => stepToPlan.get(e.stepIndex) === planIndex).map(e => e.stepIndex))
+                    const isMidChain = !isLastStepInPlan
+
+                    const write3dModule = this._createWrite3dModule(planIndex, effectInfo.stepIndex, write3dArgs, isMidChain)
+                    this._controlsContainer.appendChild(write3dModule)
+                }
                 continue
             }
 
@@ -2021,7 +2152,11 @@ export class UIController {
         const select = document.createElement('select')
         select.className = 'control-select'
 
-        // Add output surfaces o0-o7
+        // Add 'none' option and output surfaces o0-o7
+        const noneOption = document.createElement('option')
+        noneOption.value = 'none'
+        noneOption.textContent = 'none'
+        select.appendChild(noneOption)
         for (let i = 0; i < 8; i++) {
             const option = document.createElement('option')
             option.value = `o${i}`
@@ -2146,7 +2281,11 @@ export class UIController {
         const select = document.createElement('select')
         select.className = 'control-select'
 
-        // Add output surfaces o0-o7
+        // Add 'none' option and output surfaces o0-o7
+        const noneOption = document.createElement('option')
+        noneOption.value = 'none'
+        noneOption.textContent = 'none'
+        select.appendChild(noneOption)
         for (let i = 0; i < 8; i++) {
             const option = document.createElement('option')
             option.value = `o${i}`
@@ -2264,7 +2403,11 @@ export class UIController {
         const volSelect = document.createElement('select')
         volSelect.className = 'control-select'
 
-        // Add volume surfaces vol0-vol7
+        // Add 'none' option and volume surfaces vol0-vol7
+        const volNoneOption = document.createElement('option')
+        volNoneOption.value = 'none'
+        volNoneOption.textContent = 'none'
+        volSelect.appendChild(volNoneOption)
         for (let i = 0; i < 8; i++) {
             const option = document.createElement('option')
             option.value = `vol${i}`
@@ -2300,7 +2443,11 @@ export class UIController {
         const geoSelect = document.createElement('select')
         geoSelect.className = 'control-select'
 
-        // Add geometry surfaces geo0-geo7
+        // Add 'none' option and geometry surfaces geo0-geo7
+        const geoNoneOption = document.createElement('option')
+        geoNoneOption.value = 'none'
+        geoNoneOption.textContent = 'none'
+        geoSelect.appendChild(geoNoneOption)
         for (let i = 0; i < 8; i++) {
             const option = document.createElement('option')
             option.value = `geo${i}`
@@ -2314,6 +2461,126 @@ export class UIController {
 
         geoSelect.addEventListener('change', (e) => {
             this._read3dGeoOverrides[stepIndex] = e.target.value
+            this._onControlChange()
+        })
+
+        geoGroup.appendChild(geoSelect)
+        controlsDiv.appendChild(geoGroup)
+
+        contentDiv.appendChild(controlsDiv)
+        moduleDiv.appendChild(contentDiv)
+
+        return moduleDiv
+    }
+
+    /**
+     * Create a write3d module for a step
+     * @private
+     * @param {number} planIndex - The plan index
+     * @param {number} stepIndex - The step index for this write3d
+     * @param {object} write3dArgs - The write3d args containing tex3d and geo
+     * @param {boolean} isMidChain - Whether this is a mid-chain write3d (not terminal)
+     */
+    _createWrite3dModule(planIndex, stepIndex, write3dArgs, isMidChain = false) {
+        const moduleDiv = document.createElement('div')
+        moduleDiv.className = 'shader-module'
+        moduleDiv.dataset.planIndex = planIndex
+        moduleDiv.dataset.stepIndex = stepIndex
+        moduleDiv.dataset.effectName = 'write3d'
+
+        // Mark mid-chain writes with data attribute for CSS targeting
+        if (isMidChain) {
+            moduleDiv.dataset.midChain = 'true'
+        }
+
+        const titleDiv = document.createElement('div')
+        titleDiv.className = 'module-title'
+        titleDiv.textContent = 'write3d'
+        titleDiv.addEventListener('click', () => {
+            moduleDiv.classList.toggle('collapsed')
+        })
+        moduleDiv.appendChild(titleDiv)
+
+        const contentDiv = document.createElement('div')
+        contentDiv.className = 'module-content'
+
+        const controlsDiv = document.createElement('div')
+        controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;'
+
+        // Create volume dropdown (vol0-vol7)
+        const volGroup = document.createElement('div')
+        volGroup.className = 'control-group'
+
+        const volHeader = document.createElement('div')
+        volHeader.className = 'control-header'
+
+        const volLabel = document.createElement('label')
+        volLabel.className = 'control-label'
+        volLabel.textContent = 'volume'
+        volHeader.appendChild(volLabel)
+        volGroup.appendChild(volHeader)
+
+        const volSelect = document.createElement('select')
+        volSelect.className = 'control-select'
+
+        // Add 'none' option and volume surfaces vol0-vol7
+        const volNoneOption = document.createElement('option')
+        volNoneOption.value = 'none'
+        volNoneOption.textContent = 'none'
+        volSelect.appendChild(volNoneOption)
+        for (let i = 0; i < 8; i++) {
+            const option = document.createElement('option')
+            option.value = `vol${i}`
+            option.textContent = `vol${i}`
+            volSelect.appendChild(option)
+        }
+
+        // Set current value
+        const currentVol = write3dArgs.tex3d?.name || 'vol0'
+        volSelect.value = currentVol
+
+        volSelect.addEventListener('change', (e) => {
+            this._write3dVolOverrides[stepIndex] = e.target.value
+            this._onControlChange()
+        })
+
+        volGroup.appendChild(volSelect)
+        controlsDiv.appendChild(volGroup)
+
+        // Create geometry dropdown (geo0-geo7)
+        const geoGroup = document.createElement('div')
+        geoGroup.className = 'control-group'
+
+        const geoHeader = document.createElement('div')
+        geoHeader.className = 'control-header'
+
+        const geoLabel = document.createElement('label')
+        geoLabel.className = 'control-label'
+        geoLabel.textContent = 'geometry'
+        geoHeader.appendChild(geoLabel)
+        geoGroup.appendChild(geoHeader)
+
+        const geoSelect = document.createElement('select')
+        geoSelect.className = 'control-select'
+
+        // Add 'none' option and geometry surfaces geo0-geo7
+        const geoNoneOption = document.createElement('option')
+        geoNoneOption.value = 'none'
+        geoNoneOption.textContent = 'none'
+        geoSelect.appendChild(geoNoneOption)
+        for (let i = 0; i < 8; i++) {
+            const option = document.createElement('option')
+            option.value = `geo${i}`
+            option.textContent = `geo${i}`
+            geoSelect.appendChild(option)
+        }
+
+        // Set current value
+        const currentGeo = write3dArgs.geo?.name || 'geo0'
+        geoSelect.value = currentGeo
+
+        geoSelect.addEventListener('change', (e) => {
+            this._write3dGeoOverrides[stepIndex] = e.target.value
             this._onControlChange()
         })
 
@@ -3195,8 +3462,9 @@ export class UIController {
         const select = document.createElement('select')
         select.className = 'control-select'
 
-        // Available surfaces: o0-o7 for output surfaces
+        // Available surfaces: none + o0-o7 for output surfaces
         const surfaces = [
+            { id: 'none', label: 'none' },
             { id: 'o0', label: 'o0' },
             { id: 'o1', label: 'o1' },
             { id: 'o2', label: 'o2' },
@@ -3231,8 +3499,9 @@ export class UIController {
         })
 
         select.addEventListener('change', async (e) => {
-            // Store as read(surfaceId) format for DSL
-            this._effectParameterValues[effectKey][key] = `read(${e.target.value})`
+            // Store as read(surfaceId) format for DSL, or plain 'none' for disabled
+            const val = e.target.value
+            this._effectParameterValues[effectKey][key] = val === 'none' ? 'none' : `read(${val})`
             // Surface changes require a full pipeline recompile (not just uniform updates)
             this._updateDslFromEffectParams()
             await this._recompilePipeline()
@@ -3246,8 +3515,9 @@ export class UIController {
         const select = document.createElement('select')
         select.className = 'control-select'
 
-        // Available volumes: vol0-vol7
+        // Available volumes: none + vol0-vol7
         const volumes = [
+            { id: 'none', label: 'none' },
             { id: 'vol0', label: 'vol0' },
             { id: 'vol1', label: 'vol1' },
             { id: 'vol2', label: 'vol2' },
@@ -3297,8 +3567,9 @@ export class UIController {
         const select = document.createElement('select')
         select.className = 'control-select'
 
-        // Available geometry buffers: geo0-geo7
+        // Available geometry buffers: none + geo0-geo7
         const geometries = [
+            { id: 'none', label: 'none' },
             { id: 'geo0', label: 'geo0' },
             { id: 'geo1', label: 'geo1' },
             { id: 'geo2', label: 'geo2' },
@@ -3539,6 +3810,8 @@ export class UIController {
         this._readSourceOverrides = {}
         this._read3dVolOverrides = {}
         this._read3dGeoOverrides = {}
+        this._write3dVolOverrides = {}
+        this._write3dGeoOverrides = {}
     }
 
     /**
@@ -3574,4 +3847,4 @@ export class UIController {
 }
 
 // Re-export utilities that might be needed externally
-export { cloneParamValue, isStarterEffect, hasTexSurfaceParam, is3dGenerator, is3dProcessor, getEffect }
+export { cloneParamValue, isStarterEffect, hasTexSurfaceParam, hasExplicitTexParam, getVolGeoParams, is3dGenerator, is3dProcessor, getEffect }

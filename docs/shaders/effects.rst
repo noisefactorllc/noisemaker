@@ -102,15 +102,17 @@ Namespace is the primary categorization and acts as an implicit tag. Each effect
    * - ``classicNoisemaker``
      - Shader implementations of classic noisemaker effects
    * - ``synth``
-     - Generator modules
+     - 2D generator modules
    * - ``mixer``
      - Blend two sources from A to B
    * - ``filter``
-     - Apply special effects to input
+     - Apply special effects to 2D input
    * - ``sim``
      - Simulations with temporal state
-   * - ``vol``
-     - Experimental volumetric pipeline
+   * - ``synth3d``
+     - 3D volumetric generators (noise3d, ca3d, rd3d, cell3d, fractal3d, shape3d)
+   * - ``filter3d``
+     - 3D volumetric processors (flow3d, render3d)
 
 **Tags**
 
@@ -640,7 +642,7 @@ Effects that produce 3D volumes or geometry buffers declare the output at effect
 
    export default new Effect({
      name: "VolumeGenerator",
-     namespace: "vol",
+     namespace: "synth3d",
      textures: {
        volumeCache: { width: 64, height: 4096, format: "rgba16float" },
        geoBuffer: { width: "screen", height: "screen", format: "rgba16float" }

@@ -23,7 +23,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Render3D",
   namespace: "filter3d",
-  tags: ["util", "vol"],
+  tags: ["util", "3d"],
   func: "render3d",
 
   description: "Universal 3D volume raymarcher",

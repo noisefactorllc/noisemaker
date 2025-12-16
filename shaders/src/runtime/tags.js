@@ -42,6 +42,10 @@ export const TAG_DEFINITIONS = Object.freeze({
     sim: {
         id: 'sim',
         description: 'Simulations with temporal state'
+    },
+    '3d': {
+        id: '3d',
+        description: '3D volumetric effects'
     }
 })
 
@@ -73,11 +77,15 @@ export const NAMESPACE_DESCRIPTIONS = Object.freeze({
     },
     filter: {
         id: 'filter',
-        description: 'Apply special effects to input'
+        description: 'Apply special effects to 2D input'
     },
-    vol: {
-        id: 'vol',
-        description: 'Experimental volumetric pipeline'
+    synth3d: {
+        id: 'synth3d',
+        description: '3D volumetric generators'
+    },
+    filter3d: {
+        id: 'filter3d',
+        description: '3D volumetric processors'
     }
 })
 

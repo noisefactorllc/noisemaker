@@ -395,18 +395,23 @@ export function validate(ast) {
     function compileChainStatement(stmt) {
         const chain = []
 
-        // Check for S006: Starter chain missing write()
+        // Check for S006: Starter chain missing write() or write3d()
         const chainNode = { type: 'Chain', chain: stmt.chain }
-        if (!stmt.write && isStarterChain(chainNode)) {
+        const hasWrite = stmt.write || stmt.write3d
+        if (!hasWrite && isStarterChain(chainNode)) {
              pushDiag('S006', stmt.chain[0])
         }
 
-        // write target must be explicit
-        if (!stmt.write) {
-            pushDiag('S001', stmt.chain[0], 'Chain must have explicit write() target')
+        // write or write3d target must be explicit
+        if (!hasWrite) {
+            pushDiag('S001', stmt.chain[0], 'Chain must have explicit write() or write3d() target')
             return null
         }
-        const writeName = stmt.write.name
+        const writeName = stmt.write ? stmt.write.name : null
+        const write3dTarget = stmt.write3d ? {
+            tex3d: { kind: 'vol', name: stmt.write3d.tex3d?.name || stmt.write3d.tex3d },
+            geo: { kind: 'geo', name: stmt.write3d.geo?.name || stmt.write3d.geo }
+        } : null
         const states = []
 
         function processChain(calls, input, options = {}) {
@@ -434,7 +439,9 @@ export function validate(ast) {
                 }
 
                 // Handle Read3D node (pipeline built-in for reading 3D textures)
-                if (original.type === 'Read3D') {
+                // Two-arg form: read3d(vol0, geo0) - starter node
+                // Single-arg form is handled in param resolution, not here
+                if (original.type === 'Read3D' && original.geo) {
                     // Preserve the type for VolRef/GeoRef vs plain Ident
                     const tex3d = original.tex3d?.name
                         ? {
@@ -449,7 +456,7 @@ export function validate(ast) {
                         }
                         : null
                     if (!tex3d || !geo) {
-                        pushDiag('S001', original, 'read3d() requires tex3d and geo references')
+                        pushDiag('S001', original, 'read3d() as starter requires tex3d and geo references')
                         continue
                     }
                     const idx = tempIndex++
@@ -751,6 +758,60 @@ export function validate(ast) {
                         if (node && node.type === 'Member' && path) {
                             node.path = path.slice()
                         }
+                    } else if (def.type === 'volume') {
+                        // Volume reference parameter (vol0-vol7 or "none")
+                        let value = null
+                        // Handle Read3D nodes with single arg (read3d(vol0) for param use)
+                        if (node && node.type === 'Read3D' && node.tex3d && !node.geo) {
+                            const volName = node.tex3d.name
+                            if (/^vol[0-7]$/.test(volName)) {
+                                value = { kind: 'vol', name: volName }
+                            } else {
+                                pushDiag('S001', node, `Invalid volume reference '${volName}' in read3d() for '${def.name}' - expected vol0-vol7`)
+                                value = def.default ? { kind: 'vol', name: def.default } : null
+                            }
+                        } else if (node && node.type === 'VolRef') {
+                            value = { kind: 'vol', name: node.name }
+                        } else if (node && node.type === 'Ident') {
+                            if (node.name === 'none') {
+                                value = { kind: 'vol', name: 'none' }
+                            } else if (/^vol[0-7]$/.test(node.name)) {
+                                value = { kind: 'vol', name: node.name }
+                            } else {
+                                pushDiag('S001', node, `Invalid volume reference '${node.name}' for '${def.name}' - expected vol0-vol7 or none`)
+                                value = def.default ? { kind: 'vol', name: def.default } : null
+                            }
+                        } else if (!node && def.default) {
+                            value = { kind: 'vol', name: def.default }
+                        }
+                        args[argKey] = value
+                    } else if (def.type === 'geometry') {
+                        // Geometry reference parameter (geo0-geo7 or "none")
+                        let value = null
+                        // Handle Read3D nodes with single arg (read3d(geo0) for param use)
+                        if (node && node.type === 'Read3D' && node.tex3d && !node.geo) {
+                            const geoName = node.tex3d.name
+                            if (/^geo[0-7]$/.test(geoName)) {
+                                value = { kind: 'geo', name: geoName }
+                            } else {
+                                pushDiag('S001', node, `Invalid geometry reference '${geoName}' in read3d() for '${def.name}' - expected geo0-geo7`)
+                                value = def.default ? { kind: 'geo', name: def.default } : null
+                            }
+                        } else if (node && node.type === 'GeoRef') {
+                            value = { kind: 'geo', name: node.name }
+                        } else if (node && node.type === 'Ident') {
+                            if (node.name === 'none') {
+                                value = { kind: 'geo', name: 'none' }
+                            } else if (/^geo[0-7]$/.test(node.name)) {
+                                value = { kind: 'geo', name: node.name }
+                            } else {
+                                pushDiag('S001', node, `Invalid geometry reference '${node.name}' for '${def.name}' - expected geo0-geo7 or none`)
+                                value = def.default ? { kind: 'geo', name: def.default } : null
+                            }
+                        } else if (!node && def.default) {
+                            value = { kind: 'geo', name: def.default }
+                        }
+                        args[argKey] = value
                     } else {
                         let value
                         if (node && (node.type === 'Number' || node.type === 'Boolean')) {
@@ -953,7 +1014,7 @@ export function validate(ast) {
         if (stmt.write) {
             writeSurf = {kind:'output', name: stmt.write.name}
         }
-        return {chain, write: writeSurf, final: finalIndex, states}
+        return {chain, write: writeSurf, write3d: write3dTarget, final: finalIndex, states}
     }
 
     function compileBlock(body) {

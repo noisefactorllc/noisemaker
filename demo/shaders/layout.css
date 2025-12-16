@@ -745,24 +745,28 @@ body.full-bleed-mode #canvas {
   border-bottom: none; /* Prevent double borders */
 }
 
-/* Start of a chain: First child, read node, OR element after a terminal write node */
+/* Start of a chain: First child, read node, read3d node, OR element after a terminal write/write3d node */
 #effect-controls-container .shader-module:first-child,
 #effect-controls-container .shader-module[data-effect-name="read"],
-#effect-controls-container .shader-module[data-effect-name="write"]:not([data-mid-chain="true"]) + .shader-module {
+#effect-controls-container .shader-module[data-effect-name="read3d"],
+#effect-controls-container .shader-module[data-effect-name="write"]:not([data-mid-chain="true"]) + .shader-module,
+#effect-controls-container .shader-module[data-effect-name="write3d"]:not([data-mid-chain="true"]) + .shader-module {
   border-top-left-radius: var(--ui-corner-radius);
   border-top-right-radius: var(--ui-corner-radius);
 }
 
-/* End of a chain: Write node OR Last child */
+/* End of a chain: Write/write3d node OR Last child */
 #effect-controls-container .shader-module[data-effect-name="write"],
+#effect-controls-container .shader-module[data-effect-name="write3d"],
 #effect-controls-container .shader-module:last-child {
   border-bottom-left-radius: var(--ui-corner-radius);
   border-bottom-right-radius: var(--ui-corner-radius);
   border-bottom: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
 }
 
-/* Restore spacing after a chain ends (after terminal write node, not mid-chain) */
-#effect-controls-container .shader-module[data-effect-name="write"]:not([data-mid-chain="true"]) {
+/* Restore spacing after a chain ends (after terminal write/write3d node, not mid-chain) */
+#effect-controls-container .shader-module[data-effect-name="write"]:not([data-mid-chain="true"]),
+#effect-controls-container .shader-module[data-effect-name="write3d"]:not([data-mid-chain="true"]) {
   margin-bottom: 0.5rem !important;
 }
 

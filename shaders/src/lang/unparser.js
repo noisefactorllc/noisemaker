@@ -166,10 +166,16 @@ function formatValue(value, spec, customFormatter) {
             return `read(${surfaceName})`
         }
         // Handle Read3D node (pipeline built-in)
+        // 1 arg: read3d(vol0) - for param use
+        // 2 args: read3d(vol0, geo0) - starter node
         if (value.type === 'Read3D') {
             const tex3dName = value.tex3d?.name || value.tex3d
-            const geoName = value.geo?.name || value.geo
-            return `read3d(${tex3dName}, ${geoName})`
+            if (value.geo) {
+                const geoName = value.geo?.name || value.geo
+                return `read3d(${tex3dName}, ${geoName})`
+            } else {
+                return `read3d(${tex3dName})`
+            }
         }
         if (value.type === 'OutputRef') {
             return value.name

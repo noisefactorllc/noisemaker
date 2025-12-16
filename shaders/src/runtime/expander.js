@@ -129,59 +129,62 @@ export function expand(compilationResult, options = {}) {
             if (step.builtin && step.op === '_write') {
                 const tex = step.args?.tex
                 if (tex && currentInput) {
-                    const targetSurface = `global_${tex.name}`
+                    // Skip blit if target is "none" - just pass through
+                    if (tex.name !== 'none') {
+                        const targetSurface = `global_${tex.name}`
 
-                    // Only add blit if the current input is not already the target surface
-                    if (currentInput !== targetSurface) {
-                        const nodeId = `node_${step.temp}`
-                        const blitPass = {
-                            id: `${nodeId}_write_blit`,
-                            program: 'blit',
-                            type: 'render',
-                            inputs: { src: currentInput },
-                            outputs: { color: targetSurface },
-                            uniforms: {},
-                            nodeId: nodeId,
-                            stepIndex: step.temp
-                        }
-                        passes.push(blitPass)
-
-                        // Ensure blit program exists
-                        if (!programs['blit']) {
-                            programs['blit'] = {
-                                fragment: `#version 300 es
-                                    precision highp float;
-                                    in vec2 v_texCoord;
-                                    uniform sampler2D src;
-                                    out vec4 fragColor;
-                                    void main() {
-                                        fragColor = texture(src, v_texCoord);
-                                    }`,
-                                wgsl: `
-                                    struct FragmentInput {
-                                        @builtin(position) position: vec4<f32>,
-                                        @location(0) uv: vec2<f32>,
-                                    }
-
-                                    @group(0) @binding(0) var src: texture_2d<f32>;
-                                    @group(0) @binding(1) var srcSampler: sampler;
-
-                                    @fragment
-                                    fn main(in: FragmentInput) -> @location(0) vec4<f32> {
-                                        // Flip Y to match WebGPU texture coordinate convention
-                                        let uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
-                                        return textureSample(src, srcSampler, uv);
-                                    }
-                                `,
-                                fragmentEntryPoint: 'main'
+                        // Only add blit if the current input is not already the target surface
+                        if (currentInput !== targetSurface) {
+                            const nodeId = `node_${step.temp}`
+                            const blitPass = {
+                                id: `${nodeId}_write_blit`,
+                                program: 'blit',
+                                type: 'render',
+                                inputs: { src: currentInput },
+                                outputs: { color: targetSurface },
+                                uniforms: {},
+                                nodeId: nodeId,
+                                stepIndex: step.temp
                             }
+                            passes.push(blitPass)
+
+                            // Ensure blit program exists
+                            if (!programs['blit']) {
+                                programs['blit'] = {
+                                    fragment: `#version 300 es
+                                        precision highp float;
+                                        in vec2 v_texCoord;
+                                        uniform sampler2D src;
+                                        out vec4 fragColor;
+                                        void main() {
+                                            fragColor = texture(src, v_texCoord);
+                                        }`,
+                                    wgsl: `
+                                        struct FragmentInput {
+                                            @builtin(position) position: vec4<f32>,
+                                            @location(0) uv: vec2<f32>,
+                                        }
+
+                                        @group(0) @binding(0) var src: texture_2d<f32>;
+                                        @group(0) @binding(1) var srcSampler: sampler;
+
+                                        @fragment
+                                        fn main(in: FragmentInput) -> @location(0) vec4<f32> {
+                                            // Flip Y to match WebGPU texture coordinate convention
+                                            let uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
+                                            return textureSample(src, srcSampler, uv);
+                                        }
+                                    `,
+                                    fragmentEntryPoint: 'main'
+                                }
+                            }
+
+                            // Track last written surface for render directive
+                            lastWrittenSurface = tex.name
+
+                            // Track this inline write target so we can skip redundant final blit
+                            lastInlineWriteTarget = { kind: tex.kind, name: tex.name }
                         }
-
-                        // Track last written surface for render directive
-                        lastWrittenSurface = tex.name
-
-                        // Track this inline write target so we can skip redundant final blit
-                        lastInlineWriteTarget = { kind: tex.kind, name: tex.name }
                     }
 
                     // Pass through: the output of write() is the same texture that was written
@@ -200,8 +203,8 @@ export function expand(compilationResult, options = {}) {
                 const geo = step.args?.geo
                 const nodeId = `node_${step.temp}`
 
-                // Blit 3D volume to target global surface
-                if (tex3d && currentInput3d) {
+                // Blit 3D volume to target global surface (skip if "none")
+                if (tex3d && tex3d.name !== 'none' && currentInput3d) {
                     const targetVol = `global_${tex3d.name}`
 
                     // Only add blit if the current input is not already the target
@@ -251,8 +254,8 @@ export function expand(compilationResult, options = {}) {
                     }
                 }
 
-                // Blit geometry buffer to target global surface
-                if (geo && currentInputGeo) {
+                // Blit geometry buffer to target global surface (skip if "none")
+                if (geo && geo.name !== 'none' && currentInputGeo) {
                     const targetGeo = `global_${geo.name}`
 
                     // Only add blit if the current input is not already the target
@@ -574,14 +577,24 @@ export function expand(compilationResult, options = {}) {
                             if (arg.kind === 'temp') {
                                 pass.inputs[uniformName] = textureMap.get(`node_${arg.index}_out`)
                             } else if (arg.kind === 'output') {
+                                // "none" means no binding - skip this input
+                                if (arg.name === 'none') continue
                                 pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_o0
                             } else if (arg.kind === 'source') {
+                                // "none" means no binding - skip this input
+                                if (arg.name === 'none') continue
                                 pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_o0
                             } else if (arg.kind === 'vol') {
+                                // "none" means no binding - skip this input
+                                if (arg.name === 'none') continue
                                 pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_vol0
                             } else if (arg.kind === 'geo') {
+                                // "none" means no binding - skip this input
+                                if (arg.name === 'none') continue
                                 pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_geo0
                             } else if (typeof arg === 'string') {
+                                // "none" means no binding - skip this input
+                                if (arg === 'none') continue
                                 // Allow direct string bindings to legacy texture ids
                                 if (arg.startsWith('global_')) {
                                     pass.inputs[uniformName] = arg
@@ -598,7 +611,10 @@ export function expand(compilationResult, options = {}) {
                         } else if (effectDef.globals && effectDef.globals[texRef] && effectDef.globals[texRef].default !== undefined) {
                             // Parameter with default value - resolve the default
                             const defaultVal = effectDef.globals[texRef].default
-                            if (defaultVal === 'inputTex' || defaultVal === 'inputColor') {
+                            // "none" means no binding - skip this input
+                            if (defaultVal === 'none') {
+                                continue
+                            } else if (defaultVal === 'inputTex' || defaultVal === 'inputColor') {
                                 pass.inputs[uniformName] = currentInput || defaultVal
                             } else if (/^o[0-7]$/.test(defaultVal)) {
                                 pass.inputs[uniformName] = `global_${defaultVal}`

@@ -131,6 +131,42 @@ export function is3dProcessor(effect) {
 }
 
 /**
+ * Check if effect has a tex surface param that does NOT default to inputTex
+ * (i.e., requires explicit surface binding, not pipeline chaining)
+ * @param {object} effect - Effect object
+ * @returns {boolean}
+ */
+export function hasExplicitTexParam(effect) {
+    if (!effect || !effect.instance || !effect.instance.globals) {
+        return false
+    }
+    const texSpec = effect.instance.globals.tex
+    return texSpec && texSpec.type === 'surface' && texSpec.default !== 'inputTex'
+}
+
+/**
+ * Check if effect has volume and geometry type parameters
+ * @param {object} effect - Effect object
+ * @returns {{volParam: string|null, geoParam: string|null}} Parameter names or null
+ */
+export function getVolGeoParams(effect) {
+    if (!effect || !effect.instance || !effect.instance.globals) {
+        return { volParam: null, geoParam: null }
+    }
+    let volParam = null
+    let geoParam = null
+    for (const [key, spec] of Object.entries(effect.instance.globals)) {
+        if (spec.type === 'volume' && !volParam) {
+            volParam = key
+        }
+        if (spec.type === 'geometry' && !geoParam) {
+            geoParam = key
+        }
+    }
+    return { volParam, geoParam }
+}
+
+/**
  * Check if effect is a starter (doesn't need pipeline input)
  * @param {object} effect - Effect object
  * @returns {boolean}

@@ -161,11 +161,12 @@ New Namespaces
 
 These namespaces are actively developed and maintained:
 
-* ``synth``: Generator effects that create patterns from scratch (noise, shapes, fractals)
-* ``filter``: Single-input effects that transform images (blur, color adjustment, distortion)
+* ``synth``: 2D generator effects that create patterns from scratch (noise, shapes, fractals)
+* ``filter``: 2D single-input effects that transform images (blur, color adjustment, distortion)
 * ``mixer``: Two-input effects that combine images (blend modes, compositing)
 * ``sim``: Simulations with temporal state or feedback (cellular automata, simulations)
-* ``vol``: 3D volumetric generators and processors
+* ``synth3d``: 3D volumetric generator effects (noise3d, ca3d, rd3d)
+* ``filter3d``: 3D volumetric processor effects (flow3d, render3d)
 
 Classic Namespaces
 ^^^^^^^^^^^^^^^^^^
@@ -355,13 +356,18 @@ The DSL provides symmetric operations for reading and writing textures:
 
 **3D Textures:**
 
-* **write3d(tex3d, geo):** Writes to both a 3D texture and its geometry buffer.
+* **write3d(vol, geo):** Writes to both a 3D volume and its geometry buffer.
   
   - Example: ``noise3d(10).write3d(vol0, geo0)``
 
-* **read3d(tex3d, geo):** Reads from both a 3D texture and its geometry buffer. Built-in to the pipeline.
+* **read3d(vol, geo):** Reads from both a 3D volume and its geometry buffer (starter form).
   
-  - Example: ``read3d(vol0, geo0).rayMarch().write(o0)``
+  - Example: ``read3d(vol0, geo0).render3d().write(o0)``
+
+* **read3d(vol):** Single-arg form for passing volume references to effect parameters.
+  
+  - Example: ``ca3d(source: read3d(vol0), geoSource: read3d(geo0))``
+  - This mirrors the 2D ``read(o0)`` pattern for surface parameters.
 
 Surfaces and Outputs
 ^^^^^^^^^^^^^^^^^^^^
@@ -370,16 +376,19 @@ The DSL allows writing to named outputs (Surfaces) and reading from them.
 
 **2D Surfaces:**
 
-* **Global Surfaces:** ``o0``, ``o1``, ``o2``, ``o3``, ``o4``, ``o5``, ``o6``, ``o7`` are persistent 2D textures.
+* **Global Surfaces:** ``o0``-``o7`` are persistent 2D textures.
 * **Output:** ``.write(o0)`` marks the chain as writing to ``o0``.
 * **Input:** ``read(o0)`` creates a read dependency on ``o0``.
+* **None:** ``none`` disables a surface parameter (e.g., ``effect(tex: none)``).
 
 **3D Volume Surfaces:**
 
-* **Global Volumes:** ``vol0``, ``vol1``, ``vol2``, ``vol3``, ``vol4``, ``vol5``, ``vol6``, ``vol7`` are persistent 3D texture volumes (default 64³).
-* **Global Geometry Buffers:** ``geo0``, ``geo1``, ``geo2``, ``geo3``, ``geo4``, ``geo5``, ``geo6``, ``geo7`` are 2D geometry buffers storing surface normals and depth from raymarched effects.
+* **Global Volumes:** ``vol0``-``vol7`` are persistent 3D texture volumes (default 64³).
+* **Global Geometry Buffers:** ``geo0``-``geo7`` are 2D geometry buffers storing surface normals and depth.
 * **Output:** ``.write3d(vol0, geo0)`` writes 3D volume data and geometry to the specified surfaces.
-* **Input:** ``read3d(vol0, geo0)`` reads from a volume and its associated geometry buffer.
+* **Input (starter):** ``read3d(vol0, geo0)`` reads from a volume and its geometry buffer to start a chain.
+* **Input (param):** ``read3d(vol0)`` or ``read3d(geo0)`` passes a reference to an effect parameter.
+* **None:** ``none`` disables a volume/geometry parameter (e.g., ``ca3d(source: none)``).
 
 The geometry buffers store precomputed raymarching results (xyz=surface normal, w=depth), enabling downstream post-processing effects without re-raymarching.
 

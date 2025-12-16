@@ -461,8 +461,11 @@ export function parse(tokens) {
             let surface = null
             if (peek().type === 'OUTPUT_REF') {
                 surface = { type: 'OutputRef', name: advance().lexeme }
+            } else if (peek().type === 'IDENT' && peek().lexeme === 'none') {
+                // "none" is a valid target meaning "don't write to any surface"
+                surface = { type: 'OutputRef', name: advance().lexeme }
             } else {
-                throw new SyntaxError(`write() requires an explicit surface reference (e.g., o0, o1) at line ${peek().line} col ${peek().col}`)
+                throw new SyntaxError(`write() requires an explicit surface reference (e.g., o0, o1, none) at line ${peek().line} col ${peek().col}`)
             }
             expect('RPAREN', "Expect ')'")
             return {
@@ -575,14 +578,16 @@ export function parse(tokens) {
                 loc: { line: nameToken.line, col: nameToken.col }
             }
         }
-        // read3d() reads from both tex3d and geo surfaces
+        // read3d() reads from tex3d (and optionally geo) surfaces
+        // 1 arg: read3d(vol0) - returns volume reference for use in params
+        // 2 args: read3d(vol0, geo0) - starter node that samples 3D texture
         if (nameToken.lexeme === 'read3d') {
             let tex3d = args[0] || kwargs.tex3d
             let geo = args[1] || kwargs.geo
             return {
                 type: 'Read3D',
                 tex3d: tex3d,
-                geo: geo,
+                geo: geo || null,  // null for single-arg form
                 loc: { line: nameToken.line, col: nameToken.col }
             }
         }
