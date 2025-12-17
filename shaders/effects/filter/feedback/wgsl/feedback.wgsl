@@ -331,7 +331,7 @@ fn cloak(st: vec2<f32>) -> vec4<f32> {
 
 @fragment
 fn main(input: VertexOutput) -> @location(0) vec4<f32> {
-    let uv = vec2<f32>(input.uv.x, 1.0 - input.uv.y);
+    let uv = input.uv;
     
     // If resetState is true, bypass feedback and return input directly
     if (uniforms.resetState != 0) {
