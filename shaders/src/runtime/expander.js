@@ -577,26 +577,38 @@ export function expand(compilationResult, options = {}) {
                             if (arg.kind === 'temp') {
                                 pass.inputs[uniformName] = textureMap.get(`node_${arg.index}_out`)
                             } else if (arg.kind === 'output') {
-                                // "none" means no binding - skip this input
-                                if (arg.name === 'none') continue
-                                pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_o0
+                                // "none" binds to blank/default texture
+                                if (arg.name === 'none') {
+                                    pass.inputs[uniformName] = 'none'
+                                } else {
+                                    pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_o0
+                                }
                             } else if (arg.kind === 'source') {
-                                // "none" means no binding - skip this input
-                                if (arg.name === 'none') continue
-                                pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_o0
+                                // "none" binds to blank/default texture
+                                if (arg.name === 'none') {
+                                    pass.inputs[uniformName] = 'none'
+                                } else {
+                                    pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_o0
+                                }
                             } else if (arg.kind === 'vol') {
-                                // "none" means no binding - skip this input
-                                if (arg.name === 'none') continue
-                                pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_vol0
+                                // "none" binds to blank/default texture
+                                if (arg.name === 'none') {
+                                    pass.inputs[uniformName] = 'none'
+                                } else {
+                                    pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_vol0
+                                }
                             } else if (arg.kind === 'geo') {
-                                // "none" means no binding - skip this input
-                                if (arg.name === 'none') continue
-                                pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_geo0
+                                // "none" binds to blank/default texture
+                                if (arg.name === 'none') {
+                                    pass.inputs[uniformName] = 'none'
+                                } else {
+                                    pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_geo0
+                                }
                             } else if (typeof arg === 'string') {
-                                // "none" means no binding - skip this input
-                                if (arg === 'none') continue
-                                // Allow direct string bindings to legacy texture ids
-                                if (arg.startsWith('global_')) {
+                                // "none" binds to blank/default texture
+                                if (arg === 'none') {
+                                    pass.inputs[uniformName] = 'none'
+                                } else if (arg.startsWith('global_')) {
                                     pass.inputs[uniformName] = arg
                                 } else if (/^o[0-7]$/.test(arg)) {
                                     pass.inputs[uniformName] = `global_${arg}`
@@ -611,9 +623,9 @@ export function expand(compilationResult, options = {}) {
                         } else if (effectDef.globals && effectDef.globals[texRef] && effectDef.globals[texRef].default !== undefined) {
                             // Parameter with default value - resolve the default
                             const defaultVal = effectDef.globals[texRef].default
-                            // "none" means no binding - skip this input
+                            // "none" binds to blank/default texture
                             if (defaultVal === 'none') {
-                                continue
+                                pass.inputs[uniformName] = 'none'
                             } else if (defaultVal === 'inputTex' || defaultVal === 'inputColor') {
                                 pass.inputs[uniformName] = currentInput || defaultVal
                             } else if (/^o[0-7]$/.test(defaultVal)) {

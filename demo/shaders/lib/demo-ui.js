@@ -139,12 +139,24 @@ export function formatValue(value, spec, enums = {}) {
     if (type === 'surface') {
         // Handle object surface references (e.g., {kind: 'output', name: 'o1'})
         if (value && typeof value === 'object' && value.name) {
+            // "none" means no texture - return as-is for blank binding
+            if (value.name === 'none') {
+                return 'none'
+            }
             return `read(${value.name})`
         }
         if (typeof value !== 'string' || value.length === 0) {
             // Use spec default if available, otherwise use inputTex as the standard default
             const defaultSurface = spec?.default || 'inputTex'
+            // "none" means no texture - return as-is for blank binding
+            if (defaultSurface === 'none') {
+                return 'none'
+            }
             return `read(${defaultSurface})`
+        }
+        // "none" means no texture - return as-is for blank binding
+        if (value === 'none') {
+            return 'none'
         }
         if (value.includes('(')) {
             return value
@@ -167,7 +179,7 @@ export function formatValue(value, spec, enums = {}) {
             return value.name
         }
         if (typeof value !== 'string' || value.length === 0) {
-            return spec?.default || 'geo0'
+            return spec?.default  // *NO* explicit surface defaults
         }
         return value
     }

@@ -17,9 +17,8 @@ export default new Effect({
     cellSmooth: { slot: 1, components: 'w' },
     cellVariation: { slot: 2, components: 'x' },
     loopAmp: { slot: 2, components: 'y' },
-    texSource: { slot: 2, components: 'z' },
-    texInfluence: { slot: 2, components: 'w' },
-    texIntensity: { slot: 3, components: 'x' }
+    texInfluence: { slot: 2, components: 'z' },
+    texIntensity: { slot: 2, components: 'w' }
   },
   globals: {
     metric: {
@@ -105,17 +104,11 @@ export default new Effect({
         control: "slider"
       }
     },
-    texSource: {
-      type: "int",
-      default: 0,
-      uniform: "texSource",
-      choices: {
-        none: 0,
-        input: 3
-      },
+    tex: {
+      type: "surface",
+      default: "none",
       ui: {
-        label: "tex source",
-        control: "dropdown"
+        label: "texture"
       }
     },
     texInfluence: {
@@ -157,8 +150,8 @@ export default new Effect({
       name: "render",
       program: "cell",
       inputs: {
+        tex: "tex"
       },
-
       outputs: {
         fragColor: "outputTex"
       }

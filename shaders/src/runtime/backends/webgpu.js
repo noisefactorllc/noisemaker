@@ -1999,11 +1999,21 @@ export class WebGPUBackend extends Backend {
             for (const [samplerName, texId] of Object.entries(pass.inputs)) {
                 let textureView
 
-                const surfaceName = this.parseGlobalName(texId)
-                if (surfaceName) {
-                    textureView = state.surfaces?.[surfaceName]?.view
+                // "none" means bind the dummy/blank texture
+                if (texId === 'none') {
+                    textureView = this.dummyTextureView
                 } else {
-                    textureView = this.textures.get(texId)?.view
+                    const surfaceName = this.parseGlobalName(texId)
+                    if (surfaceName) {
+                        textureView = state.surfaces?.[surfaceName]?.view
+                    } else {
+                        textureView = this.textures.get(texId)?.view
+                    }
+                }
+
+                // Fall back to dummy texture if texture not found
+                if (!textureView) {
+                    textureView = this.dummyTextureView
                 }
 
                 if (textureView) {

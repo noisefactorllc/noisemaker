@@ -10,7 +10,7 @@ export default new Effect({
   globals: {
     tex: {
       type: "surface",
-      default: "inputTex",
+      default: "none",
       ui: { label: "source B (center)" }
     },
     metric: {

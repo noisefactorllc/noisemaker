@@ -19,10 +19,9 @@ uniform float cellSmooth;
 uniform float cellVariation;
 uniform float loopAmp;
 
-uniform int texSource;
 uniform int texInfluence;
 uniform float texIntensity;
-uniform sampler2D inputTex;
+uniform sampler2D tex;
 
 out vec4 fragColor;
 
@@ -151,11 +150,8 @@ void main() {
     vec2 texCoord = gl_FragCoord.xy / resolution;
     texCoord.y = 1.0 - texCoord.y; // Flip renderer-supplied textures to match screen orientation.
 
-    if (texSource > 0) {
-        vec3 texRGB;
-        if (texSource == 3) {
-            texRGB = texture(inputTex, texCoord).rgb;
-        }
+    if (texInfluence > 0) {
+        vec3 texRGB = texture(tex, texCoord).rgb;
 
         texLuminosity = luminance(texRGB);
 
@@ -168,7 +164,7 @@ void main() {
 
     float d = cells(st, freq, cellSize, metric);
 
-    if (texSource > 0 && texInfluence >= 10) {
+    if (texInfluence >= 10) {
         if (texInfluence == 10) {
             d += texLuminosity * texFactor;
         } else if (texInfluence == 11) {

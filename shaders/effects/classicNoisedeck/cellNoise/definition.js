@@ -35,9 +35,8 @@ export default class CellNoise extends Effect {
     paletteFreq: { slot: 5, components: 'xyz' },
     repeatPalette: { slot: 5, components: 'w' },
     palettePhase: { slot: 6, components: 'xyz' },
-    texSource: { slot: 7, components: 'x' },
-    texInfluence: { slot: 7, components: 'y' },
-    texIntensity: { slot: 7, components: 'z' }
+    texInfluence: { slot: 7, components: 'x' },
+    texIntensity: { slot: 7, components: 'y' }
   }
   globals = {
     metric: {
@@ -243,17 +242,11 @@ export default class CellNoise extends Effect {
         hidden: true
       }
     },
-    texSource: {
-      type: "int",
-      default: 0,
-      uniform: "texSource",
-      choices: {
-        none: 0,
-        input: 3
-      },
+    tex: {
+      type: "surface",
+      default: "none",
       ui: {
-        label: "tex source",
-        control: "dropdown",
+        label: "texture",
         category: "texture"
       }
     },
@@ -299,8 +292,8 @@ export default class CellNoise extends Effect {
       name: "render",
       program: "cellNoise",
       inputs: {
+        tex: "tex"
       },
-
       outputs: {
         fragColor: "outputTex"
       }

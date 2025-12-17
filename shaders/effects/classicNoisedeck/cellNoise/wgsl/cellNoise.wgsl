@@ -10,7 +10,7 @@ struct Uniforms {
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var samp : sampler;
-@group(0) @binding(2) var inputTex : texture_2d<f32>;
+@group(0) @binding(2) var tex : texture_2d<f32>;
 
 const PI : f32 = 3.14159265359;
 const TAU : f32 = 6.28318530718;
@@ -275,9 +275,8 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     let palettePhase = uniforms.data[6].xyz;
 
-    let texSource = i32(uniforms.data[7].x);
-    let texInfluence = i32(uniforms.data[7].y);
-    let texIntensity = uniforms.data[7].z;
+    let texInfluence = i32(uniforms.data[7].x);
+    let texIntensity = uniforms.data[7].y;
 
     let aspect = resolution.x / resolution.y;
 
@@ -292,11 +291,8 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     var texCoord = pos.xy / resolution;
     texCoord.y = 1.0 - texCoord.y; // Flip renderer-supplied textures to align with screen space.
 
-    if (texSource > 0) {
-        var texRGB = vec3<f32>(0.0);
-        if (texSource == 3) {
-            texRGB = textureSample(inputTex, samp, texCoord).rgb;
-        }
+    if (texInfluence > 0) {
+        let texRGB = textureSample(tex, samp, texCoord).rgb;
 
         texLuminosity = luminance(texRGB);
 
@@ -309,7 +305,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     var d = cells(st, freq, cellSize, metric, seed, loopAmp, cellVariation, cellSmooth, time, aspect);
 
-    if (texSource > 0 && texInfluence >= 10) {
+    if (texInfluence >= 10) {
         if (texInfluence == 10) {
             d = d + texLuminosity * texFactor;
         } else if (texInfluence == 11) {

@@ -33,7 +33,7 @@ export default new Effect({
   globals: {
     tex: {
       type: "surface",
-      default: "inputTex",
+      default: "none",
       ui: { label: "texture" }
     },
     zoom: {

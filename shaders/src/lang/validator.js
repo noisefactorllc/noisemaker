@@ -65,6 +65,7 @@ function toSurface(arg) {
     if (!arg) return null
     if (arg.type === 'OutputRef') return {kind:'output', name:arg.name}
     if (arg.type === 'SourceRef') return {kind:'source', name:arg.name}
+    if (arg.type === 'Ident' && arg.name === 'none') return {kind:'output', name:'none'}
     if (arg.type === 'Ident' && stateSurfaces.has(arg.name)) return {kind:'state', name:arg.name}
     return null
 }

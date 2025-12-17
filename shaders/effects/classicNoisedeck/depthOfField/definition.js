@@ -19,7 +19,7 @@ export default new Effect({
   globals: {
     tex: {
       type: "surface",
-      default: "inputTex",
+      default: "none",
       ui: {
         label: "depth map"
       }

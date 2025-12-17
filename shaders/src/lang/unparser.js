@@ -240,7 +240,11 @@ function unparseCall(call, options = {}) {
                 const formattedValue = formatValue(value, spec, customFormatter)
                 const formattedDefault = formatValue(spec.default, spec, customFormatter)
 
-                if (formattedValue === formattedDefault) {
+                // For surface params, 'none' must always be explicit when set
+                // (so the expander binds the blank texture)
+                const isExplicitNone = spec.type === 'surface' && formattedValue === 'none'
+
+                if (formattedValue === formattedDefault && !isExplicitNone) {
                     continue
                 }
             }
