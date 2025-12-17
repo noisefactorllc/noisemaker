@@ -5,7 +5,7 @@
 
 @group(0) @binding(0) var samp: sampler;
 @group(0) @binding(1) var bufTex: texture_2d<f32>;
-@group(0) @binding(2) var inputTex: texture_2d<f32>;
+@group(0) @binding(2) var tex: texture_2d<f32>;
 @group(0) @binding(3) var<uniform> u: Uniforms;
 
 struct Uniforms {
@@ -20,7 +20,7 @@ struct Uniforms {
 
 fn sampleInputColor(uv: vec2f) -> vec3f {
     let flippedUV = vec2f(uv.x, 1.0 - uv.y);
-    return textureSample(inputTex, samp, flippedUV).rgb;
+    return textureSample(tex, samp, flippedUV).rgb;
 }
 
 @fragment

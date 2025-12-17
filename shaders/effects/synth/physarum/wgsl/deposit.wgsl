@@ -7,8 +7,8 @@
 
 @group(0) @binding(0) var stateTex: texture_2d<f32>;
 @group(0) @binding(1) var colorTex: texture_2d<f32>;
-@group(0) @binding(2) var inputTex: texture_2d<f32>;
-@group(0) @binding(3) var inputSampler: sampler;
+@group(0) @binding(2) var tex: texture_2d<f32>;
+@group(0) @binding(3) var texSampler: sampler;
 @group(0) @binding(4) var<uniform> u: Uniforms;
 
 struct Uniforms {
@@ -68,7 +68,7 @@ fn luminance(color: vec3f) -> f32 {
 
 fn sampleInputColor(uv: vec2f) -> vec3f {
     let flippedUV = vec2f(uv.x, 1.0 - uv.y);
-    return textureSample(inputTex, inputSampler, flippedUV).rgb;
+    return textureSample(tex, texSampler, flippedUV).rgb;
 }
 
 fn sampleInputLuminance(uv: vec2f) -> f32 {

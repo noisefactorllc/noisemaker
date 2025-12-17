@@ -4,9 +4,110 @@
 @group(0) @binding(3) var<uniform> power : f32;
 @group(0) @binding(4) var<uniform> metric : i32;
 @group(0) @binding(5) var<uniform> hardness : f32;
+@group(0) @binding(6) var<uniform> blendMode : i32;
 
 fn clamp01(x: f32) -> f32 {
     return clamp(x, 0.0, 1.0);
+}
+
+fn blendOverlay(a: f32, b: f32) -> f32 {
+    if (a < 0.5) {
+        return 2.0 * a * b;
+    } else {
+        return 1.0 - 2.0 * (1.0 - a) * (1.0 - b);
+    }
+}
+
+fn blendSoftLight(base: f32, blend: f32) -> f32 {
+    if (blend < 0.5) {
+        return 2.0 * base * blend + base * base * (1.0 - 2.0 * blend);
+    } else {
+        return sqrt(base) * (2.0 * blend - 1.0) + 2.0 * base * (1.0 - blend);
+    }
+}
+
+fn applyBlendMode(color1: vec4<f32>, color2: vec4<f32>, m: i32) -> vec4<f32> {
+    // 0: add, 1: burn, 2: darken, 3: diff, 4: dodge, 5: exclusion,
+    // 6: hardLight, 7: lighten, 8: mix, 9: multiply, 10: negation,
+    // 11: overlay, 12: phoenix, 13: screen, 14: softLight, 15: subtract
+
+    if (m == 0) {
+        // add
+        return min(color1 + color2, vec4<f32>(1.0));
+    }
+    if (m == 1) {
+        // burn
+        return 1.0 - min((1.0 - color1) / max(color2, vec4<f32>(0.001)), vec4<f32>(1.0));
+    }
+    if (m == 2) {
+        // darken
+        return min(color1, color2);
+    }
+    if (m == 3) {
+        // diff
+        return abs(color1 - color2);
+    }
+    if (m == 4) {
+        // dodge
+        return min(color1 / max(1.0 - color2, vec4<f32>(0.001)), vec4<f32>(1.0));
+    }
+    if (m == 5) {
+        // exclusion
+        return color1 + color2 - 2.0 * color1 * color2;
+    }
+    if (m == 6) {
+        // hardLight (overlay with swapped args)
+        return vec4<f32>(
+            blendOverlay(color2.r, color1.r),
+            blendOverlay(color2.g, color1.g),
+            blendOverlay(color2.b, color1.b),
+            1.0
+        );
+    }
+    if (m == 7) {
+        // lighten
+        return max(color1, color2);
+    }
+    if (m == 8) {
+        // mix (average)
+        return (color1 + color2) * 0.5;
+    }
+    if (m == 9) {
+        // multiply
+        return color1 * color2;
+    }
+    if (m == 10) {
+        // negation
+        return vec4<f32>(1.0) - abs(vec4<f32>(1.0) - color1 - color2);
+    }
+    if (m == 11) {
+        // overlay
+        return vec4<f32>(
+            blendOverlay(color1.r, color2.r),
+            blendOverlay(color1.g, color2.g),
+            blendOverlay(color1.b, color2.b),
+            1.0
+        );
+    }
+    if (m == 12) {
+        // phoenix
+        return min(color1, color2) - max(color1, color2) + vec4<f32>(1.0);
+    }
+    if (m == 13) {
+        // screen
+        return vec4<f32>(1.0) - (vec4<f32>(1.0) - color1) * (vec4<f32>(1.0) - color2);
+    }
+    if (m == 14) {
+        // softLight
+        return vec4<f32>(
+            blendSoftLight(color1.r, color2.r),
+            blendSoftLight(color1.g, color2.g),
+            blendSoftLight(color1.b, color2.b),
+            1.0
+        );
+    }
+    // 15: subtract
+    return max(color1 - color2, vec4<f32>(0.0));
 }
 
 fn distance_metric(p: vec2<f32>, corner: vec2<f32>, m: i32) -> f32 {
@@ -67,7 +168,9 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     mask = mix(1.0, mask, f_low);
     mask = mask * f_high;
 
-    var color = mix(centerColor, edgeColor, mask);
+    // Apply blend mode between center and edge colors
+    let blended = applyBlendMode(centerColor, edgeColor, blendMode);
+    var color = mix(centerColor, blended, mask);
     color.a = max(edgeColor.a, centerColor.a);
 
     return color;

@@ -2,7 +2,7 @@
 precision highp float;
 uniform float depositAmount;
 uniform float weight;
-uniform sampler2D inputTex;
+uniform sampler2D tex;
 in vec2 vUV;
 in vec4 vColor;
 out vec4 fragColor;
@@ -13,7 +13,7 @@ float luminance(vec3 color) {
 
 vec3 sampleInputColor(vec2 uv) {
     vec2 flippedUV = vec2(uv.x, 1.0 - uv.y);
-    return texture(inputTex, flippedUV).rgb;
+    return texture(tex, flippedUV).rgb;
 }
 
 float sampleInputLuminance(vec2 uv) {

@@ -7,13 +7,13 @@ uniform vec2 resolution;
 uniform sampler2D bufTex;
 uniform float time;
 uniform float inputIntensity;
-uniform sampler2D inputTex;
+uniform sampler2D tex;
 
 out vec4 fragColor;
 
 vec3 sampleInputColor(vec2 uv) {
     vec2 flippedUV = vec2(uv.x, 1.0 - uv.y);
-    return texture(inputTex, flippedUV).rgb;
+    return texture(tex, flippedUV).rgb;
 }
 
 void main() {

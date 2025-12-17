@@ -222,7 +222,7 @@ export default new Effect({
         stateTex: "globalPhysarumState",
         colorTex: "globalPhysarumColor",
         bufTex: "globalPhysarumTrail",
-        inputTex: "tex"
+        tex: "tex"
       },
       outputs: {
         fragColor: "globalPhysarumState",
@@ -242,7 +242,7 @@ export default new Effect({
       inputs: {
         stateTex: "globalPhysarumState",
         colorTex: "globalPhysarumColor",
-        inputTex: "tex"
+        tex: "tex"
       },
       uniforms: {
         density: "density"
@@ -256,7 +256,7 @@ export default new Effect({
       program: "physarum",
       inputs: {
         bufTex: "globalPhysarumTrail",
-        inputTex: "tex"
+        tex: "tex"
       },
       outputs: {
         fragColor: "outputTex"

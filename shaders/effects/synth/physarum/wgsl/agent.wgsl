@@ -7,7 +7,7 @@
 @group(0) @binding(0) var stateTex: texture_2d<f32>;
 @group(0) @binding(1) var colorTex: texture_2d<f32>;
 @group(0) @binding(2) var bufTex: texture_2d<f32>;
-@group(0) @binding(3) var inputTex: texture_2d<f32>;
+@group(0) @binding(3) var tex: texture_2d<f32>;
 @group(0) @binding(4) var<uniform> u: Uniforms;
 
 struct Uniforms {
@@ -68,8 +68,7 @@ fn luminance(color: vec3f) -> f32 {
 
 fn sampleBufAt(x: i32, y: i32, width: i32, height: i32) -> f32 {
     let wx = wrap_int(x, width);
-    // Flip Y to match how bufTex is written via fragCoord
-    let wy = wrap_int(height - 1 - y, height);
+    let wy = wrap_int(y, height);
     return textureLoad(bufTex, vec2<i32>(wx, wy), 0).r;
 }
 
@@ -79,9 +78,9 @@ fn sampleInputAt(x: i32, y: i32, width: i32, height: i32) -> vec3f {
         return vec3f(1.0);
     }
     let wx = wrap_int(x, width);
-    // Flip Y for input texture
+    // Flip Y for external input texture (OpenGL convention)
     let wy = wrap_int(height - 1 - y, height);
-    return textureLoad(inputTex, vec2<i32>(wx, wy), 0).rgb;
+    return textureLoad(tex, vec2<i32>(wx, wy), 0).rgb;
 }
 
 fn sampleExternalField(x: i32, y: i32, width: i32, height: i32, inputWeightVal: f32) -> f32 {
