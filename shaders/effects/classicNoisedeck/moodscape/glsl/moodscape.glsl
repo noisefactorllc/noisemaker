@@ -1,20 +1,17 @@
 #version 300 es
 
 /*
- * Atmosphere shader.
- * Generates layered volumetric clouds and gradients with deterministic noise to support preset recall.
- * Sun position and wind parameters are remapped to normalized vectors to maintain stability.
+ * Moodscape shader.
+ * Refracted value noise with multiple color modes.
  */
 
 precision highp float;
 precision highp int;
 
-uniform sampler2D noiseTex;
 uniform float time;
 uniform float seed;
 uniform bool wrap;
 uniform vec2 resolution;
-uniform int noiseType;
 uniform float noiseScale;
 uniform int colorMode;
 uniform int interp;
@@ -24,10 +21,6 @@ uniform float hueRotation;
 uniform float hueRange;
 uniform float intensity;
 uniform bool ridges;
-uniform vec4 color1;
-uniform vec4 color2;
-uniform vec4 color3;
-uniform vec4 color4;
 out vec4 fragColor;
 
 #define PI 3.14159265359
@@ -184,35 +177,6 @@ float periodicFunction(float p) {
 
 // Simplex 2D - MIT License
 // https://github.com/ashima/webgl-noise/blob/master/src/noise2D.glsl
-//
-// Description : Array and textureless GLSL 2D simplex noise function.
-//      Author : Ian McEwan, Ashima Arts.
-//  Maintainer : stegu
-//     Lastmod : 20110822 (ijm)
-//     License : Copyright (C) 2011 Ashima Arts. All rights reserved.
-//               Distributed under the MIT License. See LICENSE file.
-//               https://github.com/ashima/webgl-noise
-//               https://github.com/stegu/webgl-noise
-// 
-// Copyright (C) 2011 by Ashima Arts (Simplex noise)
-// Copyright (C) 2011-2016 by Stefan Gustavson (Classic noise and others)
-// 
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-// 
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 vec3 mod289(vec3 x) {
     return x - floor(x * (1.0 / 289.0)) * 289.0;
 }
@@ -240,17 +204,12 @@ float simplexValue(vec2 st, float xFreq, float yFreq, float s, float blend) {
 
     // Other corners
     vec2 i1;
-    //i1.x = step( x0.y, x0.x ); // x0.x > x0.y ? 1.0 : 0.0
-    //i1.y = 1.0 - i1.x;
     i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
-    // x0 = x0 - 0.0 + 0.0 * C.xx ;
-    // x1 = x0 - i1 + 1.0 * C.xx ;
-    // x2 = x0 - 1.0 + 2.0 * C.xx ;
     vec4 x12 = x0.xyxy + C.xxzz;
     x12.xy -= i1;
 
     // Permutations
-    i = mod289(i); // Avoid truncation effects in permutation
+    i = mod289(i);
     vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
 		  + i.x + vec3(0.0, i1.x, 1.0 ));
 
@@ -258,19 +217,13 @@ float simplexValue(vec2 st, float xFreq, float yFreq, float s, float blend) {
     m = m*m ;
     m = m*m ;
 
-    // Gradients: 41 points uniformly over a line, mapped onto a diamond.
-    // The ring size 17*17 = 289 is close to a multiple of 41 (41*7 = 287)
-
     vec3 x = 2.0 * fract(p * C.www) - 1.0;
     vec3 h = abs(x) - 0.5;
     vec3 ox = floor(x + 0.5);
     vec3 a0 = x - ox;
 
-    // Normalise gradients implicitly by scaling m
-    // Approximation of: m *= inversesqrt( a0*a0 + h*h );
     m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
 
-    // Compute final noise value at P
     vec3 g;
     g.x  = a0.x  * x0.x  + h.x  * x0.y;
     g.yz = a0.yz * x12.xz + h.yz * x12.yw;
@@ -298,7 +251,6 @@ float sineNoise(vec2 st, float xFreq, float yFreq, float s, float blend) {
 }
 
 // Noisemaker value noise - MIT License
-// https://github.com/noisedeck/noisemaker/blob/master/noisemaker/value.py
 int positiveModulo(int value, int modulus) {
     if (modulus == 0) {
         return 0;
@@ -366,12 +318,7 @@ float constantOffset(vec2 st, float xFreq, float yFreq, float s, ivec2 offset) {
     return periodicFunction(rand.y - scaledTime);
 }
 
-// ---- 3×3 quadratic B-spline interpolation ----
-// Replaces legacy bicubic 4×4 (16 taps) with 3×3 kernel (9 taps)
-// Performance: ~1.8× faster in fBm chains
-// Quality: Quadratic B-spline (degree 2) smoothing, C¹ continuous
-
-// Quadratic B-spline basis functions for 3 samples
+// 3x3 quadratic interpolation
 float quadratic3(float p0, float p1, float p2, float t) {
     float t2 = t * t;
     return p0 * 0.5 * (1.0 - t) * (1.0 - t) +
@@ -379,8 +326,6 @@ float quadratic3(float p0, float p1, float p2, float t) {
            p2 * 0.5 * t2;
 }
 
-// Catmull-Rom 3-point interpolation (degree 3, C⁰ continuous)
-// Interpolates through all 3 points
 float catmullRom3(float p0, float p1, float p2, float t) {
     float t2 = t * t;
     float t3 = t2 * t;
@@ -394,28 +339,22 @@ float quadratic3x3Value(vec2 st, float xFreq, float yFreq, float s) {
     vec2 lattice = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(lattice);
     
-    // Sample 3×3 grid (9 taps) using proper offset-based sampling
-    // Row -1 (y-1)
     float v00 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, -1));
     float v10 = constantOffset(st, xFreq, yFreq, s, ivec2( 0, -1));
     float v20 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, -1));
     
-    // Row 0 (y)
     float v01 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, 0));
     float v11 = constant(st, xFreq, yFreq, s);
     float v21 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, 0));
     
-    // Row 1 (y+1)
     float v02 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, 1));
     float v12 = constantOffset(st, xFreq, yFreq, s, ivec2( 0, 1));
     float v22 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, 1));
     
-    // Quadratic interpolation along x for each row
     float y0 = quadratic3(v00, v10, v20, f.x);
     float y1 = quadratic3(v01, v11, v21, f.x);
     float y2 = quadratic3(v02, v12, v22, f.x);
     
-    // Quadratic interpolation along y
     return quadratic3(y0, y1, y2, f.y);
 }
 
@@ -423,7 +362,6 @@ float catmullRom3x3Value(vec2 st, float xFreq, float yFreq, float s) {
     vec2 lattice = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(lattice);
     
-    // Sample 3×3 grid (9 taps) using proper offset-based sampling
     float v00 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, -1));
     float v10 = constantOffset(st, xFreq, yFreq, s, ivec2( 0, -1));
     float v20 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, -1));
@@ -436,21 +374,15 @@ float catmullRom3x3Value(vec2 st, float xFreq, float yFreq, float s) {
     float v12 = constantOffset(st, xFreq, yFreq, s, ivec2( 0, 1));
     float v22 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, 1));
     
-    // Catmull-Rom interpolation along x for each row
     float y0 = catmullRom3(v00, v10, v20, f.x);
     float y1 = catmullRom3(v01, v11, v21, f.x);
     float y2 = catmullRom3(v02, v12, v22, f.x);
     
-    // Catmull-Rom interpolation along y
     return catmullRom3(y0, y1, y2, f.y);
 }
 
-// ---- End 3×3 interpolation ----
-
-// cubic B-spline interpolation (degree 3, C² continuous)
+// cubic B-spline interpolation
 float blendBicubic(float p0, float p1, float p2, float p3, float t) {
-    // Cubic B-spline basis functions for uniform knots
-    // Provides C² continuous smoothing
     float t2 = t * t;
     float t3 = t2 * t;
     
@@ -462,8 +394,6 @@ float blendBicubic(float p0, float p1, float p2, float p3, float t) {
     return p0 * b0 + p1 * b1 + p2 * b2 + p3 * b3;
 }
 
-// Catmull-Rom 4-point interpolation (standard, tension=0.5)
-// Interpolates through middle 2 points (p1, p2)
 float catmullRom4(float p0, float p1, float p2, float p3, float t) {
     return p1 + 0.5 * t * (p2 - p0 + t * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3 + 
            t * (3.0 * (p1 - p2) + p3 - p0)));
@@ -477,62 +407,10 @@ float blendLinearOrCosine(float a, float b, float amount, int interp) {
     return mix(a, b, smoothstep(0.0, 1.0, amount));
 }
 
-// texture-based bicubic for better performance
-// from http://www.java-gaming.org/index.php?topic=35123.0
-vec4 cubic(float v){
-    vec4 n = vec4(1.0, 2.0, 3.0, 4.0) - v;
-    vec4 s = n * n * n;
-    float x = s.x;
-    float y = s.y - 4.0 * s.x;
-    float z = s.z - 4.0 * s.y + 6.0 * s.x;
-    float w = 6.0 - x - y - z;
-    return vec4(x, y, z, w) * (1.0/6.0);
-}
-
-float textureBicubic(vec2 texCoords, float xFreq, float yFreq, float _seed, float blend) {
-    texCoords.x *= aspectRatio;
-    texCoords.x *= xFreq * xFreq / resolution.x * 0.5;
-    texCoords.y *= xFreq * yFreq / resolution.y * 0.5;
-    texCoords -= vec2(aspectRatio * 0.5, 0.5);
-
-    vec2 texSize = vec2(512.0);
-    vec2 invTexSize = 1.0 / texSize;
-
-    texCoords = texCoords * texSize - 0.5;
-    // Map to avoid image crease
-    texCoords.x = mod(texCoords.x + map(_seed, -255.0, 255.0, 1.0, 100.0), texSize.x);
-
-    vec2 fxy = fract(texCoords);
-    texCoords -= fxy;
-
-    vec4 xcubic = cubic(fxy.x);
-    vec4 ycubic = cubic(fxy.y);
-
-    vec4 c = texCoords.xxyy + vec2(-0.5, 1.5).xyxy;
-
-    vec4 s = vec4(xcubic.xz + xcubic.yw, ycubic.xz + ycubic.yw);
-    vec4 offset = c + vec4 (xcubic.yw, ycubic.yw) / s;
-
-    offset *= invTexSize.xxyy;
-
-    float sample0 = texture(noiseTex, offset.xz).r;
-    float sample1 = texture(noiseTex, offset.yz).r;
-    float sample2 = texture(noiseTex, offset.xw).r;
-    float sample3 = texture(noiseTex, offset.yw).r;
-
-    float sx = s.x / (s.x + s.y);
-    float sy = s.z / (s.z + s.w);
-
-    float temp = mix(mix(sample3, sample2, sx), mix(sample1, sample0, sx), sy);
-    return periodicFunction(temp * 4.0 - blend);
-}
-// end texture-based bicubic
-
 float bicubicValue(vec2 st, float xFreq, float yFreq, float s) {
     vec2 uv = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(uv);
 
-    // Sample 4×4 grid using offset-based sampling
     float x0y0 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, -1));
     float x0y1 = constantOffset(st, xFreq, yFreq, s, ivec2(-1,  0));
     float x0y2 = constantOffset(st, xFreq, yFreq, s, ivec2(-1,  1));
@@ -565,7 +443,6 @@ float catmullRom4x4Value(vec2 st, float xFreq, float yFreq, float s) {
     vec2 uv = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(uv);
 
-    // Sample 4×4 grid using offset-based sampling
     float x0y0 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, -1));
     float x0y1 = constantOffset(st, xFreq, yFreq, s, ivec2(-1,  0));
     float x0y2 = constantOffset(st, xFreq, yFreq, s, ivec2(-1,  1));
@@ -638,7 +515,6 @@ float value(vec2 st, float xFreq, float yFreq, float s) {
     vec2 uv = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(uv);
     
-    // Sample 2x2 grid using offset-based sampling
     float x0y0 = constant(st, xFreq, yFreq, s);
     float x1y0 = constantOffset(st, xFreq, yFreq, s, ivec2(1, 0));
     float x0y1 = constantOffset(st, xFreq, yFreq, s, ivec2(0, 1));
@@ -650,161 +526,85 @@ float value(vec2 st, float xFreq, float yFreq, float s) {
     return clamp(blendLinearOrCosine(a, b, f.y, interp), 0.0, 1.0);
 }
 
-vec3 noise(vec2 st, float s) {
-    float freq = 1.0;
-    if (interp != 10 && wrap) {
-        freq = floor(map(noiseScale, 1.0, 100.0, 6.0, 2.0));
-    } else {
-        if (interp == 10) {
-            freq = map(noiseScale, 1.0, 100.0, 1.0, 0.5);
-        } else {
-            freq = map(noiseScale, 1.0, 100.0, 6.0, 1.0);
-        }
-    }
-
-    vec3 color = vec3(
-        value(st, freq, freq, 0.0 + s),
-        value(st, freq, freq, 10.0 + s),
-        value(st, freq, freq, 20.0 + s));
-
-    // hue
-    color.r = color.r * hueRange * 0.01;
-    color.r += 1.0 - (hueRotation / 360.0);
-
-    // saturation
-    color.g *= 0.333;
-
-    // brightness - ridges
-    color.b = 1.0 - abs(color.b * 2.0 - 1.0);
-
-    color = hsv2rgb(color);
-
-    return color;
-}
-// end value noise
-
 void main() {
     vec4 color = vec4(0.0, 0.0, 1.0, 1.0);
     vec2 st = gl_FragCoord.xy / resolution.y;
     st -= vec2(aspectRatio * 0.5, 0.5);
 
-    if (noiseType == 0) {
-        // caustic
-        vec3 leftColor = noise(st, seed);
-        vec3 rightColor = noise(st, seed + 10.0);
-
-        // from the "reflect" mode in coalesce.
-        vec3 left = min(leftColor * rightColor / (1.0 - rightColor * leftColor), vec3(1.0));
-        vec3 right = min(rightColor * leftColor / (1.0 - leftColor * rightColor), vec3(1.0));
-
-        color.rgb = brightnessContrast(mix(left, right, 0.5));
-    } else if (noiseType == 1) {
-        // moodscape
-        float xFreq = 1.0;
-        float yFreq = 1.0;
-        if (interp != 4 && interp != 10 && wrap) {
-            xFreq = floor(map(noiseScale, 1.0, 100.0, 3.0, 2.0));
-            yFreq = xFreq;
+    float xFreq = 1.0;
+    float yFreq = 1.0;
+    if (interp != 4 && interp != 10 && wrap) {
+        xFreq = floor(map(noiseScale, 1.0, 100.0, 3.0, 2.0));
+        yFreq = xFreq;
+    } else {
+        if (interp == 10) {
+            xFreq = map(noiseScale, 1.0, 100.0, 1.0, 0.25);
+            yFreq = xFreq * 1.5;
         } else {
-            if (interp == 10) {
-                xFreq = map(noiseScale, 1.0, 100.0, 1.0, 0.25);
-                yFreq = xFreq * 1.5;
-            } else {
-                xFreq = map(noiseScale, 1.0, 100.0, 1.5, 1.0);
-                yFreq = xFreq * 1.5;
-            }
+            xFreq = map(noiseScale, 1.0, 100.0, 1.5, 1.0);
+            yFreq = xFreq * 1.5;
         }
+    }
 
-        float s = floor(seed);
+    float s = floor(seed);
 
-        // Refract values
-        float xRef = value(st, xFreq, yFreq, +20.0 + s);
-        float yRef = value(st, xFreq, yFreq, +10.0 + s);
+    // Refract values
+    float xRef = value(st, xFreq, yFreq, +20.0 + s);
+    float yRef = value(st, xFreq, yFreq, +10.0 + s);
 
-        float ref = map(refractAmt, 0.0, 100.0, 0.0, 2.5);
-        vec2 uv = vec2(st.x + xRef * ref, st.y + yRef * ref);
+    float ref = map(refractAmt, 0.0, 100.0, 0.0, 2.5);
+    vec2 uv = vec2(st.x + xRef * ref, st.y + yRef * ref);
 
-        if (colorMode == 0) {
-            color.rgb = vec3(value(uv, xFreq, yFreq, s));
-        } else {
-            color = vec4(
-                value(uv, xFreq, yFreq, s),
-                value(uv, xFreq, yFreq, 10.0 + s),
-                value(uv, xFreq, yFreq, 20.0 + s),
-                1.0);
+    if (colorMode == 0) {
+        color.rgb = vec3(value(uv, xFreq, yFreq, s));
+    } else {
+        color = vec4(
+            value(uv, xFreq, yFreq, s),
+            value(uv, xFreq, yFreq, 10.0 + s),
+            value(uv, xFreq, yFreq, 20.0 + s),
+            1.0);
+    }
+
+    if (colorMode == 0) {
+        // grayscale
+        if (ridges) {
+            color = 1.0 - abs(color * 2.0 - 1.0);
         }
-
-        if (colorMode == 0) {
-            // grayscale
-            if (ridges) {
-                color = 1.0 - abs(color * 2.0 - 1.0);
-            }
-        } else if (colorMode == 1) {
-            // rgb
-            if (ridges) {
-                color = 1.0 - abs(color * 2.0 - 1.0);
-            }
-            color.rgb = rgb2hsv(color.rgb);
-            color.r = color.r * hueRange * 0.01;
-            color.r += 1.0 - (hueRotation / 360.0);
-            color.rgb = hsv2rgb(color.rgb);
-        } else if (colorMode == 2) {
-            // hsv
-            color.r = color.r * hueRange * 0.01;
-            color.r += 1.0 - (hueRotation / 360.0);
-            if (ridges) {
-                color.b = 1.0 - abs(color.b * 2.0 - 1.0);
-            }
-            color.rgb = hsv2rgb(color.rgb);
-        } else {
-            // oklab
-            // magic values from py-noisemaker - MIT License
-            // https://github.com/noisedeck/noisemaker/blob/master/noisemaker/generators.py
-            color.g = color.g * -.509 + .276;
-            color.b = color.b * -.509 + .198;
-
-            color.rgb = linear_srgb_from_oklab(color.rgb);
-            color.rgb = linearToSrgb(color.rgb);
-            color.rgb = rgb2hsv(color.rgb);
-            color.r = color.r * hueRange * 0.01;
-            color.r += 1.0 - (hueRotation / 360.0);
-            if (ridges) {
-                color.b = 1.0 - abs(color.b * 2.0 - 1.0);
-            }
-            color.rgb = hsv2rgb(color.rgb);
+    } else if (colorMode == 1) {
+        // rgb
+        if (ridges) {
+            color = 1.0 - abs(color * 2.0 - 1.0);
         }
-    } else if (noiseType == 2) {
-        // quad tap
-        st += vec2(aspectRatio * 0.5, 0.5);
-        float speed = loopAmp * 0.02;
-        vec3 x0 = vec3(1.0);
-        vec3 x1 = vec3(1.0);
+        color.rgb = rgb2hsv(color.rgb);
+        color.r += 1.0 - (hueRotation / 360.0);
+        color.r = fract(color.r);
+        color.rgb = hsv2rgb(color.rgb);
+    } else if (colorMode == 2) {
+        // hsv
+        color.r = color.r * hueRange * 0.01;
+        color.r += 1.0 - (hueRotation / 360.0);
+        if (ridges) {
+            color.b = 1.0 - abs(color.b * 2.0 - 1.0);
+        }
+        color.rgb = hsv2rgb(color.rgb);
+    } else {
+        // oklab
+        color.g = color.g * -.509 + .276;
+        color.b = color.b * -.509 + .198;
 
-        vec3 c1 = rgb2hsv(color1.rgb);
-        vec3 c2 = rgb2hsv(color2.rgb);
-        vec3 c3 = rgb2hsv(color3.rgb);
-        vec3 c4 = rgb2hsv(color4.rgb);
-
-        c1[0] += (sin(time * TAU * speed) + 1.0) * 0.05;
-        c2[0] += (sin((0.25 - time) * TAU * speed) + 1.0) * 0.05;
-        c3[0] += (sin((0.5 - time) * TAU * speed) + 1.0) * 0.05;
-        c4[0] += (sin((0.75 + time) * TAU * speed) + 1.0) * 0.05;
-
-        c1 = hsv2rgb(c1);
-        c2 = hsv2rgb(c2);
-        c3 = hsv2rgb(c3);
-        c4 = hsv2rgb(c4);
-
-        x0.rgb = mix(c1, c2, st.x);
-        x1.rgb = mix(c3, c4, st.x);
-
-        color.rgb = mix(x0, x1, 1.0 - st.y);
+        color.rgb = linear_srgb_from_oklab(color.rgb);
+        color.rgb = linearToSrgb(color.rgb);
+        color.rgb = rgb2hsv(color.rgb);
+        color.r += 1.0 - (hueRotation / 360.0);
+        color.r = fract(color.r);
+        if (ridges) {
+            color.b = 1.0 - abs(color.b * 2.0 - 1.0);
+        }
+        color.rgb = hsv2rgb(color.rgb);
     }
 
     color.rgb = brightnessContrast(color.rgb);
     color.a = 1.0;
-
-    st = gl_FragCoord.xy / resolution;
 
     fragColor = color;
 }
