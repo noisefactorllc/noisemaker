@@ -110,6 +110,11 @@ function formatValue(value, spec, customFormatter) {
     }
 
     if (Array.isArray(value)) {
+        // Handle vec3 explicitly if spec says so
+        if (spec && spec.type === 'vec3' && value.length === 3 && value.every(v => typeof v === 'number')) {
+            return `vec3(${value.map(v => formatValue(v, null, customFormatter)).join(', ')})`
+        }
+
         // Color array [r, g, b] or [r, g, b, a]
         if (value.length >= 3 && value.length <= 4 && value.every(v => typeof v === 'number')) {
             // Convert to hex color
