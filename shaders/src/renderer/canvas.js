@@ -244,9 +244,6 @@ export class CanvasRenderer {
 
         // Animation loop state
         this._animationFrameId = null
-        this._animationTimerId = null
-        this._targetFPS = 60
-        this._targetFrameTime = 1000 / 60
         this._loopDuration = 10
         this._lastFrameTime = performance.now()
         this._loopStartTime = performance.now()
@@ -304,11 +301,6 @@ export class CanvasRenderer {
     /** @returns {boolean} Whether render loop is running */
     get isRunning() {
         return this._isRunning
-    }
-
-    /** @returns {number} Target FPS */
-    get targetFPS() {
-        return this._targetFPS
     }
 
     /** @returns {number} Loop duration in seconds */
@@ -423,15 +415,6 @@ export class CanvasRenderer {
     // =========================================================================
 
     /**
-     * Set target FPS
-     * @param {number} fps - Target frames per second
-     */
-    setTargetFPS(fps) {
-        this._targetFPS = fps
-        this._targetFrameTime = 1000 / fps
-    }
-
-    /**
      * Set loop duration
      * @param {number} duration - Duration in seconds
      */
@@ -476,7 +459,7 @@ export class CanvasRenderer {
         if (this._isRunning) return
         this._isRunning = true
         this._lastFrameTime = performance.now()
-        this._scheduleNextFrame(this._lastFrameTime + this._targetFrameTime)
+        this._animationFrameId = requestAnimationFrame(this._boundRenderLoop)
     }
 
     /**
@@ -484,10 +467,6 @@ export class CanvasRenderer {
      */
     stop() {
         this._isRunning = false
-        if (this._animationTimerId !== null) {
-            clearTimeout(this._animationTimerId)
-            this._animationTimerId = null
-        }
         if (this._animationFrameId !== null) {
             cancelAnimationFrame(this._animationFrameId)
             this._animationFrameId = null
@@ -512,30 +491,11 @@ export class CanvasRenderer {
         }
     }
 
-    /** @private Schedule next animation frame */
-    _scheduleNextFrame(targetTime) {
-        if (!this._isRunning) return
-
-        if (this._animationTimerId !== null) {
-            clearTimeout(this._animationTimerId)
-        }
-
-        const now = performance.now()
-        const delay = Math.max(0, targetTime - now)
-
-        this._animationTimerId = setTimeout(() => {
-            this._animationFrameId = requestAnimationFrame(this._boundRenderLoop)
-        }, delay)
-    }
-
     /** @private Main render loop */
     _renderLoop(time) {
-        const delta = time - this._lastFrameTime
+        if (!this._isRunning) return
 
-        if (delta < this._targetFrameTime - 0.5) {
-            this._scheduleNextFrame(this._lastFrameTime + this._targetFrameTime)
-            return
-        }
+        this._animationFrameId = requestAnimationFrame(this._boundRenderLoop)
 
         if (this._pipeline) {
             try {
@@ -580,8 +540,7 @@ export class CanvasRenderer {
             }
         }
 
-        this._lastFrameTime = time - (delta % this._targetFrameTime)
-        this._scheduleNextFrame(this._lastFrameTime + this._targetFrameTime)
+        this._lastFrameTime = time
     }
 
     // =========================================================================

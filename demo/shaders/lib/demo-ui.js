@@ -407,6 +407,7 @@ export class UIController {
 
         // Callbacks
         this._onControlChangeCallback = options.onControlChange || null
+        this._onRequestRecompileCallback = options.onRequestRecompile || null
 
         // State
         this._parameterValues = {}
@@ -2241,6 +2242,9 @@ export class UIController {
                 this._writeTargetOverrides[planIndex] = e.target.value
             }
             this._onControlChange()
+            if (this._onRequestRecompileCallback) {
+                this._onRequestRecompileCallback()
+            }
         })
 
         controlGroup.appendChild(select)
@@ -2306,6 +2310,9 @@ export class UIController {
         select.addEventListener('change', (e) => {
             this._renderTargetOverride = e.target.value
             this._onControlChange()
+            if (this._onRequestRecompileCallback) {
+                this._onRequestRecompileCallback()
+            }
         })
 
         controlGroup.appendChild(select)
@@ -2430,6 +2437,9 @@ export class UIController {
             // Store read source override and trigger recompile
             this._readSourceOverrides[stepIndex] = e.target.value
             this._onControlChange()
+            if (this._onRequestRecompileCallback) {
+                this._onRequestRecompileCallback()
+            }
         })
 
         controlGroup.appendChild(select)
@@ -2551,6 +2561,9 @@ export class UIController {
         volSelect.addEventListener('change', (e) => {
             this._read3dVolOverrides[stepIndex] = e.target.value
             this._onControlChange()
+            if (this._onRequestRecompileCallback) {
+                this._onRequestRecompileCallback()
+            }
         })
 
         volGroup.appendChild(volSelect)
@@ -2591,6 +2604,9 @@ export class UIController {
         geoSelect.addEventListener('change', (e) => {
             this._read3dGeoOverrides[stepIndex] = e.target.value
             this._onControlChange()
+            if (this._onRequestRecompileCallback) {
+                this._onRequestRecompileCallback()
+            }
         })
 
         geoGroup.appendChild(geoSelect)
@@ -2671,6 +2687,9 @@ export class UIController {
         volSelect.addEventListener('change', (e) => {
             this._write3dVolOverrides[stepIndex] = e.target.value
             this._onControlChange()
+            if (this._onRequestRecompileCallback) {
+                this._onRequestRecompileCallback()
+            }
         })
 
         volGroup.appendChild(volSelect)
@@ -2711,6 +2730,9 @@ export class UIController {
         geoSelect.addEventListener('change', (e) => {
             this._write3dGeoOverrides[stepIndex] = e.target.value
             this._onControlChange()
+            if (this._onRequestRecompileCallback) {
+                this._onRequestRecompileCallback()
+            }
         })
 
         geoGroup.appendChild(geoSelect)
