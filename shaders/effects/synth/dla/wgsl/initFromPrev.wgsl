@@ -18,29 +18,30 @@ fn hash21(p: vec2<f32>) -> f32 {
 
 @fragment
 fn main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // If resetState is true, clear the trail
-    if (resetState != 0) {
-        return vec4<f32>(0.0);
-    }
-    
     let dims = vec2<f32>(textureDimensions(gridTex));
-    let dimsI = vec2<i32>(textureDimensions(gridTex));
     let coord = vec2<i32>(in.position.xy);
     let uv = vec2<f32>(coord) / dims;
     
-    // Direct sample - no blur
-    let prev = textureLoad(gridTex, coord, 0).a;
+    // Determine if we need to seed (first frame OR reset)
+    let needsSeed = (frame <= 1) || (resetState != 0);
     
-    // Apply decay to simulation grid (chemistry)
-    // decay=0 means full persistence, higher decay = faster fade
-    let persistence = clamp(1.0 - decay, 0.0, 1.0);
-    var energy = prev * persistence;
+    var energy = 0.0;
     
-    // Cap energy to prevent runaway accumulation
-    energy = min(energy, 6.0);
+    if (!needsSeed) {
+        // Normal operation: decay previous state
+        let prev = textureLoad(gridTex, coord, 0).a;
+        
+        // Apply decay to simulation grid (chemistry)
+        // decay=0 means full persistence, higher decay = faster fade
+        let persistence = clamp(1.0 - decay, 0.0, 1.0);
+        energy = prev * persistence;
+        
+        // Cap energy to prevent runaway accumulation
+        energy = min(energy, 6.0);
+    }
 
-    // Seed logic for first frame only
-    if (frame <= 1) {
+    // Seed logic for first frame OR reset
+    if (needsSeed) {
         let rng = hash21(vec2<f32>(coord) + f32(frame) * 17.0);
         let radial = smoothstep(0.18, 0.02, length(uv - 0.5));
         let seedDensity = 0.005;

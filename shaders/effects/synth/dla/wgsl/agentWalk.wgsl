@@ -20,6 +20,7 @@ struct FragmentOutputs {
 @group(0) @binding(7) var<uniform> density: f32;
 @group(0) @binding(8) var<uniform> frame: i32;
 @group(0) @binding(9) var<uniform> resetState: i32;
+@group(0) @binding(10) var<uniform> colorMode: i32;  // 0 = mono (white), 1 = sample from tex
 
 fn hash11(v: f32) -> f32 {
     var v2 = fract(v * 0.1031);
@@ -132,10 +133,15 @@ fn main(in: VertexOutput) -> FragmentOutputs {
         stuckPrev = 0.0;
         
         // Sample color from input at spawn position
-        let texDims = vec2<f32>(textureDimensions(tex));
-        let texCoord = vec2<i32>(pos * texDims);
-        let inputColor = textureLoad(tex, texCoord, 0);
-        agentColor = inputColor.rgb;
+        if (colorMode == 0) {
+            // Mono mode - use white
+            agentColor = vec3<f32>(1.0);
+        } else {
+            let texDims = vec2<f32>(textureDimensions(tex));
+            let texCoord = vec2<i32>(pos * texDims);
+            let inputColor = textureLoad(tex, texCoord, 0);
+            agentColor = inputColor.rgb;
+        }
     }
     
     let texel = 1.0 / max(gridDims.x, gridDims.y);

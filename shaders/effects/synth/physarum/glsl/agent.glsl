@@ -17,6 +17,7 @@ uniform float inputWeight;
 uniform sampler2D inputTex;
 uniform bool resetState;
 uniform int spawnPattern;
+uniform int colorMode;  // 0 = mono (white), 1 = sample from inputTex
 
 layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec4 outColor;
@@ -49,6 +50,10 @@ float luminance(vec3 color) {
 }
 
 vec3 sampleInputColor(vec2 uv) {
+    // colorMode 0 = mono (no input texture), return white
+    if (colorMode == 0) {
+        return vec3(1.0);
+    }
     vec2 flippedUV = vec2(uv.x, 1.0 - uv.y);
     return texture(inputTex, flippedUV).rgb;
 }

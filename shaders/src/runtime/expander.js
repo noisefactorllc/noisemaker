@@ -379,7 +379,7 @@ export function expand(compilationResult, options = {}) {
             // uniforms like volumeSize that are set by upstream 3D generators.
             // Only set defaults if the uniform isn't already set from upstream.
             if (effectDef.globals) {
-                for (const def of Object.values(effectDef.globals)) {
+                for (const [globalName, def] of Object.entries(effectDef.globals)) {
                     if (def.uniform && def.default !== undefined) {
                         // Skip if already set from upstream (preserve pipeline inheritance)
                         if (pipelineUniforms[def.uniform] !== undefined) {
@@ -393,17 +393,39 @@ export function expand(compilationResult, options = {}) {
                         // Accumulate for downstream effects
                         pipelineUniforms[def.uniform] = val
                     }
+
+                    // For surface-type globals with colorModeUniform, set colorMode based on default
+                    // This handles the case where the surface param is not explicitly provided
+                    if (def.type === 'surface' && def.colorModeUniform) {
+                        // Only set if not already determined by step.args
+                        if (!step.args || !Object.prototype.hasOwnProperty.call(step.args, globalName)) {
+                            // Use default: 'none' means colorMode=0, anything else means colorMode=1
+                            const isNone = def.default === 'none'
+                            pipelineUniforms[def.colorModeUniform] = isNone ? 0 : 1
+                        }
+                    }
                 }
             }
 
             // Also process step.args to capture user-specified parameter values
             // (e.g., noise3d(volumeSize: x32) should set volumeSize=32 in the pipeline)
+            // Track uniforms controlled by colorModeUniform so we don't overwrite them
+            const colorModeControlledUniforms = new Set()
             if (step.args) {
                 for (const [argName, arg] of Object.entries(step.args)) {
                     const isObjectArg = arg !== null && typeof arg === 'object'
 
-                    // Skip texture arguments
+                    // Handle surface arguments that may resolve to 'none'
+                    // If the global has a colorModeUniform, set it based on whether surface is 'none'
                     if (isObjectArg && (arg.kind === 'temp' || arg.kind === 'output' || arg.kind === 'source' || arg.kind === 'feedback')) {
+                        // Check if this global has a colorModeUniform property
+                        const globalDef = effectDef.globals?.[argName]
+                        if (globalDef?.colorModeUniform) {
+                            // Set colorMode: 0 if surface is 'none', 1 otherwise
+                            const isNone = arg.name === 'none'
+                            pipelineUniforms[globalDef.colorModeUniform] = isNone ? 0 : 1
+                            colorModeControlledUniforms.add(globalDef.colorModeUniform)
+                        }
                         continue
                     }
 
@@ -411,6 +433,11 @@ export function expand(compilationResult, options = {}) {
                     let uniformName = argName
                     if (effectDef.globals && effectDef.globals[argName] && effectDef.globals[argName].uniform) {
                         uniformName = effectDef.globals[argName].uniform
+                    }
+
+                    // Skip if this uniform is controlled by a surface's colorModeUniform
+                    if (colorModeControlledUniforms.has(uniformName)) {
+                        continue
                     }
 
                     // If this effect has a 3D input from upstream, inherit volumeSize
@@ -503,6 +530,21 @@ export function expand(compilationResult, options = {}) {
                         let uniformName = argName
                         if (effectDef.globals && effectDef.globals[argName] && effectDef.globals[argName].uniform) {
                             uniformName = effectDef.globals[argName].uniform
+                        }
+
+                        // Skip colorMode uniforms that are controlled by a surface's colorModeUniform
+                        // These are set earlier based on whether the surface resolves to 'none'
+                        if (effectDef.globals) {
+                            let isControlled = false
+                            for (const globalDef of Object.values(effectDef.globals)) {
+                                if (globalDef.colorModeUniform === uniformName) {
+                                    isControlled = true
+                                    break
+                                }
+                            }
+                            if (isControlled) {
+                                continue
+                            }
                         }
 
                         // If this effect has a 3D input from upstream, inherit volumeSize

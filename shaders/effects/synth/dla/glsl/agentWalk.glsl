@@ -8,6 +8,7 @@ uniform sampler2D gridTex;
 uniform sampler2D tex;
 uniform int frame;
 uniform float inputWeight;
+uniform int colorMode;  // 0 = mono (white), 1 = sample from tex
 uniform float attrition;
 uniform float stride;
 uniform float density;
@@ -120,10 +121,15 @@ void main() {
         stuckPrev = 0.0;
         
         // Sample color from input at spawn position
-        vec2 texDims = vec2(textureSize(tex, 0));
-        ivec2 texCoord = ivec2(pos * texDims);
-        vec4 inputColor = texelFetch(tex, texCoord, 0);
-        agentColor = inputColor.rgb;
+        if (colorMode == 0) {
+            // Mono mode - use white
+            agentColor = vec3(1.0);
+        } else {
+            vec2 texDims = vec2(textureSize(tex, 0));
+            ivec2 texCoord = ivec2(pos * texDims);
+            vec4 inputColor = texelFetch(tex, texCoord, 0);
+            agentColor = inputColor.rgb;
+        }
     }
 
     vec2 gridDims = vec2(textureSize(gridTex, 0));

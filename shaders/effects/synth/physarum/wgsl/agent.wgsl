@@ -26,6 +26,8 @@ struct Uniforms {
     inputWeight: f32,
     resetState: i32,
     spawnPattern: i32,
+    colorMode: i32,  // 0 = mono (white), 1 = sample from inputTex
+    _pad1: i32,
 }
 
 const TAU: f32 = 6.28318530718;
@@ -72,6 +74,10 @@ fn sampleBufAt(x: i32, y: i32, width: i32, height: i32) -> f32 {
 }
 
 fn sampleInputAt(x: i32, y: i32, width: i32, height: i32) -> vec3f {
+    // colorMode 0 = mono (no input texture), return white
+    if (u.colorMode == 0) {
+        return vec3f(1.0);
+    }
     let wx = wrap_int(x, width);
     // Flip Y for input texture
     let wy = wrap_int(height - 1 - y, height);

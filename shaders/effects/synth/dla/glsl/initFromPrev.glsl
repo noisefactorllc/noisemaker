@@ -17,27 +17,28 @@ float hash21(vec2 p) {
 }
 
 void main() {
-    // If resetState is true, clear the trail
-    if (resetState) {
-        dlaOutColor = vec4(0.0);
-        return;
-    }
-    
     vec2 uv = gl_FragCoord.xy / resolution;
     
-    // Direct sample - no blur
-    float prev = texture(gridTex, uv).a;
-
-    // Apply decay to simulation grid (chemistry)
-    // decay=0 means full persistence, higher decay = faster fade
-    float persistence = clamp(1.0 - decay, 0.0, 1.0);
-    float energy = prev * persistence;
+    // Determine if we need to seed (first frame OR reset)
+    bool needsSeed = (frame <= 1) || resetState;
     
-    // Cap energy to prevent runaway accumulation
-    energy = min(energy, 6.0);
+    float energy = 0.0;
+    
+    if (!needsSeed) {
+        // Normal operation: decay previous state
+        float prev = texture(gridTex, uv).a;
+        
+        // Apply decay to simulation grid (chemistry)
+        // decay=0 means full persistence, higher decay = faster fade
+        float persistence = clamp(1.0 - decay, 0.0, 1.0);
+        energy = prev * persistence;
+        
+        // Cap energy to prevent runaway accumulation
+        energy = min(energy, 6.0);
+    }
 
-    // Seed logic for first frame only
-    if (frame <= 1) {
+    // Seed logic for first frame OR reset
+    if (needsSeed) {
         float rng = hash21(gl_FragCoord.xy + float(frame) * 17.0);
         float radial = smoothstep(0.18, 0.02, length(uv - 0.5));
         float seedDensity = 0.005;

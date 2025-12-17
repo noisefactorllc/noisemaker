@@ -13,8 +13,15 @@ export default new Effect({
   globals: {
     tex: {
       type: "surface",
-      default: "null",
+      default: "none",
+      colorModeUniform: "colorMode",
       ui: { label: "texture" }
+    },
+    colorMode: {
+      type: "int",
+      default: 1,
+      uniform: "colorMode",
+      ui: { control: false }
     },
     intensity: {
         type: "float",
@@ -187,7 +194,8 @@ export default new Effect({
         stride: "stride",
         density: "density",
         frame: "frame",
-        resetState: "resetState"
+        resetState: "resetState",
+        colorMode: "colorMode"
       },
       outputs: {
         outState: "globalAgentState",
@@ -206,7 +214,8 @@ export default new Effect({
         colorTex: "globalAgentColor"
       },
       uniforms: {
-        deposit: "deposit"
+        deposit: "deposit",
+        resetState: "resetState"
       },
       outputs: {
         dlaOutColor: "tempGrid"
@@ -224,7 +233,8 @@ export default new Effect({
         colorTex: "globalAgentColor"
       },
       uniforms: {
-        deposit: "deposit"
+        deposit: "deposit",
+        resetState: "resetState"
       },
       outputs: {
         dlaOutColor: "globalVisualTrail"

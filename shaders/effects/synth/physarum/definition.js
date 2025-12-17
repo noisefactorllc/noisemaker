@@ -15,7 +15,14 @@ export default new Effect({
     tex: {
       type: "surface",
       default: "none",
+      colorModeUniform: "colorMode",
       ui: { label: "texture" }
+    },
+    colorMode: {
+      type: "int",
+      default: 1,
+      uniform: "colorMode",
+      ui: { control: false }
     },
     deltaTime: {
       type: "float",
@@ -222,7 +229,8 @@ export default new Effect({
         outColor: "globalPhysarumColor"
       },
       uniforms: {
-        spawnPattern: "spawnPattern"
+        spawnPattern: "spawnPattern",
+        colorMode: "colorMode"
       }
     },
     {
