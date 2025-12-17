@@ -2150,7 +2150,28 @@ export class UIController {
                     const valueDisplay = controlGroup.querySelector('.control-value')
                     if (valueDisplay) valueDisplay.textContent = value
                 } else if (select) {
+                    // Try direct value match first (works for enum/member controls)
                     select.value = String(value)
+                    // If no match, search by dataset.paramValue (for choices controls)
+                    if (select.selectedIndex === -1 || select.value !== String(value)) {
+                        for (let i = 0; i < select.options.length; i++) {
+                            const raw = select.options[i].dataset?.paramValue
+                            if (raw !== undefined) {
+                                try {
+                                    const optionVal = JSON.parse(raw)
+                                    if ((value === null && optionVal === null) || value === optionVal) {
+                                        select.selectedIndex = i
+                                        break
+                                    }
+                                } catch (_) {
+                                    if (raw === value) {
+                                        select.selectedIndex = i
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                    }
                 } else if (toggle) {
                     toggle.checked = !!value
                 } else if (colorInput && Array.isArray(value)) {
