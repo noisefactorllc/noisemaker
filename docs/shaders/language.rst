@@ -156,6 +156,20 @@ Namespaces
 
 Polymorphic supports a namespace system to organize effects and ensure compatibility.
 
+Built-in Namespace
+^^^^^^^^^^^^^^^^^^
+
+The ``io`` namespace contains pipeline-level I/O functions that are always available without requiring a ``search`` directive. These are not effects per se, but fundamental pipeline operations:
+
+* ``read(surface)``: Read from a 2D surface (e.g., ``read(o0)``)
+* ``write(surface)``: Write to a 2D surface (e.g., ``.write(o0)``)
+* ``read3d(vol, geo)``: Read from 3D volume and geometry buffers
+* ``write3d(vol, geo)``: Write to 3D volume and geometry buffers
+* ``render(surface)``: Set the final render output (program directive)
+* ``render3d()``: Render 3D volume to 2D output
+
+The ``io`` namespace is implicitly included in all programs. You never need to add ``io`` to your ``search`` directive—these functions are always accessible.
+
 New Namespaces
 ^^^^^^^^^^^^^^
 

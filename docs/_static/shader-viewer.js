@@ -396,24 +396,24 @@
 
             // 3D volume generators
             if (is3dGenerator(effect)) {
-                return `search vol\n${funcName}().render3d().write(o0)`;
+                return `search vol\n${funcName}().render3d().write(o0)\n\nrender(o0)`;
             }
 
             if (starter) {
                 if (hasTex) {
                     const sourceSurface = 'o1';
                     const outputSurface = 'o0';
-                    return `${searchDirective}noise(seed: 1, ridges: true).write(${sourceSurface})\n${funcName}(tex: src(${sourceSurface})).write(${outputSurface})`;
+                    return `${searchDirective}noise(seed: 1, ridges: true).write(${sourceSurface})\n${funcName}(tex: src(${sourceSurface})).write(${outputSurface})\n\nrender(${outputSurface})`;
                 }
-                return `${searchDirective}${funcName}().write(o0)`;
+                return `${searchDirective}${funcName}().write(o0)\n\nrender(o0)`;
             } else if (hasTex) {
-                return `${searchDirective}noise(seed: 1, ridges: true).write(o1)\nnoise(seed: 2, ridges: true).${funcName}(tex: src(o1)).write(o0)`;
+                return `${searchDirective}noise(seed: 1, ridges: true).write(o1)\nnoise(seed: 2, ridges: true).${funcName}(tex: src(o1)).write(o0)\n\nrender(o0)`;
             } else if (is3dProcessor(effect)) {
                 const generatorDsl = `noise3d(volumeSize: x32)`;
                 const renderSuffix = funcName === 'render3d' ? '' : '.render3d()';
-                return `search vol\n${generatorDsl}.${funcName}()${renderSuffix}.write(o0)`;
+                return `search vol\n${generatorDsl}.${funcName}()${renderSuffix}.write(o0)\n\nrender(o0)`;
             } else {
-                return `${searchDirective}noise(seed: 1, ridges: true).${funcName}().write(o0)`;
+                return `${searchDirective}noise(seed: 1, ridges: true).${funcName}().write(o0)\n\nrender(o0)`;
             }
         }
 

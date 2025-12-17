@@ -55,6 +55,10 @@ export const VALID_TAGS = Object.freeze(Object.keys(TAG_DEFINITIONS))
  * Namespace acts as an implicit tag - effects receive it automatically.
  */
 export const NAMESPACE_DESCRIPTIONS = Object.freeze({
+    io: {
+        id: 'io',
+        description: 'Pipeline I/O functions (built-in, no search required)'
+    },
     classicNoisedeck: {
         id: 'classicNoisedeck',
         description: 'Complex shaders ported from the original noisedeck.app pipeline'
@@ -84,6 +88,25 @@ export const NAMESPACE_DESCRIPTIONS = Object.freeze({
         description: '3D volumetric processors'
     }
 })
+
+/**
+ * Built-in namespace that is always implicitly available.
+ * Functions in this namespace do not require a search directive.
+ */
+export const BUILTIN_NAMESPACE = 'io'
+
+/**
+ * Functions that belong to the built-in io namespace.
+ * These are pipeline-level I/O operations, not effects per se.
+ */
+export const IO_FUNCTIONS = Object.freeze([
+    'read',      // Read from 2D surface
+    'write',     // Write to 2D surface
+    'read3d',    // Read from 3D volume/geometry
+    'write3d',   // Write to 3D volume/geometry
+    'render',    // Set render output (special directive)
+    'render3d'   // Render 3D volume to 2D
+])
 
 /**
  * Valid namespace IDs.
@@ -140,4 +163,13 @@ export function validateTags(tags) {
         valid: invalidTags.length === 0,
         invalidTags
     }
+}
+
+/**
+ * Check if a function name is a built-in IO function.
+ * @param {string} funcName - Function name to check
+ * @returns {boolean} True if the function is a built-in IO function
+ */
+export function isIOFunction(funcName) {
+    return IO_FUNCTIONS.includes(funcName)
 }

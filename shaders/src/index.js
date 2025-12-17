@@ -23,8 +23,11 @@ export {
     NAMESPACE_DESCRIPTIONS,
     VALID_TAGS,
     VALID_NAMESPACES,
+    BUILTIN_NAMESPACE,
+    IO_FUNCTIONS,
     isValidTag,
     isValidNamespace,
+    isIOFunction,
     getTagDefinition,
     getNamespaceDescription,
     validateTags

@@ -420,6 +420,7 @@ export class UIController {
         this._read3dGeoOverrides = {} // Map: stepIndex -> geoName for read3d() geometry source (geo0-geo7)
         this._write3dVolOverrides = {} // Map: stepIndex -> volName for write3d() volume target (vol0-vol7)
         this._write3dGeoOverrides = {} // Map: stepIndex -> geoName for write3d() geometry target (geo0-geo7)
+        this._renderTargetOverride = null // Render target surface override (e.g., 'o0', 'o1')
         this._parsedDslStructure = []
         this._allEffects = []
 
@@ -1223,11 +1224,11 @@ export class UIController {
                 kwargs[geoParam] = { type: 'Read3D', tex3d: { type: 'GeoRef', name: 'geo0' }, geo: null }
                 const generatorCall = fmtCall('noise3d', { volumeSize: `x${consumerVolumeSize}` })
                 const effectCall = fmtCall(funcName, kwargs)
-                return `search synth3d, filter3d\n\n${generatorCall}\n  .write3d(vol0, geo0)\n\n${effectCall}\n  .render3d()\n  .write(o0)`
+                return `search synth3d, filter3d\n\n${generatorCall}\n  .write3d(vol0, geo0)\n\n${effectCall}\n  .render3d()\n  .write(o0)\n\nrender(o0)`
             }
 
             const effectCall = fmtCall(funcName, kwargs)
-            return `search synth3d, filter3d\n\n${effectCall}\n  .render3d()\n  .write(o0)`
+            return `search synth3d, filter3d\n\n${effectCall}\n  .render3d()\n  .write(o0)\n\nrender(o0)`
         }
 
         // Effects with explicit vol/geo parameters (not pipeline inputs)
@@ -1261,16 +1262,24 @@ export class UIController {
             kwargs[geoParam] = { type: 'Read3D', tex3d: { type: 'GeoRef', name: 'geo0' }, geo: null }
             const generatorCall = fmtCall('noise3d', { volumeSize: `x${consumerVolumeSize}` })
             const effectCall = fmtCall(funcName, kwargs)
-            return `search synth3d, filter3d\n\n${generatorCall}\n  .write3d(vol0, geo0)\n\n${effectCall}\n  .render3d()\n  .write(o0)`
+            return `search synth3d, filter3d\n\n${generatorCall}\n  .write3d(vol0, geo0)\n\n${effectCall}\n  .render3d()\n  .write(o0)\n\nrender(o0)`
         }
 
         // Effects with explicit tex param (not inputTex default) - generate input
+        // Starters with explicit tex can stand alone; filters need to chain from input
         if (hasExplicitTex) {
             const kwargs = this._buildKwargs(effect.instance.globals, this._parameterValues)
             // Override tex with read(o0)
             kwargs.tex = { type: 'Read', surface: 'o0' }
             const effectCall = fmtCall(funcName, kwargs)
-            return `${searchDirective}${noiseCall}\n  .write(o0)\n\n${effectCall}\n  .write(o1)`
+            if (starter) {
+                // Starter with explicit tex param - standalone chain
+                return `${searchDirective}${noiseCall}\n  .write(o0)\n\n${effectCall}\n  .write(o1)\n\nrender(o1)`
+            } else {
+                // Filter with explicit tex param - chain from second noise
+                const noiseCall2 = fmtCall('noise', { seed: 2, ridges: true })
+                return `${searchDirective}${noiseCall}\n  .write(o0)\n\n${noiseCall2}\n  .${effectCall}\n  .write(o1)\n\nrender(o1)`
+            }
         }
 
         if (starter) {
@@ -1283,10 +1292,10 @@ export class UIController {
                 // Add tex as first param for effects with texture input
                 const kwargsWithTex = { tex: { type: 'Read', surface: sourceSurface }, ...kwargs }
                 const effectCall = fmtCall(funcName, kwargsWithTex)
-                return `${searchDirective}${noiseCall}\n  .write(${sourceSurface})\n\n${effectCall}\n  .write(${outputSurface})`
+                return `${searchDirective}${noiseCall}\n  .write(${sourceSurface})\n\n${effectCall}\n  .write(${outputSurface})\n\nrender(${outputSurface})`
             }
             const effectCall = fmtCall(funcName, kwargs)
-            return `${searchDirective}${effectCall}\n  .write(o0)`
+            return `${searchDirective}${effectCall}\n  .write(o0)\n\nrender(o0)`
         } else if (hasTex) {
             // First chain writes to o0, second chain writes through effect to o1
             const kwargs = { tex: { type: 'Read', surface: 'o0' } }
@@ -1311,7 +1320,7 @@ export class UIController {
             }
             const effectCall = fmtCall(funcName, kwargs)
             const noiseCall2 = fmtCall('noise', { seed: 2, ridges: true })
-            return `${searchDirective}${noiseCall}\n  .write(o0)\n\n${noiseCall2}\n  .${effectCall}\n  .write(o1)`
+            return `${searchDirective}${noiseCall}\n  .write(o0)\n\n${noiseCall2}\n  .${effectCall}\n  .write(o1)\n\nrender(o1)`
         } else if (is3dProcessor(effect)) {
             let consumerVolumeSize = 32
             const kwargs = {}
@@ -1338,11 +1347,11 @@ export class UIController {
             const effectCall = fmtCall(funcName, kwargs)
             // render3d IS the renderer - don't append another .render3d() call
             const renderSuffix = funcName === 'render3d' ? '' : '\n  .render3d()'
-            return `search synth3d, filter3d\n\n${generatorCall}\n  .${effectCall}${renderSuffix}\n  .write(o0)`
+            return `search synth3d, filter3d\n\n${generatorCall}\n  .${effectCall}${renderSuffix}\n  .write(o0)\n\nrender(o0)`
         } else {
             const kwargs = this._buildKwargs(effect.instance.globals, this._parameterValues)
             const effectCall = fmtCall(funcName, kwargs)
-            return `${searchDirective}${noiseCall}\n  .${effectCall}\n  .write(o0)`
+            return `${searchDirective}${noiseCall}\n  .${effectCall}\n  .write(o0)\n\nrender(o0)`
         }
     }
 
@@ -1480,6 +1489,11 @@ export class UIController {
                 compiled.searchNamespaces = searchMatch[1].split(/\s*,\s*/)
             }
 
+            // Apply render target override
+            if (this._renderTargetOverride) {
+                compiled.render = this._renderTargetOverride
+            }
+
             // Extract let declarations from original DSL to preserve them
             const letDeclarations = []
             const letRegex = /^let\s+(\w+)\s*=\s*(.+)$/gm
@@ -1569,6 +1583,7 @@ export class UIController {
         this._read3dGeoOverrides = {}
         this._write3dVolOverrides = {}
         this._write3dGeoOverrides = {}
+        this._renderTargetOverride = null
 
         // Parse DSL to get plans with write targets
         let compiled = null
@@ -2046,6 +2061,12 @@ export class UIController {
             this._controlsContainer.appendChild(moduleDiv)
         }
 
+        // Add render module if render directive is present
+        if (compiled.render) {
+            const renderModule = this._createRenderModule(compiled.render)
+            this._controlsContainer.appendChild(renderModule)
+        }
+
         // Update initial disabled state of dependent controls
         this._updateDependentControls()
     }
@@ -2188,6 +2209,71 @@ export class UIController {
                 // Terminal writes are tracked by planIndex
                 this._writeTargetOverrides[planIndex] = e.target.value
             }
+            this._onControlChange()
+        })
+
+        controlGroup.appendChild(select)
+        controlsDiv.appendChild(controlGroup)
+        contentDiv.appendChild(controlsDiv)
+        moduleDiv.appendChild(contentDiv)
+
+        return moduleDiv
+    }
+
+    /**
+     * Create a render module for the render directive
+     * @private
+     * @param {string} renderTarget - The render target surface (e.g., 'o0')
+     */
+    _createRenderModule(renderTarget) {
+        const moduleDiv = document.createElement('div')
+        moduleDiv.className = 'shader-module'
+        moduleDiv.dataset.effectName = 'render'
+
+        const titleDiv = document.createElement('div')
+        titleDiv.className = 'module-title'
+        titleDiv.textContent = 'render'
+        titleDiv.addEventListener('click', () => {
+            moduleDiv.classList.toggle('collapsed')
+        })
+        moduleDiv.appendChild(titleDiv)
+
+        const contentDiv = document.createElement('div')
+        contentDiv.className = 'module-content'
+
+        const controlsDiv = document.createElement('div')
+        controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;'
+
+        // Create target dropdown
+        const controlGroup = document.createElement('div')
+        controlGroup.className = 'control-group'
+
+        const header = document.createElement('div')
+        header.className = 'control-header'
+
+        const label = document.createElement('label')
+        label.className = 'control-label'
+        label.textContent = 'surface'
+        header.appendChild(label)
+        controlGroup.appendChild(header)
+
+        const select = document.createElement('select')
+        select.className = 'control-select'
+
+        // Add output surfaces o0-o7
+        for (let i = 0; i < 8; i++) {
+            const option = document.createElement('option')
+            option.value = `o${i}`
+            option.textContent = `o${i}`
+            select.appendChild(option)
+        }
+
+        // Set current value
+        const currentTarget = typeof renderTarget === 'string' ? renderTarget : renderTarget.name
+        select.value = currentTarget
+
+        select.addEventListener('change', (e) => {
+            this._renderTargetOverride = e.target.value
             this._onControlChange()
         })
 
