@@ -1385,6 +1385,37 @@ export class UIController {
                         type: isOutput ? 'OutputRef' : 'FeedbackRef',
                         name: targetName
                     }
+
+                    // Also update the last step if it is a _write step (since unparser prefers chain steps)
+                    const plan = compiled.plans[planIndex]
+                    if (plan.chain && plan.chain.length > 0) {
+                        const lastStep = plan.chain[plan.chain.length - 1]
+                        if (lastStep.builtin && lastStep.op === '_write') {
+                             lastStep.args.tex = {
+                                kind: isOutput ? 'output' : 'feedback',
+                                name: targetName
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Apply mid-chain write target overrides
+            if (this._writeStepTargetOverrides) {
+                let globalStepIndex = 0
+                for (const plan of compiled.plans) {
+                    if (!plan.chain) continue
+                    for (const step of plan.chain) {
+                        if (step.builtin && step.op === '_write' && this._writeStepTargetOverrides[globalStepIndex] !== undefined) {
+                            const targetName = this._writeStepTargetOverrides[globalStepIndex]
+                            const isOutput = targetName.startsWith('o')
+                            step.args.tex = {
+                                kind: isOutput ? 'output' : 'feedback',
+                                name: targetName
+                            }
+                        }
+                        globalStepIndex++
+                    }
                 }
             }
 
