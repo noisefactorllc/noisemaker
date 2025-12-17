@@ -8,12 +8,26 @@ import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { build } from 'esbuild'
+import { execSync } from 'child_process'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const repoRoot = path.resolve(__dirname, '..')
 const entryPoint = path.join(repoRoot, 'js', 'noisemaker', 'index.js')
 const distDir = path.join(repoRoot, 'dist')
 const presetsDslPath = path.join(repoRoot, 'share', 'dsl', 'presets.dsl')
+
+/**
+ * Get git hash (first 8 chars) with dirty indicator
+ */
+function getGitBuildInfo() {
+    try {
+        const hash = execSync('git rev-parse HEAD', { cwd: repoRoot, encoding: 'utf8' }).trim().slice(0, 8)
+        const dirty = execSync('git status --porcelain', { cwd: repoRoot, encoding: 'utf8' }).trim() !== ''
+        return hash + (dirty ? ' (dirty)' : '')
+    } catch {
+        return 'unknown'
+    }
+}
 
 if (!fs.existsSync(entryPoint)) {
   console.error(`Bundle entry point not found: ${entryPoint}`)
@@ -25,9 +39,10 @@ fs.mkdirSync(distDir, { recursive: true })
 
 const banner = `/**
  * Noisemaker.js - Procedural Noise Generation
- * Copyright (c) 2017-2025 Noise Factor LLC
+ * Copyright (c) 2017-${new Date().getFullYear()} Noise Factor LLC. https://noisefactor.io/
  * SPDX-License-Identifier: MIT
- * Bundled on ${new Date().toISOString()}
+ * Build: ${getGitBuildInfo()}
+ * Date: ${new Date().toISOString()}
  */`
 
 const sharedOptions = {

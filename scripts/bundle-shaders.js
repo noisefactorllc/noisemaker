@@ -29,6 +29,19 @@ const demoDir = path.join(repoRoot, 'demo', 'shaders', 'lib')
 const distDir = path.join(repoRoot, 'dist', 'shaders')
 
 /**
+ * Get git hash (first 8 chars) with dirty indicator
+ */
+function getGitBuildInfo() {
+    try {
+        const hash = execSync('git rev-parse HEAD', { cwd: repoRoot, encoding: 'utf8' }).trim().slice(0, 8)
+        const dirty = execSync('git status --porcelain', { cwd: repoRoot, encoding: 'utf8' }).trim() !== ''
+        return hash + (dirty ? ' (dirty)' : '')
+    } catch {
+        return 'unknown'
+    }
+}
+
+/**
  * Calculate relative path from temp dir to target
  */
 function relPath(target) {
@@ -71,9 +84,10 @@ async function buildCoreBundle() {
     const banner = `/**
  * Noisemaker Shaders - Core Runtime
  * Includes: CanvasRenderer + UIController + EffectSelect
- * Copyright (c) 2017-2025 Noise Factor LLC
+ * Copyright (c) 2017-${new Date().getFullYear()} Noise Factor LLC. https://noisefactor.io/
  * SPDX-License-Identifier: MIT
- * Bundled on ${new Date().toISOString()}
+ * Build: ${getGitBuildInfo()}
+ * Date: ${new Date().toISOString()}
  */`
 
     const sharedOptions = {
