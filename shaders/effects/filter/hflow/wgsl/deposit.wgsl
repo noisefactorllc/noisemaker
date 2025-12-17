@@ -36,9 +36,11 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     }
     
     let clip = pos / resolution * 2.0 - 1.0;
+    // Flip Y to match blend pass coordinate space (inputTex is sampled with 1.0 - uv.y)
+    let flippedClip = vec2<f32>(clip.x, -clip.y);
     
     var output: VertexOutput;
-    output.position = vec4<f32>(clip, 0.0, 1.0);
+    output.position = vec4<f32>(flippedClip, 0.0, 1.0);
     output.color = color;
     return output;
 }

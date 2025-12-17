@@ -29,6 +29,8 @@ void main() {
     }
     
     vec2 clip = pos / resolution * 2.0 - 1.0;
+    // Flip Y to match blend pass coordinate space (inputTex is sampled with 1.0 - uv.y)
+    clip.y = -clip.y;
     gl_Position = vec4(clip, 0.0, 1.0);
     gl_PointSize = 1.0;
 }
