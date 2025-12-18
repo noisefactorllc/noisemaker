@@ -8,7 +8,6 @@ What the Demo Does
 
 The shader demo provides:
 
-- **Real-time GPU rendering** at 60 FPS with configurable resolution
 - **Effect browser** with categorized presets (synth, filter, nm, etc.)
 - **Live parameter controls** generated automatically from effect definitions
 - **DSL code editor** for composing effect chains programmatically
