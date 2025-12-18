@@ -31,6 +31,7 @@ import {
     sanitizeEnumName
 } from '../../../shaders/src/renderer/canvas.js'
 import { groupGlobalsByCategory } from '../../../shaders/src/runtime/effect.js'
+import { defaultControlFactory } from './control-factory.js'
 
 /**
  * Convert camelCase to space-separated lowercase words
@@ -390,9 +391,13 @@ export class UIController {
      * @param {HTMLElement} [options.loadingDialogStatus] - Loading dialog status
      * @param {HTMLElement} [options.loadingDialogProgress] - Loading dialog progress bar
      * @param {function} [options.onControlChange] - Callback when a control value changes
+     * @param {ControlFactory} [options.controlFactory] - Custom control factory for web components
      */
     constructor(renderer, options = {}) {
         this._renderer = renderer
+
+        // Control factory - allows downstream projects to substitute web components
+        this._controlFactory = options.controlFactory || defaultControlFactory
 
         // DOM elements
         this._effectSelect = options.effectSelect
@@ -2140,6 +2145,19 @@ export class UIController {
                 const controlGroup = moduleDiv.querySelector(`[data-param-key="${key}"]`)
                 if (!controlGroup) continue
 
+                // PLUGGABLE INTERFACE: Check for stored control handle first
+                // This allows downstream projects to use custom web components
+                // by providing a controlFactory that stores handles with setValue()
+                if (controlGroup._controlHandle && typeof controlGroup._controlHandle.setValue === 'function') {
+                    controlGroup._controlHandle.setValue(value)
+                    // Update value display if present
+                    if (controlGroup._valueDisplayHandle && typeof controlGroup._valueDisplayHandle.setValue === 'function') {
+                        controlGroup._valueDisplayHandle.setValue(value)
+                    }
+                    continue
+                }
+
+                // Fallback: query for native HTML elements (backward compatibility)
                 const slider = controlGroup.querySelector('input[type="range"]')
                 const select = controlGroup.querySelector('select')
                 const toggle = controlGroup.querySelector('toggle-switch')
@@ -3300,6 +3318,13 @@ export class UIController {
         })
 
         container.appendChild(toggle)
+
+        // Store control handle for pluggable sync
+        container._controlHandle = {
+            element: toggle,
+            getValue: () => toggle.checked,
+            setValue: (v) => { toggle.checked = !!v }
+        }
     }
 
     /**
@@ -3370,6 +3395,8 @@ export class UIController {
             }
         }
 
+        // Build choices array for the control handle
+        const choices = []
         let selectedValue = null
         let optionIndex = 0
 
@@ -3385,6 +3412,7 @@ export class UIController {
                 selectedValue = option.value
             }
             select.appendChild(option)
+            choices.push({ name, value: val })
             optionIndex += 1
         })
 
@@ -3430,6 +3458,29 @@ export class UIController {
         })
 
         container.appendChild(select)
+
+        // Store control handle for pluggable sync
+        container._controlHandle = {
+            element: select,
+            getValue: () => {
+                const option = select.options[select.selectedIndex]
+                const raw = option?.dataset?.paramValue
+                if (raw !== undefined) {
+                    try { return JSON.parse(raw) } catch (_) { return raw }
+                }
+                return null
+            },
+            setValue: (v) => {
+                // Find option by value match
+                for (let i = 0; i < choices.length; i++) {
+                    const choiceVal = choices[i].value
+                    if ((v === null && choiceVal === null) || v === choiceVal) {
+                        select.selectedIndex = i
+                        return
+                    }
+                }
+            }
+        }
     }
 
     /** @private */
@@ -3473,6 +3524,13 @@ export class UIController {
             })
 
             container.appendChild(select)
+
+            // Store control handle for pluggable sync
+            container._controlHandle = {
+                element: select,
+                getValue: () => parseInt(select.value, 10),
+                setValue: (v) => { select.value = v }
+            }
         } else {
             // Fallback to slider
             const slider = document.createElement('input')
@@ -3494,6 +3552,13 @@ export class UIController {
             })
 
             container.appendChild(slider)
+
+            // Store control handle for pluggable sync (slider fallback)
+            container._controlHandle = {
+                element: slider,
+                getValue: () => parseInt(slider.value, 10),
+                setValue: (v) => { slider.value = v }
+            }
         }
     }
 
@@ -3522,6 +3587,8 @@ export class UIController {
             if (node) {
                 const select = document.createElement('select')
                 select.className = 'control-select'
+                // Build array of options for control handle
+                const enumEntries = []
                 Object.keys(node).forEach(k => {
                     const option = document.createElement('option')
                     const fullPath = `${enumPath}.${k}`
@@ -3536,6 +3603,7 @@ export class UIController {
                     // Match by numeric value (from DSL) or string path (from preserved values)
                     option.selected = (value === numericValue) || (fullPath === value)
                     select.appendChild(option)
+                    enumEntries.push({ path: fullPath, numericValue })
                 })
 
                 select.addEventListener('change', (e) => {
@@ -3554,6 +3622,23 @@ export class UIController {
                 })
 
                 container.appendChild(select)
+
+                // Store control handle for pluggable sync
+                container._controlHandle = {
+                    element: select,
+                    getValue: () => select.value,
+                    setValue: (v) => {
+                        // Match by numeric value or string path
+                        for (let i = 0; i < enumEntries.length; i++) {
+                            if (enumEntries[i].numericValue === v || enumEntries[i].path === v) {
+                                select.selectedIndex = i
+                                return
+                            }
+                        }
+                        // Direct value match fallback
+                        select.value = v
+                    }
+                }
             }
         }
     }
@@ -3596,6 +3681,22 @@ export class UIController {
             this._effectParameterValues[effectKey][key] = numVal
             this._onControlChange()
         })
+
+        // Store control handle for pluggable sync
+        const isInt = spec.type === 'int'
+        container._controlHandle = {
+            element: slider,
+            getValue: () => isInt ? parseInt(slider.value) : parseFloat(slider.value),
+            setValue: (v) => {
+                slider.value = v
+                valueDisplay.textContent = formatVal(v, isInt)
+            }
+        }
+        container._valueDisplayHandle = {
+            element: valueDisplay,
+            getValue: () => valueDisplay.textContent,
+            setValue: (v) => { valueDisplay.textContent = formatVal(v, isInt) }
+        }
     }
 
     /** @private */
@@ -3604,9 +3705,16 @@ export class UIController {
         colorInput.type = 'color'
         colorInput.className = 'control-color'
 
+        const toHex = (arr) => {
+            if (!Array.isArray(arr)) return '#000000'
+            const r = Math.round((arr[0] || 0) * 255).toString(16).padStart(2, '0')
+            const g = Math.round((arr[1] || 0) * 255).toString(16).padStart(2, '0')
+            const b = Math.round((arr[2] || 0) * 255).toString(16).padStart(2, '0')
+            return `#${r}${g}${b}`
+        }
+
         if (Array.isArray(value)) {
-            const toHex = (n) => Math.round(n * 255).toString(16).padStart(2, '0')
-            colorInput.value = `#${toHex(value[0])}${toHex(value[1])}${toHex(value[2])}`
+            colorInput.value = toHex(value)
         }
 
         const isVec4 = spec?.type === 'vec4'
@@ -3635,14 +3743,30 @@ export class UIController {
         colorInput.addEventListener('dblclick', () => {
             const defaultVal = spec?.default
             if (Array.isArray(defaultVal)) {
-                const toHex = (n) => Math.round(n * 255).toString(16).padStart(2, '0')
-                colorInput.value = `#${toHex(defaultVal[0])}${toHex(defaultVal[1])}${toHex(defaultVal[2])}`
+                colorInput.value = toHex(defaultVal)
                 this._effectParameterValues[effectKey][key] = [...defaultVal]
                 this._onControlChange()
             }
         })
 
         container.appendChild(colorInput)
+
+        // Store control handle for pluggable sync
+        container._controlHandle = {
+            element: colorInput,
+            getValue: () => {
+                const hex = colorInput.value
+                const r = parseInt(hex.slice(1, 3), 16) / 255
+                const g = parseInt(hex.slice(3, 5), 16) / 255
+                const b = parseInt(hex.slice(5, 7), 16) / 255
+                return isVec4 ? [r, g, b, 1] : [r, g, b]
+            },
+            setValue: (v) => {
+                if (Array.isArray(v)) {
+                    colorInput.value = toHex(v)
+                }
+            }
+        }
     }
 
     /** @private */
@@ -3696,6 +3820,23 @@ export class UIController {
         })
 
         container.appendChild(select)
+
+        // Store control handle for pluggable sync
+        container._controlHandle = {
+            element: select,
+            getValue: () => select.value === 'none' ? 'none' : `read(${select.value})`,
+            setValue: (v) => {
+                // Parse value to extract surface ID
+                let surfaceId = v
+                if (typeof v === 'object' && v.name) {
+                    surfaceId = v.name
+                } else if (typeof v === 'string') {
+                    const match = v.match(/read\(([^)]+)\)|^(o[0-7])$/)
+                    if (match) surfaceId = match[1] || match[2]
+                }
+                select.value = surfaceId || 'none'
+            }
+        }
     }
 
     /** @private */
@@ -3748,6 +3889,17 @@ export class UIController {
         })
 
         container.appendChild(select)
+
+        // Store control handle for pluggable sync
+        container._controlHandle = {
+            element: select,
+            getValue: () => select.value,
+            setValue: (v) => {
+                let volId = v
+                if (typeof v === 'object' && v.name) volId = v.name
+                select.value = volId || 'none'
+            }
+        }
     }
 
     /** @private */
@@ -3800,6 +3952,17 @@ export class UIController {
         })
 
         container.appendChild(select)
+
+        // Store control handle for pluggable sync
+        container._controlHandle = {
+            element: select,
+            getValue: () => select.value,
+            setValue: (v) => {
+                let geoId = v
+                if (typeof v === 'object' && v.name) geoId = v.name
+                select.value = geoId || 'none'
+            }
+        }
     }
 
     /** @private Called when a control value changes */
@@ -4036,3 +4199,6 @@ export class UIController {
 
 // Re-export utilities that might be needed externally
 export { cloneParamValue, isStarterEffect, hasTexSurfaceParam, hasExplicitTexParam, getVolGeoParams, is3dGenerator, is3dProcessor, getEffect }
+
+// Re-export ControlFactory for downstream customization
+export { ControlFactory, defaultControlFactory } from './control-factory.js'

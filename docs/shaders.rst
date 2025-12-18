@@ -71,6 +71,7 @@ Noisemaker includes an experimental collection of WebGL 2 and WebGPU shader effe
    shaders/language
    shaders/pipeline
    shaders/compiler
+   shaders/demo-ui
    shaders/mcp
 
 Layout
