@@ -31,7 +31,6 @@ export default class Media extends Effect {
     flip: { slot: 2, components: 'z' },
     backgroundOpacity: { slot: 2, components: 'w' },
     backgroundColor: { slot: 3, components: 'xyz' },
-    motionBlur: { slot: 3, components: 'w' },
     imageSize: { slot: 4, components: 'xy' }
   }
 
@@ -167,18 +166,6 @@ export default class Media extends Effect {
         category: "background"
       }
     },
-    motionBlur: {
-      type: "float",
-      default: 0,
-      min: 0,
-      max: 100,
-      uniform: "motionBlur",
-      ui: {
-        label: "motion blur",
-        control: "slider",
-        category: "util"
-      }
-    },
     seed: {
       type: "float",
       default: 1,
@@ -199,34 +186,15 @@ export default class Media extends Effect {
     }
   }
 
-  textures = {
-    _selfTex: {
-      width: "input",
-      height: "input",
-      format: "rgba8unorm"
-    }
-  }
-
   passes = [
     {
       name: "main",
       program: "mediaInput",
       inputs: {
-        imageTex: "imageTex",
-        selfTex: "_selfTex"
+        imageTex: "imageTex"
       },
       outputs: {
         fragColor: "outputTex"
-      }
-    },
-    {
-      name: "feedback",
-      program: "copy",
-      inputs: {
-        inputTex: "outputTex"
-      },
-      outputs: {
-        fragColor: "_selfTex"
       }
     }
   ]

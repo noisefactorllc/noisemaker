@@ -1722,6 +1722,7 @@ const SIM_EFFECTS = new Set([
     'synth/flow',
     'synth/hflow',
     'synth/mnca',
+    'filter/motionBlur',
     'synth/physarum',
     'synth/rd',
     'filter/loopBegin',

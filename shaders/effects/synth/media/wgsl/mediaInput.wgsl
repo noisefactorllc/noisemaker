@@ -9,7 +9,6 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var samp : sampler;
 @group(0) @binding(2) var imageTex : texture_2d<f32>;
-@group(0) @binding(3) var selfTex : texture_2d<f32>;
 
 var<private> resolution : vec2<f32>;
 var<private> time : f32;
@@ -24,7 +23,6 @@ var<private> flip : i32;
 var<private> backgroundColor : vec3<f32>;
 var<private> backgroundOpacity : f32;
 var<private> imageSize : vec2<f32>;
-var<private> motionBlur : f32;
 
 const PI : f32 = 3.14159265359;
 const TAU : f32 = 6.28318530718;
@@ -163,18 +161,9 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     backgroundOpacity = uniforms.data[2].w;
 
     backgroundColor = uniforms.data[3].xyz;
-    motionBlur = uniforms.data[3].w;
 
     imageSize = uniforms.data[4].xy;
 
     // Get current frame image
-    let img = getImage(pos.xy);
-
-    // Sample previous frame for motion blur (unconditional for WGSL uniform control flow)
-    let uv = pos.xy / resolution;
-    let prev = textureSample(selfTex, samp, uv);
-
-    // Apply motion blur by blending with previous frame (blurAmt=0 when disabled)
-    let blurAmt = motionBlur * 0.01;
-    return mix(img, prev, blurAmt);
+    return getImage(pos.xy);
 }

@@ -22,8 +22,6 @@ uniform int tiling;
 uniform int flip;
 uniform vec3 backgroundColor;
 uniform float backgroundOpacity;
-uniform sampler2D selfTex;
-uniform float motionBlur;
 
 out vec4 fragColor;
 
@@ -208,7 +206,5 @@ void main() {
     vec2 st = gl_FragCoord.xy / resolution;
     st.y = 1.0 - st.y;
 
-    vec4 color = mix(getImage(st), texture(selfTex, st), motionBlur * 0.009);
-
-    fragColor = color;
+    fragColor = getImage(st);
 }

@@ -293,16 +293,15 @@ vec4 getImage(vec2 st) {
     // chromatic aberration
     float aberrationOffset = map(aberrationAmt, 0.0, 100.0, 0.0, 0.1) * centerDist * PI * 0.5;
 
-    // Flip Y when sampling selfTex to match render orientation
-    vec2 flippedSt = vec2(st.x, 1.0 - st.y);
+    // Sample selfTex directly without Y flip
 
     float redOffset = mix(clamp(st.x + aberrationOffset, 0.0, 1.0), st.x, st.x);
-    vec4 red = texture(selfTex, vec2(redOffset, flippedSt.y));
+    vec4 red = texture(selfTex, vec2(redOffset, st.y));
 
-    vec4 green = texture(selfTex, flippedSt);
+    vec4 green = texture(selfTex, st);
 
     float blueOffset = mix(st.x, clamp(st.x - aberrationOffset, 0.0, 1.0), st.x);
-    vec4 blue = texture(selfTex, vec2(blueOffset, flippedSt.y));
+    vec4 blue = texture(selfTex, vec2(blueOffset, st.y));
 
     vec4 tex = vec4(red.r, green.g, blue.b, 1.0);
     tex.rgb = tex.rgb * tex.a;
