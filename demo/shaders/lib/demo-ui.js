@@ -2150,12 +2150,21 @@ export class UIController {
                     const valueDisplay = controlGroup.querySelector('.control-value')
                     if (valueDisplay) valueDisplay.textContent = value
                 } else if (select) {
-                    // Try direct value match first (works for enum/member controls)
+                    // Try direct value match first (works for enum int controls)
                     select.value = String(value)
-                    // If no match, search by dataset.paramValue (for choices controls)
+                    // If no match, search by dataset.enumValue (for member controls) or dataset.paramValue (for choices controls)
                     if (select.selectedIndex === -1 || select.value !== String(value)) {
                         for (let i = 0; i < select.options.length; i++) {
-                            const raw = select.options[i].dataset?.paramValue
+                            const option = select.options[i]
+                            // Check enumValue (member controls store numeric enum value here)
+                            if (option.dataset?.enumValue !== undefined) {
+                                if (Number(option.dataset.enumValue) === value) {
+                                    select.selectedIndex = i
+                                    break
+                                }
+                            }
+                            // Check paramValue (choices controls store JSON value here)
+                            const raw = option.dataset?.paramValue
                             if (raw !== undefined) {
                                 try {
                                     const optionVal = JSON.parse(raw)
@@ -3518,7 +3527,14 @@ export class UIController {
                     const fullPath = `${enumPath}.${k}`
                     option.value = fullPath
                     option.textContent = k
-                    option.selected = fullPath === value
+                    // Store numeric value for sync matching
+                    const enumEntry = node[k]
+                    const numericValue = (enumEntry && typeof enumEntry === 'object' && 'value' in enumEntry)
+                        ? enumEntry.value
+                        : enumEntry
+                    option.dataset.enumValue = numericValue
+                    // Match by numeric value (from DSL) or string path (from preserved values)
+                    option.selected = (value === numericValue) || (fullPath === value)
                     select.appendChild(option)
                 })
 
