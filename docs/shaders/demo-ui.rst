@@ -341,6 +341,31 @@ When DSL text changes (e.g., user edits the text):
 
 This design ensures that custom web components are updated correctly when DSL text changes, solving the common problem where custom dropdowns don't sync from DSL edits.
 
+Module Controls Reset Hook
+--------------------------
+
+When a module's "reset" button is clicked, the UIController rebuilds that module's controls from scratch. Downstream projects that apply custom UI transformations (e.g., rearranging mixer A/B sliders into a special layout) need to re-apply those transformations after the rebuild.
+
+The ``onModuleControlsReset`` callback fires after a module's controls are rebuilt:
+
+.. code-block:: javascript
+
+   const ui = new UIController(renderer, {
+       // ... other options ...
+       onModuleControlsReset: (stepIndex, moduleElement, effectDef) => {
+           // Re-apply custom UI transformations
+           if (effectDef.category === 'mixer') {
+               this._applyMixerLayout(moduleElement, effectDef)
+           }
+       }
+   })
+
+**Callback parameters:**
+
+- ``stepIndex`` — The step index of the affected module in the pipeline
+- ``moduleElement`` — The DOM element (``<div class="shader-module">``) whose controls were rebuilt
+- ``effectDef`` — The effect definition object, useful for checking effect type or accessing globals
+
 Integration Points
 ------------------
 
@@ -366,6 +391,7 @@ UIController Options
        // Callbacks
        onControlChange: Function,            // Called when any control changes
        onRequestRecompile: Function,         // Called when recompile is needed
+       onModuleControlsReset: Function,      // Called after module reset button rebuilds controls
 
        // Pluggable controls
        controlFactory: ControlFactory        // Custom control factory

@@ -391,6 +391,7 @@ export class UIController {
      * @param {HTMLElement} [options.loadingDialogStatus] - Loading dialog status
      * @param {HTMLElement} [options.loadingDialogProgress] - Loading dialog progress bar
      * @param {function} [options.onControlChange] - Callback when a control value changes
+     * @param {function} [options.onModuleControlsReset] - Callback(stepIndex, moduleElement, effectDef) after a module's controls are rebuilt via reset button
      * @param {ControlFactory} [options.controlFactory] - Custom control factory for web components
      */
     constructor(renderer, options = {}) {
@@ -413,6 +414,7 @@ export class UIController {
         // Callbacks
         this._onControlChangeCallback = options.onControlChange || null
         this._onRequestRecompileCallback = options.onRequestRecompile || null
+        this._onModuleControlsResetCallback = options.onModuleControlsReset || null
 
         // State
         this._parameterValues = {}
@@ -1879,6 +1881,11 @@ export class UIController {
 
                 this._updateDslFromEffectParams()
                 this.showStatus(`reset ${effectInfo.name} to defaults`, 'success')
+
+                // Notify downstream that module controls were rebuilt
+                if (this._onModuleControlsResetCallback) {
+                    this._onModuleControlsResetCallback(effectInfo.stepIndex, moduleDiv, effectDef)
+                }
             })
             titleDiv.appendChild(resetBtn)
 
