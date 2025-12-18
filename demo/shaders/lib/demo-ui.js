@@ -3185,7 +3185,8 @@ export class UIController {
 
         try {
             await this._renderer.compile(dsl, {
-                shaderOverrides: this._shaderOverrides
+                shaderOverrides: this._shaderOverrides,
+                zoom: this._getZoomFromEffectParams()
             })
             this.showStatus('shader applied', 'success')
         } catch (err) {
@@ -3204,7 +3205,8 @@ export class UIController {
 
         try {
             await this._renderer.compile(dsl, {
-                shaderOverrides: this._shaderOverrides
+                shaderOverrides: this._shaderOverrides,
+                zoom: this._getZoomFromEffectParams()
             })
             this.showStatus('pipeline updated', 'success')
         } catch (err) {
@@ -4089,6 +4091,22 @@ export class UIController {
     getZoomValue(effect) {
         return this._parameterValues.zoom ||
             (effect?.instance?.globals?.zoom?.default) || 1
+    }
+
+    /**
+     * Get zoom value from effect parameter values (for recompilation)
+     * @private
+     * @returns {number} Zoom value
+     */
+    _getZoomFromEffectParams() {
+        // Check _effectParameterValues first (DSL pipeline parameters)
+        for (const params of Object.values(this._effectParameterValues)) {
+            if (params.zoom !== undefined) {
+                return params.zoom
+            }
+        }
+        // Fall back to _parameterValues (single-effect mode)
+        return this._parameterValues.zoom || 1
     }
 
     /**
