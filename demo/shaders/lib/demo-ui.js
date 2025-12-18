@@ -612,9 +612,13 @@ export class UIController {
         cameraLabel.textContent = 'camera'
         cameraGroup.appendChild(cameraLabel)
 
-        const cameraSelect = document.createElement('select')
-        cameraSelect.className = 'control-select'
-        cameraSelect.innerHTML = '<option value="">select camera...</option>'
+        // Camera select starts with placeholder - populated dynamically by _enumerateCameras
+        const cameraHandle = this._controlFactory.createSelect({
+            choices: [{ value: '', label: 'select camera...' }],
+            value: '',
+            className: 'control-select'
+        })
+        const cameraSelect = cameraHandle.element
         cameraSelect.dataset.stepIndex = stepIndex
         cameraGroup.appendChild(cameraSelect)
 
@@ -2262,32 +2266,31 @@ export class UIController {
         header.appendChild(label)
         controlGroup.appendChild(header)
 
-        const select = document.createElement('select')
-        select.className = 'control-select'
-
-        // Add 'none' option and output surfaces o0-o7
-        const noneOption = document.createElement('option')
-        noneOption.value = 'none'
-        noneOption.textContent = 'none'
-        select.appendChild(noneOption)
-        for (let i = 0; i < 8; i++) {
-            const option = document.createElement('option')
-            option.value = `o${i}`
-            option.textContent = `o${i}`
-            select.appendChild(option)
-        }
-
-        // Set current value
+        const surfaces = [
+            { value: 'none', label: 'none' },
+            { value: 'o0', label: 'o0' },
+            { value: 'o1', label: 'o1' },
+            { value: 'o2', label: 'o2' },
+            { value: 'o3', label: 'o3' },
+            { value: 'o4', label: 'o4' },
+            { value: 'o5', label: 'o5' },
+            { value: 'o6', label: 'o6' },
+            { value: 'o7', label: 'o7' }
+        ]
         const currentTarget = typeof writeTarget === 'string' ? writeTarget : writeTarget.name
-        select.value = currentTarget
+        const handle = this._controlFactory.createSelect({
+            choices: surfaces,
+            value: currentTarget,
+            className: 'control-select'
+        })
+        const select = handle.element
 
-        select.addEventListener('change', (e) => {
+        select.addEventListener('change', () => {
+            const val = handle.getValue()
             if (isMidChain) {
-                // Mid-chain writes are tracked by stepIndex
-                this._writeStepTargetOverrides[stepIndex] = e.target.value
+                this._writeStepTargetOverrides[stepIndex] = val
             } else {
-                // Terminal writes are tracked by planIndex
-                this._writeTargetOverrides[planIndex] = e.target.value
+                this._writeTargetOverrides[planIndex] = val
             }
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
@@ -2340,23 +2343,26 @@ export class UIController {
         header.appendChild(label)
         controlGroup.appendChild(header)
 
-        const select = document.createElement('select')
-        select.className = 'control-select'
-
-        // Add output surfaces o0-o7
-        for (let i = 0; i < 8; i++) {
-            const option = document.createElement('option')
-            option.value = `o${i}`
-            option.textContent = `o${i}`
-            select.appendChild(option)
-        }
-
-        // Set current value
+        const surfaces = [
+            { value: 'o0', label: 'o0' },
+            { value: 'o1', label: 'o1' },
+            { value: 'o2', label: 'o2' },
+            { value: 'o3', label: 'o3' },
+            { value: 'o4', label: 'o4' },
+            { value: 'o5', label: 'o5' },
+            { value: 'o6', label: 'o6' },
+            { value: 'o7', label: 'o7' }
+        ]
         const currentTarget = typeof renderTarget === 'string' ? renderTarget : renderTarget.name
-        select.value = currentTarget
+        const handle = this._controlFactory.createSelect({
+            choices: surfaces,
+            value: currentTarget,
+            className: 'control-select'
+        })
+        const select = handle.element
 
-        select.addEventListener('change', (e) => {
-            this._renderTargetOverride = e.target.value
+        select.addEventListener('change', () => {
+            this._renderTargetOverride = handle.getValue()
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -2462,28 +2468,27 @@ export class UIController {
         header.appendChild(label)
         controlGroup.appendChild(header)
 
-        const select = document.createElement('select')
-        select.className = 'control-select'
-
-        // Add 'none' option and output surfaces o0-o7
-        const noneOption = document.createElement('option')
-        noneOption.value = 'none'
-        noneOption.textContent = 'none'
-        select.appendChild(noneOption)
-        for (let i = 0; i < 8; i++) {
-            const option = document.createElement('option')
-            option.value = `o${i}`
-            option.textContent = `o${i}`
-            select.appendChild(option)
-        }
-
-        // Set current value
+        const surfaces = [
+            { value: 'none', label: 'none' },
+            { value: 'o0', label: 'o0' },
+            { value: 'o1', label: 'o1' },
+            { value: 'o2', label: 'o2' },
+            { value: 'o3', label: 'o3' },
+            { value: 'o4', label: 'o4' },
+            { value: 'o5', label: 'o5' },
+            { value: 'o6', label: 'o6' },
+            { value: 'o7', label: 'o7' }
+        ]
         const currentSource = typeof readSource === 'string' ? readSource : readSource.name
-        select.value = currentSource
+        const handle = this._controlFactory.createSelect({
+            choices: surfaces,
+            value: currentSource,
+            className: 'control-select'
+        })
+        const select = handle.element
 
-        select.addEventListener('change', (e) => {
-            // Store read source override and trigger recompile
-            this._readSourceOverrides[stepIndex] = e.target.value
+        select.addEventListener('change', () => {
+            this._readSourceOverrides[stepIndex] = handle.getValue()
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -2587,27 +2592,27 @@ export class UIController {
         volHeader.appendChild(volLabel)
         volGroup.appendChild(volHeader)
 
-        const volSelect = document.createElement('select')
-        volSelect.className = 'control-select'
-
-        // Add 'none' option and volume surfaces vol0-vol7
-        const volNoneOption = document.createElement('option')
-        volNoneOption.value = 'none'
-        volNoneOption.textContent = 'none'
-        volSelect.appendChild(volNoneOption)
-        for (let i = 0; i < 8; i++) {
-            const option = document.createElement('option')
-            option.value = `vol${i}`
-            option.textContent = `vol${i}`
-            volSelect.appendChild(option)
-        }
-
-        // Set current value
+        const volumes = [
+            { value: 'none', label: 'none' },
+            { value: 'vol0', label: 'vol0' },
+            { value: 'vol1', label: 'vol1' },
+            { value: 'vol2', label: 'vol2' },
+            { value: 'vol3', label: 'vol3' },
+            { value: 'vol4', label: 'vol4' },
+            { value: 'vol5', label: 'vol5' },
+            { value: 'vol6', label: 'vol6' },
+            { value: 'vol7', label: 'vol7' }
+        ]
         const currentVol = read3dSource.tex3d?.name || 'vol0'
-        volSelect.value = currentVol
+        const volHandle = this._controlFactory.createSelect({
+            choices: volumes,
+            value: currentVol,
+            className: 'control-select'
+        })
+        const volSelect = volHandle.element
 
-        volSelect.addEventListener('change', (e) => {
-            this._read3dVolOverrides[stepIndex] = e.target.value
+        volSelect.addEventListener('change', () => {
+            this._read3dVolOverrides[stepIndex] = volHandle.getValue()
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -2630,27 +2635,27 @@ export class UIController {
         geoHeader.appendChild(geoLabel)
         geoGroup.appendChild(geoHeader)
 
-        const geoSelect = document.createElement('select')
-        geoSelect.className = 'control-select'
-
-        // Add 'none' option and geometry surfaces geo0-geo7
-        const geoNoneOption = document.createElement('option')
-        geoNoneOption.value = 'none'
-        geoNoneOption.textContent = 'none'
-        geoSelect.appendChild(geoNoneOption)
-        for (let i = 0; i < 8; i++) {
-            const option = document.createElement('option')
-            option.value = `geo${i}`
-            option.textContent = `geo${i}`
-            geoSelect.appendChild(option)
-        }
-
-        // Set current value
+        const geometries = [
+            { value: 'none', label: 'none' },
+            { value: 'geo0', label: 'geo0' },
+            { value: 'geo1', label: 'geo1' },
+            { value: 'geo2', label: 'geo2' },
+            { value: 'geo3', label: 'geo3' },
+            { value: 'geo4', label: 'geo4' },
+            { value: 'geo5', label: 'geo5' },
+            { value: 'geo6', label: 'geo6' },
+            { value: 'geo7', label: 'geo7' }
+        ]
         const currentGeo = read3dSource.geo?.name || 'geo0'
-        geoSelect.value = currentGeo
+        const geoHandle = this._controlFactory.createSelect({
+            choices: geometries,
+            value: currentGeo,
+            className: 'control-select'
+        })
+        const geoSelect = geoHandle.element
 
-        geoSelect.addEventListener('change', (e) => {
-            this._read3dGeoOverrides[stepIndex] = e.target.value
+        geoSelect.addEventListener('change', () => {
+            this._read3dGeoOverrides[stepIndex] = geoHandle.getValue()
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -2713,27 +2718,27 @@ export class UIController {
         volHeader.appendChild(volLabel)
         volGroup.appendChild(volHeader)
 
-        const volSelect = document.createElement('select')
-        volSelect.className = 'control-select'
-
-        // Add 'none' option and volume surfaces vol0-vol7
-        const volNoneOption = document.createElement('option')
-        volNoneOption.value = 'none'
-        volNoneOption.textContent = 'none'
-        volSelect.appendChild(volNoneOption)
-        for (let i = 0; i < 8; i++) {
-            const option = document.createElement('option')
-            option.value = `vol${i}`
-            option.textContent = `vol${i}`
-            volSelect.appendChild(option)
-        }
-
-        // Set current value
+        const volumes = [
+            { value: 'none', label: 'none' },
+            { value: 'vol0', label: 'vol0' },
+            { value: 'vol1', label: 'vol1' },
+            { value: 'vol2', label: 'vol2' },
+            { value: 'vol3', label: 'vol3' },
+            { value: 'vol4', label: 'vol4' },
+            { value: 'vol5', label: 'vol5' },
+            { value: 'vol6', label: 'vol6' },
+            { value: 'vol7', label: 'vol7' }
+        ]
         const currentVol = write3dArgs.tex3d?.name || 'vol0'
-        volSelect.value = currentVol
+        const volHandle = this._controlFactory.createSelect({
+            choices: volumes,
+            value: currentVol,
+            className: 'control-select'
+        })
+        const volSelect = volHandle.element
 
-        volSelect.addEventListener('change', (e) => {
-            this._write3dVolOverrides[stepIndex] = e.target.value
+        volSelect.addEventListener('change', () => {
+            this._write3dVolOverrides[stepIndex] = volHandle.getValue()
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -2756,27 +2761,27 @@ export class UIController {
         geoHeader.appendChild(geoLabel)
         geoGroup.appendChild(geoHeader)
 
-        const geoSelect = document.createElement('select')
-        geoSelect.className = 'control-select'
-
-        // Add 'none' option and geometry surfaces geo0-geo7
-        const geoNoneOption = document.createElement('option')
-        geoNoneOption.value = 'none'
-        geoNoneOption.textContent = 'none'
-        geoSelect.appendChild(geoNoneOption)
-        for (let i = 0; i < 8; i++) {
-            const option = document.createElement('option')
-            option.value = `geo${i}`
-            option.textContent = `geo${i}`
-            geoSelect.appendChild(option)
-        }
-
-        // Set current value
+        const geometries = [
+            { value: 'none', label: 'none' },
+            { value: 'geo0', label: 'geo0' },
+            { value: 'geo1', label: 'geo1' },
+            { value: 'geo2', label: 'geo2' },
+            { value: 'geo3', label: 'geo3' },
+            { value: 'geo4', label: 'geo4' },
+            { value: 'geo5', label: 'geo5' },
+            { value: 'geo6', label: 'geo6' },
+            { value: 'geo7', label: 'geo7' }
+        ]
         const currentGeo = write3dArgs.geo?.name || 'geo0'
-        geoSelect.value = currentGeo
+        const geoHandle = this._controlFactory.createSelect({
+            choices: geometries,
+            value: currentGeo,
+            className: 'control-select'
+        })
+        const geoSelect = geoHandle.element
 
-        geoSelect.addEventListener('change', (e) => {
-            this._write3dGeoOverrides[stepIndex] = e.target.value
+        geoSelect.addEventListener('change', () => {
+            this._write3dGeoOverrides[stepIndex] = geoHandle.getValue()
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -2990,20 +2995,20 @@ export class UIController {
 
         // Program selector
         const programNames = Object.keys(effectDef.shaders)
+        let programHandle = null
         if (programNames.length > 1) {
-            const programSelect = document.createElement('select')
-            programSelect.className = 'control-select'
-            programSelect.style.cssText = 'margin-bottom: 0.5rem;'
-            programNames.forEach(name => {
-                const option = document.createElement('option')
-                option.value = name
-                option.textContent = name
-                programSelect.appendChild(option)
+            const choices = programNames.map(name => ({ value: name, label: name }))
+            programHandle = this._controlFactory.createSelect({
+                choices,
+                value: programNames[0],
+                className: 'control-select'
             })
+            const programSelect = programHandle.element
+            programSelect.style.cssText = 'margin-bottom: 0.5rem;'
             section.appendChild(programSelect)
 
             programSelect.addEventListener('change', () => {
-                this._updateShaderEditorContent(effectInfo, effectDef, programSelect.value, section)
+                this._updateShaderEditorContent(effectInfo, effectDef, programHandle.getValue(), section)
             })
         }
 
@@ -3042,8 +3047,8 @@ export class UIController {
 
                 if (!isVisible) {
                     // Load current shader source
-                    const programName = programNames.length > 1
-                        ? section.querySelector('select').value
+                    const programName = programHandle
+                        ? programHandle.getValue()
                         : programNames[0]
                     this._updateShaderEditorContent(effectInfo, effectDef, programName, section)
                 }
@@ -3052,8 +3057,8 @@ export class UIController {
 
         // Apply button handler
         applyBtn.addEventListener('click', () => {
-            const programName = programNames.length > 1
-                ? section.querySelector('select')?.value
+            const programName = programHandle
+                ? programHandle.getValue()
                 : programNames[0]
             const backend = this._renderer.backend
             const source = textarea.value
