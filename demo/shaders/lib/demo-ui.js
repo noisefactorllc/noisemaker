@@ -3302,29 +3302,28 @@ export class UIController {
 
     /** @private */
     _createBooleanControl(container, key, value, effectKey, spec) {
-        const toggle = document.createElement('toggle-switch')
-        toggle.checked = !!value
-        toggle.addEventListener('change', (e) => {
-            this._effectParameterValues[effectKey][key] = e.target.checked
+        const handle = this._controlFactory.createToggle({
+            checked: !!value
+        })
+
+        const toggle = handle.element
+
+        toggle.addEventListener('change', () => {
+            this._effectParameterValues[effectKey][key] = handle.getValue()
             this._onControlChange()
         })
 
         // Double-click to reset to default
         toggle.addEventListener('dblclick', () => {
             const defaultVal = spec?.default !== undefined ? !!spec.default : false
-            toggle.checked = defaultVal
+            handle.setValue(defaultVal)
             this._effectParameterValues[effectKey][key] = defaultVal
             this._onControlChange()
         })
 
         container.appendChild(toggle)
 
-        // Store control handle for pluggable sync
-        container._controlHandle = {
-            element: toggle,
-            getValue: () => toggle.checked,
-            setValue: (v) => { toggle.checked = !!v }
-        }
+        container._controlHandle = handle
     }
 
     /**
@@ -3333,11 +3332,13 @@ export class UIController {
      * @private
      */
     _createButtonControl(container, key, spec) {
-        const button = document.createElement('button')
-        button.className = 'control-button tooltip'
-        button.textContent = spec.ui?.buttonLabel || 'reset'
-        button.dataset.title = spec.ui?.label || key
-        button.setAttribute('aria-label', spec.ui?.label || key)
+        const handle = this._controlFactory.createButton({
+            label: spec.ui?.buttonLabel || 'reset',
+            className: 'control-button tooltip',
+            title: spec.ui?.label || key
+        })
+
+        const button = handle.element
         button.dataset.buttonType = spec.ui?.buttonLabel || 'reset'
 
         button.addEventListener('click', (e) => {
@@ -3381,13 +3382,13 @@ export class UIController {
         })
 
         container.appendChild(button)
+
+        // Buttons are momentary - no getValue/setValue needed for sync
+        container._controlHandle = handle
     }
 
     /** @private */
     _createChoicesControl(container, key, spec, value, effectKey) {
-        const select = document.createElement('select')
-        select.className = 'control-select'
-
         // Warn about spaces in enum keys (deprecated, should use camelCase)
         for (const name of Object.keys(spec.choices)) {
             if (name.includes(' ')) {
@@ -3395,64 +3396,35 @@ export class UIController {
             }
         }
 
-        // Build choices array for the control handle
+        // Build choices array for the factory
         const choices = []
-        let selectedValue = null
-        let optionIndex = 0
-
         Object.entries(spec.choices).forEach(([name, val]) => {
             if (name.endsWith(':')) return
-
-            const option = document.createElement('option')
-            option.value = String(optionIndex)
-            option.textContent = name
-            option.dataset.paramValue = JSON.stringify(val)
-            if ((value === null && val === null) || value === val) {
-                option.selected = true
-                selectedValue = option.value
-            }
-            select.appendChild(option)
-            choices.push({ name, value: val })
-            optionIndex += 1
+            choices.push({
+                value: val,
+                label: name,
+                data: { paramValue: JSON.stringify(val) }
+            })
         })
 
-        if (selectedValue !== null) {
-            select.value = selectedValue
-        }
+        // Use factory to create control
+        const handle = this._controlFactory.createSelect({
+            choices,
+            value,
+            className: 'control-select'
+        })
 
-        select.addEventListener('change', (e) => {
-            const target = e.target
-            const option = target.options[target.selectedIndex]
-            const raw = option?.dataset?.paramValue
+        const select = handle.element
 
-            let parsedValue = null
-            if (raw !== undefined) {
-                try {
-                    parsedValue = JSON.parse(raw)
-                } catch (_err) {
-                    parsedValue = raw
-                }
-            }
-
-            this._effectParameterValues[effectKey][key] = parsedValue
+        select.addEventListener('change', () => {
+            this._effectParameterValues[effectKey][key] = handle.getValue()
             this._onControlChange()
         })
 
         // Double-click to reset to default
         select.addEventListener('dblclick', () => {
             const defaultVal = spec.default
-            // Find the option matching the default value
-            for (let i = 0; i < select.options.length; i++) {
-                const raw = select.options[i].dataset?.paramValue
-                let optionVal = null
-                if (raw !== undefined) {
-                    try { optionVal = JSON.parse(raw) } catch (_) { optionVal = raw }
-                }
-                if ((defaultVal === null && optionVal === null) || defaultVal === optionVal) {
-                    select.selectedIndex = i
-                    break
-                }
-            }
+            handle.setValue(defaultVal)
             this._effectParameterValues[effectKey][key] = defaultVal
             this._onControlChange()
         })
@@ -3460,27 +3432,7 @@ export class UIController {
         container.appendChild(select)
 
         // Store control handle for pluggable sync
-        container._controlHandle = {
-            element: select,
-            getValue: () => {
-                const option = select.options[select.selectedIndex]
-                const raw = option?.dataset?.paramValue
-                if (raw !== undefined) {
-                    try { return JSON.parse(raw) } catch (_) { return raw }
-                }
-                return null
-            },
-            setValue: (v) => {
-                // Find option by value match
-                for (let i = 0; i < choices.length; i++) {
-                    const choiceVal = choices[i].value
-                    if ((v === null && choiceVal === null) || v === choiceVal) {
-                        select.selectedIndex = i
-                        return
-                    }
-                }
-            }
-        }
+        container._controlHandle = handle
     }
 
     /** @private */
@@ -3498,67 +3450,62 @@ export class UIController {
         }
 
         if (node && typeof node === 'object') {
-            const select = document.createElement('select')
-            select.className = 'control-select'
-
+            // Build choices for the factory
+            const choices = []
             Object.entries(node).forEach(([name, val]) => {
-                const option = document.createElement('option')
                 const numVal = (val && typeof val === 'object' && 'value' in val) ? val.value : val
-                option.value = numVal
-                option.textContent = name
-                option.selected = value === numVal
-                select.appendChild(option)
+                choices.push({ value: numVal, label: name })
             })
 
-            select.addEventListener('change', (e) => {
-                this._effectParameterValues[effectKey][key] = parseInt(e.target.value, 10)
+            const handle = this._controlFactory.createSelect({
+                choices,
+                value,
+                className: 'control-select'
+            })
+
+            const select = handle.element
+
+            select.addEventListener('change', () => {
+                this._effectParameterValues[effectKey][key] = parseInt(handle.getValue(), 10)
                 this._onControlChange()
             })
 
             // Double-click to reset to default
             select.addEventListener('dblclick', () => {
                 const defaultVal = spec.default !== undefined ? spec.default : 0
-                select.value = defaultVal
+                handle.setValue(defaultVal)
                 this._effectParameterValues[effectKey][key] = defaultVal
                 this._onControlChange()
             })
 
             container.appendChild(select)
-
-            // Store control handle for pluggable sync
-            container._controlHandle = {
-                element: select,
-                getValue: () => parseInt(select.value, 10),
-                setValue: (v) => { select.value = v }
-            }
+            container._controlHandle = handle
         } else {
             // Fallback to slider
-            const slider = document.createElement('input')
-            slider.type = 'range'
-            slider.min = spec.min || 0
-            slider.max = spec.max || 10
-            slider.value = value
-            slider.addEventListener('change', (e) => {
-                this._effectParameterValues[effectKey][key] = parseInt(e.target.value, 10)
+            const handle = this._controlFactory.createSlider({
+                value: value,
+                min: spec.min || 0,
+                max: spec.max || 10,
+                step: 1
+            })
+
+            const slider = handle.element
+
+            slider.addEventListener('change', () => {
+                this._effectParameterValues[effectKey][key] = parseInt(handle.getValue(), 10)
                 this._onControlChange()
             })
 
             // Double-click to reset to default
             slider.addEventListener('dblclick', () => {
-                const defaultVal = spec.default !== undefined ? parseInt(spec.default, 10) : parseInt(slider.min, 10)
-                slider.value = defaultVal
+                const defaultVal = spec.default !== undefined ? parseInt(spec.default, 10) : parseInt(spec.min || 0, 10)
+                handle.setValue(defaultVal)
                 this._effectParameterValues[effectKey][key] = defaultVal
                 this._onControlChange()
             })
 
             container.appendChild(slider)
-
-            // Store control handle for pluggable sync (slider fallback)
-            container._controlHandle = {
-                element: slider,
-                getValue: () => parseInt(slider.value, 10),
-                setValue: (v) => { slider.value = v }
-            }
+            container._controlHandle = handle
         }
     }
 
@@ -3585,29 +3532,42 @@ export class UIController {
             }
 
             if (node) {
-                const select = document.createElement('select')
-                select.className = 'control-select'
-                // Build array of options for control handle
+                // Build choices for the factory
+                const choices = []
                 const enumEntries = []
                 Object.keys(node).forEach(k => {
-                    const option = document.createElement('option')
                     const fullPath = `${enumPath}.${k}`
-                    option.value = fullPath
-                    option.textContent = k
-                    // Store numeric value for sync matching
                     const enumEntry = node[k]
                     const numericValue = (enumEntry && typeof enumEntry === 'object' && 'value' in enumEntry)
                         ? enumEntry.value
                         : enumEntry
-                    option.dataset.enumValue = numericValue
-                    // Match by numeric value (from DSL) or string path (from preserved values)
-                    option.selected = (value === numericValue) || (fullPath === value)
-                    select.appendChild(option)
+                    choices.push({
+                        value: fullPath,
+                        label: k,
+                        data: { enumValue: numericValue }
+                    })
                     enumEntries.push({ path: fullPath, numericValue })
                 })
 
-                select.addEventListener('change', (e) => {
-                    this._effectParameterValues[effectKey][key] = e.target.value
+                // Find the initial value - match by numeric or path
+                let initialValue = choices[0]?.value
+                for (const entry of enumEntries) {
+                    if (entry.numericValue === value || entry.path === value) {
+                        initialValue = entry.path
+                        break
+                    }
+                }
+
+                const handle = this._controlFactory.createSelect({
+                    choices,
+                    value: initialValue,
+                    className: 'control-select'
+                })
+
+                const select = handle.element
+
+                select.addEventListener('change', () => {
+                    this._effectParameterValues[effectKey][key] = handle.getValue()
                     this._onControlChange()
                 })
 
@@ -3615,7 +3575,7 @@ export class UIController {
                 select.addEventListener('dblclick', () => {
                     const defaultVal = spec.default
                     if (defaultVal !== undefined) {
-                        select.value = defaultVal
+                        handle.setValue(defaultVal)
                         this._effectParameterValues[effectKey][key] = defaultVal
                         this._onControlChange()
                     }
@@ -3623,20 +3583,19 @@ export class UIController {
 
                 container.appendChild(select)
 
-                // Store control handle for pluggable sync
+                // Wrap handle with custom setValue that understands numeric values
                 container._controlHandle = {
                     element: select,
-                    getValue: () => select.value,
+                    getValue: handle.getValue,
                     setValue: (v) => {
                         // Match by numeric value or string path
-                        for (let i = 0; i < enumEntries.length; i++) {
-                            if (enumEntries[i].numericValue === v || enumEntries[i].path === v) {
-                                select.selectedIndex = i
+                        for (const entry of enumEntries) {
+                            if (entry.numericValue === v || entry.path === v) {
+                                handle.setValue(entry.path)
                                 return
                             }
                         }
-                        // Direct value match fallback
-                        select.value = v
+                        handle.setValue(v)
                     }
                 }
             }
@@ -3645,25 +3604,29 @@ export class UIController {
 
     /** @private */
     _createSliderControl(container, key, spec, value, effectKey) {
-        const slider = document.createElement('input')
-        slider.className = 'control-slider'
-        slider.type = 'range'
-        slider.min = spec.min !== undefined ? spec.min : 0
-        slider.max = spec.max !== undefined ? spec.max : 100
-        slider.step = spec.step !== undefined ? spec.step : (spec.type === 'int' ? 1 : 0.01)
-        slider.value = value !== null ? value : slider.min
+        const isInt = spec.type === 'int'
+        const formatVal = (v) => isInt ? v : Number(v).toFixed(2)
 
+        const handle = this._controlFactory.createSlider({
+            value: value !== null ? value : (spec.min !== undefined ? spec.min : 0),
+            min: spec.min !== undefined ? spec.min : 0,
+            max: spec.max !== undefined ? spec.max : 100,
+            step: spec.step !== undefined ? spec.step : (isInt ? 1 : 0.01),
+            className: 'control-slider'
+        })
+
+        const slider = handle.element
         container.appendChild(slider)
 
-        const valueDisplay = document.createElement('span')
-        valueDisplay.className = 'control-value'
-        const formatVal = (v, isInt) => isInt ? v : Number(v).toFixed(2)
-        valueDisplay.textContent = value !== null ? formatVal(value, spec.type === 'int') : ''
-        container.appendChild(valueDisplay)
+        const valueDisplayHandle = this._controlFactory.createValueDisplay({
+            value: value !== null ? formatVal(value) : '',
+            className: 'control-value'
+        })
+        container.appendChild(valueDisplayHandle.element)
 
-        slider.addEventListener('input', (e) => {
-            const numVal = spec.type === 'int' ? parseInt(e.target.value) : parseFloat(e.target.value)
-            valueDisplay.textContent = formatVal(numVal, spec.type === 'int')
+        slider.addEventListener('input', () => {
+            const numVal = isInt ? parseInt(handle.getValue()) : parseFloat(handle.getValue())
+            valueDisplayHandle.setValue(formatVal(numVal))
             this._effectParameterValues[effectKey][key] = numVal
             this._applyEffectParameterValues()
         })
@@ -3674,67 +3637,49 @@ export class UIController {
 
         // Double-click to reset to default
         slider.addEventListener('dblclick', () => {
-            const defaultVal = spec.default !== undefined ? spec.default : parseFloat(slider.min)
-            const numVal = spec.type === 'int' ? parseInt(defaultVal) : parseFloat(defaultVal)
-            slider.value = numVal
-            valueDisplay.textContent = formatVal(numVal, spec.type === 'int')
+            const defaultVal = spec.default !== undefined ? spec.default : parseFloat(spec.min || 0)
+            const numVal = isInt ? parseInt(defaultVal) : parseFloat(defaultVal)
+            handle.setValue(numVal)
+            valueDisplayHandle.setValue(formatVal(numVal))
             this._effectParameterValues[effectKey][key] = numVal
             this._onControlChange()
         })
 
-        // Store control handle for pluggable sync
-        const isInt = spec.type === 'int'
+        // Wrap handle to include value display update
         container._controlHandle = {
             element: slider,
-            getValue: () => isInt ? parseInt(slider.value) : parseFloat(slider.value),
+            getValue: () => isInt ? parseInt(handle.getValue()) : parseFloat(handle.getValue()),
             setValue: (v) => {
-                slider.value = v
-                valueDisplay.textContent = formatVal(v, isInt)
+                handle.setValue(v)
+                valueDisplayHandle.setValue(formatVal(v))
             }
         }
-        container._valueDisplayHandle = {
-            element: valueDisplay,
-            getValue: () => valueDisplay.textContent,
-            setValue: (v) => { valueDisplay.textContent = formatVal(v, isInt) }
-        }
+        container._valueDisplayHandle = valueDisplayHandle
     }
 
     /** @private */
     _createColorControl(container, key, value, effectKey, spec) {
-        const colorInput = document.createElement('input')
-        colorInput.type = 'color'
-        colorInput.className = 'control-color'
-
-        const toHex = (arr) => {
-            if (!Array.isArray(arr)) return '#000000'
-            const r = Math.round((arr[0] || 0) * 255).toString(16).padStart(2, '0')
-            const g = Math.round((arr[1] || 0) * 255).toString(16).padStart(2, '0')
-            const b = Math.round((arr[2] || 0) * 255).toString(16).padStart(2, '0')
-            return `#${r}${g}${b}`
-        }
-
-        if (Array.isArray(value)) {
-            colorInput.value = toHex(value)
-        }
-
         const isVec4 = spec?.type === 'vec4'
 
-        colorInput.addEventListener('input', (e) => {
-            const hex = e.target.value
-            const r = parseInt(hex.slice(1, 3), 16) / 255
-            const g = parseInt(hex.slice(3, 5), 16) / 255
-            const b = parseInt(hex.slice(5, 7), 16) / 255
+        const handle = this._controlFactory.createColorPicker({
+            value: Array.isArray(value) ? value : [0, 0, 0],
+            hasAlpha: isVec4,
+            className: 'control-color'
+        })
 
+        const colorInput = handle.element
+
+        colorInput.addEventListener('input', () => {
+            const colorVal = handle.getValue()
             if (isVec4) {
                 // For vec4, preserve alpha or default to 1
                 const currentVal = this._effectParameterValues[effectKey][key]
                 const a = (Array.isArray(currentVal) && currentVal.length >= 4 && typeof currentVal[3] === 'number')
                     ? currentVal[3]
                     : 1
-                this._effectParameterValues[effectKey][key] = [r, g, b, a]
+                this._effectParameterValues[effectKey][key] = [colorVal[0], colorVal[1], colorVal[2], a]
             } else {
-                // For vec3, only store 3 components
-                this._effectParameterValues[effectKey][key] = [r, g, b]
+                this._effectParameterValues[effectKey][key] = colorVal
             }
             this._onControlChange()
         })
@@ -3743,57 +3688,36 @@ export class UIController {
         colorInput.addEventListener('dblclick', () => {
             const defaultVal = spec?.default
             if (Array.isArray(defaultVal)) {
-                colorInput.value = toHex(defaultVal)
+                handle.setValue(defaultVal)
                 this._effectParameterValues[effectKey][key] = [...defaultVal]
                 this._onControlChange()
             }
         })
 
         container.appendChild(colorInput)
-
-        // Store control handle for pluggable sync
-        container._controlHandle = {
-            element: colorInput,
-            getValue: () => {
-                const hex = colorInput.value
-                const r = parseInt(hex.slice(1, 3), 16) / 255
-                const g = parseInt(hex.slice(3, 5), 16) / 255
-                const b = parseInt(hex.slice(5, 7), 16) / 255
-                return isVec4 ? [r, g, b, 1] : [r, g, b]
-            },
-            setValue: (v) => {
-                if (Array.isArray(v)) {
-                    colorInput.value = toHex(v)
-                }
-            }
-        }
+        container._controlHandle = handle
     }
 
     /** @private */
     _createSurfaceControl(container, key, spec, value, effectKey) {
-        const select = document.createElement('select')
-        select.className = 'control-select'
-
         // Available surfaces: none + o0-o7 for output surfaces
         const surfaces = [
-            { id: 'none', label: 'none' },
-            { id: 'o0', label: 'o0' },
-            { id: 'o1', label: 'o1' },
-            { id: 'o2', label: 'o2' },
-            { id: 'o3', label: 'o3' },
-            { id: 'o4', label: 'o4' },
-            { id: 'o5', label: 'o5' },
-            { id: 'o6', label: 'o6' },
-            { id: 'o7', label: 'o7' }
+            { value: 'none', label: 'none' },
+            { value: 'o0', label: 'o0' },
+            { value: 'o1', label: 'o1' },
+            { value: 'o2', label: 'o2' },
+            { value: 'o3', label: 'o3' },
+            { value: 'o4', label: 'o4' },
+            { value: 'o5', label: 'o5' },
+            { value: 'o6', label: 'o6' },
+            { value: 'o7', label: 'o7' }
         ]
 
         // Parse current value to get the surface ID
         let currentSurface = spec.default || 'o1'
         if (value && typeof value === 'object' && value.name) {
-            // Handle object surface references from DSL compiler (e.g., {kind: 'output', name: 'o1'})
             currentSurface = value.name
         } else if (typeof value === 'string') {
-            // Handle read(o1) format or plain o1 format
             const match = value.match(/read\(([^)]+)\)|^(o[0-7])$/)
             if (match) {
                 currentSurface = match[1] || match[2]
@@ -3802,31 +3726,31 @@ export class UIController {
             }
         }
 
-        surfaces.forEach(surface => {
-            const option = document.createElement('option')
-            option.value = surface.id
-            option.textContent = surface.label
-            option.selected = surface.id === currentSurface
-            select.appendChild(option)
+        const handle = this._controlFactory.createSelect({
+            choices: surfaces,
+            value: currentSurface,
+            className: 'control-select'
         })
 
-        select.addEventListener('change', async (e) => {
-            // Store as read(surfaceId) format for DSL, or plain 'none' for disabled
-            const val = e.target.value
+        const select = handle.element
+
+        select.addEventListener('change', async () => {
+            const val = handle.getValue()
             this._effectParameterValues[effectKey][key] = val === 'none' ? 'none' : `read(${val})`
-            // Surface changes require a full pipeline recompile (not just uniform updates)
             this._updateDslFromEffectParams()
             await this._recompilePipeline()
         })
 
         container.appendChild(select)
 
-        // Store control handle for pluggable sync
+        // Wrap handle with custom getValue/setValue for surface format
         container._controlHandle = {
             element: select,
-            getValue: () => select.value === 'none' ? 'none' : `read(${select.value})`,
+            getValue: () => {
+                const val = handle.getValue()
+                return val === 'none' ? 'none' : `read(${val})`
+            },
             setValue: (v) => {
-                // Parse value to extract surface ID
                 let surfaceId = v
                 if (typeof v === 'object' && v.name) {
                     surfaceId = v.name
@@ -3834,36 +3758,29 @@ export class UIController {
                     const match = v.match(/read\(([^)]+)\)|^(o[0-7])$/)
                     if (match) surfaceId = match[1] || match[2]
                 }
-                select.value = surfaceId || 'none'
+                handle.setValue(surfaceId || 'none')
             }
         }
     }
 
     /** @private */
     _createVolumeControl(container, key, spec, value, effectKey) {
-        const select = document.createElement('select')
-        select.className = 'control-select'
-
-        // Available volumes: none + vol0-vol7
         const volumes = [
-            { id: 'none', label: 'none' },
-            { id: 'vol0', label: 'vol0' },
-            { id: 'vol1', label: 'vol1' },
-            { id: 'vol2', label: 'vol2' },
-            { id: 'vol3', label: 'vol3' },
-            { id: 'vol4', label: 'vol4' },
-            { id: 'vol5', label: 'vol5' },
-            { id: 'vol6', label: 'vol6' },
-            { id: 'vol7', label: 'vol7' }
+            { value: 'none', label: 'none' },
+            { value: 'vol0', label: 'vol0' },
+            { value: 'vol1', label: 'vol1' },
+            { value: 'vol2', label: 'vol2' },
+            { value: 'vol3', label: 'vol3' },
+            { value: 'vol4', label: 'vol4' },
+            { value: 'vol5', label: 'vol5' },
+            { value: 'vol6', label: 'vol6' },
+            { value: 'vol7', label: 'vol7' }
         ]
 
-        // Parse current value to get the volume ID
         let currentVolume = spec.default || 'vol0'
         if (value && typeof value === 'object' && value.name) {
-            // Handle object volume references from DSL compiler (e.g., {kind: 'vol', name: 'vol0'})
             currentVolume = value.name
         } else if (typeof value === 'string') {
-            // Handle vol0-vol7 format
             const match = value.match(/^(vol[0-7])$/)
             if (match) {
                 currentVolume = match[1]
@@ -3872,61 +3789,51 @@ export class UIController {
             }
         }
 
-        volumes.forEach(volume => {
-            const option = document.createElement('option')
-            option.value = volume.id
-            option.textContent = volume.label
-            option.selected = volume.id === currentVolume
-            select.appendChild(option)
+        const handle = this._controlFactory.createSelect({
+            choices: volumes,
+            value: currentVolume,
+            className: 'control-select'
         })
 
-        select.addEventListener('change', async (e) => {
-            // Store as plain volume ID for DSL
-            this._effectParameterValues[effectKey][key] = e.target.value
-            // Volume changes require a full pipeline recompile (not just uniform updates)
+        const select = handle.element
+
+        select.addEventListener('change', async () => {
+            this._effectParameterValues[effectKey][key] = handle.getValue()
             this._updateDslFromEffectParams()
             await this._recompilePipeline()
         })
 
         container.appendChild(select)
 
-        // Store control handle for pluggable sync
         container._controlHandle = {
             element: select,
-            getValue: () => select.value,
+            getValue: handle.getValue,
             setValue: (v) => {
                 let volId = v
                 if (typeof v === 'object' && v.name) volId = v.name
-                select.value = volId || 'none'
+                handle.setValue(volId || 'none')
             }
         }
     }
 
     /** @private */
     _createGeometryControl(container, key, spec, value, effectKey) {
-        const select = document.createElement('select')
-        select.className = 'control-select'
-
-        // Available geometry buffers: none + geo0-geo7
         const geometries = [
-            { id: 'none', label: 'none' },
-            { id: 'geo0', label: 'geo0' },
-            { id: 'geo1', label: 'geo1' },
-            { id: 'geo2', label: 'geo2' },
-            { id: 'geo3', label: 'geo3' },
-            { id: 'geo4', label: 'geo4' },
-            { id: 'geo5', label: 'geo5' },
-            { id: 'geo6', label: 'geo6' },
-            { id: 'geo7', label: 'geo7' }
+            { value: 'none', label: 'none' },
+            { value: 'geo0', label: 'geo0' },
+            { value: 'geo1', label: 'geo1' },
+            { value: 'geo2', label: 'geo2' },
+            { value: 'geo3', label: 'geo3' },
+            { value: 'geo4', label: 'geo4' },
+            { value: 'geo5', label: 'geo5' },
+            { value: 'geo6', label: 'geo6' },
+            { value: 'geo7', label: 'geo7' }
         ]
 
-        // Parse current value to get the geometry ID
         let currentGeometry = spec.default || 'geo0'
         if (value && typeof value === 'object' && value.name) {
-            // Handle object geometry references from DSL compiler (e.g., {kind: 'geo', name: 'geo0'})
             currentGeometry = value.name
         } else if (typeof value === 'string') {
-            // Handle geo0-geo7 format
             const match = value.match(/^(geo[0-7])$/)
             if (match) {
                 currentGeometry = match[1]
@@ -3935,32 +3842,29 @@ export class UIController {
             }
         }
 
-        geometries.forEach(geometry => {
-            const option = document.createElement('option')
-            option.value = geometry.id
-            option.textContent = geometry.label
-            option.selected = geometry.id === currentGeometry
-            select.appendChild(option)
+        const handle = this._controlFactory.createSelect({
+            choices: geometries,
+            value: currentGeometry,
+            className: 'control-select'
         })
 
-        select.addEventListener('change', async (e) => {
-            // Store as plain geometry ID for DSL
-            this._effectParameterValues[effectKey][key] = e.target.value
-            // Geometry changes require a full pipeline recompile (not just uniform updates)
+        const select = handle.element
+
+        select.addEventListener('change', async () => {
+            this._effectParameterValues[effectKey][key] = handle.getValue()
             this._updateDslFromEffectParams()
             await this._recompilePipeline()
         })
 
         container.appendChild(select)
 
-        // Store control handle for pluggable sync
         container._controlHandle = {
             element: select,
-            getValue: () => select.value,
+            getValue: handle.getValue,
             setValue: (v) => {
                 let geoId = v
                 if (typeof v === 'object' && v.name) geoId = v.name
-                select.value = geoId || 'none'
+                handle.setValue(geoId || 'none')
             }
         }
     }

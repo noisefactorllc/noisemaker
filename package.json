@@ -36,6 +36,7 @@
     "eslint": "^9.0.0",
     "globals": "^16.0.0",
     "jpeg-js": "^0.4.4",
+    "jsdom": "^27.3.0",
     "pngjs": "^7.0.0",
     "postject": "^1.0.0-alpha.6",
     "puppeteer": "^22.15.0"
