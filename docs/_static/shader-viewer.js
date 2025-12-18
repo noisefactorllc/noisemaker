@@ -300,6 +300,31 @@
         const hasTexSurfaceParam = NoisemakerShaders.hasTexSurfaceParam;
         const is3dGenerator = NoisemakerShaders.is3dGenerator;
         const is3dProcessor = NoisemakerShaders.is3dProcessor;
+        
+        // These helpers may not be in older bundles, define inline as fallback
+        const hasExplicitTexParam = NoisemakerShaders.hasExplicitTexParam || function(effect) {
+            if (!effect || !effect.instance || !effect.instance.globals) {
+                return false;
+            }
+            const texSpec = effect.instance.globals.tex;
+            return texSpec && texSpec.type === 'surface' && texSpec.default !== 'inputTex';
+        };
+        const getVolGeoParams = NoisemakerShaders.getVolGeoParams || function(effect) {
+            if (!effect || !effect.instance || !effect.instance.globals) {
+                return { volParam: null, geoParam: null };
+            }
+            let volParam = null;
+            let geoParam = null;
+            for (const [key, spec] of Object.entries(effect.instance.globals)) {
+                if (spec.type === 'volume' && !volParam) {
+                    volParam = key;
+                }
+                if (spec.type === 'geometry' && !geoParam) {
+                    geoParam = key;
+                }
+            }
+            return { volParam, geoParam };
+        };
 
         /**
          * Extract effect names from DSL - copied exactly from demo-ui.js
@@ -388,32 +413,62 @@
             } else if (['filter', 'mixer'].includes(effect.namespace)) {
                 searchNs = `${effect.namespace}, synth`;
             }
-            const searchDirective = searchNs ? `search ${searchNs}\n` : '';
+            const searchDirective = searchNs ? `search ${searchNs}\n\n` : '';
             const funcName = effect.instance.func;
 
             const starter = isStarterEffect(effect);
             const hasTex = hasTexSurfaceParam(effect);
+            const hasExplicitTex = hasExplicitTexParam(effect);
+            const { volParam, geoParam } = getVolGeoParams(effect);
+            const hasVolGeo = volParam && geoParam;
+
+            // Standard noise starter call
+            const noiseCall = 'noise(seed: 1, ridges: true)';
 
             // 3D volume generators
             if (is3dGenerator(effect)) {
-                return `search vol\n${funcName}().render3d().write(o0)\n\nrender(o0)`;
+                // If generator has vol/geo params, generate 3D input for seeding
+                if (hasVolGeo) {
+                    return `search synth3d, filter3d\n\nnoise3d(volumeSize: x32)\n  .write3d(vol0, geo0)\n\n${funcName}(${volParam}: read3d(vol0, geo0), ${geoParam}: read3d(vol0, geo0))\n  .render3d()\n  .write(o0)\n\nrender(o0)`;
+                }
+                return `search synth3d, filter3d\n\n${funcName}()\n  .render3d()\n  .write(o0)\n\nrender(o0)`;
+            }
+
+            // Effects with explicit vol/geo parameters (not pipeline inputs)
+            // Generate 3D input and pass to vol/geo params
+            if (hasVolGeo) {
+                return `search synth3d, filter3d\n\nnoise3d(volumeSize: x32)\n  .write3d(vol0, geo0)\n\n${funcName}(${volParam}: read3d(vol0, geo0), ${geoParam}: read3d(vol0, geo0))\n  .render3d()\n  .write(o0)\n\nrender(o0)`;
+            }
+
+            // Effects with explicit tex param (not inputTex default) - generate input
+            // Starters with explicit tex can stand alone; filters need to chain from input
+            if (hasExplicitTex) {
+                if (starter) {
+                    // Starter with explicit tex param - standalone chain
+                    return `${searchDirective}${noiseCall}\n  .write(o0)\n\n${funcName}(tex: read(o0))\n  .write(o1)\n\nrender(o1)`;
+                } else {
+                    // Filter with explicit tex param - chain from second noise
+                    return `${searchDirective}${noiseCall}\n  .write(o0)\n\nnoise(seed: 2, ridges: true)\n  .${funcName}(tex: read(o0))\n  .write(o1)\n\nrender(o1)`;
+                }
             }
 
             if (starter) {
                 if (hasTex) {
-                    const sourceSurface = 'o1';
-                    const outputSurface = 'o0';
-                    return `${searchDirective}noise(seed: 1, ridges: true).write(${sourceSurface})\n${funcName}(tex: src(${sourceSurface})).write(${outputSurface})\n\nrender(${outputSurface})`;
+                    // First chain writes to o0, effect reads from o0 and writes to o1
+                    const sourceSurface = 'o0';
+                    const outputSurface = 'o1';
+                    return `${searchDirective}${noiseCall}\n  .write(${sourceSurface})\n\n${funcName}(tex: read(${sourceSurface}))\n  .write(${outputSurface})\n\nrender(${outputSurface})`;
                 }
-                return `${searchDirective}${funcName}().write(o0)\n\nrender(o0)`;
+                return `${searchDirective}${funcName}()\n  .write(o0)\n\nrender(o0)`;
             } else if (hasTex) {
-                return `${searchDirective}noise(seed: 1, ridges: true).write(o1)\nnoise(seed: 2, ridges: true).${funcName}(tex: src(o1)).write(o0)\n\nrender(o0)`;
+                // First chain writes to o0, second chain writes through effect to o1
+                return `${searchDirective}${noiseCall}\n  .write(o0)\n\nnoise(seed: 2, ridges: true)\n  .${funcName}(tex: read(o0))\n  .write(o1)\n\nrender(o1)`;
             } else if (is3dProcessor(effect)) {
-                const generatorDsl = `noise3d(volumeSize: x32)`;
-                const renderSuffix = funcName === 'render3d' ? '' : '.render3d()';
-                return `search vol\n${generatorDsl}.${funcName}()${renderSuffix}.write(o0)\n\nrender(o0)`;
+                // render3d IS the renderer - don't append another .render3d() call
+                const renderSuffix = funcName === 'render3d' ? '' : '\n  .render3d()';
+                return `search synth3d, filter3d\n\nnoise3d(volumeSize: x32)\n  .${funcName}()${renderSuffix}\n  .write(o0)\n\nrender(o0)`;
             } else {
-                return `${searchDirective}noise(seed: 1, ridges: true).${funcName}().write(o0)\n\nrender(o0)`;
+                return `${searchDirective}${noiseCall}\n  .${funcName}()\n  .write(o0)\n\nrender(o0)`;
             }
         }
 
