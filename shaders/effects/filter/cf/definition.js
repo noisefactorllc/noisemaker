@@ -16,11 +16,6 @@ export default new Effect({
 
   description: "Convolution feedback with blur and sharpen",
   globals: {
-    tex: {
-      type: "surface",
-      default: "none",
-      ui: { label: "texture" }
-    },
     resetState: {
       type: "boolean",
       default: false,
@@ -132,7 +127,7 @@ export default new Effect({
       name: "blend",
       program: "cfBlend",
       inputs: {
-        inputTex: "tex",
+        inputTex: "inputTex",
         feedbackTex: "_cfBlurred"
       },
       outputs: {
