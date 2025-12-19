@@ -26,7 +26,6 @@ export function lex(src) {
         if: 'IF',
         elif: 'ELIF',
         else: 'ELSE',
-        loop: 'LOOP',
         break: 'BREAK',
         continue: 'CONTINUE',
         return: 'RETURN',

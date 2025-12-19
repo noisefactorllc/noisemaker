@@ -60,21 +60,21 @@ fn smoothlerp(x: f32, a: f32, b: f32) -> f32 {
     return a + smootherstep(x) * (b - a);
 }
 
-fn grid(st: vec2<f32>, cell: vec2<f32>, t: f32, spd: i32) -> f32 {
+fn grid(st: vec2<f32>, cell: vec2<f32>, t: f32) -> f32 {
     var angle = prng(vec3<f32>(cell, 1.0)).r * TAU;
-    angle = angle + t * TAU * f32(spd);
+    angle = angle + t * TAU * f32(uniforms.speed);
     let gradient = vec2<f32>(cos(angle), sin(angle));
     let dist = st - cell;
     return dot(gradient, dist);
 }
 
-fn perlinNoise(st_in: vec2<f32>, noiseScale: vec2<f32>, t: f32, spd: f32) -> f32 {
+fn perlinNoise(st_in: vec2<f32>, noiseScale: vec2<f32>, t: f32) -> f32 {
     let st = st_in * noiseScale;
     let cell = floor(st);
-    let tl = grid(st, cell, t, spd);
-    let tr = grid(st, vec2<f32>(cell.x + 1.0, cell.y), t, spd);
-    let bl = grid(st, vec2<f32>(cell.x, cell.y + 1.0), t, spd);
-    let br = grid(st, cell + 1.0, t, spd);
+    let tl = grid(st, cell, t);
+    let tr = grid(st, vec2<f32>(cell.x + 1.0, cell.y), t);
+    let bl = grid(st, vec2<f32>(cell.x, cell.y + 1.0), t);
+    let br = grid(st, cell + 1.0, t);
     let upper = smoothlerp(st.x - cell.x, tl, tr);
     let lower = smoothlerp(st.x - cell.x, bl, br);
     let val = smoothlerp(st.y - cell.y, upper, lower);
@@ -90,15 +90,14 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let strength = uniforms.strength;
     let scale = uniforms.scale;
     let seed = uniforms.seed;
-    let speed = uniforms.speed;
     let t = time;
 
     // Apply rotation before distortion
     uv = rotate2D(uv, uniforms.rotation / 180.0, aspectRatio);
 
     // Perlin warp
-    uv.x = uv.x + (perlinNoise(uv * vec2<f32>(aspectRatio, 1.0) + seed, vec2<f32>(abs(scale * 3.0)), t, speed) - 0.5) * strength * 0.01;
-    uv.y = uv.y + (perlinNoise(uv * vec2<f32>(aspectRatio, 1.0) + seed + 10.0, vec2<f32>(abs(scale * 3.0)), t, speed) - 0.5) * strength * 0.01;
+    uv.x = uv.x + (perlinNoise(uv * vec2<f32>(aspectRatio, 1.0) + seed, vec2<f32>(abs(scale * 3.0)), t) - 0.5) * strength * 0.01;
+    uv.y = uv.y + (perlinNoise(uv * vec2<f32>(aspectRatio, 1.0) + seed + 10.0, vec2<f32>(abs(scale * 3.0)), t) - 0.5) * strength * 0.01;
 
     // Apply wrap mode
     if (uniforms.wrap == 0) {

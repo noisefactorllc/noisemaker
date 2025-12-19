@@ -4,11 +4,10 @@
  * Grammar (EBNF):
  * Program        ::= SearchDirective? Statement* RenderDirective?
  * SearchDirective::= 'search' Ident (',' Ident)*
- * Statement      ::= VarAssign | ChainStmt | IfStmt | LoopStmt | Break | Continue | Return
+ * Statement      ::= VarAssign | ChainStmt | IfStmt | Break | Continue | Return
  * RenderDirective::= 'render' '(' OutputRef ')'
  * Block          ::= '{' Statement* '}'
  * IfStmt         ::= 'if' '(' Expr ')' Block ('elif' '(' Expr ')' Block)* ('else' Block)?
- * LoopStmt       ::= 'loop' Expr? Block
  * Break          ::= 'break'
  * Continue       ::= 'continue'
  * Return         ::= 'return' Expr?
@@ -45,7 +44,6 @@
  */
 export function parse(tokens) {
     let current = 0
-    let loopDepth = 0
 
     // Track the search order for the program (set by search directive - REQUIRED)
     let programSearchOrder = null
@@ -73,7 +71,7 @@ export function parse(tokens) {
     const memberTokenTypes = new Set([
         'IDENT', 'SOURCE_REF', 'OUTPUT_REF', 'VOL_REF', 'GEO_REF',
         'LET', 'RENDER', 'TRUE', 'FALSE', 'IF', 'ELIF', 'ELSE',
-        'LOOP', 'BREAK', 'CONTINUE', 'RETURN', 'WRITE', 'WRITE3D'
+        'BREAK', 'CONTINUE', 'RETURN', 'WRITE', 'WRITE3D'
     ])
 
     const cloneNamespaceMeta = (meta) => {
@@ -370,32 +368,11 @@ export function parse(tokens) {
                 }
                 return {type: 'IfStmt', condition, then, elif, else: elseBranch}
             }
-            case 'LOOP': {
-                advance()
-                let condition = null
-                if (peek().type !== 'LBRACE') {
-                    condition = parseAdditive()
-                }
-                loopDepth++
-                const body = parseBlock()
-                loopDepth--
-                const node = {type: 'LoopStmt', body}
-                if (condition) node.condition = condition
-                return node
-            }
             case 'BREAK': {
-                if (loopDepth === 0) {
-                    const t = peek()
-                    throw new SyntaxError(`'break' outside loop at line ${t.line} col ${t.col}`)
-                }
                 advance()
                 return {type: 'Break'}
             }
             case 'CONTINUE': {
-                if (loopDepth === 0) {
-                    const t = peek()
-                    throw new SyntaxError(`'continue' outside loop at line ${t.line} col ${t.col}`)
-                }
                 advance()
                 return {type: 'Continue'}
             }

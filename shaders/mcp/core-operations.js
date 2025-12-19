@@ -1725,8 +1725,8 @@ const SIM_EFFECTS = new Set([
     'filter/motionBlur',
     'synth/physarum',
     'synth/rd',
-    'filter/loopBegin',
-    'filter/loopEnd',
+    'loop/loopBegin',
+    'loop/loopEnd',
 ])
 
 /**

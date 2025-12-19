@@ -373,6 +373,7 @@
             const effectDirs = [
                 { namespace: 'filter' },
                 { namespace: 'filter3d' },
+                { namespace: 'loop' },
                 { namespace: 'mixer' },
                 { namespace: 'synth' },
                 { namespace: 'synth3d' },
@@ -549,6 +550,11 @@
                 
                 ui.createEffectControlsFromDsl(dsl);
 
+                // Apply DSL-parsed parameter values to the pipeline
+                if (renderer.applyStepParameterValues) {
+                    renderer.applyStepParameterValues(ui.effectParameterValues);
+                }
+
                 if (!silent) {
                     ui.showStatus(`compiled ${currentEffect.name}`, 'success');
                 }
@@ -602,6 +608,10 @@
                     // Only rebuild if structure changed
                     if (!ui.syncControlsFromDsl(dsl)) {
                         ui.createEffectControlsFromDsl(dsl);
+                    }
+                    // Apply DSL-parsed parameter values to the pipeline
+                    if (renderer.applyStepParameterValues) {
+                        renderer.applyStepParameterValues(ui.effectParameterValues);
                     }
                 }
                 

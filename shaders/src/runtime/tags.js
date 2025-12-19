@@ -79,6 +79,10 @@ export const NAMESPACE_DESCRIPTIONS = Object.freeze({
         id: 'filter',
         description: 'Apply special effects to 2D input'
     },
+    loop: {
+        id: 'loop',
+        description: 'Utilities for feedback loops'
+    },
     synth3d: {
         id: 'synth3d',
         description: '3D volumetric generators'

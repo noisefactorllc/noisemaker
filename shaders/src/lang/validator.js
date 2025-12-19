@@ -1014,8 +1014,6 @@ export function validate(ast) {
         return result
     }
 
-    let loopDepth = 0
-
     function compileStmt(stmt) {
         if (stmt.type === 'IfStmt') {
             const cond = evalCondition(stmt.condition)
@@ -1027,24 +1025,10 @@ export function validate(ast) {
             const elseBranch = compileBlock(stmt.else)
             return {type:'Branch', cond, then: thenBranch, elif, else: elseBranch}
         }
-        if (stmt.type === 'LoopStmt') {
-            loopDepth++
-            const body = compileBlock(stmt.body)
-            loopDepth--
-            const node = {type:'Loop', body}
-            if (stmt.condition) node.cond = evalCondition(stmt.condition)
-            return node
-        }
         if (stmt.type === 'Break') {
-            if (loopDepth === 0) {
-                pushDiag('S001', stmt, "'break' outside loop")
-            }
             return {type:'Break'}
         }
         if (stmt.type === 'Continue') {
-            if (loopDepth === 0) {
-                pushDiag('S001', stmt, "'continue' outside loop")
-            }
             return {type:'Continue'}
         }
         if (stmt.type === 'Return') {

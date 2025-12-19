@@ -1,13 +1,13 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * loopBegin - Start accumulator feedback loop
+ * begin - Start accumulator feedback loop
  *
  * Reads from a shared accumulator buffer and blends with the incoming texture
- * using lighten (max) mode. Use loopEnd to complete the feedback loop.
+ * using lighten (max) mode. Use loop.end to complete the feedback loop.
  *
  * Usage:
- *   loopBegin(alpha: 50).blur().loopEnd()
+ *   loop.begin(alpha: 50).blur().loop.end()
  *
  * This is equivalent to manually setting up:
  *   noise().write(o0)
@@ -16,6 +16,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "LoopBegin",
   func: "loopBegin",
+  namespace: "loop",
   tags: ["util", "sim"],
 
   description: "Start accumulator loop, read from feedback buffer",

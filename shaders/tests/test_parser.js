@@ -47,14 +47,6 @@ test('Simple Chain', 'search basics\nnoise(10).write(o0)', (ast) => {
     if (plan.write.name !== 'o0') throw new Error('Expected write o0')
 })
 
-test('Loop', 'search basics\nloop 5 { noise(10).write(o0) }', (ast) => {
-    if (ast.plans.length !== 1) throw new Error('Expected 1 plan (LoopStmt)')
-    const loop = ast.plans[0]
-    if (loop.type !== 'LoopStmt') throw new Error('Expected LoopStmt')
-    if (loop.condition.value !== 5) throw new Error('Expected condition 5')
-    if (loop.body.length !== 1) throw new Error('Expected 1 statement in body')
-})
-
 test('Variable Assignment', 'search basics\nlet x = noise(10)', (ast) => {
     if (ast.vars.length !== 1) throw new Error('Expected 1 var')
     const v = ast.vars[0]

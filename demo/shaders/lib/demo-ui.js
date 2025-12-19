@@ -1075,6 +1075,8 @@ export class UIController {
         let searchNs = effect.namespace
         if (effect.namespace === 'classicNoisemaker') {
             searchNs = 'classicNoisemaker, synth'
+        } else if (effect.namespace === 'loop') {
+            searchNs = 'synth, filter, loop'
         } else if (['filter', 'mixer'].includes(effect.namespace)) {
             searchNs = `${effect.namespace}, synth`
         }
@@ -1089,6 +1091,11 @@ export class UIController {
 
         // Helper to format a call
         const fmtCall = (name, kwargs) => this._formatEffectCall(name, kwargs)
+
+        // Special case: loop namespace effects need paired loopBegin/loopEnd with filter in between
+        if (effect.namespace === 'loop') {
+            return `${searchDirective}noise(ridges: true)\n  .loopBegin(alpha: 95, intensity: 95)\n  .warp()\n  .loopEnd()\n  .write(o0)\n\nrender(o0)`
+        }
 
         // Standard noise starter call
         const noiseCall = fmtCall('noise', { seed: 1, ridges: true })

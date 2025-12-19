@@ -14,11 +14,10 @@ Grammar
 
    Program        ::= SearchDirective? Statement* RenderDirective?
    SearchDirective::= 'search' Ident ( ',' Ident )*
-   Statement      ::= VarAssign | ChainStmt | IfStmt | LoopStmt | Break | Continue | Return
+   Statement      ::= VarAssign | ChainStmt | IfStmt | Break | Continue | Return
    RenderDirective::= 'render' '(' OutputRef ')'
    Block          ::= '{' Statement* '}'
    IfStmt         ::= 'if' '(' Expr ')' Block ('elif' '(' Expr ')' Block)* ('else' Block)?
-   LoopStmt       ::= 'loop' Expr? Block
    Break          ::= 'break'
    Continue       ::= 'continue'
    Return         ::= 'return' Expr?
@@ -142,11 +141,11 @@ Invoking variables that store function calls merges stored arguments with call-s
 Control Flow
 ^^^^^^^^^^^^
 
-The language supports ``if``, ``elif``, ``else`` for conditionals, and ``loop`` for iteration.
+The language supports ``if``, ``elif``, ``else`` for conditionals.
 
 .. note::
 
-  Control flow syntax is part of the parser and validator today, but runtime execution (branching and loops) is not yet implemented. Programs using these constructs will not execute until the pipeline gains full support.
+  Control flow syntax is part of the parser and validator today, but runtime execution (branching) is not yet implemented. Programs using these constructs will not execute until the pipeline gains full support.
 
 **Arrow Functions:**
 Arrow functions (``() => expr``) are treated as **lazy expressions**. They are not evaluated immediately but are passed as-is to the effect or control structure, which determines when (or if) to evaluate them.

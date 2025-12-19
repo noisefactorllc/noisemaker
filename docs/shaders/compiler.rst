@@ -46,7 +46,7 @@ The lexer tokenizes the input, handling:
 * Operators (``.``, ``(``, ``)``)
 * Comments (``//``, ``/* ... */``)
 * **Special Tokens:** ``OUTPUT_REF`` (``o0``), ``HEX`` (``#ff0000``).
-* **Keywords:** ``out``, ``render``, ``let``, ``if``, ``loop``, etc.
+* **Keywords:** ``out``, ``render``, ``let``, ``if``, etc.
 
 1.2 Syntax Analysis
 ^^^^^^^^^^^^^^^^^^^
@@ -322,5 +322,5 @@ The following table maps error codes to the compilation stage where they are rai
      - Invalid pass condition entry
    * - ``ERR_CONTROL_FLOW_INVALID``
      - Analysis
-     - Break/continue used outside loop
+     - Break/continue in invalid context
 
