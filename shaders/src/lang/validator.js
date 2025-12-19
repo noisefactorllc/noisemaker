@@ -589,14 +589,14 @@ export function validate(ast) {
                     const def = specArgs[i]
                     let node = kw && kw[def.name] !== undefined ? kw[def.name] : call.args[i]
                     node = substitute(node)
-                    const argKey = def.uniform || def.name
+                    const argKey = def.name
                     if (!kw && node && node.type === 'Color' && def.type !== 'color' && def.name === 'r' && specArgs[i + 1]?.name === 'g' && specArgs[i + 2]?.name === 'b') {
                         const [r, g, b] = node.value
                         args[argKey] = r
                         const defG = specArgs[i + 1]
-                        args[defG.uniform || defG.name] = g
+                        args[defG.name] = g
                         const defB = specArgs[i + 2]
-                        args[defB.uniform || defB.name] = b
+                        args[defB.name] = b
                         i += 2
                         continue
                     }
