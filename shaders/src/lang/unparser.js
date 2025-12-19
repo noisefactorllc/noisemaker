@@ -125,7 +125,12 @@ function formatValue(value, spec, customFormatter) {
             const hex = `#${toHex(value[0])}${toHex(value[1])}${toHex(value[2])}`
             return hex
         }
-        return `[${value.map(v => formatValue(v, null, customFormatter)).join(', ')}]`
+        // 3-element arrays without spec default to vec3
+        if (value.length === 3 && value.every(v => typeof v === 'number')) {
+            return `vec3(${value.map(v => formatValue(v, null, customFormatter)).join(', ')})`
+        }
+        // Other arrays - this should not happen in valid DSL
+        return `vec3(${value.slice(0, 3).map(v => formatValue(v, null, customFormatter)).join(', ')})`
     }
 
     if (typeof value === 'object') {
@@ -299,28 +304,39 @@ function unparsePlan(plan, options = {}) {
         return ''
     }
 
-    let result = ''
+    // Build chains from steps
+    // read() is a starter node - it MUST start a new chain, never be chained inline
+    const chains = []  // Array of chain arrays
+    let currentChain = []
 
-    // Build chain from steps
-    const callParts = []
     for (const step of plan.chain) {
-        // Handle built-in _read step
+        // Handle built-in _read step - MUST start a new chain
         if (step.op === '_read' && step.builtin) {
+            // Flush current chain if not empty
+            if (currentChain.length > 0) {
+                chains.push(currentChain)
+                currentChain = []
+            }
             const texName = step.args?.tex?.name || step.args?.tex
-            callParts.push(`read(${texName})`)
+            currentChain.push(`read(${texName})`)
             continue
         }
-        // Handle built-in _read3d step
+        // Handle built-in _read3d step - MUST start a new chain
         if (step.op === '_read3d' && step.builtin) {
+            // Flush current chain if not empty
+            if (currentChain.length > 0) {
+                chains.push(currentChain)
+                currentChain = []
+            }
             const tex3dName = step.args?.tex3d?.name || step.args?.tex3d
             const geoName = step.args?.geo?.name || step.args?.geo
-            callParts.push(`read3d(${tex3dName}, ${geoName})`)
+            currentChain.push(`read3d(${tex3dName}, ${geoName})`)
             continue
         }
         // Handle built-in _write step (mid-chain writes)
         if (step.op === '_write' && step.builtin) {
             const texName = step.args?.tex?.name || step.args?.tex
-            callParts.push(`write(${texName})`)
+            currentChain.push(`write(${texName})`)
             continue
         }
 
@@ -345,11 +361,16 @@ function unparsePlan(plan, options = {}) {
             }
         }
 
-        callParts.push(unparseCall(call, { ...options, indent: callParts.length === 0 ? 0 : 2 }))
+        currentChain.push(unparseCall(call, { ...options, indent: currentChain.length === 0 ? 0 : 2 }))
     }
 
-    // Join chain parts with line break and 2-space indent
-    result = callParts.join('\n  .')
+    // Flush final chain
+    if (currentChain.length > 0) {
+        chains.push(currentChain)
+    }
+
+    // Join each chain's parts with line break and 2-space indent, then join chains with blank line
+    let result = chains.map(chain => chain.join('\n  .')).join('\n\n')
 
     // Check if chain already ends with a _write step (chainable writes are now inline)
     const lastStep = plan.chain[plan.chain.length - 1]
@@ -399,27 +420,40 @@ export function unparse(compiled, overrides = {}, options = {}) {
         const plan = plans[planIndex]
         if (!plan.chain || plan.chain.length === 0) continue
 
-        const callParts = []
+        // Build chains from steps
+        // read() is a starter node - it MUST start a new chain, never be chained inline
+        const chains = []  // Array of chain arrays
+        let currentChain = []
 
         for (const step of plan.chain) {
-            // Handle builtin read operations specially
+            // Handle builtin read operations - MUST start a new chain
             if (step.builtin && step.op === '_read') {
+                // Flush current chain if not empty
+                if (currentChain.length > 0) {
+                    chains.push(currentChain)
+                    currentChain = []
+                }
                 const texName = step.args?.tex?.name || step.args?.tex
-                callParts.push(`read(${texName})`)
+                currentChain.push(`read(${texName})`)
                 globalStepIndex++
                 continue
             }
             if (step.builtin && step.op === '_read3d') {
+                // Flush current chain if not empty
+                if (currentChain.length > 0) {
+                    chains.push(currentChain)
+                    currentChain = []
+                }
                 const tex3d = step.args?.tex3d?.name || step.args?.tex3d
                 const geo = step.args?.geo?.name || step.args?.geo
-                callParts.push(`read3d(${tex3d}, ${geo})`)
+                currentChain.push(`read3d(${tex3d}, ${geo})`)
                 globalStepIndex++
                 continue
             }
             // Handle builtin write operations (mid-chain writes)
             if (step.builtin && step.op === '_write') {
                 const texName = step.args?.tex?.name || step.args?.tex
-                callParts.push(`write(${texName})`)
+                currentChain.push(`write(${texName})`)
                 globalStepIndex++
                 continue
             }
@@ -489,12 +523,18 @@ export function unparse(compiled, overrides = {}, options = {}) {
             // Build specs map from effect definition
             const specs = effectDef?.globals || {}
 
-            callParts.push(unparseCall(call, { customFormatter, specs, indent: callParts.length === 0 ? 0 : 2 }))
+            currentChain.push(unparseCall(call, { customFormatter, specs, indent: currentChain.length === 0 ? 0 : 2 }))
             globalStepIndex++
         }
 
-        // Join chain parts with line break and 2-space indent
-        let line = callParts.join('\n  .')
+        // Flush final chain
+        if (currentChain.length > 0) {
+            chains.push(currentChain)
+        }
+
+        // Join each chain's parts with line break and 2-space indent
+        // Then join chains with blank line (read() starts new chain)
+        let line = chains.map(chain => chain.join('\n  .')).join('\n\n')
 
         // Check if chain already ends with a _write step (chainable writes are now inline)
         const lastStep = plan.chain[plan.chain.length - 1]

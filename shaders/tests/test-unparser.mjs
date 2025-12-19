@@ -239,6 +239,52 @@ test('Render directive - null (no directive)', () => {
     assertNotIncludes(result, 'render(', 'Should not output render() when render is null');
 });
 
+// Test 11: read() must start new chain, never be chained inline as .read()
+test('read() starts new chain - never inline', () => {
+    const compiled = {
+        searchNamespaces: ['synth', 'filter'],
+        plans: [
+            {
+                chain: [
+                    { op: 'synth.noise', args: { scale: 3 } },
+                    { op: '_write', builtin: true, args: { tex: { kind: 'output', name: 'o0' } } },
+                    { op: '_read', builtin: true, args: { tex: { kind: 'output', name: 'o0' } } },
+                    { op: 'filter.blur', args: { radius: 5 } },
+                ],
+                write: { kind: 'output', name: 'o1' }
+            }
+        ],
+        render: 'o1'
+    };
+    const result = unparse(compiled, {}, {});
+    // read() must NEVER appear as .read() - it's a starter node only
+    assertNotIncludes(result, '.read(', 'read() must never be chained inline as .read()');
+    // read() should appear at start of a new chain
+    assertIncludes(result, '\n\nread(o0)', 'read() should start a new chain after blank line');
+});
+
+// Test 12: Arrays must never be output as bare lists - use vec3() or hex colors
+test('Arrays never output as bare lists', () => {
+    const compiled = {
+        searchNamespaces: ['basics'],
+        plans: [
+            {
+                chain: [{ op: 'basics.effect', args: { pos: [0.5, 0.5, 0.5] } }],
+                write: { kind: 'output', name: 'o0' }
+            }
+        ]
+    };
+    const result = unparse(compiled, {}, {});
+    // Bare list syntax [x, y, z] is BANNED
+    assertNotIncludes(result, '[', 'Arrays must never be output as bare lists');
+    // Should use either vec3() or hex color format
+    const hasVec3 = result.includes('vec3(');
+    const hasHex = result.includes('#');
+    if (!hasVec3 && !hasHex) {
+        throw new Error('Should use vec3() or hex color for arrays, got: ' + result);
+    }
+});
+
 // Summary
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

@@ -35,6 +35,9 @@ jobs:
     - name: Install dependencies
       run: npm install --include=dev
 
+    - name: Run DSL language tests
+      run: npm run test:shaders:lang
+
     - name: Install Playwright browsers
       run: npx playwright install chromium
 
