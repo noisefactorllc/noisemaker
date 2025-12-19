@@ -6,6 +6,7 @@ on:
     paths:
       - 'shaders/**'
       - 'scripts/**'
+      - 'demo/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/shaders.yml'
@@ -14,6 +15,7 @@ on:
     paths:
       - 'shaders/**'
       - 'scripts/**'
+      - 'demo/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/shaders.yml'

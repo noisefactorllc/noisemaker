@@ -137,52 +137,41 @@ function transformShadersDemoHtml() {
     </script>`
     )
 
-    // Replace runtime imports with bundled versions
-    html = html.replace(
-        /import \{ CanvasRenderer, getEffect \} from '\.\.\/\.\.\/shaders\/src\/renderer\/canvas\.js';/,
-        `import { CanvasRenderer, getEffect } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
-    )
+    // Replace the dynamic import pattern with static imports from bundled core
+    // The source now uses dynamic imports based on useBundles, but for the bundled
+    // site we always use static imports from the bundled library
+    const dynamicImportPattern = /\/\/ Check for bundles mode BEFORE importing\s*\n\s*const params = new URLSearchParams\(window\.location\.search\);\s*\n\s*const useBundles = params\.get\('bundles'\) === '1' \|\| params\.get\('bundles'\) === 'true';\s*\n\s*\n\s*\/\/ Dynamic imports based on bundles mode\s*\n\s*const corePath = useBundles[\s\S]*?const \{ ToggleSwitch \} = toggleSwitchModule;\s*\n\s*const \{[\s\S]*?getEffectFromURL\s*\n\s*\} = demoUiModule;/
 
-    // Replace EffectSelect and ToggleSwitch imports with bundled core (they're included in the bundle)
-    // The source has './lib/effect-select.js' (relative from demo/shaders/)
     html = html.replace(
-        /import \{ EffectSelect \} from '\.\/lib\/effect-select\.js';/,
-        `import { EffectSelect } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
-    )
-    html = html.replace(
-        /import \{ ToggleSwitch \} from '\.\/lib\/toggle-switch\.js';/,
-        `import { ToggleSwitch } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
-    )
-
-    // Replace demo-ui.js imports with bundled core (UIController etc. are included in the bundle)
-    html = html.replace(
-        /import \{[^}]+\} from '\.\/lib\/demo-ui\.js';/,
-        `import { 
+        dynamicImportPattern,
+        `// Bundled site - use static imports from bundled core
+        import { CanvasRenderer, getEffect } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';
+        import { EffectSelect } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';
+        import { ToggleSwitch } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';
+        import { 
             UIController, 
             extractEffectNamesFromDsl,
             getBackendFromURL,
             getUseBundlesFromURL,
             getEffectFromURL
-        } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
+        } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';
+        
+        // Always use bundles in deployed site (can be disabled with ?bundles=0)
+        const params = new URLSearchParams(window.location.search);
+        const useBundles = params.get('bundles') !== '0' && params.get('bundles') !== 'false';`
     )
 
     // Update basePath references to use bundled paths
+    // Handle the conditional shaderBasePath
     html = html.replace(
-        /const shaderBasePath = new URL\('\.\.\/\.\.\/shaders', import\.meta\.url\)\.href;/,
+        /const shaderBasePath = useBundles\s*\n?\s*\? new URL\('\.\.\/\.\.\/dist\/shaders', import\.meta\.url\)\.href\s*\n?\s*: new URL\('\.\.\/\.\.\/shaders', import\.meta\.url\)\.href;/,
         `const shaderBasePath = new URL('../../lib/shaders', import.meta.url).href;`
     )
 
+    // Handle bundleBasePath
     html = html.replace(
         /const bundleBasePath = new URL\('\.\.\/\.\.\/dist\/effects', import\.meta\.url\)\.href;/,
         `const bundleBasePath = new URL('../../effects', import.meta.url).href;`
-    )
-
-    // Default to using bundles (override getUseBundlesFromURL to default to true)
-    html = html.replace(
-        /const useBundles = getUseBundlesFromURL\(\);/,
-        `// Default to bundles=1 for deployed site
-        const params = new URLSearchParams(window.location.search);
-        const useBundles = params.get('bundles') !== '0' && params.get('bundles') !== 'false';`
     )
 
     fs.mkdirSync(path.dirname(destPath), { recursive: true })
