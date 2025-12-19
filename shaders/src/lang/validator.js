@@ -683,6 +683,28 @@ export function validate(ast) {
                             value = def.default ? def.default.slice() : [0,0,0]
                         }
                         args[argKey] = value
+                    } else if (def.type === 'vec4') {
+                        let value
+                        if (node && node.type === 'Call' && node.name === 'vec4' && node.args && node.args.length === 4) {
+                            value = []
+                            for (const arg of node.args) {
+                                if (arg.type === 'Number') {
+                                    value.push(arg.value)
+                                } else {
+                                    pushDiag('S002', arg)
+                                    value.push(0)
+                                }
+                            }
+                        } else if (node && node.type === 'Color') {
+                            // Color nodes already have 4 components [r, g, b, a]
+                            value = node.value.slice()
+                        } else {
+                            if (node && node.type && node.type !== 'Ident') {
+                                pushDiag('S002', node)
+                            }
+                            value = def.default ? def.default.slice() : [0,0,0,1]
+                        }
+                        args[argKey] = value
                     } else if (def.type === 'boolean') {
                         let value
                         if (node && node.type === 'Boolean') {

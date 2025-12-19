@@ -233,8 +233,16 @@ function formatValue(value, spec, options = {}) {
             return `vec2(${arr.map(v => formatValue(v, null, options)).join(', ')})`
         }
 
+        // Check if this is a color control (should format as hex regardless of vec3/vec4 type)
+        const isColorControl = spec?.ui?.control === 'color'
+
         // Handle vec3 explicitly if spec says so
         if (type === 'vec3' && arr.length === 3 && arr.every(v => typeof v === 'number')) {
+            // If it's a color control, format as hex (6-digit, no alpha)
+            if (isColorControl) {
+                const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
+                return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}`
+            }
             return `vec3(${arr.map(v => formatValue(v, null, options)).join(', ')})`
         }
 
@@ -250,6 +258,11 @@ function formatValue(value, spec, options = {}) {
                 return `vec2(${arr.map(v => formatValue(v, null, options)).join(', ')})`
             }
             if (arr.length === 3) {
+                // If it's a color control, format as hex (6-digit, no alpha)
+                if (isColorControl) {
+                    const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
+                    return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}`
+                }
                 return `vec3(${arr.map(v => formatValue(v, null, options)).join(', ')})`
             }
             if (arr.length === 4) {
@@ -259,6 +272,11 @@ function formatValue(value, spec, options = {}) {
             }
         }
         // Fallback for other arrays - this should not happen in valid DSL
+        // If it's a color control, format as hex
+        if (isColorControl && arr.length >= 3) {
+            const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
+            return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}`
+        }
         return `vec3(${arr.slice(0, 3).map(v => formatValue(v, null, options)).join(', ')})`
     }
 
@@ -350,9 +368,17 @@ function formatValue(value, spec, options = {}) {
     // This catches any array-like that slipped through earlier checks
     if (value && typeof value === 'object' && typeof value.length === 'number') {
         const arr = Array.from(value)
+        const isColorControl = spec?.ui?.control === 'color'
         if (arr.length >= 2 && arr.length <= 4 && arr.every(v => typeof v === 'number')) {
             if (arr.length === 2) return `vec2(${arr.join(', ')})`
-            if (arr.length === 3) return `vec3(${arr.join(', ')})`
+            if (arr.length === 3) {
+                // If it's a color control, format as hex (6-digit, no alpha)
+                if (isColorControl) {
+                    const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
+                    return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}`
+                }
+                return `vec3(${arr.join(', ')})`
+            }
             // 4 elements - hex color
             const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
             return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}${toHex(arr[3])}`
