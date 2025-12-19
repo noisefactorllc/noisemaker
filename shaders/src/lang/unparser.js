@@ -71,13 +71,29 @@ function formatOscillator(osc) {
 }
 
 /**
+ * Format an enum name - remove 'Enum' suffix if present
+ * @param {string} name - Enum constant name
+ * @returns {string} Cleaned name
+ */
+function formatEnumName(name) {
+    if (name.endsWith('Enum')) {
+        return name.slice(0, -4)
+    }
+    return name
+}
+
+/**
  * Format a value for DSL output
  * @param {any} value - The value to format
  * @param {object} spec - Optional parameter spec for type hints
- * @param {function} customFormatter - Optional custom formatter function(value, spec) => string|null
+ * @param {object} options - Optional options { customFormatter, enums }
  * @returns {string} Formatted string representation
  */
-function formatValue(value, spec, customFormatter) {
+function formatValue(value, spec, options = {}) {
+    const { customFormatter, enums = {} } = typeof options === 'function'
+        ? { customFormatter: options } // Legacy: 3rd arg was customFormatter
+        : options
+
     // Try custom formatter first if provided
     if (customFormatter) {
         const custom = customFormatter(value, spec)
@@ -90,18 +106,105 @@ function formatValue(value, spec, customFormatter) {
         return 'null'
     }
 
+    // Handle variable reference marker - output just the variable name
+    if (value && typeof value === 'object' && value._varRef) {
+        return value._varRef
+    }
+
     if (typeof value === 'boolean') {
         return value ? 'true' : 'false'
     }
+
+    const type = spec?.type
 
     // Handle inline choices - look up enum name from numeric value
     if (spec?.choices && typeof value === 'number') {
         for (const [name, val] of Object.entries(spec.choices)) {
             if (name.endsWith(':')) continue // skip group labels
             if (val === value) {
-                return name
+                return formatEnumName(name)
             }
         }
+    }
+
+    // Handle global enum reference (e.g., spec.enum = "palette")
+    if (spec?.enum && typeof value === 'number') {
+        const enumPath = spec.enum
+        const parts = enumPath.split('.')
+        let node = enums
+        for (const part of parts) {
+            if (node && node[part]) {
+                node = node[part]
+            } else {
+                node = null
+                break
+            }
+        }
+        if (node && typeof node === 'object') {
+            for (const [name, val] of Object.entries(node)) {
+                const numVal = (val && typeof val === 'object' && 'value' in val) ? val.value : val
+                if (numVal === value) {
+                    return `${enumPath}.${name}`
+                }
+            }
+        }
+    }
+
+    // Handle surface type
+    if (type === 'surface') {
+        // Handle object surface references (e.g., {kind: 'output', name: 'o1'})
+        if (value && typeof value === 'object' && value.name) {
+            if (value.name === 'none') {
+                return 'none'
+            }
+            return `read(${value.name})`
+        }
+        if (typeof value !== 'string' || value.length === 0) {
+            const defaultSurface = spec?.default || 'inputTex'
+            if (defaultSurface === 'none') {
+                return 'none'
+            }
+            return `read(${defaultSurface})`
+        }
+        if (value === 'none') {
+            return 'none'
+        }
+        if (value.includes('(')) {
+            return value
+        }
+        return `read(${value})`
+    }
+
+    // Handle volume type
+    if (type === 'volume') {
+        if (value && typeof value === 'object' && value.name) {
+            return value.name
+        }
+        if (typeof value !== 'string' || value.length === 0) {
+            return spec?.default || 'vol0'
+        }
+        return value
+    }
+
+    // Handle geometry type
+    if (type === 'geometry') {
+        if (value && typeof value === 'object' && value.name) {
+            return value.name
+        }
+        if (typeof value !== 'string' || value.length === 0) {
+            return spec?.default
+        }
+        return value
+    }
+
+    // Handle member type (enum path already formatted)
+    if (type === 'member') {
+        return value
+    }
+
+    // Handle palette type
+    if (type === 'palette') {
+        return value
     }
 
     if (typeof value === 'number') {
@@ -124,28 +227,39 @@ function formatValue(value, spec, customFormatter) {
     if (isArrayLike) {
         // Convert typed arrays to regular arrays for processing
         const arr = Array.isArray(value) ? value : Array.from(value)
-        
-        // Handle vec3 explicitly if spec says so
-        if (spec && spec.type === 'vec3' && arr.length === 3 && arr.every(v => typeof v === 'number')) {
-            return `vec3(${arr.map(v => formatValue(v, null, customFormatter)).join(', ')})`
+
+        // Handle vec2 explicitly if spec says so
+        if (type === 'vec2' && arr.length === 2 && arr.every(v => typeof v === 'number')) {
+            return `vec2(${arr.map(v => formatValue(v, null, options)).join(', ')})`
         }
 
-        // Color array [r, g, b] or [r, g, b, a]
-        if (arr.length >= 3 && arr.length <= 4 && arr.every(v => typeof v === 'number')) {
-            // Convert to hex color
-            const toHex = (n) => {
-                const clamped = Math.max(0, Math.min(255, Math.round(n * 255)))
-                return clamped.toString(16).padStart(2, '0')
+        // Handle vec3 explicitly if spec says so
+        if (type === 'vec3' && arr.length === 3 && arr.every(v => typeof v === 'number')) {
+            return `vec3(${arr.map(v => formatValue(v, null, options)).join(', ')})`
+        }
+
+        // Handle vec4 explicitly if spec says so - format as hex color
+        if (type === 'vec4' && arr.length === 4 && arr.every(v => typeof v === 'number')) {
+            const toHex = (n) => Math.round(n * 255).toString(16).padStart(2, '0')
+            return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}${toHex(arr[3])}`
+        }
+
+        // Infer type from array length for numeric arrays
+        if (arr.every(v => typeof v === 'number')) {
+            if (arr.length === 2) {
+                return `vec2(${arr.map(v => formatValue(v, null, options)).join(', ')})`
             }
-            const hex = `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}`
-            return hex
+            if (arr.length === 3) {
+                return `vec3(${arr.map(v => formatValue(v, null, options)).join(', ')})`
+            }
+            if (arr.length === 4) {
+                // 4 elements - hex color
+                const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
+                return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}${toHex(arr[3])}`
+            }
         }
-        // 3-element arrays without spec default to vec3
-        if (arr.length === 3 && arr.every(v => typeof v === 'number')) {
-            return `vec3(${arr.map(v => formatValue(v, null, customFormatter)).join(', ')})`
-        }
-        // Other arrays - this should not happen in valid DSL
-        return `vec3(${arr.slice(0, 3).map(v => formatValue(v, null, customFormatter)).join(', ')})`
+        // Fallback for other arrays - this should not happen in valid DSL
+        return `vec3(${arr.slice(0, 3).map(v => formatValue(v, null, options)).join(', ')})`
     }
 
     if (typeof value === 'object') {
@@ -218,7 +332,7 @@ function formatValue(value, spec, customFormatter) {
             return value.path.join('.')
         }
         if (value.type === 'Number') {
-            return formatValue(value.value, spec, customFormatter)
+            return formatValue(value.value, spec, options)
         }
         if (value.type === 'Boolean') {
             return value.value ? 'true' : 'false'
@@ -257,7 +371,6 @@ function formatValue(value, spec, customFormatter) {
 function unparseCall(call, options = {}) {
     const name = call.name
     const parts = []
-    const customFormatter = options.customFormatter || null
     const specs = options.specs || {}
     const multilineKwargs = options.multilineKwargs !== false // default true
     const baseIndent = Number.isFinite(options.indent) ? options.indent : 0
@@ -275,8 +388,8 @@ function unparseCall(call, options = {}) {
 
             // Check against default value
             if (spec && spec.default !== undefined) {
-                const formattedValue = formatValue(value, spec, customFormatter)
-                const formattedDefault = formatValue(spec.default, spec, customFormatter)
+                const formattedValue = formatValue(value, spec, options)
+                const formattedDefault = formatValue(spec.default, spec, options)
 
                 // For surface params, 'none' must always be explicit when set
                 // (so the expander binds the blank texture)
@@ -287,14 +400,14 @@ function unparseCall(call, options = {}) {
                 }
             }
 
-            parts.push(`${key}: ${formatValue(value, spec, customFormatter)}`)
+            parts.push(`${key}: ${formatValue(value, spec, options)}`)
         }
     }
 
     // Handle positional args
     if (call.args && call.args.length > 0) {
         for (const arg of call.args) {
-            parts.push(formatValue(arg, null, customFormatter))
+            parts.push(formatValue(arg, null, options))
         }
     }
 
@@ -429,7 +542,6 @@ function unparsePlan(plan, options = {}) {
  */
 export function unparse(compiled, overrides = {}, options = {}) {
     const lines = []
-    const customFormatter = options.customFormatter || null
     const getEffectDef = options.getEffectDef || null
     const searchNamespaces = compiled.searchNamespaces || []
 
@@ -551,7 +663,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
             // Build specs map from effect definition
             const specs = effectDef?.globals || {}
 
-            currentChain.push(unparseCall(call, { customFormatter, specs, indent: currentChain.length === 0 ? 0 : 2 }))
+            currentChain.push(unparseCall(call, { ...options, specs, indent: currentChain.length === 0 ? 0 : 2 }))
             globalStepIndex++
         }
 

@@ -18,7 +18,7 @@
  * });
  */
 
-import { compile, unparse, lex, parse, unparseCall } from '../../../shaders/src/lang/index.js'
+import { compile, unparse, lex, parse, unparseCall, formatValue } from '../../../shaders/src/lang/index.js'
 import {
     getEffect,
     cloneParamValue,
@@ -61,152 +61,6 @@ export function formatEnumName(name) {
     }
     // Can't be an identifier - quote it as a string
     return `"${name.replace(/"/g, '\\"')}"`
-}
-
-/**
- * Format a value for DSL output
- * @param {*} value - Value to format
- * @param {object} spec - Parameter spec
- * @param {object} enums - Enum registry
- * @returns {string} Formatted value
- */
-export function formatValue(value, spec, enums = {}) {
-    const type = spec?.type || (typeof spec === 'string' ? spec : 'float')
-
-    // Handle variable reference marker - output just the variable name
-    if (value && typeof value === 'object' && value._varRef) {
-        return value._varRef
-    }
-
-    // Handle oscillator configuration objects
-    if (value && typeof value === 'object' && value.oscillator === true) {
-        const oscTypeNames = ['sine', 'tri', 'saw', 'sawInv', 'square', 'noise']
-        const typeName = oscTypeNames[value.oscType] || 'sine'
-        const parts = [`type: oscKind.${typeName}`]
-        if (value.min !== undefined && value.min !== 0) {
-            parts.push(`min: ${value.min}`)
-        }
-        if (value.max !== undefined && value.max !== 1) {
-            parts.push(`max: ${value.max}`)
-        }
-        if (value.speed !== undefined && value.speed !== 1) {
-            parts.push(`speed: ${value.speed}`)
-        }
-        if (value.offset !== undefined && value.offset !== 0) {
-            parts.push(`offset: ${value.offset}`)
-        }
-        if (value.seed !== undefined && value.seed !== 1) {
-            parts.push(`seed: ${value.seed}`)
-        }
-        return `osc(${parts.join(', ')})`
-    }
-
-    // If spec has inline choices, look up the enum name
-    if (spec?.choices && typeof value === 'number') {
-        for (const [name, val] of Object.entries(spec.choices)) {
-            if (name.endsWith(':')) continue // skip group labels
-            if (val === value) {
-                return formatEnumName(name)
-            }
-        }
-    }
-
-    // If spec has enum (global enum reference), look up the name
-    if (spec?.enum && typeof value === 'number') {
-        const enumPath = spec.enum
-        const parts = enumPath.split('.')
-        let node = enums
-        for (const part of parts) {
-            if (node && node[part]) {
-                node = node[part]
-            } else {
-                node = null
-                break
-            }
-        }
-        if (node && typeof node === 'object') {
-            for (const [name, val] of Object.entries(node)) {
-                const numVal = (val && typeof val === 'object' && 'value' in val) ? val.value : val
-                if (numVal === value) {
-                    return `${enumPath}.${name}`
-                }
-            }
-        }
-    }
-
-    if (type === 'boolean' || type === 'button') {
-        return value ? 'true' : 'false'
-    }
-    if (type === 'surface') {
-        // Handle object surface references (e.g., {kind: 'output', name: 'o1'})
-        if (value && typeof value === 'object' && value.name) {
-            // "none" means no texture - return as-is for blank binding
-            if (value.name === 'none') {
-                return 'none'
-            }
-            return `read(${value.name})`
-        }
-        if (typeof value !== 'string' || value.length === 0) {
-            // Use spec default if available, otherwise use inputTex as the standard default
-            const defaultSurface = spec?.default || 'inputTex'
-            // "none" means no texture - return as-is for blank binding
-            if (defaultSurface === 'none') {
-                return 'none'
-            }
-            return `read(${defaultSurface})`
-        }
-        // "none" means no texture - return as-is for blank binding
-        if (value === 'none') {
-            return 'none'
-        }
-        if (value.includes('(')) {
-            return value
-        }
-        return `read(${value})`
-    }
-    if (type === 'volume') {
-        // Handle object volume references (e.g., {kind: 'vol', name: 'vol0'})
-        if (value && typeof value === 'object' && value.name) {
-            return value.name
-        }
-        if (typeof value !== 'string' || value.length === 0) {
-            return spec?.default || 'vol0'
-        }
-        return value
-    }
-    if (type === 'geometry') {
-        // Handle object geometry references (e.g., {kind: 'geo', name: 'geo0'})
-        if (value && typeof value === 'object' && value.name) {
-            return value.name
-        }
-        if (typeof value !== 'string' || value.length === 0) {
-            return spec?.default  // *NO* explicit surface defaults
-        }
-        return value
-    }
-    if (type === 'member') {
-        return value
-    }
-    // Handle both regular arrays and typed arrays (Float32Array, etc.)
-    const isArrayLike = Array.isArray(value) || ArrayBuffer.isView(value)
-    if (type === 'vec4' && isArrayLike) {
-        const arr = Array.isArray(value) ? value : Array.from(value)
-        const toHex = (n) => Math.round(n * 255).toString(16).padStart(2, '0')
-        return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}${toHex(arr[3])}`
-    }
-    if (type === 'vec3' && isArrayLike) {
-        const arr = Array.isArray(value) ? value : Array.from(value)
-        return `vec3(${arr.join(', ')})`
-    }
-    if (type === 'vec2' && isArrayLike) {
-        const arr = Array.isArray(value) ? value : Array.from(value)
-        return `vec2(${arr.join(', ')})`
-    }
-    if (type === 'palette') {
-        return value
-    }
-    // float, int
-    return value
 }
 
 /**
@@ -480,7 +334,7 @@ export class UIController {
         }
 
         // Bind the formatValue function with enums context
-        this._boundFormatValue = (value, spec) => formatValue(value, spec, this._renderer.enums)
+        this._boundFormatValue = (value, spec) => formatValue(value, spec, { enums: this._renderer.enums })
 
         // Start the media update loop
         this._startMediaUpdateLoop()

@@ -117,7 +117,7 @@ export class ControlFactory {
         return {
             element: select,
             getValue: () => {
-                const opt = select.options[select.selectedIndex]
+                // const opt = select.options[select.selectedIndex]
                 // Return the original choice value, not the index
                 return options.choices[select.selectedIndex]?.value
             },

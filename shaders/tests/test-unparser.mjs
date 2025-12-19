@@ -384,6 +384,49 @@ test('Numeric enum values are BANNED - must use names', () => {
     assertNotIncludes(result, 'mode: 2', 'Numeric enum value 2 is BANNED');
 });
 
+// Test 16: Vec3 values with spec.type must use vec3() - never raw comma-separated
+test('Vec3 spec type formats correctly', () => {
+    // Mock effect with vec3 params like grade's shadow/highlight tints
+    const mockEffectDef = {
+        globals: {
+            shadowTint: {
+                type: 'vec3',
+                default: [0.5, 0.5, 0.5]
+            },
+            highlightTint: {
+                type: 'vec3',
+                default: [0.5, 0.5, 0.5]
+            }
+        }
+    };
+    
+    const getEffectDef = (name) => {
+        if (name === 'filter.grade' || name === 'grade') return mockEffectDef;
+        return null;
+    };
+    
+    const compiled = {
+        searchNamespaces: ['filter'],
+        plans: [{
+            chain: [{ 
+                op: 'filter.grade', 
+                args: { 
+                    shadowTint: [0.3, 0.4, 0.5],
+                    highlightTint: new Float32Array([0.6, 0.7, 0.8])
+                } 
+            }],
+            write: { kind: 'output', name: 'o0' }
+        }]
+    };
+    
+    const result = unparse(compiled, {}, { getEffectDef });
+    
+    // Should use vec3() notation, never raw comma-separated
+    assertIncludes(result, 'vec3(', 'Vec3 values must use vec3() wrapper');
+    assertNotIncludes(result, '0.3,0.4,0.5', 'Raw comma-separated vec3 is BANNED');
+    assertNotIncludes(result, '0.6,0.7,0.8', 'Raw comma-separated Float32Array is BANNED');
+});
+
 // Summary
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
