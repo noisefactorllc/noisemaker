@@ -103,6 +103,15 @@ export class Backend {
     }
 
     /**
+     * Clear a texture to transparent black.
+     * Used to clear surfaces when chains are deleted.
+     * @param {string} id - Texture ID
+     */
+    clearTexture(id) {
+        // Optional - concrete backends may implement this
+    }
+
+    /**
      * Get backend name
      * @returns {string}
      */

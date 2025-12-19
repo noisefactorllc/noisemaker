@@ -322,6 +322,37 @@ export class WebGPUBackend extends Backend {
     }
 
     /**
+     * Clear a texture to transparent black.
+     * Used to clear surfaces when chains are deleted.
+     * @param {string} id - Texture ID
+     */
+    clearTexture(id) {
+        const tex = this.textures.get(id)
+
+        if (!tex) {
+            return
+        }
+
+        // Create a command encoder for the clear operation
+        const commandEncoder = this.device.createCommandEncoder()
+
+        // Begin a render pass that clears to transparent black
+        const renderPass = commandEncoder.beginRenderPass({
+            colorAttachments: [{
+                view: tex.view,
+                clearValue: { r: 0, g: 0, b: 0, a: 0 },
+                loadOp: 'clear',
+                storeOp: 'store'
+            }]
+        })
+
+        renderPass.end()
+
+        // Submit immediately
+        this.device.queue.submit([commandEncoder.finish()])
+    }
+
+    /**
      * Resolve the WGSL shader source from a program spec.
      * Looks for sources in order: wgsl, source, fragment (for render shaders)
      */

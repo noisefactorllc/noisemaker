@@ -416,6 +416,38 @@ export class WebGL2Backend extends Backend {
     }
 
     /**
+     * Clear a texture to transparent black.
+     * Used to clear surfaces when chains are deleted.
+     * @param {string} id - Texture ID
+     */
+    clearTexture(id) {
+        const gl = this.gl
+        const tex = this.textures.get(id)
+
+        if (!tex) {
+            return
+        }
+
+        // Get or create FBO for this texture
+        let fbo = this.fbos.get(id)
+        if (!fbo) {
+            fbo = gl.createFramebuffer()
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex.handle, 0)
+            this.fbos.set(id, fbo)
+        } else {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
+        }
+
+        // Clear to transparent black
+        gl.viewport(0, 0, tex.width, tex.height)
+        gl.clearColor(0, 0, 0, 0)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+    }
+
+    /**
      * Copy one texture to another (blit operation).
      * Used for surface copy operations.
      * @param {string} srcId - Source texture ID

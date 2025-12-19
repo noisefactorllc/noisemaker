@@ -1079,6 +1079,24 @@ export class Pipeline {
     }
 
     /**
+     * Clear a surface to transparent black.
+     * Used to clear surfaces when chains are deleted.
+     * @param {string} surfaceName - Surface name (e.g., 'o0', 'o1')
+     */
+    clearSurface(surfaceName) {
+        if (!surfaceName) return
+
+        const surface = this.surfaces.get(surfaceName)
+        if (!surface) return
+
+        // Clear both read and write textures to ensure no stale data
+        if (this.backend.clearTexture) {
+            this.backend.clearTexture(surface.read)
+            this.backend.clearTexture(surface.write)
+        }
+    }
+
+    /**
      * Update frame-local surface bindings after a pass writes to a global surface.
      */
     updateFrameSurfaceBindings(pass, state) {

@@ -2715,6 +2715,7 @@ export class UIController {
 
             let globalStepIndex = 0
             let found = false
+            let deletedSurfaceName = null  // Track the surface that was being written to
 
             const getEffectDefCallback = createEffectDefCallback(getEffect)
 
@@ -2734,6 +2735,10 @@ export class UIController {
                             const deletedIsStarter = !!(def && isStarterEffect({ instance: def }))
 
                             if (deletedIsStarter) {
+                                // Track the surface this chain was writing to
+                                if (plan.write) {
+                                    deletedSurfaceName = typeof plan.write === 'object' ? plan.write.name : plan.write
+                                }
                                 compiled.plans.splice(p, 1)
                                 found = true
                                 break
@@ -2747,6 +2752,10 @@ export class UIController {
                         // mutate semantics beyond removal.
 
                         if (plan.chain.length === 0) {
+                            // Track the surface this chain was writing to
+                            if (plan.write) {
+                                deletedSurfaceName = typeof plan.write === 'object' ? plan.write.name : plan.write
+                            }
                             compiled.plans.splice(p, 1)
                         } else {
                             // Check if only _write nodes remain - if so, delete the plan
@@ -2754,6 +2763,10 @@ export class UIController {
                                 !(step.builtin && step.op === '_write')
                             )
                             if (!hasNonWriteStep) {
+                                // Track the surface this chain was writing to
+                                if (plan.write) {
+                                    deletedSurfaceName = typeof plan.write === 'object' ? plan.write.name : plan.write
+                                }
                                 compiled.plans.splice(p, 1)
                             }
                         }
@@ -2766,6 +2779,11 @@ export class UIController {
             }
 
             if (found) {
+                // Clear the surface that the deleted chain was writing to
+                if (deletedSurfaceName && this._renderer.pipeline) {
+                    this._renderer.pipeline.clearSurface(deletedSurfaceName)
+                }
+
                 const newDsl = unparse(compiled, {}, {
                     customFormatter: this._boundFormatValue,
                     getEffectDef: getEffectDefCallback
