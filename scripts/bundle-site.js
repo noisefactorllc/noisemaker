@@ -237,37 +237,43 @@ function copyShaderDemoLib() {
         copyFile(toggleSwitchSrc, path.join(destLibDir, 'toggle-switch.js'))
     }
 
+    // Copy control-factory.js as-is (no external imports)
+    const controlFactorySrc = path.join(libDir, 'control-factory.js')
+    if (fs.existsSync(controlFactorySrc)) {
+        copyFile(controlFactorySrc, path.join(destLibDir, 'control-factory.js'))
+    }
+
     // Transform demo-ui.js to use bundled imports
     const demoUiSrc = path.join(libDir, 'demo-ui.js')
     if (fs.existsSync(demoUiSrc)) {
         let content = fs.readFileSync(demoUiSrc, 'utf8')
 
-        // Replace the lang import
+        // Replace the lang import (match any named imports from lang/index.js)
         content = content.replace(
-            /import \{ compile, unparse, lex, parse \} from '\.\.\/\.\.\/\.\.\/shaders\/src\/lang\/index\.js';/,
-            `import { compile, unparse, lex, parse } from '../../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
+            /import \{[^}]+\} from '\.\.\/\.\.\/\.\.\/shaders\/src\/lang\/index\.js'/g,
+            (match) => {
+                // Extract the import names and rewrite to bundled path
+                const names = match.match(/import \{([^}]+)\}/)[1]
+                return `import {${names}} from '../../../lib/shaders/noisemaker-shaders-core.esm.min.js'`
+            }
         )
 
-        // Replace the canvas.js imports
+        // Replace the canvas.js imports (match any named imports from canvas.js)
         content = content.replace(
-            /import \{\s*\n\s*CanvasRenderer,\s*\n\s*getEffect,\s*\n\s*cloneParamValue,\s*\n\s*isStarterEffect,\s*\n\s*hasTexSurfaceParam,\s*\n\s*is3dGenerator,\s*\n\s*is3dProcessor,\s*\n\s*isValidIdentifier,\s*\n\s*sanitizeEnumName\s*\n\} from '\.\.\/\.\.\/\.\.\/shaders\/src\/renderer\/canvas\.js';/,
-            `import { 
-    CanvasRenderer, 
-    getEffect, 
-    cloneParamValue, 
-    isStarterEffect, 
-    hasTexSurfaceParam, 
-    is3dGenerator, 
-    is3dProcessor,
-    isValidIdentifier,
-    sanitizeEnumName
-} from '../../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
+            /import \{[^}]+\} from '\.\.\/\.\.\/\.\.\/shaders\/src\/renderer\/canvas\.js'/g,
+            (match) => {
+                const names = match.match(/import \{([^}]+)\}/)[1]
+                return `import {${names}} from '../../../lib/shaders/noisemaker-shaders-core.esm.min.js'`
+            }
         )
 
-        // Replace the effect.js import (groupGlobalsByCategory is exported from core)
+        // Replace the effect.js import (match any named imports from effect.js)
         content = content.replace(
-            /import \{ groupGlobalsByCategory \} from '\.\.\/\.\.\/\.\.\/shaders\/src\/runtime\/effect\.js';/,
-            `import { groupGlobalsByCategory } from '../../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
+            /import \{[^}]+\} from '\.\.\/\.\.\/\.\.\/shaders\/src\/runtime\/effect\.js'/g,
+            (match) => {
+                const names = match.match(/import \{([^}]+)\}/)[1]
+                return `import {${names}} from '../../../lib/shaders/noisemaker-shaders-core.esm.min.js'`
+            }
         )
 
         fs.writeFileSync(path.join(destLibDir, 'demo-ui.js'), content)
