@@ -168,16 +168,41 @@
         // Noisemaker Shader Demo - Wired with CanvasRenderer + UIController
         // =====================================================================
         
-        import { CanvasRenderer, getEffect } from '../../shaders/src/renderer/canvas.js';
-        import { EffectSelect } from './lib/effect-select.js';
-        import { ToggleSwitch } from './lib/toggle-switch.js';
-        import { 
+        // Check for bundles mode BEFORE importing
+        const params = new URLSearchParams(window.location.search);
+        const useBundles = params.get('bundles') === '1' || params.get('bundles') === 'true';
+        
+        // Dynamic imports based on bundles mode
+        const corePath = useBundles 
+            ? '../../dist/shaders/noisemaker-shaders-core.esm.min.js'
+            : '../../shaders/src/renderer/canvas.js';
+        const demoUiPath = useBundles
+            ? '../../dist/shaders/noisemaker-shaders-core.esm.min.js'
+            : './lib/demo-ui.js';
+        const effectSelectPath = useBundles
+            ? '../../dist/shaders/noisemaker-shaders-core.esm.min.js'
+            : './lib/effect-select.js';
+        const toggleSwitchPath = useBundles
+            ? '../../dist/shaders/noisemaker-shaders-core.esm.min.js'
+            : './lib/toggle-switch.js';
+        
+        const [coreModule, demoUiModule, effectSelectModule, toggleSwitchModule] = await Promise.all([
+            import(corePath),
+            import(demoUiPath),
+            import(effectSelectPath),
+            import(toggleSwitchPath)
+        ]);
+        
+        const { CanvasRenderer, getEffect } = coreModule;
+        const { EffectSelect } = effectSelectModule;
+        const { ToggleSwitch } = toggleSwitchModule;
+        const { 
             UIController, 
             extractEffectNamesFromDsl,
             getBackendFromURL,
             getUseBundlesFromURL,
             getEffectFromURL
-        } from './lib/demo-ui.js';
+        } = demoUiModule;
 
         // =====================================================================
         // DOM Elements
@@ -204,11 +229,11 @@
         // =====================================================================
         
         // Compute absolute basePath for shader assets
-        // The CanvasRenderer imports are resolved from the canvas.js module location,
-        // so we need an absolute path to avoid double-pathing issues
-        const shaderBasePath = new URL('../../shaders', import.meta.url).href;
+        // When using bundles, point at dist/shaders for core and dist/effects for effect bundles
+        const shaderBasePath = useBundles
+            ? new URL('../../dist/shaders', import.meta.url).href
+            : new URL('../../shaders', import.meta.url).href;
         const bundleBasePath = new URL('../../dist/effects', import.meta.url).href;
-        const useBundles = getUseBundlesFromURL();
         
         // Initialize with fixed 1024x1024 resolution
         const initialWidth = 1024;

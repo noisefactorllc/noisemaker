@@ -157,6 +157,16 @@ async function main() {
         console.log('\nBuilding core runtime...')
         await buildCoreBundle()
 
+        // Copy manifest to dist/shaders/effects/ for bundle mode
+        const manifestSrc = path.join(shadersDir, 'effects', 'manifest.json')
+        const manifestDestDir = path.join(distDir, 'effects')
+        const manifestDest = path.join(manifestDestDir, 'manifest.json')
+        if (fs.existsSync(manifestSrc)) {
+            fs.mkdirSync(manifestDestDir, { recursive: true })
+            fs.copyFileSync(manifestSrc, manifestDest)
+            console.log('  ✓ manifest.json copied to dist/shaders/effects/')
+        }
+
         console.log('\n✓ Shader bundle written to dist/shaders/')
 
         // List output files

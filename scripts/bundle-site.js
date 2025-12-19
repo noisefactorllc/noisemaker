@@ -154,6 +154,18 @@ function transformShadersDemoHtml() {
         `import { ToggleSwitch } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
     )
 
+    // Replace demo-ui.js imports with bundled core (UIController etc. are included in the bundle)
+    html = html.replace(
+        /import \{[^}]+\} from '\.\/lib\/demo-ui\.js';/,
+        `import { 
+            UIController, 
+            extractEffectNamesFromDsl,
+            getBackendFromURL,
+            getUseBundlesFromURL,
+            getEffectFromURL
+        } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';`
+    )
+
     // Update basePath references to use bundled paths
     html = html.replace(
         /const shaderBasePath = new URL\('\.\.\/\.\.\/shaders', import\.meta\.url\)\.href;/,
