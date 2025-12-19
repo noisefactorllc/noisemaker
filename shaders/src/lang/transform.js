@@ -164,10 +164,10 @@ export function replaceEffect(compiled, stepIndex, newEffectName, newArgs = {}, 
     const specArgs = newSpec.args || []
 
     // First, set defaults for all params
+    // Use def.name (DSL parameter name), NOT def.uniform (shader uniform name)
     for (const def of specArgs) {
-        const argKey = def.uniform || def.name
         if (def.default !== undefined) {
-            finalArgs[argKey] = def.default
+            finalArgs[def.name] = def.default
         }
     }
 

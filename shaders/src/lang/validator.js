@@ -923,8 +923,9 @@ export function validate(ast) {
                                 pushDiag('S002', node)
                             }
                             if (def.defaultFrom) {
+                                // Look up the referenced arg by its DSL name (def.name), NOT uniform name
                                 const ref = spec.args.find(d => d.name === def.defaultFrom)
-                                const refKey = ref && (ref.uniform || ref.name) || def.defaultFrom
+                                const refKey = ref ? ref.name : def.defaultFrom
                                 if (args[refKey] !== undefined) {
                                     value = args[refKey]
                                 } else {
