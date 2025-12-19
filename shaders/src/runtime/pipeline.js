@@ -154,6 +154,8 @@ export class Pipeline {
             uniforms: {}
         }
         this._resolvedUniforms = {}  // Reused for oscillator resolution
+        // Track render passes per frame
+        this.lastPassCount = 0
     }
 
     /**
@@ -749,6 +751,9 @@ export class Pipeline {
         // Begin frame
         this.backend.beginFrame(this.getFrameState())
 
+        // Track passes executed this frame
+        let passCount = 0
+
         // Execute passes
         if (this.graph && this.graph.passes) {
             try {
@@ -770,6 +775,7 @@ export class Pipeline {
                         try {
                             const state = this.getFrameState()
                             this.backend.executePass(pass, state)
+                            passCount++
                             this.updateFrameSurfaceBindings(pass, state)
                         } catch (err) {
                             console.error('[Pipeline.render] ERROR executing pass:', pass.id, err)
@@ -806,6 +812,9 @@ export class Pipeline {
 
         // Swap double buffers for global surfaces
         this.swapBuffers()
+
+        // Store pass count for this frame
+        this.lastPassCount = passCount
 
         this.frameIndex++
     }

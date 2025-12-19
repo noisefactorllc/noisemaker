@@ -261,6 +261,7 @@ export class CanvasRenderer {
         this._frameTimeIndex = 0
         this._frameTimeCount = 0
         this._lastRenderTime = 0
+        this._lastPassCount = 0
 
         // Lazy loading infrastructure
         this._manifest = {}
@@ -311,6 +312,11 @@ export class CanvasRenderer {
     /** @returns {number} Last frame render time in ms */
     get lastRenderTime() {
         return this._lastRenderTime
+    }
+
+    /** @returns {number} Number of render passes in last frame */
+    get lastPassCount() {
+        return this._lastPassCount
     }
 
     /**
@@ -481,6 +487,7 @@ export class CanvasRenderer {
         if (this._pipeline) {
             try {
                 this._pipeline.render(normalizedTime)
+                this._lastPassCount = this._pipeline.lastPassCount
                 this._frameCount++
             } catch (err) {
                 console.error('Render error:', err)
@@ -513,6 +520,7 @@ export class CanvasRenderer {
                     this._frameTimeCount++
                 }
                 this._lastRenderTime = frameTime
+                this._lastPassCount = this._pipeline.lastPassCount
 
                 this._frameCount++
 

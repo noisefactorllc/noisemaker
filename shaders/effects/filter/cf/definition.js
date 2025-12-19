@@ -31,7 +31,7 @@ export default new Effect({
       default: 5,
       uniform: "sharpenRadius",
       min: 1,
-      max: 5,
+      max: 10,
       step: 1,
       ui: {
         label: "Sharpen Radius",
