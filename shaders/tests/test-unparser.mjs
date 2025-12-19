@@ -285,6 +285,105 @@ test('Arrays never output as bare lists', () => {
     }
 });
 
+// Test 13: Float32Array must be handled same as regular arrays
+test('Float32Array never output as raw comma-separated values', () => {
+    const compiled = {
+        searchNamespaces: ['basics'],
+        plans: [
+            {
+                chain: [{ op: 'basics.effect', args: { color: new Float32Array([0.5, 0.5, 0.5]) } }],
+                write: { kind: 'output', name: 'o0' }
+            }
+        ]
+    };
+    const result = unparse(compiled, {}, {});
+    // Raw comma-separated format like "0.5,0.5,0.5" is BANNED
+    assertNotIncludes(result, '0.5,0.5,0.5', 'Float32Array must not become raw comma-separated values');
+    // Should use either vec3() or hex color format
+    const hasVec3 = result.includes('vec3(');
+    const hasHex = result.includes('#');
+    if (!hasVec3 && !hasHex) {
+        throw new Error('Should use vec3() or hex color for Float32Array, got: ' + result);
+    }
+});
+
+// Test 14: Raw comma-separated number patterns are BANNED everywhere
+test('Raw comma-separated numbers are BANNED', () => {
+    // Pattern that would match "0.5,0.5,0.5" or "1,2,3" style raw arrays
+    const rawArrayPattern = /\d+\.?\d*,\d+\.?\d*,\d+\.?\d*/;
+    
+    // Test various array-like inputs
+    const testCases = [
+        { args: { color: [0.5, 0.5, 0.5] }, desc: 'regular array' },
+        { args: { color: new Float32Array([0.5, 0.5, 0.5]) }, desc: 'Float32Array' },
+        { args: { pos: [1, 2, 3] }, desc: 'integer array' },
+    ];
+    
+    for (const tc of testCases) {
+        const compiled = {
+            searchNamespaces: ['basics'],
+            plans: [{ chain: [{ op: 'basics.effect', args: tc.args }], write: { kind: 'output', name: 'o0' } }]
+        };
+        const result = unparse(compiled, {}, {});
+        
+        // Check for raw comma-separated pattern (excluding inside vec2/vec3/vec4 parentheses)
+        const withoutVec = result.replace(/vec[234]\([^)]+\)/g, '');
+        if (rawArrayPattern.test(withoutVec)) {
+            throw new Error(`Raw comma-separated numbers found for ${tc.desc}: ${result}`);
+        }
+    }
+});
+
+// Test 15: Numeric representations for enum/choices values are BANNED
+test('Numeric enum values are BANNED - must use names', () => {
+    // Mock effect with choices
+    const mockEffectDef = {
+        globals: {
+            preset: {
+                type: 'int',
+                default: 0,
+                choices: {
+                    none: 0,
+                    sunset: 16,
+                    vintage: 8,
+                    noir: 9
+                }
+            },
+            mode: {
+                type: 'int', 
+                default: 0,
+                choices: {
+                    linear: 0,
+                    cubic: 1,
+                    smooth: 2
+                }
+            }
+        }
+    };
+    
+    const getEffectDef = (name) => {
+        if (name === 'basics.effect' || name === 'effect') return mockEffectDef;
+        return null;
+    };
+    
+    // Test that numeric values get converted to enum names
+    const compiled = {
+        searchNamespaces: ['basics'],
+        plans: [{
+            chain: [{ op: 'basics.effect', args: { preset: 16, mode: 2 } }],
+            write: { kind: 'output', name: 'o0' }
+        }]
+    };
+    
+    const result = unparse(compiled, {}, { getEffectDef });
+    
+    // Should contain enum names, not numbers
+    assertIncludes(result, 'preset: sunset', 'preset should be sunset, not 16');
+    assertIncludes(result, 'mode: smooth', 'mode should be smooth, not 2');
+    assertNotIncludes(result, 'preset: 16', 'Numeric enum value 16 is BANNED');
+    assertNotIncludes(result, 'mode: 2', 'Numeric enum value 2 is BANNED');
+});
+
 // Summary
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

@@ -187,21 +187,56 @@ export function formatValue(value, spec, enums = {}) {
     if (type === 'member') {
         return value
     }
-    if (type === 'vec4' && Array.isArray(value)) {
+    // Handle both regular arrays and typed arrays (Float32Array, etc.)
+    const isArrayLike = Array.isArray(value) || ArrayBuffer.isView(value)
+    if (type === 'vec4' && isArrayLike) {
+        const arr = Array.isArray(value) ? value : Array.from(value)
         const toHex = (n) => Math.round(n * 255).toString(16).padStart(2, '0')
-        return `#${toHex(value[0])}${toHex(value[1])}${toHex(value[2])}${toHex(value[3])}`
+        return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}${toHex(arr[3])}`
     }
-    if (type === 'vec3' && Array.isArray(value)) {
-        return `vec3(${value.join(', ')})`
+    if (type === 'vec3' && isArrayLike) {
+        const arr = Array.isArray(value) ? value : Array.from(value)
+        return `vec3(${arr.join(', ')})`
     }
-    if (type === 'vec2' && Array.isArray(value)) {
-        return `vec2(${value.join(', ')})`
+    if (type === 'vec2' && isArrayLike) {
+        const arr = Array.isArray(value) ? value : Array.from(value)
+        return `vec2(${arr.join(', ')})`
     }
     if (type === 'palette') {
         return value
     }
     // float, int
     return value
+}
+
+/**
+ * Create a callback for looking up effect definitions
+ * Handles various naming formats: "filter.grade", "filter/grade", "grade"
+ * @param {function} getEffect - Effect lookup function
+ * @returns {function} Callback for getEffectDef option
+ */
+export function createEffectDefCallback(getEffect) {
+    return (effectName, namespace) => {
+        // effectName might be "filter.grade" or just "grade"
+        // Try direct lookup first
+        let def = getEffect(effectName)
+        if (def) return def
+
+        // Try with "/" instead of "." (e.g., "filter/grade")
+        if (effectName.includes('.')) {
+            def = getEffect(effectName.replace('.', '/'))
+            if (def) return def
+        }
+
+        // If namespace provided separately, try combining
+        if (namespace) {
+            def = getEffect(`${namespace}/${effectName}`) ||
+                  getEffect(`${namespace}.${effectName}`)
+            if (def) return def
+        }
+
+        return null
+    }
 }
 
 /**
@@ -1545,18 +1580,7 @@ export class UIController {
                 letDeclarations.push(letMatch[0])
             }
 
-            const getEffectDefCallback = (effectName, namespace) => {
-                let def = getEffect(effectName)
-                if (def) return def
-
-                if (namespace) {
-                    def = getEffect(`${namespace}/${effectName}`) ||
-                          getEffect(`${namespace}.${effectName}`)
-                    if (def) return def
-                }
-
-                return null
-            }
+            const getEffectDefCallback = createEffectDefCallback(getEffect)
 
             let result = unparse(compiled, overrides, {
                 customFormatter: this._boundFormatValue,
@@ -2838,18 +2862,7 @@ export class UIController {
             let globalStepIndex = 0
             let found = false
 
-            const getEffectDefCallback = (effectName, namespace) => {
-                let def = getEffect(effectName)
-                if (def) return def
-
-                if (namespace) {
-                    def = getEffect(`${namespace}/${effectName}`) ||
-                          getEffect(`${namespace}.${effectName}`)
-                    if (def) return def
-                }
-
-                return null
-            }
+            const getEffectDefCallback = createEffectDefCallback(getEffect)
 
             for (let p = 0; p < compiled.plans.length; p++) {
                 const plan = compiled.plans[p]
@@ -2940,18 +2953,7 @@ export class UIController {
             let globalStepIndex = 0
             let found = false
 
-            const getEffectDefCallback = (effectName, namespace) => {
-                let def = getEffect(effectName)
-                if (def) return def
-
-                if (namespace) {
-                    def = getEffect(`${namespace}/${effectName}`) ||
-                          getEffect(`${namespace}.${effectName}`)
-                    if (def) return def
-                }
-
-                return null
-            }
+            const getEffectDefCallback = createEffectDefCallback(getEffect)
 
             for (let p = 0; p < compiled.plans.length; p++) {
                 const plan = compiled.plans[p]

@@ -94,6 +94,16 @@ function formatValue(value, spec, customFormatter) {
         return value ? 'true' : 'false'
     }
 
+    // Handle inline choices - look up enum name from numeric value
+    if (spec?.choices && typeof value === 'number') {
+        for (const [name, val] of Object.entries(spec.choices)) {
+            if (name.endsWith(':')) continue // skip group labels
+            if (val === value) {
+                return name
+            }
+        }
+    }
+
     if (typeof value === 'number') {
         // Format numbers nicely - limit to 3 decimal places
         if (Number.isInteger(value)) {
@@ -109,28 +119,33 @@ function formatValue(value, spec, customFormatter) {
         return value
     }
 
-    if (Array.isArray(value)) {
+    // Handle both regular arrays and typed arrays (Float32Array, etc.)
+    const isArrayLike = Array.isArray(value) || ArrayBuffer.isView(value)
+    if (isArrayLike) {
+        // Convert typed arrays to regular arrays for processing
+        const arr = Array.isArray(value) ? value : Array.from(value)
+        
         // Handle vec3 explicitly if spec says so
-        if (spec && spec.type === 'vec3' && value.length === 3 && value.every(v => typeof v === 'number')) {
-            return `vec3(${value.map(v => formatValue(v, null, customFormatter)).join(', ')})`
+        if (spec && spec.type === 'vec3' && arr.length === 3 && arr.every(v => typeof v === 'number')) {
+            return `vec3(${arr.map(v => formatValue(v, null, customFormatter)).join(', ')})`
         }
 
         // Color array [r, g, b] or [r, g, b, a]
-        if (value.length >= 3 && value.length <= 4 && value.every(v => typeof v === 'number')) {
+        if (arr.length >= 3 && arr.length <= 4 && arr.every(v => typeof v === 'number')) {
             // Convert to hex color
             const toHex = (n) => {
                 const clamped = Math.max(0, Math.min(255, Math.round(n * 255)))
                 return clamped.toString(16).padStart(2, '0')
             }
-            const hex = `#${toHex(value[0])}${toHex(value[1])}${toHex(value[2])}`
+            const hex = `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}`
             return hex
         }
         // 3-element arrays without spec default to vec3
-        if (value.length === 3 && value.every(v => typeof v === 'number')) {
-            return `vec3(${value.map(v => formatValue(v, null, customFormatter)).join(', ')})`
+        if (arr.length === 3 && arr.every(v => typeof v === 'number')) {
+            return `vec3(${arr.map(v => formatValue(v, null, customFormatter)).join(', ')})`
         }
         // Other arrays - this should not happen in valid DSL
-        return `vec3(${value.slice(0, 3).map(v => formatValue(v, null, customFormatter)).join(', ')})`
+        return `vec3(${arr.slice(0, 3).map(v => formatValue(v, null, customFormatter)).join(', ')})`
     }
 
     if (typeof value === 'object') {
@@ -214,6 +229,19 @@ function formatValue(value, spec, customFormatter) {
                 return `read(${value.name})`
             }
             return value.name
+        }
+    }
+
+    // SAFETY: Never let arrays become raw comma-separated strings
+    // This catches any array-like that slipped through earlier checks
+    if (value && typeof value === 'object' && typeof value.length === 'number') {
+        const arr = Array.from(value)
+        if (arr.length >= 2 && arr.length <= 4 && arr.every(v => typeof v === 'number')) {
+            if (arr.length === 2) return `vec2(${arr.join(', ')})`
+            if (arr.length === 3) return `vec3(${arr.join(', ')})`
+            // 4 elements - hex color
+            const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
+            return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}${toHex(arr[3])}`
         }
     }
 
