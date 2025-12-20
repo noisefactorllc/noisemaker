@@ -312,6 +312,9 @@ export function expand(compilationResult, options = {}) {
                 continue
             }
 
+            // Generate a unique ID for this effect instance
+            const nodeId = `node_${step.temp}`
+
             // Collect programs - check for per-step shader overrides first
             // Overrides are keyed by step.temp (the unique step index)
             const stepOverrides = shaderOverrides[step.temp]
@@ -319,8 +322,9 @@ export function expand(compilationResult, options = {}) {
 
             if (shadersSource) {
                 for (const [progName, shaders] of Object.entries(shadersSource)) {
-                    // For overrides, we need a unique program name per step to avoid conflicts
-                    const uniqueProgName = stepOverrides ? `${progName}_step${step.temp}` : progName
+                    // Use nodeId prefix for ALL programs to prevent collisions between effects
+                    // (e.g., both physarum and flow have an "agent" program with different outputs)
+                    const uniqueProgName = `${nodeId}_${progName}`
 
                     if (!programs[uniqueProgName]) {
                         // Support both per-program layouts (uniformLayouts) and legacy single layout (uniformLayout)
@@ -333,9 +337,6 @@ export function expand(compilationResult, options = {}) {
                     }
                 }
             }
-
-            // Generate a unique ID for this effect instance
-            const nodeId = `node_${step.temp}`
 
             // Helper to check if a texture name indicates a global/double-buffered texture
             // Textures starting with 'global' in effect definitions need ping-pong buffering
@@ -463,10 +464,8 @@ export function expand(compilationResult, options = {}) {
                 const passDef = effectPasses[i]
                 const passId = `${nodeId}_pass_${i}`
 
-                // Use unique program name if this step has shader overrides
-                const programName = stepOverrides
-                    ? `${passDef.program}_step${step.temp}`
-                    : passDef.program
+                // Use nodeId prefix for program name to match program collection above
+                const programName = `${nodeId}_${passDef.program}`
 
                 const pass = {
                     id: passId,

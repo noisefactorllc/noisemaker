@@ -636,6 +636,9 @@ export class WebGL2Backend extends Backend {
         let viewportTex = null
         let outputId = null  // Track primary output for reference (used by points draw mode)
 
+        // Track actual number of MRT attachments for drawBuffers call
+        let mrtAttachmentCount = 0
+
         if (isMRT) {
             // MRT pass - bind multiple outputs
             const textures = []
@@ -669,6 +672,7 @@ export class WebGL2Backend extends Backend {
                 // Create unique ID for this MRT configuration
                 const mrtId = `mrt_${effectivePass.id}_${resolvedOutputIds.join('_')}`
                 fbo = this.createMRTFBO(mrtId, textures)
+                mrtAttachmentCount = textures.length
             }
         } else {
             // Single output pass
@@ -693,9 +697,10 @@ export class WebGL2Backend extends Backend {
         gl.bindFramebuffer(gl.FRAMEBUFFER, fbo || null)
 
         // For MRT, we need to call drawBuffers again after binding the FBO
-        if (isMRT && fbo) {
+        // Use actual attachment count, not outputKeys.length, in case some textures weren't found
+        if (isMRT && fbo && mrtAttachmentCount > 0) {
             const drawBuffers = []
-            for (let i = 0; i < outputKeys.length; i++) {
+            for (let i = 0; i < mrtAttachmentCount; i++) {
                 drawBuffers.push(gl.COLOR_ATTACHMENT0 + i)
             }
             gl.drawBuffers(drawBuffers)

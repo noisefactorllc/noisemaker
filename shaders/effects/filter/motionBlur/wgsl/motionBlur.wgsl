@@ -1,7 +1,7 @@
 /*
  * Motion Blur - Simple frame blending shader (WGSL).
  * Mixes current input with previous frame for a motion blur effect.
- * Amount 0-100 maps to 0-40% mix factor.
+ * Amount 0-100 maps to 0-80% mix factor.
  */
 
 struct Uniforms {
@@ -29,8 +29,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let current = textureSample(inputTex, texSampler, uv);
     let previous = textureSample(selfTex, texSampler, uv);
     
-    // Map amount 0-100 to 0-0.4 (equivalent to feedback at 40%)
-    let mixFactor = uniforms.amount * 0.004;
+    // Map amount 0-100 to 0-0.8 (equivalent to feedback at 80%)
+    let mixFactor = uniforms.amount * 0.008;
     
     return mix(current, previous, mixFactor);
 }
