@@ -326,6 +326,10 @@ export class UIController {
         this._mediaInputs = new Map()
         this._mediaUpdateFrame = null
 
+        // Text input state per step
+        // Map: stepIndex -> { canvas, textureId, textContent, font, size, posX, posY, color, rotation, bgColor, bgOpacity }
+        this._textInputs = new Map()
+
         // Loading state
         this._loadingState = {
             queue: [],
@@ -779,6 +783,372 @@ export class UIController {
             media.statusEl.textContent = 'no media loaded'
         }
         img.src = 'img/testcard.png'
+    }
+
+    // =========================================================================
+    // Text Input Management
+    // =========================================================================
+
+    /**
+     * Create text input controls section for an effect
+     * @param {number} stepIndex - Step index for this effect
+     * @param {string} textureId - Texture ID (e.g., 'textTex_step_0')
+     * @returns {HTMLElement} Text input controls container
+     * @private
+     */
+    _createTextInputSection(stepIndex, textureId) {
+        const section = document.createElement('div')
+        section.className = 'text-input-section'
+
+        // Create hidden canvas for text rendering
+        const canvas = document.createElement('canvas')
+        canvas.style.display = 'none'
+
+        // Initialize text state for this step
+        if (!this._textInputs.has(stepIndex)) {
+            this._textInputs.set(stepIndex, {
+                canvas,
+                textureId,
+                textContent: 'Hello World',
+                font: 'Nunito',
+                size: 0.1,
+                posX: 0.5,
+                posY: 0.5,
+                color: '#ffffff',
+                rotation: 0,
+                bgColor: '#000000',
+                bgOpacity: 0
+            })
+        }
+
+        const textState = this._textInputs.get(stepIndex)
+
+        // Text content input
+        const contentGroup = document.createElement('div')
+        contentGroup.className = 'control-group'
+
+        const contentLabel = document.createElement('label')
+        contentLabel.className = 'control-label'
+        contentLabel.textContent = 'text'
+        contentGroup.appendChild(contentLabel)
+
+        const contentInput = document.createElement('input')
+        contentInput.type = 'text'
+        contentInput.value = textState.textContent
+        contentInput.style.cssText = 'width: 100%; padding: 0.375rem 0.5rem; background: var(--color1); border: 1px solid var(--color3); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: Nunito, sans-serif; font-size: 0.75rem;'
+        contentInput.addEventListener('input', () => {
+            textState.textContent = contentInput.value
+            this._renderTextToCanvas(stepIndex)
+        })
+        contentGroup.appendChild(contentInput)
+        section.appendChild(contentGroup)
+
+        // Font select
+        const fontGroup = document.createElement('div')
+        fontGroup.className = 'control-group'
+
+        const fontLabel = document.createElement('label')
+        fontLabel.className = 'control-label'
+        fontLabel.textContent = 'font'
+        fontGroup.appendChild(fontLabel)
+
+        const fontSelect = document.createElement('select')
+        fontSelect.className = 'control-select'
+        const fonts = ['Nunito', 'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy']
+        fonts.forEach(f => {
+            const opt = document.createElement('option')
+            opt.value = f
+            opt.textContent = f
+            opt.selected = f === textState.font
+            fontSelect.appendChild(opt)
+        })
+        fontSelect.addEventListener('change', () => {
+            textState.font = fontSelect.value
+            this._renderTextToCanvas(stepIndex)
+        })
+        fontGroup.appendChild(fontSelect)
+        section.appendChild(fontGroup)
+
+        // Size slider
+        const sizeGroup = document.createElement('div')
+        sizeGroup.className = 'control-group'
+
+        const sizeLabel = document.createElement('label')
+        sizeLabel.className = 'control-label'
+        sizeLabel.textContent = 'size'
+        sizeGroup.appendChild(sizeLabel)
+
+        const sizeSlider = document.createElement('input')
+        sizeSlider.type = 'range'
+        sizeSlider.min = '0.01'
+        sizeSlider.max = '0.5'
+        sizeSlider.step = '0.01'
+        sizeSlider.value = textState.size
+        sizeSlider.style.width = '100%'
+
+        const sizeValue = document.createElement('span')
+        sizeValue.style.cssText = 'font-size: 0.6875rem; color: var(--color5);'
+        sizeValue.textContent = textState.size
+
+        sizeSlider.addEventListener('input', () => {
+            textState.size = parseFloat(sizeSlider.value)
+            sizeValue.textContent = sizeSlider.value
+            this._renderTextToCanvas(stepIndex)
+        })
+        sizeGroup.appendChild(sizeSlider)
+        sizeGroup.appendChild(sizeValue)
+        section.appendChild(sizeGroup)
+
+        // Position sliders (X and Y)
+        const posGroup = document.createElement('div')
+        posGroup.className = 'control-group'
+
+        const posLabel = document.createElement('label')
+        posLabel.className = 'control-label'
+        posLabel.textContent = 'position'
+        posGroup.appendChild(posLabel)
+
+        const posContainer = document.createElement('div')
+        posContainer.style.cssText = 'display: flex; gap: 0.5rem;'
+
+        // X position
+        const posXDiv = document.createElement('div')
+        posXDiv.style.flex = '1'
+        const posXLabel = document.createElement('label')
+        posXLabel.style.cssText = 'font-size: 0.625rem; color: var(--color5);'
+        posXLabel.textContent = 'X'
+        const posXSlider = document.createElement('input')
+        posXSlider.type = 'range'
+        posXSlider.min = '0'
+        posXSlider.max = '1'
+        posXSlider.step = '0.01'
+        posXSlider.value = textState.posX
+        posXSlider.style.width = '100%'
+        posXSlider.addEventListener('input', () => {
+            textState.posX = parseFloat(posXSlider.value)
+            this._renderTextToCanvas(stepIndex)
+        })
+        posXDiv.appendChild(posXLabel)
+        posXDiv.appendChild(posXSlider)
+        posContainer.appendChild(posXDiv)
+
+        // Y position
+        const posYDiv = document.createElement('div')
+        posYDiv.style.flex = '1'
+        const posYLabel = document.createElement('label')
+        posYLabel.style.cssText = 'font-size: 0.625rem; color: var(--color5);'
+        posYLabel.textContent = 'Y'
+        const posYSlider = document.createElement('input')
+        posYSlider.type = 'range'
+        posYSlider.min = '0'
+        posYSlider.max = '1'
+        posYSlider.step = '0.01'
+        posYSlider.value = textState.posY
+        posYSlider.style.width = '100%'
+        posYSlider.addEventListener('input', () => {
+            textState.posY = parseFloat(posYSlider.value)
+            this._renderTextToCanvas(stepIndex)
+        })
+        posYDiv.appendChild(posYLabel)
+        posYDiv.appendChild(posYSlider)
+        posContainer.appendChild(posYDiv)
+
+        posGroup.appendChild(posContainer)
+        section.appendChild(posGroup)
+
+        // Text color
+        const colorGroup = document.createElement('div')
+        colorGroup.className = 'control-group'
+
+        const colorLabel = document.createElement('label')
+        colorLabel.className = 'control-label'
+        colorLabel.textContent = 'color'
+        colorGroup.appendChild(colorLabel)
+
+        const colorInput = document.createElement('input')
+        colorInput.type = 'color'
+        colorInput.value = textState.color
+        colorInput.style.cssText = 'width: 100%; height: 2rem; padding: 0; border: 1px solid var(--color3); border-radius: var(--ui-corner-radius-small); cursor: pointer;'
+        colorInput.addEventListener('input', () => {
+            textState.color = colorInput.value
+            this._renderTextToCanvas(stepIndex)
+        })
+        colorGroup.appendChild(colorInput)
+        section.appendChild(colorGroup)
+
+        // Rotation slider
+        const rotGroup = document.createElement('div')
+        rotGroup.className = 'control-group'
+
+        const rotLabel = document.createElement('label')
+        rotLabel.className = 'control-label'
+        rotLabel.textContent = 'rotation (deg)'
+        rotGroup.appendChild(rotLabel)
+
+        const rotSlider = document.createElement('input')
+        rotSlider.type = 'range'
+        rotSlider.min = '-180'
+        rotSlider.max = '180'
+        rotSlider.step = '1'
+        rotSlider.value = textState.rotation
+        rotSlider.style.width = '100%'
+
+        const rotValue = document.createElement('span')
+        rotValue.style.cssText = 'font-size: 0.6875rem; color: var(--color5);'
+        rotValue.textContent = `${textState.rotation}°`
+
+        rotSlider.addEventListener('input', () => {
+            textState.rotation = parseInt(rotSlider.value)
+            rotValue.textContent = `${rotSlider.value}°`
+            this._renderTextToCanvas(stepIndex)
+        })
+        rotGroup.appendChild(rotSlider)
+        rotGroup.appendChild(rotValue)
+        section.appendChild(rotGroup)
+
+        // Background controls
+        const bgGroup = document.createElement('div')
+        bgGroup.className = 'control-group'
+
+        const bgLabel = document.createElement('label')
+        bgLabel.className = 'control-label'
+        bgLabel.textContent = 'background'
+        bgGroup.appendChild(bgLabel)
+
+        const bgContainer = document.createElement('div')
+        bgContainer.style.cssText = 'display: flex; gap: 0.5rem; align-items: center;'
+
+        const bgColorInput = document.createElement('input')
+        bgColorInput.type = 'color'
+        bgColorInput.value = textState.bgColor
+        bgColorInput.style.cssText = 'flex: 1; height: 2rem; padding: 0; border: 1px solid var(--color3); border-radius: var(--ui-corner-radius-small); cursor: pointer;'
+        bgColorInput.addEventListener('input', () => {
+            textState.bgColor = bgColorInput.value
+            this._renderTextToCanvas(stepIndex)
+        })
+        bgContainer.appendChild(bgColorInput)
+
+        const bgOpacityDiv = document.createElement('div')
+        bgOpacityDiv.style.flex = '1'
+        const bgOpacityLabel = document.createElement('label')
+        bgOpacityLabel.style.cssText = 'font-size: 0.625rem; color: var(--color5);'
+        bgOpacityLabel.textContent = 'opacity'
+        const bgOpacitySlider = document.createElement('input')
+        bgOpacitySlider.type = 'range'
+        bgOpacitySlider.min = '0'
+        bgOpacitySlider.max = '1'
+        bgOpacitySlider.step = '0.01'
+        bgOpacitySlider.value = textState.bgOpacity
+        bgOpacitySlider.style.width = '100%'
+        bgOpacitySlider.addEventListener('input', () => {
+            textState.bgOpacity = parseFloat(bgOpacitySlider.value)
+            this._renderTextToCanvas(stepIndex)
+        })
+        bgOpacityDiv.appendChild(bgOpacityLabel)
+        bgOpacityDiv.appendChild(bgOpacitySlider)
+        bgContainer.appendChild(bgOpacityDiv)
+
+        bgGroup.appendChild(bgContainer)
+        section.appendChild(bgGroup)
+
+        // Append hidden canvas
+        section.appendChild(canvas)
+
+        // Render initial text after a short delay (to ensure canvas is in DOM)
+        setTimeout(() => this._renderTextToCanvas(stepIndex), 50)
+
+        return section
+    }
+
+    /**
+     * Parse hex color to RGB array (0-1 range)
+     * @private
+     */
+    _hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+        return result ? [
+            parseInt(result[1], 16) / 255,
+            parseInt(result[2], 16) / 255,
+            parseInt(result[3], 16) / 255
+        ] : [1, 1, 1]
+    }
+
+    /**
+     * Render text to canvas and upload to texture
+     * @param {number} stepIndex - Step index
+     * @private
+     */
+    _renderTextToCanvas(stepIndex) {
+        const textState = this._textInputs.get(stepIndex)
+        if (!textState || !this._renderer?._pipeline) return
+
+        const canvas = textState.canvas
+        const resolution = this._renderer.resolution || 1024
+        canvas.width = resolution
+        canvas.height = resolution
+
+        const ctx = canvas.getContext('2d')
+
+        // Clear with background color
+        const bgColor = this._hexToRgb(textState.bgColor)
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        if (textState.bgOpacity > 0) {
+            ctx.fillStyle = `rgba(${Math.round(bgColor[0]*255)}, ${Math.round(bgColor[1]*255)}, ${Math.round(bgColor[2]*255)}, ${textState.bgOpacity})`
+            ctx.fillRect(0, 0, canvas.width, canvas.height)
+        }
+
+        // Get text parameters
+        const text = textState.textContent || 'Hello World'
+        const fontSize = Math.round(textState.size * canvas.height)
+        const textColor = this._hexToRgb(textState.color)
+        const rotation = textState.rotation * Math.PI / 180
+
+        // Set up text rendering
+        ctx.font = `${fontSize}px ${textState.font}`
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillStyle = `rgba(${Math.round(textColor[0]*255)}, ${Math.round(textColor[1]*255)}, ${Math.round(textColor[2]*255)}, 1)`
+
+        // Position and rotation
+        const x = textState.posX * canvas.width
+        const y = textState.posY * canvas.height
+
+        ctx.save()
+        ctx.translate(x, y)
+        ctx.rotate(rotation)
+        ctx.fillText(text, 0, 0)
+        ctx.restore()
+
+        // Upload to texture
+        this._updateTextTexture(stepIndex)
+    }
+
+    /**
+     * Update text texture from canvas
+     * @param {number} stepIndex - Step index
+     * @private
+     */
+    _updateTextTexture(stepIndex) {
+        const textState = this._textInputs.get(stepIndex)
+        if (!textState || !textState.canvas || !this._renderer._pipeline) return
+
+        const texId = textState.textureId
+        const result = this._renderer.updateTextureFromSource(texId, textState.canvas, { flipY: true })
+
+        if (result.width > 0 && result.height > 0) {
+            // Update textSize uniform for this specific step
+            const effectKey = `step_${stepIndex}`
+            if (this._effectParameterValues[effectKey]) {
+                this._effectParameterValues[effectKey].textSize = [result.width, result.height]
+            }
+        }
+    }
+
+    /**
+     * Stop all text inputs and clean up state
+     */
+    stopAllText() {
+        this._textInputs.clear()
     }
 
     // =========================================================================
@@ -1480,8 +1850,9 @@ export class UIController {
     createEffectControlsFromDsl(dsl) {
         if (!this._controlsContainer) return
 
-        // Clean up existing media inputs before rebuilding controls
+        // Clean up existing media and text inputs before rebuilding controls
         this.stopAllMedia()
+        this.stopAllText()
 
         // PRESERVE existing parameter values keyed by effect occurrence (name + nth occurrence)
         // This ensures that inserting/removing unrelated effects doesn't reset values
@@ -1978,16 +2349,27 @@ export class UIController {
                 contentDiv.appendChild(shaderSection)
             }
 
-            // Add media input section if effect has externalTexture
-            // Use per-step texture ID (e.g., imageTex_step_0) to allow independent media per effect
+            // Add external input section if effect has externalTexture
+            // Use per-step texture ID to allow independent inputs per effect instance
             if (effectDef.externalTexture) {
                 const stepTextureId = `${effectDef.externalTexture}_step_${effectInfo.stepIndex}`
-                const mediaSection = this._createMediaInputSection(
-                    effectInfo.stepIndex,
-                    stepTextureId,
-                    effectDef
-                )
-                contentDiv.appendChild(mediaSection)
+
+                if (effectDef.externalTexture === 'textTex') {
+                    // Text input effect
+                    const textSection = this._createTextInputSection(
+                        effectInfo.stepIndex,
+                        stepTextureId
+                    )
+                    contentDiv.appendChild(textSection)
+                } else {
+                    // Media input effect (imageTex or other)
+                    const mediaSection = this._createMediaInputSection(
+                        effectInfo.stepIndex,
+                        stepTextureId,
+                        effectDef
+                    )
+                    contentDiv.appendChild(mediaSection)
+                }
             }
 
             moduleDiv.appendChild(contentDiv)
