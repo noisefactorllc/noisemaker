@@ -817,7 +817,8 @@ export class UIController {
                 color: '#ffffff',
                 rotation: 0,
                 bgColor: '#000000',
-                bgOpacity: 0
+                bgOpacity: 0,
+                justify: 'center'
             })
         }
 
@@ -832,16 +833,42 @@ export class UIController {
         contentLabel.textContent = 'text'
         contentGroup.appendChild(contentLabel)
 
-        const contentInput = document.createElement('input')
-        contentInput.type = 'text'
+        const contentInput = document.createElement('textarea')
         contentInput.value = textState.textContent
-        contentInput.style.cssText = 'width: 100%; padding: 0.375rem 0.5rem; background: var(--color1); border: 1px solid var(--color3); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: Nunito, sans-serif; font-size: 0.75rem;'
+        contentInput.rows = 3
+        contentInput.style.cssText = 'width: 100%; padding: 0.375rem 0.5rem; background: var(--color1); border: 1px solid var(--color3); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: Nunito, sans-serif; font-size: 0.75rem; resize: vertical;'
         contentInput.addEventListener('input', () => {
             textState.textContent = contentInput.value
             this._renderTextToCanvas(stepIndex)
         })
         contentGroup.appendChild(contentInput)
         section.appendChild(contentGroup)
+
+        // Justification select
+        const justifyGroup = document.createElement('div')
+        justifyGroup.className = 'control-group'
+
+        const justifyLabel = document.createElement('label')
+        justifyLabel.className = 'control-label'
+        justifyLabel.textContent = 'justify'
+        justifyGroup.appendChild(justifyLabel)
+
+        const justifySelect = document.createElement('select')
+        justifySelect.className = 'control-select'
+        const justifyOptions = ['left', 'center', 'right']
+        justifyOptions.forEach(j => {
+            const opt = document.createElement('option')
+            opt.value = j
+            opt.textContent = j
+            opt.selected = j === textState.justify
+            justifySelect.appendChild(opt)
+        })
+        justifySelect.addEventListener('change', () => {
+            textState.justify = justifySelect.value
+            this._renderTextToCanvas(stepIndex)
+        })
+        justifyGroup.appendChild(justifySelect)
+        section.appendChild(justifyGroup)
 
         // Font select
         const fontGroup = document.createElement('div')
@@ -1099,13 +1126,16 @@ export class UIController {
 
         // Get text parameters
         const text = textState.textContent || 'Hello World'
+        const lines = text.split('\n')
         const fontSize = Math.round(textState.size * canvas.height)
+        const lineHeight = fontSize * 1.2
         const textColor = this._hexToRgb(textState.color)
         const rotation = textState.rotation * Math.PI / 180
+        const justify = textState.justify || 'center'
 
         // Set up text rendering
         ctx.font = `${fontSize}px ${textState.font}`
-        ctx.textAlign = 'center'
+        ctx.textAlign = justify
         ctx.textBaseline = 'middle'
         ctx.fillStyle = `rgba(${Math.round(textColor[0]*255)}, ${Math.round(textColor[1]*255)}, ${Math.round(textColor[2]*255)}, 1)`
 
@@ -1116,7 +1146,16 @@ export class UIController {
         ctx.save()
         ctx.translate(x, y)
         ctx.rotate(rotation)
-        ctx.fillText(text, 0, 0)
+
+        // Render multi-line text with justification
+        const totalHeight = (lines.length - 1) * lineHeight
+        const startY = -totalHeight / 2
+
+        for (let i = 0; i < lines.length; i++) {
+            const lineY = startY + i * lineHeight
+            ctx.fillText(lines[i], 0, lineY)
+        }
+
         ctx.restore()
 
         // Upload to texture
@@ -2086,6 +2125,20 @@ export class UIController {
                 for (const [key, spec] of Object.entries(effectDef.globals)) {
                     if (spec.default !== undefined) {
                         this._effectParameterValues[effectKey][key] = cloneParamValue(spec.default)
+                    }
+                }
+
+                // Reset text input state if this is a text effect
+                if (effectDef.externalTexture === 'textTex') {
+                    this._textInputs.delete(effectInfo.stepIndex)
+                    const oldTextSection = moduleDiv.querySelector('.text-input-section')
+                    if (oldTextSection) {
+                        const stepTextureId = `${effectDef.externalTexture}_step_${effectInfo.stepIndex}`
+                        const newTextSection = this._createTextInputSection(
+                            effectInfo.stepIndex,
+                            stepTextureId
+                        )
+                        oldTextSection.replaceWith(newTextSection)
                     }
                 }
 
