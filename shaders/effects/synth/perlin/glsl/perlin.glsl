@@ -8,16 +8,39 @@ uniform float scale;
 uniform float seed;
 uniform int octaves;
 uniform int colorMode;
+uniform int dimensions;
 uniform int ridges;
 
 out vec4 fragColor;
 
 /* 3D gradient noise with quintic interpolation
    Animated using periodic z-axis for seamless looping
-   2D output is a cross-section through 3D noise volume */
+   2D output is a cross-section through 3D noise volume
+   
+   Also supports 2D periodic noise using time-animated gradients */
 
 const float TAU = 6.283185307179586;
 const float Z_PERIOD = 4.0;  // Period length in z-axis lattice units
+
+// PCG PRNG for 2D mode
+uvec3 pcg(uvec3 v) {
+    v = v * uint(1664525) + uint(1013904223);
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v ^= v >> uint(16);
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    return v;
+}
+
+vec3 prng(vec3 p) {
+    p.x = p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0;
+    p.y = p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0;
+    p.z = p.z >= 0.0 ? p.z * 2.0 : -p.z * 2.0 + 1.0;
+    return vec3(pcg(uvec3(p))) / float(uint(0xffffffff));
+}
 
 // 3D hash using multiple rounds of mixing
 // Based on techniques from "Hash Functions for GPU Rendering" (Jarzynski & Olano, 2020)
@@ -65,9 +88,39 @@ float quintic(float t) {
     return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
 }
 
+float smoothlerp(float x, float a, float b) {
+    return a + quintic(x) * (b - a);
+}
+
 // Wrap z index for periodicity at lattice level
 float wrapZ(float z) {
     return mod(z, Z_PERIOD);
+}
+
+// 2D periodic grid function - gradient angle animates with time
+float grid2D(vec2 st, vec2 cell, float timeAngle, float channelOffset) {
+    float angle = prng(vec3(cell + seed, 1.0)).r * TAU;
+    angle += timeAngle + channelOffset * TAU;  // Animate gradient rotation
+    vec2 gradient = vec2(cos(angle), sin(angle));
+    vec2 dist = st - cell;
+    return dot(gradient, dist);
+}
+
+// 2D periodic Perlin noise - time animates gradient angles for seamless loop
+float noise2D(vec2 st, float timeAngle, float channelOffset) {
+    vec2 cell = floor(st);
+    vec2 f = fract(st);
+    
+    float tl = grid2D(st, cell, timeAngle, channelOffset);
+    float tr = grid2D(st, vec2(cell.x + 1.0, cell.y), timeAngle, channelOffset);
+    float bl = grid2D(st, vec2(cell.x, cell.y + 1.0), timeAngle, channelOffset);
+    float br = grid2D(st, cell + 1.0, timeAngle, channelOffset);
+    
+    float upper = smoothlerp(f.x, tl, tr);
+    float lower = smoothlerp(f.x, bl, br);
+    float val = smoothlerp(f.y, upper, lower);
+    
+    return val;  // Returns -1..1
 }
 
 // 3D gradient noise - Perlin-style with quintic interpolation
@@ -107,9 +160,36 @@ float noise3D(vec3 p) {
     return mix(nxy0, nxy1, u.z);
 }
 
+// FBM for 2D periodic noise
+float fbm2D(vec2 st, float timeAngle, float channelOffset, int ridgedMode) {
+    const int MAX_OCT = 8;
+    float amplitude = 0.5;
+    float frequency = 1.0;
+    float sum = 0.0;
+    float maxVal = 0.0;
+    int oct = octaves;
+    if (oct < 1) oct = 1;
+    
+    for (int i = 0; i < MAX_OCT; i++) {
+        if (i >= oct) break;
+        float n = noise2D(st * frequency, timeAngle, channelOffset);  // -1..1
+        n = clamp(n * 1.5, -1.0, 1.0);
+        if (ridgedMode == 1) {
+            n = 1.0 - abs(n);
+        } else {
+            n = (n + 1.0) * 0.5;
+        }
+        sum += n * amplitude;
+        maxVal += amplitude;
+        frequency *= 2.0;
+        amplitude *= 0.5;
+    }
+    return sum / maxVal;
+}
+
 // FBM using 3D noise with circular time for seamless looping
 // 2D cross-section moves through 3D noise as time varies
-float fbm(vec2 st, float timeAngle, float channelOffset, int ridgedMode) {
+float fbm3D(vec2 st, float timeAngle, float channelOffset, int ridgedMode) {
     const int MAX_OCT = 8;
     float amplitude = 0.5;
     float frequency = 1.0;
@@ -158,9 +238,19 @@ void main() {
     // time is 0-1 representing position around circle for seamless looping
     float timeAngle = time * TAU;
     
-    float r = fbm(st, timeAngle, 0.0, ridges);
-    float g = fbm(st, timeAngle, 1.33, ridges);
-    float b = fbm(st, timeAngle, 2.67, ridges);
+    float r, g, b;
+    
+    if (dimensions == 2) {
+        // 2D periodic noise (faster)
+        r = fbm2D(st, timeAngle, 0.0, ridges);
+        g = fbm2D(st, timeAngle, 0.333, ridges);
+        b = fbm2D(st, timeAngle, 0.667, ridges);
+    } else {
+        // 3D cross-section noise (original)
+        r = fbm3D(st, timeAngle, 0.0, ridges);
+        g = fbm3D(st, timeAngle, 1.33, ridges);
+        b = fbm3D(st, timeAngle, 2.67, ridges);
+    }
     
     vec3 col;
     if (colorMode == 0) {

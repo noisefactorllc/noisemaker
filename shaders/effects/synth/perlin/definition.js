@@ -35,6 +35,13 @@ export default new Effect({
             "control": "dropdown"
         }
     },
+    "dimensions": {
+        "type": "int",
+        "default": 2,
+        "min": 2,
+        "max": 3,
+        "uniform": "dimensions"
+    },
     "ridges": {
         "type": "boolean",
         "default": false,
