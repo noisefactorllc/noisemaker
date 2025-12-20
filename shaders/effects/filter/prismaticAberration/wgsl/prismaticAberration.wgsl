@@ -26,6 +26,11 @@ struct Uniforms {
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
 
+// Floored modulo (matches GLSL mod behavior for negative values)
+fn floorMod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
+}
+
 fn mapVal(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
 }
@@ -70,7 +75,7 @@ fn rgb2hsv(rgb: vec3f) -> vec3f {
     var h: f32 = 0.0;
     if (delta != 0.0) {
         if (maxC == r) {
-            h = ((g - b) / delta) % 6.0 / 6.0;
+            h = floorMod((g - b) / delta, 6.0) / 6.0;
         } else if (maxC == g) {
             h = ((b - r) / delta + 2.0) / 6.0;
         } else {

@@ -28,6 +28,11 @@ struct Uniforms {
 @group(0) @binding(3) var selfTex: texture_2d<f32>;
 
 const PI: f32 = 3.14159265359;
+
+// Floored modulo (matches GLSL mod behavior for negative values)
+fn floorMod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
+}
 const TAU: f32 = 6.28318530718;
 
 fn map(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
@@ -218,7 +223,7 @@ fn rgb2hsv(rgb: vec3<f32>) -> vec3<f32> {
     var h = 0.0;
     if (delta != 0.0) {
         if (maxC == rgb.r) {
-            h = ((rgb.g - rgb.b) / delta) % 6.0 / 6.0;
+            h = floorMod((rgb.g - rgb.b) / delta, 6.0) / 6.0;
         } else if (maxC == rgb.g) {
             h = ((rgb.b - rgb.r) / delta + 2.0) / 6.0;
         } else {
@@ -359,7 +364,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     // hue rotation
     var hsv = rgb2hsv(color.rgb);
-    hsv.x = (hsv.x + map(uniforms.hueRotation, -180.0, 180.0, -0.05, 0.05)) % 1.0;
+    hsv.x = fract(hsv.x + map(uniforms.hueRotation, -180.0, 180.0, -0.05, 0.05));
     color = vec4<f32>(hsv2rgb(hsv), color.a);
 
     // brightness/contrast

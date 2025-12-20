@@ -17,6 +17,11 @@ struct Uniforms {
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
 
+// Floored modulo (matches GLSL mod behavior for negative values)
+fn floorMod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
+}
+
 struct PaletteEntry {
     amp: vec4f,    // .xyz = amplitude, .w = mode (0=rgb, 1=hsv, 2=oklab)
     freq: vec4f,
@@ -147,7 +152,7 @@ fn hsv_to_rgb(hsv: vec3f) -> vec3f {
 
     let c = v * s;
     let hp = h * 6.0;
-    let x = c * (1.0 - abs(hp % 2.0 - 1.0));
+    let x = c * (1.0 - abs(floorMod(hp, 2.0) - 1.0));
     let m = v - c;
 
     var rgb: vec3f;

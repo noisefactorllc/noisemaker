@@ -13,13 +13,18 @@ struct Uniforms {
 
 const TAU: f32 = 6.28318530718;
 
+// Floored modulo (matches GLSL mod behavior for negative values)
+fn floorMod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
+}
+
 // HSV to RGB
 fn hsv2rgb(hsv: vec3<f32>) -> vec3<f32> {
     let h = fract(hsv.x);
     let s = hsv.y;
     let v = hsv.z;
     let c = v * s;
-    let x = c * (1.0 - abs((h * 6.0) % 2.0 - 1.0));
+    let x = c * (1.0 - abs(floorMod(h * 6.0, 2.0) - 1.0));
     let m = v - c;
     var rgb: vec3<f32>;
     if (h < 1.0/6.0) { rgb = vec3<f32>(c, x, 0.0); }
