@@ -14,6 +14,10 @@ fn mapVal(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
 
+fn floorMod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
+}
+
 fn rgb2hsv(rgb: vec3<f32>) -> vec3<f32> {
     let r = rgb.r; let g = rgb.g; let b = rgb.b;
     let maxC = max(r, max(g, b));
@@ -23,7 +27,7 @@ fn rgb2hsv(rgb: vec3<f32>) -> vec3<f32> {
     var h = 0.0;
     if (delta != 0.0) {
         if (maxC == r) {
-            h = ((g - b) / delta) % 6.0 / 6.0;
+            h = floorMod((g - b) / delta, 6.0) / 6.0;
         } else if (maxC == g) {
             h = ((b - r) / delta + 2.0) / 6.0;
         } else {
@@ -40,7 +44,7 @@ fn hsv2rgb(hsv: vec3<f32>) -> vec3<f32> {
     let s = hsv.y;
     let v = hsv.z;
     let c = v * s;
-    let x = c * (1.0 - abs((h * 6.0) % 2.0 - 1.0));
+    let x = c * (1.0 - abs(floorMod(h * 6.0, 2.0) - 1.0));
     let m = v - c;
     var rgb: vec3<f32>;
     if (h < 1.0/6.0) { rgb = vec3<f32>(c, x, 0.0); }
