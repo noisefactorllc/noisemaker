@@ -11,40 +11,36 @@
 const PI: f32 = 3.141592653589793;
 const TAU: f32 = 6.283185307179586;
 
-// Simple 2D hash for noise
-fn hash21(p_in: vec2<f32>, s: f32) -> f32 {
-    var p = fract(p_in * vec2<f32>(234.34, 435.345) + s);
-    p = p + dot(p, p + 34.23);
-    return fract(p.x * p.y);
+// Simple 1D hash for noise
+fn hash11(p: f32, s: f32) -> f32 {
+    var pv = fract(p * 234.34 + s);
+    pv = pv + pv * (pv + 34.23);
+    return fract(pv * pv);
 }
 
-// Value noise 2D
-fn noise2D(p: vec2<f32>, s: f32) -> f32 {
+// Value noise 1D - tiles at integer frequency boundaries
+fn tilingNoise1D(x: f32, freq: f32, s: f32) -> f32 {
+    // x is in [0, 1] range, scale by frequency
+    let p = x * freq;
     let i = floor(p);
     var f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
+    f = f * f * (3.0 - 2.0 * f);  // smoothstep
     
-    let a = hash21(i, s);
-    let b = hash21(i + vec2<f32>(1.0, 0.0), s);
-    let c = hash21(i + vec2<f32>(0.0, 1.0), s);
-    let d = hash21(i + vec2<f32>(1.0, 1.0), s);
+    // Wrap indices for seamless tiling
+    let i0 = (i % freq + freq) % freq;
+    let i1 = ((i + 1.0) % freq + freq) % freq;
     
-    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+    let a = hash11(i0, s);
+    let b = hash11(i1, s);
+    
+    return mix(a, b, f);
 }
 
-// Looping noise - samples on a circle for seamless temporal loops
-fn loopingNoise(spatial: f32, temporal: f32, s: f32) -> f32 {
-    // temporal is 0..1 over one loop cycle
-    // Sample noise on a circle so start meets end
-    let angle = temporal * TAU;
-    let radius = 2.0;  // Controls noise detail in time dimension
-    let loopCoord = vec2<f32>(cos(angle), sin(angle)) * radius;
-    // Combine with spatial coordinate
-    let coord = vec3<f32>(spatial * 5.0, loopCoord);
-    // Use 2D noise slices combined for pseudo-3D
-    let n1 = noise2D(coord.xy + s, s);
-    let n2 = noise2D(vec2<f32>(coord.x, coord.z) + s * 2.0, s);
-    return mix(n1, n2, 0.5);
+// Periodic value function: h/t Etienne Jacob
+// https://bleuje.github.io/tutorial2/
+// Python: periodic_value(time, value) = normalized_sine((time - value) * tau)
+fn periodicValue(t: f32, v: f32) -> f32 {
+    return (sin((t - v) * TAU) + 1.0) * 0.5;
 }
 
 // Rotate 2D coordinates
@@ -97,10 +93,14 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let rotRad = rotation * PI / 180.0;
     st = rotate2D(st, rotRad);
     
+    // Spatial position in [0, 1] for noise sampling
+    let spatialPos = st.y + 0.5;
+    let freq = f32(frequency);
+    
     // The oscillator value is based on position along y-axis
     // frequency controls how many bands appear across the image
     // speed controls how fast the animation runs
-    let spatialPhase = st.y * f32(frequency);
+    let spatialPhase = st.y * freq;
     let timePhase = time * speed;
     let t = spatialPhase + timePhase;
     
@@ -120,11 +120,30 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     } else if (oscType == 4) {
         // Square
         val = oscSquare(t);
+    } else if (oscType == 5) {
+        // noise1d - scrolling version of noise2d
+        // At t=0, must match noise2d exactly
+        // Then scrolls the pattern over time
+        let scrollOffset = fract(time * speed);
+        let scrolledPos = fract(spatialPos + scrollOffset);
+        
+        // Same computation as noise2d at t=0
+        let timeNoise = tilingNoise1D(scrolledPos, freq, seed + 12345.0);
+        let valueNoise = tilingNoise1D(scrolledPos, freq, seed);
+        let scaledTime = periodicValue(0.0, timeNoise) * speed;
+        val = periodicValue(scaledTime, valueNoise);
     } else {
-        // noise (oscType == 5) - seamlessly looping
-        let spatial = st.y * f32(frequency);
-        let temporal = fract(time * speed);
-        val = loopingNoise(spatial, temporal, seed);
+        // noise2d (oscType == 6) - two-stage periodic
+        // Python: scaled_time = periodic_value(time, time_noise) * speed
+        //         result = periodic_value(scaled_time, value_noise)
+        
+        // Get noise values at this spatial position (same sampling as noise1d)
+        let timeNoise = tilingNoise1D(spatialPos, freq, seed + 12345.0);
+        let valueNoise = tilingNoise1D(spatialPos, freq, seed);
+        
+        // Two-stage periodic: time -> periodic -> scale -> periodic
+        let scaledTime = periodicValue(time, timeNoise) * speed;
+        val = periodicValue(scaledTime, valueNoise);
     }
     
     return vec4<f32>(vec3<f32>(val), 1.0);

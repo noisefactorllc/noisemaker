@@ -13,7 +13,8 @@ const oscKindEnum = {
     saw: { type: 'Number', value: 2 },       // 0 -> 1
     sawInv: { type: 'Number', value: 3 },    // 1 -> 0
     square: { type: 'Number', value: 4 },    // on/off
-    noise: { type: 'Number', value: 5 }      // periodic 2D noise
+    noise1d: { type: 'Number', value: 5 },   // scrolling periodic noise
+    noise2d: { type: 'Number', value: 6 }    // two-stage periodic noise
 }
 
 export const stdEnums = {
@@ -34,7 +35,8 @@ export const stdEnums = {
         sawtooth: { type: 'Number', value: 2 },
         sawtoothInv: { type: 'Number', value: 3 },
         square: { type: 'Number', value: 4 },
-        noise: { type: 'Number', value: 5 }
+        noise1d: { type: 'Number', value: 5 },
+        noise2d: { type: 'Number', value: 6 }
     },
     oscKind: oscKindEnum,
     palette: paletteEnum

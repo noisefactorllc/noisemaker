@@ -8,7 +8,7 @@
 /**
  * Map oscillator type number to oscKind enum name
  */
-const oscKindNames = ['sine', 'tri', 'saw', 'sawInv', 'square', 'noise']
+const oscKindNames = ['sine', 'tri', 'saw', 'sawInv', 'square', 'noise1d', 'noise2d']
 
 /**
  * Format an AST expression node back to DSL
