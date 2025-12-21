@@ -4,6 +4,19 @@ import { stdEnums } from './std_enums.js'
 import { ops } from './ops.js'
 import { normalizeMemberPath, pathStartsWith, applyEnumPrefix } from './enumPaths.js'
 
+/**
+ * STRICT ALLOWLIST FOR STRING PARAMETERS
+ * 
+ * !! WARNING: DO NOT EXPAND THIS ALLOWLIST !!
+ * 
+ * Format: "effect.param" where effect is the func name (e.g., "text.text")
+ */
+const ALLOWED_STRING_PARAMS = new Set([
+    'text.text',     // Text content for text overlay effect
+    'text.font',     // Font family for text overlay effect
+    'text.justify',  // Text justification (left/center/right)
+])
+
 const stateSurfaces = new Set(['time','frame','mouse','resolution','seed','a'])
 const stateValues = new Set(['time','frame','mouse','resolution','seed','a','u1','u2','u3','u4','s1','s2','b1','b2','a1','a2','deltaTime'])
 const STARTER_OPS = new Set()
@@ -602,6 +615,11 @@ export function validate(ast) {
                     }
                     if (kw && kw[def.name] !== undefined) seen.add(def.name)
                     if (def.type === 'surface') {
+                        if (node && node.type === 'String') {
+                            pushDiag('S001', node, `String literal not allowed for surface parameter '${def.name}'`)
+                            args[argKey] = def.default ? toSurface({ type: 'Ident', name: def.default }) : null
+                            continue
+                        }
                         let surf = null
                         let invalidStarterChain = false
                         const starter = node ? getStarterInfo(node) : null
@@ -651,6 +669,11 @@ export function validate(ast) {
                         }
                         args[argKey] = surf
                     } else if (def.type === 'color') {
+                        if (node && node.type === 'String') {
+                            pushDiag('S001', node, `String literal not allowed for color parameter '${def.name}'`)
+                            args[argKey] = def.default ? def.default.slice() : [0,0,0]
+                            continue
+                        }
                         let value
                         if (node && node.type === 'Color') {
                             value = node.value.slice()
@@ -663,6 +686,11 @@ export function validate(ast) {
                         }
                         args[argKey] = value
                     } else if (def.type === 'vec3') {
+                        if (node && node.type === 'String') {
+                            pushDiag('S001', node, `String literal not allowed for vec3 parameter '${def.name}'`)
+                            args[argKey] = def.default ? def.default.slice() : [0,0,0]
+                            continue
+                        }
                         let value
                         if (node && node.type === 'Call' && node.name === 'vec3' && node.args && node.args.length === 3) {
                             value = []
@@ -684,6 +712,11 @@ export function validate(ast) {
                         }
                         args[argKey] = value
                     } else if (def.type === 'vec4') {
+                        if (node && node.type === 'String') {
+                            pushDiag('S001', node, `String literal not allowed for vec4 parameter '${def.name}'`)
+                            args[argKey] = def.default ? def.default.slice() : [0,0,0,1]
+                            continue
+                        }
                         let value
                         if (node && node.type === 'Call' && node.name === 'vec4' && node.args && node.args.length === 4) {
                             value = []
@@ -706,6 +739,11 @@ export function validate(ast) {
                         }
                         args[argKey] = value
                     } else if (def.type === 'boolean') {
+                        if (node && node.type === 'String') {
+                            pushDiag('S001', node, `String literal not allowed for boolean parameter '${def.name}'`)
+                            args[argKey] = def.default !== undefined ? !!def.default : false
+                            continue
+                        }
                         let value
                         if (node && node.type === 'Boolean') {
                             value = !!node.value
@@ -732,6 +770,11 @@ export function validate(ast) {
                         }
                         args[argKey] = value
                     } else if (def.type === 'member') {
+                        if (node && node.type === 'String') {
+                            pushDiag('S001', node, `String literal not allowed for member/enum parameter '${def.name}'`)
+                            args[argKey] = def.default
+                            continue
+                        }
                         const prefix = normalizeMemberPath(def.enumPath || def.enum)
                         let path = null
                         if (node && node.type === 'Member') {
@@ -783,6 +826,11 @@ export function validate(ast) {
                         }
                     } else if (def.type === 'volume') {
                         // Volume reference parameter (vol0-vol7 or "none")
+                        if (node && node.type === 'String') {
+                            pushDiag('S001', node, `String literal not allowed for volume parameter '${def.name}'`)
+                            args[argKey] = def.default ? { kind: 'vol', name: def.default } : null
+                            continue
+                        }
                         let value = null
                         // Handle Read3D nodes with single arg (read3d(vol0) for param use)
                         if (node && node.type === 'Read3D' && node.tex3d && !node.geo) {
@@ -810,6 +858,11 @@ export function validate(ast) {
                         args[argKey] = value
                     } else if (def.type === 'geometry') {
                         // Geometry reference parameter (geo0-geo7 or "none")
+                        if (node && node.type === 'String') {
+                            pushDiag('S001', node, `String literal not allowed for geometry parameter '${def.name}'`)
+                            args[argKey] = def.default ? { kind: 'geo', name: def.default } : null
+                            continue
+                        }
                         let value = null
                         // Handle Read3D nodes with single arg (read3d(geo0) for param use)
                         if (node && node.type === 'Read3D' && node.tex3d && !node.geo) {
@@ -835,7 +888,44 @@ export function validate(ast) {
                             value = { kind: 'geo', name: def.default }
                         }
                         args[argKey] = value
+                    } else if (def.type === 'string') {
+                        // STRICT STRING PARAMETER VALIDATION
+                        // Extract func name from opName (e.g., "filter.text" -> "text")
+                        const funcName = opName.includes('.') ? opName.split('.').pop() : opName
+                        const allowlistKey = `${funcName}.${def.name}`
+                        
+                        if (!ALLOWED_STRING_PARAMS.has(allowlistKey)) {
+                            pushDiag('S001', node || original, `String parameter '${def.name}' on effect '${funcName}' is NOT in the allowed string params list. String params are strictly controlled - use enums or choices instead.`)
+                            args[argKey] = def.default
+                            continue
+                        }
+                        
+                        // String type parameters - only accept String AST nodes or use default
+                        let value
+                        if (node && node.type === 'String') {
+                            value = node.value
+                        } else if (node && node.type === 'Ident' && def.choices) {
+                            // Allow bare identifiers if they match a choice key
+                            if (def.choices[node.name] !== undefined) {
+                                value = def.choices[node.name]
+                            } else {
+                                pushDiag('S001', node, `Invalid choice '${node.name}' for string parameter '${def.name}'`)
+                                value = def.default
+                            }
+                        } else if (node) {
+                            pushDiag('S001', node, `String parameter '${def.name}' requires a quoted string literal, got ${node.type}`)
+                            value = def.default
+                        } else {
+                            value = def.default
+                        }
+                        args[argKey] = value
                     } else {
+                        // Numeric types - REJECT String nodes
+                        if (node && node.type === 'String') {
+                            pushDiag('S001', node, `String literal not allowed for numeric parameter '${def.name}' - strings are only valid for type: "string" parameters`)
+                            args[argKey] = def.default
+                            continue
+                        }
                         let value
                         if (node && (node.type === 'Number' || node.type === 'Boolean')) {
                             value = node.type === 'Boolean' ? (node.value ? 1 : 0) : node.value

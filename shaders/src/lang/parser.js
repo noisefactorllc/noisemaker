@@ -63,7 +63,7 @@ export function parse(tokens) {
     }
 
     const exprStartTokens = new Set([
-        'PLUS', 'MINUS', 'NUMBER', 'HEX', 'FUNC',
+        'PLUS', 'MINUS', 'NUMBER', 'HEX', 'FUNC', 'STRING',
         'IDENT', 'OUTPUT_REF', 'SOURCE_REF', 'VOL_REF', 'GEO_REF', 'LPAREN',
         'TRUE', 'FALSE'
     ])
@@ -618,6 +618,9 @@ export function parse(tokens) {
             case 'NUMBER':
                 advance()
                 return {type: 'Number', value: parseFloat(token.lexeme)}
+            case 'STRING':
+                advance()
+                return {type: 'String', value: token.lexeme}
             case 'HEX': {
                 advance()
                 const hex = token.lexeme.slice(1)

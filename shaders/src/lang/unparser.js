@@ -218,7 +218,13 @@ function formatValue(value, spec, options = {}) {
     }
 
     if (typeof value === 'string') {
-        // Strings are identifiers or enum paths - never quote them
+        // Quote strings when spec.type is 'string' (freeform text like text content)
+        // Identifiers and enum paths (no spec or spec.type is not 'string') stay unquoted
+        if (type === 'string') {
+            // Escape any quotes in the string
+            const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+            return `"${escaped}"`
+        }
         return value
     }
 
@@ -281,6 +287,11 @@ function formatValue(value, spec, options = {}) {
     }
 
     if (typeof value === 'object') {
+        // Handle String AST node
+        if (value.type === 'String') {
+            const escaped = value.value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+            return `"${escaped}"`
+        }
         // Handle oscillator configuration
         if (value.oscillator === true) {
             return formatOscillator(value)

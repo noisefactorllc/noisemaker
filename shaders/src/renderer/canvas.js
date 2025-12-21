@@ -884,7 +884,8 @@ export class CanvasRenderer {
                     enumPath: enumPath,
                     min: spec.min,
                     max: spec.max,
-                    uniform: spec.uniform
+                    uniform: spec.uniform,
+                    choices: spec.choices
                 }
             })
 

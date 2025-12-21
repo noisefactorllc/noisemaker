@@ -164,7 +164,25 @@ export function lex(src) {
         if (ch === '/') { add('SLASH', '/', startLine, startCol); i++; col++; continue }
 
         if (ch === '"' || ch === '\'') {
-            throw new SyntaxError(`Quoted strings are not allowed in DSL at line ${line} col ${col}`)
+            const quote = ch
+            let j = i + 1
+            while (j < src.length && src[j] !== quote && src[j] !== '\n') {
+                // Handle escape sequences
+                if (src[j] === '\\' && j + 1 < src.length) {
+                    j += 2
+                } else {
+                    j++
+                }
+            }
+            if (j >= src.length || src[j] === '\n') {
+                throw new SyntaxError(`Unterminated string literal at line ${line} col ${col}`)
+            }
+            // Extract string content without quotes
+            const content = src.slice(i + 1, j)
+            add('STRING', content, startLine, startCol)
+            col += j - i + 1
+            i = j + 1
+            continue
         }
 
         if (isDigit(ch)) {
