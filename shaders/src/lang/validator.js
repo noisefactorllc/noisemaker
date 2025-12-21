@@ -6,9 +6,9 @@ import { normalizeMemberPath, pathStartsWith, applyEnumPrefix } from './enumPath
 
 /**
  * STRICT ALLOWLIST FOR STRING PARAMETERS
- * 
+ *
  * !! WARNING: DO NOT EXPAND THIS ALLOWLIST !!
- * 
+ *
  * Format: "effect.param" where effect is the func name (e.g., "text.text")
  */
 const ALLOWED_STRING_PARAMS = new Set([
@@ -671,18 +671,18 @@ export function validate(ast) {
                     } else if (def.type === 'color') {
                         if (node && node.type === 'String') {
                             pushDiag('S001', node, `String literal not allowed for color parameter '${def.name}'`)
-                            args[argKey] = def.default ? def.default.slice() : [0,0,0]
+                            args[argKey] = def.default
                             continue
                         }
                         let value
                         if (node && node.type === 'Color') {
-                            value = node.value.slice()
-                            if (def.channels === 4) value.push(1)
+                            // Keep hex colors as hex strings (e.g., "#ff0000")
+                            value = node.hex || node.value
                         } else {
                             if (node && node.type && node.type !== 'Ident') {
                                 pushDiag('S002', node)
                             }
-                            value = def.default ? def.default.slice() : [0,0,0]
+                            value = def.default
                         }
                         args[argKey] = value
                     } else if (def.type === 'vec3') {
@@ -893,13 +893,13 @@ export function validate(ast) {
                         // Extract func name from opName (e.g., "filter.text" -> "text")
                         const funcName = opName.includes('.') ? opName.split('.').pop() : opName
                         const allowlistKey = `${funcName}.${def.name}`
-                        
+
                         if (!ALLOWED_STRING_PARAMS.has(allowlistKey)) {
                             pushDiag('S001', node || original, `String parameter '${def.name}' on effect '${funcName}' is NOT in the allowed string params list. String params are strictly controlled - use enums or choices instead.`)
                             args[argKey] = def.default
                             continue
                         }
-                        
+
                         // String type parameters - only accept String AST nodes or use default
                         let value
                         if (node && node.type === 'String') {

@@ -218,9 +218,10 @@ function formatValue(value, spec, options = {}) {
     }
 
     if (typeof value === 'string') {
-        // Quote strings when spec.type is 'string' (freeform text like text content)
-        // Identifiers and enum paths (no spec or spec.type is not 'string') stay unquoted
-        if (type === 'string') {
+        // Quote strings ONLY when spec.type is 'string' (freeform text like text content)
+        // Colors (hex strings like #ffffff) must NOT be quoted even though they're strings
+        // Identifiers and enum paths stay unquoted
+        if (type === 'string' && !value.startsWith('#')) {
             // Escape any quotes in the string
             const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
             return `"${escaped}"`

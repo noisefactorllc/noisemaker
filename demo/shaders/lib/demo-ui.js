@@ -834,6 +834,10 @@ export class UIController {
      * @private
      */
     _hexToRgb(hex) {
+        // If already an array, return it directly
+        if (Array.isArray(hex)) {
+            return hex.slice(0, 3)
+        }
         const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
         return result ? [
             parseInt(result[1], 16) / 255,
@@ -3320,6 +3324,12 @@ export class UIController {
             return controlGroup
         }
 
+        // For 'color' type, ensure value is stored as hex string (compiled args may be arrays)
+        if (spec.type === 'color' && Array.isArray(value)) {
+            const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
+            value = `#${toHex(value[0])}${toHex(value[1])}${toHex(value[2])}`
+        }
+
         this._effectParameterValues[effectKey][key] = value
 
         // Create control based on type
@@ -3719,8 +3729,24 @@ export class UIController {
     _createColorControl(container, key, value, effectKey, spec) {
         const isVec4 = spec?.type === 'vec4'
 
+        // Convert hex string to array if needed
+        let colorArray
+        if (Array.isArray(value)) {
+            colorArray = value
+        } else if (typeof value === 'string' && value.startsWith('#')) {
+            // Parse hex color to [r, g, b] array (0-1 range)
+            const hex = value.slice(1)
+            colorArray = [
+                parseInt(hex.slice(0, 2), 16) / 255,
+                parseInt(hex.slice(2, 4), 16) / 255,
+                parseInt(hex.slice(4, 6), 16) / 255
+            ]
+        } else {
+            colorArray = [0, 0, 0]
+        }
+
         const handle = this._controlFactory.createColorPicker({
-            value: Array.isArray(value) ? value : [0, 0, 0],
+            value: colorArray,
             hasAlpha: isVec4,
             className: 'control-color'
         })
@@ -3745,9 +3771,20 @@ export class UIController {
         // Double-click to reset to default
         colorInput.addEventListener('dblclick', () => {
             const defaultVal = spec?.default
+            let resetArray
             if (Array.isArray(defaultVal)) {
-                handle.setValue(defaultVal)
-                this._effectParameterValues[effectKey][key] = [...defaultVal]
+                resetArray = defaultVal
+            } else if (typeof defaultVal === 'string' && defaultVal.startsWith('#')) {
+                const hex = defaultVal.slice(1)
+                resetArray = [
+                    parseInt(hex.slice(0, 2), 16) / 255,
+                    parseInt(hex.slice(2, 4), 16) / 255,
+                    parseInt(hex.slice(4, 6), 16) / 255
+                ]
+            }
+            if (resetArray) {
+                handle.setValue(resetArray)
+                this._effectParameterValues[effectKey][key] = [...resetArray]
                 this._onControlChange()
             }
         })
@@ -3989,7 +4026,14 @@ export class UIController {
     _createHexColorControl(container, key, spec, value, effectKey) {
         const colorInput = document.createElement('input')
         colorInput.type = 'color'
-        colorInput.value = value || spec.default || '#ffffff'
+
+        // Convert array [r,g,b] (0-1 range) to hex if needed
+        let hexValue = value
+        if (Array.isArray(value)) {
+            const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
+            hexValue = `#${toHex(value[0])}${toHex(value[1])}${toHex(value[2])}`
+        }
+        colorInput.value = hexValue || spec.default || '#ffffff'
         colorInput.style.cssText = 'width: 100%; height: 2rem; padding: 0; border: 1px solid var(--color3); border-radius: var(--ui-corner-radius-small); cursor: pointer;'
 
         colorInput.addEventListener('input', () => {
