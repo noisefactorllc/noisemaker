@@ -668,13 +668,25 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 }
             }
 
-            // Apply overrides
-            for (const [key, value] of Object.entries(stepOverrides)) {
-                call.kwargs[key] = value
-            }
-
             // Build specs map from effect definition
             const specs = effectDef?.globals || {}
+            const hasSpecs = Object.keys(specs).length > 0
+
+            // Apply overrides - filter to only include valid DSL parameters
+            // When we have effect specs, only include keys defined in globals
+            // This prevents internal tracking values from leaking to DSL
+            for (const [key, value] of Object.entries(stepOverrides)) {
+                if (hasSpecs) {
+                    // Only include keys that are defined in the effect's globals
+                    if (specs[key] !== undefined) {
+                        call.kwargs[key] = value
+                    }
+                } else {
+                    // No specs available - include all overrides (fallback for unknown effects)
+                    // This should rarely happen since getEffectDef is usually provided
+                    call.kwargs[key] = value
+                }
+            }
 
             currentChain.push(unparseCall(call, { ...options, specs, indent: currentChain.length === 0 ? 0 : 2 }))
             globalStepIndex++
