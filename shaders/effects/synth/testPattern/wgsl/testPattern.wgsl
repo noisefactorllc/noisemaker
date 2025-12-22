@@ -1,0 +1,114 @@
+// WGSL version – WebGPU
+
+struct Uniforms {
+    resolution: vec2f,
+    gridSize: i32,
+}
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+
+// 3x5 pixel font for digits 0-9
+// Each digit is encoded as 15 bits (3 columns x 5 rows, row-major)
+const GLYPH = array<i32, 10>(
+    0x7B6F,  // 0: 111 101 101 101 111
+    0x2492,  // 1: 010 010 010 010 010
+    0x73E7,  // 2: 111 001 111 100 111
+    0x72CF,  // 3: 111 001 011 001 111
+    0x5BC9,  // 4: 101 101 111 001 001
+    0x79CF,  // 5: 111 100 111 001 111
+    0x79EF,  // 6: 111 100 111 101 111
+    0x7249,  // 7: 111 001 001 001 001
+    0x7BEF,  // 8: 111 101 111 101 111
+    0x7BCF   // 9: 111 101 111 001 111
+);
+
+// Sample a glyph at local coordinates (0-2, 0-4)
+fn sampleGlyph(digit: i32, x: i32, y: i32) -> bool {
+    if (digit < 0 || digit > 9 || x < 0 || x > 2 || y < 0 || y > 4) {
+        return false;
+    }
+    let bitIndex = y * 3 + (2 - x);  // row-major, top-left origin
+    return ((GLYPH[digit] >> u32(bitIndex)) & 1) == 1;
+}
+
+// Render a number at a position within a cell
+fn renderNumber(number: i32, cellUV: vec2f) -> bool {
+    // Determine how many digits we need
+    var numDigits = 1;
+    if (number >= 10) { numDigits = 2; }
+    if (number >= 100) { numDigits = 3; }
+    
+    // Glyph dimensions in UV space (centered, scaled to fit nicely)
+    let glyphWidth = 0.15;
+    let glyphHeight = 0.35;
+    let spacing = 0.05;
+    
+    let totalWidth = f32(numDigits) * glyphWidth + f32(numDigits - 1) * spacing;
+    let startX = 0.5 - totalWidth * 0.5;
+    let startY = 0.5 - glyphHeight * 0.5;
+    
+    // Check if we're in the vertical range for glyphs
+    if (cellUV.y < startY || cellUV.y >= startY + glyphHeight) {
+        return false;
+    }
+    
+    // Extract digits (right to left)
+    var digits = array<i32, 3>(0, 0, 0);
+    var temp = number;
+    for (var i = 0; i < 3; i++) {
+        digits[i] = temp % 10;
+        temp = temp / 10;
+    }
+    
+    // Check each digit position (left to right)
+    for (var d = 0; d < numDigits; d++) {
+        let digitX = startX + f32(d) * (glyphWidth + spacing);
+        
+        if (cellUV.x >= digitX && cellUV.x < digitX + glyphWidth) {
+            // We're in this digit's horizontal range
+            let localX = (cellUV.x - digitX) / glyphWidth;
+            let localY = (cellUV.y - startY) / glyphHeight;
+            
+            // Map to 3x5 grid
+            let gx = i32(localX * 3.0);
+            let gy = i32(localY * 5.0);
+            
+            // Get the correct digit (numDigits-1-d because digits[] is reversed)
+            let digit = digits[numDigits - 1 - d];
+            
+            return sampleGlyph(digit, gx, gy);
+        }
+    }
+    
+    return false;
+}
+
+@fragment
+fn main(@builtin(position) position: vec4f) -> @location(0) vec4f {
+    let uv = position.xy / uniforms.resolution;
+    
+    // Calculate which cell we're in
+    let n = max(uniforms.gridSize, 1);
+    let cellX = i32(uv.x * f32(n));
+    let cellY = i32(uv.y * f32(n));
+    
+    // Cell number (top-left is 0, row-major order)
+    let cellNum = (n - 1 - cellY) * n + cellX;
+    
+    // Checkerboard pattern
+    let isWhiteCell = ((cellX + cellY) % 2) == 0;
+    
+    // Local UV within cell
+    let cellUV = fract(uv * f32(n));
+    
+    // Check if we should draw a glyph pixel
+    let isGlyph = renderNumber(cellNum, cellUV);
+    
+    // Final color: glyph is inverse of cell color
+    let cellColor = select(0.0, 1.0, isWhiteCell);
+    let glyphColor = select(1.0, 0.0, isWhiteCell);
+    
+    let finalColor = select(cellColor, glyphColor, isGlyph);
+    
+    return vec4f(vec3f(finalColor), 1.0);
+}
