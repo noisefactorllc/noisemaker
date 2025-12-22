@@ -1,37 +1,51 @@
 #version 300 es
 precision highp float;
-uniform sampler2D stateTex;
-uniform sampler2D colorTex;
+
+// Deposit Vertex Shader - Scatter agents to trail texture
+
+uniform sampler2D xyzTex;
+uniform sampler2D rgbaTex;
 uniform vec2 resolution;
-uniform float density;
-out vec2 vUV;
+uniform float deposit;
+
 out vec4 vColor;
 
 void main() {
-    ivec2 size = textureSize(stateTex, 0);
-    int w = size.x;
-    int h = size.y;
-    int totalAgents = w * h;
+    // Get state size from xyz texture dimensions (inherited from pointsEmitter)
+    ivec2 texSize = textureSize(xyzTex, 0);
+    int stateSize = texSize.x;
+    int totalAgents = stateSize * stateSize;
     
-    // Calculate max active agents based on density (0-100%)
-    int maxAgents = int(float(totalAgents) * density * 0.01);
-    
-    // Skip if beyond agent count
-    if (gl_VertexID >= maxAgents) {
-        gl_Position = vec4(2.0, 2.0, 0.0, 1.0); // Off-screen
+    // Cull vertices beyond texture size
+    if (gl_VertexID >= totalAgents) {
+        gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
         gl_PointSize = 0.0;
-        vUV = vec2(0.0);
+        vColor = vec4(0.0);
         return;
     }
     
-    int x = gl_VertexID % w;
-    int y = gl_VertexID / w;
-
-    // Use texelFetch for exact texel (no interpolation for agent state)
-    vec4 agent = texelFetch(stateTex, ivec2(x, y), 0);
-    vColor = texelFetch(colorTex, ivec2(x, y), 0);
-    vec2 clip = agent.xy / resolution * 2.0 - 1.0;
-    gl_Position = vec4(clip, 0.0, 1.0);
+    // Calculate UV for this agent
+    int x = gl_VertexID % stateSize;
+    int y = gl_VertexID / stateSize;
+    
+    // Read agent position and color
+    vec4 pos = texelFetch(xyzTex, ivec2(x, y), 0);
+    vec4 col = texelFetch(rgbaTex, ivec2(x, y), 0);
+    
+    // Check if agent is alive (pos.w >= 0.5 means alive)
+    if (pos.w < 0.5) {
+        gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
+        gl_PointSize = 0.0;
+        vColor = vec4(0.0);
+        return;
+    }
+    
+    // Convert position (0..1) to clip space (-1..1)
+    vec2 clipPos = pos.xy * 2.0 - 1.0;
+    
+    gl_Position = vec4(clipPos, 0.0, 1.0);
     gl_PointSize = 1.0;
-    vUV = agent.xy / resolution;
+    
+    // Apply deposit amount
+    vColor = vec4(col.rgb * deposit, col.a * deposit);
 }

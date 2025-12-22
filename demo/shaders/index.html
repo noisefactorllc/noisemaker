@@ -289,9 +289,9 @@
          */
         async function loadEffects() {
             const effectDirs = [
+                { namespace: 'render' },
                 { namespace: 'filter' },
                 { namespace: 'filter3d' },
-                { namespace: 'loop' },
                 { namespace: 'mixer' },
                 { namespace: 'synth' },
                 { namespace: 'synth3d' },
@@ -527,10 +527,12 @@
                     if (!ui.syncControlsFromDsl(dsl)) {
                         ui.createEffectControlsFromDsl(dsl);
                     }
-                    // Apply DSL-parsed parameter values to the pipeline
-                    if (renderer.applyStepParameterValues) {
-                        renderer.applyStepParameterValues(ui.effectParameterValues);
-                    }
+                }
+                
+                // ALWAYS apply stored parameter values after compile
+                // This ensures slider values persist across recompiles
+                if (renderer.applyStepParameterValues) {
+                    renderer.applyStepParameterValues(ui.effectParameterValues);
                 }
                 
                 ui.showStatus('compiled successfully', 'success');

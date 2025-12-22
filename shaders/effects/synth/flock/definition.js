@@ -3,50 +3,35 @@ import { Effect } from '../../../src/runtime/effect.js'
 /**
  * Flock - 2D Boids flocking simulation
  *
- * Architecture (GPGPU via render passes):
- * - Uses fragment shaders with MRT for boid simulation
- * - Global surfaces for boid state (position/velocity, color) with ping-pong
- * - Trail accumulation via point-sprite deposit pass
- * - Multi-pass: agent -> deposit -> diffuse -> render
+ * Common Agent Architecture middleware:
+ * - Reads agent state from pipeline inputs (global_xyz, global_vel, global_rgba)
+ * - Applies boids flocking rules (separation, alignment, cohesion)
+ * - Writes updated state back to global textures
  *
- * Boid state format:
- * - State1: [posX, posY, velX, velY] - position and velocity
- * - State2: [r, g, b, age] - color and age for respawn
+ * State format (matching pointsEmitter):
+ * - xyz: [x, y, z, alive_flag]  (x,y in normalized coords [0,1], w=1 alive)
+ * - vel: [vx, vy, age, seed]    (velocity and per-agent data)
+ * - rgba: [r, g, b, a]          (agent color)
  *
- * Implements classic boids rules:
- * - Separation: avoid crowding neighbors
- * - Alignment: steer toward average heading of neighbors
- * - Cohesion: steer toward average position of neighbors
- *
- * Plus optional extensions:
- * - Boundary modes: wrap or soft wall
- * - Noise/turbulence for organic motion
+ * Usage: pointsEmitter().flock().pointsRender().write(o0)
  */
 export default new Effect({
   name: "Flock",
   namespace: "synth",
   func: "flock",
-  tags: ["sim"],
+  tags: ["sim", "agents"],
 
   description: "2D Boids flocking simulation",
-  textures: {
-    globalFlockState1: { width: 256, height: 256, format: "rgba32f" },
-    globalFlockState2: { width: 256, height: 256, format: "rgba16f" },
-    globalFlockTrail: { width: "100%", height: "100%", format: "rgba16f" }
-  },
+
+  // No local textures - use shared global_xyz/vel/rgba from pointsEmitter
+  textures: {},
+
+  // Expose outputs to pipeline for downstream effects
+  outputXyz: "global_xyz",
+  outputVel: "global_vel",
+  outputRgba: "global_rgba",
+
   globals: {
-    tex: {
-      type: "surface",
-      default: "none",
-      colorModeUniform: "colorMode",
-      ui: { label: "texture" }
-    },
-    colorMode: {
-      type: "int",
-      default: 1,
-      uniform: "colorMode",
-      ui: { control: false }
-    },
     // Classic boids parameters
     separation: {
       type: "float",
@@ -181,20 +166,7 @@ export default new Effect({
         category: "motion"
       }
     },
-    // Agent density and respawn
-    density: {
-      type: "float",
-      default: 50,
-      uniform: "density",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "density",
-        control: "slider",
-        category: "agents"
-      }
-    },
+    // Agent respawn
     attrition: {
       type: "float",
       default: 0.5,
@@ -207,130 +179,33 @@ export default new Effect({
         control: "slider",
         category: "agents"
       }
-    },
-    // Blending parameters (kept from flow for app consistency)
-    intensity: {
-      type: "float",
-      default: 90,
-      uniform: "intensity",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "trail intensity",
-        control: "slider",
-        category: "blending"
-      }
-    },
-    inputIntensity: {
-      type: "float",
-      default: 50,
-      uniform: "inputIntensity",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "input intensity",
-        control: "slider",
-        category: "blending"
-      }
-    },
-    inputWeight: {
-      type: "float",
-      default: 0,
-      uniform: "inputWeight",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "input weight",
-        control: "slider",
-        category: "blending"
-      }
-    },
-    resetState: {
-      type: "boolean",
-      default: false,
-      uniform: "resetState",
-      ui: {
-        control: "button",
-        buttonLabel: "reset",
-        label: "state"
-      }
     }
   },
+
   passes: [
-    // Pass 0: Diffuse/decay trail
-    {
-      name: "diffuse",
-      program: "diffuse",
-      inputs: {
-        sourceTex: "globalFlockTrail"
-      },
-      uniforms: {
-        intensity: "intensity"
-      },
-      outputs: {
-        fragColor: "globalFlockTrail"
-      }
-    },
     // Pass 1: Update boid state (position, velocity, color)
     {
       name: "agent",
       program: "agent",
-      drawBuffers: 2,
+      drawBuffers: 3,
       inputs: {
-        stateTex1: "globalFlockState1",
-        stateTex2: "globalFlockState2",
-        tex: "tex"
-      },
-      uniforms: {
-        separation: "separation",
-        alignment: "alignment",
-        cohesion: "cohesion",
-        perceptionRadius: "perceptionRadius",
-        separationRadius: "separationRadius",
-        maxSpeed: "maxSpeed",
-        maxForce: "maxForce",
-        boundaryMode: "boundaryMode",
-        wallMargin: "wallMargin",
-        noiseWeight: "noiseWeight",
-        attrition: "attrition",
-        colorMode: "colorMode"
+        xyzTex: "global_xyz",
+        velTex: "global_vel",
+        rgbaTex: "global_rgba"
       },
       outputs: {
-        outState1: "globalFlockState1",
-        outState2: "globalFlockState2"
+        outXYZ: "global_xyz",
+        outVel: "global_vel",
+        outRGBA: "global_rgba"
       }
     },
-    // Pass 2: Deposit boid trails as point sprites
+
+    // Pass 2: Copy input texture to output for 2D chain continuity
     {
-      name: "deposit",
-      program: "deposit",
-      drawMode: "points",
-      count: 65536,  // 256x256 boids
-      blend: true,
+      name: "passthrough",
+      program: "passthrough",
       inputs: {
-        stateTex1: "globalFlockState1",
-        stateTex2: "globalFlockState2"
-      },
-      uniforms: {
-        density: "density"
-      },
-      outputs: {
-        fragColor: "globalFlockTrail"
-      }
-    },
-    // Pass 3: Final render composite
-    {
-      name: "render",
-      program: "render",
-      inputs: {
-        trailTex: "globalFlockTrail",
-        tex: "tex"
-      },
-      uniforms: {
-        inputIntensity: "inputIntensity"
+        inputTex: "inputTex"
       },
       outputs: {
         fragColor: "outputTex"

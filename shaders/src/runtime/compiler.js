@@ -157,8 +157,10 @@ export function recompile(pipeline, newSource, options = {}) {
         // Recreate global surfaces and textures to reflect new graph requirements
         pipeline.createSurfaces()
 
-        // Recreate textures
-        pipeline.recreateTextures()
+        // Recreate textures with default uniforms from passes
+        // This ensures parameter-based texture sizing (e.g., stateSize) works correctly
+        const defaultUniforms = pipeline.collectDefaultUniforms()
+        pipeline.recreateTextures(defaultUniforms)
 
         return newGraph
     } catch (error) {

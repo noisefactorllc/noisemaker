@@ -6,6 +6,7 @@ struct Uniforms {
     scale: f32,
     time: f32,
     resetState: f32,
+    colorMode: i32,  // 0 = mono (white), 1 = sample from tex
 }
 
 struct Outputs {
@@ -157,7 +158,8 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     let initPy = (hash(initSeed + 1u) - 0.5) * 20.0;
     let initPz = hash(initSeed + 2u) * 30.0 + 10.0;
     let sampleUV = vec2f(hash(initSeed + 3u), hash(initSeed + 4u));
-    let inputColor = textureSample(tex, inputSampler, sampleUV);
+    let sampledColor = textureSample(tex, inputSampler, sampleUV);
+    let inputColor = select(sampledColor.rgb, vec3f(1.0), u.colorMode == 0);
     let initSeedF = hash(initSeed + 5u);
     
     // Check if needs initialization or reset

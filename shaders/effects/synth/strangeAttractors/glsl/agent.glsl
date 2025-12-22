@@ -12,6 +12,7 @@ uniform float speed;
 uniform float scale;
 uniform float time;
 uniform bool resetState;
+uniform int colorMode;  // 0 = mono (white), 1 = sample from tex
 
 layout(location = 0) out vec4 outState1;  // x, y, z, w (unused)
 layout(location = 1) out vec4 outState2;  // r, g, b, seed
@@ -156,9 +157,9 @@ void main() {
         py = (hash(initSeed + 1u) - 0.5) * 20.0;
         pz = hash(initSeed + 2u) * 30.0 + 10.0;  // z: 10-40 for Lorenz
         
-        // Sample color from input
+        // Sample color from input (or white if no input)
         vec2 sampleUV = vec2(hash(initSeed + 3u), hash(initSeed + 4u));
-        vec4 inputColor = texture(tex, sampleUV);
+        vec3 inputColor = (colorMode == 0) ? vec3(1.0) : texture(tex, sampleUV).rgb;
         cr = inputColor.r;
         cg = inputColor.g;
         cb = inputColor.b;
@@ -189,7 +190,7 @@ void main() {
         pos.z = hash(respawnSeed + 2u) * 30.0 + 10.0;
         
         vec2 sampleUV = vec2(hash(respawnSeed + 3u), hash(respawnSeed + 4u));
-        vec4 inputColor = texture(tex, sampleUV);
+        vec3 inputColor = (colorMode == 0) ? vec3(1.0) : texture(tex, sampleUV).rgb;
         cr = inputColor.r;
         cg = inputColor.g;
         cb = inputColor.b;

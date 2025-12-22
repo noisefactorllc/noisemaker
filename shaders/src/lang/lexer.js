@@ -98,6 +98,39 @@ export function lex(src) {
             continue
         }
 
+        // xyz reference (xyz0-xyz7) - agent position surfaces
+        if (ch === 'x' && src[i + 1] === 'y' && src[i + 2] === 'z' && isDigit(src[i + 3])) {
+            let j = i + 3
+            while (j < src.length && isDigit(src[j])) j++
+            const lexeme = src.slice(i, j)
+            add('XYZ_REF', lexeme, startLine, startCol)
+            col += j - i
+            i = j
+            continue
+        }
+
+        // vel reference (vel0-vel7) - agent velocity surfaces
+        if (ch === 'v' && src[i + 1] === 'e' && src[i + 2] === 'l' && isDigit(src[i + 3])) {
+            let j = i + 3
+            while (j < src.length && isDigit(src[j])) j++
+            const lexeme = src.slice(i, j)
+            add('VEL_REF', lexeme, startLine, startCol)
+            col += j - i
+            i = j
+            continue
+        }
+
+        // rgba reference (rgba0-rgba7) - agent color surfaces
+        if (ch === 'r' && src[i + 1] === 'g' && src[i + 2] === 'b' && src[i + 3] === 'a' && isDigit(src[i + 4])) {
+            let j = i + 4
+            while (j < src.length && isDigit(src[j])) j++
+            const lexeme = src.slice(i, j)
+            add('RGBA_REF', lexeme, startLine, startCol)
+            col += j - i
+            i = j
+            continue
+        }
+
         // html hex color literal
         if (ch === '#') {
             let j = i + 1

@@ -249,18 +249,18 @@ export default new Effect({
       program: "rdFb",
       repeat: "iterations",
       inputs: {
-        bufTex: "globalRdState",
+        bufTex: "global_rd_state",
         inputTex: "tex"
       },
       outputs: {
-        fragColor: "globalRdState"
+        fragColor: "global_rd_state"
       }
     },
     {
       name: "render",
       program: "rd",
       inputs: {
-        fbTex: "globalRdState"
+        fbTex: "global_rd_state"
       },
       outputs: {
         fragColor: "outputTex"

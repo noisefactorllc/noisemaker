@@ -73,7 +73,7 @@ export default new Effect({
       name: "updateAgents",
       program: "updateAgents",
       inputs: {
-        agentTex: "globalAgentState",
+        agentTex: "global_agent_state",
         inputTex: "inputTex"
       },
       uniforms: {
@@ -82,18 +82,18 @@ export default new Effect({
         wormLifetime: "wormLifetime"
       },
       outputs: {
-        outAgents: "globalAgentState"
+        outAgents: "global_agent_state"
       }
     },
     {
       name: "fadeTrails",
       program: "fadeTrails",
       inputs: {
-        trailTex: "globalTrailState",
+        trailTex: "global_trail_state",
         inputTex: "inputTex"
       },
       outputs: {
-        outTrails: "globalTrailState"
+        outTrails: "global_trail_state"
       }
     },
     {
@@ -103,10 +103,10 @@ export default new Effect({
       blend: true,
       count: 262144, // 512x512 agents
       inputs: {
-        agentTex: "globalAgentState"
+        agentTex: "global_agent_state"
       },
       outputs: {
-        outTrails: "globalTrailState"
+        outTrails: "global_trail_state"
       }
     },
     {
@@ -114,7 +114,7 @@ export default new Effect({
       program: "fibers",
       inputs: {
         inputTex: "inputTex",
-        wormTexture: "globalTrailState"
+        wormTexture: "global_trail_state"
       },
       uniforms: {
         speed: "speed",

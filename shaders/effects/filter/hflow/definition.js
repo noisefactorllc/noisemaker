@@ -1,63 +1,37 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * Hydraulic Flow - Agent-based gradient-descent flow field effect
+ * Hflow - Hydraulic flow agent effect (gradient descent)
  *
- * Architecture (GPGPU via render passes):
- * - Uses fragment shaders with MRT for agent simulation
- * - `global`-prefixed textures get automatic ping-pong (read previous, write current)
- * - Trail accumulation via point-sprite deposit pass
- * - Multi-pass: init -> agent -> deposit -> blend
+ * Common Agent Architecture middleware:
+ * - Reads agent state from pipeline inputs (global_xyz, global_vel, global_rgba)
+ * - Applies gradient-descent movement based on input texture luminance
+ * - Writes updated state back to global textures
  *
- * Agent format: [x, y, x_dir, y_dir] [r, g, b, inertia] [age, 0, 0, 0]
- * Stored across 3 state textures using MRT
- * Agent count: 256x256 = 65536 agents
+ * State format (matching pointsEmitter):
+ * - xyz: [x, y, z, alive_flag]  (x,y in normalized coords [0,1], w=1 alive)
+ * - vel: [x_dir, y_dir, inertia, 0]  (direction vector and inertia)
+ * - rgba: [r, g, b, a]          (agent color)
  *
- * Trail flow:
- *   init: copy previous trail with decay (preserves accumulation)
- *   deposit: add agent points (additive)
- *   blend: combine trail with input
+ * Usage: pointsEmitter().hflow().pointsRender().write(o0)
  */
 export default new Effect({
   name: "Hflow",
   namespace: "filter",
   func: "hflow",
-  tags: ["sim"],
+  tags: ["sim", "agents"],
 
-  description: "Hydraulic erosion flow simulation",
-  textures: {
-    globalHflowState1: { width: 256, height: 256, format: "rgba16f" },
-    globalHflowState2: { width: 256, height: 256, format: "rgba16f" },
-    globalHflowState3: { width: 256, height: 256, format: "rgba16f" },
-    globalHflowTrail: { width: "100%", height: "100%", format: "rgba16f" }
-  },
+  description: "Hydraulic erosion flow simulation (gradient descent)",
+
+  // No local textures - use shared global_xyz/vel/rgba from pointsEmitter
+  textures: {},
+
+  // Expose outputs to pipeline for downstream effects
+  outputXyz: "global_xyz",
+  outputVel: "global_vel",
+  outputRgba: "global_rgba",
+
   globals: {
-    density: {
-      type: "float",
-      default: 5,
-      uniform: "density",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "density",
-        control: "slider",
-        category: "agents"
-      }
-    },
-    attrition: {
-      type: "float",
-      default: 1,
-      uniform: "attrition",
-      min: 0,
-      max: 10,
-      step: 0.1,
-      ui: {
-        label: "attrition",
-        control: "slider",
-        category: "agents"
-      }
-    },
     stride: {
       type: "float",
       default: 10,
@@ -91,32 +65,6 @@ export default new Effect({
         category: "agents"
       }
     },
-    intensity: {
-      type: "float",
-      default: 90,
-      uniform: "intensity",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "trail intensity",
-        control: "slider",
-        category: "blending"
-      }
-    },
-    inputIntensity: {
-      type: "float",
-      default: 50,
-      uniform: "inputIntensity",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "input intensity",
-        control: "slider",
-        category: "blending"
-      }
-    },
     inputWeight: {
       type: "float",
       default: 100,
@@ -127,87 +75,49 @@ export default new Effect({
       ui: {
         label: "input weight",
         control: "slider",
-        category: "blending"
+        category: "agents"
       }
     },
-    resetState: {
-      type: "boolean",
-      default: false,
-      uniform: "resetState",
+    attrition: {
+      type: "float",
+      default: 1,
+      uniform: "attrition",
+      min: 0,
+      max: 10,
+      step: 0.1,
       ui: {
-        control: "button",
-        buttonLabel: "reset",
-        label: "state"
+        label: "attrition",
+        control: "slider",
+        category: "agents"
       }
     }
   },
+
   passes: [
-    // Pass 0: Copy previous trail with decay to preserve accumulation
-    // globalHflowTrail ping-pong: read previous, write current with fade
-    {
-      name: "initFromPrev",
-      program: "initFromPrev",
-      inputs: {
-        prevTrailTex: "globalHflowTrail"
-      },
-      uniforms: {
-        intensity: "intensity"
-      },
-      outputs: {
-        fragColor: "globalHflowTrail"
-      }
-    },
-    // Pass 1: Update agent state (position, direction, color, age)
-    // MRT outputs to 3 state textures simultaneously
+    // Pass 1: Update agent state (gradient descent movement)
     {
       name: "agent",
       program: "agent",
       drawBuffers: 3,
       inputs: {
-        stateTex1: "globalHflowState1",
-        stateTex2: "globalHflowState2",
-        stateTex3: "globalHflowState3",
+        xyzTex: "global_xyz",
+        velTex: "global_vel",
+        rgbaTex: "global_rgba",
         inputTex: "inputTex"
       },
-      uniforms: {
-        stride: "stride",
-        quantize: "quantize",
-        inverse: "inverse",
-        attrition: "attrition",
-        inputWeight: "inputWeight"
-      },
       outputs: {
-        outState1: "globalHflowState1",
-        outState2: "globalHflowState2",
-        outState3: "globalHflowState3"
+        outXYZ: "global_xyz",
+        outVel: "global_vel",
+        outRGBA: "global_rgba"
       }
     },
-    // Pass 2: Deposit agent trails as point sprites (additive onto faded trail)
+
+    // Pass 2: Copy input texture to output for 2D chain continuity
     {
-      name: "deposit",
-      program: "deposit",
-      drawMode: "points",
-      count: 65536,  // 256x256 agents
-      blend: ["one", "one"],  // Additive blending onto faded trail
+      name: "passthrough",
+      program: "passthrough",
       inputs: {
-        stateTex1: "globalHflowState1",
-        stateTex2: "globalHflowState2",
-        density: "density"
-      },
-      outputs: {
-        fragColor: "globalHflowTrail"
-      }
-    },
-    // Pass 3: Final composite with input
-    {
-      name: "blend",
-      program: "blend",
-      inputs: {
-        inputTex: "inputTex",
-        trailTex: "globalHflowTrail"
-      },
-      uniforms: {
-        inputIntensity: "inputIntensity"
+        inputTex: "inputTex"
       },
       outputs: {
         fragColor: "outputTex"

@@ -168,20 +168,20 @@ export default new Effect({
       name: "update",
       program: "caFb",
       inputs: {
-        bufTex: "globalCaState",
+        bufTex: "global_ca_state",
         seedTex: "tex"
       },
       outputs: {
-        fragColor: "globalCaState"
+        fragColor: "global_ca_state"
       }
     },
     {
       name: "render",
       program: "ca",
       inputs: {
-        fbTex: "globalCaState",
-        prevFrameTex: "globalCaState",
-        bufTex: "globalCaState",
+        fbTex: "global_ca_state",
+        prevFrameTex: "global_ca_state",
+        bufTex: "global_ca_state",
         seedTex: "tex"
       },
       outputs: {

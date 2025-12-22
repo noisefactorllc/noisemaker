@@ -1230,8 +1230,8 @@ export class UIController {
         let searchNs = effect.namespace
         if (effect.namespace === 'classicNoisemaker') {
             searchNs = 'classicNoisemaker, synth'
-        } else if (effect.namespace === 'loop') {
-            searchNs = 'synth, filter, loop'
+        } else if (effect.namespace === 'render') {
+            searchNs = 'synth, filter, render'
         } else if (['filter', 'mixer'].includes(effect.namespace)) {
             searchNs = `${effect.namespace}, synth`
         }
@@ -1247,8 +1247,20 @@ export class UIController {
         // Helper to format a call
         const fmtCall = (name, kwargs) => this._formatEffectCall(name, kwargs)
 
-        // Special case: loop namespace effects need paired loopBegin/loopEnd with filter in between
-        if (effect.namespace === 'loop') {
+        // Special case: pointsEmitter and pointsRender must be paired together with particles()
+        if (funcName === 'pointsEmitter' || funcName === 'pointsRender') {
+            return `search render, synth\n\nnoise()\n  .write(o0)\n\npointsEmitter(\n  tex: read(o0)\n)\n  .particles()\n  .pointsRender()\n  .write(o1)\n\nrender(o1)`
+        }
+
+        // Special case: agent middleware effects need pointsEmitter/pointsRender wrapping
+        if (funcName === 'hflow' || funcName === 'flow' || funcName === 'flock' || funcName === 'particleLife') {
+            const kwargs = this._buildKwargs(effect.instance.globals, this._parameterValues)
+            const effectCall = fmtCall(funcName, kwargs)
+            return `search render, synth, filter\n\nnoise()\n  .write(o0)\n\npointsEmitter(\n  tex: read(o0)\n)\n  .${effectCall}\n  .pointsRender()\n  .write(o1)\n\nrender(o1)`
+        }
+
+        // Special case: loopBegin/loopEnd need paired usage with filter in between
+        if (funcName === 'loopBegin' || funcName === 'loopEnd') {
             return `${searchDirective}noise(ridges: true)\n  .loopBegin(alpha: 95, intensity: 95)\n  .warp()\n  .loopEnd()\n  .write(o0)\n\nrender(o0)`
         }
 
@@ -2171,103 +2183,36 @@ export class UIController {
      * @returns {boolean} True if sync succeeded, false if structure changed (needs rebuild)
      */
     syncControlsFromDsl(dsl) {
-        if (!this._controlsContainer || !this._parsedDslStructure) return false
-
-        const effects = extractEffectsFromDsl(dsl)
-        if (!effects || effects.length === 0) return false
-
-        // Check if structure changed (different effects or count)
-        if (effects.length !== this._parsedDslStructure.length) return false
-        for (let i = 0; i < effects.length; i++) {
-            if (effects[i].effectKey !== this._parsedDslStructure[i].effectKey) return false
+        if (!this._controlsContainer || !this._parsedDslStructure) {
+            console.log('[syncControlsFromDsl] returning false: no container or no structure',
+                { hasContainer: !!this._controlsContainer, hasStructure: !!this._parsedDslStructure, structureLen: this._parsedDslStructure?.length })
+            return false
         }
 
-        // Structure is the same - sync values to controls
-        for (const effectInfo of effects) {
-            const effectKey = `step_${effectInfo.stepIndex}`
-            const moduleDiv = this._controlsContainer.querySelector(`[data-step-index="${effectInfo.stepIndex}"]`)
-            if (!moduleDiv) continue
+        const effects = extractEffectsFromDsl(dsl)
+        if (!effects || effects.length === 0) {
+            console.log('[syncControlsFromDsl] returning false: no effects parsed')
+            return false
+        }
 
-            for (const [key, value] of Object.entries(effectInfo.args)) {
-                if (key === '_skip') continue
-                if (value && typeof value === 'object' && value.oscillator) continue
-
-                // Update stored value
-                if (this._effectParameterValues[effectKey]) {
-                    this._effectParameterValues[effectKey][key] = value
-                }
-
-                // Find and update the control
-                const controlGroup = moduleDiv.querySelector(`[data-param-key="${key}"]`)
-                if (!controlGroup) continue
-
-                // PLUGGABLE INTERFACE: Check for stored control handle first
-                // This allows downstream projects to use custom web components
-                // by providing a controlFactory that stores handles with setValue()
-                if (controlGroup._controlHandle && typeof controlGroup._controlHandle.setValue === 'function') {
-                    controlGroup._controlHandle.setValue(value)
-                    // Update value display if present
-                    if (controlGroup._valueDisplayHandle && typeof controlGroup._valueDisplayHandle.setValue === 'function') {
-                        controlGroup._valueDisplayHandle.setValue(value)
-                    }
-                    continue
-                }
-
-                // Fallback: query for native HTML elements (backward compatibility)
-                const slider = controlGroup.querySelector('input[type="range"]')
-                const select = controlGroup.querySelector('select')
-                const toggle = controlGroup.querySelector('toggle-switch')
-                const colorInput = controlGroup.querySelector('input[type="color"]')
-
-                if (slider) {
-                    slider.value = value
-                    const valueDisplay = controlGroup.querySelector('.control-value')
-                    if (valueDisplay) valueDisplay.textContent = value
-                } else if (select) {
-                    // Try direct value match first (works for enum int controls)
-                    select.value = String(value)
-                    // If no match, search by dataset.enumValue (for member controls) or dataset.paramValue (for choices controls)
-                    if (select.selectedIndex === -1 || select.value !== String(value)) {
-                        for (let i = 0; i < select.options.length; i++) {
-                            const option = select.options[i]
-                            // Check enumValue (member controls store numeric enum value here)
-                            if (option.dataset?.enumValue !== undefined) {
-                                if (Number(option.dataset.enumValue) === value) {
-                                    select.selectedIndex = i
-                                    break
-                                }
-                            }
-                            // Check paramValue (choices controls store JSON value here)
-                            const raw = option.dataset?.paramValue
-                            if (raw !== undefined) {
-                                try {
-                                    const optionVal = JSON.parse(raw)
-                                    if ((value === null && optionVal === null) || value === optionVal) {
-                                        select.selectedIndex = i
-                                        break
-                                    }
-                                } catch (_) {
-                                    if (raw === value) {
-                                        select.selectedIndex = i
-                                        break
-                                    }
-                                }
-                            }
-                        }
-                    }
-                } else if (toggle) {
-                    toggle.checked = !!value
-                } else if (colorInput && Array.isArray(value)) {
-                    // Convert vec3/vec4 to hex
-                    const r = Math.round(value[0] * 255)
-                    const g = Math.round(value[1] * 255)
-                    const b = Math.round(value[2] * 255)
-                    colorInput.value = `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
-                }
+        // Check if structure changed (different effects or count)
+        if (effects.length !== this._parsedDslStructure.length) {
+            console.log('[syncControlsFromDsl] returning false: length mismatch',
+                { effectsLen: effects.length, structureLen: this._parsedDslStructure.length })
+            return false
+        }
+        for (let i = 0; i < effects.length; i++) {
+            if (effects[i].effectKey !== this._parsedDslStructure[i].effectKey) {
+                console.log('[syncControlsFromDsl] returning false: effectKey mismatch at', i,
+                    { parsed: effects[i].effectKey, stored: this._parsedDslStructure[i].effectKey })
+                return false
             }
         }
 
-        this._updateDependentControls()
+        // Structure is the same - DO NOT update stored values from DSL
+        // _effectParameterValues is the source of truth (set by sliders)
+        // Just sync UI controls to match stored values, and apply to pipeline
+        this._applyEffectParameterValues()
         return true
     }
 
@@ -4150,7 +4095,12 @@ export class UIController {
      */
     _applyEffectParameterValues() {
         const pipeline = this._renderer.pipeline
-        if (!pipeline || !pipeline.graph || !pipeline.graph.passes) return
+        if (!pipeline || !pipeline.graph || !pipeline.graph.passes) {
+            console.log('[_applyEffectParameterValues] no pipeline/graph/passes')
+            return
+        }
+
+
 
         let zoomChanged = false
 
@@ -4212,6 +4162,11 @@ export class UIController {
                     // when they share the same uniform names (e.g., two grade() effects)
                     if (uniformName in pass.uniforms) {
                         pass.uniforms[uniformName] = finalValue
+                    } else {
+                        // Log when we can't find the uniform
+                        if (paramName === 'density' || paramName === 'stateSize') {
+                            console.log(`[_applyEffectParameterValues] MISS: ${paramName} -> ${uniformName} not in pass.uniforms`, Object.keys(pass.uniforms))
+                        }
                     }
                 }
             }
@@ -4231,6 +4186,13 @@ export class UIController {
         for (const params of Object.values(this._effectParameterValues)) {
             if ('volumeSize' in params && pipeline.setUniform) {
                 pipeline.setUniform('volumeSize', params.volumeSize)
+                break
+            }
+        }
+
+        for (const params of Object.values(this._effectParameterValues)) {
+            if ('stateSize' in params && pipeline.setUniform) {
+                pipeline.setUniform('stateSize', params.stateSize)
                 break
             }
         }

@@ -2,11 +2,11 @@
 precision highp float;
 precision highp int;
 
+// Standard uniforms
 uniform vec2 resolution;
-uniform sampler2D stateTex1;
-uniform sampler2D stateTex2;
-uniform sampler2D stateTex3;
-uniform sampler2D inputTex;
+uniform float time;
+
+// Physics parameters
 uniform float gravity;
 uniform float wind;
 uniform float energy;
@@ -14,14 +14,19 @@ uniform float drag;
 uniform float stride;
 uniform float wander;
 uniform float attrition;
-uniform float density;
-uniform float time;
-uniform bool resetState;
 
-layout(location = 0) out vec4 outState1;
-layout(location = 1) out vec4 outState2;
-layout(location = 2) out vec4 outState3;
+// Input state from pipeline (from pointsEmitter)
+uniform sampler2D inputTex; // Pipeline passthrough (for chainability)
+uniform sampler2D xyzTex;   // [x, y, z, alive]
+uniform sampler2D velTex;   // [vx, vy, vz, seed]
+uniform sampler2D rgbaTex;  // [r, g, b, a]
 
+// Output state (MRT)
+layout(location = 0) out vec4 outXYZ;
+layout(location = 1) out vec4 outVel;
+layout(location = 2) out vec4 outRGBA;
+
+// Integer-based hash for cross-platform determinism
 uint hash_uint(uint seed) {
     uint state = seed * 747796405u + 2891336453u;
     uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -61,66 +66,29 @@ float fbm(vec2 p) {
 
 void main() {
     ivec2 coord = ivec2(gl_FragCoord.xy);
-    int width = int(resolution.x);
-    int height = int(resolution.y);
+    ivec2 stateSize = textureSize(xyzTex, 0);
     
-    vec4 state1 = texelFetch(stateTex1, coord, 0);  // x, y, vx, vy
-    vec4 state2 = texelFetch(stateTex2, coord, 0);  // r, g, b, seed
-    vec4 state3 = texelFetch(stateTex3, coord, 0);  // age, energy, 0, 0
+    // Read input state from pipeline
+    vec4 xyz = texelFetch(xyzTex, coord, 0);
+    vec4 vel = texelFetch(velTex, coord, 0);
+    vec4 rgba = texelFetch(rgbaTex, coord, 0);
     
-    float px = state1.x;
-    float py = state1.y;
-    float vx = state1.z;
-    float vy = state1.w;
-    float cr = state2.x;
-    float cg = state2.y;
-    float cb = state2.z;
-    float seed_f = state2.w;
-    float age = state3.x;
-    float particleEnergy = state3.y;
+    // Extract components
+    float px = xyz.x;  // Position in normalized coords [0,1]
+    float py = xyz.y;
+    float pz = xyz.z;
+    float alive = xyz.w;
     
-    uint agentSeed = uint(coord.x + coord.y * width);
-    int agentIndex = coord.x + coord.y * width;
-    int totalAgents = width * height;
-    int maxParticles = int(float(totalAgents) * density * 0.01);
+    float vx = vel.x;
+    float vy = vel.y;
+    float vz = vel.z;
+    float seed_f = vel.w;
     
-    // Check if this particle is enabled
-    bool isActive = agentIndex < maxParticles;
-    
-    // Check if needs initialization or reset
-    if (state3.z < 0.5 || resetState) {
-        // Initialize particle
-        uint initSeed = agentSeed + uint(time * 1000.0);
-        px = hash(initSeed) * resolution.x;
-        py = hash(initSeed + 1u) * resolution.y;
-        
-        // Initial velocity with energy factor
-        float angle = hash(initSeed + 2u) * 6.283185;
-        float speed = hash(initSeed + 3u) * energy * 2.0;
-        vx = cos(angle) * speed;
-        vy = sin(angle) * speed;
-        
-        // Sample color from input texture
-        vec2 sampleUV = vec2(px, py) / resolution;
-        vec4 inputColor = texture(inputTex, sampleUV);
-        cr = inputColor.r;
-        cg = inputColor.g;
-        cb = inputColor.b;
-        seed_f = hash(initSeed + 4u);
-        
-        age = 0.0;
-        particleEnergy = 1.0;
-        
-        outState1 = vec4(px, py, vx, vy);
-        outState2 = vec4(cr, cg, cb, seed_f);
-        outState3 = vec4(age, particleEnergy, 1.0, 0.0);  // z=1 marks initialized
-        return;
-    }
-    
-    if (!isActive) {
-        outState1 = state1;
-        outState2 = state2;
-        outState3 = state3;
+    // If not alive, pass through unchanged
+    if (alive < 0.5) {
+        outXYZ = xyz;
+        outVel = vel;
+        outRGBA = rgba;
         return;
     }
     
@@ -128,15 +96,16 @@ void main() {
     float strideMultiplier = 1.0 + (seed_f - 0.5) * stride * 2.0;
     
     // Smooth wander perturbation using noise field
-    float noiseScale = 0.01;
+    float noiseScale = 2.0;  // Adjust for normalized coords
     float wanderAngle = fbm(vec2(px, py) * noiseScale + time * 0.5) * 6.283185 * 2.0;
-    float wanderStrength = wander * 0.5;
+    float wanderStrength = wander * 0.002;  // Scaled for normalized coords
     float wanderX = cos(wanderAngle) * wanderStrength;
     float wanderY = sin(wanderAngle) * wanderStrength;
     
-    // Apply physics forces
-    float ax = wind + wanderX;
-    float ay = -gravity + wanderY;  // Negate: positive gravity pulls down (decreasing Y in GL coords)
+    // Physics forces (scaled for normalized coords)
+    // Use energy as a global multiplier for visible movement
+    float ax = (wind * 0.01 + wanderX) * energy;
+    float ay = (-gravity * 0.01 + wanderY) * energy;  // Negate: positive gravity pulls down
     
     // Update velocity with stride variation
     vx += ax * strideMultiplier;
@@ -147,49 +116,37 @@ void main() {
     vx *= dragFactor;
     vy *= dragFactor;
     
-    // Update position with stride
-    px += vx * strideMultiplier;
-    py += vy * strideMultiplier;
+    // Update position (stride already factored into velocity)
+    px += vx;
+    py += vy;
     
-    // Age the particle
-    age += attrition * 0.01;
-    particleEnergy -= attrition * 0.005;
-    
-    // Check for respawn conditions
+    // Check for respawn conditions - set alive=0 to signal respawn
     bool needsRespawn = false;
     
-    // Respawn if out of bounds
-    if (px < 0.0 || px >= resolution.x || py < 0.0 || py >= resolution.y) {
+    // Respawn if out of bounds (normalized coords)
+    if (px < 0.0 || px > 1.0 || py < 0.0 || py > 1.0) {
         needsRespawn = true;
     }
     
-    // Respawn if energy depleted
-    if (particleEnergy <= 0.0) {
-        needsRespawn = true;
+    // Random attrition check (percentage of agents respawning per frame)
+    if (attrition > 0.0) {
+        uint agentSeed = uint(coord.x + coord.y * stateSize.x) + uint(time * 1000.0);
+        float roll = hash(agentSeed);
+        float attritionRate = attrition * 0.01;  // Convert 0-10% to 0-0.1
+        if (roll < attritionRate) {
+            needsRespawn = true;
+        }
     }
     
     if (needsRespawn) {
-        uint respawnSeed = agentSeed + uint(time * 1000.0);
-        px = hash(respawnSeed) * resolution.x;
-        py = hash(respawnSeed + 1u) * resolution.y;
-        
-        float angle = hash(respawnSeed + 2u) * 6.283185;
-        float speed = hash(respawnSeed + 3u) * energy * 2.0;
-        vx = cos(angle) * speed;
-        vy = sin(angle) * speed;
-        
-        // Sample new color
-        vec2 sampleUV = vec2(px, py) / resolution;
-        vec4 inputColor = texture(inputTex, sampleUV);
-        cr = inputColor.r;
-        cg = inputColor.g;
-        cb = inputColor.b;
-        
-        age = 0.0;
-        particleEnergy = 1.0;
+        // Signal respawn by setting alive flag to 0
+        // pointsEmitter will handle actual respawn on next frame
+        outXYZ = vec4(px, py, pz, 0.0);
+        outVel = vec4(vx, vy, vz, seed_f);
+        outRGBA = rgba;
+    } else {
+        outXYZ = vec4(px, py, pz, 1.0);
+        outVel = vec4(vx, vy, vz, seed_f);
+        outRGBA = rgba;
     }
-    
-    outState1 = vec4(px, py, vx, vy);
-    outState2 = vec4(cr, cg, cb, seed_f);
-    outState3 = vec4(age, particleEnergy, 1.0, 0.0);
 }

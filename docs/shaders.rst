@@ -74,12 +74,137 @@ Noisemaker includes an experimental collection of WebGL 2 and WebGPU shader effe
    shaders/demo-ui
    shaders/mcp
 
-Layout
-------
+Project Structure
+-----------------
 
-The repository layout for shader development lives under ``shaders/``:
+Shader development lives under ``shaders/``:
 
-* ``shaders/src`` – Runtime, compiler helpers, and backend integrations.
-* ``shaders/effects`` – Effect definitions with paired GLSL/WGSL shader sources.
-* ``demo/shaders`` – Interactive viewer for hot-reloading effects during development.
-* ``shaders/tests`` – Playwright regression suites that exercise the demo harness.
+.. code-block:: text
+
+   shaders/
+   ├── src/                      # Runtime, compiler, and backend code
+   ├── effects/                  # Effect definitions
+   │   ├── synth/                # 2D generators
+   │   ├── filter/               # Image processors
+   │   ├── mixer/                # Blend/composite effects
+   │   ├── synth3d/              # 3D volumetric generators
+   │   ├── filter3d/             # 3D volumetric processors
+   │   ├── render/               # Points/agent rendering
+   │   ├── classicNoisedeck/     # Ported complex shaders
+   │   ├── classicNoisemaker/    # Python port implementations
+   │   └── manifest.json         # Auto-generated effect registry
+   ├── mcp/                      # MCP testing tools
+   └── tests/                    # Test suites
+   demo/
+   └── shaders/                  # Interactive development UI
+
+Each effect is a directory:
+
+.. code-block:: text
+
+   effects/filter/blur/
+   ├── definition.js           # Effect definition
+   ├── glsl/                    # WebGL 2 shaders
+   ├── wgsl/                    # WebGPU shaders
+   └── help.md                  # Optional documentation
+
+Double Buffering
+----------------
+
+Global surfaces (``o0``-``o7``, ``geo0``-``geo7``) are double-buffered. Each has a read buffer and write buffer that swap at frame end.
+
+**Display surfaces** (``o0``-``o7``) swap normally—previous frame's write becomes current frame's read.
+
+**State surfaces** (textures with names containing ``xyz``, ``vel``, ``rgba``, ``trail``, or ``state``) persist their bindings for simulation continuity.
+
+See ``shaders/src/runtime/pipeline.js``, specifically ``swapBuffers()`` and the surface creation code around line 376.
+
+Multi-Pass Effects
+------------------
+
+Use internal textures (prefixed with ``_``) to chain passes.
+
+**Example:** ``filter/blur`` uses ``_blurTemp`` as intermediate storage between horizontal and vertical blur passes.
+
+**Pattern:**
+
+1. Define internal texture in ``textures: { _temp: { ... } }``
+2. Pass 1 writes to ``_temp``
+3. Pass 2 reads from ``_temp``, writes to ``outputTex``
+
+Feedback Effects
+----------------
+
+Read from previous output by copying to an internal texture each frame.
+
+**Example:** ``filter/feedback`` uses ``_selfTex``:
+
+1. Main pass reads ``inputTex`` + ``_selfTex``, writes to ``outputTex``
+2. Copy pass copies ``outputTex`` to ``_selfTex`` for next frame
+
+Iteration
+---------
+
+Use ``repeat: "uniformName"`` to run a pass multiple times per frame.
+
+**Example:** ``synth/rd`` uses ``repeat: "iterations"`` on its simulate pass. The pipeline handles buffer swapping when a pass reads and writes the same texture.
+
+Agent-Based Effects
+-------------------
+
+Shared global textures pass state between effects in a chain.
+
+**Naming:** Textures prefixed with ``global_`` are shared across effects.
+
+**Example chain:** ``pointsEmitter().physarum().pointsRender()``
+
+- ``pointsEmitter`` creates ``global_xyz``, ``global_vel``, ``global_rgba``
+- ``physarum`` reads and updates these textures
+- ``pointsRender`` uses ``global_xyz`` to scatter points to ``global_points_trail``
+
+**MRT (Multiple Render Targets):** Use ``drawBuffers: N`` for passes writing multiple textures.
+
+**Points rendering:** Use ``drawMode: "points"`` and ``blend: true`` for scatter operations.
+
+See: ``render/pointsEmitter``, ``render/pointsRender``, ``synth/physarum``
+
+Running Tests
+-------------
+
+.. code-block:: bash
+
+   npm run test:shaders              # All shader tests
+   npm run test:shaders:render       # Both backends
+
+   # Test harness for specific effects
+   node shaders/mcp/test-harness.js --effects synth/noise --backend webgl2
+   node shaders/mcp/test-harness.js --effects "synth/*" --backend webgpu
+
+Development Workflow
+--------------------
+
+.. code-block:: bash
+
+   npx http-server -p 8000
+   open http://localhost:8000/demo/shaders/
+
+Regenerate manifest after adding/removing effects or changing texture definitions:
+
+.. code-block:: bash
+
+   python shaders/scripts/generate_shader_manifest.py
+
+**When to regenerate:** The manifest must be regenerated whenever you add or remove effect files, or modify texture definitions in ``definition.js``. The manifest tracks all effects and their texture requirements for the runtime.
+
+Bundle for distribution:
+
+.. code-block:: bash
+
+   npm run bundle:shaders
+
+Downstream Integration
+----------------------
+
+Consumer projects vendor the built bundles from ``dist/``.
+
+Effect bugs and new effects belong in this repository. UI customization belongs downstream.

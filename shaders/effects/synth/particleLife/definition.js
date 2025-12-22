@@ -3,60 +3,43 @@ import { Effect } from '../../../src/runtime/effect.js'
 /**
  * Particle Life - Type-based attraction/repulsion particle simulation
  *
- * Architecture (GPGPU via render passes):
- * - Uses ForceMatrix texture encoding type-pair interaction strengths
- * - Multi-type particles with radial force curves
- * - Spatial hashing for efficient neighbor queries
- * - Multi-pass: force -> integrate -> deposit -> diffuse -> render
+ * Common Agent Architecture middleware:
+ * - Reads agent state from pipeline inputs (global_xyz, global_vel, global_rgba)
+ * - Uses internal global_p_life_data for typeId/mass storage
+ * - Uses internal global_force_matrix for type-pair interactions
+ * - Applies particle life forces and writes back to global textures
  *
- * Agent state format:
- * - State1: [posX, posY, velX, velY] - position and velocity
- * - State2: [typeId, mass, age, flags] - particle attributes
- * - State3: [r, g, b, a] - color (derived from type or sampled)
+ * State format (matching pointsEmitter + internal data):
+ * - xyz: [x, y, 0, alive_flag]  (x,y in normalized coords [0,1])
+ * - vel: [vx, vy, age, seed]    (velocity and metadata)
+ * - rgba: [r, g, b, a]          (agent color from type)
+ * - data: [typeId, mass, 0, 0]  (internal, effect-specific)
  *
- * Force evaluation:
- * - ForceMatrix[typeA][typeB] defines attraction (>0) or repulsion (<0)
- * - Radial force curve with inner repulsion, mid-range attraction, outer cutoff
- * - Forces accumulate from all neighbors within perception radius
- *
- * Optional extensions:
- * - Chemistry: type transitions based on neighbor composition
- * - Spawn/death lifecycle management
+ * Usage: pointsEmitter().particleLife().pointsRender().write(o0)
  */
 export default new Effect({
   name: "Particle Life",
   namespace: "synth",
   func: "particleLife",
-  tags: ["sim"],
+  tags: ["sim", "agents"],
 
   description: "Type-based attraction/repulsion particle simulation",
+
+  // Internal textures - not shared with other effects
   textures: {
-    // Agent state buffers (256x256 = 65536 particles max)
-    // Using rgba16f to stay within MRT color attachment limits (32 bytes max)
-    globalPLifeState1: { width: 256, height: 256, format: "rgba16f" },
-    globalPLifeState2: { width: 256, height: 256, format: "rgba16f" },
-    globalPLifeState3: { width: 256, height: 256, format: "rgba16f" },
-    // Force accumulation buffer
-    globalPLifeForce: { width: 256, height: 256, format: "rgba16f" },
-    // Trail accumulation
-    globalPLifeTrail: { width: "100%", height: "100%", format: "rgba16f" },
-    // ForceMatrix: 8x8 texture for 8 types, each pixel encodes force params
+    // Effect-specific data: [typeId, mass, 0, 0]
+    global_p_life_data: { width: 256, height: 256, format: "rgba16f" },
+    // ForceMatrix: 8x8 texture for 8 types
     // R = attraction strength (-1 to 1), G = preferred distance, B = curve shape
-    globalForceMatrix: { width: 8, height: 8, format: "rgba16f" }
+    global_force_matrix: { width: 8, height: 8, format: "rgba16f" }
   },
+
+  // Expose outputs to pipeline for downstream effects (pointsRender)
+  outputXyz: "global_xyz",
+  outputVel: "global_vel",
+  outputRgba: "global_rgba",
+
   globals: {
-    tex: {
-      type: "surface",
-      default: "none",
-      colorModeUniform: "colorMode",
-      ui: { label: "texture" }
-    },
-    colorMode: {
-      type: "int",
-      default: 0,
-      uniform: "colorMode",
-      ui: { control: false }
-    },
     // Type system
     typeCount: {
       type: "int",
@@ -98,14 +81,14 @@ export default new Effect({
         category: "forces"
       }
     },
-    // Radial parameters
+    // Radial parameters (normalized to [0,1] coords)
     minRadius: {
       type: "float",
-      default: 10,
+      default: 0.01,
       uniform: "minRadius",
-      min: 1,
-      max: 50,
-      step: 1,
+      min: 0.001,
+      max: 0.05,
+      step: 0.001,
       ui: {
         label: "min radius",
         control: "slider",
@@ -114,11 +97,11 @@ export default new Effect({
     },
     maxRadius: {
       type: "float",
-      default: 80,
+      default: 0.08,
       uniform: "maxRadius",
-      min: 20,
-      max: 200,
-      step: 1,
+      min: 0.02,
+      max: 0.2,
+      step: 0.01,
       ui: {
         label: "max radius",
         control: "slider",
@@ -128,11 +111,11 @@ export default new Effect({
     // Motion parameters
     maxSpeed: {
       type: "float",
-      default: 3.0,
+      default: 0.003,
       uniform: "maxSpeed",
-      min: 0.5,
-      max: 10,
-      step: 0.1,
+      min: 0.0005,
+      max: 0.01,
+      step: 0.0001,
       ui: {
         label: "max speed",
         control: "slider",
@@ -167,20 +150,6 @@ export default new Effect({
         category: "motion"
       }
     },
-    // Agent density and lifecycle
-    density: {
-      type: "float",
-      default: 50,
-      uniform: "density",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "density",
-        control: "slider",
-        category: "agents"
-      }
-    },
     // Random force matrix generation seed
     matrixSeed: {
       type: "float",
@@ -206,158 +175,94 @@ export default new Effect({
         category: "types"
       }
     },
-    // Trail and blending
-    trailIntensity: {
-      type: "float",
-      default: 95,
-      uniform: "trailIntensity",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "trail intensity",
-        control: "slider",
-        category: "blending"
-      }
-    },
-    inputIntensity: {
-      type: "float",
-      default: 30,
-      uniform: "inputIntensity",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "input intensity",
-        control: "slider",
-        category: "blending"
-      }
-    },
-    resetState: {
+    // Show type color instead of sampled color
+    useTypeColor: {
       type: "boolean",
       default: false,
-      uniform: "resetState",
+      uniform: "useTypeColor",
       ui: {
-        control: "button",
-        buttonLabel: "reset",
-        label: "state"
+        label: "show types",
+        control: "checkbox",
+        category: "types"
       }
     },
-    randomizeMatrix: {
-      type: "boolean",
-      default: false,
-      uniform: "randomizeMatrix",
+    // Agent respawn
+    attrition: {
+      type: "float",
+      default: 0.5,
+      uniform: "attrition",
+      min: 0,
+      max: 10,
+      step: 0.1,
       ui: {
-        control: "button",
-        buttonLabel: "randomize",
-        label: "matrix"
+        label: "attrition",
+        control: "slider",
+        category: "agents"
       }
     }
   },
+
   passes: [
-    // Pass 0: Generate/update ForceMatrix
+    // Pass 1: Generate/update ForceMatrix
     {
       name: "matrix",
       program: "matrix",
       inputs: {
-        prevMatrix: "globalForceMatrix"
+        prevMatrix: "global_force_matrix"
       },
       uniforms: {
         typeCount: "typeCount",
         matrixSeed: "matrixSeed",
-        symmetricForces: "symmetricForces"
+        symmetricForces: "symmetricForces",
+        resetState: "resetState",
+        randomizeMatrix: "randomizeMatrix"
       },
       outputs: {
-        fragColor: "globalForceMatrix"
+        fragColor: "global_force_matrix"
       }
     },
-    // Pass 1: Evaluate pairwise forces
+
+    // Pass 2: Agent update (combined force evaluation + integration)
     {
-      name: "force",
-      program: "force",
+      name: "agent",
+      program: "agent",
+      drawBuffers: 4,
       inputs: {
-        stateTex1: "globalPLifeState1",
-        stateTex2: "globalPLifeState2",
-        forceMatrix: "globalForceMatrix"
+        xyzTex: "global_xyz",
+        velTex: "global_vel",
+        rgbaTex: "global_rgba",
+        dataTex: "global_p_life_data",
+        forceMatrix: "global_force_matrix",
+        inputTex: "inputTex"
       },
       uniforms: {
         typeCount: "typeCount",
         attractionScale: "attractionScale",
         repulsionScale: "repulsionScale",
         minRadius: "minRadius",
-        maxRadius: "maxRadius"
-      },
-      outputs: {
-        fragColor: "globalPLifeForce"
-      }
-    },
-    // Pass 2: Integrate forces, update state
-    {
-      name: "integrate",
-      program: "integrate",
-      drawBuffers: 3,
-      inputs: {
-        stateTex1: "globalPLifeState1",
-        stateTex2: "globalPLifeState2",
-        stateTex3: "globalPLifeState3",
-        forceTex: "globalPLifeForce",
-        tex: "tex"
-      },
-      uniforms: {
+        maxRadius: "maxRadius",
         maxSpeed: "maxSpeed",
         friction: "friction",
         boundaryMode: "boundaryMode",
-        typeCount: "typeCount",
-        colorMode: "colorMode"
+        matrixSeed: "matrixSeed",
+        symmetricForces: "symmetricForces",
+        useTypeColor: "useTypeColor",
+        attrition: "attrition"
       },
       outputs: {
-        outState1: "globalPLifeState1",
-        outState2: "globalPLifeState2",
-        outState3: "globalPLifeState3"
+        outXYZ: "global_xyz",
+        outVel: "global_vel",
+        outRGBA: "global_rgba",
+        outData: "global_p_life_data"
       }
     },
-    // Pass 3: Diffuse/decay trail (before deposit to avoid feedback)
+
+    // Pass 3: Copy input texture to output for 2D chain continuity
     {
-      name: "diffuse",
-      program: "diffuse",
+      name: "passthrough",
+      program: "passthrough",
       inputs: {
-        sourceTex: "globalPLifeTrail"
-      },
-      uniforms: {
-        trailIntensity: "trailIntensity"
-      },
-      outputs: {
-        fragColor: "globalPLifeTrail"
-      }
-    },
-    // Pass 4: Deposit particle trails as point sprites
-    {
-      name: "deposit",
-      program: "deposit",
-      drawMode: "points",
-      count: 65536,
-      blend: true,
-      inputs: {
-        stateTex1: "globalPLifeState1",
-        stateTex3: "globalPLifeState3"
-      },
-      uniforms: {
-        density: "density"
-      },
-      outputs: {
-        fragColor: "globalPLifeTrail"
-      }
-    },
-    // Pass 5: Final render composite
-    {
-      name: "render",
-      program: "render",
-      inputs: {
-        trailTex: "globalPLifeTrail",
-        tex: "tex"
-      },
-      uniforms: {
-        inputIntensity: "inputIntensity"
+        inputTex: "inputTex"
       },
       outputs: {
         fragColor: "outputTex"

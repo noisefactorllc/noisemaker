@@ -2088,6 +2088,12 @@ function checkTextureName(name) {
         return { valid: true }
     }
 
+    // BANNED: camelCase "globalFoo" pattern - MUST use "global_foo" with underscore
+    // Check for "global" followed by uppercase letter (e.g., globalFlowTrail, globalState1)
+    if (/^global[A-Z]/.test(name)) {
+        return { valid: false, reason: 'camelCase "globalFoo" is BANNED - use "global_foo" with underscore' }
+    }
+
     // global_ prefixed internal textures - check suffix starts with lowercase
     if (name.startsWith('global_')) {
         const suffix = name.slice(7)
@@ -2267,8 +2273,10 @@ export async function checkEffectStructure(effectId, options = {}) {
             globalsSection = ''
         } else {
             // Try to match multi-line globals block
-            // The block ends with }, or }; at the same indent level as globals (2 spaces for class properties)
-            const multiLineMatch = definitionSource.match(/globals\s*[:=]\s*\{([\s\S]*?)\n {2}\}[;,]?/)
+            // The block ends with }, at either column 0 or 2-space indent
+            // (different effect files use different formatting)
+            // Match the FIRST occurrence of either pattern
+            const multiLineMatch = definitionSource.match(/globals\s*[:=]\s*\{([\s\S]*?)\n(?: {2})?\}[;,]?/)
             globalsSection = multiLineMatch ? multiLineMatch[1] : ''
         }
 
@@ -2412,6 +2420,26 @@ export async function checkEffectStructure(effectId, options = {}) {
                     name: categoryName,
                     reason: categoryCheck.reason
                 })
+            }
+        }
+
+        // 5c. Check texture declaration names in textures: { } block
+        // These are the keys in the textures object (e.g., global_trail, global_state1)
+        // BANNED: camelCase globalFoo pattern
+        const texturesMatch = definitionSource.match(/textures\s*[:=]\s*\{([\s\S]*?)\n {2}\}/)
+        if (texturesMatch) {
+            const texturesContent = texturesMatch[1]
+            const texKeyMatches = texturesContent.matchAll(/^\s{4}(\w+):\s*\{/gm)
+            for (const match of texKeyMatches) {
+                const texKey = match[1]
+                const texCheck = checkTextureName(texKey)
+                if (!texCheck.valid) {
+                    result.namingIssues.push({
+                        type: 'textureDeclaration',
+                        name: texKey,
+                        reason: texCheck.reason
+                    })
+                }
             }
         }
 

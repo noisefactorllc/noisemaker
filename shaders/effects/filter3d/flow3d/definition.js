@@ -44,29 +44,29 @@ export default new Effect({
       format: "rgba16f"
     },
     // Agent state buffers (2D, for agent grid)
-    globalFlow3dState1: {
+    global_flow3d_state1: {
       width: 512,
       height: 512,
       format: "rgba16f"
     },
-    globalFlow3dState2: {
+    global_flow3d_state2: {
       width: 512,
       height: 512,
       format: "rgba16f"
     },
-    globalFlow3dState3: {
+    global_flow3d_state3: {
       width: 512,
       height: 512,
       format: "rgba16f"
     },
     // 3D trail volume as 2D atlas (volumeSize x volumeSize²)
-    globalFlow3dTrail: {
+    global_flow3d_trail: {
       width: { param: 'volumeSize', default: 32 },
       height: { param: 'volumeSize', power: 2, default: 1024 },
       format: "rgba16f"
     },
     // Blended volume (input + trail)
-    globalFlow3dBlended: {
+    global_flow3d_blended: {
       width: { param: 'volumeSize', default: 32 },
       height: { param: 'volumeSize', power: 2, default: 1024 },
       format: "rgba16f"
@@ -197,9 +197,9 @@ export default new Effect({
       program: "agent",
       drawBuffers: 3,
       inputs: {
-        stateTex1: "globalFlow3dState1",
-        stateTex2: "globalFlow3dState2",
-        stateTex3: "globalFlow3dState3",
+        stateTex1: "global_flow3d_state1",
+        stateTex2: "global_flow3d_state2",
+        stateTex3: "global_flow3d_state3",
         mixerTex: "inputTex3d",
         inputGeoTex: "inputGeo"
       },
@@ -213,9 +213,9 @@ export default new Effect({
         volumeSize: "volumeSize"
       },
       outputs: {
-        outState1: "globalFlow3dState1",
-        outState2: "globalFlow3dState2",
-        outState3: "globalFlow3dState3"
+        outState1: "global_flow3d_state1",
+        outState2: "global_flow3d_state2",
+        outState3: "global_flow3d_state3"
       }
     },
     {
@@ -226,13 +226,13 @@ export default new Effect({
         height: { param: 'volumeSize', power: 2, default: 1024, inputOverride: 'inputTex3d' }
       },
       inputs: {
-        sourceTex: "globalFlow3dTrail"
+        sourceTex: "global_flow3d_trail"
       },
       uniforms: {
         intensity: "intensity"
       },
       outputs: {
-        fragColor: "globalFlow3dTrail"
+        fragColor: "global_flow3d_trail"
       }
     },
     {
@@ -246,15 +246,15 @@ export default new Effect({
         height: { param: 'volumeSize', power: 2, default: 1024, inputOverride: 'inputTex3d' }
       },
       inputs: {
-        stateTex1: "globalFlow3dState1",
-        stateTex2: "globalFlow3dState2"
+        stateTex1: "global_flow3d_state1",
+        stateTex2: "global_flow3d_state2"
       },
       uniforms: {
         density: "density",
         volumeSize: "volumeSize"
       },
       outputs: {
-        fragColor: "globalFlow3dTrail"
+        fragColor: "global_flow3d_trail"
       }
     },
     {
@@ -266,16 +266,16 @@ export default new Effect({
       },
       inputs: {
         mixerTex: "inputTex3d",
-        trailTex: "globalFlow3dTrail"
+        trailTex: "global_flow3d_trail"
       },
       uniforms: {
         inputIntensity: "inputIntensity"
       },
       outputs: {
-        fragColor: "globalFlow3dBlended"
+        fragColor: "global_flow3d_blended"
       }
     }
   ],
   outputGeo: "geoBuffer",
-  outputTex3d: "globalFlow3dBlended"
+  outputTex3d: "global_flow3d_blended"
 })

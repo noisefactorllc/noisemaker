@@ -26,9 +26,9 @@ export default new Effect({
 
   description: "Chaotic dynamical systems visualization",
   textures: {
-    globalAttractorState1: { width: 256, height: 256, format: "rgba32f" },
-    globalAttractorState2: { width: 256, height: 256, format: "rgba16f" },
-    globalAttractorTrail: { width: "100%", height: "100%", format: "rgba16f" }
+    global_attractor_state1: { width: 256, height: 256, format: "rgba32f" },
+    global_attractor_state2: { width: 256, height: 256, format: "rgba16f" },
+    global_attractor_trail: { width: "100%", height: "100%", format: "rgba16f" }
   },
   globals: {
     tex: {
@@ -37,18 +37,24 @@ export default new Effect({
       colorModeUniform: "colorMode",
       ui: { label: "texture" }
     },
+    colorMode: {
+      type: "int",
+      default: 1,
+      uniform: "colorMode",
+      ui: { control: false }
+    },
     attractor: {
       type: "int",
       default: 0,
       uniform: "attractor",
       choices: {
-        Lorenz: 0,
-        Rössler: 1,
-        Aizawa: 2,
-        Thomas: 3,
-        Halvorsen: 4,
-        Chen: 5,
-        Dadras: 6
+        lorenz: 0,
+        rossler: 1,
+        aizawa: 2,
+        thomas: 3,
+        halvorsen: 4,
+        chen: 5,
+        dadras: 6
       },
       ui: {
         label: "attractor",
@@ -177,13 +183,13 @@ export default new Effect({
       name: "diffuse",
       program: "diffuse",
       inputs: {
-        sourceTex: "globalAttractorTrail"
+        sourceTex: "global_attractor_trail"
       },
       uniforms: {
         intensity: "intensity"
       },
       outputs: {
-        fragColor: "globalAttractorTrail"
+        fragColor: "global_attractor_trail"
       }
     },
     // Pass 1: Update attractor state
@@ -192,19 +198,20 @@ export default new Effect({
       program: "agent",
       drawBuffers: 2,
       inputs: {
-        stateTex1: "globalAttractorState1",
-        stateTex2: "globalAttractorState2",
+        stateTex1: "global_attractor_state1",
+        stateTex2: "global_attractor_state2",
         tex: "tex"
       },
       uniforms: {
         attractor: "attractor",
         density: "density",
         speed: "speed",
-        scale: "scale"
+        scale: "scale",
+        colorMode: "colorMode"
       },
       outputs: {
-        outState1: "globalAttractorState1",
-        outState2: "globalAttractorState2"
+        outState1: "global_attractor_state1",
+        outState2: "global_attractor_state2"
       }
     },
     // Pass 2: Deposit trails
@@ -215,8 +222,8 @@ export default new Effect({
       count: 65536,
       blend: true,
       inputs: {
-        stateTex1: "globalAttractorState1",
-        stateTex2: "globalAttractorState2"
+        stateTex1: "global_attractor_state1",
+        stateTex2: "global_attractor_state2"
       },
       uniforms: {
         rotateX: "rotateX",
@@ -226,7 +233,7 @@ export default new Effect({
         density: "density"
       },
       outputs: {
-        fragColor: "globalAttractorTrail"
+        fragColor: "global_attractor_trail"
       }
     },
     // Pass 3: Final composite
@@ -235,7 +242,7 @@ export default new Effect({
       program: "blend",
       inputs: {
         tex: "tex",
-        trailTex: "globalAttractorTrail"
+        trailTex: "global_attractor_trail"
       },
       uniforms: {
         inputIntensity: "inputIntensity"

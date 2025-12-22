@@ -30,7 +30,7 @@ export default new Effect({
     },
     // State texture for cellular automata simulation
     // Uses 'global' prefix for automatic ping-pong double-buffering by pipeline
-    globalCaState: {
+    global_ca_state: {
       width: { param: 'volumeSize', default: 32 },
       height: { param: 'volumeSize', power: 2, default: 1024 },
       format: "rgba16f"
@@ -177,14 +177,14 @@ export default new Effect({
         height: { param: 'volumeSize', power: 2, default: 1024 }
       },
       inputs: {
-        stateTex: "globalCaState",
+        stateTex: "global_ca_state",
         seedTex: "source"
       },
       outputs: {
-        color: "globalCaState"
+        color: "global_ca_state"
       }
     }
   ],
-  outputTex3d: "globalCaState",
+  outputTex3d: "global_ca_state",
   outputGeo: "geoBuffer"
 })

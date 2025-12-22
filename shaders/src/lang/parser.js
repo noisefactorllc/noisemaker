@@ -64,12 +64,14 @@ export function parse(tokens) {
 
     const exprStartTokens = new Set([
         'PLUS', 'MINUS', 'NUMBER', 'HEX', 'FUNC', 'STRING',
-        'IDENT', 'OUTPUT_REF', 'SOURCE_REF', 'VOL_REF', 'GEO_REF', 'LPAREN',
+        'IDENT', 'OUTPUT_REF', 'SOURCE_REF', 'VOL_REF', 'GEO_REF',
+        'XYZ_REF', 'VEL_REF', 'RGBA_REF', 'LPAREN',
         'TRUE', 'FALSE'
     ])
 
     const memberTokenTypes = new Set([
         'IDENT', 'SOURCE_REF', 'OUTPUT_REF', 'VOL_REF', 'GEO_REF',
+        'XYZ_REF', 'VEL_REF', 'RGBA_REF',
         'LET', 'RENDER', 'TRUE', 'FALSE', 'IF', 'ELIF', 'ELSE',
         'BREAK', 'CONTINUE', 'RETURN', 'WRITE', 'WRITE3D'
     ])
@@ -247,6 +249,13 @@ export function parse(tokens) {
             while (peek().type === 'SEMICOLON') advance()
         }
 
+        // Token types that can be used as namespace identifiers
+        // (keywords like 'render' are valid namespace names in search context)
+        const namespaceTokenTypes = new Set([
+            'IDENT', 'RENDER', 'WRITE', 'WRITE3D', 'TRUE', 'FALSE',
+            'IF', 'ELIF', 'ELSE', 'BREAK', 'CONTINUE', 'RETURN'
+        ])
+
         // Parse the search directive: search ns1, ns2, ns3
         function parseSearchDirective() {
             if (programSearchOrder !== null) {
@@ -255,13 +264,21 @@ export function parse(tokens) {
             }
             advance() // consume 'search'
             const namespaces = []
-            // Expect at least one namespace identifier
-            const firstToken = expect('IDENT', 'Expected namespace identifier after search')
+            // Expect at least one namespace identifier (allow keywords as namespace names)
+            const firstToken = peek()
+            if (!namespaceTokenTypes.has(firstToken.type)) {
+                throw new SyntaxError(`Expected namespace identifier after search at line ${firstToken.line} col ${firstToken.col}`)
+            }
+            advance()
             namespaces.push(firstToken.lexeme)
             // Parse additional comma-separated namespaces
             while (peek().type === 'COMMA') {
                 advance() // consume ','
-                const nsToken = expect('IDENT', 'Expected namespace identifier after comma')
+                const nsToken = peek()
+                if (!namespaceTokenTypes.has(nsToken.type)) {
+                    throw new SyntaxError(`Expected namespace identifier after comma at line ${nsToken.line} col ${nsToken.col}`)
+                }
+                advance()
                 namespaces.push(nsToken.lexeme)
             }
             programSearchOrder = namespaces
@@ -438,11 +455,17 @@ export function parse(tokens) {
             let surface = null
             if (peek().type === 'OUTPUT_REF') {
                 surface = { type: 'OutputRef', name: advance().lexeme }
+            } else if (peek().type === 'XYZ_REF') {
+                surface = { type: 'XyzRef', name: advance().lexeme }
+            } else if (peek().type === 'VEL_REF') {
+                surface = { type: 'VelRef', name: advance().lexeme }
+            } else if (peek().type === 'RGBA_REF') {
+                surface = { type: 'RgbaRef', name: advance().lexeme }
             } else if (peek().type === 'IDENT' && peek().lexeme === 'none') {
                 // "none" is a valid target meaning "don't write to any surface"
                 surface = { type: 'OutputRef', name: advance().lexeme }
             } else {
-                throw new SyntaxError(`write() requires an explicit surface reference (e.g., o0, o1, none) at line ${peek().line} col ${peek().col}`)
+                throw new SyntaxError(`write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, none) at line ${peek().line} col ${peek().col}`)
             }
             expect('RPAREN', "Expect ')'")
             return {
@@ -697,6 +720,15 @@ export function parse(tokens) {
             case 'GEO_REF':
                 advance()
                 return {type: 'GeoRef', name: token.lexeme}
+            case 'XYZ_REF':
+                advance()
+                return {type: 'XyzRef', name: token.lexeme}
+            case 'VEL_REF':
+                advance()
+                return {type: 'VelRef', name: token.lexeme}
+            case 'RGBA_REF':
+                advance()
+                return {type: 'RgbaRef', name: token.lexeme}
             case 'LPAREN': {
                 advance()
                 const expr = parseAdditive()

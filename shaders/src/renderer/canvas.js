@@ -651,6 +651,9 @@ export class CanvasRenderer {
             }
         }
 
+        // Reset frame count on recompile so simulations restart properly
+        this._frameCount = 0
+
         this._uniformBindings = new Map()
         return this._pipeline
     }
@@ -1410,6 +1413,15 @@ export class CanvasRenderer {
             const effectDef = effectKey ? getEffect(effectKey) : null
             if (!effectDef || !effectDef.globals) continue
 
+            // Build set of uniforms controlled by colorModeUniform
+            // These should not be overwritten by UI parameter values
+            const colorModeControlledUniforms = new Set()
+            for (const globalSpec of Object.values(effectDef.globals)) {
+                if (globalSpec.colorModeUniform) {
+                    colorModeControlledUniforms.add(globalSpec.colorModeUniform)
+                }
+            }
+
             // Apply each step-specific parameter to this pass's uniforms
             for (const [paramName, value] of Object.entries(stepParams)) {
                 if (paramName === '_skip') continue  // Skip internal flags
@@ -1418,6 +1430,10 @@ export class CanvasRenderer {
                 if (!spec || spec.type === 'surface') continue
 
                 const uniformName = spec.uniform || paramName
+
+                // Skip uniforms controlled by colorModeUniform (they're set by expander based on surface)
+                if (colorModeControlledUniforms.has(uniformName)) continue
+
                 if (!pass.uniforms || !(uniformName in pass.uniforms)) continue
 
                 const converted = this.convertParameterForUniform(value, spec)

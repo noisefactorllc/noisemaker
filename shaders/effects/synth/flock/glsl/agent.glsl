@@ -2,12 +2,9 @@
 precision highp float;
 precision highp int;
 
+// Standard uniforms
 uniform vec2 resolution;
-uniform sampler2D stateTex1;  // [posX, posY, velX, velY]
-uniform sampler2D stateTex2;  // [r, g, b, age]
-uniform sampler2D tex;        // Optional input texture for color sampling
 uniform float time;
-uniform bool resetState;
 
 // Boids parameters
 uniform float separation;
@@ -21,12 +18,19 @@ uniform int boundaryMode;
 uniform float wallMargin;
 uniform float noiseWeight;
 uniform float attrition;
-uniform int colorMode;  // 0 = mono (white), 1 = sample from tex
 
-layout(location = 0) out vec4 outState1;
-layout(location = 1) out vec4 outState2;
+// Input state from pipeline (from pointsEmitter)
+uniform sampler2D xyzTex;    // [x, y, z, alive]
+uniform sampler2D velTex;    // [vx, vy, age, seed]
+uniform sampler2D rgbaTex;   // [r, g, b, a]
 
-// Hash functions for pseudo-random numbers
+// Output state (MRT)
+layout(location = 0) out vec4 outXYZ;
+layout(location = 1) out vec4 outVel;
+layout(location = 2) out vec4 outRGBA;
+
+// === ORIGINAL BOIDS HELPER FUNCTIONS (PRESERVED EXACTLY) ===
+
 uint hash_uint(uint seed) {
     uint state = seed * 747796405u + 2891336453u;
     uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -41,19 +45,18 @@ vec2 hash2(uint seed) {
     return vec2(hash(seed), hash(seed + 1u));
 }
 
-float hash(float n) {
+float hashFloat(float n) {
     return fract(sin(n) * 43758.5453123);
 }
 
-// Simplex-like noise for turbulence
 float noise2D(vec2 p) {
     vec2 i = floor(p);
     vec2 f = fract(p);
     f = f * f * (3.0 - 2.0 * f);
     float n = i.x + i.y * 57.0;
     return mix(
-        mix(hash(n), hash(n + 1.0), f.x),
-        mix(hash(n + 57.0), hash(n + 58.0), f.x),
+        mix(hashFloat(n), hashFloat(n + 1.0), f.x),
+        mix(hashFloat(n + 57.0), hashFloat(n + 58.0), f.x),
         f.y
     ) * 2.0 - 1.0;
 }
@@ -78,74 +81,81 @@ vec2 setMag(vec2 v, float mag) {
     return v;
 }
 
-vec3 sampleInputColor(vec2 uv) {
-    if (colorMode == 0) {
-        return vec3(1.0);  // White for mono mode
-    }
-    vec2 flippedUV = vec2(uv.x, 1.0 - uv.y);
-    return texture(tex, flippedUV).rgb;
-}
-
 // Spatial grid parameters - 16x16 grid cells
 const int GRID_SIZE = 16;
 
-// Get grid cell for a position
-ivec2 getGridCell(vec2 pos) {
-    vec2 cellSize = resolution / float(GRID_SIZE);
+ivec2 getGridCell(vec2 pos, vec2 res) {
+    vec2 cellSize = res / float(GRID_SIZE);
     return ivec2(clamp(pos / cellSize, vec2(0.0), vec2(float(GRID_SIZE - 1))));
 }
 
+// === END ORIGINAL HELPER FUNCTIONS ===
+
 void main() {
-    ivec2 stateSize = textureSize(stateTex1, 0);
-    vec2 stateUV = (gl_FragCoord.xy + vec2(0.5)) / vec2(stateSize);
+    ivec2 coord = ivec2(gl_FragCoord.xy);
+    ivec2 stateSize = textureSize(xyzTex, 0);
     
-    vec4 state1 = texture(stateTex1, stateUV);
-    vec4 state2 = texture(stateTex2, stateUV);
+    // Read input state from pipeline
+    vec4 xyz = texelFetch(xyzTex, coord, 0);
+    vec4 vel = texelFetch(velTex, coord, 0);
+    vec4 rgba = texelFetch(rgbaTex, coord, 0);
     
-    vec2 pos = state1.xy;
-    vec2 vel = state1.zw;
-    vec3 color = state2.rgb;
-    float age = state2.a;
+    // Extract components
+    // xyz stores normalized coords [0,1], convert to pixel coords for algorithm
+    float px = xyz.x;  // normalized x
+    float py = xyz.y;  // normalized y
+    float alive = xyz.w;
     
-    uint boidId = uint(gl_FragCoord.y * float(stateSize.x) + gl_FragCoord.x);
+    // vel stores: [vx, vy, age, seed] - velocity in pixel space
+    float vx = vel.x;
+    float vy = vel.y;
+    float age = vel.z;
+    float seed = vel.w;
     
-    // Initialization / Reset
-    if (resetState || (pos.x == 0.0 && pos.y == 0.0 && length(vel) == 0.0)) {
-        uint seed = boidId + uint(time * 1000.0);
-        pos = hash2(seed) * resolution;
-        float angle = hash(seed + 2u) * 6.28318530718;
-        float speed = hash(seed + 3u) * maxSpeed * 0.5 + maxSpeed * 0.25;
-        vel = vec2(cos(angle), sin(angle)) * speed;
-        age = hash(seed + 4u) * 10.0;
-        color = sampleInputColor(pos / resolution);
-        
-        outState1 = vec4(pos, vel);
-        outState2 = vec4(color, age);
+    uint boidId = uint(coord.x + coord.y * stateSize.x);
+    
+    // Convert normalized to pixel coords for the algorithm
+    vec2 pos = vec2(px, py) * resolution;
+    vec2 velocity = vec2(vx, vy);
+    
+    // If not alive, pass through unchanged
+    if (alive < 0.5) {
+        outXYZ = xyz;
+        outVel = vel;
+        outRGBA = rgba;
         return;
     }
     
-    // Attrition respawn
+    // Initialize velocity on first use (if zero from pointsEmitter)
+    if (length(velocity) == 0.0 && seed == 0.0) {
+        seed = hash(boidId + 99999u);
+        float angle = hash(boidId + 12345u) * 6.28318530718;
+        float speed = hash(boidId + 23456u) * maxSpeed * 0.5 + maxSpeed * 0.25;
+        velocity = vec2(cos(angle), sin(angle)) * speed;
+    }
+    
+    // Respawn check (attrition)
+    bool needsRespawn = false;
     if (attrition > 0.0) {
         uint time_seed = uint(time * 60.0);
         uint check_seed = boidId + time_seed * 747796405u;
         float respawnRand = hash(check_seed);
         float attritionRate = attrition * 0.01;
-        
         if (respawnRand < attritionRate) {
-            uint pos_seed = check_seed ^ 2891336453u;
-            pos = hash2(pos_seed) * resolution;
-            float angle = hash(pos_seed + 2u) * 6.28318530718;
-            vel = vec2(cos(angle), sin(angle)) * maxSpeed * 0.5;
-            age = 0.0;
-            color = sampleInputColor(pos / resolution);
-            
-            outState1 = vec4(pos, vel);
-            outState2 = vec4(color, age);
-            return;
+            needsRespawn = true;
         }
     }
     
-    // Boids algorithm with grid-accelerated neighbor search
+    if (needsRespawn) {
+        // Signal respawn by setting alive flag to 0
+        outXYZ = vec4(px, py, xyz.z, 0.0);
+        outVel = vec4(velocity, age, seed);
+        outRGBA = rgba;
+        return;
+    }
+
+    // === ORIGINAL BOIDS ALGORITHM (PRESERVED EXACTLY) ===
+    
     vec2 separationForce = vec2(0.0);
     vec2 alignmentSum = vec2(0.0);
     vec2 cohesionSum = vec2(0.0);
@@ -153,29 +163,23 @@ void main() {
     int alignmentCount = 0;
     int cohesionCount = 0;
     
-    ivec2 myCell = getGridCell(pos);
+    ivec2 myCell = getGridCell(pos, resolution);
     float perceptionSq = perceptionRadius * perceptionRadius;
     float separationSq = separationRadius * separationRadius;
     
-    // Sample neighbors - iterate through nearby agents
-    // For GPU efficiency, we sample a subset of agents in neighboring grid cells
     int totalBoids = stateSize.x * stateSize.y;
     
-    // Sample strategy: check agents that hash to nearby grid cells
-    // This is an approximation but works well for GPU parallelism
+    // Sample neighbors - iterate through nearby agents
     for (int dy = -1; dy <= 1; dy++) {
         for (int dx = -1; dx <= 1; dx++) {
             ivec2 checkCell = myCell + ivec2(dx, dy);
             
-            // Handle wrapping for grid cells
             if (boundaryMode == 0) {  // Wrap mode
                 checkCell = (checkCell + GRID_SIZE) % GRID_SIZE;
             } else {
-                // Clamp for soft wall mode
                 checkCell = clamp(checkCell, ivec2(0), ivec2(GRID_SIZE - 1));
             }
             
-            // Sample multiple agents per cell
             uint cellSeed = uint(checkCell.y * GRID_SIZE + checkCell.x);
             
             for (int s = 0; s < 8; s++) {  // 8 samples per cell
@@ -186,11 +190,16 @@ void main() {
                 int sy = sampleIdx / stateSize.x;
                 
                 // Skip self
-                if (sx == int(gl_FragCoord.x) && sy == int(gl_FragCoord.y)) continue;
+                if (sx == coord.x && sy == coord.y) continue;
                 
-                vec4 otherState1 = texelFetch(stateTex1, ivec2(sx, sy), 0);
-                vec2 otherPos = otherState1.xy;
-                vec2 otherVel = otherState1.zw;
+                vec4 otherXyz = texelFetch(xyzTex, ivec2(sx, sy), 0);
+                vec4 otherVel = texelFetch(velTex, ivec2(sx, sy), 0);
+                
+                // Skip dead agents
+                if (otherXyz.w < 0.5) continue;
+                
+                vec2 otherPos = otherXyz.xy * resolution;
+                vec2 otherVelocity = otherVel.xy;
                 
                 // Calculate distance (with wrapping if needed)
                 vec2 diff = otherPos - pos;
@@ -207,13 +216,13 @@ void main() {
                 if (distSq < separationSq && distSq > 0.0) {
                     vec2 away = -diff;
                     float dist = sqrt(distSq);
-                    separationForce += away / dist;  // Weight by inverse distance
+                    separationForce += away / dist;
                     separationCount++;
                 }
                 
                 // Alignment and Cohesion (perception radius)
                 if (distSq < perceptionSq && distSq > 0.0) {
-                    alignmentSum += otherVel;
+                    alignmentSum += otherVelocity;
                     alignmentCount++;
                     
                     cohesionSum += otherPos;
@@ -231,7 +240,7 @@ void main() {
         separationForce /= float(separationCount);
         if (length(separationForce) > 0.0) {
             separationForce = setMag(separationForce, maxSpeed);
-            separationForce -= vel;
+            separationForce -= velocity;
             separationForce = limitVec(separationForce, maxForce);
             steer += separationForce * separation;
         }
@@ -242,7 +251,7 @@ void main() {
         vec2 avgVel = alignmentSum / float(alignmentCount);
         if (length(avgVel) > 0.0) {
             avgVel = setMag(avgVel, maxSpeed);
-            vec2 alignSteer = avgVel - vel;
+            vec2 alignSteer = avgVel - velocity;
             alignSteer = limitVec(alignSteer, maxForce);
             steer += alignSteer * alignment;
         }
@@ -254,7 +263,7 @@ void main() {
         vec2 desired = avgPos - pos;
         if (length(desired) > 0.0) {
             desired = setMag(desired, maxSpeed);
-            vec2 cohesionSteer = desired - vel;
+            vec2 cohesionSteer = desired - velocity;
             cohesionSteer = limitVec(cohesionSteer, maxForce);
             steer += cohesionSteer * cohesion;
         }
@@ -290,23 +299,29 @@ void main() {
     }
     
     // Apply steering and update velocity
-    vel += steer;
-    vel = limitVec(vel, maxSpeed);
+    velocity += steer;
+    velocity = limitVec(velocity, maxSpeed);
     
     // Update position
-    pos += vel;
+    pos += velocity;
     
     // Boundary wrap
     if (boundaryMode == 0) {
         pos = wrapPosition(pos, resolution);
     } else {
-        // Clamp to bounds for soft wall mode
         pos = clamp(pos, vec2(1.0), resolution - vec2(1.0));
     }
     
     // Update age
-    age += 0.016;  // ~60fps time step
+    age += 0.016;
     
-    outState1 = vec4(pos, vel);
-    outState2 = vec4(color, age);
+    // === END ORIGINAL ALGORITHM ===
+    
+    // Convert back to normalized coords
+    float newPx = pos.x / resolution.x;
+    float newPy = pos.y / resolution.y;
+    
+    outXYZ = vec4(newPx, newPy, xyz.z, 1.0);
+    outVel = vec4(velocity, age, seed);
+    outRGBA = rgba;
 }

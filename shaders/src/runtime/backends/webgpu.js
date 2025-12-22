@@ -1610,6 +1610,9 @@ export class WebGPUBackend extends Backend {
                 const surfaceName = this.parseGlobalName(texId)
 
                 if (surfaceName) {
+                    // Global surface - use the current read texture from state
+                    // The pipeline handles ping-pong via updateFrameSurfaceBindings,
+                    // which swaps read/write pointers after each pass writes.
                     const surfaceObj = state.surfaces?.[surfaceName]
                     textureView = surfaceObj?.view
                 } else {
@@ -2036,6 +2039,8 @@ export class WebGPUBackend extends Backend {
                 } else {
                     const surfaceName = this.parseGlobalName(texId)
                     if (surfaceName) {
+                        // Global surface - use the current read texture from state
+                        // The pipeline handles ping-pong via updateFrameSurfaceBindings
                         textureView = state.surfaces?.[surfaceName]?.view
                     } else {
                         textureView = this.textures.get(texId)?.view

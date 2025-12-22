@@ -2,24 +2,29 @@
 precision highp float;
 precision highp int;
 
+// Standard uniforms
 uniform vec2 resolution;
-uniform sampler2D stateTex1;
-uniform sampler2D stateTex2;
-uniform sampler2D stateTex3;
-uniform sampler2D inputTex;
+uniform float time;
+
+// Hflow parameters
 uniform float stride;
 uniform float quantize;
-uniform float time;
 uniform float inverse;
 uniform float attrition;
 uniform float inputWeight;
-uniform bool resetState;
 
-layout(location = 0) out vec4 outState1;
-layout(location = 1) out vec4 outState2;
-layout(location = 2) out vec4 outState3;
+// Input state from pipeline (from pointsEmitter)
+uniform sampler2D inputTex;  // Source texture for gradient descent
+uniform sampler2D xyzTex;    // [x, y, z, alive]
+uniform sampler2D velTex;    // [x_dir, y_dir, inertia, 0]
+uniform sampler2D rgbaTex;   // [r, g, b, a]
 
-const float TAU = 6.283185307179586;
+// Output state (MRT)
+layout(location = 0) out vec4 outXYZ;
+layout(location = 1) out vec4 outVel;
+layout(location = 2) out vec4 outRGBA;
+
+// === ORIGINAL HFLOW HELPER FUNCTIONS (PRESERVED EXACTLY) ===
 
 vec2 hash2(uint seed) {
     uint state = seed * 747796405u + 2891336453u;
@@ -78,38 +83,54 @@ float luminance_at(int x, int y, int width, int height) {
     return oklab_l(texel.xyz);
 }
 
+// === END ORIGINAL HELPER FUNCTIONS ===
+
 void main() {
-    ivec2 stateSize = textureSize(stateTex1, 0);
-    ivec2 coord = ivec2(clamp(gl_FragCoord.xy, vec2(0.0), vec2(stateSize) - vec2(1.0)));
-    vec4 state1 = texelFetch(stateTex1, coord, 0);
-    vec4 state2 = texelFetch(stateTex2, coord, 0);
-    vec4 state3 = texelFetch(stateTex3, coord, 0);
-
-    float x = state1.x;
-    float y = state1.y;
-    float x_dir = state1.z;
-    float y_dir = state1.w;
-    float cr = state2.r;
-    float cg = state2.g;
-    float cb = state2.b;
-    float inertia = state2.w;
-    float age = state3.x;
-
+    ivec2 coord = ivec2(gl_FragCoord.xy);
+    ivec2 stateSize = textureSize(xyzTex, 0);
+    
+    // Read input state from pipeline
+    vec4 xyz = texelFetch(xyzTex, coord, 0);
+    vec4 vel = texelFetch(velTex, coord, 0);
+    vec4 rgba = texelFetch(rgbaTex, coord, 0);
+    
+    // Extract components
+    // xyz stores normalized coords [0,1], convert to pixel coords for algorithm
+    float px = xyz.x;  // normalized x
+    float py = xyz.y;  // normalized y
+    float alive = xyz.w;
+    
+    // vel stores: [x_dir, y_dir, inertia, 0]
+    float x_dir = vel.x;
+    float y_dir = vel.y;
+    float inertia = vel.z;
+    
+    // Color from rgba
+    float cr = rgba.r;
+    float cg = rgba.g;
+    float cb = rgba.b;
+    
     int width = int(resolution.x);
     int height = int(resolution.y);
     
-    uint agent_id = uint(coord.y * stateSize.x + coord.x);
-    uint total_agents = uint(stateSize.x * stateSize.y);
-
-    // Initialization: detect uninitialized state (all zeros) or reset requested
-    bool needs_init = (x == 0.0 && y == 0.0 && x_dir == 0.0 && y_dir == 0.0) || resetState;
-    if (needs_init) {
-        // Initialize agent at random position
-        vec2 pos = hash2(agent_id);
-        x = pos.x * resolution.x;
-        y = pos.y * resolution.y;
-        
-        // Random direction
+    uint agent_id = uint(coord.x + coord.y * stateSize.x);
+    
+    // Convert normalized to pixel coords for the algorithm
+    float x = px * resolution.x;
+    float y = py * resolution.y;
+    
+    // If not alive, pass through unchanged
+    if (alive < 0.5) {
+        outXYZ = xyz;
+        outVel = vel;
+        outRGBA = rgba;
+        return;
+    }
+    
+    // Initialize inertia on first use (if zero from pointsEmitter)
+    if (inertia == 0.0) {
+        inertia = 0.7 + hash2(agent_id + 99999u).x * 0.3;
+        // Initialize random direction
         vec2 dir_raw = hash2(agent_id + 12345u) * 2.0 - 1.0;
         float dir_len = length(dir_raw);
         if (dir_len > 1e-5) {
@@ -119,68 +140,30 @@ void main() {
             x_dir = 1.0;
             y_dir = 0.0;
         }
-        
-        // Sample initial color from input
-        int init_xi = wrap_int(int(floor(x)), width);
-        int init_yi = wrap_int(int(floor(y)), height);
-        vec4 init_sample = texelFetch(inputTex, ivec2(init_xi, init_yi), 0);
-        cr = init_sample.x;
-        cg = init_sample.y;
-        cb = init_sample.z;
-        
-        inertia = 0.7 + hash2(agent_id + 99999u).x * 0.3;
-        age = 0.0;
-        
-        outState1 = vec4(x, y, x_dir, y_dir);
-        outState2 = vec4(cr, cg, cb, inertia);
-        outState3 = vec4(age, 0.0, 0.0, 0.0);
-        return;
     }
     
-    // Respawn logic using attrition (percentage of agents respawning per frame)
-    // Use robust hashing to avoid correlation between selection and position
-    uint time_seed = uint(time * 60.0);
-    uint check_seed = agent_id + time_seed * 747796405u;
-    float respawn_rand = hash2(check_seed).x;
-    float attrition_rate = attrition * 0.01;  // Convert 0-10% to 0-0.1
-    bool respawn_check = attrition > 0.0 && respawn_rand < attrition_rate;
-    
-    bool needs_initial_color = age < 0.0;
-    if (needs_initial_color) {
-        int init_xi = wrap_int(int(floor(x)), width);
-        int init_yi = wrap_int(int(floor(y)), height);
-        vec4 init_sample = texelFetch(inputTex, ivec2(init_xi, init_yi), 0);
-        cr = init_sample.x;
-        cg = init_sample.y;
-        cb = init_sample.z;
-        age = 0.0;
-    }
-    
-    if (respawn_check) {
-        uint seed = check_seed ^ 2891336453u;
-        vec2 pos = hash2(seed);
-        x = pos.x * resolution.x;
-        y = pos.y * resolution.y;
-        int spawn_xi = wrap_int(int(floor(x)), width);
-        int spawn_yi = wrap_int(int(floor(y)), height);
-        vec4 spawn_sample = texelFetch(inputTex, ivec2(spawn_xi, spawn_yi), 0);
-        cr = spawn_sample.x;
-        cg = spawn_sample.y;
-        cb = spawn_sample.z;
-        age = 0.0;
-        uint dir_seed = seed + 12345u;
-        vec2 dir_raw = hash2(dir_seed) * 2.0 - 1.0;
-        float dir_len = length(dir_raw);
-        if (dir_len > 1e-5) {
-            x_dir = dir_raw.x / dir_len;
-            y_dir = dir_raw.y / dir_len;
-        } else {
-            x_dir = 1.0;
-            y_dir = 0.0;
+    // Respawn check (attrition)
+    bool needsRespawn = false;
+    if (attrition > 0.0) {
+        uint time_seed = uint(time * 60.0);
+        uint check_seed = agent_id + time_seed * 747796405u;
+        float respawn_rand = hash2(check_seed).x;
+        float attrition_rate = attrition * 0.01;
+        if (respawn_rand < attrition_rate) {
+            needsRespawn = true;
         }
     }
+    
+    if (needsRespawn) {
+        // Signal respawn by setting alive flag to 0
+        outXYZ = vec4(px, py, xyz.z, 0.0);
+        outVel = vec4(x_dir, y_dir, inertia, 0.0);
+        outRGBA = rgba;
+        return;
+    }
 
-    // Gradient descent
+    // === ORIGINAL GRADIENT DESCENT ALGORITHM (PRESERVED EXACTLY) ===
+    
     int xi = wrap_int(int(floor(x)), width);
     int yi = wrap_int(int(floor(y)), height);
     int x1i = wrap_int(xi + 1, width);
@@ -196,6 +179,12 @@ void main() {
     
     float gx = mix(c01 - c00, c11 - c10, u);
     float gy = mix(c10 - c00, c11 - c01, v);
+    
+    // Apply inverse if requested
+    if (inverse > 0.5) {
+        gx = -gx;
+        gy = -gy;
+    }
     
     if (quantize > 0.5) {
         gx = floor(gx);
@@ -223,8 +212,14 @@ void main() {
     
     x = wrap_float(x + x_dir, resolution.x);
     y = wrap_float(y + y_dir, resolution.y);
-
-    outState1 = vec4(x, y, x_dir, y_dir);
-    outState2 = vec4(cr, cg, cb, inertia);
-    outState3 = vec4(max(age, 0.0), 0.0, 0.0, 0.0);
+    
+    // === END ORIGINAL ALGORITHM ===
+    
+    // Convert back to normalized coords
+    float newPx = x / resolution.x;
+    float newPy = y / resolution.y;
+    
+    outXYZ = vec4(newPx, newPy, xyz.z, 1.0);
+    outVel = vec4(x_dir, y_dir, inertia, 0.0);
+    outRGBA = rgba;
 }

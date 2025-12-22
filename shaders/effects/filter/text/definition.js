@@ -30,12 +30,12 @@ export default class Text extends Effect {
             type: "string",
             default: "Nunito",
             choices: {
-                "Nunito": "Nunito",
-                "sans-serif": "sans-serif",
-                "serif": "serif",
-                "monospace": "monospace",
-                "cursive": "cursive",
-                "fantasy": "fantasy"
+                nunito: "Nunito",
+                sansSerif: "sans-serif",
+                serif: "serif",
+                monospace: "monospace",
+                cursive: "cursive",
+                fantasy: "fantasy"
             },
             ui: {
                 control: "dropdown",

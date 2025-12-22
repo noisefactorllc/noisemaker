@@ -80,6 +80,9 @@ export function expand(compilationResult, options = {}) {
         let currentInput = null      // 2D pipeline texture
         let currentInput3d = null    // 3D pipeline texture (for volumetric effects)
         let currentInputGeo = null   // Geometry buffer texture (normals + depth)
+        let currentInputXyz = null   // Agent position texture (for particle effects)
+        let currentInputVel = null   // Agent velocity texture (for particle effects)
+        let currentInputRgba = null  // Agent color texture (for particle effects)
         let lastInlineWriteTarget = null  // Track the last inline write target to avoid redundant final blit
 
         // Pipeline uniforms accumulate from upstream effects for downstream consumption
@@ -343,23 +346,37 @@ export function expand(compilationResult, options = {}) {
             const isGlobalTexture = (texName) => texName.startsWith('global')
 
             // Collect texture specs from effect definition
-            // Textures starting with 'global' get the global_ prefix for double-buffering
+            // Textures starting with 'global_' (underscore) are SHARED and don't get node prefix
+            // Textures starting with 'global' (camelCase) are per-node and get prefixed
             if (effectDef.textures) {
                 for (const [texName, spec] of Object.entries(effectDef.textures)) {
-                    const virtualTexId = isGlobalTexture(texName)
-                        ? `global_${nodeId}_${texName}`  // Use global_ prefix for double-buffering
-                        : `${nodeId}_${texName}`
+                    let virtualTexId
+                    if (texName.startsWith('global_')) {
+                        // Shared global texture - use as-is, no node prefix
+                        virtualTexId = texName
+                    } else if (isGlobalTexture(texName)) {
+                        // Per-node global texture - add node prefix for double-buffering
+                        virtualTexId = `global_${nodeId}_${texName}`
+                    } else {
+                        virtualTexId = `${nodeId}_${texName}`
+                    }
                     textureSpecs[virtualTexId] = { ...spec }
                 }
             }
 
             // Collect 3D texture specs from effect definition
             // 3D textures are used for volumetric data and caching
+            // Same naming convention: global_ prefix = shared, globalCamelCase = per-node
             if (effectDef.textures3d) {
                 for (const [texName, spec] of Object.entries(effectDef.textures3d)) {
-                    const virtualTexId = isGlobalTexture(texName)
-                        ? `global_${nodeId}_${texName}`
-                        : `${nodeId}_${texName}`
+                    let virtualTexId
+                    if (texName.startsWith('global_')) {
+                        virtualTexId = texName
+                    } else if (isGlobalTexture(texName)) {
+                        virtualTexId = `global_${nodeId}_${texName}`
+                    } else {
+                        virtualTexId = `${nodeId}_${texName}`
+                    }
                     textureSpecs[virtualTexId] = { ...spec, is3D: true }
                 }
             }
@@ -412,13 +429,17 @@ export function expand(compilationResult, options = {}) {
             // (e.g., noise3d(volumeSize: x32) should set volumeSize=32 in the pipeline)
             // Track uniforms controlled by colorModeUniform so we don't overwrite them
             const colorModeControlledUniforms = new Set()
+
+            // FIRST PASS: Process surface args to populate colorModeControlledUniforms
+            // This must happen before other args are processed to prevent colorMode from
+            // being set to its default before we know if a surface is provided
             if (step.args) {
                 for (const [argName, arg] of Object.entries(step.args)) {
                     const isObjectArg = arg !== null && typeof arg === 'object'
 
                     // Handle surface arguments that may resolve to 'none'
                     // If the global has a colorModeUniform, set it based on whether surface is 'none'
-                    if (isObjectArg && (arg.kind === 'temp' || arg.kind === 'output' || arg.kind === 'source' || arg.kind === 'feedback')) {
+                    if (isObjectArg && (arg.kind === 'temp' || arg.kind === 'output' || arg.kind === 'source' || arg.kind === 'feedback' || arg.kind === 'xyz' || arg.kind === 'vel' || arg.kind === 'rgba')) {
                         // Check if this global has a colorModeUniform property
                         const globalDef = effectDef.globals?.[argName]
                         if (globalDef?.colorModeUniform) {
@@ -427,6 +448,17 @@ export function expand(compilationResult, options = {}) {
                             pipelineUniforms[globalDef.colorModeUniform] = isNone ? 0 : 1
                             colorModeControlledUniforms.add(globalDef.colorModeUniform)
                         }
+                    }
+                }
+            }
+
+            // SECOND PASS: Process non-surface args
+            if (step.args) {
+                for (const [argName, arg] of Object.entries(step.args)) {
+                    const isObjectArg = arg !== null && typeof arg === 'object'
+
+                    // Skip surface arguments (already processed in first pass)
+                    if (isObjectArg && (arg.kind === 'temp' || arg.kind === 'output' || arg.kind === 'source' || arg.kind === 'feedback' || arg.kind === 'xyz' || arg.kind === 'vel' || arg.kind === 'rgba')) {
                         continue
                     }
 
@@ -472,6 +504,7 @@ export function expand(compilationResult, options = {}) {
                     program: programName,
                     entryPoint: passDef.entryPoint,  // For multi-entry-point compute shaders
                     drawMode: passDef.drawMode,
+                    drawBuffers: passDef.drawBuffers,  // For MRT (Multiple Render Targets)
                     count: passDef.count,
                     repeat: passDef.repeat,  // Number of iterations per frame
                     blend: passDef.blend,
@@ -521,7 +554,7 @@ export function expand(compilationResult, options = {}) {
                         const isObjectArg = arg !== null && typeof arg === 'object'
 
                         // Skip texture arguments (handled in inputs)
-                        if (isObjectArg && (arg.kind === 'temp' || arg.kind === 'output' || arg.kind === 'source' || arg.kind === 'feedback')) {
+                        if (isObjectArg && (arg.kind === 'temp' || arg.kind === 'output' || arg.kind === 'source' || arg.kind === 'feedback' || arg.kind === 'xyz' || arg.kind === 'vel' || arg.kind === 'rgba')) {
                             continue
                         }
 
@@ -565,6 +598,30 @@ export function expand(compilationResult, options = {}) {
                     }
                 }
 
+                // Map pass-level uniforms from effect definition
+                // Pattern: uniforms: { uniformName: "globalParamName" }
+                // This ensures specific passes get the uniforms they need from globals
+                if (passDef.uniforms) {
+                    for (const [uniformName, globalRef] of Object.entries(passDef.uniforms)) {
+                        // globalRef is the name of the global parameter
+                        // Look up the value from pipelineUniforms (includes defaults and DSL args)
+                        if (pipelineUniforms[uniformName] !== undefined) {
+                            pass.uniforms[uniformName] = pipelineUniforms[uniformName]
+                        } else if (effectDef.globals && effectDef.globals[globalRef]) {
+                            // Try looking up by the global param name and use its default
+                            const globalDef = effectDef.globals[globalRef]
+                            if (globalDef.default !== undefined) {
+                                let val = globalDef.default
+                                if (globalDef.type === 'member' && typeof val === 'string') {
+                                    const resolved = resolveEnum(val)
+                                    if (resolved !== null) val = resolved
+                                }
+                                pass.uniforms[uniformName] = val
+                            }
+                        }
+                    }
+                }
+
                 // Map Inputs
                 if (passDef.inputs) {
                     for (const [uniformName, texRef] of Object.entries(passDef.inputs)) {
@@ -579,6 +636,11 @@ export function expand(compilationResult, options = {}) {
                         // Handle geometry buffer pipeline input
                         const isPipelineInputGeo = texRef === 'inputGeo'
 
+                        // Handle agent state pipeline inputs
+                        const isPipelineInputXyz = texRef === 'inputXyz'
+                        const isPipelineInputVel = texRef === 'inputVel'
+                        const isPipelineInputRgba = texRef === 'inputRgba'
+
                         if (isPipelineInput) {
                             pass.inputs[uniformName] = currentInput || texRef
                         } else if (isPipelineInput3d) {
@@ -587,6 +649,15 @@ export function expand(compilationResult, options = {}) {
                         } else if (isPipelineInputGeo) {
                             // Geometry buffer pipeline input - look for geo output from previous node
                             pass.inputs[uniformName] = currentInputGeo || texRef
+                        } else if (isPipelineInputXyz) {
+                            // Agent position pipeline input
+                            pass.inputs[uniformName] = currentInputXyz || texRef
+                        } else if (isPipelineInputVel) {
+                            // Agent velocity pipeline input
+                            pass.inputs[uniformName] = currentInputVel || texRef
+                        } else if (isPipelineInputRgba) {
+                            // Agent color pipeline input
+                            pass.inputs[uniformName] = currentInputRgba || texRef
                         } else if (texRef === 'noise') {
                             pass.inputs[uniformName] = 'global_noise'
                         } else if (texRef === 'feedback' || texRef === 'selfTex') {
@@ -645,6 +716,27 @@ export function expand(compilationResult, options = {}) {
                                 } else {
                                     pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_geo0
                                 }
+                            } else if (arg.kind === 'xyz') {
+                                // Agent position surfaces (xyz0-xyz7)
+                                if (arg.name === 'none') {
+                                    pass.inputs[uniformName] = 'none'
+                                } else {
+                                    pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_xyz0
+                                }
+                            } else if (arg.kind === 'vel') {
+                                // Agent velocity surfaces (vel0-vel7)
+                                if (arg.name === 'none') {
+                                    pass.inputs[uniformName] = 'none'
+                                } else {
+                                    pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_vel0
+                                }
+                            } else if (arg.kind === 'rgba') {
+                                // Agent color surfaces (rgba0-rgba7)
+                                if (arg.name === 'none') {
+                                    pass.inputs[uniformName] = 'none'
+                                } else {
+                                    pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_rgba0
+                                }
                             } else if (typeof arg === 'string') {
                                 // "none" binds to blank/default texture
                                 if (arg === 'none') {
@@ -656,6 +748,12 @@ export function expand(compilationResult, options = {}) {
                                 } else if (/^vol[0-7]$/.test(arg)) {
                                     pass.inputs[uniformName] = `global_${arg}`
                                 } else if (/^geo[0-7]$/.test(arg)) {
+                                    pass.inputs[uniformName] = `global_${arg}`
+                                } else if (/^xyz[0-7]$/.test(arg)) {
+                                    pass.inputs[uniformName] = `global_${arg}`
+                                } else if (/^vel[0-7]$/.test(arg)) {
+                                    pass.inputs[uniformName] = `global_${arg}`
+                                } else if (/^rgba[0-7]$/.test(arg)) {
                                     pass.inputs[uniformName] = `global_${arg}`
                                 } else {
                                     pass.inputs[uniformName] = arg
@@ -674,6 +772,12 @@ export function expand(compilationResult, options = {}) {
                             } else if (/^vol[0-7]$/.test(defaultVal)) {
                                 pass.inputs[uniformName] = `global_${defaultVal}`
                             } else if (/^geo[0-7]$/.test(defaultVal)) {
+                                pass.inputs[uniformName] = `global_${defaultVal}`
+                            } else if (/^xyz[0-7]$/.test(defaultVal)) {
+                                pass.inputs[uniformName] = `global_${defaultVal}`
+                            } else if (/^vel[0-7]$/.test(defaultVal)) {
+                                pass.inputs[uniformName] = `global_${defaultVal}`
+                            } else if (/^rgba[0-7]$/.test(defaultVal)) {
                                 pass.inputs[uniformName] = `global_${defaultVal}`
                             } else if (defaultVal.startsWith('global_')) {
                                 pass.inputs[uniformName] = defaultVal
@@ -723,12 +827,33 @@ export function expand(compilationResult, options = {}) {
                             // This is the main 3D output of this node (for volumetric effects)
                             virtualTex = `${nodeId}_out3d`
                             textureMap.set(`${nodeId}_out3d`, virtualTex) // Register 3D output
+                        } else if (texRef === 'outputXyz') {
+                            // Agent position output for this node
+                            virtualTex = `${nodeId}_outXyz`
+                            textureMap.set(`${nodeId}_outXyz`, virtualTex)
+                        } else if (texRef === 'outputVel') {
+                            // Agent velocity output for this node
+                            virtualTex = `${nodeId}_outVel`
+                            textureMap.set(`${nodeId}_outVel`, virtualTex)
+                        } else if (texRef === 'outputRgba') {
+                            // Agent color output for this node
+                            virtualTex = `${nodeId}_outRgba`
+                            textureMap.set(`${nodeId}_outRgba`, virtualTex)
                         } else if (texRef === 'inputTex3d') {
                             // Pipeline reference - write back to the 3D texture we received
                             virtualTex = currentInput3d || `${nodeId}_inputTex3d`
                         } else if (texRef === 'inputGeo') {
                             // Pipeline reference - write back to the geo texture we received
                             virtualTex = currentInputGeo || `${nodeId}_inputGeo`
+                        } else if (texRef === 'inputXyz') {
+                            // Pipeline reference - write back to the agent position texture we received
+                            virtualTex = currentInputXyz || `${nodeId}_inputXyz`
+                        } else if (texRef === 'inputVel') {
+                            // Pipeline reference - write back to the agent velocity texture we received
+                            virtualTex = currentInputVel || `${nodeId}_inputVel`
+                        } else if (texRef === 'inputRgba') {
+                            // Pipeline reference - write back to the agent color texture we received
+                            virtualTex = currentInputRgba || `${nodeId}_inputRgba`
                         } else if (texRef.startsWith('global_')) {
                             virtualTex = texRef
                         } else if (texRef.startsWith('feedback_')) {
@@ -748,10 +873,52 @@ export function expand(compilationResult, options = {}) {
 
             // Update currentInput for the next step in the chain
             currentInput = textureMap.get(`${nodeId}_out`)
+
+            // Check if the effect definition declares an explicit outputTex property.
+            // This allows effects to pass through the 2D chain without producing new output.
+            // Same pattern as outputTex3d: "inputTex3d" for 3D passthrough.
+            if (effectDef.outputTex && !currentInput) {
+                const internalTexName = effectDef.outputTex
+                // If outputTex is "inputTex", pass through the 2D texture from previous node
+                if (internalTexName === 'inputTex') {
+                    // currentInput from step.from already points to the input texture
+                    // Restore it from the previous node's output
+                    if (step.from !== null) {
+                        const prevNodeId = `node_${step.from}`
+                        const prevOutput = textureMap.get(`${prevNodeId}_out`)
+                        if (prevOutput) {
+                            textureMap.set(`${nodeId}_out`, prevOutput)
+                            currentInput = prevOutput
+                        }
+                    }
+                } else {
+                    // Map an internal texture to the 2D pipeline
+                    const isGlobalTex = internalTexName.startsWith('global')
+                    const virtualTexId = isGlobalTex
+                        ? `global_${nodeId}_${internalTexName}`
+                        : `${nodeId}_${internalTexName}`
+                    textureMap.set(`${nodeId}_out`, virtualTexId)
+                    currentInput = virtualTexId
+                }
+            }
+
             // Update currentInput3d if this node produced a 3D output
             const out3d = textureMap.get(`${nodeId}_out3d`)
             if (out3d) {
                 currentInput3d = out3d
+            }
+            // Update agent state pipeline textures if this node produced them
+            const outXyz = textureMap.get(`${nodeId}_outXyz`)
+            if (outXyz) {
+                currentInputXyz = outXyz
+            }
+            const outVel = textureMap.get(`${nodeId}_outVel`)
+            if (outVel) {
+                currentInputVel = outVel
+            }
+            const outRgba = textureMap.get(`${nodeId}_outRgba`)
+            if (outRgba) {
+                currentInputRgba = outRgba
             }
 
             // Check if the effect definition declares an explicit outputTex3d property.
@@ -794,6 +961,48 @@ export function expand(compilationResult, options = {}) {
                     const virtualGeoId = `${nodeId}_${geoTexName}`
                     textureMap.set(`${nodeId}_outGeo`, virtualGeoId)
                     currentInputGeo = virtualGeoId
+                }
+            }
+
+            // Check if the effect definition declares explicit agent state output properties.
+            // This allows effects to expose internal textures as agent state outputs.
+            if (effectDef.outputXyz && !outXyz) {
+                const texName = effectDef.outputXyz
+                if (texName === 'inputXyz') {
+                    if (currentInputXyz) {
+                        textureMap.set(`${nodeId}_outXyz`, currentInputXyz)
+                    }
+                } else {
+                    const isGlobalTex = texName.startsWith('global')
+                    const virtualId = isGlobalTex ? `global_${nodeId}_${texName}` : `${nodeId}_${texName}`
+                    textureMap.set(`${nodeId}_outXyz`, virtualId)
+                    currentInputXyz = virtualId
+                }
+            }
+            if (effectDef.outputVel && !outVel) {
+                const texName = effectDef.outputVel
+                if (texName === 'inputVel') {
+                    if (currentInputVel) {
+                        textureMap.set(`${nodeId}_outVel`, currentInputVel)
+                    }
+                } else {
+                    const isGlobalTex = texName.startsWith('global')
+                    const virtualId = isGlobalTex ? `global_${nodeId}_${texName}` : `${nodeId}_${texName}`
+                    textureMap.set(`${nodeId}_outVel`, virtualId)
+                    currentInputVel = virtualId
+                }
+            }
+            if (effectDef.outputRgba && !outRgba) {
+                const texName = effectDef.outputRgba
+                if (texName === 'inputRgba') {
+                    if (currentInputRgba) {
+                        textureMap.set(`${nodeId}_outRgba`, currentInputRgba)
+                    }
+                } else {
+                    const isGlobalTex = texName.startsWith('global')
+                    const virtualId = isGlobalTex ? `global_${nodeId}_${texName}` : `${nodeId}_${texName}`
+                    textureMap.set(`${nodeId}_outRgba`, virtualId)
+                    currentInputRgba = virtualId
                 }
             }
         }

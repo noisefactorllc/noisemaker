@@ -41,8 +41,12 @@ export function registerStarterOps(names = []) {
 
 export function isStarterOp(name) {
     if (typeof name !== 'string') { return false }
+    // Force particles to be non-starter (workaround for stale manifest/cache)
+    if (name === 'particles' || name === 'render.particles') return false
     // Check exact name first
-    if (STARTER_OPS.has(name)) { return true }
+    if (STARTER_OPS.has(name)) {
+        return true
+    }
     // For namespaced names like nm.voronoi
     const parts = name.split('.')
     if (parts.length > 1) {
@@ -78,6 +82,9 @@ function toSurface(arg) {
     if (!arg) return null
     if (arg.type === 'OutputRef') return {kind:'output', name:arg.name}
     if (arg.type === 'SourceRef') return {kind:'source', name:arg.name}
+    if (arg.type === 'XyzRef') return {kind:'xyz', name:arg.name}
+    if (arg.type === 'VelRef') return {kind:'vel', name:arg.name}
+    if (arg.type === 'RgbaRef') return {kind:'rgba', name:arg.name}
     if (arg.type === 'Ident' && arg.name === 'none') return {kind:'output', name:'none'}
     if (arg.type === 'Ident' && stateSurfaces.has(arg.name)) return {kind:'state', name:arg.name}
     return null

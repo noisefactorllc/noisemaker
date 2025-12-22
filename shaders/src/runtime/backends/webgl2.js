@@ -859,7 +859,9 @@ export class WebGL2Backend extends Backend {
             let texture
             const globalName = this.parseGlobalName(texId)
             if (globalName) {
-                // Global surface
+                // Global surface - use the current read texture from state
+                // The pipeline handles ping-pong via updateFrameSurfaceBindings,
+                // which swaps read/write pointers after each pass writes.
                 texture = state.surfaces?.[globalName]?.handle
             } else {
                 texture = this.textures.get(texId)?.handle

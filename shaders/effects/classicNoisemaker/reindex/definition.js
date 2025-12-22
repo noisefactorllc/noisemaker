@@ -29,7 +29,7 @@ export default new Effect({
     statsTiles: {
       format: "rgba16f"
     },
-    globalStats: {
+    global_stats: {
       width: 1,
       height: 1,
       format: "rgba16f"
@@ -53,7 +53,7 @@ export default new Effect({
         statsTex: "statsTiles"
       },
       outputs: {
-        color: "globalStats"
+        color: "global_stats"
       }
     },
     {
@@ -61,7 +61,7 @@ export default new Effect({
       program: "nmReindexApply",
       inputs: {
         inputTex: "inputTex",
-        statsTex: "globalStats"
+        statsTex: "global_stats"
       },
       outputs: {
         color: "outputTex"

@@ -1012,16 +1012,50 @@ export class Pipeline {
     }
 
     /**
-     * Swap double-buffered surfaces
+     * Swap double-buffered surfaces at end of frame.
+     *
+     * For state surfaces (xyz, vel, rgba, trail), we DON'T swap - we persist
+     * the frame's final read/write bindings so particles continue from where they left off.
+     *
+     * For display surfaces (o0-o7), we swap so the next frame renders fresh.
      */
     swapBuffers() {
-        for (const surface of this.surfaces.values()) {
+        // Check if a surface name is a state surface that should persist
+        const isStateSurface = (name) => {
+            // Exact matches
+            if (name === 'xyz' || name === 'vel' || name === 'rgba' || name === 'trail') {
+                return true
+            }
+            // Suffix matches for namespaced surfaces (e.g., points_trail, flow_trail)
+            if (name.endsWith('_xyz') || name.endsWith('_vel') ||
+                name.endsWith('_rgba') || name.endsWith('_trail')) {
+                return true
+            }
+            // State texture patterns
+            if (name.includes('state') || name.includes('State')) {
+                return true
+            }
+            return false
+        }
+
+        for (const [name, surface] of this.surfaces.entries()) {
             surface.currentFrame = this.frameIndex
 
-            // Swap read/write pointers
-            const temp = surface.read
-            surface.read = surface.write
-            surface.write = temp
+            if (isStateSurface(name)) {
+                // State surfaces: persist the frame's final bindings
+                const finalRead = this.frameReadTextures?.get(name)
+                const finalWrite = this.frameWriteTextures?.get(name)
+
+                if (finalRead && finalWrite) {
+                    surface.read = finalRead
+                    surface.write = finalWrite
+                }
+            } else {
+                // Display surfaces: normal swap
+                const temp = surface.read
+                surface.read = surface.write
+                surface.write = temp
+            }
         }
     }
 
@@ -1107,6 +1141,8 @@ export class Pipeline {
 
     /**
      * Update frame-local surface bindings after a pass writes to a global surface.
+     * This implements within-frame ping-pong: after a pass writes to a surface,
+     * subsequent passes will read from that write buffer, and write to the other buffer.
      */
     updateFrameSurfaceBindings(pass, state) {
         if (!pass.outputs) return
@@ -1117,13 +1153,21 @@ export class Pipeline {
             // Handle global surface writes (both global_ and globalName patterns)
             const surfaceName = this.parseGlobalName(outputName)
             if (surfaceName) {
-                if (!this.frameReadTextures) continue
+                if (!this.frameReadTextures || !this.frameWriteTextures) continue
 
                 const writeId = state.writeSurfaces?.[surfaceName]
                 if (!writeId) continue
 
+                // Get the current read texture (will become the new write target)
+                const currentReadId = this.frameReadTextures.get(surfaceName)
+
                 // Subsequent passes in this frame should sample the freshly written texture
                 this.frameReadTextures.set(surfaceName, writeId)
+
+                // And write to the buffer we were just reading from (ping-pong)
+                if (currentReadId) {
+                    this.frameWriteTextures.set(surfaceName, currentReadId)
+                }
             }
         }
     }
@@ -1176,7 +1220,17 @@ export async function createPipeline(graph, options = {}) {
     // Determine backend
     if (options.preferWebGPU && await WebGPUBackend.isAvailable()) {
         const adapter = await navigator.gpu.requestAdapter()
-        const device = await adapter.requestDevice()
+        // Request higher limits for MRT with high-precision textures
+        // Default maxColorAttachmentBytesPerSample is 32, but we need 40+
+        // for 2x RGBA32Float (16 bytes each) + RGBA8Unorm (4 bytes) = 40 bytes
+        const device = await adapter.requestDevice({
+            requiredLimits: {
+                maxColorAttachmentBytesPerSample: Math.min(
+                    adapter.limits.maxColorAttachmentBytesPerSample,
+                    128  // Request up to 128 bytes for flexibility
+                )
+            }
+        })
         let context = null
         if (options.canvas) {
             context = options.canvas.getContext('webgpu')

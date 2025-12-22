@@ -2,27 +2,30 @@
 precision highp float;
 precision highp int;
 
+// Common Agent Architecture inputs
+uniform sampler2D xyzTex;      // [x, y, heading, alive] in normalized [0,1]
+uniform sampler2D velTex;      // [0, 0, age, seed]
+uniform sampler2D rgbaTex;     // [r, g, b, a]
+uniform sampler2D trailTex;    // Trail texture for sensor feedback
+uniform sampler2D inputTex;    // Input texture for field attraction
+
 uniform vec2 resolution;
-uniform sampler2D stateTex;
-uniform sampler2D colorTex;
-uniform sampler2D bufTex;
+uniform float time;
 uniform float moveSpeed;
 uniform float turnSpeed;
 uniform float sensorAngle;
-uniform float sensorDistance;
-uniform float time;
-uniform float attrition;
-uniform float density;
+uniform float sensorDistance;  // Now in normalized [0,1] coords
 uniform float inputWeight;
-uniform sampler2D tex;
-uniform bool resetState;
-uniform int spawnPattern;
-uniform int colorMode;  // 0 = mono (white), 1 = sample from inputTex
+uniform float attrition;
 
-layout(location = 0) out vec4 fragColor;
-layout(location = 1) out vec4 outColor;
+// MRT outputs
+layout(location = 0) out vec4 outXYZ;
+layout(location = 1) out vec4 outVel;
+layout(location = 2) out vec4 outRGBA;
 
-// Simple hash function for pseudo-random numbers
+const float TAU = 6.28318530718;
+
+// Hash functions
 uint hash_uint(uint seed) {
     uint state = seed * 747796405u + 2891336453u;
     uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -33,157 +36,131 @@ float hash(uint seed) {
     return float(hash_uint(seed)) / 4294967295.0;
 }
 
-vec2 hash2(uint seed) {
-    return vec2(hash(seed), hash(seed + 1u));
-}
-
-float hash(float n) {
+float hash_f(float n) {
     return fract(sin(n) * 43758.5453123);
 }
 
-vec2 wrapPosition(vec2 position, vec2 bounds) {
-    return mod(position + bounds, bounds);
+// Wrap position to [0,1]
+vec2 wrapPosition(vec2 pos) {
+    return fract(pos + 1.0);  // fract handles negative values correctly with +1
 }
 
 float luminance(vec3 color) {
     return dot(color, vec3(0.2126, 0.7152, 0.0722));
 }
 
-vec3 sampleInputColor(vec2 uv) {
-    // colorMode 0 = mono (no input texture), return white
-    if (colorMode == 0) {
-        return vec3(1.0);
-    }
-    vec2 flippedUV = vec2(uv.x, 1.0 - uv.y);
-    return texture(tex, flippedUV).rgb;
+// Sample trail at normalized UV
+float sampleTrail(vec2 uv) {
+    return luminance(texture(trailTex, uv).rgb);
 }
 
-float sampleExternalField(vec2 uv, float inputWeightVal) {
-    if (inputWeightVal <= 0.0) {
-        return 0.0;
-    }
-    float blend = clamp(inputWeightVal * 0.01, 0.0, 1.0);
-    // Scale to trail-comparable values (trail deposits are ~0.05)
-    // This provides a gentle bias toward bright areas without overwhelming trail signal
-    return luminance(sampleInputColor(uv)) * blend * 0.05;
+// Sample input texture for external field attraction
+float sampleExternalField(vec2 uv, float weight) {
+    if (weight <= 0.0) return 0.0;
+    float blend = clamp(weight * 0.01, 0.0, 1.0);
+    // Flip Y for OpenGL texture convention
+    vec2 flippedUV = vec2(uv.x, 1.0 - uv.y);
+    return luminance(texture(inputTex, flippedUV).rgb) * blend * 0.05;
 }
 
 void main() {
-    ivec2 stateSize = textureSize(stateTex, 0);
-    vec2 uv = (gl_FragCoord.xy + vec2(0.5)) / vec2(stateSize);
-    vec4 agent = texture(stateTex, uv);
-    vec4 agentColor = texture(colorTex, uv);
-    vec2 pos = agent.xy;
-    float heading = agent.z;
-    float age = agent.w;
-
-    // Initialization / Reset
-    if (resetState || (pos.x == 0.0 && pos.y == 0.0 && age == 0.0)) {
-        float agentIndex = gl_FragCoord.y * float(stateSize.x) + gl_FragCoord.x;
-        float seed = time + agentIndex;
-        
-        if (spawnPattern == 1) { // Clusters
-            float clusterId = floor(hash(seed) * 5.0);
-            vec2 center = vec2(hash(clusterId), hash(clusterId + 0.5)) * resolution;
-            float r = hash(seed + 1.0) * min(resolution.x, resolution.y) * 0.15;
-            float a = hash(seed + 2.0) * 6.28318530718;
-            pos = center + vec2(cos(a), sin(a)) * r;
-            heading = hash(seed + 3.0) * 6.28318530718;
-        } else if (spawnPattern == 2) { // Ring
-            vec2 center = resolution * 0.5;
-            float r = min(resolution.x, resolution.y) * 0.35 + (hash(seed) - 0.5) * 20.0;
-            float a = hash(seed + 1.0) * 6.28318530718;
-            pos = center + vec2(cos(a), sin(a)) * r;
-            heading = a + 1.5708; // Tangent
-        } else if (spawnPattern == 3) { // Spiral
-            vec2 center = resolution * 0.5;
-            float t = hash(seed) * 20.0; 
-            float r = t * min(resolution.x, resolution.y) * 0.02;
-            float a = t * 6.28;
-            pos = center + vec2(cos(a), sin(a)) * r;
-            heading = a + 1.5708;
-        } else { // Random (0)
-            pos.x = hash(seed) * resolution.x;
-            pos.y = hash(seed + 1.0) * resolution.y;
-            heading = hash(seed + 2.0) * 6.28318530718;
-        }
-        
-        pos = wrapPosition(pos, resolution);
-        age = hash(seed + 3.0) * 10.0;  // Random initial age spread
-        fragColor = vec4(pos, heading, age);
-        outColor = vec4(sampleInputColor(pos / resolution), 1.0);
+    ivec2 stateSize = textureSize(xyzTex, 0);
+    ivec2 coord = ivec2(gl_FragCoord.xy);
+    
+    // Read current state
+    vec4 xyz = texelFetch(xyzTex, coord, 0);
+    vec4 vel = texelFetch(velTex, coord, 0);
+    vec4 rgba = texelFetch(rgbaTex, coord, 0);
+    
+    vec2 pos = xyz.xy;           // Normalized [0,1]
+    float heading = xyz.z;       // Radians
+    float alive = xyz.w;
+    float age = vel.z;
+    float seed = vel.w;
+    
+    // Check if agent is dead (needs respawn by pointsEmitter)
+    if (alive < 0.5) {
+        // Pass through - pointsEmitter will handle respawn
+        // Initialize heading from seed
+        outXYZ = vec4(pos, hash(uint(seed * 1000.0)) * TAU, 0.0);
+        outVel = vel;
+        outRGBA = rgba;
         return;
     }
-
-    // Attrition respawn logic (0 = disabled)
-    // Percentage of agents that respawn randomly each frame
+    
+    // Attrition: random chance to die and respawn
     if (attrition > 0.0) {
-        uint agent_id = uint(gl_FragCoord.y * float(stateSize.x) + gl_FragCoord.x);
-        uint time_seed = uint(time * 60.0);
-        uint check_seed = agent_id + time_seed * 747796405u;
-        float respawnRand = hash(check_seed);
-        float attritionRate = attrition * 0.01;  // Convert 0-10% to 0-0.1
+        uint agentId = uint(coord.y * stateSize.x + coord.x);
+        // Use fractional time component to avoid synchronized bursts
+        float fracTime = fract(time * 60.0);
+        uint timeSeed = uint(time * 1000.0);  // Higher frequency for more randomness
+        uint checkSeed = agentId * 747796405u + timeSeed;
+        float respawnRand = hash(checkSeed);
+        // Add fractional variation per-agent to stagger deaths
+        float agentOffset = hash(agentId) * 0.5;
+        float attritionRate = attrition * 0.01;  // Convert 0-10 to 0-0.1
         
         if (respawnRand < attritionRate) {
-            // Respawn at random position
-            uint pos_seed = check_seed ^ 2891336453u;
-            vec2 rand_pos = hash2(pos_seed);
-            pos.x = rand_pos.x * resolution.x;
-            pos.y = rand_pos.y * resolution.y;
-            heading = hash(pos_seed + 2u) * 6.28318530718;
-            age = 0.0;
-            fragColor = vec4(pos, heading, age);
-            outColor = vec4(sampleInputColor(pos / resolution), 1.0);
+            // Mark as dead for pointsEmitter to respawn
+            outXYZ = vec4(pos, heading, 0.0);  // alive = 0
+            outVel = vel;
+            outRGBA = rgba;
             return;
         }
     }
-
+    
+    // Compute sensor positions in normalized coords
     vec2 forwardDir = vec2(cos(heading), sin(heading));
     vec2 leftDir = vec2(cos(heading - sensorAngle), sin(heading - sensorAngle));
     vec2 rightDir = vec2(cos(heading + sensorAngle), sin(heading + sensorAngle));
-
-    vec2 sensorPosF = pos + forwardDir * sensorDistance;
-    vec2 sensorPosL = pos + leftDir * sensorDistance;
-    vec2 sensorPosR = pos + rightDir * sensorDistance;
-
-    // Wrap sensor positions
-    sensorPosF = wrapPosition(sensorPosF, resolution);
-    sensorPosL = wrapPosition(sensorPosL, resolution);
-    sensorPosR = wrapPosition(sensorPosR, resolution);
-
-    // Sample trail map + external field
-    float valF = luminance(texture(bufTex, sensorPosF / resolution).rgb) + sampleExternalField(sensorPosF / resolution, inputWeight);
-    float valL = luminance(texture(bufTex, sensorPosL / resolution).rgb) + sampleExternalField(sensorPosL / resolution, inputWeight);
-    float valR = luminance(texture(bufTex, sensorPosR / resolution).rgb) + sampleExternalField(sensorPosR / resolution, inputWeight);
-
-    // Steering
+    
+    vec2 sensorPosF = wrapPosition(pos + forwardDir * sensorDistance);
+    vec2 sensorPosL = wrapPosition(pos + leftDir * sensorDistance);
+    vec2 sensorPosR = wrapPosition(pos + rightDir * sensorDistance);
+    
+    // Sample trail + external field at sensor positions
+    float valF = sampleTrail(sensorPosF) + sampleExternalField(sensorPosF, inputWeight);
+    float valL = sampleTrail(sensorPosL) + sampleExternalField(sensorPosL, inputWeight);
+    float valR = sampleTrail(sensorPosR) + sampleExternalField(sensorPosR, inputWeight);
+    
+    // Steering logic
+    float newHeading = heading;
     if (valF > valL && valF > valR) {
-        // Keep going forward
+        // Forward is best, keep going
     } else if (valF < valL && valF < valR) {
-        // Rotate randomly
-        heading += (hash(time + pos.x) - 0.5) * 2.0 * turnSpeed * moveSpeed;
+        // Forward is worst, turn randomly
+        newHeading += (hash_f(time + pos.x) - 0.5) * 2.0 * turnSpeed * moveSpeed;
     } else if (valL > valR) {
-        heading -= turnSpeed * moveSpeed;
+        // Turn left
+        newHeading -= turnSpeed * moveSpeed;
     } else if (valR > valL) {
-        heading += turnSpeed * moveSpeed;
+        // Turn right
+        newHeading += turnSpeed * moveSpeed;
     }
-
-    // Move
-    vec2 dir = vec2(cos(heading), sin(heading));
+    
+    // Move forward
+    vec2 moveDir = vec2(cos(newHeading), sin(newHeading));
+    
+    // Speed modulation from input texture
     float speedScale = 1.0;
     float blend = clamp(inputWeight * 0.01, 0.0, 1.0);
     if (blend > 0.0) {
-        // Use raw luminance for speed modulation (not scaled by weight)
-        float localInput = luminance(sampleInputColor(pos / resolution));
-        // Invert: slow down in bright areas, speed up in dark areas
+        vec2 flippedUV = vec2(pos.x, 1.0 - pos.y);
+        float localInput = luminance(texture(inputTex, flippedUV).rgb);
+        // Invert: slow in bright, fast in dark
         speedScale = mix(1.0, mix(1.8, 0.35, localInput), blend);
     }
-    pos += dir * (moveSpeed * speedScale);
-    pos = wrapPosition(pos, resolution);
-
+    
+    // Scale moveSpeed to normalized coords (divide by resolution)
+    // Original was in pixels, now convert: 1.78 pixels ≈ 0.00174 at 1024 res
+    float normalizedSpeed = moveSpeed * 0.001 * speedScale;
+    vec2 newPos = wrapPosition(pos + moveDir * normalizedSpeed);
+    
     // Update age
-    age += 0.016;
-
-    fragColor = vec4(pos, heading, age);
-    outColor = agentColor;
+    float newAge = age + 0.016;
+    
+    // Output
+    outXYZ = vec4(newPos, newHeading, 1.0);  // alive = 1
+    outVel = vec4(0.0, 0.0, newAge, seed);
+    outRGBA = rgba;  // Color unchanged
 }

@@ -30,7 +30,7 @@ export default new Effect({
     },
     // State texture for reaction-diffusion simulation
     // Uses 'global' prefix for automatic ping-pong double-buffering by pipeline
-    globalRdState: {
+    global_rd_state: {
       width: { param: 'volumeSize', default: 32 },
       height: { param: 'volumeSize', power: 2, default: 1024 },
       format: "rgba16f"
@@ -184,14 +184,14 @@ export default new Effect({
         height: { param: 'volumeSize', power: 2, default: 1024 }
       },
       inputs: {
-        stateTex: "globalRdState",
+        stateTex: "global_rd_state",
         seedTex: "source"
       },
       outputs: {
-        color: "globalRdState"
+        color: "global_rd_state"
       }
     }
   ],
-  outputTex3d: "globalRdState",
+  outputTex3d: "global_rd_state",
   outputGeo: "geoBuffer"
 })

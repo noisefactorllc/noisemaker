@@ -1,74 +1,57 @@
-// Flow agent pass - GPGPU agent simulation with MRT output
-// Agent format: state1=[x, y, rotRand, strideRand] state2=[r, g, b, seed] state3=[age, initialized, 0, 0]
-// rotRand/strideRand are per-agent random values; behavior is computed each frame from uniform
-// Matches GLSL agent.glsl algorithm exactly
+// Flow agent pass - Common Agent Architecture middleware
+// Reads from global_xyz/vel/rgba, applies flow-field movement, writes back
+// State format: xyz=[x, y, z, alive] vel=[vx, vy, rotRand, strideRand] rgba=[r, g, b, a]
+// Positions in normalized coords [0,1]
 
-struct Outputs {
-    @location(0) outState1: vec4<f32>,
-    @location(1) outState2: vec4<f32>,
-    @location(2) outState3: vec4<f32>,
+struct Uniforms {
+    resolution: vec2f,
+    time: f32,
+    stride: f32,
+    strideDeviation: f32,
+    kink: f32,
+    quantize: f32,
+    attrition: f32,
+    inputWeight: f32,
+    behavior: f32,
 }
 
-@group(0) @binding(0) var stateTex1: texture_2d<f32>;
-@group(0) @binding(1) var stateTex2: texture_2d<f32>;
-@group(0) @binding(2) var stateTex3: texture_2d<f32>;
-@group(0) @binding(3) var inputTex: texture_2d<f32>;
-@group(0) @binding(4) var<uniform> resolution: vec2<f32>;
-@group(0) @binding(5) var<uniform> stride: f32;
-@group(0) @binding(6) var<uniform> strideDeviation: f32;
-@group(0) @binding(7) var<uniform> kink: f32;
-@group(0) @binding(8) var<uniform> quantize: f32;
-@group(0) @binding(9) var<uniform> time: f32;
-@group(0) @binding(10) var<uniform> attrition: f32;
-@group(0) @binding(11) var<uniform> inputWeight: f32;
-@group(0) @binding(12) var<uniform> behavior: f32;
-@group(0) @binding(13) var<uniform> resetState: i32;
-// Note: density is only used in deposit pass, not here
+struct Outputs {
+    @location(0) xyz: vec4f,
+    @location(1) vel: vec4f,
+    @location(2) rgba: vec4f,
+}
 
-const TAU : f32 = 6.283185307179586;
-const RIGHT_ANGLE : f32 = 1.5707963267948966;
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var inputTex: texture_2d<f32>;
+@group(0) @binding(3) var xyzTex: texture_2d<f32>;
+@group(0) @binding(4) var velTex: texture_2d<f32>;
+@group(0) @binding(5) var rgbaTex: texture_2d<f32>;
 
-fn hash_uint(seed : u32) -> u32 {
+const TAU: f32 = 6.283185307179586;
+const RIGHT_ANGLE: f32 = 1.5707963267948966;
+
+fn hash_uint(seed: u32) -> u32 {
     var state = seed * 747796405u + 2891336453u;
     let word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
     return (word >> 22u) ^ word;
 }
 
-fn hash(seed : u32) -> f32 {
+fn hash(seed: u32) -> f32 {
     return f32(hash_uint(seed)) / 4294967295.0;
 }
 
-fn hash2(seed : u32) -> vec2<f32> {
-    return vec2<f32>(hash(seed), hash(seed + 1u));
-}
-
-fn wrap_float(value : f32, size : f32) -> f32 {
-    if (size <= 0.0) { return 0.0; }
-    let scaled = floor(value / size);
-    var wrapped = value - scaled * size;
-    if (wrapped < 0.0) { wrapped = wrapped + size; }
-    return wrapped;
-}
-
-fn wrap_int(value : i32, size : i32) -> i32 {
-    if (size <= 0) { return 0; }
-    var result = value % size;
-    if (result < 0) { result = result + size; }
-    return result;
-}
-
-fn srgb_to_linear(value : f32) -> f32 {
+fn srgb_to_linear(value: f32) -> f32 {
     if (value <= 0.04045) { return value / 12.92; }
     return pow((value + 0.055) / 1.055, 2.4);
 }
 
-fn cube_root(value : f32) -> f32 {
+fn cube_root(value: f32) -> f32 {
     if (value == 0.0) { return 0.0; }
     let sign_value = select(-1.0, 1.0, value >= 0.0);
     return sign_value * pow(abs(value), 1.0 / 3.0);
 }
 
-fn oklab_l(rgb : vec3<f32>) -> f32 {
+fn oklab_l(rgb: vec3f) -> f32 {
     let r_lin = srgb_to_linear(clamp(rgb.x, 0.0, 1.0));
     let g_lin = srgb_to_linear(clamp(rgb.y, 0.0, 1.0));
     let b_lin = srgb_to_linear(clamp(rgb.z, 0.0, 1.0));
@@ -78,178 +61,134 @@ fn oklab_l(rgb : vec3<f32>) -> f32 {
     return 0.2104542553 * cube_root(l) + 0.7936177850 * cube_root(m) - 0.0040720468 * cube_root(s);
 }
 
-fn normalized_sine(value : f32) -> f32 {
+fn normalized_sine(value: f32) -> f32 {
     return (sin(value) + 1.0) * 0.5;
 }
 
-// Compute rotation bias based on behavior mode
-// Called EVERY FRAME to allow behavior changes to take effect immediately
-// baseRotRand is per-agent random [0,1] stored in state
-fn computeRotationBias(behaviorMode : i32, baseHeading : f32, baseRotRand : f32, time : f32, agentIndex : i32, totalAgents : i32) -> f32 {
+fn computeRotationBias(behaviorMode: i32, baseHeading: f32, rotRand: f32, time: f32, agentIndex: i32, totalAgents: i32) -> f32 {
     if (behaviorMode <= 0) {
-        // None: all face right (no rotation bias)
         return 0.0;
     } else if (behaviorMode == 1) {
-        // Obedient: all same direction
         return baseHeading;
     } else if (behaviorMode == 2) {
-        // Crosshatch: 4 cardinal directions based on per-agent random
-        return baseHeading + floor(baseRotRand * 4.0) * RIGHT_ANGLE;
+        return baseHeading + floor(rotRand * 4.0) * RIGHT_ANGLE;
     } else if (behaviorMode == 3) {
-        // Unruly: small deviation from base
-        return baseHeading + (baseRotRand - 0.5) * 0.25;
+        return baseHeading + (rotRand - 0.5) * 0.25;
     } else if (behaviorMode == 4) {
-        // Chaotic: random direction
-        return baseRotRand * TAU;
+        return rotRand * TAU;
     } else if (behaviorMode == 5) {
-        // Random Mix: divide agents into 4 quarters with different behaviors
         let quarterSize = max(1, totalAgents / 4);
         let band = agentIndex / quarterSize;
         if (band <= 0) {
-            return baseHeading;  // Obedient
+            return baseHeading;
         } else if (band == 1) {
-            return baseHeading + floor(baseRotRand * 4.0) * RIGHT_ANGLE;  // Crosshatch
+            return baseHeading + floor(rotRand * 4.0) * RIGHT_ANGLE;
         } else if (band == 2) {
-            return baseHeading + (baseRotRand - 0.5) * 0.25;  // Unruly
+            return baseHeading + (rotRand - 0.5) * 0.25;
         } else {
-            return baseRotRand * TAU;  // Chaotic
+            return rotRand * TAU;
         }
     } else if (behaviorMode == 10) {
-        // Meandering: time-varying sine rotation using per-agent phase
-        return normalized_sine((time - baseRotRand) * TAU);
+        return normalized_sine((time - rotRand) * TAU);
     } else {
-        return baseRotRand * TAU;
+        return rotRand * TAU;
     }
 }
 
 @fragment
-fn main(@builtin(position) position : vec4<f32>) -> Outputs {
-    var output : Outputs;
+fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
+    let coord = vec2i(fragCoord.xy);
+    let stateSize = textureDimensions(xyzTex, 0);
     
-    let coord = vec2<i32>(position.xy);
-    let width = i32(resolution.x);
-    let height = i32(resolution.y);
+    // Read input state from pipeline
+    let xyz = textureLoad(xyzTex, coord, 0);
+    let vel = textureLoad(velTex, coord, 0);
+    let rgba = textureLoad(rgbaTex, coord, 0);
     
-    // Read current agent state
-    let state1 = textureLoad(stateTex1, coord, 0);
-    let state2 = textureLoad(stateTex2, coord, 0);
-    let state3 = textureLoad(stateTex3, coord, 0);
+    // Extract components (positions in normalized coords [0,1])
+    var px = xyz.x;
+    var py = xyz.y;
+    let pz = xyz.z;
+    let alive = xyz.w;
     
-    var flow_x = state1.x;
-    var flow_y = state1.y;
-    var rotRand = state1.z;  // Per-agent random [0,1] for rotation variation
-    var strideRand = state1.w;  // Per-agent random value [-0.5, 0.5] for stride variation
-    var cr = state2.x;
-    var cg = state2.y;
-    var cb = state2.z;
-    var seed_f = state2.w;
-    var age = state3.x;
-    var initialized = state3.y;
+    // Flow-specific state stored in vel
+    var rotRand = vel.z;     // Per-agent rotation random [0,1]
+    var strideRand = vel.w;  // Per-agent stride random [-0.5, 0.5]
     
-    let agentSeed = u32(coord.x + coord.y * width);
-    let baseSeed = agentSeed + u32(time * 1000.0);
-    
-    // Compute total agent count for Random Mix behavior
-    let totalAgents = width * height;  // Max possible agents (texture size)
-    let agentIndex = coord.x + coord.y * width;
-    
-    // Check if this agent needs initialization or reset requested
-    if (initialized < 0.5 || resetState != 0) {
-        let pos = hash2(agentSeed);
-        flow_x = pos.x * f32(width);
-        flow_y = pos.y * f32(height);
-        
-        // Store per-agent random [0,1] for rotation variation
-        // Actual rotation computed each frame based on current behavior uniform
-        rotRand = hash(agentSeed + 200u);
-        
-        // Store per-agent random value for stride deviation
-        // Actual deviation factor computed each frame using strideDeviation uniform
-        strideRand = hash(agentSeed + 300u) - 0.5;  // Range [-0.5, 0.5]
-        
-        // Flip Y to match blend pass orientation
-        let xi = wrap_int(i32(flow_x), width);
-        let yi = height - 1 - wrap_int(i32(flow_y), height);
-        let inputColor = textureLoad(inputTex, vec2<i32>(xi, yi), 0);
-        cr = inputColor.r;
-        cg = inputColor.g;
-        cb = inputColor.b;
-        
-        seed_f = f32(agentSeed);
-        age = 0.0;
-        initialized = 1.0;
+    // If not alive, pass through unchanged
+    if (alive < 0.5) {
+        return Outputs(xyz, vel, rgba);
     }
     
-    // Check for respawn based on attrition (percentage of agents respawning per frame)
-    // Use robust hashing to avoid correlation between selection and position
-    let time_seed = u32(time * 60.0);
-    let check_seed = agentSeed + time_seed * 747796405u;
-    let respawnRand = hash(check_seed);
-    let attritionRate = attrition * 0.01;  // Convert 0-10% to 0-0.1
-    let shouldRespawn = attrition > 0.0 && respawnRand < attritionRate;
+    // Initialize rotRand/strideRand on first use (if they're zero from pointsEmitter)
+    let agentSeed = u32(coord.x) + u32(coord.y) * u32(stateSize.x);
+    if (rotRand == 0.0 && strideRand == 0.0) {
+        rotRand = hash(agentSeed + 200u);
+        strideRand = hash(agentSeed + 300u) - 0.5;
+    }
     
-    if (shouldRespawn) {
-        // Respawn at new random location
-        // Decorrelate position seed from check seed
-        let pos_seed = check_seed ^ 2891336453u;
-        let pos = hash2(pos_seed);
-        flow_x = pos.x * f32(width);
-        flow_y = pos.y * f32(height);
-        
-        // New random for rotation variation
-        rotRand = hash(pos_seed + 200u);
-        
-        // Sample new color (flip Y to match blend pass orientation)
-        let xi = wrap_int(i32(flow_x), width);
-        let yi = height - 1 - wrap_int(i32(flow_y), height);
-        let inputColor = textureLoad(inputTex, vec2<i32>(xi, yi), 0);
-        cr = inputColor.r;
-        cg = inputColor.g;
-        cb = inputColor.b;
-        
-        seed_f = f32(pos_seed);
-        age = 0.0;
-    }    // Sample input texture at current position (flip Y to match blend pass orientation)
-    let xi = wrap_int(i32(flow_x), width);
-    let yi = height - 1 - wrap_int(i32(flow_y), height);
-    let texel = textureLoad(inputTex, vec2<i32>(xi, yi), 0);
+    // Sample input texture at current position for flow direction
+    let texSize = textureDimensions(inputTex, 0);
+    var texCoord = vec2i(i32(px * f32(texSize.x)), i32(py * f32(texSize.y)));
+    texCoord = clamp(texCoord, vec2i(0), vec2i(texSize) - vec2i(1));
+    let texel = textureLoad(inputTex, texCoord, 0);
     let inputLuma = oklab_l(texel.rgb);
     
     // inputWeight controls how much the input texture influences flow direction
-    // 0 = purely random/behavior-based, 100 = fully input-driven
-    let weightBlend = clamp(inputWeight * 0.01, 0.0, 1.0);
+    let weightBlend = clamp(u.inputWeight * 0.01, 0.0, 1.0);
     let indexValue = mix(0.5, inputLuma, weightBlend);
     
-    // Compute rotation bias based on behavior uniform (computed each frame!)
-    // baseHeading is constant across all agents (seed 0)
+    // Compute rotation bias based on behavior uniform
     let baseHeading = hash(0u) * TAU;
-    let behaviorMode = i32(behavior);
-    let rotationBias = computeRotationBias(behaviorMode, baseHeading, rotRand, time, agentIndex, totalAgents);
+    let behaviorMode = i32(u.behavior);
+    let totalAgents = i32(stateSize.x * stateSize.y);
+    let agentIndex = coord.x + coord.y * i32(stateSize.x);
+    let rotationBias = computeRotationBias(behaviorMode, baseHeading, rotRand, u.time, agentIndex, totalAgents);
     
-    var finalAngle = indexValue * TAU * kink + rotationBias;
+    // Final angle based on input texture and kink
+    var finalAngle = indexValue * TAU * u.kink + rotationBias;
     
-    if (quantize > 0.5) {
+    if (u.quantize > 0.5) {
         finalAngle = round(finalAngle);
     }
     
-    // Compute actual stride: stride is in 1/10th of pixels, so divide by 10
-    // strideRand is per-agent random [-0.5, 0.5], strideDeviation uniform controls magnitude
-    let scale = max(f32(max(width, height)) / 1024.0, 1.0);
-    let devFactor = 1.0 + strideRand * 2.0 * strideDeviation;
-    let actualStride = max(0.1, (stride * 0.1) * scale * devFactor);
+    // Compute actual stride in normalized coords
+    let scale = max(max(u.resolution.x, u.resolution.y) / 1024.0, 1.0);
+    let devFactor = 1.0 + strideRand * 2.0 * u.strideDeviation;
+    let actualStride = max(0.0001, (u.stride * 0.1) * scale * devFactor / max(u.resolution.x, u.resolution.y));
     
     // Move agent
-    var newX = flow_x + sin(finalAngle) * actualStride;
-    var newY = flow_y + cos(finalAngle) * actualStride;
+    var newX = px + sin(finalAngle) * actualStride;
+    var newY = py + cos(finalAngle) * actualStride;
     
-    newX = wrap_float(newX, f32(width));
-    newY = wrap_float(newY, f32(height));
+    // Wrap position to [0,1]
+    newX = fract(newX);
+    newY = fract(newY);
     
-    age = age + 0.016;
+    // Check for respawn based on attrition
+    var needsRespawn = false;
+    if (u.attrition > 0.0) {
+        let time_seed = u32(u.time * 60.0);
+        let check_seed = agentSeed + time_seed * 747796405u;
+        let respawnRand = hash(check_seed);
+        let attritionRate = u.attrition * 0.01;
+        if (respawnRand < attritionRate) {
+            needsRespawn = true;
+        }
+    }
     
-    output.outState1 = vec4<f32>(newX, newY, rotRand, strideRand);
-    output.outState2 = vec4<f32>(cr, cg, cb, seed_f);
-    output.outState3 = vec4<f32>(age, initialized, 0.0, 0.0);
-    
-    return output;
+    if (needsRespawn) {
+        // Signal respawn by setting alive flag to 0
+        return Outputs(
+            vec4f(newX, newY, pz, 0.0),
+            vec4f(0.0, 0.0, rotRand, strideRand),
+            rgba
+        );
+    } else {
+        return Outputs(
+            vec4f(newX, newY, pz, 1.0),
+            vec4f(0.0, 0.0, rotRand, strideRand),
+            rgba
+        );
+    }
 }

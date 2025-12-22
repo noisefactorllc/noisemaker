@@ -1,4 +1,7 @@
-// WGSL Boids Agent Shader
+// Flock agent pass - Common Agent Architecture middleware
+// Reads from global_xyz/vel/rgba, applies boids flocking, writes back
+// State format: xyz=[x, y, z, alive] vel=[vx, vy, age, seed] rgba=[r, g, b, a]
+// Positions in normalized coords [0,1]
 
 struct Uniforms {
     resolution: vec2f,
@@ -14,22 +17,21 @@ struct Uniforms {
     wallMargin: f32,
     noiseWeight: f32,
     attrition: f32,
-    colorMode: i32,
-    resetState: i32,
 }
-
-@group(0) @binding(0) var<uniform> uniforms: Uniforms;
-@group(0) @binding(1) var stateTex1: texture_2d<f32>;
-@group(0) @binding(2) var stateTex2: texture_2d<f32>;
-@group(0) @binding(3) var tex: texture_2d<f32>;
-@group(0) @binding(4) var texSampler: sampler;
 
 struct Outputs {
-    @location(0) outState1: vec4f,
-    @location(1) outState2: vec4f,
+    @location(0) xyz: vec4f,
+    @location(1) vel: vec4f,
+    @location(2) rgba: vec4f,
 }
 
-// Hash functions
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(3) var xyzTex: texture_2d<f32>;
+@group(0) @binding(4) var velTex: texture_2d<f32>;
+@group(0) @binding(5) var rgbaTex: texture_2d<f32>;
+
+// === ORIGINAL BOIDS HELPER FUNCTIONS (PRESERVED EXACTLY) ===
+
 fn hash_uint(seed: u32) -> u32 {
     var state = seed * 747796405u + 2891336453u;
     let word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -80,90 +82,78 @@ fn setMag(v: vec2f, mag: f32) -> vec2f {
     return v;
 }
 
-fn sampleInputColorRaw(uv: vec2f) -> vec3f {
-    let flippedUV = vec2f(uv.x, 1.0 - uv.y);
-    return textureSample(tex, texSampler, flippedUV).rgb;
-}
-
-fn applyColorMode(sampledColor: vec3f) -> vec3f {
-    if (uniforms.colorMode == 0) {
-        return vec3f(1.0);
-    }
-    return sampledColor;
-}
-
 const GRID_SIZE: i32 = 16;
 
-fn getGridCell(pos: vec2f) -> vec2i {
-    let cellSize = uniforms.resolution / f32(GRID_SIZE);
+fn getGridCell(pos: vec2f, res: vec2f) -> vec2i {
+    let cellSize = res / f32(GRID_SIZE);
     return vec2i(clamp(pos / cellSize, vec2f(0.0), vec2f(f32(GRID_SIZE - 1))));
 }
 
+// === END ORIGINAL HELPER FUNCTIONS ===
+
 @fragment
-fn main(@builtin(position) position: vec4f) -> Outputs {
-    let stateSize = vec2i(textureDimensions(stateTex1, 0));
-    let stateUV = (position.xy + vec2f(0.5)) / vec2f(stateSize);
+fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
+    let coord = vec2i(fragCoord.xy);
+    let stateSize = textureDimensions(xyzTex, 0);
     
-    // Use textureLoad for state textures to avoid sampler issues
-    let state1 = textureLoad(stateTex1, vec2i(position.xy), 0);
-    let state2 = textureLoad(stateTex2, vec2i(position.xy), 0);
+    // Read input state from pipeline
+    let xyz = textureLoad(xyzTex, coord, 0);
+    let vel = textureLoad(velTex, coord, 0);
+    let rgba = textureLoad(rgbaTex, coord, 0);
     
-    var pos = state1.xy;
-    var vel = state1.zw;
-    var color = state2.rgb;
-    var age = state2.a;
+    // Extract components
+    let px = xyz.x;  // normalized x
+    let py = xyz.y;  // normalized y
+    let alive = xyz.w;
     
-    let boidId = u32(position.y * f32(stateSize.x) + position.x);
+    // vel stores: [vx, vy, age, seed]
+    var vx = vel.x;
+    var vy = vel.y;
+    var age = vel.z;
+    var seed = vel.w;
     
-    // Pre-compute positions for color sampling (uniform control flow)
-    // Initial position
-    let initSeed = boidId + u32(uniforms.time * 1000.0);
-    let initPos = hash2(initSeed) * uniforms.resolution;
+    let boidId = u32(coord.x) + u32(coord.y) * u32(stateSize.x);
     
-    // Respawn position 
-    let time_seed = u32(uniforms.time * 60.0);
-    let check_seed = boidId + time_seed * 747796405u;
-    let pos_seed = check_seed ^ 2891336453u;
-    let respawnPos = hash2(pos_seed) * uniforms.resolution;
+    // Convert normalized to pixel coords for the algorithm
+    var pos = vec2f(px, py) * u.resolution;
+    var velocity = vec2f(vx, vy);
     
-    // Sample colors at both positions BEFORE any non-uniform branching
-    let initColor = sampleInputColorRaw(initPos / uniforms.resolution);
-    let respawnColor = sampleInputColorRaw(respawnPos / uniforms.resolution);
+    // If not alive, pass through unchanged
+    if (alive < 0.5) {
+        return Outputs(xyz, vel, rgba);
+    }
     
-    // Now do the logic with flags instead of early returns
-    var needsInit = uniforms.resetState != 0 || (pos.x == 0.0 && pos.y == 0.0 && length(vel) == 0.0);
+    // Initialize velocity on first use (if zero from pointsEmitter)
+    if (length(velocity) == 0.0 && seed == 0.0) {
+        seed = hash(boidId + 99999u);
+        let angle = hash(boidId + 12345u) * 6.28318530718;
+        let speed = hash(boidId + 23456u) * u.maxSpeed * 0.5 + u.maxSpeed * 0.25;
+        velocity = vec2f(cos(angle), sin(angle)) * speed;
+    }
+    
+    // Respawn check (attrition)
     var needsRespawn = false;
-    
-    if (!needsInit && uniforms.attrition > 0.0) {
+    if (u.attrition > 0.0) {
+        let time_seed = u32(u.time * 60.0);
+        let check_seed = boidId + time_seed * 747796405u;
         let respawnRand = hash(check_seed);
-        let attritionRate = uniforms.attrition * 0.01;
-        needsRespawn = respawnRand < attritionRate;
+        let attritionRate = u.attrition * 0.01;
+        if (respawnRand < attritionRate) {
+            needsRespawn = true;
+        }
     }
     
-    // Handle initialization
-    if (needsInit) {
-        pos = initPos;
-        let angle = hash(initSeed + 2u) * 6.28318530718;
-        let speed = hash(initSeed + 3u) * uniforms.maxSpeed * 0.5 + uniforms.maxSpeed * 0.25;
-        vel = vec2f(cos(angle), sin(angle)) * speed;
-        age = hash(initSeed + 4u) * 10.0;
-        color = applyColorMode(initColor);
-        
-        return Outputs(vec4f(pos, vel), vec4f(color, age));
-    }
-    
-    // Handle attrition respawn
     if (needsRespawn) {
-        pos = respawnPos;
-        let angle = hash(pos_seed + 2u) * 6.28318530718;
-        vel = vec2f(cos(angle), sin(angle)) * uniforms.maxSpeed * 0.5;
-        age = 0.0;
-        color = applyColorMode(respawnColor);
-        
-        return Outputs(vec4f(pos, vel), vec4f(color, age));
+        // Signal respawn by setting alive flag to 0
+        return Outputs(
+            vec4f(px, py, xyz.z, 0.0),
+            vec4f(velocity, age, seed),
+            rgba
+        );
     }
+
+    // === ORIGINAL BOIDS ALGORITHM (PRESERVED EXACTLY) ===
     
-    // Boids algorithm
     var separationForce = vec2f(0.0);
     var alignmentSum = vec2f(0.0);
     var cohesionSum = vec2f(0.0);
@@ -171,18 +161,18 @@ fn main(@builtin(position) position: vec4f) -> Outputs {
     var alignmentCount = 0;
     var cohesionCount = 0;
     
-    let myCell = getGridCell(pos);
-    let perceptionSq = uniforms.perceptionRadius * uniforms.perceptionRadius;
-    let separationSq = uniforms.separationRadius * uniforms.separationRadius;
+    let myCell = getGridCell(pos, u.resolution);
+    let perceptionSq = u.perceptionRadius * u.perceptionRadius;
+    let separationSq = u.separationRadius * u.separationRadius;
     
-    let totalBoids = stateSize.x * stateSize.y;
+    let totalBoids = i32(stateSize.x * stateSize.y);
     
     // Sample neighbors
     for (var dy = -1; dy <= 1; dy++) {
         for (var dx = -1; dx <= 1; dx++) {
             var checkCell = myCell + vec2i(dx, dy);
             
-            if (uniforms.boundaryMode == 0) {
+            if (u.boundaryMode == 0) {
                 checkCell = (checkCell + GRID_SIZE) % GRID_SIZE;
             } else {
                 checkCell = clamp(checkCell, vec2i(0), vec2i(GRID_SIZE - 1));
@@ -191,30 +181,40 @@ fn main(@builtin(position) position: vec4f) -> Outputs {
             let cellSeed = u32(checkCell.y * GRID_SIZE + checkCell.x);
             
             for (var s = 0; s < 8; s++) {
-                let sampleSeed = cellSeed * 31u + u32(s) + u32(uniforms.time * 10.0);
+                let sampleSeed = cellSeed * 31u + u32(s) + u32(u.time * 10.0);
                 let sampleIdx = i32(hash_uint(sampleSeed) % u32(totalBoids));
                 
-                let sx = sampleIdx % stateSize.x;
-                let sy = sampleIdx / stateSize.x;
+                let sx = sampleIdx % i32(stateSize.x);
+                let sy = sampleIdx / i32(stateSize.x);
                 
-                if (sx == i32(position.x) && sy == i32(position.y)) {
+                // Skip self
+                if (sx == coord.x && sy == coord.y) {
                     continue;
                 }
                 
-                let otherState1 = textureLoad(stateTex1, vec2i(sx, sy), 0);
-                let otherPos = otherState1.xy;
-                let otherVel = otherState1.zw;
+                let otherXyz = textureLoad(xyzTex, vec2i(sx, sy), 0);
+                let otherVel = textureLoad(velTex, vec2i(sx, sy), 0);
                 
+                // Skip dead agents
+                if (otherXyz.w < 0.5) {
+                    continue;
+                }
+                
+                let otherPos = otherXyz.xy * u.resolution;
+                let otherVelocity = otherVel.xy;
+                
+                // Calculate distance (with wrapping if needed)
                 var diff = otherPos - pos;
-                if (uniforms.boundaryMode == 0) {
-                    if (diff.x > uniforms.resolution.x * 0.5) { diff.x -= uniforms.resolution.x; }
-                    if (diff.x < -uniforms.resolution.x * 0.5) { diff.x += uniforms.resolution.x; }
-                    if (diff.y > uniforms.resolution.y * 0.5) { diff.y -= uniforms.resolution.y; }
-                    if (diff.y < -uniforms.resolution.y * 0.5) { diff.y += uniforms.resolution.y; }
+                if (u.boundaryMode == 0) {
+                    if (diff.x > u.resolution.x * 0.5) { diff.x -= u.resolution.x; }
+                    if (diff.x < -u.resolution.x * 0.5) { diff.x += u.resolution.x; }
+                    if (diff.y > u.resolution.y * 0.5) { diff.y -= u.resolution.y; }
+                    if (diff.y < -u.resolution.y * 0.5) { diff.y += u.resolution.y; }
                 }
                 
                 let distSq = dot(diff, diff);
                 
+                // Separation (close neighbors)
                 if (distSq < separationSq && distSq > 0.0) {
                     let away = -diff;
                     let dist = sqrt(distSq);
@@ -222,8 +222,9 @@ fn main(@builtin(position) position: vec4f) -> Outputs {
                     separationCount++;
                 }
                 
+                // Alignment and Cohesion (perception radius)
                 if (distSq < perceptionSq && distSq > 0.0) {
-                    alignmentSum += otherVel;
+                    alignmentSum += otherVelocity;
                     alignmentCount++;
                     cohesionSum += otherPos;
                     cohesionCount++;
@@ -235,78 +236,95 @@ fn main(@builtin(position) position: vec4f) -> Outputs {
     // Calculate steering forces
     var steer = vec2f(0.0);
     
+    // Separation
     if (separationCount > 0) {
         var sepForce = separationForce / f32(separationCount);
         if (length(sepForce) > 0.0) {
-            sepForce = setMag(sepForce, uniforms.maxSpeed);
-            sepForce = sepForce - vel;
-            sepForce = limitVec(sepForce, uniforms.maxForce);
-            steer += sepForce * uniforms.separation;
+            sepForce = setMag(sepForce, u.maxSpeed);
+            sepForce = sepForce - velocity;
+            sepForce = limitVec(sepForce, u.maxForce);
+            steer += sepForce * u.separation;
         }
     }
     
+    // Alignment
     if (alignmentCount > 0) {
         var avgVel = alignmentSum / f32(alignmentCount);
         if (length(avgVel) > 0.0) {
-            avgVel = setMag(avgVel, uniforms.maxSpeed);
-            var alignSteer = avgVel - vel;
-            alignSteer = limitVec(alignSteer, uniforms.maxForce);
-            steer += alignSteer * uniforms.alignment;
+            avgVel = setMag(avgVel, u.maxSpeed);
+            var alignSteer = avgVel - velocity;
+            alignSteer = limitVec(alignSteer, u.maxForce);
+            steer += alignSteer * u.alignment;
         }
     }
     
+    // Cohesion
     if (cohesionCount > 0) {
         let avgPos = cohesionSum / f32(cohesionCount);
         var desired = avgPos - pos;
         if (length(desired) > 0.0) {
-            desired = setMag(desired, uniforms.maxSpeed);
-            var cohesionSteer = desired - vel;
-            cohesionSteer = limitVec(cohesionSteer, uniforms.maxForce);
-            steer += cohesionSteer * uniforms.cohesion;
+            desired = setMag(desired, u.maxSpeed);
+            var cohesionSteer = desired - velocity;
+            cohesionSteer = limitVec(cohesionSteer, u.maxForce);
+            steer += cohesionSteer * u.cohesion;
         }
     }
     
-    // Noise
-    if (uniforms.noiseWeight > 0.0) {
+    // Noise/turbulence
+    if (u.noiseWeight > 0.0) {
         let noiseScale = 0.01;
-        let nx = noise2D(pos * noiseScale + uniforms.time * 0.5);
-        let ny = noise2D(pos * noiseScale + vec2f(100.0, 100.0) + uniforms.time * 0.5);
-        let noiseForce = vec2f(nx, ny) * uniforms.maxForce * uniforms.noiseWeight;
+        let nx = noise2D(pos * noiseScale + u.time * 0.5);
+        let ny = noise2D(pos * noiseScale + vec2f(100.0, 100.0) + u.time * 0.5);
+        let noiseForce = vec2f(nx, ny) * u.maxForce * u.noiseWeight;
         steer += noiseForce;
     }
     
     // Boundary handling
-    if (uniforms.boundaryMode == 1) {
+    if (u.boundaryMode == 1) {
         var wallForce = vec2f(0.0);
-        let turnStrength = uniforms.maxForce * 2.0;
+        let turnStrength = u.maxForce * 2.0;
         
-        if (pos.x < uniforms.wallMargin) {
-            wallForce.x = turnStrength * (1.0 - pos.x / uniforms.wallMargin);
-        } else if (pos.x > uniforms.resolution.x - uniforms.wallMargin) {
-            wallForce.x = -turnStrength * (1.0 - (uniforms.resolution.x - pos.x) / uniforms.wallMargin);
+        if (pos.x < u.wallMargin) {
+            wallForce.x = turnStrength * (1.0 - pos.x / u.wallMargin);
+        } else if (pos.x > u.resolution.x - u.wallMargin) {
+            wallForce.x = -turnStrength * (1.0 - (u.resolution.x - pos.x) / u.wallMargin);
         }
         
-        if (pos.y < uniforms.wallMargin) {
-            wallForce.y = turnStrength * (1.0 - pos.y / uniforms.wallMargin);
-        } else if (pos.y > uniforms.resolution.y - uniforms.wallMargin) {
-            wallForce.y = -turnStrength * (1.0 - (uniforms.resolution.y - pos.y) / uniforms.wallMargin);
+        if (pos.y < u.wallMargin) {
+            wallForce.y = turnStrength * (1.0 - pos.y / u.wallMargin);
+        } else if (pos.y > u.resolution.y - u.wallMargin) {
+            wallForce.y = -turnStrength * (1.0 - (u.resolution.y - pos.y) / u.wallMargin);
         }
         
         steer += wallForce;
     }
     
-    // Update velocity and position
-    vel += steer;
-    vel = limitVec(vel, uniforms.maxSpeed);
-    pos += vel;
+    // Apply steering and update velocity
+    velocity += steer;
+    velocity = limitVec(velocity, u.maxSpeed);
     
-    if (uniforms.boundaryMode == 0) {
-        pos = wrapPosition(pos, uniforms.resolution);
+    // Update position
+    pos += velocity;
+    
+    // Boundary wrap
+    if (u.boundaryMode == 0) {
+        pos = wrapPosition(pos, u.resolution);
     } else {
-        pos = clamp(pos, vec2f(1.0), uniforms.resolution - vec2f(1.0));
+        pos = clamp(pos, vec2f(1.0), u.resolution - vec2f(1.0));
     }
     
+    // Update age
     age += 0.016;
     
-    return Outputs(vec4f(pos, vel), vec4f(color, age));
+    // === END ORIGINAL ALGORITHM ===
+    
+    // Convert back to normalized coords
+    let newPx = pos.x / u.resolution.x;
+    let newPy = pos.y / u.resolution.y;
+    
+    return Outputs(
+        vec4f(newPx, newPy, xyz.z, 1.0),
+        vec4f(velocity, age, seed),
+        rgba
+    );
 }

@@ -1,47 +1,54 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
+/**
+ * Physarum - Slime mold agent simulation
+ *
+ * Common Agent Architecture middleware:
+ * - Reads agent state from pipeline inputs (global_xyz, global_vel, global_rgba)
+ * - Applies physarum sensor/steering behavior based on trail texture
+ * - Writes updated state back to global textures
+ *
+ * State format (matching pointsEmitter):
+ * - xyz: [x, y, heading, alive_flag]  (x,y in normalized [0,1], heading in radians)
+ * - vel: [0, 0, age, seed]             (age for effects, seed for randomness)
+ * - rgba: [r, g, b, a]                 (agent color from pointsEmitter)
+ *
+ * Usage: pointsEmitter().physarum().pointsRender().write(o0)
+ */
 export default new Effect({
   name: "Physarum",
+  namespace: "synth",
   func: "physarum",
-  tags: ["sim"],
+  tags: ["sim", "agents"],
 
   description: "Physarum slime mold simulation",
+
+  // Private pheromone texture - NOT shared with pointsRender
+  // This isolates chemistry (deposit/decay) from visual trail intensity
   textures: {
-    globalPhysarumState: { width: 1000, height: 1000, format: "rgba32f" },
-    globalPhysarumColor: { width: 1000, height: 1000, format: "rgba16f" },
-    globalPhysarumTrail: { width: "100%", height: "100%", format: "rgba16f" }
+    global_physarum_pheromone: {
+      width: "100%",
+      height: "100%",
+      format: "rgba16f"
+    }
   },
+
+  // Expose outputs to pipeline for downstream effects
+  outputXyz: "global_xyz",
+  outputVel: "global_vel",
+  outputRgba: "global_rgba",
+
   globals: {
-    tex: {
-      type: "surface",
-      default: "none",
-      colorModeUniform: "colorMode",
-      ui: { label: "texture" }
-    },
-    colorMode: {
-      type: "int",
-      default: 1,
-      uniform: "colorMode",
-      ui: { control: false }
-    },
-    deltaTime: {
-      type: "float",
-      default: 0.016,
-      uniform: "deltaTime",
-      ui: {
-        control: false
-      }
-    },
     moveSpeed: {
       type: "float",
-      default: 1.7800000000000011,
+      default: 1.78,
       uniform: "moveSpeed",
       min: 0.05,
       max: 3,
+      step: 0.01,
       ui: {
         label: "move speed",
-        type: "float",
-        step: 0.01,
+        control: "slider",
         category: "agents"
       }
     },
@@ -51,88 +58,49 @@ export default new Effect({
       uniform: "turnSpeed",
       min: 0,
       max: 3.14159,
+      step: 0.01,
       ui: {
         label: "turn speed",
-        type: "float",
-        step: 0.01,
+        control: "slider",
         category: "agents"
       }
     },
     sensorAngle: {
       type: "float",
-      default: 1.2599999999999971,
+      default: 1.26,
       uniform: "sensorAngle",
       min: 0.1,
       max: 1.5,
+      step: 0.01,
       ui: {
         label: "sensor angle",
-        type: "float",
-        step: 0.01,
+        control: "slider",
         category: "agents"
       }
     },
     sensorDistance: {
       type: "float",
-      default: 30.700000000000003,
+      default: 0.03,
       uniform: "sensorDistance",
-      min: 2,
-      max: 32,
+      min: 0.002,
+      max: 0.1,
+      step: 0.001,
       ui: {
         label: "sensor distance",
-        type: "float",
-        step: 0.1,
+        control: "slider",
         category: "agents"
       }
     },
-    decay: {
+    inputWeight: {
       type: "float",
-      default: 0.1,
-      uniform: "decay",
-      min: 0,
-      max: 0.1,
-      ui: {
-        label: "decay",
-        type: "float",
-        step: 0.001,
-        category: "chemistry"
-      }
-    },
-    intensity: {
-      type: "float",
-      default: 75,
-      uniform: "intensity",
+      default: 0,
+      uniform: "inputWeight",
       min: 0,
       max: 100,
       step: 1,
       ui: {
-        label: "trail intensity",
-        type: "float",
-        category: "blending"
-      }
-    },
-    depositAmount: {
-      type: "float",
-      default: 0.05,
-      uniform: "depositAmount",
-      min: 0,
-      max: 0.05,
-      ui: {
-        label: "deposit",
-        type: "float",
-        step: 0.001,
-        category: "chemistry"
-      }
-    },
-    density: {
-      type: "float",
-      default: 100,
-      uniform: "density",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "density",
-        type: "float",
+        label: "input weight",
+        control: "slider",
         category: "agents"
       }
     },
@@ -145,49 +113,34 @@ export default new Effect({
       step: 0.1,
       ui: {
         label: "attrition",
-        type: "float",
+        control: "slider",
         category: "agents"
       }
     },
-    inputWeight: {
+    deposit: {
       type: "float",
-      default: 0,
-      uniform: "inputWeight",
-      min: 0,
-      max: 100,
+      default: 0.5,
+      uniform: "deposit",
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
       ui: {
-        label: "input weight",
-        type: "float",
-        category: "blending"
+        label: "deposit",
+        control: "slider",
+        category: "chemistry"
       }
     },
-    inputIntensity: {
+    decay: {
       type: "float",
-      default: 50,
-      uniform: "inputIntensity",
-      min: 0,
-      max: 100,
-      step: 1,
+      default: 0.1,
+      uniform: "decay",
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
       ui: {
-        label: "input intensity",
-        type: "float",
-        category: "blending"
-      }
-    },
-    spawnPattern: {
-      type: "int",
-      default: 1,
-      uniform: "spawnPattern",
-      choices: {
-        "random": 0,
-        "clusters": 1,
-        "ring": 2,
-        "spiral": 3
-      },
-      ui: {
-        label: "pattern",
-        type: "option",
-        category: "state"
+        label: "decay",
+        control: "slider",
+        category: "chemistry"
       }
     },
     resetState: {
@@ -201,62 +154,82 @@ export default new Effect({
       }
     }
   },
+
   passes: [
+    // Pass 1: Decay pheromone - apply persistence before agents sense it
     {
-      name: "initFromPrev",
-      program: "initFromPrev",
+      name: "decayTrail",
+      program: "diffuse",
       inputs: {
-        prevTrailTex: "globalPhysarumTrail"
+        trailTex: "global_physarum_pheromone"
       },
       uniforms: {
-        intensity: "intensity"
+        decay: "decay",
+        resetState: "resetState"
       },
       outputs: {
-        fragColor: "globalPhysarumTrail"
+        fragColor: "global_physarum_pheromone"
       }
     },
+
+    // Pass 2: Update agent state (sensor-based steering)
     {
       name: "agent",
       program: "agent",
+      drawBuffers: 3,
       inputs: {
-        stateTex: "globalPhysarumState",
-        colorTex: "globalPhysarumColor",
-        bufTex: "globalPhysarumTrail",
-        tex: "tex"
+        xyzTex: "global_xyz",
+        velTex: "global_vel",
+        rgbaTex: "global_rgba",
+        // Read pheromone texture for sensor feedback
+        trailTex: "global_physarum_pheromone",
+        // Read input for field attraction
+        inputTex: "inputTex"
       },
       outputs: {
-        fragColor: "globalPhysarumState",
-        outColor: "globalPhysarumColor"
-      },
-      uniforms: {
-        spawnPattern: "spawnPattern",
-        colorMode: "colorMode"
+        outXYZ: "global_xyz",
+        outVel: "global_vel",
+        outRGBA: "global_rgba"
       }
     },
+
+    // Pass 3: Copy decayed pheromone to write buffer before deposit
+    {
+      name: "copy",
+      program: "passthrough",
+      inputs: {
+        inputTex: "global_physarum_pheromone"
+      },
+      outputs: {
+        fragColor: "global_physarum_pheromone"
+      }
+    },
+
+    // Pass 4: Deposit - scatter agent pheromones
     {
       name: "deposit",
       program: "deposit",
       drawMode: "points",
-      count: 1000000,
+      count: 4194304, // Max for 2048x2048 state texture
       blend: true,
       inputs: {
-        stateTex: "globalPhysarumState",
-        colorTex: "globalPhysarumColor",
-        tex: "tex"
+        xyzTex: "global_xyz",
+        rgbaTex: "global_rgba"
       },
       uniforms: {
-        density: "density"
+        deposit: "deposit"
       },
       outputs: {
-        fragColor: "globalPhysarumTrail"
+        fragColor: "global_physarum_pheromone"
       }
     },
+
+    // Pass 5: Copy input texture to output for 2D chain continuity
     {
-      name: "render",
-      program: "physarum",
+      name: "passthrough",
+      program: "passthrough",
       inputs: {
-        bufTex: "globalPhysarumTrail",
-        tex: "tex"
+        inputTex: "inputTex"
       },
       outputs: {
         fragColor: "outputTex"

@@ -1,31 +1,45 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * Flow - Agent-based flow field effect with temporal accumulation
+ * Flow - Agent-based flow field effect with behaviors
  *
- * Architecture (GPGPU via render passes):
- * - Uses fragment shaders with MRT for agent simulation
- * - Global surfaces for agent state (position/dir, color, age) with ping-pong
- * - Trail accumulation via point-sprite deposit pass
- * - Multi-pass: agent -> deposit -> diffuse -> blend
+ * Common Agent Architecture middleware:
+ * - Reads agent state from pipeline inputs (inputXyz, inputVel, inputRgba)
+ * - Applies flow-field movement based on input texture luminance
+ * - Writes updated state to own textures (ping-ponged by runtime)
  *
- * Agent format: [x, y, rot, stride] [r, g, b, seed] [age, behavior, 0, 0]
- * Stored across 3 state textures using MRT
+ * State format (matching pointsEmitter):
+ * - xyz: [x, y, z, alive_flag]  (x,y in normalized coords [0,1], w=1 alive)
+ * - vel: [vx, vy, rotRand, strideRand]  (rotRand/strideRand for per-agent variation)
+ * - rgba: [r, g, b, a]          (agent color)
+ *
+ * Usage: pointsEmitter().flow().pointsRender().write(o0)
  */
 export default new Effect({
   name: "Flow",
   namespace: "filter",
   func: "flow",
-  tags: ["sim"],
+  tags: ["sim", "agents"],
 
   description: "Agent-based flow field with behaviors",
-  textures: {
-    globalFlowState1: { width: 512, height: 512, format: "rgba16f" },
-    globalFlowState2: { width: 512, height: 512, format: "rgba16f" },
-    globalFlowState3: { width: 512, height: 512, format: "rgba16f" },
-    globalFlowTrail: { width: "100%", height: "100%", format: "rgba16f" }
-  },
+
+  // No local textures - we use shared global_xyz/vel/rgba textures
+  // These are created by pointsEmitter and shared across the particle pipeline
+  textures: {},
+
+  // Expose outputs to pipeline for downstream effects
+  outputXyz: "global_xyz",
+  outputVel: "global_vel",
+  outputRgba: "global_rgba",
+
   globals: {
+    // stateSize parameter for texture sizing (must match pointsEmitter)
+    stateSize: {
+      type: "int",
+      default: 256,
+      uniform: "stateSize",
+      ui: { control: false }  // Inherited from pointsEmitter
+    },
     behavior: {
       type: "int",
       default: 1,
@@ -42,32 +56,6 @@ export default new Effect({
       ui: {
         label: "behavior",
         control: "dropdown",
-        category: "agents"
-      }
-    },
-    density: {
-      type: "float",
-      default: 20,
-      uniform: "density",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "density",
-        control: "slider",
-        category: "agents"
-      }
-    },
-    attrition: {
-      type: "float",
-      default: 1,
-      uniform: "attrition",
-      min: 0,
-      max: 10,
-      step: 0.1,
-      ui: {
-        label: "attrition",
-        control: "slider",
         category: "agents"
       }
     },
@@ -120,32 +108,6 @@ export default new Effect({
         category: "agents"
       }
     },
-    intensity: {
-      type: "float",
-      default: 90,
-      uniform: "intensity",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "trail intensity",
-        control: "slider",
-        category: "blending"
-      }
-    },
-    inputIntensity: {
-      type: "float",
-      default: 50,
-      uniform: "inputIntensity",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "input intensity",
-        control: "slider",
-        category: "blending"
-      }
-    },
     inputWeight: {
       type: "float",
       default: 100,
@@ -156,89 +118,54 @@ export default new Effect({
       ui: {
         label: "input weight",
         control: "slider",
-        category: "blending"
+        category: "agents"
       }
     },
-    resetState: {
-      type: "boolean",
-      default: false,
-      uniform: "resetState",
+    attrition: {
+      type: "float",
+      default: 1,
+      uniform: "attrition",
+      min: 0,
+      max: 10,
+      step: 0.1,
       ui: {
-        control: "button",
-        buttonLabel: "reset",
-        label: "state"
+        label: "attrition",
+        control: "slider",
+        category: "agents"
       }
     }
   },
+
   passes: [
-    // Pass 0: Copy previous trail with decay to preserve accumulation
-    // globalFlowTrail ping-pong: read previous, write current with fade
-    {
-      name: "diffuse",
-      program: "diffuse",
-      inputs: {
-        sourceTex: "globalFlowTrail"
-      },
-      uniforms: {
-        intensity: "intensity"
-      },
-      outputs: {
-        fragColor: "globalFlowTrail"
-      }
-    },
-    // Pass 1: Update agent state (position, direction, color, age)
-    // MRT outputs to 3 state textures simultaneously
+    // Pass 1: Update flow agent movement
+    // Read from shared global textures (previous frame or pointsEmitter output)
+    // Write back to same textures (ping-pong handled by runtime)
     {
       name: "agent",
       program: "agent",
       drawBuffers: 3,
       inputs: {
-        stateTex1: "globalFlowState1",
-        stateTex2: "globalFlowState2",
-        stateTex3: "globalFlowState3",
+        // Read from shared global textures
+        xyzTex: "global_xyz",
+        velTex: "global_vel",
+        rgbaTex: "global_rgba",
+        // Flow reads input for luminance-based direction
         inputTex: "inputTex"
       },
-      uniforms: {
-        behavior: "behavior",
-        density: "density",
-        stride: "stride",
-        strideDeviation: "strideDeviation",
-        kink: "kink",
-        quantize: "quantize",
-        attrition: "attrition",
-        inputWeight: "inputWeight"
-      },
       outputs: {
-        outState1: "globalFlowState1",
-        outState2: "globalFlowState2",
-        outState3: "globalFlowState3"
+        // Write to shared global textures (ping-pong for next frame)
+        outXYZ: "global_xyz",
+        outVel: "global_vel",
+        outRGBA: "global_rgba"
       }
     },
-    // Pass 2: Deposit agent trails as point sprites (additive onto faded trail)
+
+    // Pass 2: Copy input texture to output for 2D chain continuity
     {
-      name: "deposit",
-      program: "deposit",
-      drawMode: "points",
-      count: 262144,  // 512x512 agents
-      blend: true,
+      name: "passthrough",
+      program: "passthrough",
       inputs: {
-        stateTex1: "globalFlowState1",
-        stateTex2: "globalFlowState2"
-      },
-      outputs: {
-        fragColor: "globalFlowTrail"
-      }
-    },
-    // Pass 3: Final composite with input
-    {
-      name: "blend",
-      program: "blend",
-      inputs: {
-        inputTex: "inputTex",
-        trailTex: "globalFlowTrail"
-      },
-      uniforms: {
-        inputIntensity: "inputIntensity"
+        inputTex: "inputTex"
       },
       outputs: {
         fragColor: "outputTex"

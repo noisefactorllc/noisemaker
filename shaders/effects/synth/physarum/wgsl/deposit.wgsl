@@ -1,88 +1,62 @@
-/*
- * Physarum deposit shader (WGSL port).
- * Vertex shader reads agent positions from state texture using textureLoad.
- * Fragment shader writes deposit amount to trail texture.
- * Uses textureLoad for exact texel sampling (no interpolation for state data).
- */
-
-@group(0) @binding(0) var stateTex: texture_2d<f32>;
-@group(0) @binding(1) var colorTex: texture_2d<f32>;
-@group(0) @binding(2) var tex: texture_2d<f32>;
-@group(0) @binding(3) var texSampler: sampler;
-@group(0) @binding(4) var<uniform> u: Uniforms;
+// Deposit Shader - Scatter agents to trail texture
 
 struct Uniforms {
-    time: f32,
-    deltaTime: f32,
-    frame: i32,
-    _pad0: f32,
-    resolution: vec2f,
-    aspect: f32,
-    depositAmount: f32,
-    weight: f32,
-    density: f32,
-}
+    resolution: vec2<f32>,
+    deposit: f32,
+};
 
 struct VertexOutput {
-    @builtin(position) position: vec4f,
-    @location(0) vUV: vec2f,
-    @location(1) vColor: vec4f,
-}
+    @builtin(position) position: vec4<f32>,
+    @location(0) color: vec4<f32>,
+};
+
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var xyzTex: texture_2d<f32>;
+@group(0) @binding(2) var rgbaTex: texture_2d<f32>;
 
 @vertex
-fn vertexMain(@builtin(vertex_index) vertexID: u32) -> VertexOutput {
-    let size = vec2<i32>(textureDimensions(stateTex, 0));
-    let w = size.x;
-    let h = size.y;
-    let totalAgents = w * h;
+fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
+    var out: VertexOutput;
     
-    // Calculate max active agents based on density (0-100%)
-    let maxAgents = i32(f32(totalAgents) * u.density * 0.01);
+    // Get state size from xyz texture dimensions (inherited from pointsEmitter)
+    let texSize = textureDimensions(xyzTex, 0);
+    let stateSize = i32(texSize.x);
+    let totalAgents = stateSize * stateSize;
     
-    // Skip if beyond agent count
-    if (i32(vertexID) >= maxAgents) {
-        var out: VertexOutput;
-        out.position = vec4f(2.0, 2.0, 0.0, 1.0); // Off-screen
-        out.vUV = vec2f(0.0);
+    // Cull vertices beyond texture size
+    if (i32(vertexIndex) >= totalAgents) {
+        out.position = vec4<f32>(2.0, 2.0, 0.0, 1.0);
+        out.color = vec4<f32>(0.0);
         return out;
     }
     
-    let x = i32(vertexID) % w;
-    let y = i32(vertexID) / w;
-
-    // Use textureLoad for exact texel (no interpolation for agent state)
-    let agent = textureLoad(stateTex, vec2<i32>(x, y), 0);
-    let agentColor = textureLoad(colorTex, vec2<i32>(x, y), 0);
-    let clip = agent.xy / u.resolution * 2.0 - 1.0;
+    // Calculate UV for this agent
+    let x = i32(vertexIndex) % stateSize;
+    let y = i32(vertexIndex) / stateSize;
     
-    var out: VertexOutput;
-    out.position = vec4f(clip, 0.0, 1.0);
-    out.vUV = agent.xy / u.resolution;
-    out.vColor = agentColor;
+    // Read agent position and color
+    let pos = textureLoad(xyzTex, vec2<i32>(x, y), 0);
+    let col = textureLoad(rgbaTex, vec2<i32>(x, y), 0);
+    
+    // Check if agent is alive (pos.w >= 0.5 means alive)
+    if (pos.w < 0.5) {
+        out.position = vec4<f32>(2.0, 2.0, 0.0, 1.0);
+        out.color = vec4<f32>(0.0);
+        return out;
+    }
+    
+    // Convert position (0..1) to clip space (-1..1)
+    // WebGPU Y is flipped vs WebGL2 - flip Y to match
+    let clipPos = vec2<f32>(pos.x * 2.0 - 1.0, 1.0 - pos.y * 2.0);
+    
+    out.position = vec4<f32>(clipPos, 0.0, 1.0);
+    
+    // Apply deposit amount
+    out.color = vec4<f32>(col.rgb * u.deposit, col.a * u.deposit);
     return out;
 }
 
-fn luminance(color: vec3f) -> f32 {
-    return dot(color, vec3f(0.2126, 0.7152, 0.0722));
-}
-
-fn sampleInputColor(uv: vec2f) -> vec3f {
-    let flippedUV = vec2f(uv.x, 1.0 - uv.y);
-    return textureSample(tex, texSampler, flippedUV).rgb;
-}
-
-fn sampleInputLuminance(uv: vec2f) -> f32 {
-    return luminance(sampleInputColor(uv));
-}
-
 @fragment
-fn fragmentMain(in: VertexOutput) -> @location(0) vec4f {
-    let blend = clamp(u.weight * 0.01, 0.0, 1.0);
-    var deposit = u.depositAmount;
-    if (blend > 0.0) {
-        let inputValue = sampleInputLuminance(in.vUV);
-        let gain = mix(1.0, mix(0.25, 2.0, inputValue), blend);
-        deposit *= gain;
-    }
-    return vec4f(in.vColor.rgb * deposit, 1.0);
+fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {
+    return in.color;
 }

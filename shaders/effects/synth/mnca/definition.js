@@ -266,20 +266,20 @@ export default new Effect({
       name: "update",
       program: "mncaFb",
       inputs: {
-        bufTex: "globalMncaState",
+        bufTex: "global_mnca_state",
         seedTex: "tex"
       },
       outputs: {
-        fragColor: "globalMncaState"
+        fragColor: "global_mnca_state"
       }
     },
     {
       name: "render",
       program: "mnca",
       inputs: {
-        fbTex: "globalMncaState",
-        prevFrameTex: "globalMncaState",
-        bufTex: "globalMncaState",
+        fbTex: "global_mnca_state",
+        prevFrameTex: "global_mnca_state",
+        bufTex: "global_mnca_state",
         seedTex: "tex"
       },
       outputs: {

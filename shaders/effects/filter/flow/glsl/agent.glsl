@@ -2,25 +2,29 @@
 precision highp float;
 precision highp int;
 
+// Standard uniforms
 uniform vec2 resolution;
-uniform sampler2D stateTex1;
-uniform sampler2D stateTex2;
-uniform sampler2D stateTex3;
-uniform sampler2D inputTex;
+uniform float time;
+
+// Flow parameters
 uniform float stride;
 uniform float strideDeviation;
 uniform float kink;
 uniform float quantize;
-uniform float time;
 uniform float attrition;
 uniform float inputWeight;
 uniform float behavior;
-uniform float density;
-uniform bool resetState;
 
-layout(location = 0) out vec4 outState1;
-layout(location = 1) out vec4 outState2;
-layout(location = 2) out vec4 outState3;
+// Input state from pipeline (from pointsEmitter)
+uniform sampler2D inputTex;  // Source texture for luminance-based flow
+uniform sampler2D xyzTex;    // [x, y, z, alive]
+uniform sampler2D velTex;    // [vx, vy, rotRand, strideRand]
+uniform sampler2D rgbaTex;   // [r, g, b, a]
+
+// Output state (MRT)
+layout(location = 0) out vec4 outXYZ;
+layout(location = 1) out vec4 outVel;
+layout(location = 2) out vec4 outRGBA;
 
 const float TAU = 6.283185307179586;
 const float RIGHT_ANGLE = 1.5707963267948966;
@@ -33,25 +37,6 @@ uint hash_uint(uint seed) {
 
 float hash(uint seed) {
     return float(hash_uint(seed)) / 4294967295.0;
-}
-
-vec2 hash2(uint seed) {
-    return vec2(hash(seed), hash(seed + 1u));
-}
-
-float wrap_float(float value, float size) {
-    if (size <= 0.0) return 0.0;
-    float scaled = floor(value / size);
-    float wrapped = value - scaled * size;
-    if (wrapped < 0.0) wrapped += size;
-    return wrapped;
-}
-
-int wrap_int(int value, int size) {
-    if (size <= 0) return 0;
-    int result = value % size;
-    if (result < 0) result += size;
-    return result;
 }
 
 float srgb_to_linear(float value) {
@@ -80,144 +65,87 @@ float normalized_sine(float value) {
 }
 
 // Compute rotation bias based on behavior mode
-// Called EVERY FRAME to allow behavior changes to take effect immediately
-// baseRotRand is per-agent random [0,1] stored in state
-float computeRotationBias(int behaviorMode, float baseHeading, float baseRotRand, float time, int agentIndex, int totalAgents) {
+float computeRotationBias(int behaviorMode, float baseHeading, float rotRand, float time, int agentIndex, int totalAgents) {
     if (behaviorMode <= 0) {
-        // None: all face right (no rotation bias)
         return 0.0;
     } else if (behaviorMode == 1) {
-        // Obedient: all same direction
         return baseHeading;
     } else if (behaviorMode == 2) {
-        // Crosshatch: 4 cardinal directions based on per-agent random
-        return baseHeading + floor(baseRotRand * 4.0) * RIGHT_ANGLE;
+        return baseHeading + floor(rotRand * 4.0) * RIGHT_ANGLE;
     } else if (behaviorMode == 3) {
-        // Unruly: small deviation from base
-        return baseHeading + (baseRotRand - 0.5) * 0.25;
+        return baseHeading + (rotRand - 0.5) * 0.25;
     } else if (behaviorMode == 4) {
-        // Chaotic: random direction
-        return baseRotRand * TAU;
+        return rotRand * TAU;
     } else if (behaviorMode == 5) {
-        // Random Mix: divide agents into 4 quarters with different behaviors
         int quarterSize = max(1, totalAgents / 4);
         int band = agentIndex / quarterSize;
         if (band <= 0) {
-            return baseHeading;  // Obedient
+            return baseHeading;
         } else if (band == 1) {
-            return baseHeading + floor(baseRotRand * 4.0) * RIGHT_ANGLE;  // Crosshatch
+            return baseHeading + floor(rotRand * 4.0) * RIGHT_ANGLE;
         } else if (band == 2) {
-            return baseHeading + (baseRotRand - 0.5) * 0.25;  // Unruly
+            return baseHeading + (rotRand - 0.5) * 0.25;
         } else {
-            return baseRotRand * TAU;  // Chaotic
+            return rotRand * TAU;
         }
     } else if (behaviorMode == 10) {
-        // Meandering: time-varying sine rotation using per-agent phase
-        return normalized_sine((time - baseRotRand) * TAU);
+        return normalized_sine((time - rotRand) * TAU);
     } else {
-        return baseRotRand * TAU;
+        return rotRand * TAU;
     }
 }
 
 void main() {
     ivec2 coord = ivec2(gl_FragCoord.xy);
-    int width = int(resolution.x);
-    int height = int(resolution.y);
+    ivec2 stateSize = textureSize(xyzTex, 0);
     
-    // Read current agent state
-    vec4 state1 = texelFetch(stateTex1, coord, 0);  // x, y, rotRand, strideRand
-    vec4 state2 = texelFetch(stateTex2, coord, 0);  // r, g, b, seed
-    vec4 state3 = texelFetch(stateTex3, coord, 0);  // age, initialized, 0, 0
+    // Read input state from pipeline
+    vec4 xyz = texelFetch(xyzTex, coord, 0);
+    vec4 vel = texelFetch(velTex, coord, 0);
+    vec4 rgba = texelFetch(rgbaTex, coord, 0);
     
-    float flow_x = state1.x;
-    float flow_y = state1.y;
-    float rotRand = state1.z;  // Per-agent random [0,1] for rotation variation
-    float strideRand = state1.w;  // Per-agent random value [-0.5, 0.5] for stride variation
-    float cr = state2.x;
-    float cg = state2.y;
-    float cb = state2.z;
-    float seed_f = state2.w;
-    float age = state3.x;
-    float initialized = state3.y;
+    // Extract components (positions in normalized coords [0,1])
+    float px = xyz.x;
+    float py = xyz.y;
+    float pz = xyz.z;
+    float alive = xyz.w;
     
-    uint agentSeed = uint(coord.x + coord.y * width);
+    // Flow-specific state stored in vel
+    // vel.x, vel.y unused for flow (no velocity accumulation)
+    float rotRand = vel.z;     // Per-agent rotation random [0,1]
+    float strideRand = vel.w;  // Per-agent stride random [-0.5, 0.5]
     
-    // Compute total agent count for Random Mix behavior
-    int totalAgents = width * height;  // Max possible agents (texture size)
-    int agentIndex = coord.x + coord.y * width;
-    
-    // Check if this agent needs initialization or reset requested
-    if (initialized < 0.5 || resetState) {
-        // Initialize agent at random position
-        vec2 pos = hash2(agentSeed);
-        flow_x = pos.x * float(width);
-        flow_y = pos.y * float(height);
-        
-        // Store per-agent random [0,1] for rotation variation
-        // Actual rotation computed each frame based on current behavior uniform
-        rotRand = hash(agentSeed + 200u);
-        
-        // Store per-agent random value for stride deviation
-        // Actual deviation factor computed each frame using strideDeviation uniform
-        strideRand = hash(agentSeed + 300u) - 0.5;  // Range [-0.5, 0.5]
-        
-        // Sample color from input (flip Y to match blend pass orientation)
-        int xi = wrap_int(int(flow_x), width);
-        int yi = height - 1 - wrap_int(int(flow_y), height);
-        vec4 inputColor = texelFetch(inputTex, ivec2(xi, yi), 0);
-        cr = inputColor.r;
-        cg = inputColor.g;
-        cb = inputColor.b;
-        
-        seed_f = float(agentSeed);
-        age = 0.0;
-        initialized = 1.0;
+    // If not alive, pass through unchanged
+    if (alive < 0.5) {
+        outXYZ = xyz;
+        outVel = vel;
+        outRGBA = rgba;
+        return;
     }
     
-    // Check for respawn based on attrition (percentage of agents respawning per frame)
-    // Use robust hashing to avoid correlation between selection and position
-    uint time_seed = uint(time * 60.0);
-    uint check_seed = agentSeed + time_seed * 747796405u;
-    float respawnRand = hash(check_seed);
-    float attritionRate = attrition * 0.01;  // Convert 0-10% to 0-0.1
-    bool shouldRespawn = attrition > 0.0 && respawnRand < attritionRate;
+    // Initialize rotRand/strideRand on first use (if they're zero from pointsEmitter)
+    uint agentSeed = uint(coord.x + coord.y * stateSize.x);
+    if (rotRand == 0.0 && strideRand == 0.0) {
+        rotRand = hash(agentSeed + 200u);
+        strideRand = hash(agentSeed + 300u) - 0.5;
+    }
     
-    if (shouldRespawn) {
-        // Respawn at new random location
-        // Decorrelate position seed from check seed
-        uint pos_seed = check_seed ^ 2891336453u;
-        vec2 pos = hash2(pos_seed);
-        flow_x = pos.x * float(width);
-        flow_y = pos.y * float(height);
-        
-        // New random for rotation variation
-        rotRand = hash(pos_seed + 200u);
-        
-        // Sample new color (flip Y to match blend pass orientation)
-        int xi = wrap_int(int(flow_x), width);
-        int yi = height - 1 - wrap_int(int(flow_y), height);
-        vec4 inputColor = texelFetch(inputTex, ivec2(xi, yi), 0);
-        cr = inputColor.r;
-        cg = inputColor.g;
-        cb = inputColor.b;
-        
-        seed_f = float(pos_seed);
-        age = 0.0;
-    }    // Sample input texture at current position for flow direction (flip Y to match blend pass orientation)
-    int xi = wrap_int(int(flow_x), width);
-    int yi = height - 1 - wrap_int(int(flow_y), height);
-    vec4 texel = texelFetch(inputTex, ivec2(xi, yi), 0);
+    // Sample input texture at current position for flow direction
+    ivec2 texSize = textureSize(inputTex, 0);
+    ivec2 texCoord = ivec2(px * float(texSize.x), py * float(texSize.y));
+    texCoord = clamp(texCoord, ivec2(0), texSize - 1);
+    vec4 texel = texelFetch(inputTex, texCoord, 0);
     float inputLuma = oklab_l(texel.rgb);
     
     // inputWeight controls how much the input texture influences flow direction
-    // 0 = purely random/behavior-based, 100 = fully input-driven
     float weightBlend = clamp(inputWeight * 0.01, 0.0, 1.0);
     float indexValue = mix(0.5, inputLuma, weightBlend);
     
-    // Compute rotation bias based on behavior uniform (computed each frame!)
-    // baseHeading is constant across all agents (seed 0)
+    // Compute rotation bias based on behavior uniform
     float baseHeading = hash(0u) * TAU;
     int behaviorMode = int(behavior);
+    int totalAgents = stateSize.x * stateSize.y;
+    int agentIndex = coord.x + coord.y * stateSize.x;
     float rotationBias = computeRotationBias(behaviorMode, baseHeading, rotRand, time, agentIndex, totalAgents);
     
     // Final angle based on input texture and kink
@@ -227,24 +155,40 @@ void main() {
         finalAngle = round(finalAngle);
     }
     
-    // Compute actual stride: stride is in 1/10th of pixels, so divide by 10
-    // strideRand is per-agent random [-0.5, 0.5], strideDeviation uniform controls magnitude
-    float scale = max(float(max(width, height)) / 1024.0, 1.0);
+    // Compute actual stride in normalized coords
+    // stride uniform is in 1/10th of pixels at 1024 resolution
+    float scale = max(max(resolution.x, resolution.y) / 1024.0, 1.0);
     float devFactor = 1.0 + strideRand * 2.0 * strideDeviation;
-    float actualStride = max(0.1, (stride * 0.1) * scale * devFactor);
+    float actualStride = max(0.0001, (stride * 0.1) * scale * devFactor / max(resolution.x, resolution.y));
     
     // Move agent
-    float newX = flow_x + sin(finalAngle) * actualStride;
-    float newY = flow_y + cos(finalAngle) * actualStride;
+    float newX = px + sin(finalAngle) * actualStride;
+    float newY = py + cos(finalAngle) * actualStride;
     
-    // Wrap position
-    newX = wrap_float(newX, float(width));
-    newY = wrap_float(newY, float(height));
+    // Wrap position to [0,1]
+    newX = fract(newX);
+    newY = fract(newY);
     
-    age += 0.016; // Approximate frame time
+    // Check for respawn based on attrition
+    bool needsRespawn = false;
+    if (attrition > 0.0) {
+        uint time_seed = uint(time * 60.0);
+        uint check_seed = agentSeed + time_seed * 747796405u;
+        float respawnRand = hash(check_seed);
+        float attritionRate = attrition * 0.01;
+        if (respawnRand < attritionRate) {
+            needsRespawn = true;
+        }
+    }
     
-    // Output updated state
-    outState1 = vec4(newX, newY, rotRand, strideRand);
-    outState2 = vec4(cr, cg, cb, seed_f);
-    outState3 = vec4(age, initialized, 0.0, 0.0);
+    if (needsRespawn) {
+        // Signal respawn by setting alive flag to 0
+        outXYZ = vec4(newX, newY, pz, 0.0);
+        outVel = vec4(0.0, 0.0, rotRand, strideRand);
+        outRGBA = rgba;
+    } else {
+        outXYZ = vec4(newX, newY, pz, 1.0);
+        outVel = vec4(0.0, 0.0, rotRand, strideRand);
+        outRGBA = rgba;
+    }
 }

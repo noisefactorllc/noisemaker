@@ -3,46 +3,43 @@ import { Effect } from '../../../src/runtime/effect.js'
 /**
  * Particles - Physics-based particle simulation with gravity and wind
  *
- * Simple architecture mirroring flow:
- * - diffuse: Trail decay/persistence
- * - agent: Update particle position/velocity with physics
- * - deposit: Point-sprite particle trails
- * - blend: Final composite with input
+ * Common Agent Architecture middleware:
+ * - Reads agent state from pipeline inputs (inputXyz, inputVel, inputRgba)
+ * - Applies physics (gravity, wind, drag, wander)
+ * - Writes updated state to own textures (ping-ponged by runtime)
  *
- * Particle state: [x, y, vx, vy] [r, g, b, seed] [age, energy, 0, 0]
+ * State format (matching pointsEmitter):
+ * - xyz: [x, y, z, alive_flag]  (z used for depth, w=1 alive, w=0 dead)
+ * - vel: [vx, vy, vz, seed]     (z velocity, w for per-agent seed)
+ * - rgba: [r, g, b, a]          (agent color)
+ *
+ * Usage: pointsEmitter().particles().pointsRender().write(o0)
  */
 export default new Effect({
   name: "Particles",
   namespace: "synth",
   func: "particles",
-  tags: ["sim"],
+  tags: ["sim", "agents"],
 
   description: "Physics-based particle simulation",
-  textures: {
-    globalParticlesState1: { width: 256, height: 256, format: "rgba16f" },
-    globalParticlesState2: { width: 256, height: 256, format: "rgba16f" },
-    globalParticlesState3: { width: 256, height: 256, format: "rgba16f" },
-    globalParticlesTrail: { width: "100%", height: "100%", format: "rgba16f" }
-  },
+
+  // No local textures - we use shared global_xyz/vel/rgba textures
+  // These are created by pointsEmitter and shared across the particle pipeline
+  textures: {},
+
+  // Expose outputs to pipeline for downstream effects
+  // Using underscore convention for SHARED global textures (not node-prefixed)
+  outputXyz: "global_xyz",
+  outputVel: "global_vel",
+  outputRgba: "global_rgba",
+
   globals: {
-    tex: {
-      type: "surface",
-      default: "none",
-      colorModeUniform: "colorMode",
-      ui: { label: "texture" }
-    },
-    density: {
-      type: "float",
-      default: 25,
-      uniform: "density",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "density",
-        control: "slider",
-        category: "agents"
-      }
+    // stateSize parameter for texture sizing (must match pointsEmitter)
+    stateSize: {
+      type: "int",
+      default: 256,
+      uniform: "stateSize",
+      ui: { control: false }  // Inherited from pointsEmitter
     },
     gravity: {
       type: "float",
@@ -134,108 +131,38 @@ export default new Effect({
         control: "slider",
         category: "agents"
       }
-    },
-    intensity: {
-      type: "float",
-      default: 3,
-      uniform: "intensity",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "trail intensity",
-        control: "slider",
-        category: "blending"
-      }
-    },
-    inputIntensity: {
-      type: "float",
-      default: 0,
-      uniform: "inputIntensity",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "input intensity",
-        control: "slider",
-        category: "blending"
-      }
-    },
-    resetState: {
-      type: "boolean",
-      default: false,
-      uniform: "resetState",
-      ui: {
-        control: "button",
-        buttonLabel: "reset",
-        label: "state"
-      }
     }
   },
+
   passes: [
-    // Pass 0: Trail decay
-    {
-      name: "diffuse",
-      program: "diffuse",
-      inputs: {
-        sourceTex: "globalParticlesTrail"
-      },
-      uniforms: {
-        intensity: "intensity"
-      },
-      outputs: {
-        fragColor: "globalParticlesTrail"
-      }
-    },
-    // Pass 1: Update particle state with physics
+    // Pass 1: Update particle physics
+    // Read from shared global textures (previous frame or pointsEmitter output)
+    // Write back to same textures (ping-pong handled by runtime)
     {
       name: "agent",
       program: "agent",
       drawBuffers: 3,
       inputs: {
-        stateTex1: "globalParticlesState1",
-        stateTex2: "globalParticlesState2",
-        stateTex3: "globalParticlesState3",
-        inputTex: "tex"
-      },
-      uniforms: {
-        density: "density",
-        gravity: "gravity",
-        wind: "wind",
-        energy: "energy",
-        attrition: "attrition"
+        // Read from shared global textures
+        // Within-frame: updateFrameSurfaceBindings makes pointsEmitter's writes visible
+        xyzTex: "global_xyz",
+        velTex: "global_vel",
+        rgbaTex: "global_rgba"
       },
       outputs: {
-        outState1: "globalParticlesState1",
-        outState2: "globalParticlesState2",
-        outState3: "globalParticlesState3"
+        // Write to shared global textures (ping-pong for next frame)
+        outXYZ: "global_xyz",
+        outVel: "global_vel",
+        outRGBA: "global_rgba"
       }
     },
-    // Pass 2: Deposit particle trails
+
+    // Pass 2: Copy input texture to output for 2D chain continuity
     {
-      name: "deposit",
-      program: "deposit",
-      drawMode: "points",
-      count: 65536,  // 256x256 particles
-      blend: true,
+      name: "passthrough",
+      program: "passthrough",
       inputs: {
-        stateTex1: "globalParticlesState1",
-        stateTex2: "globalParticlesState2"
-      },
-      outputs: {
-        fragColor: "globalParticlesTrail"
-      }
-    },
-    // Pass 3: Final composite
-    {
-      name: "blend",
-      program: "blend",
-      inputs: {
-        inputTex: "tex",
-        trailTex: "globalParticlesTrail"
-      },
-      uniforms: {
-        inputIntensity: "inputIntensity"
+        inputTex: "inputTex"
       },
       outputs: {
         fragColor: "outputTex"

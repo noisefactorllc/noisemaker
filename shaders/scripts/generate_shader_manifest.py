@@ -30,7 +30,13 @@ TEX_SURFACE_RE = re.compile(r'\btex\s*[:=]\s*\{[^}]*type\s*[:=]\s*["\']surface["
 # Known pipeline inputs that indicate a non-starter effect
 PIPELINE_INPUTS = {
     'inputTex', 'inputTex3d',
-    'o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7'
+    'inputXyz', 'inputVel', 'inputRgba',  # Agent state pipeline inputs
+    'o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7',
+}
+
+# Agent state surfaces - reading these without defining them means NOT a starter
+AGENT_STATE_SURFACES = {
+    'global_xyz0', 'global_vel0', 'global_rgba0',
 }
 
 
@@ -119,6 +125,17 @@ def is_starter_effect(effect_dir):
             # No passes = starter effect (or not properly defined)
             return True
 
+        # Check if effect defines agent state surfaces (it's a starter/creator)
+        # Look for textures: { global_xyz0: ... } pattern
+        textures_match = re.search(r'textures\s*[:=]\s*\{[\s\S]*?\}', content)
+        defines_agent_surfaces = False
+        if textures_match:
+            textures_section = textures_match.group(0)
+            for surface in AGENT_STATE_SURFACES:
+                if surface in textures_section:
+                    defines_agent_surfaces = True
+                    break
+
         # Find the passes section and check for pipeline inputs as VALUES
         # What matters is the VALUE being bound, not the key name
         # e.g., `someTex: "inputTex"` means reading from pipeline input
@@ -131,6 +148,13 @@ def is_starter_effect(effect_dir):
                 pattern = rf':\s*["\']{pipeline_input}["\']'
                 if re.search(pattern, inputs):
                     return False
+
+            # Check for agent state surface inputs (only if effect doesn't define them)
+            if not defines_agent_surfaces:
+                for surface in AGENT_STATE_SURFACES:
+                    pattern = rf':\s*["\']{surface}["\']'
+                    if re.search(pattern, inputs):
+                        return False
 
         # No pipeline inputs found in any pass
         return True
@@ -178,7 +202,7 @@ def scan_effect(effect_dir):
 def main():
     manifest = {}
     
-    for namespace in ["classicNoisedeck", "classicNoisemaker", "filter", "filter3d", "loop", "mixer", "synth", "synth3d"]:
+    for namespace in ["classicNoisedeck", "classicNoisemaker", "filter", "filter3d", "mixer", "render", "synth", "synth3d"]:
         ns_dir = EFFECTS_ROOT / namespace
         if not ns_dir.exists():
             continue
