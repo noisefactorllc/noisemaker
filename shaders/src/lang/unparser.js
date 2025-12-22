@@ -687,8 +687,12 @@ export function unparse(compiled, overrides = {}, options = {}) {
             // Apply overrides - filter to only include valid DSL parameters
             // When we have effect specs, only include keys defined in globals
             // This prevents internal tracking values from leaking to DSL
+            // Exception: internal _ prefixed args like _skip are always allowed
             for (const [key, value] of Object.entries(stepOverrides)) {
-                if (hasSpecs) {
+                // Always allow internal _ prefixed args (e.g., _skip)
+                if (key.startsWith('_')) {
+                    call.kwargs[key] = value
+                } else if (hasSpecs) {
                     // Only include keys that are defined in the effect's globals
                     if (specs[key] !== undefined) {
                         call.kwargs[key] = value

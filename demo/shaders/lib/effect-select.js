@@ -3,6 +3,9 @@
  *
  * A stylable dropdown replacement that supports rich formatting for effect names
  * and descriptions, with grouped categories.
+ *
+ * Note: This component does NOT use Shadow DOM. Styles are injected into the
+ * document head once, using the 'es-' prefix for scoping.
  */
 
 /**
@@ -17,10 +20,190 @@ function camelToSpaceCase(str) {
         .toLowerCase()
 }
 
+/** Flag to track if styles have been injected */
+let stylesInjected = false
+
+/**
+ * Inject component styles into document head (once)
+ */
+function injectStyles() {
+    if (stylesInjected) return
+    stylesInjected = true
+
+    const style = document.createElement('style')
+    style.id = 'effect-select-styles'
+    style.textContent = `
+        effect-select {
+            display: block;
+            position: relative;
+            font-family: Nunito, sans-serif;
+            width: 280px;
+        }
+
+        effect-select.open {
+            z-index: 10000;
+        }
+
+        effect-select .es-trigger {
+            width: 100%;
+            padding: 0.25rem 0.375rem;
+            padding-right: 1.5rem;
+            background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
+            border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+            border-radius: var(--ui-corner-radius-small, 0.375rem);
+            color: var(--color6, #d9deeb);
+            font-family: Nunito, sans-serif;
+            font-size: 0.6875rem;
+            font-weight: 560;
+            outline: none;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        effect-select .es-trigger-name {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: var(--color6, #d9deeb);
+        }
+
+        effect-select .es-trigger-description {
+            font-size: 0.625rem;
+            font-weight: 400;
+            color: var(--color5, #98a7c8);
+        }
+
+        effect-select .es-trigger::after {
+            content: '▼';
+            position: absolute;
+            right: 0.375rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.5rem;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        effect-select .es-trigger:hover {
+            background: color-mix(in srgb, var(--accent3) 22%, transparent 78%);
+            border-color: color-mix(in srgb, var(--accent3) 35%, transparent 65%);
+        }
+
+        effect-select .es-trigger:focus,
+        effect-select.open .es-trigger {
+            border-color: var(--accent3, #a5b8ff);
+            background: color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+        }
+
+        effect-select .es-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 0.25rem);
+            left: 0;
+            min-width: 100%;
+            width: max-content;
+            max-width: 500px;
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            background: color-mix(in srgb, var(--color2, #101522) 95%, transparent 5%);
+            border: 1px solid color-mix(in srgb, var(--accent3) 35%, transparent 65%);
+            border-radius: var(--ui-corner-radius-small, 0.375rem);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            z-index: 10000;
+            backdrop-filter: blur(12px);
+        }
+
+        effect-select.open .es-dropdown {
+            display: block;
+        }
+
+        effect-select.flip-up .es-dropdown {
+            top: auto;
+            bottom: calc(100% + 0.25rem);
+        }
+
+        effect-select .es-group-header {
+            padding: 0.5rem 0.5rem 0.25rem;
+            font-size: 0.625rem;
+            font-weight: 700;
+            text-transform: lowercase;
+            letter-spacing: 0.05em;
+            color: var(--accent3, #a5b8ff);
+            background: color-mix(in srgb, var(--accent1, #141a2d) 50%, transparent 50%);
+            border-bottom: 1px solid color-mix(in srgb, var(--accent3) 15%, transparent 85%);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        effect-select .es-option {
+            padding: 0.375rem 0.5rem;
+            cursor: pointer;
+            transition: background 0.1s ease;
+            border-bottom: 1px solid color-mix(in srgb, var(--accent3) 8%, transparent 92%);
+        }
+
+        effect-select .es-option:last-child {
+            border-bottom: none;
+        }
+
+        effect-select .es-option:hover,
+        effect-select .es-option.focused {
+            background: color-mix(in srgb, var(--accent3) 20%, transparent 80%);
+        }
+
+        effect-select .es-option.selected {
+            background: color-mix(in srgb, var(--accent3) 30%, transparent 70%);
+        }
+
+        effect-select .es-option-name {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            color: var(--color6, #d9deeb);
+        }
+
+        effect-select .es-option-description {
+            font-size: 0.625rem;
+            font-weight: 400;
+            color: var(--color5, #98a7c8);
+        }
+
+        /* Scrollbar styling */
+        effect-select .es-dropdown::-webkit-scrollbar {
+            width: 0.375rem;
+        }
+
+        effect-select .es-dropdown::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        effect-select .es-dropdown::-webkit-scrollbar-thumb {
+            background: color-mix(in srgb, var(--accent3) 30%, transparent 70%);
+            border-radius: 0.25rem;
+        }
+
+        effect-select .es-dropdown::-webkit-scrollbar-thumb:hover {
+            background: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
+        }
+
+        effect-select .es-dropdown {
+            scrollbar-width: thin;
+            scrollbar-color: color-mix(in srgb, var(--accent3) 30%, transparent 70%) transparent;
+        }
+    `
+    document.head.appendChild(style)
+}
+
 class EffectSelect extends HTMLElement {
     constructor() {
         super()
-        this.attachShadow({ mode: 'open' })
         this._effects = []
         this._value = ''
         this._isOpen = false
@@ -35,6 +218,7 @@ class EffectSelect extends HTMLElement {
     }
 
     connectedCallback() {
+        injectStyles()
         this._render()
         this._setupEventListeners()
     }
@@ -137,182 +321,16 @@ class EffectSelect extends HTMLElement {
     }
 
     _render() {
-        this.shadowRoot.innerHTML = `
-            <style>
-                :host {
-                    display: block;
-                    position: relative;
-                    font-family: Nunito, sans-serif;
-                    width: 280px;
-                }
-
-                :host(.open) {
-                    z-index: 10000;
-                }
-
-                .select-trigger {
-                    width: 100%;
-                    padding: 0.25rem 0.375rem;
-                    padding-right: 1.5rem;
-                    background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
-                    border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-                    border-radius: var(--ui-corner-radius-small, 0.375rem);
-                    color: var(--color6, #d9deeb);
-                    font-family: Nunito, sans-serif;
-                    font-size: 0.6875rem;
-                    font-weight: 560;
-                    outline: none;
-                    cursor: pointer;
-                    transition: all 0.15s ease;
-                    text-align: left;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    position: relative;
-                    box-sizing: border-box;
-                }
-
-                .trigger-name {
-                    font-size: 0.6875rem;
-                    font-weight: 600;
-                    color: var(--color6, #d9deeb);
-                }
-
-                .trigger-description {
-                    font-size: 0.625rem;
-                    font-weight: 400;
-                    color: var(--color5, #98a7c8);
-                }
-
-                .select-trigger::after {
-                    content: '▼';
-                    position: absolute;
-                    right: 0.375rem;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    font-size: 0.5rem;
-                    opacity: 0.6;
-                    pointer-events: none;
-                }
-
-                .select-trigger:hover {
-                    background: color-mix(in srgb, var(--accent3) 22%, transparent 78%);
-                    border-color: color-mix(in srgb, var(--accent3) 35%, transparent 65%);
-                }
-
-                .select-trigger:focus,
-                :host(.open) .select-trigger {
-                    border-color: var(--accent3, #a5b8ff);
-                    background: color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-                    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-                }
-
-                .dropdown {
-                    display: none;
-                    position: absolute;
-                    top: calc(100% + 0.25rem);
-                    left: 0;
-                    min-width: 100%;
-                    width: max-content;
-                    max-width: 500px;
-                    max-height: 400px;
-                    overflow-y: auto;
-                    overflow-x: hidden;
-                    background: color-mix(in srgb, var(--color2, #101522) 95%, transparent 5%);
-                    border: 1px solid color-mix(in srgb, var(--accent3) 35%, transparent 65%);
-                    border-radius: var(--ui-corner-radius-small, 0.375rem);
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-                    z-index: 10000;
-                    backdrop-filter: blur(12px);
-                }
-
-                :host(.open) .dropdown {
-                    display: block;
-                }
-
-                :host(.flip-up) .dropdown {
-                    top: auto;
-                    bottom: calc(100% + 0.25rem);
-                }
-
-                .group-header {
-                    padding: 0.5rem 0.5rem 0.25rem;
-                    font-size: 0.625rem;
-                    font-weight: 700;
-                    text-transform: lowercase;
-                    letter-spacing: 0.05em;
-                    color: var(--accent3, #a5b8ff);
-                    background: color-mix(in srgb, var(--accent1, #141a2d) 50%, transparent 50%);
-                    border-bottom: 1px solid color-mix(in srgb, var(--accent3) 15%, transparent 85%);
-                    position: sticky;
-                    top: 0;
-                    z-index: 1;
-                }
-
-                .option {
-                    padding: 0.375rem 0.5rem;
-                    cursor: pointer;
-                    transition: background 0.1s ease;
-                    border-bottom: 1px solid color-mix(in srgb, var(--accent3) 8%, transparent 92%);
-                }
-
-                .option:last-child {
-                    border-bottom: none;
-                }
-
-                .option:hover,
-                .option.focused {
-                    background: color-mix(in srgb, var(--accent3) 20%, transparent 80%);
-                }
-
-                .option.selected {
-                    background: color-mix(in srgb, var(--accent3) 30%, transparent 70%);
-                }
-
-                .option-name {
-                    font-size: 0.6875rem;
-                    font-weight: 600;
-                    color: var(--color6, #d9deeb);
-                }
-
-                .option-description {
-                    font-size: 0.625rem;
-                    font-weight: 400;
-                    color: var(--color5, #98a7c8);
-                }
-
-                /* Scrollbar styling */
-                .dropdown::-webkit-scrollbar {
-                    width: 0.375rem;
-                }
-
-                .dropdown::-webkit-scrollbar-track {
-                    background: transparent;
-                }
-
-                .dropdown::-webkit-scrollbar-thumb {
-                    background: color-mix(in srgb, var(--accent3) 30%, transparent 70%);
-                    border-radius: 0.25rem;
-                }
-
-                .dropdown::-webkit-scrollbar-thumb:hover {
-                    background: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
-                }
-
-                .dropdown {
-                    scrollbar-width: thin;
-                    scrollbar-color: color-mix(in srgb, var(--accent3) 30%, transparent 70%) transparent;
-                }
-            </style>
-            <button class="select-trigger" tabindex="0" aria-haspopup="listbox">
-                <span class="trigger-text">Select effect...</span>
+        this.innerHTML = `
+            <button class="es-trigger" tabindex="0" aria-haspopup="listbox">
+                <span class="es-trigger-text">Select effect...</span>
             </button>
-            <div class="dropdown" role="listbox"></div>
+            <div class="es-dropdown" role="listbox"></div>
         `
     }
 
     _renderDropdown() {
-        const dropdown = this.shadowRoot.querySelector('.dropdown')
+        const dropdown = this.querySelector('.es-dropdown')
         if (!dropdown) return
 
         dropdown.innerHTML = ''
@@ -335,24 +353,24 @@ class EffectSelect extends HTMLElement {
 
         sortedNamespaces.forEach(namespace => {
             const header = document.createElement('div')
-            header.className = 'group-header'
+            header.className = 'es-group-header'
             header.textContent = camelToSpaceCase(namespace)
             dropdown.appendChild(header)
 
             grouped[namespace].sort((a, b) => a.name.localeCompare(b.name)).forEach(effect => {
                 const option = document.createElement('div')
-                option.className = 'option'
+                option.className = 'es-option'
                 option.dataset.value = `${namespace}/${effect.name}`
                 option.setAttribute('role', 'option')
 
                 const nameSpan = document.createElement('span')
-                nameSpan.className = 'option-name'
+                nameSpan.className = 'es-option-name'
                 nameSpan.textContent = camelToSpaceCase(effect.name)
                 option.appendChild(nameSpan)
 
                 if (effect.description) {
                     const descSpan = document.createElement('span')
-                    descSpan.className = 'option-description'
+                    descSpan.className = 'es-option-description'
                     descSpan.textContent = `: ${effect.description}`
                     option.appendChild(descSpan)
                 }
@@ -365,16 +383,16 @@ class EffectSelect extends HTMLElement {
     }
 
     _updateDisplay() {
-        const trigger = this.shadowRoot.querySelector('.trigger-text')
+        const trigger = this.querySelector('.es-trigger-text')
         if (!trigger) return
 
         const selectedEffect = this._flatOptions.find(opt => opt.value === this._value)
         if (selectedEffect) {
             const displayName = camelToSpaceCase(selectedEffect.name)
             if (selectedEffect.description) {
-                trigger.innerHTML = `<span class="trigger-name">${displayName}</span><span class="trigger-description">: ${selectedEffect.description}</span>`
+                trigger.innerHTML = `<span class="es-trigger-name">${displayName}</span><span class="es-trigger-description">: ${selectedEffect.description}</span>`
             } else {
-                trigger.innerHTML = `<span class="trigger-name">${displayName}</span>`
+                trigger.innerHTML = `<span class="es-trigger-name">${displayName}</span>`
             }
         } else {
             trigger.textContent = 'Select effect...'
@@ -384,17 +402,17 @@ class EffectSelect extends HTMLElement {
     }
 
     _updateSelectedOption() {
-        const dropdown = this.shadowRoot.querySelector('.dropdown')
+        const dropdown = this.querySelector('.es-dropdown')
         if (!dropdown) return
 
-        dropdown.querySelectorAll('.option').forEach(opt => {
+        dropdown.querySelectorAll('.es-option').forEach(opt => {
             opt.classList.toggle('selected', opt.dataset.value === this._value)
         })
     }
 
     _setupEventListeners() {
-        const trigger = this.shadowRoot.querySelector('.select-trigger')
-        const dropdown = this.shadowRoot.querySelector('.dropdown')
+        const trigger = this.querySelector('.es-trigger')
+        const dropdown = this.querySelector('.es-dropdown')
 
         // Toggle dropdown on trigger click
         trigger.addEventListener('click', (e) => {
@@ -404,7 +422,7 @@ class EffectSelect extends HTMLElement {
 
         // Handle option clicks
         dropdown.addEventListener('click', (e) => {
-            const option = e.target.closest('.option')
+            const option = e.target.closest('.es-option')
             if (option) {
                 this._selectOption(option.dataset.value)
             }
@@ -547,8 +565,8 @@ class EffectSelect extends HTMLElement {
         this.classList.add('open')
 
         // Determine if we need to flip upward
-        const dropdown = this.shadowRoot.querySelector('.dropdown')
-        const trigger = this.shadowRoot.querySelector('.select-trigger')
+        const dropdown = this.querySelector('.es-dropdown')
+        const trigger = this.querySelector('.es-trigger')
         const triggerRect = trigger.getBoundingClientRect()
         const dropdownHeight = Math.min(400, this._flatOptions.length * 28 + 100) // Estimate
         const spaceBelow = window.innerHeight - triggerRect.bottom
@@ -567,7 +585,7 @@ class EffectSelect extends HTMLElement {
         this._updateFocusedOption()
 
         // Scroll selected into view
-        const selectedOption = dropdown.querySelector('.option.selected')
+        const selectedOption = dropdown.querySelector('.es-option.selected')
         if (selectedOption) {
             selectedOption.scrollIntoView({ block: 'center' })
         }
@@ -628,8 +646,8 @@ class EffectSelect extends HTMLElement {
 
         if (this._focusedIndex >= 0 && this._focusedIndex < this._flatOptions.length) {
             const value = this._flatOptions[this._focusedIndex].value
-            const dropdown = this.shadowRoot.querySelector('.dropdown')
-            const option = dropdown.querySelector(`.option[data-value="${CSS.escape(value)}"]`)
+            const dropdown = this.querySelector('.es-dropdown')
+            const option = dropdown.querySelector(`.es-option[data-value="${CSS.escape(value)}"]`)
             if (option) {
                 option.classList.add('focused')
                 option.scrollIntoView({ block: 'nearest' })
@@ -638,8 +656,8 @@ class EffectSelect extends HTMLElement {
     }
 
     _clearFocus() {
-        const dropdown = this.shadowRoot.querySelector('.dropdown')
-        dropdown.querySelectorAll('.option.focused').forEach(opt => {
+        const dropdown = this.querySelector('.es-dropdown')
+        dropdown.querySelectorAll('.es-option.focused').forEach(opt => {
             opt.classList.remove('focused')
         })
     }
