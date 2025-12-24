@@ -122,11 +122,11 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         needsRespawn = true;
     }
     
-    // Attrition is now handled by pointsEmitter
+    // Attrition is now handled by pointsEmit
     
     if (needsRespawn) {
         // Signal respawn by setting alive flag to 0
-        // pointsEmitter will handle actual respawn on next frame
+        // pointsEmit will handle actual respawn on next frame
         return Outputs(
             vec4f(px, py, pz, 0.0),
             vec4f(vx, vy, vz, seed_f),

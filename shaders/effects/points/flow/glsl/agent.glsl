@@ -14,7 +14,7 @@ uniform float quantize;
 uniform float inputWeight;
 uniform float behavior;
 
-// Input state from pipeline (from pointsEmitter)
+// Input state from pipeline (from pointsEmit)
 uniform sampler2D inputTex;  // Source texture for luminance-based flow
 uniform sampler2D xyzTex;    // [x, y, z, alive]
 uniform sampler2D velTex;    // [vx, vy, rotRand, strideRand]
@@ -111,8 +111,8 @@ void main() {
     
     // Flow-specific state stored in vel
     // vel.x, vel.y unused for flow (no velocity accumulation)
-    float rotRand = vel.z;     // Per-agent rotation random [0,1] from pointsEmitter
-    float strideRand = vel.w;  // Per-agent stride random [-0.5, 0.5] from pointsEmitter
+    float rotRand = vel.z;     // Per-agent rotation random [0,1] from pointsEmit
+    float strideRand = vel.w;  // Per-agent stride random [-0.5, 0.5] from pointsEmit
     
     // If not alive, pass through unchanged
     if (alive < 0.5) {
@@ -161,7 +161,7 @@ void main() {
     newX = fract(newX);
     newY = fract(newY);
     
-    // Output updated state - attrition is handled by pointsEmitter
+    // Output updated state - attrition is handled by pointsEmit
     outXYZ = vec4(newX, newY, pz, 1.0);
     outVel = vec4(0.0, 0.0, rotRand, strideRand);
     outRGBA = rgba;

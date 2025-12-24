@@ -120,8 +120,9 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         return Outputs(xyz, vel, rgba);
     }
     
-    // Initialize inertia on first use (if zero from pointsEmitter)
-    if (inertia == 0.0) {
+    // Initialize on first use (check if direction is zero, indicating fresh spawn)
+    // pointsEmit sets vel.xy to 0.0 on respawn, vel.z contains rotRand (not inertia)
+    if (x_dir == 0.0 && y_dir == 0.0) {
         inertia = 0.7 + hash2(agent_id + 99999u).x * 0.3;
         // Initialize random direction
         let dir_raw = hash2(agent_id + 12345u) * 2.0 - 1.0;
@@ -135,7 +136,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         }
     }
     
-    // Attrition is now handled by pointsEmitter
+    // Attrition is now handled by pointsEmit
 
     // === ORIGINAL GRADIENT DESCENT ALGORITHM (PRESERVED EXACTLY) ===
     

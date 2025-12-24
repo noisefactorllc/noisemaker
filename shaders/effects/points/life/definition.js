@@ -9,13 +9,13 @@ import { Effect } from '../../../src/runtime/effect.js'
  * - Uses internal global_force_matrix for type-pair interactions
  * - Applies particle life forces and writes back to global textures
  *
- * State format (matching pointsEmitter + internal data):
+ * State format (matching pointsEmit + internal data):
  * - xyz: [x, y, 0, alive_flag]  (x,y in normalized coords [0,1])
  * - vel: [vx, vy, age, seed]    (velocity and metadata)
  * - rgba: [r, g, b, a]          (agent color from type)
  * - data: [typeId, mass, 0, 0]  (internal, effect-specific)
  *
- * Usage: pointsEmitter().life().pointsRender().write(o0)
+ * Usage: pointsEmit().life().pointsRender().write(o0)
  */
 export default new Effect({
   name: "Life",

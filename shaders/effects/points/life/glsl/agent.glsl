@@ -24,7 +24,7 @@ uniform float matrixSeed;
 uniform bool symmetricForces;
 uniform bool useTypeColor;
 
-// Input state from pipeline (from pointsEmitter)
+// Input state from pipeline (from pointsEmit)
 uniform sampler2D xyzTex;      // [x, y, 0, alive] - normalized coords
 uniform sampler2D velTex;      // [vx, vy, age, seed]
 uniform sampler2D rgbaTex;     // [r, g, b, a]
@@ -185,7 +185,7 @@ void main() {
     // Ensure mass is valid
     mass = max(mass, 0.1);
     
-    // Attrition is now handled by pointsEmitter
+    // Attrition is now handled by pointsEmit
     
     // === FORCE EVALUATION ===
     

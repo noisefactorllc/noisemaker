@@ -8,7 +8,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  * - Computes attractor dynamics (Lorenz, Rössler, Aizawa, etc.)
  * - Writes updated positions to same textures (ping-ponged by runtime)
  *
- * State format (matching pointsEmitter):
+ * State format (matching pointsEmit):
  * - xyz: [x, y, z, alive_flag]  (3D position in attractor space, w=1 alive)
  * - vel: [vx, vy, vz, seed]     (velocity for momentum effects)
  * - rgba: [r, g, b, a]          (agent color)
@@ -22,7 +22,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  * - 5: Chen (double scroll)
  * - 6: Dadras (4-wing)
  *
- * Usage: pointsEmitter().attractor().pointsRender(viewMode: 1).write(o0)
+ * Usage: pointsEmit().attractor().pointsRender(viewMode: 1).write(o0)
  */
 export default new Effect({
   name: "Attractor",
@@ -30,7 +30,7 @@ export default new Effect({
   func: "attractor",
   tags: ["sim", "agents"],
 
-  description: "Chaotic dynamical systems visualization",
+  description: "Strange attractors: chaotic dynamic systems visualization",
 
   // No local textures - we use shared global_xyz/vel/rgba textures
   textures: {},
@@ -41,12 +41,12 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
-    // stateSize parameter for texture sizing (must match pointsEmitter)
+    // stateSize parameter for texture sizing (must match pointsEmit)
     stateSize: {
       type: "int",
       default: 256,
       uniform: "stateSize",
-      ui: { control: false }  // Inherited from pointsEmitter
+      ui: { control: false }  // Inherited from pointsEmit
     },
     attractor: {
       type: "int",
@@ -91,7 +91,7 @@ export default new Effect({
 
   passes: [
     // Pass 1: Update attractor state
-    // Read from shared global textures (previous frame or pointsEmitter output)
+    // Read from shared global textures (previous frame or pointsEmit output)
     // Write back to same textures (ping-pong handled by runtime)
     {
       name: "agent",

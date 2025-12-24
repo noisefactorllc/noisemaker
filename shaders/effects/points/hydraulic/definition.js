@@ -8,12 +8,12 @@ import { Effect } from '../../../src/runtime/effect.js'
  * - Applies gradient-descent movement based on input texture luminance
  * - Writes updated state back to global textures
  *
- * State format (matching pointsEmitter):
+ * State format (matching pointsEmit):
  * - xyz: [x, y, z, alive_flag]  (x,y in normalized coords [0,1], w=1 alive)
  * - vel: [x_dir, y_dir, inertia, 0]  (direction vector and inertia)
  * - rgba: [r, g, b, a]          (agent color)
  *
- * Usage: pointsEmitter().hydraulic().pointsRender().write(o0)
+ * Usage: pointsEmit().hydraulic().pointsRender().write(o0)
  */
 export default new Effect({
   name: "Hydraulic",
@@ -23,7 +23,7 @@ export default new Effect({
 
   description: "Hydraulic erosion flow simulation (gradient descent)",
 
-  // No local textures - use shared global_xyz/vel/rgba from pointsEmitter
+  // No local textures - use shared global_xyz/vel/rgba from pointsEmit
   textures: {},
 
   // Expose outputs to pipeline for downstream effects

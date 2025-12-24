@@ -82,9 +82,9 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     let age = vel.z;
     let seed = vel.w;
     
-    // Check if agent is dead (needs respawn by pointsEmitter)
+    // Check if agent is dead (needs respawn by pointsEmit)
     if (alive < 0.5) {
-        // Pass through - pointsEmitter will handle respawn
+        // Pass through - pointsEmit will handle respawn
         // Initialize heading from seed
         return Outputs(
             vec4f(pos, hash(u32(seed * 1000.0)) * TAU, 0.0),
@@ -93,7 +93,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         );
     }
     
-    // Attrition is now handled by pointsEmitter
+    // Attrition is now handled by pointsEmit
     
     // Compute sensor positions in normalized coords
     let forwardDir = vec2f(cos(heading), sin(heading));

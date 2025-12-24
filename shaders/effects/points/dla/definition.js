@@ -10,12 +10,12 @@ import { Effect } from '../../../src/runtime/effect.js'
  * - When agents stick, they are deposited to the anchor grid and marked dead for respawn
  * - Anchor points seeded randomly in center area at start, controlled by anchorDensity
  *
- * State format (matching pointsEmitter):
+ * State format (matching pointsEmit):
  * - xyz: [x, y, 0, alive_flag]  (normalized [0,1] coords, w=1 alive, w=0 dead)
  * - vel: [seed, 0, 0, agentRand]  (seed for per-agent randomness)
- * - rgba: [r, g, b, a]          (color from pointsEmitter)
+ * - rgba: [r, g, b, a]          (color from pointsEmit)
  *
- * Usage: pointsEmitter().dla().pointsRender().write(o0)
+ * Usage: pointsEmit().dla().pointsRender().write(o0)
  */
 export default new Effect({
   name: "Dla",
@@ -36,7 +36,7 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
-    // stateSize must match pointsEmitter (inherited, not displayed)
+    // stateSize must match pointsEmit (inherited, not displayed)
     stateSize: {
       type: "int",
       default: 256,
@@ -154,7 +154,7 @@ export default new Effect({
     },
 
     // Pass 3: Agent walk and stick detection
-    // Reads agent state from pointsEmitter, updates positions
+    // Reads agent state from pointsEmit, updates positions
     // Marks stuck agents as dead (xyz.w = 0) for respawn
     {
       name: "agent",

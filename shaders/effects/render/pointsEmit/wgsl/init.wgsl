@@ -6,6 +6,7 @@ struct Uniforms {
     layoutMode: i32,
     colorMode: i32,
     attrition: f32,
+    resetState: u32,
 };
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -48,7 +49,9 @@ fn main(@builtin(position) coord: vec4<f32>) -> Outputs {
     let pVel = textureLoad(velTex, stateCoord, 0);
     let pCol = textureLoad(rgbaTex, stateCoord, 0);
     
-    var needsRespawn = (pPos.w < 0.5) || (u.time < 0.01 && pPos.w == 0.0);
+    // Check if agent needs respawn
+    // w component of xyz holds the "alive" flag, resetState forces respawn
+    var needsRespawn = (u.resetState != 0u) || (pPos.w < 0.5) || (u.time < 0.01 && pPos.w == 0.0);
     
     // Attrition: per-frame random respawn chance
     // Use continuous time mixed with agent seed to decorrelate respawns

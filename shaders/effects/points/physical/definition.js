@@ -8,12 +8,12 @@ import { Effect } from '../../../src/runtime/effect.js'
  * - Applies physics (gravity, wind, drag, wander)
  * - Writes updated state to own textures (ping-ponged by runtime)
  *
- * State format (matching pointsEmitter):
+ * State format (matching pointsEmit):
  * - xyz: [x, y, z, alive_flag]  (z used for depth, w=1 alive, w=0 dead)
  * - vel: [vx, vy, vz, seed]     (z velocity, w for per-agent seed)
  * - rgba: [r, g, b, a]          (agent color)
  *
- * Usage: pointsEmitter().physical().pointsRender().write(o0)
+ * Usage: pointsEmit().physical().pointsRender().write(o0)
  */
 export default new Effect({
   name: "Physical",
@@ -21,10 +21,10 @@ export default new Effect({
   func: "physical",
   tags: ["sim", "agents"],
 
-  description: "Physics-based particle simulation",
+  description: "Physics-based particle simulation with wind and gravity forces",
 
   // No local textures - we use shared global_xyz/vel/rgba textures
-  // These are created by pointsEmitter and shared across the particle pipeline
+  // These are created by pointsEmit and shared across the particle pipeline
   textures: {},
 
   // Expose outputs to pipeline for downstream effects
@@ -34,12 +34,12 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
-    // stateSize parameter for texture sizing (must match pointsEmitter)
+    // stateSize parameter for texture sizing (must match pointsEmit)
     stateSize: {
       type: "int",
       default: 256,
       uniform: "stateSize",
-      ui: { control: false }  // Inherited from pointsEmitter
+      ui: { control: false }  // Inherited from pointsEmit
     },
     gravity: {
       type: "float",
@@ -123,7 +123,7 @@ export default new Effect({
 
   passes: [
     // Pass 1: Update particle physics
-    // Read from shared global textures (previous frame or pointsEmitter output)
+    // Read from shared global textures (previous frame or pointsEmit output)
     // Write back to same textures (ping-pong handled by runtime)
     {
       name: "agent",
@@ -131,7 +131,7 @@ export default new Effect({
       drawBuffers: 3,
       inputs: {
         // Read from shared global textures
-        // Within-frame: updateFrameSurfaceBindings makes pointsEmitter's writes visible
+        // Within-frame: updateFrameSurfaceBindings makes pointsEmit's writes visible
         xyzTex: "global_xyz",
         velTex: "global_vel",
         rgbaTex: "global_rgba"

@@ -111,8 +111,8 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     let alive = xyz.w;
     
     // Flow-specific state stored in vel
-    let rotRand = vel.z;     // Per-agent rotation random [0,1] from pointsEmitter
-    let strideRand = vel.w;  // Per-agent stride random [-0.5, 0.5] from pointsEmitter
+    let rotRand = vel.z;     // Per-agent rotation random [0,1] from pointsEmit
+    let strideRand = vel.w;  // Per-agent stride random [-0.5, 0.5] from pointsEmit
     
     // If not alive, pass through unchanged
     if (alive < 0.5) {
@@ -157,7 +157,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     newX = fract(newX);
     newY = fract(newY);
     
-    // Output updated state - attrition is handled by pointsEmitter
+    // Output updated state - attrition is handled by pointsEmit
     return Outputs(
         vec4f(newX, newY, pz, 1.0),
         vec4f(0.0, 0.0, rotRand, strideRand),

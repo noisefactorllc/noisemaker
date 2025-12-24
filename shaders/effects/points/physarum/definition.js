@@ -8,12 +8,12 @@ import { Effect } from '../../../src/runtime/effect.js'
  * - Applies physarum sensor/steering behavior based on trail texture
  * - Writes updated state back to global textures
  *
- * State format (matching pointsEmitter):
+ * State format (matching pointsEmit):
  * - xyz: [x, y, heading, alive_flag]  (x,y in normalized [0,1], heading in radians)
  * - vel: [0, 0, age, seed]             (age for effects, seed for randomness)
- * - rgba: [r, g, b, a]                 (agent color from pointsEmitter)
+ * - rgba: [r, g, b, a]                 (agent color from pointsEmit)
  *
- * Usage: pointsEmitter().physarum().pointsRender().write(o0)
+ * Usage: pointsEmit().physarum().pointsRender().write(o0)
  */
 export default new Effect({
   name: "Physarum",

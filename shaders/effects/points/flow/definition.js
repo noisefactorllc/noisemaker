@@ -8,12 +8,12 @@ import { Effect } from '../../../src/runtime/effect.js'
  * - Applies flow-field movement based on input texture luminance
  * - Writes updated state to own textures (ping-ponged by runtime)
  *
- * State format (matching pointsEmitter):
+ * State format (matching pointsEmit):
  * - xyz: [x, y, z, alive_flag]  (x,y in normalized coords [0,1], w=1 alive)
  * - vel: [vx, vy, rotRand, strideRand]  (rotRand/strideRand for per-agent variation)
  * - rgba: [r, g, b, a]          (agent color)
  *
- * Usage: pointsEmitter().flow().pointsRender().write(o0)
+ * Usage: pointsEmit().flow().pointsRender().write(o0)
  */
 export default new Effect({
   name: "Flow",
@@ -21,10 +21,10 @@ export default new Effect({
   func: "flow",
   tags: ["sim", "agents"],
 
-  description: "Agent-based flow field with behaviors",
+  description: "Agent-based luminosity flow field with behaviors",
 
   // No local textures - we use shared global_xyz/vel/rgba textures
-  // These are created by pointsEmitter and shared across the particle pipeline
+  // These are created by pointsEmit and shared across the particle pipeline
   textures: {},
 
   // Expose outputs to pipeline for downstream effects
@@ -33,12 +33,12 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
-    // stateSize parameter for texture sizing (must match pointsEmitter)
+    // stateSize parameter for texture sizing (must match pointsEmit)
     stateSize: {
       type: "int",
       default: 256,
       uniform: "stateSize",
-      ui: { control: false }  // Inherited from pointsEmitter
+      ui: { control: false }  // Inherited from pointsEmit
     },
     behavior: {
       type: "int",
@@ -125,7 +125,7 @@ export default new Effect({
 
   passes: [
     // Pass 1: Update flow agent movement
-    // Read from shared global textures (previous frame or pointsEmitter output)
+    // Read from shared global textures (previous frame or pointsEmit output)
     // Write back to same textures (ping-pong handled by runtime)
     {
       name: "agent",

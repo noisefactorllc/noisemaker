@@ -170,18 +170,6 @@ export default new Effect({
                 category: "view",
                 enabledBy: "viewMode"
             }
-        },
-
-        // Reset state button
-        resetState: {
-            type: "boolean",
-            default: false,
-            uniform: "resetState",
-            ui: {
-                control: "button",
-                buttonLabel: "reset",
-                label: "state"
-            }
         }
     },
 
@@ -196,8 +184,7 @@ export default new Effect({
             },
 
             uniforms: {
-                intensity: "intensity",
-                resetState: "resetState"
+                intensity: "intensity"
             },
 
             outputs: {

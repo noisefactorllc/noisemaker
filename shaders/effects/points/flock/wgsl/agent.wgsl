@@ -122,7 +122,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         return Outputs(xyz, vel, rgba);
     }
     
-    // Initialize velocity on first use (if zero from pointsEmitter)
+    // Initialize velocity on first use (if zero from pointsEmit)
     if (length(velocity) == 0.0 && seed == 0.0) {
         seed = hash(boidId + 99999u);
         let angle = hash(boidId + 12345u) * 6.28318530718;
@@ -130,7 +130,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         velocity = vec2f(cos(angle), sin(angle)) * speed;
     }
     
-    // Attrition is now handled by pointsEmitter
+    // Attrition is now handled by pointsEmit
 
     // === ORIGINAL BOIDS ALGORITHM (PRESERVED EXACTLY) ===
     

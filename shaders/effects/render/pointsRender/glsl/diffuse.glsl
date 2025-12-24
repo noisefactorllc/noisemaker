@@ -6,17 +6,10 @@ precision highp float;
 uniform sampler2D trailTex;
 uniform vec2 resolution;
 uniform float intensity;
-uniform bool resetState;
 
 out vec4 fragColor;
 
 void main() {
-    // If resetState is true, clear the trail
-    if (resetState) {
-        fragColor = vec4(0.0);
-        return;
-    }
-    
     vec2 uv = gl_FragCoord.xy / resolution;
     
     // Sample the trail texture directly (no blur)

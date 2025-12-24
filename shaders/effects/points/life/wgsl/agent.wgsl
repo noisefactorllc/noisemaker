@@ -181,7 +181,7 @@ fn main(@builtin(position) position: vec4f) -> Outputs {
         rgba = vec4f(typeColor(i32(typeId), u.typeCount), 1.0);
     }
     
-    // Attrition is now handled by pointsEmitter
+    // Attrition is now handled by pointsEmit
     
     // === FORCE EVALUATION ===
     

@@ -1,8 +1,8 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
-    name: "Points Emitter",
-    func: "pointsEmitter",
+    name: "Points Emit",
+    func: "pointsEmit",
     namespace: "render",
     starter: true,
     hasTex: true,
@@ -95,6 +95,18 @@ export default new Effect({
                 label: "attrition",
                 control: "slider"
             }
+        },
+
+        // Reset state button - forces all agents to respawn
+        resetState: {
+            type: "boolean",
+            default: false,
+            uniform: "resetState",
+            ui: {
+                control: "button",
+                buttonLabel: "reset",
+                label: "state"
+            }
         }
     },
 
@@ -140,7 +152,8 @@ export default new Effect({
             },
 
             uniforms: {
-                attrition: "attrition"
+                attrition: "attrition",
+                resetState: "resetState"
             },
 
             outputs: {

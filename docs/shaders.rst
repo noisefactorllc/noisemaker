@@ -156,9 +156,9 @@ Shared global textures pass state between effects in a chain.
 
 **Naming:** Textures prefixed with ``global_`` are shared across effects.
 
-**Example chain:** ``pointsEmitter().physarum().pointsRender()``
+**Example chain:** ``pointsEmit().physarum().pointsRender()``
 
-- ``pointsEmitter`` creates ``global_xyz``, ``global_vel``, ``global_rgba``
+- ``pointsEmit`` creates ``global_xyz``, ``global_vel``, ``global_rgba``
 - ``physarum`` reads and updates these textures
 - ``pointsRender`` uses ``global_xyz`` to scatter points to ``global_points_trail``
 
@@ -166,7 +166,7 @@ Shared global textures pass state between effects in a chain.
 
 **Points rendering:** Use ``drawMode: "points"`` and ``blend: true`` for scatter operations.
 
-See: ``render/pointsEmitter``, ``render/pointsRender``, ``points/physarum``
+See: ``render/pointsEmit``, ``render/pointsRender``, ``points/physarum``
 
 Running Tests
 -------------

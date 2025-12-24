@@ -11,7 +11,7 @@ uniform float deposit;
 out vec4 vColor;
 
 void main() {
-    // Get state size from xyz texture dimensions (inherited from pointsEmitter)
+    // Get state size from xyz texture dimensions (inherited from pointsEmit)
     ivec2 texSize = textureSize(xyzTex, 0);
     int stateSize = texSize.x;
     int totalAgents = stateSize * stateSize;

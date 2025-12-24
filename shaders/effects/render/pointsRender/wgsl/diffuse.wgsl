@@ -3,7 +3,6 @@
 struct Uniforms {
     resolution: vec2<f32>,
     intensity: f32,
-    resetState: u32,
 };
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -12,11 +11,6 @@ struct Uniforms {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
-    // If resetState is true, clear the trail
-    if (u.resetState != 0u) {
-        return vec4<f32>(0.0);
-    }
-    
     let uv = fragCoord.xy / u.resolution;
     
     // Sample the trail texture directly (no blur)

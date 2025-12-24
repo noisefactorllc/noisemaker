@@ -14,7 +14,7 @@ uniform float drag;
 uniform float stride;
 uniform float wander;
 
-// Input state from pipeline (from pointsEmitter)
+// Input state from pipeline (from pointsEmit)
 uniform sampler2D inputTex; // Pipeline passthrough (for chainability)
 uniform sampler2D xyzTex;   // [x, y, z, alive]
 uniform sampler2D velTex;   // [vx, vy, vz, seed]
@@ -127,11 +127,11 @@ void main() {
         needsRespawn = true;
     }
     
-    // Attrition is now handled by pointsEmitter
+    // Attrition is now handled by pointsEmit
     
     if (needsRespawn) {
         // Signal respawn by setting alive flag to 0
-        // pointsEmitter will handle actual respawn on next frame
+        // pointsEmit will handle actual respawn on next frame
         outXYZ = vec4(px, py, pz, 0.0);
         outVel = vec4(vx, vy, vz, seed_f);
         outRGBA = rgba;

@@ -14,7 +14,7 @@ uniform float attrition;
 uniform int stateSize;
 uniform bool resetState;
 
-// Input state from pipeline (from pointsEmitter)
+// Input state from pipeline (from pointsEmit)
 uniform sampler2D xyzTex;    // [x, y, z, alive]
 uniform sampler2D velTex;    // [seed, justStuck, 0, agentRand]
 uniform sampler2D rgbaTex;   // [r, g, b, a]
@@ -81,7 +81,7 @@ void main() {
     ivec2 coord = ivec2(gl_FragCoord.xy);
     ivec2 stateDims = textureSize(xyzTex, 0);
     
-    // Read input state from pipeline (from pointsEmitter)
+    // Read input state from pipeline (from pointsEmit)
     vec4 xyz = texelFetch(xyzTex, coord, 0);
     vec4 vel = texelFetch(velTex, coord, 0);
     vec4 rgba = texelFetch(rgbaTex, coord, 0);
@@ -92,7 +92,7 @@ void main() {
     
     // vel.x = seed for randomness (initialized from agentRand if needed)
     // vel.y = justStuck flag (1.0 if this agent just stuck, used by depositGrid)
-    // vel.w = agentRand from pointsEmitter
+    // vel.w = agentRand from pointsEmit
     float seed = vel.x;
     float agentRand = vel.w;
     
@@ -105,7 +105,7 @@ void main() {
     uint frameSeed = hash_uint(agentId * 31u + uint(frame));
     seed = uintBitsToFloat((frameSeed & 0x007FFFFFu) | 0x3F800000u) - 1.0;
     
-    // If not alive, pass through (waiting for respawn from pointsEmitter)
+    // If not alive, pass through (waiting for respawn from pointsEmit)
     if (alive < 0.5) {
         outXYZ = xyz;
         outVel = vec4(seed, 0.0, 0.0, agentRand);
@@ -166,7 +166,7 @@ void main() {
     
     if (stuck) {
         // Agent stuck: mark as dead for respawn, flag justStuck for deposit
-        outXYZ = vec4(candidate, 0.0, 0.0);  // w=0 signals death to pointsEmitter
+        outXYZ = vec4(candidate, 0.0, 0.0);  // w=0 signals death to pointsEmit
         outVel = vec4(seed, 1.0, 0.0, agentRand);  // y=1 signals "just stuck" for depositGrid
         outRGBA = rgba;
     } else if (needsRespawn) {

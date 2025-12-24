@@ -18,7 +18,7 @@ uniform int boundaryMode;
 uniform float wallMargin;
 uniform float noiseWeight;
 
-// Input state from pipeline (from pointsEmitter)
+// Input state from pipeline (from pointsEmit)
 uniform sampler2D xyzTex;    // [x, y, z, alive]
 uniform sampler2D velTex;    // [vx, vy, age, seed]
 uniform sampler2D rgbaTex;   // [r, g, b, a]
@@ -125,7 +125,7 @@ void main() {
         return;
     }
     
-    // Initialize velocity on first use (if zero from pointsEmitter)
+    // Initialize velocity on first use (if zero from pointsEmit)
     if (length(velocity) == 0.0 && seed == 0.0) {
         seed = hash(boidId + 99999u);
         float angle = hash(boidId + 12345u) * 6.28318530718;
@@ -133,7 +133,7 @@ void main() {
         velocity = vec2(cos(angle), sin(angle)) * speed;
     }
     
-    // Attrition is now handled by pointsEmitter
+    // Attrition is now handled by pointsEmit
 
     // === ORIGINAL BOIDS ALGORITHM (PRESERVED EXACTLY) ===
     

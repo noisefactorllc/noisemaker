@@ -25,7 +25,7 @@ struct VertexOutput {
 fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     var out: VertexOutput;
     
-    // Get state size from xyz texture dimensions (inherited from pointsEmitter)
+    // Get state size from xyz texture dimensions (inherited from pointsEmit)
     let texSize = textureDimensions(xyzTex, 0);
     let stateSize = i32(texSize.x);
     let totalAgents = stateSize * stateSize;

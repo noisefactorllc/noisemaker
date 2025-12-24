@@ -77,9 +77,9 @@ void main() {
     float age = vel.z;
     float seed = vel.w;
     
-    // Check if agent is dead (needs respawn by pointsEmitter)
+    // Check if agent is dead (needs respawn by pointsEmit)
     if (alive < 0.5) {
-        // Pass through - pointsEmitter will handle respawn
+        // Pass through - pointsEmit will handle respawn
         // Initialize heading from seed
         outXYZ = vec4(pos, hash(uint(seed * 1000.0)) * TAU, 0.0);
         outVel = vel;
@@ -87,7 +87,7 @@ void main() {
         return;
     }
     
-    // Attrition is now handled by pointsEmitter
+    // Attrition is now handled by pointsEmit
     
     // Compute sensor positions in normalized coords
     vec2 forwardDir = vec2(cos(heading), sin(heading));

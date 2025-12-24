@@ -143,7 +143,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> Outputs {
     let agentSeed = u32(coord.x + coord.y * stateSize) + u32(u.seed);
     
     // Check if needs 3D initialization
-    // pointsEmitter initializes in 2D (0-1 range), we need to transform to attractor space
+    // pointsEmit initializes in 2D (0-1 range), we need to transform to attractor space
     let needs3DInit = pos.w >= 0.5 && abs(pos.x) < 2.0 && abs(pos.y) < 2.0 && abs(pos.z) < 2.0;
     
     if (needs3DInit) {

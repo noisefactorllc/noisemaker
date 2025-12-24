@@ -8,12 +8,12 @@ import { Effect } from '../../../src/runtime/effect.js'
  * - Applies boids flocking rules (separation, alignment, cohesion)
  * - Writes updated state back to global textures
  *
- * State format (matching pointsEmitter):
+ * State format (matching pointsEmit):
  * - xyz: [x, y, z, alive_flag]  (x,y in normalized coords [0,1], w=1 alive)
  * - vel: [vx, vy, age, seed]    (velocity and per-agent data)
  * - rgba: [r, g, b, a]          (agent color)
  *
- * Usage: pointsEmitter().flock().pointsRender().write(o0)
+ * Usage: pointsEmit().flock().pointsRender().write(o0)
  */
 export default new Effect({
   name: "Flock",
@@ -21,9 +21,9 @@ export default new Effect({
   func: "flock",
   tags: ["sim", "agents"],
 
-  description: "2D Boids flocking simulation",
+  description: "2D \"Boids\" flocking agent simulation",
 
-  // No local textures - use shared global_xyz/vel/rgba from pointsEmitter
+  // No local textures - use shared global_xyz/vel/rgba from pointsEmit
   textures: {},
 
   // Expose outputs to pipeline for downstream effects

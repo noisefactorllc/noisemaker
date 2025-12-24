@@ -12,7 +12,7 @@ uniform float quantize;
 uniform float inverse;
 uniform float inputWeight;
 
-// Input state from pipeline (from pointsEmitter)
+// Input state from pipeline (from pointsEmit)
 uniform sampler2D inputTex;  // Source texture for gradient descent
 uniform sampler2D xyzTex;    // [x, y, z, alive]
 uniform sampler2D velTex;    // [x_dir, y_dir, inertia, 0]
@@ -126,8 +126,9 @@ void main() {
         return;
     }
     
-    // Initialize inertia on first use (if zero from pointsEmitter)
-    if (inertia == 0.0) {
+    // Initialize on first use (check if direction is zero, indicating fresh spawn)
+    // pointsEmit sets vel.xy to 0.0 on respawn, vel.z contains rotRand (not inertia)
+    if (x_dir == 0.0 && y_dir == 0.0) {
         inertia = 0.7 + hash2(agent_id + 99999u).x * 0.3;
         // Initialize random direction
         vec2 dir_raw = hash2(agent_id + 12345u) * 2.0 - 1.0;
@@ -141,7 +142,7 @@ void main() {
         }
     }
     
-    // Attrition is now handled by pointsEmitter
+    // Attrition is now handled by pointsEmit
 
     // === ORIGINAL GRADIENT DESCENT ALGORITHM (PRESERVED EXACTLY) ===
     

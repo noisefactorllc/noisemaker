@@ -11,6 +11,7 @@ uniform int stateSize;
 uniform int layoutMode; // 0=Random, 1=Grid, 2=Center, 3=Ring
 uniform int colorMode;  // 0=white (no tex), 1=sample from tex
 uniform float attrition; // Per-frame respawn chance (0-10%)
+uniform bool resetState; // Force all agents to respawn
 
 // Inputs
 uniform sampler2D xyzTex;
@@ -55,7 +56,8 @@ void main() {
     // w component of xyz holds the "alive" flag
     // < 0.5 means dead/uninitialized
     // We also respawn on the very first frame (time == 0) or if alpha is 0
-    bool needsRespawn = (pPos.w < 0.5) || (time < 0.01 && pPos.w == 0.0);
+    // resetState forces all agents to respawn
+    bool needsRespawn = resetState || (pPos.w < 0.5) || (time < 0.01 && pPos.w == 0.0);
     
     // Attrition: per-frame random respawn chance
     // Use continuous time mixed with agent seed to decorrelate respawns

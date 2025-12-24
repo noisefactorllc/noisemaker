@@ -1,5 +1,5 @@
 // DLA - Agent Walk Pass (Common Agent Architecture)
-// Reads agent state from pointsEmitter, performs random walk, detects sticking
+// Reads agent state from pointsEmit, performs random walk, detects sticking
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -78,7 +78,7 @@ fn main(in: VertexOutput) -> FragmentOutputs {
     let coord = vec2<i32>(in.position.xy);
     let stateDims = textureDimensions(xyzTex);
     
-    // Read input state from pipeline (from pointsEmitter)
+    // Read input state from pipeline (from pointsEmit)
     let xyz = textureLoad(xyzTex, coord, 0);
     let vel = textureLoad(velTex, coord, 0);
     let rgba = textureLoad(rgbaTex, coord, 0);
@@ -100,7 +100,7 @@ fn main(in: VertexOutput) -> FragmentOutputs {
     let frameSeed = hash_uint(agentId * 31u + u32(frame));
     seed = bitcast<f32>((frameSeed & 0x007FFFFFu) | 0x3F800000u) - 1.0;
     
-    // If not alive, pass through (waiting for respawn from pointsEmitter)
+    // If not alive, pass through (waiting for respawn from pointsEmit)
     if (alive < 0.5) {
         return FragmentOutputs(
             xyz,
@@ -163,7 +163,7 @@ fn main(in: VertexOutput) -> FragmentOutputs {
     if (stuck) {
         // Agent stuck: mark as dead for respawn, flag justStuck for deposit
         return FragmentOutputs(
-            vec4<f32>(candidate, 0.0, 0.0),  // w=0 signals death to pointsEmitter
+            vec4<f32>(candidate, 0.0, 0.0),  // w=0 signals death to pointsEmit
             vec4<f32>(seed, 1.0, 0.0, agentRand),  // y=1 signals "just stuck" for depositGrid
             rgba
         );
