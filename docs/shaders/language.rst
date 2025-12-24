@@ -40,7 +40,7 @@ Grammar
    SourceRef      ::= 's' Digit+
    Ident          ::= Letter ( Letter | Digit | '_' )*
    Number         ::= Digit+ ( '.' Digit+ )?
-   String         ::= '"' [^"\n]* '"'
+   String         ::= '"' [^"\n]* '"' | '"""' .* '"""'
    Digit          ::= '0'…'9'
    Letter         ::= 'A'…'Z' | 'a'…'z'
    Boolean        ::= 'true' | 'false'
@@ -78,6 +78,14 @@ A chain must start with a Generator function (an effect with no inputs).
 
 **Colors:**
 Hex colors support 3, 6, or 8 digits: ``#RGB``, ``#RRGGBB``, ``#RRGGBBAA``. Alpha defaults to ``FF`` (1.0) if omitted.
+
+**Strings:**
+Strings use double quotes: ``"hello"``. For multi-line strings, use triple quotes: ``"""line1\nline2\nline3"""``. Triple-quoted strings preserve embedded newlines. This is useful for the ``text`` effect:
+
+.. code-block:: none
+
+  noise().text(text: """Hello
+  World""").write(o0)
 
 **Arrow Functions:**
 Currently restricted to zero-argument expression lambdas: ``() => expr``. Used primarily for deferred evaluation in control structures or future callbacks.
