@@ -83,6 +83,10 @@ export const NAMESPACE_DESCRIPTIONS = Object.freeze({
         id: 'render',
         description: 'Rendering utilities and feedback loops'
     },
+    points: {
+        id: 'points',
+        description: 'Particle and agent-based simulations'
+    },
     synth3d: {
         id: 'synth3d',
         description: '3D volumetric generators'

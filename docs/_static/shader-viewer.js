@@ -28,6 +28,8 @@
         { namespace: 'filter' },
         { namespace: 'mixer' },
         { namespace: 'synth' },
+        { namespace: 'render' },
+        { namespace: 'points' },
         { namespace: 'synth3d' },
         { namespace: 'filter3d' },
         { namespace: 'classicNoisedeck' },
@@ -407,14 +409,24 @@
             // Build search directive
             // Classic namespaces stay in their lane - no cross-namespace search
             // classicNoisemaker needs synth for noise() starter (it has no noise module)
+            // Points effects need render namespace for pointsEmit/pointsRender
             let searchNs = effect.namespace;
             if (effect.namespace === 'classicNoisemaker') {
                 searchNs = 'classicNoisemaker, synth';
             } else if (['filter', 'mixer'].includes(effect.namespace)) {
                 searchNs = `${effect.namespace}, synth`;
+            } else if (effect.namespace === 'points') {
+                searchNs = 'synth, points, render';
+            } else if (effect.namespace === 'render') {
+                searchNs = 'synth, filter, render';
             }
             const searchDirective = searchNs ? `search ${searchNs}\n\n` : '';
             const funcName = effect.instance.func;
+
+            // Special case: pointsEmit and pointsRender must be paired together
+            if (funcName === 'pointsEmit' || funcName === 'pointsRender') {
+                return `search points, synth, render\n\nnoise()\n  .write(o0)\n\npointsEmit(\n  tex: read(o0)\n)\n  .physical()\n  .pointsRender()\n  .write(o1)\n\nrender(o1)`;
+            }
 
             const starter = isStarterEffect(effect);
             const hasTex = hasTexSurfaceParam(effect);

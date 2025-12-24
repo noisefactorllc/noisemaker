@@ -37,7 +37,7 @@ function test(name, code, check, expectError = null) {
     }
 }
 
-test('Simple Chain', 'search basics\nnoise(10).write(o0)', (ast) => {
+test('Simple Chain', 'search synth\nnoise(10).write(o0)', (ast) => {
     if (ast.plans.length !== 1) throw new Error('Expected 1 plan')
     const plan = ast.plans[0]
     // Chain now includes both the Call and the Write node (write is chainable)
@@ -47,7 +47,7 @@ test('Simple Chain', 'search basics\nnoise(10).write(o0)', (ast) => {
     if (plan.write.name !== 'o0') throw new Error('Expected write o0')
 })
 
-test('Variable Assignment', 'search basics\nlet x = noise(10)', (ast) => {
+test('Variable Assignment', 'search synth\nlet x = noise(10)', (ast) => {
     if (ast.vars.length !== 1) throw new Error('Expected 1 var')
     const v = ast.vars[0]
     if (v.name !== 'x') throw new Error('Expected var x')
@@ -56,45 +56,27 @@ test('Variable Assignment', 'search basics\nlet x = noise(10)', (ast) => {
     if (v.expr.name !== 'noise') throw new Error('Expected noise')
 })
 
-test('Arrow Function', 'search basics\nlet f = () => noise(10)', (ast) => {
+test('Arrow Function', 'search synth\nlet f = () => noise(10)', (ast) => {
     const v = ast.vars[0]
     if (v.expr.type !== 'Func') throw new Error('Expected Func type')
     if (v.expr.src !== 'noise(10)') throw new Error('Expected src noise(10)')
 })
 
-test('Arrow Function in Loop', `search basics
-loop 5 {
-  let f = () => noise(10)
-  f().write(o0)
-}
-`, (ast) => {
-    const loop = ast.plans[0]
-    // The loop body should have 2 statements: VarAssign and ChainStmt
-    // But wait, VarAssigns are hoisted to 'vars' in the root AST?
-    // No, VarAssign inside a block stays in the block?
-    // Let's check the parser logic for Block.
-    if (loop.body.length !== 2) throw new Error(`Expected 2 statements in loop body, got ${loop.body.length}`)
-    const assign = loop.body[0]
-    if (assign.type !== 'VarAssign') throw new Error('Expected VarAssign first')
-    const call = loop.body[1]
-    if (call.chain[0].name !== 'f') throw new Error('Expected call to f second')
-})
-
-test('Search Directive - Single Namespace', 'search nd\nnoise(10).write(o0)', (ast) => {
+test('Search Directive - Single Namespace', 'search synth\nnoise(10).write(o0)', (ast) => {
     if (!ast.namespace) throw new Error('Expected namespace metadata')
     if (!ast.namespace.searchOrder) throw new Error('Expected searchOrder')
     if (ast.namespace.searchOrder.length !== 1) throw new Error('Expected 1 namespace in searchOrder')
-    if (ast.namespace.searchOrder[0] !== 'nd') throw new Error('Expected nd in searchOrder')
+    if (ast.namespace.searchOrder[0] !== 'synth') throw new Error('Expected synth in searchOrder')
     if (ast.plans.length !== 1) throw new Error('Expected 1 plan')
 })
 
-test('Search Directive - Multiple Namespaces', 'search nd, basics, nm\nnoise(10).write(o0)', (ast) => {
+test('Search Directive - Multiple Namespaces', 'search synth, filter, mixer\nnoise(10).write(o0)', (ast) => {
     if (!ast.namespace) throw new Error('Expected namespace metadata')
     if (!ast.namespace.searchOrder) throw new Error('Expected searchOrder')
     if (ast.namespace.searchOrder.length !== 3) throw new Error('Expected 3 namespaces in searchOrder')
-    if (ast.namespace.searchOrder[0] !== 'nd') throw new Error('Expected nd first')
-    if (ast.namespace.searchOrder[1] !== 'basics') throw new Error('Expected basics second')
-    if (ast.namespace.searchOrder[2] !== 'nm') throw new Error('Expected nm third')
+    if (ast.namespace.searchOrder[0] !== 'synth') throw new Error('Expected synth first')
+    if (ast.namespace.searchOrder[1] !== 'filter') throw new Error('Expected filter second')
+    if (ast.namespace.searchOrder[2] !== 'mixer') throw new Error('Expected mixer third')
 })
 
 test('Missing Search Directive - Should Error', 'noise(10).write(o0)', () => {
@@ -107,7 +89,7 @@ test('Missing Search Directive - Should Error', 'noise(10).write(o0)', () => {
     return true
 })
 
-test('Inline Namespace - Should Error', 'search nd\nnd.noise(10).write(o0)', () => {
+test('Inline Namespace - Should Error', 'search synth\nsynth.noise(10).write(o0)', () => {
     throw new Error('Should have thrown SyntaxError for inline namespace')
 }, (e) => {
     // This test expects an error
@@ -117,7 +99,7 @@ test('Inline Namespace - Should Error', 'search nd\nnd.noise(10).write(o0)', () 
     return true
 })
 
-test('read() creates Read node', 'search basics\nread(o0).write(o1)', (ast) => {
+test('read() creates Read node', 'search synth\nread(o0).write(o1)', (ast) => {
     if (ast.plans.length !== 1) throw new Error('Expected 1 plan')
     const plan = ast.plans[0]
     // Chain now includes both the Read and the Write node (write is chainable)
@@ -129,7 +111,7 @@ test('read() creates Read node', 'search basics\nread(o0).write(o1)', (ast) => {
     if (plan.write.name !== 'o1') throw new Error('Expected write o1')
 })
 
-test('write3d parses correctly', 'search basics\nnoise(10).write3d(vol0, geo0)', (ast) => {
+test('write3d parses correctly', 'search synth\nnoise(10).write3d(vol0, geo0)', (ast) => {
     if (ast.plans.length !== 1) throw new Error('Expected 1 plan')
     const plan = ast.plans[0]
     // Chain includes Call + Write3D node

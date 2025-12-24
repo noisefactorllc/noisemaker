@@ -87,9 +87,10 @@ Shader development lives under ``shaders/``:
    │   ├── synth/                # 2D generators
    │   ├── filter/               # Image processors
    │   ├── mixer/                # Blend/composite effects
+   │   ├── render/               # Rendering utilities (pointsEmit, pointsRender)
+   │   ├── points/               # Particle/agent simulations
    │   ├── synth3d/              # 3D volumetric generators
    │   ├── filter3d/             # 3D volumetric processors
-   │   ├── render/               # Points/agent rendering
    │   ├── classicNoisedeck/     # Ported complex shaders
    │   ├── classicNoisemaker/    # Python port implementations
    │   └── manifest.json         # Auto-generated effect registry

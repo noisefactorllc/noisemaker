@@ -185,7 +185,8 @@ These namespaces are actively developed and maintained:
 * ``synth``: 2D generator effects that create patterns from scratch (noise, shapes, fractals)
 * ``filter``: 2D single-input effects that transform images (blur, color adjustment, distortion)
 * ``mixer``: Two-input effects that combine images (blend modes, compositing)
-* ``sim``: Simulations with temporal state or feedback (cellular automata, simulations)
+* ``render``: Rendering utilities and feedback loops (pointsEmit, pointsRender, loopBegin/End)
+* ``points``: Particle and agent-based simulations (physarum, life, flock, flow)
 * ``synth3d``: 3D volumetric generator effects (noise3d, ca3d, rd3d)
 * ``filter3d``: 3D volumetric processor effects (flow3d, render3d)
 
