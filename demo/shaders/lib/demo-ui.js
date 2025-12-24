@@ -527,7 +527,7 @@ export class UIController {
         const startBtn = document.createElement('button')
         startBtn.className = 'action-btn'
         startBtn.textContent = 'start'
-        startBtn.addEventListener('click', () => this._startCamera(stepIndex, cameraSelect.value))
+        startBtn.addEventListener('click', () => this._startCamera(stepIndex, cameraHandle.getValue()))
 
         const stopBtn = document.createElement('button')
         stopBtn.className = 'action-btn'
@@ -543,6 +543,7 @@ export class UIController {
         cameraGroup._startBtn = startBtn
         cameraGroup._stopBtn = stopBtn
         cameraGroup._select = cameraSelect
+        cameraGroup._selectHandle = cameraHandle
 
         section.appendChild(cameraGroup)
 
@@ -588,7 +589,7 @@ export class UIController {
             if (e.target.value === 'camera') {
                 fileGroup.style.display = 'none'
                 cameraGroup.style.display = 'block'
-                this._populateCameraList(stepIndex, cameraSelect)
+                this._populateCameraList(stepIndex, cameraHandle)
             } else {
                 fileGroup.style.display = 'block'
                 cameraGroup.style.display = 'none'
@@ -646,8 +647,10 @@ export class UIController {
     /**
      * Populate camera list for a step
      * @private
+     * @param {number} stepIndex - The step index
+     * @param {object} selectHandle - The ControlHandle from createSelect
      */
-    async _populateCameraList(stepIndex, selectEl) {
+    async _populateCameraList(stepIndex, selectHandle) {
         const media = this._mediaInputs.get(stepIndex)
 
         try {
@@ -661,13 +664,17 @@ export class UIController {
             const devices = await navigator.mediaDevices.enumerateDevices()
             const videoDevices = devices.filter(d => d.kind === 'videoinput')
 
-            selectEl.innerHTML = '<option value="">select camera...</option>'
+            // Build choices array for the control factory
+            const choices = [{ value: '', label: 'select camera...' }]
             videoDevices.forEach((device, idx) => {
-                const option = document.createElement('option')
-                option.value = device.deviceId
-                option.textContent = device.label || `Camera ${idx + 1}`
-                selectEl.appendChild(option)
+                choices.push({
+                    value: device.deviceId,
+                    label: device.label || `Camera ${idx + 1}`
+                })
             })
+
+            // Update the select control via handle
+            selectHandle.setChoices(choices)
 
             if (media?.statusEl) {
                 media.statusEl.textContent = videoDevices.length > 0
@@ -679,7 +686,7 @@ export class UIController {
             if (media?.statusEl) {
                 media.statusEl.textContent = `camera error: ${err.message}`
             }
-            selectEl.innerHTML = '<option value="">camera access denied</option>'
+            selectHandle.setChoices([{ value: '', label: 'camera access denied' }])
         }
     }
 

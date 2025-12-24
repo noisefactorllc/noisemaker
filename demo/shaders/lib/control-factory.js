@@ -76,6 +76,7 @@
  * @property {function(): *} getValue - Get the current control value
  * @property {function(*): void} setValue - Set the control value
  * @property {function(function): void} [onChange] - Optional: set change handler (if not using events)
+ * @property {function(Array<{value: *, label: string}>): void} [setChoices] - Optional: update dropdown choices dynamically (select controls only)
  */
 
 /**
@@ -114,16 +115,18 @@ export class ControlFactory {
         })
         select.selectedIndex = selectedIndex
 
+        // Keep reference to choices for getValue/setValue
+        let currentChoices = options.choices
+
         return {
             element: select,
             getValue: () => {
-                // const opt = select.options[select.selectedIndex]
                 // Return the original choice value, not the index
-                return options.choices[select.selectedIndex]?.value
+                return currentChoices[select.selectedIndex]?.value
             },
             setValue: (v) => {
-                for (let i = 0; i < options.choices.length; i++) {
-                    if (this._valuesEqual(options.choices[i].value, v)) {
+                for (let i = 0; i < currentChoices.length; i++) {
+                    if (this._valuesEqual(currentChoices[i].value, v)) {
                         select.selectedIndex = i
                         return
                     }
@@ -132,6 +135,30 @@ export class ControlFactory {
             getSelectedData: () => {
                 const opt = select.options[select.selectedIndex]
                 return opt?.dataset || {}
+            },
+            /**
+             * Update the available choices dynamically
+             * @param {Array<{value: *, label: string, data?: object}>} newChoices
+             */
+            setChoices: (newChoices) => {
+                // Clear existing options
+                select.innerHTML = ''
+                currentChoices = newChoices
+
+                // Add new options
+                newChoices.forEach((choice, i) => {
+                    const option = document.createElement('option')
+                    option.value = i
+                    option.textContent = choice.label
+                    if (choice.data) {
+                        for (const [key, val] of Object.entries(choice.data)) {
+                            option.dataset[key] = typeof val === 'object' ? JSON.stringify(val) : val
+                        }
+                    }
+                    select.appendChild(option)
+                })
+
+                select.selectedIndex = 0
             }
         }
     }
