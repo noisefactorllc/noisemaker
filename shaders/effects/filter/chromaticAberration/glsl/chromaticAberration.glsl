@@ -22,7 +22,6 @@ float map(float value, float inMin, float inMax, float outMin, float outMax) {
 
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution;
-    uv.y = 1.0 - uv.y;
 
     vec2 diff = vec2(0.5 * aspectRatio, 0.5) - vec2(uv.x * aspectRatio, uv.y);
     float centerDist = length(diff);

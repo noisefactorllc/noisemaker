@@ -22,7 +22,7 @@ export default new Effect({
         density: {
             type: "float",
             default: 50.0,
-            min: 1.0,
+            min: 0.0,
             max: 100.0,
             uniform: "density",
             ui: {

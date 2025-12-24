@@ -222,6 +222,10 @@ function formatValue(value, spec, options = {}) {
         // Colors (hex strings like #ffffff) must NOT be quoted even though they're strings
         // Identifiers and enum paths stay unquoted
         if (type === 'string' && !value.startsWith('#')) {
+            // Use triple-quotes for multi-line strings
+            if (value.includes('\n')) {
+                return `"""${value}"""`
+            }
             // Escape any quotes in the string
             const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
             return `"${escaped}"`

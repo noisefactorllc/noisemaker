@@ -27,8 +27,7 @@ fn mapVal(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let aspectRatio = u.resolution.x / u.resolution.y;
-    var uv = fragCoord.xy / u.resolution;
-    uv.y = 1.0 - uv.y;
+    let uv = fragCoord.xy / u.resolution;
 
     let diff = vec2f(0.5 * aspectRatio, 0.5) - vec2f(uv.x * aspectRatio, uv.y);
     let centerDist = length(diff);

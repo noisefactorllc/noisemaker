@@ -196,6 +196,37 @@ export function lex(src) {
         if (ch === '*') { add('STAR', '*', startLine, startCol); i++; col++; continue }
         if (ch === '/') { add('SLASH', '/', startLine, startCol); i++; col++; continue }
 
+        // Triple-quoted strings (multi-line) - must check before single quotes
+        if (ch === '"' && src[i + 1] === '"' && src[i + 2] === '"') {
+            let j = i + 3
+            // Find closing """
+            while (j < src.length - 2) {
+                if (src[j] === '"' && src[j + 1] === '"' && src[j + 2] === '"') {
+                    break
+                }
+                if (src[j] === '\n') {
+                    line++
+                    col = 0 // Will be set correctly after loop
+                }
+                j++
+            }
+            if (j >= src.length - 2 || !(src[j] === '"' && src[j + 1] === '"' && src[j + 2] === '"')) {
+                throw new SyntaxError(`Unterminated triple-quoted string at line ${startLine} col ${startCol}`)
+            }
+            // Extract string content without the triple quotes
+            const content = src.slice(i + 3, j)
+            add('STRING', content, startLine, startCol)
+            // Update position past closing """
+            const lines = content.split('\n')
+            if (lines.length > 1) {
+                col = lines[lines.length - 1].length + 4 // +3 for closing """ +1 for next char
+            } else {
+                col += j - i + 3
+            }
+            i = j + 3
+            continue
+        }
+
         if (ch === '"' || ch === '\'') {
             const quote = ch
             let j = i + 1
