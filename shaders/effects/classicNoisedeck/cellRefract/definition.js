@@ -8,7 +8,7 @@ export default new Effect({
 
   description: "Cell-based refraction",
   globals: {
-    metric: {
+    shape: {
       type: "int",
       default: 1,
       uniform: "metric",
@@ -21,7 +21,7 @@ export default new Effect({
         triangle: 6
       },
       ui: {
-        label: "metric",
+        label: "shape",
         control: "dropdown"
       }
     },

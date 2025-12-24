@@ -12,12 +12,12 @@ export default new Effect({
 
   description: "Outline/edge stroke",
   globals: {
-    sobelMetric: {
+    shape: {
         type: "enum",
         default: 1,
         uniform: "sobelMetric",
         ui: {
-            label: "Sobel Metric"
+            label: "shape"
         }
     },
     invert: {

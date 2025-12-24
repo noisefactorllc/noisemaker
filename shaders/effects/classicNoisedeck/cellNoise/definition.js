@@ -39,7 +39,7 @@ export default class CellNoise extends Effect {
     texIntensity: { slot: 7, components: 'y' }
   }
   globals = {
-    metric: {
+    shape: {
       type: "int",
       default: 0,
       uniform: "metric",
@@ -52,7 +52,7 @@ export default class CellNoise extends Effect {
         triangle: 6
       },
       ui: {
-        label: "metric",
+        label: "shape",
         control: "dropdown",
         category: "general"
       }

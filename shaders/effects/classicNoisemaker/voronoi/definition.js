@@ -36,7 +36,7 @@ export default new Effect({
             control: "slider"
         }
     },
-    distMetric: {
+    shape: {
         type: "integer",
         default: 1,
         uniform: "distMetric",
@@ -44,7 +44,7 @@ export default new Effect({
         max: 4,
         step: 1,
         ui: {
-            label: "Distance Metric",
+            label: "shape",
             control: "slider"
         }
     },
@@ -188,7 +188,7 @@ export default new Effect({
       uniforms: {
         diagramType: "diagramType",
         nth: "nth",
-        distMetric: "distMetric",
+        shape: "distMetric",
         sdfSides: "sdfSides",
         alpha: "alpha",
         withRefract: "withRefract",

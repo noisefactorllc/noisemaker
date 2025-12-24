@@ -40,7 +40,7 @@ export default new Effect({
         control: "dropdown"
       }
     },
-    metric: {
+    shape: {
       type: "int",
       default: 2,
       uniform: "metric",
@@ -50,7 +50,7 @@ export default new Effect({
         square: 2
       },
       ui: {
-        label: "distance metric",
+        label: "shape",
         control: "dropdown"
       }
     },

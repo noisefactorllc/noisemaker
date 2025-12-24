@@ -32,12 +32,12 @@ export default new Effect({
             control: "slider"
         }
     },
-    distMetric: {
+    shape: {
         type: "enum",
         default: 1,
         uniform: "distMetric",
         ui: {
-            label: "Distance Metric"
+            label: "shape"
         }
     }
 },
@@ -51,7 +51,7 @@ export default new Effect({
       uniforms: {
         distrib: "distrib",
         freq: "freq",
-        distMetric: "distMetric"
+        shape: "distMetric"
       },
       outputs: {
         fragColor: "outputTex"

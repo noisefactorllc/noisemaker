@@ -12,7 +12,7 @@ export default new Effect({
 
   description: "Glowing edge detection",
   globals: {
-    sobelMetric: {
+    shape: {
         type: "int",
         default: 1,
         uniform: "sobelMetric",
@@ -20,7 +20,7 @@ export default new Effect({
         max: 4,
         step: 1,
         ui: {
-            label: "Sobel Metric"
+            label: "shape"
         }
     },
     alpha: {
@@ -44,7 +44,7 @@ export default new Effect({
         inputTex: "inputTex"
       },
       uniforms: {
-        sobelMetric: "sobelMetric",
+        shape: "sobelMetric",
         alpha: "alpha"
       },
       outputs: {

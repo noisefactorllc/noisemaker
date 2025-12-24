@@ -21,7 +21,7 @@ export default new Effect({
     texIntensity: { slot: 2, components: 'w' }
   },
   globals: {
-    metric: {
+    shape: {
       type: "int",
       default: 0,
       uniform: "metric",
@@ -34,7 +34,7 @@ export default new Effect({
         triangle: 6
       },
       ui: {
-        label: "metric",
+        label: "shape",
         control: "dropdown"
       }
     },

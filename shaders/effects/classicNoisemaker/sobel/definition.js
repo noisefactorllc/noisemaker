@@ -12,12 +12,12 @@ export default new Effect({
 
   description: "Sobel edge detection",
   globals: {
-    distMetric: {
+    shape: {
         type: "enum",
         default: 1,
         uniform: "distMetric",
         ui: {
-            label: "Distance Metric"
+            label: "shape"
         }
     },
     alpha: {
