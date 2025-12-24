@@ -42,6 +42,8 @@
  * @param {Array} tokens Token stream from the lexer
  * @returns {object} AST
  */
+import { isValidNamespace, VALID_NAMESPACES } from '../runtime/tags.js'
+
 export function parse(tokens) {
     let current = 0
 
@@ -264,12 +266,22 @@ export function parse(tokens) {
             }
             advance() // consume 'search'
             const namespaces = []
+
+            // Helper to validate a namespace identifier
+            function validateNamespace(token) {
+                const ns = token.lexeme
+                if (!isValidNamespace(ns)) {
+                    throw new SyntaxError(`Invalid namespace '${ns}' at line ${token.line} col ${token.col}. Valid namespaces: ${VALID_NAMESPACES.join(', ')}`)
+                }
+            }
+
             // Expect at least one namespace identifier (allow keywords as namespace names)
             const firstToken = peek()
             if (!namespaceTokenTypes.has(firstToken.type)) {
                 throw new SyntaxError(`Expected namespace identifier after search at line ${firstToken.line} col ${firstToken.col}`)
             }
             advance()
+            validateNamespace(firstToken)
             namespaces.push(firstToken.lexeme)
             // Parse additional comma-separated namespaces
             while (peek().type === 'COMMA') {
@@ -279,6 +291,7 @@ export function parse(tokens) {
                     throw new SyntaxError(`Expected namespace identifier after comma at line ${nsToken.line} col ${nsToken.col}`)
                 }
                 advance()
+                validateNamespace(nsToken)
                 namespaces.push(nsToken.lexeme)
             }
             programSearchOrder = namespaces
