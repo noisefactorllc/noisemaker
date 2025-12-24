@@ -18,7 +18,7 @@
  * });
  */
 
-import { compile, unparse, lex, parse, unparseCall, formatValue } from '../../../shaders/src/lang/index.js'
+import { compile, unparse, lex, parse, unparseCall, formatValue, formatDslError, isDslSyntaxError } from '../../../shaders/src/lang/index.js'
 import {
     getEffect,
     cloneParamValue,
@@ -220,7 +220,11 @@ export function extractEffectsFromDsl(dsl) {
             }
         }
     } catch (err) {
-        console.warn('Failed to parse DSL for effect extraction:', err)
+        if (isDslSyntaxError(err)) {
+            console.warn('DSL Syntax Error:\n' + formatDslError(dslSource, err))
+        } else {
+            console.warn('Failed to parse DSL for effect extraction:', err)
+        }
     }
 
     return effects
@@ -1638,7 +1642,11 @@ export class UIController {
 
             return result
         } catch (err) {
-            console.warn('Failed to regenerate DSL:', err)
+            if (isDslSyntaxError(err)) {
+                console.warn('DSL Syntax Error:\n' + formatDslError(currentDslText, err))
+            } else {
+                console.warn('Failed to regenerate DSL:', err)
+            }
             return null
         }
     }
@@ -1693,7 +1701,11 @@ export class UIController {
         try {
             compiled = compile(dsl)
         } catch (err) {
-            console.warn('Failed to parse DSL for controls:', err)
+            if (isDslSyntaxError(err)) {
+                console.warn('DSL Syntax Error:\n' + formatDslError(dsl, err))
+            } else {
+                console.warn('Failed to parse DSL for controls:', err)
+            }
             return
         }
         if (!compiled || !compiled.plans) return
@@ -2815,7 +2827,11 @@ export class UIController {
         try {
             compiled = compile(currentDsl)
         } catch (err) {
-            console.error('Failed to compile DSL for deletion:', err)
+            if (isDslSyntaxError(err)) {
+                console.warn('DSL Syntax Error:\n' + formatDslError(currentDsl, err))
+            } else {
+                console.error('Failed to compile DSL for deletion:', err)
+            }
             this.showStatus('cannot delete: DSL has syntax errors', 'error')
             return
         }
@@ -4282,9 +4298,18 @@ export class UIController {
     /**
      * Format a compilation error for display
      * @param {Error} err - Error object
-     * @returns {string} Formatted error message
+     * @param {string} [dslSource] - Optional DSL source for context
+     * @returns {string} Formatted error message (short for status bar)
      */
-    formatCompilationError(err) {
+    formatCompilationError(err, dslSource) {
+        // For DSL syntax errors, log the nicely formatted version to console
+        if (isDslSyntaxError(err)) {
+            const source = dslSource || this.getDsl()
+            if (source) {
+                console.warn('DSL Syntax Error:\n' + formatDslError(source, err))
+            }
+        }
+
         if (err.code === 'ERR_COMPILATION_FAILED' && Array.isArray(err.diagnostics)) {
             return err.diagnostics
                 .filter(d => d.severity === 'error')
@@ -4303,6 +4328,9 @@ export class UIController {
 
 // Re-export utilities that might be needed externally
 export { cloneParamValue, isStarterEffect, hasTexSurfaceParam, hasExplicitTexParam, getVolGeoParams, is3dGenerator, is3dProcessor, getEffect }
+
+// Re-export DSL error formatting utilities
+export { formatDslError, isDslSyntaxError }
 
 // Re-export ControlFactory for downstream customization
 export { ControlFactory, defaultControlFactory } from './control-factory.js'

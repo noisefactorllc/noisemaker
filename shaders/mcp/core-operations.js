@@ -2068,6 +2068,63 @@ function checkCamelCase(name, allowGlobalPrefix = false) {
 }
 
 /**
+ * Check if an enum key is valid.
+ *
+ * Enum keys must:
+ * - Start with a lowercase letter (a-z)
+ * - Contain only ASCII alphanumeric characters (a-z, A-Z, 0-9)
+ * - No underscores, hyphens, spaces, or special characters
+ * - No high-ASCII or Unicode characters (including superscripts like ³)
+ *
+ * Examples:
+ * - Valid: "none", "obedient", "size32", "catmullRom"
+ * - Invalid: "32x32" (starts with number), "Random Mix" (spaces), "32³" (superscript)
+ *
+ * @param {string} name - The enum key to check
+ * @returns {{valid: boolean, reason?: string}}
+ */
+function checkEnumKey(name) {
+    // Empty or whitespace-only
+    if (!name || !name.trim()) {
+        return { valid: false, reason: 'empty name' }
+    }
+
+    // Must start with lowercase letter
+    if (!/^[a-z]/.test(name)) {
+        if (/^[0-9]/.test(name)) {
+            return { valid: false, reason: 'starts with a number (must start with lowercase letter)' }
+        }
+        if (/^[A-Z]/.test(name)) {
+            return { valid: false, reason: 'starts with uppercase letter (must start with lowercase letter)' }
+        }
+        return { valid: false, reason: 'must start with lowercase letter' }
+    }
+
+    // Check for non-ASCII characters (high-ASCII, Unicode, superscripts, etc.)
+    // Only allow basic ASCII alphanumeric characters (a-z, A-Z, 0-9)
+    const nonAsciiMatch = name.match(/[^a-zA-Z0-9]/)
+    if (nonAsciiMatch) {
+        const char = nonAsciiMatch[0]
+        const charCode = char.charCodeAt(0)
+        if (charCode > 127) {
+            return { valid: false, reason: `contains non-ASCII character '${char}' (code ${charCode})` }
+        }
+        if (char === '_') {
+            return { valid: false, reason: 'contains underscore (use camelCase instead)' }
+        }
+        if (char === '-') {
+            return { valid: false, reason: 'contains hyphen (use camelCase instead)' }
+        }
+        if (char === ' ') {
+            return { valid: false, reason: 'contains space (use camelCase instead)' }
+        }
+        return { valid: false, reason: `contains invalid character '${char}'` }
+    }
+
+    return { valid: true }
+}
+
+/**
  * Check if a texture/surface name is valid.
  *
  * Valid texture names:
@@ -2378,16 +2435,21 @@ export async function checkEffectStructure(effectId, options = {}) {
 
         // 5. Check in-class enum keys (choices object keys)
         // The choices object defines enum values like: choices: { none: 0, obedient: 1 }
-        // All keys must be camelCase (starting with lowercase)
+        // All keys must be valid enum keys:
+        // - Start with lowercase letter
+        // - Contain only ASCII alphanumeric characters (a-z, A-Z, 0-9)
+        // - No underscores, hyphens, spaces, or special characters
+        // - No high-ASCII or Unicode characters (including superscripts like ³)
         //
         // SKIP validation for:
         // - Category headers ending with colon (e.g., "Shapes:")
         //
-        // DO validate (and require camelCase for):
-        // - Simple alphanumeric keys (circle, Linear → should be circle, linear)
-        // - Keys with spaces (should be converted: "Random Mix" → randomMix)
-        // - Keys with dashes/underscores (should be converted: "Catmull-Rom" → catmullRom)
-        // - Keys with special chars (should be stripped: "32³" → size32, "Deriv+divide" → derivDivide)
+        // INVALID examples to detect:
+        // - "32x32" (starts with number)
+        // - "Random Mix" (contains space)
+        // - "32³" (contains superscript)
+        // - "Catmull-Rom" (contains hyphen)
+        // - "linear_interp" (contains underscore)
         const choicesMatches = globalsSection.matchAll(/(?:["']?choices["']?)\s*:\s*\{([^}]+)\}/g)
         for (const choicesMatch of choicesMatches) {
             const choicesContent = choicesMatch[1]
@@ -2400,7 +2462,7 @@ export async function checkEffectStructure(effectId, options = {}) {
                 // Skip category headers (end with colon)
                 if (enumKey.endsWith(':')) continue
 
-                const keyCheck = checkCamelCase(enumKey)
+                const keyCheck = checkEnumKey(enumKey)
                 if (!keyCheck.valid) {
                     result.namingIssues.push({
                         type: 'enumKey',

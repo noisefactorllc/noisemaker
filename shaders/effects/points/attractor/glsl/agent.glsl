@@ -142,9 +142,11 @@ void main() {
     
     uint agentSeed = uint(coord.x + coord.y * stateSize) + uint(seed);
     
-    // Check if needs 3D initialization (pos.w == 1 but xyz near origin means not initialized for 3D)
-    // pointsEmit initializes in 2D (0-1 range), we need to transform to attractor space
-    bool needs3DInit = pos.w >= 0.5 && abs(pos.x) < 2.0 && abs(pos.y) < 2.0 && abs(pos.z) < 2.0;
+    // Check if needs 3D initialization
+    // pointsEmit initializes agents in 2D normalized coords (0-1 range for x,y, z=0)
+    // We detect this by checking if z is exactly 0.0 (never happens in attractor space)
+    // and position is in the 0-1 range typical of pointsEmit output
+    bool needs3DInit = pos.w >= 0.5 && pos.z == 0.0 && pos.x >= 0.0 && pos.x <= 1.0 && pos.y >= 0.0 && pos.y <= 1.0;
     
     if (needs3DInit) {
         // Transform from 2D normalized coords to attractor space
