@@ -17,7 +17,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Physarum",
-  namespace: "synth",
+  namespace: "points",
   func: "physarum",
   tags: ["sim", "agents"],
 

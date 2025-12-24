@@ -1232,6 +1232,8 @@ export class UIController {
             searchNs = 'classicNoisemaker, synth'
         } else if (effect.namespace === 'render') {
             searchNs = 'synth, filter, render'
+        } else if (effect.namespace === 'points') {
+            searchNs = 'synth, points, render'
         } else if (['filter', 'mixer'].includes(effect.namespace)) {
             searchNs = `${effect.namespace}, synth`
         }
@@ -1249,14 +1251,14 @@ export class UIController {
 
         // Special case: pointsEmitter and pointsRender must be paired together with particles()
         if (funcName === 'pointsEmitter' || funcName === 'pointsRender') {
-            return `search render, synth\n\nnoise()\n  .write(o0)\n\npointsEmitter(\n  tex: read(o0)\n)\n  .particles()\n  .pointsRender()\n  .write(o1)\n\nrender(o1)`
+            return `search synth, points, render\n\nnoise()\n  .write(o0)\n\npointsEmitter(\n  tex: read(o0)\n)\n  .particles()\n  .pointsRender()\n  .write(o1)\n\nrender(o1)`
         }
 
-        // Special case: agent middleware effects need pointsEmitter/pointsRender wrapping
-        if (funcName === 'hflow' || funcName === 'flow' || funcName === 'flock' || funcName === 'particleLife') {
+        // Special case: points namespace effects need pointsEmitter/pointsRender wrapping
+        if (effect.namespace === 'points') {
             const kwargs = this._buildKwargs(effect.instance.globals, this._parameterValues)
             const effectCall = fmtCall(funcName, kwargs)
-            return `search render, synth, filter\n\nnoise()\n  .write(o0)\n\npointsEmitter(\n  tex: read(o0)\n)\n  .${effectCall}\n  .pointsRender()\n  .write(o1)\n\nrender(o1)`
+            return `search synth, points, render\n\nnoise()\n  .write(o0)\n\npointsEmitter(\n  tex: read(o0)\n)\n  .${effectCall}\n  .pointsRender()\n  .write(o1)\n\nrender(o1)`
         }
 
         // Special case: loopBegin/loopEnd need paired usage with filter in between
@@ -1299,11 +1301,11 @@ export class UIController {
                 kwargs[geoParam] = { type: 'Read3D', tex3d: { type: 'GeoRef', name: 'geo0' }, geo: null }
                 const generatorCall = fmtCall('noise3d', { volumeSize: `x${consumerVolumeSize}` })
                 const effectCall = fmtCall(funcName, kwargs)
-                return `search synth3d, filter3d\n\n${generatorCall}\n  .write3d(vol0, geo0)\n\n${effectCall}\n  .render3d()\n  .write(o0)\n\nrender(o0)`
+                return `search synth3d, filter3d, render\n\n${generatorCall}\n  .write3d(vol0, geo0)\n\n${effectCall}\n  .render3d()\n  .write(o0)\n\nrender(o0)`
             }
 
             const effectCall = fmtCall(funcName, kwargs)
-            return `search synth3d, filter3d\n\n${effectCall}\n  .render3d()\n  .write(o0)\n\nrender(o0)`
+            return `search synth3d, filter3d, render\n\n${effectCall}\n  .render3d()\n  .write(o0)\n\nrender(o0)`
         }
 
         // Effects with explicit vol/geo parameters (not pipeline inputs)
@@ -1337,7 +1339,7 @@ export class UIController {
             kwargs[geoParam] = { type: 'Read3D', tex3d: { type: 'GeoRef', name: 'geo0' }, geo: null }
             const generatorCall = fmtCall('noise3d', { volumeSize: `x${consumerVolumeSize}` })
             const effectCall = fmtCall(funcName, kwargs)
-            return `search synth3d, filter3d\n\n${generatorCall}\n  .write3d(vol0, geo0)\n\n${effectCall}\n  .render3d()\n  .write(o0)\n\nrender(o0)`
+            return `search synth3d, filter3d, render\n\n${generatorCall}\n  .write3d(vol0, geo0)\n\n${effectCall}\n  .render3d()\n  .write(o0)\n\nrender(o0)`
         }
 
         // Effects with explicit tex param (not inputTex default) - generate input
@@ -1422,7 +1424,7 @@ export class UIController {
             const effectCall = fmtCall(funcName, kwargs)
             // render3d IS the renderer - don't append another .render3d() call
             const renderSuffix = funcName === 'render3d' ? '' : '\n  .render3d()'
-            return `search synth3d, filter3d\n\n${generatorCall}\n  .${effectCall}${renderSuffix}\n  .write(o0)\n\nrender(o0)`
+            return `search synth3d, filter3d, render\n\n${generatorCall}\n  .${effectCall}${renderSuffix}\n  .write(o0)\n\nrender(o0)`
         } else {
             const kwargs = this._buildKwargs(effect.instance.globals, this._parameterValues)
             const effectCall = fmtCall(funcName, kwargs)

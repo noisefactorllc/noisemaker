@@ -936,12 +936,19 @@ export function expand(compilationResult, options = {}) {
                     }
                 } else {
                     // Map the internal texture to the 3D pipeline
-                    // Use same naming convention as texture spec registration (line 145-148):
-                    // Textures starting with 'global' use the global_ prefix for double-buffering
-                    const isGlobalTex = internalTexName.startsWith('global')
-                    const virtualTexId = isGlobalTex
-                        ? `global_${nodeId}_${internalTexName}`  // Match texture spec registration
-                        : `${nodeId}_${internalTexName}`
+                    // Use same naming convention as texture spec registration (line 354-362):
+                    // - Textures starting with 'global_' (underscore) are SHARED and used as-is
+                    // - Textures starting with 'global' (camelCase) are per-node and get prefixed
+                    let virtualTexId
+                    if (internalTexName.startsWith('global_')) {
+                        // Shared global texture - use as-is, no node prefix
+                        virtualTexId = internalTexName
+                    } else if (internalTexName.startsWith('global')) {
+                        // Per-node global texture - add node prefix for double-buffering
+                        virtualTexId = `global_${nodeId}_${internalTexName}`
+                    } else {
+                        virtualTexId = `${nodeId}_${internalTexName}`
+                    }
                     textureMap.set(`${nodeId}_out3d`, virtualTexId)
                     currentInput3d = virtualTexId
                 }

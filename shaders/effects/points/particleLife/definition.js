@@ -19,7 +19,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Particle Life",
-  namespace: "synth",
+  namespace: "points",
   func: "particleLife",
   tags: ["sim", "agents"],
 

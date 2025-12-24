@@ -166,7 +166,7 @@ Shared global textures pass state between effects in a chain.
 
 **Points rendering:** Use ``drawMode: "points"`` and ``blend: true`` for scatter operations.
 
-See: ``render/pointsEmitter``, ``render/pointsRender``, ``synth/physarum``
+See: ``render/pointsEmitter``, ``render/pointsRender``, ``points/physarum``
 
 Running Tests
 -------------

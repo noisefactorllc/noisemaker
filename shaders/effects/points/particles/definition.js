@@ -1,33 +1,34 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * Flow - Agent-based flow field effect with behaviors
+ * Particles - Physics-based particle simulation with gravity and wind
  *
  * Common Agent Architecture middleware:
  * - Reads agent state from pipeline inputs (inputXyz, inputVel, inputRgba)
- * - Applies flow-field movement based on input texture luminance
+ * - Applies physics (gravity, wind, drag, wander)
  * - Writes updated state to own textures (ping-ponged by runtime)
  *
  * State format (matching pointsEmitter):
- * - xyz: [x, y, z, alive_flag]  (x,y in normalized coords [0,1], w=1 alive)
- * - vel: [vx, vy, rotRand, strideRand]  (rotRand/strideRand for per-agent variation)
+ * - xyz: [x, y, z, alive_flag]  (z used for depth, w=1 alive, w=0 dead)
+ * - vel: [vx, vy, vz, seed]     (z velocity, w for per-agent seed)
  * - rgba: [r, g, b, a]          (agent color)
  *
- * Usage: pointsEmitter().flow().pointsRender().write(o0)
+ * Usage: pointsEmitter().particles().pointsRender().write(o0)
  */
 export default new Effect({
-  name: "Flow",
-  namespace: "filter",
-  func: "flow",
+  name: "Particles",
+  namespace: "points",
+  func: "particles",
   tags: ["sim", "agents"],
 
-  description: "Agent-based flow field with behaviors",
+  description: "Physics-based particle simulation",
 
   // No local textures - we use shared global_xyz/vel/rgba textures
   // These are created by pointsEmitter and shared across the particle pipeline
   textures: {},
 
   // Expose outputs to pipeline for downstream effects
+  // Using underscore convention for SHARED global textures (not node-prefixed)
   outputXyz: "global_xyz",
   outputVel: "global_vel",
   outputRgba: "global_rgba",
@@ -40,90 +41,87 @@ export default new Effect({
       uniform: "stateSize",
       ui: { control: false }  // Inherited from pointsEmitter
     },
-    behavior: {
-      type: "int",
-      default: 1,
-      uniform: "behavior",
-      choices: {
-        none: 0,
-        obedient: 1,
-        crosshatch: 2,
-        unruly: 3,
-        chaotic: 4,
-        randomMix: 5,
-        meandering: 10
-      },
+    gravity: {
+      type: "float",
+      default: 0.05,
+      uniform: "gravity",
+      min: -2,
+      max: 2,
+      step: 0.01,
       ui: {
-        label: "behavior",
-        control: "dropdown",
-        category: "agents"
+        label: "gravity",
+        control: "slider",
+        category: "physics"
+      }
+    },
+    wind: {
+      type: "float",
+      default: 0,
+      uniform: "wind",
+      min: -2,
+      max: 2,
+      step: 0.01,
+      ui: {
+        label: "wind",
+        control: "slider",
+        category: "physics"
+      }
+    },
+    energy: {
+      type: "float",
+      default: 0.5,
+      uniform: "energy",
+      min: 0,
+      max: 2,
+      step: 0.01,
+      ui: {
+        label: "energy",
+        control: "slider",
+        category: "physics"
+      }
+    },
+    drag: {
+      type: "float",
+      default: 0.15,
+      uniform: "drag",
+      min: 0,
+      max: 0.2,
+      step: 0.005,
+      ui: {
+        label: "drag",
+        control: "slider",
+        category: "physics"
       }
     },
     stride: {
       type: "float",
-      default: 10,
+      default: 0.75,
       uniform: "stride",
-      min: 1,
-      max: 1000,
-      step: 1,
-      ui: {
-        label: "stride",
-        control: "slider",
-        category: "agents"
-      }
-    },
-    strideDeviation: {
-      type: "float",
-      default: 0.05,
-      uniform: "strideDeviation",
       min: 0,
-      max: 0.5,
+      max: 1,
       step: 0.01,
       ui: {
-        label: "stride deviation",
+        label: "stride variation",
         control: "slider",
-        category: "agents"
+        category: "physics"
       }
     },
-    kink: {
+    wander: {
       type: "float",
-      default: 1,
-      uniform: "kink",
+      default: 0.25,
+      uniform: "wander",
       min: 0,
-      max: 10,
-      step: 0.1,
+      max: 1,
+      step: 0.01,
       ui: {
-        label: "kink",
+        label: "wander",
         control: "slider",
-        category: "agents"
-      }
-    },
-    quantize: {
-      type: "boolean",
-      default: false,
-      uniform: "quantize",
-      ui: {
-        label: "quantize",
-        control: "checkbox",
-        category: "agents"
-      }
-    },
-    inputWeight: {
-      type: "float",
-      default: 100,
-      uniform: "inputWeight",
-      min: 0,
-      max: 100,
-      step: 1,
-      ui: {
-        label: "input weight",
-        control: "slider",
-        category: "agents"
+        category: "physics"
       }
     },
     attrition: {
       type: "float",
-      default: 1,
+      default: 1.5,
       uniform: "attrition",
       min: 0,
       max: 10,
@@ -137,7 +135,7 @@ export default new Effect({
   },
 
   passes: [
-    // Pass 1: Update flow agent movement
+    // Pass 1: Update particle physics
     // Read from shared global textures (previous frame or pointsEmitter output)
     // Write back to same textures (ping-pong handled by runtime)
     {
@@ -146,11 +144,10 @@ export default new Effect({
       drawBuffers: 3,
       inputs: {
         // Read from shared global textures
+        // Within-frame: updateFrameSurfaceBindings makes pointsEmitter's writes visible
         xyzTex: "global_xyz",
         velTex: "global_vel",
-        rgbaTex: "global_rgba",
-        // Flow reads input for luminance-based direction
-        inputTex: "inputTex"
+        rgbaTex: "global_rgba"
       },
       outputs: {
         // Write to shared global textures (ping-pong for next frame)

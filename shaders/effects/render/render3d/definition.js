@@ -1,7 +1,7 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * filter3d/render3d - Universal 3D volume renderer
+ * render/render3d - Universal 3D volume renderer
  *
  * This built-in effect extracts the common raymarching/rendering logic from all 3D effects
  * (noise3d, cell3d, shape3d, fractal3d, rd3d, ca3d, flow3d) into a reusable pipeline node.
@@ -22,7 +22,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Render3D",
-  namespace: "filter3d",
+  namespace: "render",
   tags: ["util", "3d"],
   func: "render3d",
 

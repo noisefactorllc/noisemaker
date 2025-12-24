@@ -17,7 +17,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Flock",
-  namespace: "synth",
+  namespace: "points",
   func: "flock",
   tags: ["sim", "agents"],
 

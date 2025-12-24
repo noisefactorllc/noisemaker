@@ -1717,16 +1717,19 @@ export async function testNoPassthrough(page, effectId, options = {}) {
 const SIM_EFFECTS = new Set([
     'synth/ca',
     'synth/cf',
-    'synth/dla',
+    'points/dla',
     'filter/feedback',
-    'synth/flow',
-    'synth/hflow',
+    'points/flow',
+    'points/hflow',
     'synth/mnca',
     'filter/motionBlur',
-    'synth/physarum',
+    'points/physarum',
     'synth/rd',
     'loop/loopBegin',
     'loop/loopEnd',
+    'points/flock',
+    'points/particles',
+    'points/particleLife',
 ])
 
 /**

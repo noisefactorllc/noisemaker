@@ -17,7 +17,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Hflow",
-  namespace: "filter",
+  namespace: "points",
   func: "hflow",
   tags: ["sim", "agents"],
 

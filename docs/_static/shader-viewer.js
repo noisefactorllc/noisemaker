@@ -429,15 +429,15 @@
             if (is3dGenerator(effect)) {
                 // If generator has vol/geo params, generate 3D input for seeding
                 if (hasVolGeo) {
-                    return `search synth3d, filter3d\n\nnoise3d(volumeSize: x32)\n  .write3d(vol0, geo0)\n\n${funcName}(${volParam}: read3d(vol0, geo0), ${geoParam}: read3d(vol0, geo0))\n  .render3d()\n  .write(o0)\n\nrender(o0)`;
+                    return `search synth3d, filter3d, render\n\nnoise3d(volumeSize: x32)\n  .write3d(vol0, geo0)\n\n${funcName}(${volParam}: read3d(vol0, geo0), ${geoParam}: read3d(vol0, geo0))\n  .render3d()\n  .write(o0)\n\nrender(o0)`;
                 }
-                return `search synth3d, filter3d\n\n${funcName}()\n  .render3d()\n  .write(o0)\n\nrender(o0)`;
+                return `search synth3d, filter3d, render\n\n${funcName}()\n  .render3d()\n  .write(o0)\n\nrender(o0)`;
             }
 
             // Effects with explicit vol/geo parameters (not pipeline inputs)
             // Generate 3D input and pass to vol/geo params
             if (hasVolGeo) {
-                return `search synth3d, filter3d\n\nnoise3d(volumeSize: x32)\n  .write3d(vol0, geo0)\n\n${funcName}(${volParam}: read3d(vol0, geo0), ${geoParam}: read3d(vol0, geo0))\n  .render3d()\n  .write(o0)\n\nrender(o0)`;
+                return `search synth3d, filter3d, render\n\nnoise3d(volumeSize: x32)\n  .write3d(vol0, geo0)\n\n${funcName}(${volParam}: read3d(vol0, geo0), ${geoParam}: read3d(vol0, geo0))\n  .render3d()\n  .write(o0)\n\nrender(o0)`;
             }
 
             // Effects with explicit tex param (not inputTex default) - generate input
@@ -466,7 +466,7 @@
             } else if (is3dProcessor(effect)) {
                 // render3d IS the renderer - don't append another .render3d() call
                 const renderSuffix = funcName === 'render3d' ? '' : '\n  .render3d()';
-                return `search synth3d, filter3d\n\nnoise3d(volumeSize: x32)\n  .${funcName}()${renderSuffix}\n  .write(o0)\n\nrender(o0)`;
+                return `search synth3d, filter3d, render\n\nnoise3d(volumeSize: x32)\n  .${funcName}()${renderSuffix}\n  .write(o0)\n\nrender(o0)`;
             } else {
                 return `${searchDirective}${noiseCall}\n  .${funcName}()\n  .write(o0)\n\nrender(o0)`;
             }

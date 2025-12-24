@@ -19,7 +19,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Dla",
-  namespace: "synth",
+  namespace: "points",
   func: "dla",
   tags: ["sim", "agents"],
 

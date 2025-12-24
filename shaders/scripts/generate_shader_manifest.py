@@ -202,7 +202,7 @@ def scan_effect(effect_dir):
 def main():
     manifest = {}
     
-    for namespace in ["classicNoisedeck", "classicNoisemaker", "filter", "filter3d", "mixer", "render", "synth", "synth3d"]:
+    for namespace in ["classicNoisedeck", "classicNoisemaker", "filter", "filter3d", "mixer", "points", "render", "synth", "synth3d"]:
         ns_dir = EFFECTS_ROOT / namespace
         if not ns_dir.exists():
             continue

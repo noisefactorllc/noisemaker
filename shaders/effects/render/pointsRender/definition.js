@@ -21,7 +21,7 @@ export default new Effect({
         // Agent density for visualization (percentage to render)
         density: {
             type: "float",
-            default: 100.0,
+            default: 50.0,
             min: 1.0,
             max: 100.0,
             uniform: "density",
@@ -35,7 +35,7 @@ export default new Effect({
         // Trail persistence (0=instant fade, 100=no decay)
         intensity: {
             type: "float",
-            default: 95.0,
+            default: 75.0,
             min: 0.0,
             max: 100.0,
             uniform: "intensity",
@@ -49,7 +49,7 @@ export default new Effect({
         // Input blend factor (0=trail only, 100=input fully visible)
         inputIntensity: {
             type: "float",
-            default: 0.0,
+            default: 10.15,
             min: 0.0,
             max: 100.0,
             uniform: "inputIntensity",
