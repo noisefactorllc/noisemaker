@@ -221,7 +221,7 @@ export function extractEffectsFromDsl(dsl) {
         }
     } catch (err) {
         if (isDslSyntaxError(err)) {
-            console.warn('DSL Syntax Error:\n' + formatDslError(dslSource, err))
+            console.warn('DSL Syntax Error:\n' + formatDslError(dsl, err))
         } else {
             console.warn('Failed to parse DSL for effect extraction:', err)
         }
