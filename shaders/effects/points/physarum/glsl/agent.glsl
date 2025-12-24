@@ -16,7 +16,6 @@ uniform float turnSpeed;
 uniform float sensorAngle;
 uniform float sensorDistance;  // Now in normalized [0,1] coords
 uniform float inputWeight;
-uniform float attrition;
 
 // MRT outputs
 layout(location = 0) out vec4 outXYZ;
@@ -88,26 +87,7 @@ void main() {
         return;
     }
     
-    // Attrition: random chance to die and respawn
-    if (attrition > 0.0) {
-        uint agentId = uint(coord.y * stateSize.x + coord.x);
-        // Use fractional time component to avoid synchronized bursts
-        float fracTime = fract(time * 60.0);
-        uint timeSeed = uint(time * 1000.0);  // Higher frequency for more randomness
-        uint checkSeed = agentId * 747796405u + timeSeed;
-        float respawnRand = hash(checkSeed);
-        // Add fractional variation per-agent to stagger deaths
-        float agentOffset = hash(agentId) * 0.5;
-        float attritionRate = attrition * 0.01;  // Convert 0-10 to 0-0.1
-        
-        if (respawnRand < attritionRate) {
-            // Mark as dead for pointsEmitter to respawn
-            outXYZ = vec4(pos, heading, 0.0);  // alive = 0
-            outVel = vel;
-            outRGBA = rgba;
-            return;
-        }
-    }
+    // Attrition is now handled by pointsEmitter
     
     // Compute sensor positions in normalized coords
     vec2 forwardDir = vec2(cos(heading), sin(heading));

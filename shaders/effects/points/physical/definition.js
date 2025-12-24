@@ -13,12 +13,12 @@ import { Effect } from '../../../src/runtime/effect.js'
  * - vel: [vx, vy, vz, seed]     (z velocity, w for per-agent seed)
  * - rgba: [r, g, b, a]          (agent color)
  *
- * Usage: pointsEmitter().particles().pointsRender().write(o0)
+ * Usage: pointsEmitter().physical().pointsRender().write(o0)
  */
 export default new Effect({
-  name: "Particles",
+  name: "Physical",
   namespace: "points",
-  func: "particles",
+  func: "physical",
   tags: ["sim", "agents"],
 
   description: "Physics-based particle simulation",
@@ -118,19 +118,6 @@ export default new Effect({
         control: "slider",
         category: "physics"
       }
-    },
-    attrition: {
-      type: "float",
-      default: 1.5,
-      uniform: "attrition",
-      min: 0,
-      max: 10,
-      step: 0.1,
-      ui: {
-        label: "attrition",
-        control: "slider",
-        category: "agents"
-      }
     }
   },
 
@@ -148,6 +135,14 @@ export default new Effect({
         xyzTex: "global_xyz",
         velTex: "global_vel",
         rgbaTex: "global_rgba"
+      },
+      uniforms: {
+        gravity: "gravity",
+        wind: "wind",
+        energy: "energy",
+        drag: "drag",
+        stride: "stride",
+        wander: "wander"
       },
       outputs: {
         // Write to shared global textures (ping-pong for next frame)

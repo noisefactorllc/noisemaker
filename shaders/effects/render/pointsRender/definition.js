@@ -60,6 +60,118 @@ export default new Effect({
             }
         },
 
+        // 3D viewport: view mode (0=2D normalized, 1=3D orthographic)
+        viewMode: {
+            type: "int",
+            default: 0,
+            uniform: "viewMode",
+            choices: {
+                "2D": 0,
+                "3D": 1
+            },
+            ui: {
+                label: "view",
+                control: "dropdown",
+                category: "view"
+            }
+        },
+
+        // 3D viewport: rotation around X axis (radians)
+        rotateX: {
+            type: "float",
+            default: 0.3,
+            uniform: "rotateX",
+            min: 0,
+            max: 6.283185,
+            step: 0.01,
+            ui: {
+                label: "rotate X",
+                control: "slider",
+                category: "view",
+                enabledBy: "viewMode"
+            }
+        },
+
+        // 3D viewport: rotation around Y axis (radians)
+        rotateY: {
+            type: "float",
+            default: 0,
+            uniform: "rotateY",
+            min: 0,
+            max: 6.283185,
+            step: 0.01,
+            ui: {
+                label: "rotate Y",
+                control: "slider",
+                category: "view",
+                enabledBy: "viewMode"
+            }
+        },
+
+        // 3D viewport: rotation around Z axis (radians)
+        rotateZ: {
+            type: "float",
+            default: 0,
+            uniform: "rotateZ",
+            min: 0,
+            max: 6.283185,
+            step: 0.01,
+            ui: {
+                label: "rotate Z",
+                control: "slider",
+                category: "view",
+                enabledBy: "viewMode"
+            }
+        },
+
+        // 3D viewport: zoom/scale factor
+        viewScale: {
+            type: "float",
+            default: 0.8,
+            uniform: "viewScale",
+            min: 0.1,
+            max: 10,
+            step: 0.01,
+            ui: {
+                label: "zoom",
+                control: "slider",
+                category: "view",
+                enabledBy: "viewMode"
+            }
+        },
+
+        // 3D viewport: position offset X
+        posX: {
+            type: "float",
+            default: 0,
+            uniform: "posX",
+            min: -50,
+            max: 50,
+            step: 0.1,
+            ui: {
+                label: "pos X",
+                control: "slider",
+                category: "view",
+                enabledBy: "viewMode"
+            }
+        },
+
+        // 3D viewport: position offset Y
+        posY: {
+            type: "float",
+            default: 0,
+            uniform: "posY",
+            min: -50,
+            max: 50,
+            step: 0.1,
+            ui: {
+                label: "pos Y",
+                control: "slider",
+                category: "view",
+                enabledBy: "viewMode"
+            }
+        },
+
         // Reset state button
         resetState: {
             type: "boolean",
@@ -123,7 +235,14 @@ export default new Effect({
             },
 
             uniforms: {
-                density: "density"
+                density: "density",
+                viewMode: "viewMode",
+                rotateX: "rotateX",
+                rotateY: "rotateY",
+                rotateZ: "rotateZ",
+                viewScale: "viewScale",
+                posX: "posX",
+                posY: "posY"
             },
 
             outputs: {

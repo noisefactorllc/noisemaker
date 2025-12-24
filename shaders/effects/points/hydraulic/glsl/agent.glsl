@@ -10,7 +10,6 @@ uniform float time;
 uniform float stride;
 uniform float quantize;
 uniform float inverse;
-uniform float attrition;
 uniform float inputWeight;
 
 // Input state from pipeline (from pointsEmitter)
@@ -142,25 +141,7 @@ void main() {
         }
     }
     
-    // Respawn check (attrition)
-    bool needsRespawn = false;
-    if (attrition > 0.0) {
-        uint time_seed = uint(time * 60.0);
-        uint check_seed = agent_id + time_seed * 747796405u;
-        float respawn_rand = hash2(check_seed).x;
-        float attrition_rate = attrition * 0.01;
-        if (respawn_rand < attrition_rate) {
-            needsRespawn = true;
-        }
-    }
-    
-    if (needsRespawn) {
-        // Signal respawn by setting alive flag to 0
-        outXYZ = vec4(px, py, xyz.z, 0.0);
-        outVel = vec4(x_dir, y_dir, inertia, 0.0);
-        outRGBA = rgba;
-        return;
-    }
+    // Attrition is now handled by pointsEmitter
 
     // === ORIGINAL GRADIENT DESCENT ALGORITHM (PRESERVED EXACTLY) ===
     

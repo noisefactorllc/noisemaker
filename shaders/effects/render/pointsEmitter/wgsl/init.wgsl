@@ -5,6 +5,7 @@ struct Uniforms {
     stateSize: i32,
     layoutMode: i32,
     colorMode: i32,
+    attrition: f32,
 };
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -39,16 +40,33 @@ fn main(@builtin(position) coord: vec4<f32>) -> Outputs {
     let stateCoord = vec2<i32>(coord.xy);
     let uv = coord.xy / f32(u.stateSize);
     
+    // Agent seed for random generation - compute early for attrition check
+    let agentSeed = u32(stateCoord.x + stateCoord.y * u.stateSize) + u32(u.seed);
+    
     // Read previous state using textureLoad (works in non-uniform control flow)
     let pPos = textureLoad(xyzTex, stateCoord, 0);
     let pVel = textureLoad(velTex, stateCoord, 0);
     let pCol = textureLoad(rgbaTex, stateCoord, 0);
     
-    let needsRespawn = (pPos.w < 0.5) || (u.time < 0.01 && pPos.w == 0.0);
+    var needsRespawn = (pPos.w < 0.5) || (u.time < 0.01 && pPos.w == 0.0);
+    
+    // Attrition: per-frame random respawn chance
+    // Use continuous time mixed with agent seed to decorrelate respawns
+    if (!needsRespawn && u.attrition > 0.0) {
+        // Mix time continuously into hash to avoid burst patterns
+        // bitcast gives us full precision of time value
+        let timeBits = bitcast<u32>(u.time);
+        var check_seed = agentSeed * 1664525u + timeBits;
+        check_seed = hash_uint(check_seed); // Extra mixing
+        let respawnRand = f32(check_seed) / 4294967295.0;
+        let attritionRate = u.attrition * 0.01; // 0-10% per frame
+        if (respawnRand < attritionRate) {
+            needsRespawn = true;
+        }
+    }
     
     // Compute spawn values unconditionally (no branching in texture access)
     // Use integer-based hash for cross-platform determinism
-    let agentSeed = u32(stateCoord.x + stateCoord.y * u.stateSize) + u32(u.seed);
     let rnd = hash2(agentSeed);
     
     // Compute position based on layout mode
@@ -94,11 +112,14 @@ fn main(@builtin(position) coord: vec4<f32>) -> Outputs {
     
     // Select between spawned values and previous state
     if (needsRespawn) {
-        // Store per-agent random [0,1] in vel.w for stride variation in particles effect
-        let agentRand = hash(agentSeed + 100u);
+        // Store per-agent randoms in vel for downstream effects:
+        // vel.z = rotRand [0,1] for rotation variation (flow behavior)
+        // vel.w = strideRand [-0.5,0.5] for stride variation
+        let rotRand = hash(agentSeed + 100u);
+        let strideRand = hash(agentSeed + 101u) - 0.5;
         return Outputs(
             vec4<f32>(newPos, 1.0),
-            vec4<f32>(0.0, 0.0, 0.0, agentRand),
+            vec4<f32>(0.0, 0.0, rotRand, strideRand),
             newCol
         );
     } else {

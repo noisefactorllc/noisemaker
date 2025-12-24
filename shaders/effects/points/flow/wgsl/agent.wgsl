@@ -10,7 +10,6 @@ struct Uniforms {
     strideDeviation: f32,
     kink: f32,
     quantize: f32,
-    attrition: f32,
     inputWeight: f32,
     behavior: f32,
 }
@@ -112,19 +111,12 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     let alive = xyz.w;
     
     // Flow-specific state stored in vel
-    var rotRand = vel.z;     // Per-agent rotation random [0,1]
-    var strideRand = vel.w;  // Per-agent stride random [-0.5, 0.5]
+    let rotRand = vel.z;     // Per-agent rotation random [0,1] from pointsEmitter
+    let strideRand = vel.w;  // Per-agent stride random [-0.5, 0.5] from pointsEmitter
     
     // If not alive, pass through unchanged
     if (alive < 0.5) {
         return Outputs(xyz, vel, rgba);
-    }
-    
-    // Initialize rotRand/strideRand on first use (if they're zero from pointsEmitter)
-    let agentSeed = u32(coord.x) + u32(coord.y) * u32(stateSize.x);
-    if (rotRand == 0.0 && strideRand == 0.0) {
-        rotRand = hash(agentSeed + 200u);
-        strideRand = hash(agentSeed + 300u) - 0.5;
     }
     
     // Sample input texture at current position for flow direction
@@ -165,30 +157,10 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     newX = fract(newX);
     newY = fract(newY);
     
-    // Check for respawn based on attrition
-    var needsRespawn = false;
-    if (u.attrition > 0.0) {
-        let time_seed = u32(u.time * 60.0);
-        let check_seed = agentSeed + time_seed * 747796405u;
-        let respawnRand = hash(check_seed);
-        let attritionRate = u.attrition * 0.01;
-        if (respawnRand < attritionRate) {
-            needsRespawn = true;
-        }
-    }
-    
-    if (needsRespawn) {
-        // Signal respawn by setting alive flag to 0
-        return Outputs(
-            vec4f(newX, newY, pz, 0.0),
-            vec4f(0.0, 0.0, rotRand, strideRand),
-            rgba
-        );
-    } else {
-        return Outputs(
-            vec4f(newX, newY, pz, 1.0),
-            vec4f(0.0, 0.0, rotRand, strideRand),
-            rgba
-        );
-    }
+    // Output updated state - attrition is handled by pointsEmitter
+    return Outputs(
+        vec4f(newX, newY, pz, 1.0),
+        vec4f(0.0, 0.0, rotRand, strideRand),
+        rgba
+    );
 }

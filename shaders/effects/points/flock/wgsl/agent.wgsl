@@ -16,7 +16,6 @@ struct Uniforms {
     boundaryMode: i32,
     wallMargin: f32,
     noiseWeight: f32,
-    attrition: f32,
 }
 
 struct Outputs {
@@ -131,26 +130,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         velocity = vec2f(cos(angle), sin(angle)) * speed;
     }
     
-    // Respawn check (attrition)
-    var needsRespawn = false;
-    if (u.attrition > 0.0) {
-        let time_seed = u32(u.time * 60.0);
-        let check_seed = boidId + time_seed * 747796405u;
-        let respawnRand = hash(check_seed);
-        let attritionRate = u.attrition * 0.01;
-        if (respawnRand < attritionRate) {
-            needsRespawn = true;
-        }
-    }
-    
-    if (needsRespawn) {
-        // Signal respawn by setting alive flag to 0
-        return Outputs(
-            vec4f(px, py, xyz.z, 0.0),
-            vec4f(velocity, age, seed),
-            rgba
-        );
-    }
+    // Attrition is now handled by pointsEmitter
 
     // === ORIGINAL BOIDS ALGORITHM (PRESERVED EXACTLY) ===
     

@@ -17,7 +17,6 @@ struct Uniforms {
     matrixSeed: f32,
     symmetricForces: i32,
     useTypeColor: i32,
-    attrition: f32,
 }
 
 struct Outputs {
@@ -182,22 +181,7 @@ fn main(@builtin(position) position: vec4f) -> Outputs {
         rgba = vec4f(typeColor(i32(typeId), u.typeCount), 1.0);
     }
     
-    // Respawn check (attrition)
-    if (u.attrition > 0.0) {
-        let time_seed = u32(u.time * 60.0);
-        let check_seed = particleId + time_seed * 747796405u;
-        let respawnRand = hash(check_seed);
-        let attritionRate = u.attrition * 0.01;
-        if (respawnRand < attritionRate) {
-            // Signal respawn by setting alive flag to 0
-            return Outputs(
-                vec4f(px, py, 0.0, 0.0),
-                vec4f(velocity, age, seed),
-                rgba,
-                vec4f(0.0)  // Reset data so it reinitializes
-            );
-        }
-    }
+    // Attrition is now handled by pointsEmitter
     
     // === FORCE EVALUATION ===
     

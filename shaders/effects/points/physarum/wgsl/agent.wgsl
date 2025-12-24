@@ -9,7 +9,6 @@ struct Uniforms {
     sensorAngle: f32,
     sensorDistance: f32,
     inputWeight: f32,
-    attrition: f32,
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -94,24 +93,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         );
     }
     
-    // Attrition: random chance to die and respawn
-    if (u.attrition > 0.0) {
-        let agentId = u32(coord.y * stateSize.x + coord.x);
-        // Use higher frequency time for more randomness, avoid synchronized bursts
-        let timeSeed = u32(u.time * 1000.0);
-        let checkSeed = agentId * 747796405u + timeSeed;
-        let respawnRand = hash(checkSeed);
-        let attritionRate = u.attrition * 0.01;  // Convert 0-10 to 0-0.1
-        
-        if (respawnRand < attritionRate) {
-            // Mark as dead for pointsEmitter to respawn
-            return Outputs(
-                vec4f(pos, heading, 0.0),  // alive = 0
-                vel,
-                rgba
-            );
-        }
-    }
+    // Attrition is now handled by pointsEmitter
     
     // Compute sensor positions in normalized coords
     let forwardDir = vec2f(cos(heading), sin(heading));

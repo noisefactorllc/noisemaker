@@ -9,7 +9,6 @@ struct Uniforms {
     stride: f32,
     quantize: f32,
     inverse: f32,
-    attrition: f32,
     inputWeight: f32,
 }
 
@@ -136,26 +135,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         }
     }
     
-    // Respawn check (attrition)
-    var needsRespawn = false;
-    if (u.attrition > 0.0) {
-        let time_seed = u32(u.time * 60.0);
-        let check_seed = agent_id + time_seed * 747796405u;
-        let respawn_rand = hash2(check_seed).x;
-        let attrition_rate = u.attrition * 0.01;
-        if (respawn_rand < attrition_rate) {
-            needsRespawn = true;
-        }
-    }
-    
-    if (needsRespawn) {
-        // Signal respawn by setting alive flag to 0
-        return Outputs(
-            vec4f(px, py, xyz.z, 0.0),
-            vec4f(x_dir, y_dir, inertia, 0.0),
-            rgba
-        );
-    }
+    // Attrition is now handled by pointsEmitter
 
     // === ORIGINAL GRADIENT DESCENT ALGORITHM (PRESERVED EXACTLY) ===
     

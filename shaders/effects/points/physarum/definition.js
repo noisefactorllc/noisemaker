@@ -104,19 +104,6 @@ export default new Effect({
         category: "agents"
       }
     },
-    attrition: {
-      type: "float",
-      default: 1,
-      uniform: "attrition",
-      min: 0,
-      max: 10,
-      step: 0.1,
-      ui: {
-        label: "attrition",
-        control: "slider",
-        category: "agents"
-      }
-    },
     deposit: {
       type: "float",
       default: 0.5,
@@ -185,6 +172,13 @@ export default new Effect({
         trailTex: "global_physarum_pheromone",
         // Read input for field attraction
         inputTex: "inputTex"
+      },
+      uniforms: {
+        moveSpeed: "moveSpeed",
+        turnSpeed: "turnSpeed",
+        sensorAngle: "sensorAngle",
+        sensorDistance: "sensorDistance",
+        inputWeight: "inputWeight"
       },
       outputs: {
         outXYZ: "global_xyz",

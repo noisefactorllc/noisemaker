@@ -13,7 +13,6 @@ uniform float energy;
 uniform float drag;
 uniform float stride;
 uniform float wander;
-uniform float attrition;
 
 // Input state from pipeline (from pointsEmitter)
 uniform sampler2D inputTex; // Pipeline passthrough (for chainability)
@@ -128,15 +127,7 @@ void main() {
         needsRespawn = true;
     }
     
-    // Random attrition check (percentage of agents respawning per frame)
-    if (attrition > 0.0) {
-        uint agentSeed = uint(coord.x + coord.y * stateSize.x) + uint(time * 1000.0);
-        float roll = hash(agentSeed);
-        float attritionRate = attrition * 0.01;  // Convert 0-10% to 0-0.1
-        if (roll < attritionRate) {
-            needsRespawn = true;
-        }
-    }
+    // Attrition is now handled by pointsEmitter
     
     if (needsRespawn) {
         // Signal respawn by setting alive flag to 0

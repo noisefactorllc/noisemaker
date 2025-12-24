@@ -165,20 +165,6 @@ export default new Effect({
         control: "slider",
         category: "motion"
       }
-    },
-    // Agent respawn
-    attrition: {
-      type: "float",
-      default: 0.5,
-      uniform: "attrition",
-      min: 0,
-      max: 10,
-      step: 0.1,
-      ui: {
-        label: "attrition",
-        control: "slider",
-        category: "agents"
-      }
     }
   },
 
@@ -192,6 +178,18 @@ export default new Effect({
         xyzTex: "global_xyz",
         velTex: "global_vel",
         rgbaTex: "global_rgba"
+      },
+      uniforms: {
+        separation: "separation",
+        alignment: "alignment",
+        cohesion: "cohesion",
+        perceptionRadius: "perceptionRadius",
+        separationRadius: "separationRadius",
+        maxSpeed: "maxSpeed",
+        maxForce: "maxForce",
+        boundaryMode: "boundaryMode",
+        wallMargin: "wallMargin",
+        noiseWeight: "noiseWeight"
       },
       outputs: {
         outXYZ: "global_xyz",

@@ -7,7 +7,6 @@ struct Uniforms {
     drag: f32,
     stride: f32,
     wander: f32,
-    attrition: f32,
 }
 
 struct Outputs {
@@ -123,15 +122,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         needsRespawn = true;
     }
     
-    // Random attrition check (percentage of agents respawning per frame)
-    if (u.attrition > 0.0) {
-        let agentSeed = u32(coord.x) + u32(coord.y) * u32(stateSize.x) + u32(u.time * 1000.0);
-        let roll = hash(agentSeed);
-        let attritionRate = u.attrition * 0.01;  // Convert 0-10% to 0-0.1
-        if (roll < attritionRate) {
-            needsRespawn = true;
-        }
-    }
+    // Attrition is now handled by pointsEmitter
     
     if (needsRespawn) {
         // Signal respawn by setting alive flag to 0

@@ -10,6 +10,7 @@ uniform float seed;
 uniform int stateSize;
 uniform int layoutMode; // 0=Random, 1=Grid, 2=Center, 3=Ring
 uniform int colorMode;  // 0=white (no tex), 1=sample from tex
+uniform float attrition; // Per-frame respawn chance (0-10%)
 
 // Inputs
 uniform sampler2D xyzTex;
@@ -42,6 +43,9 @@ void main() {
     ivec2 stateCoord = ivec2(gl_FragCoord.xy);
     vec2 uv = gl_FragCoord.xy / float(stateSize);
     
+    // Agent seed for random generation - compute early for attrition check
+    uint agentSeed = uint(stateCoord.x + stateCoord.y * stateSize) + uint(seed);
+    
     // Read previous state using texelFetch for pixel parity with WGSL
     vec4 pPos = texelFetch(xyzTex, stateCoord, 0);
     vec4 pVel = texelFetch(velTex, stateCoord, 0);
@@ -53,9 +57,23 @@ void main() {
     // We also respawn on the very first frame (time == 0) or if alpha is 0
     bool needsRespawn = (pPos.w < 0.5) || (time < 0.01 && pPos.w == 0.0);
     
+    // Attrition: per-frame random respawn chance
+    // Use continuous time mixed with agent seed to decorrelate respawns
+    if (!needsRespawn && attrition > 0.0) {
+        // Mix time continuously into hash to avoid burst patterns
+        // floatBitsToUint gives us full precision of time value
+        uint timeBits = floatBitsToUint(time);
+        uint check_seed = agentSeed * 1664525u + timeBits;
+        check_seed = hash_uint(check_seed); // Extra mixing
+        float respawnRand = float(check_seed) / 4294967295.0;
+        float attritionRate = attrition * 0.01; // 0-10% per frame
+        if (respawnRand < attritionRate) {
+            needsRespawn = true;
+        }
+    }
+    
     // Compute spawn values unconditionally (no branching in texture access)
     // Use integer-based hash for cross-platform determinism
-    uint agentSeed = uint(stateCoord.x + stateCoord.y * stateSize) + uint(seed);
     vec2 rnd = hash2(agentSeed);
     
     // Compute position based on layout mode
@@ -101,10 +119,13 @@ void main() {
     
     // Select between spawned values and previous state
     if (needsRespawn) {
-        // Store per-agent random [0,1] in vel.w for stride variation in particles effect
-        float agentRand = hash(agentSeed + 100u);
+        // Store per-agent randoms in vel for downstream effects:
+        // vel.z = rotRand [0,1] for rotation variation (flow behavior)
+        // vel.w = strideRand [-0.5,0.5] for stride variation
+        float rotRand = hash(agentSeed + 100u);
+        float strideRand = hash(agentSeed + 101u) - 0.5;
         outXYZ = vec4(newPos, 1.0);
-        outVel = vec4(0.0, 0.0, 0.0, agentRand);
+        outVel = vec4(0.0, 0.0, rotRand, strideRand);
         outRGBA = newCol;
     } else {
         outXYZ = pPos;

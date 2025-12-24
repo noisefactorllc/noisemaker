@@ -23,7 +23,6 @@ uniform int boundaryMode;
 uniform float matrixSeed;
 uniform bool symmetricForces;
 uniform bool useTypeColor;
-uniform float attrition;
 
 // Input state from pipeline (from pointsEmitter)
 uniform sampler2D xyzTex;      // [x, y, 0, alive] - normalized coords
@@ -186,21 +185,7 @@ void main() {
     // Ensure mass is valid
     mass = max(mass, 0.1);
     
-    // Respawn check (attrition)
-    if (attrition > 0.0) {
-        uint time_seed = uint(time * 60.0);
-        uint check_seed = particleId + time_seed * 747796405u;
-        float respawnRand = hash(check_seed);
-        float attritionRate = attrition * 0.01;
-        if (respawnRand < attritionRate) {
-            // Signal respawn by setting alive flag to 0
-            outXYZ = vec4(px, py, 0.0, 0.0);
-            outVel = vec4(velocity, age, seed);
-            outRGBA = rgba;
-            outData = vec4(0.0);  // Reset data so it reinitializes
-            return;
-        }
-    }
+    // Attrition is now handled by pointsEmitter
     
     // === FORCE EVALUATION ===
     

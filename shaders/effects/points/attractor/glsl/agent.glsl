@@ -2,21 +2,26 @@
 precision highp float;
 precision highp int;
 
-uniform vec2 resolution;
-uniform sampler2D stateTex1;
-uniform sampler2D stateTex2;
-uniform sampler2D tex;
-uniform int attractor;
-uniform float density;
-uniform float speed;
-uniform float scale;
+// Standard uniforms
 uniform float time;
-uniform bool resetState;
-uniform int colorMode;  // 0 = mono (white), 1 = sample from tex
+uniform vec2 resolution;
+uniform float seed;
 
-layout(location = 0) out vec4 outState1;  // x, y, z, w (unused)
-layout(location = 1) out vec4 outState2;  // r, g, b, seed
+// Effect parameters
+uniform int attractor;
+uniform float speed;
 
+// Input textures
+uniform sampler2D xyzTex;
+uniform sampler2D velTex;
+uniform sampler2D rgbaTex;
+
+// MRT outputs
+layout(location = 0) out vec4 outXYZ;
+layout(location = 1) out vec4 outVel;
+layout(location = 2) out vec4 outRGBA;
+
+// Integer-based hash for cross-platform determinism
 uint hash_uint(uint seed) {
     uint state = seed * 747796405u + 2891336453u;
     uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
@@ -127,75 +132,56 @@ vec3 stepAttractor(vec3 p, int type, float dt) {
 
 void main() {
     ivec2 coord = ivec2(gl_FragCoord.xy);
-    int width = int(resolution.x);
-    int height = int(resolution.y);
+    ivec2 texSize = textureSize(xyzTex, 0);
+    int stateSize = texSize.x;
     
-    vec4 state1 = texelFetch(stateTex1, coord, 0);
-    vec4 state2 = texelFetch(stateTex2, coord, 0);
+    // Read current state
+    vec4 pos = texelFetch(xyzTex, coord, 0);
+    vec4 vel = texelFetch(velTex, coord, 0);
+    vec4 col = texelFetch(rgbaTex, coord, 0);
     
-    float px = state1.x;
-    float py = state1.y;
-    float pz = state1.z;
-    float cr = state2.x;
-    float cg = state2.y;
-    float cb = state2.z;
-    float seed_f = state2.w;
+    uint agentSeed = uint(coord.x + coord.y * stateSize) + uint(seed);
     
-    uint agentSeed = uint(coord.x + coord.y * width);
-    int agentIndex = coord.x + coord.y * width;
-    int totalAgents = width * height;
-    int maxParticles = int(float(totalAgents) * density * 0.01);
+    // Check if needs 3D initialization (pos.w == 1 but xyz near origin means not initialized for 3D)
+    // pointsEmitter initializes in 2D (0-1 range), we need to transform to attractor space
+    bool needs3DInit = pos.w >= 0.5 && abs(pos.x) < 2.0 && abs(pos.y) < 2.0 && abs(pos.z) < 2.0;
     
-    bool isActive = agentIndex < maxParticles;
-    
-    // Check if needs initialization or reset
-    if (state1.w < 0.5 || resetState) {
+    if (needs3DInit) {
+        // Transform from 2D normalized coords to attractor space
+        // Lorenz-like attractors need roughly ±20 x/y and 10-40 z
         uint initSeed = agentSeed + uint(time * 1000.0);
+        pos.x = (hash(initSeed) - 0.5) * 20.0;
+        pos.y = (hash(initSeed + 1u) - 0.5) * 20.0;
+        pos.z = hash(initSeed + 2u) * 30.0 + 10.0;
         
-        // Initialize near attractor's typical range with wider spread
-        px = (hash(initSeed) - 0.5) * 20.0;
-        py = (hash(initSeed + 1u) - 0.5) * 20.0;
-        pz = hash(initSeed + 2u) * 30.0 + 10.0;  // z: 10-40 for Lorenz
-        
-        // Sample color from input (or white if no input)
-        vec2 sampleUV = vec2(hash(initSeed + 3u), hash(initSeed + 4u));
-        vec3 inputColor = (colorMode == 0) ? vec3(1.0) : texture(tex, sampleUV).rgb;
-        cr = inputColor.r;
-        cg = inputColor.g;
-        cb = inputColor.b;
-        seed_f = hash(initSeed + 5u);
-        
-        outState1 = vec4(px, py, pz, 1.0);  // w=1 marks initialized
-        outState2 = vec4(cr, cg, cb, seed_f);
+        outXYZ = vec4(pos.xyz, 1.0);
+        outVel = vel;
+        outRGBA = col;
         return;
     }
     
-    if (!isActive) {
-        outState1 = state1;
-        outState2 = state2;
+    // Skip dead agents
+    if (pos.w < 0.5) {
+        outXYZ = pos;
+        outVel = vel;
+        outRGBA = col;
         return;
     }
     
     // Step the attractor
     float dt = speed * 0.01;
-    vec3 pos = vec3(px, py, pz);
-    pos = stepAttractor(pos, attractor, dt);
+    vec3 newPos = stepAttractor(pos.xyz, attractor, dt);
     
     // Check for divergence (NaN or too far)
-    if (any(isnan(pos)) || length(pos) > 1000.0) {
-        // Reinitialize
+    if (any(isnan(newPos)) || length(newPos) > 1000.0) {
+        // Reinitialize in attractor space
         uint respawnSeed = agentSeed + uint(time * 1000.0);
-        pos.x = (hash(respawnSeed) - 0.5) * 20.0;
-        pos.y = (hash(respawnSeed + 1u) - 0.5) * 20.0;
-        pos.z = hash(respawnSeed + 2u) * 30.0 + 10.0;
-        
-        vec2 sampleUV = vec2(hash(respawnSeed + 3u), hash(respawnSeed + 4u));
-        vec3 inputColor = (colorMode == 0) ? vec3(1.0) : texture(tex, sampleUV).rgb;
-        cr = inputColor.r;
-        cg = inputColor.g;
-        cb = inputColor.b;
+        newPos.x = (hash(respawnSeed) - 0.5) * 20.0;
+        newPos.y = (hash(respawnSeed + 1u) - 0.5) * 20.0;
+        newPos.z = hash(respawnSeed + 2u) * 30.0 + 10.0;
     }
     
-    outState1 = vec4(pos, 1.0);
-    outState2 = vec4(cr, cg, cb, seed_f);
+    outXYZ = vec4(newPos, 1.0);
+    outVel = vel;
+    outRGBA = col;
 }

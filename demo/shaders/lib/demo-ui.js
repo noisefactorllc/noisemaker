@@ -1249,16 +1249,21 @@ export class UIController {
         // Helper to format a call
         const fmtCall = (name, kwargs) => this._formatEffectCall(name, kwargs)
 
-        // Special case: pointsEmitter and pointsRender must be paired together with particles()
+        // Special case: pointsEmitter and pointsRender must be paired together with physical()
         if (funcName === 'pointsEmitter' || funcName === 'pointsRender') {
-            return `search synth, points, render\n\nnoise()\n  .write(o0)\n\npointsEmitter(\n  tex: read(o0)\n)\n  .particles()\n  .pointsRender()\n  .write(o1)\n\nrender(o1)`
+            return `search points, synth, render\n\nnoise()\n  .write(o0)\n\npointsEmitter(\n  tex: read(o0)\n)\n  .physical()\n  .pointsRender()\n  .write(o1)\n\nrender(o1)`
         }
 
         // Special case: points namespace effects need pointsEmitter/pointsRender wrapping
         if (effect.namespace === 'points') {
             const kwargs = this._buildKwargs(effect.instance.globals, this._parameterValues)
             const effectCall = fmtCall(funcName, kwargs)
-            return `search synth, points, render\n\nnoise()\n  .write(o0)\n\npointsEmitter(\n  tex: read(o0)\n)\n  .${effectCall}\n  .pointsRender()\n  .write(o1)\n\nrender(o1)`
+            // Check if the effect defines viewMode (e.g., attractor defaults to 3D)
+            const viewModeSpec = effect.instance.globals?.viewMode
+            const viewModeDefault = viewModeSpec?.default
+            const pointsRenderArgs = viewModeDefault ? `viewMode: ${viewModeDefault}` : ''
+            const pointsRenderCall = pointsRenderArgs ? `pointsRender(${pointsRenderArgs})` : 'pointsRender()'
+            return `search points, synth, render\n\nnoise()\n  .write(o0)\n\npointsEmitter(\n  tex: read(o0)\n)\n  .${effectCall}\n  .${pointsRenderCall}\n  .write(o1)\n\nrender(o1)`
         }
 
         // Special case: loopBegin/loopEnd need paired usage with filter in between

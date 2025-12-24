@@ -15,12 +15,12 @@ import { Effect } from '../../../src/runtime/effect.js'
  * - rgba: [r, g, b, a]          (agent color from type)
  * - data: [typeId, mass, 0, 0]  (internal, effect-specific)
  *
- * Usage: pointsEmitter().particleLife().pointsRender().write(o0)
+ * Usage: pointsEmitter().life().pointsRender().write(o0)
  */
 export default new Effect({
-  name: "Particle Life",
+  name: "Life",
   namespace: "points",
-  func: "particleLife",
+  func: "life",
   tags: ["sim", "agents"],
 
   description: "Type-based attraction/repulsion particle simulation",
@@ -185,20 +185,6 @@ export default new Effect({
         control: "checkbox",
         category: "types"
       }
-    },
-    // Agent respawn
-    attrition: {
-      type: "float",
-      default: 0.5,
-      uniform: "attrition",
-      min: 0,
-      max: 10,
-      step: 0.1,
-      ui: {
-        label: "attrition",
-        control: "slider",
-        category: "agents"
-      }
     }
   },
 
@@ -246,8 +232,7 @@ export default new Effect({
         boundaryMode: "boundaryMode",
         matrixSeed: "matrixSeed",
         symmetricForces: "symmetricForces",
-        useTypeColor: "useTypeColor",
-        attrition: "attrition"
+        useTypeColor: "useTypeColor"
       },
       outputs: {
         outXYZ: "global_xyz",

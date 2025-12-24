@@ -82,6 +82,19 @@ export default new Effect({
                 label: "seed",
                 control: "slider"
             }
+        },
+
+        // Attrition: per-frame respawn chance (0=none, 10=10% per frame)
+        attrition: {
+            type: "float",
+            default: 0.0,
+            min: 0.0,
+            max: 10.0,
+            uniform: "attrition",
+            ui: {
+                label: "attrition",
+                control: "slider"
+            }
         }
     },
 
@@ -124,6 +137,10 @@ export default new Effect({
 
                 // Optional color source (tex global)
                 tex: "tex"
+            },
+
+            uniforms: {
+                attrition: "attrition"
             },
 
             outputs: {

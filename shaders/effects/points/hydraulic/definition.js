@@ -1,7 +1,7 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * Hflow - Hydraulic flow agent effect (gradient descent)
+ * Hydraulic - Hydraulic flow agent effect (gradient descent)
  *
  * Common Agent Architecture middleware:
  * - Reads agent state from pipeline inputs (global_xyz, global_vel, global_rgba)
@@ -13,12 +13,12 @@ import { Effect } from '../../../src/runtime/effect.js'
  * - vel: [x_dir, y_dir, inertia, 0]  (direction vector and inertia)
  * - rgba: [r, g, b, a]          (agent color)
  *
- * Usage: pointsEmitter().hflow().pointsRender().write(o0)
+ * Usage: pointsEmitter().hydraulic().pointsRender().write(o0)
  */
 export default new Effect({
-  name: "Hflow",
+  name: "Hydraulic",
   namespace: "points",
-  func: "hflow",
+  func: "hydraulic",
   tags: ["sim", "agents"],
 
   description: "Hydraulic erosion flow simulation (gradient descent)",
@@ -77,19 +77,6 @@ export default new Effect({
         control: "slider",
         category: "agents"
       }
-    },
-    attrition: {
-      type: "float",
-      default: 1,
-      uniform: "attrition",
-      min: 0,
-      max: 10,
-      step: 0.1,
-      ui: {
-        label: "attrition",
-        control: "slider",
-        category: "agents"
-      }
     }
   },
 
@@ -104,6 +91,12 @@ export default new Effect({
         velTex: "global_vel",
         rgbaTex: "global_rgba",
         inputTex: "inputTex"
+      },
+      uniforms: {
+        stride: "stride",
+        quantize: "quantize",
+        inverse: "inverse",
+        inputWeight: "inputWeight"
       },
       outputs: {
         outXYZ: "global_xyz",

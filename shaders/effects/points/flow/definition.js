@@ -120,19 +120,6 @@ export default new Effect({
         control: "slider",
         category: "agents"
       }
-    },
-    attrition: {
-      type: "float",
-      default: 1,
-      uniform: "attrition",
-      min: 0,
-      max: 10,
-      step: 0.1,
-      ui: {
-        label: "attrition",
-        control: "slider",
-        category: "agents"
-      }
     }
   },
 
@@ -151,6 +138,14 @@ export default new Effect({
         rgbaTex: "global_rgba",
         // Flow reads input for luminance-based direction
         inputTex: "inputTex"
+      },
+      uniforms: {
+        behavior: "behavior",
+        stride: "stride",
+        strideDeviation: "strideDeviation",
+        kink: "kink",
+        quantize: "quantize",
+        inputWeight: "inputWeight"
       },
       outputs: {
         // Write to shared global textures (ping-pong for next frame)

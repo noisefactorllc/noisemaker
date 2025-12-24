@@ -1720,7 +1720,7 @@ const SIM_EFFECTS = new Set([
     'points/dla',
     'filter/feedback',
     'points/flow',
-    'points/hflow',
+    'points/hydraulic',
     'synth/mnca',
     'filter/motionBlur',
     'points/physarum',
@@ -1728,8 +1728,8 @@ const SIM_EFFECTS = new Set([
     'loop/loopBegin',
     'loop/loopEnd',
     'points/flock',
-    'points/particles',
-    'points/particleLife',
+    'points/physical',
+    'points/life',
 ])
 
 /**

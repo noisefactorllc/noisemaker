@@ -11,7 +11,6 @@ uniform float stride;
 uniform float strideDeviation;
 uniform float kink;
 uniform float quantize;
-uniform float attrition;
 uniform float inputWeight;
 uniform float behavior;
 
@@ -112,8 +111,8 @@ void main() {
     
     // Flow-specific state stored in vel
     // vel.x, vel.y unused for flow (no velocity accumulation)
-    float rotRand = vel.z;     // Per-agent rotation random [0,1]
-    float strideRand = vel.w;  // Per-agent stride random [-0.5, 0.5]
+    float rotRand = vel.z;     // Per-agent rotation random [0,1] from pointsEmitter
+    float strideRand = vel.w;  // Per-agent stride random [-0.5, 0.5] from pointsEmitter
     
     // If not alive, pass through unchanged
     if (alive < 0.5) {
@@ -121,13 +120,6 @@ void main() {
         outVel = vel;
         outRGBA = rgba;
         return;
-    }
-    
-    // Initialize rotRand/strideRand on first use (if they're zero from pointsEmitter)
-    uint agentSeed = uint(coord.x + coord.y * stateSize.x);
-    if (rotRand == 0.0 && strideRand == 0.0) {
-        rotRand = hash(agentSeed + 200u);
-        strideRand = hash(agentSeed + 300u) - 0.5;
     }
     
     // Sample input texture at current position for flow direction
@@ -169,26 +161,8 @@ void main() {
     newX = fract(newX);
     newY = fract(newY);
     
-    // Check for respawn based on attrition
-    bool needsRespawn = false;
-    if (attrition > 0.0) {
-        uint time_seed = uint(time * 60.0);
-        uint check_seed = agentSeed + time_seed * 747796405u;
-        float respawnRand = hash(check_seed);
-        float attritionRate = attrition * 0.01;
-        if (respawnRand < attritionRate) {
-            needsRespawn = true;
-        }
-    }
-    
-    if (needsRespawn) {
-        // Signal respawn by setting alive flag to 0
-        outXYZ = vec4(newX, newY, pz, 0.0);
-        outVel = vec4(0.0, 0.0, rotRand, strideRand);
-        outRGBA = rgba;
-    } else {
-        outXYZ = vec4(newX, newY, pz, 1.0);
-        outVel = vec4(0.0, 0.0, rotRand, strideRand);
-        outRGBA = rgba;
-    }
+    // Output updated state - attrition is handled by pointsEmitter
+    outXYZ = vec4(newX, newY, pz, 1.0);
+    outVel = vec4(0.0, 0.0, rotRand, strideRand);
+    outRGBA = rgba;
 }
