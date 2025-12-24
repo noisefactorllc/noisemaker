@@ -66,8 +66,8 @@ export default new Effect({
             default: 0,
             uniform: "viewMode",
             choices: {
-                "2D": 0,
-                "3D": 1
+                "flat": 0,
+                "ortho": 1
             },
             ui: {
                 label: "view",
