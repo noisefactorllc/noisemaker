@@ -501,8 +501,14 @@ export class WebGL2Backend extends Backend {
     async compileProgram(id, spec) {
         const gl = this.gl
 
+        // Check for missing shader source
+        const rawSource = spec.source || spec.glsl || spec.fragment
+        if (!rawSource) {
+            throw new Error(`Shader source missing for program '${id}'. You may need to regenerate the shader manifest.`)
+        }
+
         // Inject defines
-        const source = this.injectDefines(spec.source || spec.glsl || spec.fragment, spec.defines || {})
+        const source = this.injectDefines(rawSource, spec.defines || {})
 
         // Compile vertex shader
         const vsSource = spec.vertex || DEFAULT_VERTEX_SHADER
@@ -574,6 +580,10 @@ export class WebGL2Backend extends Backend {
     }
 
     injectDefines(source, defines) {
+        if (!source) {
+            throw new Error('Shader source is missing. You may need to regenerate the shader manifest.')
+        }
+
         let injected = '#version 300 es\nprecision highp float;\n'
 
         for (const [key, value] of Object.entries(defines)) {

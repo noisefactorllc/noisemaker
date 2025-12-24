@@ -236,6 +236,22 @@ export default new Effect({
       }
     },
     {
+      // Copy decayed trail to write buffer before deposit
+      // This ensures hardware blending works correctly after ping-pong
+      name: "copy",
+      program: "copy",
+      viewport: {
+        width: { param: 'volumeSize', default: 32, inputOverride: 'inputTex3d' },
+        height: { param: 'volumeSize', power: 2, default: 1024, inputOverride: 'inputTex3d' }
+      },
+      inputs: {
+        sourceTex: "global_flow3d_trail"
+      },
+      outputs: {
+        fragColor: "global_flow3d_trail"
+      }
+    },
+    {
       name: "deposit",
       program: "deposit",
       drawMode: "points",

@@ -341,23 +341,17 @@ export function expand(compilationResult, options = {}) {
                 }
             }
 
-            // Helper to check if a texture name indicates a global/double-buffered texture
-            // Textures starting with 'global' in effect definitions need ping-pong buffering
-            const isGlobalTexture = (texName) => texName.startsWith('global')
-
             // Collect texture specs from effect definition
             // Textures starting with 'global_' (underscore) are SHARED and don't get node prefix
-            // Textures starting with 'global' (camelCase) are per-node and get prefixed
+            // Everything else gets node prefix for isolation
             if (effectDef.textures) {
                 for (const [texName, spec] of Object.entries(effectDef.textures)) {
                     let virtualTexId
                     if (texName.startsWith('global_')) {
                         // Shared global texture - use as-is, no node prefix
                         virtualTexId = texName
-                    } else if (isGlobalTexture(texName)) {
-                        // Per-node global texture - add node prefix for double-buffering
-                        virtualTexId = `global_${nodeId}_${texName}`
                     } else {
+                        // Node-local texture - add node prefix
                         virtualTexId = `${nodeId}_${texName}`
                     }
                     textureSpecs[virtualTexId] = { ...spec }
@@ -365,15 +359,12 @@ export function expand(compilationResult, options = {}) {
             }
 
             // Collect 3D texture specs from effect definition
-            // 3D textures are used for volumetric data and caching
-            // Same naming convention: global_ prefix = shared, globalCamelCase = per-node
+            // Same naming convention: global_ prefix = shared, everything else = node-local
             if (effectDef.textures3d) {
                 for (const [texName, spec] of Object.entries(effectDef.textures3d)) {
                     let virtualTexId
                     if (texName.startsWith('global_')) {
                         virtualTexId = texName
-                    } else if (isGlobalTexture(texName)) {
-                        virtualTexId = `global_${nodeId}_${texName}`
                     } else {
                         virtualTexId = `${nodeId}_${texName}`
                     }
@@ -785,16 +776,13 @@ export function expand(compilationResult, options = {}) {
                                 pass.inputs[uniformName] = defaultVal
                             }
                         } else if (texRef.startsWith('global_')) {
-                            // Explicit global reference
+                            // Explicit global reference - use as-is
                             pass.inputs[uniformName] = texRef
-                        } else if (isGlobalTexture(texRef)) {
-                            // Effect texture starting with 'global' - use global_ prefix for double-buffering
-                            pass.inputs[uniformName] = `global_${nodeId}_${texRef}`
                         } else if (texRef === 'outputTex') {
                             // Reference to this node's main output (e.g., in feedback passes)
                             pass.inputs[uniformName] = `${nodeId}_out`
                         } else {
-                            // Internal texture or explicit reference
+                            // Internal texture or explicit reference - node-prefix it
                             pass.inputs[uniformName] = `${nodeId}_${texRef}`
                         }
                     }
@@ -858,10 +846,8 @@ export function expand(compilationResult, options = {}) {
                             virtualTex = texRef
                         } else if (texRef.startsWith('feedback_')) {
                             virtualTex = texRef
-                        } else if (isGlobalTexture(texRef)) {
-                            // Effect texture starting with 'global' - use global_ prefix for double-buffering
-                            virtualTex = `global_${nodeId}_${texRef}`
                         } else {
+                            // Node-local texture - add node prefix
                             virtualTex = `${nodeId}_${texRef}`
                         }
                         pass.outputs[attachment] = virtualTex
@@ -893,9 +879,9 @@ export function expand(compilationResult, options = {}) {
                     }
                 } else {
                     // Map an internal texture to the 2D pipeline
-                    const isGlobalTex = internalTexName.startsWith('global')
-                    const virtualTexId = isGlobalTex
-                        ? `global_${nodeId}_${internalTexName}`
+                    // global_ prefix = shared, use as-is; everything else = node-local
+                    const virtualTexId = internalTexName.startsWith('global_')
+                        ? internalTexName
                         : `${nodeId}_${internalTexName}`
                     textureMap.set(`${nodeId}_out`, virtualTexId)
                     currentInput = virtualTexId
@@ -936,19 +922,10 @@ export function expand(compilationResult, options = {}) {
                     }
                 } else {
                     // Map the internal texture to the 3D pipeline
-                    // Use same naming convention as texture spec registration (line 354-362):
-                    // - Textures starting with 'global_' (underscore) are SHARED and used as-is
-                    // - Textures starting with 'global' (camelCase) are per-node and get prefixed
-                    let virtualTexId
-                    if (internalTexName.startsWith('global_')) {
-                        // Shared global texture - use as-is, no node prefix
-                        virtualTexId = internalTexName
-                    } else if (internalTexName.startsWith('global')) {
-                        // Per-node global texture - add node prefix for double-buffering
-                        virtualTexId = `global_${nodeId}_${internalTexName}`
-                    } else {
-                        virtualTexId = `${nodeId}_${internalTexName}`
-                    }
+                    // global_ prefix = shared, use as-is; everything else = node-local
+                    const virtualTexId = internalTexName.startsWith('global_')
+                        ? internalTexName
+                        : `${nodeId}_${internalTexName}`
                     textureMap.set(`${nodeId}_out3d`, virtualTexId)
                     currentInput3d = virtualTexId
                 }
@@ -980,8 +957,8 @@ export function expand(compilationResult, options = {}) {
                         textureMap.set(`${nodeId}_outXyz`, currentInputXyz)
                     }
                 } else {
-                    const isGlobalTex = texName.startsWith('global')
-                    const virtualId = isGlobalTex ? `global_${nodeId}_${texName}` : `${nodeId}_${texName}`
+                    // global_ prefix = shared, use as-is; everything else = node-local
+                    const virtualId = texName.startsWith('global_') ? texName : `${nodeId}_${texName}`
                     textureMap.set(`${nodeId}_outXyz`, virtualId)
                     currentInputXyz = virtualId
                 }
@@ -993,8 +970,8 @@ export function expand(compilationResult, options = {}) {
                         textureMap.set(`${nodeId}_outVel`, currentInputVel)
                     }
                 } else {
-                    const isGlobalTex = texName.startsWith('global')
-                    const virtualId = isGlobalTex ? `global_${nodeId}_${texName}` : `${nodeId}_${texName}`
+                    // global_ prefix = shared, use as-is; everything else = node-local
+                    const virtualId = texName.startsWith('global_') ? texName : `${nodeId}_${texName}`
                     textureMap.set(`${nodeId}_outVel`, virtualId)
                     currentInputVel = virtualId
                 }
@@ -1006,8 +983,8 @@ export function expand(compilationResult, options = {}) {
                         textureMap.set(`${nodeId}_outRgba`, currentInputRgba)
                     }
                 } else {
-                    const isGlobalTex = texName.startsWith('global')
-                    const virtualId = isGlobalTex ? `global_${nodeId}_${texName}` : `${nodeId}_${texName}`
+                    // global_ prefix = shared, use as-is; everything else = node-local
+                    const virtualId = texName.startsWith('global_') ? texName : `${nodeId}_${texName}`
                     textureMap.set(`${nodeId}_outRgba`, virtualId)
                     currentInputRgba = virtualId
                 }

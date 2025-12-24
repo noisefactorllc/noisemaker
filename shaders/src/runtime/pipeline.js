@@ -266,25 +266,15 @@ export class Pipeline {
      */
     /**
      * Check if a texture ID is a global surface reference and extract the name.
-     * Supports both "global_name" and "globalName" patterns.
+     * Supports "global_name" pattern.
      * Returns null if not a global, otherwise returns the surface name.
      */
     parseGlobalName(texId) {
         if (typeof texId !== 'string') return null
 
-        // Pattern 1: "global_name" (underscore separator)
+        // "global_name" (underscore separator)
         if (texId.startsWith('global_')) {
             return texId.replace('global_', '')
-        }
-
-        // Pattern 2: "globalName" (camelCase)
-        if (texId.startsWith('global') && texId.length > 6) {
-            const suffix = texId.slice(6)
-            // Check it's actually camelCase (next char is uppercase or digit)
-            if (/^[A-Z0-9]/.test(suffix)) {
-                // Convert to surface name: "CaState" → "caState"
-                return suffix.charAt(0).toLowerCase() + suffix.slice(1)
-            }
         }
 
         return null
@@ -338,11 +328,7 @@ export class Pipeline {
             // This handles effect-defined textures that need ping-pong buffering
             // Support both naming conventions: "global_name" and "globalName"
             const underscoreId = `global_${name}`
-            const camelCaseId = `global${name.charAt(0).toUpperCase()}${name.slice(1)}`
             let texSpec = this.graph?.textures?.get?.(underscoreId)
-            if (!texSpec) {
-                texSpec = this.graph?.textures?.get?.(camelCaseId)
-            }
             if (texSpec) {
                 surfaceWidth = this.resolveDimension(texSpec.width, this.width, defaultUniforms)
                 surfaceHeight = this.resolveDimension(texSpec.height, this.height, defaultUniforms)
