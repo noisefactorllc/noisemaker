@@ -3432,7 +3432,9 @@ export class UIController {
     /** @private */
     _createChoicesControl(container, key, spec, value, effectKey) {
         // Warn about spaces in enum keys (deprecated, should use camelCase)
+        // Skip section headers (keys ending with ':') - they're UI-only separators
         for (const name of Object.keys(spec.choices)) {
+            if (name.endsWith(':')) continue
             if (name.includes(' ')) {
                 console.warn(`[Noisemaker] Deprecated: spaces in enum key "${name}" for "${key}". Use camelCase instead.`)
             }
