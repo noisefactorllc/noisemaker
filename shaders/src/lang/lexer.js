@@ -41,26 +41,34 @@ export function lex(src) {
         const startLine = line
         const startCol = col
 
-        // line comments
+        // line comments - emit as COMMENT token
         if (ch === '/' && src[i + 1] === '/') {
-            i += 2
-            col += 2
-            while (i < src.length && src[i] !== '\n') { i++; col++ }
+            let j = i + 2
+            while (j < src.length && src[j] !== '\n') j++
+            const text = src.slice(i, j)
+            add('COMMENT', text, startLine, startCol)
+            col += j - i
+            i = j
             continue
         }
 
-        // block comments
+        // block comments - emit as COMMENT token
         if (ch === '/' && src[i + 1] === '*') {
-            i += 2
-            col += 2
-            while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) {
-                if (src[i] === '\n') { i++; line++; col = 1; continue }
-                i++
-                col++
+            let j = i + 2
+            let endLine = line
+            let endCol = col + 2
+            while (j < src.length && !(src[j] === '*' && src[j + 1] === '/')) {
+                if (src[j] === '\n') { endLine++; endCol = 1 }
+                else { endCol++ }
+                j++
             }
-            if (i >= src.length) throw new SyntaxError(`Unterminated comment at line ${startLine} col ${startCol}`)
-            i += 2
-            col += 2
+            if (j >= src.length) throw new SyntaxError(`Unterminated comment at line ${startLine} col ${startCol}`)
+            j += 2
+            const text = src.slice(i, j)
+            add('COMMENT', text, startLine, startCol)
+            line = endLine
+            col = endCol + 2
+            i = j
             continue
         }
 

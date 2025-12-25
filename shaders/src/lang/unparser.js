@@ -602,12 +602,28 @@ export function unparse(compiled, overrides = {}, options = {}) {
         const plan = plans[planIndex]
         if (!plan.chain || plan.chain.length === 0) continue
 
-        // Build chains from steps
+        // Emit plan-level leading comments
+        if (plan.leadingComments && plan.leadingComments.length > 0) {
+            for (const comment of plan.leadingComments) {
+                lines.push(comment)
+            }
+        }
+
+        // Build chains from steps, tracking comments
         // read() is a starter node - it MUST start a new chain, never be chained inline
-        const chains = []  // Array of chain arrays
+        const chains = []  // Array of chain arrays (each element has { code, leadingComments? })
         let currentChain = []
 
         for (const step of plan.chain) {
+            // Helper to build a chain element with optional comments
+            const makeChainElement = (code) => {
+                const elem = { code }
+                if (step.leadingComments && step.leadingComments.length > 0) {
+                    elem.leadingComments = step.leadingComments
+                }
+                return elem
+            }
+
             // Handle builtin read operations - MUST start a new chain
             if (step.builtin && step.op === '_read') {
                 // Flush current chain if not empty
@@ -616,7 +632,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
                     currentChain = []
                 }
                 const texName = step.args?.tex?.name || step.args?.tex
-                currentChain.push(`read(${texName})`)
+                currentChain.push(makeChainElement(`read(${texName})`))
                 globalStepIndex++
                 continue
             }
@@ -628,14 +644,14 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 }
                 const tex3d = step.args?.tex3d?.name || step.args?.tex3d
                 const geo = step.args?.geo?.name || step.args?.geo
-                currentChain.push(`read3d(${tex3d}, ${geo})`)
+                currentChain.push(makeChainElement(`read3d(${tex3d}, ${geo})`))
                 globalStepIndex++
                 continue
             }
             // Handle builtin write operations (mid-chain writes)
             if (step.builtin && step.op === '_write') {
                 const texName = step.args?.tex?.name || step.args?.tex
-                currentChain.push(`write(${texName})`)
+                currentChain.push(makeChainElement(`write(${texName})`))
                 globalStepIndex++
                 continue
             }
@@ -708,7 +724,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 }
             }
 
-            currentChain.push(unparseCall(call, { ...options, specs, indent: currentChain.length === 0 ? 0 : 2 }))
+            currentChain.push(makeChainElement(unparseCall(call, { ...options, specs, indent: currentChain.length === 0 ? 0 : 2 })))
             globalStepIndex++
         }
 
@@ -717,9 +733,35 @@ export function unparse(compiled, overrides = {}, options = {}) {
             chains.push(currentChain)
         }
 
-        // Join each chain's parts with line break and 2-space indent
+        // Join each chain's parts with line break and 2-space indent, including comments
         // Then join chains with blank line (read() starts new chain)
-        let line = chains.map(chain => chain.join('\n  .')).join('\n\n')
+        function joinChainWithComments(chain) {
+            const parts = []
+            for (let i = 0; i < chain.length; i++) {
+                const elem = chain[i]
+                const isFirst = i === 0
+                // Emit leading comments for this element
+                if (elem.leadingComments && elem.leadingComments.length > 0) {
+                    for (const comment of elem.leadingComments) {
+                        if (isFirst) {
+                            // Comments before first element go on their own line
+                            parts.push(comment)
+                        } else {
+                            // Comments before chained elements get indented
+                            parts.push(`  ${comment}`)
+                        }
+                    }
+                }
+                // Emit the code
+                if (isFirst) {
+                    parts.push(elem.code)
+                } else {
+                    parts.push(`  .${elem.code}`)
+                }
+            }
+            return parts.join('\n')
+        }
+        let line = chains.map(joinChainWithComments).join('\n\n')
 
         // Check if chain already ends with a _write step (chainable writes are now inline)
         const lastStep = plan.chain[plan.chain.length - 1]
@@ -750,6 +792,13 @@ export function unparse(compiled, overrides = {}, options = {}) {
     if (compiled.render) {
         lines.push('')
         lines.push(`render(${compiled.render})`)
+    }
+
+    // Add trailing comments if present
+    if (compiled.trailingComments && compiled.trailingComments.length > 0) {
+        for (const comment of compiled.trailingComments) {
+            lines.push(comment)
+        }
     }
 
     return lines.join('\n')

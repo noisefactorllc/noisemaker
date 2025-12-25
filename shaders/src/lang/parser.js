@@ -64,6 +64,18 @@ export function parse(tokens) {
         throw new SyntaxError(`${msg} at line ${token.line} col ${token.col}`)
     }
 
+    /**
+     * Collect and consume any pending COMMENT tokens.
+     * Returns array of comment text strings.
+     */
+    function collectComments() {
+        const comments = []
+        while (peek()?.type === 'COMMENT') {
+            comments.push(advance().lexeme)
+        }
+        return comments
+    }
+
     const exprStartTokens = new Set([
         'PLUS', 'MINUS', 'NUMBER', 'HEX', 'FUNC', 'STRING',
         'IDENT', 'OUTPUT_REF', 'SOURCE_REF', 'VOL_REF', 'GEO_REF',
@@ -232,6 +244,7 @@ export function parse(tokens) {
         const plans = []
         const vars = []
         let render = null
+        const trailingComments = []
 
         const appendStatement = (stmt) => {
             if (!stmt || typeof stmt !== 'object') { return }
@@ -307,6 +320,16 @@ export function parse(tokens) {
 
         while (peek().type !== 'EOF') {
             if (peek().type === 'SEMICOLON') { advance(); continue }
+            // Collect any leading comments before this statement
+            const leadingComments = collectComments()
+            if (peek().type === 'EOF') {
+                // Trailing comments at end of program
+                if (leadingComments.length > 0) {
+                    trailingComments.push(...leadingComments)
+                }
+                break
+            }
+            if (peek().type === 'SEMICOLON') { continue }
             if (peek().type === 'SEARCH') {
                 if (plans.length || vars.length || render) {
                     const t = peek()
@@ -317,9 +340,22 @@ export function parse(tokens) {
             }
             if (peek().type === 'RENDER') {
                 consumeRender()
+                // Attach leading comments to render if present
+                if (leadingComments.length > 0 && render) {
+                    render.leadingComments = leadingComments
+                }
+                // Collect any trailing comments after render
+                const trailing = collectComments()
+                if (trailing.length > 0) {
+                    trailingComments.push(...trailing)
+                }
                 break
             }
             const stmt = parseStatement()
+            // Attach leading comments to the statement
+            if (leadingComments.length > 0 && stmt) {
+                stmt.leadingComments = leadingComments
+            }
             appendStatement(stmt)
             while (peek().type === 'SEMICOLON') advance()
         }
@@ -330,6 +366,7 @@ export function parse(tokens) {
 
         const program = { type: 'Program', plans, render }
         if (vars.length) { program.vars = vars }
+        if (trailingComments.length) { program.trailingComments = trailingComments }
 
         const searchOrder = programSearchOrder.slice()
         let namespaceMeta = cloneNamespaceMeta({
@@ -436,23 +473,45 @@ export function parse(tokens) {
     }
 
     function parseChain(context = 'statement') {
-        const calls = [parseCall()]
-        while (peek().type === 'DOT') {
-            const nextType = tokens[current + 1]?.type
+        const firstCall = parseCall()
+        const calls = [firstCall]
+        // Comments can appear before the DOT in a chain
+        // e.g., noise() \n // comment \n .bloom()
+        while (true) {
+            // Save position before collecting comments
+            const savedPos = current
+            // Collect any comments that might precede the DOT
+            const leadingComments = collectComments()
+            if (peek().type !== 'DOT') {
+                // No more chaining - restore position so comments belong to next statement
+                current = savedPos
+                break
+            }
+            advance() // consume '.'
+            // Now collect any additional comments after the DOT
+            const postDotComments = collectComments()
+            const allComments = [...leadingComments, ...postDotComments]
+
+            const nextType = peek().type
             if (nextType === 'WRITE' || nextType === 'WRITE3D') {
                 if (context === 'expression') {
-                    const t = tokens[current + 1]
+                    const t = peek()
                     throw new SyntaxError(`'.write()' is only allowed in statement context at line ${t.line} col ${t.col}`)
                 }
                 // Parse write/write3d as a node in the chain (chainable)
-                advance() // consume '.'
                 const writeNode = parseWriteCall()
+                if (allComments.length > 0) {
+                    writeNode.leadingComments = allComments
+                }
                 calls.push(writeNode)
                 // Continue parsing - write is now chainable
                 continue
             }
-            advance() // consume '.'
-            calls.push(parseCall())
+            const call = parseCall()
+            if (allComments.length > 0) {
+                call.leadingComments = allComments
+            }
+            calls.push(call)
         }
         return calls
     }

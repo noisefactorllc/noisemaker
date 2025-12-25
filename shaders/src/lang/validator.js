@@ -454,6 +454,7 @@ export function validate(ast) {
                         temp: idx,
                         builtin: true
                     }
+                    if (original.leadingComments) { step.leadingComments = original.leadingComments }
                     chain.push(step)
                     current = idx
                     continue
@@ -488,6 +489,7 @@ export function validate(ast) {
                         temp: idx,
                         builtin: true
                     }
+                    if (original.leadingComments) { step.leadingComments = original.leadingComments }
                     chain.push(step)
                     current = idx
                     continue
@@ -512,6 +514,7 @@ export function validate(ast) {
                         temp: idx,
                         builtin: true
                     }
+                    if (original.leadingComments) { step.leadingComments = original.leadingComments }
                     chain.push(step)
                     current = idx
                     continue
@@ -547,6 +550,7 @@ export function validate(ast) {
                         temp: idx,
                         builtin: true
                     }
+                    if (original.leadingComments) { step.leadingComments = original.leadingComments }
                     chain.push(step)
                     current = idx
                     continue
@@ -584,6 +588,7 @@ export function validate(ast) {
                     const namespaceSnapshot = buildNamespaceSnapshot(call.namespace)
                     const step = {op: opName, args, from: current, temp: idx}
                     if (namespaceSnapshot) { step.namespace = namespaceSnapshot }
+                    if (original.leadingComments) { step.leadingComments = original.leadingComments }
                     chain.push(step)
                     current = idx
                     continue
@@ -1111,6 +1116,7 @@ export function validate(ast) {
                 const namespaceSnapshot = buildNamespaceSnapshot(call.namespace)
                 const step = {op: opName, args, from: fromInput, temp: idx}
                 if (namespaceSnapshot) { step.namespace = namespaceSnapshot }
+                if (original.leadingComments) { step.leadingComments = original.leadingComments }
                 chain.push(step)
                 current = idx
             }
@@ -1122,7 +1128,10 @@ export function validate(ast) {
         if (stmt.write) {
             writeSurf = {kind:'output', name: stmt.write.name}
         }
-        return {chain, write: writeSurf, write3d: write3dTarget, final: finalIndex, states}
+        const plan = {chain, write: writeSurf, write3d: write3dTarget, final: finalIndex, states}
+        // Preserve plan-level leading comments (from the statement)
+        if (stmt.leadingComments) { plan.leadingComments = stmt.leadingComments }
+        return plan
     }
 
     function compileBlock(body) {
@@ -1170,5 +1179,8 @@ export function validate(ast) {
     // Include search order for transform operations
     const searchNamespaces = programSearchOrder || []
 
-    return {plans, diagnostics: diagnosticsList, render, vars, searchNamespaces}
+    // Preserve trailing comments from program
+    const result = {plans, diagnostics: diagnosticsList, render, vars, searchNamespaces}
+    if (ast.trailingComments) { result.trailingComments = ast.trailingComments }
+    return result
 }

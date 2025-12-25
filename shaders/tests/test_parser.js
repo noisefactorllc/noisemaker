@@ -120,3 +120,58 @@ test('write3d parses correctly', 'search synth\nnoise(10).write3d(vol0, geo0)', 
     if (plan.write3d.tex3d.name !== 'vol0') throw new Error('Expected tex3d vol0')
     if (plan.write3d.geo.name !== 'geo0') throw new Error('Expected geo geo0')
 })
+
+// ============ Comment Preservation Tests ============
+
+test('Line comment before statement is captured', 'search synth\n// this is a comment\nnoise(10).write(o0)', (ast) => {
+    if (ast.plans.length !== 1) throw new Error('Expected 1 plan')
+    const plan = ast.plans[0]
+    if (!plan.leadingComments) throw new Error('Expected leadingComments on plan')
+    if (plan.leadingComments.length !== 1) throw new Error('Expected 1 leading comment')
+    if (!plan.leadingComments[0].includes('this is a comment')) throw new Error('Expected comment text')
+})
+
+test('Multiple line comments before statement', 'search synth\n// first comment\n// second comment\nnoise(10).write(o0)', (ast) => {
+    if (ast.plans.length !== 1) throw new Error('Expected 1 plan')
+    const plan = ast.plans[0]
+    if (!plan.leadingComments) throw new Error('Expected leadingComments on plan')
+    if (plan.leadingComments.length !== 2) throw new Error('Expected 2 leading comments')
+    if (!plan.leadingComments[0].includes('first')) throw new Error('Expected first comment')
+    if (!plan.leadingComments[1].includes('second')) throw new Error('Expected second comment')
+})
+
+test('Comment before chained method', 'search synth\nnoise(10)\n  // comment on bloom\n  .bloom().write(o0)', (ast) => {
+    if (ast.plans.length !== 1) throw new Error('Expected 1 plan')
+    const chain = ast.plans[0].chain
+    if (chain.length !== 3) throw new Error('Expected 3 elements in chain (noise, bloom, Write)')
+    // bloom should have the leading comment
+    const bloom = chain[1]
+    if (!bloom.leadingComments) throw new Error('Expected leadingComments on bloom')
+    if (!bloom.leadingComments[0].includes('comment on bloom')) throw new Error('Expected comment text on bloom')
+})
+
+test('Block comment is captured', 'search synth\n/* block comment */\nnoise(10).write(o0)', (ast) => {
+    if (ast.plans.length !== 1) throw new Error('Expected 1 plan')
+    const plan = ast.plans[0]
+    if (!plan.leadingComments) throw new Error('Expected leadingComments on plan')
+    if (!plan.leadingComments[0].includes('block comment')) throw new Error('Expected block comment text')
+})
+
+test('Trailing comments at end of program', 'search synth\nnoise(10).write(o0)\n// trailing comment', (ast) => {
+    if (!ast.trailingComments) throw new Error('Expected trailingComments on program')
+    if (ast.trailingComments.length !== 1) throw new Error('Expected 1 trailing comment')
+    if (!ast.trailingComments[0].includes('trailing')) throw new Error('Expected trailing comment text')
+})
+
+test('Comment with subchain marker', 'search synth\n// @subchain:begin name="feedback"\nnoise(10)\n  .bloom()\n  // @subchain:end\n  .write(o0)', (ast) => {
+    if (ast.plans.length !== 1) throw new Error('Expected 1 plan')
+    const plan = ast.plans[0]
+    // Plan should have the @subchain:begin comment
+    if (!plan.leadingComments) throw new Error('Expected leadingComments on plan')
+    if (!plan.leadingComments[0].includes('@subchain:begin')) throw new Error('Expected @subchain:begin marker')
+    // Write should have the @subchain:end comment
+    const chain = plan.chain
+    const writeNode = chain[chain.length - 1]
+    if (!writeNode.leadingComments) throw new Error('Expected leadingComments on write')
+    if (!writeNode.leadingComments[0].includes('@subchain:end')) throw new Error('Expected @subchain:end marker')
+})
