@@ -4222,10 +4222,19 @@ export class UIController {
             }
         }
 
-        for (const params of Object.values(this._effectParameterValues)) {
+        // Set stateSize for each pointsEmit instance using scoped uniform names
+        // Each pointsEmit has its own particle pipeline with scoped textures (stateSize_node_N)
+        // We set ONLY the scoped uniform to avoid one pipeline stomping another's stateSize
+        for (const [key, params] of Object.entries(this._effectParameterValues)) {
             if ('stateSize' in params && pipeline.setUniform) {
-                pipeline.setUniform('stateSize', params.stateSize)
-                break
+                // Extract step index from key (e.g., 'step_5' -> '5')
+                const match = key.match(/^step_(\d+)$/)
+                if (match) {
+                    const stepIndex = match[1]
+                    // Set the scoped uniform for this specific pipeline
+                    const scopedUniform = `stateSize_node_${stepIndex}`
+                    pipeline.setUniform(scopedUniform, params.stateSize)
+                }
             }
         }
     }

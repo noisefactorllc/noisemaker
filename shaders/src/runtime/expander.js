@@ -332,6 +332,10 @@ export function expand(compilationResult, options = {}) {
             // Generate a unique ID for this effect instance
             const nodeId = `node_${step.temp}`
 
+            // Track scoped params for this node's particle textures
+            // Maps original param names to scoped names (e.g., 'stateSize' -> 'stateSize_node_1')
+            const scopedParamMap = new Map()
+
             // Check if this effect CREATES particle textures (declares global_xyz in textures).
             // This distinguishes pointsEmit (creates textures) from middleware like life/flow
             // (which just pass through via outputXyz). Only the creator starts a new pipeline scope.
@@ -374,10 +378,12 @@ export function expand(compilationResult, options = {}) {
             if (effectDef.textures) {
                 for (const [texName, spec] of Object.entries(effectDef.textures)) {
                     let virtualTexId
+                    const isParticleTex = /^global_(xyz|vel|rgba|points_trail)$/.test(texName)
+                    const shouldScope = texName.startsWith('global_') && isParticleTex && currentParticlePipelineId
+
                     if (texName.startsWith('global_')) {
                         // Particle textures get scoped to current pipeline
-                        const isParticleTex = /^global_(xyz|vel|rgba|points_trail)$/.test(texName)
-                        if (isParticleTex && currentParticlePipelineId) {
+                        if (shouldScope) {
                             virtualTexId = `${texName}_${currentParticlePipelineId}`
                         } else {
                             virtualTexId = texName
@@ -386,7 +392,34 @@ export function expand(compilationResult, options = {}) {
                         // Node-local texture - add node prefix
                         virtualTexId = `${nodeId}_${texName}`
                     }
-                    textureSpecs[virtualTexId] = { ...spec }
+
+                    // When scoping particle textures to a pipeline, we must also scope
+                    // any param references in width/height. Otherwise all pipelines would
+                    // share the same param lookup (e.g., 'stateSize') and get the same size.
+                    // We scope the param name to the pipeline (e.g., 'stateSize' -> 'stateSize_node_1')
+                    // so each pipeline's textures look up their own uniform.
+                    let resolvedSpec = { ...spec }
+                    if (shouldScope) {
+                        // Helper to scope a dimension spec's param reference to this pipeline
+                        // and track the mapping for uniform propagation
+                        const scopeDimSpec = (dimSpec) => {
+                            if (typeof dimSpec === 'object' && dimSpec.param !== undefined) {
+                                const originalParam = dimSpec.param
+                                const scopedParam = `${originalParam}_${currentParticlePipelineId}`
+                                // Track this mapping so we can copy uniform values later
+                                scopedParamMap.set(originalParam, scopedParam)
+                                // Scope the param name to this pipeline
+                                return {
+                                    ...dimSpec,
+                                    param: scopedParam
+                                }
+                            }
+                            return dimSpec
+                        }
+                        resolvedSpec.width = scopeDimSpec(spec.width)
+                        resolvedSpec.height = scopeDimSpec(spec.height)
+                    }
+                    textureSpecs[virtualTexId] = resolvedSpec
                 }
             }
 
@@ -883,6 +916,17 @@ export function expand(compilationResult, options = {}) {
                             virtualTex = `${nodeId}_${texRef}`
                         }
                         pass.outputs[attachment] = virtualTex
+                    }
+                }
+
+                // Propagate scoped param uniforms for particle texture sizing
+                // When particle textures are scoped (e.g., global_xyz_node_1), their param references
+                // are also scoped (e.g., 'stateSize' -> 'stateSize_node_1'). We need to copy the
+                // uniform value to the scoped name so resolveDimension() can find it.
+                for (const [originalParam, scopedParam] of scopedParamMap) {
+                    if (pass.uniforms[originalParam] !== undefined) {
+                        pass.uniforms[scopedParam] = pass.uniforms[originalParam]
+                        pipelineUniforms[scopedParam] = pass.uniforms[originalParam]
                     }
                 }
 

@@ -601,22 +601,42 @@ export class Pipeline {
         const oldValue = this.globalUniforms[name]
         this.globalUniforms[name] = value
 
+        // Check if this is a scoped uniform (e.g., 'stateSize_node_5')
+        // Scoped uniforms should NOT propagate to other scoped variants
+        const isScopedUniform = /_node_\d+$/.test(name)
+
         // Also update the uniform in all passes that reference it
+        // Additionally, propagate to scoped variants (e.g., stateSize -> stateSize_node_1)
+        // This supports multiple particle pipelines with per-pipeline texture sizing
         if (this.graph && this.graph.passes) {
             for (const pass of this.graph.passes) {
                 if (pass.uniforms && name in pass.uniforms) {
                     pass.uniforms[name] = value
                 }
+                // Only propagate from base name to scoped variants, not from scoped to scoped
+                // This allows each pipeline's stateSize to be set independently
+                if (!isScopedUniform && pass.uniforms) {
+                    for (const key of Object.keys(pass.uniforms)) {
+                        if (key.startsWith(name + '_node_')) {
+                            pass.uniforms[key] = value
+                            this.globalUniforms[key] = value
+                        }
+                    }
+                }
             }
         }
 
         // Check if this uniform affects any texture dimensions
+        // Include both direct matches and scoped variants (e.g., stateSize_node_1)
         if (oldValue !== value && this.graph && this.graph.textures) {
             let affectsTextures = false
             for (const spec of this.graph.textures.values()) {
                 if (this.dimensionReferencesParam(spec.width, name) ||
                     this.dimensionReferencesParam(spec.height, name) ||
-                    (spec.depth && this.dimensionReferencesParam(spec.depth, name))) {
+                    (spec.depth && this.dimensionReferencesParam(spec.depth, name)) ||
+                    this.dimensionReferencesScopedParam(spec.width, name) ||
+                    this.dimensionReferencesScopedParam(spec.height, name) ||
+                    (spec.depth && this.dimensionReferencesScopedParam(spec.depth, name))) {
                     affectsTextures = true
                     break
                 }
@@ -636,6 +656,19 @@ export class Pipeline {
      */
     dimensionReferencesParam(spec, paramName) {
         return typeof spec === 'object' && spec !== null && spec.param === paramName
+    }
+
+    /**
+     * Check if a dimension spec references a scoped variant of a parameter
+     * Scoped params look like 'stateSize_node_1' for param 'stateSize'
+     * @param {number|string|object} spec - Dimension specification
+     * @param {string} paramName - Base parameter name to check for
+     * @returns {boolean} True if the spec references a scoped version of the parameter
+     */
+    dimensionReferencesScopedParam(spec, paramName) {
+        return typeof spec === 'object' && spec !== null &&
+               typeof spec.param === 'string' &&
+               spec.param.startsWith(paramName + '_node_')
     }
 
     /**
