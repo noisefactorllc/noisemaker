@@ -1021,6 +1021,11 @@ export class Pipeline {
             if (name.includes('state') || name.includes('State')) {
                 return true
             }
+            // Scoped particle textures: xyz_node_N, vel_node_N, rgba_node_N, points_trail_node_N
+            // These are created when multiple particle pipelines coexist in the same chain
+            if (/^(xyz|vel|rgba|points_trail)_node_\d+$/.test(name)) {
+                return true
+            }
             return false
         }
 
