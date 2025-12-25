@@ -85,11 +85,6 @@ export function expand(compilationResult, options = {}) {
         let currentInputRgba = null  // Agent color texture (for particle effects)
         let lastInlineWriteTarget = null  // Track the last inline write target to avoid redundant final blit
 
-        // Track scoped global textures: maps global_xxx -> global_xxx_node_N
-        // When a node creates a global_ texture, it gets scoped to that node.
-        // Subsequent nodes referencing global_xxx get the scoped version.
-        const globalTextureScope = new Map()
-
         // Pipeline uniforms accumulate from upstream effects for downstream consumption
         // Example: noise3d sets volumeSize, ca3d uses it without declaring it
         const pipelineUniforms = {}
@@ -347,17 +342,14 @@ export function expand(compilationResult, options = {}) {
             }
 
             // Collect texture specs from effect definition
-            // Textures starting with 'global_' are scoped to the node that creates them.
-            // This allows multiple instances of the same pipeline to coexist.
-            // The globalTextureScope map tracks the scoped names for downstream references.
+            // Textures starting with 'global_' (underscore) are SHARED and don't get node prefix
+            // Everything else gets node prefix for isolation
             if (effectDef.textures) {
                 for (const [texName, spec] of Object.entries(effectDef.textures)) {
                     let virtualTexId
                     if (texName.startsWith('global_')) {
-                        // Scope global texture to this node
-                        virtualTexId = `${texName}_${nodeId}`
-                        // Register so downstream nodes can find it
-                        globalTextureScope.set(texName, virtualTexId)
+                        // Shared global texture - use as-is, no node prefix
+                        virtualTexId = texName
                     } else {
                         // Node-local texture - add node prefix
                         virtualTexId = `${nodeId}_${texName}`
@@ -367,13 +359,12 @@ export function expand(compilationResult, options = {}) {
             }
 
             // Collect 3D texture specs from effect definition
-            // Same scoping as 2D textures
+            // Same naming convention: global_ prefix = shared, everything else = node-local
             if (effectDef.textures3d) {
                 for (const [texName, spec] of Object.entries(effectDef.textures3d)) {
                     let virtualTexId
                     if (texName.startsWith('global_')) {
-                        virtualTexId = `${texName}_${nodeId}`
-                        globalTextureScope.set(texName, virtualTexId)
+                        virtualTexId = texName
                     } else {
                         virtualTexId = `${nodeId}_${texName}`
                     }
@@ -742,8 +733,7 @@ export function expand(compilationResult, options = {}) {
                                 if (arg === 'none') {
                                     pass.inputs[uniformName] = 'none'
                                 } else if (arg.startsWith('global_')) {
-                                    // Look up scoped version if available
-                                    pass.inputs[uniformName] = globalTextureScope.get(arg) || arg
+                                    pass.inputs[uniformName] = arg
                                 } else if (/^o[0-7]$/.test(arg)) {
                                     pass.inputs[uniformName] = `global_${arg}`
                                 } else if (/^vol[0-7]$/.test(arg)) {
@@ -781,14 +771,13 @@ export function expand(compilationResult, options = {}) {
                             } else if (/^rgba[0-7]$/.test(defaultVal)) {
                                 pass.inputs[uniformName] = `global_${defaultVal}`
                             } else if (defaultVal.startsWith('global_')) {
-                                // Look up scoped version if available
-                                pass.inputs[uniformName] = globalTextureScope.get(defaultVal) || defaultVal
+                                pass.inputs[uniformName] = defaultVal
                             } else {
                                 pass.inputs[uniformName] = defaultVal
                             }
                         } else if (texRef.startsWith('global_')) {
-                            // Explicit global reference - look up scoped version
-                            pass.inputs[uniformName] = globalTextureScope.get(texRef) || texRef
+                            // Explicit global reference - use as-is
+                            pass.inputs[uniformName] = texRef
                         } else if (texRef === 'outputTex') {
                             // Reference to this node's main output (e.g., in feedback passes)
                             pass.inputs[uniformName] = `${nodeId}_out`
@@ -854,8 +843,7 @@ export function expand(compilationResult, options = {}) {
                             // Pipeline reference - write back to the agent color texture we received
                             virtualTex = currentInputRgba || `${nodeId}_inputRgba`
                         } else if (texRef.startsWith('global_')) {
-                            // Look up scoped version if available
-                            virtualTex = globalTextureScope.get(texRef) || texRef
+                            virtualTex = texRef
                         } else if (texRef.startsWith('feedback_')) {
                             virtualTex = texRef
                         } else {
@@ -891,9 +879,9 @@ export function expand(compilationResult, options = {}) {
                     }
                 } else {
                     // Map an internal texture to the 2D pipeline
-                    // global_ prefix = scoped; everything else = node-local
+                    // global_ prefix = shared, use as-is; everything else = node-local
                     const virtualTexId = internalTexName.startsWith('global_')
-                        ? (globalTextureScope.get(internalTexName) || internalTexName)
+                        ? internalTexName
                         : `${nodeId}_${internalTexName}`
                     textureMap.set(`${nodeId}_out`, virtualTexId)
                     currentInput = virtualTexId
@@ -934,9 +922,9 @@ export function expand(compilationResult, options = {}) {
                     }
                 } else {
                     // Map the internal texture to the 3D pipeline
-                    // global_ prefix = scoped; everything else = node-local
+                    // global_ prefix = shared, use as-is; everything else = node-local
                     const virtualTexId = internalTexName.startsWith('global_')
-                        ? (globalTextureScope.get(internalTexName) || internalTexName)
+                        ? internalTexName
                         : `${nodeId}_${internalTexName}`
                     textureMap.set(`${nodeId}_out3d`, virtualTexId)
                     currentInput3d = virtualTexId
@@ -969,10 +957,8 @@ export function expand(compilationResult, options = {}) {
                         textureMap.set(`${nodeId}_outXyz`, currentInputXyz)
                     }
                 } else {
-                    // global_ prefix = scoped; everything else = node-local
-                    const virtualId = texName.startsWith('global_')
-                        ? (globalTextureScope.get(texName) || texName)
-                        : `${nodeId}_${texName}`
+                    // global_ prefix = shared, use as-is; everything else = node-local
+                    const virtualId = texName.startsWith('global_') ? texName : `${nodeId}_${texName}`
                     textureMap.set(`${nodeId}_outXyz`, virtualId)
                     currentInputXyz = virtualId
                 }
@@ -984,10 +970,8 @@ export function expand(compilationResult, options = {}) {
                         textureMap.set(`${nodeId}_outVel`, currentInputVel)
                     }
                 } else {
-                    // global_ prefix = scoped; everything else = node-local
-                    const virtualId = texName.startsWith('global_')
-                        ? (globalTextureScope.get(texName) || texName)
-                        : `${nodeId}_${texName}`
+                    // global_ prefix = shared, use as-is; everything else = node-local
+                    const virtualId = texName.startsWith('global_') ? texName : `${nodeId}_${texName}`
                     textureMap.set(`${nodeId}_outVel`, virtualId)
                     currentInputVel = virtualId
                 }
@@ -999,10 +983,8 @@ export function expand(compilationResult, options = {}) {
                         textureMap.set(`${nodeId}_outRgba`, currentInputRgba)
                     }
                 } else {
-                    // global_ prefix = scoped; everything else = node-local
-                    const virtualId = texName.startsWith('global_')
-                        ? (globalTextureScope.get(texName) || texName)
-                        : `${nodeId}_${texName}`
+                    // global_ prefix = shared, use as-is; everything else = node-local
+                    const virtualId = texName.startsWith('global_') ? texName : `${nodeId}_${texName}`
                     textureMap.set(`${nodeId}_outRgba`, virtualId)
                     currentInputRgba = virtualId
                 }
