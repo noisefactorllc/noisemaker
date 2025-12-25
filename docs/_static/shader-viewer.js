@@ -11,15 +11,43 @@
     // basePath must point to the directory containing effects/ folder
     // bundlePath must point to the effects/ folder itself
     function getBasePath() {
-        // Use absolute path from document root
-        const origin = window.location.origin;
         const pathname = window.location.pathname;
-        // Find the path to _static by going up to the docs root
-        // If we're at /shaders/smrticles.html, we need ../_static
-        // If we're at /shaders.html, we need _static
-        const depth = pathname.split('/').filter(p => p && !p.endsWith('.html')).length;
-        const prefix = depth > 0 ? '../'.repeat(depth) : '';
-        return origin + pathname.substring(0, pathname.lastIndexOf('/') + 1) + prefix + '_static';
+        
+        // Find the _static directory relative to current page
+        // Handle both local builds and ReadTheDocs versioned paths
+        // ReadTheDocs paths: /en/latest/shaders/smrticles.html -> /en/latest/_static
+        // Local paths: /shaders/smrticles.html -> /_static
+        
+        // Find the last directory before the HTML file
+        const lastSlash = pathname.lastIndexOf('/');
+        const dir = pathname.substring(0, lastSlash + 1);
+        
+        // Count depth from docs root (excluding version segments like /en/latest/)
+        // Find _static by going up directories until we find the docs root
+        const segments = dir.split('/').filter(p => p);
+        
+        // Find index of known doc root markers or infer from structure
+        // On ReadTheDocs: ['en', 'latest', 'shaders', ''] for /en/latest/shaders/
+        // Local: ['shaders', ''] for /shaders/
+        
+        // Simple approach: find how many levels deep we are from _static
+        // _static is always at the docs root level
+        let staticPath = '';
+        
+        // Try to detect ReadTheDocs versioned path pattern (e.g., /en/latest/)
+        const rtdMatch = pathname.match(/^(\/[a-z]{2}\/[^\/]+\/)/);
+        if (rtdMatch) {
+            // ReadTheDocs: base is the versioned root
+            const rtdBase = rtdMatch[1];
+            staticPath = rtdBase + '_static';
+        } else {
+            // Local or simple hosting: calculate relative path to _static
+            const depth = segments.length;
+            const prefix = depth > 0 ? '../'.repeat(depth) : './';
+            staticPath = prefix + '_static';
+        }
+        
+        return staticPath;
     }
     
     function getBundlePath() {

@@ -116,7 +116,7 @@ Namespace is the primary categorization and acts as an implicit tag. Each effect
 
 **Tags**
 
-Tags are curated labels for additional categorization. An effect may have multiple tags. Tags are optional and defined globally.
+Tags are curated labels for additional categorization. An effect may have multiple tags. Tags are optional and defined globally in ``shaders/src/runtime/tags.js``.
 
 .. list-table::
    :header-rows: 1
@@ -124,16 +124,24 @@ Tags are curated labels for additional categorization. An effect may have multip
 
    * - Tag
      - Description
+   * - ``3d``
+     - 3D volumetric effects
+   * - ``agents``
+     - Particle and agent-based systems
    * - ``color``
      - Color manipulation
+   * - ``debug``
+     - Debugging and development utilities
    * - ``distort``
      - Input distortion
    * - ``geometric``
      - Shapes
-   * - ``math``
-     - Very mathy
+   * - ``gradient``
+     - Gradient generation
    * - ``noise``
      - Very noisy
+   * - ``sim``
+     - Simulations with temporal state
    * - ``transform``
      - Moves stuff around
    * - ``util``

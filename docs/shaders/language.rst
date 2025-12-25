@@ -112,6 +112,18 @@ Functions accept arguments either positionally or as named keywords. The two for
 
 Numeric arguments support inline arithmetic (``+``, ``-``, ``*``, ``/``) and constants like ``Math.PI``. Color arguments accept unquoted ``#RGB`` or ``#RRGGBB`` hex codes.
 
+**Vector parameters:**
+
+Some effects accept multi-component vector parameters. Use the built-in vector constructors:
+
+* ``vec2(x, y)`` — 2-component vector
+* ``vec3(x, y, z)`` — 3-component vector  
+* ``vec4(x, y, z, w)`` — 4-component vector
+
+.. code-block:: none
+
+  effect(param: vec2(0.5, 0.25)).write(o0)
+
 Variables & Aliases
 ^^^^^^^^^^^^^^^^^^^
 
