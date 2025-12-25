@@ -9,13 +9,9 @@ precision highp float;
 // A = reserved
 
 uniform vec2 resolution;
-uniform sampler2D prevMatrix;
 uniform int typeCount;
 uniform float matrixSeed;
 uniform bool symmetricForces;
-uniform bool resetState;
-uniform bool randomizeMatrix;
-uniform float time;
 
 out vec4 fragColor;
 
@@ -34,15 +30,6 @@ void main() {
     ivec2 coord = ivec2(gl_FragCoord.xy);
     int typeA = coord.x;
     int typeB = coord.y;
-    
-    // Check if we need to regenerate
-    vec4 prev = texelFetch(prevMatrix, coord, 0);
-    
-    // Only regenerate on reset or randomize button
-    if (!resetState && !randomizeMatrix && prev.a > 0.0) {
-        fragColor = prev;
-        return;
-    }
     
     // Skip if outside active types
     if (typeA >= typeCount || typeB >= typeCount) {

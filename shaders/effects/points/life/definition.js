@@ -5,7 +5,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  *
  * Common Agent Architecture middleware:
  * - Reads agent state from pipeline inputs (global_xyz, global_vel, global_rgba)
- * - Uses internal global_p_life_data for typeId/mass storage
+ * - Uses internal global_life_data for typeId/mass storage
  * - Uses internal global_force_matrix for type-pair interactions
  * - Applies particle life forces and writes back to global textures
  *
@@ -25,13 +25,21 @@ export default new Effect({
 
   description: "Type-based attraction/repulsion particle simulation",
 
-  // Internal textures - not shared with other effects
+  // Internal textures
+  // global_life_data: Uses global_ prefix so it gets double-buffered ping-pong,
+  // preventing feedback loops when reading and writing in the same pass.
+  // Also gets scoped to the particle pipeline (e.g., global_life_data_node_1).
   textures: {
     // Effect-specific data: [typeId, mass, 0, 0]
-    global_p_life_data: { width: 256, height: 256, format: "rgba16f" },
+    // Size matches particle textures via stateSize param
+    global_life_data: {
+      width: { param: 'stateSize', default: 256 },
+      height: { param: 'stateSize', default: 256 },
+      format: "rgba16f"
+    },
     // ForceMatrix: 8x8 texture for 8 types
     // R = attraction strength (-1 to 1), G = preferred distance, B = curve shape
-    global_force_matrix: { width: 8, height: 8, format: "rgba16f" }
+    force_matrix: { width: 8, height: 8, format: "rgba16f" }
   },
 
   // Expose outputs to pipeline for downstream effects (pointsRender)
@@ -40,6 +48,13 @@ export default new Effect({
   outputRgba: "global_rgba",
 
   globals: {
+    // State size param - inherited from upstream pointsEmit
+    stateSize: {
+      type: "int",
+      default: 256,
+      uniform: "stateSize",
+      ui: { control: false }  // Inherited from pointsEmit
+    },
     // Type system
     typeCount: {
       type: "int",
@@ -189,22 +204,18 @@ export default new Effect({
   },
 
   passes: [
-    // Pass 1: Generate/update ForceMatrix
+    // Pass 1: Generate ForceMatrix (deterministic based on seed)
     {
       name: "matrix",
       program: "matrix",
-      inputs: {
-        prevMatrix: "global_force_matrix"
-      },
+      inputs: {},
       uniforms: {
         typeCount: "typeCount",
         matrixSeed: "matrixSeed",
-        symmetricForces: "symmetricForces",
-        resetState: "resetState",
-        randomizeMatrix: "randomizeMatrix"
+        symmetricForces: "symmetricForces"
       },
       outputs: {
-        fragColor: "global_force_matrix"
+        fragColor: "force_matrix"
       }
     },
 
@@ -217,8 +228,8 @@ export default new Effect({
         xyzTex: "global_xyz",
         velTex: "global_vel",
         rgbaTex: "global_rgba",
-        dataTex: "global_p_life_data",
-        forceMatrix: "global_force_matrix",
+        dataTex: "global_life_data",
+        forceMatrix: "force_matrix",
         inputTex: "inputTex"
       },
       uniforms: {
@@ -238,7 +249,7 @@ export default new Effect({
         outXYZ: "global_xyz",
         outVel: "global_vel",
         outRGBA: "global_rgba",
-        outData: "global_p_life_data"
+        outData: "global_life_data"
       }
     },
 

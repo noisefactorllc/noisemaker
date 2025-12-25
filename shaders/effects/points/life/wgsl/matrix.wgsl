@@ -6,13 +6,9 @@ struct Uniforms {
     typeCount: i32,
     matrixSeed: f32,
     symmetricForces: i32,
-    resetState: i32,
-    randomizeMatrix: i32,
-    time: f32,
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
-@group(0) @binding(1) var prevMatrix: texture_2d<f32>;
 
 fn hash_uint(seed: u32) -> u32 {
     var state = seed * 747796405u + 2891336453u;
@@ -29,14 +25,6 @@ fn main(@builtin(position) position: vec4f) -> @location(0) vec4f {
     let coord = vec2i(position.xy);
     let typeA = coord.x;
     let typeB = coord.y;
-    
-    // Read previous matrix value
-    let prev = textureLoad(prevMatrix, coord, 0);
-    
-    // Only regenerate on reset or randomize
-    if (uniforms.resetState == 0 && uniforms.randomizeMatrix == 0 && prev.a > 0.0) {
-        return prev;
-    }
     
     // Skip if outside active types
     if (typeA >= uniforms.typeCount || typeB >= uniforms.typeCount) {

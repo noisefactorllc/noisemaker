@@ -323,7 +323,7 @@ export function expand(compilationResult, options = {}) {
             // Helper to scope particle textures to current pipeline
             const scopeParticleTex = (texName) => {
                 if (!currentParticlePipelineId) return texName
-                if (/^global_(xyz|vel|rgba|points_trail)$/.test(texName)) {
+                if (/^global_(xyz|vel|rgba|points_trail|life_data)$/.test(texName)) {
                     return `${texName}_${currentParticlePipelineId}`
                 }
                 return texName
@@ -373,12 +373,12 @@ export function expand(compilationResult, options = {}) {
 
             // Collect texture specs from effect definition
             // Textures starting with 'global_' are shared within a pipeline segment.
-            // Particle textures (global_xyz, global_vel, global_rgba, global_points_trail)
+            // Particle textures (global_xyz, global_vel, global_rgba, global_points_trail, global_life_data)
             // get scoped to the current particle pipeline to allow multiple pipelines to coexist.
             if (effectDef.textures) {
                 for (const [texName, spec] of Object.entries(effectDef.textures)) {
                     let virtualTexId
-                    const isParticleTex = /^global_(xyz|vel|rgba|points_trail)$/.test(texName)
+                    const isParticleTex = /^global_(xyz|vel|rgba|points_trail|life_data)$/.test(texName)
                     const shouldScope = texName.startsWith('global_') && isParticleTex && currentParticlePipelineId
 
                     if (texName.startsWith('global_')) {
@@ -398,8 +398,12 @@ export function expand(compilationResult, options = {}) {
                     // share the same param lookup (e.g., 'stateSize') and get the same size.
                     // We scope the param name to the pipeline (e.g., 'stateSize' -> 'stateSize_node_1')
                     // so each pipeline's textures look up their own uniform.
+                    //
+                    // For node-local textures that reference stateSize, we also need to scope
+                    // the param when in a particle pipeline, so textures match particle state size.
                     let resolvedSpec = { ...spec }
-                    if (shouldScope) {
+                    const shouldScopeParams = shouldScope || (currentParticlePipelineId && !texName.startsWith('global_'))
+                    if (shouldScopeParams) {
                         // Helper to scope a dimension spec's param reference to this pipeline
                         // and track the mapping for uniform propagation
                         const scopeDimSpec = (dimSpec) => {
