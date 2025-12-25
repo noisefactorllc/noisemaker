@@ -42,6 +42,21 @@ else
     exit 1
 fi
 
+# Build shader bundles (includes core and effects)
+echo "Building shader bundles..."
+cd "$PROJECT_ROOT"
+if ! npm run bundle:shaders; then
+    echo "Error: Failed to build shader bundles"
+    exit 1
+fi
+
+# Update shader bundles in _static
+echo "Updating shader bundles in _static..."
+if ! "$SCRIPT_DIR/update-shader-bundle.sh"; then
+    echo "Error: Failed to update shader bundles"
+    exit 1
+fi
+
 # Build the documentation
 cd "$SCRIPT_DIR"
 "$SPHINX_BUILD" -b html . _build/html

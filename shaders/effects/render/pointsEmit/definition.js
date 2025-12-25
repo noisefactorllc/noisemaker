@@ -4,7 +4,6 @@ export default new Effect({
     name: "Points Emit",
     func: "pointsEmit",
     namespace: "render",
-    starter: true,
     tags: ["agents"],
 
     description: "Initialize and maintain agent state for particle systems",

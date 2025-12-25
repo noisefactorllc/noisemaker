@@ -11,20 +11,26 @@
     // basePath must point to the directory containing effects/ folder
     // bundlePath must point to the effects/ folder itself
     function getBasePath() {
-        const baseUrl = new URL('./', window.location.href).href;
-        return baseUrl + '_static';
+        // Use absolute path from document root
+        const origin = window.location.origin;
+        const pathname = window.location.pathname;
+        // Find the path to _static by going up to the docs root
+        // If we're at /shaders/smrticles.html, we need ../_static
+        // If we're at /shaders.html, we need _static
+        const depth = pathname.split('/').filter(p => p && !p.endsWith('.html')).length;
+        const prefix = depth > 0 ? '../'.repeat(depth) : '';
+        return origin + pathname.substring(0, pathname.lastIndexOf('/') + 1) + prefix + '_static';
     }
     
     function getBundlePath() {
-        const baseUrl = new URL('./', window.location.href).href;
-        return baseUrl + '_static/effects';
+        return getBasePath() + '/effects';
     }
     
     const BASE_PATH = getBasePath();
     const BUNDLE_PATH = getBundlePath();
     
-    // Namespace order - matches demo/shaders/index.html loadEffects() exactly
-    const EFFECT_DIRS = [
+    // Default namespace order - matches demo/shaders/index.html loadEffects() exactly
+    const DEFAULT_EFFECT_DIRS = [
         { namespace: 'filter' },
         { namespace: 'mixer' },
         { namespace: 'synth' },
@@ -182,6 +188,15 @@
         const loadingIndicator = container.querySelector('.shader-viewer-loading');
         const randomButton = container.querySelector('.shader-viewer-random');
         const dslOverlay = container.querySelector('.shader-viewer-dsl-overlay');
+
+        // Allow filtering namespaces via data-namespaces attribute (comma-separated)
+        const namespacesAttr = container.dataset.namespaces;
+        let EFFECT_DIRS;
+        if (namespacesAttr) {
+            EFFECT_DIRS = namespacesAttr.split(',').map(ns => ({ namespace: ns.trim() }));
+        } else {
+            EFFECT_DIRS = DEFAULT_EFFECT_DIRS;
+        }
 
         if (!canvas || !select || !paramsContainer) {
             console.error('Shader viewer: missing required elements');
@@ -425,7 +440,20 @@
 
             // Special case: pointsEmit and pointsRender must be paired together
             if (funcName === 'pointsEmit' || funcName === 'pointsRender') {
-                return `search points, synth, render\n\nnoise()\n  .pointsEmit()\n  .physical()\n  .pointsRender()\n  .write(o0)\n\nrender(o0)`;
+                return `search points, synth, render\n\nnoise()\n  .pointsEmit()\n  .physical()\n  .pointsRender(viewMode: ortho)\n  .write(o0)\n\nrender(o0)`;
+            }
+
+            // Special case: points namespace behaviors need pointsEmit before and pointsRender after
+            if (effect.namespace === 'points') {
+                // Check if the effect defines viewMode (e.g., attractor defaults to 3D)
+                const viewModeSpec = effect.instance.globals?.viewMode;
+                // Use the choice name instead of int value - default to ortho for SMRTicles docs
+                const viewModeDefault = viewModeSpec?.default ?? 1;
+                const viewModeName = viewModeSpec?.choices 
+                    ? Object.keys(viewModeSpec.choices).find(k => viewModeSpec.choices[k] === viewModeDefault) || 'ortho'
+                    : 'ortho';
+                const pointsRenderArgs = `viewMode: ${viewModeName}`;
+                return `search points, synth, render\n\nnoise()\n  .pointsEmit()\n  .${funcName}()\n  .pointsRender(${pointsRenderArgs})\n  .write(o0)\n\nrender(o0)`;
             }
 
             const starter = isStarterEffect(effect);
@@ -509,18 +537,100 @@
                 placeholderEntry.loaded = true;
                 currentEffect = placeholderEntry;
 
-                // Build controls
-                const controlResult = buildControlsForEffect(paramsContainer, currentEffect.instance, (newValues, uniformMap) => {
-                    currentUniforms = newValues;
-                    // Update renderer uniforms using the correct uniform names
-                    if (renderer._pipeline) {
-                        for (const [k, v] of Object.entries(newValues)) {
-                            const uniformName = uniformMap[k] || k;
-                            renderer._pipeline.setUniform(uniformName, v);
+                // Build controls - for points namespace, show controls for entire chain
+                paramsContainer.innerHTML = '';
+                const allUniforms = {};
+                const allUniformMaps = {};
+                
+                if (namespace === 'points') {
+                    // Load pointsEmit and pointsRender effects
+                    const pointsEmitEffect = await renderer.loadEffect('render/pointsEmit');
+                    const pointsRenderEffect = await renderer.loadEffect('render/pointsRender');
+                    
+                    // Build controls for pointsEmit
+                    const emitSection = document.createElement('div');
+                    emitSection.className = 'shader-viewer-section';
+                    const emitHeader = document.createElement('h4');
+                    emitHeader.textContent = 'Agent Initialization';
+                    emitSection.appendChild(emitHeader);
+                    paramsContainer.appendChild(emitSection);
+                    
+                    const emitResult = buildControlsForEffect(emitSection, pointsEmitEffect.instance, (newValues, uniformMap) => {
+                        Object.assign(allUniforms, newValues);
+                        Object.assign(allUniformMaps, uniformMap);
+                        if (renderer._pipeline) {
+                            for (const [k, v] of Object.entries(newValues)) {
+                                const uniformName = uniformMap[k] || k;
+                                renderer._pipeline.setUniform(uniformName, v);
+                            }
                         }
+                    });
+                    Object.assign(allUniforms, emitResult.values);
+                    Object.assign(allUniformMaps, emitResult.uniformMap);
+                    
+                    // Build controls for behavior effect
+                    const behaviorSection = document.createElement('div');
+                    behaviorSection.className = 'shader-viewer-section';
+                    const behaviorHeader = document.createElement('h4');
+                    behaviorHeader.textContent = 'Behavior';
+                    behaviorSection.appendChild(behaviorHeader);
+                    paramsContainer.appendChild(behaviorSection);
+                    
+                    const behaviorResult = buildControlsForEffect(behaviorSection, currentEffect.instance, (newValues, uniformMap) => {
+                        Object.assign(allUniforms, newValues);
+                        Object.assign(allUniformMaps, uniformMap);
+                        if (renderer._pipeline) {
+                            for (const [k, v] of Object.entries(newValues)) {
+                                const uniformName = uniformMap[k] || k;
+                                renderer._pipeline.setUniform(uniformName, v);
+                            }
+                        }
+                    });
+                    Object.assign(allUniforms, behaviorResult.values);
+                    Object.assign(allUniformMaps, behaviorResult.uniformMap);
+                    
+                    // Build controls for pointsRender
+                    // If behavior effect overrides viewMode, use that as the initial value
+                    const behaviorViewMode = currentEffect.instance.globals?.viewMode;
+                    if (behaviorViewMode && pointsRenderEffect.instance.globals?.viewMode) {
+                        // Override pointsRender's viewMode default with behavior's preference
+                        pointsRenderEffect.instance.globals.viewMode.default = behaviorViewMode.default;
                     }
-                });
-                currentUniforms = controlResult.values;
+                    
+                    const renderSection = document.createElement('div');
+                    renderSection.className = 'shader-viewer-section';
+                    const renderHeader = document.createElement('h4');
+                    renderHeader.textContent = 'Rendering';
+                    renderSection.appendChild(renderHeader);
+                    paramsContainer.appendChild(renderSection);
+                    
+                    const renderResult = buildControlsForEffect(renderSection, pointsRenderEffect.instance, (newValues, uniformMap) => {
+                        Object.assign(allUniforms, newValues);
+                        Object.assign(allUniformMaps, uniformMap);
+                        if (renderer._pipeline) {
+                            for (const [k, v] of Object.entries(newValues)) {
+                                const uniformName = uniformMap[k] || k;
+                                renderer._pipeline.setUniform(uniformName, v);
+                            }
+                        }
+                    });
+                    Object.assign(allUniforms, renderResult.values);
+                    Object.assign(allUniformMaps, renderResult.uniformMap);
+                    
+                    currentUniforms = allUniforms;
+                } else {
+                    // Regular effect - just build controls for the selected effect
+                    const controlResult = buildControlsForEffect(paramsContainer, currentEffect.instance, (newValues, uniformMap) => {
+                        currentUniforms = newValues;
+                        if (renderer._pipeline) {
+                            for (const [k, v] of Object.entries(newValues)) {
+                                const uniformName = uniformMap[k] || k;
+                                renderer._pipeline.setUniform(uniformName, v);
+                            }
+                        }
+                    });
+                    currentUniforms = controlResult.values;
+                }
 
                 // Dispose old pipeline before building new one - matches demo exactly
                 await renderer.dispose({ loseContext: false, resetCanvas: false });
