@@ -5,31 +5,12 @@ export default new Effect({
     func: "pointsEmit",
     namespace: "render",
     starter: true,
-    hasTex: true,
     tags: ["agents"],
 
     description: "Initialize and maintain agent state for particle systems",
 
     // Global parameters exposed to the user
     globals: {
-        // Optional input texture for coloring agents
-        tex: {
-            type: "surface",
-            default: "none",
-            colorModeUniform: "colorMode",
-            ui: {
-                label: "color source"
-            }
-        },
-
-        // Color mode uniform (set automatically based on tex)
-        colorMode: {
-            type: "int",
-            default: 0,
-            uniform: "colorMode",
-            ui: { control: false }
-        },
-
         // State texture size (controls agent count)
         // 256=65k, 512=262k, 1024=1M, 2048=4M
         stateSize: {
@@ -147,8 +128,8 @@ export default new Effect({
                 velTex: "global_vel",
                 rgbaTex: "global_rgba",
 
-                // Optional color source (tex global)
-                tex: "tex"
+                // Chained input texture for coloring agents
+                inputTex: "inputTex"
             },
 
             uniforms: {
@@ -164,14 +145,14 @@ export default new Effect({
             }
         },
 
-        // Passthrough: copy the surface argument to the 2D pipeline output
+        // Passthrough: copy the chained input to the 2D pipeline output
         // This ensures downstream effects receive the background texture via inputTex
         {
             name: "passthrough",
             program: "passthrough",
 
             inputs: {
-                tex: "tex"
+                inputTex: "inputTex"
             },
 
             outputs: {

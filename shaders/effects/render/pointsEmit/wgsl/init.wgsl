@@ -4,7 +4,6 @@ struct Uniforms {
     seed: f32,
     stateSize: i32,
     layoutMode: i32,
-    colorMode: i32,
     attrition: f32,
     resetState: u32,
 };
@@ -13,7 +12,7 @@ struct Uniforms {
 @group(0) @binding(1) var xyzTex: texture_2d<f32>;
 @group(0) @binding(3) var velTex: texture_2d<f32>;
 @group(0) @binding(5) var rgbaTex: texture_2d<f32>;
-@group(0) @binding(7) var tex: texture_2d<f32>;
+@group(0) @binding(7) var inputTex: texture_2d<f32>;
 
 struct Outputs {
     @location(0) outXYZ: vec4<f32>,
@@ -106,10 +105,10 @@ fn main(@builtin(position) coord: vec4<f32>) -> Outputs {
         newPos = vec3<f32>(clamp(newPos.xy, vec2<f32>(0.0), vec2<f32>(1.0)), 0.0);
     }
     
-    // Sample color from tex - use textureLoad to avoid uniform control flow issue
-    let texDims = textureDimensions(tex);
+    // Sample color from inputTex - use textureLoad to avoid uniform control flow issue
+    let texDims = textureDimensions(inputTex);
     let texCoord = vec2<i32>(newPos.xy * vec2<f32>(texDims));
-    let sampledCol = textureLoad(tex, texCoord, 0);
+    let sampledCol = textureLoad(inputTex, texCoord, 0);
     // Use sampled color if texture has content (alpha > 0), otherwise white
     let newCol = select(vec4<f32>(1.0), sampledCol, sampledCol.a > 0.0);
     

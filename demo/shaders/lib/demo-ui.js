@@ -1262,7 +1262,7 @@ export class UIController {
 
         // Special case: pointsEmit and pointsRender must be paired together with physical()
         if (funcName === 'pointsEmit' || funcName === 'pointsRender') {
-            return `search points, synth, render\n\nnoise()\n  .write(o0)\n\npointsEmit(\n  tex: read(o0)\n)\n  .physical()\n  .pointsRender()\n  .write(o1)\n\nrender(o1)`
+            return `search points, synth, render\n\nnoise()\n  .pointsEmit()\n  .physical()\n  .pointsRender()\n  .write(o0)\n\nrender(o0)`
         }
 
         // Special case: points namespace effects need pointsEmit/pointsRender wrapping
@@ -1274,7 +1274,7 @@ export class UIController {
             const viewModeDefault = viewModeSpec?.default
             const pointsRenderArgs = viewModeDefault ? `viewMode: ${viewModeDefault}` : ''
             const pointsRenderCall = pointsRenderArgs ? `pointsRender(${pointsRenderArgs})` : 'pointsRender()'
-            return `search points, synth, render\n\nnoise()\n  .write(o0)\n\npointsEmit(\n  tex: read(o0)\n)\n  .${effectCall}\n  .${pointsRenderCall}\n  .write(o1)\n\nrender(o1)`
+            return `search points, synth, render\n\nnoise()\n  .pointsEmit()\n  .${effectCall}\n  .${pointsRenderCall}\n  .write(o0)\n\nrender(o0)`
         }
 
         // Special case: loopBegin/loopEnd need paired usage with filter in between

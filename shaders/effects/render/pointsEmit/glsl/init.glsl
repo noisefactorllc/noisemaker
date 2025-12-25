@@ -9,7 +9,6 @@ uniform float seed;
 // Effect parameters
 uniform int stateSize;
 uniform int layoutMode; // 0=Random, 1=Grid, 2=Center, 3=Ring
-uniform int colorMode;  // 0=white (no tex), 1=sample from tex
 uniform float attrition; // Per-frame respawn chance (0-10%)
 uniform bool resetState; // Force all agents to respawn
 
@@ -17,7 +16,7 @@ uniform bool resetState; // Force all agents to respawn
 uniform sampler2D xyzTex;
 uniform sampler2D velTex;
 uniform sampler2D rgbaTex;
-uniform sampler2D tex;  // Optional color source
+uniform sampler2D inputTex;  // Chained input for coloring agents
 
 // Outputs (MRT)
 layout(location = 0) out vec4 outXYZ;
@@ -112,10 +111,10 @@ void main() {
         newPos.xy = clamp(newPos.xy, 0.0, 1.0);
     }
     
-    // Sample color from tex - use texelFetch to avoid uniform control flow issue
-    ivec2 texDims = textureSize(tex, 0);
+    // Sample color from inputTex - use texelFetch to avoid uniform control flow issue
+    ivec2 texDims = textureSize(inputTex, 0);
     ivec2 texCoord = ivec2(newPos.xy * vec2(texDims));
-    vec4 sampledCol = texelFetch(tex, texCoord, 0);
+    vec4 sampledCol = texelFetch(inputTex, texCoord, 0);
     // Use sampled color if texture has content (alpha > 0), otherwise white
     vec4 newCol = (sampledCol.a > 0.0) ? sampledCol : vec4(1.0);
     
