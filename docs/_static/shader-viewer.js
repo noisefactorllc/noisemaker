@@ -18,36 +18,16 @@
         // ReadTheDocs paths: /en/latest/shaders/smrticles.html -> /en/latest/_static
         // Local paths: /shaders/smrticles.html -> /_static
         
-        // Find the last directory before the HTML file
-        const lastSlash = pathname.lastIndexOf('/');
-        const dir = pathname.substring(0, lastSlash + 1);
-        
-        // Count depth from docs root (excluding version segments like /en/latest/)
-        // Find _static by going up directories until we find the docs root
-        const segments = dir.split('/').filter(p => p);
-        
-        // Find index of known doc root markers or infer from structure
-        // On ReadTheDocs: ['en', 'latest', 'shaders', ''] for /en/latest/shaders/
-        // Local: ['shaders', ''] for /shaders/
-        
-        // Simple approach: find how many levels deep we are from _static
-        // _static is always at the docs root level
-        let staticPath = '';
-        
         // Try to detect ReadTheDocs versioned path pattern (e.g., /en/latest/)
         const rtdMatch = pathname.match(/^(\/[a-z]{2}\/[^\/]+\/)/);
         if (rtdMatch) {
             // ReadTheDocs: base is the versioned root
-            const rtdBase = rtdMatch[1];
-            staticPath = rtdBase + '_static';
-        } else {
-            // Local or simple hosting: calculate relative path to _static
-            const depth = segments.length;
-            const prefix = depth > 0 ? '../'.repeat(depth) : './';
-            staticPath = prefix + '_static';
+            return rtdMatch[1] + '_static';
         }
         
-        return staticPath;
+        // Local or simple hosting: use absolute path to _static
+        // This avoids issues with relative path resolution from within _static/
+        return '/_static';
     }
     
     function getBundlePath() {
@@ -468,19 +448,13 @@
 
             // Special case: pointsEmit and pointsRender must be paired together
             if (funcName === 'pointsEmit' || funcName === 'pointsRender') {
-                return `search points, synth, render\n\nnoise()\n  .pointsEmit()\n  .physical()\n  .pointsRender(viewMode: ortho)\n  .write(o0)\n\nrender(o0)`;
+                return `search points, synth, render\n\nnoise()\n  .pointsEmit()\n  .physical()\n  .pointsRender()\n  .write(o0)\n\nrender(o0)`;
             }
 
             // Special case: points namespace behaviors need pointsEmit before and pointsRender after
             if (effect.namespace === 'points') {
-                // Check if the effect defines viewMode (e.g., attractor defaults to 3D)
-                const viewModeSpec = effect.instance.globals?.viewMode;
-                // Use the choice name instead of int value - default to ortho for SMRTicles docs
-                const viewModeDefault = viewModeSpec?.default ?? 1;
-                const viewModeName = viewModeSpec?.choices 
-                    ? Object.keys(viewModeSpec.choices).find(k => viewModeSpec.choices[k] === viewModeDefault) || 'ortho'
-                    : 'ortho';
-                const pointsRenderArgs = `viewMode: ${viewModeName}`;
+                // Only attractor uses ortho viewMode (3D strange attractors)
+                const pointsRenderArgs = funcName === 'attractor' ? 'viewMode: ortho' : '';
                 return `search points, synth, render\n\nnoise()\n  .pointsEmit()\n  .${funcName}()\n  .pointsRender(${pointsRenderArgs})\n  .write(o0)\n\nrender(o0)`;
             }
 
