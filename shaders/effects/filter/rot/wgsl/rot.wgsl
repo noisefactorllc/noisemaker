@@ -4,7 +4,7 @@
 
 struct Uniforms {
     rotation: f32,
-    _pad1: f32,
+    wrap: i32,
     _pad2: f32,
     _pad3: f32,
 }
@@ -32,8 +32,17 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     uv = rotate2D(uniforms.rotation * TAU) * uv;
     uv += center;
     
-    // Wrap coordinates
-    uv = fract(uv);
+    // Apply wrap mode
+    if (uniforms.wrap == 0) {
+        // mirror
+        uv = abs((uv % 2.0 + 2.0) % 2.0 - 1.0);
+    } else if (uniforms.wrap == 1) {
+        // repeat
+        uv = (uv % 1.0 + 1.0) % 1.0;
+    } else {
+        // clamp
+        uv = clamp(uv, vec2<f32>(0.0), vec2<f32>(1.0));
+    }
 
     return textureSample(inputTex, inputSampler, uv);
 }

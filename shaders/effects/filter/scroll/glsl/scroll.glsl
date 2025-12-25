@@ -8,6 +8,7 @@ uniform float y;
 uniform float speedX;
 uniform float speedY;
 uniform float time;
+uniform int wrap;
 uniform sampler2D inputTex;
 
 out vec4 fragColor;
@@ -20,6 +21,18 @@ void main(){
   offset.x *= aspect;
   st += offset;
   st.x /= aspect;
-  st = fract(st);
+  
+  // Apply wrap mode
+  if (wrap == 0) {
+      // mirror
+      st = abs(mod(st + 1.0, 2.0) - 1.0);
+  } else if (wrap == 1) {
+      // repeat
+      st = fract(st);
+  } else {
+      // clamp
+      st = clamp(st, 0.0, 1.0);
+  }
+  
   fragColor = vec4(texture(inputTex, st).rgb, 1.0);
 }

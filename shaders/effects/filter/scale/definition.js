@@ -35,6 +35,20 @@ export default new Effect({
         "min": 0,
         "max": 1,
         "uniform": "centerY"
+    },
+    "wrap": {
+        "type": "int",
+        "default": 1,
+        "uniform": "wrap",
+        "choices": {
+            "mirror": 0,
+            "repeat": 1,
+            "clamp": 2
+        },
+        "ui": {
+            "label": "Wrap",
+            "control": "dropdown"
+        }
     }
 },
   passes: [
