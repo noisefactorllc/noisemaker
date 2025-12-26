@@ -3,6 +3,8 @@ Demo UI
 
 The Noisemaker Shader Demo is an interactive browser-based playground for exploring GPU shader effects. It provides real-time rendering with live parameter controls, a DSL code editor, and support for both WebGL 2 and WebGPU backends.
 
+A hosted demo can be viewed at https://noisemaker.app/demo/shaders/
+
 What the Demo Does
 ------------------
 
