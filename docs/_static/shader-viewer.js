@@ -747,8 +747,23 @@
             loadingIndicator.style.display = 'none';
         }
         
-        // Default to first effect - matches demo exactly
-        const defaultEffect = effects.length > 0 ? `${effects[0].namespace}/${effects[0].name}` : null;
+        // Check for explicit default effect via data-default-effect attribute
+        const defaultEffectAttr = container.dataset.defaultEffect;
+        let defaultEffect = null;
+        
+        if (defaultEffectAttr) {
+            // Use specified default if it exists in the effects list
+            const exists = effects.some(e => `${e.namespace}/${e.name}` === defaultEffectAttr);
+            if (exists) {
+                defaultEffect = defaultEffectAttr;
+            }
+        }
+        
+        // Fall back to first effect if no explicit default or it doesn't exist
+        if (!defaultEffect && effects.length > 0) {
+            defaultEffect = `${effects[0].namespace}/${effects[0].name}`;
+        }
+        
         if (defaultEffect) {
             await selectEffect(defaultEffect);
         }

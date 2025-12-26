@@ -20,7 +20,7 @@ Noisemaker's shader pipeline includes common architecture for GPU-accelerated ag
 
 .. raw:: html
 
-   <div class="shader-viewer-container" data-namespaces="points">
+   <div class="shader-viewer-container" data-namespaces="points" data-default-effect="points/flock">
      <div class="shader-viewer-example">
        <div class="shader-viewer-canvas-wrapper">
          <canvas class="shader-viewer-canvas" width="384" height="384"></canvas>
