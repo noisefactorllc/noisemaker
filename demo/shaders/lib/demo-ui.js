@@ -3355,14 +3355,6 @@ export class UIController {
             this._onControlChange()
         })
 
-        // Double-click to reset to default
-        toggle.addEventListener('dblclick', () => {
-            const defaultVal = spec?.default !== undefined ? !!spec.default : false
-            handle.setValue(defaultVal)
-            this._effectParameterValues[effectKey][key] = defaultVal
-            this._onControlChange()
-        })
-
         container.appendChild(toggle)
 
         container._controlHandle = handle
@@ -3465,14 +3457,6 @@ export class UIController {
             this._onControlChange()
         })
 
-        // Double-click to reset to default
-        select.addEventListener('dblclick', () => {
-            const defaultVal = spec.default
-            handle.setValue(defaultVal)
-            this._effectParameterValues[effectKey][key] = defaultVal
-            this._onControlChange()
-        })
-
         container.appendChild(select)
 
         // Store control handle for pluggable sync
@@ -3514,14 +3498,6 @@ export class UIController {
                 this._onControlChange()
             })
 
-            // Double-click to reset to default
-            select.addEventListener('dblclick', () => {
-                const defaultVal = spec.default !== undefined ? spec.default : 0
-                handle.setValue(defaultVal)
-                this._effectParameterValues[effectKey][key] = defaultVal
-                this._onControlChange()
-            })
-
             container.appendChild(select)
             container._controlHandle = handle
         } else {
@@ -3537,14 +3513,6 @@ export class UIController {
 
             slider.addEventListener('change', () => {
                 this._effectParameterValues[effectKey][key] = parseInt(handle.getValue(), 10)
-                this._onControlChange()
-            })
-
-            // Double-click to reset to default
-            slider.addEventListener('dblclick', () => {
-                const defaultVal = spec.default !== undefined ? parseInt(spec.default, 10) : parseInt(spec.min || 0, 10)
-                handle.setValue(defaultVal)
-                this._effectParameterValues[effectKey][key] = defaultVal
                 this._onControlChange()
             })
 
@@ -3615,16 +3583,6 @@ export class UIController {
                     this._onControlChange()
                 })
 
-                // Double-click to reset to default
-                select.addEventListener('dblclick', () => {
-                    const defaultVal = spec.default
-                    if (defaultVal !== undefined) {
-                        handle.setValue(defaultVal)
-                        this._effectParameterValues[effectKey][key] = defaultVal
-                        this._onControlChange()
-                    }
-                })
-
                 container.appendChild(select)
 
                 // Wrap handle with custom setValue that understands numeric values
@@ -3677,16 +3635,6 @@ export class UIController {
         })
 
         slider.addEventListener('change', () => {
-            this._onControlChange()
-        })
-
-        // Double-click to reset to default
-        slider.addEventListener('dblclick', () => {
-            const defaultVal = spec.default !== undefined ? spec.default : parseFloat(spec.min || 0)
-            const numVal = isInt ? parseInt(defaultVal) : parseFloat(defaultVal)
-            handle.setValue(numVal)
-            valueDisplayHandle.setValue(formatVal(numVal))
-            this._effectParameterValues[effectKey][key] = numVal
             this._onControlChange()
         })
 
@@ -3743,27 +3691,6 @@ export class UIController {
                 this._effectParameterValues[effectKey][key] = colorVal
             }
             this._onControlChange()
-        })
-
-        // Double-click to reset to default
-        colorInput.addEventListener('dblclick', () => {
-            const defaultVal = spec?.default
-            let resetArray
-            if (Array.isArray(defaultVal)) {
-                resetArray = defaultVal
-            } else if (typeof defaultVal === 'string' && defaultVal.startsWith('#')) {
-                const hex = defaultVal.slice(1)
-                resetArray = [
-                    parseInt(hex.slice(0, 2), 16) / 255,
-                    parseInt(hex.slice(2, 4), 16) / 255,
-                    parseInt(hex.slice(4, 6), 16) / 255
-                ]
-            }
-            if (resetArray) {
-                handle.setValue(resetArray)
-                this._effectParameterValues[effectKey][key] = [...resetArray]
-                this._onControlChange()
-            }
         })
 
         container.appendChild(colorInput)
@@ -3955,13 +3882,6 @@ export class UIController {
             this._onControlChange()
         })
 
-        input.addEventListener('dblclick', () => {
-            const defaultVal = spec.default || ''
-            input.value = defaultVal
-            this._effectParameterValues[effectKey][key] = defaultVal
-            this._onControlChange()
-        })
-
         container.appendChild(input)
         container._controlHandle = {
             element: input,
@@ -3988,13 +3908,6 @@ export class UIController {
             this._onControlChange()
         })
 
-        select.addEventListener('dblclick', () => {
-            const defaultVal = spec.default || options[0]
-            handle.setValue(defaultVal)
-            this._effectParameterValues[effectKey][key] = defaultVal
-            this._onControlChange()
-        })
-
         container.appendChild(select)
         container._controlHandle = handle
     }
@@ -4015,13 +3928,6 @@ export class UIController {
 
         colorInput.addEventListener('input', () => {
             this._effectParameterValues[effectKey][key] = colorInput.value
-            this._onControlChange()
-        })
-
-        colorInput.addEventListener('dblclick', () => {
-            const defaultVal = spec.default
-            colorInput.value = defaultVal
-            this._effectParameterValues[effectKey][key] = defaultVal
             this._onControlChange()
         })
 
