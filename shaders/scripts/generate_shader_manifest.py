@@ -13,11 +13,12 @@ OUTPUT_FILE = EFFECTS_ROOT / "manifest.json"
 
 # Regex to extract description from definition.js
 # Matches both object literal (description: "...") and class field (description = "...") syntax
-DESCRIPTION_RE = re.compile(r'description[:\s=]+["\']([^"\']*)["\']')
+# Handles escaped quotes within the string (e.g., "2D \"Boids\" flocking")
+DESCRIPTION_RE = re.compile(r'description[:\s=]+"((?:[^"\\]|\\.)*)"|description[:\s=]+\'((?:[^\'\\]|\\.)*)\'')
 
 # Regex to extract externalTexture from definition.js
 # Matches both object literal (externalTexture: "...") and class field (externalTexture = "...") syntax
-EXTERNAL_TEXTURE_RE = re.compile(r'externalTexture[:\s=]+["\']([^"\']*)["\']')
+EXTERNAL_TEXTURE_RE = re.compile(r'externalTexture[:\s=]+"((?:[^"\\]|\\.)*)"|externalTexture[:\s=]+\'((?:[^\'\\]|\\.)*)\'')
 
 # Regex to extract tags array from definition.js
 # Matches: tags: ["tag1", "tag2"] or tags = ["tag1", "tag2"]
@@ -49,7 +50,10 @@ def extract_description(effect_dir):
         content = definition_file.read_text(encoding="utf-8")
         match = DESCRIPTION_RE.search(content)
         if match:
-            return match.group(1)
+            # group(1) is double-quoted, group(2) is single-quoted
+            raw = match.group(1) if match.group(1) is not None else match.group(2)
+            # Unescape escaped quotes
+            return raw.replace('\\"', '"').replace("\\'", "'") if raw else None
     except Exception:
         pass
     return None
@@ -64,7 +68,9 @@ def extract_external_texture(effect_dir):
         content = definition_file.read_text(encoding="utf-8")
         match = EXTERNAL_TEXTURE_RE.search(content)
         if match:
-            return match.group(1)
+            # group(1) is double-quoted, group(2) is single-quoted
+            raw = match.group(1) if match.group(1) is not None else match.group(2)
+            return raw.replace('\\"', '"').replace("\\'", "'") if raw else None
     except Exception:
         pass
     return None
