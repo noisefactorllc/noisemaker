@@ -257,6 +257,9 @@ class ToggleSwitch extends HTMLElement {
     }
 }
 
-customElements.define('toggle-switch', ToggleSwitch)
+// Guard against re-definition (allows local overrides to take precedence)
+if (!customElements.get('toggle-switch')) {
+    customElements.define('toggle-switch', ToggleSwitch)
+}
 
 export { ToggleSwitch }
