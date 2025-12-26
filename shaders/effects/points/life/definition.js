@@ -6,7 +6,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  * Common Agent Architecture middleware:
  * - Reads agent state from pipeline inputs (global_xyz, global_vel, global_rgba)
  * - Uses internal global_life_data for typeId/mass storage
- * - Uses internal global_force_matrix for type-pair interactions
+ * - Uses internal forceMatrix for type-pair interactions
  * - Applies particle life forces and writes back to global textures
  *
  * State format (matching pointsEmit + internal data):
@@ -39,7 +39,7 @@ export default new Effect({
     },
     // ForceMatrix: 8x8 texture for 8 types
     // R = attraction strength (-1 to 1), G = preferred distance, B = curve shape
-    force_matrix: { width: 8, height: 8, format: "rgba16f" }
+    forceMatrix: { width: 8, height: 8, format: "rgba16f" }
   },
 
   // Expose outputs to pipeline for downstream effects (pointsRender)
@@ -215,7 +215,7 @@ export default new Effect({
         symmetricForces: "symmetricForces"
       },
       outputs: {
-        fragColor: "force_matrix"
+        fragColor: "forceMatrix"
       }
     },
 
@@ -229,7 +229,7 @@ export default new Effect({
         velTex: "global_vel",
         rgbaTex: "global_rgba",
         dataTex: "global_life_data",
-        forceMatrix: "force_matrix",
+        forceMatrix: "forceMatrix",
         inputTex: "inputTex"
       },
       uniforms: {
