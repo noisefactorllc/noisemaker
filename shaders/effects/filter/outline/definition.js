@@ -27,6 +27,18 @@ export default new Effect({
             control: "dropdown"
         }
     },
+    thickness: {
+        type: "float",
+        default: 1.0,
+        uniform: "thickness",
+        min: 1.0,
+        max: 10.0,
+        step: 0.1,
+        ui: {
+            label: "Thickness",
+            control: "slider"
+        }
+    },
     invert: {
         type: "boolean",
         default: false,

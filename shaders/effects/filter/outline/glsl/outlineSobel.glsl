@@ -7,6 +7,7 @@ precision highp int;
 
 uniform sampler2D valueTexture;
 uniform float sobelMetric;
+uniform float thickness;
 
 out vec4 fragColor;
 
@@ -51,13 +52,14 @@ void main() {
     ivec2 coord = ivec2(gl_FragCoord.xy);
     int metric = int(sobelMetric);
 
-    // Sample 3x3 neighborhood
+    // Sample 3x3 neighborhood with thickness scaling
+    int offset = max(1, int(thickness));
     float samples[9];
     int idx = 0;
     for (int ky = -1; ky <= 1; ++ky) {
         for (int kx = -1; kx <= 1; ++kx) {
-            int sampleX = wrapCoord(coord.x + kx, dimensions.x);
-            int sampleY = wrapCoord(coord.y + ky, dimensions.y);
+            int sampleX = wrapCoord(coord.x + kx * offset, dimensions.x);
+            int sampleY = wrapCoord(coord.y + ky * offset, dimensions.y);
             samples[idx] = texelFetch(valueTexture, ivec2(sampleX, sampleY), 0).r;
             idx++;
         }
