@@ -13,11 +13,18 @@ export default new Effect({
   description: "Outline/edge stroke",
   globals: {
     shape: {
-        type: "enum",
+        type: "int",
         default: 1,
         uniform: "sobelMetric",
+        choices: {
+            euclidean: 1,
+            manhattan: 2,
+            chebyshev: 3,
+            octagram: 4
+        },
         ui: {
-            label: "shape"
+            label: "shape",
+            control: "dropdown"
         }
     },
     invert: {
