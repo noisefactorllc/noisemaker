@@ -9,9 +9,9 @@ export default new Effect({
   name: "Lighting",
   namespace: "filter",
   func: "lighting",
-  tags: ["edges"],
+  tags: ["color"],
 
-  description: "Applies 3D lighting to 2D textures using surface normals calculated from luminosity",
+  description: "Applies 3D lighting effects",
   globals: {
     diffuseColor: {
       type: "vec3",
