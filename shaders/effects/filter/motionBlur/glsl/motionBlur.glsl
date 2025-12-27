@@ -1,7 +1,7 @@
 /*
  * Motion Blur - Simple frame blending shader.
  * Mixes current input with previous frame for a motion blur effect.
- * Amount 0-100 maps to 0-80% mix factor.
+ * Amount 0-100 maps to mix factor (stronger at higher values).
  */
 
 #ifdef GL_ES
@@ -29,8 +29,8 @@ void main() {
     vec4 current = texture(inputTex, uv);
     vec4 previous = texture(selfTex, uv);
     
-    // Map amount 0-100 to 0-0.8 (equivalent to feedback at 80%)
-    float mixFactor = amount * 0.008;
+    // Map amount 0-100 to 0-1.6 (clamped, stronger motion blur)
+    float mixFactor = clamp(amount * 0.016, 0.0, 0.98);
     
     fragColor = mix(current, previous, mixFactor);
 }

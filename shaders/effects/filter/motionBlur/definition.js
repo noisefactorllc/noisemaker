@@ -5,7 +5,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  *
  * A simplified feedback effect that just mixes the current frame with
  * the previous frame. No blend modes, transforms, or color adjustments.
- * The amount control maps 0-100 to roughly 0-40% mix of feedback's equivalent.
+ * The amount control maps 0-100 to a strong mix factor (clamped at 98%).
  */
 export default new Effect({
   name: "Motion Blur",
