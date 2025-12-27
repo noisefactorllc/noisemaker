@@ -13,7 +13,7 @@ export default new Effect({
   name: "Bloom",
   namespace: "filter",
   func: "bloom",
-  tags: ["util"],
+  tags: ["lens"],
 
   description: "Multi-pass bloom with bright-pass extraction and configurable glow",
   globals: {

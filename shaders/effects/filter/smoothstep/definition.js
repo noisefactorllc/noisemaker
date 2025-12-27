@@ -8,7 +8,7 @@ export default new Effect({
   name: "Smoothstep",
   namespace: "filter",
   func: "smoothstep",
-  tags: ["color", "util"],
+  tags: ["util", "edges"],
 
   description: "Smooth Hermite interpolation between edges",
   globals: {

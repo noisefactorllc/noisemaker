@@ -7,7 +7,7 @@ export default new Effect({
   name: "PrismaticAberration",
   namespace: "filter",
   func: "prismaticAberration",
-  tags: ["color"],
+  tags: ["color", "lens"],
 
   description: "Prismatic aberration with hue controls",
   globals: {

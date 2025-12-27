@@ -19,7 +19,7 @@ export default new Effect({
   name: "Physarum",
   namespace: "points",
   func: "physarum",
-  tags: ["sim", "agents"],
+  tags: ["sim"],
 
   description: "Physarum slime mold simulation",
 

@@ -12,7 +12,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Cf",
   func: "cf",
-  tags: ["util", "sim"],
+  tags: ["sim"],
 
   description: "Convolution feedback with blur and sharpen",
   globals: {

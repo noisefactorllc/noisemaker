@@ -19,9 +19,17 @@ export const TAG_DEFINITIONS = Object.freeze({
         id: 'distort',
         description: 'Input distortion'
     },
+    edges: {
+        id: 'edges',
+        description: 'Accentuate or isolate texture edges'
+    },
     geometric: {
         id: 'geometric',
         description: 'Shapes'
+    },
+    lens: {
+        id: 'lens',
+        description: 'Emulated camera lens effects'
     },
     noise: {
         id: 'noise',

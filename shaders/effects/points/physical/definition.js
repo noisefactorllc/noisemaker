@@ -19,7 +19,7 @@ export default new Effect({
   name: "Physical",
   namespace: "points",
   func: "physical",
-  tags: ["sim", "agents"],
+  tags: ["sim"],
 
   description: "Physics-based particle simulation with wind and gravity forces",
 

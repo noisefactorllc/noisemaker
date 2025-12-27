@@ -11,7 +11,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Feedback",
   func: "feedback",
-  tags: ["util", "sim"],
+  tags: ["sim"],
 
   description: "Feedback loop with blend modes and transforms",
   globals: {

@@ -3313,7 +3313,7 @@ export class UIController {
             this._createButtonControl(controlGroup, key, spec)
         } else if (spec.ui?.control === 'checkbox' || spec.type === 'boolean') {
             // checkbox control for int uniforms that act as booleans (0/1)
-            this._createBooleanControl(controlGroup, key, value, effectKey, spec)
+            this._createBooleanControl(controlGroup, key, value, effectKey)
         } else if (spec.ui?.control === 'color' || spec.type === 'vec4' || spec.type === 'vec3') {
             // Color picker for vec3/vec4 or explicit color control
             this._createColorControl(controlGroup, key, value, effectKey, spec)
@@ -3343,7 +3343,7 @@ export class UIController {
     }
 
     /** @private */
-    _createBooleanControl(container, key, value, effectKey, spec) {
+    _createBooleanControl(container, key, value, effectKey) {
         const handle = this._controlFactory.createToggle({
             checked: !!value
         })

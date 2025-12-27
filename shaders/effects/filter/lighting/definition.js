@@ -9,7 +9,7 @@ export default new Effect({
   name: "Lighting",
   namespace: "filter",
   func: "lighting",
-  tags: ["post-processing", "3d"],
+  tags: ["edges"],
 
   description: "Applies 3D lighting to 2D textures using surface normals calculated from luminosity",
   globals: {

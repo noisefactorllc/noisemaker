@@ -21,7 +21,7 @@ export default new Effect({
   name: "Dla",
   namespace: "points",
   func: "dla",
-  tags: ["sim", "agents"],
+  tags: ["sim"],
 
   description: "Diffusion-limited aggregation",
 

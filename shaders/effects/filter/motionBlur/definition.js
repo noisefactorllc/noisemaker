@@ -10,7 +10,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Motion Blur",
   func: "motionBlur",
-  tags: ["util", "sim"],
+  tags: ["lens"],
 
   description: "Simple motion blur via frame blending",
   globals: {

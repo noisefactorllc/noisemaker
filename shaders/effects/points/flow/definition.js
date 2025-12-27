@@ -19,7 +19,7 @@ export default new Effect({
   name: "Flow",
   namespace: "points",
   func: "flow",
-  tags: ["sim", "agents"],
+  tags: ["sim"],
 
   description: "Agent-based luminosity flow field with behaviors",
 

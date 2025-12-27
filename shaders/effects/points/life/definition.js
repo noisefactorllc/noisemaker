@@ -21,7 +21,7 @@ export default new Effect({
   name: "Life",
   namespace: "points",
   func: "life",
-  tags: ["sim", "agents"],
+  tags: ["sim"],
 
   description: "Type-based attraction/repulsion particle simulation",
 

@@ -7,7 +7,7 @@ export default new Effect({
   name: "Vignette",
   namespace: "filter",
   func: "vignette",
-  tags: ["util"],
+  tags: ["lens"],
 
   description: "Radial vignette darkening edges",
   globals: {

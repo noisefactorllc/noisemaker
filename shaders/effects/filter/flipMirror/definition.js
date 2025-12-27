@@ -11,7 +11,7 @@ export default new Effect({
   name: "FlipMirror",
   namespace: "filter",
   func: "flipMirror",
-  tags: ["distort"],
+  tags: ["transform"],
 
   description: "Flip and mirror image transformations",
   globals: {

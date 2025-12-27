@@ -7,7 +7,7 @@ export default new Effect({
   name: "Lens",
   namespace: "filter",
   func: "lens",
-  tags: ["distort"],
+  tags: ["distort", "lens"],
 
   description: "Barrel or pincushion lens distortion",
   globals: {

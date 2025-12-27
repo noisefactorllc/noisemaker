@@ -19,7 +19,7 @@ export default new Effect({
   name: "Hydraulic",
   namespace: "points",
   func: "hydraulic",
-  tags: ["sim", "agents"],
+  tags: ["sim"],
 
   description: "Hydraulic erosion flow simulation (gradient descent)",
 

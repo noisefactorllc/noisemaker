@@ -7,7 +7,7 @@ export default new Effect({
   name: "ChromaticAberration",
   namespace: "filter",
   func: "chromaticAberration",
-  tags: ["distort", "color"],
+  tags: ["distort", "lens"],
 
   description: "Color fringing effect simulating lens aberration",
   globals: {

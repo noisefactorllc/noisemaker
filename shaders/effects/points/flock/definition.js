@@ -19,7 +19,7 @@ export default new Effect({
   name: "Flock",
   namespace: "points",
   func: "flock",
-  tags: ["sim", "agents"],
+  tags: ["sim"],
 
   description: "2D \"Boids\" flocking agent simulation",
 

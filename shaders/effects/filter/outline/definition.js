@@ -8,7 +8,7 @@ export default new Effect({
   name: "Outline",
   namespace: "filter",
   func: "outline",
-  tags: ["util"],
+  tags: ["edges"],
 
   description: "Sobel-based outline effect",
   globals: {

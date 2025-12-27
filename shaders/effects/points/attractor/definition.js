@@ -28,7 +28,7 @@ export default new Effect({
   name: "Attractor",
   namespace: "points",
   func: "attractor",
-  tags: ["sim", "agents"],
+  tags: ["sim"],
 
   description: "Strange attractors: chaotic dynamic systems visualization",
 
