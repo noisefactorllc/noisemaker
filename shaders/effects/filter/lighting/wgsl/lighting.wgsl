@@ -13,6 +13,9 @@ struct Uniforms {
     _pad2: f32,
     lightDirection: vec3f,
     normalStrength: f32,
+    reflection: f32,
+    refraction: f32,
+    aberration: f32,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -72,6 +75,36 @@ fn calculateNormal(uv: vec2f, texelSize: vec2f) -> vec3f {
     return normal;
 }
 
+// Apply refraction effect based on surface normal
+fn applyRefraction(uv: vec2f, normal: vec3f) -> vec4f {
+    let refractionOffset = normal.xy * (uniforms.refraction * 0.25);
+    return textureSample(inputTex, inputSampler, uv + refractionOffset);
+}
+
+// Apply reflection effect with chromatic aberration
+fn applyReflection(uv: vec2f, normal: vec3f) -> vec4f {
+    // Calculate incident vector for reflection, from center of image
+    let incident = vec3f(normalize(uv - 0.5), 100.0);
+    
+    // Calculate reflection vector
+    let reflectionVec = reflect(incident, normal);
+    
+    // Convert to 2D texture offset
+    let reflectionOffset = reflectionVec.xy * (uniforms.reflection * 0.0005);
+    
+    // Apply chromatic aberration
+    let redOffset = reflectionOffset * (1.0 + uniforms.aberration * 0.001);
+    let greenOffset = reflectionOffset;
+    let blueOffset = reflectionOffset * (1.0 - uniforms.aberration * 0.001);
+    
+    let redChannel = textureSample(inputTex, inputSampler, uv + redOffset).r;
+    let greenChannel = textureSample(inputTex, inputSampler, uv + greenOffset).g;
+    let blueChannel = textureSample(inputTex, inputSampler, uv + blueOffset).b;
+    let alphaChannel = textureSample(inputTex, inputSampler, uv + reflectionOffset).a;
+    
+    return vec4f(redChannel, greenChannel, blueChannel, alphaChannel);
+}
+
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
@@ -84,6 +117,18 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Calculate surface normal
     let normal = calculateNormal(uv, texelSize);
     
+    // Apply refraction if enabled
+    var workingColor = origColor;
+    if (uniforms.refraction > 0.0) {
+        workingColor = applyRefraction(uv, normal);
+    }
+    
+    // Apply reflection (with chromatic aberration) if enabled
+    if (uniforms.reflection > 0.0 || uniforms.aberration > 0.0) {
+        let reflectedColor = applyReflection(uv, normal);
+        workingColor = mix(workingColor, reflectedColor, uniforms.reflection / 100.0);
+    }
+    
     // Normalize light direction
     let lightDir = normalize(uniforms.lightDirection);
     
@@ -91,11 +136,11 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let viewDir = vec3f(0.0, 0.0, 1.0);
     
     // Ambient lighting
-    let ambient = uniforms.ambientColor * origColor.rgb;
+    let ambient = uniforms.ambientColor * workingColor.rgb;
     
     // Diffuse lighting (Lambertian)
     let diffuseFactor = max(dot(normal, lightDir), 0.0);
-    let diffuse = uniforms.diffuseColor * diffuseFactor * origColor.rgb;
+    let diffuse = uniforms.diffuseColor * diffuseFactor * workingColor.rgb;
     
     // Specular lighting (Blinn-Phong)
     let halfDir = normalize(lightDir + viewDir);
@@ -105,5 +150,5 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Combine lighting components
     let finalColor = ambient + diffuse + specular;
     
-    return vec4f(finalColor, origColor.a);
+    return vec4f(finalColor, workingColor.a);
 }

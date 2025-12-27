@@ -72,6 +72,42 @@ export default new Effect({
         label: "Normal Strength",
         control: "slider"
       }
+    },
+    reflection: {
+      type: "float",
+      default: 0.0,
+      uniform: "reflection",
+      min: 0.0,
+      max: 100.0,
+      step: 0.1,
+      ui: {
+        label: "Reflection Intensity",
+        control: "slider"
+      }
+    },
+    refraction: {
+      type: "float",
+      default: 0.0,
+      uniform: "refraction",
+      min: 0.0,
+      max: 100.0,
+      step: 0.1,
+      ui: {
+        label: "Refraction Intensity",
+        control: "slider"
+      }
+    },
+    aberration: {
+      type: "float",
+      default: 0.0,
+      uniform: "aberration",
+      min: 0.0,
+      max: 100.0,
+      step: 0.1,
+      ui: {
+        label: "Chromatic Aberration",
+        control: "slider"
+      }
     }
   },
   passes: [

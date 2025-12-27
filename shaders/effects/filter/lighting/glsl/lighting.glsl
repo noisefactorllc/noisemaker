@@ -15,6 +15,9 @@ uniform float specularIntensity;
 uniform vec3 ambientColor;
 uniform vec3 lightDirection;
 uniform float normalStrength;
+uniform float reflection;
+uniform float refraction;
+uniform float aberration;
 
 out vec4 fragColor;
 
@@ -68,6 +71,36 @@ vec3 calculateNormal(vec2 uv, vec2 texelSize) {
     return normal;
 }
 
+// Apply refraction effect based on surface normal
+vec4 applyRefraction(vec2 uv, vec3 normal) {
+    vec2 refractionOffset = normal.xy * (refraction * 0.25);
+    return texture(inputTex, uv + refractionOffset);
+}
+
+// Apply reflection effect with chromatic aberration
+vec4 applyReflection(vec2 uv, vec3 normal) {
+    // Calculate incident vector for reflection, from center of image
+    vec3 incident = vec3(normalize(uv - 0.5), 100.0);
+    
+    // Calculate reflection vector
+    vec3 reflectionVec = reflect(incident, normal);
+    
+    // Convert to 2D texture offset
+    vec2 reflectionOffset = reflectionVec.xy * (reflection * 0.0005);
+    
+    // Apply chromatic aberration
+    vec2 redOffset = reflectionOffset * (1.0 + aberration * 0.01);
+    vec2 greenOffset = reflectionOffset;
+    vec2 blueOffset = reflectionOffset * (1.0 - aberration * 0.01);
+    
+    float redChannel = texture(inputTex, uv + redOffset).r;
+    float greenChannel = texture(inputTex, uv + greenOffset).g;
+    float blueChannel = texture(inputTex, uv + blueOffset).b;
+    float alphaChannel = texture(inputTex, uv + reflectionOffset).a;
+    
+    return vec4(redChannel, greenChannel, blueChannel, alphaChannel);
+}
+
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 resolution = vec2(texSize);
@@ -80,6 +113,18 @@ void main() {
     // Calculate surface normal
     vec3 normal = calculateNormal(uv, texelSize);
     
+    // Apply refraction if enabled
+    vec4 workingColor = origColor;
+    if (refraction > 0.0) {
+        workingColor = applyRefraction(uv, normal);
+    }
+    
+    // Apply reflection (with chromatic aberration) if enabled
+    if (reflection > 0.0 || aberration > 0.0) {
+        vec4 reflectedColor = applyReflection(uv, normal);
+        workingColor = mix(workingColor, reflectedColor, reflection / 100.0);
+    }
+    
     // Normalize light direction
     vec3 lightDir = normalize(lightDirection);
     
@@ -87,11 +132,11 @@ void main() {
     vec3 viewDir = vec3(0.0, 0.0, 1.0);
     
     // Ambient lighting
-    vec3 ambient = ambientColor * origColor.rgb;
+    vec3 ambient = ambientColor * workingColor.rgb;
     
     // Diffuse lighting (Lambertian)
     float diffuseFactor = max(dot(normal, lightDir), 0.0);
-    vec3 diffuse = diffuseColor * diffuseFactor * origColor.rgb;
+    vec3 diffuse = diffuseColor * diffuseFactor * workingColor.rgb;
     
     // Specular lighting (Blinn-Phong)
     vec3 halfDir = normalize(lightDir + viewDir);
@@ -101,5 +146,5 @@ void main() {
     // Combine lighting components
     vec3 finalColor = ambient + diffuse + specular;
     
-    fragColor = vec4(finalColor, origColor.a);
+    fragColor = vec4(finalColor, workingColor.a);
 }
