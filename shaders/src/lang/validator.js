@@ -441,6 +441,12 @@ export function validate(ast) {
             for (const original of calls) {
                 // Handle Read node (pipeline built-in for reading 2D surfaces)
                 if (original.type === 'Read') {
+                    // GUARD: read() is a STARTER NODE. It MUST NOT be chained inline.
+                    // If current !== null, someone wrote .read() which is semantically invalid.
+                    if (current !== null) {
+                        pushDiag('S001', original, 'read() is a starter node and cannot be chained inline. Use standalone read() to start a new chain.')
+                        continue
+                    }
                     const surface = toSurface(original.surface)
                     if (!surface) {
                         pushDiag('S001', original, 'read() requires a valid surface reference')
@@ -459,10 +465,6 @@ export function validate(ast) {
                         temp: idx,
                         builtin: true
                     }
-                    // Track if this read was chained (not the first step)
-                    if (current !== null) {
-                        step.chained = true
-                    }
                     if (original.leadingComments) { step.leadingComments = original.leadingComments }
                     chain.push(step)
                     current = idx
@@ -473,6 +475,12 @@ export function validate(ast) {
                 // Two-arg form: read3d(vol0, geo0) - starter node
                 // Single-arg form is handled in param resolution, not here
                 if (original.type === 'Read3D' && original.geo) {
+                    // GUARD: read3d() is a STARTER NODE. It MUST NOT be chained inline.
+                    // If current !== null, someone wrote .read3d() which is semantically invalid.
+                    if (current !== null) {
+                        pushDiag('S001', original, 'read3d() is a starter node and cannot be chained inline. Use standalone read3d() to start a new chain.')
+                        continue
+                    }
                     // Preserve the type for VolRef/GeoRef vs plain Ident
                     const tex3d = original.tex3d?.name
                         ? {
@@ -502,10 +510,6 @@ export function validate(ast) {
                         from: null,
                         temp: idx,
                         builtin: true
-                    }
-                    // Track if this read3d was chained (not the first step)
-                    if (current !== null) {
-                        step.chained = true
                     }
                     if (original.leadingComments) { step.leadingComments = original.leadingComments }
                     chain.push(step)

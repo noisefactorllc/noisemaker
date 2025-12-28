@@ -1,8 +1,13 @@
 /**
- * Tests for chained read() preservation through parse -> validate -> unparse cycles.
+ * Tests for read() chain behavior and _skip flag preservation.
  *
- * These tests verify that chained .read() syntax is preserved when round-tripping
- * through the compiler, and that _skip flags are preserved in compiled output.
+ * read() and read3d() are STARTER NODES - they MUST start a new chain.
+ * Inline .read() syntax is a VALIDATION ERROR and will be rejected.
+ *
+ * These tests verify:
+ * 1. Standalone read/read3d work correctly
+ * 2. Inline .read()/.read3d() produce validation errors
+ * 3. _skip flags are preserved through compile/unparse cycles
  */
 
 import { lex } from '../src/lang/lexer.js'
@@ -53,7 +58,7 @@ function test(name, fn) {
     }
 }
 
-// ============ Chain Structure Preservation Tests ============
+// ============ Standalone read() Works Correctly ============
 
 test('Standalone read() starts a new chain', () => {
     const source = `search synth
@@ -65,46 +70,54 @@ read(o1)
   .bloom()
   .write(o0)`
     const result = roundTrip(source)
-    // read(o1) should be on its own line, not chained
-    if (result.includes('.read(')) {
-        throw new Error(`Expected standalone read(), got chained .read(). Output:\n${result}`)
-    }
-    // Should use positional form when no _skip
     if (!result.includes('read(o1)')) {
-        throw new Error(`Expected read(o1) in positional form. Got:\n${result}`)
+        throw new Error(`Expected read(o1) in output. Got:\n${result}`)
     }
 })
 
-test('Chained .read() preserves chain structure', () => {
+// ============ Inline .read() is a VALIDATION ERROR ============
+
+test('Inline .read() produces validation error', () => {
     const source = `search synth
 
 noise()
   .read(o1)
   .bloom()
   .write(o0)`
-    const result = roundTrip(source)
-    // .read(o1) should remain chained (indented with .) and use positional form
-    if (!result.includes('  .read(o1)')) {
-        throw new Error(`Expected chained .read(o1) in positional form. Got:\n${result}`)
+    const compiled = compile(source)
+    // Should have diagnostics for inline read()
+    if (!compiled.diagnostics || compiled.diagnostics.length === 0) {
+        throw new Error('Expected validation error for inline .read(), but got none')
+    }
+    const hasReadError = compiled.diagnostics.some(d => 
+        d.message && d.message.includes('read() is a starter node')
+    )
+    if (!hasReadError) {
+        throw new Error(`Expected error about read() being a starter node. Got: ${JSON.stringify(compiled.diagnostics)}`)
     }
 })
 
-test('Multiple chained reads preserve structure', () => {
+test('Inline .read3d() produces validation error', () => {
     const source = `search synth
 
 noise()
-  .read(o1)
-  .read(o2)
+  .read3d(vol0, geo0)
+  .bloom()
   .write(o0)`
-    const result = roundTrip(source)
-    // Both reads should be chained and use positional form
-    const matches = result.match(/\.read\(o[12]\)/g)
-    if (!matches || matches.length !== 2) {
-        throw new Error(`Expected two chained .read() calls. Got:\n${result}`)
+    const compiled = compile(source)
+    // Should have diagnostics for inline read3d()
+    if (!compiled.diagnostics || compiled.diagnostics.length === 0) {
+        throw new Error('Expected validation error for inline .read3d(), but got none')
+    }
+    const hasRead3dError = compiled.diagnostics.some(d => 
+        d.message && d.message.includes('read3d() is a starter node')
+    )
+    if (!hasRead3dError) {
+        throw new Error(`Expected error about read3d() being a starter node. Got: ${JSON.stringify(compiled.diagnostics)}`)
     }
 })
 
-// ============ Skip Flag Preservation Tests ============
+// ============ _skip Flag Preservation ============
 
 test('_skip: true on read() is preserved in compiled output', () => {
     const source = `search synth
@@ -132,67 +145,35 @@ read(surface: o1, _skip: true)
     if (!result.includes('_skip: true')) {
         throw new Error(`Expected _skip: true in output. Got:\n${result}`)
     }
+    // Should use keyword form when _skip is present
+    if (!result.includes('read(surface: o1, _skip: true)')) {
+        throw new Error(`Expected keyword form with _skip. Got:\n${result}`)
+    }
 })
 
-test('_skip: true on chained .read() preserves chain and skip', () => {
+// ============ read3d Standalone Works ============
+
+test('Standalone read3d() works correctly', () => {
     const source = `search synth
 
-noise()
-  .read(surface: o1, _skip: true)
+read3d(vol0, geo0)
   .bloom()
   .write(o0)`
     const result = roundTrip(source)
-    // Should be chained AND have _skip
-    if (!result.includes('  .read(surface: o1, _skip: true)')) {
-        throw new Error(`Expected chained .read() with _skip: true. Got:\n${result}`)
+    if (!result.includes('read3d(vol0, geo0)')) {
+        throw new Error(`Expected read3d(vol0, geo0) in output. Got:\n${result}`)
     }
 })
 
-test('_skip on chained read is preserved in compiled step args', () => {
+test('_skip on read3d() is preserved', () => {
     const source = `search synth
 
-noise()
-  .read(surface: o1, _skip: true)
-  .write(o0)`
-    const compiled = compile(source)
-    // First step is noise, second is _read
-    const readStep = compiled.plans[0].chain[1]
-    if (readStep.op !== '_read') {
-        throw new Error(`Expected second step to be _read, got ${readStep.op}`)
-    }
-    if (readStep.args._skip !== true) {
-        throw new Error(`Expected _skip: true in args, got ${JSON.stringify(readStep.args)}`)
-    }
-    if (!readStep.chained) {
-        throw new Error('Expected chained: true on the step')
-    }
-})
-
-// ============ read3d Tests ============
-
-test('Chained .read3d() preserves chain structure', () => {
-    const source = `search synth
-
-noise()
-  .read3d(vol0, geo0)
+read3d(tex3d: vol0, geo: geo0, _skip: true)
   .bloom()
   .write(o0)`
     const result = roundTrip(source)
-    // Should use positional form when no _skip
-    if (!result.includes('  .read3d(vol0, geo0)')) {
-        throw new Error(`Expected chained .read3d() in positional form. Got:\n${result}`)
-    }
-})
-
-test('_skip on chained .read3d() is preserved', () => {
-    const source = `search synth
-
-noise()
-  .read3d(tex3d: vol0, geo: geo0, _skip: true)
-  .write(o0)`
-    const result = roundTrip(source)
-    if (!result.includes('  .read3d(tex3d: vol0, geo: geo0, _skip: true)')) {
-        throw new Error(`Expected chained .read3d() with _skip: true. Got:\n${result}`)
+    if (!result.includes('read3d(tex3d: vol0, geo: geo0, _skip: true)')) {
+        throw new Error(`Expected read3d() with _skip: true. Got:\n${result}`)
     }
 })
 

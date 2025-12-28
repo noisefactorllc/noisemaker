@@ -493,9 +493,14 @@ function unparsePlan(plan, options = {}) {
     let currentChain = []
 
     for (const step of plan.chain) {
-        // Handle built-in _read step
+        // Handle built-in _read step - always starts a new chain
         if (step.op === '_read' && step.builtin) {
             const texName = step.args?.tex?.name || step.args?.tex
+            // Flush current chain if not empty
+            if (currentChain.length > 0) {
+                chains.push(currentChain)
+                currentChain = []
+            }
             // Use positional form when no _skip, keyword form when _skip is present
             let readCode
             if (step.args?._skip === true) {
@@ -503,23 +508,18 @@ function unparsePlan(plan, options = {}) {
             } else {
                 readCode = `read(${texName})`
             }
-            // If chained, keep in current chain; otherwise start a new chain
-            if (step.chained) {
-                currentChain.push(readCode)
-            } else {
-                // Flush current chain if not empty
-                if (currentChain.length > 0) {
-                    chains.push(currentChain)
-                    currentChain = []
-                }
-                currentChain.push(readCode)
-            }
+            currentChain.push(readCode)
             continue
         }
-        // Handle built-in _read3d step
+        // Handle built-in _read3d step - always starts a new chain
         if (step.op === '_read3d' && step.builtin) {
             const tex3dName = step.args?.tex3d?.name || step.args?.tex3d
             const geoName = step.args?.geo?.name || step.args?.geo
+            // Flush current chain if not empty
+            if (currentChain.length > 0) {
+                chains.push(currentChain)
+                currentChain = []
+            }
             // Use positional form when no _skip, keyword form when _skip is present
             let read3dCode
             if (step.args?._skip === true) {
@@ -527,17 +527,7 @@ function unparsePlan(plan, options = {}) {
             } else {
                 read3dCode = `read3d(${tex3dName}, ${geoName})`
             }
-            // If chained, keep in current chain; otherwise start a new chain
-            if (step.chained) {
-                currentChain.push(read3dCode)
-            } else {
-                // Flush current chain if not empty
-                if (currentChain.length > 0) {
-                    chains.push(currentChain)
-                    currentChain = []
-                }
-                currentChain.push(read3dCode)
-            }
+            currentChain.push(read3dCode)
             continue
         }
         // Handle built-in _write step (mid-chain writes)
@@ -648,8 +638,13 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 return elem
             }
 
-            // Handle builtin read operations
+            // Handle builtin read operations - always starts a new chain
             if (step.builtin && step.op === '_read') {
+                // Flush current chain if not empty
+                if (currentChain.length > 0) {
+                    chains.push(currentChain)
+                    currentChain = []
+                }
                 const texName = step.args?.tex?.name || step.args?.tex
                 // Use positional form when no _skip, keyword form when _skip is present
                 let readCode
@@ -658,21 +653,17 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 } else {
                     readCode = `read(${texName})`
                 }
-                // If chained, keep in current chain; otherwise start a new chain
-                if (step.chained) {
-                    currentChain.push(makeChainElement(readCode))
-                } else {
-                    // Flush current chain if not empty
-                    if (currentChain.length > 0) {
-                        chains.push(currentChain)
-                        currentChain = []
-                    }
-                    currentChain.push(makeChainElement(readCode))
-                }
+                currentChain.push(makeChainElement(readCode))
                 globalStepIndex++
                 continue
             }
+            // Handle builtin read3d operations - always starts a new chain
             if (step.builtin && step.op === '_read3d') {
+                // Flush current chain if not empty
+                if (currentChain.length > 0) {
+                    chains.push(currentChain)
+                    currentChain = []
+                }
                 const tex3d = step.args?.tex3d?.name || step.args?.tex3d
                 const geo = step.args?.geo?.name || step.args?.geo
                 // Use positional form when no _skip, keyword form when _skip is present
@@ -682,17 +673,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 } else {
                     read3dCode = `read3d(${tex3d}, ${geo})`
                 }
-                // If chained, keep in current chain; otherwise start a new chain
-                if (step.chained) {
-                    currentChain.push(makeChainElement(read3dCode))
-                } else {
-                    // Flush current chain if not empty
-                    if (currentChain.length > 0) {
-                        chains.push(currentChain)
-                        currentChain = []
-                    }
-                    currentChain.push(makeChainElement(read3dCode))
-                }
+                currentChain.push(makeChainElement(read3dCode))
                 globalStepIndex++
                 continue
             }
