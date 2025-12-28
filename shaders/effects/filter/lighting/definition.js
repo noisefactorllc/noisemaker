@@ -18,8 +18,9 @@ export default new Effect({
       default: [1.0, 1.0, 1.0],
       uniform: "diffuseColor",
       ui: {
-        label: "Diffuse Color",
-        control: "color"
+        label: "Color",
+        control: "color",
+        category: "diffuse"
       }
     },
     specularColor: {
@@ -27,8 +28,9 @@ export default new Effect({
       default: [1.0, 1.0, 1.0],
       uniform: "specularColor",
       ui: {
-        label: "Specular Color",
-        control: "color"
+        label: "Color",
+        control: "color",
+        category: "specular"
       }
     },
     specularIntensity: {
@@ -39,8 +41,9 @@ export default new Effect({
       max: 2.0,
       step: 0.01,
       ui: {
-        label: "Specular Intensity",
-        control: "slider"
+        label: "Intensity",
+        control: "slider",
+        category: "specular"
       }
     },
     ambientColor: {
@@ -48,7 +51,7 @@ export default new Effect({
       default: [0.2, 0.2, 0.2],
       uniform: "ambientColor",
       ui: {
-        label: "Ambient Color",
+        label: "Ambient",
         control: "color"
       }
     },
@@ -57,8 +60,9 @@ export default new Effect({
       default: [0.5, 0.5, 1.0],
       uniform: "lightDirection",
       ui: {
-        label: "Light Direction",
-        control: "vector3"
+        label: "Direction",
+        control: "vector3",
+        category: "diffuse"
       }
     },
     normalStrength: {
@@ -69,7 +73,7 @@ export default new Effect({
       max: 5.0,
       step: 0.01,
       ui: {
-        label: "Normal Strength",
+        label: "Depth",
         control: "slider"
       }
     },
@@ -81,8 +85,9 @@ export default new Effect({
       max: 100.0,
       step: 0.1,
       ui: {
-        label: "Reflection Intensity",
-        control: "slider"
+        label: "Reflection",
+        control: "slider",
+        category: "reflection"
       }
     },
     refraction: {
@@ -93,7 +98,7 @@ export default new Effect({
       max: 100.0,
       step: 0.1,
       ui: {
-        label: "Refraction Intensity",
+        label: "Refraction",
         control: "slider"
       }
     },
@@ -105,8 +110,9 @@ export default new Effect({
       max: 100.0,
       step: 0.1,
       ui: {
-        label: "Chromatic Aberration",
-        control: "slider"
+        label: "Aberration",
+        control: "slider",
+        category: "reflection"
       }
     }
   },
