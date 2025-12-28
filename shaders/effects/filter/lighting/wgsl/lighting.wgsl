@@ -93,9 +93,9 @@ fn applyReflection(uv: vec2f, normal: vec3f) -> vec4f {
     let reflectionOffset = reflectionVec.xy * (uniforms.reflection * 0.0005);
     
     // Apply chromatic aberration
-    let redOffset = reflectionOffset * (1.0 + uniforms.aberration * 0.001);
+    let redOffset = reflectionOffset * (1.0 + uniforms.aberration * 0.01);
     let greenOffset = reflectionOffset;
-    let blueOffset = reflectionOffset * (1.0 - uniforms.aberration * 0.001);
+    let blueOffset = reflectionOffset * (1.0 - uniforms.aberration * 0.01);
     
     let redChannel = textureSample(inputTex, inputSampler, uv + redOffset).r;
     let greenChannel = textureSample(inputTex, inputSampler, uv + greenOffset).g;
