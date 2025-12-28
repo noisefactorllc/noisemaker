@@ -46,6 +46,19 @@ export default new Effect({
         category: "specular"
       }
     },
+    roughness: {
+      type: "float",
+      default: 0.5,
+      uniform: "roughness",
+      min: 0.01,
+      max: 1.0,
+      step: 0.01,
+      ui: {
+        label: "Roughness",
+        control: "slider",
+        category: "specular"
+      }
+    },
     ambientColor: {
       type: "vec3",
       default: [0.2, 0.2, 0.2],

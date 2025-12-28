@@ -10,7 +10,7 @@ struct Uniforms {
     specularColor: vec3f,
     specularIntensity: f32,
     ambientColor: vec3f,
-    _pad2: f32,
+    roughness: f32,
     lightDirection: vec3f,
     normalStrength: f32,
     reflection: f32,
@@ -142,9 +142,30 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let diffuseFactor = max(dot(normal, lightDir), 0.0);
     let diffuse = uniforms.diffuseColor * diffuseFactor * workingColor.rgb;
     
-    // Specular lighting (Blinn-Phong)
+    // Specular lighting (GGX/Trowbridge-Reitz)
     let halfDir = normalize(lightDir + viewDir);
-    let specularFactor = pow(max(dot(normal, halfDir), 0.0), 32.0);
+    let NdotH = max(dot(normal, halfDir), 0.0);
+    let NdotV = max(dot(normal, viewDir), 0.0);
+    let NdotL = max(dot(normal, lightDir), 0.0);
+    
+    // GGX Normal Distribution Function
+    let alpha = uniforms.roughness * uniforms.roughness;
+    let alpha2 = alpha * alpha;
+    let denom = NdotH * NdotH * (alpha2 - 1.0) + 1.0;
+    let D = alpha2 / (3.14159265359 * denom * denom);
+    
+    // Geometry term (Schlick-GGX)
+    let k = (uniforms.roughness + 1.0) * (uniforms.roughness + 1.0) / 8.0;
+    let G1_V = NdotV / (NdotV * (1.0 - k) + k);
+    let G1_L = NdotL / (NdotL * (1.0 - k) + k);
+    let G = G1_V * G1_L;
+    
+    // Fresnel term (Schlick approximation)
+    let F0 = 0.04; // Base reflectance for dielectric
+    let F = F0 + (1.0 - F0) * pow(1.0 - max(dot(halfDir, viewDir), 0.0), 5.0);
+    
+    // Cook-Torrance specular BRDF
+    let specularFactor = (D * G * F) / max(4.0 * NdotV * NdotL, 0.001);
     let specular = uniforms.specularColor * specularFactor * uniforms.specularIntensity;
     
     // Combine lighting components

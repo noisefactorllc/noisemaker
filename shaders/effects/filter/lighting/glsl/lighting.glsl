@@ -12,6 +12,7 @@ uniform sampler2D inputTex;
 uniform vec3 diffuseColor;
 uniform vec3 specularColor;
 uniform float specularIntensity;
+uniform float roughness;
 uniform vec3 ambientColor;
 uniform vec3 lightDirection;
 uniform float normalStrength;
@@ -138,9 +139,30 @@ void main() {
     float diffuseFactor = max(dot(normal, lightDir), 0.0);
     vec3 diffuse = diffuseColor * diffuseFactor * workingColor.rgb;
     
-    // Specular lighting (Blinn-Phong)
+    // Specular lighting (GGX/Trowbridge-Reitz)
     vec3 halfDir = normalize(lightDir + viewDir);
-    float specularFactor = pow(max(dot(normal, halfDir), 0.0), 32.0);
+    float NdotH = max(dot(normal, halfDir), 0.0);
+    float NdotV = max(dot(normal, viewDir), 0.0);
+    float NdotL = max(dot(normal, lightDir), 0.0);
+    
+    // GGX Normal Distribution Function
+    float alpha = roughness * roughness;
+    float alpha2 = alpha * alpha;
+    float denom = NdotH * NdotH * (alpha2 - 1.0) + 1.0;
+    float D = alpha2 / (3.14159265359 * denom * denom);
+    
+    // Geometry term (Schlick-GGX)
+    float k = (roughness + 1.0) * (roughness + 1.0) / 8.0;
+    float G1_V = NdotV / (NdotV * (1.0 - k) + k);
+    float G1_L = NdotL / (NdotL * (1.0 - k) + k);
+    float G = G1_V * G1_L;
+    
+    // Fresnel term (Schlick approximation)
+    float F0 = 0.04; // Base reflectance for dielectric
+    float F = F0 + (1.0 - F0) * pow(1.0 - max(dot(halfDir, viewDir), 0.0), 5.0);
+    
+    // Cook-Torrance specular BRDF
+    float specularFactor = (D * G * F) / max(4.0 * NdotV * NdotL, 0.001);
     vec3 specular = specularColor * specularFactor * specularIntensity;
     
     // Combine lighting components
