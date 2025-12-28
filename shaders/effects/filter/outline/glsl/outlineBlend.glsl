@@ -26,13 +26,11 @@ void main() {
     // Edge strength from luminance
     float strength = clamp(edges.r, 0.0, 1.0);
     
-    // If inverted, flip the strength
-    if (invert > 0.5) {
-        strength = 1.0 - strength;
-    }
+    // Outline color: black by default, white if inverted
+    vec3 outlineColor = invert > 0.5 ? vec3(1.0) : vec3(0.0);
     
-    // Darken base where edges are present
-    vec3 out_rgb = mix(base.rgb, vec3(0.0), strength);
+    // Apply outline where edges are present
+    vec3 out_rgb = mix(base.rgb, outlineColor, strength);
     
     fragColor = vec4(out_rgb, base.a);
 }

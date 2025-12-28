@@ -24,15 +24,13 @@ fn main(input : VertexOutput) -> @location(0) vec4<f32> {
     let edges = textureSample(edgesTexture, edgesSampler, input.texCoord);
 
     // Edge strength from luminance
-    var strength = clamp(edges.r, 0.0, 1.0);
+    let strength = clamp(edges.r, 0.0, 1.0);
     
-    // If inverted, flip the strength
-    if (params.invert > 0.5) {
-        strength = 1.0 - strength;
-    }
+    // Outline color: black by default, white if inverted
+    let outlineColor = select(vec3<f32>(0.0), vec3<f32>(1.0), params.invert > 0.5);
     
-    // Darken base where edges are present
-    let out_rgb = mix(base.rgb, vec3<f32>(0.0), strength);
+    // Apply outline where edges are present
+    let out_rgb = mix(base.rgb, outlineColor, strength);
     
     return vec4<f32>(out_rgb, base.a);
 }
