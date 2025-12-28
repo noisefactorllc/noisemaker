@@ -10,7 +10,7 @@ struct Uniforms {
     specularColor: vec3f,
     specularIntensity: f32,
     ambientColor: vec3f,
-    roughness: f32,
+    shininess: f32,
     lightDirection: vec3f,
     normalStrength: f32,
     reflection: f32,
@@ -117,8 +117,30 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Calculate surface normal
     let normal = calculateNormal(uv, texelSize);
     
+    // Normalize light direction
+    let lightDir = normalize(uniforms.lightDirection);
+    
+    // Calculate view direction (straight at camera)
+    let viewDir = vec3f(0.0, 0.0, 1.0);
+    
+    // Ambient lighting
+    let ambient = uniforms.ambientColor * origColor.rgb;
+    
+    // Diffuse lighting (Lambertian)
+    let diffuseFactor = max(dot(normal, lightDir), 0.0);
+    let diffuse = uniforms.diffuseColor * diffuseFactor * origColor.rgb;
+    
+    // Specular lighting (Blinn-Phong)
+    let halfDir = normalize(lightDir + viewDir);
+    let specAngle = max(dot(halfDir, normal), 0.0);
+    let specularFactor = pow(specAngle, uniforms.shininess);
+    let specular = uniforms.specularColor * specularFactor * uniforms.specularIntensity;
+    
+    // Combine lighting components
+    let litColor = ambient + diffuse + specular;
+    var workingColor = vec4f(litColor, origColor.a);
+    
     // Apply refraction if enabled
-    var workingColor = origColor;
     if (uniforms.refraction > 0.0) {
         workingColor = applyRefraction(uv, normal);
     }
@@ -129,47 +151,5 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         workingColor = mix(workingColor, reflectedColor, uniforms.reflection / 100.0);
     }
     
-    // Normalize light direction
-    let lightDir = normalize(uniforms.lightDirection);
-    
-    // Calculate view direction (straight at camera)
-    let viewDir = vec3f(0.0, 0.0, 1.0);
-    
-    // Ambient lighting
-    let ambient = uniforms.ambientColor * workingColor.rgb;
-    
-    // Diffuse lighting (Lambertian)
-    let diffuseFactor = max(dot(normal, lightDir), 0.0);
-    let diffuse = uniforms.diffuseColor * diffuseFactor * workingColor.rgb;
-    
-    // Specular lighting (GGX/Trowbridge-Reitz)
-    let halfDir = normalize(lightDir + viewDir);
-    let NdotH = max(dot(normal, halfDir), 0.0);
-    let NdotV = max(dot(normal, viewDir), 0.0);
-    let NdotL = max(dot(normal, lightDir), 0.0);
-    
-    // GGX Normal Distribution Function
-    let alpha = uniforms.roughness * uniforms.roughness;
-    let alpha2 = alpha * alpha;
-    let denom = NdotH * NdotH * (alpha2 - 1.0) + 1.0;
-    let D = alpha2 / (3.14159265359 * denom * denom);
-    
-    // Geometry term (Schlick-GGX)
-    let k = (uniforms.roughness + 1.0) * (uniforms.roughness + 1.0) / 8.0;
-    let G1_V = NdotV / (NdotV * (1.0 - k) + k);
-    let G1_L = NdotL / (NdotL * (1.0 - k) + k);
-    let G = G1_V * G1_L;
-    
-    // Fresnel term (Schlick approximation)
-    let F0 = 0.04; // Base reflectance for dielectric
-    let F = F0 + (1.0 - F0) * pow(1.0 - max(dot(halfDir, viewDir), 0.0), 5.0);
-    
-    // Cook-Torrance specular BRDF
-    let specularFactor = (D * G * F) / max(4.0 * NdotV * NdotL, 0.001);
-    let specular = uniforms.specularColor * specularFactor * uniforms.specularIntensity;
-    
-    // Combine lighting components
-    let finalColor = ambient + diffuse + specular;
-    
-    return vec4f(finalColor, workingColor.a);
+    return workingColor;
 }

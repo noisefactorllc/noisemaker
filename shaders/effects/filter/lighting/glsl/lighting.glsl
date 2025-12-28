@@ -12,7 +12,7 @@ uniform sampler2D inputTex;
 uniform vec3 diffuseColor;
 uniform vec3 specularColor;
 uniform float specularIntensity;
-uniform float roughness;
+uniform float shininess;
 uniform vec3 ambientColor;
 uniform vec3 lightDirection;
 uniform float normalStrength;
@@ -114,8 +114,30 @@ void main() {
     // Calculate surface normal
     vec3 normal = calculateNormal(uv, texelSize);
     
+    // Normalize light direction
+    vec3 lightDir = normalize(lightDirection);
+    
+    // Calculate view direction (straight at camera)
+    vec3 viewDir = vec3(0.0, 0.0, 1.0);
+    
+    // Ambient lighting
+    vec3 ambient = ambientColor * origColor.rgb;
+    
+    // Diffuse lighting (Lambertian)
+    float diffuseFactor = max(dot(normal, lightDir), 0.0);
+    vec3 diffuse = diffuseColor * diffuseFactor * origColor.rgb;
+    
+    // Specular lighting (Blinn-Phong)
+    vec3 halfDir = normalize(lightDir + viewDir);
+    float specAngle = max(dot(halfDir, normal), 0.0);
+    float specularFactor = pow(specAngle, shininess);
+    vec3 specular = specularColor * specularFactor * specularIntensity;
+    
+    // Combine lighting components
+    vec3 litColor = ambient + diffuse + specular;
+    vec4 workingColor = vec4(litColor, origColor.a);
+    
     // Apply refraction if enabled
-    vec4 workingColor = origColor;
     if (refraction > 0.0) {
         workingColor = applyRefraction(uv, normal);
     }
@@ -126,47 +148,5 @@ void main() {
         workingColor = mix(workingColor, reflectedColor, reflection / 100.0);
     }
     
-    // Normalize light direction
-    vec3 lightDir = normalize(lightDirection);
-    
-    // Calculate view direction (straight at camera)
-    vec3 viewDir = vec3(0.0, 0.0, 1.0);
-    
-    // Ambient lighting
-    vec3 ambient = ambientColor * workingColor.rgb;
-    
-    // Diffuse lighting (Lambertian)
-    float diffuseFactor = max(dot(normal, lightDir), 0.0);
-    vec3 diffuse = diffuseColor * diffuseFactor * workingColor.rgb;
-    
-    // Specular lighting (GGX/Trowbridge-Reitz)
-    vec3 halfDir = normalize(lightDir + viewDir);
-    float NdotH = max(dot(normal, halfDir), 0.0);
-    float NdotV = max(dot(normal, viewDir), 0.0);
-    float NdotL = max(dot(normal, lightDir), 0.0);
-    
-    // GGX Normal Distribution Function
-    float alpha = roughness * roughness;
-    float alpha2 = alpha * alpha;
-    float denom = NdotH * NdotH * (alpha2 - 1.0) + 1.0;
-    float D = alpha2 / (3.14159265359 * denom * denom);
-    
-    // Geometry term (Schlick-GGX)
-    float k = (roughness + 1.0) * (roughness + 1.0) / 8.0;
-    float G1_V = NdotV / (NdotV * (1.0 - k) + k);
-    float G1_L = NdotL / (NdotL * (1.0 - k) + k);
-    float G = G1_V * G1_L;
-    
-    // Fresnel term (Schlick approximation)
-    float F0 = 0.04; // Base reflectance for dielectric
-    float F = F0 + (1.0 - F0) * pow(1.0 - max(dot(halfDir, viewDir), 0.0), 5.0);
-    
-    // Cook-Torrance specular BRDF
-    float specularFactor = (D * G * F) / max(4.0 * NdotV * NdotL, 0.001);
-    vec3 specular = specularColor * specularFactor * specularIntensity;
-    
-    // Combine lighting components
-    vec3 finalColor = ambient + diffuse + specular;
-    
-    fragColor = vec4(finalColor, workingColor.a);
+    fragColor = workingColor;
 }

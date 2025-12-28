@@ -46,15 +46,15 @@ export default new Effect({
         category: "specular"
       }
     },
-    roughness: {
+    shininess: {
       type: "float",
-      default: 0.5,
-      uniform: "roughness",
-      min: 0.01,
-      max: 1.0,
-      step: 0.01,
+      default: 64.0,
+      uniform: "shininess",
+      min: 8.0,
+      max: 256.0,
+      step: 1.0,
       ui: {
-        label: "Roughness",
+        label: "Shininess",
         control: "slider",
         category: "specular"
       }
@@ -80,7 +80,7 @@ export default new Effect({
     },
     normalStrength: {
       type: "float",
-      default: 1.0,
+      default: 1.5,
       uniform: "normalStrength",
       min: 0.0,
       max: 5.0,
