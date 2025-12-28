@@ -488,32 +488,56 @@ function unparsePlan(plan, options = {}) {
     }
 
     // Build chains from steps
-    // read() is a starter node - it MUST start a new chain, never be chained inline
+    // read() is a starter node unless marked as chained
     const chains = []  // Array of chain arrays
     let currentChain = []
 
     for (const step of plan.chain) {
-        // Handle built-in _read step - MUST start a new chain
+        // Handle built-in _read step
         if (step.op === '_read' && step.builtin) {
-            // Flush current chain if not empty
-            if (currentChain.length > 0) {
-                chains.push(currentChain)
-                currentChain = []
-            }
             const texName = step.args?.tex?.name || step.args?.tex
-            currentChain.push(`read(${texName})`)
+            // Use positional form when no _skip, keyword form when _skip is present
+            let readCode
+            if (step.args?._skip === true) {
+                readCode = `read(surface: ${texName}, _skip: true)`
+            } else {
+                readCode = `read(${texName})`
+            }
+            // If chained, keep in current chain; otherwise start a new chain
+            if (step.chained) {
+                currentChain.push(readCode)
+            } else {
+                // Flush current chain if not empty
+                if (currentChain.length > 0) {
+                    chains.push(currentChain)
+                    currentChain = []
+                }
+                currentChain.push(readCode)
+            }
             continue
         }
-        // Handle built-in _read3d step - MUST start a new chain
+        // Handle built-in _read3d step
         if (step.op === '_read3d' && step.builtin) {
-            // Flush current chain if not empty
-            if (currentChain.length > 0) {
-                chains.push(currentChain)
-                currentChain = []
-            }
             const tex3dName = step.args?.tex3d?.name || step.args?.tex3d
             const geoName = step.args?.geo?.name || step.args?.geo
-            currentChain.push(`read3d(${tex3dName}, ${geoName})`)
+            // Use positional form when no _skip, keyword form when _skip is present
+            let read3dCode
+            if (step.args?._skip === true) {
+                read3dCode = `read3d(tex3d: ${tex3dName}, geo: ${geoName}, _skip: true)`
+            } else {
+                read3dCode = `read3d(${tex3dName}, ${geoName})`
+            }
+            // If chained, keep in current chain; otherwise start a new chain
+            if (step.chained) {
+                currentChain.push(read3dCode)
+            } else {
+                // Flush current chain if not empty
+                if (currentChain.length > 0) {
+                    chains.push(currentChain)
+                    currentChain = []
+                }
+                currentChain.push(read3dCode)
+            }
             continue
         }
         // Handle built-in _write step (mid-chain writes)
@@ -610,7 +634,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
         }
 
         // Build chains from steps, tracking comments
-        // read() is a starter node - it MUST start a new chain, never be chained inline
+        // read() is a starter node unless marked as chained
         const chains = []  // Array of chain arrays (each element has { code, leadingComments? })
         let currentChain = []
 
@@ -624,27 +648,51 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 return elem
             }
 
-            // Handle builtin read operations - MUST start a new chain
+            // Handle builtin read operations
             if (step.builtin && step.op === '_read') {
-                // Flush current chain if not empty
-                if (currentChain.length > 0) {
-                    chains.push(currentChain)
-                    currentChain = []
-                }
                 const texName = step.args?.tex?.name || step.args?.tex
-                currentChain.push(makeChainElement(`read(${texName})`))
+                // Use positional form when no _skip, keyword form when _skip is present
+                let readCode
+                if (step.args?._skip === true) {
+                    readCode = `read(surface: ${texName}, _skip: true)`
+                } else {
+                    readCode = `read(${texName})`
+                }
+                // If chained, keep in current chain; otherwise start a new chain
+                if (step.chained) {
+                    currentChain.push(makeChainElement(readCode))
+                } else {
+                    // Flush current chain if not empty
+                    if (currentChain.length > 0) {
+                        chains.push(currentChain)
+                        currentChain = []
+                    }
+                    currentChain.push(makeChainElement(readCode))
+                }
                 globalStepIndex++
                 continue
             }
             if (step.builtin && step.op === '_read3d') {
-                // Flush current chain if not empty
-                if (currentChain.length > 0) {
-                    chains.push(currentChain)
-                    currentChain = []
-                }
                 const tex3d = step.args?.tex3d?.name || step.args?.tex3d
                 const geo = step.args?.geo?.name || step.args?.geo
-                currentChain.push(makeChainElement(`read3d(${tex3d}, ${geo})`))
+                // Use positional form when no _skip, keyword form when _skip is present
+                let read3dCode
+                if (step.args?._skip === true) {
+                    read3dCode = `read3d(tex3d: ${tex3d}, geo: ${geo}, _skip: true)`
+                } else {
+                    read3dCode = `read3d(${tex3d}, ${geo})`
+                }
+                // If chained, keep in current chain; otherwise start a new chain
+                if (step.chained) {
+                    currentChain.push(makeChainElement(read3dCode))
+                } else {
+                    // Flush current chain if not empty
+                    if (currentChain.length > 0) {
+                        chains.push(currentChain)
+                        currentChain = []
+                    }
+                    currentChain.push(makeChainElement(read3dCode))
+                }
                 globalStepIndex++
                 continue
             }

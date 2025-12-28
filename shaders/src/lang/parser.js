@@ -644,11 +644,16 @@ export function parse(tokens) {
         if (nameToken.lexeme === 'read') {
             // Extract surface reference from args or kwargs
             let surface = args[0] || kwargs.tex || kwargs.surface
-            return {
+            const node = {
                 type: 'Read',
                 surface: surface,
                 loc: { line: nameToken.line, col: nameToken.col }
             }
+            // Preserve _skip flag if present (kwargs._skip is a Boolean AST node)
+            if (kwargs._skip?.type === 'Boolean' && kwargs._skip.value === true) {
+                node._skip = true
+            }
+            return node
         }
         // read3d() reads from tex3d (and optionally geo) surfaces
         // 1 arg: read3d(vol0) - returns volume reference for use in params
@@ -656,12 +661,17 @@ export function parse(tokens) {
         if (nameToken.lexeme === 'read3d') {
             let tex3d = args[0] || kwargs.tex3d
             let geo = args[1] || kwargs.geo
-            return {
+            const node = {
                 type: 'Read3D',
                 tex3d: tex3d,
                 geo: geo || null,  // null for single-arg form
                 loc: { line: nameToken.line, col: nameToken.col }
             }
+            // Preserve _skip flag if present (kwargs._skip is a Boolean AST node)
+            if (kwargs._skip?.type === 'Boolean' && kwargs._skip.value === true) {
+                node._skip = true
+            }
+            return node
         }
         return call
     }

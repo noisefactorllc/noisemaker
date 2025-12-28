@@ -447,12 +447,21 @@ export function validate(ast) {
                         continue
                     }
                     const idx = tempIndex++
+                    const stepArgs = { tex: surface }
+                    // Preserve _skip flag from parsed node
+                    if (original._skip === true) {
+                        stepArgs._skip = true
+                    }
                     const step = {
                         op: '_read',
-                        args: { tex: surface },
+                        args: stepArgs,
                         from: null,
                         temp: idx,
                         builtin: true
+                    }
+                    // Track if this read was chained (not the first step)
+                    if (current !== null) {
+                        step.chained = true
                     }
                     if (original.leadingComments) { step.leadingComments = original.leadingComments }
                     chain.push(step)
@@ -482,12 +491,21 @@ export function validate(ast) {
                         continue
                     }
                     const idx = tempIndex++
+                    const stepArgs = { tex3d, geo }
+                    // Preserve _skip flag from parsed node
+                    if (original._skip === true) {
+                        stepArgs._skip = true
+                    }
                     const step = {
                         op: '_read3d',
-                        args: { tex3d, geo },
+                        args: stepArgs,
                         from: null,
                         temp: idx,
                         builtin: true
+                    }
+                    // Track if this read3d was chained (not the first step)
+                    if (current !== null) {
+                        step.chained = true
                     }
                     if (original.leadingComments) { step.leadingComments = original.leadingComments }
                     chain.push(step)
