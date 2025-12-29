@@ -92,10 +92,10 @@ export default new Effect({
       default: 3,
       uniform: "outputMode",
       choices: {
-        "flow X": 0,
-        "flow Y": 1,
-        "direction": 2,
-        "direction + magnitude": 3
+        flowX: 0,
+        flowY: 1,
+        direction: 2,
+        directionMagnitude: 3
       },
       ui: {
         label: "output",
