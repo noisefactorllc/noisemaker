@@ -13,6 +13,19 @@ export default new Effect({
 
   description: "Applies 3D lighting effects",
   globals: {
+    normalStrength: {
+      type: "float",
+      default: 1.5,
+      uniform: "normalStrength",
+      min: 0.0,
+      max: 5.0,
+      step: 0.01,
+      ui: {
+        label: "Depth",
+        control: "slider",
+        category: "general"
+      }
+    },
     diffuseColor: {
       type: "vec3",
       default: [1.0, 1.0, 1.0],
@@ -78,18 +91,7 @@ export default new Effect({
         category: "diffuse"
       }
     },
-    normalStrength: {
-      type: "float",
-      default: 1.5,
-      uniform: "normalStrength",
-      min: 0.0,
-      max: 5.0,
-      step: 0.01,
-      ui: {
-        label: "Depth",
-        control: "slider"
-      }
-    },
+    
     reflection: {
       type: "float",
       default: 0.0,

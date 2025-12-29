@@ -90,9 +90,9 @@ vec4 applyReflection(vec2 uv, vec3 normal) {
     vec2 reflectionOffset = reflectionVec.xy * (reflection * 0.0005);
     
     // Apply chromatic aberration
-    vec2 redOffset = reflectionOffset * (1.0 + aberration * 0.01);
+    vec2 redOffset = reflectionOffset * (1.0 + aberration * 0.0075);
     vec2 greenOffset = reflectionOffset;
-    vec2 blueOffset = reflectionOffset * (1.0 - aberration * 0.01);
+    vec2 blueOffset = reflectionOffset * (1.0 - aberration * 0.0075);
     
     float redChannel = texture(inputTex, uv + redOffset).r;
     float greenChannel = texture(inputTex, uv + greenOffset).g;
