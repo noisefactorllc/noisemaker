@@ -87,7 +87,7 @@ export function parse(tokens) {
         'IDENT', 'SOURCE_REF', 'OUTPUT_REF', 'VOL_REF', 'GEO_REF',
         'XYZ_REF', 'VEL_REF', 'RGBA_REF',
         'LET', 'RENDER', 'TRUE', 'FALSE', 'IF', 'ELIF', 'ELSE',
-        'BREAK', 'CONTINUE', 'RETURN', 'WRITE', 'WRITE3D'
+        'BREAK', 'CONTINUE', 'RETURN', 'WRITE', 'WRITE3D', 'SUBCHAIN'
     ])
 
     const cloneNamespaceMeta = (meta) => {
@@ -507,6 +507,16 @@ export function parse(tokens) {
                 // Continue parsing - write is now chainable
                 continue
             }
+            if (nextType === 'SUBCHAIN') {
+                // Parse subchain as a node in the chain (chainable)
+                const subchainNode = parseSubchainCall()
+                if (allComments.length > 0) {
+                    subchainNode.leadingComments = allComments
+                }
+                calls.push(subchainNode)
+                // Continue parsing - subchain is chainable
+                continue
+            }
             const call = parseCall()
             if (allComments.length > 0) {
                 call.leadingComments = allComments
@@ -582,6 +592,96 @@ export function parse(tokens) {
             }
         }
         throw new SyntaxError(`Expected write or write3d at line ${tokenLine} col ${tokenCol}`)
+    }
+
+    /**
+     * Parse a subchain block: subchain(name: "...", id: "...") { .effect1() .effect2() }
+     *
+     * Subchains are atomic encapsulations of contiguous effects within a chain.
+     * They preserve chain semantics - the output of each effect feeds the next.
+     *
+     * Syntax:
+     *   .subchain(name: "feedback loop", id: "sc1") {
+     *     .loopBegin()
+     *     .loopEnd()
+     *   }
+     *
+     * The inner chain elements start with dots and are chained together.
+     * The subchain as a whole is chainable - it takes input and produces output.
+     */
+    function parseSubchainCall() {
+        const tokenLine = peek().line
+        const tokenCol = peek().col
+
+        advance() // consume 'subchain'
+        expect('LPAREN', "Expect '(' after subchain")
+
+        // Parse subchain arguments (name and optional id)
+        const kwargs = {}
+        if (peek().type !== 'RPAREN') {
+            // Check for keyword or positional first argument
+            if (peek().type === 'STRING') {
+                // Positional name: subchain("name")
+                kwargs.name = { type: 'String', value: advance().lexeme }
+            } else if (peek().type === 'IDENT' && tokens[current + 1]?.type === 'COLON') {
+                // Keyword arguments: subchain(name: "...", id: "...")
+                while (peek().type === 'IDENT' && tokens[current + 1]?.type === 'COLON') {
+                    const key = advance().lexeme
+                    advance() // consume ':'
+                    if (peek().type !== 'STRING') {
+                        throw new SyntaxError(`Expected string value for subchain ${key} at line ${peek().line} col ${peek().col}`)
+                    }
+                    kwargs[key] = { type: 'String', value: advance().lexeme }
+                    if (peek().type === 'COMMA') {
+                        advance() // consume ','
+                    }
+                }
+            }
+        }
+        expect('RPAREN', "Expect ')' after subchain arguments")
+
+        // Parse the subchain body block
+        expect('LBRACE', "Expect '{' to start subchain body")
+
+        // Parse chain elements inside the block
+        // Each element starts with a dot: { .effect1() .effect2() }
+        const body = []
+        while (peek().type !== 'RBRACE') {
+            // Collect any leading comments
+            const leadingComments = collectComments()
+            if (peek().type === 'RBRACE') break
+
+            // Each chain element must start with a dot
+            if (peek().type !== 'DOT') {
+                throw new SyntaxError(`Expected '.' before chain element in subchain body at line ${peek().line} col ${peek().col}`)
+            }
+            advance() // consume '.'
+
+            // Collect post-dot comments
+            const postDotComments = collectComments()
+            const allComments = [...leadingComments, ...postDotComments]
+
+            // Parse the call
+            const call = parseCall()
+            if (allComments.length > 0) {
+                call.leadingComments = allComments
+            }
+            body.push(call)
+        }
+
+        expect('RBRACE', "Expect '}' to end subchain body")
+
+        if (body.length === 0) {
+            throw new SyntaxError(`Subchain body cannot be empty at line ${tokenLine} col ${tokenCol}`)
+        }
+
+        return {
+            type: 'Subchain',
+            name: kwargs.name?.value || null,
+            id: kwargs.id?.value || null,
+            body: body,
+            loc: { line: tokenLine, col: tokenCol }
+        }
     }
 
     function parseCall() {

@@ -29,7 +29,8 @@ export function lex(src) {
         break: 'BREAK',
         continue: 'CONTINUE',
         return: 'RETURN',
-        search: 'SEARCH'
+        search: 'SEARCH',
+        subchain: 'SUBCHAIN'
     }
 
     while (i < src.length) {

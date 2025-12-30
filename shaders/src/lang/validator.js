@@ -578,6 +578,49 @@ export function validate(ast) {
                     continue
                 }
 
+                // Handle Subchain node (first-class grouping of contiguous effects)
+                if (original.type === 'Subchain') {
+                    if (current === null) {
+                        pushDiag('S005', original, 'subchain() requires an input - cannot be first in chain')
+                        continue
+                    }
+                    // Add subchain begin marker
+                    const beginIdx = tempIndex++
+                    const beginStep = {
+                        op: '_subchain_begin',
+                        args: {
+                            name: original.name || null,
+                            id: original.id || null
+                        },
+                        from: current,
+                        temp: beginIdx,
+                        builtin: true
+                    }
+                    if (original.leadingComments) { beginStep.leadingComments = original.leadingComments }
+                    chain.push(beginStep)
+                    current = beginIdx
+
+                    // Process the subchain body by recursively calling processChain
+                    // This reuses all the existing argument resolution and validation logic
+                    current = processChain(original.body, current)
+
+                    // Add subchain end marker
+                    const endIdx = tempIndex++
+                    const endStep = {
+                        op: '_subchain_end',
+                        args: {
+                            name: original.name || null,
+                            id: original.id || null
+                        },
+                        from: current,
+                        temp: endIdx,
+                        builtin: true
+                    }
+                    chain.push(endStep)
+                    current = endIdx
+                    continue
+                }
+
                 const call = resolveCall({...original})
                 const effectiveNamespace = call.namespace || { searchOrder: programSearchOrder }
                 let opName = null

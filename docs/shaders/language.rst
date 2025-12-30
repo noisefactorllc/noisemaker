@@ -24,7 +24,8 @@ Grammar
    VarAssign      ::= 'let' Ident '=' Expr
    ChainStmt      ::= Chain
    Chain          ::= ChainElement ( '.' ChainElement )*
-   ChainElement   ::= Call | WriteCall | Write3DCall
+   ChainElement   ::= Call | WriteCall | Write3DCall | SubchainCall
+   SubchainCall   ::= 'subchain' '(' ArgList? ')' '{' ( '.' Call )+ '}'
    WriteCall      ::= 'write' '(' OutputRef ')'
    Write3DCall    ::= 'write3d' '(' ( VolRef | Ident ) ',' ( GeoRef | Ident ) ')'
    Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | VolRef | GeoRef | Func | '(' Expr ')'
@@ -169,6 +170,61 @@ The language supports ``if``, ``elif``, ``else`` for conditionals.
 
 **Arrow Functions:**
 Arrow functions (``() => expr``) are treated as **lazy expressions**. They are not evaluated immediately but are passed as-is to the effect or control structure, which determines when (or if) to evaluate them.
+
+Subchains
+^^^^^^^^^
+
+Subchains provide a first-class mechanism for grouping contiguous effects within a chain. They create atomic encapsulations that can be identified, manipulated, and reasoned about as units.
+
+**Syntax:**
+
+.. code-block:: none
+
+   .subchain(name: "group name", id: "unique_id") {
+     .effect1()
+     .effect2(param: value)
+   }
+
+**Arguments:**
+
+* ``name`` (optional): A human-readable label for the subchain.
+* ``id`` (optional): A unique identifier for programmatic access.
+
+Both arguments can be omitted, or ``name`` can be passed as a positional argument.
+
+**Examples:**
+
+.. code-block:: none
+
+   search synth, filter, render
+
+   noise()
+     .subchain(name: "feedback loop", id: "fb1") {
+       .loopBegin()
+       .loopEnd()
+     }
+     .subchain(name: "color grading") {
+       .colorspace()
+       .hs(rotation: 180, saturation: 0.5)
+     }
+     .write(o0)
+
+   render(o0)
+
+**Rules:**
+
+* Subchains cannot be empty—they must contain at least one effect.
+* Subchains cannot be the first element in a chain; they require input from a preceding effect.
+* Effects inside subchains cannot be generators (e.g., ``noise()``, ``voronoi()``).
+* Subchains are chainable—the output flows through to subsequent effects after the closing brace.
+* Effects inside subchains use the same argument syntax as regular chain effects.
+
+**Use Cases:**
+
+* Grouping related effects for organizational clarity.
+* Marking effect groups for UI controls or programmatic manipulation.
+* Defining reusable patterns within complex compositions.
+* Enabling downstream tools to identify and operate on logical effect groups.
 
 Namespaces
 ----------

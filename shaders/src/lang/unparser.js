@@ -685,6 +685,30 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 continue
             }
 
+            // Handle subchain begin marker - starts a subchain block
+            if (step.builtin && step.op === '_subchain_begin') {
+                const name = step.args?.name
+                const id = step.args?.id
+                const parts = []
+                if (name) parts.push(`name: "${name}"`)
+                if (id) parts.push(`id: "${id}"`)
+                const argsStr = parts.length > 0 ? parts.join(', ') : ''
+                const elem = { code: `subchain(${argsStr}) {`, isSubchainBegin: true }
+                if (step.leadingComments && step.leadingComments.length > 0) {
+                    elem.leadingComments = step.leadingComments
+                }
+                currentChain.push(elem)
+                globalStepIndex++
+                continue
+            }
+
+            // Handle subchain end marker - ends a subchain block
+            if (step.builtin && step.op === '_subchain_end') {
+                currentChain.push({ code: '}', isSubchainEnd: true })
+                globalStepIndex++
+                continue
+            }
+
             // Check for parameter overrides for this step
             const stepOverrides = overrides[globalStepIndex] || {}
 
@@ -764,11 +788,15 @@ export function unparse(compiled, overrides = {}, options = {}) {
 
         // Join each chain's parts with line break and 2-space indent, including comments
         // Then join chains with blank line (read() starts new chain)
+        // Handle subchain blocks with proper indentation
         function joinChainWithComments(chain) {
             const parts = []
+            let inSubchain = false
             for (let i = 0; i < chain.length; i++) {
                 const elem = chain[i]
                 const isFirst = i === 0
+                const baseIndent = inSubchain ? '    ' : '  '  // 4 spaces inside subchain, 2 outside
+                
                 // Emit leading comments for this element
                 if (elem.leadingComments && elem.leadingComments.length > 0) {
                     for (const comment of elem.leadingComments) {
@@ -777,13 +805,35 @@ export function unparse(compiled, overrides = {}, options = {}) {
                             parts.push(comment)
                         } else {
                             // Comments before chained elements get indented
-                            parts.push(`  ${comment}`)
+                            parts.push(`${baseIndent}${comment}`)
                         }
                     }
                 }
+                
+                // Handle subchain begin
+                if (elem.isSubchainBegin) {
+                    if (isFirst) {
+                        parts.push(elem.code)
+                    } else {
+                        parts.push(`  .${elem.code}`)
+                    }
+                    inSubchain = true
+                    continue
+                }
+                
+                // Handle subchain end
+                if (elem.isSubchainEnd) {
+                    parts.push(`  ${elem.code}`)
+                    inSubchain = false
+                    continue
+                }
+                
                 // Emit the code
                 if (isFirst) {
                     parts.push(elem.code)
+                } else if (inSubchain) {
+                    // Inside subchain: 4-space indent with dot
+                    parts.push(`    .${elem.code}`)
                 } else {
                     parts.push(`  .${elem.code}`)
                 }

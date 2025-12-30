@@ -290,6 +290,38 @@ export function expand(compilationResult, options = {}) {
                 continue
             }
 
+            // Handle subchain begin/end markers - these are metadata nodes that pass through
+            // They don't generate any passes, just maintain chain continuity and carry metadata
+            if (step.builtin && step.op === '_subchain_begin') {
+                const nodeId = `node_${step.temp}`
+                // Pass through the current input unchanged
+                if (currentInput) {
+                    textureMap.set(`${nodeId}_out`, currentInput)
+                }
+                if (currentInput3d) {
+                    textureMap.set(`${nodeId}_out3d`, currentInput3d)
+                }
+                if (currentInputGeo) {
+                    textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
+                }
+                continue
+            }
+
+            if (step.builtin && step.op === '_subchain_end') {
+                const nodeId = `node_${step.temp}`
+                // Pass through the current input unchanged
+                if (currentInput) {
+                    textureMap.set(`${nodeId}_out`, currentInput)
+                }
+                if (currentInput3d) {
+                    textureMap.set(`${nodeId}_out3d`, currentInput3d)
+                }
+                if (currentInputGeo) {
+                    textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
+                }
+                continue
+            }
+
             // Clear lastInlineWriteTarget if we process any non-write step
             // (since the chain continued after the write, we need the final blit)
             lastInlineWriteTarget = null

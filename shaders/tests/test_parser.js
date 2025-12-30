@@ -163,6 +163,7 @@ test('Trailing comments at end of program', 'search synth\nnoise(10).write(o0)\n
     if (!ast.trailingComments[0].includes('trailing')) throw new Error('Expected trailing comment text')
 })
 
+
 test('Comment with subchain marker', 'search synth\n// @subchain:begin name="feedback"\nnoise(10)\n  .bloom()\n  // @subchain:end\n  .write(o0)', (ast) => {
     if (ast.plans.length !== 1) throw new Error('Expected 1 plan')
     const plan = ast.plans[0]
@@ -175,3 +176,69 @@ test('Comment with subchain marker', 'search synth\n// @subchain:begin name="fee
     if (!writeNode.leadingComments) throw new Error('Expected leadingComments on write')
     if (!writeNode.leadingComments[0].includes('@subchain:end')) throw new Error('Expected @subchain:end marker')
 })
+
+// ============ First-Class Subchain Tests ============
+
+test('Basic subchain with name', 'search synth, render\nnoise(10)\n  .subchain(name: "feedback loop") {\n    .loopBegin()\n    .loopEnd()\n  }\n  .write(o0)', (ast) => {
+    if (ast.plans.length !== 1) throw new Error('Expected 1 plan')
+    const plan = ast.plans[0]
+    // Chain should have: noise, Subchain, Write
+    if (plan.chain.length !== 3) throw new Error(`Expected 3 elements in chain, got ${plan.chain.length}`)
+    const subchain = plan.chain[1]
+    if (subchain.type !== 'Subchain') throw new Error(`Expected Subchain node, got ${subchain.type}`)
+    if (subchain.name !== 'feedback loop') throw new Error(`Expected name 'feedback loop', got '${subchain.name}'`)
+    if (subchain.body.length !== 2) throw new Error(`Expected 2 body elements, got ${subchain.body.length}`)
+    if (subchain.body[0].name !== 'loopBegin') throw new Error('Expected loopBegin in body')
+    if (subchain.body[1].name !== 'loopEnd') throw new Error('Expected loopEnd in body')
+})
+
+test('Subchain with name and id', 'search synth, render\nnoise(10)\n  .subchain(name: "loop", id: "sc1") {\n    .blur()\n  }\n  .write(o0)', (ast) => {
+    const subchain = ast.plans[0].chain[1]
+    if (subchain.type !== 'Subchain') throw new Error('Expected Subchain node')
+    if (subchain.name !== 'loop') throw new Error(`Expected name 'loop', got '${subchain.name}'`)
+    if (subchain.id !== 'sc1') throw new Error(`Expected id 'sc1', got '${subchain.id}'`)
+})
+
+test('Subchain with positional name', 'search synth\nnoise(10)\n  .subchain("my subchain") {\n    .bloom()\n  }\n  .write(o0)', (ast) => {
+    const subchain = ast.plans[0].chain[1]
+    if (subchain.type !== 'Subchain') throw new Error('Expected Subchain node')
+    if (subchain.name !== 'my subchain') throw new Error(`Expected name 'my subchain', got '${subchain.name}'`)
+})
+
+test('Multiple subchains in one chain', 'search synth, render\nnoise(10)\n  .subchain(name: "sc1") {\n    .loopBegin()\n    .loopEnd()\n  }\n  .subchain(name: "sc2") {\n    .loopBegin()\n    .loopEnd()\n  }\n  .colorspace()\n  .write(o0)', (ast) => {
+    const plan = ast.plans[0]
+    // Chain should have: noise, Subchain, Subchain, colorspace, Write
+    if (plan.chain.length !== 5) throw new Error(`Expected 5 elements in chain, got ${plan.chain.length}`)
+    if (plan.chain[1].type !== 'Subchain') throw new Error('Expected first Subchain')
+    if (plan.chain[2].type !== 'Subchain') throw new Error('Expected second Subchain')
+    if (plan.chain[1].name !== 'sc1') throw new Error('Expected first subchain name sc1')
+    if (plan.chain[2].name !== 'sc2') throw new Error('Expected second subchain name sc2')
+})
+
+test('Subchain with effect arguments', 'search synth, filter\nnoise(10)\n  .subchain("effects") {\n    .bloom(intensity: 0.5)\n    .blur(radius: 2)\n  }\n  .write(o0)', (ast) => {
+    const subchain = ast.plans[0].chain[1]
+    if (subchain.body.length !== 2) throw new Error('Expected 2 body elements')
+    const bloom = subchain.body[0]
+    if (!bloom.kwargs || bloom.kwargs.intensity?.value !== 0.5) throw new Error('Expected bloom intensity 0.5')
+    const blur = subchain.body[1]
+    if (!blur.kwargs || blur.kwargs.radius?.value !== 2) throw new Error('Expected blur radius 2')
+})
+
+test('Empty subchain should error', 'search synth\nnoise(10)\n  .subchain("empty") {\n  }\n  .write(o0)', () => {
+    throw new Error('Should have thrown SyntaxError for empty subchain')
+}, (e) => {
+    if (!(e instanceof SyntaxError)) throw new Error('Expected SyntaxError')
+    if (!e.message.includes('cannot be empty')) throw new Error('Expected empty subchain error message')
+    console.log('PASS: Empty subchain should error (correctly caught)')
+    return true
+})
+
+test('Subchain as first in chain should error (at validation)', 'search synth\nsubchain("bad") {\n  .blur()\n}.write(o0)', () => {
+    throw new Error('Should have thrown SyntaxError')
+}, (e) => {
+    // Parser expects an identifier for a call, not subchain keyword at start of chain
+    if (!(e instanceof SyntaxError)) throw new Error('Expected SyntaxError')
+    console.log('PASS: Subchain as first in chain should error (correctly caught)')
+    return true
+})
+
