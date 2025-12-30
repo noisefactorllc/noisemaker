@@ -6,197 +6,209 @@ uniform float time;
 uniform float scale;
 uniform float seed;
 uniform float speed;
-uniform float strength;
 uniform int octaves;
-uniform int noiseType;
+uniform bool ridges;
 uniform int outputMode;
 
 out vec4 fragColor;
 
-const float TAU = 6.283185307179586;
-const float EPSILON = 0.001;
+// ============================================================================
+// 3D Simplex Noise Implementation
+// Based on Stefan Gustavson's implementation
+// ============================================================================
 
-// PCG PRNG
-uvec3 pcg(uvec3 v) {
-    v = v * uint(1664525) + uint(1013904223);
-    v.x += v.y * v.z;
-    v.y += v.z * v.x;
-    v.z += v.x * v.y;
-    v ^= v >> uint(16);
-    v.x += v.y * v.z;
-    v.y += v.z * v.x;
-    v.z += v.x * v.y;
-    return v;
+// Permutation polynomial: (34x^2 + 10x) mod 289
+vec3 permute(vec3 x) {
+    return mod(((x * 34.0) + 10.0) * x, 289.0);
+}
+vec4 permute(vec4 x) {
+    return mod(((x * 34.0) + 10.0) * x, 289.0);
 }
 
-vec3 prng(vec3 p) {
-    p.x = p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0;
-    p.y = p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0;
-    p.z = p.z >= 0.0 ? p.z * 2.0 : -p.z * 2.0 + 1.0;
-    return vec3(pcg(uvec3(p))) / float(uint(0xffffffff));
+vec4 taylorInvSqrt(vec4 r) {
+    return 1.79284291400159 - 0.85373472095314 * r;
 }
 
-// Quintic interpolation for smooth transitions
-float quintic(float t) {
-    return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
-}
-
-float smoothlerp(float x, float a, float b) {
-    return a + quintic(x) * (b - a);
-}
-
-// 2D periodic grid function - gradient angle animates with time
-float grid2D(vec2 st, vec2 cell) {
-    float angle = prng(vec3(cell + seed, 1.0)).r * TAU;
-    angle += time * TAU * speed;  // Animate gradient rotation
-    vec2 gradient = vec2(cos(angle), sin(angle));
-    vec2 dist = st - cell;
-    return dot(gradient, dist);
-}
-
-// 2D periodic Perlin noise - time animates gradient angles for seamless loop
-float noise2D(vec2 st) {
-    vec2 cell = floor(st);
-    vec2 f = fract(st);
+// 3D Simplex noise with seed support
+float simplex3D(vec3 v) {
+    const vec2 C = vec2(1.0 / 6.0, 1.0 / 3.0);
+    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
     
-    float tl = grid2D(st, cell);
-    float tr = grid2D(st, vec2(cell.x + 1.0, cell.y));
-    float bl = grid2D(st, vec2(cell.x, cell.y + 1.0));
-    float br = grid2D(st, cell + 1.0);
+    // Apply seed offset to input
+    v += seed * 0.1271;
     
-    float upper = smoothlerp(f.x, tl, tr);
-    float lower = smoothlerp(f.x, bl, br);
-    float val = smoothlerp(f.y, upper, lower);
+    // First corner
+    vec3 i = floor(v + dot(v, C.yyy));
+    vec3 x0 = v - i + dot(i, C.xxx);
     
-    return val;  // Returns -1..1
+    // Other corners
+    vec3 g = step(x0.yzx, x0.xyz);
+    vec3 l = 1.0 - g;
+    vec3 i1 = min(g.xyz, l.zxy);
+    vec3 i2 = max(g.xyz, l.zxy);
+    
+    vec3 x1 = x0 - i1 + C.xxx;
+    vec3 x2 = x0 - i2 + C.yyy;
+    vec3 x3 = x0 - D.yyy;
+    
+    // Permutations
+    i = mod(i, 289.0);
+    vec4 p = permute(permute(permute(
+        i.z + vec4(0.0, i1.z, i2.z, 1.0))
+        + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+        + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+    
+    // Gradients: 7x7 points over a square, mapped onto an octahedron
+    float n_ = 0.142857142857; // 1/7
+    vec3 ns = n_ * D.wyz - D.xzx;
+    
+    vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+    
+    vec4 x_ = floor(j * ns.z);
+    vec4 y_ = floor(j - 7.0 * x_);
+    
+    vec4 x = x_ * ns.x + ns.yyyy;
+    vec4 y = y_ * ns.x + ns.yyyy;
+    vec4 h = 1.0 - abs(x) - abs(y);
+    
+    vec4 b0 = vec4(x.xy, y.xy);
+    vec4 b1 = vec4(x.zw, y.zw);
+    
+    vec4 s0 = floor(b0) * 2.0 + 1.0;
+    vec4 s1 = floor(b1) * 2.0 + 1.0;
+    vec4 sh = -step(h, vec4(0.0));
+    
+    vec4 a0 = b0.xzyw + s0.xzyw * sh.xxyy;
+    vec4 a1 = b1.xzyw + s1.xzyw * sh.zzww;
+    
+    vec3 p0 = vec3(a0.xy, h.x);
+    vec3 p1 = vec3(a0.zw, h.y);
+    vec3 p2 = vec3(a1.xy, h.z);
+    vec3 p3 = vec3(a1.zw, h.w);
+    
+    // Normalise gradients
+    vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
+    p0 *= norm.x;
+    p1 *= norm.y;
+    p2 *= norm.z;
+    p3 *= norm.w;
+    
+    // Mix final noise value
+    vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
+    m = m * m;
+    return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
 }
 
-float cubic(float t) {
-    return t * t * (3.0 - 2.0 * t);
-}
-
-float catmullRom(float p0, float p1, float p2, float p3, float t) {
-    return p1 + 0.5 * t * (p2 - p0 + t * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3 + t * (3.0 * (p1 - p2) + p3 - p0)));
-}
-
-// Value noise functions
-float valueNoise(vec2 p, float t) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
+// FBM
+float fbmSimplex3D(vec3 p, int numOctaves) {
+    float sum = 0.0;
+    float amp = 1.0;
+    float freq = 1.0;
+    float maxAmp = 0.0;
     
-    // Get corner values
-    float a = prng(vec3(i, t + seed)).x;
-    float b = prng(vec3(i + vec2(1.0, 0.0), t + seed)).x;
-    float c = prng(vec3(i + vec2(0.0, 1.0), t + seed)).x;
-    float d = prng(vec3(i + vec2(1.0, 1.0), t + seed)).x;
-    
-    // Interpolate
-    float u, v;
-    if (noiseType == 1) {
-        // Linear
-        u = f.x;
-        v = f.y;
-    } else if (noiseType == 2) {
-        // Hermite (smoothstep)
-        u = cubic(f.x);
-        v = cubic(f.y);
-    } else if (noiseType == 3) {
-        // Catmull-Rom (needs 4x4 grid, simplified here with smootherstep)
-        u = quintic(f.x);
-        v = quintic(f.y);
-    } else {
-        u = f.x;
-        v = f.y;
+    for (int i = 0; i < 3; i++) {
+        if (i >= numOctaves) break;
+        
+        float n = simplex3D(p * freq);
+        
+        sum += n * amp;
+        maxAmp += amp;
+        freq *= 2.0;
+        amp *= 0.5;
     }
     
-    float x1 = mix(a, b, u);
-    float x2 = mix(c, d, u);
-    return mix(x1, x2, v);
+    return sum / maxAmp;
 }
 
-// Main noise function selector
-float noise(vec2 p, float t) {
-    if (noiseType == 0) {
-        // Perlin noise - use time as angle for gradient rotation
-        return noise2D(p);
-    } else {
-        return valueNoise(p, t) * 2.0 - 1.0;
-    }
-}
+// ============================================================================
+// 3D Curl Noise
+// curl(F) = (dFz/dy - dFy/dz, dFx/dz - dFz/dx, dFy/dx - dFx/dy)
+// ============================================================================
 
-// Multi-octave noise (FBM)
-float fbm(vec2 p, float t) {
-    float value = 0.0;
-    float amplitude = 0.5;
-    float frequency = 1.0;
-    float maxValue = 0.0;
+vec3 curlNoise3D(vec3 p, int numOctaves) {
+    const float eps = 0.1;
     
-    int oct = clamp(octaves, 1, 6);
+    // We need 3 independent scalar fields to compute curl of a vector field
+    // Use offset positions to create decorrelated fields
+    vec3 offset1 = vec3(0.0, 0.0, 0.0);
+    vec3 offset2 = vec3(31.416, 47.853, 12.793);
+    vec3 offset3 = vec3(93.719, 61.248, 73.561);
     
-    for (int i = 0; i < 6; i++) {
-        if (i >= oct) break;
-        value += amplitude * noise(p * frequency, t);
-        maxValue += amplitude;
-        frequency *= 2.0;
-        amplitude *= 0.5;
-    }
+    // Sample Fx derivatives
+    float Fx_py = fbmSimplex3D(p + vec3(0.0, eps, 0.0) + offset1, numOctaves);
+    float Fx_ny = fbmSimplex3D(p - vec3(0.0, eps, 0.0) + offset1, numOctaves);
+    float Fx_pz = fbmSimplex3D(p + vec3(0.0, 0.0, eps) + offset1, numOctaves);
+    float Fx_nz = fbmSimplex3D(p - vec3(0.0, 0.0, eps) + offset1, numOctaves);
     
-    return value / maxValue;
-}
-
-// Curl noise: compute curl of potential field
-// curl(P) = (dP/dy, -dP/dx) for 2D
-vec2 curlNoise(vec2 p, float t) {
-    // Sample noise with small offsets to compute derivatives
-    float dx = fbm(p + vec2(EPSILON, 0.0), t) - fbm(p - vec2(EPSILON, 0.0), t);
-    float dy = fbm(p + vec2(0.0, EPSILON), t) - fbm(p - vec2(0.0, EPSILON), t);
+    // Sample Fy derivatives
+    float Fy_px = fbmSimplex3D(p + vec3(eps, 0.0, 0.0) + offset2, numOctaves);
+    float Fy_nx = fbmSimplex3D(p - vec3(eps, 0.0, 0.0) + offset2, numOctaves);
+    float Fy_pz = fbmSimplex3D(p + vec3(0.0, 0.0, eps) + offset2, numOctaves);
+    float Fy_nz = fbmSimplex3D(p - vec3(0.0, 0.0, eps) + offset2, numOctaves);
     
-    // Curl is perpendicular to gradient
-    // For 2D: curl = (dP/dy, -dP/dx)
-    return vec2(dy, -dx) / (2.0 * EPSILON);
+    // Sample Fz derivatives
+    float Fz_px = fbmSimplex3D(p + vec3(eps, 0.0, 0.0) + offset3, numOctaves);
+    float Fz_nx = fbmSimplex3D(p - vec3(eps, 0.0, 0.0) + offset3, numOctaves);
+    float Fz_py = fbmSimplex3D(p + vec3(0.0, eps, 0.0) + offset3, numOctaves);
+    float Fz_ny = fbmSimplex3D(p - vec3(0.0, eps, 0.0) + offset3, numOctaves);
+    
+    // Compute partial derivatives
+    float dFx_dy = (Fx_py - Fx_ny) / (2.0 * eps);
+    float dFx_dz = (Fx_pz - Fx_nz) / (2.0 * eps);
+    float dFy_dx = (Fy_px - Fy_nx) / (2.0 * eps);
+    float dFy_dz = (Fy_pz - Fy_nz) / (2.0 * eps);
+    float dFz_dx = (Fz_px - Fz_nx) / (2.0 * eps);
+    float dFz_dy = (Fz_py - Fz_ny) / (2.0 * eps);
+    
+    // curl = (dFz/dy - dFy/dz, dFx/dz - dFz/dx, dFy/dx - dFx/dy)
+    return vec3(
+        dFz_dy - dFy_dz,
+        dFx_dz - dFz_dx,
+        dFy_dx - dFx_dy
+    );
 }
 
 void main() {
-    vec2 st = gl_FragCoord.xy / resolution.y;
+    vec2 uv = gl_FragCoord.xy / resolution;
     float aspect = resolution.x / resolution.y;
     
-    // Center coordinates
-    vec2 centered = st - vec2(aspect * 0.5, 0.5);
+    // Center and scale coordinates
+    vec2 centered = (uv - 0.5) * vec2(aspect, 1.0);
+    vec3 p = vec3(centered * scale, time * speed);
     
-    // Scale coordinates
-    vec2 p = centered * (100.0 / scale);
+    // Clamp octaves to valid range
+    int oct = clamp(octaves, 1, 3);
     
-    // Animate with time
-    float t = time * speed * 0.1;
+    // Compute 3D curl noise
+    vec3 curl = curlNoise3D(p, oct);
     
-    // Compute curl noise
-    vec2 curl = curlNoise(p, t) * strength;
+    // Normalize curl to approximately [-1, 1] range then to [0, 1] for display
+    curl = curl * 0.5 + 0.5;
     
-    // Visualize the curl field as color
-    // Map the 2D vector to RGB
     vec3 color;
     
-    // Use curl vector components for R and G
-    // Normalize to 0-1 range
-    color.r = curl.x * 0.5 + 0.5;
-    color.g = curl.y * 0.5 + 0.5;
-    
-    // Blue channel shows the magnitude
-    float magnitude = length(curl);
-    color.b = magnitude;
-    
-    // Apply output mode
     if (outputMode == 0) {
-        // Flow X
-        color = vec3(color.r);
+        // flowX: curl.x component
+        color = vec3(curl.x);
     } else if (outputMode == 1) {
-        // Flow Y
-        color = vec3(color.g);
+        // flowY: curl.y component
+        color = vec3(curl.y);
     } else if (outputMode == 2) {
-        // Direction
-        color = vec3(color.r, color.g, 0.0);
+        // flowZ: curl.z component
+        color = vec3(curl.z);
+    } else if (outputMode == 3) {
+        // full: all three components as RGB
+        color = curl;
+    } else {
+        // magnitude: length of curl vector
+        vec3 curlCentered = curl * 2.0 - 1.0; // Back to [-1, 1]
+        float mag = length(curlCentered);
+        color = vec3(mag);
     }
-    // else output == 3: Direction + Magnitude (default, already set)
+
+    if (ridges) {
+        color = 1.0 - abs(color * 2.0 - 1.0);
+    }
     
     fragColor = vec4(color, 1.0);
 }

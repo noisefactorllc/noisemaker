@@ -6,7 +6,7 @@ export default new Effect({
   func: "curl",
   tags: ["noise", "flow"],
 
-  description: "2D curl noise for divergence-free flow fields",
+  description: "3D curl noise using simplex noise",
   uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
@@ -14,43 +14,19 @@ export default new Effect({
     scale: { slot: 1, components: 'x' },
     seed: { slot: 1, components: 'y' },
     speed: { slot: 1, components: 'z' },
-    strength: { slot: 1, components: 'w' },
-    octaves: { slot: 2, components: 'x' },
-    noiseType: { slot: 2, components: 'y' },
-    outputMode: { slot: 2, components: 'z' }
+    octaves: { slot: 1, components: 'w' },
+    ridges: { slot: 2, components: 'x' },
+    outputMode: { slot: 2, components: 'y' }
   },
   globals: {
-    noiseType: {
-      type: "int",
-      default: 0,
-      uniform: "noiseType",
-      choices: {
-        perlin: 0
-      },
-      ui: {
-        label: "noise type",
-        control: "dropdown"
-      }
-    },
     scale: {
       type: "float",
-      default: 25,
+      default: 4.0,
       uniform: "scale",
-      min: 1,
-      max: 100,
+      min: 0.5,
+      max: 20,
       ui: {
         label: "scale",
-        control: "slider"
-      }
-    },
-    octaves: {
-      type: "int",
-      default: 1,
-      uniform: "octaves",
-      min: 1,
-      max: 6,
-      ui: {
-        label: "octaves",
         control: "slider"
       }
     },
@@ -59,32 +35,41 @@ export default new Effect({
       default: 0,
       uniform: "seed",
       min: 0,
-      max: 100,
+      max: 1000,
       ui: {
         label: "seed",
         control: "slider"
       }
     },
+    octaves: {
+      type: "int",
+      default: 1,
+      uniform: "octaves",
+      min: 1,
+      max: 3,
+      ui: {
+        label: "octaves",
+        control: "slider"
+      }
+    },
     speed: {
       type: "float",
-      default: 1.0,
+      default: 0.5,
       uniform: "speed",
       min: 0,
-      max: 10,
+      max: 5,
       ui: {
         label: "speed",
         control: "slider"
       }
     },
-    strength: {
-      type: "float",
-      default: 1.0,
-      uniform: "strength",
-      min: 0,
-      max: 5,
+    ridges: {
+      type: "bool",
+      default: false,
+      uniform: "ridges",
       ui: {
-        label: "strength",
-        control: "slider"
+        label: "ridges",
+        control: "checkbox"
       }
     },
     outputMode: {
@@ -94,8 +79,9 @@ export default new Effect({
       choices: {
         flowX: 0,
         flowY: 1,
-        direction: 2,
-        directionMagnitude: 3
+        flowZ: 2,
+        full: 3,
+        magnitude: 4
       },
       ui: {
         label: "output",
