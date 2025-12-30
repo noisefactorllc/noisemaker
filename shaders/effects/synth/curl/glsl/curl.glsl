@@ -130,26 +130,29 @@ vec3 curlNoise3D(vec3 p, int numOctaves) {
     
     // We need 3 independent scalar fields to compute curl of a vector field
     // Use offset positions to create decorrelated fields
-    vec3 offset1 = vec3(0.0, 0.0, 0.0);
-    vec3 offset2 = vec3(31.416, 47.853, 12.793);
-    vec3 offset3 = vec3(93.719, 61.248, 73.561);
+    float a = sin(time * 6.28318) * (speed) + 1.0;
+    float b = cos(time * 6.28318) * (speed) + 1.0;
+
+    vec3 offset1 = vec3(a, b, 0.0);
+    vec3 offset2 = vec3(31.416 - a, 47.853 - b, 12.793);
+    vec3 offset3 = vec3(93.719 - b, 61.248 - a, 73.561 + a);
     
     // Sample Fx derivatives
-    float Fx_py = fbmSimplex3D(p + vec3(0.0, eps, 0.0) + offset1, numOctaves);
+    float Fx_py = fbmSimplex3D(p + vec3(0.0, eps, 0.0) - offset1, numOctaves);
     float Fx_ny = fbmSimplex3D(p - vec3(0.0, eps, 0.0) + offset1, numOctaves);
-    float Fx_pz = fbmSimplex3D(p + vec3(0.0, 0.0, eps) + offset1, numOctaves);
+    float Fx_pz = fbmSimplex3D(p + vec3(0.0, 0.0, eps) - offset1, numOctaves);
     float Fx_nz = fbmSimplex3D(p - vec3(0.0, 0.0, eps) + offset1, numOctaves);
     
     // Sample Fy derivatives
-    float Fy_px = fbmSimplex3D(p + vec3(eps, 0.0, 0.0) + offset2, numOctaves);
+    float Fy_px = fbmSimplex3D(p + vec3(eps, 0.0, 0.0) - offset2, numOctaves);
     float Fy_nx = fbmSimplex3D(p - vec3(eps, 0.0, 0.0) + offset2, numOctaves);
-    float Fy_pz = fbmSimplex3D(p + vec3(0.0, 0.0, eps) + offset2, numOctaves);
+    float Fy_pz = fbmSimplex3D(p + vec3(0.0, 0.0, eps) - offset2, numOctaves);
     float Fy_nz = fbmSimplex3D(p - vec3(0.0, 0.0, eps) + offset2, numOctaves);
     
     // Sample Fz derivatives
-    float Fz_px = fbmSimplex3D(p + vec3(eps, 0.0, 0.0) + offset3, numOctaves);
+    float Fz_px = fbmSimplex3D(p + vec3(eps, 0.0, 0.0) - offset3, numOctaves);
     float Fz_nx = fbmSimplex3D(p - vec3(eps, 0.0, 0.0) + offset3, numOctaves);
-    float Fz_py = fbmSimplex3D(p + vec3(0.0, eps, 0.0) + offset3, numOctaves);
+    float Fz_py = fbmSimplex3D(p + vec3(0.0, eps, 0.0) - offset3, numOctaves);
     float Fz_ny = fbmSimplex3D(p - vec3(0.0, eps, 0.0) + offset3, numOctaves);
     
     // Compute partial derivatives
@@ -174,7 +177,7 @@ void main() {
     
     // Center and scale coordinates
     vec2 centered = (uv - 0.5) * vec2(aspect, 1.0);
-    vec3 p = vec3(centered * scale, time * speed);
+    vec3 p = vec3(centered * scale, 0.5);
     
     // Clamp octaves to valid range
     int oct = clamp(octaves, 1, 3);

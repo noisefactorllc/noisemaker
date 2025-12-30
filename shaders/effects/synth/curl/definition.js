@@ -30,17 +30,6 @@ export default new Effect({
         control: "slider"
       }
     },
-    seed: {
-      type: "float",
-      default: 0,
-      uniform: "seed",
-      min: 0,
-      max: 1000,
-      ui: {
-        label: "seed",
-        control: "slider"
-      }
-    },
     octaves: {
       type: "int",
       default: 1,
@@ -52,14 +41,14 @@ export default new Effect({
         control: "slider"
       }
     },
-    speed: {
+    seed: {
       type: "float",
-      default: 0.5,
-      uniform: "speed",
+      default: 0,
+      uniform: "seed",
       min: 0,
-      max: 5,
+      max: 1000,
       ui: {
-        label: "speed",
+        label: "seed",
         control: "slider"
       }
     },
@@ -70,6 +59,17 @@ export default new Effect({
       ui: {
         label: "ridges",
         control: "checkbox"
+      }
+    },
+    speed: {
+      type: "float",
+      default: 0.5,
+      uniform: "speed",
+      min: 0,
+      max: 5,
+      ui: {
+        label: "speed",
+        control: "slider"
       }
     },
     outputMode: {

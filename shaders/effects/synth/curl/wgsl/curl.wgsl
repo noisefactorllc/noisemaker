@@ -131,26 +131,29 @@ fn curlNoise3D(p: vec3f, numOctaves: i32) -> vec3f {
     
     // We need 3 independent scalar fields to compute curl of a vector field
     // Use offset positions to create decorrelated fields
-    let offset1 = vec3f(0.0, 0.0, 0.0);
-    let offset2 = vec3f(31.416, 47.853, 12.793);
-    let offset3 = vec3f(93.719, 61.248, 73.561);
+    let a = sin(u.time * 6.28318) * (u.speed) + 1.0;
+    let b = cos(u.time * 6.28318) * (u.speed) + 1.0;
+
+    let offset1 = vec3f(a, b, 0.0);
+    let offset2 = vec3f(31.416 - a, 47.853 - b, 12.793);
+    let offset3 = vec3f(93.719 - b, 61.248 - a, 73.561 + a);
     
     // Sample Fx derivatives
-    let Fx_py = fbmSimplex3D(p + vec3f(0.0, eps, 0.0) + offset1, numOctaves);
+    let Fx_py = fbmSimplex3D(p + vec3f(0.0, eps, 0.0) - offset1, numOctaves);
     let Fx_ny = fbmSimplex3D(p - vec3f(0.0, eps, 0.0) + offset1, numOctaves);
-    let Fx_pz = fbmSimplex3D(p + vec3f(0.0, 0.0, eps) + offset1, numOctaves);
+    let Fx_pz = fbmSimplex3D(p + vec3f(0.0, 0.0, eps) - offset1, numOctaves);
     let Fx_nz = fbmSimplex3D(p - vec3f(0.0, 0.0, eps) + offset1, numOctaves);
     
     // Sample Fy derivatives
-    let Fy_px = fbmSimplex3D(p + vec3f(eps, 0.0, 0.0) + offset2, numOctaves);
+    let Fy_px = fbmSimplex3D(p + vec3f(eps, 0.0, 0.0) - offset2, numOctaves);
     let Fy_nx = fbmSimplex3D(p - vec3f(eps, 0.0, 0.0) + offset2, numOctaves);
-    let Fy_pz = fbmSimplex3D(p + vec3f(0.0, 0.0, eps) + offset2, numOctaves);
+    let Fy_pz = fbmSimplex3D(p + vec3f(0.0, 0.0, eps) - offset2, numOctaves);
     let Fy_nz = fbmSimplex3D(p - vec3f(0.0, 0.0, eps) + offset2, numOctaves);
     
     // Sample Fz derivatives
-    let Fz_px = fbmSimplex3D(p + vec3f(eps, 0.0, 0.0) + offset3, numOctaves);
+    let Fz_px = fbmSimplex3D(p + vec3f(eps, 0.0, 0.0) - offset3, numOctaves);
     let Fz_nx = fbmSimplex3D(p - vec3f(eps, 0.0, 0.0) + offset3, numOctaves);
-    let Fz_py = fbmSimplex3D(p + vec3f(0.0, eps, 0.0) + offset3, numOctaves);
+    let Fz_py = fbmSimplex3D(p + vec3f(0.0, eps, 0.0) - offset3, numOctaves);
     let Fz_ny = fbmSimplex3D(p - vec3f(0.0, eps, 0.0) + offset3, numOctaves);
     
     // Compute partial derivatives
@@ -176,7 +179,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     
     // Center and scale coordinates
     let centered = (uv - 0.5) * vec2f(aspect, 1.0);
-    let p = vec3f(centered * u.scale, u.time * u.speed);
+    let p = vec3f(centered * u.scale, 0.5);
     
     // Clamp octaves to valid range
     let oct = clamp(i32(u.octaves), 1, 3);
