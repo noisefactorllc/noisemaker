@@ -61,9 +61,7 @@ fn sampleTrail(uv: vec2f) -> f32 {
 fn sampleExternalField(uv: vec2f, weight: f32) -> f32 {
     if (weight <= 0.0) { return 0.0; }
     let blend = clamp(weight * 0.01, 0.0, 1.0);
-    // Flip Y for texture convention
-    let flippedUV = vec2f(uv.x, 1.0 - uv.y);
-    return luminance(textureSampleLevel(inputTex, inputSampler, flippedUV, 0.0).rgb) * blend * 0.05;
+    return luminance(textureSampleLevel(inputTex, inputSampler, uv, 0.0).rgb) * blend * 0.05;
 }
 
 @fragment
@@ -131,8 +129,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     var speedScale = 1.0;
     let blend = clamp(u.inputWeight * 0.01, 0.0, 1.0);
     if (blend > 0.0) {
-        let flippedUV = vec2f(pos.x, 1.0 - pos.y);
-        let localInput = luminance(textureSampleLevel(inputTex, inputSampler, flippedUV, 0.0).rgb);
+        let localInput = luminance(textureSampleLevel(inputTex, inputSampler, pos, 0.0).rgb);
         // Invert: slow in bright, fast in dark
         speedScale = mix(1.0, mix(1.8, 0.35, localInput), blend);
     }
