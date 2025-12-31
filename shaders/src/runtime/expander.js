@@ -304,6 +304,16 @@ export function expand(compilationResult, options = {}) {
                 if (currentInputGeo) {
                     textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
                 }
+                // Pass through particle state textures
+                if (currentInputXyz) {
+                    textureMap.set(`${nodeId}_outXyz`, currentInputXyz)
+                }
+                if (currentInputVel) {
+                    textureMap.set(`${nodeId}_outVel`, currentInputVel)
+                }
+                if (currentInputRgba) {
+                    textureMap.set(`${nodeId}_outRgba`, currentInputRgba)
+                }
                 continue
             }
 
@@ -318,6 +328,16 @@ export function expand(compilationResult, options = {}) {
                 }
                 if (currentInputGeo) {
                     textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
+                }
+                // Pass through particle state textures
+                if (currentInputXyz) {
+                    textureMap.set(`${nodeId}_outXyz`, currentInputXyz)
+                }
+                if (currentInputVel) {
+                    textureMap.set(`${nodeId}_outVel`, currentInputVel)
+                }
+                if (currentInputRgba) {
+                    textureMap.set(`${nodeId}_outRgba`, currentInputRgba)
                 }
                 continue
             }
@@ -340,6 +360,16 @@ export function expand(compilationResult, options = {}) {
                 }
                 if (currentInputGeo) {
                     textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
+                }
+                // Pass through particle state textures
+                if (currentInputXyz) {
+                    textureMap.set(`${nodeId}_outXyz`, currentInputXyz)
+                }
+                if (currentInputVel) {
+                    textureMap.set(`${nodeId}_outVel`, currentInputVel)
+                }
+                if (currentInputRgba) {
+                    textureMap.set(`${nodeId}_outRgba`, currentInputRgba)
                 }
                 continue
             }
