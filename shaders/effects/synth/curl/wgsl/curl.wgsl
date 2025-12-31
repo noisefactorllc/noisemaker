@@ -8,6 +8,7 @@ struct Uniforms {
     octaves: f32,
     ridges: f32,
     outputMode: f32,
+    intensity: f32,
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -127,7 +128,7 @@ fn fbmSimplex3D(p: vec3f, numOctaves: i32) -> f32 {
 // ============================================================================
 
 fn curlNoise3D(p: vec3f, numOctaves: i32) -> vec3f {
-    let eps: f32 = 0.1;
+    let eps: f32 = 1.0;
     
     // We need 3 independent scalar fields to compute curl of a vector field
     // Use offset positions to create decorrelated fields
@@ -185,7 +186,10 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let oct = clamp(i32(u.octaves), 1, 3);
     
     // Compute 3D curl noise
-    let curl = curlNoise3D(p, oct);
+    var curl = curlNoise3D(p, oct);
+    
+    // Apply intensity
+    curl *= u.intensity;
     
     // Normalize curl to approximately [-1, 1] range then to [0, 1] for display
     let curlNorm = curl * 0.5 + 0.5;

@@ -9,6 +9,7 @@ uniform float speed;
 uniform int octaves;
 uniform bool ridges;
 uniform int outputMode;
+uniform float intensity;
 
 out vec4 fragColor;
 
@@ -126,7 +127,7 @@ float fbmSimplex3D(vec3 p, int numOctaves) {
 // ============================================================================
 
 vec3 curlNoise3D(vec3 p, int numOctaves) {
-    const float eps = 0.1;
+    const float eps = 1.0;
     
     // We need 3 independent scalar fields to compute curl of a vector field
     // Use offset positions to create decorrelated fields
@@ -184,6 +185,9 @@ void main() {
     
     // Compute 3D curl noise
     vec3 curl = curlNoise3D(p, oct);
+    
+    // Apply intensity
+    curl *= intensity;
     
     // Normalize curl to approximately [-1, 1] range then to [0, 1] for display
     curl = curl * 0.5 + 0.5;

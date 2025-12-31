@@ -16,7 +16,8 @@ export default new Effect({
     speed: { slot: 1, components: 'z' },
     octaves: { slot: 1, components: 'w' },
     ridges: { slot: 2, components: 'x' },
-    outputMode: { slot: 2, components: 'y' }
+    outputMode: { slot: 2, components: 'y' },
+    intensity: { slot: 2, components: 'z' }
   },
   globals: {
     scale: {
@@ -61,12 +62,23 @@ export default new Effect({
         control: "checkbox"
       }
     },
+    intensity: {
+      type: "float",
+      default: 1.0,
+      uniform: "intensity",
+      min: 0,
+      max: 2,
+      ui: {
+        label: "intensity",
+        control: "slider"
+      }
+    },
     speed: {
       type: "float",
       default: 0.5,
       uniform: "speed",
       min: 0,
-      max: 5,
+      max: 2,
       ui: {
         label: "speed",
         control: "slider"
