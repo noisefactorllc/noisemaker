@@ -74,7 +74,7 @@ vec3 calculateNormal(vec2 uv, vec2 texelSize) {
 
 // Apply refraction effect based on surface normal
 vec4 applyRefraction(vec2 uv, vec3 normal) {
-    vec2 refractionOffset = normal.xy * (refraction * 0.25);
+    vec2 refractionOffset = normal.xy * (refraction * 0.0125);
     return texture(inputTex, uv + refractionOffset);
 }
 
@@ -87,7 +87,7 @@ vec4 applyReflection(vec2 uv, vec3 normal) {
     vec3 reflectionVec = reflect(incident, normal);
     
     // Convert to 2D texture offset
-    vec2 reflectionOffset = reflectionVec.xy * (reflection * 0.0005);
+    vec2 reflectionOffset = reflectionVec.xy * (reflection * 0.00005);
     
     // Apply chromatic aberration
     vec2 redOffset = reflectionOffset * (1.0 + aberration * 0.0075);
@@ -139,7 +139,8 @@ void main() {
     
     // Apply refraction if enabled
     if (refraction > 0.0) {
-        workingColor = applyRefraction(uv, normal);
+        vec4 refractedColor = applyRefraction(uv, normal);
+        workingColor = mix(workingColor, refractedColor, refraction / 100.0);
     }
     
     // Apply reflection (with chromatic aberration) if enabled

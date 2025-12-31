@@ -77,7 +77,7 @@ fn calculateNormal(uv: vec2f, texelSize: vec2f) -> vec3f {
 
 // Apply refraction effect based on surface normal
 fn applyRefraction(uv: vec2f, normal: vec3f) -> vec4f {
-    let refractionOffset = normal.xy * (uniforms.refraction * 0.25);
+    let refractionOffset = normal.xy * (uniforms.refraction * 0.0125);
     return textureSample(inputTex, inputSampler, uv + refractionOffset);
 }
 
@@ -90,7 +90,7 @@ fn applyReflection(uv: vec2f, normal: vec3f) -> vec4f {
     let reflectionVec = reflect(incident, normal);
     
     // Convert to 2D texture offset
-    let reflectionOffset = reflectionVec.xy * (uniforms.reflection * 0.0005);
+    let reflectionOffset = reflectionVec.xy * (uniforms.reflection * 0.00005);
     
     // Apply chromatic aberration
     let redOffset = reflectionOffset * (1.0 + uniforms.aberration * 0.0075);
@@ -142,7 +142,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     
     // Apply refraction if enabled
     if (uniforms.refraction > 0.0) {
-        workingColor = applyRefraction(uv, normal);
+        let refractedColor = applyRefraction(uv, normal);
+        workingColor = mix(workingColor, refractedColor, uniforms.refraction / 100.0);
     }
     
     // Apply reflection (with chromatic aberration) if enabled
