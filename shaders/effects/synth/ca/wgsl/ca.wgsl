@@ -78,8 +78,8 @@ fn catmullRom3x3Sample(tex: texture_2d<f32>, samp: sampler, uv: vec2<f32>, texel
     // Match GLSL: offset uv by one texel to accommodate texel centering
     let uv2 = uv + texelSize;
     let texCoord = uv2 / texelSize;
-    let baseCoord = floor(texCoord - 0.5);
-    let f = fract(texCoord - 0.5);
+    let baseCoord = floor(texCoord - 1.0);
+    let f = fract(texCoord - 1.0);
     
     // Sample 3x3 grid
     let v00 = textureSampleLevel(tex, samp, (baseCoord + vec2<f32>(-0.5, -0.5)) * texelSize, 0.0);
@@ -107,7 +107,7 @@ fn bicubicSample(tex: texture_2d<f32>, samp: sampler, uv: vec2<f32>, texelSize: 
     // Match GLSL: offset uv by one texel to accommodate texel centering
     let uv2 = uv + texelSize;
     let texCoord = uv2 / texelSize;
-    let baseCoord = floor(texCoord) - 0.5 * texelSize;
+    let baseCoord = floor(texCoord) - 1.0 * texelSize;
     let fractional = texCoord - baseCoord;
 
     var totalWeight = 0.0;
@@ -127,8 +127,8 @@ fn bicubicSample(tex: texture_2d<f32>, samp: sampler, uv: vec2<f32>, texelSize: 
 fn catmullRom4x4Sample(tex: texture_2d<f32>, samp: sampler, uv: vec2<f32>, texelSize: vec2<f32>) -> vec4<f32> {
     let uv2 = uv + texelSize;
     let texCoord = uv2 / texelSize;
-    let baseCoord = floor(texCoord - 0.5);
-    let f = fract(texCoord - 0.5);
+    let baseCoord = floor(texCoord - 1.0);
+    let f = fract(texCoord - 1.0);
     
     // Sample 4x4 grid
     var samples: array<array<vec4<f32>, 4>, 4>;

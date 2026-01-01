@@ -169,7 +169,7 @@ export default new Effect({
       program: "caFb",
       inputs: {
         bufTex: "global_ca_state",
-        seedTex: "tex"
+        tex: "tex"
       },
       outputs: {
         fragColor: "global_ca_state"
@@ -182,7 +182,7 @@ export default new Effect({
         fbTex: "global_ca_state",
         prevFrameTex: "global_ca_state",
         bufTex: "global_ca_state",
-        seedTex: "tex"
+        tex: "tex"
       },
       outputs: {
         fragColor: "outputTex"

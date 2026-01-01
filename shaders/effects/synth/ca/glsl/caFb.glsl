@@ -17,7 +17,7 @@ uniform float time;
 uniform float deltaTime;
 uniform int frame;
 uniform sampler2D bufTex;
-uniform sampler2D seedTex;
+uniform sampler2D tex;
 uniform vec2 resolution;
 uniform int ruleIndex;
 uniform float speed;
@@ -183,7 +183,7 @@ void main() {
         return;
     }
 
-    vec3 prevFrame = texture(seedTex, uv).rgb;
+    vec3 prevFrame = texture(tex, uv).rgb;
     float prevLum = lum(prevFrame);
 
     int neighbors = countNeighbors(uv, texelSize);

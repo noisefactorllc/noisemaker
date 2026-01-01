@@ -15,7 +15,7 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var samp: sampler;
 @group(0) @binding(2) var bufTex: texture_2d<f32>;
-@group(0) @binding(3) var seedTex: texture_2d<f32>;
+@group(0) @binding(3) var tex: texture_2d<f32>;
 
 fn map(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
@@ -219,7 +219,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     let bufferIsEmpty: bool = (bufState.r == 0.0 && bufState.g == 0.0 && bufState.b == 0.0 && bufState.a == 0.0);
 
     // Sample previous frame for luminance-based perturbation (must be before early return for uniform control flow)
-    let prevFrame: vec3<f32> = textureSample(seedTex, samp, uv).rgb;
+    let prevFrame: vec3<f32> = textureSample(tex, samp, uv).rgb;
     let prevLum: f32 = lum(prevFrame);
 
     // Initialize when reset button pressed or when buffer is completely empty (first load)
