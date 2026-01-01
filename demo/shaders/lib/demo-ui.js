@@ -3370,7 +3370,7 @@ render(o1)`
     /** @private */
     _createBooleanControl(container, key, value, effectKey) {
         const handle = this._controlFactory.createToggle({
-            checked: !!value
+            value: !!value
         })
 
         const toggle = handle.element
