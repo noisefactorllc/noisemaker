@@ -22,7 +22,7 @@ The effect animates by moving through the z-axis of the 3D noise space, creating
 - More octaves add fine-scale turbulence
 - Each octave doubles the frequency and halves the amplitude
 
-**speed**: Animation speed (0-5)
+**speed**: Animation speed (0-2)
 - Controls how fast the pattern evolves by moving through z-space
 - 0 = static, higher = faster animation
 
@@ -45,3 +45,15 @@ The effect animates by moving through the z-axis of the 3D noise space, creating
 - Flow field generation for simulations
 - Abstract generative art with natural motion
 - Distortion maps for other effects
+
+## Parameter Summary
+
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| scale | float | 4.0 | 0.5–20 | Spatial frequency of the noise pattern |
+| octaves | int | 1 | 1–3 | Number of noise octaves |
+| seed | float | 0 | 0–1000 | Random seed |
+| ridges | boolean | false | — | Enable ridged noise mode |
+| intensity | float | 1.0 | 0–2 | Output intensity |
+| speed | float | 0.5 | 0–2 | Animation speed |
+| outputMode | int | full | flowX, flowY, flowZ, full, magnitude | Visualization mode |

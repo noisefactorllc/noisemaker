@@ -10,16 +10,23 @@ Applies 3D lighting to 2D textures by calculating surface normals from luminosit
 
 ## Parameters
 
-- **Diffuse Color**: Color of the diffuse lighting component
-- **Specular Color**: Color of the specular highlights
-- **Specular Intensity**: Strength of specular highlights (0.0 - 2.0)
-- **Ambient Color**: Base ambient lighting color
-- **Light Direction**: Direction vector of the light source (X, Y, Z)
-- **Normal Strength**: Controls the prominence of surface details (0.0 - 5.0)
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| normalStrength | float | 1.5 | 0–5 | Controls the prominence of surface details (depth) |
+| diffuseColor | vec3 | [1, 1, 1] | — | Color of the diffuse lighting component |
+| specularColor | vec3 | [1, 1, 1] | — | Color of the specular highlights |
+| specularIntensity | float | 0.5 | 0–2 | Strength of specular highlights |
+| shininess | float | 64 | 8–256 | Controls highlight sharpness (higher = tighter highlights) |
+| ambientColor | vec3 | [0.2, 0.2, 0.2] | — | Base ambient lighting color |
+| lightDirection | vec3 | [0.5, 0.5, 1] | — | Direction vector of the light source (X, Y, Z) |
+| reflection | float | 0 | 0–100 | Amount of reflection distortion |
+| refraction | float | 0 | 0–100 | Amount of refraction distortion |
+| aberration | float | 0 | 0–100 | Chromatic aberration amount |
 
 ## Usage Tips
 
-- Increase **Normal Strength** to make surface features more pronounced
-- Adjust **Light Direction** to change where highlights appear
-- Higher **Specular Intensity** creates shinier surfaces
-- Works best with textures that have clear luminosity variation
+- Increase **normalStrength** to make surface features more pronounced
+- Adjust **lightDirection** to change where highlights appear
+- Higher **shininess** creates tighter, shinier specular highlights
+- Use **reflection** and **refraction** for glass/water-like effects
+- **aberration** adds RGB channel splitting for dispersion effects

@@ -1,22 +1,9 @@
-## Arguments
+## Parameters
 
-### `x`
-- **Type:** Number.
-- **Default:** `0`.
-- **Range:** -10–10.
-- **Description:** Horizontal factor or coordinate.
-### `y`
-- **Type:** Number.
-- **Default:** `0`.
-- **Range:** -10–10.
-- **Description:** Vertical factor or coordinate.
-### `speedX`
-- **Type:** Number.
-- **Default:** `0`.
-- **Range:** -10–10.
-- **Description:** Horizontal animation speed.
-### `speedY`
-- **Type:** Number.
-- **Default:** `0`.
-- **Range:** -10–10.
-- **Description:** Vertical animation speed.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| x | float | 0 | -10–10 | Horizontal offset |
+| y | float | 0 | -10–10 | Vertical offset |
+| speedX | float | 0 | -10–10 | Horizontal animation speed |
+| speedY | float | 0 | -10–10 | Vertical animation speed |
+| wrap | int | 1 | mirror, repeat, clamp | Edge wrapping mode |

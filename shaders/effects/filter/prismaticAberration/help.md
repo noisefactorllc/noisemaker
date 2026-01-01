@@ -2,9 +2,9 @@
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| aberration | float | 50 | 0–100 | Prismatic aberration amount |
+| aberrationAmt | float | 50 | 0–100 | Prismatic aberration amount |
 | modulate | boolean | false | — | Enable hue modulation |
-| hueRotate | float | 0 | 0–360 | Hue rotation in degrees |
+| hueRotation | float | 0 | 0–360 | Hue rotation in degrees |
 | hueRange | float | 0 | 0–100 | Hue variation range |
 | saturation | float | 0 | -100–100 | Saturation adjustment |
 | passthru | float | 50 | 0–100 | Blend with original |

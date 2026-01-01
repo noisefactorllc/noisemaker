@@ -1,3 +1,11 @@
+# Value Noise
+
+Value noise with multiple interpolation types.
+
+## Description
+
+Generates procedural value noise with various interpolation algorithms including simplex and sine variants. Supports octave layering, animation loops, and color output modes.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
@@ -9,7 +17,7 @@
 | ridges | boolean | false | — | Enable ridged noise |
 | wrap | boolean | true | — | Enable edge wrapping |
 | seed | int | 1 | 1–100 | Random seed |
-| loopOffset | int | noiseConstant | circle, triangle, diamond, square, pentagon, hexagon, heptagon, octagon, nonagon, decagon, hendecagon, dodecagon, horizontalScan, verticalScan, noise, rings, sine | Loop offset shape |
+| loopOffset | int | noise | circle, triangle, diamond, square, pentagon, hexagon, heptagon, octagon, nonagon, decagon, hendecagon, dodecagon, horizontalScan, verticalScan, noise, rings, sine | Loop offset shape |
 | loopScale | float | 75 | 1–100 | Loop scale |
 | loopAmp | float | 25 | -100–100 | Loop power/amplitude |
-| colorMode | int | mono | mono, rgb | Output color mode |
+| colorMode | int | rgb | mono, rgb | Output color mode |

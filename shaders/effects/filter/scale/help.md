@@ -1,22 +1,9 @@
-## Arguments
+## Parameters
 
-### `x`
-- **Type:** Number.
-- **Default:** `1`.
-- **Range:** 0–10.
-- **Description:** Horizontal factor or coordinate.
-### `y`
-- **Type:** Number.
-- **Default:** `0`.
-- **Range:** 0–10.
-- **Description:** Vertical factor or coordinate.
-### `centerX`
-- **Type:** Number.
-- **Default:** `0.5`.
-- **Range:** 0–1.
-- **Description:** Horizontal pivot point for scaling.
-### `centerY`
-- **Type:** Number.
-- **Default:** `0.5`.
-- **Range:** 0–1.
-- **Description:** Vertical pivot point for scaling.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| x | float | 1 | 0–10 | Horizontal scale factor |
+| y | float | 0 | 0–10 | Vertical scale factor |
+| centerX | float | 0.5 | 0–1 | Horizontal pivot point |
+| centerY | float | 0.5 | 0–1 | Vertical pivot point |
+| wrap | int | 1 (repeat) | mirror/repeat/clamp | Edge wrapping mode |
