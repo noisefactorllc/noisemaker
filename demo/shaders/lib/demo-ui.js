@@ -1265,6 +1265,31 @@ export class UIController {
             return `search points, synth, render\n\nnoise()\n  .pointsEmit()\n  .physical()\n  .pointsRender()\n  .write(o0)\n\nrender(o0)`
         }
 
+        // Special case: pointsBillboardRender needs polygon sprite source and full pipeline
+        if (funcName === 'pointsBillboardRender') {
+            return `search points, synth, render
+
+polygon(
+  radius: 0.7,
+  fgAlpha: 0.1,
+  bgAlpha: 0
+)
+  .write(o0)
+
+noise(ridges: true)
+  .pointsEmit(stateSize: x64)
+  .physical()
+  .pointsBillboardRender(
+    tex: read(o0),
+    pointSize: 40,
+    sizeVariation: 50,
+    rotationVariation: 50
+  )
+  .write(o1)
+
+render(o1)`
+        }
+
         // Special case: points namespace effects need pointsEmit/pointsRender wrapping
         if (effect.namespace === 'points') {
             const kwargs = this._buildKwargs(effect.instance.globals, this._parameterValues)
