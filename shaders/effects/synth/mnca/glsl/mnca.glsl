@@ -87,8 +87,8 @@ vec4 bicubic4(vec4 p0, vec4 p1, vec4 p2, vec4 p3, float t) {
 vec4 bicubic(sampler2D tex, vec2 uv, vec2 texelSize) {
     uv += texelSize;
     vec2 texCoord = uv / texelSize;
-    vec2 baseCoord = floor(texCoord - 0.5);
-    vec2 f = fract(texCoord - 0.5);
+    vec2 baseCoord = floor(texCoord - 1.0);
+    vec2 f = fract(texCoord - 1.0);
     
     // Sample 4×4 grid
     vec4 row0 = bicubic4(
@@ -150,8 +150,8 @@ vec4 catmullRom4(vec4 p0, vec4 p1, vec4 p2, vec4 p3, float t) {
 vec4 catmullRom3x3(sampler2D tex, vec2 uv, vec2 texelSize) {
     uv += texelSize;
     vec2 texCoord = uv / texelSize;
-    vec2 baseCoord = floor(texCoord - 0.5);
-    vec2 f = fract(texCoord - 0.5);
+    vec2 baseCoord = floor(texCoord - 1.0);
+    vec2 f = fract(texCoord - 1.0);
     
     // Sample 3×3 grid
     vec4 v00 = texture(tex, (baseCoord + vec2(-0.5, -0.5)) * texelSize);
@@ -179,8 +179,8 @@ vec4 catmullRom3x3(sampler2D tex, vec2 uv, vec2 texelSize) {
 vec4 catmullRom4x4(sampler2D tex, vec2 uv, vec2 texelSize) {
     uv += texelSize;
     vec2 texCoord = uv / texelSize;
-    vec2 baseCoord = floor(texCoord - 0.5);
-    vec2 f = fract(texCoord - 0.5);
+    vec2 baseCoord = floor(texCoord - 1.0);
+    vec2 f = fract(texCoord - 1.0);
     
     // Sample 4×4 grid and interpolate rows directly
     vec4 row0 = catmullRom4(
