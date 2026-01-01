@@ -1187,7 +1187,7 @@ export class WebGPUBackend extends Backend {
 
         const pipeline = this.resolveRenderPipeline(program, {
             blend: pass.blend,
-            topology: pass.drawMode === 'points' ? 'point-list' : 'triangle-list',
+            topology: (pass.drawMode === 'points') ? 'point-list' : 'triangle-list',
             format: resolvedFormat
         })
 
@@ -1205,6 +1205,10 @@ export class WebGPUBackend extends Backend {
         if (pass.drawMode === 'points') {
             const count = this.resolvePointCount(pass, state, outputId, outputTex)
             passEncoder.draw(count, 1, 0, 0)
+        } else if (pass.drawMode === 'billboards') {
+            // Billboard mode: 6 vertices per particle (2 triangles = 1 quad)
+            const count = this.resolvePointCount(pass, state, outputId, outputTex)
+            passEncoder.draw(count * 6, 1, 0, 0)
         } else {
             passEncoder.draw(3, 1, 0, 0) // Full-screen triangle
         }
@@ -1262,7 +1266,7 @@ export class WebGPUBackend extends Backend {
         // Get or create MRT pipeline
         const pipeline = this.resolveMRTRenderPipeline(program, {
             blend: pass.blend,
-            topology: pass.drawMode === 'points' ? 'point-list' : 'triangle-list',
+            topology: (pass.drawMode === 'points') ? 'point-list' : 'triangle-list',
             formats
         })
 
@@ -1286,6 +1290,10 @@ export class WebGPUBackend extends Backend {
         if (pass.drawMode === 'points') {
             const count = this.resolvePointCount(pass, state, null, viewportTex)
             passEncoder.draw(count, 1, 0, 0)
+        } else if (pass.drawMode === 'billboards') {
+            // Billboard mode: 6 vertices per particle (2 triangles = 1 quad)
+            const count = this.resolvePointCount(pass, state, null, viewportTex)
+            passEncoder.draw(count * 6, 1, 0, 0)
         } else {
             passEncoder.draw(3, 1, 0, 0) // Full-screen triangle
         }

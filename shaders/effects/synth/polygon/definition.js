@@ -44,6 +44,46 @@ export default new Effect({
             "label": "Rotation",
             "control": "slider"
         }
+    },
+    "fgColor": {
+        "type": "vec3",
+        "default": [1.0, 1.0, 1.0],
+        "uniform": "fgColor",
+        "ui": {
+            "label": "Foreground Color",
+            "control": "color"
+        }
+    },
+    "fgAlpha": {
+        "type": "float",
+        "default": 1.0,
+        "min": 0.0,
+        "max": 1.0,
+        "uniform": "fgAlpha",
+        "ui": {
+            "label": "Foreground Opacity",
+            "control": "slider"
+        }
+    },
+    "bgColor": {
+        "type": "vec3",
+        "default": [0.0, 0.0, 0.0],
+        "uniform": "bgColor",
+        "ui": {
+            "label": "Background Color",
+            "control": "color"
+        }
+    },
+    "bgAlpha": {
+        "type": "float",
+        "default": 1.0,
+        "min": 0.0,
+        "max": 1.0,
+        "uniform": "bgAlpha",
+        "ui": {
+            "label": "Background Opacity",
+            "control": "slider"
+        }
     }
 },
   passes: [

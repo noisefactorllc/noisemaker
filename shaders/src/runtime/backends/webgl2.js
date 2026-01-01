@@ -785,6 +785,42 @@ export class WebGL2Backend extends Backend {
             gl.bindVertexArray(this.emptyVAO)
             gl.drawArrays(gl.POINTS, 0, count)
             gl.bindVertexArray(null)
+        } else if (effectivePass.drawMode === 'billboards') {
+            // Billboard mode: 6 vertices per particle (2 triangles = 1 quad)
+            let count = effectivePass.count || 1000
+            if (count === 'auto' || count === 'screen' || count === 'input') {
+                // Determine particle count based on mode
+                let refTex = null
+
+                if (count === 'input' && effectivePass.inputs && effectivePass.inputs.xyzTex) {
+                    // Use xyz state texture dimensions
+                    const inputId = effectivePass.inputs.xyzTex
+                    const inputGlobalName = this.parseGlobalName(inputId)
+                    if (inputGlobalName) {
+                        const surfaceTex = state.surfaces?.[inputGlobalName]
+                        if (surfaceTex) {
+                            refTex = surfaceTex
+                        }
+                    } else {
+                        refTex = this.textures.get(inputId)
+                    }
+                } else {
+                    // Use output texture dimensions (auto) or screen
+                    const tex = this.textures.get(outputId)
+                    refTex = tex
+                }
+
+                if (refTex && refTex.width && refTex.height) {
+                    count = refTex.width * refTex.height
+                } else {
+                    count = gl.drawingBufferWidth * gl.drawingBufferHeight
+                }
+            }
+
+            // 6 vertices per particle for billboard quads
+            gl.bindVertexArray(this.emptyVAO)
+            gl.drawArrays(gl.TRIANGLES, 0, count * 6)
+            gl.bindVertexArray(null)
         } else {
             // Default to fullscreen triangle
             gl.bindVertexArray(this.fullscreenVAO)

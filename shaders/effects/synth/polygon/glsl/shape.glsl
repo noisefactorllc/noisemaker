@@ -7,6 +7,10 @@ uniform int sides;
 uniform float radius;
 uniform float smoothing;
 uniform float rotation;
+uniform vec3 fgColor;
+uniform float fgAlpha;
+uniform vec3 bgColor;
+uniform float bgAlpha;
 
 out vec4 fragColor;
 
@@ -28,5 +32,17 @@ void main(){
   float sidesF = float(max(sides, 3));
   float d = polygon(st, sidesF);
   float m = smoothstep(radius, radius - smoothing, d);
-  fragColor = vec4(vec3(m),1.0);
+  
+  // fgAlpha scales foreground visibility, bgAlpha scales background visibility
+  float fgMask = m * fgAlpha;
+  float bgMask = (1.0 - m) * bgAlpha;
+  float totalAlpha = fgMask + bgMask;
+  
+  // Compute color as weighted blend (for non-zero alpha)
+  vec3 outColor = totalAlpha > 0.0 
+      ? (fgColor * fgMask + bgColor * bgMask) / totalAlpha
+      : vec3(0.0);
+  
+  // Output premultiplied alpha for correct compositing
+  fragColor = vec4(outColor * totalAlpha, totalAlpha);
 }
