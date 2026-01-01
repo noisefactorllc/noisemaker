@@ -7,6 +7,7 @@ on:
       - main
       - master
     paths:
+      - 'demo/shaders/**'
       - 'shaders/**'
   workflow_dispatch:  # Allow manual triggering
 
