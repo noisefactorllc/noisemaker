@@ -137,7 +137,7 @@ fn curlNoise3D(p: vec3f, numOctaves: i32) -> vec3f {
 
     let offset1 = vec3f(a, b, 0.0);
     let offset2 = vec3f(31.416 - a, 47.853 - b, 12.793);
-    let offset3 = vec3f(93.719 - b, 61.248 - a, 73.561 + a);
+    let offset3 = vec3f(93.719 - b, 61.248 - a, 73.561);
     
     // Sample Fx derivatives
     let Fx_py = fbmSimplex3D(p + vec3f(0.0, eps, 0.0) - offset1, numOctaves);

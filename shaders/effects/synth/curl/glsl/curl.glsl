@@ -136,7 +136,7 @@ vec3 curlNoise3D(vec3 p, int numOctaves) {
 
     vec3 offset1 = vec3(a, b, 0.0);
     vec3 offset2 = vec3(31.416 - a, 47.853 - b, 12.793);
-    vec3 offset3 = vec3(93.719 - b, 61.248 - a, 73.561 + a);
+    vec3 offset3 = vec3(93.719 - b, 61.248 - a, 73.561);
     
     // Sample Fx derivatives
     float Fx_py = fbmSimplex3D(p + vec3(0.0, eps, 0.0) - offset1, numOctaves);
