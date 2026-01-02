@@ -423,7 +423,8 @@
             
             placeholderEntry.instance = loadedEffect.instance;
             placeholderEntry.loaded = true;
-            placeholderEntry.help = loadedEffect.help || null;
+            // Help is attached to the instance by the bundle loader
+            placeholderEntry.help = loadedEffect.instance.help || null;
             currentEffect = placeholderEntry;
 
             // Update title

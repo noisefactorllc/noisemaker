@@ -29,16 +29,19 @@ Interactive reference for all shader effects. Select an effect to view its docum
          <h3>DSL Usage</h3>
          <p class="dsl-usage-intro">Use this effect in your Polymorphic DSL programs:</p>
          <pre id="effect-ref-dsl-example" class="dsl-example"></pre>
-       </div>
-       
-       <div class="effect-reference-demo">
-         <div class="effect-ref-canvas-wrapper">
-           <canvas id="effect-ref-canvas" width="384" height="384"></canvas>
-           <button id="effect-ref-random" class="effect-ref-random-btn">Random</button>
-           <div id="effect-ref-loading" class="effect-ref-loading">Loading...</div>
-         </div>
-         <div id="effect-ref-params" class="effect-ref-params">
-           <!-- Dynamic controls will appear here -->
+         
+         <div class="effect-reference-demo">
+           <h3>Live Demo</h3>
+           <div class="demo-layout">
+             <div class="effect-ref-canvas-wrapper">
+               <canvas id="effect-ref-canvas" width="384" height="384"></canvas>
+               <button id="effect-ref-random" class="effect-ref-random-btn">Random</button>
+               <div id="effect-ref-loading" class="effect-ref-loading">Loading...</div>
+             </div>
+             <div id="effect-ref-params" class="effect-ref-params">
+               <!-- Dynamic controls will appear here -->
+             </div>
+           </div>
          </div>
        </div>
      </div>
@@ -91,19 +94,7 @@ Interactive reference for all shader effects. Select an effect to view its docum
    }
    
    .effect-reference-main {
-     display: grid;
-     grid-template-columns: 1fr 400px;
-     gap: 2rem;
-     align-items: start;
-   }
-   
-   @media (max-width: 900px) {
-     .effect-reference-main {
-       grid-template-columns: 1fr;
-     }
-     .effect-reference-demo {
-       order: -1;
-     }
+     display: block;
    }
    
    .effect-reference-info {
@@ -143,18 +134,47 @@ Interactive reference for all shader effects. Select an effect to view its docum
      width: 100%;
      border-collapse: collapse;
      margin: 1rem 0;
-     font-size: 0.9rem;
+     font-size: 0.8rem;
+     table-layout: fixed;
    }
    
    .effect-help-content th,
    .effect-help-content td {
      border: 1px solid #ddd;
-     padding: 0.5rem 0.75rem;
+     padding: 0.35rem 0.4rem;
      text-align: left;
+     word-wrap: break-word;
+     overflow-wrap: break-word;
+   }
+   
+   .effect-help-content th:nth-child(1),
+   .effect-help-content td:nth-child(1) {
+     width: 22%;
+   }
+   
+   .effect-help-content th:nth-child(2),
+   .effect-help-content td:nth-child(2) {
+     width: 12%;
+   }
+   
+   .effect-help-content th:nth-child(3),
+   .effect-help-content td:nth-child(3) {
+     width: 12%;
+   }
+   
+   .effect-help-content th:nth-child(4),
+   .effect-help-content td:nth-child(4) {
+     width: 14%;
+   }
+   
+   .effect-help-content th:nth-child(5),
+   .effect-help-content td:nth-child(5) {
+     width: 40%;
    }
    
    .effect-help-content th {
-     background: #f5f5f5;
+     background: var(--color-background-secondary, #f5f5f5);
+     color: var(--color-content-foreground, #333);
      font-weight: 600;
    }
    
@@ -194,12 +214,19 @@ Interactive reference for all shader effects. Select an effect to view its docum
    }
    
    .effect-reference-demo {
-     position: sticky;
-     top: 1rem;
+     margin-top: 2rem;
+     padding-top: 1.5rem;
+     border-top: 1px solid #ddd;
+   }
+   
+   .effect-reference-demo h3 {
+     margin-top: 0;
+     margin-bottom: 1rem;
    }
    
    .effect-ref-canvas-wrapper {
      position: relative;
+     display: inline-block;
      border-radius: 4px;
      overflow: hidden;
      background: #000;
@@ -207,8 +234,8 @@ Interactive reference for all shader effects. Select an effect to view its docum
    
    #effect-ref-canvas {
      display: block;
-     width: 100%;
-     height: auto;
+     width: 384px;
+     height: 384px;
    }
    
    .effect-ref-random-btn {
@@ -216,7 +243,8 @@ Interactive reference for all shader effects. Select an effect to view its docum
      bottom: 8px;
      right: 8px;
      padding: 0.375rem 0.75rem;
-     background: rgba(255, 255, 255, 0.9);
+     background: rgba(40, 40, 40, 0.85);
+     color: #fff;
      border: none;
      border-radius: 4px;
      font-size: 0.75rem;
@@ -226,7 +254,7 @@ Interactive reference for all shader effects. Select an effect to view its docum
    }
    
    .effect-ref-random-btn:hover {
-     background: #fff;
+     background: rgba(60, 60, 60, 0.95);
    }
    
    .effect-ref-loading {
@@ -242,9 +270,18 @@ Interactive reference for all shader effects. Select an effect to view its docum
      display: none;
    }
    
+   .effect-reference-demo .demo-layout {
+     display: flex;
+     gap: 1.5rem;
+     align-items: flex-start;
+     flex-wrap: wrap;
+   }
+   
    .effect-ref-params {
-     margin-top: 1rem;
-     max-height: 300px;
+     flex: 1;
+     min-width: 250px;
+     max-width: 350px;
+     max-height: 384px;
      overflow-y: auto;
    }
    
