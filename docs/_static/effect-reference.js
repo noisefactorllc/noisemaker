@@ -614,31 +614,9 @@
 
         if (randomBtn) {
             randomBtn.addEventListener('click', () => {
-                // Reseed effects
-                if (renderer._pipeline && renderer._pipeline.graph && renderer._pipeline.graph.passes) {
-                    for (const pass of renderer._pipeline.graph.passes) {
-                        if (pass.uniforms && 'seed' in pass.uniforms) {
-                            pass.uniforms.seed = Math.random() * 100;
-                        }
-                    }
-                }
-
-                if (currentEffect && currentEffect.instance && currentEffect.instance.globals && currentEffect.instance.globals.seed) {
-                    const newSeed = Math.random() * 100;
-                    currentUniforms.seed = newSeed;
-                    if (renderer._pipeline) {
-                        renderer._pipeline.setUniform('seed', newSeed);
-                    }
-                }
-
-                // Reset sim effects
+                const newSeed = Math.floor(Math.random() * 100) + 1;
                 if (renderer._pipeline) {
-                    renderer._pipeline.setUniform('resetState', true);
-                    requestAnimationFrame(() => {
-                        if (renderer._pipeline) {
-                            renderer._pipeline.setUniform('resetState', false);
-                        }
-                    });
+                    renderer._pipeline.setUniform('seed', newSeed);
                 }
             });
         }
