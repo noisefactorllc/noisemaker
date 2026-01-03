@@ -131,8 +131,8 @@ vec3 curlNoise3D(vec3 p, int numOctaves) {
     
     // We need 3 independent scalar fields to compute curl of a vector field
     // Use offset positions to create decorrelated fields
-    float a = sin(time * 6.28318) * (speed) + 1.0;
-    float b = cos(time * 6.28318) * (speed) + 1.0;
+    float a = (sin(time * 6.28318) * (speed) + 1.0) / float(numOctaves);
+    float b = (cos(time * 6.28318) * (speed) + 1.0) / float(numOctaves);
 
     vec3 offset1 = vec3(a, b, 0.0);
     vec3 offset2 = vec3(31.416 - a, 47.853 - b, 12.793);
