@@ -15,7 +15,7 @@ precision highp float;
 precision highp int;
 
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform vec2 resolution;
 uniform sampler2D fbTex;
 uniform int smoothing;

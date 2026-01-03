@@ -19,7 +19,7 @@ uniform sampler2D seedTex;
 uniform vec2 resolution;
 uniform float speed;
 uniform float weight;
-uniform float seed;
+uniform int seed;
 uniform bool resetState;
 
 uniform float n1v1;
@@ -128,7 +128,7 @@ void main() {
 
     // Initialize when reset button pressed or when buffer is completely empty (first load)
     if (resetState || bufferIsEmpty) {
-        float r = random(uv + vec2(seed));
+        float r = random(uv + vec2(float(seed)));
         float alive = step(0.5, r);
         fragColor = vec4(alive, alive, alive, 1.0);
         return;

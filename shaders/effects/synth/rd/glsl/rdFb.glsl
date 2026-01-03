@@ -10,7 +10,7 @@ precision highp float;
 precision highp int;
 
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform vec2 resolution;
 uniform sampler2D bufTex;
 uniform float feed;
@@ -75,7 +75,7 @@ void main() {
         // Initialize: A=1 everywhere, B=1 at sparse random locations
         a = 1.0;
         b = 0.0;
-        if (hash(gl_FragCoord.xy + vec2(seed)) > 0.99) {
+        if (hash(gl_FragCoord.xy + vec2(float(seed))) > 0.99) {
             b = 1.0;
         }
         // Return initial state without running update step

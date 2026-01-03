@@ -298,7 +298,7 @@ fn maskValue(st: vec2<f32>, freq: f32, s: f32) -> f32 {
     return maskValueXY(st, freq, freq, s);
 }
 
-fn arecibo(st: vec2<f32>, xFreq: f32, yFreq: f32, _seed: f32) -> f32 {
+fn arecibo(st: vec2<f32>, xFreq: f32, yFreq: f32, _seed: i32) -> f32 {
     let xMod = mod_f(floor(st.x * xFreq), xFreq);
     let yMod = mod_f(floor(st.y * yFreq), yFreq);
 
@@ -309,17 +309,17 @@ fn arecibo(st: vec2<f32>, xFreq: f32, yFreq: f32, _seed: f32) -> f32 {
     } else if (yMod == 1.0) {
         v = select(0.0, 1.0, xMod == 1.0);
     } else {
-        v = maskValueXY(st, xFreq, yFreq, _seed);
+        v = maskValueXY(st, xFreq, yFreq, f32(_seed));
     }
 
     return v;
 }
 
-fn areciboNum(st: vec2<f32>, freq: f32, _seed: f32) -> f32 {
+fn areciboNum(st: vec2<f32>, freq: f32, _seed: i32) -> f32 {
     return arecibo(st, floor(freq * 0.5) + 1.0, floor(freq), _seed);
 }
 
-fn glyphs(st: vec2<f32>, freq: f32, _seed: f32) -> f32 {
+fn glyphs(st: vec2<f32>, freq: f32, _seed: i32) -> f32 {
     let xFreq = floor(freq * 0.75);
 
     let xMod = mod_f(floor(st.x * xFreq), xFreq);
@@ -330,13 +330,13 @@ fn glyphs(st: vec2<f32>, freq: f32, _seed: f32) -> f32 {
     if (xMod == 0.0 || yMod == 0.0 || xMod == (xFreq - 1.0) || yMod == (freq - 1.0)) {
         v = 0.0;
     } else {
-        v = maskValueXY(st, xFreq, freq, _seed);
+        v = maskValueXY(st, xFreq, freq, f32(_seed));
     }
 
     return v;
 }
 
-fn invaders(st: vec2<f32>, freq: f32, _seed: f32) -> f32 {
+fn invaders(st: vec2<f32>, freq: f32, _seed: i32) -> f32 {
     let xMod = mod_f(floor(st.x * freq), freq);
     let yMod = mod_f(floor(st.y * freq), freq);
 
@@ -345,15 +345,15 @@ fn invaders(st: vec2<f32>, freq: f32, _seed: f32) -> f32 {
     if (xMod == 0.0 || yMod == 0.0 || xMod == (freq - 1.0) || yMod == (freq - 1.0)) {
         v = 0.0;
     } else if (xMod >= freq * 0.5) {
-        v = maskValue(vec2<f32>(floor(st.x) + (1.0 - fract(st.x)), st.y), freq, _seed);
+        v = maskValue(vec2<f32>(floor(st.x) + (1.0 - fract(st.x)), st.y), freq, f32(_seed));
     } else {
-        v = maskValue(st, freq, _seed);
+        v = maskValue(st, freq, f32(_seed));
     }
 
     return v;
 }
 
-fn bitMaskValue(st: vec2<f32>, freq: f32, _seed: f32) -> f32 {
+fn bitMaskValue(st: vec2<f32>, freq: f32, _seed: i32) -> f32 {
     var v = 1.0;
 
     if (maskFormula == 10 || maskFormula == 11) {
@@ -384,25 +384,25 @@ fn bitMask(st: vec2<f32>) -> vec3<f32> {
 
     let freq = floor(map(complexity, 1.0, 100.0, 5.0, 12.0));
 
-    let mask = select(0.0, 1.0, bitMaskValue(st2, freq, -100.0) > 0.5);
+    let mask = select(0.0, 1.0, bitMaskValue(st2, freq, -100) > 0.5);
 
     if (maskColorScheme == 0) {
         color = vec3<f32>(mask);
     } else {
         let baseHue = 0.01 + maskValue(st2, 1.0, -100.0) * baseHueRange * 0.01;
 
-        color.x = fract(baseHue + bitMaskValue(st2, freq, 0.0) * hueRange * 0.01 + (1.0 - (hueRotation / 360.0))) * mask;
+        color.x = fract(baseHue + bitMaskValue(st2, freq, 0) * hueRange * 0.01 + (1.0 - (hueRotation / 360.0))) * mask;
 
         if (maskColorScheme == 3) {
             color.y = mask;
         } else {
-            color.y = bitMaskValue(st2, freq, 25.0) * mask;
+            color.y = bitMaskValue(st2, freq, 25) * mask;
         }
 
         if (maskColorScheme == 2 || maskColorScheme == 3) {
             color.z = mask;
         } else {
-            color.z = bitMaskValue(st2, freq, 50.0) * mask;
+            color.z = bitMaskValue(st2, freq, 50) * mask;
         }
 
         color = hsv2rgb(color);
@@ -442,7 +442,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
         color = vec4<f32>(bitField(st), color.a);
     } else {
         st = pos.xy / resolution.y;
-        st = st + seed + 1000.0;
+        st = st + f32(seed) + 1000.0;
         color = vec4<f32>(bitMask(st), color.a);
     }
 

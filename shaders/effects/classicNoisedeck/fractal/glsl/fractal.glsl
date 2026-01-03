@@ -10,7 +10,7 @@ precision highp float;
 precision highp int;
 
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform vec2 resolution;
 uniform int fractalType;
 uniform int symmetry; // 2 3 4 5

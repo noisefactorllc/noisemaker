@@ -8,7 +8,7 @@
 precision highp float;
 
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform int volumeSize;
 uniform int ruleIndex;
 uniform int neighborMode;
@@ -23,7 +23,7 @@ out vec4 fragColor;
 
 // Hash for initialization
 float hash3(vec3 p) {
-    p = p + seed * 0.1;
+    p = p + float(seed) * 0.1;
     p = fract(p * vec3(0.1031, 0.1030, 0.0973));
     p += dot(p, p.yxz + 33.33);
     return fract((p.x + p.y) * p.z);

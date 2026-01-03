@@ -5,7 +5,7 @@
  */
 
 @group(0) @binding(0) var<uniform> volumeSize: i32;
-@group(0) @binding(1) var<uniform> seed: f32;
+@group(0) @binding(1) var<uniform> seed: i32;
 @group(0) @binding(2) var<uniform> ruleIndex: i32;
 @group(0) @binding(3) var<uniform> neighborMode: i32;
 @group(0) @binding(4) var<uniform> speed: f32;
@@ -153,7 +153,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         } else {
             // Initialize with random sparse distribution
             let p = vec3<f32>(f32(x), f32(y), f32(z));
-            let h = hash3(p, seed);
+            let h = hash3(p, f32(seed));
             let thresh = density * 0.01;
             
             // Seed a sphere in the center plus random cells

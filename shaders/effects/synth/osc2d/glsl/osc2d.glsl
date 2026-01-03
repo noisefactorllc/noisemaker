@@ -8,7 +8,7 @@ uniform int oscType;
 uniform int frequency;
 uniform float speed;
 uniform float rotation;
-uniform float seed;
+uniform int seed;
 
 out vec4 fragColor;
 
@@ -131,8 +131,8 @@ void main() {
         float scrolledPos = fract(spatialPos + scrollOffset);
         
         // Same computation as noise2d at t=0
-        float timeNoise = tilingNoise1D(scrolledPos, freq, seed + 12345.0);
-        float valueNoise = tilingNoise1D(scrolledPos, freq, seed);
+        float timeNoise = tilingNoise1D(scrolledPos, freq, float(seed) + 12345.0);
+        float valueNoise = tilingNoise1D(scrolledPos, freq, float(seed));
         float scaledTime = periodicValue(0.0, timeNoise) * speed;
         val = periodicValue(scaledTime, valueNoise);
     } else {
@@ -141,8 +141,8 @@ void main() {
         //         result = periodic_value(scaled_time, value_noise)
         
         // Get noise values at this spatial position (same sampling as noise1d)
-        float timeNoise = tilingNoise1D(spatialPos, freq, seed + 12345.0);
-        float valueNoise = tilingNoise1D(spatialPos, freq, seed);
+        float timeNoise = tilingNoise1D(spatialPos, freq, float(seed) + 12345.0);
+        float valueNoise = tilingNoise1D(spatialPos, freq, float(seed));
         
         // Two-stage periodic: time -> periodic -> scale -> periodic
         float scaledTime = periodicValue(time, timeNoise) * speed;

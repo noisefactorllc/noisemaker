@@ -10,7 +10,7 @@ precision highp float;
 precision highp int;
 
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform vec2 resolution;
 uniform float xScale;
 uniform float yScale;
@@ -367,7 +367,7 @@ float offset(vec2 st, vec2 freq) {
     if (loopOffset == 210) return st.y * freq.x * 0.5;
     if (loopOffset == 300) {
         st -= vec2(aspectRatio * 0.5, 0.5);
-        return value(st, freq, seed + 50.0, 0.0);
+        return value(st, freq, float(seed) + 50.0, 0.0);
     }
     if (loopOffset == 400) return 1.0 - rings(st, freq.x);
     if (loopOffset == 410) return 1.0 - diamonds(st, freq.x);
@@ -466,6 +466,6 @@ void main() {
     }
     float blend = periodicFunction(t) * abs(loopAmp) * 0.01;
 
-    color.rgb = multires(centered, freq, octaves, seed, blend);
+    color.rgb = multires(centered, freq, octaves, float(seed), blend);
     fragColor = color;
 }

@@ -9,7 +9,7 @@ precision highp float;
 precision highp int;
 
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform bool wrap;
 uniform vec2 resolution;
 uniform float noiseScale;
@@ -287,7 +287,7 @@ vec3 randomFromLatticeWithOffset(vec2 st, float xFreq, float yFreq, float s, ive
 
     uint xBits = uint(xi);
     uint yBits = uint(yi);
-    uint seedBits = floatBitsToUint(seed);
+    uint seedBits = uint(seed);
     uint fracBits = floatBitsToUint(seedFrac);
 
     uvec3 jitter = uvec3(
@@ -546,7 +546,7 @@ void main() {
         }
     }
 
-    float s = floor(seed);
+    float s = float(seed);
 
     // Refract values
     float xRef = value(st, xFreq, yFreq, +20.0 + s);

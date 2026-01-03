@@ -3,7 +3,7 @@ precision highp float;
 
 uniform float time;
 uniform float scale;
-uniform float seed;
+uniform int seed;
 uniform int octaves;
 uniform int ridges;
 uniform int volumeSize;
@@ -22,7 +22,7 @@ const float W_PERIOD = 4.0;  // Period length in w-axis lattice units for seamle
 
 // Improved hash using multiple rounds of mixing (4D version)
 float hash4(vec4 p) {
-    vec4 ps = p + seed * 0.1;
+    vec4 ps = p + float(seed) * 0.1;
     uvec4 q = uvec4(ivec4(ps * 1000.0) + 65536);
     q = q * 1664525u + 1013904223u;
     q.x += q.y * q.z;

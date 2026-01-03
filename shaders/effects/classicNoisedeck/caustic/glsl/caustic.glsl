@@ -9,7 +9,7 @@ precision highp float;
 precision highp int;
 
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform bool wrap;
 uniform vec2 resolution;
 uniform float noiseScale;
@@ -203,7 +203,7 @@ vec3 randomFromLatticeWithOffset(vec2 st, float xFreq, float yFreq, float s, ive
 
     uint xBits = uint(xi);
     uint yBits = uint(yi);
-    uint seedBits = floatBitsToUint(seed);
+    uint seedBits = uint(seed);
     uint fracBits = floatBitsToUint(seedFrac);
 
     uvec3 jitter = uvec3(
@@ -468,8 +468,8 @@ void main() {
     vec2 st = gl_FragCoord.xy / resolution.y;
     st -= vec2(aspectRatio * 0.5, 0.5);
 
-    vec3 leftColor = noise(st, seed);
-    vec3 rightColor = noise(st, seed + 10.0);
+    vec3 leftColor = noise(st, float(seed));
+    vec3 rightColor = noise(st, float(seed) + 10.0);
 
     // "reflect" mode blend from coalesce
     vec3 left = min(leftColor * rightColor / (1.0 - rightColor * leftColor), vec3(1.0));

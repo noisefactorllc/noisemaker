@@ -12,7 +12,7 @@ uniform vec2 resolution;
 uniform float time;
 uniform float strength;
 uniform float scale;
-uniform float seed;
+uniform int seed;
 uniform int speed;
 uniform int wrap;
 uniform float rotation;
@@ -89,8 +89,8 @@ void main() {
     uv = rotate2D(uv, rotation / 180.0, aspectRatio);
 
     // Perlin warp
-    uv.x += (perlinNoise(uv * vec2(aspectRatio, 1.0) + seed, vec2(abs(scale * 3.0))) - 0.5) * strength * 0.01;
-    uv.y += (perlinNoise(uv * vec2(aspectRatio, 1.0) + seed + 10.0, vec2(abs(scale * 3.0))) - 0.5) * strength * 0.01;
+    uv.x += (perlinNoise(uv * vec2(aspectRatio, 1.0) + float(seed), vec2(abs(scale * 3.0))) - 0.5) * strength * 0.01;
+    uv.y += (perlinNoise(uv * vec2(aspectRatio, 1.0) + float(seed) + 10.0, vec2(abs(scale * 3.0))) - 0.5) * strength * 0.01;
 
     // Apply wrap mode
     if (wrap == 0) {

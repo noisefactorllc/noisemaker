@@ -3,7 +3,7 @@ struct Uniforms {
     time: f32,
     aspectRatio: f32,
     scale: f32,
-    seed: f32,
+    seed: i32,
     speed: f32,
     octaves: f32,
     ridges: f32,
@@ -37,7 +37,7 @@ fn simplex3D(v: vec3f) -> f32 {
     let D = vec4f(0.0, 0.5, 1.0, 2.0);
     
     // Apply seed offset to input
-    let vSeeded = v + u.seed * 0.1271;
+    let vSeeded = v + f32(u.seed) * 0.1271;
     
     // First corner
     let i = floor(vSeeded + dot(vSeeded, C.yyy));

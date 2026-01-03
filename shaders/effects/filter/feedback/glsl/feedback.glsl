@@ -13,7 +13,7 @@ uniform sampler2D inputTex;   // Live input from previous effect
 uniform sampler2D selfTex;    // Feedback buffer (previous frame output)
 uniform vec2 resolution;
 uniform float time;
-uniform float seed;
+uniform int seed;
 
 // Transform uniforms
 uniform float scaleAmt;

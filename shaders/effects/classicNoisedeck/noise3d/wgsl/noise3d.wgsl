@@ -13,7 +13,7 @@
 
 // Uniforms - individual bindings pattern for generator effects
 @group(0) @binding(0) var<uniform> time: f32;
-@group(0) @binding(1) var<uniform> seed: f32;
+@group(0) @binding(1) var<uniform> seed: i32;
 @group(0) @binding(2) var<uniform> resolution: vec2<f32>;
 @group(0) @binding(3) var<uniform> noiseScale: f32;
 @group(0) @binding(4) var<uniform> noiseType: i32;
@@ -362,14 +362,14 @@ fn snoise(v: vec3<f32>) -> f32 {
 
 // ===== Additional noise types =====
 fn sine3D(p: vec3<f32>) -> f32 {
-    let r0 = prng(vec3<f32>(seed)) * TAU;
+    let r0 = prng(vec3<f32>(f32(seed))) * TAU;
     let a = r0.x;
     let b = r0.y;
     let c = r0.z;
 
-    let r1 = prng(vec3<f32>(seed)) + 1.0;
-    let r2 = prng(vec3<f32>(seed + 10.0)) + 1.0;
-    let r3 = prng(vec3<f32>(seed + 20.0)) + 1.0;
+    let r1 = prng(vec3<f32>(f32(seed))) + 1.0;
+    let r2 = prng(vec3<f32>(f32(seed) + 10.0)) + 1.0;
+    let r3 = prng(vec3<f32>(f32(seed) + 20.0)) + 1.0;
     let xv = sin(r1.x * p.z + sin(r1.y * p.x + a) + sin(r1.z * p.y + b) + c);
     let yv = sin(r2.x * p.x + sin(r2.y * p.y + b) + sin(r2.z * p.z + c) + a);
     let zv = sin(r3.x * p.y + sin(r3.y * p.z + c) + sin(r3.z * p.x + a) + b);
@@ -382,7 +382,7 @@ fn spheres(p: vec3<f32>) -> f32 {
     let pr = p - round(p);
     let ip = floor(q);
     let fp = fract(pr);
-    let r1 = prng(ip + seed) * 0.5 + 0.25;
+    let r1 = prng(ip + f32(seed)) * 0.5 + 0.25;
     return length(fp - 0.5) - map_value(noiseScale, 1.0, 100.0, 0.025, 0.55) * r1.x;
 }
 
@@ -403,16 +403,16 @@ fn getDist(p: vec3<f32>) -> f32 {
     if (noiseType == 12) {
         // simplex
         let scale = map_value(noiseScale, 1.0, 100.0, 0.25, 0.025);
-        d = snoise(p * scale + seed) * 0.5 + 0.5;
+        d = snoise(p * scale + f32(seed)) * 0.5 + 0.5;
         d = smootherstep(d);
     } else if (noiseType == 20) {
         // cell
         let scale = map_value(noiseScale, 1.0, 100.0, 0.1, 0.35);
-        d = cellular(p * 0.1 + seed).x;
+        d = cellular(p * 0.1 + f32(seed)).x;
         d = smoothstep(scale, 0.5, d);
     } else if (noiseType == 21) {
         // cell v2
-        d = voronoi3d(p * 0.1 + seed).x;
+        d = voronoi3d(p * 0.1 + f32(seed)).x;
         let scale = map_value(noiseScale, 1.0, 100.0, 0.1, 0.35);
         d = smoothstep(scale, 0.5, d);
     } else if (noiseType == 30) {
@@ -426,19 +426,19 @@ fn getDist(p: vec3<f32>) -> f32 {
     } else if (noiseType == 60) {
         // wavy planes both
         let scale = map_value(noiseScale, 1.0, 100.0, 0.25, 0.025);
-        d = -abs(p.y) + 4.0 + snoise(p * scale + seed) * 0.75;
+        d = -abs(p.y) + 4.0 + snoise(p * scale + f32(seed)) * 0.75;
     } else if (noiseType == 61) {
         // wavy plane lower
         let scale = map_value(noiseScale, 1.0, 100.0, 0.25, 0.025);
-        d = p.y + 4.0 + snoise(p * scale + seed) * 0.75;
+        d = p.y + 4.0 + snoise(p * scale + f32(seed)) * 0.75;
     } else if (noiseType == 62) {
         // wavy plane upper
         let scale = map_value(noiseScale, 1.0, 100.0, 0.25, 0.025);
-        d = -p.y + 2.0 + snoise(p * scale + seed) * 0.75;
+        d = -p.y + 2.0 + snoise(p * scale + f32(seed)) * 0.75;
     } else {
         // default to simplex
         let scale = map_value(noiseScale, 1.0, 100.0, 0.25, 0.025);
-        d = snoise(p * scale + seed) * 0.5 + 0.5;
+        d = snoise(p * scale + f32(seed)) * 0.5 + 0.5;
         d = smootherstep(d);
     }
 

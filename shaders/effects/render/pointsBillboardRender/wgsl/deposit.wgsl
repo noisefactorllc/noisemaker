@@ -6,7 +6,7 @@ struct Uniforms {
     pointSize: f32,
     sizeVariation: f32,
     rotationVariation: f32,
-    seed: f32,
+    seed: i32,
     viewMode: i32,
     rotateX: f32,
     rotateY: f32,

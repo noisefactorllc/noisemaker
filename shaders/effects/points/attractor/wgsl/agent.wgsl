@@ -4,7 +4,7 @@
 struct Uniforms {
     time: f32,
     resolution: vec2<f32>,
-    seed: f32,
+    seed: i32,
     attractor: i32,
     speed: f32,
 };

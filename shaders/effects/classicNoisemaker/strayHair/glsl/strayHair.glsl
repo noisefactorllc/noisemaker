@@ -8,7 +8,7 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform float time;
-uniform float seed;
+uniform int seed;
 
 in vec2 v_texCoord;
 out vec4 fragColor;
@@ -80,7 +80,7 @@ void main() {
     
     // Use seed to vary hair generation
     // Add seed directly to hash inputs to ensure different outputs
-    float seedOffset = seed * 7.919;  // Prime multiplier for better distribution
+    float seedOffset = float(seed) * 7.919;  // Prime multiplier for better distribution
     float baseSeed = seedOffset + floor(time * 0.1) * 13.37;
     
     // Number of hairs based on image size

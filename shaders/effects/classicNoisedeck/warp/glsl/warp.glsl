@@ -12,7 +12,7 @@ precision highp int;
 uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform bool aspectLens;
 uniform int distortionType;
 uniform float speed;
@@ -218,8 +218,8 @@ vec2 waves(vec2 uv) {
 }
 
 vec2 perlin(vec2 uv) {
-    uv.x += (perlin(uv * vec2(aspectRatio, 1.0) + seed, vec2(abs(scale * 3.0))) - 0.5) * strength * 0.01;
-    uv.y += (perlin(uv * vec2(aspectRatio, 1.0) + seed + 10.0, vec2(abs(scale * 3.0))) - 0.5) * strength * 0.01;
+    uv.x += (perlin(uv * vec2(aspectRatio, 1.0) + float(seed), vec2(abs(scale * 3.0))) - 0.5) * strength * 0.01;
+    uv.y += (perlin(uv * vec2(aspectRatio, 1.0) + float(seed) + 10.0, vec2(abs(scale * 3.0))) - 0.5) * strength * 0.01;
     return uv;
 }
 

@@ -10,7 +10,7 @@ precision highp float;
 precision highp int;
 
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform bool wrap;
 uniform vec2 resolution;
 uniform int shapeA;

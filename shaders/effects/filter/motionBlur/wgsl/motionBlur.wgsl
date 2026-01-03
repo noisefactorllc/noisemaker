@@ -7,7 +7,7 @@
 struct Uniforms {
     resolution: vec2<f32>,
     time: f32,
-    seed: f32,
+    seed: i32,
     amount: f32,
     resetState: i32,
 }

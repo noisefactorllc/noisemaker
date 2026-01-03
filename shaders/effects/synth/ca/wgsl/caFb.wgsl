@@ -197,7 +197,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     // timing metadata, slot 1 stores the primary CA controls, and slots 2-6
     // pack the custom rule masks alongside the input source selector.
     let deltaTime: f32 = uniforms.data[0].y;
-    let seed: f32 = uniforms.data[0].z;
+    let seed: i32 = i32(uniforms.data[0].z);
     let resetState: bool = uniforms.data[0].w > 0.5;
     let ruleIndex: i32 = i32(uniforms.data[1].x);
     let speed: f32 = uniforms.data[1].y;
@@ -224,7 +224,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
 
     // Initialize when reset button pressed or when buffer is completely empty (first load)
     if (resetState || bufferIsEmpty) {
-        let r: f32 = random(uv + vec2<f32>(seed, seed));
+        let r: f32 = random(uv + vec2<f32>(f32(seed), f32(seed)));
         let alive: f32 = step(0.5, r);
         return vec4<f32>(alive, alive, alive, 1.0);
     }

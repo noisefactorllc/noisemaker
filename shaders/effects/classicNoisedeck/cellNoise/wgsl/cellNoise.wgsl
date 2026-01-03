@@ -208,12 +208,12 @@ fn smin(a: f32, b: f32, k: f32) -> f32 {
     return min(a, b) - h * h * k * 0.25;
 }
 
-fn cells(st0: vec2<f32>, freq: f32, cellSize: f32, metric: i32, seed: f32, loopAmp: f32, cellVariation: f32, cellSmooth: f32, time: f32, aspect: f32) -> f32 {
+fn cells(st0: vec2<f32>, freq: f32, cellSize: f32, metric: i32, seed: i32, loopAmp: f32, cellVariation: f32, cellSmooth: f32, time: f32, aspect: f32) -> f32 {
     var st = st0;
     st = st - vec2<f32>(0.5 * aspect, 0.5);
     st = st * freq;
     st = st + vec2<f32>(0.5 * aspect, 0.5);
-    st = st + prng(vec3<f32>(seed)).xy;
+    st = st + prng(vec3<f32>(f32(seed))).xy;
 
     var i = floor(st);
     var f = fract(st);
@@ -224,10 +224,10 @@ fn cells(st0: vec2<f32>, freq: f32, cellSize: f32, metric: i32, seed: f32, loopA
             let n = vec2<f32>(f32(x), f32(y));
             var wrap = i + n;
             //wrap = wrapEdges(wrap, freq, aspect);
-            var point = prng(vec3<f32>(wrap, seed)).xy;
+            var point = prng(vec3<f32>(wrap, f32(seed))).xy;
 
-            let r1 = prng(vec3<f32>(seed, wrap)) * 0.5 - vec3<f32>(0.25);
-            let r2 = prng(vec3<f32>(wrap, seed)) * 2.0 - vec3<f32>(1.0);
+            let r1 = prng(vec3<f32>(f32(seed), wrap)) * 0.5 - vec3<f32>(0.25);
+            let r2 = prng(vec3<f32>(wrap, f32(seed))) * 2.0 - vec3<f32>(1.0);
             let speed = floor(loopAmp);
             point = point + vec2<f32>(
                 sin(time * TAU * speed + r2.x) * r1.x,
@@ -252,7 +252,7 @@ fn cells(st0: vec2<f32>, freq: f32, cellSize: f32, metric: i32, seed: f32, loopA
 fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let resolution = uniforms.data[0].xy;
     let time = uniforms.data[0].z;
-    let seed = uniforms.data[0].w;
+    let seed = i32(uniforms.data[0].w);
 
     let metric = i32(uniforms.data[1].x);
     var scale = uniforms.data[1].y;

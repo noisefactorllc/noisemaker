@@ -13,7 +13,7 @@ uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform int blendMode;
 uniform float loopScale;
 uniform int loopOffset;
@@ -393,8 +393,8 @@ vec3 randomFromLatticeWithOffset(vec2 st, float freq, ivec2 offset) {
     ivec2 base = ivec2(baseFloor) + offset;
     vec2 frac = lattice - baseFloor;
 
-    int seedInt = int(floor(seed));
-    float seedFrac = fract(seed);
+    int seedInt = seed;
+    float seedFrac = 0.0;
 
     float xCombined = frac.x + seedFrac;
     int xi = base.x + seedInt + int(floor(xCombined));
@@ -411,7 +411,7 @@ vec3 randomFromLatticeWithOffset(vec2 st, float freq, ivec2 offset) {
 
     uint xBits = uint(xi);
     uint yBits = uint(yi);
-    uint seedBits = floatBitsToUint(seed);
+    uint seedBits = uint(seed);
     uint fracBits = floatBitsToUint(seedFrac);
 
     uvec3 jitter = uvec3(
@@ -675,11 +675,11 @@ float value(vec2 st, float freq, int interp) {
         d = bicubicValue(st, freq);
     } else if (interp == 10) {
         if (animate == -1) {
-            scaledTime = simplexValue(st, freq, seed + 40.0, time);
+            scaledTime = simplexValue(st, freq, float(seed) + 40.0, time);
         } else if (animate == 1) {
-            scaledTime = simplexValue(st, freq, seed + 40.0, -time);
+            scaledTime = simplexValue(st, freq, float(seed) + 40.0, -time);
         }
-        d = simplexValue(st, freq, seed, scaledTime);
+        d = simplexValue(st, freq, float(seed), scaledTime);
     } else {
         float x1y1 = constant(st, freq);
 
@@ -711,8 +711,8 @@ float sineNoise(vec2 st, float freq) {
     st *= freq;
     st += vec2(aspectRatio * 0.5, 0.5);
 
-    vec3 r1 = prng(vec3(seed));
-    vec3 r2 = prng(vec3(seed + 10.0));
+    vec3 r1 = prng(vec3(float(seed)));
+    vec3 r2 = prng(vec3(float(seed) + 10.0));
 
     float scaleA = r1.x * TAU; 
     float scaleC = r1.y * TAU;

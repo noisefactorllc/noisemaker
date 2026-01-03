@@ -10,7 +10,7 @@ precision highp float;
 precision highp int;
 
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform vec2 resolution;
 uniform int metric;
 uniform float scale;
@@ -255,7 +255,7 @@ float cells(vec2 st, float freq, float cellSize, int sides) {
     st -= vec2(0.5 * aspectRatio, 0.5);
 	st *= freq;
     st += vec2(0.5 * aspectRatio, 0.5);
-	st += prng(vec3(seed)).xy;
+	st += prng(vec3(float(seed))).xy;
 
 
 	vec2 i = floor(st);
@@ -268,10 +268,10 @@ float cells(vec2 st, float freq, float cellSize, int sides) {
 			vec2 n = vec2(float(x), float(y));
 			vec2 wrap = i + n;
             //wrap = wrapEdges(wrap, freq);
-			vec2 point = prng(vec3(wrap, seed)).xy;
+			vec2 point = prng(vec3(wrap, float(seed))).xy;
 
-            vec3 r1 = prng(vec3(seed, wrap)) * 0.5 - 0.25; 
-			vec3 r2 = prng(vec3(wrap, seed)) * 2.0 - 1.0;
+            vec3 r1 = prng(vec3(float(seed), wrap)) * 0.5 - 0.25; 
+			vec3 r2 = prng(vec3(wrap, float(seed))) * 2.0 - 1.0;
             float speed = floor(loopAmp);
             point += vec2(sin(time * TAU * speed + r2.x) * r1.x, cos(time * TAU * speed + r2.y) * r1.y);
 

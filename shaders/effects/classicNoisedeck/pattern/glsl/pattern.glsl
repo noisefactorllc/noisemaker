@@ -10,7 +10,7 @@ precision highp float;
 precision highp int;
 
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform vec2 resolution;
 uniform int patternType;
 uniform float scale;
@@ -180,7 +180,7 @@ float grid(vec2 st, float res) {
 
 float truchet(vec2 st, int truchetType) {
     vec2 uv = fract(st) - 0.5;
-    vec3 r1 = prng(vec3(floor(st) + seed * 1000.0, time * speed));
+    vec3 r1 = prng(vec3(floor(st) + float(seed) * 1000.0, time * speed));
     // animate only certain tiles
     if (r1.x < 0.5 && r1.y > fract(time * r1.z * speed)) {
         uv.x *= -1.0;

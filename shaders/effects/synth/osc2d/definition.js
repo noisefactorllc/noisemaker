@@ -39,11 +39,10 @@ export default new Effect({
         "uniform": "rotation"
     },
     "seed": {
-        "type": "float",
+        "type": "int",
         "default": 0,
         "min": 0,
         "max": 1000,
-        "step": 1,
         "uniform": "seed"
     }
   },

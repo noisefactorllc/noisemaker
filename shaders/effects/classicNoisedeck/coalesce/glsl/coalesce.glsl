@@ -14,7 +14,7 @@ uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform int blendMode;
 uniform float mixAmt;
 uniform float refractAAmt;

@@ -3,7 +3,7 @@
 @group(0) @binding(1) var<uniform> aspect: f32;
 @group(0) @binding(2) var<uniform> time: f32;
 @group(0) @binding(3) var<uniform> scale: f32;
-@group(0) @binding(4) var<uniform> seed: f32;
+@group(0) @binding(4) var<uniform> seed: i32;
 @group(0) @binding(5) var<uniform> octaves: i32;
 @group(0) @binding(6) var<uniform> colorMode: i32;
 @group(0) @binding(7) var<uniform> dimensions: i32;
@@ -43,7 +43,7 @@ fn prng(p_in: vec3<f32>) -> vec3<f32> {
 // Based on techniques from "Hash Functions for GPU Rendering" (Jarzynski & Olano, 2020)
 fn hash3(p: vec3<f32>) -> f32 {
     // Add seed to input to vary the noise pattern
-    let ps = p + seed * 0.1;
+    let ps = p + f32(seed) * 0.1;
     
     // Convert to unsigned integer values via large multipliers
     var q = vec3<u32>(vec3<i32>(ps * 1000.0) + 65536);
@@ -95,7 +95,7 @@ fn wrapZ(z: f32) -> f32 {
 
 // 2D periodic grid function - gradient angle animates with time
 fn grid2D(st: vec2<f32>, cell: vec2<f32>, timeAngle: f32, channelOffset: f32) -> f32 {
-    var angle = prng(vec3<f32>(cell + seed, 1.0)).r * TAU;
+    var angle = prng(vec3<f32>(cell + f32(seed), 1.0)).r * TAU;
     angle = angle + timeAngle + channelOffset * TAU;  // Animate gradient rotation
     let gradient = vec2<f32>(cos(angle), sin(angle));
     let dist = st - cell;

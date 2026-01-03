@@ -7,7 +7,7 @@
 
 struct Uniforms {
     time: f32,
-    seed: f32,
+    seed: i32,
     aspectLens: i32,
     distortionType: i32,
     speed: f32,

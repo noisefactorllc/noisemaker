@@ -1,6 +1,6 @@
 // WGSL version – WebGPU
 @group(0) @binding(0) var<uniform> scale: f32;
-@group(0) @binding(1) var<uniform> seed: f32;
+@group(0) @binding(1) var<uniform> seed: i32;
 @group(0) @binding(2) var<uniform> metric: i32;
 @group(0) @binding(3) var<uniform> cellVariation: f32;
 @group(0) @binding(4) var<uniform> volumeSize: i32;
@@ -23,7 +23,7 @@ fn pcg3d(v_in: vec3<u32>) -> vec3<u32> {
 }
 
 fn hash3(p: vec3<f32>) -> vec3<f32> {
-    let ps = p + seed * 0.1;
+    let ps = p + f32(seed) * 0.1;
     let q = pcg3d(vec3<u32>(vec3<i32>(ps * 1000.0) + 65536));
     return vec3<f32>(q) / 4294967295.0;
 }

@@ -6,7 +6,7 @@ uniform vec2 resolution;
 uniform float aspect;
 uniform float time;
 uniform float scale;
-uniform float seed;
+uniform int seed;
 uniform int octaves;
 uniform int colorMode;
 uniform int dimensions;
@@ -47,7 +47,7 @@ vec3 prng(vec3 p) {
 // Based on techniques from "Hash Functions for GPU Rendering" (Jarzynski & Olano, 2020)
 float hash3(vec3 p) {
     // Add seed to input to vary the noise pattern
-    p = p + seed * 0.1;
+    p = p + float(seed) * 0.1;
     
     // Convert to unsigned integer-like values via large multipliers
     uvec3 q = uvec3(ivec3(p * 1000.0) + 65536);
@@ -100,7 +100,7 @@ float wrapZ(float z) {
 
 // 2D periodic grid function - gradient angle animates with time
 float grid2D(vec2 st, vec2 cell, float timeAngle, float channelOffset) {
-    float angle = prng(vec3(cell + seed, 1.0)).r * TAU;
+    float angle = prng(vec3(cell + float(seed), 1.0)).r * TAU;
     angle += timeAngle + channelOffset * TAU;  // Animate gradient rotation
     vec2 gradient = vec2(cos(angle), sin(angle));
     vec2 dist = st - cell;

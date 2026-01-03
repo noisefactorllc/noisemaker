@@ -8,7 +8,7 @@
 struct Uniforms {
     resolution: vec2<f32>,
     time: f32,
-    seed: f32,
+    seed: i32,
     aspectLens: f32,
     xChonk: f32,
     yChonk: f32,
@@ -46,11 +46,11 @@ fn prng(p: vec3<f32>) -> vec3<f32> {
     return vec3<f32>(pcg(vec3<u32>(u32(p.x), u32(p.y), u32(p.z)))) / f32(0xffffffffu);
 }
 
-fn f(st: vec2<f32>, seed: f32) -> f32 {
-    return prng(vec3<f32>(floor(st), seed)).x;
+fn f(st: vec2<f32>, seed: i32) -> f32 {
+    return prng(vec3<f32>(floor(st), f32(seed))).x;
 }
 
-fn bicubic(p: vec2<f32>, seed: f32) -> f32 {
+fn bicubic(p: vec2<f32>, seed: i32) -> f32 {
     let x = p.x;
     let y = p.y;
     let x1 = floor(x);
@@ -108,7 +108,7 @@ fn periodicFunction(p: f32) -> f32 {
     return map(sin(p * TAU), -1.0, 1.0, 0.0, 1.0);
 }
 
-fn scanlines(color: vec4<f32>, st: vec2<f32>, resolution: vec2<f32>, scanlinesAmt: f32, time: f32, seed: f32) -> vec4<f32> {
+fn scanlines(color: vec4<f32>, st: vec2<f32>, resolution: vec2<f32>, scanlinesAmt: f32, time: f32, seed: i32) -> vec4<f32> {
     let centerDistance = length(vec2<f32>(0.5) - st) * PI * 0.5;
     let noise = periodicFunction(bicubic(st * 4.0, seed) - time) * map(scanlinesAmt, 0.0, 100.0, 0.0, 0.5);
     let hatch = (sin(mix(st.y, st.y + noise, pow(centerDistance, 8.0)) * resolution.y * 1.5) + 1.0) * 0.5;

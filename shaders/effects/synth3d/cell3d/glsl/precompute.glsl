@@ -2,7 +2,7 @@
 precision highp float;
 
 uniform float scale;
-uniform float seed;
+uniform int seed;
 uniform int metric;
 uniform float cellVariation;
 uniform int volumeSize;
@@ -30,7 +30,7 @@ uvec3 pcg3d(uvec3 v) {
 }
 
 vec3 hash3(vec3 p) {
-    p = p + seed * 0.1;
+    p = p + float(seed) * 0.1;
     uvec3 q = uvec3(ivec3(p * 1000.0) + 65536);
     q = pcg3d(q);
     return vec3(q) / 4294967295.0;

@@ -15,7 +15,7 @@ struct Uniforms {
 
 var<private> resolution: vec2<f32>;
 var<private> time: f32;
-var<private> seed: f32;
+var<private> seed: i32;
 var<private> interp: i32;
 var<private> noiseScale: f32;
 var<private> loopAmp: f32;
@@ -27,7 +27,7 @@ var<private> intensity: f32;
 fn unpackUniforms() {
     resolution = uniforms.data[0].xy;
     time = uniforms.data[0].z;
-    seed = uniforms.data[0].w;
+    seed = i32(uniforms.data[0].w);
     interp = i32(uniforms.data[1].x);
     noiseScale = uniforms.data[1].y;
     loopAmp = uniforms.data[1].z;
@@ -496,8 +496,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var st: vec2<f32> = pos.xy / resolution.y;
     st -= vec2<f32>(resolution.x / resolution.y * 0.5, 0.5);
 
-    var leftColor: vec3<f32> = noise(st, seed);
-    var rightColor: vec3<f32> = noise(st, seed + 10.0);
+    var leftColor: vec3<f32> = noise(st, f32(seed));
+    var rightColor: vec3<f32> = noise(st, f32(seed) + 10.0);
 
     // "reflect" mode blend from coalesce
     var left: vec3<f32> = min(leftColor * rightColor / (1.0 - rightColor * leftColor), vec3<f32>(1.0));

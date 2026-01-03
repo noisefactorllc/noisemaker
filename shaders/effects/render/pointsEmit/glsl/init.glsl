@@ -4,7 +4,7 @@ precision highp float;
 // Standard uniforms
 uniform float time;
 uniform vec2 resolution;
-uniform float seed;
+uniform int seed;
 
 // Effect parameters
 uniform int stateSize;

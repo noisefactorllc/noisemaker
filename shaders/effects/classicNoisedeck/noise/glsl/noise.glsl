@@ -8,7 +8,7 @@ precision highp float;
 precision highp int;
 
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform vec2 resolution;
 uniform float xScale;
 uniform float yScale;
@@ -629,7 +629,7 @@ float offset(vec2 st, vec2 freq) {
     } else if (loopOffset == 300) {
         // noise
         st -= vec2(aspectRatio * 0.5, 0.5);
-        return value(st, freq, seed + 50.0, 0.0);
+        return value(st, freq, float(seed) + 50.0, 0.0);
     } else if (loopOffset == 400) {
         // rings
         return 1.0 - rings(st, freq.x);
@@ -777,9 +777,9 @@ vec3 pal(float t) {
 
 vec3 generate_octave(vec2 st, vec2 freq, float s, float blend, float octave) {
     vec3 layer = vec3(
-        value(st, freq, seed + 10.0 * octave, blend),
-        value(st, freq, seed + 20.0 * octave, blend),
-        value(st, freq, seed + 30.0 * octave, blend));
+        value(st, freq, float(seed) + 10.0 * octave, blend),
+        value(st, freq, float(seed) + 20.0 * octave, blend),
+        value(st, freq, float(seed) + 30.0 * octave, blend));
 
     if (ridges && colorMode == 6) {
         layer.b = 1.0 - abs(layer.b * 2.0 - 1.0);
@@ -944,7 +944,7 @@ void main() {
     }
     float blend = periodicFunction(t) * abs(loopAmp) * 0.01;
 
-    color.rgb = multires(centered, freq, octaves, seed, blend);
+    color.rgb = multires(centered, freq, octaves, float(seed), blend);
 
     st = gl_FragCoord.xy / resolution;
 

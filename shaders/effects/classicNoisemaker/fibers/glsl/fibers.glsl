@@ -9,7 +9,7 @@ uniform float height;
 uniform float channelCount;
 uniform float maskScale;
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform float speed;
 out vec4 fragColor;
 
@@ -225,7 +225,7 @@ void main() {
     // Each layer uses the same worm mask sampled at the current pixel,
     // but with different brightness noise seeds and temporal offsets.
     for (uint layer = 0u; layer < 4u; layer = layer + 1u) {
-        float layer_seed = seed + float(layer) * 17.0;
+        float layer_seed = float(seed) + float(layer) * 17.0;
         
         // Sample brightness noise with per-layer temporal variation
         vec3 brightness = brightness_noise(

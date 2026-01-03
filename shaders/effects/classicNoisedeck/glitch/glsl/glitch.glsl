@@ -13,7 +13,7 @@ precision highp int;
 uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform bool aspectLens;
 uniform float xChonk;
 uniform float yChonk;
@@ -55,7 +55,7 @@ vec3 prng (vec3 p) {
 // end PCG PRNG
 
 float f(vec2 st) {
-    return prng(vec3(floor(st), seed)).x;
+    return prng(vec3(floor(st), float(seed))).x;
 }
 
 float bicubic(vec2 p) {

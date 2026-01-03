@@ -9,7 +9,7 @@ precision highp int;
 uniform sampler2D inputTex;
 uniform float time;
 uniform float speed;
-uniform float seed;
+uniform int seed;
 
 out vec4 fragColor;
 
@@ -44,15 +44,15 @@ void main() {
     float speedScale = speed * 0.6 + 0.4;
     float timeOffset = time * speedScale * resolution.y;
 
-    float h1 = hash(vec2(seed, 1.0));
-    float h2 = hash(vec2(seed, 5.0));
-    float h3 = hash(vec2(seed, 11.0));
+    float h1 = hash(vec2(float(seed), 1.0));
+    float h2 = hash(vec2(float(seed), 5.0));
+    float h3 = hash(vec2(float(seed), 11.0));
 
     float stripesA = stripePattern(pixelPos, mix(-0.45, 0.35, h1), mix(60.0, 110.0, h2), 0.18, timeOffset * 0.25, resolution);
     float stripesB = stripePattern(pixelPos, mix(-1.1, 1.1, h2), mix(40.0, 80.0, h3), 0.12, timeOffset * 0.15, resolution);
     float stripesC = stripePattern(pixelPos, mix(-0.2, 0.2, h3), mix(90.0, 160.0, h1), 0.09, timeOffset * 0.35, resolution);
 
-    float randomNoise = hash(pixelPos / max(resolution, vec2(1.0)) + seed * 1.37 + time * 0.01);
+    float randomNoise = hash(pixelPos / max(resolution, vec2(1.0)) + float(seed) * 1.37 + time * 0.01);
     float baseInfluence = smoothstep(0.35, 0.85, luminance);
 
     float mask = stripesA * 0.65 + stripesB * 0.55 + stripesC * 0.75;

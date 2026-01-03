@@ -7,7 +7,7 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform float alpha;
-uniform float seed;
+uniform int seed;
 
 in vec2 v_texCoord;
 out vec4 fragColor;
@@ -115,7 +115,7 @@ void main() {
     }
 
     // Generate deterministic random values based on seed and dimensions
-    uint rng_state = seed_from_params(dims.x, dims.y, seed);
+    uint rng_state = seed_from_params(dims.x, dims.y, float(seed));
     float random_a = rng_next(rng_state);
     float random_b = rng_next(rng_state);
 

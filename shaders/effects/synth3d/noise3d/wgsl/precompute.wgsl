@@ -1,7 +1,7 @@
 // WGSL version – WebGPU
 @group(0) @binding(0) var<uniform> time: f32;
 @group(0) @binding(1) var<uniform> scale: f32;
-@group(0) @binding(2) var<uniform> seed: f32;
+@group(0) @binding(2) var<uniform> seed: i32;
 @group(0) @binding(3) var<uniform> octaves: i32;
 @group(0) @binding(4) var<uniform> ridges: i32;
 @group(0) @binding(5) var<uniform> volumeSize: i32;
@@ -21,7 +21,7 @@ const W_PERIOD: f32 = 4.0;  // Period length in w-axis lattice units for seamles
 
 // Improved hash using multiple rounds of mixing (4D version)
 fn hash4(p: vec4<f32>) -> f32 {
-    let ps = p + seed * 0.1;
+    let ps = p + f32(seed) * 0.1;
     var q = vec4<u32>(vec4<i32>(ps * 1000.0) + 65536);
     q = q * 1664525u + 1013904223u;
     q.x = q.x + q.y * q.z;

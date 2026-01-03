@@ -10,7 +10,7 @@ precision highp float;
 
 uniform vec2 resolution;
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform bool wrap;
 uniform int loopAOffset;
 uniform int loopBOffset;
@@ -68,8 +68,8 @@ vec3 randomFromLatticeWithOffset(vec2 st, float freq, ivec2 xyOffset) {
     ivec2 base = ivec2(floor(scaled)) + xyOffset;
     vec2 frac = fract(scaled);
 
-    int seedInt = int(floor(seed));
-    float seedFrac = fract(seed);
+    int seedInt = seed;
+    float seedFrac = 0.0;
 
     float xCombined = frac.x + seedFrac;
     int xi = base.x + seedInt + int(floor(xCombined));
@@ -85,8 +85,8 @@ vec3 randomFromLatticeWithOffset(vec2 st, float freq, ivec2 xyOffset) {
 
     uint xBits = uint(xi);
     uint yBits = uint(yi);
-    uint seedBits = floatBitsToUint(seed);
-    uint fracBits = floatBitsToUint(seedFrac);
+    uint seedBits = uint(seed);
+    uint fracBits = 0u;
 
     uvec3 jitter = uvec3(
         (fracBits * 374761393u) ^ 0x9E3779B9u,
@@ -370,10 +370,10 @@ float value(vec2 st, float freq, int interp, float loopAmp) {
         return bicubicValue(st, freq, loopAmp);
     } else if (interp == 10) {
         float scaledTime = periodicFunction(time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.333);
-        return simplexValue(st, freq, seed, scaledTime);
+        return simplexValue(st, freq, float(seed), scaledTime);
     } else if (interp == 11) {
         float scaledTime = periodicFunction(time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.333);
-        return sineNoise(st, freq, seed, scaledTime);
+        return sineNoise(st, freq, float(seed), scaledTime);
     }
 
     float x1y1 = constant(st, freq, loopAmp);
@@ -493,9 +493,9 @@ void main() {
     float amp1 = map(abs(loopAAmp), 0.0, 100.0, 0.0, 1.0);
     float t1 = 1.0;
     if (loopAAmp < 0.0) {
-        t1 = time + offset(st, lf1, loopAOffset, amp1, seed);
+        t1 = time + offset(st, lf1, loopAOffset, amp1, float(seed));
     } else if (loopAAmp > 0.0) {
-        t1 = time - offset(st, lf1, loopAOffset, amp1, seed);
+        t1 = time - offset(st, lf1, loopAOffset, amp1, float(seed));
     }
 
     float lf2 = map(loopBScale, 1.0, 100.0, 6.0, 1.0);
@@ -508,9 +508,9 @@ void main() {
     float amp2 = map(abs(loopBAmp), 0.0, 100.0, 0.0, 1.0);
     float t2 = 1.0;
     if (loopBAmp < 0.0) {
-        t2 = time + offset(st, lf2, loopBOffset, amp2, seed + 10.0);
+        t2 = time + offset(st, lf2, loopBOffset, amp2, float(seed) + 10.0);
     } else if (loopBAmp > 0.0) {
-        t2 = time - offset(st, lf2, loopBOffset, amp2, seed + 10.0);
+        t2 = time - offset(st, lf2, loopBOffset, amp2, float(seed) + 10.0);
     }
 
     float a = periodicFunction(t1) * amp1;

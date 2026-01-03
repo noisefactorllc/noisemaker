@@ -10,7 +10,7 @@ precision highp float;
 precision highp int;
 
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform vec2 resolution;
 uniform int formula;
 uniform int colorScheme;
@@ -462,7 +462,7 @@ void main() {
         color.rgb = bitField(st);
     } else {
         st = gl_FragCoord.xy / resolution.y;
-        st += seed + 1000.0;
+        st += float(seed) + 1000.0;
         color.rgb = bitMask(st);
     }
 

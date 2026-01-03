@@ -6,7 +6,7 @@
 struct Uniforms {
     resolution: vec2<f32>,
     time: f32,
-    seed: f32,
+    seed: i32,
     scaleAmt: f32,
     rotation: f32,
     blendMode: i32,

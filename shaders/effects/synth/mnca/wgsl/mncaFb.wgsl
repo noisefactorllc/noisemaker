@@ -102,7 +102,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     // Slot 1: speed, smoothing, weight, seed
     let speed: f32 = uniforms.data[1].x;
     let weight: f32 = uniforms.data[1].z;
-    let seed: f32 = uniforms.data[1].w;
+    let seed: i32 = i32(uniforms.data[1].w);
 
     // Slot 2: resetState, n1v1, n1r1, n1v2
     let resetState: bool = uniforms.data[2].x > 0.5;
@@ -137,7 +137,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
 
     // Initialize when reset button pressed or when buffer is completely empty (first load)
     if (resetState || bufferIsEmpty) {
-        let r: f32 = random(uv + vec2<f32>(seed, seed));
+        let r: f32 = random(uv + vec2<f32>(f32(seed), f32(seed)));
         let alive: f32 = step(0.5, r);
         return vec4<f32>(alive, alive, alive, 1.0);
     }

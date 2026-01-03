@@ -16,7 +16,7 @@ struct Uniforms {
 
 var<private> resolution: vec2<f32>;
 var<private> time: f32;
-var<private> seed: f32;
+var<private> seed: i32;
 var<private> interp: i32;
 var<private> noiseScale: f32;
 var<private> loopAmp: f32;
@@ -31,7 +31,7 @@ var<private> intensity: f32;
 fn unpackUniforms() {
     resolution = uniforms.data[0].xy;
     time = uniforms.data[0].z;
-    seed = uniforms.data[0].w;
+    seed = i32(uniforms.data[0].w);
     interp = i32(uniforms.data[1].x);
     noiseScale = uniforms.data[1].y;
     loopAmp = uniforms.data[1].z;
@@ -554,7 +554,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         }
     }
 
-    var s: f32 = floor(seed);
+    var s: f32 = floor(f32(seed));
 
     // Refract values
     var xRef: f32 = value(st, xFreq, yFreq, 20.0 + s);

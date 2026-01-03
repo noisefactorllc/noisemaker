@@ -5,7 +5,7 @@
 struct Uniforms {
     strength: f32,
     scale: f32,
-    seed: f32,
+    seed: i32,
     speed: i32,
     wrap: i32,
     rotation: f32,
@@ -96,8 +96,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     uv = rotate2D(uv, uniforms.rotation / 180.0, aspectRatio);
 
     // Perlin warp
-    uv.x = uv.x + (perlinNoise(uv * vec2<f32>(aspectRatio, 1.0) + seed, vec2<f32>(abs(scale * 3.0)), t) - 0.5) * strength * 0.01;
-    uv.y = uv.y + (perlinNoise(uv * vec2<f32>(aspectRatio, 1.0) + seed + 10.0, vec2<f32>(abs(scale * 3.0)), t) - 0.5) * strength * 0.01;
+    uv.x = uv.x + (perlinNoise(uv * vec2<f32>(aspectRatio, 1.0) + f32(seed), vec2<f32>(abs(scale * 3.0)), t) - 0.5) * strength * 0.01;
+    uv.y = uv.y + (perlinNoise(uv * vec2<f32>(aspectRatio, 1.0) + f32(seed) + 10.0, vec2<f32>(abs(scale * 3.0)), t) - 0.5) * strength * 0.01;
 
     // Apply wrap mode
     if (uniforms.wrap == 0) {

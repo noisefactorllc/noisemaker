@@ -5,7 +5,7 @@
  */
 
 @group(0) @binding(0) var<uniform> volumeSize: i32;
-@group(0) @binding(1) var<uniform> seed: f32;
+@group(0) @binding(1) var<uniform> seed: i32;
 @group(0) @binding(2) var<uniform> feed: f32;
 @group(0) @binding(3) var<uniform> kill: f32;
 @group(0) @binding(4) var<uniform> rate1: f32;
@@ -117,7 +117,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             } else {
                 // Fallback: sparse random seeding of B
                 let p = vec3<f32>(f32(x), f32(y), f32(z));
-                if (hash3(p, seed) > 0.97) {
+                if (hash3(p, f32(seed)) > 0.97) {
                     b = 1.0;
                 }
             }

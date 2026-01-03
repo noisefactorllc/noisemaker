@@ -6,7 +6,7 @@
 @group(0) @binding(4) var<uniform> frequency: i32;
 @group(0) @binding(5) var<uniform> speed: f32;
 @group(0) @binding(6) var<uniform> rotation: f32;
-@group(0) @binding(7) var<uniform> seed: f32;
+@group(0) @binding(7) var<uniform> seed: i32;
 
 const PI: f32 = 3.141592653589793;
 const TAU: f32 = 6.283185307179586;
@@ -128,8 +128,8 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         let scrolledPos = fract(spatialPos + scrollOffset);
         
         // Same computation as noise2d at t=0
-        let timeNoise = tilingNoise1D(scrolledPos, freq, seed + 12345.0);
-        let valueNoise = tilingNoise1D(scrolledPos, freq, seed);
+        let timeNoise = tilingNoise1D(scrolledPos, freq, f32(seed) + 12345.0);
+        let valueNoise = tilingNoise1D(scrolledPos, freq, f32(seed));
         let scaledTime = periodicValue(0.0, timeNoise) * speed;
         val = periodicValue(scaledTime, valueNoise);
     } else {
@@ -138,8 +138,8 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         //         result = periodic_value(scaled_time, value_noise)
         
         // Get noise values at this spatial position (same sampling as noise1d)
-        let timeNoise = tilingNoise1D(spatialPos, freq, seed + 12345.0);
-        let valueNoise = tilingNoise1D(spatialPos, freq, seed);
+        let timeNoise = tilingNoise1D(spatialPos, freq, f32(seed) + 12345.0);
+        let valueNoise = tilingNoise1D(spatialPos, freq, f32(seed));
         
         // Two-stage periodic: time -> periodic -> scale -> periodic
         let scaledTime = periodicValue(time, timeNoise) * speed;

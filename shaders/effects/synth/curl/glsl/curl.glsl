@@ -4,7 +4,7 @@ precision highp float;
 uniform vec2 resolution;
 uniform float time;
 uniform float scale;
-uniform float seed;
+uniform int seed;
 uniform float speed;
 uniform int octaves;
 uniform bool ridges;
@@ -36,7 +36,7 @@ float simplex3D(vec3 v) {
     const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
     
     // Apply seed offset to input
-    v += seed * 0.1271;
+    v += float(seed) * 0.1271;
     
     // First corner
     vec3 i = floor(v + dot(v, C.yyy));

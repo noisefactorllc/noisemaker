@@ -13,7 +13,7 @@ precision highp int;
 uniform sampler2D textTex;
 uniform vec2 resolution;
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform vec2 glyphUV1;
 uniform vec2 glyphUV2;
 uniform float scale;

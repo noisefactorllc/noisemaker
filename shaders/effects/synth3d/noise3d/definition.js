@@ -81,7 +81,7 @@ export default new Effect({
         "uniform": "ridges"
     },
     "seed": {
-        "type": "float",
+        "type": "int",
         "default": 0,
         "min": 0,
         "max": 100,

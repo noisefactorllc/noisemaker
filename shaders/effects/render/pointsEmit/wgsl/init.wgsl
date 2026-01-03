@@ -1,7 +1,7 @@
 struct Uniforms {
     time: f32,
     resolution: vec2<f32>,
-    seed: f32,
+    seed: i32,
     stateSize: i32,
     layoutMode: i32,
     attrition: f32,

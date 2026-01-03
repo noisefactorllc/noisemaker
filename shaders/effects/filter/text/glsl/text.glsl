@@ -21,7 +21,7 @@ uniform sampler2D inputTex;
 uniform sampler2D textTex;
 uniform vec2 resolution;
 uniform float time;
-uniform float seed;
+uniform int seed;
 
 out vec4 fragColor;
 

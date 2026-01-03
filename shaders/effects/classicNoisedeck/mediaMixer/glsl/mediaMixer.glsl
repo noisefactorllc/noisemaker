@@ -17,7 +17,7 @@ uniform vec2 imageSize;
 uniform int source;
 uniform vec2 resolution;
 uniform float time;
-uniform float seed;
+uniform int seed;
 uniform int mixDirection;
 uniform float cutoff;
 uniform int position;

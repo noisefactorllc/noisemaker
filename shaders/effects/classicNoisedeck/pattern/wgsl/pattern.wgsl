@@ -167,9 +167,9 @@ fn grid(st_in: vec2<f32>, res: f32) -> f32 {
     return 1.0 - (shape(fract(st_in), 4) - 0.15);
 }
 
-fn truchet(st: vec2<f32>, truchetType: i32, seed: f32, time: f32, speed: f32, lineWidth: f32, scale: f32) -> f32 {
+fn truchet(st: vec2<f32>, truchetType: i32, seed: i32, time: f32, speed: f32, lineWidth: f32, scale: f32) -> f32 {
     var uv = fract(st) - 0.5;
-    let r1 = prng(vec3<f32>(floor(st) + seed * 1000.0, time * speed));
+    let r1 = prng(vec3<f32>(floor(st) + f32(seed) * 1000.0, time * speed));
     // animate only certain tiles
     if (r1.x < 0.5 && r1.y > fract(time * r1.z * speed)) {
         uv.x *= -1.0;
@@ -194,7 +194,7 @@ fn truchet(st: vec2<f32>, truchetType: i32, seed: f32, time: f32, speed: f32, li
     return mask;
 } 
 
-fn generate(st_in: vec2<f32>, ptype: i32, freq: f32, animation: i32, speed: f32, time: f32, aspectRatio: f32, rotation: f32, skewAmt: f32, lineWidth: f32, seed: f32, scale: f32) -> f32 {
+fn generate(st_in: vec2<f32>, ptype: i32, freq: f32, animation: i32, speed: f32, time: f32, aspectRatio: f32, rotation: f32, skewAmt: f32, lineWidth: f32, seed: i32, scale: f32) -> f32 {
     var st = st_in;
     let st2 = st;
     
@@ -241,7 +241,7 @@ fn generate(st_in: vec2<f32>, ptype: i32, freq: f32, animation: i32, speed: f32,
 fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let resolution: vec2<f32> = uniforms.data[0].xy;
     let time: f32 = uniforms.data[0].z;
-    let seed: f32 = uniforms.data[0].w;
+    let seed: i32 = i32(uniforms.data[0].w);
     
     let patternType: i32 = i32(uniforms.data[1].x);
     let scale: f32 = uniforms.data[1].y;

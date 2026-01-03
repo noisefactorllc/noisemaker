@@ -13,7 +13,7 @@ uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform float time;
 uniform bool wrap;
-uniform float seed;
+uniform int seed;
 uniform float loopAmp;
 uniform float loopScale;
 uniform int loopOffset;
@@ -132,8 +132,8 @@ vec3 randomFromLatticeWithOffset(vec2 st, float freq, ivec2 offset) {
     ivec2 base = ivec2(baseFloor) + offset;
     vec2 frac = lattice - baseFloor;
 
-    int seedInt = int(floor(seed));
-    float seedFrac = fract(seed);
+    int seedInt = seed;
+    float seedFrac = 0.0;
 
     float xCombined = frac.x + seedFrac;
     int xi = base.x + seedInt + int(floor(xCombined));
@@ -150,7 +150,7 @@ vec3 randomFromLatticeWithOffset(vec2 st, float freq, ivec2 offset) {
 
     uint xBits = uint(xi);
     uint yBits = uint(yi);
-    uint seedBits = floatBitsToUint(seed);
+    uint seedBits = uint(seed);
     uint fracBits = floatBitsToUint(seedFrac);
 
     uvec3 jitter = uvec3(
@@ -454,7 +454,7 @@ float value(vec2 st, float freq, int interp) {
         return bicubicValue(st, freq);
     } else if (interp == 10) {
         // simplex
-        float simplexVal = simplexValue(st * freq + vec2(seed));
+        float simplexVal = simplexValue(st * freq + vec2(float(seed)));
         return periodicFunction(simplexVal);
     } else if (interp == 11) {
         // sine
