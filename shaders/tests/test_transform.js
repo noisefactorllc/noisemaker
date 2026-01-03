@@ -10,7 +10,7 @@ import { replaceEffect, listSteps, getCompatibleReplacements } from '../src/lang
 import { unparse } from '../src/lang/unparser.js'
 
 // Register test effects
-registerOp('basics.noise', {
+registerOp('synth.noise', {
     name: 'noise',
     args: [
         { name: 'scale', type: 'float', default: 10 },
@@ -18,7 +18,7 @@ registerOp('basics.noise', {
     ]
 })
 
-registerOp('basics.voronoi', {
+registerOp('synth.voronoi', {
     name: 'voronoi',
     args: [
         { name: 'scale', type: 'float', default: 10 },
@@ -26,28 +26,28 @@ registerOp('basics.voronoi', {
     ]
 })
 
-registerOp('basics.kaleid', {
+registerOp('filter.kaleid', {
     name: 'kaleid',
     args: [
         { name: 'nSides', type: 'float', default: 4 }
     ]
 })
 
-registerOp('basics.bloom', {
+registerOp('filter.bloom', {
     name: 'bloom',
     args: [
         { name: 'intensity', type: 'float', default: 0.5 }
     ]
 })
 
-registerOp('basics.blur', {
+registerOp('filter.blur', {
     name: 'blur',
     args: [
         { name: 'radius', type: 'float', default: 5 }
     ]
 })
 
-registerOp('basics.gradient', {
+registerOp('synth.gradient', {
     name: 'gradient',
     args: [
         { name: 'angle', type: 'float', default: 0 }
@@ -55,7 +55,7 @@ registerOp('basics.gradient', {
 })
 
 // Register effects in a different namespace for cross-namespace tests
-registerOp('vol.fractal', {
+registerOp('synth3d.fractal', {
     name: 'fractal',
     args: [
         { name: 'scale', type: 'float', default: 10 },
@@ -63,7 +63,7 @@ registerOp('vol.fractal', {
     ]
 })
 
-registerOp('vol.distort', {
+registerOp('synth3d.distort', {
     name: 'distort',
     args: [
         { name: 'amount', type: 'float', default: 0.5 }
@@ -71,7 +71,7 @@ registerOp('vol.distort', {
 })
 
 // Register starters
-registerStarterOps(['basics.noise', 'basics.voronoi', 'basics.gradient', 'vol.fractal'])
+registerStarterOps(['synth.noise', 'synth.voronoi', 'synth.gradient', 'synth3d.fractal'])
 
 function compile(code) {
     const tokens = lex(code)
@@ -114,26 +114,26 @@ function assertFalse(value, message) {
 // ============================================================================
 
 test('listSteps - simple chain', () => {
-    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
 
     assertEqual(steps.length, 2, 'Should have 2 steps')
 
     // First step is noise (starter)
-    assertEqual(steps[0].effectName, 'basics.noise', 'First step should be noise')
+    assertEqual(steps[0].effectName, 'synth.noise', 'First step should be noise')
     assertTrue(steps[0].isStarterPosition, 'First step should be in starter position')
     assertTrue(steps[0].canReplaceWithStarter, 'First step can be replaced with starter')
     assertFalse(steps[0].canReplaceWithNonStarter, 'First step cannot be replaced with non-starter')
 
     // Second step is kaleid (non-starter)
-    assertEqual(steps[1].effectName, 'basics.kaleid', 'Second step should be kaleid')
+    assertEqual(steps[1].effectName, 'filter.kaleid', 'Second step should be kaleid')
     assertFalse(steps[1].isStarterPosition, 'Second step should not be in starter position')
     assertFalse(steps[1].canReplaceWithStarter, 'Second step cannot be replaced with starter')
     assertTrue(steps[1].canReplaceWithNonStarter, 'Second step can be replaced with non-starter')
 })
 
 test('listSteps - multiple chains', () => {
-    const compiled = compile(`search basics
+    const compiled = compile(`search synth, filter
 noise(10).kaleid(6).write(o0)
 voronoi(5).bloom(0.5).write(o1)
 `)
@@ -153,31 +153,31 @@ voronoi(5).bloom(0.5).write(o1)
 // ============================================================================
 
 test('replaceEffect - starter with starter (valid)', () => {
-    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
     const noiseStepIndex = steps[0].stepIndex
 
     const result = replaceEffect(compiled, noiseStepIndex, 'voronoi', { scale: 20 })
 
     assertTrue(result.success, 'Replacement should succeed')
-    assertEqual(result.program.plans[0].chain[0].op, 'basics.voronoi', 'Effect should be replaced')
+    assertEqual(result.program.plans[0].chain[0].op, 'synth.voronoi', 'Effect should be replaced')
     assertEqual(result.program.plans[0].chain[0].args.scale, 20, 'Args should be applied')
 })
 
 test('replaceEffect - non-starter with non-starter (valid)', () => {
-    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
     const kaleidStepIndex = steps[1].stepIndex
 
     const result = replaceEffect(compiled, kaleidStepIndex, 'bloom', { intensity: 0.8 })
 
     assertTrue(result.success, 'Replacement should succeed')
-    assertEqual(result.program.plans[0].chain[1].op, 'basics.bloom', 'Effect should be replaced')
+    assertEqual(result.program.plans[0].chain[1].op, 'filter.bloom', 'Effect should be replaced')
     assertEqual(result.program.plans[0].chain[1].args.intensity, 0.8, 'Args should be applied')
 })
 
 test('replaceEffect - starter with non-starter (invalid)', () => {
-    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
     const noiseStepIndex = steps[0].stepIndex
 
@@ -189,7 +189,7 @@ test('replaceEffect - starter with non-starter (invalid)', () => {
 })
 
 test('replaceEffect - non-starter with starter (invalid)', () => {
-    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
     const kaleidStepIndex = steps[1].stepIndex
 
@@ -200,7 +200,7 @@ test('replaceEffect - non-starter with starter (invalid)', () => {
 })
 
 test('replaceEffect - nonexistent effect', () => {
-    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
 
     const result = replaceEffect(compiled, steps[0].stepIndex, 'nonexistent_effect')
@@ -210,7 +210,7 @@ test('replaceEffect - nonexistent effect', () => {
 })
 
 test('replaceEffect - invalid step index', () => {
-    const compiled = compile('search basics\nnoise(10).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).write(o0)')
 
     const result = replaceEffect(compiled, 999, 'voronoi')
 
@@ -219,7 +219,7 @@ test('replaceEffect - invalid step index', () => {
 })
 
 test('replaceEffect - immutability', () => {
-    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
     const originalOp = compiled.plans[0].chain[0].op
 
@@ -227,11 +227,11 @@ test('replaceEffect - immutability', () => {
 
     assertTrue(result.success, 'Replacement should succeed')
     assertEqual(compiled.plans[0].chain[0].op, originalOp, 'Original should not be modified')
-    assertEqual(result.program.plans[0].chain[0].op, 'basics.voronoi', 'New program should have replacement')
+    assertEqual(result.program.plans[0].chain[0].op, 'synth.voronoi', 'New program should have replacement')
 })
 
 test('replaceEffect - default args applied', () => {
-    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
 
     const result = replaceEffect(compiled, steps[0].stepIndex, 'voronoi')
@@ -247,33 +247,33 @@ test('replaceEffect - default args applied', () => {
 // ============================================================================
 
 test('getCompatibleReplacements - starter position', () => {
-    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
     const noiseStepIndex = steps[0].stepIndex
 
     const result = getCompatibleReplacements(compiled, noiseStepIndex)
 
     assertTrue(result.success, 'Should succeed')
-    assertTrue(result.compatible.includes('basics.noise'), 'Should include noise as compatible')
-    assertTrue(result.compatible.includes('basics.voronoi'), 'Should include voronoi as compatible')
-    assertTrue(result.incompatible.includes('basics.kaleid'), 'Should include kaleid as incompatible')
+    assertTrue(result.compatible.includes('synth.noise'), 'Should include noise as compatible')
+    assertTrue(result.compatible.includes('synth.voronoi'), 'Should include voronoi as compatible')
+    assertTrue(result.incompatible.includes('filter.kaleid'), 'Should include kaleid as incompatible')
 })
 
 test('getCompatibleReplacements - non-starter position', () => {
-    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
     const kaleidStepIndex = steps[1].stepIndex
 
     const result = getCompatibleReplacements(compiled, kaleidStepIndex)
 
     assertTrue(result.success, 'Should succeed')
-    assertTrue(result.compatible.includes('basics.kaleid'), 'Should include kaleid as compatible')
-    assertTrue(result.compatible.includes('basics.bloom'), 'Should include bloom as compatible')
-    assertTrue(result.incompatible.includes('basics.noise'), 'Should include noise as incompatible')
+    assertTrue(result.compatible.includes('filter.kaleid'), 'Should include kaleid as compatible')
+    assertTrue(result.compatible.includes('filter.bloom'), 'Should include bloom as compatible')
+    assertTrue(result.incompatible.includes('synth.noise'), 'Should include noise as incompatible')
 })
 
 test('getCompatibleReplacements - invalid step index', () => {
-    const compiled = compile('search basics\nnoise(10).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).write(o0)')
 
     const result = getCompatibleReplacements(compiled, 999)
 
@@ -286,38 +286,38 @@ test('getCompatibleReplacements - invalid step index', () => {
 // ============================================================================
 
 test('replaceEffect - cross-namespace starter replacement', () => {
-    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
     const noiseStepIndex = steps[0].stepIndex
 
-    // Replace basics.noise with vol.fractal (different namespace)
-    const result = replaceEffect(compiled, noiseStepIndex, 'vol.fractal', { scale: 20 })
+    // Replace synth.noise with synth3d.fractal (different namespace)
+    const result = replaceEffect(compiled, noiseStepIndex, 'synth3d.fractal', { scale: 20 })
 
     assertTrue(result.success, 'Cross-namespace replacement should succeed')
-    assertEqual(result.program.plans[0].chain[0].op, 'vol.fractal', 'Effect should be replaced')
-    assertTrue(result.program.searchNamespaces.includes('vol'), 'New namespace should be added to searchNamespaces')
+    assertEqual(result.program.plans[0].chain[0].op, 'synth3d.fractal', 'Effect should be replaced')
+    assertTrue(result.program.searchNamespaces.includes('synth3d'), 'New namespace should be added to searchNamespaces')
 })
 
 test('replaceEffect - cross-namespace filter replacement', () => {
-    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
     const kaleidStepIndex = steps[1].stepIndex
 
-    // Replace basics.kaleid with vol.distort (different namespace)
-    const result = replaceEffect(compiled, kaleidStepIndex, 'vol.distort', { amount: 0.8 })
+    // Replace filter.kaleid with synth3d.distort (different namespace)
+    const result = replaceEffect(compiled, kaleidStepIndex, 'synth3d.distort', { amount: 0.8 })
 
     assertTrue(result.success, 'Cross-namespace replacement should succeed')
-    assertEqual(result.program.plans[0].chain[1].op, 'vol.distort', 'Effect should be replaced')
-    assertTrue(result.program.searchNamespaces.includes('vol'), 'New namespace should be added to searchNamespaces')
+    assertEqual(result.program.plans[0].chain[1].op, 'synth3d.distort', 'Effect should be replaced')
+    assertTrue(result.program.searchNamespaces.includes('synth3d'), 'New namespace should be added to searchNamespaces')
 })
 
 test('replaceEffect - cross-namespace unparse produces valid DSL', () => {
-    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
     const noiseStepIndex = steps[0].stepIndex
 
     // Replace with effect from different namespace
-    const result = replaceEffect(compiled, noiseStepIndex, 'vol.fractal')
+    const result = replaceEffect(compiled, noiseStepIndex, 'synth3d.fractal')
 
     assertTrue(result.success, 'Replacement should succeed')
 
@@ -325,25 +325,25 @@ test('replaceEffect - cross-namespace unparse produces valid DSL', () => {
     const dsl = unparse(result.program)
 
     // The search directive should include both namespaces
-    assertTrue(dsl.includes('search basics, vol') || dsl.includes('search basics,vol'),
+    assertTrue(dsl.includes('search synth, filter, synth3d') || dsl.includes('search synth,filter,synth3d'),
         'Search directive should include both namespaces')
 
     // The effect call should NOT have namespace prefix (it gets stripped by unparser)
-    assertFalse(dsl.includes('vol.fractal('), 'Effect call should not have namespace prefix')
+    assertFalse(dsl.includes('synth3d.fractal('), 'Effect call should not have namespace prefix')
     assertTrue(dsl.includes('fractal('), 'Effect call should use bare name')
 })
 
 test('replaceEffect - same namespace does not duplicate searchNamespaces', () => {
-    const compiled = compile('search basics\nnoise(10).kaleid(6).write(o0)')
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
     const noiseStepIndex = steps[0].stepIndex
 
     // Replace with effect from same namespace
-    const result = replaceEffect(compiled, noiseStepIndex, 'basics.voronoi')
+    const result = replaceEffect(compiled, noiseStepIndex, 'synth.voronoi')
 
     assertTrue(result.success, 'Replacement should succeed')
-    assertEqual(result.program.searchNamespaces.length, 1, 'Should not duplicate namespace')
-    assertEqual(result.program.searchNamespaces[0], 'basics', 'Should keep original namespace')
+    assertEqual(result.program.searchNamespaces.length, 2, 'Should not duplicate namespace')
+    assertEqual(result.program.searchNamespaces[0], 'synth', 'Should keep original namespace')
 })
 
 console.log('\nAll transform tests completed!')

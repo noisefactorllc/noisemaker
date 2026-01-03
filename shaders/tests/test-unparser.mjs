@@ -41,11 +41,11 @@ function assertNotIncludes(str, substr, message) {
 // Test 1: Basic unparse
 test('Basic unparse with single effect', () => {
     const compiled = {
-        searchNamespaces: ['basics'],
+        searchNamespaces: ['synth'],
         plans: [
             {
                 chain: [
-                    { op: 'basics.noise', args: { scale: 3 } }
+                    { op: 'synth.noise', args: { scale: 3 } }
                 ],
                 write: { kind: 'output', name: 'o0' }
             }
@@ -53,7 +53,7 @@ test('Basic unparse with single effect', () => {
     };
     const result = unparse(compiled, {}, {});
     // 1-2 params stay inline, chain on separate lines with 2-space indent
-    const expected = `search basics
+    const expected = `search synth
 
 noise(scale: 3)
   .write(o0)`;
@@ -63,16 +63,16 @@ noise(scale: 3)
 // Test 2: Multiple same-named effects with step-specific overrides
 test('Step-specific overrides with multiple same-named effects', () => {
     const compiled = {
-        searchNamespaces: ['basics'],
+        searchNamespaces: ['synth'],
         plans: [
             {
-                chain: [{ op: 'basics.noise', args: { scale: 3, seed: 1 } }],
+                chain: [{ op: 'synth.noise', args: { scale: 3, seed: 1 } }],
                 write: { kind: 'output', name: 'o1' }
             },
             {
                 chain: [
-                    { op: 'basics.noise', args: { scale: 5, seed: 2 } },
-                    { op: 'basics.add', args: { amount: 0.5 } }
+                    { op: 'synth.noise', args: { scale: 5, seed: 2 } },
+                    { op: 'synth.add', args: { amount: 0.5 } }
                 ],
                 write: { kind: 'output', name: 'o0' }
             }
@@ -111,12 +111,12 @@ test('Namespace stripping for search namespaces', () => {
 // Test 4: Multiple search namespaces
 test('Multiple search namespaces with mixed effects', () => {
     const compiled = {
-        searchNamespaces: ['basics', 'nm'],
+        searchNamespaces: ['synth', 'filter'],
         plans: [
             {
                 chain: [
-                    { op: 'basics.noise', args: { scale: 3 } },
-                    { op: 'nm.blur', args: { radius: 5 } }
+                    { op: 'synth.noise', args: { scale: 3 } },
+                    { op: 'filter.blur', args: { radius: 5 } }
                 ],
                 write: { kind: 'output', name: 'o0' }
             }
@@ -124,7 +124,7 @@ test('Multiple search namespaces with mixed effects', () => {
     };
     const result = unparse(compiled, {}, {});
     // 1-2 params inline, chain on separate lines with 2-space indent
-    const expected = `search basics, nm
+    const expected = `search synth, filter
 
 noise(scale: 3)
   .blur(radius: 5)
@@ -135,12 +135,12 @@ noise(scale: 3)
 // Test 4b: Multiline kwargs indent relative to chain indent
 test('Multiline kwargs indent one level below chain indent', () => {
     const compiled = {
-        searchNamespaces: ['basics', 'nm'],
+        searchNamespaces: ['synth', 'filter'],
         plans: [
             {
                 chain: [
-                    { op: 'basics.noise', args: { scale: 3 } },
-                    { op: 'nm.warp', args: { displacement: 0.5, octaves: 3, freq: 2 } }
+                    { op: 'synth.noise', args: { scale: 3 } },
+                    { op: 'filter.warp', args: { displacement: 0.5, octaves: 3, freq: 2 } }
                 ],
                 write: { kind: 'output', name: 'o0' }
             }
@@ -148,7 +148,7 @@ test('Multiline kwargs indent one level below chain indent', () => {
     };
 
     const result = unparse(compiled, {}, {});
-    const expected = `search basics, nm
+    const expected = `search synth, filter
 
 noise(scale: 3)
   .warp(
@@ -163,10 +163,10 @@ noise(scale: 3)
 // Test 5: Output reference handling
 test('Output reference as object', () => {
     const compiled = {
-        searchNamespaces: ['basics'],
+        searchNamespaces: ['synth'],
         plans: [
             {
-                chain: [{ op: 'basics.noise', args: { scale: 3 } }],
+                chain: [{ op: 'synth.noise', args: { scale: 3 } }],
                 write: { kind: 'output', name: 'o5' }
             }
         ]
@@ -182,23 +182,23 @@ test('No search namespaces - keep full qualified names', () => {
         searchNamespaces: [],
         plans: [
             {
-                chain: [{ op: 'basics.noise', args: { scale: 3 } }],
+                chain: [{ op: 'synth.noise', args: { scale: 3 } }],
                 write: { kind: 'output', name: 'o0' }
             }
         ]
     };
     const result = unparse(compiled, {}, {});
-    assertIncludes(result, 'basics.noise(', 'Should have full qualified name');
+    assertIncludes(result, 'synth.noise(', 'Should have full qualified name');
 });
 
 // Test 7: Render directive with o surface
 test('Render directive - o1 surface', () => {
     const compiled = {
-        searchNamespaces: ['basics'],
+        searchNamespaces: ['synth'],
         render: 'o1',
         plans: [
             {
-                chain: [{ op: 'basics.noise', args: { scale: 3 } }],
+                chain: [{ op: 'synth.noise', args: { scale: 3 } }],
                 write: { kind: 'output', name: 'o1' }
             }
         ]
@@ -210,11 +210,11 @@ test('Render directive - o1 surface', () => {
 // Test 8: Render directive with o0 surface
 test('Render directive - o0 surface', () => {
     const compiled = {
-        searchNamespaces: ['basics'],
+        searchNamespaces: ['synth'],
         render: 'o0',
         plans: [
             {
-                chain: [{ op: 'basics.noise', args: { scale: 3 } }],
+                chain: [{ op: 'synth.noise', args: { scale: 3 } }],
                 write: { kind: 'output', name: 'o0' }
             }
         ]
@@ -226,11 +226,11 @@ test('Render directive - o0 surface', () => {
 // Test 10: No render directive (render=null)
 test('Render directive - null (no directive)', () => {
     const compiled = {
-        searchNamespaces: ['basics'],
+        searchNamespaces: ['synth'],
         render: null,
         plans: [
             {
-                chain: [{ op: 'basics.noise', args: { scale: 3 } }],
+                chain: [{ op: 'synth.noise', args: { scale: 3 } }],
                 write: { kind: 'output', name: 'o0' }
             }
         ]
@@ -266,10 +266,10 @@ test('read() starts new chain - never inline', () => {
 // Test 12: Arrays must never be output as bare lists - use vec3() or hex colors
 test('Arrays never output as bare lists', () => {
     const compiled = {
-        searchNamespaces: ['basics'],
+        searchNamespaces: ['synth'],
         plans: [
             {
-                chain: [{ op: 'basics.effect', args: { pos: [0.5, 0.5, 0.5] } }],
+                chain: [{ op: 'synth.effect', args: { pos: [0.5, 0.5, 0.5] } }],
                 write: { kind: 'output', name: 'o0' }
             }
         ]
@@ -288,10 +288,10 @@ test('Arrays never output as bare lists', () => {
 // Test 13: Float32Array must be handled same as regular arrays
 test('Float32Array never output as raw comma-separated values', () => {
     const compiled = {
-        searchNamespaces: ['basics'],
+        searchNamespaces: ['synth'],
         plans: [
             {
-                chain: [{ op: 'basics.effect', args: { color: new Float32Array([0.5, 0.5, 0.5]) } }],
+                chain: [{ op: 'synth.effect', args: { color: new Float32Array([0.5, 0.5, 0.5]) } }],
                 write: { kind: 'output', name: 'o0' }
             }
         ]
@@ -321,8 +321,8 @@ test('Raw comma-separated numbers are BANNED', () => {
     
     for (const tc of testCases) {
         const compiled = {
-            searchNamespaces: ['basics'],
-            plans: [{ chain: [{ op: 'basics.effect', args: tc.args }], write: { kind: 'output', name: 'o0' } }]
+            searchNamespaces: ['synth'],
+            plans: [{ chain: [{ op: 'synth.effect', args: tc.args }], write: { kind: 'output', name: 'o0' } }]
         };
         const result = unparse(compiled, {}, {});
         
@@ -362,15 +362,15 @@ test('Numeric enum values are BANNED - must use names', () => {
     };
     
     const getEffectDef = (name) => {
-        if (name === 'basics.effect' || name === 'effect') return mockEffectDef;
+        if (name === 'synth.effect' || name === 'effect') return mockEffectDef;
         return null;
     };
     
     // Test that numeric values get converted to enum names
     const compiled = {
-        searchNamespaces: ['basics'],
+        searchNamespaces: ['synth'],
         plans: [{
-            chain: [{ op: 'basics.effect', args: { preset: 16, mode: 2 } }],
+            chain: [{ op: 'synth.effect', args: { preset: 16, mode: 2 } }],
             write: { kind: 'output', name: 'o0' }
         }]
     };

@@ -3,7 +3,7 @@ import { parse } from '../src/lang/parser.js'
 import { validate, registerStarterOps } from '../src/lang/validator.js'
 import { registerOp } from '../src/lang/ops.js'
 
-registerOp('basics.osc', {
+registerOp('synth.osc', {
     name: 'osc',
     args: [
         { name: 'freq', type: 'float', default: 60 },
@@ -11,14 +11,14 @@ registerOp('basics.osc', {
         { name: 'offset', type: 'float', default: 0 }
     ]
 })
-registerOp('basics.rotate', {
+registerOp('filter.rotate', {
     name: 'rotate',
     args: [
         { name: 'angle', type: 'float', default: 0 },
         { name: 'speed', type: 'float', default: 0 }
     ]
 })
-registerStarterOps(['basics.osc'])
+registerStarterOps(['synth.osc'])
 
 function compile(code) {
     const tokens = lex(code)
@@ -38,42 +38,42 @@ function test(name, code, check) {
     }
 }
 
-test('Variable Alias (Function)', 'search basics\nlet x = osc; x(10).write(o0)', (result) => {
+test('Variable Alias (Function)', 'search synth, filter\nlet x = osc; x(10).write(o0)', (result) => {
     const plan = result.plans[0]
     const step = plan.chain[0]
-    if (step.op !== 'basics.osc') throw new Error(`Expected basics.osc, got ${step.op}`)
+    if (step.op !== 'synth.osc') throw new Error(`Expected synth.osc, got ${step.op}`)
     if (step.args.freq !== 10) throw new Error(`Expected freq 10, got ${step.args.freq}`)
 })
 
-test('Variable Alias (Partial)', 'search basics\nlet x = osc(10); x().write(o0)', (result) => {
+test('Variable Alias (Partial)', 'search synth, filter\nlet x = osc(10); x().write(o0)', (result) => {
     const plan = result.plans[0]
     const step = plan.chain[0]
-    if (step.op !== 'basics.osc') throw new Error(`Expected basics.osc, got ${step.op}`)
+    if (step.op !== 'synth.osc') throw new Error(`Expected synth.osc, got ${step.op}`)
     if (step.args.freq !== 10) throw new Error(`Expected freq 10, got ${step.args.freq}`)
 })
 
-test('Variable Merge', 'search basics\nlet x = osc(10); x(20).write(o0)', (result) => {
+test('Variable Merge', 'search synth, filter\nlet x = osc(10); x(20).write(o0)', (result) => {
     const plan = result.plans[0]
     const step = plan.chain[0]
-    if (step.op !== 'basics.osc') throw new Error(`Expected basics.osc, got ${step.op}`)
+    if (step.op !== 'synth.osc') throw new Error(`Expected synth.osc, got ${step.op}`)
     if (step.args.freq !== 10) throw new Error(`Expected freq 10, got ${step.args.freq}`)
     if (step.args.sync !== 20) throw new Error(`Expected sync 20, got ${step.args.sync}`)
 })
 
-test('Variable Merge (Named)', 'search basics\nlet x = osc(freq: 10); x(sync: 0.5).write(o0)', (result) => {
+test('Variable Merge (Named)', 'search synth, filter\nlet x = osc(freq: 10); x(sync: 0.5).write(o0)', (result) => {
     const plan = result.plans[0]
     const step = plan.chain[0]
     if (step.args.freq !== 10) throw new Error(`Expected freq 10, got ${step.args.freq}`)
     if (step.args.sync !== 0.5) throw new Error(`Expected sync 0.5, got ${step.args.sync}`)
 })
 
-test('Chained Variables', `search basics
+test('Chained Variables', `search synth, filter
 let gen = osc(10)
 let eff = rotate(1, 0.1)
 gen().eff().write(o0)
 `, (result) => {
     const plan = result.plans[0]
     if (plan.chain.length !== 2) throw new Error(`Expected 2 steps, got ${plan.chain.length}`)
-    if (plan.chain[0].op !== 'basics.osc') throw new Error('Expected basics.osc first')
-    if (plan.chain[1].op !== 'basics.rotate') throw new Error('Expected basics.rotate second')
+    if (plan.chain[0].op !== 'synth.osc') throw new Error('Expected synth.osc first')
+    if (plan.chain[1].op !== 'filter.rotate') throw new Error('Expected filter.rotate second')
 })

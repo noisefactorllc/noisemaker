@@ -13,7 +13,7 @@ import { formatValue } from '../src/lang/unparser.js'
 import { registerOp } from '../src/lang/ops.js'
 
 // Register test ops
-registerOp('basics.noise', {
+registerOp('synth.noise', {
     name: 'noise',
     args: [
         { name: 'scale', type: 'float', default: 10 },
@@ -22,14 +22,14 @@ registerOp('basics.noise', {
     ]
 })
 
-registerOp('basics.bloom', {
+registerOp('filter.bloom', {
     name: 'bloom',
     args: [
         { name: 'amount', type: 'float', default: 0.5 }
     ]
 })
 
-registerStarterOps(['basics.noise'])
+registerStarterOps(['synth.noise'])
 
 let passCount = 0
 let failCount = 0
@@ -64,7 +64,7 @@ function assertEqual(actual, expected, message) {
 // ============================================================================
 
 test('Parser: Basic oscillator with type only', () => {
-    const tokens = lex('search basics\nnoise(scale: osc(type: oscKind.sine)).write(o0)')
+    const tokens = lex('search synth, filter\nnoise(scale: osc(type: oscKind.sine)).write(o0)')
     const ast = parse(tokens)
 
     // Find the oscillator in the call args
@@ -80,7 +80,7 @@ test('Parser: Basic oscillator with type only', () => {
 })
 
 test('Parser: Oscillator with all parameters', () => {
-    const code = 'search basics\nnoise(scale: osc(type: oscKind.tri, min: 2, max: 8, speed: 2, offset: 0.25, seed: 42)).write(o0)'
+    const code = 'search synth, filter\nnoise(scale: osc(type: oscKind.tri, min: 2, max: 8, speed: 2, offset: 0.25, seed: 42)).write(o0)'
     const tokens = lex(code)
     const ast = parse(tokens)
 
@@ -94,7 +94,7 @@ test('Parser: Oscillator with all parameters', () => {
 })
 
 test('Parser: Oscillator with positional arguments', () => {
-    const code = 'search basics\nnoise(scale: osc(oscKind.saw, 1, 5)).write(o0)'
+    const code = 'search synth, filter\nnoise(scale: osc(oscKind.saw, 1, 5)).write(o0)'
     const tokens = lex(code)
     const ast = parse(tokens)
 
@@ -106,7 +106,7 @@ test('Parser: Oscillator with positional arguments', () => {
 })
 
 test('Parser: Oscillator stored in variable', () => {
-    const code = 'search basics\nlet myOsc = osc(type: oscKind.sine, min: 0, max: 10)\nnoise(scale: myOsc).write(o0)'
+    const code = 'search synth, filter\nlet myOsc = osc(type: oscKind.sine, min: 0, max: 10)\nnoise(scale: myOsc).write(o0)'
     const tokens = lex(code)
     const ast = parse(tokens)
 
@@ -121,7 +121,7 @@ test('Parser: Oscillator stored in variable', () => {
 // ============================================================================
 
 test('Validator: Oscillator resolves to oscillator config', () => {
-    const result = compile('search basics\nnoise(scale: osc(type: oscKind.sine, min: 2, max: 8)).write(o0)')
+    const result = compile('search synth, filter\nnoise(scale: osc(type: oscKind.sine, min: 2, max: 8)).write(o0)')
 
     // Find the compiled step
     const step = result.plans[0].chain[0]
@@ -146,14 +146,14 @@ test('Validator: Different oscillator types resolve to correct values', () => {
     ]
 
     for (const [typeName, expectedValue] of types) {
-        const result = compile(`search basics\nnoise(scale: osc(type: oscKind.${typeName})).write(o0)`)
+        const result = compile(`search synth, filter\nnoise(scale: osc(type: oscKind.${typeName})).write(o0)`)
         const scaleArg = result.plans[0].chain[0].args.scale
         assertEqual(scaleArg.oscType, expectedValue, `Expected oscType ${expectedValue} for ${typeName}`)
     }
 })
 
 test('Validator: Oscillator defaults are applied correctly', () => {
-    const result = compile('search basics\nnoise(scale: osc(type: oscKind.sine)).write(o0)')
+    const result = compile('search synth, filter\nnoise(scale: osc(type: oscKind.sine)).write(o0)')
     const scaleArg = result.plans[0].chain[0].args.scale
 
     assertEqual(scaleArg.min, 0, 'Expected default min 0')
@@ -228,7 +228,7 @@ test('Unparser: All oscillator types format correctly', () => {
 // ============================================================================
 
 test('Integration: Full compile and unparse round-trip', () => {
-    const original = 'search basics\nnoise(scale: osc(type: oscKind.sine, min: 2, max: 8)).write(o0)'
+    const original = 'search synth, filter\nnoise(scale: osc(type: oscKind.sine, min: 2, max: 8)).write(o0)'
     const compiled = compile(original)
 
     // Verify compilation produced oscillator config
@@ -240,7 +240,7 @@ test('Integration: Full compile and unparse round-trip', () => {
 })
 
 test('Integration: Oscillator in complex chain', () => {
-    const code = `search basics
+    const code = `search synth, filter
 let scaleOsc = osc(type: oscKind.saw, min: 1, max: 10, speed: 2)
 noise(scale: scaleOsc).bloom(amount: 0.5).write(o0)`
 

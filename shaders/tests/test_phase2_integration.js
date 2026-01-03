@@ -42,7 +42,7 @@ try {
     // 1: kaleid (Read A, Write B) -> A released
     // 2: kaleid (Read B, Write C) -> B released. C can use A's slot.
 
-    const code = 'search basics\nosc(10).kaleid(4).kaleid(2).write(o0)'
+    const code = 'search synth, filter\nosc(10).kaleid(4).kaleid(2).write(o0)'
     const { passes, allocations } = compileAndAllocate(code)
 
     const texA = passes[0].outputs.color // node_0_out

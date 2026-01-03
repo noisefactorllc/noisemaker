@@ -22,7 +22,7 @@ function test(name, fn) {
 // Register a simple test effect
 const SolidEffect = {
     name: "Solid",
-    namespace: "basics",
+    namespace: "synth",
     func: "solid",
     globals: {
         r: { type: "float", default: 0, min: 0, max: 1 },
@@ -42,7 +42,7 @@ const SolidEffect = {
 
 const WaveEffect = {
     name: "Wave",
-    namespace: "basics",
+    namespace: "synth",
     func: "wave",
     globals: {
         freq: { type: "float", default: 10, min: 0, max: 100 }
@@ -60,7 +60,7 @@ const WaveEffect = {
 
 const BlendEffect = {
     name: "Blend",
-    namespace: "basics",
+    namespace: "mixer",
     func: "blend",
     globals: {
         amount: { type: "float", default: 0.5, min: 0, max: 1 }
@@ -79,7 +79,7 @@ const BlendEffect = {
     ]
 }
 
-registerOp('basics.solid', {
+registerOp('synth.solid', {
     name: 'solid',
     args: [
         { name: 'r', type: 'float', default: 0 },
@@ -87,22 +87,22 @@ registerOp('basics.solid', {
         { name: 'b', type: 'float', default: 0 }
     ]
 })
-registerOp('basics.wave', {
+registerOp('synth.wave', {
     name: 'wave',
     args: [{ name: 'freq', type: 'float', default: 10 }]
 })
-registerOp('basics.blend', {
+registerOp('mixer.blend', {
     name: 'blend',
     args: [{ name: 'tex', type: 'surface' }]
 })
-registerStarterOps(['basics.solid', 'basics.wave'])
+registerStarterOps(['synth.solid', 'synth.wave'])
 
-registerEffect('basics.solid', SolidEffect)
-registerEffect('basics.wave', WaveEffect)
-registerEffect('basics.blend', BlendEffect)
+registerEffect('synth.solid', SolidEffect)
+registerEffect('synth.wave', WaveEffect)
+registerEffect('mixer.blend', BlendEffect)
 
 test('Integration - Simple Generator', () => {
-    const source = 'search basics\nsolid(1, 0, 0).write(o0)'
+    const source = 'search synth\nsolid(1, 0, 0).write(o0)'
     const graph = compileGraph(source)
 
     if (!graph) {
@@ -115,7 +115,7 @@ test('Integration - Simple Generator', () => {
 })
 
 test('Integration - Chain with Parameters', () => {
-    const source = 'search basics\nwave(20).write(o0)'
+    const source = 'search synth\nwave(20).write(o0)'
     const graph = compileGraph(source)
 
     if (!graph || !graph.passes) {
@@ -129,7 +129,7 @@ test('Integration - Chain with Parameters', () => {
 })
 
 test('Integration - Texture Allocation', () => {
-    const source = 'search basics\nsolid(1, 0.5, 0).write(o0)'
+    const source = 'search synth\nsolid(1, 0.5, 0).write(o0)'
     const graph = compileGraph(source)
 
     if (!graph.textures) {
@@ -138,7 +138,7 @@ test('Integration - Texture Allocation', () => {
 })
 
 test('Integration - Resource Allocation', () => {
-    const source = 'search basics\nsolid(1, 0, 0).write(o0)'
+    const source = 'search synth\nsolid(1, 0, 0).write(o0)'
     const graph = compileGraph(source)
 
     if (!graph.allocations) {
@@ -148,9 +148,9 @@ test('Integration - Resource Allocation', () => {
 
 test('Integration - Multiple Outputs', () => {
     const sources = [
-        'search basics\nsolid(1, 0, 0).write(o0)',
-        'search basics\nsolid(0, 1, 0).write(o1)',
-        'search basics\nsolid(0, 0, 1).write(o2)'
+        'search synth\nsolid(1, 0, 0).write(o0)',
+        'search synth\nsolid(0, 1, 0).write(o1)',
+        'search synth\nsolid(0, 0, 1).write(o2)'
     ]
 
     for (const source of sources) {
@@ -162,7 +162,7 @@ test('Integration - Multiple Outputs', () => {
 })
 
 test('Integration - Graph Metadata', () => {
-    const source = 'search basics\nsolid(1, 1, 1).write(o0)'
+    const source = 'search synth\nsolid(1, 1, 1).write(o0)'
     const graph = compileGraph(source)
 
     if (!graph.id) {
@@ -179,7 +179,7 @@ test('Integration - Graph Metadata', () => {
 })
 
 test('Integration - Hash Consistency', () => {
-    const source = 'search basics\nsolid(1, 0, 0).write(o0)'
+    const source = 'search synth\nsolid(1, 0, 0).write(o0)'
 
     const graph1 = compileGraph(source)
     const graph2 = compileGraph(source)
@@ -188,7 +188,7 @@ test('Integration - Hash Consistency', () => {
         throw new Error('Graph IDs should be identical for same source')
     }
 
-    const differentSource = 'search basics\nsolid(0, 1, 0).write(o0)'
+    const differentSource = 'search synth\nsolid(0, 1, 0).write(o0)'
     const graph3 = compileGraph(differentSource)
 
     if (graph1.id === graph3.id) {
@@ -198,7 +198,7 @@ test('Integration - Hash Consistency', () => {
 
 test('Integration - Render Surface from last write', () => {
     // When no render() directive, renderSurface should be the last surface written
-    const source = 'search basics\nsolid(1, 0, 0).write(o2)'
+    const source = 'search synth\nsolid(1, 0, 0).write(o2)'
     const graph = compileGraph(source)
 
     if (graph.renderSurface !== 'o2') {
@@ -208,7 +208,7 @@ test('Integration - Render Surface from last write', () => {
 
 test('Integration - Render Surface with multiple writes', () => {
     // With multiple writes, renderSurface should be the last one
-    const source = 'search basics\nsolid(1, 0, 0).write(o1)\nsolid(0, 1, 0).write(o5)'
+    const source = 'search synth\nsolid(1, 0, 0).write(o1)\nsolid(0, 1, 0).write(o5)'
     const graph = compileGraph(source)
 
     if (graph.renderSurface !== 'o5') {
@@ -218,7 +218,7 @@ test('Integration - Render Surface with multiple writes', () => {
 
 test('Integration - Render Surface default to o0', () => {
     // Default case: write to o0
-    const source = 'search basics\nsolid(1, 0, 0).write(o0)'
+    const source = 'search synth\nsolid(1, 0, 0).write(o0)'
     const graph = compileGraph(source)
 
     if (graph.renderSurface !== 'o0') {
