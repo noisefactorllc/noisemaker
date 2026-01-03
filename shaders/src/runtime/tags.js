@@ -102,6 +102,10 @@ export const NAMESPACE_DESCRIPTIONS = Object.freeze({
     filter3d: {
         id: 'filter3d',
         description: '3D volumetric processors'
+    },
+    user: {
+        id: 'user',
+        description: 'User-defined effects'
     }
 })
 
