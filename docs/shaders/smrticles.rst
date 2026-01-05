@@ -383,6 +383,8 @@ Available Behaviors
      - Diffusion-limited aggregation (crystal growth)
    * - ``life``
      - Particle life: type-based attraction/repulsion matrix
+   * - ``lenia``
+     - Particle Lenia: continuous cellular automata with kernel-based attraction
    * - ``attractor``
      - Strange attractors: Lorenz, Rössler, Aizawa, Thomas, etc.
 
