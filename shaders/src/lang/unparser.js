@@ -627,6 +627,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
         // read() is a starter node unless marked as chained
         const chains = []  // Array of chain arrays (each element has { code, leadingComments? })
         let currentChain = []
+        let inSubchain = false  // Track subchain context for proper indentation
 
         for (const step of plan.chain) {
             // Helper to build a chain element with optional comments
@@ -698,6 +699,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
                     elem.leadingComments = step.leadingComments
                 }
                 currentChain.push(elem)
+                inSubchain = true
                 globalStepIndex++
                 continue
             }
@@ -705,6 +707,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
             // Handle subchain end marker - ends a subchain block
             if (step.builtin && step.op === '_subchain_end') {
                 currentChain.push({ code: '}', isSubchainEnd: true })
+                inSubchain = false
                 globalStepIndex++
                 continue
             }
@@ -777,7 +780,9 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 }
             }
 
-            currentChain.push(makeChainElement(unparseCall(call, { ...options, specs, indent: currentChain.length === 0 ? 0 : 2 })))
+            // Calculate indent: 4 spaces inside subchain, 2 outside; 0 for first element
+            const callIndent = currentChain.length === 0 ? 0 : (inSubchain ? 4 : 2)
+            currentChain.push(makeChainElement(unparseCall(call, { ...options, specs, indent: callIndent })))
             globalStepIndex++
         }
 
