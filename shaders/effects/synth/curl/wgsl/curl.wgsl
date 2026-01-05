@@ -37,7 +37,7 @@ fn simplex3D(v: vec3f) -> f32 {
     let D = vec4f(0.0, 0.5, 1.0, 2.0);
     
     // Apply seed offset to input
-    let vSeeded = v + f32(u.seed) * 0.1271;
+    let vSeeded = v + f32(u.seed) * 0.0001;
     
     // First corner
     let i = floor(vSeeded + dot(vSeeded, C.yyy));
