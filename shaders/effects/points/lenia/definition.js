@@ -219,7 +219,7 @@ export default new Effect({
     // Pass 4: Update particle state from field
     {
       name: "agent",
-      program: "agent_field",
+      program: "agentField",
       drawBuffers: 3,
       inputs: {
         xyzTex: "global_xyz",
