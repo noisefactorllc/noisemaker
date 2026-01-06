@@ -28,6 +28,13 @@ export default new Effect({
         "min": 0,
         "max": 1,
         "uniform": "b"
+    },
+    "a": {
+        "type": "float",
+        "default": 1.0,
+        "min": 0,
+        "max": 1,
+        "uniform": "a"
     }
 },
   passes: [
