@@ -761,14 +761,121 @@ export class UIController {
 
     /**
      * Stop all cameras and clean up media state
+     * @param {boolean} preserveState - If true, only stop streams but keep state for restoration
      */
-    stopAllMedia() {
+    stopAllMedia(preserveState = false) {
         for (const [, media] of this._mediaInputs) {
             if (media.stream) {
                 media.stream.getTracks().forEach(track => track.stop())
             }
         }
-        this._mediaInputs.clear()
+        if (!preserveState) {
+            this._mediaInputs.clear()
+        }
+    }
+
+    /**
+     * Preserve media state keyed by occurrence for later restoration
+     * @returns {Object} Map of occurrenceKey -> preserved media state
+     * @private
+     */
+    _preserveMediaState() {
+        const previousMediaByOccurrence = {}
+        if (!this._parsedDslStructure || this._mediaInputs.size === 0) {
+            return previousMediaByOccurrence
+        }
+
+        const occurrenceCount = {}
+        for (const effectInfo of this._parsedDslStructure) {
+            const effectName = effectInfo.effectKey || effectInfo.name
+            const occurrence = occurrenceCount[effectName] || 0
+            occurrenceCount[effectName] = occurrence + 1
+
+            const media = this._mediaInputs.get(effectInfo.stepIndex)
+            if (!media) continue
+
+            const occurrenceKey = `${effectName}#${occurrence}`
+            // Preserve the source type, source element, and URL
+            // We preserve the actual Image/Video element so we can reuse it
+            previousMediaByOccurrence[occurrenceKey] = {
+                sourceType: media.stream ? 'camera' : 'file',
+                // For file sources, preserve the source element and its src
+                source: media.source,
+                imageSrc: media.imageEl?.src || null,
+                videoSrc: media.videoEl?.src || null,
+                isVideo: media.source instanceof HTMLVideoElement && !media.stream,
+                // For camera, just preserve the fact it was camera (reconnection is optional)
+                cameraDeviceId: media.cameraGroup?._selectHandle?.getValue() || null
+            }
+        }
+        return previousMediaByOccurrence
+    }
+
+    /**
+     * Restore media state from preserved state
+     * @param {number} stepIndex - Step index
+     * @param {Object} preserved - Preserved media state
+     * @private
+     */
+    _restoreMediaFromPreviousState(stepIndex, preserved) {
+        const media = this._mediaInputs.get(stepIndex)
+        if (!media || !preserved) return
+
+        // Find the radio buttons and set the correct source type
+        const radioName = `media-source-${stepIndex}`
+        const radios = document.querySelectorAll(`input[name="${radioName}"]`)
+        const isCameraSource = preserved.sourceType === 'camera'
+
+        for (const radio of radios) {
+            radio.checked = radio.value === preserved.sourceType
+        }
+
+        // Show/hide the appropriate groups
+        if (media.fileGroup && media.cameraGroup) {
+            media.fileGroup.style.display = isCameraSource ? 'none' : 'block'
+            media.cameraGroup.style.display = isCameraSource ? 'block' : 'none'
+        }
+
+        // For file sources, restore the source element
+        if (preserved.sourceType === 'file' && preserved.source) {
+            if (preserved.isVideo && preserved.videoSrc) {
+                // Restore video source
+                media.videoEl.src = preserved.videoSrc
+                media.videoEl.load()
+                media.videoEl.onloadedmetadata = () => {
+                    media.source = media.videoEl
+                    media.statusEl.textContent = `video: ${media.videoEl.videoWidth}x${media.videoEl.videoHeight}`
+                    media.videoEl.play()
+                    this._updateMediaTexture(stepIndex)
+                    if (this._renderer.applyStepParameterValues) {
+                        this._renderer.applyStepParameterValues(this._effectParameterValues)
+                    }
+                }
+            } else if (preserved.imageSrc) {
+                // Restore image source
+                media.imageEl.src = preserved.imageSrc
+                media.imageEl.onload = () => {
+                    media.source = media.imageEl
+                    media.statusEl.textContent = `image: ${media.imageEl.naturalWidth}x${media.imageEl.naturalHeight}`
+                    this._updateMediaTexture(stepIndex)
+                    if (this._renderer.applyStepParameterValues) {
+                        this._renderer.applyStepParameterValues(this._effectParameterValues)
+                    }
+                }
+            }
+        } else if (preserved.sourceType === 'camera') {
+            // For camera, populate the camera list (user must re-start manually)
+            if (media.cameraGroup?._selectHandle) {
+                this._populateCameraList(stepIndex, media.cameraGroup._selectHandle)
+                    .then(() => {
+                        // Pre-select the previous camera device if available
+                        if (preserved.cameraDeviceId && media.cameraGroup._selectHandle) {
+                            media.cameraGroup._selectHandle.setValue(preserved.cameraDeviceId)
+                        }
+                    })
+            }
+            media.statusEl.textContent = 'camera stopped (re-select to start)'
+        }
     }
 
     /**
@@ -1694,7 +1801,11 @@ render(o1)`
     createEffectControlsFromDsl(dsl) {
         if (!this._controlsContainer) return
 
+        // PRESERVE media state before stopping (keyed by occurrence)
+        const previousMediaByOccurrence = this._preserveMediaState()
+
         // Clean up existing media and text inputs before rebuilding controls
+        // Use preserveState=false since we already captured state above
         this.stopAllMedia()
         this.stopAllText()
 
@@ -2206,6 +2317,14 @@ render(o1)`
                     effectDef
                 )
                 contentDiv.appendChild(mediaSection)
+
+                // Restore previous media state if available (keyed by occurrence)
+                if (previousMediaByOccurrence[occurrenceKey]) {
+                    this._restoreMediaFromPreviousState(
+                        effectInfo.stepIndex,
+                        previousMediaByOccurrence[occurrenceKey]
+                    )
+                }
             }
 
             // Initialize text canvas for textTex effects (reads settings from globals)
