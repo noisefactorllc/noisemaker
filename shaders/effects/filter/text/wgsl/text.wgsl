@@ -37,11 +37,11 @@ fn main(fsInput: VertexOutput) -> @location(0) vec4<f32> {
     
     // The canvas encodes both text and background in the texture.
     // Text has alpha = 1.0, background has alpha = bgOpacity.
-    // We use the canvas color directly, blending by its alpha,
-    // but preserve the INPUT's alpha channel for the output.
+    // We use the canvas color directly, blending by its alpha.
     
     let result = mix(inputColor.rgb, text.rgb, text.a);
     
-    // Preserve input alpha - bgOpacity shouldn't affect final alpha
-    return vec4<f32>(result, inputColor.a);
+    // Text pixels get full alpha, background preserves input alpha
+    let outAlpha = mix(inputColor.a, 1.0, text.a);
+    return vec4<f32>(result, outAlpha);
 }

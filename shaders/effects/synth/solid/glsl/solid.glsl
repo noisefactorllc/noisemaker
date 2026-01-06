@@ -8,7 +8,8 @@ uniform float a;
 
 out vec4 fragColor;
 
-/* Produces a constant color. */
+/* Produces a constant color with premultiplied alpha. */
 void main() {
-  fragColor = vec4(r, g, b, a);
+  // Premultiply RGB by alpha for correct compositing
+  fragColor = vec4(r * a, g * a, b * a, a);
 }
