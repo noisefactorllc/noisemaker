@@ -11,6 +11,21 @@ export class Backend {
         this.textures = new Map() // physicalId -> GPU texture handle
         this.programs = new Map() // programId -> compiled program/pipeline
         this.uniformBuffers = new Map() // bufferId -> buffer handle
+
+        /**
+         * Device capabilities detected at initialization.
+         * Used for graceful degradation on mobile devices.
+         * @type {{isMobile: boolean, floatBlend: boolean, floatLinear: boolean, colorBufferFloat: boolean, maxDrawBuffers: number, maxTextureSize: number, maxStateSize: number}}
+         */
+        this.capabilities = {
+            isMobile: false,
+            floatBlend: true,
+            floatLinear: true,
+            colorBufferFloat: true,
+            maxDrawBuffers: 8,
+            maxTextureSize: 4096,
+            maxStateSize: 2048  // Default max particle state texture size
+        }
     }
 
     /**

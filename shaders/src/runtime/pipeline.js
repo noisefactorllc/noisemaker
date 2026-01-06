@@ -159,6 +159,23 @@ export class Pipeline {
     }
 
     /**
+     * Get device capabilities from the backend.
+     * Useful for UI to show/hide options or adjust defaults.
+     * @returns {{isMobile: boolean, floatBlend: boolean, floatLinear: boolean, colorBufferFloat: boolean, maxDrawBuffers: number, maxTextureSize: number, maxStateSize: number}}
+     */
+    getCapabilities() {
+        return this.backend?.capabilities || {
+            isMobile: false,
+            floatBlend: true,
+            floatLinear: true,
+            colorBufferFloat: true,
+            maxDrawBuffers: 8,
+            maxTextureSize: 4096,
+            maxStateSize: 2048
+        }
+    }
+
+    /**
      * Set the animation duration for oscillators.
      * Oscillators loop evenly over this duration.
      * @param {number} seconds - Animation loop duration in seconds
@@ -598,6 +615,16 @@ export class Pipeline {
      * @param {any} value - Uniform value
      */
     setUniform(name, value) {
+        // Apply mobile stateSize cap for particle systems
+        // This prevents OOM on mobile devices with limited GPU memory
+        if ((name === 'stateSize' || name.startsWith('stateSize_node_')) && typeof value === 'number') {
+            const maxStateSize = this.backend?.capabilities?.maxStateSize || 2048
+            if (value > maxStateSize) {
+                console.warn(`[Pipeline] Capping stateSize from ${value} to ${maxStateSize} for device compatibility`)
+                value = maxStateSize
+            }
+        }
+
         const oldValue = this.globalUniforms[name]
         this.globalUniforms[name] = value
 

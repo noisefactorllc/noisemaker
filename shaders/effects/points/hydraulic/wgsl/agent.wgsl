@@ -1,7 +1,7 @@
 // Hflow agent pass - Common Agent Architecture middleware
 // Reads from global_xyz/vel/rgba, applies gradient descent, writes back
-// State format: xyz=[x, y, z, alive] vel=[x_dir, y_dir, inertia, 0] rgba=[r, g, b, a]
-// Positions in normalized coords [0,1]
+// State format: xyz=[x, y, z, alive] vel=[vx, vy, vz, seed] rgba=[r, g, b, a]
+// Positions in normalized coords [0,1], velocities in pixel-space
 
 struct Uniforms {
     resolution: vec2f,
@@ -101,10 +101,12 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     let py = xyz.y;  // normalized y
     let alive = xyz.w;
     
-    // vel stores: [x_dir, y_dir, inertia, 0]
-    var x_dir = vel.x;
-    var y_dir = vel.y;
-    var inertia = vel.z;
+    // vel stores: [vx, vy, vz, seed] - standard velocity format
+    // Compatible with physical() and other particle effects
+    var vx = vel.x;
+    var vy = vel.y;
+    let vz = vel.z;
+    var seed_f = vel.w;
     
     let width = i32(u.resolution.x);
     let height = i32(u.resolution.y);
@@ -120,25 +122,17 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         return Outputs(xyz, vel, rgba);
     }
     
-    // Initialize on first use (check if direction is zero, indicating fresh spawn)
-    // pointsEmit sets vel.xy to 0.0 on respawn, vel.z contains rotRand (not inertia)
-    if (x_dir == 0.0 && y_dir == 0.0) {
-        inertia = 0.7 + hash2(agent_id + 99999u).x * 0.3;
-        // Initialize random direction
-        let dir_raw = hash2(agent_id + 12345u) * 2.0 - 1.0;
-        let dir_len = length(dir_raw);
-        if (dir_len > 1e-5) {
-            x_dir = dir_raw.x / dir_len;
-            y_dir = dir_raw.y / dir_len;
-        } else {
-            x_dir = 1.0;
-            y_dir = 0.0;
-        }
+    // Initialize seed on first spawn (when seed is 0)
+    if (seed_f == 0.0) {
+        seed_f = hash2(agent_id + 99999u).x;
     }
+    
+    // Per-agent inertia derived from seed (for gradient blending)
+    let inertia = 0.7 + seed_f * 0.3;
     
     // Attrition is now handled by pointsEmit
 
-    // === ORIGINAL GRADIENT DESCENT ALGORITHM (PRESERVED EXACTLY) ===
+    // === GRADIENT DESCENT ALGORITHM ===
     
     let xi = wrap_int(i32(floor(x)), width);
     let yi = wrap_int(i32(floor(y)), height);
@@ -167,37 +161,43 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         gy = floor(gy);
     }
     
+    // Convert gradient to velocity contribution
+    // Stride controls the speed (in 1/10th pixels per frame)
     let glen = length(vec2f(gx, gy));
+    var targetVx = 0.0;
+    var targetVy = 0.0;
     if (glen > 1e-6) {
-        // Stride is in 1/10th of pixels, so divide by 10
         let scale = (u.stride * 0.1) / glen;
-        gx *= scale;
-        gy *= scale;
-    } else {
-        gx = 0.0;
-        gy = 0.0;
+        targetVx = gx * scale;
+        targetVy = gy * scale;
     }
     
-    // inputWeight controls how much the gradient influences direction
-    // 0 = pure inertia (keep current direction), 100 = fully gradient-driven
+    // inputWeight controls how much gradient influences velocity
+    // 0 = keep current velocity, 100 = fully gradient-driven
     let weightBlend = clamp(u.inputWeight * 0.01, 0.0, 1.0);
-    let effectiveInertia = inertia * weightBlend;
+    let blendFactor = inertia * weightBlend;
     
-    x_dir = mix(x_dir, gx, effectiveInertia);
-    y_dir = mix(y_dir, gy, effectiveInertia);
+    // Blend current velocity with gradient-derived target velocity
+    vx = mix(vx, targetVx, blendFactor);
+    vy = mix(vy, targetVy, blendFactor);
     
-    x = wrap_float(x + x_dir, u.resolution.x);
-    y = wrap_float(y + y_dir, u.resolution.y);
+    // === END GRADIENT ALGORITHM ===
     
-    // === END ORIGINAL ALGORITHM ===
+    // Integrate position with velocity (in pixel space)
+    x = wrap_float(x + vx, u.resolution.x);
+    y = wrap_float(y + vy, u.resolution.y);
     
-    // Convert back to normalized coords
+    // Convert back to normalized coords [0,1]
     let newPx = x / u.resolution.x;
     let newPy = y / u.resolution.y;
     
+    // Output: position updated, velocity in normalized space for compatibility
+    let normVx = vx / u.resolution.x;
+    let normVy = vy / u.resolution.y;
+    
     return Outputs(
-        vec4f(newPx, newPy, xyz.z, 1.0),
-        vec4f(x_dir, y_dir, inertia, 0.0),
+        vec4f(newPx, newPy, xyz.z, alive),
+        vec4f(normVx, normVy, vz, seed_f),
         rgba
     );
 }

@@ -10,10 +10,13 @@ import { Effect } from '../../../src/runtime/effect.js'
  *
  * State format (matching pointsEmit):
  * - xyz: [x, y, z, alive_flag]  (x,y in normalized coords [0,1], w=1 alive)
- * - vel: [x_dir, y_dir, inertia, 0]  (direction vector and inertia)
+ * - vel: [vx, vy, vz, seed]     (velocity in pixel-space, seed for per-agent variation)
  * - rgba: [r, g, b, a]          (agent color)
  *
  * Usage: pointsEmit().hydraulic().pointsRender().write(o0)
+ *
+ * Can be combined with physical() for gravity/wind effects:
+ *   pointsEmit().hydraulic().physical().pointsRender().write(o0)
  */
 export default new Effect({
   name: "Hydraulic",

@@ -402,6 +402,23 @@ export class CanvasRenderer {
         return this._bundlePath
     }
 
+    /**
+     * Get device capabilities from the current pipeline.
+     * Returns default capabilities if no pipeline is active.
+     * @returns {{isMobile: boolean, floatBlend: boolean, floatLinear: boolean, colorBufferFloat: boolean, maxDrawBuffers: number, maxTextureSize: number, maxStateSize: number}}
+     */
+    get capabilities() {
+        return this._pipeline?.getCapabilities() || {
+            isMobile: false,
+            floatBlend: true,
+            floatLinear: true,
+            colorBufferFloat: true,
+            maxDrawBuffers: 8,
+            maxTextureSize: 4096,
+            maxStateSize: 2048
+        }
+    }
+
     // =========================================================================
     // Public Setters
     // =========================================================================

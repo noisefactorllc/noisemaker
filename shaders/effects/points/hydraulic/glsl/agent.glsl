@@ -99,15 +99,12 @@ void main() {
     float py = xyz.y;  // normalized y
     float alive = xyz.w;
     
-    // vel stores: [x_dir, y_dir, inertia, 0]
-    float x_dir = vel.x;
-    float y_dir = vel.y;
-    float inertia = vel.z;
-    
-    // Color from rgba
-    float cr = rgba.r;
-    float cg = rgba.g;
-    float cb = rgba.b;
+    // vel stores: [vx, vy, vz, seed] - standard velocity format
+    // Compatible with physical() and other particle effects
+    float vx = vel.x;
+    float vy = vel.y;
+    float vz = vel.z;
+    float seed_f = vel.w;
     
     int width = int(resolution.x);
     int height = int(resolution.y);
@@ -126,25 +123,17 @@ void main() {
         return;
     }
     
-    // Initialize on first use (check if direction is zero, indicating fresh spawn)
-    // pointsEmit sets vel.xy to 0.0 on respawn, vel.z contains rotRand (not inertia)
-    if (x_dir == 0.0 && y_dir == 0.0) {
-        inertia = 0.7 + hash2(agent_id + 99999u).x * 0.3;
-        // Initialize random direction
-        vec2 dir_raw = hash2(agent_id + 12345u) * 2.0 - 1.0;
-        float dir_len = length(dir_raw);
-        if (dir_len > 1e-5) {
-            x_dir = dir_raw.x / dir_len;
-            y_dir = dir_raw.y / dir_len;
-        } else {
-            x_dir = 1.0;
-            y_dir = 0.0;
-        }
+    // Initialize seed on first spawn (when seed is 0)
+    if (seed_f == 0.0) {
+        seed_f = hash2(agent_id + 99999u).x;
     }
+    
+    // Per-agent inertia derived from seed (for gradient blending)
+    float inertia = 0.7 + seed_f * 0.3;
     
     // Attrition is now handled by pointsEmit
 
-    // === ORIGINAL GRADIENT DESCENT ALGORITHM (PRESERVED EXACTLY) ===
+    // === GRADIENT DESCENT ALGORITHM ===
     
     int xi = wrap_int(int(floor(x)), width);
     int yi = wrap_int(int(floor(y)), height);
@@ -173,35 +162,41 @@ void main() {
         gy = floor(gy);
     }
     
+    // Convert gradient to velocity contribution
+    // Stride controls the speed (in 1/10th pixels per frame)
     float glen = length(vec2(gx, gy));
+    float targetVx = 0.0;
+    float targetVy = 0.0;
     if (glen > 1e-6) {
-        // Stride is in 1/10th of pixels, so divide by 10
         float scale = (stride * 0.1) / glen;
-        gx *= scale;
-        gy *= scale;
-    } else {
-        gx = 0.0;
-        gy = 0.0;
+        targetVx = gx * scale;
+        targetVy = gy * scale;
     }
     
-    // inputWeight controls how much the gradient influences direction
-    // 0 = pure inertia (keep current direction), 100 = fully gradient-driven
+    // inputWeight controls how much gradient influences velocity
+    // 0 = keep current velocity, 100 = fully gradient-driven
     float weightBlend = clamp(inputWeight * 0.01, 0.0, 1.0);
-    float effectiveInertia = inertia * weightBlend;
+    float blendFactor = inertia * weightBlend;
     
-    x_dir = mix(x_dir, gx, effectiveInertia);
-    y_dir = mix(y_dir, gy, effectiveInertia);
+    // Blend current velocity with gradient-derived target velocity
+    vx = mix(vx, targetVx, blendFactor);
+    vy = mix(vy, targetVy, blendFactor);
     
-    x = wrap_float(x + x_dir, resolution.x);
-    y = wrap_float(y + y_dir, resolution.y);
+    // === END GRADIENT ALGORITHM ===
     
-    // === END ORIGINAL ALGORITHM ===
+    // Integrate position with velocity (in pixel space)
+    x = wrap_float(x + vx, resolution.x);
+    y = wrap_float(y + vy, resolution.y);
     
-    // Convert back to normalized coords
+    // Convert back to normalized coords [0,1]
     float newPx = x / resolution.x;
     float newPy = y / resolution.y;
     
-    outXYZ = vec4(newPx, newPy, xyz.z, 1.0);
-    outVel = vec4(x_dir, y_dir, inertia, 0.0);
+    // Output: position updated, velocity in normalized space for compatibility
+    float normVx = vx / resolution.x;
+    float normVy = vy / resolution.y;
+    
+    outXYZ = vec4(newPx, newPy, xyz.z, alive);
+    outVel = vec4(normVx, normVy, vz, seed_f);
     outRGBA = rgba;
 }

@@ -104,7 +104,46 @@ export class WebGPUBackend extends Backend {
         return null
     }
 
+    /**
+     * Detect if running on a mobile device.
+     * Uses user agent and touch capability as heuristics.
+     * @returns {boolean}
+     */
+    static detectMobile() {
+        if (typeof navigator === 'undefined') return false
+        const ua = navigator.userAgent || ''
+        // Check for mobile user agents
+        if (/iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua)) {
+            return true
+        }
+        // Also check for touch-primary devices with small screens
+        if (typeof window !== 'undefined' && 'ontouchstart' in window) {
+            // Touch device with screen width suggesting mobile/tablet
+            return window.screen.width <= 1024
+        }
+        return false
+    }
+
     async init() {
+        // Detect mobile device and populate capabilities
+        const isMobile = WebGPUBackend.detectMobile()
+
+        // WebGPU has good float support, but we still cap state size on mobile for memory
+        this.capabilities = {
+            isMobile,
+            floatBlend: true,  // WebGPU always supports blending on float textures
+            floatLinear: true, // WebGPU always supports linear filtering on float textures
+            colorBufferFloat: true,  // WebGPU always supports float render targets
+            maxDrawBuffers: 8,  // WebGPU supports many color attachments
+            maxTextureSize: this.device.limits.maxTextureDimension2D || 8192,
+            // Cap particle state texture size on mobile to prevent OOM
+            maxStateSize: isMobile ? 512 : 2048
+        }
+
+        if (isMobile) {
+            console.info(`[WebGPU] Mobile device detected - limiting stateSize to ${this.capabilities.maxStateSize}`)
+        }
+
         // Create default sampler (linear filtering)
         this.samplers.set('default', this.device.createSampler({
             minFilter: 'linear',

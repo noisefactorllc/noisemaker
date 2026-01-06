@@ -20,6 +20,26 @@ export class WebGL2Backend extends Backend {
     }
 
     /**
+     * Detect if running on a mobile device.
+     * Uses user agent and touch capability as heuristics.
+     * @returns {boolean}
+     */
+    static detectMobile() {
+        if (typeof navigator === 'undefined') return false
+        const ua = navigator.userAgent || ''
+        // Check for mobile user agents
+        if (/iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua)) {
+            return true
+        }
+        // Also check for touch-primary devices with small screens
+        if (typeof window !== 'undefined' && 'ontouchstart' in window) {
+            // Touch device with screen width suggesting mobile/tablet
+            return window.screen.width <= 1024
+        }
+        return false
+    }
+
+    /**
      * Parse a texture ID to extract the global surface name.
      * Supports both "global_name" and "globalName" patterns.
      * Returns null if not a global, otherwise returns the surface name.
@@ -48,16 +68,45 @@ export class WebGL2Backend extends Backend {
     async init() {
         const gl = this.gl
 
-        // Enable extensions for floating point textures
-        if (!gl.getExtension('EXT_color_buffer_float')) {
-            console.warn('EXT_color_buffer_float not supported')
+        // Detect mobile device
+        const isMobile = WebGL2Backend.detectMobile()
+
+        // Enable and track extensions for floating point textures
+        const colorBufferFloat = !!gl.getExtension('EXT_color_buffer_float')
+        const floatLinear = !!gl.getExtension('OES_texture_float_linear')
+        const floatBlend = !!gl.getExtension('EXT_float_blend')
+
+        if (!colorBufferFloat) {
+            console.warn('[WebGL2] EXT_color_buffer_float not supported - float texture rendering may fail')
         }
-        if (!gl.getExtension('OES_texture_float_linear')) {
-            console.warn('OES_texture_float_linear not supported')
+        if (!floatLinear) {
+            console.warn('[WebGL2] OES_texture_float_linear not supported - use texelFetch for float textures')
+        }
+        if (!floatBlend) {
+            console.warn('[WebGL2] EXT_float_blend not supported - blending on float textures may fail')
         }
 
-        // Get capabilities
+        // Query hardware limits
         this.maxTextureUnits = gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS)
+        const maxDrawBuffers = gl.getParameter(gl.MAX_DRAW_BUFFERS)
+        const maxTextureSize = gl.getParameter(gl.MAX_TEXTURE_SIZE)
+
+        // Populate capabilities for graceful degradation
+        this.capabilities = {
+            isMobile,
+            floatBlend,
+            floatLinear,
+            colorBufferFloat,
+            maxDrawBuffers,
+            maxTextureSize,
+            // Cap particle state texture size on mobile to prevent OOM
+            // 512x512 = 262k particles, uses ~48MB for state textures
+            maxStateSize: isMobile ? 512 : 2048
+        }
+
+        if (isMobile) {
+            console.info(`[WebGL2] Mobile device detected - limiting stateSize to ${this.capabilities.maxStateSize}`)
+        }
 
         // Create full-screen quad VAO
         this.fullscreenVAO = this.createFullscreenVAO()
