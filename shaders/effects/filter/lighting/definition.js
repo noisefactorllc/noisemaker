@@ -91,7 +91,7 @@ export default new Effect({
         category: "diffuse"
       }
     },
-    
+
     reflection: {
       type: "float",
       default: 0.0,

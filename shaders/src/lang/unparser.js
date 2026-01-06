@@ -801,7 +801,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 const elem = chain[i]
                 const isFirst = i === 0
                 const baseIndent = inSubchain ? '    ' : '  '  // 4 spaces inside subchain, 2 outside
-                
+
                 // Emit leading comments for this element
                 if (elem.leadingComments && elem.leadingComments.length > 0) {
                     for (const comment of elem.leadingComments) {
@@ -814,7 +814,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
                         }
                     }
                 }
-                
+
                 // Handle subchain begin
                 if (elem.isSubchainBegin) {
                     if (isFirst) {
@@ -825,14 +825,14 @@ export function unparse(compiled, overrides = {}, options = {}) {
                     inSubchain = true
                     continue
                 }
-                
+
                 // Handle subchain end
                 if (elem.isSubchainEnd) {
                     parts.push(`  ${elem.code}`)
                     inSubchain = false
                     continue
                 }
-                
+
                 // Emit the code
                 if (isFirst) {
                     parts.push(elem.code)

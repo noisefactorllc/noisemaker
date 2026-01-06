@@ -89,7 +89,7 @@ noise()
     if (!compiled.diagnostics || compiled.diagnostics.length === 0) {
         throw new Error('Expected validation error for inline .read(), but got none')
     }
-    const hasReadError = compiled.diagnostics.some(d => 
+    const hasReadError = compiled.diagnostics.some(d =>
         d.message && d.message.includes('read() is a starter node')
     )
     if (!hasReadError) {
@@ -109,7 +109,7 @@ noise()
     if (!compiled.diagnostics || compiled.diagnostics.length === 0) {
         throw new Error('Expected validation error for inline .read3d(), but got none')
     }
-    const hasRead3dError = compiled.diagnostics.some(d => 
+    const hasRead3dError = compiled.diagnostics.some(d =>
         d.message && d.message.includes('read3d() is a starter node')
     )
     if (!hasRead3dError) {

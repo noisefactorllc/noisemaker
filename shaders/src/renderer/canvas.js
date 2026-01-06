@@ -978,12 +978,12 @@ export class CanvasRenderer {
             } else {
                 instance = exported
             }
-            
+
             // Also check named export for help (bundles export help separately)
             if (module.help && !instance.help) {
                 instance.help = module.help
             }
-            
+
             return { namespace, name: effectName, instance }
         } catch (err) {
             console.error(`Failed to load bundle for ${effectId}:`, err)

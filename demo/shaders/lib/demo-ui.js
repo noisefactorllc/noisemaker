@@ -429,10 +429,11 @@ export class UIController {
      * @param {number} stepIndex - Step index for this effect
      * @param {string} textureId - Texture ID (e.g., 'imageTex')
      * @param {object} effectDef - Effect definition
+     * @param {boolean} skipDefaultLoad - If true, skip loading the default test image
      * @returns {HTMLElement} Media input controls container
      * @private
      */
-    _createMediaInputSection(stepIndex, textureId) {
+    _createMediaInputSection(stepIndex, textureId, effectDef, skipDefaultLoad = false) {
         const section = document.createElement('div')
         section.className = 'media-input-section'
 
@@ -597,8 +598,10 @@ export class UIController {
             }
         })
 
-        // Load default test image
-        this._loadDefaultMediaImage(stepIndex)
+        // Load default test image (skip if we're going to restore previous state)
+        if (!skipDefaultLoad) {
+            this._loadDefaultMediaImage(stepIndex)
+        }
 
         return section
     }
@@ -795,16 +798,23 @@ export class UIController {
             if (!media) continue
 
             const occurrenceKey = `${effectName}#${occurrence}`
+
+            // Determine source type from UI state (which group is visible), not stream presence
+            // This preserves camera selection even if camera was stopped
+            let sourceType = 'file'
+            if (media.cameraGroup && media.cameraGroup.style.display !== 'none') {
+                sourceType = 'camera'
+            }
+
             // Preserve the source type, source element, and URL
-            // We preserve the actual Image/Video element so we can reuse it
             previousMediaByOccurrence[occurrenceKey] = {
-                sourceType: media.stream ? 'camera' : 'file',
+                sourceType,
                 // For file sources, preserve the source element and its src
                 source: media.source,
                 imageSrc: media.imageEl?.src || null,
                 videoSrc: media.videoEl?.src || null,
                 isVideo: media.source instanceof HTMLVideoElement && !media.stream,
-                // For camera, just preserve the fact it was camera (reconnection is optional)
+                // For camera, preserve the selected device ID
                 cameraDeviceId: media.cameraGroup?._selectHandle?.getValue() || null
             }
         }
@@ -853,14 +863,24 @@ export class UIController {
                 }
             } else if (preserved.imageSrc) {
                 // Restore image source
-                media.imageEl.src = preserved.imageSrc
-                media.imageEl.onload = () => {
+                const completeRestore = () => {
                     media.source = media.imageEl
                     media.statusEl.textContent = `image: ${media.imageEl.naturalWidth}x${media.imageEl.naturalHeight}`
                     this._updateMediaTexture(stepIndex)
                     if (this._renderer.applyStepParameterValues) {
                         this._renderer.applyStepParameterValues(this._effectParameterValues)
                     }
+                }
+
+                media.imageEl.onload = completeRestore
+                media.imageEl.onerror = () => {
+                    media.statusEl.textContent = 'failed to restore image'
+                }
+                media.imageEl.src = preserved.imageSrc
+
+                // Handle already-loaded/cached images (onload won't fire)
+                if (media.imageEl.complete && media.imageEl.naturalWidth > 0) {
+                    completeRestore()
                 }
             }
         } else if (preserved.sourceType === 'camera') {
@@ -2311,15 +2331,18 @@ render(o1)`
             // Add external input section if effect has externalTexture (for media effects)
             if (effectDef.externalTexture && effectDef.externalTexture !== 'textTex') {
                 const stepTextureId = `${effectDef.externalTexture}_step_${effectInfo.stepIndex}`
+                // Check if we have previous state BEFORE creating the section
+                const hasPreviousMediaState = !!previousMediaByOccurrence[occurrenceKey]
                 const mediaSection = this._createMediaInputSection(
                     effectInfo.stepIndex,
                     stepTextureId,
-                    effectDef
+                    effectDef,
+                    hasPreviousMediaState // Skip default image load if restoring
                 )
                 contentDiv.appendChild(mediaSection)
 
                 // Restore previous media state if available (keyed by occurrence)
-                if (previousMediaByOccurrence[occurrenceKey]) {
+                if (hasPreviousMediaState) {
                     this._restoreMediaFromPreviousState(
                         effectInfo.stepIndex,
                         previousMediaByOccurrence[occurrenceKey]
