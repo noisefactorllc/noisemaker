@@ -43,6 +43,6 @@
     "puppeteer": "^22.15.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.24.0"
+    "@modelcontextprotocol/sdk": "^1.25.2"
   }
 }
