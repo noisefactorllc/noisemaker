@@ -1,5 +1,6 @@
 struct Uniforms {
     resolution: vec2f,
+    matteOpacity: f32,
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -18,8 +19,13 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     // Grid alpha indicates structure presence
     let gridStrength = clamp(grid.a, 0.0, 1.0);
     let gridColor = grid.rgb;
+    let matteAlpha = u.matteOpacity;
     
-    // Mix: where grid exists, show grid color; otherwise show input
-    let color = mix(input.rgb, gridColor, gridStrength);
-    return vec4f(color, 1.0);
+    // Mix: where grid exists, show grid color; otherwise show input (premultiplied by matte)
+    let color = mix(input.rgb * matteAlpha, gridColor, gridStrength);
+    
+    // Alpha: where grid exists, full opacity; elsewhere, matte opacity
+    let alpha = max(gridStrength, matteAlpha);
+    
+    return vec4f(color, alpha);
 }

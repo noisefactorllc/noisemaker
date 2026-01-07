@@ -120,6 +120,19 @@ export default new Effect({
         control: "slider",
         category: "agents"
       }
+    },
+    // Matte opacity (0=transparent background, 1=opaque)
+    matteOpacity: {
+      type: "float",
+      default: 1.0,
+      uniform: "matteOpacity",
+      min: 0.0,
+      max: 1.0,
+      ui: {
+        label: "matte opacity",
+        control: "slider",
+        category: "visual"
+      }
     }
   },
 
@@ -208,6 +221,9 @@ export default new Effect({
       inputs: {
         inputTex: "inputTex",
         gridTex: "global_dla_grid"
+      },
+      uniforms: {
+        matteOpacity: "matteOpacity"
       },
       outputs: {
         fragColor: "outputTex"

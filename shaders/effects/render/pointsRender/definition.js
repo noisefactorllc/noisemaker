@@ -170,6 +170,20 @@ export default new Effect({
                 category: "view",
                 enabledBy: "viewMode"
             }
+        },
+
+        // Matte opacity (0=transparent background, 1=opaque)
+        matteOpacity: {
+            type: "float",
+            default: 1.0,
+            min: 0.0,
+            max: 1.0,
+            uniform: "matteOpacity",
+            ui: {
+                label: "matte opacity",
+                control: "slider",
+                category: "visual"
+            }
         }
     },
 
@@ -248,7 +262,8 @@ export default new Effect({
             },
 
             uniforms: {
-                inputIntensity: "inputIntensity"
+                inputIntensity: "inputIntensity",
+                matteOpacity: "matteOpacity"
             },
 
             outputs: {
