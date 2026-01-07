@@ -13,6 +13,7 @@ struct Uniforms {
     shininess: f32,
     lightDirection: vec3f,
     normalStrength: f32,
+    smoothing: f32,
     reflection: f32,
     refraction: f32,
     aberration: f32,
@@ -29,6 +30,9 @@ fn getLuminosity(color: vec3f) -> f32 {
 
 // Calculate surface normal from height map using Sobel convolution
 fn calculateNormal(uv: vec2f, texelSize: vec2f) -> vec3f {
+    // Apply smoothing to texel size for smoother normals
+    let sampleSize = texelSize * uniforms.smoothing;
+    
     // Sobel X kernel
     var sobel_x = array<f32, 9>(
         -1.0, 0.0, 1.0,
@@ -44,15 +48,15 @@ fn calculateNormal(uv: vec2f, texelSize: vec2f) -> vec3f {
     );
     
     var offsets = array<vec2f, 9>(
-        vec2f(-texelSize.x, -texelSize.y),
-        vec2f(0.0, -texelSize.y),
-        vec2f(texelSize.x, -texelSize.y),
-        vec2f(-texelSize.x, 0.0),
+        vec2f(-sampleSize.x, -sampleSize.y),
+        vec2f(0.0, -sampleSize.y),
+        vec2f(sampleSize.x, -sampleSize.y),
+        vec2f(-sampleSize.x, 0.0),
         vec2f(0.0, 0.0),
-        vec2f(texelSize.x, 0.0),
-        vec2f(-texelSize.x, texelSize.y),
-        vec2f(0.0, texelSize.y),
-        vec2f(texelSize.x, texelSize.y)
+        vec2f(sampleSize.x, 0.0),
+        vec2f(-sampleSize.x, sampleSize.y),
+        vec2f(0.0, sampleSize.y),
+        vec2f(sampleSize.x, sampleSize.y)
     );
     
     var dx: f32 = 0.0;

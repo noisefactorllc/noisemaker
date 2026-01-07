@@ -16,6 +16,7 @@ uniform float shininess;
 uniform vec3 ambientColor;
 uniform vec3 lightDirection;
 uniform float normalStrength;
+uniform float smoothing;
 uniform float reflection;
 uniform float refraction;
 uniform float aberration;
@@ -29,6 +30,9 @@ float getLuminosity(vec3 color) {
 
 // Calculate surface normal from height map using Sobel convolution
 vec3 calculateNormal(vec2 uv, vec2 texelSize) {
+    // Apply smoothing to texel size for smoother normals
+    vec2 sampleSize = texelSize * smoothing;
+    
     // Sobel X kernel
     float sobel_x[9];
     sobel_x[0] = -1.0; sobel_x[1] = 0.0; sobel_x[2] = 1.0;
@@ -42,15 +46,15 @@ vec3 calculateNormal(vec2 uv, vec2 texelSize) {
     sobel_y[6] =  1.0; sobel_y[7] =  2.0; sobel_y[8] =  1.0;
     
     vec2 offsets[9];
-    offsets[0] = vec2(-texelSize.x, -texelSize.y);
-    offsets[1] = vec2(0.0, -texelSize.y);
-    offsets[2] = vec2(texelSize.x, -texelSize.y);
-    offsets[3] = vec2(-texelSize.x, 0.0);
+    offsets[0] = vec2(-sampleSize.x, -sampleSize.y);
+    offsets[1] = vec2(0.0, -sampleSize.y);
+    offsets[2] = vec2(sampleSize.x, -sampleSize.y);
+    offsets[3] = vec2(-sampleSize.x, 0.0);
     offsets[4] = vec2(0.0, 0.0);
-    offsets[5] = vec2(texelSize.x, 0.0);
-    offsets[6] = vec2(-texelSize.x, texelSize.y);
-    offsets[7] = vec2(0.0, texelSize.y);
-    offsets[8] = vec2(texelSize.x, texelSize.y);
+    offsets[5] = vec2(sampleSize.x, 0.0);
+    offsets[6] = vec2(-sampleSize.x, sampleSize.y);
+    offsets[7] = vec2(0.0, sampleSize.y);
+    offsets[8] = vec2(sampleSize.x, sampleSize.y);
     
     float dx = 0.0;
     float dy = 0.0;

@@ -26,6 +26,19 @@ export default new Effect({
         category: "general"
       }
     },
+    smoothing: {
+      type: "float",
+      default: 1.0,
+      uniform: "smoothing",
+      min: 1.0,
+      max: 10.0,
+      step: 0.1,
+      ui: {
+        label: "Smoothing",
+        control: "slider",
+        category: "general"
+      }
+    },
     diffuseColor: {
       type: "vec3",
       default: [1.0, 1.0, 1.0],
