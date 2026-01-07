@@ -48,7 +48,7 @@ dev = [
     "pre-commit>=4.0.0",
 ]
 docs = [
-    "sphinx>=7.0.0,<9",
+    "sphinx>=7.0.0,<10",
     "sphinxcontrib-programoutput>=0.18,<1",
     "furo>=2024.0.0",
 ]
