@@ -258,13 +258,12 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         effective_time,
         100.0,
     );
-    let noise_rgba : vec4<f32> = vec4<f32>(noise_value, noise_value, noise_value, noise_value);
-    let blend_weight : vec4<f32> = vec4<f32>(blend_alpha, blend_alpha, blend_alpha, blend_alpha);
-    let mixed : vec4<f32> = mix(texel, noise_rgba, blend_weight);
+    let noise_rgb : vec3<f32> = vec3<f32>(noise_value);
+    let mixed_rgb : vec3<f32> = mix(texel.rgb, noise_rgb, blend_alpha);
     write_pixel(base_index, vec4<f32>(
-        clamp01(mixed.x),
-        clamp01(mixed.y),
-        clamp01(mixed.z),
-        clamp01(mixed.w),
+        clamp01(mixed_rgb.x),
+        clamp01(mixed_rgb.y),
+        clamp01(mixed_rgb.z),
+        texel.a,
     ));
 }

@@ -245,13 +245,12 @@ void main() {
         time,
         speed * 100.0
     );
-    vec4 noise_rgba = vec4(noise_value, noise_value, noise_value, noise_value);
-    vec4 blend_weight = vec4(blend_alpha, blend_alpha, blend_alpha, blend_alpha);
-    vec4 mixed = mix(texel, noise_rgba, blend_weight);
+    vec3 noise_rgb = vec3(noise_value);
+    vec3 mixed_rgb = mix(texel.rgb, noise_rgb, blend_alpha);
     fragColor = vec4(
-        clamp01(mixed.x),
-        clamp01(mixed.y),
-        clamp01(mixed.z),
-        clamp01(mixed.w)
+        clamp01(mixed_rgb.x),
+        clamp01(mixed_rgb.y),
+        clamp01(mixed_rgb.z),
+        texel.a
     );
 }
