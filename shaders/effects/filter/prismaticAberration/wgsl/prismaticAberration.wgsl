@@ -103,7 +103,6 @@ fn saturateColor(color: vec3f) -> vec3f {
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let aspectRatio = u.resolution.x / u.resolution.y;
     var uv = fragCoord.xy / u.resolution;
-    uv.y = 1.0 - uv.y;
 
     var color = vec4f(0.0, 0.0, 0.0, 1.0);
 

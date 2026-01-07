@@ -277,7 +277,7 @@ export default new Effect({
             name: "deposit",
             program: "deposit",
             drawMode: "billboards",
-            count: 4194304, // Max particles; shader culls excess
+            count: 'input', // Derive from xyzTex dimensions for dynamic stateSize
             blend: true,
 
             inputs: {

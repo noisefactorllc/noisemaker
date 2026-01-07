@@ -806,17 +806,19 @@ export class WebGL2Backend extends Backend {
                 // Determine count based on mode
                 let refTex = null
 
-                if (count === 'input' && effectivePass.inputs && effectivePass.inputs.inputTex) {
-                    // Use input texture dimensions
-                    const inputId = effectivePass.inputs.inputTex
-                    const inputGlobalName = this.parseGlobalName(inputId)
-                    if (inputGlobalName) {
-                        const surfaceTex = state.surfaces?.[inputGlobalName]
-                        if (surfaceTex) {
-                            refTex = surfaceTex
+                if (count === 'input' && effectivePass.inputs) {
+                    // For particle systems, prefer xyzTex (state texture) over inputTex
+                    const stateInputId = effectivePass.inputs.xyzTex || effectivePass.inputs.inputTex
+                    if (stateInputId) {
+                        const inputGlobalName = this.parseGlobalName(stateInputId)
+                        if (inputGlobalName) {
+                            const surfaceTex = state.surfaces?.[inputGlobalName]
+                            if (surfaceTex) {
+                                refTex = surfaceTex
+                            }
+                        } else {
+                            refTex = this.textures.get(stateInputId)
                         }
-                    } else {
-                        refTex = this.textures.get(inputId)
                     }
                 } else {
                     // Use output texture dimensions (auto) or screen

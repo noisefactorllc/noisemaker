@@ -226,7 +226,7 @@ export default new Effect({
             name: "deposit",
             program: "deposit",
             drawMode: "points",
-            count: 4194304, // Max for 2048x2048 state texture; shader culls excess
+            count: 'input', // Derive from xyzTex dimensions for dynamic stateSize
             blend: true,
 
             inputs: {

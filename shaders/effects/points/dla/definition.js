@@ -199,7 +199,7 @@ export default new Effect({
       name: "depositGrid",
       program: "depositGrid",
       drawMode: "points",
-      count: 4194304,
+      count: 'input', // Derive from xyzTex dimensions for dynamic stateSize
       blend: ["one", "one"],
       inputs: {
         xyzTex: "global_xyz",

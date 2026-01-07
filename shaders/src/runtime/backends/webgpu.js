@@ -1460,13 +1460,16 @@ export class WebGPUBackend extends Backend {
         if (count === 'auto' || count === 'screen' || count === 'input') {
             let refTex = null
 
-            if (count === 'input' && pass.inputs && pass.inputs.inputTex) {
-                const inputId = pass.inputs.inputTex
-                const surfaceName = this.parseGlobalName(inputId)
-                if (surfaceName) {
-                    refTex = state.surfaces?.[surfaceName]
-                } else {
-                    refTex = this.textures.get(inputId)
+            if (count === 'input' && pass.inputs) {
+                // For particle systems, prefer xyzTex (state texture) over inputTex
+                const stateInputId = pass.inputs.xyzTex || pass.inputs.inputTex
+                if (stateInputId) {
+                    const surfaceName = this.parseGlobalName(stateInputId)
+                    if (surfaceName) {
+                        refTex = state.surfaces?.[surfaceName]
+                    } else {
+                        refTex = this.textures.get(stateInputId)
+                    }
                 }
             } else {
                 refTex = outputTex || this.textures.get(outputId)
