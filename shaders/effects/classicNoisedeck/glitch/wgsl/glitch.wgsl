@@ -205,7 +205,6 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     let aspectRatio = resolution.x / resolution.y;
     
     var uv = fragCoord.xy / resolution;
-    uv.y = 1.0 - uv.y;
     
     var color = glitch(uv, aspectRatio, u.time, u.xChonk, u.yChonk, u.glitchiness, u.aspectLens, u.distortion, u.aberrationAmt);
     color = scanlines(color, uv, resolution, u.scanlinesAmt, u.time, u.seed);

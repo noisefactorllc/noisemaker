@@ -199,7 +199,6 @@ vec4 glitch(vec2 st) {
 
 void main() {
 	vec2 uv = gl_FragCoord.xy / resolution;
-	uv.y = 1.0 - uv.y;
 
 	vec4 color = vec4(0.0);
 
