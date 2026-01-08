@@ -8,13 +8,8 @@ struct Uniforms {
     // data[0] = (resolution.x, resolution.y, time, zoom)
     // data[1] = (feed, kill, rate1, rate2)
     // data[2] = (speed, weight, sourceF, sourceK)
-    // data[3] = (sourceR1, sourceR2, paletteMode, smooth)
-    // data[4] = (unused, cyclePalette, rotatePalette, repeatPalette)
-    // data[5] = (paletteOffset.x, paletteOffset.y, paletteOffset.z, colorMode)
-    // data[6] = (paletteAmp.x, paletteAmp.y, paletteAmp.z, unused)
-    // data[7] = (paletteFreq.x, paletteFreq.y, paletteFreq.z, unused)
-    // data[8] = (palettePhase.x, palettePhase.y, palettePhase.z, seed)
-    data : array<vec4<f32>, 9>,
+    // data[3] = (sourceR1, sourceR2, resetState, seed)
+    data : array<vec4<f32>, 4>,
 };
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var samp : sampler;
@@ -57,7 +52,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let resolution = uniforms.data[0].xy;
     let time = uniforms.data[0].z; // unused
     let zoom = uniforms.data[0].w;
-    let seed = uniforms.data[8].w;
+    let seed = uniforms.data[3].w;
 
     let texSize = vec2<f32>(textureDimensions(bufTex, 0));
     let tex = textureSampleLevel(bufTex, samp, pos.xy / texSize, 0.0);
@@ -161,5 +156,6 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     let a2 = clamp(a + (r1 * color.r - a * b * b + f * (1.0 - a)) * s, 0.0, 1.0);
     let b2 = clamp(b + (r2 * color.g + a * b * b - (k + f) * b) * s, 0.0, 1.0);
+
     return vec4<f32>(a2, b2, 0.0, 1.0);
 }

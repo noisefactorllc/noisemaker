@@ -27,7 +27,7 @@ export default new Effect({
       sourceR1: { slot: 3, components: 'x' },
       sourceR2: { slot: 3, components: 'y' },
       resetState: { slot: 3, components: 'z' },
-      seed: { slot: 8, components: 'w' }
+      seed: { slot: 3, components: 'w' }
     }
   },
   globals: {
