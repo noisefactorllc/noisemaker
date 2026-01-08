@@ -1088,11 +1088,6 @@ export class WebGL2Backend extends Backend {
         gl.useProgram(null)
     }
 
-    resize() {
-        // Canvas resize is handled externally
-        // We'll recreate textures in the pipeline when needed
-    }
-
     destroy(options = {}) {
         const gl = this.gl
         if (!gl) {

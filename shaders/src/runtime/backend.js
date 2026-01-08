@@ -99,15 +99,6 @@ export class Backend {
     }
 
     /**
-     * Resize surfaces to new dimensions
-     * @param {number} width
-     * @param {number} height
-     */
-    resize(width, height) {
-        throw new Error('Backend.resize() must be implemented')
-    }
-
-    /**
      * Copy one texture to another (blit operation)
      * Used for surface copy operations.
      * @param {string} srcId - Source texture ID

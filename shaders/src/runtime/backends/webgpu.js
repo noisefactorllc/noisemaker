@@ -2905,10 +2905,6 @@ export class WebGPUBackend extends Backend {
         this.activeUniformBuffers.push(paramsBuffer)
     }
 
-    resize() {
-        // Textures will be recreated by the pipeline when dimensions change
-    }
-
     resolveFormat(format) {
         const formats = {
             'rgba8': 'rgba8unorm',

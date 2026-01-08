@@ -83,9 +83,9 @@ body:not(.full-bleed-mode) #canvas-container {
 
 body.fixed-canvas-mode #canvas,
 body:not(.full-bleed-mode) #canvas {
-  /* Square canvas, scales to fit available space, max 1024x1024 */
-  width: min(1024px, calc(100vw - 540px - 4rem), calc(100vh - 4rem));
-  height: min(1024px, calc(100vw - 540px - 4rem), calc(100vh - 4rem));
+  /* Square canvas, scales to fit available space */
+  width: min(calc(100vw - 540px - 4rem), calc(100vh - 4rem));
+  height: min(calc(100vw - 540px - 4rem), calc(100vh - 4rem));
   border: 1px solid color-mix(in srgb, var(--accent3) 30%, transparent 70%);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }

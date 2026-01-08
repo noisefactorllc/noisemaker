@@ -273,6 +273,86 @@ export class CanvasRenderer {
 
         // Bound render loop for proper `this` context
         this._boundRenderLoop = this._renderLoop.bind(this)
+
+        // Set up canvas dimension observation for auto-resize
+        this._setupCanvasObserver()
+    }
+
+    /**
+     * Set up observation of canvas dimension changes.
+     * Intercepts canvas.width and canvas.height setters to detect resizing.
+     * @private
+     */
+    _setupCanvasObserver() {
+        if (!this._canvas) return
+
+        const self = this
+        const canvas = this._canvas
+
+        // Store original property descriptors from prototype
+        const widthDesc = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'width')
+        const heightDesc = Object.getOwnPropertyDescriptor(HTMLCanvasElement.prototype, 'height')
+
+        // Debounce resize to handle width+height being set together
+        let resizeScheduled = false
+
+        function scheduleResize() {
+            if (resizeScheduled) return
+            resizeScheduled = true
+            // Use microtask to batch width+height changes set in same synchronous block
+            queueMicrotask(() => {
+                resizeScheduled = false
+                self._onCanvasDimensionsChanged()
+            })
+        }
+
+        // Define intercepting properties on this specific canvas instance
+        Object.defineProperty(canvas, 'width', {
+            get() {
+                return widthDesc.get.call(this)
+            },
+            set(value) {
+                const oldWidth = widthDesc.get.call(this)
+                widthDesc.set.call(this, value)
+                const newWidth = widthDesc.get.call(this)
+                if (newWidth !== oldWidth) {
+                    scheduleResize()
+                }
+            },
+            configurable: true,
+            enumerable: true
+        })
+
+        Object.defineProperty(canvas, 'height', {
+            get() {
+                return heightDesc.get.call(this)
+            },
+            set(value) {
+                const oldHeight = heightDesc.get.call(this)
+                heightDesc.set.call(this, value)
+                const newHeight = heightDesc.get.call(this)
+                if (newHeight !== oldHeight) {
+                    scheduleResize()
+                }
+            },
+            configurable: true,
+            enumerable: true
+        })
+    }
+
+    /**
+     * Called when canvas dimensions change.
+     * Updates the pipeline to match new dimensions.
+     * @private
+     */
+    _onCanvasDimensionsChanged() {
+        const newWidth = this._canvas.width
+        const newHeight = this._canvas.height
+
+        // Only resize if dimensions actually changed from what we have
+        if (newWidth !== this._width || newHeight !== this._height) {
+            this.resize(newWidth, newHeight)
+        }
     }
 
     // =========================================================================

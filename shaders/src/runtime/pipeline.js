@@ -257,8 +257,6 @@ export class Pipeline {
         // Collect default uniforms from passes for parameter-based texture sizing
         const defaultUniforms = this.collectDefaultUniforms()
         this.recreateTextures(defaultUniforms)
-
-        this.backend.resize(width, height)
     }
 
     /**
@@ -478,12 +476,26 @@ export class Pipeline {
     }
 
     /**
-     * Check if a dimension spec is parameter-dependent
+     * Check if a dimension spec is dynamic (screen-relative, percentage, or parameter-based)
+     * Fixed numeric values return false; everything else returns true.
      * @param {number|string|object} spec - Dimension specification
-     * @returns {boolean} True if the spec references a parameter
+     * @returns {boolean} True if the spec should be re-resolved on resize
      */
-    isParameterDependentDimension(spec) {
-        return typeof spec === 'object' && spec !== null && spec.param !== undefined
+    isDynamicDimension(spec) {
+        // Fixed numeric value - not dynamic
+        if (typeof spec === 'number') {
+            return false
+        }
+        // 'screen', 'auto', or percentage like '50%' - dynamic
+        if (typeof spec === 'string') {
+            return true
+        }
+        // Object specs (param-based, scale-based) - dynamic
+        if (typeof spec === 'object' && spec !== null) {
+            return true
+        }
+        // Unknown - treat as dynamic to be safe
+        return true
     }
 
     /**
@@ -499,11 +511,12 @@ export class Pipeline {
             // but the surface is stored as "caState" with read/write variants
             const isGlobalSurface = texId.startsWith('global_') || texId.startsWith('global')
 
-            // For global surfaces, only resize if they have parameter-dependent dimensions
+            // For global surfaces, only resize if they have dynamic dimensions
+            // (screen-relative, percentage, or parameter-based)
             if (isGlobalSurface) {
-                const hasParamWidth = this.isParameterDependentDimension(spec.width)
-                const hasParamHeight = this.isParameterDependentDimension(spec.height)
-                if (!hasParamWidth && !hasParamHeight) {
+                const hasDynamicWidth = this.isDynamicDimension(spec.width)
+                const hasDynamicHeight = this.isDynamicDimension(spec.height)
+                if (!hasDynamicWidth && !hasDynamicHeight) {
                     continue  // Fixed-size global, skip
                 }
             }

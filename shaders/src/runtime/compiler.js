@@ -80,15 +80,14 @@ export async function createRuntime(source, options = {}) {
  */
 function extractTextureSpecs(passes, options, textureSpecs = {}) {
     const textures = new Map()
-    const defaultWidth = options.width || 800
-    const defaultHeight = options.height || 600
 
     // First, add all effect-defined texture specs (including global_ textures)
     // This ensures custom dimensions are available for pipeline surface creation
     for (const [texId, effectSpec] of Object.entries(textureSpecs)) {
         const spec = {
-            width: effectSpec.width || defaultWidth,
-            height: effectSpec.height || defaultHeight,
+            // Preserve original dimension specs - use 'screen' as default for dynamic resizing
+            width: effectSpec.width || 'screen',
+            height: effectSpec.height || 'screen',
             format: effectSpec.format || 'rgba16f',
             usage: ['render', 'sample', 'copySrc']
         }
@@ -109,9 +108,10 @@ function extractTextureSpecs(passes, options, textureSpecs = {}) {
                 if (texId.startsWith('global_')) continue
                 if (textures.has(texId)) continue
 
+                // Use 'screen' to enable dynamic resizing
                 textures.set(texId, {
-                    width: defaultWidth,
-                    height: defaultHeight,
+                    width: 'screen',
+                    height: 'screen',
                     format: 'rgba16f',
                     usage: ['render', 'sample', 'copySrc']
                 })

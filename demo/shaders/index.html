@@ -153,19 +153,43 @@
             : new URL('../../shaders', import.meta.url).href;
         const bundleBasePath = new URL('../../dist/effects', import.meta.url).href;
         
-        // Initialize with fixed 1024x1024 resolution
-        const initialWidth = 1024;
-        const initialHeight = 1024;
+        /**
+         * Compute optimal canvas size based on container dimensions.
+         * Returns square dimensions that fit within the available space.
+         * Falls back to 1024 if container dimensions are unavailable.
+         */
+        function computeCanvasSize() {
+            // Get container dimensions (minus padding)
+            const containerStyle = getComputedStyle(canvasContainer);
+            const paddingX = parseFloat(containerStyle.paddingLeft) + parseFloat(containerStyle.paddingRight);
+            const paddingY = parseFloat(containerStyle.paddingTop) + parseFloat(containerStyle.paddingBottom);
+            const availableWidth = canvasContainer.clientWidth - paddingX;
+            const availableHeight = canvasContainer.clientHeight - paddingY;
+            
+            // Ensure we have valid dimensions (fallback to 1024 if container not laid out)
+            if (availableWidth <= 0 || availableHeight <= 0) {
+                return 1024;
+            }
+            
+            // Use the smaller dimension for a square canvas, capped at 2048, minimum 64
+            const size = Math.max(64, Math.min(availableWidth, availableHeight, 2048));
+            
+            // Round to nearest pixel for clean rendering
+            return Math.floor(size);
+        }
+        
+        // Initialize with computed size
+        const initialSize = computeCanvasSize() || 1024;
         
         // Set initial canvas size
-        canvas.width = initialWidth;
-        canvas.height = initialHeight;
+        canvas.width = initialSize;
+        canvas.height = initialSize;
 
         const renderer = new CanvasRenderer({
             canvas: canvas,
             canvasContainer: canvasContainer,
-            width: initialWidth,
-            height: initialHeight,
+            width: initialSize,
+            height: initialSize,
             basePath: shaderBasePath,
             preferWebGPU: false,
             useBundles: useBundles,
@@ -184,9 +208,18 @@
             console.log('[Demo] Using pre-built effect bundles from:', bundleBasePath);
         }
 
-        // Handle window resize - canvas stays fixed at 1024x1024
+        /**
+         * Handle window/container resize by updating canvas dimensions.
+         * The CanvasRenderer will automatically detect the dimension change
+         * and update the pipeline accordingly.
+         */
         function handleResize() {
-            // Canvas size is fixed, no resize needed
+            const newSize = computeCanvasSize();
+            if (newSize && (canvas.width !== newSize || canvas.height !== newSize)) {
+                // Setting canvas dimensions triggers the CanvasRenderer's observer
+                canvas.width = newSize;
+                canvas.height = newSize;
+            }
         }
 
         window.addEventListener('resize', handleResize);
