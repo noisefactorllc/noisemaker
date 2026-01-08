@@ -49,7 +49,8 @@ export default new Effect({
       },
       "ui": {
         "label": "volume size",
-        "control": "dropdown"
+        "control": "dropdown",
+        "category": "transform"
       }
     },
     "seed": {
@@ -69,7 +70,7 @@ export default new Effect({
         "ui": {
             "control": "button",
             "buttonLabel": "reset",
-            "category": "control"
+            "category": "util"
         }
     },
     "ruleIndex": {
@@ -115,7 +116,8 @@ export default new Effect({
         "uniform": "speed",
         "ui": {
             "label": "speed",
-            "control": "slider"
+            "control": "slider",
+            "category": "animation"
         }
     },
     "density": {
@@ -139,7 +141,8 @@ export default new Effect({
         },
         "ui": {
             "label": "color mode",
-            "control": "dropdown"
+            "control": "dropdown",
+            "category": "color"
         }
     },
     "weight": {
@@ -150,7 +153,8 @@ export default new Effect({
         "uniform": "weight",
         "ui": {
             "label": "input weight",
-            "control": "slider"
+            "control": "slider",
+            "category": "misc"
         }
     },
     "source": {

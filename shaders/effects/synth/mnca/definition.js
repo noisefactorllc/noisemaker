@@ -54,7 +54,8 @@ export default new Effect({
       },
       ui: {
         label: "zoom",
-        control: "dropdown"
+        control: "dropdown",
+        category: "transform"
       }
     },
     seed: {
@@ -75,7 +76,8 @@ export default new Effect({
       ui: {
         control: "button",
         buttonLabel: "reset",
-        label: "state"
+        label: "state",
+        category: "util"
       }
     },
     smoothing: {
@@ -92,7 +94,8 @@ export default new Effect({
       },
       ui: {
         label: "smoothing",
-        control: "dropdown"
+        control: "dropdown",
+        category: "misc"
       },
       uniform: "smoothing"
     },
@@ -103,7 +106,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       },
       uniform: "speed"
     },
@@ -114,7 +118,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "input weight",
-        control: "slider"
+        control: "slider",
+        category: "misc"
       },
       uniform: "weight"
     },
@@ -256,7 +261,8 @@ export default new Effect({
       min: 0,
       max: 7,
       ui: {
-        control: false
+        control: false,
+        category: "misc"
       },
       uniform: "source"
     },

@@ -49,7 +49,8 @@ export default new Effect({
       },
       "ui": {
         "label": "volume size",
-        "control": "dropdown"
+        "control": "dropdown",
+        "category": "transform"
       }
     },
     "seed": {
@@ -66,7 +67,7 @@ export default new Effect({
       "ui": {
         "control": "button",
         "buttonLabel": "reset",
-        "category": "control"
+        "category": "util"
       }
     },
     "iterations": {
@@ -132,7 +133,8 @@ export default new Effect({
       "max": 200,
       "ui": {
         "label": "simulation speed",
-        "control": "slider"
+        "control": "slider",
+        "category": "animation"
       }
     },
     "colorMode": {
@@ -145,7 +147,8 @@ export default new Effect({
         },
         "ui": {
             "label": "color mode",
-            "control": "dropdown"
+            "control": "dropdown",
+            "category": "color"
         }
     },
     "weight": {
@@ -156,7 +159,8 @@ export default new Effect({
         "uniform": "weight",
         "ui": {
             "label": "input weight",
-            "control": "slider"
+            "control": "slider",
+            "category": "misc"
         }
     },
     "source": {
