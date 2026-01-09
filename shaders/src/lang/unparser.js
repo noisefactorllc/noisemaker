@@ -655,9 +655,14 @@ export function unparse(compiled, overrides = {}, options = {}) {
                     currentChain = []
                 }
                 const texName = step.args?.tex?.name || step.args?.tex
+                // Check for _skip: overrides take precedence over step.args
+                const hasOverride = overrides[globalStepIndex]?._skip !== undefined
+                const isSkipped = hasOverride
+                    ? overrides[globalStepIndex]._skip === true
+                    : step.args?._skip === true
                 // Use positional form when no _skip, keyword form when _skip is present
                 let readCode
-                if (step.args?._skip === true) {
+                if (isSkipped) {
                     readCode = `read(surface: ${texName}, _skip: true)`
                 } else {
                     readCode = `read(${texName})`
@@ -675,9 +680,14 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 }
                 const tex3d = step.args?.tex3d?.name || step.args?.tex3d
                 const geo = step.args?.geo?.name || step.args?.geo
+                // Check for _skip: overrides take precedence over step.args
+                const hasOverride = overrides[globalStepIndex]?._skip !== undefined
+                const isSkipped = hasOverride
+                    ? overrides[globalStepIndex]._skip === true
+                    : step.args?._skip === true
                 // Use positional form when no _skip, keyword form when _skip is present
                 let read3dCode
-                if (step.args?._skip === true) {
+                if (isSkipped) {
                     read3dCode = `read3d(tex3d: ${tex3d}, geo: ${geo}, _skip: true)`
                 } else {
                     read3dCode = `read3d(${tex3d}, ${geo})`
