@@ -738,6 +738,25 @@ export class ProgramState extends Emitter {
     }
 
     /**
+     * Set write target override for a mid-chain write step
+     * @param {number} stepIndex - Step index
+     * @param {string} target - Target surface name
+     */
+    setWriteStepTarget(stepIndex, target) {
+        this._writeStepTargetOverrides.set(stepIndex, target)
+        this.emit('change', { type: 'routing', key: 'writeStepTarget', stepIndex, value: target })
+    }
+
+    /**
+     * Get write target override for a mid-chain write step
+     * @param {number} stepIndex - Step index
+     * @returns {string|undefined}
+     */
+    getWriteStepTarget(stepIndex) {
+        return this._writeStepTargetOverrides.get(stepIndex)
+    }
+
+    /**
      * Set read source override for a step
      * @param {number} stepIndex - Step index
      * @param {string} source - Source surface name
@@ -798,6 +817,7 @@ export class ProgramState extends Emitter {
      */
     setRenderTarget(target) {
         this._renderTargetOverride = target
+        this.emit('change', { type: 'routing', key: 'renderTarget', value: target })
     }
 
     /**
@@ -1304,16 +1324,106 @@ export class ProgramState extends Emitter {
      * @private
      */
     _applyRoutingOverridesToCompiled(compiled) {
-        // Apply write target overrides
+        if (!compiled?.plans) return
+
+        // Apply write target overrides (end of chain)
         for (const [planIndex, target] of this._writeTargetOverrides) {
-            if (compiled.plans?.[planIndex]) {
-                compiled.plans[planIndex].writeTarget = target
+            if (compiled.plans[planIndex]) {
+                const isOutput = target.startsWith('o')
+                compiled.plans[planIndex].write = {
+                    type: isOutput ? 'OutputRef' : 'FeedbackRef',
+                    name: target
+                }
+            }
+        }
+
+        // Apply mid-chain write step target overrides
+        if (this._writeStepTargetOverrides.size > 0) {
+            let globalStepIndex = 0
+            for (const plan of compiled.plans) {
+                if (!plan.chain) continue
+                for (const step of plan.chain) {
+                    if (step.builtin && step.op === '_write' && this._writeStepTargetOverrides.has(globalStepIndex)) {
+                        const target = this._writeStepTargetOverrides.get(globalStepIndex)
+                        const isOutput = target.startsWith('o')
+                        step.args.tex = {
+                            kind: isOutput ? 'output' : 'feedback',
+                            name: target
+                        }
+                    }
+                    globalStepIndex++
+                }
+            }
+        }
+
+        // Apply read source overrides
+        if (this._readSourceOverrides.size > 0) {
+            let globalStepIndex = 0
+            for (const plan of compiled.plans) {
+                if (!plan.chain) continue
+                for (const step of plan.chain) {
+                    if (step.builtin && step.op === '_read' && this._readSourceOverrides.has(globalStepIndex)) {
+                        const source = this._readSourceOverrides.get(globalStepIndex)
+                        const isOutput = source.startsWith('o')
+                        step.args.tex = {
+                            kind: isOutput ? 'output' : 'feedback',
+                            name: source
+                        }
+                    }
+                    globalStepIndex++
+                }
+            }
+        }
+
+        // Apply read3d volume and geometry overrides
+        if (this._read3dVolOverrides.size > 0 || this._read3dGeoOverrides.size > 0) {
+            let globalStepIndex = 0
+            for (const plan of compiled.plans) {
+                if (!plan.chain) continue
+                for (const step of plan.chain) {
+                    if (step.builtin && step.op === '_read3d') {
+                        if (this._read3dVolOverrides.has(globalStepIndex)) {
+                            const volName = this._read3dVolOverrides.get(globalStepIndex)
+                            step.args.tex3d = { kind: 'vol', name: volName }
+                        }
+                        if (this._read3dGeoOverrides.has(globalStepIndex)) {
+                            const geoName = this._read3dGeoOverrides.get(globalStepIndex)
+                            step.args.geo = { kind: 'geo', name: geoName }
+                        }
+                    }
+                    globalStepIndex++
+                }
+            }
+        }
+
+        // Apply write3d volume and geometry overrides
+        if (this._write3dVolOverrides.size > 0 || this._write3dGeoOverrides.size > 0) {
+            let globalStepIndex = 0
+            for (const plan of compiled.plans) {
+                if (!plan.chain) continue
+                for (const step of plan.chain) {
+                    if (step.builtin && step.op === '_write3d') {
+                        if (this._write3dVolOverrides.has(globalStepIndex)) {
+                            const volName = this._write3dVolOverrides.get(globalStepIndex)
+                            step.args.tex3d = { kind: 'vol', name: volName }
+                        }
+                        if (this._write3dGeoOverrides.has(globalStepIndex)) {
+                            const geoName = this._write3dGeoOverrides.get(globalStepIndex)
+                            step.args.geo = { kind: 'geo', name: geoName }
+                        }
+                    }
+                    globalStepIndex++
+                }
             }
         }
 
         // Apply render target override
-        if (this._renderTargetOverride && compiled.render) {
-            compiled.render.target = this._renderTargetOverride
+        if (this._renderTargetOverride) {
+            if (typeof compiled.render === 'string') {
+                compiled.render = this._renderTargetOverride
+            } else if (compiled.render) {
+                compiled.render.target = this._renderTargetOverride
+            }
         }
     }
 }

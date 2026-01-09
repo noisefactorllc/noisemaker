@@ -2438,8 +2438,14 @@ render(o1)`
             const val = handle.getValue()
             if (isMidChain) {
                 this._writeStepTargetOverrides[stepIndex] = val
+                if (this._programState) {
+                    this._programState.setWriteStepTarget(stepIndex, val)
+                }
             } else {
                 this._writeTargetOverrides[planIndex] = val
+                if (this._programState) {
+                    this._programState.setWriteTarget(planIndex, val)
+                }
             }
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
@@ -2512,6 +2518,9 @@ render(o1)`
 
         select.addEventListener('change', () => {
             this._renderTargetOverride = handle.getValue()
+            if (this._programState) {
+                this._programState.setRenderTarget(this._renderTargetOverride)
+            }
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -2638,6 +2647,9 @@ render(o1)`
 
         select.addEventListener('change', () => {
             this._readSourceOverrides[stepIndex] = handle.getValue()
+            if (this._programState) {
+                this._programState.setReadSource(stepIndex, handle.getValue())
+            }
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -2762,6 +2774,9 @@ render(o1)`
 
         volSelect.addEventListener('change', () => {
             this._read3dVolOverrides[stepIndex] = volHandle.getValue()
+            if (this._programState) {
+                this._programState.setRead3dVolume(stepIndex, volHandle.getValue())
+            }
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -2805,6 +2820,9 @@ render(o1)`
 
         geoSelect.addEventListener('change', () => {
             this._read3dGeoOverrides[stepIndex] = geoHandle.getValue()
+            if (this._programState) {
+                this._programState.setRead3dGeometry(stepIndex, geoHandle.getValue())
+            }
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -2888,6 +2906,9 @@ render(o1)`
 
         volSelect.addEventListener('change', () => {
             this._write3dVolOverrides[stepIndex] = volHandle.getValue()
+            if (this._programState) {
+                this._programState.setWrite3dVolume(stepIndex, volHandle.getValue())
+            }
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -2931,6 +2952,9 @@ render(o1)`
 
         geoSelect.addEventListener('change', () => {
             this._write3dGeoOverrides[stepIndex] = geoHandle.getValue()
+            if (this._programState) {
+                this._programState.setWrite3dGeometry(stepIndex, geoHandle.getValue())
+            }
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
