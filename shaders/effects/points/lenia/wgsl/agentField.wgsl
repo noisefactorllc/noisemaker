@@ -1,5 +1,6 @@
 // Agent update pass - samples pre-convolved U field
 // Much faster than O(n²) as field is already computed
+// Binding order: loaded textures (0-2), sampled texture pair (3-4), uniforms (5)
 
 struct Uniforms {
     resolution: vec2f,
@@ -9,12 +10,12 @@ struct Uniforms {
     dt: f32,
 }
 
-@group(0) @binding(0) var<uniform> uniforms: Uniforms;
-@group(0) @binding(1) var xyzTex: texture_2d<f32>;
-@group(0) @binding(2) var velTex: texture_2d<f32>;
-@group(0) @binding(3) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(0) var xyzTex: texture_2d<f32>;
+@group(0) @binding(1) var velTex: texture_2d<f32>;
+@group(0) @binding(2) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(3) var fieldSampler: sampler;
 @group(0) @binding(4) var fieldTex: texture_2d<f32>;
-@group(0) @binding(5) var fieldSampler: sampler;
+@group(0) @binding(5) var<uniform> uniforms: Uniforms;
 
 const EPSILON: f32 = 0.0001;
 

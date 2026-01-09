@@ -177,9 +177,9 @@ fn main(@builtin(position) position: vec4f) -> Outputs {
 
     // Ensure mass is valid
     mass = max(mass, 0.1);
-        // Set color based on type
-        rgba = vec4f(typeColor(i32(typeId), u.typeCount), 1.0);
-    }
+    
+    // Set color based on type
+    rgba = vec4f(typeColor(i32(typeId), u.typeCount), 1.0);
     
     // Attrition is now handled by pointsEmit
     

@@ -8,11 +8,12 @@ struct Uniforms {
     resetState: u32,
 };
 
+// Bindings: uniforms at 0, then textures consecutively (no samplers for textureLoad)
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var xyzTex: texture_2d<f32>;
-@group(0) @binding(3) var velTex: texture_2d<f32>;
-@group(0) @binding(5) var rgbaTex: texture_2d<f32>;
-@group(0) @binding(7) var inputTex: texture_2d<f32>;
+@group(0) @binding(2) var velTex: texture_2d<f32>;
+@group(0) @binding(3) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(4) var inputTex: texture_2d<f32>;
 
 struct Outputs {
     @location(0) outXYZ: vec4<f32>,

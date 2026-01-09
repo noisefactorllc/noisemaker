@@ -1,4 +1,5 @@
 // Kernel convolution pass - applies K(r) gaussian shell kernel to density field
+// Standard binding order: sampler(0), texture(1), uniforms(2)
 
 struct Uniforms {
     resolution: vec2f,
@@ -7,9 +8,9 @@ struct Uniforms {
     searchRadius: f32,
 }
 
-@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+@group(0) @binding(0) var densitySampler: sampler;
 @group(0) @binding(1) var densityTex: texture_2d<f32>;
-@group(0) @binding(2) var densitySampler: sampler;
+@group(0) @binding(2) var<uniform> uniforms: Uniforms;
 
 const EPSILON: f32 = 0.0001;
 const PI: f32 = 3.14159265359;

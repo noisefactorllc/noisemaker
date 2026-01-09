@@ -1,4 +1,5 @@
 // Clear shader - clears texture to zero
+// Runtime auto-injects resolution uniform
 
 struct Uniforms {
     resolution: vec2<f32>,

@@ -1,6 +1,13 @@
 // DLA - Agent Walk Pass (Common Agent Architecture)
 // Reads agent state from pointsEmit, performs random walk, detects sticking
 
+struct Uniforms {
+    stride: f32,
+    inputWeight: f32,
+    attrition: f32,
+    stateSize: i32,
+}
+
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) uv: vec2<f32>,
@@ -12,18 +19,12 @@ struct FragmentOutputs {
     @location(2) outRGBA: vec4<f32>,
 }
 
-@group(0) @binding(0) var xyzTex: texture_2d<f32>;
-@group(0) @binding(1) var velTex: texture_2d<f32>;
-@group(0) @binding(2) var rgbaTex: texture_2d<f32>;
-@group(0) @binding(3) var gridTex: texture_2d<f32>;
-@group(0) @binding(4) var inputTex: texture_2d<f32>;
-@group(0) @binding(5) var<uniform> stride: f32;
-@group(0) @binding(6) var<uniform> inputWeight: f32;
-@group(0) @binding(7) var<uniform> attrition: f32;
-@group(0) @binding(8) var<uniform> stateSize: i32;
-@group(0) @binding(9) var<uniform> frame: i32;
-@group(0) @binding(10) var<uniform> time: f32;
-@group(0) @binding(11) var<uniform> resetState: i32;
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var xyzTex: texture_2d<f32>;
+@group(0) @binding(2) var velTex: texture_2d<f32>;
+@group(0) @binding(3) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(4) var gridTex: texture_2d<f32>;
+@group(0) @binding(5) var inputTex: texture_2d<f32>;
 
 // Integer-based hash for deterministic randomness
 fn hash_uint(seed: u32) -> u32 {
@@ -91,13 +92,13 @@ fn main(in: VertexOutput) -> FragmentOutputs {
     var seed = vel.x;
     let agentRand = vel.w;
     
-    // Initialize or evolve seed - include frame to ensure different random each frame
+    // Initialize or evolve seed using agent ID and existing seed
     let agentId = u32(coord.x + coord.y * i32(stateDims.x));
-    if (seed <= 0.0 || frame <= 1) {
-        seed = hash(agentId + u32(time * 1000.0)) + 0.001;
+    if (seed <= 0.0) {
+        seed = hash(agentId + 12345u) + 0.001;
     }
-    // Mix in frame number to ensure different random direction each frame
-    let frameSeed = hash_uint(agentId * 31u + u32(frame));
+    // Mix in agentId and previous seed to ensure different random direction each frame
+    let frameSeed = hash_uint(agentId * 31u + bitcast<u32>(seed));
     seed = bitcast<f32>((frameSeed & 0x007FFFFFu) | 0x3F800000u) - 1.0;
     
     // If not alive, pass through (waiting for respawn from pointsEmit)
@@ -121,7 +122,7 @@ fn main(in: VertexOutput) -> FragmentOutputs {
     let randomDir = randomDirection(&seed);
     
     // Input-weighted direction
-    let inputW = inputWeight / 100.0;
+    let inputW = u.inputWeight / 100.0;
     var stepDir = randomDir;
     if (inputW > 0.0) {
         let inputDims = textureDimensions(inputTex);
@@ -135,7 +136,7 @@ fn main(in: VertexOutput) -> FragmentOutputs {
     }
     
     // Step size: slow down near structure for finer aggregation
-    let stepSize = (stride / 10.0) * texel * mix(3.0, 0.5, proximity);
+    let stepSize = (u.stride / 10.0) * texel * mix(3.0, 0.5, proximity);
     
     // Add wander jitter
     stepDir += randomDirection(&seed) * 0.3;
@@ -153,8 +154,8 @@ fn main(in: VertexOutput) -> FragmentOutputs {
     
     // Attrition: random respawn (0-10 scale → 0-0.1)
     var needsRespawn = false;
-    if (attrition > 0.0) {
-        let attritionRate = attrition * 0.01;
+    if (u.attrition > 0.0) {
+        let attritionRate = u.attrition * 0.01;
         if (rand(&seed) < attritionRate) {
             needsRespawn = true;
         }

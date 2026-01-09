@@ -5,7 +5,7 @@
  */
 
 struct Uniforms {
-    data : array<vec4<f32>, 4>,
+    data : array<vec4<f32>, 3>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;

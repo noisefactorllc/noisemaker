@@ -32,8 +32,11 @@ fn main(fsInput: VertexOutput) -> @location(0) vec4<f32> {
     // Unused uniforms reference to keep binding layout consistent
     let unused = uniforms.data[0].x;
     
-    let inputColor = textureSample(inputTex, texSampler, fsInput.uv);
-    let text = textureSample(textTex, texSampler, fsInput.uv);
+    // Flip Y to match GLSL coordinate convention
+    let uv = vec2<f32>(fsInput.uv.x, 1.0 - fsInput.uv.y);
+    
+    let inputColor = textureSample(inputTex, texSampler, uv);
+    let text = textureSample(textTex, texSampler, uv);
     
     // The canvas encodes both text and background in the texture.
     // Text has alpha = 1.0, background has alpha = bgOpacity.

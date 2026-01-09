@@ -1,16 +1,19 @@
 // DLA - Initialize and decay anchor grid
 
+struct Uniforms {
+    resolution: vec2<f32>,
+    decay: f32,
+    anchorDensity: f32,
+    resetState: i32,
+}
+
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) uv: vec2<f32>,
 }
 
 @group(0) @binding(0) var gridTex: texture_2d<f32>;
-@group(0) @binding(1) var<uniform> resolution: vec2<f32>;
-@group(0) @binding(2) var<uniform> frame: i32;
-@group(0) @binding(3) var<uniform> decay: f32;
-@group(0) @binding(4) var<uniform> anchorDensity: f32;
-@group(0) @binding(5) var<uniform> resetState: i32;
+@group(0) @binding(1) var<uniform> u: Uniforms;
 
 fn hash21(p: vec2<f32>) -> f32 {
     var p3 = fract(vec3<f32>(p.x, p.y, p.x) * 0.1031);
@@ -21,12 +24,12 @@ fn hash21(p: vec2<f32>) -> f32 {
 @fragment
 fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     // If resetState is true, clear the grid
-    if (resetState != 0) {
+    if (u.resetState != 0) {
         return vec4<f32>(0.0);
     }
     
     let coord = vec2<i32>(in.position.xy);
-    let uv = in.position.xy / resolution;
+    let uv = in.position.xy / u.resolution;
     
     // Sample previous grid value
     let prevSample = textureLoad(gridTex, coord, 0);
@@ -35,7 +38,7 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     
     // Apply decay (0 = full persistence, higher = faster fade)
     // decay range [0, 0.5] maps to persistence [1.0, 0.5]
-    let persistence = 1.0 - decay;
+    let persistence = 1.0 - u.decay;
     var energy = prev * persistence;
     var color = prevColor * persistence;
     
@@ -50,7 +53,7 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     
     // Seed density controls threshold (higher = more seeds)
     // anchorDensity=1.0 → threshold=0.9 → 10% of radial pixels
-    let seedThreshold = 1.0 - anchorDensity * 0.1;
+    let seedThreshold = 1.0 - u.anchorDensity * 0.1;
     let seedWeight = step(seedThreshold, rng) * radial;
     
     // Only seed where there's no existing structure

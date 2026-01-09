@@ -15,12 +15,11 @@ struct Outputs {
     @location(2) rgba: vec4f,
 }
 
+// Bindings: uniforms at 0, then state textures consecutively (textureLoad, no samplers)
 @group(0) @binding(0) var<uniform> u: Uniforms;
-@group(0) @binding(1) var inputTex: texture_2d<f32>; // Pipeline passthrough (for chainability)
-@group(0) @binding(2) var inputSampler: sampler;
-@group(0) @binding(3) var xyzTex: texture_2d<f32>;
-@group(0) @binding(4) var velTex: texture_2d<f32>;
-@group(0) @binding(5) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(1) var xyzTex: texture_2d<f32>;
+@group(0) @binding(2) var velTex: texture_2d<f32>;
+@group(0) @binding(3) var rgbaTex: texture_2d<f32>;
 
 fn hash_uint(seed: u32) -> u32 {
     var state = seed * 747796405u + 2891336453u;
