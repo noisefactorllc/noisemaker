@@ -10,7 +10,7 @@
 import { Emitter } from './emitter.js'
 import { extractEffectsFromDsl } from './dsl-utils.js'
 import { compile, unparse } from '../../../shaders/src/lang/index.js'
-import { getEffect, cloneParamValue } from '../../../shaders/src/renderer/canvas.js'
+import { getEffect } from '../../../shaders/src/renderer/canvas.js'
 
 /**
  * @typedef {object} StepState
@@ -862,7 +862,7 @@ export class ProgramState extends Emitter {
      */
     _preserveValuesByOccurrence() {
         const preserved = new Map()
-        for (const [stepKey, stepState] of this._stepStates) {
+        for (const [, stepState] of this._stepStates) {
             const effectKey = stepState.effectKey
             if (!preserved.has(effectKey)) {
                 preserved.set(effectKey, [])

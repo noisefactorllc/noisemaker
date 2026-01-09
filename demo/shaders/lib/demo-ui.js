@@ -18,7 +18,7 @@
  * });
  */
 
-import { compile, unparse, lex, parse, unparseCall, formatValue, formatDslError, isDslSyntaxError } from '../../../shaders/src/lang/index.js'
+import { compile, unparse, unparseCall, formatValue, formatDslError, isDslSyntaxError } from '../../../shaders/src/lang/index.js'
 import {
     getEffect,
     cloneParamValue,
@@ -257,7 +257,7 @@ export class UIController {
         this._programState = new ProgramState({ renderer })
 
         // Subscribe to ProgramState events for backward compatibility
-        this._programState.on('change', (data) => {
+        this._programState.on('change', () => {
             this._onControlChangeCallback?.()
         })
         this._shaderOverrides = {} // Map: stepIndex -> { programName: { glsl?, wgsl?, fragment?, vertex? } }
