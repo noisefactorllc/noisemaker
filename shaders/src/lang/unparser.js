@@ -536,6 +536,13 @@ function unparsePlan(plan, options = {}) {
             currentChain.push(`write(${texName})`)
             continue
         }
+        // Handle built-in _write3d step (mid-chain write3d)
+        if (step.op === '_write3d' && step.builtin) {
+            const tex3dName = step.args?.tex3d?.name || step.args?.tex3d
+            const geoName = step.args?.geo?.name || step.args?.geo
+            currentChain.push(`write3d(${tex3dName}, ${geoName})`)
+            continue
+        }
 
         const call = {
             name: step.op,
@@ -682,6 +689,14 @@ export function unparse(compiled, overrides = {}, options = {}) {
             if (step.builtin && step.op === '_write') {
                 const texName = step.args?.tex?.name || step.args?.tex
                 currentChain.push(makeChainElement(`write(${texName})`))
+                globalStepIndex++
+                continue
+            }
+            // Handle builtin write3d operations (mid-chain write3d)
+            if (step.builtin && step.op === '_write3d') {
+                const tex3dName = step.args?.tex3d?.name || step.args?.tex3d
+                const geoName = step.args?.geo?.name || step.args?.geo
+                currentChain.push(makeChainElement(`write3d(${tex3dName}, ${geoName})`))
                 globalStepIndex++
                 continue
             }
