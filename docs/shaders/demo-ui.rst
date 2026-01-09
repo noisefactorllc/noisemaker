@@ -316,6 +316,60 @@ Downstream projects can provide custom control implementations by extending ``Co
        statusEl: document.getElementById('status')
    })
 
+ProgramState
+------------
+
+``ProgramState`` is a decoupled state management layer that sits between the UI and the renderer. It provides:
+
+- **Centralized state access** via ``getValue()``/``setValue()``
+- **Event-driven updates** - emits ``change``, ``structurechange``, ``reset`` events
+- **Batching** - multiple changes can be batched to emit a single event
+- **Serialization** - ``serialize()``/``deserialize()`` for undo/redo and persistence
+- **Media metadata** - stores metadata about media and text inputs
+
+Basic Usage
+~~~~~~~~~~~
+
+.. code-block:: javascript
+
+   // Access via UIController
+   const state = ui.programState
+
+   // Get/set parameter values
+   const value = state.getValue('step_0', 'scale')
+   state.setValue('step_0', 'scale', 2.0)
+
+   // Batch multiple changes (single event)
+   state.batch(() => {
+       state.setValue('step_0', 'scale', 2.0)
+       state.setValue('step_0', 'octaves', 4)
+   })
+
+   // Subscribe to changes
+   state.on('change', ({ stepKey, paramName, value }) => {
+       console.log(`${stepKey}.${paramName} = ${value}`)
+   })
+
+   // Reset a step to defaults
+   state.resetStep('step_0', effectDef)
+
+   // Serialize for undo/redo
+   const snapshot = state.serialize()
+   state.deserialize(snapshot)
+
+Backward Compatibility
+~~~~~~~~~~~~~~~~~~~~~~
+
+For backward compatibility, ``UIController`` provides a proxy getter for ``_effectParameterValues`` that routes reads and writes through ``ProgramState``:
+
+.. code-block:: javascript
+
+   // These are equivalent:
+   ui._effectParameterValues['step_0']['scale'] = 2.0
+   ui.programState.setValue('step_0', 'scale', 2.0)
+
+New code should use the ``programState`` API directly. The proxy will be deprecated in a future release.
+
 DSL Synchronization
 -------------------
 
@@ -327,7 +381,7 @@ Controls → DSL
 When a control value changes:
 
 1. The control's ``change`` event fires
-2. ``_effectParameterValues`` is updated
+2. ``programState.setValue()`` updates the state
 3. ``_updateDslFromEffectParams()`` regenerates the DSL text
 4. The DSL editor is updated
 
