@@ -4110,13 +4110,9 @@ render(o1)`
                     // Update ONLY this step's pass.uniforms - NOT globalUniforms
                     // This prevents one effect from stomping another effect's uniforms
                     // when they share the same uniform names (e.g., two grade() effects)
+                    // Note: Multi-pass effects may not use all uniforms in every pass (expected)
                     if (uniformName in pass.uniforms) {
                         pass.uniforms[uniformName] = finalValue
-                    } else {
-                        // Log when we can't find the uniform
-                        if (paramName === 'density' || paramName === 'stateSize') {
-                            console.log(`[_applyEffectParameterValues] MISS: ${paramName} -> ${uniformName} not in pass.uniforms`, Object.keys(pass.uniforms))
-                        }
                     }
                 }
             }
