@@ -32,6 +32,11 @@ import {
 } from '../../../shaders/src/renderer/canvas.js'
 import { groupGlobalsByCategory } from '../../../shaders/src/runtime/effect.js'
 import { defaultControlFactory } from './control-factory.js'
+import { extractEffectsFromDsl } from './dsl-utils.js'
+import { ProgramState } from './program-state.js'
+
+// Re-export for backward compatibility
+export { extractEffectsFromDsl } from './dsl-utils.js'
 
 /**
  * Convert camelCase to space-separated lowercase words
@@ -166,71 +171,6 @@ export function extractEffectNamesFromDsl(dsl, manifest) {
 }
 
 /**
- * Extract effects from compiled DSL
- * @param {string} dsl - DSL source
- * @returns {Array} Array of effect info objects
- */
-export function extractEffectsFromDsl(dsl) {
-    const effects = []
-    if (!dsl || typeof dsl !== 'string') return effects
-
-    try {
-        // Parse to get original AST with raw kwargs (before validation resolves variables)
-        const tokens = lex(dsl)
-        const ast = parse(tokens)
-
-        // Also compile to get resolved args
-        const result = compile(dsl)
-        if (!result || !result.plans) return effects
-
-        // Build a map from the original parsed AST to get raw kwargs
-        const originalKwargs = []
-        if (ast.plans) {
-            for (const plan of ast.plans) {
-                if (!plan.chain) continue
-                for (const step of plan.chain) {
-                    originalKwargs.push(step.kwargs || {})
-                }
-            }
-        }
-
-        let globalStepIndex = 0
-        for (const plan of result.plans) {
-            if (!plan.chain) continue
-            for (const step of plan.chain) {
-                const fullOpName = step.op
-                const namespace = step.namespace?.namespace || step.namespace?.resolved || null
-
-                let shortName = fullOpName
-                if (fullOpName.includes('.')) {
-                    shortName = fullOpName.split('.').pop()
-                }
-
-                effects.push({
-                    effectKey: fullOpName,
-                    namespace,
-                    name: shortName,
-                    fullName: fullOpName,
-                    args: step.args || {},
-                    rawKwargs: originalKwargs[globalStepIndex] || {},
-                    stepIndex: globalStepIndex,
-                    temp: step.temp
-                })
-                globalStepIndex++
-            }
-        }
-    } catch (err) {
-        if (isDslSyntaxError(err)) {
-            console.warn('DSL Syntax Error:\n' + formatDslError(dsl, err))
-        } else {
-            console.warn('Failed to parse DSL for effect extraction:', err)
-        }
-    }
-
-    return effects
-}
-
-/**
  * Get backend from URL query parameter
  * @returns {string|null} Backend name or null
  */
@@ -311,8 +251,15 @@ export class UIController {
 
         // State
         this._parameterValues = {}
-        this._effectParameterValues = {} // Map: step_N -> {param: value}
         this._dependentControls = [] // Array of {element, effectKey, paramKey, enabledBy, enabledByKey}
+
+        // Create ProgramState instance for decoupled state management
+        this._programState = new ProgramState({ renderer })
+
+        // Subscribe to ProgramState events for backward compatibility
+        this._programState.on('change', (data) => {
+            this._onControlChangeCallback?.()
+        })
         this._shaderOverrides = {} // Map: stepIndex -> { programName: { glsl?, wgsl?, fragment?, vertex? } }
         this._writeTargetOverrides = {} // Map: planIndex -> surfaceName (e.g., 'o0', 'o1')
         this._writeStepTargetOverrides = {} // Map: stepIndex -> surfaceName for mid-chain writes
@@ -346,6 +293,45 @@ export class UIController {
 
         // Start the media update loop
         this._startMediaUpdateLoop()
+    }
+
+    // =========================================================================
+    // ProgramState Access
+    // =========================================================================
+
+    /**
+     * Get the ProgramState instance for decoupled state management
+     * @returns {ProgramState}
+     */
+    get programState() {
+        return this._programState
+    }
+
+    /**
+     * Backward-compatible getter for _effectParameterValues
+     * Proxies to ProgramState's internal structure
+     * @deprecated Use programState.getValue/setValue instead
+     */
+    get _effectParameterValues() {
+        return this._programState.getEffectParameterValuesProxy()
+    }
+
+    /**
+     * Backward-compatible setter for _effectParameterValues
+     * @deprecated Use programState.setValue instead
+     */
+    set _effectParameterValues(value) {
+        // When set directly (e.g., during reset or initialization),
+        // we need to sync to programState. For now, we store directly
+        // on a backing field that the proxy can read.
+        // This maintains backward compatibility during migration.
+        if (value && typeof value === 'object') {
+            for (const [stepKey, params] of Object.entries(value)) {
+                if (params && typeof params === 'object') {
+                    this._programState.setStepValues(stepKey, params)
+                }
+            }
+        }
     }
 
     // =========================================================================
@@ -1848,7 +1834,6 @@ render(o1)`
         }
 
         this._controlsContainer.innerHTML = ''
-        this._effectParameterValues = {}
         this._dependentControls = []
         this._writeTargetOverrides = {}
         this._writeStepTargetOverrides = {}
@@ -1874,6 +1859,9 @@ render(o1)`
         if (!compiled || !compiled.plans) return
 
         const effects = extractEffectsFromDsl(dsl)
+
+        // Sync to ProgramState - this handles structure change detection and value preservation
+        this._programState.fromDsl(dsl)
         this._parsedDslStructure = effects
         if (effects.length === 0) return
 
@@ -4425,3 +4413,7 @@ export { formatDslError, isDslSyntaxError }
 
 // Re-export ControlFactory for downstream customization
 export { ControlFactory, defaultControlFactory } from './control-factory.js'
+
+// Re-export ProgramState for downstream use
+export { ProgramState } from './program-state.js'
+export { Emitter } from './emitter.js'

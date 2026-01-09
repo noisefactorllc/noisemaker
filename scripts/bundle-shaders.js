@@ -55,17 +55,27 @@ function relPath(target) {
 function generateCoreModule() {
     const srcPath = relPath(path.join(srcDir, 'index.js'))
     const demoUiPath = relPath(path.join(demoDir, 'demo-ui.js'))
+    const programStatePath = relPath(path.join(demoDir, 'program-state.js'))
+    const emitterPath = relPath(path.join(demoDir, 'emitter.js'))
+    const dslUtilsPath = relPath(path.join(demoDir, 'dsl-utils.js'))
     const effectSelectPath = relPath(path.join(demoDir, 'effect-select.js'))
     const toggleSwitchPath = relPath(path.join(demoDir, 'toggle-switch.js'))
     return `
 // Noisemaker Shader Runtime - Core Module
-// Includes: Core runtime + CanvasRenderer + UIController + EffectSelect + ToggleSwitch
+// Includes: Core runtime + CanvasRenderer + UIController + ProgramState + EffectSelect + ToggleSwitch
 
 // Core runtime exports
 export * from '${srcPath}';
 
 // Demo UI exports
 export * from '${demoUiPath}';
+
+// ProgramState and supporting utilities
+export { ProgramState } from '${programStatePath}';
+export { Emitter } from '${emitterPath}';
+export { extractEffectsFromDsl } from '${dslUtilsPath}';
+
+// UI components
 export { EffectSelect } from '${effectSelectPath}';
 export { ToggleSwitch } from '${toggleSwitchPath}';
 `
@@ -127,7 +137,7 @@ async function buildCoreBundle() {
         banner: { js: banner },
     })
 
-    console.log('  ✓ core (runtime + CanvasRenderer + UIController + EffectSelect)')
+    console.log('  ✓ core (runtime + CanvasRenderer + UIController + ProgramState + EffectSelect)')
 }
 
 /**

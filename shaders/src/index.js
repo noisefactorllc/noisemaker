@@ -59,6 +59,12 @@ export {
     isStarterEffect
 } from './renderer/canvas.js'
 
+// ProgramState & UI Utilities
+// Re-export for downstream use (noisedeck, shade, etc.)
+export { ProgramState } from '../../demo/shaders/lib/program-state.js'
+export { Emitter } from '../../demo/shaders/lib/emitter.js'
+export { extractEffectsFromDsl } from '../../demo/shaders/lib/dsl-utils.js'
+
 /**
  * Convenience function to create a complete rendering environment
  * @param {HTMLCanvasElement} canvas - Canvas element to render to
