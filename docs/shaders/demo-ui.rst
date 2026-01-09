@@ -224,7 +224,7 @@ Each control is represented by a **ControlHandle** object:
        setValue: (value) => void // Set display value
    }
 
-The ``UIController`` stores these handles on control group elements (``controlGroup._controlHandle``) so that ``syncControlsFromDsl()`` can update controls without knowing their implementation details.
+The ``UIController`` stores these handles on control group elements (``controlGroup._controlHandle``) so that ``checkStructureAndApplyState()`` can update controls without knowing their implementation details.
 
 Control Factory
 ~~~~~~~~~~~~~~~
@@ -357,18 +357,8 @@ Basic Usage
    const snapshot = state.serialize()
    state.deserialize(snapshot)
 
-Backward Compatibility
-~~~~~~~~~~~~~~~~~~~~~~
-
-For backward compatibility, ``UIController`` provides a proxy getter for ``_effectParameterValues`` that routes reads and writes through ``ProgramState``:
-
-.. code-block:: javascript
-
-   // These are equivalent:
-   ui._effectParameterValues['step_0']['scale'] = 2.0
-   ui.programState.setValue('step_0', 'scale', 2.0)
-
-New code should use the ``programState`` API directly. The proxy will be deprecated in a future release.
+   // Get all step values (replaces _effectParameterValues)
+   const allValues = state.getAllStepValues()
 
 DSL Synchronization
 -------------------
@@ -390,7 +380,7 @@ DSL → Controls
 
 When DSL text changes (e.g., user edits the text):
 
-1. ``syncControlsFromDsl(dsl)`` is called
+1. ``checkStructureAndApplyState(dsl)`` is called
 2. For each parameter, the method finds the control group
 3. If ``controlGroup._controlHandle.setValue`` exists, it's called
 4. Otherwise, falls back to native element queries (backward compatibility)
@@ -536,4 +526,4 @@ With this setup:
 1. Controls render using ``<select-dropdown>`` instead of ``<select>``
 2. User interactions update the DSL text correctly
 3. DSL text edits update the dropdown via ``setValue()``
-4. No need to override ``syncControlsFromDsl()`` or other internal methods
+4. No need to override ``checkStructureAndApplyState()`` or other internal methods

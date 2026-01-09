@@ -9,8 +9,8 @@
 
 import { Emitter } from './emitter.js'
 import { extractEffectsFromDsl } from './dsl-utils.js'
-import { compile, unparse } from '../../../shaders/src/lang/index.js'
-import { getEffect } from '../../../shaders/src/renderer/canvas.js'
+import { compile, unparse, formatValue } from '../../../shaders/src/lang/index.js'
+import { getEffect, isStarterEffect } from '../../../shaders/src/renderer/canvas.js'
 
 /**
  * @typedef {object} StepState
@@ -73,6 +73,9 @@ export class ProgramState extends Emitter {
         // Media metadata (resources managed by UI layer)
         this._mediaInputs = new Map()
         this._textInputs = new Map()
+
+        // Cached compiled program (for routing, plan indices, etc.)
+        this._compiled = null
 
         // Batching state
         this._batchDepth = 0
@@ -239,12 +242,22 @@ export class ProgramState extends Emitter {
     fromDsl(dslText) {
         const previousStructure = [...this._structure]
 
+        // Cache compiled program for getCompiled()
+        try {
+            this._compiled = compile(dslText)
+        } catch (err) {
+            this._compiled = null
+        }
+
         // Parse DSL to extract effects
         const effects = extractEffectsFromDsl(dslText)
-        if (!effects || effects.length === 0) {
-            console.warn('[ProgramState] Failed to parse DSL or empty program')
+        if (!effects) {
+            console.warn('[ProgramState] Failed to parse DSL')
             return
         }
+
+        // Empty effects array is valid (e.g., just "render(o0)" with no effect chain)
+        // We should still process it to clear any existing structure
 
         // Check if structure changed
         const structureChanged = !this._structuresMatch(previousStructure, effects)
@@ -287,8 +300,35 @@ export class ProgramState extends Emitter {
             // Apply routing overrides
             this._applyRoutingOverridesToCompiled(compiled)
 
-            // Unparse back to DSL text
-            return unparse(compiled, overrides)
+            // Unparse back to DSL text with custom formatter for arrays/colors/etc.
+            const enums = this._renderer?.enums || {}
+
+            // Create effect def callback for proper parameter spec lookup
+            const getEffectDefCallback = (effectName, namespace) => {
+                // Try direct lookup first
+                let def = getEffect(effectName)
+                if (def) return def
+
+                // Try with "/" instead of "." (e.g., "filter/grade")
+                if (effectName.includes('.')) {
+                    def = getEffect(effectName.replace('.', '/'))
+                    if (def) return def
+                }
+
+                // If namespace provided separately, try combining
+                if (namespace) {
+                    def = getEffect(`${namespace}/${effectName}`) ||
+                          getEffect(`${namespace}.${effectName}`)
+                    if (def) return def
+                }
+
+                return null
+            }
+
+            return unparse(compiled, overrides, {
+                customFormatter: (value, spec) => formatValue(value, spec, { enums }),
+                getEffectDef: getEffectDefCallback
+            })
         } catch (err) {
             console.warn('[ProgramState] Failed to generate DSL:', err)
             return this._renderer?.currentDsl || ''
@@ -367,6 +407,255 @@ export class ProgramState extends Emitter {
         return this._stepStates.get(stepKey)?.values._skip === true
     }
 
+    /**
+     * Delete a step from the program
+     * @param {number} stepIndex - Global step index to delete
+     * @returns {{success: boolean, newDsl?: string, deletedSurfaceName?: string, error?: string}}
+     */
+    deleteStep(stepIndex) {
+        if (!this._renderer?.currentDsl) {
+            return { success: false, error: 'no DSL available' }
+        }
+
+        const currentDsl = this._renderer.currentDsl
+
+        let compiled
+        try {
+            compiled = compile(currentDsl)
+        } catch (err) {
+            return { success: false, error: `DSL syntax error: ${err.message}` }
+        }
+
+        if (!compiled?.plans) {
+            return { success: false, error: 'compilation failed' }
+        }
+
+        // Preserve search namespaces
+        const searchMatch = currentDsl.match(/^search\s+(\S.*?)$/m)
+        if (searchMatch) {
+            compiled.searchNamespaces = searchMatch[1].split(/\s*,\s*/)
+        }
+
+        let globalStepIndex = 0
+        let found = false
+        let deletedSurfaceName = null
+
+        for (let p = 0; p < compiled.plans.length; p++) {
+            const plan = compiled.plans[p]
+            if (!plan.chain) continue
+
+            for (let s = 0; s < plan.chain.length; s++) {
+                if (globalStepIndex === stepIndex) {
+                    const deletedStep = plan.chain[s]
+
+                    // Deleting a starter effect should remove the entire chain
+                    if (s === 0 && deletedStep && !deletedStep.builtin) {
+                        const namespace = deletedStep.namespace?.namespace || deletedStep.namespace?.resolved || null
+                        const def = getEffect(deletedStep.op) ||
+                                   (namespace ? getEffect(`${namespace}/${deletedStep.op}`) : null)
+                        const deletedIsStarter = !!(def && isStarterEffect({ instance: def }))
+
+                        if (deletedIsStarter) {
+                            // Track the surface this chain was writing to
+                            if (plan.write) {
+                                deletedSurfaceName = typeof plan.write === 'object' ? plan.write.name : plan.write
+                            }
+                            compiled.plans.splice(p, 1)
+                            found = true
+                            break
+                        }
+                    }
+
+                    plan.chain.splice(s, 1)
+
+                    if (plan.chain.length === 0) {
+                        // Track the surface this chain was writing to
+                        if (plan.write) {
+                            deletedSurfaceName = typeof plan.write === 'object' ? plan.write.name : plan.write
+                        }
+                        compiled.plans.splice(p, 1)
+                    } else {
+                        // Check if only _write nodes remain - if so, delete the plan
+                        const hasNonWriteStep = plan.chain.some(step =>
+                            !(step.builtin && step.op === '_write')
+                        )
+                        if (!hasNonWriteStep) {
+                            if (plan.write) {
+                                deletedSurfaceName = typeof plan.write === 'object' ? plan.write.name : plan.write
+                            }
+                            compiled.plans.splice(p, 1)
+                        }
+                    }
+                    found = true
+                    break
+                }
+                globalStepIndex++
+            }
+            if (found) break
+        }
+
+        if (!found) {
+            return { success: false, error: 'step not found' }
+        }
+
+        // Regenerate DSL
+        const newDsl = unparse(compiled, {}, {
+            getEffectDef: (name, ns) => {
+                let def = getEffect(name)
+                if (!def && ns) {
+                    def = getEffect(`${ns}/${name}`) || getEffect(`${ns}.${name}`)
+                }
+                return def
+            }
+        })
+
+        // Update state (this will emit structurechange)
+        this.fromDsl(newDsl)
+
+        return { success: true, newDsl, deletedSurfaceName }
+    }
+
+    /**
+     * Insert a step into the program
+     * @param {number} afterStepIndex - Insert after this step (-1 for beginning of first chain)
+     * @param {string} effectId - Effect identifier (e.g., "filter/bloom")
+     * @returns {{success: boolean, newDsl?: string, newStepIndex?: number, error?: string}}
+     */
+    insertStep(afterStepIndex, effectId) {
+        if (!this._renderer?.currentDsl) {
+            return { success: false, error: 'no DSL available' }
+        }
+
+        const currentDsl = this._renderer.currentDsl
+
+        let compiled
+        try {
+            compiled = compile(currentDsl)
+        } catch (err) {
+            return { success: false, error: `DSL syntax error: ${err.message}` }
+        }
+
+        if (!compiled?.plans) {
+            return { success: false, error: 'compilation failed' }
+        }
+
+        // Preserve search namespaces
+        const searchMatch = currentDsl.match(/^search\s+(\S.*?)$/m)
+        if (searchMatch) {
+            compiled.searchNamespaces = searchMatch[1].split(/\s*,\s*/)
+        }
+
+        // Parse effect ID to get namespace and name
+        const slashIndex = effectId.indexOf('/')
+        const namespace = slashIndex > -1 ? effectId.substring(0, slashIndex) : null
+        const effectName = slashIndex > -1 ? effectId.substring(slashIndex + 1) : effectId
+
+        // Check if effect is a starter (can only begin chains)
+        const effectDef = getEffect(effectId) || getEffect(effectName) ||
+                         (namespace ? getEffect(`${namespace}.${effectName}`) : null)
+        if (effectDef && isStarterEffect({ instance: effectDef })) {
+            return { success: false, error: `Cannot insert starter effect '${effectId}' mid-chain` }
+        }
+
+        // Ensure namespace is in search directives
+        if (namespace && (!compiled.searchNamespaces || !compiled.searchNamespaces.includes(namespace))) {
+            if (!compiled.searchNamespaces) {
+                compiled.searchNamespaces = []
+            }
+            compiled.searchNamespaces.push(namespace)
+        }
+
+        // Find the target step location
+        let globalStepIndex = 0
+        let targetPlanIndex = -1
+        let targetChainIndex = -1
+
+        for (let p = 0; p < compiled.plans.length; p++) {
+            const plan = compiled.plans[p]
+            if (!plan.chain) continue
+
+            for (let s = 0; s < plan.chain.length; s++) {
+                if (globalStepIndex === afterStepIndex) {
+                    targetPlanIndex = p
+                    targetChainIndex = s
+                    break
+                }
+                globalStepIndex++
+            }
+            if (targetPlanIndex >= 0) break
+        }
+
+        if (targetPlanIndex < 0 && afterStepIndex >= 0) {
+            return { success: false, error: `Step index ${afterStepIndex} not found` }
+        }
+
+        // Handle special case: afterStepIndex = -1 means insert at beginning
+        if (afterStepIndex < 0) {
+            targetPlanIndex = 0
+            targetChainIndex = -1  // Will insert at position 0
+        }
+
+        const targetChain = compiled.plans[targetPlanIndex]?.chain
+        if (!targetChain) {
+            return { success: false, error: 'Target chain not found' }
+        }
+
+        // Find max temp index for new step
+        let maxTemp = 0
+        for (const plan of compiled.plans) {
+            if (!plan.chain) continue
+            for (const step of plan.chain) {
+                if (typeof step.temp === 'number' && step.temp > maxTemp) {
+                    maxTemp = step.temp
+                }
+            }
+        }
+
+        // Create the new step AST node
+        const newStep = {
+            op: effectName,
+            args: {},
+            temp: maxTemp + 1
+        }
+
+        // Add namespace if present
+        if (namespace) {
+            newStep.namespace = { namespace }
+        }
+
+        // Determine insert position (after target, before any _write)
+        let insertPosition = targetChainIndex + 1
+        if (targetChain[targetChainIndex]?.builtin && targetChain[targetChainIndex]?.op === '_write') {
+            insertPosition = targetChainIndex
+        }
+
+        // Insert the new step
+        targetChain.splice(insertPosition, 0, newStep)
+
+        // Regenerate DSL
+        const newDsl = unparse(compiled, {}, {
+            getEffectDef: (name, ns) => {
+                let def = getEffect(name)
+                if (!def && ns) {
+                    def = getEffect(`${ns}/${name}`) || getEffect(`${ns}.${name}`)
+                }
+                return def
+            }
+        })
+
+        // Update state (this will emit structurechange)
+        this.fromDsl(newDsl)
+
+        // Calculate the new step's global index
+        let newStepIndex = 0
+        for (let p = 0; p < targetPlanIndex; p++) {
+            newStepIndex += compiled.plans[p]?.chain?.length || 0
+        }
+        newStepIndex += insertPosition
+
+        return { success: true, newDsl, newStepIndex }
+    }
+
     // =========================================================================
     // Structure Access Methods
     // =========================================================================
@@ -377,6 +666,14 @@ export class ProgramState extends Emitter {
      */
     getStructure() {
         return [...this._structure]
+    }
+
+    /**
+     * Get the compiled program (for routing, plan indices, etc.)
+     * @returns {object|null} Compiled program or null
+     */
+    getCompiled() {
+        return this._compiled
     }
 
     /**
@@ -402,6 +699,19 @@ export class ProgramState extends Emitter {
      */
     getStepKeys() {
         return [...this._stepStates.keys()]
+    }
+
+    /**
+     * Get all step values as a plain object keyed by stepKey
+     * Used for passing to renderer.applyStepParameterValues()
+     * @returns {Object<string, Object<string, any>>}
+     */
+    getAllStepValues() {
+        const result = {}
+        for (const [stepKey, stepState] of this._stepStates) {
+            result[stepKey] = { ...stepState.values }
+        }
+        return result
     }
 
     // =========================================================================
@@ -971,7 +1281,8 @@ export class ProgramState extends Emitter {
 
             const stepOverrides = {}
             for (const [paramName, value] of Object.entries(stepState.values)) {
-                if (paramName.startsWith('_')) continue  // Skip internal flags
+                // Skip internal flags EXCEPT _skip which is a DSL argument
+                if (paramName.startsWith('_') && paramName !== '_skip') continue
 
                 // Unwrap oscillator bindings for DSL (use varRef, not value)
                 if (value && typeof value === 'object' && value._varRef) {
@@ -1004,49 +1315,5 @@ export class ProgramState extends Emitter {
         if (this._renderTargetOverride && compiled.render) {
             compiled.render.target = this._renderTargetOverride
         }
-    }
-
-    /**
-     * Get a proxy object for backward compatibility with _effectParameterValues
-     * @returns {object} Proxy that delegates to stepStates
-     * @deprecated Use getValue/setValue instead
-     */
-    getEffectParameterValuesProxy() {
-        const self = this
-        return new Proxy({}, {
-            get(target, stepKey) {
-                if (typeof stepKey !== 'string') return undefined
-                const stepState = self._stepStates.get(stepKey)
-                if (!stepState) return undefined
-                // Return proxy for step values
-                return new Proxy(stepState.values, {
-                    get(t, paramName) {
-                        return self.getValue(stepKey, paramName)
-                    },
-                    set(t, paramName, value) {
-                        self.setValue(stepKey, paramName, value)
-                        return true
-                    }
-                })
-            },
-            set(target, stepKey, values) {
-                if (typeof stepKey === 'string' && typeof values === 'object') {
-                    self.setStepValues(stepKey, values)
-                }
-                return true
-            },
-            has(target, stepKey) {
-                return self._stepStates.has(stepKey)
-            },
-            ownKeys() {
-                return [...self._stepStates.keys()]
-            },
-            getOwnPropertyDescriptor(target, stepKey) {
-                if (self._stepStates.has(stepKey)) {
-                    return { configurable: true, enumerable: true }
-                }
-                return undefined
-            }
-        })
     }
 }

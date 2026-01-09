@@ -13,7 +13,7 @@
  * - `setValue(v)`: Updates the control to display value v
  *
  * The UIController stores these handles on control groups (`controlGroup._controlHandle`)
- * so that `syncControlsFromDsl()` can update controls without knowing their implementation.
+ * so that controls can be updated without knowing their implementation.
  *
  * ## Usage
  *
@@ -55,7 +55,7 @@
  * ## Current Integration Point
  *
  * The UIController currently stores control handles on control group elements
- * (`container._controlHandle`) after creating each control. The `syncControlsFromDsl`
+ * (`container._controlHandle`) after creating each control. The `checkStructureAndApplyState`
  * method checks for these handles first:
  *
  * ```javascript

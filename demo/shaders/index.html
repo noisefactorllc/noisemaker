@@ -500,12 +500,7 @@
                 renderer.buildUniformBindings(currentEffect);
                 renderer.applyParameterValues(currentEffect, ui.parameterValues);
                 
-                ui.createEffectControlsFromDsl(dsl);
-
-                // Apply DSL-parsed parameter values to the pipeline
-                if (renderer.applyStepParameterValues) {
-                    renderer.applyStepParameterValues(ui.effectParameterValues);
-                }
+                ui.loadDslAndCreateControls(dsl);
 
                 if (!silent) {
                     ui.showStatus(`compiled ${currentEffect.name}`, 'success');
@@ -558,8 +553,8 @@
                 if (rebuildControls) {
                     // Try to sync values to existing controls first
                     // Only rebuild if structure changed
-                    if (!ui.syncControlsFromDsl(dsl)) {
-                        ui.createEffectControlsFromDsl(dsl);
+                    if (!ui.checkStructureAndApplyState(dsl)) {
+                        ui.loadDslAndCreateControls(dsl);
                     }
                 }
                 

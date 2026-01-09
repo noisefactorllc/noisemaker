@@ -32,7 +32,6 @@ import {
 } from '../../../shaders/src/renderer/canvas.js'
 import { groupGlobalsByCategory } from '../../../shaders/src/runtime/effect.js'
 import { defaultControlFactory } from './control-factory.js'
-import { extractEffectsFromDsl } from './dsl-utils.js'
 import { ProgramState } from './program-state.js'
 
 // Re-export for backward compatibility
@@ -307,33 +306,6 @@ export class UIController {
         return this._programState
     }
 
-    /**
-     * Backward-compatible getter for _effectParameterValues
-     * Proxies to ProgramState's internal structure
-     * @deprecated Use programState.getValue/setValue instead
-     */
-    get _effectParameterValues() {
-        return this._programState.getEffectParameterValuesProxy()
-    }
-
-    /**
-     * Backward-compatible setter for _effectParameterValues
-     * @deprecated Use programState.setValue instead
-     */
-    set _effectParameterValues(value) {
-        // When set directly (e.g., during reset or initialization),
-        // we need to sync to programState. For now, we store directly
-        // on a backing field that the proxy can read.
-        // This maintains backward compatibility during migration.
-        if (value && typeof value === 'object') {
-            for (const [stepKey, params] of Object.entries(value)) {
-                if (params && typeof params === 'object') {
-                    this._programState.setStepValues(stepKey, params)
-                }
-            }
-        }
-    }
-
     // =========================================================================
     // Media Input Management
     // =========================================================================
@@ -384,7 +356,7 @@ export class UIController {
 
         // Apply step-specific parameter values (including imageSize) to the pipeline
         if (anyUpdated && this._renderer.applyStepParameterValues) {
-            this._renderer.applyStepParameterValues(this._effectParameterValues)
+            this._renderer.applyStepParameterValues(this._programState.getAllStepValues())
         }
     }
 
@@ -404,9 +376,7 @@ export class UIController {
         if (result.width > 0 && result.height > 0) {
             // Update imageSize uniform for this specific step (not globally)
             const effectKey = `step_${stepIndex}`
-            if (this._effectParameterValues[effectKey]) {
-                this._effectParameterValues[effectKey].imageSize = [result.width, result.height]
-            }
+            this._programState.setValue(effectKey, 'imageSize', [result.width, result.height])
         }
     }
 
@@ -616,7 +586,7 @@ export class UIController {
                 this._updateMediaTexture(stepIndex)
                 // Apply step-specific parameters to the pipeline
                 if (this._renderer.applyStepParameterValues) {
-                    this._renderer.applyStepParameterValues(this._effectParameterValues)
+                    this._renderer.applyStepParameterValues(this._programState.getAllStepValues())
                 }
             }
         } else if (file.type.startsWith('image/')) {
@@ -627,7 +597,7 @@ export class UIController {
                 this._updateMediaTexture(stepIndex)
                 // Apply step-specific parameters to the pipeline
                 if (this._renderer.applyStepParameterValues) {
-                    this._renderer.applyStepParameterValues(this._effectParameterValues)
+                    this._renderer.applyStepParameterValues(this._programState.getAllStepValues())
                 }
             }
         }
@@ -716,7 +686,7 @@ export class UIController {
             this._updateMediaTexture(stepIndex)
             // Apply step-specific parameters to the pipeline
             if (this._renderer.applyStepParameterValues) {
-                this._renderer.applyStepParameterValues(this._effectParameterValues)
+                this._renderer.applyStepParameterValues(this._programState.getAllStepValues())
             }
         } catch (err) {
             console.error('Failed to start camera:', err)
@@ -844,7 +814,7 @@ export class UIController {
                     media.videoEl.play()
                     this._updateMediaTexture(stepIndex)
                     if (this._renderer.applyStepParameterValues) {
-                        this._renderer.applyStepParameterValues(this._effectParameterValues)
+                        this._renderer.applyStepParameterValues(this._programState.getAllStepValues())
                     }
                 }
             } else if (preserved.imageSrc) {
@@ -854,7 +824,7 @@ export class UIController {
                     media.statusEl.textContent = `image: ${media.imageEl.naturalWidth}x${media.imageEl.naturalHeight}`
                     this._updateMediaTexture(stepIndex)
                     if (this._renderer.applyStepParameterValues) {
-                        this._renderer.applyStepParameterValues(this._effectParameterValues)
+                        this._renderer.applyStepParameterValues(this._programState.getAllStepValues())
                     }
                 }
 
@@ -900,7 +870,7 @@ export class UIController {
             this._updateMediaTexture(stepIndex)
             // Apply step-specific parameters to the pipeline
             if (this._renderer.applyStepParameterValues) {
-                this._renderer.applyStepParameterValues(this._effectParameterValues)
+                this._renderer.applyStepParameterValues(this._programState.getAllStepValues())
             }
         }
         img.onerror = () => {
@@ -929,8 +899,8 @@ export class UIController {
         canvas.style.display = 'none'
         document.body.appendChild(canvas)
 
-        // Get initial values from effectParameterValues (which were set from globals)
-        const params = this._effectParameterValues[effectKey] || {}
+        // Get initial values from programState
+        const params = this._programState.getStepValues(effectKey) || {}
 
         // Initialize text state for this step
         this._textInputs.set(stepIndex, {
@@ -1047,9 +1017,7 @@ export class UIController {
         if (result.width > 0 && result.height > 0) {
             // Update textSize uniform for this specific step
             const effectKey = `step_${stepIndex}`
-            if (this._effectParameterValues[effectKey]) {
-                this._effectParameterValues[effectKey].textSize = [result.width, result.height]
-            }
+            this._programState.setValue(effectKey, 'textSize', [result.width, result.height])
         }
     }
 
@@ -1071,7 +1039,7 @@ export class UIController {
 
     /** @returns {object} Effect parameter values by step */
     get effectParameterValues() {
-        return this._effectParameterValues
+        return this._programState.getAllStepValues()
     }
 
     /** @returns {object} Shader source overrides by step index */
@@ -1599,7 +1567,7 @@ render(o1)`
             if (!compiled || !compiled.plans) return null
 
             const overrides = {}
-            for (const [key, params] of Object.entries(this._effectParameterValues)) {
+            for (const [key, params] of Object.entries(this._programState.getAllStepValues())) {
                 const match = key.match(/^step_(\d+)$/)
                 if (match) {
                     const stepIndex = parseInt(match[1], 10)
@@ -1801,11 +1769,42 @@ render(o1)`
     // =========================================================================
 
     /**
-     * Create effect controls from DSL
+     * Load DSL and create effect controls from it
+     * Parses DSL into ProgramState, then builds controls from state
      * @param {string} dsl - DSL source
      */
-    createEffectControlsFromDsl(dsl) {
+    loadDslAndCreateControls(dsl) {
         if (!this._controlsContainer) return
+
+        // Update state from DSL (single parse point)
+        this._programState.fromDsl(dsl)
+
+        // Build controls from state
+        this.createEffectControlsFromState()
+    }
+
+    /**
+     * Create effect controls from ProgramState
+     * Uses programState.getStructure() and getStepValues() instead of parsing DSL
+     */
+    createEffectControlsFromState() {
+        if (!this._controlsContainer) return
+
+        const structure = this._programState.getStructure()
+        const compiled = this._programState.getCompiled()
+
+        // Handle empty structure (e.g., just "render(o0)" with no effect chain)
+        if (!structure || structure.length === 0) {
+            // Clean up existing controls for empty program
+            this.stopAllMedia()
+            this.stopAllText()
+            this._controlsContainer.innerHTML = ''
+            this._dependentControls = []
+            this._parsedDslStructure = []
+            return
+        }
+
+        if (!compiled?.plans) return
 
         // PRESERVE media state before stopping (keyed by occurrence)
         const previousMediaByOccurrence = this._preserveMediaState()
@@ -1818,7 +1817,7 @@ render(o1)`
         // PRESERVE existing parameter values keyed by effect occurrence (name + nth occurrence)
         // This ensures that inserting/removing unrelated effects doesn't reset values
         const previousValuesByOccurrence = {}
-        if (this._parsedDslStructure && this._effectParameterValues) {
+        if (this._parsedDslStructure) {
             const occurrenceCount = {}
             for (const effectInfo of this._parsedDslStructure) {
                 const effectName = effectInfo.effectKey || effectInfo.name
@@ -1826,9 +1825,10 @@ render(o1)`
                 occurrenceCount[effectName] = occurrence + 1
 
                 const stepKey = `step_${effectInfo.stepIndex}`
-                if (this._effectParameterValues[stepKey]) {
+                const stepParams = this._programState.getStepValues(stepKey)
+                if (stepParams && Object.keys(stepParams).length > 0) {
                     const occurrenceKey = `${effectName}#${occurrence}`
-                    previousValuesByOccurrence[occurrenceKey] = { ...this._effectParameterValues[stepKey] }
+                    previousValuesByOccurrence[occurrenceKey] = { ...stepParams }
                 }
             }
         }
@@ -1844,26 +1844,8 @@ render(o1)`
         this._write3dGeoOverrides = {}
         this._renderTargetOverride = null
 
-        // Parse DSL to get plans with write targets
-        let compiled = null
-        try {
-            compiled = compile(dsl)
-        } catch (err) {
-            if (isDslSyntaxError(err)) {
-                console.warn('DSL Syntax Error:\n' + formatDslError(dsl, err))
-            } else {
-                console.warn('Failed to parse DSL for controls:', err)
-            }
-            return
-        }
-        if (!compiled || !compiled.plans) return
-
-        const effects = extractEffectsFromDsl(dsl)
-
-        // Sync to ProgramState - this handles structure change detection and value preservation
-        this._programState.fromDsl(dsl)
+        const effects = structure
         this._parsedDslStructure = effects
-        if (effects.length === 0) return
 
         // Build a map of stepIndex -> planIndex for write module placement
         let globalStepIndex = 0
@@ -2042,19 +2024,21 @@ render(o1)`
                 e.stopPropagation()
 
                 const effectKey = `step_${effectInfo.stepIndex}`
-                const wasSkipped = this._effectParameterValues[effectKey]?._skip
+                const wasSkipped = this._programState.getValue(effectKey, '_skip')
 
-                // Reset parameters to defaults
-                this._effectParameterValues[effectKey] = {}
-                if (wasSkipped) {
-                    this._effectParameterValues[effectKey]._skip = true
-                }
-
-                for (const [key, spec] of Object.entries(effectDef.globals)) {
-                    if (spec.default !== undefined) {
-                        this._effectParameterValues[effectKey][key] = cloneParamValue(spec.default)
+                // Reset parameters to defaults via programState batch
+                this._programState.batch(() => {
+                    // Clear all values by setting to defaults
+                    for (const [key, spec] of Object.entries(effectDef.globals)) {
+                        if (spec.default !== undefined) {
+                            this._programState.setValue(effectKey, key, cloneParamValue(spec.default))
+                        }
                     }
-                }
+                    // Preserve skip state if it was set
+                    if (wasSkipped) {
+                        this._programState.setValue(effectKey, '_skip', true)
+                    }
+                })
 
                 // Update UI controls
                 const controlsContainer = moduleDiv.querySelector(`#controls-${effectInfo.stepIndex}`)
@@ -2143,8 +2127,8 @@ render(o1)`
                     moduleDiv.classList.remove('collapsed')
                 }
 
-                // Update the effect parameter and regenerate DSL
-                this._effectParameterValues[effectKey]._skip = isSkipped
+                // Update state and regenerate DSL
+                this._programState.setValue(effectKey, '_skip', isSkipped)
                 this._updateDslFromEffectParams()
 
                 // _skip requires a recompile since it changes the pass structure
@@ -2187,15 +2171,17 @@ render(o1)`
 
             // Restore values by occurrence key (position-independent)
             if (previousValuesByOccurrence[occurrenceKey]) {
-                this._effectParameterValues[effectKey] = { ...previousValuesByOccurrence[occurrenceKey] }
-            } else {
-                // New effect - start fresh
-                this._effectParameterValues[effectKey] = {}
+                // Batch restore preserved values to program state
+                this._programState.batch(() => {
+                    for (const [key, val] of Object.entries(previousValuesByOccurrence[occurrenceKey])) {
+                        this._programState.setValue(effectKey, key, val)
+                    }
+                })
             }
 
             // Initialize _skip from parsed args if present
             if (effectInfo.args?._skip === true) {
-                this._effectParameterValues[effectKey]._skip = true
+                this._programState.setValue(effectKey, '_skip', true)
             }
 
             // Render controls grouped by category
@@ -2358,41 +2344,26 @@ render(o1)`
     }
 
     /**
-     * Sync control values from DSL without rebuilding controls.
-     * Updates existing controls to reflect values parsed from DSL.
-     * @param {string} dsl - DSL source
-     * @returns {boolean} True if sync succeeded, false if structure changed (needs rebuild)
+     * Check if DSL structure is compatible and apply state to pipeline
+     * Returns false if structure would change (caller should rebuild controls)
+     * @param {string} dsl - DSL source to check compatibility against
+     * @returns {boolean} True if compatible, false if structure changed
      */
-    syncControlsFromDsl(dsl) {
+    checkStructureAndApplyState(dsl) {
         if (!this._controlsContainer || !this._parsedDslStructure) {
-            console.log('[syncControlsFromDsl] returning false: no container or no structure',
+            console.log('[checkStructureAndApplyState] returning false: no container or no structure',
                 { hasContainer: !!this._controlsContainer, hasStructure: !!this._parsedDslStructure, structureLen: this._parsedDslStructure?.length })
             return false
         }
 
-        const effects = extractEffectsFromDsl(dsl)
-        if (!effects || effects.length === 0) {
-            console.log('[syncControlsFromDsl] returning false: no effects parsed')
+        // Use programState to check structure compatibility
+        if (this._programState.wouldChangeStructure(dsl)) {
+            console.log('[checkStructureAndApplyState] returning false: structure would change')
             return false
         }
 
-        // Check if structure changed (different effects or count)
-        if (effects.length !== this._parsedDslStructure.length) {
-            console.log('[syncControlsFromDsl] returning false: length mismatch',
-                { effectsLen: effects.length, structureLen: this._parsedDslStructure.length })
-            return false
-        }
-        for (let i = 0; i < effects.length; i++) {
-            if (effects[i].effectKey !== this._parsedDslStructure[i].effectKey) {
-                console.log('[syncControlsFromDsl] returning false: effectKey mismatch at', i,
-                    { parsed: effects[i].effectKey, stored: this._parsedDslStructure[i].effectKey })
-                return false
-            }
-        }
-
-        // Structure is the same - DO NOT update stored values from DSL
-        // _effectParameterValues is the source of truth (set by sliders)
-        // Just sync UI controls to match stored values, and apply to pipeline
+        // Structure is the same - apply state to pipeline
+        // programState is the source of truth (set by sliders)
         this._applyEffectParameterValues()
         return true
     }
@@ -2982,181 +2953,42 @@ render(o1)`
      * @param {number} targetStepIndex - The global step index to delete
      */
     async _deleteStepAtIndex(targetStepIndex) {
-        const currentDsl = this.getDsl()
-        if (!currentDsl) return
+        const result = this._programState.deleteStep(targetStepIndex)
 
-        let compiled
-        try {
-            compiled = compile(currentDsl)
-        } catch (err) {
-            if (isDslSyntaxError(err)) {
-                console.warn('DSL Syntax Error:\n' + formatDslError(currentDsl, err))
-            } else {
-                console.error('Failed to compile DSL for deletion:', err)
-            }
-            this.showStatus('cannot delete: DSL has syntax errors', 'error')
+        if (!result.success) {
+            this.showStatus(`cannot delete: ${result.error}`, 'error')
             return
         }
 
-        if (!compiled || !compiled.plans) {
-            this.showStatus('cannot delete: compilation failed', 'error')
-            return
+        // Clear the surface that the deleted chain was writing to
+        if (result.deletedSurfaceName && this._renderer.pipeline) {
+            this._renderer.pipeline.clearSurface(result.deletedSurfaceName)
         }
 
-        try {
-            // Preserve search namespaces
-            const searchMatch = currentDsl.match(/^search\s+(\S.*?)$/m)
-            if (searchMatch) {
-                compiled.searchNamespaces = searchMatch[1].split(/\s*,\s*/)
-            }
+        // Update DSL in renderer and editor
+        this.setDsl(result.newDsl)
+        this._renderer.currentDsl = result.newDsl
 
-            let globalStepIndex = 0
-            let found = false
-            let deletedSurfaceName = null  // Track the surface that was being written to
-
-            const getEffectDefCallback = createEffectDefCallback(getEffect)
-
-            for (let p = 0; p < compiled.plans.length; p++) {
-                const plan = compiled.plans[p]
-                if (!plan.chain) continue
-
-                for (let s = 0; s < plan.chain.length; s++) {
-                    if (globalStepIndex === targetStepIndex) {
-                        const deletedStep = plan.chain[s]
-
-                        // Deleting a starter effect should remove the entire chain.
-                        // We do not leave "dangling" steps behind, and we do not insert placeholders.
-                        if (s === 0 && deletedStep && !deletedStep.builtin) {
-                            const namespace = deletedStep.namespace?.namespace || deletedStep.namespace?.resolved || null
-                            const def = getEffectDefCallback(deletedStep.op, namespace)
-                            const deletedIsStarter = !!(def && isStarterEffect({ instance: def }))
-
-                            if (deletedIsStarter) {
-                                // Track the surface this chain was writing to
-                                if (plan.write) {
-                                    deletedSurfaceName = typeof plan.write === 'object' ? plan.write.name : plan.write
-                                }
-                                compiled.plans.splice(p, 1)
-                                found = true
-                                break
-                            }
-                        }
-
-                        plan.chain.splice(s, 1)
-
-                        // If we removed the head of the chain and there are remaining steps,
-                        // do not auto-insert placeholder ops (e.g., read()). Deletion must not
-                        // mutate semantics beyond removal.
-
-                        if (plan.chain.length === 0) {
-                            // Track the surface this chain was writing to
-                            if (plan.write) {
-                                deletedSurfaceName = typeof plan.write === 'object' ? plan.write.name : plan.write
-                            }
-                            compiled.plans.splice(p, 1)
-                        } else {
-                            // Check if only _write nodes remain - if so, delete the plan
-                            const hasNonWriteStep = plan.chain.some(step =>
-                                !(step.builtin && step.op === '_write')
-                            )
-                            if (!hasNonWriteStep) {
-                                // Track the surface this chain was writing to
-                                if (plan.write) {
-                                    deletedSurfaceName = typeof plan.write === 'object' ? plan.write.name : plan.write
-                                }
-                                compiled.plans.splice(p, 1)
-                            }
-                        }
-                        found = true
-                        break
-                    }
-                    globalStepIndex++
-                }
-                if (found) break
-            }
-
-            if (found) {
-                // Clear the surface that the deleted chain was writing to
-                if (deletedSurfaceName && this._renderer.pipeline) {
-                    this._renderer.pipeline.clearSurface(deletedSurfaceName)
-                }
-
-                const newDsl = unparse(compiled, {}, {
-                    customFormatter: this._boundFormatValue,
-                    getEffectDef: getEffectDefCallback
-                })
-
-                this.setDsl(newDsl)
-                this._renderer.currentDsl = newDsl
-
-                this.createEffectControlsFromDsl(newDsl)
-                await this._recompilePipeline()
-            }
-        } catch (err) {
-            console.error('Failed to delete step:', err)
-            this.showStatus('failed to delete step', 'error')
-        }
+        // Rebuild controls from state (structurechange already emitted by deleteStep)
+        this.createEffectControlsFromState()
+        await this._recompilePipeline()
     }
 
     /**
      * Toggle the skip state of a step by its global step index.
-     * For builtin steps like _read, this modifies the DSL directly.
      * @private
      * @param {number} targetStepIndex - The global step index to toggle
      * @param {boolean} isSkipped - Whether the step should be skipped
      */
     async _toggleStepSkipAtIndex(targetStepIndex, isSkipped) {
-        const currentDsl = this.getDsl()
-        if (!currentDsl) return
+        const effectKey = `step_${targetStepIndex}`
 
-        try {
-            const compiled = compile(currentDsl)
-            if (!compiled || !compiled.plans) return
+        // Update state - this will trigger DSL update
+        this._programState.setValue(effectKey, '_skip', isSkipped)
+        this._updateDslFromEffectParams()
 
-            // Preserve search namespaces
-            const searchMatch = currentDsl.match(/^search\s+(\S.*?)$/m)
-            if (searchMatch) {
-                compiled.searchNamespaces = searchMatch[1].split(/\s*,\s*/)
-            }
-
-            let globalStepIndex = 0
-            let found = false
-
-            const getEffectDefCallback = createEffectDefCallback(getEffect)
-
-            for (let p = 0; p < compiled.plans.length; p++) {
-                const plan = compiled.plans[p]
-                if (!plan.chain) continue
-
-                for (let s = 0; s < plan.chain.length; s++) {
-                    if (globalStepIndex === targetStepIndex) {
-                        const step = plan.chain[s]
-                        if (!step.args) step.args = {}
-                        step.args._skip = isSkipped
-                        found = true
-                        break
-                    }
-                    globalStepIndex++
-                }
-                if (found) break
-            }
-
-            if (found) {
-                const newDsl = unparse(compiled, {}, {
-                    customFormatter: this._boundFormatValue,
-                    getEffectDef: getEffectDefCallback
-                })
-
-                this.setDsl(newDsl)
-                this._renderer.currentDsl = newDsl
-
-                this.createEffectControlsFromDsl(newDsl)
-                await this._recompilePipeline()
-            }
-        } catch (err) {
-            console.error('Failed to toggle step skip:', err)
-            this.showStatus('failed to toggle skip', 'error')
-        }
+        // Skip requires a recompile since it changes the pass structure
+        await this._recompilePipeline()
     }
 
     /**
@@ -3420,9 +3252,9 @@ render(o1)`
             })
         }
 
-        // Get value: prefer already-preserved value, then DSL args, then default
+        // Get value: prefer already-preserved value in state, then DSL args, then default
         let value
-        const preservedValue = this._effectParameterValues[effectKey]?.[key]
+        const preservedValue = this._programState.getValue(effectKey, key)
         if (preservedValue !== undefined) {
             // Use preserved value from previous session (e.g., when adding another effect)
             value = preservedValue
@@ -3441,7 +3273,7 @@ render(o1)`
             // If the original was a variable reference (Ident), store that so we can
             // output "scale: o" instead of inlining the oscillator
             if (rawKwarg && rawKwarg.type === 'Ident') {
-                this._effectParameterValues[effectKey][key] = { _varRef: rawKwarg.name }
+                this._programState.setValue(effectKey, key, { _varRef: rawKwarg.name })
             }
             // Otherwise don't store anything - let the original value pass through
 
@@ -3460,7 +3292,8 @@ render(o1)`
             value = `#${toHex(value[0])}${toHex(value[1])}${toHex(value[2])}`
         }
 
-        this._effectParameterValues[effectKey][key] = value
+        // Initialize value in program state
+        this._programState.setValue(effectKey, key, value)
 
         // Create control based on type
         // Check for button control first (momentary boolean button)
@@ -3506,7 +3339,7 @@ render(o1)`
         const toggle = handle.element
 
         toggle.addEventListener('change', () => {
-            this._effectParameterValues[effectKey][key] = handle.getValue()
+            this._programState.setValue(effectKey, key, handle.getValue())
             this._onControlChange()
         })
 
@@ -3608,7 +3441,7 @@ render(o1)`
         const select = handle.element
 
         select.addEventListener('change', () => {
-            this._effectParameterValues[effectKey][key] = handle.getValue()
+            this._programState.setValue(effectKey, key, handle.getValue())
             this._onControlChange()
         })
 
@@ -3649,7 +3482,7 @@ render(o1)`
             const select = handle.element
 
             select.addEventListener('change', () => {
-                this._effectParameterValues[effectKey][key] = parseInt(handle.getValue(), 10)
+                this._programState.setValue(effectKey, key, parseInt(handle.getValue(), 10))
                 this._onControlChange()
             })
 
@@ -3667,7 +3500,7 @@ render(o1)`
             const slider = handle.element
 
             slider.addEventListener('change', () => {
-                this._effectParameterValues[effectKey][key] = parseInt(handle.getValue(), 10)
+                this._programState.setValue(effectKey, key, parseInt(handle.getValue(), 10))
                 this._onControlChange()
             })
 
@@ -3734,7 +3567,7 @@ render(o1)`
                 const select = handle.element
 
                 select.addEventListener('change', () => {
-                    this._effectParameterValues[effectKey][key] = handle.getValue()
+                    this._programState.setValue(effectKey, key, handle.getValue())
                     this._onControlChange()
                 })
 
@@ -3784,7 +3617,7 @@ render(o1)`
         slider.addEventListener('input', () => {
             const numVal = isInt ? parseInt(handle.getValue()) : parseFloat(handle.getValue())
             valueDisplayHandle.setValue(formatVal(numVal))
-            this._effectParameterValues[effectKey][key] = numVal
+            this._programState.setValue(effectKey, key, numVal)
             this._applyEffectParameterValues()
             this._syncTextInputsFromParams()
         })
@@ -3837,13 +3670,13 @@ render(o1)`
             const colorVal = handle.getValue()
             if (isVec4) {
                 // For vec4, preserve alpha or default to 1
-                const currentVal = this._effectParameterValues[effectKey][key]
+                const currentVal = this._programState.getValue(effectKey, key)
                 const a = (Array.isArray(currentVal) && currentVal.length >= 4 && typeof currentVal[3] === 'number')
                     ? currentVal[3]
                     : 1
-                this._effectParameterValues[effectKey][key] = [colorVal[0], colorVal[1], colorVal[2], a]
+                this._programState.setValue(effectKey, key, [colorVal[0], colorVal[1], colorVal[2], a])
             } else {
-                this._effectParameterValues[effectKey][key] = colorVal
+                this._programState.setValue(effectKey, key, colorVal)
             }
             this._onControlChange()
         })
@@ -3890,7 +3723,7 @@ render(o1)`
 
         select.addEventListener('change', async () => {
             const val = handle.getValue()
-            this._effectParameterValues[effectKey][key] = val === 'none' ? 'none' : `read(${val})`
+            this._programState.setValue(effectKey, key, val === 'none' ? 'none' : `read(${val})`)
             this._updateDslFromEffectParams()
             await this._recompilePipeline()
         })
@@ -3952,7 +3785,7 @@ render(o1)`
         const select = handle.element
 
         select.addEventListener('change', async () => {
-            this._effectParameterValues[effectKey][key] = handle.getValue()
+            this._programState.setValue(effectKey, key, handle.getValue())
             this._updateDslFromEffectParams()
             await this._recompilePipeline()
         })
@@ -4005,7 +3838,7 @@ render(o1)`
         const select = handle.element
 
         select.addEventListener('change', async () => {
-            this._effectParameterValues[effectKey][key] = handle.getValue()
+            this._programState.setValue(effectKey, key, handle.getValue())
             this._updateDslFromEffectParams()
             await this._recompilePipeline()
         })
@@ -4033,7 +3866,7 @@ render(o1)`
         input.style.cssText = 'width: 100%; padding: 0.375rem 0.5rem; background: var(--color1); border: 1px solid var(--color3); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: Nunito, sans-serif; font-size: 0.75rem; resize: vertical;'
 
         input.addEventListener('input', () => {
-            this._effectParameterValues[effectKey][key] = input.value
+            this._programState.setValue(effectKey, key, input.value)
             this._onControlChange()
         })
 
@@ -4059,7 +3892,7 @@ render(o1)`
         const select = handle.element
 
         select.addEventListener('change', () => {
-            this._effectParameterValues[effectKey][key] = handle.getValue()
+            this._programState.setValue(effectKey, key, handle.getValue())
             this._onControlChange()
         })
 
@@ -4082,7 +3915,7 @@ render(o1)`
         colorInput.style.cssText = 'width: 100%; height: 2rem; padding: 0; border: 1px solid var(--color3); border-radius: var(--ui-corner-radius-small); cursor: pointer;'
 
         colorInput.addEventListener('input', () => {
-            this._effectParameterValues[effectKey][key] = colorInput.value
+            this._programState.setValue(effectKey, key, colorInput.value)
             this._onControlChange()
         })
 
@@ -4106,13 +3939,13 @@ render(o1)`
     }
 
     /**
-     * Sync text canvas state from effectParameterValues and re-render
+     * Sync text canvas state from programState and re-render
      * Called when any control changes - only affects text effects
      * @private
      */
     _syncTextInputsFromParams() {
         for (const [stepIndex, textState] of this._textInputs.entries()) {
-            const params = this._effectParameterValues[textState.effectKey]
+            const params = this._programState.getStepValues(textState.effectKey)
             if (!params) continue
 
             // Sync values from generic controls to text state
@@ -4139,7 +3972,7 @@ render(o1)`
     _updateDependentControls() {
         for (const dep of this._dependentControls) {
             const { element, effectKey, enabledBy } = dep
-            const params = this._effectParameterValues[effectKey]
+            const params = this._programState.getStepValues(effectKey)
             if (!params) continue
 
             const enablerValue = params[enabledBy]
@@ -4197,7 +4030,7 @@ render(o1)`
 
         let zoomChanged = false
 
-        for (const [effectKey, params] of Object.entries(this._effectParameterValues)) {
+        for (const [effectKey, params] of Object.entries(this._programState.getAllStepValues())) {
             const match = effectKey.match(/^step_(\d+)$/)
             if (!match) continue
             const stepIndex = parseInt(match[1], 10)
@@ -4267,7 +4100,7 @@ render(o1)`
 
         if (zoomChanged && pipeline.resize) {
             let zoomValue = 1
-            for (const params of Object.values(this._effectParameterValues)) {
+            for (const params of Object.values(this._programState.getAllStepValues())) {
                 if (params.zoom !== undefined) {
                     zoomValue = params.zoom
                     break
@@ -4276,7 +4109,7 @@ render(o1)`
             pipeline.resize(pipeline.width, pipeline.height, zoomValue)
         }
 
-        for (const params of Object.values(this._effectParameterValues)) {
+        for (const params of Object.values(this._programState.getAllStepValues())) {
             if ('volumeSize' in params && pipeline.setUniform) {
                 pipeline.setUniform('volumeSize', params.volumeSize)
                 break
@@ -4286,7 +4119,7 @@ render(o1)`
         // Set stateSize for each pointsEmit instance using scoped uniform names
         // Each pointsEmit has its own particle pipeline with scoped textures (stateSize_node_N)
         // We set ONLY the scoped uniform to avoid one pipeline stomping another's stateSize
-        for (const [key, params] of Object.entries(this._effectParameterValues)) {
+        for (const [key, params] of Object.entries(this._programState.getAllStepValues())) {
             if ('stateSize' in params && pipeline.setUniform) {
                 // Extract step index from key (e.g., 'step_5' -> '5')
                 const match = key.match(/^step_(\d+)$/)
@@ -4307,8 +4140,8 @@ render(o1)`
     _updateDslFromEffectParams() {
         this._applyEffectParameterValues()
 
-        const newDsl = this.regenerateDslFromEffectParams()
-        if (newDsl !== null && newDsl !== this.getDsl()) {
+        const newDsl = this._programState.toDsl()
+        if (newDsl && newDsl !== this.getDsl()) {
             this.setDsl(newDsl)
             this._renderer.currentDsl = newDsl
         }
@@ -4364,8 +4197,8 @@ render(o1)`
      * @returns {number} Zoom value
      */
     _getZoomFromEffectParams() {
-        // Check _effectParameterValues first (DSL pipeline parameters)
-        for (const params of Object.values(this._effectParameterValues)) {
+        // Check programState first (DSL pipeline parameters)
+        for (const params of Object.values(this._programState.getAllStepValues())) {
             if (params.zoom !== undefined) {
                 return params.zoom
             }
