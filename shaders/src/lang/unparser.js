@@ -579,13 +579,14 @@ function unparsePlan(plan, options = {}) {
     // Check if chain already ends with a _write step (chainable writes are now inline)
     const lastStep = plan.chain[plan.chain.length - 1]
     const chainEndsWithWrite = lastStep && lastStep.builtin && lastStep.op === '_write'
+    const chainEndsWithWrite3d = lastStep && lastStep.builtin && lastStep.op === '_write3d'
 
     // Add write directive only if chain doesn't already end with _write
     if (plan.write && !chainEndsWithWrite) {
         result += `\n  .write(${plan.write})`
     }
-    // Add write3d directive
-    if (plan.write3d) {
+    // Add write3d directive only if chain doesn't already end with _write3d
+    if (plan.write3d && !chainEndsWithWrite3d) {
         const tex3d = plan.write3d.tex3d?.name || plan.write3d.tex3d
         const geo = plan.write3d.geo?.name || plan.write3d.geo
         result += `\n  .write3d(${tex3d}, ${geo})`
@@ -865,14 +866,15 @@ export function unparse(compiled, overrides = {}, options = {}) {
         // Check if chain already ends with a _write step (chainable writes are now inline)
         const lastStep = plan.chain[plan.chain.length - 1]
         const chainEndsWithWrite = lastStep && lastStep.builtin && lastStep.op === '_write'
+        const chainEndsWithWrite3d = lastStep && lastStep.builtin && lastStep.op === '_write3d'
 
         // Add write directive only if chain doesn't already end with _write
         if (plan.write && !chainEndsWithWrite) {
             const writeName = typeof plan.write === 'string' ? plan.write : plan.write.name
             line += `\n  .write(${writeName})`
         }
-        // Add write3d directive
-        if (plan.write3d) {
+        // Add write3d directive only if chain doesn't already end with _write3d
+        if (plan.write3d && !chainEndsWithWrite3d) {
             const tex3d = plan.write3d.tex3d?.name || plan.write3d.tex3d
             const geo = plan.write3d.geo?.name || plan.write3d.geo
             line += `\n  .write3d(${tex3d}, ${geo})`
