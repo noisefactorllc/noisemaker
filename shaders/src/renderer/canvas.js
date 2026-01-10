@@ -727,24 +727,41 @@ export class CanvasRenderer {
             // Update zoom so recompile uses the correct value for surface creation
             this._pipeline.zoom = zoom
 
-            const newGraph = recompile(this._pipeline, dsl, { shaderOverrides })
-            if (!newGraph) {
-                const previousPipeline = this._pipeline
-                this._pipeline = await createRuntime(dsl, {
-                    canvas: this._canvas,
-                    width: this._width,
-                    height: this._height,
-                    preferWebGPU: this._preferWebGPU,
-                    zoom,
-                    shaderOverrides
-                })
-                try {
-                    previousPipeline?.backend?.destroy?.()
-                } catch (err) {
-                    console.warn('Failed to release previous pipeline backend', err)
+            // Set isCompiling flag BEFORE recompile swaps the graph
+            // This prevents the render loop from trying to execute passes
+            // with programs that haven't been compiled yet
+            this._pipeline.isCompiling = true
+
+            try {
+                const newGraph = recompile(this._pipeline, dsl, { shaderOverrides })
+                if (!newGraph) {
+                    // Recompile failed, need to create a new pipeline from scratch
+                    this._pipeline.isCompiling = false
+                    const previousPipeline = this._pipeline
+                    this._pipeline = await createRuntime(dsl, {
+                        canvas: this._canvas,
+                        width: this._width,
+                        height: this._height,
+                        preferWebGPU: this._preferWebGPU,
+                        zoom,
+                        shaderOverrides
+                    })
+                    try {
+                        previousPipeline?.backend?.destroy?.()
+                    } catch (err) {
+                        console.warn('Failed to release previous pipeline backend', err)
+                    }
+                } else {
+                    // Recompile succeeded, now compile the programs
+                    // compilePrograms will clear the isCompiling flag when done
+                    await this._pipeline.compilePrograms()
                 }
-            } else {
-                await this._pipeline.compilePrograms()
+            } catch (err) {
+                // Ensure flag is cleared on error
+                if (this._pipeline) {
+                    this._pipeline.isCompiling = false
+                }
+                throw err
             }
         }
 

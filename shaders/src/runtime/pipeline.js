@@ -156,6 +156,8 @@ export class Pipeline {
         this._resolvedUniforms = {}  // Reused for oscillator resolution
         // Track render passes per frame
         this.lastPassCount = 0
+        // Flag to prevent rendering during async program compilation
+        this.isCompiling = false
     }
 
     /**
@@ -197,28 +199,35 @@ export class Pipeline {
     }
 
     /**
-     * Compile all shader programs referenced by the graph
+     * Compile all shader programs referenced by the graph.
+     * Sets isCompiling flag to prevent render loop from executing during compilation.
      */
     async compilePrograms() {
         if (!this.graph || !this.graph.passes) return
 
-        const compiled = new Set()
+        this.isCompiling = true
 
-        for (const pass of this.graph.passes) {
-            if (compiled.has(pass.program)) continue
+        try {
+            const compiled = new Set()
 
-            const spec = this.resolveProgramSpec(pass)
+            for (const pass of this.graph.passes) {
+                if (compiled.has(pass.program)) continue
 
-            if (!spec) {
-                throw {
-                    code: 'ERR_PROGRAM_SPEC_MISSING',
-                    program: pass.program,
-                    pass: pass.id
+                const spec = this.resolveProgramSpec(pass)
+
+                if (!spec) {
+                    throw {
+                        code: 'ERR_PROGRAM_SPEC_MISSING',
+                        program: pass.program,
+                        pass: pass.id
+                    }
                 }
-            }
 
-            await this.backend.compileProgram(pass.program, spec)
-            compiled.add(pass.program)
+                await this.backend.compileProgram(pass.program, spec)
+                compiled.add(pass.program)
+            }
+        } finally {
+            this.isCompiling = false
         }
     }
 
@@ -783,9 +792,18 @@ export class Pipeline {
     }
 
     /**
-     * Execute a single frame
+     * Execute a single frame.
+     * Skips rendering if compilation is in progress to avoid race conditions
+     * where passes reference programs that haven't been compiled yet.
      */
     render(time = 0) {
+        // Skip rendering if compilation is in progress
+        // This prevents ERR_PROGRAM_NOT_FOUND errors when the graph has been
+        // updated but programs haven't finished compiling yet
+        if (this.isCompiling) {
+            return
+        }
+
         // Handle deltaTime carefully - time is normalized 0-1 and wraps
         // When time wraps from ~1 to ~0, use a small positive delta instead of negative
         let deltaTime = this.lastTime > 0 ? time - this.lastTime : 0
