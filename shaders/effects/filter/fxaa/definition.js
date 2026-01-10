@@ -6,7 +6,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "Fxaa",
-  namespace: "classicNoisemaker",
+  namespace: "filter",
   func: "fxaa",
   tags: ["util"],
 

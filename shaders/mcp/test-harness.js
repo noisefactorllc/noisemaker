@@ -105,9 +105,9 @@ const TRANSPARENT_EXEMPT_EFFECTS = new Set([
  * Effects exempt from passthrough check.
  */
 const PASSTHROUGH_EXEMPT_EFFECTS = new Set([
+    'filter/fxaa',        // FXAA anti-aliasing only modifies edge pixels - subtle effect on smooth noise input
     'filter/pixelate',    // Pixelate groups colors into blocks - preserves average but changes structure
     'classicNoisemaker/aberration',      // Chromatic aberration uses edge mask (pow(dist, 3)) - center unchanged, edges shifted
-    'classicNoisemaker/fxaa',            // FXAA anti-aliasing only modifies edge pixels - subtle effect on smooth noise input
     'classicNoisemaker/onScreenDisplay', // OSD overlays text/UI elements - mostly passes through underlying image
     'classicNoisemaker/strayHair',       // Hair overlay effect - sparse thin lines over image preserve most pixels
 ])
