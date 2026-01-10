@@ -1520,6 +1520,9 @@ export class CanvasRenderer {
             return
         }
 
+        // Track if zoom was applied - we'll need to resize textures if so
+        let zoomValue = null
+
         // Iterate through all passes and apply step-specific values
         for (const pass of this._pipeline.graph.passes) {
             if (!pass || pass.stepIndex === undefined) continue
@@ -1527,6 +1530,11 @@ export class CanvasRenderer {
             const stepKey = `step_${pass.stepIndex}`
             const stepParams = stepParameterValues[stepKey]
             if (!stepParams) continue
+
+            // Check if zoom is in step params (for resize later)
+            if (stepParams.zoom !== undefined && zoomValue === null) {
+                zoomValue = stepParams.zoom
+            }
 
             // Get the effect definition for this pass
             const effectKey = pass.effectKey
@@ -1559,6 +1567,13 @@ export class CanvasRenderer {
                 const converted = this.convertParameterForUniform(value, spec)
                 pass.uniforms[uniformName] = Array.isArray(converted) ? converted.slice() : converted
             }
+        }
+
+        // If zoom was applied, resize the pipeline to update texture dimensions.
+        // This ensures simulation buffers (ca_state, mnca_state, rd_state) get sized
+        // correctly when the DSL contains a zoom parameter like ca(zoom: x4).
+        if (zoomValue !== null && this._pipeline.resize) {
+            this._pipeline.resize(this._pipeline.width, this._pipeline.height, zoomValue)
         }
     }
 }
