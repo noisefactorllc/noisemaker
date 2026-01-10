@@ -218,10 +218,25 @@ function formatValue(value, spec, options = {}) {
     }
 
     if (typeof value === 'string') {
-        // Quote strings ONLY when spec.type is 'string' (freeform text like text content)
         // Colors (hex strings like #ffffff) must NOT be quoted even though they're strings
-        // Identifiers and enum paths stay unquoted
-        if (type === 'string' && !value.startsWith('#')) {
+        if (value.startsWith('#')) {
+            return value
+        }
+
+        // Check if this looks like a valid unquoted identifier
+        // Valid identifiers: start with letter/underscore, contain only alphanumeric/underscore
+        const isValidIdentifier = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(value)
+
+        // Check if it's an enum path (like oscKind.sine)
+        const isEnumPath = /^[a-zA-Z_][a-zA-Z0-9_]*(\.[a-zA-Z_][a-zA-Z0-9_]*)+$/.test(value)
+
+        // Quote strings when:
+        // 1. spec.type is 'string' (freeform text like text content)
+        // 2. The value contains whitespace or special characters that would break parsing
+        // 3. The value is not a valid identifier or enum path
+        const needsQuoting = type === 'string' || (!isValidIdentifier && !isEnumPath)
+
+        if (needsQuoting) {
             // Use triple-quotes for multi-line strings
             if (value.includes('\n')) {
                 return `"""${value}"""`

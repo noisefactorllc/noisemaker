@@ -427,6 +427,75 @@ test('Vec3 spec type formats correctly', () => {
     assertNotIncludes(result, '0.6,0.7,0.8', 'Raw comma-separated Float32Array is BANNED');
 });
 
+// Test: String values with spaces must be quoted
+test('String values with spaces must be quoted', () => {
+    const compiled = {
+        searchNamespaces: ['filter'],
+        plans: [{
+            chain: [{ 
+                op: 'filter.fxaa', 
+                args: { 
+                    name: 'dla particles',   // Contains space - must be quoted
+                    id: 'sc1'                // Valid identifier - stays unquoted
+                } 
+            }],
+            write: { kind: 'output', name: 'o0' }
+        }]
+    };
+    
+    const result = unparse(compiled, {}, {});
+    
+    // name with space must be quoted
+    assertIncludes(result, 'name: "dla particles"', 'String with space must be quoted');
+    // id is a valid identifier - stays unquoted
+    assertIncludes(result, 'id: sc1', 'Valid identifier string stays unquoted');
+});
+
+// Test: Identifiers and enum paths stay unquoted
+test('Valid identifiers stay unquoted', () => {
+    const compiled = {
+        searchNamespaces: ['synth'],
+        plans: [{
+            chain: [{ 
+                op: 'synth.noise', 
+                args: { 
+                    mode: 'perlin',          // Valid identifier - unquoted
+                    seed: 'my_seed_123'      // Valid identifier with underscore - unquoted
+                } 
+            }],
+            write: { kind: 'output', name: 'o0' }
+        }]
+    };
+    
+    const result = unparse(compiled, {}, {});
+    
+    // Valid identifiers stay unquoted
+    assertIncludes(result, 'mode: perlin', 'Valid identifier stays unquoted');
+    assertIncludes(result, 'seed: my_seed_123', 'Identifier with underscore stays unquoted');
+    assertNotIncludes(result, '"perlin"', 'Valid identifier should not be quoted');
+});
+
+// Test: Strings starting with digits must be quoted
+test('Strings starting with digits must be quoted', () => {
+    const compiled = {
+        searchNamespaces: ['filter'],
+        plans: [{
+            chain: [{ 
+                op: 'filter.fxaa', 
+                args: { 
+                    id: '0vjd'              // Starts with digit - must be quoted
+                } 
+            }],
+            write: { kind: 'output', name: 'o0' }
+        }]
+    };
+    
+    const result = unparse(compiled, {}, {});
+    
+    // id starting with digit must be quoted (not a valid identifier)
+    assertIncludes(result, 'id: "0vjd"', 'String starting with digit must be quoted');
+});
+
 // Summary
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
