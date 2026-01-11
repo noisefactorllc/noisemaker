@@ -680,23 +680,23 @@ export function unparse(compiled, overrides = {}, options = {}) {
 
             // Build specs map from effect definition
             const specs = effectDef?.globals || {}
-            const hasSpecs = Object.keys(specs).length > 0
 
             // Apply overrides - filter to only include valid DSL parameters
-            // When we have effect specs, only include keys defined in globals
-            // This prevents internal tracking values from leaking to DSL
+            // When we have an effect definition, only include keys defined in globals
+            // This prevents internal tracking values or stale values from leaking to DSL
             // Exception: internal _ prefixed args like _skip are always allowed
             for (const [key, value] of Object.entries(stepOverrides)) {
                 // Always allow internal _ prefixed args (e.g., _skip)
                 if (key.startsWith('_')) {
                     call.kwargs[key] = value
-                } else if (hasSpecs) {
-                    // Only include keys that are defined in the effect's globals
+                } else if (effectDef) {
+                    // Effect definition exists - only include keys that are defined in globals
+                    // This handles effects with empty globals (like loopEnd) correctly
                     if (specs[key] !== undefined) {
                         call.kwargs[key] = value
                     }
                 } else {
-                    // No specs available - include all overrides (fallback for unknown effects)
+                    // No effect definition available - include all overrides (fallback for unknown effects)
                     // This should rarely happen since getEffectDef is usually provided
                     call.kwargs[key] = value
                 }
