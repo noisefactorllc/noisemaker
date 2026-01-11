@@ -76,6 +76,7 @@ export default new Effect({
     "invert": {
         "type": "boolean",
         "default": false,
+        "randChance": 0,
         "uniform": "invert",
         "ui": {
             "label": "invert threshold"
@@ -86,6 +87,8 @@ export default new Effect({
         "default": 1,
         "min": -5,
         "max": 5,
+        "randMin": -1,
+        "randMax": 1,
         "uniform": "orbitSpeed",
         "ui": {
             "label": "orbit speed"

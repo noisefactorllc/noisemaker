@@ -60,6 +60,7 @@ export default new Effect({
       default: 0,
       min: 0,
       max: 100,
+      randMax: 25,
       uniform: "mixAmt",
       ui: {
         label: "feedback",
