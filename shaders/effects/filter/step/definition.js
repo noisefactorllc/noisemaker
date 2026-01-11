@@ -18,6 +18,8 @@ export default new Effect({
       uniform: "threshold",
       min: 0,
       max: 1,
+      randMin: 0.25,
+      randMax: 0.75,
       step: 0.01,
       ui: {
         label: "Threshold",

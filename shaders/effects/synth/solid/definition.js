@@ -34,6 +34,7 @@ export default new Effect({
         "default": 1.0,
         "min": 0,
         "max": 1,
+        "randMin": 0.5,
         "uniform": "a"
     }
 },

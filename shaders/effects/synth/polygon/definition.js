@@ -57,6 +57,7 @@ export default new Effect({
     "fgAlpha": {
         "type": "float",
         "default": 1.0,
+        "randMin": 0.5,
         "min": 0.0,
         "max": 1.0,
         "uniform": "fgAlpha",

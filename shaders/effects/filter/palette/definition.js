@@ -66,6 +66,7 @@ export default new Effect({
       uniform: "alpha",
       min: 0,
       max: 1,
+      randMin: 0.5,
       step: 0.01,
       ui: {
         label: "Alpha",
