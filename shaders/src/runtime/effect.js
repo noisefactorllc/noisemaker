@@ -148,9 +148,9 @@ export function groupGlobalsByCategory(globals, options = {}) {
         categories[category].push([key, spec])
     }
 
-    // Add 'general' at the end if it exists
+    // Add 'general' at the beginning if it exists
     if (categories[DEFAULT_CATEGORY]) {
-        categoryOrder.push(DEFAULT_CATEGORY)
+        categoryOrder.unshift(DEFAULT_CATEGORY) 
     }
 
     // Return ordered object
