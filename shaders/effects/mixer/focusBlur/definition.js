@@ -21,8 +21,10 @@ export default new Effect({
       uniform: "focalDistance",
       min: 1,
       max: 100,
+      randMin: 5,
+      randMax: 75,
       ui: {
-        label: "focal distance",
+        label: "focal dist",
         control: "slider"
       }
     },
@@ -32,6 +34,7 @@ export default new Effect({
       uniform: "aperture",
       min: 1,
       max: 10,
+      randMax: 3,
       ui: {
         label: "aperture",
         control: "slider"
