@@ -150,7 +150,7 @@ export function groupGlobalsByCategory(globals, options = {}) {
 
     // Add 'general' at the beginning if it exists
     if (categories[DEFAULT_CATEGORY]) {
-        categoryOrder.unshift(DEFAULT_CATEGORY) 
+        categoryOrder.unshift(DEFAULT_CATEGORY)
     }
 
     // Return ordered object
