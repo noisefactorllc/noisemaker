@@ -6,7 +6,7 @@ export default new Effect({
   func: "distortion",
   tags: ["distort", "transform"],
 
-  description: "Displacement, reflection, and refraction effects between two surfaces",
+  description: "Displace, reflect, and refract with two surfaces",
   globals: {
     tex: {
       type: "surface",

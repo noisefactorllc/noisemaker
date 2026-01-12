@@ -6,7 +6,7 @@ export default new Effect({
   func: "focusBlur",
   tags: ["blur", "util"],
 
-  description: "Depth of field blur simulation using luminance-derived depth",
+  description: "Focus blur using luminance depth map",
   globals: {
     tex: {
       type: "surface",

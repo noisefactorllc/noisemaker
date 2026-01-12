@@ -180,7 +180,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     
     // Center and scale coordinates
     let centered = (uv - 0.5) * vec2f(aspect, 1.0);
-    let p = vec3f(centered * u.scale, 0.5);
+    let p = vec3f(centered * (21.0 - u.scale), 0.5);
     
     // Clamp octaves to valid range
     let oct = clamp(i32(u.octaves), 1, 3);

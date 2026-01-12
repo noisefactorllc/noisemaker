@@ -22,7 +22,7 @@ export default new Effect({
   globals: {
     scale: {
       type: "float",
-      default: 4.0,
+      default: 16,
       uniform: "scale",
       min: 0.5,
       max: 20,

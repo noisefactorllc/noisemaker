@@ -178,7 +178,7 @@ void main() {
     
     // Center and scale coordinates
     vec2 centered = (uv - 0.5) * vec2(aspect, 1.0);
-    vec3 p = vec3(centered * scale, 0.5);
+    vec3 p = vec3(centered * (21.0 - scale), 0.5);
     
     // Clamp octaves to valid range
     int oct = clamp(octaves, 1, 3);
