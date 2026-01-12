@@ -1,0 +1,78 @@
+import { Effect } from '../../../src/runtime/effect.js'
+
+export default new Effect({
+  name: "Focus Blur",
+  namespace: "mixer",
+  func: "focusBlur",
+  tags: ["blur", "util"],
+
+  description: "Depth of field blur simulation using luminance-derived depth",
+  globals: {
+    tex: {
+      type: "surface",
+      default: "none",
+      ui: {
+        label: "source B"
+      }
+    },
+    focalDistance: {
+      type: "float",
+      default: 50,
+      uniform: "focalDistance",
+      min: 1,
+      max: 100,
+      ui: {
+        label: "focal distance",
+        control: "slider"
+      }
+    },
+    aperture: {
+      type: "float",
+      default: 4,
+      uniform: "aperture",
+      min: 1,
+      max: 10,
+      ui: {
+        label: "aperture",
+        control: "slider"
+      }
+    },
+    sampleBias: {
+      type: "float",
+      default: 10,
+      uniform: "sampleBias",
+      min: 2,
+      max: 20,
+      ui: {
+        label: "sample spread",
+        control: "slider"
+      }
+    },
+    depthSource: {
+      type: "int",
+      default: 1,
+      uniform: "depthSource",
+      choices: {
+        sourceA: 0,
+        sourceB: 1
+      },
+      ui: {
+        label: "depth source",
+        control: "dropdown"
+      }
+    }
+  },
+  passes: [
+    {
+      name: "render",
+      program: "focusBlur",
+      inputs: {
+        inputTex: "inputTex",
+        tex: "tex"
+      },
+      outputs: {
+        fragColor: "outputTex"
+      }
+    }
+  ]
+})
