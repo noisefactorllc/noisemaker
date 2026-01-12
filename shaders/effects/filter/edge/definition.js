@@ -18,6 +18,7 @@ export default new Effect({
       uniform: "amount",
       min: 0.1,
       max: 5,
+      randMin: 1.0,
       ui: {
         label: "amount",
         control: "slider"
