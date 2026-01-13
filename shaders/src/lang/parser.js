@@ -127,12 +127,20 @@ export function parse(tokens) {
 
         // Parameter order: type, min, max, speed, offset, seed
         const paramOrder = ['type', 'min', 'max', 'speed', 'offset', 'seed']
+        const validParams = new Set(paramOrder)
         const defaults = {
             min: { type: 'Number', value: 0 },
             max: { type: 'Number', value: 1 },
             speed: { type: 'Number', value: 1 },
             offset: { type: 'Number', value: 0 },
             seed: { type: 'Number', value: 1 }
+        }
+
+        // Validate kwargs - reject unknown parameters
+        for (const key of Object.keys(kwargs)) {
+            if (!validParams.has(key)) {
+                throw new SyntaxError(`osc() unknown parameter '${key}' at line ${nameToken.line} col ${nameToken.col}. Valid: ${paramOrder.join(', ')}`)
+            }
         }
 
         const resolved = {}
@@ -159,6 +167,108 @@ export function parse(tokens) {
             speed: resolved.speed,
             offset: resolved.offset,
             seed: resolved.seed,
+            loc: { line: nameToken.line, col: nameToken.col }
+        }
+    }
+
+    /**
+     * Transform a midi() call into a Midi AST node.
+     *
+     * Midi signature:
+     * midi(channel, mode?, min?, max?, sensitivity?)
+     *
+     * channel: MIDI channel 1-16 (required)
+     * mode: midiMode enum (default midiMode.velocity)
+     * min: minimum output value (default 0)
+     * max: maximum output value (default 1)
+     * sensitivity: trigger falloff rate (default 1)
+     */
+    function transformMidiInvocation(call, nameToken) {
+        const args = Array.isArray(call.args) ? call.args : []
+        const kwargs = call.kwargs || {}
+
+        // Parameter order: channel, mode, min, max, sensitivity
+        const paramOrder = ['channel', 'mode', 'min', 'max', 'sensitivity']
+        const defaults = {
+            mode: { type: 'Member', path: ['midiMode', 'velocity'] },
+            min: { type: 'Number', value: 0 },
+            max: { type: 'Number', value: 1 },
+            sensitivity: { type: 'Number', value: 1 }
+        }
+
+        const resolved = {}
+
+        // Resolve each parameter from positional args or kwargs
+        for (let i = 0; i < paramOrder.length; i++) {
+            const paramName = paramOrder[i]
+            if (kwargs[paramName] !== undefined) {
+                resolved[paramName] = kwargs[paramName]
+            } else if (i < args.length) {
+                resolved[paramName] = args[i]
+            } else if (defaults[paramName] !== undefined) {
+                resolved[paramName] = defaults[paramName]
+            }
+        }
+
+        if (!resolved.channel) {
+            throw new SyntaxError(`midi() requires 'channel' argument at line ${nameToken.line} col ${nameToken.col}`)
+        }
+
+        return {
+            type: 'Midi',
+            channel: resolved.channel,
+            mode: resolved.mode,
+            min: resolved.min,
+            max: resolved.max,
+            sensitivity: resolved.sensitivity,
+            loc: { line: nameToken.line, col: nameToken.col }
+        }
+    }
+
+    /**
+     * Transform an audio() call into an Audio AST node.
+     *
+     * Audio signature:
+     * audio(band, min?, max?)
+     *
+     * band: audioBand enum (required) - low, mid, high, vol
+     * min: minimum output value (default 0)
+     * max: maximum output value (default 1)
+     */
+    function transformAudioInvocation(call, nameToken) {
+        const args = Array.isArray(call.args) ? call.args : []
+        const kwargs = call.kwargs || {}
+
+        // Parameter order: band, min, max
+        const paramOrder = ['band', 'min', 'max']
+        const defaults = {
+            min: { type: 'Number', value: 0 },
+            max: { type: 'Number', value: 1 }
+        }
+
+        const resolved = {}
+
+        // Resolve each parameter from positional args or kwargs
+        for (let i = 0; i < paramOrder.length; i++) {
+            const paramName = paramOrder[i]
+            if (kwargs[paramName] !== undefined) {
+                resolved[paramName] = kwargs[paramName]
+            } else if (i < args.length) {
+                resolved[paramName] = args[i]
+            } else if (defaults[paramName] !== undefined) {
+                resolved[paramName] = defaults[paramName]
+            }
+        }
+
+        if (!resolved.band) {
+            throw new SyntaxError(`audio() requires 'band' argument at line ${nameToken.line} col ${nameToken.col}`)
+        }
+
+        return {
+            type: 'Audio',
+            band: resolved.band,
+            min: resolved.min,
+            max: resolved.max,
             loc: { line: nameToken.line, col: nameToken.col }
         }
     }
@@ -737,8 +847,22 @@ export function parse(tokens) {
         if (nameToken.lexeme === 'from') {
             return transformFromInvocation(call, nameToken)
         }
+        // osc() is a value oscillator only if it has type: kwarg or first arg is oscKind member
+        // Otherwise it's treated as a synth effect call (e.g., osc(10) for frequency-based visual oscillator)
         if (nameToken.lexeme === 'osc') {
-            return transformOscInvocation(call, nameToken)
+            const hasTypeKwarg = kwargs && 'type' in kwargs
+            const firstArgIsOscKind = args.length > 0 && args[0] &&
+                args[0].type === 'Member' && args[0].path && args[0].path[0] === 'oscKind'
+            if (hasTypeKwarg || firstArgIsOscKind) {
+                return transformOscInvocation(call, nameToken)
+            }
+            // Fall through to return as regular Call node for synth effect
+        }
+        if (nameToken.lexeme === 'midi') {
+            return transformMidiInvocation(call, nameToken)
+        }
+        if (nameToken.lexeme === 'audio') {
+            return transformAudioInvocation(call, nameToken)
         }
         // read() is a pipeline built-in for reading 2D surfaces (semantic inverse of write)
         if (nameToken.lexeme === 'read') {

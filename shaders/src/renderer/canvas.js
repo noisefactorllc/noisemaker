@@ -25,6 +25,10 @@ import { createRuntime, recompile } from '../runtime/compiler.js'
 import { registerEffect, getEffect } from '../runtime/registry.js'
 import { mergeIntoEnums } from '../lang/enums.js'
 import { stdEnums } from '../lang/std_enums.js'
+import { MidiState, AudioState } from '../runtime/external-input.js'
+
+// Re-export for convenience
+export { MidiState, AudioState }
 
 // Known 3D generator effects (self-initialize volumes)
 const KNOWN_3D_GENERATORS = ['noise3d', 'cell3d', 'shape3d', 'fractal3d', 'ca3d', 'rd3d']
@@ -270,6 +274,10 @@ export class CanvasRenderer {
 
         // Enum registry (shared with lang system)
         this._enums = {}
+
+        // External input state (MIDI and Audio)
+        this._midiState = null
+        this._audioState = null
 
         // Bound render loop for proper `this` context
         this._boundRenderLoop = this._renderLoop.bind(this)
@@ -551,6 +559,50 @@ export class CanvasRenderer {
         }
     }
 
+    /**
+     * Set the MIDI state for midi() function resolution.
+     * Creates a new MidiState if not provided.
+     * @param {MidiState} [midiState] - MidiState instance (creates new if not provided)
+     * @returns {MidiState} The MIDI state instance
+     */
+    setMidiState(midiState) {
+        this._midiState = midiState || new MidiState()
+        if (this._pipeline) {
+            this._pipeline.setMidiState(this._midiState)
+        }
+        return this._midiState
+    }
+
+    /**
+     * Get the current MIDI state
+     * @returns {MidiState|null}
+     */
+    get midiState() {
+        return this._midiState
+    }
+
+    /**
+     * Set the audio state for audio() function resolution.
+     * Creates a new AudioState if not provided.
+     * @param {AudioState} [audioState] - AudioState instance (creates new if not provided)
+     * @returns {AudioState} The audio state instance
+     */
+    setAudioState(audioState) {
+        this._audioState = audioState || new AudioState()
+        if (this._pipeline) {
+            this._pipeline.setAudioState(this._audioState)
+        }
+        return this._audioState
+    }
+
+    /**
+     * Get the current audio state
+     * @returns {AudioState|null}
+     */
+    get audioState() {
+        return this._audioState
+    }
+
     // =========================================================================
     // Render Loop
     // =========================================================================
@@ -723,6 +775,13 @@ export class CanvasRenderer {
                 zoom,
                 shaderOverrides
             })
+            // Apply external input state to new pipeline
+            if (this._midiState) {
+                this._pipeline.setMidiState(this._midiState)
+            }
+            if (this._audioState) {
+                this._pipeline.setAudioState(this._audioState)
+            }
         } else {
             // Update zoom so recompile uses the correct value for surface creation
             this._pipeline.zoom = zoom
@@ -1498,6 +1557,13 @@ export class CanvasRenderer {
             if (currentValue === undefined) {
                 continue
             }
+
+            // Skip automation-controlled params (oscillator, midi, audio)
+            // These are evaluated at render time by resolvePassUniforms
+            if (currentValue && typeof currentValue === 'object' && (currentValue._varRef || currentValue.oscillator || currentValue.midi || currentValue.audio)) {
+                continue
+            }
+
             const converted = this.convertParameterForUniform(currentValue, spec)
 
             for (const binding of bindings) {
@@ -1553,6 +1619,12 @@ export class CanvasRenderer {
             // Apply each step-specific parameter to this pass's uniforms
             for (const [paramName, value] of Object.entries(stepParams)) {
                 if (paramName === '_skip') continue  // Skip internal flags
+
+                // Skip automation-controlled params (oscillator, midi, audio)
+                // These are evaluated at render time by resolvePassUniforms
+                if (value && typeof value === 'object' && (value._varRef || value.oscillator)) {
+                    continue
+                }
 
                 const spec = effectDef.globals[paramName]
                 if (!spec || spec.type === 'surface') continue

@@ -992,7 +992,7 @@ export class WebGL2Backend extends Backend {
         const gl = this.gl
         const programUniforms = program.uniforms
 
-        // Bind pass uniforms first (from DSL/effect defaults)
+        // Bind pass uniforms first (from DSL/effect defaults, includes resolved oscillators)
         if (pass.uniforms) {
             for (const name in pass.uniforms) {
                 const uniform = programUniforms[name]
@@ -1003,9 +1003,12 @@ export class WebGL2Backend extends Backend {
             }
         }
 
-        // Then bind globalUniforms on top (allows runtime overrides)
+        // Then bind globalUniforms (time, resolution, etc.) but SKIP any already in pass.uniforms
+        // Pass uniforms take precedence because they contain resolved automation values (oscillators, midi, audio)
         if (state.globalUniforms) {
             for (const name in state.globalUniforms) {
+                // Skip if pass.uniforms already set this - pass.uniforms has the resolved oscillator value
+                if (pass.uniforms && name in pass.uniforms) continue
                 const uniform = programUniforms[name]
                 if (!uniform) continue
                 const value = state.globalUniforms[name]

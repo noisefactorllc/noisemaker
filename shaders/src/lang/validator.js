@@ -1063,6 +1063,90 @@ export function validate(ast) {
                                 // Keep original AST for unparsing
                                 _ast: node
                             }
+                        } else if (node && node.type === 'Midi') {
+                            // MIDI node - resolve the mode enum value and pass through
+                            // The MIDI value will be evaluated at runtime by the pipeline
+                            const modeNode = node.mode
+                            let modeValue = 4 // default: velocity
+                            if (modeNode && modeNode.type === 'Member') {
+                                const resolved = resolveEnum(modeNode.path)
+                                if (typeof resolved === 'number') {
+                                    modeValue = resolved
+                                } else if (resolved && resolved.type === 'Number') {
+                                    modeValue = resolved.value
+                                }
+                            } else if (modeNode && modeNode.type === 'Ident') {
+                                // Try resolving as midiMode.{name}
+                                const resolved = resolveEnum(['midiMode', modeNode.name])
+                                if (typeof resolved === 'number') {
+                                    modeValue = resolved
+                                } else if (resolved && resolved.type === 'Number') {
+                                    modeValue = resolved.value
+                                }
+                            }
+                            // Resolve channel, min, max, sensitivity from the MIDI node
+                            const resolveMidiParam = (param) => {
+                                if (!param) return undefined
+                                if (param.type === 'Number') return param.value
+                                if (param.type === 'Boolean') return param.value ? 1 : 0
+                                if (param.type === 'Member') {
+                                    const r = resolveEnum(param.path)
+                                    if (typeof r === 'number') return r
+                                    if (r && r.type === 'Number') return r.value
+                                }
+                                return undefined
+                            }
+                            value = {
+                                midi: true,
+                                channel: resolveMidiParam(node.channel) ?? 1,
+                                mode: modeValue,
+                                min: resolveMidiParam(node.min) ?? 0,
+                                max: resolveMidiParam(node.max) ?? 1,
+                                sensitivity: resolveMidiParam(node.sensitivity) ?? 1,
+                                // Keep original AST for unparsing
+                                _ast: node
+                            }
+                        } else if (node && node.type === 'Audio') {
+                            // Audio node - resolve the band enum value and pass through
+                            // The audio value will be evaluated at runtime by the pipeline
+                            const bandNode = node.band
+                            let bandValue = 0 // default: low
+                            if (bandNode && bandNode.type === 'Member') {
+                                const resolved = resolveEnum(bandNode.path)
+                                if (typeof resolved === 'number') {
+                                    bandValue = resolved
+                                } else if (resolved && resolved.type === 'Number') {
+                                    bandValue = resolved.value
+                                }
+                            } else if (bandNode && bandNode.type === 'Ident') {
+                                // Try resolving as audioBand.{name}
+                                const resolved = resolveEnum(['audioBand', bandNode.name])
+                                if (typeof resolved === 'number') {
+                                    bandValue = resolved
+                                } else if (resolved && resolved.type === 'Number') {
+                                    bandValue = resolved.value
+                                }
+                            }
+                            // Resolve min, max from the Audio node
+                            const resolveAudioParam = (param) => {
+                                if (!param) return undefined
+                                if (param.type === 'Number') return param.value
+                                if (param.type === 'Boolean') return param.value ? 1 : 0
+                                if (param.type === 'Member') {
+                                    const r = resolveEnum(param.path)
+                                    if (typeof r === 'number') return r
+                                    if (r && r.type === 'Number') return r.value
+                                }
+                                return undefined
+                            }
+                            value = {
+                                audio: true,
+                                band: bandValue,
+                                min: resolveAudioParam(node.min) ?? 0,
+                                max: resolveAudioParam(node.max) ?? 1,
+                                // Keep original AST for unparsing
+                                _ast: node
+                            }
                         } else if (node && node.type === 'Member') {
                             const cur = resolveEnum(node.path)
                             if (typeof cur === 'number') {

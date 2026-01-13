@@ -11,6 +11,16 @@
 const oscKindNames = ['sine', 'tri', 'saw', 'sawInv', 'square', 'noise1d', 'noise2d']
 
 /**
+ * Map MIDI mode number to midiMode enum name
+ */
+const midiModeNames = ['noteChange', 'gateNote', 'gateVelocity', 'triggerNote', 'velocity']
+
+/**
+ * Map audio band number to audioBand enum name
+ */
+const audioBandNames = ['low', 'mid', 'high', 'vol']
+
+/**
  * Format an AST expression node back to DSL
             if (expr.oscType?.type === 'Ident') {
                 typeName = expr.oscType.name;
@@ -68,6 +78,52 @@ function formatOscillator(osc) {
     }
 
     return `osc(${parts.join(', ')})`
+}
+
+/**
+ * Format a MIDI value for DSL output
+ * @param {object} midi - MIDI configuration object
+ * @returns {string} DSL representation of the midi() call
+ */
+function formatMidi(midi) {
+    const parts = [`channel: ${midi.channel}`]
+
+    // Only include non-default values
+    const modeName = midiModeNames[midi.mode] || 'velocity'
+    if (modeName !== 'velocity') {
+        parts.push(`mode: midiMode.${modeName}`)
+    }
+    if (midi.min !== 0) {
+        parts.push(`min: ${midi.min}`)
+    }
+    if (midi.max !== 1) {
+        parts.push(`max: ${midi.max}`)
+    }
+    if (midi.sensitivity !== 1) {
+        parts.push(`sensitivity: ${midi.sensitivity}`)
+    }
+
+    return `midi(${parts.join(', ')})`
+}
+
+/**
+ * Format an audio value for DSL output
+ * @param {object} audio - Audio configuration object
+ * @returns {string} DSL representation of the audio() call
+ */
+function formatAudio(audio) {
+    const bandName = audioBandNames[audio.band] || 'low'
+    const parts = [`band: audioBand.${bandName}`]
+
+    // Only include non-default values
+    if (audio.min !== 0) {
+        parts.push(`min: ${audio.min}`)
+    }
+    if (audio.max !== 1) {
+        parts.push(`max: ${audio.max}`)
+    }
+
+    return `audio(${parts.join(', ')})`
 }
 
 /**
@@ -320,6 +376,22 @@ function formatValue(value, spec, options = {}) {
         if (value._ast && value._ast.type === 'Oscillator') {
             return formatOscillator(value)
         }
+        // Handle MIDI configuration
+        if (value.midi === true) {
+            return formatMidi(value)
+        }
+        // Handle MIDI AST from _ast property
+        if (value._ast && value._ast.type === 'Midi') {
+            return formatMidi(value)
+        }
+        // Handle Audio configuration
+        if (value.audio === true) {
+            return formatAudio(value)
+        }
+        // Handle Audio AST from _ast property
+        if (value._ast && value._ast.type === 'Audio') {
+            return formatAudio(value)
+        }
         // Handle special AST node types
         if (value.type === 'Oscillator') {
             // This is a raw Oscillator AST node - format it
@@ -347,6 +419,51 @@ function formatValue(value, spec, options = {}) {
                 parts.push(`seed: ${value.seed.value}`)
             }
             return `osc(${parts.join(', ')})`
+        }
+        // Handle raw Midi AST node
+        if (value.type === 'Midi') {
+            const parts = []
+            if (value.channel && value.channel.type === 'Number') {
+                parts.push(`channel: ${value.channel.value}`)
+            }
+            const modePath = value.mode
+            let modeName = 'velocity'
+            if (modePath && modePath.type === 'Member' && modePath.path) {
+                modeName = modePath.path[modePath.path.length - 1]
+            } else if (modePath && modePath.type === 'Ident') {
+                modeName = modePath.name
+            }
+            if (modeName !== 'velocity') {
+                parts.push(`mode: midiMode.${modeName}`)
+            }
+            if (value.min && value.min.type === 'Number' && value.min.value !== 0) {
+                parts.push(`min: ${value.min.value}`)
+            }
+            if (value.max && value.max.type === 'Number' && value.max.value !== 1) {
+                parts.push(`max: ${value.max.value}`)
+            }
+            if (value.sensitivity && value.sensitivity.type === 'Number' && value.sensitivity.value !== 1) {
+                parts.push(`sensitivity: ${value.sensitivity.value}`)
+            }
+            return `midi(${parts.join(', ')})`
+        }
+        // Handle raw Audio AST node
+        if (value.type === 'Audio') {
+            const bandPath = value.band
+            let bandName = 'low'
+            if (bandPath && bandPath.type === 'Member' && bandPath.path) {
+                bandName = bandPath.path[bandPath.path.length - 1]
+            } else if (bandPath && bandPath.type === 'Ident') {
+                bandName = bandPath.name
+            }
+            const parts = [`band: audioBand.${bandName}`]
+            if (value.min && value.min.type === 'Number' && value.min.value !== 0) {
+                parts.push(`min: ${value.min.value}`)
+            }
+            if (value.max && value.max.type === 'Number' && value.max.value !== 1) {
+                parts.push(`max: ${value.max.value}`)
+            }
+            return `audio(${parts.join(', ')})`
         }
         // Handle Read node (pipeline built-in)
         if (value.type === 'Read') {

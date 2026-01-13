@@ -2362,8 +2362,11 @@ render(o1)`
             return false
         }
 
-        // Structure is the same - apply state to pipeline
-        // programState is the source of truth (set by sliders)
+        // Structure is the same - update state from new DSL (may have different arg values)
+        // This is critical for automation bindings (oscillator, midi, audio) which may have changed
+        this._programState.fromDsl(dsl)
+
+        // Apply updated state to pipeline
         this._applyEffectParameterValues()
         return true
     }
@@ -3291,11 +3294,16 @@ render(o1)`
         // Check original raw kwargs for variable reference
         const rawKwarg = effectInfo.rawKwargs?.[key]
 
-        // If this param is controlled by an oscillator (or is a variable reference that
-        // resolves to an oscillator), show "automatic" and store the ORIGINAL reference.
-        if (value && typeof value === 'object' && value.oscillator === true) {
+        // If this param is controlled by an automation source (oscillator, midi, or audio),
+        // show "automatic" and store the ORIGINAL variable reference if applicable.
+        const isAutomated = value && typeof value === 'object' && (
+            value.oscillator === true ||
+            value.midi === true ||
+            value.audio === true
+        )
+        if (isAutomated) {
             // If the original was a variable reference (Ident), store that so we can
-            // output "scale: o" instead of inlining the oscillator
+            // output "scale: o" instead of inlining the automation config
             if (rawKwarg && rawKwarg.type === 'Ident') {
                 this._programState.setValue(effectKey, key, { _varRef: rawKwarg.name })
             }
@@ -4086,11 +4094,10 @@ render(o1)`
                 for (const [paramName, value] of Object.entries(params)) {
                     if (value === undefined || value === null) continue
 
-                    // Skip oscillator-controlled parameters - these use _varRef markers
-                    // to preserve the original variable reference in DSL output, but the
-                    // actual oscillator value is already stored in pass.uniforms and should
-                    // not be overwritten
-                    if (value && typeof value === 'object' && value._varRef) {
+                    // Skip automation-controlled parameters (oscillator, midi, audio) - these use
+                    // _varRef markers or oscillator/midi/audio flags to preserve the original
+                    // variable reference in DSL output. The actual value is resolved at runtime.
+                    if (value && typeof value === 'object' && (value._varRef || value.oscillator || value.midi || value.audio)) {
                         continue
                     }
 

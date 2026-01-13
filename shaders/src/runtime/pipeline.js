@@ -120,6 +120,120 @@ function evaluateOscillator(osc, normalizedTime) {
     return min + value * (max - min)
 }
 
+/**
+ * Evaluate a MIDI automation value based on channel state.
+ *
+ * MIDI Modes:
+ * 0: noteChange - value from note number regardless of gate
+ * 1: gateNote - value from note only while gate is on
+ * 2: gateVelocity - value from velocity only while gate is on
+ * 3: triggerNote - note value with time-based falloff from note-on
+ * 4: velocity - velocity with time-based falloff (default)
+ *
+ * @param {object} config - MIDI configuration
+ * @param {number} config.channel - MIDI channel (1-16)
+ * @param {number} config.mode - MIDI mode (0-4)
+ * @param {number} config.min - Minimum output value
+ * @param {number} config.max - Maximum output value
+ * @param {number} config.sensitivity - Trigger falloff rate (higher = faster decay)
+ * @param {import('./external-input.js').MidiState} midiState - Current MIDI state
+ * @param {number} currentTime - Current time (Date.now())
+ * @returns {number} The evaluated value in min..max range
+ */
+function evaluateMidi(config, midiState, currentTime) {
+    if (!midiState) return config.min
+
+    const channel = midiState.getChannel(config.channel)
+    const { mode, min, max, sensitivity } = config
+
+    let rawValue = 0
+
+    switch (mode) {
+        case 0: // noteChange - value from note regardless of gate
+            rawValue = channel.key
+            break
+
+        case 1: // gateNote - value from note only while gate on
+            if (channel.gate === 1) {
+                rawValue = channel.key
+            }
+            break
+
+        case 2: // gateVelocity - value from velocity only while gate on
+            if (channel.gate === 1) {
+                rawValue = channel.velocity
+            }
+            break
+
+        case 3: // triggerNote - note value with falloff
+            if (channel.gate === 1) {
+                rawValue = channel.key
+                const elapsed = currentTime - channel.time
+                const decay = Math.min(1, elapsed * sensitivity * 0.001)
+                rawValue = rawValue * (1 - decay)
+            }
+            break
+
+        case 4: // velocity (default) - velocity with falloff
+        default:
+            if (channel.gate === 1) {
+                rawValue = channel.velocity
+                const elapsed = currentTime - channel.time
+                const decay = Math.min(1, elapsed * sensitivity * 0.001)
+                rawValue = rawValue * (1 - decay)
+            }
+            break
+    }
+
+    // Map 0-127 MIDI range to min-max output range
+    const normalized = rawValue / 127
+    return min + normalized * (max - min)
+}
+
+/**
+ * Evaluate an audio automation value based on frequency band.
+ *
+ * Audio Bands:
+ * 0: low - Low frequency band
+ * 1: mid - Mid frequency band
+ * 2: high - High frequency band
+ * 3: vol - Overall volume
+ *
+ * @param {object} config - Audio configuration
+ * @param {number} config.band - Audio band (0-3)
+ * @param {number} config.min - Minimum output value
+ * @param {number} config.max - Maximum output value
+ * @param {import('./external-input.js').AudioState} audioState - Current audio state
+ * @returns {number} The evaluated value in min..max range
+ */
+function evaluateAudio(config, audioState) {
+    if (!audioState) return config.min
+
+    const { band, min, max } = config
+
+    let rawValue = 0
+
+    switch (band) {
+        case 0: // low
+            rawValue = audioState.low
+            break
+        case 1: // mid
+            rawValue = audioState.mid
+            break
+        case 2: // high
+            rawValue = audioState.high
+            break
+        case 3: // vol
+        default:
+            rawValue = audioState.vol
+            break
+    }
+
+    // rawValue is already 0-1, clamp and map to min-max
+    rawValue = Math.max(0, Math.min(1, rawValue))
+    return min + rawValue * (max - min)
+}
+
 export class Pipeline {
     constructor(graph, backend) {
         this.graph = graph
@@ -158,6 +272,29 @@ export class Pipeline {
         this.lastPassCount = 0
         // Flag to prevent rendering during async program compilation
         this.isCompiling = false
+        // External input state (MIDI & Audio) - set by host application
+        this.externalState = {
+            midi: null,   // MidiState instance
+            audio: null   // AudioState instance
+        }
+    }
+
+    /**
+     * Set the MIDI state for midi() function resolution.
+     * The host application should create a MidiState instance and pass it here.
+     * @param {import('./external-input.js').MidiState} midiState
+     */
+    setMidiState(midiState) {
+        this.externalState.midi = midiState
+    }
+
+    /**
+     * Set the audio state for audio() function resolution.
+     * The host application should create an AudioState instance and pass it here.
+     * @param {import('./external-input.js').AudioState} audioState
+     */
+    setAudioState(audioState) {
+        this.externalState.audio = audioState
     }
 
     /**
@@ -631,8 +768,20 @@ export class Pipeline {
     }
 
     /**
+     * Check if a value is an automation config (oscillator, midi, audio)
+     * These should not be overwritten by setUniform calls
+     * @param {any} value - Value to check
+     * @returns {boolean} True if this is an automation config
+     */
+    isAutomationConfig(value) {
+        return value && typeof value === 'object' &&
+            (value.oscillator === true || value.midi === true || value.audio === true)
+    }
+
+    /**
      * Set a global uniform value
      * Automatically triggers texture resizing if the parameter affects texture dimensions
+     * NOTE: Does not overwrite automation configs (oscillator, midi, audio) in pass uniforms
      * @param {string} name - Uniform name
      * @param {any} value - Uniform value
      */
@@ -660,15 +809,24 @@ export class Pipeline {
         if (this.graph && this.graph.passes) {
             for (const pass of this.graph.passes) {
                 if (pass.uniforms && name in pass.uniforms) {
-                    pass.uniforms[name] = value
+                    // Don't overwrite automation configs (oscillators, midi, audio)
+                    // These are set by the DSL and should take precedence over UI/defaults
+                    const currentValue = pass.uniforms[name]
+                    if (!this.isAutomationConfig(currentValue)) {
+                        pass.uniforms[name] = value
+                    }
                 }
                 // Only propagate from base name to scoped variants, not from scoped to scoped
                 // This allows each pipeline's stateSize to be set independently
                 if (!isScopedUniform && pass.uniforms) {
                     for (const key of Object.keys(pass.uniforms)) {
                         if (key.startsWith(name + '_node_')) {
-                            pass.uniforms[key] = value
-                            this.globalUniforms[key] = value
+                            // Don't overwrite automation configs
+                            const currentValue = pass.uniforms[key]
+                            if (!this.isAutomationConfig(currentValue)) {
+                                pass.uniforms[key] = value
+                                this.globalUniforms[key] = value
+                            }
                         }
                     }
                 }
@@ -919,19 +1077,32 @@ export class Pipeline {
     }
 
     /**
-     * Resolve oscillators in a uniform value.
-     * If the value is an oscillator configuration, evaluate it.
-     * @param {any} value - The uniform value (may be an oscillator config)
+     * Resolve automation values (oscillators, MIDI, audio) in a uniform value.
+     * If the value is an automation configuration, evaluate it.
+     * @param {any} value - The uniform value (may be an automation config)
      * @param {number} time - Current time in seconds
      * @returns {any} The resolved value
      */
     resolveUniformValue(value, time) {
+        if (!value || typeof value !== 'object') return value
+
         // Check if this is an oscillator configuration
         // Note: `time` is already normalized 0-1 from CanvasRenderer
-        if (value && typeof value === 'object' && value.oscillator === true) {
-            const result = evaluateOscillator(value, time)
-            return result
+        if (value.oscillator === true) {
+            return evaluateOscillator(value, time)
         }
+
+        // Check if this is a MIDI configuration
+        // Uses Date.now() for trigger falloff timing (real-time evaluation)
+        if (value.midi === true) {
+            return evaluateMidi(value, this.externalState.midi, Date.now())
+        }
+
+        // Check if this is an audio configuration
+        if (value.audio === true) {
+            return evaluateAudio(value, this.externalState.audio)
+        }
+
         return value
     }
 

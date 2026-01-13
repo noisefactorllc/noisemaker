@@ -13,8 +13,26 @@ const oscKindEnum = {
     saw: { type: 'Number', value: 2 },       // 0 -> 1
     sawInv: { type: 'Number', value: 3 },    // 1 -> 0
     square: { type: 'Number', value: 4 },    // on/off
+    noise: { type: 'Number', value: 5 },     // periodic noise (alias for noise1d)
     noise1d: { type: 'Number', value: 5 },   // scrolling periodic noise
     noise2d: { type: 'Number', value: 6 }    // two-stage periodic noise
+}
+
+// MIDI mode enum for midi() function
+const midiModeEnum = {
+    noteChange: { type: 'Number', value: 0 },     // value from note regardless of gate
+    gateNote: { type: 'Number', value: 1 },       // value from note only while gate on
+    gateVelocity: { type: 'Number', value: 2 },   // value from velocity only while gate on
+    triggerNote: { type: 'Number', value: 3 },    // note value with time-based falloff
+    velocity: { type: 'Number', value: 4 }        // velocity with time-based falloff (default)
+}
+
+// Audio band enum for audio() function
+const audioBandEnum = {
+    low: { type: 'Number', value: 0 },    // Low frequency band (~0-200Hz)
+    mid: { type: 'Number', value: 1 },    // Mid frequency band (~200-2000Hz)
+    high: { type: 'Number', value: 2 },   // High frequency band (~2000Hz+)
+    vol: { type: 'Number', value: 3 }     // Overall volume (average)
 }
 
 export const stdEnums = {
@@ -39,5 +57,7 @@ export const stdEnums = {
         noise2d: { type: 'Number', value: 6 }
     },
     oscKind: oscKindEnum,
+    midiMode: midiModeEnum,
+    audioBand: audioBandEnum,
     palette: paletteEnum
 }

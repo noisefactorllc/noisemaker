@@ -40,6 +40,9 @@ export { WebGPUBackend } from './runtime/backends/webgpu.js'
 import { Pipeline, createPipeline } from './runtime/pipeline.js'
 export { Pipeline, createPipeline }
 
+// External Input (MIDI & Audio)
+export { MidiState, MidiChannelState, AudioState } from './runtime/external-input.js'
+
 // Integration
 import { compileGraph, createRuntime, recompile } from './runtime/compiler.js'
 export { compileGraph, createRuntime, recompile }

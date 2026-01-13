@@ -1639,13 +1639,15 @@ export class WebGPUBackend extends Backend {
             bindings = bindings.filter(b => neededBindingNames.has(b.name))
         }
 
-        // Helper to get uniform value with proper precedence (global overrides pass)
+        // Helper to get uniform value with proper precedence
+        // Pass uniforms take precedence because they contain resolved automation values (oscillators, midi, audio)
+        // Global uniforms (time, resolution, etc.) are used as fallback
         const getUniform = (name) => {
-            if (state.globalUniforms && name in state.globalUniforms) {
-                return state.globalUniforms[name]
-            }
             if (pass.uniforms && name in pass.uniforms) {
                 return pass.uniforms[name]
+            }
+            if (state.globalUniforms && name in state.globalUniforms) {
+                return state.globalUniforms[name]
             }
             return undefined
         }
@@ -2160,7 +2162,7 @@ export class WebGPUBackend extends Backend {
         }
         mergedKeys.length = 0
 
-        // Copy pass uniforms
+        // Copy pass uniforms (these include resolved oscillators, midi, audio values)
         if (pass.uniforms) {
             for (const key in pass.uniforms) {
                 const val = pass.uniforms[key]
@@ -2171,9 +2173,12 @@ export class WebGPUBackend extends Backend {
             }
         }
 
-        // Copy/override with global uniforms
+        // Copy global uniforms (time, resolution, etc.) but SKIP keys already in pass.uniforms
+        // Pass uniforms take precedence because they contain resolved automation values
         if (state.globalUniforms) {
             for (const key in state.globalUniforms) {
+                // Skip if pass.uniforms already has this key - pass.uniforms has resolved automation values
+                if (pass.uniforms && key in pass.uniforms) continue
                 const val = state.globalUniforms[key]
                 if (val !== undefined) {
                     if (merged[key] === undefined) {

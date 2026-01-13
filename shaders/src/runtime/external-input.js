@@ -1,0 +1,225 @@
+/**
+ * External Input State Classes for MIDI and Audio
+ *
+ * These classes manage state for real-time MIDI and audio input.
+ * The host application updates these states, and the Pipeline
+ * reads them during uniform resolution for midi() and audio() functions.
+ */
+
+/**
+ * MIDI channel state for a single channel.
+ * Tracks note number, velocity, gate state, and timing for trigger modes.
+ */
+export class MidiChannelState {
+    constructor() {
+        /** @type {number} Last note number (0-127) */
+        this.key = 0
+        /** @type {number} Last velocity (0-127) */
+        this.velocity = 0
+        /** @type {number} Gate state: 1 = note on, 0 = note off */
+        this.gate = 0
+        /** @type {number} Timestamp of last note-on (Date.now()) */
+        this.time = 0
+    }
+
+    /**
+     * Handle a note-on event.
+     * @param {number} key - MIDI note number (0-127)
+     * @param {number} velocity - Note velocity (0-127)
+     */
+    noteOn(key, velocity) {
+        this.key = key
+        this.velocity = velocity
+        this.gate = 1
+        this.time = Date.now()
+    }
+
+    /**
+     * Handle a note-off event.
+     * Preserves the last key and velocity for reference.
+     */
+    noteOff() {
+        this.gate = 0
+    }
+
+    /**
+     * Reset the channel state.
+     */
+    reset() {
+        this.key = 0
+        this.velocity = 0
+        this.gate = 0
+        this.time = 0
+    }
+}
+
+/**
+ * Complete MIDI state for all 16 MIDI channels.
+ * Provides per-channel state tracking for the Pipeline.
+ */
+export class MidiState {
+    constructor() {
+        /** @type {Object.<number, MidiChannelState>} Per-channel state (1-16) */
+        this.channels = {}
+        for (let i = 1; i <= 16; i++) {
+            this.channels[i] = new MidiChannelState()
+        }
+    }
+
+    /**
+     * Get the state for a specific MIDI channel.
+     * @param {number} n - Channel number (1-16)
+     * @returns {MidiChannelState} The channel state
+     */
+    getChannel(n) {
+        const channel = this.channels[n]
+        if (channel) return channel
+        // Fallback to channel 1 for invalid channel numbers
+        return this.channels[1]
+    }
+
+    /**
+     * Process a raw MIDI message.
+     * Parses the status byte and routes to appropriate channel.
+     * @param {Uint8Array} data - Raw MIDI message data [status, key, velocity]
+     */
+    handleMessage(data) {
+        if (!data || data.length < 3) return
+
+        const [status, key, velocity] = data
+        const channel = (status & 0x0F) + 1  // Extract channel (1-16)
+        const messageType = status & 0xF0     // Extract message type
+
+        const channelState = this.getChannel(channel)
+
+        // Note On (0x90) with velocity > 0
+        if (messageType === 0x90 && velocity > 0) {
+            channelState.noteOn(key, velocity)
+        }
+        // Note Off (0x80) or Note On with velocity 0
+        else if (messageType === 0x80 || (messageType === 0x90 && velocity === 0)) {
+            channelState.noteOff()
+        }
+    }
+
+    /**
+     * Reset all channel states.
+     */
+    reset() {
+        for (let i = 1; i <= 16; i++) {
+            this.channels[i].reset()
+        }
+    }
+}
+
+/**
+ * Audio analysis state.
+ * Provides frequency band data extracted from an AnalyserNode.
+ */
+export class AudioState {
+    constructor() {
+        /** @type {number} Low frequency band level (0-1) */
+        this.low = 0
+        /** @type {number} Mid frequency band level (0-1) */
+        this.mid = 0
+        /** @type {number} High frequency band level (0-1) */
+        this.high = 0
+        /** @type {number} Overall volume level (0-1) */
+        this.vol = 0
+        /** @type {Float32Array} Raw FFT bins (16 bins, normalized 0-1) */
+        this.fft = new Float32Array(16)
+
+        // Internal buffer for smoothing
+        this._smoothingBuffers = {
+            low: [],
+            mid: [],
+            high: []
+        }
+        this._maxBufferLength = 5
+    }
+
+    /**
+     * Update audio state from a Web Audio AnalyserNode.
+     * Extracts frequency bands and calculates overall volume.
+     *
+     * @param {AnalyserNode} analyser - Web Audio AnalyserNode
+     * @param {number} [smoothing=5] - Number of frames to average (1-10)
+     */
+    updateFromAnalyser(analyser, smoothing = 5) {
+        if (!analyser) return
+
+        this._maxBufferLength = Math.max(1, Math.min(10, smoothing))
+
+        const buf = new Uint8Array(analyser.frequencyBinCount)
+        analyser.getByteFrequencyData(buf)
+
+        // Extract frequency bands from FFT bins
+        // Bin indices based on noisedeck-pro: 0=low, 2=mid, 4=high
+        const rawLow = buf[0] / 255
+        const rawMid = buf[2] / 255
+        const rawHigh = buf[4] / 255
+
+        // Apply smoothing via rolling average
+        this.low = this._smooth('low', rawLow)
+        this.mid = this._smooth('mid', rawMid)
+        this.high = this._smooth('high', rawHigh)
+
+        // Calculate FFT bins and overall volume
+        const step = Math.max(1, Math.floor(buf.length / 16))
+        let sum = 0
+        for (let i = 0; i < 16; i++) {
+            const v = buf[i * step] / 255
+            this.fft[i] = v
+            sum += v
+        }
+        this.vol = sum / 16
+    }
+
+    /**
+     * Directly set frequency band values.
+     * Useful for testing or non-Web Audio sources.
+     *
+     * @param {number} low - Low band level (0-1)
+     * @param {number} mid - Mid band level (0-1)
+     * @param {number} high - High band level (0-1)
+     */
+    setBands(low, mid, high) {
+        this.low = Math.max(0, Math.min(1, low))
+        this.mid = Math.max(0, Math.min(1, mid))
+        this.high = Math.max(0, Math.min(1, high))
+        this.vol = (this.low + this.mid + this.high) / 3
+    }
+
+    /**
+     * Apply smoothing to a value using a rolling buffer.
+     * @private
+     */
+    _smooth(band, value) {
+        const buffer = this._smoothingBuffers[band]
+
+        if (buffer.length < this._maxBufferLength) {
+            buffer.push(value)
+        } else {
+            // Rotate buffer
+            buffer.shift()
+            buffer.push(value)
+        }
+
+        // Return average
+        return buffer.reduce((a, b) => a + b, 0) / buffer.length
+    }
+
+    /**
+     * Reset audio state to zero.
+     */
+    reset() {
+        this.low = 0
+        this.mid = 0
+        this.high = 0
+        this.vol = 0
+        this.fft.fill(0)
+        this._smoothingBuffers.low = []
+        this._smoothingBuffers.mid = []
+        this._smoothingBuffers.high = []
+    }
+}

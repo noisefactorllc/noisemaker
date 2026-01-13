@@ -96,7 +96,7 @@ export class ProgramState extends Emitter {
         const stepState = this._stepStates.get(stepKey)
         if (!stepState) return undefined
         const value = stepState.values[paramName]
-        // Unwrap oscillator bindings to return actual value
+        // Unwrap automation bindings (oscillator, midi, audio) to return actual value
         if (value && typeof value === 'object' && value._varRef) {
             return value.value
         }
@@ -124,7 +124,7 @@ export class ProgramState extends Emitter {
             value = this._validateValue(value, effectDef.globals[paramName])
         }
 
-        // Preserve oscillator binding if present
+        // Preserve automation binding (_varRef) if present (for oscillator, midi, audio)
         const currentValue = stepState.values[paramName]
         if (currentValue && typeof currentValue === 'object' && currentValue._varRef) {
             stepState.values[paramName] = { ...currentValue, value }
@@ -148,7 +148,7 @@ export class ProgramState extends Emitter {
         const stepState = this._stepStates.get(stepKey)
         if (!stepState) return {}
 
-        // Unwrap oscillator bindings
+        // Unwrap automation bindings (oscillator, midi, audio)
         const result = {}
         for (const [key, value] of Object.entries(stepState.values)) {
             if (value && typeof value === 'object' && value._varRef) {
@@ -714,6 +714,41 @@ export class ProgramState extends Emitter {
         return result
     }
 
+    /**
+     * Get a proxy object for backward compatibility with effectParameterValues
+     * Reads/writes go through to the underlying step states
+     * @returns {Proxy}
+     */
+    getEffectParameterValuesProxy() {
+        const self = this
+        return new Proxy({}, {
+            get(target, stepKey) {
+                if (typeof stepKey !== 'string') return undefined
+                const stepState = self._stepStates.get(stepKey)
+                if (!stepState) return undefined
+                // Return a proxy for the step's values
+                return new Proxy(stepState.values, {
+                    set(valuesTarget, paramName, value) {
+                        self.setValue(stepKey, paramName, value)
+                        return true
+                    }
+                })
+            },
+            has(target, stepKey) {
+                return self._stepStates.has(stepKey)
+            },
+            ownKeys() {
+                return [...self._stepStates.keys()]
+            },
+            getOwnPropertyDescriptor(target, stepKey) {
+                if (self._stepStates.has(stepKey)) {
+                    return { enumerable: true, configurable: true }
+                }
+                return undefined
+            }
+        })
+    }
+
     // =========================================================================
     // Routing Override Methods
     // =========================================================================
@@ -969,8 +1004,8 @@ export class ProgramState extends Emitter {
                     if (value === undefined || value === null) continue
                     if (paramName.startsWith('_')) continue  // Skip internal flags
 
-                    // Skip oscillator-controlled params (oscillator manages the value)
-                    if (value && typeof value === 'object' && value._varRef) {
+                    // Skip automation-controlled params (oscillator, midi, audio manage the value)
+                    if (value && typeof value === 'object' && (value._varRef || value.oscillator)) {
                         continue
                     }
 
@@ -1247,8 +1282,14 @@ export class ProgramState extends Emitter {
             }
 
             // Override with preserved values (but not if they're defaults)
+            // Skip if DSL arg is an automation binding (oscillator, midi, audio)
             for (const [paramName, value] of Object.entries(preservedVals)) {
                 if (paramName.startsWith('_') || value !== undefined) {
+                    // Don't overwrite automation bindings from DSL with preserved scalar values
+                    const dslArg = effect.args?.[paramName]
+                    if (dslArg && typeof dslArg === 'object' && (dslArg.oscillator || dslArg.midi || dslArg.audio)) {
+                        continue
+                    }
                     values[paramName] = this._cloneValue(value)
                 }
             }
@@ -1304,7 +1345,7 @@ export class ProgramState extends Emitter {
                 // Skip internal flags EXCEPT _skip which is a DSL argument
                 if (paramName.startsWith('_') && paramName !== '_skip') continue
 
-                // Unwrap oscillator bindings for DSL (use varRef, not value)
+                // Unwrap automation bindings for DSL (use varRef, not value)
                 if (value && typeof value === 'object' && value._varRef) {
                     stepOverrides[paramName] = { _varRef: value._varRef }
                 } else {
