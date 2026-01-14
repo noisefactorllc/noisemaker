@@ -1139,6 +1139,11 @@ export class ProgramState extends Emitter {
     _validateValue(value, spec) {
         if (!spec) return value
 
+        // Preserve automation configs (oscillator, midi, audio) untouched
+        if (value && typeof value === 'object' && (value.oscillator || value.midi || value.audio)) {
+            return value
+        }
+
         switch (spec.type) {
             case 'float':
                 value = parseFloat(value)
