@@ -408,6 +408,35 @@ Oscillators are evaluated per-frame based on the current animation time. The pip
 
 The resulting value is mapped from the internal 0..1 range to the specified min..max range, making oscillators suitable for any numeric parameter regardless of its expected range.
 
+Live Input
+----------
+
+Use ``midi()`` and ``audio()`` to drive parameters from external signals. Both map incoming data to a numeric range and can be mixed with oscillators or constants.
+
+``midi(channel, mode?, min?, max?, sensitivity?)``
+
+* ``channel`` (required): MIDI channel 1-16
+* ``mode``: ``midiMode.*`` (default ``midiMode.velocity``)
+* ``min`` / ``max``: Output range (default 0..1)
+* ``sensitivity``: Decay rate for trigger modes (default 1)
+
+``audio(band, min?, max?)``
+
+* ``band`` (required): ``audioBand.low | audioBand.mid | audioBand.high | audioBand.vol``
+* ``min`` / ``max``: Output range (default 0..1)
+
+Example:
+
+.. code-block:: none
+
+   search synth
+   noise(
+     scale: midi(channel: 1, min: 1, max: 10),
+     speed: audio(band: audioBand.low, min: 0.5, max: 2)
+   ).write(o0)
+
+For detailed behavior and host integration, see :doc:`midi-audio`.
+
 Pipeline Integration
 --------------------
 
