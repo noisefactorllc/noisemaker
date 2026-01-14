@@ -129,6 +129,7 @@ export function parse(tokens) {
         const paramOrder = ['type', 'min', 'max', 'speed', 'offset', 'seed']
         const validParams = new Set(paramOrder)
         const defaults = {
+            type: { type: 'Member', path: ['oscKind', 'sine'] },
             min: { type: 'Number', value: 0 },
             max: { type: 'Number', value: 1 },
             speed: { type: 'Number', value: 1 },
@@ -847,13 +848,13 @@ export function parse(tokens) {
         if (nameToken.lexeme === 'from') {
             return transformFromInvocation(call, nameToken)
         }
-        // osc() is a value oscillator only if it has type: kwarg or first arg is oscKind member
-        // Otherwise it's treated as a synth effect call (e.g., osc(10) for frequency-based visual oscillator)
+        // osc() is always a value oscillator
         if (nameToken.lexeme === 'osc') {
             const hasTypeKwarg = kwargs && 'type' in kwargs
             const firstArgIsOscKind = args.length > 0 && args[0] &&
                 args[0].type === 'Member' && args[0].path && args[0].path[0] === 'oscKind'
-            if (hasTypeKwarg || firstArgIsOscKind) {
+            const isBareOsc = args.length === 0 && (!kwargs || Object.keys(kwargs).length === 0)
+            if (hasTypeKwarg || firstArgIsOscKind || isBareOsc) {
                 return transformOscInvocation(call, nameToken)
             }
             // Fall through to return as regular Call node for synth effect

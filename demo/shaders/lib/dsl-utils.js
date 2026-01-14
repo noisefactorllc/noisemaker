@@ -75,13 +75,31 @@ export function extractEffectsFromDsl(dsl) {
                     shortName = fullOpName.split('.').pop()
                 }
 
+                // Preserve automation bindings even if validation normalized them to scalars
+                const rawArgs = originalKwargs[globalStepIndex] || {}
+                const args = step.args ? { ...step.args } : {}
+                for (const [paramName, rawVal] of Object.entries(rawArgs)) {
+                    const isRawAutomation = rawVal && typeof rawVal === 'object' && (
+                        rawVal.type === 'Oscillator' || rawVal.type === 'Midi' || rawVal.type === 'Audio' ||
+                        rawVal._ast?.type === 'Oscillator' || rawVal._ast?.type === 'Midi' || rawVal._ast?.type === 'Audio'
+                    )
+                    const currentVal = args[paramName]
+                    const isArgAutomation = currentVal && typeof currentVal === 'object' && (
+                        currentVal.type === 'Oscillator' || currentVal.type === 'Midi' || currentVal.type === 'Audio' ||
+                        currentVal._ast?.type === 'Oscillator' || currentVal._ast?.type === 'Midi' || currentVal._ast?.type === 'Audio'
+                    )
+                    if (isRawAutomation && !isArgAutomation) {
+                        args[paramName] = rawVal
+                    }
+                }
+
                 effects.push({
                     effectKey: fullOpName,
                     namespace,
                     name: shortName,
                     fullName: fullOpName,
-                    args: step.args || {},
-                    rawKwargs: originalKwargs[globalStepIndex] || {},
+                    args,
+                    rawKwargs: rawArgs,
                     stepIndex: globalStepIndex,
                     temp: step.temp
                 })

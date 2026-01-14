@@ -79,7 +79,7 @@ test('midi() compiles to runtime config and resolves correctly', () => {
     const scaleArg = result.plans[0].chain[0].args.scale
     
     // Verify it compiled correctly
-    assertEqual(scaleArg.midi, true, 'should have midi flag')
+    assertEqual(scaleArg.type, 'Midi', 'should have type Midi')
     assertEqual(scaleArg.channel, 1, 'should have channel')
     assertEqual(scaleArg.min, 1, 'should have min')
     assertEqual(scaleArg.max, 10, 'should have max')
@@ -164,7 +164,7 @@ test('audio() compiles to runtime config and resolves correctly', () => {
     const scaleArg = result.plans[0].chain[0].args.scale
     
     // Verify it compiled correctly
-    assertEqual(scaleArg.audio, true, 'should have audio flag')
+    assertEqual(scaleArg.type, 'Audio', 'should have type Audio')
     assertEqual(scaleArg.band, 0, 'should have low band (0)')
     assertEqual(scaleArg.min, 1, 'should have min')
     assertEqual(scaleArg.max, 10, 'should have max')
@@ -221,11 +221,11 @@ noise(scale: midi(channel: 1, min: 1, max: 5), speed: audio(band: audioBand.mid,
     
     // Check scale uses midi
     const scaleArg = step.args.scale
-    assertEqual(scaleArg.midi, true, 'scale should use midi')
+    assertEqual(scaleArg.type, 'Midi', 'scale should use midi')
     
     // Check speed uses audio
     const speedArg = step.args.speed
-    assertEqual(speedArg.audio, true, 'speed should use audio')
+    assertEqual(speedArg.type, 'Audio', 'speed should use audio')
     
     // Resolve both
     const { pipeline, midiState, audioState } = createTestPipeline()
@@ -257,7 +257,7 @@ noise(scale: 5, speed: midi(channel: 1, min: 0.5, max: 2)).write(o0)`)
     
     // Check speed uses midi
     const speedArg = step.args.speed
-    assertEqual(speedArg.midi, true, 'speed should use midi')
+    assertEqual(speedArg.type, 'Midi', 'speed should use midi')
     
     const { pipeline, midiState } = createTestPipeline()
     
@@ -306,7 +306,7 @@ test('oscillator still works correctly', () => {
     const result = compile('search synth\nnoise(scale: osc(type: oscKind.sine, min: 0, max: 10, speed: 1)).write(o0)')
     const scaleArg = result.plans[0].chain[0].args.scale
     
-    assertEqual(scaleArg.oscillator, true, 'should have oscillator flag')
+    assertEqual(scaleArg.type, 'Oscillator', 'should have oscillator type')
     
     const pipeline = new Pipeline(null, null)
     

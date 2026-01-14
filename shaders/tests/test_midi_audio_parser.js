@@ -186,7 +186,7 @@ test('validates midi() and creates runtime config', () => {
 
     const scaleArg = step.args.scale
     assert(scaleArg, 'should have scale arg')
-    assertEqual(scaleArg.midi, true, 'should have midi flag')
+    assertEqual(scaleArg.type, 'Midi', 'should have midi type')
     assertEqual(scaleArg.channel, 1, 'should have channel')
     assertEqual(scaleArg.mode, 4, 'should have velocity mode (4)')
 })
@@ -199,7 +199,7 @@ test('validates audio() and creates runtime config', () => {
 
     const scaleArg = step.args.scale
     assert(scaleArg, 'should have scale arg')
-    assertEqual(scaleArg.audio, true, 'should have audio flag')
+    assertEqual(scaleArg.type, 'Audio', 'should have audio type')
     assertEqual(scaleArg.band, 0, 'should have low band (0)')
 })
 
@@ -231,7 +231,7 @@ console.log('\n=== Unparser ===\n')
 
 test('formats midi runtime config', () => {
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 1,
         mode: 4,  // velocity
         min: 0,
@@ -245,7 +245,7 @@ test('formats midi runtime config', () => {
 
 test('formats midi with non-default values', () => {
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 5,
         mode: 1,  // gateNote
         min: 2,
@@ -263,7 +263,7 @@ test('formats midi with non-default values', () => {
 
 test('formats audio runtime config', () => {
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 0,  // low
         min: 0,
         max: 1
@@ -275,7 +275,7 @@ test('formats audio runtime config', () => {
 
 test('formats audio with non-default values', () => {
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 2,  // high
         min: 5,
         max: 100

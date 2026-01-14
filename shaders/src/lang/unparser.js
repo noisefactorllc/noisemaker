@@ -263,6 +263,19 @@ function formatValue(value, spec, options = {}) {
         return value
     }
 
+    // Handle automation objects (Oscillator, Midi, Audio)
+    if (value && typeof value === 'object') {
+        if (value.type === 'Oscillator' || value.oscillator === true) {
+            return formatOscillator(value)
+        }
+        if (value.type === 'Midi') {
+            return formatMidi(value)
+        }
+        if (value.type === 'Audio') {
+            return formatAudio(value)
+        }
+    }
+
     if (typeof value === 'number') {
         // Format numbers nicely - limit to 3 decimal places
         if (Number.isInteger(value)) {
@@ -369,7 +382,7 @@ function formatValue(value, spec, options = {}) {
             return `"${escaped}"`
         }
         // Handle oscillator configuration
-        if (value.oscillator === true) {
+        if (value.type === 'Oscillator') {
             return formatOscillator(value)
         }
         // Handle oscillator AST from _ast property
@@ -377,7 +390,7 @@ function formatValue(value, spec, options = {}) {
             return formatOscillator(value)
         }
         // Handle MIDI configuration
-        if (value.midi === true) {
+        if (value.type === 'Midi' && typeof value.channel === 'number') {
             return formatMidi(value)
         }
         // Handle MIDI AST from _ast property
@@ -385,7 +398,7 @@ function formatValue(value, spec, options = {}) {
             return formatMidi(value)
         }
         // Handle Audio configuration
-        if (value.audio === true) {
+        if (value.type === 'Audio' && typeof value.band === 'number') {
             return formatAudio(value)
         }
         // Handle Audio AST from _ast property

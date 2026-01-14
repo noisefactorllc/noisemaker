@@ -1005,7 +1005,12 @@ export class ProgramState extends Emitter {
                     if (paramName.startsWith('_')) continue  // Skip internal flags
 
                     // Skip automation-controlled params (oscillator, midi, audio manage the value)
-                    if (value && typeof value === 'object' && (value._varRef || value.oscillator)) {
+                    if (value && typeof value === 'object' && (
+                        value._varRef ||
+                        value.type === 'Oscillator' || value._ast?.type === 'Oscillator' ||
+                        value.type === 'Midi' || value._ast?.type === 'Midi' ||
+                        value.type === 'Audio' || value._ast?.type === 'Audio'
+                    )) {
                         continue
                     }
 
@@ -1140,7 +1145,11 @@ export class ProgramState extends Emitter {
         if (!spec) return value
 
         // Preserve automation configs (oscillator, midi, audio) untouched
-        if (value && typeof value === 'object' && (value.oscillator || value.midi || value.audio)) {
+        if (value && typeof value === 'object' && (
+            value.type === 'Oscillator' || value._ast?.type === 'Oscillator' ||
+            value.type === 'Midi' || value._ast?.type === 'Midi' ||
+            value.type === 'Audio' || value._ast?.type === 'Audio'
+        )) {
             return value
         }
 
@@ -1292,7 +1301,11 @@ export class ProgramState extends Emitter {
                 if (paramName.startsWith('_') || value !== undefined) {
                     // Don't overwrite automation bindings from DSL with preserved scalar values
                     const dslArg = effect.args?.[paramName]
-                    if (dslArg && typeof dslArg === 'object' && (dslArg.oscillator || dslArg.midi || dslArg.audio)) {
+                    if (dslArg && typeof dslArg === 'object' && (
+                        dslArg.type === 'Oscillator' || dslArg._ast?.type === 'Oscillator' ||
+                        dslArg.type === 'Midi' || dslArg._ast?.type === 'Midi' ||
+                        dslArg.type === 'Audio' || dslArg._ast?.type === 'Audio'
+                    )) {
                         continue
                     }
                     values[paramName] = this._cloneValue(value)
@@ -1345,10 +1358,26 @@ export class ProgramState extends Emitter {
             if (!match) continue
             const stepIndex = parseInt(match[1], 10)
 
+            // Get original effect info to check for automated parameters
+            const effectInfo = this._structure[stepIndex]
+
             const stepOverrides = {}
             for (const [paramName, value] of Object.entries(stepState.values)) {
                 // Skip internal flags EXCEPT _skip which is a DSL argument
                 if (paramName.startsWith('_') && paramName !== '_skip') continue
+
+                // Check if this param is automated in the original DSL
+                const rawKwarg = effectInfo?.rawKwargs?.[paramName]
+                const isAutomatedInDsl = rawKwarg && typeof rawKwarg === 'object' && (
+                    rawKwarg.type === 'Oscillator' ||
+                    rawKwarg.type === 'Midi' ||
+                    rawKwarg.type === 'Audio'
+                )
+
+                // Skip automated parameters - let original DSL pass through
+                if (isAutomatedInDsl) {
+                    continue
+                }
 
                 // Unwrap automation bindings for DSL (use varRef, not value)
                 if (value && typeof value === 'object' && value._varRef) {

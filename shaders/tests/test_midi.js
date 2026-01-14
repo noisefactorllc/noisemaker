@@ -62,7 +62,7 @@ test('noteChange returns note value regardless of gate', () => {
     midiState.getChannel(1).gate = 0
 
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 1,
         mode: 0,  // noteChange
         min: 0,
@@ -81,7 +81,7 @@ test('noteChange maps to min/max range', () => {
     midiState.getChannel(1).key = 127  // Max MIDI note
 
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 1,
         mode: 0,
         min: 0,
@@ -105,7 +105,7 @@ test('gateNote returns note value when gate is on', () => {
     midiState.getChannel(1).noteOn(64, 100)
 
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 1,
         mode: 1,  // gateNote
         min: 0,
@@ -124,7 +124,7 @@ test('gateNote returns min when gate is off', () => {
     midiState.getChannel(1).gate = 0
 
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 1,
         mode: 1,  // gateNote
         min: 5,
@@ -148,7 +148,7 @@ test('gateVelocity returns velocity when gate is on', () => {
     midiState.getChannel(1).noteOn(60, 100)
 
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 1,
         mode: 2,  // gateVelocity
         min: 0,
@@ -167,7 +167,7 @@ test('gateVelocity returns min when gate is off', () => {
     midiState.getChannel(1).gate = 0
 
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 1,
         mode: 2,  // gateVelocity
         min: 0,
@@ -192,7 +192,7 @@ test('triggerNote returns full note value immediately after note on', () => {
     // time is now, so elapsed is ~0
 
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 1,
         mode: 3,  // triggerNote
         min: 0,
@@ -215,7 +215,7 @@ test('triggerNote decays over time', () => {
     midiState.getChannel(1).time = Date.now() - 500
 
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 1,
         mode: 3,  // triggerNote
         min: 0,
@@ -238,7 +238,7 @@ test('triggerNote higher sensitivity decays faster', () => {
     midiState.getChannel(1).time = Date.now() - 250
 
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 1,
         mode: 3,  // triggerNote
         min: 0,
@@ -264,7 +264,7 @@ test('velocity returns full velocity immediately after note on', () => {
     midiState.getChannel(1).noteOn(60, 100)
 
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 1,
         mode: 4,  // velocity
         min: 0,
@@ -285,7 +285,7 @@ test('velocity decays over time', () => {
     midiState.getChannel(1).time = Date.now() - 1000
 
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 1,
         mode: 4,  // velocity
         min: 0,
@@ -312,7 +312,7 @@ test('selects correct MIDI channel', () => {
     midiState.getChannel(5).noteOn(72, 100)
 
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 5,
         mode: 2,  // gateVelocity
         min: 0,
@@ -336,7 +336,7 @@ test('maps MIDI value to custom min/max range', () => {
     midiState.getChannel(1).key = 64  // ~50% of 127
 
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 1,
         mode: 0,  // noteChange
         min: 10,
@@ -354,7 +354,7 @@ test('returns min when no MIDI state', () => {
     // No MIDI state set
 
     const config = {
-        midi: true,
+        type: 'Midi',
         channel: 1,
         mode: 4,
         min: 5,
@@ -384,7 +384,7 @@ test('resolveUniformValue handles oscillator configs', () => {
     const { pipeline } = createTestPipeline()
 
     const oscConfig = {
-        oscillator: true,
+        type: 'Oscillator',
         oscType: 0,  // sine
         min: 0,
         max: 1,

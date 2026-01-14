@@ -60,7 +60,7 @@ test('low band returns low frequency value', () => {
     audioState.low = 0.7
 
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 0,  // low
         min: 0,
         max: 1
@@ -76,7 +76,7 @@ test('low band maps to min/max range', () => {
     audioState.low = 0.5
 
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 0,  // low
         min: 2,
         max: 10
@@ -99,7 +99,7 @@ test('mid band returns mid frequency value', () => {
     audioState.mid = 0.4
 
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 1,  // mid
         min: 0,
         max: 1
@@ -115,7 +115,7 @@ test('mid band maps to min/max range', () => {
     audioState.mid = 0.25
 
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 1,  // mid
         min: 0,
         max: 100
@@ -138,7 +138,7 @@ test('high band returns high frequency value', () => {
     audioState.high = 0.9
 
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 2,  // high
         min: 0,
         max: 1
@@ -154,7 +154,7 @@ test('high band maps to min/max range', () => {
     audioState.high = 1.0
 
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 2,  // high
         min: -5,
         max: 5
@@ -177,7 +177,7 @@ test('vol band returns overall volume', () => {
     audioState.vol = 0.65
 
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 3,  // vol
         min: 0,
         max: 1
@@ -193,7 +193,7 @@ test('vol band maps to min/max range', () => {
     audioState.vol = 0.8
 
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 3,  // vol
         min: 1,
         max: 11
@@ -215,7 +215,7 @@ test('audio returns min when no audio state set', () => {
     // No audio state set
 
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 0,
         min: 5,
         max: 10
@@ -231,7 +231,7 @@ test('audio handles zero values', () => {
     audioState.low = 0
 
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 0,
         min: 0,
         max: 1
@@ -247,7 +247,7 @@ test('audio handles max values', () => {
     audioState.mid = 1.0
 
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 1,
         min: 0,
         max: 1
@@ -264,7 +264,7 @@ test('audio clamps values above 1', () => {
     audioState.high = 1.5
 
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 2,
         min: 0,
         max: 10
@@ -280,7 +280,7 @@ test('audio defaults band values correctly', () => {
     
     // AudioState initializes all bands to 0
     const config = {
-        audio: true,
+        type: 'Audio',
         band: 0,
         min: 0,
         max: 1

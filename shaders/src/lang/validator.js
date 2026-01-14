@@ -1053,7 +1053,7 @@ export function validate(ast) {
                                 return undefined
                             }
                             value = {
-                                oscillator: true,
+                                type: 'Oscillator',
                                 oscType: oscTypeValue,
                                 min: resolveOscParam(node.min) ?? 0,
                                 max: resolveOscParam(node.max) ?? 1,
@@ -1097,7 +1097,7 @@ export function validate(ast) {
                                 return undefined
                             }
                             value = {
-                                midi: true,
+                                type: 'Midi',
                                 channel: resolveMidiParam(node.channel) ?? 1,
                                 mode: modeValue,
                                 min: resolveMidiParam(node.min) ?? 0,
@@ -1140,7 +1140,7 @@ export function validate(ast) {
                                 return undefined
                             }
                             value = {
-                                audio: true,
+                                type: 'Audio',
                                 band: bandValue,
                                 min: resolveAudioParam(node.min) ?? 0,
                                 max: resolveAudioParam(node.max) ?? 1,

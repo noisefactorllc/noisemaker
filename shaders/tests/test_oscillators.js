@@ -129,7 +129,7 @@ test('Validator: Oscillator resolves to oscillator config', () => {
 
     const scaleArg = step.args.scale
     assert(scaleArg, 'Expected scale arg')
-    assert(scaleArg.oscillator === true, 'Expected oscillator flag')
+    assert(scaleArg.type === 'Oscillator', 'Expected oscillator type')
     assertEqual(scaleArg.oscType, 0, 'Expected oscType 0 (sine)')
     assertEqual(scaleArg.min, 2, 'Expected min 2')
     assertEqual(scaleArg.max, 8, 'Expected max 8')
@@ -169,7 +169,7 @@ test('Validator: Oscillator defaults are applied correctly', () => {
 
 test('Unparser: formatValue handles oscillator config', () => {
     const oscConfig = {
-        oscillator: true,
+        type: 'Oscillator',
         oscType: 0,
         min: 2,
         max: 8,
@@ -187,7 +187,7 @@ test('Unparser: formatValue handles oscillator config', () => {
 
 test('Unparser: formatValue omits default values', () => {
     const oscConfig = {
-        oscillator: true,
+        type: 'Oscillator',
         oscType: 0,
         min: 0,
         max: 1,
@@ -209,7 +209,7 @@ test('Unparser: All oscillator types format correctly', () => {
 
     for (let i = 0; i < types.length; i++) {
         const oscConfig = {
-            oscillator: true,
+            type: 'Oscillator',
             oscType: i,
             min: 0,
             max: 1,
@@ -233,7 +233,7 @@ test('Integration: Full compile and unparse round-trip', () => {
 
     // Verify compilation produced oscillator config
     const scaleArg = compiled.plans[0].chain[0].args.scale
-    assert(scaleArg.oscillator === true, 'Expected oscillator in compiled output')
+    assert(scaleArg.type === 'Oscillator', 'Expected oscillator in compiled output')
 
     // The unparser should be able to format this back
     // Note: We can't do exact string comparison because the unparser may reorder/format differently
@@ -249,7 +249,7 @@ noise(scale: scaleOsc).bloom(amount: 0.5).write(o0)`
 
     // First step should have oscillator
     const noiseStep = compiled.plans[0].chain[0]
-    assert(noiseStep.args.scale.oscillator === true, 'Expected oscillator in noise scale')
+    assert(noiseStep.args.scale.type === 'Oscillator', 'Expected oscillator in noise scale')
     assertEqual(noiseStep.args.scale.oscType, 2, 'Expected saw type (2)')
     assertEqual(noiseStep.args.scale.speed, 2, 'Expected speed 2')
 })

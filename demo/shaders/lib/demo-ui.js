@@ -33,6 +33,7 @@ import {
 import { groupGlobalsByCategory } from '../../../shaders/src/runtime/effect.js'
 import { defaultControlFactory } from './control-factory.js'
 import { ProgramState } from './program-state.js'
+import { extractEffectsFromDsl } from './dsl-utils.js'
 
 // Re-export for backward compatibility
 export { extractEffectsFromDsl } from './dsl-utils.js'
@@ -2362,6 +2363,13 @@ render(o1)`
             return false
         }
 
+        // Check if automation bindings changed (scalar <-> oscillator/midi/audio)
+        // If so, we need to rebuild controls to show "automatic" or sliders
+        if (this._automationBindingsChanged(dsl)) {
+            console.log('[checkStructureAndApplyState] returning false: automation bindings changed')
+            return false
+        }
+
         // Structure is the same - update state from new DSL (may have different arg values)
         // This is critical for automation bindings (oscillator, midi, audio) which may have changed
         this._programState.fromDsl(dsl)
@@ -2369,6 +2377,50 @@ render(o1)`
         // Apply updated state to pipeline
         this._applyEffectParameterValues()
         return true
+    }
+
+    /**
+     * Check if automation bindings changed between current state and new DSL
+     * @param {string} dsl - New DSL to check
+     * @returns {boolean} True if automation status of any param changed
+     * @private
+     */
+    _automationBindingsChanged(dsl) {
+        const newEffects = extractEffectsFromDsl(dsl)
+        if (!newEffects || !this._parsedDslStructure) return false
+
+        for (let i = 0; i < newEffects.length; i++) {
+            const newEffect = newEffects[i]
+            const oldEffect = this._parsedDslStructure[i]
+            if (!oldEffect) continue
+
+            // Check each arg for automation status change
+            const allParams = new Set([
+                ...Object.keys(newEffect.args || {}),
+                ...Object.keys(oldEffect.args || {})
+            ])
+
+            for (const param of allParams) {
+                const newVal = newEffect.args?.[param]
+                const oldVal = oldEffect.args?.[param]
+
+                const newIsAuto = newVal && typeof newVal === 'object' && (
+                    newVal.type === 'Oscillator' || newVal.type === 'Midi' || newVal.type === 'Audio' ||
+                    newVal._ast?.type === 'Oscillator' || newVal._ast?.type === 'Midi' || newVal._ast?.type === 'Audio'
+                )
+                const oldIsAuto = oldVal && typeof oldVal === 'object' && (
+                    oldVal.type === 'Oscillator' || oldVal.type === 'Midi' || oldVal.type === 'Audio' ||
+                    oldVal._ast?.type === 'Oscillator' || oldVal._ast?.type === 'Midi' || oldVal._ast?.type === 'Audio'
+                )
+
+                if (newIsAuto !== oldIsAuto) {
+                    console.log(`[_automationBindingsChanged] ${oldEffect.name}.${param}: ${oldIsAuto} -> ${newIsAuto}`)
+                    return true
+                }
+            }
+        }
+
+        return false
     }
 
     /**
@@ -3296,13 +3348,23 @@ render(o1)`
 
         // If this param is controlled by an automation source (oscillator, midi, or audio),
         // show "automatic" and store the ORIGINAL variable reference if applicable.
-        const isAutomated = value && typeof value === 'object' && (
-            value.oscillator === true ||
-            value.midi === true ||
-            value.audio === true ||
-            value.type === 'Oscillator' ||
-            value.type === 'Midi' ||
-            value.type === 'Audio'
+        const automationValue = (value && typeof value === 'object') ? value : effectInfo.args?.[key]
+        const isAutomated = (
+            automationValue && typeof automationValue === 'object' && (
+                automationValue._varRef ||
+                automationValue.type === 'Oscillator' ||
+                automationValue.type === 'Midi' ||
+                automationValue.type === 'Audio' ||
+                automationValue._ast?.type === 'Oscillator' ||
+                automationValue._ast?.type === 'Midi' ||
+                automationValue._ast?.type === 'Audio'
+            )
+        ) || (
+            rawKwarg && typeof rawKwarg === 'object' && (
+                rawKwarg.type === 'Oscillator' ||
+                rawKwarg.type === 'Midi' ||
+                rawKwarg.type === 'Audio'
+            )
         )
         if (isAutomated) {
             // If the original was a variable reference (Ident), store that so we can
@@ -3314,7 +3376,8 @@ render(o1)`
 
             const autoLabel = document.createElement('span')
             autoLabel.className = 'control-value'
-            autoLabel.textContent = 'automatic'
+            // Leading space keeps label text and status readable without relying on CSS margin
+            autoLabel.textContent = ' automatic'
             autoLabel.style.fontStyle = 'italic'
             autoLabel.style.opacity = '0.7'
             controlGroup.appendChild(autoLabel)
@@ -4100,7 +4163,12 @@ render(o1)`
                     // Skip automation-controlled parameters (oscillator, midi, audio) - these use
                     // _varRef markers or oscillator/midi/audio flags to preserve the original
                     // variable reference in DSL output. The actual value is resolved at runtime.
-                    if (value && typeof value === 'object' && (value._varRef || value.oscillator || value.midi || value.audio)) {
+                    if (value && typeof value === 'object' && (
+                        value._varRef ||
+                        value.type === 'Oscillator' || value._ast?.type === 'Oscillator' ||
+                        value.type === 'Midi' || value._ast?.type === 'Midi' ||
+                        value.type === 'Audio' || value._ast?.type === 'Audio'
+                    )) {
                         continue
                     }
 

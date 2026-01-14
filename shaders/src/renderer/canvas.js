@@ -1560,7 +1560,12 @@ export class CanvasRenderer {
 
             // Skip automation-controlled params (oscillator, midi, audio)
             // These are evaluated at render time by resolvePassUniforms
-            if (currentValue && typeof currentValue === 'object' && (currentValue._varRef || currentValue.oscillator || currentValue.midi || currentValue.audio)) {
+            if (currentValue && typeof currentValue === 'object' && (
+                currentValue._varRef ||
+                currentValue.type === 'Oscillator' || currentValue._ast?.type === 'Oscillator' ||
+                currentValue.type === 'Midi' || currentValue._ast?.type === 'Midi' ||
+                currentValue.type === 'Audio' || currentValue._ast?.type === 'Audio'
+            )) {
                 continue
             }
 
@@ -1622,7 +1627,12 @@ export class CanvasRenderer {
 
                 // Skip automation-controlled params (oscillator, midi, audio)
                 // These are evaluated at render time by resolvePassUniforms
-                if (value && typeof value === 'object' && (value._varRef || value.oscillator)) {
+                if (value && typeof value === 'object' && (
+                    value._varRef ||
+                    value.type === 'Oscillator' || value._ast?.type === 'Oscillator' ||
+                    value.type === 'Midi' || value._ast?.type === 'Midi' ||
+                    value.type === 'Audio' || value._ast?.type === 'Audio'
+                )) {
                     continue
                 }
 
