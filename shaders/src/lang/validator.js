@@ -1266,6 +1266,10 @@ export function validate(ast) {
                 const step = {op: opName, args, from: fromInput, temp: idx}
                 if (namespaceSnapshot) { step.namespace = namespaceSnapshot }
                 if (original.leadingComments) { step.leadingComments = original.leadingComments }
+                // Preserve raw kwargs from original AST for automation UI extraction
+                if (original.kwargs && Object.keys(original.kwargs).length > 0) {
+                    step.rawKwargs = original.kwargs
+                }
                 chain.push(step)
                 current = idx
             }

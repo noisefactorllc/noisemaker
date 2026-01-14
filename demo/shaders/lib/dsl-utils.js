@@ -7,7 +7,7 @@
  * @module lib/dsl-utils
  */
 
-import { compile, lex, parse, formatDslError, isDslSyntaxError } from '../../../shaders/src/lang/index.js'
+import { compile, formatDslError, isDslSyntaxError } from '../../../shaders/src/lang/index.js'
 
 /**
  * @typedef {object} EffectInfo
@@ -44,24 +44,9 @@ export function extractEffectsFromDsl(dsl) {
     if (!dsl || typeof dsl !== 'string') return effects
 
     try {
-        // Parse to get original AST with raw kwargs (before validation resolves variables)
-        const tokens = lex(dsl)
-        const ast = parse(tokens)
-
-        // Also compile to get resolved args
+        // Compile to get resolved args with rawKwargs preserved on each step
         const result = compile(dsl)
         if (!result || !result.plans) return effects
-
-        // Build a map from the original parsed AST to get raw kwargs
-        const originalKwargs = []
-        if (ast.plans) {
-            for (const plan of ast.plans) {
-                if (!plan.chain) continue
-                for (const step of plan.chain) {
-                    originalKwargs.push(step.kwargs || {})
-                }
-            }
-        }
 
         let globalStepIndex = 0
         for (const plan of result.plans) {
@@ -75,9 +60,11 @@ export function extractEffectsFromDsl(dsl) {
                     shortName = fullOpName.split('.').pop()
                 }
 
-                // Preserve automation bindings even if validation normalized them to scalars
-                const rawArgs = originalKwargs[globalStepIndex] || {}
+                // Use rawKwargs directly from the compiled step (set by validator)
+                const rawArgs = step.rawKwargs || {}
                 const args = step.args ? { ...step.args } : {}
+                
+                // Preserve automation bindings even if validation normalized them to scalars
                 for (const [paramName, rawVal] of Object.entries(rawArgs)) {
                     const isRawAutomation = rawVal && typeof rawVal === 'object' && (
                         rawVal.type === 'Oscillator' || rawVal.type === 'Midi' || rawVal.type === 'Audio' ||

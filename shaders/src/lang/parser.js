@@ -848,13 +848,18 @@ export function parse(tokens) {
         if (nameToken.lexeme === 'from') {
             return transformFromInvocation(call, nameToken)
         }
-        // osc() is always a value oscillator
+        // osc() as a value oscillator (not the synth.osc generator effect)
+        // Oscillator kwargs: type, min, max, speed, offset, seed
         if (nameToken.lexeme === 'osc') {
+            const oscKwargs = new Set(['type', 'min', 'max', 'speed', 'offset', 'seed'])
             const hasTypeKwarg = kwargs && 'type' in kwargs
             const firstArgIsOscKind = args.length > 0 && args[0] &&
                 args[0].type === 'Member' && args[0].path && args[0].path[0] === 'oscKind'
             const isBareOsc = args.length === 0 && (!kwargs || Object.keys(kwargs).length === 0)
-            if (hasTypeKwarg || firstArgIsOscKind || isBareOsc) {
+            // Check if all kwargs are valid oscillator parameters
+            const hasOnlyOscKwargs = kwargs && Object.keys(kwargs).length > 0 &&
+                Object.keys(kwargs).every(k => oscKwargs.has(k))
+            if (hasTypeKwarg || firstArgIsOscKind || isBareOsc || hasOnlyOscKwargs) {
                 return transformOscInvocation(call, nameToken)
             }
             // Fall through to return as regular Call node for synth effect
