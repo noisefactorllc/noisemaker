@@ -775,7 +775,8 @@ export class Pipeline {
      */
     isAutomationConfig(value) {
         return value && typeof value === 'object' &&
-            (value.oscillator === true || value.midi === true || value.audio === true)
+            (value.oscillator === true || value.midi === true || value.audio === true ||
+             value.type === 'Oscillator' || value.type === 'Midi' || value.type === 'Audio')
     }
 
     /**
@@ -1088,18 +1089,18 @@ export class Pipeline {
 
         // Check if this is an oscillator configuration
         // Note: `time` is already normalized 0-1 from CanvasRenderer
-        if (value.oscillator === true) {
+        if (value.oscillator === true || value.type === 'Oscillator') {
             return evaluateOscillator(value, time)
         }
 
         // Check if this is a MIDI configuration
         // Uses Date.now() for trigger falloff timing (real-time evaluation)
-        if (value.midi === true) {
+        if (value.midi === true || value.type === 'Midi') {
             return evaluateMidi(value, this.externalState.midi, Date.now())
         }
 
         // Check if this is an audio configuration
-        if (value.audio === true) {
+        if (value.audio === true || value.type === 'Audio') {
             return evaluateAudio(value, this.externalState.audio)
         }
 

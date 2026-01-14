@@ -3299,7 +3299,10 @@ render(o1)`
         const isAutomated = value && typeof value === 'object' && (
             value.oscillator === true ||
             value.midi === true ||
-            value.audio === true
+            value.audio === true ||
+            value.type === 'Oscillator' ||
+            value.type === 'Midi' ||
+            value.type === 'Audio'
         )
         if (isAutomated) {
             // If the original was a variable reference (Ident), store that so we can
