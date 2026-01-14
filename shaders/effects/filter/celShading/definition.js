@@ -81,7 +81,7 @@ export default new Effect({
     },
     shadingStrength: {
       type: "float",
-      default: 0.5,
+      default: 0.0,
       uniform: "shadingStrength",
       min: 0.0,
       max: 1.0,
