@@ -38,7 +38,10 @@ export default new Effect({
     tex: {
       type: "surface",
       default: "none",
-      ui: { label: "texture" }
+      ui: { 
+        label: "texture",
+        category: "input",
+      }
     },
     zoom: {
       type: "int",
@@ -54,8 +57,7 @@ export default new Effect({
       },
       ui: {
         label: "zoom",
-        control: "dropdown",
-        category: "transform"
+        control: "dropdown"
       }
     },
     seed: {
@@ -65,20 +67,9 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: false
       },
       uniform: "seed"
-    },
-    resetState: {
-      type: "boolean",
-      default: false,
-      uniform: "resetState",
-      ui: {
-        control: "button",
-        buttonLabel: "reset",
-        label: "state",
-        category: "util"
-      }
     },
     smoothing: {
       type: "int",
@@ -94,8 +85,7 @@ export default new Effect({
       },
       ui: {
         label: "smoothing",
-        control: "dropdown",
-        category: "misc"
+        control: "dropdown"
       },
       uniform: "smoothing"
     },
@@ -106,10 +96,19 @@ export default new Effect({
       max: 100,
       ui: {
         label: "speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       },
       uniform: "speed"
+    },
+    resetState: {
+      type: "boolean",
+      default: false,
+      uniform: "resetState",
+      ui: {
+        control: "button",
+        buttonLabel: "reset",
+        label: "state"
+      }
     },
     weight: {
       type: "float",
@@ -119,7 +118,7 @@ export default new Effect({
       ui: {
         label: "input weight",
         control: "slider",
-        category: "misc"
+        category: "input"
       },
       uniform: "weight"
     },
@@ -130,7 +129,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "n1 thresh 1",
-        control: "slider"
+        control: "slider",
+        category: "rules"
       },
       uniform: "n1v1"
     },
@@ -141,7 +141,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "n1 range 1",
-        control: "slider"
+        control: "slider",
+        category: "rules"
       },
       uniform: "n1r1"
     },
@@ -152,7 +153,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "n1 thresh 2",
-        control: "slider"
+        control: "slider",
+        category: "rules"
       },
       uniform: "n1v2"
     },
@@ -163,7 +165,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "n1 range 2",
-        control: "slider"
+        control: "slider",
+        category: "rules"
       },
       uniform: "n1r2"
     },
@@ -174,7 +177,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "n1 thresh 3",
-        control: "slider"
+        control: "slider",
+        category: "rules"
       },
       uniform: "n1v3"
     },
@@ -185,7 +189,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "n1 range 3",
-        control: "slider"
+        control: "slider",
+        category: "rules"
       },
       uniform: "n1r3"
     },
@@ -196,7 +201,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "n1 thresh 4",
-        control: "slider"
+        control: "slider",
+        category: "rules"
       },
       uniform: "n1v4"
     },
@@ -207,7 +213,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "n1 range 4",
-        control: "slider"
+        control: "slider",
+        category: "rules"
       },
       uniform: "n1r4"
     },
@@ -218,7 +225,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "n2 thresh 1",
-        control: "slider"
+        control: "slider",
+        category: "rules"
       },
       uniform: "n2v1"
     },
@@ -229,7 +237,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "n2 range 1",
-        control: "slider"
+        control: "slider",
+        category: "rules"
       },
       uniform: "n2r1"
     },
@@ -240,7 +249,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "n2 thresh 2",
-        control: "slider"
+        control: "slider",
+        category: "rules"
       },
       uniform: "n2v2"
     },
@@ -251,7 +261,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "n2 range 2",
-        control: "slider"
+        control: "slider",
+        category: "rules"
       },
       uniform: "n2r2"
     },

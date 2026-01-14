@@ -34,7 +34,10 @@ export default new Effect({
     tex: {
       type: "surface",
       default: "none",
-      ui: { label: "texture" }
+      ui: { 
+        label: "texture",
+        category: "input",
+      }
     },
     zoom: {
       type: "int",
@@ -50,30 +53,7 @@ export default new Effect({
       },
       ui: {
         label: "zoom",
-        control: "dropdown",
-        category: "transform"
-      }
-    },
-    seed: {
-      type: "float",
-      default: 1,
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider"
-      },
-      uniform: "seed"
-    },
-    resetState: {
-      type: "boolean",
-      default: false,
-      uniform: "resetState",
-      ui: {
-        control: "button",
-        buttonLabel: "reset",
-        label: "state",
-        category: "util"
+        control: "dropdown"
       }
     },
     smoothing: {
@@ -90,10 +70,41 @@ export default new Effect({
       },
       ui: {
         label: "smoothing",
-        control: "dropdown",
-        category: "misc"
+        control: "dropdown"
       },
       uniform: "smoothing"
+    },
+    seed: {
+      type: "float",
+      default: 1,
+      min: 1,
+      max: 100,
+      ui: {
+        label: "seed",
+        control: false
+      },
+      uniform: "seed"
+    },
+    speed: {
+      type: "float",
+      default: 10,
+      min: 1,
+      max: 100,
+      ui: {
+        label: "speed",
+        control: "slider"
+      },
+      uniform: "speed"
+    },
+    resetState: {
+      type: "boolean",
+      default: false,
+      uniform: "resetState",
+      ui: {
+        control: "button",
+        buttonLabel: "reset",
+        label: "state"
+      }
     },
     ruleIndex: {
       type: "int",
@@ -120,7 +131,8 @@ export default new Effect({
       },
       ui: {
         label: "rules",
-        control: "dropdown"
+        control: "dropdown",
+        category: "rules"
       },
       uniform: "ruleIndex"
     },
@@ -129,21 +141,10 @@ export default new Effect({
       default: false,
       ui: {
         label: "use custom",
-        control: "checkbox"
+        control: "checkbox",
+        category: "rules"
       },
       uniform: "useCustom"
-    },
-    speed: {
-      type: "float",
-      default: 10,
-      min: 1,
-      max: 100,
-      ui: {
-        label: "speed",
-        control: "slider",
-        category: "animation"
-      },
-      uniform: "speed"
     },
     weight: {
       type: "float",
@@ -153,7 +154,7 @@ export default new Effect({
       ui: {
         label: "input weight",
         control: "slider",
-        category: "misc"
+        category: "input"
       },
       uniform: "weight"
     },
