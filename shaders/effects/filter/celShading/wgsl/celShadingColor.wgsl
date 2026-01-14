@@ -59,11 +59,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let gradientShade = dot(normalize(vec3f(uv - 0.5, 0.5)), lightDir);
     let diffuse = 0.5 + 0.5 * gradientShade;
     
-    // Quantize the diffuse term for stepped shading
-    let quantizedDiffuse = quantizeValue(diffuse, lev);
-    
     // Apply shading to color
-    let shadeFactor = mix(1.0, 0.5 + 0.5 * quantizedDiffuse, uniforms.shadingStrength);
+    let shadeFactor = mix(1.0, 0.5 + 0.5 * diffuse, uniforms.shadingStrength);
     let shadedColor = origColor.rgb * shadeFactor;
     
     // Quantize the color

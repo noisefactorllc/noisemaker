@@ -86,6 +86,7 @@ export default new Effect({
       min: 0.0,
       max: 1.0,
       step: 0.01,
+      randChance: 0,
       ui: {
         label: "Shading Strength",
         control: "slider",

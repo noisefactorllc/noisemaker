@@ -57,11 +57,8 @@ void main() {
     float gradientShade = dot(normalize(vec3(uv - 0.5, 0.5)), lightDir);
     float diffuse = 0.5 + 0.5 * gradientShade;
     
-    // Quantize the diffuse term for stepped shading
-    float quantizedDiffuse = quantizeValue(diffuse, lev);
-    
     // Apply shading to color
-    float shadeFactor = mix(1.0, 0.5 + 0.5 * quantizedDiffuse, shadingStrength);
+    float shadeFactor = mix(1.0, 0.5 + 0.5 * diffuse, shadingStrength);
     vec3 shadedColor = origColor.rgb * shadeFactor;
     
     // Quantize the color
