@@ -10,7 +10,7 @@ export default new Effect({
   globals: {
     type: {
       type: "int",
-      default: 0,
+      default: 3,
       uniform: "gradientType",
       choices: {
         linear: 0,
