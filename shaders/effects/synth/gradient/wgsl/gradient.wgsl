@@ -105,9 +105,6 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             // Apply rotation to the sampling coordinates
             var cornerSt = rotate2D(st, angle);
             
-            // Repeat by fractioning the coordinates
-            cornerSt = fract(cornerSt * f32(repeatCount));
-            
             // Bilinear interpolation between 4 corner colors
             let top = mix(color1, color2, cornerSt.x);
             let bottom = mix(color4, color3, cornerSt.x);

@@ -100,9 +100,6 @@ void main() {
         // Apply rotation to the sampling coordinates
         vec2 cornerSt = rotate2D(st, angle);
         
-        // Repeat by fractioning the coordinates
-        cornerSt = fract(cornerSt * float(repeatCount));
-        
         // Bilinear interpolation between 4 corner colors
         vec4 top = mix(color1, color2, cornerSt.x);
         vec4 bottom = mix(color4, color3, cornerSt.x);
