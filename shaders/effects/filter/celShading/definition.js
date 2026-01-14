@@ -1,0 +1,148 @@
+import { Effect } from '../../../src/runtime/effect.js'
+
+/**
+ * filter/celShading - Cel/toon shading effect for 2D textures
+ * Multi-pass effect:
+ * 1. Color pass: Apply color quantization and diffuse shading
+ * 2. Edge pass: Sobel edge detection on original input
+ * 3. Blend pass: Combine cel-shaded color with edge outlines
+ */
+export default new Effect({
+  name: "Cel Shading",
+  namespace: "filter",
+  func: "celShading",
+  tags: ["color", "edges"],
+
+  description: "Cartoon-style shading with posterization and outlines",
+  globals: {
+    // Color quantization parameters
+    levels: {
+      type: "int",
+      default: 4,
+      uniform: "levels",
+      min: 2,
+      max: 8,
+      step: 1,
+      ui: {
+        label: "Levels",
+        control: "slider",
+        category: "color"
+      }
+    },
+
+    // Edge parameters
+    edgeWidth: {
+      type: "float",
+      default: 1.0,
+      uniform: "edgeWidth",
+      min: 0.5,
+      max: 5.0,
+      step: 0.1,
+      ui: {
+        label: "Width",
+        control: "slider",
+        category: "edges"
+      }
+    },
+    edgeThreshold: {
+      type: "float",
+      default: 0.15,
+      uniform: "edgeThreshold",
+      min: 0.01,
+      max: 1.0,
+      step: 0.01,
+      ui: {
+        label: "Threshold",
+        control: "slider",
+        category: "edges"
+      }
+    },
+    edgeColor: {
+      type: "vec3",
+      default: [0.0, 0.0, 0.0],
+      uniform: "edgeColor",
+      ui: {
+        label: "Color",
+        control: "color",
+        category: "edges"
+      }
+    },
+
+    // Light direction for shading
+    lightDirection: {
+      type: "vec3",
+      default: [0.5, 0.5, 1.0],
+      uniform: "lightDirection",
+      ui: {
+        label: "Light Direction",
+        control: "vector3",
+        category: "shading"
+      }
+    },
+    shadingStrength: {
+      type: "float",
+      default: 0.5,
+      uniform: "shadingStrength",
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      ui: {
+        label: "Shading Strength",
+        control: "slider",
+        category: "shading"
+      }
+    },
+
+    // Mix with original
+    mix: {
+      type: "float",
+      default: 1.0,
+      uniform: "mixAmount",
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      ui: {
+        label: "Mix",
+        control: "slider"
+      }
+    }
+  },
+  textures: {
+    celShadingColorTex: { width: "100%", height: "100%", format: "rgba16f" },
+    celShadingEdgeTex: { width: "100%", height: "100%", format: "rgba16f" }
+  },
+  passes: [
+    {
+      name: "color",
+      program: "celShadingColor",
+      inputs: {
+        inputTex: "inputTex"
+      },
+      outputs: {
+        fragColor: "celShadingColorTex"
+      }
+    },
+    {
+      name: "edges",
+      program: "celShadingEdges",
+      inputs: {
+        colorTex: "celShadingColorTex"
+      },
+      outputs: {
+        fragColor: "celShadingEdgeTex"
+      }
+    },
+    {
+      name: "blend",
+      program: "celShadingBlend",
+      inputs: {
+        inputTex: "inputTex",
+        colorTex: "celShadingColorTex",
+        edgeTex: "celShadingEdgeTex"
+      },
+      outputs: {
+        fragColor: "outputTex"
+      }
+    }
+  ]
+})
