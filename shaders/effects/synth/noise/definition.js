@@ -78,25 +78,7 @@ export default new Effect({
         control: "slider",
         category: "transform"
       }
-    },
-    ridges: {
-      type: "boolean",
-      default: false,
-      uniform: "ridges",
-      ui: {
-        label: "ridges",
-        control: "checkbox"
-      }
-    },
-    wrap: {
-      type: "boolean",
-      default: true,
-      uniform: "wrap",
-      ui: {
-        label: "wrap",
-        control: "checkbox"
-      }
-    },
+    }, 
     seed: {
       type: "int",
       default: 1,
@@ -105,8 +87,26 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider",
-        category: "util"
+        control: "slider"
+      }
+    },
+    wrap: {
+      type: "boolean",
+      default: true,
+      uniform: "wrap",
+      ui: {
+        label: "wrap",
+        control: "checkbox",
+        enabledBy: { param: "noiseType", notIn: [10, 11] },
+      }
+    },
+    ridges: {
+      type: "boolean",
+      default: false,
+      uniform: "ridges",
+      ui: {
+        label: "ridges",
+        control: "checkbox"
       }
     },
     loopOffset: {
@@ -175,8 +175,7 @@ export default new Effect({
       },
       ui: {
         label: "color mode",
-        control: "dropdown",
-        category: "color"
+        control: "dropdown"
       }
     }
   },

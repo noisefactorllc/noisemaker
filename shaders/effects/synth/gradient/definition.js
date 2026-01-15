@@ -26,7 +26,12 @@ export default new Effect({
       uniform: "rotation",
       min: 0,
       max: 360,
-      ui: { label: "Rotation", control: "slider", category: "general" }
+      ui: { 
+        label: "Rotation", 
+        control: "slider", 
+        category: "general",
+        enabledBy: { param: "type", neq: 1 } 
+      }
     },
     repeat: {
       type: "int",
@@ -34,7 +39,12 @@ export default new Effect({
       uniform: "repeatCount",
       min: 1,
       max: 4,
-      ui: { label: "Repeat", control: "slider", category: "general" }
+      ui: { 
+        label: "Repeat", 
+        control: "slider", 
+        category: "general",
+        enabledBy: { param: "type", neq: 3 } 
+      }
     },
     color1: {
       type: "vec4",

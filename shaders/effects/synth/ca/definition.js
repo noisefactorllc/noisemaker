@@ -164,8 +164,7 @@ export default new Effect({
       min: 0,
       max: 7,
       ui: {
-        control: false,
-        category: "misc"
+        control: false
       },
       uniform: "source"
     },
