@@ -324,11 +324,6 @@ body.full-bleed-mode #canvas {
   pointer-events: none;
 }
 
-.control-group.disabled .control-label::after {
-  content: ' ⚡';
-  font-size: 0.7em;
-}
-
 /* Category tag bar - shows collapsed categories as clickable tags */
 .category-tag-bar {
   grid-column: 1 / -1;
