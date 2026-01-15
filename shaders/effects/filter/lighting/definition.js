@@ -140,7 +140,8 @@ export default new Effect({
       ui: {
         label: "Aberration",
         control: "slider",
-        category: "reflection"
+        category: "reflection",
+        enabledBy: { param: "reflection", gt: 0 }
       }
     }
   },
