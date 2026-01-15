@@ -4073,8 +4073,7 @@ render(o1)`
             const params = this._programState.getStepValues(effectKey)
             if (!params) continue
 
-            const enablerValue = params[enabledBy]
-            const isEnabled = this._isControlEnabled(enablerValue)
+            const isEnabled = this._evaluateEnableCondition(enabledBy, params)
 
             if (isEnabled) {
                 element.classList.remove('disabled')
@@ -4085,7 +4084,137 @@ render(o1)`
     }
 
     /**
+     * Evaluate an enabledBy condition against current parameter values
+     * 
+     * Supports multiple formats:
+     * - String (legacy): "paramName" - uses _isControlEnabled for truthy check
+     * - Object with conditions:
+     *   - { param: "name", eq: value } - equals
+     *   - { param: "name", neq: value } - not equals
+     *   - { param: "name", gt: value } - greater than
+     *   - { param: "name", gte: value } - greater than or equal
+     *   - { param: "name", lt: value } - less than
+     *   - { param: "name", lte: value } - less than or equal
+     *   - { param: "name", in: [values] } - value is member of array
+     *   - { param: "name", notIn: [values] } - value is not member of array
+     *   - Multiple conditions in one object are AND'd together
+     * - { or: [condition1, condition2, ...] } - OR multiple conditions
+     * - { and: [condition1, condition2, ...] } - AND multiple conditions (explicit)
+     * - { not: condition } - negate a condition
+     * 
+     * @param {string|object} condition - The enabledBy condition
+     * @param {object} params - Current parameter values
+     * @returns {boolean} Whether the control should be enabled
+     * @private
+     */
+    _evaluateEnableCondition(condition, params) {
+        // Legacy string format: just a param name
+        if (typeof condition === 'string') {
+            const value = params[condition]
+            return this._isControlEnabled(value)
+        }
+
+        // Must be an object
+        if (typeof condition !== 'object' || condition === null) {
+            return true // Invalid condition, default to enabled
+        }
+
+        // Handle OR conditions
+        if (Array.isArray(condition.or)) {
+            return condition.or.some(c => this._evaluateEnableCondition(c, params))
+        }
+
+        // Handle AND conditions (explicit)
+        if (Array.isArray(condition.and)) {
+            return condition.and.every(c => this._evaluateEnableCondition(c, params))
+        }
+
+        // Handle NOT condition
+        if (condition.not !== undefined) {
+            return !this._evaluateEnableCondition(condition.not, params)
+        }
+
+        // Standard condition object with param and operators
+        const paramName = condition.param
+        if (!paramName) {
+            return true // No param specified, default to enabled
+        }
+
+        const value = params[paramName]
+        
+        // If no operators specified, use legacy truthy check
+        const operators = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'notIn']
+        const hasOperator = operators.some(op => condition[op] !== undefined)
+        
+        if (!hasOperator) {
+            return this._isControlEnabled(value)
+        }
+
+        // Evaluate all operators (AND logic for multiple operators)
+        let result = true
+
+        if (condition.eq !== undefined) {
+            result = result && this._valuesEqual(value, condition.eq)
+        }
+
+        if (condition.neq !== undefined) {
+            result = result && !this._valuesEqual(value, condition.neq)
+        }
+
+        if (condition.gt !== undefined) {
+            result = result && (typeof value === 'number' && value > condition.gt)
+        }
+
+        if (condition.gte !== undefined) {
+            result = result && (typeof value === 'number' && value >= condition.gte)
+        }
+
+        if (condition.lt !== undefined) {
+            result = result && (typeof value === 'number' && value < condition.lt)
+        }
+
+        if (condition.lte !== undefined) {
+            result = result && (typeof value === 'number' && value <= condition.lte)
+        }
+
+        if (condition.in !== undefined && Array.isArray(condition.in)) {
+            result = result && condition.in.some(v => this._valuesEqual(value, v))
+        }
+
+        if (condition.notIn !== undefined && Array.isArray(condition.notIn)) {
+            result = result && !condition.notIn.some(v => this._valuesEqual(value, v))
+        }
+
+        return result
+    }
+
+    /**
+     * Compare two values for equality, handling different types
+     * @private
+     */
+    _valuesEqual(a, b) {
+        // Handle null/undefined
+        if (a === b) return true
+        if (a === null || a === undefined || b === null || b === undefined) return false
+
+        // Handle arrays (vec2/vec3/vec4)
+        if (Array.isArray(a) && Array.isArray(b)) {
+            if (a.length !== b.length) return false
+            return a.every((v, i) => Math.abs(v - b[i]) < 0.0001)
+        }
+
+        // Handle numbers with tolerance
+        if (typeof a === 'number' && typeof b === 'number') {
+            return Math.abs(a - b) < 0.0001
+        }
+
+        // Default equality
+        return a === b
+    }
+
+    /**
      * Check if a control's enabler value means the dependent control should be enabled
+     * Used for legacy string-based enabledBy (truthy check)
      * @private
      */
     _isControlEnabled(value) {
