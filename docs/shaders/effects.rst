@@ -284,6 +284,117 @@ Uniform controls can be visually grouped in the demo UI using the ``ui.category`
      }
    }
 
+4c. Conditional Control Visibility (enabledBy)
+-----------------------------------------------
+
+The ``enabledBy`` property controls when a parameter's UI control is enabled or disabled based on the value of other parameters. This supports both simple truthy checks and complex conditional expressions.
+
+**Simple String Format (Legacy):**
+
+The simplest form takes a parameter name as a string. The control is enabled when the referenced parameter is "truthy" (non-zero for numbers, true for booleans, non-empty for strings).
+
+.. code-block:: javascript
+
+   enabledBy: "hslEnable"    // enabled when hslEnable is truthy
+
+**Comparison Operators:**
+
+For more precise control, use an object with ``param`` and one or more comparison operators:
+
+.. code-block:: javascript
+
+   enabledBy: { param: "intensity", gt: 0.5 }     // enabled when intensity > 0.5
+   enabledBy: { param: "intensity", gte: 0.5 }    // enabled when intensity >= 0.5
+   enabledBy: { param: "intensity", lt: 0.5 }     // enabled when intensity < 0.5
+   enabledBy: { param: "intensity", lte: 0.5 }    // enabled when intensity <= 0.5
+   enabledBy: { param: "mode", eq: 1 }            // enabled when mode === 1
+   enabledBy: { param: "mode", neq: 0 }           // enabled when mode !== 0
+
+**Set Membership:**
+
+Check if a value is a member of (or excluded from) a set of values:
+
+.. code-block:: javascript
+
+   enabledBy: { param: "mode", in: [1, 2, 3] }       // enabled when mode is 1, 2, or 3
+   enabledBy: { param: "mode", notIn: [0, 4] }       // enabled when mode is NOT 0 or 4
+   enabledBy: { param: "preset", in: ["a", "b"] }    // works with strings too
+
+**Multiple Conditions (AND):**
+
+Multiple operators in a single object are AND'd together:
+
+.. code-block:: javascript
+
+   enabledBy: { param: "intensity", gt: 0, lt: 1 }   // enabled when 0 < intensity < 1
+
+**Logical Operators:**
+
+For complex conditions, use ``or``, ``and``, and ``not``:
+
+.. code-block:: javascript
+
+   // OR: enabled when EITHER condition is true
+   enabledBy: {
+     or: [
+       { param: "mode", eq: 1 },
+       { param: "enabled", eq: true }
+     ]
+   }
+
+   // AND (explicit): enabled when ALL conditions are true
+   enabledBy: {
+     and: [
+       { param: "mode", gt: 0 },
+       { param: "intensity", gte: 0.5 }
+     ]
+   }
+
+   // NOT: invert a condition
+   enabledBy: { not: { param: "disabled", eq: true } }
+
+   // Complex nested conditions
+   enabledBy: {
+     or: [
+       { param: "mode", eq: 2 },
+       { and: [
+         { param: "mode", eq: 1 },
+         { param: "advanced", eq: true }
+       ]}
+     ]
+   }
+
+**Operator Reference:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 15 85
+
+   * - Operator
+     - Description
+   * - ``eq``
+     - Equal to value
+   * - ``neq``
+     - Not equal to value
+   * - ``gt``
+     - Greater than value (numbers only)
+   * - ``gte``
+     - Greater than or equal to value (numbers only)
+   * - ``lt``
+     - Less than value (numbers only)
+   * - ``lte``
+     - Less than or equal to value (numbers only)
+   * - ``in``
+     - Value is member of array
+   * - ``notIn``
+     - Value is not member of array
+   * - ``or``
+     - Array of conditions, any must be true
+   * - ``and``
+     - Array of conditions, all must be true
+   * - ``not``
+     - Invert the nested condition
+
 **BANNED:**
 
 - ``category: "Primary"`` — PascalCase forbidden
@@ -530,7 +641,13 @@ The following normative shape defines the Effect configuration object. Validatio
                "control": { "type": "string", "enum": ["slider", "dropdown", "color", "checkbox"] },
                "category": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9]*$", "description": "UI grouping category (MUST be camelCase)" },
                "hint": { "type": "string", "description": "Tooltip text for the control" },
-               "enabledBy": { "type": "string", "description": "Name of another global that must be truthy for this control to be enabled" }
+               "enabledBy": { 
+                 "oneOf": [
+                   { "type": "string", "description": "Parameter name for truthy check" },
+                   { "$ref": "#/definitions/enableCondition" }
+                 ],
+                 "description": "Condition that must be satisfied for this control to be enabled"
+               }
              }
            },
            "requires": {
@@ -561,6 +678,24 @@ The following normative shape defines the Effect configuration object. Validatio
          "required": ["format"],
          "additionalProperties": false,
          "description": "User-defined textures. Reserved names (inputTex, outputTex, inputTex3d, inputGeo) are synthesized by the runtime."
+       },
+       "enableCondition": {
+         "type": "object",
+         "description": "Conditional expression for enabledBy",
+         "properties": {
+           "param": { "type": "string", "description": "Parameter name to check" },
+           "eq": { "description": "Equal to value" },
+           "neq": { "description": "Not equal to value" },
+           "gt": { "type": "number", "description": "Greater than" },
+           "gte": { "type": "number", "description": "Greater than or equal" },
+           "lt": { "type": "number", "description": "Less than" },
+           "lte": { "type": "number", "description": "Less than or equal" },
+           "in": { "type": "array", "description": "Value is member of array" },
+           "notIn": { "type": "array", "description": "Value is not member of array" },
+           "or": { "type": "array", "items": { "$ref": "#/definitions/enableCondition" }, "description": "Any condition must be true" },
+           "and": { "type": "array", "items": { "$ref": "#/definitions/enableCondition" }, "description": "All conditions must be true" },
+           "not": { "$ref": "#/definitions/enableCondition", "description": "Invert condition" }
+         }
        },
        "passSpec": {
          "type": "object",
