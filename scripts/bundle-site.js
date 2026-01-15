@@ -140,7 +140,7 @@ function transformShadersDemoHtml() {
     // Replace the dynamic import pattern with static imports from bundled core
     // The source now uses dynamic imports based on useBundles, but for the bundled
     // site we always use static imports from the bundled library
-    const dynamicImportPattern = /\/\/ Check for bundles mode BEFORE importing\s*\n\s*const params = new URLSearchParams\(window\.location\.search\);\s*\n\s*const useBundles = params\.get\('bundles'\) === '1' \|\| params\.get\('bundles'\) === 'true';\s*\n\s*\n\s*\/\/ Dynamic imports based on bundles mode\s*\n\s*const corePath = useBundles[\s\S]*?const \{ ToggleSwitch \} = toggleSwitchModule;\s*\n\s*const \{[\s\S]*?getEffectFromURL\s*\n\s*\} = demoUiModule;/
+    const dynamicImportPattern = /\/\/ Check for bundles mode BEFORE importing\s*\n\s*const params = new URLSearchParams\(window\.location\.search\);\s*\n\s*const useBundles = params\.get\('bundles'\) === '1' \|\| params\.get\('bundles'\) === 'true';\s*\n\s*\n\s*\/\/ Dynamic imports based on bundles mode\s*\n\s*const corePath = useBundles[\s\S]*?const \{ MidiInputManager, AudioInputManager \} = externalInputModule;\s*\n\s*const \{[\s\S]*?getEffectFromURL\s*\n\s*\} = demoUiModule;/
 
     html = html.replace(
         dynamicImportPattern,
@@ -148,6 +148,7 @@ function transformShadersDemoHtml() {
         import { CanvasRenderer, getEffect } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';
         import { EffectSelect } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';
         import { ToggleSwitch } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';
+        import { MidiInputManager, AudioInputManager } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';
         import { 
             UIController, 
             extractEffectNamesFromDsl,

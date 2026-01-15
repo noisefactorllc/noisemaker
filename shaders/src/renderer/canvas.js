@@ -25,10 +25,10 @@ import { createRuntime, recompile } from '../runtime/compiler.js'
 import { registerEffect, getEffect } from '../runtime/registry.js'
 import { mergeIntoEnums } from '../lang/enums.js'
 import { stdEnums } from '../lang/std_enums.js'
-import { MidiState, AudioState } from '../runtime/external-input.js'
+import { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInputManager } from '../runtime/external-input.js'
 
 // Re-export for convenience
-export { MidiState, AudioState }
+export { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInputManager }
 
 // Known 3D generator effects (self-initialize volumes)
 const KNOWN_3D_GENERATORS = ['noise3d', 'cell3d', 'shape3d', 'fractal3d', 'ca3d', 'rd3d']

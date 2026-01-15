@@ -41,7 +41,7 @@ import { Pipeline, createPipeline } from './runtime/pipeline.js'
 export { Pipeline, createPipeline }
 
 // External Input (MIDI & Audio)
-export { MidiState, MidiChannelState, AudioState } from './runtime/external-input.js'
+export { MidiState, MidiChannelState, AudioState, MidiInputManager, AudioInputManager, ExternalInputManager } from './runtime/external-input.js'
 
 // Integration
 import { compileGraph, createRuntime, recompile } from './runtime/compiler.js'
