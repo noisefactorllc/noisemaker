@@ -10,7 +10,6 @@ A comprehensive escape-time fractal explorer supporting multiple classic fractal
 | **Julia** | z = z² + c | Companion to Mandelbrot. Each pixel is the starting z, with c as a fixed parameter. Different c values create vastly different patterns. |
 | **Burning Ship** | z = (\|Re(z)\| + i\|Im(z)\|)² + c | Takes absolute values before squaring, creating distinctive asymmetric ship-like structures. |
 | **Tricorn** | z = conj(z)² + c | Also called Mandelbar. Uses complex conjugate, producing three-cornered symmetry. |
-| **Phoenix** | z = z² + c + p·z₋₁ | Incorporates a "memory" of the previous iteration, creating flowing, organic patterns. |
 | **Newton** | z = z - f(z)/f'(z) | Root-finding fractal for z³ - 1. Colors by which of the three roots is reached and iteration count. |
 
 ## Parameters
@@ -19,7 +18,7 @@ A comprehensive escape-time fractal explorer supporting multiple classic fractal
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| type | enum | mandelbrot | mandelbrot, julia, burningShip, tricorn, phoenix, newton | Fractal algorithm |
+| type | enum | mandelbrot | mandelbrot, julia, burningShip, tricorn, newton | Fractal algorithm |
 | power | float | 2.0 | 2–8 | Exponent for z^n (disabled for Newton) |
 | iterations | int | 100 | 10–500 | Maximum iteration depth |
 | bailout | float | 4.0 | 2–100 | Escape radius threshold (disabled for Newton) |
@@ -40,12 +39,6 @@ A comprehensive escape-time fractal explorer supporting multiple classic fractal
 | julia real | float | -0.7 | -2–2 | Real component of c (when not animating) |
 | julia imag | float | 0.27 | -2–2 | Imaginary component of c (when not animating) |
 | animate c | bool | false | — | Animate c along a circle for morphing Julia sets |
-| phoenix p | float | -0.5 | -1–1 | Memory coefficient for Phoenix fractal |
-
-### Animation
-
-| Parameter | Type | Default | Range | Description |
-|-----------|------|---------|-------|-------------|
 | speed | float | 0.2 | 0–2 | Animation speed multiplier |
 
 ### Output
