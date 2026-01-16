@@ -9,8 +9,6 @@ struct Uniforms {
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
-@group(0) @binding(1) var samp : sampler;
-@group(0) @binding(2) var tex : texture_2d<f32>;
 
 const PI : f32 = 3.14159265359;
 const TAU : f32 = 6.28318530718;
@@ -47,10 +45,6 @@ fn prng(p0: vec3<f32>) -> vec3<f32> {
     if (p.z >= 0.0) { p.z = p.z * 2.0; } else { p.z = -p.z * 2.0 + 1.0; }
     let u = pcg(vec3<u32>(p));
     return vec3<f32>(u) / f32(0xffffffffu);
-}
-
-fn luminance(color: vec3<f32>) -> f32 {
-    return 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
 }
 
 fn polarShape(st: vec2<f32>, sides: i32) -> f32 {
@@ -136,58 +130,19 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     let cellVariation = uniforms.data[2].x;
     let loopAmp = uniforms.data[2].y;
-    let texInfluence = i32(uniforms.data[2].z);
-    let texIntensity = uniforms.data[2].w;
 
     let aspect = resolution.x / resolution.y;
 
     var color = vec4<f32>(0.0, 0.0, 1.0, 1.0);
     var st = pos.xy / resolution.y;
 
-    var freq = map(scale, 1.0, 100.0, 20.0, 1.0);
-    var cellSize = map(cellScale, 1.0, 100.0, 3.0, 0.75);
+    let freq = map(scale, 1.0, 100.0, 20.0, 1.0);
+    let cellSize = map(cellScale, 1.0, 100.0, 3.0, 0.75);
 
-    var texLuminosity = 0.0;
-    let texFactor = texIntensity * 0.01;
-    var texCoord = pos.xy / resolution;
-    texCoord.y = 1.0 - texCoord.y; // Flip renderer-supplied textures to align with screen space.
-
-    if (texInfluence > 0) {
-        let texRGB = textureSample(tex, samp, texCoord).rgb;
-
-        texLuminosity = luminance(texRGB);
-
-        if (texInfluence == 1) {
-            cellSize = cellSize - texLuminosity * texFactor;
-        } else if (texInfluence == 2) {
-            freq = freq - texLuminosity * (texFactor * 5.0);
-        }
-    }
-
-    var d = cells(st, freq, cellSize, metric, seed, loopAmp, cellVariation, cellSmooth, time, aspect);
-
-    if (texInfluence >= 10) {
-        if (texInfluence == 10) {
-            d = d + texLuminosity * texFactor;
-        } else if (texInfluence == 11) {
-            d = mix(d, d / max(0.1, texLuminosity), texFactor);
-        } else if (texInfluence == 12) {
-            d = mix(d, min(d, texLuminosity), texFactor);
-        } else if (texInfluence == 13) {
-            d = mix(d, max(d, texLuminosity), texFactor);
-        } else if (texInfluence == 14) {
-            d = mix(d, modulo(d, max(0.1, texLuminosity)), texFactor);
-        } else if (texInfluence == 15) {
-            d = mix(d, d * texLuminosity, texFactor);
-        } else if (texInfluence == 16) {
-            d = d - texLuminosity * texFactor;
-        }
-    }
+    let d = cells(st, freq, cellSize, metric, seed, loopAmp, cellVariation, cellSmooth, time, aspect);
 
     // Mono output only
     color = vec4<f32>(vec3<f32>(d, d, d), color.a);
-
-    var st2 = pos.xy / resolution;
 
     return color;
 }

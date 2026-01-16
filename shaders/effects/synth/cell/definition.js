@@ -16,9 +16,7 @@ export default new Effect({
     cellScale: { slot: 1, components: 'z' },
     cellSmooth: { slot: 1, components: 'w' },
     cellVariation: { slot: 2, components: 'x' },
-    loopAmp: { slot: 2, components: 'y' },
-    texInfluence: { slot: 2, components: 'z' },
-    texIntensity: { slot: 2, components: 'w' }
+    loopAmp: { slot: 2, components: 'y' }
   },
   globals: {
     shape: {
@@ -103,55 +101,12 @@ export default new Effect({
         label: "seed",
         control: "slider"
       }
-    },
-    tex: {
-      type: "surface",
-      default: "none",
-      ui: {
-        label: "texture"
-      }
-    },
-    texInfluence: {
-      type: "int",
-      default: 1,
-      uniform: "texInfluence",
-      choices: {
-        warp: null,
-        cellScale: 1,
-        noiseScale: 2,
-        combine: null,
-        add: 10,
-        divide: 11,
-        min: 12,
-        max: 13,
-        mod: 14,
-        multiply: 15,
-        subtract: 16
-      },
-      ui: {
-        label: "influence",
-        control: "dropdown"
-      }
-    },
-    texIntensity: {
-      type: "float",
-      default: 100,
-      uniform: "texIntensity",
-      min: 0,
-      max: 100,
-      ui: {
-        label: "intensity",
-        control: "slider"
-      }
     }
   },
   passes: [
     {
       name: "render",
       program: "cell",
-      inputs: {
-        tex: "tex"
-      },
       outputs: {
         fragColor: "outputTex"
       }

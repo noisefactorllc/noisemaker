@@ -19,10 +19,6 @@ uniform float cellSmooth;
 uniform float cellVariation;
 uniform float loopAmp;
 
-uniform int texInfluence;
-uniform float texIntensity;
-uniform sampler2D tex;
-
 out vec4 fragColor;
 
 #define PI 3.14159265359
@@ -58,10 +54,6 @@ vec3 prng (vec3 p) {
     return vec3(pcg(uvec3(p))) / float(uint(0xffffffff));
 }
 // end PCG PRNG
-
-float luminance(vec3 color) {
-    return 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
-}
 
 float polarShape(vec2 st, int sides) {
     float a = atan(st.x, st.y) + PI;
@@ -140,52 +132,15 @@ float cells(vec2 st, float freq, float cellSize, int sides) {
 
 void main() {
     vec4 color = vec4(0.0, 0.0, 1.0, 1.0);
-    vec2 st = gl_FragCoord.xy / resolution.y;	
+    vec2 st = gl_FragCoord.xy / resolution.y;
 
     float freq = map(scale, 1.0, 100.0, 20.0, 1.0);
     float cellSize = map(cellScale, 1.0, 100.0, 3.0, 0.75);
 
-    float texLuminosity = 0.0;
-    float texFactor = texIntensity * 0.01;
-    vec2 texCoord = gl_FragCoord.xy / resolution;
-    texCoord.y = 1.0 - texCoord.y; // Flip renderer-supplied textures to match screen orientation.
-
-    if (texInfluence > 0) {
-        vec3 texRGB = texture(tex, texCoord).rgb;
-
-        texLuminosity = luminance(texRGB);
-
-        if (texInfluence == 1) {
-            cellSize -= texLuminosity * texFactor;
-        } else if (texInfluence == 2) {
-            freq -= texLuminosity * (texFactor * 5.0);
-        }
-    }
-
     float d = cells(st, freq, cellSize, metric);
-
-    if (texInfluence >= 10) {
-        if (texInfluence == 10) {
-            d += texLuminosity * texFactor;
-        } else if (texInfluence == 11) {
-            d = mix(d, d / max(0.1, texLuminosity), texFactor);
-        } else if (texInfluence == 12) {
-            d = mix(d, min(d, texLuminosity), texFactor);
-        } else if (texInfluence == 13) {
-            d = mix(d, max(d, texLuminosity), texFactor);
-        } else if (texInfluence == 14) {
-            d = mix(d, mod(d, max(0.1, texLuminosity)), texFactor);
-        } else if (texInfluence == 15) {
-            d = mix(d, d * texLuminosity, texFactor);
-        } else if (texInfluence == 16) {
-            d -= texLuminosity * texFactor;
-        }
-    }
 
     // Mono output only
     color.rgb = vec3(d);
-
-    st = gl_FragCoord.xy / resolution;
 
     fragColor = color;
 }

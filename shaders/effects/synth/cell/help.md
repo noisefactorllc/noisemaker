@@ -17,6 +17,3 @@ Generates cellular noise patterns based on Voronoi distance calculations. Suppor
 | cellVariation | float | 50 | 0–100 | Cell shape variation |
 | loopAmp | int | 1 | 0–5 | Animation speed |
 | seed | int | 1 | 1–100 | Random seed |
-| tex | surface | none | — | Texture input for modulation |
-| texInfluence | int | cellScale | cellScale, noiseScale, add, divide, min, max, mod, multiply, subtract | How texture influences output |
-| texIntensity | float | 100 | 0–100 | Texture influence intensity |
