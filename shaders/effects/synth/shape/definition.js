@@ -152,7 +152,13 @@ export default new Effect({
       max: 100,
       ui: {
         label: "noise seed",
-        control: "slider"
+        control: "slider",
+        category: "noise",
+        enabledBy: { 
+          or: [
+            { param: "loopAOffset", gte: 300, lt: 400 },
+            { param: "loopBOffset", gte: 300, lt: 400 }
+        ]}
       }
     },
     wrap: {
@@ -161,7 +167,13 @@ export default new Effect({
       uniform: "wrap",
       ui: {
         label: "wrap",
-        control: "checkbox"
+        control: "checkbox",
+        category: "noise",
+        enabledBy: { 
+          or: [
+            { param: "loopAOffset", gte: 300, lt: 370 },
+            { param: "loopBOffset", gte: 300, lt: 370 }
+        ]}
       }
     }
   },

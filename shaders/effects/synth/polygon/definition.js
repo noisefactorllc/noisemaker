@@ -51,7 +51,8 @@ export default new Effect({
         "uniform": "fgColor",
         "ui": {
             "label": "Foreground Color",
-            "control": "color"
+            "control": "color",
+            "category": "color"
         }
     },
     "fgAlpha": {
@@ -63,7 +64,8 @@ export default new Effect({
         "uniform": "fgAlpha",
         "ui": {
             "label": "Foreground Opacity",
-            "control": "slider"
+            "control": "slider",
+            "category": "color"
         }
     },
     "bgColor": {
@@ -72,7 +74,8 @@ export default new Effect({
         "uniform": "bgColor",
         "ui": {
             "label": "Background Color",
-            "control": "color"
+            "control": "color",
+            "category": "color"
         }
     },
     "bgAlpha": {
@@ -83,7 +86,8 @@ export default new Effect({
         "uniform": "bgAlpha",
         "ui": {
             "label": "Background Opacity",
-            "control": "slider"
+            "control": "slider",
+            "category": "color"
         }
     }
 },

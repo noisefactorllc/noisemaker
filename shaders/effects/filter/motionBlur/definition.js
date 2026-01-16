@@ -14,16 +14,6 @@ export default new Effect({
 
   description: "Simple motion blur via frame blending",
   globals: {
-    resetState: {
-      type: "boolean",
-      default: false,
-      uniform: "resetState",
-      ui: {
-        control: "button",
-        buttonLabel: "reset",
-        label: "state"
-      }
-    },
     amount: {
       type: "float",
       default: 50,
@@ -34,7 +24,17 @@ export default new Effect({
         label: "amount",
         control: "slider"
       }
-    }
+    },
+    resetState: {
+      type: "boolean",
+      default: false,
+      uniform: "resetState",
+      ui: {
+        control: "button",
+        buttonLabel: "reset",
+        label: "state"
+      }
+    },
   },
   textures: {
     _selfTex: {
