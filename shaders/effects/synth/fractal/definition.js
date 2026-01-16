@@ -1,213 +1,262 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * nu/fractal - Mono-only fractal explorer
- * Removed: palette colorization, hsv colorMode, hueRange, all palette uniforms
- * Output: grayscale intensity based on escape iteration
+ * synth/fractal - Comprehensive fractal explorer
+ * 
+ * Supports multiple classic escape-time fractals with smooth iteration coloring,
+ * flexible transform controls, animation, and multiple output modes.
+ * 
+ * Fractal types:
+ * - Mandelbrot: Classic z² + c
+ * - Julia: Julia set of z² + c with animated/user-defined c
+ * - Burning Ship: Absolute value variant with distinctive ship-like structures
+ * - Tricorn: Complex conjugate variant (Mandelbar)
+ * - Phoenix: Phoenix fractal with memory term
+ * - Newton: Newton-Raphson root-finding fractal for z³ - 1
  */
 export default new Effect({
   name: "Fractal",
   namespace: "synth",
   func: "fractal",
-  tags: ["geometric"],
+  tags: ["geometric", "math"],
 
-  description: "Julia, Mandelbrot, Newton fractal explorer",
+  description: "Escape-time fractal explorer with multiple types and smooth coloring",
   uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
-    seed: { slot: 0, components: 'w' },
     fractalType: { slot: 1, components: 'x' },
-    symmetry: { slot: 1, components: 'y' },
-    offsetX: { slot: 1, components: 'z' },
-    offsetY: { slot: 1, components: 'w' },
+    power: { slot: 1, components: 'y' },
+    iterations: { slot: 1, components: 'z' },
+    bailout: { slot: 1, components: 'w' },
     centerX: { slot: 2, components: 'x' },
     centerY: { slot: 2, components: 'y' },
-    zoomAmt: { slot: 2, components: 'z' },
-    speed: { slot: 2, components: 'w' },
-    rotation: { slot: 3, components: 'x' },
-    iterations: { slot: 3, components: 'y' },
-    mode: { slot: 3, components: 'z' },
-    levels: { slot: 3, components: 'w' },
-    backgroundColor: { slot: 4, components: 'xyz' },
-    backgroundOpacity: { slot: 4, components: 'w' },
-    cutoff: { slot: 5, components: 'x' }
+    zoom: { slot: 2, components: 'z' },
+    rotation: { slot: 2, components: 'w' },
+    juliaReal: { slot: 3, components: 'x' },
+    juliaImag: { slot: 3, components: 'y' },
+    animateJulia: { slot: 3, components: 'z' },
+    speed: { slot: 3, components: 'w' },
+    outputMode: { slot: 4, components: 'x' },
+    colorCycles: { slot: 4, components: 'y' },
+    smoothing: { slot: 4, components: 'z' },
+    invert: { slot: 4, components: 'w' }
   },
   globals: {
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider"
-      }
-    },
+    // === Type Selection ===
     fractalType: {
       type: "int",
-      default: 0,
+      default: 1,
       uniform: "fractalType",
       choices: {
-        julia: 0,
-        mandelbrot: 2,
-        newton: 1
+        mandelbrot: 0,
+        julia: 1,
+        burningShip: 2,
+        tricorn: 3,
+        newton: 4
       },
       ui: {
         label: "type",
         control: "dropdown"
       }
     },
-    symmetry: {
+    power: {
       type: "int",
-      default: 0,
-      uniform: "symmetry",
+      default: 2.0,
+      uniform: "power",
+      min: 2,
+      max: 8,
       ui: {
-        label: "symmetry",
-        control: "slider"
+        label: "power",
+        control: "slider",
+        enabledBy: { param: "fractalType", notIn: [4] }
       }
     },
-    zoomAmt: {
-      type: "float",
-      default: 0,
-      uniform: "zoomAmt",
-      min: 0,
-      max: 130,
-      ui: {
-        label: "zoom",
-        control: "slider"
-      }
-    },
-    rotation: {
+    iterations: {
       type: "int",
-      default: 0,
-      uniform: "rotation",
-      min: -180,
-      max: 180,
+      default: 100,
+      uniform: "iterations",
+      min: 10,
+      max: 500,
       ui: {
-        label: "rotate",
+        label: "iterations",
         control: "slider"
       }
     },
-    speed: {
+    bailout: {
       type: "float",
-      default: 30,
-      uniform: "speed",
-      min: 0,
+      default: 4.0,
+      uniform: "bailout",
+      min: 2,
       max: 100,
       ui: {
-        label: "speed",
-        control: "slider"
+        label: "bailout",
+        control: "slider",
+        enabledBy: { param: "fractalType", notIn: [4] }
       }
     },
-    offsetX: {
-      type: "float",
-      default: 70,
-      uniform: "offsetX",
-      min: -100,
-      max: 100,
-      ui: {
-        label: "offset x",
-        control: "slider"
-      }
-    },
-    offsetY: {
-      type: "float",
-      default: 50,
-      uniform: "offsetY",
-      min: -100,
-      max: 100,
-      ui: {
-        label: "offset y",
-        control: "slider"
-      }
-    },
+
+    // === Transform ===
     centerX: {
       type: "float",
-      default: 0,
+      default: 0.0,
       uniform: "centerX",
-      min: -100,
-      max: 100,
+      min: -3,
+      max: 3,
       ui: {
         label: "center x",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
     centerY: {
       type: "float",
       default: 0,
       uniform: "centerY",
-      min: -100,
-      max: 100,
+      min: -3,
+      max: 3,
       ui: {
         label: "center y",
-        control: "slider"
+        control: "slider",
+        category: "transform"
       }
     },
-    mode: {
+    zoom: {
+      type: "float",
+      default: 1.0,
+      uniform: "zoom",
+      min: 0.1,
+      max: 100,
+      randMax: 4,
+      ui: {
+        label: "zoom",
+        control: "slider",
+        category: "transform"
+      }
+    },
+    rotation: {
+      type: "float",
+      default: 0,
+      uniform: "rotation",
+      min: 0,
+      max: 1,
+      ui: {
+        label: "rotation",
+        control: "slider",
+        category: "transform"
+      }
+    },
+
+    // === Julia Parameters ===
+    juliaReal: {
+      type: "float",
+      default: -0.7,
+      uniform: "juliaReal",
+      min: -2,
+      max: 2,
+      ui: {
+        label: "julia real",
+        control: "slider",
+        category: "julia",
+        enabledBy: { 
+          and: [
+            { param: "fractalType", eq: 1 },
+            { param: "animateJulia", eq: false }
+          ]
+        }
+      }
+    },
+    juliaImag: {
+      type: "float",
+      default: 0.4,
+      uniform: "juliaImag",
+      min: -2,
+      max: 2,
+      ui: {
+        label: "julia imag",
+        control: "slider",
+        category: "julia",
+        enabledBy: { 
+          and: [
+            { param: "fractalType", eq: 1 },
+            { param: "animateJulia", eq: false }
+          ]
+        }
+      }
+    },
+    animateJulia: {
+      type: "boolean",
+      default: false,
+      uniform: "animateJulia",
+      ui: {
+        label: "animate c",
+        control: "checkbox",
+        category: "julia",
+        enabledBy: { param: "fractalType", eq: 1 }
+      }
+    },
+    speed: {
+      type: "float",
+      default: 0.2,
+      uniform: "speed",
+      min: 0,
+      max: 2,
+      ui: {
+        label: "speed",
+        control: "slider",
+        category: "julia",
+        enabledBy: { param: "animateJulia", eq: true}
+      }
+    },
+
+    // === Output ===
+    outputMode: {
       type: "int",
       default: 0,
-      uniform: "mode",
+      uniform: "outputMode",
       choices: {
-        iter: 0,
-        z: 1
+        iterations: 0,
+        distance: 1,
+        angle: 2,
+        potential: 3
       },
       ui: {
-        label: "mode",
-        control: "dropdown"
+        label: "output mode",
+        control: "dropdown",
+        category: "output",
+        enabledBy: { param: "fractalType", notIn: [4] }
       }
     },
-    iterations: {
-      type: "int",
-      default: 50,
-      uniform: "iterations",
-      min: 1,
-      max: 50,
-      ui: {
-        label: "iterations",
-        control: "slider"
-      }
-    },
-    levels: {
-      type: "int",
-      default: 0,
-      uniform: "levels",
-      min: 0,
-      max: 32,
-      ui: {
-        label: "posterize",
-        control: "slider"
-      }
-    },
-    backgroundColor: {
-      type: "vec3",
-      default: [0.0, 0.0, 0.0],
-      uniform: "backgroundColor",
-      ui: {
-        label: "bkg color",
-        control: "color"
-      }
-    },
-    backgroundOpacity: {
+    colorCycles: {
       type: "float",
-      default: 100,
-      uniform: "backgroundOpacity",
-      min: 0,
-      max: 100,
+      default: 1.0,
+      uniform: "colorCycles",
+      min: 0.1,
+      max: 10,
       ui: {
-        label: "bkg opacity",
-        control: "slider"
+        label: "color cycles",
+        control: "slider",
+        category: "output"
       }
     },
-    cutoff: {
-      type: "float",
-      default: 0,
-      uniform: "cutoff",
-      min: 0,
-      max: 100,
+    smoothing: {
+      type: "boolean",
+      default: true,
+      uniform: "smoothing",
       ui: {
-        label: "cutoff",
-        control: "slider"
+        label: "smooth",
+        control: "checkbox",
+        category: "output",
+        enabledBy: { param: "fractalType", notIn: [4] }
+      }
+    },
+    invert: {
+      type: "boolean",
+      default: false,
+      uniform: "invert",
+      ui: {
+        label: "invert",
+        control: "checkbox",
+        category: "output"
       }
     }
   },
@@ -215,9 +264,7 @@ export default new Effect({
     {
       name: "render",
       program: "fractal",
-      inputs: {
-      },
-
+      inputs: {},
       outputs: {
         fragColor: "outputTex"
       }

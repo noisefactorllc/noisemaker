@@ -1,18 +1,22 @@
 /*
- * WGSL fractal explorer shader (mono-only variant).
- * Removed: palette colorization, hsv colorMode, all palette uniforms
- * Output: grayscale intensity based on escape iteration
+ * WGSL fractal explorer shader
+ * 
+ * Implements multiple escape-time fractals with smooth iteration coloring:
+ * - Mandelbrot (z² + c)
+ * - Julia (z² + c with fixed c)
+ * - Burning Ship (|Re(z)|² + |Im(z)|² + c)
+ * - Tricorn/Mandelbar (conj(z)² + c)
+ * - Phoenix (z² + c + p*z_prev)
+ * - Newton (Newton-Raphson for z³ - 1)
  */
 
 struct Uniforms {
-    // Contiguous vec4 packing for mono-only:
-    // 0: resolution.xy, time, seed
-    // 1: fractalType, symmetry, offsetX, offsetY
-    // 2: centerX, centerY, zoomAmt, speed
-    // 3: rotation, iterations, mode, levels
-    // 4: backgroundColor.xyz, backgroundOpacity
-    // 5: cutoff, (unused), (unused), (unused)
-    data: array<vec4<f32>, 6>,
+    // Slot 0: resolution.xy, time, (unused)
+    // Slot 1: fractalType, power, iterations, bailout
+    // Slot 2: centerX, centerY, zoom, rotation
+    // Slot 3: juliaReal, juliaImag, animateJulia, speed
+    // Slot 4: outputMode, colorCycles, smoothing, invert
+    data: array<vec4<f32>, 5>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -20,184 +24,310 @@ struct Uniforms {
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
 
-fn modulo(a: f32, b: f32) -> f32 {
-    return a - b * floor(a / b);
+// ============================================================================
+// Complex number operations
+// ============================================================================
+
+// Complex multiplication: (a + bi)(c + di) = (ac - bd) + (ad + bc)i
+fn cmul(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
+    return vec2<f32>(a.x * b.x - a.y * b.y, a.x * b.y + a.y * b.x);
 }
 
-fn map(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
-    return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
-}
-
-fn rotate2D(st0: vec2<f32>, rot: f32, aspect: f32) -> vec2<f32> {
-    var st = st0;
-    let r = map(rot, 0.0, 360.0, 0.0, 2.0);
-    let angle = r * PI;
-    st = st - vec2<f32>(0.5 * aspect, 0.5);
-    let s = sin(angle);
-    let c = cos(angle);
-    st = mat2x2<f32>(c, s, -s, c) * st;
-    st = st + vec2<f32>(0.5 * aspect, 0.5);
-    return st;
-}
-
-fn fx(z: vec2<f32>) -> vec2<f32> {
-    return vec2<f32>(pow(z.x, 3.0) - 3.0 * z.x * pow(z.y, 2.0) - 1.0, 3.0 * pow(z.x, 2.0) * z.y - pow(z.y, 3.0));
-}
-
-fn fpx(z: vec2<f32>) -> vec2<f32> {
-    return vec2<f32>(3.0 * pow(z.x, 2.0) - 3.0 * pow(z.y, 2.0), 6.0 * z.x * z.y);
-}
-
-fn divide(z1: vec2<f32>, z2: vec2<f32>) -> vec2<f32> {
+// Complex division
+fn cdiv(a: vec2<f32>, b: vec2<f32>) -> vec2<f32> {
+    let denom = dot(b, b);
     return vec2<f32>(
-        (z1.x * z2.x + z1.y * z2.y) / (pow(z2.x, 2.0) + pow(z2.y, 2.0)),
-        (z1.y * z2.x - z1.x * z2.y) / (pow(z2.x, 2.0) + pow(z2.y, 2.0))
+        (a.x * b.x + a.y * b.y) / denom,
+        (a.y * b.x - a.x * b.y) / denom
     );
 }
 
-fn newton(st0: vec2<f32>, maxIter: i32, offsetX: f32, offsetY: f32, speed: f32, centerX: f32, centerY: f32, zoomAmt: f32, rotation: f32, time: f32, mode: i32, aspect: f32) -> f32 {
-    var st = rotate2D(st0, rotation + 90.0, aspect);
-    st = st - vec2<f32>(0.5 * aspect, 0.5);
-    st = st * map(zoomAmt, 0.0, 130.0, 1.0, 0.01);
-    let s = map(speed, 0.0, 100.0, 0.0, 1.0);
-    let offX = map(offsetX, -100.0, 100.0, -0.25, 0.25);
-    let offY = map(offsetY, -100.0, 100.0, -0.25, 0.25);
-    st.x = st.x + centerY * 0.01;
-    st.y = st.y + centerX * 0.01;
-    var n = st;
-    var iterCount = 0.0;
-    var tst = vec2<f32>(0.0, 0.0);
-    for (var i: i32 = 0; i < maxIter; i = i + 1) {
-        tst = divide(fx(n), fpx(n));
-        tst = tst + vec2<f32>(sin(time * TAU), cos(time * TAU)) * 0.1 * s;
-        tst = tst + vec2<f32>(offX, offY);
-        if (length(tst) < 0.001) {
-            break;
-        }
-        n = n - tst;
-        iterCount = iterCount + 1.0;
-    }
-    if (mode == 0) {
-        if (maxIter == 0) {
-            return 0.0;
-        }
-        return iterCount / f32(maxIter);
-    } else {
-        return length(n);
-    }
+// Complex power using polar form
+fn cpow(z: vec2<f32>, n: f32) -> vec2<f32> {
+    let r = length(z);
+    let theta = atan2(z.y, z.x);
+    let rn = pow(r, n);
+    let ntheta = n * theta;
+    return vec2<f32>(rn * cos(ntheta), rn * sin(ntheta));
 }
 
-fn julia(st0: vec2<f32>, zoomAmt: f32, speed: f32, offsetX: f32, offsetY: f32, rotation: f32, centerX: f32, centerY: f32, maxIter: i32, cutoff: f32, time: f32, mode: i32, aspect: f32) -> f32 {
-    let zoom = map(zoomAmt, 0.0, 100.0, 2.0, 0.5);
-    let speedy = map(speed, 0.0, 100.0, 0.0, 1.0);
-    let s = mix(speedy * 0.05, speedy * 0.125, speedy);
-    let _offsetX = map(offsetX, -100.0, 100.0, -0.5, 0.5);
-    let _offsetY = map(offsetY, -100.0, 100.0, -1.0, 1.0);
-    let c = vec2<f32>(sin(time * TAU) * s + _offsetX, cos(time * TAU) * s + _offsetY);
-    var st = rotate2D(st0, rotation, aspect);
-    st = (st - vec2<f32>(0.5 * aspect, 0.5)) * zoom;
-    var z = vec2<f32>(
-        st.x + map(centerX, -100.0, 100.0, 1.0, -1.0),
-        st.y + map(centerY, -100.0, 100.0, 1.0, -1.0)
-    );
-    var iterCount = 0;
-    let iterScaled = maxIter * 2;
-    for (var i: i32 = 0; i < iterScaled; i = i + 1) {
-        iterCount = i;
-        let x = (z.x * z.x - z.y * z.y) + c.x;
-        let y = (z.y * z.x + z.x * z.y) + c.y;
-        if ((x * x + y * y) > 4.0) {
-            break;
-        }
-        z.x = x;
-        z.y = y;
-    }
-    if ((iterScaled - iterCount) < i32(cutoff)) {
-        return 1.0;
-    }
-    if (mode == 0) {
-        if (iterScaled == 0) {
-            return 0.0;
-        }
-        return f32(iterCount) / f32(iterScaled);
-    } else {
-        return length(z);
-    }
+// Complex conjugate
+fn conj(z: vec2<f32>) -> vec2<f32> {
+    return vec2<f32>(z.x, -z.y);
 }
 
-fn mandelbrot(st0: vec2<f32>, zoomAmt: f32, speed: f32, rotation: f32, centerX: f32, centerY: f32, iter: i32, time: f32, mode: i32, aspect: f32) -> f32 {
-    let zoom = map(zoomAmt, 0.0, 100.0, 2.0, 0.5);
-    let speedy = map(speed, 0.0, 100.0, 0.0, 1.0);
-    let s = mix(speedy * 0.05, speedy * 0.125, speedy);
-    var st = rotate2D(st0, rotation, aspect);
-    st.y = st.y * 2.0 - 1.0;
-    st.x = st.x * 2.0 - aspect;
+// ============================================================================
+// Coordinate transformation
+// ============================================================================
+
+fn transformCoords(fragCoord: vec2<f32>, resolution: vec2<f32>, centerX: f32, centerY: f32, zoom: f32, rotation: f32) -> vec2<f32> {
+    // Normalize to [-1, 1] with aspect correction
+    var uv = (fragCoord - 0.5 * resolution) / min(resolution.x, resolution.y);
+    
+    // Apply rotation
+    let angle = -rotation * TAU;
+    let c = cos(angle);
+    let s = sin(angle);
+    uv = vec2<f32>(c * uv.x - s * uv.y, s * uv.x + c * uv.y);
+    
+    // Apply zoom and center
+    uv = uv * (2.5 / zoom) + vec2<f32>(-centerX, centerY);
+    
+    return uv;
+}
+
+// ============================================================================
+// Fractal iteration functions
+// ============================================================================
+
+// Mandelbrot: z = z² + c, where c = pixel position
+fn mandelbrot(c: vec2<f32>, pw: f32, maxIter: i32, bailout: f32, doSmooth: bool) -> vec4<f32> {
     var z = vec2<f32>(0.0, 0.0);
-    var c = zoom * st - vec2<f32>(centerX + 50.0, centerY) * 0.01;
-    z = z + vec2<f32>(sin(time * TAU), cos(time * TAU)) * s;
-    var i = 0.0;
-    for (i = 0.0; i < f32(iter); i = i + 1.0) {
-        let m = mat2x2<f32>(z.x, z.y, -z.y, z.x);
-        z = m * z + c;
-        if (dot(z, z) > 16.0) {
-            break;
-        }
+    var i: f32 = 0.0;
+    
+    for (var n: i32 = 0; n < 500; n = n + 1) {
+        if (n >= maxIter) { break; }
+        
+        z = cpow(z, pw) + c;
+        
+        if (dot(z, z) > bailout * bailout) { break; }
+        i = i + 1.0;
     }
-    if (i == f32(iter)) {
-        return 1.0;
+    
+    // Smooth iteration count
+    var smoothVal = i;
+    if (doSmooth && i < f32(maxIter)) {
+        let log_zn = log(dot(z, z)) / 2.0;
+        let nu = log(log_zn / log(2.0)) / log(pw);
+        smoothVal = i + 1.0 - nu;
     }
-    if (mode == 0) {
-        return i / f32(iter);
-    } else {
-        return length(z) / f32(iter);
-    }
+    
+    return vec4<f32>(smoothVal, length(z), atan2(z.y, z.x), i);
 }
+
+// Julia: z = z² + c, where c is fixed, z starts at pixel position
+fn julia(z0: vec2<f32>, c: vec2<f32>, pw: f32, maxIter: i32, bailout: f32, doSmooth: bool) -> vec4<f32> {
+    var z = z0;
+    var i: f32 = 0.0;
+    
+    for (var n: i32 = 0; n < 500; n = n + 1) {
+        if (n >= maxIter) { break; }
+        
+        z = cpow(z, pw) + c;
+        
+        if (dot(z, z) > bailout * bailout) { break; }
+        i = i + 1.0;
+    }
+    
+    var smoothVal = i;
+    if (doSmooth && i < f32(maxIter)) {
+        let log_zn = log(dot(z, z)) / 2.0;
+        let nu = log(log_zn / log(2.0)) / log(pw);
+        smoothVal = i + 1.0 - nu;
+    }
+    
+    return vec4<f32>(smoothVal, length(z), atan2(z.y, z.x), i);
+}
+
+// Burning Ship: z = (|Re(z)| + i|Im(z)|)² + c
+fn burningShip(c: vec2<f32>, pw: f32, maxIter: i32, bailout: f32, doSmooth: bool) -> vec4<f32> {
+    var z = vec2<f32>(0.0, 0.0);
+    var i: f32 = 0.0;
+    
+    for (var n: i32 = 0; n < 500; n = n + 1) {
+        if (n >= maxIter) { break; }
+        
+        // Take absolute values before squaring
+        z = abs(z);
+        z = cpow(z, pw) + c;
+        
+        if (dot(z, z) > bailout * bailout) { break; }
+        i = i + 1.0;
+    }
+    
+    var smoothVal = i;
+    if (doSmooth && i < f32(maxIter)) {
+        let log_zn = log(dot(z, z)) / 2.0;
+        let nu = log(log_zn / log(2.0)) / log(pw);
+        smoothVal = i + 1.0 - nu;
+    }
+    
+    return vec4<f32>(smoothVal, length(z), atan2(z.y, z.x), i);
+}
+
+// Tricorn (Mandelbar): z = conj(z)² + c
+fn tricorn(c: vec2<f32>, pw: f32, maxIter: i32, bailout: f32, doSmooth: bool) -> vec4<f32> {
+    var z = vec2<f32>(0.0, 0.0);
+    var i: f32 = 0.0;
+    
+    for (var n: i32 = 0; n < 500; n = n + 1) {
+        if (n >= maxIter) { break; }
+        
+        z = cpow(conj(z), pw) + c;
+        
+        if (dot(z, z) > bailout * bailout) { break; }
+        i = i + 1.0;
+    }
+    
+    var smoothVal = i;
+    if (doSmooth && i < f32(maxIter)) {
+        let log_zn = log(dot(z, z)) / 2.0;
+        let nu = log(log_zn / log(2.0)) / log(pw);
+        smoothVal = i + 1.0 - nu;
+    }
+    
+    return vec4<f32>(smoothVal, length(z), atan2(z.y, z.x), i);
+}
+
+// Newton fractal for z³ - 1 = 0
+fn newton(z0: vec2<f32>, maxIter: i32) -> vec4<f32> {
+    var z = z0;
+    var i: f32 = 0.0;
+    
+    // The three roots of z³ - 1
+    let root1 = vec2<f32>(1.0, 0.0);
+    let root2 = vec2<f32>(-0.5, sqrt(3.0) / 2.0);
+    let root3 = vec2<f32>(-0.5, -sqrt(3.0) / 2.0);
+    
+    let tolerance: f32 = 0.0001;
+    var whichRoot: i32 = -1;
+    
+    for (var n: i32 = 0; n < 500; n = n + 1) {
+        if (n >= maxIter) { break; }
+        
+        // f(z) = z³ - 1
+        let z2 = cmul(z, z);
+        let z3 = cmul(z2, z);
+        let fz = z3 - vec2<f32>(1.0, 0.0);
+        
+        // f'(z) = 3z²
+        let fpz = 3.0 * z2;
+        
+        // Newton step: z = z - f(z)/f'(z)
+        z = z - cdiv(fz, fpz);
+        
+        // Check convergence to roots
+        if (length(z - root1) < tolerance) { whichRoot = 0; break; }
+        if (length(z - root2) < tolerance) { whichRoot = 1; break; }
+        if (length(z - root3) < tolerance) { whichRoot = 2; break; }
+        
+        i = i + 1.0;
+    }
+    
+    // Return iteration count, which root (0-2), and angle
+    var rootVal: f32 = 0.0;
+    if (whichRoot >= 0) {
+        rootVal = f32(whichRoot) / 3.0;
+    }
+    return vec4<f32>(i, rootVal, atan2(z.y, z.x), i);
+}
+
+// ============================================================================
+// Output mapping
+// ============================================================================
+
+fn mapOutput(result: vec4<f32>, mode: i32, maxIter: f32, bailout: f32) -> f32 {
+    if (mode == 0) {
+        // Iteration count (normalized)
+        return result.x / maxIter;
+    } else if (mode == 1) {
+        // Distance estimate (final |z|, normalized)
+        return clamp(result.y / (bailout * 2.0), 0.0, 1.0);
+    } else if (mode == 2) {
+        // Angle of final z
+        return (result.z + PI) / TAU;
+    } else if (mode == 3) {
+        // Potential: log(log(|z|)) based coloring
+        if (result.w >= maxIter) { return 0.0; }
+        let potential = log(result.y) / pow(2.0, result.w);
+        return clamp(1.0 - log(potential + 1.0), 0.0, 1.0);
+    }
+    
+    return result.x / maxIter;
+}
+
+// ============================================================================
+// Main
+// ============================================================================
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
+    // Unpack uniforms
     let resolution = uniforms.data[0].xy;
     let time = uniforms.data[0].z;
-    let seed = uniforms.data[0].w; // unused
+    
     let fractalType = i32(uniforms.data[1].x);
-    let symmetry = i32(uniforms.data[1].y); // unused
-    let offsetX = uniforms.data[1].z;
-    let offsetY = uniforms.data[1].w;
+    let power = uniforms.data[1].y;
+    let iterations = i32(uniforms.data[1].z);
+    let bailout = uniforms.data[1].w;
+    
     let centerX = uniforms.data[2].x;
     let centerY = uniforms.data[2].y;
-    let zoomAmt = uniforms.data[2].z;
-    let speed = uniforms.data[2].w;
-    let rotation = uniforms.data[3].x;
-    let iterations = i32(uniforms.data[3].y);
-    let mode = i32(uniforms.data[3].z);
-    let levels = uniforms.data[3].w;
-
-    let backgroundColor = uniforms.data[4].xyz;
-    let backgroundOpacity = uniforms.data[4].w;
-    let cutoff = uniforms.data[5].x;
-
-    let aspect = resolution.x / resolution.y;
-
-    var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    var st = pos.xy / resolution.y;
-    var d = 0.0;
+    let zoom = uniforms.data[2].z;
+    let rotation = uniforms.data[2].w;
+    
+    let juliaReal = uniforms.data[3].x;
+    let juliaImag = uniforms.data[3].y;
+    let animateJulia = uniforms.data[3].z > 0.5;
+    let speed = uniforms.data[3].w;
+    
+    let outputMode = i32(uniforms.data[4].x);
+    let colorCycles = uniforms.data[4].y;
+    let smoothing = uniforms.data[4].z > 0.5;
+    let invert = uniforms.data[4].w > 0.5;
+    
+    // Transform coordinates
+    let z = transformCoords(pos.xy, resolution, centerX, centerY, zoom, rotation);
+    
+    // Get animated or static Julia constant
+    var juliaC = vec2<f32>(juliaReal, juliaImag);
+    if (animateJulia) {
+        let t = time * speed;
+        juliaC = vec2<f32>(
+            0.7885 * cos(t * TAU),
+            0.7885 * sin(t * TAU)
+        );
+    }
+    
+    var result: vec4<f32>;
+    
+    // Select fractal type
     if (fractalType == 0) {
-        d = julia(st, zoomAmt, speed, offsetX, offsetY, rotation, centerX, centerY, iterations, cutoff, time, mode, aspect);
+        result = mandelbrot(z, power, iterations, bailout, smoothing);
     } else if (fractalType == 1) {
-        d = newton(st, iterations, offsetX, offsetY, speed, centerX, centerY, zoomAmt, rotation, time, mode, aspect);
+        result = julia(z, juliaC, power, iterations, bailout, smoothing);
+    } else if (fractalType == 2) {
+        result = burningShip(z, power, iterations, bailout, smoothing);
+    } else if (fractalType == 3) {
+        result = tricorn(z, power, iterations, bailout, smoothing);
+    } else if (fractalType == 4) {
+        result = newton(z, iterations);
     } else {
-        d = mandelbrot(st, zoomAmt, speed, rotation, centerX, centerY, iterations, time, mode, aspect);
+        result = mandelbrot(z, power, iterations, bailout, smoothing);
     }
-    if (d == 1.0) {
-        color = vec4<f32>(backgroundColor, backgroundOpacity * 0.01);
+    
+    // Check if point is in the set (didn't escape)
+    let inSet = result.w >= f32(iterations);
+    
+    // Map to output value
+    var value: f32;
+    if (fractalType == 4) {
+        // Newton fractal: use root coloring combined with iteration
+        let rootColor = result.y;
+        let iterColor = 1.0 - result.x / f32(iterations);
+        value = rootColor + iterColor * 0.3;
+        value = fract(value * colorCycles);
+    } else if (inSet) {
+        value = 0.0;
     } else {
-        var dd = fract(d);
-        if (levels > 0.0) {
-            let lev = levels + 1.0;
-            dd = floor(dd * lev) / lev;
-        }
-        // Mono output: grayscale intensity
-        color = vec4<f32>(vec3<f32>(dd), 1.0);
+        value = mapOutput(result, outputMode, f32(iterations), bailout);
+        value = fract(value * colorCycles);
     }
-
-    return color;
+    
+    // Apply inversion
+    if (invert) {
+        value = 1.0 - value;
+    }
+    
+    return vec4<f32>(vec3<f32>(value), 1.0);
 }
