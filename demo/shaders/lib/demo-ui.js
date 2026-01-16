@@ -3824,6 +3824,7 @@ render(o1)`
             this._programState.setValue(effectKey, key, val === 'none' ? 'none' : `read(${val})`)
             this._updateDslFromEffectParams()
             await this._recompilePipeline()
+            this._updateDependentControls()
         })
 
         container.appendChild(select)
