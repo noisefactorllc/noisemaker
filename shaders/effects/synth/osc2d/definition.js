@@ -43,7 +43,12 @@ export default new Effect({
         "default": 0,
         "min": 0,
         "max": 1000,
-        "uniform": "seed"
+        "uniform": "seed",
+        "ui": {
+          label: "seed",
+          control: "slider",
+          enabledBy: { param: "oscType", in: ["oscType.noise1d", "oscType.noise2d"] }
+        }
     }
   },
   passes: [

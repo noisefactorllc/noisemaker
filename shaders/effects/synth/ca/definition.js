@@ -154,7 +154,8 @@ export default new Effect({
       ui: {
         label: "input weight",
         control: "slider",
-        category: "input"
+        category: "input",
+        enabledBy: { param: "tex", neq: "none" }
       },
       uniform: "weight"
     },
