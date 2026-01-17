@@ -61,6 +61,7 @@ export default new Effect({
       type: "vec3",
       default: [0.0, 0.0, 0.0],
       uniform: "edgeColor",
+      randChance: 0,
       ui: {
         label: "Color",
         control: "color",
