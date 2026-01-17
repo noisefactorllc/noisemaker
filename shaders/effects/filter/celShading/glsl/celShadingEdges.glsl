@@ -39,7 +39,7 @@ void main() {
     ivec2 coord = ivec2(gl_FragCoord.xy);
     
     // Sample 3x3 neighborhood with thickness scaling
-    int offset = max(1, int(edgeWidth));
+    int offset = int(edgeWidth);
     float samples[9];
     int idx = 0;
     for (int ky = -1; ky <= 1; ++ky) {

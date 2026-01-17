@@ -39,7 +39,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let coord = vec2<i32>(pos.xy);
     
     // Sample 3x3 neighborhood with thickness scaling
-    let offset = max(1, i32(uniforms.edgeWidth));
+    let offset = i32(uniforms.edgeWidth);
     var samples: array<f32, 9>;
     var idx = 0;
     for (var ky = -1; ky <= 1; ky = ky + 1) {

@@ -32,12 +32,12 @@ export default new Effect({
 
     // Edge parameters
     edgeWidth: {
-      type: "float",
-      default: 1.0,
+      type: "int",
+      default: 1,
       uniform: "edgeWidth",
-      min: 0.5,
-      max: 5.0,
-      step: 0.1,
+      min: 0,
+      max: 5,
+      randMax: 3,
       ui: {
         label: "Width",
         control: "slider",
