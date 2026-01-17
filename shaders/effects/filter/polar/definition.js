@@ -24,15 +24,15 @@ export default new Effect({
         control: "dropdown"
       }
     },
-    speed: {
+    scale: {
       type: "float",
       default: 0,
-      uniform: "polarSpeed",
+      uniform: "polarScale",
       min: -2,
       max: 2,
       step: 0.1,
       ui: {
-        label: "Speed",
+        label: "Scale",
         control: "slider"
       }
     },
@@ -44,19 +44,19 @@ export default new Effect({
       max: 2,
       step: 0.1,
       ui: {
-        label: "Rotation",
+        label: "Rotation speed",
         control: "slider"
       }
     },
-    scale: {
+    speed: {
       type: "float",
       default: 0,
-      uniform: "polarScale",
+      uniform: "polarSpeed",
       min: -2,
       max: 2,
       step: 0.1,
       ui: {
-        label: "Scale",
+        label: "Polar speed",
         control: "slider"
       }
     }

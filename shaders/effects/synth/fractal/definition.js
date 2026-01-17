@@ -137,8 +137,8 @@ export default new Effect({
       type: "float",
       default: 0,
       uniform: "rotation",
-      min: 0,
-      max: 1,
+      min: -180,
+      max: 180,
       ui: {
         label: "rotation",
         control: "slider",

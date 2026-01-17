@@ -27,7 +27,7 @@ void main() {
     // Center, rotate, uncenter
     vec2 center = vec2(0.5);
     uv -= center;
-    uv = rotate2D(rotation * TAU) * uv;
+    uv = rotate2D(-rotation * TAU / 360.0) * uv;
     uv += center;
     
     // Apply wrap mode

@@ -59,7 +59,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let aspectRatio = resolution.x / resolution.y;
     
     // Convert rotation from degrees to radians
-    let angle = rotation * PI / 180.0;
+    let angle = -rotation * PI / 180.0;
     
     // Apply rotation for linear and conic gradients
     let rotatedSt = rotate2D(st, angle);

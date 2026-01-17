@@ -91,7 +91,7 @@ vec2 transformCoords(vec2 fragCoord) {
     vec2 uv = (fragCoord - 0.5 * resolution) / min(resolution.x, resolution.y);
     
     // Apply rotation
-    float angle = -rotation * TAU;
+    float angle = -rotation * TAU / 360.0;
     float c = cos(angle);
     float s = sin(angle);
     uv = mat2(c, -s, s, c) * uv;

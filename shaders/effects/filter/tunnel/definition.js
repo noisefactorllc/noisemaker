@@ -28,6 +28,18 @@ export default new Effect({
         control: "dropdown"
       }
     },
+    scale: {
+      type: "float",
+      default: 0,
+      uniform: "tunnelScale",
+      min: -2,
+      max: 2,
+      step: 0.1,
+      ui: {
+        label: "Scale",
+        control: "slider"
+      }
+    },
     speed: {
       type: "float",
       default: 1,
@@ -36,7 +48,7 @@ export default new Effect({
       max: 5,
       step: 0.1,
       ui: {
-        label: "Speed",
+        label: "Forward Speed",
         control: "slider"
       }
     },
@@ -48,19 +60,7 @@ export default new Effect({
       max: 2,
       step: 0.1,
       ui: {
-        label: "Rotation",
-        control: "slider"
-      }
-    },
-    scale: {
-      type: "float",
-      default: 0,
-      uniform: "tunnelScale",
-      min: -2,
-      max: 2,
-      step: 0.1,
-      ui: {
-        label: "Scale",
+        label: "Rotation speed",
         control: "slider"
       }
     }

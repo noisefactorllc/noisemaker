@@ -65,7 +65,7 @@ fn transformCoords(fragCoord: vec2<f32>, resolution: vec2<f32>, centerX: f32, ce
     var uv = (fragCoord - 0.5 * resolution) / min(resolution.x, resolution.y);
     
     // Apply rotation
-    let angle = -rotation * TAU;
+    let angle = -rotation * TAU / 360.0;
     let c = cos(angle);
     let s = sin(angle);
     uv = vec2<f32>(c * uv.x - s * uv.y, s * uv.x + c * uv.y);

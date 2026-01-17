@@ -55,7 +55,7 @@ void main() {
     float aspectRatio = resolution.x / resolution.y;
     
     // Convert rotation from degrees to radians
-    float angle = rotation * PI / 180.0;
+    float angle = -rotation * PI / 180.0;
     
     // Apply rotation for linear and conic gradients
     vec2 rotatedSt = rotate2D(st, angle);

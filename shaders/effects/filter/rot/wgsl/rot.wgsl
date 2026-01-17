@@ -29,7 +29,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Center, rotate, uncenter
     let center = vec2<f32>(0.5);
     uv -= center;
-    uv = rotate2D(uniforms.rotation * TAU) * uv;
+    uv = rotate2D(-uniforms.rotation * TAU / 360.0) * uv;
     uv += center;
     
     // Apply wrap mode

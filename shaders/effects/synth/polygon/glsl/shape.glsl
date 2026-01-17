@@ -14,6 +14,8 @@ uniform float bgAlpha;
 
 out vec4 fragColor;
 
+#define PI 3.14159265359
+
 /* Regular polygon distance field built from polar math; draws a soft-edged shape. */
 float polygon(vec2 st, float sides){
   float a = atan(st.y, st.x) + 3.14159265;
@@ -26,8 +28,8 @@ void main(){
   st = (st - 0.5) * 2.0;
   st.x *= aspect;
   // Apply rotation
-  float c = cos(rotation);
-  float s = sin(rotation);
+  float c = cos(rotation * PI / 180.0);
+  float s = sin(rotation * PI / 180.0);
   st = vec2(st.x * c - st.y * s, st.x * s + st.y * c);
   float sidesF = float(max(sides, 3));
   float d = polygon(st, sidesF);

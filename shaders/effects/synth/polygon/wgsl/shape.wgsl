@@ -10,6 +10,8 @@
 @group(0) @binding(8) var<uniform> bgColor: vec3<f32>;
 @group(0) @binding(9) var<uniform> bgAlpha: f32;
 
+const PI: f32 = 3.14159265359;
+
 /* Regular polygon distance field built from polar math; draws a soft-edged shape. */
 fn polygon(st: vec2<f32>, sides: f32) -> f32 {
   let a = atan2(st.y, st.x) + 3.14159265;
@@ -23,8 +25,8 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   st = (st - vec2<f32>(0.5, 0.5)) * 2.0;
   st.x *= aspect;
   // Apply rotation
-  let c = cos(rotation);
-  let s = sin(rotation);
+  let c = cos(rotation * PI / 180.0);
+  let s = sin(rotation * PI / 180.0);
   st = vec2<f32>(st.x * c - st.y * s, st.x * s + st.y * c);
   let sidesF = f32(max(sides, 3));
   let d = polygon(st, sidesF);

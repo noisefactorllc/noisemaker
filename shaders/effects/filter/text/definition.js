@@ -78,8 +78,8 @@ export default class Text extends Effect {
         rotation: {
             type: "float",
             default: 0.0,
-            min: 0.0,
-            max: 360.0,
+            min: -180.0,
+            max: 180.0,
             step: 1.0,
             ui: {
                 control: "slider",

@@ -33,8 +33,8 @@ export default new Effect({
     "rotation": {
         "type": "float",
         "default": 0,
-        "min": 0,
-        "max": 360,
+        "min": -180,
+        "max": 180,
         "step": 1,
         "uniform": "rotation"
     },
