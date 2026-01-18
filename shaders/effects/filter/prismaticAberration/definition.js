@@ -35,8 +35,8 @@ export default new Effect({
       type: "float",
       default: 0,
       uniform: "hueRotation",
-      min: 0,
-      max: 360,
+      min: -180,
+      max: 180,
       ui: {
         label: "hue rotate",
         control: "slider"
