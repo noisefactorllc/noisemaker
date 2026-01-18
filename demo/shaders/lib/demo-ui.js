@@ -2248,8 +2248,8 @@ render(o1)`
                         const closeBtn = document.createElement('span')
                         closeBtn.className = 'category-close tooltip'
                         closeBtn.textContent = '✕'
-                        closeBtn.dataset.title = 'Collapse category'
-                        closeBtn.setAttribute('aria-label', 'Collapse category')
+                        closeBtn.dataset.title = 'collapse category'
+                        closeBtn.setAttribute('aria-label', 'collapse category')
                         closeBtn.addEventListener('click', () => {
                             // Collapse this category
                             categoryGroup.classList.add('collapsed')
