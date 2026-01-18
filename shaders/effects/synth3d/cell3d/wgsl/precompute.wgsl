@@ -101,7 +101,7 @@ fn main(@builtin(position) position: vec4<f32>) -> FragOutput {
     var p = vec3<f32>(f32(x), f32(y), f32(z)) / (volSizeF - 1.0) * 2.0 - 1.0;
     
     // Scale for cell noise density
-    let scaledP = p * scale;
+    let scaledP = p * (16.0 - scale);
     
     // Compute cell noise at this point
     let result = cellNoise3D(scaledP);
