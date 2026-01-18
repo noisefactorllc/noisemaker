@@ -68,6 +68,7 @@ export default new Effect({
       default: 8,
       min: 2,
       max: 16,
+      randMax: 8,
       uniform: "power",
       ui: {
         label: "power",
@@ -104,7 +105,9 @@ export default new Effect({
       uniform: "juliaX",
       ui: {
         label: "julia X",
-        control: "slider"
+        control: "slider",
+        category: "julia",
+        enabledBy: { param: 'fractalType', in: [2, 3] }
       }
     },
     juliaY: {
@@ -115,7 +118,9 @@ export default new Effect({
       uniform: "juliaY",
       ui: {
         label: "julia Y",
-        control: "slider"
+        control: "slider",
+        category: "julia",
+        enabledBy: { param: 'fractalType', in: [2, 3] }
       }
     },
     juliaZ: {
@@ -126,7 +131,9 @@ export default new Effect({
       uniform: "juliaZ",
       ui: {
         label: "julia Z",
-        control: "slider"
+        control: "slider",
+        category: "julia",
+        enabledBy: { param: 'fractalType', in: [2, 3] }
       }
     },
     colorMode: {
@@ -148,7 +155,10 @@ export default new Effect({
       default: 0,
       min: 0,
       max: 100,
-      uniform: "seed"
+      uniform: "seed",
+      ui: {
+        control: false
+      }
     }
   },
   passes: [

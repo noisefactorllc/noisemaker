@@ -49,8 +49,7 @@ export default new Effect({
       },
       "ui": {
         "label": "volume size",
-        "control": "dropdown",
-        "category": "transform"
+        "control": "dropdown"
       }
     },
     "seed": {
@@ -58,17 +57,10 @@ export default new Effect({
         "default": 1,
         "min": 0,
         "max": 100,
-        "uniform": "seed"
-    },
-    "resetState": {
-      "type": "boolean",
-      "default": false,
-      "uniform": "resetState",
-      "ui": {
-        "control": "button",
-        "buttonLabel": "reset",
-        "category": "util"
-      }
+        "uniform": "seed",
+        "ui": {
+            "control": false
+        }
     },
     "iterations": {
       "type": "int",
@@ -77,7 +69,7 @@ export default new Effect({
       "min": 1,
       "max": 32,
       "ui": {
-        "label": "iterations per frame",
+        "label": "iterations",
         "control": "slider"
       }
     },
@@ -89,7 +81,8 @@ export default new Effect({
       "max": 110,
       "ui": {
         "label": "feed rate",
-        "control": "slider"
+        "control": "slider",
+        "category": "rules"
       }
     },
     "kill": {
@@ -100,7 +93,8 @@ export default new Effect({
       "max": 70,
       "ui": {
         "label": "kill rate",
-        "control": "slider"
+        "control": "slider",
+        "category": "rules"
       }
     },
     "rate1": {
@@ -110,8 +104,9 @@ export default new Effect({
       "min": 50,
       "max": 120,
       "ui": {
-        "label": "diffusion rate A",
-        "control": "slider"
+        "label": "diffuse rate A",
+        "control": "slider",
+        "category": "rules"
       }
     },
     "rate2": {
@@ -121,8 +116,9 @@ export default new Effect({
       "min": 20,
       "max": 80,
       "ui": {
-        "label": "diffusion rate B",
-        "control": "slider"
+        "label": "diffuse rate B",
+        "control": "slider",
+        "category": "rules"
       }
     },
     "speed": {
@@ -132,9 +128,8 @@ export default new Effect({
       "min": 10,
       "max": 200,
       "ui": {
-        "label": "simulation speed",
-        "control": "slider",
-        "category": "animation"
+        "label": "sim speed",
+        "control": "slider"
       }
     },
     "colorMode": {
@@ -147,8 +142,33 @@ export default new Effect({
         },
         "ui": {
             "label": "color mode",
-            "control": "dropdown",
-            "category": "color"
+            "control": "dropdown"
+        }
+    },
+    "resetState": {
+      "type": "boolean",
+      "default": false,
+      "uniform": "resetState",
+      "ui": {
+        "label": "state",
+        "control": "button",
+        "buttonLabel": "reset"
+      }
+    },
+    "source": {
+        "type": "volume",
+        "default": "vol0",
+        "ui": {
+            "label": "source volume",
+            "category": "input"
+        }
+    },
+    "geoSource": {
+        "type": "geometry",
+        "default": "geo0",
+        "ui": {
+            "label": "source geometry",
+            "category": "input"
         }
     },
     "weight": {
@@ -160,21 +180,7 @@ export default new Effect({
         "ui": {
             "label": "input weight",
             "control": "slider",
-            "category": "misc"
-        }
-    },
-    "source": {
-        "type": "volume",
-        "default": "vol0",
-        "ui": {
-            "label": "source volume"
-        }
-    },
-    "geoSource": {
-        "type": "geometry",
-        "default": "geo0",
-        "ui": {
-            "label": "source geometry"
+            "category": "input"
         }
     }
   },

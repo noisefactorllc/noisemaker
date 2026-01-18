@@ -105,7 +105,7 @@ void main() {
     vec3 p = vec3(float(x), float(y), float(z)) / (volSizeF - 1.0) * 2.0 - 1.0;
     
     // Scale for cell noise density (more cells = smaller p range * larger scale)
-    vec3 scaledP = p * scale;
+    vec3 scaledP = p * (16.0 - scale);
     
     // Compute cell noise at this point
     vec2 result = cellNoise3D(scaledP);

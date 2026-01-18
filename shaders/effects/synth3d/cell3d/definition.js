@@ -53,20 +53,20 @@ export default new Effect({
         "default": 0,
         "uniform": "metric",
         "choices": {
-            "euclidean": 0,
-            "manhattan": 1,
-            "chebyshev": 2
+            "sphere": 0,
+            "octahedron": 1,
+            "cube": 2
         },
         "ui": {
-            "label": "distance metric",
+            "label": "cell shape",
             "control": "dropdown"
         }
     },
     "scale": {
         "type": "float",
-        "default": 3,
+        "default": 10,
         "min": 1,
-        "max": 20,
+        "max": 15,
         "uniform": "scale",
         "ui": {
             "label": "cell scale"
@@ -74,7 +74,7 @@ export default new Effect({
     },
     "cellVariation": {
         "type": "float",
-        "default": 50,
+        "default": 100,
         "min": 0,
         "max": 100,
         "uniform": "cellVariation",
@@ -91,7 +91,7 @@ export default new Effect({
     },
     "colorMode": {
         "type": "int",
-        "default": 0,
+        "default": 1,
         "uniform": "colorMode",
         "choices": {
             "mono": 0,

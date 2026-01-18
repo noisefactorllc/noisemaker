@@ -48,6 +48,29 @@ export default new Effect({
         "control": "dropdown"
       }
     },
+    seed: {
+      type: "int",
+      default: 1,
+      uniform: "seed",
+      min: 1,
+      max: 100,
+      ui: {
+        control: false
+      }
+    },
+    colorMode: {
+      type: "int",
+      default: 0,
+      uniform: "colorMode",
+      choices: {
+        "mono": 0,
+        "rgb": 1
+      },
+      ui: {
+        label: "color mode",
+        control: "dropdown"
+      }
+    },
     loopAOffset: {
       type: "int",
       default: 40,
@@ -136,30 +159,6 @@ export default new Effect({
       ui: {
         label: "b power",
         control: "slider"
-      }
-    },
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "noise seed",
-        control: "slider"
-      }
-    },
-    colorMode: {
-      type: "int",
-      default: 0,
-      uniform: "colorMode",
-      choices: {
-        "mono": 0,
-        "rgb": 1
-      },
-      ui: {
-        label: "color mode",
-        control: "dropdown"
       }
     }
   },

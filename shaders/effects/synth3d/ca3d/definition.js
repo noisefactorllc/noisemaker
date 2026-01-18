@@ -49,8 +49,7 @@ export default new Effect({
       },
       "ui": {
         "label": "volume size",
-        "control": "dropdown",
-        "category": "transform"
+        "control": "dropdown"
       }
     },
     "seed": {
@@ -60,17 +59,7 @@ export default new Effect({
         "max": 100,
         "uniform": "seed",
         "ui": {
-            "label": "seed"
-        }
-    },
-    "resetState": {
-        "type": "boolean",
-        "default": false,
-        "uniform": "resetState",
-        "ui": {
-            "control": "button",
-            "buttonLabel": "reset",
-            "category": "util"
+            "control": false
         }
     },
     "ruleIndex": {
@@ -92,7 +81,8 @@ export default new Effect({
         },
         "ui": {
             "label": "rules",
-            "control": "dropdown"
+            "control": "dropdown",
+            "category": "rules"
         }
     },
     "neighborMode": {
@@ -105,7 +95,8 @@ export default new Effect({
         },
         "ui": {
             "label": "neighborhood",
-            "control": "dropdown"
+            "control": "dropdown",
+            "category": "rules"
         }
     },
     "speed": {
@@ -115,9 +106,8 @@ export default new Effect({
         "max": 10,
         "uniform": "speed",
         "ui": {
-            "label": "speed",
-            "control": "slider",
-            "category": "animation"
+            "label": "sim speed",
+            "control": "slider"
         }
     },
     "density": {
@@ -141,8 +131,33 @@ export default new Effect({
         },
         "ui": {
             "label": "color mode",
-            "control": "dropdown",
-            "category": "color"
+            "control": "dropdown"
+        }
+    },
+    "resetState": {
+        "type": "boolean",
+        "default": false,
+        "uniform": "resetState",
+        "ui": {
+            "label": "state",
+            "control": "button",
+            "buttonLabel": "reset"
+        }
+    },
+    "source": {
+        "type": "volume",
+        "default": "vol0",
+        "ui": {
+            "label": "source volume",
+            "category": "input"
+        }
+    },
+    "geoSource": {
+        "type": "geometry",
+        "default": "geo0",
+        "ui": {
+            "label": "source geometry",
+            "category": "input"
         }
     },
     "weight": {
@@ -154,23 +169,9 @@ export default new Effect({
         "ui": {
             "label": "input weight",
             "control": "slider",
-            "category": "misc"
+            "category": "input"
         }
     },
-    "source": {
-        "type": "volume",
-        "default": "vol0",
-        "ui": {
-            "label": "source volume"
-        }
-    },
-    "geoSource": {
-        "type": "geometry",
-        "default": "geo0",
-        "ui": {
-            "label": "source geometry"
-        }
-    }
   },
   passes: [
     {
