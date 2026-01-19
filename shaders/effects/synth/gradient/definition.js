@@ -26,11 +26,11 @@ export default new Effect({
       uniform: "rotation",
       min: -180,
       max: 180,
-      ui: { 
-        label: "Rotation", 
-        control: "slider", 
+      ui: {
+        label: "Rotation",
+        control: "slider",
         category: "general",
-        enabledBy: { param: "type", neq: 1 } 
+        enabledBy: { param: "type", neq: 1 }
       }
     },
     repeat: {
@@ -39,11 +39,11 @@ export default new Effect({
       uniform: "repeatCount",
       min: 1,
       max: 4,
-      ui: { 
-        label: "Repeat", 
-        control: "slider", 
+      ui: {
+        label: "Repeat",
+        control: "slider",
         category: "general",
-        enabledBy: { param: "type", neq: 3 } 
+        enabledBy: { param: "type", neq: 3 }
       }
     },
     color1: {

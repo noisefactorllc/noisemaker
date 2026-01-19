@@ -78,7 +78,7 @@ export default new Effect({
         control: "slider",
         category: "transform"
       }
-    }, 
+    },
     seed: {
       type: "int",
       default: 1,

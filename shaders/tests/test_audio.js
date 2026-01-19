@@ -22,12 +22,6 @@ function test(name, fn) {
     }
 }
 
-function assert(condition, message) {
-    if (!condition) {
-        throw new Error(message || 'Assertion failed')
-    }
-}
-
 function assertEqual(actual, expected, message) {
     if (actual !== expected) {
         throw new Error(`${message || 'Assertion failed'}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`)
@@ -276,8 +270,8 @@ test('audio clamps values above 1', () => {
 })
 
 test('audio defaults band values correctly', () => {
-    const { pipeline, audioState } = createTestPipeline()
-    
+    const { pipeline } = createTestPipeline()
+
     // AudioState initializes all bands to 0
     const config = {
         type: 'Audio',

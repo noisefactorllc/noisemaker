@@ -254,7 +254,7 @@ export class MidiInputManager {
      */
     async enable() {
         if (this._enabled) return true
-        
+
         if (!MidiInputManager.isSupported()) {
             console.warn('Web MIDI API not supported')
             this._notifyStatus('MIDI not supported')
@@ -264,7 +264,7 @@ export class MidiInputManager {
         try {
             this._midiAccess = await navigator.requestMIDIAccess()
             this._midiState = this._renderer.setMidiState()
-            
+
             // Connect all input devices
             for (const input of this._midiAccess.inputs.values()) {
                 input.onmidimessage = (event) => this._handleMidiMessage(event)
@@ -392,7 +392,7 @@ export class AudioInputManager {
 
         try {
             // Request microphone access
-            this._stream = await navigator.mediaDevices.getUserMedia({ 
+            this._stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     echoCancellation: false,
                     noiseSuppression: false,

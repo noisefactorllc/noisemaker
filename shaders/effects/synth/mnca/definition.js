@@ -38,7 +38,7 @@ export default new Effect({
     tex: {
       type: "surface",
       default: "none",
-      ui: { 
+      ui: {
         label: "texture",
         category: "input",
       }

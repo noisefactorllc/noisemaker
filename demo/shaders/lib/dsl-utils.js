@@ -63,7 +63,7 @@ export function extractEffectsFromDsl(dsl) {
                 // Use rawKwargs directly from the compiled step (set by validator)
                 const rawArgs = step.rawKwargs || {}
                 const args = step.args ? { ...step.args } : {}
-                
+
                 // Preserve automation bindings even if validation normalized them to scalars
                 for (const [paramName, rawVal] of Object.entries(rawArgs)) {
                     const isRawAutomation = rawVal && typeof rawVal === 'object' && (

@@ -2,10 +2,10 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * synth/fractal - Comprehensive fractal explorer
- * 
+ *
  * Supports multiple classic escape-time fractals with smooth iteration coloring,
  * flexible transform controls, animation, and multiple output modes.
- * 
+ *
  * Fractal types:
  * - Mandelbrot: Classic z² + c
  * - Julia: Julia set of z² + c with animated/user-defined c
@@ -157,7 +157,7 @@ export default new Effect({
         label: "julia real",
         control: "slider",
         category: "julia",
-        enabledBy: { 
+        enabledBy: {
           and: [
             { param: "fractalType", eq: 1 },
             { param: "animateJulia", eq: false }
@@ -175,7 +175,7 @@ export default new Effect({
         label: "julia imag",
         control: "slider",
         category: "julia",
-        enabledBy: { 
+        enabledBy: {
           and: [
             { param: "fractalType", eq: 1 },
             { param: "animateJulia", eq: false }

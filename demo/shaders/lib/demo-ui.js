@@ -4086,7 +4086,7 @@ render(o1)`
 
     /**
      * Evaluate an enabledBy condition against current parameter values
-     * 
+     *
      * Supports multiple formats:
      * - String (legacy): "paramName" - uses _isControlEnabled for truthy check
      * - Object with conditions:
@@ -4102,7 +4102,7 @@ render(o1)`
      * - { or: [condition1, condition2, ...] } - OR multiple conditions
      * - { and: [condition1, condition2, ...] } - AND multiple conditions (explicit)
      * - { not: condition } - negate a condition
-     * 
+     *
      * @param {string|object} condition - The enabledBy condition
      * @param {object} params - Current parameter values
      * @returns {boolean} Whether the control should be enabled
@@ -4142,11 +4142,11 @@ render(o1)`
         }
 
         const value = params[paramName]
-        
+
         // If no operators specified, use legacy truthy check
         const operators = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'notIn']
         const hasOperator = operators.some(op => condition[op] !== undefined)
-        
+
         if (!hasOperator) {
             return this._isControlEnabled(value)
         }
