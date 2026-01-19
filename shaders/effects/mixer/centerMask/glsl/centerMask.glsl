@@ -68,8 +68,8 @@ vec4 applyBlendMode(vec4 color1, vec4 color2, int m) {
         return max(color1, color2);
     }
     if (m == 8) {
-        // mix (average)
-        return (color1 + color2) * 0.5;
+        // mix (passthrough color2)
+        return color2;
     }
     if (m == 9) {
         // multiply

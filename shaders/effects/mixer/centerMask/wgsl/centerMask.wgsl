@@ -69,8 +69,8 @@ fn applyBlendMode(color1: vec4<f32>, color2: vec4<f32>, m: i32) -> vec4<f32> {
         return max(color1, color2);
     }
     if (m == 8) {
-        // mix (average)
-        return (color1 + color2) * 0.5;
+        // mix (passthrough color2)
+        return color2;
     }
     if (m == 9) {
         // multiply
