@@ -8,6 +8,7 @@ uniform int octaves;
 uniform int ridges;
 uniform int volumeSize;
 uniform int colorMode;
+uniform float speed;
 
 // MRT outputs: volume cache and geometry buffer
 layout(location = 0) out vec4 fragColor;
@@ -177,7 +178,8 @@ void main() {
     
     // Linear time traversal with periodic w-axis
     // time goes 0->1, map to 0->W_PERIOD for one complete loop
-    float w = time * W_PERIOD;
+    // speed multiplies time to control animation speed
+    float w = time * speed * W_PERIOD;
     
     // Compute 4D FBM noise at this point with time as w
     vec4 p4d = vec4(scaledP, w);

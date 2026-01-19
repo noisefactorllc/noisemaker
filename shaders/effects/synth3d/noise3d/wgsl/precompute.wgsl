@@ -6,6 +6,7 @@
 @group(0) @binding(4) var<uniform> ridges: i32;
 @group(0) @binding(5) var<uniform> volumeSize: i32;
 @group(0) @binding(6) var<uniform> colorMode: i32;
+@group(0) @binding(7) var<uniform> speed: f32;
 
 // MRT output structure
 struct FragmentOutput {
@@ -174,7 +175,8 @@ fn main(@builtin(position) position: vec4<f32>) -> FragmentOutput {
     
     // Linear time traversal with periodic w-axis
     // time goes 0->1, map to 0->W_PERIOD for one complete loop
-    let w = time * W_PERIOD;
+    // speed multiplies time to control animation speed
+    let w = time * speed * W_PERIOD;
     
     // Compute 4D FBM noise at this point with time as w
     let p4d = vec4<f32>(scaledP, w);

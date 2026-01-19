@@ -11,6 +11,7 @@ uniform int octaves;
 uniform int colorMode;
 uniform int dimensions;
 uniform int ridges;
+uniform float speed;
 
 out vec4 fragColor;
 
@@ -237,7 +238,8 @@ void main() {
     st += 1000.0;
     
     // time is 0-1 representing position around circle for seamless looping
-    float timeAngle = time * TAU;
+    // speed multiplies the time to control animation speed
+    float timeAngle = time * speed * TAU;
     
     float r, g, b;
     

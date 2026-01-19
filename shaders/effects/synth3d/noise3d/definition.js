@@ -86,6 +86,13 @@ export default new Effect({
         "min": 0,
         "max": 100,
         "uniform": "seed"
+    },
+    "speed": {
+        "type": "int",
+        "default": 1,
+        "min": 0,
+        "max": 5,
+        "uniform": "speed"
     }
   },
   passes: [

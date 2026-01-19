@@ -8,6 +8,7 @@
 @group(0) @binding(6) var<uniform> colorMode: i32;
 @group(0) @binding(7) var<uniform> dimensions: i32;
 @group(0) @binding(8) var<uniform> ridges: i32;
+@group(0) @binding(9) var<uniform> speed: f32;
 
 /* 3D gradient noise with quintic interpolation
    Animated using periodic z-axis for seamless looping
@@ -230,7 +231,8 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     st = st + 1000.0;
     
     // time is 0-1 representing position around circle for seamless looping
-    let timeAngle = time * TAU;
+    // speed multiplies the time to control animation speed
+    let timeAngle = time * speed * TAU;
     
     var r: f32;
     var g: f32;
