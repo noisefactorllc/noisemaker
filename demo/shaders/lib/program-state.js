@@ -714,41 +714,6 @@ export class ProgramState extends Emitter {
         return result
     }
 
-    /**
-     * Get a proxy object for backward compatibility with effectParameterValues
-     * Reads/writes go through to the underlying step states
-     * @returns {Proxy}
-     */
-    getEffectParameterValuesProxy() {
-        const self = this
-        return new Proxy({}, {
-            get(target, stepKey) {
-                if (typeof stepKey !== 'string') return undefined
-                const stepState = self._stepStates.get(stepKey)
-                if (!stepState) return undefined
-                // Return a proxy for the step's values
-                return new Proxy(stepState.values, {
-                    set(valuesTarget, paramName, value) {
-                        self.setValue(stepKey, paramName, value)
-                        return true
-                    }
-                })
-            },
-            has(target, stepKey) {
-                return self._stepStates.has(stepKey)
-            },
-            ownKeys() {
-                return [...self._stepStates.keys()]
-            },
-            getOwnPropertyDescriptor(target, stepKey) {
-                if (self._stepStates.has(stepKey)) {
-                    return { enumerable: true, configurable: true }
-                }
-                return undefined
-            }
-        })
-    }
-
     // =========================================================================
     // Routing Override Methods
     // =========================================================================

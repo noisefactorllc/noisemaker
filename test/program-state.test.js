@@ -504,37 +504,6 @@ console.log('Testing ProgramState...')
     console.log('  ✓ deserialize restores state')
 }
 
-// Test: getEffectParameterValuesProxy backward compatibility
-{
-    const state = new ProgramState()
-
-    state._stepStates.set('step_0', {
-        effectKey: 'filter.grade',
-        effectDef: { globals: {} },
-        stepIndex: 0,
-        values: { scale: 1 }
-    })
-
-    const proxy = state.getEffectParameterValuesProxy()
-
-    // Read through proxy
-    assert.strictEqual(proxy.step_0.scale, 1)
-
-    // Write through proxy
-    proxy.step_0.scale = 2
-    assert.strictEqual(state.getValue('step_0', 'scale'), 2)
-
-    // has() check
-    assert.strictEqual('step_0' in proxy, true)
-    assert.strictEqual('step_999' in proxy, false)
-
-    // ownKeys()
-    const keys = Object.keys(proxy)
-    assert.deepStrictEqual(keys, ['step_0'])
-
-    console.log('  ✓ getEffectParameterValuesProxy backward compatibility')
-}
-
 // Test: structure access methods
 {
     const state = new ProgramState()
