@@ -1475,7 +1475,7 @@ export class CanvasRenderer {
                 // Color type: convert hex strings to vec3 array, pass arrays through
                 if (Array.isArray(value)) {
                     // Already an array - ensure it's a vec3 (take first 3 components)
-                    const result = value.slice(0, 3).map((component) => 
+                    const result = value.slice(0, 3).map((component) =>
                         typeof component === 'number' ? component : parseFloat(component)
                     )
                     // Pad to 3 components if needed
