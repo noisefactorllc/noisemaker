@@ -1,3 +1,7 @@
+# Emboss
+
+Applies an emboss effect to create a raised relief appearance.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

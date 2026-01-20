@@ -1,3 +1,11 @@
+# Hydraulic
+
+Hydraulic erosion flow simulation using gradient descent.
+
+## Description
+
+Agents flow downhill following the steepest descent of the input texture brightness, simulating water flowing over terrain. Use `inverse: true` for uphill flow (gradient ascent).
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
@@ -7,14 +15,8 @@
 | inverse | boolean | false | — | Invert gradient direction (climb instead of descend) |
 | inputWeight | float | 100 | 0–100 | Weight of input texture influence |
 
-## Description
-
-Hydraulic erosion flow simulation using gradient descent. Agents flow downhill following the steepest descent of the input texture brightness, simulating water flowing over terrain.
-
 ## Usage
 
 ```
 noise().pointsEmit().hydraulic(stride: 15).pointsRender().write(o0)
 ```
-
-Use `inverse: true` for uphill flow (gradient ascent).

@@ -1,3 +1,9 @@
+# Reindex
+
+Reindexes pixel values using displacement mapping.
+
 ## Parameters
 
-- **Displacement**: Strength of the reindexing displacement.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| Displacement | float | — | — | Strength of the reindexing displacement |

@@ -1,3 +1,7 @@
+# Zoom Blur
+
+Applies radial blur emanating from the center.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

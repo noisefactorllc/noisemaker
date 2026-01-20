@@ -1,3 +1,9 @@
+# Vortex
+
+Applies a swirling vortex distortion effect.
+
 ## Parameters
 
-- **Displacement**: Maximum displacement amount.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| Displacement | float | — | — | Maximum displacement amount |

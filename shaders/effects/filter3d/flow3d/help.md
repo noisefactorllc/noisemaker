@@ -1,9 +1,13 @@
+# Flow 3D
+
+3D agent-based luminosity flow field effect.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| volumeSize | int | x32 | x16, x32, x64, x128 | Volume resolution |
-| behavior | int | obedient | none, obedient, crosshatch, unruly, chaotic, randomMix, meandering | Agent behavior mode |
+| volumeSize | int | x32 | x16/x32/x64/x128 | Volume resolution |
+| behavior | int | obedient | none/obedient/crosshatch/unruly/chaotic/randomMix/meandering | Agent behavior mode |
 | density | float | 20 | 1–100 | Agent density |
 | stride | float | 1 | 0.1–10 | Movement stride length |
 | strideDeviation | float | 0.05 | 0–0.5 | Stride variation |

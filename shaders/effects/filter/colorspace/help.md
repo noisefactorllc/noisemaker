@@ -1,6 +1,10 @@
-# Colorspace Effect
+# Colorspace
 
-Reinterprets RGB values as a different colorspace and converts back to RGB. Treats the R, G, B channels as components of HSV, OKLab, or OKLCH and performs the conversion.
+Reinterprets RGB values as a different colorspace and converts back to RGB.
+
+## Description
+
+Treats the R, G, B channels as components of HSV, OKLab, or OKLCH and performs the conversion.
 
 ## Parameters
 

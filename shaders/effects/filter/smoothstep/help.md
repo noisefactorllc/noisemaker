@@ -1,3 +1,7 @@
+# Smoothstep
+
+Applies a smoothstep function to pixel values for smooth transitions.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

@@ -1,3 +1,7 @@
+# Texture
+
+Applies a texture overlay effect.
+
 ## Parameters
 
-No parameters
+This effect has no user-configurable parameters.

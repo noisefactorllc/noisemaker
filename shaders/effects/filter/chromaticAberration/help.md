@@ -1,3 +1,7 @@
+# Chromatic Aberration
+
+Separates RGB channels to simulate lens chromatic aberration.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

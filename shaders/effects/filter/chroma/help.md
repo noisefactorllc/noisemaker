@@ -1,3 +1,7 @@
+# Chroma Key
+
+Isolates a specific hue range from the image, desaturating everything else.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

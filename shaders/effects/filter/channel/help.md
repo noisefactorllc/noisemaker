@@ -1,19 +1,11 @@
-## Arguments
+# Channel
 
-### `channel`
-- **Type:** `channel` enum.
-- **Default:** `channel.r`.
-- **Values:** `channel.r`, `channel.g`, `channel.b`, `channel.a`.
-- **Description:** Which channel to extract.
+Extracts and scales a single color channel from the input.
 
-### `scale`
-- **Type:** Number.
-- **Default:** `1`.
-- **Range:** -10–10.
-- **Description:** Overall scale of the effect.
+## Parameters
 
-### `offset`
-- **Type:** Number.
-- **Default:** `0`.
-- **Range:** -10–10.
-- **Description:** Offset amount applied to the effect.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| channel | int | r | r/g/b/a | Which channel to extract |
+| scale | float | 1 | -10–10 | Overall scale of the effect |
+| offset | float | 0 | -10–10 | Offset amount applied to the effect |

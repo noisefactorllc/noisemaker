@@ -1,5 +1,11 @@
+# Derivative
+
+Computes the derivative (rate of change) of the image.
+
 ## Parameters
 
-- **Distance Metric**: Distance calculation method
-- **Normalize**: Normalize the derivative output
-- **Alpha**: Blend amount with original (1.0 = full derivative)
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| Distance Metric | int | — | — | Distance calculation method |
+| Normalize | float | — | 0–1 | Normalize the derivative output |
+| Alpha | float | — | 0–1 | Blend amount with original (1.0 = full derivative) |

@@ -1,3 +1,7 @@
+# Prismatic Aberration
+
+Applies rainbow-spectrum chromatic aberration with optional hue modulation.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

@@ -1,3 +1,7 @@
+# Lens Distortion
+
+Applies barrel or pincushion lens distortion.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

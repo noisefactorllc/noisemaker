@@ -1,17 +1,11 @@
-## Arguments
+# Solid
 
-### `r`
-- **Type:** Number.
-- **Default:** `0.5`.
-- **Range:** 0–1.
-- **Description:** Red channel multiplier or base value.
-### `g`
-- **Type:** Number.
-- **Default:** `0.5`.
-- **Range:** 0–1.
-- **Description:** Green channel multiplier or base value.
-### `b`
-- **Type:** Number.
-- **Default:** `0.5`.
-- **Range:** 0–1.
-- **Description:** Blue channel multiplier or base value.
+Fills the output with a solid color.
+
+## Parameters
+
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| r | float | 0.5 | 0–1 | Red channel value |
+| g | float | 0.5 | 0–1 | Green channel value |
+| b | float | 0.5 | 0–1 | Blue channel value |

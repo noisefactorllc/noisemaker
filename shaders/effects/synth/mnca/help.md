@@ -11,10 +11,10 @@ MNCA extends classic cellular automata by using multiple neighborhood configurat
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | tex | surface | none | — | Texture input for seeding |
-| zoom | int | 8 | x1, x2, x4, x8, x16, x32, x64 | Simulation zoom level |
+| zoom | int | x8 | x1/x2/x4/x8/x16/x32/x64 | Simulation zoom level |
 | seed | float | 1 | 1–100 | Random seed for initial state |
 | resetState | boolean | false | — | Reset the simulation state |
-| smoothing | int | constant | constant, linear, hermite, catmullRom3x3, catmullRom4x4, bSpline3x3, bSpline4x4 | Output interpolation mode |
+| smoothing | int | constant | constant/linear/hermite/catmullRom3x3/catmullRom4x4/bSpline3x3/bSpline4x4 | Output interpolation mode |
 | speed | float | 10 | 1–100 | Simulation speed |
 | weight | float | 0 | 0–100 | Input texture weight |
 | n1v1 | float | 21 | 0–100 | Neighborhood 1 threshold 1 |

@@ -1,4 +1,10 @@
+# Color Map
+
+Remaps colors using a lookup texture.
+
 ## Parameters
 
-- **Displacement**: Offset applied when sampling the lookup texture.
-- **Horizontal**: Scan horizontally when sampling the lookup texture.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| Displacement | float | — | — | Offset applied when sampling the lookup texture |
+| Horizontal | float | — | 0–1 | Scan horizontally when sampling the lookup texture |

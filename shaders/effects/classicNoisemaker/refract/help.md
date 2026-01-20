@@ -1,7 +1,13 @@
+# Refract
+
+Applies a refraction displacement effect.
+
 ## Parameters
 
-- **Displacement**: Strength of the refraction displacement.
-- **Warp**: Warp spline order.
-- **Spline Order**: Spline interpolation order.
-- **Derivative**: Derivative order for warp computation.
-- **Range**: Displacement range.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| Displacement | float | — | — | Strength of the refraction displacement |
+| Warp | int | — | — | Warp spline order |
+| Spline Order | int | — | — | Spline interpolation order |
+| Derivative | int | — | — | Derivative order for warp computation |
+| Range | float | — | — | Displacement range |

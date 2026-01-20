@@ -10,7 +10,7 @@ Generates cellular noise patterns based on Voronoi distance calculations. Suppor
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| shape | int | circle | circle, diamond, hexagon, octagon, square, triangle | Distance metric for cell calculation |
+| shape | int | circle | circle/diamond/hexagon/octagon/square/triangle | Distance metric for cell calculation |
 | scale | float | 75 | 1–100 | Noise scale |
 | cellScale | float | 87 | 1–100 | Cell size scale |
 | cellSmooth | float | 11 | 0–100 | Cell edge smoothing |

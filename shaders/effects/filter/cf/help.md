@@ -1,3 +1,7 @@
+# CF (Convolution Feedback)
+
+Applies iterative convolution with feedback for evolving, time-accumulating effects.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
@@ -9,9 +13,10 @@
 | blurAmount | float | 0.5 | 0–1 | Mix between original and blurred (0 = no blur, 1 = full blur) |
 | intensity | float | 0.55 | 0–1 | How much feedback blends into the output (0 = input only, 1 = full feedback) |
 
-## Algorithm
+## Notes
 
-1. **Sharpen**: Unsharp mask on feedback texture (selfTex)
+Algorithm pipeline:
+1. **Sharpen**: Unsharp mask on feedback texture
 2. **Blur**: Gaussian blur with configurable radius and amount
 3. **Blend**: Mix processed feedback with current input based on intensity
 

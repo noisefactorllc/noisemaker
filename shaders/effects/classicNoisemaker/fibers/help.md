@@ -1,3 +1,7 @@
+# Fibers
+
+Adds a fiber texture overlay to the image.
+
 ## Parameters
 
-No parameters
+This effect has no user-configurable parameters.

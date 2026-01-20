@@ -1,3 +1,7 @@
+# Invert
+
+Inverts the colors of the image.
+
 ## Parameters
 
-This effect has no parameters.
+No configurable parameters.

@@ -1,3 +1,7 @@
+# Scale
+
+Scales the image from a configurable pivot point.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
@@ -6,4 +10,4 @@
 | y | float | 0 | 0–10 | Vertical scale factor |
 | centerX | float | 0.5 | 0–1 | Horizontal pivot point |
 | centerY | float | 0.5 | 0–1 | Vertical pivot point |
-| wrap | int | 1 (repeat) | mirror/repeat/clamp | Edge wrapping mode |
+| wrap | int | repeat | mirror/repeat/clamp | Edge wrapping mode |

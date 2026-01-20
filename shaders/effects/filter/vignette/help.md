@@ -1,3 +1,7 @@
+# Vignette
+
+Darkens the edges of the image.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

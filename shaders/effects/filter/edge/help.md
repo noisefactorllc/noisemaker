@@ -1,3 +1,7 @@
+# Edge
+
+Detects edges in the image using convolution.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

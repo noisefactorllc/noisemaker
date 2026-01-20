@@ -1,3 +1,7 @@
+# Sharpen
+
+Applies unsharp mask sharpening to the image.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

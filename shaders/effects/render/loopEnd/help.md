@@ -1,15 +1,17 @@
-## Parameters
+# Loop End
 
-This effect has no user-configurable parameters.
+End an accumulator feedback loop started by `loopBegin()`.
 
 ## Description
 
-End an accumulator feedback loop started by `loopBegin()`. Writes the chain result back to the shared accumulator buffer, completing the feedback loop.
+Writes the chain result back to the shared accumulator buffer, completing the feedback loop. The processed result is written back to the same accumulator texture that `loopBegin()` reads from, creating a temporal feedback loop.
+
+## Parameters
+
+This effect has no user-configurable parameters.
 
 ## Usage
 
 ```
 loopBegin(alpha: 50).blur().loopEnd()
 ```
-
-The processed result is written back to the same accumulator texture that `loopBegin()` reads from, creating a temporal feedback loop.

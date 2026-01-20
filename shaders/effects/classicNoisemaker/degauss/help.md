@@ -1,3 +1,9 @@
+# Degauss
+
+Simulates CRT degaussing distortion effect.
+
 ## Parameters
 
-- **Displacement**: Degaussing displacement amount
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| Displacement | float | — | — | Degaussing displacement amount |

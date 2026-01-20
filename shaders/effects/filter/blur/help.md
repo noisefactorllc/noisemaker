@@ -1,3 +1,7 @@
+# Blur
+
+Applies Gaussian blur to the image.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

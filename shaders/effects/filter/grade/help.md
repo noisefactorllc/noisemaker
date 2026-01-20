@@ -1,4 +1,4 @@
-# Grade Effect
+# Grade
 
 Professional multi-stage color grading pipeline. Includes primary correction, creative looks, three-way color wheels, HSL secondary isolation, and vignette with highlight preservation.
 
@@ -78,8 +78,9 @@ Professional multi-stage color grading pipeline. Includes primary correction, cr
 | vignetteFeather | float | 0.5 | 0–1 | Vignette edge softness |
 | vignetteHighlightProtect | float | 0 | 0–1 | Protect highlights from vignette |
 
-## Pipeline
+## Notes
 
+Pipeline order:
 1. **Primary**: White balance, exposure, contrast, tonal range
 2. **Creative**: Vibrance, faded film, split toning
 3. **Wheels**: Three-way color correction

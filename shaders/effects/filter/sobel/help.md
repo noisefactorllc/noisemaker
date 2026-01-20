@@ -1,3 +1,7 @@
+# Sobel
+
+Applies Sobel edge detection to the image.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

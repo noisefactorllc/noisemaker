@@ -1,8 +1,12 @@
+# Render 3D
+
+Raymarch and render 3D volume data.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| filtering | int | isosurface | isosurface, voxel | Rendering mode |
+| filtering | int | isosurface | isosurface/voxel | Rendering mode |
 | threshold | float | 0.5 | 0–1 | Surface threshold for raymarching |
 | invert | boolean | false | — | Invert threshold |
 | orbitSpeed | int | 1 | -5–5 | Camera orbit speed |

@@ -1,3 +1,11 @@
+# Physical
+
+Physics-based particle simulation with wind and gravity forces.
+
+## Description
+
+Particles fall under gravity, get pushed by wind, and experience drag and random wandering. Use negative gravity for rising particles (like smoke or bubbles).
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
@@ -9,14 +17,8 @@
 | stride | float | 0.75 | 0–1 | Per-agent stride variation |
 | wander | float | 0.25 | 0–1 | Random wandering force |
 
-## Description
-
-Physics-based particle simulation with wind and gravity forces. Particles fall under gravity, get pushed by wind, and experience drag and random wandering.
-
 ## Usage
 
 ```
 pointsEmit().physical(gravity: 0.1, wind: 0.05).pointsRender().write(o0)
 ```
-
-Use negative gravity for rising particles (like smoke or bubbles).

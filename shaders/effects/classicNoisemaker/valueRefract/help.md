@@ -1,3 +1,7 @@
+# Value Refract
+
+Applies refraction based on pixel values.
+
 ## Parameters
 
-No parameters
+This effect has no user-configurable parameters.

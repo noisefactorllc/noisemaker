@@ -1,4 +1,4 @@
-# Feedback Effect
+# Feedback
 
 Feedback loop with blend modes and transforms. Blends the live input with a feedback buffer using various blend modes, with transform controls, color controls, lens effects, and refraction.
 
@@ -20,8 +20,9 @@ Feedback loop with blend modes and transforms. Blends the live input with a feed
 | aberrationAmt | float | 0 | 0–100 | Chromatic aberration amount |
 | distortion | float | 0 | -100–100 | Lens distortion amount |
 
-## Categories
+## Notes
 
+Parameter categories:
 - **Transform**: scaleAmt, rotation
 - **Refract**: refractAAmt, refractBAmt, refractADir, refractBDir
 - **Color**: hueRotation, intensity

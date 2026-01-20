@@ -1,3 +1,7 @@
+# Bloom
+
+Adds a soft glow to bright areas of the image.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

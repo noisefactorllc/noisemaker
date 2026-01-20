@@ -1,3 +1,7 @@
+# Frame
+
+Adds a decorative frame border around the image.
+
 ## Parameters
 
-No parameters
+This effect has no user-configurable parameters.

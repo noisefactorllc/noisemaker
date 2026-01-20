@@ -1,3 +1,9 @@
+# Rotate
+
+Rotates the image by a specified angle.
+
 ## Parameters
 
-- **Angle**: Rotation angle in degrees.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| Angle | float | — | — | Rotation angle in degrees |

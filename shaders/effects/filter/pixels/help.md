@@ -1,3 +1,7 @@
+# Pixels
+
+Applies a pixelation effect to the image.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

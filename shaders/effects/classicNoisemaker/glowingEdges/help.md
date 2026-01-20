@@ -1,4 +1,10 @@
+# Glowing Edges
+
+Highlights edges with a glowing effect.
+
 ## Parameters
 
-- **Sobel Metric**: Distance metric for Sobel operator magnitude.
-- **Alpha**: Blend weight for the glowing edges over the source image.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| Sobel Metric | int | — | — | Distance metric for Sobel operator magnitude |
+| Alpha | float | — | 0–1 | Blend weight for the glowing edges over the source image |

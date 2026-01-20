@@ -1,9 +1,10 @@
-# Lighting Effect
+# Lighting
 
 Applies 3D lighting to 2D textures by calculating surface normals from luminosity.
 
-## How It Works
+## Description
 
+Uses a three-step process:
 1. **Normal Calculation**: Uses Sobel convolution on the input texture's luminosity to extract gradients, which are converted into 3D surface normals
 2. **Lighting Model**: Applies Blinn-Phong lighting with diffuse, specular, and ambient components
 3. **Output**: The lit result is combined with the original texture colors
@@ -23,7 +24,7 @@ Applies 3D lighting to 2D textures by calculating surface normals from luminosit
 | refraction | float | 0 | 0–100 | Amount of refraction distortion |
 | aberration | float | 0 | 0–100 | Chromatic aberration amount |
 
-## Usage Tips
+## Notes
 
 - Increase **normalStrength** to make surface features more pronounced
 - Adjust **lightDirection** to change where highlights appear

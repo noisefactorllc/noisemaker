@@ -1,4 +1,4 @@
-# FlipMirror Effect
+# Flip/Mirror
 
 Flip and mirror image transformations. Provides horizontal/vertical flipping and various mirroring modes.
 

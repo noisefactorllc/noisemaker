@@ -1,3 +1,7 @@
+# Scratches
+
+Adds scratch overlay effects to simulate wear.
+
 ## Parameters
 
-No parameters
+This effect has no user-configurable parameters.

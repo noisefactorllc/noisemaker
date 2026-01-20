@@ -1,3 +1,9 @@
+# Snow
+
+Adds animated snow particles overlay.
+
 ## Parameters
 
-- **Alpha**: Snow overlay opacity.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| Alpha | float | — | 0–1 | Snow overlay opacity |

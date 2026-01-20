@@ -1,3 +1,7 @@
+# Sketch
+
+Applies a pencil sketch artistic effect.
+
 ## Parameters
 
-No parameters
+This effect has no user-configurable parameters.

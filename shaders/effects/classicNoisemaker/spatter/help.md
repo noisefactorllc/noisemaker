@@ -1,3 +1,9 @@
+# Spatter
+
+Adds paint spatter texture effect.
+
 ## Parameters
 
-- **Color**: Use color for spatter effect.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| Color | float | — | 0–1 | Use color for spatter effect |

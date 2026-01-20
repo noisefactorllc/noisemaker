@@ -1,4 +1,4 @@
-# Motion Blur Effect
+# Motion Blur
 
 Simple motion blur via frame blending. Mixes the current frame with the previous frame for a temporal blur effect.
 
@@ -9,7 +9,7 @@ Simple motion blur via frame blending. Mixes the current frame with the previous
 | resetState | boolean | false | — | Reset button to clear motion blur state |
 | amount | float | 50 | 0–100 | Motion blur intensity (0 = no blur, higher = more trailing) |
 
-## How It Works
+## Notes
 
 The effect maintains an internal feedback buffer that stores the previous frame output. Each frame blends the current input with this buffer based on the amount parameter. Higher values create longer motion trails.
 

@@ -1,4 +1,10 @@
+# Sine
+
+Applies a sine wave transformation to pixel values.
+
 ## Parameters
 
-- **Amount**: Sine wave amplitude.
-- **RGB**: Apply per-channel RGB sine.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| Amount | float | — | — | Sine wave amplitude |
+| RGB | float | — | 0–1 | Apply per-channel RGB sine |

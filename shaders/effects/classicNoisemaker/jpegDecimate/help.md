@@ -1,3 +1,7 @@
+# JPEG Decimate
+
+Simulates JPEG compression artifacts.
+
 ## Parameters
 
-No parameters
+This effect has no user-configurable parameters.

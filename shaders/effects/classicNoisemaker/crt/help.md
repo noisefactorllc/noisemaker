@@ -1,3 +1,7 @@
+# CRT
+
+Simulates a CRT monitor display effect.
+
 ## Parameters
 
-No parameters
+This effect has no user-configurable parameters.

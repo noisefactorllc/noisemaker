@@ -1,3 +1,7 @@
+# Scanline Error
+
+Simulates analog scanline errors and glitches.
+
 ## Parameters
 
-No parameters
+This effect has no user-configurable parameters.

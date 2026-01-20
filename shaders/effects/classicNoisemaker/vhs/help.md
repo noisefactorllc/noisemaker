@@ -1,3 +1,7 @@
+# VHS
+
+Simulates VHS tape playback artifacts.
+
 ## Parameters
 
-No parameters
+This effect has no user-configurable parameters.

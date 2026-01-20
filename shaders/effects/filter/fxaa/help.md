@@ -1,3 +1,7 @@
+# FXAA
+
+Fast approximate anti-aliasing filter.
+
 ## Parameters
 
-No parameters
+No configurable parameters.

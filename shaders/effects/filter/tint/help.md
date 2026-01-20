@@ -1,17 +1,11 @@
-## Arguments
+# Tint
 
-### `r`
-- **Type:** Number.
-- **Default:** `1`.
-- **Range:** 0–1.
-- **Description:** Red channel multiplier or base value.
-### `g`
-- **Type:** Number.
-- **Default:** `1`.
-- **Range:** 0–1.
-- **Description:** Green channel multiplier or base value.
-### `b`
-- **Type:** Number.
-- **Default:** `1`.
-- **Range:** 0–1.
-- **Description:** Blue channel multiplier or base value.
+Multiplies the image by RGB color values.
+
+## Parameters
+
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| r | float | 1 | 0–1 | Red channel multiplier |
+| g | float | 1 | 0–1 | Green channel multiplier |
+| b | float | 1 | 0–1 | Blue channel multiplier |

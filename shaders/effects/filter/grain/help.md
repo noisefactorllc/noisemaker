@@ -4,5 +4,7 @@ Film grain overlay effect.
 
 ## Parameters
 
-- **alpha**: Blend amount of grain (0-1)
-- **pause**: When enabled, outputs static noise; when disabled, outputs per-frame animated noise
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| alpha | float | 0.5 | 0–1 | Blend amount of grain |
+| pause | boolean | false | — | When enabled, outputs static noise; when disabled, outputs per-frame animated noise |

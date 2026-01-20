@@ -1,3 +1,7 @@
+# Bulge
+
+Applies a bulge distortion effect, creating a convex lens-like warp.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |

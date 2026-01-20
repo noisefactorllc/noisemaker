@@ -1,3 +1,7 @@
+# Scroll
+
+Scrolls the image with optional animation.
+
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
@@ -6,4 +10,4 @@
 | y | float | 0 | -10–10 | Vertical offset |
 | speedX | float | 0 | -10–10 | Horizontal animation speed |
 | speedY | float | 0 | -10–10 | Vertical animation speed |
-| wrap | int | 1 | mirror, repeat, clamp | Edge wrapping mode |
+| wrap | int | repeat | mirror/repeat/clamp | Edge wrapping mode |
