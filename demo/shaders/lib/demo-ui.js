@@ -3400,9 +3400,13 @@ render(o1)`
         } else if (spec.ui?.control === 'checkbox' || spec.type === 'boolean') {
             // checkbox control for int uniforms that act as booleans (0/1)
             this._createBooleanControl(controlGroup, key, value, effectKey)
-        } else if (spec.ui?.control === 'color' || spec.type === 'vec4' || spec.type === 'vec3') {
-            // Color picker for vec3/vec4 or explicit color control
+        } else if (spec.ui?.control === 'color' || spec.type === 'vec4') {
+            // Color picker for vec4 or explicit color control
             this._createColorControl(controlGroup, key, value, effectKey, spec)
+        } else if (spec.type === 'vec3') {
+            // Vector3 picker for vec3 (direction, position, etc.)
+            // Downstream projects can override _createVector3dControl with custom UI
+            this._createVector3dControl(controlGroup, key, value, effectKey, spec)
         } else if (spec.choices) {
             this._createChoicesControl(controlGroup, key, spec, value, effectKey)
         } else if (spec.enum && spec.type === 'int') {
@@ -3781,6 +3785,18 @@ render(o1)`
 
         container.appendChild(colorInput)
         container._controlHandle = handle
+    }
+
+    /**
+     * Create a vector3d control for vec3 parameters (direction, position, etc.).
+     * Downstream projects can override this to provide a custom vector editor.
+     * Default implementation delegates to color picker for compatibility.
+     * @private
+     */
+    _createVector3dControl(container, key, value, effectKey, spec) {
+        // Default: delegate to color control for backward compatibility
+        // Downstream projects (e.g., Noisedeck) can override with custom vector picker
+        this._createColorControl(container, key, value, effectKey, spec)
     }
 
     /** @private */

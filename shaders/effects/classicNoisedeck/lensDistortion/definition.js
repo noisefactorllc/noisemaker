@@ -133,7 +133,7 @@ export default new Effect({
       }
     },
     tint: {
-      type: "vec3",
+      type: "color",
       default: [0.0, 0.0, 0.0],
       uniform: "tint",
       ui: {

@@ -40,7 +40,7 @@ export default new Effect({
       }
     },
     diffuseColor: {
-      type: "vec3",
+      type: "color",
       default: [1.0, 1.0, 1.0],
       uniform: "diffuseColor",
       ui: {
@@ -50,7 +50,7 @@ export default new Effect({
       }
     },
     specularColor: {
-      type: "vec3",
+      type: "color",
       default: [1.0, 1.0, 1.0],
       uniform: "specularColor",
       ui: {
@@ -86,7 +86,7 @@ export default new Effect({
       }
     },
     ambientColor: {
-      type: "vec3",
+      type: "color",
       default: [0.2, 0.2, 0.2],
       uniform: "ambientColor",
       ui: {

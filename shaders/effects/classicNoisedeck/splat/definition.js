@@ -89,7 +89,7 @@ export default new Effect({
       }
     },
     splatColor: {
-      type: "vec3",
+      type: "color",
       default: [1.0, 1.0, 1.0],
       uniform: "splatColor",
       ui: {
@@ -162,7 +162,7 @@ export default new Effect({
       }
     },
     speckColor: {
-      type: "vec3",
+      type: "color",
       default: [0.8, 0.8, 0.8],
       uniform: "speckColor",
       ui: {

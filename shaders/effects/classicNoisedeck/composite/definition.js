@@ -56,7 +56,7 @@ export default new Effect({
       }
     },
     inputColor: {
-      type: "vec3",
+      type: "color",
       default: [0.0, 0.0, 0.0],
       uniform: "inputColor",
       ui: {

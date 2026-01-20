@@ -58,7 +58,7 @@ export default new Effect({
       }
     },
     color1: {
-      type: "vec3",
+      type: "color",
       default: [1.0, 0.0, 0.0],
       uniform: "color1",
       ui: {
@@ -68,7 +68,7 @@ export default new Effect({
       }
     },
     color2: {
-      type: "vec3",
+      type: "color",
       default: [1.0, 1.0, 0.0],
       uniform: "color2",
       ui: {
@@ -78,7 +78,7 @@ export default new Effect({
       }
     },
     color3: {
-      type: "vec3",
+      type: "color",
       default: [0.0, 1.0, 0.0],
       uniform: "color3",
       ui: {
@@ -88,7 +88,7 @@ export default new Effect({
       }
     },
     color4: {
-      type: "vec3",
+      type: "color",
       default: [0.0, 1.0, 1.0],
       uniform: "color4",
       ui: {
@@ -98,7 +98,7 @@ export default new Effect({
       }
     },
     color5: {
-      type: "vec3",
+      type: "color",
       default: [0.0, 0.0, 1.0],
       uniform: "color5",
       ui: {
@@ -108,7 +108,7 @@ export default new Effect({
       }
     },
     tint: {
-      type: "vec3",
+      type: "color",
       default: [1.0, 1.0, 1.0],
       uniform: "tint",
       ui: {

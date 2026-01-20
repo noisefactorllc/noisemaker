@@ -148,7 +148,7 @@ export default new Effect({
       }
     },
     color1: {
-      type: "vec3",
+      type: "color",
       default: [1.0, 0.9176470588235294, 0.19215686274509805],
       uniform: "color1",
       ui: {
@@ -158,7 +158,7 @@ export default new Effect({
       }
     },
     color2: {
-      type: "vec3",
+      type: "color",
       default: [0.0, 0.0, 0.0],
       uniform: "color2",
       ui: {

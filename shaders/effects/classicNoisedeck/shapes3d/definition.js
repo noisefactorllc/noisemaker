@@ -239,7 +239,7 @@ export default class Shapes3D extends Effect {
       }
     },
     backgroundColor: {
-      type: "vec3",
+      type: "color",
       default: [1.0, 1.0, 1.0],
       uniform: "backgroundColor",
       ui: {

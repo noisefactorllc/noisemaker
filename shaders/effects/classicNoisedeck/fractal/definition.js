@@ -329,7 +329,7 @@ export default class Fractal extends Effect {
       }
     },
     backgroundColor: {
-      type: "vec3",
+      type: "color",
       default: [0.0, 0.0, 0.0],
       uniform: "backgroundColor",
       ui: {

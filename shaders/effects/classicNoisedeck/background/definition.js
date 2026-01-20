@@ -40,13 +40,13 @@ export default new Effect({
       ui: { label: "Opacity", control: "slider", category: "general" }
     },
     color1: {
-      type: "vec4",
+      type: "color",
       default: [0, 0, 0, 1],
       uniform: "color1",
       ui: { label: "Color 1", control: "color", category: "color" }
     },
     color2: {
-      type: "vec4",
+      type: "color",
       default: [1, 1, 1, 1],
       uniform: "color2",
       ui: { label: "Color 2", control: "color", category: "color" }

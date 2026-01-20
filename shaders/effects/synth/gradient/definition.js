@@ -47,25 +47,25 @@ export default new Effect({
       }
     },
     color1: {
-      type: "vec4",
+      type: "color",
       default: [1, 0, 0, 1],
       uniform: "color1",
       ui: { label: "Color 1", control: "color", category: "color" }
     },
     color2: {
-      type: "vec4",
+      type: "color",
       default: [1, 1, 0, 1],
       uniform: "color2",
       ui: { label: "Color 2", control: "color", category: "color" }
     },
     color3: {
-      type: "vec4",
+      type: "color",
       default: [0, 1, 0, 1],
       uniform: "color3",
       ui: { label: "Color 3", control: "color", category: "color" }
     },
     color4: {
-      type: "vec4",
+      type: "color",
       default: [0, 0, 1, 1],
       uniform: "color4",
       ui: { label: "Color 4", control: "color", category: "color" }
