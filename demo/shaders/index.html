@@ -19,14 +19,14 @@
     <div id="loading" class="loading">loading effects...</div>
     <div id="app-container" style="display: none;">
         <div id="left-panel">
-            <div class="shader-module" id="pipeline-module">
-                <div class="module-title">
-                    <span class="module-title-text">Noisemaker Shaders Demo</span>
+            <div class="shader-effect" id="pipeline-effect">
+                <div class="effect-title">
+                    <span class="effect-title-text">Noisemaker Shaders Demo</span>
                     <span style="flex: 1;"></span>
                     <button id="pause-play-btn" class="action-btn tooltip" data-title="Pause/play animation" aria-label="Pause/play animation">pause</button>
                     <button id="pipeline-code-btn" class="action-btn tooltip" data-title="Edit DSL program" aria-label="Edit DSL program">code</button>
                 </div>
-                <div class="module-content" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <div class="effect-content" style="display: flex; flex-direction: column; gap: 0.75rem;">
                     <div class="control-group" style="margin-bottom: 0;">
                         <div class="control-header">
                             <label for="effect-select" class="control-label">effect</label>
@@ -45,7 +45,7 @@
                         </label>
                         <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6);">
                             <span>duration</span>
-                            <input type="number" id="duration-input" value="10" min="1" max="60" step="1" style="width: 4rem; padding: 0.25rem 0.375rem; background: color-mix(in srgb, var(--accent3) 15%, transparent 85%); border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: Nunito, sans-serif; font-size: 0.6875rem; font-weight: 560; outline: none; -moz-appearance: textfield;">
+                            <input type="number" id="duration-input" value="10" min="1" max="60" step="1" style="width: 4rem; padding: 0.25rem 0.375rem; background: color-mix(in srgb, var(--accent3) 15%, transparent 85%); border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: Nunito, sans-serif; font-size: 0.6875rem; font-weight: 560; outline: none; -moz-appearance: textfield; appearance: textfield;">
                         </label>
                         <span style="flex: 1;"></span>
                         <button id="midi-toggle-btn" class="action-btn tooltip" data-title="Enable MIDI input" aria-label="Enable MIDI input" style="opacity: 0.5;">midi</button>
@@ -527,8 +527,6 @@
             const dsl = ui.buildDslSource(currentEffect);
             renderer.currentDsl = dsl;
             window.__noisemakerCurrentDsl = dsl;
-            
-            console.log('DSL', currentEffect.namespace + '/' + currentEffect.name, '\n' + dsl);
 
             ui.setDsl(dsl);
 

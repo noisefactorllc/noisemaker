@@ -8,12 +8,12 @@
 :root {
   --ui-accent: color-mix(in srgb, var(--accent3) 80%, var(--color7) 20%);
   --ui-neutral: var(--color6);
-  --module-shared-accent: color-mix(in srgb, var(--accent1) 85%, var(--color6) 15%);
+  --effect-shared-accent: color-mix(in srgb, var(--accent1) 85%, var(--color6) 15%);
   --surface-opacity: 85%;
   --surface-transparency: 15%;
   --glass-blur-strength: blur(20px);
-  --module-surface-opacity: 85%;
-  --module-surface-transparency: 15%;
-  --module-header-opacity: 75%;
-  --module-header-transparency: 25%;
+  --effect-surface-opacity: 85%;
+  --effect-surface-transparency: 15%;
+  --effect-header-opacity: 75%;
+  --effect-header-transparency: 25%;
 }

@@ -224,7 +224,7 @@ export class UIController {
      * @param {HTMLElement} [options.loadingDialogStatus] - Loading dialog status
      * @param {HTMLElement} [options.loadingDialogProgress] - Loading dialog progress bar
      * @param {function} [options.onControlChange] - Callback when a control value changes
-     * @param {function} [options.onModuleControlsReset] - Callback(stepIndex, moduleElement, effectDef) after a module's controls are rebuilt via reset button
+     * @param {function} [options.onEffectControlsReset] - Callback(stepIndex, effectElement, effectDef) after a effect's controls are rebuilt via reset button
      * @param {ControlFactory} [options.controlFactory] - Custom control factory for web components
      */
     constructor(renderer, options = {}) {
@@ -247,7 +247,7 @@ export class UIController {
         // Callbacks
         this._onControlChangeCallback = options.onControlChange || null
         this._onRequestRecompileCallback = options.onRequestRecompile || null
-        this._onModuleControlsResetCallback = options.onModuleControlsReset || null
+        this._onEffectControlsResetCallback = options.onEffectControlsReset || null
 
         // State
         this._parameterValues = {}
@@ -1319,7 +1319,7 @@ export class UIController {
 
         // Build search directive (with two line breaks after)
         // Classic namespaces stay in their lane - no cross-namespace search
-        // classicNoisemaker needs synth for noise() starter (it has no noise module)
+        // classicNoisemaker needs synth for noise() starter (it has no noise effect)
         let searchNs = effect.namespace
         if (effect.namespace === 'classicNoisemaker') {
             searchNs = 'classicNoisemaker, synth'
@@ -1848,7 +1848,7 @@ render(o1)`
         const effects = structure
         this._parsedDslStructure = effects
 
-        // Build a map of stepIndex -> planIndex for write module placement
+        // Build a map of stepIndex -> planIndex for write effect placement
         let globalStepIndex = 0
         const stepToPlan = new Map()
         for (let planIndex = 0; planIndex < compiled.plans.length; planIndex++) {
@@ -1894,7 +1894,7 @@ render(o1)`
                 currentOccurrenceCount[effectName] = 0
             }
 
-            // Handle builtin _write steps - render as write module
+            // Handle builtin _write steps - render as write effect
             if (effectInfo.effectKey === '_write') {
                 currentOccurrenceCount[effectName]++
                 const planIndex = stepToPlan.get(effectInfo.stepIndex)
@@ -1905,34 +1905,34 @@ render(o1)`
                     const isLastStepInPlan = effectInfo.stepIndex === Math.max(...effects.filter(e => stepToPlan.get(e.stepIndex) === planIndex).map(e => e.stepIndex))
                     const isMidChain = !isLastStepInPlan
 
-                    const writeModule = this._createWriteModule(planIndex, effectInfo.stepIndex, writeTarget, isMidChain)
-                    this._controlsContainer.appendChild(writeModule)
+                    const writeEffect = this._createWriteEffect(planIndex, effectInfo.stepIndex, writeTarget, isMidChain)
+                    this._controlsContainer.appendChild(writeEffect)
                     prevWasMidChainWrite = isMidChain
                 }
                 continue
             }
 
-            // Handle builtin _read steps - render as read module
+            // Handle builtin _read steps - render as read effect
             if (effectInfo.effectKey === '_read') {
                 currentOccurrenceCount[effectName]++
                 const readSource = effectInfo.args?.tex
                 if (readSource) {
-                    const readModule = this._createReadModule(effectInfo.stepIndex, readSource)
-                    this._controlsContainer.appendChild(readModule)
+                    const readEffect = this._createReadEffect(effectInfo.stepIndex, readSource)
+                    this._controlsContainer.appendChild(readEffect)
                 }
                 continue
             }
 
-            // Handle builtin _read3d steps - create UI module with vol/geo dropdowns
+            // Handle builtin _read3d steps - create UI effect with vol/geo dropdowns
             if (effectInfo.effectKey === '_read3d') {
                 const read3dSource = effectInfo.args || {}
-                const read3dModule = this._createRead3dModule(effectInfo.stepIndex, read3dSource)
-                this._controlsContainer.appendChild(read3dModule)
+                const read3dEffect = this._createRead3dEffect(effectInfo.stepIndex, read3dSource)
+                this._controlsContainer.appendChild(read3dEffect)
                 currentOccurrenceCount[effectName]++
                 continue
             }
 
-            // Handle builtin _write3d steps - render as write3d module (exactly like _write)
+            // Handle builtin _write3d steps - render as write3d effect (exactly like _write)
             if (effectInfo.effectKey === '_write3d') {
                 currentOccurrenceCount[effectName]++
                 const planIndex = stepToPlan.get(effectInfo.stepIndex)
@@ -1942,8 +1942,8 @@ render(o1)`
                     const isLastStepInPlan = effectInfo.stepIndex === Math.max(...effects.filter(e => stepToPlan.get(e.stepIndex) === planIndex).map(e => e.stepIndex))
                     const isMidChain = !isLastStepInPlan
 
-                    const write3dModule = this._createWrite3dModule(planIndex, effectInfo.stepIndex, write3dArgs, isMidChain)
-                    this._controlsContainer.appendChild(write3dModule)
+                    const write3dEffect = this._createWrite3dEffect(planIndex, effectInfo.stepIndex, write3dArgs, isMidChain)
+                    this._controlsContainer.appendChild(write3dEffect)
                 }
                 continue
             }
@@ -1962,33 +1962,33 @@ render(o1)`
                 continue
             }
 
-            const moduleDiv = document.createElement('div')
-            moduleDiv.className = 'shader-module'
-            moduleDiv.dataset.stepIndex = effectInfo.stepIndex
-            moduleDiv.dataset.effectName = effectInfo.name
+            const effectDiv = document.createElement('div')
+            effectDiv.className = 'shader-effect'
+            effectDiv.dataset.stepIndex = effectInfo.stepIndex
+            effectDiv.dataset.effectName = effectInfo.name
 
-            // If previous module was a mid-chain write, remove top gap and radius
+            // If previous effect was a mid-chain write, remove top gap and radius
             if (prevWasMidChainWrite) {
-                moduleDiv.style.marginTop = '0'
-                moduleDiv.style.borderTopLeftRadius = '0'
-                moduleDiv.style.borderTopRightRadius = '0'
+                effectDiv.style.marginTop = '0'
+                effectDiv.style.borderTopLeftRadius = '0'
+                effectDiv.style.borderTopRightRadius = '0'
             }
 
             // If this step is followed by a mid-chain write, remove bottom gap and radius
             if (stepsBeforeMidChainWrite.has(effectInfo.stepIndex)) {
-                moduleDiv.style.marginBottom = '0'
-                moduleDiv.style.borderBottomLeftRadius = '0'
-                moduleDiv.style.borderBottomRightRadius = '0'
+                effectDiv.style.marginBottom = '0'
+                effectDiv.style.borderBottomLeftRadius = '0'
+                effectDiv.style.borderBottomRightRadius = '0'
             }
 
             prevWasMidChainWrite = false
 
             const titleDiv = document.createElement('div')
-            titleDiv.className = 'module-title'
+            titleDiv.className = 'effect-title'
 
             // Title text (click to expand/collapse, but not when skipped)
             const titleText = document.createElement('span')
-            titleText.className = 'module-title-text'
+            titleText.className = 'effect-title-text'
 
             // Convert camelCase to space-separated lowercase
             const formatName = (name) => name.replace(/([A-Z])/g, ' $1').toLowerCase().trim()
@@ -2042,7 +2042,7 @@ render(o1)`
                 })
 
                 // Update UI controls
-                const controlsContainer = moduleDiv.querySelector(`#controls-${effectInfo.stepIndex}`)
+                const controlsContainer = effectDiv.querySelector(`#controls-${effectInfo.stepIndex}`)
                 if (controlsContainer) {
                     controlsContainer.innerHTML = ''
 
@@ -2090,9 +2090,9 @@ render(o1)`
                 this._updateDslFromEffectParams()
                 this.showStatus(`reset ${effectInfo.name} to defaults`, 'success')
 
-                // Notify downstream that module controls were rebuilt
-                if (this._onModuleControlsResetCallback) {
-                    this._onModuleControlsResetCallback(effectInfo.stepIndex, moduleDiv, effectDef)
+                // Notify downstream that effect controls were rebuilt
+                if (this._onEffectControlsResetCallback) {
+                    this._onEffectControlsResetCallback(effectInfo.stepIndex, effectDiv, effectDef)
                 }
             })
             titleDiv.appendChild(resetBtn)
@@ -2117,15 +2117,15 @@ render(o1)`
             skipBtn.setAttribute('aria-label', 'Skip this effect in the pipeline')
             skipBtn.addEventListener('click', async (e) => {
                 e.stopPropagation()
-                const isSkipped = moduleDiv.classList.toggle('skipped')
+                const isSkipped = effectDiv.classList.toggle('skipped')
                 skipBtn.textContent = isSkipped ? 'unskip' : 'skip'
                 skipBtn.classList.toggle('active', isSkipped)
 
-                // When skipped, collapse the module; when unskipped, expand it
+                // When skipped, collapse the effect; when unskipped, expand it
                 if (isSkipped) {
-                    moduleDiv.classList.add('collapsed')
+                    effectDiv.classList.add('collapsed')
                 } else {
-                    moduleDiv.classList.remove('collapsed')
+                    effectDiv.classList.remove('collapsed')
                 }
 
                 // Update state and regenerate DSL
@@ -2140,23 +2140,23 @@ render(o1)`
             // Click on title bar to expand/collapse (skip button has stopPropagation)
             titleDiv.addEventListener('click', () => {
                 // Don't expand if skipped
-                if (moduleDiv.classList.contains('skipped')) {
+                if (effectDiv.classList.contains('skipped')) {
                     return
                 }
-                moduleDiv.classList.toggle('collapsed')
+                effectDiv.classList.toggle('collapsed')
             })
 
             // Check if this effect is already skipped (from parsed DSL)
             if (effectInfo.args?._skip === true) {
-                moduleDiv.classList.add('skipped', 'collapsed')
+                effectDiv.classList.add('skipped', 'collapsed')
                 skipBtn.textContent = 'unskip'
                 skipBtn.classList.add('active')
             }
 
-            moduleDiv.appendChild(titleDiv)
+            effectDiv.appendChild(titleDiv)
 
             const contentDiv = document.createElement('div')
-            contentDiv.className = 'module-content'
+            contentDiv.className = 'effect-content'
 
             const controlsDiv = document.createElement('div')
             controlsDiv.id = `controls-${effectInfo.stepIndex}`
@@ -2330,14 +2330,14 @@ render(o1)`
                 this._initTextCanvas(effectInfo.stepIndex, effectKey, effectDef)
             }
 
-            moduleDiv.appendChild(contentDiv)
-            this._controlsContainer.appendChild(moduleDiv)
+            effectDiv.appendChild(contentDiv)
+            this._controlsContainer.appendChild(effectDiv)
         }
 
-        // Add render module if render directive is present
+        // Add render effect if render directive is present
         if (compiled.render) {
-            const renderModule = this._createRenderModule(compiled.render)
-            this._controlsContainer.appendChild(renderModule)
+            const renderEffect = this._createRenderEffect(compiled.render)
+            this._controlsContainer.appendChild(renderEffect)
         }
 
         // Update initial disabled state of dependent controls
@@ -2424,35 +2424,35 @@ render(o1)`
     }
 
     /**
-     * Create a write module for a plan
+     * Create a write effect for a plan
      * @private
      * @param {number} planIndex - The plan index
      * @param {number} stepIndex - The step index for this write
      * @param {object} writeTarget - The write target surface
      * @param {boolean} isMidChain - Whether this is a mid-chain write (not terminal)
      */
-    _createWriteModule(planIndex, stepIndex, writeTarget, isMidChain = false) {
-        const moduleDiv = document.createElement('div')
-        moduleDiv.className = 'shader-module'
-        moduleDiv.dataset.planIndex = planIndex
-        moduleDiv.dataset.stepIndex = stepIndex
-        moduleDiv.dataset.effectName = 'write'
+    _createWriteEffect(planIndex, stepIndex, writeTarget, isMidChain = false) {
+        const effectDiv = document.createElement('div')
+        effectDiv.className = 'shader-effect'
+        effectDiv.dataset.planIndex = planIndex
+        effectDiv.dataset.stepIndex = stepIndex
+        effectDiv.dataset.effectName = 'write'
 
         // Mark mid-chain writes with data attribute for CSS targeting
         if (isMidChain) {
-            moduleDiv.dataset.midChain = 'true'
+            effectDiv.dataset.midChain = 'true'
         }
 
         const titleDiv = document.createElement('div')
-        titleDiv.className = 'module-title'
+        titleDiv.className = 'effect-title'
         titleDiv.textContent = 'write'
         titleDiv.addEventListener('click', () => {
-            moduleDiv.classList.toggle('collapsed')
+            effectDiv.classList.toggle('collapsed')
         })
-        moduleDiv.appendChild(titleDiv)
+        effectDiv.appendChild(titleDiv)
 
         const contentDiv = document.createElement('div')
-        contentDiv.className = 'module-content'
+        contentDiv.className = 'effect-content'
 
         const controlsDiv = document.createElement('div')
         controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;'
@@ -2511,31 +2511,31 @@ render(o1)`
         controlGroup.appendChild(select)
         controlsDiv.appendChild(controlGroup)
         contentDiv.appendChild(controlsDiv)
-        moduleDiv.appendChild(contentDiv)
+        effectDiv.appendChild(contentDiv)
 
-        return moduleDiv
+        return effectDiv
     }
 
     /**
-     * Create a render module for the render directive
+     * Create a render effect for the render directive
      * @private
      * @param {string} renderTarget - The render target surface (e.g., 'o0')
      */
-    _createRenderModule(renderTarget) {
-        const moduleDiv = document.createElement('div')
-        moduleDiv.className = 'shader-module'
-        moduleDiv.dataset.effectName = 'render'
+    _createRenderEffect(renderTarget) {
+        const effectDiv = document.createElement('div')
+        effectDiv.className = 'shader-effect'
+        effectDiv.dataset.effectName = 'render'
 
         const titleDiv = document.createElement('div')
-        titleDiv.className = 'module-title'
+        titleDiv.className = 'effect-title'
         titleDiv.textContent = 'render'
         titleDiv.addEventListener('click', () => {
-            moduleDiv.classList.toggle('collapsed')
+            effectDiv.classList.toggle('collapsed')
         })
-        moduleDiv.appendChild(titleDiv)
+        effectDiv.appendChild(titleDiv)
 
         const contentDiv = document.createElement('div')
-        contentDiv.className = 'module-content'
+        contentDiv.className = 'effect-content'
 
         const controlsDiv = document.createElement('div')
         controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;'
@@ -2585,29 +2585,29 @@ render(o1)`
         controlGroup.appendChild(select)
         controlsDiv.appendChild(controlGroup)
         contentDiv.appendChild(controlsDiv)
-        moduleDiv.appendChild(contentDiv)
+        effectDiv.appendChild(contentDiv)
 
-        return moduleDiv
+        return effectDiv
     }
 
     /**
-     * Create a read module for a step
+     * Create a read effect for a step
      * @private
      * @param {number} stepIndex - The step index
      * @param {object} readSource - The read source surface
      */
-    _createReadModule(stepIndex, readSource) {
-        const moduleDiv = document.createElement('div')
-        moduleDiv.className = 'shader-module'
-        moduleDiv.dataset.stepIndex = stepIndex
-        moduleDiv.dataset.effectName = 'read'
+    _createReadEffect(stepIndex, readSource) {
+        const effectDiv = document.createElement('div')
+        effectDiv.className = 'shader-effect'
+        effectDiv.dataset.stepIndex = stepIndex
+        effectDiv.dataset.effectName = 'read'
 
         const titleDiv = document.createElement('div')
-        titleDiv.className = 'module-title'
+        titleDiv.className = 'effect-title'
 
         // Title text
         const titleText = document.createElement('span')
-        titleText.className = 'module-title-text'
+        titleText.className = 'effect-title-text'
         titleText.textContent = 'read'
         titleDiv.appendChild(titleText)
 
@@ -2636,15 +2636,15 @@ render(o1)`
         skipBtn.setAttribute('aria-label', 'Skip this read in the pipeline')
         skipBtn.addEventListener('click', async (e) => {
             e.stopPropagation()
-            const isSkipped = moduleDiv.classList.toggle('skipped')
+            const isSkipped = effectDiv.classList.toggle('skipped')
             skipBtn.textContent = isSkipped ? 'unskip' : 'skip'
             skipBtn.classList.toggle('active', isSkipped)
 
-            // When skipped, collapse the module; when unskipped, expand it
+            // When skipped, collapse the effect; when unskipped, expand it
             if (isSkipped) {
-                moduleDiv.classList.add('collapsed')
+                effectDiv.classList.add('collapsed')
             } else {
-                moduleDiv.classList.remove('collapsed')
+                effectDiv.classList.remove('collapsed')
             }
 
             // Toggle skip in DSL and recompile
@@ -2654,16 +2654,16 @@ render(o1)`
 
         // Click on title bar to expand/collapse
         titleDiv.addEventListener('click', () => {
-            if (moduleDiv.classList.contains('skipped')) {
+            if (effectDiv.classList.contains('skipped')) {
                 return
             }
-            moduleDiv.classList.toggle('collapsed')
+            effectDiv.classList.toggle('collapsed')
         })
 
-        moduleDiv.appendChild(titleDiv)
+        effectDiv.appendChild(titleDiv)
 
         const contentDiv = document.createElement('div')
-        contentDiv.className = 'module-content'
+        contentDiv.className = 'effect-content'
 
         const controlsDiv = document.createElement('div')
         controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;'
@@ -2714,29 +2714,29 @@ render(o1)`
         controlGroup.appendChild(select)
         controlsDiv.appendChild(controlGroup)
         contentDiv.appendChild(controlsDiv)
-        moduleDiv.appendChild(contentDiv)
+        effectDiv.appendChild(contentDiv)
 
-        return moduleDiv
+        return effectDiv
     }
 
     /**
-     * Create a read3d module for a step
+     * Create a read3d effect for a step
      * @private
      * @param {number} stepIndex - The step index
      * @param {object} read3dSource - The read3d source containing tex3d and geo
      */
-    _createRead3dModule(stepIndex, read3dSource) {
-        const moduleDiv = document.createElement('div')
-        moduleDiv.className = 'shader-module'
-        moduleDiv.dataset.stepIndex = stepIndex
-        moduleDiv.dataset.effectName = 'read3d'
+    _createRead3dEffect(stepIndex, read3dSource) {
+        const effectDiv = document.createElement('div')
+        effectDiv.className = 'shader-effect'
+        effectDiv.dataset.stepIndex = stepIndex
+        effectDiv.dataset.effectName = 'read3d'
 
         const titleDiv = document.createElement('div')
-        titleDiv.className = 'module-title'
+        titleDiv.className = 'effect-title'
 
         // Title text
         const titleText = document.createElement('span')
-        titleText.className = 'module-title-text'
+        titleText.className = 'effect-title-text'
         titleText.textContent = 'read3d'
         titleDiv.appendChild(titleText)
 
@@ -2765,14 +2765,14 @@ render(o1)`
         skipBtn.setAttribute('aria-label', 'Skip this read3d in the pipeline')
         skipBtn.addEventListener('click', async (e) => {
             e.stopPropagation()
-            const isSkipped = moduleDiv.classList.toggle('skipped')
+            const isSkipped = effectDiv.classList.toggle('skipped')
             skipBtn.textContent = isSkipped ? 'unskip' : 'skip'
             skipBtn.classList.toggle('active', isSkipped)
 
             if (isSkipped) {
-                moduleDiv.classList.add('collapsed')
+                effectDiv.classList.add('collapsed')
             } else {
-                moduleDiv.classList.remove('collapsed')
+                effectDiv.classList.remove('collapsed')
             }
 
             await this._toggleStepSkipAtIndex(stepIndex, isSkipped)
@@ -2781,16 +2781,16 @@ render(o1)`
 
         // Click on title bar to expand/collapse
         titleDiv.addEventListener('click', () => {
-            if (moduleDiv.classList.contains('skipped')) {
+            if (effectDiv.classList.contains('skipped')) {
                 return
             }
-            moduleDiv.classList.toggle('collapsed')
+            effectDiv.classList.toggle('collapsed')
         })
 
-        moduleDiv.appendChild(titleDiv)
+        effectDiv.appendChild(titleDiv)
 
         const contentDiv = document.createElement('div')
-        contentDiv.className = 'module-content'
+        contentDiv.className = 'effect-content'
 
         const controlsDiv = document.createElement('div')
         controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;'
@@ -2888,41 +2888,41 @@ render(o1)`
         controlsDiv.appendChild(geoGroup)
 
         contentDiv.appendChild(controlsDiv)
-        moduleDiv.appendChild(contentDiv)
+        effectDiv.appendChild(contentDiv)
 
-        return moduleDiv
+        return effectDiv
     }
 
     /**
-     * Create a write3d module for a step
+     * Create a write3d effect for a step
      * @private
      * @param {number} planIndex - The plan index
      * @param {number} stepIndex - The step index for this write3d
      * @param {object} write3dArgs - The write3d args containing tex3d and geo
      * @param {boolean} isMidChain - Whether this is a mid-chain write3d (not terminal)
      */
-    _createWrite3dModule(planIndex, stepIndex, write3dArgs, isMidChain = false) {
-        const moduleDiv = document.createElement('div')
-        moduleDiv.className = 'shader-module'
-        moduleDiv.dataset.planIndex = planIndex
-        moduleDiv.dataset.stepIndex = stepIndex
-        moduleDiv.dataset.effectName = 'write3d'
+    _createWrite3dEffect(planIndex, stepIndex, write3dArgs, isMidChain = false) {
+        const effectDiv = document.createElement('div')
+        effectDiv.className = 'shader-effect'
+        effectDiv.dataset.planIndex = planIndex
+        effectDiv.dataset.stepIndex = stepIndex
+        effectDiv.dataset.effectName = 'write3d'
 
         // Mark mid-chain writes with data attribute for CSS targeting
         if (isMidChain) {
-            moduleDiv.dataset.midChain = 'true'
+            effectDiv.dataset.midChain = 'true'
         }
 
         const titleDiv = document.createElement('div')
-        titleDiv.className = 'module-title'
+        titleDiv.className = 'effect-title'
         titleDiv.textContent = 'write3d'
         titleDiv.addEventListener('click', () => {
-            moduleDiv.classList.toggle('collapsed')
+            effectDiv.classList.toggle('collapsed')
         })
-        moduleDiv.appendChild(titleDiv)
+        effectDiv.appendChild(titleDiv)
 
         const contentDiv = document.createElement('div')
-        contentDiv.className = 'module-content'
+        contentDiv.className = 'effect-content'
 
         const controlsDiv = document.createElement('div')
         controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;'
@@ -3020,14 +3020,14 @@ render(o1)`
         controlsDiv.appendChild(geoGroup)
 
         contentDiv.appendChild(controlsDiv)
-        moduleDiv.appendChild(contentDiv)
+        effectDiv.appendChild(contentDiv)
 
-        return moduleDiv
+        return effectDiv
     }
 
     /**
      * Delete a step from the pipeline by its global step index.
-     * Extracted for reuse by both effect modules and read modules.
+     * Extracted for reuse by effects.
      * @private
      * @param {number} targetStepIndex - The global step index to delete
      */

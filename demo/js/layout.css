@@ -109,12 +109,12 @@ body {
     50% / 20px 20px;
 }
 
-/* Shader module styling - matches shaders demo exactly */
-.shader-module {
+/* Shader effect styling - matches shaders demo exactly */
+.shader-effect {
   background: color-mix(
     in srgb,
-    var(--color2) var(--module-surface-opacity),
-    transparent var(--module-surface-transparency)
+    var(--color2) var(--effect-surface-opacity),
+    transparent var(--effect-surface-transparency)
   );
   backdrop-filter: var(--glass-blur-strength);
   border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
@@ -127,11 +127,11 @@ body {
   z-index: 1;
 }
 
-.module-title {
+.effect-title {
   background: color-mix(
     in srgb,
-    var(--module-shared-accent) var(--module-header-opacity),
-    transparent var(--module-header-transparency)
+    var(--effect-shared-accent) var(--effect-header-opacity),
+    transparent var(--effect-header-transparency)
   );
   border-bottom: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
   padding: 0.625em 0.875em;
@@ -149,47 +149,47 @@ body {
   cursor: pointer;
 }
 
-.module-title-text {
+.effect-title-text {
   display: inline;
 }
 
-.module-title:hover {
+.effect-title:hover {
   background: color-mix(
     in srgb,
-    var(--module-shared-accent) calc(var(--module-header-opacity) + 5%),
-    transparent calc(var(--module-header-transparency) - 5%)
+    var(--effect-shared-accent) calc(var(--effect-header-opacity) + 5%),
+    transparent calc(var(--effect-header-transparency) - 5%)
   );
 }
 
-.module-title::before {
+.effect-title::before {
   content: '▼';
   font-size: 0.65rem;
   transition: transform 0.2s ease;
   order: -1;
 }
 
-.shader-module.collapsed .module-title::before {
+.shader-effect.collapsed .effect-title::before {
   transform: rotate(-90deg);
 }
 
-/* Header module - no collapse functionality */
-#header-module .module-title::before {
+/* Header effect - no collapse functionality */
+#header-effect .effect-title::before {
   display: none;
 }
 
-#header-module .module-title {
+#header-effect .effect-title {
   padding: 0.75em 0.875em;
 }
 
-#header-module .module-title a:hover {
+#header-effect .effect-title a:hover {
   color: var(--accent3);
 }
 
-.module-content {
+.effect-content {
   padding: 0.5rem;
 }
 
-.shader-module.collapsed .module-content {
+.shader-effect.collapsed .effect-content {
   display: none !important;
 }
 

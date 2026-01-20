@@ -12,11 +12,11 @@
 <body>
   <div id="app-container">
     <div id="left-panel">
-      <div class="shader-module" id="program-module">
-        <div class="module-title">
-          <span class="module-title-text">Noisemaker JS Demo (CPU)</span>
+      <div class="shader-effect" id="program-effect">
+        <div class="effect-title">
+          <span class="effect-title-text">Noisemaker JS Demo (CPU)</span>
         </div>
-        <div class="module-content" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <div class="effect-content" style="display: flex; flex-direction: column; gap: 0.75rem;">
           <div class="control-group control-group--full-width">
             <select id="preset" class="control-select"></select>
           </div>
@@ -27,11 +27,11 @@
         </div>
       </div>
 
-      <div class="shader-module" id="code-module">
-        <div class="module-title">
-          <span class="module-title-text">Preset Details</span>
+      <div class="shader-effect" id="code-effect">
+        <div class="effect-title">
+          <span class="effect-title-text">Preset Details</span>
         </div>
-        <div class="module-content">
+        <div class="effect-content">
           <div id="tabs">
             <button id="tabFormula" class="active">Formula</button>
             <button id="tabEvaluated">Evaluated</button>
@@ -43,11 +43,11 @@
         </div>
       </div>
 
-      <div class="shader-module collapsed" id="development-module">
-        <div class="module-title">
-          <span class="module-title-text">Development</span>
+      <div class="shader-effect collapsed" id="development-effect">
+        <div class="effect-title">
+          <span class="effect-title-text">Development</span>
         </div>
-        <div class="module-content" style="display: flex; flex-direction: column; gap: 0.75rem;">
+        <div class="effect-content" style="display: flex; flex-direction: column; gap: 0.75rem;">
           <div style="display: flex; flex-direction: row; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
             <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6);">
               <span>seed</span>
@@ -917,11 +917,11 @@
     showTab('formula');
 
     // Module collapse/expand functionality
-    document.querySelectorAll('.shader-module .module-title').forEach(title => {
-      // Skip header module
-      if (title.closest('#header-module')) return;
+    document.querySelectorAll('.shader-effect .effect-title').forEach(title => {
+      // Skip header effect
+      if (title.closest('#header-effect')) return;
       title.addEventListener('click', () => {
-        title.closest('.shader-module').classList.toggle('collapsed');
+        title.closest('.shader-effect').classList.toggle('collapsed');
       });
     });
   </script>

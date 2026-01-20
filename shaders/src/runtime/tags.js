@@ -77,7 +77,7 @@ export const NAMESPACE_DESCRIPTIONS = Object.freeze({
     },
     synth: {
         id: 'synth',
-        description: 'Generator modules'
+        description: 'Generator effects'
     },
     mixer: {
         id: 'mixer',

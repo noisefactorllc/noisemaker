@@ -141,11 +141,11 @@ body.full-bleed-mode #canvas {
   display: none; /* Chrome/Safari/Opera */
 }
 
-.shader-module {
+.shader-effect {
   background: color-mix(
     in srgb,
-    var(--color2) var(--module-surface-opacity),
-    transparent var(--module-surface-transparency)
+    var(--color2) var(--effect-surface-opacity),
+    transparent var(--effect-surface-transparency)
   );
   backdrop-filter: var(--glass-blur-strength);
   border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
@@ -159,20 +159,20 @@ body.full-bleed-mode #canvas {
 }
 
 /* Raise z-index when effect-select dropdown is open */
-.shader-module:has(effect-select.open) {
+.shader-effect:has(effect-select.open) {
   z-index: 100;
   overflow: visible;
 }
 
-.shader-module:has(effect-select.open) .module-content {
+.shader-effect:has(effect-select.open) .effect-content {
   overflow: visible;
 }
 
-.module-title {
+.effect-title {
   background: color-mix(
     in srgb,
-    var(--module-shared-accent) var(--module-header-opacity),
-    transparent var(--module-header-transparency)
+    var(--effect-shared-accent) var(--effect-header-opacity),
+    transparent var(--effect-header-transparency)
   );
   border-bottom: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
   padding: 0.625em 0.875em;
@@ -190,36 +190,36 @@ body.full-bleed-mode #canvas {
   cursor: pointer;
 }
 
-.module-title-text {
+.effect-title-text {
   /* Placeholder for downstream customization */
   display: inline;
 }
 
-.module-title:hover {
+.effect-title:hover {
   background: color-mix(
     in srgb,
-    var(--module-shared-accent) calc(var(--module-header-opacity) + 5%),
-    transparent calc(var(--module-header-transparency) - 5%)
+    var(--effect-shared-accent) calc(var(--effect-header-opacity) + 5%),
+    transparent calc(var(--effect-header-transparency) - 5%)
   );
 }
 
-.module-title::before {
+.effect-title::before {
   content: '▼';
   font-size: 0.65rem;
   transition: transform 0.2s ease;
   order: -1;
 }
 
-.shader-module.collapsed .module-title::before {
+.shader-effect.collapsed .effect-title::before {
   transform: rotate(-90deg);
 }
 
-.module-content {
+.effect-content {
   padding: 0.5rem;
   overflow: hidden;
 }
 
-.shader-module.collapsed .module-content {
+.shader-effect.collapsed .effect-content {
   display: none;
 }
 
@@ -251,11 +251,11 @@ body.full-bleed-mode #canvas {
 }
 
 /* Skipped effect styles */
-.shader-module.skipped {
+.shader-effect.skipped {
   opacity: 0.5;
 }
 
-.shader-module.skipped .module-title {
+.shader-effect.skipped .effect-title {
   background: color-mix(
     in srgb,
     var(--color3) 15%,
@@ -263,17 +263,17 @@ body.full-bleed-mode #canvas {
   );
 }
 
-.shader-module.skipped .module-title-text {
+.shader-effect.skipped .effect-title-text {
   text-decoration: line-through;
   color: color-mix(in srgb, var(--color5) 60%, transparent 40%);
 }
 
 /* Prevent expansion when skipped */
-.shader-module.skipped .module-title::before {
+.shader-effect.skipped .effect-title::before {
   opacity: 0.3;
 }
 
-.shader-module.skipped .module-title {
+.shader-effect.skipped .effect-title {
   cursor: default;
 }
 
@@ -377,10 +377,6 @@ body.full-bleed-mode #canvas {
   display: none;
 }
 
-/* First control in category - no longer needs positioning */
-.control-group.category-first {
-}
-
 /* Category label - now used as expanded header */
 .category-label {
   grid-column: 1 / -1;
@@ -410,7 +406,7 @@ body.full-bleed-mode #canvas {
   border-top: 1px solid color-mix(in srgb, var(--accent3) 12%, transparent 88%);
 }
 
-/* When tag bar is hidden, pull first category up to cancel module padding */
+/* When tag bar is hidden, pull first category up to cancel effect padding */
 .category-tag-bar[style*="display"] ~ .category-group:not(.collapsed) .category-label {
   margin-top: -0.5rem;
   border-top: 1px solid color-mix(in srgb, var(--accent3) 12%, transparent 88%);
@@ -614,6 +610,7 @@ body.full-bleed-mode #canvas {
 
 .control-number {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 /* Scrollbar styling for left panel */
@@ -722,8 +719,8 @@ body.full-bleed-mode #canvas {
 
 /* 
  * Effect Chain Styling
- * Applies "chain" styling (connected modules) ONLY to the dynamic effects list.
- * Static modules (Pipeline, DSL, Inputs) retain their original spacing.
+ * Applies "chain" styling (connected effects) ONLY to the dynamic effects list.
+ * Static effects (Pipeline, DSL, Inputs) retain their original spacing.
  */
 
 /* Container for the chain - ensure no gaps between effects */
@@ -733,46 +730,46 @@ body.full-bleed-mode #canvas {
   gap: 0;
 }
 
-/* Force modules in the chain to touch and be square by default */
-#effect-controls-container .shader-module {
+/* Force effects in the chain to touch and be square by default */
+#effect-controls-container .shader-effect {
   margin-bottom: 0 !important; /* Override inline styles */
   border-radius: 0;
   border-bottom: none; /* Prevent double borders */
 }
 
 /* Start of a chain: First child, read node, read3d node, OR element after a terminal write/write3d node */
-#effect-controls-container .shader-module:first-child,
-#effect-controls-container .shader-module[data-effect-name="read"],
-#effect-controls-container .shader-module[data-effect-name="read3d"],
-#effect-controls-container .shader-module[data-effect-name="write"]:not([data-mid-chain="true"]) + .shader-module,
-#effect-controls-container .shader-module[data-effect-name="write3d"]:not([data-mid-chain="true"]) + .shader-module {
+#effect-controls-container .shader-effect:first-child,
+#effect-controls-container .shader-effect[data-effect-name="read"],
+#effect-controls-container .shader-effect[data-effect-name="read3d"],
+#effect-controls-container .shader-effect[data-effect-name="write"]:not([data-mid-chain="true"]) + .shader-effect,
+#effect-controls-container .shader-effect[data-effect-name="write3d"]:not([data-mid-chain="true"]) + .shader-effect {
   border-top-left-radius: var(--ui-corner-radius);
   border-top-right-radius: var(--ui-corner-radius);
 }
 
 /* End of a chain: Write/write3d node OR Last child */
-#effect-controls-container .shader-module[data-effect-name="write"],
-#effect-controls-container .shader-module[data-effect-name="write3d"],
-#effect-controls-container .shader-module:last-child {
+#effect-controls-container .shader-effect[data-effect-name="write"],
+#effect-controls-container .shader-effect[data-effect-name="write3d"],
+#effect-controls-container .shader-effect:last-child {
   border-bottom-left-radius: var(--ui-corner-radius);
   border-bottom-right-radius: var(--ui-corner-radius);
   border-bottom: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
 }
 
 /* Restore spacing after a chain ends (after terminal write/write3d node, not mid-chain) */
-#effect-controls-container .shader-module[data-effect-name="write"]:not([data-mid-chain="true"]),
-#effect-controls-container .shader-module[data-effect-name="write3d"]:not([data-mid-chain="true"]) {
+#effect-controls-container .shader-effect[data-effect-name="write"]:not([data-mid-chain="true"]),
+#effect-controls-container .shader-effect[data-effect-name="write3d"]:not([data-mid-chain="true"]) {
   margin-bottom: 0.5rem !important;
 }
 
-/* Mid-chain writes: no bottom radius, connect to next module */
-#effect-controls-container .shader-module[data-mid-chain="true"] {
+/* Mid-chain writes: no bottom radius, connect to next effect */
+#effect-controls-container .shader-effect[data-mid-chain="true"] {
   border-bottom-left-radius: 0 !important;
   border-bottom-right-radius: 0 !important;
 }
 
-/* Module following a mid-chain write: no top radius, connect to previous */
-#effect-controls-container .shader-module[data-mid-chain="true"] + .shader-module {
+/* Effect following a mid-chain write: no top radius, connect to previous */
+#effect-controls-container .shader-effect[data-mid-chain="true"] + .shader-effect {
   border-top-left-radius: 0 !important;
   border-top-right-radius: 0 !important;
 }
