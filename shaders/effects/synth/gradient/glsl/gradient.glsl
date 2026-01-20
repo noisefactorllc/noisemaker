@@ -10,10 +10,10 @@ uniform vec2 resolution;
 uniform int gradientType;
 uniform float rotation;
 uniform int repeatCount;
-uniform vec4 color1;
-uniform vec4 color2;
-uniform vec4 color3;
-uniform vec4 color4;
+uniform vec3 color1;
+uniform vec3 color2;
+uniform vec3 color3;
+uniform vec3 color4;
 
 out vec4 fragColor;
 
@@ -33,7 +33,7 @@ vec2 rotate2D(vec2 st, float angle) {
 }
 
 // Blend 4 colors based on a 0-1 parameter t, cycling through all 4
-vec4 blend4Colors(float t) {
+vec3 blend4Colors(float t) {
     t = fract(t); // Ensure t is in [0, 1]
     float segment = t * 4.0;
     int idx = int(floor(segment));
@@ -70,7 +70,7 @@ void main() {
     float s = sin(angle);
     rotatedCentered = mat2(c, -s, s, c) * centered;
     
-    vec4 color;
+    vec3 color;
     float t;
     
     if (gradientType == 0) {
@@ -101,13 +101,10 @@ void main() {
         vec2 cornerSt = rotate2D(st, angle);
         
         // Bilinear interpolation between 4 corner colors
-        vec4 top = mix(color1, color2, cornerSt.x);
-        vec4 bottom = mix(color4, color3, cornerSt.x);
+        vec3 top = mix(color1, color2, cornerSt.x);
+        vec3 bottom = mix(color4, color3, cornerSt.x);
         color = mix(bottom, top, cornerSt.y);
     }
     
-    // Premultiply alpha for correct compositing
-    color.rgb *= color.a;
-    
-    fragColor = color;
+    fragColor = vec4(color, 1.0);
 }

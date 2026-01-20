@@ -9,10 +9,10 @@
 @group(0) @binding(1) var<uniform> gradientType: i32;
 @group(0) @binding(2) var<uniform> rotation: f32;
 @group(0) @binding(3) var<uniform> repeatCount: i32;
-@group(0) @binding(4) var<uniform> color1: vec4<f32>;
-@group(0) @binding(5) var<uniform> color2: vec4<f32>;
-@group(0) @binding(6) var<uniform> color3: vec4<f32>;
-@group(0) @binding(7) var<uniform> color4: vec4<f32>;
+@group(0) @binding(4) var<uniform> color1: vec3<f32>;
+@group(0) @binding(5) var<uniform> color2: vec3<f32>;
+@group(0) @binding(6) var<uniform> color3: vec3<f32>;
+@group(0) @binding(7) var<uniform> color4: vec3<f32>;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -31,7 +31,7 @@ fn rotate2D(st: vec2<f32>, angle: f32) -> vec2<f32> {
 }
 
 // Blend 4 colors based on a 0-1 parameter t, cycling through all 4
-fn blend4Colors(t_in: f32) -> vec4<f32> {
+fn blend4Colors(t_in: f32) -> vec3<f32> {
     let t = fract(t_in); // Ensure t is in [0, 1]
     let segment = t * 4.0;
     let idx = i32(floor(segment));
@@ -73,7 +73,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let s = sin(angle);
     let rotatedCentered = mat2x2<f32>(c, -s, s, c) * centered;
     
-    var color: vec4<f32>;
+    var color: vec3<f32>;
     var t: f32;
     
     switch gradientType {
@@ -115,8 +115,5 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         }
     }
     
-    // Premultiply alpha for correct compositing
-    color = vec4<f32>(color.rgb * color.a, color.a);
-    
-    return color;
+    return vec4<f32>(color, 1.0);
 }

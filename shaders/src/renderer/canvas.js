@@ -1471,6 +1471,27 @@ export class CanvasRenderer {
                 return typeof value === 'number' ? Math.round(value) : parseInt(value, 10)
             case 'float':
                 return typeof value === 'number' ? value : parseFloat(value)
+            case 'color':
+                // Color type: convert hex strings to vec3 array, pass arrays through
+                if (Array.isArray(value)) {
+                    // Already an array - ensure it's a vec3 (take first 3 components)
+                    const result = value.slice(0, 3).map((component) => 
+                        typeof component === 'number' ? component : parseFloat(component)
+                    )
+                    // Pad to 3 components if needed
+                    while (result.length < 3) result.push(0)
+                    return result
+                }
+                if (typeof value === 'string' && value.startsWith('#')) {
+                    // Hex string to vec3
+                    const hex = value.slice(1)
+                    return [
+                        parseInt(hex.slice(0, 2), 16) / 255,
+                        parseInt(hex.slice(2, 4), 16) / 255,
+                        parseInt(hex.slice(4, 6), 16) / 255
+                    ]
+                }
+                break
             case 'vec3':
             case 'vec4':
                 if (Array.isArray(value)) {
