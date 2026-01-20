@@ -1,7 +1,9 @@
-# CRT
+# crt
 
-Simulates a CRT monitor display effect.
+CRT monitor simulation
 
 ## Parameters
 
-This effect has no user-configurable parameters.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| speed | float | 1 | 0-5 | Speed |

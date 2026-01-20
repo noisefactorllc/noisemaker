@@ -1,6 +1,6 @@
-# Focus Blur
+# focusBlur
 
-Simulates depth of field blur using one surface as a depth map.
+Focus blur using luminance depth map
 
 ## Description
 
@@ -10,11 +10,11 @@ Uses the luminosity of the depth source texture as a proxy for depth. Pixels wit
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| tex | surface | none | — | Source B input surface |
-| focalDistance | float | — | 1–100 | Depth value (luminosity) that will be in sharp focus |
-| aperture | float | — | 1–10 | How quickly blur increases with distance from focal plane |
-| sampleSpread | float | — | 2–20 | Spread of the blur samples (higher = wider blur) |
-| depthSource | int | sourceB | sourceA/sourceB | Which surface to use as the depth map |
+| tex | surface | none | - | Source B |
+| focalDistance | float | 50 | 1-100 | Focal dist |
+| aperture | float | 4 | 1-10 | Aperture |
+| sampleBias | float | 10 | 2-20 | Sample spread |
+| depthSource | int | sourceB | sourceA/sourceB | Depth source |
 
 ## Notes
 

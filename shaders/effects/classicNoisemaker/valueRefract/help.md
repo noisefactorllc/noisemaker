@@ -1,7 +1,10 @@
-# Value Refract
+# valueRefract
 
-Applies refraction based on pixel values.
+Value-based refraction
 
 ## Parameters
 
-This effect has no user-configurable parameters.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| displacement | float | 0.5 | 0-2 | Displacement |
+| frequency | float | 4 | 0.1-20 | Frequency |

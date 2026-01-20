@@ -1,11 +1,10 @@
-# Reverb
+# reverb
 
-Applies a visual reverb/echo effect.
+Visual reverb/echo effect
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Octaves | int | — | — | Number of octaves for reverb layers |
-| Iterations | int | — | — | Number of iterations per octave |
-| Ridges | float | — | 0–1 | Apply ridge transform to input before reverb |
+| iterations | int | 3 | 1-8 | Iterations |
+| ridges | boolean | false | - | Ridges |

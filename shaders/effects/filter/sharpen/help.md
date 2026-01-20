@@ -1,9 +1,9 @@
-# Sharpen
+# sharpen
 
-Applies unsharp mask sharpening to the image.
+Sharpen using convolution
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| amount | float | 1.0 | 0.1–5 | Sharpening strength |
+| amount | float | 1 | 0.1-5 | Amount |

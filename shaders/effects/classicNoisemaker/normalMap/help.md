@@ -1,7 +1,7 @@
-# Normal Map
+# normalMap
 
-Generates a normal map from the image for lighting calculations.
+Normal map generation
 
 ## Parameters
 
-This effect has no user-configurable parameters.
+No configurable parameters.

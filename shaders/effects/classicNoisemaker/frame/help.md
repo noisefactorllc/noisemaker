@@ -1,7 +1,9 @@
-# Frame
+# frame
 
-Adds a decorative frame border around the image.
+Decorative frame overlay
 
 ## Parameters
 
-This effect has no user-configurable parameters.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| speed | float | 1 | 0-5 | Speed |

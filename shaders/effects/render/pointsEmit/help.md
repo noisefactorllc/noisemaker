@@ -1,6 +1,6 @@
-# Points Emit
+# pointsEmit
 
-Initialize and maintain agent state for particle systems.
+Initialize and maintain agent state for particle systems
 
 ## Description
 
@@ -13,17 +13,11 @@ This is the starting point for all agent-based effects. It creates and manages t
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| stateSize | int | 256 | 64–2048 | State texture size (controls agent count: 256² = 65k agents) |
-| layout | int | random | random/grid/center/ring/clusters/spiral | Initial distribution |
-| seed | float | 0 | 0–100 | Random seed for initial positions |
-| attrition | float | 0 | 0–10 | Per-frame respawn chance (0 = none, 10 = 10% per frame) |
-| resetState | boolean | false | — | Button to force all agents to respawn |
-
-## Usage
-
-```
-noise().pointsEmit(stateSize: 512, layout: random).flow().pointsRender().write(o0)
-```
+| stateSize | int | x256 | x64/x128/x256/x512/x1024/x2048 | State size |
+| layout | int | random | random/grid/center/ring/clusters/spiral | Layout |
+| seed | float | 0 | 0-100 | Seed |
+| attrition | float | 0 | 0-10 | Attrition |
+| resetState | boolean | false | - | State |
 
 ## Notes
 

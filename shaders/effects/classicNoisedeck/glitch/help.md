@@ -1,20 +1,20 @@
-# Glitch
+# glitch
 
-Digital glitch effects with chromatic aberration and scanlines.
+Digital glitch effects
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| seed | int | 1 | 1–100 | Random seed |
-| glitchiness | float | 0 | 0–100 | Glitch intensity |
-| aberrationAmt | float | 0 | 0–100 | Chromatic aberration amount |
-| xChonk | int | 1 | 1–100 | Glitch block width |
-| yChonk | int | 1 | 1–100 | Glitch block height |
-| scanlinesAmt | int | 0 | 0–100 | Scanline intensity |
-| snowAmt | float | 0 | 0–100 | Snow/static amount |
-| vignetteAmt | float | 0 | -100–100 | Vignette intensity |
-| distortion | float | 0 | -100–100 | Lens distortion |
-| aspectLens | boolean | false | — | Lock to 1:1 aspect ratio |
-| kernel | int | 0 | — | Post-processing kernel |
-| levels | float | 0 | — | Color level adjustment |
+| seed | int | 1 | 1-100 | Seed |
+| glitchiness | float | 0 | 0-100 | Glitchiness |
+| aberrationAmt | float | 0 | 0-100 | Aberration |
+| xChonk | int | 1 | 1-100 | Width |
+| yChonk | int | 1 | 1-100 | Height |
+| scanlinesAmt | int | 0 | 0-100 | Scanlines |
+| snowAmt | float | 0 | 0-100 | Snow |
+| vignetteAmt | float | 0 | -100-100 | Vignette |
+| distortion | float | 0 | -100-100 | Lens |
+| aspectLens | boolean | false | - | 1:1 aspect |
+| kernel | int | 0 | - | Kernel |
+| levels | float | 0 | - | Levels |

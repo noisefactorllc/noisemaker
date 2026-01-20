@@ -1,10 +1,9 @@
-# bloom
+# aberration
 
-Bloom/glow effect
+Chromatic aberration
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| alpha | float | 0.5 | 0-1 | Alpha |
-| downsampleSize | vec2 | 64,64 | - | - |
+| displacement | float | 0.02 | 0-0.1 | Displacement |

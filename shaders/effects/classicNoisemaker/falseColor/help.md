@@ -1,10 +1,10 @@
-# False Color
+# falseColor
 
-Applies a false color gradient mapping to the image.
+False color mapping
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Horizontal | float | — | 0–1 | Use horizontal gradients instead of vertical |
-| Displacement | float | — | — | Color lookup displacement amount |
+| horizontal | boolean | false | - | Horizontal |
+| displacement | float | 0.5 | 0-1 | Displacement |

@@ -1,6 +1,6 @@
-# Lighting
+# lighting
 
-Applies 3D lighting to 2D textures by calculating surface normals from luminosity.
+Applies 3D lighting effects
 
 ## Description
 
@@ -13,16 +13,17 @@ Uses a three-step process:
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| normalStrength | float | 1.5 | 0–5 | Controls the prominence of surface details (depth) |
-| diffuseColor | vec3 | [1, 1, 1] | — | Color of the diffuse lighting component |
-| specularColor | vec3 | [1, 1, 1] | — | Color of the specular highlights |
-| specularIntensity | float | 0.5 | 0–2 | Strength of specular highlights |
-| shininess | float | 64 | 8–256 | Controls highlight sharpness (higher = tighter highlights) |
-| ambientColor | vec3 | [0.2, 0.2, 0.2] | — | Base ambient lighting color |
-| lightDirection | vec3 | [0.5, 0.5, 1] | — | Direction vector of the light source (X, Y, Z) |
-| reflection | float | 0 | 0–100 | Amount of reflection distortion |
-| refraction | float | 0 | 0–100 | Amount of refraction distortion |
-| aberration | float | 0 | 0–100 | Chromatic aberration amount |
+| normalStrength | float | 1.5 | 0-5 | Depth |
+| smoothing | float | 1 | 1-10 | Smoothing |
+| diffuseColor | vec3 | 1,1,1 | - | Color |
+| specularColor | vec3 | 1,1,1 | - | Color |
+| specularIntensity | float | 0.5 | 0-2 | Intensity |
+| shininess | float | 64 | 8-256 | Shininess |
+| ambientColor | vec3 | 0.2,0.2,0.2 | - | Ambient |
+| lightDirection | vec3 | 0.5,0.5,1 | - | Direction |
+| reflection | float | 0 | 0-100 | Reflection |
+| refraction | float | 0 | 0-100 | Refraction |
+| aberration | float | 0 | 0-100 | Aberration |
 
 ## Notes
 

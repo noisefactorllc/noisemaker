@@ -5,7 +5,7 @@
  * Each effect gets a single self-contained bundle with:
  * - The effect definition
  * - All shader sources (GLSL/WGSL) inlined (optionally minified)
- * - Help documentation (help.md)
+ * - Help documentation (help.md) with auto-generated Usage section
  *
  * Output structure:
  *   dist/effects/{namespace}/{effectName}.js
@@ -27,6 +27,163 @@ const effectsDir = path.join(shadersDir, 'effects')
 const distDir = path.join(repoRoot, 'dist', 'effects')
 
 const manifestPath = path.join(effectsDir, 'manifest.json')
+
+/**
+ * Check if effect is a starter (generator) - no input texture required
+ */
+function isStarterEffect(effectDef) {
+    if (!effectDef) return false
+
+    // Check tags for 'starter'
+    if (effectDef.tags && effectDef.tags.includes('starter')) return true
+
+    // Check if it has no inputTex in passes
+    if (effectDef.passes) {
+        for (const pass of effectDef.passes) {
+            if (pass.inputs) {
+                const inputs = Object.values(pass.inputs)
+                if (inputs.includes('inputTex')) return false
+            }
+        }
+        return true
+    }
+
+    return false
+}
+
+/**
+ * Check if effect has a tex surface parameter
+ */
+function hasTexSurfaceParam(effectDef) {
+    if (!effectDef || !effectDef.globals) return false
+    const texSpec = effectDef.globals.tex
+    return texSpec && texSpec.type === 'surface'
+}
+
+/**
+ * Check if effect has explicit tex parameter (not inputTex default)
+ */
+function hasExplicitTexParam(effectDef) {
+    if (!effectDef || !effectDef.globals) return false
+    const texSpec = effectDef.globals.tex
+    return texSpec && texSpec.type === 'surface' && texSpec.default !== 'inputTex'
+}
+
+/**
+ * Check if effect is a 3D volume generator
+ */
+function is3dGenerator(effectDef) {
+    if (!effectDef) return false
+    return effectDef.namespace === 'synth3d' ||
+           (effectDef.tags && effectDef.tags.includes('3d-gen'))
+}
+
+/**
+ * Check if effect is a 3D processor
+ */
+function is3dProcessor(effectDef) {
+    if (!effectDef) return false
+    return effectDef.namespace === 'filter3d' ||
+           (effectDef.tags && effectDef.tags.includes('3d-proc'))
+}
+
+/**
+ * Get volume and geometry parameters from effect
+ */
+function getVolGeoParams(effectDef) {
+    if (!effectDef || !effectDef.globals) {
+        return { volParam: null, geoParam: null }
+    }
+    let volParam = null
+    let geoParam = null
+    for (const [key, spec] of Object.entries(effectDef.globals)) {
+        if (spec.type === 'volume' && !volParam) volParam = key
+        if (spec.type === 'geometry' && !geoParam) geoParam = key
+    }
+    return { volParam, geoParam }
+}
+
+/**
+ * Build DSL usage source for an effect - matches demo/shaders patterns
+ */
+function buildDslSource(effectDef) {
+    if (!effectDef) return ''
+
+    const namespace = effectDef.namespace
+    const funcName = effectDef.func
+
+    // Determine search directive
+    let searchNs = namespace
+    if (namespace === 'classicNoisemaker') {
+        searchNs = 'classicNoisemaker, synth'
+    } else if (['filter', 'mixer'].includes(namespace)) {
+        searchNs = `${namespace}, synth`
+    } else if (namespace === 'points') {
+        searchNs = 'synth, points, render'
+    } else if (namespace === 'render') {
+        searchNs = 'synth, filter, render'
+    } else if (namespace === 'classicNoisedeck') {
+        searchNs = 'classicNoisedeck, synth'
+    }
+    const searchDirective = searchNs ? `search ${searchNs}\n\n` : ''
+
+    // Special case: pointsEmit and pointsRender must be paired
+    if (funcName === 'pointsEmit' || funcName === 'pointsRender') {
+        return `search points, synth, render\n\nnoise()\n  .pointsEmit()\n  .physical()\n  .pointsRender()\n  .write(o0)\n\nrender(o0)`
+    }
+
+    // Points namespace behaviors need pointsEmit before and pointsRender after
+    if (namespace === 'points') {
+        const pointsRenderArgs = funcName === 'attractor' ? 'viewMode: ortho' : ''
+        return `search points, synth, render\n\nnoise()\n  .pointsEmit()\n  .${funcName}()\n  .pointsRender(${pointsRenderArgs})\n  .write(o0)\n\nrender(o0)`
+    }
+
+    const starter = isStarterEffect(effectDef)
+    const hasTex = hasTexSurfaceParam(effectDef)
+    const hasExplicitTex = hasExplicitTexParam(effectDef)
+    const { volParam, geoParam } = getVolGeoParams(effectDef)
+    const hasVolGeo = volParam && geoParam
+
+    const noiseCall = 'noise(seed: 1, ridges: true)'
+
+    // 3D volume generators
+    if (is3dGenerator(effectDef)) {
+        if (hasVolGeo) {
+            return `search synth3d, filter3d, render\n\nnoise3d(volumeSize: x32)\n  .write3d(vol0, geo0)\n\n${funcName}(${volParam}: read3d(vol0, geo0), ${geoParam}: read3d(vol0, geo0))\n  .render3d()\n  .write(o0)\n\nrender(o0)`
+        }
+        return `search synth3d, filter3d, render\n\n${funcName}()\n  .render3d()\n  .write(o0)\n\nrender(o0)`
+    }
+
+    // Effects with explicit vol/geo parameters
+    if (hasVolGeo) {
+        return `search synth3d, filter3d, render\n\nnoise3d(volumeSize: x32)\n  .write3d(vol0, geo0)\n\n${funcName}(${volParam}: read3d(vol0, geo0), ${geoParam}: read3d(vol0, geo0))\n  .render3d()\n  .write(o0)\n\nrender(o0)`
+    }
+
+    // Effects with explicit tex param
+    if (hasExplicitTex) {
+        if (starter) {
+            return `${searchDirective}${noiseCall}\n  .write(o0)\n\n${funcName}(tex: read(o0))\n  .write(o1)\n\nrender(o1)`
+        } else {
+            return `${searchDirective}${noiseCall}\n  .write(o0)\n\nnoise(seed: 2, ridges: true)\n  .${funcName}(tex: read(o0))\n  .write(o1)\n\nrender(o1)`
+        }
+    }
+
+    if (starter) {
+        if (hasTex) {
+            const sourceSurface = 'o0'
+            const outputSurface = 'o1'
+            return `${searchDirective}${noiseCall}\n  .write(${sourceSurface})\n\n${funcName}(tex: read(${sourceSurface}))\n  .write(${outputSurface})\n\nrender(${outputSurface})`
+        }
+        return `${searchDirective}${funcName}()\n  .write(o0)\n\nrender(o0)`
+    } else if (hasTex) {
+        return `${searchDirective}${noiseCall}\n  .write(o0)\n\nnoise(seed: 2, ridges: true)\n  .${funcName}(tex: read(o0))\n  .write(o1)\n\nrender(o1)`
+    } else if (is3dProcessor(effectDef)) {
+        const renderSuffix = funcName === 'render3d' ? '' : '\n  .render3d()'
+        return `search synth3d, filter3d, render\n\nnoise3d(volumeSize: x32)\n  .${funcName}()${renderSuffix}\n  .write(o0)\n\nrender(o0)`
+    } else {
+        return `${searchDirective}${noiseCall}\n  .${funcName}()\n  .write(o0)\n\nrender(o0)`
+    }
+}
 
 /**
  * Discover all effect namespaces from the effects directory
@@ -129,13 +286,57 @@ function relPath(tempDir, target) {
 }
 
 /**
+ * Load effect definition at build time
+ */
+async function loadEffectDefinition(namespace, effectName) {
+    const effectDir = path.join(effectsDir, namespace, effectName)
+    const definitionPath = path.join(effectDir, 'definition.js')
+
+    if (!fs.existsSync(definitionPath)) return null
+
+    try {
+        const module = await import(`file://${definitionPath}`)
+        return module.default
+    } catch (e) {
+        console.warn(`  Warning: Could not load definition for ${namespace}/${effectName}: ${e.message}`)
+        return null
+    }
+}
+
+/**
+ * Append Usage section to help content
+ */
+function appendUsageToHelp(helpContent, dslSource) {
+    if (!helpContent || !dslSource) return helpContent
+
+    // Add Usage section at the end
+    return `${helpContent.trimEnd()}
+
+## Usage
+
+\`\`\`
+${dslSource}
+\`\`\`
+`
+}
+
+/**
  * Generate a self-contained effect module with inlined shaders
  */
-function generateEffectModule(namespace, effectName, manifest, tempDir, minifyShaders) {
+async function generateEffectModule(namespace, effectName, manifest, tempDir, minifyShaders) {
     const effectDir = path.join(effectsDir, namespace, effectName)
     const definitionPath = relPath(tempDir, path.join(effectDir, 'definition.js'))
     const shaders = loadEffectShaders(namespace, effectName, manifest, minifyShaders)
-    const helpContent = readHelpFile(namespace, effectName)
+
+    // Load effect definition to generate DSL
+    const effectDef = await loadEffectDefinition(namespace, effectName)
+    const dslSource = effectDef ? buildDslSource(effectDef) : ''
+
+    // Read help content and append Usage section
+    let helpContent = readHelpFile(namespace, effectName)
+    if (helpContent && dslSource) {
+        helpContent = appendUsageToHelp(helpContent, dslSource)
+    }
 
     const code = `
 // Mini-bundle for effect: ${namespace}/${effectName}
@@ -146,7 +347,7 @@ import effectDef from '${definitionPath}';
 // Shader sources - inlined at build time
 const SHADER_SOURCES = ${JSON.stringify(shaders, null, 2)};
 
-// Help documentation - inlined at build time
+// Help documentation - inlined at build time (includes auto-generated Usage)
 export const help = ${helpContent ? JSON.stringify(helpContent) : 'null'};
 
 // Apply shaders to effect definition
@@ -181,7 +382,7 @@ async function buildEffectBundle(namespace, effectName, manifest, minifyShaders)
     const tempDir = path.join(distDir, '.temp', namespace)
     fs.mkdirSync(tempDir, { recursive: true })
 
-    const moduleCode = generateEffectModule(namespace, effectName, manifest, tempDir, minifyShaders)
+    const moduleCode = await generateEffectModule(namespace, effectName, manifest, tempDir, minifyShaders)
     const tempFile = path.join(tempDir, `${effectName}.entry.js`)
     fs.writeFileSync(tempFile, moduleCode)
 

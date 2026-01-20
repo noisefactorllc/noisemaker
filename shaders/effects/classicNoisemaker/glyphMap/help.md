@@ -1,11 +1,16 @@
-# Glyph Map
+# glyphMap
 
-Replaces image regions with text glyphs based on brightness.
+ASCII/glyph art conversion
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Colorize | float | — | 0–1 | Apply source image color to glyphs |
-| Zoom | float | — | — | Glyph size multiplier |
-| Alpha | float | — | 0–1 | Blend amount with original image |
+| colorize | boolean | true | - | Colorize |
+| zoom | float | 1 | 0.1-8 | Zoom |
+| alpha | float | 1 | 0-1 | Alpha |
+| glyphWidth | float | 8 | 4-64 | Glyph Width |
+| glyphHeight | float | 8 | 4-64 | Glyph Height |
+| glyphCount | float | 0 | 0-256 | Glyph Count (0=auto) |
+| maskValue | float | 0 | - | Mask Value |
+| splineOrder | float | 0 | 0-3 | Spline Order |

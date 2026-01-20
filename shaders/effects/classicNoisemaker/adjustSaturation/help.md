@@ -1,9 +1,9 @@
-# Adjust Saturation
+# adjustSaturation
 
-Adjusts the color saturation of the image.
+Saturation adjustment
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Amount | float | — | — | Multiplier applied to HSV saturation before clamping to [0, 1] |
+| amount | float | 0.75 | 0-4 | Amount |

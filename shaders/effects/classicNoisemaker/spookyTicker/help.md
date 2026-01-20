@@ -1,7 +1,9 @@
-# Spooky Ticker
+# spookyTicker
 
-Adds a spooky scrolling ticker text overlay.
+Spooky scrolling text
 
 ## Parameters
 
-This effect has no user-configurable parameters.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| speed | float | 1 | 0-5 | Speed |

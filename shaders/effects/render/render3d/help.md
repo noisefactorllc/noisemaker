@@ -1,17 +1,18 @@
-# Render 3D
+# render3d
 
-Raymarch and render 3D volume data.
+Universal 3D volume raymarcher
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| filtering | int | isosurface | isosurface/voxel | Rendering mode |
-| threshold | float | 0.5 | 0–1 | Surface threshold for raymarching |
-| invert | boolean | false | — | Invert threshold |
-| orbitSpeed | int | 1 | -5–5 | Camera orbit speed |
-| bgColor | vec3 | [0.02, 0.02, 0.02] | color | Background color |
-| bgAlpha | float | 1.0 | 0–1 | Background alpha |
+| volumeSize | int | v64 | v16/v32/v64/v128 | - |
+| filtering | int | isosurface | isosurface/voxel | Filtering |
+| threshold | float | 0.5 | 0-1 | Surface threshold |
+| invert | boolean | false | - | Invert threshold |
+| orbitSpeed | int | 1 | -5-5 | Orbit speed |
+| bgColor | vec3 | 0.02,0.02,0.02 | - | Background color |
+| bgAlpha | float | 1 | 0-1 | Background alpha |
 
 ## Notes
 

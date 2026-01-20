@@ -1,6 +1,6 @@
-# Life
+# life
 
-Type-based attraction/repulsion particle simulation (Particle Life).
+Type-based attraction/repulsion particle simulation
 
 ## Description
 
@@ -10,22 +10,15 @@ Each particle has a type, and type pairs have randomly generated attraction/repu
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| typeCount | int | 6 | 2–8 | Number of particle types |
-| attractionScale | float | 1.0 | 0–5 | Global attraction force multiplier |
-| repulsionScale | float | 1.0 | 0–5 | Global repulsion force multiplier |
-| minRadius | float | 0.01 | 0.001–0.05 | Minimum interaction radius (normalized) |
-| maxRadius | float | 0.08 | 0.02–0.2 | Maximum interaction radius (normalized) |
-| maxSpeed | float | 0.003 | 0.0005–0.01 | Maximum particle speed |
-| friction | float | 0.1 | 0–1 | Velocity friction/damping |
-| boundaryMode | int | wrap | wrap/bounce | Boundary behavior |
-| matrixSeed | float | 42 | 0–1000 | Random seed for force matrix generation |
-| symmetricForces | boolean | false | — | Make force matrix symmetric (A→B = B→A) |
-| useTypeColor | boolean | false | — | Show type colors instead of sampled colors |
-
-## Usage
-
-```
-pointsEmit().life(typeCount: 4, matrixSeed: 123).pointsRender().write(o0)
-```
-
-Use `useTypeColor: true` to visualize particle types with distinct colors.
+| stateSize | int | 256 | - | - |
+| typeCount | int | 6 | 2-8 | Types |
+| attractionScale | float | 1 | 0-5 | Attraction |
+| repulsionScale | float | 1 | 0-5 | Repulsion |
+| minRadius | float | 0.01 | 0.001-0.05 | Min radius |
+| maxRadius | float | 0.08 | 0.02-0.2 | Max radius |
+| maxSpeed | float | 0.003 | 0.0005-0.01 | Max speed |
+| friction | float | 0.1 | 0-1 | Friction |
+| boundaryMode | int | wrap | wrap/bounce | Boundary |
+| matrixSeed | float | 42 | 0-1000 | Matrix seed |
+| symmetricForces | boolean | false | - | Symmetric |
+| useTypeColor | boolean | false | - | Show types |

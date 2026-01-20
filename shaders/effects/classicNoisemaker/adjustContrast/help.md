@@ -1,9 +1,9 @@
-# Adjust Contrast
+# adjustContrast
 
-Adjusts the contrast of the image around mid-gray.
+Contrast adjustment
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Amount | float | — | — | Multiplier applied to per-channel contrast around mid-gray |
+| amount | float | 1.25 | 0-5 | Amount |

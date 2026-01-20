@@ -1,21 +1,24 @@
-# RD 3D
+# rd3d
 
-3D reaction-diffusion simulation (Gray-Scott model).
+3D reaction-diffusion simulation
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| volumeSize | int | x32 | x16/x32/x64/x128 | Volume resolution |
-| seed | float | 1 | 0–100 | Random seed |
-| iterations | int | 8 | 1–32 | Iterations per frame |
-| feed | float | 55 | 10–110 | Feed rate |
-| kill | float | 62 | 45–70 | Kill rate |
-| rate1 | float | 100 | 50–120 | Diffusion rate A |
-| rate2 | float | 50 | 20–80 | Diffusion rate B |
-| speed | float | 100 | 10–200 | Simulation speed |
+| volumeSize | int | x32 | x16/x32/x64/x128 | Volume size |
+| seed | int | 1 | 0-100 | - |
+| iterations | int | 8 | 1-32 | Iterations |
+| feed | float | 55 | 10-110 | Feed rate |
+| kill | float | 62 | 45-70 | Kill rate |
+| rate1 | float | 100 | 50-120 | Diffuse rate A |
+| rate2 | float | 50 | 20-80 | Diffuse rate B |
+| speed | float | 100 | 10-200 | Sim speed |
 | colorMode | int | mono | mono/gradient | Color mode |
-| weight | float | 0 | 0–100 | Input weight from upstream |
+| resetState | boolean | false | - | State |
+| source | volume | vol0 | - | Source volume |
+| geoSource | geometry | geo0 | - | Source geometry |
+| weight | float | 0 | 0-100 | Input weight |
 
 ## Notes
 

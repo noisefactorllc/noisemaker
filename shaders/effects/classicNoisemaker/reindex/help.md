@@ -1,9 +1,9 @@
-# Reindex
+# reindex
 
-Reindexes pixel values using displacement mapping.
+Palette reindexing
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Displacement | float | — | — | Strength of the reindexing displacement |
+| displacement | float | 0.5 | 0-2 | Displacement |

@@ -1,12 +1,13 @@
-# Ripple
+# ripple
 
-Applies a rippling wave distortion effect.
+Ripple wave distortion
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Frequency | float | — | — | Ripple frequency |
-| Displacement | float | — | — | Ripple displacement strength |
-| Kink | float | — | — | Ripple kink factor |
-| Spline Order | int | — | 0–3 | Interpolation order (0=constant / 1=linear / 2=cosine / 3=bicubic) |
+| freq | float | 3 | 1-16 | Frequency |
+| displacement | float | 0.025 | 0-0.5 | Displacement |
+| kink | float | 1 | 0-32 | Kink |
+| splineOrder | int | 3 | 0-3 | Spline Order |
+| speed | float | 1 | 0-5 | Speed |

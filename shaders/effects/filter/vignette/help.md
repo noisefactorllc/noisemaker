@@ -1,10 +1,10 @@
-# Vignette
+# vignette
 
-Darkens the edges of the image.
+Radial vignette darkening edges
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| brightness | float | 0 | 0–1 | Center brightness adjustment |
-| alpha | float | 1.0 | 0–1 | Vignette intensity |
+| brightness | float | 0 | 0-1 | Brightness |
+| alpha | float | 1 | 0-1 | Alpha |

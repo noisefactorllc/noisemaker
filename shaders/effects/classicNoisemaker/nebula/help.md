@@ -1,7 +1,7 @@
-# Nebula
+# nebula
 
-Generates a nebula-like cosmic effect overlay.
+Nebula/space cloud generator
 
 ## Parameters
 
-This effect has no user-configurable parameters.
+No configurable parameters.

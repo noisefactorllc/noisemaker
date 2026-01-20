@@ -1,11 +1,11 @@
-# Outline
+# outline
 
-Applies an outline effect using edge detection.
+Outline/edge stroke
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| shape | int | circle | circle/diamond/square/octagon | Edge detection shape |
-| thickness | float | 1.0 | 1.0–10.0 | Outline stroke thickness |
-| invert | boolean | false | — | Invert the outline effect |
+| shape | int | circle | circle/diamond/square/octagon | Shape |
+| thickness | float | 1 | 1-10 | Thickness |
+| invert | boolean | false | - | Invert |

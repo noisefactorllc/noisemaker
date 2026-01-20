@@ -1,10 +1,10 @@
-# Sine
+# sine
 
-Applies a sine wave transformation to pixel values.
+Sine wave distortion
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Amount | float | — | — | Sine wave amplitude |
-| RGB | float | — | 0–1 | Apply per-channel RGB sine |
+| amount | float | 3 | 0-20 | Amount |
+| rgb | boolean | false | - | RGB |

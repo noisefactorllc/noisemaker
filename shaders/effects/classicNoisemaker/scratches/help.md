@@ -1,7 +1,11 @@
-# Scratches
+# scratches
 
-Adds scratch overlay effects to simulate wear.
+Film scratch overlay
 
 ## Parameters
 
-This effect has no user-configurable parameters.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| speed | float | 1 | 0-5 | Speed |
+| seed | float | 0 | 0-100 | Seed |
+| enabled | boolean | true | - | Enabled |

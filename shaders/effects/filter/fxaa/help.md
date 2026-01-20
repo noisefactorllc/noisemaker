@@ -1,6 +1,6 @@
-# FXAA
+# fxaa
 
-Fast approximate anti-aliasing filter.
+Fast approximate anti-aliasing
 
 ## Parameters
 

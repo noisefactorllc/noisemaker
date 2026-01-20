@@ -1,17 +1,17 @@
-# CF (Convolution Feedback)
+# cf
 
-Applies iterative convolution with feedback for evolving, time-accumulating effects.
+Convolution feedback with blur and sharpen
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| resetState | boolean | false | — | Reset button to clear feedback state |
-| sharpenRadius | int | 5 | 1–10 | Kernel size for the sharpen pass |
-| sharpenAmount | float | 2.5 | 0–3 | Intensity of sharpening effect |
-| blurRadius | int | 4 | 1–10 | Kernel size for the blur pass |
-| blurAmount | float | 0.5 | 0–1 | Mix between original and blurred (0 = no blur, 1 = full blur) |
-| intensity | float | 0.55 | 0–1 | How much feedback blends into the output (0 = input only, 1 = full feedback) |
+| sharpenRadius | int | 5 | 1-10 | Sharpen Radius |
+| sharpenAmount | float | 2.5 | 0-3 | Sharpen Amount |
+| blurRadius | int | 4 | 1-10 | Blur Radius |
+| blurAmount | float | 0.5 | 0-1 | Blur Amount |
+| intensity | float | 0.55 | 0-1 | Feedback Intensity |
+| resetState | boolean | false | - | State |
 
 ## Notes
 

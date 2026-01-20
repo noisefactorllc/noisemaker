@@ -1,9 +1,9 @@
-# Vaseline
+# vaseline
 
-Applies a soft-focus vaseline lens effect.
+Vaseline lens blur effect
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Alpha | float | — | 0–1 | Blend amount between original and vaseline output |
+| alpha | float | 0.5 | 0-1 | Alpha |

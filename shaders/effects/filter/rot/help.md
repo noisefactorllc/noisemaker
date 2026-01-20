@@ -1,10 +1,10 @@
-# Rotate
+# rot
 
-Rotates the image around its center.
+Rotate image by specified angle
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| rotation | float | 0 | 0–1 | Rotation amount (0–1 = 0–360°) |
-| wrap | int | repeat | mirror/repeat/clamp | Edge wrapping mode |
+| rotation | float | 0 | -180-180 | Rotation |
+| wrap | int | repeat | mirror/repeat/clamp | Wrap |

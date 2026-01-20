@@ -1,6 +1,6 @@
-# Invert
+# inv
 
-Inverts the colors of the image.
+Invert image luminance
 
 ## Parameters
 

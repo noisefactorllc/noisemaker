@@ -1,19 +1,13 @@
-# Center Mask
+# centerMask
 
-Blend from edges (source A) into center (source B) using a distance-based mask.
+Blend from edges (A) into center (B) using a distance mask
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| tex | surface | none | — | Source B texture (center) |
-| blendMode | int | mix | (same options as blendMode effect) | Blend mode |
-| shape | int | square | circle/diamond/square | Mask shape |
-| hardness | float | 0 | 0–100 | Edge hardness (0 = soft gradient, 100 = hard edge) |
-| mixAmt | float | 0 | -100–100 | Mix amount (controls blend power) |
-
-## Usage
-
-```
-noise().centerMask(tex: read(o1), shape: circle, hardness: 50).write(o0)
-```
+| tex | surface | none | - | Source B (center) |
+| blendMode | int | mix | add/burn/darken/diff/dodge/exclusion/hardLight/lighten/mix/multiply/negation/overlay/phoenix/screen/softLight/subtract | Blend mode |
+| shape | int | square | circle/diamond/square | Shape |
+| hardness | float | 0 | 0-100 | Edge hardness |
+| mixAmt | float | 0 | -100-100 | Mix |

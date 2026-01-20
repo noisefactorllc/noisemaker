@@ -1,11 +1,11 @@
-# Derivative
+# derivative
 
-Computes the derivative (rate of change) of the image.
+Derivative edge detection
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Distance Metric | int | — | — | Distance calculation method |
-| Normalize | float | — | 0–1 | Normalize the derivative output |
-| Alpha | float | — | 0–1 | Blend amount with original (1.0 = full derivative) |
+| distMetric | enum | 1 | - | Distance Metric |
+| withNormalize | boolean | true | - | Normalize |
+| alpha | float | 1 | 0-1 | Alpha |

@@ -1,9 +1,10 @@
-# Vortex
+# vortex
 
-Applies a swirling vortex distortion effect.
+Vortex/spiral distortion
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Displacement | float | — | — | Maximum displacement amount |
+| displacement | float | 1 | 0-4 | Displacement |
+| speed | float | 1 | 0-5 | Speed |

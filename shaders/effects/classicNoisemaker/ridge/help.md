@@ -1,7 +1,7 @@
-# Ridge
+# ridge
 
-Applies a ridge detection filter effect.
+Ridge/crease enhancement
 
 ## Parameters
 
-This effect has no user-configurable parameters.
+No configurable parameters.

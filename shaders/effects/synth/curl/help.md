@@ -1,6 +1,6 @@
-# Curl Noise
+# curl
 
-3D curl noise generator using simplex noise for creating divergence-free vector fields.
+3D curl noise using simplex noise
 
 ## Description
 
@@ -12,13 +12,13 @@ The effect animates by moving through the z-axis of the 3D noise space, creating
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| scale | float | 4.0 | 0.5–20 | Spatial frequency of the noise pattern |
-| octaves | int | 1 | 1–3 | Number of noise octaves |
-| seed | float | 0 | 0–1000 | Random seed |
-| ridges | boolean | false | — | Enable ridged noise mode |
-| intensity | float | 1.0 | 0–2 | Output intensity |
-| speed | float | 0.5 | 0–2 | Animation speed |
-| outputMode | int | full | flowX/flowY/flowZ/full/magnitude | Visualization mode |
+| scale | float | 16 | 0.5-20 | Scale |
+| octaves | int | 1 | 1-3 | Octaves |
+| seed | float | 0 | 0-1000 | Seed |
+| ridges | bool | false | - | Ridges |
+| intensity | float | 1 | 0-2 | Intensity |
+| speed | float | 0.5 | 0-2 | Speed |
+| outputMode | int | full | flowX/flowY/flowZ/full/magnitude | Output |
 
 ## Notes
 

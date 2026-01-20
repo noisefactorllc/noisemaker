@@ -1,7 +1,7 @@
-# On Screen Display
+# onScreenDisplay
 
-Adds an on-screen display overlay effect.
+On-screen display overlay
 
 ## Parameters
 
-This effect has no user-configurable parameters.
+No configurable parameters.

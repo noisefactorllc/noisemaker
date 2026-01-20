@@ -1,14 +1,14 @@
-# Bloom
+# bloom
 
-Adds a soft glow to bright areas of the image.
+Multi-pass bloom with bright-pass extraction and configurable glow
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| threshold | float | 0.8 | 0–2 | Brightness threshold for bloom extraction |
-| softKnee | float | 0.2 | 0–0.5 | Soft knee for smooth threshold transition |
-| intensity | float | 1.0 | 0–3 | Bloom intensity multiplier |
-| radius | float | 32 | 1–128 | Blur radius for bloom spread |
-| taps | int | 8 | 8–64 | Number of samples for blur quality |
-| tint | vec3 | [1, 1, 1] | color | Tint color for the bloom |
+| threshold | float | 0.8 | 0-2 | Threshold |
+| softKnee | float | 0.2 | 0-0.5 | Soft Knee |
+| intensity | float | 1 | 0-3 | Intensity |
+| radius | float | 32 | 1-128 | Radius |
+| taps | int | 8 | 8-64 | Taps |
+| tint | vec3 | 1,1,1 | - | Tint |

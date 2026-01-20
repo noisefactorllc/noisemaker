@@ -1,9 +1,9 @@
-# Lens Warp
+# lensWarp
 
-Applies a lens-based warp distortion effect.
+Lens warp distortion
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Displacement | float | — | — | Warp amount applied to the refracted sample coordinates |
+| displacement | float | 0.0625 | 0-0.5 | Displacement |

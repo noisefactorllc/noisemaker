@@ -1,13 +1,13 @@
-# Motion Blur
+# motionBlur
 
-Simple motion blur via frame blending. Mixes the current frame with the previous frame for a temporal blur effect.
+Simple motion blur via frame blending
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| resetState | boolean | false | — | Reset button to clear motion blur state |
-| amount | float | 50 | 0–100 | Motion blur intensity (0 = no blur, higher = more trailing) |
+| amount | float | 50 | 0-100 | Amount |
+| resetState | boolean | false | - | State |
 
 ## Notes
 

@@ -1,11 +1,11 @@
-# Hue/Saturation
+# hs
 
-Adjusts hue rotation, hue range, and saturation of the image.
+Adjust hue and/or saturation
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| hueRotation | float | 0 | 0–360 | Rotates hue around the color wheel in degrees |
-| hueRange | float | 100 | 0–200 | Scales the hue spread. 0–200 maps to 0–2x |
-| saturation | float | 1 | 0–4 | Multiplies saturation. 0 = grayscale, 1 = normal, >1 = oversaturated |
+| rotation | float | 0 | -180-180 | Hue Rotation |
+| hueRange | float | 100 | 0-200 | Hue Range |
+| saturation | float | 1 | 0-4 | Saturation |

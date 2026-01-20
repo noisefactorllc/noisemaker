@@ -1,16 +1,25 @@
-# Lens Distortion
+# lensDistortion
 
-Lens distortion simulation with chromatic aberration.
+Lens distortion simulation
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| seed | int | 1 | 1–100 | Random seed |
-| shape | int | 0 | circle/cosine/diamond/hexagon/octagon/square/triangle | Distortion shape |
-| distortion | float | 0 | -100–100 | Barrel/pincushion distortion amount |
-| loopScale | float | 100 | 1–100 | Animation loop scale |
-| loopAmp | float | 0 | -100–100 | Animation loop power |
-| aspectLens | boolean | false | — | Lock to 1:1 aspect ratio |
-| mode | int | 0 | chromaticRgb/prismaticHsv | Aberration mode |
-| aberrationAmt | float | — | — | Chromatic aberration amount |
+| seed | int | 1 | 1-100 | Seed |
+| shape | int | circle | circle/cosine/diamond/hexagon/octagon/square/triangle | Shape |
+| distortion | float | 0 | -100-100 | Distortion |
+| loopScale | float | 100 | 1-100 | Loop scale |
+| loopAmp | float | 0 | -100-100 | Loop power |
+| aspectLens | boolean | false | - | 1:1 aspect |
+| mode | int | chromaticRgb | chromaticRgb/prismaticHsv | Mode |
+| aberrationAmt | float | 50 | 0-100 | Aberration |
+| blendMode | int | add | add/alpha | Blend |
+| modulate | boolean | false | - | Modulate |
+| tint | vec3 | 0,0,0 | - | Tint |
+| opacity | float | 0 | 0-100 | Tint opacity |
+| hueRotation | float | 0 | 0-360 | Hue rotate |
+| hueRange | float | 0 | 0-100 | Hue range |
+| saturation | float | 0 | -100-100 | Saturation |
+| passthru | float | 50 | 0-100 | Passthru |
+| vignetteAmt | float | 0 | -100-100 | Vignette |

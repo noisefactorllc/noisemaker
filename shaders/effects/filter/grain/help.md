@@ -1,10 +1,10 @@
-# Grain
+# grain
 
-Film grain overlay effect.
+Film grain overlay
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| alpha | float | 0.5 | 0–1 | Blend amount of grain |
-| pause | boolean | false | — | When enabled, outputs static noise; when disabled, outputs per-frame animated noise |
+| alpha | float | 0.25 | 0-1 | Alpha |
+| pause | bool | false | - | Pause |

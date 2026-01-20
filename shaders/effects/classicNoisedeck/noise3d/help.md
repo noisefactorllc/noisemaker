@@ -1,18 +1,18 @@
-# Noise 3D
+# noise3d
 
-3D noise volume generator.
+3D noise volume
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| noiseType | int | 12 | cubes/simplex/sine/spheres/wavyPlanes/wavyPlaneLower/wavyPlaneUpper | 3D noise type |
-| noiseScale | float | 25 | 1–100 | Noise scale |
-| offsetX | float | 0 | -100–100 | Horizontal offset |
-| offsetY | float | 0 | -100–100 | Vertical offset |
-| ridges | boolean | false | — | Enable ridge noise |
-| colorMode | int | 6 | depthMap/mono/hsv/surfaceNormal | Color output mode |
-| hueRotation | float | 0 | 0–360 | Hue rotation offset |
-| hueRange | float | 10 | 0–100 | Hue variation range |
-| speed | int | 1 | -10–10 | Animation speed |
-| seed | int | 1 | 1–100 | Random seed |
+| noiseType | int | simplex | cubes/simplex/sine/spheres/wavyPlanes/wavyPlaneLower/wavyPlaneUpper | Noise type |
+| noiseScale | float | 25 | 1-100 | Scale |
+| offsetX | float | 0 | -100-100 | Offset x |
+| offsetY | float | 0 | -100-100 | Offset y |
+| ridges | boolean | false | - | Ridges |
+| colorMode | int | hsv | depthMap/mono/hsv/surfaceNormal | Color mode |
+| hueRotation | float | 0 | 0-360 | Hue rotate |
+| hueRange | float | 10 | 0-100 | Hue range |
+| speed | int | 1 | -10-10 | Speed |
+| seed | int | 1 | 1-100 | Seed |

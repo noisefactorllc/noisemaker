@@ -1,6 +1,6 @@
-# Distortion
+# distortion
 
-Displacement, reflection, and refraction effects between two surfaces.
+Displace, reflect, and refract with two surfaces
 
 ## Description
 
@@ -10,13 +10,13 @@ Applies displacement, reflection, and refraction effects between two surfaces us
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| tex | surface | none | — | Source B input surface |
-| mode | int | displace | displace/refract/reflect | Distortion type |
-| mapSource | int | sourceA | sourceA/sourceB | Which surface to use as the distortion map |
-| intensity | float | — | — | Strength of the distortion effect |
-| wrap | int | mirror | mirror/repeat/clamp | How to handle coordinates outside texture bounds |
-| smoothing | float | — | — | Smoothness of calculated normals (higher = smoother) |
-| aberration | float | — | — | Chromatic aberration intensity for reflection mode |
+| tex | surface | none | - | Source B |
+| mode | int | refract | displace/refract/reflect | Mode |
+| mapSource | int | sourceB | sourceA/sourceB | Map source |
+| intensity | float | 50 | 0-100 | Intensity |
+| wrap | int | mirror | clamp/mirror/repeat | Wrap |
+| smoothing | float | 1 | 1-100 | Smoothing |
+| aberration | float | 0 | 0-25 | Aberration |
 
 ## Notes
 

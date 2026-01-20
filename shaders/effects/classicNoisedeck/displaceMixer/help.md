@@ -1,16 +1,16 @@
-# Displace Mixer
+# displaceMixer
 
-Displacement-based mixing effect.
+Displacement-based mixing
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| tex | surface | none | — | Source surface B |
-| mode | int | 1 | displace/reflect/refract | Displacement mode |
-| displaceSource | int | 1 | inputTex/tex | Map source |
-| intensity | float | 50 | 0–100 | Displacement intensity |
-| direction | float | 0 | 0–360 | Displacement direction in degrees |
-| wrap | int | 0 | clamp/mirror/repeat | Edge wrap mode |
-| smoothing | float | 1 | 1–100 | Displacement smoothing |
-| aberration | float | 0 | 0–100 | Chromatic aberration amount |
+| tex | surface | none | - | Source surface B |
+| mode | int | refract | displace/reflect/refract | Mode |
+| displaceSource | int | tex | inputTex/tex | Map source |
+| intensity | float | 50 | 0-100 | Intensity |
+| direction | float | 0 | 0-360 | Direction |
+| wrap | int | mirror | clamp/mirror/repeat | Wrap |
+| smoothing | float | 1 | 1-100 | Smoothing |
+| aberration | float | 0 | 0-100 | Aberration |

@@ -1,9 +1,10 @@
-# Grain
+# grain
 
-Adds film grain noise to the image.
+Film grain overlay
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Alpha | float | — | 0–1 | Blend amount for grain overlay |
+| alpha | float | 0.25 | 0-1 | Alpha |
+| speed | float | 1 | 0-5 | Speed |

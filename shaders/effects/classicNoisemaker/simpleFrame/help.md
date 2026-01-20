@@ -1,9 +1,9 @@
-# Simple Frame
+# simpleFrame
 
-Adds a simple border frame around the image.
+Simple border frame
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Brightness | float | — | — | Frame brightness adjustment |
+| brightness | float | 0 | -1-1 | Brightness |

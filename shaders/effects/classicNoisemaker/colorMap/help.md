@@ -1,10 +1,11 @@
-# Color Map
+# colorMap
 
-Remaps colors using a lookup texture.
+Color mapping and LUT
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Displacement | float | — | — | Offset applied when sampling the lookup texture |
-| Horizontal | float | — | 0–1 | Scan horizontally when sampling the lookup texture |
+| tex | surface | none | - | Color Lookup Texture |
+| displacement | float | 0.5 | 0-1 | Displacement |
+| horizontal | boolean | false | - | Horizontal |

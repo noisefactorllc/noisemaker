@@ -1,10 +1,11 @@
-# Grime
+# grime
 
-Adds dirt and grime texture overlay to the image.
+Grunge/grime texture overlay
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Strength | float | — | — | Overall effect strength multiplier (1.0 = Python reference) |
-| Debug Mode | int | — | 0–4 | Debug visualization (0=normal / 1=mask / 2=dusty / 3=specks / 4=sparse) |
+| strength | float | 1 | 0-5 | Strength |
+| debugMode | int | 0 | 0-4 | Debug Mode |
+| speed | float | 1 | 0-5 | Speed |

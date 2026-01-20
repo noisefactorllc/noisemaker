@@ -1,13 +1,13 @@
-# Waves
+# waves
 
-Applies sinusoidal wave distortion to the image.
+Sine wave distortion
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| strength | float | 25 | 0–100 | Amplitude of the wave distortion |
-| scale | float | 1 | -5–5 | Frequency of the waves |
-| speed | int | 0 | -5–5 | Animation speed for wave motion |
-| wrap | int | mirror | mirror/repeat/clamp | Edge wrapping mode |
-| rotation | float | 0 | -180–180 | Rotation angle in degrees |
+| strength | float | 25 | 0-100 | Strength |
+| scale | float | 1 | -5-5 | Scale |
+| speed | int | 0 | -5-5 | Speed |
+| wrap | int | mirror | mirror/repeat/clamp | Wrap |
+| rotation | float | 0 | -180-180 | Rotation |

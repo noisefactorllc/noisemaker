@@ -1,9 +1,9 @@
-# Posterize
+# posterize
 
-Reduces the number of color levels in the image.
+Reduce color levels for poster effect
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| levels | float | 4.0 | 1–20 | Number of color levels |
+| levels | float | 4 | 1-20 | Levels |

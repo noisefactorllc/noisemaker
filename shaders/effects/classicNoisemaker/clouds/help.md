@@ -1,7 +1,10 @@
-# Clouds
+# clouds
 
-Generates a cloud-like noise overlay effect.
+Cloud texture generator
 
 ## Parameters
 
-This effect has no user-configurable parameters.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| speed | float | 1 | 0-3 | Speed |
+| scale | float | 0.25 | 0.1-1 | Scale |

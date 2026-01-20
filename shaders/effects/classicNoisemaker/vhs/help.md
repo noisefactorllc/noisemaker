@@ -1,7 +1,9 @@
-# VHS
+# vhs
 
-Simulates VHS tape playback artifacts.
+VHS tape artifacts
 
 ## Parameters
 
-This effect has no user-configurable parameters.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| speed | float | 1 | 0-5 | Speed |

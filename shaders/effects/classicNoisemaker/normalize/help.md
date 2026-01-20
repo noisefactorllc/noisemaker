@@ -1,7 +1,7 @@
-# Normalize
+# normalize
 
-Normalizes the image values to the full range.
+Value normalization
 
 ## Parameters
 
-This effect has no user-configurable parameters.
+No configurable parameters.

@@ -1,6 +1,6 @@
-# Cel Shading
+# celShading
 
-Applies cartoon/anime-style cel shading using a multi-pass approach for high-quality results.
+Cartoon-style shading with posterization and outlines
 
 ## Description
 
@@ -13,13 +13,13 @@ Uses a three-pass approach:
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| levels | int | 4 | 2–8 | Number of color quantization levels |
-| edgeWidth | float | 1.0 | 0.5–5 | Thickness of edge outlines (in pixels) |
-| edgeThreshold | float | 0.15 | 0.01–1 | Edge detection sensitivity threshold |
-| edgeColor | vec3 | [0, 0, 0] | — | Color of edge outlines |
-| lightDirection | vec3 | [0.5, 0.5, 1] | — | Direction of the diffuse light |
-| shadingStrength | float | 0.5 | 0–1 | Intensity of light-based shading |
-| mix | float | 1.0 | 0–1 | Mix between processed and original image |
+| levels | int | 4 | 2-8 | Levels |
+| edgeWidth | int | 1 | 0-5 | Width |
+| edgeThreshold | float | 0.15 | 0.01-1 | Threshold |
+| edgeColor | vec3 | 0,0,0 | - | Color |
+| lightDirection | vec3 | 0.5,0.5,1 | - | Light Direction |
+| shadingStrength | float | 0 | 0-1 | Shading Strength |
+| mix | float | 1 | 0-1 | Mix |
 
 ## Notes
 

@@ -1,10 +1,10 @@
-# Sobel
+# sobel
 
-Applies Sobel edge detection filter.
+Sobel edge detection
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Distance Metric | int | — | — | Distance metric for edge magnitude calculation |
-| Alpha | float | — | 0–1 | Blend amount with original image |
+| shape | enum | 1 | - | Shape |
+| alpha | float | 1 | 0-1 | Alpha |

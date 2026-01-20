@@ -1,9 +1,9 @@
-# Light Leak
+# lightLeak
 
-Adds a vintage light leak overlay effect.
+Film light leak overlay
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Alpha | float | — | 0–1 | Blend amount for the leak composite |
+| alpha | float | 0.25 | 0-1 | Alpha |

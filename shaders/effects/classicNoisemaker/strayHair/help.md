@@ -1,9 +1,9 @@
-# Stray Hair
+# strayHair
 
-Adds stray hair overlay effects.
+Stray hair overlay
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Seed | int | — | — | Random seed - change this to get different hair patterns and flow fields |
+| seed | number | 0 | 0-1000 | Seed |

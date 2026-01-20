@@ -1,9 +1,9 @@
-# Pixels
+# pixels
 
-Applies a pixelation effect to the image.
+Pixelation effect for retro look
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| size | float | 4.0 | 1–32 | Pixel block size |
+| size | float | 4 | 1-32 | Size |

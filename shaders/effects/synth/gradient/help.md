@@ -1,18 +1,18 @@
-# Gradient
+# gradient
 
-Generates smooth color gradients with multiple styles.
+Multi-color gradient generator with various styles
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| type | int | linear | linear/radial/conic/fourCorners | Gradient style |
-| rotation | float | 0 | 0–360 | Rotation angle in degrees |
-| repeat | int | 1 | 1–4 | Number of times to repeat the gradient pattern |
-| color1 | vec4 | [1, 0, 0, 1] | color | First gradient color (top-left in fourCorners mode) |
-| color2 | vec4 | [1, 1, 0, 1] | color | Second gradient color (top-right in fourCorners mode) |
-| color3 | vec4 | [0, 1, 0, 1] | color | Third gradient color (bottom-right in fourCorners mode) |
-| color4 | vec4 | [0, 0, 1, 1] | color | Fourth gradient color (bottom-left in fourCorners mode) |
+| type | int | fourCorners | linear/radial/conic/fourCorners | Type |
+| rotation | float | 0 | -180-180 | Rotation |
+| repeat | int | 1 | 1-4 | Repeat |
+| color1 | vec4 | 1,0,0,1 | - | Color 1 |
+| color2 | vec4 | 1,1,0,1 | - | Color 2 |
+| color3 | vec4 | 0,1,0,1 | - | Color 3 |
+| color4 | vec4 | 0,0,1,1 | - | Color 4 |
 
 ## Notes
 

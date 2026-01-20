@@ -1,6 +1,6 @@
-# Test Pattern
+# testPattern
 
-NxN numbered checkerboard for identifying axis flips.
+NxN numbered checkerboard for identifying axis flips
 
 ## Description
 
@@ -10,4 +10,4 @@ Generates a numbered grid pattern useful for debugging and testing texture coord
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| gridSize | int | 4 | 1–16 | Number of grid cells per axis |
+| gridSize | int | 4 | 1-16 | Grid size |

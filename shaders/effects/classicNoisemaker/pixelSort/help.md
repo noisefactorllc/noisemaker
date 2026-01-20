@@ -1,10 +1,10 @@
-# Pixel Sort
+# pixelSort
 
-Applies a pixel sorting glitch effect.
+Pixel sorting glitch effect
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Angle | float | — | — | Sorting angle in degrees (0 = axis-aligned, or use animated angle) |
-| Darkest First | float | — | 0–1 | Sort from darkest to lightest instead of lightest to darkest |
+| angled | float | 0 | -180-180 | Angle |
+| darkest | boolean | false | - | Darkest First |

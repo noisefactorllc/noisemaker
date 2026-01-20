@@ -1,6 +1,6 @@
-# Lenia
+# lenia
 
-Particle Lenia artificial life simulation.
+Particle Lenia artificial life simulation
 
 ## Description
 
@@ -10,47 +10,16 @@ Based on [Particle Lenia](https://google-research.github.io/self-organising-syst
 
 ## Parameters
 
-### Kernel (K)
-
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| kernel μ | float | — | — | Radius of the attraction shell. Larger values create looser structures |
-| kernel σ | float | — | — | Width of the shell. Larger values create softer attraction |
-
-### Growth (G)
-
-| Parameter | Type | Default | Range | Description |
-|-----------|------|---------|-------|-------------|
-| growth μ | float | — | — | Target local density. Particles seek areas with this density |
-| growth σ | float | — | — | Tolerance around target density. Larger values are more permissive |
-
-### Motion
-
-| Parameter | Type | Default | Range | Description |
-|-----------|------|---------|-------|-------------|
-| repulsion | float | — | — | Strength of particle-particle repulsion. Prevents collapse |
-| time step | float | — | — | Simulation speed. Larger values are faster but less stable |
-| search radius | float | — | — | Maximum interaction distance (optimization parameter) |
-
-## Algorithm
-
-**Lenia Field U(x)**: Each particle contributes to a scalar field through a gaussian shell kernel:
-$U(x) = \sum K(\|x - p_i\|)$ where $K(r) = w_k \cdot \exp(-((r - \mu_k) / \sigma_k)^2)$
-
-**Growth Field G(u)**: Selects the optimal density for particle attraction:
-$G(u) = \exp(-((u - \mu_a) / \sigma_a)^2)$
-
-**Repulsion Field R(x)**: Prevents particle overlap:
-$R(x) = (c_{rep}/2) \cdot \sum \max(1 - \|x - p_i\|, 0)^2$
-
-**Motion**: Particles follow local energy gradients:
-$dp/dt = -\nabla E = \nabla G - \nabla R$
-
-## Usage
-
-```
-pointsEmit({ count: 2048 }).lenia().pointsRender().write(o0)
-```
+| muK | float | 25 | 1-30 | Kernel μ |
+| sigmaK | float | 5 | 0.1-10 | Kernel σ |
+| muG | float | 0.25 | 0.1-2 | Growth μ |
+| sigmaG | float | 0.15 | 0.01-0.5 | Growth σ |
+| repulsion | float | 0.5 | 0-5 | Repulsion |
+| dt | float | 0.25 | 0.01-0.5 | Time step |
+| searchRadius | float | 25 | 5-40 | Search radius |
+| depositAmount | float | 3.6 | 0.1-5 | Deposit |
 
 ## Notes
 

@@ -1,7 +1,7 @@
-# Density Map
+# densityMap
 
-Generates a density map visualization of the image.
+Density-based mapping
 
 ## Parameters
 
-This effect has no user-configurable parameters.
+No configurable parameters.

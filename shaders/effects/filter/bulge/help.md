@@ -1,12 +1,12 @@
-# Bulge
+# bulge
 
-Applies a bulge distortion effect, creating a convex lens-like warp.
+Bulge distortion from center
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| strength | float | 25 | 0–100 | Intensity of the bulge effect |
-| aspectLens | boolean | true | — | When enabled, applies bulge in a circular region regardless of canvas aspect ratio |
-| wrap | int | mirror | mirror/repeat/clamp | Edge wrapping mode for distorted coordinates |
-| rotation | float | 0 | -180–180 | Rotation of the bulge effect in degrees |
+| strength | float | 25 | 0-100 | Strength |
+| aspectLens | boolean | true | - | 1:1 Aspect |
+| wrap | int | mirror | mirror/repeat/clamp | Wrap |
+| rotation | float | 0 | -180-180 | Rotation |

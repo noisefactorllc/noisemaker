@@ -1,9 +1,10 @@
-# Snow
+# snow
 
-Adds animated snow particles overlay.
+TV snow/static noise
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Alpha | float | — | 0–1 | Snow overlay opacity |
+| alpha | float | 0.25 | 0-1 | Alpha |
+| speed | float | 1 | 0-5 | Speed |

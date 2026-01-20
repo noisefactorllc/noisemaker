@@ -1,9 +1,9 @@
-# Adjust Hue
+# adjustHue
 
-Rotates the hue of all pixels in the image.
+Hue rotation adjustment
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Amount | float | — | 0–1 | Hue rotation amount expressed in turns (1.0 = full revolution) |
+| amount | float | 0.25 | -1-1 | Amount |

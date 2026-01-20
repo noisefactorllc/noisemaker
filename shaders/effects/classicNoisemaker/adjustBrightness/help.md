@@ -1,9 +1,9 @@
-# Adjust Brightness
+# adjustBrightness
 
-Adjusts the overall brightness of the image.
+Brightness adjustment
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Amount | float | — | — | Delta added to each color channel before clamping to [-1, 1] |
+| amount | float | 0.125 | -1-1 | Amount |

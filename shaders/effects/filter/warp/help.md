@@ -1,14 +1,14 @@
-# Warp
+# warp
 
-Applies noise-based distortion to the image.
+Perlin noise-based warp distortion
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| strength | float | 25 | 0–100 | Warp distortion strength |
-| scale | float | 1 | -5–5 | Noise scale |
-| seed | int | 1 | 1–100 | Random seed for noise |
-| speed | int | 0 | -5–5 | Animation speed |
-| wrap | int | mirror | mirror/repeat/clamp | Edge wrapping mode |
-| rotation | float | 0 | -180–180 | Rotation angle in degrees |
+| strength | float | 25 | 0-100 | Strength |
+| scale | float | 1 | -5-5 | Scale |
+| seed | int | 1 | 1-100 | Seed |
+| speed | int | 0 | -5-5 | Speed |
+| wrap | int | mirror | mirror/repeat/clamp | Wrap |
+| rotation | float | 0 | -180-180 | Rotation |

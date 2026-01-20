@@ -1,11 +1,12 @@
-# Wormhole
+# wormhole
 
-Applies a wormhole-style distortion effect.
+Wormhole tunnel effect
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Kink | float | — | — | Path twistiness |
-| Input Stride | float | — | — | Maximum pixel offset |
-| Alpha | float | — | 0–1 | Blend amount |
+| kink | float | 1 | 0-10 | Kink |
+| stride | float | 0.5 | 0-5 | Stride |
+| alpha | float | 0.5 | 0-1 | Alpha |
+| speed | float | 1 | 0-5 | Speed |

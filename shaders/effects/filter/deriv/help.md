@@ -1,9 +1,9 @@
-# Derivative
+# deriv
 
-Applies derivative-based edge detection to the image.
+Derivative-based edge detection
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| amount | float | 1.0 | 0.1–5 | Edge detection strength |
+| amount | float | 1 | 0.1-5 | Amount |

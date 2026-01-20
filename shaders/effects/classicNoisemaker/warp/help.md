@@ -1,11 +1,13 @@
-# Warp
+# warp
 
-Applies noise-based warping distortion.
+Perlin warp distortion
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Frequency | float | — | — | Base frequency for noise |
-| Octaves | int | — | — | Number of noise octaves |
-| Displacement | float | — | — | Displacement amount |
+| frequency | float | 2 | 0.1-10 | Frequency |
+| octaves | float | 5 | 1-10 | Octaves |
+| displacement | float | 0.1 | 0-1 | Displacement |
+| speed | float | 1 | 0-5 | Speed |
+| splineOrder | float | 2 | 0-3 | Spline Order |

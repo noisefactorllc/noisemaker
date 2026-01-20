@@ -1,16 +1,16 @@
-# Kaleido
+# kaleido
 
-Creates a kaleidoscope mirror effect.
+Kaleidoscope mirror effect
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Sides | int | — | — | Number of kaleidoscope wedges |
-| SDF Sides | int | — | 0–— | Polygon sides for SDF distance metric (0–2 uses Euclidean) |
-| Blend Edges | float | — | 0–1 | Fade to original image at edges |
-| Point Frequency | float | — | — | Number of Voronoi points per axis |
-| Generations | int | — | — | Voronoi point cloud generations to accumulate |
-| Distribution | int | — | — | Voronoi point distribution pattern |
-| Point Drift | float | — | — | Random drift applied to Voronoi points |
-| Include Corners | float | — | 0–1 | Include corner points for grid distributions |
+| sides | float | 6 | 2-32 | Sides |
+| sdfSides | float | 5 | 0-12 | SDF Sides |
+| blendEdges | boolean | true | - | Blend Edges |
+| pointFreq | float | 1 | 1-32 | Point Frequency |
+| pointGenerations | float | 1 | 1-5 | Generations |
+| pointDistrib | enum | 0 | - | Distribution |
+| pointDrift | float | 0 | 0-1 | Point Drift |
+| pointCorners | boolean | false | - | Include Corners |

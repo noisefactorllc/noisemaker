@@ -1,9 +1,9 @@
-# Lens Distortion
+# lensDistortion
 
-Applies barrel or pincushion lens distortion.
+Lens barrel/pincushion distortion
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Displacement | float | — | — | Strength of the radial warp (negative values zoom inward) |
+| displacement | float | 1 | -2-2 | Displacement |

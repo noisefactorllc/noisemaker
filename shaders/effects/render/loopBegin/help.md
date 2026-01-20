@@ -1,6 +1,6 @@
-# Loop Begin
+# loopBegin
 
-Start an accumulator feedback loop.
+Start accumulator loop, read from feedback buffer
 
 ## Description
 
@@ -10,17 +10,5 @@ Reads from a shared accumulator buffer and blends with the incoming texture usin
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| alpha | float | 50 | 0–100 | Blend alpha for accumulation |
-| intensity | float | 100 | 0–100 | Intensity of accumulated feedback |
-
-## Usage
-
-```
-loopBegin(alpha: 50).blur().loopEnd()
-```
-
-This is equivalent to manually setting up:
-```
-noise().write(o0)
-read(o1).lighten(tex: read(o0)).blur().write(o1)
-```
+| alpha | float | 50 | 0-100 | Alpha |
+| intensity | float | 100 | 0-100 | Intensity |

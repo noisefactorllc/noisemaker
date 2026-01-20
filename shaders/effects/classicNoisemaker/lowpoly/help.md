@@ -1,11 +1,11 @@
-# Low Poly
+# lowpoly
 
-Creates a low-polygon stylized rendering effect.
+Low-polygon style render
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Point Distribution | int | — | — | Seed layout used to generate Voronoi cells |
-| Frequency | float | — | — | Number of Voronoi sites per axis |
-| Distance Metric | int | — | — | Metric used to shade the Voronoi distance field |
+| distrib | enum | 1000000 | - | Point Distribution |
+| freq | int | 10 | 1-64 | Frequency |
+| shape | enum | 1 | - | Shape |

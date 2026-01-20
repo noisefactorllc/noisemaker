@@ -1,6 +1,6 @@
-# Loop End
+# loopEnd
 
-End an accumulator feedback loop started by `loopBegin()`.
+End accumulator loop, write back to feedback buffer
 
 ## Description
 
@@ -8,10 +8,4 @@ Writes the chain result back to the shared accumulator buffer, completing the fe
 
 ## Parameters
 
-This effect has no user-configurable parameters.
-
-## Usage
-
-```
-loopBegin(alpha: 50).blur().loopEnd()
-```
+No configurable parameters.

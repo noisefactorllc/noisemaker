@@ -1,9 +1,9 @@
-# Shadow
+# shadow
 
-Adds shadow effects to the image.
+Drop shadow effect
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Alpha | float | — | 0–1 | Shadow effect blend strength |
+| alpha | float | 1 | 0-1 | Alpha |

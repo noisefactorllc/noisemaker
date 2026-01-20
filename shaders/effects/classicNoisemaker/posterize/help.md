@@ -1,10 +1,10 @@
-# Posterize
+# posterize
 
-Reduces the number of tonal levels in the image.
+Posterization/color reduction
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| Levels | int | — | — | Number of tonal bands to keep after posterization |
-| Gamma | float | — | — | Gamma curve applied before quantization |
+| levels | float | 5 | 2-32 | Levels |
+| gamma | float | 1 | 0.1-3 | Gamma |
