@@ -34,7 +34,7 @@ export { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInp
 const KNOWN_3D_GENERATORS = ['noise3d', 'cell3d', 'shape3d', 'fractal3d', 'ca3d', 'rd3d']
 
 // Known 3D processor effects (modify volumes, need inputTex3d)
-const KNOWN_3D_PROCESSORS = ['flow3d', 'render3d']
+const KNOWN_3D_PROCESSORS = ['flow3d', 'render3d', 'renderLit3d']
 
 /**
  * Deep clone a parameter value

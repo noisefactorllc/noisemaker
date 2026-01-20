@@ -1,0 +1,231 @@
+import { Effect } from '../../../src/runtime/effect.js'
+
+/**
+ * render/renderLit3d - Universal 3D volume renderer with advanced lighting
+ *
+ * This effect extends render3d with comprehensive lighting controls including
+ * diffuse, specular, ambient lighting, and configurable light direction.
+ * Based on the lighting filter effect but applied to 3D raymarched surfaces.
+ *
+ * Usage in DSL:
+ *   noise3d().renderLit3d().out(o0)
+ *   cell3d().renderLit3d(shininess: 128, specularIntensity: 0.8).out(o0)
+ */
+export default new Effect({
+  name: "RenderLit3D",
+  namespace: "render",
+  tags: ["util", "3d"],
+  func: "renderLit3d",
+
+  description: "Universal 3D volume raymarcher with advanced lighting",
+  textures: {
+    screenGeoBuffer: {
+      width: "resolution",
+      height: "resolution",
+      format: "rgba16f"
+    }
+  },
+  globals: {
+    "volumeSize": {
+        "type": "int",
+        "default": 64,
+        "uniform": "volumeSize",
+        "choices": {
+            "v16": 16,
+            "v32": 32,
+            "v64": 64,
+            "v128": 128
+        },
+        "ui": {
+            "control": false  // Always inherited from upstream volume effect
+        }
+    },
+    "filtering": {
+        "type": "int",
+        "default": 0,
+        "uniform": "filtering",
+        "choices": {
+            "isosurface": 0,
+            "voxel": 1
+        },
+        "ui": {
+            "label": "filtering",
+            "control": "dropdown"
+        }
+    },
+    "threshold": {
+        "type": "float",
+        "default": 0.5,
+        "min": 0,
+        "max": 1,
+        "randMax": 0.3,
+        "uniform": "threshold",
+        "ui": {
+            "label": "surface threshold"
+        }
+    },
+    "invert": {
+        "type": "boolean",
+        "default": false,
+        "randChance": 0,
+        "uniform": "invert",
+        "ui": {
+            "label": "invert threshold"
+        }
+    },
+    "orbitSpeed": {
+        "type": "int",
+        "default": 1,
+        "min": -5,
+        "max": 5,
+        "randMin": -1,
+        "randMax": 1,
+        "uniform": "orbitSpeed",
+        "ui": {
+            "label": "orbit speed"
+        }
+    },
+    "bgColor": {
+        "type": "vec3",
+        "default": [0.02, 0.02, 0.02],
+        "uniform": "bgColor",
+        "ui": {
+            "label": "background color",
+            "control": "color"
+        }
+    },
+    "bgAlpha": {
+        "type": "float",
+        "default": 1.0,
+        "min": 0,
+        "max": 1,
+        "uniform": "bgAlpha",
+        "ui": {
+            "label": "background alpha"
+        }
+    },
+    // Lighting parameters
+    "lightDirection": {
+        "type": "vec3",
+        "default": [0.5, 0.5, 1.0],
+        "uniform": "lightDirection",
+        "ui": {
+            "label": "light direction",
+            "control": "vector3",
+            "category": "lighting"
+        }
+    },
+    "diffuseColor": {
+        "type": "color",
+        "default": [1.0, 1.0, 1.0],
+        "uniform": "diffuseColor",
+        "ui": {
+            "label": "diffuse color",
+            "control": "color",
+            "category": "lighting"
+        }
+    },
+    "diffuseIntensity": {
+        "type": "float",
+        "default": 0.7,
+        "min": 0.0,
+        "max": 2.0,
+        "step": 0.01,
+        "uniform": "diffuseIntensity",
+        "ui": {
+            "label": "diffuse intensity",
+            "control": "slider",
+            "category": "lighting"
+        }
+    },
+    "specularColor": {
+        "type": "color",
+        "default": [1.0, 1.0, 1.0],
+        "uniform": "specularColor",
+        "ui": {
+            "label": "specular color",
+            "control": "color",
+            "category": "lighting"
+        }
+    },
+    "specularIntensity": {
+        "type": "float",
+        "default": 0.3,
+        "min": 0.0,
+        "max": 2.0,
+        "step": 0.01,
+        "uniform": "specularIntensity",
+        "ui": {
+            "label": "specular intensity",
+            "control": "slider",
+            "category": "lighting"
+        }
+    },
+    "shininess": {
+        "type": "float",
+        "default": 32.0,
+        "min": 1.0,
+        "max": 256.0,
+        "step": 1.0,
+        "uniform": "shininess",
+        "ui": {
+            "label": "shininess",
+            "control": "slider",
+            "category": "lighting"
+        }
+    },
+    "rimIntensity": {
+        "type": "float",
+        "default": 0.15,
+        "min": 0.0,
+        "max": 1.0,
+        "step": 0.01,
+        "uniform": "rimIntensity",
+        "ui": {
+            "label": "rim intensity",
+            "control": "slider",
+            "category": "lighting"
+        }
+    },
+    "rimPower": {
+        "type": "float",
+        "default": 3.0,
+        "min": 0.5,
+        "max": 8.0,
+        "step": 0.1,
+        "uniform": "rimPower",
+        "ui": {
+            "label": "rim power",
+            "control": "slider",
+            "category": "lighting"
+        }
+    },
+    "ambientColor": {
+        "type": "color",
+        "default": [0.15, 0.15, 0.15],
+        "uniform": "ambientColor",
+        "ui": {
+            "label": "ambient color",
+            "control": "color",
+            "category": "lighting"
+        }
+    }
+  },
+  passes: [
+    {
+      name: "render",
+      program: "renderLit3d",
+      drawBuffers: 2,
+      inputs: {
+        volumeCache: "inputTex3d",
+        analyticalGeo: "inputGeo"
+      },
+      outputs: {
+        color: "outputTex",
+        geoOut: "screenGeoBuffer"
+      }
+    }
+  ],
+  outputGeo: "screenGeoBuffer",
+  outputTex3d: "inputTex3d"
+})

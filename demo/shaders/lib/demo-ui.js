@@ -1545,8 +1545,8 @@ render(o1)`
             }
             const generatorCall = fmtCall('noise3d', { volumeSize: `x${consumerVolumeSize}` })
             const effectCall = fmtCall(funcName, kwargs)
-            // render3d IS the renderer - don't append another .render3d() call
-            const renderSuffix = funcName === 'render3d' ? '' : '\n  .render3d()'
+            // render3d and renderLit3d ARE renderers - don't append another .render3d() call
+            const renderSuffix = (funcName === 'render3d' || funcName === 'renderLit3d') ? '' : '\n  .render3d()'
             return `search synth3d, filter3d, render\n\n${generatorCall}\n  .${effectCall}${renderSuffix}\n  .write(o0)\n\nrender(o0)`
         } else {
             const kwargs = this._buildKwargs(effect.instance.globals, this._parameterValues)
