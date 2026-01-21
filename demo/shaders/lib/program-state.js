@@ -1148,6 +1148,22 @@ export class ProgramState extends Emitter {
                 if (!Array.isArray(value)) return spec.default || [0, 0, 0, 0]
                 return value.slice(0, 4).map(v => parseFloat(v) || 0)
 
+            case 'color':
+                // Color type: ensure value is a vec3 array
+                // Handle hex strings (from UI) by converting to array
+                if (Array.isArray(value)) {
+                    return value.slice(0, 3).map(v => parseFloat(v) || 0)
+                }
+                if (typeof value === 'string' && value.startsWith('#')) {
+                    const hex = value.slice(1)
+                    return [
+                        parseInt(hex.slice(0, 2), 16) / 255,
+                        parseInt(hex.slice(2, 4), 16) / 255,
+                        parseInt(hex.slice(4, 6), 16) / 255
+                    ]
+                }
+                return spec.default || [0, 0, 0]
+                
             default:
                 return value
         }
