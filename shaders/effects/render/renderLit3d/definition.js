@@ -58,7 +58,7 @@ export default new Effect({
         "default": 0.5,
         "min": 0,
         "max": 1,
-        "randMax": 0.3,
+        "randMax": 0.5,
         "uniform": "threshold",
         "ui": {
             "label": "surface threshold"
@@ -100,7 +100,7 @@ export default new Effect({
     },
     "bgColor": {
         "type": "color",
-        "default": [0.02, 0.02, 0.02],
+        "default": [0.0, 0.0, 0.0],
         "uniform": "bgColor",
         "ui": {
             "label": "background color",
@@ -112,6 +112,7 @@ export default new Effect({
         "default": 1.0,
         "min": 0,
         "max": 1,
+        "randChance": 0,
         "uniform": "bgAlpha",
         "ui": {
             "label": "background alpha"
@@ -215,7 +216,7 @@ export default new Effect({
     },
     "ambientColor": {
         "type": "color",
-        "default": [0.15, 0.15, 0.15],
+        "default": [0.1, 0.1, 0.1],
         "uniform": "ambientColor",
         "ui": {
             "label": "ambient color",
