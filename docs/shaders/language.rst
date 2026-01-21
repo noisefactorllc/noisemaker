@@ -300,6 +300,138 @@ For example, the ``noise`` effect accepts a ``colorMode`` parameter with values 
 
 The runtime resolves these enum references to their integer counterparts before binding to the shader.
 
+Palettes
+--------
+
+The ``palette`` enum provides named color palettes for effects like ``palette()`` in the ``filter`` namespace. Palettes are cosine gradient functions that map scalar values (typically luminance) to RGB colors.
+
+**Usage:**
+
+.. code-block:: none
+
+   search filter
+   read(o0).palette(paletteIndex: palette.vaporwave).write(o1)
+
+**Available Palettes:**
+
+.. list-table::
+   :header-rows: 1
+
+   * - Name
+     - Description
+   * - ``palette.none``
+     - Neutral (grayscale)
+   * - ``palette.grayscale``
+     - Grayscale gradient
+   * - ``palette.afterimage``
+     - Warm afterimage effect
+   * - ``palette.barstow``
+     - Desert sunset tones
+   * - ``palette.bloob``
+     - Cool cyan and blue
+   * - ``palette.blueSkies``
+     - Sky blue gradient
+   * - ``palette.brushedMetal``
+     - Metallic gray tones
+   * - ``palette.burningSky``
+     - Fiery orange and purple
+   * - ``palette.california``
+     - Warm sunset colors
+   * - ``palette.columbia``
+     - Bright magenta and cyan
+   * - ``palette.cottonCandy``
+     - Soft pink and blue pastels
+   * - ``palette.darkSatin``
+     - Dark smooth gradient
+   * - ``palette.dealerHat``
+     - Warm orange and brown
+   * - ``palette.dreamy``
+     - Soft dream-like tones
+   * - ``palette.eventHorizon``
+     - Deep space blues
+   * - ``palette.fiveG``
+     - Vibrant tech colors
+   * - ``palette.ghostly``
+     - Pale ethereal tones
+   * - ``palette.hazySunset``
+     - Warm hazy oranges
+   * - ``palette.heatmap``
+     - Thermal imaging colors
+   * - ``palette.hypercolor``
+     - Bright neon colors
+   * - ``palette.jester``
+     - Bold contrasting hues
+   * - ``palette.justBlue``
+     - Pure blue channel
+   * - ``palette.justCyan``
+     - Pure cyan (green + blue)
+   * - ``palette.justGreen``
+     - Pure green channel
+   * - ``palette.justPurple``
+     - Pure magenta (red + blue)
+   * - ``palette.justRed``
+     - Pure red channel
+   * - ``palette.justYellow``
+     - Pure yellow (red + green)
+   * - ``palette.mars``
+     - Rusty red planet tones
+   * - ``palette.modesto``
+     - Earthy green and purple
+   * - ``palette.moss``
+     - Forest green and brown
+   * - ``palette.neptune``
+     - Deep ocean blues
+   * - ``palette.netOfGems``
+     - Jewel-toned purples
+   * - ``palette.organic``
+     - Natural earthy tones
+   * - ``palette.papaya``
+     - Tropical orange
+   * - ``palette.radioactive``
+     - Toxic green glow
+   * - ``palette.royal``
+     - Deep purple royalty
+   * - ``palette.santaCruz``
+     - Beach sunset colors
+   * - ``palette.seventiesShirt``
+     - Retro 70s colors
+   * - ``palette.sherbet``
+     - Citrus orange and pink
+   * - ``palette.sherbetDouble``
+     - Double-frequency sherbet
+   * - ``palette.silvermane``
+     - Silver metallic (OkLab)
+   * - ``palette.skykissed``
+     - Soft pink sky
+   * - ``palette.solaris``
+     - Solar flare oranges
+   * - ``palette.spooky``
+     - Halloween orange and black (OkLab)
+   * - ``palette.springtime``
+     - Fresh spring pastels
+   * - ``palette.sproingtime``
+     - Bright spring greens
+   * - ``palette.sulphur``
+     - Yellow sulfur tones
+   * - ``palette.summoning``
+     - Dark ritual magenta
+   * - ``palette.superhero``
+     - Bold comic book colors
+   * - ``palette.toxic``
+     - Poisonous green
+   * - ``palette.tropicalia``
+     - Tropical paradise (OkLab)
+   * - ``palette.tungsten``
+     - Cool tungsten lighting
+   * - ``palette.vaporwave``
+     - 80s synthwave aesthetic
+   * - ``palette.vibrant``
+     - High saturation colors
+   * - ``palette.vintage``
+     - Aged photograph tones
+   * - ``palette.vintagePhoto``
+     - Sepia photo effect
+
 Oscillators
 -----------
 
