@@ -104,7 +104,8 @@ export default new Effect({
         "uniform": "bgColor",
         "ui": {
             "label": "background color",
-            "control": "color"
+            "control": "color",
+            "category": "background"
         }
     },
     "bgAlpha": {
@@ -115,7 +116,8 @@ export default new Effect({
         "randChance": 0,
         "uniform": "bgAlpha",
         "ui": {
-            "label": "background alpha"
+            "label": "background alpha",
+            "category": "background"
         }
     },
     // Lighting parameters
@@ -136,7 +138,7 @@ export default new Effect({
         "ui": {
             "label": "diffuse color",
             "control": "color",
-            "category": "lighting"
+            "category": "diffuse"
         }
     },
     "diffuseIntensity": {
@@ -149,7 +151,7 @@ export default new Effect({
         "ui": {
             "label": "diffuse intensity",
             "control": "slider",
-            "category": "lighting"
+            "category": "diffuse"
         }
     },
     "specularColor": {
@@ -159,7 +161,7 @@ export default new Effect({
         "ui": {
             "label": "specular color",
             "control": "color",
-            "category": "lighting"
+            "category": "specular"
         }
     },
     "specularIntensity": {
@@ -172,7 +174,7 @@ export default new Effect({
         "ui": {
             "label": "specular intensity",
             "control": "slider",
-            "category": "lighting"
+            "category": "specular"
         }
     },
     "shininess": {
@@ -185,7 +187,7 @@ export default new Effect({
         "ui": {
             "label": "shininess",
             "control": "slider",
-            "category": "lighting"
+            "category": "specular"
         }
     },
     "rimIntensity": {
@@ -198,7 +200,7 @@ export default new Effect({
         "ui": {
             "label": "rim intensity",
             "control": "slider",
-            "category": "lighting"
+            "category": "rim"
         }
     },
     "rimPower": {
@@ -211,7 +213,7 @@ export default new Effect({
         "ui": {
             "label": "rim power",
             "control": "slider",
-            "category": "lighting"
+            "category": "rim"
         }
     },
     "ambientColor": {
