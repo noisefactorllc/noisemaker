@@ -337,12 +337,19 @@ IsoHit isosurfaceTrace(vec3 ro, vec3 rd) {
 }
 
 // Advanced lighting calculation
-vec3 applyLighting(vec3 baseColor, vec3 n, vec3 rd) {
-    // Normalize light direction
-    vec3 lightDir = normalize(lightDirection);
+// worldLightDir is the light direction transformed to world space
+vec3 applyLighting(vec3 baseColor, vec3 n, vec3 rd, vec3 worldLightDir) {
+    // Light direction is already in world space
+    vec3 lightDir = normalize(worldLightDir);
     
     // Calculate view direction (opposite of ray direction)
     vec3 viewDir = -rd;
+    
+    // Ensure normal faces the camera (flip if pointing away)
+    // This is critical for correct rim lighting
+    if (dot(n, viewDir) < 0.0) {
+        n = -n;
+    }
     
     // Ambient lighting
     vec3 ambient = ambientColor * baseColor;
@@ -366,7 +373,7 @@ vec3 applyLighting(vec3 baseColor, vec3 n, vec3 rd) {
 }
 
 // Shading for smooth isosurface - uses RGB from volume for coloring
-vec3 shade(vec3 p, vec3 rd) {
+vec3 shade(vec3 p, vec3 rd, vec3 worldLightDir) {
     vec3 n = calcNormal(p);
     
     // Use RGB from volume for coloring
@@ -379,11 +386,11 @@ vec3 shade(vec3 p, vec3 rd) {
         baseColor = vec3(0.75);
     }
     
-    return applyLighting(baseColor, n, rd);
+    return applyLighting(baseColor, n, rd, worldLightDir);
 }
 
 // Voxel shading with flat face normals
-vec3 shadeVoxel(vec3 p, vec3 rd, vec3 n, ivec3 voxel) {
+vec3 shadeVoxel(vec3 p, vec3 rd, vec3 n, ivec3 voxel, vec3 worldLightDir) {
     // Use RGB from volume for coloring
     vec4 volColor = sampleVoxel(voxel);
     vec3 baseColor = volColor.rgb;
@@ -395,7 +402,7 @@ vec3 shadeVoxel(vec3 p, vec3 rd, vec3 n, ivec3 voxel) {
         baseColor = vec3(0.7 * faceShade);
     }
     
-    return applyLighting(baseColor, n, rd);
+    return applyLighting(baseColor, n, rd, worldLightDir);
 }
 
 void main() {
@@ -416,6 +423,11 @@ void main() {
     
     vec3 rd = normalize(forward + uv.x * right + uv.y * up);
     
+    // Transform light direction from view space to world space
+    // lightDirection is specified in view space (x=right, y=up, z=towards camera)
+    // Note: -forward because forward points away from camera
+    vec3 worldLightDir = lightDirection.x * right + lightDirection.y * up - lightDirection.z * forward;
+    
     vec3 color;
     vec3 normal = vec3(0.0, 0.0, 1.0);  // Default normal (facing camera)
     float depth = 1.0;  // Default depth (far)
@@ -426,7 +438,7 @@ void main() {
         VoxelHit hit = voxelTrace(ro, rd);
         if (hit.dist > 0.0) {
             vec3 p = ro + rd * hit.dist;
-            color = shadeVoxel(p, rd, hit.normal, hit.voxel);
+            color = shadeVoxel(p, rd, hit.normal, hit.voxel, worldLightDir);
             normal = hit.normal;
             depth = hit.dist / MAX_DIST;
         } else {
@@ -437,7 +449,7 @@ void main() {
         // Smooth mode - analytic isosurface raymarching
         IsoHit hit = isosurfaceTrace(ro, rd);
         if (hit.hit) {
-            color = shade(hit.pos, rd);
+            color = shade(hit.pos, rd, worldLightDir);
             normal = calcNormal(hit.pos);
             depth = hit.dist / MAX_DIST;
         } else {

@@ -331,12 +331,20 @@ fn isosurfaceTrace(ro: vec3<f32>, rd: vec3<f32>) -> IsoHit {
 }
 
 // Advanced lighting calculation
-fn applyLighting(baseColor: vec3<f32>, n: vec3<f32>, rd: vec3<f32>) -> vec3<f32> {
-    // Normalize light direction
-    let lightDir = normalize(u.lightDirection);
+// worldLightDir is the light direction transformed to world space
+fn applyLighting(baseColor: vec3<f32>, n_in: vec3<f32>, rd: vec3<f32>, worldLightDir: vec3<f32>) -> vec3<f32> {
+    // Light direction is already in world space
+    let lightDir = normalize(worldLightDir);
     
     // Calculate view direction (opposite of ray direction)
     let viewDir = -rd;
+    
+    // Ensure normal faces the camera (flip if pointing away)
+    // This is critical for correct rim lighting
+    var n = n_in;
+    if (dot(n, viewDir) < 0.0) {
+        n = -n;
+    }
     
     // Ambient lighting
     let ambient = u.ambientColor * baseColor;
@@ -360,7 +368,7 @@ fn applyLighting(baseColor: vec3<f32>, n: vec3<f32>, rd: vec3<f32>) -> vec3<f32>
 }
 
 // Shading for smooth isosurface
-fn shade(p: vec3<f32>, rd: vec3<f32>) -> vec3<f32> {
+fn shade(p: vec3<f32>, rd: vec3<f32>, worldLightDir: vec3<f32>) -> vec3<f32> {
     let n = calcNormal(p);
     
     // Use RGB from volume for coloring
@@ -373,11 +381,11 @@ fn shade(p: vec3<f32>, rd: vec3<f32>) -> vec3<f32> {
         baseColor = vec3<f32>(0.75);
     }
     
-    return applyLighting(baseColor, n, rd);
+    return applyLighting(baseColor, n, rd, worldLightDir);
 }
 
 // Voxel shading with flat face normals
-fn shadeVoxel(p: vec3<f32>, rd: vec3<f32>, n: vec3<f32>, voxel: vec3<i32>) -> vec3<f32> {
+fn shadeVoxel(p: vec3<f32>, rd: vec3<f32>, n: vec3<f32>, voxel: vec3<i32>, worldLightDir: vec3<f32>) -> vec3<f32> {
     // Use RGB from volume for coloring
     let volColor = sampleVoxel(voxel);
     var baseColor = volColor.rgb;
@@ -389,7 +397,7 @@ fn shadeVoxel(p: vec3<f32>, rd: vec3<f32>, n: vec3<f32>, voxel: vec3<i32>) -> ve
         baseColor = vec3<f32>(0.7 * faceShade);
     }
     
-    return applyLighting(baseColor, n, rd);
+    return applyLighting(baseColor, n, rd, worldLightDir);
 }
 
 @fragment
@@ -411,6 +419,11 @@ fn main(@builtin(position) position: vec4<f32>) -> FragmentOutput {
     
     let rd = normalize(forward + uvFlipped.x * right + uvFlipped.y * up);
     
+    // Transform light direction from view space to world space
+    // lightDirection is specified in view space (x=right, y=up, z=towards camera)
+    // Note: -forward because forward points away from camera
+    let worldLightDir = u.lightDirection.x * right + u.lightDirection.y * up - u.lightDirection.z * forward;
+    
     var color: vec3<f32>;
     var normal = vec3<f32>(0.0, 0.0, 1.0);
     var depth: f32 = 1.0;
@@ -420,7 +433,7 @@ fn main(@builtin(position) position: vec4<f32>) -> FragmentOutput {
         let hit = voxelTrace(ro, rd);
         if (hit.dist > 0.0) {
             let p = ro + rd * hit.dist;
-            color = shadeVoxel(p, rd, hit.normal, hit.voxel);
+            color = shadeVoxel(p, rd, hit.normal, hit.voxel, worldLightDir);
             normal = hit.normal;
             depth = hit.dist / MAX_DIST;
         } else {
@@ -430,7 +443,7 @@ fn main(@builtin(position) position: vec4<f32>) -> FragmentOutput {
     } else {
         let hit = isosurfaceTrace(ro, rd);
         if (hit.hit) {
-            color = shade(hit.pos, rd);
+            color = shade(hit.pos, rd, worldLightDir);
             normal = calcNormal(hit.pos);
             depth = hit.dist / MAX_DIST;
         } else {
