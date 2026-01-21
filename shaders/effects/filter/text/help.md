@@ -1,8 +1,21 @@
-# undefined
+# text
+
+Overlay text onto the image
 
 ## Parameters
 
-No configurable parameters.
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| text | string | Hello World | - | - |
+| font | string | nunito | nunito/sansSerif/serif/monospace/cursive/fantasy | - |
+| size | float | 0.1 | 0.01-1 | - |
+| posX | float | 0.5 | 0-1 | - |
+| posY | float | 0.5 | 0-1 | - |
+| rotation | float | 0 | -180-180 | - |
+| color | color | #ffffff | - | - |
+| bgColor | color | #000000 | - | - |
+| bgOpacity | float | 0 | 0-1 | - |
+| justify | string | center | left/center/right | - |
 
 ## Notes
 

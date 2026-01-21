@@ -10,12 +10,12 @@ Color palette mapping
 | cyclePalette | int | forward | off/forward/backward | Cycle palette |
 | rotatePalette | float | 0 | 0-100 | Rotate palette |
 | freq | int | 1 | 1-4 | Freq |
-| color1 | vec3 | 1,0,0 | - | Color 1 |
-| color2 | vec3 | 1,1,0 | - | Color 2 |
-| color3 | vec3 | 0,1,0 | - | Color 3 |
-| color4 | vec3 | 0,1,1 | - | Color 4 |
-| color5 | vec3 | 0,0,1 | - | Color 5 |
-| tint | vec3 | 1,1,1 | - | Tint |
+| color1 | color | 1,0,0 | - | Color 1 |
+| color2 | color | 1,1,0 | - | Color 2 |
+| color3 | color | 0,1,0 | - | Color 3 |
+| color4 | color | 0,1,1 | - | Color 4 |
+| color5 | color | 0,0,1 | - | Color 5 |
+| tint | color | 1,1,1 | - | Tint |
 | smoother | boolean | true | - | Smoother |
 | seed | int | 1 | 1-100 | Seed |
 | offsetR | float | 50 | 0-100 | Offset R |

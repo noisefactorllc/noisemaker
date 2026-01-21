@@ -15,11 +15,11 @@ Uses a three-step process:
 |-----------|------|---------|-------|-------------|
 | normalStrength | float | 1.5 | 0-5 | Depth |
 | smoothing | float | 1 | 1-10 | Smoothing |
-| diffuseColor | vec3 | 1,1,1 | - | Color |
-| specularColor | vec3 | 1,1,1 | - | Color |
+| diffuseColor | color | 1,1,1 | - | Color |
+| specularColor | color | 1,1,1 | - | Color |
 | specularIntensity | float | 0.5 | 0-2 | Intensity |
 | shininess | float | 64 | 8-256 | Shininess |
-| ambientColor | vec3 | 0.2,0.2,0.2 | - | Ambient |
+| ambientColor | color | 0.2,0.2,0.2 | - | Ambient |
 | lightDirection | vec3 | 0.5,0.5,1 | - | Direction |
 | reflection | float | 0 | 0-100 | Reflection |
 | refraction | float | 0 | 0-100 | Refraction |

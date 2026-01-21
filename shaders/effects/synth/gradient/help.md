@@ -9,10 +9,10 @@ Multi-color gradient generator with various styles
 | type | int | fourCorners | linear/radial/conic/fourCorners | Type |
 | rotation | float | 0 | -180-180 | Rotation |
 | repeat | int | 1 | 1-4 | Repeat |
-| color1 | vec4 | 1,0,0,1 | - | Color 1 |
-| color2 | vec4 | 1,1,0,1 | - | Color 2 |
-| color3 | vec4 | 0,1,0,1 | - | Color 3 |
-| color4 | vec4 | 0,0,1,1 | - | Color 4 |
+| color1 | color | 1,0,0 | - | Color 1 |
+| color2 | color | 1,1,0 | - | Color 2 |
+| color3 | color | 0,1,0 | - | Color 3 |
+| color4 | color | 0,0,1 | - | Color 4 |
 
 ## Notes
 

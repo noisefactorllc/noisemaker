@@ -124,6 +124,8 @@ function buildDslSource(effectDef) {
         searchNs = 'synth, filter, render'
     } else if (namespace === 'classicNoisedeck') {
         searchNs = 'classicNoisedeck, synth'
+    } else if (namespace === 'synth3d' || namespace === 'filter3d') {
+        searchNs = 'synth3d, filter3d, render'
     }
     const searchDirective = searchNs ? `search ${searchNs}\n\n` : ''
 
@@ -138,6 +140,22 @@ function buildDslSource(effectDef) {
         return `search points, synth, render\n\nnoise()\n  .pointsEmit()\n  .${funcName}()\n  .pointsRender(${pointsRenderArgs})\n  .write(o0)\n\nrender(o0)`
     }
 
+    // 3D processors - check BEFORE starter check since they may not have inputTex
+    if (is3dProcessor(effectDef)) {
+        const renderSuffix = funcName === 'render3d' ? '' : '\n  .render3d()'
+        return `${searchDirective}noise3d(volumeSize: x32)\n  .${funcName}()${renderSuffix}\n  .write(o0)\n\nrender(o0)`
+    }
+
+    // 3D volume generators
+    if (is3dGenerator(effectDef)) {
+        const { volParam, geoParam } = getVolGeoParams(effectDef)
+        const hasVolGeo = volParam && geoParam
+        if (hasVolGeo) {
+            return `${searchDirective}noise3d(volumeSize: x32)\n  .write3d(vol0, geo0)\n\n${funcName}(${volParam}: read3d(vol0, geo0), ${geoParam}: read3d(vol0, geo0))\n  .render3d()\n  .write(o0)\n\nrender(o0)`
+        }
+        return `${searchDirective}${funcName}()\n  .render3d()\n  .write(o0)\n\nrender(o0)`
+    }
+
     const starter = isStarterEffect(effectDef)
     const hasTex = hasTexSurfaceParam(effectDef)
     const hasExplicitTex = hasExplicitTexParam(effectDef)
@@ -145,14 +163,6 @@ function buildDslSource(effectDef) {
     const hasVolGeo = volParam && geoParam
 
     const noiseCall = 'noise(seed: 1, ridges: true)'
-
-    // 3D volume generators
-    if (is3dGenerator(effectDef)) {
-        if (hasVolGeo) {
-            return `search synth3d, filter3d, render\n\nnoise3d(volumeSize: x32)\n  .write3d(vol0, geo0)\n\n${funcName}(${volParam}: read3d(vol0, geo0), ${geoParam}: read3d(vol0, geo0))\n  .render3d()\n  .write(o0)\n\nrender(o0)`
-        }
-        return `search synth3d, filter3d, render\n\n${funcName}()\n  .render3d()\n  .write(o0)\n\nrender(o0)`
-    }
 
     // Effects with explicit vol/geo parameters
     if (hasVolGeo) {
@@ -177,9 +187,6 @@ function buildDslSource(effectDef) {
         return `${searchDirective}${funcName}()\n  .write(o0)\n\nrender(o0)`
     } else if (hasTex) {
         return `${searchDirective}${noiseCall}\n  .write(o0)\n\nnoise(seed: 2, ridges: true)\n  .${funcName}(tex: read(o0))\n  .write(o1)\n\nrender(o1)`
-    } else if (is3dProcessor(effectDef)) {
-        const renderSuffix = funcName === 'render3d' ? '' : '\n  .render3d()'
-        return `search synth3d, filter3d, render\n\nnoise3d(volumeSize: x32)\n  .${funcName}()${renderSuffix}\n  .write(o0)\n\nrender(o0)`
     } else {
         return `${searchDirective}${noiseCall}\n  .${funcName}()\n  .write(o0)\n\nrender(o0)`
     }
@@ -296,7 +303,15 @@ async function loadEffectDefinition(namespace, effectName) {
 
     try {
         const module = await import(`file://${definitionPath}`)
-        return module.default
+        let effectDef = module.default
+
+        // Handle class-based effects (like Text which extends Effect)
+        // If it's a class (function), instantiate it
+        if (typeof effectDef === 'function') {
+            effectDef = new effectDef()
+        }
+
+        return effectDef
     } catch (e) {
         console.warn(`  Warning: Could not load definition for ${namespace}/${effectName}: ${e.message}`)
         return null

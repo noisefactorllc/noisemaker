@@ -16,7 +16,7 @@ Lens distortion simulation
 | aberrationAmt | float | 50 | 0-100 | Aberration |
 | blendMode | int | add | add/alpha | Blend |
 | modulate | boolean | false | - | Modulate |
-| tint | vec3 | 0,0,0 | - | Tint |
+| tint | color | 0,0,0 | - | Tint |
 | opacity | float | 0 | 0-100 | Tint opacity |
 | hueRotation | float | 0 | 0-360 | Hue rotate |
 | hueRange | float | 0 | 0-100 | Hue range |

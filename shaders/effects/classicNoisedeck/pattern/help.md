@@ -15,5 +15,5 @@ Pattern generator
 | animation | int | none | none/panWithRotation/panLeft/panRight/panUp/panDown/rotateCw/rotateCcw | Animation |
 | speed | int | 1 | 0-10 | Speed |
 | sharpness | float | 100 | 0-100 | Sharpness |
-| color1 | vec3 | 1,0.9176470588235294,0.19215686274509805 | - | Color 1 |
-| color2 | vec3 | 0,0,0 | - | Color 2 |
+| color1 | color | 1,0.9176470588235294,0.19215686274509805 | - | Color 1 |
+| color2 | color | 0,0,0 | - | Color 2 |

@@ -16,6 +16,6 @@ Media input source
 | rotation | int | 0 | -180-180 | Rotate |
 | offsetX | float | 0 | -100-100 | Offset x |
 | offsetY | float | 0 | -100-100 | Offset y |
-| backgroundColor | vec3 | 0,0,0 | - | Bkg color |
+| backgroundColor | color | 0,0,0 | - | Bkg color |
 | backgroundOpacity | float | 0 | 0-100 | Bkg opacity |
 | imageSize | vec2 | 1024,1024 | - | Image size |
