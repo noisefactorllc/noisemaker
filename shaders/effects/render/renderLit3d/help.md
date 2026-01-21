@@ -7,10 +7,11 @@ Universal 3D volume raymarcher with advanced lighting controls
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | volumeSize | int | v64 | v16/v32/v64/v128 | Volume resolution (inherited from upstream) |
-| filtering | int | isosurface | isosurface/voxel | Rendering mode |
+| shape | int | cube | cube/sphere | Bounding shape for the volume |
 | threshold | float | 0.5 | 0-1 | Surface threshold |
 | invert | boolean | false | - | Invert threshold |
-| orbitSpeed | int | 1 | -5 to 5 | Camera orbit speed |
+| orbitSpeed | int | 1 | -5 to 5 | Volume rotation speed |
+| cameraPosition | vec3 | 0,0.1,0.7 | -1 to 1 | Camera position (scaled 5x, 0,0,0 = center) |
 | bgColor | vec3 | 0.02,0.02,0.02 | - | Background color |
 | bgAlpha | float | 1 | 0-1 | Background alpha |
 
@@ -37,10 +38,12 @@ This effect extends `render3d` with full lighting controls, allowing you to fine
 - **Ambient lighting**: Base illumination for shadowed areas
 - **Rim lighting**: Fresnel-based edge glow effect
 
-### Rendering Modes
+### Bounding Shapes
 
-- **isosurface**: Smooth raymarching with trilinear interpolation and bisection refinement
-- **voxel**: DDA voxel traversal with flat face shading
+- **cube**: Classic box-bounded volume (default)
+- **sphere**: Spherical boundary for organic shapes
+- **plane**: Horizontal slab for terrain/landscape effects
+- **none**: Unbounded - marches until max distance (use with care)
 
 ### Usage Examples
 
@@ -48,8 +51,11 @@ This effect extends `render3d` with full lighting controls, allowing you to fine
 // Basic lit 3D noise
 noise3d().renderLit3d().out(o0)
 
-// Shiny metallic look
-cell3d().renderLit3d(shininess: 128, specularIntensity: 0.8, diffuseIntensity: 0.5).out(o0)
+// Spherical bounding for organic look
+cell3d().renderLit3d(shape: sphere, shininess: 128).out(o0)
+
+// Terrain-style plane rendering
+fractal3d().renderLit3d(shape: plane, threshold: 0.3).out(o0)
 
 // Dramatic rim lighting
 fractal3d().renderLit3d(rimIntensity: 0.5, rimPower: 2.0, ambientColor: [0.05, 0.05, 0.1]).out(o0)

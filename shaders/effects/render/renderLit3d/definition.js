@@ -40,16 +40,16 @@ export default new Effect({
             "control": false  // Always inherited from upstream volume effect
         }
     },
-    "filtering": {
+    "shape": {
         "type": "int",
         "default": 0,
-        "uniform": "filtering",
+        "uniform": "shape",
         "choices": {
-            "isosurface": 0,
-            "voxel": 1
+            "cube": 0,
+            "sphere": 1
         },
         "ui": {
-            "label": "filtering",
+            "label": "bounding shape",
             "control": "dropdown"
         }
     },
@@ -83,6 +83,19 @@ export default new Effect({
         "uniform": "orbitSpeed",
         "ui": {
             "label": "orbit speed"
+        }
+    },
+    "cameraPosition": {
+        "type": "vec3",
+        "default": [0.0, 0.1425, 1.0],
+        "min": [-1, -1, -1],
+        "max": [1, 1, 1],
+        "step": 0.01,
+        "randChance": 0,
+        "uniform": "cameraPosition",
+        "ui": {
+            "label": "camera position",
+            "control": "vec3"
         }
     },
     "bgColor": {
