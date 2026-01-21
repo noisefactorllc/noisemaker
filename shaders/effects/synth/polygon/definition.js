@@ -46,7 +46,7 @@ export default new Effect({
         }
     },
     "fgColor": {
-        "type": "vec3",
+        "type": "color",
         "default": [1.0, 1.0, 1.0],
         "uniform": "fgColor",
         "ui": {
@@ -69,7 +69,7 @@ export default new Effect({
         }
     },
     "bgColor": {
-        "type": "vec3",
+        "type": "color",
         "default": [0.0, 0.0, 0.0],
         "uniform": "bgColor",
         "ui": {

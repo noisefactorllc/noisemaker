@@ -3384,13 +3384,9 @@ render(o1)`
             return controlGroup
         }
 
-        // For 'color' type, ensure value is stored as hex string (compiled args may be arrays)
-        if (spec.type === 'color' && Array.isArray(value)) {
-            const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
-            value = `#${toHex(value[0])}${toHex(value[1])}${toHex(value[2])}`
-        }
-
         // Initialize value in program state
+        // Note: For 'color' type, _validateValue will convert hex strings to arrays
+        // and ensure values are properly formatted vec3s
         this._programState.setValue(effectKey, key, value)
 
         // Create control based on type
