@@ -86,7 +86,7 @@ export default new Effect({
         }
     },
     "bgColor": {
-        "type": "vec3",
+        "type": "color",
         "default": [0.02, 0.02, 0.02],
         "uniform": "bgColor",
         "ui": {
