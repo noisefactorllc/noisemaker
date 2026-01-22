@@ -68,6 +68,7 @@ export default new Effect({
       uniform: "power",
       min: -100,
       max: 100,
+      randMax: -70,
       ui: { label: "mix", control: "slider" }
     }
   },
