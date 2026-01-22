@@ -60,7 +60,8 @@ export default new Effect({
       max: 1,
       ui: {
         label: "threshold",
-        control: "slider"
+        control: "slider",
+        enabledBy: { param: "mode", eq: 0 }
       }
     },
     range: {
@@ -71,7 +72,8 @@ export default new Effect({
       max: 1,
       ui: {
         label: "range",
-        control: "slider"
+        control: "slider",
+        enabledBy: { param: "mode", eq: 0 }
       }
     },
     thresholdR: {
