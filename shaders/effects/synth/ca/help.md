@@ -17,6 +17,5 @@ Classic 2D cellular automata simulation supporting various rule sets including C
 | speed | float | 10 | 1-100 | Speed |
 | resetState | boolean | false | - | State |
 | ruleIndex | int | classicLife | classicLife/highlife/seeds/coral/dayNight/lifeWithoutDeath/replicator/amoeba/maze/gliderWalk/diamoeba/size2x2/morley/anneal/size34Life/simpleReplicator/waffles/pondLife | Rules |
-| useCustom | boolean | false | - | Use custom |
 | weight | float | 0 | 0-100 | Input weight |
 | source | int | 0 | 0-7 | - |

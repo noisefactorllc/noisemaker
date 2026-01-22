@@ -19,7 +19,6 @@ export default new Effect({
       ruleIndex: { slot: 1, components: 'x' },
       speed: { slot: 1, components: 'y' },
       weight: { slot: 1, components: 'z' },
-      useCustom: { slot: 1, components: 'w' },
       bornMask0: { slot: 2, components: 'xyzw' },
       bornMask1: { slot: 3, components: 'xyzw' },
       bornMask2: { slot: 4, components: 'x' },
@@ -55,6 +54,35 @@ export default new Effect({
         label: "zoom",
         control: "dropdown"
       }
+    },
+    ruleIndex: {
+      type: "int",
+      default: 0,
+      choices: {
+        classicLife: 0,
+        highlife: 1,
+        seeds: 2,
+        coral: 3,
+        dayNight: 4,
+        lifeWithoutDeath: 5,
+        replicator: 6,
+        amoeba: 7,
+        maze: 8,
+        gliderWalk: 9,
+        diamoeba: 10,
+        size2x2: 11,
+        morley: 12,
+        anneal: 13,
+        size34Life: 14,
+        simpleReplicator: 15,
+        waffles: 16,
+        pondLife: 17
+      },
+      ui: {
+        label: "rules",
+        control: "dropdown"
+      },
+      uniform: "ruleIndex"
     },
     smoothing: {
       type: "int",
@@ -105,46 +133,6 @@ export default new Effect({
         buttonLabel: "reset",
         label: "state"
       }
-    },
-    ruleIndex: {
-      type: "int",
-      default: 0,
-      choices: {
-        classicLife: 0,
-        highlife: 1,
-        seeds: 2,
-        coral: 3,
-        dayNight: 4,
-        lifeWithoutDeath: 5,
-        replicator: 6,
-        amoeba: 7,
-        maze: 8,
-        gliderWalk: 9,
-        diamoeba: 10,
-        size2x2: 11,
-        morley: 12,
-        anneal: 13,
-        size34Life: 14,
-        simpleReplicator: 15,
-        waffles: 16,
-        pondLife: 17
-      },
-      ui: {
-        label: "rules",
-        control: "dropdown",
-        category: "rules"
-      },
-      uniform: "ruleIndex"
-    },
-    useCustom: {
-      type: "boolean",
-      default: false,
-      ui: {
-        label: "use custom",
-        control: "checkbox",
-        category: "rules"
-      },
-      uniform: "useCustom"
     },
     weight: {
       type: "float",
