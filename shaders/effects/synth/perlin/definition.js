@@ -13,6 +13,7 @@ export default new Effect({
         "default": 25,
         "min": 0,
         "max": 100,
+        "randMin": 15,
         "uniform": "scale"
     },
     "octaves": {
