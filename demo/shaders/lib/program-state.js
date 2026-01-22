@@ -1276,9 +1276,15 @@ export class ProgramState extends Emitter {
                 }
             }
 
-            // Override with preserved values (but not if they're defaults)
-            // Skip if DSL arg is an automation binding (oscillator, midi, audio)
+            // Override with preserved values ONLY for params NOT specified in DSL
+            // This preserves slider tweaks for params the user didn't change in DSL,
+            // but respects explicit values from pasted/edited DSL
             for (const [paramName, value] of Object.entries(preservedVals)) {
+                // Skip if DSL explicitly specifies this param (use DSL value instead)
+                if (effect.args && paramName in effect.args) {
+                    continue
+                }
+                
                 if (paramName.startsWith('_') || value !== undefined) {
                     // Don't overwrite automation bindings from DSL with preserved scalar values
                     const dslArg = effect.args?.[paramName]

@@ -2352,21 +2352,17 @@ render(o1)`
      */
     checkStructureAndApplyState(dsl) {
         if (!this._controlsContainer || !this._parsedDslStructure) {
-            console.log('[checkStructureAndApplyState] returning false: no container or no structure',
-                { hasContainer: !!this._controlsContainer, hasStructure: !!this._parsedDslStructure, structureLen: this._parsedDslStructure?.length })
             return false
         }
 
         // Use programState to check structure compatibility
         if (this._programState.wouldChangeStructure(dsl)) {
-            console.log('[checkStructureAndApplyState] returning false: structure would change')
             return false
         }
 
         // Check if automation bindings changed (scalar <-> oscillator/midi/audio)
         // If so, we need to rebuild controls to show "automatic" or sliders
         if (this._automationBindingsChanged(dsl)) {
-            console.log('[checkStructureAndApplyState] returning false: automation bindings changed')
             return false
         }
 
@@ -2376,7 +2372,60 @@ render(o1)`
 
         // Apply updated state to pipeline
         this._applyEffectParameterValues()
+
+        // Sync UI controls from the updated state
+        // This ensures controls reflect new DSL values for effects that existed before paste
+        this._syncControlValuesFromState()
+
         return true
+    }
+
+    /**
+     * Sync all UI control values from programState
+     * Called after DSL is parsed to update control displays without rebuilding
+     * @private
+     */
+    _syncControlValuesFromState() {
+        if (!this._controlsContainer || !this._parsedDslStructure) return
+
+        for (const effectInfo of this._parsedDslStructure) {
+            const stepIndex = effectInfo.stepIndex
+            const effectKey = `step_${stepIndex}`
+            const values = this._programState.getStepValues(effectKey) || {}
+
+            // Find the effect container
+            const effectDiv = this._controlsContainer.querySelector(
+                `.shader-effect[data-step-index="${stepIndex}"]`
+            )
+            if (!effectDiv) continue
+
+            // Update each control group with data-param-key
+            const controlGroups = effectDiv.querySelectorAll('.control-group[data-param-key]')
+            for (const controlGroup of controlGroups) {
+                const paramKey = controlGroup.dataset.paramKey
+                const value = values[paramKey]
+
+                if (value === undefined) continue
+
+                // Skip automation-controlled values (they show "automatic" badge)
+                if (value && typeof value === 'object' && (
+                    value._varRef ||
+                    value.type === 'Oscillator' || value._ast?.type === 'Oscillator' ||
+                    value.type === 'Midi' || value._ast?.type === 'Midi' ||
+                    value.type === 'Audio' || value._ast?.type === 'Audio'
+                )) {
+                    continue
+                }
+
+                // Use control handle if available (custom web components)
+                if (controlGroup._controlHandle?.setValue) {
+                    controlGroup._controlHandle.setValue(value)
+                }
+            }
+        }
+
+        // Update dependent controls' disabled state based on the new values
+        this._updateDependentControls()
     }
 
     /**
