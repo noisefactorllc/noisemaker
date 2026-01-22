@@ -951,6 +951,15 @@ export class Pipeline {
     }
 
     /**
+     * Sync the internal time reference to a specific value.
+     * Call this when pausing to ensure subsequent paused renders have deltaTime = 0.
+     * @param {number} time - The normalized time value to sync to
+     */
+    syncTime(time) {
+        this.lastTime = time
+    }
+
+    /**
      * Execute a single frame.
      * Skips rendering if compilation is in progress to avoid race conditions
      * where passes reference programs that haven't been compiled yet.

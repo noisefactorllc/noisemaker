@@ -629,6 +629,17 @@ export class CanvasRenderer {
     }
 
     /**
+     * Sync the pipeline's internal time reference.
+     * Call this when pausing to ensure subsequent paused renders have deltaTime = 0.
+     * @param {number} normalizedTime - The normalized time value (0-1) to sync to
+     */
+    syncTime(normalizedTime) {
+        if (this._pipeline) {
+            this._pipeline.syncTime(normalizedTime)
+        }
+    }
+
+    /**
      * Render a single frame at a specific time
      * @param {number} normalizedTime - Time value 0-1
      */

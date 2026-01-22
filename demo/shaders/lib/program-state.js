@@ -1163,7 +1163,7 @@ export class ProgramState extends Emitter {
                     ]
                 }
                 return spec.default || [0, 0, 0]
-                
+
             default:
                 return value
         }

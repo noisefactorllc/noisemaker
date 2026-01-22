@@ -298,6 +298,8 @@
                 // Capture the current normalized time when pausing
                 const elapsedSeconds = (performance.now() - renderer._loopStartTime) / 1000;
                 pausedNormalizedTime = (elapsedSeconds % renderer._loopDuration) / renderer._loopDuration;
+                // Sync pipeline time so subsequent renders have deltaTime = 0
+                renderer.syncTime(pausedNormalizedTime);
             } else if (!paused && isPaused) {
                 // When resuming, adjust loopStartTime so time continues from where we paused
                 const now = performance.now();
@@ -361,7 +363,10 @@
         // Expose pause/play controls for test harness
         window.__noisemakerSetPaused = (paused) => setPaused(paused);
         window.__noisemakerIsPaused = () => isPaused;
-        window.__noisemakerSetPausedTime = (t) => { pausedNormalizedTime = t; };
+        window.__noisemakerSetPausedTime = (t) => { 
+            pausedNormalizedTime = t; 
+            renderer.syncTime(t);  // Sync pipeline time so deltaTime = 0
+        };
         window.__noisemakerGetCanvas = () => renderer.canvas;
 
         // Sync frame count from renderer
