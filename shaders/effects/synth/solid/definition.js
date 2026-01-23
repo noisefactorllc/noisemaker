@@ -8,34 +8,26 @@ export default new Effect({
 
   description: "Solid color fill",
   globals: {
-    "r": {
-        "type": "float",
-        "default": 0.5,
-        "min": 0,
-        "max": 1,
-        "uniform": "r"
+    "color": {
+        "type": "color",
+        "default": [0.5, 0.5, 0.5],
+        "uniform": "color",
+        "ui": {
+            "label": "Color",
+            "control": "color"
+        }
     },
-    "g": {
-        "type": "float",
-        "default": 0.5,
-        "min": 0,
-        "max": 1,
-        "uniform": "g"
-    },
-    "b": {
-        "type": "float",
-        "default": 0.5,
-        "min": 0,
-        "max": 1,
-        "uniform": "b"
-    },
-    "a": {
+    "alpha": {
         "type": "float",
         "default": 1.0,
         "min": 0,
         "max": 1,
         "randMin": 0.5,
-        "uniform": "a"
+        "uniform": "alpha",
+        "ui": {
+            "label": "Opacity",
+            "control": "slider"
+        }
     }
 },
   passes: [
