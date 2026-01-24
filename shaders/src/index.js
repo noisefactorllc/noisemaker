@@ -9,6 +9,8 @@
 export { lex, parse, validate, compile, unparse, applyParameterUpdates, formatValue, unparseCall, replaceEffect, listSteps, getCompatibleReplacements } from './lang/index.js'
 export { registerOp } from './lang/ops.js'
 export { registerStarterOps, registerValidatorHook } from './lang/validator.js'
+export { mergeIntoEnums } from './lang/enums.js'
+export { default as stdEnums } from './lang/enums.js'
 
 // Runtime Core
 import { Effect, groupGlobalsByCategory, getUniformCategory, getCategories, DEFAULT_CATEGORY } from './runtime/effect.js'
