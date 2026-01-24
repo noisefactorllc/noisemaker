@@ -186,7 +186,7 @@ shaders/effects/nm/erosion_worms/
 │   ├── agent.wgsl
 │   ├── deposit.wgsl
 │   └── ...
-└── README.md              # Effect documentation (optional)
+└── help.md              # Effect documentation
 ```
 
 All shaders are stored as separate files in `glsl/` and `wgsl/` subdirectories. One shader per file.

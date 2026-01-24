@@ -144,5 +144,6 @@ When working on shaders, you have access to MCP tools for testing effects:
 2. Call `render_effect_frame` to check it produces non-monochrome output
 3. If debugging visual issues, use `describe_effect_frame` for AI analysis
 4. For performance-sensitive effects, use `benchmark_effect_fps`
+5. If necessary, update the effect's documentation in its help.md
 
 See `shaders/mcp/README.md` for full documentation.
