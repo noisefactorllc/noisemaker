@@ -26,7 +26,7 @@ scales and blend modes to produce complex moiré and interference patterns.
 | shape3 | int | 2 | 0-2 | Shape type: plus (0), square (1), diamond (2) |
 | scale3 | float | 3.0 | 0.1-20 | Scale/frequency of the third layer |
 | repeat3 | float | 1.5 | 0-5 | Repetition multiplier for interference patterns |
-| blend3 | int | 0 | 0-2 | Blend mode: add (0), max (1), mix (2) |
+| blend3 | int | 0 | 0-3 | Blend mode: add (0), max (1), mix (2), rgb (3) |
 | speed | int | 1 | 0-5 | Animation speed multiplier |
 
 ## Usage
