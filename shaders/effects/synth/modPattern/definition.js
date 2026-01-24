@@ -41,11 +41,11 @@ export default new Effect({
 		},
 		scale1: {
 			type: "float",
-			default: 4.0,
+			default: 18.0,
 			min: 0.1,
 			max: 20,
-			randMin: 2.0,
-			randMax: 10.0,
+			randMin: 10.0,
+			randMax: 18.0,
 			uniform: "scale1",
 			ui: {
 				category: "layer 1",
@@ -53,7 +53,7 @@ export default new Effect({
 		},
 		repeat1: {
 			type: "float",
-			default: 15.0,
+			default: 5.0,
 			min: 0,
 			max: 20,
 			randMin: 3.0,
@@ -79,10 +79,10 @@ export default new Effect({
 		},
 		scale2: {
 			type: "float",
-			default: 3.0,
+			default: 8.0,
 			min: 0.1,
 			max: 10,
-			randMax: 5.0,
+			randMin: 5.0,
 			uniform: "scale2",
 			ui: {
 				category: "layer 2",
@@ -116,7 +116,7 @@ export default new Effect({
 		},
 		scale3: {
 			type: "float",
-			default: 3.0,
+			default: 1.5,
 			min: 0.1,
 			max: 20,
 			randMax: 6.0,
@@ -140,11 +140,12 @@ export default new Effect({
 			type: "int",
 			default: 0,
 			min: 0,
-			max: 2,
+			max: 3,
 			choices: {
 				add: 0,
 				max: 1,
-				mix: 2
+				mix: 2,
+				rgb: 3
 			},
 			uniform: "blend3",
 			ui: {

@@ -17,13 +17,17 @@ uniform float speed;
 
 out vec4 fragColor;
 
+// Generate a geometric shape from the given coordinates 
 float shape(int shapeIndex, vec2 p) {
 	float v;
 	if (shapeIndex < 1) {
+		// plus
 		v = max(p.x, p.y);
 	} else if (shapeIndex < 2) {
+		// square
 		v = min(p.x, p.y);
 	} else {
+		// diamond
 		v = abs(p.x - p.y);
 	}
 	return v;
@@ -37,42 +41,46 @@ void main() {
 	pingpong *= speed;
 
 	// Create repeating cells with hard edges
-	// mod(uv * scale1, 2.0) creates repeating cells from 0 to 2
+	// mod(uv * scale, 2.0) creates repeating cells from 0 to 2
 	// Subtracting 1.0 centers them from -1 to 1
 	// abs() folds them, so you get a pattern that goes 0->1->0->1 with sharp peaks
-	vec2 p = abs(mod(uv * scale1, 2.0) - 1.0);
+	float s1 = 20.1 - scale1; // Map scale so larger number = lower frequency
+	vec2 p = abs(mod(uv * s1, 2.0) - 1.0);
 	
-	// Take the maximum of x and y at each point. Geometrically, this creates 
-	// diamond/square shapes because you're getting the "outer" coordinate
+	// Generate a shape/pattern for the repeated coordinates
 	float n1 = shape(shape1, p);
 
-	// Repeat the same fold operation but at scale2 frequency, and takes the min instead. 
-	// This creates a finer pattern with inverse geometry (taking the "inner" coordinate 
-	// creates different shapes).
-	p = abs(mod(p * scale2, 2.0) - 1.0);
+	// Repeat the same fold operation but at a different frequency, and generate another shape
+	float s2 = 10.1 - scale2; // Map scale so larger number = lower frequency
+	p = abs(mod(p * s2, 2.0) - 1.0);
 	float n2 = shape(shape2, p);
 
 	// Multiply each pattern by different amounts (like 3 and 5) and add them together. 
-	// The fract() wraps values back to 0-1, creating interference patterns. Using 
-	// different multipliers (like 3 and 5) creates interesting beats and moiré effects.
+	// The fract() wraps values back to 0-1, creating interference patterns
 	float val = fract(n1 * repeat1 + n2 * repeat2);
 	
-	// Repeat again with scale3 frequency. Taking abs(p.x - p.y) creates diagonal patterns
-	p = abs(mod(p * scale3, 2.0) - 1.0);
+	// Repeat again with scale3 frequency, modifying the coordinates and creating another 
+	// shape/pattern
+	float s3 = 6.1 - scale3; // Map scale so larger number = lower frequency
+	p = abs(mod(p * s3, 2.0) - 1.0);
 	float n3 = shape(shape3, p);
 
-	// Multiply the last pattern times another scale and add to the previous value. 
+	// Multiply the last pattern times another scale and combine with the previous values.
 	// Add pingpong time to animate in a smooth loop
+	vec3 color;
 	if (blend3 < 1) {
 		// add
-		val = fract(val + n3 * repeat3 + pingpong);
+		color = vec3(fract(val + n3 * repeat3 + pingpong));
 	} else if (blend3 < 2) {
 		// max
-		val = max(val, fract(n3 * repeat3 + pingpong));
-	} else { 
+		color = vec3(max(val, fract(n3 * repeat3 + pingpong)));
+	} else if (blend3 < 3) { 
 		// mix
-		val = mix(val, fract(n3 * repeat3 + pingpong), 0.5);
+		color = vec3(mix(val, fract(n3 * repeat3 + pingpong), 0.5));
+	} else {
+		// rgb
+		color = fract(vec3(n1 * repeat1, n2 * repeat2, n3 * repeat3 + pingpong));
 	}
 
-	fragColor = vec4(vec3(val), 1.0);
+	fragColor = vec4(color, 1.0);
 }
