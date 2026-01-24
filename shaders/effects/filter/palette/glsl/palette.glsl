@@ -480,6 +480,8 @@ vec3 linear2srgb(vec3 linear) {
 
 // Combined OkLab to sRGB
 vec3 oklab2rgb(vec3 lab) {
+    lab.g = lab.g * -0.509 + 0.276;
+    lab.b = lab.b * -0.509 + 0.198;
     vec3 linear_rgb = oklab2linear(lab);
     return clamp(linear2srgb(linear_rgb), 0.0, 1.0);
 }
@@ -518,7 +520,7 @@ void main() {
     PaletteEntry entry = PALETTES[paletteIndex - 1];
 
     // Extract mode from amp.w
-    int mode = int(entry.amp.w + 0.5);
+    int mode = int(entry.amp.w);
 
     // Apply cosine palette
     vec3 paletteColor = cosinePalette(t, entry.amp.xyz, entry.freq.xyz, entry.offset.xyz, entry.phase.xyz);

@@ -203,7 +203,10 @@ fn linear_to_srgb(linear: vec3f) -> vec3f {
 
 // Combined OkLab to sRGB
 fn oklab_to_rgb(lab: vec3f) -> vec3f {
-    let linear_rgb = oklab_to_linear_rgb(lab);
+    var labMod = lab;
+    labMod.g = labMod.g * -0.509 + 0.276;
+    labMod.b = labMod.b * -0.509 + 0.198;
+    let linear_rgb = oklab_to_linear_rgb(labMod);
     return clamp(linear_to_srgb(linear_rgb), vec3f(0.0), vec3f(1.0));
 }
 
