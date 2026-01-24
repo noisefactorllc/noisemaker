@@ -633,27 +633,40 @@ body.full-bleed-mode #canvas {
   background: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
 }
 
+#status,
 .status {
   position: fixed;
   bottom: 16px;
   right: 16px;
   background: #1a1a1a;
-  border: 1px solid #333;
+  border: 1px solid color-mix(in srgb, var(--color5, #888) 50%, transparent 50%);
   padding: 8px 12px;
   font-size: 10px;
-  color: #666;
+  color: var(--color5, #888);
   max-width: 300px;
   z-index: 1000;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color5, #888) 25%, transparent 75%);
 }
 
+#status.info,
+.status.info {
+  color: var(--color5, #888);
+  border-color: color-mix(in srgb, var(--color5, #888) 50%, transparent 50%);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color5, #888) 25%, transparent 75%);
+}
+
+#status.error,
 .status.error {
-  color: #d44;
-  border-color: #d44;
+  color: var(--red, #d44);
+  border-color: var(--red, #d44);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--red, #d44) 50%, transparent 50%);
 }
 
+#status.success,
 .status.success {
-  color: #4d4;
-  border-color: #4d4;
+  color: var(--green, #4d4);
+  border-color: var(--green, #4d4);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--green, #4d4) 50%, transparent 50%);
 }
 
 .loading {

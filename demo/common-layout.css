@@ -424,10 +424,34 @@ body.two-column-layout.js-demo-layout .code-content pre {
   padding: 12px 16px;
   border-radius: var(--ui-corner-radius-small);
   background: color-mix(in srgb, var(--color1) 88%, transparent 12%);
-  border: 1px solid color-mix(in srgb, var(--red) 35%, transparent 65%);
-  color: color-mix(in srgb, var(--red) 35%, var(--color6) 65%);
+  border: 1px solid color-mix(in srgb, var(--color5) 35%, transparent 65%);
+  color: color-mix(in srgb, var(--color5) 50%, var(--color6) 50%);
   white-space: pre-wrap;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color5) 15%, transparent 85%);
+}
+
+#status.info,
+.status-banner.info,
+.status.info {
+  border-color: color-mix(in srgb, var(--color5) 35%, transparent 65%);
+  color: color-mix(in srgb, var(--color5) 50%, var(--color6) 50%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color5) 15%, transparent 85%);
+}
+
+#status.error,
+.status-banner.error,
+.status.error {
+  border-color: color-mix(in srgb, var(--red) 35%, transparent 65%);
+  color: color-mix(in srgb, var(--red) 35%, var(--color6) 65%);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 15%, transparent 85%);
+}
+
+#status.success,
+.status-banner.success,
+.status.success {
+  border-color: color-mix(in srgb, var(--green) 35%, transparent 65%);
+  color: color-mix(in srgb, var(--green) 35%, var(--color6) 65%);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 15%, transparent 85%);
 }
 
 #status:empty,
