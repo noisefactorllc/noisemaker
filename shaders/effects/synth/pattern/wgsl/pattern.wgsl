@@ -130,8 +130,8 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let rad = rotation * PI / 180.0;
     st = rotate2D(st, rad);
     
-    // Apply scale
-    let p = st * scale;
+    // Apply scale, mapping so lower scale = higher frequency
+    let p = st * (21.0 - scale);
     
     // Compute pattern value
     var m: f32 = 0.0;

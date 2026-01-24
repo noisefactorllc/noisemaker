@@ -123,8 +123,8 @@ void main() {
     float rad = rotation * PI / 180.0;
     st = rotate2D(st, rad);
     
-    // Apply scale
-    vec2 p = st * scale;
+    // Apply scale, mapping so lower scale = higher frequency
+    vec2 p = st * (21.0 - scale);
     
     // Compute pattern value
     float m = 0.0;

@@ -27,7 +27,7 @@ export default new Effect({
     },
     "scale": {
       "type": "float",
-      "default": 5.0,
+      "default": 15.0,
       "min": 1.0,
       "max": 20.0,
       "uniform": "scale",
