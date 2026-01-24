@@ -10,6 +10,7 @@ Ordered dithering with classic patterns and retro color palettes
 | threshold | float | 0 | -0.5 to 0.5 | Threshold bias/offset for dither pattern |
 | pattern scale | float | 1 | 1-8 | Scale of the dither pattern on screen |
 | palette | choice | monochrome | input 1-bit, input 2-bit, monochrome, dot matrix green, amber monitor, pico8, commodore 64, CGA palette 1, zx spectrum, apple II, EGA | Color palette for quantization |
+| mix | float | 1 | 0-1 | Blend between original input (0) and dithered output (1) |
 
 ## Dither Types
 

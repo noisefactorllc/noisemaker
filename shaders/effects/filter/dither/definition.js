@@ -30,6 +30,17 @@ export default new Effect({
         control: "dropdown"
       }
     },
+    matrixScale: {
+      type: "int",
+      default: 2,
+      uniform: "matrixScale",
+      min: 1,
+      max: 8,
+      ui: {
+        label: "pattern scale",
+        control: "slider"
+      }
+    },
     threshold: {
       type: "float",
       default: 0.0,
@@ -39,17 +50,6 @@ export default new Effect({
       step: 0.01,
       ui: {
         label: "threshold",
-        control: "slider"
-      }
-    },
-    matrixScale: {
-      type: "int",
-      default: 2,
-      uniform: "matrixScale",
-      min: 1,
-      max: 8,
-      ui: {
-        label: "pattern scale",
         control: "slider"
       }
     },
@@ -73,6 +73,18 @@ export default new Effect({
       ui: {
         label: "palette",
         control: "dropdown"
+      }
+    },
+    mix: {
+      type: "float",
+      default: 1.0,
+      uniform: "mixAmount",
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      ui: {
+        label: "mix",
+        control: "slider"
       }
     }
   },
