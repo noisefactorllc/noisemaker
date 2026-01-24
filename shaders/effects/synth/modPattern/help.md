@@ -1,7 +1,5 @@
 # modPattern
 
-Fun with modulo operations to create interesting geometric patterns.
-
 This effect creates layered geometric patterns using modulo folding operations.
 Three layers of shapes (plus, square, diamond) are combined with configurable
 scales and blend modes to produce complex moiré and interference patterns.
