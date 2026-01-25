@@ -6,28 +6,27 @@ export default new Effect({
   func: "tint",
   tags: ["color"],
 
-  description: "Colorize input texture by RGB value",
+  description: "Colorize input texture with a color overlay",
   globals: {
-    "r": {
-        "type": "float",
-        "default": 1,
-        "min": 0,
-        "max": 1,
-        "uniform": "r"
+    "color": {
+        "type": "color",
+        "default": [1.0, 1.0, 1.0],
+        "uniform": "color",
+        "ui": {
+            "label": "Color",
+            "control": "color"
+        }
     },
-    "g": {
+    "alpha": {
         "type": "float",
-        "default": 1,
+        "default": 0.5,
         "min": 0,
         "max": 1,
-        "uniform": "g"
-    },
-    "b": {
-        "type": "float",
-        "default": 1,
-        "min": 0,
-        "max": 1,
-        "uniform": "b"
+        "uniform": "alpha",
+        "ui": {
+            "label": "Opacity",
+            "control": "slider"
+        }
     }
   },
   passes: [

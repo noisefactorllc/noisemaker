@@ -1,18 +1,17 @@
 #version 300 es
 precision highp float;
 
-uniform float r;
-uniform float g;
-uniform float b;
+uniform vec3 color;
+uniform float alpha;
 uniform sampler2D inputTex;
 
 out vec4 fragColor;
 
-/* Applies RGB tint or produces a solid color when no texture supplied. */
+/* Applies color tint to input texture with adjustable opacity. */
 void main(){
   vec2 st = gl_FragCoord.xy / vec2(max(textureSize(inputTex,0), ivec2(1)));
   vec4 base = texture(inputTex, st);
-  vec3 tint = vec3(r, g, b);
-  vec3 rgb = mix(tint, base.rgb * tint, step(0.001, base.a));
-  fragColor = vec4(rgb, 1.0);
+  vec3 tinted = base.rgb * color;
+  vec3 rgb = mix(base.rgb, tinted, alpha);
+  fragColor = vec4(rgb, base.a);
 }

@@ -1,11 +1,10 @@
 # tint
 
-Colorize input texture by RGB value
+Colorize input texture with a color overlay
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| r | float | 1 | 0-1 | - |
-| g | float | 1 | 0-1 | - |
-| b | float | 1 | 0-1 | - |
+| color | color | [1, 1, 1] | - | Tint color to apply to the input |
+| alpha | float | 0.5 | 0-1 | Opacity of the tint effect (0 = no tint, 1 = full tint) |
