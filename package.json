@@ -10,6 +10,7 @@
     "noisemaker-js": "./js/bin/noisemaker-js"
   },
   "scripts": {
+    "dev": "http-server -p 8001",
     "test": "node scripts/run-js-tests.js",
     "test:non-parity": "node scripts/run-js-tests.js --skip-parity",
     "build": "node scripts/build.js",
@@ -36,6 +37,7 @@
     "esbuild": "^0.25.0",
     "eslint": "^9.0.0",
     "globals": "^16.0.0",
+    "http-server": "^14.1.1",
     "jpeg-js": "^0.4.4",
     "jsdom": "^27.3.0",
     "pngjs": "^7.0.0",
