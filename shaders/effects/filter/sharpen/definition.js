@@ -8,7 +8,7 @@ export default new Effect({
   name: "Sharpen",
   namespace: "filter",
   func: "sharpen",
-  tags: ["util"],
+  tags: ["edges"],
 
   description: "Sharpen using convolution",
   globals: {

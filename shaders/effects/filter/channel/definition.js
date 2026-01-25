@@ -4,7 +4,7 @@ export default new Effect({
   name: "Channel",
   namespace: "filter",
   func: "channel",
-  tags: ["util"],
+  tags: ["color", "util"],
 
   description: "Channel isolation (r, g, b, or a)",
   globals: {

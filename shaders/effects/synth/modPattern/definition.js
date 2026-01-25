@@ -5,7 +5,7 @@ export default new Effect({
 	namespace: "synth",
 	func: "modPattern",
 	description: "Interference patterns from modulo operations",
-	tags: ["geometric", "pattern", "tiling"],
+	tags: ["geometric", "pattern"],
 
 	uniformLayout: {
 		resolution: { slot: 0, components: "xy" },

@@ -8,7 +8,7 @@ export default new Effect({
   name: "HS",
   namespace: "filter",
   func: "hs",
-  tags: ["color", "util"],
+  tags: ["color"],
 
   description: "Adjust hue and/or saturation",
   globals: {

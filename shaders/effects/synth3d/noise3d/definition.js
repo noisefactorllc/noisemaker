@@ -17,7 +17,7 @@ export default new Effect({
   name: "Noise3D",
   namespace: "synth3d",
   func: "noise3d",
-  tags: ["noise", "3d"],
+  tags: ["3d", "noise"],
 
   description: "3D simplex noise volume",
   textures: {

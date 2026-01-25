@@ -17,7 +17,7 @@ export default new Effect({
   name: "Cell3D",
   namespace: "synth3d",
   func: "cell3d",
-  tags: ["noise", "3d"],
+  tags: ["3d", "noise"],
 
   description: "3D cellular/Voronoi noise volume",
   textures: {

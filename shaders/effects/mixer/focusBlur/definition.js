@@ -4,7 +4,7 @@ export default new Effect({
   name: "Focus Blur",
   namespace: "mixer",
   func: "focusBlur",
-  tags: ["blur", "util"],
+  tags: ["blend", "blur"],
 
   description: "Focus blur using luminance depth map",
   globals: {

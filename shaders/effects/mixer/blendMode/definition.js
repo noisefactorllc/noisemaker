@@ -4,7 +4,7 @@ export default new Effect({
   name: "BlendMode",
   namespace: "mixer",
   func: "blendMode",
-  tags: [],
+  tags: ["color"],
 
   description: "Blend two inputs using selectable blend mode",
   globals: {

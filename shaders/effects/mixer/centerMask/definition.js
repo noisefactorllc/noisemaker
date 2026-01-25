@@ -4,7 +4,7 @@ export default new Effect({
   name: "CenterMask",
   namespace: "mixer",
   func: "centerMask",
-  tags: ["util"],
+  tags: ["blend"],
 
   description: "Blend from edges (A) into center (B) using a distance mask",
   globals: {

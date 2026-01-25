@@ -4,7 +4,7 @@ export default new Effect({
   name: "Curl",
   namespace: "synth",
   func: "curl",
-  tags: ["noise", "flow"],
+  tags: ["noise"],
 
   description: "3D curl noise using simplex noise",
   uniformLayout: {

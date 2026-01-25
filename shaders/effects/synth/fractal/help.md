@@ -1,6 +1,6 @@
 # fractal
 
-Escape-time fractal explorer with multiple types and smooth coloring
+Fractal explorer with multiple types and smooth coloring
 
 ## Parameters
 

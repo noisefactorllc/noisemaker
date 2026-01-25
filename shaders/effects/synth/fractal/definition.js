@@ -18,9 +18,9 @@ export default new Effect({
   name: "Fractal",
   namespace: "synth",
   func: "fractal",
-  tags: ["geometric", "math"],
+  tags: ["geometric"],
 
-  description: "Escape-time fractal explorer with multiple types and smooth coloring",
+  description: "Fractal explorer with multiple types and smooth coloring",
   uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },

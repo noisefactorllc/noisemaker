@@ -14,7 +14,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "RenderLit3D",
   namespace: "render",
-  tags: ["util", "3d"],
+  tags: ["3d"],
   func: "renderLit3d",
 
   description: "Universal 3D volume raymarcher with advanced lighting",

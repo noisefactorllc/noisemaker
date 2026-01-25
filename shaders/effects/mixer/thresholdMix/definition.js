@@ -4,9 +4,9 @@ export default new Effect({
   name: "ThresholdMix",
   namespace: "mixer",
   func: "thresholdMix",
-  tags: ["blend", "threshold", "posterize"],
+  tags: ["blend"],
 
-  description: "Combine two inputs using threshold masking with optional posterization",
+  description: "Blend using threshold masking",
   globals: {
     tex: {
       type: "surface",

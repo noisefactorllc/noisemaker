@@ -8,7 +8,7 @@ export default new Effect({
   name: "BC",
   namespace: "filter",
   func: "bc",
-  tags: ["color", "util"],
+  tags: ["color"],
 
   description: "Adjust brightness and/or contrast",
   globals: {

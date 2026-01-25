@@ -4,7 +4,7 @@ export default new Effect({
   name: "Gradient",
   namespace: "synth",
   func: "gradient",
-  tags: ["color", "util"],
+  tags: ["color"],
 
   description: "Multi-color gradient generator with various styles",
   globals: {

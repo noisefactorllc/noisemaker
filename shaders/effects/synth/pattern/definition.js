@@ -4,9 +4,9 @@ export default new Effect({
   name: "Pattern",
   namespace: "synth",
   func: "pattern",
-  tags: ["geometric", "pattern", "tiling"],
+  tags: ["geometric", "pattern"],
 
-  description: "Geometric pattern generator with multiple tiling options",
+  description: "Geometric pattern generator",
   globals: {
     "patternType": {
       "type": "int",

@@ -14,7 +14,7 @@ export default new Effect({
   name: "Ca3D",
   namespace: "synth3d",
   func: "ca3d",
-  tags: ["3d"],
+  tags: ["3d", "sim"],
 
   description: "3D cellular automata simulation",
   textures: {

@@ -4,7 +4,7 @@ export default new Effect({
   name: "Distortion",
   namespace: "mixer",
   func: "distortion",
-  tags: ["distort", "transform"],
+  tags: ["blend","distort"],
 
   description: "Displace, reflect, and refract with two surfaces",
   globals: {

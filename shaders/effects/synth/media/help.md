@@ -1,6 +1,6 @@
 # media
 
-Video/camera input with transforms
+Video/camera/image input
 
 ## Description
 

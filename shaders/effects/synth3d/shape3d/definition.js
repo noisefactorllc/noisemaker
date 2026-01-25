@@ -17,7 +17,7 @@ export default new Effect({
   name: "Shape3D",
   namespace: "synth3d",
   func: "shape3d",
-  tags: ["geometric", "3d"],
+  tags: ["3d", "geometric"],
 
   description: "3D polyhedral shape generator",
   textures: {

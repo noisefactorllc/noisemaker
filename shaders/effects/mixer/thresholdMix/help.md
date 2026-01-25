@@ -1,6 +1,6 @@
 # thresholdMix
 
-Combine two inputs using threshold masking with optional posterization
+Blend using threshold masking
 
 ## Description
 

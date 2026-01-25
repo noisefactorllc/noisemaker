@@ -4,7 +4,7 @@ export default new Effect({
   name: "Alpha Mask",
   namespace: "mixer",
   func: "alphaMask",
-  tags: ["util"],
+  tags: ["blend"],
 
   description: "Alpha transparency blend",
   globals: {

@@ -8,7 +8,7 @@ export default new Effect({
   name: "ZoomBlur",
   namespace: "filter",
   func: "zoomBlur",
-  tags: [],
+  tags: ["blur"],
 
   description: "Radial blur emanating from center",
   globals: {

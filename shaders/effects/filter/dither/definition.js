@@ -8,7 +8,7 @@ export default new Effect({
   name: "Dither",
   namespace: "filter",
   func: "dither",
-  tags: ["color", "retro", "quantize"],
+  tags: ["color", "pixel"],
 
   description: "Ordered dithering with classic patterns and palettes",
   globals: {

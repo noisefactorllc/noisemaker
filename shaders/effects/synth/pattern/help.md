@@ -1,16 +1,16 @@
 # pattern
 
-Geometric pattern generator with multiple tiling options
+Geometric pattern generator
 
 ## Description
 
-Generates various geometric patterns including stripes, checkerboard, grid, dots, hexagons, triangles, diamonds, brick, and herringbone. Useful for creating backgrounds, textures, and masks with clean geometric shapes.
+Generates various geometric patterns including stripes, checkerboard, grid, dots, hexagons, triangles, diamonds. Useful for creating backgrounds, textures, and masks with clean geometric shapes.
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| patternType | int | 0 | 0-8 | Pattern Type (0=Stripes, 1=Checkerboard, 2=Grid, 3=Dots, 4=Hexagons, 5=Triangles, 6=Diamonds, 7=Brick, 8=Herringbone) |
+| patternType | int | 0 | 0-5 | Pattern Type (0=Stripes, 1=Checkerboard, 2=Grid, 3=Dots, 4=Hexagons, 5=Diamonds) |
 | scale | float | 5 | 1-20 | Scale/size of pattern elements |
 | thickness | float | 0.5 | 0-1 | Line thickness for line-based patterns |
 | smoothness | float | 0.02 | 0-1 | Edge hardness (0=sharp, 1=very soft) |
@@ -27,10 +27,7 @@ Generates various geometric patterns including stripes, checkerboard, grid, dots
 - **Grid (2)**: Intersecting lines forming a grid
 - **Dots (3)**: Regular grid of circles
 - **Hexagons (4)**: Honeycomb hexagonal tiling
-- **Triangles (5)**: Equilateral triangle tessellation
-- **Diamonds (6)**: Rotated square / diamond pattern
-- **Brick (7)**: Offset rows like brickwork
-- **Herringbone (8)**: Angled brick pattern in alternating directions
+- **Diamonds (5)**: Rotated square / diamond pattern
 
 ## Usage
 

@@ -13,6 +13,7 @@ export default class Text extends Effect {
     namespace = "filter"
     func = "text"
     description = "Overlay text onto the image"
+    tags = ["text"]
 
     // This tells the UI to create a hidden canvas and bind it to 'textTex'
     externalTexture = "textTex"
