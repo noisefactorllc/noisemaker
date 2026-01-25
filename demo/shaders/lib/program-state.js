@@ -1284,7 +1284,7 @@ export class ProgramState extends Emitter {
                 if (effect.args && paramName in effect.args) {
                     continue
                 }
-                
+
                 if (paramName.startsWith('_') || value !== undefined) {
                     // Don't overwrite automation bindings from DSL with preserved scalar values
                     const dslArg = effect.args?.[paramName]
