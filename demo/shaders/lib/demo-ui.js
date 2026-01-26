@@ -167,6 +167,18 @@ export function extractEffectNamesFromDsl(dsl, manifest) {
         }
     }
 
+    // Also detect from(namespace, effect(...)) expressions
+    const fromPattern = /\bfrom\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*,\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g
+    let fromMatch
+    while ((fromMatch = fromPattern.exec(dsl)) !== null) {
+        const namespace = fromMatch[1]
+        const name = fromMatch[2]
+        const effectId = `${namespace}/${name}`
+        if (!effects.find(e => e.effectId === effectId)) {
+            effects.push({ effectId, namespace, name })
+        }
+    }
+
     return effects
 }
 
