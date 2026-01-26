@@ -127,14 +127,24 @@ export async function compileEffect(page, effectId, options = {}) {
 
         // Wait for effect to be loaded and at least one frame rendered
         // This ensures the pipeline has fully processed the new effect
+        // Handle the case where frame count resets to 0 during recompile
         const effectStart = Date.now()
         let initialFrame = window.__noisemakerFrameCount || 0
+        let frameAfterReset = -1  // Track frame count after a reset
         while (Date.now() - effectStart < timeout) {
             const pipeline = window.__noisemakerRenderingPipeline
             const currentFrame = window.__noisemakerFrameCount || 0
+
+            // Detect frame count reset (recompile happened)
+            if (currentFrame < initialFrame && frameAfterReset === -1) {
+                frameAfterReset = currentFrame
+            }
+
             // Effect is ready when: pipeline exists, has graph, and at least 1 frame rendered
+            // Use post-reset baseline if frame count was reset
+            const baseline = frameAfterReset >= 0 ? frameAfterReset : initialFrame
             if (pipeline && pipeline.graph && pipeline.graph.passes &&
-                pipeline.graph.passes.length > 0 && currentFrame > initialFrame) {
+                pipeline.graph.passes.length > 0 && currentFrame > baseline) {
                 break
             }
             await new Promise(r => setTimeout(r, 10))
@@ -355,6 +365,7 @@ export async function renderEffectFrame(page, effectId, options = {}) {
     // Clear any stale baseline before starting
     await page.evaluate(() => {
         delete window.__noisemakerTestBaselineFrame
+        delete window.__noisemakerTestResetDetected
     })
 
     try {
@@ -362,10 +373,19 @@ export async function renderEffectFrame(page, effectId, options = {}) {
             const pipeline = window.__noisemakerRenderingPipeline
             if (!pipeline) return false
             const frameCount = window.__noisemakerFrameCount || 0
+
             // Store baseline if not set
             if (window.__noisemakerTestBaselineFrame === undefined) {
                 window.__noisemakerTestBaselineFrame = frameCount
             }
+
+            // Detect frame count reset (happens on recompile)
+            // If current frame is less than baseline, a recompile happened
+            if (frameCount < window.__noisemakerTestBaselineFrame && !window.__noisemakerTestResetDetected) {
+                window.__noisemakerTestResetDetected = true
+                window.__noisemakerTestBaselineFrame = frameCount  // Re-baseline from the reset point
+            }
+
             return frameCount >= window.__noisemakerTestBaselineFrame + warmupFrames
         }, { warmupFrames }, { timeout: FRAME_WAIT_TIMEOUT })
     } catch (err) {
@@ -882,6 +902,30 @@ export async function runDslProgram(page, dsl, options = {}) {
             is_monochrome: sampledColors.size <= 1
         }
 
+        // Capture image as base64 data URI for vision analysis
+        let imageUri = null
+        try {
+            const tempCanvas = document.createElement('canvas')
+            tempCanvas.width = width
+            tempCanvas.height = height
+            const ctx = tempCanvas.getContext('2d')
+            const imageData = ctx.createImageData(width, height)
+
+            // Copy data, flipping vertically (GPU textures have origin at bottom-left)
+            for (let y = 0; y < height; y++) {
+                const srcRow = (height - 1 - y) * width * 4
+                const dstRow = y * width * 4
+                for (let x = 0; x < width * 4; x++) {
+                    imageData.data[dstRow + x] = data[srcRow + x]
+                }
+            }
+
+            ctx.putImageData(imageData, 0, 0)
+            imageUri = tempCanvas.toDataURL('image/png')
+        } catch (e) {
+            console.warn('[runDslProgram] Image capture failed:', e.message)
+        }
+
         // Get pass info
         const passes = (pipeline?.graph?.passes || []).map(pass => ({
             id: pass.id || pass.program,
@@ -894,7 +938,8 @@ export async function runDslProgram(page, dsl, options = {}) {
             height,
             metrics,
             backendName,
-            passes
+            passes,
+            imageUri
         }
     }, { dsl, targetBackend, warmupFrames, uniforms: options.uniforms, timeout: STATUS_TIMEOUT })
 
@@ -908,16 +953,99 @@ export async function runDslProgram(page, dsl, options = {}) {
         }
     }
 
-    return {
+    const baseResult = {
         status: result.status,
         backend: result.backendName,
         frame: {
             width: result.width,
-            height: result.height
+            height: result.height,
+            image_uri: result.imageUri
         },
         metrics: result.metrics,
         passes: result.passes
     }
+
+    // If vision prompt provided and we have an image, analyze it
+    if (options.prompt && result.imageUri) {
+        const apiKey = options.apiKey || getOpenAIApiKey()
+        if (!apiKey) {
+            return {
+                ...baseResult,
+                vision: null,
+                vision_error: 'No OpenAI API key found. Create .openai file in project root.'
+            }
+        }
+
+        const model = options.model || 'gpt-4o'
+        const systemPrompt = `You are an expert at analyzing procedural graphics and shader effects.
+Analyze the provided image and respond with a JSON object containing:
+- description: A detailed description of what you see (2-3 sentences)
+- tags: An array of relevant tags (e.g., "noise", "colorful", "abstract", "pattern", "gradient", "3d", "mesh", etc.)
+- notes: Any additional observations about the quality, artifacts, or issues (optional)
+
+User prompt: ${options.prompt}`
+
+        try {
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model,
+                    messages: [
+                        {
+                            role: 'user',
+                            content: [
+                                { type: 'text', text: systemPrompt },
+                                {
+                                    type: 'image_url',
+                                    image_url: { url: result.imageUri }
+                                }
+                            ]
+                        }
+                    ],
+                    max_tokens: 500,
+                    response_format: { type: 'json_object' }
+                })
+            })
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                return {
+                    ...baseResult,
+                    vision: null,
+                    vision_error: `OpenAI API error: ${response.status} - ${errorText}`
+                }
+            }
+
+            const data = await response.json()
+            const content = data.choices?.[0]?.message?.content
+
+            if (!content) {
+                return {
+                    ...baseResult,
+                    vision: null,
+                    vision_error: 'No response from vision model'
+                }
+            }
+
+            const visionResult = JSON.parse(content)
+            return {
+                ...baseResult,
+                vision: visionResult
+            }
+        } catch (err) {
+            return {
+                ...baseResult,
+                vision: null,
+                vision_error: `Vision API call failed: ${err.message}`
+            }
+        }
+    }
+
+    return baseResult
 }
 
 /**

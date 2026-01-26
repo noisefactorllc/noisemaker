@@ -628,6 +628,7 @@ export function expand(compilationResult, options = {}) {
                     drawMode: passDef.drawMode,
                     drawBuffers: passDef.drawBuffers,  // For MRT (Multiple Render Targets)
                     count: passDef.count,
+                    countUniform: passDef.countUniform,  // For dynamic vertex count from uniforms
                     repeat: passDef.repeat,  // Number of iterations per frame
                     blend: passDef.blend,
                     workgroups: passDef.workgroups,

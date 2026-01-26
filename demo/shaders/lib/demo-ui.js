@@ -108,74 +108,69 @@ export function extractEffectNamesFromDsl(dsl, manifest) {
     const effects = []
     if (!dsl || typeof dsl !== 'string') return effects
 
+
     const lines = dsl.split('\n')
     let searchNamespaces = []
 
     for (const line of lines) {
         const trimmed = line.trim()
 
-        if (trimmed.startsWith('search ')) {
-            searchNamespaces = trimmed.slice(7).split(',').map(s => s.trim())
-            continue
-        }
+        // Handle semicolon-separated statements on one line
+        // Split by semicolon and process each statement
+        const statements = trimmed.split(';').map(s => s.trim()).filter(s => s)
 
-        if (!trimmed || trimmed.startsWith('//')) continue
-
-        const callPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?)\s*\(/g
-        let match
-
-        while ((match = callPattern.exec(trimmed)) !== null) {
-            const fullName = match[1]
-            let namespace = null
-            let name = fullName
-
-            if (fullName.includes('.')) {
-                const parts = fullName.split('.')
-                namespace = parts[0]
-                name = parts[1]
+        for (const stmt of statements) {
+            if (stmt.startsWith('search ')) {
+                searchNamespaces = stmt.slice(7).split(',').map(s => s.trim())
+                continue
             }
 
-            const builtins = ['read', 'out', 'vec2', 'vec3', 'vec4']
-            if (builtins.includes(name)) continue
+            if (!stmt || stmt.startsWith('//')) continue
 
-            if (!namespace && searchNamespaces.length > 0) {
-                for (const ns of searchNamespaces) {
-                    const testId = `${ns}/${name}`
-                    if (manifest[testId]) {
-                        namespace = ns
-                        break
+            const callPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?)\s*\(/g
+            let match
+
+            while ((match = callPattern.exec(stmt)) !== null) {
+                const fullName = match[1]
+                let namespace = null
+                let name = fullName
+
+                if (fullName.includes('.')) {
+                    const parts = fullName.split('.')
+                    namespace = parts[0]
+                    name = parts[1]
+                }
+
+                const builtins = ['read', 'out', 'vec2', 'vec3', 'vec4']
+                if (builtins.includes(name)) continue
+
+                if (!namespace && searchNamespaces.length > 0) {
+                    for (const ns of searchNamespaces) {
+                        const testId = `${ns}/${name}`
+                        if (manifest[testId]) {
+                            namespace = ns
+                            break
+                        }
+                    }
+                }
+
+                if (!namespace) {
+                    for (const ns of ['classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth']) {
+                        const testId = `${ns}/${name}`
+                        if (manifest[testId]) {
+                            namespace = ns
+                            break
+                        }
+                    }
+                }
+
+                if (namespace) {
+                    const effectId = `${namespace}/${name}`
+                    if (!effects.find(e => e.effectId === effectId)) {
+                        effects.push({ effectId, namespace, name })
                     }
                 }
             }
-
-            if (!namespace) {
-                for (const ns of ['classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth']) {
-                    const testId = `${ns}/${name}`
-                    if (manifest[testId]) {
-                        namespace = ns
-                        break
-                    }
-                }
-            }
-
-            if (namespace) {
-                const effectId = `${namespace}/${name}`
-                if (!effects.find(e => e.effectId === effectId)) {
-                    effects.push({ effectId, namespace, name })
-                }
-            }
-        }
-    }
-
-    // Also detect from(namespace, effect(...)) expressions
-    const fromPattern = /\bfrom\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*,\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g
-    let fromMatch
-    while ((fromMatch = fromPattern.exec(dsl)) !== null) {
-        const namespace = fromMatch[1]
-        const name = fromMatch[2]
-        const effectId = `${namespace}/${name}`
-        if (!effects.find(e => e.effectId === effectId)) {
-            effects.push({ effectId, namespace, name })
         }
     }
 
@@ -292,6 +287,10 @@ export class UIController {
         // Text input state per step
         // Map: stepIndex -> { canvas, textureId, textContent, font, size, posX, posY, color, rotation, bgColor, bgOpacity }
         this._textInputs = new Map()
+
+        // Mesh input state per step
+        // Map: stepIndex -> { meshId, url, loaded, vertexCount }
+        this._meshInputs = new Map()
 
         // Loading state
         this._loadingState = {
@@ -573,6 +572,101 @@ export class UIController {
         }
 
         return section
+    }
+
+    /**
+     * Create mesh input section for effects with externalMesh property.
+     * Provides a URL input field and loads OBJ files.
+     * @private
+     * @param {number} stepIndex - Step index in the DSL program
+     * @param {string} meshId - Target mesh surface ID (e.g., 'mesh0')
+     * @returns {HTMLElement}
+     */
+    _createMeshInputSection(stepIndex, meshId) {
+        const section = document.createElement('div')
+        section.className = 'mesh-input-section'
+
+        // Initialize mesh state for this step
+        if (!this._meshInputs.has(stepIndex)) {
+            this._meshInputs.set(stepIndex, {
+                meshId: meshId,
+                loaded: false,
+                vertexCount: 0
+            })
+        }
+
+        // File input group
+        const fileGroup = document.createElement('div')
+        fileGroup.className = 'control-group'
+
+        const fileLabel = document.createElement('label')
+        fileLabel.className = 'control-label'
+        fileLabel.textContent = 'OBJ file'
+        fileGroup.appendChild(fileLabel)
+
+        const fileInput = document.createElement('input')
+        fileInput.type = 'file'
+        fileInput.accept = '.obj'
+        fileInput.className = 'mesh-file-input'
+        fileInput.dataset.stepIndex = stepIndex
+        fileInput.dataset.meshId = meshId
+
+        fileInput.addEventListener('change', (e) => this._handleMeshFileChange(e, stepIndex))
+
+        fileGroup.appendChild(fileInput)
+        section.appendChild(fileGroup)
+
+        // Status display
+        const statusGroup = document.createElement('div')
+        statusGroup.className = 'control-group'
+
+        const statusLabel = document.createElement('label')
+        statusLabel.className = 'control-label'
+        statusLabel.textContent = 'status'
+        statusGroup.appendChild(statusLabel)
+
+        const statusSpan = document.createElement('span')
+        statusSpan.className = 'mesh-status'
+        statusSpan.textContent = 'no mesh loaded'
+        statusSpan.dataset.stepIndex = stepIndex
+
+        statusGroup.appendChild(statusSpan)
+        section.appendChild(statusGroup)
+
+        // Store refs in mesh state
+        const meshState = this._meshInputs.get(stepIndex)
+        meshState.statusEl = statusSpan
+
+        return section
+    }
+
+    /**
+     * Handle mesh file selection
+     * @private
+     */
+    async _handleMeshFileChange(e, stepIndex) {
+        const file = e.target.files[0]
+        if (!file) return
+
+        const meshState = this._meshInputs.get(stepIndex)
+        if (!meshState) return
+
+        meshState.statusEl.textContent = 'loading...'
+
+        try {
+            const text = await file.text()
+            const result = await this._renderer.loadOBJFromString(text, meshState.meshId)
+
+            if (result.success) {
+                meshState.loaded = true
+                meshState.vertexCount = result.vertexCount
+                meshState.statusEl.textContent = `${file.name}: ${result.vertexCount} vertices`
+            } else {
+                meshState.statusEl.textContent = `error: ${result.error || 'unknown'}`
+            }
+        } catch (err) {
+            meshState.statusEl.textContent = `error: ${err.message}`
+        }
     }
 
     /**
@@ -2340,6 +2434,15 @@ render(o1)`
             // Initialize text canvas for textTex effects (reads settings from globals)
             if (effectDef.externalTexture === 'textTex') {
                 this._initTextCanvas(effectInfo.stepIndex, effectKey, effectDef)
+            }
+
+            // Add mesh input section for effects with externalMesh property
+            if (effectDef.externalMesh) {
+                const meshSection = this._createMeshInputSection(
+                    effectInfo.stepIndex,
+                    effectDef.externalMesh
+                )
+                contentDiv.appendChild(meshSection)
             }
 
             effectDiv.appendChild(contentDiv)

@@ -14,6 +14,7 @@ export class WebGL2Backend extends Backend {
         super(context)
         this.gl = context
         this.fbos = new Map() // texture_id -> framebuffer
+        this.depthBuffers = new Map() // fbo -> depth renderbuffer (for mesh rendering)
         this.fullscreenVAO = null
         this.presentProgram = null
         this.maxTextureUnits = 16
@@ -261,6 +262,50 @@ export class WebGL2Backend extends Backend {
     }
 
     /**
+     * Ensure a depth buffer is attached to an FBO for 3D rendering.
+     * Creates and caches depth renderbuffers as needed.
+     * @param {WebGLFramebuffer} fbo - The framebuffer to attach depth to
+     * @param {number} width - Viewport width
+     * @param {number} height - Viewport height
+     */
+    ensureDepthBuffer(fbo, width, height) {
+        const gl = this.gl
+
+        // Check if this FBO already has a depth buffer
+        if (this.depthBuffers.has(fbo)) {
+            const existing = this.depthBuffers.get(fbo)
+            // Resize if dimensions changed
+            if (existing.width !== width || existing.height !== height) {
+                gl.bindRenderbuffer(gl.RENDERBUFFER, existing.buffer)
+                gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, width, height)
+                existing.width = width
+                existing.height = height
+            }
+            return
+        }
+
+        // Create new depth renderbuffer
+        const depthBuffer = gl.createRenderbuffer()
+        gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer)
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, width, height)
+
+        // Attach to FBO
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthBuffer)
+
+        // Verify FBO is still complete
+        const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER)
+        if (status !== gl.FRAMEBUFFER_COMPLETE) {
+            console.warn(`[ensureDepthBuffer] FBO incomplete after adding depth: ${status}`)
+        }
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        gl.bindRenderbuffer(gl.RENDERBUFFER, null)
+
+        this.depthBuffers.set(fbo, { buffer: depthBuffer, width, height })
+    }
+
+    /**
      * Create or retrieve an MRT FBO for multiple render targets
      * @param {string} id - Unique identifier for this MRT configuration
      * @param {Array<WebGLTexture>} textures - Array of texture handles to attach
@@ -432,6 +477,85 @@ export class WebGL2Backend extends Backend {
         gl.bindTexture(gl.TEXTURE_2D, null)
 
         return { width, height }
+    }
+
+    /**
+     * Upload mesh data (positions/normals/uvs) to a mesh surface's textures.
+     * Used by meshLoader effect when loading OBJ files.
+     * @param {string} meshId - Mesh surface ID (e.g., "mesh0")
+     * @param {Float32Array} positionData - RGBA32F position data (xyz, w=valid flag)
+     * @param {Float32Array} normalData - RGBA32F normal data (xyz, w=0)
+     * @param {Float32Array} uvData - RGBA16F UV data (uv, zw=0)
+     * @param {number} width - Texture width
+     * @param {number} height - Texture height
+     * @param {number} vertexCount - Number of valid vertices
+     * @returns {{ success: boolean, vertexCount: number }}
+     */
+    uploadMeshData(meshId, positionData, normalData, uvData, width, height, vertexCount) {
+        const gl = this.gl
+
+        // Get or create the mesh textures
+        const posId = `global_${meshId}_positions`
+        const normId = `global_${meshId}_normals`
+        const uvId = `global_${meshId}_uvs`
+
+        // Upload position texture (RGBA32F)
+        let posTex = this.textures.get(posId)
+        if (!posTex || posTex.width !== width || posTex.height !== height) {
+            if (posTex) gl.deleteTexture(posTex.handle)
+            const handle = gl.createTexture()
+            gl.bindTexture(gl.TEXTURE_2D, handle)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, positionData)
+            posTex = { handle, width, height, format: 'rgba32f', glFormat: { internal: gl.RGBA32F, format: gl.RGBA, type: gl.FLOAT } }
+            this.textures.set(posId, posTex)
+        } else {
+            gl.bindTexture(gl.TEXTURE_2D, posTex.handle)
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.FLOAT, positionData)
+        }
+
+        // Upload normal texture (RGBA32F)
+        let normTex = this.textures.get(normId)
+        if (!normTex || normTex.width !== width || normTex.height !== height) {
+            if (normTex) gl.deleteTexture(normTex.handle)
+            const handle = gl.createTexture()
+            gl.bindTexture(gl.TEXTURE_2D, handle)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, normalData)
+            normTex = { handle, width, height, format: 'rgba32f', glFormat: { internal: gl.RGBA32F, format: gl.RGBA, type: gl.FLOAT } }
+            this.textures.set(normId, normTex)
+        } else {
+            gl.bindTexture(gl.TEXTURE_2D, normTex.handle)
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.FLOAT, normalData)
+        }
+
+        // Upload UV texture (RGBA16F)
+        let uvTex = this.textures.get(uvId)
+        if (!uvTex || uvTex.width !== width || uvTex.height !== height) {
+            if (uvTex) gl.deleteTexture(uvTex.handle)
+            const handle = gl.createTexture()
+            gl.bindTexture(gl.TEXTURE_2D, handle)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, width, height, 0, gl.RGBA, gl.FLOAT, uvData)
+            uvTex = { handle, width, height, format: 'rgba16f', glFormat: { internal: gl.RGBA16F, format: gl.RGBA, type: gl.FLOAT } }
+            this.textures.set(uvId, uvTex)
+        } else {
+            gl.bindTexture(gl.TEXTURE_2D, uvTex.handle)
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.FLOAT, uvData)
+        }
+
+        gl.bindTexture(gl.TEXTURE_2D, null)
+
+        return { success: true, vertexCount }
     }
 
     destroyTexture(id) {
@@ -872,6 +996,75 @@ export class WebGL2Backend extends Backend {
             gl.bindVertexArray(this.emptyVAO)
             gl.drawArrays(gl.TRIANGLES, 0, count * 6)
             gl.bindVertexArray(null)
+        } else if (effectivePass.drawMode === 'triangles') {
+            // Triangle mesh mode: vertices read from mesh textures
+            // Enable proper 3D rendering state: depth test + back-face culling
+
+            // Get viewport dimensions for depth buffer
+            const vpWidth = viewportTex?.width || gl.drawingBufferWidth
+            const vpHeight = viewportTex?.height || gl.drawingBufferHeight
+
+            // Ensure FBO has depth buffer (null = default framebuffer, already has depth)
+            if (fbo) {
+                this.ensureDepthBuffer(fbo, vpWidth, vpHeight)
+            }
+
+            // Enable depth testing (closer fragments win)
+            gl.enable(gl.DEPTH_TEST)
+            gl.depthFunc(gl.LESS)
+            gl.depthMask(true)
+
+            // Enable back-face culling (CCW = front, cull back faces)
+            gl.enable(gl.CULL_FACE)
+            gl.frontFace(gl.CCW)
+            gl.cullFace(gl.BACK)
+
+            // Clear depth buffer for this pass
+            gl.clear(gl.DEPTH_BUFFER_BIT)
+
+            let count = effectivePass.count || 3  // Default to 1 triangle
+
+            // Check if countUniform is specified - read count from uniforms at runtime
+            if (effectivePass.countUniform) {
+                const uniformName = effectivePass.countUniform
+                // Look up in pass uniforms, then state globalUniforms
+                let uniformValue = effectivePass.uniforms?.[uniformName]
+                if (uniformValue === undefined) {
+                    uniformValue = state.globalUniforms?.[uniformName]
+                }
+                if (typeof uniformValue === 'number' && uniformValue > 0) {
+                    count = uniformValue
+                }
+            } else if (count === 'auto' || count === 'input') {
+                // Derive vertex count from mesh position texture
+                let refTex = null
+                if (effectivePass.inputs) {
+                    const meshInputId = effectivePass.inputs.meshPositions || effectivePass.inputs.inputTex
+                    if (meshInputId) {
+                        // For mesh textures, check textures map FIRST (mesh data is uploaded directly there)
+                        // Only fall back to surfaces if not found
+                        refTex = this.textures.get(meshInputId)
+                        if (!refTex) {
+                            const inputGlobalName = this.parseGlobalName(meshInputId)
+                            if (inputGlobalName) {
+                                refTex = state.surfaces?.[inputGlobalName]
+                            }
+                        }
+                    }
+                }
+                if (refTex && refTex.width && refTex.height) {
+                    count = refTex.width * refTex.height
+                } else {
+                    count = 3  // Fallback to 1 triangle
+                }
+            }
+            gl.bindVertexArray(this.emptyVAO)
+            gl.drawArrays(gl.TRIANGLES, 0, count)
+            gl.bindVertexArray(null)
+
+            // Restore GL state for subsequent 2D passes
+            gl.disable(gl.DEPTH_TEST)
+            gl.disable(gl.CULL_FACE)
         } else {
             // Default to fullscreen triangle
             gl.bindVertexArray(this.fullscreenVAO)
@@ -956,10 +1149,14 @@ export class WebGL2Backend extends Backend {
             let texture
             const globalName = this.parseGlobalName(texId)
             if (globalName) {
-                // Global surface - use the current read texture from state
-                // The pipeline handles ping-pong via updateFrameSurfaceBindings,
-                // which swaps read/write pointers after each pass writes.
-                texture = state.surfaces?.[globalName]?.handle
+                // First check if it's a mesh texture (stored directly in this.textures with "global_" prefix)
+                // Mesh textures take priority over generic surfaces with same base name
+                texture = this.textures.get(texId)?.handle
+
+                // If not found, check surfaces (ping-pong render targets)
+                if (!texture) {
+                    texture = state.surfaces?.[globalName]?.handle
+                }
             } else {
                 texture = this.textures.get(texId)?.handle
             }

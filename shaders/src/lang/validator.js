@@ -85,6 +85,7 @@ function toSurface(arg) {
     if (arg.type === 'XyzRef') return {kind:'xyz', name:arg.name}
     if (arg.type === 'VelRef') return {kind:'vel', name:arg.name}
     if (arg.type === 'RgbaRef') return {kind:'rgba', name:arg.name}
+    if (arg.type === 'MeshRef') return {kind:'mesh', name:arg.name}
     if (arg.type === 'Ident' && arg.name === 'none') return {kind:'output', name:'none'}
     if (arg.type === 'Ident' && stateSurfaces.has(arg.name)) return {kind:'state', name:arg.name}
     return null

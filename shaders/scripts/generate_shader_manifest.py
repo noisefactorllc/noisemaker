@@ -20,6 +20,10 @@ DESCRIPTION_RE = re.compile(r'description[:\s=]+"((?:[^"\\]|\\.)*)"|description[
 # Matches both object literal (externalTexture: "...") and class field (externalTexture = "...") syntax
 EXTERNAL_TEXTURE_RE = re.compile(r'externalTexture[:\s=]+"((?:[^"\\]|\\.)*)"|externalTexture[:\s=]+\'((?:[^\'\\]|\\.)*)\'')
 
+# Regex to extract externalMesh from definition.js
+# Matches both object literal (externalMesh: "...") and class field (externalMesh = "...") syntax
+EXTERNAL_MESH_RE = re.compile(r'externalMesh[:\s=]+"((?:[^"\\]|\\.)*)"|externalMesh[:\s=]+\'((?:[^\'\\]|\\.)*)\'')
+
 # Regex to extract tags array from definition.js
 # Matches: tags: ["tag1", "tag2"] or tags = ["tag1", "tag2"]
 TAGS_RE = re.compile(r'\btags\s*[:=]\s*\[([^\]]*)\]')
@@ -67,6 +71,23 @@ def extract_external_texture(effect_dir):
     try:
         content = definition_file.read_text(encoding="utf-8")
         match = EXTERNAL_TEXTURE_RE.search(content)
+        if match:
+            # group(1) is double-quoted, group(2) is single-quoted
+            raw = match.group(1) if match.group(1) is not None else match.group(2)
+            return raw.replace('\\"', '"').replace("\\'", "'") if raw else None
+    except Exception:
+        pass
+    return None
+
+
+def extract_external_mesh(effect_dir):
+    """Extract externalMesh from definition.js."""
+    definition_file = effect_dir / "definition.js"
+    if not definition_file.exists():
+        return None
+    try:
+        content = definition_file.read_text(encoding="utf-8")
+        match = EXTERNAL_MESH_RE.search(content)
         if match:
             # group(1) is double-quoted, group(2) is single-quoted
             raw = match.group(1) if match.group(1) is not None else match.group(2)
@@ -233,6 +254,10 @@ def main():
             external_texture = extract_external_texture(effect_dir)
             if external_texture:
                 effect_manifest["externalTexture"] = external_texture
+            # Extract and include externalMesh if available
+            external_mesh = extract_external_mesh(effect_dir)
+            if external_mesh:
+                effect_manifest["externalMesh"] = external_mesh
             # Check if effect has tex global with type surface
             if has_tex_surface(effect_dir):
                 effect_manifest["hasTex"] = True

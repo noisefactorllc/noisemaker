@@ -59,6 +59,10 @@ export class WebGPUBackend extends Backend {
             ? navigator.gpu.getPreferredCanvasFormat()
             : null
 
+        // Depth texture for 3D mesh rendering (created lazily)
+        this.depthTexture = null
+        this.depthTextureSize = { width: 0, height: 0 }
+
         // Uniform buffer pool for efficient buffer reuse
         this.uniformBufferPool = []
         this.activeUniformBuffers = []
@@ -259,6 +263,87 @@ export class WebGPUBackend extends Backend {
             tex.handle.destroy()
             this.textures.delete(id)
         }
+    }
+
+    /**
+     * Upload mesh data (positions/normals/uvs) to a mesh surface's textures.
+     * Used by meshLoader effect when loading OBJ files.
+     * @param {string} meshId - Mesh surface ID (e.g., "mesh0")
+     * @param {Float32Array} positionData - RGBA32F position data (xyz, w=valid flag)
+     * @param {Float32Array} normalData - RGBA16F normal data (xyz, w=0)
+     * @param {Float32Array} uvData - RGBA16F UV data (uv, zw=0)
+     * @param {number} width - Texture width
+     * @param {number} height - Texture height
+     * @param {number} vertexCount - Number of valid vertices
+     * @returns {{ success: boolean, vertexCount: number }}
+     */
+    uploadMeshData(meshId, positionData, normalData, uvData, width, height, vertexCount) {
+        const device = this.device
+
+        // Texture IDs
+        const posId = `global_${meshId}_positions`
+        const normId = `global_${meshId}_normals`
+        const uvId = `global_${meshId}_uvs`
+
+        // Helper to create/update a mesh texture
+        const uploadTexture = (id, data, format, gpuFormat) => {
+            let tex = this.textures.get(id)
+            if (!tex || tex.width !== width || tex.height !== height) {
+                if (tex) tex.handle.destroy()
+
+                const handle = device.createTexture({
+                    size: { width, height, depthOrArrayLayers: 1 },
+                    format: gpuFormat,
+                    usage: GPUTextureUsage.TEXTURE_BINDING |
+                           GPUTextureUsage.COPY_DST |
+                           GPUTextureUsage.RENDER_ATTACHMENT |
+                           GPUTextureUsage.STORAGE_BINDING
+                })
+
+                tex = {
+                    handle,
+                    view: handle.createView(),
+                    width,
+                    height,
+                    format,
+                    gpuFormat
+                }
+                this.textures.set(id, tex)
+            }
+
+            // Calculate bytes per row (must be aligned to 256 bytes for WebGPU)
+            const bytesPerPixel = gpuFormat === 'rgba32float' ? 16 : 8
+            const unalignedBytesPerRow = width * bytesPerPixel
+            const bytesPerRow = Math.ceil(unalignedBytesPerRow / 256) * 256
+
+            // If alignment padding is needed, create padded buffer
+            let uploadData = data
+            if (bytesPerRow !== unalignedBytesPerRow) {
+                const paddedData = new Float32Array((bytesPerRow / 4) * height)
+                const srcRowFloats = width * 4
+                const dstRowFloats = bytesPerRow / 4
+                for (let y = 0; y < height; y++) {
+                    paddedData.set(data.subarray(y * srcRowFloats, (y + 1) * srcRowFloats), y * dstRowFloats)
+                }
+                uploadData = paddedData
+            }
+
+            device.queue.writeTexture(
+                { texture: tex.handle },
+                uploadData,
+                { bytesPerRow, rowsPerImage: height },
+                { width, height }
+            )
+        }
+
+        // Upload all three textures
+        // Note: All use rgba32float because we're uploading Float32Array data.
+        // WebGPU doesn't auto-convert Float32 -> Float16 like WebGL2's gl.FLOAT type does.
+        uploadTexture(posId, positionData, 'rgba32f', 'rgba32float')
+        uploadTexture(normId, normalData, 'rgba32f', 'rgba32float')
+        uploadTexture(uvId, uvData, 'rgba32f', 'rgba32float')
+
+        return { success: true, vertexCount }
     }
 
     /**
@@ -1217,18 +1302,46 @@ export class WebGPUBackend extends Backend {
             storeOp: 'store'
         }
 
-        // Begin render pass
-        const renderPassDescriptor = { colorAttachments: [colorAttachment] }
-        const passEncoder = this.commandEncoder.beginRenderPass(renderPassDescriptor)
-
         // Get or create pipeline for this output format - do this BEFORE creating bind group
         const resolvedFormat = outputTex.gpuFormat || outputTex.format || program.outputFormat
 
-        const pipeline = this.resolveRenderPipeline(program, {
-            blend: pass.blend,
-            topology: (pass.drawMode === 'points') ? 'point-list' : 'triangle-list',
-            format: resolvedFormat
-        })
+        // Check if this is a 3D triangles pass - needs depth buffer and back-face culling
+        const is3DPass = pass.drawMode === 'triangles'
+
+        let pipeline
+        let renderPassDescriptor
+
+        if (is3DPass) {
+            // 3D mesh rendering: use depth buffer and back-face culling
+            const depthTex = this.getDepthTexture(outputTex.width, outputTex.height)
+
+            renderPassDescriptor = {
+                colorAttachments: [colorAttachment],
+                depthStencilAttachment: {
+                    view: depthTex.createView(),
+                    depthClearValue: 1.0,
+                    depthLoadOp: 'clear',
+                    depthStoreOp: 'store'
+                }
+            }
+
+            pipeline = this.resolve3DRenderPipeline(program, {
+                blend: pass.blend,
+                format: resolvedFormat
+            })
+        } else {
+            // Standard 2D rendering
+            renderPassDescriptor = { colorAttachments: [colorAttachment] }
+
+            pipeline = this.resolveRenderPipeline(program, {
+                blend: pass.blend,
+                topology: (pass.drawMode === 'points') ? 'point-list' : 'triangle-list',
+                format: resolvedFormat
+            })
+        }
+
+        // Begin render pass
+        const passEncoder = this.commandEncoder.beginRenderPass(renderPassDescriptor)
 
         // Create bind group for this pass using the ACTUAL pipeline's layout
         const bindGroup = this.createBindGroup(pass, program, state, pipeline)
@@ -1248,6 +1361,10 @@ export class WebGPUBackend extends Backend {
             // Billboard mode: 6 vertices per particle (2 triangles = 1 quad)
             const count = this.resolvePointCount(pass, state, outputId, outputTex)
             passEncoder.draw(count * 6, 1, 0, 0)
+        } else if (pass.drawMode === 'triangles') {
+            // Triangle mesh mode: vertices read from mesh textures
+            const count = this.resolveMeshVertexCount(pass, state, outputTex)
+            passEncoder.draw(count, 1, 0, 0)
         } else {
             passEncoder.draw(3, 1, 0, 0) // Full-screen triangle
         }
@@ -1333,6 +1450,10 @@ export class WebGPUBackend extends Backend {
             // Billboard mode: 6 vertices per particle (2 triangles = 1 quad)
             const count = this.resolvePointCount(pass, state, null, viewportTex)
             passEncoder.draw(count * 6, 1, 0, 0)
+        } else if (pass.drawMode === 'triangles') {
+            // Triangle mesh mode: vertices read from mesh textures
+            const count = this.resolveMeshVertexCount(pass, state, viewportTex)
+            passEncoder.draw(count, 1, 0, 0)
         } else {
             passEncoder.draw(3, 1, 0, 0) // Full-screen triangle
         }
@@ -1366,6 +1487,73 @@ export class WebGPUBackend extends Backend {
                 },
                 primitive: {
                     topology: topology || 'triangle-list'
+                }
+            })
+
+            program.pipelineCache.set(key, pipeline)
+        }
+
+        return program.pipelineCache.get(key)
+    }
+
+    /**
+     * Get or create a depth texture for 3D mesh rendering.
+     * @param {number} width - Required width
+     * @param {number} height - Required height
+     * @returns {GPUTexture} - Depth texture for mesh rendering
+     */
+    getDepthTexture(width, height) {
+        // Create or resize depth texture if needed
+        if (!this.depthTexture ||
+            this.depthTextureSize.width !== width ||
+            this.depthTextureSize.height !== height) {
+
+            if (this.depthTexture) {
+                this.depthTexture.destroy()
+            }
+
+            this.depthTexture = this.device.createTexture({
+                size: { width, height, depthOrArrayLayers: 1 },
+                format: 'depth24plus',
+                usage: GPUTextureUsage.RENDER_ATTACHMENT
+            })
+            this.depthTextureSize = { width, height }
+        }
+
+        return this.depthTexture
+    }
+
+    /**
+     * Get or create a render pipeline for 3D mesh rendering with depth test and back-face culling.
+     */
+    resolve3DRenderPipeline(program, { blend, format }) {
+        const key = `3d|${format || 'rgba16float'}|${blend ? JSON.stringify(blend) : 'noblend'}`
+
+        if (!program.pipelineCache.has(key)) {
+            const pipeline = this.device.createRenderPipeline({
+                layout: 'auto',
+                vertex: {
+                    module: program.vertexModule || this.getDefaultVertexModule(),
+                    entryPoint: program.vertexEntryPoint || DEFAULT_VERTEX_ENTRY_POINT
+                },
+                fragment: {
+                    module: program.fragmentModule || program.module,
+                    entryPoint: program.fragmentEntryPoint || DEFAULT_FRAGMENT_ENTRY_POINT,
+                    targets: [{
+                        format: format || program.outputFormat || 'rgba16float',
+                        blend: this.resolveBlendState(blend)
+                    }]
+                },
+                primitive: {
+                    topology: 'triangle-list',
+                    cullMode: 'back',
+                    // 'cw' because WGSL shader flips Y which reverses winding order
+                    frontFace: 'cw'
+                },
+                depthStencil: {
+                    format: 'depth24plus',
+                    depthWriteEnabled: true,
+                    depthCompare: 'less'
                 }
             })
 
@@ -1479,6 +1667,59 @@ export class WebGPUBackend extends Backend {
                 count = refTex.width * refTex.height
             } else if (this.context?.canvas) {
                 count = this.context.canvas.width * this.context.canvas.height
+            }
+        }
+
+        return count
+    }
+
+    /**
+     * Resolve vertex count for mesh triangle draw mode.
+     * Derives count from mesh position texture dimensions or explicit count.
+     */
+    resolveMeshVertexCount(pass, state) {
+        let count = pass.count || 3  // Default to 1 triangle
+
+        // Check if countUniform is specified - read count from uniforms at runtime
+        // If uniform value is 0 or undefined, fall through to auto-detection
+        if (pass.countUniform) {
+            const uniformName = pass.countUniform
+            // Look up in pass uniforms, then state globalUniforms
+            let uniformValue = pass.uniforms?.[uniformName]
+            if (uniformValue === undefined) {
+                uniformValue = state.globalUniforms?.[uniformName]
+            }
+            if (typeof uniformValue === 'number' && uniformValue > 0) {
+                count = uniformValue
+                return count  // Explicit count set, use it
+            }
+        }
+
+        // Auto-detect from mesh texture dimensions
+        if (count === 'auto' || count === 'input' || count <= 0) {
+            let refTex = null
+
+            if (pass.inputs) {
+                // For mesh rendering, prefer meshPositions texture
+                const meshInputId = pass.inputs.meshPositions || pass.inputs.inputTex
+                if (meshInputId) {
+                    // Check textures map FIRST - mesh data is uploaded directly there
+                    // Mesh textures (global_mesh0_positions) are NOT ping-pong surfaces
+                    refTex = this.textures.get(meshInputId)
+                    if (!refTex) {
+                        // Fall back to surfaces for ping-pong render targets
+                        const surfaceName = this.parseGlobalName(meshInputId)
+                        if (surfaceName) {
+                            refTex = state.surfaces?.[surfaceName]
+                        }
+                    }
+                }
+            }
+
+            if (refTex && refTex.width && refTex.height) {
+                count = refTex.width * refTex.height
+            } else {
+                count = 3  // Fallback to 1 triangle
             }
         }
 
@@ -1662,11 +1903,22 @@ export class WebGPUBackend extends Backend {
                 const surfaceName = this.parseGlobalName(texId)
 
                 if (surfaceName) {
-                    // Global surface - use the current read texture from state
-                    // The pipeline handles ping-pong via updateFrameSurfaceBindings,
-                    // which swaps read/write pointers after each pass writes.
+                    // Check if it's a ping-pong global surface (o0-o7, geo0-geo7, vol0-vol7)
                     const surfaceObj = state.surfaces?.[surfaceName]
-                    textureView = surfaceObj?.view
+                    if (surfaceObj?.view) {
+                        // Ping-pong surface - use current read texture from state
+                        textureView = surfaceObj.view
+                    } else {
+                        // Not a ping-pong surface - check textures map directly
+                        // This handles mesh textures (global_mesh0_positions etc.) which are
+                        // static data textures uploaded by loadOBJ, not double-buffered surfaces.
+                        const tex = this.textures.get(texId)
+                        textureView = tex?.view
+                        // DEBUG: Log mesh texture resolution
+                        if (inputName.includes('mesh') || inputName.includes('Mesh')) {
+                            console.log(`[createBindGroup] Mesh input '${inputName}' -> texId='${texId}', tex found: ${!!tex}, view: ${!!textureView}`)
+                        }
+                    }
                 } else {
                     const tex = this.textures.get(texId)
                     textureView = tex?.view
@@ -1708,6 +1960,10 @@ export class WebGPUBackend extends Backend {
 
                 // Use dummy texture if no view found - ensures bind group completeness
                 if (!view) {
+                    // DEBUG: Log when falling back to dummy texture for mesh-related bindings
+                    if (binding.name.includes('mesh') || binding.name.includes('Mesh')) {
+                        console.warn(`[createBindGroup] Mesh texture '${binding.name}' not found in textureMap, using dummy. textureMap keys:`, [...textureMap.keys()])
+                    }
                     view = this.dummyTextureView
                 }
 

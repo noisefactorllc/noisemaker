@@ -50,6 +50,8 @@
                         <span style="flex: 1;"></span>
                         <button id="midi-toggle-btn" class="action-btn tooltip" data-title="Enable MIDI input" aria-label="Enable MIDI input" style="opacity: 0.5;">midi</button>
                         <button id="audio-toggle-btn" class="action-btn tooltip" data-title="Enable audio input" aria-label="Enable audio input" style="opacity: 0.5;">audio</button>
+                        <button id="obj-load-btn" class="action-btn tooltip" data-title="Load OBJ mesh file" aria-label="Load OBJ mesh file" style="opacity: 0.5;">obj</button>
+                        <input type="file" id="obj-file-input" accept=".obj" style="display: none;">
                         <span id="fps-counter" style="font-size: 0.75rem; color: var(--color5); font-variant-numeric: tabular-nums; min-width: 5ch;">-- fps</span>
                     </div>
 
@@ -147,6 +149,8 @@
         const fpsCounterEl = document.getElementById('fps-counter');
         const midiToggleBtn = document.getElementById('midi-toggle-btn');
         const audioToggleBtn = document.getElementById('audio-toggle-btn');
+        const objLoadBtn = document.getElementById('obj-load-btn');
+        const objFileInput = document.getElementById('obj-file-input');
         let canvas = document.getElementById('canvas');
 
         // =====================================================================
@@ -282,6 +286,46 @@
             audioToggleBtn.addEventListener('click', async () => {
                 await audioManager.toggle();
                 updateExternalInputButtons();
+            });
+        }
+
+        // OBJ file load handler
+        if (objLoadBtn && objFileInput) {
+            objLoadBtn.addEventListener('click', () => {
+                objFileInput.click();
+            });
+            
+            objFileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                try {
+                    objLoadBtn.textContent = 'loading...';
+                    objLoadBtn.style.opacity = '0.5';
+                    
+                    const text = await file.text();
+                    const result = await renderer.loadOBJFromString(text, 'mesh0');
+                    
+                    if (result.success) {
+                        objLoadBtn.textContent = `obj (${result.vertexCount})`;
+                        objLoadBtn.style.opacity = '1';
+                        if (statusEl) statusEl.textContent = `Loaded ${file.name}: ${result.vertexCount} vertices`;
+                        console.log(`[Demo] Loaded OBJ: ${file.name} with ${result.vertexCount} vertices`);
+                    } else {
+                        objLoadBtn.textContent = 'obj (error)';
+                        objLoadBtn.style.opacity = '0.5';
+                        if (statusEl) statusEl.textContent = `OBJ load failed: ${result.error}`;
+                        console.error('[Demo] OBJ load failed:', result.error);
+                    }
+                } catch (err) {
+                    objLoadBtn.textContent = 'obj (error)';
+                    objLoadBtn.style.opacity = '0.5';
+                    if (statusEl) statusEl.textContent = `OBJ load error: ${err.message}`;
+                    console.error('[Demo] OBJ load error:', err);
+                }
+                
+                // Reset file input to allow reloading same file
+                objFileInput.value = '';
             });
         }
 

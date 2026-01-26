@@ -78,13 +78,13 @@ export function parse(tokens) {
 
     const exprStartTokens = new Set([
         'PLUS', 'MINUS', 'NUMBER', 'HEX', 'FUNC', 'STRING',
-        'IDENT', 'OUTPUT_REF', 'SOURCE_REF', 'VOL_REF', 'GEO_REF',
+        'IDENT', 'OUTPUT_REF', 'SOURCE_REF', 'VOL_REF', 'GEO_REF', 'MESH_REF',
         'XYZ_REF', 'VEL_REF', 'RGBA_REF', 'LPAREN',
         'TRUE', 'FALSE'
     ])
 
     const memberTokenTypes = new Set([
-        'IDENT', 'SOURCE_REF', 'OUTPUT_REF', 'VOL_REF', 'GEO_REF',
+        'IDENT', 'SOURCE_REF', 'OUTPUT_REF', 'VOL_REF', 'GEO_REF', 'MESH_REF',
         'XYZ_REF', 'VEL_REF', 'RGBA_REF',
         'LET', 'RENDER', 'TRUE', 'FALSE', 'IF', 'ELIF', 'ELSE',
         'BREAK', 'CONTINUE', 'RETURN', 'WRITE', 'WRITE3D', 'SUBCHAIN'
@@ -654,11 +654,13 @@ export function parse(tokens) {
                 surface = { type: 'VelRef', name: advance().lexeme }
             } else if (peek().type === 'RGBA_REF') {
                 surface = { type: 'RgbaRef', name: advance().lexeme }
+            } else if (peek().type === 'MESH_REF') {
+                surface = { type: 'MeshRef', name: advance().lexeme }
             } else if (peek().type === 'IDENT' && peek().lexeme === 'none') {
                 // "none" is a valid target meaning "don't write to any surface"
                 surface = { type: 'OutputRef', name: advance().lexeme }
             } else {
-                throw new SyntaxError(`write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, none) at line ${peek().line} col ${peek().col}`)
+                throw new SyntaxError(`write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none) at line ${peek().line} col ${peek().col}`)
             }
             expect('RPAREN', "Expect ')'")
             return {
@@ -1041,6 +1043,9 @@ export function parse(tokens) {
             case 'RGBA_REF':
                 advance()
                 return {type: 'RgbaRef', name: token.lexeme}
+            case 'MESH_REF':
+                advance()
+                return {type: 'MeshRef', name: token.lexeme}
             case 'LPAREN': {
                 advance()
                 const expr = parseAdditive()

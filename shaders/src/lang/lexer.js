@@ -140,6 +140,17 @@ export function lex(src) {
             continue
         }
 
+        // mesh reference (mesh0-mesh3) - mesh geometry surfaces
+        if (ch === 'm' && src[i + 1] === 'e' && src[i + 2] === 's' && src[i + 3] === 'h' && isDigit(src[i + 4])) {
+            let j = i + 4
+            while (j < src.length && isDigit(src[j])) j++
+            const lexeme = src.slice(i, j)
+            add('MESH_REF', lexeme, startLine, startCol)
+            col += j - i
+            i = j
+            continue
+        }
+
         // html hex color literal
         if (ch === '#') {
             let j = i + 1

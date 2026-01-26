@@ -450,16 +450,22 @@ export class Pipeline {
         // Global 3D volume buffers (vol0-vol7)
         const volumeNames = new Set(['vol0', 'vol1', 'vol2', 'vol3', 'vol4', 'vol5', 'vol6', 'vol7'])
 
+        // Global mesh surfaces (mesh0-mesh3) - each mesh has 3 linked textures
+        const meshNames = new Set(['mesh0', 'mesh1', 'mesh2', 'mesh3'])
+
         // Collect default uniforms for parameter-based texture sizing
         const defaultUniforms = this.collectDefaultUniforms()
 
         // Scan graph for other globals
+        // Mesh texture pattern: mesh0_positions, mesh1_normals, mesh2_uvs, etc.
+        // These are NOT ping-pong surfaces - they're static data textures uploaded by loadOBJ
+        const meshTexturePattern = /^mesh\d+_(positions|normals|uvs)$/
         if (this.graph && this.graph.passes) {
             for (const pass of this.graph.passes) {
                 if (pass.inputs) {
                     for (const texId of Object.values(pass.inputs)) {
                         const globalName = this.parseGlobalName(texId)
-                        if (globalName) {
+                        if (globalName && !meshTexturePattern.test(globalName)) {
                             surfaceNames.add(globalName)
                         }
                     }
@@ -467,7 +473,7 @@ export class Pipeline {
                 if (pass.outputs) {
                     for (const texId of Object.values(pass.outputs)) {
                         const globalName = this.parseGlobalName(texId)
-                        if (globalName) {
+                        if (globalName && !meshTexturePattern.test(globalName)) {
                             surfaceNames.add(globalName)
                         }
                     }
@@ -617,6 +623,55 @@ export class Pipeline {
                 read: `global_${name}_read`,
                 write: `global_${name}_write`,
                 currentFrame: 0
+            })
+        }
+
+        // Create mesh surfaces (mesh0-mesh3)
+        // Each mesh surface is a linked triplet of textures: positions, normals, UVs
+        for (const name of meshNames) {
+            const oldSurface = this.surfaces.get(name)
+            if (oldSurface) {
+                // Already exists, skip
+                continue
+            }
+
+            // Default mesh size: 256x256 = 65536 vertices max
+            // Users can override via mesh texture dimensions in their effect
+            const meshWidth = 256
+            const meshHeight = 256
+
+            // Position texture: xyz position in world space, w = vertex valid flag
+            this.backend.createTexture(`global_${name}_positions`, {
+                width: meshWidth,
+                height: meshHeight,
+                format: 'rgba32f',
+                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
+            })
+
+            // Normal texture: xyz normal vector, w unused
+            // Must be rgba32f to match uploadMeshData which writes Float32Array data
+            this.backend.createTexture(`global_${name}_normals`, {
+                width: meshWidth,
+                height: meshHeight,
+                format: 'rgba32f',
+                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
+            })
+
+            // UV texture: uv coordinates, zw unused
+            // Must be rgba32f to match uploadMeshData which writes Float32Array data
+            this.backend.createTexture(`global_${name}_uvs`, {
+                width: meshWidth,
+                height: meshHeight,
+                format: 'rgba32f',
+                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
+            })
+
+            this.surfaces.set(name, {
+                positions: `global_${name}_positions`,
+                normals: `global_${name}_normals`,
+                uvs: `global_${name}_uvs`,
+                width: meshWidth,
+                height: meshHeight
             })
         }
     }
@@ -1486,7 +1541,13 @@ export async function createPipeline(graph, options = {}) {
         // Request higher limits for MRT with high-precision textures
         // Default maxColorAttachmentBytesPerSample is 32, but we need 40+
         // for 2x RGBA32Float (16 bytes each) + RGBA8Unorm (4 bytes) = 40 bytes
+        // Also request float32-filterable for mesh data textures (rgba32float)
+        const requiredFeatures = []
+        if (adapter.features.has('float32-filterable')) {
+            requiredFeatures.push('float32-filterable')
+        }
         const device = await adapter.requestDevice({
+            requiredFeatures,
             requiredLimits: {
                 maxColorAttachmentBytesPerSample: Math.min(
                     adapter.limits.maxColorAttachmentBytesPerSample,

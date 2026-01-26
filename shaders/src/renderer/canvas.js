@@ -279,6 +279,10 @@ export class CanvasRenderer {
         this._midiState = null
         this._audioState = null
 
+        // Cached mesh data for re-upload after backend switch
+        // Map<meshId, {positionData, normalData, uvData, width, height, vertexCount}>
+        this._meshCache = new Map()
+
         // Bound render loop for proper `this` context
         this._boundRenderLoop = this._renderLoop.bind(this)
 
@@ -839,7 +843,39 @@ export class CanvasRenderer {
         this._frameCount = 0
 
         this._uniformBindings = new Map()
+
+        // Re-upload cached mesh data to new backend
+        await this._reuploadCachedMeshes()
+
         return this._pipeline
+    }
+
+    /**
+     * Re-upload cached mesh data to the current backend.
+     * Called after backend switch or pipeline recreation.
+     * @private
+     */
+    async _reuploadCachedMeshes() {
+        if (!this._pipeline?.backend || this._meshCache.size === 0) {
+            return
+        }
+
+        for (const [meshId, cached] of this._meshCache) {
+            try {
+                this._pipeline.backend.uploadMeshData(
+                    meshId,
+                    cached.positionData,
+                    cached.normalData,
+                    cached.uvData,
+                    cached.width,
+                    cached.height,
+                    cached.vertexCount
+                )
+                console.log(`[Canvas] Re-uploaded ${cached.vertexCount} vertices to ${meshId}`)
+            } catch (err) {
+                console.warn(`[Canvas] Failed to re-upload mesh ${meshId}:`, err)
+            }
+        }
     }
 
     /**
@@ -1412,6 +1448,124 @@ export class CanvasRenderer {
         }
 
         return this._pipeline.backend.updateTextureFromSource(texId, source, options)
+    }
+
+    // =========================================================================
+    // Mesh Loading (for meshLoader effect OBJ import)
+    // =========================================================================
+
+    /**
+     * Load an OBJ mesh file from URL and upload to a mesh surface.
+     * @param {string} url - URL to OBJ file
+     * @param {string} [meshId='mesh0'] - Target mesh surface (mesh0-mesh3)
+     * @returns {Promise<{success: boolean, vertexCount: number, error?: string}>}
+     */
+    async loadOBJFromURL(url, meshId = 'mesh0') {
+        if (!this._pipeline || !this._pipeline.backend) {
+            console.warn('[loadOBJFromURL] Pipeline not ready')
+            return { success: false, vertexCount: 0, error: 'Pipeline not ready' }
+        }
+
+        try {
+            // Dynamic import to avoid loading parser until needed
+            const { loadOBJ, packMeshDataForTextures } = await import('../runtime/obj-parser.js')
+
+            console.log(`[Canvas] Loading OBJ from: ${url}`)
+            const meshData = await loadOBJ(url)
+
+            // Pack for texture upload (256x256 = 65536 max vertices)
+            const texWidth = 256
+            const texHeight = 256
+            const packed = packMeshDataForTextures(
+                meshData.positions,
+                meshData.normals,
+                meshData.uvs,
+                texWidth,
+                texHeight
+            )
+
+            // Cache mesh data for re-upload after backend switch
+            this._meshCache.set(meshId, {
+                positionData: packed.positionData,
+                normalData: packed.normalData,
+                uvData: packed.uvData,
+                width: texWidth,
+                height: texHeight,
+                vertexCount: packed.vertexCount
+            })
+
+            // Upload to backend
+            const result = this._pipeline.backend.uploadMeshData(
+                meshId,
+                packed.positionData,
+                packed.normalData,
+                packed.uvData,
+                texWidth,
+                texHeight,
+                packed.vertexCount
+            )
+
+            console.log(`[Canvas] Uploaded ${result.vertexCount} vertices to ${meshId}`)
+            return { success: true, vertexCount: result.vertexCount }
+        } catch (err) {
+            console.error('[Canvas] Failed to load OBJ:', err)
+            return { success: false, vertexCount: 0, error: err.message }
+        }
+    }
+
+    /**
+     * Load OBJ mesh directly from string content.
+     * @param {string} objText - Raw OBJ file content
+     * @param {string} [meshId='mesh0'] - Target mesh surface (mesh0-mesh3)
+     * @returns {Promise<{success: boolean, vertexCount: number, error?: string}>}
+     */
+    async loadOBJFromString(objText, meshId = 'mesh0') {
+        if (!this._pipeline || !this._pipeline.backend) {
+            console.warn('[loadOBJFromString] Pipeline not ready')
+            return { success: false, vertexCount: 0, error: 'Pipeline not ready' }
+        }
+
+        try {
+            const { parseOBJ, packMeshDataForTextures } = await import('../runtime/obj-parser.js')
+
+            const meshData = parseOBJ(objText)
+
+            const texWidth = 256
+            const texHeight = 256
+            const packed = packMeshDataForTextures(
+                meshData.positions,
+                meshData.normals,
+                meshData.uvs,
+                texWidth,
+                texHeight
+            )
+
+            // Cache mesh data for re-upload after backend switch
+            this._meshCache.set(meshId, {
+                positionData: packed.positionData,
+                normalData: packed.normalData,
+                uvData: packed.uvData,
+                width: texWidth,
+                height: texHeight,
+                vertexCount: packed.vertexCount
+            })
+
+            const result = this._pipeline.backend.uploadMeshData(
+                meshId,
+                packed.positionData,
+                packed.normalData,
+                packed.uvData,
+                texWidth,
+                texHeight,
+                packed.vertexCount
+            )
+
+            console.log(`[Canvas] Uploaded ${result.vertexCount} vertices from string to ${meshId}`)
+            return { success: true, vertexCount: result.vertexCount }
+        } catch (err) {
+            console.error('[Canvas] Failed to parse OBJ:', err)
+            return { success: false, vertexCount: 0, error: err.message }
+        }
     }
 
     // =========================================================================

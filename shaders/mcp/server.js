@@ -336,6 +336,10 @@ const TOOLS = [
                     enum: ['webgl2', 'webgpu'],
                     description: 'Rendering backend (required)'
                 },
+                prompt: {
+                    type: 'string',
+                    description: 'Vision prompt - what to analyze or look for in the rendered image. If provided, uses OpenAI Vision to analyze the output.'
+                },
                 test_case: {
                     type: 'object',
                     description: 'Optional test configuration',
@@ -655,6 +659,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 const backend = args.backend
                 const useBundles = args.use_bundles || false
                 const testCase = args.test_case || {}
+                const prompt = args.prompt
 
                 if (!dsl) {
                     throw new Error('dsl parameter is required')
@@ -669,12 +674,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 try {
                     await session.setup()
 
-                    // Run DSL program
+                    // Run DSL program (with optional vision prompt)
                     const dslResult = await session.runDslProgram(dsl, {
                         time: testCase.time,
                         resolution: testCase.resolution,
                         seed: testCase.seed,
-                        uniforms: testCase.uniforms
+                        uniforms: testCase.uniforms,
+                        prompt
                     })
 
                     result = {
