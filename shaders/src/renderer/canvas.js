@@ -31,7 +31,7 @@ import { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInp
 export { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInputManager }
 
 // Known 3D generator effects (self-initialize volumes)
-const KNOWN_3D_GENERATORS = ['noise3d', 'cell3d', 'shape3d', 'fractal3d', 'ca3d', 'rd3d']
+const KNOWN_3D_GENERATORS = ['noise3d', 'cell3d', 'shape3d', 'fractal3d', 'flythrough3d', 'ca3d', 'rd3d']
 
 // Known 3D processor effects (modify volumes, need inputTex3d)
 const KNOWN_3D_PROCESSORS = ['flow3d', 'render3d', 'renderLit3d']
