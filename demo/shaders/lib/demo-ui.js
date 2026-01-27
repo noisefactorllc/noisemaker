@@ -127,6 +127,19 @@ export function extractEffectNamesFromDsl(dsl, manifest) {
 
             if (!stmt || stmt.startsWith('//')) continue
 
+            // Handle from(namespace, call(...)) syntax
+            // Pattern: from(namespace, effectName(...))
+            const fromPattern = /\bfrom\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*,\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g
+            let fromMatch
+            while ((fromMatch = fromPattern.exec(stmt)) !== null) {
+                const namespace = fromMatch[1]
+                const name = fromMatch[2]
+                const effectId = `${namespace}/${name}`
+                if (manifest[effectId] && !effects.find(e => e.effectId === effectId)) {
+                    effects.push({ effectId, namespace, name })
+                }
+            }
+
             const callPattern = /\b([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?)\s*\(/g
             let match
 
@@ -141,7 +154,8 @@ export function extractEffectNamesFromDsl(dsl, manifest) {
                     name = parts[1]
                 }
 
-                const builtins = ['read', 'out', 'vec2', 'vec3', 'vec4']
+                // Skip 'from' itself as it's handled above
+                const builtins = ['read', 'out', 'vec2', 'vec3', 'vec4', 'from']
                 if (builtins.includes(name)) continue
 
                 if (!namespace && searchNamespaces.length > 0) {
