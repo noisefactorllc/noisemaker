@@ -295,6 +295,21 @@ export default new Effect({
             }
         },
 
+        // Background alpha
+        bgAlpha: {
+            type: "float",
+            default: 1.0,
+            min: 0.0,
+            max: 1.0,
+            step: 0.01,
+            uniform: "bgAlpha",
+            ui: {
+                label: "Background Alpha",
+                control: "slider",
+                category: "material"
+            }
+        },
+
         // Wireframe mode
         wireframe: {
             type: "int",
@@ -319,7 +334,8 @@ export default new Effect({
             program: "clear",
             inputs: {},
             uniforms: {
-                bgColor: "bgColor"
+                bgColor: "bgColor",
+                bgAlpha: "bgAlpha"
             },
             outputs: {
                 fragColor: "outputTex"
