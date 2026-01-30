@@ -116,7 +116,8 @@ export default new Effect({
       ui: {
         label: "Color 1",
         control: "color",
-        category: "colors"
+        category: "colors",
+        enabledBy: { param: "colorMode", eq: 0 }
       }
     },
     color1: {
@@ -126,7 +127,8 @@ export default new Effect({
       ui: {
         label: "Color 2",
         control: "color",
-        category: "colors"
+        category: "colors",
+        enabledBy: { param: "colorMode", eq: 0 }
       }
     },
     color2: {
@@ -136,7 +138,8 @@ export default new Effect({
       ui: {
         label: "Color 3",
         control: "color",
-        category: "colors"
+        category: "colors",
+        enabledBy: { param: "colorMode", eq: 0 }
       }
     },
     color3: {
@@ -146,7 +149,8 @@ export default new Effect({
       ui: {
         label: "Color 4",
         control: "color",
-        category: "colors"
+        category: "colors",
+        enabledBy: { param: "colorMode", eq: 0 }
       }
     },
     color4: {
@@ -156,7 +160,8 @@ export default new Effect({
       ui: {
         label: "Color 5",
         control: "color",
-        category: "colors"
+        category: "colors",
+        enabledBy: { param: "colorMode", eq: 0 }
       }
     },
     color5: {
@@ -167,7 +172,7 @@ export default new Effect({
         label: "Color 6",
         control: "color",
         category: "colors",
-        enabledBy: { param: "colorCount", gt: 5 }
+        enabledBy: { and: [{ param: "colorMode", eq: 0 }, { param: "colorCount", gt: 5 }] }
       }
     },
     color6: {
@@ -178,7 +183,7 @@ export default new Effect({
         label: "Color 7",
         control: "color",
         category: "colors",
-        enabledBy: { param: "colorCount", gt: 6 }
+        enabledBy: { and: [{ param: "colorMode", eq: 0 }, { param: "colorCount", gt: 6 }] }
       }
     },
     color7: {
@@ -189,7 +194,7 @@ export default new Effect({
         label: "Color 8",
         control: "color",
         category: "colors",
-        enabledBy: { param: "colorCount", gt: 7 }
+        enabledBy: { and: [{ param: "colorMode", eq: 0 }, { param: "colorCount", gt: 7 }] }
       }
     },
 
