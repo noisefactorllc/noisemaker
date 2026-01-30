@@ -450,8 +450,8 @@ export class Pipeline {
         // Global 3D volume buffers (vol0-vol7)
         const volumeNames = new Set(['vol0', 'vol1', 'vol2', 'vol3', 'vol4', 'vol5', 'vol6', 'vol7'])
 
-        // Global mesh surfaces (mesh0-mesh3) - each mesh has 3 linked textures
-        const meshNames = new Set(['mesh0', 'mesh1', 'mesh2', 'mesh3'])
+        // Global mesh surfaces (mesh0-mesh7) - each mesh has 3 linked textures
+        const meshNames = new Set(['mesh0', 'mesh1', 'mesh2', 'mesh3', 'mesh4', 'mesh5', 'mesh6', 'mesh7'])
 
         // Collect default uniforms for parameter-based texture sizing
         const defaultUniforms = this.collectDefaultUniforms()
@@ -626,7 +626,7 @@ export class Pipeline {
             })
         }
 
-        // Create mesh surfaces (mesh0-mesh3)
+        // Create mesh surfaces (mesh0-mesh7)
         // Each mesh surface is a linked triplet of textures: positions, normals, UVs
         for (const name of meshNames) {
             const oldSurface = this.surfaces.get(name)

@@ -28,16 +28,20 @@ Grammar
    SubchainCall   ::= 'subchain' '(' ArgList? ')' '{' ( '.' Call )+ '}'
    WriteCall      ::= 'write' '(' OutputRef ')'
    Write3DCall    ::= 'write3d' '(' ( VolRef | Ident ) ',' ( GeoRef | Ident ) ')'
-   Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | VolRef | GeoRef | Func | '(' Expr ')'
+   Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | VolRef | GeoRef | XyzRef | VelRef | RgbaRef | MeshRef | Func | '(' Expr ')'
    Call           ::= Ident '(' ArgList? ')'
    ArgList        ::= Arg ( ',' Arg )* ','?
-   Arg            ::= NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | VolRef | GeoRef | Func
+   Arg            ::= NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | VolRef | GeoRef | XyzRef | VelRef | RgbaRef | MeshRef | Func
    NumberExpr     ::= Number | 'Math.PI' | '(' NumberExpr ')' | NumberExpr ( '+' | '-' | '*' | '/' ) NumberExpr
    Member         ::= Ident ( '.' Ident )+
    Func           ::= '(' ')' '=>' Expr
    OutputRef      ::= 'o' Digit+
    VolRef         ::= 'vol' Digit+
    GeoRef         ::= 'geo' Digit+
+   XyzRef         ::= 'xyz' Digit+
+   VelRef         ::= 'vel' Digit+
+   RgbaRef        ::= 'rgba' Digit+
+   MeshRef        ::= 'mesh' Digit+
    SourceRef      ::= 's' Digit+
    Ident          ::= Letter ( Letter | Digit | '_' )*
    Number         ::= Digit+ ( '.' Digit+ )?
@@ -642,6 +646,23 @@ The DSL allows writing to named outputs (Surfaces) and reading from them.
 * **None:** ``none`` disables a volume/geometry parameter (e.g., ``ca3d(source: none)``).
 
 The geometry buffers store precomputed raymarching results (xyz=surface normal, w=depth), enabling downstream post-processing effects without re-raymarching.
+
+**Agent Particle Surfaces:**
+
+Used by the SMRTicles particle system (see :ref:`SMRTicles <shader-smrticles>`):
+
+* **Position Surfaces:** ``xyz0``-``xyz7`` store agent positions (xyz) and lifecycle state (w).
+* **Velocity Surfaces:** ``vel0``-``vel7`` store agent velocities.
+* **Color Surfaces:** ``rgba0``-``rgba7`` store agent colors.
+
+These surfaces are managed by the ``pointsEmit`` and ``pointsRender`` wrappers. Behavior effects read and write these surfaces to update agent state each frame.
+
+**Mesh Surfaces:**
+
+* **Mesh Geometry Textures:** ``mesh0``-``mesh7`` are texture pairs storing mesh geometry data from loaded OBJ files.
+* Each mesh surface consists of a positions texture (vertex XYZ + W) and a normals texture (normal XYZ + UV).
+* **Loading:** Use ``meshLoader()`` in the pipeline and load OBJ files via the API (``canvas.loadOBJFromURL()`` or ``canvas.loadOBJFromString()``).
+* **Rendering:** Use ``meshRender(mesh: mesh0)`` to render mesh geometry with lighting and transforms.
 
 Feedback Loops
 ^^^^^^^^^^^^^^

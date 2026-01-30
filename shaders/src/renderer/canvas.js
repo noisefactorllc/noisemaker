@@ -1457,7 +1457,7 @@ export class CanvasRenderer {
     /**
      * Load an OBJ mesh file from URL and upload to a mesh surface.
      * @param {string} url - URL to OBJ file
-     * @param {string} [meshId='mesh0'] - Target mesh surface (mesh0-mesh3)
+     * @param {string} [meshId='mesh0'] - Target mesh surface (mesh0-mesh7)
      * @returns {Promise<{success: boolean, vertexCount: number, error?: string}>}
      */
     async loadOBJFromURL(url, meshId = 'mesh0') {
@@ -1516,7 +1516,7 @@ export class CanvasRenderer {
     /**
      * Load OBJ mesh directly from string content.
      * @param {string} objText - Raw OBJ file content
-     * @param {string} [meshId='mesh0'] - Target mesh surface (mesh0-mesh3)
+     * @param {string} [meshId='mesh0'] - Target mesh surface (mesh0-mesh7)
      * @returns {Promise<{success: boolean, vertexCount: number, error?: string}>}
      */
     async loadOBJFromString(objText, meshId = 'mesh0') {
