@@ -5,7 +5,7 @@
 
 struct Uniforms {
     // data[0] = (resolution.x, resolution.y, time, unused)
-    // data[1] = (unused, unused, unused, unused)
+    // data[1] = (inputIntensity, unused, unused, unused)
     // data[2] = (unused, unused, unused, unused)
     // data[3] = (unused, unused, unused, smoothing)
     data : array<vec4<f32>, 4>,
@@ -13,6 +13,7 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var samp : sampler;
 @group(0) @binding(2) var fbTex : texture_2d<f32>;
+@group(0) @binding(3) var inputTex : texture_2d<f32>;
 
 const PI : f32 = 3.14159265359;
 
@@ -172,6 +173,7 @@ fn cosineMix(a: f32, b: f32, t: f32) -> f32 {
 fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let resolution = uniforms.data[0].xy;
     let smoothing = i32(uniforms.data[3].w);
+    let inputIntensity = uniforms.data[1].x * 0.01;
 
     var intensity = 1.0;
 
@@ -266,5 +268,15 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
         }
     }
 
-    return vec4<f32>(intensity, intensity, intensity, 1.0);
+    var rdColor = vec3<f32>(intensity, intensity, intensity);
+
+    // Blend with input texture
+    if (inputIntensity > 0.0) {
+        var inputUv = pos.xy / resolution;
+        inputUv.y = 1.0 - inputUv.y;
+        let inputColor = textureSampleLevel(inputTex, samp, inputUv, 0.0).rgb;
+        rdColor = mix(rdColor, inputColor, inputIntensity);
+    }
+
+    return vec4<f32>(rdColor, 1.0);
 }

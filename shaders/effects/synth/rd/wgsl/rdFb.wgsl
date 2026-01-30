@@ -104,9 +104,15 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
             val = prevFrame.g;
         } else if (sourceF == 5) {
             val = prevFrame.b;
+        } else if (sourceF == 6) {
+            // sliderInput: blend slider value with brightness-modulated value
+            val = map(prevLum, 0.0, 1.0, 0.01, 0.11);
+            f = mix(f, val, weight);
         }
-        val = map(val, 0.0, 1.0, 0.01, 0.11);
-        f = mix(f, val, weight);
+        if (sourceF != 6) {
+            val = map(val, 0.0, 1.0, 0.01, 0.11);
+            f = val;
+        }
     }
 
     if (sourceK > 0) {
@@ -119,9 +125,15 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
             val = prevFrame.g;
         } else if (sourceK == 5) {
             val = prevFrame.b;
+        } else if (sourceK == 6) {
+            // sliderInput: blend slider value with brightness-modulated value
+            val = map(prevLum, 0.0, 1.0, 0.045, 0.07);
+            k = mix(k, val, weight);
         }
-        val = map(val, 0.0, 1.0, 0.045, 0.07);
-        k = mix(k, val, weight);
+        if (sourceK != 6) {
+            val = map(val, 0.0, 1.0, 0.045, 0.07);
+            k = val;
+        }
     }
 
     if (sourceR1 > 0) {
@@ -134,9 +146,15 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
             val = prevFrame.g;
         } else if (sourceR1 == 5) {
             val = prevFrame.b;
+        } else if (sourceR1 == 6) {
+            // sliderInput: blend slider value with brightness-modulated value
+            val = map(prevLum, 0.0, 1.0, 0.5, 1.2);
+            r1 = mix(r1, val, weight);
         }
-        val = map(val, 0.0, 1.0, 0.5, 1.2);
-        r1 = mix(r1, val, weight);
+        if (sourceR1 != 6) {
+            val = map(val, 0.0, 1.0, 0.5, 1.2);
+            r1 = val;
+        }
     }
 
     if (sourceR2 > 0) {
@@ -149,9 +167,15 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
             val = prevFrame.g;
         } else if (sourceR2 == 5) {
             val = prevFrame.b;
+        } else if (sourceR2 == 6) {
+            // sliderInput: blend slider value with brightness-modulated value
+            val = map(prevLum, 0.0, 1.0, 0.2, 0.5);
+            r2 = mix(r2, val, weight);
         }
-        val = map(val, 0.0, 1.0, 0.2, 0.5);
-        r2 = mix(r2, val, weight);
+        if (sourceR2 != 6) {
+            val = map(val, 0.0, 1.0, 0.2, 0.5);
+            r2 = val;
+        }
     }
 
     let a2 = clamp(a + (r1 * color.r - a * b * b + f * (1.0 - a)) * s, 0.0, 1.0);

@@ -13,7 +13,9 @@ uniform float time;
 uniform int seed;
 uniform vec2 resolution;
 uniform sampler2D fbTex;
+uniform sampler2D inputTex;
 uniform int smoothing;
+uniform float inputIntensity;
 out vec4 fragColor;
 
 #define PI 3.14159265359
@@ -322,5 +324,16 @@ void main() {
 
     float intensity = clamp(state, 0.0, 1.0);
 
-    fragColor = vec4(vec3(intensity), 1.0);
+    vec3 rdColor = vec3(intensity);
+
+    // Blend with input texture
+    float blend = inputIntensity * 0.01;
+    if (blend > 0.0) {
+        vec2 inputUv = gl_FragCoord.xy / resolution;
+        inputUv.y = 1.0 - inputUv.y;
+        vec3 inputColor = texture(inputTex, inputUv).rgb;
+        rdColor = mix(rdColor, inputColor, blend);
+    }
+
+    fragColor = vec4(rdColor, 1.0);
 }

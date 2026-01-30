@@ -10,6 +10,7 @@ export default new Effect({
     rd: {
       resolution: { slot: 0, components: 'xy' },
       time: { slot: 0, components: 'z' },
+      inputIntensity: { slot: 1, components: 'x' },
       smoothing: { slot: 3, components: 'w' }
     },
     rdFb: {
@@ -256,6 +257,19 @@ export default new Effect({
         enabledBy: { param: "tex", neq: "none" }
       }
     },
+    inputIntensity: {
+      type: "float",
+      default: 0,
+      uniform: "inputIntensity",
+      min: 0,
+      max: 100,
+      ui: {
+        label: "input intensity",
+        control: "slider",
+        category: "input",
+        enabledBy: { param: "tex", neq: "none" }
+      }
+    },
 
   },
   passes: [
@@ -275,7 +289,8 @@ export default new Effect({
       name: "render",
       program: "rd",
       inputs: {
-        fbTex: "global_rd_state"
+        fbTex: "global_rd_state",
+        inputTex: "tex"
       },
       outputs: {
         fragColor: "outputTex"
