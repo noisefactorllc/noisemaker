@@ -129,4 +129,4 @@ noise().tetraCosine({
 ## References
 
 - [Inigo Quilez - Palettes](https://iquilezles.org/articles/palettes/)
-- [Tetra Palette Editor](https://github.com/noisefactor/tetra)
+- [Tetra Palette Editor](https://tetra.noisedeck.app)

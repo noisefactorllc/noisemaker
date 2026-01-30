@@ -25,7 +25,9 @@ This effect is fully compatible with Tetra's color array palette format and can 
 
 ### Colors
 - **Color 1-8**: Color pickers for each gradient stop
-  - Colors 6-8 are only visible when Color Count > 5, 6, 7 respectively
+  - Color 6 visible when Color Count is 6+
+  - Color 7 visible when Color Count is 7+
+  - Color 8 visible when Color Count is 8
 
 ### Positions (Manual Mode)
 - **Position 1-8**: Position (0-1) for each color in the gradient
@@ -150,4 +152,4 @@ noise().tetraColorArray({
 
 ## References
 
-- [Tetra Palette Editor](https://github.com/noisefactor/tetra)
+- [Tetra Palette Editor](https://tetra.noisedeck.app)
