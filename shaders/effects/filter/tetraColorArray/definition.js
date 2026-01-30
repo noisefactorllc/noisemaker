@@ -79,7 +79,7 @@ export default new Effect({
     // === Color Count ===
     colorCount: {
       type: "int",
-      default: 5,
+      default: 8,
       uniform: "tetraColorArrayColorCount",
       min: 2,
       max: 8,
@@ -108,9 +108,10 @@ export default new Effect({
     },
 
     // === Colors (up to 8) ===
+    // Default: VIBGYORV (reverse rainbow)
     color0: {
       type: "color",
-      default: [0.0, 0.0, 0.0],
+      default: [0.58, 0.0, 0.83],  // Violet
       uniform: "tetraColorArrayColor0",
       ui: {
         label: "Color 1",
@@ -120,7 +121,7 @@ export default new Effect({
     },
     color1: {
       type: "color",
-      default: [0.25, 0.25, 0.25],
+      default: [0.29, 0.0, 0.51],  // Indigo
       uniform: "tetraColorArrayColor1",
       ui: {
         label: "Color 2",
@@ -130,7 +131,7 @@ export default new Effect({
     },
     color2: {
       type: "color",
-      default: [0.5, 0.5, 0.5],
+      default: [0.0, 0.0, 1.0],  // Blue
       uniform: "tetraColorArrayColor2",
       ui: {
         label: "Color 3",
@@ -140,7 +141,7 @@ export default new Effect({
     },
     color3: {
       type: "color",
-      default: [0.75, 0.75, 0.75],
+      default: [0.0, 1.0, 0.0],  // Green
       uniform: "tetraColorArrayColor3",
       ui: {
         label: "Color 4",
@@ -150,7 +151,7 @@ export default new Effect({
     },
     color4: {
       type: "color",
-      default: [1.0, 1.0, 1.0],
+      default: [1.0, 1.0, 0.0],  // Yellow
       uniform: "tetraColorArrayColor4",
       ui: {
         label: "Color 5",
@@ -160,7 +161,7 @@ export default new Effect({
     },
     color5: {
       type: "color",
-      default: [0.8, 0.2, 0.2],
+      default: [1.0, 0.5, 0.0],  // Orange
       uniform: "tetraColorArrayColor5",
       ui: {
         label: "Color 6",
@@ -171,7 +172,7 @@ export default new Effect({
     },
     color6: {
       type: "color",
-      default: [0.2, 0.8, 0.2],
+      default: [1.0, 0.0, 0.0],  // Red
       uniform: "tetraColorArrayColor6",
       ui: {
         label: "Color 7",
@@ -182,7 +183,7 @@ export default new Effect({
     },
     color7: {
       type: "color",
-      default: [0.2, 0.2, 0.8],
+      default: [0.58, 0.0, 0.83],  // Violet
       uniform: "tetraColorArrayColor7",
       ui: {
         label: "Color 8",
