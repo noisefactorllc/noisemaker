@@ -180,21 +180,36 @@ Interactive reference for all shader effects. Select an effect to view its docum
    
    .effect-help-content code {
      background: #f5f5f5;
+     color: #333;
      padding: 0.1rem 0.3rem;
      border-radius: 3px;
      font-size: 0.9em;
    }
-   
+
    .effect-help-content pre {
      background: #f5f5f5;
+     color: #333;
      padding: 1rem;
      border-radius: 4px;
      overflow-x: auto;
    }
-   
+
    .effect-help-content pre code {
      background: none;
      padding: 0;
+     color: inherit;
+   }
+
+   body[data-theme="dark"] .effect-help-content code,
+   body:not([data-theme="light"]) .effect-help-content code {
+     background: rgba(255, 255, 255, 0.1);
+     color: #d4d4d4;
+   }
+
+   body[data-theme="dark"] .effect-help-content pre,
+   body:not([data-theme="light"]) .effect-help-content pre {
+     background: rgba(255, 255, 255, 0.1);
+     color: #d4d4d4;
    }
    
    .dsl-usage-intro {
