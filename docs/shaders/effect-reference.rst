@@ -3,7 +3,7 @@
 Effect Reference
 ================
 
-Interactive reference for all shader effects. Select an effect to view its documentation, parameters, and a live demo with DSL usage examples.
+Interactive reference for all shader effects. Select an effect to view its documentation, parameters, and a live demo.
 
 .. raw:: html
 
@@ -25,11 +25,7 @@ Interactive reference for all shader effects. Select an effect to view its docum
          <div id="effect-ref-help-content" class="effect-help-content">
            <!-- Rendered markdown help will appear here -->
          </div>
-         
-         <h3>DSL Usage</h3>
-         <p class="dsl-usage-intro">Use this effect in your Polymorphic DSL programs:</p>
-         <pre id="effect-ref-dsl-example" class="dsl-example"></pre>
-         
+
          <div class="effect-reference-demo">
            <h3>Live Demo</h3>
            <div class="demo-layout">
@@ -210,22 +206,6 @@ Interactive reference for all shader effects. Select an effect to view its docum
    body:not([data-theme="light"]) .effect-help-content pre {
      background: rgba(255, 255, 255, 0.1);
      color: #d4d4d4;
-   }
-   
-   .dsl-usage-intro {
-     margin-bottom: 0.5rem;
-     color: #666;
-   }
-   
-   .dsl-example {
-     background: #1e1e1e;
-     color: #d4d4d4;
-     padding: 1rem;
-     border-radius: 4px;
-     overflow-x: auto;
-     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-     font-size: 0.875rem;
-     line-height: 1.5;
    }
    
    .effect-reference-demo {

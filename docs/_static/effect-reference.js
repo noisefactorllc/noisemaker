@@ -1,7 +1,7 @@
 /**
  * Effect Reference Page - Interactive shader effect documentation
- * 
- * Displays effect description, help documentation, DSL examples, and live demo.
+ *
+ * Displays effect description, help documentation, and live demo.
  * Uses the bundled effect versions which include help.md content.
  */
 
@@ -397,7 +397,6 @@
         const titleEl = document.getElementById('effect-ref-title');
         const descriptionEl = document.getElementById('effect-ref-description');
         const helpContentEl = document.getElementById('effect-ref-help-content');
-        const dslExampleEl = document.getElementById('effect-ref-dsl-example');
         const paramsContainer = document.getElementById('effect-ref-params');
         const canvas = document.getElementById('effect-ref-canvas');
         const loadingEl = document.getElementById('effect-ref-loading');
@@ -439,9 +438,8 @@
             // Render help documentation
             helpContentEl.innerHTML = renderHelp(placeholderEntry.help);
 
-            // Build DSL example
+            // Build DSL for demo
             const dsl = buildDslSource(currentEffect);
-            dslExampleEl.textContent = dsl;
 
             // Build controls
             const controlResult = buildControlsForEffect(paramsContainer, currentEffect.instance, (newValues, uniformMap) => {
