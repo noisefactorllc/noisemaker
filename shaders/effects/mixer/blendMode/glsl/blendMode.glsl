@@ -124,6 +124,11 @@ void main() {
         color = mix(middle, color2, factor);
     }
 
-    color.a = max(color1.a, color2.a);
+    // Porter-Duff "over" alpha compositing
+    // Blend RGB based on top layer alpha, preserving base layer where top is transparent
+    color.rgb = mix(color1.rgb, color.rgb, color2.a * amt);
+    // Output alpha: top + base * (1 - top), scaled by mix amount
+    color.a = color2.a * amt + color1.a * (1.0 - color2.a * amt);
+
     fragColor = color;
 }

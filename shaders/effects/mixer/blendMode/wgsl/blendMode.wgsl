@@ -128,6 +128,12 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         color = mix(middle, color2, factor);
     }
 
-    color.a = max(color1.a, color2.a);
+    // Porter-Duff "over" alpha compositing
+    // Blend RGB based on top layer alpha, preserving base layer where top is transparent
+    let effectiveAlpha = color2.a * amt;
+    color = vec4<f32>(
+        mix(color1.rgb, color.rgb, effectiveAlpha),
+        effectiveAlpha + color1.a * (1.0 - effectiveAlpha)
+    );
     return color;
 }
