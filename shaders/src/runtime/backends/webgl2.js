@@ -803,7 +803,8 @@ export class WebGL2Backend extends Backend {
 
         // Clear any pending WebGL errors from previous operations
         // This ensures we only report errors from THIS pass
-        while (gl.getError() !== gl.NO_ERROR) {}
+        let maxErrorDrain = 100
+        while (gl.getError() !== gl.NO_ERROR && maxErrorDrain-- > 0) {}
 
         // WebGL2 GPGPU: Convert passes with compute-style conventions to render passes
         // Compute shaders don't exist in WebGL2, so we use fragment shaders
@@ -1088,7 +1089,8 @@ export class WebGL2Backend extends Backend {
 
         // Check for errors - drain all errors from the queue
         let error = gl.getError()
-        while (error !== gl.NO_ERROR) {
+        let maxErrorLog = 100
+        while (error !== gl.NO_ERROR && maxErrorLog-- > 0) {
             // Build detailed error context
             const outputId = effectivePass.outputs?.color || Object.values(effectivePass.outputs || {})[0] || 'unknown'
             const inputIds = effectivePass.inputs ? Object.entries(effectivePass.inputs).map(([k,v]) => `${k}=${v}`).join(', ') : 'none'
