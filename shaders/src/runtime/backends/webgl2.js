@@ -257,6 +257,16 @@ export class WebGL2Backend extends Backend {
             console.error(`FBO incomplete for texture ${id}: ${status}`)
         }
 
+        // Clear FBO to transparent black to initialize it
+        // This prevents GL_INVALID_VALUE errors on some implementations
+        // that don't like rendering to uninitialized framebuffers
+        const tex = this.textures.get(id)
+        if (tex) {
+            gl.viewport(0, 0, tex.width, tex.height)
+            gl.clearColor(0, 0, 0, 0)
+            gl.clear(gl.COLOR_BUFFER_BIT)
+        }
+
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         this.fbos.set(id, fbo)
     }
@@ -791,6 +801,10 @@ export class WebGL2Backend extends Backend {
     executePass(pass, state) {
         const gl = this.gl
 
+        // Clear any pending WebGL errors from previous operations
+        // This ensures we only report errors from THIS pass
+        while (gl.getError() !== gl.NO_ERROR) {}
+
         // WebGL2 GPGPU: Convert passes with compute-style conventions to render passes
         // Compute shaders don't exist in WebGL2, so we use fragment shaders
         // with fullscreen triangles as a GPGPU fallback
@@ -1226,15 +1240,36 @@ export class WebGL2Backend extends Backend {
             case gl.BOOL:
                 gl.uniform1i(loc, typeof value === 'boolean' ? (value ? 1 : 0) : value)
                 break
-            case gl.FLOAT_VEC2:
-                gl.uniform2fv(loc, value)
+            case gl.FLOAT_VEC2: {
+                // Ensure value is a proper 2-element Float32Array
+                const v2 = Array.isArray(value) ? value : [value, value]
+                const arr2 = new Float32Array(2)
+                arr2[0] = v2[0] ?? 0
+                arr2[1] = v2[1] ?? 0
+                gl.uniform2fv(loc, arr2)
                 break
-            case gl.FLOAT_VEC3:
-                gl.uniform3fv(loc, value)
+            }
+            case gl.FLOAT_VEC3: {
+                // Ensure value is a proper 3-element Float32Array
+                const v3 = Array.isArray(value) ? value : [value, value, value]
+                const arr3 = new Float32Array(3)
+                arr3[0] = v3[0] ?? 0
+                arr3[1] = v3[1] ?? 0
+                arr3[2] = v3[2] ?? 0
+                gl.uniform3fv(loc, arr3)
                 break
-            case gl.FLOAT_VEC4:
-                gl.uniform4fv(loc, value)
+            }
+            case gl.FLOAT_VEC4: {
+                // Ensure value is a proper 4-element Float32Array
+                const v4 = Array.isArray(value) ? value : [value, value, value, value]
+                const arr4 = new Float32Array(4)
+                arr4[0] = v4[0] ?? 0
+                arr4[1] = v4[1] ?? 0
+                arr4[2] = v4[2] ?? 0
+                arr4[3] = v4[3] ?? 1
+                gl.uniform4fv(loc, arr4)
                 break
+            }
             case gl.FLOAT_MAT3:
                 gl.uniformMatrix3fv(loc, false, value)
                 break
