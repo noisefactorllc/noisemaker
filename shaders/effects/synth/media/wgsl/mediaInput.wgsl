@@ -138,8 +138,13 @@ fn getImage(pos: vec2<f32>) -> vec4<f32> {
         return vec4<f32>(backgroundColor, backgroundOpacity * 0.01);
     }
 
-    // Premultiply alpha
-    text = vec4<f32>(text.rgb * text.a, text.a);
+    // Un-premultiply to compensate for linear filtering on straight-alpha textures
+    // Linear filtering averages with black (0,0,0,0) transparent pixels, darkening edges
+    // Dividing by alpha restores the original RGB values
+    if (text.a > 0.0) {
+        text = vec4<f32>(text.rgb / text.a, text.a);
+    }
+
     return text;
 }
 

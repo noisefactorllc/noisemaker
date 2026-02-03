@@ -189,15 +189,19 @@ vec4 getImage(vec2 st) {
     }
     
     vec4 text = texture(imageTex, st);
-    
+
     if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) {
         // Don't draw texture if out of coordinate bounds
         return vec4(backgroundColor, backgroundOpacity * 0.01);
     }
 
-    // Premultiply texture alpha
-    text.rgb = text.rgb * text.a;
-    
+    // Un-premultiply to compensate for linear filtering on straight-alpha textures
+    // Linear filtering averages with black (0,0,0,0) transparent pixels, darkening edges
+    // Dividing by alpha restores the original RGB values
+    if (text.a > 0.0) {
+        text.rgb = text.rgb / text.a;
+    }
+
     return text;
 }
 
