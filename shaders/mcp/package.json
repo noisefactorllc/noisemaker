@@ -12,7 +12,7 @@
     "test": "node test-harness.js"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.25.2"
+    "@modelcontextprotocol/sdk": "^1.26.0"
   },
   "peerDependencies": {
     "@playwright/test": "^1.56.0"
