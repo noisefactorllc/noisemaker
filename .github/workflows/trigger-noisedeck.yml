@@ -62,3 +62,11 @@ jobs:
           repository: noisedeck/foundry
           event-type: noisemaker-updated
           client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
+
+      - name: Trigger layers
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          repository: noisedeck/layers
+          event-type: noisemaker-updated
+          client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}"}'
