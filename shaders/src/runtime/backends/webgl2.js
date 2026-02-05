@@ -804,7 +804,7 @@ export class WebGL2Backend extends Backend {
         // Clear any pending WebGL errors from previous operations
         // This ensures we only report errors from THIS pass
         let maxErrorDrain = 100
-        while (gl.getError() !== gl.NO_ERROR && maxErrorDrain-- > 0) {}
+        while (gl.getError() !== gl.NO_ERROR && maxErrorDrain-- > 0) { /* drain */ }
 
         // WebGL2 GPGPU: Convert passes with compute-style conventions to render passes
         // Compute shaders don't exist in WebGL2, so we use fragment shaders

@@ -292,4 +292,4 @@ export const renameMap = {
         fractalType: 'type',              // Rule 1: remove effect name
     },
 
-};
+}

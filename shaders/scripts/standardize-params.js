@@ -232,7 +232,7 @@ function transformFile(filePath, text) {
 
   const mapKey = `${namespace}/${func}`
   const renames = renameMap[mapKey] || {}
-  const params = parseGlobalsParams(text)
+  parseGlobalsParams(text)
 
   const changes = []
   let result = text
@@ -261,7 +261,6 @@ function transformFile(filePath, text) {
     const globalsIdx = globalsMatch.index
     // Find all occurrences of the key pattern and pick the one inside globals
     let searchFrom = globalsIdx
-    let found = false
     while (searchFrom < result.length) {
       const slice = result.substring(searchFrom)
       const match = slice.match(keyRegex)
@@ -279,7 +278,6 @@ function transformFile(filePath, text) {
         result = result.substring(0, matchIdx) + replacement + result.substring(matchIdx + fullMatch.length)
         appliedRenames[oldKey] = newKey
         changes.push(`rename: ${oldKey} -> ${newKey}`)
-        found = true
         break
       }
       searchFrom = matchIdx + 1
@@ -499,7 +497,7 @@ function addUiBlockWithLabel(text, paramKey, label) {
   // Insert ui block before the closing }
   // Check what's before the closing }
   const beforeClose = text.substring(blockStart + 1, blockEnd)
-  const lastContentMatch = beforeClose.match(/\S[^]*$/)
+  beforeClose.match(/\S[^]*$/)
 
   let insertion
   // Check if the last line before } ends with a comma

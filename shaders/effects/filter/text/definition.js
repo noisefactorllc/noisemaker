@@ -23,7 +23,7 @@ export default class Text extends Effect {
             type: "string",
             default: "Hello World",
             ui: {
-                
+
                 label: "text",multiline: true,
                 category: "general"
             }
@@ -40,7 +40,7 @@ export default class Text extends Effect {
                 fantasy: "fantasy"
             },
             ui: {
-                
+
                 label: "font",control: "dropdown",
                 category: "general"
             }
@@ -52,7 +52,7 @@ export default class Text extends Effect {
             max: 1.0,
             step: 0.01,
             ui: {
-                
+
                 label: "size",control: "slider",
                 category: "transform"
             }
@@ -64,7 +64,7 @@ export default class Text extends Effect {
             max: 1.0,
             step: 0.01,
             ui: {
-                
+
                 label: "pos x",control: "slider",
                 category: "transform"
             }
@@ -76,7 +76,7 @@ export default class Text extends Effect {
             max: 1.0,
             step: 0.01,
             ui: {
-                
+
                 label: "pos y",control: "slider",
                 category: "transform"
             }
@@ -88,7 +88,7 @@ export default class Text extends Effect {
             max: 180.0,
             step: 1.0,
             ui: {
-                
+
                 label: "rotation",control: "slider",
                 category: "transform"
             }
@@ -97,7 +97,7 @@ export default class Text extends Effect {
             type: "color",
             default: "#ffffff",
             ui: {
-                
+
                 label: "color",control: "color",
                 category: "general"
             }
@@ -106,7 +106,7 @@ export default class Text extends Effect {
             type: "color",
             default: "#000000",
             ui: {
-                
+
                 label: "background color",control: "color",
                 category: "background"
             }
@@ -118,7 +118,7 @@ export default class Text extends Effect {
             max: 1.0,
             step: 0.01,
             ui: {
-                
+
                 label: "background opacity",control: "slider",
                 category: "background"
             }
@@ -132,7 +132,7 @@ export default class Text extends Effect {
                 "right": "right"
             },
             ui: {
-                
+
                 label: "justify",control: "dropdown",
                 category: "general"
             }

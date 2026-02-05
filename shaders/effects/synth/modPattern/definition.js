@@ -36,7 +36,7 @@ export default new Effect({
 			},
 			uniform: "shape1",
 			ui: {
-				
+
 			    label: "shape1",category: "layer 1",
 			}
 		},
@@ -49,7 +49,7 @@ export default new Effect({
 			randMax: 18.0,
 			uniform: "scale1",
 			ui: {
-				
+
 			    label: "scale1",category: "layer 1",
 			}
 		},
@@ -61,7 +61,7 @@ export default new Effect({
 			randMin: 3.0,
 			uniform: "repeat1",
 			ui: {
-				
+
 			    label: "repeat1",category: "layer 1",
 			}
 		},
@@ -77,7 +77,7 @@ export default new Effect({
 			},
 			uniform: "shape2",
 			ui: {
-				
+
 			    label: "shape2",category: "layer 2",
 			}
 		},
@@ -89,7 +89,7 @@ export default new Effect({
 			randMin: 5.0,
 			uniform: "scale2",
 			ui: {
-				
+
 			    label: "scale2",category: "layer 2",
 			}
 		},
@@ -101,7 +101,7 @@ export default new Effect({
 			randMax: 8.0,
 			uniform: "repeat2",
 			ui: {
-				
+
 			    label: "repeat2",category: "layer 2",
 			}
 		},
@@ -117,7 +117,7 @@ export default new Effect({
 			},
 			uniform: "shape3",
 			ui: {
-				
+
 			    label: "shape3",category: "layer 3",
 			}
 		},
@@ -129,7 +129,7 @@ export default new Effect({
 			randMax: 6.0,
 			uniform: "scale3",
 			ui: {
-				
+
 			    label: "scale3",category: "layer 3",
 			}
 		},
@@ -141,7 +141,7 @@ export default new Effect({
 			randMax: 3.0,
 			uniform: "repeat3",
 			ui: {
-				
+
 			    label: "repeat3",category: "layer 3",
 			}
 		},
@@ -170,7 +170,7 @@ export default new Effect({
 			randMax: 1,
 			uniform: "speed",
 			ui: {
-				
+
 			    label: "speed",category: "layer 3",
 			}
 		}
