@@ -49,8 +49,8 @@ const TYPE_ALIASES = {
 const PARAM_TYPE_OVERRIDES = {
   seed:       'int',
   rotation:   'float',
-  speed:      'float',
-  loopAmp:    'float',
+  speed:      'int',
+  loopAmp:    'int',
   levels:     'int',
   octaves:    'int',
   smoothing:  'float',

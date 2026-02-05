@@ -135,7 +135,7 @@ export default new Effect({
       }
     },
     speed: {
-      type: "float",
+      type: "int",
       default: 1,
       uniform: "speed",
       min: -5,

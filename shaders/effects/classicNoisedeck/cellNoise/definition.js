@@ -106,7 +106,7 @@ export default class CellNoise extends Effect {
       }
     },
     speed: {
-      type: "float",
+      type: "int",
       default: 1,
       uniform: "loopAmp",
       min: 0,

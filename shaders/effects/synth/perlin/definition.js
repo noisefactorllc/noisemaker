@@ -66,7 +66,7 @@ export default new Effect({
             label: "seed"
         }},
     "speed": {
-        "type": "float",
+        "type": "int",
         "default": 1,
         "min": 0,
         "max": 5,
