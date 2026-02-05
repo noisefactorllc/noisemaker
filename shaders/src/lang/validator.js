@@ -679,7 +679,7 @@ export function validate(ast) {
                 if (kw) {
                     const aliasWarnings = resolveParamAliases(opName, kw)
                     for (const w of aliasWarnings) {
-                        pushDiag('S001', call, w)
+                        pushDiag('S007', call, w)
                     }
                 }
                 const seen = new Set()
