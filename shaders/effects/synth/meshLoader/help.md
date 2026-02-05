@@ -1,5 +1,7 @@
 # Mesh Loader
 
+**Note:** The mesh loader is a proof of concept that currently only supports OBJ format.
+
 Load external OBJ mesh files into mesh surface textures for GPU rendering.
 
 ## Usage

@@ -1492,6 +1492,11 @@ noise(ridges: true)
 render(o1)`
         }
 
+        // Special case: meshLoader and meshRender must be paired together
+        if (funcName === 'meshLoader' || funcName === 'meshRender') {
+            return `search synth, render\n\nmeshLoader()\n  .meshRender()\n  .write(o0)\n\nrender(o0)`
+        }
+
         // Special case: points namespace effects need pointsEmit/pointsRender wrapping
         if (effect.namespace === 'points') {
             const kwargs = this._buildKwargs(effect.instance.globals, this._parameterValues)

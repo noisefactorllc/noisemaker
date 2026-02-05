@@ -1,5 +1,7 @@
 # Mesh Render
 
+**Note:** Mesh rendering is a proof of concept. The mesh loader currently only supports OBJ format.
+
 Renders triangle meshes from mesh surface textures using the triangles draw mode.
 
 ## Usage
