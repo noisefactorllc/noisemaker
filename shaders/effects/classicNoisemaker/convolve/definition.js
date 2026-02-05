@@ -20,7 +20,7 @@ export default new Effect({
         max: 810,
         step: 1,
         ui: {
-            label: "Kernel Id",
+            label: "kernel id",
             control: "slider"
         }
     },
@@ -32,7 +32,7 @@ export default new Effect({
         max: 1,
         step: 1,
         ui: {
-            label: "Normalize",
+            label: "normalize",
             control: "checkbox"
         }
     },
@@ -44,7 +44,7 @@ export default new Effect({
         max: 1,
         step: 0.01,
         ui: {
-            label: "Alpha",
+            label: "alpha",
             control: "slider"
         }
     }

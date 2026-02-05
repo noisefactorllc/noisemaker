@@ -23,7 +23,8 @@ export default class Text extends Effect {
             type: "string",
             default: "Hello World",
             ui: {
-                multiline: true,
+                
+                label: "text",multiline: true,
                 category: "general"
             }
         },
@@ -39,7 +40,8 @@ export default class Text extends Effect {
                 fantasy: "fantasy"
             },
             ui: {
-                control: "dropdown",
+                
+                label: "font",control: "dropdown",
                 category: "general"
             }
         },
@@ -50,7 +52,8 @@ export default class Text extends Effect {
             max: 1.0,
             step: 0.01,
             ui: {
-                control: "slider",
+                
+                label: "size",control: "slider",
                 category: "transform"
             }
         },
@@ -61,7 +64,8 @@ export default class Text extends Effect {
             max: 1.0,
             step: 0.01,
             ui: {
-                control: "slider",
+                
+                label: "pos x",control: "slider",
                 category: "transform"
             }
         },
@@ -72,7 +76,8 @@ export default class Text extends Effect {
             max: 1.0,
             step: 0.01,
             ui: {
-                control: "slider",
+                
+                label: "pos y",control: "slider",
                 category: "transform"
             }
         },
@@ -83,7 +88,8 @@ export default class Text extends Effect {
             max: 180.0,
             step: 1.0,
             ui: {
-                control: "slider",
+                
+                label: "rotation",control: "slider",
                 category: "transform"
             }
         },
@@ -91,7 +97,8 @@ export default class Text extends Effect {
             type: "color",
             default: "#ffffff",
             ui: {
-                control: "color",
+                
+                label: "color",control: "color",
                 category: "general"
             }
         },
@@ -99,18 +106,20 @@ export default class Text extends Effect {
             type: "color",
             default: "#000000",
             ui: {
-                control: "color",
+                
+                label: "background color",control: "color",
                 category: "background"
             }
         },
-        bgOpacity: {
+        bgAlpha: {
             type: "float",
             default: 0.0,
             min: 0.0,
             max: 1.0,
             step: 0.01,
             ui: {
-                control: "slider",
+                
+                label: "background opacity",control: "slider",
                 category: "background"
             }
         },
@@ -123,11 +132,15 @@ export default class Text extends Effect {
                 "right": "right"
             },
             ui: {
-                control: "dropdown",
+                
+                label: "justify",control: "dropdown",
                 category: "general"
             }
         }
     }
+
+    paramAliases = { bgOpacity: 'bgAlpha' }
+
 
     passes = [
         {

@@ -19,7 +19,7 @@ export default new Effect({
       max: 0.1,
       step: 0.001,
       ui: {
-        label: "Displacement",
+        label: "displacement",
         control: "slider"
       }
     }

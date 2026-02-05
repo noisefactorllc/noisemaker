@@ -49,7 +49,7 @@ export default new Effect({
         category: "transform"
       }
     },
-    cellSmooth: {
+    smooth: {
       type: "float",
       default: 0,
       uniform: "cellSmooth",
@@ -60,7 +60,7 @@ export default new Effect({
         control: "slider"
       }
     },
-    cellVariation: {
+    variation: {
       type: "float",
       default: 0,
       uniform: "cellVariation",
@@ -71,8 +71,8 @@ export default new Effect({
         control: "slider"
       }
     },
-    loopAmp: {
-      type: "int",
+    speed: {
+      type: "float",
       default: 1,
       uniform: "loopAmp",
       min: 0,
@@ -120,7 +120,7 @@ export default new Effect({
         category: "effect"
       }
     },
-    refractAmt: {
+    amount: {
       type: "float",
       default: 23,
       uniform: "refractAmt",
@@ -132,7 +132,7 @@ export default new Effect({
         category: "refract"
       }
     },
-    refractDir: {
+    direction: {
       type: "float",
       default: 0,
       uniform: "refractDir",
@@ -171,6 +171,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { cellSmooth: 'smooth', cellVariation: 'variation', refractAmt: 'amount', refractDir: 'direction', loopAmp: 'speed' },
   passes: [
     {
       name: "render",

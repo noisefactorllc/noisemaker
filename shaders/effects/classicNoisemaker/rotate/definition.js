@@ -20,7 +20,7 @@ export default new Effect({
         max: 180,
         step: 1,
         ui: {
-            label: "Angle",
+            label: "angle",
             control: "slider"
         }
     }

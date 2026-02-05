@@ -110,7 +110,7 @@ export default new Effect({
         "max": 1,
         "uniform": "bgAlpha",
         "ui": {
-            "label": "background alpha"
+            "label": "background opacity"
         }
     }
   },

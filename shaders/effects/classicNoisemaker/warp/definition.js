@@ -11,7 +11,7 @@ export default new Effect({
 
   description: "Perlin warp distortion",
   globals: {
-    frequency: {
+    freq: {
       type: "float",
       default: 2,
       uniform: "frequency",
@@ -19,19 +19,19 @@ export default new Effect({
       max: 10,
       step: 0.1,
       ui: {
-        label: "Frequency",
+        label: "frequency",
         control: "slider"
       }
     },
     octaves: {
-      type: "float",
+      type: "int",
       default: 5,
       uniform: "octaves",
       min: 1,
       max: 10,
       step: 1,
       ui: {
-        label: "Octaves",
+        label: "octaves",
         control: "slider"
       }
     },
@@ -43,7 +43,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Displacement",
+        label: "displacement",
         control: "slider"
       }
     },
@@ -55,23 +55,24 @@ export default new Effect({
       max: 5,
       step: 0.1,
       ui: {
-        label: "Speed",
+        label: "speed",
         control: "slider"
       }
     },
     splineOrder: {
-      type: "float",
+      type: "int",
       default: 2,
       uniform: "splineOrder",
       min: 0,
       max: 3,
       step: 1,
       ui: {
-        label: "Spline Order",
+        label: "spline order",
         control: "slider"
       }
     }
   },
+  paramAliases: { frequency: 'freq' },
   passes: [
     {
       name: "main",

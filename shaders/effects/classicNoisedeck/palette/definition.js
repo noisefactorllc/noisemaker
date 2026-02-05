@@ -8,7 +8,7 @@ export default new Effect({
 
   description: "Color palette mapping",
   globals: {
-    paletteType: {
+    type: {
       type: "int",
       default: 0,
       uniform: "paletteType",
@@ -21,7 +21,7 @@ export default new Effect({
         control: "dropdown"
       }
     },
-    cyclePalette: {
+    cycle: {
       type: "int",
       default: 1,
       uniform: "cyclePalette",
@@ -35,7 +35,7 @@ export default new Effect({
         control: "dropdown"
       }
     },
-    rotatePalette: {
+    rotate: {
       type: "float",
       default: 0,
       uniform: "rotatePalette",
@@ -146,7 +146,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "offset R",
+        label: "offset r",
         control: "slider",
         category: "cosine"
       }
@@ -158,7 +158,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "phase R",
+        label: "phase r",
         control: "slider",
         category: "cosine"
       }
@@ -170,7 +170,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "offset G",
+        label: "offset g",
         control: "slider",
         category: "cosine"
       }
@@ -182,7 +182,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "phase G",
+        label: "phase g",
         control: "slider",
         category: "cosine"
       }
@@ -194,7 +194,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "offset B",
+        label: "offset b",
         control: "slider",
         category: "cosine"
       }
@@ -206,7 +206,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "phase B",
+        label: "phase b",
         control: "slider",
         category: "cosine"
       }
@@ -218,7 +218,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "amp R",
+        label: "amp r",
         control: "slider",
         category: "cosine"
       }
@@ -230,7 +230,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "amp G",
+        label: "amp g",
         control: "slider",
         category: "cosine"
       }
@@ -242,7 +242,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "amp B",
+        label: "amp b",
         control: "slider",
         category: "cosine"
       }
@@ -257,12 +257,13 @@ export default new Effect({
         rgb: 2
       },
       ui: {
-        label: "mode",
+        label: "color mode",
         control: "dropdown",
         category: "cosine"
       }
     }
   },
+  paramAliases: { paletteType: 'type', cyclePalette: 'cycle', rotatePalette: 'rotate' },
   passes: [
     {
       name: "render",

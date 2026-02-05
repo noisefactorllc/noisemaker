@@ -13,7 +13,7 @@ export default new Effect({
       type: "surface",
       default: "none",
       ui: {
-        label: "source surface B"
+        label: "source surface b"
       }
     },
     seed: {
@@ -114,7 +114,7 @@ export default new Effect({
       }
     },
     rotation: {
-      type: "int",
+      type: "float",
       default: 0,
       uniform: "rotation",
       min: -180,

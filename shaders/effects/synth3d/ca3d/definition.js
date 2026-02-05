@@ -139,7 +139,7 @@ export default new Effect({
         "default": false,
         "uniform": "resetState",
         "ui": {
-            "label": "state",
+            "label": "reset",
             "control": "button",
             "buttonLabel": "reset"
         }

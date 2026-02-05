@@ -20,6 +20,7 @@
  */
 
 import { registerOp } from '../lang/ops.js'
+import { registerParamAliases } from '../lang/paramAliases.js'
 import { registerStarterOps } from '../lang/validator.js'
 import { createRuntime, recompile } from '../runtime/compiler.js'
 import { registerEffect, getEffect } from '../runtime/registry.js'
@@ -1117,6 +1118,10 @@ export class CanvasRenderer {
                 args: args
             }
             registerOp(`${namespace}.${instance.func}`, opSpec)
+
+            if (instance.paramAliases) {
+                registerParamAliases(`${namespace}.${instance.func}`, instance.paramAliases)
+            }
 
             return choicesToRegister
         }

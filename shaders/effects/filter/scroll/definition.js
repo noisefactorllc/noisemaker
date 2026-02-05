@@ -13,29 +13,37 @@ export default new Effect({
         "default": 0,
         "min": -10,
         "max": 10,
-        "uniform": "x"
-    },
+        "uniform": "x",
+        ui: {
+            label: "x"
+        }},
     "y": {
         "type": "float",
         "default": 0,
         "min": -10,
         "max": 10,
-        "uniform": "y"
-    },
+        "uniform": "y",
+        ui: {
+            label: "y"
+        }},
     "speedX": {
         "type": "float",
         "default": 0,
         "min": -10,
         "max": 10,
-        "uniform": "speedX"
-    },
+        "uniform": "speedX",
+        ui: {
+            label: "speed x"
+        }},
     "speedY": {
         "type": "float",
         "default": 0,
         "min": -10,
         "max": 10,
-        "uniform": "speedY"
-    },
+        "uniform": "speedY",
+        ui: {
+            label: "speed y"
+        }},
     "wrap": {
         "type": "int",
         "default": 1,
@@ -46,7 +54,7 @@ export default new Effect({
             "clamp": 2
         },
         "ui": {
-            "label": "Wrap",
+            "label": "wrap",
             "control": "dropdown"
         }
     }

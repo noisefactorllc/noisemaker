@@ -32,7 +32,7 @@ export default class ShapeMixer extends Effect {
         subtract: 9
       },
       ui: {
-        label: "mode",
+        label: "blend mode",
         control: "dropdown"
       }
     },

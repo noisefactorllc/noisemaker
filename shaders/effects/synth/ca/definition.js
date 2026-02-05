@@ -103,7 +103,7 @@ export default new Effect({
       uniform: "smoothing"
     },
     seed: {
-      type: "float",
+      type: "int",
       default: 1,
       min: 1,
       max: 100,

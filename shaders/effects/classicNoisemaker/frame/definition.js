@@ -20,7 +20,7 @@ export default new Effect({
       max: 5,
       step: 0.1,
       ui: {
-        label: "Speed",
+        label: "speed",
         control: "slider"
       }
     }

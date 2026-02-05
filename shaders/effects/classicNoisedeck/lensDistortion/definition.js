@@ -96,7 +96,7 @@ export default new Effect({
         category: "aberration"
       }
     },
-    aberrationAmt: {
+    aberration: {
       type: "float",
       default: 50,
       uniform: "aberrationAmt",
@@ -117,7 +117,7 @@ export default new Effect({
         alpha: 1
       },
       ui: {
-        label: "blend",
+        label: "blend mode",
         control: "dropdown",
         category: "aberration"
       }
@@ -142,7 +142,7 @@ export default new Effect({
         category: "effect"
       }
     },
-    opacity: {
+    alpha: {
       type: "float",
       default: 0,
       uniform: "opacity",
@@ -215,6 +215,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { aberrationAmt: 'aberration', opacity: 'alpha' },
   passes: [
     {
       name: "render",

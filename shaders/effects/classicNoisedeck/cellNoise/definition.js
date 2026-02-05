@@ -81,7 +81,7 @@ export default class CellNoise extends Effect {
         category: "transform"
       }
     },
-    cellSmooth: {
+    smooth: {
       type: "float",
       default: 11,
       uniform: "cellSmooth",
@@ -93,7 +93,7 @@ export default class CellNoise extends Effect {
         category: "general"
       }
     },
-    cellVariation: {
+    variation: {
       type: "float",
       default: 50,
       uniform: "cellVariation",
@@ -105,8 +105,8 @@ export default class CellNoise extends Effect {
         category: "general"
       }
     },
-    loopAmp: {
-      type: "int",
+    speed: {
+      type: "float",
       default: 1,
       uniform: "loopAmp",
       min: 0,
@@ -147,7 +147,7 @@ export default class CellNoise extends Effect {
         palette: 2
       },
       ui: {
-        label: "color space",
+        label: "color mode",
         control: "dropdown",
         category: "color"
       }
@@ -286,6 +286,9 @@ export default class CellNoise extends Effect {
       }
     }
   }
+
+  paramAliases = { cellSmooth: 'smooth', cellVariation: 'variation', loopAmp: 'speed' }
+
 
   passes = [
     {

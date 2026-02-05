@@ -45,11 +45,11 @@ export default new Effect({
         subtract: 18
       },
       ui: {
-        label: "blend",
+        label: "blend mode",
         control: "dropdown"
       }
     },
-    mixAmt: {
+    mix: {
       type: "float",
       default: 50,
       uniform: "mixAmt",
@@ -84,7 +84,7 @@ export default new Effect({
         control: "slider"
       }
     },
-    refractDir: {
+    direction: {
       type: "float",
       default: 0,
       uniform: "refractDir",
@@ -110,6 +110,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { refractDir: 'direction', mixAmt: 'mix' },
   passes: [
     {
       name: "render",

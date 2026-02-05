@@ -39,7 +39,7 @@ export default class ColorLab extends Effect {
         palette: 4
       },
       ui: {
-        label: "color space",
+        label: "color mode",
         control: "dropdown"
       }
     },
@@ -188,7 +188,7 @@ export default class ColorLab extends Effect {
       }
     },
     brightness: {
-      type: "int",
+      type: "float",
       default: 0,
       uniform: "brightness",
       min: -100,
@@ -200,7 +200,7 @@ export default class ColorLab extends Effect {
       }
     },
     contrast: {
-      type: "int",
+      type: "float",
       default: 50,
       uniform: "contrast",
       min: 0,

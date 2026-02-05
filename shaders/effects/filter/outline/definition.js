@@ -35,7 +35,7 @@ export default new Effect({
         max: 10.0,
         step: 0.1,
         ui: {
-            label: "Thickness",
+            label: "thickness",
             control: "slider"
         }
     },
@@ -44,7 +44,7 @@ export default new Effect({
         default: false,
         uniform: "invert",
         ui: {
-            label: "Invert",
+            label: "invert",
             control: "checkbox"
         }
     }

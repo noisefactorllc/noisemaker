@@ -20,19 +20,19 @@ export default new Effect({
       max: 5,
       step: 0.1,
       ui: {
-        label: "Speed",
+        label: "speed",
         control: "slider"
       }
     },
     seed: {
-      type: "float",
+      type: "int",
       default: 0,
       uniform: "seed",
       min: 0,
       max: 100,
       step: 0.1,
       ui: {
-        label: "Seed",
+        label: "seed",
         control: "slider"
       }
     },
@@ -41,7 +41,7 @@ export default new Effect({
       default: true,
       uniform: "enabled",
       ui: {
-        label: "Enabled",
+        label: "enabled",
         control: "checkbox"
       }
     }

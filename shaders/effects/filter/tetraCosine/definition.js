@@ -62,7 +62,7 @@ export default new Effect({
         oklch: 3
       },
       ui: {
-        label: "Color Mode",
+        label: "color mode",
         control: "dropdown",
         category: "mode"
       }
@@ -77,7 +77,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Offset R",
+        label: "offset r",
         control: "slider",
         category: "offset"
       }
@@ -90,7 +90,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Offset G",
+        label: "offset g",
         control: "slider",
         category: "offset"
       }
@@ -103,7 +103,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Offset B",
+        label: "offset b",
         control: "slider",
         category: "offset"
       }
@@ -118,7 +118,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Amp R",
+        label: "amp r",
         control: "slider",
         category: "amplitude"
       }
@@ -131,7 +131,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Amp G",
+        label: "amp g",
         control: "slider",
         category: "amplitude"
       }
@@ -144,7 +144,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Amp B",
+        label: "amp b",
         control: "slider",
         category: "amplitude"
       }
@@ -159,7 +159,7 @@ export default new Effect({
       max: 4,
       step: 0.1,
       ui: {
-        label: "Freq R",
+        label: "freq r",
         control: "slider",
         category: "frequency"
       }
@@ -172,7 +172,7 @@ export default new Effect({
       max: 4,
       step: 0.1,
       ui: {
-        label: "Freq G",
+        label: "freq g",
         control: "slider",
         category: "frequency"
       }
@@ -185,7 +185,7 @@ export default new Effect({
       max: 4,
       step: 0.1,
       ui: {
-        label: "Freq B",
+        label: "freq b",
         control: "slider",
         category: "frequency"
       }
@@ -200,7 +200,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Phase R",
+        label: "phase r",
         control: "slider",
         category: "phase"
       }
@@ -213,7 +213,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Phase G",
+        label: "phase g",
         control: "slider",
         category: "phase"
       }
@@ -226,7 +226,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Phase B",
+        label: "phase b",
         control: "slider",
         category: "phase"
       }
@@ -241,7 +241,7 @@ export default new Effect({
       max: 10,
       step: 0.1,
       ui: {
-        label: "Repeat",
+        label: "repeat",
         control: "slider",
         category: "mapping"
       }
@@ -254,7 +254,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Offset",
+        label: "offset",
         control: "slider",
         category: "mapping"
       }
@@ -270,7 +270,7 @@ export default new Effect({
       randMin: 0.5,
       step: 0.01,
       ui: {
-        label: "Alpha",
+        label: "alpha",
         control: "slider",
         category: "output"
       }

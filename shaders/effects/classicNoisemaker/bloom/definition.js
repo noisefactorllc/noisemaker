@@ -25,15 +25,17 @@ export default new Effect({
       max: 1,
       step: 0.05,
       ui: {
-        label: "Alpha",
+        label: "alpha",
         control: "slider"
       }
     },
     downsampleSize: {
       type: "vec2",
       default: [64, 64],
-      uniform: "downsampleSize"
-    }
+      uniform: "downsampleSize",
+        ui: {
+            label: "downsample size"
+        }}
   },
   textures: {
     _bloomDownsample: {

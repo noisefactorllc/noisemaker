@@ -12,7 +12,7 @@ export default new Effect({
       type: "surface",
       default: "none",
       ui: {
-        label: "source surface B"
+        label: "source surface b"
       }
     },
     seed: {
@@ -60,11 +60,11 @@ export default new Effect({
         subtract: 18
       },
       ui: {
-        label: "mode",
+        label: "blend mode",
         control: "dropdown"
       }
     },
-    mixAmt: {
+    mix: {
       type: "float",
       default: 0,
       uniform: "mixAmt",
@@ -124,6 +124,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { mixAmt: 'mix' },
   passes: [
     {
       name: "render",

@@ -34,7 +34,7 @@ export default new Effect({
         mirrorRtoLDtoU: 18
       },
       ui: {
-        label: "Mode",
+        label: "mode",
         control: "dropdown"
       }
     }

@@ -17,7 +17,7 @@ export default new Effect({
         default: true,
         uniform: "colorize",
         ui: {
-            label: "Colorize",
+            label: "colorize",
             control: "checkbox"
         }
     },
@@ -29,7 +29,7 @@ export default new Effect({
         max: 8.0,
         step: 0.1,
         ui: {
-            label: "Zoom",
+            label: "zoom",
             control: "slider"
         }
     },
@@ -41,7 +41,7 @@ export default new Effect({
         max: 1.0,
         step: 0.01,
         ui: {
-            label: "Alpha",
+            label: "alpha",
             control: "slider"
         }
     },
@@ -53,7 +53,7 @@ export default new Effect({
         max: 64.0,
         step: 1.0,
         ui: {
-            label: "Glyph Width"
+            label: "glyph width"
         }
     },
     glyphHeight: {
@@ -64,7 +64,7 @@ export default new Effect({
         max: 64.0,
         step: 1.0,
         ui: {
-            label: "Glyph Height"
+            label: "glyph height"
         }
     },
     glyphCount: {
@@ -75,7 +75,7 @@ export default new Effect({
         max: 256.0,
         step: 1.0,
         ui: {
-            label: "Glyph Count (0=auto)"
+            label: "glyph count (0=auto)"
         }
     },
     maskValue: {
@@ -83,18 +83,18 @@ export default new Effect({
         default: 0.0,
         uniform: "maskValue",
         ui: {
-            label: "Mask Value"
+            label: "mask value"
         }
     },
     splineOrder: {
-        type: "float",
+        type: "int",
         default: 0.0,
         uniform: "splineOrder",
         min: 0.0,
         max: 3.0,
         step: 1.0,
         ui: {
-            label: "Spline Order"
+            label: "spline order"
         }
     }
   },

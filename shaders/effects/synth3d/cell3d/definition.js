@@ -72,7 +72,7 @@ export default new Effect({
             "label": "cell scale"
         }
     },
-    "cellVariation": {
+    "variation": {
         "type": "float",
         "default": 100,
         "min": 0,
@@ -87,8 +87,10 @@ export default new Effect({
         "default": 1,
         "min": 0,
         "max": 100,
-        "uniform": "seed"
-    },
+        "uniform": "seed",
+        ui: {
+            label: "seed"
+        }},
     "colorMode": {
         "type": "int",
         "default": 1,
@@ -103,6 +105,7 @@ export default new Effect({
         }
     }
   },
+  paramAliases: { cellVariation: 'variation' },
   passes: [
     {
       name: "precompute",

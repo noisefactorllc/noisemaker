@@ -22,7 +22,7 @@ export default new Effect({
         oklch: 2
       },
       ui: {
-        label: "Mode",
+        label: "mode",
         control: "dropdown"
       }
     }

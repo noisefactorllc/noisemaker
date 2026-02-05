@@ -13,29 +13,37 @@ export default new Effect({
         "default": 1,
         "min": 0,
         "max": 10,
-        "uniform": "scaleX"
-    },
+        "uniform": "scaleX",
+        ui: {
+            label: "x"
+        }},
     "y": {
         "type": "float",
         "default": 1,
         "min": 0,
         "max": 10,
-        "uniform": "scaleY"
-    },
+        "uniform": "scaleY",
+        ui: {
+            label: "y"
+        }},
     "centerX": {
         "type": "float",
         "default": 0.5,
         "min": 0,
         "max": 1,
-        "uniform": "centerX"
-    },
+        "uniform": "centerX",
+        ui: {
+            label: "center x"
+        }},
     "centerY": {
         "type": "float",
         "default": 0.5,
         "min": 0,
         "max": 1,
-        "uniform": "centerY"
-    },
+        "uniform": "centerY",
+        ui: {
+            label: "center y"
+        }},
     "wrap": {
         "type": "int",
         "default": 1,
@@ -46,7 +54,7 @@ export default new Effect({
             "clamp": 2
         },
         "ui": {
-            "label": "Wrap",
+            "label": "wrap",
             "control": "dropdown"
         }
     }

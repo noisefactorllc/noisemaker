@@ -12,7 +12,7 @@ export default new Effect({
       type: "surface",
       default: "none",
       ui: {
-        label: "source surface B"
+        label: "source surface b"
       }
     },
     mode: {
@@ -29,7 +29,7 @@ export default new Effect({
         control: "dropdown"
       }
     },
-    displaceSource: {
+    mapSource: {
       type: "int",
       default: 1,
       uniform: "displaceSource",
@@ -101,6 +101,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { displaceSource: 'mapSource' },
   passes: [
     {
       name: "render",

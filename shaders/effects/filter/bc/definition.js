@@ -19,7 +19,7 @@ export default new Effect({
       min: 0,
       max: 10,
       ui: {
-        label: "Brightness",
+        label: "brightness",
         control: "slider"
       }
     },
@@ -30,7 +30,7 @@ export default new Effect({
       min: 0,
       max: 1,
       ui: {
-        label: "Contrast",
+        label: "contrast",
         control: "slider"
       }
     }

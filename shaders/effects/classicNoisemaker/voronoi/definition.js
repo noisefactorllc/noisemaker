@@ -13,31 +13,31 @@ export default new Effect({
   description: "Voronoi cell pattern",
   globals: {
     diagramType: {
-        type: "integer",
+        type: "int",
         default: 1,
         uniform: "diagramType",
         min: 0,
         max: 7,
         step: 1,
         ui: {
-            label: "Diagram Type",
+            label: "diagram type",
             control: "slider"
         }
     },
     nth: {
-        type: "integer",
+        type: "int",
         default: 0,
         uniform: "nth",
         min: -4,
         max: 4,
         step: 1,
         ui: {
-            label: "Nth Neighbor",
+            label: "nth neighbor",
             control: "slider"
         }
     },
     shape: {
-        type: "integer",
+        type: "int",
         default: 1,
         uniform: "distMetric",
         min: 1,
@@ -49,14 +49,14 @@ export default new Effect({
         }
     },
     sdfSides: {
-        type: "integer",
+        type: "int",
         default: 3,
         uniform: "sdfSides",
         min: 3,
         max: 24,
         step: 1,
         ui: {
-            label: "SDF Sides",
+            label: "sdf sides",
             control: "slider"
         }
     },
@@ -68,7 +68,7 @@ export default new Effect({
         max: 1,
         step: 0.01,
         ui: {
-            label: "Alpha",
+            label: "alpha",
             control: "slider"
         }
     },
@@ -80,7 +80,7 @@ export default new Effect({
         max: 2,
         step: 0.01,
         ui: {
-            label: "Refract",
+            label: "refract",
             control: "slider"
         }
     },
@@ -89,7 +89,7 @@ export default new Effect({
         default: false,
         uniform: "inverse",
         ui: {
-            label: "Inverse",
+            label: "inverse",
             control: "checkbox"
         }
     },
@@ -98,7 +98,7 @@ export default new Effect({
         default: false,
         uniform: "ridgesHint",
         ui: {
-            label: "Ridges Hint",
+            label: "ridges hint",
             control: "checkbox"
         }
     },
@@ -107,43 +107,43 @@ export default new Effect({
         default: true,
         uniform: "refractYFromOffset",
         ui: {
-            label: "Refract Offset",
+            label: "refract offset",
             control: "checkbox"
         }
     },
     pointFreq: {
-        type: "integer",
+        type: "int",
         default: 3,
         uniform: "pointFreq",
         min: 1,
         max: 10,
         step: 1,
         ui: {
-            label: "Point Frequency",
+            label: "point frequency",
             control: "slider"
         }
     },
     pointGenerations: {
-        type: "integer",
+        type: "int",
         default: 1,
         uniform: "pointGenerations",
         min: 1,
         max: 5,
         step: 1,
         ui: {
-            label: "Generations",
+            label: "generations",
             control: "slider"
         }
     },
     pointDistrib: {
-        type: "integer",
+        type: "int",
         default: 0,
         uniform: "pointDistrib",
         min: 0,
         max: 9,
         step: 1,
         ui: {
-            label: "Distribution",
+            label: "distribution",
             control: "slider"
         }
     },
@@ -155,7 +155,7 @@ export default new Effect({
         max: 1,
         step: 0.01,
         ui: {
-            label: "Point Drift",
+            label: "point drift",
             control: "slider"
         }
     },
@@ -164,7 +164,7 @@ export default new Effect({
         default: false,
         uniform: "pointCorners",
         ui: {
-            label: "Include Corners",
+            label: "include corners",
             control: "checkbox"
         }
     },
@@ -173,7 +173,7 @@ export default new Effect({
         default: true,
         uniform: "downsample",
         ui: {
-            label: "Downsample",
+            label: "downsample",
             control: "checkbox"
         }
     }

@@ -21,7 +21,7 @@ export default new Effect({
       max: 5.0,
       step: 0.01,
       ui: {
-        label: "Depth",
+        label: "depth",
         control: "slider",
         category: "general"
       }
@@ -34,7 +34,7 @@ export default new Effect({
       max: 10.0,
       step: 0.1,
       ui: {
-        label: "Smoothing",
+        label: "smoothing",
         control: "slider",
         category: "general"
       }
@@ -44,7 +44,7 @@ export default new Effect({
       default: [1.0, 1.0, 1.0],
       uniform: "diffuseColor",
       ui: {
-        label: "Color",
+        label: "color",
         control: "color",
         category: "diffuse"
       }
@@ -54,7 +54,7 @@ export default new Effect({
       default: [1.0, 1.0, 1.0],
       uniform: "specularColor",
       ui: {
-        label: "Color",
+        label: "color",
         control: "color",
         category: "specular"
       }
@@ -67,7 +67,7 @@ export default new Effect({
       max: 2.0,
       step: 0.01,
       ui: {
-        label: "Intensity",
+        label: "intensity",
         control: "slider",
         category: "specular"
       }
@@ -80,7 +80,7 @@ export default new Effect({
       max: 256.0,
       step: 1.0,
       ui: {
-        label: "Shininess",
+        label: "shininess",
         control: "slider",
         category: "specular"
       }
@@ -90,7 +90,7 @@ export default new Effect({
       default: [0.2, 0.2, 0.2],
       uniform: "ambientColor",
       ui: {
-        label: "Ambient",
+        label: "ambient",
         control: "color"
       }
     },
@@ -99,7 +99,7 @@ export default new Effect({
       default: [0.5, 0.5, 1.0],
       uniform: "lightDirection",
       ui: {
-        label: "Direction",
+        label: "direction",
         control: "vector3",
         category: "diffuse"
       }
@@ -113,7 +113,7 @@ export default new Effect({
       max: 100.0,
       step: 0.1,
       ui: {
-        label: "Reflection",
+        label: "reflection",
         control: "slider",
         category: "reflection"
       }
@@ -126,7 +126,7 @@ export default new Effect({
       max: 100.0,
       step: 0.1,
       ui: {
-        label: "Refraction",
+        label: "refraction",
         control: "slider"
       }
     },
@@ -138,7 +138,7 @@ export default new Effect({
       max: 100.0,
       step: 0.1,
       ui: {
-        label: "Aberration",
+        label: "aberration",
         control: "slider",
         category: "reflection",
         enabledBy: { param: "reflection", gt: 0 }

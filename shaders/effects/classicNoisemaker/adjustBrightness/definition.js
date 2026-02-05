@@ -20,7 +20,7 @@ export default new Effect({
         max: 1,
         step: 0.01,
         ui: {
-            label: "Amount",
+            label: "amount",
             control: "slider"
         }
     }

@@ -13,14 +13,14 @@ export default new Effect({
   description: "Stray hair overlay",
   globals: {
     seed: {
-        type: "number",
+        type: "int",
         default: 0,
         uniform: "seed",
         min: 0,
         max: 1000,
         step: 1,
         ui: {
-            label: "Seed",
+            label: "seed",
             control: "slider"
         }
     }

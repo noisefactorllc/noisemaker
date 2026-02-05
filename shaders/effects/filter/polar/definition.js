@@ -20,7 +20,7 @@ export default new Effect({
         vortex: 1
       },
       ui: {
-        label: "Mode",
+        label: "mode",
         control: "dropdown"
       }
     },
@@ -32,7 +32,7 @@ export default new Effect({
       max: 2,
       step: 0.1,
       ui: {
-        label: "Scale",
+        label: "scale",
         control: "slider"
       }
     },
@@ -44,7 +44,7 @@ export default new Effect({
       max: 2,
       step: 0.1,
       ui: {
-        label: "Rotation speed",
+        label: "rotation speed",
         control: "slider"
       }
     },
@@ -56,7 +56,7 @@ export default new Effect({
       max: 2,
       step: 0.1,
       ui: {
-        label: "Polar speed",
+        label: "polar speed",
         control: "slider"
       }
     }

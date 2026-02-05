@@ -85,7 +85,7 @@ export default new Effect({
             max: 6.283185,
             step: 0.01,
             ui: {
-                label: "rotate X",
+                label: "rotate x",
                 control: "slider",
                 category: "view",
                 enabledBy: "viewMode"
@@ -101,7 +101,7 @@ export default new Effect({
             max: 6.283185,
             step: 0.01,
             ui: {
-                label: "rotate Y",
+                label: "rotate y",
                 control: "slider",
                 category: "view",
                 enabledBy: "viewMode"
@@ -117,7 +117,7 @@ export default new Effect({
             max: 6.283185,
             step: 0.01,
             ui: {
-                label: "rotate Z",
+                label: "rotate z",
                 control: "slider",
                 category: "view",
                 enabledBy: "viewMode"
@@ -149,7 +149,7 @@ export default new Effect({
             max: 50,
             step: 0.1,
             ui: {
-                label: "pos X",
+                label: "pos x",
                 control: "slider",
                 category: "view",
                 enabledBy: "viewMode"
@@ -165,7 +165,7 @@ export default new Effect({
             max: 50,
             step: 0.1,
             ui: {
-                label: "pos Y",
+                label: "pos y",
                 control: "slider",
                 category: "view",
                 enabledBy: "viewMode"

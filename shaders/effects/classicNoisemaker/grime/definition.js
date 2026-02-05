@@ -20,7 +20,7 @@ export default new Effect({
         max: 5,
         step: 0.1,
         ui: {
-            label: "Strength",
+            label: "strength",
             control: "slider"
         }
     },
@@ -32,7 +32,7 @@ export default new Effect({
         max: 4,
         step: 1,
         ui: {
-            label: "Debug Mode",
+            label: "debug mode",
             control: "slider"
         }
     },
@@ -44,7 +44,7 @@ export default new Effect({
         max: 5,
         step: 0.1,
         ui: {
-            label: "Speed",
+            label: "speed",
             control: "slider"
         }
     }

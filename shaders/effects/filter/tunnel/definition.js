@@ -24,7 +24,7 @@ export default new Effect({
         octagon: 4
       },
       ui: {
-        label: "Shape",
+        label: "shape",
         control: "dropdown"
       }
     },
@@ -36,7 +36,7 @@ export default new Effect({
       max: 2,
       step: 0.1,
       ui: {
-        label: "Scale",
+        label: "scale",
         control: "slider"
       }
     },
@@ -48,7 +48,7 @@ export default new Effect({
       max: 5,
       step: 0.1,
       ui: {
-        label: "Forward Speed",
+        label: "forward speed",
         control: "slider"
       }
     },
@@ -60,7 +60,7 @@ export default new Effect({
       max: 2,
       step: 0.1,
       ui: {
-        label: "Rotation speed",
+        label: "rotation speed",
         control: "slider"
       }
     }

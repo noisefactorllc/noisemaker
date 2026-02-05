@@ -8,7 +8,7 @@ export default new Effect({
 
   description: "Background layer generator",
   globals: {
-    backgroundType: {
+    type: {
       type: "int",
       default: 10,
       uniform: "backgroundType",
@@ -21,7 +21,7 @@ export default new Effect({
         radial12: 30,
         radial21: 31
       },
-      ui: { label: "Type", control: "dropdown", category: "general" }
+      ui: { label: "type", control: "dropdown", category: "general" }
     },
     rotation: {
       type: "float",
@@ -29,29 +29,30 @@ export default new Effect({
       uniform: "rotation",
       min: -180,
       max: 180,
-      ui: { label: "Rotation", control: "slider", category: "general" }
+      ui: { label: "rotation", control: "slider", category: "general" }
     },
-    opacity: {
+    alpha: {
       type: "float",
       default: 100,
       uniform: "opacity",
       min: 0,
       max: 100,
-      ui: { label: "Opacity", control: "slider", category: "general" }
+      ui: { label: "opacity", control: "slider", category: "general" }
     },
     color1: {
       type: "color",
       default: [0, 0, 0, 1],
       uniform: "color1",
-      ui: { label: "Color 1", control: "color", category: "color" }
+      ui: { label: "color 1", control: "color", category: "color" }
     },
     color2: {
       type: "color",
       default: [1, 1, 1, 1],
       uniform: "color2",
-      ui: { label: "Color 2", control: "color", category: "color" }
+      ui: { label: "color 2", control: "color", category: "color" }
     }
   },
+  paramAliases: { backgroundType: 'type', opacity: 'alpha' },
   passes: [
     {
       name: "render",

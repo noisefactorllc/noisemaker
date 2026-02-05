@@ -144,7 +144,7 @@ export default class Media extends Effect {
         category: "transform"
       }
     },
-    backgroundColor: {
+    bgColor: {
       type: "color",
       default: [0, 0, 0],
       uniform: "backgroundColor",
@@ -154,7 +154,7 @@ export default class Media extends Effect {
         category: "background"
       }
     },
-    backgroundOpacity: {
+    bgAlpha: {
       type: "float",
       default: 0,
       min: 0,
@@ -167,7 +167,7 @@ export default class Media extends Effect {
       }
     },
     seed: {
-      type: "float",
+      type: "int",
       default: 1,
       min: 1,
       max: 100,
@@ -185,6 +185,9 @@ export default class Media extends Effect {
       }
     }
   }
+
+  paramAliases = { backgroundColor: 'bgColor', backgroundOpacity: 'bgAlpha' }
+
 
   passes = [
     {

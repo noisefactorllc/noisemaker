@@ -8,7 +8,7 @@ export default new Effect({
 
   description: "3D noise volume",
   globals: {
-    noiseType: {
+    type: {
       type: "int",
       default: 12,
       uniform: "noiseType",
@@ -26,7 +26,7 @@ export default new Effect({
         control: "dropdown"
       }
     },
-    noiseScale: {
+    scale: {
       type: "float",
       default: 25,
       uniform: "noiseScale",
@@ -112,7 +112,7 @@ export default new Effect({
       }
     },
     speed: {
-      type: "int",
+      type: "float",
       default: 1,
       uniform: "speed",
       min: -10,
@@ -136,6 +136,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { noiseScale: 'scale', noiseType: 'type' },
   passes: [
     {
       name: "render",

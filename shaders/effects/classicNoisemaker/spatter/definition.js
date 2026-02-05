@@ -17,7 +17,7 @@ export default new Effect({
         default: true,
         uniform: "color",
         ui: {
-            label: "Color",
+            label: "color",
             control: "checkbox"
         }
     }

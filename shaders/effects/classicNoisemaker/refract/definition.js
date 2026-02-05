@@ -20,7 +20,7 @@ export default new Effect({
       max: 2,
       step: 0.01,
       ui: {
-        label: "Displacement",
+        label: "displacement",
         control: "slider"
       }
     },
@@ -32,7 +32,7 @@ export default new Effect({
       max: 4,
       step: 0.1,
       ui: {
-        label: "Warp",
+        label: "warp",
         control: "slider"
       }
     },
@@ -44,7 +44,7 @@ export default new Effect({
       max: 3,
       step: 1,
       ui: {
-        label: "Spline Order",
+        label: "spline order",
         control: "slider"
       }
     },
@@ -53,7 +53,7 @@ export default new Effect({
       default: true,
       uniform: "derivative",
       ui: {
-        label: "Derivative",
+        label: "derivative",
         control: "checkbox"
       }
     },
@@ -65,7 +65,7 @@ export default new Effect({
       max: 4,
       step: 0.1,
       ui: {
-        label: "Range",
+        label: "range",
         control: "slider"
       }
     },
@@ -77,7 +77,7 @@ export default new Effect({
       max: 5,
       step: 0.1,
       ui: {
-        label: "Speed",
+        label: "speed",
         control: "slider"
       }
     }

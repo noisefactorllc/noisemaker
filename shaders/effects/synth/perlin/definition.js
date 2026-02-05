@@ -14,15 +14,19 @@ export default new Effect({
         "min": 0,
         "max": 100,
         "randMin": 15,
-        "uniform": "scale"
-    },
+        "uniform": "scale",
+        ui: {
+            label: "scale"
+        }},
     "octaves": {
         "type": "int",
         "default": 1,
         "min": 1,
         "max": 6,
-        "uniform": "octaves"
-    },
+        "uniform": "octaves",
+        ui: {
+            label: "octaves"
+        }},
     "colorMode": {
         "type": "int",
         "default": 1,
@@ -41,27 +45,35 @@ export default new Effect({
         "default": 2,
         "min": 2,
         "max": 3,
-        "uniform": "dimensions"
-    },
+        "uniform": "dimensions",
+        ui: {
+            label: "dimensions"
+        }},
     "ridges": {
         "type": "boolean",
         "default": false,
-        "uniform": "ridges"
-    },
+        "uniform": "ridges",
+        ui: {
+            label: "ridges"
+        }},
     "seed": {
         "type": "int",
         "default": 0,
         "min": 0,
         "max": 100,
-        "uniform": "seed"
-    },
+        "uniform": "seed",
+        ui: {
+            label: "seed"
+        }},
     "speed": {
-        "type": "int",
+        "type": "float",
         "default": 1,
         "min": 0,
         "max": 5,
-        "uniform": "speed"
-    }
+        "uniform": "speed",
+        ui: {
+            label: "speed"
+        }}
   },
   passes: [
     {

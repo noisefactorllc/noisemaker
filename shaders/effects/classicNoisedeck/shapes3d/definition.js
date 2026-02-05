@@ -164,7 +164,7 @@ export default class Shapes3D extends Effect {
         smoothBA: 25
       },
       ui: {
-        label: "blend",
+        label: "blend mode",
         control: "dropdown"
       }
     },
@@ -192,7 +192,7 @@ export default class Shapes3D extends Effect {
       }
     },
     flip: {
-      type: "float",
+      type: "int",
       default: 0,
       uniform: "flip",
       min: -180,
@@ -238,24 +238,24 @@ export default class Shapes3D extends Effect {
         control: "slider"
       }
     },
-    backgroundColor: {
+    bgColor: {
       type: "color",
       default: [1.0, 1.0, 1.0],
       uniform: "backgroundColor",
       ui: {
-        label: "bkg color",
+        label: "background color",
         control: "color",
         category: "color"
       }
     },
-    backgroundOpacity: {
+    bgAlpha: {
       type: "float",
       default: 0,
       uniform: "backgroundOpacity",
       min: 0,
       max: 100,
       ui: {
-        label: "bkg opacity",
+        label: "background opacity",
         control: "slider",
         category: "color"
       }
@@ -450,6 +450,9 @@ export default class Shapes3D extends Effect {
       }
     }
   }
+
+  paramAliases = { backgroundColor: 'bgColor', backgroundOpacity: 'bgAlpha' }
+
 
   passes = [
     {

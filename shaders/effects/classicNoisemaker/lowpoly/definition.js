@@ -13,11 +13,11 @@ export default new Effect({
   description: "Low-polygon style render",
   globals: {
     distrib: {
-        type: "enum",
+        type: "int",
         default: 1000000,
         uniform: "distrib",
         ui: {
-            label: "Point Distribution"
+            label: "point distribution"
         }
     },
     freq: {
@@ -28,12 +28,12 @@ export default new Effect({
         max: 64,
         step: 1,
         ui: {
-            label: "Frequency",
+            label: "frequency",
             control: "slider"
         }
     },
     shape: {
-        type: "enum",
+        type: "int",
         default: 1,
         uniform: "distMetric",
         ui: {

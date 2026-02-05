@@ -8,7 +8,7 @@ export default new Effect({
 
   description: "Geometric pattern generator",
   globals: {
-    "patternType": {
+    "type": {
       "type": "int",
       "default": 0,
       "uniform": "patternType",
@@ -21,7 +21,7 @@ export default new Effect({
           diamonds: 5
       },
       "ui": {
-        "label": "Pattern Type",
+        "label": "pattern type",
         "control": "dropdown"
       }
     },
@@ -32,7 +32,7 @@ export default new Effect({
       "max": 20.0,
       "uniform": "scale",
       "ui": {
-        "label": "Scale",
+        "label": "scale",
         "control": "slider"
       }
     },
@@ -43,7 +43,7 @@ export default new Effect({
       "max": 1.0,
       "uniform": "thickness",
       "ui": {
-        "label": "Thickness",
+        "label": "thickness",
         "control": "slider"
       }
     },
@@ -54,7 +54,7 @@ export default new Effect({
       "max": 1.0,
       "uniform": "smoothness",
       "ui": {
-        "label": "Smoothness",
+        "label": "smoothness",
         "control": "slider"
       }
     },
@@ -65,7 +65,7 @@ export default new Effect({
       "max": 180.0,
       "uniform": "rotation",
       "ui": {
-        "label": "Rotation",
+        "label": "rotation",
         "control": "slider"
       }
     },
@@ -74,7 +74,7 @@ export default new Effect({
       "default": [1.0, 1.0, 1.0],
       "uniform": "fgColor",
       "ui": {
-        "label": "Foreground Color",
+        "label": "foreground color",
         "control": "color",
         "category": "color"
       }
@@ -84,12 +84,13 @@ export default new Effect({
       "default": [0.0, 0.0, 0.0],
       "uniform": "bgColor",
       "ui": {
-        "label": "Background Color",
+        "label": "background color",
         "control": "color",
         "category": "color"
       }
     }
   },
+  paramAliases: { patternType: 'type' },
   passes: [
     {
       name: "main",

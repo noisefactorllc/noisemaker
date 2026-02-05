@@ -102,7 +102,7 @@ export default new Effect({
         "meandering": 10
       },
       "ui": {
-        "label": "Behavior",
+        "label": "behavior",
         "control": "dropdown"
       }
     },
@@ -114,7 +114,7 @@ export default new Effect({
       "max": 100,
       "step": 1,
       "ui": {
-        "label": "Density",
+        "label": "density",
         "control": "slider"
       }
     },
@@ -126,7 +126,7 @@ export default new Effect({
       "max": 10,
       "step": 0.1,
       "ui": {
-        "label": "Stride",
+        "label": "stride",
         "control": "slider"
       }
     },
@@ -138,7 +138,7 @@ export default new Effect({
       "max": 0.5,
       "step": 0.01,
       "ui": {
-        "label": "Stride Deviation",
+        "label": "stride deviation",
         "control": "slider"
       }
     },
@@ -150,7 +150,7 @@ export default new Effect({
       "max": 10,
       "step": 0.1,
       "ui": {
-        "label": "Kink",
+        "label": "kink",
         "control": "slider"
       }
     },
@@ -162,7 +162,7 @@ export default new Effect({
       "max": 100,
       "step": 1,
       "ui": {
-        "label": "Trail Persistence",
+        "label": "trail persistence",
         "control": "slider"
       }
     },
@@ -174,7 +174,7 @@ export default new Effect({
       "max": 100,
       "step": 1,
       "ui": {
-        "label": "Input Intensity",
+        "label": "input intensity",
         "control": "slider"
       }
     },
@@ -186,7 +186,7 @@ export default new Effect({
       "max": 60,
       "step": 1,
       "ui": {
-        "label": "Lifetime",
+        "label": "lifetime",
         "control": "slider"
       }
     }

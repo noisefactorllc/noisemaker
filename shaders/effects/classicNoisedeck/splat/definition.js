@@ -8,7 +8,7 @@ export default new Effect({
 
   description: "Splatter paint effect",
   globals: {
-    useSplats: {
+    enabled: {
       type: "boolean",
       default: true,
       uniform: "useSplats",
@@ -27,7 +27,7 @@ export default new Effect({
         category: "specks"
       }
     },
-    splatScale: {
+    scale: {
       type: "float",
       default: 3,
       uniform: "splatScale",
@@ -39,7 +39,7 @@ export default new Effect({
         category: "transform"
       }
     },
-    splatCutoff: {
+    cutoff: {
       type: "float",
       default: 25,
       uniform: "splatCutoff",
@@ -50,8 +50,8 @@ export default new Effect({
         control: "slider"
       }
     },
-    splatSpeed: {
-      type: "int",
+    speed: {
+      type: "float",
       default: 1,
       uniform: "splatSpeed",
       min: 0,
@@ -62,7 +62,7 @@ export default new Effect({
         category: "animation"
       }
     },
-    splatSeed: {
+    seed: {
       type: "int",
       default: 1,
       uniform: "splatSeed",
@@ -73,7 +73,7 @@ export default new Effect({
         control: "slider"
       }
     },
-    splatMode: {
+    mode: {
       type: "int",
       default: 2,
       uniform: "splatMode",
@@ -88,7 +88,7 @@ export default new Effect({
         control: "dropdown"
       }
     },
-    splatColor: {
+    color: {
       type: "color",
       default: [1.0, 1.0, 1.0],
       uniform: "splatColor",
@@ -172,6 +172,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { splatColor: 'color', splatCutoff: 'cutoff', splatMode: 'mode', splatScale: 'scale', splatSeed: 'seed', splatSpeed: 'speed', useSplats: 'enabled' },
   passes: [
     {
       name: "render",

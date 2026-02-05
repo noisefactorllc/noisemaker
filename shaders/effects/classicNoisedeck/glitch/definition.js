@@ -31,7 +31,7 @@ export default new Effect({
         control: "slider"
       }
     },
-    aberrationAmt: {
+    aberration: {
       type: "float",
       default: 0,
       uniform: "aberrationAmt",
@@ -132,7 +132,7 @@ export default new Effect({
       }
     },
     levels: {
-      type: "float",
+      type: "int",
       default: 0,
       uniform: "levels",
       ui: {
@@ -141,6 +141,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { aberrationAmt: 'aberration' },
   passes: [
     {
       name: "render",

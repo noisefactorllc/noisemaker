@@ -13,14 +13,14 @@ export default new Effect({
   description: "Posterization/color reduction",
   globals: {
     levels: {
-        type: "float",
+        type: "int",
         default: 5,
         uniform: "levels",
         min: 2,
         max: 32,
         step: 1,
         ui: {
-            label: "Levels",
+            label: "levels",
             control: "slider"
         }
     },
@@ -32,7 +32,7 @@ export default new Effect({
         max: 3,
         step: 0.05,
         ui: {
-            label: "Gamma",
+            label: "gamma",
             control: "slider"
         }
     }

@@ -12,7 +12,7 @@ export default new Effect({
 
   description: "Ordered dithering with classic patterns and palettes",
   globals: {
-    ditherType: {
+    type: {
       type: "int",
       default: 1,
       uniform: "ditherType",
@@ -88,6 +88,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { ditherType: 'type' },
   passes: [
     {
       name: "render",

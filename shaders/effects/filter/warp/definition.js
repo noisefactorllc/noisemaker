@@ -19,7 +19,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "Strength",
+        label: "strength",
         control: "slider"
       }
     },
@@ -30,7 +30,7 @@ export default new Effect({
       min: -5,
       max: 5,
       ui: {
-        label: "Scale",
+        label: "scale",
         control: "slider"
       }
     },
@@ -41,18 +41,18 @@ export default new Effect({
       min: 1,
       max: 100,
       ui: {
-        label: "Seed",
+        label: "seed",
         control: "slider"
       }
     },
     speed: {
-      type: "int",
+      type: "float",
       default: 0,
       uniform: "speed",
       min: -5,
       max: 5,
       ui: {
-        label: "Speed",
+        label: "speed",
         control: "slider"
       }
     },
@@ -66,7 +66,7 @@ export default new Effect({
         clamp: 2
       },
       ui: {
-        label: "Wrap",
+        label: "wrap",
         control: "dropdown"
       }
     },
@@ -77,7 +77,7 @@ export default new Effect({
       min: -180,
       max: 180,
       ui: {
-        label: "Rotation",
+        label: "rotation",
         control: "slider"
       }
     }

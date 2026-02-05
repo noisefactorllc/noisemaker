@@ -13,29 +13,37 @@ export default new Effect({
         "default": 3,
         "min": 1,
         "max": 20,
-        "uniform": "x"
-    },
+        "uniform": "x",
+        ui: {
+            label: "x"
+        }},
     "y": {
         "type": "float",
         "default": 3,
         "min": 1,
         "max": 20,
-        "uniform": "y"
-    },
+        "uniform": "y",
+        ui: {
+            label: "y"
+        }},
     "offsetX": {
         "type": "float",
         "default": 0,
         "min": -1,
         "max": 1,
-        "uniform": "offsetX"
-    },
+        "uniform": "offsetX",
+        ui: {
+            label: "offset x"
+        }},
     "offsetY": {
         "type": "float",
         "default": 0,
         "min": -1,
         "max": 1,
-        "uniform": "offsetY"
-    },
+        "uniform": "offsetY",
+        ui: {
+            label: "offset y"
+        }},
     "wrap": {
         "type": "int",
         "default": 1,
@@ -46,7 +54,7 @@ export default new Effect({
             "clamp": 2
         },
         "ui": {
-            "label": "Wrap",
+            "label": "wrap",
             "control": "dropdown"
         }
     }

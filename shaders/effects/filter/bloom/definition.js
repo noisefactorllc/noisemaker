@@ -25,7 +25,7 @@ export default new Effect({
       max: 2,
       step: 0.05,
       ui: {
-        label: "Threshold",
+        label: "threshold",
         control: "slider"
       }
     },
@@ -37,7 +37,7 @@ export default new Effect({
       max: 0.5,
       step: 0.01,
       ui: {
-        label: "Soft Knee",
+        label: "soft knee",
         control: "slider"
       }
     },
@@ -49,7 +49,7 @@ export default new Effect({
       max: 3,
       step: 0.05,
       ui: {
-        label: "Intensity",
+        label: "intensity",
         control: "slider"
       }
     },
@@ -61,7 +61,7 @@ export default new Effect({
       max: 128,
       step: 1,
       ui: {
-        label: "Radius",
+        label: "radius",
         control: "slider"
       }
     },
@@ -73,7 +73,7 @@ export default new Effect({
       max: 64,
       step: 1,
       ui: {
-        label: "Taps",
+        label: "taps",
         control: "slider"
       }
     },
@@ -82,7 +82,7 @@ export default new Effect({
       default: [1.0, 1.0, 1.0],
       uniform: "bloomTint",
       ui: {
-        label: "Tint",
+        label: "tint",
         control: "color"
       }
     }

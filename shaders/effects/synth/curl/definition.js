@@ -43,7 +43,7 @@ export default new Effect({
       }
     },
     seed: {
-      type: "float",
+      type: "int",
       default: 0,
       uniform: "seed",
       min: 0,
@@ -54,7 +54,7 @@ export default new Effect({
       }
     },
     ridges: {
-      type: "bool",
+      type: "boolean",
       default: false,
       uniform: "ridges",
       ui: {

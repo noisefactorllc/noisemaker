@@ -23,7 +23,7 @@ export default new Effect({
       default: 25,
       min: 0,
       max: 100,
-      ui: { label: "Animation Speed", control: "slider", category: "animation" },
+      ui: { label: "animation speed", control: "slider", category: "animation" },
       uniform: "loopAmp"
     },
     intensity: {
@@ -31,31 +31,31 @@ export default new Effect({
       default: 0,
       min: -100,
       max: 100,
-      ui: { label: "Intensity", control: "slider", category: "color" },
+      ui: { label: "intensity", control: "slider", category: "color" },
       uniform: "intensity"
     },
     color1: {
       type: "color",
       default: [1, 0, 0, 1],
-      ui: { label: "Color 1", control: "color", category: "color" },
+      ui: { label: "color 1", control: "color", category: "color" },
       uniform: "color1"
     },
     color2: {
       type: "color",
       default: [0, 1, 0, 1],
-      ui: { label: "Color 2", control: "color", category: "color" },
+      ui: { label: "color 2", control: "color", category: "color" },
       uniform: "color2"
     },
     color3: {
       type: "color",
       default: [0, 0, 1, 1],
-      ui: { label: "Color 3", control: "color", category: "color" },
+      ui: { label: "color 3", control: "color", category: "color" },
       uniform: "color3"
     },
     color4: {
       type: "color",
       default: [1, 1, 0, 1],
-      ui: { label: "Color 4", control: "color", category: "color" },
+      ui: { label: "color 4", control: "color", category: "color" },
       uniform: "color4"
     }
   },

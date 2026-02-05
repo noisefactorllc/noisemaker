@@ -16,7 +16,7 @@ export default new Effect({
       "step": 1,
       "uniform": "sides",
       "ui": {
-        "label": "Sides",
+        "label": "sides",
         "control": "slider"
       }
     },
@@ -25,15 +25,19 @@ export default new Effect({
         "default": 0.3,
         "min": 0,
         "max": 1,
-        "uniform": "radius"
-    },
+        "uniform": "radius",
+        ui: {
+            label: "radius"
+        }},
     "smooth": {
         "type": "float",
         "default": 0.01,
         "min": 0,
         "max": 1,
-        "uniform": "smoothing"
-    },
+        "uniform": "smoothing",
+        ui: {
+            label: "smooth"
+        }},
     "rotation": {
         "type": "float",
         "default": 0,
@@ -41,7 +45,7 @@ export default new Effect({
         "max": 180,
         "uniform": "rotation",
         "ui": {
-            "label": "Rotation",
+            "label": "rotation",
             "control": "slider"
         }
     },
@@ -50,7 +54,7 @@ export default new Effect({
         "default": [1.0, 1.0, 1.0],
         "uniform": "fgColor",
         "ui": {
-            "label": "Foreground Color",
+            "label": "foreground color",
             "control": "color",
             "category": "color"
         }
@@ -63,7 +67,7 @@ export default new Effect({
         "max": 1.0,
         "uniform": "fgAlpha",
         "ui": {
-            "label": "Foreground Opacity",
+            "label": "foreground opacity",
             "control": "slider",
             "category": "color"
         }
@@ -73,7 +77,7 @@ export default new Effect({
         "default": [0.0, 0.0, 0.0],
         "uniform": "bgColor",
         "ui": {
-            "label": "Background Color",
+            "label": "background color",
             "control": "color",
             "category": "color"
         }
@@ -85,7 +89,7 @@ export default new Effect({
         "max": 1.0,
         "uniform": "bgAlpha",
         "ui": {
-            "label": "Background Opacity",
+            "label": "background opacity",
             "control": "slider",
             "category": "color"
         }

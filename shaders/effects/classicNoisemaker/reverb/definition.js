@@ -19,7 +19,7 @@ export default new Effect({
         max: 8,
         step: 1,
         ui: {
-            label: "Iterations",
+            label: "iterations",
             control: "slider"
         }
     },
@@ -28,7 +28,7 @@ export default new Effect({
         default: false,
         uniform: "ridges",
         ui: {
-            label: "Ridges",
+            label: "ridges",
             control: "checkbox"
         }
     }

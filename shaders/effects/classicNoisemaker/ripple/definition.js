@@ -20,7 +20,7 @@ export default new Effect({
         max: 16,
         step: 0.5,
         ui: {
-            label: "Frequency",
+            label: "frequency",
             control: "slider"
         }
     },
@@ -32,7 +32,7 @@ export default new Effect({
         max: 0.5,
         step: 0.001,
         ui: {
-            label: "Displacement",
+            label: "displacement",
             control: "slider"
         }
     },
@@ -44,7 +44,7 @@ export default new Effect({
         max: 32,
         step: 0.5,
         ui: {
-            label: "Kink",
+            label: "kink",
             control: "slider"
         }
     },
@@ -56,7 +56,7 @@ export default new Effect({
         max: 3,
         step: 1,
         ui: {
-            label: "Spline Order",
+            label: "spline order",
             control: "slider"
         }
     },
@@ -68,7 +68,7 @@ export default new Effect({
         max: 5,
         step: 0.1,
         ui: {
-            label: "Speed",
+            label: "speed",
             control: "slider"
         }
     }

@@ -12,13 +12,13 @@ export default new Effect({
 
   description: "Color palette application",
   globals: {
-    paletteIndex: {
+    index: {
         type: "member",
         default: "palette.afterimage",
         enum: "palette",
         uniform: "paletteIndex",
         ui: {
-            label: "Palette",
+            label: "palette",
             control: "dropdown"
         }
     },
@@ -30,11 +30,12 @@ export default new Effect({
         max: 1,
         step: 0.01,
         ui: {
-            label: "Alpha",
+            label: "alpha",
             control: "slider"
         }
     }
 },
+  paramAliases: { paletteIndex: 'index' },
   passes: [
     {
       name: "main",

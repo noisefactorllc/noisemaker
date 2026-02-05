@@ -12,7 +12,7 @@ export default new Effect({
       type: "surface",
       default: "none",
       ui: {
-        label: "source B"
+        label: "source b"
       }
     },
     mode: {

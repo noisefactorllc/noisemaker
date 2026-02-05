@@ -70,7 +70,7 @@ export default new Effect({
         oklch: 3
       },
       ui: {
-        label: "Color Mode",
+        label: "color mode",
         control: "dropdown",
         category: "mode"
       }
@@ -85,7 +85,7 @@ export default new Effect({
       max: 8,
       step: 1,
       ui: {
-        label: "Color Count",
+        label: "color count",
         control: "slider",
         category: "mode"
       }
@@ -101,7 +101,7 @@ export default new Effect({
         manual: 1
       },
       ui: {
-        label: "Position Mode",
+        label: "position mode",
         control: "dropdown",
         category: "mode"
       }
@@ -114,7 +114,7 @@ export default new Effect({
       default: [0.58, 0.0, 0.83],  // Violet
       uniform: "tetraColorArrayColor0",
       ui: {
-        label: "Color 1",
+        label: "color 1",
         control: "color",
         category: "colors",
         enabledBy: { param: "colorMode", eq: 0 }
@@ -125,7 +125,7 @@ export default new Effect({
       default: [0.29, 0.0, 0.51],  // Indigo
       uniform: "tetraColorArrayColor1",
       ui: {
-        label: "Color 2",
+        label: "color 2",
         control: "color",
         category: "colors",
         enabledBy: { param: "colorMode", eq: 0 }
@@ -136,7 +136,7 @@ export default new Effect({
       default: [0.0, 0.0, 1.0],  // Blue
       uniform: "tetraColorArrayColor2",
       ui: {
-        label: "Color 3",
+        label: "color 3",
         control: "color",
         category: "colors",
         enabledBy: { param: "colorMode", eq: 0 }
@@ -147,7 +147,7 @@ export default new Effect({
       default: [0.0, 1.0, 0.0],  // Green
       uniform: "tetraColorArrayColor3",
       ui: {
-        label: "Color 4",
+        label: "color 4",
         control: "color",
         category: "colors",
         enabledBy: { param: "colorMode", eq: 0 }
@@ -158,7 +158,7 @@ export default new Effect({
       default: [1.0, 1.0, 0.0],  // Yellow
       uniform: "tetraColorArrayColor4",
       ui: {
-        label: "Color 5",
+        label: "color 5",
         control: "color",
         category: "colors",
         enabledBy: { param: "colorMode", eq: 0 }
@@ -169,7 +169,7 @@ export default new Effect({
       default: [1.0, 0.5, 0.0],  // Orange
       uniform: "tetraColorArrayColor5",
       ui: {
-        label: "Color 6",
+        label: "color 6",
         control: "color",
         category: "colors",
         enabledBy: { and: [{ param: "colorMode", eq: 0 }, { param: "colorCount", gt: 5 }] }
@@ -180,7 +180,7 @@ export default new Effect({
       default: [1.0, 0.0, 0.0],  // Red
       uniform: "tetraColorArrayColor6",
       ui: {
-        label: "Color 7",
+        label: "color 7",
         control: "color",
         category: "colors",
         enabledBy: { and: [{ param: "colorMode", eq: 0 }, { param: "colorCount", gt: 6 }] }
@@ -191,7 +191,7 @@ export default new Effect({
       default: [0.58, 0.0, 0.83],  // Violet
       uniform: "tetraColorArrayColor7",
       ui: {
-        label: "Color 8",
+        label: "color 8",
         control: "color",
         category: "colors",
         enabledBy: { and: [{ param: "colorMode", eq: 0 }, { param: "colorCount", gt: 7 }] }
@@ -207,7 +207,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Position 1",
+        label: "position 1",
         control: "slider",
         category: "positions",
         enabledBy: "positionMode"
@@ -221,7 +221,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Position 2",
+        label: "position 2",
         control: "slider",
         category: "positions",
         enabledBy: "positionMode"
@@ -235,7 +235,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Position 3",
+        label: "position 3",
         control: "slider",
         category: "positions",
         enabledBy: "positionMode"
@@ -249,7 +249,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Position 4",
+        label: "position 4",
         control: "slider",
         category: "positions",
         enabledBy: "positionMode"
@@ -263,7 +263,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Position 5",
+        label: "position 5",
         control: "slider",
         category: "positions",
         enabledBy: "positionMode"
@@ -277,7 +277,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Position 6",
+        label: "position 6",
         control: "slider",
         category: "positions",
         enabledBy: { and: [{ param: "positionMode", eq: 1 }, { param: "colorCount", gt: 5 }] }
@@ -291,7 +291,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Position 7",
+        label: "position 7",
         control: "slider",
         category: "positions",
         enabledBy: { and: [{ param: "positionMode", eq: 1 }, { param: "colorCount", gt: 6 }] }
@@ -305,7 +305,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Position 8",
+        label: "position 8",
         control: "slider",
         category: "positions",
         enabledBy: { and: [{ param: "positionMode", eq: 1 }, { param: "colorCount", gt: 7 }] }
@@ -321,7 +321,7 @@ export default new Effect({
       max: 10,
       step: 0.1,
       ui: {
-        label: "Repeat",
+        label: "repeat",
         control: "slider",
         category: "mapping"
       }
@@ -334,7 +334,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Offset",
+        label: "offset",
         control: "slider",
         category: "mapping"
       }
@@ -350,7 +350,7 @@ export default new Effect({
       randMin: 0.5,
       step: 0.01,
       ui: {
-        label: "Alpha",
+        label: "alpha",
         control: "slider",
         category: "output"
       }

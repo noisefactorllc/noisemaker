@@ -56,7 +56,7 @@ export default class Noise extends Effect {
         control: "slider"
       }
     },
-    noiseType: {
+    type: {
       type: "int",
       default: 10,
       uniform: "noiseType",
@@ -265,7 +265,7 @@ export default class Noise extends Effect {
         hsv: 6
       },
       ui: {
-        label: "color space",
+        label: "color mode",
         control: "dropdown",
         category: "color"
       }
@@ -393,6 +393,9 @@ export default class Noise extends Effect {
       }
     }
   }
+
+  paramAliases = { noiseType: 'type' }
+
 
   passes = [
     {

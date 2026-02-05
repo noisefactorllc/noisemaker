@@ -24,7 +24,7 @@ export default new Effect({
     colorMode: { slot: 3, components: 'z' }
   },
   globals: {
-    noiseType: {
+    type: {
       type: "int",
       default: 10,
       uniform: "noiseType",
@@ -179,6 +179,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { noiseType: 'type' },
   passes: [
     {
       name: "render",

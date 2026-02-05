@@ -137,7 +137,7 @@ export default new Effect({
       ui: {
         control: "button",
         buttonLabel: "reset",
-        label: "state"
+        label: "reset"
       }
     }
   },

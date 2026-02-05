@@ -16,7 +16,7 @@ export default new Effect({
         type: "surface",
         default: "none",
         ui: {
-            label: "Color Lookup Texture",
+            label: "color lookup texture",
             control: "surface"
         }
     },
@@ -28,7 +28,7 @@ export default new Effect({
         max: 1,
         step: 0.01,
         ui: {
-            label: "Displacement",
+            label: "displacement",
             control: "slider"
         }
     },
@@ -37,7 +37,7 @@ export default new Effect({
         default: false,
         uniform: "horizontal",
         ui: {
-            label: "Horizontal",
+            label: "horizontal",
             control: "checkbox"
         }
     }

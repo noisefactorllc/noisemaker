@@ -45,7 +45,7 @@ export default new Effect({
         control: "dropdown"
       }
     },
-    mixAmt: {
+    mix: {
       type: "float",
       default: 0,
       min: 0,
@@ -153,7 +153,7 @@ export default new Effect({
         category: "color"
       }
     },
-    aberrationAmt: {
+    aberration: {
       type: "float",
       default: 0,
       min: 0,
@@ -188,6 +188,7 @@ export default new Effect({
       }
     },
   },
+  paramAliases: { mixAmt: 'mix', aberrationAmt: 'aberration' },
   textures: {
     _selfTex: {
       width: "input",

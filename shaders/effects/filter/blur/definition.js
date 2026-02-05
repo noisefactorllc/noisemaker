@@ -20,7 +20,7 @@ export default new Effect({
       max: 50,
       step: 1,
       ui: {
-        label: "Radius X",
+        label: "radius x",
         control: "slider"
       }
     },
@@ -32,7 +32,7 @@ export default new Effect({
       max: 50,
       step: 1,
       ui: {
-        label: "Radius Y",
+        label: "radius y",
         control: "slider"
       }
     }

@@ -69,7 +69,7 @@ export default new Effect({
         control: "slider"
       }
     },
-    depthSource: {
+    mapSource: {
       type: "int",
       default: 1,
       uniform: "depthSource",
@@ -83,6 +83,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { depthSource: 'mapSource' },
   passes: [
     {
       name: "render",

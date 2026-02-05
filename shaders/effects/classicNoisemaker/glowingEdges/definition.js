@@ -31,7 +31,7 @@ export default new Effect({
         max: 1,
         step: 0.05,
         ui: {
-            label: "Alpha",
+            label: "alpha",
             control: "slider"
         }
     }

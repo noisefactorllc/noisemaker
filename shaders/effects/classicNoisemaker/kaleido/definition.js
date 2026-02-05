@@ -13,14 +13,14 @@ export default new Effect({
   description: "Kaleidoscope mirror effect",
   globals: {
     sides: {
-        type: "float",
+        type: "int",
         default: 6,
         uniform: "sides",
         min: 2,
         max: 32,
         step: 1,
         ui: {
-            label: "Sides",
+            label: "sides",
             control: "slider"
         }
     },
@@ -32,7 +32,7 @@ export default new Effect({
         max: 12,
         step: 1,
         ui: {
-            label: "SDF Sides",
+            label: "sdf sides",
             control: "slider"
         }
     },
@@ -41,7 +41,7 @@ export default new Effect({
         default: true,
         uniform: "blendEdges",
         ui: {
-            label: "Blend Edges",
+            label: "blend edges",
             control: "checkbox"
         }
     },
@@ -53,7 +53,7 @@ export default new Effect({
         max: 32,
         step: 1,
         ui: {
-            label: "Point Frequency",
+            label: "point frequency",
             control: "slider"
         }
     },
@@ -65,16 +65,16 @@ export default new Effect({
         max: 5,
         step: 1,
         ui: {
-            label: "Generations",
+            label: "generations",
             control: "slider"
         }
     },
     pointDistrib: {
-        type: "enum",
+        type: "int",
         default: 0,
         uniform: "pointDistrib",
         ui: {
-            label: "Distribution"
+            label: "distribution"
         }
     },
     pointDrift: {
@@ -85,7 +85,7 @@ export default new Effect({
         max: 1,
         step: 0.01,
         ui: {
-            label: "Point Drift",
+            label: "point drift",
             control: "slider"
         }
     },
@@ -94,7 +94,7 @@ export default new Effect({
         default: false,
         uniform: "pointCorners",
         ui: {
-            label: "Include Corners",
+            label: "include corners",
             control: "checkbox"
         }
     }

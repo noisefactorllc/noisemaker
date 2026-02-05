@@ -116,7 +116,7 @@ export default new Effect({
         "randChance": 0,
         "uniform": "bgAlpha",
         "ui": {
-            "label": "background alpha",
+            "label": "background opacity",
             "category": "background"
         }
     },

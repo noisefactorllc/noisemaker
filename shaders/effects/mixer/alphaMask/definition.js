@@ -11,9 +11,9 @@ export default new Effect({
     tex: {
       type: "surface",
       default: "none",
-      ui: { label: "source B" }
+      ui: { label: "source b" }
     },
-    mixAmt: {
+    mix: {
       type: "float",
       default: 0,
       uniform: "mixAmt",
@@ -22,6 +22,7 @@ export default new Effect({
       ui: { label: "mix", control: "slider" }
     }
   },
+  paramAliases: { mixAmt: 'mix' },
   passes: [
     {
       name: "render",

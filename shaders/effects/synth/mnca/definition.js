@@ -61,7 +61,7 @@ export default new Effect({
       }
     },
     seed: {
-      type: "float",
+      type: "int",
       default: 1,
       min: 1,
       max: 100,

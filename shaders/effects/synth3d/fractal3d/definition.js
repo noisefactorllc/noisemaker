@@ -48,7 +48,7 @@ export default new Effect({
         "control": "dropdown"
       }
     },
-    fractalType: {
+    type: {
       type: "int",
       default: 0,
       uniform: "fractalType",
@@ -104,7 +104,7 @@ export default new Effect({
       max: 100,
       uniform: "juliaX",
       ui: {
-        label: "julia X",
+        label: "julia x",
         control: "slider",
         category: "julia",
         enabledBy: { param: 'fractalType', in: [2, 3] }
@@ -117,7 +117,7 @@ export default new Effect({
       max: 100,
       uniform: "juliaY",
       ui: {
-        label: "julia Y",
+        label: "julia y",
         control: "slider",
         category: "julia",
         enabledBy: { param: 'fractalType', in: [2, 3] }
@@ -130,7 +130,7 @@ export default new Effect({
       max: 100,
       uniform: "juliaZ",
       ui: {
-        label: "julia Z",
+        label: "julia z",
         control: "slider",
         category: "julia",
         enabledBy: { param: 'fractalType', in: [2, 3] }
@@ -151,7 +151,7 @@ export default new Effect({
       }
     },
     seed: {
-      type: "float",
+      type: "int",
       default: 0,
       min: 0,
       max: 100,
@@ -161,6 +161,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { fractalType: 'type' },
   passes: [
     {
       name: "precompute",

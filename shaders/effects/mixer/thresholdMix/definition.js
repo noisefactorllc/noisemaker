@@ -12,7 +12,7 @@ export default new Effect({
       type: "surface",
       default: "none",
       ui: {
-        label: "source B"
+        label: "source b"
       }
     },
     mode: {
@@ -83,7 +83,7 @@ export default new Effect({
       min: 0,
       max: 1,
       ui: {
-        label: "threshold R",
+        label: "threshold r",
         control: "slider",
         category: "rgb",
         enabledBy: { param: "mode", eq: 1 }
@@ -96,7 +96,7 @@ export default new Effect({
       min: 0,
       max: 1,
       ui: {
-        label: "range R",
+        label: "range r",
         control: "slider",
         category: "rgb",
         enabledBy: { param: "mode", eq: 1 }
@@ -109,7 +109,7 @@ export default new Effect({
       min: 0,
       max: 1,
       ui: {
-        label: "threshold G",
+        label: "threshold g",
         control: "slider",
         category: "rgb",
         enabledBy: { param: "mode", eq: 1 }
@@ -122,7 +122,7 @@ export default new Effect({
       min: 0,
       max: 1,
       ui: {
-        label: "range G",
+        label: "range g",
         control: "slider",
         category: "rgb",
         enabledBy: { param: "mode", eq: 1 }
@@ -135,7 +135,7 @@ export default new Effect({
       min: 0,
       max: 1,
       ui: {
-        label: "threshold B",
+        label: "threshold b",
         control: "slider",
         category: "rgb",
         enabledBy: { param: "mode", eq: 1 }
@@ -148,7 +148,7 @@ export default new Effect({
       min: 0,
       max: 1,
       ui: {
-        label: "range B",
+        label: "range b",
         control: "slider",
         category: "rgb",
         enabledBy: { param: "mode", eq: 1 }

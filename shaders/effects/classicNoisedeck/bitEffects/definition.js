@@ -42,7 +42,7 @@ export default new Effect({
         category: "general"
       }
     },
-    loopAmp: {
+    speed: {
       type: "float",
       default: 50,
       uniform: "loopAmp",
@@ -133,7 +133,7 @@ export default new Effect({
       }
     },
     rotation: {
-      type: "int",
+      type: "float",
       default: 0,
       uniform: "rotation",
       min: -180,
@@ -249,6 +249,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { loopAmp: 'speed' },
   passes: [
     {
       name: "render",

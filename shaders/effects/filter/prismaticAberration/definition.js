@@ -11,7 +11,7 @@ export default new Effect({
 
   description: "Prismatic aberration with hue controls",
   globals: {
-    aberrationAmt: {
+    aberration: {
       type: "float",
       default: 50,
       uniform: "aberrationAmt",
@@ -76,6 +76,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { aberrationAmt: 'aberration' },
   passes: [
     {
       name: "render",

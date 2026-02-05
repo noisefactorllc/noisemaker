@@ -13,7 +13,7 @@ export default new Effect({
         "default": [1.0, 1.0, 1.0],
         "uniform": "color",
         "ui": {
-            "label": "Color",
+            "label": "color",
             "control": "color"
         }
     },
@@ -24,7 +24,7 @@ export default new Effect({
         "max": 1,
         "uniform": "alpha",
         "ui": {
-            "label": "Opacity",
+            "label": "opacity",
             "control": "slider"
         }
     }

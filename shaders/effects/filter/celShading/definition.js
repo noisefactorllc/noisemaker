@@ -24,7 +24,7 @@ export default new Effect({
       max: 8,
       step: 1,
       ui: {
-        label: "Levels",
+        label: "levels",
         control: "slider",
         category: "color"
       }
@@ -39,7 +39,7 @@ export default new Effect({
       max: 5,
       randMax: 3,
       ui: {
-        label: "Width",
+        label: "width",
         control: "slider",
         category: "edges"
       }
@@ -52,7 +52,7 @@ export default new Effect({
       max: 1.0,
       step: 0.01,
       ui: {
-        label: "Threshold",
+        label: "threshold",
         control: "slider",
         category: "edges"
       }
@@ -63,7 +63,7 @@ export default new Effect({
       uniform: "edgeColor",
       randChance: 0,
       ui: {
-        label: "Color",
+        label: "color",
         control: "color",
         category: "edges"
       }
@@ -75,12 +75,12 @@ export default new Effect({
       default: [0.5, 0.5, 1.0],
       uniform: "lightDirection",
       ui: {
-        label: "Light Direction",
+        label: "light direction",
         control: "vector3",
         category: "shading"
       }
     },
-    shadingStrength: {
+    strength: {
       type: "float",
       default: 0.0,
       uniform: "shadingStrength",
@@ -89,7 +89,7 @@ export default new Effect({
       step: 0.01,
       randChance: 0,
       ui: {
-        label: "Shading Strength",
+        label: "shading strength",
         control: "slider",
         category: "shading"
       }
@@ -104,7 +104,7 @@ export default new Effect({
       max: 1.0,
       step: 0.01,
       ui: {
-        label: "Mix",
+        label: "mix",
         control: "slider"
       }
     }
@@ -113,6 +113,7 @@ export default new Effect({
     celShadingColorTex: { width: "100%", height: "100%", format: "rgba16f" },
     celShadingEdgeTex: { width: "100%", height: "100%", format: "rgba16f" }
   },
+  paramAliases: { shadingStrength: 'strength' },
   passes: [
     {
       name: "color",

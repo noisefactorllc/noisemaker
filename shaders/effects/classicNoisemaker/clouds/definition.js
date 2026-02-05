@@ -25,7 +25,7 @@ export default new Effect({
       max: 3.0,
       step: 0.05,
       ui: {
-        label: "Speed",
+        label: "speed",
         control: "slider"
       }
     },
@@ -37,7 +37,7 @@ export default new Effect({
       max: 1.0,
       step: 0.05,
       ui: {
-        label: "Scale",
+        label: "scale",
         control: "slider"
       }
     }

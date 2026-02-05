@@ -43,7 +43,7 @@ export default new Effect({
   },
   globals: {
     // === Type Selection ===
-    fractalType: {
+    type: {
       type: "int",
       default: 1,
       uniform: "fractalType",
@@ -239,7 +239,7 @@ export default new Effect({
       }
     },
     smoothing: {
-      type: "boolean",
+      type: "float",
       default: true,
       uniform: "smoothing",
       ui: {
@@ -260,6 +260,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { fractalType: 'type' },
   passes: [
     {
       name: "render",

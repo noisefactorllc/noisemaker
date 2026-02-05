@@ -20,7 +20,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Target Hue",
+        label: "target hue",
         control: "slider"
       }
     },
@@ -32,7 +32,7 @@ export default new Effect({
       max: 0.5,
       step: 0.01,
       ui: {
-        label: "Range",
+        label: "range",
         control: "slider"
       }
     },
@@ -44,7 +44,7 @@ export default new Effect({
       max: 0.25,
       step: 0.01,
       ui: {
-        label: "Feather",
+        label: "feather",
         control: "slider"
       }
     }

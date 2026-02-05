@@ -135,7 +135,7 @@ export default new Effect({
       }
     },
     speed: {
-      type: "int",
+      type: "float",
       default: 1,
       uniform: "speed",
       min: -5,
@@ -147,7 +147,7 @@ export default new Effect({
       }
     },
     rotation: {
-      type: "int",
+      type: "float",
       default: 0,
       uniform: "rotation",
       min: -5,

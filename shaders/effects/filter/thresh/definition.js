@@ -13,15 +13,19 @@ export default new Effect({
         "default": 0.5,
         "min": 0,
         "max": 1,
-        "uniform": "level"
-    },
+        "uniform": "level",
+        ui: {
+            label: "level"
+        }},
     "sharpness": {
         "type": "float",
         "default": 0.5,
         "min": 0,
         "max": 1,
-        "uniform": "sharpness"
-    }
+        "uniform": "sharpness",
+        ui: {
+            label: "sharpness"
+        }}
 },
   passes: [
     {

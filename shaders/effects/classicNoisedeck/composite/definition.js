@@ -13,7 +13,7 @@ export default new Effect({
       default: "none",
       uniform: "tex",
       ui: {
-        label: "source surface B"
+        label: "source surface b"
       }
     },
     seed: {
@@ -51,7 +51,7 @@ export default new Effect({
         psychedelic2: 15
       },
       ui: {
-        label: "mode",
+        label: "blend mode",
         control: "dropdown"
       }
     },
@@ -75,7 +75,7 @@ export default new Effect({
         control: "slider"
       }
     },
-    mixAmt: {
+    mix: {
       type: "float",
       default: 50,
       uniform: "mixAmt",
@@ -87,6 +87,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { mixAmt: 'mix' },
   passes: [
     {
       name: "render",

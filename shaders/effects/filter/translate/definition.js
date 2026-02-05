@@ -19,7 +19,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "X",
+        label: "x",
         control: "slider"
       }
     },
@@ -31,7 +31,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Y",
+        label: "y",
         control: "slider"
       }
     },
@@ -45,7 +45,7 @@ export default new Effect({
         clamp: 2
       },
       ui: {
-        label: "Wrap",
+        label: "wrap",
         control: "dropdown"
       }
     }

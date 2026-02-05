@@ -13,11 +13,11 @@ export default new Effect({
   description: "Derivative edge detection",
   globals: {
     distMetric: {
-        type: "enum",
+        type: "int",
         default: 1,
         uniform: "distMetric",
         ui: {
-            label: "Distance Metric"
+            label: "distance metric"
         }
     },
     withNormalize: {
@@ -25,7 +25,7 @@ export default new Effect({
         default: true,
         uniform: "withNormalize",
         ui: {
-            label: "Normalize",
+            label: "normalize",
             control: "checkbox"
         }
     },
@@ -37,7 +37,7 @@ export default new Effect({
         max: 1,
         step: 0.01,
         ui: {
-            label: "Alpha",
+            label: "alpha",
             control: "slider"
         }
     }

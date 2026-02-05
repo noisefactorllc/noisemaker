@@ -11,7 +11,7 @@ export default new Effect({
 
   description: "Color fringing effect simulating lens aberration",
   globals: {
-    aberrationAmt: {
+    aberration: {
       type: "float",
       default: 50,
       uniform: "aberrationAmt",
@@ -34,6 +34,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { aberrationAmt: 'aberration' },
   passes: [
     {
       name: "render",

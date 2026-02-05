@@ -68,6 +68,7 @@ export class Effect {
         if (config.outputGeo) this.outputGeo = config.outputGeo
         if (config.uniformLayout) this.uniformLayout = config.uniformLayout
         if (config.uniformLayouts) this.uniformLayouts = config.uniformLayouts
+        if (config.paramAliases) this.paramAliases = config.paramAliases
 
         // Allow lifecycle hooks via config
         if (config.onInit) this._configOnInit = config.onInit

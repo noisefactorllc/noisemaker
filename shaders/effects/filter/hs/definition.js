@@ -19,7 +19,7 @@ export default new Effect({
       min: -180,
       max: 180,
       ui: {
-        label: "Hue Rotation",
+        label: "hue rotation",
         control: "slider"
       }
     },
@@ -30,7 +30,7 @@ export default new Effect({
       min: 0,
       max: 200,
       ui: {
-        label: "Hue Range",
+        label: "hue range",
         control: "slider"
       }
     },
@@ -41,7 +41,7 @@ export default new Effect({
       min: 0,
       max: 4,
       ui: {
-        label: "Saturation",
+        label: "saturation",
         control: "slider"
       }
     }

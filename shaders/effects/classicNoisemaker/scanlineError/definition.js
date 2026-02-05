@@ -20,7 +20,7 @@ export default new Effect({
       max: 5,
       step: 0.1,
       ui: {
-        label: "Speed",
+        label: "speed",
         control: "slider"
       }
     },
@@ -32,7 +32,7 @@ export default new Effect({
       max: 10,
       step: 0.01,
       ui: {
-        label: "Time Offset",
+        label: "time offset",
         control: "slider"
       }
     },
@@ -41,7 +41,7 @@ export default new Effect({
       default: true,
       uniform: "enabled",
       ui: {
-        label: "Enabled",
+        label: "enabled",
         control: "checkbox"
       }
     }

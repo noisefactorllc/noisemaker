@@ -8,7 +8,7 @@ export default new Effect({
 
   description: "Kaleidoscope effect",
   globals: {
-    kaleido: {
+    sides: {
       type: "int",
       default: 8,
       uniform: "kaleido",
@@ -177,6 +177,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { kaleido: 'sides' },
   passes: [
     {
       name: "render",

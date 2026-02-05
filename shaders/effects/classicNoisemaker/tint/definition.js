@@ -20,7 +20,7 @@ export default new Effect({
         max: 1,
         step: 0.01,
         ui: {
-            label: "Alpha",
+            label: "alpha",
             control: "slider"
         }
     },
@@ -31,7 +31,7 @@ export default new Effect({
         min: 1,
         max: 100,
         ui: {
-            label: "Seed",
+            label: "seed",
             control: "slider"
         }
     }

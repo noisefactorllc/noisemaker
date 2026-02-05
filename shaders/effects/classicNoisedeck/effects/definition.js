@@ -100,7 +100,7 @@ export default new Effect({
       }
     },
     rotation: {
-      type: "int",
+      type: "float",
       default: 0,
       uniform: "rotation",
       min: -180,
@@ -136,7 +136,7 @@ export default new Effect({
       }
     },
     intensity: {
-      type: "int",
+      type: "float",
       default: 0,
       uniform: "intensity",
       min: -100,
@@ -148,7 +148,7 @@ export default new Effect({
       }
     },
     saturation: {
-      type: "int",
+      type: "float",
       default: 0,
       uniform: "saturation",
       min: -100,

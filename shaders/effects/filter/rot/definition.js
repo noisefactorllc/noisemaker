@@ -19,7 +19,7 @@ export default new Effect({
       max: 180,
       step: 0.01,
       ui: {
-        label: "Rotation",
+        label: "rotation",
         control: "slider"
       }
     },
@@ -33,7 +33,7 @@ export default new Effect({
         clamp: 2
       },
       ui: {
-        label: "Wrap",
+        label: "wrap",
         control: "dropdown"
       }
     }

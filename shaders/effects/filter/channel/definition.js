@@ -12,22 +12,28 @@ export default new Effect({
         "type": "member",
         "default": "channel.r",
         "enum": "channel",
-        "uniform": "channel"
-    },
+        "uniform": "channel",
+        ui: {
+            label: "channel"
+        }},
     "scale": {
         "type": "float",
         "default": 1,
         "min": -10,
         "max": 10,
-        "uniform": "scale"
-    },
+        "uniform": "scale",
+        ui: {
+            label: "scale"
+        }},
     "offset": {
         "type": "float",
         "default": 0,
         "min": -10,
         "max": 10,
-        "uniform": "offset"
-    }
+        "uniform": "offset",
+        ui: {
+            label: "offset"
+        }}
   },
   passes: [
     {

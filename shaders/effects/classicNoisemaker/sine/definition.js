@@ -20,7 +20,7 @@ export default new Effect({
         max: 20,
         step: 0.1,
         ui: {
-            label: "Amount",
+            label: "amount",
             control: "slider"
         }
     },
@@ -29,7 +29,7 @@ export default new Effect({
         default: false,
         uniform: "rgb",
         ui: {
-            label: "RGB",
+            label: "rgb",
             control: "checkbox"
         }
     }

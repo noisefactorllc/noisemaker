@@ -51,7 +51,7 @@ export default new Effect({
         warmFilm: 2
       },
       ui: {
-        label: "Preset",
+        label: "preset",
         control: "dropdown",
         category: "look"
       }
@@ -64,7 +64,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Alpha",
+        label: "alpha",
         control: "slider",
         category: "look",
         enabledBy: "preset"
@@ -81,7 +81,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Temperature",
+        label: "temperature",
         category: "primary"
       }
     },
@@ -94,7 +94,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Tint",
+        label: "tint",
         category: "primary"
       }
     },
@@ -107,7 +107,7 @@ export default new Effect({
       step: 0.05,
       ui: {
         control: "slider",
-        label: "Exposure",
+        label: "exposure",
         category: "primary"
       }
     },
@@ -120,7 +120,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Contrast",
+        label: "contrast",
         category: "primary"
       }
     },
@@ -133,7 +133,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Highlights",
+        label: "highlights",
         category: "primary"
       }
     },
@@ -146,7 +146,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Shadows",
+        label: "shadows",
         category: "primary"
       }
     },
@@ -159,7 +159,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Whites",
+        label: "whites",
         category: "primary"
       }
     },
@@ -172,7 +172,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Blacks",
+        label: "blacks",
         category: "primary"
       }
     },
@@ -185,7 +185,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Saturation",
+        label: "saturation",
         category: "primary"
       }
     },
@@ -200,7 +200,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Vibrance",
+        label: "vibrance",
         category: "creative"
       }
     },
@@ -213,7 +213,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Faded Film",
+        label: "faded film",
         category: "creative"
       }
     },
@@ -223,7 +223,7 @@ export default new Effect({
       uniform: "gradeShadowTint",
       ui: {
         control: "slider",
-        label: "Shadow Tint",
+        label: "shadow tint",
         category: "creative"
       }
     },
@@ -233,7 +233,7 @@ export default new Effect({
       uniform: "gradeHighlightTint",
       ui: {
         control: "slider",
-        label: "Highlight Tint",
+        label: "highlight tint",
         category: "creative"
       }
     },
@@ -246,7 +246,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Split Tone Balance",
+        label: "split tone balance",
         category: "creative"
       }
     },
@@ -261,7 +261,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Curve Shadows",
+        label: "curve shadows",
         category: "curves"
       }
     },
@@ -274,7 +274,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Curve Midtones",
+        label: "curve midtones",
         category: "curves"
       }
     },
@@ -287,7 +287,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Curve Highlights",
+        label: "curve highlights",
         category: "curves"
       }
     },
@@ -299,7 +299,7 @@ export default new Effect({
       uniform: "gradeWheelShadows",
       ui: {
         control: "slider",
-        label: "Shadows Wheel",
+        label: "shadows wheel",
         category: "wheels"
       }
     },
@@ -309,7 +309,7 @@ export default new Effect({
       uniform: "gradeWheelMidtones",
       ui: {
         control: "slider",
-        label: "Midtones Wheel",
+        label: "midtones wheel",
         category: "wheels"
       }
     },
@@ -319,7 +319,7 @@ export default new Effect({
       uniform: "gradeWheelHighlights",
       ui: {
         control: "slider",
-        label: "Highlights Wheel",
+        label: "highlights wheel",
         category: "wheels"
       }
     },
@@ -332,7 +332,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Wheel Balance",
+        label: "wheel balance",
         category: "wheels",
         hint: "Adjust a color wheel above first"
       }
@@ -348,7 +348,7 @@ export default new Effect({
       step: 1,
       ui: {
         control: "slider",
-        label: "Enable HSL Key",
+        label: "enable hsl key",
         category: "hslSecondary"
       }
     },
@@ -361,7 +361,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Hue Center",
+        label: "hue center",
         category: "hslSecondary",
         enabledBy: "hslEnable"
       }
@@ -375,7 +375,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Hue Range",
+        label: "hue range",
         category: "hslSecondary",
         enabledBy: "hslEnable"
       }
@@ -389,7 +389,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Sat Min",
+        label: "sat min",
         category: "hslSecondary",
         enabledBy: "hslEnable"
       }
@@ -403,7 +403,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Sat Max",
+        label: "sat max",
         category: "hslSecondary",
         enabledBy: "hslEnable"
       }
@@ -417,7 +417,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Lum Min",
+        label: "lum min",
         category: "hslSecondary",
         enabledBy: "hslEnable"
       }
@@ -431,7 +431,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Lum Max",
+        label: "lum max",
         category: "hslSecondary",
         enabledBy: "hslEnable"
       }
@@ -445,7 +445,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Feather",
+        label: "feather",
         category: "hslSecondary",
         enabledBy: "hslEnable"
       }
@@ -459,7 +459,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Hue Shift",
+        label: "hue shift",
         category: "hslSecondary",
         enabledBy: "hslEnable"
       }
@@ -473,7 +473,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Sat Adjust",
+        label: "sat adjust",
         category: "hslSecondary",
         enabledBy: "hslEnable"
       }
@@ -487,7 +487,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Lum Adjust",
+        label: "lum adjust",
         category: "hslSecondary",
         enabledBy: "hslEnable"
       }
@@ -503,7 +503,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Vignette Amount",
+        label: "vignette amount",
         category: "vignette"
       }
     },
@@ -516,7 +516,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Vignette Midpoint",
+        label: "vignette midpoint",
         category: "vignette",
         enabledBy: "vignetteAmount"
       }
@@ -530,7 +530,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Vignette Roundness",
+        label: "vignette roundness",
         category: "vignette",
         enabledBy: "vignetteAmount"
       }
@@ -544,12 +544,12 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Vignette Feather",
+        label: "vignette feather",
         category: "vignette",
         enabledBy: "vignetteAmount"
       }
     },
-    vignetteHighlightProtect: {
+    vigHiProtect: {
       type: "float",
       default: 0,
       uniform: "gradeVignetteHighlightProtect",
@@ -558,7 +558,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "Highlight Protect",
+        label: "highlight protect",
         category: "vignette",
         enabledBy: "vignetteAmount"
       }
@@ -592,6 +592,8 @@ export default new Effect({
       format: "rgba16float"
     }
   },
+
+  paramAliases: { vignetteHighlightProtect: 'vigHiProtect' },
 
   passes: [
     {

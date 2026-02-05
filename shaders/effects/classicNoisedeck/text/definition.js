@@ -115,7 +115,7 @@ export default new Effect({
       }
     },
     rotation: {
-      type: "int",
+      type: "float",
       default: 0,
       uniform: "rotation",
       min: -180,
@@ -127,7 +127,7 @@ export default new Effect({
       }
     },
     offsetX: {
-      type: "int",
+      type: "float",
       default: 0,
       uniform: "offsetX",
       min: -100,
@@ -139,7 +139,7 @@ export default new Effect({
       }
     },
     offsetY: {
-      type: "int",
+      type: "float",
       default: 0,
       uniform: "offsetY",
       min: -100,
@@ -150,29 +150,30 @@ export default new Effect({
         category: "transform"
       }
     },
-    backgroundColor: {
+    bgColor: {
       type: "color",
       default: [0.0, 0.0, 0.0, 1.0],
       uniform: "backgroundColor",
       ui: {
-        label: "bkg color",
+        label: "background color",
         control: "color",
         category: "background"
       }
     },
-    backgroundOpacity: {
+    bgAlpha: {
       type: "float",
       default: 100,
       uniform: "backgroundOpacity",
       min: 0,
       max: 100,
       ui: {
-        label: "bkg opacity",
+        label: "background opacity",
         control: "slider",
         category: "background"
       }
     }
   },
+  paramAliases: { backgroundColor: 'bgColor', backgroundOpacity: 'bgAlpha' },
   passes: [
     {
       name: "render",

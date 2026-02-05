@@ -19,16 +19,16 @@ export default new Effect({
       min: 0.0,
       max: 5.0,
       step: 0.1,
-      ui: { label: "Speed", control: "slider" }
+      ui: { label: "speed", control: "slider" }
     },
     seed: {
-      type: "float",
+      type: "int",
       default: 0.0,
       uniform: "seed",
       min: 0.0,
       max: 100.0,
       step: 1.0,
-      ui: { label: "Seed", control: "slider" }
+      ui: { label: "seed", control: "slider" }
     },
     maskScale: {
       type: "float",
@@ -37,7 +37,7 @@ export default new Effect({
       min: 0.1,
       max: 5.0,
       step: 0.1,
-      ui: { label: "Mask Scale", control: "slider" }
+      ui: { label: "mask scale", control: "slider" }
     },
     // Worm params
     density: {
@@ -47,7 +47,7 @@ export default new Effect({
         min: 1,
         max: 100,
         step: 1,
-        ui: { label: "Density", control: "slider" }
+        ui: { label: "density", control: "slider" }
     },
     stride: {
         type: "float",
@@ -56,7 +56,7 @@ export default new Effect({
         min: 0.1,
         max: 10,
         step: 0.1,
-        ui: { label: "Stride", control: "slider" }
+        ui: { label: "stride", control: "slider" }
     },
     wormLifetime: {
         type: "float",
@@ -65,7 +65,7 @@ export default new Effect({
         min: 0,
         max: 60,
         step: 1,
-        ui: { label: "Lifetime", control: "slider" }
+        ui: { label: "lifetime", control: "slider" }
     }
   },
   passes: [

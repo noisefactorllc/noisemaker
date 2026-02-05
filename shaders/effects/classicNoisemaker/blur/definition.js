@@ -20,19 +20,19 @@ export default new Effect({
         max: 64,
         step: 1,
         ui: {
-            label: "Amount",
+            label: "amount",
             control: "slider"
         }
     },
     splineOrder: {
-        type: "float",
+        type: "int",
         default: 3,
         uniform: "splineOrder",
         min: 0,
         max: 3,
         step: 1,
         ui: {
-            label: "Spline Order",
+            label: "spline order",
             control: "slider"
         }
     }

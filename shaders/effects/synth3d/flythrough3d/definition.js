@@ -54,7 +54,7 @@ export default new Effect({
         control: "dropdown"
       }
     },
-    fractalType: {
+    type: {
       type: "int",
       default: 0,  // Mandelbulb by default (Mandelbox currently has issues)
       uniform: "fractalType",
@@ -132,7 +132,7 @@ export default new Effect({
       }
     },
     seed: {
-      type: "float",
+      type: "int",
       default: 0,
       min: 0,
       max: 100,
@@ -142,6 +142,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { fractalType: 'type' },
   passes: [
     {
       name: "precompute",

@@ -20,7 +20,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Edge 0",
+        label: "edge 0",
         control: "slider"
       }
     },
@@ -32,7 +32,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "Edge 1",
+        label: "edge 1",
         control: "slider"
       }
     }

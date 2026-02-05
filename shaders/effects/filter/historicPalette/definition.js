@@ -12,7 +12,7 @@ export default new Effect({
 
   description: "Apply historical art color palettes based on luminance",
   globals: {
-    paletteIndex: {
+    index: {
       type: "int",
       default: 4,
       uniform: "paletteIndex",
@@ -40,7 +40,7 @@ export default new Effect({
         ukiyoe: 20
       },
       ui: {
-        label: "Palette",
+        label: "palette",
         control: "dropdown"
       }
     },
@@ -51,11 +51,12 @@ export default new Effect({
       min: 0,
       max: 1,
       ui: {
-        label: "Smoothness",
+        label: "smoothness",
         control: "slider"
       }
     }
   },
+  paramAliases: { paletteIndex: 'index' },
   passes: [
     {
       name: "render",

@@ -20,16 +20,16 @@ export default new Effect({
         max: 1,
         step: 0.01,
         ui: {
-            label: "Alpha",
+            label: "alpha",
             control: "slider"
         }
     },
     pause: {
-        type: "bool",
+        type: "boolean",
         default: false,
         uniform: "pause",
         ui: {
-            label: "Pause",
+            label: "pause",
             control: "checkbox"
         }
     }

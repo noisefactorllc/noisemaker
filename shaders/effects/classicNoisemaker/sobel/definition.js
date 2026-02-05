@@ -13,7 +13,7 @@ export default new Effect({
   description: "Sobel edge detection",
   globals: {
     shape: {
-        type: "enum",
+        type: "int",
         default: 1,
         uniform: "distMetric",
         ui: {
@@ -28,7 +28,7 @@ export default new Effect({
         step: 0.01,
         uniform: "alpha",
         ui: {
-            label: "Alpha",
+            label: "alpha",
             control: "slider"
         }
     }

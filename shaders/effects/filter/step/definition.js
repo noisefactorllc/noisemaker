@@ -22,7 +22,7 @@ export default new Effect({
       randMax: 0.75,
       step: 0.01,
       ui: {
-        label: "Threshold",
+        label: "threshold",
         control: "slider"
       }
     }

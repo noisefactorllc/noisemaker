@@ -12,18 +12,18 @@ export default new Effect({
 
   description: "Apply cosine color palettes based on luminance",
   globals: {
-    paletteIndex: {
+    index: {
       type: "member",
       default: "palette.afterimage",
       enum: "palette",
       uniform: "paletteIndex",
       ui: {
-        label: "Palette",
+        label: "palette",
         control: "dropdown"
       }
     },
-    paletteRotation: {
-      type: "int",
+    rotation: {
+      type: "float",
       default: 0,
       uniform: "paletteRotation",
       choices: {
@@ -32,11 +32,11 @@ export default new Effect({
         back: -1
       },
       ui: {
-        label: "Rotation",
+        label: "rotation",
         control: "dropdown"
       }
     },
-    paletteOffset: {
+    offset: {
       type: "float",
       default: 0,
       uniform: "paletteOffset",
@@ -44,11 +44,11 @@ export default new Effect({
       max: 100,
       step: 1,
       ui: {
-        label: "Offset",
+        label: "offset",
         control: "slider"
       }
     },
-    paletteRepeat: {
+    repeat: {
       type: "float",
       default: 1,
       uniform: "paletteRepeat",
@@ -56,7 +56,7 @@ export default new Effect({
       max: 10,
       step: 0.1,
       ui: {
-        label: "Repeat",
+        label: "repeat",
         control: "slider"
       }
     },
@@ -69,11 +69,12 @@ export default new Effect({
       randMin: 0.5,
       step: 0.01,
       ui: {
-        label: "Alpha",
+        label: "alpha",
         control: "slider"
       }
     }
   },
+  paramAliases: { paletteIndex: 'index', paletteOffset: 'offset', paletteRepeat: 'repeat', paletteRotation: 'rotation' },
   passes: [
     {
       name: "render",

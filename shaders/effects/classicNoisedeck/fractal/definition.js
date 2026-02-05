@@ -58,7 +58,7 @@ export default class Fractal extends Effect {
         control: "slider"
       }
     },
-    fractalType: {
+    type: {
       type: "int",
       default: 0,
       uniform: "fractalType",
@@ -94,7 +94,7 @@ export default class Fractal extends Effect {
       }
     },
     rotation: {
-      type: "int",
+      type: "float",
       default: 0,
       uniform: "rotation",
       min: -180,
@@ -201,7 +201,7 @@ export default class Fractal extends Effect {
         hsv: 6
       },
       ui: {
-        label: "color space",
+        label: "color mode",
         control: "dropdown",
         category: "color"
       }
@@ -328,24 +328,24 @@ export default class Fractal extends Effect {
         category: "color"
       }
     },
-    backgroundColor: {
+    bgColor: {
       type: "color",
       default: [0.0, 0.0, 0.0],
       uniform: "backgroundColor",
       ui: {
-        label: "bkg color",
+        label: "background color",
         control: "color",
         category: "background"
       }
     },
-    backgroundOpacity: {
+    bgAlpha: {
       type: "float",
       default: 100,
       uniform: "backgroundOpacity",
       min: 0,
       max: 100,
       ui: {
-        label: "bkg opacity",
+        label: "background opacity",
         control: "slider",
         category: "background"
       }
@@ -363,6 +363,9 @@ export default class Fractal extends Effect {
       }
     }
   }
+
+  paramAliases = { fractalType: 'type', backgroundColor: 'bgColor', backgroundOpacity: 'bgAlpha' }
+
 
   passes = [
     {

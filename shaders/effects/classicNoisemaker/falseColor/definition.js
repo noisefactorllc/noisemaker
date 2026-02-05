@@ -17,7 +17,7 @@ export default new Effect({
         default: false,
         uniform: "horizontal",
         ui: {
-            label: "Horizontal",
+            label: "horizontal",
             control: "checkbox"
         }
     },
@@ -29,7 +29,7 @@ export default new Effect({
         max: 1,
         step: 0.01,
         ui: {
-            label: "Displacement",
+            label: "displacement",
             control: "slider"
         }
     }

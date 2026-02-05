@@ -19,7 +19,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "Strength",
+        label: "strength",
         control: "slider"
       }
     },
@@ -28,7 +28,7 @@ export default new Effect({
       default: true,
       uniform: "aspectLens",
       ui: {
-        label: "1:1 Aspect",
+        label: "1:1 aspect",
         control: "checkbox"
       }
     },
@@ -42,7 +42,7 @@ export default new Effect({
         clamp: 2
       },
       ui: {
-        label: "Wrap",
+        label: "wrap",
         control: "dropdown"
       }
     },
@@ -53,7 +53,7 @@ export default new Effect({
       min: -180,
       max: 180,
       ui: {
-        label: "Rotation",
+        label: "rotation",
         control: "slider"
       }
     }

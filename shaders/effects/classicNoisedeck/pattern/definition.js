@@ -23,7 +23,7 @@ export default new Effect({
     color2: { slot: 4, components: 'xyz' }
   },
   globals: {
-    patternType: {
+    type: {
       type: "int",
       default: 1,
       uniform: "patternType",
@@ -71,7 +71,7 @@ export default new Effect({
       }
     },
     rotation: {
-      type: "int",
+      type: "float",
       default: 0,
       uniform: "rotation",
       min: -180,
@@ -125,7 +125,7 @@ export default new Effect({
       }
     },
     speed: {
-      type: "int",
+      type: "float",
       default: 1,
       uniform: "speed",
       min: 0,
@@ -168,6 +168,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { patternType: 'type' },
   passes: [
     {
       name: "render",

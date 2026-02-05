@@ -37,7 +37,7 @@ export default new Effect({
         simplex: 10,
         sine: 11
       },
-      ui: { label: "Interpolation", control: "dropdown", category: "general" },
+      ui: { label: "interpolation", control: "dropdown", category: "general" },
       uniform: "interp"
     },
     noiseScale: {
@@ -45,7 +45,7 @@ export default new Effect({
       default: 85,
       min: 1,
       max: 200,
-      ui: { label: "Scale", control: "slider", category: "transform" },
+      ui: { label: "scale", control: "slider", category: "transform" },
       uniform: "noiseScale"
     },
     loopAmp: {
@@ -53,7 +53,7 @@ export default new Effect({
       default: 25,
       min: 0,
       max: 100,
-      ui: { label: "Loop Amp", control: "slider", category: "animation" },
+      ui: { label: "loop amp", control: "slider", category: "animation" },
       uniform: "loopAmp"
     },
     refractAmt: {
@@ -61,27 +61,27 @@ export default new Effect({
       default: 5,
       min: 0,
       max: 100,
-      ui: { label: "Refract", control: "slider", category: "general" },
+      ui: { label: "refract", control: "slider", category: "general" },
       uniform: "refractAmt"
     },
     ridges: {
       type: "boolean",
       default: true,
-      ui: { label: "Ridges", control: "checkbox", category: "general" },
+      ui: { label: "ridges", control: "checkbox", category: "general" },
       uniform: "ridges"
     },
     wrap: {
       type: "boolean",
       default: true,
-      ui: { label: "Wrap", control: "checkbox", category: "general" },
+      ui: { label: "wrap", control: "checkbox", category: "general" },
       uniform: "wrap"
     },
     seed: {
-      type: "float",
+      type: "int",
       default: 44,
       min: 0,
       max: 100,
-      ui: { label: "Seed", control: "slider", category: "util" },
+      ui: { label: "seed", control: "slider", category: "util" },
       uniform: "seed"
     },
     colorMode: {
@@ -93,7 +93,7 @@ export default new Effect({
         "hsv": 2,
         "oklab": 3
       },
-      ui: { label: "Color Mode", control: "dropdown", category: "color" },
+      ui: { label: "color mode", control: "dropdown", category: "color" },
       uniform: "colorMode"
     },
     hueRotation: {
@@ -101,7 +101,7 @@ export default new Effect({
       default: 180,
       min: 0,
       max: 360,
-      ui: { label: "Hue Rotation", control: "slider", category: "color" },
+      ui: { label: "hue rotation", control: "slider", category: "color" },
       uniform: "hueRotation"
     },
     hueRange: {
@@ -109,7 +109,7 @@ export default new Effect({
       default: 25,
       min: 0,
       max: 100,
-      ui: { label: "Hue Range", control: "slider", category: "color" },
+      ui: { label: "hue range", control: "slider", category: "color" },
       uniform: "hueRange"
     },
     intensity: {
@@ -117,7 +117,7 @@ export default new Effect({
       default: 0,
       min: -100,
       max: 100,
-      ui: { label: "Intensity", control: "slider", category: "color" },
+      ui: { label: "intensity", control: "slider", category: "color" },
       uniform: "intensity"
     }
   },

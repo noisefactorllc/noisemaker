@@ -53,7 +53,7 @@ export default new Effect({
 
         // Random seed
         seed: {
-            type: "float",
+            type: "int",
             default: 0.0,
             min: 0.0,
             max: 100.0,
@@ -85,7 +85,7 @@ export default new Effect({
             ui: {
                 control: "button",
                 buttonLabel: "reset",
-                label: "state"
+                label: "reset"
             }
         }
     },

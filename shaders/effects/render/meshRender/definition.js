@@ -19,7 +19,7 @@ export default new Effect({
             max: 10.0,
             uniform: "meshScale",
             ui: {
-                label: "Mesh Scale",
+                label: "mesh scale",
                 control: "slider",
                 category: "mesh"
             }
@@ -32,7 +32,7 @@ export default new Effect({
             max: 5.0,
             uniform: "meshOffsetX",
             ui: {
-                label: "Mesh Offset X",
+                label: "mesh offset x",
                 control: "slider",
                 category: "mesh"
             }
@@ -45,7 +45,7 @@ export default new Effect({
             max: 5.0,
             uniform: "meshOffsetY",
             ui: {
-                label: "Mesh Offset Y",
+                label: "mesh offset y",
                 control: "slider",
                 category: "mesh"
             }
@@ -58,7 +58,7 @@ export default new Effect({
             max: 5.0,
             uniform: "meshOffsetZ",
             ui: {
-                label: "Mesh Offset Z",
+                label: "mesh offset z",
                 control: "slider",
                 category: "mesh"
             }
@@ -72,7 +72,7 @@ export default new Effect({
             max: 3.14159,
             uniform: "rotateX",
             ui: {
-                label: "Rotate X",
+                label: "rotate x",
                 control: "slider",
                 category: "view"
             }
@@ -86,7 +86,7 @@ export default new Effect({
             max: 3.14159,
             uniform: "rotateY",
             ui: {
-                label: "Rotate Y",
+                label: "rotate y",
                 control: "slider",
                 category: "view"
             }
@@ -100,7 +100,7 @@ export default new Effect({
             max: 3.14159,
             uniform: "rotateZ",
             ui: {
-                label: "Rotate Z",
+                label: "rotate z",
                 control: "slider",
                 category: "view"
             }
@@ -114,7 +114,7 @@ export default new Effect({
             max: 10.0,
             uniform: "viewScale",
             ui: {
-                label: "Zoom",
+                label: "zoom",
                 control: "slider",
                 category: "view"
             }
@@ -128,7 +128,7 @@ export default new Effect({
             max: 10.0,
             uniform: "posX",
             ui: {
-                label: "Position X",
+                label: "position x",
                 control: "slider",
                 category: "view"
             }
@@ -142,7 +142,7 @@ export default new Effect({
             max: 10.0,
             uniform: "posY",
             ui: {
-                label: "Position Y",
+                label: "position y",
                 control: "slider",
                 category: "view"
             }
@@ -154,7 +154,7 @@ export default new Effect({
             default: [0.5, 0.7, 0.5],
             uniform: "lightDirection",
             ui: {
-                label: "Light Direction",
+                label: "light direction",
                 control: "vector3",
                 category: "lighting"
             }
@@ -166,7 +166,7 @@ export default new Effect({
             default: [1.0, 1.0, 1.0],
             uniform: "diffuseColor",
             ui: {
-                label: "Diffuse Color",
+                label: "diffuse color",
                 control: "color",
                 category: "diffuse"
             }
@@ -181,7 +181,7 @@ export default new Effect({
             step: 0.01,
             uniform: "diffuseIntensity",
             ui: {
-                label: "Diffuse Intensity",
+                label: "diffuse intensity",
                 control: "slider",
                 category: "diffuse"
             }
@@ -193,7 +193,7 @@ export default new Effect({
             default: [1.0, 1.0, 1.0],
             uniform: "specularColor",
             ui: {
-                label: "Specular Color",
+                label: "specular color",
                 control: "color",
                 category: "specular"
             }
@@ -208,7 +208,7 @@ export default new Effect({
             step: 0.01,
             uniform: "specularIntensity",
             ui: {
-                label: "Specular Intensity",
+                label: "specular intensity",
                 control: "slider",
                 category: "specular"
             }
@@ -223,7 +223,7 @@ export default new Effect({
             step: 1.0,
             uniform: "shininess",
             ui: {
-                label: "Shininess",
+                label: "shininess",
                 control: "slider",
                 category: "specular"
             }
@@ -235,7 +235,7 @@ export default new Effect({
             default: [0.1, 0.1, 0.1],
             uniform: "ambientColor",
             ui: {
-                label: "Ambient Color",
+                label: "ambient color",
                 control: "color",
                 category: "ambient"
             }
@@ -250,7 +250,7 @@ export default new Effect({
             step: 0.01,
             uniform: "rimIntensity",
             ui: {
-                label: "Rim Intensity",
+                label: "rim intensity",
                 control: "slider",
                 category: "rim"
             }
@@ -265,7 +265,7 @@ export default new Effect({
             step: 0.1,
             uniform: "rimPower",
             ui: {
-                label: "Rim Power",
+                label: "rim power",
                 control: "slider",
                 category: "rim"
             }
@@ -277,7 +277,7 @@ export default new Effect({
             default: [0.8, 0.8, 0.8],
             uniform: "meshColor",
             ui: {
-                label: "Base Color",
+                label: "base color",
                 control: "color",
                 category: "material"
             }
@@ -289,7 +289,7 @@ export default new Effect({
             default: [0.1, 0.1, 0.15],
             uniform: "bgColor",
             ui: {
-                label: "Background",
+                label: "background color",
                 control: "color",
                 category: "material"
             }
@@ -304,7 +304,7 @@ export default new Effect({
             step: 0.01,
             uniform: "bgAlpha",
             ui: {
-                label: "Background Alpha",
+                label: "background opacity",
                 control: "slider",
                 category: "material"
             }
@@ -320,7 +320,7 @@ export default new Effect({
                 "wireframe": 1
             },
             ui: {
-                label: "Render Mode",
+                label: "render mode",
                 control: "dropdown",
                 category: "material"
             }

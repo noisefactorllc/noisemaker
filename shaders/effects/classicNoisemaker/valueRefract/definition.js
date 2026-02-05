@@ -19,11 +19,11 @@ export default new Effect({
       max: 2,
       step: 0.01,
       ui: {
-        label: "Displacement",
+        label: "displacement",
         control: "slider"
       }
     },
-    frequency: {
+    freq: {
       type: "float",
       default: 4.0,
       uniform: "frequency",
@@ -31,11 +31,12 @@ export default new Effect({
       max: 20,
       step: 0.1,
       ui: {
-        label: "Frequency",
+        label: "frequency",
         control: "slider"
       }
     }
   },
+  paramAliases: { frequency: 'freq' },
   passes: [
     {
       name: "main",

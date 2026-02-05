@@ -104,7 +104,7 @@ export default new Effect({
       "min": 50,
       "max": 120,
       "ui": {
-        "label": "diffuse rate A",
+        "label": "diffuse rate a",
         "control": "slider",
         "category": "rules"
       }
@@ -116,7 +116,7 @@ export default new Effect({
       "min": 20,
       "max": 80,
       "ui": {
-        "label": "diffuse rate B",
+        "label": "diffuse rate b",
         "control": "slider",
         "category": "rules"
       }
@@ -150,7 +150,7 @@ export default new Effect({
       "default": false,
       "uniform": "resetState",
       "ui": {
-        "label": "state",
+        "label": "reset",
         "control": "button",
         "buttonLabel": "reset"
       }

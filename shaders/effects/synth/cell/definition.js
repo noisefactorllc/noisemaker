@@ -58,7 +58,7 @@ export default new Effect({
         control: "slider"
       }
     },
-    cellSmooth: {
+    smooth: {
       type: "float",
       default: 11,
       uniform: "cellSmooth",
@@ -69,7 +69,7 @@ export default new Effect({
         control: "slider"
       }
     },
-    cellVariation: {
+    variation: {
       type: "float",
       default: 50,
       uniform: "cellVariation",
@@ -80,8 +80,8 @@ export default new Effect({
         control: "slider"
       }
     },
-    loopAmp: {
-      type: "int",
+    speed: {
+      type: "float",
       default: 1,
       uniform: "loopAmp",
       min: 0,
@@ -103,6 +103,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { cellSmooth: 'smooth', cellVariation: 'variation', loopAmp: 'speed' },
   passes: [
     {
       name: "render",

@@ -12,32 +12,40 @@ export default new Effect({
         "type": "member",
         "default": "oscType.sine",
         "enum": "oscType",
-        "uniform": "oscType"
-    },
-    "frequency": {
+        "uniform": "oscType",
+        ui: {
+            label: "osc type"
+        }},
+    "freq": {
         "type": "int",
         "default": 1,
         "min": 1,
         "max": 32,
         "step": 1,
-        "uniform": "frequency"
-    },
+        "uniform": "frequency",
+        ui: {
+            label: "freq"
+        }},
     "speed": {
         "type": "float",
         "default": 4.0,
         "min": 0,
         "max": 10,
         "step": 0.1,
-        "uniform": "speed"
-    },
+        "uniform": "speed",
+        ui: {
+            label: "speed"
+        }},
     "rotation": {
         "type": "float",
         "default": 0,
         "min": -180,
         "max": 180,
         "step": 1,
-        "uniform": "rotation"
-    },
+        "uniform": "rotation",
+        ui: {
+            label: "rotation"
+        }},
     "seed": {
         "type": "int",
         "default": 0,
@@ -51,6 +59,7 @@ export default new Effect({
         }
     }
   },
+  paramAliases: { frequency: 'freq' },
   passes: [
     {
       name: "main",

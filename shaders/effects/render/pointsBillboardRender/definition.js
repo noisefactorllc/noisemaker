@@ -57,7 +57,7 @@ export default new Effect({
         },
 
         // Point rotation variation (0=no rotation, 100=full 360° range)
-        rotationVariation: {
+        rotationVar: {
             type: "float",
             default: 0.0,
             min: 0.0,
@@ -72,7 +72,7 @@ export default new Effect({
 
         // Random seed for deterministic noise
         seed: {
-            type: "float",
+            type: "int",
             default: 42.0,
             min: 0.0,
             max: 1000.0,
@@ -151,7 +151,7 @@ export default new Effect({
             max: 6.283185,
             step: 0.01,
             ui: {
-                label: "rotate X",
+                label: "rotate x",
                 control: "slider",
                 category: "view",
                 enabledBy: "viewMode"
@@ -167,7 +167,7 @@ export default new Effect({
             max: 6.283185,
             step: 0.01,
             ui: {
-                label: "rotate Y",
+                label: "rotate y",
                 control: "slider",
                 category: "view",
                 enabledBy: "viewMode"
@@ -183,7 +183,7 @@ export default new Effect({
             max: 6.283185,
             step: 0.01,
             ui: {
-                label: "rotate Z",
+                label: "rotate z",
                 control: "slider",
                 category: "view",
                 enabledBy: "viewMode"
@@ -215,7 +215,7 @@ export default new Effect({
             max: 50,
             step: 0.1,
             ui: {
-                label: "pos X",
+                label: "pos x",
                 control: "slider",
                 category: "view",
                 enabledBy: "viewMode"
@@ -231,13 +231,15 @@ export default new Effect({
             max: 50,
             step: 0.1,
             ui: {
-                label: "pos Y",
+                label: "pos y",
                 control: "slider",
                 category: "view",
                 enabledBy: "viewMode"
             }
         }
     },
+
+    paramAliases: { rotationVariation: 'rotationVar' },
 
     passes: [
         // Pass 1: Diffuse - decay existing trail

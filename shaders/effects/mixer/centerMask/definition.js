@@ -11,7 +11,7 @@ export default new Effect({
     tex: {
       type: "surface",
       default: "none",
-      ui: { label: "source B (center)" }
+      ui: { label: "source b (center)" }
     },
     blendMode: {
       type: "int",
@@ -62,7 +62,7 @@ export default new Effect({
       max: 100,
       ui: { label: "edge hardness", control: "slider" }
     },
-    mixAmt: {
+    mix: {
       type: "float",
       default: 0,
       uniform: "power",
@@ -72,6 +72,7 @@ export default new Effect({
       ui: { label: "mix", control: "slider" }
     }
   },
+  paramAliases: { mixAmt: 'mix' },
   passes: [
     {
       name: "render",
