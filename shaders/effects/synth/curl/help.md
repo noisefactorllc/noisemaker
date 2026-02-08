@@ -17,7 +17,7 @@ The effect animates by moving through the z-axis of the 3D noise space, creating
 | seed | float | 0 | 0-1000 | Seed |
 | ridges | bool | false | - | Ridges |
 | intensity | float | 1 | 0-2 | Intensity |
-| speed | float | 0.5 | 0-2 | Speed |
+| speed | int | 1 | 0-2 | Speed |
 | outputMode | int | full | flowX/flowY/flowZ/full/magnitude | Output |
 
 ## Notes
