@@ -395,7 +395,7 @@
         window.__noisemakerCurrentEffect = null; // Updated when effect changes
         window.__noisemakerFrameCount = 0;
         window.__noisemakerGetEffectParams = () => ui.effectParameterValues;
-        window.__noisemakerRegenerateDsl = () => ui.regenerateDslFromEffectParams();
+        window.__noisemakerRegenerateDsl = () => ui.programState.toDsl();
         window.__noisemakerCurrentDsl = '';
         window.__noisemakerGetLoopDuration = () => renderer.loopDuration;
         window.__noisemakerGetFPS = () => renderer.currentFPS;

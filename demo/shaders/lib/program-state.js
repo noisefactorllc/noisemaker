@@ -828,6 +828,20 @@ export class ProgramState extends Emitter {
         return this._renderTargetOverride
     }
 
+    /**
+     * Clear all routing overrides
+     */
+    clearRoutingOverrides() {
+        this._writeTargetOverrides.clear()
+        this._writeStepTargetOverrides.clear()
+        this._readSourceOverrides.clear()
+        this._read3dVolOverrides.clear()
+        this._read3dGeoOverrides.clear()
+        this._write3dVolOverrides.clear()
+        this._write3dGeoOverrides.clear()
+        this._renderTargetOverride = null
+    }
+
     // =========================================================================
     // Media Metadata
     // =========================================================================
@@ -997,23 +1011,35 @@ export class ProgramState extends Emitter {
             }
         }
 
-        // Handle zoom changes if the renderer supports it
-        this._handleZoomChanges()
-    }
+        // Handle zoom → pipeline.resize()
+        if (pipeline.resize) {
+            for (const [, stepState] of this._stepStates) {
+                const zoom = stepState.values.zoom
+                if (zoom !== undefined) {
+                    pipeline.resize(pipeline.width, pipeline.height, zoom)
+                    break // only one zoom value applies
+                }
+            }
+        }
 
-    /**
-     * Handle zoom parameter changes
-     * @private
-     */
-    _handleZoomChanges() {
-        // Check if any step has a zoom parameter that changed
-        // This is used by the renderer to update camera/viewport
-        if (!this._renderer?.handleZoomChange) return
+        // Handle volumeSize → pipeline.setUniform('volumeSize', ...)
+        if (pipeline.setUniform) {
+            for (const [, stepState] of this._stepStates) {
+                if ('volumeSize' in stepState.values) {
+                    pipeline.setUniform('volumeSize', stepState.values.volumeSize)
+                    break
+                }
+            }
 
-        for (const [stepKey, stepState] of this._stepStates) {
-            const zoom = stepState.values.zoom
-            if (zoom !== undefined) {
-                this._renderer.handleZoomChange(stepKey, zoom)
+            // Handle stateSize → scoped pipeline.setUniform('stateSize_node_N', ...)
+            // Each pointsEmit has its own particle pipeline with scoped textures
+            for (const [stepKey, stepState] of this._stepStates) {
+                if ('stateSize' in stepState.values) {
+                    const match = stepKey.match(/^step_(\d+)$/)
+                    if (match) {
+                        pipeline.setUniform(`stateSize_node_${match[1]}`, stepState.values.stateSize)
+                    }
+                }
             }
         }
     }

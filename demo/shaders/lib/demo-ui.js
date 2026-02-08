@@ -282,14 +282,6 @@ export class UIController {
             this._onControlChangeCallback?.()
         })
         this._shaderOverrides = {} // Map: stepIndex -> { programName: { glsl?, wgsl?, fragment?, vertex? } }
-        this._writeTargetOverrides = {} // Map: planIndex -> surfaceName (e.g., 'o0', 'o1')
-        this._writeStepTargetOverrides = {} // Map: stepIndex -> surfaceName for mid-chain writes
-        this._readSourceOverrides = {} // Map: stepIndex -> surfaceName for read() source
-        this._read3dVolOverrides = {} // Map: stepIndex -> volName for read3d() volume source (vol0-vol7)
-        this._read3dGeoOverrides = {} // Map: stepIndex -> geoName for read3d() geometry source (geo0-geo7)
-        this._write3dVolOverrides = {} // Map: stepIndex -> volName for write3d() volume target (vol0-vol7)
-        this._write3dGeoOverrides = {} // Map: stepIndex -> geoName for write3d() geometry target (geo0-geo7)
-        this._renderTargetOverride = null // Render target surface override (e.g., 'o0', 'o1')
         this._parsedDslStructure = []
         this._allEffects = []
 
@@ -1675,216 +1667,6 @@ render(o1)`
         }
     }
 
-    /**
-     * Regenerate DSL from effect parameter values
-     * @returns {string|null} Regenerated DSL or null on error
-     */
-    regenerateDslFromEffectParams() {
-        const currentDslText = this.getDsl()
-        if (!currentDslText) return null
-
-        try {
-            const compiled = compile(currentDslText)
-            if (!compiled || !compiled.plans) return null
-
-            const overrides = {}
-            for (const [key, params] of Object.entries(this._programState.getAllStepValues())) {
-                const match = key.match(/^step_(\d+)$/)
-                if (match) {
-                    const stepIndex = parseInt(match[1], 10)
-                    overrides[stepIndex] = params
-                }
-            }
-
-            // Apply write target overrides
-            for (const [planIndexStr, targetName] of Object.entries(this._writeTargetOverrides)) {
-                const planIndex = parseInt(planIndexStr, 10)
-                if (compiled.plans[planIndex]) {
-                    const isOutput = targetName.startsWith('o')
-                    compiled.plans[planIndex].write = {
-                        type: isOutput ? 'OutputRef' : 'FeedbackRef',
-                        name: targetName
-                    }
-
-                    // Also update the last step if it is a _write step (since unparser prefers chain steps)
-                    const plan = compiled.plans[planIndex]
-                    if (plan.chain && plan.chain.length > 0) {
-                        const lastStep = plan.chain[plan.chain.length - 1]
-                        if (lastStep.builtin && lastStep.op === '_write') {
-                             lastStep.args.tex = {
-                                kind: isOutput ? 'output' : 'feedback',
-                                name: targetName
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Apply mid-chain write target overrides
-            if (this._writeStepTargetOverrides) {
-                let globalStepIndex = 0
-                for (const plan of compiled.plans) {
-                    if (!plan.chain) continue
-                    for (const step of plan.chain) {
-                        if (step.builtin && step.op === '_write' && this._writeStepTargetOverrides[globalStepIndex] !== undefined) {
-                            const targetName = this._writeStepTargetOverrides[globalStepIndex]
-                            const isOutput = targetName.startsWith('o')
-                            step.args.tex = {
-                                kind: isOutput ? 'output' : 'feedback',
-                                name: targetName
-                            }
-                        }
-                        globalStepIndex++
-                    }
-                }
-            }
-
-            // Apply read source overrides
-            if (this._readSourceOverrides) {
-                let globalStepIndex = 0
-                for (const plan of compiled.plans) {
-                    if (!plan.chain) continue
-                    for (const step of plan.chain) {
-                        if (step.builtin && step.op === '_read' && this._readSourceOverrides[globalStepIndex] !== undefined) {
-                            const targetName = this._readSourceOverrides[globalStepIndex]
-                            const isOutput = targetName.startsWith('o')
-                            step.args.tex = {
-                                kind: isOutput ? 'output' : 'feedback',
-                                name: targetName
-                            }
-                        }
-                        globalStepIndex++
-                    }
-                }
-            }
-
-            // Apply read3d volume and geometry overrides
-            if (this._read3dVolOverrides || this._read3dGeoOverrides) {
-                let globalStepIndex = 0
-                for (const plan of compiled.plans) {
-                    if (!plan.chain) continue
-                    for (const step of plan.chain) {
-                        if (step.builtin && step.op === '_read3d') {
-                            // Apply volume override
-                            if (this._read3dVolOverrides && this._read3dVolOverrides[globalStepIndex] !== undefined) {
-                                const volName = this._read3dVolOverrides[globalStepIndex]
-                                step.args.tex3d = {
-                                    kind: 'vol',
-                                    name: volName
-                                }
-                            }
-                            // Apply geometry override
-                            if (this._read3dGeoOverrides && this._read3dGeoOverrides[globalStepIndex] !== undefined) {
-                                const geoName = this._read3dGeoOverrides[globalStepIndex]
-                                step.args.geo = {
-                                    kind: 'geo',
-                                    name: geoName
-                                }
-                            }
-                        }
-                        globalStepIndex++
-                    }
-                }
-            }
-
-            // Apply write3d volume and geometry overrides
-            if (this._write3dVolOverrides || this._write3dGeoOverrides) {
-                let globalStepIndex = 0
-                for (const plan of compiled.plans) {
-                    if (!plan.chain) continue
-                    for (const step of plan.chain) {
-                        if (step.builtin && step.op === '_write3d') {
-                            // Apply volume override
-                            if (this._write3dVolOverrides && this._write3dVolOverrides[globalStepIndex] !== undefined) {
-                                const volName = this._write3dVolOverrides[globalStepIndex]
-                                step.args.tex3d = {
-                                    kind: 'vol',
-                                    name: volName
-                                }
-                            }
-                            // Apply geometry override
-                            if (this._write3dGeoOverrides && this._write3dGeoOverrides[globalStepIndex] !== undefined) {
-                                const geoName = this._write3dGeoOverrides[globalStepIndex]
-                                step.args.geo = {
-                                    kind: 'geo',
-                                    name: geoName
-                                }
-                            }
-                        }
-                        globalStepIndex++
-                    }
-                }
-            }
-
-            // Apply mid-chain write target overrides (by stepIndex)
-            if (this._writeStepTargetOverrides) {
-                let globalStepIndex = 0
-                for (const plan of compiled.plans) {
-                    if (!plan.chain) continue
-                    for (const step of plan.chain) {
-                        if (step.builtin && step.op === '_write' && this._writeStepTargetOverrides[globalStepIndex] !== undefined) {
-                            const targetName = this._writeStepTargetOverrides[globalStepIndex]
-                            const isOutput = targetName.startsWith('o')
-                            step.args.tex = {
-                                kind: isOutput ? 'output' : 'feedback',
-                                name: targetName
-                            }
-                        }
-                        globalStepIndex++
-                    }
-                }
-            }
-
-            const searchMatch = currentDslText.match(/^search\s+(\S.*?)$/m)
-            if (searchMatch) {
-                compiled.searchNamespaces = searchMatch[1].split(/\s*,\s*/)
-            }
-
-            // Apply render target override
-            if (this._renderTargetOverride) {
-                compiled.render = this._renderTargetOverride
-            }
-
-            // Extract let declarations from original DSL to preserve them
-            const letDeclarations = []
-            const letRegex = /^let\s+(\w+)\s*=\s*(.+)$/gm
-            let letMatch
-            while ((letMatch = letRegex.exec(currentDslText)) !== null) {
-                letDeclarations.push(letMatch[0])
-            }
-
-            const getEffectDefCallback = createEffectDefCallback(getEffect)
-
-            let result = unparse(compiled, overrides, {
-                customFormatter: this._boundFormatValue,
-                getEffectDef: getEffectDefCallback
-            })
-
-            // Prepend let declarations after search directive
-            if (letDeclarations.length > 0 && result) {
-                const lines = result.split('\n')
-                const searchLineIndex = lines.findIndex(l => l.trim().startsWith('search '))
-                if (searchLineIndex >= 0) {
-                    // Insert let declarations after search line
-                    lines.splice(searchLineIndex + 1, 0, '', ...letDeclarations, '')
-                } else {
-                    // No search line, prepend let declarations
-                    lines.unshift(...letDeclarations, '')
-                }
-                result = lines.join('\n')
-            }
-
-            return result
-        } catch (err) {
-            if (isDslSyntaxError(err)) {
-                console.warn('DSL Syntax Error:\n' + formatDslError(currentDslText, err))
-            } else {
-                console.warn('Failed to regenerate DSL:', err)
-            }
-            return null
-        }
-    }
-
     // =========================================================================
     // Effect Controls
     // =========================================================================
@@ -1956,14 +1738,7 @@ render(o1)`
 
         this._controlsContainer.innerHTML = ''
         this._dependentControls = []
-        this._writeTargetOverrides = {}
-        this._writeStepTargetOverrides = {}
-        this._readSourceOverrides = {}
-        this._read3dVolOverrides = {}
-        this._read3dGeoOverrides = {}
-        this._write3dVolOverrides = {}
-        this._write3dGeoOverrides = {}
-        this._renderTargetOverride = null
+        this._programState.clearRoutingOverrides()
 
         const effects = structure
         this._parsedDslStructure = effects
@@ -2499,9 +2274,6 @@ render(o1)`
         // This is critical for automation bindings (oscillator, midi, audio) which may have changed
         this._programState.fromDsl(dsl)
 
-        // Apply updated state to pipeline
-        this._applyEffectParameterValues()
-
         // Sync UI controls from the updated state
         // This ensures controls reflect new DSL values for effects that existed before paste
         this._syncControlValuesFromState()
@@ -2670,15 +2442,9 @@ render(o1)`
         select.addEventListener('change', () => {
             const val = handle.getValue()
             if (isMidChain) {
-                this._writeStepTargetOverrides[stepIndex] = val
-                if (this._programState) {
-                    this._programState.setWriteStepTarget(stepIndex, val)
-                }
+                this._programState.setWriteStepTarget(stepIndex, val)
             } else {
-                this._writeTargetOverrides[planIndex] = val
-                if (this._programState) {
-                    this._programState.setWriteTarget(planIndex, val)
-                }
+                this._programState.setWriteTarget(planIndex, val)
             }
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
@@ -2750,10 +2516,7 @@ render(o1)`
         const select = handle.element
 
         select.addEventListener('change', () => {
-            this._renderTargetOverride = handle.getValue()
-            if (this._programState) {
-                this._programState.setRenderTarget(this._renderTargetOverride)
-            }
+            this._programState.setRenderTarget(handle.getValue())
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -2879,10 +2642,7 @@ render(o1)`
         const select = handle.element
 
         select.addEventListener('change', () => {
-            this._readSourceOverrides[stepIndex] = handle.getValue()
-            if (this._programState) {
-                this._programState.setReadSource(stepIndex, handle.getValue())
-            }
+            this._programState.setReadSource(stepIndex, handle.getValue())
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -3006,10 +2766,7 @@ render(o1)`
         const volSelect = volHandle.element
 
         volSelect.addEventListener('change', () => {
-            this._read3dVolOverrides[stepIndex] = volHandle.getValue()
-            if (this._programState) {
-                this._programState.setRead3dVolume(stepIndex, volHandle.getValue())
-            }
+            this._programState.setRead3dVolume(stepIndex, volHandle.getValue())
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -3052,10 +2809,7 @@ render(o1)`
         const geoSelect = geoHandle.element
 
         geoSelect.addEventListener('change', () => {
-            this._read3dGeoOverrides[stepIndex] = geoHandle.getValue()
-            if (this._programState) {
-                this._programState.setRead3dGeometry(stepIndex, geoHandle.getValue())
-            }
+            this._programState.setRead3dGeometry(stepIndex, geoHandle.getValue())
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -3138,10 +2892,7 @@ render(o1)`
         const volSelect = volHandle.element
 
         volSelect.addEventListener('change', () => {
-            this._write3dVolOverrides[stepIndex] = volHandle.getValue()
-            if (this._programState) {
-                this._programState.setWrite3dVolume(stepIndex, volHandle.getValue())
-            }
+            this._programState.setWrite3dVolume(stepIndex, volHandle.getValue())
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -3184,10 +2935,7 @@ render(o1)`
         const geoSelect = geoHandle.element
 
         geoSelect.addEventListener('change', () => {
-            this._write3dGeoOverrides[stepIndex] = geoHandle.getValue()
-            if (this._programState) {
-                this._programState.setWrite3dGeometry(stepIndex, geoHandle.getValue())
-            }
+            this._programState.setWrite3dGeometry(stepIndex, geoHandle.getValue())
             this._onControlChange()
             if (this._onRequestRecompileCallback) {
                 this._onRequestRecompileCallback()
@@ -3894,7 +3642,6 @@ render(o1)`
             const numVal = isInt ? parseInt(handle.getValue()) : parseFloat(handle.getValue())
             valueDisplayHandle.setValue(formatVal(numVal))
             this._programState.setValue(effectKey, key, numVal)
-            this._applyEffectParameterValues()
             this._syncTextInputsFromParams()
         })
 
@@ -4218,7 +3965,6 @@ render(o1)`
 
     /** @private Called when a control value changes */
     _onControlChange() {
-        this._applyEffectParameterValues()
         this._updateDependentControls()
         this._updateDslFromEffectParams()
         this._syncTextInputsFromParams()
@@ -4434,130 +4180,10 @@ render(o1)`
     }
 
     /**
-     * Apply effect parameter values to the running pipeline
-     * @private
-     */
-    _applyEffectParameterValues() {
-        const pipeline = this._renderer.pipeline
-        if (!pipeline || !pipeline.graph || !pipeline.graph.passes) {
-            console.log('[_applyEffectParameterValues] no pipeline/graph/passes')
-            return
-        }
-
-
-
-        let zoomChanged = false
-
-        for (const [effectKey, params] of Object.entries(this._programState.getAllStepValues())) {
-            const match = effectKey.match(/^step_(\d+)$/)
-            if (!match) continue
-            const stepIndex = parseInt(match[1], 10)
-
-            const stepPasses = pipeline.graph.passes.filter(pass => {
-                if (!pass.id) return false
-                const passMatch = pass.id.match(/^node_(\d+)_pass_/)
-                return passMatch && parseInt(passMatch[1], 10) === stepIndex
-            })
-
-            if (stepPasses.length === 0) continue
-
-            const firstPass = stepPasses[0]
-            const passFunc = firstPass.effectFunc || firstPass.effectKey
-            const passNamespace = firstPass.effectNamespace
-            let effectDef = null
-            if (passFunc) {
-                if (passNamespace) {
-                    effectDef = getEffect(`${passNamespace}.${passFunc}`) || getEffect(`${passNamespace}/${passFunc}`)
-                }
-                if (!effectDef) {
-                    effectDef = getEffect(passFunc)
-                }
-            }
-
-            for (const pass of stepPasses) {
-                if (!pass.uniforms) continue
-
-                for (const [paramName, value] of Object.entries(params)) {
-                    if (value === undefined || value === null) continue
-
-                    // Skip automation-controlled parameters (oscillator, midi, audio) - these use
-                    // _varRef markers or oscillator/midi/audio flags to preserve the original
-                    // variable reference in DSL output. The actual value is resolved at runtime.
-                    if (value && typeof value === 'object' && (
-                        value._varRef ||
-                        value.type === 'Oscillator' || value._ast?.type === 'Oscillator' ||
-                        value.type === 'Midi' || value._ast?.type === 'Midi' ||
-                        value.type === 'Audio' || value._ast?.type === 'Audio'
-                    )) {
-                        continue
-                    }
-
-                    if (paramName === 'zoom') {
-                        zoomChanged = true
-                    }
-
-                    let spec = null
-                    if (effectDef && effectDef.globals) {
-                        spec = effectDef.globals[paramName]
-                    }
-
-                    const uniformName = spec?.uniform || paramName
-                    const converted = this._renderer.convertParameterForUniform(value, spec)
-                    const finalValue = Array.isArray(converted) ? converted.slice() : converted
-
-                    // Update ONLY this step's pass.uniforms - NOT globalUniforms
-                    // This prevents one effect from stomping another effect's uniforms
-                    // when they share the same uniform names (e.g., two grade() effects)
-                    // Note: Multi-pass effects may not use all uniforms in every pass (expected)
-                    if (uniformName in pass.uniforms) {
-                        pass.uniforms[uniformName] = finalValue
-                    }
-                }
-            }
-        }
-
-        if (zoomChanged && pipeline.resize) {
-            let zoomValue = 1
-            for (const params of Object.values(this._programState.getAllStepValues())) {
-                if (params.zoom !== undefined) {
-                    zoomValue = params.zoom
-                    break
-                }
-            }
-            pipeline.resize(pipeline.width, pipeline.height, zoomValue)
-        }
-
-        for (const params of Object.values(this._programState.getAllStepValues())) {
-            if ('volumeSize' in params && pipeline.setUniform) {
-                pipeline.setUniform('volumeSize', params.volumeSize)
-                break
-            }
-        }
-
-        // Set stateSize for each pointsEmit instance using scoped uniform names
-        // Each pointsEmit has its own particle pipeline with scoped textures (stateSize_node_N)
-        // We set ONLY the scoped uniform to avoid one pipeline stomping another's stateSize
-        for (const [key, params] of Object.entries(this._programState.getAllStepValues())) {
-            if ('stateSize' in params && pipeline.setUniform) {
-                // Extract step index from key (e.g., 'step_5' -> '5')
-                const match = key.match(/^step_(\d+)$/)
-                if (match) {
-                    const stepIndex = match[1]
-                    // Set the scoped uniform for this specific pipeline
-                    const scopedUniform = `stateSize_node_${stepIndex}`
-                    pipeline.setUniform(scopedUniform, params.stateSize)
-                }
-            }
-        }
-    }
-
-    /**
      * Update DSL from effect parameter values
      * @private
      */
     _updateDslFromEffectParams() {
-        this._applyEffectParameterValues()
-
         const newDsl = this._programState.toDsl()
         if (newDsl && newDsl !== this.getDsl()) {
             this.setDsl(newDsl)
@@ -4590,13 +4216,7 @@ render(o1)`
      */
     clearShaderOverrides() {
         this._shaderOverrides = {}
-        this._writeTargetOverrides = {}
-        this._writeStepTargetOverrides = {}
-        this._readSourceOverrides = {}
-        this._read3dVolOverrides = {}
-        this._read3dGeoOverrides = {}
-        this._write3dVolOverrides = {}
-        this._write3dGeoOverrides = {}
+        this._programState.clearRoutingOverrides()
     }
 
     /**
