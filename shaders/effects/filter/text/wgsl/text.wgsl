@@ -1,50 +1,36 @@
 /*
- * Text overlay shader (WGSL).
- * Blends pre-rendered text texture over an input image.
- * The text is rendered to a 2D canvas on the CPU side and uploaded as a texture.
- *
- * The canvas has:
- * - Text pixels: full alpha (1.0) with text color
- * - Background pixels: alpha = bgOpacity with bgColor
- *
- * We blend so that:
- * - Text areas show text color over input
- * - Background areas blend bgColor over input by bgOpacity amount
- * - Final alpha is always preserved from input
+ * Text overlay shader
+ * Blends pre-rendered text texture over input with matte background
  */
 
-struct Uniforms {
-    data : array<vec4<f32>, 1>,
-};
-
-struct VertexOutput {
-    @builtin(position) position: vec4<f32>,
-    @location(0) uv: vec2<f32>,
-}
-
-@group(0) @binding(0) var<uniform> uniforms : Uniforms;
-@group(0) @binding(1) var texSampler: sampler;
-@group(0) @binding(2) var inputTex: texture_2d<f32>;
-@group(0) @binding(3) var textTex: texture_2d<f32>;
+@group(0) @binding(0) var texSampler: sampler;
+@group(0) @binding(1) var inputTex: texture_2d<f32>;
+@group(0) @binding(2) var textTex: texture_2d<f32>;
+@group(0) @binding(3) var<uniform> matteColor: vec3<f32>;
+@group(0) @binding(4) var<uniform> matteOpacity: f32;
 
 @fragment
-fn main(fsInput: VertexOutput) -> @location(0) vec4<f32> {
-    // Unused uniforms reference to keep binding layout consistent
-    let unused = uniforms.data[0].x;
-    
-    // Flip Y to match GLSL coordinate convention
-    let uv = vec2<f32>(fsInput.uv.x, 1.0 - fsInput.uv.y);
-    
+fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
+    let size = max(textureDimensions(inputTex, 0), vec2<u32>(1, 1));
+    let uv = position.xy / vec2<f32>(size);
+
     let inputColor = textureSample(inputTex, texSampler, uv);
     let text = textureSample(textTex, texSampler, uv);
-    
-    // The canvas encodes both text and background in the texture.
-    // Text has alpha = 1.0, background has alpha = bgOpacity.
-    // We use the canvas color directly, blending by its alpha.
-    
-    let result = mix(inputColor.rgb, text.rgb, text.a);
-    
-    // Text pixels get full alpha, background preserves input alpha
-    let outAlpha = mix(inputColor.a, 1.0, text.a);
-    return vec4<f32>(result, outAlpha);
+
+    // Text presence from canvas alpha (1.0 where text exists, 0.0 elsewhere)
+    let textPresence = text.a;
+    let matteAlpha = matteOpacity;
+
+    // Premultiplied blend (matches pointsRender):
+    // - Text contribution (not affected by matte)
+    // - Input passes through where no text AND no matte
+    // - Matte replaces input where matteOpacity > 0
+    let rgb = text.rgb * textPresence
+            + inputColor.rgb * (1.0 - textPresence) * (1.0 - matteAlpha)
+            + matteColor * matteAlpha * (1.0 - textPresence);
+
+    // Alpha: text=opaque, elsewhere blend input alpha toward opaque by matte
+    let alpha = max(textPresence, mix(inputColor.a, 1.0, matteAlpha));
+
+    return vec4<f32>(rgb, alpha);
 }

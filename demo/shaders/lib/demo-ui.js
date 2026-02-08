@@ -1077,13 +1077,8 @@ export class UIController {
 
         const ctx = canvas.getContext('2d')
 
-        // Clear with background color
-        const bgColor = this._hexToRgb(textState.bgColor)
+        // Clear to transparent - background blending is handled by the shader
         ctx.clearRect(0, 0, canvas.width, canvas.height)
-        if (textState.bgOpacity > 0) {
-            ctx.fillStyle = `rgba(${Math.round(bgColor[0]*255)}, ${Math.round(bgColor[1]*255)}, ${Math.round(bgColor[2]*255)}, ${textState.bgOpacity})`
-            ctx.fillRect(0, 0, canvas.width, canvas.height)
-        }
 
         // Get text parameters
         const text = String(textState.textContent || '')

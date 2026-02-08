@@ -1,16 +1,6 @@
 /*
- * Text overlay shader.
- * Blends pre-rendered text texture over an input image.
- * The text is rendered to a 2D canvas on the CPU side and uploaded as a texture.
- *
- * The canvas has:
- * - Text pixels: full alpha (1.0) with text color
- * - Background pixels: alpha = bgOpacity with bgColor
- *
- * We blend so that:
- * - Text areas show text color over input
- * - Background areas blend bgColor over input by bgOpacity amount
- * - Final alpha is always preserved from input
+ * Text overlay shader
+ * Blends pre-rendered text texture over input with matte background
  */
 
 #ifdef GL_ES
@@ -20,24 +10,31 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D textTex;
 uniform vec2 resolution;
-uniform float time;
-uniform int seed;
+uniform vec3 matteColor;
+uniform float matteOpacity;
 
 out vec4 fragColor;
 
 void main() {
     vec2 st = gl_FragCoord.xy / resolution;
 
-    vec4 input_ = texture(inputTex, st);
+    vec4 inputColor = texture(inputTex, st);
     vec4 text = texture(textTex, st);
-    
-    // The canvas encodes both text and background in the texture.
-    // Text has alpha = 1.0, background has alpha = bgOpacity.
-    // We use the canvas color directly, blending by its alpha.
-    
-    vec3 result = mix(input_.rgb, text.rgb, text.a);
-    
-    // Text pixels get full alpha, background preserves input alpha
-    float outAlpha = mix(input_.a, 1.0, text.a);
-    fragColor = vec4(result, outAlpha);
+
+    // Text presence from canvas alpha
+    float textPresence = text.a;
+    float matteAlpha = matteOpacity;
+
+    // Premultiplied blend (matches pointsRender):
+    // - Text contribution (not affected by matte)
+    // - Input passes through where no text AND no matte
+    // - Matte replaces input where matteOpacity > 0
+    vec3 rgb = text.rgb * textPresence
+             + inputColor.rgb * (1.0 - textPresence) * (1.0 - matteAlpha)
+             + matteColor * matteAlpha * (1.0 - textPresence);
+
+    // Alpha: text=opaque, elsewhere blend input alpha toward opaque by matte
+    float alpha = max(textPresence, mix(inputColor.a, 1.0, matteAlpha));
+
+    fragColor = vec4(rgb, alpha);
 }

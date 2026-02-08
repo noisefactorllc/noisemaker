@@ -23,8 +23,8 @@ export default class Text extends Effect {
             type: "string",
             default: "Hello World",
             ui: {
-
-                label: "text",multiline: true,
+                label: "text",
+                multiline: true,
                 category: "general"
             }
         },
@@ -40,8 +40,8 @@ export default class Text extends Effect {
                 fantasy: "fantasy"
             },
             ui: {
-
-                label: "font",control: "dropdown",
+                label: "font",
+                control: "dropdown",
                 category: "general"
             }
         },
@@ -52,8 +52,8 @@ export default class Text extends Effect {
             max: 1.0,
             step: 0.01,
             ui: {
-
-                label: "size",control: "slider",
+                label: "size",
+                control: "slider",
                 category: "transform"
             }
         },
@@ -64,8 +64,8 @@ export default class Text extends Effect {
             max: 1.0,
             step: 0.01,
             ui: {
-
-                label: "pos x",control: "slider",
+                label: "pos x",
+                control: "slider",
                 category: "transform"
             }
         },
@@ -76,8 +76,8 @@ export default class Text extends Effect {
             max: 1.0,
             step: 0.01,
             ui: {
-
-                label: "pos y",control: "slider",
+                label: "pos y",
+                control: "slider",
                 category: "transform"
             }
         },
@@ -88,8 +88,8 @@ export default class Text extends Effect {
             max: 180.0,
             step: 1.0,
             ui: {
-
-                label: "rotation",control: "slider",
+                label: "rotation",
+                control: "slider",
                 category: "transform"
             }
         },
@@ -97,29 +97,31 @@ export default class Text extends Effect {
             type: "color",
             default: "#ffffff",
             ui: {
-
-                label: "color",control: "color",
+                label: "color",
+                control: "color",
                 category: "general"
             }
         },
-        bgColor: {
+        matteColor: {
             type: "color",
             default: "#000000",
+            uniform: "matteColor",
             ui: {
-
-                label: "background color",control: "color",
+                label: "matte color",
+                control: "color",
                 category: "background"
             }
         },
-        bgAlpha: {
+        matteOpacity: {
             type: "float",
             default: 0.0,
             min: 0.0,
             max: 1.0,
             step: 0.01,
+            uniform: "matteOpacity",
             ui: {
-
-                label: "background opacity",control: "slider",
+                label: "matte opacity",
+                control: "slider",
                 category: "background"
             }
         },
@@ -127,20 +129,19 @@ export default class Text extends Effect {
             type: "string",
             default: "center",
             choices: {
-                "left": "left",
-                "center": "center",
-                "right": "right"
+                left: "left",
+                center: "center",
+                right: "right"
             },
             ui: {
-
-                label: "justify",control: "dropdown",
+                label: "justify",
+                control: "dropdown",
                 category: "general"
             }
         }
     }
 
-    paramAliases = { bgOpacity: 'bgAlpha' }
-
+    paramAliases = { bgOpacity: 'matteOpacity', bgAlpha: 'matteOpacity', bgColor: 'matteColor' }
 
     passes = [
         {
@@ -149,6 +150,10 @@ export default class Text extends Effect {
             inputs: {
                 inputTex: "inputTex",
                 textTex: "textTex"
+            },
+            uniforms: {
+                matteColor: "matteColor",
+                matteOpacity: "matteOpacity"
             },
             outputs: {
                 fragColor: "outputTex"
