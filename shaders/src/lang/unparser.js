@@ -5,6 +5,8 @@
  * It preserves the semantic structure while regenerating the text representation.
  */
 
+import { stdEnums } from './std_enums.js'
+
 /**
  * Map oscillator type number to oscKind enum name
  */
@@ -200,9 +202,17 @@ function formatValue(value, spec, options = {}) {
             for (const [name, val] of Object.entries(node)) {
                 const numVal = (val && typeof val === 'object' && 'value' in val) ? val.value : val
                 if (numVal === value) {
-                    return `${enumPath}.${name}`
+                    return name
                 }
             }
+        }
+    }
+
+    // Handle enum string values — strip namespace prefix (e.g., "oscType.sine" → "sine")
+    if (spec?.enum && typeof value === 'string') {
+        const prefix = spec.enum + '.'
+        if (value.startsWith(prefix)) {
+            return value.slice(prefix.length)
         }
     }
 
@@ -328,8 +338,8 @@ function formatValue(value, spec, options = {}) {
             return `vec2(${arr.map(v => formatValue(v, null, options)).join(', ')})`
         }
 
-        // Check if this is a color control (should format as hex regardless of vec3/vec4 type)
-        const isColorControl = spec?.ui?.control === 'color'
+        // Check if this is a color param (should format as hex regardless of vec3/vec4 type)
+        const isColorControl = spec?.type === 'color'
 
         // Handle vec3 explicitly if spec says so
         if (type === 'vec3' && arr.length === 3 && arr.every(v => typeof v === 'number')) {
@@ -529,7 +539,7 @@ function formatValue(value, spec, options = {}) {
     // This catches any array-like that slipped through earlier checks
     if (value && typeof value === 'object' && typeof value.length === 'number') {
         const arr = Array.from(value)
-        const isColorControl = spec?.ui?.control === 'color'
+        const isColorControl = spec?.type === 'color'
         if (arr.length >= 2 && arr.length <= 4 && arr.every(v => typeof v === 'number')) {
             if (arr.length === 2) return `vec2(${arr.join(', ')})`
             if (arr.length === 3) {
@@ -579,8 +589,8 @@ function unparseCall(call, options = {}) {
                 const formattedDefault = formatValue(spec.default, spec, options)
 
                 // For surface params, 'none' must always be explicit when set
-                // (so the expander binds the blank texture)
-                const isExplicitNone = spec.type === 'surface' && formattedValue === 'none'
+                // (so the expander binds the blank texture) — unless the default IS 'none'
+                const isExplicitNone = spec.type === 'surface' && formattedValue === 'none' && formattedDefault !== 'none'
 
                 if (formattedValue === formattedDefault && !isExplicitNone) {
                     continue
@@ -631,6 +641,8 @@ function unparseChain(chain, options = {}) {
  * @returns {string} Complete DSL source
  */
 export function unparse(compiled, overrides = {}, options = {}) {
+    // Ensure enum definitions are available for formatting
+    options = options.enums ? options : { ...options, enums: stdEnums }
     const lines = []
     const getEffectDef = options.getEffectDef || null
     const searchNamespaces = compiled.searchNamespaces || []
