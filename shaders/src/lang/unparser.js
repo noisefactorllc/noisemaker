@@ -788,11 +788,21 @@ export function unparse(compiled, overrides = {}, options = {}) {
 
             // Determine the call name - strip namespace prefix if it's in search namespaces
             let callName = step.op
+            const nsInfo = step.namespace?.call || step.namespace
+            const isFromOverride = nsInfo?.fromOverride === true
+            const fromNamespace = isFromOverride ? (nsInfo?.resolved || nsInfo?.name || step.namespace?.resolved) : null
             for (const ns of searchNamespaces) {
                 const prefix = `${ns}.`
                 if (callName.startsWith(prefix)) {
                     callName = callName.slice(prefix.length)
                     break
+                }
+            }
+            // For from() overrides, strip the override namespace prefix from the call name
+            if (isFromOverride && fromNamespace) {
+                const fromPrefix = `${fromNamespace}.`
+                if (callName.startsWith(fromPrefix)) {
+                    callName = callName.slice(fromPrefix.length)
                 }
             }
 
@@ -846,7 +856,12 @@ export function unparse(compiled, overrides = {}, options = {}) {
 
             // Calculate indent: 4 spaces inside subchain, 2 outside; 0 for first element
             const callIndent = currentChain.length === 0 ? 0 : (inSubchain ? 4 : 2)
-            currentChain.push(makeChainElement(unparseCall(call, { ...options, specs, indent: callIndent })))
+            let callCode = unparseCall(call, { ...options, specs, indent: callIndent })
+            // Wrap in from(namespace, call) for cross-namespace references
+            if (isFromOverride && fromNamespace) {
+                callCode = `from(${fromNamespace}, ${callCode})`
+            }
+            currentChain.push(makeChainElement(callCode))
             globalStepIndex++
         }
 

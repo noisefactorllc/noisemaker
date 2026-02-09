@@ -225,13 +225,11 @@ export function replaceEffect(compiled, stepIndex, newEffectName, newArgs = {}, 
     newStep.op = resolvedNewName
     newStep.args = finalArgs
 
-    // Update namespace info if needed
-    if (effectNamespace) {
-        if (!newStep.namespace) {
-            newStep.namespace = {}
-        }
-        newStep.namespace.resolved = effectNamespace
-    }
+    // Update namespace info — reset to clean state for the new effect
+    // This clears stale from() overrides from the old step
+    newStep.namespace = effectNamespace
+        ? { resolved: effectNamespace }
+        : null
 
     return { success: true, program: newProgram }
 }
