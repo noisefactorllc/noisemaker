@@ -968,7 +968,7 @@ export class ProgramState extends Emitter {
             // Find passes for this step
             const stepPasses = pipeline.graph.passes.filter(pass => {
                 if (!pass.id) return false
-                const passMatch = pass.id.match(/^node_(\d+)_pass_/)
+                const passMatch = pass.id.match(/^node_(\d+)_/)
                 return passMatch && parseInt(passMatch[1], 10) === stepIndex
             })
 
