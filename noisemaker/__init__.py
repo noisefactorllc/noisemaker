@@ -21,7 +21,7 @@ from noisemaker.constants import (
 )
 from noisemaker.generators import basic, multires
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 __all__ = [
     # Core API

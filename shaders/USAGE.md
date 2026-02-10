@@ -50,7 +50,7 @@ tar -xzf noisemaker-shaders.tar.gz -C vendor/noisemaker
 rm noisemaker-shaders.tar.gz
 
 # Or download a specific version
-gh release download v0.7.0 --repo noisedeck/noisemaker --pattern 'noisemaker-shaders.tar.gz' --dir .
+gh release download vX.Y.Z --repo noisedeck/noisemaker --pattern 'noisemaker-shaders.tar.gz' --dir .
 ```
 
 This gives you:
