@@ -16,6 +16,7 @@ Noisemaker
    cli
    javascript
    shaders
+   releases
 
 
 **Noisemaker** is a collection of creative coding effects for Python or JavaScript.
