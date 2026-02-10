@@ -86,7 +86,8 @@ export default new Effect({
       max: 25,
       ui: {
         label: "aberration",
-        control: "slider"
+        control: "slider",
+        enabledBy: { param: "mode", eq: 2 }
       }
     }
   },
