@@ -47,9 +47,6 @@ const server = http.createServer(async (req, res) => {
     if (pathname.endsWith('/')) {
       pathname += 'index.html'
     }
-    if (pathname === '/' || pathname === '') {
-      pathname = '/index.html'
-    }
 
     const filePath = safeJoin(root, pathname)
     if (!filePath) {

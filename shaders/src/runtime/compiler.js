@@ -19,7 +19,7 @@ export function compileGraph(source, options = {}) {
     // Stage 1: Parse and validate DSL
     const compilationResult = compile(source)
 
-    if (compilationResult.diagnostics && compilationResult.diagnostics.length > 0) {
+    if (compilationResult.diagnostics?.length > 0) {
         const errors = compilationResult.diagnostics.filter(d => d.severity === 'error')
         if (errors.length > 0) {
             throw {
@@ -35,7 +35,7 @@ export function compileGraph(source, options = {}) {
         { shaderOverrides: options.shaderOverrides }
     )
 
-    if (expandErrors && expandErrors.length > 0) {
+    if (expandErrors?.length > 0) {
         throw {
             code: 'ERR_EXPANSION_FAILED',
             errors: expandErrors

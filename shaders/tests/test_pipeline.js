@@ -109,9 +109,9 @@ test('Pipeline - Initialization', async () => {
         throw new Error('Pipeline dimensions not set correctly')
     }
 
-    // Check that surfaces were created
-    if (pipeline.surfaces.size !== 8) {
-        throw new Error(`Expected 8 surfaces, got ${pipeline.surfaces.size}`)
+    // Check that surfaces were created (o0-o7 + geo0-geo7 + vol0-vol7 + mesh0-mesh7 = 32)
+    if (pipeline.surfaces.size !== 32) {
+        throw new Error(`Expected 32 surfaces, got ${pipeline.surfaces.size}`)
     }
 
     const o0 = pipeline.surfaces.get('o0')
@@ -210,7 +210,7 @@ test('Pipeline - Dimension Resolution', async () => {
 
 test('Pipeline - Surface Double Buffering', async () => {
     const backend = new MockBackend()
-    const graph = { passes: [], textures: new Map() }
+    const graph = { passes: [], textures: new Map(), renderSurface: 'o0' }
 
     const pipeline = new Pipeline(graph, backend)
     await pipeline.init(800, 600)
@@ -326,39 +326,37 @@ test('Pipeline - Render Surface Selection', async () => {
     }
 })
 
-test('Pipeline - Default Render Surface', async () => {
-    // Test that without explicit renderSurface, o0 is used
+test('Pipeline - No Render Surface Skips Present', async () => {
+    // Without explicit renderSurface, present() should not be called
+    // but swapBuffers and frameIndex should still advance
 
-    let presentedTextureId = null
+    let presentCalled = false
 
-    class DefaultRenderBackend extends MockBackend {
-        present(textureId) {
-            presentedTextureId = textureId
+    class NoPresentBackend extends MockBackend {
+        present() {
+            presentCalled = true
         }
     }
 
-    const backend = new DefaultRenderBackend()
-
-    // Create a graph without renderSurface specified
-    const graph = {
-        passes: [],
-        textures: new Map()
-        // No renderSurface - should default to o0
-    }
+    const backend = new NoPresentBackend()
+    const graph = { passes: [], textures: new Map() }
 
     const pipeline = new Pipeline(graph, backend)
     await pipeline.init(400, 300)
 
     const o0 = pipeline.surfaces.get('o0')
-
-    // Capture expected texture ID before render
-    const expectedTextureId = o0.read
+    const initialRead = o0.read
+    const initialWrite = o0.write
 
     pipeline.render(0)
 
-    // Should present o0 by default
-    if (presentedTextureId !== expectedTextureId) {
-        throw new Error(`Expected o0's read texture (${expectedTextureId}) to be presented, got ${presentedTextureId}`)
+    if (presentCalled) {
+        throw new Error('present() should not be called without renderSurface')
+    }
+
+    // Buffers should still swap
+    if (o0.read !== initialWrite || o0.write !== initialRead) {
+        throw new Error('Buffers should swap even without renderSurface')
     }
 })
 

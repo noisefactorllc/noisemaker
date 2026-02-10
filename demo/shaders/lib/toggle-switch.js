@@ -129,18 +129,13 @@ class ToggleSwitch extends HTMLElement {
         this._setupEventListeners()
     }
 
-    disconnectedCallback() {
-        // Clean up event listeners if needed
-    }
-
     attributeChangedCallback(name, oldVal, newVal) {
         if (name === 'checked') {
             this._checked = newVal !== null
-            this._updateVisualState()
         } else if (name === 'disabled') {
             this._disabled = newVal !== null
-            this._updateVisualState()
         }
+        this._updateVisualState()
     }
 
     /** @returns {boolean} Current checked state */
@@ -246,14 +241,8 @@ class ToggleSwitch extends HTMLElement {
      */
     _updateVisualState() {
         if (!this._track) return
-
-        if (this._checked) {
-            this._track.classList.add('ts-checked')
-            this._track.setAttribute('aria-checked', 'true')
-        } else {
-            this._track.classList.remove('ts-checked')
-            this._track.setAttribute('aria-checked', 'false')
-        }
+        this._track.classList.toggle('ts-checked', this._checked)
+        this._track.setAttribute('aria-checked', String(this._checked))
     }
 }
 

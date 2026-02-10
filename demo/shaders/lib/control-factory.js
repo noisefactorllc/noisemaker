@@ -322,7 +322,7 @@ export class ControlFactory {
      */
     _valuesEqual(a, b) {
         if (a === b) return true
-        if (a === null || b === null) return a === b
+        if (a == null || b == null) return false
         if (typeof a !== typeof b) return false
         if (typeof a === 'object') {
             return JSON.stringify(a) === JSON.stringify(b)

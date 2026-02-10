@@ -46,24 +46,20 @@ function deepClone(obj) {
 }
 
 function cloneEnumTree(source, mergeEnumsFn) {
-  if (mergeEnumsFn) {
-    const clone = {}
-    mergeEnumsFn(clone, source)
-    return clone
-  } else {
-    // Deep clone for frozen copy
-    return deepClone(source)
-  }
+  if (!mergeEnumsFn) return deepClone(source)
+  const clone = {}
+  mergeEnumsFn(clone, source)
+  return clone
 }
 
 function deepFreezeEnumTree(node) {
   if (!node || typeof node !== 'object' || Object.isFrozen(node)) { return node }
   Object.freeze(node)
-  Object.values(node).forEach((child) => {
+  for (const child of Object.values(node)) {
     if (child && typeof child === 'object') {
       deepFreezeEnumTree(child)
     }
-  })
+  }
   return node
 }
 

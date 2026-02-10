@@ -226,4 +226,3 @@ test('Integration - Render Surface default to o0', () => {
     }
 })
 
-console.log('\n=== Running Integration Tests ===\n')

@@ -192,7 +192,6 @@ export function replaceEffect(compiled, stepIndex, newEffectName, newArgs = {}, 
         if (!ops[newEffectName]) {
             return { success: false, error: `Effect '${newEffectName}' not found` }
         }
-        resolvedNewName = newEffectName
     } else {
         // Try to find the namespaced version
         for (const ns of searchOrder) {

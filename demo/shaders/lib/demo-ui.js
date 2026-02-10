@@ -312,6 +312,11 @@ export class UIController {
         this._startMediaUpdateLoop()
     }
 
+    /** Push current step parameter values to the renderer pipeline */
+    _applyStepParams() {
+        this._renderer.applyStepParameterValues?.(this._programState.getAllStepValues())
+    }
+
     // =========================================================================
     // ProgramState Access
     // =========================================================================
@@ -373,8 +378,8 @@ export class UIController {
         }
 
         // Apply step-specific parameter values (including imageSize) to the pipeline
-        if (anyUpdated && this._renderer.applyStepParameterValues) {
-            this._renderer.applyStepParameterValues(this._programState.getAllStepValues())
+        if (anyUpdated) {
+            this._applyStepParams()
         }
     }
 
@@ -697,10 +702,7 @@ export class UIController {
                 media.statusEl.textContent = `video: ${media.videoEl.videoWidth}x${media.videoEl.videoHeight}`
                 media.videoEl.play()
                 this._updateMediaTexture(stepIndex)
-                // Apply step-specific parameters to the pipeline
-                if (this._renderer.applyStepParameterValues) {
-                    this._renderer.applyStepParameterValues(this._programState.getAllStepValues())
-                }
+                this._applyStepParams()
             }
         } else if (file.type.startsWith('image/')) {
             media.imageEl.src = url
@@ -708,10 +710,7 @@ export class UIController {
                 media.source = media.imageEl
                 media.statusEl.textContent = `image: ${media.imageEl.naturalWidth}x${media.imageEl.naturalHeight}`
                 this._updateMediaTexture(stepIndex)
-                // Apply step-specific parameters to the pipeline
-                if (this._renderer.applyStepParameterValues) {
-                    this._renderer.applyStepParameterValues(this._programState.getAllStepValues())
-                }
+                this._applyStepParams()
             }
         }
     }
@@ -798,9 +797,7 @@ export class UIController {
 
             this._updateMediaTexture(stepIndex)
             // Apply step-specific parameters to the pipeline
-            if (this._renderer.applyStepParameterValues) {
-                this._renderer.applyStepParameterValues(this._programState.getAllStepValues())
-            }
+            this._applyStepParams()
         } catch (err) {
             console.error('Failed to start camera:', err)
             media.statusEl.textContent = `camera error: ${err.message}`
@@ -926,9 +923,7 @@ export class UIController {
                     media.statusEl.textContent = `video: ${media.videoEl.videoWidth}x${media.videoEl.videoHeight}`
                     media.videoEl.play()
                     this._updateMediaTexture(stepIndex)
-                    if (this._renderer.applyStepParameterValues) {
-                        this._renderer.applyStepParameterValues(this._programState.getAllStepValues())
-                    }
+                    this._applyStepParams()
                 }
             } else if (preserved.imageSrc) {
                 // Restore image source
@@ -936,9 +931,7 @@ export class UIController {
                     media.source = media.imageEl
                     media.statusEl.textContent = `image: ${media.imageEl.naturalWidth}x${media.imageEl.naturalHeight}`
                     this._updateMediaTexture(stepIndex)
-                    if (this._renderer.applyStepParameterValues) {
-                        this._renderer.applyStepParameterValues(this._programState.getAllStepValues())
-                    }
+                    this._applyStepParams()
                 }
 
                 media.imageEl.onload = completeRestore
@@ -982,9 +975,7 @@ export class UIController {
             media.statusEl.textContent = `default: ${img.naturalWidth}x${img.naturalHeight}`
             this._updateMediaTexture(stepIndex)
             // Apply step-specific parameters to the pipeline
-            if (this._renderer.applyStepParameterValues) {
-                this._renderer.applyStepParameterValues(this._programState.getAllStepValues())
-            }
+            this._applyStepParams()
         }
         img.onerror = () => {
             media.statusEl.textContent = 'no media loaded'

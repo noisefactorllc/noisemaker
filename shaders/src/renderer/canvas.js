@@ -31,6 +31,17 @@ import { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInp
 // Re-export for convenience
 export { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInputManager }
 
+/**
+ * Check if a value represents an automation-controlled parameter
+ * (oscillator, midi, audio) that should not be overwritten by UI values.
+ */
+function isAutomationControlled(value) {
+    if (!value || typeof value !== 'object') return false
+    if (value._varRef) return true
+    const type = value.type || value._ast?.type
+    return type === 'Oscillator' || type === 'Midi' || type === 'Audio'
+}
+
 // Known 3D generator effects (self-initialize volumes)
 const KNOWN_3D_GENERATORS = ['noise3d', 'cell3d', 'shape3d', 'fractal3d', 'flythrough3d', 'ca3d', 'rd3d']
 
@@ -44,7 +55,7 @@ const KNOWN_3D_PROCESSORS = ['flow3d', 'render3d', 'renderLit3d']
  */
 export function cloneParamValue(value) {
     if (Array.isArray(value)) {
-        return value.map((item) => item)
+        return value.slice()
     }
     if (value && typeof value === 'object') {
         try {
@@ -88,11 +99,8 @@ export function sanitizeEnumName(name) {
  * @returns {boolean}
  */
 export function hasTexSurfaceParam(effect) {
-    if (!effect || !effect.instance || !effect.instance.globals) {
-        return false
-    }
-    const texSpec = effect.instance.globals.tex
-    return texSpec && texSpec.type === 'surface'
+    const texSpec = effect?.instance?.globals?.tex
+    return texSpec?.type === 'surface'
 }
 
 /**
@@ -101,16 +109,11 @@ export function hasTexSurfaceParam(effect) {
  * @returns {boolean}
  */
 export function needsInputTex3d(effect) {
-    if (!effect || !effect.instance) return false
+    if (!effect?.instance) return false
     const passes = effect.instance.passes || []
-    for (const pass of passes) {
-        if (!pass.inputs) continue
-        const inputs = Object.values(pass.inputs)
-        if (inputs.includes('inputTex3d')) {
-            return true
-        }
-    }
-    return false
+    return passes.some(pass =>
+        pass.inputs && Object.values(pass.inputs).includes('inputTex3d')
+    )
 }
 
 /**
@@ -142,11 +145,8 @@ export function is3dProcessor(effect) {
  * @returns {boolean}
  */
 export function hasExplicitTexParam(effect) {
-    if (!effect || !effect.instance || !effect.instance.globals) {
-        return false
-    }
-    const texSpec = effect.instance.globals.tex
-    return texSpec && texSpec.type === 'surface' && texSpec.default !== 'inputTex'
+    const texSpec = effect?.instance?.globals?.tex
+    return texSpec?.type === 'surface' && texSpec.default !== 'inputTex'
 }
 
 /**
@@ -155,7 +155,7 @@ export function hasExplicitTexParam(effect) {
  * @returns {{volParam: string|null, geoParam: string|null}} Parameter names or null
  */
 export function getVolGeoParams(effect) {
-    if (!effect || !effect.instance || !effect.instance.globals) {
+    if (!effect?.instance?.globals) {
         return { volParam: null, geoParam: null }
     }
     let volParam = null
@@ -182,21 +182,14 @@ export function isStarterEffect(effect) {
     const passes = effect.instance.passes || []
     if (passes.length === 0) return true
 
-    const pipelineInputs = [
+    const pipelineInputs = new Set([
         'inputTex', 'inputTex3d',
         'o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7'
-    ]
+    ])
 
-    for (const pass of passes) {
-        if (!pass.inputs) continue
-        const inputs = Object.values(pass.inputs)
-        const hasPipelineInput = inputs.some(val => pipelineInputs.includes(val))
-        if (hasPipelineInput) {
-            return false
-        }
-    }
-
-    return true
+    return !passes.some(pass =>
+        pass.inputs && Object.values(pass.inputs).some(val => pipelineInputs.has(val))
+    )
 }
 
 /**
@@ -320,37 +313,23 @@ export class CanvasRenderer {
         }
 
         // Define intercepting properties on this specific canvas instance
-        Object.defineProperty(canvas, 'width', {
-            get() {
-                return widthDesc.get.call(this)
-            },
-            set(value) {
-                const oldWidth = widthDesc.get.call(this)
-                widthDesc.set.call(this, value)
-                const newWidth = widthDesc.get.call(this)
-                if (newWidth !== oldWidth) {
-                    scheduleResize()
-                }
-            },
-            configurable: true,
-            enumerable: true
-        })
+        function interceptDimension(prop, desc) {
+            Object.defineProperty(canvas, prop, {
+                get() { return desc.get.call(this) },
+                set(value) {
+                    const old = desc.get.call(this)
+                    desc.set.call(this, value)
+                    if (desc.get.call(this) !== old) {
+                        scheduleResize()
+                    }
+                },
+                configurable: true,
+                enumerable: true
+            })
+        }
 
-        Object.defineProperty(canvas, 'height', {
-            get() {
-                return heightDesc.get.call(this)
-            },
-            set(value) {
-                const oldHeight = heightDesc.get.call(this)
-                heightDesc.set.call(this, value)
-                const newHeight = heightDesc.get.call(this)
-                if (newHeight !== oldHeight) {
-                    scheduleResize()
-                }
-            },
-            configurable: true,
-            enumerable: true
-        })
+        interceptDimension('width', widthDesc)
+        interceptDimension('height', heightDesc)
     }
 
     /**
@@ -921,18 +900,14 @@ export class CanvasRenderer {
         const starterNames = []
         for (const [effectId, entry] of Object.entries(this._manifest)) {
             if (entry.starter) {
-                // effectId is like "synth/media" - extract namespace and name
                 const parts = effectId.split('/')
                 if (parts.length === 2) {
-                    const [namespace, name] = parts
-                    starterNames.push(name)
-                    starterNames.push(`${namespace}.${name}`)
+                    starterNames.push(parts[1])
+                    starterNames.push(`${parts[0]}.${parts[1]}`)
                 }
             }
         }
-        if (starterNames.length > 0) {
-            registerStarterOps(starterNames)
-        }
+        registerStarterOps(starterNames)
 
         // Initialize enums
         this._enums = await mergeIntoEnums(stdEnums)
@@ -1459,6 +1434,28 @@ export class CanvasRenderer {
     // Mesh Loading (for meshLoader effect OBJ import)
     // =========================================================================
 
+    /** @private Pack mesh data, cache it, and upload to backend */
+    _packCacheAndUploadMesh(meshId, meshData, packMeshDataForTextures) {
+        const texWidth = 256
+        const texHeight = 256
+        const packed = packMeshDataForTextures(
+            meshData.positions, meshData.normals, meshData.uvs,
+            texWidth, texHeight
+        )
+        this._meshCache.set(meshId, {
+            positionData: packed.positionData,
+            normalData: packed.normalData,
+            uvData: packed.uvData,
+            width: texWidth,
+            height: texHeight,
+            vertexCount: packed.vertexCount
+        })
+        return this._pipeline.backend.uploadMeshData(
+            meshId, packed.positionData, packed.normalData, packed.uvData,
+            texWidth, texHeight, packed.vertexCount
+        )
+    }
+
     /**
      * Load an OBJ mesh file from URL and upload to a mesh surface.
      * @param {string} url - URL to OBJ file
@@ -1478,38 +1475,7 @@ export class CanvasRenderer {
             console.log(`[Canvas] Loading OBJ from: ${url}`)
             const meshData = await loadOBJ(url)
 
-            // Pack for texture upload (256x256 = 65536 max vertices)
-            const texWidth = 256
-            const texHeight = 256
-            const packed = packMeshDataForTextures(
-                meshData.positions,
-                meshData.normals,
-                meshData.uvs,
-                texWidth,
-                texHeight
-            )
-
-            // Cache mesh data for re-upload after backend switch
-            this._meshCache.set(meshId, {
-                positionData: packed.positionData,
-                normalData: packed.normalData,
-                uvData: packed.uvData,
-                width: texWidth,
-                height: texHeight,
-                vertexCount: packed.vertexCount
-            })
-
-            // Upload to backend
-            const result = this._pipeline.backend.uploadMeshData(
-                meshId,
-                packed.positionData,
-                packed.normalData,
-                packed.uvData,
-                texWidth,
-                texHeight,
-                packed.vertexCount
-            )
-
+            const result = this._packCacheAndUploadMesh(meshId, meshData, packMeshDataForTextures)
             console.log(`[Canvas] Uploaded ${result.vertexCount} vertices to ${meshId}`)
             return { success: true, vertexCount: result.vertexCount }
         } catch (err) {
@@ -1534,37 +1500,7 @@ export class CanvasRenderer {
             const { parseOBJ, packMeshDataForTextures } = await import('../runtime/obj-parser.js')
 
             const meshData = parseOBJ(objText)
-
-            const texWidth = 256
-            const texHeight = 256
-            const packed = packMeshDataForTextures(
-                meshData.positions,
-                meshData.normals,
-                meshData.uvs,
-                texWidth,
-                texHeight
-            )
-
-            // Cache mesh data for re-upload after backend switch
-            this._meshCache.set(meshId, {
-                positionData: packed.positionData,
-                normalData: packed.normalData,
-                uvData: packed.uvData,
-                width: texWidth,
-                height: texHeight,
-                vertexCount: packed.vertexCount
-            })
-
-            const result = this._pipeline.backend.uploadMeshData(
-                meshId,
-                packed.positionData,
-                packed.normalData,
-                packed.uvData,
-                texWidth,
-                texHeight,
-                packed.vertexCount
-            )
-
+            const result = this._packCacheAndUploadMesh(meshId, meshData, packMeshDataForTextures)
             console.log(`[Canvas] Uploaded ${result.vertexCount} vertices from string to ${meshId}`)
             return { success: true, vertexCount: result.vertexCount }
         } catch (err) {
@@ -1749,16 +1685,7 @@ export class CanvasRenderer {
                 continue
             }
 
-            // Skip automation-controlled params (oscillator, midi, audio)
-            // These are evaluated at render time by resolvePassUniforms
-            if (currentValue && typeof currentValue === 'object' && (
-                currentValue._varRef ||
-                currentValue.type === 'Oscillator' || currentValue._ast?.type === 'Oscillator' ||
-                currentValue.type === 'Midi' || currentValue._ast?.type === 'Midi' ||
-                currentValue.type === 'Audio' || currentValue._ast?.type === 'Audio'
-            )) {
-                continue
-            }
+            if (isAutomationControlled(currentValue)) continue
 
             const converted = this.convertParameterForUniform(currentValue, spec)
 
@@ -1816,16 +1743,7 @@ export class CanvasRenderer {
             for (const [paramName, value] of Object.entries(stepParams)) {
                 if (paramName === '_skip') continue  // Skip internal flags
 
-                // Skip automation-controlled params (oscillator, midi, audio)
-                // These are evaluated at render time by resolvePassUniforms
-                if (value && typeof value === 'object' && (
-                    value._varRef ||
-                    value.type === 'Oscillator' || value._ast?.type === 'Oscillator' ||
-                    value.type === 'Midi' || value._ast?.type === 'Midi' ||
-                    value.type === 'Audio' || value._ast?.type === 'Audio'
-                )) {
-                    continue
-                }
+                if (isAutomationControlled(value)) continue
 
                 const spec = effectDef.globals[paramName]
                 if (!spec || spec.type === 'surface') continue

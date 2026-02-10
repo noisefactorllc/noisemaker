@@ -1100,14 +1100,12 @@ export class Pipeline {
         // Present the render surface to screen
         // Use explicit render() directive or the last surface written to
         const renderSurfaceName = this.graph?.renderSurface
-        if (!renderSurfaceName) {
-            console.warn('[Pipeline.render] No renderSurface specified in graph')
-            return
-        }
-        const renderSurface = this.surfaces.get(renderSurfaceName)
-        if (renderSurface && this.backend.present) {
-            const presentId = this.frameReadTextures?.get(renderSurfaceName) ?? renderSurface.read
-            this.backend.present(presentId)
+        if (renderSurfaceName) {
+            const renderSurface = this.surfaces.get(renderSurfaceName)
+            if (renderSurface && this.backend.present) {
+                const presentId = this.frameReadTextures?.get(renderSurfaceName) ?? renderSurface.read
+                this.backend.present(presentId)
+            }
         }
 
         // Swap double buffers for global surfaces

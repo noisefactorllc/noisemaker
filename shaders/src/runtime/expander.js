@@ -1,6 +1,57 @@
 import { getEffect } from './registry.js'
 import { stdEnums } from '../lang/std_enums.js'
 
+const SURFACE_REF_PATTERN = /^(?:o|vol|geo|xyz|vel|rgba)[0-7]$/
+
+/** Register passthrough outputs for a node that doesn't generate passes */
+function registerPassthrough(nodeId, textureMap, currentInput, currentInput3d, currentInputGeo, currentInputXyz, currentInputVel, currentInputRgba) {
+    if (currentInput) textureMap.set(`${nodeId}_out`, currentInput)
+    if (currentInput3d) textureMap.set(`${nodeId}_out3d`, currentInput3d)
+    if (currentInputGeo) textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
+    if (currentInputXyz) textureMap.set(`${nodeId}_outXyz`, currentInputXyz)
+    if (currentInputVel) textureMap.set(`${nodeId}_outVel`, currentInputVel)
+    if (currentInputRgba) textureMap.set(`${nodeId}_outRgba`, currentInputRgba)
+}
+
+/** Ensure the blit copy program is registered */
+function ensureBlitProgram(programs) {
+    if (programs['blit']) return
+    programs['blit'] = {
+        fragment: `#version 300 es
+            precision highp float;
+            in vec2 v_texCoord;
+            uniform sampler2D src;
+            out vec4 fragColor;
+            void main() {
+                fragColor = texture(src, v_texCoord);
+            }`,
+        wgsl: `
+            struct FragmentInput {
+                @builtin(position) position: vec4<f32>,
+                @location(0) uv: vec2<f32>,
+            }
+
+            @group(0) @binding(0) var src: texture_2d<f32>;
+            @group(0) @binding(1) var srcSampler: sampler;
+
+            @fragment
+            fn main(in: FragmentInput) -> @location(0) vec4<f32> {
+                let uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
+                return textureSample(src, srcSampler, uv);
+            }
+        `,
+        fragmentEntryPoint: 'main'
+    }
+}
+
+/** Resolve a surface ref string to a global_ prefixed name */
+function resolveGlobalSurfaceRef(name) {
+    if (name === 'none') return 'none'
+    if (name.startsWith('global_')) return name
+    if (SURFACE_REF_PATTERN.test(name)) return `global_${name}`
+    return name
+}
+
 /**
  * Expands the Logical Graph (plans) into a Render Graph (passes).
  *
@@ -156,36 +207,7 @@ export function expand(compilationResult, options = {}) {
                             }
                             passes.push(blitPass)
 
-                            // Ensure blit program exists
-                            if (!programs['blit']) {
-                                programs['blit'] = {
-                                    fragment: `#version 300 es
-                                        precision highp float;
-                                        in vec2 v_texCoord;
-                                        uniform sampler2D src;
-                                        out vec4 fragColor;
-                                        void main() {
-                                            fragColor = texture(src, v_texCoord);
-                                        }`,
-                                    wgsl: `
-                                        struct FragmentInput {
-                                            @builtin(position) position: vec4<f32>,
-                                            @location(0) uv: vec2<f32>,
-                                        }
-
-                                        @group(0) @binding(0) var src: texture_2d<f32>;
-                                        @group(0) @binding(1) var srcSampler: sampler;
-
-                                        @fragment
-                                        fn main(in: FragmentInput) -> @location(0) vec4<f32> {
-                                            // Flip Y to match WebGPU texture coordinate convention
-                                            let uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
-                                            return textureSample(src, srcSampler, uv);
-                                        }
-                                    `,
-                                    fragmentEntryPoint: 'main'
-                                }
-                            }
+                            ensureBlitProgram(programs)
 
                             // Track last written surface for render directive
                             lastWrittenSurface = tex.name
@@ -229,36 +251,7 @@ export function expand(compilationResult, options = {}) {
                         }
                         passes.push(blitPass)
 
-                        // Ensure blit program exists
-                        if (!programs['blit']) {
-                            programs['blit'] = {
-                                fragment: `#version 300 es
-                                    precision highp float;
-                                    in vec2 v_texCoord;
-                                    uniform sampler2D src;
-                                    out vec4 fragColor;
-                                    void main() {
-                                        fragColor = texture(src, v_texCoord);
-                                    }`,
-                                wgsl: `
-                                    struct FragmentInput {
-                                        @builtin(position) position: vec4<f32>,
-                                        @location(0) uv: vec2<f32>,
-                                    }
-
-                                    @group(0) @binding(0) var src: texture_2d<f32>;
-                                    @group(0) @binding(1) var srcSampler: sampler;
-
-                                    @fragment
-                                    fn main(in: FragmentInput) -> @location(0) vec4<f32> {
-                                        // Flip Y to match WebGPU texture coordinate convention
-                                        let uv = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
-                                        return textureSample(src, srcSampler, uv);
-                                    }
-                                `,
-                                fragmentEntryPoint: 'main'
-                            }
-                        }
+                        ensureBlitProgram(programs)
                     }
                 }
 
@@ -293,52 +286,12 @@ export function expand(compilationResult, options = {}) {
             // Handle subchain begin/end markers - these are metadata nodes that pass through
             // They don't generate any passes, just maintain chain continuity and carry metadata
             if (step.builtin && step.op === '_subchain_begin') {
-                const nodeId = `node_${step.temp}`
-                // Pass through the current input unchanged
-                if (currentInput) {
-                    textureMap.set(`${nodeId}_out`, currentInput)
-                }
-                if (currentInput3d) {
-                    textureMap.set(`${nodeId}_out3d`, currentInput3d)
-                }
-                if (currentInputGeo) {
-                    textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
-                }
-                // Pass through particle state textures
-                if (currentInputXyz) {
-                    textureMap.set(`${nodeId}_outXyz`, currentInputXyz)
-                }
-                if (currentInputVel) {
-                    textureMap.set(`${nodeId}_outVel`, currentInputVel)
-                }
-                if (currentInputRgba) {
-                    textureMap.set(`${nodeId}_outRgba`, currentInputRgba)
-                }
+                registerPassthrough(`node_${step.temp}`, textureMap, currentInput, currentInput3d, currentInputGeo, currentInputXyz, currentInputVel, currentInputRgba)
                 continue
             }
 
             if (step.builtin && step.op === '_subchain_end') {
-                const nodeId = `node_${step.temp}`
-                // Pass through the current input unchanged
-                if (currentInput) {
-                    textureMap.set(`${nodeId}_out`, currentInput)
-                }
-                if (currentInput3d) {
-                    textureMap.set(`${nodeId}_out3d`, currentInput3d)
-                }
-                if (currentInputGeo) {
-                    textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
-                }
-                // Pass through particle state textures
-                if (currentInputXyz) {
-                    textureMap.set(`${nodeId}_outXyz`, currentInputXyz)
-                }
-                if (currentInputVel) {
-                    textureMap.set(`${nodeId}_outVel`, currentInputVel)
-                }
-                if (currentInputRgba) {
-                    textureMap.set(`${nodeId}_outRgba`, currentInputRgba)
-                }
+                registerPassthrough(`node_${step.temp}`, textureMap, currentInput, currentInput3d, currentInputGeo, currentInputXyz, currentInputVel, currentInputRgba)
                 continue
             }
 
@@ -350,27 +303,7 @@ export function expand(compilationResult, options = {}) {
             // When an effect is skipped, we pass through the current input unchanged
             // The step still gets a nodeId for tracking, but no passes are generated
             if (step.args?._skip === true) {
-                // Register a passthrough so downstream steps can find the input
-                const nodeId = `node_${step.temp}`
-                if (currentInput) {
-                    textureMap.set(`${nodeId}_out`, currentInput)
-                }
-                if (currentInput3d) {
-                    textureMap.set(`${nodeId}_out3d`, currentInput3d)
-                }
-                if (currentInputGeo) {
-                    textureMap.set(`${nodeId}_outGeo`, currentInputGeo)
-                }
-                // Pass through particle state textures
-                if (currentInputXyz) {
-                    textureMap.set(`${nodeId}_outXyz`, currentInputXyz)
-                }
-                if (currentInputVel) {
-                    textureMap.set(`${nodeId}_outVel`, currentInputVel)
-                }
-                if (currentInputRgba) {
-                    textureMap.set(`${nodeId}_outRgba`, currentInputRgba)
-                }
+                registerPassthrough(`node_${step.temp}`, textureMap, currentInput, currentInput3d, currentInputGeo, currentInputXyz, currentInputVel, currentInputRgba)
                 continue
             }
 
@@ -811,76 +744,12 @@ export function expand(compilationResult, options = {}) {
 
                             if (arg.kind === 'temp') {
                                 pass.inputs[uniformName] = textureMap.get(`node_${arg.index}_out`)
-                            } else if (arg.kind === 'output') {
-                                // "none" binds to blank/default texture
-                                if (arg.name === 'none') {
-                                    pass.inputs[uniformName] = 'none'
-                                } else {
-                                    pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_o0
-                                }
-                            } else if (arg.kind === 'source') {
-                                // "none" binds to blank/default texture
-                                if (arg.name === 'none') {
-                                    pass.inputs[uniformName] = 'none'
-                                } else {
-                                    pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_o0
-                                }
-                            } else if (arg.kind === 'vol') {
-                                // "none" binds to blank/default texture
-                                if (arg.name === 'none') {
-                                    pass.inputs[uniformName] = 'none'
-                                } else {
-                                    pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_vol0
-                                }
-                            } else if (arg.kind === 'geo') {
-                                // "none" binds to blank/default texture
-                                if (arg.name === 'none') {
-                                    pass.inputs[uniformName] = 'none'
-                                } else {
-                                    pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_geo0
-                                }
-                            } else if (arg.kind === 'xyz') {
-                                // Agent position surfaces (xyz0-xyz7)
-                                if (arg.name === 'none') {
-                                    pass.inputs[uniformName] = 'none'
-                                } else {
-                                    pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_xyz0
-                                }
-                            } else if (arg.kind === 'vel') {
-                                // Agent velocity surfaces (vel0-vel7)
-                                if (arg.name === 'none') {
-                                    pass.inputs[uniformName] = 'none'
-                                } else {
-                                    pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_vel0
-                                }
-                            } else if (arg.kind === 'rgba') {
-                                // Agent color surfaces (rgba0-rgba7)
-                                if (arg.name === 'none') {
-                                    pass.inputs[uniformName] = 'none'
-                                } else {
-                                    pass.inputs[uniformName] = `global_${arg.name}` // e.g. global_rgba0
-                                }
+                            } else if (arg.kind === 'output' || arg.kind === 'source' || arg.kind === 'vol' ||
+                                       arg.kind === 'geo' || arg.kind === 'xyz' || arg.kind === 'vel' || arg.kind === 'rgba') {
+                                pass.inputs[uniformName] = arg.name === 'none' ? 'none' : `global_${arg.name}`
                             } else if (typeof arg === 'string') {
                                 // "none" binds to blank/default texture
-                                if (arg === 'none') {
-                                    pass.inputs[uniformName] = 'none'
-                                } else if (arg.startsWith('global_')) {
-                                    pass.inputs[uniformName] = arg
-                                } else if (/^o[0-7]$/.test(arg)) {
-                                    pass.inputs[uniformName] = `global_${arg}`
-                                } else if (/^vol[0-7]$/.test(arg)) {
-                                    pass.inputs[uniformName] = `global_${arg}`
-                                } else if (/^geo[0-7]$/.test(arg)) {
-                                    pass.inputs[uniformName] = `global_${arg}`
-                                } else if (/^xyz[0-7]$/.test(arg)) {
-                                    pass.inputs[uniformName] = `global_${arg}`
-                                } else if (/^vel[0-7]$/.test(arg)) {
-                                    pass.inputs[uniformName] = `global_${arg}`
-                                } else if (/^rgba[0-7]$/.test(arg)) {
-                                    pass.inputs[uniformName] = `global_${arg}`
-                                } else {
-                                    pass.inputs[uniformName] = arg
-                                }
+                                pass.inputs[uniformName] = resolveGlobalSurfaceRef(arg)
                             }
                         } else if (effectDef.globals && effectDef.globals[texRef] && effectDef.globals[texRef].default !== undefined) {
                             // Parameter with default value - resolve the default
@@ -890,17 +759,7 @@ export function expand(compilationResult, options = {}) {
                                 pass.inputs[uniformName] = 'none'
                             } else if (defaultVal === 'inputTex' || defaultVal === 'inputColor') {
                                 pass.inputs[uniformName] = currentInput || defaultVal
-                            } else if (/^o[0-7]$/.test(defaultVal)) {
-                                pass.inputs[uniformName] = `global_${defaultVal}`
-                            } else if (/^vol[0-7]$/.test(defaultVal)) {
-                                pass.inputs[uniformName] = `global_${defaultVal}`
-                            } else if (/^geo[0-7]$/.test(defaultVal)) {
-                                pass.inputs[uniformName] = `global_${defaultVal}`
-                            } else if (/^xyz[0-7]$/.test(defaultVal)) {
-                                pass.inputs[uniformName] = `global_${defaultVal}`
-                            } else if (/^vel[0-7]$/.test(defaultVal)) {
-                                pass.inputs[uniformName] = `global_${defaultVal}`
-                            } else if (/^rgba[0-7]$/.test(defaultVal)) {
+                            } else if (SURFACE_REF_PATTERN.test(defaultVal)) {
                                 pass.inputs[uniformName] = `global_${defaultVal}`
                             } else if (defaultVal.startsWith('global_')) {
                                 pass.inputs[uniformName] = scopeParticleTex(defaultVal)

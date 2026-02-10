@@ -1914,10 +1914,6 @@ export class WebGPUBackend extends Backend {
                         // static data textures uploaded by loadOBJ, not double-buffered surfaces.
                         const tex = this.textures.get(texId)
                         textureView = tex?.view
-                        // DEBUG: Log mesh texture resolution
-                        if (inputName.includes('mesh') || inputName.includes('Mesh')) {
-                            console.log(`[createBindGroup] Mesh input '${inputName}' -> texId='${texId}', tex found: ${!!tex}, view: ${!!textureView}`)
-                        }
                     }
                 } else {
                     const tex = this.textures.get(texId)
@@ -1960,10 +1956,6 @@ export class WebGPUBackend extends Backend {
 
                 // Use dummy texture if no view found - ensures bind group completeness
                 if (!view) {
-                    // DEBUG: Log when falling back to dummy texture for mesh-related bindings
-                    if (binding.name.includes('mesh') || binding.name.includes('Mesh')) {
-                        console.warn(`[createBindGroup] Mesh texture '${binding.name}' not found in textureMap, using dummy. textureMap keys:`, [...textureMap.keys()])
-                    }
                     view = this.dummyTextureView
                 }
 
@@ -2617,6 +2609,15 @@ export class WebGPUBackend extends Backend {
      * @param {Array|Object} layout - Layout specification
      * @returns {Uint8Array}
      */
+    _resolveUniformAlias(name, uniforms, { includeChannelCount = false } = {}) {
+        if (uniforms[name] !== undefined) return uniforms[name]
+        if (name === 'width' && uniforms.resolution) return uniforms.resolution[0]
+        if (name === 'height' && uniforms.resolution) return uniforms.resolution[1]
+        if (name === 'channels') return 4.0
+        if (includeChannelCount && name === 'channelCount') return 4.0
+        return undefined
+    }
+
     packUniformsWithLayout(uniforms, layout) {
         // Check for byte-based layout format
         if (layout && layout.type === 'byte' && Array.isArray(layout.layout)) {
@@ -2647,31 +2648,8 @@ export class WebGPUBackend extends Backend {
         // Component offset mapping
         const componentOffset = { x: 0, y: 4, z: 8, w: 12 }
 
-        // Helper to resolve uniform value with built-in aliases
-        const resolveUniformValue = (name, uniforms) => {
-            // Direct lookup first
-            if (uniforms[name] !== undefined) {
-                return uniforms[name]
-            }
-
-            // Built-in aliases for common uniforms
-            // Many shader structs use width/height but pipeline provides resolution array
-            if (name === 'width' && uniforms.resolution) {
-                return uniforms.resolution[0]
-            }
-            if (name === 'height' && uniforms.resolution) {
-                return uniforms.resolution[1]
-            }
-            // Channels is typically 4 for RGBA
-            if (name === 'channels') {
-                return 4.0
-            }
-
-            return undefined
-        }
-
         for (const entry of layoutArray) {
-            const value = resolveUniformValue(entry.name, uniforms)
+            const value = this._resolveUniformAlias(entry.name, uniforms)
             if (value === undefined || value === null) {
                 continue
             }
@@ -2751,31 +2729,8 @@ export class WebGPUBackend extends Backend {
         const buffer = new ArrayBuffer(Math.max(bufferSize, 16))
         const view = new DataView(buffer)
 
-        // Helper to resolve uniform value with built-in aliases
-        const resolveUniformValue = (name, uniforms) => {
-            // Direct lookup first
-            if (uniforms[name] !== undefined) {
-                return uniforms[name]
-            }
-
-            // Built-in aliases for common uniforms
-            // Many shader structs use width/height but pipeline provides resolution array
-            if (name === 'width' && uniforms.resolution) {
-                return uniforms.resolution[0]
-            }
-            if (name === 'height' && uniforms.resolution) {
-                return uniforms.resolution[1]
-            }
-            // Channels/channelCount is typically 4 for RGBA
-            if (name === 'channels' || name === 'channelCount') {
-                return 4.0
-            }
-
-            return undefined
-        }
-
         for (const entry of layout) {
-            const value = resolveUniformValue(entry.name, uniforms)
+            const value = this._resolveUniformAlias(entry.name, uniforms, { includeChannelCount: true })
             if (value === undefined || value === null) {
                 continue
             }

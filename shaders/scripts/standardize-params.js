@@ -232,7 +232,6 @@ function transformFile(filePath, text) {
 
   const mapKey = `${namespace}/${func}`
   const renames = renameMap[mapKey] || {}
-  parseGlobalsParams(text)
 
   const changes = []
   let result = text
@@ -302,8 +301,8 @@ function transformFile(filePath, text) {
     // Use the current key (might have been renamed)
     if (PARAM_TYPE_OVERRIDES[param.key] && newType !== PARAM_TYPE_OVERRIDES[param.key]) {
       // Don't override certain special types (palette, color, vec2, vec3, vec4, surface, member, string)
-      const specialTypes = ['palette', 'color', 'vec2', 'vec3', 'vec4', 'surface', 'member', 'string']
-      if (!specialTypes.includes(newType)) {
+      const SPECIAL_TYPES = ['palette', 'color', 'vec2', 'vec3', 'vec4', 'surface', 'member', 'string']
+      if (!SPECIAL_TYPES.includes(newType)) {
         newType = PARAM_TYPE_OVERRIDES[param.key]
       }
     }
@@ -447,16 +446,7 @@ function addLabelToUiBlock(text, paramKey, label) {
   // Add one more level of indent for the label
   const labelIndent = baseIndent + '    '
 
-  // Check if there's content after the {
-  const afterOpen = text.substring(insertAfter, insertAfter + 100)
-  const hasContent = afterOpen.match(/^\s*\S/)
-
-  let insertion
-  if (hasContent) {
-    insertion = `\n${labelIndent}label: "${label}",`
-  } else {
-    insertion = `\n${labelIndent}label: "${label}",`
-  }
+  const insertion = `\n${labelIndent}label: "${label}",`
 
   return text.substring(0, insertAfter) + insertion + text.substring(insertAfter)
 }
@@ -497,7 +487,6 @@ function addUiBlockWithLabel(text, paramKey, label) {
   // Insert ui block before the closing }
   // Check what's before the closing }
   const beforeClose = text.substring(blockStart + 1, blockEnd)
-  beforeClose.match(/\S[^]*$/)
 
   let insertion
   // Check if the last line before } ends with a comma

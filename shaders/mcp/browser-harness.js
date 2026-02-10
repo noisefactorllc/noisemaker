@@ -404,46 +404,31 @@ export class BrowserSession {
     // Core test operations - wrap core-operations.js functions
     // =========================================================================
 
-    /**
-     * Compile an effect.
-     */
+    async _runWithConsoleCapture(fn) {
+        this.clearConsoleMessages()
+        const result = await fn()
+        if (this.consoleMessages.length > 0) {
+            result.console_errors = this.consoleMessages.map(m => m.text)
+        }
+        return result
+    }
+
     async compileEffect(effectId) {
-        this.clearConsoleMessages()
-        const result = await compileEffect(this.page, effectId, { backend: this.options.backend })
-        if (this.consoleMessages.length > 0) {
-            result.console_errors = this.consoleMessages.map(m => m.text)
-        }
-        return result
+        return this._runWithConsoleCapture(() =>
+            compileEffect(this.page, effectId, { backend: this.options.backend })
+        )
     }
 
-    /**
-     * Render an effect frame and compute metrics.
-     */
     async renderEffectFrame(effectId, options = {}) {
-        this.clearConsoleMessages()
-        const result = await renderEffectFrame(this.page, effectId, {
-            backend: this.options.backend,
-            ...options
-        })
-        if (this.consoleMessages.length > 0) {
-            result.console_errors = this.consoleMessages.map(m => m.text)
-        }
-        return result
+        return this._runWithConsoleCapture(() =>
+            renderEffectFrame(this.page, effectId, { backend: this.options.backend, ...options })
+        )
     }
 
-    /**
-     * Run a DSL program and compute metrics.
-     */
     async runDslProgram(dsl, options = {}) {
-        this.clearConsoleMessages()
-        const result = await runDslProgram(this.page, dsl, {
-            backend: this.options.backend,
-            ...options
-        })
-        if (this.consoleMessages.length > 0) {
-            result.console_errors = this.consoleMessages.map(m => m.text)
-        }
-        return result
+        return this._runWithConsoleCapture(() =>
+            runDslProgram(this.page, dsl, { backend: this.options.backend, ...options })
+        )
     }
 
     /**
@@ -508,34 +493,15 @@ export class BrowserSession {
             }
         }
 
-        this.clearConsoleMessages()
-        const result = await benchmarkEffectFps(this.page, effectId, {
-            backend: this.options.backend,
-            ...options
-        })
-
-        if (this.consoleMessages.length > 0) {
-            result.console_errors = this.consoleMessages.map(m => m.text)
-        }
-
-        return result
+        return this._runWithConsoleCapture(() =>
+            benchmarkEffectFps(this.page, effectId, { backend: this.options.backend, ...options })
+        )
     }
 
-    /**
-     * Describe effect frame with AI vision.
-     */
     async describeEffectFrame(effectId, prompt, options = {}) {
-        this.clearConsoleMessages()
-        const result = await describeEffectFrame(this.page, effectId, prompt, {
-            backend: this.options.backend,
-            ...options
-        })
-
-        if (this.consoleMessages.length > 0) {
-            result.console_errors = this.consoleMessages.map(m => m.text)
-        }
-
-        return result
+        return this._runWithConsoleCapture(() =>
+            describeEffectFrame(this.page, effectId, prompt, { backend: this.options.backend, ...options })
+        )
     }
 
     /**
@@ -812,17 +778,9 @@ export class BrowserSession {
      * Test that a filter effect does NOT pass through input unchanged.
      */
     async testNoPassthrough(effectId, options = {}) {
-        this.clearConsoleMessages()
-        const result = await testNoPassthrough(this.page, effectId, {
-            backend: this.options.backend,
-            ...options
-        })
-
-        if (this.consoleMessages.length > 0) {
-            result.console_errors = this.consoleMessages.map(m => m.text)
-        }
-
-        return result
+        return this._runWithConsoleCapture(() =>
+            testNoPassthrough(this.page, effectId, { backend: this.options.backend, ...options })
+        )
     }
 
     /**
@@ -830,14 +788,9 @@ export class BrowserSession {
      * Renders the effect at frame 0 with both backends and compares pixels.
      */
     async testPixelParity(effectId, options = {}) {
-        this.clearConsoleMessages()
-        const result = await testPixelParity(this.page, effectId, options)
-
-        if (this.consoleMessages.length > 0) {
-            result.console_errors = this.consoleMessages.map(m => m.text)
-        }
-
-        return result
+        return this._runWithConsoleCapture(() =>
+            testPixelParity(this.page, effectId, options)
+        )
     }
 
     /**

@@ -196,16 +196,10 @@ export class AudioState {
      */
     _smooth(band, value) {
         const buffer = this._smoothingBuffers[band]
-
-        if (buffer.length < this._maxBufferLength) {
-            buffer.push(value)
-        } else {
-            // Rotate buffer
+        buffer.push(value)
+        if (buffer.length > this._maxBufferLength) {
             buffer.shift()
-            buffer.push(value)
         }
-
-        // Return average
         return buffer.reduce((a, b) => a + b, 0) / buffer.length
     }
 

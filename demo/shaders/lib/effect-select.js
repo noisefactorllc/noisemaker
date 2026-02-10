@@ -289,17 +289,14 @@ class EffectSelect extends HTMLElement {
         this._updateDisplay()
     }
 
-    _buildFlatOptions() {
-        this._flatOptions = []
+    _groupAndSortEffects() {
         const grouped = {}
-
-        this._effects.forEach(effect => {
+        for (const effect of this._effects) {
             if (!grouped[effect.namespace]) {
                 grouped[effect.namespace] = []
             }
             grouped[effect.namespace].push(effect)
-        })
-
+        }
         const sortedNamespaces = Object.keys(grouped).sort((a, b) => {
             const aIsClassic = a.startsWith('classic')
             const bIsClassic = b.startsWith('classic')
@@ -307,8 +304,14 @@ class EffectSelect extends HTMLElement {
             if (!aIsClassic && bIsClassic) return -1
             return a.localeCompare(b)
         })
+        return { grouped, sortedNamespaces }
+    }
 
-        sortedNamespaces.forEach(namespace => {
+    _buildFlatOptions() {
+        this._flatOptions = []
+        const { grouped, sortedNamespaces } = this._groupAndSortEffects()
+
+        for (const namespace of sortedNamespaces) {
             grouped[namespace].sort((a, b) => a.name.localeCompare(b.name)).forEach(effect => {
                 this._flatOptions.push({
                     value: `${namespace}/${effect.name}`,
@@ -317,7 +320,7 @@ class EffectSelect extends HTMLElement {
                     description: effect.description || ''
                 })
             })
-        })
+        }
     }
 
     _render() {
@@ -335,21 +338,7 @@ class EffectSelect extends HTMLElement {
 
         dropdown.innerHTML = ''
 
-        const grouped = {}
-        this._effects.forEach(effect => {
-            if (!grouped[effect.namespace]) {
-                grouped[effect.namespace] = []
-            }
-            grouped[effect.namespace].push(effect)
-        })
-
-        const sortedNamespaces = Object.keys(grouped).sort((a, b) => {
-            const aIsClassic = a.startsWith('classic')
-            const bIsClassic = b.startsWith('classic')
-            if (aIsClassic && !bIsClassic) return 1
-            if (!aIsClassic && bIsClassic) return -1
-            return a.localeCompare(b)
-        })
+        const { grouped, sortedNamespaces } = this._groupAndSortEffects()
 
         sortedNamespaces.forEach(namespace => {
             const header = document.createElement('div')
