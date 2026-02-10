@@ -111,19 +111,26 @@ function releaseServer() {
 }
 
 /**
- * Launch browser options for WebGPU support.
+ * Launch browser options appropriate for the target backend.
  */
-function getBrowserLaunchOptions(headless) {
-    return {
-        headless,
-        args: [
+function getBrowserLaunchOptions(headless, backend) {
+    const args = ['--disable-gpu-sandbox']
+
+    if (backend === 'webgpu') {
+        args.push(
             '--enable-unsafe-webgpu',
             '--enable-features=Vulkan',
             '--enable-webgpu-developer-features',
-            '--disable-gpu-sandbox',
-            process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan',
-        ]
+            process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan'
+        )
+    } else {
+        // WebGL2: use SwiftShader on Linux CI (no GPU), Metal on macOS
+        if (process.platform === 'darwin') {
+            args.push('--use-angle=metal')
+        }
     }
+
+    return { headless, args }
 }
 
 /**
@@ -163,7 +170,7 @@ export class BrowserSession {
         await acquireServer()
 
         // Launch browser
-        this.browser = await chromium.launch(getBrowserLaunchOptions(this.options.headless))
+        this.browser = await chromium.launch(getBrowserLaunchOptions(this.options.headless, this.options.backend))
 
         // Use smaller viewport in CI for faster software rendering
         const viewportSize = process.env.CI ? { width: 256, height: 256 } : { width: 1280, height: 720 }
@@ -445,7 +452,7 @@ export class BrowserSession {
     async benchmarkEffectFps(effectId, options = {}) {
         // Benchmarks MUST run in headed mode for accurate GPU timing
         if (this.options.headless) {
-            const headedBrowser = await chromium.launch(getBrowserLaunchOptions(false))
+            const headedBrowser = await chromium.launch(getBrowserLaunchOptions(false, this.options.backend))
 
             try {
                 const context = await headedBrowser.newContext({
