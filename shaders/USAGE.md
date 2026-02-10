@@ -36,36 +36,37 @@ This guide explains how to build custom applications using Noisemaker's shader r
 
 Noisemaker is not published on npm. There are three ways to consume it:
 
-### Option A: Download a Release (Recommended)
+### Option A: Download the Shader Bundle (Recommended)
 
-Each tagged release publishes a `noisemaker-shaders.tar.gz` containing the core ESM/IIFE bundles and per-effect bundles.
+Each tagged release (`v*`) publishes a `noisemaker-shaders.tar.gz` containing the core ESM/IIFE bundles and per-effect mini-bundles.
 
-**1. Download the tarball:**
+**1. Download the shader bundle:**
 
 ```bash
-# Using gh CLI (works with private repos)
+# Download the latest release
 mkdir -p vendor/noisemaker
-gh release download --repo noisedeck/noisemaker --pattern 'noisemaker-shaders.tar.gz'
+gh release download --repo noisedeck/noisemaker --pattern 'noisemaker-shaders.tar.gz' --dir .
 tar -xzf noisemaker-shaders.tar.gz -C vendor/noisemaker
 rm noisemaker-shaders.tar.gz
 
-# Or with curl (public repos only)
-curl -fsSL https://github.com/noisedeck/noisemaker/releases/latest/download/noisemaker-shaders.tar.gz \
-  | tar -xz -C vendor/noisemaker
+# Or download a specific version
+gh release download v0.7.0 --repo noisedeck/noisemaker --pattern 'noisemaker-shaders.tar.gz' --dir .
 ```
 
 This gives you:
 
 ```
 vendor/noisemaker/
-  noisemaker-shaders-core.esm.js       # ESM bundle (unminified, ~636 KB)
-  noisemaker-shaders-core.esm.min.js   # ESM bundle (minified, ~300 KB)
-  noisemaker-shaders-core.min.js       # IIFE bundle (global: NoisemakerShadersCore)
+  shaders/
+    noisemaker-shaders-core.esm.js       # ESM bundle (unminified)
+    noisemaker-shaders-core.esm.min.js   # ESM bundle (minified)
+    noisemaker-shaders-core.min.js       # IIFE bundle (global: NoisemakerShadersCore)
+    effects/
+      manifest.json                      # Effect registry with metadata
   effects/
-    manifest.json                      # Effect registry with metadata
-    synth/noise.js                     # Per-effect mini-bundles
+    synth/noise.js                       # Per-effect mini-bundles
     filter/bloom.js
-    ...                                # ~100+ effect bundles
+    ...                                  # ~100+ effect bundles
 ```
 
 **2. Import from the bundle:**
@@ -73,7 +74,7 @@ vendor/noisemaker/
 ```javascript
 // Dynamic import (recommended — lets you choose minified vs unminified)
 const { CanvasRenderer, ProgramState, compile, unparse, getEffect } =
-    await import('./vendor/noisemaker-shaders-core.esm.js')
+    await import('./vendor/noisemaker/shaders/noisemaker-shaders-core.esm.js')
 ```
 
 Or with a static import if your app uses a bundler:
@@ -81,27 +82,10 @@ Or with a static import if your app uses a bundler:
 ```javascript
 import {
     CanvasRenderer, ProgramState, compile, unparse, getEffect
-} from './vendor/noisemaker-shaders-core.esm.js'
+} from './vendor/noisemaker/shaders/noisemaker-shaders-core.esm.js'
 ```
 
 The IIFE build exposes everything on `window.NoisemakerShadersCore` for non-module contexts.
-
-### Option A.1: Vendor Script (for CI)
-
-Copy [`scripts/vendor.sh`](scripts/vendor.sh) into your project and run it to fetch bundles automatically. This is useful in CI pipelines or for keeping vendored bundles up to date.
-
-```bash
-# Copy the script into your project
-cp path/to/noisemaker/scripts/vendor.sh ./scripts/pull-noisemaker.sh
-
-# Download latest release to ./vendor/noisemaker
-./scripts/pull-noisemaker.sh
-
-# Or specify a target directory and version
-./scripts/pull-noisemaker.sh ./my/assets --version v1.2.0
-```
-
-The script uses `gh` CLI when available (handles private repo auth) and falls back to `curl` for public repos. No Node.js dependency required.
 
 ### Option B: Source Imports
 

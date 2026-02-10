@@ -1,0 +1,198 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-js-bundles:
+    name: Build JS bundles
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --include=dev
+
+    - name: Build browser bundles
+      run: npm run bundle
+
+    - name: Build CLI bundle
+      run: npm run build:cli
+
+    - name: Upload JS artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: noisemaker-js-bundles
+        path: |
+          dist/noisemaker.bundle.js
+          dist/noisemaker.min.js
+          dist/noisemaker.esm.js
+          dist/noisemaker.cjs
+        retention-days: 7
+
+  build-standalone-linux:
+    name: Build standalone (Linux)
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --include=dev
+
+    - name: Build standalone executable
+      run: npm run build:standalone
+
+    - name: Package Linux executable
+      run: |
+        mkdir -p dist/release
+        tar -C dist/cli/linux-x64 -czf dist/release/noisemaker-cli-linux-x64.tar.gz noisemaker
+
+    - name: Upload Linux artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: noisemaker-cli-linux-x64
+        path: dist/release/noisemaker-cli-linux-x64.tar.gz
+        retention-days: 7
+
+  build-standalone-macos:
+    name: Build standalone (macOS)
+    runs-on: macos-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --include=dev
+
+    - name: Build standalone executable
+      run: npm run build:standalone
+
+    - name: Package macOS executable
+      run: |
+        mkdir -p dist/release
+        tar -C dist/cli/darwin-arm64 -czf dist/release/noisemaker-cli-macos-arm64.tar.gz noisemaker
+
+    - name: Upload macOS artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: noisemaker-cli-macos-arm64
+        path: dist/release/noisemaker-cli-macos-arm64.tar.gz
+        retention-days: 7
+
+  build-standalone-windows:
+    name: Build standalone (Windows)
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --include=dev
+
+    - name: Build standalone executable
+      run: npm run build:standalone
+
+    - name: Package Windows executable
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path dist/release
+        Set-Location dist/cli/win32-x64
+        7z a ../../release/noisemaker-cli-windows-x64.zip noisemaker.exe
+
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: noisemaker-cli-windows-x64
+        path: dist/release/noisemaker-cli-windows-x64.zip
+        retention-days: 7
+
+  build-shader-bundle:
+    name: Build shader bundle
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --include=dev
+
+    - name: Build shader bundles
+      run: npm run bundle:shaders
+
+    - name: Package shader bundle
+      run: |
+        mkdir -p dist/release
+        tar -C dist -czf dist/release/noisemaker-shaders.tar.gz shaders/ effects/
+
+    - name: Upload shader bundle artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: noisemaker-shaders
+        path: dist/release/noisemaker-shaders.tar.gz
+        retention-days: 7
+
+  publish-release:
+    name: Publish release
+    runs-on: ubuntu-latest
+    needs: [build-js-bundles, build-standalone-linux, build-standalone-macos, build-standalone-windows, build-shader-bundle]
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist/artifacts
+
+    - name: Publish release
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ github.ref_name }}
+      run: |
+        gh release create "$TAG" \
+          --title "Noisemaker $TAG" \
+          --generate-notes \
+          dist/artifacts/noisemaker-js-bundles/noisemaker.bundle.js \
+          dist/artifacts/noisemaker-js-bundles/noisemaker.min.js \
+          dist/artifacts/noisemaker-js-bundles/noisemaker.esm.js \
+          dist/artifacts/noisemaker-js-bundles/noisemaker.cjs \
+          dist/artifacts/noisemaker-cli-linux-x64/noisemaker-cli-linux-x64.tar.gz \
+          dist/artifacts/noisemaker-cli-macos-arm64/noisemaker-cli-macos-arm64.tar.gz \
+          dist/artifacts/noisemaker-cli-windows-x64/noisemaker-cli-windows-x64.zip \
+          dist/artifacts/noisemaker-shaders/noisemaker-shaders.tar.gz

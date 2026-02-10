@@ -70,6 +70,18 @@ jobs:
     - name: Build shader bundles
       run: npm run bundle:shaders
 
+    - name: Package shader bundle
+      run: |
+        mkdir -p dist/release
+        tar -C dist -czf dist/release/noisemaker-shaders.tar.gz shaders/ effects/
+
+    - name: Upload shader bundle artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: noisemaker-shaders
+        path: dist/release/noisemaker-shaders.tar.gz
+        retention-days: 7
+
   deploy-site:
     name: Deploy site (shaders)
     runs-on: ubuntu-latest

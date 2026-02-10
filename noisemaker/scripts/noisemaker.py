@@ -20,7 +20,7 @@ from noisemaker.presets import PRESETS, Preset, set_presets_path
 MAX_SEED_VALUE = 2**32 - 1
 
 # Version string - keep in sync with pyproject.toml
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
