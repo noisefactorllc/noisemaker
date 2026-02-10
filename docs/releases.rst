@@ -83,4 +83,4 @@ Release Cadence
 
 - **Python**: repo-only (CI verification). No published packages yet.
 - **JavaScript snapshots**: updated automatically on every push to ``main``.
-- **Tagged releases** (all artifacts including shader bundles): released at significant intervals during the pre-1.0 period. Once the project reaches 1.0, tagged releases will be cut on every commit.
+- **Tagged releases** (all artifacts including shader bundles): released at significant intervals.
