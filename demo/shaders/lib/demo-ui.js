@@ -18,7 +18,7 @@
  * });
  */
 
-import { compile, unparse, unparseCall, formatValue, formatDslError, isDslSyntaxError } from '../../../shaders/src/lang/index.js'
+import { unparseCall, formatValue, formatDslError, isDslSyntaxError } from '../../../shaders/src/lang/index.js'
 import {
     getEffect,
     cloneParamValue,
