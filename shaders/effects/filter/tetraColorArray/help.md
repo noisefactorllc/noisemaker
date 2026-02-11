@@ -43,6 +43,8 @@ This effect is fully compatible with Tetra's color array palette format and can 
 ### Output
 - **Alpha**: Blend amount with original image (0-1)
   - 0 = original image, 1 = full effect
+- **Smoothness**: Blend width between palette colors (0-1)
+  - 0 = no blending, 1 = widest blend
 
 ## Example Gradients
 

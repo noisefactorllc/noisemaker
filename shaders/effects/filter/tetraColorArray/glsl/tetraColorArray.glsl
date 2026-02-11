@@ -45,6 +45,7 @@ uniform float tetraColorArrayPos7;
 // Mapping controls
 uniform float tetraColorArrayRepeat;
 uniform float tetraColorArrayOffset;
+uniform float tetraColorArraySmoothness;
 uniform float tetraColorArrayAlpha;
 
 out vec4 fragColor;
@@ -178,7 +179,7 @@ float getPosition(int index, int count) {
     return tetraColorArrayPos7;
 }
 
-vec3 sampleColorArray(float t, int count) {
+vec3 sampleColorArray(float t, int count, float smoothAmount) {
     t = clamp(t, 0.0, 1.0);
 
     // Find the segment t falls into
@@ -190,11 +191,16 @@ vec3 sampleColorArray(float t, int count) {
             float segmentLength = p1 - p0;
             float localT = (segmentLength > 0.0) ? (t - p0) / segmentLength : 0.0;
 
+            // Apply smoothness to interpolation factor
+            // smoothAmount=0: hard bands (step at midpoint)
+            // smoothAmount=1: linear interpolation (current behavior)
+            float adjustedT = mix(step(0.5, localT), localT, smoothAmount);
+
             vec3 c0 = getColor(i);
             vec3 c1 = getColor(i + 1);
 
             // Interpolate in the current color mode, then convert to RGB
-            vec3 interpolated = mix(c0, c1, localT);
+            vec3 interpolated = mix(c0, c1, adjustedT);
             return colorToRgb(interpolated, tetraColorArrayColorMode);
         }
     }
@@ -218,7 +224,7 @@ void main() {
     float t = fract(lum * tetraColorArrayRepeat + tetraColorArrayOffset);
 
     // Sample the color array gradient
-    vec3 gradientColor = sampleColorArray(t, tetraColorArrayColorCount);
+    vec3 gradientColor = sampleColorArray(t, tetraColorArrayColorCount, tetraColorArraySmoothness);
 
     // Blend with original based on alpha
     vec3 blendedColor = mix(inputColor.rgb, gradientColor, tetraColorArrayAlpha);

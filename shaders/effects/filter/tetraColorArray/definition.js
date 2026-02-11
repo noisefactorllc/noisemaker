@@ -29,6 +29,7 @@ const uniformLayout = {
   tetraColorArrayRepeat: { slot: 0, components: 'w' },
   tetraColorArrayOffset: { slot: 1, components: 'x' },
   tetraColorArrayAlpha: { slot: 1, components: 'y' },
+  tetraColorArraySmoothness: { slot: 1, components: 'z' },
   tetraColorArrayColor0: { slot: 2, components: 'xyz' },
   tetraColorArrayColor1: { slot: 3, components: 'xyz' },
   tetraColorArrayColor2: { slot: 4, components: 'xyz' },
@@ -351,6 +352,20 @@ export default new Effect({
       step: 0.01,
       ui: {
         label: "alpha",
+        control: "slider",
+        category: "output"
+      }
+    },
+
+    // === Smoothness ===
+    smoothness: {
+      type: "float",
+      default: 0,
+      uniform: "tetraColorArraySmoothness",
+      min: 0,
+      max: 1,
+      ui: {
+        label: "smoothness",
         control: "slider",
         category: "output"
       }

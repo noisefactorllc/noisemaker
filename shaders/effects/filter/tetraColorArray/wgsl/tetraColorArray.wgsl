@@ -9,7 +9,7 @@
 struct Uniforms {
     data: array<vec4<f32>, 12>,
     // data[0].x = colorMode, data[0].y = colorCount, data[0].z = positionMode, data[0].w = repeat
-    // data[1].x = offset (mapping), data[1].y = alpha, data[1].zw = reserved
+    // data[1].x = offset (mapping), data[1].y = alpha, data[1].z = smoothness, data[1].w = reserved
     // data[2].xyz = color0 (rgb)
     // data[3].xyz = color1 (rgb)
     // data[4].xyz = color2 (rgb)
@@ -168,7 +168,7 @@ fn getPosition(index: i32, colorCount: i32, positionMode: i32) -> f32 {
     }
 }
 
-fn sampleColorArray(t: f32, colorCount: i32, positionMode: i32, colorMode: i32) -> vec3<f32> {
+fn sampleColorArray(t: f32, colorCount: i32, positionMode: i32, colorMode: i32, smoothAmount: f32) -> vec3<f32> {
     // Handle edge cases
     if (colorCount <= 0) {
         return vec3<f32>(0.0);
@@ -207,7 +207,12 @@ fn sampleColorArray(t: f32, colorCount: i32, positionMode: i32, colorMode: i32) 
     let upperPos = getPosition(upperIdx, colorCount, positionMode);
 
     let range = upperPos - lowerPos;
-    let factor = select((t - lowerPos) / range, 0.0, range <= 0.0);
+    let localT = select((t - lowerPos) / range, 0.0, range <= 0.0);
+
+    // Apply smoothness to interpolation factor
+    // smoothAmount=0: hard bands (step at midpoint)
+    // smoothAmount=1: linear interpolation (current behavior)
+    let factor = mix(step(0.5, localT), localT, smoothAmount);
 
     let lowerColor = convertColor(getColor(lowerIdx).rgb, colorMode);
     let upperColor = convertColor(getColor(upperIdx).rgb, colorMode);
@@ -224,6 +229,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let repeatVal = uniforms.data[0].w;
     let offsetVal = uniforms.data[1].x;
     let alpha = uniforms.data[1].y;
+    let smoothness = uniforms.data[1].z;
 
     // Calculate UV from position
     let size = vec2<f32>(textureDimensions(inputTex, 0));
@@ -239,7 +245,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let t = fract(lum * repeatVal + offsetVal);
 
     // Sample the color array gradient
-    let gradientColor = sampleColorArray(t, colorCount, positionMode, colorMode);
+    let gradientColor = sampleColorArray(t, colorCount, positionMode, colorMode, smoothness);
 
     // Blend with original based on alpha
     let blendedColor = mix(inputColor.rgb, gradientColor, alpha);
