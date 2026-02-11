@@ -10,3 +10,4 @@ noisemaker.egg-info
 dist/
 .vscode/
 .openai
+.anthropic

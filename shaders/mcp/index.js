@@ -16,6 +16,9 @@ export {
     computeImageMetrics,
     waitForCompileStatus,
     getOpenAIApiKey,
+    getAnthropicApiKey,
+    getAIProvider,
+    callAI,
     STATUS_TIMEOUT
 } from './core-operations.js'
 

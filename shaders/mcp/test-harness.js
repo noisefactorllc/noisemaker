@@ -67,7 +67,7 @@ import {
     matchEffects,
     gracePeriod
 } from './browser-harness.js'
-import { getOpenAIApiKey } from './core-operations.js'
+import { getAIProvider } from './core-operations.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -477,8 +477,8 @@ async function testEffect(session, effectId, options) {
     if (options.runAlgEquiv) {
         if (!options.withAi) {
             console.log(`  ⊘ alg-equiv: skipped (--with-ai not specified)`)
-        } else if (!getOpenAIApiKey()) {
-            console.log(`  ⊘ alg-equiv: skipped (no .openai key)`)
+        } else if (!getAIProvider()) {
+            console.log(`  ⊘ alg-equiv: skipped (no AI API key)`)
         } else {
             t0 = Date.now()
             const algEquivResult = await checkAlgEquivOnDisk(effectId)
@@ -514,8 +514,8 @@ async function testEffect(session, effectId, options) {
     if (options.runBranching) {
         if (!options.withAi) {
             console.log(`  ⊘ branching: skipped (--with-ai not specified)`)
-        } else if (!getOpenAIApiKey()) {
-            console.log(`  ⊘ branching: skipped (no .openai key)`)
+        } else if (!getAIProvider()) {
+            console.log(`  ⊘ branching: skipped (no AI API key)`)
         } else {
             t0 = Date.now()
             const branchingResult = await analyzeBranchingOnDisk(effectId, { backend })
@@ -702,7 +702,7 @@ async function testEffect(session, effectId, options) {
     await session.resetUniformsToDefaults()
 
     // Vision validation
-    const hasApiKey = !!getOpenAIApiKey()
+    const hasApiKey = !!getAIProvider()
     if (hasApiKey && options.withAi && !options.skipVision) {
         const prompt = `Is this shader output valid?
 Valid = shows actual visual content (patterns, colors, textures, effects, colorful mosaic, grid of colors)

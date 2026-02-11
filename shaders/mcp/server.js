@@ -152,7 +152,7 @@ const TOOLS = [
     },
     {
         name: 'describeEffectFrame',
-        description: 'Render a frame and get an AI vision description. Uses OpenAI GPT-4 Vision to analyze the rendered output.',
+        description: 'Render a frame and get an AI vision description. Uses AI vision (Anthropic or OpenAI) to analyze the rendered output.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -338,7 +338,7 @@ const TOOLS = [
                 },
                 prompt: {
                     type: 'string',
-                    description: 'Vision prompt - what to analyze or look for in the rendered image. If provided, uses OpenAI Vision to analyze the output.'
+                    description: 'Vision prompt - what to analyze or look for in the rendered image. If provided, uses AI vision (Anthropic or OpenAI) to analyze the output.'
                 },
                 test_case: {
                     type: 'object',

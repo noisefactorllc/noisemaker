@@ -76,8 +76,12 @@ See [Architecture](docs/ARCHITECTURE.md) for details.
    npx playwright install chromium
    ```
 
-3. For AI vision features, create a `.openai` file in the project root containing your API key:
+3. For AI features, create an API key file in the project root. Use Anthropic or OpenAI.
    ```bash
+   # Anthropic
+   echo "sk-ant-..." > .anthropic
+
+   # OpenAI
    echo "sk-..." > .openai
    ```
 

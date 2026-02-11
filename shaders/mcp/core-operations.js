@@ -20,23 +20,160 @@ const __dirname = path.dirname(__filename)
 const PROJECT_ROOT = path.resolve(__dirname, '../..')
 
 // Timeout for shader compilation status checks (ms)
-// Use longer timeout in CI environment
 export const STATUS_TIMEOUT = process.env.CI ? 120000 : 10000
 
+const NO_AI_KEY_MESSAGE = 'No AI API key found. Create .anthropic or .openai file in project root.'
+
 /**
- * Get OpenAI API key from .openai file or environment variable
+ * Read an API key from a dotfile in the project root.
+ * @param {string} filename - Dotfile name (e.g., '.openai')
  * @returns {string|null} API key or null if not found
  */
-export function getOpenAIApiKey() {
-    // Read from .openai file in project root
-    const keyFile = path.join(PROJECT_ROOT, '.openai')
+function readKeyFile(filename) {
     try {
-        const key = fs.readFileSync(keyFile, 'utf-8').trim()
+        const key = fs.readFileSync(path.join(PROJECT_ROOT, filename), 'utf-8').trim()
         if (key) return key
     } catch {
         // File doesn't exist or can't be read
     }
     return null
+}
+
+/**
+ * Get OpenAI API key from .openai file
+ * @returns {string|null} API key or null if not found
+ */
+export function getOpenAIApiKey() {
+    return readKeyFile('.openai')
+}
+
+/**
+ * Get Anthropic API key from .anthropic file
+ * @returns {string|null} API key or null if not found
+ */
+export function getAnthropicApiKey() {
+    return readKeyFile('.anthropic')
+}
+
+/**
+ * Get AI provider configuration. Prefers Anthropic if .anthropic exists.
+ * @param {object} [options]
+ * @param {string} [options.apiKey] - Explicit OpenAI API key (backwards compat)
+ * @param {string} [options.model] - Model override (only used for OpenAI)
+ * @returns {{provider: 'anthropic'|'openai', apiKey: string, model: string}|null}
+ */
+export function getAIProvider(options = {}) {
+    // Explicit API key = backwards compat, assume OpenAI
+    if (options.apiKey) {
+        return { provider: 'openai', apiKey: options.apiKey, model: options.model || 'gpt-5.2' }
+    }
+    // Anthropic wins if .anthropic exists
+    const anthropicKey = getAnthropicApiKey()
+    if (anthropicKey) {
+        return { provider: 'anthropic', apiKey: anthropicKey, model: 'claude-sonnet-4-5-20250929' }
+    }
+    const openaiKey = getOpenAIApiKey()
+    if (openaiKey) {
+        return { provider: 'openai', apiKey: openaiKey, model: options.model || 'gpt-5.2' }
+    }
+    return null
+}
+
+/**
+ * Call AI API (supports both Anthropic and OpenAI).
+ *
+ * @param {object} params
+ * @param {string} [params.system] - System prompt
+ * @param {string|Array} params.userContent - User message (string or content blocks)
+ * @param {number} [params.maxTokens=500] - Max response tokens
+ * @param {boolean} [params.jsonMode=false] - Request JSON output
+ * @param {{provider: string, apiKey: string, model: string}} params.ai - Provider config from getAIProvider()
+ * @returns {Promise<string|null>} Response text
+ */
+export async function callAI({ system, userContent, maxTokens = 500, jsonMode = false, ai }) {
+    if (ai.provider === 'anthropic') {
+        return _callAnthropic({ ...ai, system, userContent, maxTokens, jsonMode })
+    }
+    return _callOpenAI({ ...ai, system, userContent, maxTokens, jsonMode })
+}
+
+async function _callAnthropic({ apiKey, model, system, userContent, maxTokens, jsonMode }) {
+    const content = typeof userContent === 'string'
+        ? [{ type: 'text', text: userContent }]
+        : userContent.map(function (block) {
+            if (block.type !== 'image_url') return block
+
+            const url = block.image_url.url
+            const match = url.match(/^data:(image\/[^;]+);base64,(.+)$/)
+            if (!match) throw new Error('Anthropic API requires base64 image data URIs')
+
+            return {
+                type: 'image',
+                source: { type: 'base64', media_type: match[1], data: match[2] }
+            }
+        })
+
+    const jsonSuffix = jsonMode
+        ? '\n\nIMPORTANT: Respond with valid JSON only, no markdown fences or other text.'
+        : ''
+    const systemPrompt = (system || '') + jsonSuffix
+
+    const body = {
+        model,
+        max_tokens: maxTokens,
+        messages: [{ role: 'user', content }]
+    }
+    if (systemPrompt) {
+        body.system = systemPrompt
+    }
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify(body)
+    })
+
+    if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Anthropic API error: ${response.status} - ${errorText}`)
+    }
+
+    const data = await response.json()
+    return data.content?.[0]?.text || null
+}
+
+async function _callOpenAI({ apiKey, model, system, userContent, maxTokens, jsonMode }) {
+    const messages = []
+    if (system) {
+        messages.push({ role: 'system', content: system })
+    }
+    messages.push({ role: 'user', content: userContent })
+
+    const body = { model, messages, max_tokens: maxTokens }
+    if (jsonMode) {
+        body.response_format = { type: 'json_object' }
+    }
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify(body)
+    })
+
+    if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`)
+    }
+
+    const data = await response.json()
+    return data.choices?.[0]?.message?.content || null
 }
 
 /**
@@ -967,61 +1104,32 @@ export async function runDslProgram(page, dsl, options = {}) {
 
     // If vision prompt provided and we have an image, analyze it
     if (options.prompt && result.imageUri) {
-        const apiKey = options.apiKey || getOpenAIApiKey()
-        if (!apiKey) {
+        const ai = getAIProvider(options)
+        if (!ai) {
             return {
                 ...baseResult,
                 vision: null,
-                vision_error: 'No OpenAI API key found. Create .openai file in project root.'
+                vision_error: NO_AI_KEY_MESSAGE
             }
         }
 
-        const model = options.model || 'gpt-4o'
-        const systemPrompt = `You are an expert at analyzing procedural graphics and shader effects.
+        const system = `You are an expert at analyzing procedural graphics and shader effects.
 Analyze the provided image and respond with a JSON object containing:
 - description: A detailed description of what you see (2-3 sentences)
 - tags: An array of relevant tags (e.g., "noise", "colorful", "abstract", "pattern", "gradient", "3d", "mesh", etc.)
-- notes: Any additional observations about the quality, artifacts, or issues (optional)
-
-User prompt: ${options.prompt}`
+- notes: Any additional observations about the quality, artifacts, or issues (optional)`
 
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model,
-                    messages: [
-                        {
-                            role: 'user',
-                            content: [
-                                { type: 'text', text: systemPrompt },
-                                {
-                                    type: 'image_url',
-                                    image_url: { url: result.imageUri }
-                                }
-                            ]
-                        }
-                    ],
-                    max_tokens: 500,
-                    response_format: { type: 'json_object' }
-                })
+            const content = await callAI({
+                system,
+                userContent: [
+                    { type: 'text', text: options.prompt },
+                    { type: 'image_url', image_url: { url: result.imageUri } }
+                ],
+                maxTokens: 500,
+                jsonMode: true,
+                ai
             })
-
-            if (!response.ok) {
-                const errorText = await response.text()
-                return {
-                    ...baseResult,
-                    vision: null,
-                    vision_error: `OpenAI API error: ${response.status} - ${errorText}`
-                }
-            }
-
-            const data = await response.json()
-            const content = data.choices?.[0]?.message?.content
 
             if (!content) {
                 return {
@@ -1168,8 +1276,7 @@ export async function benchmarkEffectFps(page, effectId, options = {}) {
  * @param {[number,number]} [options.resolution] - Resolution [width, height]
  * @param {number} [options.seed] - Random seed
  * @param {Record<string,any>} [options.uniforms] - Uniform overrides
- * @param {string} [options.apiKey] - OpenAI API key (falls back to .openai file in project root)
- * @param {string} [options.model='gpt-4o'] - Vision model to use
+ * @param {string} [options.apiKey] - API key override (falls back to .anthropic then .openai)
  * @returns {Promise<{status: 'ok'|'error', frame: {image_uri: string}, vision: {description: string, tags: string[], notes?: string}}>}
  */
 export async function describeEffectFrame(page, effectId, prompt, options = {}) {
@@ -1194,65 +1301,33 @@ export async function describeEffectFrame(page, effectId, prompt, options = {}) 
         }
     }
 
-    // Call OpenAI Vision API
-    const apiKey = options.apiKey || getOpenAIApiKey()
-    if (!apiKey) {
+    const ai = getAIProvider(options)
+    if (!ai) {
         return {
             status: 'error',
             frame: { image_uri: imageUri },
             vision: null,
-            error: 'No OpenAI API key found. Create .openai file in project root.'
+            error: NO_AI_KEY_MESSAGE
         }
     }
 
-    const model = options.model || 'gpt-4o'
-
-    const systemPrompt = `You are an expert at analyzing procedural graphics and shader effects.
+    const system = `You are an expert at analyzing procedural graphics and shader effects.
 Analyze the provided image and respond with a JSON object containing:
 - description: A detailed description of what you see (2-3 sentences)
 - tags: An array of relevant tags (e.g., "noise", "colorful", "abstract", "pattern", "gradient", etc.)
-- notes: Any additional observations about the quality, artifacts, or issues (optional)
-
-User prompt: ${prompt}`
+- notes: Any additional observations about the quality, artifacts, or issues (optional)`
 
     try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model,
-                messages: [
-                    {
-                        role: 'user',
-                        content: [
-                            { type: 'text', text: systemPrompt },
-                            {
-                                type: 'image_url',
-                                image_url: { url: imageUri }
-                            }
-                        ]
-                    }
-                ],
-                max_tokens: 500,
-                response_format: { type: 'json_object' }
-            })
+        const content = await callAI({
+            system,
+            userContent: [
+                { type: 'text', text: prompt },
+                { type: 'image_url', image_url: { url: imageUri } }
+            ],
+            maxTokens: 500,
+            jsonMode: true,
+            ai
         })
-
-        if (!response.ok) {
-            const errorText = await response.text()
-            return {
-                status: 'error',
-                frame: { image_uri: imageUri },
-                vision: null,
-                error: `OpenAI API error: ${response.status} - ${errorText}`
-            }
-        }
-
-        const data = await response.json()
-        const content = data.choices?.[0]?.message?.content
 
         if (!content) {
             return {
@@ -3170,26 +3245,23 @@ export async function checkEffectStructure(effectId, options = {}) {
 /**
  * Check algorithmic parity between GLSL and WGSL shader implementations.
  *
- * Uses OpenAI API to compare shader pairs and determine if they implement
+ * Uses AI to compare shader pairs and determine if they implement
  * equivalent algorithms, accounting for language differences between GLSL and WGSL.
  *
  * @param {string} effectId - Effect identifier (e.g., "synth/noise")
  * @param {object} options
- * @param {string} [options.apiKey] - OpenAI API key (falls back to .openai file)
- * @param {string} [options.model='gpt-4o'] - Model to use for comparison
+ * @param {string} [options.apiKey] - API key override (falls back to .anthropic then .openai)
  * @returns {Promise<{status: 'ok'|'error'|'divergent', pairs: Array<{program: string, glsl: string, wgsl: string, parity: 'equivalent'|'divergent'|'missing', notes?: string}>, summary: string}>}
  */
 export async function checkShaderParity(effectId, options = {}) {
-    const apiKey = options.apiKey || getOpenAIApiKey()
-    if (!apiKey) {
+    const ai = getAIProvider(options)
+    if (!ai) {
         return {
             status: 'error',
             pairs: [],
-            summary: 'No OpenAI API key found. Create .openai file in project root.'
+            summary: NO_AI_KEY_MESSAGE
         }
     }
-
-    const model = options.model || 'gpt-4o'
 
     // Parse effect ID to get directory path
     const [namespace, effectName] = effectId.split('/')
@@ -3296,7 +3368,7 @@ export async function checkShaderParity(effectId, options = {}) {
         // Definition file doesn't exist or can't be read
     }
 
-    // Compare each pair using OpenAI API
+    // Compare each pair using AI API
     const results = []
     let hasDivergent = false
 
@@ -3354,35 +3426,13 @@ ${pair.wgsl}
 Are these implementations algorithmically equivalent?`
 
         try {
-            const response = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model,
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userPrompt }
-                    ],
-                    max_tokens: 500,
-                    response_format: { type: 'json_object' }
-                })
+            const content = await callAI({
+                system: systemPrompt,
+                userContent: userPrompt,
+                maxTokens: 500,
+                jsonMode: true,
+                ai
             })
-
-            if (!response.ok) {
-                const errorText = await response.text()
-                results.push({
-                    program: pair.program,
-                    parity: 'error',
-                    notes: `API error: ${response.status} - ${errorText.slice(0, 100)}`
-                })
-                continue
-            }
-
-            const data = await response.json()
-            const content = data.choices?.[0]?.message?.content
 
             if (!content) {
                 results.push({
@@ -3438,15 +3488,14 @@ Are these implementations algorithmically equivalent?`
 /**
  * Analyze shader code for unnecessary branching that could be flattened.
  *
- * Uses OpenAI API to analyze shader source files and identify opportunities
+ * Uses AI to analyze shader source files and identify opportunities
  * to reduce conditional branching by applying uniform values directly.
  * Understands that some branching is necessary for complex effects.
  *
  * @param {string} effectId - Effect identifier (e.g., "synth/noise")
  * @param {object} options
  * @param {'webgl2'|'webgpu'} options.backend - Which shader language to analyze (REQUIRED)
- * @param {string} [options.apiKey] - OpenAI API key (falls back to .openai file)
- * @param {string} [options.model='gpt-4o'] - Model to use for analysis
+ * @param {string} [options.apiKey] - API key override (falls back to .anthropic then .openai)
  * @returns {Promise<{status: 'ok'|'warning'|'error', shaders: Array<{file: string, opportunities: Array<{location: string, description: string, severity: 'low'|'medium'|'high'}>, notes?: string}>, summary: string}>}
  */
 export async function analyzeBranching(effectId, options = {}) {
@@ -3458,16 +3507,15 @@ export async function analyzeBranching(effectId, options = {}) {
         }
     }
 
-    const apiKey = options.apiKey || getOpenAIApiKey()
-    if (!apiKey) {
+    const ai = getAIProvider(options)
+    if (!ai) {
         return {
             status: 'error',
             shaders: [],
-            summary: 'No OpenAI API key found. Create .openai file in project root.'
+            summary: NO_AI_KEY_MESSAGE
         }
     }
 
-    const model = options.model || 'gpt-4o'
     const backend = options.backend
 
     // Parse effect ID to get directory path
@@ -3611,40 +3659,16 @@ Backend: ${backend}
 Review each shader file and identify places where conditional branching could be replaced with branchless math or uniform-driven computation.`
 
     try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model,
-                messages: [
-                    { role: 'system', content: systemPrompt },
-                    {
-                        role: 'user',
-                        content: [
-                            { type: 'text', text: userPrompt },
-                            ...attachments.map(a => ({ type: 'text', text: a.text }))
-                        ]
-                    }
-                ],
-                max_tokens: 2000,
-                response_format: { type: 'json_object' }
-            })
+        const content = await callAI({
+            system: systemPrompt,
+            userContent: [
+                { type: 'text', text: userPrompt },
+                ...attachments.map(a => ({ type: 'text', text: a.text }))
+            ],
+            maxTokens: 2000,
+            jsonMode: true,
+            ai
         })
-
-        if (!response.ok) {
-            const errorText = await response.text()
-            return {
-                status: 'error',
-                shaders: [],
-                summary: `API error: ${response.status} - ${errorText.slice(0, 200)}`
-            }
-        }
-
-        const data = await response.json()
-        const content = data.choices?.[0]?.message?.content
 
         if (!content) {
             return {
