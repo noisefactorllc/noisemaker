@@ -11,7 +11,42 @@ export default new Effect({
   tags: ["util"],
 
   description: "Fast approximate anti-aliasing",
-  globals: {},
+  globals: {
+    strength: {
+      type: "float",
+      default: 1.0,
+      uniform: "fxaaStrength",
+      min: 0,
+      max: 1,
+      ui: {
+        label: "strength",
+        control: "slider"
+      }
+    },
+    sharpness: {
+      type: "float",
+      default: 1.0,
+      uniform: "fxaaSharpness",
+      min: 0.1,
+      max: 10,
+      step: 0.1,
+      ui: {
+        label: "sharpness",
+        control: "slider"
+      }
+    },
+    threshold: {
+      type: "float",
+      default: 0.0,
+      uniform: "fxaaThreshold",
+      min: 0,
+      max: 1,
+      ui: {
+        label: "threshold",
+        control: "slider"
+      }
+    }
+  },
   passes: [
     {
       name: "main",
