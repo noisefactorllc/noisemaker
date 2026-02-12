@@ -111,6 +111,7 @@ export default new Effect({
       default: 0.2,
       min: 0,
       max: 1.0,
+      zero: 0,
       uniform: "speed",
       ui: {
         label: "speed",

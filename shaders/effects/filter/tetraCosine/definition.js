@@ -45,7 +45,7 @@ export default new Effect({
   func: "tetraCosine",
   tags: ["color"],
 
-  description: "Apply Tetra cosine gradient palettes based on luminance",
+  description: "Apply Tetra cosine palettes based on luminance",
 
   uniformLayout,
 

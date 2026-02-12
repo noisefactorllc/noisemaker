@@ -104,6 +104,7 @@ export default new Effect({
         "default": 1,
         "min": 0.1,
         "max": 10,
+        "zero": 0,
         "uniform": "speed",
         "ui": {
             "label": "sim speed",

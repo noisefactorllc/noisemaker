@@ -80,6 +80,7 @@ export default new Effect({
         "max": 5,
         "randMin": -1,
         "randMax": 1,
+        "zero": 0,
         "uniform": "orbitSpeed",
         "ui": {
             "label": "orbit speed"

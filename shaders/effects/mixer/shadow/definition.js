@@ -77,6 +77,7 @@ export default new Effect({
       uniform: "shadowBlur",
       min: 0,
       max: 3,
+      zero: 0,
       ui: {
         label: "blur",
         control: "slider",
@@ -104,6 +105,7 @@ export default new Effect({
       max: 1,
       randMin: -0.2,
       randMax: 0.2,
+      zero: 0,
       ui: {
         label: "offset x",
         control: "slider",
@@ -118,6 +120,7 @@ export default new Effect({
       max: 1,
       randMin: -0.2,
       randMax: 0.2,
+      zero: 0,
       ui: {
         label: "offset y",
         control: "slider",

@@ -47,6 +47,7 @@ export default new Effect({
       min: -5,
       max: 5,
       step: 0.1,
+      zero: 0,
       ui: {
         label: "forward speed",
         control: "slider"

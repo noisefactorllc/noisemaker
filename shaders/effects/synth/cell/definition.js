@@ -86,6 +86,7 @@ export default new Effect({
       uniform: "loopAmp",
       min: 0,
       max: 5,
+      zero: 0,
       ui: {
         label: "speed",
         control: "slider"

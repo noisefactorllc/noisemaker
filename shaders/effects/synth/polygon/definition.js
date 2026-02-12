@@ -34,6 +34,7 @@ export default new Effect({
         "default": 0.01,
         "min": 0,
         "max": 1,
+        "zero": 0,
         "uniform": "smoothing",
         ui: {
             label: "smooth"

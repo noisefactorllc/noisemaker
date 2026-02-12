@@ -159,6 +159,7 @@ export default new Effect({
       uniform: "loopAmp",
       min: -100,
       max: 100,
+      zero: 0,
       ui: {
         label: "loop power",
         control: "slider",

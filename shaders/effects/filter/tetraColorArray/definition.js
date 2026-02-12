@@ -54,7 +54,7 @@ export default new Effect({
   func: "tetraColorArray",
   tags: ["color"],
 
-  description: "Apply Tetra color array gradients based on luminance",
+  description: "Apply Tetra color array palettes based on luminance",
 
   uniformLayout,
 

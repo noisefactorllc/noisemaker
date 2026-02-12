@@ -32,6 +32,7 @@ export default new Effect({
         "min": 0,
         "max": 10,
         "step": 0.1,
+        "zero": 0,
         "uniform": "speed",
         ui: {
             label: "speed"

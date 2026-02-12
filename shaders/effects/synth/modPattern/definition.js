@@ -168,6 +168,7 @@ export default new Effect({
 			min: 0,
 			max: 5,
 			randMax: 1,
+			zero: 0,
 			uniform: "speed",
 			ui: {
 

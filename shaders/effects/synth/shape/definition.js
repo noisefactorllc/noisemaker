@@ -128,6 +128,7 @@ export default new Effect({
       uniform: "loopAAmp",
       min: -100,
       max: 100,
+      zero: 0,
       ui: {
         label: "a power",
         control: "slider"
@@ -139,6 +140,7 @@ export default new Effect({
       uniform: "loopBAmp",
       min: -100,
       max: 100,
+      zero: 0,
       ui: {
         label: "b power",
         control: "slider"
