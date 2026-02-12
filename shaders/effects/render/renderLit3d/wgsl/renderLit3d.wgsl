@@ -371,7 +371,7 @@ fn fragmentMain(input: VertexOutput) -> FragmentOutput {
     
     // Camera setup - fixed position, volume rotates
     // Scale camera position from 0-1 UI range to world coords
-    let ro = u.cameraPosition * 3.5;
+    let ro = u.cameraPosition * vec3f(-1.0, 1.0, 1.0) * 3.5;
     
     // Camera looks at origin; handle case when at origin
     var forward: vec3f;
@@ -391,7 +391,7 @@ fn fragmentMain(input: VertexOutput) -> FragmentOutput {
     let rd = normalize(forward + uv.x * right + uv.y * up);
     
     // Light direction is fixed in world space (not view space)
-    let worldLightDir = normalize(u.lightDirection);
+    let worldLightDir = normalize(u.lightDirection * vec3f(-1.0, 1.0, 1.0));
     
     // Rotate ray into volume space (volume rotates, so we inverse-rotate the ray)
     let angle = -u.time * TAU * f32(u.orbitSpeed);  // Negative for inverse

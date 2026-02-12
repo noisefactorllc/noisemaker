@@ -335,7 +335,7 @@ void main() {
     
     // Camera setup - fixed position, volume rotates
     // Scale camera position from 0-1 UI range to world coords
-    vec3 ro = cameraPosition * 3.5;
+    vec3 ro = cameraPosition * vec3(-1.0, 1.0, 1.0) * 3.5;
     
     // Camera looks at origin; handle case when at origin
     vec3 forward;
@@ -355,7 +355,7 @@ void main() {
     vec3 rd = normalize(forward + uv.x * right + uv.y * up);
     
     // Light direction is fixed in world space (not view space)
-    vec3 worldLightDir = normalize(lightDirection);
+    vec3 worldLightDir = normalize(lightDirection * vec3(-1.0, 1.0, 1.0));
     
     // Rotate ray into volume space (volume rotates, so we inverse-rotate the ray)
     float angle = -time * TAU * float(orbitSpeed);  // Negative for inverse
