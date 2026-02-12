@@ -107,7 +107,7 @@ export default new Effect({
         label: "julia x",
         control: "slider",
         category: "julia",
-        enabledBy: { param: 'fractalType', in: [2, 3] }
+        enabledBy: { param: 'type', in: [2, 3] }
       }
     },
     juliaY: {
@@ -120,7 +120,7 @@ export default new Effect({
         label: "julia y",
         control: "slider",
         category: "julia",
-        enabledBy: { param: 'fractalType', in: [2, 3] }
+        enabledBy: { param: 'type', in: [2, 3] }
       }
     },
     juliaZ: {
@@ -133,7 +133,7 @@ export default new Effect({
         label: "julia z",
         control: "slider",
         category: "julia",
-        enabledBy: { param: 'fractalType', in: [2, 3] }
+        enabledBy: { param: 'type', in: [2, 3] }
       }
     },
     colorMode: {

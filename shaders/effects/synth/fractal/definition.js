@@ -68,7 +68,7 @@ export default new Effect({
       ui: {
         label: "power",
         control: "slider",
-        enabledBy: { param: "fractalType", notIn: [4] }
+        enabledBy: { param: "type", notIn: [4] }
       }
     },
     iterations: {
@@ -91,7 +91,7 @@ export default new Effect({
       ui: {
         label: "bailout",
         control: "slider",
-        enabledBy: { param: "fractalType", notIn: [4] }
+        enabledBy: { param: "type", notIn: [4] }
       }
     },
 
@@ -159,7 +159,7 @@ export default new Effect({
         category: "julia",
         enabledBy: {
           and: [
-            { param: "fractalType", eq: 1 },
+            { param: "type", eq: 1 },
             { param: "animateJulia", eq: false }
           ]
         }
@@ -177,7 +177,7 @@ export default new Effect({
         category: "julia",
         enabledBy: {
           and: [
-            { param: "fractalType", eq: 1 },
+            { param: "type", eq: 1 },
             { param: "animateJulia", eq: false }
           ]
         }
@@ -191,7 +191,7 @@ export default new Effect({
         label: "animate c",
         control: "checkbox",
         category: "julia",
-        enabledBy: { param: "fractalType", eq: 1 }
+        enabledBy: { param: "type", eq: 1 }
       }
     },
     speed: {
@@ -223,7 +223,7 @@ export default new Effect({
         label: "output mode",
         control: "dropdown",
         category: "output",
-        enabledBy: { param: "fractalType", notIn: [4] }
+        enabledBy: { param: "type", notIn: [4] }
       }
     },
     colorCycles: {
@@ -246,7 +246,7 @@ export default new Effect({
         label: "smooth",
         control: "checkbox",
         category: "output",
-        enabledBy: { param: "fractalType", notIn: [4] }
+        enabledBy: { param: "type", notIn: [4] }
       }
     },
     invert: {

@@ -97,7 +97,7 @@ export default new Effect({
       ui: {
         label: "wrap",
         control: "checkbox",
-        enabledBy: { param: "noiseType", notIn: [10, 11] },
+        enabledBy: { param: "type", notIn: [10, 11] },
       }
     },
     ridges: {
