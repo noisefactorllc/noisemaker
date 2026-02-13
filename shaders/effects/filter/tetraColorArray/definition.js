@@ -207,6 +207,7 @@ export default new Effect({
       min: 0,
       max: 1,
       step: 0.01,
+      randChance: 0,
       ui: {
         label: "position 1",
         control: "slider",
@@ -221,6 +222,7 @@ export default new Effect({
       min: 0,
       max: 1,
       step: 0.01,
+      randChance: 0,
       ui: {
         label: "position 2",
         control: "slider",
@@ -235,6 +237,7 @@ export default new Effect({
       min: 0,
       max: 1,
       step: 0.01,
+      randChance: 0,
       ui: {
         label: "position 3",
         control: "slider",
@@ -249,6 +252,7 @@ export default new Effect({
       min: 0,
       max: 1,
       step: 0.01,
+      randChance: 0,
       ui: {
         label: "position 4",
         control: "slider",
@@ -263,6 +267,7 @@ export default new Effect({
       min: 0,
       max: 1,
       step: 0.01,
+      randChance: 0,
       ui: {
         label: "position 5",
         control: "slider",
@@ -277,6 +282,7 @@ export default new Effect({
       min: 0,
       max: 1,
       step: 0.01,
+      randChance: 0,
       ui: {
         label: "position 6",
         control: "slider",
@@ -291,6 +297,7 @@ export default new Effect({
       min: 0,
       max: 1,
       step: 0.01,
+      randChance: 0,
       ui: {
         label: "position 7",
         control: "slider",
@@ -305,6 +312,7 @@ export default new Effect({
       min: 0,
       max: 1,
       step: 0.01,
+      randChance: 0,
       ui: {
         label: "position 8",
         control: "slider",
