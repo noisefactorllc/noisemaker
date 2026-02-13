@@ -47,7 +47,7 @@ export default new Effect({
       min: 2,
       max: 20,
       ui: {
-        label: "sample spread",
+        label: "bias",
         control: "slider"
       }
     },

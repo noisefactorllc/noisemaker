@@ -74,7 +74,7 @@ export default new Effect({
       "default": [1.0, 1.0, 1.0],
       "uniform": "fgColor",
       "ui": {
-        "label": "foreground color",
+        "label": "fg color",
         "control": "color",
         "category": "color"
       }
@@ -84,7 +84,7 @@ export default new Effect({
       "default": [0.0, 0.0, 0.0],
       "uniform": "bgColor",
       "ui": {
-        "label": "background color",
+        "label": "bg color",
         "control": "color",
         "category": "color"
       }

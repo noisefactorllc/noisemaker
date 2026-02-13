@@ -49,7 +49,7 @@ export default new Effect({
       step: 0.1,
       zero: 0,
       ui: {
-        label: "forward speed",
+        label: "speed",
         control: "slider"
       }
     },
@@ -61,7 +61,7 @@ export default new Effect({
       max: 2,
       step: 0.1,
       ui: {
-        label: "rotation speed",
+        label: "rot speed",
         control: "slider"
       }
     }

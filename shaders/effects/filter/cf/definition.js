@@ -24,8 +24,9 @@ export default new Effect({
       max: 10,
       step: 1,
       ui: {
-        label: "sharpen radius",
-        control: "slider"
+        label: "radius",
+        control: "slider",
+        category: "sharpen"
       }
     },
     sharpenAmount: {
@@ -36,8 +37,9 @@ export default new Effect({
       max: 3,
       step: 0.1,
       ui: {
-        label: "sharpen amount",
-        control: "slider"
+        label: "amount",
+        control: "slider",
+        category: "sharpen"
       }
     },
     blurRadius: {
@@ -48,8 +50,9 @@ export default new Effect({
       max: 10,
       step: 1,
       ui: {
-        label: "blur radius",
-        control: "slider"
+        label: "radius",
+        control: "slider",
+        category: "blur"
       }
     },
     blurAmount: {
@@ -60,8 +63,9 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "blur amount",
-        control: "slider"
+        label: "amount",
+        control: "slider",
+        category: "blur"
       }
     },
     intensity: {
@@ -72,7 +76,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "feedback intensity",
+        label: "feedback",
         control: "slider"
       }
     },

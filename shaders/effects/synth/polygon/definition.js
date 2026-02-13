@@ -55,7 +55,7 @@ export default new Effect({
         "default": [1.0, 1.0, 1.0],
         "uniform": "fgColor",
         "ui": {
-            "label": "foreground color",
+            "label": "fg color",
             "control": "color",
             "category": "color"
         }
@@ -68,7 +68,7 @@ export default new Effect({
         "max": 1.0,
         "uniform": "fgAlpha",
         "ui": {
-            "label": "foreground opacity",
+            "label": "fg opacity",
             "control": "slider",
             "category": "color"
         }
@@ -78,7 +78,7 @@ export default new Effect({
         "default": [0.0, 0.0, 0.0],
         "uniform": "bgColor",
         "ui": {
-            "label": "background color",
+            "label": "bg color",
             "control": "color",
             "category": "color"
         }
@@ -90,7 +90,7 @@ export default new Effect({
         "max": 1.0,
         "uniform": "bgAlpha",
         "ui": {
-            "label": "background opacity",
+            "label": "bg opacity",
             "control": "slider",
             "category": "color"
         }

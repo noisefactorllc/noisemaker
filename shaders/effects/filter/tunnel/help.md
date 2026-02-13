@@ -9,4 +9,4 @@ Perspective tunnel effect with shape options
 | shape | int | circle | circle/triangle/square/hexagon/octagon | Shape |
 | scale | float | 0 | -2-2 | Scale |
 | speed | float | 1 | -5-5 | Forward Speed |
-| rotation | float | 0 | -2-2 | Rotation speed |
+| rot speed | float | 0 | -2-2 | Rotation speed |

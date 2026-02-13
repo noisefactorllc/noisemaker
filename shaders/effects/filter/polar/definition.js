@@ -44,7 +44,7 @@ export default new Effect({
       max: 2,
       step: 0.1,
       ui: {
-        label: "rotation speed",
+        label: "rot speed",
         control: "slider"
       }
     },

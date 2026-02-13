@@ -44,7 +44,7 @@ export default new Effect({
         a: 3
       },
       ui: {
-        label: "source channel",
+        label: "channel",
         control: "dropdown"
       }
     },

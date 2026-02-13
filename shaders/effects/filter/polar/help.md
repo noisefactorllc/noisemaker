@@ -8,5 +8,5 @@ Polar and vortex coordinate transforms
 |-----------|------|---------|-------|-------------|
 | mode | int | polar | polar/vortex | Mode |
 | scale | float | 0 | -2-2 | Scale |
-| rotation | float | 0 | -2-2 | Rotation speed |
+| rot speed | float | 0 | -2-2 | Rotation speed |
 | speed | float | 0 | -2-2 | Polar speed |

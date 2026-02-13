@@ -75,7 +75,7 @@ export default new Effect({
       default: [0.5, 0.5, 1.0],
       uniform: "lightDirection",
       ui: {
-        label: "light direction",
+        label: "light dir",
         control: "vector3",
         category: "shading"
       }
@@ -89,7 +89,7 @@ export default new Effect({
       step: 0.01,
       randChance: 0,
       ui: {
-        label: "shading strength",
+        label: "shading",
         control: "slider",
         category: "shading"
       }

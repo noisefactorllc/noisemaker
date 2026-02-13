@@ -246,7 +246,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "split tone balance",
+        label: "split tone",
         category: "creative"
       }
     },
@@ -261,7 +261,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "curve shadows",
+        label: "shadows",
         category: "curves"
       }
     },
@@ -274,7 +274,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "curve midtones",
+        label: "midtones",
         category: "curves"
       }
     },
@@ -287,7 +287,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "curve highlights",
+        label: "highlights",
         category: "curves"
       }
     },
@@ -299,7 +299,7 @@ export default new Effect({
       uniform: "gradeWheelShadows",
       ui: {
         control: "slider",
-        label: "shadows wheel",
+        label: "shadows",
         category: "wheels"
       }
     },
@@ -309,7 +309,7 @@ export default new Effect({
       uniform: "gradeWheelMidtones",
       ui: {
         control: "slider",
-        label: "midtones wheel",
+        label: "midtones",
         category: "wheels"
       }
     },
@@ -319,7 +319,7 @@ export default new Effect({
       uniform: "gradeWheelHighlights",
       ui: {
         control: "slider",
-        label: "highlights wheel",
+        label: "highlights",
         category: "wheels"
       }
     },
@@ -332,7 +332,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "wheel balance",
+        label: "balance",
         category: "wheels",
         hint: "Adjust a color wheel above first"
       }
@@ -348,7 +348,7 @@ export default new Effect({
       step: 1,
       ui: {
         control: "slider",
-        label: "enable hsl key",
+        label: "use hsl key",
         category: "hslSecondary"
       }
     },
@@ -503,7 +503,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "vignette amount",
+        label: "amount",
         category: "vignette"
       }
     },
@@ -516,7 +516,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "vignette midpoint",
+        label: "midpoint",
         category: "vignette",
         enabledBy: "vignetteAmount"
       }
@@ -530,7 +530,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "vignette roundness",
+        label: "roundness",
         category: "vignette",
         enabledBy: "vignetteAmount"
       }
@@ -544,7 +544,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "vignette feather",
+        label: "feather",
         category: "vignette",
         enabledBy: "vignetteAmount"
       }
@@ -558,7 +558,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         control: "slider",
-        label: "highlight protect",
+        label: "highlights",
         category: "vignette",
         enabledBy: "vignetteAmount"
       }
