@@ -61,7 +61,7 @@ export default new Effect({
         "randMax": 0.5,
         "uniform": "threshold",
         "ui": {
-            "label": "surface threshold"
+            "label": "surface thresh"
         }
     },
     "invert": {
@@ -70,7 +70,7 @@ export default new Effect({
         "randChance": 0,
         "uniform": "invert",
         "ui": {
-            "label": "invert threshold"
+            "label": "invert thresh"
         }
     },
     "orbitSpeed": {
@@ -95,7 +95,7 @@ export default new Effect({
         "randChance": 0,
         "uniform": "cameraPosition",
         "ui": {
-            "label": "camera position",
+            "label": "camera pos",
             "control": "vec3"
         }
     },
@@ -104,7 +104,7 @@ export default new Effect({
         "default": [0.0, 0.0, 0.0],
         "uniform": "bgColor",
         "ui": {
-            "label": "background color",
+            "label": "bg color",
             "control": "color",
             "category": "background"
         }
@@ -117,7 +117,7 @@ export default new Effect({
         "randChance": 0,
         "uniform": "bgAlpha",
         "ui": {
-            "label": "background opacity",
+            "label": "bg opacity",
             "category": "background"
         }
     },
@@ -127,7 +127,7 @@ export default new Effect({
         "default": [0.5, 0.5, 1.0],
         "uniform": "lightDirection",
         "ui": {
-            "label": "light direction",
+            "label": "light dir",
             "control": "vector3",
             "category": "lighting"
         }
@@ -137,7 +137,7 @@ export default new Effect({
         "default": [1.0, 1.0, 1.0],
         "uniform": "diffuseColor",
         "ui": {
-            "label": "diffuse color",
+            "label": "color",
             "control": "color",
             "category": "diffuse"
         }
@@ -150,7 +150,7 @@ export default new Effect({
         "step": 0.01,
         "uniform": "diffuseIntensity",
         "ui": {
-            "label": "diffuse intensity",
+            "label": "intensity",
             "control": "slider",
             "category": "diffuse"
         }
@@ -160,7 +160,7 @@ export default new Effect({
         "default": [1.0, 1.0, 1.0],
         "uniform": "specularColor",
         "ui": {
-            "label": "specular color",
+            "label": "color",
             "control": "color",
             "category": "specular"
         }
@@ -173,7 +173,7 @@ export default new Effect({
         "step": 0.01,
         "uniform": "specularIntensity",
         "ui": {
-            "label": "specular intensity",
+            "label": "intensity",
             "control": "slider",
             "category": "specular"
         }
@@ -199,7 +199,7 @@ export default new Effect({
         "step": 0.01,
         "uniform": "rimIntensity",
         "ui": {
-            "label": "rim intensity",
+            "label": "intensity",
             "control": "slider",
             "category": "rim"
         }
@@ -212,7 +212,7 @@ export default new Effect({
         "step": 0.1,
         "uniform": "rimPower",
         "ui": {
-            "label": "rim power",
+            "label": "power",
             "control": "slider",
             "category": "rim"
         }

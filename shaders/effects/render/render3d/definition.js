@@ -70,7 +70,7 @@ export default new Effect({
         "randMax": 0.3,
         "uniform": "threshold",
         "ui": {
-            "label": "surface threshold"
+            "label": "surface thresh"
         }
     },
     "invert": {
@@ -79,7 +79,7 @@ export default new Effect({
         "randChance": 0,
         "uniform": "invert",
         "ui": {
-            "label": "invert threshold"
+            "label": "invert thresh"
         }
     },
     "orbitSpeed": {
@@ -99,7 +99,7 @@ export default new Effect({
         "default": [0.02, 0.02, 0.02],
         "uniform": "bgColor",
         "ui": {
-            "label": "background color",
+            "label": "bg color",
             "control": "color"
         }
     },
@@ -110,7 +110,7 @@ export default new Effect({
         "max": 1,
         "uniform": "bgAlpha",
         "ui": {
-            "label": "background opacity"
+            "label": "bg opacity"
         }
     }
   },

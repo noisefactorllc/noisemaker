@@ -54,7 +54,7 @@ export default new Effect({
             max: 100.0,
             uniform: "inputIntensity",
             ui: {
-                label: "input intensity",
+                label: "input mix",
                 control: "slider",
                 category: "visual"
             }
@@ -180,7 +180,7 @@ export default new Effect({
             max: 1.0,
             uniform: "matteOpacity",
             ui: {
-                label: "matte opacity",
+                label: "bg opacity",
                 control: "slider",
                 category: "visual"
             }

@@ -17,7 +17,7 @@ Each particle is rendered as a textured quad that can be sized, rotated, and var
 | seed | float | 42 | 0-1000 | Seed |
 | density | float | 50 | 0-100 | Density |
 | intensity | float | 75 | 0-100 | Trail intensity |
-| inputIntensity | float | 10.15 | 0-100 | Input intensity |
+| input mix | float | 10.15 | 0-100 | Input intensity |
 | viewMode | int | flat | flat/ortho | View |
 | rotateX | float | 0.3 | 0-6.283185 | Rotate X |
 | rotateY | float | 0 | 0-6.283185 | Rotate Y |

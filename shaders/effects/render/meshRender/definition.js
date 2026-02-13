@@ -154,7 +154,7 @@ export default new Effect({
             default: [0.5, 0.7, 0.5],
             uniform: "lightDirection",
             ui: {
-                label: "light direction",
+                label: "direction",
                 control: "vector3",
                 category: "lighting"
             }
@@ -166,7 +166,7 @@ export default new Effect({
             default: [1.0, 1.0, 1.0],
             uniform: "diffuseColor",
             ui: {
-                label: "diffuse color",
+                label: "color",
                 control: "color",
                 category: "diffuse"
             }
@@ -181,7 +181,7 @@ export default new Effect({
             step: 0.01,
             uniform: "diffuseIntensity",
             ui: {
-                label: "diffuse intensity",
+                label: "intensity",
                 control: "slider",
                 category: "diffuse"
             }
@@ -193,7 +193,7 @@ export default new Effect({
             default: [1.0, 1.0, 1.0],
             uniform: "specularColor",
             ui: {
-                label: "specular color",
+                label: "color",
                 control: "color",
                 category: "specular"
             }
@@ -208,7 +208,7 @@ export default new Effect({
             step: 0.01,
             uniform: "specularIntensity",
             ui: {
-                label: "specular intensity",
+                label: "intensity",
                 control: "slider",
                 category: "specular"
             }
@@ -289,7 +289,7 @@ export default new Effect({
             default: [0.1, 0.1, 0.15],
             uniform: "bgColor",
             ui: {
-                label: "background color",
+                label: "bg color",
                 control: "color",
                 category: "material"
             }
@@ -304,7 +304,7 @@ export default new Effect({
             step: 0.01,
             uniform: "bgAlpha",
             ui: {
-                label: "background opacity",
+                label: "bg opacity",
                 control: "slider",
                 category: "material"
             }

@@ -8,10 +8,10 @@ Universal 3D volume raymarcher with advanced lighting controls
 |-----------|------|---------|-------|-------------|
 | volumeSize | int | v64 | v16/v32/v64/v128 | Volume resolution (inherited from upstream) |
 | shape | int | cube | cube/sphere | Bounding shape for the volume |
-| threshold | float | 0.5 | 0-1 | Surface threshold |
-| invert | boolean | false | - | Invert threshold |
+| surface thresh | float | 0.5 | 0-1 | Surface threshold |
+| invert thresh | boolean | false | - | Invert threshold |
 | orbitSpeed | int | 1 | -5 to 5 | Volume rotation speed |
-| cameraPosition | vec3 | 0,0.1,0.7 | -1 to 1 | Camera position (scaled 5x, 0,0,0 = center) |
+| cameraPos | vec3 | 0,0.1,0.7 | -1 to 1 | Camera position (scaled 5x, 0,0,0 = center) |
 | bgColor | vec3 | 0.02,0.02,0.02 | - | Background color |
 | bgAlpha | float | 1 | 0-1 | Background alpha |
 
@@ -19,7 +19,7 @@ Universal 3D volume raymarcher with advanced lighting controls
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| lightDirection | vec3 | 0.5,0.5,1.0 | - | Direction of the light source |
+| lightDir | vec3 | 0.5,0.5,1.0 | - | Direction of the light source |
 | diffuseColor | color | 1.0,1.0,1.0 | - | Color of diffuse lighting |
 | diffuseIntensity | float | 0.7 | 0-2 | Intensity of diffuse lighting |
 | specularColor | color | 1.0,1.0,1.0 | - | Color of specular highlights |
