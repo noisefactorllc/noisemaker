@@ -118,7 +118,7 @@ export default new Effect({
         "max": 100,
         "uniform": "density",
         "ui": {
-            "label": "initial density %",
+            "label": "density",
             "control": "slider"
         }
     },
@@ -149,7 +149,7 @@ export default new Effect({
         "type": "volume",
         "default": "vol0",
         "ui": {
-            "label": "source volume",
+            "label": "source vol",
             "category": "input"
         }
     },
@@ -157,7 +157,7 @@ export default new Effect({
         "type": "geometry",
         "default": "geo0",
         "ui": {
-            "label": "source geometry",
+            "label": "source geo",
             "category": "input"
         }
     },

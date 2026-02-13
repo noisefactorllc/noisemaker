@@ -16,8 +16,8 @@
 | speed | float | 100 | 10-200 | Sim speed |
 | colorMode | int | mono | mono/gradient | Color mode |
 | resetState | boolean | false | - | State |
-| source | volume | vol0 | - | Source volume |
-| geoSource | geometry | geo0 | - | Source geometry |
+| source vol | volume | vol0 | - | Source volume |
+| source feo | geometry | geo0 | - | Source geometry |
 | weight | float | 0 | 0-100 | Input weight |
 
 ## Notes

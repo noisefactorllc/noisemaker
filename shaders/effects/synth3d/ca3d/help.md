@@ -14,6 +14,6 @@
 | density | float | 50 | 1-100 | Initial density % |
 | colorMode | int | mono | mono/age | Color mode |
 | resetState | boolean | false | - | State |
-| source | volume | vol0 | - | Source volume |
-| geoSource | geometry | geo0 | - | Source geometry |
+| source vol | volume | vol0 | - | Source volume |
+| source feo | geometry | geo0 | - | Source geometry |
 | weight | float | 0 | 0-100 | Input weight |
