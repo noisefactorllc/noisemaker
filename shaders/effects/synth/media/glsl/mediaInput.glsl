@@ -192,7 +192,7 @@ vec4 getImage(vec2 st) {
 
     if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) {
         // Don't draw texture if out of coordinate bounds
-        return vec4(backgroundColor, backgroundOpacity * 0.01);
+        return vec4(backgroundColor, backgroundOpacity);
     }
 
     // Un-premultiply to compensate for linear filtering on straight-alpha textures

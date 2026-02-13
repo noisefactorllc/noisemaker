@@ -149,7 +149,7 @@ export default class Media extends Effect {
       default: [0, 0, 0],
       uniform: "backgroundColor",
       ui: {
-        label: "background color",
+        label: "bg color",
         control: "color",
         category: "background"
       }
@@ -158,10 +158,10 @@ export default class Media extends Effect {
       type: "float",
       default: 0,
       min: 0,
-      max: 100,
+      max: 1,
       uniform: "backgroundOpacity",
       ui: {
-        label: "background opacity",
+        label: "bg opacity",
         control: "slider",
         category: "background"
       }

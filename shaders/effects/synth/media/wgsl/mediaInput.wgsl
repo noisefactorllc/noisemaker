@@ -135,7 +135,7 @@ fn getImage(pos: vec2<f32>) -> vec4<f32> {
     var text = textureSample(imageTex, samp, st);
 
     if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) {
-        return vec4<f32>(backgroundColor, backgroundOpacity * 0.01);
+        return vec4<f32>(backgroundColor, backgroundOpacity);
     }
 
     // Un-premultiply to compensate for linear filtering on straight-alpha textures
