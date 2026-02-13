@@ -138,7 +138,7 @@ export default new Effect({
       "max": 0.5,
       "step": 0.01,
       "ui": {
-        "label": "stride deviation",
+        "label": "deviation",
         "control": "slider"
       }
     },
@@ -162,7 +162,7 @@ export default new Effect({
       "max": 100,
       "step": 1,
       "ui": {
-        "label": "trail persistence",
+        "label": "persistence",
         "control": "slider"
       }
     },
@@ -174,7 +174,7 @@ export default new Effect({
       "max": 100,
       "step": 1,
       "ui": {
-        "label": "input intensity",
+        "label": "input mix",
         "control": "slider"
       }
     },

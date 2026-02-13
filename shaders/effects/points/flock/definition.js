@@ -93,7 +93,7 @@ export default new Effect({
       max: 100,
       step: 1,
       ui: {
-        label: "separation radius",
+        label: "sep radius",
         control: "slider",
         category: "boids"
       }

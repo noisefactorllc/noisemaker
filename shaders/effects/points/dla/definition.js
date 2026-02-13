@@ -51,7 +51,7 @@ export default new Effect({
       max: 5.0,
       step: 0.01,
       ui: {
-        label: "anchor density",
+        label: "anchors",
         control: "slider",
         category: "chemistry"
       }
@@ -129,9 +129,9 @@ export default new Effect({
       min: 0.0,
       max: 1.0,
       ui: {
-        label: "matte opacity",
+        label: "bg opacity",
         control: "slider",
-        category: "visual"
+        category: "output"
       }
     }
   },

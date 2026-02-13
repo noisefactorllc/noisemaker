@@ -80,7 +80,7 @@ export default new Effect({
       max: 0.5,
       step: 0.01,
       ui: {
-        label: "stride deviation",
+        label: "deviation",
         control: "slider",
         category: "agents"
       }

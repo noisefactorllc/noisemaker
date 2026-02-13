@@ -101,7 +101,7 @@ export default new Effect({
       max: 1,
       step: 0.01,
       ui: {
-        label: "stride variation",
+        label: "stride",
         control: "slider",
         category: "physics"
       }

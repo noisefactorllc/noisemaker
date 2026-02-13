@@ -70,7 +70,7 @@ export default new Effect({
         "randMax": 0.3,
         "uniform": "threshold",
         "ui": {
-            "label": "surface thresh"
+            "label": "threshold"
         }
     },
     "invert": {

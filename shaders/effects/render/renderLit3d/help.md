@@ -8,7 +8,7 @@ Universal 3D volume raymarcher with advanced lighting controls
 |-----------|------|---------|-------|-------------|
 | volumeSize | int | v64 | v16/v32/v64/v128 | Volume resolution (inherited from upstream) |
 | shape | int | cube | cube/sphere | Bounding shape for the volume |
-| surface thresh | float | 0.5 | 0-1 | Surface threshold |
+| threshold | float | 0.5 | 0-1 | Surface threshold |
 | invert thresh | boolean | false | - | Invert threshold |
 | orbitSpeed | int | 1 | -5 to 5 | Volume rotation speed |
 | cameraPos | vec3 | 0,0.1,0.7 | -1 to 1 | Camera position (scaled 5x, 0,0,0 = center) |

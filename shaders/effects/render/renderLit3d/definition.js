@@ -49,7 +49,7 @@ export default new Effect({
             "sphere": 1
         },
         "ui": {
-            "label": "bounding shape",
+            "label": "shape bounds",
             "control": "dropdown"
         }
     },
@@ -61,7 +61,7 @@ export default new Effect({
         "randMax": 0.5,
         "uniform": "threshold",
         "ui": {
-            "label": "surface thresh"
+            "label": "threshold"
         }
     },
     "invert": {

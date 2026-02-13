@@ -102,7 +102,7 @@ export default new Effect({
         manual: 1
       },
       ui: {
-        label: "position mode",
+        label: "positioning",
         control: "dropdown",
         category: "mode"
       }
