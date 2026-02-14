@@ -103,22 +103,16 @@ jobs:
     - name: Build site bundle
       run: npm run bundle:site
 
-    - name: Sync site to S3
-      uses: noisedeck/s3-sync-action@master
-      with:
-        args: --follow-symlinks --delete
-      env:
-        AWS_S3_BUCKET: 'noisemaker-app'
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: 'us-east-1'
-        SOURCE_DIR: 'dist/site'
+    - name: Set up SSH
+      run: |
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        echo "${{ secrets.SCAFFOLD_SSH_KEY }}" | base64 -d > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan ${{ secrets.SCAFFOLD_SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null
 
-    - name: Invalidate CloudFront
-      uses: noisedeck/invalidate-cloudfront-action@master
-      env:
-        DISTRIBUTION: ${{ secrets.DISTRIBUTION }}
-        PATHS: '/*'
-        AWS_REGION: 'us-east-1'
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    - name: Deploy to scaffold
+      run: |
+        rsync -avz --delete \
+          dist/site/ \
+          deploy@${{ secrets.SCAFFOLD_SERVER_IP }}:~/sites/noisemaker.app/content/
