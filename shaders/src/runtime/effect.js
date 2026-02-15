@@ -24,6 +24,10 @@
  *     - label: Display label
  *     - control: "slider" | "checkbox" | "dropdown" | "color" | "button" | false
  *     - category: Category for grouping controls (defaults to "general")
+ *     - hidden: true — Suppresses the control in the UI. Unlike control: false,
+ *       the param retains its control type for use by automation and serialization.
+ *       Prefer control: false for new effects. hidden: true exists to support
+ *       legacy classicNoisedeck params that are driven by palette expansion.
  *
  * Example with categories:
  *   globals: {
@@ -122,7 +126,7 @@ export function getUniformCategory(spec) {
  *
  * @param {object} globals - The globals object from an effect definition
  * @param {object} [options] - Options
- * @param {boolean} [options.includeHidden=false] - Include globals with ui.control === false
+ * @param {boolean} [options.includeHidden=false] - Include globals with ui.control === false or ui.hidden === true
  * @returns {Object.<string, Array<[string, object]>>} Categorized globals
  */
 export function groupGlobalsByCategory(globals, options = {}) {
@@ -134,7 +138,7 @@ export function groupGlobalsByCategory(globals, options = {}) {
 
     for (const [key, spec] of Object.entries(globals)) {
         // Skip hidden controls unless requested
-        if (!includeHidden && spec.ui?.control === false) continue
+        if (!includeHidden && (spec.ui?.control === false || spec.ui?.hidden === true)) continue
 
         const category = getUniformCategory(spec)
 

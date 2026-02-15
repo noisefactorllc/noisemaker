@@ -297,7 +297,8 @@ export default class Shapes3D extends Effect {
       ui: {
         label: "palette",
         control: "dropdown",
-        category: "palette"
+        category: "palette",
+        enabledBy: { param: "colorMode", eq: 10 }
       }
     },
     cyclePalette: {
@@ -312,7 +313,8 @@ export default class Shapes3D extends Effect {
       ui: {
         label: "cycle palette",
         control: "dropdown",
-        category: "palette"
+        category: "palette",
+        enabledBy: { param: "colorMode", eq: 10 }
       }
     },
     rotatePalette: {
@@ -324,7 +326,8 @@ export default class Shapes3D extends Effect {
       ui: {
         label: "rotate palette",
         control: "slider",
-        category: "palette"
+        category: "palette",
+        enabledBy: { param: "colorMode", eq: 10 }
       }
     },
     repeatPalette: {
@@ -336,7 +339,8 @@ export default class Shapes3D extends Effect {
       ui: {
         label: "repeat palette",
         control: "slider",
-        category: "palette"
+        category: "palette",
+        enabledBy: { param: "colorMode", eq: 10 }
       }
     },
     wrap: {

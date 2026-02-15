@@ -3219,8 +3219,8 @@ render(o1)`
      * @private
      */
     _createControlGroup(key, spec, effectInfo, effectKey) {
-        // Skip hidden controls (control: false hides from UI but preserves metadata)
-        if (spec.ui?.control === false) {
+        // Skip hidden controls (control: false or hidden: true)
+        if (spec.ui?.control === false || spec.ui?.hidden === true) {
             return null
         }
 

@@ -214,7 +214,8 @@ export default class Fractal extends Effect {
       ui: {
         label: "palette",
         control: "dropdown",
-        category: "palette"
+        category: "palette",
+        enabledBy: { param: "colorMode", eq: 4 }
       }
     },
     paletteMode: {
@@ -277,7 +278,8 @@ export default class Fractal extends Effect {
       ui: {
         label: "cycle palette",
         control: "dropdown",
-        category: "palette"
+        category: "palette",
+        enabledBy: { param: "colorMode", eq: 4 }
       }
     },
     rotatePalette: {
@@ -289,7 +291,8 @@ export default class Fractal extends Effect {
       ui: {
         label: "rotate palette",
         control: "slider",
-        category: "palette"
+        category: "palette",
+        enabledBy: { param: "colorMode", eq: 4 }
       }
     },
     repeatPalette: {
@@ -301,7 +304,8 @@ export default class Fractal extends Effect {
       ui: {
         label: "repeat palette",
         control: "slider",
-        category: "palette"
+        category: "palette",
+        enabledBy: { param: "colorMode", eq: 4 }
       }
     },
     hueRange: {

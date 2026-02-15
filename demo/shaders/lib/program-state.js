@@ -8,6 +8,7 @@
  */
 
 import { Emitter } from './emitter.js'
+import { expandPalette } from '../../../shaders/src/runtime/palette-expansion.js'
 import { extractEffectsFromDsl } from './dsl-utils.js'
 import { compile, unparse, formatValue } from '../../../shaders/src/lang/index.js'
 import { getEffect, isStarterEffect } from '../../../shaders/src/renderer/canvas.js'
@@ -979,6 +980,10 @@ export class ProgramState extends Emitter {
             for (const pass of stepPasses) {
                 if (!pass.uniforms) continue
 
+                // Deferred palette expansion: collect during param loop, apply after
+                // so expanded values aren't overwritten by default param values
+                let paletteExpansion = null
+
                 for (const [paramName, value] of Object.entries(stepState.values)) {
                     if (value === undefined || value === null) continue
                     if (paramName.startsWith('_')) continue  // Skip internal flags
@@ -1006,6 +1011,23 @@ export class ProgramState extends Emitter {
                         pass.uniforms[uniformName] = Array.isArray(converted)
                             ? converted.slice()
                             : converted
+                    }
+
+                    // Legacy classicNoisedeck palette expansion:
+                    // Defer to after param loop so expanded values take precedence
+                    if (spec?.type === 'palette') {
+                        paletteExpansion = expandPalette(converted)
+                    }
+                }
+
+                // Apply palette expansion after all params are written
+                if (paletteExpansion) {
+                    for (const [uName, uValue] of Object.entries(paletteExpansion)) {
+                        if (uName in pass.uniforms) {
+                            pass.uniforms[uName] = Array.isArray(uValue)
+                                ? uValue.slice()
+                                : uValue
+                        }
                     }
                 }
             }

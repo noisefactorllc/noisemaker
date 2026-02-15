@@ -160,7 +160,8 @@ export default class CellNoise extends Effect {
       ui: {
         label: "palette",
         control: "dropdown",
-        category: "palette"
+        category: "palette",
+        enabledBy: { param: "colorMode", eq: 2 }
       }
     },
     paletteOffset: {
@@ -185,7 +186,8 @@ export default class CellNoise extends Effect {
       ui: {
         label: "cycle palette",
         control: "dropdown",
-        category: "palette"
+        category: "palette",
+        enabledBy: { param: "colorMode", eq: 2 }
       }
     },
     paletteAmp: {
@@ -207,7 +209,8 @@ export default class CellNoise extends Effect {
       ui: {
         label: "rotate palette",
         control: "slider",
-        category: "palette"
+        category: "palette",
+        enabledBy: { param: "colorMode", eq: 2 }
       }
     },
     paletteFreq: {
@@ -229,7 +232,8 @@ export default class CellNoise extends Effect {
       ui: {
         label: "repeat palette",
         control: "slider",
-        category: "palette"
+        category: "palette",
+        enabledBy: { param: "colorMode", eq: 2 }
       }
     },
     palettePhase: {

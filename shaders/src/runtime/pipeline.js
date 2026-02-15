@@ -5,6 +5,7 @@
 
 import { WebGL2Backend } from './backends/webgl2.js'
 import { WebGPUBackend } from './backends/webgpu.js'
+import { expandPalette } from './palette-expansion.js'
 
 /**
  * Oscillator evaluation functions.
@@ -854,6 +855,19 @@ export class Pipeline {
 
         const oldValue = this.globalUniforms[name]
         this.globalUniforms[name] = value
+
+        // Legacy classicNoisedeck palette expansion:
+        // When the 'palette' uniform is set with an integer, expand the preset
+        // into the dependent vec3/int uniforms the shaders expect.
+        if (name === 'palette' && typeof value === 'number') {
+            const expanded = expandPalette(value)
+            if (expanded) {
+                for (const [uName, uValue] of Object.entries(expanded)) {
+                    this.setUniform(uName, uValue)
+                }
+                return  // dependent calls handle pass propagation
+            }
+        }
 
         // Check if this is a scoped uniform (e.g., 'stateSize_node_5')
         // Scoped uniforms should NOT propagate to other scoped variants
