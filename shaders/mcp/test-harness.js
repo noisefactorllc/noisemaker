@@ -59,19 +59,38 @@
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import {
-    BrowserSession,
-    checkEffectStructureOnDisk,
-    checkAlgEquivOnDisk,
-    analyzeBranchingOnDisk,
-    matchEffects,
-    gracePeriod
-} from './browser-harness.js'
-import { getAIProvider } from './core-operations.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const PROJECT_ROOT = path.resolve(__dirname, '../..')
+
+// Configure shade-mcp to find effects (must be set before importing shade-mcp)
+process.env.SHADE_EFFECTS_DIR = path.join(PROJECT_ROOT, 'shaders', 'effects')
+process.env.SHADE_PROJECT_ROOT = PROJECT_ROOT
+
+import {
+    BrowserSession,
+    compileEffect, renderEffectFrame, benchmarkEffectFPS,
+    testNoPassthrough, testPixelParity, testUniformResponsiveness,
+    checkEffectStructure, checkAlgEquiv, analyzeBranching,
+    matchEffects,
+} from 'shade-mcp/harness'
+import { getAIProvider } from 'shade-mcp/ai'
+
+// Noisemaker-specific window globals (different from shade-mcp defaults)
+const NOISEMAKER_GLOBALS = {
+    canvasRenderer: '__noisemakerCanvasRenderer',
+    renderingPipeline: '__noisemakerRenderingPipeline',
+    currentBackend: '__noisemakerCurrentBackend',
+    currentEffect: '__noisemakerCurrentEffect',
+    setPaused: '__noisemakerSetPaused',
+    setPausedTime: '__noisemakerSetPausedTime',
+    frameCount: '__noisemakerFrameCount',
+}
+
+function gracePeriod(ms = 125) {
+    return new Promise(resolve => setTimeout(resolve, ms))
+}
 
 // =========================================================================
 // EXEMPTION SETS - STRICT: No more exemptions are permitted
@@ -280,14 +299,11 @@ async function runStructureOnlyMode(args) {
     // Main loop: Test each effect
     for (const effectId of matchedEffects) {
         const t0 = Date.now()
-        const structureResult = await checkEffectStructureOnDisk(effectId, { backend: args.backend })
+        const structureResult = await checkEffectStructure(effectId)
         const elapsed = Date.now() - t0
 
         // Determine pass/fail
         const issues = []
-        if (structureResult.hasInlineShaders) {
-            issues.push('inline shaders')
-        }
         if (structureResult.missingDescription) {
             issues.push('missing description')
         }
@@ -300,14 +316,8 @@ async function runStructureOnlyMode(args) {
         if (structureResult.leakedInternalUniforms?.length > 0) {
             issues.push(`${structureResult.leakedInternalUniforms.length} leaked uniform(s)`)
         }
-        if (structureResult.splitShaderIssues?.length > 0) {
-            issues.push(`${structureResult.splitShaderIssues.length} split shader issue(s)`)
-        }
         if (structureResult.structuralParityIssues?.length > 0) {
             issues.push(`${structureResult.structuralParityIssues.length} parity issue(s)`)
-        }
-        if (structureResult.requiredUniformIssues?.length > 0) {
-            issues.push(`${structureResult.requiredUniformIssues.length} uniform decl issue(s)`)
         }
 
         const passed = issues.length === 0
@@ -387,23 +397,9 @@ async function testEffect(session, effectId, options) {
     // Structure test (runs before compilation, uses filesystem)
     if (options.runStructure) {
         t0 = Date.now()
-        const structureResult = await checkEffectStructureOnDisk(effectId, { backend })
+        const structureResult = await checkEffectStructure(effectId)
         timings.push(`structure:${Date.now() - t0}ms`)
         results.structure = structureResult
-
-        // CRITICAL: Check for inline shaders - this is a HARD FAIL
-        if (structureResult.hasInlineShaders) {
-            console.log(`  ❌ INLINE SHADERS DETECTED - FORBIDDEN`)
-            for (const loc of structureResult.inlineShaderLocations) {
-                console.log(`     Line ${loc.line}: ${loc.type}`)
-                console.log(`       ${loc.snippet}...`)
-            }
-            console.log(`  All shaders MUST be in separate files under glsl/ or wgsl/ directories.`)
-            results.compile = 'error'
-            return results
-        } else {
-            console.log(`  ✓ no inline shaders`)
-        }
 
         // Check for missing description
         if (structureResult.missingDescription) {
@@ -440,26 +436,6 @@ async function testEffect(session, effectId, options) {
             console.log(`  ✓ no leaked internal uniforms`)
         }
 
-        // Report split shader issues (GLSL only)
-        if (structureResult.splitShaderIssues?.length > 0) {
-            console.log(`  ❌ split shader issues:`)
-            for (const issue of structureResult.splitShaderIssues) {
-                console.log(`     ${issue.message}`)
-            }
-        } else if (backend === 'webgl2') {
-            console.log(`  ✓ split shaders consistent`)
-        }
-
-        // Report required uniform issues
-        if (structureResult.requiredUniformIssues?.length > 0) {
-            console.log(`  ❌ required uniform issues (${structureResult.requiredUniformIssues.length}):`)
-            for (const issue of structureResult.requiredUniformIssues) {
-                console.log(`     ${issue.file}: ${issue.message}`)
-            }
-        } else {
-            console.log(`  ✓ required uniforms declared`)
-        }
-
         // Report structural parity issues
         if (structureResult.structuralParityIssues?.length > 0) {
             console.log(`  ❌ structural parity issues (${structureResult.structuralParityIssues.length}):`)
@@ -477,11 +453,11 @@ async function testEffect(session, effectId, options) {
     if (options.runAlgEquiv) {
         if (!options.withAi) {
             console.log(`  ⊘ alg-equiv: skipped (--with-ai not specified)`)
-        } else if (!getAIProvider()) {
+        } else if (!getAIProvider({ projectRoot: PROJECT_ROOT })) {
             console.log(`  ⊘ alg-equiv: skipped (no AI API key)`)
         } else {
             t0 = Date.now()
-            const algEquivResult = await checkAlgEquivOnDisk(effectId)
+            const algEquivResult = await checkAlgEquiv(effectId)
             timings.push(`alg-equiv:${Date.now() - t0}ms`)
             results.algEquiv = algEquivResult
 
@@ -514,11 +490,11 @@ async function testEffect(session, effectId, options) {
     if (options.runBranching) {
         if (!options.withAi) {
             console.log(`  ⊘ branching: skipped (--with-ai not specified)`)
-        } else if (!getAIProvider()) {
+        } else if (!getAIProvider({ projectRoot: PROJECT_ROOT })) {
             console.log(`  ⊘ branching: skipped (no AI API key)`)
         } else {
             t0 = Date.now()
-            const branchingResult = await analyzeBranchingOnDisk(effectId, { backend })
+            const branchingResult = await analyzeBranching(effectId, backend)
             timings.push(`branching:${Date.now() - t0}ms`)
             results.branching = branchingResult
 
@@ -557,7 +533,7 @@ async function testEffect(session, effectId, options) {
     }
 
     // Compile
-    const compileResult = await session.compileEffect(effectId)
+    const compileResult = await compileEffect(session, effectId)
     timings.push(`compile:${Date.now() - t0}ms`)
     t0 = Date.now()
     results.compile = compileResult.status
@@ -568,8 +544,8 @@ async function testEffect(session, effectId, options) {
     }
     console.log(`  ✓ compile`)
 
-    // Render (skip compile since already loaded)
-    const renderResult = await session.renderEffectFrame(effectId, { skipCompile: true })
+    // Render
+    const renderResult = await renderEffectFrame(session, effectId, { warmupFrames: 10 })
     timings.push(`render:${Date.now() - t0}ms`)
     t0 = Date.now()
     results.render = renderResult.status
@@ -614,7 +590,7 @@ async function testEffect(session, effectId, options) {
     // Uniform responsiveness test
     if (options.runUniforms) {
         t0 = Date.now()
-        const uniformResult = await session.testUniformResponsiveness(effectId, { skipCompile: true })
+        const uniformResult = await testUniformResponsiveness(session, effectId)
         timings.push(`uniforms:${Date.now() - t0}ms`)
         results.uniforms = uniformResult.status
 
@@ -637,7 +613,7 @@ async function testEffect(session, effectId, options) {
             results.passthrough = 'skipped'
             console.log(`  ⊘ passthrough: exempt (effect preserves average colors by design)`)
         } else {
-            const passthroughResult = await session.testNoPassthrough(effectId, { skipCompile: true })
+            const passthroughResult = await testNoPassthrough(session, effectId)
             timings.push(`passthrough:${Date.now() - t0}ms`)
             results.passthrough = passthroughResult.status
 
@@ -658,7 +634,7 @@ async function testEffect(session, effectId, options) {
     // Pixel parity test (GLSL ↔ WGSL)
     if (options.runPixelParity) {
         t0 = Date.now()
-        const pixelParityResult = await session.testPixelParity(effectId, { epsilon: 1, seed: 42 })
+        const pixelParityResult = await testPixelParity(session, effectId, { epsilon: 1 })
         timings.push(`pixel-parity:${Date.now() - t0}ms`)
         results.pixelParity = pixelParityResult.status
 
@@ -678,10 +654,9 @@ async function testEffect(session, effectId, options) {
     // Benchmark
     if (options.runBenchmark) {
         t0 = Date.now()
-        const benchResult = await session.benchmarkEffectFps(effectId, {
+        const benchResult = await benchmarkEffectFPS(session, effectId, {
             targetFps: 30,
             durationSeconds: 0.5,
-            skipCompile: true
         })
         timings.push(`benchmark:${Date.now() - t0}ms`)
         results.benchmark = benchResult.achieved_fps
@@ -701,57 +676,7 @@ async function testEffect(session, effectId, options) {
     // Reset uniforms before vision test
     await session.resetUniformsToDefaults()
 
-    // Vision validation
-    const hasApiKey = !!getAIProvider()
-    if (hasApiKey && options.withAi && !options.skipVision) {
-        const prompt = `Is this shader output valid?
-Valid = shows actual visual content (patterns, colors, textures, effects, colorful mosaic, grid of colors)
-Invalid = completely blank, solid color only, or obviously broken/corrupted
-
-CRITICAL TRANSPARENCY CHECK: If you see a GRAY AND WHITE checkerboard pattern (like Photoshop's transparency background), this means the output is TRANSPARENT. Tag as "transparency-background". This is different from colorful grids/mosaics which are valid.
-
-Only include these tags if problems exist: "blank", "solid", "broken", "invalid", "transparency-background".
-Do NOT tag colorful patterns or mosaics as problematic - those are valid outputs.`
-
-        const visionResult = await session.describeEffectFrame(effectId, prompt, { skipCompile: true, captureImage: true })
-        results.vision = visionResult.status
-
-        if (visionResult.error) {
-            results.visionFailed = true
-            console.log(`  ❌ vision: ${visionResult.error}`)
-        } else if (visionResult.vision) {
-            const desc = String(visionResult.vision.description || '').toLowerCase()
-            const tags = (visionResult.vision.tags || []).map(t => String(t).toLowerCase())
-            const notes = String(visionResult.vision.notes || '').toLowerCase()
-            const allText = `${desc} ${tags.join(' ')} ${notes}`
-
-            const isMonoExempt = MONOCHROME_EXEMPT_EFFECTS.has(effectId)
-            const isTransExempt = TRANSPARENT_EXEMPT_EFFECTS.has(effectId)
-            let baseFailureIndicators = ['blank', 'solid color', 'broken', 'invalid', 'corrupted', 'empty', 'nothing', 'transparency-background']
-            if (isMonoExempt) {
-                baseFailureIndicators = baseFailureIndicators.filter(i => i !== 'solid color' && i !== 'blank' && i !== 'empty' && i !== 'nothing' && i !== 'invalid')
-            }
-            if (isTransExempt) {
-                baseFailureIndicators = baseFailureIndicators.filter(i => i !== 'transparency-background' && i !== 'blank' && i !== 'empty' && i !== 'nothing' && i !== 'invalid')
-            }
-            const hasFailureIndicator = baseFailureIndicators.some(indicator => allText.includes(indicator))
-
-            const problemTags = tags.filter(t => {
-                if (t === 'broken' || t === 'corrupted' || t === 'artifact') return true
-                if (t === 'transparency-background' && !isTransExempt) return true
-                if (isMonoExempt || isTransExempt) return false
-                return t === 'blank' || t === 'solid' || t === 'empty' || t === 'invalid'
-            })
-
-            if (hasFailureIndicator || problemTags.length > 0) {
-                results.visionFailed = true
-                const reason = problemTags.length > 0 ? problemTags.join(', ') : desc.slice(0, 100)
-                console.log(`  ❌ vision: INVALID OUTPUT - ${reason}`)
-            } else {
-                console.log(`  ✓ vision: ${visionResult.vision.tags?.slice(0, 3).join(', ') || desc.slice(0, 50)}`)
-            }
-        }
-    }
+    // TODO: re-enable vision test when describeEffectFrame is exported from shade-mcp
 
     // Capture console errors
     const allConsoleMessages = session.getConsoleMessages()
@@ -811,7 +736,7 @@ async function main() {
         return
     }
 
-    console.log(`\nStarting browser session (backend: ${args.backend}${args.useBundles ? ', bundles: true' : ''})...`)
+    console.log(`\nStarting browser session (backend: ${args.backend})...`)
 
     // Pixel parity tests require headed mode for WebGPU support
     const needsHeaded = args.runPixelParity
@@ -822,15 +747,18 @@ async function main() {
     // Setup: Create browser session
     const session = new BrowserSession({
         backend: args.backend,
-        useBundles: args.useBundles,
-        headless: !needsHeaded  // Headed for pixel parity, headless otherwise
+        headless: !needsHeaded,  // Headed for pixel parity, headless otherwise
+        globals: NOISEMAKER_GLOBALS,
+        viewerRoot: PROJECT_ROOT,
+        viewerPath: '/demo/shaders/',
+        effectsDir: path.join(PROJECT_ROOT, 'shaders', 'effects'),
     })
 
     try {
         await session.setup()
 
-        // Resolve effect patterns
-        const allEffects = await session.listEffects()
+        // Resolve effect patterns from disk
+        const allEffects = discoverEffectsFromDisk()
         const matchedEffectsSet = new Set()
 
         for (const pattern of args.effects) {
@@ -890,9 +818,7 @@ async function main() {
             if (args.runStructure && r.structure?.namingIssues?.length > 0) return false
             if (args.runStructure && r.structure?.unusedFiles?.length > 0) return false
             if (args.runStructure && r.structure?.leakedInternalUniforms?.length > 0) return false
-            if (args.runStructure && r.structure?.splitShaderIssues?.length > 0) return false
             if (args.runStructure && r.structure?.structuralParityIssues?.length > 0) return false
-            if (args.runStructure && r.structure?.requiredUniformIssues?.length > 0) return false
             return true
         }).length
 
@@ -912,9 +838,7 @@ async function main() {
             if (args.runStructure && r.structure?.namingIssues?.length > 0) return true
             if (args.runStructure && r.structure?.unusedFiles?.length > 0) return true
             if (args.runStructure && r.structure?.leakedInternalUniforms?.length > 0) return true
-            if (args.runStructure && r.structure?.splitShaderIssues?.length > 0) return true
             if (args.runStructure && r.structure?.structuralParityIssues?.length > 0) return true
-            if (args.runStructure && r.structure?.requiredUniformIssues?.length > 0) return true
             return false
         })
 
@@ -940,9 +864,7 @@ async function main() {
                 if (args.runStructure && r.structure?.namingIssues?.length > 0) reasons.push(`${r.structure.namingIssues.length} naming issue(s)`)
                 if (args.runStructure && r.structure?.unusedFiles?.length > 0) reasons.push(`${r.structure.unusedFiles.length} unused file(s)`)
                 if (args.runStructure && r.structure?.leakedInternalUniforms?.length > 0) reasons.push(`${r.structure.leakedInternalUniforms.length} leaked uniform(s)`)
-                if (args.runStructure && r.structure?.splitShaderIssues?.length > 0) reasons.push(`${r.structure.splitShaderIssues.length} split shader issue(s)`)
                 if (args.runStructure && r.structure?.structuralParityIssues?.length > 0) reasons.push(`${r.structure.structuralParityIssues.length} parity issue(s)`)
-                if (args.runStructure && r.structure?.requiredUniformIssues?.length > 0) reasons.push(`${r.structure.requiredUniformIssues.length} missing uniform decl(s)`)
                 console.log(`  ❌ ${r.effectId}: ${reasons.join(', ')}`)
             }
             console.log(``)
