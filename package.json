@@ -29,7 +29,8 @@
     "image-regress": "python scripts/image_regression.py",
     "mcp:start": "node shaders/mcp/server.js",
     "mcp:test": "node shaders/mcp/test-harness.js",
-    "lint": "eslint js/ scripts/ test/ shaders/ demo/"
+    "lint": "eslint js/ scripts/ test/ shaders/ demo/",
+    "lint:fix": "eslint js/ scripts/ test/ shaders/ demo/ --fix"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
