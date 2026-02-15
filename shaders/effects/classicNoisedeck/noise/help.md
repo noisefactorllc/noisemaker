@@ -6,7 +6,6 @@ Noise pattern generator
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| aspect | float | null | - | Aspect |
 | noiseType | int | simplex | constant/linear/hermite/catmullRom3x3/catmullRom4x4/bSpline3x3/bSpline4x4/simplex/sine | Noise type |
 | octaves | int | 2 | 1-8 | Octaves |
 | xScale | float | 75 | 1-100 | Horiz scale |

@@ -47,15 +47,6 @@ export default class Noise extends Effect {
   }
 
   globals = {
-    aspect: {
-      type: "float",
-      default: null,
-      uniform: "aspect",
-      ui: {
-        label: "aspect",
-        control: "slider"
-      }
-    },
     type: {
       type: "int",
       default: 10,
