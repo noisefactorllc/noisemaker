@@ -39,10 +39,6 @@ This guide is for AI coding agents working on Noisemaker, a procedural noise gen
 
 ## Shader Testing
 
-**MANDATORY**: All shader work under `/shaders` MUST use the `noisemaker-shader-tools` MCP Server.
-
-Do NOT use terminal commands or other tools for shader testing. MCP tools are the only supported interface.
-
 - Resolve *all* console errors before returning a solution.
 - The shader must run in the browser with no errors, or your turn is not over.
 
@@ -53,7 +49,6 @@ Do NOT use terminal commands or other tools for shader testing. MCP tools are th
 - Main docs: [README.md](../README.md)
 - Python agent rules: [AGENTS.md](../AGENTS.md)
 - Shader agent rules: [shaders/AGENTS.md](../shaders/AGENTS.md)
-- Shader MCP docs: [shaders/mcp/README.md](../shaders/mcp/README.md)
 
 ---
 

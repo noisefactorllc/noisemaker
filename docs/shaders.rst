@@ -74,7 +74,6 @@ Noisemaker includes an experimental collection of WebGL 2 and WebGPU shader effe
    shaders/compiler
    shaders/demo-ui
    shaders/smrticles
-   shaders/mcp
    shaders/effect-reference
 
 Project Structure
@@ -97,7 +96,6 @@ Shader development lives under ``shaders/``:
    │   ├── classicNoisedeck/     # Ported complex shaders
    │   ├── classicNoisemaker/    # Python port implementations
    │   └── manifest.json         # Auto-generated effect registry
-   ├── mcp/                      # MCP testing tools
    └── tests/                    # Test suites
    demo/
    └── shaders/                  # Interactive development UI
@@ -181,8 +179,8 @@ Running Tests
    npm run test:shaders:render       # Both backends
 
    # Test harness for specific effects
-   node shaders/mcp/test-harness.js --effects synth/noise --backend webgl2
-   node shaders/mcp/test-harness.js --effects "synth/*" --backend webgpu
+   node shaders/tests/test-harness.js --effects synth/noise --backend webgl2
+   node shaders/tests/test-harness.js --effects "synth/*" --backend webgpu
 
 Development Workflow
 --------------------

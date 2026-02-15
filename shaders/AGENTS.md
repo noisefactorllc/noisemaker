@@ -141,24 +141,13 @@ fn main() -> Outputs {
 
 ## Testing Workflow
 
-**MANDATORY**: Use the `noisemaker-shader-tools` MCP Server for all shader testing.
+After modifying a shader effect, run the test harness:
 
-After modifying a shader effect:
-
-1. **Compile check**: `compile_effect({ effect_id: "nm/erosion_worms" })`
-2. **Render check**: `render_effect_frame({ effect_id: "nm/erosion_worms" })`
-   - Verify `is_monochrome: false`
-   - Verify `unique_sampled_colors > 100` for complex effects
-3. **Uniform check**: `testUniformResponsiveness({ effect_id: "nm/erosion_worms" })`
-4. **Structure check**: `checkEffectStructure({ effect_id: "nm/erosion_worms" })`
-5. **Vision check** (if needed): `describe_effect_frame({ ... })`
-
-Additional validation tools:
-- `check_alg_equiv`: Verify GLSL/WGSL produce equivalent results
-- `analyze_branching`: Identify unnecessary branching that could be flattened
-- `test_no_passthrough`: Verify filter effects modify their input
-- `benchmark_effect_fps`: Check performance meets target FPS
-- `run_dsl_program`: Compile and run arbitrary DSL code for ad-hoc testing
+```bash
+node shaders/tests/test-harness.js --effects nm/erosion_worms --backend webgl2
+node shaders/tests/test-harness.js --effects nm/erosion_worms --backend webgpu
+node shaders/tests/test-harness.js --structure-only --effects nm/erosion_worms --backend webgl2
+```
 
 Resolve *all* console errors before returning a solution.
 
@@ -240,5 +229,3 @@ The render loop must minimize per-frame allocations:
 ## References
 
 - [README-SHADERS.md](README-SHADERS.md): Pipeline architecture and philosophy
-- [shaders/mcp/README.md](mcp/README.md): MCP tools for testing
-- [shaders/mcp/docs/AGENT_WORKFLOW.md](mcp/docs/AGENT_WORKFLOW.md): Testing workflow guide

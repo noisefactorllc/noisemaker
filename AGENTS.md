@@ -119,31 +119,3 @@ Effects like `erosion_worms` and `physarum` follow this structure:
 3. **Diffuse pass** (`type: "compute"`): Blur/spread accumulated trails
 4. **Blend pass** (`type: "render"`): Combine with input for final output
 
-### Shader MCP Tools
-
-When working on shaders, you have access to MCP tools for testing effects:
-
-- **`compile_effect`**: Verify a shader compiles cleanly
-  - Input: `{ effect_id: "synth/noise", backend?: "webgl2" | "webgpu" }`
-  - Returns compilation status and pass-level diagnostics
-
-- **`render_effect_frame`**: Render a frame and check for visual issues
-  - Input: `{ effect_id: "synth/noise", test_case?: { time?, resolution?, uniforms? } }`
-  - Returns image metrics (mean/std RGB, luma variance, unique colors, is_monochrome)
-
-- **`describe_effect_frame`**: Get AI vision analysis of rendered output
-  - Input: `{ effect_id: "synth/noise", prompt: "Describe the pattern" }`
-  - Returns vision description, tags, and notes
-
-- **`benchmark_effect_fps`**: Verify shader can sustain target framerate
-  - Input: `{ effect_id: "synth/noise", target_fps: 60, duration_seconds?: 5 }`
-  - Returns achieved FPS, meets_target boolean, and frame timing stats
-
-**Workflow**: After modifying a shader effect:
-1. Call `compile_effect` to verify it compiles
-2. Call `render_effect_frame` to check it produces non-monochrome output
-3. If debugging visual issues, use `describe_effect_frame` for AI analysis
-4. For performance-sensitive effects, use `benchmark_effect_fps`
-5. If necessary, update the effect's documentation in its help.md
-
-See `shaders/mcp/README.md` for full documentation.
