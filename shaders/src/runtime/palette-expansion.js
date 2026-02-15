@@ -139,7 +139,7 @@ const PALETTES = [
     { amp: [0.97, 0.74, 0.23], freq: [1.0, 1.0, 1.0], offset: [0.97, 0.38, 0.35], phase: [0.34, 0.41, 0.44], mode: 3 },
     // 55: vintagePhoto (rgb)
     { amp: [0.68, 0.79, 0.57], freq: [1.0, 1.0, 1.0], offset: [0.56, 0.35, 0.14], phase: [0.73, 0.9, 0.99], mode: 3 },
-];
+]
 
 /**
  * Expand a 1-based palette index into the concrete uniform values expected
@@ -151,10 +151,10 @@ const PALETTES = [
  */
 export function expandPalette(index) {
     if (index <= 0 || index > PALETTES.length) {
-        return null;
+        return null
     }
 
-    const entry = PALETTES[index - 1];
+    const entry = PALETTES[index - 1]
 
     return {
         paletteOffset: entry.offset.slice(),
@@ -162,5 +162,5 @@ export function expandPalette(index) {
         paletteFreq: entry.freq.slice(),
         palettePhase: entry.phase.slice(),
         paletteMode: entry.mode,
-    };
+    }
 }
