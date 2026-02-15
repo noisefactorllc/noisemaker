@@ -66,7 +66,8 @@ export default new Effect({
       choices: { x2: 2, x4: 4, x8: 8 },
       ui: {
         label: "samples",
-        control: "dropdown"
+        control: "dropdown",
+        enabledBy: { param: "type", eq: 0 } // Only for MSAA mode
       }
     },
     searchSteps: {
@@ -78,7 +79,8 @@ export default new Effect({
       step: 1,
       ui: {
         label: "search steps",
-        control: "slider"
+        control: "slider",
+        enabledBy: { param: "type", eq: 1 } // Only for SMAA mode
       }
     }
   },
