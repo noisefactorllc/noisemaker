@@ -258,7 +258,6 @@ fn flipMirror(uv_in: vec2f) -> vec2f {
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let aspectRatio = getAspectRatio();
     var uv = fragCoord.xy / u.resolution;
-    uv.y = 1.0 - uv.y;
 
     uv = rotate2D(uv, u.rotateAmt / 180.0);
     uv = flipMirror(uv);

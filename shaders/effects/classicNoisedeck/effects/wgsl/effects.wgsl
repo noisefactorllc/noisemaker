@@ -330,7 +330,6 @@ fn offsets(st: vec2f) -> f32 {
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     var uv = fragCoord.xy / u.resolution;
-    uv.y = 1.0 - uv.y;
 
     var scale = 100.0 / u.scaleAmt;
     if (scale == 0.0) { scale = 1.0; }

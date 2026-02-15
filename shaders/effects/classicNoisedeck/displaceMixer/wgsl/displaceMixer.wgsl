@@ -110,7 +110,6 @@ fn wrapCoords(st_in : vec2<f32>) -> vec2<f32> {
 fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let dims = vec2<f32>(textureDimensions(inputTex, 0));
     var st = position.xy / dims;
-    st.y = 1.0 - st.y;
 
     let color1 = textureSample(inputTex, samp, st);
     let color2 = textureSample(tex, samp, st);

@@ -223,7 +223,6 @@ fn pal(t_in: f32) -> vec3f {
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     var uv = fragCoord.xy / u.resolution;
-    uv.y = 1.0 - uv.y;
 
     var color = textureSample(inputTex, samp, uv);
 

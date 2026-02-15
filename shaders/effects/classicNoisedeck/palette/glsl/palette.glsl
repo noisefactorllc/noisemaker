@@ -209,7 +209,6 @@ vec3 linear_srgb_from_oklab(vec3 c) {
 
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution;
-    uv.y = 1.0 - uv.y;
 
     vec4 color = texture(inputTex, uv);
 

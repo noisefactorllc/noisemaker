@@ -145,7 +145,6 @@ vec2 wrapCoords(vec2 st) {
 void main() {
     vec4 color = vec4(0.0, 0.0, 1.0, 1.0);
     vec2 st = gl_FragCoord.xy / resolution;
-    st.y = 1.0 - st.y;
 
     vec4 color1 = texture(inputTex, st);
     vec4 color2 = texture(tex, st);

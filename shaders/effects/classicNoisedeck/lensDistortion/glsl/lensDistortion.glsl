@@ -191,8 +191,7 @@ float _distance(vec2 diff, vec2 uv) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / resolution;	
-    uv.y = 1.0 - uv.y;
+    vec2 uv = gl_FragCoord.xy / resolution;
 
     vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
 

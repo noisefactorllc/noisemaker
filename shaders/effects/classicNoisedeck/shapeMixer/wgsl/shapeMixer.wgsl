@@ -433,7 +433,6 @@ fn value(st: vec2f, freq: f32, interp: i32) -> f32 {
 fn offset(st_in: vec2f, freq: f32) -> f32 {
     var st = st_in;
     st.x *= aspectRatio();
-    st.y = 1.0 - st.y;
     if (u.loopOffset == 10) { return circles(st, freq); }
     else if (u.loopOffset == 20) { return shape(st, 3, freq * 0.5); }
     else if (u.loopOffset == 30) { return (abs(st.x - 0.5 * aspectRatio()) + abs(st.y - 0.5)) * freq * 0.5; }
@@ -506,7 +505,6 @@ fn blendVec3(color1: vec3f, color2: vec3f, mode: i32, factorIn: f32) -> vec3f {
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     var st = fragCoord.xy / u.resolution;
-    st.y = 1.0 - st.y;
 
     let color1 = textureSample(inputTex, samp, st);
     let color2 = textureSample(tex, samp, st);

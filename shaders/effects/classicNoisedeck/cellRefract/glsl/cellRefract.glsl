@@ -429,7 +429,6 @@ void main() {
     vec4 color = vec4(0.0, 0.0, 1.0, 1.0);
 
     vec2 st = gl_FragCoord.xy / resolution;
-    st.y = 1.0 - st.y;
 
     loadKernels();
     float blend = 1.0;

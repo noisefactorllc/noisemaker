@@ -727,7 +727,6 @@ float sineNoise(vec2 st, float freq) {
 
 float offset(vec2 st, float freq) {
     st.x *= aspectRatio;
-    st.y = 1.0 - st.y;
 
     float d = 0.0;
     if (loopOffset == 10) {
@@ -905,7 +904,6 @@ float blend(float color1, float color2, int mode, float factor) {
 void main() {
     vec4 color = vec4(0.0, 0.0, 1.0, 1.0);
     vec2 st = gl_FragCoord.xy / resolution;
-    st.y = 1.0 - st.y;
 
     vec4 color1 = texture(inputTex, st);
     vec4 color2 = texture(tex, st);

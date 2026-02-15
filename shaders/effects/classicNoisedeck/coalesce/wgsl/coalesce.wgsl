@@ -274,7 +274,6 @@ fn blend_colors(color1 : vec4<f32>, color2 : vec4<f32>, mode : i32, factor_in : 
 fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let dims = vec2<f32>(textureDimensions(inputTex, 0));
     var st = position.xy / dims;
-    st.y = 1.0 - st.y;
 
     var color = vec4<f32>(0.0, 0.0, 1.0, 1.0);
 

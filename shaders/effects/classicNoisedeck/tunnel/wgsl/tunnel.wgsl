@@ -177,8 +177,7 @@ fn tunnel(uv_in: vec2<f32>, fragCoord: vec2<f32>) -> vec4<f32> {
 fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     let dims = vec2<f32>(textureDimensions(inputTex, 0));
     var uv = fragCoord.xy / dims;
-    uv.y = 1.0 - uv.y;
-    
+
     uv = flipMirror(uv, u.flip);
     
     let color = tunnel(uv, fragCoord.xy);

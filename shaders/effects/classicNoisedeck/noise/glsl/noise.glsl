@@ -529,8 +529,6 @@ float shape(vec2 st, int sides, float blend) {
 }
 
 float getMetric(vec2 st) {
-    st.y = 1.0 - st.y;
-
     vec2 diff = vec2(0.5 * aspectRatio, 0.5) - st;
     float r = 1.0;
 

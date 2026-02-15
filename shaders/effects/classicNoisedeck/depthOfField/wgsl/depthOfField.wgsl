@@ -45,7 +45,6 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let depthSource = i32(uniforms.data[1].w);
 
     var uv = pos.xy / resolution;
-    uv.y = 1.0 - uv.y;
 
     var color: vec4<f32>;
     if (depthSource == 0) {

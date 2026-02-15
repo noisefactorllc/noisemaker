@@ -236,8 +236,7 @@ fn linear_srgb_from_oklab(c: vec3<f32>) -> vec3<f32> {
 fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     let dims = vec2<f32>(textureDimensions(inputTex, 0));
     var uv = fragCoord.xy / dims;
-    uv.y = 1.0 - uv.y;
-    
+
     var color = textureSample(inputTex, samp, uv);
     
     if (u.paletteType == 0) {

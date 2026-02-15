@@ -244,7 +244,6 @@ fn pixellate(uv: vec2f, size: f32) -> vec3f {
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     var st = fragCoord.xy / u.resolution;
-    st.y = 1.0 - st.y;
 
     let freq = mapRange(u.scale, 1.0, 100.0, 20.0, 1.0);
     let cellSize = mapRange(u.cellScale, 1.0, 100.0, 3.0, 0.75);

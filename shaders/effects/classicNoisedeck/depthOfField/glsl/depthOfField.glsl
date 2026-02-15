@@ -54,7 +54,6 @@ vec4 depthOfField(sampler2D scene, sampler2D depth, vec2 uv, vec2 resolution) {
 
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution;
-	uv.y = 1.0 - uv.y;
     vec4 color = vec4(1.0);
     if (depthSource == 0) {
         color = depthOfField(tex, inputTex, uv, resolution);

@@ -861,7 +861,6 @@ vec2 kaleidoscope(vec2 st, float sides, float blendy) {
 
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution.y;
-	uv.y = 1.0 - uv.y;
 
 	vec4 color = vec4(0.0);
     loadKernels();

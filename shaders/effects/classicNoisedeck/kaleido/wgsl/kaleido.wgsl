@@ -462,7 +462,6 @@ fn kaleidoscope(st_in: vec2f, sides: f32, blendy: f32) -> vec2f {
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     var uv = fragCoord.xy / u.resolution.y;
-    uv.y = 1.0 - uv.y;
 
     var lf = mapRange(u.loopScale, 1.0, 100.0, 6.0, 1.0);
     if (u.wrap != 0) { lf = floor(lf); }

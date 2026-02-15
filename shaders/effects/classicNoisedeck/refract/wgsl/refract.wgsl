@@ -198,7 +198,6 @@ fn blend_colors(color1 : vec4<f32>, color2 : vec4<f32>) -> vec3<f32> {
 fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let dims = vec2<f32>(textureDimensions(inputTex, 0));
     var uv = position.xy / dims;
-    uv.y = 1.0 - uv.y;
 
     var color = vec4<f32>(0.0);
     let inputColor = textureSample(inputTex, samp, uv);

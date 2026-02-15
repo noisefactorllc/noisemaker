@@ -186,7 +186,6 @@ vec3 blend(vec4 color1, vec4 color2) {
 
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution;
-    uv.y = 1.0 - uv.y;
 
     vec4 color = vec4(0.0);
 

@@ -289,7 +289,6 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     var texLuminosity = 0.0;
     let texFactor = texIntensity * 0.01;
     var texCoord = pos.xy / resolution;
-    texCoord.y = 1.0 - texCoord.y; // Flip renderer-supplied textures to align with screen space.
 
     if (texInfluence > 0) {
         let texRGB = textureSample(tex, samp, texCoord).rgb;

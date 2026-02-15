@@ -114,8 +114,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     let dims = vec2<f32>(textureDimensions(inputTex, 0));
     let aspectRatio = dims.x / dims.y;
     var uv = fragCoord.xy / dims;
-    uv.y = 1.0 - uv.y;
-    
+
     var color = textureSample(inputTex, samp, uv);
     
     let noiseCoord = uv * vec2<f32>(aspectRatio, 1.0);

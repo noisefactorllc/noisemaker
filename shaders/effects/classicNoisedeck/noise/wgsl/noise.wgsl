@@ -455,7 +455,6 @@ fn shape(st_in: vec2<f32>, sides: i32, blend: f32) -> f32 {
 
 fn getMetric(st_in: vec2<f32>) -> f32 {
     var st = st_in;
-    st.y = 1.0 - st.y;
     let diff = vec2<f32>(0.5 * aspectRatio, 0.5) - st;
     var r = 1.0;
     if (metric == 0) {
