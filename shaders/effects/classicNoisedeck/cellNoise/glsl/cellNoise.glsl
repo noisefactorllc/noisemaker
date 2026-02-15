@@ -300,7 +300,6 @@ void main() {
     float texLuminosity = 0.0;
     float texFactor = texIntensity * 0.01;
     vec2 texCoord = gl_FragCoord.xy / resolution;
-    texCoord.y = 1.0 - texCoord.y; // Flip renderer-supplied textures to match screen orientation.
 
     if (texInfluence > 0) {
         vec3 texRGB = texture(tex, texCoord).rgb;
