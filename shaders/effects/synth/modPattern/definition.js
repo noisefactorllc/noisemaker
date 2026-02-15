@@ -19,8 +19,9 @@ export default new Effect({
 		shape3: { slot: 2, components: "z" },
 		scale3: { slot: 2, components: "w" },
 		repeat3: { slot: 3, components: "x" },
-		blend3: { slot: 3, components: "y" },
-		speed: { slot: 3, components: "z" }
+		blend: { slot: 3, components: "y" },
+		speed: { slot: 3, components: "z" },
+		smoothing: { slot: 3, components: "w" }
 	},
 
 	globals: {
@@ -36,8 +37,8 @@ export default new Effect({
 			},
 			uniform: "shape1",
 			ui: {
-
-			    label: "shape1",category: "layer 1",
+				label: "shape1",
+				category: "layer 1"
 			}
 		},
 		scale1: {
@@ -49,8 +50,8 @@ export default new Effect({
 			randMax: 18.0,
 			uniform: "scale1",
 			ui: {
-
-			    label: "scale1",category: "layer 1",
+				label: "scale1",
+				category: "layer 1"
 			}
 		},
 		repeat1: {
@@ -61,8 +62,8 @@ export default new Effect({
 			randMin: 3.0,
 			uniform: "repeat1",
 			ui: {
-
-			    label: "repeat1",category: "layer 1",
+				label: "repeat1",
+				category: "layer 1"
 			}
 		},
 		shape2: {
@@ -78,7 +79,7 @@ export default new Effect({
 			uniform: "shape2",
 			ui: {
 
-			    label: "shape2",category: "layer 2",
+				label: "shape2", category: "layer 2",
 			}
 		},
 		scale2: {
@@ -89,8 +90,8 @@ export default new Effect({
 			randMin: 5.0,
 			uniform: "scale2",
 			ui: {
-
-			    label: "scale2",category: "layer 2",
+				label: "scale2",
+				category: "layer 2"
 			}
 		},
 		repeat2: {
@@ -101,8 +102,8 @@ export default new Effect({
 			randMax: 8.0,
 			uniform: "repeat2",
 			ui: {
-
-			    label: "repeat2",category: "layer 2",
+				label: "repeat2",
+				category: "layer 2"
 			}
 		},
 		shape3: {
@@ -117,8 +118,8 @@ export default new Effect({
 			},
 			uniform: "shape3",
 			ui: {
-
-			    label: "shape3",category: "layer 3",
+				label: "shape3",
+				category: "layer 3"
 			}
 		},
 		scale3: {
@@ -129,8 +130,8 @@ export default new Effect({
 			randMax: 6.0,
 			uniform: "scale3",
 			ui: {
-
-			    label: "scale3",category: "layer 3",
+				label: "scale3",
+				category: "layer 3"
 			}
 		},
 		repeat3: {
@@ -141,11 +142,11 @@ export default new Effect({
 			randMax: 3.0,
 			uniform: "repeat3",
 			ui: {
-
-			    label: "repeat3",category: "layer 3",
+				label: "repeat3",
+				category: "layer 3"
 			}
 		},
-		blend3: {
+		blend: {
 			type: "int",
 			default: 0,
 			min: 0,
@@ -156,10 +157,21 @@ export default new Effect({
 				mix: 2,
 				rgb: 3
 			},
-			uniform: "blend3",
+			uniform: "blend",
 			ui: {
-				label: "blend mode",
-				category: "layer 3",
+				label: "blend mode"
+			}
+		},
+		smoothing: {
+			type: "float",
+			default: 0,
+			min: 0,
+			max: 3,
+			randMax: 2,
+			uniform: "smoothing",
+			ui: {
+				label: "smoothing",
+				enabledBy: { param: "blend", neq: 0 }
 			}
 		},
 		speed: {
@@ -171,8 +183,7 @@ export default new Effect({
 			zero: 0,
 			uniform: "speed",
 			ui: {
-
-			    label: "speed",category: "layer 3",
+				label: "speed"
 			}
 		}
 	},

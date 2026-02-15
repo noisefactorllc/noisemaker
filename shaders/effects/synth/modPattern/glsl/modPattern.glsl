@@ -12,7 +12,8 @@ uniform float repeat2;
 uniform int shape3;
 uniform float scale3;
 uniform float repeat3;
-uniform int blend3;
+uniform int blend;
+uniform float smoothing;
 uniform float speed;
 
 out vec4 fragColor;
@@ -31,6 +32,23 @@ float shape(int shapeIndex, vec2 p) {
 		v = abs(p.x - p.y);
 	}
 	return v;
+}
+
+float smoothFract(float x) {
+	float f = fract(x);
+	float edgeWidth = smoothing * 0.01;
+	if (f > 1.0 - edgeWidth) {
+		return smoothstep(0.0, edgeWidth, 1.0 - f);
+	}
+	return f;
+}
+
+vec2 smoothFract(vec2 v) {
+	return vec2(smoothFract(v.x), smoothFract(v.y));
+}
+
+vec3 smoothFract(vec3 v) {
+	return vec3(smoothFract(v.x), smoothFract(v.y), smoothFract(v.z));
 }
 
 void main() {
@@ -57,7 +75,7 @@ void main() {
 
 	// Multiply each pattern by different amounts (like 3 and 5) and add them together. 
 	// The fract() wraps values back to 0-1, creating interference patterns
-	float val = fract(n1 * repeat1 + n2 * repeat2);
+	float val = smoothFract(n1 * repeat1 + n2 * repeat2);
 	
 	// Repeat again with scale3 frequency, modifying the coordinates and creating another 
 	// shape/pattern
@@ -68,18 +86,18 @@ void main() {
 	// Multiply the last pattern times another scale and combine with the previous values.
 	// Add pingpong time to animate in a smooth loop
 	vec3 color;
-	if (blend3 < 1) {
+	if (blend < 1) {
 		// add
 		color = vec3(fract(val + n3 * repeat3 + pingpong));
-	} else if (blend3 < 2) {
+	} else if (blend < 2) {
 		// max
-		color = vec3(max(val, fract(n3 * repeat3 + pingpong)));
-	} else if (blend3 < 3) { 
+		color = vec3(max(val, smoothFract(n3 * repeat3 + pingpong)));
+	} else if (blend < 3) { 
 		// mix
-		color = vec3(mix(val, fract(n3 * repeat3 + pingpong), 0.5));
+		color = vec3(mix(val, smoothFract(n3 * repeat3 + pingpong), 0.5));
 	} else {
 		// rgb
-		color = fract(vec3(n1 * repeat1, n2 * repeat2, n3 * repeat3 + pingpong));
+		color = smoothFract(vec3(n1 * repeat1, n2 * repeat2, n3 * repeat3 + pingpong));
 	}
 
 	fragColor = vec4(color, 1.0);

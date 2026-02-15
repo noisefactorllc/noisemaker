@@ -4,7 +4,7 @@ struct Uniforms {
     // Slot 0: resolution.xy, time, aspect
     // Slot 1: shape1, scale1, repeat1, shape2
     // Slot 2: scale2, repeat2, shape3, scale3
-    // Slot 3: repeat3, blend3, speed, (unused)
+    // Slot 3: repeat3, blend, speed, smoothing
     data: array<vec4<f32>, 4>,
 };
 
@@ -36,6 +36,24 @@ fn shape(shapeIndex: i32, p: vec2<f32>) -> f32 {
 	return v;
 }
 
+fn smoothFract(x: f32) -> f32 {
+	let smoothing = i32(uniforms.data[3].w);
+	let f = fract(x);
+	let edgeWidth = f32(smoothing) * 0.01;
+	if (f > 1.0 - edgeWidth) {
+		return smoothstep(0.0, edgeWidth, 1.0 - f);
+	}
+	return f;
+}
+
+fn smoothFract2(v: vec2<f32>) -> vec2<f32>  {
+	return vec2<f32>(smoothFract(v.x), smoothFract(v.y));
+}
+
+fn smoothFract3(v: vec3<f32>) -> vec3<f32> {
+	return vec3<f32>(smoothFract(v.x), smoothFract(v.y), smoothFract(v.z));
+}
+
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 	// Unpack uniforms
@@ -53,8 +71,9 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 	let scale3 = uniforms.data[2].w;
 	
 	let repeat3 = uniforms.data[3].x;
-	let blend3 = i32(uniforms.data[3].y);
+	let blend = i32(uniforms.data[3].y);
 	let speed = i32(uniforms.data[3].z);
+	let smoothing = i32(uniforms.data[3].w);
 
 	var res = resolution;
 	if (res.x < 1.0) { res = vec2<f32>(1024.0, 1024.0); }
@@ -83,7 +102,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
 	// Multiply each pattern by different amounts (like 3 and 5) and add them together. 
 	// The fract() wraps values back to 0-1, creating interference patterns
-	var val = fract(n1 * repeat1 + n2 * repeat2);
+	var val = smoothFract(n1 * repeat1 + n2 * repeat2);
 	
 	// Repeat again with scale3 frequency, modifying the coordinates and creating another 
 	// shape/pattern
@@ -94,18 +113,18 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 	// Multiply the last pattern times another scale and combine with the previous values.
 	// Add pingpong time to animate in a smooth loop
 	var color: vec3<f32>;
-	if (blend3 < 1) {
+	if (blend < 1) {
 		// add
 		color = vec3<f32>(fract(val + n3 * repeat3 + pingpong));
-	} else if (blend3 < 2) {
+	} else if (blend < 2) {
 		// max
-		color = vec3<f32>(max(val, fract(n3 * repeat3 + pingpong)));
-	} else if (blend3 < 3) { 
+		color = vec3<f32>(max(val, smoothFract(n3 * repeat3 + pingpong)));
+	} else if (blend < 3) { 
 		// mix
-		color = vec3<f32>(mix(val, fract(n3 * repeat3 + pingpong), 0.5));
+		color = vec3<f32>(mix(val, smoothFract(n3 * repeat3 + pingpong), 0.5));
 	} else {
 		// rgb
-		color = fract(vec3<f32>(n1 * repeat1, n2 * repeat2, n3 * repeat3 + pingpong));
+		color = smoothFract3(vec3<f32>(n1 * repeat1, n2 * repeat2, n3 * repeat3 + pingpong));
 	}
 
 	return vec4<f32>(color, 1.0);
