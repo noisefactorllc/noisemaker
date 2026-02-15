@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+"""
+Pull shade-mcp from GitHub, build, and copy dist to vendor directory.
+"""
+import os
+import shutil
+import subprocess
+import tempfile
+import sys
+
+REPO_URL = "https://github.com/noisedeck/shade-mcp.git"
+VENDOR_DIR = "vendor/shade-mcp"
+
+def get_authenticated_url(url):
+    """Inject GitHub token into URL if present in environment."""
+    token = os.environ.get("GITHUB_TOKEN")
+    if token and url.startswith("https://github.com/"):
+        return url.replace("https://github.com/", f"https://x-access-token:{token}@github.com/")
+    return url
+
+def main():
+    with tempfile.TemporaryDirectory() as tmpdir:
+        print(f"Cloning shade-mcp into {tmpdir}...")
+
+        target_sha = os.environ.get("SHADE_MCP_SHA")
+        auth_url = get_authenticated_url(REPO_URL)
+
+        if target_sha:
+            print(f"Fetching specific commit: {target_sha}")
+            os.makedirs(tmpdir, exist_ok=True)
+            subprocess.run(["git", "init"], cwd=tmpdir, check=True)
+            subprocess.run(["git", "remote", "add", "origin", auth_url], cwd=tmpdir, check=True)
+            subprocess.run(["git", "fetch", "--depth=1", "origin", target_sha], cwd=tmpdir, check=True)
+            subprocess.run(["git", "checkout", "FETCH_HEAD"], cwd=tmpdir, check=True)
+        else:
+            subprocess.run(
+                ["git", "clone", "--depth=1", auth_url, tmpdir],
+                check=True
+            )
+
+        print("Installing dependencies...")
+        subprocess.run(
+            ["npm", "install"],
+            cwd=tmpdir,
+            check=True
+        )
+
+        print("Building shade-mcp...")
+        subprocess.run(
+            ["npm", "run", "build"],
+            cwd=tmpdir,
+            check=True
+        )
+
+        print(f"Copying dist to {VENDOR_DIR}...")
+
+        if os.path.exists(VENDOR_DIR):
+            shutil.rmtree(VENDOR_DIR)
+        os.makedirs(VENDOR_DIR, exist_ok=True)
+
+        dist_dir = os.path.join(tmpdir, "dist")
+
+        # Copy self-contained entry points (no shared chunks)
+        for subdir in ["harness", "ai", "formats", "analysis"]:
+            src = os.path.join(dist_dir, subdir)
+            if os.path.exists(src):
+                shutil.copytree(src, os.path.join(VENDOR_DIR, subdir))
+                print(f"  ✓ {subdir}/")
+
+    print("Done!")
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())

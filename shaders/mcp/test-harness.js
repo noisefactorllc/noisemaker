@@ -72,10 +72,20 @@ import {
     BrowserSession,
     compileEffect, renderEffectFrame, benchmarkEffectFPS,
     testNoPassthrough, testPixelParity, testUniformResponsiveness,
-    checkEffectStructure, checkAlgEquiv, analyzeBranching,
+    checkEffectStructure,
     matchEffects,
-} from 'shade-mcp/harness'
-import { getAIProvider } from 'shade-mcp/ai'
+} from '../../vendor/shade-mcp/harness/index.js'
+// AI-dependent imports are loaded dynamically to avoid requiring @anthropic-ai/sdk at module level
+let getAIProvider, checkAlgEquiv, analyzeBranching
+async function loadAIDeps() {
+    if (!getAIProvider) {
+        const ai = await import('../../vendor/shade-mcp/ai/provider.js')
+        const analysis = await import('../../vendor/shade-mcp/analysis/index.js')
+        getAIProvider = ai.getAIProvider
+        checkAlgEquiv = analysis.checkAlgEquiv
+        analyzeBranching = analysis.analyzeBranching
+    }
+}
 
 // Noisemaker-specific window globals (different from shade-mcp defaults)
 const NOISEMAKER_GLOBALS = {
@@ -451,6 +461,7 @@ async function testEffect(session, effectId, options) {
 
     // Algorithmic equivalence test (uses filesystem + AI)
     if (options.runAlgEquiv) {
+        await loadAIDeps()
         if (!options.withAi) {
             console.log(`  ⊘ alg-equiv: skipped (--with-ai not specified)`)
         } else if (!getAIProvider({ projectRoot: PROJECT_ROOT })) {
@@ -488,6 +499,7 @@ async function testEffect(session, effectId, options) {
 
     // Branching analysis (uses filesystem + AI)
     if (options.runBranching) {
+        await loadAIDeps()
         if (!options.withAi) {
             console.log(`  ⊘ branching: skipped (--with-ai not specified)`)
         } else if (!getAIProvider({ projectRoot: PROJECT_ROOT })) {
