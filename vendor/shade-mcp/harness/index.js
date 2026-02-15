@@ -5030,7 +5030,7 @@ async function testUniformResponsiveness(session, effectId) {
 
 // src/tools/analysis/structure.ts
 import { readdirSync as readdirSync2, existsSync as existsSync4 } from "fs";
-import { join as join4, basename as basename3 } from "path";
+import { join as join4 } from "path";
 
 // src/formats/index.ts
 import { existsSync as existsSync3, readFileSync as readFileSync2 } from "fs";
@@ -5079,12 +5079,12 @@ function parseDefinitionJson(json, effectDir) {
 import { readFileSync } from "fs";
 function parseDefinitionJs(filePath, effectDir) {
   const source = readFileSync(filePath, "utf-8");
-  const func = extractString(source, /func:\s*['"](\w+)['"]/) || "unknown";
-  const name = extractString(source, /name:\s*['"]([^'"]+)['"]/);
-  const namespace = extractString(source, /namespace:\s*['"](\w+)['"]/);
-  const description = extractString(source, /description:\s*['"]([^'"]+)['"]/);
-  const starter = /starter:\s*true/.test(source) ? true : void 0;
-  const tagsMatch = source.match(/tags:\s*\[([^\]]+)\]/);
+  const func = extractString(source, /func\s*[:=]\s*['"](\w+)['"]/) || "unknown";
+  const name = extractString(source, /name\s*[:=]\s*['"]([^'"]+)['"]/);
+  const namespace = extractString(source, /namespace\s*[:=]\s*['"](\w+)['"]/);
+  const description = extractString(source, /description\s*[:=]\s*['"]([^'"]+)['"]/);
+  const starter = /starter\s*[:=]\s*true/.test(source) ? true : void 0;
+  const tagsMatch = source.match(/tags\s*[:=]\s*\[([^\]]+)\]/);
   const tags = tagsMatch ? tagsMatch[1].split(",").map((t) => t.trim().replace(/['"]/g, "")).filter(Boolean) : void 0;
   const passes = [];
   const passRegex = /program:\s*['"](\w+)['"]/g;
@@ -5096,7 +5096,7 @@ function parseDefinitionJs(filePath, effectDir) {
     passes.push({ program: "main" });
   }
   const globals = {};
-  const globalsMatch = source.match(/globals:\s*\{([\s\S]*?)\n\s*\}/);
+  const globalsMatch = source.match(/globals\s*[:=]\s*\{([\s\S]*?)\n\s*\}/);
   if (globalsMatch) {
     const uniformRegex = /(\w+):\s*(\{[^}]*\})/g;
     let uMatch;
@@ -5203,23 +5203,26 @@ async function checkEffectStructure(effectId) {
   }
   const glslDir = join4(effectDir, "glsl");
   const wgslDir = join4(effectDir, "wgsl");
-  const glslFiles = existsSync4(glslDir) ? readdirSync2(glslDir).filter((f) => f.endsWith(".glsl")) : [];
+  const glslFiles = existsSync4(glslDir) ? readdirSync2(glslDir).filter(
+    (f) => f.endsWith(".glsl") || f.endsWith(".frag") || f.endsWith(".vert")
+  ) : [];
   const wgslFiles = existsSync4(wgslDir) ? readdirSync2(wgslDir).filter((f) => f.endsWith(".wgsl")) : [];
+  function programName(filename) {
+    return filename.replace(/\.(glsl|frag|vert|wgsl)$/, "");
+  }
   const referencedPrograms = new Set(def.passes.map((p) => p.program));
   for (const f of glslFiles) {
-    const name = basename3(f, ".glsl");
-    if (!referencedPrograms.has(name)) {
+    if (!referencedPrograms.has(programName(f))) {
       issues.unusedFiles.push(`glsl/${f}`);
     }
   }
   for (const f of wgslFiles) {
-    const name = basename3(f, ".wgsl");
-    if (!referencedPrograms.has(name)) {
+    if (!referencedPrograms.has(programName(f))) {
       issues.unusedFiles.push(`wgsl/${f}`);
     }
   }
-  const glslPrograms = new Set(glslFiles.map((f) => basename3(f, ".glsl")));
-  const wgslPrograms = new Set(wgslFiles.map((f) => basename3(f, ".wgsl")));
+  const glslPrograms = new Set(glslFiles.map((f) => programName(f)));
+  const wgslPrograms = new Set(wgslFiles.map((f) => programName(f)));
   for (const p of glslPrograms) {
     if (!wgslPrograms.has(p)) {
       issues.structuralParityIssues.push({ type: "missing_wgsl", program: p, message: `GLSL program "${p}" has no WGSL counterpart` });
