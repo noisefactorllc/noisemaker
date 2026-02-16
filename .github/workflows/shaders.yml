@@ -163,11 +163,9 @@ jobs:
           CACHE="public, max-age=31536000, immutable"
         fi
         aws s3 sync dist/shaders/ "s3://noisedeck-shaders/${VERSION}/" \
-          --cache-control "$CACHE" \
-          --delete
+          --cache-control "$CACHE"
         aws s3 sync dist/effects/ "s3://noisedeck-shaders/${VERSION}/effects/" \
-          --cache-control "$CACHE" \
-          --delete
+          --cache-control "$CACHE"
 
     - name: Invalidate CloudFront
       run: |
