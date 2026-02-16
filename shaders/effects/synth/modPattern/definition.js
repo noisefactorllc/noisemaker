@@ -169,6 +169,7 @@ export default new Effect({
 			max: 3,
 			randMax: 2,
 			uniform: "smoothing",
+			randChance: 0,
 			ui: {
 				label: "smoothing",
 				enabledBy: { param: "blend", neq: 0 }
