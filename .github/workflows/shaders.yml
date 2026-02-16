@@ -118,3 +118,57 @@ jobs:
         rsync -avz --delete \
           dist/site/ \
           deploy@${{ secrets.SCAFFOLD_SERVER_IP }}:~/sites/noisemaker.app/content/
+
+  deploy-cdn:
+    name: Deploy to CDN
+    runs-on: ubuntu-latest
+    needs: bundle
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --include=dev
+
+    - name: Build shader bundles
+      run: npm run bundle:shaders
+
+    - name: Resolve project version
+      id: version
+      run: |
+        VERSION=$(node -e "const fs=require('fs'); const match=fs.readFileSync('pyproject.toml','utf8').match(/^version\s*=\s*\"([^\"]+)\"/m); if(!match){process.exit(1);} console.log(match[1]);")
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+
+    - name: Sync shaders to S3
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        MAJOR=$(echo "$VERSION" | cut -d. -f1)
+        if [ "$MAJOR" = "0" ]; then
+          CACHE="public, max-age=300"
+        else
+          CACHE="public, max-age=31536000, immutable"
+        fi
+        aws s3 sync dist/shaders/ "s3://noisedeck-shaders/${VERSION}/" \
+          --cache-control "$CACHE" \
+          --delete
+
+    - name: Invalidate CloudFront
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        aws cloudfront create-invalidation \
+          --distribution-id ${{ secrets.SHADERS_CF_DISTRIBUTION_ID }} \
+          --paths "/${VERSION}/*"
