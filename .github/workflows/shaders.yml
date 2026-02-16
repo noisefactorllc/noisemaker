@@ -11,6 +11,8 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/shaders.yml'
+    tags:
+      - 'shaders-v*'
   pull_request:
     branches: [ main ]
     paths:
@@ -123,7 +125,7 @@ jobs:
     name: Deploy to CDN
     runs-on: ubuntu-latest
     needs: bundle
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push'
 
     steps:
     - uses: actions/checkout@v4
@@ -144,9 +146,29 @@ jobs:
       id: version
       run: |
         VERSION=$(node -e "const fs=require('fs'); const match=fs.readFileSync('pyproject.toml','utf8').match(/^version\s*=\s*\"([^\"]+)\"/m); if(!match){process.exit(1);} console.log(match[1]);")
+        MAJOR=$(echo "$VERSION" | cut -d. -f1)
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
+
+    - name: Check deploy eligibility
+      id: check
+      run: |
+        # Pre-1.0: deploy on every push to main (mutable CDN paths)
+        # Post-1.0: deploy only on tagged releases (immutable CDN paths)
+        MAJOR=${{ steps.version.outputs.major }}
+        if [ "$MAJOR" = "0" ]; then
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
+          echo "cache=public, max-age=300" >> "$GITHUB_OUTPUT"
+        elif [[ "$GITHUB_REF" == refs/tags/shaders-v* ]]; then
+          echo "deploy=true" >> "$GITHUB_OUTPUT"
+          echo "cache=public, max-age=31536000, immutable" >> "$GITHUB_OUTPUT"
+        else
+          echo "deploy=false" >> "$GITHUB_OUTPUT"
+          echo "Skipping CDN deploy: post-1.0 requires a shaders-v* tag"
+        fi
 
     - name: Configure AWS credentials
+      if: steps.check.outputs.deploy == 'true'
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -154,20 +176,16 @@ jobs:
         aws-region: us-east-1
 
     - name: Sync shaders to S3
+      if: steps.check.outputs.deploy == 'true'
       run: |
         VERSION=${{ steps.version.outputs.version }}
-        MAJOR=$(echo "$VERSION" | cut -d. -f1)
-        if [ "$MAJOR" = "0" ]; then
-          CACHE="public, max-age=300"
-        else
-          CACHE="public, max-age=31536000, immutable"
-        fi
         aws s3 sync dist/shaders/ "s3://noisedeck-shaders/${VERSION}/" \
-          --cache-control "$CACHE"
+          --cache-control "${{ steps.check.outputs.cache }}"
         aws s3 sync dist/effects/ "s3://noisedeck-shaders/${VERSION}/effects/" \
-          --cache-control "$CACHE"
+          --cache-control "${{ steps.check.outputs.cache }}"
 
     - name: Invalidate CloudFront
+      if: steps.check.outputs.deploy == 'true'
       run: |
         VERSION=${{ steps.version.outputs.version }}
         aws cloudfront create-invalidation \
