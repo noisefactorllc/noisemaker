@@ -165,6 +165,9 @@ jobs:
         aws s3 sync dist/shaders/ "s3://noisedeck-shaders/${VERSION}/" \
           --cache-control "$CACHE" \
           --delete
+        aws s3 sync dist/effects/ "s3://noisedeck-shaders/${VERSION}/effects/" \
+          --cache-control "$CACHE" \
+          --delete
 
     - name: Invalidate CloudFront
       run: |
