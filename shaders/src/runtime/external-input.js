@@ -421,6 +421,7 @@ export class AudioInputManager {
 
             // Create FFT buffer
             this._fftData = new Uint8Array(this._analyser.frequencyBinCount)
+            this._timeDomainData = new Uint8Array(this._analyser.fftSize)
 
             // Set up audio state
             this._audioState = this._renderer.setAudioState()
@@ -466,6 +467,7 @@ export class AudioInputManager {
 
         this._analyser = null
         this._fftData = null
+        this._timeDomainData = null
         this._enabled = false
 
         // Reset audio state values
@@ -524,6 +526,10 @@ export class AudioInputManager {
 
         // Get frequency data
         this._analyser.getByteFrequencyData(this._fftData)
+
+        // Get time-domain waveform data
+        this._analyser.getByteTimeDomainData(this._timeDomainData)
+        this._audioState.setWaveform(this._timeDomainData)
 
         // Sample frequency bands (similar to noisedeck-pro)
         // Low: bins 0-3 (~0-200Hz at 44.1kHz)
