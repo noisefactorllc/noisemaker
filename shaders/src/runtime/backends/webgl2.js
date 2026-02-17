@@ -761,6 +761,12 @@ export class WebGL2Backend extends Backend {
                 type: info.type,
                 size: info.size
             }
+
+            // For array uniforms (e.g., "audioWaveform[0]"), also register without the [0] suffix
+            if (info.name.endsWith('[0]')) {
+                const baseName = info.name.slice(0, -3)
+                uniforms[baseName] = uniforms[info.name]
+            }
         }
 
         return uniforms
@@ -1204,7 +1210,11 @@ export class WebGL2Backend extends Backend {
         const loc = uniform.location
         switch (uniform.type) {
             case gl.FLOAT:
-                gl.uniform1f(loc, value)
+                if (value instanceof Float32Array || Array.isArray(value)) {
+                    gl.uniform1fv(loc, value)
+                } else {
+                    gl.uniform1f(loc, value)
+                }
                 break
             case gl.INT:
             case gl.BOOL:
