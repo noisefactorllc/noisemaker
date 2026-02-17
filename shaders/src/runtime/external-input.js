@@ -128,6 +128,9 @@ export class AudioState {
         this.vol = 0
         /** @type {Float32Array} Raw FFT bins (16 bins, normalized 0-1) */
         this.fft = new Float32Array(16)
+        /** @type {Float32Array} Time-domain waveform samples (128 samples, normalized 0-1, 0.5 = silence) */
+        this.waveform = new Float32Array(128)
+        this.waveform.fill(0.5)
 
         // Internal buffer for smoothing
         this._smoothingBuffers = {
@@ -191,6 +194,17 @@ export class AudioState {
     }
 
     /**
+     * Set waveform data from raw time-domain bytes.
+     * @param {Uint8Array} timeDomainData - Raw bytes from AnalyserNode.getByteTimeDomainData() (0-255, 128 = silence)
+     */
+    setWaveform(timeDomainData) {
+        const len = Math.min(timeDomainData.length, 128)
+        for (let i = 0; i < len; i++) {
+            this.waveform[i] = timeDomainData[i] / 255
+        }
+    }
+
+    /**
      * Apply smoothing to a value using a rolling buffer.
      * @private
      */
@@ -212,6 +226,7 @@ export class AudioState {
         this.high = 0
         this.vol = 0
         this.fft.fill(0)
+        this.waveform.fill(0.5)
         this._smoothingBuffers.low = []
         this._smoothingBuffers.mid = []
         this._smoothingBuffers.high = []

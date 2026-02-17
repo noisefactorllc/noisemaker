@@ -234,6 +234,40 @@ test('AudioState smoothing accumulates over multiple updates', () => {
 })
 
 // ============================================================================
+// AudioState Waveform Tests
+// ============================================================================
+
+console.log('\n=== AudioState Waveform Tests ===\n')
+
+test('AudioState initializes waveform as 128-element Float32Array', () => {
+    const audio = new AudioState()
+    assert(audio.waveform instanceof Float32Array, 'waveform should be Float32Array')
+    assertEqual(audio.waveform.length, 128, 'waveform should have 128 elements')
+    assertApprox(audio.waveform[0], 0.5, 0.01, 'waveform should default to 0.5 (silence)')
+})
+
+test('AudioState.setWaveform populates waveform from Uint8Array', () => {
+    const audio = new AudioState()
+    const raw = new Uint8Array(128)
+    for (let i = 0; i < 64; i++) raw[i] = 255
+    for (let i = 64; i < 128; i++) raw[i] = 0
+    audio.setWaveform(raw)
+    assertApprox(audio.waveform[0], 1.0, 0.01, 'first sample should be 1.0')
+    assertApprox(audio.waveform[63], 1.0, 0.01, 'sample 63 should be 1.0')
+    assertApprox(audio.waveform[64], 0.0, 0.01, 'sample 64 should be 0.0')
+    assertApprox(audio.waveform[127], 0.0, 0.01, 'last sample should be 0.0')
+})
+
+test('AudioState.reset clears waveform to silence', () => {
+    const audio = new AudioState()
+    const raw = new Uint8Array(128)
+    raw.fill(255)
+    audio.setWaveform(raw)
+    audio.reset()
+    assertApprox(audio.waveform[0], 0.5, 0.01, 'waveform should reset to 0.5')
+})
+
+// ============================================================================
 // Summary
 // ============================================================================
 
