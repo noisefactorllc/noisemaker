@@ -22,13 +22,13 @@ void main() {
     // Linearly interpolate between adjacent samples
     float s0 = audioWaveform[i0];
     float s1 = audioWaveform[i1];
-    float sample = mix(s0, s1, fract_i);
+    float wval = mix(s0, s1, fract_i);
 
     // Apply gain around center (0.5 = silence)
-    sample = 0.5 + (sample - 0.5) * gain;
+    wval = 0.5 + (wval - 0.5) * gain;
 
     // Distance from fragment to waveform line, in pixels
-    float dist = abs(uv.y - sample) * resolution.y;
+    float dist = abs(uv.y - wval) * resolution.y;
 
     // Anti-aliased line
     float line = smoothstep(lineThickness + 1.0, lineThickness, dist);
