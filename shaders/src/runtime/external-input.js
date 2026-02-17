@@ -128,6 +128,8 @@ export class AudioState {
         this.vol = 0
         /** @type {Float32Array} Raw FFT bins (16 bins, normalized 0-1) */
         this.fft = new Float32Array(16)
+        /** @type {Float32Array} Full-resolution FFT spectrum (128 bins, normalized 0-1) */
+        this.spectrum = new Float32Array(128)
         /** @type {Float32Array} Time-domain waveform samples (128 samples, normalized 0-1, 0.5 = silence) */
         this.waveform = new Float32Array(128)
         this.waveform.fill(0.5)
@@ -194,6 +196,17 @@ export class AudioState {
     }
 
     /**
+     * Set spectrum data from raw FFT frequency bytes.
+     * @param {Uint8Array} frequencyData - Raw bytes from AnalyserNode.getByteFrequencyData() (0-255)
+     */
+    setSpectrum(frequencyData) {
+        const len = Math.min(frequencyData.length, 128)
+        for (let i = 0; i < len; i++) {
+            this.spectrum[i] = frequencyData[i] / 255
+        }
+    }
+
+    /**
      * Set waveform data from raw time-domain bytes.
      * @param {Uint8Array} timeDomainData - Raw bytes from AnalyserNode.getByteTimeDomainData() (0-255, 128 = silence)
      */
@@ -226,6 +239,7 @@ export class AudioState {
         this.high = 0
         this.vol = 0
         this.fft.fill(0)
+        this.spectrum.fill(0)
         this.waveform.fill(0.5)
         this._smoothingBuffers.low = []
         this._smoothingBuffers.mid = []
@@ -476,6 +490,7 @@ export class AudioInputManager {
             this._audioState.mid = 0
             this._audioState.high = 0
             this._audioState.vol = 0
+            this._audioState.spectrum.fill(0)
             this._audioState.waveform.fill(0.5)
         }
 
@@ -527,6 +542,7 @@ export class AudioInputManager {
 
         // Get frequency data
         this._analyser.getByteFrequencyData(this._fftData)
+        this._audioState.setSpectrum(this._fftData)
 
         // Get time-domain waveform data
         this._analyser.getByteTimeDomainData(this._timeDomainData)
