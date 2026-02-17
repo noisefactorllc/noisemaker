@@ -476,6 +476,7 @@ export class AudioInputManager {
             this._audioState.mid = 0
             this._audioState.high = 0
             this._audioState.vol = 0
+            this._audioState.waveform.fill(0.5)
         }
 
         this._notifyStatus('Audio input disabled')
