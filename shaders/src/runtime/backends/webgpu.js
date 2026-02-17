@@ -144,10 +144,6 @@ export class WebGPUBackend extends Backend {
             maxStateSize: isMobile ? 512 : 2048
         }
 
-        if (isMobile) {
-            console.info(`[WebGPU] Mobile device detected - limiting stateSize to ${this.capabilities.maxStateSize}`)
-        }
-
         // Create default sampler (linear filtering)
         this.samplers.set('default', this.device.createSampler({
             minFilter: 'linear',

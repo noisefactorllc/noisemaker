@@ -105,10 +105,6 @@ export class WebGL2Backend extends Backend {
             maxStateSize: isMobile ? 512 : 2048
         }
 
-        if (isMobile) {
-            console.info(`[WebGL2] Mobile device detected - limiting stateSize to ${this.capabilities.maxStateSize}`)
-        }
-
         // Create full-screen quad VAO
         this.fullscreenVAO = this.createFullscreenVAO()
         this.emptyVAO = gl.createVertexArray()
