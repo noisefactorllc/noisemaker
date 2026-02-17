@@ -75,7 +75,12 @@ void main() {
 
 	// Multiply each pattern by different amounts (like 3 and 5) and add them together. 
 	// The fract() wraps values back to 0-1, creating interference patterns
-	float val = smoothFract(n1 * repeat1 + n2 * repeat2);
+	float val = 0.0;
+	if (blend < 1) {
+		val = fract(n1 * repeat1 + n2 * repeat2);
+	} else {
+		val = smoothFract(n1 * repeat1 + n2 * repeat2);
+	}
 	
 	// Repeat again with scale3 frequency, modifying the coordinates and creating another 
 	// shape/pattern
@@ -88,7 +93,7 @@ void main() {
 	vec3 color;
 	if (blend < 1) {
 		// add
-		color = vec3(fract(val + n3 * repeat3 + pingpong));
+		color = smoothFract(vec3(fract(val + n3 * repeat3 + pingpong)));
 	} else if (blend < 2) {
 		// max
 		color = vec3(max(val, smoothFract(n3 * repeat3 + pingpong)));
