@@ -50,6 +50,10 @@ export const TAG_DEFINITIONS = Object.freeze({
     '3d': {
         id: '3d',
         description: '3D volumetric effects'
+    },
+    audio: {
+        id: 'audio',
+        description: 'Audio-reactive effects'
     }
 })
 
