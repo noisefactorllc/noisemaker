@@ -1151,6 +1151,11 @@ export class Pipeline {
         }
         g.aspect = aspectValue
         g.aspectRatio = aspectValue // Alias for shaders expecting this name
+
+        // Audio waveform data (128 float array, 0-1, 0.5 = silence)
+        if (this.externalState.audio?.waveform) {
+            g.audioWaveform = this.externalState.audio.waveform
+        }
     }
 
     /**
