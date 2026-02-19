@@ -152,12 +152,11 @@ export default new Effect({
 
     // === Frequency ===
     freqR: {
-      type: "float",
-      default: 1.0,
+      type: "int",
+      default: 1,
       uniform: "tetraCosineFreqR",
       min: 0,
       max: 4,
-      step: 0.1,
       ui: {
         label: "freq r",
         control: "slider",
@@ -165,12 +164,11 @@ export default new Effect({
       }
     },
     freqG: {
-      type: "float",
-      default: 1.0,
+      type: "int",
+      default: 1,
       uniform: "tetraCosineFreqG",
       min: 0,
       max: 4,
-      step: 0.1,
       ui: {
         label: "freq g",
         control: "slider",
@@ -178,12 +176,11 @@ export default new Effect({
       }
     },
     freqB: {
-      type: "float",
-      default: 1.0,
+      type: "int",
+      default: 1,
       uniform: "tetraCosineFreqB",
       min: 0,
       max: 4,
-      step: 0.1,
       ui: {
         label: "freq b",
         control: "slider",
