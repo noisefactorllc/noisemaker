@@ -56,7 +56,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     // Apply source region transforms (before fold — fold handles any input range)
     // mirrorXY needs half the range so edges match at default scale
     var effectiveScale = scale;
-    if (symmetry == 0) { effectiveScale = scale * 2.0; }
+    if (symmetry == 0) { effectiveScale = scale * 0.5; }
     st = (st - 0.5) / effectiveScale;
     st = st + 0.5 + vec2<f32>(offsetX, offsetY);
 

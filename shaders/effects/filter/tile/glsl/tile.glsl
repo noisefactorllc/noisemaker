@@ -70,7 +70,7 @@ void main() {
 
     // Apply source region transforms (before fold — fold handles any input range)
     // mirrorXY needs half the range so edges match at default scale
-    float effectiveScale = symmetry == 0 ? scale * 2.0 : scale;
+    float effectiveScale = symmetry == 0 ? scale * 0.5 : scale;
     st = (st - 0.5) / effectiveScale;
     st += 0.5 + vec2(offsetX, offsetY);
 
