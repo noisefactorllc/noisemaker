@@ -53,25 +53,25 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     // Apply tiling repetition
     st = fract2(st * repeatCount);
 
-    // Apply symmetry fold (must happen before source transforms to preserve seamlessness)
+    // Apply source region transforms (before fold — fold handles any input range)
+    st = (st - 0.5) / scale;
+    st = st + 0.5 + vec2<f32>(offsetX, offsetY);
+
+    // Apply symmetry fold
     if (symmetry == 0) {
         // mirrorXY
         st.x = mirrorFold(st.x);
         st.y = mirrorFold(st.y);
     } else if (symmetry == 1) {
         // rotate2
-        st = rotationalFold(st, 2);
+        st = rotationalFold(fract2(st), 2);
     } else if (symmetry == 2) {
         // rotate4
-        st = rotationalFold(st, 4);
+        st = rotationalFold(fract2(st), 4);
     } else {
         // rotate6
-        st = rotationalFold(st, 6);
+        st = rotationalFold(fract2(st), 6);
     }
-
-    // Apply source region transforms (after fold, so edges still match)
-    st = (st - 0.5) / scale;
-    st = st + 0.5 + vec2<f32>(offsetX, offsetY);
 
     // Clamp to valid texture range
     st = clamp(st, vec2<f32>(0.0), vec2<f32>(1.0));

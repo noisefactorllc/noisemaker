@@ -68,25 +68,25 @@ void main() {
     st = st * repeatCount;
     st = fract(st);
 
-    // Apply symmetry fold (must happen before source transforms to preserve seamlessness)
+    // Apply source region transforms (before fold — fold handles any input range)
+    st = (st - 0.5) / scale;
+    st += 0.5 + vec2(offsetX, offsetY);
+
+    // Apply symmetry fold
     if (symmetry == 0) {
         // mirrorXY
         st.x = mirrorFold(st.x);
         st.y = mirrorFold(st.y);
     } else if (symmetry == 1) {
         // rotate2
-        st = rotationalFold(st, 2);
+        st = rotationalFold(fract(st), 2);
     } else if (symmetry == 2) {
         // rotate4
-        st = rotationalFold(st, 4);
+        st = rotationalFold(fract(st), 4);
     } else {
         // rotate6
-        st = rotationalFold(st, 6);
+        st = rotationalFold(fract(st), 6);
     }
-
-    // Apply source region transforms (after fold, so edges still match)
-    st = (st - 0.5) / scale;
-    st += 0.5 + vec2(offsetX, offsetY);
 
     // Clamp to valid texture range
     st = clamp(st, 0.0, 1.0);
