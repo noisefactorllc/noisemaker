@@ -29,6 +29,7 @@ export default new Effect({
       max: 4.0,
       step: 0.05,
       uniform: "scale",
+      randChance: 0,
       ui: {
         label: "scale",
         control: "slider"
@@ -64,6 +65,7 @@ export default new Effect({
       min: 0.0,
       max: 360.0,
       step: 1.0,
+      randChance: 0,
       uniform: "angle",
       ui: {
         label: "angle",
