@@ -45,8 +45,8 @@ vec2 rotationalFold(vec2 uv, int n) {
     float a = atan(p.y, p.x);
     float r = length(p);
 
-    // Fold angle into first sector
-    a = mod(a + TAU, sectorAngle);
+    // Normalize to [0, TAU] then fold into first sector
+    a = mod(mod(a + TAU, TAU), sectorAngle);
 
     // Mirror within sector for seamless edges
     if (a > sectorAngle * 0.5) {

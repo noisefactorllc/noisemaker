@@ -34,7 +34,7 @@ fn rotationalFold(uv: vec2<f32>, n: i32) -> vec2<f32> {
     var a = atan2(p.y, p.x);
     let r = length(p);
 
-    a = (a + TAU) % sectorAngle;
+    a = ((a + TAU) % TAU) % sectorAngle;
     if (a > sectorAngle * 0.5) {
         a = sectorAngle - a;
     }
