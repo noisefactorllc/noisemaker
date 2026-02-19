@@ -4,7 +4,7 @@ export default new Effect({
   name: "Tile",
   namespace: "filter",
   func: "tile",
-  tags: ["transform"],
+  tags: ["tiling", "transform"],
   description: "Symmetry-based kaleidoscope tiler",
   globals: {
     symmetry: {

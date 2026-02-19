@@ -4,7 +4,7 @@ export default new Effect({
   name: "Seamless",
   namespace: "filter",
   func: "seamless",
-  tags: ["transform"],
+  tags: ["tiling", "transform"],
   description: "Edge-blend cross-fade for seamless tiling",
   globals: {
     blend: {
