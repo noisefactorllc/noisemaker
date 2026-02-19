@@ -69,7 +69,9 @@ void main() {
     st = fract(st);
 
     // Apply source region transforms (before fold — fold handles any input range)
-    st = (st - 0.5) / scale;
+    // mirrorXY needs half the range so edges match at default scale
+    float effectiveScale = symmetry == 0 ? scale * 2.0 : scale;
+    st = (st - 0.5) / effectiveScale;
     st += 0.5 + vec2(offsetX, offsetY);
 
     // Apply symmetry fold

@@ -54,7 +54,10 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     st = fract2(st * repeatCount);
 
     // Apply source region transforms (before fold — fold handles any input range)
-    st = (st - 0.5) / scale;
+    // mirrorXY needs half the range so edges match at default scale
+    var effectiveScale = scale;
+    if (symmetry == 0) { effectiveScale = scale * 2.0; }
+    st = (st - 0.5) / effectiveScale;
     st = st + 0.5 + vec2<f32>(offsetX, offsetY);
 
     // Apply symmetry fold
