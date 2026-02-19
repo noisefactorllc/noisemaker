@@ -868,3 +868,20 @@ body.full-bleed-mode #canvas {
   color: var(--color5);
   font-style: italic;
 }
+
+/* Ecosystem info text */
+.noisemaker-info {
+  font-size: 0.625rem;
+  color: color-mix(in srgb, var(--color5) 60%, transparent 40%);
+  line-height: 1.4;
+  padding: 0.5rem 0.875rem 0.75rem;
+}
+
+.noisemaker-info a {
+  color: var(--accent3);
+  text-decoration: none;
+}
+
+.noisemaker-info a:hover {
+  opacity: 0.8;
+}

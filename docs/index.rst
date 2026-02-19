@@ -163,6 +163,11 @@ Low-level API: Generator and Effects
 
 See :doc:`api` documentation.
 
+----
+
+Noisemaker is the open source engine behind `Noisedeck <https://noisedeck.app/>`_
+and other `Noise Factor <https://noisefactor.io/>`_ tools.
+
 Indices and tables
 ==================
 
