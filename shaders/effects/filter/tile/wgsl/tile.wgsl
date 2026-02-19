@@ -47,28 +47,33 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = position.xy / texSize;
 
-    var st = fract2(uv * repeatCount);
+    // Rotate the entire tiled grid (before fract so all tiles rotate together)
+    var st = rot(uv - 0.5, angle * PI / 180.0) + 0.5;
 
-    st = (st - 0.5) / scale;
-    st = rot(st, angle * PI / 180.0);
-    st = st + 0.5 + vec2<f32>(offsetX, offsetY);
+    // Apply tiling repetition
+    st = fract2(st * repeatCount);
 
+    // Apply symmetry fold (must happen before source transforms to preserve seamlessness)
     if (symmetry == 0) {
-        st.x = mirrorFold(st.x);
-        st.y = fract(st.y);
-    } else if (symmetry == 1) {
+        // mirrorXY
         st.x = mirrorFold(st.x);
         st.y = mirrorFold(st.y);
+    } else if (symmetry == 1) {
+        // rotate2
+        st = rotationalFold(st, 2);
     } else if (symmetry == 2) {
-        st = rotationalFold(fract2(st), 2);
-    } else if (symmetry == 3) {
-        st = rotationalFold(fract2(st), 3);
-    } else if (symmetry == 4) {
-        st = rotationalFold(fract2(st), 4);
+        // rotate4
+        st = rotationalFold(st, 4);
     } else {
-        st = rotationalFold(fract2(st), 6);
+        // rotate6
+        st = rotationalFold(st, 6);
     }
 
+    // Apply source region transforms (after fold, so edges still match)
+    st = (st - 0.5) / scale;
+    st = st + 0.5 + vec2<f32>(offsetX, offsetY);
+
+    // Clamp to valid texture range
     st = clamp(st, vec2<f32>(0.0), vec2<f32>(1.0));
 
     return vec4<f32>(textureSample(inputTex, samp, st).rgb, 1.0);

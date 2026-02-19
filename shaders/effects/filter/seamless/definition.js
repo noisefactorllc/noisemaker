@@ -38,7 +38,7 @@ export default new Effect({
       choices: {
         "linear": 0,
         "smooth": 1,
-        "cosine": 2
+        "sharp": 2
       },
       ui: {
         label: "curve",

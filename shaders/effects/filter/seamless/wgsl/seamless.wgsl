@@ -13,7 +13,7 @@ fn edgeWeight(t: f32, width: f32, c: i32) -> f32 {
     if (c == 0) {
         return w;
     } else if (c == 2) {
-        return 0.5 - 0.5 * cos(w * 3.14159265);
+        return w * w;
     }
     return w * w * (3.0 - 2.0 * w);
 }

@@ -9,15 +9,13 @@ export default new Effect({
   globals: {
     symmetry: {
       type: "int",
-      default: 1,
+      default: 0,
       uniform: "symmetry",
       choices: {
-        "mirror-x": 0,
-        "mirror-xy": 1,
-        "rotate-2": 2,
-        "rotate-3": 3,
-        "rotate-4": 4,
-        "rotate-6": 5
+        "mirrorXY": 0,
+        "rotate2": 1,
+        "rotate4": 2,
+        "rotate6": 3
       },
       ui: {
         label: "symmetry",

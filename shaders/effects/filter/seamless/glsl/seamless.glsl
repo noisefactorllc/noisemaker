@@ -22,7 +22,7 @@ float edgeWeight(float t, float width) {
     if (curve == 0) {
         return w; // linear
     } else if (curve == 2) {
-        return 0.5 - 0.5 * cos(w * 3.14159265); // cosine
+        return w * w; // sharp (quadratic)
     }
     return w * w * (3.0 - 2.0 * w); // smoothstep (default)
 }

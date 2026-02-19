@@ -15,7 +15,7 @@ const float PI = 3.14159265359;
 const float TAU = 6.28318530718;
 
 /*
- * Rotate a 2D point by radians.
+ * Rotate a 2D point around origin by radians.
  */
 vec2 rot(vec2 p, float a) {
     float c = cos(a);
@@ -61,37 +61,32 @@ void main() {
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
 
+    // Rotate the entire tiled grid (before fract so all tiles rotate together)
+    vec2 st = rot(uv - 0.5, angle * PI / 180.0) + 0.5;
+
     // Apply tiling repetition
-    vec2 st = uv * repeatCount;
+    st = st * repeatCount;
     st = fract(st);
 
-    // Apply source region transforms: offset, scale, rotation
-    st = (st - 0.5) / scale;
-    st = rot(st, angle * PI / 180.0);
-    st += 0.5 + vec2(offsetX, offsetY);
-
-    // Apply symmetry
+    // Apply symmetry fold (must happen before source transforms to preserve seamlessness)
     if (symmetry == 0) {
-        // mirror-x
-        st.x = mirrorFold(st.x);
-        st.y = fract(st.y);
-    } else if (symmetry == 1) {
-        // mirror-xy
+        // mirrorXY
         st.x = mirrorFold(st.x);
         st.y = mirrorFold(st.y);
+    } else if (symmetry == 1) {
+        // rotate2
+        st = rotationalFold(st, 2);
     } else if (symmetry == 2) {
-        // rotate-2
-        st = rotationalFold(fract(st), 2);
-    } else if (symmetry == 3) {
-        // rotate-3
-        st = rotationalFold(fract(st), 3);
-    } else if (symmetry == 4) {
-        // rotate-4
-        st = rotationalFold(fract(st), 4);
+        // rotate4
+        st = rotationalFold(st, 4);
     } else {
-        // rotate-6
-        st = rotationalFold(fract(st), 6);
+        // rotate6
+        st = rotationalFold(st, 6);
     }
+
+    // Apply source region transforms (after fold, so edges still match)
+    st = (st - 0.5) / scale;
+    st += 0.5 + vec2(offsetX, offsetY);
 
     // Clamp to valid texture range
     st = clamp(st, 0.0, 1.0);

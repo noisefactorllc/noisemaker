@@ -12,7 +12,7 @@ Applies a toroidal cross-fade: pixels near the left edge blend toward right-edge
 |-----------|------|---------|-------|-------------|
 | blend | float | 0.25 | 0-0.5 | Width of the cross-fade zone as fraction of tile |
 | repeat | float | 2 | 1-10 | Number of tile repetitions to display |
-| curve | int | smooth | linear/smooth/cosine | Blend falloff curve |
+| curve | int | smooth | linear/smooth/sharp | Blend falloff curve |
 
 ## Notes
 
