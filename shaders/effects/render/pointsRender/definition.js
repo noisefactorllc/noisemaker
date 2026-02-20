@@ -6,7 +6,7 @@ export default new Effect({
     func: "pointsRender",
     tags: ["agents"],
 
-    description: "Accumulate agent trails and blend with input for particle systems",
+    description: "Blend agent trails with input for particle systems",
 
     // Internal trail texture for accumulation (namespaced like flow)
     textures: {

@@ -6,7 +6,7 @@ export default new Effect({
     func: "pointsBillboardRender",
     tags: ["agents"],
 
-    description: "Render agent particles as billboard sprites with texture sampling",
+    description: "Render particles as billboard sprites",
 
     // Internal trail texture for accumulation
     textures: {

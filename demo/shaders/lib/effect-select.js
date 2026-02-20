@@ -573,10 +573,17 @@ class EffectSelect extends HTMLElement {
         this._focusedIndex = selectedIdx >= 0 ? selectedIdx : 0
         this._updateFocusedOption()
 
-        // Scroll selected into view
+        // Scroll selected into view within the dropdown only.
+        // Using scrollIntoView() would propagate to ancestor scroll containers
+        // (like #left-panel), shifting all panel content when the dropdown
+        // extends beyond the panel width.
         const selectedOption = dropdown.querySelector('.es-option.selected')
         if (selectedOption) {
-            selectedOption.scrollIntoView({ block: 'center' })
+            const dropdownRect = dropdown.getBoundingClientRect()
+            const optionRect = selectedOption.getBoundingClientRect()
+            const optionCenter = optionRect.top + optionRect.height / 2
+            const dropdownCenter = dropdownRect.top + dropdownRect.height / 2
+            dropdown.scrollTop += optionCenter - dropdownCenter
         }
     }
 
@@ -639,7 +646,17 @@ class EffectSelect extends HTMLElement {
             const option = dropdown.querySelector(`.es-option[data-value="${CSS.escape(value)}"]`)
             if (option) {
                 option.classList.add('focused')
-                option.scrollIntoView({ block: 'nearest' })
+                // Scroll within dropdown only (avoid propagating to ancestor scroll containers)
+                const dr = this.querySelector('.es-dropdown')
+                if (dr) {
+                    const drRect = dr.getBoundingClientRect()
+                    const optRect = option.getBoundingClientRect()
+                    if (optRect.bottom > drRect.bottom) {
+                        dr.scrollTop += optRect.bottom - drRect.bottom
+                    } else if (optRect.top < drRect.top) {
+                        dr.scrollTop -= drRect.top - optRect.top
+                    }
+                }
             }
         }
     }

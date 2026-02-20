@@ -6,7 +6,7 @@ export default new Effect({
     func: "meshRender",
     tags: ["mesh", "geometry"],
 
-    description: "Render triangle mesh from mesh surface textures with Blinn-Phong lighting",
+    description: "Render meshes with Blinn-Phong lighting",
 
     textures: {},
 
