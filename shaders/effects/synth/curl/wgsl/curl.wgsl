@@ -188,11 +188,8 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     // Compute 3D curl noise
     var curl = curlNoise3D(p, oct);
     
-    // Apply intensity
-    curl *= u.intensity;
-    
-    // Normalize curl to approximately [-1, 1] range then to [0, 1] for display
-    let curlNorm = curl * 0.5 + 0.5;
+    // Smooth compression to [0, 1] — tanh saturates gracefully, intensity controls curve
+    let curlNorm = tanh(curl * u.intensity) * 0.5 + 0.5;
     
     var color: vec3f;
     let outputInt = i32(u.outputMode);

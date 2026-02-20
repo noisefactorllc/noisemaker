@@ -186,11 +186,8 @@ void main() {
     // Compute 3D curl noise
     vec3 curl = curlNoise3D(p, oct);
     
-    // Apply intensity
-    curl *= intensity;
-    
-    // Normalize curl to approximately [-1, 1] range then to [0, 1] for display
-    curl = curl * 0.5 + 0.5;
+    // Smooth compression to [0, 1] — tanh saturates gracefully, intensity controls curve
+    curl = tanh(curl * intensity) * 0.5 + 0.5;
     
     vec3 color;
     
