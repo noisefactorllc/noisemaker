@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "noisemaker"
-version = "0.8.0"
+version = "0.8.5.dev0"
 description = "Generates procedural noise with Python 3 and TensorFlow"
 readme = "README.md"
 requires-python = ">=3.10"
