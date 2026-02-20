@@ -30,10 +30,10 @@ export default new Effect({
     },
     scale: {
       type: "float",
-      default: 0,
+      default: 1,
       uniform: "tunnelScale",
-      min: -2,
-      max: 2,
+      min: 1,
+      max: 3,
       step: 0.1,
       ui: {
         label: "scale",

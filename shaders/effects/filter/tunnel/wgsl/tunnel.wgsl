@@ -68,12 +68,12 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
     
     // Apply scale
-    r -= uniforms.tunnelScale * 0.075;
+    r -= (uniforms.tunnelScale - 1.0) * 0.075;
     
     // Create tunnel coordinates
     let tunnelCoords = smod2(vec2<f32>(
         0.3 / r + uniforms.time * uniforms.speed,
-        a / PI + uniforms.time * -uniforms.tunnelRotation
+        a / PI + uniforms.time * uniforms.tunnelRotation
     ), 1.0);
 
     return textureSample(inputTex, inputSampler, tunnelCoords);

@@ -7,7 +7,7 @@ Perspective tunnel effect with shape options
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | shape | int | circle | circle/triangle/square/hexagon/octagon | Shape |
-| scale | float | 0 | -2-2 | Scale |
+| scale | float | 1 | 1-3 | Scale |
 | speed | float | 1 | -5-5 | Forward Speed |
 | rot speed | float | 0 | -2-2 | Rotation speed |
 | 1:1 aspect | boolean | true | - | 1:1 Aspect |

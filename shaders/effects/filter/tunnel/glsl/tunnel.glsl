@@ -63,12 +63,12 @@ void main() {
     }
     
     // Apply scale
-    r -= tunnelScale * 0.075;
+    r -= (tunnelScale - 1.0) * 0.075;
     
     // Create tunnel coordinates
     vec2 tunnelCoords = smod(vec2(
         0.3 / r + time * speed,
-        a / PI + time * -tunnelRotation
+        a / PI + time * tunnelRotation
     ), 1.0);
     
     // Sample with gradient for proper filtering
