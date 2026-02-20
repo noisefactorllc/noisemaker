@@ -10,3 +10,4 @@ Perspective tunnel effect with shape options
 | scale | float | 0 | -2-2 | Scale |
 | speed | float | 1 | -5-5 | Forward Speed |
 | rot speed | float | 0 | -2-2 | Rotation speed |
+| 1:1 aspect | boolean | true | - | 1:1 Aspect |

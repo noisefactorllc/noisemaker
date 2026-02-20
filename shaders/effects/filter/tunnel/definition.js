@@ -64,6 +64,15 @@ export default new Effect({
         label: "rot speed",
         control: "slider"
       }
+    },
+    aspectLens: {
+      type: "boolean",
+      default: true,
+      uniform: "aspectLens",
+      ui: {
+        label: "1:1 aspect",
+        control: "checkbox"
+      }
     }
   },
   passes: [

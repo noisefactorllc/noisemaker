@@ -14,6 +14,7 @@ uniform int shape;
 uniform float speed;
 uniform float tunnelRotation;
 uniform float tunnelScale;
+uniform bool aspectLens;
 
 out vec4 fragColor;
 
@@ -36,6 +37,10 @@ void main() {
     
     // Center the coordinates
     vec2 centered = uv - 0.5;
+
+    // Optional aspect ratio correction
+    float aspectRatio = float(texSize.x) / float(texSize.y);
+    if (aspectLens) { centered.x *= aspectRatio; }
     
     float a = atan(centered.y, centered.x);
     float r;

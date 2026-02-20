@@ -13,6 +13,7 @@ struct Uniforms {
     _pad1: f32,
     _pad2: f32,
     _pad3: f32,
+    aspectLens: i32
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -38,7 +39,13 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let uv = pos.xy / texSize;
     
     // Center the coordinates
-    let centered = uv - 0.5;
+    var centered = uv - 0.5;
+
+    // Optional aspect ratio correction
+    let aspectRatio = texSize.x / texSize.y;
+    if (uniforms.aspectLens != 0) { 
+        centered.x = centered.x * aspectRatio; 
+    }
     
     let a = atan2(centered.y, centered.x);
     var r: f32;
