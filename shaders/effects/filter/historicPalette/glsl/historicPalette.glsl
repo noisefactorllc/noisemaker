@@ -10,6 +10,11 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform int paletteIndex;
 uniform float smoothness;
+uniform int paletteRotation;   // -1 = backward, 0 = none, 1 = forward
+uniform float paletteOffset;   // 0-100 static offset
+uniform float paletteRepeat;   // multiplier for luminance
+uniform float alpha;
+uniform float time;
 
 out vec4 fragColor;
 
@@ -238,9 +243,21 @@ void main() {
     // Calculate luminance
     float lum = dot(inputColor.rgb, vec3(0.299, 0.587, 0.114));
 
+    // Apply palette modifiers: repeat, offset, and rotation (animation)
+    float t = lum * paletteRepeat + paletteOffset * 0.01;
+    if (paletteRotation == -1) {
+        t += time;
+    } else if (paletteRotation == 1) {
+        t -= time;
+    }
+    t = fract(t);
+
     // Get palette entry and sample color
     HistoricPalette pal = PALETTES[idx];
-    vec3 paletteColor = sampleHistoricPalette(pal, lum, smoothness);
+    vec3 paletteColor = sampleHistoricPalette(pal, t, smoothness);
 
-    fragColor = vec4(paletteColor, inputColor.a);
+    // Blend between original and palette color based on alpha
+    vec3 blendedColor = mix(inputColor.rgb, paletteColor, alpha);
+
+    fragColor = vec4(blendedColor, inputColor.a);
 }

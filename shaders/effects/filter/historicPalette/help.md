@@ -9,7 +9,11 @@ Maps the luminance of the input image to 5-color palettes inspired by various ar
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | paletteIndex | int | bauhaus | dropdown | Select from 21 historical art palettes |
-| smoothness | float | 0.5 | 0-1 | Controls blending between palette colors (0 = hard edges, 1 = smooth gradients) |
+| smoothness | float | 0 | 0-1 | Controls blending between palette colors (0 = hard edges, 1 = smooth gradients) |
+| rotation | float | none | none/fwd/back | Animate palette cycling using time |
+| offset | float | 0 | 0-100 | Static offset into the palette |
+| repeat | float | 1 | 0.1-10 | Multiplier for luminance mapping |
+| alpha | float | 1 | 0-1 | Blend between original and palette color |
 
 ## Available Palettes
 

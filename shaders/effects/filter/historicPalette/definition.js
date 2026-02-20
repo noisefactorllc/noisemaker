@@ -10,7 +10,7 @@ export default new Effect({
   func: "historicPalette",
   tags: ["color"],
 
-  description: "Apply historical art color palettes based on luminance",
+  description: "Apply historical art color palettes",
   globals: {
     index: {
       type: "int",
@@ -42,6 +42,53 @@ export default new Effect({
       ui: {
         label: "palette",
         control: "dropdown"
+      }
+    },
+    rotation: {
+      type: "float",
+      default: 0,
+      uniform: "paletteRotation",
+      choices: { none: 0, fwd: 1, back: -1 },
+      ui: {
+        label: "rotation",
+        control: "dropdown"
+      }
+    },
+    offset: {
+      type: "float",
+      default: 0,
+      uniform: "paletteOffset",
+      min: 0,
+      max: 100,
+      step: 1,
+      ui: {
+        label: "offset",
+        control: "slider"
+      }
+    },
+    repeat: {
+      type: "float",
+      default: 1,
+      uniform: "paletteRepeat",
+      min: 0.1,
+      max: 10,
+      step: 0.1,
+      ui: {
+        label: "repeat",
+        control: "slider"
+      }
+    },
+    alpha: {
+      type: "float",
+      default: 1,
+      uniform: "alpha",
+      min: 0,
+      max: 1,
+      randMin: 0.5,
+      step: 0.01,
+      ui: {
+        label: "alpha",
+        control: "slider"
       }
     },
     smoothness: {
