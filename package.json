@@ -1,6 +1,6 @@
 {
   "name": "py-noisemaker",
-  "version": "0.8.0-SNAPSHOT",
+  "version": "0.8.0",
   "description": "Procedural noise generation and creative coding effects",
   "author": "Noise Factor LLC <team@noisefactor.io>",
   "license": "MIT",
