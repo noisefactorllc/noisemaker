@@ -38,10 +38,10 @@ export default new Effect({
       default: 0,
       uniform: "shadowSourceChannel",
       choices: {
-        r: 0,
-        g: 1,
-        b: 2,
-        a: 3
+        red: 0,
+        green: 1,
+        blue: 2,
+        alpha: 3
       },
       ui: {
         label: "channel",
