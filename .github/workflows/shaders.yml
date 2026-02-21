@@ -145,7 +145,7 @@ jobs:
     - name: Resolve project version
       id: version
       run: |
-        VERSION=$(node -e "const fs=require('fs'); const match=fs.readFileSync('pyproject.toml','utf8').match(/^version\s*=\s*\"([^\"]+)\"/m); if(!match){process.exit(1);} console.log(match[1]);")
+        VERSION=$(node -e "const fs=require('fs'); const match=fs.readFileSync('pyproject.toml','utf8').match(/^version\s*=\s*\"([^\"]+)\"/m); if(!match){process.exit(1);} console.log(match[1].replace(/\.dev\d+$/, ''));")
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
     - name: Set up SSH
