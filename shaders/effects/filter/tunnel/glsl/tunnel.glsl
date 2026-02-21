@@ -63,7 +63,7 @@ void main() {
     }
     
     // Apply scale
-    r -= (tunnelScale - 1.0) * 0.075;
+    r -= tunnelScale * 0.15;
     
     // Create tunnel coordinates
     vec2 tunnelCoords = smod(vec2(

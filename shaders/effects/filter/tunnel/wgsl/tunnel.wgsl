@@ -68,7 +68,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
     
     // Apply scale
-    r -= (uniforms.tunnelScale - 1.0) * 0.075;
+    r -= uniforms.tunnelScale * 0.15;
     
     // Create tunnel coordinates
     let tunnelCoords = smod2(vec2<f32>(
