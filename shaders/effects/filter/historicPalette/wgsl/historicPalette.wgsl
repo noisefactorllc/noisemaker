@@ -170,8 +170,8 @@ const palettes: array<HistoricPalette, 21> = array<HistoricPalette, 21>(
         vec3f(0.914, 0.118, 0.388),  // #E91E63 - Hot Pink
         vec3f(1.000, 0.922, 0.231),  // #FFEB3B - Bright Yellow
         vec3f(0.161, 0.475, 1.000),  // #2979FF - Cyan Blue
-        vec3f(0.000, 0.902, 0.463),  // #00E676 - Neon Green
-        vec3f(1.000, 0.090, 0.267)   // #FF1744 - Electric Red
+        vec3f(1.000, 0.090, 0.267),  // #FF1744 - Electric Red
+        vec3f(0.000, 0.902, 0.463)   // #00E676 - Neon Green
     ),
     // 18: Renaissance (15th-16th Century) - Rich jewel tones and earth pigments
     HistoricPalette(
