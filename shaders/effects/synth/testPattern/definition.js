@@ -4,10 +4,17 @@ export default new Effect({
   name: "Test Pattern",
   namespace: "synth",
   func: "testPattern",
-  tags: ["util", "debug"],
+  tags: ["util"],
 
-  description: "NxN numbered checkerboard for identifying axis flips",
+  description: "Test patterns for debugging and calibration",
   globals: {
+    pattern: {
+      type: "int",
+      default: 0,
+      uniform: "pattern",
+      choices: { checkerboard: 0, colorBars: 1, gradient: 2, uvMap: 3, gridLines: 4, colorGrid: 5, dotGrid: 6 },
+      ui: { label: "pattern", control: "dropdown" }
+    },
     gridSize: {
       type: "int",
       default: 4,
@@ -16,7 +23,8 @@ export default new Effect({
       uniform: "gridSize",
       ui: {
         label: "grid size",
-        control: "slider"
+        control: "slider",
+        enabledBy: { param: "pattern", in: [0, 4, 5, 6] }
       }
     }
   },
