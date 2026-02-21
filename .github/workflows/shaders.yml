@@ -121,8 +121,8 @@ jobs:
           dist/site/ \
           deploy@${{ secrets.SCAFFOLD_SERVER_IP }}:~/sites/noisemaker.app/content/
 
-  deploy-cdn:
-    name: Deploy to CDN
+  deploy-shaders:
+    name: Deploy shaders to scaffold
     runs-on: ubuntu-latest
     needs: bundle
     if: github.event_name == 'push'
@@ -146,48 +146,22 @@ jobs:
       id: version
       run: |
         VERSION=$(node -e "const fs=require('fs'); const match=fs.readFileSync('pyproject.toml','utf8').match(/^version\s*=\s*\"([^\"]+)\"/m); if(!match){process.exit(1);} console.log(match[1]);")
-        MAJOR=$(echo "$VERSION" | cut -d. -f1)
         echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-        echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
 
-    - name: Check deploy eligibility
-      id: check
+    - name: Set up SSH
       run: |
-        # Pre-1.0: deploy on every push to main (mutable CDN paths)
-        # Post-1.0: deploy only on tagged releases (immutable CDN paths)
-        MAJOR=${{ steps.version.outputs.major }}
-        if [ "$MAJOR" = "0" ]; then
-          echo "deploy=true" >> "$GITHUB_OUTPUT"
-          echo "cache=public, max-age=300" >> "$GITHUB_OUTPUT"
-        elif [[ "$GITHUB_REF" == refs/tags/shaders-v* ]]; then
-          echo "deploy=true" >> "$GITHUB_OUTPUT"
-          echo "cache=public, max-age=31536000, immutable" >> "$GITHUB_OUTPUT"
-        else
-          echo "deploy=false" >> "$GITHUB_OUTPUT"
-          echo "Skipping CDN deploy: post-1.0 requires a shaders-v* tag"
-        fi
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        echo "${{ secrets.SCAFFOLD_SSH_KEY }}" | base64 -d > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan ${{ secrets.SCAFFOLD_SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null
 
-    - name: Configure AWS credentials
-      if: steps.check.outputs.deploy == 'true'
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: us-east-1
-
-    - name: Sync shaders to S3
-      if: steps.check.outputs.deploy == 'true'
+    - name: Deploy shaders to scaffold
       run: |
         VERSION=${{ steps.version.outputs.version }}
-        aws s3 sync dist/shaders/ "s3://noisedeck-shaders/${VERSION}/" \
-          --cache-control "${{ steps.check.outputs.cache }}"
-        aws s3 sync dist/effects/ "s3://noisedeck-shaders/${VERSION}/effects/" \
-          --cache-control "${{ steps.check.outputs.cache }}"
-
-    - name: Invalidate CloudFront
-      if: steps.check.outputs.deploy == 'true'
-      run: |
-        VERSION=${{ steps.version.outputs.version }}
-        aws cloudfront create-invalidation \
-          --distribution-id ${{ secrets.SHADERS_CF_DISTRIBUTION_ID }} \
-          --paths "/${VERSION}/*"
+        rsync -avz \
+          dist/shaders/ \
+          deploy@${{ secrets.SCAFFOLD_SERVER_IP }}:~/sites/shaders.noisedeck.app/content/${VERSION}/
+        rsync -avz \
+          dist/effects/ \
+          deploy@${{ secrets.SCAFFOLD_SERVER_IP }}:~/sites/shaders.noisedeck.app/content/${VERSION}/effects/
