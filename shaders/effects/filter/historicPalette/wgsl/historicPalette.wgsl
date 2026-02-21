@@ -254,7 +254,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let lum = dot(inputColor.rgb, vec3f(0.299, 0.587, 0.114));
 
     // Apply palette modifiers: repeat, offset, and rotation (animation)
-    var t = lum * paletteRepeat + paletteOffset * 0.01;
+    // Scale lum to [0, 0.9999] so that fract() never hits an exact integer
+    // boundary — otherwise fract(1.0)=0.0 aliases bright pixels to dark
+    var t = lum * (1.0 - 1e-4) * paletteRepeat + paletteOffset * 0.01;
     if (paletteRotation == -1) {
         t = t + time;
     } else if (paletteRotation == 1) {
