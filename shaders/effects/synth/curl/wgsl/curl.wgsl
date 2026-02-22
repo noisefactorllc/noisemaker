@@ -132,8 +132,8 @@ fn curlNoise3D(p: vec3f, numOctaves: i32) -> vec3f {
     
     // We need 3 independent scalar fields to compute curl of a vector field
     // Use offset positions to create decorrelated fields
-    let a = (sin(u.time * 6.28318) * (u.speed) + 1.0) / u.octaves;
-    let b = (cos(u.time * 6.28318) * (u.speed) + 1.0) / u.octaves;
+    let a = (sin(u.time * 6.28318) * (u.speed) + 1.0) / u.octaves * 0.2;
+    let b = (cos(u.time * 6.28318) * (u.speed) + 1.0) / u.octaves * 0.2;
 
     let offset1 = vec3f(a, b, 0.0);
     let offset2 = vec3f(31.416 - a, 47.853 - b, 12.793);
