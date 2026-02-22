@@ -214,10 +214,27 @@ fn sampleColorArray(t: f32, colorCount: i32, positionMode: i32, colorMode: i32, 
     // smoothAmount=1: linear interpolation (current behavior)
     let factor = mix(step(0.5, localT), localT, smoothAmount);
 
-    let lowerColor = convertColor(getColor(lowerIdx).rgb, colorMode);
-    let upperColor = convertColor(getColor(upperIdx).rgb, colorMode);
+    let c0 = getColor(lowerIdx).rgb;
+    let c1 = getColor(upperIdx).rgb;
 
-    return mix(lowerColor, upperColor, factor);
+    // Interpolate in the current color mode, then convert to RGB
+    // For HSV (mode 1) and OKLCH (mode 3), use shortest-path hue interpolation
+    var interpolated: vec3<f32>;
+    if (colorMode == 1 || colorMode == 3) {
+        let h0 = c0.x;
+        let h1 = c1.x;
+        var dh = h1 - h0;
+        if (dh > 0.5) { dh -= 1.0; }
+        if (dh < -0.5) { dh += 1.0; }
+        interpolated = vec3<f32>(
+            fract(h0 + dh * factor),
+            mix(c0.y, c1.y, factor),
+            mix(c0.z, c1.z, factor)
+        );
+    } else {
+        interpolated = mix(c0, c1, factor);
+    }
+    return convertColor(interpolated, colorMode);
 }
 
 @fragment

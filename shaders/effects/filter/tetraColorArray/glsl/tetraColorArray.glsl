@@ -200,7 +200,22 @@ vec3 sampleColorArray(float t, int count, float smoothAmount) {
             vec3 c1 = getColor(i + 1);
 
             // Interpolate in the current color mode, then convert to RGB
-            vec3 interpolated = mix(c0, c1, adjustedT);
+            // For HSV (mode 1) and OKLCH (mode 3), use shortest-path hue interpolation
+            vec3 interpolated;
+            if (tetraColorArrayColorMode == 1 || tetraColorArrayColorMode == 3) {
+                float h0 = c0.x;
+                float h1 = c1.x;
+                float dh = h1 - h0;
+                if (dh > 0.5) dh -= 1.0;
+                if (dh < -0.5) dh += 1.0;
+                interpolated = vec3(
+                    fract(h0 + dh * adjustedT),
+                    mix(c0.y, c1.y, adjustedT),
+                    mix(c0.z, c1.z, adjustedT)
+                );
+            } else {
+                interpolated = mix(c0, c1, adjustedT);
+            }
             return colorToRgb(interpolated, tetraColorArrayColorMode);
         }
     }
