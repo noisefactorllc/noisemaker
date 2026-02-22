@@ -15,14 +15,14 @@ Implements the Gray-Scott model of reaction-diffusion, producing organic, self-o
 | smoothing | int | linear | constant/linear/hermite/catmullRom3x3/catmullRom4x4/bSpline3x3/bSpline4x4 | Smoothing |
 | speed | float | 100 | 10-145 | Speed |
 | resetState | boolean | false | - | State |
-| seed | int | 1 | 1-100 | Seed |
 | sourceF | int | slider | slider/sliderInput/brightness/darkness/red/green/blue | Feed source |
-| feed | float | 18 | 10-110 | Feed value |
+| feed | float | 70 | 10-110 | Feed value |
 | sourceK | int | slider | slider/sliderInput/brightness/darkness/red/green/blue | Kill source |
-| kill | float | 51 | 45-70 | Kill value |
+| kill | float | 67 | 45-70 | Kill value |
 | sourceR1 | int | slider | slider/sliderInput/brightness/darkness/red/green/blue | Rate 1 source |
-| rate1 | float | 111 | 50-120 | Rate 1 value |
+| rate1 | float | 92 | 50-120 | Rate 1 value |
 | sourceR2 | int | slider | slider/sliderInput/brightness/darkness/red/green/blue | Rate 2 source |
-| rate2 | float | 24 | 20-50 | Rate 2 value |
+| rate2 | float | 22 | 20-50 | Rate 2 value |
 | iterations | int | 8 | 1-32 | Iterations |
-| weight | float | 50 | 0-100 | Input weight |
+| weight | float | 0 | 0-100 | Input weight |
+| intensity | float | 0 | 0-100 | Input mix |

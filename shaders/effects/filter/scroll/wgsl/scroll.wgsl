@@ -15,7 +15,7 @@
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   var st = position.xy / resolution;
   st.x *= aspect;
-  var offset = vec2<f32>(x + time * speedX, y + time * speedY);
+  var offset = vec2<f32>(-x + time * -speedX, y + time * speedY);
   offset.x *= aspect;
   st += offset;
   st.x /= aspect;

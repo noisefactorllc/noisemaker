@@ -129,7 +129,7 @@ export default new Effect({
     },
     feed: {
       type: "float",
-      default: 18,
+      default: 70,
       uniform: "feed",
       min: 10,
       max: 110,
@@ -160,7 +160,7 @@ export default new Effect({
     },
     kill: {
       type: "float",
-      default: 51,
+      default: 67,
       uniform: "kill",
       min: 45,
       max: 70,
@@ -191,7 +191,7 @@ export default new Effect({
     },
     rate1: {
       type: "float",
-      default: 111,
+      default: 92,
       uniform: "rate1",
       min: 50,
       max: 120,
@@ -222,7 +222,7 @@ export default new Effect({
     },
     rate2: {
       type: "float",
-      default: 24,
+      default: 22,
       uniform: "rate2",
       min: 20,
       max: 50,
@@ -246,7 +246,7 @@ export default new Effect({
     },
     weight: {
       type: "float",
-      default: 50,
+      default: 0,
       uniform: "weight",
       min: 0,
       max: 100,
@@ -264,7 +264,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "input intensity",
+        label: "input mix",
         control: "slider",
         category: "input",
         enabledBy: { param: "tex", neq: "none" }

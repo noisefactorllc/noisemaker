@@ -17,7 +17,7 @@ out vec4 fragColor;
 void main(){
   vec2 st = gl_FragCoord.xy / resolution;
   st.x *= aspect;
-  vec2 offset = vec2(x + time * speedX, y + time * speedY);
+  vec2 offset = vec2(-x + time * -speedX, y + time * speedY);
   offset.x *= aspect;
   st += offset;
   st.x /= aspect;
