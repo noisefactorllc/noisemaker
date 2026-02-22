@@ -533,13 +533,15 @@ export class CanvasRenderer {
      * Resize the renderer
      * @param {number} width - New width
      * @param {number} height - New height
-     * @param {number} [zoom=1] - Zoom factor
+     * @param {number} [zoom] - Zoom factor (defaults to current pipeline zoom, or 1)
      */
-    resize(width, height, zoom = 1) {
+    resize(width, height, zoom) {
         this._width = width
         this._height = height
         if (this._pipeline && this._pipeline.resize) {
-            this._pipeline.resize(width, height, zoom)
+            // Preserve pipeline's current zoom if not explicitly provided
+            const effectiveZoom = zoom != null ? zoom : (this._pipeline.zoom ?? 1)
+            this._pipeline.resize(width, height, effectiveZoom)
         }
     }
 
@@ -816,6 +818,18 @@ export class CanvasRenderer {
                     this._pipeline.isCompiling = false
                 }
                 throw err
+            }
+        }
+
+        // Auto-extract zoom from DSL if not explicitly provided.
+        // Effects like ca/mnca define zoom as a pipeline-level parameter (no shader uniform)
+        // that controls simulation surface texture sizing.
+        if (options.zoom == null && this._pipeline?.graph?.passes) {
+            for (const pass of this._pipeline.graph.passes) {
+                if (pass.uniforms && pass.uniforms.zoom !== undefined && pass.uniforms.zoom > 1) {
+                    this._pipeline.resize(this._pipeline.width, this._pipeline.height, pass.uniforms.zoom)
+                    break
+                }
             }
         }
 
