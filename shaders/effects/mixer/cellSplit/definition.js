@@ -13,9 +13,22 @@ export default new Effect({
       default: "none",
       ui: { label: "source b" }
     },
+    mode: {
+      type: "int",
+      default: 0,
+      uniform: "mode",
+      choices: {
+        edges: 0,
+        split: 1
+      },
+      ui: {
+        label: "mode",
+        control: "dropdown"
+      }
+    },
     scale: {
       type: "float",
-      default: 8.0,
+      default: 25.0,
       uniform: "scale",
       min: 1,
       max: 30,
@@ -23,7 +36,7 @@ export default new Effect({
     },
     edgeWidth: {
       type: "float",
-      default: 0.02,
+      default: 0.08,
       uniform: "edgeWidth",
       min: 0,
       max: 0.2,

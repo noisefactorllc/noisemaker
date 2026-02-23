@@ -1,10 +1,11 @@
 @group(0) @binding(0) var samp : sampler;
 @group(0) @binding(1) var inputTex : texture_2d<f32>;
 @group(0) @binding(2) var tex : texture_2d<f32>;
-@group(0) @binding(3) var<uniform> scale : f32;
-@group(0) @binding(4) var<uniform> edgeWidth : f32;
-@group(0) @binding(5) var<uniform> seed : i32;
-@group(0) @binding(6) var<uniform> invert : i32;
+@group(0) @binding(3) var<uniform> mode : i32;
+@group(0) @binding(4) var<uniform> scale : f32;
+@group(0) @binding(5) var<uniform> edgeWidth : f32;
+@group(0) @binding(6) var<uniform> seed : i32;
+@group(0) @binding(7) var<uniform> invert : i32;
 
 // PCG PRNG - MIT License
 // https://github.com/riccardoscalco/glsl-pcg-prng
@@ -39,7 +40,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
     // Aspect-correct, scaled coordinates
     let aspect = dims.x / dims.y;
-    var p = st * scale;
+    var p = st * (31.0 - scale);
     p.x = p.x * aspect;
 
     let cellCoord = floor(p);
@@ -68,15 +69,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         }
     }
 
-    // Use cell hash to assign A or B (threshold at 0.5)
-    var cellChoice = step(0.5, nearestHash);
-
-    // Apply invert
-    if (invert == 1) {
-        cellChoice = 1.0 - cellChoice;
-    }
-
-    // Sharp edge line at cell boundaries
+    // Sharp edge detection at cell boundaries
     let edgeDist = sqrt(d2) - sqrt(d1);
     var onEdge: f32;
     if (edgeWidth > 0.0) {
@@ -85,8 +78,24 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         onEdge = 0.0;
     }
 
-    // cellChoice selects A or B; edge pixels show 50/50 mix
-    let mask = mix(cellChoice, 0.5, onEdge);
+    var mask: f32;
+    if (mode == 0) {
+        // Edges mode: cells show A, edges show B
+        mask = onEdge;
+    } else {
+        // Split mode: cells randomly assigned to A or B, edges show 50/50
+        var cellChoice = step(0.5, nearestHash);
+        if (invert == 1) {
+            cellChoice = 1.0 - cellChoice;
+        }
+        mask = mix(cellChoice, 0.5, onEdge);
+    }
+
+    // Apply invert (in edges mode, swaps cells/edges assignment)
+    if (mode == 0 && invert == 1) {
+        mask = 1.0 - mask;
+    }
+
     var color = mix(colorA, colorB, mask);
     color.a = max(colorA.a, colorB.a);
 

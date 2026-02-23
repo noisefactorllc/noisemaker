@@ -32,7 +32,7 @@ export default new Effect({
     },
     scale: {
       type: "float",
-      default: 15.0,
+      default: 18.0,
       uniform: "scale",
       min: 1,
       max: 20,
@@ -48,7 +48,7 @@ export default new Effect({
     },
     smoothness: {
       type: "float",
-      default: 0.02,
+      default: 0.01,
       uniform: "smoothness",
       min: 0,
       max: 0.25,

@@ -12,9 +12,9 @@ Divides the frame using one of six geometric patterns, showing source A in one r
 |-----------|------|---------|-------|-------------|
 | tex | surface | none | - | Source B |
 | type | int | stripes | stripes/checkerboard/grid/dots/hexagons/diamonds | Pattern type |
-| scale | float | 15 | 1-20 | Pattern scale (lower = more repetitions) |
+| scale | float | 18 | 1-20 | Pattern scale (lower = more repetitions) |
 | thickness | float | 0.5 | 0-1 | Line/dot thickness |
-| smoothness | float | 0.02 | 0-0.25 | Edge softness (0 = hard edge) |
+| smoothness | float | 0.01 | 0-0.25 | Edge softness (0 = hard edge) |
 | rotation | float | 0 | -180-180 | Rotation in degrees |
 | invert | int | off | off/on | Swap which input appears in each region |
 

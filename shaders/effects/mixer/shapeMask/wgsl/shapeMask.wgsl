@@ -70,7 +70,8 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     if (shape == 0) {
         d = sdfCircle(p, radius);
     } else if (shape == 1) {
-        d = sdfPolygon(p, radius, 3.0);
+        let tp = vec2<f32>(p.x, p.y + radius * 0.17) * 1.5;
+        d = sdfPolygon(tp, radius, 3.0);
     } else if (shape == 2) {
         d = sdfPolygon(p, radius, 4.0);
     } else if (shape == 3) {

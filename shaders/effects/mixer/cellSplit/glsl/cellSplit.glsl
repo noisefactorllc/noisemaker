@@ -5,6 +5,7 @@ precision highp int;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform int mode;
 uniform float scale;
 uniform float edgeWidth;
 uniform int seed;
@@ -41,7 +42,7 @@ void main() {
 
     // Aspect-correct, scaled coordinates
     float aspect = resolution.x / resolution.y;
-    vec2 p = st * scale;
+    vec2 p = st * (31.0 - scale);
     p.x *= aspect;
 
     vec2 cellCoord = floor(p);
@@ -70,20 +71,28 @@ void main() {
         }
     }
 
-    // Use cell hash to assign A or B (threshold at 0.5)
-    float cellChoice = step(0.5, nearestHash);
-
-    // Apply invert
-    if (invert == 1) {
-        cellChoice = 1.0 - cellChoice;
-    }
-
-    // Sharp edge line at cell boundaries
+    // Sharp edge detection at cell boundaries
     float edgeDist = sqrt(d2) - sqrt(d1);
     float onEdge = edgeWidth > 0.0 ? step(edgeDist, edgeWidth) : 0.0;
 
-    // cellChoice selects A or B; edge pixels show 50/50 mix
-    float mask = mix(cellChoice, 0.5, onEdge);
+    float mask;
+    if (mode == 0) {
+        // Edges mode: cells show A, edges show B
+        mask = onEdge;
+    } else {
+        // Split mode: cells randomly assigned to A or B, edges show 50/50
+        float cellChoice = step(0.5, nearestHash);
+        if (invert == 1) {
+            cellChoice = 1.0 - cellChoice;
+        }
+        mask = mix(cellChoice, 0.5, onEdge);
+    }
+
+    // Apply invert (in edges mode, swaps cells/edges assignment)
+    if (mode == 0 && invert == 1) {
+        mask = 1.0 - mask;
+    }
+
     vec4 color = mix(colorA, colorB, mask);
     color.a = max(colorA.a, colorB.a);
 
