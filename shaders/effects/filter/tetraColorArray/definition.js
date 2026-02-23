@@ -99,6 +99,7 @@ export default new Effect({
         auto: 0,
         manual: 1
       },
+      randChance: 0,
       ui: {
         label: "positioning",
         control: "dropdown"
