@@ -212,7 +212,27 @@ fn getPosition(index: i32, colorCount: i32, positionMode: i32) -> f32 {
     }
 }
 
-fn sampleColorArray(t: f32, colorCount: i32, positionMode: i32, colorMode: i32, smoothAmount: f32) -> vec3<f32> {
+// Interpolate in color space with shortest-path hue for HSV/OKLCH
+fn mixInColorSpace(a: vec3<f32>, b: vec3<f32>, f: f32, mode: i32) -> vec3<f32> {
+    if (mode == 1) {
+        // HSV: hue is .x
+        var dh = b.x - a.x;
+        if (dh > 0.5) { dh -= 1.0; }
+        if (dh < -0.5) { dh += 1.0; }
+        return vec3<f32>(fract(a.x + dh * f), mix(a.y, b.y, f), mix(a.z, b.z, f));
+    } else if (mode == 3) {
+        // OKLCH: hue is .z
+        var dh = b.z - a.z;
+        if (dh > 0.5) { dh -= 1.0; }
+        if (dh < -0.5) { dh += 1.0; }
+        return vec3<f32>(mix(a.x, b.x, f), mix(a.y, b.y, f), fract(a.z + dh * f));
+    }
+    return mix(a, b, f);
+}
+
+fn sampleColorArray(t_in: f32, colorCount: i32, positionMode: i32, colorMode: i32, smoothAmount: f32) -> vec3<f32> {
+    let t = clamp(t_in, 0.0, 1.0);
+
     // Handle edge cases
     if (colorCount <= 0) {
         return vec3<f32>(0.0);
@@ -221,72 +241,31 @@ fn sampleColorArray(t: f32, colorCount: i32, positionMode: i32, colorMode: i32, 
         return getColor(0).rgb;
     }
 
-    // Find the two colors to interpolate between
-    var lowerIdx: i32 = 0;
-    var upperIdx: i32 = colorCount - 1;
+    // Cascade blend: smoothstep at each transition boundary
+    var result = rgbToColorSpace(getColor(0).rgb, colorMode);
 
-    for (var i: i32 = 0; i < colorCount - 1; i = i + 1) {
-        let pos = getPosition(i, colorCount, positionMode);
-        let nextPos = getPosition(i + 1, colorCount, positionMode);
-        if (t >= pos && t <= nextPos) {
-            lowerIdx = i;
-            upperIdx = i + 1;
-            break;
+    for (var i: i32 = 1; i < colorCount; i = i + 1) {
+        var boundary: f32;
+        var bw: f32;
+
+        if (positionMode == 0) {
+            // Auto: equal-width bands, transitions at i/count
+            boundary = f32(i) / f32(colorCount);
+            bw = smoothAmount * 0.5 / f32(colorCount);
+        } else {
+            // Manual: transition at midpoint between adjacent positions
+            let pPrev = getPosition(i - 1, colorCount, positionMode);
+            let pCurr = getPosition(i, colorCount, positionMode);
+            boundary = (pPrev + pCurr) * 0.5;
+            bw = smoothAmount * (pCurr - pPrev) * 0.25;
         }
+
+        let blend = smoothstep(boundary - bw, boundary + bw, t);
+        let nextColor = rgbToColorSpace(getColor(i).rgb, colorMode);
+        result = mixInColorSpace(result, nextColor, blend, colorMode);
     }
 
-    // Handle edge cases where t is outside all color stops
-    let firstPos = getPosition(0, colorCount, positionMode);
-    let lastPos = getPosition(colorCount - 1, colorCount, positionMode);
-
-    if (t <= firstPos) {
-        return getColor(0).rgb;
-    }
-    if (t >= lastPos) {
-        return getColor(colorCount - 1).rgb;
-    }
-
-    // Interpolate between the two colors
-    let lowerPos = getPosition(lowerIdx, colorCount, positionMode);
-    let upperPos = getPosition(upperIdx, colorCount, positionMode);
-
-    let range = upperPos - lowerPos;
-    let localT = select((t - lowerPos) / range, 0.0, range <= 0.0);
-
-    // Apply smoothness to interpolation factor
-    // smoothAmount=0: hard bands (step at midpoint)
-    // smoothAmount=1: linear interpolation (current behavior)
-    let factor = mix(step(0.5, localT), localT, smoothAmount);
-
-    // Convert RGB colors to the target color space
-    let cs0 = rgbToColorSpace(getColor(lowerIdx).rgb, colorMode);
-    let cs1 = rgbToColorSpace(getColor(upperIdx).rgb, colorMode);
-
-    // Interpolate in the target space, then convert back to RGB
-    // HSV: hue is .x   OKLCH: hue is .z — both need shortest-path
-    var interpolated: vec3<f32>;
-    if (colorMode == 1) {
-        var dh = cs1.x - cs0.x;
-        if (dh > 0.5) { dh -= 1.0; }
-        if (dh < -0.5) { dh += 1.0; }
-        interpolated = vec3<f32>(
-            fract(cs0.x + dh * factor),
-            mix(cs0.y, cs1.y, factor),
-            mix(cs0.z, cs1.z, factor)
-        );
-    } else if (colorMode == 3) {
-        var dh = cs1.z - cs0.z;
-        if (dh > 0.5) { dh -= 1.0; }
-        if (dh < -0.5) { dh += 1.0; }
-        interpolated = vec3<f32>(
-            mix(cs0.x, cs1.x, factor),
-            mix(cs0.y, cs1.y, factor),
-            fract(cs0.z + dh * factor)
-        );
-    } else {
-        interpolated = mix(cs0, cs1, factor);
-    }
-    return colorSpaceToRgb(interpolated, colorMode);
+    return colorSpaceToRgb(result, colorMode);
 }
 
 @fragment
@@ -311,7 +290,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let lum = dot(inputColor.rgb, vec3<f32>(0.299, 0.587, 0.114));
 
     // Apply mapping: repeat and offset
-    let t = fract(lum * repeatVal + offsetVal);
+    let t = fract(lum * (1.0 - 1e-4) * repeatVal + offsetVal);
 
     // Sample the color array gradient
     let gradientColor = sampleColorArray(t, colorCount, positionMode, colorMode, smoothness);
