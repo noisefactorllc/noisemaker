@@ -56,7 +56,8 @@ const float TAU = 6.283185307179586;
 // Color Space Conversions
 // ============================================================================
 
-// HSV to RGB
+// --- RGB <-> HSV ---
+
 vec3 hsv2rgb(vec3 hsv) {
     float h = hsv.x;
     float s = hsv.y;
@@ -85,15 +86,41 @@ vec3 hsv2rgb(vec3 hsv) {
     return rgb + vec3(m);
 }
 
-// OkLab to linear RGB
-vec3 oklab2linear(vec3 lab) {
-    float L = lab.x;
-    float a = lab.y;
-    float b = lab.z;
+vec3 rgb2hsv(vec3 c) {
+    float cmax = max(c.r, max(c.g, c.b));
+    float cmin = min(c.r, min(c.g, c.b));
+    float delta = cmax - cmin;
 
-    float l_ = L + 0.3963377774 * a + 0.2158037573 * b;
-    float m_ = L - 0.1055613458 * a - 0.0638541728 * b;
-    float s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+    float h = 0.0;
+    if (delta > 0.0) {
+        if (cmax == c.r) h = mod((c.g - c.b) / delta, 6.0) / 6.0;
+        else if (cmax == c.g) h = ((c.b - c.r) / delta + 2.0) / 6.0;
+        else h = ((c.r - c.g) / delta + 4.0) / 6.0;
+    }
+    float s = (cmax > 0.0) ? delta / cmax : 0.0;
+    return vec3(h, s, cmax);
+}
+
+// --- Gamma transfer ---
+
+vec3 linear2srgb(vec3 lin) {
+    vec3 low = lin * 12.92;
+    vec3 high = 1.055 * pow(max(lin, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055;
+    return mix(high, low, step(lin, vec3(0.0031308)));
+}
+
+vec3 srgb2linear(vec3 c) {
+    vec3 low = c / 12.92;
+    vec3 high = pow((c + 0.055) / 1.055, vec3(2.4));
+    return mix(high, low, step(c, vec3(0.04045)));
+}
+
+// --- OkLab core ---
+
+vec3 oklab2linear(vec3 lab) {
+    float l_ = lab.x + 0.3963377774 * lab.y + 0.2158037573 * lab.z;
+    float m_ = lab.x - 0.1055613458 * lab.y - 0.0638541728 * lab.z;
+    float s_ = lab.x - 0.0894841775 * lab.y - 1.2914855480 * lab.z;
 
     float l = l_ * l_ * l_;
     float m = m_ * m_ * m_;
@@ -106,45 +133,60 @@ vec3 oklab2linear(vec3 lab) {
     );
 }
 
-// Linear to sRGB gamma
-vec3 linear2srgb(vec3 linear) {
-    vec3 low = linear * 12.92;
-    vec3 high = 1.055 * pow(max(linear, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055;
-    return mix(high, low, step(linear, vec3(0.0031308)));
+vec3 linear2oklab(vec3 lin) {
+    float l = 0.4122214708 * lin.r + 0.5363325363 * lin.g + 0.0514459929 * lin.b;
+    float m = 0.2119034982 * lin.r + 0.6806995451 * lin.g + 0.1073969566 * lin.b;
+    float s = 0.0883024619 * lin.r + 0.2817188376 * lin.g + 0.6299787005 * lin.b;
+
+    float l_ = pow(max(l, 0.0), 1.0 / 3.0);
+    float m_ = pow(max(m, 0.0), 1.0 / 3.0);
+    float s_ = pow(max(s, 0.0), 1.0 / 3.0);
+
+    return vec3(
+        0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+        1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+        0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
+    );
 }
 
-// OkLab to sRGB (values stored as 0-1, a/b need remapping)
+// --- RGB <-> OkLab ---
+
 vec3 oklab2rgb(vec3 lab) {
-    float L = lab.x;
-    float a = (lab.y - 0.5) * 0.8;  // 0-1 → -0.4 to 0.4
-    float b = (lab.z - 0.5) * 0.8;
-
-    vec3 linear_rgb = oklab2linear(vec3(L, a, b));
-    return clamp(linear2srgb(linear_rgb), 0.0, 1.0);
+    return clamp(linear2srgb(oklab2linear(lab)), 0.0, 1.0);
 }
 
-// OKLCH to sRGB (L 0-1, C stored as 0-1, H 0-1)
+vec3 rgb2oklab(vec3 rgb) {
+    return linear2oklab(srgb2linear(rgb));
+}
+
+// --- RGB <-> OKLCH (L, C, H where H is 0-1 fractional turns) ---
+
 vec3 oklch2rgb(vec3 lch) {
-    float L = lch.x;
-    float C = lch.y * 0.4;  // 0-1 → 0 to 0.4
-    float H = lch.z * TAU;  // 0-1 → 0 to 2π
-
-    float a = C * cos(H);
-    float b = C * sin(H);
-
-    vec3 linear_rgb = oklab2linear(vec3(L, a, b));
-    return clamp(linear2srgb(linear_rgb), 0.0, 1.0);
+    float a = lch.y * cos(lch.z * TAU);
+    float b = lch.y * sin(lch.z * TAU);
+    return clamp(linear2srgb(oklab2linear(vec3(lch.x, a, b))), 0.0, 1.0);
 }
 
-// Convert color from current mode to RGB
-vec3 colorToRgb(vec3 color, int mode) {
-    if (mode == 1) {
-        return hsv2rgb(color);
-    } else if (mode == 2) {
-        return oklab2rgb(color);
-    } else if (mode == 3) {
-        return oklch2rgb(color);
-    }
+vec3 rgb2oklch(vec3 rgb) {
+    vec3 lab = rgb2oklab(rgb);
+    float C = length(lab.yz);
+    float h = atan(lab.z, lab.y);
+    return vec3(lab.x, C, fract(h / TAU));
+}
+
+// --- Dispatch by mode ---
+
+vec3 rgbToColorSpace(vec3 rgb, int mode) {
+    if (mode == 1) return rgb2hsv(rgb);
+    if (mode == 2) return rgb2oklab(rgb);
+    if (mode == 3) return rgb2oklch(rgb);
+    return rgb;
+}
+
+vec3 colorSpaceToRgb(vec3 color, int mode) {
+    if (mode == 1) return hsv2rgb(color);
+    if (mode == 2) return oklab2rgb(color);
+    if (mode == 3) return oklch2rgb(color);
     return color;
 }
 
@@ -196,32 +238,40 @@ vec3 sampleColorArray(float t, int count, float smoothAmount) {
             // smoothAmount=1: linear interpolation (current behavior)
             float adjustedT = mix(step(0.5, localT), localT, smoothAmount);
 
-            vec3 c0 = getColor(i);
-            vec3 c1 = getColor(i + 1);
+            // Convert RGB colors to the target color space
+            vec3 cs0 = rgbToColorSpace(getColor(i), tetraColorArrayColorMode);
+            vec3 cs1 = rgbToColorSpace(getColor(i + 1), tetraColorArrayColorMode);
 
-            // Interpolate in the current color mode, then convert to RGB
-            // For HSV (mode 1) and OKLCH (mode 3), use shortest-path hue interpolation
+            // Interpolate in the target space, then convert back to RGB
+            // HSV: hue is .x   OKLCH: hue is .z — both need shortest-path
             vec3 interpolated;
-            if (tetraColorArrayColorMode == 1 || tetraColorArrayColorMode == 3) {
-                float h0 = c0.x;
-                float h1 = c1.x;
-                float dh = h1 - h0;
+            if (tetraColorArrayColorMode == 1) {
+                float dh = cs1.x - cs0.x;
                 if (dh > 0.5) dh -= 1.0;
                 if (dh < -0.5) dh += 1.0;
                 interpolated = vec3(
-                    fract(h0 + dh * adjustedT),
-                    mix(c0.y, c1.y, adjustedT),
-                    mix(c0.z, c1.z, adjustedT)
+                    fract(cs0.x + dh * adjustedT),
+                    mix(cs0.y, cs1.y, adjustedT),
+                    mix(cs0.z, cs1.z, adjustedT)
+                );
+            } else if (tetraColorArrayColorMode == 3) {
+                float dh = cs1.z - cs0.z;
+                if (dh > 0.5) dh -= 1.0;
+                if (dh < -0.5) dh += 1.0;
+                interpolated = vec3(
+                    mix(cs0.x, cs1.x, adjustedT),
+                    mix(cs0.y, cs1.y, adjustedT),
+                    fract(cs0.z + dh * adjustedT)
                 );
             } else {
-                interpolated = mix(c0, c1, adjustedT);
+                interpolated = mix(cs0, cs1, adjustedT);
             }
-            return colorToRgb(interpolated, tetraColorArrayColorMode);
+            return colorSpaceToRgb(interpolated, tetraColorArrayColorMode);
         }
     }
 
     // Edge case: t is exactly at or past the last position
-    return colorToRgb(getColor(count - 1), tetraColorArrayColorMode);
+    return getColor(count - 1);
 }
 
 void main() {

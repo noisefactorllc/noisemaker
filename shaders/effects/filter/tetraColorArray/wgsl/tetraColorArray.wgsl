@@ -32,7 +32,8 @@ const TAU: f32 = 6.283185307179586;
 // Color Space Conversions
 // ============================================================================
 
-// HSV to RGB
+// --- RGB <-> HSV ---
+
 fn hsv2rgb(hsv: vec3<f32>) -> vec3<f32> {
     let h = hsv.x;
     let s = hsv.y;
@@ -61,15 +62,46 @@ fn hsv2rgb(hsv: vec3<f32>) -> vec3<f32> {
     return rgb + vec3<f32>(m);
 }
 
-// OkLab to linear RGB
-fn oklab2linear(lab: vec3<f32>) -> vec3<f32> {
-    let L = lab.x;
-    let a = lab.y;
-    let b = lab.z;
+fn rgb2hsv(c: vec3<f32>) -> vec3<f32> {
+    let cmax = max(c.r, max(c.g, c.b));
+    let cmin = min(c.r, min(c.g, c.b));
+    let delta = cmax - cmin;
 
-    let l_ = L + 0.3963377774 * a + 0.2158037573 * b;
-    let m_ = L - 0.1055613458 * a - 0.0638541728 * b;
-    let s_ = L - 0.0894841775 * a - 1.2914855480 * b;
+    var h: f32 = 0.0;
+    if (delta > 0.0) {
+        if (cmax == c.r) {
+            h = ((c.g - c.b) / delta % 6.0) / 6.0;
+        } else if (cmax == c.g) {
+            h = ((c.b - c.r) / delta + 2.0) / 6.0;
+        } else {
+            h = ((c.r - c.g) / delta + 4.0) / 6.0;
+        }
+        h = fract(h);
+    }
+    let s = select(0.0, delta / cmax, cmax > 0.0);
+    return vec3<f32>(h, s, cmax);
+}
+
+// --- Gamma transfer ---
+
+fn linear2srgb(lin: vec3<f32>) -> vec3<f32> {
+    let low = lin * 12.92;
+    let high = 1.055 * pow(max(lin, vec3<f32>(0.0)), vec3<f32>(1.0 / 2.4)) - 0.055;
+    return select(high, low, lin < vec3<f32>(0.0031308));
+}
+
+fn srgb2linear(c: vec3<f32>) -> vec3<f32> {
+    let low = c / 12.92;
+    let high = pow((c + 0.055) / 1.055, vec3<f32>(2.4));
+    return select(high, low, c < vec3<f32>(0.04045));
+}
+
+// --- OkLab core ---
+
+fn oklab2linear(lab: vec3<f32>) -> vec3<f32> {
+    let l_ = lab.x + 0.3963377774 * lab.y + 0.2158037573 * lab.z;
+    let m_ = lab.x - 0.1055613458 * lab.y - 0.0638541728 * lab.z;
+    let s_ = lab.x - 0.0894841775 * lab.y - 1.2914855480 * lab.z;
 
     let l = l_ * l_ * l_;
     let m = m_ * m_ * m_;
@@ -82,49 +114,61 @@ fn oklab2linear(lab: vec3<f32>) -> vec3<f32> {
     );
 }
 
-// Linear to sRGB gamma
-fn linear2srgb(linear: vec3<f32>) -> vec3<f32> {
-    let low = linear * 12.92;
-    let high = 1.055 * pow(max(linear, vec3<f32>(0.0)), vec3<f32>(1.0 / 2.4)) - 0.055;
-    return select(high, low, linear < vec3<f32>(0.0031308));
+fn linear2oklab(lin: vec3<f32>) -> vec3<f32> {
+    let l = 0.4122214708 * lin.r + 0.5363325363 * lin.g + 0.0514459929 * lin.b;
+    let m = 0.2119034982 * lin.r + 0.6806995451 * lin.g + 0.1073969566 * lin.b;
+    let s = 0.0883024619 * lin.r + 0.2817188376 * lin.g + 0.6299787005 * lin.b;
+
+    let l_ = pow(max(l, 0.0), 1.0 / 3.0);
+    let m_ = pow(max(m, 0.0), 1.0 / 3.0);
+    let s_ = pow(max(s, 0.0), 1.0 / 3.0);
+
+    return vec3<f32>(
+        0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
+        1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
+        0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
+    );
 }
 
-// OkLab to sRGB
+// --- RGB <-> OkLab ---
+
 fn oklab2rgb(lab: vec3<f32>) -> vec3<f32> {
-    // Remap a, b from 0-1 storage format to actual -0.4 to 0.4 range
-    let L = lab.x;
-    let a = (lab.y - 0.5) * 0.8;  // 0-1 → -0.4 to 0.4
-    let b = (lab.z - 0.5) * 0.8;  // 0-1 → -0.4 to 0.4
-
-    let linear_rgb = oklab2linear(vec3<f32>(L, a, b));
-    return clamp(linear2srgb(linear_rgb), vec3<f32>(0.0), vec3<f32>(1.0));
+    return clamp(linear2srgb(oklab2linear(lab)), vec3<f32>(0.0), vec3<f32>(1.0));
 }
 
-// OKLCH to sRGB
+fn rgb2oklab(rgb: vec3<f32>) -> vec3<f32> {
+    return linear2oklab(srgb2linear(rgb));
+}
+
+// --- RGB <-> OKLCH (L, C, H where H is 0-1 fractional turns) ---
+
 fn oklch2rgb(lch: vec3<f32>) -> vec3<f32> {
-    let L = lch.x;
-    let C = lch.y * 0.4;  // 0-1 → 0 to 0.4
-    let H = lch.z * TAU;  // 0-1 → 0 to 2π
-
-    // Convert cylindrical to cartesian (OkLab)
-    let a = C * cos(H);
-    let b = C * sin(H);
-
-    let linear_rgb = oklab2linear(vec3<f32>(L, a, b));
-    return clamp(linear2srgb(linear_rgb), vec3<f32>(0.0), vec3<f32>(1.0));
+    let a = lch.y * cos(lch.z * TAU);
+    let b = lch.y * sin(lch.z * TAU);
+    return clamp(linear2srgb(oklab2linear(vec3<f32>(lch.x, a, b))), vec3<f32>(0.0), vec3<f32>(1.0));
 }
 
-// Convert color based on mode
-fn convertColor(color: vec3<f32>, colorMode: i32) -> vec3<f32> {
-    if (colorMode == 1) {
-        return hsv2rgb(color);
-    } else if (colorMode == 2) {
-        return oklab2rgb(color);
-    } else if (colorMode == 3) {
-        return oklch2rgb(color);
-    } else {
-        return color;  // RGB mode
-    }
+fn rgb2oklch(rgb: vec3<f32>) -> vec3<f32> {
+    let lab = rgb2oklab(rgb);
+    let C = length(lab.yz);
+    let h = atan2(lab.z, lab.y);
+    return vec3<f32>(lab.x, C, fract(h / TAU));
+}
+
+// --- Dispatch by mode ---
+
+fn rgbToColorSpace(rgb: vec3<f32>, mode: i32) -> vec3<f32> {
+    if (mode == 1) { return rgb2hsv(rgb); }
+    if (mode == 2) { return rgb2oklab(rgb); }
+    if (mode == 3) { return rgb2oklch(rgb); }
+    return rgb;
+}
+
+fn colorSpaceToRgb(color: vec3<f32>, mode: i32) -> vec3<f32> {
+    if (mode == 1) { return hsv2rgb(color); }
+    if (mode == 2) { return oklab2rgb(color); }
+    if (mode == 3) { return oklch2rgb(color); }
+    return color;
 }
 
 // ============================================================================
@@ -174,7 +218,7 @@ fn sampleColorArray(t: f32, colorCount: i32, positionMode: i32, colorMode: i32, 
         return vec3<f32>(0.0);
     }
     if (colorCount == 1) {
-        return convertColor(getColor(0).rgb, colorMode);
+        return getColor(0).rgb;
     }
 
     // Find the two colors to interpolate between
@@ -196,10 +240,10 @@ fn sampleColorArray(t: f32, colorCount: i32, positionMode: i32, colorMode: i32, 
     let lastPos = getPosition(colorCount - 1, colorCount, positionMode);
 
     if (t <= firstPos) {
-        return convertColor(getColor(0).rgb, colorMode);
+        return getColor(0).rgb;
     }
     if (t >= lastPos) {
-        return convertColor(getColor(colorCount - 1).rgb, colorMode);
+        return getColor(colorCount - 1).rgb;
     }
 
     // Interpolate between the two colors
@@ -214,27 +258,35 @@ fn sampleColorArray(t: f32, colorCount: i32, positionMode: i32, colorMode: i32, 
     // smoothAmount=1: linear interpolation (current behavior)
     let factor = mix(step(0.5, localT), localT, smoothAmount);
 
-    let c0 = getColor(lowerIdx).rgb;
-    let c1 = getColor(upperIdx).rgb;
+    // Convert RGB colors to the target color space
+    let cs0 = rgbToColorSpace(getColor(lowerIdx).rgb, colorMode);
+    let cs1 = rgbToColorSpace(getColor(upperIdx).rgb, colorMode);
 
-    // Interpolate in the current color mode, then convert to RGB
-    // For HSV (mode 1) and OKLCH (mode 3), use shortest-path hue interpolation
+    // Interpolate in the target space, then convert back to RGB
+    // HSV: hue is .x   OKLCH: hue is .z — both need shortest-path
     var interpolated: vec3<f32>;
-    if (colorMode == 1 || colorMode == 3) {
-        let h0 = c0.x;
-        let h1 = c1.x;
-        var dh = h1 - h0;
+    if (colorMode == 1) {
+        var dh = cs1.x - cs0.x;
         if (dh > 0.5) { dh -= 1.0; }
         if (dh < -0.5) { dh += 1.0; }
         interpolated = vec3<f32>(
-            fract(h0 + dh * factor),
-            mix(c0.y, c1.y, factor),
-            mix(c0.z, c1.z, factor)
+            fract(cs0.x + dh * factor),
+            mix(cs0.y, cs1.y, factor),
+            mix(cs0.z, cs1.z, factor)
+        );
+    } else if (colorMode == 3) {
+        var dh = cs1.z - cs0.z;
+        if (dh > 0.5) { dh -= 1.0; }
+        if (dh < -0.5) { dh += 1.0; }
+        interpolated = vec3<f32>(
+            mix(cs0.x, cs1.x, factor),
+            mix(cs0.y, cs1.y, factor),
+            fract(cs0.z + dh * factor)
         );
     } else {
-        interpolated = mix(c0, c1, factor);
+        interpolated = mix(cs0, cs1, factor);
     }
-    return convertColor(interpolated, colorMode);
+    return colorSpaceToRgb(interpolated, colorMode);
 }
 
 @fragment
