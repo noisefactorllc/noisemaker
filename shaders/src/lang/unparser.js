@@ -632,6 +632,96 @@ function unparseChain(chain, options = {}) {
 }
 
 /**
+ * Format a let expression AST node back to DSL source
+ * @param {object} expr - Expression AST node from a VarAssign
+ * @param {object} options - Unparse options
+ * @returns {string} DSL source for the expression
+ */
+function formatLetExpr(expr, options = {}) {
+    if (!expr) return 'null'
+
+    // Helper: extract numeric value from an AST Number node
+    const numVal = (node) => (node && node.type === 'Number') ? node.value : undefined
+
+    switch (expr.type) {
+        case 'Number':
+            return String(expr.value)
+        case 'String':
+            return JSON.stringify(expr.value)
+        case 'Boolean':
+            return expr.value ? 'true' : 'false'
+        case 'Ident':
+            return expr.name
+        case 'Member':
+            return expr.path.join('.')
+        case 'Oscillator': {
+            // Raw AST Oscillator: sub-fields are AST nodes
+            let typeStr = 'oscKind.sine'
+            if (expr.oscType?.type === 'Member' && expr.oscType.path) {
+                typeStr = `oscKind.${expr.oscType.path[expr.oscType.path.length - 1]}`
+            } else if (expr.oscType?.type === 'Ident') {
+                typeStr = expr.oscType.name  // variable reference, no prefix
+            }
+            const parts = [`type: ${typeStr}`]
+            const pushIfNonDefault = (name, node, def) => {
+                const v = numVal(node)
+                if (v !== undefined && v !== def) parts.push(`${name}: ${v}`)
+            }
+            pushIfNonDefault('min', expr.min, 0)
+            pushIfNonDefault('max', expr.max, 1)
+            pushIfNonDefault('speed', expr.speed, 1)
+            pushIfNonDefault('offset', expr.offset, 0)
+            pushIfNonDefault('seed', expr.seed, 1)
+            return `osc(${parts.join(', ')})`
+        }
+        case 'Midi': {
+            // Raw AST Midi: sub-fields are AST nodes
+            const parts = []
+            const ch = numVal(expr.channel)
+            if (ch !== undefined) parts.push(`channel: ${ch}`)
+            let modeStr = null
+            if (expr.mode?.type === 'Member' && expr.mode.path) {
+                const name = expr.mode.path[expr.mode.path.length - 1]
+                if (name !== 'velocity') modeStr = `midiMode.${name}`
+            } else if (expr.mode?.type === 'Ident') {
+                modeStr = expr.mode.name  // variable reference, no prefix
+            }
+            if (modeStr) parts.push(`mode: ${modeStr}`)
+            const pushMidiField = (name, node, def) => {
+                const v = numVal(node)
+                if (v !== undefined && v !== def) parts.push(`${name}: ${v}`)
+            }
+            pushMidiField('min', expr.min, 0)
+            pushMidiField('max', expr.max, 1)
+            pushMidiField('sensitivity', expr.sensitivity, 1)
+            return `midi(${parts.join(', ')})`
+        }
+        case 'Audio': {
+            // Raw AST Audio: sub-fields are AST nodes
+            let bandStr = 'audioBand.low'
+            if (expr.band?.type === 'Member' && expr.band.path) {
+                bandStr = `audioBand.${expr.band.path[expr.band.path.length - 1]}`
+            } else if (expr.band?.type === 'Ident') {
+                bandStr = expr.band.name  // variable reference, no prefix
+            }
+            const parts = [`band: ${bandStr}`]
+            const minVal = numVal(expr.min), maxVal = numVal(expr.max)
+            if (minVal !== undefined && minVal !== 0) parts.push(`min: ${minVal}`)
+            if (maxVal !== undefined && maxVal !== 1) parts.push(`max: ${maxVal}`)
+            return `audio(${parts.join(', ')})`
+        }
+        case 'Call':
+            return unparseCall(expr, options)
+        case 'Chain':
+            return unparseChain(expr.chain, options)
+        case 'Func':
+            return `() => ${formatLetExpr(expr.body, options)}`
+        default:
+            return formatValue(expr, null, options)
+    }
+}
+
+/**
  * Unparse an entire program
  * @param {object} compiled - Compiled result from compile()
  * @param {object} overrides - Map of stepIndex -> parameter overrides
@@ -651,6 +741,20 @@ export function unparse(compiled, overrides = {}, options = {}) {
     if (searchNamespaces.length > 0) {
         lines.push(`search ${searchNamespaces.join(', ')}`)
         lines.push('') // First blank line after search
+    }
+
+    // Emit let declarations
+    if (compiled.vars && compiled.vars.length > 0) {
+        for (const v of compiled.vars) {
+            if (v.leadingComments && v.leadingComments.length > 0) {
+                for (const c of v.leadingComments) {
+                    lines.push(c)
+                }
+            }
+            const exprStr = formatLetExpr(v.expr, options)
+            lines.push(`let ${v.name} = ${exprStr}`)
+        }
+        lines.push('') // blank line separator after let block
     }
 
     // Track global step index across all plans

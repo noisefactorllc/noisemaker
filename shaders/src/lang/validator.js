@@ -285,7 +285,11 @@ export function validate(ast) {
     function substitute(node) {
         if (!node) return node
         if (node.type === 'Ident' && symbols.has(node.name)) {
-            return substitute(clone(symbols.get(node.name)))
+            const result = substitute(clone(symbols.get(node.name)))
+            if (result && typeof result === 'object') {
+                result._varRef = node.name
+            }
+            return result
         }
         if (node.type === 'Chain') {
             const mapped = node.chain.map(c => {
@@ -1020,6 +1024,10 @@ export function validate(ast) {
                                 pushDiag('S002', node)
                             }
                             value = clamped
+                            // Preserve variable reference marker for unparser round-trip
+                            if (node._varRef) {
+                                value = { _varRef: node._varRef, value }
+                            }
                         } else if (node && node.type === 'Func') {
                             try {
                                 const fn = new Function('state', `with(state){ return ${node.src}; }`)
@@ -1070,7 +1078,9 @@ export function validate(ast) {
                                 offset: resolveOscParam(node.offset) ?? 0,
                                 seed: resolveOscParam(node.seed) ?? 1,
                                 // Keep original AST for unparsing
-                                _ast: node
+                                _ast: node,
+                                // Preserve variable reference marker for unparser round-trip
+                                ...(node._varRef && { _varRef: node._varRef })
                             }
                         } else if (node && node.type === 'Midi') {
                             // MIDI node - resolve the mode enum value and pass through
@@ -1113,7 +1123,9 @@ export function validate(ast) {
                                 max: resolveMidiParam(node.max) ?? 1,
                                 sensitivity: resolveMidiParam(node.sensitivity) ?? 1,
                                 // Keep original AST for unparsing
-                                _ast: node
+                                _ast: node,
+                                // Preserve variable reference marker for unparser round-trip
+                                ...(node._varRef && { _varRef: node._varRef })
                             }
                         } else if (node && node.type === 'Audio') {
                             // Audio node - resolve the band enum value and pass through
@@ -1154,7 +1166,9 @@ export function validate(ast) {
                                 min: resolveAudioParam(node.min) ?? 0,
                                 max: resolveAudioParam(node.max) ?? 1,
                                 // Keep original AST for unparsing
-                                _ast: node
+                                _ast: node,
+                                // Preserve variable reference marker for unparser round-trip
+                                ...(node._varRef && { _varRef: node._varRef })
                             }
                         } else if (node && node.type === 'Member') {
                             const cur = resolveEnum(node.path)
