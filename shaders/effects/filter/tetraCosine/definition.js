@@ -63,8 +63,7 @@ export default new Effect({
       },
       ui: {
         label: "color mode",
-        control: "dropdown",
-        category: "mode"
+        control: "dropdown"
       }
     },
 
@@ -268,8 +267,7 @@ export default new Effect({
       step: 0.01,
       ui: {
         label: "alpha",
-        control: "slider",
-        category: "output"
+        control: "slider"
       }
     }
   },
