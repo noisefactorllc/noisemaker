@@ -225,7 +225,25 @@ fn sampleHistoricPalette(pal: HistoricPalette, lum: f32, smoothAmount: f32) -> v
     result = mix(result, pal.color3, b2);
     result = mix(result, pal.color4, b3);
     result = mix(result, pal.color5, b4);
-    
+
+    // Wrap-around blend: smooth the seam between color5 and color1
+    // when the palette repeats (fract causes a hard edge at t=0/1)
+    if (blendWidth > 0.0) {
+        // Signed cyclic distance from the wrap boundary (t=0 ≡ t=1)
+        var d: f32;
+        if (lum > 0.5) {
+            d = lum - 1.0;
+        } else {
+            d = lum;
+        }
+        // Interpolation factor: 0 = color5, 1 = color1
+        let wrapFactor = smoothstep(-blendWidth, blendWidth, d);
+        let wrapColor = mix(pal.color5, pal.color1, wrapFactor);
+        // Mask: 1.0 at wrap point, fading to 0.0 at edge of zone
+        let wrapMask = 1.0 - smoothstep(0.0, blendWidth, abs(d));
+        result = mix(result, wrapColor, wrapMask);
+    }
+
     return result;
 }
 
