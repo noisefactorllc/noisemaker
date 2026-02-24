@@ -11,7 +11,7 @@ This effect is fully compatible with Tetra's color array palette format and can 
 ## Parameters
 
 ### Mode Settings
-- **Color Mode**: Choose the color space for colors and interpolation
+- **Blend Space**: Choose the color space for interpolation
   - RGB (default): Standard RGB color space
   - HSV: Hue-Saturation-Value for smooth hue interpolation
   - OkLab: Perceptually uniform color space

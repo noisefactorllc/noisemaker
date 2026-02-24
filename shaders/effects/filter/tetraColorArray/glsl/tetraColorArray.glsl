@@ -266,6 +266,34 @@ vec3 sampleColorArray(float t, int count, float smoothAmount) {
         result = mixInColorSpace(result, nextColor, blend, mode);
     }
 
+    // Wrap-around blend: smooth the seam between last and first color
+    // when the palette repeats (fract causes a hard edge at t=0/1)
+    if (smoothAmount > 0.0) {
+        float bw;
+        if (tetraColorArrayPositionMode == 0) {
+            bw = smoothAmount * 0.5 / float(count);
+        } else {
+            float pLast = getPosition(count - 1, count);
+            float pFirst = getPosition(0, count);
+            float gap = 1.0 - pLast + pFirst;
+            bw = smoothAmount * gap * 0.25;
+        }
+
+        if (bw > 0.0) {
+            // Signed cyclic distance from the wrap boundary (t=0 ≡ t=1)
+            float d = (t > 0.5) ? (t - 1.0) : t;
+            // Interpolation factor: 0 = last color, 1 = first color
+            float wrapFactor = smoothstep(-bw, bw, d);
+            vec3 lastColor = rgbToColorSpace(getColor(count - 1), mode);
+            vec3 firstColor = rgbToColorSpace(getColor(0), mode);
+            vec3 wrapColor = mixInColorSpace(lastColor, firstColor, wrapFactor, mode);
+
+            // Mask: 1.0 at wrap point, fading to 0.0 at edge of zone
+            float wrapMask = 1.0 - smoothstep(0.0, bw, abs(d));
+            result = mixInColorSpace(result, wrapColor, wrapMask, mode);
+        }
+    }
+
     return colorSpaceToRgb(result, mode);
 }
 

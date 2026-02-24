@@ -265,6 +265,34 @@ fn sampleColorArray(t_in: f32, colorCount: i32, positionMode: i32, colorMode: i3
         result = mixInColorSpace(result, nextColor, blend, colorMode);
     }
 
+    // Wrap-around blend: smooth the seam between last and first color
+    // when the palette repeats (fract causes a hard edge at t=0/1)
+    if (smoothAmount > 0.0) {
+        var bw: f32;
+        if (positionMode == 0) {
+            bw = smoothAmount * 0.5 / f32(colorCount);
+        } else {
+            let pLast = getPosition(colorCount - 1, colorCount, positionMode);
+            let pFirst = getPosition(0, colorCount, positionMode);
+            let gap = 1.0 - pLast + pFirst;
+            bw = smoothAmount * gap * 0.25;
+        }
+
+        if (bw > 0.0) {
+            // Signed cyclic distance from the wrap boundary (t=0 ≡ t=1)
+            let d = select(t, t - 1.0, t > 0.5);
+            // Interpolation factor: 0 = last color, 1 = first color
+            let wrapFactor = smoothstep(-bw, bw, d);
+            let lastColor = rgbToColorSpace(getColor(colorCount - 1).rgb, colorMode);
+            let firstColor = rgbToColorSpace(getColor(0).rgb, colorMode);
+            let wrapColor = mixInColorSpace(lastColor, firstColor, wrapFactor, colorMode);
+
+            // Mask: 1.0 at wrap point, fading to 0.0 at edge of zone
+            let wrapMask = 1.0 - smoothstep(0.0, bw, abs(d));
+            result = mixInColorSpace(result, wrapColor, wrapMask, colorMode);
+        }
+    }
+
     return colorSpaceToRgb(result, colorMode);
 }
 

@@ -71,7 +71,7 @@ export default new Effect({
         oklch: 3
       },
       ui: {
-        label: "color mode",
+        label: "blend space",
         control: "dropdown"
       }
     },
@@ -363,7 +363,7 @@ export default new Effect({
     // === Smoothness ===
     smoothness: {
       type: "float",
-      default: 0,
+      default: 1,
       uniform: "tetraColorArraySmoothness",
       min: 0,
       max: 1,
