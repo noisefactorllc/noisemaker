@@ -41,6 +41,7 @@ export default new Effect({
       min: -1.0,
       max: 1.0,
       step: 0.01,
+      randChance: 0,
       uniform: "offsetX",
       ui: {
         label: "offset x",
@@ -53,6 +54,7 @@ export default new Effect({
       min: -1.0,
       max: 1.0,
       step: 0.01,
+      randChance: 0,
       uniform: "offsetY",
       ui: {
         label: "offset y",
