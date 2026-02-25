@@ -26,6 +26,24 @@ fn fract2(v: vec2<f32>) -> vec2<f32> {
     return v - floor(v);
 }
 
+fn mod2(v: vec2<f32>, m: vec2<f32>) -> vec2<f32> {
+    return v - m * floor(v / m);
+}
+
+fn hexCoord(uv: vec2<f32>) -> vec2<f32> {
+    let s = vec2<f32>(1.0, 1.7320508);
+    let h = s * 0.5;
+
+    let a = mod2(uv, s) - h;
+    let b = mod2(uv + h, s) - h;
+
+    if (dot(a, a) < dot(b, b)) {
+        return a;
+    } else {
+        return b;
+    }
+}
+
 fn rotationalFold(uv: vec2<f32>, n: i32) -> vec2<f32> {
     let fn_val = f32(n);
     let sectorAngle = TAU / fn_val;
@@ -50,30 +68,34 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     // Rotate the entire tiled grid (before fract so all tiles rotate together)
     var st = rot(uv - 0.5, angle * PI / 180.0) + 0.5;
 
-    // Apply tiling repetition
-    st = fract2(st * repeatCount);
-
-    // Apply source region transforms (before fold — fold handles any input range)
-    // mirrorXY needs half the range so edges match at default scale
-    var effectiveScale = scale;
-    if (symmetry == 0) { effectiveScale = scale * 0.5; }
-    st = (st - 0.5) / effectiveScale;
-    st = st + 0.5 + vec2<f32>(offsetX, offsetY);
-
-    // Apply symmetry fold
-    if (symmetry == 0) {
-        // mirrorXY
-        st.x = mirrorFold(st.x);
-        st.y = mirrorFold(st.y);
-    } else if (symmetry == 1) {
-        // rotate2
-        st = rotationalFold(fract2(st), 2);
-    } else if (symmetry == 2) {
-        // rotate4
-        st = rotationalFold(fract2(st), 4);
+    if (symmetry == 3) {
+        // Hex tiling with 6-fold rotational symmetry
+        let local_hex = hexCoord(st * repeatCount);
+        let local_scaled = local_hex / scale + vec2<f32>(offsetX, offsetY);
+        st = rotationalFold(local_scaled + 0.5, 6);
     } else {
-        // rotate6
-        st = rotationalFold(fract2(st), 6);
+        // Square tiling
+        st = fract2(st * repeatCount);
+
+        // Apply source region transforms (before fold — fold handles any input range)
+        // mirrorXY needs half the range so edges match at default scale
+        var effectiveScale = scale;
+        if (symmetry == 0) { effectiveScale = scale * 0.5; }
+        st = (st - 0.5) / effectiveScale;
+        st = st + 0.5 + vec2<f32>(offsetX, offsetY);
+
+        // Apply symmetry fold
+        if (symmetry == 0) {
+            // mirrorXY
+            st.x = mirrorFold(st.x);
+            st.y = mirrorFold(st.y);
+        } else if (symmetry == 1) {
+            // rotate2
+            st = rotationalFold(fract2(st), 2);
+        } else {
+            // rotate4
+            st = rotationalFold(fract2(st), 4);
+        }
     }
 
     // Clamp to valid texture range

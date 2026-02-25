@@ -31,6 +31,20 @@ float mirrorFold(float t) {
 }
 
 /*
+ * Hex grid: returns local coordinates relative to the nearest hex center.
+ * Two overlapping rectangular grids create alternating-row hex tiling.
+ */
+vec2 hexCoord(vec2 uv) {
+    vec2 s = vec2(1.0, 1.7320508);  // (1, sqrt(3))
+    vec2 h = s * 0.5;
+
+    vec2 a = mod(uv, s) - h;
+    vec2 b = mod(uv + h, s) - h;
+
+    return (dot(a, a) < dot(b, b)) ? a : b;
+}
+
+/*
  * Fold UV into a sector of angle 2*PI/n using polar coordinates.
  * The folded UV always lands in the first sector [0, PI/n].
  */
@@ -64,30 +78,35 @@ void main() {
     // Rotate the entire tiled grid (before fract so all tiles rotate together)
     vec2 st = rot(uv - 0.5, angle * PI / 180.0) + 0.5;
 
-    // Apply tiling repetition
-    st = st * repeatCount;
-    st = fract(st);
-
-    // Apply source region transforms (before fold — fold handles any input range)
-    // mirrorXY needs half the range so edges match at default scale
-    float effectiveScale = symmetry == 0 ? scale * 0.5 : scale;
-    st = (st - 0.5) / effectiveScale;
-    st += 0.5 + vec2(offsetX, offsetY);
-
-    // Apply symmetry fold
-    if (symmetry == 0) {
-        // mirrorXY
-        st.x = mirrorFold(st.x);
-        st.y = mirrorFold(st.y);
-    } else if (symmetry == 1) {
-        // rotate2
-        st = rotationalFold(fract(st), 2);
-    } else if (symmetry == 2) {
-        // rotate4
-        st = rotationalFold(fract(st), 4);
+    if (symmetry == 3) {
+        // Hex tiling with 6-fold rotational symmetry
+        // hexCoord returns local coords centered at nearest hex center
+        vec2 local = hexCoord(st * repeatCount);
+        local = local / scale + vec2(offsetX, offsetY);
+        st = rotationalFold(local + 0.5, 6);
     } else {
-        // rotate6
-        st = rotationalFold(fract(st), 6);
+        // Square tiling
+        st = st * repeatCount;
+        st = fract(st);
+
+        // Apply source region transforms (before fold — fold handles any input range)
+        // mirrorXY needs half the range so edges match at default scale
+        float effectiveScale = symmetry == 0 ? scale * 0.5 : scale;
+        st = (st - 0.5) / effectiveScale;
+        st += 0.5 + vec2(offsetX, offsetY);
+
+        // Apply symmetry fold
+        if (symmetry == 0) {
+            // mirrorXY
+            st.x = mirrorFold(st.x);
+            st.y = mirrorFold(st.y);
+        } else if (symmetry == 1) {
+            // rotate2
+            st = rotationalFold(fract(st), 2);
+        } else {
+            // rotate4
+            st = rotationalFold(fract(st), 4);
+        }
     }
 
     // Clamp to valid texture range
