@@ -14,6 +14,7 @@ uniform vec3 color1;
 uniform vec3 color2;
 uniform vec3 color3;
 uniform vec3 color4;
+uniform int seed;
 
 out vec4 fragColor;
 
@@ -50,6 +51,58 @@ vec3 blend4Colors(float t) {
     }
 }
 
+// PCG PRNG for noise gradient
+uvec3 pcg(uvec3 v) {
+    v = v * uint(1664525) + uint(1013904223);
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v ^= v >> uint(16);
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    return v;
+}
+
+vec3 prng(vec3 p) {
+    p.x = p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0;
+    p.y = p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0;
+    p.z = p.z >= 0.0 ? p.z * 2.0 : -p.z * 2.0 + 1.0;
+    return vec3(pcg(uvec3(p))) / float(uint(0xffffffff));
+}
+
+// Value noise using PCG
+float hash2D(vec2 p) {
+    return prng(vec3(p, float(seed))).x;
+}
+
+float valueNoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    vec2 u = f * f * (3.0 - 2.0 * f);
+
+    float a = hash2D(i);
+    float b = hash2D(i + vec2(1.0, 0.0));
+    float c = hash2D(i + vec2(0.0, 1.0));
+    float d = hash2D(i + vec2(1.0, 1.0));
+
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float fbmNoise(vec2 p) {
+    float sum = 0.0;
+    float amp = 0.5;
+    float freq = 1.0;
+    float maxVal = 0.0;
+    for (int i = 0; i < 4; i++) {
+        sum += valueNoise(p * freq) * amp;
+        maxVal += amp;
+        freq *= 2.0;
+        amp *= 0.5;
+    }
+    return sum / maxVal;
+}
+
 void main() {
     vec2 st = gl_FragCoord.xy / resolution;
     float aspectRatio = resolution.x / resolution.y;
@@ -74,37 +127,48 @@ void main() {
     float t;
     
     if (gradientType == 0) {
+        // Conic/angular gradient
+        float a = atan(rotatedCentered.y, rotatedCentered.x);
+        t = (a + PI) / TAU;
+        t = fract(t * float(repeatCount));
+        color = blend4Colors(t);
+    } else if (gradientType == 1) {
+        // Diamond gradient - L1 distance with rotation
+        t = abs(rotatedCentered.x) + abs(rotatedCentered.y);
+        t = fract(t * float(repeatCount));
+        color = blend4Colors(t);
+    } else if (gradientType == 2) {
+        // Four corners - bilinear interpolation
+        vec2 cornerSt = rotate2D(st, angle);
+        vec3 top = mix(color1, color2, cornerSt.x);
+        vec3 bottom = mix(color4, color3, cornerSt.x);
+        color = mix(bottom, top, cornerSt.y);
+    } else if (gradientType == 3) {
         // Linear gradient along rotated y-axis
         t = rotatedSt.y;
         t = fract(t * float(repeatCount));
         color = blend4Colors(t);
-    } else if (gradientType == 1) {
+    } else if (gradientType == 4) {
+        // Noise gradient with rotation
+        vec2 noiseSt = rotatedCentered * 4.0;
+        t = fbmNoise(noiseSt);
+        t = fract(t * float(repeatCount));
+        color = blend4Colors(t);
+    } else if (gradientType == 5) {
         // Radial gradient from center
-        float dist = length(centered) * 2.0; // Scale so edge is roughly 1
-        
-        // Apply rotation to the radial gradient by rotating the sample point
         vec2 rotatedPoint = mat2(c, -s, s, c) * centered;
-        dist = length(rotatedPoint) * 2.0;
-        
+        float dist = length(rotatedPoint) * 2.0;
         t = dist;
         t = fract(t * float(repeatCount));
         color = blend4Colors(t);
-    } else if (gradientType == 2) {
-        // Conic/angular gradient
+    } else if (gradientType == 6) {
+        // Spiral gradient - angle + distance
         float a = atan(rotatedCentered.y, rotatedCentered.x);
-        t = (a + PI) / TAU; // Map from [-PI, PI] to [0, 1]
+        float dist = length(centered);
+        t = fract(a / TAU + dist * 2.0);
         t = fract(t * float(repeatCount));
         color = blend4Colors(t);
-    } else if (gradientType == 3) {
-        // Four corners - bilinear interpolation
-        // Apply rotation to the sampling coordinates
-        vec2 cornerSt = rotate2D(st, angle);
-        
-        // Bilinear interpolation between 4 corner colors
-        vec3 top = mix(color1, color2, cornerSt.x);
-        vec3 bottom = mix(color4, color3, cornerSt.x);
-        color = mix(bottom, top, cornerSt.y);
     }
-    
+
     fragColor = vec4(color, 1.0);
 }

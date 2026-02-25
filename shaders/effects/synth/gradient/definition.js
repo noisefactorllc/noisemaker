@@ -10,13 +10,16 @@ export default new Effect({
   globals: {
     type: {
       type: "int",
-      default: 3,
+      default: 2,
       uniform: "gradientType",
       choices: {
-        linear: 0,
-        radial: 1,
-        conic: 2,
-        fourCorners: 3
+        conic: 0,
+        diamond: 1,
+        fourCorners: 2,
+        linear: 3,
+        noiseGradient: 4,
+        radial: 5,
+        spiral: 6
       },
       ui: { label: "type", control: "dropdown", category: "general" }
     },
@@ -30,7 +33,7 @@ export default new Effect({
         label: "rotation",
         control: "slider",
         category: "general",
-        enabledBy: { param: "type", neq: 1 }
+        enabledBy: { param: "type", neq: 2 }
       }
     },
     repeat: {
@@ -43,7 +46,20 @@ export default new Effect({
         label: "repeat",
         control: "slider",
         category: "general",
-        enabledBy: { param: "type", neq: 3 }
+        enabledBy: { param: "type", neq: 2 }
+      }
+    },
+    seed: {
+      type: "int",
+      default: 1,
+      uniform: "seed",
+      min: 0,
+      max: 100,
+      ui: {
+        label: "seed",
+        control: "slider",
+        category: "general",
+        enabledBy: { param: "type", eq: 4 }
       }
     },
     color1: {

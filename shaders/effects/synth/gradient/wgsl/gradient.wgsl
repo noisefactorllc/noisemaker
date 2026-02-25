@@ -13,6 +13,7 @@
 @group(0) @binding(5) var<uniform> color2: vec3<f32>;
 @group(0) @binding(6) var<uniform> color3: vec3<f32>;
 @group(0) @binding(7) var<uniform> color4: vec3<f32>;
+@group(0) @binding(8) var<uniform> seed: i32;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -53,6 +54,59 @@ fn blend4Colors(t_in: f32) -> vec3<f32> {
     }
 }
 
+// PCG PRNG for noise gradient
+fn pcg(seed_in: vec3<u32>) -> vec3<u32> {
+    var v = seed_in * 1664525u + 1013904223u;
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    v = v ^ (v >> vec3<u32>(16u));
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    return v;
+}
+
+fn prng(p0: vec3<f32>) -> vec3<f32> {
+    var p = p0;
+    if (p.x >= 0.0) { p.x = p.x * 2.0; } else { p.x = -p.x * 2.0 + 1.0; }
+    if (p.y >= 0.0) { p.y = p.y * 2.0; } else { p.y = -p.y * 2.0 + 1.0; }
+    if (p.z >= 0.0) { p.z = p.z * 2.0; } else { p.z = -p.z * 2.0 + 1.0; }
+    let u = pcg(vec3<u32>(p));
+    return vec3<f32>(u) / f32(0xffffffffu);
+}
+
+fn hash2D(p: vec2<f32>) -> f32 {
+    return prng(vec3<f32>(p, f32(seed))).x;
+}
+
+fn valueNoise(p: vec2<f32>) -> f32 {
+    let i = floor(p);
+    let f = fract(p);
+    let u = f * f * (3.0 - 2.0 * f);
+
+    let a = hash2D(i);
+    let b = hash2D(i + vec2<f32>(1.0, 0.0));
+    let c = hash2D(i + vec2<f32>(0.0, 1.0));
+    let d = hash2D(i + vec2<f32>(1.0, 1.0));
+
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+fn fbmNoise(p: vec2<f32>) -> f32 {
+    var sum: f32 = 0.0;
+    var amp: f32 = 0.5;
+    var freq: f32 = 1.0;
+    var maxVal: f32 = 0.0;
+    for (var i: i32 = 0; i < 4; i = i + 1) {
+        sum = sum + valueNoise(p * freq) * amp;
+        maxVal = maxVal + amp;
+        freq = freq * 2.0;
+        amp = amp * 0.5;
+    }
+    return sum / maxVal;
+}
+
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let st = pos.xy / resolution;
@@ -78,37 +132,53 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     
     switch gradientType {
         case 0: {
+            // Conic/angular gradient
+            let a = atan2(rotatedCentered.y, rotatedCentered.x);
+            t = (a + PI) / TAU;
+            t = fract(t * f32(repeatCount));
+            color = blend4Colors(t);
+        }
+        case 1: {
+            // Diamond gradient - L1 distance with rotation
+            t = abs(rotatedCentered.x) + abs(rotatedCentered.y);
+            t = fract(t * f32(repeatCount));
+            color = blend4Colors(t);
+        }
+        case 2: {
+            // Four corners - bilinear interpolation
+            var cornerSt = rotate2D(st, angle);
+            let top = mix(color1, color2, cornerSt.x);
+            let bottom = mix(color4, color3, cornerSt.x);
+            color = mix(bottom, top, cornerSt.y);
+        }
+        case 3: {
             // Linear gradient along rotated y-axis
             t = rotatedSt.y;
             t = fract(t * f32(repeatCount));
             color = blend4Colors(t);
         }
-        case 1: {
+        case 4: {
+            // Noise gradient with rotation
+            let noiseSt = rotatedCentered * 4.0;
+            t = fbmNoise(noiseSt);
+            t = fract(t * f32(repeatCount));
+            color = blend4Colors(t);
+        }
+        case 5: {
             // Radial gradient from center
-            // Apply rotation to the radial gradient by rotating the sample point
             let rotatedPoint = mat2x2<f32>(c, -s, s, c) * centered;
             let dist = length(rotatedPoint) * 2.0;
-            
             t = dist;
             t = fract(t * f32(repeatCount));
             color = blend4Colors(t);
         }
-        case 2: {
-            // Conic/angular gradient
+        case 6: {
+            // Spiral gradient - angle + distance
             let a = atan2(rotatedCentered.y, rotatedCentered.x);
-            t = (a + PI) / TAU; // Map from [-PI, PI] to [0, 1]
+            let dist = length(centered);
+            t = fract(a / TAU + dist * 2.0);
             t = fract(t * f32(repeatCount));
             color = blend4Colors(t);
-        }
-        case 3: {
-            // Four corners - bilinear interpolation
-            // Apply rotation to the sampling coordinates
-            var cornerSt = rotate2D(st, angle);
-            
-            // Bilinear interpolation between 4 corner colors
-            let top = mix(color1, color2, cornerSt.x);
-            let bottom = mix(color4, color3, cornerSt.x);
-            color = mix(bottom, top, cornerSt.y);
         }
         default: {
             color = color1;
