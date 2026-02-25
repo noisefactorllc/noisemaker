@@ -6,7 +6,7 @@ export default new Effect({
   func: "perlin",
   tags: ["noise"],
 
-  description: "Perlin-like noise with a periodic Z",
+  description: "Perlin-like noise with optional warping",
   globals: {
     "scale": {
         "type": "float",
@@ -55,6 +55,38 @@ export default new Effect({
         "uniform": "ridges",
         ui: {
             label: "ridges"
+        }},
+    "warpIterations": {
+        "type": "int",
+        "default": 0,
+        "min": 0,
+        "max": 4,
+        "uniform": "warpIterations",
+        ui: {
+            label: "warp iterations",
+            category: "warp"
+        }},
+    "warpScale": {
+        "type": "float",
+        "default": 50,
+        "min": 0,
+        "max": 100,
+        "uniform": "warpScale",
+        ui: {
+            label: "warp scale",
+            category: "warp",
+            enabledBy: { param: "warpIterations", neq: 0 }
+        }},
+    "warpIntensity": {
+        "type": "float",
+        "default": 50,
+        "min": 0,
+        "max": 100,
+        "uniform": "warpIntensity",
+        ui: {
+            label: "warp intensity",
+            category: "warp",
+            enabledBy: { param: "warpIterations", neq: 0 }
         }},
     "seed": {
         "type": "int",

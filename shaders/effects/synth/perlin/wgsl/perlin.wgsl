@@ -8,6 +8,9 @@
 @group(0) @binding(6) var<uniform> colorMode: i32;
 @group(0) @binding(7) var<uniform> dimensions: i32;
 @group(0) @binding(8) var<uniform> ridges: i32;
+@group(0) @binding(10) var<uniform> warpIterations: i32;
+@group(0) @binding(11) var<uniform> warpScale: f32;
+@group(0) @binding(12) var<uniform> warpIntensity: f32;
 @group(0) @binding(9) var<uniform> speed: f32;
 
 /* 3D gradient noise with quintic interpolation
@@ -215,6 +218,44 @@ fn fbm3D(st: vec2<f32>, timeAngle: f32, channelOffset: f32, ridgedMode: i32) -> 
     return sum / maxVal;
 }
 
+// Single-octave warp noise helpers (cheap, no fbm)
+fn warpNoise2D(p: vec2<f32>, timeAngle: f32) -> f32 {
+    return noise2D(p, timeAngle, 0.0);
+}
+
+fn warpNoise3D(p: vec2<f32>, z: f32) -> f32 {
+    return noise3D(vec3<f32>(p, z));
+}
+
+// Domain warp: iteratively displace coordinates using noise
+fn domainWarp2D(st: vec2<f32>, timeAngle: f32, iterations: i32, wScale: f32, wIntensity: f32) -> vec2<f32> {
+    let wFreq = max(0.1, 100.0 / max(wScale, 0.01));
+    let disp = wIntensity * 0.02;
+    var p = st;
+    for (var i: i32 = 0; i < 4; i = i + 1) {
+        if (i >= iterations) { break; }
+        let fi = f32(i);
+        let nx = warpNoise2D(p * wFreq + vec2<f32>(fi * 5.2 + 1.7, fi * 1.3 + 13.7), timeAngle);
+        let ny = warpNoise2D(p * wFreq + vec2<f32>(fi * 2.8 + 7.3, fi * 4.1 + 3.9), timeAngle);
+        p = p + vec2<f32>(nx, ny) * disp;
+    }
+    return p;
+}
+
+fn domainWarp3D(st: vec2<f32>, z: f32, iterations: i32, wScale: f32, wIntensity: f32) -> vec2<f32> {
+    let wFreq = max(0.1, 100.0 / max(wScale, 0.01));
+    let disp = wIntensity * 0.02;
+    var p = st;
+    for (var i: i32 = 0; i < 4; i = i + 1) {
+        if (i >= iterations) { break; }
+        let fi = f32(i);
+        let nx = warpNoise3D(p * wFreq + vec2<f32>(fi * 5.2 + 1.7, fi * 1.3 + 13.7), z);
+        let ny = warpNoise3D(p * wFreq + vec2<f32>(fi * 2.8 + 7.3, fi * 4.1 + 3.9), z);
+        p = p + vec2<f32>(nx, ny) * disp;
+    }
+    return p;
+}
+
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     var res = resolution;
@@ -233,7 +274,17 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     // time is 0-1 representing position around circle for seamless looping
     // speed multiplies the time to control animation speed
     let timeAngle = time * speed * TAU;
-    
+
+    // Apply domain warp if enabled
+    if (warpIterations > 0) {
+        if (dimensions == 2) {
+            st = domainWarp2D(st, timeAngle, warpIterations, warpScale, warpIntensity);
+        } else {
+            let z = timeAngle / TAU * Z_PERIOD;
+            st = domainWarp3D(st, z, warpIterations, warpScale, warpIntensity);
+        }
+    }
+
     var r: f32;
     var g: f32;
     var b: f32;

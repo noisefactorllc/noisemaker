@@ -11,6 +11,9 @@ uniform int octaves;
 uniform int colorMode;
 uniform int dimensions;
 uniform int ridges;
+uniform int warpIterations;
+uniform float warpScale;
+uniform float warpIntensity;
 uniform float speed;
 
 out vec4 fragColor;
@@ -224,6 +227,45 @@ float fbm3D(vec2 st, float timeAngle, float channelOffset, int ridgedMode) {
     return sum / maxVal;
 }
 
+// Single-octave warp noise helpers (cheap, no fbm)
+float warpNoise2D(vec2 p, float timeAngle) {
+    return noise2D(p, timeAngle, 0.0);
+}
+
+float warpNoise3D(vec2 p, float z) {
+    return noise3D(vec3(p, z));
+}
+
+// Domain warp: iteratively displace coordinates using noise
+// Each iteration uses a different spatial offset so it samples a distinct noise field
+vec2 domainWarp2D(vec2 st, float timeAngle, int iterations, float wScale, float wIntensity) {
+    float wFreq = max(0.1, 100.0 / max(wScale, 0.01));
+    float disp = wIntensity * 0.02;
+    vec2 p = st;
+    for (int i = 0; i < 4; i++) {
+        if (i >= iterations) break;
+        float fi = float(i);
+        float nx = warpNoise2D(p * wFreq + vec2(fi * 5.2 + 1.7, fi * 1.3 + 13.7), timeAngle);
+        float ny = warpNoise2D(p * wFreq + vec2(fi * 2.8 + 7.3, fi * 4.1 + 3.9), timeAngle);
+        p += vec2(nx, ny) * disp;
+    }
+    return p;
+}
+
+vec2 domainWarp3D(vec2 st, float z, int iterations, float wScale, float wIntensity) {
+    float wFreq = max(0.1, 100.0 / max(wScale, 0.01));
+    float disp = wIntensity * 0.02;
+    vec2 p = st;
+    for (int i = 0; i < 4; i++) {
+        if (i >= iterations) break;
+        float fi = float(i);
+        float nx = warpNoise3D(p * wFreq + vec2(fi * 5.2 + 1.7, fi * 1.3 + 13.7), z);
+        float ny = warpNoise3D(p * wFreq + vec2(fi * 2.8 + 7.3, fi * 4.1 + 3.9), z);
+        p += vec2(nx, ny) * disp;
+    }
+    return p;
+}
+
 void main() {
     vec2 res = resolution;
     if (res.x < 1.0) res = vec2(1024.0, 1024.0);
@@ -240,7 +282,17 @@ void main() {
     // time is 0-1 representing position around circle for seamless looping
     // speed multiplies the time to control animation speed
     float timeAngle = time * speed * TAU;
-    
+
+    // Apply domain warp if enabled
+    if (warpIterations > 0) {
+        if (dimensions == 2) {
+            st = domainWarp2D(st, timeAngle, warpIterations, warpScale, warpIntensity);
+        } else {
+            float z = timeAngle / TAU * Z_PERIOD;
+            st = domainWarp3D(st, z, warpIterations, warpScale, warpIntensity);
+        }
+    }
+
     float r, g, b;
     
     if (dimensions == 2) {
