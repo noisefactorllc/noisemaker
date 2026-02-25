@@ -15,15 +15,18 @@ export default new Effect({
     },
     type: {
       type: "int",
-      default: 0,
+      default: 7,
       uniform: "patternType",
       choices: {
-        stripes: 0,
-        checkerboard: 1,
-        grid: 2,
-        dots: 3,
+        checkerboard: 0,
+        concentricRings: 1,
+        dots: 2,
+        grid: 3,
         hexagons: 4,
-        diamonds: 5
+        radialLines: 5,
+        spiral: 6,
+        stripes: 7,
+        triangularGrid: 8
       },
       ui: {
         label: "pattern type",

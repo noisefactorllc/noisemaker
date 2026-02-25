@@ -4,13 +4,13 @@ Geometric pattern generator
 
 ## Description
 
-Generates various geometric patterns including stripes, checkerboard, grid, dots, hexagons, triangles, diamonds. Useful for creating backgrounds, textures, and masks with clean geometric shapes.
+Generates various geometric patterns including stripes, checkerboard, grid, dots, hexagons, triangles, concentric rings, radial lines, and spirals. Useful for creating backgrounds, textures, and masks with clean geometric shapes.
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| patternType | int | 0 | 0-5 | Pattern Type (0=Stripes, 1=Checkerboard, 2=Grid, 3=Dots, 4=Hexagons, 5=Diamonds) |
+| patternType | int | 7 | 0-8 | Pattern Type (0=Checkerboard, 1=ConcentricRings, 2=Dots, 3=Grid, 4=Hexagons, 5=RadialLines, 6=Spiral, 7=Stripes, 8=TriangularGrid) |
 | scale | float | 5 | 1-20 | Scale/size of pattern elements |
 | thickness | float | 0.5 | 0-1 | Line thickness for line-based patterns |
 | smoothness | float | 0.02 | 0-1 | Edge hardness (0=sharp, 1=very soft) |
@@ -22,12 +22,15 @@ Generates various geometric patterns including stripes, checkerboard, grid, dots
 
 ## Pattern Types
 
-- **Stripes (0)**: Vertical stripes, use rotation for other orientations
-- **Checkerboard (1)**: Classic alternating square pattern
-- **Grid (2)**: Intersecting lines forming a grid
-- **Dots (3)**: Regular grid of circles
+- **Checkerboard (0)**: Classic alternating square pattern
+- **Concentric Rings (1)**: Rings emanating from center, thickness controls ring width
+- **Dots (2)**: Regular grid of circles
+- **Grid (3)**: Intersecting lines forming a grid
 - **Hexagons (4)**: Honeycomb hexagonal tiling
-- **Diamonds (5)**: Rotated square / diamond pattern
+- **Radial Lines (5)**: Lines radiating outward from center, thickness controls line count
+- **Spiral (6)**: Archimedean spiral, thickness controls arm width
+- **Stripes (7)**: Vertical stripes, use rotation for other orientations
+- **Triangular Grid (8)**: Equilateral triangle tiling, thickness controls fill
 
 ## Usage
 

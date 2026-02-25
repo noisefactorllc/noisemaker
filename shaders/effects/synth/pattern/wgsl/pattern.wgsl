@@ -13,12 +13,16 @@ const PI: f32 = 3.14159265359;
 const SQRT3: f32 = 1.7320508075688772;
 
 // Pattern type constants
-const STRIPES: i32 = 0;
-const CHECKERBOARD: i32 = 1;
-const GRID: i32 = 2;
-const DOTS: i32 = 3;
+const CHECKERBOARD: i32 = 0;
+const CONCENTRIC_RINGS: i32 = 1;
+const DOTS: i32 = 2;
+const GRID: i32 = 3;
 const HEXAGONS: i32 = 4;
-const DIAMONDS: i32 = 5;
+const RADIAL_LINES: i32 = 5;
+const SPIRAL_PATTERN: i32 = 6;
+const STRIPES: i32 = 7;
+const TRIANGULAR_GRID: i32 = 8;
+const TAU: f32 = 6.28318530718;
 
 // Rotate a 2D point
 fn rotate2D(p: vec2<f32>, angle: f32) -> vec2<f32> {
@@ -94,29 +98,49 @@ fn hexagons(p: vec2<f32>, t: f32, sm: f32) -> f32 {
     return smoothstep(edge + sm, edge - sm, d);
 }
 
-// Diamonds pattern (herringbone-style angled bricks)
-fn diamonds(p: vec2<f32>, t: f32, sm: f32) -> f32 {
-    // Determine which diagonal band we're in
-    let band = floor(p.x + p.y);
-    let dir = band % 2.0;
-    
-    // Rotate coordinates based on band direction
-    var rp: vec2<f32>;
-    if (dir > 0.5) {
-        rp = vec2<f32>(p.x - p.y, p.x + p.y);
+// Concentric rings pattern
+fn concentricRings(p: vec2<f32>, t: f32, sm: f32) -> f32 {
+    let d = fract(length(p));
+    let edge1 = smoothstep(0.5 - t * 0.5 - sm, 0.5 - t * 0.5 + sm, d);
+    let edge2 = smoothstep(0.5 + t * 0.5 - sm, 0.5 + t * 0.5 + sm, d);
+    return edge1 - edge2;
+}
+
+// Radial lines pattern
+fn radialLines(p: vec2<f32>, t: f32, sm: f32) -> f32 {
+    let lineCount = max(1.0, floor(20.0 * t));
+    let angle = atan2(p.y, p.x);
+    let d = fract(angle / TAU * lineCount);
+    let edge1 = smoothstep(0.5 - 0.25 - sm, 0.5 - 0.25 + sm, d);
+    let edge2 = smoothstep(0.5 + 0.25 - sm, 0.5 + 0.25 + sm, d);
+    return edge1 - edge2;
+}
+
+// Triangular grid pattern
+fn triangularGrid(p: vec2<f32>, t: f32, sm: f32) -> f32 {
+    let skewed = vec2<f32>(p.x - p.y / SQRT3, p.y * 2.0 / SQRT3);
+    let cell = floor(skewed);
+    let f = fract(skewed);
+
+    var d: f32;
+    if (f.x + f.y < 1.0) {
+        d = min(min(f.x, f.y), 1.0 - f.x - f.y);
     } else {
-        rp = vec2<f32>(p.x + p.y, p.y - p.x);
+        d = min(min(1.0 - f.x, 1.0 - f.y), f.x + f.y - 1.0);
     }
-    rp = rp * 0.25;  // Even larger scale
-    
-    let f = fract(rp * 2.0);
-    
-    // Create brick pattern in rotated space - invert thickness so larger t = larger bricks
-    let gap = (1.0 - t) * 0.4;  // Gap size decreases as thickness increases
-    let lineX = smoothstep(gap - sm, gap + sm, abs(f.x - 0.5));
-    let lineY = smoothstep(gap - sm, gap + sm, abs(f.y - 0.5));
-    
-    return lineX * lineY;
+
+    let edge = (1.0 - t) * 0.4;
+    return smoothstep(edge - sm, edge + sm, d);
+}
+
+// Spiral pattern
+fn spiralPattern(p: vec2<f32>, t: f32, sm: f32) -> f32 {
+    let dist = length(p);
+    let angle = atan2(p.y, p.x);
+    let d = fract(angle / TAU + dist);
+    let edge1 = smoothstep(0.5 - t * 0.5 - sm, 0.5 - t * 0.5 + sm, d);
+    let edge2 = smoothstep(0.5 + t * 0.5 - sm, 0.5 + t * 0.5 + sm, d);
+    return edge1 - edge2;
 }
 
 @fragment
@@ -136,18 +160,24 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     // Compute pattern value
     var m: f32 = 0.0;
     
-    if (patternType == STRIPES) {
-        m = stripes(p, thickness, smoothness);
-    } else if (patternType == CHECKERBOARD) {
+    if (patternType == CHECKERBOARD) {
         m = checkerboard(p, smoothness);
-    } else if (patternType == GRID) {
-        m = grid(p, thickness, smoothness);
+    } else if (patternType == CONCENTRIC_RINGS) {
+        m = concentricRings(p, thickness, smoothness);
     } else if (patternType == DOTS) {
         m = dots(p, thickness, smoothness);
+    } else if (patternType == GRID) {
+        m = grid(p, thickness, smoothness);
     } else if (patternType == HEXAGONS) {
         m = hexagons(p, thickness, smoothness);
-    } else if (patternType == DIAMONDS) {
-        m = diamonds(p, thickness, smoothness);
+    } else if (patternType == RADIAL_LINES) {
+        m = radialLines(p, thickness, smoothness);
+    } else if (patternType == SPIRAL_PATTERN) {
+        m = spiralPattern(p, thickness, smoothness);
+    } else if (patternType == STRIPES) {
+        m = stripes(p, thickness, smoothness);
+    } else if (patternType == TRIANGULAR_GRID) {
+        m = triangularGrid(p, thickness, smoothness);
     }
     
     // Mix colors

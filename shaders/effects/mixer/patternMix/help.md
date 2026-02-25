@@ -4,14 +4,14 @@ Mix inputs using geometric patterns
 
 ## Description
 
-Divides the frame using one of six geometric patterns, showing source A in one region and source B in the other. The same pattern library as the synth/pattern generator, applied here as a spatial mixer between two inputs.
+Divides the frame using one of nine geometric patterns, showing source A in one region and source B in the other. The same pattern library as the synth/pattern generator, applied here as a spatial mixer between two inputs.
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | tex | surface | none | - | Source B |
-| type | int | stripes | stripes/checkerboard/grid/dots/hexagons/diamonds | Pattern type |
+| type | int | stripes | checkerboard/concentricRings/dots/grid/hexagons/radialLines/spiral/stripes/triangularGrid | Pattern type |
 | scale | float | 18 | 1-20 | Pattern scale (lower = more repetitions) |
 | thickness | float | 0.5 | 0-1 | Line/dot thickness |
 | smoothness | float | 0.01 | 0-0.25 | Edge softness (0 = hard edge) |
@@ -20,12 +20,15 @@ Divides the frame using one of six geometric patterns, showing source A in one r
 
 ## Notes
 
-- **stripes**: Vertical bands alternating between sources; thickness controls band width
 - **checkerboard**: Alternating square tiles of each source
-- **grid**: Source B appears in grid lines, source A fills the cells
+- **concentricRings**: Concentric ring regions alternating between sources
 - **dots**: Circular dots of source B on a field of source A
+- **grid**: Source B appears in grid lines, source A fills the cells
 - **hexagons**: Honeycomb tiling alternating between sources
-- **diamonds**: Herringbone/diamond brick pattern
+- **radialLines**: Radial line segments radiating from center
+- **spiral**: Spiral arm regions alternating between sources
+- **stripes**: Vertical bands alternating between sources; thickness controls band width
+- **triangularGrid**: Equilateral triangle tiling
 - **smoothness at 0**: Hard pixel-perfect edges between pattern regions
 - **smoothness increased**: Anti-aliased or soft transitions at pattern boundaries
 - Rotation applies to the entire pattern coordinate space
