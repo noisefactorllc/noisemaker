@@ -419,6 +419,13 @@ export class Pipeline {
                 }
             }
         }
+        // Ensure pipeline-level zoom (from resize()) is the authoritative value.
+        // This covers code paths where pipeline.resize() is called before
+        // pass.uniforms are updated (e.g. programState._applyToPipeline).
+        if (this.zoom != null) {
+            const numZoom = Number(this.zoom)
+            if (numZoom > 0) uniforms.zoom = numZoom
+        }
         return uniforms
     }
 
@@ -482,9 +489,6 @@ export class Pipeline {
             }
         }
 
-        // Use stored zoom value
-        const effectiveZoom = (typeof this.zoom === 'number' && this.zoom > 0) ? this.zoom : 1
-
         // Create global surfaces (o0-o7 and dynamic globals)
         for (const name of surfaceNames) {
             // Calculate scaled dimensions for zoom-sensitive surfaces
@@ -501,16 +505,9 @@ export class Pipeline {
                 surfaceWidth = this.resolveDimension(texSpec.width, this.width, defaultUniforms)
                 surfaceHeight = this.resolveDimension(texSpec.height, this.height, defaultUniforms)
                 if (texSpec.format) surfaceFormat = texSpec.format
-            } else {
-                // Apply zoom scaling to non-standard global surfaces
-                // Standard outputs (o0-o7) are always screen-sized
-                // Custom effect surfaces get zoom scaling if the effect has a zoom control
-                const isStandardOutput = /^o[0-7]$/.test(name)
-                if (!isStandardOutput && effectiveZoom > 1) {
-                    surfaceWidth = Math.max(1, Math.round(this.width / effectiveZoom))
-                    surfaceHeight = Math.max(1, Math.round(this.height / effectiveZoom))
-                }
             }
+            // No fallback zoom scaling — zoom is per-effect, declared in
+            // each effect's textures spec via { screenDivide: 'zoom' }
 
             // Check if existing surface can be reused (preserves sim state on recompile)
             const oldSurface = this.surfaces.get(name)
@@ -999,6 +996,13 @@ export class Pipeline {
                 }
 
                 return Math.max(1, Math.floor(value))
+            }
+
+            // Handle screen-divide spec: { screenDivide: 'zoom' }
+            // Resolves to screenSize / uniforms[param], for per-effect zoom scaling
+            if (spec.screenDivide !== undefined) {
+                const divisor = uniforms[spec.screenDivide] ?? spec.default ?? 1
+                return Math.max(1, Math.round(screenSize / divisor))
             }
 
             // Handle scale-based spec

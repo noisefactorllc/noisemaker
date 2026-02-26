@@ -31,6 +31,12 @@ export default new Effect({
       seed: { slot: 3, components: 'w' }
     }
   },
+  textures: {
+    global_rd_state: {
+      width: { screenDivide: 'zoom', default: 8 },
+      height: { screenDivide: 'zoom', default: 8 }
+    }
+  },
   globals: {
     tex: {
       type: "surface",

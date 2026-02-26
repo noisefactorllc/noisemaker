@@ -28,7 +28,12 @@ export default new Effect({
       source: { slot: 6, components: 'z' }
     }
   },
-  textures: {},
+  textures: {
+    global_ca_state: {
+      width: { screenDivide: 'zoom', default: 32 },
+      height: { screenDivide: 'zoom', default: 32 }
+    }
+  },
   globals: {
     tex: {
       type: "surface",

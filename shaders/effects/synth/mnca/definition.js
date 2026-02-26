@@ -33,7 +33,12 @@ export default new Effect({
 
     n2r2: { slot: 5, components: 'x' }
   },
-  textures: {},
+  textures: {
+    global_mnca_state: {
+      width: { screenDivide: 'zoom', default: 8 },
+      height: { screenDivide: 'zoom', default: 8 }
+    }
+  },
   globals: {
     tex: {
       type: "surface",
