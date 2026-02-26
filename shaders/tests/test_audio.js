@@ -64,7 +64,7 @@ test('low band returns low frequency value', () => {
     assertApprox(result, 0.7, 0.01, 'should return low band value')
 })
 
-test('low band maps to min/max range', () => {
+test('low band maps to non-trivial percentage range', () => {
     const { pipeline, audioState } = createTestPipeline()
 
     audioState.low = 0.5
@@ -72,13 +72,13 @@ test('low band maps to min/max range', () => {
     const config = {
         type: 'Audio',
         band: 0,  // low
-        min: 0,
-        max: 1
+        min: 0.2,
+        max: 0.8
     }
 
     const result = pipeline.resolveUniformValue(config, 0)
-    // raw percentage: 0 + 0.5 * 1 = 0.5
-    assertApprox(result, 0.5, 0.01, 'should return raw percentage')
+    // pct = 0.2 + 0.5 * (0.8 - 0.2) = 0.5
+    assertApprox(result, 0.5, 0.01, 'should map to percentage range')
 })
 
 // ============================================================================
@@ -103,21 +103,21 @@ test('mid band returns mid frequency value', () => {
     assertApprox(result, 0.4, 0.01, 'should return mid band value')
 })
 
-test('mid band maps to min/max range', () => {
+test('mid band maps to non-trivial percentage range', () => {
     const { pipeline, audioState } = createTestPipeline()
 
-    audioState.mid = 0.25
+    audioState.mid = 1.0
 
     const config = {
         type: 'Audio',
         band: 1,  // mid
-        min: 0,
-        max: 1
+        min: 0.3,
+        max: 0.7
     }
 
     const result = pipeline.resolveUniformValue(config, 0)
-    // raw percentage: 0 + 0.25 * 1 = 0.25
-    assertApprox(result, 0.25, 0.01, 'should return raw percentage')
+    // pct = 0.3 + 1.0 * (0.7 - 0.3) = 0.7
+    assertApprox(result, 0.7, 0.01, 'should map to percentage range')
 })
 
 // ============================================================================
@@ -142,21 +142,21 @@ test('high band returns high frequency value', () => {
     assertApprox(result, 0.9, 0.01, 'should return high band value')
 })
 
-test('high band maps to min/max range', () => {
+test('high band maps to non-trivial percentage range', () => {
     const { pipeline, audioState } = createTestPipeline()
 
-    audioState.high = 1.0
+    audioState.high = 0.0
 
     const config = {
         type: 'Audio',
         band: 2,  // high
-        min: 0,
-        max: 1
+        min: 0.1,
+        max: 0.9
     }
 
     const result = pipeline.resolveUniformValue(config, 0)
-    // raw percentage: 0 + 1.0 * 1 = 1.0 (clamped to max)
-    assertApprox(result, 1.0, 0.01, 'should return raw percentage')
+    // pct = 0.1 + 0.0 * (0.9 - 0.1) = 0.1
+    assertApprox(result, 0.1, 0.01, 'should map to percentage range')
 })
 
 // ============================================================================
@@ -181,21 +181,21 @@ test('vol band returns overall volume', () => {
     assertApprox(result, 0.65, 0.01, 'should return vol value')
 })
 
-test('vol band maps to min/max range', () => {
+test('vol band maps to non-trivial percentage range', () => {
     const { pipeline, audioState } = createTestPipeline()
 
-    audioState.vol = 0.8
+    audioState.vol = 0.5
 
     const config = {
         type: 'Audio',
         band: 3,  // vol
-        min: 0,
-        max: 1
+        min: 0.0,
+        max: 0.5
     }
 
     const result = pipeline.resolveUniformValue(config, 0)
-    // raw percentage: 0 + 0.8 * 1 = 0.8
-    assertApprox(result, 0.8, 0.01, 'should return raw percentage')
+    // pct = 0.0 + 0.5 * (0.5 - 0.0) = 0.25
+    assertApprox(result, 0.25, 0.01, 'should map to percentage range')
 })
 
 // ============================================================================
