@@ -144,6 +144,7 @@ export function expand(compilationResult, options = {}) {
         // Pipeline uniforms accumulate from upstream effects for downstream consumption
         // Example: noise3d sets volumeSize, ca3d uses it without declaring it
         const pipelineUniforms = {}
+        const chainScopeId = `chain_${compilationResult.plans.indexOf(plan)}`
 
         for (const step of plan.chain) {
             // Handle builtin read operations - these just set the current input
@@ -324,6 +325,17 @@ export function expand(compilationResult, options = {}) {
                 return texName
             }
 
+            // Helper to scope global state textures to chain level.
+            // Particle scoping takes priority; all other global_ textures get chain scoping.
+            const scopeChainTex = (texName) => {
+                const particleResult = scopeParticleTex(texName)
+                if (particleResult !== texName) return particleResult
+                if (texName.startsWith('global_')) {
+                    return `${texName}_${chainScopeId}`
+                }
+                return texName
+            }
+
             // Generate a unique ID for this effect instance
             const nodeId = `node_${step.temp}`
 
@@ -374,43 +386,55 @@ export function expand(compilationResult, options = {}) {
                 for (const [texName, spec] of Object.entries(effectDef.textures)) {
                     let virtualTexId
                     const isParticleTex = /^global_(xyz|vel|rgba|points_trail|life_data)$/.test(texName)
-                    const shouldScope = texName.startsWith('global_') && isParticleTex && currentParticlePipelineId
+                    const shouldScopeAsParticle = isParticleTex && currentParticlePipelineId
+                    const shouldScopeAsChain = texName.startsWith('global_') && !isParticleTex
 
                     if (texName.startsWith('global_')) {
-                        // Particle textures get scoped to current pipeline
-                        if (shouldScope) {
+                        if (shouldScopeAsParticle) {
                             virtualTexId = `${texName}_${currentParticlePipelineId}`
                         } else {
-                            virtualTexId = texName
+                            // Chain-scope all non-particle global textures
+                            virtualTexId = `${texName}_${chainScopeId}`
                         }
                     } else {
                         // Node-local texture - add node prefix
                         virtualTexId = `${nodeId}_${texName}`
                     }
 
-                    // When scoping particle textures to a pipeline, we must also scope
-                    // any param references in width/height. Otherwise all pipelines would
-                    // share the same param lookup (e.g., 'stateSize') and get the same size.
-                    // We scope the param name to the pipeline (e.g., 'stateSize' -> 'stateSize_node_1')
-                    // so each pipeline's textures look up their own uniform.
+                    // When scoping textures to a pipeline or chain, we must also scope
+                    // any param references in width/height. Otherwise all pipelines/chains
+                    // would share the same param lookup (e.g., 'stateSize') and get the same size.
+                    // We scope the param name (e.g., 'stateSize' -> 'stateSize_node_1' or
+                    // 'stateSize' -> 'stateSize_chain_0') so each scope's textures look up their
+                    // own uniform.
                     //
                     // For node-local textures that reference stateSize, we also need to scope
                     // the param when in a particle pipeline, so textures match particle state size.
                     let resolvedSpec = { ...spec }
-                    const shouldScopeParams = shouldScope || (currentParticlePipelineId && !texName.startsWith('global_'))
+                    const shouldScopeParams = shouldScopeAsParticle || shouldScopeAsChain ||
+                        (currentParticlePipelineId && !texName.startsWith('global_'))
                     if (shouldScopeParams) {
-                        // Helper to scope a dimension spec's param reference to this pipeline
+                        const scopeSuffix = shouldScopeAsParticle ? currentParticlePipelineId : chainScopeId
+                        // Helper to scope a dimension spec's param reference to this pipeline/chain
                         // and track the mapping for uniform propagation
                         const scopeDimSpec = (dimSpec) => {
                             if (typeof dimSpec === 'object' && dimSpec.param !== undefined) {
                                 const originalParam = dimSpec.param
-                                const scopedParam = `${originalParam}_${currentParticlePipelineId}`
+                                const scopedParam = `${originalParam}_${scopeSuffix}`
                                 // Track this mapping so we can copy uniform values later
                                 scopedParamMap.set(originalParam, scopedParam)
-                                // Scope the param name to this pipeline
                                 return {
                                     ...dimSpec,
                                     param: scopedParam
+                                }
+                            }
+                            if (typeof dimSpec === 'object' && dimSpec.screenDivide !== undefined) {
+                                const originalParam = dimSpec.screenDivide
+                                const scopedParam = `${originalParam}_${scopeSuffix}`
+                                scopedParamMap.set(originalParam, scopedParam)
+                                return {
+                                    ...dimSpec,
+                                    screenDivide: scopedParam
                                 }
                             }
                             return dimSpec
@@ -428,7 +452,7 @@ export function expand(compilationResult, options = {}) {
                 for (const [texName, spec] of Object.entries(effectDef.textures3d)) {
                     let virtualTexId
                     if (texName.startsWith('global_')) {
-                        virtualTexId = texName
+                        virtualTexId = scopeChainTex(texName)
                     } else {
                         virtualTexId = `${nodeId}_${texName}`
                     }
@@ -777,13 +801,13 @@ export function expand(compilationResult, options = {}) {
                             } else if (SURFACE_REF_PATTERN.test(defaultVal)) {
                                 pass.inputs[uniformName] = `global_${defaultVal}`
                             } else if (defaultVal.startsWith('global_')) {
-                                pass.inputs[uniformName] = scopeParticleTex(defaultVal)
+                                pass.inputs[uniformName] = scopeChainTex(defaultVal)
                             } else {
                                 pass.inputs[uniformName] = defaultVal
                             }
                         } else if (texRef.startsWith('global_')) {
-                            // Explicit global reference - scope particle textures
-                            pass.inputs[uniformName] = scopeParticleTex(texRef)
+                            // Explicit global reference - scope to chain/particle
+                            pass.inputs[uniformName] = scopeChainTex(texRef)
                         } else if (texRef === 'outputTex') {
                             // Reference to this node's main output (e.g., in feedback passes)
                             pass.inputs[uniformName] = `${nodeId}_out`
@@ -849,7 +873,7 @@ export function expand(compilationResult, options = {}) {
                             // Pipeline reference - write back to the agent color texture we received
                             virtualTex = currentInputRgba || `${nodeId}_inputRgba`
                         } else if (texRef.startsWith('global_')) {
-                            virtualTex = scopeParticleTex(texRef)
+                            virtualTex = scopeChainTex(texRef)
                         } else if (texRef.startsWith('feedback_')) {
                             virtualTex = texRef
                         } else {
@@ -896,9 +920,9 @@ export function expand(compilationResult, options = {}) {
                     }
                 } else {
                     // Map an internal texture to the 2D pipeline
-                    // global_ prefix = shared, use as-is; everything else = node-local
+                    // global_ prefix = chain-scoped; everything else = node-local
                     const virtualTexId = internalTexName.startsWith('global_')
-                        ? internalTexName
+                        ? scopeChainTex(internalTexName)
                         : `${nodeId}_${internalTexName}`
                     textureMap.set(`${nodeId}_out`, virtualTexId)
                     currentInput = virtualTexId
@@ -939,9 +963,9 @@ export function expand(compilationResult, options = {}) {
                     }
                 } else {
                     // Map the internal texture to the 3D pipeline
-                    // global_ prefix = shared, use as-is; everything else = node-local
+                    // global_ prefix = chain-scoped; everything else = node-local
                     const virtualTexId = internalTexName.startsWith('global_')
-                        ? internalTexName
+                        ? scopeChainTex(internalTexName)
                         : `${nodeId}_${internalTexName}`
                     textureMap.set(`${nodeId}_out3d`, virtualTexId)
                     currentInput3d = virtualTexId
@@ -974,9 +998,8 @@ export function expand(compilationResult, options = {}) {
                         textureMap.set(`${nodeId}_outXyz`, currentInputXyz)
                     }
                 } else {
-                    // Scope particle textures to current pipeline
                     const virtualId = texName.startsWith('global_')
-                        ? scopeParticleTex(texName)
+                        ? scopeChainTex(texName)
                         : `${nodeId}_${texName}`
                     textureMap.set(`${nodeId}_outXyz`, virtualId)
                     currentInputXyz = virtualId
@@ -989,9 +1012,8 @@ export function expand(compilationResult, options = {}) {
                         textureMap.set(`${nodeId}_outVel`, currentInputVel)
                     }
                 } else {
-                    // Scope particle textures to current pipeline
                     const virtualId = texName.startsWith('global_')
-                        ? scopeParticleTex(texName)
+                        ? scopeChainTex(texName)
                         : `${nodeId}_${texName}`
                     textureMap.set(`${nodeId}_outVel`, virtualId)
                     currentInputVel = virtualId
@@ -1004,9 +1026,8 @@ export function expand(compilationResult, options = {}) {
                         textureMap.set(`${nodeId}_outRgba`, currentInputRgba)
                     }
                 } else {
-                    // Scope particle textures to current pipeline
                     const virtualId = texName.startsWith('global_')
-                        ? scopeParticleTex(texName)
+                        ? scopeChainTex(texName)
                         : `${nodeId}_${texName}`
                     textureMap.set(`${nodeId}_outRgba`, virtualId)
                     currentInputRgba = virtualId

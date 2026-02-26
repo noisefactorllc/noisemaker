@@ -32,6 +32,7 @@ Occurs when the DSL code changes. See :ref:`Compiler Specification <shader-compi
 #. **Parse DSL:** Generate AST.
 #. **Analyze:** Generate Logical Graph (Effect Chain).
 #. **Expand Effects:** Replace high-level nodes with their constituent passes defined in the JSON schema (Render Graph).
+#. **Scope State Textures:** Effects that maintain simulation state use ``global_*`` textures (e.g., ``global_rd_state``, ``global_ca_state``, ``global_accum``). During expansion, these are scoped per-chain (e.g., ``global_rd_state_chain_0``) so that multiple instances of the same stateful effect in separate chains get independent state. Particle textures (``global_xyz``, ``global_vel``, etc.) are further scoped per-pipeline to the node that creates them. Effects within the same chain share state, which is required for patterns like ``loopBegin``/``loopEnd`` that share ``global_accum``.
 #. **Topological Sort:** Order the passes based on texture dependencies to ensure inputs are ready before they are read.
 #. **Resource Analysis:** Determine the lifetime of each intermediate texture to enable memory pooling.
 
