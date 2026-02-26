@@ -141,7 +141,7 @@ void main() {
         // Four corners - bilinear interpolation
         vec2 cornerSt = rotate2D(st, angle);
         vec3 top = mix(color1, color2, cornerSt.x);
-        vec3 bottom = mix(color4, color3, cornerSt.x);
+        vec3 bottom = mix(color3, color4, cornerSt.x);
         color = mix(bottom, top, cornerSt.y);
     } else if (gradientType == 3) {
         // Linear gradient along rotated y-axis

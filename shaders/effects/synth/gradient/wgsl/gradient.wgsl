@@ -148,7 +148,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             // Four corners - bilinear interpolation
             var cornerSt = rotate2D(st, angle);
             let top = mix(color1, color2, cornerSt.x);
-            let bottom = mix(color4, color3, cornerSt.x);
+            let bottom = mix(color3, color4, cornerSt.x);
             color = mix(bottom, top, cornerSt.y);
         }
         case 3: {
