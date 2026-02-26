@@ -80,33 +80,33 @@ test('Parser: Basic oscillator with type only', () => {
 })
 
 test('Parser: Oscillator with all parameters', () => {
-    const code = 'search synth, filter\nnoise(scale: osc(type: oscKind.tri, min: 2, max: 8, speed: 2, offset: 0.25, seed: 42)).write(o0)'
+    const code = 'search synth, filter\nnoise(scale: osc(type: oscKind.tri, min: 0.2, max: 0.8, speed: 2, offset: 0.25, seed: 42)).write(o0)'
     const tokens = lex(code)
     const ast = parse(tokens)
 
     const scaleArg = ast.plans[0].chain[0].kwargs.scale
     assert(scaleArg.type === 'Oscillator', 'Expected Oscillator type')
-    assertEqual(scaleArg.min.value, 2, 'Expected min 2')
-    assertEqual(scaleArg.max.value, 8, 'Expected max 8')
+    assertEqual(scaleArg.min.value, 0.2, 'Expected min 0.2')
+    assertEqual(scaleArg.max.value, 0.8, 'Expected max 0.8')
     assertEqual(scaleArg.speed.value, 2, 'Expected speed 2')
     assertEqual(scaleArg.offset.value, 0.25, 'Expected offset 0.25')
     assertEqual(scaleArg.seed.value, 42, 'Expected seed 42')
 })
 
 test('Parser: Oscillator with positional arguments', () => {
-    const code = 'search synth, filter\nnoise(scale: osc(oscKind.saw, 1, 5)).write(o0)'
+    const code = 'search synth, filter\nnoise(scale: osc(oscKind.saw, 0.1, 0.5)).write(o0)'
     const tokens = lex(code)
     const ast = parse(tokens)
 
     const scaleArg = ast.plans[0].chain[0].kwargs.scale
     assert(scaleArg.type === 'Oscillator', 'Expected Oscillator type')
     assert(scaleArg.oscType.path.join('.') === 'oscKind.saw', 'Expected oscKind.saw')
-    assertEqual(scaleArg.min.value, 1, 'Expected min 1')
-    assertEqual(scaleArg.max.value, 5, 'Expected max 5')
+    assertEqual(scaleArg.min.value, 0.1, 'Expected min 0.1')
+    assertEqual(scaleArg.max.value, 0.5, 'Expected max 0.5')
 })
 
 test('Parser: Oscillator stored in variable', () => {
-    const code = 'search synth, filter\nlet myOsc = osc(type: oscKind.sine, min: 0, max: 10)\nnoise(scale: myOsc).write(o0)'
+    const code = 'search synth, filter\nlet myOsc = osc(type: oscKind.sine, min: 0, max: 1)\nnoise(scale: myOsc).write(o0)'
     const tokens = lex(code)
     const ast = parse(tokens)
 
@@ -121,7 +121,7 @@ test('Parser: Oscillator stored in variable', () => {
 // ============================================================================
 
 test('Validator: Oscillator resolves to oscillator config', () => {
-    const result = compile('search synth, filter\nnoise(scale: osc(type: oscKind.sine, min: 2, max: 8)).write(o0)')
+    const result = compile('search synth, filter\nnoise(scale: osc(type: oscKind.sine, min: 0.2, max: 0.8)).write(o0)')
 
     // Find the compiled step
     const step = result.plans[0].chain[0]
@@ -131,8 +131,8 @@ test('Validator: Oscillator resolves to oscillator config', () => {
     assert(scaleArg, 'Expected scale arg')
     assert(scaleArg.type === 'Oscillator', 'Expected oscillator type')
     assertEqual(scaleArg.oscType, 0, 'Expected oscType 0 (sine)')
-    assertEqual(scaleArg.min, 2, 'Expected min 2')
-    assertEqual(scaleArg.max, 8, 'Expected max 8')
+    assertEqual(scaleArg.min, 0.2, 'Expected min 0.2')
+    assertEqual(scaleArg.max, 0.8, 'Expected max 0.8')
 })
 
 test('Validator: Different oscillator types resolve to correct values', () => {
@@ -163,6 +163,20 @@ test('Validator: Oscillator defaults are applied correctly', () => {
     assertEqual(scaleArg.seed, 1, 'Expected default seed 1')
 })
 
+test('Validator: Oscillator min/max are clamped to [0, 1]', () => {
+    const result = compile('search synth, filter\nnoise(scale: osc(type: oscKind.sine, min: -0.5, max: 2)).write(o0)')
+    const scaleArg = result.plans[0].chain[0].args.scale
+    assertEqual(scaleArg.min, 0, 'min should be clamped to 0')
+    assertEqual(scaleArg.max, 1, 'max should be clamped to 1')
+})
+
+test('Validator: Oscillator min/max within [0, 1] pass through unchanged', () => {
+    const result = compile('search synth, filter\nnoise(scale: osc(type: oscKind.sine, min: 0.25, max: 0.75)).write(o0)')
+    const scaleArg = result.plans[0].chain[0].args.scale
+    assertEqual(scaleArg.min, 0.25, 'min should be 0.25')
+    assertEqual(scaleArg.max, 0.75, 'max should be 0.75')
+})
+
 // ============================================================================
 // Unparser Tests (Round-trip)
 // ============================================================================
@@ -171,8 +185,8 @@ test('Unparser: formatValue handles oscillator config', () => {
     const oscConfig = {
         type: 'Oscillator',
         oscType: 0,
-        min: 2,
-        max: 8,
+        min: 0.2,
+        max: 0.8,
         speed: 1,
         offset: 0,
         seed: 1
@@ -181,8 +195,8 @@ test('Unparser: formatValue handles oscillator config', () => {
     const formatted = formatValue(oscConfig)
     assert(formatted.includes('osc('), 'Expected osc( in output')
     assert(formatted.includes('oscKind.sine'), 'Expected oscKind.sine')
-    assert(formatted.includes('min: 2'), 'Expected min: 2')
-    assert(formatted.includes('max: 8'), 'Expected max: 8')
+    assert(formatted.includes('min: 0.2'), 'Expected min: 0.2')
+    assert(formatted.includes('max: 0.8'), 'Expected max: 0.8')
 })
 
 test('Unparser: formatValue omits default values', () => {
@@ -228,7 +242,7 @@ test('Unparser: All oscillator types format correctly', () => {
 // ============================================================================
 
 test('Integration: Full compile and unparse round-trip', () => {
-    const original = 'search synth, filter\nnoise(scale: osc(type: oscKind.sine, min: 2, max: 8)).write(o0)'
+    const original = 'search synth, filter\nnoise(scale: osc(type: oscKind.sine, min: 0.2, max: 0.8)).write(o0)'
     const compiled = compile(original)
 
     // Verify compilation produced oscillator config
@@ -241,7 +255,7 @@ test('Integration: Full compile and unparse round-trip', () => {
 
 test('Integration: Oscillator in complex chain', () => {
     const code = `search synth, filter
-let scaleOsc = osc(type: oscKind.saw, min: 1, max: 10, speed: 2)
+let scaleOsc = osc(type: oscKind.saw, min: 0.1, max: 1, speed: 2)
 noise(scale: scaleOsc).bloom(amount: 0.5).write(o0)`
 
     const compiled = compile(code)

@@ -72,7 +72,7 @@ test('parses midi with channel only', () => {
 })
 
 test('parses midi with all parameters', () => {
-    const tokens = lex('search synth\nnoise(scale: midi(channel: 5, mode: midiMode.gateNote, min: 2, max: 20, sensitivity: 3)).write(o0)')
+    const tokens = lex('search synth\nnoise(scale: midi(channel: 5, mode: midiMode.gateNote, min: 0.2, max: 0.8, sensitivity: 3)).write(o0)')
     const ast = parse(tokens)
 
     const chain = ast.plans[0].chain
@@ -82,13 +82,13 @@ test('parses midi with all parameters', () => {
     assertEqual(scaleArg.type, 'Midi', 'should create Midi node')
     assertEqual(scaleArg.channel.value, 5, 'channel should be 5')
     assertEqual(scaleArg.mode.path[1], 'gateNote', 'mode should be gateNote')
-    assertEqual(scaleArg.min.value, 2, 'min should be 2')
-    assertEqual(scaleArg.max.value, 20, 'max should be 20')
+    assertEqual(scaleArg.min.value, 0.2, 'min should be 0.2')
+    assertEqual(scaleArg.max.value, 0.8, 'max should be 0.8')
     assertEqual(scaleArg.sensitivity.value, 3, 'sensitivity should be 3')
 })
 
 test('parses midi with positional arguments', () => {
-    const tokens = lex('search synth\nnoise(scale: midi(1, midiMode.velocity, 0, 10)).write(o0)')
+    const tokens = lex('search synth\nnoise(scale: midi(1, midiMode.velocity, 0, 0.8)).write(o0)')
     const ast = parse(tokens)
 
     const chain = ast.plans[0].chain
@@ -97,7 +97,7 @@ test('parses midi with positional arguments', () => {
 
     assertEqual(scaleArg.type, 'Midi', 'should create Midi node')
     assertEqual(scaleArg.channel.value, 1, 'channel should be 1')
-    assertEqual(scaleArg.max.value, 10, 'max should be 10')
+    assertEqual(scaleArg.max.value, 0.8, 'max should be 0.8')
 })
 
 test('midi throws on missing channel', () => {
@@ -133,7 +133,7 @@ test('parses audio with band only', () => {
 })
 
 test('parses audio with all parameters', () => {
-    const tokens = lex('search synth\nnoise(scale: audio(band: audioBand.mid, min: 1, max: 100)).write(o0)')
+    const tokens = lex('search synth\nnoise(scale: audio(band: audioBand.mid, min: 0.1, max: 0.9)).write(o0)')
     const ast = parse(tokens)
 
     const chain = ast.plans[0].chain
@@ -142,12 +142,12 @@ test('parses audio with all parameters', () => {
 
     assertEqual(scaleArg.type, 'Audio', 'should create Audio node')
     assertEqual(scaleArg.band.path[1], 'mid', 'band should be mid')
-    assertEqual(scaleArg.min.value, 1, 'min should be 1')
-    assertEqual(scaleArg.max.value, 100, 'max should be 100')
+    assertEqual(scaleArg.min.value, 0.1, 'min should be 0.1')
+    assertEqual(scaleArg.max.value, 0.9, 'max should be 0.9')
 })
 
 test('parses audio with positional arguments', () => {
-    const tokens = lex('search synth\nnoise(scale: audio(audioBand.high, 0, 50)).write(o0)')
+    const tokens = lex('search synth\nnoise(scale: audio(audioBand.high, 0, 0.5)).write(o0)')
     const ast = parse(tokens)
 
     const chain = ast.plans[0].chain
@@ -156,7 +156,7 @@ test('parses audio with positional arguments', () => {
 
     assertEqual(scaleArg.type, 'Audio', 'should create Audio node')
     assertEqual(scaleArg.band.path[1], 'high', 'band should be high')
-    assertEqual(scaleArg.max.value, 50, 'max should be 50')
+    assertEqual(scaleArg.max.value, 0.5, 'max should be 0.5')
 })
 
 test('audio throws on missing band', () => {
@@ -248,16 +248,16 @@ test('formats midi with non-default values', () => {
         type: 'Midi',
         channel: 5,
         mode: 1,  // gateNote
-        min: 2,
-        max: 10,
+        min: 0.2,
+        max: 0.8,
         sensitivity: 3
     }
 
     const result = formatValue(config)
     assert(result.includes('channel: 5'), 'should include channel')
     assert(result.includes('mode: midiMode.gateNote'), 'should include mode')
-    assert(result.includes('min: 2'), 'should include min')
-    assert(result.includes('max: 10'), 'should include max')
+    assert(result.includes('min: 0.2'), 'should include min')
+    assert(result.includes('max: 0.8'), 'should include max')
     assert(result.includes('sensitivity: 3'), 'should include sensitivity')
 })
 
@@ -277,14 +277,14 @@ test('formats audio with non-default values', () => {
     const config = {
         type: 'Audio',
         band: 2,  // high
-        min: 5,
-        max: 100
+        min: 0.25,
+        max: 0.75
     }
 
     const result = formatValue(config)
     assert(result.includes('band: audioBand.high'), 'should include band')
-    assert(result.includes('min: 5'), 'should include min')
-    assert(result.includes('max: 100'), 'should include max')
+    assert(result.includes('min: 0.25'), 'should include min')
+    assert(result.includes('max: 0.75'), 'should include max')
 })
 
 // ============================================================================

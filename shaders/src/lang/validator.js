@@ -1072,8 +1072,8 @@ export function validate(ast) {
                             value = {
                                 type: 'Oscillator',
                                 oscType: oscTypeValue,
-                                min: resolveOscParam(node.min) ?? 0,
-                                max: resolveOscParam(node.max) ?? 1,
+                                min: Math.max(0, Math.min(1, resolveOscParam(node.min) ?? 0)),
+                                max: Math.max(0, Math.min(1, resolveOscParam(node.max) ?? 1)),
                                 speed: resolveOscParam(node.speed) ?? 1,
                                 offset: resolveOscParam(node.offset) ?? 0,
                                 seed: resolveOscParam(node.seed) ?? 1,
@@ -1119,8 +1119,8 @@ export function validate(ast) {
                                 type: 'Midi',
                                 channel: resolveMidiParam(node.channel) ?? 1,
                                 mode: modeValue,
-                                min: resolveMidiParam(node.min) ?? 0,
-                                max: resolveMidiParam(node.max) ?? 1,
+                                min: Math.max(0, Math.min(1, resolveMidiParam(node.min) ?? 0)),
+                                max: Math.max(0, Math.min(1, resolveMidiParam(node.max) ?? 1)),
                                 sensitivity: resolveMidiParam(node.sensitivity) ?? 1,
                                 // Keep original AST for unparsing
                                 _ast: node,
@@ -1163,8 +1163,8 @@ export function validate(ast) {
                             value = {
                                 type: 'Audio',
                                 band: bandValue,
-                                min: resolveAudioParam(node.min) ?? 0,
-                                max: resolveAudioParam(node.max) ?? 1,
+                                min: Math.max(0, Math.min(1, resolveAudioParam(node.min) ?? 0)),
+                                max: Math.max(0, Math.min(1, resolveAudioParam(node.max) ?? 1)),
                                 // Keep original AST for unparsing
                                 _ast: node,
                                 // Preserve variable reference marker for unparser round-trip
