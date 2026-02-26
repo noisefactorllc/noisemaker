@@ -610,7 +610,7 @@ export function expand(compilationResult, options = {}) {
                     pass.uniformSpecs = {}
                     for (const [argName, def] of Object.entries(effectDef.globals)) {
                         const uniformName = def.uniform || argName
-                        if (def.type === 'float' || def.type === 'int') {
+                        if ((def.type === 'float' || def.type === 'int') && !def.choices) {
                             pass.uniformSpecs[uniformName] = {
                                 min: def.min ?? 0,
                                 max: def.max ?? 100
