@@ -112,6 +112,15 @@ export class MidiState {
     }
 }
 
+/** Average a range of FFT bins, normalized to 0-1. */
+function _avgBins(buf, from, to) {
+    const end = Math.min(to, buf.length)
+    if (end <= from) return 0
+    let sum = 0
+    for (let i = from; i < end; i++) sum += buf[i]
+    return sum / (end - from) / 255
+}
+
 /**
  * Audio analysis state.
  * Provides frequency band data extracted from an AnalyserNode.
@@ -158,11 +167,14 @@ export class AudioState {
         const buf = new Uint8Array(analyser.frequencyBinCount)
         analyser.getByteFrequencyData(buf)
 
-        // Extract frequency bands from FFT bins
-        // Bin indices based on noisedeck-pro: 0=low, 2=mid, 4=high
-        const rawLow = buf[0] / 255
-        const rawMid = buf[2] / 255
-        const rawHigh = buf[4] / 255
+        // Extract frequency bands by averaging across bin ranges.
+        // With fftSize=256 at 44.1kHz: 128 bins, each ~172Hz wide.
+        // Low  (~80-340Hz):    bins 1-2   (skip DC at bin 0)
+        // Mid  (~340-2000Hz):  bins 2-12
+        // High (~2000-8000Hz): bins 12-47
+        const rawLow = _avgBins(buf, 1, 2)
+        const rawMid = _avgBins(buf, 2, 12)
+        const rawHigh = _avgBins(buf, 12, 47)
 
         // Apply smoothing via rolling average
         this.low = this._smooth('low', rawLow)
