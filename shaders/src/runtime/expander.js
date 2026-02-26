@@ -604,6 +604,21 @@ export function expand(compilationResult, options = {}) {
                     }
                 }
 
+                // Build uniformSpecs for percentage-based automation scaling
+                // Maps uniform names to their consumer parameter's declared range
+                if (effectDef.globals) {
+                    pass.uniformSpecs = {}
+                    for (const [argName, def] of Object.entries(effectDef.globals)) {
+                        const uniformName = def.uniform || argName
+                        if (def.type === 'float' || def.type === 'int') {
+                            pass.uniformSpecs[uniformName] = {
+                                min: def.min ?? 0,
+                                max: def.max ?? 100
+                            }
+                        }
+                    }
+                }
+
                 // Map Uniforms
                 if (step.args) {
                     for (const [argName, arg] of Object.entries(step.args)) {
