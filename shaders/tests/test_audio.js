@@ -72,13 +72,13 @@ test('low band maps to min/max range', () => {
     const config = {
         type: 'Audio',
         band: 0,  // low
-        min: 2,
-        max: 10
+        min: 0,
+        max: 1
     }
 
     const result = pipeline.resolveUniformValue(config, 0)
-    // 0.5 * (10-2) + 2 = 6
-    assertApprox(result, 6, 0.01, 'should map to range')
+    // raw percentage: 0 + 0.5 * 1 = 0.5
+    assertApprox(result, 0.5, 0.01, 'should return raw percentage')
 })
 
 // ============================================================================
@@ -112,12 +112,12 @@ test('mid band maps to min/max range', () => {
         type: 'Audio',
         band: 1,  // mid
         min: 0,
-        max: 100
+        max: 1
     }
 
     const result = pipeline.resolveUniformValue(config, 0)
-    // 0.25 * 100 = 25
-    assertApprox(result, 25, 0.01, 'should map to range')
+    // raw percentage: 0 + 0.25 * 1 = 0.25
+    assertApprox(result, 0.25, 0.01, 'should return raw percentage')
 })
 
 // ============================================================================
@@ -150,13 +150,13 @@ test('high band maps to min/max range', () => {
     const config = {
         type: 'Audio',
         band: 2,  // high
-        min: -5,
-        max: 5
+        min: 0,
+        max: 1
     }
 
     const result = pipeline.resolveUniformValue(config, 0)
-    // 1.0 * 10 + (-5) = 5
-    assertApprox(result, 5, 0.01, 'should map to range')
+    // raw percentage: 0 + 1.0 * 1 = 1.0 (clamped to max)
+    assertApprox(result, 1.0, 0.01, 'should return raw percentage')
 })
 
 // ============================================================================
@@ -189,13 +189,69 @@ test('vol band maps to min/max range', () => {
     const config = {
         type: 'Audio',
         band: 3,  // vol
-        min: 1,
-        max: 11
+        min: 0,
+        max: 1
     }
 
     const result = pipeline.resolveUniformValue(config, 0)
-    // 0.8 * 10 + 1 = 9
-    assertApprox(result, 9, 0.01, 'should map to range')
+    // raw percentage: 0 + 0.8 * 1 = 0.8
+    assertApprox(result, 0.8, 0.01, 'should return raw percentage')
+})
+
+// ============================================================================
+// Percentage Scaling Tests
+// ============================================================================
+
+console.log('\n=== Percentage Scaling ===\n')
+
+test('resolveUniformValue scales percentage by paramSpec', () => {
+    const { pipeline, audioState } = createTestPipeline()
+    audioState.low = 0.5
+
+    const config = {
+        type: 'Audio',
+        band: 0,  // low
+        min: 0,   // 0% (percentage)
+        max: 1    // 100% (percentage)
+    }
+    const paramSpec = { min: 10, max: 50 }
+
+    const result = pipeline.resolveUniformValue(config, 0, paramSpec)
+    // audio raw = 0.5, pct = 0 + 0.5 * 1 = 0.5, output = 10 + 0.5 * 40 = 30
+    assertApprox(result, 30, 0.01, 'should scale percentage by paramSpec')
+})
+
+test('resolveUniformValue with partial percentage range', () => {
+    const { pipeline, audioState } = createTestPipeline()
+    audioState.low = 0.5
+
+    const config = {
+        type: 'Audio',
+        band: 0,
+        min: 0.25,  // 25%
+        max: 0.75   // 75%
+    }
+    const paramSpec = { min: 0, max: 100 }
+
+    const result = pipeline.resolveUniformValue(config, 0, paramSpec)
+    // audio raw = 0.5, pct = 0.25 + 0.5 * 0.5 = 0.5, output = 0 + 0.5 * 100 = 50
+    assertApprox(result, 50, 0.01, 'should scale partial percentage by paramSpec')
+})
+
+test('resolveUniformValue without paramSpec returns raw percentage', () => {
+    const { pipeline, audioState } = createTestPipeline()
+    audioState.low = 0.5
+
+    const config = {
+        type: 'Audio',
+        band: 0,
+        min: 0,
+        max: 1
+    }
+
+    const result = pipeline.resolveUniformValue(config, 0)
+    // No paramSpec, returns raw percentage
+    assertApprox(result, 0.5, 0.01, 'should return raw percentage without paramSpec')
 })
 
 // ============================================================================
@@ -211,12 +267,12 @@ test('audio returns min when no audio state set', () => {
     const config = {
         type: 'Audio',
         band: 0,
-        min: 5,
-        max: 10
+        min: 0,
+        max: 1
     }
 
     const result = pipeline.resolveUniformValue(config, 0)
-    assertEqual(result, 5, 'should return min when no audio state')
+    assertEqual(result, 0, 'should return 0% when no audio state')
 })
 
 test('audio handles zero values', () => {
@@ -261,12 +317,12 @@ test('audio clamps values above 1', () => {
         type: 'Audio',
         band: 2,
         min: 0,
-        max: 10
+        max: 1
     }
 
     const result = pipeline.resolveUniformValue(config, 0)
-    // Should clamp to max
-    assertEqual(result, 10, 'should clamp to max for values > 1')
+    // rawValue clamped to 1.0, percentage = 0 + 1.0 * 1 = 1.0
+    assertEqual(result, 1, 'should clamp to max percentage for values > 1')
 })
 
 test('audio defaults band values correctly', () => {

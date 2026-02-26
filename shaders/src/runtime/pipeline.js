@@ -1163,32 +1163,35 @@ export class Pipeline {
 
     /**
      * Resolve automation values (oscillators, MIDI, audio) in a uniform value.
-     * If the value is an automation configuration, evaluate it.
+     * If the value is an automation configuration, evaluate it and scale by consumer range.
      * @param {any} value - The uniform value (may be an automation config)
      * @param {number} time - Current time in seconds
+     * @param {Object} [paramSpec] - Consumer parameter range { min, max }
      * @returns {any} The resolved value
      */
-    resolveUniformValue(value, time) {
+    resolveUniformValue(value, time, paramSpec) {
         if (!value || typeof value !== 'object') return value
+
+        let pct
 
         // Check if this is an oscillator configuration
         // Note: `time` is already normalized 0-1 from CanvasRenderer
         if (value.type === 'Oscillator' || value._ast?.type === 'Oscillator') {
-            return evaluateOscillator(value, time)
+            pct = evaluateOscillator(value, time)
+        } else if (value.type === 'Midi' || value._ast?.type === 'Midi') {
+            // Uses Date.now() for trigger falloff timing (real-time evaluation)
+            pct = evaluateMidi(value, this.externalState.midi, Date.now())
+        } else if (value.type === 'Audio' || value._ast?.type === 'Audio') {
+            pct = evaluateAudio(value, this.externalState.audio)
+        } else {
+            return value
         }
 
-        // Check if this is a MIDI configuration
-        // Uses Date.now() for trigger falloff timing (real-time evaluation)
-        if (value.type === 'Midi' || value._ast?.type === 'Midi') {
-            return evaluateMidi(value, this.externalState.midi, Date.now())
+        // Scale percentage by consumer parameter range
+        if (paramSpec) {
+            return paramSpec.min + pct * (paramSpec.max - paramSpec.min)
         }
-
-        // Check if this is an audio configuration
-        if (value.type === 'Audio' || value._ast?.type === 'Audio') {
-            return evaluateAudio(value, this.externalState.audio)
-        }
-
-        return value
+        return pct
     }
 
     /**
@@ -1211,7 +1214,8 @@ export class Pipeline {
 
         for (const name in pass.uniforms) {
             const value = pass.uniforms[name]
-            const resolved = this.resolveUniformValue(value, time)
+            const spec = pass.uniformSpecs?.[name]
+            const resolved = this.resolveUniformValue(value, time, spec)
             resolvedUniforms[name] = resolved
             if (resolved !== value) {
                 hasOscillators = true
