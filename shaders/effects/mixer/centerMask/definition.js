@@ -65,7 +65,7 @@ export default new Effect({
     mix: {
       type: "float",
       default: 0,
-      uniform: "mix",
+      uniform: "power",
       min: -100,
       max: 100,
       randMax: -70,

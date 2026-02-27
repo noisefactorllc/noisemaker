@@ -52,7 +52,7 @@ export default new Effect({
     mix: {
       type: "float",
       default: 50,
-      uniform: "mix",
+      uniform: "mixAmt",
       min: 0,
       max: 100,
       ui: {
