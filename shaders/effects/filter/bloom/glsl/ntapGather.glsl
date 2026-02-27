@@ -9,8 +9,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
-uniform float bloomRadius;
-uniform int numTaps;
+uniform float radius;
+uniform int taps;
 
 out vec4 fragColor;
 
@@ -27,10 +27,10 @@ void main() {
     vec2 texelSize = 1.0 / texSize;
     
     // Bloom radius in UV space
-    vec2 radiusUV = bloomRadius * texelSize;
-    
-    // Clamp numTaps to valid range
-    int taps = clamp(numTaps, 1, MAX_TAPS);
+    vec2 radiusUV = radius * texelSize;
+
+    // Clamp taps to valid range
+    int tapCount = clamp(taps, 1, MAX_TAPS);
     
     vec3 bloomAccum = vec3(0.0);
     float weightSum = 0.0;
@@ -38,11 +38,11 @@ void main() {
     // Generate N-tap kernel using golden angle spiral (Poisson-ish distribution)
     // with Gaussian-like radial falloff for weights
     for (int i = 0; i < MAX_TAPS; i++) {
-        if (i >= taps) break;
-        
+        if (i >= tapCount) break;
+
         // Compute tap offset using golden angle spiral
         // r goes from 0 to 1 as sqrt(i/N) for uniform area distribution
-        float t = float(i) / float(taps);
+        float t = float(i) / float(tapCount);
         float r = sqrt(t);
         float theta = float(i) * GOLDEN_ANGLE;
         

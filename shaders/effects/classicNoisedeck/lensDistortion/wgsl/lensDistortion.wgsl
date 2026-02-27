@@ -25,13 +25,13 @@ struct Uniforms {
     loopAmp: f32,
     aspectLens: i32,
     mode: i32,
-    aberrationAmt: f32,
+    aberration: f32,
     blendMode: i32,
     modulate: i32,
     _pad1: f32,          // padding before vec4
     _pad2: f32,
     tint: vec4f,         // 16-byte aligned
-    opacity: f32,
+    alpha: f32,
     hueRotation: f32,
     hueRange: f32,
     saturation: f32,
@@ -179,7 +179,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     // aberration and lensing
     let lensedCoords = fract((uv - diff * zoom) - diff * centerDist * centerDist * distort);
 
-    let aberrationOffset = mapVal(u.aberrationAmt, 0.0, 100.0, 0.0, 0.05) * centerDist * PI * 0.5;
+    let aberrationOffset = mapVal(u.aberration, 0.0, 100.0, 0.0, 0.05) * centerDist * PI * 0.5;
 
     let redOffset = mix(clamp(lensedCoords.x + aberrationOffset, 0.0, 1.0), lensedCoords.x, lensedCoords.x);
     let red = textureSample(inputTex, samp, vec2f(redOffset, lensedCoords.y));
@@ -235,7 +235,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     } else {
         tintResult = min(u.tint.rgb * u.tint.rgb / (vec3f(1.0) - color.rgb), vec3f(1.0));
     }
-    color = vec4f(mix(color.rgb, tintResult, u.opacity * 0.01), max(color.a, u.opacity * 0.01));
+    color = vec4f(mix(color.rgb, tintResult, u.alpha * 0.01), max(color.a, u.alpha * 0.01));
 
     // vignette
     if (u.vignetteAmt < 0.0) {

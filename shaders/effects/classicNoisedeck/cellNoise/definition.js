@@ -20,12 +20,12 @@ export default class CellNoise extends Effect {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
-    metric: { slot: 1, components: 'x' },
+    shape: { slot: 1, components: 'x' },
     scale: { slot: 1, components: 'y' },
     cellScale: { slot: 1, components: 'z' },
-    cellSmooth: { slot: 1, components: 'w' },
-    cellVariation: { slot: 2, components: 'x' },
-    loopAmp: { slot: 2, components: 'y' },
+    smooth: { slot: 1, components: 'w' },
+    variation: { slot: 2, components: 'x' },
+    speed: { slot: 2, components: 'y' },
     paletteMode: { slot: 2, components: 'z' },
     colorMode: { slot: 2, components: 'w' },
     paletteOffset: { slot: 3, components: 'xyz' },
@@ -42,7 +42,7 @@ export default class CellNoise extends Effect {
     shape: {
       type: "int",
       default: 0,
-      uniform: "metric",
+      uniform: "shape",
       choices: {
         circle: 0,
         diamond: 1,
@@ -81,7 +81,7 @@ export default class CellNoise extends Effect {
     smooth: {
       type: "float",
       default: 11,
-      uniform: "cellSmooth",
+      uniform: "smooth",
       min: 0,
       max: 100,
       ui: {
@@ -92,7 +92,7 @@ export default class CellNoise extends Effect {
     variation: {
       type: "float",
       default: 50,
-      uniform: "cellVariation",
+      uniform: "variation",
       min: 0,
       max: 100,
       ui: {
@@ -103,7 +103,7 @@ export default class CellNoise extends Effect {
     speed: {
       type: "int",
       default: 1,
-      uniform: "loopAmp",
+      uniform: "speed",
       min: 0,
       max: 5,
       ui: {

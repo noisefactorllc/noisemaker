@@ -8,7 +8,7 @@ precision highp int;
 uniform sampler2D inputTex;
 uniform float time;
 uniform float displacement;
-uniform float frequency;
+uniform float freq;
 
 in vec2 v_texCoord;
 out vec4 fragColor;
@@ -57,7 +57,7 @@ void main() {
     vec2 dims = vec2(textureSize(inputTex, 0));
     
     // Get noise value to drive refraction
-    vec2 baseFreq = vec2(frequency);
+    vec2 baseFreq = vec2(freq);
     if (dims.x > dims.y) {
         baseFreq.y *= dims.x / dims.y;
     } else {

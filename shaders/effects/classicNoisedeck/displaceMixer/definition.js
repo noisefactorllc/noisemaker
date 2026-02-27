@@ -32,7 +32,7 @@ export default new Effect({
     mapSource: {
       type: "int",
       default: 1,
-      uniform: "displaceSource",
+      uniform: "mapSource",
       choices: {
         "inputTex": 0,
         "tex": 1

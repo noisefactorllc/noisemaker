@@ -5,11 +5,11 @@
  */
 
 struct Uniforms {
-    gradeVignetteAmount: f32,
-    gradeVignetteMidpoint: f32,
-    gradeVignetteRoundness: f32,
-    gradeVignetteFeather: f32,
-    gradeVignetteHighlightProtect: f32,
+    vignetteAmount: f32,
+    vignetteMidpoint: f32,
+    vignetteRoundness: f32,
+    vignetteFeather: f32,
+    vigHiProtect: f32,
     _pad0: f32,
     _pad1: f32,
     _pad2: f32,
@@ -94,7 +94,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let uv = pos.xy / texSize;
     let color = textureSample(inputTex, inputSampler, uv);
     
-    if (abs(uniforms.gradeVignetteAmount) < 0.001) {
+    if (abs(uniforms.vignetteAmount) < 0.001) {
         return color;
     }
     
@@ -107,11 +107,11 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         aspectRatio = vec2<f32>(1.0, texSize.y / texSize.x);
     }
     
-    let vignetteMask = computeVignette(uv, aspectRatio, uniforms.gradeVignetteMidpoint, 
-                                        uniforms.gradeVignetteRoundness, uniforms.gradeVignetteFeather);
+    let vignetteMask = computeVignette(uv, aspectRatio, uniforms.vignetteMidpoint, 
+                                        uniforms.vignetteRoundness, uniforms.vignetteFeather);
     
-    rgb = applyVignette(rgb, vignetteMask, uniforms.gradeVignetteAmount, 
-                        uniforms.gradeVignetteHighlightProtect);
+    rgb = applyVignette(rgb, vignetteMask, uniforms.vignetteAmount, 
+                        uniforms.vigHiProtect);
     
     rgb = linearToSrgb(max(rgb, vec3<f32>(0.0)));
     

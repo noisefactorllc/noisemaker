@@ -11,7 +11,7 @@ export default new Effect({
     enabled: {
       type: "boolean",
       default: true,
-      uniform: "useSplats",
+      uniform: "enabled",
       ui: {
         label: "splats",
         control: "checkbox"
@@ -30,7 +30,7 @@ export default new Effect({
     scale: {
       type: "float",
       default: 3,
-      uniform: "splatScale",
+      uniform: "scale",
       min: 1,
       max: 5,
       ui: {
@@ -42,7 +42,7 @@ export default new Effect({
     cutoff: {
       type: "float",
       default: 25,
-      uniform: "splatCutoff",
+      uniform: "cutoff",
       min: 0,
       max: 100,
       ui: {
@@ -53,7 +53,7 @@ export default new Effect({
     speed: {
       type: "int",
       default: 1,
-      uniform: "splatSpeed",
+      uniform: "speed",
       min: 0,
       max: 5,
       ui: {
@@ -65,7 +65,7 @@ export default new Effect({
     seed: {
       type: "int",
       default: 1,
-      uniform: "splatSeed",
+      uniform: "seed",
       min: 1,
       max: 100,
       ui: {
@@ -76,7 +76,7 @@ export default new Effect({
     mode: {
       type: "int",
       default: 2,
-      uniform: "splatMode",
+      uniform: "mode",
       choices: {
         color: 0,
         displace: 1,
@@ -91,7 +91,7 @@ export default new Effect({
     color: {
       type: "color",
       default: [1.0, 1.0, 1.0],
-      uniform: "splatColor",
+      uniform: "color",
       ui: {
         label: "splat color",
         control: "color"
@@ -180,7 +180,9 @@ export default new Effect({
       inputs: {
         inputTex: "inputTex"
       },
-
+      uniforms: {
+        splatColor: "color"
+      },
       outputs: {
         fragColor: "outputTex"
       }

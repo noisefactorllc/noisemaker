@@ -20,8 +20,8 @@ var<private> offsetX : f32;
 var<private> offsetY : f32;
 var<private> tiling : i32;
 var<private> flip : i32;
-var<private> backgroundColor : vec3<f32>;
-var<private> backgroundOpacity : f32;
+var<private> bgColor : vec3<f32>;
+var<private> bgAlpha : f32;
 var<private> imageSize : vec2<f32>;
 
 const PI : f32 = 3.14159265359;
@@ -135,7 +135,7 @@ fn getImage(pos: vec2<f32>) -> vec4<f32> {
     var text = textureSample(imageTex, samp, st);
 
     if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) {
-        return vec4<f32>(backgroundColor, backgroundOpacity);
+        return vec4<f32>(bgColor, bgAlpha);
     }
 
     // Un-premultiply to compensate for linear filtering on straight-alpha textures
@@ -163,9 +163,9 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     offsetY = uniforms.data[2].x;
     tiling = i32(uniforms.data[2].y);
     flip = i32(uniforms.data[2].z);
-    backgroundOpacity = uniforms.data[2].w;
+    bgAlpha = uniforms.data[2].w;
 
-    backgroundColor = uniforms.data[3].xyz;
+    bgColor = uniforms.data[3].xyz;
 
     imageSize = uniforms.data[4].xy;
 

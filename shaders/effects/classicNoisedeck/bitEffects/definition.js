@@ -17,7 +17,7 @@ export default new Effect({
     interp: { slot: 1, components: 'w' },
     scale: { slot: 2, components: 'x' },
     rotation: { slot: 2, components: 'y' },
-    loopAmp: { slot: 2, components: 'z' },
+    speed: { slot: 2, components: 'z' },
     mode: { slot: 2, components: 'w' },
     maskFormula: { slot: 3, components: 'x' },
     tiles: { slot: 3, components: 'y' },
@@ -44,7 +44,7 @@ export default new Effect({
     speed: {
       type: "float",
       default: 50,
-      uniform: "loopAmp",
+      uniform: "speed",
       min: 0,
       max: 100,
       ui: {

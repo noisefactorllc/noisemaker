@@ -13,7 +13,7 @@ uniform float threshold;
 uniform float matrixScale;
 uniform int palette;
 uniform float time;
-uniform float mixAmount;
+uniform float mix;
 
 out vec4 fragColor;
 
@@ -450,7 +450,7 @@ void main() {
     }
     
     // Blend between original input and dithered result
-    result = mix(color.rgb, result, mixAmount);
+    result = color.rgb + (result - color.rgb) * mix;
     
     fragColor = vec4(result, color.a);
 }

@@ -20,8 +20,8 @@ uniform float offsetX;
 uniform float offsetY;
 uniform int tiling;
 uniform int flip;
-uniform vec3 backgroundColor;
-uniform float backgroundOpacity;
+uniform vec3 bgColor;
+uniform float bgAlpha;
 
 out vec4 fragColor;
 
@@ -192,7 +192,7 @@ vec4 getImage(vec2 st) {
 
     if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) {
         // Don't draw texture if out of coordinate bounds
-        return vec4(backgroundColor, backgroundOpacity);
+        return vec4(bgColor, bgAlpha);
     }
 
     // Un-premultiply to compensate for linear filtering on straight-alpha textures

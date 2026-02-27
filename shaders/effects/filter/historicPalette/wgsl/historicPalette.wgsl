@@ -7,9 +7,9 @@ struct Uniforms {
     data: array<vec4<f32>, 2>,
     // data[0].x = paletteIndex
     // data[0].y = smoothness
-    // data[0].z = paletteRotation (-1, 0, 1)
-    // data[0].w = paletteOffset (0-100)
-    // data[1].x = paletteRepeat
+    // data[0].z = rotation (-1, 0, 1)
+    // data[0].w = offset (0-100)
+    // data[1].x = repeat
     // data[1].y = alpha
     // data[1].z = time
 };
@@ -259,9 +259,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Get uniforms
     let paletteIndex = i32(uniforms.data[0].x);
     let smoothness = uniforms.data[0].y;
-    let paletteRotation = i32(uniforms.data[0].z);
-    let paletteOffset = uniforms.data[0].w;
-    let paletteRepeat = uniforms.data[1].x;
+    let rotation = i32(uniforms.data[0].z);
+    let offset = uniforms.data[0].w;
+    let repeat = uniforms.data[1].x;
     let alpha = uniforms.data[1].y;
     let time = uniforms.data[1].z;
 
@@ -274,10 +274,10 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Apply palette modifiers: repeat, offset, and rotation (animation)
     // Scale lum to [0, 0.9999] so that fract() never hits an exact integer
     // boundary — otherwise fract(1.0)=0.0 aliases bright pixels to dark
-    var t = lum * (1.0 - 1e-4) * paletteRepeat + paletteOffset * 0.01;
-    if (paletteRotation == -1) {
+    var t = lum * (1.0 - 1e-4) * repeat + offset * 0.01;
+    if (rotation == -1) {
         t = t + time;
-    } else if (paletteRotation == 1) {
+    } else if (rotation == 1) {
         t = t - time;
     }
     t = fract(t);

@@ -9,17 +9,17 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
-uniform int gradeHslEnable;
-uniform float gradeHslHueCenter;
-uniform float gradeHslHueRange;
-uniform float gradeHslSatMin;
-uniform float gradeHslSatMax;
-uniform float gradeHslLumMin;
-uniform float gradeHslLumMax;
-uniform float gradeHslFeather;
-uniform float gradeHslHueShift;
-uniform float gradeHslSatAdjust;
-uniform float gradeHslLumAdjust;
+uniform int hslEnable;
+uniform float hslHueCenter;
+uniform float hslHueRange;
+uniform float hslSatMin;
+uniform float hslSatMax;
+uniform float hslLumMin;
+uniform float hslLumMax;
+uniform float hslFeather;
+uniform float hslHueShift;
+uniform float hslSatAdjust;
+uniform float hslLumAdjust;
 
 out vec4 fragColor;
 
@@ -154,7 +154,7 @@ void main() {
     vec4 color = texelFetch(inputTex, coord, 0);
     
     // Early exit if disabled
-    if (gradeHslEnable == 0) {
+    if (hslEnable == 0) {
         fragColor = color;
         return;
     }
@@ -164,12 +164,12 @@ void main() {
     vec3 hsl = rgbToHsl(rgb);
     
     // Compute selection matte
-    float matte = computeHslKey(hsl, gradeHslHueCenter, gradeHslHueRange,
-                                gradeHslSatMin, gradeHslSatMax,
-                                gradeHslLumMin, gradeHslLumMax, gradeHslFeather);
+    float matte = computeHslKey(hsl, hslHueCenter, hslHueRange,
+                                hslSatMin, hslSatMax,
+                                hslLumMin, hslLumMax, hslFeather);
     
     // Apply correction
-    vec3 correctedHsl = applyHslCorrection(hsl, gradeHslHueShift, gradeHslSatAdjust, gradeHslLumAdjust);
+    vec3 correctedHsl = applyHslCorrection(hsl, hslHueShift, hslSatAdjust, hslLumAdjust);
     vec3 correctedRgb = hslToRgb(correctedHsl);
     
     // Blend original and corrected by matte

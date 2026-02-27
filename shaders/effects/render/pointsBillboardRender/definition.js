@@ -62,7 +62,7 @@ export default new Effect({
             default: 0.0,
             min: 0.0,
             max: 100.0,
-            uniform: "rotationVariation",
+            uniform: "rotationVar",
             ui: {
                 label: "rot variation",
                 control: "slider",
@@ -293,7 +293,7 @@ export default new Effect({
                 density: "density",
                 pointSize: "pointSize",
                 sizeVariation: "sizeVariation",
-                rotationVariation: "rotationVariation",
+                rotationVar: "rotationVar",
                 seed: "seed",
                 viewMode: "viewMode",
                 rotateX: "rotateX",

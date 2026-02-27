@@ -10,7 +10,7 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform int smoothType;
-uniform float smoothThreshold;
+uniform float threshold;
 
 out vec4 fragColor;
 
@@ -38,8 +38,8 @@ void main() {
     float Lw = luminance(texelFetch(inputTex, clamp(coord + ivec2(-1, 0), ivec2(0), maxCoord), 0).rgb);
     float Le = luminance(texelFetch(inputTex, clamp(coord + ivec2( 1, 0), ivec2(0), maxCoord), 0).rgb);
 
-    float edgeH = step(smoothThreshold, max(abs(L - Ln), abs(L - Ls)));
-    float edgeV = step(smoothThreshold, max(abs(L - Lw), abs(L - Le)));
+    float edgeH = step(threshold, max(abs(L - Ln), abs(L - Ls)));
+    float edgeV = step(threshold, max(abs(L - Lw), abs(L - Le)));
 
     fragColor = vec4(edgeH, edgeV, 0.0, 1.0);
 }

@@ -35,7 +35,7 @@ export default new Effect({
     shape: {
         type: "int",
         default: 1,
-        uniform: "distMetric",
+        uniform: "shape",
         ui: {
             label: "shape"
         }
@@ -51,7 +51,7 @@ export default new Effect({
       uniforms: {
         distrib: "distrib",
         freq: "freq",
-        shape: "distMetric"
+        shape: "shape"
       },
       outputs: {
         fragColor: "outputTex"

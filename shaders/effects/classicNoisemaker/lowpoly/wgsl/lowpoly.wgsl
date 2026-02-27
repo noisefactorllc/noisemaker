@@ -8,7 +8,7 @@ const NORMAL_Z_SCALE : f32 = 1.6;
 struct LowpolyParams {
     dims : vec4<f32>,                     // (width, height, channels, _)
     distrib_freq_timeSpeed : vec4<f32>,   // (distrib, freq, time, speed)
-    distMetric_pad : vec4<f32>,           // (distMetric, _, _, _)
+    shape_pad : vec4<f32>,                // (shape, _, _, _)
 };
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;

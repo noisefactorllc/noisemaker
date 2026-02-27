@@ -12,7 +12,7 @@ precision highp int;
 uniform float time;
 uniform int seed;
 uniform vec2 resolution;
-uniform float noiseScale;
+uniform float scale;
 uniform int noiseType;
 uniform bool ridges;
 uniform float offsetX;
@@ -461,7 +461,7 @@ float spheres(vec3 p) {
     vec3 ip = floor(q);
     vec3 fp = fract(p);
     vec3 r1 = prng(ip + float(seed)) * 0.5 + 0.25;
-    return length(fp - 0.5) - map(noiseScale, 1.0, 100.0, 0.025, 0.55) * r1.x;
+    return length(fp - 0.5) - map(scale, 1.0, 100.0, 0.025, 0.55) * r1.x;
 }
 
 // Modified from https://iquilezles.org/articles/distfunctions/ and https://iquilezles.org/articles/sdfrepetition/ - MIT License
@@ -470,7 +470,7 @@ float cubes(vec3 p) {
     float s = 4.0;
     p.x -= s * 0.5;
     p = p - s * round(p / s);
-    vec3 b = vec3(map(noiseScale, 1.0, 100.0, 0.1, 0.95));
+    vec3 b = vec3(map(scale, 1.0, 100.0, 0.1, 0.95));
     vec3 q = abs(p) - b;
     return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
 }
@@ -483,22 +483,22 @@ float getDist(vec3 p) {
     
     if (noiseType == 12) {
         // simplex
-        float scale = map(noiseScale, 1.0, 100.0, 0.25, 0.025); 
+        float scale = map(scale, 1.0, 100.0, 0.25, 0.025); 
         d = snoise(p * scale + float(seed)) * 0.5 + 0.5;
         d = smootherstep(d);
     } else if (noiseType == 20) {
         // cell
-        float scale = map(noiseScale, 1.0, 100.0, 0.1, 0.35); 
+        float scale = map(scale, 1.0, 100.0, 0.1, 0.35); 
         d = cellular(p * 0.1 + float(seed)).x;
         d = smoothstep(scale, 0.5, d);
     } else if (noiseType == 21) {
         // cell v2
         d = voronoi3d(p * 0.1 + float(seed)).x;
-        float scale = map(noiseScale, 1.0, 100.0, 0.1, 0.35); 
+        float scale = map(scale, 1.0, 100.0, 0.1, 0.35); 
         d = smoothstep(scale, 0.5, d);
     } else if (noiseType == 30) {
         // sine
-        float scale = map(noiseScale, 1.0, 100.0, 1.0, 0.1); 
+        float scale = map(scale, 1.0, 100.0, 1.0, 0.1); 
         d = sine3D(p * scale);
     } else if (noiseType == 40) {
         d = spheres(p);
@@ -506,15 +506,15 @@ float getDist(vec3 p) {
         d = cubes(p);
     } else if (noiseType == 60) {
         // wavy planes both
-        float scale = map(noiseScale, 1.0, 100.0, 0.25, 0.025); 
+        float scale = map(scale, 1.0, 100.0, 0.25, 0.025); 
         d = -abs(p.y) + 4.0 + snoise(p * scale + float(seed)) * 0.75;
     } else if (noiseType == 61) {
         // wavy plane lower
-        float scale = map(noiseScale, 1.0, 100.0, 0.25, 0.025); 
+        float scale = map(scale, 1.0, 100.0, 0.25, 0.025); 
         d = p.y + 4.0 + snoise(p * scale + float(seed)) * 0.75;
     } else if (noiseType == 62) {
         // wavy plane upper
-        float scale = map(noiseScale, 1.0, 100.0, 0.25, 0.025); 
+        float scale = map(scale, 1.0, 100.0, 0.25, 0.025); 
         d = -p.y + 2.0 + snoise(p * scale + float(seed)) * 0.75;
     }
 

@@ -22,7 +22,7 @@ export default new Effect({
     direction: {
       type: "float",
       default: 0,
-      uniform: "refractDir",
+      uniform: "direction",
       min: 0,
       max: 360,
       ui: {
@@ -46,7 +46,7 @@ export default new Effect({
     speed: {
       type: "int",
       default: 1,
-      uniform: "loopAmp",
+      uniform: "speed",
       min: 0,
       max: 5,
       ui: {
@@ -57,7 +57,7 @@ export default new Effect({
     shape: {
       type: "int",
       default: 1,
-      uniform: "metric",
+      uniform: "shape",
       choices: {
         circle: 0,
         diamond: 1,
@@ -99,7 +99,7 @@ export default new Effect({
     smooth: {
       type: "float",
       default: 0,
-      uniform: "cellSmooth",
+      uniform: "smooth",
       min: 0,
       max: 100,
       ui: {
@@ -111,7 +111,7 @@ export default new Effect({
     variation: {
       type: "float",
       default: 0,
-      uniform: "cellVariation",
+      uniform: "variation",
       min: 0,
       max: 100,
       ui: {

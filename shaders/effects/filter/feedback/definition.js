@@ -51,7 +51,7 @@ export default new Effect({
       min: 0,
       max: 100,
       randMax: 25,
-      uniform: "mixAmt",
+      uniform: "mix",
       ui: {
         label: "feedback",
         control: "slider"
@@ -158,7 +158,7 @@ export default new Effect({
       default: 0,
       min: 0,
       max: 100,
-      uniform: "aberrationAmt",
+      uniform: "aberration",
       ui: {
         label: "aberration",
         control: "slider",

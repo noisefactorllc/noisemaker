@@ -16,7 +16,7 @@ uniform int metric;
 uniform float scale;
 uniform float cellScale;
 uniform float cellSmooth;
-uniform float cellVariation;
+uniform float variation;
 uniform float loopAmp;
 
 out vec4 fragColor;
@@ -123,7 +123,7 @@ float cells(vec2 st, float freq, float cellSize, int sides) {
                 dist *= cellSize;
             }
 
-            dist += r1.z * (cellVariation * 0.01); // size variation
+            dist += r1.z * (variation * 0.01); // size variation
             d = smin(d, dist, cellSmooth * 0.01);
 		}
 	}

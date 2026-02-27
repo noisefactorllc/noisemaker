@@ -7,7 +7,7 @@ uniform float scale;
 uniform float offsetX;
 uniform float offsetY;
 uniform float angle;
-uniform float repeatCount;
+uniform float repeat;
 
 out vec4 fragColor;
 
@@ -81,12 +81,12 @@ void main() {
     if (symmetry == 3) {
         // Hex tiling with 6-fold rotational symmetry
         // hexCoord returns local coords centered at nearest hex center
-        vec2 local = hexCoord(st * repeatCount);
+        vec2 local = hexCoord(st * repeat);
         local = local / scale + vec2(offsetX, offsetY);
         st = rotationalFold(local + 0.5, 6);
     } else {
         // Square tiling
-        st = st * repeatCount;
+        st = st * repeat;
         st = fract(st);
 
         // Apply source region transforms (before fold — fold handles any input range)

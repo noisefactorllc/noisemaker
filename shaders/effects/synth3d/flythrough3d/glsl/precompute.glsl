@@ -4,7 +4,7 @@ precision highp float;
 // Uniforms
 uniform float time;
 uniform int volumeSize;
-uniform int fractalType;
+uniform int type;
 uniform float power;
 uniform int iterations;
 uniform float bailout;
@@ -269,7 +269,7 @@ FractalResult mandelbox(vec3 pos, float scale, int maxIter, float bail) {
 // ============================================================================
 
 FractalResult computeFractal(vec3 p) {
-    if (fractalType == 0) {
+    if (type == 0) {
         return mandelbulb(p, power, iterations, bailout);
     } else {
         return mandelbox(p, power, iterations, bailout);

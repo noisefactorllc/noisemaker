@@ -3,8 +3,8 @@
 @group(0) @binding(2) var tex : texture_2d<f32>;
 @group(0) @binding(3) var<uniform> mapSource : i32;
 @group(0) @binding(4) var<uniform> channel : i32;
-@group(0) @binding(5) var<uniform> uvScale : f32;
-@group(0) @binding(6) var<uniform> uvOffset : f32;
+@group(0) @binding(5) var<uniform> scale : f32;
+@group(0) @binding(6) var<uniform> offset : f32;
 @group(0) @binding(7) var<uniform> wrap : i32;
 @group(0) @binding(8) var<uniform> invert : i32;
 
@@ -74,8 +74,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
 
     // Apply scale (percentage: 100 = identity) and offset
-    let s = uvScale / 100.0;
-    var remappedUV = rawUV * s + uvOffset;
+    let s = scale / 100.0;
+    var remappedUV = rawUV * s + offset;
 
     // Apply wrap mode
     remappedUV = applyWrap(remappedUV, wrap);

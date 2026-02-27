@@ -28,7 +28,7 @@ export default new Effect({
     strength: {
       type: "float",
       default: 1.0,
-      uniform: "smoothStrength",
+      uniform: "strength",
       min: 0,
       max: 1,
       ui: {
@@ -39,7 +39,7 @@ export default new Effect({
     threshold: {
       type: "float",
       default: 0.1,
-      uniform: "smoothThreshold",
+      uniform: "threshold",
       min: 0,
       max: 1,
       ui: {
@@ -50,7 +50,7 @@ export default new Effect({
     radius: {
       type: "float",
       default: 2.0,
-      uniform: "smoothRadius",
+      uniform: "radius",
       min: 0.5,
       max: 4,
       step: 0.1,
@@ -62,7 +62,7 @@ export default new Effect({
     samples: {
       type: "int",
       default: 4,
-      uniform: "smoothSamples",
+      uniform: "samples",
       choices: { x2: 2, x4: 4, x8: 8 },
       ui: {
         label: "samples",
@@ -73,7 +73,7 @@ export default new Effect({
     searchSteps: {
       type: "int",
       default: 8,
-      uniform: "smoothSearchSteps",
+      uniform: "searchSteps",
       min: 1,
       max: 32,
       step: 1,

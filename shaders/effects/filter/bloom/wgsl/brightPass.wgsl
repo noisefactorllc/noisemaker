@@ -5,8 +5,8 @@
  */
 
 struct Uniforms {
-    bloomThreshold: f32,
-    bloomSoftKnee: f32,
+    threshold: f32,
+    softKnee: f32,
     _pad1: f32,
     _pad2: f32,
 }
@@ -25,9 +25,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let luma = dot(color.rgb, vec3<f32>(0.2126, 0.7152, 0.0722));
     
     // Soft knee thresholding
-    let knee = uniforms.bloomSoftKnee;
-    let threshLow = uniforms.bloomThreshold - knee;
-    let threshHigh = uniforms.bloomThreshold + knee;
+    let knee = uniforms.softKnee;
+    let threshLow = uniforms.threshold - knee;
+    let threshHigh = uniforms.threshold + knee;
     
     var bloomFactor: f32;
     if (luma <= threshLow) {

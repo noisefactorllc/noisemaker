@@ -39,7 +39,7 @@ export default new Effect({
     shape: {
         type: "int",
         default: 1,
-        uniform: "distMetric",
+        uniform: "shape",
         min: 1,
         max: 4,
         step: 1,
@@ -188,7 +188,7 @@ export default new Effect({
       uniforms: {
         diagramType: "diagramType",
         nth: "nth",
-        shape: "distMetric",
+        shape: "shape",
         sdfSides: "sdfSides",
         alpha: "alpha",
         withRefract: "withRefract",

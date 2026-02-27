@@ -30,8 +30,8 @@ uniform int animation;
 uniform float flythroughSpeed;
 uniform float spacing;
 uniform float cameraDist;
-uniform vec3 backgroundColor;
-uniform float backgroundOpacity;
+uniform vec3 bgColor;
+uniform float bgAlpha;
 uniform int colorMode;
 uniform int paletteMode;
 uniform vec3 paletteOffset;
@@ -502,9 +502,9 @@ void main() {
     // add background color. if repeating, a bit of distance fog
     float fogDist = clamp(d / 200.0, 0.0, 1.0);
     if (repetition) {
-        color = mix(color, vec4(backgroundColor, backgroundOpacity * 0.01), fogDist);
+        color = mix(color, vec4(bgColor, bgAlpha * 0.01), fogDist);
     } else {
-        color = mix(color, vec4(backgroundColor, backgroundOpacity * 0.01), floor(fogDist));
+        color = mix(color, vec4(bgColor, bgAlpha * 0.01), floor(fogDist));
     }
 
     st = gl_FragCoord.xy / resolution;

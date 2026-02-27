@@ -25,7 +25,7 @@ export default new Effect({
     preset: {
       type: "int",
       default: 0,
-      uniform: "gradePreset",
+      uniform: "preset",
       choices: {
         none: 0,
         bleachBypass: 4,
@@ -59,7 +59,7 @@ export default new Effect({
     alpha: {
       type: "float",
       default: 1,
-      uniform: "gradeAlpha",
+      uniform: "alpha",
       min: 0,
       max: 1,
       step: 0.01,
@@ -75,7 +75,7 @@ export default new Effect({
     temperature: {
       type: "float",
       default: 0,
-      uniform: "gradeTemperature",
+      uniform: "temperature",
       min: -1,
       max: 1,
       step: 0.01,
@@ -88,7 +88,7 @@ export default new Effect({
     tint: {
       type: "float",
       default: 0,
-      uniform: "gradeTint",
+      uniform: "tint",
       min: -1,
       max: 1,
       step: 0.01,
@@ -101,7 +101,7 @@ export default new Effect({
     exposure: {
       type: "float",
       default: 0,
-      uniform: "gradeExposure",
+      uniform: "exposure",
       min: -4,
       max: 4,
       step: 0.05,
@@ -114,7 +114,7 @@ export default new Effect({
     contrast: {
       type: "float",
       default: 0,
-      uniform: "gradeContrast",
+      uniform: "contrast",
       min: -1,
       max: 1,
       step: 0.01,
@@ -127,7 +127,7 @@ export default new Effect({
     highlights: {
       type: "float",
       default: 0,
-      uniform: "gradeHighlights",
+      uniform: "highlights",
       min: -1,
       max: 1,
       step: 0.01,
@@ -140,7 +140,7 @@ export default new Effect({
     shadows: {
       type: "float",
       default: 0,
-      uniform: "gradeShadows",
+      uniform: "shadows",
       min: -1,
       max: 1,
       step: 0.01,
@@ -153,7 +153,7 @@ export default new Effect({
     whites: {
       type: "float",
       default: 0,
-      uniform: "gradeWhites",
+      uniform: "whites",
       min: -1,
       max: 1,
       step: 0.01,
@@ -166,7 +166,7 @@ export default new Effect({
     blacks: {
       type: "float",
       default: 0,
-      uniform: "gradeBlacks",
+      uniform: "blacks",
       min: -1,
       max: 1,
       step: 0.01,
@@ -179,7 +179,7 @@ export default new Effect({
     saturation: {
       type: "float",
       default: 1,
-      uniform: "gradeSaturation",
+      uniform: "saturation",
       min: 0,
       max: 2,
       step: 0.01,
@@ -194,7 +194,7 @@ export default new Effect({
     vibrance: {
       type: "float",
       default: 0,
-      uniform: "gradeVibrance",
+      uniform: "vibrance",
       min: -1,
       max: 1,
       step: 0.01,
@@ -207,7 +207,7 @@ export default new Effect({
     fadedFilm: {
       type: "float",
       default: 0,
-      uniform: "gradeFadedFilm",
+      uniform: "fadedFilm",
       min: 0,
       max: 1,
       step: 0.01,
@@ -220,7 +220,7 @@ export default new Effect({
     shadowTint: {
       type: "vec3",
       default: [0.5, 0.5, 0.5],
-      uniform: "gradeShadowTint",
+      uniform: "shadowTint",
       ui: {
         control: "slider",
         label: "shadow tint",
@@ -230,7 +230,7 @@ export default new Effect({
     highlightTint: {
       type: "vec3",
       default: [0.5, 0.5, 0.5],
-      uniform: "gradeHighlightTint",
+      uniform: "highlightTint",
       ui: {
         control: "slider",
         label: "highlight tint",
@@ -240,7 +240,7 @@ export default new Effect({
     splitToneBalance: {
       type: "float",
       default: 0,
-      uniform: "gradeSplitToneBalance",
+      uniform: "splitToneBalance",
       min: -1,
       max: 1,
       step: 0.01,
@@ -255,7 +255,7 @@ export default new Effect({
     curveShadows: {
       type: "float",
       default: 0,
-      uniform: "gradeCurveShadows",
+      uniform: "curveShadows",
       min: -1,
       max: 1,
       step: 0.01,
@@ -268,7 +268,7 @@ export default new Effect({
     curveMidtones: {
       type: "float",
       default: 0,
-      uniform: "gradeCurveMidtones",
+      uniform: "curveMidtones",
       min: -1,
       max: 1,
       step: 0.01,
@@ -281,7 +281,7 @@ export default new Effect({
     curveHighlights: {
       type: "float",
       default: 0,
-      uniform: "gradeCurveHighlights",
+      uniform: "curveHighlights",
       min: -1,
       max: 1,
       step: 0.01,
@@ -296,7 +296,7 @@ export default new Effect({
     wheelShadows: {
       type: "vec3",
       default: [0.5, 0.5, 0.5],
-      uniform: "gradeWheelShadows",
+      uniform: "wheelShadows",
       ui: {
         control: "slider",
         label: "shadows",
@@ -306,7 +306,7 @@ export default new Effect({
     wheelMidtones: {
       type: "vec3",
       default: [0.5, 0.5, 0.5],
-      uniform: "gradeWheelMidtones",
+      uniform: "wheelMidtones",
       ui: {
         control: "slider",
         label: "midtones",
@@ -316,7 +316,7 @@ export default new Effect({
     wheelHighlights: {
       type: "vec3",
       default: [0.5, 0.5, 0.5],
-      uniform: "gradeWheelHighlights",
+      uniform: "wheelHighlights",
       ui: {
         control: "slider",
         label: "highlights",
@@ -326,7 +326,7 @@ export default new Effect({
     wheelBalance: {
       type: "float",
       default: 0,
-      uniform: "gradeWheelBalance",
+      uniform: "wheelBalance",
       min: -1,
       max: 1,
       step: 0.01,
@@ -342,7 +342,7 @@ export default new Effect({
     hslEnable: {
       type: "int",
       default: 0,
-      uniform: "gradeHslEnable",
+      uniform: "hslEnable",
       min: 0,
       max: 1,
       step: 1,
@@ -355,7 +355,7 @@ export default new Effect({
     hslHueCenter: {
       type: "float",
       default: 0,
-      uniform: "gradeHslHueCenter",
+      uniform: "hslHueCenter",
       min: 0,
       max: 1,
       step: 0.01,
@@ -369,7 +369,7 @@ export default new Effect({
     hslHueRange: {
       type: "float",
       default: 0.1,
-      uniform: "gradeHslHueRange",
+      uniform: "hslHueRange",
       min: 0,
       max: 0.5,
       step: 0.01,
@@ -383,7 +383,7 @@ export default new Effect({
     hslSatMin: {
       type: "float",
       default: 0,
-      uniform: "gradeHslSatMin",
+      uniform: "hslSatMin",
       min: 0,
       max: 1,
       step: 0.01,
@@ -397,7 +397,7 @@ export default new Effect({
     hslSatMax: {
       type: "float",
       default: 1,
-      uniform: "gradeHslSatMax",
+      uniform: "hslSatMax",
       min: 0,
       max: 1,
       step: 0.01,
@@ -411,7 +411,7 @@ export default new Effect({
     hslLumMin: {
       type: "float",
       default: 0,
-      uniform: "gradeHslLumMin",
+      uniform: "hslLumMin",
       min: 0,
       max: 1,
       step: 0.01,
@@ -425,7 +425,7 @@ export default new Effect({
     hslLumMax: {
       type: "float",
       default: 1,
-      uniform: "gradeHslLumMax",
+      uniform: "hslLumMax",
       min: 0,
       max: 1,
       step: 0.01,
@@ -439,7 +439,7 @@ export default new Effect({
     hslFeather: {
       type: "float",
       default: 0.1,
-      uniform: "gradeHslFeather",
+      uniform: "hslFeather",
       min: 0,
       max: 0.5,
       step: 0.01,
@@ -453,7 +453,7 @@ export default new Effect({
     hslHueShift: {
       type: "float",
       default: 0,
-      uniform: "gradeHslHueShift",
+      uniform: "hslHueShift",
       min: -0.5,
       max: 0.5,
       step: 0.01,
@@ -467,7 +467,7 @@ export default new Effect({
     hslSatAdjust: {
       type: "float",
       default: 0,
-      uniform: "gradeHslSatAdjust",
+      uniform: "hslSatAdjust",
       min: -1,
       max: 1,
       step: 0.01,
@@ -481,7 +481,7 @@ export default new Effect({
     hslLumAdjust: {
       type: "float",
       default: 0,
-      uniform: "gradeHslLumAdjust",
+      uniform: "hslLumAdjust",
       min: -1,
       max: 1,
       step: 0.01,
@@ -497,7 +497,7 @@ export default new Effect({
     vignetteAmount: {
       type: "float",
       default: 0,
-      uniform: "gradeVignetteAmount",
+      uniform: "vignetteAmount",
       min: -1,
       max: 1,
       step: 0.01,
@@ -510,7 +510,7 @@ export default new Effect({
     vignetteMidpoint: {
       type: "float",
       default: 0.5,
-      uniform: "gradeVignetteMidpoint",
+      uniform: "vignetteMidpoint",
       min: 0,
       max: 1,
       step: 0.01,
@@ -524,7 +524,7 @@ export default new Effect({
     vignetteRoundness: {
       type: "float",
       default: 0,
-      uniform: "gradeVignetteRoundness",
+      uniform: "vignetteRoundness",
       min: -1,
       max: 1,
       step: 0.01,
@@ -538,7 +538,7 @@ export default new Effect({
     vignetteFeather: {
       type: "float",
       default: 0.5,
-      uniform: "gradeVignetteFeather",
+      uniform: "vignetteFeather",
       min: 0,
       max: 1,
       step: 0.01,
@@ -552,7 +552,7 @@ export default new Effect({
     vigHiProtect: {
       type: "float",
       default: 0,
-      uniform: "gradeVignetteHighlightProtect",
+      uniform: "vigHiProtect",
       min: 0,
       max: 1,
       step: 0.01,

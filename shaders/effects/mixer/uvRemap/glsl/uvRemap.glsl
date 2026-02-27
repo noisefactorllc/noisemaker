@@ -6,8 +6,8 @@ uniform sampler2D tex;
 uniform vec2 resolution;
 uniform int mapSource;
 uniform int channel;
-uniform float uvScale;
-uniform float uvOffset;
+uniform float scale;
+uniform float offset;
 uniform int wrap;
 uniform int invert;
 
@@ -59,8 +59,8 @@ void main() {
     }
 
     // Apply scale (percentage: 100 = identity) and offset
-    float s = uvScale / 100.0;
-    vec2 remappedUV = rawUV * s + uvOffset;
+    float s = scale / 100.0;
+    vec2 remappedUV = rawUV * s + offset;
 
     // Apply wrap mode
     remappedUV = applyWrap(remappedUV, wrap);

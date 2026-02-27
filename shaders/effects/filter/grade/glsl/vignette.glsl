@@ -9,11 +9,11 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
-uniform float gradeVignetteAmount;
-uniform float gradeVignetteMidpoint;
-uniform float gradeVignetteRoundness;
-uniform float gradeVignetteFeather;
-uniform float gradeVignetteHighlightProtect;
+uniform float vignetteAmount;
+uniform float vignetteMidpoint;
+uniform float vignetteRoundness;
+uniform float vignetteFeather;
+uniform float vigHiProtect;
 
 out vec4 fragColor;
 
@@ -105,7 +105,7 @@ void main() {
     vec4 color = texelFetch(inputTex, coord, 0);
     
     // Early exit if no vignette
-    if (abs(gradeVignetteAmount) < 0.001) {
+    if (abs(vignetteAmount) < 0.001) {
         fragColor = color;
         return;
     }
@@ -122,11 +122,11 @@ void main() {
     }
     
     // Compute vignette mask
-    float vignetteMask = computeVignette(uv, aspectRatio, gradeVignetteMidpoint, 
-                                         gradeVignetteRoundness, gradeVignetteFeather);
+    float vignetteMask = computeVignette(uv, aspectRatio, vignetteMidpoint, 
+                                         vignetteRoundness, vignetteFeather);
     
     // Apply vignette
-    rgb = applyVignette(rgb, vignetteMask, gradeVignetteAmount, gradeVignetteHighlightProtect);
+    rgb = applyVignette(rgb, vignetteMask, vignetteAmount, vigHiProtect);
     
     // Final encode to sRGB
     rgb = linearToSrgb(max(rgb, vec3(0.0)));

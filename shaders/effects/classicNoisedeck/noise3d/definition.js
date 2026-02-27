@@ -29,7 +29,7 @@ export default new Effect({
     scale: {
       type: "float",
       default: 25,
-      uniform: "noiseScale",
+      uniform: "scale",
       min: 1,
       max: 100,
       ui: {

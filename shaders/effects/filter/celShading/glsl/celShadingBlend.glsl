@@ -11,7 +11,7 @@ uniform sampler2D inputTex;
 uniform sampler2D colorTex;
 uniform sampler2D edgeTex;
 uniform vec3 edgeColor;
-uniform float mixAmount;
+uniform float mix;
 
 out vec4 fragColor;
 
@@ -24,10 +24,10 @@ void main() {
     float edgeStrength = texture(edgeTex, uv).r;
     
     // Apply edge color where edges are detected
-    vec3 finalColor = mix(celColor.rgb, edgeColor, edgeStrength);
-    
+    vec3 finalColor = celColor.rgb + (edgeColor - celColor.rgb) * edgeStrength;
+
     // Mix with original based on mix amount
-    finalColor = mix(origColor.rgb, finalColor, mixAmount);
+    finalColor = origColor.rgb + (finalColor - origColor.rgb) * mix;
     
     fragColor = vec4(finalColor, origColor.a);
 }

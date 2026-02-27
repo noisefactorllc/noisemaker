@@ -5,8 +5,8 @@
  */
 
 struct Uniforms {
-    bloomRadius: f32,
-    numTaps: f32,
+    radius: f32,
+    taps: f32,
     _pad2: f32,
     _pad3: f32,
 }
@@ -26,10 +26,10 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texelSize = 1.0 / texSize;
     
     // Bloom radius in UV space
-    let radiusUV = uniforms.bloomRadius * texelSize;
-    
-    // Clamp numTaps to valid range
-    let taps = clamp(i32(uniforms.numTaps), 1, MAX_TAPS);
+    let radiusUV = uniforms.radius * texelSize;
+
+    // Clamp taps to valid range
+    let tapCount = clamp(i32(uniforms.taps), 1, MAX_TAPS);
     
     var bloomAccum = vec3<f32>(0.0);
     var weightSum: f32 = 0.0;
@@ -37,11 +37,11 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Generate N-tap kernel using golden angle spiral (Poisson-ish distribution)
     // with Gaussian-like radial falloff for weights
     for (var i: i32 = 0; i < MAX_TAPS; i++) {
-        if (i >= taps) { break; }
-        
+        if (i >= tapCount) { break; }
+
         // Compute tap offset using golden angle spiral
         // r goes from 0 to 1 as sqrt(i/N) for uniform area distribution
-        let t = f32(i) / f32(taps);
+        let t = f32(i) / f32(tapCount);
         let r = sqrt(t);
         let theta = f32(i) * GOLDEN_ANGLE;
         

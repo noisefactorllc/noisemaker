@@ -14,9 +14,9 @@ export default new Effect({
     metric: { slot: 1, components: 'x' },
     scale: { slot: 1, components: 'y' },
     cellScale: { slot: 1, components: 'z' },
-    cellSmooth: { slot: 1, components: 'w' },
-    cellVariation: { slot: 2, components: 'x' },
-    loopAmp: { slot: 2, components: 'y' }
+    smooth: { slot: 1, components: 'w' },
+    variation: { slot: 2, components: 'x' },
+    speed: { slot: 2, components: 'y' }
   },
   globals: {
     shape: {
@@ -61,7 +61,7 @@ export default new Effect({
     smooth: {
       type: "float",
       default: 11,
-      uniform: "cellSmooth",
+      uniform: "smooth",
       min: 0,
       max: 100,
       ui: {
@@ -72,7 +72,7 @@ export default new Effect({
     variation: {
       type: "float",
       default: 50,
-      uniform: "cellVariation",
+      uniform: "variation",
       min: 0,
       max: 100,
       ui: {
@@ -83,7 +83,7 @@ export default new Effect({
     speed: {
       type: "int",
       default: 1,
-      uniform: "loopAmp",
+      uniform: "speed",
       min: 0,
       max: 5,
       zero: 0,
@@ -109,6 +109,10 @@ export default new Effect({
     {
       name: "render",
       program: "cell",
+      uniforms: {
+        cellSmooth: "smooth",
+        loopAmp: "speed"
+      },
       outputs: {
         fragColor: "outputTex"
       }

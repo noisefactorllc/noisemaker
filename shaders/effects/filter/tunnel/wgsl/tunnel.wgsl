@@ -8,8 +8,8 @@ struct Uniforms {
     time: f32,
     shape: i32,
     speed: f32,
-    tunnelRotation: f32,
-    tunnelScale: f32,
+    rotation: f32,
+    scale: f32,
     _pad1: f32,
     _pad2: f32,
     _pad3: f32,
@@ -68,12 +68,12 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
     
     // Apply scale
-    r -= uniforms.tunnelScale * 0.15;
+    r -= uniforms.scale * 0.15;
     
     // Create tunnel coordinates
     let tunnelCoords = smod2(vec2<f32>(
         0.3 / r + uniforms.time * uniforms.speed,
-        a / PI + uniforms.time * uniforms.tunnelRotation
+        a / PI + uniforms.time * uniforms.rotation
     ), 1.0);
 
     return textureSample(inputTex, inputSampler, tunnelCoords);

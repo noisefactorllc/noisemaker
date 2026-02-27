@@ -6,7 +6,7 @@
 struct Uniforms {
     lightDirection: vec3f,
     levels: i32,
-    shadingStrength: f32,
+    strength: f32,
     _pad1: f32,
     _pad2: f32,
     _pad3: f32,
@@ -60,7 +60,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let diffuse = 0.5 + 0.5 * gradientShade;
     
     // Apply shading to color
-    let shadeFactor = mix(1.0, 0.5 + 0.5 * diffuse, uniforms.shadingStrength);
+    let shadeFactor = mix(1.0, 0.5 + 0.5 * diffuse, uniforms.strength);
     let shadedColor = origColor.rgb * shadeFactor;
     
     // Quantize the color

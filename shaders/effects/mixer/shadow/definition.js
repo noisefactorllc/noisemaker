@@ -23,7 +23,7 @@ export default new Effect({
     maskSource: {
       type: "int",
       default: 0,
-      uniform: "shadowMaskSource",
+      uniform: "maskSource",
       choices: {
         sourceA: 0,
         sourceB: 1
@@ -36,7 +36,7 @@ export default new Effect({
     sourceChannel: {
       type: "int",
       default: 0,
-      uniform: "shadowSourceChannel",
+      uniform: "sourceChannel",
       choices: {
         red: 0,
         green: 1,
@@ -51,7 +51,7 @@ export default new Effect({
     threshold: {
       type: "float",
       default: 0.5,
-      uniform: "shadowThreshold",
+      uniform: "threshold",
       min: 0,
       max: 1,
       randMin: 0.25,
@@ -64,7 +64,7 @@ export default new Effect({
     color: {
       type: "color",
       default: [0, 0, 0],
-      uniform: "shadowColor",
+      uniform: "color",
       ui: {
         label: "color",
         control: "color",
@@ -74,7 +74,7 @@ export default new Effect({
     blur: {
       type: "float",
       default: 1,
-      uniform: "shadowBlur",
+      uniform: "blur",
       min: 0,
       max: 3,
       zero: 0,
@@ -87,7 +87,7 @@ export default new Effect({
     spread: {
       type: "float",
       default: 0.0,
-      uniform: "shadowSpread",
+      uniform: "spread",
       min: 0,
       max: 1,
       randMax: 0.5,
@@ -100,7 +100,7 @@ export default new Effect({
     offsetX: {
       type: "float",
       default: 0.1,
-      uniform: "shadowOffsetX",
+      uniform: "offsetX",
       min: -1,
       max: 1,
       randMin: -0.2,
@@ -115,7 +115,7 @@ export default new Effect({
     offsetY: {
       type: "float",
       default: -0.1,
-      uniform: "shadowOffsetY",
+      uniform: "offsetY",
       min: -1,
       max: 1,
       randMin: -0.2,
@@ -130,7 +130,7 @@ export default new Effect({
     wrap: {
       type: "int",
       default: 1,
-      uniform: "shadowWrap",
+      uniform: "wrap",
       choices: {
         hide: 0,
         mirror: 1,

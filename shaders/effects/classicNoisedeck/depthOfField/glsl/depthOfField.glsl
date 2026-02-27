@@ -17,7 +17,7 @@ uniform int seed;
 uniform float focalDistance;
 uniform float aperture;
 uniform float sampleBias;
-uniform int depthSource;
+uniform int mapSource;
 out vec4 fragColor;
 
 #define PI 3.14159265359
@@ -55,7 +55,7 @@ vec4 depthOfField(sampler2D scene, sampler2D depth, vec2 uv, vec2 resolution) {
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution;
     vec4 color = vec4(1.0);
-    if (depthSource == 0) {
+    if (mapSource == 0) {
         color = depthOfField(tex, inputTex, uv, resolution);
     } else {
         color = depthOfField(inputTex, tex, uv, resolution);

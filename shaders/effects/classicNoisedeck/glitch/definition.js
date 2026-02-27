@@ -34,7 +34,7 @@ export default new Effect({
     aberration: {
       type: "float",
       default: 0,
-      uniform: "aberrationAmt",
+      uniform: "aberration",
       min: 0,
       max: 100,
       ui: {

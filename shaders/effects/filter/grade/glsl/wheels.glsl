@@ -9,10 +9,10 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
-uniform vec3 gradeWheelShadows;
-uniform vec3 gradeWheelMidtones;
-uniform vec3 gradeWheelHighlights;
-uniform float gradeWheelBalance;
+uniform vec3 wheelShadows;
+uniform vec3 wheelMidtones;
+uniform vec3 wheelHighlights;
+uniform float wheelBalance;
 
 out vec4 fragColor;
 
@@ -113,7 +113,7 @@ void main() {
     vec3 rgb = srgbToLinear(color.rgb);
     
     // Apply three-way color wheels
-    rgb = applyWheels(rgb, gradeWheelShadows, gradeWheelMidtones, gradeWheelHighlights, gradeWheelBalance);
+    rgb = applyWheels(rgb, wheelShadows, wheelMidtones, wheelHighlights, wheelBalance);
     
     // Encode back to sRGB
     rgb = linearToSrgb(max(rgb, vec3(0.0)));

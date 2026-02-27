@@ -83,7 +83,7 @@ export default new Effect({
     strength: {
       type: "float",
       default: 0.0,
-      uniform: "shadingStrength",
+      uniform: "strength",
       min: 0.0,
       max: 1.0,
       step: 0.01,
@@ -99,7 +99,7 @@ export default new Effect({
     mix: {
       type: "float",
       default: 1.0,
-      uniform: "mixAmount",
+      uniform: "mix",
       min: 0.0,
       max: 1.0,
       step: 0.01,

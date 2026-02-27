@@ -9,11 +9,11 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
-uniform float gradeVibrance;
-uniform float gradeFadedFilm;
-uniform vec3 gradeShadowTint;
-uniform vec3 gradeHighlightTint;
-uniform float gradeSplitToneBalance;
+uniform float vibrance;
+uniform float fadedFilm;
+uniform vec3 shadowTint;
+uniform vec3 highlightTint;
+uniform float splitToneBalance;
 
 out vec4 fragColor;
 
@@ -129,13 +129,13 @@ void main() {
     vec3 rgb = srgbToLinear(color.rgb);
     
     // 1. Vibrance
-    rgb = applyVibrance(rgb, gradeVibrance);
+    rgb = applyVibrance(rgb, vibrance);
     
     // 2. Faded Film
-    rgb = applyFadedFilm(rgb, gradeFadedFilm);
+    rgb = applyFadedFilm(rgb, fadedFilm);
     
     // 3. Split Toning
-    rgb = applySplitTone(rgb, gradeShadowTint, gradeHighlightTint, gradeSplitToneBalance);
+    rgb = applySplitTone(rgb, shadowTint, highlightTint, splitToneBalance);
     
     // Encode back to sRGB
     rgb = linearToSrgb(max(rgb, vec3(0.0)));

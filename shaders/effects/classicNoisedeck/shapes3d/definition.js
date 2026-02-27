@@ -36,10 +36,10 @@ export default class Shapes3D extends Effect {
     flythroughSpeed: { slot: 4, components: 'z' },
     spacing: { slot: 4, components: 'w' },
     cameraDist: { slot: 5, components: 'x' },
-    backgroundOpacity: { slot: 5, components: 'y' },
+    bgAlpha: { slot: 5, components: 'y' },
     colorMode: { slot: 5, components: 'z' },
     source: { slot: 5, components: 'w' },
-    backgroundColor: { slot: 6, components: 'xyz' },
+    bgColor: { slot: 6, components: 'xyz' },
     paletteMode: { slot: 6, components: 'w' },
     paletteOffset: { slot: 7, components: 'xyz' },
     cyclePalette: { slot: 7, components: 'w' },
@@ -241,7 +241,7 @@ export default class Shapes3D extends Effect {
     bgColor: {
       type: "color",
       default: [1.0, 1.0, 1.0],
-      uniform: "backgroundColor",
+      uniform: "bgColor",
       ui: {
         label: "background color",
         control: "color",
@@ -251,7 +251,7 @@ export default class Shapes3D extends Effect {
     bgAlpha: {
       type: "float",
       default: 0,
-      uniform: "backgroundOpacity",
+      uniform: "bgAlpha",
       min: 0,
       max: 100,
       ui: {

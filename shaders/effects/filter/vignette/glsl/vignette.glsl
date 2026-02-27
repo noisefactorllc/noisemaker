@@ -8,7 +8,7 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform float vignetteBrightness;
-uniform float vignetteAlpha;
+uniform float alpha;
 
 out vec4 fragColor;
 
@@ -42,7 +42,7 @@ void main() {
     // Apply brightness to RGB only, preserve alpha
     vec3 brightnessRgb = vec3(vignetteBrightness);
     vec3 edgeBlend = mix(texel.rgb, brightnessRgb, mask);
-    vec3 finalRgb = mix(texel.rgb, edgeBlend, vignetteAlpha);
+    vec3 finalRgb = mix(texel.rgb, edgeBlend, alpha);
     
     fragColor = vec4(finalRgb, texel.a);
 }

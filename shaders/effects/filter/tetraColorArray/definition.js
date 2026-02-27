@@ -23,29 +23,29 @@ import { Effect } from '../../../src/runtime/effect.js'
 // data[10] = positions 1-4 (xyzw)
 // data[11] = positions 5-8 (xyzw)
 const uniformLayout = {
-  tetraColorArrayColorMode: { slot: 0, components: 'x' },
-  tetraColorArrayColorCount: { slot: 0, components: 'y' },
-  tetraColorArrayPositionMode: { slot: 0, components: 'z' },
-  tetraColorArrayRepeat: { slot: 0, components: 'w' },
-  tetraColorArrayOffset: { slot: 1, components: 'x' },
-  tetraColorArrayAlpha: { slot: 1, components: 'y' },
-  tetraColorArraySmoothness: { slot: 1, components: 'z' },
-  tetraColorArrayColor0: { slot: 2, components: 'xyz' },
-  tetraColorArrayColor1: { slot: 3, components: 'xyz' },
-  tetraColorArrayColor2: { slot: 4, components: 'xyz' },
-  tetraColorArrayColor3: { slot: 5, components: 'xyz' },
-  tetraColorArrayColor4: { slot: 6, components: 'xyz' },
-  tetraColorArrayColor5: { slot: 7, components: 'xyz' },
-  tetraColorArrayColor6: { slot: 8, components: 'xyz' },
-  tetraColorArrayColor7: { slot: 9, components: 'xyz' },
-  tetraColorArrayPos0: { slot: 10, components: 'x' },
-  tetraColorArrayPos1: { slot: 10, components: 'y' },
-  tetraColorArrayPos2: { slot: 10, components: 'z' },
-  tetraColorArrayPos3: { slot: 10, components: 'w' },
-  tetraColorArrayPos4: { slot: 11, components: 'x' },
-  tetraColorArrayPos5: { slot: 11, components: 'y' },
-  tetraColorArrayPos6: { slot: 11, components: 'z' },
-  tetraColorArrayPos7: { slot: 11, components: 'w' }
+  colorMode: { slot: 0, components: 'x' },
+  colorCount: { slot: 0, components: 'y' },
+  positionMode: { slot: 0, components: 'z' },
+  repeat: { slot: 0, components: 'w' },
+  offset: { slot: 1, components: 'x' },
+  alpha: { slot: 1, components: 'y' },
+  smoothness: { slot: 1, components: 'z' },
+  color0: { slot: 2, components: 'xyz' },
+  color1: { slot: 3, components: 'xyz' },
+  color2: { slot: 4, components: 'xyz' },
+  color3: { slot: 5, components: 'xyz' },
+  color4: { slot: 6, components: 'xyz' },
+  color5: { slot: 7, components: 'xyz' },
+  color6: { slot: 8, components: 'xyz' },
+  color7: { slot: 9, components: 'xyz' },
+  pos0: { slot: 10, components: 'x' },
+  pos1: { slot: 10, components: 'y' },
+  pos2: { slot: 10, components: 'z' },
+  pos3: { slot: 10, components: 'w' },
+  pos4: { slot: 11, components: 'x' },
+  pos5: { slot: 11, components: 'y' },
+  pos6: { slot: 11, components: 'z' },
+  pos7: { slot: 11, components: 'w' }
 }
 
 export default new Effect({
@@ -63,7 +63,7 @@ export default new Effect({
     colorMode: {
       type: "int",
       default: 0,
-      uniform: "tetraColorArrayColorMode",
+      uniform: "colorMode",
       choices: {
         rgb: 0,
         hsv: 1,
@@ -80,7 +80,7 @@ export default new Effect({
     colorCount: {
       type: "int",
       default: 6,
-      uniform: "tetraColorArrayColorCount",
+      uniform: "colorCount",
       min: 2,
       max: 8,
       step: 1,
@@ -94,7 +94,7 @@ export default new Effect({
     positionMode: {
       type: "int",
       default: 0,
-      uniform: "tetraColorArrayPositionMode",
+      uniform: "positionMode",
       choices: {
         auto: 0,
         manual: 1
@@ -111,7 +111,7 @@ export default new Effect({
     color0: {
       type: "color",
       default: [1.0, 0.0, 0.0],  // Red
-      uniform: "tetraColorArrayColor0",
+      uniform: "color0",
       ui: {
         label: "color 1",
         control: "color",
@@ -121,7 +121,7 @@ export default new Effect({
     color1: {
       type: "color",
       default: [1.0, 0.5, 0.0],  // Orange
-      uniform: "tetraColorArrayColor1",
+      uniform: "color1",
       ui: {
         label: "color 2",
         control: "color",
@@ -131,7 +131,7 @@ export default new Effect({
     color2: {
       type: "color",
       default: [1.0, 1.0, 0.0],  // Yellow
-      uniform: "tetraColorArrayColor2",
+      uniform: "color2",
       ui: {
         label: "color 3",
         control: "color",
@@ -142,7 +142,7 @@ export default new Effect({
     color3: {
       type: "color",
       default: [0.0, 1.0, 0.0],  // Green
-      uniform: "tetraColorArrayColor3",
+      uniform: "color3",
       ui: {
         label: "color 4",
         control: "color",
@@ -153,7 +153,7 @@ export default new Effect({
     color4: {
       type: "color",
       default: [0.0, 0.0, 1.0],  // Blue
-      uniform: "tetraColorArrayColor4",
+      uniform: "color4",
       ui: {
         label: "color 5",
         control: "color",
@@ -164,7 +164,7 @@ export default new Effect({
     color5: {
       type: "color",
       default: [0.58, 0.0, 0.83],  // Violet
-      uniform: "tetraColorArrayColor5",
+      uniform: "color5",
       ui: {
         label: "color 6",
         control: "color",
@@ -175,7 +175,7 @@ export default new Effect({
     color6: {
       type: "color",
       default: [1, 1, 1],  // White
-      uniform: "tetraColorArrayColor6",
+      uniform: "color6",
       ui: {
         label: "color 7",
         control: "color",
@@ -186,7 +186,7 @@ export default new Effect({
     color7: {
       type: "color",
       default: [0, 0, 0],  // Black
-      uniform: "tetraColorArrayColor7",
+      uniform: "color7",
       ui: {
         label: "color 8",
         control: "color",
@@ -199,7 +199,7 @@ export default new Effect({
     pos0: {
       type: "float",
       default: 0.0,
-      uniform: "tetraColorArrayPos0",
+      uniform: "pos0",
       min: 0,
       max: 1,
       step: 0.01,
@@ -214,7 +214,7 @@ export default new Effect({
     pos1: {
       type: "float",
       default: 0.14,
-      uniform: "tetraColorArrayPos1",
+      uniform: "pos1",
       min: 0,
       max: 1,
       step: 0.01,
@@ -229,7 +229,7 @@ export default new Effect({
     pos2: {
       type: "float",
       default: 0.29,
-      uniform: "tetraColorArrayPos2",
+      uniform: "pos2",
       min: 0,
       max: 1,
       step: 0.01,
@@ -244,7 +244,7 @@ export default new Effect({
     pos3: {
       type: "float",
       default: 0.43,
-      uniform: "tetraColorArrayPos3",
+      uniform: "pos3",
       min: 0,
       max: 1,
       step: 0.01,
@@ -259,7 +259,7 @@ export default new Effect({
     pos4: {
       type: "float",
       default: 0.57,
-      uniform: "tetraColorArrayPos4",
+      uniform: "pos4",
       min: 0,
       max: 1,
       step: 0.01,
@@ -274,7 +274,7 @@ export default new Effect({
     pos5: {
       type: "float",
       default: 0.71,
-      uniform: "tetraColorArrayPos5",
+      uniform: "pos5",
       min: 0,
       max: 1,
       step: 0.01,
@@ -289,7 +289,7 @@ export default new Effect({
     pos6: {
       type: "float",
       default: 0.86,
-      uniform: "tetraColorArrayPos6",
+      uniform: "pos6",
       min: 0,
       max: 1,
       step: 0.01,
@@ -304,7 +304,7 @@ export default new Effect({
     pos7: {
       type: "float",
       default: 1.0,
-      uniform: "tetraColorArrayPos7",
+      uniform: "pos7",
       min: 0,
       max: 1,
       step: 0.01,
@@ -321,7 +321,7 @@ export default new Effect({
     repeat: {
       type: "float",
       default: 1.0,
-      uniform: "tetraColorArrayRepeat",
+      uniform: "repeat",
       min: 0.1,
       max: 10,
       step: 0.1,
@@ -334,7 +334,7 @@ export default new Effect({
     offset: {
       type: "float",
       default: 0.0,
-      uniform: "tetraColorArrayOffset",
+      uniform: "offset",
       min: 0,
       max: 1,
       step: 0.01,
@@ -349,7 +349,7 @@ export default new Effect({
     alpha: {
       type: "float",
       default: 1.0,
-      uniform: "tetraColorArrayAlpha",
+      uniform: "alpha",
       min: 0,
       max: 1,
       randMin: 0.5,
@@ -364,7 +364,7 @@ export default new Effect({
     smoothness: {
       type: "float",
       default: 1,
-      uniform: "tetraColorArraySmoothness",
+      uniform: "smoothness",
       min: 0,
       max: 1,
       ui: {

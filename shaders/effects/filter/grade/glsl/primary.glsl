@@ -9,18 +9,18 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
-uniform float gradeTemperature;
-uniform float gradeTint;
-uniform float gradeExposure;
-uniform float gradeContrast;
-uniform float gradeHighlights;
-uniform float gradeShadows;
-uniform float gradeWhites;
-uniform float gradeBlacks;
-uniform float gradeSaturation;
-uniform float gradeCurveShadows;
-uniform float gradeCurveMidtones;
-uniform float gradeCurveHighlights;
+uniform float temperature;
+uniform float tint;
+uniform float exposure;
+uniform float contrast;
+uniform float highlights;
+uniform float shadows;
+uniform float whites;
+uniform float blacks;
+uniform float saturation;
+uniform float curveShadows;
+uniform float curveMidtones;
+uniform float curveHighlights;
 
 out vec4 fragColor;
 
@@ -173,22 +173,22 @@ void main() {
     vec3 rgb = srgbToLinear(color.rgb);
     
     // 1. White Balance
-    rgb = applyWhiteBalance(rgb, gradeTemperature, gradeTint);
+    rgb = applyWhiteBalance(rgb, temperature, tint);
     
     // 2. Exposure (in linear = multiply by 2^exposure)
-    rgb = rgb * pow(2.0, gradeExposure);
+    rgb = rgb * pow(2.0, exposure);
     
     // 3. Contrast (S-curve)
-    rgb = applyContrast(rgb, gradeContrast);
+    rgb = applyContrast(rgb, contrast);
     
     // 4. Tonal Range Operators
-    rgb = applyTonalRanges(rgb, gradeHighlights, gradeShadows, gradeWhites, gradeBlacks);
+    rgb = applyTonalRanges(rgb, highlights, shadows, whites, blacks);
     
     // 5. Curves (lift/gamma/gain)
-    rgb = applyCurve(rgb, gradeCurveShadows, gradeCurveMidtones, gradeCurveHighlights);
+    rgb = applyCurve(rgb, curveShadows, curveMidtones, curveHighlights);
     
     // 6. Saturation
-    rgb = applySaturation(rgb, gradeSaturation);
+    rgb = applySaturation(rgb, saturation);
     
     // Encode back to sRGB for next pass
     rgb = linearToSrgb(max(rgb, vec3(0.0)));

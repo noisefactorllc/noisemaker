@@ -43,7 +43,7 @@ export default new Effect({
     shape: {
       type: "int",
       default: 2,
-      uniform: "metric",
+      uniform: "shape",
       choices: {
         circle: 0,
         diamond: 1,
@@ -65,7 +65,7 @@ export default new Effect({
     mix: {
       type: "float",
       default: 0,
-      uniform: "power",
+      uniform: "mix",
       min: -100,
       max: 100,
       randMax: -70,
@@ -78,6 +78,7 @@ export default new Effect({
       name: "render",
       program: "centerMask",
       inputs: { inputTex: "inputTex", tex: "tex" },
+      uniforms: { shape: "shape", power: "mix" },
       outputs: { fragColor: "outputTex" }
     }
   ]

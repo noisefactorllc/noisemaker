@@ -10,7 +10,7 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform int levels;
 uniform vec3 lightDirection;
-uniform float shadingStrength;
+uniform float strength;
 
 out vec4 fragColor;
 
@@ -58,7 +58,7 @@ void main() {
     float diffuse = 0.5 + 0.5 * gradientShade;
     
     // Apply shading to color
-    float shadeFactor = mix(1.0, 0.5 + 0.5 * diffuse, shadingStrength);
+    float shadeFactor = mix(1.0, 0.5 + 0.5 * diffuse, strength);
     vec3 shadedColor = origColor.rgb * shadeFactor;
     
     // Quantize the color

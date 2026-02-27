@@ -30,7 +30,7 @@ export default new Effect({
             default: 0.0,
             min: -5.0,
             max: 5.0,
-            uniform: "meshOffsetX",
+            uniform: "offsetX",
             ui: {
                 label: "mesh offset x",
                 control: "slider",
@@ -43,7 +43,7 @@ export default new Effect({
             default: 0.0,
             min: -5.0,
             max: 5.0,
-            uniform: "meshOffsetY",
+            uniform: "offsetY",
             ui: {
                 label: "mesh offset y",
                 control: "slider",
@@ -56,7 +56,7 @@ export default new Effect({
             default: 0.0,
             min: -5.0,
             max: 5.0,
-            uniform: "meshOffsetZ",
+            uniform: "offsetZ",
             ui: {
                 label: "mesh offset z",
                 control: "slider",
@@ -359,9 +359,9 @@ export default new Effect({
 
             uniforms: {
                 meshScale: "meshScale",
-                meshOffsetX: "meshOffsetX",
-                meshOffsetY: "meshOffsetY",
-                meshOffsetZ: "meshOffsetZ",
+                meshOffsetX: "offsetX",
+                meshOffsetY: "offsetY",
+                meshOffsetZ: "offsetZ",
                 rotateX: "rotateX",
                 rotateY: "rotateY",
                 rotateZ: "rotateZ",

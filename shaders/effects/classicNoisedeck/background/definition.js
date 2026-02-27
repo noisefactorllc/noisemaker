@@ -46,7 +46,7 @@ export default new Effect({
     alpha: {
       type: "float",
       default: 100,
-      uniform: "opacity",
+      uniform: "alpha",
       min: 0,
       max: 100,
       ui: { label: "opacity", control: "slider"}

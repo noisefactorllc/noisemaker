@@ -2,7 +2,7 @@
 @group(0) @binding(0) var<uniform> resolution: vec2<f32>;
 @group(0) @binding(1) var<uniform> backgroundType: i32;
 @group(0) @binding(2) var<uniform> rotation: f32;
-@group(0) @binding(3) var<uniform> opacity: f32;
+@group(0) @binding(3) var<uniform> alpha: f32;
 @group(0) @binding(4) var<uniform> color1: vec4<f32>;
 @group(0) @binding(5) var<uniform> color2: vec4<f32>;
 
@@ -67,7 +67,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
         }
     }
 
-    color.a = opacity * 0.01;
+    color.a = alpha * 0.01;
 
     return color;
 }

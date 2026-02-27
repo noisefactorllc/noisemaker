@@ -16,12 +16,12 @@ uniform int seed;
 uniform bool aspectLens;
 uniform int shape;
 uniform vec3 tint;
-uniform float opacity;
+uniform float alpha;
 uniform float vignetteAmt;
 uniform float distortion;
 uniform float loopAmp;
 uniform float loopScale;
-uniform float aberrationAmt;
+uniform float aberration;
 uniform float hueRotation;
 uniform float hueRange;
 uniform int mode;
@@ -215,7 +215,7 @@ void main() {
     // aberration and lensing
     vec2 lensedCoords = fract((uv - diff * zoom) - diff * centerDist * centerDist * distort);
 
-    float aberrationOffset = map(aberrationAmt, 0.0, 100.0, 0.0, 0.05) * centerDist * PI * 0.5;
+    float aberrationOffset = map(aberration, 0.0, 100.0, 0.0, 0.05) * centerDist * PI * 0.5;
 
     float redOffset = mix(clamp(lensedCoords.x + aberrationOffset, 0.0, 1.0), lensedCoords.x, lensedCoords.x);
     vec4 red = texture(inputTex, vec2(redOffset, lensedCoords.y));
@@ -268,8 +268,8 @@ void main() {
     // end aberration
 
     // apply tint (this was the "reflect" mode from blendo)
-    color.rgb = mix(color.rgb, (color.rgb == vec3(1.0)) ? color.rgb : min(tint * tint / (1.0 - color.rgb), vec3(1.0)), opacity * 0.01);
-    color.a = max(color.a, opacity * 0.01);
+    color.rgb = mix(color.rgb, (color.rgb == vec3(1.0)) ? color.rgb : min(tint * tint / (1.0 - color.rgb), vec3(1.0)), alpha * 0.01);
+    color.a = max(color.a, alpha * 0.01);
 
 	// vignette
 	if (vignetteAmt < 0.0) {

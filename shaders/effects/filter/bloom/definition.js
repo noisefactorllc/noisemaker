@@ -20,7 +20,7 @@ export default new Effect({
     threshold: {
       type: "float",
       default: 0.8,
-      uniform: "bloomThreshold",
+      uniform: "threshold",
       min: 0,
       max: 2,
       step: 0.05,
@@ -32,7 +32,7 @@ export default new Effect({
     softKnee: {
       type: "float",
       default: 0.2,
-      uniform: "bloomSoftKnee",
+      uniform: "softKnee",
       min: 0,
       max: 0.5,
       step: 0.01,
@@ -44,7 +44,7 @@ export default new Effect({
     intensity: {
       type: "float",
       default: 1.0,
-      uniform: "bloomIntensity",
+      uniform: "intensity",
       min: 0,
       max: 3,
       step: 0.05,
@@ -56,7 +56,7 @@ export default new Effect({
     radius: {
       type: "float",
       default: 32,
-      uniform: "bloomRadius",
+      uniform: "radius",
       min: 1,
       max: 128,
       step: 1,
@@ -68,7 +68,7 @@ export default new Effect({
     taps: {
       type: "int",
       default: 8,
-      uniform: "numTaps",
+      uniform: "taps",
       min: 8,
       max: 64,
       step: 1,
@@ -80,7 +80,7 @@ export default new Effect({
     tint: {
       type: "color",
       default: [1.0, 1.0, 1.0],
-      uniform: "bloomTint",
+      uniform: "tint",
       ui: {
         label: "tint",
         control: "color"

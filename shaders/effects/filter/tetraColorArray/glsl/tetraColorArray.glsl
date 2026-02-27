@@ -14,39 +14,39 @@ precision highp float;
 uniform sampler2D inputTex;
 
 // Color mode: 0=RGB, 1=HSV, 2=OkLab, 3=OKLCH
-uniform int tetraColorArrayColorMode;
+uniform int colorMode;
 
 // Color count (2-8)
-uniform int tetraColorArrayColorCount;
+uniform int colorCount;
 
 // Position mode: 0=auto, 1=manual
-uniform int tetraColorArrayPositionMode;
+uniform int positionMode;
 
 // Colors (up to 8)
-uniform vec3 tetraColorArrayColor0;
-uniform vec3 tetraColorArrayColor1;
-uniform vec3 tetraColorArrayColor2;
-uniform vec3 tetraColorArrayColor3;
-uniform vec3 tetraColorArrayColor4;
-uniform vec3 tetraColorArrayColor5;
-uniform vec3 tetraColorArrayColor6;
-uniform vec3 tetraColorArrayColor7;
+uniform vec3 color0;
+uniform vec3 color1;
+uniform vec3 color2;
+uniform vec3 color3;
+uniform vec3 color4;
+uniform vec3 color5;
+uniform vec3 color6;
+uniform vec3 color7;
 
 // Positions (for manual mode)
-uniform float tetraColorArrayPos0;
-uniform float tetraColorArrayPos1;
-uniform float tetraColorArrayPos2;
-uniform float tetraColorArrayPos3;
-uniform float tetraColorArrayPos4;
-uniform float tetraColorArrayPos5;
-uniform float tetraColorArrayPos6;
-uniform float tetraColorArrayPos7;
+uniform float pos0;
+uniform float pos1;
+uniform float pos2;
+uniform float pos3;
+uniform float pos4;
+uniform float pos5;
+uniform float pos6;
+uniform float pos7;
 
 // Mapping controls
-uniform float tetraColorArrayRepeat;
-uniform float tetraColorArrayOffset;
-uniform float tetraColorArraySmoothness;
-uniform float tetraColorArrayAlpha;
+uniform float repeat;
+uniform float offset;
+uniform float smoothness;
+uniform float alpha;
 
 out vec4 fragColor;
 
@@ -195,30 +195,30 @@ vec3 colorSpaceToRgb(vec3 color, int mode) {
 // ============================================================================
 
 vec3 getColor(int index) {
-    if (index == 0) return tetraColorArrayColor0;
-    if (index == 1) return tetraColorArrayColor1;
-    if (index == 2) return tetraColorArrayColor2;
-    if (index == 3) return tetraColorArrayColor3;
-    if (index == 4) return tetraColorArrayColor4;
-    if (index == 5) return tetraColorArrayColor5;
-    if (index == 6) return tetraColorArrayColor6;
-    return tetraColorArrayColor7;
+    if (index == 0) return color0;
+    if (index == 1) return color1;
+    if (index == 2) return color2;
+    if (index == 3) return color3;
+    if (index == 4) return color4;
+    if (index == 5) return color5;
+    if (index == 6) return color6;
+    return color7;
 }
 
 float getPosition(int index, int count) {
-    if (tetraColorArrayPositionMode == 0) {
+    if (positionMode == 0) {
         // Auto mode: even spacing
         return float(index) / float(count - 1);
     }
     // Manual mode: use position uniforms
-    if (index == 0) return tetraColorArrayPos0;
-    if (index == 1) return tetraColorArrayPos1;
-    if (index == 2) return tetraColorArrayPos2;
-    if (index == 3) return tetraColorArrayPos3;
-    if (index == 4) return tetraColorArrayPos4;
-    if (index == 5) return tetraColorArrayPos5;
-    if (index == 6) return tetraColorArrayPos6;
-    return tetraColorArrayPos7;
+    if (index == 0) return pos0;
+    if (index == 1) return pos1;
+    if (index == 2) return pos2;
+    if (index == 3) return pos3;
+    if (index == 4) return pos4;
+    if (index == 5) return pos5;
+    if (index == 6) return pos6;
+    return pos7;
 }
 
 // Interpolate in color space with shortest-path hue for HSV/OKLCH
@@ -241,7 +241,7 @@ vec3 mixInColorSpace(vec3 a, vec3 b, float f, int mode) {
 
 vec3 sampleColorArray(float t, int count, float smoothAmount) {
     t = clamp(t, 0.0, 1.0);
-    int mode = tetraColorArrayColorMode;
+    int mode = colorMode;
 
     // Cascade blend: smoothstep at each transition boundary
     vec3 result = rgbToColorSpace(getColor(0), mode);
@@ -249,7 +249,7 @@ vec3 sampleColorArray(float t, int count, float smoothAmount) {
     for (int i = 1; i < count; i++) {
         float boundary, bw;
 
-        if (tetraColorArrayPositionMode == 0) {
+        if (positionMode == 0) {
             // Auto: equal-width bands, transitions at i/count
             boundary = float(i) / float(count);
             bw = smoothAmount * 0.5 / float(count);
@@ -270,7 +270,7 @@ vec3 sampleColorArray(float t, int count, float smoothAmount) {
     // when the palette repeats (fract causes a hard edge at t=0/1)
     if (smoothAmount > 0.0) {
         float bw;
-        if (tetraColorArrayPositionMode == 0) {
+        if (positionMode == 0) {
             bw = smoothAmount * 0.5 / float(count);
         } else {
             float pLast = getPosition(count - 1, count);
@@ -309,13 +309,13 @@ void main() {
     float lum = dot(inputColor.rgb, vec3(0.299, 0.587, 0.114));
 
     // Apply mapping: repeat and offset
-    float t = fract(lum * (1.0 - 1e-4) * tetraColorArrayRepeat + tetraColorArrayOffset);
+    float t = fract(lum * (1.0 - 1e-4) * repeat + offset);
 
     // Sample the color array gradient
-    vec3 gradientColor = sampleColorArray(t, tetraColorArrayColorCount, tetraColorArraySmoothness);
+    vec3 gradientColor = sampleColorArray(t, colorCount, smoothness);
 
     // Blend with original based on alpha
-    vec3 blendedColor = mix(inputColor.rgb, gradientColor, tetraColorArrayAlpha);
+    vec3 blendedColor = mix(inputColor.rgb, gradientColor, alpha);
 
     fragColor = vec4(blendedColor, inputColor.a);
 }

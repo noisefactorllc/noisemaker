@@ -16,7 +16,7 @@ export default new Effect({
     type: {
       type: "int",
       default: 7,
-      uniform: "patternType",
+      uniform: "type",
       choices: {
         checkerboard: 0,
         concentricRings: 1,

@@ -11,7 +11,7 @@ uniform float distrib;
 uniform float freq;
 uniform float time;
 uniform float speed;
-uniform float distMetric;
+uniform float shape;
 uniform sampler2D voronoiColorTexture;
 uniform sampler2D voronoiRangeTexture;
 

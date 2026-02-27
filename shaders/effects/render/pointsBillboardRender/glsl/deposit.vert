@@ -9,7 +9,7 @@ uniform vec2 resolution;
 uniform float density;
 uniform float pointSize;
 uniform float sizeVariation;
-uniform float rotationVariation;
+uniform float rotationVar;
 uniform float seed;
 
 // 3D viewport uniforms
@@ -125,7 +125,7 @@ void main() {
     
     // Per-particle rotation (seeded deterministic)
     float rotationNoise = hash(float(particleID) + 1234.5);
-    float rotation = (rotationVariation / 100.0) * rotationNoise * 6.283185; // 0 to 2π
+    float rotation = (rotationVar / 100.0) * rotationNoise * 6.283185; // 0 to 2π
     
     // Convert pixel size to clip-space units
     vec2 pixelToClip = 2.0 / resolution;

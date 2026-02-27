@@ -5,18 +5,18 @@
  */
 
 struct Uniforms {
-    gradeTemperature: f32,
-    gradeTint: f32,
-    gradeExposure: f32,
-    gradeContrast: f32,
-    gradeHighlights: f32,
-    gradeShadows: f32,
-    gradeWhites: f32,
-    gradeBlacks: f32,
-    gradeSaturation: f32,
-    gradeCurveShadows: f32,
-    gradeCurveMidtones: f32,
-    gradeCurveHighlights: f32,
+    temperature: f32,
+    tint: f32,
+    exposure: f32,
+    contrast: f32,
+    highlights: f32,
+    shadows: f32,
+    whites: f32,
+    blacks: f32,
+    saturation: f32,
+    curveShadows: f32,
+    curveMidtones: f32,
+    curveHighlights: f32,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -155,24 +155,24 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var rgb = srgbToLinear(color.rgb);
     
     // 1. White Balance
-    rgb = applyWhiteBalance(rgb, uniforms.gradeTemperature, uniforms.gradeTint);
+    rgb = applyWhiteBalance(rgb, uniforms.temperature, uniforms.tint);
     
     // 2. Exposure
-    rgb = rgb * pow(2.0, uniforms.gradeExposure);
+    rgb = rgb * pow(2.0, uniforms.exposure);
     
     // 3. Contrast
-    rgb = applyContrast(rgb, uniforms.gradeContrast);
+    rgb = applyContrast(rgb, uniforms.contrast);
     
     // 4. Tonal Range Operators
-    rgb = applyTonalRanges(rgb, uniforms.gradeHighlights, uniforms.gradeShadows, 
-                           uniforms.gradeWhites, uniforms.gradeBlacks);
+    rgb = applyTonalRanges(rgb, uniforms.highlights, uniforms.shadows, 
+                           uniforms.whites, uniforms.blacks);
     
     // 5. Curves
-    rgb = applyCurve(rgb, uniforms.gradeCurveShadows, uniforms.gradeCurveMidtones, 
-                     uniforms.gradeCurveHighlights);
+    rgb = applyCurve(rgb, uniforms.curveShadows, uniforms.curveMidtones, 
+                     uniforms.curveHighlights);
     
     // 6. Saturation
-    rgb = applySaturation(rgb, uniforms.gradeSaturation);
+    rgb = applySaturation(rgb, uniforms.saturation);
     
     // Encode back to sRGB
     rgb = linearToSrgb(max(rgb, vec3<f32>(0.0)));

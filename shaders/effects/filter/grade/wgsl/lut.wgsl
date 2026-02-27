@@ -5,8 +5,8 @@
  */
 
 struct Uniforms {
-    gradePreset: i32,
-    gradeAlpha: f32,
+    preset: i32,
+    alpha: f32,
 }
 
 @group(0) @binding(0) var inputTex: texture_2d<f32>;
@@ -357,58 +357,58 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let coord = vec2i(fragCoord.xy);
     let color = textureLoad(inputTex, coord, 0);
     
-    if (uniforms.gradePreset == 0 || uniforms.gradeAlpha <= 0.0) {
+    if (uniforms.preset == 0 || uniforms.alpha <= 0.0) {
         return color;
     }
     
     var rgb = srgbToLinear(color.rgb);
     var graded = rgb;
     
-    if (uniforms.gradePreset == 1) {
+    if (uniforms.preset == 1) {
         graded = lutTealOrange(rgb);
-    } else if (uniforms.gradePreset == 2) {
+    } else if (uniforms.preset == 2) {
         graded = lutWarmFilm(rgb);
-    } else if (uniforms.gradePreset == 3) {
+    } else if (uniforms.preset == 3) {
         graded = lutCoolShadows(rgb);
-    } else if (uniforms.gradePreset == 4) {
+    } else if (uniforms.preset == 4) {
         graded = lutBleachBypass(rgb);
-    } else if (uniforms.gradePreset == 5) {
+    } else if (uniforms.preset == 5) {
         graded = lutCrossProcess(rgb);
-    } else if (uniforms.gradePreset == 6) {
+    } else if (uniforms.preset == 6) {
         graded = lutCinematic(rgb);
-    } else if (uniforms.gradePreset == 7) {
+    } else if (uniforms.preset == 7) {
         graded = lutDayForNight(rgb);
-    } else if (uniforms.gradePreset == 8) {
+    } else if (uniforms.preset == 8) {
         graded = lutVintage(rgb);
-    } else if (uniforms.gradePreset == 9) {
+    } else if (uniforms.preset == 9) {
         graded = lutNoir(rgb);
-    } else if (uniforms.gradePreset == 10) {
+    } else if (uniforms.preset == 10) {
         graded = lutSepia(rgb);
-    } else if (uniforms.gradePreset == 11) {
+    } else if (uniforms.preset == 11) {
         graded = lutInfrared(rgb);
-    } else if (uniforms.gradePreset == 12) {
+    } else if (uniforms.preset == 12) {
         graded = lutTechnicolor(rgb);
-    } else if (uniforms.gradePreset == 13) {
+    } else if (uniforms.preset == 13) {
         graded = lutNeon(rgb);
-    } else if (uniforms.gradePreset == 14) {
+    } else if (uniforms.preset == 14) {
         graded = lutMatrix(rgb);
-    } else if (uniforms.gradePreset == 15) {
+    } else if (uniforms.preset == 15) {
         graded = lutUnderwater(rgb);
-    } else if (uniforms.gradePreset == 16) {
+    } else if (uniforms.preset == 16) {
         graded = lutSunset(rgb);
-    } else if (uniforms.gradePreset == 17) {
+    } else if (uniforms.preset == 17) {
         graded = lutMonochrome(rgb);
-    } else if (uniforms.gradePreset == 18) {
+    } else if (uniforms.preset == 18) {
         graded = lutPsychedelic(rgb);
-    } else if (uniforms.gradePreset == 20) {
+    } else if (uniforms.preset == 20) {
         graded = lutHardLight(rgb);
-    } else if (uniforms.gradePreset == 21) {
+    } else if (uniforms.preset == 21) {
         graded = lutPosterize(rgb);
-    } else if (uniforms.gradePreset == 22) {
+    } else if (uniforms.preset == 22) {
         graded = lutSolarize(rgb);
     }
     
-    rgb = mix(rgb, graded, uniforms.gradeAlpha);
+    rgb = mix(rgb, graded, uniforms.alpha);
     rgb = linearToSrgb(max(rgb, vec3f(0.0)));
     
     return vec4f(rgb, color.a);

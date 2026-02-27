@@ -24,7 +24,7 @@ export default new Effect({
     cycle: {
       type: "int",
       default: 1,
-      uniform: "cyclePalette",
+      uniform: "cycle",
       choices: {
         off: 0,
         forward: 1,
@@ -38,7 +38,7 @@ export default new Effect({
     rotate: {
       type: "float",
       default: 0,
-      uniform: "rotatePalette",
+      uniform: "rotate",
       min: 0,
       max: 100,
       ui: {

@@ -12,8 +12,8 @@ uniform sampler2D inputTex;
 uniform float time;
 uniform int shape;
 uniform float speed;
-uniform float tunnelRotation;
-uniform float tunnelScale;
+uniform float rotation;
+uniform float scale;
 uniform bool aspectLens;
 
 out vec4 fragColor;
@@ -63,12 +63,12 @@ void main() {
     }
     
     // Apply scale
-    r -= tunnelScale * 0.15;
+    r -= scale * 0.15;
     
     // Create tunnel coordinates
     vec2 tunnelCoords = smod(vec2(
         0.3 / r + time * speed,
-        a / PI + time * tunnelRotation
+        a / PI + time * rotation
     ), 1.0);
     
     // Sample with gradient for proper filtering

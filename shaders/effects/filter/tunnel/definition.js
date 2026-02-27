@@ -31,7 +31,7 @@ export default new Effect({
     scale: {
       type: "float",
       default: 0,
-      uniform: "tunnelScale",
+      uniform: "scale",
       min: -1,
       max: 1,
       step: 0.1,
@@ -56,7 +56,7 @@ export default new Effect({
     rotation: {
       type: "float",
       default: 0,
-      uniform: "tunnelRotation",
+      uniform: "rotation",
       min: -2,
       max: 2,
       step: 0.1,

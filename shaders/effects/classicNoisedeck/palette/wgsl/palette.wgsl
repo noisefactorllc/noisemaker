@@ -9,8 +9,8 @@ struct Uniforms {
     time: f32,
     seed: i32,
     paletteType: i32,
-    cyclePalette: i32,
-    rotatePalette: f32,
+    cycle: i32,
+    rotate: f32,
     smoother: i32,
     color1: vec3<f32>,
     _pad1: f32,
@@ -105,7 +105,7 @@ fn smoothColorize(v_in: f32, c1: vec3<f32>, c2: vec3<f32>, c3: vec3<f32>, c4: ve
 }
 
 fn pal(t_in: f32) -> vec3<f32> {
-    let t = fract(t_in + u.rotatePalette * 0.01);
+    let t = fract(t_in + u.rotate * 0.01);
     let a = vec3<f32>(u.offsetR, u.offsetG, u.offsetB) * 0.01;
     let b = vec3<f32>(u.ampR, u.ampG, u.ampB) * 0.01;
     let c = vec3<f32>(u.freq);
@@ -242,9 +242,9 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     if (u.paletteType == 0) {
         var d = luminance(color.rgb) * 0.9; // prevent black and white from returning the same color
         
-        if (u.cyclePalette == -1) {
+        if (u.cycle == -1) {
             color = vec4<f32>(pal(d + u.time), color.a);
-        } else if (u.cyclePalette == 1) {
+        } else if (u.cycle == 1) {
             color = vec4<f32>(pal(d - u.time), color.a);
         } else {
             color = vec4<f32>(pal(d), color.a);
@@ -261,7 +261,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
             color = vec4<f32>(linearToSrgb(linear_srgb_from_oklab(lab)), color.a);
         }
     } else if (u.paletteType == 1) {
-        let l = luminance(color.rgb) + u.rotatePalette * 0.01;
+        let l = luminance(color.rgb) + u.rotate * 0.01;
         
         if (u.smoother != 0) {
             color = vec4<f32>(smoothColorize(l, u.color1, u.color2, u.color3, u.color4, u.color5), color.a);
@@ -280,12 +280,12 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
         }
         color = vec4<f32>(mix(color.rgb, tinted, 0.5), color.a);
         
-        if (u.cyclePalette == -1) {
+        if (u.cycle == -1) {
             var hsv = rgb2hsv(color.rgb);
             hsv.x = (hsv.x + u.time) % 1.0;
             if (hsv.x < 0.0) { hsv.x = hsv.x + 1.0; }
             color = vec4<f32>(hsv2rgb(hsv), color.a);
-        } else if (u.cyclePalette == 1) {
+        } else if (u.cycle == 1) {
             var hsv = rgb2hsv(color.rgb);
             hsv.x = (hsv.x - u.time) % 1.0;
             if (hsv.x < 0.0) { hsv.x = hsv.x + 1.0; }

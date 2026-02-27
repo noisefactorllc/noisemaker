@@ -99,7 +99,7 @@ export default new Effect({
     aberration: {
       type: "float",
       default: 50,
-      uniform: "aberrationAmt",
+      uniform: "aberration",
       min: 0,
       max: 100,
       ui: {
@@ -145,7 +145,7 @@ export default new Effect({
     alpha: {
       type: "float",
       default: 0,
-      uniform: "opacity",
+      uniform: "alpha",
       min: 0,
       max: 100,
       ui: {

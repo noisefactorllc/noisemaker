@@ -5,9 +5,9 @@
 struct Uniforms {
     time: f32,
     polarMode: i32,
-    polarSpeed: f32,
-    polarRotation: f32,
-    polarScale: f32,
+    speed: f32,
+    rotation: f32,
+    scale: f32,
     _pad1: f32,
     _pad2: f32,
     _pad3: f32,
@@ -25,18 +25,18 @@ fn smod1(v: f32, m: f32) -> f32 {
 
 fn polarCoords(uvIn: vec2<f32>) -> vec2<f32> {
     let uv = uvIn - 0.5;
-    var coord = vec2<f32>(atan2(uv.y, uv.x) / TAU + 0.5, length(uv) - uniforms.polarScale * 0.075);
-    coord.x = smod1(coord.x + uniforms.time * -uniforms.polarRotation, 1.0);
-    coord.y = smod1(coord.y + uniforms.time * uniforms.polarSpeed, 1.0);
+    var coord = vec2<f32>(atan2(uv.y, uv.x) / TAU + 0.5, length(uv) - uniforms.scale * 0.075);
+    coord.x = smod1(coord.x + uniforms.time * -uniforms.rotation, 1.0);
+    coord.y = smod1(coord.y + uniforms.time * uniforms.speed, 1.0);
     return coord;
 }
 
 fn vortexCoords(uvIn: vec2<f32>) -> vec2<f32> {
     var uv = uvIn - 0.5;
-    let r2 = dot(uv, uv) - uniforms.polarScale * 0.01;
+    let r2 = dot(uv, uv) - uniforms.scale * 0.01;
     uv = uv / r2;
-    uv.x = smod1(uv.x + uniforms.time * -uniforms.polarRotation, 1.0);
-    uv.y = smod1(uv.y + uniforms.time * uniforms.polarSpeed, 1.0);
+    uv.x = smod1(uv.x + uniforms.time * -uniforms.rotation, 1.0);
+    uv.y = smod1(uv.y + uniforms.time * uniforms.speed, 1.0);
     return uv;
 }
 

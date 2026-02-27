@@ -26,7 +26,7 @@ export default new Effect({
     alpha: {
       type: "float",
       default: 1,
-      uniform: "vignetteAlpha",
+      uniform: "alpha",
       min: 0,
       max: 1,
       step: 0.01,

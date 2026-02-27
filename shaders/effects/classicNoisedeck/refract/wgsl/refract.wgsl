@@ -11,7 +11,7 @@ const TAU : f32 = 6.28318530718;
 @group(0) @binding(1) var inputTex : texture_2d<f32>;
 @group(0) @binding(2) var<uniform> mode : i32;
 @group(0) @binding(3) var<uniform> amount : f32;
-@group(0) @binding(4) var<uniform> refractDir : f32;
+@group(0) @binding(4) var<uniform> direction : f32;
 @group(0) @binding(5) var<uniform> blendMode : i32;
 @group(0) @binding(6) var<uniform> mixAmt : f32;
 @group(0) @binding(7) var<uniform> wrap : i32;
@@ -201,7 +201,7 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
 
     var color = vec4<f32>(0.0);
     let inputColor = textureSample(inputTex, samp, uv);
-    let brightness = desaturate(inputColor.rgb) + refractDir / 360.0;
+    let brightness = desaturate(inputColor.rgb) + direction / 360.0;
 
     if (mode == 0) {
         uv.x = uv.x + cos(brightness * TAU) * amount * 0.01;

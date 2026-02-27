@@ -4,7 +4,7 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
-uniform int patternType;
+uniform int type;
 uniform float scale;
 uniform float thickness;
 uniform float smoothness;
@@ -147,23 +147,23 @@ void main() {
 
     // Compute pattern mask
     float m = 0.0;
-    if (patternType == CHECKERBOARD) {
+    if (type == CHECKERBOARD) {
         m = checkerboard(p, smoothness);
-    } else if (patternType == CONCENTRIC_RINGS) {
+    } else if (type == CONCENTRIC_RINGS) {
         m = concentricRings(p, thickness);
-    } else if (patternType == DOTS) {
+    } else if (type == DOTS) {
         m = dots(p, thickness);
-    } else if (patternType == GRID) {
+    } else if (type == GRID) {
         m = grid(p, thickness);
-    } else if (patternType == HEXAGONS) {
+    } else if (type == HEXAGONS) {
         m = hexagons(p, thickness);
-    } else if (patternType == RADIAL_LINES) {
+    } else if (type == RADIAL_LINES) {
         m = radialLines(p, thickness);
-    } else if (patternType == SPIRAL) {
+    } else if (type == SPIRAL) {
         m = spiralPattern(p, thickness);
-    } else if (patternType == STRIPES) {
+    } else if (type == STRIPES) {
         m = stripes(p, thickness);
-    } else if (patternType == TRIANGULAR_GRID) {
+    } else if (type == TRIANGULAR_GRID) {
         m = triangularGrid(p, thickness);
     }
 

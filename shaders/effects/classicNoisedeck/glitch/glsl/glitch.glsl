@@ -21,7 +21,7 @@ uniform float glitchiness;
 uniform float scanlinesAmt;
 uniform float snowAmt;
 uniform float vignetteAmt;
-uniform float aberrationAmt;
+uniform float aberration;
 uniform float distortion;
 uniform int kernel;
 uniform float levels; 
@@ -184,7 +184,7 @@ vec4 glitch(vec2 st) {
 
     vec2 lensedCoords = fract((st - diff * zoom) - diff * centerDist * centerDist * distort);
 
-    float aberrationOffset = map(aberrationAmt, 0.0, 100.0, 0.0, 0.05) * centerDist * PI * 0.5;
+    float aberrationOffset = map(aberration, 0.0, 100.0, 0.0, 0.05) * centerDist * PI * 0.5;
 
     float redOffset = mix(clamp(lensedCoords.x + aberrationOffset, 0.0, 1.0), lensedCoords.x, lensedCoords.x);
     vec4 red = texture(inputTex, vec2(redOffset, lensedCoords.y));

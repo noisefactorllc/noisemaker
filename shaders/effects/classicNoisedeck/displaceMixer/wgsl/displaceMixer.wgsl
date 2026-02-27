@@ -13,7 +13,7 @@ const TAU : f32 = 6.28318530718;
 @group(0) @binding(3) var<uniform> intensity : f32;
 @group(0) @binding(4) var<uniform> direction : f32;
 @group(0) @binding(5) var<uniform> mode : i32;
-@group(0) @binding(6) var<uniform> displaceSource : i32;
+@group(0) @binding(6) var<uniform> mapSource : i32;
 @group(0) @binding(7) var<uniform> wrap : i32;
 @group(0) @binding(8) var<uniform> smoothing : f32;
 @group(0) @binding(9) var<uniform> aberration : f32;
@@ -119,7 +119,7 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
 
     if (mode == 0) {
         // displace
-        if (displaceSource == 0) {
+        if (mapSource == 0) {
             let len = length(color1.rgb) + direction / 360.0;
             uv.x = uv.x + cos(len * TAU) * (intensity * 0.001);
             uv.y = uv.y + sin(len * TAU) * (intensity * 0.001);
@@ -134,14 +134,14 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
         }
     } else if (mode == 1) {
         // refract
-        if (displaceSource == 0) {
+        if (mapSource == 0) {
             color = refractMap(st, inputTex, tex);
         } else {
             color = refractMap(st, tex, inputTex);
         }
     } else if (mode == 2) {
         // reflect
-        if (displaceSource == 0) {
+        if (mapSource == 0) {
             color = reflectMap(st, inputTex, tex);
         } else {
             color = reflectMap(st, tex, inputTex);

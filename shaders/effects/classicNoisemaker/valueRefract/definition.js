@@ -26,7 +26,7 @@ export default new Effect({
     freq: {
       type: "float",
       default: 4.0,
-      uniform: "frequency",
+      uniform: "freq",
       min: 0.1,
       max: 20,
       step: 0.1,
@@ -46,7 +46,7 @@ export default new Effect({
       },
       uniforms: {
         displacement: "displacement",
-        frequency: "frequency"
+        freq: "freq"
       },
       outputs: {
         color: "outputTex"

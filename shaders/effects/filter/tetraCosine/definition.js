@@ -21,22 +21,22 @@ import { Effect } from '../../../src/runtime/effect.js'
 // data[2].xyz = freq (R, G, B), data[2].w = offset (mapping)
 // data[3].xyz = phase (R, G, B), data[3].w = alpha
 const uniformLayout = {
-  tetraCosineOffsetR: { slot: 0, components: 'x' },
-  tetraCosineOffsetG: { slot: 0, components: 'y' },
-  tetraCosineOffsetB: { slot: 0, components: 'z' },
-  tetraCosineColorMode: { slot: 0, components: 'w' },
-  tetraCosineAmpR: { slot: 1, components: 'x' },
-  tetraCosineAmpG: { slot: 1, components: 'y' },
-  tetraCosineAmpB: { slot: 1, components: 'z' },
-  tetraCosineRepeat: { slot: 1, components: 'w' },
-  tetraCosineFreqR: { slot: 2, components: 'x' },
-  tetraCosineFreqG: { slot: 2, components: 'y' },
-  tetraCosineFreqB: { slot: 2, components: 'z' },
-  tetraCosineOffset: { slot: 2, components: 'w' },
-  tetraCosinePhaseR: { slot: 3, components: 'x' },
-  tetraCosinePhaseG: { slot: 3, components: 'y' },
-  tetraCosinePhaseB: { slot: 3, components: 'z' },
-  tetraCosineAlpha: { slot: 3, components: 'w' }
+  offsetR: { slot: 0, components: 'x' },
+  offsetG: { slot: 0, components: 'y' },
+  offsetB: { slot: 0, components: 'z' },
+  colorMode: { slot: 0, components: 'w' },
+  ampR: { slot: 1, components: 'x' },
+  ampG: { slot: 1, components: 'y' },
+  ampB: { slot: 1, components: 'z' },
+  repeat: { slot: 1, components: 'w' },
+  freqR: { slot: 2, components: 'x' },
+  freqG: { slot: 2, components: 'y' },
+  freqB: { slot: 2, components: 'z' },
+  offset: { slot: 2, components: 'w' },
+  phaseR: { slot: 3, components: 'x' },
+  phaseG: { slot: 3, components: 'y' },
+  phaseB: { slot: 3, components: 'z' },
+  alpha: { slot: 3, components: 'w' }
 }
 
 export default new Effect({
@@ -54,7 +54,7 @@ export default new Effect({
     colorMode: {
       type: "int",
       default: 0,
-      uniform: "tetraCosineColorMode",
+      uniform: "colorMode",
       choices: {
         rgb: 0,
         hsv: 1,
@@ -71,7 +71,7 @@ export default new Effect({
     offsetR: {
       type: "float",
       default: 0.5,
-      uniform: "tetraCosineOffsetR",
+      uniform: "offsetR",
       min: 0,
       max: 1,
       step: 0.01,
@@ -84,7 +84,7 @@ export default new Effect({
     offsetG: {
       type: "float",
       default: 0.5,
-      uniform: "tetraCosineOffsetG",
+      uniform: "offsetG",
       min: 0,
       max: 1,
       step: 0.01,
@@ -97,7 +97,7 @@ export default new Effect({
     offsetB: {
       type: "float",
       default: 0.5,
-      uniform: "tetraCosineOffsetB",
+      uniform: "offsetB",
       min: 0,
       max: 1,
       step: 0.01,
@@ -112,7 +112,7 @@ export default new Effect({
     ampR: {
       type: "float",
       default: 0.5,
-      uniform: "tetraCosineAmpR",
+      uniform: "ampR",
       min: 0,
       max: 1,
       step: 0.01,
@@ -125,7 +125,7 @@ export default new Effect({
     ampG: {
       type: "float",
       default: 0.5,
-      uniform: "tetraCosineAmpG",
+      uniform: "ampG",
       min: 0,
       max: 1,
       step: 0.01,
@@ -138,7 +138,7 @@ export default new Effect({
     ampB: {
       type: "float",
       default: 0.5,
-      uniform: "tetraCosineAmpB",
+      uniform: "ampB",
       min: 0,
       max: 1,
       step: 0.01,
@@ -153,7 +153,7 @@ export default new Effect({
     freqR: {
       type: "int",
       default: 1,
-      uniform: "tetraCosineFreqR",
+      uniform: "freqR",
       min: 0,
       max: 4,
       ui: {
@@ -165,7 +165,7 @@ export default new Effect({
     freqG: {
       type: "int",
       default: 1,
-      uniform: "tetraCosineFreqG",
+      uniform: "freqG",
       min: 0,
       max: 4,
       ui: {
@@ -177,7 +177,7 @@ export default new Effect({
     freqB: {
       type: "int",
       default: 1,
-      uniform: "tetraCosineFreqB",
+      uniform: "freqB",
       min: 0,
       max: 4,
       ui: {
@@ -191,7 +191,7 @@ export default new Effect({
     phaseR: {
       type: "float",
       default: 0.0,
-      uniform: "tetraCosinePhaseR",
+      uniform: "phaseR",
       min: 0,
       max: 1,
       step: 0.01,
@@ -204,7 +204,7 @@ export default new Effect({
     phaseG: {
       type: "float",
       default: 0.33,
-      uniform: "tetraCosinePhaseG",
+      uniform: "phaseG",
       min: 0,
       max: 1,
       step: 0.01,
@@ -217,7 +217,7 @@ export default new Effect({
     phaseB: {
       type: "float",
       default: 0.67,
-      uniform: "tetraCosinePhaseB",
+      uniform: "phaseB",
       min: 0,
       max: 1,
       step: 0.01,
@@ -232,7 +232,7 @@ export default new Effect({
     repeat: {
       type: "float",
       default: 1.0,
-      uniform: "tetraCosineRepeat",
+      uniform: "repeat",
       min: 0.1,
       max: 10,
       step: 0.1,
@@ -245,7 +245,7 @@ export default new Effect({
     offset: {
       type: "float",
       default: 0.0,
-      uniform: "tetraCosineOffset",
+      uniform: "offset",
       min: 0,
       max: 1,
       step: 0.01,
@@ -260,7 +260,7 @@ export default new Effect({
     alpha: {
       type: "float",
       default: 1.0,
-      uniform: "tetraCosineAlpha",
+      uniform: "alpha",
       min: 0,
       max: 1,
       randMin: 0.5,

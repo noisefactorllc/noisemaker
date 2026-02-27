@@ -7,14 +7,14 @@
 
 struct Uniforms {
     time: f32,
-    useSplats: i32,
+    enabled: i32,
     useSpecks: i32,
-    splatScale: f32,
-    splatCutoff: f32,
-    splatSpeed: f32,
-    splatSeed: f32,
+    scale: f32,
+    cutoff: f32,
+    speed: f32,
+    seed: f32,
     splatColor: vec3<f32>,
-    splatMode: i32,
+    mode: i32,
     speckScale: f32,
     speckCutoff: f32,
     speckSpeed: f32,
@@ -95,12 +95,12 @@ fn perlin(st_in: vec2<f32>, scale: vec2<f32>, speed: f32) -> f32 {
 
 fn splat(st_in: vec2<f32>, scale: vec2<f32>) -> f32 {
     var st = st_in;
-    st.x = st.x + perlin(st + u.splatSeed + 50.0, vec2<f32>(2.0, 3.0), 0.0) * 0.5 - 0.5;
-    st.y = st.y + perlin(st + u.splatSeed + 60.0, vec2<f32>(2.0, 3.0), 0.0) * 0.5 - 0.5;
-    let d = perlin(st, vec2<f32>(4.0) * scale, u.splatSpeed) + 
-            (perlin(st + 10.0, vec2<f32>(8.0) * scale, u.splatSpeed) * 0.5) + 
-            (perlin(st + 20.0, vec2<f32>(16.0) * scale, u.splatSpeed) * 0.25);
-    return step(mapRange(u.splatCutoff, 0.0, 100.0, 0.85, 0.99), d);
+    st.x = st.x + perlin(st + u.seed + 50.0, vec2<f32>(2.0, 3.0), 0.0) * 0.5 - 0.5;
+    st.y = st.y + perlin(st + u.seed + 60.0, vec2<f32>(2.0, 3.0), 0.0) * 0.5 - 0.5;
+    let d = perlin(st, vec2<f32>(4.0) * scale, u.speed) + 
+            (perlin(st + 10.0, vec2<f32>(8.0) * scale, u.speed) * 0.5) + 
+            (perlin(st + 20.0, vec2<f32>(16.0) * scale, u.speed) * 0.25);
+    return step(mapRange(u.cutoff, 0.0, 100.0, 0.85, 0.99), d);
 }
 
 fn speckle(st: vec2<f32>, scale: vec2<f32>) -> f32 {
@@ -133,17 +133,17 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
         }
     }
     
-    if (u.useSplats != 0) {
-        let splatMask = splat(noiseCoord + u.splatSeed, vec2<f32>(mapRange(u.splatScale, 1.0, 5.0, 2.0, 0.5)));
+    if (u.enabled != 0) {
+        let splatMask = splat(noiseCoord + u.seed, vec2<f32>(mapRange(u.scale, 1.0, 5.0, 2.0, 0.5)));
         
-        if (u.splatMode == 0) {
+        if (u.mode == 0) {
             color = vec4<f32>(mix(color.rgb, u.splatColor, splatMask), color.a); // color
-        } else if (u.splatMode == 1) {
+        } else if (u.mode == 1) {
             let texColor = textureSample(inputTex, samp, uv + splatMask * 0.1); // displace
             color = mix(color, texColor, splatMask);
-        } else if (u.splatMode == 2) {
+        } else if (u.mode == 2) {
             color = vec4<f32>(mix(color.rgb, 1.0 - color.rgb, splatMask), color.a); // invert
-        } else if (u.splatMode == 3) {
+        } else if (u.mode == 3) {
             color = vec4<f32>(color.rgb * mapRange(splatMask * 0.5 - 0.5, -0.25, 0.0, 0.0, 1.0), color.a); // negative
         }
     }

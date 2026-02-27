@@ -13,9 +13,9 @@ const vec3 LUMA_WEIGHTS = vec3(0.299, 0.587, 0.114);
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
-uniform float fxaaStrength;
-uniform float fxaaSharpness;
-uniform float fxaaThreshold;
+uniform float strength;
+uniform float sharpness;
+uniform float threshold;
 
 uint as_u32(float value) {
     return uint(max(round(value), 0.0));
@@ -61,7 +61,7 @@ float luminance_from_rgb(vec3 rgb) {
 }
 
 float weight_from_luma(float center_luma, float neighbor_luma) {
-    return exp(-fxaaSharpness * abs(center_luma - neighbor_luma));
+    return exp(-sharpness * abs(center_luma - neighbor_luma));
 }
 
 
@@ -118,7 +118,7 @@ void main() {
         max(abs(center_luma - north_luma), abs(center_luma - south_luma)),
         max(abs(center_luma - west_luma), abs(center_luma - east_luma))
     );
-    if (maxDiff < fxaaThreshold) {
+    if (maxDiff < threshold) {
         fragColor = center_texel;
         return;
     }
@@ -160,5 +160,5 @@ void main() {
     result_texel.w = center_texel.w;
 
     // Strength: blend between original and AA result
-    fragColor = mix(center_texel, result_texel, fxaaStrength);
+    fragColor = mix(center_texel, result_texel, strength);
 }

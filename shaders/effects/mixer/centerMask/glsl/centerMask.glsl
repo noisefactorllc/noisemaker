@@ -4,7 +4,7 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
-uniform int metric;
+uniform int shape;
 uniform float power;
 uniform float hardness;
 uniform int blendMode;
@@ -147,7 +147,7 @@ void main() {
     vec2 p = (gl_FragCoord.xy - 0.5 * resolution) / (0.5 * minRes);
     vec2 corner = resolution / minRes;
 
-    float dist01 = clamp01(distanceMetric(p, corner, metric));
+    float dist01 = clamp01(distanceMetric(p, corner, shape));
     // Remap power from -100..100 to 0.1..25.05 (Old 0 maps to New 100)
     float scaledPower = mix(0.1, 25.05, (power + 100.0) / 200.0);
     float mask = pow(dist01, scaledPower);

@@ -15,7 +15,7 @@ uniform float time;
 uniform int seed;
 uniform int mode;
 uniform float amount;
-uniform float refractDir;
+uniform float direction;
 uniform int blendMode;
 uniform float mixAmt;
 uniform int wrap;
@@ -190,7 +190,7 @@ void main() {
     vec4 color = vec4(0.0);
 
     vec4 inputColor = texture(inputTex, uv);
-    float brightness = desaturate(inputColor.rgb) + refractDir / 360.0;
+    float brightness = desaturate(inputColor.rgb) + direction / 360.0;
 
     if (mode == 0) {
         uv.x += cos(brightness * TAU) * amount * 0.01;

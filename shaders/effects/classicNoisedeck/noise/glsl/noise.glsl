@@ -12,7 +12,7 @@ uniform int seed;
 uniform vec2 resolution;
 uniform float xScale;
 uniform float yScale;
-uniform int noiseType;
+uniform int type;
 uniform int octaves;
 uniform bool ridges;
 uniform int refractMode;
@@ -236,8 +236,8 @@ float catmullRom4(float p0, float p1, float p2, float p3, float t) {
     return p1 + 0.5 * t * (p2 - p0 + t * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3 + t * (3.0 * (p1 - p2) + p3 - p0)));
 }
 
-float blendLinearOrCosine(float a, float b, float amount, int noiseType) {
-    if (noiseType == 1) {
+float blendLinearOrCosine(float a, float b, float amount, int type) {
+    if (type == 1) {
         return mix(a, b, amount);
     }
 
@@ -460,28 +460,28 @@ float sineNoise(vec2 st, vec2 freq, float s, float blend) {
 }
 
 float value(vec2 st, vec2 freq, float s, float blend) {
-    if (noiseType == 3) {
+    if (type == 3) {
         // 3×3 Catmull-Rom (9 taps)
         return catmullRom3x3ValueNoise(st, freq, s, blend);
-    } else if (noiseType == 4) {
+    } else if (type == 4) {
         // 4×4 Catmull-Rom (16 taps)
         return catmullRom4x4ValueNoise(st, freq, s, blend);
-    } else if (noiseType == 5) {
+    } else if (type == 5) {
         // 3×3 quadratic B-spline (9 taps)
         return cubic3x3ValueNoise(st, freq, s, blend);
-    } else if (noiseType == 6) {
+    } else if (type == 6) {
         // 4×4 cubic B-spline (16 taps)
         return bicubicValue(st, freq, s, blend);
-    } else if (noiseType == 10) {
+    } else if (type == 10) {
         return simplexValue(st, freq, s, blend);
-    } else if (noiseType == 11) {
+    } else if (type == 11) {
         return sineNoise(st, freq, s, blend);
     }
 
     vec2 lattice = st * freq;
     float x1y1 = constantFromLattice(lattice, freq, s, blend);
 
-    if (noiseType == 0) {
+    if (type == 0) {
         return x1y1;
     }
 
@@ -491,10 +491,10 @@ float value(vec2 st, vec2 freq, float s, float blend) {
 
     vec2 frac = fract(lattice);
 
-    float a = blendLinearOrCosine(x1y1, x2y1, frac.x, noiseType);
-    float b = blendLinearOrCosine(x1y2, x2y2, frac.x, noiseType);
+    float a = blendLinearOrCosine(x1y1, x2y1, frac.x, type);
+    float b = blendLinearOrCosine(x1y2, x2y2, frac.x, type);
 
-    return blendLinearOrCosine(a, b, frac.y, noiseType);
+    return blendLinearOrCosine(a, b, frac.y, type);
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -789,11 +789,11 @@ vec3 multires(vec2 st, vec2 freq, int octaves, float s, float blend) {
     vec3 color = vec3(0.0);
     float multiplicand = 0.0;
     vec2 nominalFreq = vec2(1.0);
-    if (noiseType == 11) {
+    if (type == 11) {
         // Sine noise UI maps into [40, 1]; reuse midpoint to keep axis adjustments balanced.
         float base = map(75.0, 1.0, 100.0, 40.0, 1.0);
         nominalFreq = vec2(base);
-    } else if (noiseType == 10) {
+    } else if (type == 10) {
         // Simplex lives in [6, 0.5]; lock distortion defaults to that midpoint.
         float base = map(75.0, 1.0, 100.0, 6.0, 0.5);
         nominalFreq = vec2(base);
@@ -890,12 +890,12 @@ void main() {
     vec2 freq = vec2(1.0);
     vec2 lf = vec2(1.0);
 
-    if (noiseType == 11) {
+    if (type == 11) {
         // sine noise
         freq.x = map(xScale, 1.0, 100.0, 40.0, 1.0);
         freq.y = map(yScale, 1.0, 100.0, 40.0, 1.0);
         lf = vec2(map(loopScale, 1.0, 100.0, 10.0, 1.0));
-    } else if (noiseType == 10) {
+    } else if (type == 10) {
         // simplex
         freq.x = map(xScale, 1.0, 100.0, 6.0, 0.5);
         freq.y = map(yScale, 1.0, 100.0, 6.0, 0.5);
@@ -909,11 +909,11 @@ void main() {
 
     if (loopOffset == 300) {
         vec2 nominalFreq = vec2(1.0);
-        if (noiseType == 11) {
+        if (type == 11) {
             // Sine noise maps the UI slider into [40, 1]; reuse its midpoint so loop freq matches the visible field.
             float base = map(75.0, 1.0, 100.0, 40.0, 1.0);
             nominalFreq = vec2(base);
-        } else if (noiseType == 10) {
+        } else if (type == 10) {
             // Simplex noise shrinks to ~[6, 0.5]; base on its midpoint to keep loop axes in sync with main noise.
             float base = map(75.0, 1.0, 100.0, 6.0, 0.5);
             nominalFreq = vec2(base);
@@ -927,7 +927,7 @@ void main() {
         lf *= freq / nominalFreq;
     }
 
-    if (noiseType != 4 && noiseType != 10 && wrap) {
+    if (type != 4 && type != 10 && wrap) {
         freq = floor(freq);
         if (loopOffset == 300) {
             lf = floor(lf);

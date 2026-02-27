@@ -5,8 +5,8 @@
  */
 
 struct Uniforms {
-    bloomIntensity: f32,
-    bloomTint: vec3<f32>,
+    intensity: f32,
+    tint: vec3<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -26,10 +26,10 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var bloom = textureSample(bloomTex, inputSampler, uv).rgb;
     
     // Apply tint
-    bloom *= uniforms.bloomTint;
-    
-    // Additive blend: finalHDR = sceneColor + bloomIntensity * bloom
-    let finalRgb = sceneColor.rgb + uniforms.bloomIntensity * bloom;
+    bloom *= uniforms.tint;
+
+    // Additive blend: finalHDR = sceneColor + intensity * bloom
+    let finalRgb = sceneColor.rgb + uniforms.intensity * bloom;
     
     return vec4<f32>(finalRgb, sceneColor.a);
 }

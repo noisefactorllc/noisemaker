@@ -16,7 +16,7 @@ uniform float time;
 uniform float intensity;
 uniform float direction;
 uniform int mode;
-uniform int displaceSource;
+uniform int mapSource;
 uniform int wrap;
 uniform float smoothing;
 uniform float aberration;
@@ -154,7 +154,7 @@ void main() {
 
     if (mode == 0) {
         // displace
-        if (displaceSource == 0) {
+        if (mapSource == 0) {
             lum = 0.3 * color1.r + 0.59 * color1.g + 0.11 * color1.b;
             float len = length(color1.rgb) + direction / 360.0;
             uv.x += cos(len * TAU) * (intensity * 0.001);
@@ -171,14 +171,14 @@ void main() {
         }
     } else if (mode == 1) {
         // refract
-        if (displaceSource == 0) {
+        if (mapSource == 0) {
             color = refractMap(st, inputTex, tex);
         } else {
             color = refractMap(st, tex, inputTex);
         }
     } else if (mode == 2) {
         // reflect
-        if (displaceSource == 0) {
+        if (mapSource == 0) {
             color = reflectMap(st, inputTex, tex);
         } else {
             color = reflectMap(st, tex, inputTex);

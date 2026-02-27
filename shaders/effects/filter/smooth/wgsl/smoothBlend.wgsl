@@ -7,8 +7,8 @@
 
 struct Uniforms {
     data: array<vec4<f32>, 2>,
-    // data[0].x = smoothType, data[0].y = smoothStrength, data[0].z = smoothThreshold, data[0].w = smoothSamples
-    // data[1].x = smoothSearchSteps, data[1].y = smoothRadius
+    // data[0].x = smoothType, data[0].y = strength, data[0].z = threshold, data[0].w = samples
+    // data[1].x = searchSteps, data[1].y = radius
 };
 
 const LUMA_WEIGHTS: vec3<f32> = vec3<f32>(0.299, 0.587, 0.114);
@@ -183,11 +183,11 @@ fn edgeBlur(fragPos: vec2<f32>, radius: f32) -> vec4<f32> {
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let smoothType = i32(uniforms.data[0].x);
-    let smoothStrength = uniforms.data[0].y;
-    let smoothThreshold = uniforms.data[0].z;
-    let smoothSamples = i32(uniforms.data[0].w);
-    let smoothSearchSteps = i32(uniforms.data[1].x);
-    let smoothRadius = uniforms.data[1].y;
+    let strength = uniforms.data[0].y;
+    let threshold = uniforms.data[0].z;
+    let samples = i32(uniforms.data[0].w);
+    let searchSteps = i32(uniforms.data[1].x);
+    let radius = uniforms.data[1].y;
 
     let texSize = vec2<f32>(textureDimensions(inputTex, 0));
     let uv = pos.xy / texSize;
@@ -197,12 +197,12 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var result: vec4<f32>;
 
     if (smoothType == 0) {
-        result = msaaBlend(uv, texelSize, smoothThreshold, smoothSamples, smoothRadius);
+        result = msaaBlend(uv, texelSize, threshold, samples, radius);
     } else if (smoothType == 1) {
-        result = smaaBlend(pos.xy, smoothSearchSteps, smoothRadius);
+        result = smaaBlend(pos.xy, searchSteps, radius);
     } else {
-        result = edgeBlur(pos.xy, smoothRadius);
+        result = edgeBlur(pos.xy, radius);
     }
 
-    return mix(original, result, smoothStrength);
+    return mix(original, result, strength);
 }

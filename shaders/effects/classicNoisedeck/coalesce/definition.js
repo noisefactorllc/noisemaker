@@ -67,7 +67,7 @@ export default new Effect({
     mix: {
       type: "float",
       default: 0,
-      uniform: "mixAmt",
+      uniform: "mix",
       min: -100,
       max: 100,
       ui: {
@@ -132,6 +132,9 @@ export default new Effect({
       inputs: {
         inputTex: "inputTex",
         tex: "tex"
+      },
+      uniforms: {
+        mixAmt: "mix"
       },
       outputs: {
         fragColor: "outputTex"

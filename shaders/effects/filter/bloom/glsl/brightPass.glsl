@@ -9,8 +9,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
-uniform float bloomThreshold;
-uniform float bloomSoftKnee;
+uniform float threshold;
+uniform float softKnee;
 
 out vec4 fragColor;
 
@@ -25,9 +25,9 @@ void main() {
     // Below (threshold - knee) -> 0
     // Between (threshold - knee) and (threshold + knee) -> smooth ramp
     // Above (threshold + knee) -> 1
-    float knee = bloomSoftKnee;
-    float threshLow = bloomThreshold - knee;
-    float threshHigh = bloomThreshold + knee;
+    float knee = softKnee;
+    float threshLow = threshold - knee;
+    float threshHigh = threshold + knee;
     
     float bloomFactor;
     if (luma <= threshLow) {

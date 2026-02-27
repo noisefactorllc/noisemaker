@@ -10,9 +10,9 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform int paletteIndex;
 uniform float smoothness;
-uniform int paletteRotation;   // -1 = backward, 0 = none, 1 = forward
-uniform float paletteOffset;   // 0-100 static offset
-uniform float paletteRepeat;   // multiplier for luminance
+uniform int rotation;   // -1 = backward, 0 = none, 1 = forward
+uniform float offset;   // 0-100 static offset
+uniform float repeat;   // multiplier for luminance
 uniform float alpha;
 uniform float time;
 
@@ -259,10 +259,10 @@ void main() {
     // Apply palette modifiers: repeat, offset, and rotation (animation)
     // Scale lum to [0, 0.9999] so that fract() never hits an exact integer
     // boundary — otherwise fract(1.0)=0.0 aliases bright pixels to dark
-    float t = lum * (1.0 - 1e-4) * paletteRepeat + paletteOffset * 0.01;
-    if (paletteRotation == -1) {
+    float t = lum * (1.0 - 1e-4) * repeat + offset * 0.01;
+    if (rotation == -1) {
         t += time;
-    } else if (paletteRotation == 1) {
+    } else if (rotation == 1) {
         t -= time;
     }
     t = fract(t);

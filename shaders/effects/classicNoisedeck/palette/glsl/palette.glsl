@@ -14,8 +14,8 @@ uniform vec2 resolution;
 uniform float time;
 uniform int seed;
 uniform int paletteType;
-uniform int cyclePalette;
-uniform float rotatePalette;
+uniform int cycle;
+uniform float rotate;
 // five color palettes
 uniform bool smoother;
 uniform vec3 color1;
@@ -97,7 +97,7 @@ vec3 smoothColorize(float v, vec3 c1, vec3 c2, vec3 c3, vec3 c4, vec3 c5) {
 }
 
 vec3 pal(float t) {
-    t = fract(t + rotatePalette * 0.01);
+    t = fract(t + rotate * 0.01);
     vec3 a = vec3(offsetR, offsetG, offsetB) * 0.01;
     vec3 b = vec3(ampR, ampG, ampB) * 0.01;
     vec3 c = vec3(freq);
@@ -214,9 +214,9 @@ void main() {
 
     if (paletteType == 0) {
         float d = luminance(color.rgb) * 0.9; // prevent black and white from returning the same color
-        if (cyclePalette == -1) {
+        if (cycle == -1) {
             color.rgb = pal(d + time);
-        } else if (cyclePalette == 1) { 
+        } else if (cycle == 1) { 
             color.rgb = pal(d - time);
         } else {
             color.rgb = pal(d);
@@ -233,7 +233,7 @@ void main() {
             color.rgb = linearToSrgb(color.rgb);
         }
     } else if (paletteType == 1) {
-        float l = luminance(color.rgb) + rotatePalette * 0.01;
+        float l = luminance(color.rgb) + rotate * 0.01;
 
         if (smoother) {
             color.rgb = smoothColorize(l, color1, color2, color3, color4, color5);
@@ -243,11 +243,11 @@ void main() {
 
         color.rgb = mix(color.rgb, (color.rgb == vec3(1.0)) ? color.rgb : min(tint * tint / (1.0 - color.rgb), vec3(1.0)), 0.5);
 
-        if (cyclePalette == -1) {
+        if (cycle == -1) {
             color.rgb = rgb2hsv(color.rgb);
             color.r = mod(color.r + time, 1.0);
             color.rgb = hsv2rgb(color.rgb);
-        } else if (cyclePalette == 1) {
+        } else if (cycle == 1) {
             color.rgb = rgb2hsv(color.rgb);
             color.r = mod(color.r - time, 1.0);
             color.rgb = rgb2hsv(color.rgb);

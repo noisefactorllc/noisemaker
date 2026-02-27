@@ -7,7 +7,7 @@
 @group(0) @binding(6) var<uniform> offsetX: f32;
 @group(0) @binding(7) var<uniform> offsetY: f32;
 @group(0) @binding(8) var<uniform> angle: f32;
-@group(0) @binding(9) var<uniform> repeatCount: f32;
+@group(0) @binding(9) var<uniform> repeat: f32;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -70,12 +70,12 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
     if (symmetry == 3) {
         // Hex tiling with 6-fold rotational symmetry
-        let local_hex = hexCoord(st * repeatCount);
+        let local_hex = hexCoord(st * repeat);
         let local_scaled = local_hex / scale + vec2<f32>(offsetX, offsetY);
         st = rotationalFold(local_scaled + 0.5, 6);
     } else {
         // Square tiling
-        st = fract2(st * repeatCount);
+        st = fract2(st * repeat);
 
         // Apply source region transforms (before fold — fold handles any input range)
         // mirrorXY needs half the range so edges match at default scale

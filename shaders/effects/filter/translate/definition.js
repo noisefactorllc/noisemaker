@@ -14,7 +14,7 @@ export default new Effect({
     x: {
       type: "float",
       default: 0,
-      uniform: "translateX",
+      uniform: "x",
       min: -1,
       max: 1,
       step: 0.01,
@@ -26,7 +26,7 @@ export default new Effect({
     y: {
       type: "float",
       default: 0,
-      uniform: "translateY",
+      uniform: "y",
       min: -1,
       max: 1,
       step: 0.01,

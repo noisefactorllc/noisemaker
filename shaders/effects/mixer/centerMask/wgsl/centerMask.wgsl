@@ -2,7 +2,7 @@
 @group(0) @binding(1) var inputTex : texture_2d<f32>;
 @group(0) @binding(2) var tex : texture_2d<f32>;
 @group(0) @binding(3) var<uniform> power : f32;
-@group(0) @binding(4) var<uniform> metric : i32;
+@group(0) @binding(4) var<uniform> shape : i32;
 @group(0) @binding(5) var<uniform> hardness : f32;
 @group(0) @binding(6) var<uniform> blendMode : i32;
 
@@ -149,7 +149,7 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let p = (position.xy - 0.5 * dims) / (0.5 * minRes);
     let corner = dims / minRes;
 
-    let dist01 = clamp01(distance_metric(p, corner, metric));
+    let dist01 = clamp01(distance_metric(p, corner, shape));
     // Remap power from -100..100 to 0.1..25.05 (Old 0 maps to New 100)
     let scaledPower = mix(0.1, 25.05, (power + 100.0) / 200.0);
     var mask = pow(dist01, scaledPower);

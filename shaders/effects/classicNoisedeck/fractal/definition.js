@@ -19,7 +19,7 @@ export default class Fractal extends Effect {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
-    fractalType: { slot: 1, components: 'x' },
+    type: { slot: 1, components: 'x' },
     symmetry: { slot: 1, components: 'y' },
     offsetX: { slot: 1, components: 'z' },
     offsetY: { slot: 1, components: 'w' },
@@ -40,10 +40,10 @@ export default class Fractal extends Effect {
     paletteAmp: { slot: 6, components: 'xyz' },
     levels: { slot: 6, components: 'w' },
     paletteFreq: { slot: 7, components: 'xyz' },
-    backgroundOpacity: { slot: 7, components: 'w' },
+    bgAlpha: { slot: 7, components: 'w' },
     palettePhase: { slot: 8, components: 'xyz' },
     cutoff: { slot: 8, components: 'w' },
-    backgroundColor: { slot: 9, components: 'xyz' }
+    bgColor: { slot: 9, components: 'xyz' }
   }
 
   globals = {
@@ -61,7 +61,7 @@ export default class Fractal extends Effect {
     type: {
       type: "int",
       default: 0,
-      uniform: "fractalType",
+      uniform: "type",
       choices: {
         julia: 0,
         mandelbrot: 2,
@@ -335,7 +335,7 @@ export default class Fractal extends Effect {
     bgColor: {
       type: "color",
       default: [0.0, 0.0, 0.0],
-      uniform: "backgroundColor",
+      uniform: "bgColor",
       ui: {
         label: "background color",
         control: "color",
@@ -345,7 +345,7 @@ export default class Fractal extends Effect {
     bgAlpha: {
       type: "float",
       default: 100,
-      uniform: "backgroundOpacity",
+      uniform: "bgAlpha",
       min: 0,
       max: 100,
       ui: {

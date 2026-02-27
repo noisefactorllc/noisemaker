@@ -57,7 +57,7 @@ export default new Effect({
     type: {
       type: "int",
       default: 0,  // Mandelbulb by default (Mandelbox currently has issues)
-      uniform: "fractalType",
+      uniform: "type",
       choices: {
         mandelbulb: 0,
         mandelbox: 1

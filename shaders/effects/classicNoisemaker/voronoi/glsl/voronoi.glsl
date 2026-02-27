@@ -12,7 +12,7 @@ uniform float alpha;
 uniform float pointFreq;
 uniform float pointDistrib;
 uniform float nth;
-uniform float distMetric;
+uniform float shape;
 
 in vec2 v_texCoord;
 out vec4 fragColor;
@@ -60,7 +60,7 @@ void main() {
     vec4 src = texture(inputTex, v_texCoord);
     
     int freq = max(int(pointFreq), 2);
-    int metric = int(distMetric);
+    int metric = int(shape);
     int nthPoint = max(int(nth), 1);
     float t = time;
     

@@ -3,9 +3,9 @@
 
 struct Uniforms {
     data: array<vec4<f32>, 1>,
-    // data[0].x = strength
-    // data[0].y = sharpness
-    // data[0].z = threshold
+    // data[0].x = strength (fxaa)
+    // data[0].y = sharpness (fxaa)
+    // data[0].z = threshold (fxaa)
 };
 
 const EPSILON: f32 = 1e-10;

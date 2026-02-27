@@ -7,8 +7,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
-uniform float translateX;
-uniform float translateY;
+uniform float x;
+uniform float y;
 uniform int wrap;
 
 out vec4 fragColor;
@@ -18,8 +18,8 @@ void main() {
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
     
     // Apply translation
-    uv.x = uv.x - translateX;
-    uv.y = uv.y - translateY;
+    uv.x = uv.x - x;
+    uv.y = uv.y - y;
     
     // Apply wrap mode
     if (wrap == 0) {

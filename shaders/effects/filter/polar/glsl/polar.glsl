@@ -9,9 +9,9 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform float time;
 uniform int polarMode;
-uniform float polarSpeed;
-uniform float polarRotation;
-uniform float polarScale;
+uniform float speed;
+uniform float rotation;
+uniform float scale;
 
 out vec4 fragColor;
 
@@ -27,18 +27,18 @@ vec2 smod2(vec2 v, float m) {
 
 vec2 polarCoords(vec2 uv) {
     uv -= 0.5;
-    vec2 coord = vec2(atan(uv.y, uv.x) / TAU + 0.5, length(uv) - polarScale * 0.075);
-    coord.x = smod(coord.x + time * -polarRotation, 1.0);
-    coord.y = smod(coord.y + time * polarSpeed, 1.0);
+    vec2 coord = vec2(atan(uv.y, uv.x) / TAU + 0.5, length(uv) - scale * 0.075);
+    coord.x = smod(coord.x + time * -rotation, 1.0);
+    coord.y = smod(coord.y + time * speed, 1.0);
     return coord;
 }
 
 vec2 vortexCoords(vec2 uv) {
     uv -= 0.5;
-    float r2 = dot(uv, uv) - polarScale * 0.01;
+    float r2 = dot(uv, uv) - scale * 0.01;
     uv = uv / r2;
-    uv.x = smod(uv.x + time * -polarRotation, 1.0);
-    uv.y = smod(uv.y + time * polarSpeed, 1.0);
+    uv.x = smod(uv.x + time * -rotation, 1.0);
+    uv.y = smod(uv.y + time * speed, 1.0);
     return uv;
 }
 

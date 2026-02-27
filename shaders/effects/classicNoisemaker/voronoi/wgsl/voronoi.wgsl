@@ -8,7 +8,7 @@ const TAU : f32 = 6.28318530717959;
 @group(0) @binding(1) var<uniform> alpha : f32;
 @group(0) @binding(2) var<uniform> pointFreq : f32;
 @group(0) @binding(3) var<uniform> nth : f32;
-@group(0) @binding(4) var<uniform> distMetric : f32;
+@group(0) @binding(4) var<uniform> shape : f32;
 
 // Hash function
 fn hash21(p : vec2<f32>) -> f32 {
@@ -49,7 +49,7 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let src = textureLoad(inputTex, vec2<i32>(position.xy), 0);
     
     let freq = max(i32(pointFreq), 2);
-    let metric = i32(distMetric);
+    let metric = i32(shape);
     let nthPoint = max(i32(nth), 1);
     
     // Scale coordinates to grid

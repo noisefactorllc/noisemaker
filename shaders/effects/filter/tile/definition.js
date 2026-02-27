@@ -80,7 +80,7 @@ export default new Effect({
       min: 1,
       max: 10,
       step: 1,
-      uniform: "repeatCount",
+      uniform: "repeat",
       ui: {
         label: "repeat",
         control: "slider"

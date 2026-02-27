@@ -5,15 +5,15 @@
  */
 
 struct Uniforms {
-    gradeWheelBalance: f32,
+    wheelBalance: f32,
     _pad0: f32,
     _pad1: f32,
     _pad2: f32,
-    gradeWheelShadows: vec3<f32>,
+    wheelShadows: vec3<f32>,
     _pad3: f32,
-    gradeWheelMidtones: vec3<f32>,
+    wheelMidtones: vec3<f32>,
     _pad4: f32,
-    gradeWheelHighlights: vec3<f32>,
+    wheelHighlights: vec3<f32>,
     _pad5: f32,
 }
 
@@ -111,8 +111,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     
     var rgb = srgbToLinear(color.rgb);
     
-    rgb = applyWheels(rgb, uniforms.gradeWheelShadows, uniforms.gradeWheelMidtones, 
-                      uniforms.gradeWheelHighlights, uniforms.gradeWheelBalance);
+    rgb = applyWheels(rgb, uniforms.wheelShadows, uniforms.wheelMidtones, 
+                      uniforms.wheelHighlights, uniforms.wheelBalance);
     
     rgb = linearToSrgb(max(rgb, vec3<f32>(0.0)));
     

@@ -39,7 +39,7 @@ export default new Effect({
     repeat: {
       type: "int",
       default: 1,
-      uniform: "repeatCount",
+      uniform: "repeat",
       min: 1,
       max: 4,
       ui: {

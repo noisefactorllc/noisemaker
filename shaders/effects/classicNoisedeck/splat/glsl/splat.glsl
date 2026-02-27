@@ -12,15 +12,15 @@ precision highp int;
 uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform float time;
-uniform bool useSplats;
+uniform bool enabled;
 uniform bool useSpecks;
 uniform int splatSource;
-uniform float splatScale;
-uniform float splatCutoff;
-uniform float splatSpeed;
-uniform float splatSeed;
+uniform float scale;
+uniform float cutoff;
+uniform float speed;
+uniform float seed;
 uniform vec3 splatColor;
-uniform int splatMode;
+uniform int mode;
 uniform float speckScale;
 uniform float speckCutoff;
 uniform float speckSpeed;
@@ -96,10 +96,10 @@ float perlin(vec2 st, vec2 scale, float speed) {
 }
 
 float splat(vec2 st, vec2 scale) {
-    st.x += perlin(st + splatSeed + 50.0, vec2(2.0, 3.0), 0.0) * 0.5 - 0.5;
-    st.y += perlin(st + splatSeed + 60.0, vec2(2.0, 3.0), 0.0) * 0.5 - 0.5;
-    float d = perlin(st, vec2(4.0) * scale, splatSpeed) + (perlin(st + 10.0, vec2(8.0) * scale, splatSpeed) * 0.5) + (perlin(st + 20.0, vec2(16.0) * scale, splatSpeed) * 0.25);
-    return step(map(splatCutoff, 0.0, 100.0, 0.85, 0.99), d);
+    st.x += perlin(st + seed + 50.0, vec2(2.0, 3.0), 0.0) * 0.5 - 0.5;
+    st.y += perlin(st + seed + 60.0, vec2(2.0, 3.0), 0.0) * 0.5 - 0.5;
+    float d = perlin(st, vec2(4.0) * scale, speed) + (perlin(st + 10.0, vec2(8.0) * scale, speed) * 0.5) + (perlin(st + 20.0, vec2(16.0) * scale, speed) * 0.25);
+    return step(map(cutoff, 0.0, 100.0, 0.85, 0.99), d);
 }
 
 float speckle(vec2 st, vec2 scale) {
@@ -137,17 +137,17 @@ void main() {
         }
     }
 
-    if (useSplats) {
-        float splatMask = splat(noiseCoord + splatSeed, vec2(map(splatScale, 1.0, 5.0, 2.0, 0.5)));
+    if (enabled) {
+        float splatMask = splat(noiseCoord + seed, vec2(map(scale, 1.0, 5.0, 2.0, 0.5)));
 
-        if (splatMode == 0) {
+        if (mode == 0) {
             color.rgb = mix(color.rgb, splatColor, splatMask); // color
-        } else if (splatMode == 1) {
+        } else if (mode == 1) {
             vec4 texColor = texture(inputTex, uv + splatMask * 0.1); // displace
             color = mix(color, texColor, splatMask);
-        } else if (splatMode == 2) {
+        } else if (mode == 2) {
             color.rgb = mix(color.rgb, 1.0 - color.rgb, splatMask); // invert
-        } else if (splatMode == 3) {
+        } else if (mode == 3) {
             color.rgb *= map(splatMask * 0.5 - 0.5, -0.25, 0.0, 0.0, 1.0); // negative
         }
     }

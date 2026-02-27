@@ -12,11 +12,11 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D edgeTex;
 uniform int smoothType;
-uniform float smoothStrength;
-uniform float smoothThreshold;
-uniform float smoothRadius;
-uniform int smoothSamples;
-uniform int smoothSearchSteps;
+uniform float strength;
+uniform float threshold;
+uniform float radius;
+uniform int samples;
+uniform int searchSteps;
 
 out vec4 fragColor;
 
@@ -87,16 +87,16 @@ vec4 msaaBlend(vec2 uv, vec2 texelSize, ivec2 texSize) {
     float maxDiff = max(max(abs(L - Ln), abs(L - Ls)),
                         max(abs(L - Lw), abs(L - Le)));
 
-    if (maxDiff < smoothThreshold) {
+    if (maxDiff < threshold) {
         return center;
     }
 
     // Supersample at radius-scaled offsets with manual bilinear interpolation
     vec4 sum = vec4(0.0);
-    int count = smoothSamples;
+    int count = samples;
     for (int i = 0; i < 8; i++) {
         if (i >= count) break;
-        vec2 offset = getSampleOffset(i, count) * smoothRadius;
+        vec2 offset = getSampleOffset(i, count) * radius;
         sum += sampleBilinear(uv + offset * texelSize, texSize);
     }
     return sum / float(count);
@@ -106,7 +106,7 @@ vec4 msaaBlend(vec2 uv, vec2 texelSize, ivec2 texSize) {
 
 float searchEdge(ivec2 coord, ivec2 dir, ivec2 maxC, int component) {
     for (int i = 1; i <= 32; i++) {
-        if (i > smoothSearchSteps) break;
+        if (i > searchSteps) break;
         ivec2 sampleCoord = clamp(coord + dir * i, ivec2(0), maxC);
         float edge = (component == 0) ? texelFetch(edgeTex, sampleCoord, 0).r
                                       : texelFetch(edgeTex, sampleCoord, 0).g;
@@ -114,7 +114,7 @@ float searchEdge(ivec2 coord, ivec2 dir, ivec2 maxC, int component) {
             return float(i - 1);
         }
     }
-    return float(smoothSearchSteps);
+    return float(searchSteps);
 }
 
 vec4 smaaBlend(ivec2 texSize) {
@@ -138,7 +138,7 @@ vec4 smaaBlend(ivec2 texSize) {
         float edgeLength = distLeft + distRight + 1.0;
 
         // Stronger blend for shorter edges (more jaggy), scaled by radius
-        float weight = clamp(smoothRadius * 0.5 / sqrt(edgeLength), 0.0, 0.5);
+        float weight = clamp(radius * 0.5 / sqrt(edgeLength), 0.0, 0.5);
 
         vec4 neighbor = texelFetch(inputTex, clamp(coord + ivec2(0, 1), ivec2(0), maxC), 0);
         blended = mix(blended, neighbor, weight);
@@ -150,7 +150,7 @@ vec4 smaaBlend(ivec2 texSize) {
         float distDown = searchEdge(coord, ivec2(0,  1), maxC, 1);
         float edgeLength = distUp + distDown + 1.0;
 
-        float weight = clamp(smoothRadius * 0.5 / sqrt(edgeLength), 0.0, 0.5);
+        float weight = clamp(radius * 0.5 / sqrt(edgeLength), 0.0, 0.5);
 
         vec4 neighbor = texelFetch(inputTex, clamp(coord + ivec2(1, 0), ivec2(0), maxC), 0);
         blended = mix(blended, neighbor, weight);
@@ -171,8 +171,8 @@ vec4 edgeBlur(ivec2 texSize) {
         return center;
     }
 
-    int r = int(ceil(smoothRadius));
-    float sigma = smoothRadius * 0.5;
+    int r = int(ceil(radius));
+    float sigma = radius * 0.5;
     float sigma2 = 2.0 * sigma * sigma;
 
     vec4 sum = center;
@@ -210,5 +210,5 @@ void main() {
         result = edgeBlur(texSize);
     }
 
-    fragColor = mix(original, result, smoothStrength);
+    fragColor = mix(original, result, strength);
 }

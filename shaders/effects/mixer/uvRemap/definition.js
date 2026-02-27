@@ -43,7 +43,7 @@ export default new Effect({
     scale: {
       type: "float",
       default: 100.0,
-      uniform: "uvScale",
+      uniform: "scale",
       min: 0,
       max: 200,
       ui: { label: "scale", control: "slider" }
@@ -51,7 +51,7 @@ export default new Effect({
     offset: {
       type: "float",
       default: 0.0,
-      uniform: "uvOffset",
+      uniform: "offset",
       min: -1,
       max: 1,
       ui: { label: "offset", control: "slider" }

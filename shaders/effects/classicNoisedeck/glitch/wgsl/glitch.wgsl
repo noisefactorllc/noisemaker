@@ -16,7 +16,7 @@ struct Uniforms {
     scanlinesAmt: f32,
     snowAmt: f32,
     vignetteAmt: f32,
-    aberrationAmt: f32,
+    aberration: f32,
     distortion: f32,
     kernel: f32,
     levels: f32,
@@ -141,7 +141,7 @@ fn offsets(st: vec2<f32>) -> f32 {
     return prng(vec3<f32>(floor(st), 0.0)).x;
 }
 
-fn glitch(st_in: vec2<f32>, aspectRatio: f32, time: f32, xChonk: f32, yChonk: f32, glitchiness: f32, aspectLens: f32, distortion: f32, aberrationAmt: f32) -> vec4<f32> {
+fn glitch(st_in: vec2<f32>, aspectRatio: f32, time: f32, xChonk: f32, yChonk: f32, glitchiness: f32, aspectLens: f32, distortion: f32, aberration: f32) -> vec4<f32> {
     var st = st_in;
     var freq = vec2<f32>(1.0);
     freq.x = freq.x * map(xChonk, 1.0, 100.0, 50.0, 1.0);
@@ -186,7 +186,7 @@ fn glitch(st_in: vec2<f32>, aspectRatio: f32, time: f32, xChonk: f32, yChonk: f3
     
     let lensedCoords = fract((st - diff * zoom) - diff * centerDist * centerDist * distort);
     
-    let aberrationOffset = map(aberrationAmt, 0.0, 100.0, 0.0, 0.05) * centerDist * PI * 0.5;
+    let aberrationOffset = map(aberration, 0.0, 100.0, 0.0, 0.05) * centerDist * PI * 0.5;
     
     let redOffset = mix(clamp(lensedCoords.x + aberrationOffset, 0.0, 1.0), lensedCoords.x, lensedCoords.x);
     let red = textureSample(inputTex, samp, vec2<f32>(redOffset, lensedCoords.y));
@@ -206,7 +206,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     
     var uv = fragCoord.xy / resolution;
     
-    var color = glitch(uv, aspectRatio, u.time, u.xChonk, u.yChonk, u.glitchiness, u.aspectLens, u.distortion, u.aberrationAmt);
+    var color = glitch(uv, aspectRatio, u.time, u.xChonk, u.yChonk, u.glitchiness, u.aspectLens, u.distortion, u.aberration);
     color = scanlines(color, uv, resolution, u.scanlinesAmt, u.time, u.seed);
     color = snow(color, fragCoord.xy, u.snowAmt, u.time);
     

@@ -12,7 +12,7 @@ precision highp int;
 uniform float time;
 uniform int seed;
 uniform vec2 resolution;
-uniform int fractalType;
+uniform int type;
 uniform int symmetry; // 2 3 4 5
 uniform float offsetX;
 uniform float offsetY;
@@ -34,8 +34,8 @@ uniform float rotatePalette;
 uniform float repeatPalette;
 uniform float hueRange;
 uniform float levels;
-uniform vec3 backgroundColor;
-uniform float backgroundOpacity;
+uniform vec3 bgColor;
+uniform float bgAlpha;
 uniform float cutoff;
 out vec4 fragColor;
 
@@ -336,16 +336,16 @@ void main() {
     float blend = periodicFunction(time - offset(st));
 
     float d;
-    if (fractalType == 0) {
+    if (type == 0) {
         d = julia(st);
-    } else if (fractalType == 1) {
+    } else if (type == 1) {
         d = newton(st);
     } else {
         d = mandelbrot(st);
     }
 
     if (d == 1.0) {
-        fragColor = vec4(backgroundColor, backgroundOpacity * 0.01);
+        fragColor = vec4(bgColor, bgAlpha * 0.01);
         return;
     }
 

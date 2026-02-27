@@ -10,8 +10,8 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform sampler2D bloomTex;
-uniform float bloomIntensity;
-uniform vec3 bloomTint;
+uniform float intensity;
+uniform vec3 tint;
 
 out vec4 fragColor;
 
@@ -25,10 +25,10 @@ void main() {
     vec3 bloom = texelFetch(bloomTex, coord, 0).rgb;
     
     // Apply tint
-    bloom *= bloomTint;
-    
-    // Additive blend: finalHDR = sceneColor + bloomIntensity * bloom
-    vec3 finalRgb = sceneColor.rgb + bloomIntensity * bloom;
+    bloom *= tint;
+
+    // Additive blend: finalHDR = sceneColor + intensity * bloom
+    vec3 finalRgb = sceneColor.rgb + intensity * bloom;
     
     fragColor = vec4(finalRgb, sceneColor.a);
 }

@@ -11,7 +11,7 @@ struct Uniforms {
     threshold: f32,
     matrixScale: f32,
     time: f32,
-    mixAmount: f32,
+    mix: f32,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -370,7 +370,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
     
     // Blend between original input and dithered result
-    result = mix(color.rgb, result, uniforms.mixAmount);
+    result = mix(color.rgb, result, uniforms.mix);
     
     return vec4<f32>(result, color.a);
 }

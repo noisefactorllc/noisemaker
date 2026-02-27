@@ -5,7 +5,7 @@ struct Uniforms {
     density: f32,
     pointSize: f32,
     sizeVariation: f32,
-    rotationVariation: f32,
+    rotationVar: f32,
     seed: i32,
     viewMode: i32,
     rotateX: f32,
@@ -130,7 +130,7 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     
     // Per-particle rotation (seeded deterministic)
     let rotationNoise = hash(f32(particleID) + 1234.5);
-    let rotation = (u.rotationVariation / 100.0) * rotationNoise * 6.283185; // 0 to 2π
+    let rotation = (u.rotationVar / 100.0) * rotationNoise * 6.283185; // 0 to 2π
     
     // Convert pixel size to clip-space units
     let pixelToClip = 2.0 / u.resolution;

@@ -36,7 +36,7 @@ export default new Effect({
         layout: {
             type: "int",
             default: 0,
-            uniform: "layoutMode",
+            uniform: "layout",
             ui: {
                 label: "layout",
                 control: "dropdown"
@@ -132,6 +132,7 @@ export default new Effect({
             },
 
             uniforms: {
+                layoutMode: "layout",
                 attrition: "attrition",
                 resetState: "resetState"
             },

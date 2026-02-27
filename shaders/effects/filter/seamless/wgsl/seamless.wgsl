@@ -3,7 +3,7 @@
 @group(0) @binding(2) var<uniform> resolution: vec2<f32>;
 @group(0) @binding(3) var<uniform> aspect: f32;
 @group(0) @binding(4) var<uniform> blend: f32;
-@group(0) @binding(5) var<uniform> repeatCount: f32;
+@group(0) @binding(5) var<uniform> repeat: f32;
 @group(0) @binding(6) var<uniform> curve: i32;
 
 fn edgeWeight(t: f32, width: f32, c: i32) -> f32 {
@@ -27,7 +27,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = position.xy / texSize;
 
-    let st = fract2(uv * repeatCount);
+    let st = fract2(uv * repeat);
 
     let wx = edgeWeight(st.x, blend, curve);
     let wy = edgeWeight(st.y, blend, curve);

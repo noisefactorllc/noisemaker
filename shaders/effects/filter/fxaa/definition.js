@@ -15,7 +15,7 @@ export default new Effect({
     strength: {
       type: "float",
       default: 1.0,
-      uniform: "fxaaStrength",
+      uniform: "strength",
       min: 0,
       max: 1,
       ui: {
@@ -26,7 +26,7 @@ export default new Effect({
     sharpness: {
       type: "float",
       default: 1.0,
-      uniform: "fxaaSharpness",
+      uniform: "sharpness",
       min: 0.1,
       max: 10,
       step: 0.1,
@@ -38,7 +38,7 @@ export default new Effect({
     threshold: {
       type: "float",
       default: 0.0,
-      uniform: "fxaaThreshold",
+      uniform: "threshold",
       min: 0,
       max: 1,
       ui: {

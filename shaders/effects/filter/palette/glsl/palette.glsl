@@ -10,9 +10,9 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform int paletteIndex;
-uniform int paletteRotation;   // -1 = backward, 0 = none, 1 = forward
-uniform float paletteOffset;   // 0-100 static offset
-uniform float paletteRepeat;   // multiplier for t value
+uniform int rotation;   // -1 = backward, 0 = none, 1 = forward
+uniform float offset;   // 0-100 static offset
+uniform float repeat;   // multiplier for t value
 uniform float alpha;
 uniform float time;
 
@@ -509,10 +509,10 @@ void main() {
     float lum = dot(inputColor.rgb, vec3(0.299, 0.587, 0.114));
 
     // Apply palette modifiers: repeat, offset, and rotation (animation)
-    float t = lum * paletteRepeat + paletteOffset * 0.01;
-    if (paletteRotation == -1) {
+    float t = lum * repeat + offset * 0.01;
+    if (rotation == -1) {
         t += time;
-    } else if (paletteRotation == 1) {
+    } else if (rotation == 1) {
         t -= time;
     }
 

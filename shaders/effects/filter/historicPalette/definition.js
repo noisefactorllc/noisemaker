@@ -47,7 +47,7 @@ export default new Effect({
     rotation: {
       type: "float",
       default: 0,
-      uniform: "paletteRotation",
+      uniform: "rotation",
       choices: { none: 0, fwd: 1, back: -1 },
       ui: {
         label: "rotation",
@@ -57,7 +57,7 @@ export default new Effect({
     offset: {
       type: "float",
       default: 0,
-      uniform: "paletteOffset",
+      uniform: "offset",
       min: 0,
       max: 100,
       step: 1,
@@ -69,7 +69,7 @@ export default new Effect({
     repeat: {
       type: "int",
       default: 1,
-      uniform: "paletteRepeat",
+      uniform: "repeat",
       min: 1,
       max: 10,
       ui: {

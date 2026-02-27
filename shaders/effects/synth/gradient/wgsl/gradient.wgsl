@@ -8,7 +8,7 @@
 @group(0) @binding(0) var<uniform> resolution: vec2<f32>;
 @group(0) @binding(1) var<uniform> gradientType: i32;
 @group(0) @binding(2) var<uniform> rotation: f32;
-@group(0) @binding(3) var<uniform> repeatCount: i32;
+@group(0) @binding(3) var<uniform> repeat: i32;
 @group(0) @binding(4) var<uniform> color1: vec3<f32>;
 @group(0) @binding(5) var<uniform> color2: vec3<f32>;
 @group(0) @binding(6) var<uniform> color3: vec3<f32>;
@@ -135,13 +135,13 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             // Conic/angular gradient
             let a = atan2(rotatedCentered.y, rotatedCentered.x);
             t = (a + PI) / TAU;
-            t = fract(t * f32(repeatCount));
+            t = fract(t * f32(repeat));
             color = blend4Colors(t);
         }
         case 1: {
             // Diamond gradient - L1 distance with rotation
             t = abs(rotatedCentered.x) + abs(rotatedCentered.y);
-            t = fract(t * f32(repeatCount));
+            t = fract(t * f32(repeat));
             color = blend4Colors(t);
         }
         case 2: {
@@ -154,14 +154,14 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         case 3: {
             // Linear gradient along rotated y-axis
             t = rotatedSt.y;
-            t = fract(t * f32(repeatCount));
+            t = fract(t * f32(repeat));
             color = blend4Colors(t);
         }
         case 4: {
             // Noise gradient with rotation
             let noiseSt = rotatedCentered * 4.0;
             t = fbmNoise(noiseSt);
-            t = fract(t * f32(repeatCount));
+            t = fract(t * f32(repeat));
             color = blend4Colors(t);
         }
         case 5: {
@@ -169,7 +169,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             let rotatedPoint = mat2x2<f32>(c, -s, s, c) * centered;
             let dist = length(rotatedPoint) * 2.0;
             t = dist;
-            t = fract(t * f32(repeatCount));
+            t = fract(t * f32(repeat));
             color = blend4Colors(t);
         }
         case 6: {
@@ -177,7 +177,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             let a = atan2(rotatedCentered.y, rotatedCentered.x);
             let dist = length(centered);
             t = fract(a / TAU + dist * 2.0);
-            t = fract(t * f32(repeatCount));
+            t = fract(t * f32(repeat));
             color = blend4Colors(t);
         }
         default: {

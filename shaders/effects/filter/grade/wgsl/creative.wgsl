@@ -5,13 +5,13 @@
  */
 
 struct Uniforms {
-    gradeVibrance: f32,
-    gradeFadedFilm: f32,
-    gradeSplitToneBalance: f32,
+    vibrance: f32,
+    fadedFilm: f32,
+    splitToneBalance: f32,
     _pad0: f32,
-    gradeShadowTint: vec3<f32>,
+    shadowTint: vec3<f32>,
     _pad1: f32,
-    gradeHighlightTint: vec3<f32>,
+    highlightTint: vec3<f32>,
     _pad2: f32,
 }
 
@@ -123,14 +123,14 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var rgb = srgbToLinear(color.rgb);
     
     // 1. Vibrance
-    rgb = applyVibrance(rgb, uniforms.gradeVibrance);
+    rgb = applyVibrance(rgb, uniforms.vibrance);
     
     // 2. Faded Film
-    rgb = applyFadedFilm(rgb, uniforms.gradeFadedFilm);
+    rgb = applyFadedFilm(rgb, uniforms.fadedFilm);
     
     // 3. Split Toning
-    rgb = applySplitTone(rgb, uniforms.gradeShadowTint, uniforms.gradeHighlightTint, 
-                         uniforms.gradeSplitToneBalance);
+    rgb = applySplitTone(rgb, uniforms.shadowTint, uniforms.highlightTint, 
+                         uniforms.splitToneBalance);
     
     rgb = linearToSrgb(max(rgb, vec3<f32>(0.0)));
     

@@ -3,8 +3,8 @@
  */
 
 struct Uniforms {
-    translateX: f32,
-    translateY: f32,
+    x: f32,
+    y: f32,
     wrap: i32,
     _pad1: f32,
 }
@@ -19,8 +19,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var uv = pos.xy / texSize;
     
     // Apply translation
-    uv.x = uv.x - uniforms.translateX;
-    uv.y = uv.y - uniforms.translateY;
+    uv.x = uv.x - uniforms.x;
+    uv.y = uv.y - uniforms.y;
     
     // Apply wrap mode
     if (uniforms.wrap == 0) {

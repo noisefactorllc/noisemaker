@@ -4,7 +4,7 @@
 
 struct Uniforms {
     vignetteBrightness: f32,
-    vignetteAlpha: f32,
+    alpha: f32,
     _pad1: f32,
     _pad2: f32,
 }
@@ -43,7 +43,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Apply brightness to RGB only, preserve alpha
     let brightnessRgb = vec3<f32>(uniforms.vignetteBrightness);
     let edgeBlend = mix(texel.rgb, brightnessRgb, mask);
-    let finalRgb = mix(texel.rgb, edgeBlend, uniforms.vignetteAlpha);
+    let finalRgb = mix(texel.rgb, edgeBlend, uniforms.alpha);
     
     return vec4<f32>(finalRgb, texel.a);
 }

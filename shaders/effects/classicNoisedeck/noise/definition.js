@@ -25,7 +25,7 @@ export default class Noise extends Effect {
     loopScale: { slot: 1, components: 'w' },
     loopAmp: { slot: 2, components: 'x' },
     loopOffset: { slot: 2, components: 'y' },
-    noiseType: { slot: 2, components: 'z' },
+    type: { slot: 2, components: 'z' },
     octaves: { slot: 2, components: 'w' },
     ridges: { slot: 3, components: 'x' },
     wrap: { slot: 3, components: 'y' },
@@ -50,7 +50,7 @@ export default class Noise extends Effect {
     type: {
       type: "int",
       default: 10,
-      uniform: "noiseType",
+      uniform: "type",
       choices: {
         constant: 0,
         linear: 1,

@@ -9,8 +9,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
-uniform int gradePreset;      // 0=none, 1=tealOrange, 2=warmFilm, 3=coolShadows, 4=bleachBypass, 5=crossProcess
-uniform float gradeAlpha; // 0-1 blend with original
+uniform int preset;      // 0=none, 1=tealOrange, 2=warmFilm, 3=coolShadows, 4=bleachBypass, 5=crossProcess
+uniform float alpha; // 0-1 blend with original
 
 out vec4 fragColor;
 
@@ -472,7 +472,7 @@ void main() {
     vec4 color = texelFetch(inputTex, coord, 0);
     
     // Early exit if no LUT selected
-    if (gradePreset == 0 || gradeAlpha <= 0.0) {
+    if (preset == 0 || alpha <= 0.0) {
         fragColor = color;
         return;
     }
@@ -481,52 +481,52 @@ void main() {
     vec3 graded = rgb;
     
     // Apply selected LUT preset
-    if (gradePreset == 1) {
+    if (preset == 1) {
         graded = lutTealOrange(rgb);
-    } else if (gradePreset == 2) {
+    } else if (preset == 2) {
         graded = lutWarmFilm(rgb);
-    } else if (gradePreset == 3) {
+    } else if (preset == 3) {
         graded = lutCoolShadows(rgb);
-    } else if (gradePreset == 4) {
+    } else if (preset == 4) {
         graded = lutBleachBypass(rgb);
-    } else if (gradePreset == 5) {
+    } else if (preset == 5) {
         graded = lutCrossProcess(rgb);
-    } else if (gradePreset == 6) {
+    } else if (preset == 6) {
         graded = lutCinematic(rgb);
-    } else if (gradePreset == 7) {
+    } else if (preset == 7) {
         graded = lutDayForNight(rgb);
-    } else if (gradePreset == 8) {
+    } else if (preset == 8) {
         graded = lutVintage(rgb);
-    } else if (gradePreset == 9) {
+    } else if (preset == 9) {
         graded = lutNoir(rgb);
-    } else if (gradePreset == 10) {
+    } else if (preset == 10) {
         graded = lutSepia(rgb);
-    } else if (gradePreset == 11) {
+    } else if (preset == 11) {
         graded = lutInfrared(rgb);
-    } else if (gradePreset == 12) {
+    } else if (preset == 12) {
         graded = lutTechnicolor(rgb);
-    } else if (gradePreset == 13) {
+    } else if (preset == 13) {
         graded = lutNeon(rgb);
-    } else if (gradePreset == 14) {
+    } else if (preset == 14) {
         graded = lutMatrix(rgb);
-    } else if (gradePreset == 15) {
+    } else if (preset == 15) {
         graded = lutUnderwater(rgb);
-    } else if (gradePreset == 16) {
+    } else if (preset == 16) {
         graded = lutSunset(rgb);
-    } else if (gradePreset == 17) {
+    } else if (preset == 17) {
         graded = lutMonochrome(rgb);
-    } else if (gradePreset == 18) {
+    } else if (preset == 18) {
         graded = lutPsychedelic(rgb);
-    } else if (gradePreset == 20) {
+    } else if (preset == 20) {
         graded = lutHardLight(rgb);
-    } else if (gradePreset == 21) {
+    } else if (preset == 21) {
         graded = lutPosterize(rgb);
-    } else if (gradePreset == 22) {
+    } else if (preset == 22) {
         graded = lutSolarize(rgb);
     }
     
     // Blend with original based on intensity
-    rgb = mix(rgb, graded, gradeAlpha);
+    rgb = mix(rgb, graded, alpha);
     
     // Encode back to sRGB
     rgb = linearToSrgb(max(rgb, vec3(0.0)));

@@ -18,7 +18,7 @@ uniform float n;
 uniform int interp;
 uniform float scale;
 uniform float rotation;
-uniform float loopAmp;
+uniform float speed;
 uniform int mode;
 uniform int maskFormula;
 uniform float tiles;
@@ -112,7 +112,7 @@ vec3 randomFromLatticeWithOffset(vec2 st, float xFreq, float yFreq, float s, ive
 
 float constant(vec2 st, float xFreq, float yFreq, float s) {
     vec3 randTime = randomFromLatticeWithOffset(st, xFreq, yFreq, s, ivec2(40, 0));
-    float scaledTime = periodicFunction(randTime.x - time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.333);
+    float scaledTime = periodicFunction(randTime.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.333);
 
     vec3 rand = randomFromLatticeWithOffset(st, xFreq, yFreq, s, ivec2(0, 0));
     return periodicFunction(rand.x - scaledTime);

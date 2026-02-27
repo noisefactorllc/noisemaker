@@ -13,14 +13,14 @@ uniform sampler2D inputTex;
 uniform float time;
 uniform int seed;
 uniform vec2 resolution;
-uniform int metric;
+uniform int shape;
 uniform float scale;
 uniform float cellScale;
-uniform float cellSmooth;
-uniform float cellVariation;
-uniform float loopAmp;
+uniform float smooth;
+uniform float variation;
+uniform float speed;
 uniform float refractAmt;
-uniform float refractDir;
+uniform float direction;
 uniform int wrap;
 uniform int kernel;
 uniform float effectWidth;
@@ -379,18 +379,18 @@ float cells(vec2 st, float freq, float cellSize, int sides) {
 
             vec3 r1 = prng(vec3(float(seed), wrap)) * 0.5 - 0.25; 
 			vec3 r2 = prng(vec3(wrap, float(seed))) * 2.0 - 1.0;
-            float speed = floor(loopAmp);
-            point += vec2(sin(time * TAU * speed + r2.x) * r1.x, cos(time * TAU * speed + r2.y) * r1.y);
+            float spd = floor(speed);
+            point += vec2(sin(time * TAU * spd + r2.x) * r1.x, cos(time * TAU * spd + r2.y) * r1.y);
 
             vec2 diff = n + point - f;
 			float dist = shape(vec2(diff.x, -diff.y), vec2(0.0), sides, cellSize);
-            if (metric == 1) {
+            if (shape == 1) {
                 dist = abs(n.x + point.x - f.x) + abs(n.y + point.y - f.y);
                 dist *= cellSize;
             }
 
-            dist += r1.z * (cellVariation * 0.01); // size variation
-            d = smin(d, dist, cellSmooth * 0.01);
+            dist += r1.z * (variation * 0.01); // size variation
+            d = smin(d, dist, smooth * 0.01);
 			//d = min(d, dist);
 		}
 	}
@@ -435,10 +435,10 @@ void main() {
 
     float freq = map(scale, 1.0, 100.0, 20.0, 1.0);
     float cellSize = map(cellScale, 1.0, 100.0, 3.0, 0.75);
-    float d = cells(st * vec2(aspectRatio, 1.0), freq, cellSize, metric);
+    float d = cells(st * vec2(aspectRatio, 1.0), freq, cellSize, shape);
     float ref = map(refractAmt, 0.0, 100.0, 0.0, 0.125);
 
-    float refLen = d + refractDir / 360.0;
+    float refLen = d + direction / 360.0;
     st.x += cos(refLen * TAU) * ref;
     st.y += sin(refLen * TAU) * ref;
 

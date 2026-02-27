@@ -52,7 +52,7 @@ export default new Effect({
     mix: {
       type: "float",
       default: 50,
-      uniform: "mixAmt",
+      uniform: "mix",
       min: 0,
       max: 100,
       ui: {
@@ -87,7 +87,7 @@ export default new Effect({
     direction: {
       type: "float",
       default: 0,
-      uniform: "refractDir",
+      uniform: "direction",
       min: 0,
       max: 360,
       ui: {
@@ -118,7 +118,9 @@ export default new Effect({
       inputs: {
         inputTex: "inputTex"
       },
-
+      uniforms: {
+        mixAmt: "mix"
+      },
       outputs: {
         fragColor: "outputTex"
       }

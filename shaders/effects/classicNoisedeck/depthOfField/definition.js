@@ -14,7 +14,7 @@ export default new Effect({
     focalDistance: { slot: 1, components: 'x' },
     aperture: { slot: 1, components: 'y' },
     sampleBias: { slot: 1, components: 'z' },
-    depthSource: { slot: 1, components: 'w' }
+    mapSource: { slot: 1, components: 'w' }
   },
   globals: {
     tex: {
@@ -72,7 +72,7 @@ export default new Effect({
     mapSource: {
       type: "int",
       default: 1,
-      uniform: "depthSource",
+      uniform: "mapSource",
       choices: {
         "inputTex": 0,
         "tex": 1

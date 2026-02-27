@@ -27,7 +27,7 @@ export default new Effect({
     scale: {
       type: "float",
       default: 0,
-      uniform: "polarScale",
+      uniform: "scale",
       min: -2,
       max: 2,
       step: 0.1,
@@ -39,7 +39,7 @@ export default new Effect({
     rotation: {
       type: "float",
       default: 0,
-      uniform: "polarRotation",
+      uniform: "rotation",
       min: -2,
       max: 2,
       step: 0.1,
@@ -51,7 +51,7 @@ export default new Effect({
     speed: {
       type: "float",
       default: 0,
-      uniform: "polarSpeed",
+      uniform: "speed",
       min: -2,
       max: 2,
       step: 0.1,

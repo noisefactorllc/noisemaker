@@ -51,7 +51,7 @@ export default new Effect({
     type: {
       type: "int",
       default: 0,
-      uniform: "fractalType",
+      uniform: "type",
       choices: {
         mandelbulb: 0,
         mandelcube: 1,

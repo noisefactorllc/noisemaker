@@ -5,17 +5,17 @@
  */
 
 struct Uniforms {
-    gradeHslEnable: i32,
-    gradeHslHueCenter: f32,
-    gradeHslHueRange: f32,
-    gradeHslSatMin: f32,
-    gradeHslSatMax: f32,
-    gradeHslLumMin: f32,
-    gradeHslLumMax: f32,
-    gradeHslFeather: f32,
-    gradeHslHueShift: f32,
-    gradeHslSatAdjust: f32,
-    gradeHslLumAdjust: f32,
+    hslEnable: i32,
+    hslHueCenter: f32,
+    hslHueRange: f32,
+    hslSatMin: f32,
+    hslSatMax: f32,
+    hslLumMin: f32,
+    hslLumMax: f32,
+    hslFeather: f32,
+    hslHueShift: f32,
+    hslSatAdjust: f32,
+    hslLumAdjust: f32,
     _pad0: f32,
 }
 
@@ -152,20 +152,20 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let uv = pos.xy / texSize;
     let color = textureSample(inputTex, inputSampler, uv);
     
-    if (uniforms.gradeHslEnable == 0) {
+    if (uniforms.hslEnable == 0) {
         return color;
     }
     
     var rgb = srgbToLinear(color.rgb);
     let hsl = rgbToHsl(rgb);
     
-    let matte = computeHslKey(hsl, uniforms.gradeHslHueCenter, uniforms.gradeHslHueRange,
-                              uniforms.gradeHslSatMin, uniforms.gradeHslSatMax,
-                              uniforms.gradeHslLumMin, uniforms.gradeHslLumMax, 
-                              uniforms.gradeHslFeather);
+    let matte = computeHslKey(hsl, uniforms.hslHueCenter, uniforms.hslHueRange,
+                              uniforms.hslSatMin, uniforms.hslSatMax,
+                              uniforms.hslLumMin, uniforms.hslLumMax, 
+                              uniforms.hslFeather);
     
-    let correctedHsl = applyHslCorrection(hsl, uniforms.gradeHslHueShift, 
-                                           uniforms.gradeHslSatAdjust, uniforms.gradeHslLumAdjust);
+    let correctedHsl = applyHslCorrection(hsl, uniforms.hslHueShift, 
+                                           uniforms.hslSatAdjust, uniforms.hslLumAdjust);
     let correctedRgb = hslToRgb(correctedHsl);
     
     rgb = mix(rgb, correctedRgb, matte);

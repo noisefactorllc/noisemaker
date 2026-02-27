@@ -3,7 +3,7 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform float blend;
-uniform float repeatCount;
+uniform float repeat;
 uniform int curve;
 
 out vec4 fragColor;
@@ -32,7 +32,7 @@ void main() {
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
 
     // Apply tiling repetition
-    vec2 st = uv * repeatCount;
+    vec2 st = uv * repeat;
     st = fract(st);
 
     // Compute blend weights for x and y edges

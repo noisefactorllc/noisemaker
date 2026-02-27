@@ -15,26 +15,26 @@ precision highp float;
 uniform sampler2D inputTex;
 
 // Color mode: 0=RGB, 1=HSV, 2=OkLab, 3=OKLCH
-uniform int tetraCosineColorMode;
+uniform int colorMode;
 
 // Cosine palette parameters
-uniform float tetraCosineOffsetR;
-uniform float tetraCosineOffsetG;
-uniform float tetraCosineOffsetB;
-uniform float tetraCosineAmpR;
-uniform float tetraCosineAmpG;
-uniform float tetraCosineAmpB;
-uniform float tetraCosineFreqR;
-uniform float tetraCosineFreqG;
-uniform float tetraCosineFreqB;
-uniform float tetraCosinePhaseR;
-uniform float tetraCosinePhaseG;
-uniform float tetraCosinePhaseB;
+uniform float offsetR;
+uniform float offsetG;
+uniform float offsetB;
+uniform float ampR;
+uniform float ampG;
+uniform float ampB;
+uniform float freqR;
+uniform float freqG;
+uniform float freqB;
+uniform float phaseR;
+uniform float phaseG;
+uniform float phaseB;
 
 // Mapping controls
-uniform float tetraCosineRepeat;
-uniform float tetraCosineOffset;
-uniform float tetraCosineAlpha;
+uniform float repeat;
+uniform float offset;
+uniform float alpha;
 
 out vec4 fragColor;
 
@@ -146,26 +146,26 @@ void main() {
     float lum = dot(inputColor.rgb, vec3(0.299, 0.587, 0.114));
 
     // Apply mapping: repeat and offset
-    float t = fract(lum * tetraCosineRepeat + tetraCosineOffset);
+    float t = fract(lum * repeat + offset);
 
     // Build palette parameters from uniforms
-    vec3 offset = vec3(tetraCosineOffsetR, tetraCosineOffsetG, tetraCosineOffsetB);
-    vec3 amp = vec3(tetraCosineAmpR, tetraCosineAmpG, tetraCosineAmpB);
-    vec3 freq = vec3(tetraCosineFreqR, tetraCosineFreqG, tetraCosineFreqB);
-    vec3 phase = vec3(tetraCosinePhaseR, tetraCosinePhaseG, tetraCosinePhaseB);
+    vec3 offset = vec3(offsetR, offsetG, offsetB);
+    vec3 amp = vec3(ampR, ampG, ampB);
+    vec3 freq = vec3(freqR, freqG, freqB);
+    vec3 phase = vec3(phaseR, phaseG, phaseB);
 
     // Evaluate cosine palette
     vec3 paletteColor = cosinePalette(t, offset, amp, freq, phase);
 
     // Convert from color mode to RGB
     vec3 finalColor;
-    if (tetraCosineColorMode == 1) {
+    if (colorMode == 1) {
         // HSV mode
         finalColor = hsv2rgb(paletteColor);
-    } else if (tetraCosineColorMode == 2) {
+    } else if (colorMode == 2) {
         // OkLab mode
         finalColor = oklab2rgb(paletteColor);
-    } else if (tetraCosineColorMode == 3) {
+    } else if (colorMode == 3) {
         // OKLCH mode
         finalColor = oklch2rgb(paletteColor);
     } else {
@@ -174,7 +174,7 @@ void main() {
     }
 
     // Blend with original based on alpha
-    vec3 blendedColor = mix(inputColor.rgb, finalColor, tetraCosineAlpha);
+    vec3 blendedColor = mix(inputColor.rgb, finalColor, alpha);
 
     fragColor = vec4(blendedColor, inputColor.a);
 }

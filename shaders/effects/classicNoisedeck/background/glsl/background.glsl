@@ -16,7 +16,7 @@ uniform int backgroundType;
 uniform float rotation;
 uniform vec4 color1;
 uniform vec4 color2;
-uniform float opacity;
+uniform float alpha;
 out vec4 fragColor;
 
 #define PI 3.14159265359
@@ -70,7 +70,7 @@ void main() {
         color = mix(color2, color1, length(centered));
     }
 
-    color.a = opacity * 0.01;
+    color.a = alpha * 0.01;
 
     fragColor = color;
 }

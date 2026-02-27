@@ -29,8 +29,8 @@ export default class Media extends Effect {
     offsetY: { slot: 2, components: 'x' },
     tiling: { slot: 2, components: 'y' },
     flip: { slot: 2, components: 'z' },
-    backgroundOpacity: { slot: 2, components: 'w' },
-    backgroundColor: { slot: 3, components: 'xyz' },
+    bgAlpha: { slot: 2, components: 'w' },
+    bgColor: { slot: 3, components: 'xyz' },
     imageSize: { slot: 4, components: 'xy' }
   }
 
@@ -147,7 +147,7 @@ export default class Media extends Effect {
     bgColor: {
       type: "color",
       default: [0, 0, 0],
-      uniform: "backgroundColor",
+      uniform: "bgColor",
       ui: {
         label: "bg color",
         control: "color",
@@ -159,7 +159,7 @@ export default class Media extends Effect {
       default: 0,
       min: 0,
       max: 1,
-      uniform: "backgroundOpacity",
+      uniform: "bgAlpha",
       ui: {
         label: "bg opacity",
         control: "slider",

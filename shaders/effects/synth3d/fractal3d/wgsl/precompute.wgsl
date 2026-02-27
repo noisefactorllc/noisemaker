@@ -1,7 +1,7 @@
 // WGSL version – WebGPU
 // Precompute pass: generate 3D fractal volume as 2D atlas
 @group(0) @binding(0) var<uniform> volumeSize: i32;
-@group(0) @binding(1) var<uniform> fractalType: i32;
+@group(0) @binding(1) var<uniform> type: i32;
 @group(0) @binding(2) var<uniform> power: f32;
 @group(0) @binding(3) var<uniform> iterations: i32;
 @group(0) @binding(4) var<uniform> bailout: f32;
@@ -235,14 +235,14 @@ fn main(@builtin(position) position: vec4<f32>) -> FragOutput {
     var result: vec3<f32>;
     
     // Select fractal type
-    if (fractalType == 0) {
+    if (type == 0) {
         // Mandelbulb
         result = mandelbulb(p, power, iterations, bailout);
-    } else if (fractalType == 1) {
+    } else if (type == 1) {
         // Mandelcube (use power as scale, clamped to reasonable range)
         let scale = clamp(power * 0.25, -3.0, 3.0);
         result = mandelcube(p, scale, iterations, bailout);
-    } else if (fractalType == 2) {
+    } else if (type == 2) {
         // Julia Bulb
         result = juliaBulb(p, juliaC, power, iterations, bailout);
     } else {
@@ -272,16 +272,16 @@ fn main(@builtin(position) position: vec4<f32>) -> FragOutput {
     var dy: vec3<f32>;
     var dz: vec3<f32>;
     
-    if (fractalType == 0) {
+    if (type == 0) {
         dx = mandelbulb(p + vec3<f32>(eps, 0.0, 0.0), power, iterations, bailout);
         dy = mandelbulb(p + vec3<f32>(0.0, eps, 0.0), power, iterations, bailout);
         dz = mandelbulb(p + vec3<f32>(0.0, 0.0, eps), power, iterations, bailout);
-    } else if (fractalType == 1) {
+    } else if (type == 1) {
         let scale = clamp(power * 0.25, -3.0, 3.0);
         dx = mandelcube(p + vec3<f32>(eps, 0.0, 0.0), scale, iterations, bailout);
         dy = mandelcube(p + vec3<f32>(0.0, eps, 0.0), scale, iterations, bailout);
         dz = mandelcube(p + vec3<f32>(0.0, 0.0, eps), scale, iterations, bailout);
-    } else if (fractalType == 2) {
+    } else if (type == 2) {
         dx = juliaBulb(p + vec3<f32>(eps, 0.0, 0.0), juliaC, power, iterations, bailout);
         dy = juliaBulb(p + vec3<f32>(0.0, eps, 0.0), juliaC, power, iterations, bailout);
         dz = juliaBulb(p + vec3<f32>(0.0, 0.0, eps), juliaC, power, iterations, bailout);

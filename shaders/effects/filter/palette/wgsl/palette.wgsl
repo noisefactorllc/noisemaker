@@ -6,9 +6,9 @@
 struct Uniforms {
     data: array<vec4<f32>, 2>,
     // data[0].x = paletteIndex
-    // data[0].y = paletteRotation (-1, 0, 1)
-    // data[0].z = paletteOffset (0-100)
-    // data[0].w = paletteRepeat
+    // data[0].y = rotation (-1, 0, 1)
+    // data[0].z = offset (0-100)
+    // data[0].w = repeat
     // data[1].x = alpha
     // data[1].y = time
 };
@@ -227,9 +227,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     // Get uniforms
     let paletteIndex = i32(uniforms.data[0].x);
-    let paletteRotation = i32(uniforms.data[0].y);
-    let paletteOffset = uniforms.data[0].z;
-    let paletteRepeat = uniforms.data[0].w;
+    let rotation = i32(uniforms.data[0].y);
+    let offset = uniforms.data[0].z;
+    let repeat = uniforms.data[0].w;
     let time = uniforms.data[1].y;
 
     // Index 0 is passthrough
@@ -241,10 +241,10 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let lum = dot(inputColor.rgb, vec3f(0.299, 0.587, 0.114));
 
     // Apply palette modifiers: repeat, offset, and rotation (animation)
-    var t = lum * paletteRepeat + paletteOffset * 0.01;
-    if (paletteRotation == -1) {
+    var t = lum * repeat + offset * 0.01;
+    if (rotation == -1) {
         t = t + time;
-    } else if (paletteRotation == 1) {
+    } else if (rotation == 1) {
         t = t - time;
     }
 
