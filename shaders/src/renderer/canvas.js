@@ -1640,6 +1640,21 @@ export class CanvasRenderer {
             return
         }
 
+        // Build reverse map from passes[].uniforms bridges: paramName → Set<shaderVarName>
+        // Pass definitions map { shaderVarName: paramName } when the shader variable
+        // differs from the DSL param name (e.g. GLSL builtins like mix, smooth, layout)
+        const bridges = new Map()
+        if (effect.instance.passes) {
+            for (const passDef of effect.instance.passes) {
+                if (!passDef.uniforms) continue
+                for (const [shaderName, paramRef] of Object.entries(passDef.uniforms)) {
+                    if (shaderName === paramRef) continue
+                    if (!bridges.has(paramRef)) bridges.set(paramRef, new Set())
+                    bridges.get(paramRef).add(shaderName)
+                }
+            }
+        }
+
         const targetFunc = effect.instance.func
         const targetNamespace = effect.instance.namespace || effect.namespace || null
 
@@ -1654,17 +1669,36 @@ export class CanvasRenderer {
 
             for (const [paramName, spec] of Object.entries(effect.instance.globals)) {
                 if (spec.type === 'surface') continue
+                if (!pass.uniforms) continue
                 const uniformName = spec.uniform || paramName
-                if (!pass.uniforms || !(uniformName in pass.uniforms)) continue
 
-                if (!this._uniformBindings.has(paramName)) {
-                    this._uniformBindings.set(paramName, [])
+                // Direct match: uniform name exists as key in pass.uniforms
+                if (uniformName in pass.uniforms) {
+                    if (!this._uniformBindings.has(paramName)) {
+                        this._uniformBindings.set(paramName, [])
+                    }
+                    this._uniformBindings.get(paramName).push({
+                        passIndex: index,
+                        uniformName
+                    })
+                    continue
                 }
 
-                this._uniformBindings.get(paramName).push({
-                    passIndex: index,
-                    uniformName
-                })
+                // Bridge match: shader uses a different variable name for this param
+                const paramBridges = bridges.get(paramName)
+                if (paramBridges) {
+                    for (const shaderName of paramBridges) {
+                        if (shaderName in pass.uniforms) {
+                            if (!this._uniformBindings.has(paramName)) {
+                                this._uniformBindings.set(paramName, [])
+                            }
+                            this._uniformBindings.get(paramName).push({
+                                passIndex: index,
+                                uniformName: shaderName
+                            })
+                        }
+                    }
+                }
             }
         })
     }
