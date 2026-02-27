@@ -6,7 +6,7 @@ Multi-color gradient generator with various styles
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| type | int | fourCorners | conic/diamond/fourCorners/linear/noiseGradient/radial/spiral | Type |
+| type | int | conic | conic/diamond/fourCorners/linear/noiseGradient/radial/spiral | Type |
 | rotation | float | 0 | -180-180 | Rotation |
 | repeat | int | 1 | 1-4 | Repeat |
 | seed | int | 1 | 0-100 | Random seed (noise gradient only) |
