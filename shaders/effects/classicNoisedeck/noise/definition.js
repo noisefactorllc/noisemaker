@@ -108,8 +108,7 @@ export default class Noise extends Effect {
       uniform: "ridges",
       ui: {
         label: "ridges",
-        control: "checkbox",
-        enabledBy: { param: "type", notIn: [10, 11] },
+        control: "checkbox"
       }
     },
     wrap: {
@@ -118,7 +117,8 @@ export default class Noise extends Effect {
       uniform: "wrap",
       ui: {
         label: "wrap",
-        control: "checkbox"
+        control: "checkbox",
+        enabledBy: { param: "type", notIn: [10, 11] },
       }
     },
     refractMode: {
