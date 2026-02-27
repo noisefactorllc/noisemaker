@@ -106,7 +106,8 @@ export default new Effect({
       uniform: "ridges",
       ui: {
         label: "ridges",
-        control: "checkbox"
+        control: "checkbox",
+        enabledBy: { param: "type", notIn: [10, 11] },
       }
     },
     loopOffset: {
