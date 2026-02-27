@@ -4,11 +4,11 @@ export default new Effect({
   name: "BitEffects",
   namespace: "classicNoisedeck",
   func: "bitEffects",
-  tags: ["geometric"],
+  tags: ["geometric", "pattern"],
 
-  description: "Bit-crushing and digital artifacts",
+  description: "Bit field and bit mask effects",
   uniformLayout: {
-        resolution: { slot: 0, components: 'xy' },
+    resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
     formula: { slot: 1, components: 'x' },
@@ -38,8 +38,7 @@ export default new Effect({
       },
       ui: {
         label: "mode",
-        control: "dropdown",
-        category: "general"
+        control: "dropdown"
       }
     },
     speed: {
@@ -50,8 +49,7 @@ export default new Effect({
       max: 100,
       ui: {
         label: "speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     formula: {
@@ -65,7 +63,8 @@ export default new Effect({
       ui: {
         label: "formula",
         control: "dropdown",
-        category: "bit field"
+        category: "bit field",
+        enabledBy: { param: "mode", eq: 0 }
       }
     },
     n: {
@@ -77,7 +76,34 @@ export default new Effect({
       ui: {
         label: "mod",
         control: "slider",
-        category: "bit field"
+        category: "bit field",
+        enabledBy: { param: "mode", eq: 0 }
+      }
+    },
+        scale: {
+      type: "float",
+      default: 75,
+      uniform: "scale",
+      min: 1,
+      max: 100,
+      ui: {
+        label: "scale",
+        control: "slider",
+        category: "bit field",
+        enabledBy: { param: "mode", eq: 0 }
+      }
+    },
+    rotation: {
+      type: "float",
+      default: 0,
+      uniform: "rotation",
+      min: -180,
+      max: 180,
+      ui: {
+        label: "rotate",
+        control: "slider",
+        category: "bit field",
+        enabledBy: { param: "mode", eq: 0 }
       }
     },
     colorScheme: {
@@ -103,7 +129,8 @@ export default new Effect({
       ui: {
         label: "colors",
         control: "dropdown",
-        category: "bit field"
+        category: "bit field",
+        enabledBy: { param: "mode", eq: 0 }
       }
     },
     interp: {
@@ -117,31 +144,8 @@ export default new Effect({
       ui: {
         label: "blend",
         control: "dropdown",
-        category: "bit field"
-      }
-    },
-    scale: {
-      type: "float",
-      default: 75,
-      uniform: "scale",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "scale",
-        control: "slider",
-        category: "transform"
-      }
-    },
-    rotation: {
-      type: "float",
-      default: 0,
-      uniform: "rotation",
-      min: -180,
-      max: 180,
-      ui: {
-        label: "rotate",
-        control: "slider",
-        category: "transform"
+        category: "bit field",
+        enabledBy: { param: "mode", eq: 0 }
       }
     },
     maskFormula: {
@@ -157,7 +161,8 @@ export default new Effect({
       ui: {
         label: "formula",
         control: "dropdown",
-        category: "bit mask"
+        category: "bit mask",
+        enabledBy: { param: "mode", eq: 1 }
       }
     },
     tiles: {
@@ -169,7 +174,8 @@ export default new Effect({
       ui: {
         label: "tiles",
         control: "slider",
-        category: "bit mask"
+        category: "bit mask",
+        enabledBy: { param: "mode", eq: 1 }
       }
     },
     complexity: {
@@ -181,7 +187,8 @@ export default new Effect({
       ui: {
         label: "complexity",
         control: "slider",
-        category: "bit mask"
+        category: "bit mask",
+        enabledBy: { param: "mode", eq: 1 }
       }
     },
     maskColorScheme: {
@@ -197,7 +204,8 @@ export default new Effect({
       ui: {
         label: "color space",
         control: "dropdown",
-        category: "bit mask"
+        category: "bit mask",
+        enabledBy: { param: "mode", eq: 1 }
       }
     },
     baseHueRange: {
@@ -209,7 +217,8 @@ export default new Effect({
       ui: {
         label: "hue variants",
         control: "slider",
-        category: "bit mask"
+        category: "bit mask",
+        enabledBy: { param: "mode", eq: 1 }
       }
     },
     hueRotation: {
@@ -221,7 +230,8 @@ export default new Effect({
       ui: {
         label: "hue rotate",
         control: "slider",
-        category: "bit mask"
+        category: "bit mask",
+        enabledBy: { param: "mode", eq: 1 }
       }
     },
     hueRange: {
@@ -233,7 +243,8 @@ export default new Effect({
       ui: {
         label: "hue range",
         control: "slider",
-        category: "bit mask"
+        category: "bit mask",
+        enabledBy: { param: "mode", eq: 1 }
       }
     },
     seed: {
@@ -245,9 +256,10 @@ export default new Effect({
       ui: {
         label: "seed",
         control: "slider",
-        category: "util"
+        category: "bit mask",
+        enabledBy: { param: "mode", eq: 1 }
       }
-    }
+    },
   },
   paramAliases: { loopAmp: 'speed' },
   passes: [

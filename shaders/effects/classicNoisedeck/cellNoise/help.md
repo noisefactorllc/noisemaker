@@ -11,7 +11,7 @@ Cellular noise patterns
 | cellScale | float | 87 | 1-100 | Cell scale |
 | cellSmooth | float | 11 | 0-100 | Cell smooth |
 | cellVariation | float | 50 | 0-100 | Cell variation |
-| loopAmp | int | 1 | 0-5 | Speed |
+| speed | int | 1 | 0-5 | Speed |
 | paletteMode | int | 4 | - | - |
 | seed | int | 1 | 1-100 | Seed |
 | colorMode | int | mono | mono/monoInverse/palette | Color space |
@@ -24,5 +24,5 @@ Cellular noise patterns
 | repeatPalette | int | 1 | 1-5 | Repeat palette |
 | palettePhase | vec3 | 1,1,1 | - | Palette phase |
 | tex | surface | none | - | Texture |
-| texInfluence | int | cellScale | warp/cellScale/noiseScale/combine/add/divide/min/max/mod/multiply/subtract | Influence |
-| texIntensity | float | 100 | 0-100 | Intensity |
+| influence | int | warp | add/divide/min/max/mod/multiply/subtract/warp | Texture influence |
+| input weight | float | 0 | 0-100 | Texture weight |

@@ -16,8 +16,8 @@ export default new Effect({
       type: "float",
       default: 1.0,
       uniform: "amount",
-      min: 0.1,
-      max: 5,
+      min: 0,
+      max: 10,
       randMin: 1.0,
       ui: {
         label: "amount",

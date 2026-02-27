@@ -34,7 +34,7 @@ export default new Effect({
         simplex: 10,
         sine: 11
       },
-      ui: { label: "interpolation", control: "dropdown", category: "general" },
+      ui: { label: "noise type", control: "dropdown"},
       uniform: "interp"
     },
     noiseScale: {
@@ -42,7 +42,7 @@ export default new Effect({
       default: 85,
       min: 1,
       max: 200,
-      ui: { label: "scale", control: "slider", category: "transform" },
+      ui: { label: "scale", control: "slider" },
       uniform: "noiseScale"
     },
     loopAmp: {
@@ -50,13 +50,13 @@ export default new Effect({
       default: 25,
       min: 0,
       max: 100,
-      ui: { label: "loop amp", control: "slider", category: "animation" },
+      ui: { label: "speed", control: "slider" },
       uniform: "loopAmp"
     },
     wrap: {
       type: "boolean",
       default: true,
-      ui: { label: "wrap", control: "checkbox", category: "general" },
+      ui: { label: "wrap", control: "checkbox", enabledBy: { param: "interp", notIn: [10, 11] } },
       uniform: "wrap"
     },
     seed: {
@@ -64,7 +64,7 @@ export default new Effect({
       default: 44,
       min: 0,
       max: 100,
-      ui: { label: "seed", control: "slider", category: "util" },
+      ui: { label: "seed", control: "slider" },
       uniform: "seed"
     },
     hueRotation: {

@@ -4,7 +4,7 @@ export default new Effect({
   name: "Background",
   namespace: "classicNoisedeck",
   func: "background",
-  tags: ["geometric"],
+  tags: ["color"],
 
   description: "Background layer generator",
   globals: {
@@ -14,14 +14,14 @@ export default new Effect({
       uniform: "backgroundType",
       choices: {
         solid: 0,
-        horizontal12: 10,
-        horizontal21: 11,
-        vertical12: 20,
-        vertical21: 21,
-        radial12: 30,
-        radial21: 31
+        horizontalA: 10,
+        horizontalB: 11,
+        verticalA: 20,
+        verticalB: 21,
+        radialA: 30,
+        radialB: 31
       },
-      ui: { label: "type", control: "dropdown", category: "general" }
+      ui: { label: "type", control: "dropdown"}
     },
     rotation: {
       type: "float",
@@ -29,7 +29,19 @@ export default new Effect({
       uniform: "rotation",
       min: -180,
       max: 180,
-      ui: { label: "rotation", control: "slider", category: "general" }
+      ui: { label: "rotation", control: "slider", enabledBy: { param: "type", notIn: [0, 30, 31] } }
+    },
+    color1: {
+      type: "color",
+      default: [0, 0, 0, 1],
+      uniform: "color1",
+      ui: { label: "color 1", control: "color" }
+    },
+    color2: {
+      type: "color",
+      default: [1, 1, 1, 1],
+      uniform: "color2",
+      ui: { label: "color 2", control: "color", enabledBy: { param: "type", neq: 0 } }
     },
     alpha: {
       type: "float",
@@ -37,19 +49,7 @@ export default new Effect({
       uniform: "opacity",
       min: 0,
       max: 100,
-      ui: { label: "opacity", control: "slider", category: "general" }
-    },
-    color1: {
-      type: "color",
-      default: [0, 0, 0, 1],
-      uniform: "color1",
-      ui: { label: "color 1", control: "color", category: "color" }
-    },
-    color2: {
-      type: "color",
-      default: [1, 1, 1, 1],
-      uniform: "color2",
-      ui: { label: "color 2", control: "color", category: "color" }
+      ui: { label: "opacity", control: "slider"}
     }
   },
   paramAliases: { backgroundType: 'type', opacity: 'alpha' },

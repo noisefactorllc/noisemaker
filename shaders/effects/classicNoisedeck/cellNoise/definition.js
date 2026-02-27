@@ -17,7 +17,7 @@ export default class CellNoise extends Effect {
 
   // WGSL uniform packing layout - maps uniform names to vec4 slots/components
   uniformLayout = {
-        resolution: { slot: 0, components: 'xy' },
+    resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
     metric: { slot: 1, components: 'x' },
@@ -53,8 +53,7 @@ export default class CellNoise extends Effect {
       },
       ui: {
         label: "shape",
-        control: "dropdown",
-        category: "general"
+        control: "dropdown"
       }
     },
     scale: {
@@ -65,8 +64,7 @@ export default class CellNoise extends Effect {
       max: 100,
       ui: {
         label: "noise scale",
-        control: "slider",
-        category: "transform"
+        control: "slider"
       }
     },
     cellScale: {
@@ -77,8 +75,7 @@ export default class CellNoise extends Effect {
       max: 100,
       ui: {
         label: "cell scale",
-        control: "slider",
-        category: "transform"
+        control: "slider"
       }
     },
     smooth: {
@@ -89,8 +86,7 @@ export default class CellNoise extends Effect {
       max: 100,
       ui: {
         label: "cell smooth",
-        control: "slider",
-        category: "general"
+        control: "slider"
       }
     },
     variation: {
@@ -101,8 +97,7 @@ export default class CellNoise extends Effect {
       max: 100,
       ui: {
         label: "cell variation",
-        control: "slider",
-        category: "general"
+        control: "slider"
       }
     },
     speed: {
@@ -113,8 +108,7 @@ export default class CellNoise extends Effect {
       max: 5,
       ui: {
         label: "speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     paletteMode: {
@@ -133,8 +127,7 @@ export default class CellNoise extends Effect {
       max: 100,
       ui: {
         label: "seed",
-        control: "slider",
-        category: "util"
+        control: "slider"
       }
     },
     colorMode: {
@@ -148,8 +141,7 @@ export default class CellNoise extends Effect {
       },
       ui: {
         label: "color mode",
-        control: "dropdown",
-        category: "color"
+        control: "dropdown"
       }
     },
     palette: {
@@ -184,7 +176,7 @@ export default class CellNoise extends Effect {
         backward: -1
       },
       ui: {
-        label: "cycle palette",
+        label: "rotation",
         control: "dropdown",
         category: "palette",
         enabledBy: { param: "colorMode", eq: 2 }
@@ -207,7 +199,7 @@ export default class CellNoise extends Effect {
       min: 0,
       max: 100,
       ui: {
-        label: "rotate palette",
+        label: "offset",
         control: "slider",
         category: "palette",
         enabledBy: { param: "colorMode", eq: 2 }
@@ -230,7 +222,7 @@ export default class CellNoise extends Effect {
       min: 1,
       max: 5,
       ui: {
-        label: "repeat palette",
+        label: "repeat",
         control: "slider",
         category: "palette",
         enabledBy: { param: "colorMode", eq: 2 }
@@ -251,42 +243,41 @@ export default class CellNoise extends Effect {
       default: "none",
       ui: {
         label: "texture",
-        category: "texture"
+        category: "input"
       }
     },
     texInfluence: {
       type: "int",
-      default: 1,
+      default: 2,
       uniform: "texInfluence",
       choices: {
-        warp: null,
-        cellScale: 1,
-        noiseScale: 2,
-        combine: null,
         add: 10,
         divide: 11,
         min: 12,
         max: 13,
         mod: 14,
         multiply: 15,
-        subtract: 16
+        subtract: 16,
+        warp: 2,
       },
       ui: {
         label: "influence",
         control: "dropdown",
-        category: "texture"
+        category: "input",
+        enabledBy: { param: "tex", neq: "none" }
       }
     },
     texIntensity: {
       type: "float",
-      default: 100,
+      default: 0,
       uniform: "texIntensity",
       min: 0,
       max: 100,
       ui: {
-        label: "intensity",
+        label: "input weight",
         control: "slider",
-        category: "texture"
+        category: "input",
+        enabledBy: { param: "tex", neq: "none" }
       }
     }
   }
