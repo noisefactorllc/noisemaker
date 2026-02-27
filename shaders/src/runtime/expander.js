@@ -702,6 +702,9 @@ export function expand(compilationResult, options = {}) {
                         // Look up the value from pipelineUniforms (includes defaults and DSL args)
                         if (pipelineUniforms[uniformName] !== undefined) {
                             pass.uniforms[uniformName] = pipelineUniforms[uniformName]
+                        } else if (pipelineUniforms[globalRef] !== undefined) {
+                            // Value stored under param name (e.g. "mix") not shader var (e.g. "mixAmt")
+                            pass.uniforms[uniformName] = pipelineUniforms[globalRef]
                         } else if (effectDef.globals && effectDef.globals[globalRef]) {
                             // Try looking up by the global param name and use its default
                             const globalDef = effectDef.globals[globalRef]
