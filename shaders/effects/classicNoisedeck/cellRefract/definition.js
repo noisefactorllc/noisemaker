@@ -8,6 +8,52 @@ export default new Effect({
 
   description: "Cell-based refraction",
   globals: {
+    amount: {
+      type: "float",
+      default: 23,
+      uniform: "refractAmt",
+      min: 0,
+      max: 100,
+      ui: {
+        label: "refract",
+        control: "slider"
+      }
+    },
+    direction: {
+      type: "float",
+      default: 0,
+      uniform: "refractDir",
+      min: 0,
+      max: 360,
+      ui: {
+        label: "refract dir",
+        control: "slider"
+      }
+    },
+    wrap: {
+      type: "int",
+      default: 0,
+      uniform: "wrap",
+      choices: {
+        mirror: 0,
+        repeat: 1
+      },
+      ui: {
+        label: "wrap",
+        control: "dropdown"
+      }
+    },
+    speed: {
+      type: "int",
+      default: 1,
+      uniform: "loopAmp",
+      min: 0,
+      max: 5,
+      ui: {
+        label: "speed",
+        control: "slider"
+      }
+    },
     shape: {
       type: "int",
       default: 1,
@@ -22,7 +68,8 @@ export default new Effect({
       },
       ui: {
         label: "shape",
-        control: "dropdown"
+        control: "dropdown",
+        category: "cells"
       }
     },
     scale: {
@@ -34,7 +81,7 @@ export default new Effect({
       ui: {
         label: "scale",
         control: "slider",
-        category: "transform"
+        category: "cells"
       }
     },
     cellScale: {
@@ -46,7 +93,7 @@ export default new Effect({
       ui: {
         label: "cell scale",
         control: "slider",
-        category: "transform"
+        category: "cells"
       }
     },
     smooth: {
@@ -57,7 +104,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "cell smooth",
-        control: "slider"
+        control: "slider",
+        category: "cells"
       }
     },
     variation: {
@@ -68,19 +116,20 @@ export default new Effect({
       max: 100,
       ui: {
         label: "cell variation",
-        control: "slider"
+        control: "slider",
+        category: "cells"
       }
     },
-    speed: {
+    seed: {
       type: "int",
       default: 1,
-      uniform: "loopAmp",
-      min: 0,
-      max: 5,
+      uniform: "seed",
+      min: 1,
+      max: 100,
       ui: {
-        label: "speed",
+        label: "seed",
         control: "slider",
-        category: "animation"
+        category: "cells"
       }
     },
     kernel: {
@@ -117,57 +166,8 @@ export default new Effect({
       ui: {
         label: "effect width",
         control: "slider",
-        category: "effect"
-      }
-    },
-    amount: {
-      type: "float",
-      default: 23,
-      uniform: "refractAmt",
-      min: 0,
-      max: 100,
-      ui: {
-        label: "refract",
-        control: "slider",
-        category: "refract"
-      }
-    },
-    direction: {
-      type: "float",
-      default: 0,
-      uniform: "refractDir",
-      min: 0,
-      max: 360,
-      ui: {
-        label: "refract dir",
-        control: "slider",
-        category: "refract"
-      }
-    },
-    wrap: {
-      type: "int",
-      default: 0,
-      uniform: "wrap",
-      choices: {
-        mirror: 0,
-        repeat: 1
-      },
-      ui: {
-        label: "wrap",
-        control: "dropdown",
-        category: "refract"
-      }
-    },
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider",
-        category: "util"
+        category: "effect",
+        enabledBy: { param: "kernel", neq: 0 }
       }
     }
   },

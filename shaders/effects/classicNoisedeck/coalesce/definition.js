@@ -4,7 +4,7 @@ export default new Effect({
   name: "Coalesce",
   namespace: "classicNoisedeck",
   func: "coalesce",
-  tags: ["color", "distort"],
+  tags: ["blend", "distort"],
 
   description: "Coalescing blend effect",
   globals: {
@@ -24,7 +24,7 @@ export default new Effect({
       ui: {
         label: "seed",
         control: "slider",
-        category: "util"
+        hidden: true
       }
     },
     blendMode: {
@@ -82,7 +82,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "refract a→b",
+        label: "refract a → b",
         control: "slider",
         category: "refract"
       }
@@ -94,7 +94,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "refract b→a",
+        label: "refract b → a",
         control: "slider",
         category: "refract"
       }
@@ -103,8 +103,8 @@ export default new Effect({
       type: "float",
       default: 0,
       uniform: "refractADir",
-      min: 0,
-      max: 360,
+      min: -180,
+      max: 180,
       ui: {
         label: "refract dir a",
         control: "slider",
@@ -115,8 +115,8 @@ export default new Effect({
       type: "float",
       default: 0,
       uniform: "refractBDir",
-      min: 0,
-      max: 360,
+      min: -180,
+      max: 180,
       ui: {
         label: "refract dir b",
         control: "slider",

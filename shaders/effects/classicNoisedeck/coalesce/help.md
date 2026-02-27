@@ -12,5 +12,5 @@ Coalescing blend effect
 | mixAmt | float | 0 | -100-100 | Mix |
 | refractAAmt | float | 0 | 0-100 | Refract a→b |
 | refractBAmt | float | 0 | 0-100 | Refract b→a |
-| refractADir | float | 0 | 0-360 | Refract dir a |
-| refractBDir | float | 0 | 0-360 | Refract dir b |
+| refractADir | float | 0 | -180-180 | Refract dir a |
+| refractBDir | float | 0 | -180-180 | Refract dir b |
