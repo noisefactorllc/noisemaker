@@ -884,15 +884,22 @@ export function expand(compilationResult, options = {}) {
                     }
                 }
 
-                // Propagate scoped param uniforms for particle texture sizing
-                // When particle textures are scoped (e.g., global_xyz_node_1), their param references
-                // are also scoped (e.g., 'stateSize' -> 'stateSize_node_1'). We need to copy the
-                // uniform value to the scoped name so resolveDimension() can find it.
+                // Propagate scoped param uniforms for texture sizing
+                // When textures are scoped (e.g., global_xyz_node_1, global_rd_state_chain_0),
+                // their param references are also scoped (e.g., 'stateSize' -> 'stateSize_node_1',
+                // 'zoom' -> 'zoom_chain_0'). We need to copy the uniform value to the scoped
+                // name so resolveDimension() can find it.
                 for (const [originalParam, scopedParam] of scopedParamMap) {
                     if (pass.uniforms[originalParam] !== undefined) {
                         pass.uniforms[scopedParam] = pass.uniforms[originalParam]
                         pipelineUniforms[scopedParam] = pass.uniforms[originalParam]
                     }
+                }
+
+                // Store scoped param mappings on pass so runtime updates
+                // (e.g., applyStepParameterValues) can propagate to scoped names
+                if (scopedParamMap.size > 0) {
+                    pass.scopedParams = Object.fromEntries(scopedParamMap)
                 }
 
                 passes.push(pass)

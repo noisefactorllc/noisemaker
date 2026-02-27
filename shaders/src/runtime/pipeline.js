@@ -424,7 +424,18 @@ export class Pipeline {
         // pass.uniforms are updated (e.g. programState._applyToPipeline).
         if (this.zoom != null) {
             const numZoom = Number(this.zoom)
-            if (numZoom > 0) uniforms.zoom = numZoom
+            if (numZoom > 0) {
+                uniforms.zoom = numZoom
+                // Propagate to chain-scoped variants (e.g., zoom_chain_0)
+                // so resolveDimension() for screenDivide specs sees the update
+                if (this.graph && this.graph.passes) {
+                    for (const pass of this.graph.passes) {
+                        if (pass.scopedParams && pass.scopedParams.zoom) {
+                            uniforms[pass.scopedParams.zoom] = numZoom
+                        }
+                    }
+                }
+            }
         }
         return uniforms
     }

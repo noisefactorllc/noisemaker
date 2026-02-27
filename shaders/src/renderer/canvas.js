@@ -1771,6 +1771,11 @@ export class CanvasRenderer {
 
                 const converted = this.convertParameterForUniform(value, spec)
                 pass.uniforms[uniformName] = Array.isArray(converted) ? converted.slice() : converted
+
+                // Propagate to chain-scoped variant so resolveDimension() sees the update
+                if (pass.scopedParams && pass.scopedParams[uniformName]) {
+                    pass.uniforms[pass.scopedParams[uniformName]] = pass.uniforms[uniformName]
+                }
             }
         }
 
