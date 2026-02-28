@@ -334,11 +334,12 @@ export default class Noise extends Effect {
       }
     },
     repeatPalette: {
-      type: "int",
+      type: "float",
       default: 1,
       uniform: "repeatPalette",
-      min: 1,
-      max: 5,
+      min: 0,
+      max: 10,
+      step: 0.1,
       ui: {
         label: "repeat palette",
         control: "slider",
