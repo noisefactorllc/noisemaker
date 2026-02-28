@@ -70,8 +70,9 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
     if (symmetry == 3) {
         // Hex tiling with 6-fold rotational symmetry
-        let local_hex = hexCoord(st * repeat);
-        let local_scaled = local_hex / scale + vec2<f32>(offsetX, offsetY);
+        // Offset pans the entire texture (applied before hex grid computation)
+        let local_hex = hexCoord((st + vec2<f32>(offsetX, offsetY)) * repeat);
+        let local_scaled = local_hex / scale;
         st = rotationalFold(local_scaled + 0.5, 6);
     } else {
         // Square tiling

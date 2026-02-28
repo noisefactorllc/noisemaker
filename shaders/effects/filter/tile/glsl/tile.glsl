@@ -80,9 +80,9 @@ void main() {
 
     if (symmetry == 3) {
         // Hex tiling with 6-fold rotational symmetry
-        // hexCoord returns local coords centered at nearest hex center
-        vec2 local = hexCoord(st * repeat);
-        local = local / scale + vec2(offsetX, offsetY);
+        // Offset pans the entire texture (applied before hex grid computation)
+        vec2 local = hexCoord((st + vec2(offsetX, offsetY)) * repeat);
+        local = local / scale;
         st = rotationalFold(local + 0.5, 6);
     } else {
         // Square tiling

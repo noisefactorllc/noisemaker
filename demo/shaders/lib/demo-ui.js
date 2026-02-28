@@ -1708,25 +1708,6 @@ render(o1)`
         this.stopAllMedia()
         this.stopAllText()
 
-        // PRESERVE existing parameter values keyed by effect occurrence (name + nth occurrence)
-        // This ensures that inserting/removing unrelated effects doesn't reset values
-        const previousValuesByOccurrence = {}
-        if (this._parsedDslStructure) {
-            const occurrenceCount = {}
-            for (const effectInfo of this._parsedDslStructure) {
-                const effectName = effectInfo.effectKey || effectInfo.name
-                const occurrence = occurrenceCount[effectName] || 0
-                occurrenceCount[effectName] = occurrence + 1
-
-                const stepKey = `step_${effectInfo.stepIndex}`
-                const stepParams = this._programState.getStepValues(stepKey)
-                if (stepParams && Object.keys(stepParams).length > 0) {
-                    const occurrenceKey = `${effectName}#${occurrence}`
-                    previousValuesByOccurrence[occurrenceKey] = { ...stepParams }
-                }
-            }
-        }
-
         this._controlsContainer.innerHTML = ''
         this._dependentControls = []
         this._programState.clearRoutingOverrides()
@@ -2050,26 +2031,11 @@ render(o1)`
 
             const effectKey = `step_${effectInfo.stepIndex}`
 
-            // Get occurrence for this effect name (already tracked/initialized at loop start)
+            // Get occurrence for this effect name (for media state restoration)
             const currentEffectName = effectInfo.effectKey || effectInfo.name
             const occurrence = currentOccurrenceCount[currentEffectName]
             currentOccurrenceCount[currentEffectName]++
             const occurrenceKey = `${currentEffectName}#${occurrence}`
-
-            // Restore values by occurrence key (position-independent)
-            if (previousValuesByOccurrence[occurrenceKey]) {
-                // Batch restore preserved values to program state
-                this._programState.batch(() => {
-                    for (const [key, val] of Object.entries(previousValuesByOccurrence[occurrenceKey])) {
-                        this._programState.setValue(effectKey, key, val)
-                    }
-                })
-            }
-
-            // Initialize _skip from parsed args if present
-            if (effectInfo.args?._skip === true) {
-                this._programState.setValue(effectKey, '_skip', true)
-            }
 
             // Render controls grouped by category
             const grouped = groupGlobalsByCategory(effectDef.globals)
