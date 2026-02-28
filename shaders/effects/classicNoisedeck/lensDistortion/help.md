@@ -8,9 +8,9 @@ Lens distortion simulation
 |-----------|------|---------|-------|-------------|
 | shape | int | circle | circle/cosine/diamond/hexagon/octagon/square/triangle | Shape |
 | distortion | float | 0 | -100-100 | Distortion |
+| aspectLens | boolean | false | - | 1:1 aspect |
 | loopScale | float | 100 | 1-100 | Loop scale |
 | speed | float | 0 | -100-100 | Speed |
-| aspectLens | boolean | false | - | 1:1 aspect |
 | mode | int | chromaticRgb | chromaticRgb/prismaticHsv | Mode |
 | aberrationAmt | float | 50 | 0-100 | Aberration |
 | blendMode | int | add | add/alpha | Blend |

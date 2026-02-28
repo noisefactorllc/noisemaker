@@ -23,8 +23,6 @@ uniform float snowAmt;
 uniform float vignetteAmt;
 uniform float aberration;
 uniform float distortion;
-uniform int kernel;
-uniform float levels; 
 out vec4 fragColor;
 
 #define PI 3.14159265359

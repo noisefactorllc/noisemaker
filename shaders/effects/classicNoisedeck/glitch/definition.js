@@ -4,21 +4,10 @@ export default new Effect({
   name: "Glitch",
   namespace: "classicNoisedeck",
   func: "glitch",
-  tags: ["distort", "noise"],
+  tags: ["distort"],
 
   description: "Digital glitch effects",
   globals: {
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider"
-      }
-    },
     glitchiness: {
       type: "float",
       default: 0,
@@ -60,6 +49,17 @@ export default new Effect({
       max: 100,
       ui: {
         label: "height",
+        control: "slider"
+      }
+    },
+    seed: {
+      type: "int",
+      default: 1,
+      uniform: "seed",
+      min: 1,
+      max: 100,
+      ui: {
+        label: "seed",
         control: "slider"
       }
     },
@@ -121,24 +121,6 @@ export default new Effect({
         category: "distortion"
       }
     },
-    kernel: {
-      type: "int",
-      default: 0,
-      uniform: "kernel",
-      ui: {
-        label: "kernel",
-        control: "slider"
-      }
-    },
-    levels: {
-      type: "int",
-      default: 0,
-      uniform: "levels",
-      ui: {
-        label: "levels",
-        control: "slider"
-      }
-    }
   },
   paramAliases: { aberrationAmt: 'aberration' },
   passes: [

@@ -4,7 +4,7 @@ export default new Effect({
   name: "LensDistortion",
   namespace: "classicNoisedeck",
   func: "lensDistortion",
-  tags: ["distort", "color"],
+  tags: ["distort"],
 
   description: "Lens distortion simulation",
   globals: {
@@ -37,6 +37,15 @@ export default new Effect({
         control: "slider"
       }
     },
+    aspectLens: {
+      type: "boolean",
+      default: false,
+      uniform: "aspectLens",
+      ui: {
+        label: "1:1 aspect",
+        control: "checkbox"
+      }
+    },
     loopScale: {
       type: "float",
       default: 100,
@@ -45,7 +54,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "loop scale",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     speed: {
@@ -56,16 +66,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "speed",
-        control: "slider"
-      }
-    },
-    aspectLens: {
-      type: "boolean",
-      default: false,
-      uniform: "aspectLens",
-      ui: {
-        label: "1:1 aspect",
-        control: "checkbox"
+        control: "slider",
+        category: "animation"
       }
     },
     mode: {

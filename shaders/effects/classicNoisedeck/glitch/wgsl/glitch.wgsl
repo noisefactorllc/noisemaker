@@ -18,10 +18,9 @@ struct Uniforms {
     vignetteAmt: f32,
     aberration: f32,
     distortion: f32,
-    kernel: f32,
-    levels: f32,
     _pad0: f32,
     _pad1: f32,
+    _pad2: f32,
 }
 
 @group(0) @binding(2) var<uniform> u: Uniforms;

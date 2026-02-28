@@ -36,20 +36,6 @@ export default new Effect({
         control: "dropdown"
       }
     },
-    direction: {
-      type: "int",
-      default: 2,
-      uniform: "direction",
-      choices: {
-        clockwise: 0,
-        counterclock: 1,
-        none: 2
-      },
-      ui: {
-        label: "rotate",
-        control: "dropdown"
-      }
-    },
     loopOffset: {
       type: "int",
       default: 10,
@@ -87,7 +73,8 @@ export default new Effect({
       },
       ui: {
         label: "loop offset",
-        control: "dropdown"
+        control: "dropdown",
+        category: "animation"
       }
     },
     loopScale: {
@@ -98,7 +85,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "loop scale",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     speed: {
@@ -107,9 +95,13 @@ export default new Effect({
       uniform: "speed",
       min: -100,
       max: 100,
+      randMin: -20,
+      randMax: 20,
+      zero: 0,
       ui: {
         label: "speed",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     seed: {
@@ -120,7 +112,9 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider"
+        control: "slider",
+        category: "animation",
+        enabledBy: { param: "loopOffset", in: [300, 310, 320, 330, 340, 350, 360, 370, 380] }
       }
     },
     wrap: {
@@ -129,7 +123,24 @@ export default new Effect({
       uniform: "wrap",
       ui: {
         label: "wrap",
-        control: "checkbox"
+        control: "checkbox",
+        category: "animation",
+        enabledBy: { param: "loopOffset", in: [300, 310, 320, 330, 340, 350, 360] }
+      }
+    },
+    direction: {
+      type: "int",
+      default: 2,
+      uniform: "direction",
+      choices: {
+        clockwise: 0,
+        counterclock: 1,
+        none: 2
+      },
+      ui: {
+        label: "rotate",
+        control: "dropdown",
+        category: "animation",
       }
     },
     kernel: {
@@ -165,7 +176,8 @@ export default new Effect({
       ui: {
         label: "effect width",
         control: "slider",
-        category: "effect"
+        category: "effect",
+        enabledBy: { param: "kernel", neq: 0 }
       }
     }
   },
