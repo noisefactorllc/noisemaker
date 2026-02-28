@@ -211,7 +211,7 @@ float polarShape(vec2 st, int sides) {
     return cos(floor(0.5 + a / r) * r - a) * length(st);
 }
 
-float shape(vec2 st, vec2 offset, int type, float scale) {
+float shapeDistance(vec2 st, vec2 offset, int type, float scale) {
 	st += offset;
 
 	float d = 1.0;
@@ -276,7 +276,7 @@ float cells(vec2 st, float freq, float cellSize, int sides) {
             point += vec2(sin(time * TAU * spd + r2.x) * r1.x, cos(time * TAU * spd + r2.y) * r1.y);
 
             vec2 diff = n + point - f;
-			float dist = shape(vec2(diff.x, -diff.y), vec2(0.0), sides, cellSize);
+			float dist = shapeDistance(vec2(diff.x, -diff.y), vec2(0.0), sides, cellSize);
             if (shape == 1) {
                 dist = abs(n.x + point.x - f.x) + abs(n.y + point.y - f.y);
                 dist *= cellSize;
