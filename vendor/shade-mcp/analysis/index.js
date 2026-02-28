@@ -4046,8 +4046,8 @@ var coerce = {
 var NEVER = INVALID;
 
 // src/tools/analysis/alg-equiv.ts
-import { readFileSync as readFileSync2, readdirSync, existsSync } from "fs";
-import { join as join2, basename } from "path";
+import { readFileSync as readFileSync2, readdirSync as readdirSync2, existsSync as existsSync2 } from "fs";
+import { join as join3, basename as basename2 } from "path";
 
 // src/ai/provider.ts
 import { readFileSync } from "fs";
@@ -4151,8 +4151,21 @@ function getConfig() {
     effectsDir: process.env.SHADE_EFFECTS_DIR || resolve(projectRoot, "effects"),
     viewerPort: parseInt(process.env.SHADE_VIEWER_PORT || "4173", 10),
     defaultBackend: parseBackend(process.env.SHADE_BACKEND),
-    projectRoot
+    projectRoot,
+    globalsPrefix: process.env.SHADE_GLOBALS_PREFIX || void 0,
+    viewerPath: process.env.SHADE_VIEWER_PATH || void 0
   };
+}
+
+// src/tools/resolve-effects.ts
+import { readdirSync, existsSync, statSync } from "fs";
+import { join as join2, basename } from "path";
+function resolveEffectDir(effectId, effectsDir) {
+  const dirName = basename(effectsDir) || "effect";
+  if (effectId === dirName && (existsSync(join2(effectsDir, "definition.json")) || existsSync(join2(effectsDir, "definition.js")))) {
+    return effectsDir;
+  }
+  return join2(effectsDir, ...effectId.split("/"));
 }
 
 // src/tools/analysis/alg-equiv.ts
@@ -4163,26 +4176,26 @@ async function checkAlgEquiv(effectId) {
   const config = getConfig();
   const ai = getAIProvider({ projectRoot: config.projectRoot });
   if (!ai) return { status: "error", error: NO_AI_KEY_MESSAGE };
-  const effectDir = join2(config.effectsDir, ...effectId.split("/"));
-  const glslDir = join2(effectDir, "glsl");
-  const wgslDir = join2(effectDir, "wgsl");
-  if (!existsSync(glslDir) || !existsSync(wgslDir)) {
+  const effectDir = resolveEffectDir(effectId, config.effectsDir);
+  const glslDir = join3(effectDir, "glsl");
+  const wgslDir = join3(effectDir, "wgsl");
+  if (!existsSync2(glslDir) || !existsSync2(wgslDir)) {
     return { status: "error", error: "Missing glsl/ or wgsl/ directory" };
   }
-  const glslFiles = readdirSync(glslDir).filter((f) => f.endsWith(".glsl"));
-  const wgslFiles = readdirSync(wgslDir).filter((f) => f.endsWith(".wgsl"));
+  const glslFiles = readdirSync2(glslDir).filter((f) => f.endsWith(".glsl"));
+  const wgslFiles = readdirSync2(wgslDir).filter((f) => f.endsWith(".wgsl"));
   const pairs = [];
   const unmatchedGlsl = [];
   const unmatchedWgsl = [];
-  const wgslMap = new Map(wgslFiles.map((f) => [basename(f, ".wgsl"), f]));
+  const wgslMap = new Map(wgslFiles.map((f) => [basename2(f, ".wgsl"), f]));
   for (const gf of glslFiles) {
-    const name = basename(gf, ".glsl");
+    const name = basename2(gf, ".glsl");
     const wf = wgslMap.get(name);
     if (wf) {
       pairs.push({
         program: name,
-        glsl: readFileSync2(join2(glslDir, gf), "utf-8"),
-        wgsl: readFileSync2(join2(wgslDir, wf), "utf-8")
+        glsl: readFileSync2(join3(glslDir, gf), "utf-8"),
+        wgsl: readFileSync2(join3(wgslDir, wf), "utf-8")
       });
       wgslMap.delete(name);
     } else {
@@ -4197,7 +4210,7 @@ async function checkAlgEquiv(effectId) {
   }
   let defContext = "";
   try {
-    const defPath = existsSync(join2(effectDir, "definition.json")) ? join2(effectDir, "definition.json") : join2(effectDir, "definition.js");
+    const defPath = existsSync2(join3(effectDir, "definition.json")) ? join3(effectDir, "definition.json") : join3(effectDir, "definition.js");
     defContext = readFileSync2(defPath, "utf-8").slice(0, 1e3);
   } catch {
   }
@@ -4243,8 +4256,8 @@ Are these algorithmically equivalent?` }
 }
 
 // src/tools/analysis/branching.ts
-import { readFileSync as readFileSync3, readdirSync as readdirSync2, existsSync as existsSync2 } from "fs";
-import { join as join3 } from "path";
+import { readFileSync as readFileSync3, readdirSync as readdirSync3, existsSync as existsSync3 } from "fs";
+import { join as join4 } from "path";
 var analyzeBranchingSchema = {
   effect_id: external_exports.string().describe('Effect ID (e.g., "synth/noise")'),
   backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Which shader language to analyze")
@@ -4253,23 +4266,23 @@ async function analyzeBranching(effectId, backend) {
   const config = getConfig();
   const ai = getAIProvider({ projectRoot: config.projectRoot });
   if (!ai) return { status: "error", error: NO_AI_KEY_MESSAGE };
-  const effectDir = join3(config.effectsDir, ...effectId.split("/"));
-  const shaderDir = join3(effectDir, backend === "webgpu" ? "wgsl" : "glsl");
+  const effectDir = resolveEffectDir(effectId, config.effectsDir);
+  const shaderDir = join4(effectDir, backend === "webgpu" ? "wgsl" : "glsl");
   const ext = backend === "webgpu" ? ".wgsl" : ".glsl";
-  if (!existsSync2(shaderDir)) {
+  if (!existsSync3(shaderDir)) {
     return { status: "error", error: `Shader directory not found: ${shaderDir}` };
   }
-  const files = readdirSync2(shaderDir).filter((f) => f.endsWith(ext));
+  const files = readdirSync3(shaderDir).filter((f) => f.endsWith(ext));
   if (files.length === 0) {
     return { status: "error", error: "No shader files found" };
   }
   const sources = files.map((f) => ({
     file: f,
-    source: readFileSync3(join3(shaderDir, f), "utf-8")
+    source: readFileSync3(join4(shaderDir, f), "utf-8")
   }));
   let defContext = "";
   try {
-    const defPath = existsSync2(join3(effectDir, "definition.json")) ? join3(effectDir, "definition.json") : join3(effectDir, "definition.js");
+    const defPath = existsSync3(join4(effectDir, "definition.json")) ? join4(effectDir, "definition.json") : join4(effectDir, "definition.js");
     defContext = readFileSync3(defPath, "utf-8").slice(0, 1e3);
   } catch {
   }
@@ -4307,8 +4320,212 @@ Identify unnecessary branching.` }
     ...parsed
   };
 }
+
+// src/harness/browser-session.ts
+import { chromium } from "playwright";
+import { resolve as resolve2 } from "path";
+
+// src/harness/server-manager.ts
+import { createServer } from "http";
+import { createReadStream, existsSync as existsSync4 } from "fs";
+import { extname, join as join5, resolve as pathResolve, normalize, basename as basename3 } from "path";
+
+// src/tools/browser/render.ts
+var renderEffectFrameSchema = {
+  effect_id: external_exports.string().optional().describe('Single effect ID (e.g., "synth/noise")'),
+  effects: external_exports.string().optional().describe("CSV of effect IDs"),
+  backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Rendering backend"),
+  warmup_frames: external_exports.number().optional().default(10).describe("Frames to wait before capture"),
+  capture_image: external_exports.boolean().optional().default(false).describe("Capture PNG data URI"),
+  uniforms: external_exports.record(external_exports.number()).optional().describe("Uniform overrides"),
+  time: external_exports.number().optional().describe("Pause and render at specific time value (seconds)"),
+  resolution: external_exports.tuple([external_exports.number(), external_exports.number()]).optional().describe("Viewport resolution [width, height]")
+};
+async function renderEffectFrame(session, effectId, options = {}) {
+  return session.runWithConsoleCapture(async () => {
+    const page = session.page;
+    if (options.resolution) {
+      await page.setViewportSize({ width: options.resolution[0], height: options.resolution[1] });
+    }
+    await page.evaluate((id) => {
+      const select = document.getElementById("effect-select");
+      if (select) {
+        select.value = id;
+        select.dispatchEvent(new Event("change"));
+      }
+    }, effectId);
+    await page.waitForFunction(() => {
+      const s = document.getElementById("status");
+      const t = (s?.textContent || "").toLowerCase();
+      return t.includes("loaded") || t.includes("compiled") || t.includes("ready") || t.includes("error");
+    }, { timeout: 3e4 });
+    if (options.uniforms) {
+      await page.evaluate(({ unis, globals }) => {
+        const pipeline = window[globals.renderingPipeline];
+        if (!pipeline) return;
+        for (const [k, v] of Object.entries(unis)) {
+          if (pipeline.setUniform) pipeline.setUniform(k, v);
+          else if (pipeline.globalUniforms) pipeline.globalUniforms[k] = v;
+        }
+      }, { unis: options.uniforms, globals: session.globals });
+    }
+    if (options.time !== void 0) {
+      await page.evaluate(({ time, globals }) => {
+        const w = window;
+        if (w[globals.setPaused]) w[globals.setPaused](true);
+        if (w[globals.setPausedTime]) w[globals.setPausedTime](time);
+      }, { time: options.time, globals: session.globals });
+    }
+    const warmup = options.warmupFrames ?? 10;
+    await page.evaluate(({ frames, globals }) => {
+      return new Promise((resolve3) => {
+        const start = window[globals.frameCount] || 0;
+        const poll = () => {
+          const current = window[globals.frameCount] || 0;
+          if (current - start >= frames) resolve3();
+          else requestAnimationFrame(poll);
+        };
+        poll();
+      });
+    }, { frames: warmup, globals: session.globals });
+    const result = await page.evaluate(({ captureImage, globals }) => {
+      const renderer = window[globals.canvasRenderer];
+      const pipeline = window[globals.renderingPipeline];
+      if (!renderer || !pipeline) return { status: "error", backend: "unknown", error: "No renderer" };
+      const canvas = renderer.canvas;
+      const gl = pipeline.backend?.gl;
+      let pixels = null;
+      let width = canvas.width, height = canvas.height;
+      if (gl) {
+        pixels = new Uint8Array(width * height * 4);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      }
+      if (!pixels) return { status: "error", backend: "unknown", error: "Failed to read pixels" };
+      const pixelCount = width * height;
+      const stride = Math.max(1, Math.floor(pixelCount / 1e3));
+      let sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+      let sumR2 = 0, sumG2 = 0, sumB2 = 0;
+      let samples = 0;
+      const colorSet = /* @__PURE__ */ new Set();
+      for (let i = 0; i < pixelCount; i += stride) {
+        const idx = i * 4;
+        const r = pixels[idx] / 255, g = pixels[idx + 1] / 255, b = pixels[idx + 2] / 255, a = pixels[idx + 3] / 255;
+        sumR += r;
+        sumG += g;
+        sumB += b;
+        sumA += a;
+        sumR2 += r * r;
+        sumG2 += g * g;
+        sumB2 += b * b;
+        colorSet.add(`${pixels[idx]},${pixels[idx + 1]},${pixels[idx + 2]}`);
+        samples++;
+      }
+      const meanR = sumR / samples, meanG = sumG / samples, meanB = sumB / samples;
+      const stdR = Math.sqrt(sumR2 / samples - meanR * meanR);
+      const stdG = Math.sqrt(sumG2 / samples - meanG * meanG);
+      const stdB = Math.sqrt(sumB2 / samples - meanB * meanB);
+      const luma = 0.299 * meanR + 0.587 * meanG + 0.114 * meanB;
+      let lumaVar = 0;
+      for (let i = 0; i < pixelCount; i += stride) {
+        const idx = i * 4;
+        const l = 0.299 * pixels[idx] / 255 + 0.587 * pixels[idx + 1] / 255 + 0.114 * pixels[idx + 2] / 255;
+        lumaVar += (l - luma) * (l - luma);
+      }
+      lumaVar /= samples;
+      const isAllZero = meanR === 0 && meanG === 0 && meanB === 0;
+      const isAllTransparent = sumA / samples < 0.01;
+      const isBlank = lumaVar < 1e-4;
+      const isMono = colorSet.size <= 1;
+      let imageUri = null;
+      if (captureImage) {
+        const tmpCanvas = document.createElement("canvas");
+        tmpCanvas.width = width;
+        tmpCanvas.height = height;
+        const ctx = tmpCanvas.getContext("2d");
+        const imgData = ctx.createImageData(width, height);
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const srcIdx = ((height - 1 - y) * width + x) * 4;
+            const dstIdx = (y * width + x) * 4;
+            imgData.data[dstIdx] = pixels[srcIdx];
+            imgData.data[dstIdx + 1] = pixels[srcIdx + 1];
+            imgData.data[dstIdx + 2] = pixels[srcIdx + 2];
+            imgData.data[dstIdx + 3] = pixels[srcIdx + 3];
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+        imageUri = tmpCanvas.toDataURL("image/png");
+      }
+      return {
+        status: "ok",
+        backend: pipeline.backend?.getName?.() || "unknown",
+        frame: { image_uri: imageUri, width, height },
+        metrics: {
+          mean_rgb: [meanR, meanG, meanB],
+          mean_alpha: sumA / samples,
+          std_rgb: [stdR, stdG, stdB],
+          luma_variance: lumaVar,
+          unique_sampled_colors: colorSet.size,
+          is_all_zero: isAllZero,
+          is_all_transparent: isAllTransparent,
+          is_essentially_blank: isBlank,
+          is_monochrome: isMono
+        }
+      };
+    }, { captureImage: options.captureImage ?? false, globals: session.globals });
+    if (options.time !== void 0) {
+      await page.evaluate((globals) => {
+        const w = window;
+        if (w[globals.setPaused]) w[globals.setPaused](false);
+      }, session.globals);
+    }
+    return result;
+  });
+}
+
+// src/tools/browser/describe.ts
+var describeEffectFrameSchema = {
+  effect_id: external_exports.string().optional().describe('Single effect ID (e.g., "synth/noise")'),
+  effects: external_exports.string().optional().describe("CSV of effect IDs"),
+  prompt: external_exports.string().describe("Analysis prompt for the AI vision model"),
+  backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Rendering backend")
+};
+async function describeEffectFrame(session, effectId, prompt) {
+  const config = getConfig();
+  const ai = getAIProvider({ projectRoot: config.projectRoot });
+  if (!ai) return { status: "error", error: NO_AI_KEY_MESSAGE };
+  const renderResult = await renderEffectFrame(session, effectId, { captureImage: true });
+  if (renderResult.status === "error" || !renderResult.frame?.image_uri) {
+    return { status: "error", error: "Failed to render frame" };
+  }
+  const vision = await callAI({
+    system: "You are an expert shader effect analyzer. Describe shader visuals precisely. Respond with JSON: {description, tags, notes}",
+    userContent: [
+      { type: "text", text: prompt },
+      { type: "image_url", image_url: { url: renderResult.frame.image_uri } }
+    ],
+    maxTokens: 500,
+    jsonMode: true,
+    ai
+  });
+  let parsed = null;
+  if (vision) {
+    try {
+      parsed = JSON.parse(vision);
+    } catch {
+      parsed = { description: vision, tags: [], notes: null };
+    }
+  }
+  return {
+    status: "ok",
+    frame: { image_uri: renderResult.frame.image_uri },
+    vision: parsed
+  };
+}
 export {
   analyzeBranching,
-  checkAlgEquiv
+  checkAlgEquiv,
+  describeEffectFrame
 };
 //# sourceMappingURL=index.js.map

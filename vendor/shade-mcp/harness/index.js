@@ -18,6 +18,17 @@ var DEFAULT_GLOBALS = {
   setPausedTime: "__shadeSetPausedTime",
   frameCount: "__shadeFrameCount"
 };
+function globalsFromPrefix(prefix) {
+  return {
+    canvasRenderer: `${prefix}CanvasRenderer`,
+    renderingPipeline: `${prefix}RenderingPipeline`,
+    currentBackend: `${prefix}CurrentBackend`,
+    currentEffect: `${prefix}CurrentEffect`,
+    setPaused: `${prefix}SetPaused`,
+    setPausedTime: `${prefix}SetPausedTime`,
+    frameCount: `${prefix}FrameCount`
+  };
+}
 
 // src/harness/server-manager.ts
 import { createServer } from "http";
@@ -151,7 +162,9 @@ function getConfig() {
     effectsDir: process.env.SHADE_EFFECTS_DIR || resolve(projectRoot, "effects"),
     viewerPort: parseInt(process.env.SHADE_VIEWER_PORT || "4173", 10),
     defaultBackend: parseBackend(process.env.SHADE_BACKEND),
-    projectRoot
+    projectRoot,
+    globalsPrefix: process.env.SHADE_GLOBALS_PREFIX || void 0,
+    viewerPath: process.env.SHADE_VIEWER_PATH || void 0
   };
 }
 
@@ -185,13 +198,13 @@ var BrowserSession = class {
   _isSetup = false;
   constructor(opts) {
     const config = getConfig();
-    this.globals = opts.globals ?? DEFAULT_GLOBALS;
-    this.viewerPath = opts.viewerPath ?? "/";
+    this.globals = opts.globals ?? (config.globalsPrefix ? globalsFromPrefix(config.globalsPrefix) : DEFAULT_GLOBALS);
+    this.viewerPath = opts.viewerPath ?? config.viewerPath ?? "/";
     this.options = {
       backend: opts.backend,
       headless: opts.headless !== false,
       viewerPort: opts.viewerPort ?? config.viewerPort,
-      viewerRoot: opts.viewerRoot ?? resolve2(config.projectRoot, "viewer"),
+      viewerRoot: opts.viewerRoot ?? process.env.SHADE_VIEWER_ROOT ?? resolve2(config.projectRoot, "viewer"),
       effectsDir: opts.effectsDir ?? config.effectsDir
     };
   }
@@ -4469,6 +4482,13 @@ function resolveEffectIds(args, effectsDir) {
     `Multiple effects found (${found.length}). Please specify effect_id or effects parameter. Available: ${found.slice(0, 10).join(", ")}${found.length > 10 ? "..." : ""}`
   );
 }
+function resolveEffectDir(effectId, effectsDir) {
+  const dirName = basename2(effectsDir) || "effect";
+  if (effectId === dirName && (existsSync2(join2(effectsDir, "definition.json")) || existsSync2(join2(effectsDir, "definition.js")))) {
+    return effectsDir;
+  }
+  return join2(effectsDir, ...effectId.split("/"));
+}
 function matchEffects(allEffects, pattern) {
   if (!pattern.includes("*")) {
     return allEffects.filter((e) => e === pattern);
@@ -4537,11 +4557,16 @@ var renderEffectFrameSchema = {
   backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Rendering backend"),
   warmup_frames: external_exports.number().optional().default(10).describe("Frames to wait before capture"),
   capture_image: external_exports.boolean().optional().default(false).describe("Capture PNG data URI"),
-  uniforms: external_exports.record(external_exports.number()).optional().describe("Uniform overrides")
+  uniforms: external_exports.record(external_exports.number()).optional().describe("Uniform overrides"),
+  time: external_exports.number().optional().describe("Pause and render at specific time value (seconds)"),
+  resolution: external_exports.tuple([external_exports.number(), external_exports.number()]).optional().describe("Viewport resolution [width, height]")
 };
 async function renderEffectFrame(session, effectId, options = {}) {
   return session.runWithConsoleCapture(async () => {
     const page = session.page;
+    if (options.resolution) {
+      await page.setViewportSize({ width: options.resolution[0], height: options.resolution[1] });
+    }
     await page.evaluate((id) => {
       const select = document.getElementById("effect-select");
       if (select) {
@@ -4563,6 +4588,13 @@ async function renderEffectFrame(session, effectId, options = {}) {
           else if (pipeline.globalUniforms) pipeline.globalUniforms[k] = v;
         }
       }, { unis: options.uniforms, globals: session.globals });
+    }
+    if (options.time !== void 0) {
+      await page.evaluate(({ time, globals }) => {
+        const w = window;
+        if (w[globals.setPaused]) w[globals.setPaused](true);
+        if (w[globals.setPausedTime]) w[globals.setPausedTime](time);
+      }, { time: options.time, globals: session.globals });
     }
     const warmup = options.warmupFrames ?? 10;
     await page.evaluate(({ frames, globals }) => {
@@ -4662,6 +4694,12 @@ async function renderEffectFrame(session, effectId, options = {}) {
         }
       };
     }, { captureImage: options.captureImage ?? false, globals: session.globals });
+    if (options.time !== void 0) {
+      await page.evaluate((globals) => {
+        const w = window;
+        if (w[globals.setPaused]) w[globals.setPaused](false);
+      }, session.globals);
+    }
     return result;
   });
 }
@@ -4672,13 +4710,17 @@ var benchmarkEffectFPSSchema = {
   effects: external_exports.string().optional().describe("CSV of effect IDs"),
   backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Rendering backend"),
   target_fps: external_exports.number().optional().default(60).describe("Target FPS"),
-  duration_seconds: external_exports.number().optional().default(5).describe("Benchmark duration in seconds")
+  duration_seconds: external_exports.number().optional().default(5).describe("Benchmark duration in seconds"),
+  resolution: external_exports.tuple([external_exports.number(), external_exports.number()]).optional().describe("Viewport resolution [width, height]")
 };
 async function benchmarkEffectFPS(session, effectId, options = {}) {
   const targetFps = options.targetFps ?? 60;
   const duration = options.durationSeconds ?? 5;
   return session.runWithConsoleCapture(async () => {
     const page = session.page;
+    if (options.resolution) {
+      await page.setViewportSize({ width: options.resolution[0], height: options.resolution[1] });
+    }
     await page.evaluate((id) => {
       const select = document.getElementById("effect-select");
       if (select) {
@@ -4820,7 +4862,8 @@ async function testNoPassthrough(session, effectId) {
 var testPixelParitySchema = {
   effect_id: external_exports.string().optional().describe('Single effect ID (e.g., "synth/noise")'),
   effects: external_exports.string().optional().describe("CSV of effect IDs"),
-  epsilon: external_exports.number().optional().default(1).describe("Allowed per-channel difference (0-255)")
+  epsilon: external_exports.number().optional().default(1).describe("Allowed per-channel difference (0-255)"),
+  seed: external_exports.number().optional().default(42).describe("Random seed for reproducible noise")
 };
 var CAPTURE_PIXELS_FN = `
 function capturePixels(globals) {
@@ -4861,6 +4904,7 @@ function capturePixels(globals) {
 `;
 async function testPixelParity(session, effectId, options = {}) {
   const epsilon = options.epsilon ?? 1;
+  const seed = options.seed ?? 42;
   await session.setBackend("webgl2");
   await session.page.evaluate((id) => {
     const select = document.getElementById("effect-select");
@@ -4874,11 +4918,19 @@ async function testPixelParity(session, effectId, options = {}) {
     const t = (s?.textContent || "").toLowerCase();
     return t.includes("loaded") || t.includes("compiled") || t.includes("ready");
   }, { timeout: 3e4 });
-  await session.page.evaluate((globals) => {
+  await session.page.evaluate(({ globals, seed: seed2 }) => {
     const w = window;
     if (w[globals.setPaused]) w[globals.setPaused](true);
     if (w[globals.setPausedTime]) w[globals.setPausedTime](0);
-  }, session.globals);
+    const pipeline = w[globals.renderingPipeline];
+    if (pipeline) {
+      if (pipeline.globalUniforms) pipeline.globalUniforms.seed = seed2;
+      const passes = pipeline.graph?.passes || [];
+      for (const pass of passes) {
+        if (pass.uniforms) pass.uniforms.seed = seed2;
+      }
+    }
+  }, { globals: session.globals, seed });
   const glslPixels = await session.page.evaluate(
     new Function("globals", CAPTURE_PIXELS_FN + "return capturePixels(globals);"),
     session.globals
@@ -4887,10 +4939,18 @@ async function testPixelParity(session, effectId, options = {}) {
     return { status: "error", maxDiff: 0, meanDiff: 0, mismatchCount: 0, mismatchPercent: 0, resolution: [0, 0], details: "Failed to capture WebGL2" };
   }
   await session.setBackend("webgpu");
-  await session.page.evaluate((globals) => {
+  await session.page.evaluate(({ globals, seed: seed2 }) => {
     const w = window;
     if (w[globals.setPausedTime]) w[globals.setPausedTime](0);
-  }, session.globals);
+    const pipeline = w[globals.renderingPipeline];
+    if (pipeline) {
+      if (pipeline.globalUniforms) pipeline.globalUniforms.seed = seed2;
+      const passes = pipeline.graph?.passes || [];
+      for (const pass of passes) {
+        if (pass.uniforms) pass.uniforms.seed = seed2;
+      }
+    }
+  }, { globals: session.globals, seed });
   const wgslPixels = await session.page.evaluate(
     new Function("globals", CAPTURE_PIXELS_FN + "return capturePixels(globals);"),
     session.globals
@@ -5024,6 +5084,143 @@ async function testUniformResponsiveness(session, effectId) {
       const w = window;
       if (w[globals.setPaused]) w[globals.setPaused](false);
     }, session.globals);
+    return result;
+  });
+}
+
+// src/tools/browser/dsl.ts
+var runDslProgramSchema = {
+  dsl: external_exports.string().describe("DSL program string"),
+  backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Rendering backend"),
+  warmup_frames: external_exports.number().optional().default(10).describe("Frames to wait"),
+  capture_image: external_exports.boolean().optional().default(false).describe("Capture PNG data URI"),
+  uniforms: external_exports.record(external_exports.number()).optional().describe("Uniform overrides")
+};
+async function runDslProgram(session, dsl, options = {}) {
+  return session.runWithConsoleCapture(async () => {
+    const page = session.page;
+    const compileResult = await page.evaluate(({ dsl: dsl2, timeout, globals }) => {
+      return new Promise((resolve3) => {
+        const editor = document.getElementById("dsl-editor");
+        const runBtn = document.getElementById("dsl-run-btn");
+        if (editor && runBtn) {
+          editor.value = dsl2;
+          editor.dispatchEvent(new Event("input"));
+          runBtn.click();
+        } else {
+          const renderer = window[globals.canvasRenderer];
+          if (renderer?.compile) {
+            renderer.compile(dsl2).then(() => {
+              resolve3({ status: "ok", message: "Compiled via renderer" });
+            }).catch((err) => {
+              resolve3({ status: "error", message: err?.message || String(err) });
+            });
+            return;
+          }
+          resolve3({ status: "error", message: "No DSL editor or renderer found" });
+          return;
+        }
+        const start = Date.now();
+        const poll = () => {
+          const status = document.getElementById("status");
+          const text = (status?.textContent || "").toLowerCase();
+          if (text.includes("error") || text.includes("failed")) {
+            resolve3({ status: "error", message: status?.textContent });
+            return;
+          }
+          if (text.includes("loaded") || text.includes("compiled") || text.includes("ready")) {
+            resolve3({ status: "ok", message: "Compiled" });
+            return;
+          }
+          if (Date.now() - start > timeout) {
+            resolve3({ status: "error", message: "Compile timeout" });
+            return;
+          }
+          setTimeout(poll, 50);
+        };
+        poll();
+      });
+    }, { dsl, timeout: 3e4, globals: session.globals });
+    if (compileResult.status === "error") {
+      return { status: "error", error: compileResult.message };
+    }
+    if (options.uniforms) {
+      await page.evaluate(({ unis, globals }) => {
+        const pipeline = window[globals.renderingPipeline];
+        if (!pipeline) return;
+        for (const [k, v] of Object.entries(unis)) {
+          if (pipeline.setUniform) pipeline.setUniform(k, v);
+          else if (pipeline.globalUniforms) pipeline.globalUniforms[k] = v;
+        }
+      }, { unis: options.uniforms, globals: session.globals });
+    }
+    const warmup = options.warmupFrames ?? 10;
+    await page.evaluate(({ frames, globals }) => {
+      return new Promise((resolve3) => {
+        const start = window[globals.frameCount] || 0;
+        const poll = () => {
+          if ((window[globals.frameCount] || 0) - start >= frames) resolve3();
+          else requestAnimationFrame(poll);
+        };
+        poll();
+      });
+    }, { frames: warmup, globals: session.globals });
+    const result = await page.evaluate(({ captureImage, globals }) => {
+      const renderer = window[globals.canvasRenderer];
+      const pipeline = window[globals.renderingPipeline];
+      if (!renderer || !pipeline) return { status: "error", error: "No renderer" };
+      const canvas = renderer.canvas;
+      const gl = pipeline.backend?.gl;
+      if (!gl) return { status: "error", error: "No GL context" };
+      const width = canvas.width, height = canvas.height;
+      const pixels = new Uint8Array(width * height * 4);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+      const count = width * height;
+      const stride = Math.max(1, Math.floor(count / 1e3));
+      let sumR = 0, sumG = 0, sumB = 0, samples = 0;
+      const colors = /* @__PURE__ */ new Set();
+      for (let i = 0; i < count; i += stride) {
+        const idx = i * 4;
+        sumR += pixels[idx] / 255;
+        sumG += pixels[idx + 1] / 255;
+        sumB += pixels[idx + 2] / 255;
+        colors.add(`${pixels[idx]},${pixels[idx + 1]},${pixels[idx + 2]}`);
+        samples++;
+      }
+      const meanR = sumR / samples, meanG = sumG / samples, meanB = sumB / samples;
+      let imageUri = null;
+      if (captureImage) {
+        const tmp = document.createElement("canvas");
+        tmp.width = width;
+        tmp.height = height;
+        const ctx = tmp.getContext("2d");
+        const imgData = ctx.createImageData(width, height);
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const src = ((height - 1 - y) * width + x) * 4;
+            const dst = (y * width + x) * 4;
+            imgData.data[dst] = pixels[src];
+            imgData.data[dst + 1] = pixels[src + 1];
+            imgData.data[dst + 2] = pixels[src + 2];
+            imgData.data[dst + 3] = pixels[src + 3];
+          }
+        }
+        ctx.putImageData(imgData, 0, 0);
+        imageUri = tmp.toDataURL("image/png");
+      }
+      return {
+        status: "ok",
+        backend: pipeline.backend?.getName?.() || "unknown",
+        frame: { width, height, image_uri: imageUri },
+        metrics: {
+          mean_rgb: [meanR, meanG, meanB],
+          unique_sampled_colors: colors.size,
+          is_all_zero: meanR === 0 && meanG === 0 && meanB === 0,
+          is_monochrome: colors.size <= 1
+        }
+      };
+    }, { captureImage: options.captureImage ?? false, globals: session.globals });
     return result;
   });
 }
@@ -5166,7 +5363,7 @@ function checkCamelCase(name) {
 }
 async function checkEffectStructure(effectId) {
   const config = getConfig();
-  const effectDir = join4(config.effectsDir, ...effectId.split("/"));
+  const effectDir = resolveEffectDir(effectId, config.effectsDir);
   if (!existsSync4(effectDir)) {
     return { status: "error", error: `Effect directory not found: ${effectDir}` };
   }
@@ -5236,20 +5433,122 @@ async function checkEffectStructure(effectId) {
   const hasIssues = issues.unusedFiles.length > 0 || issues.namingIssues.length > 0 || issues.leakedInternalUniforms.length > 0 || issues.missingDescription || issues.structuralParityIssues.length > 0;
   return { status: hasIssues ? "warning" : "ok", ...issues };
 }
+
+// src/tools/analysis/compare.ts
+import { readFileSync as readFileSync4, readdirSync as readdirSync3, existsSync as existsSync5 } from "fs";
+import { join as join5, basename as basename4 } from "path";
+var compareShadersSchema = {
+  effect_id: external_exports.string().describe('Effect ID (e.g., "synth/noise")')
+};
+function extractFunctionNames(source, lang) {
+  const names = [];
+  if (lang === "glsl") {
+    const regex = /(?:void|float|vec[234]|mat[234]|int|bool)\s+(\w+)\s*\(/g;
+    let match;
+    while ((match = regex.exec(source)) !== null) {
+      names.push(match[1]);
+    }
+  } else {
+    const regex = /fn\s+(\w+)\s*\(/g;
+    let match;
+    while ((match = regex.exec(source)) !== null) {
+      names.push(match[1]);
+    }
+  }
+  return names;
+}
+function extractUniforms(source, lang) {
+  const uniforms = [];
+  if (lang === "glsl") {
+    const regex = /uniform\s+\w+\s+(\w+)/g;
+    let match;
+    while ((match = regex.exec(source)) !== null) {
+      uniforms.push(match[1]);
+    }
+  } else {
+    const regex = /@group\(\d+\)\s+@binding\(\d+\)\s+var<uniform>\s+(\w+)/g;
+    let match;
+    while ((match = regex.exec(source)) !== null) {
+      uniforms.push(match[1]);
+    }
+  }
+  return uniforms;
+}
+async function compareShaders(effectId) {
+  const config = getConfig();
+  const effectDir = resolveEffectDir(effectId, config.effectsDir);
+  const glslDir = join5(effectDir, "glsl");
+  const wgslDir = join5(effectDir, "wgsl");
+  const results = [];
+  const glslFiles = existsSync5(glslDir) ? readdirSync3(glslDir).filter((f) => f.endsWith(".glsl")) : [];
+  const wgslFiles = existsSync5(wgslDir) ? readdirSync3(wgslDir).filter((f) => f.endsWith(".wgsl")) : [];
+  const wgslMap = new Map(wgslFiles.map((f) => [basename4(f, ".wgsl"), f]));
+  for (const gf of glslFiles) {
+    const program = basename4(gf, ".glsl");
+    const wf = wgslMap.get(program);
+    const glslSource = readFileSync4(join5(glslDir, gf), "utf-8");
+    const glslFunctions = extractFunctionNames(glslSource, "glsl");
+    const glslUniforms = extractUniforms(glslSource, "glsl");
+    const glslLines = glslSource.split("\n").length;
+    if (wf) {
+      const wgslSource = readFileSync4(join5(wgslDir, wf), "utf-8");
+      const wgslFunctions = extractFunctionNames(wgslSource, "wgsl");
+      const wgslUniforms = extractUniforms(wgslSource, "wgsl");
+      const wgslLines = wgslSource.split("\n").length;
+      results.push({
+        program,
+        glsl: { lines: glslLines, functions: glslFunctions, uniforms: glslUniforms },
+        wgsl: { lines: wgslLines, functions: wgslFunctions, uniforms: wgslUniforms },
+        lineDiff: Math.abs(glslLines - wgslLines),
+        functionCountDiff: Math.abs(glslFunctions.length - wgslFunctions.length)
+      });
+      wgslMap.delete(program);
+    } else {
+      results.push({
+        program,
+        glsl: { lines: glslLines, functions: glslFunctions, uniforms: glslUniforms },
+        wgsl: null,
+        note: "No WGSL counterpart"
+      });
+    }
+  }
+  for (const [program, wf] of wgslMap) {
+    const wgslSource = readFileSync4(join5(wgslDir, wf), "utf-8");
+    results.push({
+      program,
+      glsl: null,
+      wgsl: {
+        lines: wgslSource.split("\n").length,
+        functions: extractFunctionNames(wgslSource, "wgsl"),
+        uniforms: extractUniforms(wgslSource, "wgsl")
+      },
+      note: "No GLSL counterpart"
+    });
+  }
+  return {
+    status: "ok",
+    programs: results,
+    summary: `${results.length} programs compared`
+  };
+}
 export {
   BrowserSession,
   DEFAULT_GLOBALS,
   acquireServer,
   benchmarkEffectFPS,
   checkEffectStructure,
+  compareShaders,
   compileEffect,
   computeImageMetrics,
   getRefCount,
   getServerUrl,
+  globalsFromPrefix,
   matchEffects,
   releaseServer,
   renderEffectFrame,
+  resolveEffectDir,
   resolveEffectIds,
+  runDslProgram,
   testNoPassthrough,
   testPixelParity,
   testUniformResponsiveness

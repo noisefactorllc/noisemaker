@@ -45,12 +45,12 @@ function parseDefinitionJson(json, effectDir) {
 import { readFileSync } from "fs";
 function parseDefinitionJs(filePath, effectDir) {
   const source = readFileSync(filePath, "utf-8");
-  const func = extractString(source, /func:\s*['"](\w+)['"]/) || "unknown";
-  const name = extractString(source, /name:\s*['"]([^'"]+)['"]/);
-  const namespace = extractString(source, /namespace:\s*['"](\w+)['"]/);
-  const description = extractString(source, /description:\s*['"]([^'"]+)['"]/);
-  const starter = /starter:\s*true/.test(source) ? true : void 0;
-  const tagsMatch = source.match(/tags:\s*\[([^\]]+)\]/);
+  const func = extractString(source, /func\s*[:=]\s*['"](\w+)['"]/) || "unknown";
+  const name = extractString(source, /name\s*[:=]\s*['"]([^'"]+)['"]/);
+  const namespace = extractString(source, /namespace\s*[:=]\s*['"](\w+)['"]/);
+  const description = extractString(source, /description\s*[:=]\s*['"]([^'"]+)['"]/);
+  const starter = /starter\s*[:=]\s*true/.test(source) ? true : void 0;
+  const tagsMatch = source.match(/tags\s*[:=]\s*\[([^\]]+)\]/);
   const tags = tagsMatch ? tagsMatch[1].split(",").map((t) => t.trim().replace(/['"]/g, "")).filter(Boolean) : void 0;
   const passes = [];
   const passRegex = /program:\s*['"](\w+)['"]/g;
@@ -62,7 +62,7 @@ function parseDefinitionJs(filePath, effectDir) {
     passes.push({ program: "main" });
   }
   const globals = {};
-  const globalsMatch = source.match(/globals:\s*\{([\s\S]*?)\n\s*\}/);
+  const globalsMatch = source.match(/globals\s*[:=]\s*\{([\s\S]*?)\n\s*\}/);
   if (globalsMatch) {
     const uniformRegex = /(\w+):\s*(\{[^}]*\})/g;
     let uMatch;
