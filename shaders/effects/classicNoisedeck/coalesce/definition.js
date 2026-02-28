@@ -12,7 +12,7 @@ export default new Effect({
       type: "surface",
       default: "none",
       ui: {
-        label: "source surface b"
+        label: "source b"
       }
     },
     blendMode: {

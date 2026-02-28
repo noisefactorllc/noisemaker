@@ -4,7 +4,7 @@ export default new Effect({
   name: "Composite",
   namespace: "classicNoisedeck",
   func: "composite",
-  tags: ["color", "util"],
+  tags: ["color"],
 
   description: "Multi-layer compositing",
   globals: {
@@ -13,7 +13,7 @@ export default new Effect({
       default: "none",
       uniform: "tex",
       ui: {
-        label: "source surface b"
+        label: "source b"
       }
     },
     blendMode: {
@@ -48,7 +48,7 @@ export default new Effect({
       default: [0.0, 0.0, 0.0],
       uniform: "inputColor",
       ui: {
-        label: "color",
+        label: "target color",
         control: "color"
       }
     },

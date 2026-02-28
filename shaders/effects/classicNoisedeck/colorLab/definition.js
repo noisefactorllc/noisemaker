@@ -10,7 +10,7 @@ export default class ColorLab extends Effect {
   name = "ColorLab"
   namespace = "classicNoisedeck"
   func = "colorLab"
-  tags = ["color", "util"]
+  tags = ["color"]
 
   description = "Color manipulation lab"
 
@@ -142,7 +142,7 @@ export default class ColorLab extends Effect {
       ui: {
         label: "hue rotate",
         control: "slider",
-        category: "adjustments"
+        category: "color"
       }
     },
     hueRange: {
@@ -154,7 +154,7 @@ export default class ColorLab extends Effect {
       ui: {
         label: "hue range",
         control: "slider",
-        category: "adjustments"
+        category: "color"
       }
     },
     saturation: {
@@ -166,7 +166,7 @@ export default class ColorLab extends Effect {
       ui: {
         label: "saturation",
         control: "slider",
-        category: "adjustments"
+        category: "color"
       }
     },
     invert: {
@@ -176,7 +176,7 @@ export default class ColorLab extends Effect {
       ui: {
         label: "invert",
         control: "checkbox",
-        category: "adjustments"
+        category: "color"
       }
     },
     brightness: {
@@ -188,7 +188,7 @@ export default class ColorLab extends Effect {
       ui: {
         label: "brightness",
         control: "slider",
-        category: "adjustments"
+        category: "color"
       }
     },
     contrast: {
@@ -200,7 +200,7 @@ export default class ColorLab extends Effect {
       ui: {
         label: "contrast",
         control: "slider",
-        category: "adjustments"
+        category: "color"
       }
     },
     levels: {
