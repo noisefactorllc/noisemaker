@@ -11,7 +11,7 @@ uniform float gravity;
 uniform float wind;
 uniform float energy;
 uniform float drag;
-uniform float stride;
+uniform float deviation;
 uniform float wander;
 
 // Input state from pipeline (from pointsEmit)
@@ -91,8 +91,8 @@ void main() {
         return;
     }
     
-    // Per-particle stride variation (0 = all same speed, 1 = highly varied)
-    float strideMultiplier = 1.0 + (seed_f - 0.5) * stride * 2.0;
+    // Per-particle deviation (0 = all same speed, 1 = highly varied)
+    float deviationMultiplier = 1.0 + (seed_f - 0.5) * deviation * 2.0;
     
     // Smooth wander perturbation using noise field
     float noiseScale = 2.0;  // Adjust for normalized coords
@@ -106,16 +106,16 @@ void main() {
     float ax = (wind * 0.01 + wanderX) * energy;
     float ay = (-gravity * 0.01 + wanderY) * energy;  // Negate: positive gravity pulls down
     
-    // Update velocity with stride variation
-    vx += ax * strideMultiplier;
-    vy += ay * strideMultiplier;
+    // Update velocity with deviation
+    vx += ax * deviationMultiplier;
+    vy += ay * deviationMultiplier;
     
     // Apply drag coefficient (0 = no drag, 0.2 = heavy drag)
     float dragFactor = 1.0 - drag;
     vx *= dragFactor;
     vy *= dragFactor;
     
-    // Update position (stride already factored into velocity)
+    // Update position (deviation already factored into velocity)
     px += vx;
     py += vy;
     

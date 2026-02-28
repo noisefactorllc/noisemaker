@@ -93,15 +93,15 @@ export default new Effect({
         category: "physics"
       }
     },
-    stride: {
+    deviation: {
       type: "float",
       default: 0.75,
-      uniform: "stride",
+      uniform: "deviation",
       min: 0,
       max: 1,
       step: 0.01,
       ui: {
-        label: "stride",
+        label: "deviation",
         control: "slider",
         category: "physics"
       }
@@ -141,7 +141,7 @@ export default new Effect({
         wind: "wind",
         energy: "energy",
         drag: "drag",
-        stride: "stride",
+        deviation: "deviation",
         wander: "wander"
       },
       outputs: {

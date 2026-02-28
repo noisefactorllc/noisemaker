@@ -15,5 +15,5 @@ Particles fall under gravity, get pushed by wind, and experience drag and random
 | wind | float | 0 | -2-2 | Wind |
 | energy | float | 0.5 | 0-2 | Energy |
 | drag | float | 0.15 | 0-0.2 | Drag |
-| stride | float | 0.75 | 0-1 | Stride variation |
+| deviation | float | 0.75 | 0-1 | Deviation |
 | wander | float | 0.25 | 0-1 | Wander |

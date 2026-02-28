@@ -5,7 +5,7 @@ struct Uniforms {
     wind: f32,
     energy: f32,
     drag: f32,
-    stride: f32,
+    deviation: f32,
     wander: f32,
 }
 
@@ -85,8 +85,8 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
         return Outputs(xyz, vel, rgba);
     }
     
-    // Per-particle stride variation (0 = all same speed, 1 = highly varied)
-    let strideMultiplier = 1.0 + (seed_f - 0.5) * u.stride * 2.0;
+    // Per-particle deviation (0 = all same speed, 1 = highly varied)
+    let deviationMultiplier = 1.0 + (seed_f - 0.5) * u.deviation * 2.0;
     
     // Smooth wander perturbation using noise field
     let noiseScale = 2.0;  // Adjust for normalized coords
@@ -100,16 +100,16 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     let ax = (u.wind * 0.01 + wanderX) * u.energy;
     let ay = (-u.gravity * 0.01 + wanderY) * u.energy;  // Negate: positive gravity pulls down
     
-    // Update velocity with stride variation
-    vx += ax * strideMultiplier;
-    vy += ay * strideMultiplier;
+    // Update velocity with deviation
+    vx += ax * deviationMultiplier;
+    vy += ay * deviationMultiplier;
     
     // Apply drag coefficient (0 = no drag, 0.2 = heavy drag)
     let dragFactor = 1.0 - u.drag;
     vx *= dragFactor;
     vy *= dragFactor;
     
-    // Update position (stride already factored into velocity)
+    // Update position (deviation already factored into velocity)
     px += vx;
     py += vy;
     
