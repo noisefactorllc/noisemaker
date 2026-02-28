@@ -22,7 +22,7 @@ struct Uniforms {
     shape: i32,
     distortion: f32,
     loopScale: f32,
-    loopAmp: f32,
+    speed: f32,
     aspectLens: i32,
     mode: i32,
     aberration: f32,
@@ -143,14 +143,14 @@ fn _distance(diff: vec2f, uv: vec2f) -> f32 {
     let lf = mapVal(u.loopScale, 1.0, 100.0, 6.0, 1.0);
 
     var t: f32 = 1.0;
-    if (u.loopAmp < 0.0) {
+    if (u.speed < 0.0) {
         t = dist * lf + u.time;
     } else {
         t = dist * lf - u.time;
     }
     return mix(dist,
-               (sin(t * TAU) + 1.0 * 0.5) * abs(u.loopAmp) * 0.005,
-               abs(u.loopAmp) * 0.01);
+               (sin(t * TAU) + 1.0 * 0.5) * abs(u.speed) * 0.005,
+               abs(u.speed) * 0.01);
 }
 
 @fragment

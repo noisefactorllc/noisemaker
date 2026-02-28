@@ -8,7 +8,7 @@ Refracted value noise with multiple color modes
 |-----------|------|---------|-------|-------------|
 | interp | int | simplex | constant/linear/hermite/catmullRom3x3/catmullRom4x4/bSpline3x3/bSpline4x4/simplex/sine | Interpolation |
 | noiseScale | float | 85 | 1-200 | Scale |
-| loopAmp | float | 25 | 0-100 | Loop Amp |
+| speed | float | 25 | 0-100 | Speed |
 | refractAmt | float | 5 | 0-100 | Refract |
 | ridges | boolean | true | - | Ridges |
 | wrap | boolean | true | - | Wrap |

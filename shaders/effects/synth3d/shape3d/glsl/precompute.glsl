@@ -12,8 +12,8 @@ uniform int loopAOffset;
 uniform int loopBOffset;
 uniform float loopAScale;
 uniform float loopBScale;
-uniform float loopAAmp;
-uniform float loopBAmp;
+uniform float speedA;
+uniform float speedB;
 uniform int volumeSize;
 
 // MRT outputs: volume cache and geometry buffer
@@ -161,7 +161,7 @@ float shapeSDF(vec3 p, int shapeType) {
 
 // Get offset value for a position
 // p is in [0, 1]^3 normalized volume coordinates
-float offset3D(vec3 p, float freq, int loopOffset, float loopAmp) {
+float offset3D(vec3 p, float freq, int loopOffset, float speed) {
     // Center at origin: [0,1] -> [-0.5, 0.5]
     vec3 cp = p - 0.5;
     
@@ -183,15 +183,15 @@ float computeValue(vec3 p, float lf1, float lf2, float amp1, float amp2) {
     float t1 = p.z;
     float t2 = p.z;
     
-    if (loopAAmp < 0.0) {
+    if (speedA < 0.0) {
         t1 = t1 + offset1;
-    } else if (loopAAmp > 0.0) {
+    } else if (speedA > 0.0) {
         t1 = t1 - offset1;
     }
     
-    if (loopBAmp < 0.0) {
+    if (speedB < 0.0) {
         t2 = t2 + offset2;
-    } else if (loopBAmp > 0.0) {
+    } else if (speedB > 0.0) {
         t2 = t2 - offset2;
     }
     
@@ -220,8 +220,8 @@ void main() {
     float lf2 = map(loopBScale, 1.0, 100.0, 6.0, 1.0);
     
     // Calculate amplitudes
-    float amp1 = map(abs(loopAAmp), 0.0, 100.0, 0.0, 1.0);
-    float amp2 = map(abs(loopBAmp), 0.0, 100.0, 0.0, 1.0);
+    float amp1 = map(abs(speedA), 0.0, 100.0, 0.0, 1.0);
+    float amp2 = map(abs(speedB), 0.0, 100.0, 0.0, 1.0);
     
     // Compute value at this position
     float d = computeValue(p, lf1, lf2, amp1, amp2);

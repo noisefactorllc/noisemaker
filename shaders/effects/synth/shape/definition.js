@@ -16,8 +16,8 @@ export default new Effect({
     loopBOffset: { slot: 1, components: 'z' },
     loopAScale: { slot: 1, components: 'w' },
     loopBScale: { slot: 2, components: 'x' },
-    loopAAmp: { slot: 2, components: 'y' },
-    loopBAmp: { slot: 2, components: 'z' }
+    speedA: { slot: 2, components: 'y' },
+    speedB: { slot: 2, components: 'z' }
   },
   globals: {
     loopAOffset: {
@@ -122,27 +122,27 @@ export default new Effect({
         control: "slider"
       }
     },
-    loopAAmp: {
+    speedA: {
       type: "float",
       default: 50,
-      uniform: "loopAAmp",
+      uniform: "speedA",
       min: -100,
       max: 100,
       zero: 0,
       ui: {
-        label: "a power",
+        label: "speed a",
         control: "slider"
       }
     },
-    loopBAmp: {
+    speedB: {
       type: "float",
       default: 50,
-      uniform: "loopBAmp",
+      uniform: "speedB",
       min: -100,
       max: 100,
       zero: 0,
       ui: {
-        label: "b power",
+        label: "speed b",
         control: "slider"
       }
     },
@@ -178,6 +178,10 @@ export default new Effect({
         ]}
       }
     }
+  },
+  paramAliases: {
+    loopAAmp: 'speedA',
+    loopBAmp: 'speedB'
   },
   passes: [
     {

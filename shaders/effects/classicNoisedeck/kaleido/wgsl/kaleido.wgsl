@@ -20,7 +20,7 @@ struct Uniforms {
     direction: i32,
     loopOffset: i32,
     loopScale: f32,
-    loopAmp: f32,
+    speed: f32,
     seed: i32,
     wrap: i32,
     kernel: i32,
@@ -100,7 +100,7 @@ fn randomFromLatticeWithOffset(st: vec2f, freq: f32, offset: vec2i) -> vec3f {
 
 fn constant(st: vec2f, freq: f32) -> f32 {
     let randTime = randomFromLatticeWithOffset(st, freq, vec2i(40, 0));
-    let scaledTime = periodicFunction(randTime.x - u.time) * mapRange(abs(u.loopAmp), 0.0, 100.0, 0.0, 0.333);
+    let scaledTime = periodicFunction(randTime.x - u.time) * mapRange(abs(u.speed), 0.0, 100.0, 0.0, 0.333);
     let rand = randomFromLatticeWithOffset(st, freq, vec2i(0, 0));
     return periodicFunction(rand.y - scaledTime);
 }
@@ -210,7 +210,7 @@ fn sineNoise(st_in: vec2f, freq: f32) -> f32 {
     let waveAmp = rand.y;
     let wavePhase = rand.z * TAU;
     let randTime = randomFromLatticeWithOffset(st, freq, vec2i(40, 0));
-    let phaseOffset = periodicFunction(randTime.x - u.time) * mapRange(abs(u.loopAmp), 0.0, 100.0, 0.0, 0.333);
+    let phaseOffset = periodicFunction(randTime.x - u.time) * mapRange(abs(u.speed), 0.0, 100.0, 0.0, 0.333);
     let dist = length(st);
     let sineWave = sin(dist * waveFreq + wavePhase - phaseOffset) * waveAmp;
     return periodicFunction(sineWave);
@@ -466,8 +466,8 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     var lf = mapRange(u.loopScale, 1.0, 100.0, 6.0, 1.0);
     if (u.wrap != 0) { lf = floor(lf); }
 
-    let t = u.time + offset(uv, lf) * u.loopAmp * 0.01;
-    let blendy = periodicFunction(t) * mapRange(abs(u.loopAmp), 0.0, 100.0, 0.0, 2.0);
+    let t = u.time + offset(uv, lf) * u.speed * 0.01;
+    let blendy = periodicFunction(t) * mapRange(abs(u.speed), 0.0, 100.0, 0.0, 2.0);
 
     uv = kaleidoscope(uv, f32(u.kaleido), blendy);
     var color = textureSample(inputTex, samp, uv);

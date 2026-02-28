@@ -23,7 +23,7 @@ export default class Noise extends Effect {
     yScale: { slot: 1, components: 'y' },
     seed: { slot: 1, components: 'z' },
     loopScale: { slot: 1, components: 'w' },
-    loopAmp: { slot: 2, components: 'x' },
+    speed: { slot: 2, components: 'x' },
     loopOffset: { slot: 2, components: 'y' },
     type: { slot: 2, components: 'z' },
     octaves: { slot: 2, components: 'w' },
@@ -202,14 +202,14 @@ export default class Noise extends Effect {
         category: "animation"
       }
     },
-    loopAmp: {
+    speed: {
       type: "float",
       default: 25,
-      uniform: "loopAmp",
+      uniform: "speed",
       min: -100,
       max: 100,
       ui: {
-        label: "loop power",
+        label: "speed",
         control: "slider",
         category: "animation"
       }
@@ -390,7 +390,7 @@ export default class Noise extends Effect {
     }
   }
 
-  paramAliases = { noiseType: 'type' }
+  paramAliases = { noiseType: 'type', loopAmp: 'speed' }
 
 
   passes = [

@@ -13,7 +13,7 @@ export default new Effect({
     seed: { slot: 0, components: 'w' },
     interp: { slot: 1, components: 'x' },
     noiseScale: { slot: 1, components: 'y' },
-    loopAmp: { slot: 1, components: 'z' },
+    speed: { slot: 1, components: 'z' },
     wrap: { slot: 1, components: 'w' },
     hueRotation: { slot: 2, components: 'x' },
     hueRange: { slot: 2, components: 'y' },
@@ -45,13 +45,13 @@ export default new Effect({
       ui: { label: "scale", control: "slider" },
       uniform: "noiseScale"
     },
-    loopAmp: {
+    speed: {
       type: "float",
       default: 25,
       min: 0,
       max: 100,
       ui: { label: "speed", control: "slider" },
-      uniform: "loopAmp"
+      uniform: "speed"
     },
     wrap: {
       type: "boolean",
@@ -92,6 +92,7 @@ export default new Effect({
       uniform: "intensity"
     }
   },
+  paramAliases: { loopAmp: 'speed' },
   passes: [
     {
       name: "render",

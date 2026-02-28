@@ -25,8 +25,8 @@ export default class Shapes extends Effect {
     loopBOffset: { slot: 1, components: 'z' },
     loopAScale: { slot: 1, components: 'w' },
     loopBScale: { slot: 2, components: 'x' },
-    loopAAmp: { slot: 2, components: 'y' },
-    loopBAmp: { slot: 2, components: 'z' },
+    speedA: { slot: 2, components: 'y' },
+    speedB: { slot: 2, components: 'z' },
     paletteMode: { slot: 2, components: 'w' },
     paletteOffset: { slot: 3, components: 'xyz' },
     cyclePalette: { slot: 3, components: 'w' },
@@ -143,26 +143,26 @@ export default class Shapes extends Effect {
         category: "animation"
       }
     },
-    loopAAmp: {
+    speedA: {
       type: "float",
       default: 50,
-      uniform: "loopAAmp",
+      uniform: "speedA",
       min: -100,
       max: 100,
       ui: {
-        label: "a power",
+        label: "speed a",
         control: "slider",
         category: "animation"
       }
     },
-    loopBAmp: {
+    speedB: {
       type: "float",
       default: 50,
-      uniform: "loopBAmp",
+      uniform: "speedB",
       min: -100,
       max: 100,
       ui: {
-        label: "b power",
+        label: "speed b",
         control: "slider",
         category: "animation"
       }
@@ -287,6 +287,8 @@ export default class Shapes extends Effect {
       }
     }
   }
+
+  paramAliases = { loopAAmp: 'speedA', loopBAmp: 'speedB' }
 
   passes = [
     {

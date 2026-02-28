@@ -13,7 +13,7 @@ export default new Effect({
     seed: { slot: 0, components: 'w' },
     interp: { slot: 1, components: 'x' },
     noiseScale: { slot: 1, components: 'y' },
-    loopAmp: { slot: 1, components: 'z' },
+    speed: { slot: 1, components: 'z' },
     refractAmt: { slot: 1, components: 'w' },
     ridges: { slot: 2, components: 'x' },
     wrap: { slot: 2, components: 'y' },
@@ -48,13 +48,13 @@ export default new Effect({
       ui: { label: "scale", control: "slider", category: "transform" },
       uniform: "noiseScale"
     },
-    loopAmp: {
+    speed: {
       type: "float",
       default: 25,
       min: 0,
       max: 100,
-      ui: { label: "loop amp", control: "slider", category: "animation" },
-      uniform: "loopAmp"
+      ui: { label: "speed", control: "slider", category: "animation" },
+      uniform: "speed"
     },
     refractAmt: {
       type: "float",
@@ -121,6 +121,7 @@ export default new Effect({
       uniform: "intensity"
     }
   },
+  paramAliases: { loopAmp: 'speed' },
   passes: [
     {
       name: "render",

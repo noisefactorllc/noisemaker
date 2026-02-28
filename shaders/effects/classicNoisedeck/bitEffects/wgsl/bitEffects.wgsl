@@ -1,7 +1,7 @@
 /*
  * WGSL variant of the bit-effects post processor.
  * Implements 8-bit arithmetic and logical operators through masked integer math so the visuals match the GLSL reference exactly.
- * PCG-driven jitter and rotation mapping keep scanline permutations deterministic when loop amplitude modulates the timeline.
+ * PCG-driven jitter and rotation mapping keep scanline permutations deterministic when speed modulates the timeline.
  */
 
 struct Uniforms {
@@ -18,7 +18,7 @@ var<private> n : f32;
 var<private> interp : i32;
 var<private> scale : f32;
 var<private> rotation : f32;
-var<private> loopAmp : f32;
+var<private> speed : f32;
 var<private> mode : i32;
 var<private> maskFormula : i32;
 var<private> tiles : f32;
@@ -81,7 +81,7 @@ fn constant(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
 
     let scaledTime = periodicFunction(
             prng(vec3<f32>(floor(vec2<f32>(x + 40.0, y)), 0.0)).x - time
-        ) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.333);
+        ) * map(abs(speed), 0.0, 100.0, 0.0, 0.333);
 
     return periodicFunction(prng(vec3<f32>(floor(vec2<f32>(x, y)), 0.0)).x - scaledTime);
 }
@@ -423,7 +423,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     scale = uniforms.data[2].x;
     rotation = uniforms.data[2].y;
-    loopAmp = uniforms.data[2].z;
+    speed = uniforms.data[2].z;
     mode = i32(uniforms.data[2].w);
 
     maskFormula = i32(uniforms.data[3].x);

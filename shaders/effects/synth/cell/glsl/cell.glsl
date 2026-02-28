@@ -17,7 +17,7 @@ uniform float scale;
 uniform float cellScale;
 uniform float cellSmooth;
 uniform float variation;
-uniform float loopAmp;
+uniform float speed;
 
 out vec4 fragColor;
 
@@ -113,8 +113,8 @@ float cells(vec2 st, float freq, float cellSize, int sides) {
 
             vec3 r1 = prng(vec3(float(seed), wrap)) * 0.5 - 0.25; 
 			vec3 r2 = prng(vec3(wrap, float(seed))) * 2.0 - 1.0;
-            float speed = floor(loopAmp);
-            point += vec2(sin(time * TAU * speed + r2.x) * r1.x, cos(time * TAU * speed + r2.y) * r1.y);
+            float spd = floor(speed);
+            point += vec2(sin(time * TAU * spd + r2.x) * r1.x, cos(time * TAU * spd + r2.y) * r1.y);
 
             vec2 diff = n + point - f;
 			float dist = shape(vec2(diff.x, -diff.y), vec2(0.0), sides, cellSize);

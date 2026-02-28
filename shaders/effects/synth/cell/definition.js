@@ -111,7 +111,7 @@ export default new Effect({
       program: "cell",
       uniforms: {
         cellSmooth: "smooth",
-        loopAmp: "speed"
+        speed: "speed"
       },
       outputs: {
         fragColor: "outputTex"

@@ -20,7 +20,7 @@ uniform float refractAmt;
 uniform float kaleido;
 uniform int metric;
 uniform float loopScale;
-uniform float loopAmp;
+uniform float speed;
 uniform int loopOffset;
 uniform int colorMode;
 uniform int paletteMode;
@@ -935,12 +935,12 @@ void main() {
     }
 
     float t = 1.0;
-    if (loopAmp < 0.0) {
+    if (speed < 0.0) {
         t = time + offset(st, lf);
     } else {
         t = time - offset(st, lf);
     }
-    float blend = periodicFunction(t) * abs(loopAmp) * 0.01;
+    float blend = periodicFunction(t) * abs(speed) * 0.01;
 
     color.rgb = multires(centered, freq, octaves, float(seed), blend);
 

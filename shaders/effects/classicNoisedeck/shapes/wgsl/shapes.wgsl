@@ -18,8 +18,8 @@ var<private> loopAOffset : i32;
 var<private> loopBOffset : i32;
 var<private> loopAScale : f32;
 var<private> loopBScale : f32;
-var<private> loopAAmp : f32;
-var<private> loopBAmp : f32;
+var<private> speedA : f32;
+var<private> speedB : f32;
 var<private> paletteMode : i32;
 var<private> paletteOffset : vec3<f32>;
 var<private> paletteAmp : vec3<f32>;
@@ -82,7 +82,7 @@ fn periodicFunction(p: f32) -> f32 {
     return map(sin(x), -1.0, 1.0, 0.0, 1.0);
 }
 
-fn constant(st_in: vec2<f32>, freq: f32, loopAmp: f32) -> f32 {
+fn constant(st_in: vec2<f32>, freq: f32, speed: f32) -> f32 {
     var x = st_in.x * freq;
     var y = st_in.y * freq;
     if (wrap) {
@@ -91,7 +91,7 @@ fn constant(st_in: vec2<f32>, freq: f32, loopAmp: f32) -> f32 {
     }
     x = x + seed;
     let rand = prng(vec3<f32>(floor(vec2<f32>(x, y)), seed));
-    let scaledTime = periodicFunction(rand.x - time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.33);
+    let scaledTime = periodicFunction(rand.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.33);
     return periodicFunction(rand.y - scaledTime);
 }
 
@@ -118,7 +118,7 @@ fn catmullRom3(p0: f32, p1: f32, p2: f32, t: f32) -> f32 {
            0.5 * t3 * (-p0 + 3.0*p1 - 3.0*p2 + p0);
 }
 
-fn quadratic3x3Value(st: vec2<f32>, freq: f32, loopAmp: f32) -> f32 {
+fn quadratic3x3Value(st: vec2<f32>, freq: f32, speed: f32) -> f32 {
     let lattice = st * freq;
     let f = fract(lattice);
     
@@ -126,19 +126,19 @@ fn quadratic3x3Value(st: vec2<f32>, freq: f32, loopAmp: f32) -> f32 {
     
     // Sample 3×3 grid (9 taps)
     // Row -1 (y-1)
-    let v00 = constant(st + vec2<f32>(-nd, -nd), freq, loopAmp);
-    let v10 = constant(st + vec2<f32>(0.0, -nd), freq, loopAmp);
-    let v20 = constant(st + vec2<f32>(nd, -nd), freq, loopAmp);
+    let v00 = constant(st + vec2<f32>(-nd, -nd), freq, speed);
+    let v10 = constant(st + vec2<f32>(0.0, -nd), freq, speed);
+    let v20 = constant(st + vec2<f32>(nd, -nd), freq, speed);
     
     // Row 0 (y)
-    let v01 = constant(st + vec2<f32>(-nd, 0.0), freq, loopAmp);
-    let v11 = constant(st, freq, loopAmp);
-    let v21 = constant(st + vec2<f32>(nd, 0.0), freq, loopAmp);
+    let v01 = constant(st + vec2<f32>(-nd, 0.0), freq, speed);
+    let v11 = constant(st, freq, speed);
+    let v21 = constant(st + vec2<f32>(nd, 0.0), freq, speed);
     
     // Row 1 (y+1)
-    let v02 = constant(st + vec2<f32>(-nd, nd), freq, loopAmp);
-    let v12 = constant(st + vec2<f32>(0.0, nd), freq, loopAmp);
-    let v22 = constant(st + vec2<f32>(nd, nd), freq, loopAmp);
+    let v02 = constant(st + vec2<f32>(-nd, nd), freq, speed);
+    let v12 = constant(st + vec2<f32>(0.0, nd), freq, speed);
+    let v22 = constant(st + vec2<f32>(nd, nd), freq, speed);
     
     // Quadratic interpolation along x for each row
     let y0 = quadratic3(v00, v10, v20, f.x);
@@ -149,24 +149,24 @@ fn quadratic3x3Value(st: vec2<f32>, freq: f32, loopAmp: f32) -> f32 {
     return quadratic3(y0, y1, y2, f.y);
 }
 
-fn catmullRom3x3Value(st: vec2<f32>, freq: f32, loopAmp: f32) -> f32 {
+fn catmullRom3x3Value(st: vec2<f32>, freq: f32, speed: f32) -> f32 {
     let lattice = st * freq;
     let f = fract(lattice);
     
     let nd = 1.0 / freq;
     
     // Sample 3×3 grid (9 taps)
-    let v00 = constant(st + vec2<f32>(-nd, -nd), freq, loopAmp);
-    let v10 = constant(st + vec2<f32>(0.0, -nd), freq, loopAmp);
-    let v20 = constant(st + vec2<f32>(nd, -nd), freq, loopAmp);
+    let v00 = constant(st + vec2<f32>(-nd, -nd), freq, speed);
+    let v10 = constant(st + vec2<f32>(0.0, -nd), freq, speed);
+    let v20 = constant(st + vec2<f32>(nd, -nd), freq, speed);
     
-    let v01 = constant(st + vec2<f32>(-nd, 0.0), freq, loopAmp);
-    let v11 = constant(st, freq, loopAmp);
-    let v21 = constant(st + vec2<f32>(nd, 0.0), freq, loopAmp);
+    let v01 = constant(st + vec2<f32>(-nd, 0.0), freq, speed);
+    let v11 = constant(st, freq, speed);
+    let v21 = constant(st + vec2<f32>(nd, 0.0), freq, speed);
     
-    let v02 = constant(st + vec2<f32>(-nd, nd), freq, loopAmp);
-    let v12 = constant(st + vec2<f32>(0.0, nd), freq, loopAmp);
-    let v22 = constant(st + vec2<f32>(nd, nd), freq, loopAmp);
+    let v02 = constant(st + vec2<f32>(-nd, nd), freq, speed);
+    let v12 = constant(st + vec2<f32>(0.0, nd), freq, speed);
+    let v22 = constant(st + vec2<f32>(nd, nd), freq, speed);
     
     let y0 = catmullRom3(v00, v10, v20, f.x);
     let y1 = catmullRom3(v01, v11, v21, f.x);
@@ -201,7 +201,7 @@ fn blendLinearOrCosine(a: f32, b: f32, amount: f32, interp: i32) -> f32 {
     return mix(a, b, smoothstep(0.0, 1.0, amount));
 }
 
-fn bicubicValue(st: vec2<f32>, freq: f32, loopAmp: f32) -> f32 {
+fn bicubicValue(st: vec2<f32>, freq: f32, speed: f32) -> f32 {
     let ndX = 1.0 / freq;
     let ndY = 1.0 / freq;
 
@@ -215,25 +215,25 @@ fn bicubicValue(st: vec2<f32>, freq: f32, loopAmp: f32) -> f32 {
     let v2 = st.y + ndY;
     let v3 = st.y + ndY + ndY;
 
-    let x0y0 = constant(vec2<f32>(u0, v0), freq, loopAmp);
-    let x0y1 = constant(vec2<f32>(u0, v1), freq, loopAmp);
-    let x0y2 = constant(vec2<f32>(u0, v2), freq, loopAmp);
-    let x0y3 = constant(vec2<f32>(u0, v3), freq, loopAmp);
+    let x0y0 = constant(vec2<f32>(u0, v0), freq, speed);
+    let x0y1 = constant(vec2<f32>(u0, v1), freq, speed);
+    let x0y2 = constant(vec2<f32>(u0, v2), freq, speed);
+    let x0y3 = constant(vec2<f32>(u0, v3), freq, speed);
 
-    let x1y0 = constant(vec2<f32>(u1, v0), freq, loopAmp);
-    let x1y1 = constant(st, freq, loopAmp);
-    let x1y2 = constant(vec2<f32>(u1, v2), freq, loopAmp);
-    let x1y3 = constant(vec2<f32>(u1, v3), freq, loopAmp);
+    let x1y0 = constant(vec2<f32>(u1, v0), freq, speed);
+    let x1y1 = constant(st, freq, speed);
+    let x1y2 = constant(vec2<f32>(u1, v2), freq, speed);
+    let x1y3 = constant(vec2<f32>(u1, v3), freq, speed);
 
-    let x2y0 = constant(vec2<f32>(u2, v0), freq, loopAmp);
-    let x2y1 = constant(vec2<f32>(u2, v1), freq, loopAmp);
-    let x2y2 = constant(vec2<f32>(u2, v2), freq, loopAmp);
-    let x2y3 = constant(vec2<f32>(u2, v3), freq, loopAmp);
+    let x2y0 = constant(vec2<f32>(u2, v0), freq, speed);
+    let x2y1 = constant(vec2<f32>(u2, v1), freq, speed);
+    let x2y2 = constant(vec2<f32>(u2, v2), freq, speed);
+    let x2y3 = constant(vec2<f32>(u2, v3), freq, speed);
 
-    let x3y0 = constant(vec2<f32>(u3, v0), freq, loopAmp);
-    let x3y1 = constant(vec2<f32>(u3, v1), freq, loopAmp);
-    let x3y2 = constant(vec2<f32>(u3, v2), freq, loopAmp);
-    let x3y3 = constant(vec2<f32>(u3, v3), freq, loopAmp);
+    let x3y0 = constant(vec2<f32>(u3, v0), freq, speed);
+    let x3y1 = constant(vec2<f32>(u3, v1), freq, speed);
+    let x3y2 = constant(vec2<f32>(u3, v2), freq, speed);
+    let x3y3 = constant(vec2<f32>(u3, v3), freq, speed);
 
     let uv = st * freq;
 
@@ -245,7 +245,7 @@ fn bicubicValue(st: vec2<f32>, freq: f32, loopAmp: f32) -> f32 {
     return blendBicubic(y0, y1, y2, y3, fract(uv.y));
 }
 
-fn catmullRom4x4Value(st: vec2<f32>, freq: f32, loopAmp: f32) -> f32 {
+fn catmullRom4x4Value(st: vec2<f32>, freq: f32, speed: f32) -> f32 {
     // Neighbor Distance
     let ndX = 1.0 / freq;
     let ndY = 1.0 / freq;
@@ -260,25 +260,25 @@ fn catmullRom4x4Value(st: vec2<f32>, freq: f32, loopAmp: f32) -> f32 {
     let v2 = st.y + ndY;
     let v3 = st.y + ndY + ndY;
 
-    let x0y0 = constant(vec2<f32>(u0, v0), freq, loopAmp);
-    let x0y1 = constant(vec2<f32>(u0, v1), freq, loopAmp);
-    let x0y2 = constant(vec2<f32>(u0, v2), freq, loopAmp);
-    let x0y3 = constant(vec2<f32>(u0, v3), freq, loopAmp);
+    let x0y0 = constant(vec2<f32>(u0, v0), freq, speed);
+    let x0y1 = constant(vec2<f32>(u0, v1), freq, speed);
+    let x0y2 = constant(vec2<f32>(u0, v2), freq, speed);
+    let x0y3 = constant(vec2<f32>(u0, v3), freq, speed);
 
-    let x1y0 = constant(vec2<f32>(u1, v0), freq, loopAmp);
-    let x1y1 = constant(st, freq, loopAmp);
-    let x1y2 = constant(vec2<f32>(u1, v2), freq, loopAmp);
-    let x1y3 = constant(vec2<f32>(u1, v3), freq, loopAmp);
+    let x1y0 = constant(vec2<f32>(u1, v0), freq, speed);
+    let x1y1 = constant(st, freq, speed);
+    let x1y2 = constant(vec2<f32>(u1, v2), freq, speed);
+    let x1y3 = constant(vec2<f32>(u1, v3), freq, speed);
 
-    let x2y0 = constant(vec2<f32>(u2, v0), freq, loopAmp);
-    let x2y1 = constant(vec2<f32>(u2, v1), freq, loopAmp);
-    let x2y2 = constant(vec2<f32>(u2, v2), freq, loopAmp);
-    let x2y3 = constant(vec2<f32>(u2, v3), freq, loopAmp);
+    let x2y0 = constant(vec2<f32>(u2, v0), freq, speed);
+    let x2y1 = constant(vec2<f32>(u2, v1), freq, speed);
+    let x2y2 = constant(vec2<f32>(u2, v2), freq, speed);
+    let x2y3 = constant(vec2<f32>(u2, v3), freq, speed);
 
-    let x3y0 = constant(vec2<f32>(u3, v0), freq, loopAmp);
-    let x3y1 = constant(vec2<f32>(u3, v1), freq, loopAmp);
-    let x3y2 = constant(vec2<f32>(u3, v2), freq, loopAmp);
-    let x3y3 = constant(vec2<f32>(u3, v3), freq, loopAmp);
+    let x3y0 = constant(vec2<f32>(u3, v0), freq, speed);
+    let x3y1 = constant(vec2<f32>(u3, v1), freq, speed);
+    let x3y2 = constant(vec2<f32>(u3, v2), freq, speed);
+    let x3y3 = constant(vec2<f32>(u3, v3), freq, speed);
 
     let uv = st * freq;
 
@@ -360,37 +360,37 @@ fn sineNoise(st_in: vec2<f32>, freq: f32, s: f32, blend: f32) -> f32 {
     return (x + y) * 0.5 + 0.5;
 }
 
-fn value(st: vec2<f32>, freq: f32, interp: i32, loopAmp: f32) -> f32 {
+fn value(st: vec2<f32>, freq: f32, interp: i32, speed: f32) -> f32 {
     if (interp == 3) {
         // 3×3 Catmull-Rom (9 taps)
-        return catmullRom3x3Value(st, freq, loopAmp);
+        return catmullRom3x3Value(st, freq, speed);
     } else if (interp == 4) {
         // 4×4 Catmull-Rom (16 taps)
-        return catmullRom4x4Value(st, freq, loopAmp);
+        return catmullRom4x4Value(st, freq, speed);
     } else if (interp == 5) {
         // 3×3 quadratic B-spline (9 taps)
-        return quadratic3x3Value(st, freq, loopAmp);
+        return quadratic3x3Value(st, freq, speed);
     } else if (interp == 6) {
         // 4×4 cubic B-spline (16 taps)
-        return bicubicValue(st, freq, loopAmp);
+        return bicubicValue(st, freq, speed);
     } else if (interp == 10) {
         // simplex
-        let scaledTime = periodicFunction(time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.333);
+        let scaledTime = periodicFunction(time) * map(abs(speed), 0.0, 100.0, 0.0, 0.333);
         return simplexValue(st, freq, seed, scaledTime);
     } else if (interp == 11) {
         // sine
-        let scaledTime = periodicFunction(time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.333);
+        let scaledTime = periodicFunction(time) * map(abs(speed), 0.0, 100.0, 0.0, 0.333);
         return sineNoise(st, freq, seed, scaledTime);
     }
-    let x1y1 = constant(st, freq, loopAmp);
+    let x1y1 = constant(st, freq, speed);
     if (interp == 0) {
         return x1y1;
     }
     let ndX = 1.0 / freq;
     let ndY = 1.0 / freq;
-    let x1y2 = constant(vec2<f32>(st.x, st.y + ndY), freq, loopAmp);
-    let x2y1 = constant(vec2<f32>(st.x + ndX, st.y), freq, loopAmp);
-    let x2y2 = constant(vec2<f32>(st.x + ndX, st.y + ndY), freq, loopAmp);
+    let x1y2 = constant(vec2<f32>(st.x, st.y + ndY), freq, speed);
+    let x2y1 = constant(vec2<f32>(st.x + ndX, st.y), freq, speed);
+    let x2y2 = constant(vec2<f32>(st.x + ndX, st.y + ndY), freq, speed);
     let uv = st * freq;
     let a = blendLinearOrCosine(x1y1, x2y1, fract(uv.x), interp);
     let b = blendLinearOrCosine(x1y2, x2y2, fract(uv.x), interp);
@@ -421,7 +421,7 @@ fn shape(st: vec2<f32>, sides: i32, blend: f32) -> f32 {
     return cos(floor(0.5 + a / r) * r - a) * length(st2) * blend;
 }
 
-fn offset(st: vec2<f32>, freq: f32, loopOffset: i32, loopAmp: f32, seedIn: f32) -> f32 {
+fn offset(st: vec2<f32>, freq: f32, loopOffset: i32, speed: f32, seedIn: f32) -> f32 {
     if (loopOffset == 10) {
         return circles(st, freq);
     } else if (loopOffset == 20) {
@@ -452,29 +452,29 @@ fn offset(st: vec2<f32>, freq: f32, loopOffset: i32, loopAmp: f32, seedIn: f32) 
         return st.y * freq * 0.5;
     } else if (loopOffset == 300) {
         let freq2 = map(freq, 1.0, 6.0, 1.0, 20.0);
-        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq2, 0, loopAmp);
+        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq2, 0, speed);
     } else if (loopOffset == 310) {
-        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 1, loopAmp);
+        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 1, speed);
     } else if (loopOffset == 320) {
-        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 2, loopAmp);
+        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 2, speed);
     } else if (loopOffset == 330) {
         // catmull-rom 3x3
-        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 3, loopAmp);
+        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 3, speed);
     } else if (loopOffset == 340) {
         // catmull-rom 4x4
-        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 4, loopAmp);
+        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 4, speed);
     } else if (loopOffset == 350) {
         // b-spline 3x3
-        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 5, loopAmp);
+        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 5, speed);
     } else if (loopOffset == 360) {
         // b-spline 4x4
-        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 6, loopAmp);
+        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 6, speed);
     } else if (loopOffset == 370) {
         // simplex
-        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 10, loopAmp);
+        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 10, speed);
     } else if (loopOffset == 380) {
         // sine
-        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 11, loopAmp);
+        return 1.0 - value(st + vec2<f32>(seedIn, seedIn), freq, 11, speed);
     } else if (loopOffset == 400) {
         return 1.0 - rings(st, freq);
     } else if (loopOffset == 410) {
@@ -611,8 +611,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     loopAScale = uniforms.data[1].w;
 
     loopBScale = uniforms.data[2].x;
-    loopAAmp = uniforms.data[2].y;
-    loopBAmp = uniforms.data[2].z;
+    speedA = uniforms.data[2].y;
+    speedB = uniforms.data[2].z;
     paletteMode = i32(uniforms.data[2].w);
 
     paletteOffset = uniforms.data[3].xyz;
@@ -638,11 +638,11 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             lf1 = lf1 * 2.0;
         }
     }
-    let amp1 = map(abs(loopAAmp), 0.0, 100.0, 0.0, 1.0);
+    let amp1 = map(abs(speedA), 0.0, 100.0, 0.0, 1.0);
     var t1 = 1.0;
-    if (loopAAmp < 0.0) {
+    if (speedA < 0.0) {
         t1 = time + offset(st, lf1, loopAOffset, amp1, seed);
-    } else if (loopAAmp > 0.0) {
+    } else if (speedA > 0.0) {
         t1 = time - offset(st, lf1, loopAOffset, amp1, seed);
     }
 
@@ -653,11 +653,11 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             lf2 = lf2 * 2.0;
         }
     }
-    let amp2 = map(abs(loopBAmp), 0.0, 100.0, 0.0, 1.0);
+    let amp2 = map(abs(speedB), 0.0, 100.0, 0.0, 1.0);
     var t2 = 1.0;
-    if (loopBAmp < 0.0) {
+    if (speedB < 0.0) {
         t2 = time + offset(st, lf2, loopBOffset, amp2, seed + 10.0);
-    } else if (loopBAmp > 0.0) {
+    } else if (speedB > 0.0) {
         t2 = time - offset(st, lf2, loopBOffset, amp2, seed + 10.0);
     }
 

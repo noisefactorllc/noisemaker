@@ -9,8 +9,8 @@
 @group(0) @binding(1) var<uniform> loopBOffset: i32;
 @group(0) @binding(2) var<uniform> loopAScale: f32;
 @group(0) @binding(3) var<uniform> loopBScale: f32;
-@group(0) @binding(4) var<uniform> loopAAmp: f32;
-@group(0) @binding(5) var<uniform> loopBAmp: f32;
+@group(0) @binding(4) var<uniform> speedA: f32;
+@group(0) @binding(5) var<uniform> speedB: f32;
 @group(0) @binding(6) var<uniform> volumeSize: i32;
 
 const PI: f32 = 3.14159265359;
@@ -141,7 +141,7 @@ fn shapeSDF(p: vec3<f32>, shapeType: i32) -> f32 {
 }
 
 // Get offset value for a position
-fn offset3D(p: vec3<f32>, freq: f32, loopOffset: i32, loopAmp: f32) -> f32 {
+fn offset3D(p: vec3<f32>, freq: f32, loopOffset: i32, speed: f32) -> f32 {
     // Center at origin: [0,1] -> [-0.5, 0.5]
     let cp = p - vec3<f32>(0.5);
     
@@ -160,15 +160,15 @@ fn computeValue(p: vec3<f32>, lf1: f32, lf2: f32, amp1: f32, amp2: f32) -> f32 {
     var t1 = p.z;
     var t2 = p.z;
     
-    if (loopAAmp < 0.0) {
+    if (speedA < 0.0) {
         t1 = t1 + offset1;
-    } else if (loopAAmp > 0.0) {
+    } else if (speedA > 0.0) {
         t1 = t1 - offset1;
     }
     
-    if (loopBAmp < 0.0) {
+    if (speedB < 0.0) {
         t2 = t2 + offset2;
-    } else if (loopBAmp > 0.0) {
+    } else if (speedB > 0.0) {
         t2 = t2 - offset2;
     }
     
@@ -208,8 +208,8 @@ fn main(@builtin(position) position: vec4<f32>) -> FragOutput {
     let lf2 = map_range(loopBScale, 1.0, 100.0, 6.0, 1.0);
     
     // Calculate amplitudes
-    let amp1 = map_range(abs(loopAAmp), 0.0, 100.0, 0.0, 1.0);
-    let amp2 = map_range(abs(loopBAmp), 0.0, 100.0, 0.0, 1.0);
+    let amp1 = map_range(abs(speedA), 0.0, 100.0, 0.0, 1.0);
+    let amp2 = map_range(abs(speedB), 0.0, 100.0, 0.0, 1.0);
     
     // Compute value at this position using helper function
     let d = computeValue(p, lf1, lf2, amp1, amp2);

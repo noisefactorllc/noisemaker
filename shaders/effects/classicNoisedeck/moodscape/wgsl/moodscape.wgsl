@@ -5,7 +5,7 @@
 
 // Packed uniforms layout:
 //   data[0]: resolution.xy, time, seed
-//   data[1]: interp, noiseScale, loopAmp, refractAmt
+//   data[1]: interp, noiseScale, speed, refractAmt
 //   data[2]: ridges, wrap, colorMode, hueRotation
 //   data[3]: hueRange, intensity, _pad, _pad
 struct Uniforms {
@@ -19,7 +19,7 @@ var<private> time: f32;
 var<private> seed: i32;
 var<private> interp: i32;
 var<private> noiseScale: f32;
-var<private> loopAmp: f32;
+var<private> speed: f32;
 var<private> refractAmt: f32;
 var<private> ridges: i32;
 var<private> wrap: i32;
@@ -34,7 +34,7 @@ fn unpackUniforms() {
     seed = i32(uniforms.data[0].w);
     interp = i32(uniforms.data[1].x);
     noiseScale = uniforms.data[1].y;
-    loopAmp = uniforms.data[1].z;
+    speed = uniforms.data[1].z;
     refractAmt = uniforms.data[1].w;
     ridges = i32(uniforms.data[2].x);
     wrap = i32(uniforms.data[2].y);
@@ -326,13 +326,13 @@ fn randomFromLatticeWithOffset(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32, of
 
 fn constant(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
     let rand: vec3<f32> = randomFromLatticeWithOffset(st, xFreq, yFreq, s, vec2<i32>(0, 0));
-    var scaledTime: f32 = periodicFunction(rand.x - time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.25);
+    var scaledTime: f32 = periodicFunction(rand.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.25);
     return periodicFunction(rand.y - scaledTime);
 }
 
 fn constantOffset(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32, offset: vec2<i32>) -> f32 {
     let rand: vec3<f32> = randomFromLatticeWithOffset(st, xFreq, yFreq, s, offset);
-    var scaledTime: f32 = periodicFunction(rand.x - time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.25);
+    var scaledTime: f32 = periodicFunction(rand.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.25);
     return periodicFunction(rand.y - scaledTime);
 }
 
@@ -508,12 +508,12 @@ fn value(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
     }
 
     if (interpVal == 10) {
-        let simplexLoopSample: f32 = simplexValue(st, xFreq, yFreq, s + 50.0, time) * loopAmp * 0.0025;
+        let simplexLoopSample: f32 = simplexValue(st, xFreq, yFreq, s + 50.0, time) * speed * 0.0025;
         return simplexValue(st, xFreq, yFreq, s, simplexLoopSample);
     }
 
     if (interpVal == 11) {
-        let sineLoopSample: f32 = sineNoise(st, xFreq, yFreq, s + 50.0, time) * loopAmp * 0.0025;
+        let sineLoopSample: f32 = sineNoise(st, xFreq, yFreq, s + 50.0, time) * speed * 0.0025;
         return sineNoise(st, xFreq, yFreq, s, sineLoopSample);
     }
 

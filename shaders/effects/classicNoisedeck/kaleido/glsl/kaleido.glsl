@@ -14,7 +14,7 @@ uniform vec2 resolution;
 uniform float time;
 uniform bool wrap;
 uniform int seed;
-uniform float loopAmp;
+uniform float speed;
 uniform float loopScale;
 uniform int loopOffset;
 uniform float kaleido; 
@@ -171,7 +171,7 @@ vec3 randomFromLatticeWithOffset(vec2 st, float freq, ivec2 offset) {
 
 float constant(vec2 st, float freq) {
     vec3 randTime = randomFromLatticeWithOffset(st, freq, ivec2(40, 0));
-    float scaledTime = periodicFunction(randTime.x - time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.333);
+    float scaledTime = periodicFunction(randTime.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.333);
 
     vec3 rand = randomFromLatticeWithOffset(st, freq, ivec2(0, 0));
     return periodicFunction(rand.y - scaledTime);
@@ -342,7 +342,7 @@ float sineNoise(vec2 st, float freq) {
     float waveAmp = rand.y;
     float wavePhase = rand.z * TAU;
     vec3 randTime = randomFromLatticeWithOffset(st, freq, ivec2(40, 0));
-    float phaseOffset = periodicFunction(randTime.x - time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.333);
+    float phaseOffset = periodicFunction(randTime.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.333);
     float dist = length(st);
     float sineWave = sin(dist * waveFreq + wavePhase - phaseOffset) * waveAmp;
     return periodicFunction(sineWave);
@@ -870,8 +870,8 @@ void main() {
         lf = floor(lf);
     }
 
-    float t = time + offset(uv, lf) * loopAmp * 0.01;
-	float blendy = periodicFunction(t) * map(abs(loopAmp), 0.0, 100.0, 0.0, 2.0);
+    float t = time + offset(uv, lf) * speed * 0.01;
+	float blendy = periodicFunction(t) * map(abs(speed), 0.0, 100.0, 0.0, 2.0);
 
 	uv = kaleidoscope(uv, kaleido, blendy);
 	color = texture(inputTex, uv);

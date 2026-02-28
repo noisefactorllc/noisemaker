@@ -4,7 +4,7 @@
  */
 
 // Packed uniforms layout:
-//   data[0]: resolution.xy, time, loopAmp
+//   data[0]: resolution.xy, time, speed
 //   data[1]: intensity, _pad, _pad, _pad
 //   data[2]: color1
 //   data[3]: color2
@@ -18,7 +18,7 @@ struct Uniforms {
 
 var<private> resolution: vec2<f32>;
 var<private> time: f32;
-var<private> loopAmp: f32;
+var<private> speed: f32;
 var<private> intensity: f32;
 var<private> color1: vec4<f32>;
 var<private> color2: vec4<f32>;
@@ -28,7 +28,7 @@ var<private> color4: vec4<f32>;
 fn unpackUniforms() {
     resolution = uniforms.data[0].xy;
     time = uniforms.data[0].z;
-    loopAmp = uniforms.data[0].w;
+    speed = uniforms.data[0].w;
     intensity = uniforms.data[1].x;
     color1 = uniforms.data[2].xyzw;
     color2 = uniforms.data[3].xyzw;
@@ -125,7 +125,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Shift to 0-1 range for gradient
     st += vec2<f32>(resolution.x / resolution.y * 0.5, 0.5);
     
-    var speed: f32 = loopAmp * 0.02;
+    var animSpeed: f32 = speed * 0.02;
     var x0: vec3<f32> = vec3<f32>(1.0);
     var x1: vec3<f32> = vec3<f32>(1.0);
 
@@ -134,10 +134,10 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var c3: vec3<f32> = rgb2hsv(color3.rgb);
     var c4: vec3<f32> = rgb2hsv(color4.rgb);
 
-    c1[0] += (sin(time * TAU * speed) + 1.0) * 0.05;
-    c2[0] += (sin((0.25 - time) * TAU * speed) + 1.0) * 0.05;
-    c3[0] += (sin((0.5 - time) * TAU * speed) + 1.0) * 0.05;
-    c4[0] += (sin((0.75 + time) * TAU * speed) + 1.0) * 0.05;
+    c1[0] += (sin(time * TAU * animSpeed) + 1.0) * 0.05;
+    c2[0] += (sin((0.25 - time) * TAU * animSpeed) + 1.0) * 0.05;
+    c3[0] += (sin((0.5 - time) * TAU * animSpeed) + 1.0) * 0.05;
+    c4[0] += (sin((0.75 + time) * TAU * animSpeed) + 1.0) * 0.05;
 
     c1 = hsv2rgb(c1);
     c2 = hsv2rgb(c2);

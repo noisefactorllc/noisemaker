@@ -17,7 +17,7 @@ Noise pattern generator
 | seed | int | 1 | 1-100 | Seed |
 | loopOffset | int | noise | Shapes:/circle/triangle/diamond/square/pentagon/hexagon/heptagon/octagon/nonagon/decagon/hendecagon/dodecagon/Directional:/horizontalScan/verticalScan/Misc:/noise/rings/sine | Loop offset |
 | loopScale | float | 75 | 1-100 | Loop scale |
-| loopAmp | float | 25 | -100-100 | Loop power |
+| speed | float | 25 | -100-100 | Speed |
 | kaleido | int | 1 | 1-32 | Kaleido sides |
 | metric | int | circle | circle/diamond/hexagon/octagon/square/triangle | Kaleido shape |
 | colorMode | int | hsv | mono/linearRgb/srgb/oklab/palette/hsv | Color space |

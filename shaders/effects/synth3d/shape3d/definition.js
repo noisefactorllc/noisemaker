@@ -139,30 +139,34 @@ export default new Effect({
         control: "slider"
       }
     },
-    loopAAmp: {
+    speedA: {
       type: "float",
       default: 50,
-      uniform: "loopAAmp",
+      uniform: "speedA",
       min: -100,
       max: 100,
       zero: 0,
       ui: {
-        label: "a power",
+        label: "speed a",
         control: "slider"
       }
     },
-    loopBAmp: {
+    speedB: {
       type: "float",
       default: 50,
-      uniform: "loopBAmp",
+      uniform: "speedB",
       min: -100,
       max: 100,
       zero: 0,
       ui: {
-        label: "b power",
+        label: "speed b",
         control: "slider"
       }
     }
+  },
+  paramAliases: {
+    loopAAmp: 'speedA',
+    loopBAmp: 'speedB'
   },
   passes: [
     {

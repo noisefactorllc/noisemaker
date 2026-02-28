@@ -15,7 +15,7 @@ var<private> xScale : f32;
 var<private> yScale : f32;
 var<private> seed : f32;
 var<private> loopScale : f32;
-var<private> loopAmp : f32;
+var<private> speed : f32;
 var<private> loopOffset : i32;
 var<private> noiseType : i32;
 var<private> octaves : i32;
@@ -775,7 +775,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     yScale = uniforms.data[1].y;
     seed = uniforms.data[1].z;
     loopScale = uniforms.data[1].w;
-    loopAmp = uniforms.data[2].x;
+    speed = uniforms.data[2].x;
     loopOffset = i32(uniforms.data[2].y);
     noiseType = i32(uniforms.data[2].z);
     octaves = max(1, i32(uniforms.data[2].w));
@@ -848,12 +848,12 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     }
 
     var t = 1.0;
-    if (loopAmp < 0.0) {
+    if (speed < 0.0) {
         t = time + offset(st, lf);
     } else {
         t = time - offset(st, lf);
     }
-    let blend = periodicFunction(t) * abs(loopAmp) * 0.01;
+    let blend = periodicFunction(t) * abs(speed) * 0.01;
 
     let colorRgb = multires(centered, freq, octaves, seed, blend);
     var color = vec4<f32>(colorRgb, 1.0);

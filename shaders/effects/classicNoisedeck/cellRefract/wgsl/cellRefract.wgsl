@@ -20,7 +20,7 @@ struct Uniforms {
     cellScale: f32,
     cellSmooth: f32,
     cellVariation: f32,
-    loopAmp: f32,
+    speed: f32,
     kernel: i32,
     effectWidth: f32,
     refractAmt: f32,
@@ -209,7 +209,7 @@ fn cells(st_in: vec2f, freq: f32, cellSize: f32, sides: i32) -> f32 {
             var point = prng(vec3f(wrap_coord, f32(u.seed))).xy;
             let r1 = prng(vec3f(f32(u.seed), wrap_coord)) * 0.5 - 0.25;
             let r2 = prng(vec3f(wrap_coord, f32(u.seed))) * 2.0 - 1.0;
-            let speed = floor(u.loopAmp);
+            let speed = floor(u.speed);
             point += vec2f(sin(u.time * TAU * speed + r2.x) * r1.x, cos(u.time * TAU * speed + r2.y) * r1.y);
             let diff = n + point - f;
             var dist: f32;

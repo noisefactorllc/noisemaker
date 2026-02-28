@@ -16,7 +16,7 @@ uniform float noiseScale;
 uniform int colorMode;
 uniform int interp;
 uniform float refractAmt;
-uniform float loopAmp;
+uniform float speed;
 uniform float hueRotation;
 uniform float hueRange;
 uniform float intensity;
@@ -308,13 +308,13 @@ vec3 randomFromLatticeWithOffset(vec2 st, float xFreq, float yFreq, float s, ive
 
 float constant(vec2 st, float xFreq, float yFreq, float s) {
     vec3 rand = randomFromLatticeWithOffset(st, xFreq, yFreq, s, ivec2(0, 0));
-    float scaledTime = periodicFunction(rand.x - time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.25);
+    float scaledTime = periodicFunction(rand.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.25);
     return periodicFunction(rand.y - scaledTime);
 }
 
 float constantOffset(vec2 st, float xFreq, float yFreq, float s, ivec2 offset) {
     vec3 rand = randomFromLatticeWithOffset(st, xFreq, yFreq, s, offset);
-    float scaledTime = periodicFunction(rand.x - time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.25);
+    float scaledTime = periodicFunction(rand.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.25);
     return periodicFunction(rand.y - scaledTime);
 }
 
@@ -501,13 +501,13 @@ float value(vec2 st, float xFreq, float yFreq, float s) {
     
     // 10 = simplex
     if (interp == 10) {
-        scaledTime = simplexValue(st, xFreq, yFreq, s + 50.0, time) * loopAmp * 0.0025;
+        scaledTime = simplexValue(st, xFreq, yFreq, s + 50.0, time) * speed * 0.0025;
         return simplexValue(st, xFreq, yFreq, s, scaledTime);
     }
     
     // 11 = sine
     if (interp == 11) {
-        scaledTime = sineNoise(st, xFreq, yFreq, s + 50.0, time) * loopAmp * 0.0025;
+        scaledTime = sineNoise(st, xFreq, yFreq, s + 50.0, time) * speed * 0.0025;
         return sineNoise(st, xFreq, yFreq, s, scaledTime);
     }
 

@@ -16,8 +16,8 @@ uniform int loopAOffset;
 uniform int loopBOffset;
 uniform float loopAScale;
 uniform float loopBScale;
-uniform float loopAAmp;
-uniform float loopBAmp;
+uniform float speedA;
+uniform float speedB;
 
 out vec4 fragColor;
 
@@ -104,9 +104,9 @@ vec3 randomFromLatticeWithOffset(vec2 st, float freq, ivec2 xyOffset) {
     );
 }
 
-float constant(vec2 st, float freq, float loopAmp) {
+float constant(vec2 st, float freq, float speed) {
     vec3 randTime = randomFromLatticeWithOffset(st, freq, ivec2(40, 0));
-    float scaledTime = periodicFunction(randTime.x - time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.33);
+    float scaledTime = periodicFunction(randTime.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.33);
 
     vec3 rand = randomFromLatticeWithOffset(st, freq, ivec2(0, 0));
     return periodicFunction(rand.y - scaledTime);
@@ -128,22 +128,22 @@ float catmullRom3(float p0, float p1, float p2, float t) {
            0.5 * t3 * (-p0 + 3.0*p1 - 3.0*p2 + p0);
 }
 
-float quadratic3x3Value(vec2 st, float freq, float loopAmp) {
+float quadratic3x3Value(vec2 st, float freq, float speed) {
     vec2 lattice = st * freq;
     vec2 f = fract(lattice);
     float nd = 1.0 / freq;
     
-    float v00 = constant(st + vec2(-nd, -nd), freq, loopAmp);
-    float v10 = constant(st + vec2(0.0, -nd), freq, loopAmp);
-    float v20 = constant(st + vec2(nd, -nd), freq, loopAmp);
+    float v00 = constant(st + vec2(-nd, -nd), freq, speed);
+    float v10 = constant(st + vec2(0.0, -nd), freq, speed);
+    float v20 = constant(st + vec2(nd, -nd), freq, speed);
     
-    float v01 = constant(st + vec2(-nd, 0.0), freq, loopAmp);
-    float v11 = constant(st, freq, loopAmp);
-    float v21 = constant(st + vec2(nd, 0.0), freq, loopAmp);
+    float v01 = constant(st + vec2(-nd, 0.0), freq, speed);
+    float v11 = constant(st, freq, speed);
+    float v21 = constant(st + vec2(nd, 0.0), freq, speed);
     
-    float v02 = constant(st + vec2(-nd, nd), freq, loopAmp);
-    float v12 = constant(st + vec2(0.0, nd), freq, loopAmp);
-    float v22 = constant(st + vec2(nd, nd), freq, loopAmp);
+    float v02 = constant(st + vec2(-nd, nd), freq, speed);
+    float v12 = constant(st + vec2(0.0, nd), freq, speed);
+    float v22 = constant(st + vec2(nd, nd), freq, speed);
     
     float y0 = quadratic3(v00, v10, v20, f.x);
     float y1 = quadratic3(v01, v11, v21, f.x);
@@ -152,22 +152,22 @@ float quadratic3x3Value(vec2 st, float freq, float loopAmp) {
     return quadratic3(y0, y1, y2, f.y);
 }
 
-float catmullRom3x3Value(vec2 st, float freq, float loopAmp) {
+float catmullRom3x3Value(vec2 st, float freq, float speed) {
     vec2 lattice = st * freq;
     vec2 f = fract(lattice);
     float nd = 1.0 / freq;
     
-    float v00 = constant(st + vec2(-nd, -nd), freq, loopAmp);
-    float v10 = constant(st + vec2(0.0, -nd), freq, loopAmp);
-    float v20 = constant(st + vec2(nd, -nd), freq, loopAmp);
+    float v00 = constant(st + vec2(-nd, -nd), freq, speed);
+    float v10 = constant(st + vec2(0.0, -nd), freq, speed);
+    float v20 = constant(st + vec2(nd, -nd), freq, speed);
     
-    float v01 = constant(st + vec2(-nd, 0.0), freq, loopAmp);
-    float v11 = constant(st, freq, loopAmp);
-    float v21 = constant(st + vec2(nd, 0.0), freq, loopAmp);
+    float v01 = constant(st + vec2(-nd, 0.0), freq, speed);
+    float v11 = constant(st, freq, speed);
+    float v21 = constant(st + vec2(nd, 0.0), freq, speed);
     
-    float v02 = constant(st + vec2(-nd, nd), freq, loopAmp);
-    float v12 = constant(st + vec2(0.0, nd), freq, loopAmp);
-    float v22 = constant(st + vec2(nd, nd), freq, loopAmp);
+    float v02 = constant(st + vec2(-nd, nd), freq, speed);
+    float v12 = constant(st + vec2(0.0, nd), freq, speed);
+    float v22 = constant(st + vec2(nd, nd), freq, speed);
     
     float y0 = catmullRom3(v00, v10, v20, f.x);
     float y1 = catmullRom3(v01, v11, v21, f.x);
@@ -271,7 +271,7 @@ float sineNoise(vec2 st, float freq, float s, float blend) {
     return (x + y) * 0.5 + 0.5;
 }
 
-float bicubicValue(vec2 st, float freq, float loopAmp) {
+float bicubicValue(vec2 st, float freq, float speed) {
     float ndX = 1.0 / freq;
     float ndY = 1.0 / freq;
 
@@ -285,25 +285,25 @@ float bicubicValue(vec2 st, float freq, float loopAmp) {
     float v2 = st.y + ndY;
     float v3 = st.y + ndY + ndY;
 
-    float x0y0 = constant(vec2(u0, v0), freq, loopAmp);
-    float x0y1 = constant(vec2(u0, v1), freq, loopAmp);
-    float x0y2 = constant(vec2(u0, v2), freq, loopAmp);
-    float x0y3 = constant(vec2(u0, v3), freq, loopAmp);
+    float x0y0 = constant(vec2(u0, v0), freq, speed);
+    float x0y1 = constant(vec2(u0, v1), freq, speed);
+    float x0y2 = constant(vec2(u0, v2), freq, speed);
+    float x0y3 = constant(vec2(u0, v3), freq, speed);
 
-    float x1y0 = constant(vec2(u1, v0), freq, loopAmp);
-    float x1y1 = constant(st, freq, loopAmp);
-    float x1y2 = constant(vec2(u1, v2), freq, loopAmp);
-    float x1y3 = constant(vec2(u1, v3), freq, loopAmp);
+    float x1y0 = constant(vec2(u1, v0), freq, speed);
+    float x1y1 = constant(st, freq, speed);
+    float x1y2 = constant(vec2(u1, v2), freq, speed);
+    float x1y3 = constant(vec2(u1, v3), freq, speed);
 
-    float x2y0 = constant(vec2(u2, v0), freq, loopAmp);
-    float x2y1 = constant(vec2(u2, v1), freq, loopAmp);
-    float x2y2 = constant(vec2(u2, v2), freq, loopAmp);
-    float x2y3 = constant(vec2(u2, v3), freq, loopAmp);
+    float x2y0 = constant(vec2(u2, v0), freq, speed);
+    float x2y1 = constant(vec2(u2, v1), freq, speed);
+    float x2y2 = constant(vec2(u2, v2), freq, speed);
+    float x2y3 = constant(vec2(u2, v3), freq, speed);
 
-    float x3y0 = constant(vec2(u3, v0), freq, loopAmp);
-    float x3y1 = constant(vec2(u3, v1), freq, loopAmp);
-    float x3y2 = constant(vec2(u3, v2), freq, loopAmp);
-    float x3y3 = constant(vec2(u3, v3), freq, loopAmp);
+    float x3y0 = constant(vec2(u3, v0), freq, speed);
+    float x3y1 = constant(vec2(u3, v1), freq, speed);
+    float x3y2 = constant(vec2(u3, v2), freq, speed);
+    float x3y3 = constant(vec2(u3, v3), freq, speed);
 
     vec2 uv = st * freq;
 
@@ -315,7 +315,7 @@ float bicubicValue(vec2 st, float freq, float loopAmp) {
     return blendBicubic(y0, y1, y2, y3, fract(uv.y));
 }
 
-float catmullRom4x4Value(vec2 st, float freq, float loopAmp) {
+float catmullRom4x4Value(vec2 st, float freq, float speed) {
     float ndX = 1.0 / freq;
     float ndY = 1.0 / freq;
 
@@ -329,25 +329,25 @@ float catmullRom4x4Value(vec2 st, float freq, float loopAmp) {
     float v2 = st.y + ndY;
     float v3 = st.y + ndY + ndY;
 
-    float x0y0 = constant(vec2(u0, v0), freq, loopAmp);
-    float x0y1 = constant(vec2(u0, v1), freq, loopAmp);
-    float x0y2 = constant(vec2(u0, v2), freq, loopAmp);
-    float x0y3 = constant(vec2(u0, v3), freq, loopAmp);
+    float x0y0 = constant(vec2(u0, v0), freq, speed);
+    float x0y1 = constant(vec2(u0, v1), freq, speed);
+    float x0y2 = constant(vec2(u0, v2), freq, speed);
+    float x0y3 = constant(vec2(u0, v3), freq, speed);
 
-    float x1y0 = constant(vec2(u1, v0), freq, loopAmp);
-    float x1y1 = constant(st, freq, loopAmp);
-    float x1y2 = constant(vec2(u1, v2), freq, loopAmp);
-    float x1y3 = constant(vec2(u1, v3), freq, loopAmp);
+    float x1y0 = constant(vec2(u1, v0), freq, speed);
+    float x1y1 = constant(st, freq, speed);
+    float x1y2 = constant(vec2(u1, v2), freq, speed);
+    float x1y3 = constant(vec2(u1, v3), freq, speed);
 
-    float x2y0 = constant(vec2(u2, v0), freq, loopAmp);
-    float x2y1 = constant(vec2(u2, v1), freq, loopAmp);
-    float x2y2 = constant(vec2(u2, v2), freq, loopAmp);
-    float x2y3 = constant(vec2(u2, v3), freq, loopAmp);
+    float x2y0 = constant(vec2(u2, v0), freq, speed);
+    float x2y1 = constant(vec2(u2, v1), freq, speed);
+    float x2y2 = constant(vec2(u2, v2), freq, speed);
+    float x2y3 = constant(vec2(u2, v3), freq, speed);
 
-    float x3y0 = constant(vec2(u3, v0), freq, loopAmp);
-    float x3y1 = constant(vec2(u3, v1), freq, loopAmp);
-    float x3y2 = constant(vec2(u3, v2), freq, loopAmp);
-    float x3y3 = constant(vec2(u3, v3), freq, loopAmp);
+    float x3y0 = constant(vec2(u3, v0), freq, speed);
+    float x3y1 = constant(vec2(u3, v1), freq, speed);
+    float x3y2 = constant(vec2(u3, v2), freq, speed);
+    float x3y3 = constant(vec2(u3, v3), freq, speed);
 
     vec2 uv = st * freq;
 
@@ -359,24 +359,24 @@ float catmullRom4x4Value(vec2 st, float freq, float loopAmp) {
     return catmullRom4(y0, y1, y2, y3, fract(uv.y));
 }
 
-float value(vec2 st, float freq, int interp, float loopAmp) {
+float value(vec2 st, float freq, int interp, float speed) {
     if (interp == 3) {
-        return catmullRom3x3Value(st, freq, loopAmp);
+        return catmullRom3x3Value(st, freq, speed);
     } else if (interp == 4) {
-        return catmullRom4x4Value(st, freq, loopAmp);
+        return catmullRom4x4Value(st, freq, speed);
     } else if (interp == 5) {
-        return quadratic3x3Value(st, freq, loopAmp);
+        return quadratic3x3Value(st, freq, speed);
     } else if (interp == 6) {
-        return bicubicValue(st, freq, loopAmp);
+        return bicubicValue(st, freq, speed);
     } else if (interp == 10) {
-        float scaledTime = periodicFunction(time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.333);
+        float scaledTime = periodicFunction(time) * map(abs(speed), 0.0, 100.0, 0.0, 0.333);
         return simplexValue(st, freq, float(seed), scaledTime);
     } else if (interp == 11) {
-        float scaledTime = periodicFunction(time) * map(abs(loopAmp), 0.0, 100.0, 0.0, 0.333);
+        float scaledTime = periodicFunction(time) * map(abs(speed), 0.0, 100.0, 0.0, 0.333);
         return sineNoise(st, freq, float(seed), scaledTime);
     }
 
-    float x1y1 = constant(st, freq, loopAmp);
+    float x1y1 = constant(st, freq, speed);
 
     if (interp == 0) {
         return x1y1;
@@ -385,9 +385,9 @@ float value(vec2 st, float freq, int interp, float loopAmp) {
     float ndX = 1.0 / freq;
     float ndY = 1.0 / freq;
 
-    float x1y2 = constant(vec2(st.x, st.y + ndY), freq, loopAmp);
-    float x2y1 = constant(vec2(st.x + ndX, st.y), freq, loopAmp);
-    float x2y2 = constant(vec2(st.x + ndX, st.y + ndY), freq, loopAmp);
+    float x1y2 = constant(vec2(st.x, st.y + ndY), freq, speed);
+    float x2y1 = constant(vec2(st.x + ndX, st.y), freq, speed);
+    float x2y2 = constant(vec2(st.x + ndX, st.y + ndY), freq, speed);
 
     vec2 uv = st * freq;
 
@@ -422,7 +422,7 @@ float shape(vec2 st, int sides, float blend) {
     return cos(floor(0.5 + a / r) * r - a) * length(st) * blend;
 }
 
-float offset(vec2 st, float freq, int loopOffset, float loopAmp, float seedVal) {
+float offset(vec2 st, float freq, int loopOffset, float speed, float seedVal) {
     if (loopOffset == 10) {
         return circles(st, freq);
     } else if (loopOffset == 20) {
@@ -453,23 +453,23 @@ float offset(vec2 st, float freq, int loopOffset, float loopAmp, float seedVal) 
         return st.y * freq * 0.5;
     } else if (loopOffset == 300) {
         float localFreq = map(freq, 1.0, 6.0, 1.0, 20.0);
-        return 1.0 - value(st + seedVal, localFreq, 0, loopAmp);
+        return 1.0 - value(st + seedVal, localFreq, 0, speed);
     } else if (loopOffset == 310) {
-        return 1.0 - value(st + seedVal, freq, 1, loopAmp);
+        return 1.0 - value(st + seedVal, freq, 1, speed);
     } else if (loopOffset == 320) {
-        return 1.0 - value(st + seedVal, freq, 2, loopAmp);
+        return 1.0 - value(st + seedVal, freq, 2, speed);
     } else if (loopOffset == 330) {
-        return 1.0 - value(st + seedVal, freq, 3, loopAmp);
+        return 1.0 - value(st + seedVal, freq, 3, speed);
     } else if (loopOffset == 340) {
-        return 1.0 - value(st + seedVal, freq, 4, loopAmp);
+        return 1.0 - value(st + seedVal, freq, 4, speed);
     } else if (loopOffset == 350) {
-        return 1.0 - value(st + seedVal, freq, 5, loopAmp);
+        return 1.0 - value(st + seedVal, freq, 5, speed);
     } else if (loopOffset == 360) {
-        return 1.0 - value(st + seedVal, freq, 6, loopAmp);
+        return 1.0 - value(st + seedVal, freq, 6, speed);
     } else if (loopOffset == 370) {
-        return 1.0 - value(st + seedVal, freq, 10, loopAmp);
+        return 1.0 - value(st + seedVal, freq, 10, speed);
     } else if (loopOffset == 380) {
-        return 1.0 - value(st + seedVal, freq, 11, loopAmp);
+        return 1.0 - value(st + seedVal, freq, 11, speed);
     } else if (loopOffset == 400) {
         return 1.0 - rings(st, freq);
     } else if (loopOffset == 410) {
@@ -490,11 +490,11 @@ void main() {
             lf1 *= 2.0;
         }
     }
-    float amp1 = map(abs(loopAAmp), 0.0, 100.0, 0.0, 1.0);
+    float amp1 = map(abs(speedA), 0.0, 100.0, 0.0, 1.0);
     float t1 = 1.0;
-    if (loopAAmp < 0.0) {
+    if (speedA < 0.0) {
         t1 = time + offset(st, lf1, loopAOffset, amp1, float(seed));
-    } else if (loopAAmp > 0.0) {
+    } else if (speedA > 0.0) {
         t1 = time - offset(st, lf1, loopAOffset, amp1, float(seed));
     }
 
@@ -505,11 +505,11 @@ void main() {
             lf2 *= 2.0;
         }
     }
-    float amp2 = map(abs(loopBAmp), 0.0, 100.0, 0.0, 1.0);
+    float amp2 = map(abs(speedB), 0.0, 100.0, 0.0, 1.0);
     float t2 = 1.0;
-    if (loopBAmp < 0.0) {
+    if (speedB < 0.0) {
         t2 = time + offset(st, lf2, loopBOffset, amp2, float(seed) + 10.0);
-    } else if (loopBAmp > 0.0) {
+    } else if (speedB > 0.0) {
         t2 = time - offset(st, lf2, loopBOffset, amp2, float(seed) + 10.0);
     }
 

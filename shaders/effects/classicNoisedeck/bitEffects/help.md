@@ -7,7 +7,7 @@ Bit-crushing and digital artifacts
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | mode | int | bitMask | bitField/bitMask | Mode |
-| loopAmp | float | 50 | 0-100 | Speed |
+| speed | float | 50 | 0-100 | Speed |
 | formula | int | alien | alien/sierpinski | Formula |
 | n | int | 1 | 1-200 | Mod |
 | colorScheme | int | redGreenAndBlue | blue/cyan/green/magenta/red/white/yellow/blueAndGreen/blueAndRed/blueAndYellow/greenAndMagenta/greenAndRed/redAndCyan/redGreenAndBlue | Colors |

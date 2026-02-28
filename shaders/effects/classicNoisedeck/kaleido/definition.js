@@ -106,14 +106,14 @@ export default new Effect({
         category: "animation"
       }
     },
-    loopAmp: {
+    speed: {
       type: "float",
       default: 5,
-      uniform: "loopAmp",
+      uniform: "speed",
       min: -100,
       max: 100,
       ui: {
-        label: "loop power",
+        label: "speed",
         control: "slider",
         category: "animation"
       }
@@ -177,7 +177,7 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { kaleido: 'sides' },
+  paramAliases: { kaleido: 'sides', loopAmp: 'speed' },
   passes: [
     {
       name: "render",

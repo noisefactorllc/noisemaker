@@ -6,7 +6,7 @@ Four-corner color gradient with animated hue shift
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| loopAmp | float | 25 | 0-100 | Animation Speed |
+| speed | float | 25 | 0-100 | Speed |
 | intensity | float | 0 | -100-100 | Intensity |
 | color1 | color | 1,0,0,1 | - | Color 1 |
 | color2 | color | 0,1,0,1 | - | Color 2 |

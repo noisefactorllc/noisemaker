@@ -10,7 +10,7 @@ precision highp int;
 
 uniform float time;
 uniform vec2 resolution;
-uniform float loopAmp;
+uniform float speed;
 uniform float intensity;
 uniform vec4 color1;
 uniform vec4 color2;
@@ -102,7 +102,7 @@ void main() {
     // Shift to 0-1 range for gradient
     st += vec2(aspectRatio * 0.5, 0.5);
     
-    float speed = loopAmp * 0.02;
+    float animSpeed = speed * 0.02;
     vec3 x0 = vec3(1.0);
     vec3 x1 = vec3(1.0);
 
@@ -111,10 +111,10 @@ void main() {
     vec3 c3 = rgb2hsv(color3.rgb);
     vec3 c4 = rgb2hsv(color4.rgb);
 
-    c1[0] += (sin(time * TAU * speed) + 1.0) * 0.05;
-    c2[0] += (sin((0.25 - time) * TAU * speed) + 1.0) * 0.05;
-    c3[0] += (sin((0.5 - time) * TAU * speed) + 1.0) * 0.05;
-    c4[0] += (sin((0.75 + time) * TAU * speed) + 1.0) * 0.05;
+    c1[0] += (sin(time * TAU * animSpeed) + 1.0) * 0.05;
+    c2[0] += (sin((0.25 - time) * TAU * animSpeed) + 1.0) * 0.05;
+    c3[0] += (sin((0.5 - time) * TAU * animSpeed) + 1.0) * 0.05;
+    c4[0] += (sin((0.75 + time) * TAU * animSpeed) + 1.0) * 0.05;
 
     c1 = hsv2rgb(c1);
     c2 = hsv2rgb(c2);

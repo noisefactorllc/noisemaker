@@ -10,7 +10,7 @@ export default new Effect({
   uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
-    loopAmp: { slot: 0, components: 'w' },
+    speed: { slot: 0, components: 'w' },
     intensity: { slot: 1, components: 'x' },
     color1: { slot: 2, components: 'xyzw' },
     color2: { slot: 3, components: 'xyzw' },
@@ -18,13 +18,13 @@ export default new Effect({
     color4: { slot: 5, components: 'xyzw' }
   },
   globals: {
-    loopAmp: {
+    speed: {
       type: "float",
       default: 25,
       min: 0,
       max: 100,
-      ui: { label: "animation speed", control: "slider", category: "animation" },
-      uniform: "loopAmp"
+      ui: { label: "speed", control: "slider", category: "animation" },
+      uniform: "speed"
     },
     intensity: {
       type: "float",
@@ -59,6 +59,7 @@ export default new Effect({
       uniform: "color4"
     }
   },
+  paramAliases: { loopAmp: 'speed' },
   passes: [
     {
       name: "render",

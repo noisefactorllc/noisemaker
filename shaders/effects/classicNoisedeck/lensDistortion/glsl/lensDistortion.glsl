@@ -19,7 +19,7 @@ uniform vec3 tint;
 uniform float alpha;
 uniform float vignetteAmt;
 uniform float distortion;
-uniform float loopAmp;
+uniform float speed;
 uniform float loopScale;
 uniform float aberration;
 uniform float hueRotation;
@@ -180,14 +180,14 @@ float _distance(vec2 diff, vec2 uv) {
     float lf = map(loopScale, 1.0, 100.0, 6.0, 1.0);
 
     float t = 1.0;
-    if (loopAmp < 0.0) {
+    if (speed < 0.0) {
         t = dist * lf + time;
     } else {
         t = dist * lf - time;
     }
     return mix(dist,
-               (sin(t * TAU) + 1.0 * 0.5) * abs(loopAmp) * 0.005,
-               abs(loopAmp) * 0.01);
+               (sin(t * TAU) + 1.0 * 0.5) * abs(speed) * 0.005,
+               abs(speed) * 0.01);
 }
 
 void main() {
