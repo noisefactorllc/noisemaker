@@ -14,7 +14,7 @@ export default new Effect({
     metric: { slot: 1, components: 'x' },
     scale: { slot: 1, components: 'y' },
     cellScale: { slot: 1, components: 'z' },
-    smooth: { slot: 1, components: 'w' },
+    cellSmooth: { slot: 1, components: 'w' },
     variation: { slot: 2, components: 'x' },
     speed: { slot: 2, components: 'y' }
   },
@@ -58,10 +58,10 @@ export default new Effect({
         control: "slider"
       }
     },
-    smooth: {
+    cellSmooth: {
       type: "float",
       default: 11,
-      uniform: "smooth",
+      uniform: "cellSmooth",
       min: 0,
       max: 100,
       ui: {
@@ -104,13 +104,13 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { cellSmooth: 'smooth', cellVariation: 'variation', loopAmp: 'speed' },
+  paramAliases: { cellVariation: 'variation', loopAmp: 'speed' },
   passes: [
     {
       name: "render",
       program: "cell",
       uniforms: {
-        cellSmooth: "smooth",
+        cellSmooth: "cellSmooth",
         speed: "speed"
       },
       outputs: {

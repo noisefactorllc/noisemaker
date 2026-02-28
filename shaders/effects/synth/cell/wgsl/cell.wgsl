@@ -78,7 +78,7 @@ fn smin(a: f32, b: f32, k: f32) -> f32 {
     return min(a, b) - h * h * k * 0.25;
 }
 
-fn cells(st0: vec2<f32>, freq: f32, cellSize: f32, metric: i32, seed: i32, speed: f32, cellVariation: f32, cellSmooth: f32, time: f32, aspect: f32) -> f32 {
+fn cells(st0: vec2<f32>, freq: f32, cellSize: f32, metric: i32, seed: i32, speed: f32, variation: f32, cellSmooth: f32, time: f32, aspect: f32) -> f32 {
     var st = st0;
     st = st - vec2<f32>(0.5 * aspect, 0.5);
     st = st * freq;
@@ -110,7 +110,7 @@ fn cells(st0: vec2<f32>, freq: f32, cellSize: f32, metric: i32, seed: i32, speed
                 dist = dist * cellSize;
             }
 
-            dist = dist + r1.z * (cellVariation * 0.01);
+            dist = dist + r1.z * (variation * 0.01);
             d = smin(d, dist, cellSmooth * 0.01);
         }
     }
@@ -128,7 +128,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     var cellScale = uniforms.data[1].z;
     let cellSmooth = uniforms.data[1].w;
 
-    let cellVariation = uniforms.data[2].x;
+    let variation = uniforms.data[2].x;
     let speed = uniforms.data[2].y;
 
     let aspect = resolution.x / resolution.y;
@@ -139,7 +139,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let freq = map(scale, 1.0, 100.0, 20.0, 1.0);
     let cellSize = map(cellScale, 1.0, 100.0, 3.0, 0.75);
 
-    let d = cells(st, freq, cellSize, metric, seed, speed, cellVariation, cellSmooth, time, aspect);
+    let d = cells(st, freq, cellSize, metric, seed, speed, variation, cellSmooth, time, aspect);
 
     // Mono output only
     color = vec4<f32>(vec3<f32>(d, d, d), color.a);

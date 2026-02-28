@@ -86,7 +86,7 @@ float shape(vec2 st, vec2 offset, int type, float scale) {
 	return d * scale;
 }
 
-// smoothmin from https://iquilezles.org/articles/smin/ - MIT License
+// cellSmoothmin from https://iquilezles.org/articles/smin/ - MIT License
 float smin(float a, float b, float k) {
     if (k == 0.0) { return min(a, b); }
     float h = max( k-abs(a-b), 0.0 )/k;
