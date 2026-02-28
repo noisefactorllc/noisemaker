@@ -45,8 +45,7 @@ export default new Effect({
       max: 100,
       ui: {
         label: "loop scale",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     speed: {
@@ -57,8 +56,7 @@ export default new Effect({
       max: 100,
       ui: {
         label: "speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     aspectLens: {

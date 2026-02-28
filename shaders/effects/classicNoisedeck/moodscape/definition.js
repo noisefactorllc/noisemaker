@@ -37,7 +37,7 @@ export default new Effect({
         simplex: 10,
         sine: 11
       },
-      ui: { label: "interpolation", control: "dropdown", category: "general" },
+      ui: { label: "interpolation", control: "dropdown" },
       uniform: "interp"
     },
     noiseScale: {
@@ -53,7 +53,7 @@ export default new Effect({
       default: 25,
       min: 0,
       max: 100,
-      ui: { label: "speed", control: "slider", category: "animation" },
+      ui: { label: "speed", control: "slider" },
       uniform: "speed"
     },
     refractAmt: {
@@ -61,19 +61,19 @@ export default new Effect({
       default: 5,
       min: 0,
       max: 100,
-      ui: { label: "refract", control: "slider", category: "general" },
+      ui: { label: "refract", control: "slider" },
       uniform: "refractAmt"
     },
     ridges: {
       type: "boolean",
       default: true,
-      ui: { label: "ridges", control: "checkbox", category: "general" },
+      ui: { label: "ridges", control: "checkbox" },
       uniform: "ridges"
     },
     wrap: {
       type: "boolean",
       default: true,
-      ui: { label: "wrap", control: "checkbox", category: "general" },
+      ui: { label: "wrap", control: "checkbox" },
       uniform: "wrap"
     },
     seed: {
@@ -81,7 +81,7 @@ export default new Effect({
       default: 44,
       min: 0,
       max: 100,
-      ui: { label: "seed", control: "slider", category: "util" },
+      ui: { label: "seed", control: "slider" },
       uniform: "seed"
     },
     colorMode: {

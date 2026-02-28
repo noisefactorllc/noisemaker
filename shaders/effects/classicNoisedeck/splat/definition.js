@@ -58,8 +58,7 @@ export default new Effect({
       max: 5,
       ui: {
         label: "splat speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     seed: {
@@ -129,8 +128,7 @@ export default new Effect({
       max: 5,
       ui: {
         label: "speck speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     speckSeed: {

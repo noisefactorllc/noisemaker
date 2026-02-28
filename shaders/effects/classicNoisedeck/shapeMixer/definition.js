@@ -74,8 +74,7 @@ export default class ShapeMixer extends Effect {
       },
       ui: {
         label: "shape",
-        control: "dropdown",
-        category: "animation"
+        control: "dropdown"
       }
     },
     loopScale: {
@@ -86,8 +85,7 @@ export default class ShapeMixer extends Effect {
       max: 100,
       ui: {
         label: "shape scale",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     animate: {
@@ -232,8 +230,7 @@ export default class ShapeMixer extends Effect {
       max: 100,
       ui: {
         label: "noise seed",
-        control: "slider",
-        category: "util"
+        control: "slider"
       }
     }
   }

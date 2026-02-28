@@ -154,8 +154,7 @@ export default class Noise extends Effect {
       max: 100,
       ui: {
         label: "seed",
-        control: "slider",
-        category: "util"
+        control: "slider"
       }
     },
     loopOffset: {
@@ -186,8 +185,7 @@ export default class Noise extends Effect {
       },
       ui: {
         label: "loop offset",
-        control: "dropdown",
-        category: "animation"
+        control: "dropdown"
       }
     },
     loopScale: {
@@ -198,8 +196,7 @@ export default class Noise extends Effect {
       max: 100,
       ui: {
         label: "loop scale",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     speed: {
@@ -210,8 +207,7 @@ export default class Noise extends Effect {
       max: 100,
       ui: {
         label: "speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     kaleido: {

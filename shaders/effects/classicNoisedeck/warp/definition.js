@@ -95,8 +95,7 @@ export default new Effect({
       max: 100,
       ui: {
         label: "noise seed",
-        control: "slider",
-        category: "util"
+        control: "slider"
       }
     },
     wrap: {
@@ -142,8 +141,7 @@ export default new Effect({
       max: 5,
       ui: {
         label: "speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     rotation: {
@@ -154,8 +152,7 @@ export default new Effect({
       max: 5,
       ui: {
         label: "rot speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
   },

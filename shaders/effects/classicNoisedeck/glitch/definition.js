@@ -16,8 +16,7 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider",
-        category: "util"
+        control: "slider"
       }
     },
     glitchiness: {

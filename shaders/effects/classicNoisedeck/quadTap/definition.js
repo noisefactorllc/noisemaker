@@ -23,7 +23,7 @@ export default new Effect({
       default: 25,
       min: 0,
       max: 100,
-      ui: { label: "speed", control: "slider", category: "animation" },
+      ui: { label: "speed", control: "slider" },
       uniform: "speed"
     },
     intensity: {

@@ -74,8 +74,7 @@ export default class Shapes extends Effect {
       },
       ui: {
         label: "loop a",
-        control: "dropdown",
-        category: "animation"
+        control: "dropdown"
       }
     },
     loopBOffset: {
@@ -115,8 +114,7 @@ export default class Shapes extends Effect {
       },
       ui: {
         label: "loop b",
-        control: "dropdown",
-        category: "animation"
+        control: "dropdown"
       }
     },
     loopAScale: {
@@ -127,8 +125,7 @@ export default class Shapes extends Effect {
       max: 100,
       ui: {
         label: "a scale",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     loopBScale: {
@@ -139,8 +136,7 @@ export default class Shapes extends Effect {
       max: 100,
       ui: {
         label: "b scale",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     speedA: {
@@ -151,8 +147,7 @@ export default class Shapes extends Effect {
       max: 100,
       ui: {
         label: "speed a",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     speedB: {
@@ -163,8 +158,7 @@ export default class Shapes extends Effect {
       max: 100,
       ui: {
         label: "speed b",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     seed: {
@@ -175,8 +169,7 @@ export default class Shapes extends Effect {
       max: 100,
       ui: {
         label: "noise seed",
-        control: "slider",
-        category: "util"
+        control: "slider"
       }
     },
     wrap: {

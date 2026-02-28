@@ -16,8 +16,7 @@ export default new Effect({
       max: 32,
       ui: {
         label: "sides",
-        control: "slider",
-        category: "general"
+        control: "slider"
       }
     },
     metric: {
@@ -34,8 +33,7 @@ export default new Effect({
       },
       ui: {
         label: "shape",
-        control: "dropdown",
-        category: "general"
+        control: "dropdown"
       }
     },
     direction: {
@@ -49,8 +47,7 @@ export default new Effect({
       },
       ui: {
         label: "rotate",
-        control: "dropdown",
-        category: "animation"
+        control: "dropdown"
       }
     },
     loopOffset: {
@@ -90,8 +87,7 @@ export default new Effect({
       },
       ui: {
         label: "loop offset",
-        control: "dropdown",
-        category: "animation"
+        control: "dropdown"
       }
     },
     loopScale: {
@@ -102,8 +98,7 @@ export default new Effect({
       max: 100,
       ui: {
         label: "loop scale",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     speed: {
@@ -114,8 +109,7 @@ export default new Effect({
       max: 100,
       ui: {
         label: "speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     seed: {
@@ -126,8 +120,7 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider",
-        category: "util"
+        control: "slider"
       }
     },
     wrap: {
@@ -136,8 +129,7 @@ export default new Effect({
       uniform: "wrap",
       ui: {
         label: "wrap",
-        control: "checkbox",
-        category: "animation"
+        control: "checkbox"
       }
     },
     kernel: {

@@ -58,8 +58,7 @@ export default new Effect({
       max: 5,
       ui: {
         label: "speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     rotation: {

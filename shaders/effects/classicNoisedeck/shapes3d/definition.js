@@ -199,8 +199,7 @@ export default class Shapes3D extends Effect {
       max: 10,
       ui: {
         label: "spin speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     flipSpeed: {
@@ -211,8 +210,7 @@ export default class Shapes3D extends Effect {
       max: 10,
       ui: {
         label: "flip speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     cameraDist: {
@@ -425,8 +423,7 @@ export default class Shapes3D extends Effect {
       max: 10,
       ui: {
         label: "flythrough",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     spacing: {

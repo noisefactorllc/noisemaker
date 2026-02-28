@@ -119,8 +119,7 @@ export default new Effect({
       max: 10,
       ui: {
         label: "speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     seed: {
@@ -131,8 +130,7 @@ export default new Effect({
       max: 100,
       ui: {
         label: "seed",
-        control: "slider",
-        category: "util"
+        control: "slider"
       }
     }
   },

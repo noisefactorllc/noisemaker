@@ -101,8 +101,7 @@ export default class Fractal extends Effect {
       max: 100,
       ui: {
         label: "speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     offsetX: {

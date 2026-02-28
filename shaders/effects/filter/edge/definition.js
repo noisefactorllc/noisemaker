@@ -14,11 +14,11 @@ export default new Effect({
   globals: {
     amount: {
       type: "float",
-      default: 1.0,
+      default: 2.0,
       uniform: "amount",
       min: 0,
       max: 10,
-      randMin: 1.0,
+      randMin: 2.0,
       ui: {
         label: "amount",
         control: "slider"

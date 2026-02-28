@@ -101,8 +101,7 @@ export default new Effect({
       max: 100,
       ui: {
         label: "truchet seed",
-        control: "slider",
-        category: "util"
+        control: "slider"
       }
     },
     animation: {
@@ -132,8 +131,7 @@ export default new Effect({
       max: 10,
       ui: {
         label: "speed",
-        control: "slider",
-        category: "animation"
+        control: "slider"
       }
     },
     sharpness: {
