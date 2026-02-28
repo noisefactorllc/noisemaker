@@ -6,7 +6,6 @@ Tunnel perspective effect
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| seed | int | 1 | 1-100 | Seed |
 | distortionType | int | circle | circle/triangle/roundedSquare/square/hexagon/octagon | Type |
 | flip | int | none | none/Flip:/all/horizontal/vertical/Mirror:/leftToRight/rightToLeft/upToDown/downToUp/lrUd/lrDu/rlUd/rlDu | Flip/mirror |
 | speed | int | 1 | -5-5 | Speed |

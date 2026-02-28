@@ -10,7 +10,6 @@ precision highp float;
 precision highp int;
 
 uniform float time;
-uniform int seed;
 uniform vec2 resolution;
 uniform int type;
 uniform int symmetry; // 2 3 4 5

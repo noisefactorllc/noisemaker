@@ -6,7 +6,6 @@ Color manipulation lab
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| seed | int | 1 | 1-100 | Seed |
 | colorMode | int | srgbDefault | mono/linearRgb/srgbDefault/oklab/palette | Color space |
 | palette | palette | sulphur | none/seventiesShirt/fiveG/afterimage/barstow/bloob/blueSkies/brushedMetal/burningSky/california/columbia/cottonCandy/darkSatin/dealerHat/dreamy/eventHorizon/ghostly/grayscale/hazySunset/heatmap/hypercolor/jester/justBlue/justCyan/justGreen/justPurple/justRed/justYellow/mars/modesto/moss/neptune/netOfGems/organic/papaya/radioactive/royal/santaCruz/sherbet/sherbetDouble/silvermane/skykissed/solaris/spooky/springtime/sproingtime/sulphur/summoning/superhero/toxic/tropicalia/tungsten/vaporwave/vibrant/vintage/vintagePhoto | Palette |
 | paletteMode | int | 0 | - | - |

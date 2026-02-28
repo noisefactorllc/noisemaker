@@ -21,7 +21,6 @@ export default class Media extends Effect {
   uniformLayout = {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
-    seed: { slot: 0, components: 'w' },
     position: { slot: 1, components: 'x' },
     rotation: { slot: 1, components: 'y' },
     scaleAmt: { slot: 1, components: 'z' },
@@ -164,16 +163,6 @@ export default class Media extends Effect {
         label: "bg opacity",
         control: "slider",
         category: "background"
-      }
-    },
-    seed: {
-      type: "int",
-      default: 1,
-      min: 1,
-      max: 100,
-      uniform: "seed",
-      ui: {
-        control: false
       }
     },
     imageSize: {

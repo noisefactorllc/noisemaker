@@ -18,7 +18,6 @@ export default class Fractal extends Effect {
   uniformLayout = {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
-    seed: { slot: 0, components: 'w' },
     type: { slot: 1, components: 'x' },
     symmetry: { slot: 1, components: 'y' },
     offsetX: { slot: 1, components: 'z' },
@@ -47,17 +46,6 @@ export default class Fractal extends Effect {
   }
 
   globals = {
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider"
-      }
-    },
     type: {
       type: "int",
       default: 0,

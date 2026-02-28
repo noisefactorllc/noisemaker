@@ -13,7 +13,6 @@ uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
 uniform float time;
-uniform int seed;
 uniform vec3 inputColor;
 uniform int blendMode;
 uniform float range;

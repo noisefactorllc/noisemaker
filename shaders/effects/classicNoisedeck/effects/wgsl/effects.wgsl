@@ -15,7 +15,6 @@ struct Uniforms {
     resolution: vec2f,
     aspect: f32,
     // Effect params in definition.js globals order:
-    seed: i32,
     effect: i32,
     effectAmt: f32,
     flip: i32,

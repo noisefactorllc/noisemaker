@@ -48,16 +48,6 @@ export default new Effect({
         "control": "dropdown"
       }
     },
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        control: false
-      }
-    },
     colorMode: {
       type: "int",
       default: 0,

@@ -7,7 +7,6 @@
 
 struct Uniforms {
     time: f32,
-    seed: i32,
     paletteType: i32,
     cycle: i32,
     rotate: f32,

@@ -15,4 +15,3 @@
 | juliaY | float | 0 | -100-100 | Julia Y |
 | juliaZ | float | 0 | -100-100 | Julia Z |
 | colorMode | int | mono | mono/orbitTrap/iteration | Color mode |
-| seed | float | 0 | 0-100 | - |

@@ -6,7 +6,7 @@
 
 struct Uniforms {
     // Contiguous vec4 packing:
-    // 0: resolution.xy, time, seed
+    // 0: resolution.xy, time, (unused)
     // 1: shapeA, shapeB, shapeAScale, shapeBScale
     // 2: shapeAThickness, shapeBThickness, blendMode, smoothness
     // 3: spin, flip, spinSpeed, flipSpeed
@@ -25,7 +25,6 @@ struct Uniforms {
 
 var<private> resolution : vec2<f32>;
 var<private> time : f32;
-var<private> seed : f32;
 var<private> shapeA : i32;
 var<private> shapeB : i32;
 var<private> shapeAScale : f32;
@@ -292,7 +291,6 @@ fn rayMarch(rayOrigin: vec3<f32>, rayDirection: vec3<f32>) -> f32 {
 fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     resolution = uniforms.data[0].xy;
     time = uniforms.data[0].z;
-    seed = uniforms.data[0].w;
 
     shapeA = i32(uniforms.data[1].x);
     shapeB = i32(uniforms.data[1].y);

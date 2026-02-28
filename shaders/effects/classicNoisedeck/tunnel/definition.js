@@ -8,18 +8,6 @@ export default new Effect({
 
   description: "Tunnel perspective effect",
   globals: {
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider",
-        category: "util"
-      }
-    },
     distortionType: {
       type: "int",
       default: 0,

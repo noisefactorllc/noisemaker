@@ -6,7 +6,6 @@ Fractal pattern generator
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| seed | int | 1 | 1-100 | Seed |
 | fractalType | int | julia | julia/mandelbrot/newton | Type |
 | symmetry | int | 0 | - | Symmetry |
 | zoomAmt | float | 0 | 0-130 | Zoom |

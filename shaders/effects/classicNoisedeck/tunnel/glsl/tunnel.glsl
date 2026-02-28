@@ -12,7 +12,6 @@ precision highp int;
 uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform float time;
-uniform int seed;
 uniform bool aspectLens;
 uniform int distortionType;
 uniform float speed;

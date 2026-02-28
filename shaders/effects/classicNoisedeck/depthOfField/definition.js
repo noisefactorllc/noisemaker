@@ -10,7 +10,6 @@ export default new Effect({
   uniformLayout: {
         resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
-    seed: { slot: 0, components: 'w' },
     focalDistance: { slot: 1, components: 'x' },
     aperture: { slot: 1, components: 'y' },
     sampleBias: { slot: 1, components: 'z' },
@@ -22,18 +21,6 @@ export default new Effect({
       default: "none",
       ui: {
         label: "depth map"
-      }
-    },
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider",
-        category: "util"
       }
     },
     focalDistance: {

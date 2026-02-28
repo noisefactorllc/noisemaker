@@ -127,18 +127,6 @@ export default new Effect({
         category: "five color"
       }
     },
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider",
-        category: "util"
-      }
-    },
     offsetR: {
       type: "float",
       default: 50,

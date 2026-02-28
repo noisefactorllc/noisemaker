@@ -6,7 +6,6 @@ Refraction distortion
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| seed | int | 1 | 1-100 | Seed |
 | blendMode | int | mix | add/colorBurn/colorDodge/darken/difference/exclusion/glow/hardLight/lighten/mix/multiply/negation/overlay/phoenix/reflect/screen/softLight/subtract | Blend |
 | mixAmt | float | 50 | 0-100 | Mix |
 | mode | int | refract | refract/reflect | Mode |

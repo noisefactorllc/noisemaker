@@ -16,18 +16,6 @@ export default new Effect({
         label: "source surface b"
       }
     },
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider",
-        category: "util"
-      }
-    },
     blendMode: {
       type: "int",
       default: 1,

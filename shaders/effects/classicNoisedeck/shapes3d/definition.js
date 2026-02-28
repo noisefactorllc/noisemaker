@@ -18,7 +18,6 @@ export default class Shapes3D extends Effect {
   uniformLayout = {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
-    seed: { slot: 0, components: 'w' },
     shapeA: { slot: 1, components: 'x' },
     shapeB: { slot: 1, components: 'y' },
     shapeAScale: { slot: 1, components: 'z' },
@@ -51,17 +50,6 @@ export default class Shapes3D extends Effect {
   }
 
   globals = {
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider"
-      }
-    },
     shapeA: {
       type: "int",
       default: 30,

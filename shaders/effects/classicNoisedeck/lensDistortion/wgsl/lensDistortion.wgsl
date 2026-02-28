@@ -18,7 +18,6 @@ struct Uniforms {
     resolution: vec2f,   // global (8-byte aligned)
     aspect: f32,         // global
     // effect params from definition order:
-    seed: i32,
     shape: i32,
     distortion: f32,
     loopScale: f32,
@@ -30,6 +29,7 @@ struct Uniforms {
     modulate: i32,
     _pad1: f32,          // padding before vec4
     _pad2: f32,
+    _pad3: f32,
     tint: vec4f,         // 16-byte aligned
     alpha: f32,
     hueRotation: f32,

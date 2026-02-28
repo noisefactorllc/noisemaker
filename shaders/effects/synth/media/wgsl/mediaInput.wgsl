@@ -12,7 +12,6 @@ struct Uniforms {
 
 var<private> resolution : vec2<f32>;
 var<private> time : f32;
-var<private> seed : f32;
 var<private> posIndex : i32;
 var<private> rotation : f32;
 var<private> scaleAmt : f32;
@@ -153,8 +152,6 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     // Unpack uniforms from packed array
     resolution = uniforms.data[0].xy;
     time = uniforms.data[0].z;
-    seed = uniforms.data[0].w;
-
     posIndex = i32(uniforms.data[1].x);
     rotation = uniforms.data[1].y;
     scaleAmt = uniforms.data[1].z;

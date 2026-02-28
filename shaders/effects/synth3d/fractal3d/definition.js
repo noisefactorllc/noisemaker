@@ -149,16 +149,6 @@ export default new Effect({
         label: "color mode",
         control: "dropdown"
       }
-    },
-    seed: {
-      type: "int",
-      default: 0,
-      min: 0,
-      max: 100,
-      uniform: "seed",
-      ui: {
-        control: false
-      }
     }
   },
   paramAliases: { fractalType: 'type' },

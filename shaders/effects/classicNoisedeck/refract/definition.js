@@ -8,18 +8,6 @@ export default new Effect({
 
   description: "Refraction distortion",
   globals: {
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider",
-        category: "util"
-      }
-    },
     blendMode: {
       type: "int",
       default: 10,

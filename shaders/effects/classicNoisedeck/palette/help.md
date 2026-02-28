@@ -17,7 +17,6 @@ Color palette mapping
 | color5 | color | 0,0,1 | - | Color 5 |
 | tint | color | 1,1,1 | - | Tint |
 | smoother | boolean | true | - | Smoother |
-| seed | int | 1 | 1-100 | Seed |
 | offsetR | float | 50 | 0-100 | Offset R |
 | phaseR | float | 0 | 0-100 | Phase R |
 | offsetG | float | 50 | 0-100 | Offset G |

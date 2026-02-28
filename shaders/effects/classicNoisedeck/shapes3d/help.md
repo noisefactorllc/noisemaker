@@ -6,7 +6,6 @@
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| seed | int | 1 | 1-100 | Seed |
 | shapeA | int | torusVert | capsuleHoriz/capsuleVert/cube/cylinderHoriz/cylinderVert/octahedron/sphere/torusHoriz/torusVert | Shape a |
 | shapeB | int | cube | capsuleHoriz/capsuleVert/cube/cylinderHoriz/cylinderVert/octahedron/sphere/torusHoriz/torusVert | Shape b |
 | shapeAScale | float | 64 | 1-100 | A scale |

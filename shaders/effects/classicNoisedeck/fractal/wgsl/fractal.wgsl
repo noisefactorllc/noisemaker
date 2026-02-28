@@ -6,7 +6,7 @@
 
 struct Uniforms {
     // Contiguous vec4 packing for easier uniform buffer mapping:
-    // 0: resolution.xy, time, seed
+    // 0: resolution.xy, time, (unused)
     // 1: fractalType, symmetry, offsetX, offsetY
     // 2: centerX, centerY, zoomAmt, speed
     // 3: rotation, iterations, mode, colorMode
@@ -247,7 +247,6 @@ fn mandelbrot(st0: vec2<f32>, zoomAmt: f32, speed: f32, rotation: f32, centerX: 
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let resolution = uniforms.data[0].xy;
     let time = uniforms.data[0].z;
-    let seed = uniforms.data[0].w; // unused
     let fractalType = i32(uniforms.data[1].x);
     let symmetry = i32(uniforms.data[1].y); // unused
     let offsetX = uniforms.data[1].z;

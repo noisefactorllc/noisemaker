@@ -15,18 +15,6 @@ export default class ColorLab extends Effect {
   description = "Color manipulation lab"
 
   globals = {
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider",
-        category: "util"
-      }
-    },
     colorMode: {
       type: "int",
       default: 2,

@@ -16,11 +16,11 @@ struct Uniforms {
     resolution: vec2f,   // offset 16 (8-byte aligned)
     aspect: f32,         // offset 24
     // effect params:
-    seed: i32,           // offset 28
-    colorMode: i32,      // offset 32
-    palette: i32,        // offset 36
-    paletteMode: i32,    // offset 40
-    _pad1: f32,          // offset 44 (padding for vec4 alignment to 48)
+    colorMode: i32,      // offset 28
+    palette: i32,        // offset 32
+    paletteMode: i32,    // offset 36
+    _pad1: f32,          // offset 40
+    _pad2: f32,          // offset 44 (padding for vec3f alignment to 48)
     paletteOffset: vec3f, // offset 48 (16-byte aligned, 12 bytes used + 4 pad)
     _padOff: f32,        // padding to 16 bytes
     paletteAmp: vec3f,   // offset 64

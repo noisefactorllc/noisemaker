@@ -8,18 +8,6 @@ export default new Effect({
 
   description: "Multi-effect processor",
   globals: {
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider",
-        category: "util"
-      }
-    },
     effect: {
       type: "int",
       default: 0,

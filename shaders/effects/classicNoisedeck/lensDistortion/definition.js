@@ -8,18 +8,6 @@ export default new Effect({
 
   description: "Lens distortion simulation",
   globals: {
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider",
-        category: "util"
-      }
-    },
     shape: {
       type: "int",
       default: 0,

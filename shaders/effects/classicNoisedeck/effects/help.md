@@ -6,7 +6,6 @@ Multi-effect processor
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| seed | int | 1 | 1-100 | Seed |
 | effect | int | none | none/bloom/blur/blurSharpen/cga/derivatives/derivDivide/edge/emboss/litEdge/outline/pixels/posterize/shadow/sharpen/smoothEdge/sobel/subpixel/zoomBlur | Effect |
 | effectAmt | int | 1 | 0-20 | Effect amt |
 | flip | int | none | none/Flip:/all/horizontal/vertical/Mirror:/leftToRight/rightToLeft/upToDown/downToUp/lrUd/lrDu/rlUd/rlDu | Flip/mirror |

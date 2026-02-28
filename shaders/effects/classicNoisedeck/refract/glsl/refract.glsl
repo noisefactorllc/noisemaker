@@ -12,7 +12,6 @@ precision highp int;
 uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform float time;
-uniform int seed;
 uniform int mode;
 uniform float amount;
 uniform float direction;

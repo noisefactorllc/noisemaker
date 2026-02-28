@@ -6,7 +6,6 @@ Lens distortion simulation
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| seed | int | 1 | 1-100 | Seed |
 | shape | int | circle | circle/cosine/diamond/hexagon/octagon/square/triangle | Shape |
 | distortion | float | 0 | -100-100 | Distortion |
 | loopScale | float | 100 | 1-100 | Loop scale |
