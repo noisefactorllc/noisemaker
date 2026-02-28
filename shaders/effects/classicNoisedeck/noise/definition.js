@@ -279,7 +279,8 @@ export default class Noise extends Effect {
       ui: {
         label: "hue rotate",
         control: "slider",
-        category: "color"
+        category: "color",
+        enabledBy: { param: "colorMode", eq: 6 }
       }
     },
     hueRange: {
@@ -291,7 +292,8 @@ export default class Noise extends Effect {
       ui: {
         label: "hue range",
         control: "slider",
-        category: "color"
+        category: "color",
+        enabledBy: { param: "colorMode", eq: 6 }
       }
     },
     palette: {
