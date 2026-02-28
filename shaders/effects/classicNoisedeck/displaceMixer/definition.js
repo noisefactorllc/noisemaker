@@ -4,7 +4,7 @@ export default new Effect({
   name: "DisplaceMixer",
   namespace: "classicNoisedeck",
   func: "displaceMixer",
-  tags: ["distort", "transform"],
+  tags: ["distort"],
 
   description: "Displacement-based mixing",
   globals: {
@@ -12,7 +12,7 @@ export default new Effect({
       type: "surface",
       default: "none",
       ui: {
-        label: "source surface b"
+        label: "source b"
       }
     },
     mode: {
@@ -34,8 +34,8 @@ export default new Effect({
       default: 1,
       uniform: "mapSource",
       choices: {
-        "inputTex": 0,
-        "tex": 1
+        "sourceA": 0,
+        "sourceB": 1
       },
       ui: {
         label: "map source",
@@ -86,7 +86,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "smoothing",
-        control: "slider"
+        control: "slider",
+        enabledBy: { param: "mode", neq: 0 }
       }
     },
     aberration: {
@@ -97,7 +98,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "aberration",
-        control: "slider"
+        control: "slider",
+        enabledBy: { param: "mode", eq: 2 }
       }
     }
   },

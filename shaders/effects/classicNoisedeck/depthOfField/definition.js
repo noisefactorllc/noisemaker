@@ -61,8 +61,8 @@ export default new Effect({
       default: 1,
       uniform: "mapSource",
       choices: {
-        "inputTex": 0,
-        "tex": 1
+        "sourceA": 0,
+        "sourceB": 1
       },
       ui: {
         label: "depth source",

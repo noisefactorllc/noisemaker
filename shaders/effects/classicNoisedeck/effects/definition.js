@@ -4,7 +4,7 @@ export default new Effect({
   name: "Effects",
   namespace: "classicNoisedeck",
   func: "effects",
-  tags: ["color", "distort"],
+  tags: ["color", "edges", "transform"],
 
   description: "Multi-effect processor",
   globals: {
@@ -47,32 +47,6 @@ export default new Effect({
       ui: {
         label: "effect amt",
         control: "slider"
-      }
-    },
-    flip: {
-      type: "int",
-      default: 0,
-      uniform: "flip",
-      choices: {
-        none: 0,
-        "Flip:": null,
-        all: 1,
-        horizontal: 2,
-        vertical: 3,
-        "Mirror:": null,
-        leftToRight: 11,
-        rightToLeft: 12,
-        upToDown: 13,
-        downToUp: 14,
-        lrUd: 15,
-        lrDu: 16,
-        rlUd: 17,
-        rlDu: 18
-      },
-      ui: {
-        label: "flip/mirror",
-        control: "dropdown",
-        category: "orientation"
       }
     },
     scaleAmt: {
@@ -120,6 +94,32 @@ export default new Effect({
       ui: {
         label: "offset y",
         control: "slider",
+        category: "transform"
+      }
+    },
+    flip: {
+      type: "int",
+      default: 0,
+      uniform: "flip",
+      choices: {
+        none: 0,
+        "Flip:": null,
+        all: 1,
+        horizontal: 2,
+        vertical: 3,
+        "Mirror:": null,
+        leftToRight: 11,
+        rightToLeft: 12,
+        upToDown: 13,
+        downToUp: 14,
+        lrUd: 15,
+        lrDu: 16,
+        rlUd: 17,
+        rlDu: 18
+      },
+      ui: {
+        label: "flip/mirror",
+        control: "dropdown",
         category: "transform"
       }
     },

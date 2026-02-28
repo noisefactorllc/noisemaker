@@ -263,7 +263,7 @@ export default class Fractal extends Effect {
         backward: -1
       },
       ui: {
-        label: "cycle palette",
+        label: "rotation",
         control: "dropdown",
         category: "palette",
         enabledBy: { param: "colorMode", eq: 4 }
@@ -276,7 +276,7 @@ export default class Fractal extends Effect {
       min: 0,
       max: 100,
       ui: {
-        label: "rotate palette",
+        label: "offset",
         control: "slider",
         category: "palette",
         enabledBy: { param: "colorMode", eq: 4 }
@@ -289,7 +289,7 @@ export default class Fractal extends Effect {
       min: 1,
       max: 5,
       ui: {
-        label: "repeat palette",
+        label: "repeat",
         control: "slider",
         category: "palette",
         enabledBy: { param: "colorMode", eq: 4 }
@@ -304,7 +304,8 @@ export default class Fractal extends Effect {
       ui: {
         label: "hue range",
         control: "slider",
-        category: "color"
+        category: "color",
+        enabledBy: { param: "colorMode", eq: 6 }
       }
     },
     levels: {
@@ -324,7 +325,7 @@ export default class Fractal extends Effect {
       default: [0.0, 0.0, 0.0],
       uniform: "bgColor",
       ui: {
-        label: "background color",
+        label: "bg color",
         control: "color",
         category: "background"
       }
@@ -336,7 +337,7 @@ export default class Fractal extends Effect {
       min: 0,
       max: 100,
       ui: {
-        label: "background opacity",
+        label: "bg opacity",
         control: "slider",
         category: "background"
       }
