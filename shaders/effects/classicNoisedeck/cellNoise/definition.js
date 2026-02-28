@@ -23,7 +23,7 @@ export default class CellNoise extends Effect {
     shape: { slot: 1, components: 'x' },
     scale: { slot: 1, components: 'y' },
     cellScale: { slot: 1, components: 'z' },
-    smooth: { slot: 1, components: 'w' },
+    cellSmooth: { slot: 1, components: 'w' },
     variation: { slot: 2, components: 'x' },
     speed: { slot: 2, components: 'y' },
     paletteMode: { slot: 2, components: 'z' },
@@ -81,7 +81,7 @@ export default class CellNoise extends Effect {
     smooth: {
       type: "float",
       default: 11,
-      uniform: "smooth",
+      uniform: "cellSmooth",
       min: 0,
       max: 100,
       ui: {

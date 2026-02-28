@@ -99,7 +99,7 @@ export default new Effect({
     smooth: {
       type: "float",
       default: 0,
-      uniform: "smooth",
+      uniform: "cellSmooth",
       min: 0,
       max: 100,
       ui: {

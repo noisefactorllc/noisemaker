@@ -51,7 +51,7 @@ export default new Effect({
       min: 0,
       max: 100,
       randMax: 25,
-      uniform: "mix",
+      uniform: "mixAmt",
       ui: {
         label: "feedback",
         control: "slider"

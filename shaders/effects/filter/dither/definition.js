@@ -78,7 +78,7 @@ export default new Effect({
     mix: {
       type: "float",
       default: 1.0,
-      uniform: "mix",
+      uniform: "mixAmount",
       min: 0.0,
       max: 1.0,
       step: 0.01,
@@ -88,7 +88,7 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { ditherType: 'type' },
+  paramAliases: { ditherType: 'type', mixAmount: 'mix' },
   passes: [
     {
       name: "render",

@@ -15,7 +15,7 @@ uniform vec2 resolution;
 uniform int shape;
 uniform float scale;
 uniform float cellScale;
-uniform float smooth;
+uniform float cellSmooth;
 uniform float variation;
 uniform float speed;
 uniform int paletteMode;
@@ -283,7 +283,7 @@ float cells(vec2 st, float freq, float cellSize, int sides) {
             }
 
             dist += r1.z * (variation * 0.01); // size variation
-            d = smin(d, dist, smooth * 0.01);
+            d = smin(d, dist, cellSmooth * 0.01);
 			//d = min(d, dist);
 		}
 	}

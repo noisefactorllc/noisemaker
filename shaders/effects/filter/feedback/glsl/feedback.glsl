@@ -21,7 +21,7 @@ uniform float rotation;
 
 // Feedback uniforms  
 uniform int blendMode;
-uniform float mix;
+uniform float mixAmt;
 
 // Color uniforms
 uniform float hueRotation;
@@ -59,7 +59,7 @@ float blendSoftLight(float base, float blend) {
 }
 
 vec4 cloak(vec2 st) {
-    float m = map(mix, 0.0, 100.0, 0.0, 1.0);
+    float m = map(mixAmt, 0.0, 100.0, 0.0, 1.0);
     float ra = map(refractAAmt, 0.0, 100.0, 0.0, 0.125);
     float rb = map(refractBAmt, 0.0, 100.0, 0.0, 0.125);
 
@@ -89,22 +89,22 @@ vec4 cloak(vec2 st) {
 
     vec4 left = vec4(1.0);
     vec4 right = vec4(1.0);
-    if (mix < 50.0) {
-        left = leftRefracted + (leftReflected - leftRefracted) * map(mix, 0.0, 50.0, 0.0, 1.0);
+    if (mixAmt < 50.0) {
+        left = mix(leftRefracted, leftReflected, map(mixAmt, 0.0, 50.0, 0.0, 1.0));
         right = rightReflected;
     } else {
         left = leftReflected;
-        right = rightReflected + (rightRefracted - rightReflected) * map(mix, 50.0, 100.0, 0.0, 1.0);
+        right = mix(rightReflected, rightRefracted, map(mixAmt, 50.0, 100.0, 0.0, 1.0));
     }
 
-    return left + (right - left) * m;
+    return mix(left, right, m);
 }
 
 vec4 blend(vec4 color1, vec4 color2, int mode, float factor) {
     vec4 color;
     vec4 middle;
 
-    float amt = map(mix, 0.0, 100.0, 0.0, 1.0);
+    float amt = map(mixAmt, 0.0, 100.0, 0.0, 1.0);
 
     if (mode == 0) {
         // add
@@ -131,13 +131,13 @@ vec4 blend(vec4 color1, vec4 color2, int mode, float factor) {
         middle = (color2 == vec4(1.0)) ? color2 : min(color1 * color1 / (1.0 - color2), vec4(1.0));
     } else if (mode == 8) {
         // hard light
-        middle = vec4(blendOverlay(color2.r, color1.r), blendOverlay(color2.g, color1.g), blendOverlay(color2.b, color1.b), color1.a + (color2.a - color1.a) * 0.5);
+        middle = vec4(blendOverlay(color2.r, color1.r), blendOverlay(color2.g, color1.g), blendOverlay(color2.b, color1.b), mix(color1.a, color2.a, 0.5));
     } else if (mode == 9) {
         // lighten
         middle = max(color1, color2);
     } else if (mode == 10) {
         // mix
-        middle = color1 + (color2 - color1) * 0.5;
+        middle = mix(color1, color2, 0.5);
     } else if (mode == 11) {
         // multiply
         middle = color1 * color2;
@@ -147,7 +147,7 @@ vec4 blend(vec4 color1, vec4 color2, int mode, float factor) {
         middle.a = max(color1.a, color2.a);
     } else if (mode == 13) {
         // overlay
-        middle = vec4(blendOverlay(color1.r, color2.r), blendOverlay(color1.g, color2.g), blendOverlay(color1.b, color2.b), color1.a + (color2.a - color1.a) * 0.5);
+        middle = vec4(blendOverlay(color1.r, color2.r), blendOverlay(color1.g, color2.g), blendOverlay(color1.b, color2.b), mix(color1.a, color2.a, 0.5));
     } else if (mode == 14) {
         // phoenix
         middle = min(color1, color2) - max(color1, color2) + vec4(1.0);
@@ -159,23 +159,23 @@ vec4 blend(vec4 color1, vec4 color2, int mode, float factor) {
         middle = 1.0 - ((1.0 - color1) * (1.0 - color2));
     } else if (mode == 17) {
         // soft light
-        middle = vec4(blendSoftLight(color1.r, color2.r), blendSoftLight(color1.g, color2.g), blendSoftLight(color1.b, color2.b), color1.a + (color2.a - color1.a) * 0.5);
+        middle = vec4(blendSoftLight(color1.r, color2.r), blendSoftLight(color1.g, color2.g), blendSoftLight(color1.b, color2.b), mix(color1.a, color2.a, 0.5));
     } else if (mode == 18) {
         // subtract
         middle = max(color1 + color2 - 1.0, 0.0);
     } else {
         // fallback to mix
-        middle = color1 + (color2 - color1) * 0.5;
+        middle = mix(color1, color2, 0.5);
     }
 
     if (factor == 0.5) {
         color = middle;
     } else if (factor < 0.5) {
         factor = map(amt, 0.0, 0.5, 0.0, 1.0);
-        color = color1 + (middle - color1) * factor;
+        color = mix(color1, middle, factor);
     } else if (factor > 0.5) {
         factor = map(amt, 0.5, 1.0, 0.0, 1.0);
-        color = middle + (color2 - middle) * factor;
+        color = mix(middle, color2, factor);
     }
 
     return color;
@@ -295,12 +295,12 @@ vec4 getImage(vec2 st) {
 
     // Sample selfTex directly without Y flip
 
-    float redOffset = clamp(st.x + aberrationOffset, 0.0, 1.0) + (st.x - clamp(st.x + aberrationOffset, 0.0, 1.0)) * st.x;
+    float redOffset = mix(clamp(st.x + aberrationOffset, 0.0, 1.0), st.x, st.x);
     vec4 red = texture(selfTex, vec2(redOffset, st.y));
 
     vec4 green = texture(selfTex, st);
 
-    float blueOffset = st.x + (clamp(st.x - aberrationOffset, 0.0, 1.0) - st.x) * st.x;
+    float blueOffset = mix(st.x, clamp(st.x - aberrationOffset, 0.0, 1.0), st.x);
     vec4 blue = texture(selfTex, vec2(blueOffset, st.y));
 
     vec4 tex = vec4(red.r, green.g, blue.b, 1.0);
@@ -342,7 +342,7 @@ void main() {
         rightUV.x += cos(leftLen * TAU) * rb;
         rightUV.y += sin(leftLen * TAU) * rb;
 
-        color = blend(texture(inputTex, leftUV), getImage(rightUV), blendMode, mix * 0.01);
+        color = blend(texture(inputTex, leftUV), getImage(rightUV), blendMode, mixAmt * 0.01);
     }
 
     // hue rotation
