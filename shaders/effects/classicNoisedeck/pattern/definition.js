@@ -4,11 +4,11 @@ export default new Effect({
   name: "Pattern",
   namespace: "classicNoisedeck",
   func: "pattern",
-  tags: ["geometric"],
+  tags: ["geometric", "pattern"],
 
   description: "Pattern generator",
   uniformLayout: {
-        resolution: { slot: 0, components: 'xy' },
+    resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
     patternType: { slot: 1, components: 'x' },
@@ -89,8 +89,21 @@ export default new Effect({
       min: 1,
       max: 100,
       ui: {
-        label: "width",
-        control: "slider"
+        label: "thickness",
+        control: "slider",
+        enabledBy: { param: "type", neq: 0 }
+      }
+    },
+    sharpness: {
+      type: "float",
+      default: 100,
+      uniform: "sharpness",
+      min: 0,
+      max: 100,
+      ui: {
+        label: "sharpness",
+        control: "slider",
+        enabledBy: { param: "type", in: [1, 3, 4, 5, 6] }
       }
     },
     seed: {
@@ -100,8 +113,9 @@ export default new Effect({
       min: 1,
       max: 100,
       ui: {
-        label: "truchet seed",
-        control: "slider"
+        label: "seed",
+        control: "slider",
+        enabledBy: { param: "type", in: [10, 11] }
       }
     },
     animation: {
@@ -120,7 +134,9 @@ export default new Effect({
       },
       ui: {
         label: "animation",
-        control: "dropdown"
+        control: "dropdown",
+        category: "animation",
+        enabledBy: { param: "type", neq: 5 }
       }
     },
     speed: {
@@ -131,18 +147,8 @@ export default new Effect({
       max: 10,
       ui: {
         label: "speed",
-        control: "slider"
-      }
-    },
-    sharpness: {
-      type: "float",
-      default: 100,
-      uniform: "sharpness",
-      min: 0,
-      max: 100,
-      ui: {
-        label: "sharpness",
-        control: "slider"
+        control: "slider",
+        category: "animation"
       }
     },
     color1: {

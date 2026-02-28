@@ -31,7 +31,7 @@ export default new Effect({
         backward: -1
       },
       ui: {
-        label: "cycle palette",
+        label: "animation",
         control: "dropdown"
       }
     },
@@ -42,7 +42,7 @@ export default new Effect({
       min: 0,
       max: 100,
       ui: {
-        label: "rotate palette",
+        label: "offset",
         control: "slider"
       }
     },
@@ -51,9 +51,10 @@ export default new Effect({
       default: 1,
       uniform: "freq",
       min: 1,
-      max: 4,
+      max: 10,
+      randMax: 5,
       ui: {
-        label: "freq",
+        label: "repeat",
         control: "slider"
       }
     },
@@ -64,7 +65,8 @@ export default new Effect({
       ui: {
         label: "color 1",
         control: "color",
-        category: "five color"
+        category: "five color",
+        enabledBy: { param: "type", eq: 1 }
       }
     },
     color2: {
@@ -74,7 +76,8 @@ export default new Effect({
       ui: {
         label: "color 2",
         control: "color",
-        category: "five color"
+        category: "five color",
+        enabledBy: { param: "type", eq: 1 }
       }
     },
     color3: {
@@ -84,7 +87,8 @@ export default new Effect({
       ui: {
         label: "color 3",
         control: "color",
-        category: "five color"
+        category: "five color",
+        enabledBy: { param: "type", eq: 1 }
       }
     },
     color4: {
@@ -94,7 +98,8 @@ export default new Effect({
       ui: {
         label: "color 4",
         control: "color",
-        category: "five color"
+        category: "five color",
+        enabledBy: { param: "type", eq: 1 }
       }
     },
     color5: {
@@ -104,7 +109,8 @@ export default new Effect({
       ui: {
         label: "color 5",
         control: "color",
-        category: "five color"
+        category: "five color",
+        enabledBy: { param: "type", eq: 1 }
       }
     },
     tint: {
@@ -114,7 +120,8 @@ export default new Effect({
       ui: {
         label: "tint",
         control: "color",
-        category: "five color"
+        category: "five color",
+        enabledBy: { param: "type", eq: 1 }
       }
     },
     smoother: {
@@ -124,7 +131,8 @@ export default new Effect({
       ui: {
         label: "smoother",
         control: "checkbox",
-        category: "five color"
+        category: "five color",
+        enabledBy: { param: "type", eq: 1 }
       }
     },
     offsetR: {
@@ -136,7 +144,8 @@ export default new Effect({
       ui: {
         label: "offset r",
         control: "slider",
-        category: "cosine"
+        category: "cosine",
+        enabledBy: { param: "type", eq: 0 }
       }
     },
     phaseR: {
@@ -148,7 +157,8 @@ export default new Effect({
       ui: {
         label: "phase r",
         control: "slider",
-        category: "cosine"
+        category: "cosine",
+        enabledBy: { param: "type", eq: 0 }
       }
     },
     offsetG: {
@@ -160,7 +170,8 @@ export default new Effect({
       ui: {
         label: "offset g",
         control: "slider",
-        category: "cosine"
+        category: "cosine",
+        enabledBy: { param: "type", eq: 0 }
       }
     },
     phaseG: {
@@ -172,7 +183,8 @@ export default new Effect({
       ui: {
         label: "phase g",
         control: "slider",
-        category: "cosine"
+        category: "cosine",
+        enabledBy: { param: "type", eq: 0 }
       }
     },
     offsetB: {
@@ -184,7 +196,8 @@ export default new Effect({
       ui: {
         label: "offset b",
         control: "slider",
-        category: "cosine"
+        category: "cosine",
+        enabledBy: { param: "type", eq: 0 }
       }
     },
     phaseB: {
@@ -196,7 +209,8 @@ export default new Effect({
       ui: {
         label: "phase b",
         control: "slider",
-        category: "cosine"
+        category: "cosine",
+        enabledBy: { param: "type", eq: 0 }
       }
     },
     ampR: {
@@ -208,7 +222,8 @@ export default new Effect({
       ui: {
         label: "amp r",
         control: "slider",
-        category: "cosine"
+        category: "cosine",
+        enabledBy: { param: "type", eq: 0 }
       }
     },
     ampG: {
@@ -220,7 +235,8 @@ export default new Effect({
       ui: {
         label: "amp g",
         control: "slider",
-        category: "cosine"
+        category: "cosine",
+        enabledBy: { param: "type", eq: 0 }
       }
     },
     ampB: {
@@ -232,7 +248,8 @@ export default new Effect({
       ui: {
         label: "amp b",
         control: "slider",
-        category: "cosine"
+        category: "cosine",
+        enabledBy: { param: "type", eq: 0 }
       }
     },
     colorMode: {
@@ -247,7 +264,8 @@ export default new Effect({
       ui: {
         label: "color mode",
         control: "dropdown",
-        category: "cosine"
+        category: "cosine",
+        enabledBy: { param: "type", eq: 0 }
       }
     }
   },

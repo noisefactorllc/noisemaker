@@ -121,31 +121,6 @@ export default class Noise extends Effect {
         enabledBy: { param: "type", notIn: [10, 11] },
       }
     },
-    refractMode: {
-      type: "int",
-      default: 2,
-      uniform: "refractMode",
-      choices: {
-        color: 0,
-        topology: 1,
-        colorTopology: 2
-      },
-      ui: {
-        label: "refract mode",
-        control: "dropdown"
-      }
-    },
-    refractAmt: {
-      type: "float",
-      default: 0,
-      uniform: "refractAmt",
-      min: 0,
-      max: 100,
-      ui: {
-        label: "refract",
-        control: "slider"
-      }
-    },
     seed: {
       type: "int",
       default: 1,
@@ -157,6 +132,34 @@ export default class Noise extends Effect {
         control: "slider"
       }
     },
+    refractMode: {
+      type: "int",
+      default: 2,
+      uniform: "refractMode",
+      choices: {
+        color: 0,
+        topology: 1,
+        colorTopology: 2
+      },
+      ui: {
+        label: "refract mode",
+        control: "dropdown",
+        category: "refract"
+      }
+    },
+    refractAmt: {
+      type: "float",
+      default: 0,
+      uniform: "refractAmt",
+      min: 0,
+      max: 100,
+      ui: {
+        label: "refract",
+        control: "slider",
+        category: "refract"
+      }
+    },
+
     loopOffset: {
       type: "int",
       default: 300,
@@ -219,6 +222,7 @@ export default class Noise extends Effect {
       uniform: "kaleido",
       min: 1,
       max: 32,
+      randChance: 0,
       ui: {
         label: "kaleido sides",
         control: "slider",
@@ -240,7 +244,8 @@ export default class Noise extends Effect {
       ui: {
         label: "kaleido shape",
         control: "dropdown",
-        category: "kaleido"
+        category: "kaleido",
+        enabledBy: { param: "kaleido", gt: 1 }
       }
     },
     colorMode: {
@@ -317,7 +322,7 @@ export default class Noise extends Effect {
         backward: -1
       },
       ui: {
-        label: "cycle palette",
+        label: "rotation",
         control: "dropdown",
         category: "palette",
         enabledBy: { param: "colorMode", eq: 4 }
@@ -330,21 +335,21 @@ export default class Noise extends Effect {
       min: 0,
       max: 100,
       ui: {
-        label: "rotate palette",
+        label: "offset",
         control: "slider",
         category: "palette",
         enabledBy: { param: "colorMode", eq: 4 }
       }
     },
     repeatPalette: {
-      type: "float",
+      type: "int",
       default: 1,
       uniform: "repeatPalette",
-      min: 0,
+      min: 1,
       max: 10,
-      step: 0.1,
+      randMax: 5,
       ui: {
-        label: "repeat palette",
+        label: "repeat",
         control: "slider",
         category: "palette",
         enabledBy: { param: "colorMode", eq: 4 }

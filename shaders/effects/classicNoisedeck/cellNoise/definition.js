@@ -220,7 +220,8 @@ export default class CellNoise extends Effect {
       default: 1,
       uniform: "repeatPalette",
       min: 1,
-      max: 5,
+      max: 10,
+      randMax: 5,
       ui: {
         label: "repeat",
         control: "slider",

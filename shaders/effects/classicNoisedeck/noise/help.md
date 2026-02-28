@@ -12,23 +12,20 @@ Noise pattern generator
 | yScale | float | 75 | 1-100 | Vert scale |
 | ridges | boolean | false | - | Ridges |
 | wrap | boolean | true | - | Wrap |
+| seed | int | 1 | 1-100 | Seed |
 | refractMode | int | colorTopology | color/topology/colorTopology | Refract mode |
 | refractAmt | float | 0 | 0-100 | Refract |
-| seed | int | 1 | 1-100 | Seed |
 | loopOffset | int | noise | Shapes:/circle/triangle/diamond/square/pentagon/hexagon/heptagon/octagon/nonagon/decagon/hendecagon/dodecagon/Directional:/horizontalScan/verticalScan/Misc:/noise/rings/sine | Loop offset |
 | loopScale | float | 75 | 1-100 | Loop scale |
 | speed | float | 25 | -100-100 | Speed |
-| kaleido | int | 1 | 1-32 | Kaleido sides |
-| metric | int | circle | circle/diamond/hexagon/octagon/square/triangle | Kaleido shape |
+| kaleido sides | int | 1 | 1-32 | Kaleido sides |
+| kaleido shape | int | circle | circle/diamond/hexagon/octagon/square/triangle | Kaleido shape |
 | colorMode | int | hsv | mono/linearRgb/srgb/oklab/palette/hsv | Color space |
 | paletteMode | int | 3 | - | - |
 | hueRotation | float | 179 | 0-360 | Hue rotate |
 | hueRange | float | 25 | 0-100 | Hue range |
 | palette | palette | fiveG | none/seventiesShirt/fiveG/afterimage/barstow/bloob/blueSkies/brushedMetal/burningSky/california/columbia/cottonCandy/darkSatin/dealerHat/dreamy/eventHorizon/ghostly/grayscale/hazySunset/heatmap/hypercolor/jester/justBlue/justCyan/justGreen/justPurple/justRed/justYellow/mars/modesto/moss/neptune/netOfGems/organic/papaya/radioactive/royal/santaCruz/sherbet/sherbetDouble/silvermane/skykissed/solaris/spooky/springtime/sproingtime/sulphur/summoning/superhero/toxic/tropicalia/tungsten/vaporwave/vibrant/vintage/vintagePhoto | Palette |
-| cyclePalette | int | forward | off/forward/backward | Cycle palette |
-| rotatePalette | float | 0 | 0-100 | Rotate palette |
-| repeatPalette | float | 1 | 0-10 | Repeat palette |
-| paletteOffset | vec3 | 0.5,0.5,0.5 | - | Palette offset |
-| paletteAmp | vec3 | 0.5,0.5,0.5 | - | Palette amplitude |
-| paletteFreq | vec3 | 1,1,1 | - | Palette frequency |
-| palettePhase | vec3 | 0.3,0.2,0.2 | - | Palette phase |
+| rotation | int | forward | off/forward/backward | Cycle palette |
+| offset | float | 0 | 0-100 | Rotate palette |
+| repeatPalette | float | 1 | 1-10 | Repeat palette |
+

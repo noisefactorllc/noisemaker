@@ -37,7 +37,7 @@ export default new Effect({
         simplex: 10,
         sine: 11
       },
-      ui: { label: "interpolation", control: "dropdown" },
+      ui: { label: "noise type", control: "dropdown" },
       uniform: "interp"
     },
     noiseScale: {
@@ -45,7 +45,7 @@ export default new Effect({
       default: 85,
       min: 1,
       max: 200,
-      ui: { label: "scale", control: "slider", category: "transform" },
+      ui: { label: "scale", control: "slider" },
       uniform: "noiseScale"
     },
     speed: {
@@ -73,7 +73,7 @@ export default new Effect({
     wrap: {
       type: "boolean",
       default: true,
-      ui: { label: "wrap", control: "checkbox" },
+      ui: { label: "wrap", control: "checkbox", enabledBy: { param: "interp", lt: 10 } },
       uniform: "wrap"
     },
     seed: {
@@ -101,7 +101,7 @@ export default new Effect({
       default: 180,
       min: 0,
       max: 360,
-      ui: { label: "hue rotation", control: "slider", category: "color" },
+      ui: { label: "hue rotation", control: "slider", category: "color", enabledBy: { param: "colorMode", neq: 0 } },
       uniform: "hueRotation"
     },
     hueRange: {
@@ -109,7 +109,7 @@ export default new Effect({
       default: 25,
       min: 0,
       max: 100,
-      ui: { label: "hue range", control: "slider", category: "color" },
+      ui: { label: "hue range", control: "slider", category: "color", enabledBy: { param: "colorMode", eq: 2 } },
       uniform: "hueRange"
     },
     intensity: {

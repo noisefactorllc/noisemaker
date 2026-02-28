@@ -7,9 +7,9 @@ Color palette mapping
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | paletteType | int | cosine | cosine/fiveColor | Palette type |
-| cyclePalette | int | forward | off/forward/backward | Cycle palette |
-| rotatePalette | float | 0 | 0-100 | Rotate palette |
-| freq | int | 1 | 1-4 | Freq |
+| rotation | int | forward | off/forward/backward | Cycle palette |
+| offset | float | 0 | 0-100 | Rotate palette |
+| repeat | int | 1 | 1-10 | Freq |
 | color1 | color | 1,0,0 | - | Color 1 |
 | color2 | color | 1,1,0 | - | Color 2 |
 | color3 | color | 0,1,0 | - | Color 3 |

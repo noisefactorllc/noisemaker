@@ -21,7 +21,7 @@ Cellular noise patterns
 | paletteAmp | vec3 | 0.5,0.5,0.5 | - | Palette amplitude |
 | rotatePalette | float | 0 | 0-100 | Rotate palette |
 | paletteFreq | vec3 | 2,2,2 | - | Palette frequency |
-| repeatPalette | int | 1 | 1-5 | Repeat palette |
+| repeatPalette | int | 1 | 1-10 | Repeat palette |
 | palettePhase | vec3 | 1,1,1 | - | Palette phase |
 | tex | surface | none | - | Texture |
 | influence | int | warp | add/divide/min/max/mod/multiply/subtract/warp | Texture influence |

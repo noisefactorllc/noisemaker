@@ -4,9 +4,9 @@ export default new Effect({
   name: "Noise3d",
   namespace: "classicNoisedeck",
   func: "noise3d",
-  tags: ["noise", "geometric"],
+  tags: ["3d", "noise"],
 
-  description: "3D noise volume",
+  description: "3D noise volumes",
   globals: {
     type: {
       type: "int",
@@ -24,6 +24,39 @@ export default new Effect({
       ui: {
         label: "noise type",
         control: "dropdown"
+      }
+    },
+    ridges: {
+      type: "boolean",
+      default: false,
+      uniform: "ridges",
+      ui: {
+        label: "ridges",
+        control: "checkbox",
+        enabledBy: { param: "type", eq: 12 }
+      }
+    },
+    seed: {
+      type: "int",
+      default: 1,
+      uniform: "seed",
+      min: 1,
+      max: 100,
+      ui: {
+        label: "seed",
+        control: "slider",
+        enabledBy: { param: "type", neq: 50 }
+      }
+    },
+    speed: {
+      type: "int",
+      default: 1,
+      uniform: "speed",
+      min: -10,
+      max: 10,
+      ui: {
+        label: "speed",
+        control: "slider"
       }
     },
     scale: {
@@ -62,23 +95,14 @@ export default new Effect({
         category: "transform"
       }
     },
-    ridges: {
-      type: "boolean",
-      default: false,
-      uniform: "ridges",
-      ui: {
-        label: "ridges",
-        control: "checkbox"
-      }
-    },
     colorMode: {
       type: "int",
       default: 6,
       uniform: "colorMode",
       choices: {
         depthMap: 8,
-        mono: 0,
         hsv: 6,
+        mono: 0,
         surfaceNormal: 7
       },
       ui: {
@@ -96,7 +120,8 @@ export default new Effect({
       ui: {
         label: "hue rotate",
         control: "slider",
-        category: "color"
+        category: "color",
+        enabledBy: { param: "colorMode", eq: 6 }
       }
     },
     hueRange: {
@@ -108,29 +133,8 @@ export default new Effect({
       ui: {
         label: "hue range",
         control: "slider",
-        category: "color"
-      }
-    },
-    speed: {
-      type: "int",
-      default: 1,
-      uniform: "speed",
-      min: -10,
-      max: 10,
-      ui: {
-        label: "speed",
-        control: "slider"
-      }
-    },
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "seed",
-        control: "slider"
+        category: "color",
+        enabledBy: { param: "colorMode", eq: 6 }
       }
     }
   },
