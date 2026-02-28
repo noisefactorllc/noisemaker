@@ -329,6 +329,9 @@ async function runStructureOnlyMode(args) {
         if (structureResult.structuralParityIssues?.length > 0) {
             issues.push(`${structureResult.structuralParityIssues.length} parity issue(s)`)
         }
+        if (structureResult.nameCollisions?.length > 0) {
+            issues.push(`${structureResult.nameCollisions.length} name collision(s)`)
+        }
 
         const passed = issues.length === 0
         if (passed) {
@@ -338,7 +341,7 @@ async function runStructureOnlyMode(args) {
             failedCount++
             console.log(`❌ ${effectId}: ${issues.join(', ')} [${elapsed}ms]`)
 
-            // Print details in verbose mode or if naming issues
+            // Print details in verbose mode or if naming/collision issues
             if (args.verbose || structureResult.namingIssues?.length > 0) {
                 for (const issue of (structureResult.namingIssues || [])) {
                     if (issue.expected) {
@@ -347,6 +350,9 @@ async function runStructureOnlyMode(args) {
                         console.log(`   ${issue.type}: "${issue.name}" - ${issue.reason}`)
                     }
                 }
+            }
+            for (const collision of (structureResult.nameCollisions || [])) {
+                console.log(`   ${collision.message}`)
             }
         }
 
@@ -454,6 +460,16 @@ async function testEffect(session, effectId, options) {
             }
         } else {
             console.log(`  ✓ GLSL ↔ WGSL structural parity`)
+        }
+
+        // Report GLSL name collisions
+        if (structureResult.nameCollisions?.length > 0) {
+            console.log(`  ❌ GLSL name collisions (${structureResult.nameCollisions.length}):`)
+            for (const collision of structureResult.nameCollisions) {
+                console.log(`     ${collision.message}`)
+            }
+        } else {
+            console.log(`  ✓ no GLSL name collisions`)
         }
 
         t0 = Date.now()
@@ -831,6 +847,7 @@ async function main() {
             if (args.runStructure && r.structure?.unusedFiles?.length > 0) return false
             if (args.runStructure && r.structure?.leakedInternalUniforms?.length > 0) return false
             if (args.runStructure && r.structure?.structuralParityIssues?.length > 0) return false
+            if (args.runStructure && r.structure?.nameCollisions?.length > 0) return false
             return true
         }).length
 
@@ -877,6 +894,7 @@ async function main() {
                 if (args.runStructure && r.structure?.unusedFiles?.length > 0) reasons.push(`${r.structure.unusedFiles.length} unused file(s)`)
                 if (args.runStructure && r.structure?.leakedInternalUniforms?.length > 0) reasons.push(`${r.structure.leakedInternalUniforms.length} leaked uniform(s)`)
                 if (args.runStructure && r.structure?.structuralParityIssues?.length > 0) reasons.push(`${r.structure.structuralParityIssues.length} parity issue(s)`)
+                if (args.runStructure && r.structure?.nameCollisions?.length > 0) reasons.push(`${r.structure.nameCollisions.length} name collision(s)`)
                 console.log(`  ❌ ${r.effectId}: ${reasons.join(', ')}`)
             }
             console.log(``)
