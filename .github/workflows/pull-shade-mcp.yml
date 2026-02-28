@@ -1,10 +1,14 @@
-# Pull latest shade-mcp changes when triggered
+# Pull latest shade-mcp release when triggered
 name: Pull shade-mcp
 
 on:
   repository_dispatch:
     types: [shade-mcp-updated]
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to download (e.g. v0.1.0)'
+        required: true
 
 jobs:
   pull-shade-mcp:
@@ -23,11 +27,6 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -35,41 +34,31 @@ jobs:
 
       - name: Run pull-shade-mcp
         env:
-          SHADE_MCP_SHA: ${{ github.event.client_payload.sha }}
+          SHADE_MCP_TAG: ${{ github.event.client_payload.tag || github.event.inputs.tag }}
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: python3 pull-shade-mcp
 
       - name: Check for changes
         id: changes
         env:
-          SHADE_MCP_SHA: ${{ github.event.client_payload.sha }}
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          SHADE_MCP_TAG: ${{ github.event.client_payload.tag || github.event.inputs.tag }}
         run: |
           git add -A
           if git diff --staged --quiet; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
-            if [ -n "$SHADE_MCP_SHA" ]; then
-              COMMIT_MSG=$(curl -s -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/noisedeck/shade-mcp/commits/$SHADE_MCP_SHA" | jq -r '.commit.message // "Unable to fetch commit message"')
-              echo "SHADE_MCP_COMMIT_MSG<<EOF" >> $GITHUB_ENV
-              echo "$COMMIT_MSG" >> $GITHUB_ENV
-              echo "EOF" >> $GITHUB_ENV
-            fi
           fi
 
       - name: Commit and push changes
         if: steps.changes.outputs.has_changes == 'true'
         env:
-          SHADE_MCP_SHA: ${{ github.event.client_payload.sha }}
+          SHADE_MCP_TAG: ${{ github.event.client_payload.tag || github.event.inputs.tag }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git commit -m "pull upstream shade-mcp dist
 
-          shade-mcp commit: ${SHADE_MCP_SHA:-HEAD}
-          Source: https://github.com/noisedeck/shade-mcp/commit/${SHADE_MCP_SHA:-main}
-
-          --- shade-mcp changes ---
-          ${SHADE_MCP_COMMIT_MSG:-No commit message available}"
+          shade-mcp release: ${SHADE_MCP_TAG}
+          Source: https://github.com/noisedeck/shade-mcp/releases/tag/${SHADE_MCP_TAG}"
           git push

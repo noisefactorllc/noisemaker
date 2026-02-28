@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Pull shade-mcp from GitHub, build, and copy dist to vendor directory.
+Download pre-built shade-mcp from GitHub Releases and vendor selected modules.
 """
 import os
 import shutil
@@ -8,49 +8,43 @@ import subprocess
 import tempfile
 import sys
 
-REPO_URL = "https://github.com/noisedeck/shade-mcp.git"
+REPO = "noisedeck/shade-mcp"
 VENDOR_DIR = "vendor/shade-mcp"
+ASSET_NAME = "shade-mcp-dist.tar.gz"
 
-def get_authenticated_url(url):
-    """Inject GitHub token into URL if present in environment."""
+
+def download_release(tag, dest_dir):
+    """Download and extract the release tarball."""
+    tarball = os.path.join(dest_dir, ASSET_NAME)
     token = os.environ.get("GITHUB_TOKEN")
-    if token and url.startswith("https://github.com/"):
-        return url.replace("https://github.com/", f"https://x-access-token:{token}@github.com/")
-    return url
+
+    # Try gh CLI first, fall back to curl
+    try:
+        cmd = ["gh", "release", "download", tag, "--repo", REPO,
+               "--pattern", ASSET_NAME, "--dir", dest_dir]
+        subprocess.run(cmd, check=True)
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        print("gh CLI unavailable or failed, falling back to curl...")
+        url = f"https://github.com/{REPO}/releases/download/{tag}/{ASSET_NAME}"
+        curl_cmd = ["curl", "-fSL", "-o", tarball, url]
+        if token:
+            curl_cmd[1:1] = ["-H", f"Authorization: Bearer {token}"]
+        subprocess.run(curl_cmd, check=True)
+
+    # Extract
+    subprocess.run(["tar", "-xzf", tarball, "-C", dest_dir], check=True)
+    os.remove(tarball)
+
 
 def main():
+    tag = os.environ.get("SHADE_MCP_TAG")
+    if not tag:
+        print("SHADE_MCP_TAG is required (e.g. v0.1.0)")
+        return 1
+
     with tempfile.TemporaryDirectory() as tmpdir:
-        print(f"Cloning shade-mcp into {tmpdir}...")
-
-        target_sha = os.environ.get("SHADE_MCP_SHA")
-        auth_url = get_authenticated_url(REPO_URL)
-
-        if target_sha:
-            print(f"Fetching specific commit: {target_sha}")
-            os.makedirs(tmpdir, exist_ok=True)
-            subprocess.run(["git", "init"], cwd=tmpdir, check=True)
-            subprocess.run(["git", "remote", "add", "origin", auth_url], cwd=tmpdir, check=True)
-            subprocess.run(["git", "fetch", "--depth=1", "origin", target_sha], cwd=tmpdir, check=True)
-            subprocess.run(["git", "checkout", "FETCH_HEAD"], cwd=tmpdir, check=True)
-        else:
-            subprocess.run(
-                ["git", "clone", "--depth=1", auth_url, tmpdir],
-                check=True
-            )
-
-        print("Installing dependencies...")
-        subprocess.run(
-            ["npm", "install"],
-            cwd=tmpdir,
-            check=True
-        )
-
-        print("Building shade-mcp...")
-        subprocess.run(
-            ["npm", "run", "build"],
-            cwd=tmpdir,
-            check=True
-        )
+        print(f"Downloading shade-mcp {tag}...")
+        download_release(tag, tmpdir)
 
         print(f"Copying dist to {VENDOR_DIR}...")
 
@@ -58,17 +52,16 @@ def main():
             shutil.rmtree(VENDOR_DIR)
         os.makedirs(VENDOR_DIR, exist_ok=True)
 
-        dist_dir = os.path.join(tmpdir, "dist")
-
         # Copy self-contained entry points (no shared chunks)
         for subdir in ["harness", "ai", "formats", "analysis"]:
-            src = os.path.join(dist_dir, subdir)
+            src = os.path.join(tmpdir, subdir)
             if os.path.exists(src):
                 shutil.copytree(src, os.path.join(VENDOR_DIR, subdir))
-                print(f"  ✓ {subdir}/")
+                print(f"  + {subdir}/")
 
     print("Done!")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
