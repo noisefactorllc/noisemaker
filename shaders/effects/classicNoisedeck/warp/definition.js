@@ -4,7 +4,7 @@ export default new Effect({
   name: "Warp",
   namespace: "classicNoisedeck",
   func: "warp",
-  tags: ["distort", "transform"],
+  tags: ["distort"],
 
   description: "Warp distortion",
   globals: {
@@ -27,31 +27,6 @@ export default new Effect({
         control: "dropdown"
       }
     },
-    flip: {
-      type: "int",
-      default: 0,
-      uniform: "flip",
-      choices: {
-        none: 0,
-        "Flip:": null,
-        all: 1,
-        horizontal: 2,
-        vertical: 3,
-        "Mirror:": null,
-        leftToRight: 11,
-        rightToLeft: 12,
-        upToDown: 13,
-        downToUp: 14,
-        lrUd: 15,
-        lrDu: 16,
-        rlUd: 17,
-        rlDu: 18
-      },
-      ui: {
-        label: "flip/mirror",
-        control: "dropdown"
-      }
-    },
     scale: {
       type: "float",
       default: 1,
@@ -61,7 +36,8 @@ export default new Effect({
       ui: {
         label: "scale",
         control: "slider",
-        category: "transform"
+        category: "transform",
+        enabledBy: { param: "distortionType", in: [0, 1, 2, 10] }
       }
     },
     rotateAmt: {
@@ -84,7 +60,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "strength",
-        control: "slider"
+        control: "slider",
+        enabledBy: { param: "distortionType", notIn: [0, 1] }
       }
     },
     seed: {
@@ -95,7 +72,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "noise seed",
-        control: "slider"
+        control: "slider",
+        enabledBy: { param: "distortionType", eq: 10 }
       }
     },
     wrap: {
@@ -121,7 +99,34 @@ export default new Effect({
       ui: {
         label: "center",
         control: "slider",
-        category: "transform"
+        category: "transform",
+        enabledBy: { param: "distortionType", in: [0, 1] }
+      }
+    },
+    flip: {
+      type: "int",
+      default: 0,
+      uniform: "flip",
+      choices: {
+        none: 0,
+        "Flip:": null,
+        all: 1,
+        horizontal: 2,
+        vertical: 3,
+        "Mirror:": null,
+        leftToRight: 11,
+        rightToLeft: 12,
+        upToDown: 13,
+        downToUp: 14,
+        lrUd: 15,
+        lrDu: 16,
+        rlUd: 17,
+        rlDu: 18
+      },
+      ui: {
+        label: "flip/mirror",
+        control: "dropdown",
+        category: "transform",
       }
     },
     aspectLens: {
@@ -141,7 +146,9 @@ export default new Effect({
       max: 5,
       ui: {
         label: "speed",
-        control: "slider"
+        control: "slider",
+        category: "animation",
+        enabledBy: { param: "distortionType", in: [0, 1, 2, 10] },
       }
     },
     rotation: {
@@ -152,9 +159,11 @@ export default new Effect({
       max: 5,
       ui: {
         label: "rot speed",
-        control: "slider"
+        control: "slider",
+        category: "animation",
+        enabledBy: { param: "distortionType", in: [0, 1, 30, 31] },
       }
-    },
+    }
   },
   passes: [
     {
