@@ -12,6 +12,7 @@ export default new Effect({
   namespace: "mixer",
   func: "shadow",
   tags: ["color"],
+  openCategories: ["general", "shadow"],
 
   description: "Cast a shadow or glow from one input onto another",
   globals: {

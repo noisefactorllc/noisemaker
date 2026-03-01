@@ -44,6 +44,7 @@ export default new Effect({
   namespace: "filter",
   func: "tetraCosine",
   tags: ["color"],
+  openCategories: ["general", "mapping"],
 
   description: "Apply Tetra cosine palettes based on luminance",
 

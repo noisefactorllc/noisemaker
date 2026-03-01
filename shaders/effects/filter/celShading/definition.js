@@ -12,9 +12,23 @@ export default new Effect({
   namespace: "filter",
   func: "celShading",
   tags: ["color", "edges"],
+  openCategories: ["general", "edges"],
 
   description: "Cartoon-style shading with posterization and outlines",
   globals: {
+        // Mix with original
+    mix: {
+      type: "float",
+      default: 1.0,
+      uniform: "mixAmount",
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      ui: {
+        label: "mix",
+        control: "slider"
+      }
+    },
     // Color quantization parameters
     levels: {
       type: "int",
@@ -25,8 +39,7 @@ export default new Effect({
       step: 1,
       ui: {
         label: "levels",
-        control: "slider",
-        category: "color"
+        control: "slider"
       }
     },
 
@@ -92,20 +105,6 @@ export default new Effect({
         label: "shading",
         control: "slider",
         category: "shading"
-      }
-    },
-
-    // Mix with original
-    mix: {
-      type: "float",
-      default: 1.0,
-      uniform: "mixAmount",
-      min: 0.0,
-      max: 1.0,
-      step: 0.01,
-      ui: {
-        label: "mix",
-        control: "slider"
       }
     }
   },

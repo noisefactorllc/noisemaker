@@ -13,6 +13,19 @@ export default new Effect({
       default: "none",
       ui: { label: "source b" }
     },
+    invert: {
+      type: "int",
+      default: 0,
+      uniform: "invert",
+      choices: {
+        off: 0,
+        on: 1
+      },
+      ui: {
+        label: "swap a/b",
+        control: "dropdown"
+      }
+    },
     position: {
       type: "float",
       default: 0.0,
@@ -37,19 +50,6 @@ export default new Effect({
       max: 1,
       zero: 0,
       ui: { label: "softness", control: "slider" }
-    },
-    invert: {
-      type: "int",
-      default: 0,
-      uniform: "invert",
-      choices: {
-        off: 0,
-        on: 1
-      },
-      ui: {
-        label: "swap a/b",
-        control: "dropdown"
-      }
     }
   },
   passes: [

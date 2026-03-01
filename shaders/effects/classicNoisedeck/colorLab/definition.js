@@ -11,6 +11,7 @@ export default class ColorLab extends Effect {
   namespace = "classicNoisedeck"
   func = "colorLab"
   tags = ["color"]
+  openCategories = ["general", "color"]
 
   description = "Color manipulation lab"
 

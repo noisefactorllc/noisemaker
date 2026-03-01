@@ -5,6 +5,7 @@ export default new Effect({
   namespace: "classicNoisedeck",
   func: "kaleido",
   tags: ["geometric", "transform"],
+  openCategories: ["general", "animation"],
 
   description: "Kaleidoscope effect",
   globals: {

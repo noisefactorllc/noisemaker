@@ -13,6 +13,7 @@ export default new Effect({
   name: "Cf",
   func: "cf",
   tags: ["sim"],
+  openCategories: ["general","sharpen", "blur"],
 
   description: "Convolution feedback with blur and sharpen",
   globals: {

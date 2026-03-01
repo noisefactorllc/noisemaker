@@ -5,6 +5,7 @@ export default new Effect({
   namespace: "classicNoisedeck",
   func: "bitEffects",
   tags: ["geometric", "pattern"],
+  openCategories: ["general", "bit mask"],
 
   description: "Bit field and bit mask effects",
   uniformLayout: {

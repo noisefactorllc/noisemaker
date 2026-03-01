@@ -53,6 +53,7 @@ export default new Effect({
   namespace: "filter",
   func: "tetraColorArray",
   tags: ["color"],
+  openCategories: ["general", "mapping"],
 
   description: "Apply Tetra color array palettes based on luminance",
 

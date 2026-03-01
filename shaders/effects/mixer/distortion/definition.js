@@ -15,6 +15,19 @@ export default new Effect({
         label: "source b"
       }
     },
+    mapSource: {
+      type: "int",
+      default: 1,
+      uniform: "mapSource",
+      choices: {
+        sourceA: 0,
+        sourceB: 1
+      },
+      ui: {
+        label: "map source",
+        control: "dropdown"
+      }
+    },
     mode: {
       type: "int",
       default: 1,
@@ -26,19 +39,6 @@ export default new Effect({
       },
       ui: {
         label: "mode",
-        control: "dropdown"
-      }
-    },
-    mapSource: {
-      type: "int",
-      default: 1,
-      uniform: "mapSource",
-      choices: {
-        sourceA: 0,
-        sourceB: 1
-      },
-      ui: {
-        label: "map source",
         control: "dropdown"
       }
     },

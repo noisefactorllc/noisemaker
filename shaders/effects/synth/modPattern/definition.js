@@ -6,6 +6,7 @@ export default new Effect({
 	func: "modPattern",
 	description: "Interference patterns from modulo operations",
 	tags: ["geometric", "pattern"],
+	openCategories: ["general", "layer 1"],
 
 	uniformLayout: {
 		resolution: { slot: 0, components: "xy" },

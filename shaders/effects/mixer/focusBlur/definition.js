@@ -15,6 +15,19 @@ export default new Effect({
         label: "source b"
       }
     },
+    depthSource: {
+      type: "int",
+      default: 1,
+      uniform: "depthSource",
+      choices: {
+        sourceA: 0,
+        sourceB: 1
+      },
+      ui: {
+        label: "depth source",
+        control: "dropdown"
+      }
+    },
     focalDistance: {
       type: "float",
       default: 50,
@@ -49,19 +62,6 @@ export default new Effect({
       ui: {
         label: "bias",
         control: "slider"
-      }
-    },
-    depthSource: {
-      type: "int",
-      default: 1,
-      uniform: "depthSource",
-      choices: {
-        sourceA: 0,
-        sourceB: 1
-      },
-      ui: {
-        label: "depth source",
-        control: "dropdown"
       }
     }
   },
