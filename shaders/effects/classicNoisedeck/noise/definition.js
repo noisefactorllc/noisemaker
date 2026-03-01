@@ -11,6 +11,7 @@ export default class Noise extends Effect {
   namespace = "classicNoisedeck"
   func = "noise"
   tags = ["noise"]
+  openCategories = ["general", "transform", "color"]
 
   description = "Noise pattern generator"
 

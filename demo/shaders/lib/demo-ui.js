@@ -2042,6 +2042,7 @@ render(o1)`
             const categoryNames = Object.keys(grouped)
             const showCategoryLabels = categoryNames.length > 1
             const hasMultipleCategories = categoryNames.length > 1
+            const openCategories = effectDef.openCategories
 
             // Create tag bar for collapsed categories (only if multiple categories)
             let tagBar = null
@@ -2061,10 +2062,12 @@ render(o1)`
                 categoryGroup.className = 'category-group'
                 categoryGroup.dataset.category = category
 
-                // Multi-category effects start collapsed (except first category)
-                const isFirstCategory = catIdx === 0
+                // Multi-category effects start collapsed unless in openCategories
+                const isCategoryOpen = openCategories
+                    ? openCategories.includes(category)
+                    : catIdx === 0
                 if (hasMultipleCategories) {
-                    if (!isFirstCategory) {
+                    if (!isCategoryOpen) {
                         categoryGroup.classList.add('collapsed')
                     }
 
@@ -2073,8 +2076,8 @@ render(o1)`
                     tag.className = 'category-tag'
                     tag.textContent = category + '…'
                     tag.dataset.category = category
-                    // First category tag starts hidden
-                    if (isFirstCategory) {
+                    // Open category tags start hidden
+                    if (isCategoryOpen) {
                         tag.style.display = 'none'
                     }
                     tag.addEventListener('click', () => {

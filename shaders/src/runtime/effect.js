@@ -51,6 +51,7 @@ export class Effect {
      * @param {object} [config.globals] - Effect parameters/uniforms
      * @param {Array} [config.passes] - Render passes
      * @param {object} [config.textures] - Internal texture allocations
+     * @param {string[]} [config.openCategories] - Categories to show expanded by default (e.g. ['general', 'julia'])
      * @param {Function} [config.onInit] - Lifecycle hook: called once on init
      * @param {Function} [config.onUpdate] - Lifecycle hook: called every frame
      * @param {Function} [config.onDestroy] - Lifecycle hook: called on destroy
@@ -73,6 +74,7 @@ export class Effect {
         if (config.uniformLayout) this.uniformLayout = config.uniformLayout
         if (config.uniformLayouts) this.uniformLayouts = config.uniformLayouts
         if (config.paramAliases) this.paramAliases = config.paramAliases
+        if (config.openCategories) this.openCategories = config.openCategories
 
         // Allow lifecycle hooks via config
         if (config.onInit) this._configOnInit = config.onInit
