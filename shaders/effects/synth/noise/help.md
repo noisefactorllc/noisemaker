@@ -19,5 +19,5 @@ Generates procedural value noise with various interpolation algorithms including
 | ridges | boolean | false | - | Ridges |
 | loopOffset | int | noise | Shapes:/circle/triangle/diamond/square/pentagon/hexagon/heptagon/octagon/nonagon/decagon/hendecagon/dodecagon/Directional:/horizontalScan/verticalScan/Misc:/noise/rings/sine | Loop offset |
 | loopScale | float | 75 | 1-100 | Loop scale |
-| speed | float | 25 | -100-100 | Speed |
+| speed | int | 25 | -100-100 | Speed |
 | colorMode | int | rgb | mono/rgb | Color mode |

@@ -37,24 +37,22 @@ export default new Effect({
       }
     },
     rotation: {
-      type: "float",
+      type: "int",
       default: 0,
       uniform: "rotation",
       min: -2,
       max: 2,
-      step: 0.1,
       ui: {
         label: "rot speed",
         control: "slider"
       }
     },
     speed: {
-      type: "float",
+      type: "int",
       default: 0,
       uniform: "speed",
       min: -2,
       max: 2,
-      step: 0.1,
       ui: {
         label: "polar speed",
         control: "slider"

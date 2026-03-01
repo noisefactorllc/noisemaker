@@ -12,5 +12,5 @@
 | loopBOffset | int | octahedron | Platonic Solids:/tetrahedron/cube/octahedron/dodecahedron/icosahedron/Other Primitives:/sphere/torus/cylinder/cone/capsule | Loop b |
 | loopAScale | float | 1 | 1-100 | A scale |
 | loopBScale | float | 1 | 1-100 | B scale |
-| speedA | float | 50 | -100-100 | Speed a |
-| speedB | float | 50 | -100-100 | Speed b |
+| speedA | int | 50 | -100-100 | Speed a |
+| speedB | int | 50 | -100-100 | Speed b |

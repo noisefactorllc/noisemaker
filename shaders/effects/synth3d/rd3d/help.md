@@ -13,7 +13,7 @@
 | kill | float | 62 | 45-70 | Kill rate |
 | rate1 | float | 100 | 50-120 | Diffuse rate A |
 | rate2 | float | 50 | 20-80 | Diffuse rate B |
-| speed | float | 100 | 10-200 | Sim speed |
+| speed | int | 100 | 10-200 | Sim speed |
 | colorMode | int | mono | mono/gradient | Color mode |
 | resetState | boolean | false | - | State |
 | source vol | volume | vol0 | - | Source volume |

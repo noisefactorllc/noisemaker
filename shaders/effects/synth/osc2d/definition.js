@@ -27,11 +27,10 @@ export default new Effect({
             label: "freq"
         }},
     "speed": {
-        "type": "float",
+        "type": "int",
         "default": 4.0,
         "min": 0,
         "max": 10,
-        "step": 0.1,
         "zero": 0,
         "uniform": "speed",
         ui: {

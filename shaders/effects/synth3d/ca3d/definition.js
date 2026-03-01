@@ -100,11 +100,12 @@ export default new Effect({
         }
     },
     "speed": {
-        "type": "float",
+        "type": "int",
         "default": 1,
-        "min": 0.1,
+        "min": 0,
         "max": 10,
         "zero": 0,
+        "randMin": 1,
         "uniform": "speed",
         "ui": {
             "label": "sim speed",

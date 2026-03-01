@@ -130,7 +130,7 @@ export default new Effect({
       }
     },
     speedA: {
-      type: "float",
+      type: "int",
       default: 50,
       uniform: "speedA",
       min: -100,
@@ -142,7 +142,7 @@ export default new Effect({
       }
     },
     speedB: {
-      type: "float",
+      type: "int",
       default: 50,
       uniform: "speedB",
       min: -100,

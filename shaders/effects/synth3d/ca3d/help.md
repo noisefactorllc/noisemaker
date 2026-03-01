@@ -10,7 +10,7 @@
 | seed | int | 1 | 1-100 | - |
 | ruleIndex | int | rule445M | rule445M/rule678/amoeba/builder1/builder2/clouds/crystalGrowth/diamoeba/pyroclastic/slowDecay/spikeyGrowth | Rules |
 | neighborMode | int | moore | moore/vonNeumann | Neighborhood |
-| speed | float | 1 | 0.1-10 | Sim speed |
+| speed | int | 1 | 0-10 | Sim speed |
 | density | float | 50 | 1-100 | Initial density % |
 | colorMode | int | mono | mono/age | Color mode |
 | resetState | boolean | false | - | State |

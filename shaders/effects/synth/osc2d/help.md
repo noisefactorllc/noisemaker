@@ -8,6 +8,6 @@
 |-----------|------|---------|-------|-------------|
 | oscType | member | oscType.sine | - | - |
 | frequency | int | 1 | 1-32 | - |
-| speed | float | 4 | 0-10 | - |
+| speed | int | 4 | 0-10 | - |
 | rotation | float | 0 | -180-180 | - |
 | seed | int | 0 | 0-1000 | Seed |
