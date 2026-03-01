@@ -62,8 +62,7 @@ export default new Effect({
       uniform: "posX",
       min: -1,
       max: 1,
-      randMin: -0.5,
-      randMax: 0.5,
+      randChance: 0,
       ui: { label: "position x", control: "slider", category: "position" }
     },
     posY: {
@@ -72,8 +71,7 @@ export default new Effect({
       uniform: "posY",
       min: -1,
       max: 1,
-      randMin: -0.5,
-      randMax: 0.5,
+      randChance: 0,
       ui: { label: "position y", control: "slider", category: "position" }
     },
     invert: {
