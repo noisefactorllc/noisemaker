@@ -250,24 +250,6 @@ export default class Noise extends Effect {
         enabledBy: { param: "kaleido", gt: 1 }
       }
     },
-    colorMode: {
-      type: "int",
-      default: 6,
-      uniform: "colorMode",
-      choices: {
-        mono: 0,
-        linearRgb: 1,
-        srgb: 2,
-        oklab: 3,
-        palette: 4,
-        hsv: 6
-      },
-      ui: {
-        label: "color mode",
-        control: "dropdown",
-        category: "color"
-      }
-    },
     paletteMode: {
       type: "int",
       default: 3,
@@ -300,6 +282,24 @@ export default class Noise extends Effect {
         control: "slider",
         category: "color",
         enabledBy: { param: "colorMode", eq: 6 }
+      }
+    },
+    colorMode: {
+      type: "int",
+      default: 6,
+      uniform: "colorMode",
+      choices: {
+        mono: 0,
+        linearRgb: 1,
+        srgb: 2,
+        oklab: 3,
+        palette: 4,
+        hsv: 6
+      },
+      ui: {
+        label: "color mode",
+        control: "dropdown",
+        category: "color"
       }
     },
     palette: {
