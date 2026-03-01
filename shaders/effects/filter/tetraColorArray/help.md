@@ -35,7 +35,7 @@ This effect is fully compatible with Tetra's color array palette format and can 
   - Positions should generally be in ascending order
 
 ### Mapping
-- **Repeat**: Multiplier for the luminance value (0.1-10)
+- **Repeat**: Multiplier for the luminance value (1-10)
   - Higher values create more repetitions across the luminance range
 - **Offset**: Offset added to the luminance value (0-1)
   - Shifts the entire gradient mapping

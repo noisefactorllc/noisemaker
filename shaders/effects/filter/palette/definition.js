@@ -49,12 +49,12 @@ export default new Effect({
       }
     },
     repeat: {
-      type: "float",
+      type: "int",
       default: 1,
       uniform: "repeat",
-      min: 0.1,
+      min: 1,
       max: 10,
-      step: 0.1,
+      randMax: 5,
       ui: {
         label: "repeat",
         control: "slider"

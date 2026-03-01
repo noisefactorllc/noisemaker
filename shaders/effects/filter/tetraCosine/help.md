@@ -44,7 +44,7 @@ This effect is fully compatible with Tetra's cosine palette format and can load 
   - Default: 0.0, 0.33, 0.67 (rainbow)
 
 ### Mapping
-- **Repeat**: Multiplier for the luminance value (0.1-10)
+- **Repeat**: Multiplier for the luminance value (1-10)
   - Higher values create more repetitions across the luminance range
 - **Offset**: Offset added to the luminance value (0-1)
   - Shifts the entire gradient mapping
