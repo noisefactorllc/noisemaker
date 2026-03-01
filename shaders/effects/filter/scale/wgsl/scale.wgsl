@@ -13,7 +13,7 @@
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   var st = position.xy / resolution;
-  let center = vec2<f32>(centerX, centerY);
+  let center = vec2<f32>(-centerX, centerY);
   st -= center;
   st.x *= aspect;
   st /= vec2<f32>(scaleX, scaleY);

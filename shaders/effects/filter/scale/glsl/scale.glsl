@@ -15,7 +15,7 @@ out vec4 fragColor;
 /* Scales UVs around an arbitrary center point. */
 void main(){
   vec2 st = gl_FragCoord.xy / resolution;
-  vec2 c = vec2(centerX, centerY);
+  vec2 c = vec2(-centerX, centerY);
   st -= c;
   st.x *= aspect;
   st = st / vec2(scaleX, scaleY);
