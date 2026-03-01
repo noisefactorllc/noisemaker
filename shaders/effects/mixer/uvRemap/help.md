@@ -12,7 +12,7 @@ Uses the color channels of one input as UV coordinates to sample the other input
 |-----------|------|---------|-------|-------------|
 | tex | surface | none | - | Source B |
 | mapSource | int | sourceA | sourceA/sourceB | Which input provides the UV map |
-| channel | int | rg | rg/rb/gb | Which color channels to use as U and V |
+| channel | int | redGreen | redGreen/redBlue/greenBlue | Which color channels to use as U and V |
 | scale | float | 100 | 0-200 | UV scale as percentage (100 = identity mapping) |
 | offset | float | 0 | -1-1 | Offset applied to remapped UVs |
 | wrap | int | mirror | clamp/mirror/repeat | How to handle UVs outside 0-1 range |
