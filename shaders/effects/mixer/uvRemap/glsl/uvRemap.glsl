@@ -9,7 +9,6 @@ uniform int channel;
 uniform float scale;
 uniform float offset;
 uniform int wrap;
-uniform int invert;
 
 out vec4 fragColor;
 
@@ -41,12 +40,6 @@ void main() {
     // Choose map and sample sources
     vec4 mapColor = (mapSource == 0) ? colorA : colorB;
     int sampleFromB = (mapSource == 0) ? 1 : 0;
-
-    // Invert swaps which is map vs sample
-    if (invert == 1) {
-        mapColor = (mapSource == 0) ? colorB : colorA;
-        sampleFromB = (mapSource == 0) ? 0 : 1;
-    }
 
     // Extract UV channels
     vec2 rawUV;

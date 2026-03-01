@@ -31,9 +31,9 @@ export default new Effect({
       default: 0,
       uniform: "channel",
       choices: {
-        rg: 0,
-        rb: 1,
-        gb: 2
+        redGreen: 0,
+        redBlue: 1,
+        greenBlue: 2
       },
       ui: {
         label: "channel",
@@ -58,7 +58,7 @@ export default new Effect({
     },
     wrap: {
       type: "int",
-      default: 0,
+      default: 1,
       uniform: "wrap",
       choices: {
         clamp: 0,
@@ -67,19 +67,6 @@ export default new Effect({
       },
       ui: {
         label: "wrap",
-        control: "dropdown"
-      }
-    },
-    invert: {
-      type: "int",
-      default: 0,
-      uniform: "invert",
-      choices: {
-        off: 0,
-        on: 1
-      },
-      ui: {
-        label: "swap map/sample",
         control: "dropdown"
       }
     }

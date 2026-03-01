@@ -15,8 +15,7 @@ Uses the color channels of one input as UV coordinates to sample the other input
 | channel | int | rg | rg/rb/gb | Which color channels to use as U and V |
 | scale | float | 100 | 0-200 | UV scale as percentage (100 = identity mapping) |
 | offset | float | 0 | -1-1 | Offset applied to remapped UVs |
-| wrap | int | clamp | clamp/mirror/repeat | How to handle UVs outside 0-1 range |
-| invert | int | off | off/on | Swap which input is map vs sample |
+| wrap | int | mirror | clamp/mirror/repeat | How to handle UVs outside 0-1 range |
 
 ## Notes
 
@@ -28,6 +27,5 @@ Uses the color channels of one input as UV coordinates to sample the other input
 - **mirror wrap**: UVs ping-pong back when they exceed 0-1 boundaries
 - **repeat wrap**: UVs tile seamlessly using fractional wrapping
 - **channel selection**: Choose which pair of RGB channels encode the U and V coordinates. Different channels from the same source create different displacement patterns
-- **invert**: Swaps roles — the texture that was providing UV data becomes the one being sampled, and vice versa
 - Feed a gradient or noise generator into one input to create controlled displacement patterns
 - Chain with feedback effects for evolving, self-modifying distortions

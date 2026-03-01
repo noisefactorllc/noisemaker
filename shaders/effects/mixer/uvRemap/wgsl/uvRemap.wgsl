@@ -6,7 +6,7 @@
 @group(0) @binding(5) var<uniform> scale : f32;
 @group(0) @binding(6) var<uniform> offset : f32;
 @group(0) @binding(7) var<uniform> wrap : i32;
-@group(0) @binding(8) var<uniform> invert : i32;
+
 
 fn modulo(a: f32, b: f32) -> f32 {
     return a - b * floor(a / b);
@@ -45,22 +45,12 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var mapColor: vec4<f32>;
     var sampleFromB: i32;
 
-    if (invert == 0) {
-        if (mapSource == 0) {
-            mapColor = colorA;
-            sampleFromB = 1;
-        } else {
-            mapColor = colorB;
-            sampleFromB = 0;
-        }
+    if (mapSource == 0) {
+        mapColor = colorB;
+        sampleFromB = 0;
     } else {
-        if (mapSource == 0) {
-            mapColor = colorB;
-            sampleFromB = 0;
-        } else {
-            mapColor = colorA;
-            sampleFromB = 1;
-        }
+        mapColor = colorA;
+        sampleFromB = 1;
     }
 
     // Extract UV channels
