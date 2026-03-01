@@ -210,6 +210,7 @@ export default class Noise extends Effect {
       uniform: "speed",
       min: -100,
       max: 100,
+      zero: 0,
       ui: {
         label: "speed",
         control: "slider",

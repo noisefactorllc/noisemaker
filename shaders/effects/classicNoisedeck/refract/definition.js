@@ -4,7 +4,7 @@ export default new Effect({
   name: "Refract",
   namespace: "classicNoisedeck",
   func: "refract",
-  tags: ["distort", "color"],
+  tags: ["distort"],
 
   description: "Refraction distortion",
   globals: {

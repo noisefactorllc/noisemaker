@@ -47,6 +47,7 @@ export default new Effect({
       uniform: "speed",
       min: 0,
       max: 100,
+      zero: 0,
       ui: {
         label: "speed",
         control: "slider"

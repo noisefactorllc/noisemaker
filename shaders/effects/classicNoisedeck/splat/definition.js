@@ -17,61 +17,6 @@ export default new Effect({
         control: "checkbox"
       }
     },
-    useSpecks: {
-      type: "boolean",
-      default: true,
-      uniform: "useSpecks",
-      ui: {
-        label: "specks",
-        control: "checkbox",
-        category: "specks"
-      }
-    },
-    scale: {
-      type: "float",
-      default: 3,
-      uniform: "scale",
-      min: 1,
-      max: 5,
-      ui: {
-        label: "splat scale",
-        control: "slider",
-        category: "transform"
-      }
-    },
-    cutoff: {
-      type: "float",
-      default: 25,
-      uniform: "cutoff",
-      min: 0,
-      max: 100,
-      ui: {
-        label: "splat cutoff",
-        control: "slider"
-      }
-    },
-    speed: {
-      type: "int",
-      default: 1,
-      uniform: "speed",
-      min: 0,
-      max: 5,
-      ui: {
-        label: "splat speed",
-        control: "slider"
-      }
-    },
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "splat seed",
-        control: "slider"
-      }
-    },
     mode: {
       type: "int",
       default: 2,
@@ -84,7 +29,32 @@ export default new Effect({
       },
       ui: {
         label: "splat mode",
-        control: "dropdown"
+        control: "dropdown",
+        enabledBy: { param: "enabled", eq: true }
+      }
+    },
+    scale: {
+      type: "float",
+      default: 3,
+      uniform: "scale",
+      min: 1,
+      max: 5,
+      ui: {
+        label: "splat scale",
+        control: "slider",
+        enabledBy: { param: "enabled", eq: true }
+      }
+    },
+    seed: {
+      type: "int",
+      default: 1,
+      uniform: "seed",
+      min: 1,
+      max: 100,
+      ui: {
+        label: "splat seed",
+        control: "slider",
+        enabledBy: { param: "enabled", eq: true }
       }
     },
     color: {
@@ -93,53 +63,46 @@ export default new Effect({
       uniform: "color",
       ui: {
         label: "splat color",
-        control: "color"
+        control: "color",
+        enabledBy: {
+          and: [
+            { param: "enabled", eq: true },
+            { param: "mode", eq: 0 }
+          ]
+        }
       }
     },
-    speckScale: {
+    cutoff: {
       type: "float",
-      default: 5,
-      uniform: "speckScale",
-      min: 1,
-      max: 5,
-      ui: {
-        label: "speck scale",
-        control: "slider",
-        category: "transform"
-      }
-    },
-    speckCutoff: {
-      type: "float",
-      default: 70,
-      uniform: "speckCutoff",
+      default: 25,
+      uniform: "cutoff",
       min: 0,
       max: 100,
       ui: {
-        label: "speck cutoff",
+        label: "splat cutoff",
         control: "slider",
-        category: "specks"
+        enabledBy: { param: "enabled", eq: true }
       }
     },
-    speckSpeed: {
+    speed: {
       type: "int",
       default: 1,
-      uniform: "speckSpeed",
+      uniform: "speed",
       min: 0,
       max: 5,
       ui: {
-        label: "speck speed",
-        control: "slider"
+        label: "splat speed",
+        control: "slider",
+        enabledBy: { param: "enabled", eq: true }
       }
     },
-    speckSeed: {
-      type: "int",
-      default: 1,
-      uniform: "speckSeed",
-      min: 1,
-      max: 100,
+    useSpecks: {
+      type: "boolean",
+      default: true,
+      uniform: "useSpecks",
       ui: {
-        label: "speck seed",
-        control: "slider",
+        label: "specks",
+        control: "checkbox",
         category: "specks"
       }
     },
@@ -156,7 +119,34 @@ export default new Effect({
       ui: {
         label: "speck mode",
         control: "dropdown",
-        category: "specks"
+        category: "specks",
+        enabledBy: { param: "useSpecks", eq: true }
+      }
+    },
+    speckScale: {
+      type: "float",
+      default: 5,
+      uniform: "speckScale",
+      min: 1,
+      max: 5,
+      ui: {
+        label: "speck scale",
+        control: "slider",
+        category: "specks",
+        enabledBy: { param: "useSpecks", eq: true }
+      }
+    },
+    speckSeed: {
+      type: "int",
+      default: 1,
+      uniform: "speckSeed",
+      min: 1,
+      max: 100,
+      ui: {
+        label: "speck seed",
+        control: "slider",
+        category: "specks",
+        enabledBy: { param: "useSpecks", eq: true }
       }
     },
     speckColor: {
@@ -166,7 +156,39 @@ export default new Effect({
       ui: {
         label: "speck color",
         control: "color",
-        category: "specks"
+        category: "specks",
+        enabledBy: {
+          and: [
+            { param: "useSpecks", eq: true },
+            { param: "speckMode", eq: 0 }
+          ]
+        }
+      }
+    },
+    speckCutoff: {
+      type: "float",
+      default: 70,
+      uniform: "speckCutoff",
+      min: 0,
+      max: 100,
+      ui: {
+        label: "speck cutoff",
+        control: "slider",
+        category: "specks",
+        enabledBy: { param: "useSpecks", eq: true }
+      }
+    },
+    speckSpeed: {
+      type: "int",
+      default: 1,
+      uniform: "speckSpeed",
+      min: 0,
+      max: 5,
+      ui: {
+        label: "speck speed",
+        control: "slider",
+        category: "specks",
+        enabledBy: { param: "useSpecks", eq: true }
       }
     }
   },

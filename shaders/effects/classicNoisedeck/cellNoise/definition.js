@@ -106,6 +106,7 @@ export default class CellNoise extends Effect {
       uniform: "speed",
       min: 0,
       max: 5,
+      zero: 0,
       ui: {
         label: "speed",
         control: "slider"

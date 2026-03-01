@@ -10,7 +10,6 @@ precision highp float;
 precision highp int;
 
 uniform float time;
-uniform bool wrap;
 uniform vec2 resolution;
 uniform int shapeA;
 uniform int shapeB;
@@ -41,7 +40,7 @@ uniform int cyclePalette;
 uniform float rotatePalette;
 uniform float repeatPalette;
 
-uniform int source;
+uniform float weight;
 uniform sampler2D inputTex;
 
 out vec4 fragColor;
@@ -465,7 +464,7 @@ void main() {
     }
     */
 
-    if (source > 0) {
+    if (weight > 0.0) {
         // triplanar texture mapping
         vec3 localP = applyTransform(p, transformData);
         localP = localP * 0.5 + 0.5;

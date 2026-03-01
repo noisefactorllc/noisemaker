@@ -11,7 +11,7 @@ struct Uniforms {
     // 2: shapeAThickness, shapeBThickness, blendMode, smoothness
     // 3: spin, flip, spinSpeed, flipSpeed
     // 4: repetition, animation, flythroughSpeed, spacing
-    // 5: cameraDist, backgroundOpacity, colorMode, source
+    // 5: cameraDist, backgroundOpacity, colorMode, weight
     // 6: backgroundColor.xyz, paletteMode
     // 7: paletteOffset.xyz, cyclePalette
     // 8: paletteAmp.xyz, rotatePalette
@@ -315,7 +315,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     cameraDist = uniforms.data[5].x;
     backgroundOpacity = uniforms.data[5].y;
     colorMode = i32(uniforms.data[5].z);
-    let source = i32(uniforms.data[5].w);
+    let weight = uniforms.data[5].w;
 
     backgroundColor = uniforms.data[6].xyz;
     paletteMode = i32(uniforms.data[6].w);
@@ -340,17 +340,15 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     var normal = getNormal(p);
     var diffuse = clamp(dot(normal, lightVector), 0.0, 1.0);
 
-    if (source > 0) {
+    if (weight > 0.0) {
         var tp = applyTransform(p);
         tp = tp * 0.5 + vec3<f32>(0.5);
         var colorXY = vec3<f32>(0.0);
         var colorXZ = vec3<f32>(0.0);
         var colorYZ = vec3<f32>(0.0);
-        if (source == 3) {
-            colorXY = textureSample(inputTex, samp, tp.xy).rgb;
-            colorXZ = textureSample(inputTex, samp, tp.xz).rgb;
-            colorYZ = textureSample(inputTex, samp, tp.yz).rgb;
-        }
+        colorXY = textureSample(inputTex, samp, tp.xy).rgb;
+        colorXZ = textureSample(inputTex, samp, tp.xz).rgb;
+        colorYZ = textureSample(inputTex, samp, tp.yz).rgb;
         normal = abs(normal);
         color = vec4<f32>(colorXY * normal.z + colorXZ * normal.y + colorYZ * normal.x, color.a);
     }

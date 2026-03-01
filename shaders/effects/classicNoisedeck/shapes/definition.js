@@ -17,7 +17,7 @@ export default class Shapes extends Effect {
 
   // WGSL uniform packing layout - maps uniform names to vec4 slots/components
   uniformLayout = {
-        resolution: { slot: 0, components: 'xy' },
+    resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
     wrap: { slot: 1, components: 'x' },
@@ -73,7 +73,7 @@ export default class Shapes extends Effect {
         sine: 410
       },
       ui: {
-        label: "loop a",
+        label: "shape a",
         control: "dropdown"
       }
     },
@@ -113,7 +113,7 @@ export default class Shapes extends Effect {
         sine: 410
       },
       ui: {
-        label: "loop b",
+        label: "shape b",
         control: "dropdown"
       }
     },
@@ -124,7 +124,7 @@ export default class Shapes extends Effect {
       min: 1,
       max: 100,
       ui: {
-        label: "a scale",
+        label: "scale a",
         control: "slider"
       }
     },
@@ -135,7 +135,7 @@ export default class Shapes extends Effect {
       min: 1,
       max: 100,
       ui: {
-        label: "b scale",
+        label: "scale b",
         control: "slider"
       }
     },
@@ -145,6 +145,7 @@ export default class Shapes extends Effect {
       uniform: "speedA",
       min: -100,
       max: 100,
+      zero: 0,
       ui: {
         label: "speed a",
         control: "slider"
@@ -156,6 +157,7 @@ export default class Shapes extends Effect {
       uniform: "speedB",
       min: -100,
       max: 100,
+      zero: 0,
       ui: {
         label: "speed b",
         control: "slider"
@@ -169,7 +171,13 @@ export default class Shapes extends Effect {
       max: 100,
       ui: {
         label: "noise seed",
-        control: "slider"
+        control: "slider",
+        enabledBy: {
+          or: [
+            { param: "loopAOffset", in: [300, 310, 320, 330, 340, 350, 360, 370, 380] },
+            { param: "loopBOffset", in: [300, 310, 320, 330, 340, 350, 360, 370, 380] }
+          ]
+        }
       }
     },
     wrap: {
@@ -178,7 +186,13 @@ export default class Shapes extends Effect {
       uniform: "wrap",
       ui: {
         label: "wrap",
-        control: "checkbox"
+        control: "checkbox",
+        enabledBy: {
+          or: [
+            { param: "loopAOffset", in: [300, 310, 320, 330, 340, 350, 360] },
+            { param: "loopBOffset", in: [300, 310, 320, 330, 340, 350, 360] }
+          ]
+        }
       }
     },
     palette: {
@@ -250,7 +264,7 @@ export default class Shapes extends Effect {
         backward: -1
       },
       ui: {
-        label: "cycle palette",
+        label: "rotation",
         control: "dropdown",
         category: "palette"
       }
@@ -262,7 +276,7 @@ export default class Shapes extends Effect {
       min: 0,
       max: 100,
       ui: {
-        label: "rotate palette",
+        label: "offset",
         control: "slider",
         category: "palette"
       }
@@ -272,9 +286,10 @@ export default class Shapes extends Effect {
       default: 1,
       uniform: "repeatPalette",
       min: 1,
-      max: 5,
+      max: 10,
+      randMax: 5,
       ui: {
-        label: "repeat palette",
+        label: "repeat",
         control: "slider",
         category: "palette"
       }

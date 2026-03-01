@@ -10,11 +10,18 @@ export default class ShapeMixer extends Effect {
   name = "ShapeMixer"
   namespace = "classicNoisedeck"
   func = "shapeMixer"
-  tags = ["geometric", "color"]
+  tags = ["blend", "geometric"]
 
   description = "Shape-based mixing"
 
   globals = {
+    tex: {
+      type: "surface",
+      default: "none",
+      ui: {
+        label: "source b"
+      }
+    },
     blendMode: {
       type: "int",
       default: 2,
@@ -86,6 +93,28 @@ export default class ShapeMixer extends Effect {
       ui: {
         label: "shape scale",
         control: "slider"
+      }
+    },
+    wrap: {
+      type: "boolean",
+      default: true,
+      uniform: "wrap",
+      ui: {
+        label: "noise wrap",
+        control: "checkbox",
+        enabledBy: { param: "loopOffset", in: [300, 310, 320, 330, 340, 350, 360] }
+      }
+    },
+    seed: {
+      type: "int",
+      default: 1,
+      uniform: "seed",
+      min: 1,
+      max: 100,
+      ui: {
+        label: "noise seed",
+        control: "slider",
+        enabledBy: { param: "loopOffset", in: [300, 310, 320, 330, 340, 350, 360, 370, 380] },
       }
     },
     animate: {
@@ -171,7 +200,7 @@ export default class ShapeMixer extends Effect {
         backward: -1
       },
       ui: {
-        label: "cycle palette",
+        label: "rotation",
         control: "dropdown",
         category: "palette"
       }
@@ -183,7 +212,7 @@ export default class ShapeMixer extends Effect {
       min: 0,
       max: 100,
       ui: {
-        label: "rotate palette",
+        label: "offset",
         control: "slider",
         category: "palette"
       }
@@ -193,9 +222,10 @@ export default class ShapeMixer extends Effect {
       default: 1,
       uniform: "repeatPalette",
       min: 1,
-      max: 5,
+      max: 10,
+      randMax: 5,
       ui: {
-        label: "repeat palette",
+        label: "repeat",
         control: "slider",
         category: "palette"
       }
@@ -209,28 +239,7 @@ export default class ShapeMixer extends Effect {
       ui: {
         label: "posterize",
         control: "slider",
-        category: "color"
-      }
-    },
-    wrap: {
-      type: "boolean",
-      default: true,
-      uniform: "wrap",
-      ui: {
-        label: "noise wrap",
-        control: "checkbox",
-        category: "noise"
-      }
-    },
-    seed: {
-      type: "int",
-      default: 1,
-      uniform: "seed",
-      min: 1,
-      max: 100,
-      ui: {
-        label: "noise seed",
-        control: "slider"
+        category: "palette"
       }
     }
   }
@@ -240,7 +249,8 @@ export default class ShapeMixer extends Effect {
       name: "render",
       program: "shapeMixer",
       inputs: {
-        inputTex: "inputTex"
+        inputTex: "inputTex",
+        tex: "tex"
       },
       outputs: {
         fragColor: "outputTex"

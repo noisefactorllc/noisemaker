@@ -4,7 +4,7 @@ export default new Effect({
   name: "Tunnel",
   namespace: "classicNoisedeck",
   func: "tunnel",
-  tags: ["distort", "transform", "geometric"],
+  tags: ["distort"],
 
   description: "Tunnel perspective effect",
   globals: {
@@ -23,6 +23,49 @@ export default new Effect({
       ui: {
         label: "type",
         control: "dropdown"
+      }
+    },
+    center: {
+      type: "float",
+      default: -5,
+      uniform: "center",
+      min: -5,
+      max: 5,
+      ui: {
+        label: "center",
+        control: "slider"
+      }
+    },
+    scale: {
+      type: "float",
+      default: 0,
+      uniform: "scale",
+      min: -5,
+      max: 5,
+      ui: {
+        label: "scale",
+        control: "slider"
+      }
+    },
+    aspectLens: {
+      type: "boolean",
+      default: true,
+      uniform: "aspectLens",
+      ui: {
+        label: "1:1 aspect",
+        control: "checkbox"
+      }
+    },
+    rotation: {
+      type: "float",
+      default: 0,
+      uniform: "rotation",
+      min: -5,
+      max: 5,
+      ui: {
+        label: "rotation",
+        control: "slider",
+        category: "animation"
       }
     },
     flip: {
@@ -47,7 +90,9 @@ export default new Effect({
       },
       ui: {
         label: "flip/mirror",
-        control: "dropdown"
+        control: "dropdown",
+        category: "animation",
+        enabledBy: { param: "rotation", neq: 0 }
       }
     },
     speed: {
@@ -58,52 +103,8 @@ export default new Effect({
       max: 5,
       ui: {
         label: "speed",
-        control: "slider"
-      }
-    },
-    rotation: {
-      type: "float",
-      default: 0,
-      uniform: "rotation",
-      min: -5,
-      max: 5,
-      ui: {
-        label: "rotation",
         control: "slider",
-        category: "transform"
-      }
-    },
-    center: {
-      type: "float",
-      default: -5,
-      uniform: "center",
-      min: -5,
-      max: 5,
-      ui: {
-        label: "center",
-        control: "slider",
-        category: "transform"
-      }
-    },
-    scale: {
-      type: "float",
-      default: 0,
-      uniform: "scale",
-      min: -5,
-      max: 5,
-      ui: {
-        label: "scale",
-        control: "slider",
-        category: "transform"
-      }
-    },
-    aspectLens: {
-      type: "boolean",
-      default: true,
-      uniform: "aspectLens",
-      ui: {
-        label: "1:1 aspect",
-        control: "checkbox"
+        category: "animation"
       }
     }
   },

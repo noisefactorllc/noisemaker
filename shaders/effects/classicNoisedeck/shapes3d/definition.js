@@ -37,7 +37,7 @@ export default class Shapes3D extends Effect {
     cameraDist: { slot: 5, components: 'x' },
     bgAlpha: { slot: 5, components: 'y' },
     colorMode: { slot: 5, components: 'z' },
-    source: { slot: 5, components: 'w' },
+    weight: { slot: 5, components: 'w' },
     bgColor: { slot: 6, components: 'xyz' },
     paletteMode: { slot: 6, components: 'w' },
     paletteOffset: { slot: 7, components: 'xyz' },
@@ -97,7 +97,7 @@ export default class Shapes3D extends Effect {
       min: 1,
       max: 100,
       ui: {
-        label: "a scale",
+        label: "scale a",
         control: "slider"
       }
     },
@@ -108,7 +108,7 @@ export default class Shapes3D extends Effect {
       min: 1,
       max: 100,
       ui: {
-        label: "b scale",
+        label: "scale b",
         control: "slider"
       }
     },
@@ -119,7 +119,7 @@ export default class Shapes3D extends Effect {
       min: 1,
       max: 50,
       ui: {
-        label: "a thickness",
+        label: "thickness a",
         control: "slider"
       }
     },
@@ -130,7 +130,7 @@ export default class Shapes3D extends Effect {
       min: 1,
       max: 50,
       ui: {
-        label: "b thickness",
+        label: "thickness b",
         control: "slider"
       }
     },
@@ -139,17 +139,14 @@ export default class Shapes3D extends Effect {
       default: 10,
       uniform: "blendMode",
       choices: {
-        intersect: null,
-        max: 40,
-        smoothMax: 20,
-        union: null,
-        min: 30,
-        smoothMin: 10,
-        subtract: null,
-        aB: 51,
-        bA: 50,
-        smoothAB: 26,
-        smoothBA: 25
+        intersect: 40,
+        union: 30,
+        smoothIntersect: 20,
+        smoothUnion: 10,
+        aMinusB: 51,
+        bMinusA: 50,
+        smoothAMinusB: 26,
+        smoothBMinusA: 25
       },
       ui: {
         label: "blend mode",
@@ -164,7 +161,68 @@ export default class Shapes3D extends Effect {
       max: 100,
       ui: {
         label: "smoothness",
-        control: "slider"
+        control: "slider",
+        enabledBy: {
+          or: [
+            { param: "blendMode", in: [10, 20, 25, 26] },
+          ]
+        }
+      }
+    },
+    repetition: {
+      type: "boolean",
+      default: false,
+      uniform: "repetition",
+      ui: {
+        label: "repeat",
+        control: "checkbox",
+        category: "repetition"
+      }
+    },
+    animation: {
+      type: "int",
+      default: 1,
+      uniform: "animation",
+      choices: {
+        rotateScene: 0,
+        rotateShape: 1
+      },
+      ui: {
+        label: "rotation",
+        control: "dropdown",
+        category: "repetition",
+        enabledBy: { param: "repetition", eq: true }
+      }
+    },
+    spacing: {
+      type: "int",
+      default: 10,
+      uniform: "spacing",
+      min: 5,
+      max: 20,
+      ui: {
+        label: "spacing",
+        control: "slider",
+        category: "repetition",
+        enabledBy: { param: "repetition", eq: true }
+      }
+    },
+    flythroughSpeed: {
+      type: "float",
+      default: 0,
+      uniform: "flythroughSpeed",
+      min: -10,
+      max: 10,
+      ui: {
+        label: "flythrough",
+        control: "slider",
+        category: "repetition",
+        enabledBy: {
+          and: [
+            { param: "repetition", eq: true },
+            { param: "animation", eq: 1 }
+          ]
+        }
       }
     },
     spin: {
@@ -176,7 +234,19 @@ export default class Shapes3D extends Effect {
       ui: {
         label: "spin",
         control: "slider",
-        category: "transform"
+        category: "rotation"
+      }
+    },
+    spinSpeed: {
+      type: "float",
+      default: 2,
+      uniform: "spinSpeed",
+      min: -10,
+      max: 10,
+      ui: {
+        label: "spin speed",
+        control: "slider",
+        category: "rotation"
       }
     },
     flip: {
@@ -188,18 +258,7 @@ export default class Shapes3D extends Effect {
       ui: {
         label: "flip",
         control: "slider",
-        category: "orientation"
-      }
-    },
-    spinSpeed: {
-      type: "float",
-      default: 2,
-      uniform: "spinSpeed",
-      min: -10,
-      max: 10,
-      ui: {
-        label: "spin speed",
-        control: "slider"
+        category: "rotation"
       }
     },
     flipSpeed: {
@@ -210,7 +269,8 @@ export default class Shapes3D extends Effect {
       max: 10,
       ui: {
         label: "flip speed",
-        control: "slider"
+        control: "slider",
+        category: "rotation"
       }
     },
     cameraDist: {
@@ -229,7 +289,7 @@ export default class Shapes3D extends Effect {
       default: [1.0, 1.0, 1.0],
       uniform: "bgColor",
       ui: {
-        label: "background color",
+        label: "bg color",
         control: "color",
         category: "color"
       }
@@ -241,7 +301,28 @@ export default class Shapes3D extends Effect {
       min: 0,
       max: 100,
       ui: {
-        label: "background opacity",
+        label: "bg opacity",
+        control: "slider",
+        category: "color"
+      }
+    },
+    tex: {
+      type: "surface",
+      default: "none",
+      ui: {
+        label: "texture",
+        category: "color",
+      }
+    },
+    weight: {
+      type: "float",
+      default: 0,
+      uniform: "weight",
+      min: 0,
+      max: 100,
+      randChance: 0,
+      ui: {
+        label: "input weight",
         control: "slider",
         category: "color"
       }
@@ -257,20 +338,6 @@ export default class Shapes3D extends Effect {
       },
       ui: {
         label: "color mode",
-        control: "dropdown",
-        category: "color"
-      }
-    },
-    source: {
-      type: "int",
-      default: 0,
-      uniform: "source",
-      choices: {
-        none: 0,
-        input: 3
-      },
-      ui: {
-        label: "tex source",
         control: "dropdown",
         category: "color"
       }
@@ -297,7 +364,7 @@ export default class Shapes3D extends Effect {
         backward: -1
       },
       ui: {
-        label: "cycle palette",
+        label: "rotation",
         control: "dropdown",
         category: "palette",
         enabledBy: { param: "colorMode", eq: 10 }
@@ -310,7 +377,7 @@ export default class Shapes3D extends Effect {
       min: 0,
       max: 100,
       ui: {
-        label: "rotate palette",
+        label: "offset",
         control: "slider",
         category: "palette",
         enabledBy: { param: "colorMode", eq: 10 }
@@ -321,26 +388,13 @@ export default class Shapes3D extends Effect {
       default: 1,
       uniform: "repeatPalette",
       min: 1,
-      max: 5,
+      max: 10,
+      randMax: 5,
       ui: {
-        label: "repeat palette",
+        label: "repeat",
         control: "slider",
         category: "palette",
         enabledBy: { param: "colorMode", eq: 10 }
-      }
-    },
-    wrap: {
-      type: "int",
-      default: 1,
-      uniform: "wrap",
-      choices: {
-        clamp: 2,
-        mirror: 0,
-        repeat: 1
-      },
-      ui: {
-        label: "wrap",
-        control: "dropdown"
       }
     },
     paletteMode: {
@@ -390,53 +444,6 @@ export default class Shapes3D extends Effect {
         control: "slider",
         hidden: true
       }
-    },
-    repetition: {
-      type: "boolean",
-      default: false,
-      uniform: "repetition",
-      ui: {
-        label: "repeat",
-        control: "checkbox",
-        category: "repetition"
-      }
-    },
-    animation: {
-      type: "int",
-      default: 1,
-      uniform: "animation",
-      choices: {
-        rotateScene: 0,
-        rotateShape: 1
-      },
-      ui: {
-        label: "rotation",
-        control: "dropdown",
-        category: "repetition"
-      }
-    },
-    flythroughSpeed: {
-      type: "float",
-      default: 0,
-      uniform: "flythroughSpeed",
-      min: -10,
-      max: 10,
-      ui: {
-        label: "flythrough",
-        control: "slider"
-      }
-    },
-    spacing: {
-      type: "int",
-      default: 10,
-      uniform: "spacing",
-      min: 5,
-      max: 20,
-      ui: {
-        label: "spacing",
-        control: "slider",
-        category: "repetition"
-      }
     }
   }
 
@@ -448,9 +455,8 @@ export default class Shapes3D extends Effect {
       name: "render",
       program: "shapes3d",
       inputs: {
-              inputTex: "inputTex"
-            }
-,
+        inputTex: "tex"
+      },
       outputs: {
         fragColor: "outputTex"
       }
