@@ -23,7 +23,6 @@ export default new Effect({
     },
     size: {
       type: "int",
-      default: 0,
       uniform: "size",
       default: 1,
       choices: {
