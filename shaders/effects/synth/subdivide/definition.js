@@ -16,6 +16,7 @@ export default new Effect({
     fill: { slot: 1, components: 'z' },
     outline: { slot: 1, components: 'w' },
     inputMix: { slot: 2, components: 'x' },
+    wrap: { slot: 2, components: 'y' },
   },
   globals: {
     tex: {
@@ -114,6 +115,22 @@ export default new Effect({
       ui: {
         label: "input mix",
         control: "slider",
+        category: "input",
+        enabledBy: { param: "tex", neq: "none" }
+      }
+    },
+    wrap: {
+      type: "int",
+      default: 0,
+      uniform: "wrap",
+      choices: {
+        mirror: 0,
+        repeat: 1,
+        clamp: 2
+      },
+      ui: {
+        label: "wrap",
+        control: "dropdown",
         category: "input",
         enabledBy: { param: "tex", neq: "none" }
       }

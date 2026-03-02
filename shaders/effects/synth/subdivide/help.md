@@ -14,3 +14,4 @@ Recursive grid subdivision with shapes
 | outline | float | 3 | 0-10 | Grid line width in pixels |
 | tex | surface | none | - | Optional texture input |
 | inputMix | float | 0 | 0-100 | Blend with input texture |
+| wrap | int | mirror | mirror/repeat/clamp | Input texture coordinate wrap |

@@ -5,7 +5,7 @@
 struct Uniforms {
     // data[0] = (resolution.x, resolution.y, mode, depth)
     // data[1] = (density, seed, fill, outline)
-    // data[2] = (inputMix, unused, unused, unused)
+    // data[2] = (inputMix, wrap, unused, unused)
     data: array<vec4<f32>, 3>,
 }
 
@@ -41,15 +41,15 @@ fn cellRand(cellMin: vec2<f32>, level: f32, channel: f32) -> f32 {
 // Shape functions (1.0 inside, 0.0 outside)
 // All work in 1:1 aspect-corrected centered coords
 fn circleShape(centered: vec2<f32>) -> f32 {
-    return step(length(centered), 0.4);
+    return step(length(centered), 0.32);
 }
 
 fn diamondShape(centered: vec2<f32>) -> f32 {
-    return step(abs(centered.x) + abs(centered.y), 0.4);
+    return step(abs(centered.x) + abs(centered.y), 0.32);
 }
 
 fn squareShape(centered: vec2<f32>) -> f32 {
-    return step(max(abs(centered.x), abs(centered.y)), 0.35);
+    return step(max(abs(centered.x), abs(centered.y)), 0.28);
 }
 
 fn arcShape(centered: vec2<f32>, halfW: f32, halfH: f32, h: f32) -> f32 {
@@ -79,7 +79,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let maxDepth = i32(u.data[0].w);
     let dens = u.data[1].x / 100.0;
     let fillType = i32(u.data[1].z);
-    let outlineWidth = u.data[1].w / resolution.y;
+    let outlineWidthX = u.data[1].w / resolution.x;
+    let outlineWidthY = u.data[1].w / resolution.y;
 
     let st = pos.xy / resolution;
 
@@ -112,19 +113,19 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
                 }
                 if (splitDir == 0) {
                     let mid = (cellMin.y + cellMax.y) * 0.5;
-                    if (abs(st.y - mid) < outlineWidth) { isOutline = true; }
+                    if (abs(st.y - mid) < outlineWidthY) { isOutline = true; }
                     if (st.y < mid) { cellMax.y = mid; }
                     else { cellMin.y = mid; }
                 } else if (splitDir == 1) {
                     let mid = (cellMin.x + cellMax.x) * 0.5;
-                    if (abs(st.x - mid) < outlineWidth) { isOutline = true; }
+                    if (abs(st.x - mid) < outlineWidthX) { isOutline = true; }
                     if (st.x < mid) { cellMax.x = mid; }
                     else { cellMin.x = mid; }
                 }
             } else {
                 if (canSplitH && canSplitV) {
                     let mid = (cellMin + cellMax) * 0.5;
-                    if (abs(st.x - mid.x) < outlineWidth || abs(st.y - mid.y) < outlineWidth) {
+                    if (abs(st.x - mid.x) < outlineWidthX || abs(st.y - mid.y) < outlineWidthY) {
                         isOutline = true;
                     }
                     if (st.x < mid.x) { cellMax.x = mid.x; }
@@ -202,9 +203,15 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         texUv = texUv * texScale;
         texUv.x = texUv.x + cellRand(cellMin, 0.0, 6.0) * (1.0 - texScale);
         texUv.y = texUv.y + cellRand(cellMin, 0.0, 7.0) * (1.0 - texScale);
-        texUv.x = 1.0 - abs(texUv.x % 2.0 - 1.0);
-        texUv.y = 1.0 - abs(texUv.y % 2.0 - 1.0);
-        texUv.y = 1.0 - texUv.y;
+        // Apply wrap mode
+        let wrapMode = i32(u.data[2].y);
+        if (wrapMode == 0) {
+            texUv = abs((texUv + 1.0) % 2.0 - 1.0);
+        } else if (wrapMode == 1) {
+            texUv = texUv % 1.0;
+        } else {
+            texUv = clamp(texUv, vec2<f32>(0.0), vec2<f32>(1.0));
+        }
         let inputColor = textureSample(inputTex, samp, texUv).rgb;
         result = mix(result, inputColor * result, blend);
     }

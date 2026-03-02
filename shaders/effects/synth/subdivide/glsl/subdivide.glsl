@@ -15,6 +15,7 @@ uniform float seed;
 uniform float fill;
 uniform float outline;
 uniform float inputMix;
+uniform float wrap;
 
 out vec4 fragColor;
 
@@ -44,15 +45,15 @@ float cellRand(vec2 cellMin, float level, float channel) {
 // Shape functions (1.0 inside, 0.0 outside)
 // All work in 1:1 aspect-corrected centered coords
 float circleShape(vec2 centered) {
-    return step(length(centered), 0.4);
+    return step(length(centered), 0.32);
 }
 
 float diamondShape(vec2 centered) {
-    return step(abs(centered.x) + abs(centered.y), 0.4);
+    return step(abs(centered.x) + abs(centered.y), 0.32);
 }
 
 float squareShape(vec2 centered) {
-    return step(max(abs(centered.x), abs(centered.y)), 0.35);
+    return step(max(abs(centered.x), abs(centered.y)), 0.28);
 }
 
 float arcShape(vec2 centered, float halfW, float halfH, float h) {
@@ -82,7 +83,8 @@ void main() {
     float dens = density / 100.0;
     int fillType = int(fill);
     int modeType = int(mode);
-    float outlineWidth = outline / resolution.y;
+    float outlineWidthX = outline / resolution.x;
+    float outlineWidthY = outline / resolution.y;
 
     // Subdivision loop
     vec2 cellMin = vec2(0.0);
@@ -113,19 +115,19 @@ void main() {
                 }
                 if (splitDir == 0) {
                     float mid = (cellMin.y + cellMax.y) * 0.5;
-                    if (abs(st.y - mid) < outlineWidth) isOutline = true;
+                    if (abs(st.y - mid) < outlineWidthY) isOutline = true;
                     if (st.y < mid) cellMax.y = mid;
                     else cellMin.y = mid;
                 } else if (splitDir == 1) {
                     float mid = (cellMin.x + cellMax.x) * 0.5;
-                    if (abs(st.x - mid) < outlineWidth) isOutline = true;
+                    if (abs(st.x - mid) < outlineWidthX) isOutline = true;
                     if (st.x < mid) cellMax.x = mid;
                     else cellMin.x = mid;
                 }
             } else {
                 if (canSplitH && canSplitV) {
                     vec2 mid = (cellMin + cellMax) * 0.5;
-                    if (abs(st.x - mid.x) < outlineWidth || abs(st.y - mid.y) < outlineWidth) {
+                    if (abs(st.x - mid.x) < outlineWidthX || abs(st.y - mid.y) < outlineWidthY) {
                         isOutline = true;
                     }
                     if (st.x < mid.x) cellMax.x = mid.x;
@@ -203,9 +205,15 @@ void main() {
         texUv = texUv * texScale;
         texUv.x += cellRand(cellMin, 0.0, 6.0) * (1.0 - texScale);
         texUv.y += cellRand(cellMin, 0.0, 7.0) * (1.0 - texScale);
-        texUv.x = 1.0 - abs(mod(texUv.x, 2.0) - 1.0);
-        texUv.y = 1.0 - abs(mod(texUv.y, 2.0) - 1.0);
-        texUv.y = 1.0 - texUv.y;
+        // Apply wrap mode
+        int wrapMode = int(wrap);
+        if (wrapMode == 0) {
+            texUv = abs(mod(texUv + 1.0, 2.0) - 1.0);
+        } else if (wrapMode == 1) {
+            texUv = mod(texUv, 1.0);
+        } else {
+            texUv = clamp(texUv, 0.0, 1.0);
+        }
         vec3 inputColor = texture(inputTex, texUv).rgb;
         result = mix(result, inputColor * result, blend);
     }
