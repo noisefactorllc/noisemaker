@@ -18,6 +18,7 @@ export default new Effect({
       uniform: "strength",
       min: 0,
       max: 100,
+      zero: 0,
       ui: {
         label: "strength",
         control: "slider"
