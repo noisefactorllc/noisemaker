@@ -7,6 +7,16 @@ export default new Effect({
   tags: ["geometric", "pattern"],
 
   description: "Recursive grid subdivision with shapes",
+  uniformLayout: {
+    resolution: { slot: 0, components: 'xy' },
+    mode: { slot: 0, components: 'z' },
+    depth: { slot: 0, components: 'w' },
+    density: { slot: 1, components: 'x' },
+    seed: { slot: 1, components: 'y' },
+    fill: { slot: 1, components: 'z' },
+    outline: { slot: 1, components: 'w' },
+    inputMix: { slot: 2, components: 'x' },
+  },
   globals: {
     tex: {
       type: "surface",

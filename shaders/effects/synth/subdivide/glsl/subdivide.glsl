@@ -7,6 +7,7 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
+uniform vec2 resolution;
 uniform float mode;
 uniform float depth;
 uniform float density;
@@ -75,8 +76,6 @@ float drawShape(int shapeType, vec2 centered, float halfW, float halfH, float h)
 }
 
 void main() {
-    ivec2 texSize = textureSize(inputTex, 0);
-    vec2 resolution = vec2(texSize);
     vec2 st = gl_FragCoord.xy / resolution;
 
     int maxDepth = int(depth);

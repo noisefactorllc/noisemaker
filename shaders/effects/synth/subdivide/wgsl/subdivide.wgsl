@@ -3,19 +3,15 @@
  */
 
 struct Uniforms {
-    mode: f32,
-    depth: f32,
-    density: f32,
-    seed: f32,
-    fill: f32,
-    outline: f32,
-    inputMix: f32,
-    _pad0: f32,
+    // data[0] = (resolution.x, resolution.y, mode, depth)
+    // data[1] = (density, seed, fill, outline)
+    // data[2] = (inputMix, unused, unused, unused)
+    data: array<vec4<f32>, 3>,
 }
 
-@group(0) @binding(0) var samp: sampler;
-@group(0) @binding(1) var inputTex: texture_2d<f32>;
-@group(0) @binding(2) var<uniform> u: Uniforms;
+@group(0) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(1) var samp: sampler;
+@group(0) @binding(2) var inputTex: texture_2d<f32>;
 
 // PCG PRNG - deterministic across platforms
 fn pcg(v_in: vec3<u32>) -> vec3<u32> {
@@ -38,7 +34,8 @@ fn prng(p: vec3<f32>) -> vec3<f32> {
 fn cellRand(cellMin: vec2<f32>, level: f32, channel: f32) -> f32 {
     let cx = floor(cellMin.x * 1000.0);
     let cy = floor(cellMin.y * 1000.0);
-    return prng(vec3<f32>(cx + level * 7.0, cy + level * 13.0, u.seed + channel)).x;
+    let seed = u.data[1].y;
+    return prng(vec3<f32>(cx + level * 7.0, cy + level * 13.0, seed + channel)).x;
 }
 
 // Shape functions (1.0 inside, 0.0 outside)
@@ -77,15 +74,14 @@ fn drawShape(shapeType: i32, centered: vec2<f32>, halfW: f32, halfH: f32, h: f32
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let texSize = vec2<f32>(textureDimensions(inputTex));
-    let resolution = texSize;
-    let st = pos.xy / resolution;
+    let resolution = u.data[0].xy;
+    let modeType = i32(u.data[0].z);
+    let maxDepth = i32(u.data[0].w);
+    let dens = u.data[1].x / 100.0;
+    let fillType = i32(u.data[1].z);
+    let outlineWidth = u.data[1].w / resolution.y;
 
-    let maxDepth = i32(u.depth);
-    let dens = u.density / 100.0;
-    let fillType = i32(u.fill);
-    let modeType = i32(u.mode);
-    let outlineWidth = u.outline / resolution.y;
+    let st = pos.xy / resolution;
 
     // Subdivision loop
     var cellMin = vec2<f32>(0.0);
@@ -189,8 +185,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     var result = vec3<f32>(color);
 
-    // Input texture blend (scaled to wider side, aspect-preserving)
-    let blend = u.inputMix / 100.0;
+    // Input texture blend (random scale, offset, aspect-preserving)
+    let blend = u.data[2].x / 100.0;
     if (blend > 0.0) {
         let texScale = 0.3 + cellRand(cellMin, 0.0, 5.0) * 0.7;
         var texUv = cellUv;
@@ -214,7 +210,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
 
     // Outline (black, drawn after texture so it stays visible)
-    if (isOutline && u.outline > 0.0) {
+    if (isOutline && u.data[1].w > 0.0) {
         result = vec3<f32>(0.0);
     }
 
