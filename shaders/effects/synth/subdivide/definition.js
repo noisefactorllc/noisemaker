@@ -45,6 +45,7 @@ export default new Effect({
       uniform: "depth",
       min: 1,
       max: 6,
+      randMin: 3,
       ui: {
         label: "depth",
         control: "slider"
@@ -54,8 +55,9 @@ export default new Effect({
       type: "float",
       default: 75,
       uniform: "density",
-      min: 0,
+      min: 30,
       max: 100,
+      randMin: 50,
       ui: {
         label: "density",
         control: "slider"
