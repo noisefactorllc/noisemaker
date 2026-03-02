@@ -110,6 +110,7 @@ export default new Effect({
       uniform: "inputMix",
       min: 0,
       max: 100,
+      randChance: 0,
       ui: {
         label: "input mix",
         control: "slider",
