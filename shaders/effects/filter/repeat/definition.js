@@ -13,6 +13,7 @@ export default new Effect({
         "default": 3,
         "min": 1,
         "max": 20,
+        "zero": 1,
         "uniform": "x",
         ui: {
             label: "x"
@@ -22,6 +23,7 @@ export default new Effect({
         "default": 3,
         "min": 1,
         "max": 20,
+        "zero": 1,
         "uniform": "y",
         ui: {
             label: "y"

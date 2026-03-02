@@ -24,6 +24,7 @@ export default new Effect({
       min: 0.0,
       max: 1.0,
       step: 0.01,
+      zero: 0,
       ui: {
         label: "mix",
         control: "slider"
@@ -51,6 +52,7 @@ export default new Effect({
       min: 0,
       max: 5,
       randMax: 3,
+      zero: 0,
       ui: {
         label: "width",
         control: "slider",
@@ -64,6 +66,7 @@ export default new Effect({
       min: 0.01,
       max: 1.0,
       step: 0.01,
+      zero: 0,
       ui: {
         label: "threshold",
         control: "slider",

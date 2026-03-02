@@ -6,4 +6,4 @@ Pixelation effect for retro look
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| size | float | 4 | 1-32 | Size |
+| size | int | 1 | 1-256 | Size |

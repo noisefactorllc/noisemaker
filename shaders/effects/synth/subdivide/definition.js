@@ -128,6 +128,7 @@ export default new Effect({
         repeat: 1,
         clamp: 2
       },
+      randChance: 0,
       ui: {
         label: "wrap",
         control: "dropdown",

@@ -18,6 +18,7 @@ export default new Effect({
       uniform: "amount",
       min: 0.1,
       max: 5,
+      zero: 0,
       randMin: 0.5,
       ui: {
         label: "amount",

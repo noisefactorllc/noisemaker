@@ -22,7 +22,7 @@ void main() {
         return;
     }
     
-    float pixelSize = size * 4.0;
+    float pixelSize = size;
     
     float dx = pixelSize / resolution.x;
     float dy = pixelSize / resolution.y;

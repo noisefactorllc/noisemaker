@@ -13,7 +13,7 @@ export default new Effect({
   description: "Reduce color levels for poster effect",
   globals: {
     levels: {
-      type: "int",
+      type: "float",
       default: 4.0,
       uniform: "levels",
       min: 1,

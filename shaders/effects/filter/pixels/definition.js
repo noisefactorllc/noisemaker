@@ -13,11 +13,12 @@ export default new Effect({
   description: "Pixelation effect for retro look",
   globals: {
     size: {
-      type: "float",
-      default: 4.0,
+      type: "int",
+      default: 8,
       uniform: "size",
       min: 1,
-      max: 32,
+      max: 256,
+      zero: 1,
       ui: {
         label: "size",
         control: "slider"

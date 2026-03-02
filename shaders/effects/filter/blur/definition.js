@@ -19,6 +19,7 @@ export default new Effect({
       min: 0,
       max: 50,
       step: 1,
+      zero: 0,
       ui: {
         label: "radius x",
         control: "slider"
@@ -31,6 +32,7 @@ export default new Effect({
       min: 0,
       max: 50,
       step: 1,
+      zero: 0,
       ui: {
         label: "radius y",
         control: "slider"

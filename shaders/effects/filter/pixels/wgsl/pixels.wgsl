@@ -23,7 +23,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         return textureSample(inputTex, inputSampler, uv);
     }
     
-    let pixelSize = uniforms.size * 4.0;
+    let pixelSize = uniforms.size;
     
     let dx = pixelSize / texSize.x;
     let dy = pixelSize / texSize.y;

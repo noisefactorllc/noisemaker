@@ -76,6 +76,7 @@ export default new Effect({
       min: 0,
       max: 1,
       step: 0.01,
+      zero: 0,
       ui: {
         label: "feedback",
         control: "slider"

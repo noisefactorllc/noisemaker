@@ -13,6 +13,7 @@ export default new Effect({
       min: 0.0,
       max: 0.5,
       step: 0.01,
+      zero: 0,
       uniform: "blend",
       ui: {
         label: "blend",
@@ -25,6 +26,7 @@ export default new Effect({
       min: 1,
       max: 10,
       step: 1,
+      zero: 1,
       uniform: "repeat",
       ui: {
         label: "repeat",

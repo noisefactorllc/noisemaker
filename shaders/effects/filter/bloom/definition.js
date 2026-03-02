@@ -48,6 +48,7 @@ export default new Effect({
       min: 0,
       max: 3,
       step: 0.05,
+      zero: 0,
       ui: {
         label: "intensity",
         control: "slider"
