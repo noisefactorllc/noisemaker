@@ -3,7 +3,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 /**
  * Mesh Loader - Load mesh data from OBJ files
  *
- * Synth effect that populates mesh surface textures (positions, normals, UVs)
+ * Effect that populates mesh surface textures (positions, normals, UVs)
  * from external OBJ files. The mesh data is uploaded to GPU textures and can
  * be rendered using meshRender.
  *
@@ -15,7 +15,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default class MeshLoader extends Effect {
     name = "Mesh Loader"
-    namespace = "synth"
+    namespace = "render"
     func = "meshLoader"
     tags = ["mesh", "geometry", "3D", "OBJ"]
     description = "Load mesh data from OBJ files into GPU textures."

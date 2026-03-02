@@ -1472,7 +1472,7 @@ render(o1)`
 
         // Special case: meshLoader and meshRender must be paired together
         if (funcName === 'meshLoader' || funcName === 'meshRender') {
-            return `search synth, render\n\nmeshLoader()\n  .meshRender()\n  .write(o0)\n\nrender(o0)`
+            return `search render\n\nmeshLoader()\n  .meshRender()\n  .write(o0)\n\nrender(o0)`
         }
 
         // Special case: points namespace effects need pointsEmit/pointsRender wrapping
