@@ -1,0 +1,121 @@
+import { Effect } from '../../../src/runtime/effect.js'
+
+export default new Effect({
+  name: "Subdivide",
+  namespace: "synth",
+  func: "subdivide",
+  tags: ["geometric", "pattern"],
+
+  description: "Recursive grid subdivision with shapes",
+  globals: {
+    tex: {
+      type: "surface",
+      default: "none",
+      ui: {
+        label: "texture",
+        category: "input"
+      }
+    },
+    mode: {
+      type: "int",
+      default: 0,
+      uniform: "mode",
+      choices: {
+        binary: 0,
+        quad: 1
+      },
+      ui: {
+        label: "mode",
+        control: "dropdown"
+      }
+    },
+    depth: {
+      type: "int",
+      default: 5,
+      uniform: "depth",
+      min: 1,
+      max: 6,
+      ui: {
+        label: "depth",
+        control: "slider"
+      }
+    },
+    density: {
+      type: "float",
+      default: 75,
+      uniform: "density",
+      min: 0,
+      max: 100,
+      ui: {
+        label: "density",
+        control: "slider"
+      }
+    },
+    seed: {
+      type: "int",
+      default: 69,
+      uniform: "seed",
+      min: 1,
+      max: 100,
+      ui: {
+        label: "seed",
+        control: "slider"
+      }
+    },
+    fill: {
+      type: "int",
+      default: 0,
+      uniform: "fill",
+      choices: {
+        solid: 0,
+        circle: 1,
+        diamond: 2,
+        square: 3,
+        arc: 4,
+        mixed: 5
+      },
+      ui: {
+        label: "fill",
+        control: "dropdown",
+        enabledBy: { param: "mode", neq: 0 }
+      }
+    },
+    outline: {
+      type: "float",
+      default: 3,
+      uniform: "outline",
+      min: 0,
+      max: 10,
+      zero: 0,
+      ui: {
+        label: "outline",
+        control: "slider"
+      }
+    },
+    inputMix: {
+      type: "float",
+      default: 0,
+      uniform: "inputMix",
+      min: 0,
+      max: 100,
+      ui: {
+        label: "input mix",
+        control: "slider",
+        category: "input",
+        enabledBy: { param: "tex", neq: "none" }
+      }
+    }
+  },
+  passes: [
+    {
+      name: "render",
+      program: "subdivide",
+      inputs: {
+        inputTex: "tex"
+      },
+      outputs: {
+        fragColor: "outputTex"
+      }
+    }
+  ]
+})

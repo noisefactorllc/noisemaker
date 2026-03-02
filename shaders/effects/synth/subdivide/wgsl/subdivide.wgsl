@@ -1,0 +1,222 @@
+/*
+ * Recursive grid subdivision with shapes
+ */
+
+struct Uniforms {
+    mode: f32,
+    depth: f32,
+    density: f32,
+    seed: f32,
+    fill: f32,
+    outline: f32,
+    inputMix: f32,
+    _pad0: f32,
+}
+
+@group(0) @binding(0) var samp: sampler;
+@group(0) @binding(1) var inputTex: texture_2d<f32>;
+@group(0) @binding(2) var<uniform> u: Uniforms;
+
+// PCG PRNG - deterministic across platforms
+fn pcg(v_in: vec3<u32>) -> vec3<u32> {
+    var v = v_in * 1664525u + 1013904223u;
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    v = v ^ (v >> vec3<u32>(16u));
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    return v;
+}
+
+fn prng(p: vec3<f32>) -> vec3<f32> {
+    return vec3<f32>(pcg(vec3<u32>(u32(p.x), u32(p.y), u32(p.z)))) / f32(0xffffffffu);
+}
+
+// Get a random float for a cell at a given level and channel
+fn cellRand(cellMin: vec2<f32>, level: f32, channel: f32) -> f32 {
+    let cx = floor(cellMin.x * 1000.0);
+    let cy = floor(cellMin.y * 1000.0);
+    return prng(vec3<f32>(cx + level * 7.0, cy + level * 13.0, u.seed + channel)).x;
+}
+
+// Shape functions (1.0 inside, 0.0 outside)
+// All work in 1:1 aspect-corrected centered coords
+fn circleShape(centered: vec2<f32>) -> f32 {
+    return step(length(centered), 0.4);
+}
+
+fn diamondShape(centered: vec2<f32>) -> f32 {
+    return step(abs(centered.x) + abs(centered.y), 0.4);
+}
+
+fn squareShape(centered: vec2<f32>) -> f32 {
+    return step(max(abs(centered.x), abs(centered.y)), 0.35);
+}
+
+fn arcShape(centered: vec2<f32>, halfW: f32, halfH: f32, h: f32) -> f32 {
+    let corner = i32(h * 4.0);
+    var origin: vec2<f32>;
+    if (corner == 0) { origin = vec2<f32>(-halfW, -halfH); }
+    else if (corner == 1) { origin = vec2<f32>(halfW, -halfH); }
+    else if (corner == 2) { origin = vec2<f32>(-halfW, halfH); }
+    else { origin = vec2<f32>(halfW, halfH); }
+    let dist = length(centered - origin);
+    return step(dist, 0.7) * (1.0 - step(dist, 0.5));
+}
+
+fn drawShape(shapeType: i32, centered: vec2<f32>, halfW: f32, halfH: f32, h: f32) -> f32 {
+    if (shapeType == 0) { return 1.0; }  // solid
+    if (shapeType == 1) { return circleShape(centered); }
+    if (shapeType == 2) { return diamondShape(centered); }
+    if (shapeType == 3) { return squareShape(centered); }
+    if (shapeType == 4) { return arcShape(centered, halfW, halfH, h); }
+    return 1.0;
+}
+
+@fragment
+fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
+    let texSize = vec2<f32>(textureDimensions(inputTex));
+    let resolution = texSize;
+    let st = pos.xy / resolution;
+
+    let maxDepth = i32(u.depth);
+    let dens = u.density / 100.0;
+    let fillType = i32(u.fill);
+    let modeType = i32(u.mode);
+    let outlineWidth = u.outline / resolution.y;
+
+    // Subdivision loop
+    var cellMin = vec2<f32>(0.0);
+    var cellMax = vec2<f32>(1.0);
+    var isOutline = false;
+
+    for (var level = 0; level < 6; level = level + 1) {
+        if (level >= maxDepth) { break; }
+
+        let h = cellRand(cellMin, f32(level), 0.0);
+
+        if (h < dens) {
+            // Skip splits that would create too-narrow cells (max 5:1 aspect)
+            let cellW = (cellMax.x - cellMin.x) * resolution.x;
+            let cellH = (cellMax.y - cellMin.y) * resolution.y;
+            let canSplitH = min(cellW, cellH * 0.5) / max(cellW, cellH * 0.5) >= 0.2;
+            let canSplitV = min(cellW * 0.5, cellH) / max(cellW * 0.5, cellH) >= 0.2;
+
+            if (modeType == 0) {
+                let dir = cellRand(cellMin, f32(level), 1.0);
+                var splitDir = -1;
+                if (dir < 0.5) {
+                    if (canSplitH) { splitDir = 0; }
+                    else if (canSplitV) { splitDir = 1; }
+                } else {
+                    if (canSplitV) { splitDir = 1; }
+                    else if (canSplitH) { splitDir = 0; }
+                }
+                if (splitDir == 0) {
+                    let mid = (cellMin.y + cellMax.y) * 0.5;
+                    if (abs(st.y - mid) < outlineWidth) { isOutline = true; }
+                    if (st.y < mid) { cellMax.y = mid; }
+                    else { cellMin.y = mid; }
+                } else if (splitDir == 1) {
+                    let mid = (cellMin.x + cellMax.x) * 0.5;
+                    if (abs(st.x - mid) < outlineWidth) { isOutline = true; }
+                    if (st.x < mid) { cellMax.x = mid; }
+                    else { cellMin.x = mid; }
+                }
+            } else {
+                if (canSplitH && canSplitV) {
+                    let mid = (cellMin + cellMax) * 0.5;
+                    if (abs(st.x - mid.x) < outlineWidth || abs(st.y - mid.y) < outlineWidth) {
+                        isOutline = true;
+                    }
+                    if (st.x < mid.x) { cellMax.x = mid.x; }
+                    else { cellMin.x = mid.x; }
+                    if (st.y < mid.y) { cellMax.y = mid.y; }
+                    else { cellMin.y = mid.y; }
+                }
+            }
+        }
+    }
+
+    // Cell properties
+    let cellSize = cellMax - cellMin;
+    let cellUv = (st - cellMin) / cellSize;
+
+    // 1:1 aspect-corrected coords, scaled to fit shorter side
+    let cellPixelW = cellSize.x * resolution.x;
+    let cellPixelH = cellSize.y * resolution.y;
+    let minDim = min(cellPixelW, cellPixelH);
+    var centered = cellUv - 0.5;
+    centered.x = centered.x * (cellPixelW / minDim);
+    centered.y = centered.y * (cellPixelH / minDim);
+    let halfW = cellPixelW / minDim * 0.5;
+    let halfH = cellPixelH / minDim * 0.5;
+
+    // Pick shape and background shades from same palette
+    let shadeHash = cellRand(cellMin, 0.0, 2.0);
+    let shadeIdx = i32(shadeHash * 5.0);
+    var shade: f32;
+    if (shadeIdx == 0) { shade = 0.15; }
+    else if (shadeIdx == 1) { shade = 0.35; }
+    else if (shadeIdx == 2) { shade = 0.55; }
+    else if (shadeIdx == 3) { shade = 0.75; }
+    else { shade = 1.0; }
+
+    let bgHash = cellRand(cellMin, 0.0, 8.0);
+    let bgIdx = i32(bgHash * 5.0);
+    var bgShade: f32;
+    if (bgIdx == 0) { bgShade = 0.15; }
+    else if (bgIdx == 1) { bgShade = 0.35; }
+    else if (bgIdx == 2) { bgShade = 0.55; }
+    else if (bgIdx == 3) { bgShade = 0.75; }
+    else { bgShade = 1.0; }
+
+    // Pick shape (solid only in binary mode, mixed picks random)
+    var shapeType = fillType;
+    if (modeType == 0) {
+        shapeType = 0;
+    } else if (fillType == 5) {
+        let shapeHash = cellRand(cellMin, 0.0, 3.0);
+        shapeType = i32(shapeHash * 5.0);  // 0-4
+    }
+
+    // Draw shape
+    let cornerHash = cellRand(cellMin, 0.0, 4.0);
+    let shapeMask = drawShape(shapeType, centered, halfW, halfH, cornerHash);
+    var color = mix(bgShade, shade, shapeMask);
+
+    var result = vec3<f32>(color);
+
+    // Input texture blend (scaled to wider side, aspect-preserving)
+    let blend = u.inputMix / 100.0;
+    if (blend > 0.0) {
+        let texScale = 0.3 + cellRand(cellMin, 0.0, 5.0) * 0.7;
+        var texUv = cellUv;
+        // Correct for aspect ratio difference between cell and texture
+        let cellAspect = (cellSize.x * resolution.x) / (cellSize.y * resolution.y);
+        let texAspect = resolution.x / resolution.y;
+        let ratio = cellAspect / texAspect;
+        if (ratio > 1.0) {
+            texUv.x = 0.5 + (texUv.x - 0.5) * ratio;
+        } else {
+            texUv.y = 0.5 + (texUv.y - 0.5) / ratio;
+        }
+        texUv = texUv * texScale;
+        texUv.x = texUv.x + cellRand(cellMin, 0.0, 6.0) * (1.0 - texScale);
+        texUv.y = texUv.y + cellRand(cellMin, 0.0, 7.0) * (1.0 - texScale);
+        texUv.x = 1.0 - abs(texUv.x % 2.0 - 1.0);
+        texUv.y = 1.0 - abs(texUv.y % 2.0 - 1.0);
+        texUv.y = 1.0 - texUv.y;
+        let inputColor = textureSample(inputTex, samp, texUv).rgb;
+        result = mix(result, inputColor * result, blend);
+    }
+
+    // Outline (black, drawn after texture so it stays visible)
+    if (isOutline && u.outline > 0.0) {
+        result = vec3<f32>(0.0);
+    }
+
+    return vec4<f32>(result, 1.0);
+}
