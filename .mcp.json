@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "shade": {
+      "command": "npx",
+      "args": ["-y", "github:noisedeck/shade-mcp"],
+      "env": {
+        "SHADE_EFFECTS_DIR": "./shaders/effects"
+      }
+    }
+  }
+}
