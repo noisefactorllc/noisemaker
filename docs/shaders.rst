@@ -1,10 +1,7 @@
 Shaders
 =======
 
-Noisemaker includes an experimental collection of WebGL 2 and WebGPU shader effects that run natively in the browser. These shaders provide GPU-accelerated image processing independent of the Python and JavaScript implementations.
-
-.. warning::
-   **Experimental & Under Construction**: The shader effects are heavily under development with unoptimized and untested code. Use with caution and expect breaking changes.
+Noisemaker's GPU rendering engine. 204 effects across 9 namespaces, with dual WebGL2 and WebGPU backends. Runs natively in the browser — no plugins, no server.
 
 .. raw:: html
 
@@ -64,17 +61,12 @@ Noisemaker includes an experimental collection of WebGL 2 and WebGPU shader effe
    <script src="_static/shader-viewer.js"></script>
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Shader Reference
+   :maxdepth: 2
 
    shaders/integration
-   shaders/effects
-   shaders/language
-   shaders/pipeline
-   shaders/compiler
-   shaders/demo-ui
-   shaders/smrticles
-   shaders/effect-reference
+   shaders/specs
+   shaders/features
+   case-studies
 
 Project Structure
 -----------------

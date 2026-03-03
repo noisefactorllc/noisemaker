@@ -1,7 +1,4 @@
-.. Noisemaker documentation master file, created by
-   sphinx-quickstart on Mon Nov 30 19:51:34 2020.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. Noisemaker documentation master file
 
 Noisemaker
 ==========
@@ -11,175 +8,97 @@ Noisemaker
    :caption: Contents:
    :hidden:
 
-   composer
-   api
-   cli
-   javascript
    shaders
+   composer-api
    releases
 
 
-**Noisemaker** is a collection of creative coding effects for Python or JavaScript.
-
-Basic Structure
----------------
-
-A typical preset looks like this:
-
-.. code-block:: javascript
-
-    {
-      "cool-water": {
-        layers: ["basic-water", "funhouse", "bloom", "lens"],
-        settings: {
-          warp_range: 0.0625 + random() * 0.0625,
-          warp_freq: random_int(2, 3),
-        },
-      },
-
-      // ... hundreds of other presets ...
-    }
-
-This real preset from the library demonstrates layering, randomization, and settings configuration.
+**Noisemaker** is a GPU rendering engine for real-time visual effects in the browser. 204 shader effects, dual WebGL2/WebGPU backends, zero dependencies.
 
 .. raw:: html
 
-   <div class="preset-viewer-container">
-     <div class="preset-viewer-example">
-       <div class="preset-viewer-canvas-wrapper">
-         <canvas class="preset-viewer-canvas" width="384" height="384"></canvas>
-         <button class="noisemaker-live-random preset-viewer-random">Random</button>
-         <div class="preset-viewer-loading">Rendering (0%)</div>
+   <div class="shader-viewer-container">
+     <div class="shader-viewer-example">
+       <div class="shader-viewer-canvas-wrapper">
+         <canvas class="shader-viewer-canvas" width="384" height="384"></canvas>
+         <pre class="shader-viewer-dsl-overlay"></pre>
+         <button class="shader-viewer-random">Random</button>
+         <div class="shader-viewer-loading">Loading...</div>
        </div>
-       <div class="preset-viewer-controls">
-         <div class="preset-viewer-select-wrapper">
-           <label for="composer-preset-select">Preset</label>
-           <select class="preset-viewer-select" id="composer-preset-select">
-             <option>Loading presets...</option>
+       <div class="shader-viewer-controls">
+         <div class="shader-viewer-select-wrapper">
+           <label for="shader-effect-select">Effect</label>
+           <select class="shader-viewer-select" id="shader-effect-select">
+             <option>Loading effects...</option>
            </select>
          </div>
-         <div class="preset-viewer-code-wrapper">
-           <label>Preset Definition</label>
-           <pre class="preset-viewer-code">// Select a preset to view its definition</pre>
+         <div class="shader-viewer-params-label">Parameters</div>
+         <div class="shader-viewer-params">
+           <!-- Dynamic controls will be inserted here -->
          </div>
        </div>
      </div>
    </div>
-   <script type="module" src="_static/preset-viewer.js"></script>
+   <style>
+   .shader-viewer-canvas-wrapper {
+     position: relative;
+   }
+   .shader-viewer-dsl-overlay {
+     position: absolute;
+     top: 8px;
+     left: 8px;
+     right: 8px;
+     margin: 0;
+     padding: 0;
+     background: transparent;
+     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+     font-size: 11px;
+     line-height: 1.4;
+     pointer-events: none;
+     z-index: 10;
+     overflow: visible;
+     white-space: pre-wrap;
+     word-wrap: break-word;
+   }
+   .shader-viewer-dsl-overlay span {
+     background: rgba(0, 0, 0, 0.7);
+     color: #fff;
+     padding: 2px 4px;
+     display: inline;
+     box-decoration-break: clone;
+     -webkit-box-decoration-break: clone;
+   }
+   </style>
+   <script src="_static/noisemaker-shaders-core.min.js"></script>
+   <script src="_static/shader-viewer.js"></script>
 
-Installation
-------------
+Quick Start
+-----------
 
-Python 3.10+ virtualenv
-~~~~~~~~~~~~~~~~~~~~~~~~
+.. code-block:: javascript
 
-Noisemaker requires Python 3.10 or later.
+    const SHADER_CDN = 'https://shaders.noisedeck.app/0.9.0'
 
-Install `Noisemaker`_ in a new virtualenv:
+    const { CanvasRenderer } = await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
-.. code-block:: bash
+    const renderer = new CanvasRenderer({
+        canvas: document.getElementById('canvas'),
+        width: 1024, height: 1024,
+        basePath: SHADER_CDN,
+        useBundles: true,
+        bundlePath: `${SHADER_CDN}/effects`
+    })
 
-    python3 -m venv noisemaker
+    await renderer.loadManifest()
+    await renderer.compile('noise().write(o0)\nrender(o0)')
+    renderer.start()
 
-    source noisemaker/bin/activate
-
-    pip install git+https://github.com/noisedeck/noisemaker
-
-TensorFlow is included as a dependency and will be installed automatically.
-
-For subsequent activation of the virtual environment, run ``source bin/activate`` while in the ``noisemaker`` directory. To deactivate, run ``deactivate``.
-
-Upgrading
-~~~~~~~~~
-
-Activate the virtual environment, and run:
-
-.. code-block:: bash
-
-    pip install --upgrade git+https://github.com/noisedeck/noisemaker
-
-Development
-~~~~~~~~~~~
-
-To install noisemaker in a dev env with code quality tools:
-
-.. code-block:: bash
-
-    git clone https://github.com/noisedeck/noisemaker
-
-    cd noisemaker
-
-    python3 -m venv venv
-
-    source venv/bin/activate
-
-    pip install -e ".[dev]"
-
-    pre-commit install
-
-This installs noisemaker with development dependencies including ``black``, ``ruff``, ``mypy``, and ``pytest``.
-
-To run tests:
-
-.. code-block:: bash
-
-    pytest
-
-To format and lint code:
-
-.. code-block:: bash
-
-    black noisemaker
-    ruff check noisemaker
-    mypy noisemaker
-
-For subsequent activation of the virtual environment, run ``source venv/bin/activate`` while in the ``noisemaker`` directory. To deactivate, run ``deactivate``.
-
-Notebook
-~~~~~~~~
-
-You can play with Noisemaker in a `Colab Notebook`_.
-
-Docker
-~~~~~~
-
-Noisemaker can run on CPU in a container. See `Noisemaker on Docker`_!
-
-Usage
------
-
-CLI
-~~~
-
-See :doc:`cli` documentation.
-
-High-level API: Noisemaker Composer
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-See :doc:`composer` documentation.
-
-Low-level API: Generator and Effects
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-See :doc:`api` documentation.
+See :doc:`shaders/integration` for full API documentation.
 
 ----
 
-Noisemaker is the open source engine behind `Noisedeck <https://noisedeck.app/>`_
-and other `Noise Factor <https://noisefactor.io/>`_ tools.
+Noisemaker is the open source engine behind `Noisedeck <https://noisedeck.app/>`_,
+`Layers <https://layers.noisefactor.io/>`_, and other
+`Noise Factor <https://noisefactor.io/>`_ tools.
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
-
-.. _`Python 3.10+`: https://www.python.org/
-.. _`Python 3`: https://www.python.org/
 .. _`Noisemaker`: https://github.com/noisedeck/noisemaker
-.. _`Colab Notebook`: https://colab.research.google.com/github/noisedeck/noisemaker/blob/main/py_noisemaker.ipynb
-.. _`Noisemaker on Docker`: https://github.com/noisedeck/noisemaker/blob/main/README-DOCKER.md
-.. _`TensorFlow`: https://www.tensorflow.org/
-.. _`install TensorFlow`: https://www.tensorflow.org/install/
-

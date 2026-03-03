@@ -49,54 +49,49 @@ Architecture
 Installation
 ------------
 
-Noisemaker is not published on npm. There are two ways to consume it.
+CDN (recommended)
+^^^^^^^^^^^^^^^^^
 
-Option A: Vendored Bundles (recommended)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Import directly from the Noisemaker CDN. No build step, no vendoring. This is the same pattern we use for all of our production apps at Noise Factor.
 
-Each tagged release (see :doc:`../releases`) publishes ``noisemaker-shaders.tar.gz`` containing ESM/IIFE core bundles and per-effect mini-bundles. Snapshot releases are updated on every push to ``main``.
+.. code-block:: javascript
+
+    const SHADER_CDN = 'https://shaders.noisedeck.app/0.9.0'
+
+    const { CanvasRenderer, ProgramState, compile, unparse, getEffect } =
+        await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
+
+Add a preconnect hint in your HTML for faster loading:
+
+.. code-block:: html
+
+    <link rel="preconnect" href="https://shaders.noisedeck.app" crossorigin>
+
+The CDN hosts version-pinned bundles. The URL path is the version number (``/0.9.0/``). Effects are loaded automatically from ``${SHADER_CDN}/effects/``.
+
+Vendored Bundles
+^^^^^^^^^^^^^^^^
+
+For offline or self-hosted deployments. Each tagged release (see :doc:`../releases`) publishes ``noisemaker-shaders.tar.gz``.
 
 .. code-block:: bash
 
-    # Latest tagged release
     mkdir -p vendor/noisemaker
     gh release download --repo noisedeck/noisemaker --pattern 'noisemaker-shaders.tar.gz' --dir .
     tar -xzf noisemaker-shaders.tar.gz -C vendor/noisemaker
     rm noisemaker-shaders.tar.gz
 
-    # Specific version
-    gh release download vX.Y.Z --repo noisedeck/noisemaker --pattern 'noisemaker-shaders.tar.gz' --dir .
-
-This gives you::
-
-    vendor/noisemaker/
-      shaders/
-        noisemaker-shaders-core.esm.js       # ESM (unminified)
-        noisemaker-shaders-core.esm.min.js   # ESM (minified)
-        noisemaker-shaders-core.min.js       # IIFE (global: NoisemakerShadersCore)
-        effects/
-          manifest.json                      # Effect registry
-      effects/
-        synth/noise.js                       # Per-effect mini-bundles
-        filter/bloom.js
-        ...
-
-Import the core bundle:
+Then import from the local path instead of the CDN:
 
 .. code-block:: javascript
 
-    // ESM (dynamic)
-    const { CanvasRenderer, ProgramState, compile, unparse, getEffect } =
-        await import('./vendor/noisemaker/shaders/noisemaker-shaders-core.esm.js')
+    const { CanvasRenderer } =
+        await import('./vendor/noisemaker/shaders/noisemaker-shaders-core.esm.min.js')
 
-    // ESM (static, if your bundler supports it)
-    import { CanvasRenderer, ProgramState, compile, unparse, getEffect }
-        from './vendor/noisemaker/shaders/noisemaker-shaders-core.esm.js'
+The IIFE build (``noisemaker-shaders-core.min.js``) exposes everything on ``window.NoisemakerShadersCore``.
 
-The IIFE build exposes everything on ``window.NoisemakerShadersCore``.
-
-Option B: Source Imports
-^^^^^^^^^^^^^^^^^^^^^^^^
+Source Imports
+^^^^^^^^^^^^^^
 
 For development within the noisemaker repo, or when noisemaker is a git submodule.
 
@@ -105,23 +100,6 @@ For development within the noisemaker repo, or when noisemaker is a git submodul
     import { CanvasRenderer, getEffect, isStarterEffect } from '../../shaders/src/renderer/canvas.js'
     import { compile, unparse } from '../../shaders/src/lang/index.js'
     import { ProgramState } from '../../demo/shaders/lib/program-state.js'
-
-Key source entry points:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 40 60
-
-   * - Entry Point
-     - Exports
-   * - ``shaders/src/renderer/canvas.js``
-     - ``CanvasRenderer``, ``getEffect``, ``getAllEffects``, ``isStarterEffect``, ``cloneParamValue``
-   * - ``shaders/src/lang/index.js``
-     - ``compile``, ``unparse``, ``lex``, ``parse``, ``applyParameterUpdates``, ``formatValue``, ``validate``
-   * - ``demo/shaders/lib/program-state.js``
-     - ``ProgramState``
-   * - ``shaders/src/index.js``
-     - All of the above, re-exported as a single module
 
 In source mode, effects are loaded at runtime from the ``shaders/effects/`` directory. Set ``basePath`` to point at the ``shaders/`` directory.
 
@@ -133,16 +111,18 @@ Minimal (render only)
 
 .. code-block:: javascript
 
-    const { CanvasRenderer } = await import('./vendor/noisemaker/shaders/noisemaker-shaders-core.esm.js')
+    const SHADER_CDN = 'https://shaders.noisedeck.app/0.9.0'
+
+    const { CanvasRenderer } = await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
     const canvas = document.getElementById('canvas')
     const renderer = new CanvasRenderer({
         canvas,
         width: 1024,
         height: 1024,
-        basePath: './vendor/noisemaker/shaders',
+        basePath: SHADER_CDN,
         useBundles: true,
-        bundlePath: './vendor/noisemaker/effects'
+        bundlePath: `${SHADER_CDN}/effects`
     })
 
     await renderer.loadManifest()
@@ -154,10 +134,18 @@ With State Management
 
 .. code-block:: javascript
 
-    const { CanvasRenderer, ProgramState } =
-        await import('./vendor/noisemaker/shaders/noisemaker-shaders-core.esm.js')
+    const SHADER_CDN = 'https://shaders.noisedeck.app/0.9.0'
 
-    const renderer = new CanvasRenderer({ /* ... */ })
+    const { CanvasRenderer, ProgramState } =
+        await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
+
+    const renderer = new CanvasRenderer({
+        canvas: document.getElementById('canvas'),
+        width: 1024, height: 1024,
+        basePath: SHADER_CDN,
+        useBundles: true,
+        bundlePath: `${SHADER_CDN}/effects`
+    })
     await renderer.loadManifest()
 
     const state = new ProgramState({ renderer })
@@ -181,13 +169,15 @@ Creates and manages the GPU rendering pipeline.
 
 .. code-block:: javascript
 
+    const SHADER_CDN = 'https://shaders.noisedeck.app/0.9.0'
+
     const renderer = new CanvasRenderer({
         canvas,                            // HTMLCanvasElement (required)
         width: 1024,                       // Render resolution width
         height: 1024,                      // Render resolution height
-        basePath: './vendor/noisemaker/shaders',  // Path to shader assets
+        basePath: SHADER_CDN,              // CDN or local path to shader assets
         useBundles: true,                  // Load effects from pre-built bundles
-        bundlePath: './vendor/noisemaker/effects', // Path to effect bundles
+        bundlePath: `${SHADER_CDN}/effects`, // Path to effect bundles
         preferWebGPU: false,               // Use WebGPU backend if available
         onFPS: (fps) => {},                // Called each frame with current FPS
         onError: (err) => {},              // Called on pipeline errors
@@ -199,10 +189,10 @@ Creates and manages the GPU rendering pipeline.
 **Path configuration:**
 
 ``basePath``
-    Root directory for shader assets. Points at ``shaders/`` in source mode, or wherever the bundle's ``shaders/`` directory was extracted.
+    Root URL for shader assets. Use the CDN URL (``https://shaders.noisedeck.app/0.9.0``), a local vendor path, or a relative path to the ``shaders/`` directory for source mode.
 
 ``bundlePath``
-    Directory containing per-effect bundles and ``manifest.json``. Only used when ``useBundles: true``.
+    Directory containing per-effect bundles and ``manifest.json``. Typically ``${basePath}/effects``.
 
 ``useBundles``
     When ``true``, loads effects from pre-built JS bundles. When ``false``, loads from source directories.
@@ -541,6 +531,9 @@ Example: Vanilla JS
 
     <!DOCTYPE html>
     <html>
+    <head>
+        <link rel="preconnect" href="https://shaders.noisedeck.app" crossorigin>
+    </head>
     <body>
         <canvas id="canvas" width="512" height="512"></canvas>
         <div>
@@ -549,21 +542,20 @@ Example: Vanilla JS
         </div>
 
         <script type="module">
-            const { CanvasRenderer, ProgramState } =
-                await import('./vendor/noisemaker/shaders/noisemaker-shaders-core.esm.js')
+            const SHADER_CDN = 'https://shaders.noisedeck.app/0.9.0'
 
-            const canvas = document.getElementById('canvas')
+            const { CanvasRenderer, ProgramState } =
+                await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
+
             const renderer = new CanvasRenderer({
-                canvas,
-                width: 512,
-                height: 512,
-                basePath: './vendor/noisemaker/shaders',
+                canvas: document.getElementById('canvas'),
+                width: 512, height: 512,
+                basePath: SHADER_CDN,
                 useBundles: true,
-                bundlePath: './vendor/noisemaker/effects'
+                bundlePath: `${SHADER_CDN}/effects`
             })
 
             await renderer.loadManifest()
-            await renderer.loadEffects(['synth/noise'])
 
             const state = new ProgramState({ renderer })
             state.fromDsl('noise(octaves: 4, scale: 2.0).write(o0)\nrender(o0)')
@@ -587,6 +579,8 @@ Example: React
 
     import { useEffect, useState, useRef } from 'react'
 
+    const SHADER_CDN = 'https://shaders.noisedeck.app/0.9.0'
+
     function NoiseGenerator() {
         const canvasRef = useRef(null)
         const [state, setState] = useState(null)
@@ -597,19 +591,17 @@ Example: React
 
             async function init() {
                 const { CanvasRenderer, ProgramState } =
-                    await import('./vendor/noisemaker/shaders/noisemaker-shaders-core.esm.js')
+                    await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
                 renderer = new CanvasRenderer({
                     canvas: canvasRef.current,
-                    width: 512,
-                    height: 512,
-                    basePath: './vendor/noisemaker/shaders',
+                    width: 512, height: 512,
+                    basePath: SHADER_CDN,
                     useBundles: true,
-                    bundlePath: './vendor/noisemaker/effects'
+                    bundlePath: `${SHADER_CDN}/effects`
                 })
 
                 await renderer.loadManifest()
-                await renderer.loadEffects(['synth/noise'])
 
                 const programState = new ProgramState({ renderer })
                 programState.fromDsl('noise().write(o0)\nrender(o0)')
