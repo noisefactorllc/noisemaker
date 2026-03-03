@@ -1,0 +1,42 @@
+name: Site
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'index.html'
+      - '.github/workflows/site.yml'
+
+jobs:
+  deploy-site:
+    name: Deploy site
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --include=dev
+
+    - name: Build site bundle
+      run: npm run bundle:site
+
+    - name: Set up SSH
+      run: |
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
+        echo "${{ secrets.SCAFFOLD_SSH_KEY }}" | base64 -d > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh-keyscan ${{ secrets.SCAFFOLD_SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null
+
+    - name: Deploy to scaffold
+      run: |
+        rsync -avz --delete \
+          dist/site/ \
+          deploy@${{ secrets.SCAFFOLD_SERVER_IP }}:~/sites/noisemaker.app/content/
