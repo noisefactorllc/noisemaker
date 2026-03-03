@@ -308,6 +308,14 @@ function copyLogoImage() {
         console.log('  ✓ noisemaker.png')
     }
 
+    // Copy OG image
+    const ogSrc = path.join(repoRoot, 'og-image.png')
+    const ogDest = path.join(siteDir, 'og-image.png')
+    if (fs.existsSync(ogSrc)) {
+        copyFile(ogSrc, ogDest)
+        console.log('  ✓ og-image.png')
+    }
+
     // Copy favicon
     const faviconSrc = path.join(repoRoot, 'favicon.ico')
     const faviconDest = path.join(siteDir, 'favicon.ico')
