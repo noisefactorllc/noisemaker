@@ -1,22 +1,12 @@
 <!doctype html>
-<!--
-
-    To view the Noisemaker demos, launch a local HTTP server from the repository root, e.g.:
-
-      python3 -m http.server 8080
-
-    ...and visit http://localhost:8080/demo/ in a web browser.
-
--->
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>noisemaker demos</title>
+  <title>Noisemaker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="./demo/common.css" />
   <style>
-    /* Override palette to complement logo's magenta/green on black */
     :root {
       --color1: #0a0a0a;
       --color2: #141414;
@@ -31,11 +21,60 @@
       --accent4: #ff66d9;
       --neon-green: #33ff00;
     }
-    .landing-logo {
-      width: clamp(64px, 12vw, 96px);
-      height: auto;
-      margin: 0 auto;
+
+    body.landing-page {
+      padding: 0;
+      min-height: 100vh;
+      background: #000;
     }
+
+    #bg-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+    }
+
+    .content-overlay {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      padding: clamp(40px, 12vh, 80px) clamp(16px, 5vw, 48px);
+    }
+
+    main.landing-shell header {
+      display: flex;
+      align-items: center;
+      gap: clamp(12px, 2vw, 20px);
+      text-align: left;
+    }
+
+    .landing-logo {
+      width: clamp(48px, 8vw, 72px);
+      height: auto;
+      flex-shrink: 0;
+    }
+
+    .header-text h1 {
+      margin: 0;
+    }
+
+    .header-text p {
+      margin: 0;
+    }
+
+    @media (max-width: 480px) {
+      main.landing-shell header {
+        flex-direction: column;
+        text-align: center;
+      }
+    }
+
     main.landing-shell footer {
       display: flex;
       justify-content: center;
@@ -55,10 +94,9 @@
     main.landing-shell footer a:hover {
       color: var(--color7);
     }
-    main.landing-shell footer svg {
-      width: 16px;
-      height: 16px;
-      fill: currentColor;
+
+    a.demo-card {
+      background: rgba(10, 10, 10, 0.7);
     }
     a.demo-card:hover,
     a.demo-card:focus-visible {
@@ -67,43 +105,118 @@
   </style>
 </head>
 <body class="landing-page">
-  <main class="landing-shell">
-    <header>
-      <img src="noisemaker.png" alt="Noisemaker" class="landing-logo" />
-      <h1>Noisemaker</h1>
-      <p>Visual effects rendering engine for the browser.</p>
-    </header>
+  <canvas id="bg-canvas"></canvas>
 
-    <section class="demo-grid">
-      <a class="demo-card" href="demo/shaders/">
-        <span class="demo-name">shaders demo</span>
-        <span class="demo-summary">live effect browser</span>
-      </a>
-      <a class="demo-card" href="http://noisemaker.readthedocs.io/">
-        <span class="demo-name">docs</span>
-        <span class="demo-summary">integration, specs, case studies</span>
-      </a>
-      <a class="demo-card" href="demo/js/">
-        <span class="demo-name">composer demo</span>
-        <span class="demo-summary">cpu presets (python &amp; js)</span>
-      </a>
-    </section>
+  <div class="content-overlay">
+    <main class="landing-shell">
+      <header>
+        <img src="noisemaker.png" alt="Noisemaker" class="landing-logo" />
+        <div class="header-text">
+          <h1>Noisemaker</h1>
+          <p>Visual effects rendering engine for the browser.</p>
+        </div>
+      </header>
 
-    <section class="demo-grid" style="margin-top: 0;">
-      <a class="demo-card" href="https://noisedeck.app/" style="grid-column: 1 / -1; border-color: var(--neon-green);">
-        <span class="demo-name">Noisedeck</span>
-        <span class="demo-summary">An approachable, powerful video synth built on Noisemaker. A must-have for any creator's toolkit.</span>
-      </a>
-    </section>
+      <section class="demo-grid">
+        <a class="demo-card" href="demo/shaders/">
+          <span class="demo-name">shaders demo</span>
+          <span class="demo-summary">live effect browser</span>
+        </a>
+        <a class="demo-card" href="http://noisemaker.readthedocs.io/">
+          <span class="demo-name">docs</span>
+          <span class="demo-summary">integration, specs, case studies</span>
+        </a>
+        <a class="demo-card" href="demo/js/">
+          <span class="demo-name">composer demo</span>
+          <span class="demo-summary">cpu presets (python &amp; js)</span>
+        </a>
+      </section>
 
-    <footer>
-      <a href="https://noisefactor.io/">
-        <span>Noise Factor LLC</span>
-      </a>
-      <a href="https://github.com/noisedeck/noisemaker" class="tooltip" data-title="View on GitHub" aria-label="View on GitHub">
-        <span>Source</span>
-      </a>
-    </footer>
-  </main>
+      <section class="demo-grid" style="margin-top: 0;">
+        <a class="demo-card" href="https://noisedeck.app/" style="grid-column: 1 / -1; border-color: var(--neon-green);">
+          <span class="demo-name">Noisedeck</span>
+          <span class="demo-summary">An approachable, powerful video synth built on Noisemaker. A must-have for any creator's toolkit.</span>
+        </a>
+      </section>
+
+      <footer>
+        <a href="https://noisefactor.io/">
+          <span>Noise Factor LLC</span>
+        </a>
+        <a href="https://github.com/noisedeck/noisemaker" class="tooltip" data-title="View on GitHub" aria-label="View on GitHub">
+          <span>Source</span>
+        </a>
+      </footer>
+    </main>
+  </div>
+
+  <script type="module">
+    const SHADER_CDN = 'https://shaders.noisedeck.app/0.9.0';
+
+    const DSL_PROGRAM = `search synth, filter
+
+perlin(
+  scale: 55.53,
+  dimensions: 3,
+  ridges: true
+)
+  .tetraColorArray(
+    colorCount: 3,
+    color0: #010000,
+    color1: #111111,
+    color2: #fd01c0,
+    color3: #fb31c9,
+    color4: #32ff03,
+    alpha: 0.6
+  )
+  .write(o0)
+
+render(o0)`;
+
+    function updateCanvasSize(canvas) {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      return { width: canvas.width, height: canvas.height };
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      const canvas = document.getElementById('bg-canvas');
+      if (!canvas) return;
+
+      try {
+        const size = updateCanvasSize(canvas);
+
+        const module = await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`);
+        const { CanvasRenderer, extractEffectNamesFromDsl } = module;
+
+        const renderer = new CanvasRenderer({
+          canvas,
+          width: size.width,
+          height: size.height,
+          preferWebGPU: false,
+          useBundles: true,
+          basePath: SHADER_CDN,
+          bundlePath: `${SHADER_CDN}/effects`
+        });
+
+        await renderer.loadManifest();
+
+        const effectData = extractEffectNamesFromDsl(DSL_PROGRAM, renderer.manifest || {});
+        const effectIds = effectData.map(e => e.effectId);
+        if (effectIds.length > 0) await renderer.loadEffects(effectIds);
+
+        await renderer.compile(DSL_PROGRAM);
+        renderer.start();
+
+        window.addEventListener('resize', () => {
+          const newSize = updateCanvasSize(canvas);
+          renderer.resize(newSize.width, newSize.height);
+        });
+      } catch (e) {
+        console.error('Background shader failed:', e);
+      }
+    });
+  </script>
 </body>
 </html>
