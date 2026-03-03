@@ -1,7 +1,7 @@
 .. _releases:
 
-Releases
-========
+Release Process
+===============
 
 Noisemaker is a monorepo with three release tracks: Python, JavaScript, and Shaders. The project version is defined in ``pyproject.toml`` (currently pre-1.0).
 
