@@ -13,7 +13,7 @@ Noisemaker
    releases
 
 
-**Noisemaker** is a GPU rendering engine for real-time visual effects in the browser. Dual WebGL2/WebGPU backends, a composable DSL for building effect chains, and a growing library of shader effects that load on demand from CDN. No build step, no framework, no dependencies. Works with any input source: live camera, images, video, audio, or pure generative.
+**Noisemaker** is a GPU rendering engine for real-time visual effects in the browser. Dual WebGL2/WebGPU backends, a composable DSL for building effect chains, and a growing library of shader effects. No build step, no framework, no dependencies. Works with any input source: live camera, images, video, audio, or pure generative.
 
 .. raw:: html
 
