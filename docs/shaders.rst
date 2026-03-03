@@ -1,7 +1,7 @@
 Shaders
 =======
 
-Noisemaker's GPU rendering engine. 204 effects across 9 namespaces, with dual WebGL2 and WebGPU backends. Runs natively in the browser — no plugins, no server.
+Noisemaker's GPU rendering engine. Dual WebGL2 and WebGPU backends, a composable DSL for building effect chains, and a growing library of shader effects across nine namespaces.
 
 .. raw:: html
 
