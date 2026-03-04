@@ -560,6 +560,7 @@ float offset(vec2 st, float freq, int loopOffset, float speed, float seed) {
         // sine
         return 1.0 - diamonds(st, freq);
     }
+    return 0.0;
 }
 
 

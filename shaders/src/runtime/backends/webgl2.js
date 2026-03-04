@@ -735,7 +735,7 @@ export class WebGL2Backend extends Backend {
             throw new Error('Shader source is missing. You may need to regenerate the shader manifest.')
         }
 
-        let injected = '#version 300 es\nprecision highp float;\n'
+        let injected = '#version 300 es\nprecision highp float;\nprecision highp int;\n'
 
         for (const [key, value] of Object.entries(defines)) {
             injected += `#define ${key} ${value}\n`
