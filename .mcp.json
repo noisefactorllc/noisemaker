@@ -4,7 +4,10 @@
       "command": "npx",
       "args": ["-y", "github:noisedeck/shade-mcp"],
       "env": {
-        "SHADE_EFFECTS_DIR": "./shaders/effects"
+        "SHADE_EFFECTS_DIR": "./shaders/effects",
+        "SHADE_VIEWER_ROOT": ".",
+        "SHADE_VIEWER_PATH": "/demo/shaders/",
+        "SHADE_GLOBALS_PREFIX": "__noisemaker"
       }
     }
   }
