@@ -719,6 +719,8 @@ export class WebGL2Backend extends Backend {
 
         if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
             const log = gl.getShaderInfoLog(shader)
+            console.error('[GLSL compile error]', log)
+            console.error('[GLSL source]', source)
             gl.deleteShader(shader)
             throw {
                 code: 'ERR_SHADER_COMPILE',

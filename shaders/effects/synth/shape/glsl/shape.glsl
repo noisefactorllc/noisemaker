@@ -1,12 +1,13 @@
+#version 300 es
+
 /*
  * GLSL shape generator shader (mono-only variant).
  * Removed: palette colorization, hsv/oklab conversion
  * Output: grayscale intensity based on offset pattern
  */
 
-#ifdef GL_ES
 precision highp float;
-#endif
+precision highp int;
 
 uniform vec2 resolution;
 uniform float time;
