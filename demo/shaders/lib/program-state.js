@@ -1333,6 +1333,13 @@ export class ProgramState extends Emitter {
                     continue
                 }
 
+                // Never restore _skip from preserved values — it's a structural flag
+                // that must come from DSL args only. Restoring it by occurrence index
+                // causes leaks when effects with the same name are added/removed.
+                if (paramName === '_skip') {
+                    continue
+                }
+
                 if (paramName.startsWith('_') || value !== undefined) {
                     // Don't overwrite automation bindings from DSL with preserved scalar values
                     const dslArg = effect.args?.[paramName]

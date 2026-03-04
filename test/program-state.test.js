@@ -698,6 +698,109 @@ console.log('Testing extractEffectsFromDsl...')
 console.log('extractEffectsFromDsl tests passed!\n')
 
 // ============================================================================
+// _skip leak on structure change (classic → stripped)
+// ============================================================================
+
+console.log('Testing _skip leak on structure change...')
+
+// Test: _skip must not leak from removed effect to surviving effect
+// This tests _rebuildStepStates directly by setting up step states manually,
+// bypassing DSL parsing (which requires full effect registration).
+//
+// Scenario: Classic mode has two "synth.noise" effects:
+//   step_0: noise(seed: 1, _skip: true)   ← disabled/hidden
+//   step_2: noise(seed: 2, hueRange: 100) ← active
+//
+// When stripped DSL removes the disabled noise, only one noise remains:
+//   step_0: noise(seed: 2, hueRange: 100) ← now occurrence 0
+//
+// Bug: _preserveValuesByOccurrence maps by effect name + occurrence index.
+//   Old occurrence 0 of "synth.noise" had _skip: true.
+//   New occurrence 0 of "synth.noise" is the ACTIVE effect.
+//   _rebuildStepStates restores _skip: true from the wrong occurrence.
+{
+    const ps = new ProgramState()
+
+    // Simulate classic mode state: two noise effects
+    ps._stepStates.set('step_0', {
+        effectKey: 'synth.noise',
+        effectDef: {
+            globals: {
+                seed: { type: 'int', default: 1 },
+                hueRange: { type: 'float', default: 0 },
+            }
+        },
+        stepIndex: 0,
+        values: { seed: 1, _skip: true }  // disabled noise
+    })
+    ps._stepStates.set('step_2', {
+        effectKey: 'synth.noise',
+        effectDef: {
+            globals: {
+                seed: { type: 'int', default: 1 },
+                hueRange: { type: 'float', default: 0 },
+            }
+        },
+        stepIndex: 2,
+        values: { seed: 2, hueRange: 100 }  // active noise
+    })
+    ps._stepStates.set('step_3', {
+        effectKey: 'mixer.coalesce',
+        effectDef: {
+            globals: {}
+        },
+        stepIndex: 3,
+        values: { _skip: true }  // disabled mixer
+    })
+
+    // Preserve values (this is what fromDsl does before rebuilding)
+    const preserved = ps._preserveValuesByOccurrence()
+
+    // Verify preservation captured correctly
+    const noisePreserved = preserved.get('synth.noise')
+    assert.strictEqual(noisePreserved.length, 2,
+        'Should have 2 preserved noise occurrences')
+    assert.strictEqual(noisePreserved[0]._skip, true,
+        'Preserved occurrence 0 should have _skip: true')
+    assert.strictEqual(noisePreserved[1]._skip, undefined,
+        'Preserved occurrence 1 should NOT have _skip')
+
+    // Now rebuild with stripped structure — only the active noise remains
+    const strippedEffects = [
+        {
+            stepIndex: 0,
+            effectKey: 'synth.noise',
+            args: { seed: 2, hueRange: 100 }
+        },
+        {
+            stepIndex: 1,
+            effectKey: 'filter.celShading',
+            args: {}
+        },
+        {
+            stepIndex: 2,
+            effectKey: 'filter.fxaa',
+            args: {}
+        }
+    ]
+
+    ps._rebuildStepStates(strippedEffects, preserved)
+
+    // The surviving noise(seed:2) is now occurrence 0.
+    // It must NOT have _skip: true leaked from the old occurrence 0.
+    const skipAfter = ps.getValue('step_0', '_skip')
+    const seedAfter = ps.getValue('step_0', 'seed')
+
+    assert.strictEqual(seedAfter, 2,
+        `After strip: step_0 should have seed: 2, got seed: ${seedAfter}`)
+    assert.ok(skipAfter !== true,
+        `BUG: _skip: true leaked from removed noise(seed:1) to surviving noise(seed:2). ` +
+        `step_0._skip = ${skipAfter}`)
+
+    console.log('  ✓ _skip does not leak across occurrences on structure change')
+}
+
+// ============================================================================
 // Summary
 // ============================================================================
 
