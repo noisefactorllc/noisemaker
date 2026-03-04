@@ -713,7 +713,7 @@ fn multires(st_in: vec2<f32>, freq: vec2<f32>, oct: i32, s: f32, blend: f32) -> 
         result = hsv2rgb(hsv);
     }
 
-    if (colorMode != 6) {
+    if (colorMode != 4 && colorMode != 6) {
         var hsv = rgb2hsv(result);
         hsv.x = hsv.x + 1.0 - (hueRotation / 360.0);
         hsv.x = fract(hsv.x);

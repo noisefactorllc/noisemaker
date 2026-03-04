@@ -864,10 +864,9 @@ vec3 multires(vec2 st, vec2 freq, int octaves, float s, float blend) {
         color = hsv2rgb(color); 
     }
 
-    if (colorMode != 6) {
+    if (colorMode != 4 && colorMode != 6) {
         color = rgb2hsv(color);
 
-        //color.r = color.r * (hueRange * 0.01);
         color.r += 1.0 - (hueRotation / 360.0);
         color.r = fract(color.r);
 
