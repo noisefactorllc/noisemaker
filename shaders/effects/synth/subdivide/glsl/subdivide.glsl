@@ -4,6 +4,7 @@
 
 #ifdef GL_ES
 precision highp float;
+precision highp int;
 #endif
 
 uniform sampler2D inputTex;
