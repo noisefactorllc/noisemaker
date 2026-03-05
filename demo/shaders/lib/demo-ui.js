@@ -2027,7 +2027,7 @@ render(o1)`
 
             const controlsDiv = document.createElement('div')
             controlsDiv.id = `controls-${effectInfo.stepIndex}`
-            controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; column-gap: 1em;'
+            controlsDiv.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 1em 1em;'
 
             const effectKey = `step_${effectInfo.stepIndex}`
 
