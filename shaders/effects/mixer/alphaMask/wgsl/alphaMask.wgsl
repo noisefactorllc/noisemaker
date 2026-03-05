@@ -13,12 +13,11 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let dims = vec2<f32>(textureDimensions(inputTex, 0));
     var st = position.xy / dims;
 
-
     let color1 = textureSample(inputTex, samp, st);
     let color2 = textureSample(tex, samp, st);
 
     // luminance mask mode
-    if (maskMode == 1) {
+    if (maskMode != 0) {
         let maskVal = dot(color2.rgb, vec3<f32>(0.299, 0.587, 0.114));
         return vec4<f32>(color1.rgb, color1.a * maskVal);
     }

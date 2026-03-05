@@ -19,14 +19,13 @@ export default new Effect({
       uniform: "mixAmt",
       min: -100,
       max: 100,
-      ui: { label: "mix", control: "slider" }
+      ui: { label: "mix", control: "slider", enabledBy: { param: "maskMode", eq: false } }
     },
     maskMode: {
-      type: "int",
-      default: 0,
+      type: "boolean",
+      default: false,
       uniform: "maskMode",
-      min: 0,
-      max: 1
+      ui: { label: "grayscale mask", control: "checkbox" }
     }
   },
   paramAliases: { mixAmt: 'mix' },

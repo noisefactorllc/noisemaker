@@ -5,7 +5,7 @@ uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
 uniform float mixAmt;
-uniform int maskMode;
+uniform bool maskMode;
 out vec4 fragColor;
 
 float map(float value, float inMin, float inMax, float outMin, float outMax) {
@@ -15,12 +15,11 @@ float map(float value, float inMin, float inMax, float outMin, float outMax) {
 void main() {
     vec2 st = gl_FragCoord.xy / resolution;
 
-
     vec4 color1 = texture(inputTex, st);
     vec4 color2 = texture(tex, st);
 
     // luminance mask mode
-    if (maskMode == 1) {
+    if (maskMode) {
         float maskVal = dot(color2.rgb, vec3(0.299, 0.587, 0.114));
         fragColor = vec4(color1.rgb, color1.a * maskVal);
         return;
