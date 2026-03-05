@@ -2,6 +2,8 @@
 
 struct Uniforms {
     resolution: vec2<f32>,
+    shapeMode: i32,
+    depositOpacity: f32,
     density: f32,
     pointSize: f32,
     sizeVariation: f32,
@@ -173,10 +175,59 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
 
 @fragment
 fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {
-    // Sample sprite texture
-    let spriteColor = textureSample(spriteTex, spriteSampler, in.spriteUV);
-    
-    // Multiply sprite by particle color (tint the sprite)
-    // Use sprite alpha for transparency
-    return vec4<f32>(spriteColor.rgb * in.color.rgb, spriteColor.a * in.color.a);
+    let opacity = u.depositOpacity / 100.0;
+
+    if (u.shapeMode == 0) {
+        // Texture mode: sample sprite texture
+        let spriteColor = textureSample(spriteTex, spriteSampler, in.spriteUV);
+        return vec4<f32>(spriteColor.rgb * in.color.rgb, spriteColor.a * in.color.a) * opacity;
+    }
+
+    // Procedural SDF shapes
+    let p = in.spriteUV - 0.5;
+    var sdf: f32;
+    var alpha: f32;
+
+    if (u.shapeMode == 1) {
+        // Circle
+        sdf = length(p) - 0.45;
+    } else if (u.shapeMode == 2) {
+        // Ring
+        sdf = abs(length(p) - 0.35) - 0.08;
+    } else if (u.shapeMode == 3) {
+        // Square
+        sdf = max(abs(p.x), abs(p.y)) - 0.4;
+    } else if (u.shapeMode == 4) {
+        // Diamond
+        sdf = abs(p.x) + abs(p.y) - 0.45;
+    } else if (u.shapeMode == 5) {
+        // Equilateral triangle (Inigo Quilez SDF)
+        let r = 0.25;
+        let k = 1.732050808; // sqrt(3)
+        var t = vec2<f32>(abs(p.x) - r, p.y - 0.04 + r / k);
+        if (t.x + k * t.y > 0.0) { t = vec2<f32>(t.x - k * t.y, -k * t.x - t.y) / 2.0; }
+        t.x -= clamp(t.x, -2.0 * r, 0.0);
+        sdf = -length(t) * sign(t.y);
+    } else if (u.shapeMode == 6) {
+        // 5-point star (Inigo Quilez SDF — straight edges)
+        let r = 0.35;
+        let rf = 0.4;
+        let k1 = vec2<f32>(0.809016994375, -0.587785252292);
+        let k2 = vec2<f32>(-k1.x, k1.y);
+        var s = vec2<f32>(abs(p.x), p.y);
+        s -= 2.0 * max(dot(k1, s), 0.0) * k1;
+        s -= 2.0 * max(dot(k2, s), 0.0) * k2;
+        s.x = abs(s.x);
+        s.y -= r;
+        let ba = rf * vec2<f32>(-k1.y, k1.x) - vec2<f32>(0.0, 1.0);
+        let h = clamp(dot(s, ba) / dot(ba, ba), 0.0, r);
+        sdf = length(s - ba * h) * sign(s.y * ba.x - s.x * ba.y);
+    } else {
+        // Soft (7) — gaussian falloff
+        alpha = exp(-dot(p, p) * 8.0);
+        return vec4<f32>(in.color.rgb, alpha * in.color.a) * opacity;
+    }
+
+    alpha = 1.0 - smoothstep(-0.02, 0.02, sdf);
+    return vec4<f32>(in.color.rgb, alpha * in.color.a) * opacity;
 }

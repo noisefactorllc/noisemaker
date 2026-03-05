@@ -5,6 +5,7 @@ export default new Effect({
     namespace: "render",
     func: "pointsBillboardRender",
     tags: ["agents"],
+    openCategories: ["source", "visual"],
 
     description: "Render particles as billboard sprites",
 
@@ -18,13 +19,50 @@ export default new Effect({
     },
 
     globals: {
+        // Shape mode: procedural SDF shapes or texture
+        shapeMode: {
+            type: "int",
+            default: 1,
+            uniform: "shapeMode",
+            choices: {
+                texture: 0,
+                circle: 1,
+                ring: 2,
+                square: 3,
+                diamond: 4,
+                triangle: 5,
+                star: 6,
+                soft: 7
+            },
+            ui: {
+                label: "shape",
+                control: "dropdown",
+                category: "source"
+            }
+        },
+
         // Sprite texture source
         tex: {
             type: "surface",
             default: "none",
             ui: {
                 label: "sprite",
-                category: "source"
+                category: "source",
+                enabledBy: { param: "shapeMode", eq: 0 } // Only show when shapeMode is 'texture'
+            }
+        },
+
+        // Deposit opacity (controls additive blowout)
+        depositOpacity: {
+            type: "float",
+            default: 20.0,
+            min: 1.0,
+            max: 100.0,
+            uniform: "depositOpacity",
+            ui: {
+                label: "opacity",
+                control: "slider",
+                category: "visual"
             }
         },
 
@@ -290,6 +328,8 @@ export default new Effect({
             },
 
             uniforms: {
+                shapeMode: "shapeMode",
+                depositOpacity: "depositOpacity",
                 density: "density",
                 pointSize: "pointSize",
                 sizeVariation: "sizeVariation",
