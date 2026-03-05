@@ -33,7 +33,16 @@ float sdfPolygon(vec2 p, float r, float sides) {
     return cos(floor(0.5 + a / seg) * seg - a) * length(p) - r;
 }
 
-float sdfStar(vec2 p, float r) {
+float sdfTriangle(vec2 p, float r) {
+    float k = 1.732050808; // sqrt(3)
+    p.x = abs(p.x) - r;
+    p.y = p.y + r / k;
+    if (p.x + k * p.y > 0.0) p = vec2(p.x - k * p.y, -k * p.x - p.y) / 2.0;
+    p.x -= clamp(p.x, -2.0 * r, 0.0);
+    return -length(p) * sign(p.y);
+}
+
+float sdfFlower(vec2 p, float r) {
     float outerR = r;
     float innerR = r * 0.45;
     float a = atan(p.x, p.y) + PI;
@@ -43,6 +52,20 @@ float sdfStar(vec2 p, float r) {
     float t = abs(segAngle - halfSeg) / halfSeg;
     float starR = mix(innerR, outerR, t);
     return length(p) - starR;
+}
+
+float sdfStar5(vec2 p, float r) {
+    float rf = 0.4;
+    vec2 k1 = vec2(0.809016994375, -0.587785252292);
+    vec2 k2 = vec2(-k1.x, k1.y);
+    p.x = abs(p.x);
+    p -= 2.0 * max(dot(k1, p), 0.0) * k1;
+    p -= 2.0 * max(dot(k2, p), 0.0) * k2;
+    p.x = abs(p.x);
+    p.y -= r;
+    vec2 ba = rf * vec2(-k1.y, k1.x) - vec2(0.0, 1.0);
+    float h = clamp(dot(p, ba) / dot(ba, ba), 0.0, r);
+    return length(p - ba * h) * sign(p.y * ba.x - p.x * ba.y);
 }
 
 float sdfRing(vec2 p, float r) {
@@ -73,8 +96,7 @@ void main() {
     if (shape == 0) {
         d = sdfCircle(p, radius);
     } else if (shape == 1) {
-        vec2 tp = vec2(p.x, p.y + radius * 0.17) * 1.5;
-        d = sdfPolygon(tp, radius, 3.0);
+        d = sdfTriangle(p, radius);
     } else if (shape == 2) {
         d = sdfPolygon(p, radius, 4.0);
     } else if (shape == 3) {
@@ -82,9 +104,11 @@ void main() {
     } else if (shape == 4) {
         d = sdfPolygon(p, radius, 6.0);
     } else if (shape == 5) {
-        d = sdfStar(p, radius);
+        d = sdfFlower(p, radius);
     } else if (shape == 6) {
         d = sdfRing(p, radius);
+    } else if (shape == 7) {
+        d = sdfStar5(p, radius);
     }
 
     // Smoothstep mask: 0 inside, 1 outside

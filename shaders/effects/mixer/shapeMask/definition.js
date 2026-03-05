@@ -37,7 +37,8 @@ export default new Effect({
         pentagon: 3,
         hexagon: 4,
         flower: 5,
-        ring: 6
+        ring: 6,
+        star: 7
       },
       ui: {
         label: "shape",

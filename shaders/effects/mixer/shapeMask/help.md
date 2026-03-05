@@ -11,7 +11,7 @@ Uses a signed distance field to divide the frame into inside and outside regions
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | tex | surface | none | - | Source B (outside shape) |
-| shape | int | circle | circle/triangle/square/pentagon/hexagon/flower/ring | Shape type |
+| shape | int | circle | circle/triangle/square/pentagon/hexagon/flower/ring/star | Shape type |
 | radius | float | 0.7 | 0-1 | Shape size |
 | smoothness | float | 0.01 | 0-0.25 | Edge softness (0 = hard edge) |
 | rotation | float | 0 | -180-180 | Rotation in degrees |
@@ -24,6 +24,7 @@ Uses a signed distance field to divide the frame into inside and outside regions
 - **edge smooth at 0**: Perfectly sharp boundary between sources
 - **edge smooth increased**: Creates a soft gradient transition at the shape boundary
 - **flower**: Five-petal shape with alternating inner/outer radii
+- **star**: Five-pointed star with straight edges
 - **ring**: Hollow circle whose border width scales with radius
 - Position and rotation are applied before the SDF, so the shape moves and spins in screen space
 - Combine with animated position parameters for picture-in-picture or wipe transitions

@@ -28,7 +28,15 @@ fn sdfPolygon(p: vec2<f32>, r: f32, sides: f32) -> f32 {
     return cos(floor(0.5 + a / seg) * seg - a) * length(p) - r;
 }
 
-fn sdfStar(p: vec2<f32>, r: f32) -> f32 {
+fn sdfTriangle(p_in: vec2<f32>, r: f32) -> f32 {
+    let k = 1.732050808; // sqrt(3)
+    var p = vec2<f32>(abs(p_in.x) - r, p_in.y + r / k);
+    if (p.x + k * p.y > 0.0) { p = vec2<f32>(p.x - k * p.y, -k * p.x - p.y) / 2.0; }
+    p.x -= clamp(p.x, -2.0 * r, 0.0);
+    return -length(p) * sign(p.y);
+}
+
+fn sdfFlower(p: vec2<f32>, r: f32) -> f32 {
     let outerR = r;
     let innerR = r * 0.45;
     let a = atan2(p.x, p.y) + PI;
@@ -38,6 +46,20 @@ fn sdfStar(p: vec2<f32>, r: f32) -> f32 {
     let t = abs(segAngle - halfSeg) / halfSeg;
     let starR = mix(innerR, outerR, t);
     return length(p) - starR;
+}
+
+fn sdfStar5(p_in: vec2<f32>, r: f32) -> f32 {
+    let rf = 0.4;
+    let k1 = vec2<f32>(0.809016994375, -0.587785252292);
+    let k2 = vec2<f32>(-k1.x, k1.y);
+    var p = vec2<f32>(abs(p_in.x), p_in.y);
+    p -= 2.0 * max(dot(k1, p), 0.0) * k1;
+    p -= 2.0 * max(dot(k2, p), 0.0) * k2;
+    p.x = abs(p.x);
+    p.y -= r;
+    let ba = rf * vec2<f32>(-k1.y, k1.x) - vec2<f32>(0.0, 1.0);
+    let h = clamp(dot(p, ba) / dot(ba, ba), 0.0, r);
+    return length(p - ba * h) * sign(p.y * ba.x - p.x * ba.y);
 }
 
 fn sdfRing(p: vec2<f32>, r: f32) -> f32 {
@@ -70,8 +92,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     if (shape == 0) {
         d = sdfCircle(p, radius);
     } else if (shape == 1) {
-        let tp = vec2<f32>(p.x, p.y + radius * 0.17) * 1.5;
-        d = sdfPolygon(tp, radius, 3.0);
+        d = sdfTriangle(p, radius);
     } else if (shape == 2) {
         d = sdfPolygon(p, radius, 4.0);
     } else if (shape == 3) {
@@ -79,9 +100,11 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     } else if (shape == 4) {
         d = sdfPolygon(p, radius, 6.0);
     } else if (shape == 5) {
-        d = sdfStar(p, radius);
+        d = sdfFlower(p, radius);
     } else if (shape == 6) {
         d = sdfRing(p, radius);
+    } else if (shape == 7) {
+        d = sdfStar5(p, radius);
     }
 
     // Smoothstep mask: 0 inside, 1 outside
