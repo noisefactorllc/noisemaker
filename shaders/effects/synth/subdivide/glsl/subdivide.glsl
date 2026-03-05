@@ -216,7 +216,7 @@ void main() {
             texUv = clamp(texUv, 0.0, 1.0);
         }
         vec3 inputColor = texture(inputTex, texUv).rgb;
-        result = mix(result, inputColor * result, blend);
+        result = mix(result, inputColor, blend);
     }
 
     // Outline (black, drawn after texture so it stays visible)

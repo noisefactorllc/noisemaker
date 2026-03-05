@@ -213,7 +213,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             texUv = clamp(texUv, vec2<f32>(0.0), vec2<f32>(1.0));
         }
         let inputColor = textureSample(inputTex, samp, texUv).rgb;
-        result = mix(result, inputColor * result, blend);
+        result = mix(result, inputColor, blend);
     }
 
     // Outline (black, drawn after texture so it stays visible)
