@@ -14,7 +14,7 @@ export default new Effect({
   globals: {
     size: {
       type: "int",
-      default: 8,
+      default: 16,
       uniform: "size",
       min: 1,
       max: 256,
