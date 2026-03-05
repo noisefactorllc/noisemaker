@@ -95,6 +95,7 @@ export class ControlFactory {
     createSelect(options) {
         const select = document.createElement('select')
         if (options.className) select.className = options.className
+        select.name = options.name || 'select'
 
         let selectedIndex = 0
         options.choices.forEach((choice, i) => {

@@ -431,7 +431,7 @@ export class UIController {
         const sourceGroup = document.createElement('div')
         sourceGroup.className = 'control-group'
 
-        const sourceLabel = document.createElement('label')
+        const sourceLabel = document.createElement('span')
         sourceLabel.className = 'control-label'
         sourceLabel.textContent = 'media source'
         sourceGroup.appendChild(sourceLabel)
@@ -463,7 +463,7 @@ export class UIController {
         fileGroup.className = 'control-group media-file-group'
         fileGroup.dataset.stepIndex = stepIndex
 
-        const fileLabel = document.createElement('label')
+        const fileLabel = document.createElement('span')
         fileLabel.className = 'control-label'
         fileLabel.textContent = 'media file'
         fileGroup.appendChild(fileLabel)
@@ -486,7 +486,7 @@ export class UIController {
         cameraGroup.style.display = 'none'
         cameraGroup.dataset.stepIndex = stepIndex
 
-        const cameraLabel = document.createElement('label')
+        const cameraLabel = document.createElement('span')
         cameraLabel.className = 'control-label'
         cameraLabel.textContent = 'camera'
         cameraGroup.appendChild(cameraLabel)
@@ -531,7 +531,7 @@ export class UIController {
         const statusGroup = document.createElement('div')
         statusGroup.className = 'control-group'
 
-        const statusLabel = document.createElement('label')
+        const statusLabel = document.createElement('span')
         statusLabel.className = 'control-label'
         statusLabel.textContent = 'status'
         statusGroup.appendChild(statusLabel)
@@ -610,7 +610,7 @@ export class UIController {
         const fileGroup = document.createElement('div')
         fileGroup.className = 'control-group'
 
-        const fileLabel = document.createElement('label')
+        const fileLabel = document.createElement('span')
         fileLabel.className = 'control-label'
         fileLabel.textContent = 'OBJ file'
         fileGroup.appendChild(fileLabel)
@@ -631,7 +631,7 @@ export class UIController {
         const statusGroup = document.createElement('div')
         statusGroup.className = 'control-group'
 
-        const statusLabel = document.createElement('label')
+        const statusLabel = document.createElement('span')
         statusLabel.className = 'control-label'
         statusLabel.textContent = 'status'
         statusGroup.appendChild(statusLabel)
@@ -2374,7 +2374,7 @@ render(o1)`
         const header = document.createElement('div')
         header.className = 'control-header'
 
-        const label = document.createElement('label')
+        const label = document.createElement('span')
         label.className = 'control-label'
         label.textContent = 'surface'
         header.appendChild(label)
@@ -2451,7 +2451,7 @@ render(o1)`
         const header = document.createElement('div')
         header.className = 'control-header'
 
-        const label = document.createElement('label')
+        const label = document.createElement('span')
         label.className = 'control-label'
         label.textContent = 'surface'
         header.appendChild(label)
@@ -2576,7 +2576,7 @@ render(o1)`
         const header = document.createElement('div')
         header.className = 'control-header'
 
-        const label = document.createElement('label')
+        const label = document.createElement('span')
         label.className = 'control-label'
         label.textContent = 'surface'
         header.appendChild(label)
@@ -2700,7 +2700,7 @@ render(o1)`
         const volHeader = document.createElement('div')
         volHeader.className = 'control-header'
 
-        const volLabel = document.createElement('label')
+        const volLabel = document.createElement('span')
         volLabel.className = 'control-label'
         volLabel.textContent = 'volume'
         volHeader.appendChild(volLabel)
@@ -2743,7 +2743,7 @@ render(o1)`
         const geoHeader = document.createElement('div')
         geoHeader.className = 'control-header'
 
-        const geoLabel = document.createElement('label')
+        const geoLabel = document.createElement('span')
         geoLabel.className = 'control-label'
         geoLabel.textContent = 'geometry'
         geoHeader.appendChild(geoLabel)
@@ -2826,7 +2826,7 @@ render(o1)`
         const volHeader = document.createElement('div')
         volHeader.className = 'control-header'
 
-        const volLabel = document.createElement('label')
+        const volLabel = document.createElement('span')
         volLabel.className = 'control-label'
         volLabel.textContent = 'volume'
         volHeader.appendChild(volLabel)
@@ -2869,7 +2869,7 @@ render(o1)`
         const geoHeader = document.createElement('div')
         geoHeader.className = 'control-header'
 
-        const geoLabel = document.createElement('label')
+        const geoLabel = document.createElement('span')
         geoLabel.className = 'control-label'
         geoLabel.textContent = 'geometry'
         geoHeader.appendChild(geoLabel)
@@ -2990,6 +2990,7 @@ render(o1)`
         // Shader textarea
         const textarea = document.createElement('textarea')
         textarea.className = 'shader-source-editor'
+        textarea.name = 'shader-source'
         textarea.spellcheck = false
         textarea.style.cssText = 'width: 100%; min-height: 200px; resize: vertical; background: color-mix(in srgb, var(--color1) 60%, transparent 40%); border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%); border-radius: var(--ui-corner-radius-small); font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; font-size: 0.625rem; line-height: 1.4; color: var(--color5); padding: 0.5rem; box-sizing: border-box;'
         section.appendChild(textarea)
@@ -3196,7 +3197,7 @@ render(o1)`
         const controlGroup = document.createElement('div')
         controlGroup.className = 'control-group'
         controlGroup.dataset.paramKey = key
-        const label = document.createElement('label')
+        const label = document.createElement('span')
         label.className = 'control-label'
         label.textContent = spec.ui?.label || key
 
