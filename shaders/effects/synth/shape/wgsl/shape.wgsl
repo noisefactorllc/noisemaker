@@ -394,47 +394,18 @@ fn offset(st: vec2<f32>, freq: f32, loopOffset: i32, speed: f32, seedVal: f32, p
         return shape(st, 3, freq * 0.5);
     } else if (loopOffset == 30) {
         return (abs(st.x - 0.5 * aspectRatio) + abs(st.y - 0.5)) * freq * 0.5;
-    } else if (loopOffset == 40) {
-        return shape(st, 4, freq * 0.5);
-    } else if (loopOffset == 50) {
-        return shape(st, 5, freq * 0.5);
-    } else if (loopOffset == 60) {
-        return shape(st, 6, freq * 0.5);
-    } else if (loopOffset == 70) {
-        return shape(st, 7, freq * 0.5);
-    } else if (loopOffset == 80) {
-        return shape(st, 8, freq * 0.5);
-    } else if (loopOffset == 90) {
-        return shape(st, 9, freq * 0.5);
-    } else if (loopOffset == 100) {
-        return shape(st, 10, freq * 0.5);
-    } else if (loopOffset == 110) {
-        return shape(st, 11, freq * 0.5);
-    } else if (loopOffset == 120) {
-        return shape(st, 12, freq * 0.5);
+    } else if (loopOffset >= 40 && loopOffset <= 120) {
+        let sides = loopOffset / 10;
+        return shape(st, sides, freq * 0.5);
     } else if (loopOffset == 200) {
         return st.x * freq * 0.5;
     } else if (loopOffset == 210) {
         return st.y * freq * 0.5;
-    } else if (loopOffset == 300) {
-        let localFreq = map(freq, 1.0, 6.0, 1.0, 20.0);
-        return 1.0 - value(st + seedVal, localFreq, 0, speed);
-    } else if (loopOffset == 310) {
-        return 1.0 - value(st + seedVal, freq, 1, speed);
-    } else if (loopOffset == 320) {
-        return 1.0 - value(st + seedVal, freq, 2, speed);
-    } else if (loopOffset == 330) {
-        return 1.0 - value(st + seedVal, freq, 3, speed);
-    } else if (loopOffset == 340) {
-        return 1.0 - value(st + seedVal, freq, 4, speed);
-    } else if (loopOffset == 350) {
-        return 1.0 - value(st + seedVal, freq, 5, speed);
-    } else if (loopOffset == 360) {
-        return 1.0 - value(st + seedVal, freq, 6, speed);
-    } else if (loopOffset == 370) {
-        return 1.0 - value(st + seedVal, freq, 10, speed);
-    } else if (loopOffset == 380) {
-        return 1.0 - value(st + seedVal, freq, 11, speed);
+    } else if (loopOffset >= 300 && loopOffset <= 380) {
+        let idx = (loopOffset - 300) / 10;
+        let interp = select(idx + 3, idx, idx <= 6);
+        let f = select(freq, map(freq, 1.0, 6.0, 1.0, 20.0), loopOffset == 300);
+        return 1.0 - value(st + seedVal, f, interp, speed);
     } else if (loopOffset == 400) {
         return 1.0 - rings(st, freq);
     } else if (loopOffset == 410) {

@@ -434,26 +434,18 @@ fn offset(st_in: vec2f, freq: f32) -> f32 {
     if (u.loopOffset == 10) { return circles(st, freq); }
     else if (u.loopOffset == 20) { return shape(st, 3, freq * 0.5); }
     else if (u.loopOffset == 30) { return (abs(st.x - 0.5 * aspectRatio()) + abs(st.y - 0.5)) * freq * 0.5; }
-    else if (u.loopOffset == 40) { return shape(st, 4, freq * 0.5); }
-    else if (u.loopOffset == 50) { return shape(st, 5, freq * 0.5); }
-    else if (u.loopOffset == 60) { return shape(st, 6, freq * 0.5); }
-    else if (u.loopOffset == 70) { return shape(st, 7, freq * 0.5); }
-    else if (u.loopOffset == 80) { return shape(st, 8, freq * 0.5); }
-    else if (u.loopOffset == 90) { return shape(st, 9, freq * 0.5); }
-    else if (u.loopOffset == 100) { return shape(st, 10, freq * 0.5); }
-    else if (u.loopOffset == 110) { return shape(st, 11, freq * 0.5); }
-    else if (u.loopOffset == 120) { return shape(st, 12, freq * 0.5); }
+    else if (u.loopOffset >= 40 && u.loopOffset <= 120) {
+        let sides = u.loopOffset / 10;
+        return shape(st, sides, freq * 0.5);
+    }
     else if (u.loopOffset == 200) { return st.x * freq * 0.5; }
     else if (u.loopOffset == 210) { return st.y * freq * 0.5; }
-    else if (u.loopOffset == 300) { return 1.0 - value(st, freq, 0); }
-    else if (u.loopOffset == 310) { return 1.0 - value(st, freq, 1); }
-    else if (u.loopOffset == 320) { return 1.0 - value(st, freq, 2); }
-    else if (u.loopOffset == 330) { return 1.0 - value(st, freq, 3); }
-    else if (u.loopOffset == 340) { return 1.0 - value(st, freq, 4); }
-    else if (u.loopOffset == 350) { return 1.0 - value(st, freq, 5); }
-    else if (u.loopOffset == 360) { return 1.0 - value(st, freq, 6); }
-    else if (u.loopOffset == 370) { return 1.0 - value(st, freq, 10); }
     else if (u.loopOffset == 380) { return 1.0 - sineNoise(st, freq); }
+    else if (u.loopOffset >= 300 && u.loopOffset <= 370) {
+        let idx = (u.loopOffset - 300) / 10;
+        let interp = select(idx + 3, idx, idx <= 6);
+        return 1.0 - value(st, freq, interp);
+    }
     else if (u.loopOffset == 400) { return 1.0 - rings(st, freq); }
     else if (u.loopOffset == 410) { return 1.0 - diamonds(st, freq) * 0.5 + 0.5; }
     return 0.0;

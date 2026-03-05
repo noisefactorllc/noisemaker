@@ -733,71 +733,22 @@ float offset(vec2 st, float freq) {
         // circle
         d = circles(st, freq);
     } else if (loopOffset == 20) {
-        // triangle
         d = shape(st, 3, freq * 0.5);
     } else if (loopOffset == 30) {
-        // diamond
         d = (abs(st.x - 0.5 * aspectRatio) + abs(st.y - 0.5)) * freq * 0.5;
-    } else if (loopOffset == 40) {
-        // square
-        d = shape(st, 4, freq * 0.5);
-    } else if (loopOffset == 50) {
-        // pentagon
-        d = shape(st, 5, freq * 0.5);
-    } else if (loopOffset == 60) {
-        // hexagon
-        d = shape(st, 6, freq * 0.5);
-    } else if (loopOffset == 70) {
-        // heptagon
-        d = shape(st, 7, freq * 0.5);
-    } else if (loopOffset == 80) {
-        // octagon
-        d = shape(st, 8, freq * 0.5);
-    } else if (loopOffset == 90) {
-        // nonagon
-        d = shape(st, 9, freq * 0.5);
-    } else if (loopOffset == 100) {
-        // decagon
-        d = shape(st, 10, freq * 0.5);
-    } else if (loopOffset == 110) {
-        // hendecagon
-        d = shape(st, 11, freq * 0.5);
-    } else if (loopOffset == 120) {
-        // dodecagon
-        d = shape(st, 12, freq * 0.5);
+    } else if (loopOffset >= 40 && loopOffset <= 120) {
+        int sides = loopOffset / 10;
+        d = shape(st, sides, freq * 0.5);
     } else if (loopOffset == 200) {
-        // horizontal scan
         d = st.x * freq * 0.5;
     } else if (loopOffset == 210) {
-        // vertical scan
         d = st.y * freq * 0.5;
-    } else if (loopOffset == 300) {
-        // constant
-        d = 1.0 - value(st, freq, 0);
-    } else if (loopOffset == 310) {
-        // linear
-        d = 1.0 - value(st, freq, 1);
-    } else if (loopOffset == 320) {
-        // hermite
-        d = 1.0 - value(st, freq, 2);
-    } else if (loopOffset == 330) {
-        // catmull-rom 3x3
-        d = 1.0 - value(st, freq, 3);
-    } else if (loopOffset == 340) {
-        // catmull-rom 4x4
-        d = 1.0 - value(st, freq, 4);
-    } else if (loopOffset == 350) {
-        // b-spline 3x3
-        d = 1.0 - value(st, freq, 5);
-    } else if (loopOffset == 360) {
-        // b-spline 4x4
-        d = 1.0 - value(st, freq, 6);
-    } else if (loopOffset == 370) {
-        // simplex
-        d = 1.0 - value(st, freq, 10);
     } else if (loopOffset == 380) {
-        // sine noise
         return 1.0 - sineNoise(st, freq);
+    } else if (loopOffset >= 300 && loopOffset <= 370) {
+        int idx = (loopOffset - 300) / 10;
+        int interp = idx <= 6 ? idx : idx + 3;
+        d = 1.0 - value(st, freq, interp);
     } else if (loopOffset == 400) {
         // rings
         d = 1.0 - rings(st, freq);

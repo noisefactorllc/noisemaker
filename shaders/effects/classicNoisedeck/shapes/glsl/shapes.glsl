@@ -487,72 +487,21 @@ float offset(vec2 st, float freq, int loopOffset, float speed, float seed) {
         // circle
         return circles(st, freq);
     } else if (loopOffset == 20) {
-        // triangle
         return shape(st, 3, freq * 0.5);
     } else if (loopOffset == 30) {
-        // diamond
         return (abs(st.x - 0.5 * aspectRatio) + abs(st.y - 0.5)) * freq * 0.5;
-    } else if (loopOffset == 40) {
-        // square
-        return shape(st, 4, freq * 0.5);
-    } else if (loopOffset == 50) {
-        // pentagon
-        return shape(st, 5, freq * 0.5);
-    } else if (loopOffset == 60) {
-        // hexagon
-        return shape(st, 6, freq * 0.5);
-    } else if (loopOffset == 70) {
-        // heptagon
-        return shape(st, 7, freq * 0.5);
-    } else if (loopOffset == 80) {
-        // octagon
-        return shape(st, 8, freq * 0.5);
-    } else if (loopOffset == 90) {
-        // nonagon
-        return shape(st, 9, freq * 0.5);
-    } else if (loopOffset == 100) {
-        // decagon
-        return shape(st, 10, freq * 0.5);
-    } else if (loopOffset == 110) {
-        // hendecagon
-        return shape(st, 11, freq * 0.5);
-    } else if (loopOffset == 120) {
-        // dodecagon
-        return shape(st, 12, freq * 0.5);
+    } else if (loopOffset >= 40 && loopOffset <= 120) {
+        int sides = loopOffset / 10;
+        return shape(st, sides, freq * 0.5);
     } else if (loopOffset == 200) {
-        // horizontal scan
         return st.x * freq * 0.5;
     } else if (loopOffset == 210) {
-        // vertical scan
         return st.y * freq * 0.5;
-    } else if (loopOffset == 300) {
-        // constant
-        freq = map(freq, 1.0, 6.0, 1.0, 20.0);
-        return 1.0 - value(st + seed, freq, 0, speed);
-    } else if (loopOffset == 310) {
-        // linear
-        return 1.0 - value(st + seed, freq, 1, speed);
-    } else if (loopOffset == 320) {
-        // hermite
-        return 1.0 - value(st + seed, freq, 2, speed);
-    } else if (loopOffset == 330) {
-        // catmull-rom 3x3
-        return 1.0 - value(st + seed, freq, 3, speed);
-    } else if (loopOffset == 340) {
-        // catmull-rom 4x4
-        return 1.0 - value(st + seed, freq, 4, speed);
-    } else if (loopOffset == 350) {
-        // b-spline 3x3
-        return 1.0 - value(st + seed, freq, 5, speed);
-    } else if (loopOffset == 360) {
-        // b-spline 4x4
-        return 1.0 - value(st + seed, freq, 6, speed);
-    } else if (loopOffset == 370) {
-        // simplex
-        return 1.0 - value(st + seed, freq, 10, speed);
-    } else if (loopOffset == 380) {
-        // sine
-        return 1.0 - value(st + seed, freq, 11, speed);
+    } else if (loopOffset >= 300 && loopOffset <= 380) {
+        int idx = (loopOffset - 300) / 10;
+        int interp = idx <= 6 ? idx : idx + 3;
+        float f = loopOffset == 300 ? map(freq, 1.0, 6.0, 1.0, 20.0) : freq;
+        return 1.0 - value(st + seed, f, interp, speed);
     } else if (loopOffset == 400) {
         // rings
         return 1.0 - rings(st, freq);
