@@ -59,7 +59,7 @@ export default new Effect({
       min: 0,
       max: 0.25,
       zero: 0,
-      ui: { label: "edge smooth", control: "slider" }
+      ui: { label: "smoothness", control: "slider" }
     },
     rotation: {
       type: "float",
