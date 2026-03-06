@@ -1612,7 +1612,7 @@ export async function createPipeline(graph, options = {}) {
         if (!gl) {
             throw new Error('WebGL2 not available')
         }
-        backend = new WebGL2Backend(gl)
+        backend = new WebGL2Backend(gl, options.canvas)
     } else {
         throw new Error('No backend available or canvas not provided')
     }

@@ -10,9 +10,11 @@ import {
 } from '../default-shaders.js'
 
 export class WebGL2Backend extends Backend {
-    constructor(context) {
+    constructor(context, canvas) {
         super(context)
         this.gl = context
+        this.canvas = canvas || context.canvas || null
+        this.isContextLost = false
         this.fbos = new Map() // texture_id -> framebuffer
         this.depthBuffers = new Map() // fbo -> depth renderbuffer (for mesh rendering)
         this.fullscreenVAO = null

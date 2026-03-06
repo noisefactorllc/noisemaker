@@ -213,6 +213,8 @@ export class CanvasRenderer {
      * @param {function} [options.onLoadingStart] - Callback when loading starts
      * @param {function} [options.onLoadingProgress] - Callback for loading progress
      * @param {function} [options.onLoadingEnd] - Callback when loading ends
+     * @param {function} [options.onContextLost] - Callback when WebGL context is lost
+     * @param {function} [options.onContextRestored] - Callback when WebGL context is restored and pipeline rebuilt
      */
     constructor(options = {}) {
         this._canvas = options.canvas
@@ -233,6 +235,8 @@ export class CanvasRenderer {
         this._onLoadingStart = options.onLoadingStart || null
         this._onLoadingProgress = options.onLoadingProgress || null
         this._onLoadingEnd = options.onLoadingEnd || null
+        this._onContextLost = options.onContextLost || null
+        this._onContextRestored = options.onContextRestored || null
 
         // Pipeline state
         this._pipeline = null
@@ -280,8 +284,15 @@ export class CanvasRenderer {
         // Bound render loop for proper `this` context
         this._boundRenderLoop = this._renderLoop.bind(this)
 
+        // Context loss state
+        this._isContextLost = false
+        this._wasRunningBeforeContextLoss = false
+
         // Set up canvas dimension observation for auto-resize
         this._setupCanvasObserver()
+
+        // Set up WebGL context loss/restore listeners
+        this._setupContextLossHandlers()
     }
 
     /**
@@ -347,9 +358,91 @@ export class CanvasRenderer {
         }
     }
 
+    /**
+     * Set up WebGL context loss and restore event handlers.
+     * On context loss: stops the render loop and notifies the host.
+     * On context restore: recompiles the current DSL and resumes rendering.
+     * @private
+     */
+    _setupContextLossHandlers() {
+        if (!this._canvas) return
+
+        this._boundContextLost = (e) => {
+            e.preventDefault() // Signal browser we will handle restore
+            this._isContextLost = true
+            this._wasRunningBeforeContextLoss = this._isRunning
+
+            if (this._pipeline?.backend) {
+                this._pipeline.backend.isContextLost = true
+            }
+
+            this.stop()
+
+            console.warn('[Canvas] WebGL context lost')
+            if (this._onContextLost) {
+                this._onContextLost()
+            }
+        }
+
+        this._boundContextRestored = async () => {
+            console.log('[Canvas] WebGL context restored, rebuilding pipeline...')
+
+            // Dispose the dead pipeline (context is fresh, no GL cleanup needed)
+            this._pipeline = null
+            this._uniformBindings = new Map()
+
+            this._isContextLost = false
+
+            // Recompile current DSL if we had one
+            if (this._currentDsl) {
+                try {
+                    await this.compile(this._currentDsl)
+                    await this._reuploadCachedMeshes()
+
+                    if (this._wasRunningBeforeContextLoss) {
+                        this.start()
+                    }
+
+                    console.log('[Canvas] Pipeline rebuilt successfully after context restore')
+                } catch (err) {
+                    console.error('[Canvas] Failed to rebuild pipeline after context restore:', err)
+                    if (this._onError) {
+                        this._onError(err)
+                    }
+                }
+            }
+
+            if (this._onContextRestored) {
+                this._onContextRestored()
+            }
+        }
+
+        this._canvas.addEventListener('webglcontextlost', this._boundContextLost)
+        this._canvas.addEventListener('webglcontextrestored', this._boundContextRestored)
+    }
+
+    /**
+     * Remove WebGL context loss/restore event handlers.
+     * @private
+     */
+    _removeContextLossHandlers() {
+        if (!this._canvas) return
+        if (this._boundContextLost) {
+            this._canvas.removeEventListener('webglcontextlost', this._boundContextLost)
+        }
+        if (this._boundContextRestored) {
+            this._canvas.removeEventListener('webglcontextrestored', this._boundContextRestored)
+        }
+    }
+
     // =========================================================================
     // Public Getters
     // =========================================================================
+
+    /** @returns {boolean} Whether the WebGL context is currently lost */
+    get isContextLost() {
+        return this._isContextLost
+    }
 
     /** @returns {string} Current backend ('glsl' or 'wgsl') */
     get backend() {
@@ -630,7 +723,7 @@ export class CanvasRenderer {
      * @param {number} normalizedTime - Time value 0-1
      */
     render(normalizedTime) {
-        if (this._pipeline) {
+        if (this._pipeline && !this._isContextLost) {
             try {
                 this._pipeline.render(normalizedTime)
                 this._lastPassCount = this._pipeline.lastPassCount
@@ -709,6 +802,9 @@ export class CanvasRenderer {
             return
         }
 
+        // Remove context loss listeners from old canvas
+        this._removeContextLossHandlers()
+
         const newCanvas = this._canvas.cloneNode(false)
         newCanvas.id = this._canvas.id
         newCanvas.width = this._canvas.width
@@ -716,6 +812,9 @@ export class CanvasRenderer {
 
         this._canvasContainer.replaceChild(newCanvas, this._canvas)
         this._canvas = newCanvas
+
+        // Re-attach context loss listeners to new canvas
+        this._setupContextLossHandlers()
     }
 
     /**
