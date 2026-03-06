@@ -34,6 +34,7 @@ export default new Effect({
                 star: 6,
                 soft: 7
             },
+            randMin: 1,
             ui: {
                 label: "shape",
                 control: "dropdown",
