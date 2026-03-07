@@ -45,7 +45,7 @@ export default new Effect({
     },
     bandwidth: {
       type: "float",
-      default: 50,
+      default: 75,
       uniform: "bandwidth",
       min: 1,
       max: 100,

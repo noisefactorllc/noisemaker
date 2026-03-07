@@ -50,18 +50,11 @@ float map(float value, float inMin, float inMax, float outMin, float outMax) {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
 }
 
-// Single Gabor kernel: windowed cosine
-float gaborKernel(vec2 p, float freq, vec2 dir, float sigma) {
-    float envelope = exp(-dot(p, p) / (2.0 * sigma * sigma));
-    float carrier = cos(TAU * freq * dot(dir, p));
-    return envelope * carrier;
-}
-
-// Sum Gabor kernels from 3×3 cell neighborhood
-float gaborNoise(vec2 st, float freq, float sigma, float baseAngle, float iso, int impulses, float t, float sd) {
+// Sum Gabor kernels from 3×3 cell neighborhood, returning RGB via phase offsets
+vec3 gaborNoise(vec2 st, float freq, float sigma, float baseAngle, float iso, int impulses, float t, float sd) {
     vec2 cell = floor(st);
     vec2 frac = fract(st);
-    float sum = 0.0;
+    vec3 sum = vec3(0.0);
 
     for (int dy = -1; dy <= 1; dy++) {
         for (int dx = -1; dx <= 1; dx++) {
@@ -88,7 +81,15 @@ float gaborNoise(vec2 st, float freq, float sigma, float baseAngle, float iso, i
                 // Random weight ±1
                 float weight = r1.z < 0.5 ? -1.0 : 1.0;
 
-                sum += weight * gaborKernel(delta, freq, dir, sigma);
+                // Shared envelope, per-channel carrier with phase offsets
+                float envelope = exp(-dot(delta, delta) / (2.0 * sigma * sigma));
+                float phase = TAU * freq * dot(dir, delta);
+                float phaseOffset = r1.z * TAU;
+                sum += weight * envelope * vec3(
+                    cos(phase),
+                    cos(phase + phaseOffset),
+                    cos(phase + phaseOffset * 2.0)
+                );
             }
         }
     }
@@ -111,9 +112,7 @@ void main() {
     vec2 p = st * freq;
 
     // Fractal octave summation
-    float valueR = 0.0;
-    float valueG = 0.0;
-    float valueB = 0.0;
+    vec3 value = vec3(0.0);
     float amplitude = 1.0;
     float totalAmp = 0.0;
     vec2 pOct = p;
@@ -123,29 +122,19 @@ void main() {
         float octFreq = 1.0 + float(i) * 0.5;
         float octSigma = sigma / (1.0 + float(i) * 0.5);
         float fi = float(i);
-        valueR += amplitude * gaborNoise(pOct, octFreq, octSigma, baseAngle, iso, impulses, t + fi * 3.7, seed + fi * 17.0);
-        if (cMode == 1) {
-            valueG += amplitude * gaborNoise(pOct, octFreq, octSigma, baseAngle, iso, impulses, t + fi * 3.7, seed + fi * 17.0 + 100.0);
-            valueB += amplitude * gaborNoise(pOct, octFreq, octSigma, baseAngle, iso, impulses, t + fi * 3.7, seed + fi * 17.0 + 200.0);
-        }
+        value += amplitude * gaborNoise(pOct, octFreq, octSigma, baseAngle, iso, impulses, t + fi * 3.7, seed + fi * 17.0);
         totalAmp += amplitude;
         amplitude *= 0.5;
         pOct *= 2.0;
     }
-    valueR /= totalAmp;
-    valueG /= totalAmp;
-    valueB /= totalAmp;
+    value /= totalAmp;
 
     vec3 color;
     if (cMode == 0) {
-        float n = 1.0 / (1.0 + exp(-valueR * 3.0));
+        float n = 1.0 / (1.0 + exp(-value.x * 3.0));
         color = vec3(n);
     } else {
-        color = vec3(
-            1.0 / (1.0 + exp(-valueR * 3.0)),
-            1.0 / (1.0 + exp(-valueG * 3.0)),
-            1.0 / (1.0 + exp(-valueB * 3.0))
-        );
+        color = 1.0 / (1.0 + exp(-value * 3.0));
     }
 
     fragColor = vec4(color, 1.0);

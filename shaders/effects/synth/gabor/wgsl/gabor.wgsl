@@ -39,16 +39,10 @@ fn map(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
 }
 
-fn gaborKernel(p: vec2<f32>, freq: f32, dir: vec2<f32>, sigma: f32) -> f32 {
-    let envelope = exp(-dot(p, p) / (2.0 * sigma * sigma));
-    let carrier = cos(TAU * freq * dot(dir, p));
-    return envelope * carrier;
-}
-
-fn gaborNoise(st: vec2<f32>, freq: f32, sigma: f32, baseAngle: f32, iso: f32, impulses: i32, t: f32, sd: f32) -> f32 {
+fn gaborNoise(st: vec2<f32>, freq: f32, sigma: f32, baseAngle: f32, iso: f32, impulses: i32, t: f32, sd: f32) -> vec3<f32> {
     let cell = floor(st);
     let fr = fract(st);
-    var sum = 0.0;
+    var sum = vec3<f32>(0.0);
 
     for (var dy: i32 = -1; dy <= 1; dy = dy + 1) {
         for (var dx: i32 = -1; dx <= 1; dx = dx + 1) {
@@ -72,7 +66,15 @@ fn gaborNoise(st: vec2<f32>, freq: f32, sigma: f32, baseAngle: f32, iso: f32, im
                 var weight = 1.0;
                 if (r1.z < 0.5) { weight = -1.0; }
 
-                sum = sum + weight * gaborKernel(delta, freq, dir, sigma);
+                // Shared envelope, per-channel carrier with phase offsets
+                let envelope = exp(-dot(delta, delta) / (2.0 * sigma * sigma));
+                let phase = TAU * freq * dot(dir, delta);
+                let phaseOffset = r1.z * TAU;
+                sum = sum + weight * envelope * vec3<f32>(
+                    cos(phase),
+                    cos(phase + phaseOffset),
+                    cos(phase + phaseOffset * 2.0),
+                );
             }
         }
     }
@@ -110,9 +112,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var p = st * freq;
 
     // Fractal octave summation
-    var valueR = 0.0;
-    var valueG = 0.0;
-    var valueB = 0.0;
+    var value = vec3<f32>(0.0);
     var amplitude = 1.0;
     var totalAmp = 0.0;
     var pOct = p;
@@ -122,29 +122,19 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         let octFreq = 1.0 + f32(i) * 0.5;
         let octSigma = sigma / (1.0 + f32(i) * 0.5);
         let fi = f32(i);
-        valueR = valueR + amplitude * gaborNoise(pOct, octFreq, octSigma, baseAngle, iso, impulses, t + fi * 3.7, seed + fi * 17.0);
-        if (cMode == 1) {
-            valueG = valueG + amplitude * gaborNoise(pOct, octFreq, octSigma, baseAngle, iso, impulses, t + fi * 3.7, seed + fi * 17.0 + 100.0);
-            valueB = valueB + amplitude * gaborNoise(pOct, octFreq, octSigma, baseAngle, iso, impulses, t + fi * 3.7, seed + fi * 17.0 + 200.0);
-        }
+        value = value + amplitude * gaborNoise(pOct, octFreq, octSigma, baseAngle, iso, impulses, t + fi * 3.7, seed + fi * 17.0);
         totalAmp = totalAmp + amplitude;
         amplitude = amplitude * 0.5;
         pOct = pOct * 2.0;
     }
-    valueR = valueR / totalAmp;
-    valueG = valueG / totalAmp;
-    valueB = valueB / totalAmp;
+    value = value / totalAmp;
 
     var color: vec3<f32>;
     if (cMode == 0) {
-        let n = 1.0 / (1.0 + exp(-valueR * 3.0));
+        let n = 1.0 / (1.0 + exp(-value.x * 3.0));
         color = vec3<f32>(n);
     } else {
-        color = vec3<f32>(
-            1.0 / (1.0 + exp(-valueR * 3.0)),
-            1.0 / (1.0 + exp(-valueG * 3.0)),
-            1.0 / (1.0 + exp(-valueB * 3.0)),
-        );
+        color = 1.0 / (1.0 + exp(-value * 3.0));
     }
 
     return vec4<f32>(color, 1.0);
