@@ -245,13 +245,38 @@
         
         const midiManager = new MidiInputManager(renderer);
         const audioManager = new AudioInputManager(renderer);
-        
+
+        // Check if DSL needs MIDI or audio (by function call or effect tag)
+        function needsMidi(dsl) {
+            if (/\bmidi\s*\(/.test(dsl)) return true
+            // Check for effects tagged "midi" (e.g. roll)
+            if (renderer.manifest) {
+                for (const [id, info] of Object.entries(renderer.manifest)) {
+                    const func = id.split('/').pop()
+                    if (new RegExp('\\b' + func + '\\s*\\(').test(dsl) && info.tags?.includes('midi')) return true
+                }
+            }
+            return false
+        }
+        function needsAudio(dsl) {
+            if (/\baudio\s*\(/.test(dsl)) return true
+            if (renderer.manifest) {
+                for (const [id, info] of Object.entries(renderer.manifest)) {
+                    const func = id.split('/').pop()
+                    if (new RegExp('\\b' + func + '\\s*\\(').test(dsl) && info.tags?.includes('audio')) return true
+                }
+            }
+            return false
+        }
+
         // Status notifications
         midiManager.onStatusChange((msg) => {
             if (statusEl) statusEl.textContent = msg;
+            updateExternalInputButtons();
         });
         audioManager.onStatusChange((msg) => {
             if (statusEl) statusEl.textContent = msg;
+            updateExternalInputButtons();
         });
         
         // Update button appearance based on state
@@ -598,14 +623,18 @@
 
             const zoomValue = ui.getZoomValue(currentEffect);
 
+            // Auto-enable external inputs when DSL references them (must await to preserve user gesture)
+            if (needsMidi(dsl) && !midiManager.enabled) await midiManager.enable()
+            if (needsAudio(dsl) && !audioManager.enabled) await audioManager.enable()
+
             try {
                 await renderer.compile(dsl, { zoom: zoomValue });
-                
+
                 window.__noisemakerRenderingPipeline = renderer.pipeline;
 
                 renderer.buildUniformBindings(currentEffect);
                 renderer.applyParameterValues(currentEffect, ui.parameterValues);
-                
+
                 ui.loadDslAndCreateControls(dsl);
 
                 if (!silent) {
@@ -649,13 +678,17 @@
                 }
             }
 
+            // Auto-enable external inputs when DSL references them (must await to preserve user gesture)
+            if (needsMidi(dsl) && !midiManager.enabled) await midiManager.enable()
+            if (needsAudio(dsl) && !audioManager.enabled) await audioManager.enable()
+
             const zoomValue = ui.getZoomValue(renderer.currentEffect);
 
             try {
                 await renderer.compile(dsl, { zoom: zoomValue });
-                
+
                 window.__noisemakerRenderingPipeline = renderer.pipeline;
-                
+
                 if (rebuildControls) {
                     // Try to sync values to existing controls first
                     // Only rebuild if structure changed

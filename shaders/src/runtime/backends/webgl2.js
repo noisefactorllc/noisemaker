@@ -521,6 +521,36 @@ export class WebGL2Backend extends Backend {
         }
     }
 
+    /**
+     * Upload a CPU-side Float32Array as a 2D RGBA32F texture.
+     * Creates the texture on first call, updates via texSubImage2D on subsequent calls.
+     * @param {string} id - Texture identifier
+     * @param {Float32Array} data - RGBA float data (width * height * 4 elements)
+     * @param {number} width - Texture width
+     * @param {number} height - Texture height
+     */
+    uploadDataTexture(id, data, width, height) {
+        const gl = this.gl
+        let tex = this.textures.get(id)
+        if (!tex || tex.width !== width || tex.height !== height) {
+            if (tex) gl.deleteTexture(tex.handle)
+            const handle = gl.createTexture()
+            gl.bindTexture(gl.TEXTURE_2D, handle)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, data)
+            this.textures.set(id, {
+                handle, width, height, format: 'rgba32f',
+                glFormat: { internal: gl.RGBA32F, format: gl.RGBA, type: gl.FLOAT }
+            })
+        } else {
+            gl.bindTexture(gl.TEXTURE_2D, tex.handle)
+            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.FLOAT, data)
+        }
+    }
+
     uploadMeshData(meshId, positionData, normalData, uvData, width, height, vertexCount) {
         const gl = this.gl
 

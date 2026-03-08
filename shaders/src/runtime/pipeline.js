@@ -500,6 +500,19 @@ export class Pipeline {
             }
         }
 
+        // Check if any pass references midiNoteGrid texture
+        this._needsMidiNoteGrid = false
+        if (this.graph && this.graph.passes) {
+            for (const pass of this.graph.passes) {
+                if (pass.inputs) {
+                    for (const texId of Object.values(pass.inputs)) {
+                        if (texId === 'midiNoteGrid') { this._needsMidiNoteGrid = true; break }
+                    }
+                }
+                if (this._needsMidiNoteGrid) break
+            }
+        }
+
         // Create global surfaces (o0-o7 and dynamic globals)
         for (const name of surfaceNames) {
             // Calculate scaled dimensions for zoom-sensitive surfaces
@@ -1174,6 +1187,17 @@ export class Pipeline {
         if (this.externalState.audio?.spectrum) {
             g.audioSpectrum = this.externalState.audio.spectrum
         }
+
+        // MIDI note grid (128x16 RGBA float texture)
+        if (this.externalState.midi) {
+            this.externalState.midi.updateNoteGrid()
+            this.backend.uploadDataTexture('midiNoteGrid', this.externalState.midi.noteGrid, 128, 16)
+            g.midiClockCount = this.externalState.midi.clockCount
+        } else if (this._needsMidiNoteGrid) {
+            if (!this._emptyNoteGrid) this._emptyNoteGrid = new Float32Array(128 * 16 * 4)
+            this.backend.uploadDataTexture('midiNoteGrid', this._emptyNoteGrid, 128, 16)
+        }
+        g.midiClockCount = g.midiClockCount || 0
     }
 
     /**

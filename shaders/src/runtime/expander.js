@@ -758,6 +758,8 @@ export function expand(compilationResult, options = {}) {
                             pass.inputs[uniformName] = currentInputRgba || texRef
                         } else if (texRef === 'noise') {
                             pass.inputs[uniformName] = 'global_noise'
+                        } else if (texRef === 'midiNoteGrid') {
+                            pass.inputs[uniformName] = 'midiNoteGrid'
                         } else if (texRef === 'feedback' || texRef === 'selfTex') {
                             // Handle feedback texture (selfTex is an alias for feedback)
                             // Read from the surface we're writing to for this chain

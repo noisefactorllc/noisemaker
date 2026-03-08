@@ -343,6 +343,52 @@ export class WebGPUBackend extends Backend {
     }
 
     /**
+     * Upload a CPU-side Float32Array as a 2D RGBA32F texture.
+     * @param {string} id - Texture identifier
+     * @param {Float32Array} data - RGBA float data (width * height * 4 elements)
+     * @param {number} width - Texture width
+     * @param {number} height - Texture height
+     */
+    uploadDataTexture(id, data, width, height) {
+        const device = this.device
+        let tex = this.textures.get(id)
+        if (!tex || tex.width !== width || tex.height !== height) {
+            if (tex) tex.handle.destroy()
+            const handle = device.createTexture({
+                size: [width, height],
+                format: 'rgba32float',
+                usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
+            })
+            this.textures.set(id, {
+                handle, width, height, format: 'rgba32float',
+                view: handle.createView()
+            })
+            tex = this.textures.get(id)
+        }
+
+        const bytesPerRow = width * 4 * 4  // 4 channels * 4 bytes per float
+        const alignedBytesPerRow = Math.ceil(bytesPerRow / 256) * 256
+
+        let uploadData = data
+        if (alignedBytesPerRow !== bytesPerRow) {
+            const srcRowFloats = width * 4
+            const dstRowFloats = alignedBytesPerRow / 4
+            const paddedData = new Float32Array(dstRowFloats * height)
+            for (let y = 0; y < height; y++) {
+                paddedData.set(data.subarray(y * srcRowFloats, (y + 1) * srcRowFloats), y * dstRowFloats)
+            }
+            uploadData = paddedData
+        }
+
+        device.queue.writeTexture(
+            { texture: tex.handle },
+            uploadData,
+            { bytesPerRow: alignedBytesPerRow, rowsPerImage: height },
+            { width, height }
+        )
+    }
+
+    /**
      * Update a texture from an external source (video, image, canvas).
      * This is used for media input effects that need to display camera/video content.
      * @param {string} id - Texture ID

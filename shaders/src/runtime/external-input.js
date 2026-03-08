@@ -20,6 +20,8 @@ export class MidiChannelState {
         this.gate = 0
         /** @type {number} Timestamp of last note-on (Date.now()) */
         this.time = 0
+        /** @type {Uint8Array} Per-key velocity tracking (128 keys) */
+        this.keys = new Uint8Array(128)
     }
 
     /**
@@ -32,14 +34,19 @@ export class MidiChannelState {
         this.velocity = velocity
         this.gate = 1
         this.time = Date.now()
+        this.keys[key] = velocity
     }
 
     /**
      * Handle a note-off event.
      * Preserves the last key and velocity for reference.
+     * @param {number} [key] - MIDI note number to clear (optional)
      */
-    noteOff() {
+    noteOff(key) {
         this.gate = 0
+        if (key !== undefined) {
+            this.keys[key] = 0
+        }
     }
 
     /**
@@ -50,6 +57,7 @@ export class MidiChannelState {
         this.velocity = 0
         this.gate = 0
         this.time = 0
+        this.keys.fill(0)
     }
 }
 
@@ -64,6 +72,10 @@ export class MidiState {
         for (let i = 1; i <= 16; i++) {
             this.channels[i] = new MidiChannelState()
         }
+        /** @type {number} MIDI clock pulse count (24 PPQ) */
+        this.clockCount = 0
+        /** @type {Float32Array} Note grid texture data (128 keys x 16 channels x 4 RGBA) */
+        this.noteGrid = new Float32Array(128 * 16 * 4)
     }
 
     /**
@@ -84,9 +96,17 @@ export class MidiState {
      * @param {Uint8Array} data - Raw MIDI message data [status, key, velocity]
      */
     handleMessage(data) {
-        if (!data || data.length < 3) return
+        if (!data || data.length < 1) return
 
-        const [status, key, velocity] = data
+        const status = data[0]
+
+        // System real-time: MIDI clock pulse (0xF8, single byte)
+        if (status === 0xF8) { this.clockCount++; return }
+
+        if (data.length < 3) return
+
+        const key = data[1]
+        const velocity = data[2]
         const channel = (status & 0x0F) + 1  // Extract channel (1-16)
         const messageType = status & 0xF0     // Extract message type
 
@@ -98,7 +118,26 @@ export class MidiState {
         }
         // Note Off (0x80) or Note On with velocity 0
         else if (messageType === 0x80 || (messageType === 0x90 && velocity === 0)) {
-            channelState.noteOff()
+            channelState.noteOff(key)
+        }
+    }
+
+    /**
+     * Pack all 128 keys x 16 channels into noteGrid Float32Array for GPU upload.
+     * Layout: 128-wide x 16-tall RGBA texture.
+     * R = velocity (0-1), G = gate (0 or 1), B = 0, A = 0.
+     */
+    updateNoteGrid() {
+        for (let ch = 0; ch < 16; ch++) {
+            const keys = this.channels[ch + 1].keys
+            const rowOffset = ch * 128 * 4
+            for (let k = 0; k < 128; k++) {
+                const v = keys[k]
+                const offset = rowOffset + k * 4
+                this.noteGrid[offset] = v > 0 ? v / 127 : 0      // R: velocity
+                this.noteGrid[offset + 1] = v > 0 ? 1 : 0         // G: gate
+                // B and A stay 0
+            }
         }
     }
 
@@ -109,6 +148,8 @@ export class MidiState {
         for (let i = 1; i <= 16; i++) {
             this.channels[i].reset()
         }
+        this.clockCount = 0
+        this.noteGrid.fill(0)
     }
 }
 
@@ -302,14 +343,14 @@ export class MidiInputManager {
 
             // Connect all input devices
             for (const input of this._midiAccess.inputs.values()) {
-                input.onmidimessage = (event) => this._handleMidiMessage(event)
+                this._connectInput(input)
             }
 
             // Listen for new devices
             this._midiAccess.onstatechange = (event) => {
                 if (event.port.type === 'input') {
                     if (event.port.state === 'connected') {
-                        event.port.onmidimessage = (e) => this._handleMidiMessage(e)
+                        this._connectInput(event.port)
                         this._notifyStatus(`MIDI connected: ${event.port.name}`)
                     } else {
                         this._notifyStatus(`MIDI disconnected: ${event.port.name}`)
@@ -372,6 +413,11 @@ export class MidiInputManager {
      */
     onStatusChange(callback) {
         this._onStatusChange = callback
+    }
+
+    _connectInput(input) {
+        input.onmidimessage = (event) => this._handleMidiMessage(event)
+        if (input.connection !== 'open') input.open()
     }
 
     _handleMidiMessage(event) {

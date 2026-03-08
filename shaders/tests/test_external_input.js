@@ -268,6 +268,140 @@ test('AudioState.reset clears waveform to silence', () => {
 })
 
 // ============================================================================
+// MidiChannelState Per-Key Tracking Tests
+// ============================================================================
+
+console.log('\n=== MidiChannelState Per-Key Tests ===\n')
+
+test('MidiChannelState initializes keys array with 128 zeros', () => {
+    const channel = new MidiChannelState()
+    assert(channel.keys instanceof Uint8Array, 'keys should be Uint8Array')
+    assertEqual(channel.keys.length, 128, 'keys should have 128 elements')
+    assertEqual(channel.keys[60], 0, 'key 60 should be 0')
+})
+
+test('MidiChannelState.noteOn sets velocity in keys array', () => {
+    const channel = new MidiChannelState()
+    channel.noteOn(60, 100)
+    assertEqual(channel.keys[60], 100, 'key 60 should have velocity 100')
+})
+
+test('MidiChannelState.noteOff clears specific key in keys array', () => {
+    const channel = new MidiChannelState()
+    channel.noteOn(60, 100)
+    channel.noteOn(64, 80)
+    channel.noteOff(60)
+    assertEqual(channel.keys[60], 0, 'key 60 should be cleared')
+    assertEqual(channel.keys[64], 80, 'key 64 should remain')
+})
+
+test('MidiChannelState.reset clears all keys', () => {
+    const channel = new MidiChannelState()
+    channel.noteOn(60, 100)
+    channel.noteOn(64, 80)
+    channel.reset()
+    assertEqual(channel.keys[60], 0, 'key 60 should be 0')
+    assertEqual(channel.keys[64], 0, 'key 64 should be 0')
+})
+
+// ============================================================================
+// MidiState Clock & Per-Key Message Tests
+// ============================================================================
+
+console.log('\n=== MidiState Clock & Per-Key Tests ===\n')
+
+test('MidiState initializes clockCount to 0', () => {
+    const midi = new MidiState()
+    assertEqual(midi.clockCount, 0, 'clockCount should be 0')
+})
+
+test('MidiState.handleMessage increments clockCount on 0xF8', () => {
+    const midi = new MidiState()
+    midi.handleMessage(new Uint8Array([0xF8]))
+    assertEqual(midi.clockCount, 1, 'clockCount should be 1')
+    midi.handleMessage(new Uint8Array([0xF8]))
+    assertEqual(midi.clockCount, 2, 'clockCount should be 2')
+})
+
+test('MidiState.handleMessage updates per-key velocity on note on', () => {
+    const midi = new MidiState()
+    midi.handleMessage(new Uint8Array([0x90, 60, 100]))
+    assertEqual(midi.getChannel(1).keys[60], 100, 'key 60 velocity should be 100')
+})
+
+test('MidiState.handleMessage clears per-key velocity on note off', () => {
+    const midi = new MidiState()
+    midi.handleMessage(new Uint8Array([0x90, 60, 100]))
+    midi.handleMessage(new Uint8Array([0x80, 60, 0]))
+    assertEqual(midi.getChannel(1).keys[60], 0, 'key 60 should be cleared')
+})
+
+test('MidiState.handleMessage clears per-key on note on velocity 0', () => {
+    const midi = new MidiState()
+    midi.handleMessage(new Uint8Array([0x90, 60, 100]))
+    midi.handleMessage(new Uint8Array([0x90, 60, 0]))
+    assertEqual(midi.getChannel(1).keys[60], 0, 'key 60 should be cleared')
+})
+
+test('MidiState.reset clears clockCount', () => {
+    const midi = new MidiState()
+    midi.handleMessage(new Uint8Array([0xF8]))
+    midi.handleMessage(new Uint8Array([0xF8]))
+    midi.reset()
+    assertEqual(midi.clockCount, 0, 'clockCount should be 0 after reset')
+})
+
+// ============================================================================
+// MidiState Note Grid Tests
+// ============================================================================
+
+console.log('\n=== MidiState Note Grid Tests ===\n')
+
+test('MidiState.noteGrid is a pre-allocated Float32Array(128 * 16 * 4)', () => {
+    const midi = new MidiState()
+    assert(midi.noteGrid instanceof Float32Array, 'noteGrid should be Float32Array')
+    assertEqual(midi.noteGrid.length, 128 * 16 * 4, 'noteGrid should have 128*16*4 elements')
+})
+
+test('MidiState.updateNoteGrid packs active notes into grid', () => {
+    const midi = new MidiState()
+    midi.handleMessage(new Uint8Array([0x90, 60, 100]))  // Ch1, key 60, vel 100
+    midi.updateNoteGrid()
+
+    // Channel 1 = row 0, key 60 = column 60
+    // Pixel at (60, 0): offset = (0 * 128 + 60) * 4
+    const offset = 60 * 4
+    assertApprox(midi.noteGrid[offset], 100 / 127, 0.01, 'R should be velocity/127')
+    assertEqual(midi.noteGrid[offset + 1], 1, 'G should be 1 (gate on)')
+})
+
+test('MidiState.updateNoteGrid clears released notes', () => {
+    const midi = new MidiState()
+    midi.handleMessage(new Uint8Array([0x90, 60, 100]))
+    midi.handleMessage(new Uint8Array([0x80, 60, 0]))
+    midi.updateNoteGrid()
+
+    const offset = 60 * 4
+    assertEqual(midi.noteGrid[offset], 0, 'R should be 0 (note off)')
+    assertEqual(midi.noteGrid[offset + 1], 0, 'G should be 0 (gate off)')
+})
+
+test('MidiState.updateNoteGrid handles multiple channels', () => {
+    const midi = new MidiState()
+    midi.handleMessage(new Uint8Array([0x90, 60, 100]))  // Ch1
+    midi.handleMessage(new Uint8Array([0x95, 72, 80]))   // Ch6
+    midi.updateNoteGrid()
+
+    // Ch1, key 60: row 0
+    const offset1 = 60 * 4
+    assertApprox(midi.noteGrid[offset1], 100 / 127, 0.01, 'Ch1 key 60 velocity')
+
+    // Ch6, key 72: row 5
+    const offset6 = (5 * 128 + 72) * 4
+    assertApprox(midi.noteGrid[offset6], 80 / 127, 0.01, 'Ch6 key 72 velocity')
+})
+
+// ============================================================================
 // Summary
 // ============================================================================
 
