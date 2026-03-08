@@ -5,7 +5,7 @@
 
 struct Uniforms {
     amount: f32,
-    _pad1: f32,
+    alpha: f32,
     _pad2: f32,
     _pad3: f32,
 }
@@ -51,6 +51,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     
     // Multiply with original color
     let result = origColor.rgb * dist;
-    
-    return vec4<f32>(result, origColor.a);
+
+    // Blend between original input and sobel result
+    let blended = mix(origColor.rgb, result, uniforms.alpha);
+
+    return vec4<f32>(blended, origColor.a);
 }
