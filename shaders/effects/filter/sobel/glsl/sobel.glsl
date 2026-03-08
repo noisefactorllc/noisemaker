@@ -9,6 +9,7 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform float amount;
+uniform float alpha;
 
 out vec4 fragColor;
 
@@ -56,6 +57,9 @@ void main() {
     
     // Multiply with original color
     vec3 result = origColor.rgb * dist;
-    
-    fragColor = vec4(result, origColor.a);
+
+    // Blend between original input and sobel result
+    vec3 blended = mix(origColor.rgb, result, alpha);
+
+    fragColor = vec4(blended, origColor.a);
 }

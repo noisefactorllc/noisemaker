@@ -1,8 +1,8 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * nu/posterize - Color posterization effect
- * Reduces color levels for poster-like appearance
+ * filter/posterize - Color posterization with gamma control
+ * Reduces color levels with sRGB-aware quantization and adjustable gamma curve
  */
 export default new Effect({
   name: "Posterize",
@@ -10,26 +10,43 @@ export default new Effect({
   func: "posterize",
   tags: ["color"],
 
-  description: "Reduce color levels for poster effect",
+  description: "Posterization/color reduction with gamma control",
   globals: {
     levels: {
-      type: "float",
-      default: 4.0,
+      type: "int",
+      default: 5,
       uniform: "levels",
-      min: 1,
-      max: 20,
+      min: 2,
+      max: 32,
+      step: 1,
       ui: {
         label: "levels",
+        control: "slider"
+      }
+    },
+    gamma: {
+      type: "float",
+      default: 1,
+      uniform: "gamma",
+      min: 0.1,
+      max: 3,
+      step: 0.05,
+      ui: {
+        label: "gamma",
         control: "slider"
       }
     }
   },
   passes: [
     {
-      name: "render",
+      name: "main",
       program: "posterize",
       inputs: {
         inputTex: "inputTex"
+      },
+      uniforms: {
+        levels: "levels",
+        gamma: "gamma"
       },
       outputs: {
         fragColor: "outputTex"

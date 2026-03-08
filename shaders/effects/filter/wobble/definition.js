@@ -1,49 +1,52 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * nu/sobel - Sobel edge detection effect
- * Classic Sobel operator for edge detection
+ * Wobble - offsets the entire frame using noise-driven jitter
  */
 export default new Effect({
-  name: "Sobel",
+  name: "Wobble",
   namespace: "filter",
-  func: "sobel",
-  tags: ["edges"],
+  func: "wobble",
+  tags: ["distort"],
 
-  description: "Classic Sobel edge detection",
+  description: "Wobble animation effect",
   globals: {
-    amount: {
+    speed: {
       type: "float",
       default: 1.0,
-      uniform: "amount",
-      min: 0.1,
+      uniform: "speed",
+      min: 0,
       max: 5,
-      zero: 0,
-      randMin: 0.5,
+      step: 0.1,
       ui: {
-        label: "amount",
+        label: "speed",
         control: "slider"
       }
     },
-    alpha: {
+    range: {
       type: "float",
-      default: 1.0,
+      default: 0.1,
+      uniform: "range",
       min: 0,
       max: 1,
       step: 0.01,
-      uniform: "alpha",
       ui: {
-        label: "alpha",
+        label: "range",
         control: "slider"
       }
     }
   },
   passes: [
     {
-      name: "render",
-      program: "sobel",
+      name: "main",
+      program: "wobble",
       inputs: {
         inputTex: "inputTex"
+      },
+      uniforms: {
+        speed: "speed",
+        range: "range",
+        time: "time"
       },
       outputs: {
         fragColor: "outputTex"
