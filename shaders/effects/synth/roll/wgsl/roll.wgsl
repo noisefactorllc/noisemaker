@@ -1,29 +1,21 @@
-@group(0) @binding(0) var feedbackSampler: sampler;
-@group(0) @binding(1) var feedbackTex: texture_2d<f32>;
-@group(0) @binding(2) var noteGridSampler: sampler;
-@group(0) @binding(3) var noteGridTex: texture_2d<f32>;
-
-struct Uniforms {
-    resolution: vec2<f32>,
-    time: f32,
-    deltaTime: f32,
-    lineColor: vec3<f32>,
-    gain: f32,
-    speed: f32,
-    midiClockCount: f32,
-};
-@group(1) @binding(0) var<uniform> u: Uniforms;
+@group(0) @binding(0) var<uniform> resolution: vec2<f32>;
+@group(0) @binding(1) var<uniform> deltaTime: f32;
+@group(0) @binding(2) var<uniform> lineColor: vec3<f32>;
+@group(0) @binding(3) var<uniform> gain: f32;
+@group(0) @binding(4) var<uniform> speed: f32;
+@group(0) @binding(5) var feedbackSampler: sampler;
+@group(0) @binding(6) var feedbackTex: texture_2d<f32>;
+@group(0) @binding(7) var noteGridSampler: sampler;
+@group(0) @binding(8) var noteGridTex: texture_2d<f32>;
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let uv = pos.xy / u.resolution;
+    let uv = pos.xy / resolution;
 
     // Scroll feedback right (notes enter at left)
-    // Clamp UV to valid range — sampler clamp-to-edge handles out-of-bounds
-    let scrollAmount = u.speed * u.deltaTime * 0.5;
+    let scrollAmount = speed * deltaTime * 0.5;
     let scrollUv = vec2<f32>(max(uv.x - scrollAmount, 0.0), uv.y);
     var prev = textureSample(feedbackTex, feedbackSampler, scrollUv) * 0.997;
-    // Zero out if we scrolled past the left edge
     prev *= step(0.0, uv.x - scrollAmount);
 
     // 16 MIDI channels as horizontal swim lanes
@@ -49,10 +41,10 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
 
     // Write new note data at the left edge
-    let edgeWidth = 4.0 / u.resolution.x;
+    let edgeWidth = 4.0 / resolution.x;
     var noteVal = 0.0;
     if (uv.x < edgeWidth && maxVel > 0.0) {
-        noteVal = maxVel * u.gain;
+        noteVal = maxVel * gain;
     }
 
     // Lane separator lines
@@ -64,7 +56,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     let prevBright = max(prev.r, max(prev.g, prev.b));
     let brightness = max(prevBright, max(noteVal, laneSep));
-    let col = u.lineColor * brightness;
+    let col = lineColor * brightness;
 
     return vec4<f32>(col, 1.0);
 }
