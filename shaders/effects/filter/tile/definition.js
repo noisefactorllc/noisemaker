@@ -80,6 +80,7 @@ export default new Effect({
       min: 1,
       max: 10,
       step: 1,
+      randMax: 5,
       uniform: "repeat",
       ui: {
         label: "repeat",
