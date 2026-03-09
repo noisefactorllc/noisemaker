@@ -82,6 +82,7 @@ export class Effect {
         if (config.onInit) this._configOnInit = config.onInit
         if (config.onUpdate) this._configOnUpdate = config.onUpdate
         if (config.onDestroy) this._configOnDestroy = config.onDestroy
+        if (config.asyncInit) this._configAsyncInit = config.asyncInit
     }
 
     /**
@@ -106,6 +107,16 @@ export class Effect {
      */
     onDestroy() {
         if (this._configOnDestroy) this._configOnDestroy.call(this)
+    }
+
+    /**
+     * Called after pipeline texture allocation with a context for async CPU rendering.
+     * Override to perform one-shot async rendering (e.g., worm tracing).
+     * Called again when seed changes (reseed = regenerate).
+     * @param {Object} context - { updateTexture, width, height, params, isCancelled }
+     */
+    asyncInit(context) {
+        if (this._configAsyncInit) this._configAsyncInit.call(this, context)
     }
 }
 
