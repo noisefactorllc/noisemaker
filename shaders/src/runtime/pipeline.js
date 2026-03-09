@@ -972,6 +972,7 @@ export class Pipeline {
             }
         }
 
+        const oldValue = this.globalUniforms[name]
         this.globalUniforms[name] = value
 
         // Legacy classicNoisedeck palette expansion:
