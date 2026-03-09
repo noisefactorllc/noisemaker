@@ -58,9 +58,11 @@ class Fibers extends Effect {
         ctx.clearRect(0, 0, width, height)
 
         const seed = params.seed || 1
-        const density = params.density || 0.5
+        const density = params.density !== undefined ? params.density : 0.5
 
         // Python reference: 4 layers of chaotic worms
+        // Density param scales worm count: 0.5 + density * 2.0
+        const baseDensity = 0.5 + density * 2.0
         for (let layer = 0; layer < 4; layer++) {
             if (isCancelled()) return
 
@@ -69,14 +71,14 @@ class Fibers extends Effect {
             await traceWorms(ctx, {
                 width, height,
                 seed: layerSeed,
-                density: 0.05 + (layerSeed % 100) / 100 * 0.00125,
+                density: baseDensity,
                 kink: 5 + (layerSeed % 5),
                 stride: 0.75,
                 strideDeviation: 0.125,
                 duration: 1,
                 behavior: 'chaotic',
                 flowFreq: 4,
-                lineWidth: Math.max(1, width / 512),
+                lineWidth: Math.max(1.5, width / 384),
                 colorFn: (rng) => ({
                     r: Math.floor(rng.float() * 200 + 55),
                     g: Math.floor(rng.float() * 200 + 55),
