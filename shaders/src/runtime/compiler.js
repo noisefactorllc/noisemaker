@@ -136,6 +136,29 @@ function hashSource(source) {
 }
 
 /**
+ * Format a compilation error object as readable text.
+ */
+function formatError(err) {
+    if (err.code === 'ERR_COMPILATION_FAILED' && Array.isArray(err.diagnostics)) {
+        return err.diagnostics
+            .filter(d => d.severity === 'error')
+            .map(d => {
+                let msg = d.message || 'Unknown error'
+                if (d.location) msg += ` (line ${d.location.line}, col ${d.location.column})`
+                return msg
+            })
+            .join('; ') || 'Unknown compilation error'
+    }
+    if (err.code === 'ERR_EXPANSION_FAILED' && Array.isArray(err.errors)) {
+        return err.errors.map(e => e.message || String(e)).join('; ')
+    }
+    if (err.code === 'ERR_SHADER_COMPILE') {
+        return err.detail || 'Shader compile error'
+    }
+    return err.message || err.detail || (typeof err === 'object' ? JSON.stringify(err) : String(err))
+}
+
+/**
  * Hot reload support - recompile and swap graph
  * @param {Pipeline} pipeline - Existing pipeline
  * @param {string} newSource - New DSL source
@@ -164,7 +187,7 @@ export function recompile(pipeline, newSource, options = {}) {
 
         return newGraph
     } catch (error) {
-        console.error('Recompilation failed:', error)
+        console.error('Recompilation failed:', formatError(error))
         return null
     }
 }

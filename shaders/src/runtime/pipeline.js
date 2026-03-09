@@ -1120,7 +1120,7 @@ export class Pipeline {
                             passCount++
                             this.updateFrameSurfaceBindings(pass, state)
                         } catch (err) {
-                            console.error('[Pipeline.render] ERROR executing pass:', pass.id, err)
+                            console.error(`[Pipeline.render] ERROR executing pass ${pass.id}: ${err.detail || err.message || JSON.stringify(err)}`)
                             throw err
                         }
 
@@ -1131,7 +1131,7 @@ export class Pipeline {
                     }
                 }
             } catch (loopErr) {
-                console.error('[Pipeline.render] LOOP ERROR:', loopErr)
+                console.error(`[Pipeline.render] LOOP ERROR: ${loopErr.detail || loopErr.message || JSON.stringify(loopErr)}`)
                 throw loopErr
             }
         }
