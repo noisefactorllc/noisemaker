@@ -7,7 +7,7 @@ const TAU : f32 = 6.28318530717958647692;
 
 struct DegaussParams {
     dims0 : vec4<f32>, // (width, height, displacement, time)
-    dims1 : vec4<f32>, // (speed, _pad0, _pad1, _pad2)
+    dims1 : vec4<f32>, // (speed, seed, _pad1, _pad2)
 };
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
@@ -190,10 +190,11 @@ fn compute_noise_value(
     let angle : f32 = time * TAU;
     let z_base : f32 = cos(angle) * speed;
     let channel_offset : f32 = f32(channel) * 37.0;
+    let seed_offset : f32 = f32(i32(params.dims1.y)) * 73.0;
     let base_seed : vec3<f32> = vec3<f32>(
-        17.0 + channel_offset,
-        29.0 + channel_offset * 1.3,
-        47.0 + channel_offset * 1.7
+        17.0 + channel_offset + seed_offset,
+        29.0 + channel_offset * 1.3 + seed_offset * 1.1,
+        47.0 + channel_offset * 1.7 + seed_offset * 0.7
     );
 
     let base_noise : f32 = simplex_noise(vec3<f32>(

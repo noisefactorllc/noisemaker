@@ -15,6 +15,7 @@ uniform vec2 resolution;
 uniform float time;
 uniform float displacement;
 uniform float speed;
+uniform int seed;
 
 out vec4 fragColor;
 
@@ -194,10 +195,11 @@ float compute_noise_value(
     float angle = time * TAU;
     float z_base = cos(angle) * speed;
     float channel_offset = float(channel) * 37.0;
+    float seed_offset = float(seed) * 73.0;
     vec3 base_seed = vec3(
-        17.0 + channel_offset,
-        29.0 + channel_offset * 1.3,
-        47.0 + channel_offset * 1.7
+        17.0 + channel_offset + seed_offset,
+        29.0 + channel_offset * 1.3 + seed_offset * 1.1,
+        47.0 + channel_offset * 1.7 + seed_offset * 0.7
     );
 
     float base_noise = simplex_noise(vec3(

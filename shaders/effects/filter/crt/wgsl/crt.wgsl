@@ -7,7 +7,7 @@ const INV_THREE : f32 = 0.3333333333333333;
 
 struct CRTParams {
     size : vec4<f32>,    // (width, height, channels, unused)
-    motion : vec4<f32>,  // (time, speed, unused, unused)
+    motion : vec4<f32>,  // (time, speed, seed, unused)
 };
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
@@ -190,7 +190,8 @@ fn singularity_mask(uv : vec2<f32>, width : f32, height : f32) -> f32 {
 fn animated_simplex_value(uv : vec2<f32>, time : f32, speed : f32) -> f32 {
     let angle : f32 = time * TAU;
     let z_base : f32 = cos(angle) * speed;
-    let base_seed : vec3<f32> = vec3<f32>(17.0, 29.0, 47.0);
+    let s : f32 = params.motion.z * 73.0;
+    let base_seed : vec3<f32> = vec3<f32>(17.0 + s, 29.0 + s * 1.1, 47.0 + s * 0.7);
     let base_noise : f32 = simplex_noise(vec3<f32>(
         uv.x + base_seed.x,
         uv.y + base_seed.y,
@@ -400,8 +401,9 @@ fn apply_vignette(value : f32, brightness : f32, mask : f32, alpha : f32) -> f32
 // Generate base scanline values (2x1 noise pattern)
 fn get_scanline_base_values(time : f32, speed : f32) -> vec2<f32> {
     let time_scaled : f32 = time * speed * 0.1;
-    let noise0 : f32 = value_noise_3d(vec3<f32>(0.0, 0.0, time_scaled), 19.37);
-    let noise1 : f32 = value_noise_3d(vec3<f32>(1.0, 0.0, time_scaled), 19.37);
+    let noise_seed : f32 = 19.37 + params.motion.z * 31.0;
+    let noise0 : f32 = value_noise_3d(vec3<f32>(0.0, 0.0, time_scaled), noise_seed);
+    let noise1 : f32 = value_noise_3d(vec3<f32>(1.0, 0.0, time_scaled), noise_seed);
     return vec2<f32>(noise0, noise1);
 }
 
@@ -496,7 +498,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     
     // Step 5: Chromatic aberration, hue shift, saturation, and vignette
     if (params.size.z >= 2.5) { // channels == 3
-        let seed_base : f32 = 17.0;
+        let seed_base : f32 = 17.0 + params.motion.z * 73.0;
         let displacement_base : f32 = 0.0125 + random_scalar(seed_base + 0.37) * 0.00625;
         let simplex_value : f32 = random_scalar(seed_base + 0.73);
         let displacement_pixels : f32 = displacement_base * width_f * simplex_value;
