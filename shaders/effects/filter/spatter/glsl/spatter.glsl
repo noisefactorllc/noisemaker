@@ -1,7 +1,7 @@
 /*
  * Spatter: Multi-layer procedural paint spatter effect.
- * Low-freq warped noise for large splatter shapes, medium-freq dots,
- * high-freq specks, minus ridged noise for breaks.
+ * Large warped smears, medium dots, fine specks, minus ridged breaks.
+ * Matches Python reference: exp-distributed noise with aggressive thresholding.
  */
 
 #ifdef GL_ES
@@ -18,9 +18,14 @@ uniform int seed;
 
 out vec4 fragColor;
 
-float hash21(vec2 p) {
-    float h = dot(p, vec2(127.1, 311.7));
-    return fract(sin(h) * 43758.5453123);
+uint pcg(uint v) {
+    uint state = v * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+float hashf(uint h) {
+    return float(h) / 4294967295.0;
 }
 
 float hash31(vec3 p) {
@@ -32,30 +37,41 @@ float fade(float t) {
     return t * t * (3.0 - 2.0 * t);
 }
 
-float value_noise(vec2 p, float s) {
-    vec2 cell = floor(p);
+float vnoise(vec2 p, float s) {
+    vec2 c = floor(p);
     vec2 f = fract(p);
-    float tl = hash31(vec3(cell, s));
-    float tr = hash31(vec3(cell + vec2(1.0, 0.0), s));
-    float bl = hash31(vec3(cell + vec2(0.0, 1.0), s));
-    float br = hash31(vec3(cell + vec2(1.0, 1.0), s));
-    vec2 st = vec2(fade(f.x), fade(f.y));
-    return mix(mix(tl, tr, st.x), mix(bl, br, st.x), st.y);
+    vec2 u = vec2(fade(f.x), fade(f.y));
+    return mix(
+        mix(hash31(vec3(c, s)), hash31(vec3(c + vec2(1, 0), s)), u.x),
+        mix(hash31(vec3(c + vec2(0, 1), s)), hash31(vec3(c + vec2(1, 1), s)), u.x),
+        u.y);
 }
 
-float fbm(vec2 uv, vec2 freq, int octaves, float s) {
-    float amp = 0.5;
-    float accum = 0.0;
-    float weight = 0.0;
-    vec2 f = freq;
-    for (int i = 0; i < octaves; i++) {
-        float os = s + float(i) * 37.17;
-        accum += pow(value_noise(uv * f, os), 4.0) * amp;
-        weight += amp;
-        f *= 2.0;
-        amp *= 0.5;
-    }
-    return weight > 0.0 ? clamp(accum / weight, 0.0, 1.0) : 0.0;
+// 3-octave exp FBM — fixed loop count for fast compilation
+float expFbm3(vec2 uv, vec2 freq, float s) {
+    float a = 0.0;
+    a += pow(vnoise(uv * freq, s), 4.0) * 0.5;
+    a += pow(vnoise(uv * freq * 2.0, s + 37.17), 4.0) * 0.25;
+    a += pow(vnoise(uv * freq * 4.0, s + 74.34), 4.0) * 0.125;
+    return a;
+}
+
+// 2-octave exp FBM
+float expFbm2(vec2 uv, vec2 freq, float s) {
+    float a = 0.0;
+    a += pow(vnoise(uv * freq, s), 4.0) * 0.5;
+    a += pow(vnoise(uv * freq * 2.0, s + 37.17), 4.0) * 0.25;
+    return a;
+}
+
+// 2-octave ridged FBM
+float ridgedFbm2(vec2 uv, vec2 freq, float s) {
+    float a = 0.0;
+    float n0 = vnoise(uv * freq, s);
+    a += pow(abs(n0 * 2.0 - 1.0), 4.0) * 0.5;
+    float n1 = vnoise(uv * freq * 2.0, s + 37.17);
+    a += pow(abs(n1 * 2.0 - 1.0), 4.0) * 0.25;
+    return a / 0.75;
 }
 
 void main() {
@@ -64,44 +80,45 @@ void main() {
     vec4 base = texture(inputTex, uv);
 
     float s = float(seed) * 17.3;
-    float aspect = float(dims.x) / float(dims.y);
 
-    // Layer 1: Low-freq warped noise for large splatter shapes
-    float smearFreq = mix(3.0, 6.0, hash21(vec2(s + 3.0, s + 29.0)));
-    vec2 smearF = vec2(smearFreq, smearFreq * aspect);
-    float smear0 = fbm(uv, smearF, 6, s + 23.0);
+    // Seed-derived random frequencies
+    float smearFreq = mix(3.0, 6.0, hashf(pcg(uint(s + 10.0))));
+    float dotFreq = mix(24.0, 48.0, hashf(pcg(uint(s + 50.0))));
+    float speckFreq = mix(64.0, 96.0, hashf(pcg(uint(s + 90.0))));
+    float ridgeFreq = mix(2.0, 3.0, hashf(pcg(uint(s + 130.0))));
 
-    // Self-warp: offset UV by noise value, re-sample
-    float warpAmt = 0.08 * density;
-    vec2 warpedUV = uv + (smear0 - 0.5) * warpAmt;
-    float smear = fbm(warpedUV, smearF, 6, s + 23.0);
+    // -- Layer 1: Large smear (low-freq domain-warped noise) --
+    float warpX = vnoise(uv * vec2(2.0, 1.0), s + 200.0);
+    float warpY = vnoise(uv * vec2(3.0, 2.0), s + 300.0);
+    float disp = 1.0 + hashf(pcg(uint(s + 150.0)));
+    vec2 warpedUV = uv + (vec2(warpX, warpY) - 0.5) * disp * 0.12;
+    float smear = expFbm3(warpedUV, vec2(smearFreq), s + 100.0);
+    smear = clamp(smear * 5.0, 0.0, 1.0);
 
-    // Layer 2: Medium-freq spatter dots (32-64), threshold for sparse dots
-    float dotFreq = mix(32.0, 64.0, hash21(vec2(s + 5.0, s + 59.0)));
-    vec2 dotF = vec2(dotFreq, dotFreq * aspect);
-    float dots = fbm(uv, dotF, 4, s + 43.0);
-    dots = smoothstep(0.6 - density * 0.3, 0.8, dots);
+    // -- Layer 2: Medium dots --
+    float dots = expFbm2(uv, vec2(dotFreq), s + 43.0);
+    dots = clamp((dots - 0.08) * 8.0, 0.0, 1.0);
 
-    // Layer 3: High-freq fine specks (150-200)
-    float speckFreq = mix(150.0, 200.0, hash21(vec2(s + 13.0, s + 97.0)));
-    vec2 speckF = vec2(speckFreq, speckFreq * aspect);
-    float specks = fbm(uv, speckF, 4, s + 71.0);
-    specks = smoothstep(0.6 - density * 0.2, 0.85, specks);
+    // -- Layer 3: Fine specks --
+    float specks = expFbm2(uv, vec2(speckFreq), s + 71.0);
+    specks = clamp((specks - 0.06) * 10.0, 0.0, 1.0);
 
-    // Subtract ridged noise to create breaks
-    float ridgeFreq = mix(2.0, 3.0, hash21(vec2(s + 31.0, s + 149.0)));
-    vec2 ridgeF = vec2(ridgeFreq, ridgeFreq * aspect);
-    float ridgeNoise = fbm(uv, ridgeF, 3, s + 89.0);
-    float ridgeMask = abs(ridgeNoise * 2.0 - 1.0);
-
-    // Combine layers
+    // Combine: max of layers (Python uses tf.maximum)
     float combined = max(smear, max(dots, specks));
-    float mask = max(combined - ridgeMask, 0.0);
-    mask = clamp(mask * (0.5 + density), 0.0, 1.0);
 
-    // Color: mix spatter color with input, weighted by mask
-    vec3 colored = mix(base.rgb, color, mask);
-    vec3 result = mix(base.rgb, colored, mask * alpha);
+    // Subtract ridged noise for breaks
+    float ridge = ridgedFbm2(uv, vec2(ridgeFreq), s + 89.0);
+    combined = max(0.0, combined - ridge);
+
+    // Density controls overall amount
+    combined *= (0.1 + density * 1.6);
+
+    // Hard threshold blend (Python blend_layers with 0.005 threshold)
+    float mask = step(0.005, combined) * clamp(combined, 0.0, 1.0);
+
+    // Color: where mask > 0, show color * input; else show input
+    vec3 colored = mix(base.rgb, base.rgb * color, mask);
+    vec3 result = mix(base.rgb, colored, alpha);
 
     fragColor = vec4(result, base.a);
 }
