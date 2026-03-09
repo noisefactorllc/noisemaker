@@ -3,7 +3,7 @@
 precision highp float;
 precision highp int;
 
-// Spooky ticker - procedural scrolling pseudo-text at the bottom of the screen
+// Spooky ticker - scrolling bank_ocr digit rows at the bottom of the screen
 
 uniform sampler2D inputTex;
 uniform float time;
@@ -15,7 +15,37 @@ uniform int seed;
 in vec2 v_texCoord;
 out vec4 fragColor;
 
-const float INV_U32_MAX = 1.0 / 4294967295.0;
+// Bank OCR bitmaps: 10 digits, 7 wide x 8 tall each
+// Index as GLYPHS[digit * 8 + row], test bit (val >> (6 - col)) & 1
+const int GLYPHS[80] = int[80](
+    // Digit 0
+    0x3C, 0x42, 0x42, 0x42, 0x42, 0x42, 0x3C, 0x00,
+    // Digit 1
+    0x18, 0x08, 0x08, 0x08, 0x1C, 0x1C, 0x1C, 0x00,
+    // Digit 2
+    0x1C, 0x04, 0x04, 0x1C, 0x10, 0x10, 0x1C, 0x00,
+    // Digit 3
+    0x1C, 0x04, 0x04, 0x1C, 0x06, 0x06, 0x1E, 0x00,
+    // Digit 4
+    0x60, 0x60, 0x60, 0x60, 0x66, 0x7E, 0x06, 0x00,
+    // Digit 5
+    0x3C, 0x20, 0x20, 0x3C, 0x04, 0x04, 0x3C, 0x00,
+    // Digit 6
+    0x78, 0x48, 0x40, 0x40, 0x7E, 0x42, 0x7E, 0x00,
+    // Digit 7
+    0x3C, 0x24, 0x04, 0x0C, 0x08, 0x08, 0x08, 0x00,
+    // Digit 8
+    0x3C, 0x24, 0x24, 0x7E, 0x66, 0x66, 0x7E, 0x00,
+    // Digit 9
+    0x3E, 0x22, 0x22, 0x3E, 0x06, 0x06, 0x06, 0x00
+);
+
+const int GLYPH_W = 7;
+const int GLYPH_H = 8;
+const int SCALE = 3;
+const int CELL_W = GLYPH_W * SCALE;  // 21 pixels
+const int CELL_H = GLYPH_H * SCALE;  // 24 pixels
+const int ROW_GAP = 4;
 
 uint hash_mix(uint v) {
     v = v ^ (v >> 16u);
@@ -26,54 +56,32 @@ uint hash_mix(uint v) {
     return v;
 }
 
-float random_float(uint s, uint salt) {
-    return float(hash_mix(s ^ salt)) * INV_U32_MAX;
+// Sample the bitmap for a given digit at pixel-local coords
+float sample_glyph(int digit, int localX, int localY) {
+    // Scale down to glyph coords
+    int gx = localX / SCALE;
+    int gy = localY / SCALE;
+    if (gx < 0 || gx >= GLYPH_W || gy < 0 || gy >= GLYPH_H) return 0.0;
+    int row = GLYPHS[digit * 8 + gy];
+    return float((row >> (6 - gx)) & 1);
 }
 
-// 3x5 binary glyph pattern from hash
-float glyph_pixel(vec2 cellUV, uint glyphSeed) {
-    // 3 columns x 5 rows within each glyph cell
-    int col = int(floor(cellUV.x * 3.0));
-    int row = int(floor(cellUV.y * 5.0));
-    if (col < 0 || col >= 3 || row < 0 || row >= 5) return 0.0;
+// Get the ticker mask value at a given pixel position for one row
+float ticker_row_mask(int pixelX, int pixelY, int rowSeed, float t) {
+    // Scroll offset in pixels
+    float scrollSpeed = 0.5 + float(hash_mix(uint(rowSeed) ^ 17u) & 0xFFFFu) / 65535.0 * 1.5;
+    int offset = int(floor(t * scrollSpeed * 60.0));
 
-    // Each of 15 bits is on/off
-    uint bitIndex = uint(row * 3 + col);
-    uint pattern = hash_mix(glyphSeed);
-    float on = float((pattern >> bitIndex) & 1u);
+    int sx = pixelX + offset;
+    // Handle negative modulo
+    int cellX = sx >= 0 ? sx / CELL_W : (sx - CELL_W + 1) / CELL_W;
+    int localX = sx - cellX * CELL_W;
 
-    // Add thin gap between pixels for segment look
-    vec2 local = fract(vec2(cellUV.x * 3.0, cellUV.y * 5.0));
-    float gap = step(0.15, local.x) * step(local.x, 0.85) *
-                step(0.15, local.y) * step(local.y, 0.85);
+    // Which digit for this cell
+    uint h = hash_mix(uint(cellX) ^ uint(rowSeed) * 997u);
+    int digit = int(h % 10u);
 
-    return on * gap;
-}
-
-// Generate ticker row pattern
-float ticker_row(float pixelX, float cellY, float rowSeedF, float t) {
-    // Horizontal scroll speed varies per row
-    float scrollSpeed = 0.5 + random_float(uint(rowSeedF), 17u) * 1.5;
-    float scrollX = pixelX + t * scrollSpeed * 60.0;
-
-    // Glyph cell width in pixels (5-12)
-    float glyphWidth = 5.0 + floor(random_float(uint(rowSeedF), 23u) * 8.0);
-
-    // Which glyph cell
-    float glyphIndex = floor(scrollX / glyphWidth);
-    float localX = mod(scrollX, glyphWidth) / glyphWidth;
-
-    // Glyph seed from index + row
-    uint glyphSeed = hash_mix(uint(glyphIndex) + uint(rowSeedF) * 1000u);
-
-    // Periodic change: glyphs update every few seconds
-    uint changePeriod = uint(floor(t * 0.5));
-    glyphSeed = hash_mix(glyphSeed + changePeriod);
-
-    // Flickering: some glyphs randomly off
-    float flicker = step(0.25, random_float(glyphSeed, uint(floor(t * 8.0))));
-
-    return glyph_pixel(vec2(localX, cellY), glyphSeed) * flicker;
+    return sample_glyph(digit, localX, pixelY);
 }
 
 void main() {
@@ -83,50 +91,46 @@ void main() {
     float t = time * speed;
     uint baseSeed = hash_mix(uint(seed) * 7919u);
 
-    // Rows occupy the bottom of the screen, each ~4% of height
-    float rowHeightFrac = 0.04;
-    float rowGap = 0.005;
-    float totalHeight = float(rows) * (rowHeightFrac + rowGap);
+    // Total height of ticker region in pixels
+    int totalH = rows * (CELL_H + ROW_GAP);
 
-    // Y position from bottom
-    float yFromBottom = 1.0 - v_texCoord.y;
+    // Pixel coords from bottom-left
+    int px = int(floor(v_texCoord.x * dims.x));
+    int pyFromBottom = int(floor((1.0 - v_texCoord.y) * dims.y));
 
-    // Check if we're in the ticker region
-    if (yFromBottom > totalHeight) {
+    if (pyFromBottom >= totalH) {
         fragColor = src;
         return;
     }
 
-    // Which row (0 = bottommost)
-    float rowSlot = yFromBottom / (rowHeightFrac + rowGap);
-    int rowIdx = int(floor(rowSlot));
-    float inRowY = fract(rowSlot) * (rowHeightFrac + rowGap);
+    // Which row and local Y within it
+    int rowStride = CELL_H + ROW_GAP;
+    int rowIdx = pyFromBottom / rowStride;
+    int localY = pyFromBottom - rowIdx * rowStride;
 
-    // Skip gap region
-    if (inRowY > rowHeightFrac || rowIdx >= rows) {
+    if (rowIdx >= rows || localY >= CELL_H) {
         fragColor = src;
         return;
     }
 
-    float cellY = inRowY / rowHeightFrac;
-    float rowSeedF = float(hash_mix(uint(rowIdx) + baseSeed));
+    int rowSeed = int(hash_mix(uint(rowIdx) + baseSeed));
 
-    // Main pattern
-    float mask = ticker_row(v_texCoord.x * dims.x, cellY, rowSeedF, t);
+    // Main glyph
+    float mask = ticker_row_mask(px, localY, rowSeed, t);
 
-    // Shadow: offset by 1-2 pixels
-    vec2 shadowOff = vec2(-1.5, 1.5) / dims;
-    float shadowCellY = (inRowY - shadowOff.y * (rowHeightFrac * dims.y)) / rowHeightFrac;
-    float shadowMask = ticker_row((v_texCoord.x + shadowOff.x) * dims.x, shadowCellY, rowSeedF, t);
+    // Shadow: sample at offset (+2, +2) pixels — shifted right and down
+    float shadow = 0.0;
+    int shadowLocalY = localY + 2;
+    if (shadowLocalY < CELL_H) {
+        shadow = ticker_row_mask(px + 2, shadowLocalY, rowSeed, t);
+    }
 
-    // Blending
+    // Composite
     vec3 result = src.rgb;
-
-    // Shadow: darken behind text
-    result = mix(result, result * (1.0 - shadowMask * 0.5), alpha * 0.5);
-
-    // Screen blend: lighten with glyph pattern
-    result = mix(result, max(result, vec3(mask)), alpha);
+    // Shadow darkens
+    result = result * (1.0 - shadow * 0.4 * alpha);
+    // Glyph brightens (screen blend)
+    result = max(result, vec3(mask) * alpha);
 
     fragColor = vec4(clamp(result, 0.0, 1.0), src.a);
 }

@@ -1,6 +1,4 @@
-// Spooky ticker - procedural scrolling pseudo-text at the bottom of the screen
-
-const INV_U32_MAX : f32 = 1.0 / 4294967295.0;
+// Spooky ticker - scrolling bank_ocr digit rows at the bottom of the screen
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
 @group(0) @binding(1) var<uniform> time : f32;
@@ -9,57 +7,75 @@ const INV_U32_MAX : f32 = 1.0 / 4294967295.0;
 @group(0) @binding(4) var<uniform> rows : i32;
 @group(0) @binding(5) var<uniform> seed : i32;
 
+// Bank OCR bitmaps: 10 digits, 7 wide x 8 tall each
+// Index as GLYPHS[digit * 8 + row], test bit (val >> (6 - col)) & 1
+const GLYPHS = array<i32, 80>(
+    // Digit 0
+    0x3C, 0x42, 0x42, 0x42, 0x42, 0x42, 0x3C, 0x00,
+    // Digit 1
+    0x18, 0x08, 0x08, 0x08, 0x1C, 0x1C, 0x1C, 0x00,
+    // Digit 2
+    0x1C, 0x04, 0x04, 0x1C, 0x10, 0x10, 0x1C, 0x00,
+    // Digit 3
+    0x1C, 0x04, 0x04, 0x1C, 0x06, 0x06, 0x1E, 0x00,
+    // Digit 4
+    0x60, 0x60, 0x60, 0x60, 0x66, 0x7E, 0x06, 0x00,
+    // Digit 5
+    0x3C, 0x20, 0x20, 0x3C, 0x04, 0x04, 0x3C, 0x00,
+    // Digit 6
+    0x78, 0x48, 0x40, 0x40, 0x7E, 0x42, 0x7E, 0x00,
+    // Digit 7
+    0x3C, 0x24, 0x04, 0x0C, 0x08, 0x08, 0x08, 0x00,
+    // Digit 8
+    0x3C, 0x24, 0x24, 0x7E, 0x66, 0x66, 0x7E, 0x00,
+    // Digit 9
+    0x3E, 0x22, 0x22, 0x3E, 0x06, 0x06, 0x06, 0x00
+);
+
+const GLYPH_W : i32 = 7;
+const GLYPH_H : i32 = 8;
+const SCALE : i32 = 3;
+const CELL_W : i32 = 21;  // GLYPH_W * SCALE
+const CELL_H : i32 = 24;  // GLYPH_H * SCALE
+const ROW_GAP : i32 = 4;
+
 fn hash_mix(v : u32) -> u32 {
-    var result = v;
-    result = result ^ (result >> 16u);
-    result = result * 0x7feb352du;
-    result = result ^ (result >> 15u);
-    result = result * 0x846ca68bu;
-    result = result ^ (result >> 16u);
-    return result;
+    var r = v;
+    r = r ^ (r >> 16u);
+    r = r * 0x7feb352du;
+    r = r ^ (r >> 15u);
+    r = r * 0x846ca68bu;
+    r = r ^ (r >> 16u);
+    return r;
 }
 
-fn random_float(s : u32, salt : u32) -> f32 {
-    return f32(hash_mix(s ^ salt)) * INV_U32_MAX;
-}
-
-// 3x5 binary glyph pattern from hash
-fn glyph_pixel(cellUV : vec2<f32>, glyphSeed : u32) -> f32 {
-    let col = i32(floor(cellUV.x * 3.0));
-    let row = i32(floor(cellUV.y * 5.0));
-    if (col < 0 || col >= 3 || row < 0 || row >= 5) {
+fn sample_glyph(digit : i32, localX : i32, localY : i32) -> f32 {
+    let gx = localX / SCALE;
+    let gy = localY / SCALE;
+    if (gx < 0 || gx >= GLYPH_W || gy < 0 || gy >= GLYPH_H) {
         return 0.0;
     }
-
-    let bitIndex = u32(row * 3 + col);
-    let pattern = hash_mix(glyphSeed);
-    let on = f32((pattern >> bitIndex) & 1u);
-
-    let local = fract(vec2<f32>(cellUV.x * 3.0, cellUV.y * 5.0));
-    let gap = step(0.15, local.x) * step(local.x, 0.85) *
-              step(0.15, local.y) * step(local.y, 0.85);
-
-    return on * gap;
+    let row = GLYPHS[digit * 8 + gy];
+    return f32((row >> (6 - gx)) & 1);
 }
 
-// Generate ticker row pattern
-fn ticker_row(pixelX : f32, cellY : f32, rowSeedF : f32, t : f32) -> f32 {
-    let scrollSpeed = 0.5 + random_float(u32(rowSeedF), 17u) * 1.5;
-    let scrollX = pixelX + t * scrollSpeed * 60.0;
+fn ticker_row_mask(pixelX : i32, pixelY : i32, rowSeed : i32, t : f32) -> f32 {
+    let scrollSpeed = 0.5 + f32(hash_mix(u32(rowSeed) ^ 17u) & 0xFFFFu) / 65535.0 * 1.5;
+    let offset = i32(floor(t * scrollSpeed * 60.0));
 
-    let glyphWidth = 5.0 + floor(random_float(u32(rowSeedF), 23u) * 8.0);
+    let sx = pixelX + offset;
+    var cellX : i32;
+    if (sx >= 0) {
+        cellX = sx / CELL_W;
+    } else {
+        cellX = (sx - CELL_W + 1) / CELL_W;
+    }
+    let localX = sx - cellX * CELL_W;
 
-    let glyphIndex = floor(scrollX / glyphWidth);
-    let localX = (scrollX % glyphWidth) / glyphWidth;
+    let h = hash_mix(u32(cellX) ^ u32(rowSeed) * 997u);
+    let digit = i32(h % 10u);
 
-    var glyphSeed = hash_mix(u32(glyphIndex) + u32(rowSeedF) * 1000u);
-
-    let changePeriod = u32(floor(t * 0.5));
-    glyphSeed = hash_mix(glyphSeed + changePeriod);
-
-    let flicker = step(0.25, random_float(glyphSeed, u32(floor(t * 8.0))));
-
-    return glyph_pixel(vec2<f32>(localX, cellY), glyphSeed) * flicker;
+    return sample_glyph(digit, localX, pixelY);
 }
 
 @fragment
@@ -71,37 +87,36 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let t = time * speed;
     let baseSeed = hash_mix(u32(seed) * 7919u);
 
-    let rowHeightFrac = 0.04;
-    let rowGap = 0.005;
-    let totalHeight = f32(rows) * (rowHeightFrac + rowGap);
+    let totalH = rows * (CELL_H + ROW_GAP);
 
-    let yFromBottom = 1.0 - uv.y;
+    let px = i32(floor(uv.x * dims.x));
+    let pyFromBottom = i32(floor((1.0 - uv.y) * dims.y));
 
-    if (yFromBottom > totalHeight) {
+    if (pyFromBottom >= totalH) {
         return src;
     }
 
-    let rowSlot = yFromBottom / (rowHeightFrac + rowGap);
-    let rowIdx = i32(floor(rowSlot));
-    let inRowY = fract(rowSlot) * (rowHeightFrac + rowGap);
+    let rowStride = CELL_H + ROW_GAP;
+    let rowIdx = pyFromBottom / rowStride;
+    let localY = pyFromBottom - rowIdx * rowStride;
 
-    if (inRowY > rowHeightFrac || rowIdx >= rows) {
+    if (rowIdx >= rows || localY >= CELL_H) {
         return src;
     }
 
-    let cellY = inRowY / rowHeightFrac;
-    let rowSeedF = f32(hash_mix(u32(rowIdx) + baseSeed));
+    let rowSeed = i32(hash_mix(u32(rowIdx) + baseSeed));
 
-    let mask = ticker_row(uv.x * dims.x, cellY, rowSeedF, t);
+    let mask = ticker_row_mask(px, localY, rowSeed, t);
 
-    let shadowOff = vec2<f32>(-1.5, 1.5) / dims;
-    let shadowCellY = (inRowY - shadowOff.y * (rowHeightFrac * dims.y)) / rowHeightFrac;
-    let shadowMask = ticker_row((uv.x + shadowOff.x) * dims.x, shadowCellY, rowSeedF, t);
+    var shadow = 0.0;
+    let shadowLocalY = localY + 2;
+    if (shadowLocalY < CELL_H) {
+        shadow = ticker_row_mask(px + 2, shadowLocalY, rowSeed, t);
+    }
 
     var result = src.rgb;
-
-    result = mix(result, result * (1.0 - shadowMask * 0.5), alpha * 0.5);
-    result = mix(result, max(result, vec3<f32>(mask)), alpha);
+    result = result * (1.0 - shadow * 0.4 * alpha);
+    result = max(result, vec3<f32>(mask) * alpha);
 
     return vec4<f32>(clamp(result, vec3<f32>(0.0), vec3<f32>(1.0)), src.a);
 }
