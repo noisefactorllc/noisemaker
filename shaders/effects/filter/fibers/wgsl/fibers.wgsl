@@ -8,7 +8,7 @@
 
 struct Uniforms {
     density: f32,
-    seed: f32,
+    seed: i32,
     alpha: f32,
     _pad0: f32,
 }
@@ -35,6 +35,10 @@ fn luminance(rgb: vec3<f32>) -> f32 {
     return 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
 }
 
+fn glsl_mod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
+}
+
 @fragment
 fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
@@ -44,10 +48,11 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     let maxDim = max(texSize.x, texSize.y);
     let minDim = min(texSize.x, texSize.y);
     let iterations = i32(sqrt(minDim));  // ~25 for 640px
-    let trailWidth = maxDim / 512.0;     // scale with resolution
+    let density = uniforms.density;
+    let trailWidth = maxDim / 64.0 * (0.5 + density);  // scale with resolution and density
 
     // Worm count per layer: density maps 0..1 to ~5..25 worms
-    let wormCount = max(3, i32(mix(5.0, 25.0, uniforms.density)));
+    let wormCount = max(3, i32(mix(5.0, 25.0, density)));
 
     let seedBase = u32(uniforms.seed) * 99991u;
     var totalMask: f32 = 0.0;
@@ -103,21 +108,22 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
                 }
 
                 // Advance worm: sample flow field at current position
-                let wormUv = vec2<f32>(wx % texSize.x, wy % texSize.y) / texSize;
+                let wormUv = vec2<f32>(glsl_mod(wx, texSize.x), glsl_mod(wy, texSize.y)) / texSize;
                 let lum = luminance(textureSampleLevel(inputTex, inputSampler, wormUv, 0.0).rgb);
                 let flowAngle = lum * TAU * kink + wRot;
 
-                wy = (wy + cos(flowAngle) * strideVal) % texSize.y;
-                wx = (wx + sin(flowAngle) * strideVal) % texSize.x;
+                wy = glsl_mod(wy + cos(flowAngle) * strideVal, texSize.y);
+                wx = glsl_mod(wx + sin(flowAngle) * strideVal, texSize.x);
             }
         }
 
-        // Per-layer brightness (hash-based, approximating values(freq=128))
+        // Per-layer brightness (quantized for spatial coherence, approximating values(freq=128))
         let bSeed = layerSeed + 999983u;
+        let quantized = floor(fragCoord.xy / 8.0);
         let layerBright = vec3<f32>(
-            hashf(bSeed + u32(fragCoord.x * 0.73 + fragCoord.y * 127.1) + u32(layer) * 31u),
-            hashf(bSeed + u32(fragCoord.x * 0.79 + fragCoord.y * 311.7) + u32(layer) * 37u),
-            hashf(bSeed + u32(fragCoord.x * 0.83 + fragCoord.y * 191.3) + u32(layer) * 41u),
+            hashf(bSeed + u32(quantized.x * 73.0 + quantized.y * 157.0) + u32(layer) * 31u),
+            hashf(bSeed + u32(quantized.x * 79.0 + quantized.y * 311.0) + u32(layer) * 37u),
+            hashf(bSeed + u32(quantized.x * 83.0 + quantized.y * 191.0) + u32(layer) * 41u),
         );
 
         // Normalize and sqrt the mask (matching Python's sqrt(normalize(out)))
