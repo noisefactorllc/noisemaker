@@ -1,10 +1,38 @@
-// OSD: Procedural on-screen display overlay.
-// Renders hash-based pseudo-glyph block patterns at bottom-right,
-// matching the spirit of the Python on_screen_display effect.
+// OSD: On-screen display overlay with bank_ocr digit bitmaps.
+// Renders a small readout of 3-6 digits at the bottom-right corner,
+// with time-cycling digit values and green/white OSD tint.
 
-const TAU : f32 = 6.283185307179586;
-const GLYPH_COLS : i32 = 3;
-const GLYPH_ROWS : i32 = 5;
+const GLYPH_W : i32 = 7;
+const GLYPH_H : i32 = 8;
+const SCALE : i32 = 3;
+const CELL_W : i32 = 21;  // GLYPH_W * SCALE
+const CELL_H : i32 = 24;  // GLYPH_H * SCALE
+const GAP : i32 = 3;      // SCALE
+const PADDING : i32 = 25;
+
+// Bank OCR bitmaps: 10 digits, 7 wide x 8 tall each
+const GLYPHS = array<i32, 80>(
+    // Digit 0
+    0x3C, 0x42, 0x42, 0x42, 0x42, 0x42, 0x3C, 0x00,
+    // Digit 1
+    0x18, 0x08, 0x08, 0x08, 0x1C, 0x1C, 0x1C, 0x00,
+    // Digit 2
+    0x1C, 0x04, 0x04, 0x1C, 0x10, 0x10, 0x1C, 0x00,
+    // Digit 3
+    0x1C, 0x04, 0x04, 0x1C, 0x06, 0x06, 0x1E, 0x00,
+    // Digit 4
+    0x60, 0x60, 0x60, 0x60, 0x66, 0x7E, 0x06, 0x00,
+    // Digit 5
+    0x3C, 0x20, 0x20, 0x3C, 0x04, 0x04, 0x3C, 0x00,
+    // Digit 6
+    0x78, 0x48, 0x40, 0x40, 0x7E, 0x42, 0x7E, 0x00,
+    // Digit 7
+    0x3C, 0x24, 0x04, 0x0C, 0x08, 0x08, 0x08, 0x00,
+    // Digit 8
+    0x3C, 0x24, 0x24, 0x7E, 0x66, 0x66, 0x7E, 0x00,
+    // Digit 9
+    0x3E, 0x22, 0x22, 0x3E, 0x06, 0x06, 0x06, 0x00
+);
 
 struct OsdParams {
     width : f32,
@@ -15,19 +43,11 @@ struct OsdParams {
     speed : f32,
     time : f32,
     _pad0 : f32,
-};
+}
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> output_buffer : array<f32>;
 @group(0) @binding(2) var<uniform> params : OsdParams;
-
-fn as_u32(value : f32) -> u32 {
-    return u32(max(round(value), 0.0));
-}
-
-fn clamp01(value : f32) -> f32 {
-    return clamp(value, 0.0, 1.0);
-}
 
 fn pcg(v_in : u32) -> u32 {
     let state : u32 = v_in * 747796405u + 2891336453u;
@@ -43,32 +63,14 @@ fn hash3(a : u32, b : u32, c : u32) -> u32 {
     return pcg(hash2(a, b) ^ (c * 0x94d049bbu + 0x5bf03635u));
 }
 
-fn glyph_cell(glyph_seed : u32, row : i32, col : i32) -> f32 {
-    let h : u32 = hash3(glyph_seed, u32(row), u32(col));
-    let is_edge_row : bool = (row == 0 || row == 2 || row == GLYPH_ROWS - 1);
-    let is_edge_col : bool = (col == 0 || col == GLYPH_COLS - 1);
-    var threshold : f32;
-    if (is_edge_row && !is_edge_col) {
-        threshold = 0.45;
-    } else if (is_edge_col && !is_edge_row) {
-        threshold = 0.55;
-    } else if (is_edge_row && is_edge_col) {
-        threshold = 0.7;
-    } else {
-        threshold = 0.85;
+fn sample_glyph(digit : i32, localX : i32, localY : i32) -> f32 {
+    let gx : i32 = localX / SCALE;
+    let gy : i32 = localY / SCALE;
+    if (gx < 0 || gx >= GLYPH_W || gy < 0 || gy >= GLYPH_H) {
+        return 0.0;
     }
-    let val : f32 = f32(h) / 4294967296.0;
-    if (val < threshold) {
-        return 1.0;
-    }
-    return 0.0;
-}
-
-fn get_glyph_seed(base_seed : u32, glyph_index : i32, time_value : f32, speed_value : f32) -> u32 {
-    let angle : f32 = TAU * time_value;
-    let z : f32 = cos(angle) * speed_value;
-    let z_cell : i32 = i32(floor(z));
-    return hash3(base_seed, u32(glyph_index), u32(z_cell));
+    let row : i32 = GLYPHS[digit * 8 + gy];
+    return f32((row >> (6 - gx)) & 1);
 }
 
 fn write_pixel(base_index : u32, rgba : vec4<f32>) {
@@ -80,8 +82,8 @@ fn write_pixel(base_index : u32, rgba : vec4<f32>) {
 
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
-    let w : u32 = max(as_u32(params.width), 1u);
-    let h : u32 = max(as_u32(params.height), 1u);
+    let w : u32 = max(u32(max(round(params.width), 0.0)), 1u);
+    let h : u32 = max(u32(max(round(params.height), 0.0)), 1u);
     if (gid.x >= w || gid.y >= h) {
         return;
     }
@@ -92,8 +94,13 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let base_index : u32 = pixel_index * 4u;
 
     let blend_alpha : f32 = clamp(params.alpha, 0.0, 1.0);
+
+    // Subtle scanline tint across entire image (OSD monitor feel)
+    let scanline : f32 = 1.0 - 0.03 * blend_alpha * f32(coord.y & 1);
+    let base_rgb : vec3<f32> = texel.rgb * scanline;
+
     if (blend_alpha <= 0.0) {
-        write_pixel(base_index, texel);
+        write_pixel(base_index, vec4<f32>(base_rgb.x, base_rgb.y, base_rgb.z, texel.a));
         return;
     }
 
@@ -101,24 +108,17 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let width : i32 = i32(w);
     let height : i32 = i32(h);
 
+    // Glyph count: 3-6 from seed
     let glyph_count : i32 = 3 + i32(hash2(base_seed, 42u) % 4u);
 
-    let base_segment : i32 = width / 24;
-    if (base_segment < GLYPH_COLS) {
-        write_pixel(base_index, texel);
-        return;
-    }
-    let scale : i32 = max(base_segment / GLYPH_COLS, 1);
+    // Overlay dimensions
+    let overlay_w : i32 = glyph_count * CELL_W + (glyph_count - 1) * GAP;
+    let overlay_h : i32 = CELL_H;
 
-    let glyph_pixel_w : i32 = GLYPH_COLS * scale;
-    let glyph_pixel_h : i32 = GLYPH_ROWS * scale;
-    let gap : i32 = scale;
-    let overlay_w : i32 = glyph_count * glyph_pixel_w + (glyph_count - 1) * gap;
-    let overlay_h : i32 = glyph_pixel_h;
-    let padding : i32 = 25;
-
-    var origin_x : i32 = width - overlay_w - padding;
-    var origin_y : i32 = height - overlay_h - padding;
+    // Position: bottom-right with padding
+    // WebGPU coords: y=0 is top, so bottom-right means large y
+    var origin_x : i32 = width - overlay_w - PADDING;
+    var origin_y : i32 = height - overlay_h - PADDING;
     if (origin_x < 0) {
         origin_x = 0;
     }
@@ -126,45 +126,64 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         origin_y = 0;
     }
 
+    // Expand OSD region with padding for background panel
+    let panel_pad : i32 = GAP * 2;
+    let panel_x0 : i32 = origin_x - panel_pad;
+    let panel_y0 : i32 = origin_y - panel_pad;
+    let panel_x1 : i32 = origin_x + overlay_w + panel_pad;
+    let panel_y1 : i32 = origin_y + overlay_h + panel_pad;
+
+    // Outside panel region: just scanline
+    if (coord.x < panel_x0 || coord.x >= panel_x1 || coord.y < panel_y0 || coord.y >= panel_y1) {
+        write_pixel(base_index, vec4<f32>(base_rgb.x, base_rgb.y, base_rgb.z, texel.a));
+        return;
+    }
+
+    // Check if pixel is in OSD glyph region
     let lx : i32 = coord.x - origin_x;
     let ly : i32 = coord.y - origin_y;
-    if (lx < 0 || lx >= overlay_w || ly < 0 || ly >= overlay_h) {
-        write_pixel(base_index, texel);
+
+    var mask : f32 = 0.0;
+    if (lx >= 0 && lx < overlay_w && ly >= 0 && ly < overlay_h) {
+        // Determine which glyph
+        let cell_stride : i32 = CELL_W + GAP;
+        let glyph_idx : i32 = lx / cell_stride;
+        let within_glyph_x : i32 = lx - glyph_idx * cell_stride;
+
+        if (within_glyph_x < CELL_W && glyph_idx < glyph_count) {
+            // Local Y within glyph (y=0 is top in WebGPU, glyph row 0 is top)
+            let local_y : i32 = ly;
+
+            // Time-cycling digit selection
+            let time_cell : i32 = i32(floor(params.time * max(params.speed, 0.001)));
+            let digit_hash : u32 = hash3(base_seed, u32(glyph_idx), u32(time_cell));
+            let digit : i32 = i32(digit_hash % 10u);
+
+            mask = sample_glyph(digit, within_glyph_x, local_y);
+        }
+    }
+
+    // Dark background panel behind digits
+    let panel_bg : vec3<f32> = base_rgb * (1.0 - 0.5 * blend_alpha);
+
+    if (mask < 0.5) {
+        write_pixel(base_index, vec4<f32>(
+            clamp(panel_bg.x, 0.0, 1.0),
+            clamp(panel_bg.y, 0.0, 1.0),
+            clamp(panel_bg.z, 0.0, 1.0),
+            texel.a,
+        ));
         return;
     }
 
-    let cell_stride : i32 = glyph_pixel_w + gap;
-    let glyph_idx : i32 = lx / cell_stride;
-    let within_glyph_x : i32 = lx - glyph_idx * cell_stride;
-
-    if (within_glyph_x >= glyph_pixel_w || glyph_idx >= glyph_count) {
-        write_pixel(base_index, texel);
-        return;
-    }
-
-    let cell_col : i32 = within_glyph_x / scale;
-    let cell_row_raw : i32 = ly / scale;
-    let cell_row : i32 = (GLYPH_ROWS - 1) - cell_row_raw;
-
-    if (cell_col < 0 || cell_col >= GLYPH_COLS || cell_row < 0 || cell_row >= GLYPH_ROWS) {
-        write_pixel(base_index, texel);
-        return;
-    }
-
-    let glyph_seed : u32 = get_glyph_seed(base_seed, glyph_idx, params.time, params.speed);
-    let cell_on : f32 = glyph_cell(glyph_seed, cell_row, cell_col);
-
-    if (cell_on < 0.5) {
-        write_pixel(base_index, texel);
-        return;
-    }
-
-    let highlight : vec3<f32> = max(texel.rgb, vec3<f32>(cell_on));
-    let blended : vec3<f32> = mix(texel.rgb, highlight, blend_alpha);
+    // Green/white OSD tint
+    let osd_color : vec3<f32> = vec3<f32>(0.7, 1.0, 0.75);
+    let highlight : vec3<f32> = max(panel_bg, osd_color * mask);
+    let blended : vec3<f32> = mix(panel_bg, highlight, blend_alpha);
     write_pixel(base_index, vec4<f32>(
-        clamp01(blended.x),
-        clamp01(blended.y),
-        clamp01(blended.z),
+        clamp(blended.x, 0.0, 1.0),
+        clamp(blended.y, 0.0, 1.0),
+        clamp(blended.z, 0.0, 1.0),
         texel.a,
     ));
 }
