@@ -456,7 +456,10 @@ export class Pipeline {
             isCancelled: () => cancelled
         }
 
-        effectDef.asyncInit(context)
+        console.log(`[Pipeline] asyncInit starting for ${nodeId} (${effectDef.func || effectDef.name})`)
+        effectDef.asyncInit(context).catch(err => {
+            console.error(`[Pipeline] asyncInit error for ${nodeId}:`, err)
+        })
     }
 
     /**
@@ -932,6 +935,7 @@ export class Pipeline {
 
         // Re-trigger async rendering when seed or density changes
         if (name === 'seed' || name === 'density') {
+            console.log(`[Pipeline] ${name} changed to ${value}, re-triggering asyncInit`)
             this.initAsyncEffects()
         }
 
