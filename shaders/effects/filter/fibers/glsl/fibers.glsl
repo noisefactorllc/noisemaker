@@ -44,7 +44,7 @@ void main() {
     float maxDim = max(resolution.x, resolution.y);
     float minDim = min(resolution.x, resolution.y);
     int iterations = int(sqrt(minDim));  // ~25 for 640px
-    float trailWidth = maxDim / 512.0;   // scale with resolution
+    float trailWidth = maxDim / 64.0 * (0.5 + density);  // scale with resolution and density
 
     // Worm count per layer: density maps 0..1 to ~5..25 worms
     int wormCount = max(3, int(mix(5.0, 25.0, density)));
@@ -113,12 +113,13 @@ void main() {
             }
         }
 
-        // Per-layer brightness (hash-based, approximating values(freq=128))
+        // Per-layer brightness (quantized for spatial coherence, approximating values(freq=128))
         uint bSeed = layerSeed + 999983u;
+        vec2 quantized = floor(gl_FragCoord.xy / 8.0);
         vec3 layerBright = vec3(
-            hashf(bSeed + uint(gl_FragCoord.x * 0.73 + gl_FragCoord.y * 127.1) + uint(layer) * 31u),
-            hashf(bSeed + uint(gl_FragCoord.x * 0.79 + gl_FragCoord.y * 311.7) + uint(layer) * 37u),
-            hashf(bSeed + uint(gl_FragCoord.x * 0.83 + gl_FragCoord.y * 191.3) + uint(layer) * 41u)
+            hashf(bSeed + uint(quantized.x * 73.0 + quantized.y * 157.0) + uint(layer) * 31u),
+            hashf(bSeed + uint(quantized.x * 79.0 + quantized.y * 311.0) + uint(layer) * 37u),
+            hashf(bSeed + uint(quantized.x * 83.0 + quantized.y * 191.0) + uint(layer) * 41u)
         );
 
         // Python: blend(tensor, brightness, mask * 0.5)
