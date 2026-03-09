@@ -933,10 +933,26 @@ export class Pipeline {
         const oldValue = this.globalUniforms[name]
         this.globalUniforms[name] = value
 
-        // Re-trigger async rendering when seed or density changes
-        if (name === 'seed' || name === 'density') {
-            console.log(`[Pipeline] ${name} changed to ${value}, re-triggering asyncInit`)
-            this.initAsyncEffects()
+        // Re-trigger async rendering when a relevant param changes
+        // Any effect with asyncInit that has this uniform (and it's not 'alpha') triggers regen
+        if (this._asyncRenders.size > 0) {
+            let shouldRegen = false
+            const seen = new Set()
+            for (const pass of (this.graph?.passes || [])) {
+                if (!pass.effectKey || !pass.nodeId || seen.has(pass.nodeId)) continue
+                seen.add(pass.nodeId)
+                const effectDef = getEffect(pass.effectKey)
+                if (!effectDef) continue
+                if (!effectDef._configAsyncInit && effectDef.asyncInit === Effect.prototype.asyncInit) continue
+                // Regen if this param is in the effect's globals (except alpha which is shader-side only)
+                if (effectDef.globals && name in effectDef.globals && name !== 'alpha') {
+                    shouldRegen = true
+                    break
+                }
+            }
+            if (shouldRegen) {
+                this.initAsyncEffects()
+            }
         }
 
         // Legacy classicNoisedeck palette expansion:
