@@ -15,6 +15,7 @@ uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform float time;
 uniform float speed;
+uniform int seed;
 
 uint as_u32(float value) {
     return uint(max(value, 0.0));
@@ -192,7 +193,8 @@ float singularity_mask(vec2 uv, float width, float height) {
 float animated_simplex_value(vec2 uv, float time, float speed) {
     float angle = time * TAU;
     float z_base = cos(angle) * speed;
-    vec3 base_seed = vec3(17.0, 29.0, 47.0);
+    float s = float(seed) * 73.0;
+    vec3 base_seed = vec3(17.0 + s, 29.0 + s * 1.1, 47.0 + s * 0.7);
     float base_noise = simplex_noise(vec3(
         uv.x + base_seed.x,
         uv.y + base_seed.y,
@@ -403,8 +405,9 @@ float apply_vignette(float value, float brightness, float mask, float alpha) {
 // Generate base scanline values (2x1 noise pattern)
 vec2 get_scanline_base_values(float time, float speed) {
     float time_scaled = time * speed * 0.1;
-    float noise0 = value_noise_3d(vec3(0.0, 0.0, time_scaled), 19.37);
-    float noise1 = value_noise_3d(vec3(1.0, 0.0, time_scaled), 19.37);
+    float noise_seed = 19.37 + float(seed) * 31.0;
+    float noise0 = value_noise_3d(vec3(0.0, 0.0, time_scaled), noise_seed);
+    float noise1 = value_noise_3d(vec3(1.0, 0.0, time_scaled), noise_seed);
     return vec2(noise0, noise1);
 }
 
@@ -503,7 +506,7 @@ void main() {
     
     // Step 5: Chromatic aberration, hue shift, saturation, and vignette
     if (4.0 >= 2.5) { // channels == 3
-        float seed_base = 17.0;
+        float seed_base = 17.0 + float(seed) * 73.0;
         float displacement_base = 0.0125 + random_scalar(seed_base + 0.37) * 0.00625;
         float simplex_value = random_scalar(seed_base + 0.73);
         float displacement_pixels = displacement_base * width_f * simplex_value;

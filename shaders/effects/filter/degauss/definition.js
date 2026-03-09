@@ -35,6 +35,18 @@ export default new Effect({
         label: "speed",
         control: "slider"
       }
+    },
+    seed: {
+      type: "int",
+      default: 1,
+      uniform: "seed",
+      min: 1,
+      max: 100,
+      step: 1,
+      ui: {
+        label: "seed",
+        control: "slider"
+      }
     }
   },
   passes: [
@@ -46,7 +58,8 @@ export default new Effect({
       },
       uniforms: {
         displacement: "displacement",
-        speed: "speed"
+        speed: "speed",
+        seed: "seed"
       },
       outputs: {
         fragColor: "outputTex"
