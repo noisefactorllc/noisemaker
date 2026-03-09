@@ -315,7 +315,7 @@ float control_value_at(
     float time_value,
     float speed_value
 ) {
-    float base_freq_value = seeded_base_frequency(dims);
+    float base_freq_value = seeded_base_frequency(dims) * scale * 4.0;
     vec2 freq_vec = freq_for_shape(base_freq_value, dims);
     vec2 warped_coord = warp_coordinate(coord, dims, 0.0, 1.0);
     return simplex_multires_value(

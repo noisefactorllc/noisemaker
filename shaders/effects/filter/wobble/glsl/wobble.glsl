@@ -62,7 +62,7 @@ void main() {
     // Speed directly affects the noise sampling position
     // This ensures changing speed produces different noise values
     float spd = max(speed, 0.001);
-    float r = clamp(range, 0.0, 1.0);
+    float r = max(range, 0.0);
 
     // Compute jitter offsets - speed affects both the noise input and output scale
     float xRandom = simplexRandom(time + speed * 0.1, spd, X_NOISE_SEED);

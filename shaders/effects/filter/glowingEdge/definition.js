@@ -17,10 +17,10 @@ export default new Effect({
       default: 0,
       uniform: "sobelMetric",
       choices: {
-        "Euclidean": 0,
-        "Manhattan": 1,
-        "Chebyshev": 2,
-        "Minkowski": 3
+        "circle": 0,
+        "diamond": 1,
+        "square": 2,
+        "star": 3
       },
       ui: {
         label: "shape",

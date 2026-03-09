@@ -117,7 +117,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texNoise = hash21(noiseSeed * 1.75);
     let modulated = mix(hatch, texNoise, 0.25);
     let attenuated = mix(1.0, modulated, clamp(pow(darkness, 1.4), 0.0, 1.0));
-    let crosshatch = clamp(1.0 - attenuated, 0.0, 1.0);
+    let crosshatch = clamp(attenuated, 0.0, 1.0);
 
     // --- Combine ---
     var blended = mix(crosshatch, outline, 0.75);

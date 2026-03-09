@@ -138,26 +138,26 @@ void main() {
     float mask_value = clamp01(mix(mask_refracted, mask_gradient, 0.125));
 
     // Blend input with dark dust using squared mask
-    float mask_power = clamp01(mask_value * mask_value * 0.075);
-    vec3 dusty = mix(base_color.rgb, vec3(0.25), mask_power);
+    float mask_power = clamp01(mask_value * mask_value * 0.4);
+    vec3 dusty = mix(base_color.rgb, vec3(0.15), mask_power);
 
     // Speck overlay: dropout + exponential noise, refracted
-    vec2 freq_specks = dims * 0.25;
-    float dropout = hash21(uv * dims + vec2(s + 37.0, s * 1.37)) < 0.25 ? 1.0 : 0.0;
+    vec2 freq_specks = dims * 0.1;
+    float dropout = hash21(uv * dims + vec2(s + 37.0, s * 1.37)) < 0.4 ? 1.0 : 0.0;
     float specks_field = refracted_exponential(uv, freq_specks, t, spd, px, 0.25, s + 71.0) * dropout;
-    float trimmed = clamp01((specks_field - 0.625) / 0.375);
+    float trimmed = clamp01((specks_field - 0.3) / 0.7);
     float specks = 1.0 - sqrt(trimmed);
 
     // Sparse noise
-    float sparse_mask = hash21(uv * dims + vec2(s + 113.0, s + 171.0)) < 0.15 ? 1.0 : 0.0;
+    float sparse_mask = hash21(uv * dims + vec2(s + 113.0, s + 171.0)) < 0.25 ? 1.0 : 0.0;
     float sparse_noise = exponential_noise(uv, dims, t, spd, s + 131.0) * sparse_mask;
 
     // Combine
-    dusty = mix(dusty, vec3(sparse_noise), 0.075);
+    dusty = mix(dusty, vec3(sparse_noise), 0.15);
     dusty *= specks;
 
     // Final blend: mix input toward dusty layer using mask * strength
-    float blend_mask = clamp01(mask_value * 0.75 * str);
+    float blend_mask = clamp01(mask_value * str);
     vec3 final_rgb = mix(base_color.rgb, dusty, blend_mask);
 
     fragColor = vec4(clamp(final_rgb, 0.0, 1.0), base_color.a);

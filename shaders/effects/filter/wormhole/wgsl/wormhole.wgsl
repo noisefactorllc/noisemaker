@@ -25,7 +25,7 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let lum = luminance(src);
 
     // Luminance to angle (Python: values * tau * kink)
-    let angle = lum * TAU * kink + time * speed;
+    let angle = lum * TAU * kink;
 
     // Displacement in UV space (Python: (cos/sin + 1) * 1024 * input_stride)
     // Scale stride so default 1.0 produces strong displacement

@@ -48,18 +48,6 @@ export default new Effect({
         control: "slider"
       }
     },
-    speed: {
-      type: "float",
-      default: 1,
-      uniform: "speed",
-      min: 0,
-      max: 5,
-      step: 0.1,
-      ui: {
-        label: "speed",
-        control: "slider"
-      }
-    }
   },
   passes: [
     {
@@ -71,8 +59,7 @@ export default new Effect({
       uniforms: {
         kink: "kink",
         stride: "stride",
-        alpha: "alpha",
-        speed: "speed"
+        alpha: "alpha"
       },
       outputs: {
         fragColor: "outputTex"
