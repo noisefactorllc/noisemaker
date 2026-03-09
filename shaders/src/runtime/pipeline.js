@@ -930,8 +930,8 @@ export class Pipeline {
         const oldValue = this.globalUniforms[name]
         this.globalUniforms[name] = value
 
-        // Re-trigger async rendering when seed changes
-        if (name === 'seed') {
+        // Re-trigger async rendering when seed or density changes
+        if (name === 'seed' || name === 'density') {
             this.initAsyncEffects()
         }
 
