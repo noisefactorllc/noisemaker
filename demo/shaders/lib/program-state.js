@@ -1031,6 +1031,15 @@ export class ProgramState extends Emitter {
                     }
                 }
             }
+
+            // Trigger async effect regen if any non-alpha param changed for this node
+            if (pipeline.checkAsyncRegen && stepPasses.length > 0) {
+                const nodeId = stepPasses[0].nodeId
+                const effectKey = stepPasses[0].effectKey
+                if (nodeId && effectKey) {
+                    pipeline.checkAsyncRegen(nodeId, effectKey, stepState.values)
+                }
+            }
         }
 
         // Handle zoom → pipeline.resize()

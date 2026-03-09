@@ -435,7 +435,50 @@ export class Pipeline {
         }
     }
 
-    _startAsyncInit(nodeId, effectDef) {
+    /**
+     * Check if an async effect needs regen based on step-specific param changes.
+     * Called by ProgramState._applyToPipeline with the step's own values.
+     * Only regens the specific node — never touches other effects.
+     */
+    checkAsyncRegen(nodeId, effectKey, stepValues) {
+        const effectDef = getEffect(effectKey)
+        if (!effectDef) return
+        if (!effectDef._configAsyncInit && effectDef.asyncInit === Effect.prototype.asyncInit) return
+
+        // Check if any non-alpha param actually changed
+        if (!this._asyncParamCache) this._asyncParamCache = new Map()
+        const cache = this._asyncParamCache.get(nodeId) || {}
+        let changed = false
+
+        for (const [paramName, value] of Object.entries(stepValues)) {
+            if (paramName === 'alpha' || paramName.startsWith('_')) continue
+            if (value === undefined || value === null) continue
+            if (!effectDef.globals?.[paramName]) continue
+            if (cache[paramName] !== value) {
+                changed = true
+                cache[paramName] = value
+            }
+        }
+
+        this._asyncParamCache.set(nodeId, cache)
+        if (changed) {
+            this._startAsyncInit(nodeId, effectDef, { debounce: true, params: stepValues })
+        }
+    }
+
+    _startAsyncInit(nodeId, effectDef, { debounce = false, params = null } = {}) {
+        if (debounce) {
+            // Debounce: wait for slider to settle before regenerating
+            if (!this._asyncDebounceTimers) this._asyncDebounceTimers = new Map()
+            const prevTimer = this._asyncDebounceTimers.get(nodeId)
+            if (prevTimer) clearTimeout(prevTimer)
+            this._asyncDebounceTimers.set(nodeId, setTimeout(() => {
+                this._asyncDebounceTimers.delete(nodeId)
+                this._startAsyncInit(nodeId, effectDef, { debounce: false, params })
+            }, 300))
+            return
+        }
+
         // Cancel previous render for this node
         const prevCancel = this._asyncRenders.get(nodeId)
         if (prevCancel) prevCancel()
@@ -452,11 +495,10 @@ export class Pipeline {
             },
             width: this.width,
             height: this.height,
-            params: { ...this.globalUniforms },
+            params: params ? { ...params } : { ...this.globalUniforms },
             isCancelled: () => cancelled
         }
 
-        console.log(`[Pipeline] asyncInit starting for ${nodeId} (${effectDef.func || effectDef.name})`)
         effectDef.asyncInit(context).catch(err => {
             console.error(`[Pipeline] asyncInit error for ${nodeId}:`, err)
         })
@@ -930,25 +972,7 @@ export class Pipeline {
             }
         }
 
-        const oldValue = this.globalUniforms[name]
         this.globalUniforms[name] = value
-
-        // Re-trigger async rendering when a relevant param changes
-        // Any effect with asyncInit that has this uniform (and it's not 'alpha') triggers regen
-        if (name !== 'alpha' && this.graph?.passes) {
-            const seen = new Set()
-            for (const pass of this.graph.passes) {
-                if (!pass.effectKey || !pass.nodeId || seen.has(pass.nodeId)) continue
-                seen.add(pass.nodeId)
-                const effectDef = getEffect(pass.effectKey)
-                if (!effectDef) continue
-                if (!effectDef._configAsyncInit && effectDef.asyncInit === Effect.prototype.asyncInit) continue
-                if (effectDef.globals && name in effectDef.globals) {
-                    console.log(`[Pipeline] regen asyncInit: ${name}=${value} for ${pass.effectKey}`)
-                    this._startAsyncInit(pass.nodeId, effectDef)
-                }
-            }
-        }
 
         // Legacy classicNoisedeck palette expansion:
         // When the 'palette' uniform is set with an integer, expand the preset

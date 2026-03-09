@@ -56,11 +56,13 @@ class StrayHair extends Effect {
         canvas.height = height
         const ctx = canvas.getContext('2d')
         ctx.clearRect(0, 0, width, height)
+        updateTexture('overlayTex', canvas)
 
         const seed = params.seed || 1
+        const density = params.density !== undefined ? params.density : 0.5
 
         // Python reference: single layer of sparse unruly worms
-        // Very low density: 0.0025 + rand * 0.00125 (2-5 hairs)
+        // Density param scales hair count: base 0.001 to 0.005
         // High kink: 5-50
         // Dark strands: brightness * 0.333, mask * 0.666
         const layerSeed = seed * 1000 + 42
@@ -68,7 +70,7 @@ class StrayHair extends Effect {
         await traceWorms(ctx, {
             width, height,
             seed: layerSeed,
-            density: 0.0025 + (layerSeed % 100) / 100 * 0.00125,
+            density: 0.001 + density * 0.004,
             kink: 5 + (layerSeed % 45),
             stride: 0.5,
             strideDeviation: 0.25,
