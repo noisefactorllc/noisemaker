@@ -25,11 +25,11 @@ export default new Effect({
     },
     range: {
       type: "float",
-      default: 0.1,
+      default: 0.5,
       uniform: "range",
       min: 0,
-      max: 1,
-      step: 0.01,
+      max: 5,
+      step: 0.05,
       ui: {
         label: "range",
         control: "slider"

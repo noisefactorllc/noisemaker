@@ -2,8 +2,9 @@
 // Outputs: R=combined mask, G=control raw value for shading pass, B=0, A=1
 
 @group(0) @binding(0) var<uniform> speed: f32;
-@group(0) @binding(1) var<uniform> time: f32;
-@group(0) @binding(2) var<uniform> resolution: vec2<f32>;
+@group(0) @binding(1) var<uniform> scale: f32;
+@group(0) @binding(2) var<uniform> time: f32;
+@group(0) @binding(3) var<uniform> resolution: vec2<f32>;
 
 const CONTROL_OCTAVES: u32 = 8u;
 const WARP_OCTAVES: u32 = 2u;
@@ -310,7 +311,7 @@ fn control_value_at(
     timeValue: f32,
     speedValue: f32
 ) -> f32 {
-    let baseFreqValue: f32 = seeded_base_frequency(dims);
+    let baseFreqValue: f32 = seeded_base_frequency(dims) * scale * 4.0;
     let freqVec: vec2<f32> = freq_for_shape(baseFreqValue, dims);
     let warpedCoord: vec2<f32> = warp_coordinate(coord, dims, 0.0, 1.0);
     return simplex_multires_value(

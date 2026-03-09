@@ -164,47 +164,105 @@ fn simplex_noise(v : vec3<f32>) -> f32 {
     );
 }
 
+// Cosine interpolation (matches Python blend_cosine / spline_order=2)
+fn blend_cosine(a : f32, b : f32, t : f32) -> f32 {
+    let t2 : f32 = (1.0 - cos(t * 3.14159265358979323846)) * 0.5;
+    return a * (1.0 - t2) + b * t2;
+}
+
+// Evaluate simplex noise at an integer grid coordinate, mapped to [0,1]
+fn grid_simplex(gx : f32, gy : f32, gz : f32, seed : vec3<f32>) -> f32 {
+    return simplex_noise(vec3<f32>(gx + seed.x, gy + seed.y, gz + seed.z)) * 0.5 + 0.5;
+}
+
+// Generate noise matching Python values(freq, shape, spline_order=2):
+// Evaluate simplex at integer grid coords, cosine-interpolate, normalize
 fn compute_noise_value(
     coord : vec2<u32>,
     width : f32,
     height : f32,
     freq : vec2<f32>,
-    time : f32,
-    speed : f32,
+    time_val : f32,
+    speed_val : f32,
 ) -> f32 {
     let width_safe : f32 = max(width, 1.0);
     let height_safe : f32 = max(height, 1.0);
     let freq_x : f32 = max(freq.y, 1.0);
     let freq_y : f32 = max(freq.x, 1.0);
 
-    let uv : vec2<f32> = vec2<f32>(
-        (f32(coord.x) / width_safe) * freq_x,
-        (f32(coord.y) / height_safe) * freq_y
+    // Map pixel to grid position (matching Python resample mapping)
+    let grid_pos : vec2<f32> = vec2<f32>(
+        f32(coord.x) * freq_x / width_safe,
+        f32(coord.y) * freq_y / height_safe
     );
 
-    let angle : f32 = time * TAU;
-    let z_base : f32 = cos(angle) * speed;
-    let base_seed : vec3<f32> = vec3<f32>(17.0, 29.0, 47.0);
-    let base_noise : f32 = simplex_noise(vec3<f32>(
-        uv.x + base_seed.x,
-        uv.y + base_seed.y,
-        z_base + base_seed.z
-    ));
-    var value : f32 = clamp(base_noise * 0.5 + 0.5, 0.0, 1.0);
+    // Grid cell and fractional position
+    let cell : vec2<f32> = floor(grid_pos);
+    let fract_pos : vec2<f32> = grid_pos - cell;
 
-    if (speed != 0.0 && time != 0.0) {
+    // Wrap grid coordinates (matching Python modulo wrapping)
+    let cx0 : f32 = cell.x % freq_x;
+    let cx1 : f32 = (cell.x + 1.0) % freq_x;
+    let cy0 : f32 = cell.y % freq_y;
+    let cy1 : f32 = (cell.y + 1.0) % freq_y;
+
+    // Time component (matching Python: z = cos(time * TAU) * speed)
+    let z_base : f32 = cos(time_val * TAU) * speed_val;
+    let base_seed : vec3<f32> = vec3<f32>(17.0, 29.0, 47.0);
+
+    // Evaluate simplex at 4 grid corners
+    var v00 : f32 = grid_simplex(cx0, cy0, z_base, base_seed);
+    var v10 : f32 = grid_simplex(cx1, cy0, z_base, base_seed);
+    var v01 : f32 = grid_simplex(cx0, cy1, z_base, base_seed);
+    var v11 : f32 = grid_simplex(cx1, cy1, z_base, base_seed);
+
+    // Normalize grid values to [0,1] (matching Python normalize() after resample)
+    let min_val : f32 = min(min(v00, v10), min(v01, v11));
+    let max_val : f32 = max(max(v00, v10), max(v01, v11));
+    let range_val : f32 = max_val - min_val;
+    if (range_val > 0.001) {
+        v00 = (v00 - min_val) / range_val;
+        v10 = (v10 - min_val) / range_val;
+        v01 = (v01 - min_val) / range_val;
+        v11 = (v11 - min_val) / range_val;
+    }
+
+    // Cosine interpolation (matching Python spline_order=2 / blend_cosine)
+    let y0 : f32 = blend_cosine(v00, v10, fract_pos.x);
+    let y1 : f32 = blend_cosine(v01, v11, fract_pos.x);
+    var value : f32 = blend_cosine(y0, y1, fract_pos.y);
+
+    // Time animation (matching Python periodic_value logic)
+    if (speed_val != 0.0 && time_val != 0.0) {
         let time_seed : vec3<f32> = vec3<f32>(
             base_seed.x + 54.0,
             base_seed.y + 82.0,
             base_seed.z + 124.0
         );
-        let time_noise : f32 = simplex_noise(vec3<f32>(
-            uv.x + time_seed.x,
-            uv.y + time_seed.y,
-            time_seed.z
-        ));
-        let time_value : f32 = clamp(time_noise * 0.5 + 0.5, 0.0, 1.0);
-        let scaled_time : f32 = periodic_value(time, time_value) * speed;
+        // Time noise evaluated at time=0, speed=1 -> z = cos(0) * 1 = 1.0
+        var t00 : f32 = grid_simplex(cx0, cy0, 1.0, time_seed);
+        var t10 : f32 = grid_simplex(cx1, cy0, 1.0, time_seed);
+        var t01 : f32 = grid_simplex(cx0, cy1, 1.0, time_seed);
+        var t11 : f32 = grid_simplex(cx1, cy1, 1.0, time_seed);
+
+        // Normalize time noise
+        let tmin : f32 = min(min(t00, t10), min(t01, t11));
+        let tmax : f32 = max(max(t00, t10), max(t01, t11));
+        let trange : f32 = tmax - tmin;
+        if (trange > 0.001) {
+            t00 = (t00 - tmin) / trange;
+            t10 = (t10 - tmin) / trange;
+            t01 = (t01 - tmin) / trange;
+            t11 = (t11 - tmin) / trange;
+        }
+
+        let time_value : f32 = blend_cosine(
+            blend_cosine(t00, t10, fract_pos.x),
+            blend_cosine(t01, t11, fract_pos.x),
+            fract_pos.y
+        );
+
+        let scaled_time : f32 = periodic_value(time_val, time_value) * speed_val;
         value = clamp01(periodic_value(scaled_time, value));
     }
 
@@ -225,8 +283,7 @@ fn singularity_mask(uv : vec2<f32>, width : f32, height : f32) -> f32 {
     }
 
     let normalized : f32 = clamp(length(scaled) / max_radius, 0.0, 1.0);
-    let masked : f32 = sqrt(normalized);
-    return pow(masked, 5.0);
+    return pow(normalized, 5.0);
 }
 
 fn sample_bilinear(pos : vec2<f32>, width : f32, height : f32) -> vec4<f32> {
@@ -307,11 +364,6 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let uv : vec2<f32> = (
         vec2<f32>(f32(gid.x), f32(gid.y)) + vec2<f32>(0.5, 0.5)
     ) / vec2<f32>(max(width_f, 1.0), max(height_f, 1.0));
-    let mask : f32 = singularity_mask(uv, width_f, height_f);
-    if (mask <= 0.0) {
-        store_pixel(base_index, original);
-        return;
-    }
 
     let freq : vec2<f32> = freq_for_shape(2.0, width_f, height_f);
     let coord : vec2<u32> = vec2<u32>(gid.xy);
@@ -324,11 +376,13 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         params.options.z
     );
 
-    let distortion : f32 = (noise_value * 2.0 - 1.0) * mask;
-    let angle : f32 = distortion * TAU;
-    let offsets : vec2<f32> = vec2<f32>(cos(angle), sin(angle))
-        * displacement * vec2<f32>(width_f, height_f);
-    let sample_pos : vec2<f32> = vec2<f32>(f32(gid.x), f32(gid.y)) + offsets;
+    // Barrel distortion: pixels pushed radially outward, stronger at edges
+    // Noise modulates the distortion strength for organic feel
+    let delta : vec2<f32> = uv - vec2<f32>(0.5, 0.5);
+    let r2 : f32 = dot(delta, delta);
+    let k : f32 = displacement * (noise_value * 2.0 - 1.0);
+    let distorted_uv : vec2<f32> = vec2<f32>(0.5, 0.5) + delta * (1.0 + k * r2);
+    let sample_pos : vec2<f32> = distorted_uv * vec2<f32>(width_f, height_f);
 
     let warped : vec4<f32> = sample_bilinear(sample_pos, width_f, height_f);
     let clamped : vec4<f32> = clamp(warped, vec4<f32>(0.0), vec4<f32>(1.0));

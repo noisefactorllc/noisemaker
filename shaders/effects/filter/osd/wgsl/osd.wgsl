@@ -42,7 +42,7 @@ struct OsdParams {
     seed : f32,
     speed : f32,
     time : f32,
-    _pad0 : f32,
+    corner : f32,
 }
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
@@ -115,10 +115,24 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let overlay_w : i32 = glyph_count * CELL_W + (glyph_count - 1) * GAP;
     let overlay_h : i32 = CELL_H;
 
-    // Position: bottom-right with padding
-    // WebGPU coords: y=0 is top, so bottom-right means large y
-    var origin_x : i32 = width - overlay_w - PADDING;
-    var origin_y : i32 = height - overlay_h - PADDING;
+    // Position based on corner (WebGPU coords: y=0 is top)
+    // 0=TL, 1=TR, 2=BL, 3=BR
+    let corner_val : i32 = i32(params.corner);
+    var origin_x : i32;
+    var origin_y : i32;
+    if (corner_val == 0) { // top-left
+        origin_x = PADDING;
+        origin_y = PADDING;
+    } else if (corner_val == 1) { // top-right
+        origin_x = width - overlay_w - PADDING;
+        origin_y = PADDING;
+    } else if (corner_val == 2) { // bottom-left
+        origin_x = PADDING;
+        origin_y = height - overlay_h - PADDING;
+    } else { // bottom-right (default)
+        origin_x = width - overlay_w - PADDING;
+        origin_y = height - overlay_h - PADDING;
+    }
     if (origin_x < 0) {
         origin_x = 0;
     }

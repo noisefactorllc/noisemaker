@@ -13,6 +13,7 @@ uniform float alpha;
 uniform float seed;
 uniform float speed;
 uniform float time;
+uniform int corner;
 
 layout(location = 0) out vec4 fragColor;
 
@@ -100,9 +101,23 @@ void main() {
     int overlay_w = glyph_count * CELL_W + (glyph_count - 1) * GAP;
     int overlay_h = CELL_H;
 
-    // Position: bottom-right with padding (GL coords: y=0 is bottom)
-    int origin_x = width - overlay_w - PADDING;
-    int origin_y = PADDING;
+    // Position based on corner (GL coords: y=0 is bottom)
+    // 0=TL, 1=TR, 2=BL, 3=BR
+    int origin_x;
+    int origin_y;
+    if (corner == 0) { // top-left
+        origin_x = PADDING;
+        origin_y = height - overlay_h - PADDING;
+    } else if (corner == 1) { // top-right
+        origin_x = width - overlay_w - PADDING;
+        origin_y = height - overlay_h - PADDING;
+    } else if (corner == 2) { // bottom-left
+        origin_x = PADDING;
+        origin_y = PADDING;
+    } else { // bottom-right (default)
+        origin_x = width - overlay_w - PADDING;
+        origin_y = PADDING;
+    }
     if (origin_x < 0) origin_x = 0;
     if (origin_y < 0) origin_y = 0;
 

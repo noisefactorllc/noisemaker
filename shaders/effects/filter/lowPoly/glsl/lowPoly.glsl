@@ -60,14 +60,15 @@ void main() {
         }
     }
 
-    // Sample input color at the nearest seed point
+    // Sample input color at the nearest seed point (color regions)
     vec4 cellColor = texture(inputTex, nearestPoint);
 
-    // Normalized distance for edge highlighting
-    float edgeDist = clamp((secondDist - minDist) * n * 2.0, 0.0, 1.0);
+    // Distance field using second-nearest distance (nth=1)
+    // Normalized so cell boundaries are dark, centers are bright
+    float distField = clamp(secondDist * n * 1.5, 0.0, 1.0);
 
-    // Blend: cell color with subtle distance-based edge darkening
-    vec3 result = cellColor.rgb * (0.85 + 0.15 * edgeDist);
+    // Blend 50/50 between distance field and color regions (matches Python)
+    vec3 result = mix(vec3(distField), cellColor.rgb, 0.5);
 
     // Alpha blend with original
     vec4 original = texture(inputTex, uv);

@@ -133,7 +133,7 @@ void main() {
     float texNoise = hash21(noiseSeed * 1.75);
     float modulated = mix(hatch, texNoise, 0.25);
     float attenuated = mix(1.0, modulated, clamp(pow(darkness, 1.4), 0.0, 1.0));
-    float crosshatch = clamp(1.0 - attenuated, 0.0, 1.0);
+    float crosshatch = clamp(attenuated, 0.0, 1.0);
 
     // --- Combine ---
     float blended = mix(crosshatch, outline, 0.75);

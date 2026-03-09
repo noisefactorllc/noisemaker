@@ -3,6 +3,7 @@ precision highp float;
 precision highp int;
 
 const float TAU = 6.28318530717958647692;
+const float PI = 3.14159265358979323846;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
@@ -66,6 +67,12 @@ float normalized_sine(float value) {
 
 float periodic_value(float time, float value) {
     return normalized_sine((time - value) * TAU);
+}
+
+// Cosine interpolation (matches Python blend_cosine / spline_order=2)
+float blend_cosine(float a, float b, float t) {
+    float t2 = (1.0 - cos(t * PI)) * 0.5;
+    return a * (1.0 - t2) + b * t2;
 }
 
 vec3 mod289_vec3(vec3 x) {
@@ -167,47 +174,99 @@ float simplex_noise(vec3 v) {
     );
 }
 
+// Evaluate simplex noise at an integer grid coordinate, mapped to [0,1]
+float grid_simplex(float gx, float gy, float gz, vec3 seed) {
+    return simplex_noise(vec3(gx + seed.x, gy + seed.y, gz + seed.z)) * 0.5 + 0.5;
+}
+
+// Generate noise matching Python values(freq, shape, spline_order=2):
+// Evaluate simplex at integer grid coords, cosine-interpolate, normalize
 float compute_noise_value(
     vec2 coord,
     float width,
     float height,
     vec2 freq,
-    float time,
-    float speed
+    float time_val,
+    float speed_val
 ) {
     float width_safe = max(width, 1.0);
     float height_safe = max(height, 1.0);
     float freq_x = max(freq.y, 1.0);
     float freq_y = max(freq.x, 1.0);
 
-    vec2 uv = vec2(
-        (float(coord.x) / width_safe) * freq_x,
-        (float(coord.y) / height_safe) * freq_y
+    // Map pixel to grid position (matching Python resample mapping)
+    vec2 grid_pos = vec2(
+        coord.x * freq_x / width_safe,
+        coord.y * freq_y / height_safe
     );
 
-    float angle = time * TAU;
-    float z_base = cos(angle) * speed;
-    vec3 base_seed = vec3(17.0, 29.0, 47.0);
-    float base_noise = simplex_noise(vec3(
-        uv.x + base_seed.x,
-        uv.y + base_seed.y,
-        z_base + base_seed.z
-    ));
-    float value = clamp(base_noise * 0.5 + 0.5, 0.0, 1.0);
+    // Grid cell and fractional position
+    vec2 cell = floor(grid_pos);
+    vec2 fract_pos = grid_pos - cell;
 
-    if (speed != 0.0 && time != 0.0) {
+    // Wrap grid coordinates (matching Python modulo wrapping)
+    float cx0 = mod(cell.x, freq_x);
+    float cx1 = mod(cell.x + 1.0, freq_x);
+    float cy0 = mod(cell.y, freq_y);
+    float cy1 = mod(cell.y + 1.0, freq_y);
+
+    // Time component (matching Python: z = cos(time * TAU) * speed)
+    float z_base = cos(time_val * TAU) * speed_val;
+    vec3 base_seed = vec3(17.0, 29.0, 47.0);
+
+    // Evaluate simplex at 4 grid corners
+    float v00 = grid_simplex(cx0, cy0, z_base, base_seed);
+    float v10 = grid_simplex(cx1, cy0, z_base, base_seed);
+    float v01 = grid_simplex(cx0, cy1, z_base, base_seed);
+    float v11 = grid_simplex(cx1, cy1, z_base, base_seed);
+
+    // Normalize grid values to [0,1] (matching Python normalize() after resample)
+    float min_val = min(min(v00, v10), min(v01, v11));
+    float max_val = max(max(v00, v10), max(v01, v11));
+    float range_val = max_val - min_val;
+    if (range_val > 0.001) {
+        v00 = (v00 - min_val) / range_val;
+        v10 = (v10 - min_val) / range_val;
+        v01 = (v01 - min_val) / range_val;
+        v11 = (v11 - min_val) / range_val;
+    }
+
+    // Cosine interpolation (matching Python spline_order=2 / blend_cosine)
+    float y0 = blend_cosine(v00, v10, fract_pos.x);
+    float y1 = blend_cosine(v01, v11, fract_pos.x);
+    float value = blend_cosine(y0, y1, fract_pos.y);
+
+    // Time animation (matching Python periodic_value logic)
+    if (speed_val != 0.0 && time_val != 0.0) {
         vec3 time_seed = vec3(
             base_seed.x + 54.0,
             base_seed.y + 82.0,
             base_seed.z + 124.0
         );
-        float time_noise = simplex_noise(vec3(
-            uv.x + time_seed.x,
-            uv.y + time_seed.y,
-            time_seed.z
-        ));
-        float time_value = clamp(time_noise * 0.5 + 0.5, 0.0, 1.0);
-        float scaled_time = periodic_value(time, time_value) * speed;
+        // Time noise evaluated at time=0, speed=1 → z = cos(0) * 1 = 1.0
+        float t00 = grid_simplex(cx0, cy0, 1.0, time_seed);
+        float t10 = grid_simplex(cx1, cy0, 1.0, time_seed);
+        float t01 = grid_simplex(cx0, cy1, 1.0, time_seed);
+        float t11 = grid_simplex(cx1, cy1, 1.0, time_seed);
+
+        // Normalize time noise
+        float tmin = min(min(t00, t10), min(t01, t11));
+        float tmax = max(max(t00, t10), max(t01, t11));
+        float trange = tmax - tmin;
+        if (trange > 0.001) {
+            t00 = (t00 - tmin) / trange;
+            t10 = (t10 - tmin) / trange;
+            t01 = (t01 - tmin) / trange;
+            t11 = (t11 - tmin) / trange;
+        }
+
+        float time_value = blend_cosine(
+            blend_cosine(t00, t10, fract_pos.x),
+            blend_cosine(t01, t11, fract_pos.x),
+            fract_pos.y
+        );
+
+        float scaled_time = periodic_value(time_val, time_value) * speed_val;
         value = clamp01(periodic_value(scaled_time, value));
     }
 
@@ -228,8 +287,7 @@ float singularity_mask(vec2 uv, float width, float height) {
     }
 
     float normalized = clamp(length(scaled) / max_radius, 0.0, 1.0);
-    float masked = sqrt(normalized);
-    return pow(masked, 5.0);
+    return pow(normalized, 5.0);
 }
 
 vec4 sample_bilinear(vec2 pos, float width, float height) {
@@ -308,11 +366,6 @@ void main() {
     vec2 uv = (
         vec2(float(global_id.x), float(global_id.y)) + vec2(0.5, 0.5)
     ) / vec2(max(width_f, 1.0), max(height_f, 1.0));
-    float mask = singularity_mask(uv, width_f, height_f);
-    if (mask <= 0.0) {
-        fragColor = original;
-        return;
-    }
 
     vec2 freq = freq_for_shape(2.0, width_f, height_f);
     vec2 coord = vec2(global_id.xy);
@@ -325,11 +378,13 @@ void main() {
         speed
     );
 
-    float distortion = (noise_value * 2.0 - 1.0) * mask;
-    float angle = distortion * TAU;
-    vec2 offsets = vec2(cos(angle), sin(angle))
-        * disp * vec2(width_f, height_f);
-    vec2 sample_pos = vec2(float(global_id.x), float(global_id.y)) + offsets;
+    // Barrel distortion: pixels pushed radially outward, stronger at edges
+    // Noise modulates the distortion strength for organic feel
+    vec2 delta = uv - vec2(0.5, 0.5);
+    float r2 = dot(delta, delta);
+    float k = disp * (noise_value * 2.0 - 1.0);
+    vec2 distorted_uv = vec2(0.5, 0.5) + delta * (1.0 + k * r2);
+    vec2 sample_pos = distorted_uv * vec2(width_f, height_f);
 
     vec4 warped = sample_bilinear(sample_pos, width_f, height_f);
     vec4 clamped = clamp(warped, vec4(0.0), vec4(1.0));

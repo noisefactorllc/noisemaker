@@ -1,8 +1,8 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * Vaseline - intense bloom at edges, blending to original toward center
- * Uses same N-tap bloom approach as bloom effect, with edge mask
+ * Vaseline - N-tap blur with edge-weighted blending
+ * Uses golden angle spiral kernel for smooth blur, stronger at edges
  */
 export default new Effect({
   name: "Vaseline",
@@ -25,31 +25,12 @@ export default new Effect({
         }
     }
   },
-  textures: {
-    _vaselineDownsample: {
-      width: 64,
-      height: 64,
-      format: "rgba16float"
-    }
-  },
   passes: [
     {
-      name: "downsample",
-      program: "downsample",
-      inputs: {
-        inputTex: "inputTex"
-      },
-      uniforms: {},
-      outputs: {
-        fragColor: "_vaselineDownsample"
-      }
-    },
-    {
-      name: "upsample",
+      name: "main",
       program: "upsample",
       inputs: {
-        inputTex: "inputTex",
-        downsampleBuffer: "_vaselineDownsample"
+        inputTex: "inputTex"
       },
       uniforms: {
         alpha: "alpha"

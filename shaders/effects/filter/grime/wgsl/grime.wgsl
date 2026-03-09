@@ -138,26 +138,26 @@ fn main(input: VertexOutput) -> @location(0) vec4<f32> {
     let mask_value = clamp01(mix(mask_refracted, mask_gradient, 0.125));
 
     // Blend input with dark dust using squared mask
-    let mask_power = clamp01(mask_value * mask_value * 0.075);
-    var dusty = mix(base_color.rgb, vec3<f32>(0.25), mask_power);
+    let mask_power = clamp01(mask_value * mask_value * 0.4);
+    var dusty = mix(base_color.rgb, vec3<f32>(0.15), mask_power);
 
     // Speck overlay: dropout + exponential noise, refracted
-    let freq_specks = dims * 0.25;
-    let dropout = select(0.0, 1.0, hash21(uv * dims + vec2<f32>(s + 37.0, s * 1.37)) < 0.25);
+    let freq_specks = dims * 0.1;
+    let dropout = select(0.0, 1.0, hash21(uv * dims + vec2<f32>(s + 37.0, s * 1.37)) < 0.4);
     let specks_field = refracted_exponential(uv, freq_specks, t, spd, px, 0.25, s + 71.0) * dropout;
-    let trimmed = clamp01((specks_field - 0.625) / 0.375);
+    let trimmed = clamp01((specks_field - 0.3) / 0.7);
     let specks = 1.0 - sqrt(trimmed);
 
     // Sparse noise
-    let sparse_mask = select(0.0, 1.0, hash21(uv * dims + vec2<f32>(s + 113.0, s + 171.0)) < 0.15);
+    let sparse_mask = select(0.0, 1.0, hash21(uv * dims + vec2<f32>(s + 113.0, s + 171.0)) < 0.25);
     let sparse_noise = exponential_noise(uv, dims, t, spd, s + 131.0) * sparse_mask;
 
     // Combine
-    dusty = mix(dusty, vec3<f32>(sparse_noise), 0.075);
+    dusty = mix(dusty, vec3<f32>(sparse_noise), 0.15);
     dusty = dusty * specks;
 
     // Final blend: mix input toward dusty layer using mask * strength
-    let blend_mask = clamp01(mask_value * 0.75 * str);
+    let blend_mask = clamp01(mask_value * str);
     let final_rgb = mix(base_color.rgb, dusty, blend_mask);
 
     return vec4<f32>(clamp(final_rgb, vec3<f32>(0.0), vec3<f32>(1.0)), base_color.a);
