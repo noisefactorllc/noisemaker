@@ -1,11 +1,15 @@
-#version 300 es
+/*
+ * Scratches - film scratch overlay using worm tracing (single-pass)
+ *
+ * 4 layers of worm traces, each max-blended.
+ * Low kink produces nearly-straight scratches.
+ * Subtractive noise creates breaks/gaps.
+ * Bright white scratches (mask * 8.0, clamped).
+ */
 
+#ifdef GL_ES
 precision highp float;
-precision highp int;
-
-// Scratches: procedural film scratch overlay.
-// Generates thin, mostly-vertical bright lines with breaks,
-// additively blended onto the input image.
+#endif
 
 uniform sampler2D inputTex;
 uniform float time;
@@ -16,93 +20,139 @@ uniform float speed;
 
 out vec4 fragColor;
 
-// Hash function for deterministic pseudo-random values
-float hash(float n) {
-    return fract(sin(n * 127.1) * 43758.5453123);
+const float TAU = 6.283185307179586;
+
+uint pcg(uint v) {
+    uint state = v * 747796405u + 2891336453u;
+    uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
 }
 
-float hash2(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+float hashf(uint n) {
+    return float(pcg(n)) / 4294967295.0;
 }
 
-// 1D noise for break patterns
-float breakNoise(float y, float freq, float seedVal) {
-    float scaled = y * freq;
-    float i = floor(scaled);
-    float f = fract(scaled);
-    f = f * f * (3.0 - 2.0 * f);  // smoothstep
-    float a = hash(i + seedVal * 17.3);
-    float b = hash(i + 1.0 + seedVal * 17.3);
-    return mix(a, b, f);
+float valueNoise(vec2 uv, float freq, uint nSeed) {
+    vec2 p = uv * freq;
+    vec2 cell = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float tl = hashf(pcg(uint(cell.x * 73.0 + cell.y * 157.0) + nSeed));
+    float tr = hashf(pcg(uint((cell.x + 1.0) * 73.0 + cell.y * 157.0) + nSeed));
+    float bl = hashf(pcg(uint(cell.x * 73.0 + (cell.y + 1.0) * 157.0) + nSeed));
+    float br = hashf(pcg(uint((cell.x + 1.0) * 73.0 + (cell.y + 1.0) * 157.0) + nSeed));
+    return mix(mix(tl, tr, f.x), mix(bl, br, f.x), f.y);
 }
 
 void main() {
-    ivec2 dims = textureSize(inputTex, 0);
-    if (dims.x <= 0 || dims.y <= 0) {
-        fragColor = vec4(0.0);
-        return;
+    ivec2 texSize = textureSize(inputTex, 0);
+    vec2 resolution = vec2(texSize);
+    vec2 uv = gl_FragCoord.xy / resolution;
+    vec4 base = texture(inputTex, uv);
+
+    float maxDim = max(resolution.x, resolution.y);
+    uint seedBase = uint(seed) * 99991u;
+
+    // Time-varying seed for animation
+    uint timeSeed = uint(floor(time * speed * 2.0));
+
+    float scratchMask = 0.0;
+
+    // 4 layers of scratches
+    for (int layer = 0; layer < 4; layer++) {
+        uint lSeed = pcg(seedBase + uint(layer) * 77773u + timeSeed * 33331u);
+
+        // Worm count scales with density: 5-30 worms per layer
+        int wormCount = int(5.0 + hashf(lSeed) * 25.0);
+
+        // Low kink: 0.125 + rand * 0.125
+        float kink = 0.125 + hashf(lSeed + 1u) * 0.125;
+
+        // Duration: ~50 steps
+        int steps = 40 + int(hashf(lSeed + 2u) * 20.0);
+
+        // Stride: 0.75 in UV, with deviation 0.5
+        float baseStride = maxDim * 0.75 / float(steps);
+
+        // Behavior: obedient (0) or chaotic (1)
+        int behavior = int(hashf(lSeed + 3u) * 2.0);
+
+        // Obedient: all worms share one heading
+        float sharedAngle = hashf(lSeed + 4u) * TAU;
+
+        // Flow field noise freq 2-4
+        float flowFreq = 2.0 + hashf(lSeed + 5u) * 2.0;
+        uint flowSeed = pcg(lSeed + 6u);
+
+        // Subtractive noise freq 2-4
+        float subFreq = 2.0 + hashf(lSeed + 7u) * 2.0;
+        uint subSeed = pcg(lSeed + 8u);
+
+        // Trail width: ~4px at 1024
+        float trailWidth = maxDim / 256.0;
+
+        float layerMask = 0.0;
+
+        for (int w = 0; w < 30; w++) {
+            if (w >= wormCount) break;
+
+            uint wSeed = lSeed + uint(w) * 13337u + 10000u;
+
+            // Random start position
+            float wx = hashf(wSeed) * resolution.x;
+            float wy = hashf(wSeed + 1u) * resolution.y;
+
+            // Per-worm stride deviation
+            float wStride = baseStride + (hashf(wSeed + 2u) - 0.5) * baseStride * 0.5;
+
+            // Per-worm angle (chaotic mode)
+            float wormAngle = hashf(wSeed + 3u) * TAU;
+
+            for (int s = 0; s < 60; s++) {
+                if (s >= steps) break;
+
+                // Distance check with wrapping
+                vec2 diff = gl_FragCoord.xy - vec2(wx, wy);
+                if (diff.x > resolution.x * 0.5) diff.x -= resolution.x;
+                if (diff.x < -resolution.x * 0.5) diff.x += resolution.x;
+                if (diff.y > resolution.y * 0.5) diff.y -= resolution.y;
+                if (diff.y < -resolution.y * 0.5) diff.y += resolution.y;
+
+                float dist = length(diff);
+                if (dist < trailWidth) {
+                    layerMask += 1.0 - dist / trailWidth;
+                }
+
+                // Flow field direction
+                vec2 wormUv = vec2(mod(wx, resolution.x), mod(wy, resolution.y)) / resolution;
+                float field = valueNoise(wormUv, flowFreq, flowSeed);
+
+                float angle;
+                if (behavior == 0) {
+                    // Obedient: shared heading + small flow deviation
+                    angle = sharedAngle + (field - 0.5) * kink * TAU;
+                } else {
+                    // Chaotic: per-worm heading + flow deviation
+                    angle = wormAngle + (field - 0.5) * kink * TAU;
+                }
+
+                wx = mod(wx + cos(angle) * wStride, resolution.x);
+                wy = mod(wy + sin(angle) * wStride, resolution.y);
+            }
+        }
+
+        // Subtractive noise creates breaks
+        float subNoise = valueNoise(uv, subFreq, subSeed) * 2.0;
+        layerMask = max(layerMask - subNoise, 0.0);
+
+        // Bright: mask * 8.0, clamped — max-blend across layers
+        scratchMask = max(scratchMask, min(layerMask * 8.0, 1.0));
     }
 
-    vec2 resolution = vec2(float(dims.x), float(dims.y));
-    vec2 pixelPos = gl_FragCoord.xy;
-    vec2 uv = pixelPos / resolution;
+    // Density controls scratch intensity, alpha controls blend with input
+    float scratchStrength = scratchMask * density;
+    vec3 scratched = max(base.rgb, vec3(scratchStrength));
+    vec3 finalResult = mix(base.rgb, scratched, alpha);
 
-    vec4 base = texelFetch(inputTex, ivec2(pixelPos), 0);
-
-    float timeOffset = time * speed * 60.0;
-
-    // Number of scratch lines based on density
-    int numScratches = max(int(density * 20.0), 1);
-
-    float totalScratch = 0.0;
-
-    for (int i = 0; i < 20; i++) {
-        if (i >= numScratches) break;
-
-        float fi = float(i);
-        float seedBase = fi + float(seed) * 13.7;
-
-        // Random x position for this scratch (0..1)
-        float scratchX = hash(seedBase);
-
-        // Slight angle: small deviation from vertical
-        float angle = (hash(seedBase + 3.1) - 0.5) * 0.08;
-
-        // Low-frequency sine wobble for slight curvature
-        float wobbleFreq = 1.0 + hash(seedBase + 7.7) * 2.0;
-        float wobblePhase = hash(seedBase + 11.3) * 6.2832;
-        float wobbleAmp = (0.002 + hash(seedBase + 5.5) * 0.006);
-
-        // Vertical scrolling for animation
-        float scrollSpeed = (0.5 + hash(seedBase + 9.9) * 1.0) * speed;
-        float yOffset = time * scrollSpeed;
-
-        // Compute line center x at this y position
-        float y = uv.y + yOffset;
-        float lineX = scratchX + angle * (uv.y - 0.5) + sin(y * wobbleFreq * 6.2832 + wobblePhase) * wobbleAmp;
-
-        // Distance from pixel to line in pixels
-        float dist = abs(uv.x - lineX) * resolution.x;
-
-        // Line thickness: 1-2 pixels
-        float thickness = 0.8 + hash(seedBase + 2.2) * 0.7;
-        float line = smoothstep(thickness, 0.0, dist);
-
-        // Create breaks using noise
-        float breakSeed = seedBase + 100.0;
-        float breakVal = breakNoise(y * 3.0, 4.0 + hash(breakSeed) * 4.0, breakSeed);
-        // Threshold: only show where noise > ~0.5, creating gaps
-        float breakMask = smoothstep(0.35, 0.55, breakVal);
-
-        // Brightness variation per scratch
-        float brightness = 0.6 + hash(seedBase + 4.4) * 0.4;
-
-        totalScratch += line * breakMask * brightness;
-    }
-
-    // Apply alpha and additive blend
-    vec3 scratchColor = vec3(totalScratch * alpha);
-    vec3 result = min(base.rgb + scratchColor, vec3(1.0));
-
-    fragColor = vec4(result, base.a);
+    fragColor = vec4(finalResult, base.a);
 }

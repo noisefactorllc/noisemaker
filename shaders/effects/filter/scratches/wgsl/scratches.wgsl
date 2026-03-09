@@ -1,6 +1,11 @@
-// Scratches: procedural film scratch overlay.
-// Generates thin, mostly-vertical bright lines with breaks,
-// additively blended onto the input image.
+/*
+ * Scratches - film scratch overlay using worm tracing (single-pass)
+ *
+ * 4 layers of worm traces, each max-blended.
+ * Low kink produces nearly-straight scratches.
+ * Subtractive noise creates breaks/gaps.
+ * Bright white scratches (mask * 8.0, clamped).
+ */
 
 @group(0) @binding(0) var samp : sampler;
 @group(0) @binding(1) var inputTex : texture_2d<f32>;
@@ -10,24 +15,32 @@
 @group(0) @binding(5) var<uniform> seed : f32;
 @group(0) @binding(6) var<uniform> speed : f32;
 
-// Hash function for deterministic pseudo-random values
-fn hash(n : f32) -> f32 {
-    return fract(sin(n * 127.1) * 43758.5453123);
+const TAU : f32 = 6.283185307179586;
+
+fn pcg(v : u32) -> u32 {
+    let state : u32 = v * 747796405u + 2891336453u;
+    let word : u32 = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
 }
 
-fn hash2(p : vec2<f32>) -> f32 {
-    return fract(sin(dot(p, vec2<f32>(127.1, 311.7))) * 43758.5453123);
+fn hashf(n : u32) -> f32 {
+    return f32(pcg(n)) / 4294967295.0;
 }
 
-// 1D noise for break patterns
-fn breakNoise(y : f32, freq : f32, seedVal : f32) -> f32 {
-    let scaled : f32 = y * freq;
-    let i : f32 = floor(scaled);
-    var f : f32 = fract(scaled);
-    f = f * f * (3.0 - 2.0 * f);  // smoothstep
-    let a : f32 = hash(i + seedVal * 17.3);
-    let b : f32 = hash(i + 1.0 + seedVal * 17.3);
-    return mix(a, b, f);
+fn glsl_mod(x : f32, y : f32) -> f32 {
+    return x - y * floor(x / y);
+}
+
+fn valueNoise(uv : vec2<f32>, freq : f32, nSeed : u32) -> f32 {
+    let p : vec2<f32> = uv * freq;
+    let cell : vec2<f32> = floor(p);
+    var f : vec2<f32> = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    let tl : f32 = hashf(pcg(u32(cell.x * 73.0 + cell.y * 157.0) + nSeed));
+    let tr : f32 = hashf(pcg(u32((cell.x + 1.0) * 73.0 + cell.y * 157.0) + nSeed));
+    let bl : f32 = hashf(pcg(u32(cell.x * 73.0 + (cell.y + 1.0) * 157.0) + nSeed));
+    let br : f32 = hashf(pcg(u32((cell.x + 1.0) * 73.0 + (cell.y + 1.0) * 157.0) + nSeed));
+    return mix(mix(tl, tr, f.x), mix(bl, br, f.x), f.y);
 }
 
 @fragment
@@ -38,64 +51,113 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     }
 
     let resolution : vec2<f32> = vec2<f32>(f32(dims.x), f32(dims.y));
-    let pixelPos : vec2<f32> = position.xy;
-    let uv : vec2<f32> = pixelPos / resolution;
-
+    let uv : vec2<f32> = position.xy / resolution;
     let coord : vec2<i32> = vec2<i32>(i32(position.x), i32(position.y));
     let base : vec4<f32> = textureLoad(inputTex, coord, 0);
 
-    // Number of scratch lines based on density
-    let numScratches : i32 = max(i32(density * 20.0), 1);
+    let maxDim : f32 = max(resolution.x, resolution.y);
+    let seedBase : u32 = u32(seed) * 99991u;
 
-    var totalScratch : f32 = 0.0;
+    // Time-varying seed for animation
+    let timeSeed : u32 = u32(floor(time * speed * 2.0));
 
-    for (var i : i32 = 0; i < 20; i = i + 1) {
-        if (i >= numScratches) { break; }
+    var scratchMask : f32 = 0.0;
 
-        let fi : f32 = f32(i);
-        let seedBase : f32 = fi + seed * 13.7;
+    // 4 layers of scratches
+    for (var layer : i32 = 0; layer < 4; layer = layer + 1) {
+        let lSeed : u32 = pcg(seedBase + u32(layer) * 77773u + timeSeed * 33331u);
 
-        // Random x position for this scratch (0..1)
-        let scratchX : f32 = hash(seedBase);
+        // Worm count: 5-30 worms per layer
+        let wormCount : i32 = i32(5.0 + hashf(lSeed) * 25.0);
 
-        // Slight angle: small deviation from vertical
-        let angle : f32 = (hash(seedBase + 3.1) - 0.5) * 0.08;
+        // Low kink: 0.125 + rand * 0.125
+        let kink : f32 = 0.125 + hashf(lSeed + 1u) * 0.125;
 
-        // Low-frequency sine wobble for slight curvature
-        let wobbleFreq : f32 = 1.0 + hash(seedBase + 7.7) * 2.0;
-        let wobblePhase : f32 = hash(seedBase + 11.3) * 6.2832;
-        let wobbleAmp : f32 = 0.002 + hash(seedBase + 5.5) * 0.006;
+        // Duration: ~50 steps
+        let steps : i32 = 40 + i32(hashf(lSeed + 2u) * 20.0);
 
-        // Vertical scrolling for animation
-        let scrollSpeed : f32 = (0.5 + hash(seedBase + 9.9) * 1.0) * speed;
-        let yOffset : f32 = time * scrollSpeed;
+        // Stride
+        let baseStride : f32 = maxDim * 0.75 / f32(steps);
 
-        // Compute line center x at this y position
-        let y : f32 = uv.y + yOffset;
-        let lineX : f32 = scratchX + angle * (uv.y - 0.5) + sin(y * wobbleFreq * 6.2832 + wobblePhase) * wobbleAmp;
+        // Behavior: obedient (0) or chaotic (1)
+        let behavior : i32 = i32(hashf(lSeed + 3u) * 2.0);
 
-        // Distance from pixel to line in pixels
-        let dist : f32 = abs(uv.x - lineX) * resolution.x;
+        // Obedient: all worms share one heading
+        let sharedAngle : f32 = hashf(lSeed + 4u) * TAU;
 
-        // Line thickness: 1-2 pixels
-        let thickness : f32 = 0.8 + hash(seedBase + 2.2) * 0.7;
-        let line : f32 = smoothstep(thickness, 0.0, dist);
+        // Flow field noise freq 2-4
+        let flowFreq : f32 = 2.0 + hashf(lSeed + 5u) * 2.0;
+        let flowSeed : u32 = pcg(lSeed + 6u);
 
-        // Create breaks using noise
-        let breakSeed : f32 = seedBase + 100.0;
-        let breakVal : f32 = breakNoise(y * 3.0, 4.0 + hash(breakSeed) * 4.0, breakSeed);
-        // Threshold: only show where noise > ~0.5, creating gaps
-        let breakMask : f32 = smoothstep(0.35, 0.55, breakVal);
+        // Subtractive noise freq 2-4
+        let subFreq : f32 = 2.0 + hashf(lSeed + 7u) * 2.0;
+        let subSeed : u32 = pcg(lSeed + 8u);
 
-        // Brightness variation per scratch
-        let brightness : f32 = 0.6 + hash(seedBase + 4.4) * 0.4;
+        // Trail width: ~4px at 1024
+        let trailWidth : f32 = maxDim / 256.0;
 
-        totalScratch = totalScratch + line * breakMask * brightness;
+        var layerMask : f32 = 0.0;
+
+        for (var w : i32 = 0; w < 30; w = w + 1) {
+            if (w >= wormCount) { break; }
+
+            let wSeed : u32 = lSeed + u32(w) * 13337u + 10000u;
+
+            // Random start position
+            var wx : f32 = hashf(wSeed) * resolution.x;
+            var wy : f32 = hashf(wSeed + 1u) * resolution.y;
+
+            // Per-worm stride deviation
+            let wStride : f32 = baseStride + (hashf(wSeed + 2u) - 0.5) * baseStride * 0.5;
+
+            // Per-worm angle (chaotic mode)
+            let wormAngle : f32 = hashf(wSeed + 3u) * TAU;
+
+            for (var s : i32 = 0; s < 60; s = s + 1) {
+                if (s >= steps) { break; }
+
+                // Distance check with wrapping
+                var diff : vec2<f32> = position.xy - vec2<f32>(wx, wy);
+                if (diff.x > resolution.x * 0.5) { diff.x = diff.x - resolution.x; }
+                if (diff.x < -resolution.x * 0.5) { diff.x = diff.x + resolution.x; }
+                if (diff.y > resolution.y * 0.5) { diff.y = diff.y - resolution.y; }
+                if (diff.y < -resolution.y * 0.5) { diff.y = diff.y + resolution.y; }
+
+                let dist : f32 = length(diff);
+                if (dist < trailWidth) {
+                    layerMask = layerMask + 1.0 - dist / trailWidth;
+                }
+
+                // Flow field direction
+                let wormUv : vec2<f32> = vec2<f32>(glsl_mod(wx, resolution.x), glsl_mod(wy, resolution.y)) / resolution;
+                let field : f32 = valueNoise(wormUv, flowFreq, flowSeed);
+
+                var angle : f32;
+                if (behavior == 0) {
+                    // Obedient: shared heading + small flow deviation
+                    angle = sharedAngle + (field - 0.5) * kink * TAU;
+                } else {
+                    // Chaotic: per-worm heading + flow deviation
+                    angle = wormAngle + (field - 0.5) * kink * TAU;
+                }
+
+                wx = glsl_mod(wx + cos(angle) * wStride, resolution.x);
+                wy = glsl_mod(wy + sin(angle) * wStride, resolution.y);
+            }
+        }
+
+        // Subtractive noise creates breaks
+        let subNoise : f32 = valueNoise(uv, subFreq, subSeed) * 2.0;
+        layerMask = max(layerMask - subNoise, 0.0);
+
+        // Bright: mask * 8.0, clamped — max-blend across layers
+        scratchMask = max(scratchMask, min(layerMask * 8.0, 1.0));
     }
 
-    // Apply alpha and additive blend
-    let scratchColor : vec3<f32> = vec3<f32>(totalScratch * alpha);
-    let result : vec3<f32> = min(base.rgb + scratchColor, vec3<f32>(1.0));
+    // Density controls scratch intensity, alpha controls blend with input
+    let scratchStrength : f32 = scratchMask * density;
+    let scratched : vec3<f32> = max(base.rgb, vec3<f32>(scratchStrength));
+    let finalResult : vec3<f32> = mix(base.rgb, scratched, alpha);
 
-    return vec4<f32>(result, base.a);
+    return vec4<f32>(finalResult, base.a);
 }
