@@ -1,13 +1,12 @@
 /*
  * Pixel Sort - Sort and Finalize pass
  *
- * For each pixel in the rotated image:
- * 1. Find the contiguous run of bright pixels (above threshold) containing this pixel
- * 2. Compute this pixel's rank within the run (count of brighter pixels)
- * 3. Gather the pixel at the ranked position within the run
- * 4. Rotate back and blend with original
- *
- * Matches Python reference: row-based sorting with brightest-alignment and max blend.
+ * Full-row sorting (matches Python reference):
+ * 1. Find brightest pixel in row (argmax)
+ * 2. Count rank: how many pixels in the entire row are brighter
+ * 3. Offset by brightest position: srcX = (rank + brightestX) % width
+ * 4. Gather pixel at srcX
+ * 5. Un-invert if darkest mode, rotate back, max-blend with original
  */
 
 #ifdef GL_ES
@@ -19,7 +18,6 @@ uniform sampler2D preparedTex;
 uniform sampler2D inputTex;
 uniform float angle;
 uniform bool darkest;
-uniform float threshold;
 uniform float alpha;
 
 out vec4 fragColor;
@@ -36,58 +34,39 @@ void main() {
     vec2 center = size * 0.5;
     int width = prepSize.x;
 
-    // Current pixel in output space = rotated space
     ivec2 coord = ivec2(gl_FragCoord.xy);
     int x = coord.x;
     int y = coord.y;
 
     float myLum = luminance(texelFetch(preparedTex, coord, 0).rgb);
 
-    // Default: pass through the prepared pixel
-    vec4 sortedColor = texelFetch(preparedTex, coord, 0);
-
-    // Only sort pixels above threshold
-    if (myLum >= threshold) {
-        // Find run boundaries: contiguous bright pixels in this row
-        int runStart = x;
-        int runEnd = x;
-
-        // Scan left to find run start
-        for (int i = x - 1; i >= max(0, x - 512); i--) {
-            float lum = luminance(texelFetch(preparedTex, ivec2(i, y), 0).rgb);
-            if (lum < threshold) break;
-            runStart = i;
-        }
-
-        // Scan right to find run end
-        for (int i = x + 1; i <= min(width - 1, x + 512); i++) {
-            float lum = luminance(texelFetch(preparedTex, ivec2(i, y), 0).rgb);
-            if (lum < threshold) break;
-            runEnd = i;
-        }
-
-        int runLen = runEnd - runStart + 1;
-
-        if (runLen > 1) {
-            // Count how many pixels in this run are brighter than me
-            // (or same brightness but earlier in row = stable sort)
-            int rank = 0;
-            for (int i = runStart; i <= runEnd; i++) {
-                float otherLum = luminance(texelFetch(preparedTex, ivec2(i, y), 0).rgb);
-                if (otherLum > myLum || (otherLum == myLum && i < x)) {
-                    rank++;
-                }
-            }
-
-            // Gather: pixel at position (runStart + rank) in the sorted order
-            // rank 0 = brightest, so position runStart + rank
-            int srcX = runStart + rank;
-            srcX = clamp(srcX, runStart, runEnd);
-            sortedColor = texelFetch(preparedTex, ivec2(srcX, y), 0);
+    // Step 1: Find brightest pixel in row (argmax)
+    int brightestX = 0;
+    float brightestLum = -1.0;
+    for (int i = 0; i < width; i++) {
+        float lum = luminance(texelFetch(preparedTex, ivec2(i, y), 0).rgb);
+        if (lum > brightestLum) {
+            brightestLum = lum;
+            brightestX = i;
         }
     }
 
-    // Un-invert if darkest mode
+    // Step 2: Count rank (how many pixels in entire row are brighter)
+    int rank = 0;
+    for (int i = 0; i < width; i++) {
+        float otherLum = luminance(texelFetch(preparedTex, ivec2(i, y), 0).rgb);
+        if (otherLum > myLum || (otherLum == myLum && i < x)) {
+            rank++;
+        }
+    }
+
+    // Step 3: Offset by brightest position
+    int srcX = (rank + brightestX) % width;
+
+    // Step 4: Gather
+    vec4 sortedColor = texelFetch(preparedTex, ivec2(srcX, y), 0);
+
+    // Step 5: Un-invert if darkest mode
     if (darkest) {
         sortedColor.rgb = 1.0 - sortedColor.rgb;
     }
@@ -98,7 +77,6 @@ void main() {
     float c = cos(rad);
     float s = sin(rad);
 
-    // Forward rotation (inverse of prepare's inverse)
     vec2 origCoord;
     origCoord.x = c * pixelCoord.x - s * pixelCoord.y;
     origCoord.y = s * pixelCoord.x + c * pixelCoord.y;

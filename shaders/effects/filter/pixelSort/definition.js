@@ -5,7 +5,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  *
  * Two-pass pipeline:
  * 1. Prepare: Rotate by angle, optionally invert for darkest-first mode
- * 2. Sort & Finalize: Per-row threshold-based sorting, rotate back, blend
+ * 2. Sort & Finalize: Full-row sorting with argmax offset, rotate back, blend
  */
 export default new Effect({
   name: "Pixel Sort",
@@ -34,18 +34,6 @@ export default new Effect({
       ui: {
         label: "darkest first",
         control: "checkbox"
-      }
-    },
-    threshold: {
-      type: "float",
-      default: 0.5,
-      uniform: "threshold",
-      min: 0,
-      max: 1,
-      step: 0.01,
-      ui: {
-        label: "threshold",
-        control: "slider"
       }
     },
     alpha: {
@@ -89,7 +77,6 @@ export default new Effect({
       uniforms: {
         angle: "angle",
         darkest: "darkest",
-        threshold: "threshold",
         alpha: "alpha"
       },
       outputs: {
