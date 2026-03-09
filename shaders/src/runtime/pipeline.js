@@ -6,6 +6,7 @@
 import { WebGL2Backend } from './backends/webgl2.js'
 import { WebGPUBackend } from './backends/webgpu.js'
 import { expandPalette } from './palette-expansion.js'
+import { getEffect } from './registry.js'
 
 /**
  * Oscillator evaluation functions.
@@ -278,6 +279,9 @@ export class Pipeline {
             midi: null,   // MidiState instance
             audio: null   // AudioState instance
         }
+
+        // Track effect instances for asyncInit lifecycle
+        this._asyncRenders = new Map()  // nodeId → cancel function
     }
 
     /**
@@ -404,6 +408,56 @@ export class Pipeline {
         // Collect default uniforms from passes for parameter-based texture sizing
         const defaultUniforms = this.collectDefaultUniforms()
         this.recreateTextures(defaultUniforms)
+        this.initAsyncEffects()
+    }
+
+    /**
+     * Initialize effects that have asyncInit handlers.
+     * Called after texture allocation and on seed change.
+     */
+    initAsyncEffects() {
+        if (!this.graph || !this.graph.passes) return
+
+        // Find unique effects with asyncInit by scanning passes
+        const seen = new Set()
+        for (const pass of this.graph.passes) {
+            if (!pass.effectKey || !pass.nodeId || seen.has(pass.nodeId)) continue
+            seen.add(pass.nodeId)
+
+            const effectDef = getEffect(pass.effectKey)
+            if (!effectDef) continue
+
+            // Check if effect has a real asyncInit (not the base class no-op)
+            const hasAsyncInit = effectDef._configAsyncInit ||
+                (effectDef.asyncInit && effectDef.asyncInit !== Object.getPrototypeOf(effectDef).constructor.prototype?.asyncInit)
+            if (!hasAsyncInit) continue
+
+            this._startAsyncInit(pass.nodeId, effectDef)
+        }
+    }
+
+    _startAsyncInit(nodeId, effectDef) {
+        // Cancel previous render for this node
+        const prevCancel = this._asyncRenders.get(nodeId)
+        if (prevCancel) prevCancel()
+
+        let cancelled = false
+        this._asyncRenders.set(nodeId, () => { cancelled = true })
+
+        const context = {
+            updateTexture: (texName, canvas) => {
+                if (cancelled) return
+                // Map effect-local texture name to graph-scoped name
+                const texId = `${nodeId}_${texName}`
+                this.backend.updateTextureFromSource(texId, canvas, { flipY: true })
+            },
+            width: this.width,
+            height: this.height,
+            params: { ...this.globalUniforms },
+            isCancelled: () => cancelled
+        }
+
+        effectDef.asyncInit(context)
     }
 
     /**
@@ -876,6 +930,11 @@ export class Pipeline {
 
         const oldValue = this.globalUniforms[name]
         this.globalUniforms[name] = value
+
+        // Re-trigger async rendering when seed changes
+        if (name === 'seed') {
+            this.initAsyncEffects()
+        }
 
         // Legacy classicNoisedeck palette expansion:
         // When the 'palette' uniform is set with an integer, expand the preset
@@ -1557,6 +1616,12 @@ export class Pipeline {
      * Dispose of all pipeline resources
      */
     dispose() {
+        // Cancel all async renders
+        for (const cancel of this._asyncRenders.values()) {
+            cancel()
+        }
+        this._asyncRenders.clear()
+
         // Destroy all global surfaces
         for (const [name] of this.surfaces) {
             this.backend.destroyTexture(`global_${name}_read`)
