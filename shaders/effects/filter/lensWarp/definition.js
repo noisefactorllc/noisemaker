@@ -2,29 +2,30 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Lens Warp
- * /shaders/effects/lens_warp/lens_warp.wgsl
+ * Noise-driven radial lens distortion
  */
 export default new Effect({
-  name: "LensWarp",
-  namespace: "classicNoisemaker",
+  name: "Lens Warp",
+  namespace: "filter",
   func: "lensWarp",
   tags: ["distort"],
 
-  description: "Lens warp distortion",
+  description: "Noise-driven radial lens distortion",
   globals: {
     displacement: {
-        type: "float",
-        default: 0.0625,
-        uniform: "displacement",
-        min: 0,
-        max: 0.5,
-        step: 0.0025,
-        ui: {
-            label: "displacement",
-            control: "slider"
-        }
+      type: "float",
+      default: 0.005,
+      uniform: "displacement",
+      min: 0,
+      max: 0.05,
+      step: 0.001,
+      zero: 0,
+      ui: {
+        label: "displacement",
+        control: "slider"
+      }
     }
-},
+  },
   passes: [
     {
       name: "main",
@@ -36,7 +37,7 @@ export default new Effect({
         displacement: "displacement"
       },
       outputs: {
-        outputBuffer: "outputTex"
+        fragColor: "outputTex"
       }
     }
   ]
