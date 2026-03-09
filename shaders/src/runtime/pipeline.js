@@ -935,23 +935,18 @@ export class Pipeline {
 
         // Re-trigger async rendering when a relevant param changes
         // Any effect with asyncInit that has this uniform (and it's not 'alpha') triggers regen
-        if (this._asyncRenders.size > 0) {
-            let shouldRegen = false
+        if (name !== 'alpha' && this.graph?.passes) {
             const seen = new Set()
-            for (const pass of (this.graph?.passes || [])) {
+            for (const pass of this.graph.passes) {
                 if (!pass.effectKey || !pass.nodeId || seen.has(pass.nodeId)) continue
                 seen.add(pass.nodeId)
                 const effectDef = getEffect(pass.effectKey)
                 if (!effectDef) continue
                 if (!effectDef._configAsyncInit && effectDef.asyncInit === Effect.prototype.asyncInit) continue
-                // Regen if this param is in the effect's globals (except alpha which is shader-side only)
-                if (effectDef.globals && name in effectDef.globals && name !== 'alpha') {
-                    shouldRegen = true
-                    break
+                if (effectDef.globals && name in effectDef.globals) {
+                    console.log(`[Pipeline] regen asyncInit: ${name}=${value} for ${pass.effectKey}`)
+                    this._startAsyncInit(pass.nodeId, effectDef)
                 }
-            }
-            if (shouldRegen) {
-                this.initAsyncEffects()
             }
         }
 
