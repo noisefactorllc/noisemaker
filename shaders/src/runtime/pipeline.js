@@ -7,6 +7,7 @@ import { WebGL2Backend } from './backends/webgl2.js'
 import { WebGPUBackend } from './backends/webgpu.js'
 import { expandPalette } from './palette-expansion.js'
 import { getEffect } from './registry.js'
+import { Effect } from './effect.js'
 
 /**
  * Oscillator evaluation functions.
@@ -428,9 +429,7 @@ export class Pipeline {
             if (!effectDef) continue
 
             // Check if effect has a real asyncInit (not the base class no-op)
-            const hasAsyncInit = effectDef._configAsyncInit ||
-                (effectDef.asyncInit && effectDef.asyncInit !== Object.getPrototypeOf(effectDef).constructor.prototype?.asyncInit)
-            if (!hasAsyncInit) continue
+            if (!effectDef._configAsyncInit && effectDef.asyncInit === Effect.prototype.asyncInit) continue
 
             this._startAsyncInit(pass.nodeId, effectDef)
         }
