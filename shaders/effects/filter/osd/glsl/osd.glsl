@@ -3,11 +3,9 @@
 precision highp float;
 precision highp int;
 
-// OSD: Procedural on-screen display overlay.
-// Renders hash-based pseudo-glyph block patterns at bottom-right,
-// matching the spirit of the Python on_screen_display effect.
-
-const float TAU = 6.283185307179586;
+// OSD: On-screen display overlay with bank_ocr digit bitmaps.
+// Renders a small readout of 3-6 digits at the bottom-right corner,
+// with time-cycling digit values and green/white OSD tint.
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
@@ -18,9 +16,38 @@ uniform float time;
 
 layout(location = 0) out vec4 fragColor;
 
-// Grid dimensions for each pseudo-glyph
-const int GLYPH_COLS = 3;
-const int GLYPH_ROWS = 5;
+// Bank OCR bitmaps: 10 digits, 7 wide x 8 tall each
+// Index as GLYPHS[digit * 8 + row], test bit (val >> (6 - col)) & 1
+const int GLYPHS[80] = int[80](
+    // Digit 0
+    0x3C, 0x42, 0x42, 0x42, 0x42, 0x42, 0x3C, 0x00,
+    // Digit 1
+    0x18, 0x08, 0x08, 0x08, 0x1C, 0x1C, 0x1C, 0x00,
+    // Digit 2
+    0x1C, 0x04, 0x04, 0x1C, 0x10, 0x10, 0x1C, 0x00,
+    // Digit 3
+    0x1C, 0x04, 0x04, 0x1C, 0x06, 0x06, 0x1E, 0x00,
+    // Digit 4
+    0x60, 0x60, 0x60, 0x60, 0x66, 0x7E, 0x06, 0x00,
+    // Digit 5
+    0x3C, 0x20, 0x20, 0x3C, 0x04, 0x04, 0x3C, 0x00,
+    // Digit 6
+    0x78, 0x48, 0x40, 0x40, 0x7E, 0x42, 0x7E, 0x00,
+    // Digit 7
+    0x3C, 0x24, 0x04, 0x0C, 0x08, 0x08, 0x08, 0x00,
+    // Digit 8
+    0x3C, 0x24, 0x24, 0x7E, 0x66, 0x66, 0x7E, 0x00,
+    // Digit 9
+    0x3E, 0x22, 0x22, 0x3E, 0x06, 0x06, 0x06, 0x00
+);
+
+const int GLYPH_W = 7;
+const int GLYPH_H = 8;
+const int SCALE = 3;
+const int CELL_W = GLYPH_W * SCALE;  // 21 pixels
+const int CELL_H = GLYPH_H * SCALE;  // 24 pixels
+const int GAP = SCALE;               // gap between glyphs
+const int PADDING = 25;
 
 uint pcg(uint v_in) {
     uint state = v_in * 747796405u + 2891336453u;
@@ -36,41 +63,13 @@ uint hash3(uint a, uint b, uint c) {
     return pcg(hash2(a, b) ^ (c * 0x94d049bbu + 0x5bf03635u));
 }
 
-// Determine if a cell (row, col) in a glyph is "on"
-// Uses seed + glyph index to produce a deterministic 3x5 binary pattern
-// that looks like a seven-segment style readout character
-float glyph_cell(uint glyph_seed, int row, int col) {
-    // Hash the glyph seed with row and col
-    uint h = hash3(glyph_seed, uint(row), uint(col));
-    // Use different thresholds for edges vs interior to get segment-like shapes
-    // Top/bottom rows and left/right cols are more likely to be on (frame)
-    bool is_edge_row = (row == 0 || row == 2 || row == GLYPH_ROWS - 1);
-    bool is_edge_col = (col == 0 || col == GLYPH_COLS - 1);
-    float threshold;
-    if (is_edge_row && !is_edge_col) {
-        // Horizontal segments
-        threshold = 0.45;
-    } else if (is_edge_col && !is_edge_row) {
-        // Vertical segments
-        threshold = 0.55;
-    } else if (is_edge_row && is_edge_col) {
-        // Corners - less likely
-        threshold = 0.7;
-    } else {
-        // Interior - rarely on
-        threshold = 0.85;
-    }
-    float val = float(h) / 4294967296.0;
-    return val < threshold ? 1.0 : 0.0;
-}
-
-// Get the glyph index for a given cell position, animated by time
-uint get_glyph_seed(uint base_seed, int glyph_index, float time_value, float speed_value) {
-    float angle = TAU * time_value;
-    float z = cos(angle) * speed_value;
-    // Quantize z to get discrete glyph changes
-    int z_cell = int(floor(z));
-    return hash3(base_seed, uint(glyph_index), uint(z_cell));
+// Sample the bitmap for a given digit at pixel-local coords
+float sample_glyph(int digit, int localX, int localY) {
+    int gx = localX / SCALE;
+    int gy = localY / SCALE;
+    if (gx < 0 || gx >= GLYPH_W || gy < 0 || gy >= GLYPH_H) return 0.0;
+    int row = GLYPHS[digit * 8 + gy];
+    return float((row >> (6 - gx)) & 1);
 }
 
 void main() {
@@ -82,76 +81,79 @@ void main() {
     vec4 texel = texelFetch(inputTex, coord, 0);
 
     float blend_alpha = clamp(alpha, 0.0, 1.0);
+
+    // Subtle scanline tint across entire image (OSD monitor feel)
+    float scanline = 1.0 - 0.03 * blend_alpha * float(coord.y & 1);
+    vec3 base_rgb = texel.rgb * scanline;
+
     if (blend_alpha <= 0.0) {
-        fragColor = texel;
+        fragColor = vec4(base_rgb, texel.a);
         return;
     }
 
     uint base_seed = uint(max(seed, 1.0));
 
-    // Determine glyph count (3-6) from seed
+    // Glyph count: 3-6 from seed
     int glyph_count = 3 + int(hash2(base_seed, 42u) % 4u);
 
-    // Scale: each glyph pixel is scale x scale screen pixels
-    int base_segment = width / 24;
-    if (base_segment < GLYPH_COLS) {
-        fragColor = texel;
-        return;
-    }
-    int scale = max(base_segment / GLYPH_COLS, 1);
+    // Overlay dimensions
+    int overlay_w = glyph_count * CELL_W + (glyph_count - 1) * GAP;
+    int overlay_h = CELL_H;
 
-    int glyph_pixel_w = GLYPH_COLS * scale;
-    int glyph_pixel_h = GLYPH_ROWS * scale;
-    int gap = scale; // 1-pixel-scaled gap between glyphs
-    int overlay_w = glyph_count * glyph_pixel_w + (glyph_count - 1) * gap;
-    int overlay_h = glyph_pixel_h;
-    int padding = 25;
-
-    // Position: bottom-right with padding
-    int origin_x = width - overlay_w - padding;
-    int origin_y = height - overlay_h - padding;
+    // Position: bottom-right with padding (GL coords: y=0 is bottom)
+    int origin_x = width - overlay_w - PADDING;
+    int origin_y = PADDING;
     if (origin_x < 0) origin_x = 0;
     if (origin_y < 0) origin_y = 0;
 
-    // Check if pixel is in OSD region
+    // Expand OSD region with padding for background panel
+    int panel_pad = GAP * 2;
+    int panel_x0 = origin_x - panel_pad;
+    int panel_y0 = origin_y - panel_pad;
+    int panel_x1 = origin_x + overlay_w + panel_pad;
+    int panel_y1 = origin_y + overlay_h + panel_pad;
+
+    // Outside panel region: just scanline
+    if (coord.x < panel_x0 || coord.x >= panel_x1 || coord.y < panel_y0 || coord.y >= panel_y1) {
+        fragColor = vec4(base_rgb, texel.a);
+        return;
+    }
+
+    // Check if pixel is in OSD glyph region
     int lx = coord.x - origin_x;
     int ly = coord.y - origin_y;
-    if (lx < 0 || lx >= overlay_w || ly < 0 || ly >= overlay_h) {
-        fragColor = texel;
+
+    float mask = 0.0;
+    if (lx >= 0 && lx < overlay_w && ly >= 0 && ly < overlay_h) {
+        // Determine which glyph
+        int cell_stride = CELL_W + GAP;
+        int glyph_idx = lx / cell_stride;
+        int within_glyph_x = lx - glyph_idx * cell_stride;
+
+        if (within_glyph_x < CELL_W && glyph_idx < glyph_count) {
+            // Local Y within glyph (flip so row 0 is top of glyph)
+            int local_y = (CELL_H - 1) - ly;
+
+            // Time-cycling digit selection
+            int time_cell = int(floor(time * max(speed, 0.001)));
+            uint digit_hash = hash3(base_seed, uint(glyph_idx), uint(time_cell));
+            int digit = int(digit_hash % 10u);
+
+            mask = sample_glyph(digit, within_glyph_x, local_y);
+        }
+    }
+
+    // Dark background panel behind digits
+    vec3 panel_bg = base_rgb * (1.0 - 0.5 * blend_alpha);
+
+    if (mask < 0.5) {
+        fragColor = vec4(clamp(panel_bg, 0.0, 1.0), texel.a);
         return;
     }
 
-    // Determine which glyph and which cell within it
-    int cell_stride = glyph_pixel_w + gap;
-    int glyph_idx = lx / cell_stride;
-    int within_glyph_x = lx - glyph_idx * cell_stride;
-
-    // If in the gap between glyphs, pass through
-    if (within_glyph_x >= glyph_pixel_w || glyph_idx >= glyph_count) {
-        fragColor = texel;
-        return;
-    }
-
-    int cell_col = within_glyph_x / scale;
-    int cell_row_raw = ly / scale;
-    // Flip vertically so row 0 is bottom (screen y increases downward)
-    int cell_row = (GLYPH_ROWS - 1) - cell_row_raw;
-
-    if (cell_col < 0 || cell_col >= GLYPH_COLS || cell_row < 0 || cell_row >= GLYPH_ROWS) {
-        fragColor = texel;
-        return;
-    }
-
-    uint glyph_seed = get_glyph_seed(base_seed, glyph_idx, time, speed);
-    float cell_on = glyph_cell(glyph_seed, cell_row, cell_col);
-
-    if (cell_on < 0.5) {
-        fragColor = texel;
-        return;
-    }
-
-    // Blend: mix(input, max(glyph, input), alpha)
-    vec3 highlight = max(texel.rgb, vec3(cell_on));
-    vec3 blended = mix(texel.rgb, highlight, blend_alpha);
+    // Green/white OSD tint
+    vec3 osd_color = vec3(0.7, 1.0, 0.75);
+    vec3 highlight = max(panel_bg, osd_color * mask);
+    vec3 blended = mix(panel_bg, highlight, blend_alpha);
     fragColor = vec4(clamp(blended, 0.0, 1.0), texel.a);
 }
