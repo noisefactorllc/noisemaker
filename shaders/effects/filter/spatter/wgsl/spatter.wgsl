@@ -1,7 +1,7 @@
 /*
  * Spatter: Multi-layer procedural paint spatter effect.
- * Low-freq warped noise for large splatter shapes, medium-freq dots,
- * high-freq specks, minus ridged noise for breaks.
+ * Large warped smears, medium dots, fine specks, minus ridged breaks.
+ * Matches Python reference: exp-distributed noise with aggressive thresholding.
  */
 
 struct Uniforms {
@@ -20,95 +20,110 @@ struct Uniforms {
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
 @group(0) @binding(3) var<uniform> time: f32;
 
-fn hash21(p : vec2<f32>) -> f32 {
-    let h : f32 = dot(p, vec2<f32>(127.1, 311.7));
+fn pcg(v_in: u32) -> u32 {
+    let state: u32 = v_in * 747796405u + 2891336453u;
+    let word: u32 = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+fn hashf(h: u32) -> f32 {
+    return f32(h) / 4294967295.0;
+}
+
+fn hash31(p: vec3<f32>) -> f32 {
+    let h: f32 = dot(p, vec3<f32>(127.1, 311.7, 74.7));
     return fract(sin(h) * 43758.5453123);
 }
 
-fn hash31(p : vec3<f32>) -> f32 {
-    let h : f32 = dot(p, vec3<f32>(127.1, 311.7, 74.7));
-    return fract(sin(h) * 43758.5453123);
-}
-
-fn fade(t : f32) -> f32 {
+fn fade(t: f32) -> f32 {
     return t * t * (3.0 - 2.0 * t);
 }
 
-fn value_noise(p : vec2<f32>, s : f32) -> f32 {
-    let cell : vec2<f32> = floor(p);
-    let f : vec2<f32> = fract(p);
-    let tl : f32 = hash31(vec3<f32>(cell, s));
-    let tr : f32 = hash31(vec3<f32>(cell + vec2<f32>(1.0, 0.0), s));
-    let bl : f32 = hash31(vec3<f32>(cell + vec2<f32>(0.0, 1.0), s));
-    let br : f32 = hash31(vec3<f32>(cell + vec2<f32>(1.0, 1.0), s));
-    let st : vec2<f32> = vec2<f32>(fade(f.x), fade(f.y));
-    return mix(mix(tl, tr, st.x), mix(bl, br, st.x), st.y);
+fn vnoise(p: vec2<f32>, s: f32) -> f32 {
+    let c: vec2<f32> = floor(p);
+    let f: vec2<f32> = fract(p);
+    let u: vec2<f32> = vec2<f32>(fade(f.x), fade(f.y));
+    return mix(
+        mix(hash31(vec3<f32>(c, s)), hash31(vec3<f32>(c + vec2<f32>(1.0, 0.0), s)), u.x),
+        mix(hash31(vec3<f32>(c + vec2<f32>(0.0, 1.0), s)), hash31(vec3<f32>(c + vec2<f32>(1.0, 1.0), s)), u.x),
+        u.y);
 }
 
-fn fbm(uv : vec2<f32>, freq : vec2<f32>, octaves : i32, s : f32) -> f32 {
-    var amp : f32 = 0.5;
-    var accum : f32 = 0.0;
-    var weight : f32 = 0.0;
-    var f : vec2<f32> = freq;
-    for (var i : i32 = 0; i < octaves; i = i + 1) {
-        let os : f32 = s + f32(i) * 37.17;
-        accum = accum + pow(value_noise(uv * f, os), 4.0) * amp;
-        weight = weight + amp;
-        f = f * 2.0;
-        amp = amp * 0.5;
-    }
-    if (weight > 0.0) {
-        return clamp(accum / weight, 0.0, 1.0);
-    }
-    return 0.0;
+// 3-octave exp FBM — fixed loop count for fast compilation
+fn expFbm3(uv: vec2<f32>, freq: vec2<f32>, s: f32) -> f32 {
+    var a: f32 = 0.0;
+    a = a + pow(vnoise(uv * freq, s), 4.0) * 0.5;
+    a = a + pow(vnoise(uv * freq * 2.0, s + 37.17), 4.0) * 0.25;
+    a = a + pow(vnoise(uv * freq * 4.0, s + 74.34), 4.0) * 0.125;
+    return a;
+}
+
+// 2-octave exp FBM
+fn expFbm2(uv: vec2<f32>, freq: vec2<f32>, s: f32) -> f32 {
+    var a: f32 = 0.0;
+    a = a + pow(vnoise(uv * freq, s), 4.0) * 0.5;
+    a = a + pow(vnoise(uv * freq * 2.0, s + 37.17), 4.0) * 0.25;
+    return a;
+}
+
+// 2-octave ridged FBM
+fn ridgedFbm2(uv: vec2<f32>, freq: vec2<f32>, s: f32) -> f32 {
+    var a: f32 = 0.0;
+    let n0: f32 = vnoise(uv * freq, s);
+    a = a + pow(abs(n0 * 2.0 - 1.0), 4.0) * 0.5;
+    let n1: f32 = vnoise(uv * freq * 2.0, s + 37.17);
+    a = a + pow(abs(n1 * 2.0 - 1.0), 4.0) * 0.25;
+    return a / 0.75;
 }
 
 @fragment
-fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
-    let dims : vec2<f32> = vec2<f32>(textureDimensions(inputTex));
-    let uv : vec2<f32> = pos.xy / dims;
-    let base : vec4<f32> = textureSample(inputTex, inputSampler, uv);
+fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
+    let dims: vec2<f32> = vec2<f32>(textureDimensions(inputTex));
+    let uv: vec2<f32> = pos.xy / dims;
+    let base: vec4<f32> = textureSample(inputTex, inputSampler, uv);
 
-    let s : f32 = f32(uniforms.seed) * 17.3;
-    let aspect : f32 = dims.x / dims.y;
-    let d : f32 = uniforms.density;
-    let user_color : vec3<f32> = vec3<f32>(uniforms.color_r, uniforms.color_g, uniforms.color_b);
+    let s: f32 = f32(uniforms.seed) * 17.3;
+    let user_color: vec3<f32> = vec3<f32>(uniforms.color_r, uniforms.color_g, uniforms.color_b);
+    let d: f32 = uniforms.density;
 
-    // Layer 1: Low-freq warped noise for large splatter shapes
-    let smearFreq : f32 = mix(3.0, 6.0, hash21(vec2<f32>(s + 3.0, s + 29.0)));
-    let smearF : vec2<f32> = vec2<f32>(smearFreq, smearFreq * aspect);
-    let smear0 : f32 = fbm(uv, smearF, 6, s + 23.0);
+    // Seed-derived random frequencies
+    let smearFreq: f32 = mix(3.0, 6.0, hashf(pcg(u32(s + 10.0))));
+    let dotFreq: f32 = mix(24.0, 48.0, hashf(pcg(u32(s + 50.0))));
+    let speckFreq: f32 = mix(64.0, 96.0, hashf(pcg(u32(s + 90.0))));
+    let ridgeFreq: f32 = mix(2.0, 3.0, hashf(pcg(u32(s + 130.0))));
 
-    // Self-warp: offset UV by noise value, re-sample
-    let warpAmt : f32 = 0.08 * d;
-    let warpedUV : vec2<f32> = uv + (smear0 - 0.5) * warpAmt;
-    let smear : f32 = fbm(warpedUV, smearF, 6, s + 23.0);
+    // -- Layer 1: Large smear (low-freq domain-warped noise) --
+    let warpX: f32 = vnoise(uv * vec2<f32>(2.0, 1.0), s + 200.0);
+    let warpY: f32 = vnoise(uv * vec2<f32>(3.0, 2.0), s + 300.0);
+    let disp: f32 = 1.0 + hashf(pcg(u32(s + 150.0)));
+    let warpedUV: vec2<f32> = uv + (vec2<f32>(warpX, warpY) - 0.5) * disp * 0.12;
+    var smear: f32 = expFbm3(warpedUV, vec2<f32>(smearFreq), s + 100.0);
+    smear = clamp(smear * 5.0, 0.0, 1.0);
 
-    // Layer 2: Medium-freq spatter dots (32-64), threshold for sparse dots
-    let dotFreq : f32 = mix(32.0, 64.0, hash21(vec2<f32>(s + 5.0, s + 59.0)));
-    let dotF : vec2<f32> = vec2<f32>(dotFreq, dotFreq * aspect);
-    let dots_raw : f32 = fbm(uv, dotF, 4, s + 43.0);
-    let dots : f32 = smoothstep(0.6 - d * 0.3, 0.8, dots_raw);
+    // -- Layer 2: Medium dots --
+    var dots: f32 = expFbm2(uv, vec2<f32>(dotFreq), s + 43.0);
+    dots = clamp((dots - 0.08) * 8.0, 0.0, 1.0);
 
-    // Layer 3: High-freq fine specks (150-200)
-    let speckFreq : f32 = mix(150.0, 200.0, hash21(vec2<f32>(s + 13.0, s + 97.0)));
-    let speckF : vec2<f32> = vec2<f32>(speckFreq, speckFreq * aspect);
-    let specks_raw : f32 = fbm(uv, speckF, 4, s + 71.0);
-    let specks : f32 = smoothstep(0.6 - d * 0.2, 0.85, specks_raw);
+    // -- Layer 3: Fine specks --
+    var specks: f32 = expFbm2(uv, vec2<f32>(speckFreq), s + 71.0);
+    specks = clamp((specks - 0.06) * 10.0, 0.0, 1.0);
 
-    // Subtract ridged noise to create breaks
-    let ridgeFreq : f32 = mix(2.0, 3.0, hash21(vec2<f32>(s + 31.0, s + 149.0)));
-    let ridgeF : vec2<f32> = vec2<f32>(ridgeFreq, ridgeFreq * aspect);
-    let ridgeNoise : f32 = fbm(uv, ridgeF, 3, s + 89.0);
-    let ridgeMask : f32 = abs(ridgeNoise * 2.0 - 1.0);
+    // Combine: max of layers (Python uses tf.maximum)
+    var combined: f32 = max(smear, max(dots, specks));
 
-    // Combine layers
-    let combined : f32 = max(smear, max(dots, specks));
-    let mask : f32 = clamp(max(combined - ridgeMask, 0.0) * (0.5 + d), 0.0, 1.0);
+    // Subtract ridged noise for breaks
+    let ridge: f32 = ridgedFbm2(uv, vec2<f32>(ridgeFreq), s + 89.0);
+    combined = max(0.0, combined - ridge);
 
-    // Color: mix spatter color with input, weighted by mask
-    let colored : vec3<f32> = mix(base.rgb, user_color, mask);
-    let result : vec3<f32> = mix(base.rgb, colored, mask * uniforms.alpha);
+    // Density controls overall amount
+    combined = combined * (0.1 + d * 1.6);
+
+    // Hard threshold blend (Python blend_layers with 0.005 threshold)
+    let mask: f32 = step(0.005, combined) * clamp(combined, 0.0, 1.0);
+
+    // Color: where mask > 0, show color * input; else show input
+    let colored: vec3<f32> = mix(base.rgb, base.rgb * user_color, mask);
+    let result: vec3<f32> = mix(base.rgb, colored, uniforms.alpha);
 
     return vec4<f32>(result, base.a);
 }
