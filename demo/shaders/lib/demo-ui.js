@@ -3159,7 +3159,7 @@ render(o1)`
             })
             this.showStatus('shader applied', 'success')
         } catch (err) {
-            console.error('Shader compilation failed:', err)
+            console.error('Shader compilation failed:', this.formatCompilationError(err))
             this.showStatus('shader error: ' + this.formatCompilationError(err), 'error')
         }
     }
@@ -3179,7 +3179,7 @@ render(o1)`
             })
             this.showStatus('pipeline updated', 'success')
         } catch (err) {
-            console.error('Pipeline compilation failed:', err)
+            console.error('Pipeline compilation failed:', this.formatCompilationError(err))
             this.showStatus('compilation error: ' + this.formatCompilationError(err), 'error')
         }
     }

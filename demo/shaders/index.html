@@ -641,7 +641,7 @@
                     ui.showStatus(`compiled ${currentEffect.name}`, 'success');
                 }
             } catch (err) {
-                console.error(err);
+                console.error('Compilation failed:', ui.formatCompilationError(err));
                 ui.showStatus(`compilation failed: ${ui.formatCompilationError(err)}`, 'error');
             }
         }
@@ -705,7 +705,7 @@
                 
                 ui.showStatus('compiled successfully', 'success');
             } catch (err) {
-                console.error('DSL compilation error:', err);
+                console.error('DSL compilation error:', ui.formatCompilationError(err));
                 ui.showStatus(`compilation failed: ${ui.formatCompilationError(err)}`, 'error');
             }
         }

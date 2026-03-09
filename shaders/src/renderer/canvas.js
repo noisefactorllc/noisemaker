@@ -405,7 +405,7 @@ export class CanvasRenderer {
 
                     console.log('[Canvas] Pipeline rebuilt successfully after context restore')
                 } catch (err) {
-                    console.error('[Canvas] Failed to rebuild pipeline after context restore:', err)
+                    console.error(`[Canvas] Failed to rebuild pipeline after context restore: ${err.detail || err.message || JSON.stringify(err)}`)
                     if (this._onError) {
                         this._onError(err)
                     }
