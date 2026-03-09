@@ -1415,6 +1415,11 @@ export class UIController {
             return ''
         }
 
+        // Use effect's own default program if provided
+        if (effect.instance.defaultProgram) {
+            return effect.instance.defaultProgram
+        }
+
         // Build search directive (with two line breaks after)
         // Classic namespaces stay in their lane - no cross-namespace search
         // classicNoisemaker needs synth for noise() starter (it has no noise effect)

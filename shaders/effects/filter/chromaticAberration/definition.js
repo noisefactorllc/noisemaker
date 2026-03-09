@@ -34,6 +34,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search synth, filter\nnoise(colorMode: mono, ridges: true)\n.chromaticAberration()\n.write(o0)",
   paramAliases: { aberrationAmt: 'aberration' },
   passes: [
     {
