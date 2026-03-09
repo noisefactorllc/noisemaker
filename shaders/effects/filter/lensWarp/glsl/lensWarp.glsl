@@ -325,12 +325,11 @@ void main() {
         speed
     );
 
-    // X-axis refraction modulated by edge mask (matches Python lens_warp)
-    float distortion_x = (noise_value * 2.0 - 1.0) * mask;
-    vec2 sample_pos = vec2(
-        float(global_id.x) + distortion_x * disp * width_f,
-        float(global_id.y)
-    );
+    float distortion = (noise_value * 2.0 - 1.0) * mask;
+    float angle = distortion * TAU;
+    vec2 offsets = vec2(cos(angle), sin(angle))
+        * disp * vec2(width_f, height_f);
+    vec2 sample_pos = vec2(float(global_id.x), float(global_id.y)) + offsets;
 
     vec4 warped = sample_bilinear(sample_pos, width_f, height_f);
     vec4 clamped = clamp(warped, vec4(0.0), vec4(1.0));

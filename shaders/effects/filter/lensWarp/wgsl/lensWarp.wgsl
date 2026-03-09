@@ -324,12 +324,11 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         params.options.z
     );
 
-    // X-axis refraction modulated by edge mask (matches Python lens_warp)
-    let distortion_x : f32 = (noise_value * 2.0 - 1.0) * mask;
-    let sample_pos : vec2<f32> = vec2<f32>(
-        f32(gid.x) + distortion_x * displacement * width_f,
-        f32(gid.y)
-    );
+    let distortion : f32 = (noise_value * 2.0 - 1.0) * mask;
+    let angle : f32 = distortion * TAU;
+    let offsets : vec2<f32> = vec2<f32>(cos(angle), sin(angle))
+        * displacement * vec2<f32>(width_f, height_f);
+    let sample_pos : vec2<f32> = vec2<f32>(f32(gid.x), f32(gid.y)) + offsets;
 
     let warped : vec4<f32> = sample_bilinear(sample_pos, width_f, height_f);
     let clamped : vec4<f32> = clamp(warped, vec4<f32>(0.0), vec4<f32>(1.0));
