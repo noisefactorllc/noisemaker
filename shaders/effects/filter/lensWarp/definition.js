@@ -14,11 +14,11 @@ export default new Effect({
   globals: {
     displacement: {
       type: "float",
-      default: 0.005,
+      default: 0.0625,
       uniform: "displacement",
       min: 0,
-      max: 0.05,
-      step: 0.001,
+      max: 0.25,
+      step: 0.005,
       zero: 0,
       ui: {
         label: "displacement",
