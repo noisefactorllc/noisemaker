@@ -41,11 +41,26 @@ export default new Effect({
         default: 0.0,
         uniform: "speed",
         min: 0,
-        max: 5,
-        step: 0.01,
+        max: 50,
+        step: 0.1,
         ui: {
             label: "speed",
             control: "slider"
+        }
+    },
+    corner: {
+        type: "int",
+        default: 3,
+        uniform: "corner",
+        choices: {
+            "top-left": 0,
+            "top-right": 1,
+            "bottom-left": 2,
+            "bottom-right": 3
+        },
+        ui: {
+            label: "corner",
+            control: "dropdown"
         }
     }
   },
@@ -59,7 +74,8 @@ export default new Effect({
       uniforms: {
         alpha: "alpha",
         seed: "seed",
-        speed: "speed"
+        speed: "speed",
+        corner: "corner"
       },
       outputs: {
         fragColor: "outputTex"
