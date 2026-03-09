@@ -62,17 +62,17 @@ void main() {
     for (int layer = 0; layer < 4; layer++) {
         uint lSeed = pcg(seedBase + uint(layer) * 77773u + timeSeed * 33331u);
 
-        // Worm count scales with density: 5-30 worms per layer
-        int wormCount = int(5.0 + hashf(lSeed) * 25.0);
+        // Worm count: 2-6 worms per layer (kept low for fragment shader perf)
+        int wormCount = int(2.0 + hashf(lSeed) * 4.0);
 
         // Low kink: 0.125 + rand * 0.125
         float kink = 0.125 + hashf(lSeed + 1u) * 0.125;
 
-        // Duration: ~50 steps
-        int steps = 40 + int(hashf(lSeed + 2u) * 20.0);
+        // Duration: 18-25 steps
+        int steps = 18 + int(hashf(lSeed + 2u) * 7.0);
 
-        // Stride: 0.75 in UV, with deviation 0.5
-        float baseStride = maxDim * 0.75 / float(steps);
+        // Stride: 1.0 in UV, with deviation 0.5 (longer per step to maintain scratch length)
+        float baseStride = maxDim * 1.0 / float(steps);
 
         // Behavior: obedient (0) or chaotic (1)
         int behavior = int(hashf(lSeed + 3u) * 2.0);
@@ -80,20 +80,16 @@ void main() {
         // Obedient: all worms share one heading
         float sharedAngle = hashf(lSeed + 4u) * TAU;
 
-        // Flow field noise freq 2-4
-        float flowFreq = 2.0 + hashf(lSeed + 5u) * 2.0;
-        uint flowSeed = pcg(lSeed + 6u);
-
         // Subtractive noise freq 2-4
         float subFreq = 2.0 + hashf(lSeed + 7u) * 2.0;
         uint subSeed = pcg(lSeed + 8u);
 
-        // Trail width: ~4px at 1024
-        float trailWidth = maxDim / 256.0;
+        // Trail width: ~6px at 1024 (wider to compensate for fewer worms)
+        float trailWidth = maxDim / 170.0;
 
         float layerMask = 0.0;
 
-        for (int w = 0; w < 30; w++) {
+        for (int w = 0; w < 6; w++) {
             if (w >= wormCount) break;
 
             uint wSeed = lSeed + uint(w) * 13337u + 10000u;
@@ -108,7 +104,7 @@ void main() {
             // Per-worm angle (chaotic mode)
             float wormAngle = hashf(wSeed + 3u) * TAU;
 
-            for (int s = 0; s < 60; s++) {
+            for (int s = 0; s < 25; s++) {
                 if (s >= steps) break;
 
                 // Distance check with wrapping
@@ -123,17 +119,14 @@ void main() {
                     layerMask += 1.0 - dist / trailWidth;
                 }
 
-                // Flow field direction
-                vec2 wormUv = vec2(mod(wx, resolution.x), mod(wy, resolution.y)) / resolution;
-                float field = valueNoise(wormUv, flowFreq, flowSeed);
+                // Cheap per-step angle perturbation (no texture/noise lookup)
+                float perturbation = (hashf(wSeed + uint(s) * 7919u) - 0.5) * kink * TAU;
 
                 float angle;
                 if (behavior == 0) {
-                    // Obedient: shared heading + small flow deviation
-                    angle = sharedAngle + (field - 0.5) * kink * TAU;
+                    angle = sharedAngle + perturbation;
                 } else {
-                    // Chaotic: per-worm heading + flow deviation
-                    angle = wormAngle + (field - 0.5) * kink * TAU;
+                    angle = wormAngle + perturbation;
                 }
 
                 wx = mod(wx + cos(angle) * wStride, resolution.x);

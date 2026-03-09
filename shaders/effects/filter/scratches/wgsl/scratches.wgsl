@@ -67,17 +67,17 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     for (var layer : i32 = 0; layer < 4; layer = layer + 1) {
         let lSeed : u32 = pcg(seedBase + u32(layer) * 77773u + timeSeed * 33331u);
 
-        // Worm count: 5-30 worms per layer
-        let wormCount : i32 = i32(5.0 + hashf(lSeed) * 25.0);
+        // Worm count: 2-6 worms per layer (kept low for fragment shader perf)
+        let wormCount : i32 = i32(2.0 + hashf(lSeed) * 4.0);
 
         // Low kink: 0.125 + rand * 0.125
         let kink : f32 = 0.125 + hashf(lSeed + 1u) * 0.125;
 
-        // Duration: ~50 steps
-        let steps : i32 = 40 + i32(hashf(lSeed + 2u) * 20.0);
+        // Duration: 18-25 steps
+        let steps : i32 = 18 + i32(hashf(lSeed + 2u) * 7.0);
 
-        // Stride
-        let baseStride : f32 = maxDim * 0.75 / f32(steps);
+        // Stride (longer per step to maintain scratch length)
+        let baseStride : f32 = maxDim * 1.0 / f32(steps);
 
         // Behavior: obedient (0) or chaotic (1)
         let behavior : i32 = i32(hashf(lSeed + 3u) * 2.0);
@@ -85,20 +85,16 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
         // Obedient: all worms share one heading
         let sharedAngle : f32 = hashf(lSeed + 4u) * TAU;
 
-        // Flow field noise freq 2-4
-        let flowFreq : f32 = 2.0 + hashf(lSeed + 5u) * 2.0;
-        let flowSeed : u32 = pcg(lSeed + 6u);
-
         // Subtractive noise freq 2-4
         let subFreq : f32 = 2.0 + hashf(lSeed + 7u) * 2.0;
         let subSeed : u32 = pcg(lSeed + 8u);
 
-        // Trail width: ~4px at 1024
-        let trailWidth : f32 = maxDim / 256.0;
+        // Trail width: ~6px at 1024 (wider to compensate for fewer worms)
+        let trailWidth : f32 = maxDim / 170.0;
 
         var layerMask : f32 = 0.0;
 
-        for (var w : i32 = 0; w < 30; w = w + 1) {
+        for (var w : i32 = 0; w < 6; w = w + 1) {
             if (w >= wormCount) { break; }
 
             let wSeed : u32 = lSeed + u32(w) * 13337u + 10000u;
@@ -113,7 +109,7 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
             // Per-worm angle (chaotic mode)
             let wormAngle : f32 = hashf(wSeed + 3u) * TAU;
 
-            for (var s : i32 = 0; s < 60; s = s + 1) {
+            for (var s : i32 = 0; s < 25; s = s + 1) {
                 if (s >= steps) { break; }
 
                 // Distance check with wrapping
@@ -128,17 +124,14 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
                     layerMask = layerMask + 1.0 - dist / trailWidth;
                 }
 
-                // Flow field direction
-                let wormUv : vec2<f32> = vec2<f32>(glsl_mod(wx, resolution.x), glsl_mod(wy, resolution.y)) / resolution;
-                let field : f32 = valueNoise(wormUv, flowFreq, flowSeed);
+                // Cheap per-step angle perturbation (no texture/noise lookup)
+                let perturbation : f32 = (hashf(wSeed + u32(s) * 7919u) - 0.5) * kink * TAU;
 
                 var angle : f32;
                 if (behavior == 0) {
-                    // Obedient: shared heading + small flow deviation
-                    angle = sharedAngle + (field - 0.5) * kink * TAU;
+                    angle = sharedAngle + perturbation;
                 } else {
-                    // Chaotic: per-worm heading + flow deviation
-                    angle = wormAngle + (field - 0.5) * kink * TAU;
+                    angle = wormAngle + perturbation;
                 }
 
                 wx = glsl_mod(wx + cos(angle) * wStride, resolution.x);
