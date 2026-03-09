@@ -1,5 +1,10 @@
-// Stray Hair - sparse dark curved lines over the image.
-// Procedural bezier-curve hairs with anti-aliased thin lines.
+/*
+ * Stray Hair - sparse dark worm traces over the image (single-pass)
+ *
+ * Traces worms through a procedural low-freq noise flow field.
+ * Unruly behavior: base rotation + per-worm variation.
+ * Dark strands, like hairs on a camera lens.
+ */
 
 @group(0) @binding(0) var inputSampler : sampler;
 @group(0) @binding(1) var inputTex : texture_2d<f32>;
@@ -12,90 +17,96 @@ struct Uniforms {
 }
 @group(0) @binding(2) var<uniform> uniforms : Uniforms;
 
-// Integer-based hash for seed-driven randomness
-fn hash(n : f32) -> f32 {
-    return fract(sin(n) * 43758.5453123);
+const TAU : f32 = 6.283185307179586;
+
+fn glsl_mod(x : f32, y : f32) -> f32 {
+    return x - y * floor(x / y);
 }
 
-fn hash2(n : f32) -> vec2<f32> {
-    return vec2<f32>(hash(n), hash(n + 71.37));
+fn pcg(v : u32) -> u32 {
+    let state = v * 747796405u + 2891336453u;
+    let word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
 }
 
-// Minimum distance from point p to cubic bezier (a, b, c, d)
-// Approximated by sampling along the curve
-fn bezierDist(p : vec2<f32>, a : vec2<f32>, b : vec2<f32>, c : vec2<f32>, d : vec2<f32>) -> f32 {
-    var minDist : f32 = 1e10;
-    let STEPS : i32 = 16;
-    for (var j : i32 = 0; j <= STEPS; j = j + 1) {
-        let t = f32(j) / f32(STEPS);
-        let it = 1.0 - t;
-        let q = it * it * it * a
-              + 3.0 * it * it * t * b
-              + 3.0 * it * t * t * c
-              + t * t * t * d;
-        let dist = length(p - q);
-        minDist = min(minDist, dist);
-    }
-    return minDist;
+fn hashf(n : u32) -> f32 {
+    return f32(pcg(n)) / 4294967295.0;
 }
 
 @fragment
-fn main(@location(0) v_texCoord : vec2<f32>) -> @location(0) vec4<f32> {
-    let baseColor = textureSample(inputTex, inputSampler, v_texCoord);
+fn main(@builtin(position) fragCoord : vec4<f32>, @location(0) v_texCoord : vec2<f32>) -> @location(0) vec4<f32> {
     let dims = vec2<f32>(textureDimensions(inputTex, 0));
-    let aspect = dims.x / dims.y;
+    let uv = fragCoord.xy / dims;
+    let base = textureSample(inputTex, inputSampler, uv);
 
-    // Work in aspect-corrected UV space
-    var uv = v_texCoord;
-    uv.x = uv.x * aspect;
+    let maxDim = max(dims.x, dims.y);
+    let seedBase = u32(uniforms.seed) * 99991u;
 
-    let seedF = uniforms.seed * 7.919;
-    let numHairs = 2 + i32(floor(uniforms.density * 6.0));
+    // Density: 2..5 worms, trail width scales
+    let wormCount = 2 + i32(uniforms.density * 3.0);
+    let kink = 3.0 + hashf(seedBase + 600u) * 7.0;
+    let trailWidth = maxDim / 48.0 * (0.5 + uniforms.density);
+    let baseRot = hashf(seedBase + 700u) * TAU;
+    let noiseSeed = pcg(seedBase + 800u);
 
-    var hairMask : f32 = 0.0;
+    var totalMask : f32 = 0.0;
 
-    // Line width in UV space (~1.5 pixels)
-    let lineWidth = 1.5 / dims.y;
-
-    for (var i : i32 = 0; i < 8; i = i + 1) {
-        if (i >= numHairs) {
+    for (var w : i32 = 0; w < 5; w = w + 1) {
+        if (w >= wormCount) {
             break;
         }
 
-        let idx = seedF + f32(i) * 137.31;
+        let wSeed = seedBase + u32(w) * 13337u;
+        var wy = hashf(wSeed) * dims.y;
+        var wx = hashf(wSeed + 1u) * dims.x;
+        let wormVar = (hashf(wSeed + 2u) - 0.5) * 0.25;
 
-        // Start position
-        var p0 = hash2(idx + 11.0);
-        p0.x = p0.x * aspect;
+        // Large stride for long sweeping trails
+        let wStride = maxDim / 40.0 + (hashf(wSeed + 3u) - 0.5) * maxDim / 80.0;
 
-        // Direction angle and length
-        let angle = hash(idx + 99.0) * 6.28318;
-        let len = 0.25 + hash(idx + 55.0) * 0.35;
+        for (var step : i32 = 0; step < 40; step = step + 1) {
+            let t = f32(step) / 39.0;
+            let exposure = 1.0 - abs(1.0 - t * 2.0);
 
-        // End position
-        let p3 = p0 + vec2<f32>(cos(angle), sin(angle)) * len;
+            var diff = fragCoord.xy - vec2<f32>(wx, wy);
+            if (diff.x > dims.x * 0.5) { diff.x = diff.x - dims.x; }
+            if (diff.x < -dims.x * 0.5) { diff.x = diff.x + dims.x; }
+            if (diff.y > dims.y * 0.5) { diff.y = diff.y - dims.y; }
+            if (diff.y < -dims.y * 0.5) { diff.y = diff.y + dims.y; }
 
-        // Control points with kink (perpendicular offsets for curvature)
-        let kink1 = (hash(idx + 33.0) - 0.5) * 0.15;
-        let kink2 = (hash(idx + 77.0) - 0.5) * 0.15;
-        let perp = vec2<f32>(-sin(angle), cos(angle));
-        let along = vec2<f32>(cos(angle), sin(angle));
+            let dist = length(diff);
+            if (dist < trailWidth) {
+                totalMask = totalMask + exposure * (1.0 - dist / trailWidth);
+            }
 
-        let p1 = p0 + along * len * 0.33 + perp * kink1;
-        let p2 = p0 + along * len * 0.66 + perp * kink2;
+            // Flow field: 8x8 grid hash for gentle direction changes
+            let wormUv = vec2<f32>(glsl_mod(wx, dims.x), glsl_mod(wy, dims.y)) / dims;
+            let cell = floor(wormUv * 8.0);
+            let field = hashf(noiseSeed + u32(cell.x * 73.0 + cell.y * 157.0));
+            let flowAngle = field * TAU * kink + baseRot + wormVar;
 
-        let dist = bezierDist(uv, p0, p1, p2, p3);
-
-        // Anti-aliased thin line
-        let strand = 1.0 - smoothstep(0.0, lineWidth, dist);
-        hairMask = max(hairMask, strand);
+            wy = glsl_mod(wy + cos(flowAngle) * wStride, dims.y);
+            wx = glsl_mod(wx + sin(flowAngle) * wStride, dims.x);
+        }
     }
 
-    // Blend: darken input where hair is present
-    // Python ref: blend(tensor, brightness * 0.333, mask * 0.666)
-    let blendFactor = hairMask * uniforms.alpha;
-    let darkened = baseColor.rgb * 0.333;
-    let result = mix(baseColor.rgb, darkened, vec3<f32>(blendFactor));
+    var mask = sqrt(clamp(totalMask, 0.0, 1.0));
 
-    return vec4<f32>(result, baseColor.a);
+    // Brightness noise (freq=32), multiply by 0.333 for dark strands
+    let quantized = floor(fragCoord.xy / (dims / 32.0));
+    let bSeed = seedBase + 999983u;
+    let brightness = vec3<f32>(
+        hashf(bSeed + u32(quantized.x * 73.0 + quantized.y * 157.0)),
+        hashf(bSeed + u32(quantized.x * 79.0 + quantized.y * 311.0)),
+        hashf(bSeed + u32(quantized.x * 83.0 + quantized.y * 191.0))
+    ) * 0.333;
+
+    // Python: blend(tensor, brightness * 0.333, mask * 0.666)
+    let blendAmt = mask * 0.666 * uniforms.alpha;
+
+    // Subtle global lens grime — density affects overall darkening
+    let grime = 1.0 - uniforms.density * 0.05 * uniforms.alpha;
+    let result = mix(base.rgb * grime, brightness, vec3<f32>(blendAmt));
+
+    return vec4<f32>(result, base.a);
 }
