@@ -56,6 +56,7 @@ class Fibers extends Effect {
         canvas.height = height
         const ctx = canvas.getContext('2d')
         ctx.clearRect(0, 0, width, height)
+        updateTexture('overlayTex', canvas)
 
         const seed = params.seed || 1
         const density = params.density !== undefined ? params.density : 0.5

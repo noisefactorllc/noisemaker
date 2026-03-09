@@ -57,12 +57,14 @@ class Scratches extends Effect {
         canvas.height = height
         const ctx = canvas.getContext('2d')
         ctx.clearRect(0, 0, width, height)
+        updateTexture('overlayTex', canvas)
 
         const seed = params.seed || 1
+        const density = params.density !== undefined ? params.density : 0.3
 
         // Python reference: 4 layers, behavior alternates obedient/unruly
         // Low kink (0.125-0.25) for nearly-straight scratches
-        // High density (0.25-0.5) for visible coverage
+        // Density param scales scratch count: 0.1 to 0.5
         for (let layer = 0; layer < 4; layer++) {
             if (isCancelled()) return
 
@@ -72,7 +74,7 @@ class Scratches extends Effect {
             await traceWorms(ctx, {
                 width, height,
                 seed: layerSeed,
-                density: 0.25 + (layerSeed % 100) / 400,
+                density: 0.1 + density * 0.4,
                 kink: 0.125 + (layerSeed % 50) / 400,
                 stride: 0.75,
                 strideDeviation: 0.5,
