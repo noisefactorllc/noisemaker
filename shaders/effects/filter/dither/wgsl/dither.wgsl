@@ -82,11 +82,27 @@ fn getBayer8x8(x: i32, y: i32) -> f32 {
     return bayer8[ym * 8 + xm];
 }
 
+// PCG PRNG
+fn pcg(seed: vec3<u32>) -> vec3<u32> {
+    var v = seed * 1664525u + 1013904223u;
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    v = v ^ (v >> vec3<u32>(16u));
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    return v;
+}
+
 // Hash function for noise dithering
 fn hash(p: vec2<f32>) -> f32 {
-    var p3 = fract(vec3<f32>(p.x, p.y, p.x) * 0.1031);
-    p3 = p3 + dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
+    let v = pcg(vec3<u32>(
+        u32(select(-p.x * 2.0 + 1.0, p.x * 2.0, p.x >= 0.0)),
+        u32(select(-p.y * 2.0 + 1.0, p.y * 2.0, p.y >= 0.0)),
+        0u
+    ));
+    return f32(v.x) / f32(0xffffffffu);
 }
 
 // Dot pattern dithering

@@ -15,11 +15,26 @@ struct Uniforms {
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
 
-// Hash function for deterministic pseudo-random seed points
+// PCG PRNG - MIT License
+fn pcg(seed: vec3<u32>) -> vec3<u32> {
+    var v = seed * 1664525u + 1013904223u;
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    v = v ^ (v >> vec3<u32>(16u));
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    return v;
+}
+
 fn hash2(p: vec2<f32>, s: f32) -> vec2<f32> {
-    var p3 = fract(vec3<f32>(p.x, p.y, p.x) * vec3<f32>(0.1031, 0.1030, 0.0973) + s * 0.1);
-    p3 = p3 + dot(p3, vec3<f32>(p3.y, p3.z, p3.x) + 33.33);
-    return fract((vec2<f32>(p3.x, p3.x) + vec2<f32>(p3.y, p3.z)) * vec2<f32>(p3.z, p3.y));
+    let v = pcg(vec3<u32>(
+        u32(select(-p.x * 2.0 + 1.0, p.x * 2.0, p.x >= 0.0)),
+        u32(select(-p.y * 2.0 + 1.0, p.y * 2.0, p.y >= 0.0)),
+        u32(select(-s * 2.0 + 1.0, s * 2.0, s >= 0.0)),
+    ));
+    return vec2<f32>(v.xy) / f32(0xffffffffu);
 }
 
 @fragment

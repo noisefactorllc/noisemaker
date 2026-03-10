@@ -18,6 +18,28 @@ const CONTROL_TIME_SEED: vec3<f32> = vec3<f32>(71.0, 113.0, 191.0);
 const WARP_BASE_SEED: vec3<f32> = vec3<f32>(23.0, 37.0, 59.0);
 const WARP_TIME_SEED: vec3<f32> = vec3<f32>(83.0, 127.0, 211.0);
 
+// PCG PRNG
+fn pcg(v_in: vec3<u32>) -> vec3<u32> {
+    var v: vec3<u32> = v_in * 1664525u + 1013904223u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v ^= v >> vec3<u32>(16u);
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    return v;
+}
+
+fn pcg_hash2(p: vec2<f32>) -> f32 {
+    let v: vec3<u32> = pcg(vec3<u32>(
+        u32(select(-p.x * 2.0 + 1.0, p.x * 2.0, p.x >= 0.0)),
+        u32(select(-p.y * 2.0 + 1.0, p.y * 2.0, p.y >= 0.0)),
+        0u,
+    ));
+    return f32(v.x) / f32(0xffffffffu);
+}
+
 fn clamp01(value: f32) -> f32 {
     return clamp(value, 0.0, 1.0);
 }
@@ -198,7 +220,7 @@ fn animated_simplex_value(
 }
 
 fn seeded_base_frequency(dims: vec2<f32>) -> f32 {
-    let hashVal: f32 = fract(sin(dot(dims, vec2<f32>(12.9898, 78.233))) * 43758.5453123);
+    let hashVal: f32 = pcg_hash2(dims);
     return floor(hashVal * 3.0) + 2.0;
 }
 

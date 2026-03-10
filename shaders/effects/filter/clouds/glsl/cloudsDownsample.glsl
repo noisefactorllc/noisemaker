@@ -22,6 +22,28 @@ const vec3 CONTROL_TIME_SEED = vec3(71.0, 113.0, 191.0);
 const vec3 WARP_BASE_SEED = vec3(23.0, 37.0, 59.0);
 const vec3 WARP_TIME_SEED = vec3(83.0, 127.0, 211.0);
 
+// PCG PRNG
+uvec3 pcg(uvec3 v) {
+    v = v * 1664525u + 1013904223u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v ^= v >> 16u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    return v;
+}
+
+float pcg_hash2(vec2 p) {
+    uvec3 v = pcg(uvec3(
+        uint(p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0),
+        uint(p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0),
+        0u
+    ));
+    return float(v.x) / float(0xffffffffu);
+}
+
 float clamp01(float value) {
     return clamp(value, 0.0, 1.0);
 }
@@ -202,7 +224,7 @@ float animated_simplex_value(
 }
 
 float seeded_base_frequency(vec2 dims) {
-    float hash_val = fract(sin(dot(dims, vec2(12.9898, 78.233))) * 43758.5453123);
+    float hash_val = pcg_hash2(dims);
     return floor(hash_val * 3.0) + 2.0;
 }
 

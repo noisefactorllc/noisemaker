@@ -24,9 +24,26 @@ float luminance(vec3 rgb) {
     return 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
 }
 
+// PCG PRNG
+uvec3 pcg(uvec3 v) {
+    v = v * 1664525u + 1013904223u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v ^= v >> 16u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    return v;
+}
+
 float hash21(vec2 p) {
-    float h = dot(p, vec2(127.1, 311.7));
-    return fract(sin(h) * 43758.5453123);
+    uvec3 seed = uvec3(
+        uint(p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0),
+        uint(p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0),
+        0u
+    );
+    return float(pcg(seed).x) / float(0xffffffffu);
 }
 
 float triangleWave(float x) {

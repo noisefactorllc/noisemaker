@@ -15,11 +15,25 @@ const TAU: f32 = 6.28318530717959;
 const X_NOISE_SEED: vec3<f32> = vec3<f32>(17.0, 29.0, 11.0);
 const Y_NOISE_SEED: vec3<f32> = vec3<f32>(41.0, 23.0, 7.0);
 
-// Hash function for noise
-fn hash31(p_in: vec3<f32>) -> f32 {
-    var p = fract(p_in * 0.1031);
-    p += dot(p, vec3<f32>(p.y, p.z, p.x) + 33.33);
-    return fract((p.x + p.y) * p.z);
+fn pcg(seed: vec3<u32>) -> vec3<u32> {
+    var v = seed * 1664525u + 1013904223u;
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    v = v ^ (v >> vec3<u32>(16u));
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    return v;
+}
+
+fn hash31(p: vec3<f32>) -> f32 {
+    let seed = vec3<u32>(
+        u32(select(-p.x * 2.0 + 1.0, p.x * 2.0, p.x >= 0.0)),
+        u32(select(-p.y * 2.0 + 1.0, p.y * 2.0, p.y >= 0.0)),
+        u32(select(-p.z * 2.0 + 1.0, p.z * 2.0, p.z >= 0.0))
+    );
+    return f32(pcg(seed).x) / f32(0xffffffffu);
 }
 
 fn noise3d(p: vec3<f32>) -> f32 {

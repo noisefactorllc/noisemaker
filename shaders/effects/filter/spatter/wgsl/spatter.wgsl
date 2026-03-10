@@ -20,19 +20,33 @@ struct Uniforms {
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
 @group(0) @binding(3) var<uniform> time: f32;
 
+fn pcg3(seed: vec3<u32>) -> vec3<u32> {
+    var v = seed * 1664525u + 1013904223u;
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    v = v ^ (v >> vec3<u32>(16u));
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    return v;
+}
+
 fn pcg(v_in: u32) -> u32 {
-    let state: u32 = v_in * 747796405u + 2891336453u;
-    let word: u32 = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
-    return (word >> 22u) ^ word;
+    return pcg3(vec3<u32>(v_in, 0u, 0u)).x;
 }
 
 fn hashf(h: u32) -> f32 {
-    return f32(h) / 4294967295.0;
+    return f32(pcg3(vec3<u32>(h, 0u, 0u)).x) / f32(0xffffffffu);
 }
 
 fn hash31(p: vec3<f32>) -> f32 {
-    let h: f32 = dot(p, vec3<f32>(127.1, 311.7, 74.7));
-    return fract(sin(h) * 43758.5453123);
+    let v = pcg3(vec3<u32>(
+        u32(select(-p.x * 2.0 + 1.0, p.x * 2.0, p.x >= 0.0)),
+        u32(select(-p.y * 2.0 + 1.0, p.y * 2.0, p.y >= 0.0)),
+        u32(select(-p.z * 2.0 + 1.0, p.z * 2.0, p.z >= 0.0)),
+    ));
+    return f32(v.x) / f32(0xffffffffu);
 }
 
 fn fade(t: f32) -> f32 {

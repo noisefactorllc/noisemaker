@@ -24,6 +24,37 @@ const TRIPLE_GAUSS_KERNEL: array<f32, 13> = array<f32, 13>(
     0.0002441406,
 );
 
+// PCG PRNG
+fn pcg(v_in: vec3<u32>) -> vec3<u32> {
+    var v: vec3<u32> = v_in * 1664525u + 1013904223u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v ^= v >> vec3<u32>(16u);
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    return v;
+}
+
+fn pcg_hash2(p: vec2<f32>) -> f32 {
+    let v: vec3<u32> = pcg(vec3<u32>(
+        u32(select(-p.x * 2.0 + 1.0, p.x * 2.0, p.x >= 0.0)),
+        u32(select(-p.y * 2.0 + 1.0, p.y * 2.0, p.y >= 0.0)),
+        0u,
+    ));
+    return f32(v.x) / f32(0xffffffffu);
+}
+
+fn pcg_hash2_seed(p: vec2<f32>, seed: u32) -> f32 {
+    let v: vec3<u32> = pcg(vec3<u32>(
+        u32(select(-p.x * 2.0 + 1.0, p.x * 2.0, p.x >= 0.0)),
+        u32(select(-p.y * 2.0 + 1.0, p.y * 2.0, p.y >= 0.0)),
+        seed,
+    ));
+    return f32(v.x) / f32(0xffffffffu);
+}
+
 fn clamp01(value: f32) -> f32 {
     return clamp(value, 0.0, 1.0);
 }
@@ -109,10 +140,10 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let maxValue: f32 = stats.g;
     
     // Python uses randomInt(-15, 15) for offset; we use a deterministic pseudo-random based on resolution
-    let hashVal: f32 = fract(sin(dot(dims, vec2<f32>(12.9898, 78.233))) * 43758.5453123);
+    let hashVal: f32 = pcg_hash2(dims);
     let offsetRange: f32 = 15.0;
     let offsetX: i32 = i32(floor((hashVal * 2.0 - 1.0) * offsetRange));
-    let hashVal2: f32 = fract(sin(dot(dims, vec2<f32>(78.233, 12.9898))) * 43758.5453123);
+    let hashVal2: f32 = pcg_hash2_seed(dims, 1u);
     let offsetY: i32 = i32(floor((hashVal2 * 2.0 - 1.0) * offsetRange));
     let offsetI: vec2<i32> = vec2<i32>(offsetX, offsetY);
     

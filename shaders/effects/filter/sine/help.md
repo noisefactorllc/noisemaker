@@ -6,5 +6,5 @@ Sine wave color transform
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| amount | float | 3 | 0-20 | Transform intensity |
-| rgb | boolean | false | on/off | Apply per RGB channel |
+| amount | float | 7 | 0-20 | Transform intensity |
+| rgb | boolean | true | on/off | Apply per RGB channel |

@@ -17,11 +17,26 @@ const float TAU = 6.28318530717959;
 const vec3 X_NOISE_SEED = vec3(17.0, 29.0, 11.0);
 const vec3 Y_NOISE_SEED = vec3(41.0, 23.0, 7.0);
 
-// Hash function for noise
+// PCG PRNG
+uvec3 pcg(uvec3 v) {
+    v = v * 1664525u + 1013904223u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v ^= v >> 16u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    return v;
+}
+
 float hash31(vec3 p) {
-    p = fract(p * 0.1031);
-    p += dot(p, p.yzx + 33.33);
-    return fract((p.x + p.y) * p.z);
+    uvec3 seed = uvec3(
+        uint(p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0),
+        uint(p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0),
+        uint(p.z >= 0.0 ? p.z * 2.0 : -p.z * 2.0 + 1.0)
+    );
+    return float(pcg(seed).x) / float(0xffffffffu);
 }
 
 float noise3d(vec3 p) {

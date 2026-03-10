@@ -25,6 +25,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search filter, synth\n\nnoise(ridges: true, colorMode: mono)\n.simpleAberration()\n.write(o0)",
   passes: [
     {
       name: "render",

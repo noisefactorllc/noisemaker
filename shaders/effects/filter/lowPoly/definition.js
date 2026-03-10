@@ -43,6 +43,7 @@ export default new Effect({
       min: 0,
       max: 2,
       step: 1,
+      randChance: 0,
       ui: {
         label: "nth",
         control: "slider"

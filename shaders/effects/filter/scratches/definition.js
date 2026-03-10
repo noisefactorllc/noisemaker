@@ -33,6 +33,7 @@ class Scratches extends Effect {
                     ui: { label: "seed", control: "slider" }
                 }
             },
+            defaultProgram: "search filter, synth\n\nsolid(color: #2b2b2b)\n.scratches()\n.write(o0)",
             textures: {
                 overlayTex: { width: 'screen', height: 'screen', format: 'rgba8' }
             },

@@ -16,11 +16,12 @@ export default new Effect({
   globals: {
     amount: {
       type: "float",
-      default: 3,
+      default: 7,
       uniform: "amount",
       min: 0,
       max: 20,
       step: 0.1,
+      zero: 0,
       ui: {
         label: "amount",
         control: "slider"
@@ -28,7 +29,7 @@ export default new Effect({
     },
     rgb: {
       type: "boolean",
-      default: false,
+      default: true,
       uniform: "rgb",
       ui: {
         label: "rgb",

@@ -29,6 +29,28 @@ const float TRIPLE_GAUSS_KERNEL[13] = float[13](
     0.0002441406
 );
 
+// PCG PRNG
+uvec3 pcg(uvec3 v) {
+    v = v * 1664525u + 1013904223u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v ^= v >> 16u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    return v;
+}
+
+float pcg_hash2(vec2 p) {
+    uvec3 v = pcg(uvec3(
+        uint(p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0),
+        uint(p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0),
+        0u
+    ));
+    return float(v.x) / float(0xffffffffu);
+}
+
 float clamp01(float value) {
     return clamp(value, 0.0, 1.0);
 }
@@ -117,8 +139,13 @@ void main() {
     
     // Compute seeded random offset for shadow (Python: rng.random_int(-15, 15))
     // Use resolution-based hash to get deterministic but varying offset
-    float hash1 = fract(sin(dot(resolution, vec2(12.9898, 78.233))) * 43758.5453);
-    float hash2 = fract(sin(dot(resolution, vec2(53.2317, 91.7623))) * 28461.8291);
+    float hash1 = pcg_hash2(resolution);
+    uvec3 hash2_v = pcg(uvec3(
+        uint(resolution.x >= 0.0 ? resolution.x * 2.0 : -resolution.x * 2.0 + 1.0),
+        uint(resolution.y >= 0.0 ? resolution.y * 2.0 : -resolution.y * 2.0 + 1.0),
+        1u
+    ));
+    float hash2 = float(hash2_v.x) / float(0xffffffffu);
     int offset_x = int(floor(hash1 * 31.0)) - 15;  // -15 to +15
     int offset_y = int(floor(hash2 * 31.0)) - 15;  // -15 to +15
     ivec2 offset_i = ivec2(offset_x, offset_y);

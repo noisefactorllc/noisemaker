@@ -20,16 +20,39 @@ uniform float time;
 
 out vec4 fragColor;
 
+// PCG PRNG
+uvec3 pcg(uvec3 v) {
+    v = v * 1664525u + 1013904223u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v ^= v >> 16u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    return v;
+}
+
 float hash31(vec3 p) {
-    float h = dot(p, vec3(127.1, 311.7, 74.7));
-    return fract(sin(h) * 43758.5453123);
+    uvec3 v = uvec3(
+        uint(p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0),
+        uint(p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0),
+        uint(p.z >= 0.0 ? p.z * 2.0 : -p.z * 2.0 + 1.0)
+    );
+    return float(pcg(v).x) / float(0xffffffffu);
 }
 
 vec3 hash33(vec3 p) {
+    uvec3 v = uvec3(
+        uint(p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0),
+        uint(p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0),
+        uint(p.z >= 0.0 ? p.z * 2.0 : -p.z * 2.0 + 1.0)
+    );
+    uvec3 h = pcg(v);
     return vec3(
-        hash31(p),
-        hash31(p + vec3(17.13, 29.97, 42.75)),
-        hash31(p + vec3(53.71, 11.31, 77.19))
+        float(h.x) / float(0xffffffffu),
+        float(h.y) / float(0xffffffffu),
+        float(h.z) / float(0xffffffffu)
     );
 }
 

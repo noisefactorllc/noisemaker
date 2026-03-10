@@ -24,9 +24,25 @@ fn luminance(rgb: vec3<f32>) -> f32 {
     return 0.299 * rgb.r + 0.587 * rgb.g + 0.114 * rgb.b;
 }
 
+fn pcg(seed: vec3<u32>) -> vec3<u32> {
+    var v = seed * 1664525u + 1013904223u;
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    v = v ^ (v >> vec3<u32>(16u));
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    return v;
+}
+
 fn hash21(p: vec2<f32>) -> f32 {
-    let h = dot(p, vec2<f32>(127.1, 311.7));
-    return fract(sin(h) * 43758.5453123);
+    let seed = vec3<u32>(
+        u32(select(-p.x * 2.0 + 1.0, p.x * 2.0, p.x >= 0.0)),
+        u32(select(-p.y * 2.0 + 1.0, p.y * 2.0, p.y >= 0.0)),
+        0u
+    );
+    return f32(pcg(seed).x) / f32(0xffffffffu);
 }
 
 fn triangleWave(x: f32) -> f32 {

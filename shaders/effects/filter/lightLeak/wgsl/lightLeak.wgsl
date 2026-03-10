@@ -20,16 +20,37 @@ struct Uniforms {
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
 @group(0) @binding(3) var<uniform> time: f32;
 
+fn pcg(seed: vec3<u32>) -> vec3<u32> {
+    var v = seed * 1664525u + 1013904223u;
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    v = v ^ (v >> vec3<u32>(16u));
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    return v;
+}
+
 fn hash31(p : vec3<f32>) -> f32 {
-    let h : f32 = dot(p, vec3<f32>(127.1, 311.7, 74.7));
-    return fract(sin(h) * 43758.5453123);
+    let v = pcg(vec3<u32>(
+        u32(select(-p.x * 2.0 + 1.0, p.x * 2.0, p.x >= 0.0)),
+        u32(select(-p.y * 2.0 + 1.0, p.y * 2.0, p.y >= 0.0)),
+        u32(select(-p.z * 2.0 + 1.0, p.z * 2.0, p.z >= 0.0)),
+    ));
+    return f32(v.x) / f32(0xffffffffu);
 }
 
 fn hash33(p : vec3<f32>) -> vec3<f32> {
+    let v = pcg(vec3<u32>(
+        u32(select(-p.x * 2.0 + 1.0, p.x * 2.0, p.x >= 0.0)),
+        u32(select(-p.y * 2.0 + 1.0, p.y * 2.0, p.y >= 0.0)),
+        u32(select(-p.z * 2.0 + 1.0, p.z * 2.0, p.z >= 0.0)),
+    ));
     return vec3<f32>(
-        hash31(p),
-        hash31(p + vec3<f32>(17.13, 29.97, 42.75)),
-        hash31(p + vec3<f32>(53.71, 11.31, 77.19)),
+        f32(v.x) / f32(0xffffffffu),
+        f32(v.y) / f32(0xffffffffu),
+        f32(v.z) / f32(0xffffffffu),
     );
 }
 

@@ -15,7 +15,7 @@ export default new Effect({
         "max": 10,
         "uniform": "x",
         ui: {
-            label: "x"
+            label: "offset x"
         }},
     "y": {
         "type": "float",
@@ -24,7 +24,7 @@ export default new Effect({
         "max": 10,
         "uniform": "y",
         ui: {
-            label: "y"
+            label: "offset y"
         }},
     "speedX": {
         "type": "float",
@@ -59,6 +59,7 @@ export default new Effect({
         }
     }
 },
+defaultProgram: "search filter, synth\n\ntestPattern()\n.scroll(speedX: 1, speedY: 1)\n.write(o0)",
   passes: [
     {
       name: "main",
