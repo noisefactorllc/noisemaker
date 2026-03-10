@@ -11,8 +11,6 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
-uniform float time;
-uniform float speed;
 uniform float strength;
 uniform float seed;
 
@@ -30,12 +28,27 @@ vec2 freq_for_shape(float freq, float w, float h) {
     return vec2(freq * h / w, freq);
 }
 
+// PCG PRNG
+uvec3 pcg(uvec3 v) {
+    v = v * 1664525u + 1013904223u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v ^= v >> 16u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    return v;
+}
+
 float hash21(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+    uvec3 v = pcg(uvec3(floatBitsToUint(p.x), floatBitsToUint(p.y), 0u));
+    return float(v.x) / float(0xffffffffu);
 }
 
 float hash31(vec3 p) {
-    return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123);
+    uvec3 v = pcg(uvec3(floatBitsToUint(p.x), floatBitsToUint(p.y), floatBitsToUint(p.z)));
+    return float(v.x) / float(0xffffffffu);
 }
 
 float fade(float t) {
@@ -53,13 +66,13 @@ float value_noise(vec2 coord, float s) {
     return mix(mix(tl, tr, st.x), mix(bl, br, st.x), st.y);
 }
 
-vec2 periodic_offset(float t, float spd, float s) {
-    float angle = t * 0.5 + s * 0.1375;
-    float radius = (0.35 + spd * 0.15) * (0.25 + 0.75 * sin(s * 1.37));
+vec2 seed_offset(float s) {
+    float angle = s * 0.1375;
+    float radius = 0.35 * (0.25 + 0.75 * sin(s * 1.37));
     return vec2(cos(angle), sin(angle)) * radius;
 }
 
-float simple_multires(vec2 uv, vec2 base_freq, float t, float spd, float s) {
+float simple_multires(vec2 uv, vec2 base_freq, float s) {
     vec2 freq = base_freq;
     float amp = 0.5;
     float total = 0.0;
@@ -67,7 +80,7 @@ float simple_multires(vec2 uv, vec2 base_freq, float t, float spd, float s) {
 
     for (int i = 0; i < 8; i++) {
         float os = s + float(i) * 37.11;
-        vec2 off = periodic_offset(t + float(i) * 0.17, spd, os);
+        vec2 off = seed_offset(os) / freq;
         accum += value_noise(uv * freq + off, os) * amp;
         total += amp;
         freq *= 2.0;
@@ -77,46 +90,46 @@ float simple_multires(vec2 uv, vec2 base_freq, float t, float spd, float s) {
     return clamp01(accum / max(total, 0.001));
 }
 
-float refracted_field(vec2 uv, vec2 base_freq, float t, float spd, vec2 px, float disp, float s) {
-    float base_mask = simple_multires(uv, base_freq, t, spd, s);
-    float off_mask = simple_multires(fract(uv + 0.5), base_freq, t, spd, s + 19.0);
+float refracted_field(vec2 uv, vec2 base_freq, vec2 px, float disp, float s) {
+    float base_mask = simple_multires(uv, base_freq, s);
+    float off_mask = simple_multires(fract(uv + 0.5), base_freq, s + 19.0);
 
     vec2 off_vec = vec2(
         (base_mask * 2.0 - 1.0) * disp * px.x,
         (off_mask * 2.0 - 1.0) * disp * px.y
     );
-    return simple_multires(fract(uv + off_vec), base_freq, t, spd, s + 41.0);
+    return simple_multires(fract(uv + off_vec), base_freq, s + 41.0);
 }
 
-float chebyshev_gradient(vec2 uv, vec2 base_freq, float t, float spd, vec2 px, float disp, float s) {
+float chebyshev_gradient(vec2 uv, vec2 base_freq, vec2 px, float disp, float s) {
     vec2 ox = vec2(px.x, 0.0);
     vec2 oy = vec2(0.0, px.y);
 
-    float r = refracted_field(fract(uv + ox), base_freq, t, spd, px, disp, s);
-    float l = refracted_field(fract(uv - ox), base_freq, t, spd, px, disp, s);
-    float u = refracted_field(fract(uv + oy), base_freq, t, spd, px, disp, s);
-    float d = refracted_field(fract(uv - oy), base_freq, t, spd, px, disp, s);
+    float r = refracted_field(fract(uv + ox), base_freq, px, disp, s);
+    float l = refracted_field(fract(uv - ox), base_freq, px, disp, s);
+    float u = refracted_field(fract(uv + oy), base_freq, px, disp, s);
+    float d = refracted_field(fract(uv - oy), base_freq, px, disp, s);
 
     float dx = (r - l) * 0.5;
     float dy = (u - d) * 0.5;
     return clamp01(max(abs(dx), abs(dy)) * 4.0);
 }
 
-float exponential_noise(vec2 uv, vec2 freq, float t, float spd, float s) {
-    vec2 off = periodic_offset(t + s * 0.07, spd, s + 7.0);
+float exponential_noise(vec2 uv, vec2 freq, float s) {
+    vec2 off = seed_offset(s + 7.0);
     return pow(clamp01(value_noise(uv * freq + off, s + 13.0)), 4.0);
 }
 
-float refracted_exponential(vec2 uv, vec2 freq, float t, float spd, vec2 px, float disp, float s) {
-    float base = exponential_noise(uv, freq, t, spd, s);
-    float ox = exponential_noise(uv, freq, t + 0.77, spd, s + 23.0);
-    float oy = exponential_noise(fract(uv + 0.5), freq, t + 1.23, spd, s + 47.0);
+float refracted_exponential(vec2 uv, vec2 freq, vec2 px, float disp, float s) {
+    float base = exponential_noise(uv, freq, s);
+    float ox = exponential_noise(uv, freq, s + 23.0);
+    float oy = exponential_noise(fract(uv + 0.5), freq, s + 47.0);
 
     vec2 off_vec = vec2(
         (ox * 2.0 - 1.0) * disp * px.x,
         (oy * 2.0 - 1.0) * disp * px.y
     );
-    float warped = exponential_noise(fract(uv + off_vec), freq, t, spd, s + 59.0);
+    float warped = exponential_noise(fract(uv + off_vec), freq, s + 59.0);
     return clamp01((base + warped) * 0.5);
 }
 
@@ -126,15 +139,13 @@ void main() {
     vec2 uv = v_texCoord;
     vec4 base_color = texture(inputTex, uv);
 
-    float t = time;
-    float spd = speed;
     float str = max(strength, 0.0);
     float s = seed;
 
     // Multi-octave noise mask, self-refracted
     vec2 freq_mask = freq_for_shape(5.0, dims.x, dims.y);
-    float mask_refracted = refracted_field(uv, freq_mask, t, spd, px, 1.0, s + 11.0);
-    float mask_gradient = chebyshev_gradient(uv, freq_mask, t, spd, px, 1.0, s + 11.0);
+    float mask_refracted = refracted_field(uv, freq_mask, px, 1.0, s + 11.0);
+    float mask_gradient = chebyshev_gradient(uv, freq_mask, px, 1.0, s + 11.0);
     float mask_value = clamp01(mix(mask_refracted, mask_gradient, 0.125));
 
     // Blend input with dark dust using squared mask
@@ -144,13 +155,13 @@ void main() {
     // Speck overlay: dropout + exponential noise, refracted
     vec2 freq_specks = dims * 0.1;
     float dropout = hash21(uv * dims + vec2(s + 37.0, s * 1.37)) < 0.4 ? 1.0 : 0.0;
-    float specks_field = refracted_exponential(uv, freq_specks, t, spd, px, 0.25, s + 71.0) * dropout;
+    float specks_field = refracted_exponential(uv, freq_specks, px, 0.25, s + 71.0) * dropout;
     float trimmed = clamp01((specks_field - 0.3) / 0.7);
     float specks = 1.0 - sqrt(trimmed);
 
     // Sparse noise
     float sparse_mask = hash21(uv * dims + vec2(s + 113.0, s + 171.0)) < 0.25 ? 1.0 : 0.0;
-    float sparse_noise = exponential_noise(uv, dims, t, spd, s + 131.0) * sparse_mask;
+    float sparse_noise = exponential_noise(uv, dims, s + 131.0) * sparse_mask;
 
     // Combine
     dusty = mix(dusty, vec3(sparse_noise), 0.15);

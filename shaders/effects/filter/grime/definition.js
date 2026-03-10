@@ -21,20 +21,9 @@ export default new Effect({
       min: 0,
       max: 1,
       step: 0.01,
+      zero: 0,
       ui: {
         label: "strength",
-        control: "slider"
-      }
-    },
-    speed: {
-      type: "float",
-      default: 1.0,
-      uniform: "speed",
-      min: 0,
-      max: 5,
-      step: 0.1,
-      ui: {
-        label: "speed",
         control: "slider"
       }
     },
@@ -51,6 +40,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search filter, synth\n\nsolid(color: #ffffff)\n .grime()\n.write(o0)",
   passes: [
     {
       name: "main",
@@ -60,9 +50,7 @@ export default new Effect({
       },
       uniforms: {
         strength: "strength",
-        speed: "speed",
-        seed: "seed",
-        time: "time"
+        seed: "seed"
       },
       outputs: {
         fragColor: "outputTex"

@@ -167,10 +167,22 @@ const TIME_SEED_WHITE: vec3<f32> = vec3<f32>(180.0, 82.0, 322.0);
 // Hash-based value noise (vhs mode)
 // =====================================================================
 
+// PCG PRNG
+fn pcg(seed: vec3<u32>) -> vec3<u32> {
+    var v = seed * 1664525u + 1013904223u;
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    v = v ^ (v >> vec3<u32>(16u));
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    return v;
+}
+
 fn hashNoise(p: vec3<f32>) -> f32 {
-    var p3 = fract(p * 0.1031);
-    p3 = p3 + dot(p3, vec3<f32>(p3.y, p3.z, p3.x) + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
+    let seed = vec3<u32>(bitcast<u32>(p.x), bitcast<u32>(p.y), bitcast<u32>(p.z));
+    return f32(pcg(seed).x) / f32(0xffffffffu);
 }
 
 fn valueNoise(p: vec3<f32>) -> f32 {

@@ -13,10 +13,8 @@ struct VertexOutput {
 @group(0) @binding(0) var u_sampler: sampler;
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> strength: f32;
-@group(0) @binding(3) var<uniform> speed: f32;
-@group(0) @binding(4) var<uniform> seed: f32;
-@group(0) @binding(5) var<uniform> time: f32;
-@group(0) @binding(6) var<uniform> resolution: vec2<f32>;
+@group(0) @binding(3) var<uniform> seed: f32;
+@group(0) @binding(4) var<uniform> resolution: vec2<f32>;
 
 fn clamp01(v: f32) -> f32 {
     return clamp(v, 0.0, 1.0);
@@ -29,12 +27,27 @@ fn freq_for_shape(freq: f32, w: f32, h: f32) -> vec2<f32> {
     return vec2<f32>(freq * h / w, freq);
 }
 
+// PCG PRNG
+fn pcg(seed: vec3<u32>) -> vec3<u32> {
+    var v = seed * 1664525u + 1013904223u;
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    v = v ^ (v >> vec3<u32>(16u));
+    v.x = v.x + v.y * v.z;
+    v.y = v.y + v.z * v.x;
+    v.z = v.z + v.x * v.y;
+    return v;
+}
+
 fn hash21(p: vec2<f32>) -> f32 {
-    return fract(sin(dot(p, vec2<f32>(127.1, 311.7))) * 43758.5453123);
+    let v = pcg(vec3<u32>(bitcast<u32>(p.x), bitcast<u32>(p.y), 0u));
+    return f32(v.x) / f32(0xffffffffu);
 }
 
 fn hash31(p: vec3<f32>) -> f32 {
-    return fract(sin(dot(p, vec3<f32>(127.1, 311.7, 74.7))) * 43758.5453123);
+    let v = pcg(vec3<u32>(bitcast<u32>(p.x), bitcast<u32>(p.y), bitcast<u32>(p.z)));
+    return f32(v.x) / f32(0xffffffffu);
 }
 
 fn fade(t: f32) -> f32 {
@@ -52,13 +65,13 @@ fn value_noise(coord: vec2<f32>, s: f32) -> f32 {
     return mix(mix(tl, tr, st.x), mix(bl, br, st.x), st.y);
 }
 
-fn periodic_offset(t: f32, spd: f32, s: f32) -> vec2<f32> {
-    let angle = t * 0.5 + s * 0.1375;
-    let radius = (0.35 + spd * 0.15) * (0.25 + 0.75 * sin(s * 1.37));
+fn seed_offset(s: f32) -> vec2<f32> {
+    let angle = s * 0.1375;
+    let radius = 0.35 * (0.25 + 0.75 * sin(s * 1.37));
     return vec2<f32>(cos(angle), sin(angle)) * radius;
 }
 
-fn simple_multires(uv: vec2<f32>, base_freq: vec2<f32>, t: f32, spd: f32, s: f32) -> f32 {
+fn simple_multires(uv: vec2<f32>, base_freq: vec2<f32>, s: f32) -> f32 {
     var freq = base_freq;
     var amp: f32 = 0.5;
     var total: f32 = 0.0;
@@ -66,7 +79,7 @@ fn simple_multires(uv: vec2<f32>, base_freq: vec2<f32>, t: f32, spd: f32, s: f32
 
     for (var i: u32 = 0u; i < 8u; i = i + 1u) {
         let os = s + f32(i) * 37.11;
-        let off = periodic_offset(t + f32(i) * 0.17, spd, os);
+        let off = seed_offset(os) / freq;
         accum = accum + value_noise(uv * freq + off, os) * amp;
         total = total + amp;
         freq = freq * 2.0;
@@ -76,46 +89,46 @@ fn simple_multires(uv: vec2<f32>, base_freq: vec2<f32>, t: f32, spd: f32, s: f32
     return clamp01(accum / max(total, 0.001));
 }
 
-fn refracted_field(uv: vec2<f32>, base_freq: vec2<f32>, t: f32, spd: f32, px: vec2<f32>, disp: f32, s: f32) -> f32 {
-    let base_mask = simple_multires(uv, base_freq, t, spd, s);
-    let off_mask = simple_multires(fract(uv + vec2<f32>(0.5, 0.5)), base_freq, t, spd, s + 19.0);
+fn refracted_field(uv: vec2<f32>, base_freq: vec2<f32>, px: vec2<f32>, disp: f32, s: f32) -> f32 {
+    let base_mask = simple_multires(uv, base_freq, s);
+    let off_mask = simple_multires(fract(uv + vec2<f32>(0.5, 0.5)), base_freq, s + 19.0);
 
     let off_vec = vec2<f32>(
         (base_mask * 2.0 - 1.0) * disp * px.x,
         (off_mask * 2.0 - 1.0) * disp * px.y,
     );
-    return simple_multires(fract(uv + off_vec), base_freq, t, spd, s + 41.0);
+    return simple_multires(fract(uv + off_vec), base_freq, s + 41.0);
 }
 
-fn chebyshev_gradient(uv: vec2<f32>, base_freq: vec2<f32>, t: f32, spd: f32, px: vec2<f32>, disp: f32, s: f32) -> f32 {
+fn chebyshev_gradient(uv: vec2<f32>, base_freq: vec2<f32>, px: vec2<f32>, disp: f32, s: f32) -> f32 {
     let ox = vec2<f32>(px.x, 0.0);
     let oy = vec2<f32>(0.0, px.y);
 
-    let r = refracted_field(fract(uv + ox), base_freq, t, spd, px, disp, s);
-    let l = refracted_field(fract(uv - ox), base_freq, t, spd, px, disp, s);
-    let u = refracted_field(fract(uv + oy), base_freq, t, spd, px, disp, s);
-    let d = refracted_field(fract(uv - oy), base_freq, t, spd, px, disp, s);
+    let r = refracted_field(fract(uv + ox), base_freq, px, disp, s);
+    let l = refracted_field(fract(uv - ox), base_freq, px, disp, s);
+    let u = refracted_field(fract(uv + oy), base_freq, px, disp, s);
+    let d = refracted_field(fract(uv - oy), base_freq, px, disp, s);
 
     let dx = (r - l) * 0.5;
     let dy = (u - d) * 0.5;
     return clamp01(max(abs(dx), abs(dy)) * 4.0);
 }
 
-fn exponential_noise(uv: vec2<f32>, freq: vec2<f32>, t: f32, spd: f32, s: f32) -> f32 {
-    let off = periodic_offset(t + s * 0.07, spd, s + 7.0);
+fn exponential_noise(uv: vec2<f32>, freq: vec2<f32>, s: f32) -> f32 {
+    let off = seed_offset(s + 7.0);
     return pow(clamp01(value_noise(uv * freq + off, s + 13.0)), 4.0);
 }
 
-fn refracted_exponential(uv: vec2<f32>, freq: vec2<f32>, t: f32, spd: f32, px: vec2<f32>, disp: f32, s: f32) -> f32 {
-    let base = exponential_noise(uv, freq, t, spd, s);
-    let ox = exponential_noise(uv, freq, t + 0.77, spd, s + 23.0);
-    let oy = exponential_noise(fract(uv + vec2<f32>(0.5, 0.5)), freq, t + 1.23, spd, s + 47.0);
+fn refracted_exponential(uv: vec2<f32>, freq: vec2<f32>, px: vec2<f32>, disp: f32, s: f32) -> f32 {
+    let base = exponential_noise(uv, freq, s);
+    let ox = exponential_noise(uv, freq, s + 23.0);
+    let oy = exponential_noise(fract(uv + vec2<f32>(0.5, 0.5)), freq, s + 47.0);
 
     let off_vec = vec2<f32>(
         (ox * 2.0 - 1.0) * disp * px.x,
         (oy * 2.0 - 1.0) * disp * px.y,
     );
-    let warped = exponential_noise(fract(uv + off_vec), freq, t, spd, s + 59.0);
+    let warped = exponential_noise(fract(uv + off_vec), freq, s + 59.0);
     return clamp01((base + warped) * 0.5);
 }
 
@@ -126,15 +139,13 @@ fn main(input: VertexOutput) -> @location(0) vec4<f32> {
     let uv = input.uv;
     let base_color = textureSample(inputTex, u_sampler, uv);
 
-    let t = time;
-    let spd = speed;
     let str = max(strength, 0.0);
     let s = seed;
 
     // Multi-octave noise mask, self-refracted
     let freq_mask = freq_for_shape(5.0, dims.x, dims.y);
-    let mask_refracted = refracted_field(uv, freq_mask, t, spd, px, 1.0, s + 11.0);
-    let mask_gradient = chebyshev_gradient(uv, freq_mask, t, spd, px, 1.0, s + 11.0);
+    let mask_refracted = refracted_field(uv, freq_mask, px, 1.0, s + 11.0);
+    let mask_gradient = chebyshev_gradient(uv, freq_mask, px, 1.0, s + 11.0);
     let mask_value = clamp01(mix(mask_refracted, mask_gradient, 0.125));
 
     // Blend input with dark dust using squared mask
@@ -144,13 +155,13 @@ fn main(input: VertexOutput) -> @location(0) vec4<f32> {
     // Speck overlay: dropout + exponential noise, refracted
     let freq_specks = dims * 0.1;
     let dropout = select(0.0, 1.0, hash21(uv * dims + vec2<f32>(s + 37.0, s * 1.37)) < 0.4);
-    let specks_field = refracted_exponential(uv, freq_specks, t, spd, px, 0.25, s + 71.0) * dropout;
+    let specks_field = refracted_exponential(uv, freq_specks, px, 0.25, s + 71.0) * dropout;
     let trimmed = clamp01((specks_field - 0.3) / 0.7);
     let specks = 1.0 - sqrt(trimmed);
 
     // Sparse noise
     let sparse_mask = select(0.0, 1.0, hash21(uv * dims + vec2<f32>(s + 113.0, s + 171.0)) < 0.25);
-    let sparse_noise = exponential_noise(uv, dims, t, spd, s + 131.0) * sparse_mask;
+    let sparse_noise = exponential_noise(uv, dims, s + 131.0) * sparse_mask;
 
     // Combine
     dusty = mix(dusty, vec3<f32>(sparse_noise), 0.15);

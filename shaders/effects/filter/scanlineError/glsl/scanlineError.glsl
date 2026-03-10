@@ -215,10 +215,22 @@ const vec3 TIME_SEED_WHITE = vec3(
 // Hash-based value noise (vhs mode)
 // =====================================================================
 
+// PCG PRNG
+uvec3 pcg(uvec3 v) {
+    v = v * 1664525u + 1013904223u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    v ^= v >> 16u;
+    v.x += v.y * v.z;
+    v.y += v.z * v.x;
+    v.z += v.x * v.y;
+    return v;
+}
+
 float hashNoise(vec3 p) {
-    vec3 p3 = fract(p * 0.1031);
-    p3 = p3 + dot(p3, vec3(p3.y, p3.z, p3.x) + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
+    uvec3 seed = uvec3(floatBitsToUint(p.x), floatBitsToUint(p.y), floatBitsToUint(p.z));
+    return float(pcg(seed).x) / float(0xffffffffu);
 }
 
 float valueNoise(vec3 p) {
