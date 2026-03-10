@@ -116,7 +116,8 @@ export class Effect {
      * @param {Object} context - { updateTexture, width, height, params, isCancelled }
      */
     asyncInit(context) {
-        if (this._configAsyncInit) this._configAsyncInit.call(this, context)
+        if (this._configAsyncInit) return this._configAsyncInit.call(this, context)
+        return Promise.resolve()
     }
 }
 
