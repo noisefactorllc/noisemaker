@@ -8,19 +8,19 @@ export default new Effect({
   name: "Low Poly",
   namespace: "filter",
   func: "lowPoly",
-  tags: ["geometric"],
+  tags: ["geometric", "noise"],
 
   description: "Low-polygon style render using Voronoi cells",
   globals: {
     freq: {
       type: "int",
-      default: 10,
+      default: 50,
       uniform: "freq",
       min: 2,
-      max: 50,
+      max: 100,
       step: 1,
       ui: {
-        label: "frequency",
+        label: "scale",
         control: "slider"
       }
     },

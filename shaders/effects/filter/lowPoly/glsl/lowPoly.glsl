@@ -28,7 +28,7 @@ void main() {
     vec2 resolution = vec2(texSize);
     vec2 uv = gl_FragCoord.xy / resolution;
 
-    float n = max(freq, 2.0);
+    float n = max(102.0 - freq, 2.0);
     float s = seed;
 
     // Scale UV to grid

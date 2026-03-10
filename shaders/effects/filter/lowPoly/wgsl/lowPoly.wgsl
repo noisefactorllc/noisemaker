@@ -27,7 +27,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = pos.xy / texSize;
 
-    let n = max(uniforms.freq, 2.0);
+    let n = max(102.0 - uniforms.freq, 2.0);
     let s = uniforms.seed;
 
     // Scale UV to grid
