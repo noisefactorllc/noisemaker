@@ -49,6 +49,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search filter, synth\n\ntestPattern()\n.degauss()\n.write(o0)",
   passes: [
     {
       name: "main",

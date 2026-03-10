@@ -1,10 +1,10 @@
 # clouds
 
-Cloud texture generator
+Cloud texture overlay
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| speed | float | 1.0 | 0-3 | Animation speed |
+| seed | int | 1 | 1-100 | Cloud pattern variation |
 | scale | float | 0.25 | 0.1-1 | Cloud scale |

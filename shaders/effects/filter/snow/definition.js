@@ -9,11 +9,12 @@ export default new Effect({
   globals: {
     alpha: {
       type: "float",
-      default: 0.25,
+      default: 0.5,
       uniform: "alpha",
       min: 0,
       max: 1,
       step: 0.01,
+      zero: 0,
       ui: {
         label: "alpha",
         control: "slider"

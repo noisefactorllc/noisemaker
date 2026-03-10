@@ -1,13 +1,10 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * Clouds - Top-down cloud cover effect
+ * Clouds - Cloud texture overlay
  *
- * Multi-pass rendering:
- * 1. Generate ridged multires noise control at 25% resolution, with warp
- * 2. Reduce to find global min/max of control for proper normalization
- * 3. Compute combined (white/black blend) and shaded (offset + blur) masks using normalized control
- * 4. Upsample and composite onto input with shadow effect
+ * Single-pass ridged multi-octave simplex noise composited
+ * as white clouds with offset shadow onto the input.
  */
 export default new Effect({
   name: "Clouds",
@@ -15,17 +12,17 @@ export default new Effect({
   func: "clouds",
   tags: ["noise"],
 
-  description: "Cloud texture generator",
+  description: "Cloud texture overlay",
   globals: {
-    speed: {
-      type: "float",
-      default: 1.0,
-      uniform: "speed",
-      min: 0.0,
-      max: 3.0,
-      step: 0.05,
+    seed: {
+      type: "int",
+      default: 1,
+      uniform: "seed",
+      min: 1,
+      max: 100,
+      step: 1,
       ui: {
-        label: "speed",
+        label: "seed",
         control: "slider"
       }
     },
@@ -42,70 +39,16 @@ export default new Effect({
       }
     }
   },
-  textures: {
-    downsampleTex: { width: "25%", height: "25%", format: "rgba16f" },
-    reduce1Tex: { width: "1.5625%", height: "1.5625%", format: "rgba16f" },
-    statsTex: { width: 1, height: 1, format: "rgba16f" },
-    shadedTex: { width: "25%", height: "25%", format: "rgba16f" }
-  },
+  defaultProgram: "search filter, synth\n\nsolid(color: #2d78f0)\n.clouds(scale: 0.55)\n.write(o0)",
   passes: [
     {
-      name: "downsample",
-      program: "cloudsDownsample",
-      uniforms: {
-        speed: "speed",
-        scale: "scale"
-      },
-      outputs: {
-        fragColor: "downsampleTex"
-      }
-    },
-    {
-      name: "reduce",
-      program: "cloudsReduce",
+      name: "render",
+      program: "clouds",
       inputs: {
-        downsampleTex: "downsampleTex"
-      },
-      uniforms: {},
-      outputs: {
-        fragColor: "reduce1Tex"
-      }
-    },
-    {
-      name: "stats",
-      program: "cloudsStats",
-      inputs: {
-        reduceTex: "reduce1Tex"
-      },
-      uniforms: {},
-      outputs: {
-        fragColor: "statsTex"
-      }
-    },
-    {
-      name: "shade",
-      program: "cloudsShade",
-      inputs: {
-        downsampleTex: "downsampleTex",
-        statsTex: "statsTex"
-      },
-      uniforms: {
-        speed: "speed",
-        scale: "scale"
-      },
-      outputs: {
-        fragColor: "shadedTex"
-      }
-    },
-    {
-      name: "upsample",
-      program: "cloudsUpsample",
-      inputs: {
-        shadedTex: "shadedTex",
         inputTex: "inputTex"
       },
       uniforms: {
-        speed: "speed",
+        seed: "seed",
         scale: "scale"
       },
       outputs: {

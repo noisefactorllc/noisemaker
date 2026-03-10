@@ -27,6 +27,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search filter, synth\n\nnoise(ridges: true)\n.colorspace(mode: oklab)\n.write(o0)",
   passes: [
     {
       name: "render",
