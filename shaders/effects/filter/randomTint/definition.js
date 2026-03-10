@@ -10,7 +10,7 @@ export default new Effect({
   func: "randomTint",
   tags: ["color"],
 
-  description: "Color tint overlay using deterministic random hue from seed",
+  description: "Color tint overlay using deterministic random hue",
   globals: {
     alpha: {
         type: "float",

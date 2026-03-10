@@ -8,6 +8,7 @@ export default new Effect({
   name: "Ridge",
   namespace: "filter",
   func: "ridge",
+  tags: ["edges"],
 
   description: "Ridge/crease enhancement",
   globals: {

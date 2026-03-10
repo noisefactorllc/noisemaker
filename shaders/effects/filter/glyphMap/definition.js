@@ -8,7 +8,7 @@ export default new Effect({
   name: "Glyph Map",
   namespace: "filter",
   func: "glyphMap",
-  tags: ["util"],
+  tags: ["color", "pixel"],
 
   description: "ASCII/glyph art conversion using procedural glyphs",
   globals: {
@@ -36,7 +36,7 @@ export default new Effect({
     },
     color: {
       type: "boolean",
-      default: false,
+      default: true,
       uniform: "color",
       ui: {
         label: "color",

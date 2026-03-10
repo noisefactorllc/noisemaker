@@ -7,7 +7,7 @@ export default new Effect({
   name: "Sketch",
   namespace: "filter",
   func: "sketch",
-  tags: ["color"],
+  tags: ["edges"],
 
   description: "Pencil sketch with crosshatch shading",
   globals: {

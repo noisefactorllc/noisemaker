@@ -14,7 +14,7 @@ export default new Effect({
   globals: {
     amount: {
       type: "float",
-      default: 1.0,
+      default: 2.0,
       uniform: "amount",
       min: 0.1,
       max: 5,

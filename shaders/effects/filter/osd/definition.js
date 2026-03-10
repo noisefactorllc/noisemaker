@@ -8,7 +8,7 @@ export default new Effect({
   name: "OSD",
   namespace: "filter",
   func: "osd",
-  tags: ["util"],
+  tags: ["text"],
 
   description: "On-screen display overlay",
   globals: {

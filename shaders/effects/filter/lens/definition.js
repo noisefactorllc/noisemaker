@@ -24,6 +24,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search filter, synth\n\ntestPattern(gridSize: 8)\n.lens(displacement: 0.5)\n.write(o0)",
   passes: [
     {
       name: "render",

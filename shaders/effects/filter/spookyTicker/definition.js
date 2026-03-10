@@ -10,7 +10,7 @@ export default new Effect({
   name: "Spooky Ticker",
   namespace: "filter",
   func: "spookyTicker",
-  tags: ["util"],
+  tags: ["text"],
 
   description: "Scrolling pseudo-text ticker overlay",
   globals: {

@@ -17,7 +17,7 @@ export default new Effect({
   globals: {
     mode: {
       type: "int",
-      default: 0,
+      default: 15,
       uniform: "flipMode",
       choices: {
         none: 0,

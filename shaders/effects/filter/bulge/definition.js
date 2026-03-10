@@ -59,6 +59,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search synth, filter\ntestPattern(gridSize: 8)\n.bulge()\n.write(o0)",
   passes: [
     {
       name: "render",

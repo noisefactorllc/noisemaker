@@ -4,7 +4,7 @@ export default new Effect({
   name: "CRT",
   namespace: "filter",
   func: "crt",
-  tags: ["util"],
+  tags: ["distort"],
   description: "CRT monitor simulation",
   globals: {
     speed: {

@@ -8,7 +8,7 @@ export default new Effect({
   name: "Vaseline",
   namespace: "filter",
   func: "vaseline",
-  tags: ["util"],
+  tags: ["blur"],
 
   description: "Vaseline lens blur effect",
   globals: {

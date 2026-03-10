@@ -4,7 +4,7 @@ export default new Effect({
   name: "Scanline Error",
   namespace: "filter",
   func: "scanlineError",
-  tags: ["distort"],
+  tags: ["distort", "glitch"],
   description: "Scanline glitch effect",
   globals: {
     speed: {

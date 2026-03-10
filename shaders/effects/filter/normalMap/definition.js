@@ -8,7 +8,7 @@ export default new Effect({
   name: "Normal Map",
   namespace: "filter",
   func: "normalMap",
-  tags: ["util"],
+  tags: ["color"],
 
   description: "Normal map generation",
   globals: {},

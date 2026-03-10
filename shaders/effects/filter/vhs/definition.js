@@ -8,7 +8,7 @@ export default new Effect({
   name: "VHS",
   namespace: "filter",
   func: "vhs",
-  tags: ["distort"],
+  tags: ["distort", "glitch"],
 
   description: "VHS tape artifacts",
   globals: {

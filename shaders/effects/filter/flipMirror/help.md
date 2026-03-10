@@ -6,4 +6,4 @@ Flip and mirror image transformations
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| mode | int | none | none/all/horizontal/vertical/mirrorLtoR/mirrorRtoL/mirrorUtoD/mirrorDtoU/mirrorLtoRUtoD/mirrorLtoRDtoU/mirrorRtoLUtoD/mirrorRtoLDtoU | Mode |
+| mode | int | mirrorLtoRUtoD | none/all/horizontal/vertical/mirrorLtoR/mirrorRtoL/mirrorUtoD/mirrorDtoU/mirrorLtoRUtoD/mirrorLtoRDtoU/mirrorRtoLUtoD/mirrorRtoLDtoU | Mode |

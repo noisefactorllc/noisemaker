@@ -26,7 +26,7 @@ export default new Effect({
     },
     range: {
       type: "float",
-      default: 0.1,
+      default: 0.25,
       uniform: "range",
       min: 0,
       max: 0.5,
