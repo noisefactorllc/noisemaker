@@ -39,10 +39,10 @@ fn map(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
 }
 
-fn gaborNoise(st: vec2<f32>, freq: f32, sigma: f32, baseAngle: f32, iso: f32, impulses: i32, t: f32, sd: f32) -> vec3<f32> {
+fn gaborNoise(st: vec2<f32>, freq: f32, sigma: f32, baseAngle: f32, iso: f32, impulses: i32, t: f32, sd: f32) -> f32 {
     let cell = floor(st);
     let fr = fract(st);
-    var sum = vec3<f32>(0.0);
+    var sum = 0.0;
 
     for (var dy: i32 = -1; dy <= 1; dy = dy + 1) {
         for (var dx: i32 = -1; dx <= 1; dx = dx + 1) {
@@ -66,15 +66,9 @@ fn gaborNoise(st: vec2<f32>, freq: f32, sigma: f32, baseAngle: f32, iso: f32, im
                 var weight = 1.0;
                 if (r1.z < 0.5) { weight = -1.0; }
 
-                // Shared envelope, per-channel carrier with phase offsets
                 let envelope = exp(-dot(delta, delta) / (2.0 * sigma * sigma));
                 let phase = TAU * freq * dot(dir, delta);
-                let phaseOffset = r1.z * TAU;
-                sum = sum + weight * envelope * vec3<f32>(
-                    cos(phase),
-                    cos(phase + phaseOffset),
-                    cos(phase + phaseOffset * 2.0),
-                );
+                sum = sum + weight * envelope * cos(phase);
             }
         }
     }
@@ -95,8 +89,6 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let density = uniforms.data[2].x;
     let octaves = uniforms.data[2].y;
     let speed = uniforms.data[2].z;
-    let colorMode = uniforms.data[2].w;
-
     var st = pos.xy / resolution.y;
 
     let freq = map(scale, 1.0, 100.0, 20.0, 1.0);
@@ -105,14 +97,13 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let iso = isotropy / 100.0;
     let impulses = i32(density);
     let oct = i32(octaves);
-    let cMode = i32(colorMode);
     let spd = floor(speed);
     let t = time * TAU * spd;
 
     var p = st * freq;
 
     // Fractal octave summation
-    var value = vec3<f32>(0.0);
+    var value = 0.0;
     var amplitude = 1.0;
     var totalAmp = 0.0;
     var pOct = p;
@@ -129,13 +120,6 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
     value = value / totalAmp;
 
-    var color: vec3<f32>;
-    if (cMode == 0) {
-        let n = 1.0 / (1.0 + exp(-value.x * 3.0));
-        color = vec3<f32>(n);
-    } else {
-        color = 1.0 / (1.0 + exp(-value * 3.0));
-    }
-
-    return vec4<f32>(color, 1.0);
+    let n = 1.0 / (1.0 + exp(-value * 3.0));
+    return vec4<f32>(vec3<f32>(n), 1.0);
 }

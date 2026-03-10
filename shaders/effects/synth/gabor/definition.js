@@ -18,7 +18,6 @@ export default new Effect({
     density: { slot: 2, components: 'x' },
     octaves: { slot: 2, components: 'y' },
     speed: { slot: 2, components: 'z' },
-    colorMode: { slot: 2, components: 'w' },
   },
   globals: {
     scale: {
@@ -110,19 +109,6 @@ export default new Effect({
         control: "slider"
       }
     },
-    colorMode: {
-      type: "int",
-      default: 1,
-      uniform: "colorMode",
-      choices: {
-        mono: 0,
-        rgb: 1
-      },
-      ui: {
-        label: "color",
-        control: "dropdown"
-      }
-    }
   },
   passes: [
     {

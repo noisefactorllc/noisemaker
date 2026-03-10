@@ -19,8 +19,6 @@ uniform float isotropy;
 uniform float density;
 uniform float octaves;
 uniform float speed;
-uniform float colorMode;
-
 out vec4 fragColor;
 
 #define PI 3.14159265359
@@ -50,11 +48,11 @@ float map(float value, float inMin, float inMax, float outMin, float outMax) {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
 }
 
-// Sum Gabor kernels from 3×3 cell neighborhood, returning RGB via phase offsets
-vec3 gaborNoise(vec2 st, float freq, float sigma, float baseAngle, float iso, int impulses, float t, float sd) {
+// Sum Gabor kernels from 3×3 cell neighborhood
+float gaborNoise(vec2 st, float freq, float sigma, float baseAngle, float iso, int impulses, float t, float sd) {
     vec2 cell = floor(st);
     vec2 frac = fract(st);
-    vec3 sum = vec3(0.0);
+    float sum = 0.0;
 
     for (int dy = -1; dy <= 1; dy++) {
         for (int dx = -1; dx <= 1; dx++) {
@@ -81,15 +79,9 @@ vec3 gaborNoise(vec2 st, float freq, float sigma, float baseAngle, float iso, in
                 // Random weight ±1
                 float weight = r1.z < 0.5 ? -1.0 : 1.0;
 
-                // Shared envelope, per-channel carrier with phase offsets
                 float envelope = exp(-dot(delta, delta) / (2.0 * sigma * sigma));
                 float phase = TAU * freq * dot(dir, delta);
-                float phaseOffset = r1.z * TAU;
-                sum += weight * envelope * vec3(
-                    cos(phase),
-                    cos(phase + phaseOffset),
-                    cos(phase + phaseOffset * 2.0)
-                );
+                sum += weight * envelope * cos(phase);
             }
         }
     }
@@ -105,14 +97,13 @@ void main() {
     float iso = isotropy / 100.0;
     int impulses = int(density);
     int oct = int(octaves);
-    int cMode = int(colorMode);
     float spd = floor(speed);
     float t = time * TAU * spd;
 
     vec2 p = st * freq;
 
     // Fractal octave summation
-    vec3 value = vec3(0.0);
+    float value = 0.0;
     float amplitude = 1.0;
     float totalAmp = 0.0;
     vec2 pOct = p;
@@ -129,13 +120,6 @@ void main() {
     }
     value /= totalAmp;
 
-    vec3 color;
-    if (cMode == 0) {
-        float n = 1.0 / (1.0 + exp(-value.x * 3.0));
-        color = vec3(n);
-    } else {
-        color = 1.0 / (1.0 + exp(-value * 3.0));
-    }
-
-    fragColor = vec4(color, 1.0);
+    float n = 1.0 / (1.0 + exp(-value * 3.0));
+    fragColor = vec4(vec3(n), 1.0);
 }

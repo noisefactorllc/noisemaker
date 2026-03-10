@@ -18,7 +18,6 @@ Generates procedural noise by scattering Gabor kernels (windowed cosines) across
 | octaves | int | 1 | 1-5 | Fractal layering — each octave adds finer detail |
 | speed | int | 1 | 0-5 | Animation rate (0 = frozen) |
 | seed | int | 1 | 1-100 | Randomization seed |
-| colorMode | int | rgb | mono/rgb | mono = grayscale, rgb = three independent noise channels |
 
 ## Notes
 
@@ -26,4 +25,3 @@ Generates procedural noise by scattering Gabor kernels (windowed cosines) across
 - **Isotropy** at 0 gives strongly directional patterns; at 100 each kernel picks a random angle, producing noise closer to standard isotropic noise
 - **Density** increases the number of kernels per cell — higher values give smoother, more filled results but cost more to compute
 - **Octaves** layer noise at increasing frequencies, adding fine detail on top of coarser structure
-- In **rgb** mode, each color channel is an independent Gabor noise evaluation with a different seed offset
