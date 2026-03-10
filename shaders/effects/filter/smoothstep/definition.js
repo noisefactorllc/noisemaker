@@ -37,6 +37,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search synth, filter\n\ncell()\n  .smoothstep(edge1: 0.51)\n  .write(o0)",
   passes: [
     {
       name: "render",
