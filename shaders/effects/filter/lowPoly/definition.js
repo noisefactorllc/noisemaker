@@ -36,6 +36,18 @@ export default new Effect({
         control: "slider"
       }
     },
+    nth: {
+      type: "int",
+      default: 0,
+      uniform: "nth",
+      min: 0,
+      max: 2,
+      step: 1,
+      ui: {
+        label: "nth",
+        control: "slider"
+      }
+    },
     alpha: {
       type: "float",
       default: 1.0,

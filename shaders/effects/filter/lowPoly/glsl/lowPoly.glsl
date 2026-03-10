@@ -11,6 +11,7 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform float freq;
 uniform float seed;
+uniform float nth;
 uniform float alpha;
 
 out vec4 fragColor;
@@ -36,6 +37,7 @@ void main() {
 
     float minDist = 1e10;
     float secondDist = 1e10;
+    float thirdDist = 1e10;
     vec2 nearestPoint = vec2(0.0);
 
     // Search 3x3 neighborhood of cells
@@ -51,24 +53,33 @@ void main() {
             float d = distance(uv, point);
 
             if (d < minDist) {
+                thirdDist = secondDist;
                 secondDist = minDist;
                 minDist = d;
                 nearestPoint = point;
             } else if (d < secondDist) {
+                thirdDist = secondDist;
                 secondDist = d;
+            } else if (d < thirdDist) {
+                thirdDist = d;
             }
         }
     }
 
-    // Sample input color at the nearest seed point (color regions)
+    // Sample input color at the nearest seed point
     vec4 cellColor = texture(inputTex, nearestPoint);
 
-    // Distance field using second-nearest distance (nth=1)
-    // Normalized so cell boundaries are dark, centers are bright
-    float distField = clamp(secondDist * n * 1.5, 0.0, 1.0);
-
-    // Blend 50/50 between distance field and color regions (matches Python)
-    vec3 result = mix(vec3(distField), cellColor.rgb, 0.5);
+    vec3 result;
+    if (nth < 0.5) {
+        // nth=0: flat cell color with subtle edge darkening
+        float edgeDist = clamp((secondDist - minDist) * n * 2.0, 0.0, 1.0);
+        result = cellColor.rgb * (0.85 + 0.15 * edgeDist);
+    } else {
+        // nth=1,2: blend distance field with cell color (matches Python lowpoly)
+        float selectedDist = (nth < 1.5) ? secondDist : thirdDist;
+        float distField = sqrt(clamp(selectedDist * n, 0.0, 1.0));
+        result = mix(vec3(distField), cellColor.rgb, 0.5);
+    }
 
     // Alpha blend with original
     vec4 original = texture(inputTex, uv);

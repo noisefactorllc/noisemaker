@@ -7,8 +7,8 @@
 struct Uniforms {
     freq: f32,
     seed: f32,
+    nth: f32,
     alpha: f32,
-    _pad: f32,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -36,6 +36,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     var minDist: f32 = 1e10;
     var secondDist: f32 = 1e10;
+    var thirdDist: f32 = 1e10;
     var nearestPoint = vec2<f32>(0.0);
 
     // Search 3x3 neighborhood of cells
@@ -51,24 +52,35 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             let d = distance(uv, point);
 
             if (d < minDist) {
+                thirdDist = secondDist;
                 secondDist = minDist;
                 minDist = d;
                 nearestPoint = point;
             } else if (d < secondDist) {
+                thirdDist = secondDist;
                 secondDist = d;
+            } else if (d < thirdDist) {
+                thirdDist = d;
             }
         }
     }
 
-    // Sample input color at the nearest seed point (color regions)
+    // Sample input color at the nearest seed point
     let cellColor = textureSample(inputTex, inputSampler, nearestPoint);
 
-    // Distance field using second-nearest distance (nth=1)
-    // Normalized so cell boundaries are dark, centers are bright
-    let distField = clamp(secondDist * n * 1.5, 0.0, 1.0);
-
-    // Blend 50/50 between distance field and color regions (matches Python)
-    let result = mix(vec3<f32>(distField), cellColor.rgb, 0.5);
+    var result: vec3<f32>;
+    if (uniforms.nth < 0.5) {
+        // nth=0: flat cell color with subtle edge darkening
+        let edgeDist = clamp((secondDist - minDist) * n * 2.0, 0.0, 1.0);
+        result = cellColor.rgb * (0.85 + 0.15 * edgeDist);
+    } else {
+        // nth=1,2: blend distance field with cell color (matches Python lowpoly)
+        var selectedDist: f32;
+        if (uniforms.nth < 1.5) { selectedDist = secondDist; }
+        else { selectedDist = thirdDist; }
+        let distField = sqrt(clamp(selectedDist * n, 0.0, 1.0));
+        result = mix(vec3<f32>(distField), cellColor.rgb, 0.5);
+    }
 
     // Alpha blend with original
     let original = textureSample(inputTex, inputSampler, uv);
