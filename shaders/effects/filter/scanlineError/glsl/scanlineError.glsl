@@ -3,16 +3,18 @@
 precision highp float;
 precision highp int;
 
-// Scanline error glitch effect, ported from the Noisemaker WGSL reference.
-// Animated exponential noise bands modulate both a horizontal displacement
-// field and an additive white-noise overlay.
+// Scanline glitch effect with two modes:
+// - scanlineError: simplex noise bands with horizontal displacement and additive white noise
+// - vhs: hash-based value noise with gradient-gated displacement and noise blending
 
 const float TAU = 6.283185307179586;
 
 uniform sampler2D inputTex;
 uniform float speed;
-uniform bool enabled;
 uniform float timeOffset;
+uniform float distortion;
+uniform float noise;
+uniform float mode;
 uniform float time;
 
 out vec4 fragColor;
@@ -20,6 +22,10 @@ out vec4 fragColor;
 float clamp01(float value) {
     return clamp(value, 0.0, 1.0);
 }
+
+// =====================================================================
+// Simplex noise (scanlineError mode)
+// =====================================================================
 
 vec3 mod289_vec3(vec3 x) {
     return x - floor(x * (1.0 / 289.0)) * 289.0;
@@ -205,6 +211,83 @@ const vec3 TIME_SEED_WHITE = vec3(
     BASE_SEED_WHITE.z + 173.0
 );
 
+// =====================================================================
+// Hash-based value noise (vhs mode)
+// =====================================================================
+
+float hashNoise(vec3 p) {
+    vec3 p3 = fract(p * 0.1031);
+    p3 = p3 + dot(p3, vec3(p3.y, p3.z, p3.x) + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float valueNoise(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+    vec3 u = f * f * (3.0 - 2.0 * f);
+
+    float c000 = hashNoise(i);
+    float c100 = hashNoise(i + vec3(1.0, 0.0, 0.0));
+    float c010 = hashNoise(i + vec3(0.0, 1.0, 0.0));
+    float c110 = hashNoise(i + vec3(1.0, 1.0, 0.0));
+    float c001 = hashNoise(i + vec3(0.0, 0.0, 1.0));
+    float c101 = hashNoise(i + vec3(1.0, 0.0, 1.0));
+    float c011 = hashNoise(i + vec3(0.0, 1.0, 1.0));
+    float c111 = hashNoise(i + vec3(1.0, 1.0, 1.0));
+
+    return mix(
+        mix(mix(c000, c100, u.x), mix(c010, c110, u.x), u.y),
+        mix(mix(c001, c101, u.x), mix(c011, c111, u.x), u.y),
+        u.z
+    );
+}
+
+float vhs_computeNoise(vec2 coord, vec2 freq, float t, float spd, vec3 baseOff, vec3 timeOff) {
+    vec3 p = vec3(
+        coord.x * freq.x + baseOff.x,
+        coord.y * freq.y + baseOff.y,
+        cos(t * TAU) * spd + baseOff.z
+    );
+
+    float val = valueNoise(p);
+
+    if (spd != 0.0 && t != 0.0) {
+        vec3 tp = vec3(
+            coord.x * freq.x + timeOff.x,
+            coord.y * freq.y + timeOff.y,
+            timeOff.z
+        );
+        float timeVal = valueNoise(tp);
+        float scaledTime = periodic_value(t, timeVal) * spd;
+        val = periodic_value(scaledTime, val);
+    }
+
+    return clamp(val, 0.0, 1.0);
+}
+
+float vhs_gradValue(float yNorm, float freqY, float t, float spd) {
+    float base = vhs_computeNoise(
+        vec2(0.0, yNorm),
+        vec2(1.0, freqY),
+        t, spd,
+        vec3(17.0, 29.0, 47.0),
+        vec3(71.0, 113.0, 191.0)
+    );
+    float g = max(base - 0.5, 0.0);
+    return min(g * 2.0, 1.0);
+}
+
+float vhs_scanNoise(vec2 coord, vec2 freq, float t, float spd) {
+    return vhs_computeNoise(coord, freq, t, spd,
+        vec3(37.0, 59.0, 83.0),
+        vec3(131.0, 173.0, 211.0)
+    );
+}
+
+// =====================================================================
+// Main
+// =====================================================================
+
 void main() {
     uvec3 gid = uvec3(uint(gl_FragCoord.x), uint(gl_FragCoord.y), 0u);
 
@@ -212,84 +295,94 @@ void main() {
     uint width = uint(input_size.x);
     uint height = uint(input_size.y);
 
-    if (width == 0u || height == 0u) {
+    if (width == 0u || height == 0u || gid.x >= width || gid.y >= height) {
         fragColor = vec4(0.0);
-        return;
-    }
-    if (gid.x >= width || gid.y >= height) {
-        fragColor = vec4(0.0);
-        return;
-    }
-
-    ivec2 base_coord = ivec2(int(gid.x), int(gid.y));
-    vec4 input_texel = texelFetch(inputTex, base_coord, 0);
-
-    if (!enabled) {
-        fragColor = input_texel;
         return;
     }
 
     float width_f = float(width);
     float height_f = float(height);
     vec2 dims = vec2(width_f, height_f);
-
-    vec2 coord_norm = normalized_coord(gid.xy, dims);
-    vec2 freq_line = vec2(
-        max(floor(width_f * 0.5), 1.0),
-        max(floor(height_f * 0.5), 1.0)
-    );
-    float swerve_height = max(floor(height_f * 0.01), 1.0);
-    vec2 freq_swerve = vec2(1.0, swerve_height);
-    vec2 swerve_coord = vec2(0.0, coord_norm.y);
-
     float time_value = time + timeOffset;
     float speed_value = max(speed, 0.0);
+    int m = int(mode);
 
-    float line_noise = compute_exponential_noise(
-        coord_norm,
-        freq_line,
-        time_value,
-        speed_value * 10.0,
-        BASE_SEED_LINE,
-        TIME_SEED_LINE
-    );
-    // Threshold noise - reduce from 0.5 to 0.25 to make effect more visible
-    line_noise = max(line_noise - 0.25, 0.0) * 2.0;
+    if (m == 1) {
+        // VHS mode
+        float yNorm = (float(gid.y) + 0.5) / height_f;
+        float xNorm = (float(gid.x) + 0.5) / width_f;
+        vec2 destCoord = vec2(xNorm, yNorm);
 
-    float swerve_noise = compute_exponential_noise(
-        swerve_coord,
-        freq_swerve,
-        time_value,
-        speed_value,
-        BASE_SEED_SWERVE,
-        TIME_SEED_SWERVE
-    );
-    // Threshold noise - reduce from 0.5 to 0.25 to make effect more visible
-    swerve_noise = max(swerve_noise - 0.25, 0.0) * 2.0;
+        float gradDest = vhs_gradValue(yNorm, 5.0, time_value, speed_value);
 
-    float line_weighted = line_noise * swerve_noise;
-    float swerve_weight = swerve_noise * 2.0;
+        float scanBase = floor(height_f * 0.5) + 1.0;
+        vec2 scanFreq;
+        if (height_f < width_f) {
+            scanFreq = vec2(scanBase * (height_f / width_f), scanBase);
+        } else {
+            scanFreq = vec2(scanBase, scanBase * (width_f / height_f));
+        }
 
-    float white_base = compute_value_noise(
-        coord_norm,
-        freq_line,
-        time_value,
-        speed_value * 100.0,
-        BASE_SEED_WHITE,
-        TIME_SEED_WHITE
-    );
-    float white_weighted = white_base * swerve_weight;
+        float scanDest = vhs_scanNoise(destCoord, scanFreq, time_value, speed_value * 100.0);
 
-    float combined_error = clamp01(line_weighted + white_weighted);
-    float shift_amount = combined_error * width_f * 0.025;
-    int shift_pixels = int(floor(shift_amount));
-    int sample_x = wrap_coord(int(gid.x) - shift_pixels, int(width));
+        float shiftAmount = floor(scanDest * width_f * gradDest * gradDest * distortion);
+        int srcX = wrap_coord(int(gid.x) - int(shiftAmount), int(width));
 
-    ivec2 sample_coord = ivec2(sample_x, int(gid.y));
-    vec4 texel = texelFetch(inputTex, sample_coord, 0);
+        vec4 srcTexel = texelFetch(inputTex, ivec2(srcX, int(gid.y)), 0);
 
-    float additive = clamp(line_weighted * white_weighted * 4.0, 0.0, 4.0);
-    vec3 boosted = clamp(texel.rgb + vec3(additive), vec3(0.0), vec3(1.0));
+        float srcXNorm = (float(srcX) + 0.5) / width_f;
+        float scanSource = vhs_scanNoise(vec2(srcXNorm, yNorm), scanFreq, time_value, speed_value * 100.0);
+        float gradSource = vhs_gradValue(yNorm, 5.0, time_value, speed_value);
 
-    fragColor = vec4(boosted, texel.a);
+        vec3 noiseColor = vec3(scanSource);
+        vec3 blended = mix(srcTexel.rgb, noiseColor, gradSource * noise);
+
+        fragColor = vec4(blended, srcTexel.a);
+    } else {
+        // Scanline error mode (default)
+        ivec2 base_coord = ivec2(int(gid.x), int(gid.y));
+        vec4 input_texel = texelFetch(inputTex, base_coord, 0);
+
+        vec2 coord_norm = normalized_coord(gid.xy, dims);
+        vec2 freq_line = vec2(
+            max(floor(width_f * 0.5), 1.0),
+            max(floor(height_f * 0.5), 1.0)
+        );
+        float swerve_height = max(floor(height_f * 0.01), 1.0);
+        vec2 freq_swerve = vec2(1.0, swerve_height);
+        vec2 swerve_coord = vec2(0.0, coord_norm.y);
+
+        float line_noise = compute_exponential_noise(
+            coord_norm, freq_line, time_value, speed_value * 10.0,
+            BASE_SEED_LINE, TIME_SEED_LINE
+        );
+        line_noise = max(line_noise - 0.25, 0.0) * 2.0;
+
+        float swerve_noise = compute_exponential_noise(
+            swerve_coord, freq_swerve, time_value, speed_value,
+            BASE_SEED_SWERVE, TIME_SEED_SWERVE
+        );
+        swerve_noise = max(swerve_noise - 0.25, 0.0) * 2.0;
+
+        float line_weighted = line_noise * swerve_noise;
+        float swerve_weight = swerve_noise * 2.0;
+
+        float white_base = compute_value_noise(
+            coord_norm, freq_line, time_value, speed_value * 100.0,
+            BASE_SEED_WHITE, TIME_SEED_WHITE
+        );
+        float white_weighted = white_base * swerve_weight;
+
+        float combined_error = clamp01(line_weighted + white_weighted);
+        float shift_amount = combined_error * width_f * 0.025 * distortion;
+        int shift_pixels = int(floor(shift_amount));
+        int sample_x = wrap_coord(int(gid.x) - shift_pixels, int(width));
+
+        vec4 texel = texelFetch(inputTex, ivec2(sample_x, int(gid.y)), 0);
+
+        float additive = clamp(line_weighted * white_weighted * 4.0 * noise, 0.0, 4.0);
+        vec3 boosted = clamp(texel.rgb + vec3(additive), vec3(0.0), vec3(1.0));
+
+        fragColor = vec4(boosted, texel.a);
+    }
 }

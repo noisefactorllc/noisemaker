@@ -5,18 +5,19 @@ export default new Effect({
   namespace: "filter",
   func: "scanlineError",
   tags: ["distort", "glitch"],
-  description: "Scanline glitch effect",
+  description: "Scanline glitch effect/VHS tape artifacts",
   globals: {
-    speed: {
-      type: "float",
+    mode: {
+      type: "int",
       default: 1,
-      uniform: "speed",
-      min: 0,
-      max: 5,
-      step: 0.1,
+      uniform: "mode",
+      choices: {
+        "scanline": 0,
+        "vhs": 1
+      },
       ui: {
-        label: "speed",
-        control: "slider"
+        label: "mode",
+        control: "dropdown"
       }
     },
     timeOffset: {
@@ -31,13 +32,40 @@ export default new Effect({
         control: "slider"
       }
     },
-    enabled: {
-      type: "boolean",
-      default: true,
-      uniform: "enabled",
+    distortion: {
+      type: "float",
+      default: 1,
+      uniform: "distortion",
+      min: 0,
+      max: 3,
+      step: 0.01,
       ui: {
-        label: "enabled",
-        control: "checkbox"
+        label: "distortion",
+        control: "slider"
+      }
+    },
+    noise: {
+      type: "float",
+      default: 1,
+      uniform: "noise",
+      min: 0,
+      max: 3,
+      step: 0.01,
+      ui: {
+        label: "noise",
+        control: "slider"
+      }
+    },
+    speed: {
+      type: "float",
+      default: 1,
+      uniform: "speed",
+      min: 0,
+      max: 5,
+      step: 0.1,
+      ui: {
+        label: "speed",
+        control: "slider"
       }
     }
   },
@@ -51,7 +79,9 @@ export default new Effect({
       uniforms: {
         speed: "speed",
         timeOffset: "timeOffset",
-        enabled: "enabled",
+        distortion: "distortion",
+        noise: "noise",
+        mode: "mode",
         time: "time"
       },
       outputs: {
