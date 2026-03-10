@@ -10,10 +10,11 @@ export default new Effect({
   globals: {
     skew: {
       type: "float",
-      default: 0,
+      default: 0.25,
       uniform: "skewAmt",
       min: -1,
       max: 1,
+      zero: 0,
       ui: {
         label: "skew",
         control: "slider"
@@ -45,6 +46,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search filter, synth\n\ntestPattern()\n.skew(wrap: repeat)\n.write(o0)",
   passes: [
     {
       name: "render",

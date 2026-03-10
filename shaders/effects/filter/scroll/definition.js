@@ -28,18 +28,20 @@ export default new Effect({
         }},
     "speedX": {
         "type": "float",
-        "default": 0,
+        "default": 1,
         "min": -10,
         "max": 10,
+        "zero": 0,
         "uniform": "speedX",
         ui: {
             label: "speed x"
         }},
     "speedY": {
         "type": "float",
-        "default": 0,
+        "default": 1,
         "min": -10,
         "max": 10,
+        "zero": 0,
         "uniform": "speedY",
         ui: {
             label: "speed y"
