@@ -38,7 +38,7 @@ import { Effect } from '../shaders/src/runtime/effect.js'
 {
     let called = false
     class TestEffect extends Effect {
-        async asyncInit(context) {
+        async asyncInit() {
             called = true
         }
     }
