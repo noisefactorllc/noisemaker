@@ -418,6 +418,7 @@ export class WebGL2Backend extends Backend {
      */
     updateTextureFromSource(id, source, options = {}) {
         const gl = this.gl
+        if (!gl) return { width: 0, height: 0 }
         let tex = this.textures.get(id)
 
         const flipY = options.flipY !== false

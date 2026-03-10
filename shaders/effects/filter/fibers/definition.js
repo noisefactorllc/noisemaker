@@ -32,6 +32,7 @@ class Fibers extends Effect {
                     ui: { label: "alpha", control: "slider" }
                 }
             },
+            defaultProgram: "search filter, synth\n\nsolid(color: #000000)\n.fibers(density: 1)\n.write(o0)",
             textures: {
                 overlayTex: { width: 'screen', height: 'screen', format: 'rgba8' }
             },
