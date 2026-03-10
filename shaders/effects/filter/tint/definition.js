@@ -24,11 +24,26 @@ export default new Effect({
         "max": 1,
         "uniform": "alpha",
         "ui": {
-            "label": "opacity",
+            "label": "amount",
             "control": "slider"
+        }
+    },
+    "mode": {
+        "type": "int",
+        "default": 0,
+        "uniform": "mode",
+        "choices": {
+            "overlay": 0,
+            "multiply": 1,
+            "recolor": 2
+        },
+        "ui": {
+            "label": "mode",
+            "control": "dropdown"
         }
     }
   },
+  defaultProgram: "search filter, synth\n\nnoise(ridges: true, colorMode: mono)\n.tint(color: #ff0000, alpha: 0.5, mode: overlay)\n.write(o0)",
   passes: [
     {
       name: "main",
