@@ -393,8 +393,8 @@ fn fragmentMain(input: VertexOutput) -> FragmentOutput {
     // Light direction is fixed in world space (not view space)
     let worldLightDir = normalize(u.lightDirection * vec3f(-1.0, 1.0, 1.0));
     
-    // Rotate ray into volume space (volume rotates, so we inverse-rotate the ray)
-    let angle = -u.time * TAU * f32(u.orbitSpeed);  // Negative for inverse
+    // Rotate ray into volume space
+    let angle = u.time * TAU * f32(u.orbitSpeed);
     let c = cos(angle);
     let s = sin(angle);
     // Rotation around Y axis

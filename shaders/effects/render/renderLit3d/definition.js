@@ -228,6 +228,7 @@ export default new Effect({
         }
     }
   },
+  defaultProgram: "search synth3d, filter3d, render\n\nnoise3d()\n.renderLit3d(specularIntensity: 2, shininess: 256)\n.write(o0)",
   passes: [
     {
       name: "render",

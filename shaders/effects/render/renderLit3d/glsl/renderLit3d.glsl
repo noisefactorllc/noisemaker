@@ -357,8 +357,8 @@ void main() {
     // Light direction is fixed in world space (not view space)
     vec3 worldLightDir = normalize(lightDirection * vec3(-1.0, 1.0, 1.0));
     
-    // Rotate ray into volume space (volume rotates, so we inverse-rotate the ray)
-    float angle = -time * TAU * float(orbitSpeed);  // Negative for inverse
+    // Rotate ray into volume space
+    float angle = time * TAU * float(orbitSpeed);
     float c = cos(angle);
     float s = sin(angle);
     // Rotation around Y axis
