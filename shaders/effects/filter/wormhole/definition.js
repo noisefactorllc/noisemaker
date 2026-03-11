@@ -45,6 +45,18 @@ export default new Effect({
         control: "slider"
       }
     },
+    rotation: {
+      type: "float",
+      default: 0,
+      uniform: "rotation",
+      min: 0,
+      max: 360,
+      step: 1,
+      ui: {
+        label: "rotation",
+        control: "slider"
+      }
+    },
     alpha: {
       type: "float",
       default: 1,
@@ -84,7 +96,8 @@ export default new Effect({
 
       uniforms: {
         kink: "kink",
-        stride: "stride"
+        stride: "stride",
+        rotation: "rotation"
       },
 
       outputs: {

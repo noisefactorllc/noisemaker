@@ -4,6 +4,7 @@ struct Uniforms {
     resolution: vec2<f32>,
     kink: f32,
     stride: f32,
+    rotation: f32,
 };
 
 struct VertexOutput {
@@ -48,7 +49,7 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     let src = textureLoad(inputTex, vec2<i32>(srcX, srcY), 0);
     let lum = oklabL(src.rgb);
 
-    let angle = lum * TAU * u.kink;
+    let angle = lum * TAU * u.kink + radians(u.rotation);
     let pixelStride = 1024.0 * u.stride;
 
     let ox = (cos(angle) + 1.0) * pixelStride;

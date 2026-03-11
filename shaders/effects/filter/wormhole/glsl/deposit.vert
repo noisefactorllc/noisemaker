@@ -8,6 +8,7 @@ uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform float kink;
 uniform float stride;
+uniform float rotation;
 
 out vec4 vColor;
 
@@ -44,7 +45,7 @@ void main() {
     float lum = oklabL(src.rgb);
 
     // JS: deg = valuesArr[idx] * TAU * kink
-    float angle = lum * TAU * kink;
+    float angle = lum * TAU * kink + radians(rotation);
 
     // JS: stride = 1024 * inputStride
     float pixelStride = 1024.0 * stride;
