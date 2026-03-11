@@ -7,6 +7,7 @@ uniform vec2 resolution;
 uniform float angled;
 uniform bool darkest;
 uniform float wrap;
+uniform float alpha;
 
 out vec4 fragColor;
 
@@ -54,15 +55,15 @@ void main() {
         working_sorted = vec4(vec3(1.0) - working_sorted.rgb, working_sorted.a);
     }
     
-    vec4 blended = max(working_source, working_sorted);
+    vec4 blended = max(working_source * alpha, working_sorted);
     blended = clamp(blended, 0.0, 1.0);
     blended.a = working_source.a;
-    
+
     if (darkest) {
         blended = vec4(vec3(1.0) - blended.rgb, originalColor.a);
     } else {
         blended.a = originalColor.a;
     }
-    
+
     fragColor = blended;
 }

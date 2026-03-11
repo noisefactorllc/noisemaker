@@ -11,6 +11,7 @@ const PI : f32 = 3.141592653589793;
 @group(0) @binding(5) var<uniform> angled : f32;
 @group(0) @binding(6) var<uniform> darkest : f32;
 @group(0) @binding(7) var<uniform> wrap : f32;
+@group(0) @binding(8) var<uniform> alpha : f32;
 
 fn applyWrap(coord: vec2<f32>, size: vec2<f32>) -> vec2<f32> {
     var uv = coord / size;
@@ -62,15 +63,15 @@ fn main(input : VertexOutput) -> @location(0) vec4<f32> {
         working_sorted = vec4<f32>(vec3<f32>(1.0) - working_sorted.rgb, working_sorted.a);
     }
     
-    var blended : vec4<f32> = max(working_source, working_sorted);
+    var blended : vec4<f32> = max(working_source * alpha, working_sorted);
     blended = clamp(blended, vec4<f32>(0.0), vec4<f32>(1.0));
     blended.a = working_source.a;
-    
+
     if (darkest != 0.0) {
         blended = vec4<f32>(vec3<f32>(1.0) - blended.rgb, originalColor.a);
     } else {
         blended.a = originalColor.a;
     }
-    
+
     return blended;
 }

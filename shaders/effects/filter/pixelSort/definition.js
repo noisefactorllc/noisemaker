@@ -53,6 +53,18 @@ export default new Effect({
             label: "wrap",
             control: "dropdown"
         }
+    },
+    alpha: {
+        type: "float",
+        default: 1.0,
+        uniform: "alpha",
+        min: 0.0,
+        max: 1.0,
+        step: 0.01,
+        ui: {
+            label: "input mix",
+            control: "slider"
+        }
     }
   },
   textures: {
@@ -132,7 +144,8 @@ export default new Effect({
         resolution: "resolution",
         angled: "angled",
         darkest: "darkest",
-        wrap: "wrap"
+        wrap: "wrap",
+        alpha: "alpha"
       },
       outputs: {
         fragColor: "outputTex"
