@@ -2,35 +2,25 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
   name: "Corrupt",
-  namespace: "synth",
+  namespace: "filter",
   func: "corrupt",
   tags: ["distort", "glitch"],
 
-  description: "Scanline-based data corruption with pixel sorting, byte shifting, and bit manipulation",
+  description: "Scanline-based data corruption",
   uniformLayout: {
-    resolution: { slot: 0, components: 'xy' },
-    time: { slot: 0, components: 'z' },
-    seed: { slot: 0, components: 'w' },
-    intensity: { slot: 1, components: 'x' },
-    sort: { slot: 1, components: 'y' },
-    shift: { slot: 1, components: 'z' },
-    bits: { slot: 1, components: 'w' },
-    channelShift: { slot: 2, components: 'x' },
-    speed: { slot: 2, components: 'y' },
-    melt: { slot: 2, components: 'z' },
-    scatter: { slot: 2, components: 'w' },
-    bandHeight: { slot: 3, components: 'x' },
-    inputMix: { slot: 3, components: 'y' },
+    time: { slot: 0, components: 'x' },
+    seed: { slot: 0, components: 'y' },
+    intensity: { slot: 0, components: 'z' },
+    sort: { slot: 0, components: 'w' },
+    shift: { slot: 1, components: 'x' },
+    bits: { slot: 1, components: 'y' },
+    channelShift: { slot: 1, components: 'z' },
+    speed: { slot: 1, components: 'w' },
+    melt: { slot: 2, components: 'x' },
+    scatter: { slot: 2, components: 'y' },
+    bandHeight: { slot: 2, components: 'z' },
   },
   globals: {
-    tex: {
-      type: "surface",
-      default: "none",
-      ui: {
-        label: "texture",
-        category: "input"
-      }
-    },
     intensity: {
       type: "float",
       default: 50,
@@ -141,20 +131,6 @@ export default new Effect({
         label: "seed",
         control: "slider"
       }
-    },
-    inputMix: {
-      type: "float",
-      default: 0,
-      uniform: "inputMix",
-      min: 0,
-      max: 100,
-      randChance: 0,
-      ui: {
-        label: "input mix",
-        control: "slider",
-        category: "input",
-        enabledBy: { param: "tex", neq: "none" }
-      }
     }
   },
   passes: [
@@ -162,7 +138,7 @@ export default new Effect({
       name: "render",
       program: "corrupt",
       inputs: {
-        inputTex: "tex"
+        inputTex: "inputTex"
       },
       outputs: {
         fragColor: "outputTex"

@@ -6,7 +6,7 @@
  */
 
 struct Uniforms {
-    data: array<vec4<f32>, 4>,
+    data: array<vec4<f32>, 3>,
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -45,43 +45,6 @@ fn rowTime(row: f32, sd: f32, t: f32) -> f32 {
 
 fn lineHash(line: f32, sd: f32, rt: f32) -> vec3<f32> {
     return prng(vec3<f32>(line, sd, rt));
-}
-
-fn synthSource(uv: vec2<f32>, t: f32, sd: f32) -> vec3<f32> {
-    let barWidth = 1.0 / 7.0;
-    let bar = i32(floor(uv.x / barWidth));
-    var bars: vec3<f32>;
-    if (bar == 0) { bars = vec3<f32>(1.0, 1.0, 1.0); }
-    else if (bar == 1) { bars = vec3<f32>(1.0, 1.0, 0.0); }
-    else if (bar == 2) { bars = vec3<f32>(0.0, 1.0, 1.0); }
-    else if (bar == 3) { bars = vec3<f32>(0.0, 1.0, 0.0); }
-    else if (bar == 4) { bars = vec3<f32>(1.0, 0.0, 1.0); }
-    else if (bar == 5) { bars = vec3<f32>(1.0, 0.0, 0.0); }
-    else { bars = vec3<f32>(0.0, 0.0, 1.0); }
-
-    let ramp = vec3<f32>(uv.x, 1.0 - uv.x, abs(uv.x - 0.5) * 2.0);
-
-    let diag = fract(uv.x * 8.0 + uv.y * 4.0 + sin(t * 0.7) * 0.5);
-    let signal = vec3<f32>(step(0.5, diag)) * vec3<f32>(0.8, 0.9, 1.0);
-
-    let noiseCol = prng(vec3<f32>(floor(uv * 40.0), sd));
-
-    let zone = uv.y;
-    var color: vec3<f32>;
-    if (zone < 0.25) {
-        color = bars;
-    } else if (zone < 0.5) {
-        color = ramp;
-    } else if (zone < 0.75) {
-        color = signal;
-    } else {
-        color = noiseCol;
-    }
-
-    let band = smoothstep(0.48, 0.5, fract(uv.y * 20.0));
-    color = color * (0.85 + 0.15 * band);
-
-    return color;
 }
 
 fn pixelSort(uv_in: vec2<f32>, row: f32, sortAmt: f32, rt: f32, sd: f32, resX: f32) -> vec2<f32> {
@@ -167,23 +130,22 @@ fn scatterDisplace(uv_in: vec2<f32>, scatterAmt: f32, t: f32, sd: f32, fragCoord
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let resolution = uniforms.data[0].xy;
-    let time = uniforms.data[0].z;
-    let seed = uniforms.data[0].w;
+    let time = uniforms.data[0].x;
+    let seed = uniforms.data[0].y;
+    let intensity = uniforms.data[0].z;
+    let sort = uniforms.data[0].w;
 
-    let intensity = uniforms.data[1].x;
-    let sort = uniforms.data[1].y;
-    let shift = uniforms.data[1].z;
-    let bits = uniforms.data[1].w;
+    let shift = uniforms.data[1].x;
+    let bits = uniforms.data[1].y;
+    let channelShift = uniforms.data[1].z;
+    let speed = uniforms.data[1].w;
 
-    let channelShift = uniforms.data[2].x;
-    let speed = uniforms.data[2].y;
-    let melt = uniforms.data[2].z;
-    let scatter = uniforms.data[2].w;
+    let melt = uniforms.data[2].x;
+    let scatter = uniforms.data[2].y;
+    let bandHeight = uniforms.data[2].z;
 
-    let bandHeight = uniforms.data[3].x;
-    let inputMix = uniforms.data[3].y;
-
+    let resolution = vec2<f32>(textureDimensions(inputTex));
+    let resX = resolution.x;
     let uv = pos.xy / resolution;
     let spd = floor(speed);
     let t = time * TAU * spd;
@@ -201,13 +163,12 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let prob = intensity / 100.0;
     let isCorrupt = rowHash.x < prob;
 
-    let blend = inputMix / 100.0;
     var sampleUv = uv;
 
     // 2D effects (not band-based)
     let meltAmt = melt / 100.0;
     if (meltAmt > 0.0) {
-        sampleUv = meltDisplace(sampleUv, meltAmt, t, seed, resolution.x);
+        sampleUv = meltDisplace(sampleUv, meltAmt, t, seed, resX);
     }
     let scatterAmt = scatter / 100.0;
     if (scatterAmt > 0.0) {
@@ -219,22 +180,15 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         let sortAmt = sort / 100.0;
         let shiftAmt = shift / 100.0;
         if (sortAmt > 0.0) {
-            sampleUv = pixelSort(sampleUv, row, sortAmt, rt, seed, resolution.x);
+            sampleUv = pixelSort(sampleUv, row, sortAmt, rt, seed, resX);
         }
         if (shiftAmt > 0.0) {
-            sampleUv = byteShift(sampleUv, row, shiftAmt, rt, seed, resolution.x);
+            sampleUv = byteShift(sampleUv, row, shiftAmt, rt, seed, resX);
         }
     }
 
-    // Sample color from source
-    var color: vec3<f32>;
-    if (blend > 0.0) {
-        let inputColor = textureSample(inputTex, samp, sampleUv).rgb;
-        let synthCol = synthSource(sampleUv, t, seed);
-        color = mix(synthCol, inputColor, blend);
-    } else {
-        color = synthSource(sampleUv, t, seed);
-    }
+    // Sample color from input
+    var color = textureSample(inputTex, samp, sampleUv).rgb;
 
     // Channel separation
     if (channelShift > 0.0 && isCorrupt) {
@@ -244,18 +198,13 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         let bShift = (chHash.y - 0.5) * chAmt * 0.08;
         let rUv = vec2<f32>(fract(sampleUv.x + rShift), sampleUv.y);
         let bUv = vec2<f32>(fract(sampleUv.x + bShift), sampleUv.y);
-        if (blend > 0.0) {
-            color.r = mix(synthSource(rUv, t, seed).r, textureSample(inputTex, samp, rUv).r, blend);
-            color.b = mix(synthSource(bUv, t, seed).b, textureSample(inputTex, samp, bUv).b, blend);
-        } else {
-            color.r = synthSource(rUv, t, seed).r;
-            color.b = synthSource(bUv, t, seed).b;
-        }
+        color.r = textureSample(inputTex, samp, rUv).r;
+        color.b = textureSample(inputTex, samp, bUv).b;
     }
 
     // Bit corruption
     if (bits > 0.0 && isCorrupt) {
-        color = bitCorrupt(color, uv, row, bits / 100.0, rt, seed, resolution.x);
+        color = bitCorrupt(color, uv, row, bits / 100.0, rt, seed, resX);
     }
 
     return vec4<f32>(color, 1.0);

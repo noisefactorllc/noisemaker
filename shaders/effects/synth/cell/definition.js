@@ -60,7 +60,7 @@ export default new Effect({
     },
     cellSmooth: {
       type: "float",
-      default: 11,
+      default: 0,
       uniform: "cellSmooth",
       min: 0,
       max: 100,

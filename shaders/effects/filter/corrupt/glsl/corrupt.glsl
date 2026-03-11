@@ -11,7 +11,6 @@ precision highp int;
 #endif
 
 uniform sampler2D inputTex;
-uniform vec2 resolution;
 uniform float time;
 uniform float seed;
 uniform float intensity;
@@ -23,7 +22,6 @@ uniform float speed;
 uniform float melt;
 uniform float scatter;
 uniform float bandHeight;
-uniform float inputMix;
 
 out vec4 fragColor;
 
@@ -62,58 +60,14 @@ vec3 lineHash(float line, float rt) {
     return prng(vec3(line, seed, rt));
 }
 
-// Generate source color — test-pattern-like content that looks good when corrupted
-vec3 synthSource(vec2 uv, float t) {
-    // Color bars region (top portion)
-    float barWidth = 1.0 / 7.0;
-    int bar = int(floor(uv.x / barWidth));
-    vec3 bars;
-    if (bar == 0) bars = vec3(1.0, 1.0, 1.0);
-    else if (bar == 1) bars = vec3(1.0, 1.0, 0.0);
-    else if (bar == 2) bars = vec3(0.0, 1.0, 1.0);
-    else if (bar == 3) bars = vec3(0.0, 1.0, 0.0);
-    else if (bar == 4) bars = vec3(1.0, 0.0, 1.0);
-    else if (bar == 5) bars = vec3(1.0, 0.0, 0.0);
-    else bars = vec3(0.0, 0.0, 1.0);
-
-    // Horizontal gradient ramp
-    vec3 ramp = vec3(uv.x, 1.0 - uv.x, abs(uv.x - 0.5) * 2.0);
-
-    // Diagonal signal pattern
-    float diag = fract(uv.x * 8.0 + uv.y * 4.0 + sin(t * 0.7) * 0.5);
-    vec3 signal = vec3(step(0.5, diag)) * vec3(0.8, 0.9, 1.0);
-
-    // Noise field
-    vec3 noiseCol = prng(vec3(floor(uv * 40.0), seed));
-
-    // Blend zones vertically — creates distinct regions for corruption to act on
-    float zone = uv.y;
-    vec3 color;
-    if (zone < 0.25) {
-        color = bars;
-    } else if (zone < 0.5) {
-        color = ramp;
-    } else if (zone < 0.75) {
-        color = signal;
-    } else {
-        color = noiseCol;
-    }
-
-    // Add some horizontal banding for visual interest
-    float band = smoothstep(0.48, 0.5, fract(uv.y * 20.0));
-    color *= 0.85 + 0.15 * band;
-
-    return color;
-}
-
 // Pixel sorting: shift UV horizontally based on brightness threshold
-vec2 pixelSort(vec2 uv, float row, float sortAmt, float rt) {
+vec2 pixelSort(vec2 uv, float row, float sortAmt, float rt, float resX) {
     vec3 rh = lineHash(row, rt);
     float threshold = mix(0.8, 0.2, sortAmt);
     float regionSize = 3.0 + rh.y * 20.0;
-    float region = floor(uv.x * resolution.x / regionSize);
+    float region = floor(uv.x * resX / regionSize);
     vec3 regionHash = prng(vec3(region, row, seed + rt));
-    float regionPos = fract(uv.x * resolution.x / regionSize);
+    float regionPos = fract(uv.x * resX / regionSize);
     float sortShift = regionPos * regionHash.x * sortAmt * 0.15;
     if (regionHash.y > threshold) {
         uv.x = fract(uv.x + sortShift);
@@ -122,27 +76,27 @@ vec2 pixelSort(vec2 uv, float row, float sortAmt, float rt) {
 }
 
 // Byte-shift: displace scanline chunks horizontally
-vec2 byteShift(vec2 uv, float row, float shiftAmt, float rt) {
+vec2 byteShift(vec2 uv, float row, float shiftAmt, float rt, float resX) {
     vec3 rh = lineHash(row, rt);
     float chunkWidth = 8.0 + rh.x * 80.0;
-    float chunk = floor(uv.x * resolution.x / chunkWidth);
+    float chunk = floor(uv.x * resX / chunkWidth);
     vec3 ch = prng(vec3(chunk, row + 200.0, seed + rt));
-    float shiftPx = (ch.x - 0.5) * 2.0 * shiftAmt * resolution.x * 0.15;
+    float shiftPx = (ch.x - 0.5) * 2.0 * shiftAmt * resX * 0.15;
     float sparsity = mix(0.85, 0.3, shiftAmt);
     if (ch.y > sparsity) {
-        uv.x = fract(uv.x + shiftPx / resolution.x);
+        uv.x = fract(uv.x + shiftPx / resX);
     }
     return uv;
 }
 
 // Bit corruption: quantize, XOR patterns, bit shifting
-vec3 bitCorrupt(vec3 color, vec2 uv, float row, float bitAmt, float rt) {
+vec3 bitCorrupt(vec3 color, vec2 uv, float row, float bitAmt, float rt, float resX) {
     vec3 bh = lineHash(row + 400.0, rt);
     float levels = mix(256.0, 2.0, bitAmt * bitAmt);
     color = floor(color * levels + 0.5) / levels;
     if (bitAmt > 0.3) {
         float xorStrength = (bitAmt - 0.3) / 0.7;
-        float px = floor(uv.x * resolution.x);
+        float px = floor(uv.x * resX);
         vec3 xorHash = prng(vec3(px, row, seed + rt + 500.0));
         vec3 mask = step(vec3(1.0 - xorStrength * 0.5), xorHash);
         color = mix(color, 1.0 - color, mask);
@@ -157,11 +111,10 @@ vec3 bitCorrupt(vec3 color, vec2 uv, float row, float bitAmt, float rt) {
 }
 
 // Melt: vertical displacement weighted by position, pixels drip downward
-vec2 meltDisplace(vec2 uv, float meltAmt, float t) {
-    float col = floor(uv.x * resolution.x / 3.0);
+vec2 meltDisplace(vec2 uv, float meltAmt, float t, float resX) {
+    float col = floor(uv.x * resX / 3.0);
     float colPhase = prng(vec3(col, seed + 601.0, 0.0)).x;
     vec3 dripHash = prng(vec3(col, seed + 600.0, floor((t + colPhase) * 8.0)));
-    // Gravity stronger toward bottom (low y in UV = bottom of screen)
     float gravity = (1.0 - uv.y) * (1.0 - uv.y);
     float dripAmt = dripHash.x * meltAmt * gravity * 0.4;
     float dripProb = mix(0.9, 0.2, meltAmt);
@@ -189,7 +142,9 @@ vec2 scatterDisplace(vec2 uv, float scatterAmt, float t) {
 }
 
 void main() {
+    vec2 resolution = vec2(textureSize(inputTex, 0));
     vec2 uv = gl_FragCoord.xy / resolution;
+    float resX = resolution.x;
     float spd = floor(speed);
     float t = time * TAU * spd;
 
@@ -206,13 +161,12 @@ void main() {
     float prob = intensity / 100.0;
     bool isCorrupt = rowHash.x < prob;
 
-    float blend = inputMix / 100.0;
     vec2 sampleUv = uv;
 
     // 2D effects (not band-based)
     float meltAmt = melt / 100.0;
     if (meltAmt > 0.0) {
-        sampleUv = meltDisplace(sampleUv, meltAmt, t);
+        sampleUv = meltDisplace(sampleUv, meltAmt, t, resX);
     }
     float scatterAmt = scatter / 100.0;
     if (scatterAmt > 0.0) {
@@ -224,22 +178,15 @@ void main() {
         float sortAmt = sort / 100.0;
         float shiftAmt = shift / 100.0;
         if (sortAmt > 0.0) {
-            sampleUv = pixelSort(sampleUv, row, sortAmt, rt);
+            sampleUv = pixelSort(sampleUv, row, sortAmt, rt, resX);
         }
         if (shiftAmt > 0.0) {
-            sampleUv = byteShift(sampleUv, row, shiftAmt, rt);
+            sampleUv = byteShift(sampleUv, row, shiftAmt, rt, resX);
         }
     }
 
-    // Sample color from source
-    vec3 color;
-    if (blend > 0.0) {
-        vec3 inputColor = texture(inputTex, sampleUv).rgb;
-        vec3 synthCol = synthSource(sampleUv, t);
-        color = mix(synthCol, inputColor, blend);
-    } else {
-        color = synthSource(sampleUv, t);
-    }
+    // Sample color from input
+    vec3 color = texture(inputTex, sampleUv).rgb;
 
     // Channel separation
     if (channelShift > 0.0 && isCorrupt) {
@@ -249,18 +196,13 @@ void main() {
         float bShift = (chHash.y - 0.5) * chAmt * 0.08;
         vec2 rUv = vec2(fract(sampleUv.x + rShift), sampleUv.y);
         vec2 bUv = vec2(fract(sampleUv.x + bShift), sampleUv.y);
-        if (blend > 0.0) {
-            color.r = mix(synthSource(rUv, t).r, texture(inputTex, rUv).r, blend);
-            color.b = mix(synthSource(bUv, t).b, texture(inputTex, bUv).b, blend);
-        } else {
-            color.r = synthSource(rUv, t).r;
-            color.b = synthSource(bUv, t).b;
-        }
+        color.r = texture(inputTex, rUv).r;
+        color.b = texture(inputTex, bUv).b;
     }
 
     // Bit corruption
     if (bits > 0.0 && isCorrupt) {
-        color = bitCorrupt(color, uv, row, bits / 100.0, rt);
+        color = bitCorrupt(color, uv, row, bits / 100.0, rt, resX);
     }
 
     fragColor = vec4(color, 1.0);
