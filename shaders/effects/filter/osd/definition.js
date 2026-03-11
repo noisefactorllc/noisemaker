@@ -53,10 +53,10 @@ export default new Effect({
         default: 3,
         uniform: "corner",
         choices: {
-            "top-left": 0,
-            "top-right": 1,
-            "bottom-left": 2,
-            "bottom-right": 3
+            topLeft: 0,
+            topRight: 1,
+            bottomLeft: 2,
+            bottomRight: 3
         },
         ui: {
             label: "corner",
