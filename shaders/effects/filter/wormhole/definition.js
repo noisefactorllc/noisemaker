@@ -1,8 +1,8 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * filter/wormhole - Luminance-driven displacement field
- * GPU gather adaptation of Python scatter_nd wormhole
+ * filter/wormhole - Luminance-driven scatter displacement
+ * Multi-pass scatter implementation matching Python scatter_nd wormhole
  */
 export default new Effect({
   name: "Wormhole",
@@ -10,7 +10,16 @@ export default new Effect({
   func: "wormhole",
   tags: ["distort"],
 
-  description: "Luminance-driven displacement field",
+  description: "Luminance-driven scatter displacement field",
+
+  textures: {
+    wormhole_accum: {
+      width: "100%",
+      height: "100%",
+      format: "rgba16f"
+    }
+  },
+
   globals: {
     kink: {
       type: "float",
@@ -49,18 +58,54 @@ export default new Effect({
       }
     },
   },
+
   passes: [
+    // Pass 1: Clear accumulation buffer
     {
-      name: "main",
-      program: "wormhole",
+      name: "clear",
+      program: "clear",
+      inputs: {},
+      outputs: {
+        fragColor: "wormhole_accum"
+      }
+    },
+
+    // Pass 2: Scatter deposit - each pixel scatters to destination based on luminance
+    {
+      name: "deposit",
+      program: "deposit",
+      drawMode: "points",
+      count: 'input',
+      blend: true,
+
       inputs: {
         inputTex: "inputTex"
       },
+
       uniforms: {
         kink: "kink",
-        stride: "stride",
+        stride: "stride"
+      },
+
+      outputs: {
+        fragColor: "wormhole_accum"
+      }
+    },
+
+    // Pass 3: Normalize, sqrt, blend with original
+    {
+      name: "blend",
+      program: "blend",
+
+      inputs: {
+        inputTex: "inputTex",
+        accumTex: "wormhole_accum"
+      },
+
+      uniforms: {
         alpha: "alpha"
       },
+
       outputs: {
         fragColor: "outputTex"
       }
