@@ -18,10 +18,11 @@ export default new Effect({
         }},
     "freq": {
         "type": "int",
-        "default": 1,
+        "default": 5,
         "min": 1,
         "max": 32,
         "step": 1,
+        "zero": 1,
         "uniform": "frequency",
         ui: {
             label: "freq"

@@ -32,7 +32,12 @@ void main(){
   float s = sin(rotation * PI / 180.0);
   st = vec2(st.x * c - st.y * s, st.x * s + st.y * c);
   float sidesF = float(max(sides, 3));
-  float d = polygon(st, sidesF);
+  // Rotate triangle so vertex points up
+  if (sides == 3) {
+      st = vec2(st.y, -st.x);
+  }
+  // Normalize by inradius so all shapes have consistent size
+  float d = polygon(st, sidesF) / cos(PI / sidesF);
   float m = smoothstep(radius, radius - smoothing, d);
   
   // fgAlpha scales foreground visibility, bgAlpha scales background visibility

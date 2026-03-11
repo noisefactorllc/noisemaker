@@ -55,7 +55,7 @@ export default new Effect({
     },
     ridges: {
       type: "boolean",
-      default: false,
+      default: true,
       uniform: "ridges",
       ui: {
         label: "ridges",

@@ -29,7 +29,12 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   let s = sin(rotation * PI / 180.0);
   st = vec2<f32>(st.x * c - st.y * s, st.x * s + st.y * c);
   let sidesF = f32(max(sides, 3));
-  let d = polygon(st, sidesF);
+  // Rotate triangle so vertex points up
+  if (sides == 3) {
+      st = vec2<f32>(st.y, -st.x);
+  }
+  // Normalize by inradius so all shapes have consistent size
+  let d = polygon(st, sidesF) / cos(PI / sidesF);
   let m = smoothstep(radius, radius - smoothing, d);
   
   // fgAlpha scales foreground visibility, bgAlpha scales background visibility
