@@ -16,6 +16,7 @@ out vec4 fragColor;
 
 const float INV_UINT32_MAX = 1.0 / 4294967295.0;
 const int OCTAVE_COUNT = 3;
+const int Z_LOOP = 2;
 const float SHADE_GAIN = 4.4;
 
 float clamp01(float value) {
@@ -67,8 +68,8 @@ float value_noise(vec2 uv, vec2 freq, float motion, uint salt) {
 
     float z_floor = floor(motion);
     float z_frac = fract(motion);
-    int z0 = int(z_floor);
-    int z1 = z0 + 1;
+    int z0 = int(z_floor) % Z_LOOP;
+    int z1 = (z0 + 1) % Z_LOOP;
 
     float c000 = fast_hash(ivec3(base_cell.x + 0, base_cell.y + 0, z0), salt);
     float c100 = fast_hash(ivec3(base_cell.x + 1, base_cell.y + 0, z0), salt);
@@ -128,7 +129,7 @@ void main() {
     }
 
     vec2 base_freq = freq_for_shape(24.0 * scale, dims);
-    float motion = time * 0.5;
+    float motion = time * float(Z_LOOP);
 
     float noise_center = multi_octave_noise(v_texCoord, base_freq, motion);
     float noise_right = multi_octave_noise(v_texCoord + vec2(pixel_step.x, 0.0), base_freq, motion);

@@ -6,7 +6,7 @@ Perlin noise-based warp distortion
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| strength | float | 25 | 0-100 | Strength |
+| strength | float | 75 | 0-100 | Strength |
 | scale | float | 1 | -5-5 | Scale |
 | seed | int | 1 | 1-100 | Seed |
 | speed | int | 0 | -5-5 | Speed |

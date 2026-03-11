@@ -50,6 +50,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search filter, synth\n\ntestPattern()\n  .translate(x: 0.05, y: -0.05)\n  .write(o0)",
   passes: [
     {
       name: "render",

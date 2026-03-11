@@ -37,6 +37,7 @@ export default new Effect({
         }
     }
   },
+  defaultProgram: "search filter, synth\n\nsolid(color: #d1d1d1)\n  .texture(alpha: 0.75)\n  .write(o0)",
   passes: [
     {
       name: "main",

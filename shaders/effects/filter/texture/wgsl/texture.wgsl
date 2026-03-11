@@ -14,6 +14,7 @@ struct VertexOutput {
 
 const INV_UINT32_MAX: f32 = 1.0 / 4294967295.0;
 const OCTAVE_COUNT: u32 = 3u;
+const Z_LOOP: i32 = 2;
 const SHADE_GAIN: f32 = 4.4;
 
 fn clamp01(value: f32) -> f32 {
@@ -65,8 +66,8 @@ fn value_noise(uv: vec2<f32>, freq: vec2<f32>, motion: f32, salt: u32) -> f32 {
 
     let z_floor: f32 = floor(motion);
     let z_frac: f32 = fract(motion);
-    let z0: i32 = i32(z_floor);
-    let z1: i32 = z0 + 1;
+    let z0: i32 = i32(z_floor) % Z_LOOP;
+    let z1: i32 = (z0 + 1) % Z_LOOP;
 
     let c000: f32 = fast_hash(vec3<i32>(base_cell.x + 0, base_cell.y + 0, z0), salt);
     let c100: f32 = fast_hash(vec3<i32>(base_cell.x + 1, base_cell.y + 0, z0), salt);
@@ -126,7 +127,7 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     }
 
     let base_freq: vec2<f32> = freq_for_shape(24.0 * scale, dims);
-    let motion: f32 = time * 0.5;
+    let motion: f32 = time * f32(Z_LOOP);
 
     let noise_center: f32 = multi_octave_noise(in.uv, base_freq, motion);
     let noise_right: f32 = multi_octave_noise(in.uv + vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
