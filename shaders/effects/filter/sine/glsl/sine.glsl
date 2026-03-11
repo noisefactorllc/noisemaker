@@ -10,7 +10,7 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform float amount;
-uniform float rgb;
+uniform float colorMode;
 
 out vec4 fragColor;
 
@@ -23,7 +23,7 @@ void main() {
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
     vec4 color = texture(inputTex, uv);
 
-    bool use_rgb = rgb > 0.5;
+    bool use_rgb = colorMode > 0.5;
 
     if (use_rgb) {
         color.r = normalized_sine(color.r * amount);

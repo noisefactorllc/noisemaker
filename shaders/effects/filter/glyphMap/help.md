@@ -8,4 +8,4 @@ ASCII/glyph art conversion using procedural glyphs
 |-----------|------|---------|-------|-------------|
 | cellSize | int | 16 | 4-32 | Glyph cell size in pixels |
 | seed | int | 1 | 1-100 | Random seed |
-| color | boolean | true | on/off | Preserve color |
+| colorMode | int | 1 (rgb) | mono, rgb | Mono or per-channel RGB |

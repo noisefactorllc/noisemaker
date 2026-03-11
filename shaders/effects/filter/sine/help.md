@@ -7,4 +7,4 @@ Sine wave color transform
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | amount | float | 7 | 0-20 | Transform intensity |
-| rgb | boolean | true | on/off | Apply per RGB channel |
+| colorMode | int | 1 (rgb) | mono, rgb | Mono or per-channel RGB |

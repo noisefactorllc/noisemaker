@@ -7,7 +7,7 @@
 struct Uniforms {
     cellSize: i32,
     seed: i32,
-    color: i32,
+    colorMode: i32,
     _pad: i32,
 }
 
@@ -194,7 +194,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Get the glyph pixel value
     let glyphVal = glyphPixel(glyphIdx, gx, gy);
 
-    if (uniforms.color > 0) {
+    if (uniforms.colorMode > 0) {
         return vec4<f32>(srcColor.rgb * glyphVal, 1.0);
     } else {
         return vec4<f32>(vec3<f32>(glyphVal), 1.0);

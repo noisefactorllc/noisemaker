@@ -34,13 +34,17 @@ export default new Effect({
         control: "slider"
       }
     },
-    color: {
-      type: "boolean",
-      default: true,
-      uniform: "color",
+    colorMode: {
+      type: "int",
+      default: 1,
+      uniform: "colorMode",
+      choices: {
+        mono: 0,
+        rgb: 1
+      },
       ui: {
-        label: "color",
-        control: "checkbox"
+        label: "color mode",
+        control: "dropdown"
       }
     }
   },

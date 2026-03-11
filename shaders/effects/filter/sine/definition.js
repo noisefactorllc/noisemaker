@@ -27,13 +27,17 @@ export default new Effect({
         control: "slider"
       }
     },
-    rgb: {
-      type: "boolean",
-      default: true,
-      uniform: "rgb",
+    colorMode: {
+      type: "int",
+      default: 1,
+      uniform: "colorMode",
+      choices: {
+        mono: 0,
+        rgb: 1
+      },
       ui: {
-        label: "rgb",
-        control: "checkbox"
+        label: "color mode",
+        control: "dropdown"
       }
     }
   },
@@ -46,7 +50,7 @@ export default new Effect({
       },
       uniforms: {
         amount: "amount",
-        rgb: "rgb"
+        colorMode: "colorMode"
       },
       outputs: {
         fragColor: "outputTex"

@@ -6,7 +6,7 @@
 
 struct Uniforms {
     amount: f32,
-    rgb: f32,
+    colorMode: f32,
     _pad1: f32,
     _pad2: f32,
 }
@@ -22,7 +22,7 @@ fn normalized_sine(value: f32) -> f32 {
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let amount = uniforms.amount;
-    let use_rgb = uniforms.rgb > 0.5;
+    let use_rgb = uniforms.colorMode > 0.5;
 
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = pos.xy / texSize;

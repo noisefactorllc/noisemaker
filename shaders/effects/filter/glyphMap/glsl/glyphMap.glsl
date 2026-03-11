@@ -11,7 +11,7 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform int cellSize;
 uniform int seed;
-uniform bool color;
+uniform int colorMode;
 
 out vec4 fragColor;
 
@@ -337,7 +337,7 @@ void main() {
     // Get the glyph pixel value
     float glyphVal = glyphPixel(glyphIdx, gx, gy);
 
-    if (color) {
+    if (colorMode > 0) {
         fragColor = vec4(srcColor.rgb * glyphVal, 1.0);
     } else {
         fragColor = vec4(vec3(glyphVal), 1.0);
