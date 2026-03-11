@@ -48,7 +48,7 @@ void main() {
     vec4 color = texture(inputTex, wrappedUV);
     
     if (darkest) {
-        color = vec4(1.0) - color;
+        color = vec4(vec3(1.0) - color.rgb, color.a);
     }
     
     fragColor = color;

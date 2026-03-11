@@ -50,8 +50,8 @@ void main() {
     vec4 working_sorted = sortedColor;
     
     if (darkest) {
-        working_source = vec4(1.0) - working_source;
-        working_sorted = vec4(1.0) - working_sorted;
+        working_source = vec4(vec3(1.0) - working_source.rgb, working_source.a);
+        working_sorted = vec4(vec3(1.0) - working_sorted.rgb, working_sorted.a);
     }
     
     vec4 blended = max(working_source, working_sorted);
@@ -59,8 +59,7 @@ void main() {
     blended.a = working_source.a;
     
     if (darkest) {
-        blended = vec4(1.0) - blended;
-        blended.a = originalColor.a;
+        blended = vec4(vec3(1.0) - blended.rgb, originalColor.a);
     } else {
         blended.a = originalColor.a;
     }

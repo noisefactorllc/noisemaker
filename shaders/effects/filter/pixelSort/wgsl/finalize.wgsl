@@ -58,8 +58,8 @@ fn main(input : VertexOutput) -> @location(0) vec4<f32> {
     var working_sorted : vec4<f32> = sortedColor;
     
     if (darkest != 0.0) {
-        working_source = vec4<f32>(1.0) - working_source;
-        working_sorted = vec4<f32>(1.0) - working_sorted;
+        working_source = vec4<f32>(vec3<f32>(1.0) - working_source.rgb, working_source.a);
+        working_sorted = vec4<f32>(vec3<f32>(1.0) - working_sorted.rgb, working_sorted.a);
     }
     
     var blended : vec4<f32> = max(working_source, working_sorted);
@@ -67,8 +67,7 @@ fn main(input : VertexOutput) -> @location(0) vec4<f32> {
     blended.a = working_source.a;
     
     if (darkest != 0.0) {
-        blended = vec4<f32>(1.0) - blended;
-        blended.a = originalColor.a;
+        blended = vec4<f32>(vec3<f32>(1.0) - blended.rgb, originalColor.a);
     } else {
         blended.a = originalColor.a;
     }
