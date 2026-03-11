@@ -53,17 +53,10 @@ export default new Effect({
         default: 3,
         uniform: "corner",
         choices: {
-<<<<<<< HEAD
             topLeft: 0,
             topRight: 1,
             bottomLeft: 2,
             bottomRight: 3
-=======
-            "topLeft": 0,
-            "topRight": 1,
-            "bottomLeft": 2,
-            "bottomRight": 3
->>>>>>> 0b006d89 (Effect tidying continued)
         },
         ui: {
             label: "position",
