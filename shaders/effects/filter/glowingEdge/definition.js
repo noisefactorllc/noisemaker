@@ -27,6 +27,20 @@ export default new Effect({
         control: "dropdown"
       }
     },
+    width: {
+      type: "int",
+      default: 1,
+      uniform: "width",
+      min: 0,
+      max: 10,
+      zero: 0,
+      randMin: 1,
+      randMax: 3,
+      ui: {
+        label: "width",
+        control: "slider"
+      }
+    },
     alpha: {
       type: "float",
       default: 1,
@@ -49,7 +63,8 @@ export default new Effect({
       },
       uniforms: {
         shape: "sobelMetric",
-        alpha: "alpha"
+        alpha: "alpha",
+        width: "width"
       },
       outputs: {
         fragColor: "outputTex"

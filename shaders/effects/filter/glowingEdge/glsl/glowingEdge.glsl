@@ -9,7 +9,7 @@ uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform float alpha;
 uniform float sobelMetric;
-uniform float time;
+uniform float width;
 
 out vec4 fragColor;
 
@@ -34,7 +34,7 @@ float distance_metric(float gx, float gy, int metric) {
 
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution;
-    vec2 texel = 1.0 / resolution;
+    vec2 texel = width / resolution;
 
     // Sample base color
     vec4 base = texture(inputTex, uv);
@@ -55,20 +55,16 @@ void main() {
 
     // Edge magnitude
     int metric = int(sobelMetric);
-    float edge = distance_metric(gx, gy, metric);
-    edge = clamp(edge * 4.0, 0.0, 1.0);
+    float edge = clamp(distance_metric(gx, gy, metric) * 3.0, 0.0, 1.0);
 
-    // Apply glow effect
-    vec3 edges_scaled = vec3(clamp(edge * 4.0, 0.0, 1.0));
-    vec3 base_scaled = clamp(base.rgb * 1.25, 0.0, 1.0);
-    vec3 edges_prep = edges_scaled * base_scaled;
+    // Glow: edges emit the base color as additive light
+    vec3 glow = edge * base.rgb * 2.0;
 
-    // Screen blend: out = 1 - (1-a)*(1-b)
-    vec3 screen_rgb = vec3(1.0) - (vec3(1.0) - edges_prep) * (vec3(1.0) - base.rgb);
+    // Screen blend glow onto original: brighter where edges are
+    vec3 result = vec3(1.0) - (vec3(1.0) - base.rgb) * (vec3(1.0) - glow);
 
     // Mix based on alpha
-    float blendAlpha = clamp(alpha, 0.0, 1.0);
-    vec3 mixed_rgb = mix(base.rgb, screen_rgb, blendAlpha);
+    vec3 mixed = mix(base.rgb, result, alpha);
 
-    fragColor = vec4(clamp(mixed_rgb, 0.0, 1.0), base.a);
+    fragColor = vec4(clamp(mixed, 0.0, 1.0), base.a);
 }

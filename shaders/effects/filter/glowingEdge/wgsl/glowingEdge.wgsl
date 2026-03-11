@@ -5,7 +5,7 @@
 struct Uniforms {
     sobelMetric: f32,
     alpha: f32,
-    _pad2: f32,
+    width: f32,
     _pad3: f32,
 }
 
@@ -36,7 +36,7 @@ fn distance_metric(gx: f32, gy: f32, metric: i32) -> f32 {
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = pos.xy / texSize;
-    let texel = 1.0 / texSize;
+    let texel = uniforms.width / texSize;
 
     // Sample base color
     let base = textureSample(inputTex, inputSampler, uv);
@@ -57,19 +57,16 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     // Edge magnitude
     let metric = i32(uniforms.sobelMetric);
-    let edge = clamp(distance_metric(gx, gy, metric) * 4.0, 0.0, 1.0);
+    let edge = clamp(distance_metric(gx, gy, metric) * 3.0, 0.0, 1.0);
 
-    // Apply glow effect
-    let edges_scaled = vec3<f32>(clamp(edge * 4.0, 0.0, 1.0));
-    let base_scaled = clamp(base.rgb * 1.25, vec3<f32>(0.0), vec3<f32>(1.0));
-    let edges_prep = edges_scaled * base_scaled;
+    // Glow: edges emit the base color as additive light
+    let glow = edge * base.rgb * 2.0;
 
-    // Screen blend: out = 1 - (1-a)*(1-b)
-    let screen_rgb = vec3<f32>(1.0) - (vec3<f32>(1.0) - edges_prep) * (vec3<f32>(1.0) - base.rgb);
+    // Screen blend glow onto original
+    let result = vec3<f32>(1.0) - (vec3<f32>(1.0) - base.rgb) * (vec3<f32>(1.0) - glow);
 
     // Mix based on alpha
-    let blendAlpha = clamp(uniforms.alpha, 0.0, 1.0);
-    let mixed_rgb = mix(base.rgb, screen_rgb, blendAlpha);
+    let mixed = mix(base.rgb, result, uniforms.alpha);
 
-    return vec4<f32>(clamp(mixed_rgb, vec3<f32>(0.0), vec3<f32>(1.0)), base.a);
+    return vec4<f32>(clamp(mixed, vec3<f32>(0.0), vec3<f32>(1.0)), base.a);
 }
