@@ -16,7 +16,7 @@ export default new Effect({
         "zero": 1,
         "uniform": "x",
         ui: {
-            label: "x"
+            label: "repeat x"
         }},
     "y": {
         "type": "float",
@@ -26,7 +26,7 @@ export default new Effect({
         "zero": 1,
         "uniform": "y",
         ui: {
-            label: "y"
+            label: "repeat y"
         }},
     "offsetX": {
         "type": "float",

@@ -13,11 +13,12 @@ export default new Effect({
   globals: {
     speed: {
       type: "float",
-      default: 1.0,
+      default: 5.0,
       uniform: "speed",
       min: 0,
       max: 5,
       step: 0.1,
+      zero: 0,
       ui: {
         label: "speed",
         control: "slider"

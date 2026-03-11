@@ -10,21 +10,23 @@ export default new Effect({
   globals: {
     "x": {
         "type": "float",
-        "default": 1,
+        "default": 0.5,
         "min": 0,
         "max": 10,
+        zero: 1,
         "uniform": "scaleX",
         ui: {
-            label: "x"
+            label: "scale x"
         }},
     "y": {
         "type": "float",
-        "default": 1,
+        "default": 0.5,
         "min": 0,
         "max": 10,
+        zero: 1,
         "uniform": "scaleY",
         ui: {
-            label: "y"
+            label: "scale y"
         }},
     "centerX": {
         "type": "float",

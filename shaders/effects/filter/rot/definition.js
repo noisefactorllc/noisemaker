@@ -13,11 +13,12 @@ export default new Effect({
   globals: {
     rotation: {
       type: "float",
-      default: 0,
+      default: 45,
       uniform: "rotation",
       min: -180,
       max: 180,
       step: 0.01,
+      zero: 0,
       ui: {
         label: "rotation",
         control: "slider"
