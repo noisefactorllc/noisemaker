@@ -374,7 +374,7 @@ export default new Effect({
       }
     }
   },
-
+  defaultProgram: "search filter, synth\n\nnoise()\n  .tetraColorArray(smoothness: 0)\n  .write(o0)",
   passes: [
     {
       name: "render",

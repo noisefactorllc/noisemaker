@@ -14,30 +14,6 @@ export default new Effect({
 
   description: "Scrolling pseudo-text ticker overlay",
   globals: {
-    alpha: {
-      type: "float",
-      default: 0.75,
-      uniform: "alpha",
-      min: 0,
-      max: 1,
-      step: 0.01,
-      ui: {
-        label: "alpha",
-        control: "slider"
-      }
-    },
-    speed: {
-      type: "float",
-      default: 1.0,
-      uniform: "speed",
-      min: 0,
-      max: 5,
-      step: 0.1,
-      ui: {
-        label: "speed",
-        control: "slider"
-      }
-    },
     rows: {
       type: "int",
       default: 2,
@@ -61,8 +37,33 @@ export default new Effect({
         label: "seed",
         control: "slider"
       }
+    },
+    alpha: {
+      type: "float",
+      default: 0.75,
+      uniform: "alpha",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      ui: {
+        label: "alpha",
+        control: "slider"
+      }
+    },
+    speed: {
+      type: "float",
+      default: 1.0,
+      uniform: "speed",
+      min: 0,
+      max: 5,
+      step: 0.1,
+      ui: {
+        label: "speed",
+        control: "slider"
+      }
     }
   },
+  defaultProgram: "search filter, synth\n\nperlin()\n  .spookyTicker()\n  .write(o0)",
   passes: [
     {
       name: "main",

@@ -57,6 +57,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search filter, synth\n\nsolid(color: #d4d4d4)\n  .spatter(density: 1)\n  .write(o0)",
   passes: [
     {
       name: "main",
