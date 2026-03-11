@@ -71,6 +71,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search mixer, synth\n\npattern()\n.write(o0)\n\nnoise(ridges: true)\n.uvRemap(tex: read(o0), scale: 25)\n.write(o1)",
   passes: [
     {
       name: "render",

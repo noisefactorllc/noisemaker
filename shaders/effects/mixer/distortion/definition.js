@@ -91,6 +91,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search mixer, synth\n\ncell()\n.write(o0)\n\nnoise(ridges: true)\n.distortion(tex: read(o0))\n.write(o1)",
   passes: [
     {
       name: "render",

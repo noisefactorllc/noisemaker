@@ -80,6 +80,7 @@ export default new Effect({
       ui: { label: "rotation", control: "slider" }
     }
   },
+  defaultProgram: "search mixer, synth\n\nnoise(ridges: true, colorMode: mono)\n.write(o0)\n\nnoise(ridges: true)\n.patternMix(tex: read(o0))\n.write(o1)",
   passes: [
     {
       name: "render",

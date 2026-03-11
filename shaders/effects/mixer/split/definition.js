@@ -52,6 +52,7 @@ export default new Effect({
       ui: { label: "softness", control: "slider" }
     }
   },
+  defaultProgram: "search mixer, synth\n\nnoise(ridges: true, colorMode: mono)\n.write(o0)\n\nnoise(seed: 2, ridges: true)\n.split(tex: read(o0), softness: 1)\n.write(o1)",
   passes: [
     {
       name: "render",

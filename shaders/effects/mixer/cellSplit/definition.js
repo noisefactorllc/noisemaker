@@ -41,7 +41,7 @@ export default new Effect({
     },
     scale: {
       type: "float",
-      default: 25.0,
+      default: 15.0,
       uniform: "scale",
       min: 1,
       max: 30,
@@ -64,6 +64,7 @@ export default new Effect({
       ui: { label: "seed", control: "slider" }
     }
   },
+  defaultProgram: "search mixer, synth\n\nsolid(color: #000000)\n.write(o0)\n\nnoise()\n.cellSplit(invert: sourceB)\n.write(o1)\n",
   passes: [
     {
       name: "render",

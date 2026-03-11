@@ -12,7 +12,7 @@ Generates a Voronoi diagram and randomly assigns each cell to show either source
 |-----------|------|---------|-------|-------------|
 | tex | surface | none | - | Source B |
 | mode | int | edges | edges/split | Edges uses cells for A and edges for B. Split assigns cells randomly to A/B  |
-| scale | float | 25 | 1-30 | Number of cells (higher = more, smaller cells) |
+| scale | float | 15 | 1-30 | Number of cells (higher = more, smaller cells) |
 | edgeWidth | float | 0.08 | 0-0.2 | Width of visible edge lines at cell boundaries |
 | seed | int | 1 | 1-100 | Random seed for cell layout and assignment |
 | invert | int | off | off/on | Swap source assignment |

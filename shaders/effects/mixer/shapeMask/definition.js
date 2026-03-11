@@ -89,6 +89,7 @@ export default new Effect({
       ui: { label: "position y", control: "slider", category: "position" }
     }
   },
+  defaultProgram: "search mixer, synth\n\nnoise(ridges: true, colorMode: mono)\n.write(o0)\n\nnoise(ridges: true)\n.shapeMask(tex: read(o0))\n.write(o1)",
   passes: [
     {
       name: "render",

@@ -72,6 +72,7 @@ export default new Effect({
       ui: { label: "mix", control: "slider" }
     }
   },
+  defaultProgram: "search mixer, synth\n\nnoise(ridges: true, colorMode: mono)\n.write(o0)\n\nnoise(ridges: true)\n.centerMask(tex: read(o0), mix: -75)\n.write(o1)",
   paramAliases: { mixAmt: 'mix' },
   passes: [
     {

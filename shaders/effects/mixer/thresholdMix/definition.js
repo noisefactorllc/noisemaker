@@ -155,6 +155,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search mixer, synth\n\nnoise()\n.write(o0)\n\nsolid(color: #000000)\n.thresholdMix(tex: read(o0))\n.write(o1)\n",
   passes: [
     {
       name: "render",

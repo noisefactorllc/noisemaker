@@ -145,6 +145,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search mixer, synth\n\nnoise(xScale: 100, yScale: 100)\n.write(o0)\n\nnoise(ridges: true, colorMode: mono)\n.shadow(tex: read(o0))\n.write(o1)",
   passes: [
     {
       name: "render",
