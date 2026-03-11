@@ -1,7 +1,8 @@
 /*
  * Spatter: Multi-layer procedural paint spatter effect.
- * Large warped smears, medium dots, fine specks, minus ridged breaks.
- * Matches Python reference: exp-distributed noise with aggressive thresholding.
+ * Grid-based hash noise with explicit interpolation.
+ * Exp-distributed FBM with brightness/contrast thresholding,
+ * blend_layers with feather=0.005 (sharp step at 0.5).
  */
 
 struct Uniforms {
@@ -19,6 +20,8 @@ struct Uniforms {
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
 @group(0) @binding(3) var<uniform> time: f32;
+
+// --- PCG PRNG ---
 
 fn pcg3(seed: vec3<u32>) -> vec3<u32> {
     var v = seed * 1664525u + 1013904223u;
@@ -40,54 +43,135 @@ fn hashf(h: u32) -> f32 {
     return f32(pcg3(vec3<u32>(h, 0u, 0u)).x) / f32(0xffffffffu);
 }
 
-fn hash31(p: vec3<f32>) -> f32 {
-    let v = pcg3(vec3<u32>(
-        u32(select(-p.x * 2.0 + 1.0, p.x * 2.0, p.x >= 0.0)),
-        u32(select(-p.y * 2.0 + 1.0, p.y * 2.0, p.y >= 0.0)),
-        u32(select(-p.z * 2.0 + 1.0, p.z * 2.0, p.z >= 0.0)),
-    ));
-    return f32(v.x) / f32(0xffffffffu);
+// --- Grid value: hash at integer grid point ---
+
+fn gridVal(p: vec2<i32>, sd: u32) -> f32 {
+    let h = pcg3(vec3<u32>(u32(p.x + 32768), u32(p.y + 32768), sd));
+    return f32(h.x) / f32(0xffffffffu);
 }
 
-fn fade(t: f32) -> f32 {
-    return t * t * (3.0 - 2.0 * t);
+// --- Catmull-Rom cubic interpolation helper ---
+
+fn cubic(a: f32, b: f32, c: f32, d: f32, t: f32) -> f32 {
+    let t2 = t * t;
+    let t3 = t2 * t;
+    return 0.5 * ((2.0 * b) + (-a + c) * t + (2.0 * a - 5.0 * b + 4.0 * c - d) * t2 + (-a + 3.0 * b - 3.0 * c + d) * t3);
 }
 
-fn vnoise(p: vec2<f32>, s: f32) -> f32 {
-    let c: vec2<f32> = floor(p);
-    let f: vec2<f32> = fract(p);
-    let u: vec2<f32> = vec2<f32>(fade(f.x), fade(f.y));
-    return mix(
-        mix(hash31(vec3<f32>(c, s)), hash31(vec3<f32>(c + vec2<f32>(1.0, 0.0), s)), u.x),
-        mix(hash31(vec3<f32>(c + vec2<f32>(0.0, 1.0), s)), hash31(vec3<f32>(c + vec2<f32>(1.0, 1.0), s)), u.x),
-        u.y);
+// --- Bicubic exp grid (Catmull-Rom, 4x4 neighborhood) ---
+// pow(x,4) applied at grid points, then bicubic interpolation
+
+fn bicubicExpGrid(pos: vec2<f32>, sd: u32) -> f32 {
+    let ip = vec2<i32>(floor(pos));
+    let fp = fract(pos);
+
+    // Evaluate 4x4 grid with exp distribution at grid points
+    var row0: f32; var row1: f32; var row2: f32; var row3: f32;
+
+    // Row -1
+    let g00 = pow(gridVal(vec2<i32>(ip.x - 1, ip.y - 1), sd), 4.0);
+    let g10 = pow(gridVal(vec2<i32>(ip.x,     ip.y - 1), sd), 4.0);
+    let g20 = pow(gridVal(vec2<i32>(ip.x + 1, ip.y - 1), sd), 4.0);
+    let g30 = pow(gridVal(vec2<i32>(ip.x + 2, ip.y - 1), sd), 4.0);
+    row0 = cubic(g00, g10, g20, g30, fp.x);
+
+    // Row 0
+    let g01 = pow(gridVal(vec2<i32>(ip.x - 1, ip.y), sd), 4.0);
+    let g11 = pow(gridVal(vec2<i32>(ip.x,     ip.y), sd), 4.0);
+    let g21 = pow(gridVal(vec2<i32>(ip.x + 1, ip.y), sd), 4.0);
+    let g31 = pow(gridVal(vec2<i32>(ip.x + 2, ip.y), sd), 4.0);
+    row1 = cubic(g01, g11, g21, g31, fp.x);
+
+    // Row +1
+    let g02 = pow(gridVal(vec2<i32>(ip.x - 1, ip.y + 1), sd), 4.0);
+    let g12 = pow(gridVal(vec2<i32>(ip.x,     ip.y + 1), sd), 4.0);
+    let g22 = pow(gridVal(vec2<i32>(ip.x + 1, ip.y + 1), sd), 4.0);
+    let g32 = pow(gridVal(vec2<i32>(ip.x + 2, ip.y + 1), sd), 4.0);
+    row2 = cubic(g02, g12, g22, g32, fp.x);
+
+    // Row +2
+    let g03 = pow(gridVal(vec2<i32>(ip.x - 1, ip.y + 2), sd), 4.0);
+    let g13 = pow(gridVal(vec2<i32>(ip.x,     ip.y + 2), sd), 4.0);
+    let g23 = pow(gridVal(vec2<i32>(ip.x + 1, ip.y + 2), sd), 4.0);
+    let g33 = pow(gridVal(vec2<i32>(ip.x + 2, ip.y + 2), sd), 4.0);
+    row3 = cubic(g03, g13, g23, g33, fp.x);
+
+    return clamp(cubic(row0, row1, row2, row3, fp.y), 0.0, 1.0);
 }
 
-// 3-octave exp FBM — fixed loop count for fast compilation
-fn expFbm3(uv: vec2<f32>, freq: vec2<f32>, s: f32) -> f32 {
+// --- Bilinear exp grid (2x2 neighborhood) ---
+// pow(x,4) applied at grid points, then bilinear interpolation
+
+fn bilinearExpGrid(pos: vec2<f32>, sd: u32) -> f32 {
+    let ip = vec2<i32>(floor(pos));
+    let fp = fract(pos);
+
+    let v00 = pow(gridVal(ip, sd), 4.0);
+    let v10 = pow(gridVal(vec2<i32>(ip.x + 1, ip.y), sd), 4.0);
+    let v01 = pow(gridVal(vec2<i32>(ip.x, ip.y + 1), sd), 4.0);
+    let v11 = pow(gridVal(vec2<i32>(ip.x + 1, ip.y + 1), sd), 4.0);
+
+    let mx0 = mix(v00, v10, fp.x);
+    let mx1 = mix(v01, v11, fp.x);
+    return mix(mx0, mx1, fp.y);
+}
+
+// --- Cosine exp grid (2x2 neighborhood with cosine interpolation) ---
+// pow(x,4) applied at grid points, cosine-smoothed interpolation
+
+fn cosineExpGrid(pos: vec2<f32>, sd: u32) -> f32 {
+    let ip = vec2<i32>(floor(pos));
+    let fp = fract(pos);
+
+    let tx = (1.0 - cos(fp.x * 3.14159265358979)) * 0.5;
+    let ty = (1.0 - cos(fp.y * 3.14159265358979)) * 0.5;
+
+    let v00 = pow(gridVal(ip, sd), 4.0);
+    let v10 = pow(gridVal(vec2<i32>(ip.x + 1, ip.y), sd), 4.0);
+    let v01 = pow(gridVal(vec2<i32>(ip.x, ip.y + 1), sd), 4.0);
+    let v11 = pow(gridVal(vec2<i32>(ip.x + 1, ip.y + 1), sd), 4.0);
+
+    let mx0 = mix(v00, v10, tx);
+    let mx1 = mix(v01, v11, tx);
+    return mix(mx0, mx1, ty);
+}
+
+// --- FBM functions ---
+
+// 6-octave exp FBM with bicubic interpolation (smear layer)
+fn expFbm6Bicubic(uv: vec2<f32>, freq: vec2<f32>, sd: u32) -> f32 {
     var a: f32 = 0.0;
-    a = a + pow(vnoise(uv * freq, s), 4.0) * 0.5;
-    a = a + pow(vnoise(uv * freq * 2.0, s + 37.17), 4.0) * 0.25;
-    a = a + pow(vnoise(uv * freq * 4.0, s + 74.34), 4.0) * 0.125;
-    return a;
+    a = a + bicubicExpGrid(uv * freq,        sd           ) * 0.5;
+    a = a + bicubicExpGrid(uv * freq * 2.0,  sd + 10000u  ) * 0.25;
+    a = a + bicubicExpGrid(uv * freq * 4.0,  sd + 20000u  ) * 0.125;
+    a = a + bicubicExpGrid(uv * freq * 8.0,  sd + 30000u  ) * 0.0625;
+    a = a + bicubicExpGrid(uv * freq * 16.0, sd + 40000u  ) * 0.03125;
+    a = a + bicubicExpGrid(uv * freq * 32.0, sd + 50000u  ) * 0.015625;
+    return a / 0.984375;
 }
 
-// 2-octave exp FBM
-fn expFbm2(uv: vec2<f32>, freq: vec2<f32>, s: f32) -> f32 {
+// 4-octave exp FBM with bilinear interpolation (dots & specks)
+fn expFbm4Bilinear(uv: vec2<f32>, freq: vec2<f32>, sd: u32) -> f32 {
     var a: f32 = 0.0;
-    a = a + pow(vnoise(uv * freq, s), 4.0) * 0.5;
-    a = a + pow(vnoise(uv * freq * 2.0, s + 37.17), 4.0) * 0.25;
-    return a;
+    a = a + bilinearExpGrid(uv * freq,        sd           ) * 0.5;
+    a = a + bilinearExpGrid(uv * freq * 2.0,  sd + 10000u  ) * 0.25;
+    a = a + bilinearExpGrid(uv * freq * 4.0,  sd + 20000u  ) * 0.125;
+    a = a + bilinearExpGrid(uv * freq * 8.0,  sd + 30000u  ) * 0.0625;
+    return a / 0.9375;
 }
 
-// 2-octave ridged FBM
-fn ridgedFbm2(uv: vec2<f32>, freq: vec2<f32>, s: f32) -> f32 {
+// 3-octave exp+ridged FBM with cosine interpolation (removal layer)
+// Ridge transform applied AFTER interpolation (per-pixel), not at grid points
+fn expRidgedFbm3Cosine(uv: vec2<f32>, freq: vec2<f32>, sd: u32) -> f32 {
     var a: f32 = 0.0;
-    let n0: f32 = vnoise(uv * freq, s);
-    a = a + pow(abs(n0 * 2.0 - 1.0), 4.0) * 0.5;
-    let n1: f32 = vnoise(uv * freq * 2.0, s + 37.17);
-    a = a + pow(abs(n1 * 2.0 - 1.0), 4.0) * 0.25;
-    return a / 0.75;
+    var v: f32;
+    v = cosineExpGrid(uv * freq,        sd          );
+    a = a + (1.0 - abs(2.0 * v - 1.0)) * 0.5;
+    v = cosineExpGrid(uv * freq * 2.0,  sd + 10000u );
+    a = a + (1.0 - abs(2.0 * v - 1.0)) * 0.25;
+    v = cosineExpGrid(uv * freq * 4.0,  sd + 20000u );
+    a = a + (1.0 - abs(2.0 * v - 1.0)) * 0.125;
+    return a / 0.875;
 }
 
 @fragment
@@ -96,48 +180,48 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let uv: vec2<f32> = pos.xy / dims;
     let base: vec4<f32> = textureSample(inputTex, inputSampler, uv);
 
-    let s: f32 = f32(uniforms.seed) * 17.3;
+    let s: u32 = u32(uniforms.seed) * 17u;
     let user_color: vec3<f32> = vec3<f32>(uniforms.color_r, uniforms.color_g, uniforms.color_b);
-    let d: f32 = uniforms.density;
 
-    // Seed-derived random frequencies
-    let smearFreq: f32 = mix(3.0, 6.0, hashf(pcg(u32(s + 10.0))));
-    let dotFreq: f32 = mix(24.0, 48.0, hashf(pcg(u32(s + 50.0))));
-    let speckFreq: f32 = mix(64.0, 96.0, hashf(pcg(u32(s + 90.0))));
-    let ridgeFreq: f32 = mix(2.0, 3.0, hashf(pcg(u32(s + 130.0))));
+    // Seed-derived random frequencies (matching Python ranges)
+    let smearFreq: f32 = mix(3.0, 6.0, hashf(pcg(s + 10u)));
+    let dotFreq: f32   = mix(32.0, 64.0, hashf(pcg(s + 50u)));
+    let speckFreq: f32 = mix(150.0, 200.0, hashf(pcg(s + 90u)));
+    let ridgeFreq: f32 = mix(2.0, 3.0, hashf(pcg(s + 130u)));
 
-    // -- Layer 1: Large smear (low-freq domain-warped noise) --
-    let warpX: f32 = vnoise(uv * vec2<f32>(2.0, 1.0), s + 200.0);
-    let warpY: f32 = vnoise(uv * vec2<f32>(3.0, 2.0), s + 300.0);
-    let disp: f32 = 1.0 + hashf(pcg(u32(s + 150.0)));
+    // -- Layer 1: Large smear (6-oct bicubic exp FBM, domain warped) --
+    let warpFreqX: f32 = mix(2.0, 3.0, hashf(pcg(s + 160u)));
+    let warpFreqY: f32 = mix(1.0, 3.0, hashf(pcg(s + 170u)));
+    let warpX: f32 = bilinearExpGrid(uv * vec2<f32>(warpFreqX, warpFreqY), s + 200u);
+    let warpY: f32 = bilinearExpGrid(uv * vec2<f32>(warpFreqX, warpFreqY), s + 300u);
+    let disp: f32 = 1.0 + hashf(pcg(s + 150u));
     let warpedUV: vec2<f32> = uv + (vec2<f32>(warpX, warpY) - 0.5) * disp * 0.12;
-    var smear: f32 = expFbm3(warpedUV, vec2<f32>(smearFreq), s + 100.0);
-    smear = clamp(smear * 5.0, 0.0, 1.0);
+    let smear: f32 = expFbm6Bicubic(warpedUV, vec2<f32>(smearFreq), s + 100u);
 
-    // -- Layer 2: Medium dots --
-    var dots: f32 = expFbm2(uv, vec2<f32>(dotFreq), s + 43.0);
-    dots = clamp((dots - 0.08) * 8.0, 0.0, 1.0);
+    // -- Layer 2: Medium dots (4-oct bilinear exp FBM + brightness/contrast) --
+    var dots: f32 = expFbm4Bilinear(uv, vec2<f32>(dotFreq), s + 43u);
+    dots = clamp(4.0 * dots - 1.6, 0.0, 1.0);
 
-    // -- Layer 3: Fine specks --
-    var specks: f32 = expFbm2(uv, vec2<f32>(speckFreq), s + 71.0);
-    specks = clamp((specks - 0.06) * 10.0, 0.0, 1.0);
+    // -- Layer 3: Fine specks (4-oct bilinear exp FBM + brightness/contrast) --
+    var specks: f32 = expFbm4Bilinear(uv, vec2<f32>(speckFreq), s + 71u);
+    specks = clamp(4.0 * specks - 2.0, 0.0, 1.0);
 
-    // Combine: max of layers (Python uses tf.maximum)
+    // Combine: max of layers
     var combined: f32 = max(smear, max(dots, specks));
 
-    // Subtract ridged noise for breaks
-    let ridge: f32 = ridgedFbm2(uv, vec2<f32>(ridgeFreq), s + 89.0);
+    // Subtract exp+ridged cosine noise for breaks
+    let ridge: f32 = expRidgedFbm3Cosine(uv, vec2<f32>(ridgeFreq), s + 89u);
     combined = max(0.0, combined - ridge);
 
-    // Density controls overall amount
-    combined = combined * (0.1 + d * 1.6);
+    // Density scales before threshold
+    combined = combined * (0.5 + uniforms.density * 2.0);
 
-    // Hard threshold blend (Python blend_layers with 0.005 threshold)
-    let mask: f32 = step(0.005, combined) * clamp(combined, 0.0, 1.0);
+    // Sharp step at 0.5 (Python blend_layers with feather=0.005)
+    let mask: f32 = step(0.5, combined);
 
-    // Color: where mask > 0, show color * input; else show input
-    let colored: vec3<f32> = mix(base.rgb, base.rgb * user_color, mask);
-    let result: vec3<f32> = mix(base.rgb, colored, uniforms.alpha);
+    // Color blend
+    let colored: vec3<f32> = base.rgb * user_color;
+    let result: vec3<f32> = mix(base.rgb, mix(base.rgb, colored, mask), uniforms.alpha);
 
     return vec4<f32>(result, base.a);
 }

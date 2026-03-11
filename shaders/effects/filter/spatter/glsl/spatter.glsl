@@ -1,7 +1,11 @@
 /*
  * Spatter: Multi-layer procedural paint spatter effect.
- * Large warped smears, medium dots, fine specks, minus ridged breaks.
- * Matches Python reference: exp-distributed noise with aggressive thresholding.
+ *
+ * Grid-based noise matching Python reference implementation:
+ * 1. Random values generated at INTEGER GRID POINTS via PCG hash
+ * 2. pow(x, 4) exponential distribution applied AT GRID POINTS (before interpolation)
+ * 3. Upscaled to full resolution via bicubic/bilinear/cosine interpolation
+ * 4. Multi-octave FBM with brightness/contrast thresholding
  */
 
 #ifdef GL_ES
@@ -18,7 +22,8 @@ uniform int seed;
 
 out vec4 fragColor;
 
-// PCG PRNG
+// --- PCG PRNG ---
+
 uvec3 pcg3(uvec3 v) {
     v = v * 1664525u + 1013904223u;
     v.x += v.y * v.z;
@@ -39,54 +44,99 @@ float hashf(uint h) {
     return float(pcg3(uvec3(h, 0u, 0u)).x) / float(0xffffffffu);
 }
 
-float hash31(vec3 p) {
-    uvec3 v = uvec3(
-        uint(p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0),
-        uint(p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0),
-        uint(p.z >= 0.0 ? p.z * 2.0 : -p.z * 2.0 + 1.0)
-    );
-    return float(pcg3(v).x) / float(0xffffffffu);
+// --- Grid value: random float in [0,1] at each integer grid point ---
+
+float gridVal(ivec2 p, uint sd) {
+    uvec3 h = pcg3(uvec3(uint(p.x + 32768), uint(p.y + 32768), sd));
+    return float(h.x) / float(0xffffffffu);
 }
 
-float fade(float t) {
-    return t * t * (3.0 - 2.0 * t);
+// --- Catmull-Rom cubic interpolation ---
+
+float cubic(float a, float b, float c, float d, float t) {
+    float t2 = t * t, t3 = t2 * t;
+    return 0.5 * ((2.0*b) + (-a+c)*t + (2.0*a - 5.0*b + 4.0*c - d)*t2 + (-a + 3.0*b - 3.0*c + d)*t3);
 }
 
-float vnoise(vec2 p, float s) {
-    vec2 c = floor(p);
-    vec2 f = fract(p);
-    vec2 u = vec2(fade(f.x), fade(f.y));
-    return mix(
-        mix(hash31(vec3(c, s)), hash31(vec3(c + vec2(1, 0), s)), u.x),
-        mix(hash31(vec3(c + vec2(0, 1), s)), hash31(vec3(c + vec2(1, 1), s)), u.x),
-        u.y);
+// --- Bicubic exp grid noise (smear layer) ---
+// Evaluates 4x4 grid neighborhood. pow(x,4) at grid points, then bicubic interpolate.
+
+float bicubicExpGrid(vec2 pos, uint sd) {
+    ivec2 c = ivec2(floor(pos));
+    vec2 f = fract(pos);
+    float r0 = cubic(pow(gridVal(c+ivec2(-1,-1),sd),4.0), pow(gridVal(c+ivec2(0,-1),sd),4.0), pow(gridVal(c+ivec2(1,-1),sd),4.0), pow(gridVal(c+ivec2(2,-1),sd),4.0), f.x);
+    float r1 = cubic(pow(gridVal(c+ivec2(-1,0),sd),4.0), pow(gridVal(c+ivec2(0,0),sd),4.0), pow(gridVal(c+ivec2(1,0),sd),4.0), pow(gridVal(c+ivec2(2,0),sd),4.0), f.x);
+    float r2 = cubic(pow(gridVal(c+ivec2(-1,1),sd),4.0), pow(gridVal(c+ivec2(0,1),sd),4.0), pow(gridVal(c+ivec2(1,1),sd),4.0), pow(gridVal(c+ivec2(2,1),sd),4.0), f.x);
+    float r3 = cubic(pow(gridVal(c+ivec2(-1,2),sd),4.0), pow(gridVal(c+ivec2(0,2),sd),4.0), pow(gridVal(c+ivec2(1,2),sd),4.0), pow(gridVal(c+ivec2(2,2),sd),4.0), f.x);
+    return clamp(cubic(r0, r1, r2, r3, f.y), 0.0, 1.0);
 }
 
-// 3-octave exp FBM — fixed loop count for fast compilation
-float expFbm3(vec2 uv, vec2 freq, float s) {
+// --- Bilinear exp grid noise (dots & specks) ---
+
+float bilinearExpGrid(vec2 pos, uint sd) {
+    ivec2 c = ivec2(floor(pos));
+    vec2 f = fract(pos);
+    float v00 = pow(gridVal(c, sd), 4.0);
+    float v10 = pow(gridVal(c + ivec2(1,0), sd), 4.0);
+    float v01 = pow(gridVal(c + ivec2(0,1), sd), 4.0);
+    float v11 = pow(gridVal(c + ivec2(1,1), sd), 4.0);
+    return mix(mix(v00, v10, f.x), mix(v01, v11, f.x), f.y);
+}
+
+// --- Cosine exp grid noise (removal layer) ---
+
+float cosineExpGrid(vec2 pos, uint sd) {
+    ivec2 c = ivec2(floor(pos));
+    vec2 f = fract(pos);
+    vec2 t = (1.0 - cos(f * 3.14159265)) * 0.5;
+    float v00 = pow(gridVal(c, sd), 4.0);
+    float v10 = pow(gridVal(c + ivec2(1,0), sd), 4.0);
+    float v01 = pow(gridVal(c + ivec2(0,1), sd), 4.0);
+    float v11 = pow(gridVal(c + ivec2(1,1), sd), 4.0);
+    return mix(mix(v00, v10, t.x), mix(v01, v11, t.x), t.y);
+}
+
+// --- FBM functions ---
+// Python simple_multires: per octave, freq doubles, weight halves.
+// Each octave gets a different seed (offset by 10000).
+
+// 6-octave bicubic exp FBM (smear)
+// Weight sum = 0.984375
+float expFbm6Bicubic(vec2 uv, vec2 freq, uint sd) {
     float a = 0.0;
-    a += pow(vnoise(uv * freq, s), 4.0) * 0.5;
-    a += pow(vnoise(uv * freq * 2.0, s + 37.17), 4.0) * 0.25;
-    a += pow(vnoise(uv * freq * 4.0, s + 74.34), 4.0) * 0.125;
-    return a;
+    a += bicubicExpGrid(uv * freq,        sd          ) * 0.5;
+    a += bicubicExpGrid(uv * freq * 2.0,  sd + 10000u ) * 0.25;
+    a += bicubicExpGrid(uv * freq * 4.0,  sd + 20000u ) * 0.125;
+    a += bicubicExpGrid(uv * freq * 8.0,  sd + 30000u ) * 0.0625;
+    a += bicubicExpGrid(uv * freq * 16.0, sd + 40000u ) * 0.03125;
+    a += bicubicExpGrid(uv * freq * 32.0, sd + 50000u ) * 0.015625;
+    return a / 0.984375;
 }
 
-// 2-octave exp FBM
-float expFbm2(vec2 uv, vec2 freq, float s) {
+// 4-octave bilinear exp FBM (dots & specks)
+// Weight sum = 0.9375
+float expFbm4Bilinear(vec2 uv, vec2 freq, uint sd) {
     float a = 0.0;
-    a += pow(vnoise(uv * freq, s), 4.0) * 0.5;
-    a += pow(vnoise(uv * freq * 2.0, s + 37.17), 4.0) * 0.25;
-    return a;
+    a += bilinearExpGrid(uv * freq,       sd          ) * 0.5;
+    a += bilinearExpGrid(uv * freq * 2.0, sd + 10000u ) * 0.25;
+    a += bilinearExpGrid(uv * freq * 4.0, sd + 20000u ) * 0.125;
+    a += bilinearExpGrid(uv * freq * 8.0, sd + 30000u ) * 0.0625;
+    return a / 0.9375;
 }
 
-// 2-octave ridged FBM
-float ridgedFbm2(vec2 uv, vec2 freq, float s) {
+// 3-octave cosine exp+ridged FBM (removal)
+// Ridge applied AFTER interpolation (per-pixel), not at grid points.
+// Weight sum = 0.875
+float expRidgedFbm3Cosine(vec2 uv, vec2 freq, uint sd) {
     float a = 0.0;
-    float n0 = vnoise(uv * freq, s);
-    a += pow(abs(n0 * 2.0 - 1.0), 4.0) * 0.5;
-    float n1 = vnoise(uv * freq * 2.0, s + 37.17);
-    a += pow(abs(n1 * 2.0 - 1.0), 4.0) * 0.25;
-    return a / 0.75;
+    float v;
+    v = cosineExpGrid(uv * freq,       sd          );
+    a += (1.0 - abs(2.0 * v - 1.0)) * 0.5;
+    v = cosineExpGrid(uv * freq * 2.0, sd + 10000u );
+    a += (1.0 - abs(2.0 * v - 1.0)) * 0.25;
+    v = cosineExpGrid(uv * freq * 4.0, sd + 20000u );
+    a += (1.0 - abs(2.0 * v - 1.0)) * 0.125;
+    return a / 0.875;
 }
 
 void main() {
@@ -94,46 +144,54 @@ void main() {
     vec2 uv = gl_FragCoord.xy / vec2(dims);
     vec4 base = texture(inputTex, uv);
 
-    float s = float(seed) * 17.3;
+    uint s = uint(seed) * 17u;
 
-    // Seed-derived random frequencies
-    float smearFreq = mix(3.0, 6.0, hashf(pcg(uint(s + 10.0))));
-    float dotFreq = mix(24.0, 48.0, hashf(pcg(uint(s + 50.0))));
-    float speckFreq = mix(64.0, 96.0, hashf(pcg(uint(s + 90.0))));
-    float ridgeFreq = mix(2.0, 3.0, hashf(pcg(uint(s + 130.0))));
+    // Seed-derived random frequencies (matching Python ranges)
+    float smearFreq = mix(3.0, 6.0, hashf(pcg(s + 10u)));
+    float dotFreq   = mix(32.0, 64.0, hashf(pcg(s + 50u)));
+    float speckFreq = mix(150.0, 200.0, hashf(pcg(s + 90u)));
+    float ridgeFreq = mix(2.0, 3.0, hashf(pcg(s + 130u)));
 
-    // -- Layer 1: Large smear (low-freq domain-warped noise) --
-    float warpX = vnoise(uv * vec2(2.0, 1.0), s + 200.0);
-    float warpY = vnoise(uv * vec2(3.0, 2.0), s + 300.0);
-    float disp = 1.0 + hashf(pcg(uint(s + 150.0)));
+    // -- Layer 1: Large smear (6-oct bicubic exp FBM, domain warped) --
+    // Python: warp with freq=[2-3, 1-3], displacement=1+random()
+    float warpFreqX = mix(2.0, 3.0, hashf(pcg(s + 160u)));
+    float warpFreqY = mix(1.0, 3.0, hashf(pcg(s + 170u)));
+    // Use bilinear for warp displacement (simpler, just UV offsets)
+    float warpX = bilinearExpGrid(uv * vec2(warpFreqX, warpFreqY), s + 200u);
+    float warpY = bilinearExpGrid(uv * vec2(warpFreqX, warpFreqY), s + 300u);
+    float disp = 1.0 + hashf(pcg(s + 150u));
     vec2 warpedUV = uv + (vec2(warpX, warpY) - 0.5) * disp * 0.12;
-    float smear = expFbm3(warpedUV, vec2(smearFreq), s + 100.0);
-    smear = clamp(smear * 5.0, 0.0, 1.0);
+    float smear = expFbm6Bicubic(warpedUV, vec2(smearFreq), s + 100u);
 
-    // -- Layer 2: Medium dots --
-    float dots = expFbm2(uv, vec2(dotFreq), s + 43.0);
-    dots = clamp((dots - 0.08) * 8.0, 0.0, 1.0);
+    // -- Layer 2: Medium dots (4-oct bilinear exp FBM + brightness/contrast) --
+    // Python: adjustBrightness(-1.0) + adjustContrast(4.0)
+    // Analytical equivalent with mean~0.2: clamp(4*v - 1.6, 0, 1)
+    float dots = expFbm4Bilinear(uv, vec2(dotFreq), s + 43u);
+    dots = clamp(4.0 * dots - 1.6, 0.0, 1.0);
 
-    // -- Layer 3: Fine specks --
-    float specks = expFbm2(uv, vec2(speckFreq), s + 71.0);
-    specks = clamp((specks - 0.06) * 10.0, 0.0, 1.0);
+    // -- Layer 3: Fine specks (4-oct bilinear exp FBM + brightness/contrast) --
+    // Python: adjustBrightness(-1.25) + adjustContrast(4.0)
+    // Analytical equivalent: clamp(4*v - 2.0, 0, 1)
+    float specks = expFbm4Bilinear(uv, vec2(speckFreq), s + 71u);
+    specks = clamp(4.0 * specks - 2.0, 0.0, 1.0);
 
     // Combine: max of layers (Python uses tf.maximum)
     float combined = max(smear, max(dots, specks));
 
-    // Subtract ridged noise for breaks
-    float ridge = ridgedFbm2(uv, vec2(ridgeFreq), s + 89.0);
+    // Subtract exp+ridged noise for breaks
+    float ridge = expRidgedFbm3Cosine(uv, vec2(ridgeFreq), s + 89u);
     combined = max(0.0, combined - ridge);
 
-    // Density controls overall amount
-    combined *= (0.1 + density * 1.6);
+    // Density scales before threshold
+    combined *= (0.5 + density * 2.0);
 
-    // Hard threshold blend (Python blend_layers with 0.005 threshold)
-    float mask = step(0.005, combined) * clamp(combined, 0.0, 1.0);
+    // Python: blend_layers(normalize(smear), shape, 0.005, tensor, splash*tensor)
+    // With feather=0.005 and 2 layers, this is a sharp step at 0.5
+    float mask = step(0.5, combined);
 
-    // Color: where mask > 0, show color * input; else show input
-    vec3 colored = mix(base.rgb, base.rgb * color, mask);
-    vec3 result = mix(base.rgb, colored, alpha);
+    // Color blend: where mask=1, show color * input; where mask=0, show input
+    vec3 colored = base.rgb * color;
+    vec3 result = mix(base.rgb, mix(base.rgb, colored, mask), alpha);
 
     fragColor = vec4(result, base.a);
 }
