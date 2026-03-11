@@ -25,6 +25,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search filter, synth\n\npattern(type: dots, smoothness: 0.04)\n  .sharpen(amount: 5)\n  .write(o0)",
   passes: [
     {
       name: "render",

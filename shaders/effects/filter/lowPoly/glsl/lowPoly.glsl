@@ -47,8 +47,12 @@ void main() {
     float n = max(102.0 - freq, 2.0);
     float s = seed;
 
-    // Scale UV to grid
-    vec2 scaled = uv * n;
+    // Aspect-corrected coordinates for square Voronoi cells
+    float aspect = resolution.x / resolution.y;
+    vec2 auv = vec2(uv.x * aspect, uv.y);
+
+    // Scale to grid in corrected space
+    vec2 scaled = auv * n;
     ivec2 cell = ivec2(floor(scaled));
 
     float minDist = 1e10;
@@ -66,7 +70,7 @@ void main() {
             vec2 offset = hash2(neighborF, s);
             vec2 point = (neighborF + offset) / n;
 
-            float d = distance(uv, point);
+            float d = distance(auv, point);
 
             if (d < minDist) {
                 thirdDist = secondDist;
@@ -82,8 +86,8 @@ void main() {
         }
     }
 
-    // Sample input color at the nearest seed point
-    vec4 cellColor = texture(inputTex, nearestPoint);
+    // Convert nearest point back to UV space for texture sampling
+    vec4 cellColor = texture(inputTex, vec2(nearestPoint.x / aspect, nearestPoint.y));
 
     vec3 result;
     if (nth < 0.5) {

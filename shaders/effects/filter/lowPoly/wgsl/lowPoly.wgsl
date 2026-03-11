@@ -45,8 +45,12 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let n = max(102.0 - uniforms.freq, 2.0);
     let s = uniforms.seed;
 
-    // Scale UV to grid
-    let scaled = uv * n;
+    // Aspect-corrected coordinates for square Voronoi cells
+    let aspect = texSize.x / texSize.y;
+    let auv = vec2<f32>(uv.x * aspect, uv.y);
+
+    // Scale to grid in corrected space
+    let scaled = auv * n;
     let cell = vec2<i32>(floor(scaled));
 
     var minDist: f32 = 1e10;
@@ -64,7 +68,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             let offset = hash2(neighborF, s);
             let point = (neighborF + offset) / n;
 
-            let d = distance(uv, point);
+            let d = distance(auv, point);
 
             if (d < minDist) {
                 thirdDist = secondDist;
@@ -80,8 +84,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         }
     }
 
-    // Sample input color at the nearest seed point
-    let cellColor = textureSample(inputTex, inputSampler, nearestPoint);
+    // Convert nearest point back to UV space for texture sampling
+    let cellColor = textureSample(inputTex, inputSampler, vec2<f32>(nearestPoint.x / aspect, nearestPoint.y));
 
     var result: vec3<f32>;
     if (uniforms.nth < 0.5) {
