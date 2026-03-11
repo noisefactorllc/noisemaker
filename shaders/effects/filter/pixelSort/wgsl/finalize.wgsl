@@ -10,6 +10,21 @@ const PI : f32 = 3.141592653589793;
 @group(0) @binding(4) var<uniform> resolution : vec2<f32>;
 @group(0) @binding(5) var<uniform> angled : f32;
 @group(0) @binding(6) var<uniform> darkest : f32;
+@group(0) @binding(7) var<uniform> wrap : f32;
+
+fn applyWrap(coord: vec2<f32>, size: vec2<f32>) -> vec2<f32> {
+    var uv = coord / size;
+    let mode = i32(wrap);
+    if (mode == 0) {
+        // Mirror
+        let mx = abs((uv.x + 1.0) - floor((uv.x + 1.0) * 0.5) * 2.0 - 1.0);
+        let my = abs((uv.y + 1.0) - floor((uv.y + 1.0) * 0.5) * 2.0 - 1.0);
+        return vec2<f32>(mx, my);
+    } else if (mode == 1) {
+        return fract(uv);  // repeat
+    }
+    return clamp(uv, vec2<f32>(0.0), vec2<f32>(1.0));  // clamp
+}
 
 struct VertexOutput {
     @builtin(position) position : vec4<f32>,
@@ -36,14 +51,8 @@ fn main(input : VertexOutput) -> @location(0) vec4<f32> {
     
     let originalColor : vec4<f32> = textureSample(original_texture, original_sampler, input.uv);
     
-    // Sample texture unconditionally (WebGPU requires uniform control flow for textureSample)
-    let uvCoord : vec2<f32> = clamp(srcCoord / texSize, vec2<f32>(0.0), vec2<f32>(1.0));
-    let sampledSorted : vec4<f32> = textureSample(inputTex, input_sampler, uvCoord);
-    
-    // Check bounds and select appropriate color
-    let inBounds : bool = srcCoord.x >= 0.0 && srcCoord.x < texSize.x && 
-                          srcCoord.y >= 0.0 && srcCoord.y < texSize.y;
-    let sortedColor : vec4<f32> = select(originalColor, sampledSorted, inBounds);
+    let wrappedUV : vec2<f32> = applyWrap(srcCoord, texSize);
+    let sortedColor : vec4<f32> = textureSample(inputTex, input_sampler, wrappedUV);
     
     var working_source : vec4<f32> = originalColor;
     var working_sorted : vec4<f32> = sortedColor;

@@ -14,7 +14,7 @@ export default new Effect({
   globals: {
     cellSize: {
       type: "int",
-      default: 8,
+      default: 16,
       uniform: "cellSize",
       min: 4,
       max: 32,

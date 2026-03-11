@@ -14,7 +14,7 @@ export default new Effect({
   globals: {
     strength: {
       type: "float",
-      default: 25,
+      default: 75,
       uniform: "strength",
       min: 0,
       max: 100,

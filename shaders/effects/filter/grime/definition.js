@@ -40,7 +40,7 @@ export default new Effect({
       }
     }
   },
-  defaultProgram: "search filter, synth\n\nsolid(color: #ffffff)\n .grime()\n.write(o0)",
+  defaultProgram: "search filter, synth\n\nsolid(color: #ffffff)\n .grime(strength: 1)\n.write(o0)",
   passes: [
     {
       name: "main",

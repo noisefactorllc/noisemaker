@@ -10,8 +10,19 @@ uniform sampler2D inputTex;
 uniform int iterations;
 uniform bool ridges;
 uniform float alpha;
+uniform float wrap;
 
 out vec4 fragColor;
+
+vec2 applyWrap(vec2 uv) {
+    int mode = int(wrap);
+    if (mode == 0) {
+        return abs(mod(uv + 1.0, 2.0) - 1.0);  // mirror
+    } else if (mode == 1) {
+        return fract(uv);  // repeat
+    }
+    return clamp(uv, 0.0, 1.0);  // clamp
+}
 
 vec4 ridge_transform(vec4 color) {
     return vec4(1.0) - abs(color * 2.0 - vec4(1.0));
@@ -40,7 +51,7 @@ void main() {
 
     int iters = clamp(iterations, 1, 8);
     for (int i = 0; i < iters; i++) {
-        vec2 scaledUV = fract(uv * scale);
+        vec2 scaledUV = applyWrap(uv * scale);
         vec4 scaled = texture(inputTex, scaledUV);
 
         if (ridges) {

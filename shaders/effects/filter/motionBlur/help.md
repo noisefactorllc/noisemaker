@@ -6,7 +6,7 @@ Simple motion blur via frame blending
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| amount | float | 50 | 0-100 | Amount |
+| amount | float | 100 | 0-100 | Amount |
 | resetState | boolean | false | - | State |
 
 ## Notes

@@ -39,6 +39,20 @@ export default new Effect({
             label: "darkest first",
             control: "checkbox"
         }
+    },
+    wrap: {
+        type: "int",
+        default: 0,
+        uniform: "wrap",
+        choices: {
+            mirror: 0,
+            repeat: 1,
+            clamp: 2
+        },
+        ui: {
+            label: "wrap",
+            control: "dropdown"
+        }
     }
   },
   textures: {
@@ -58,7 +72,8 @@ export default new Effect({
       uniforms: {
         resolution: "resolution",
         angled: "angled",
-        darkest: "darkest"
+        darkest: "darkest",
+        wrap: "wrap"
       },
       outputs: {
         fragColor: "prepared"
@@ -115,7 +130,8 @@ export default new Effect({
       uniforms: {
         resolution: "resolution",
         angled: "angled",
-        darkest: "darkest"
+        darkest: "darkest",
+        wrap: "wrap"
       },
       outputs: {
         fragColor: "outputTex"

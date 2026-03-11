@@ -17,12 +17,9 @@ uniform float frequency;
 uniform float octaves;
 uniform float displacement;
 uniform float speed;
-uniform float splineOrder;
+uniform float wrap;
 
 out vec4 fragColor;
-
-const float PI = 3.14159265358979;
-const float TAU = 6.28318530717959;
 
 // PCG PRNG
 uvec3 pcg(uvec3 v) {
@@ -59,101 +56,35 @@ float noise(vec2 p) {
     return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
 }
 
+const float TAU = 6.28318530717959;
+
 // Multi-octave noise for smoother results
+// Uses circular path through noise space so t=0 and t=1 are seamless
 float simplexNoise(vec2 p, float t) {
-    float n = noise(p + t * 0.1);
-    n += noise(p * 2.0 - t * 0.15) * 0.5;
-    n += noise(p * 4.0 + t * 0.2) * 0.25;
+    float angle = t * TAU;
+    float cx = cos(angle) * 0.5;
+    float cy = sin(angle) * 0.5;
+    float n = noise(p + vec2(cx, cy));
+    n += noise(p * 2.0 + vec2(-cy, cx) * 0.75) * 0.5;
+    n += noise(p * 4.0 + vec2(cx, -cy) * 0.5) * 0.25;
     return n / 1.75;
 }
 
-float wrapFloat(float value, float limit) {
+float wrapFloat(float value, float limit, int mode) {
     if (limit <= 0.0) return 0.0;
-    float result = mod(value, limit);
-    if (result < 0.0) result += limit;
-    return result;
-}
-
-float applySpline(float value, int order) {
-    float clamped = clamp(value, 0.0, 1.0);
-    if (order == 2) {
-        return 0.5 - cos(clamped * PI) * 0.5;
+    float norm = value / limit;
+    if (mode == 0) {
+        // Mirror
+        norm = abs(mod(norm + 1.0, 2.0) - 1.0);
+    } else if (mode == 1) {
+        // Repeat
+        norm = mod(norm, 1.0);
+        if (norm < 0.0) norm += 1.0;
+    } else {
+        // Clamp
+        norm = clamp(norm, 0.0, 1.0);
     }
-    return clamped;
-}
-
-vec4 sampleNearest(vec2 coord, vec2 dims) {
-    vec2 uv = vec2(
-        wrapFloat(coord.x, dims.x),
-        wrapFloat(coord.y, dims.y)
-    ) / dims;
-    return texture(inputTex, uv);
-}
-
-vec4 sampleBilinear(vec2 coord, vec2 dims, int order) {
-    float x0f = floor(coord.x);
-    float y0f = floor(coord.y);
-    int x0 = int(x0f);
-    int y0 = int(y0f);
-    int w = int(dims.x);
-    int h = int(dims.y);
-
-    float fx = applySpline(coord.x - x0f, order);
-    float fy = applySpline(coord.y - y0f, order);
-
-    vec2 uv00 = vec2(wrapFloat(float(x0), dims.x), wrapFloat(float(y0), dims.y)) / dims;
-    vec2 uv10 = vec2(wrapFloat(float(x0 + 1), dims.x), wrapFloat(float(y0), dims.y)) / dims;
-    vec2 uv01 = vec2(wrapFloat(float(x0), dims.x), wrapFloat(float(y0 + 1), dims.y)) / dims;
-    vec2 uv11 = vec2(wrapFloat(float(x0 + 1), dims.x), wrapFloat(float(y0 + 1), dims.y)) / dims;
-
-    vec4 tex00 = texture(inputTex, uv00);
-    vec4 tex10 = texture(inputTex, uv10);
-    vec4 tex01 = texture(inputTex, uv01);
-    vec4 tex11 = texture(inputTex, uv11);
-
-    vec4 mixX0 = mix(tex00, tex10, fx);
-    vec4 mixX1 = mix(tex01, tex11, fx);
-    return mix(mixX0, mixX1, fy);
-}
-
-vec4 cubicInterp(vec4 a, vec4 b, vec4 c, vec4 d, float t) {
-    float t2 = t * t;
-    float t3 = t2 * t;
-    vec4 a0 = d - c - a + b;
-    vec4 a1 = a - b - a0;
-    vec4 a2 = c - a;
-    return a0 * t3 + a1 * t2 + a2 * t + b;
-}
-
-vec4 sampleBicubic(vec2 coord, vec2 dims) {
-    int bx = int(floor(coord.x));
-    int by = int(floor(coord.y));
-    float fx = coord.x - floor(coord.x);
-    float fy = coord.y - floor(coord.y);
-
-    vec4 cols[4];
-    for (int m = -1; m <= 2; m++) {
-        vec4 row[4];
-        for (int n = -1; n <= 2; n++) {
-            vec2 uv = vec2(
-                wrapFloat(float(bx + n), dims.x),
-                wrapFloat(float(by + m), dims.y)
-            ) / dims;
-            row[n + 1] = texture(inputTex, uv);
-        }
-        cols[m + 1] = cubicInterp(row[0], row[1], row[2], row[3], fx);
-    }
-    return cubicInterp(cols[0], cols[1], cols[2], cols[3], fy);
-}
-
-vec4 sampleWithOrder(vec2 coord, vec2 dims, int order) {
-    vec2 wrapped = vec2(
-        wrapFloat(coord.x, dims.x),
-        wrapFloat(coord.y, dims.y)
-    );
-    if (order <= 0) return sampleNearest(wrapped, dims);
-    if (order >= 3) return sampleBicubic(wrapped, dims);
-    return sampleBilinear(wrapped, dims, order);
+    return norm * limit;
 }
 
 void main() {
@@ -162,7 +93,7 @@ void main() {
     float height = dims.y;
 
     // Adjust frequency for aspect ratio
-    vec2 freq = vec2(frequency);
+    vec2 freq = vec2(11.0 - frequency);
     if (width > height && height > 0.0) {
         freq.y = frequency * width / height;
     } else if (height > width && width > 0.0) {
@@ -199,11 +130,14 @@ void main() {
 
         sampleCoord += offset;
         sampleCoord = vec2(
-            wrapFloat(sampleCoord.x, width),
-            wrapFloat(sampleCoord.y, height)
+            wrapFloat(sampleCoord.x, width, int(wrap)),
+            wrapFloat(sampleCoord.y, height, int(wrap))
         );
     }
 
-    vec4 sampled = sampleWithOrder(sampleCoord, dims, int(splineOrder));
-    fragColor = sampled;
+    vec2 finalUV = vec2(
+        wrapFloat(sampleCoord.x, width, int(wrap)),
+        wrapFloat(sampleCoord.y, height, int(wrap))
+    ) / dims;
+    fragColor = texture(inputTex, finalUV);
 }

@@ -13,7 +13,7 @@ export default new Effect({
   globals: {
     alpha: {
       type: "float",
-      default: 0.25,
+      default: 1,
       uniform: "alpha",
       min: 0,
       max: 1,

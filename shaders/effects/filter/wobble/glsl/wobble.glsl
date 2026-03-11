@@ -9,6 +9,7 @@ uniform sampler2D inputTex;
 uniform float time;
 uniform float speed;
 uniform float range;
+uniform float wrap;
 
 in vec2 v_texCoord;
 out vec4 fragColor;
@@ -73,6 +74,16 @@ float simplexRandom(float t, float spd, vec3 seed) {
     return clamp(n, 0.0, 1.0);
 }
 
+vec2 applyWrap(vec2 uv) {
+    int mode = int(wrap);
+    if (mode == 0) {
+        return abs(mod(uv + 1.0, 2.0) - 1.0);  // mirror
+    } else if (mode == 1) {
+        return fract(uv);  // repeat
+    }
+    return clamp(uv, 0.0, 1.0);  // clamp
+}
+
 void main() {
     // Speed directly affects the noise sampling position
     // This ensures changing speed produces different noise values
@@ -89,7 +100,7 @@ void main() {
 
     // Apply offset to texture coordinate
     vec2 sampleCoord = v_texCoord + offset;
-    sampleCoord = fract(sampleCoord);  // Wrap around
+    sampleCoord = applyWrap(sampleCoord);
 
     vec4 sampled = texture(inputTex, sampleCoord);
 

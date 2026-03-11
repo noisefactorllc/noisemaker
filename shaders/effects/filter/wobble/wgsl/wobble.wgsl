@@ -10,6 +10,7 @@ struct VertexOutput {
 @group(0) @binding(2) var<uniform> speed: f32;
 @group(0) @binding(3) var<uniform> range: f32;
 @group(0) @binding(4) var<uniform> time: f32;
+@group(0) @binding(5) var<uniform> wrap: i32;
 
 const TAU: f32 = 6.28318530717959;
 const X_NOISE_SEED: vec3<f32> = vec3<f32>(17.0, 29.0, 11.0);
@@ -70,6 +71,18 @@ fn simplexRandom(t: f32, spd: f32, seed: vec3<f32>) -> f32 {
     return clamp(n, 0.0, 1.0);
 }
 
+fn applyWrap(uv: vec2<f32>) -> vec2<f32> {
+    if (wrap == 0) {
+        // Mirror: abs(mod(uv + 1, 2) - 1)
+        let mx = abs((uv.x + 1.0) - floor((uv.x + 1.0) * 0.5) * 2.0 - 1.0);
+        let my = abs((uv.y + 1.0) - floor((uv.y + 1.0) * 0.5) * 2.0 - 1.0);
+        return vec2<f32>(mx, my);
+    } else if (wrap == 1) {
+        return fract(uv);  // repeat
+    }
+    return clamp(uv, vec2<f32>(0.0), vec2<f32>(1.0));  // clamp
+}
+
 @fragment
 fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     // Speed directly affects the noise sampling position
@@ -87,7 +100,7 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Apply offset to texture coordinate
     var sampleCoord = in.uv + offset;
-    sampleCoord = fract(sampleCoord);  // Wrap around
+    sampleCoord = applyWrap(sampleCoord);
 
     let sampled = textureSample(inputTex, u_sampler, sampleCoord);
 

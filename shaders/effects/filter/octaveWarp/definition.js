@@ -18,20 +18,21 @@ export default new Effect({
       type: "float",
       default: 2,
       uniform: "frequency",
-      min: 0.1,
+      min: 1,
       max: 10,
       step: 0.1,
+      randMax: 5,
       ui: {
-        label: "frequency",
+        label: "scale",
         control: "slider"
       }
     },
     octaves: {
       type: "int",
-      default: 5,
+      default: 3,
       uniform: "octaves",
       min: 1,
-      max: 10,
+      max: 5,
       step: 1,
       ui: {
         label: "octaves",
@@ -40,38 +41,37 @@ export default new Effect({
     },
     displacement: {
       type: "float",
-      default: 0.1,
+      default: 0.2,
       uniform: "displacement",
       min: 0,
       max: 1,
       step: 0.01,
+      randMax: 0.5,
       ui: {
         label: "displacement",
         control: "slider"
       }
     },
     speed: {
-      type: "float",
+      type: "int",
       default: 1,
       uniform: "speed",
       min: 0,
       max: 5,
-      step: 0.1,
+      zero: 0,
       ui: {
         label: "speed",
         control: "slider"
       }
     },
-    splineOrder: {
+    wrap: {
       type: "int",
-      default: 2,
-      uniform: "splineOrder",
-      min: 0,
-      max: 3,
-      step: 1,
+      default: 0,
+      uniform: "wrap",
+      choices: { mirror: 0, repeat: 1, clamp: 2 },
       ui: {
-        label: "spline order",
-        control: "slider"
+        label: "wrap",
+        control: "dropdown"
       }
     }
   },
@@ -88,7 +88,7 @@ export default new Effect({
         octaves: "octaves",
         displacement: "displacement",
         speed: "speed",
-        splineOrder: "splineOrder"
+        wrap: "wrap"
       },
       outputs: {
         fragColor: "outputTex"

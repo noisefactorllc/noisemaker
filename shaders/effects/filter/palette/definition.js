@@ -14,7 +14,7 @@ export default new Effect({
   globals: {
     index: {
       type: "member",
-      default: "palette.afterimage",
+      default: "palette.brushedMetal",
       enum: "palette",
       uniform: "paletteIndex",
       ui: {

@@ -6,6 +6,19 @@
 @group(0) @binding(2) var<uniform> iterations: i32;
 @group(0) @binding(3) var<uniform> ridges: i32;
 @group(0) @binding(4) var<uniform> alpha: f32;
+@group(0) @binding(5) var<uniform> wrap: i32;
+
+fn applyWrap(uv: vec2<f32>) -> vec2<f32> {
+    if (wrap == 0) {
+        // Mirror: abs(mod(uv + 1, 2) - 1)
+        let mx = abs((uv.x + 1.0) - floor((uv.x + 1.0) * 0.5) * 2.0 - 1.0);
+        let my = abs((uv.y + 1.0) - floor((uv.y + 1.0) * 0.5) * 2.0 - 1.0);
+        return vec2<f32>(mx, my);
+    } else if (wrap == 1) {
+        return fract(uv);  // repeat
+    }
+    return clamp(uv, vec2<f32>(0.0), vec2<f32>(1.0));  // clamp
+}
 
 fn ridge_transform(color: vec4<f32>) -> vec4<f32> {
     return vec4<f32>(1.0) - abs(color * 2.0 - vec4<f32>(1.0));
@@ -37,7 +50,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     let iters: i32 = clamp(iterations, 1, 8);
     for (var i: i32 = 0; i < iters; i = i + 1) {
-        let scaledUV: vec2<f32> = fract(uv * scale);
+        let scaledUV: vec2<f32> = applyWrap(uv * scale);
         var scaled: vec4<f32> = textureSample(inputTex, inputSampler, scaledUV);
 
         if (useRidges) {

@@ -44,6 +44,20 @@ export default new Effect({
             label: "alpha",
             control: "slider"
         }
+    },
+    wrap: {
+      type: "int",
+      default: 0,
+      uniform: "wrap",
+      choices: {
+        mirror: 0,
+        repeat: 1,
+        clamp: 2
+      },
+      ui: {
+        label: "wrap",
+        control: "dropdown"
+      }
     }
   },
   passes: [
@@ -56,7 +70,8 @@ export default new Effect({
       uniforms: {
         iterations: "iterations",
         ridges: "ridges",
-        alpha: "alpha"
+        alpha: "alpha",
+        wrap: "wrap"
       },
       outputs: {
         fragColor: "outputTex"
