@@ -1745,11 +1745,15 @@ export class WebGPUBackend extends Backend {
                 // For mesh rendering, prefer meshPositions texture
                 const meshInputId = pass.inputs.meshPositions || pass.inputs.inputTex
                 if (meshInputId) {
-                    // Check textures map FIRST - mesh data is uploaded directly there
-                    // Mesh textures (global_mesh0_positions) are NOT ping-pong surfaces
                     refTex = this.textures.get(meshInputId)
                     if (!refTex) {
-                        // Fall back to surfaces for ping-pong render targets
+                        // Try unscoped name (strip chain scope suffix)
+                        const unscopedId = meshInputId.replace(/_chain_\d+$/, '')
+                        if (unscopedId !== meshInputId) {
+                            refTex = this.textures.get(unscopedId)
+                        }
+                    }
+                    if (!refTex) {
                         const surfaceName = this.parseGlobalName(meshInputId)
                         if (surfaceName) {
                             refTex = state.surfaces?.[surfaceName]
@@ -1954,7 +1958,14 @@ export class WebGPUBackend extends Backend {
                         // Not a ping-pong surface - check textures map directly
                         // This handles mesh textures (global_mesh0_positions etc.) which are
                         // static data textures uploaded by loadOBJ, not double-buffered surfaces.
-                        const tex = this.textures.get(texId)
+                        // Try scoped name first, then unscoped (strip chain scope suffix)
+                        let tex = this.textures.get(texId)
+                        if (!tex) {
+                            const unscopedId = texId.replace(/_chain_\d+$/, '')
+                            if (unscopedId !== texId) {
+                                tex = this.textures.get(unscopedId)
+                            }
+                        }
                         textureView = tex?.view
                     }
                 } else {

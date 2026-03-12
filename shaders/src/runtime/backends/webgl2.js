@@ -1065,9 +1065,14 @@ export class WebGL2Backend extends Backend {
                 if (effectivePass.inputs) {
                     const meshInputId = effectivePass.inputs.meshPositions || effectivePass.inputs.inputTex
                     if (meshInputId) {
-                        // For mesh textures, check textures map FIRST (mesh data is uploaded directly there)
-                        // Only fall back to surfaces if not found
                         refTex = this.textures.get(meshInputId)
+                        if (!refTex) {
+                            // Try unscoped name (strip chain scope suffix)
+                            const unscopedId = meshInputId.replace(/_chain_\d+$/, '')
+                            if (unscopedId !== meshInputId) {
+                                refTex = this.textures.get(unscopedId)
+                            }
+                        }
                         if (!refTex) {
                             const inputGlobalName = this.parseGlobalName(meshInputId)
                             if (inputGlobalName) {
@@ -1172,18 +1177,31 @@ export class WebGL2Backend extends Backend {
 
             // Get texture from state or textures map
             let texture
+            let texInfo
             const globalName = this.parseGlobalName(texId)
             if (globalName) {
-                // First check if it's a mesh texture (stored directly in this.textures with "global_" prefix)
-                // Mesh textures take priority over generic surfaces with same base name
-                texture = this.textures.get(texId)?.handle
+                // Check scoped name first (e.g., "global_mesh0_positions_chain_0")
+                texInfo = this.textures.get(texId)
+                texture = texInfo?.handle
+
+                // Fall back to unscoped name for externally uploaded textures (mesh data).
+                // The expander adds chain scope suffixes (_chain_N) but mesh uploads use
+                // the base name (global_mesh0_positions). Strip the scope suffix to find them.
+                if (!texture) {
+                    const unscopedId = texId.replace(/_chain_\d+$/, '')
+                    if (unscopedId !== texId) {
+                        texInfo = this.textures.get(unscopedId)
+                        texture = texInfo?.handle
+                    }
+                }
 
                 // If not found, check surfaces (ping-pong render targets)
                 if (!texture) {
                     texture = state.surfaces?.[globalName]?.handle
                 }
             } else {
-                texture = this.textures.get(texId)?.handle
+                texInfo = this.textures.get(texId)
+                texture = texInfo?.handle
             }
 
             // If texture is missing, use default texture (transparent black)
@@ -1194,7 +1212,6 @@ export class WebGL2Backend extends Backend {
             }
 
             // Check if this is a 3D texture
-            const texInfo = this.textures.get(texId)
             const is3D = texInfo?.is3D
 
             gl.activeTexture(gl.TEXTURE0 + unit)

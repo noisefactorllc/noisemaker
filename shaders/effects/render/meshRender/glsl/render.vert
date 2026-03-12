@@ -81,8 +81,9 @@ void main() {
     position.y += meshOffsetY;
     position.z += meshOffsetZ;
     
-    // Build rotation matrix
-    mat3 rotation = rotationZ(rotateZ) * rotationY(rotateY) * rotationX(rotateX);
+    // Build rotation matrix (uniforms are in degrees)
+    float deg2rad = 3.14159265 / 180.0;
+    mat3 rotation = rotationZ(rotateZ * deg2rad) * rotationY(rotateY * deg2rad) * rotationX(rotateX * deg2rad);
     
     // Transform position and normal
     vec3 rotatedPos = rotation * position;

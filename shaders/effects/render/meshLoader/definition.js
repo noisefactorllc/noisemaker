@@ -24,11 +24,24 @@ export default class MeshLoader extends Effect {
     // The demo-ui detects this and handles URL loading
     externalMesh = "mesh0"
 
+    // Built-in procedural meshes available via dropdown
+    builtinMeshes = {
+        cube: "/share/meshes/cube.obj",
+        sphere: "/share/meshes/sphere.obj",
+        torus: "/share/meshes/torus.obj",
+        cylinder: "/share/meshes/cylinder.obj",
+        cone: "/share/meshes/cone.obj",
+        capsule: "/share/meshes/capsule.obj",
+        icosphere: "/share/meshes/icosphere.obj"
+    }
+
     // No local textures - we write directly to global mesh surfaces
     textures = {}
 
     // No globals - mesh transforms (scale, offset) are applied in meshRender
     globals = {}
+
+    defaultProgram = "search render\n\nmeshLoader()\n.meshRender()\n.write(o0)"
 
     // Preview pass shows the loaded mesh texture data
     passes = [

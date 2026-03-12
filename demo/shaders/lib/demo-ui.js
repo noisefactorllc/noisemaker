@@ -593,7 +593,7 @@ export class UIController {
      * @param {string} meshId - Target mesh surface ID (e.g., 'mesh0')
      * @returns {HTMLElement}
      */
-    _createMeshInputSection(stepIndex, meshId) {
+    _createMeshInputSection(stepIndex, meshId, builtinMeshes) {
         const section = document.createElement('div')
         section.className = 'mesh-input-section'
 
@@ -604,6 +604,42 @@ export class UIController {
                 loaded: false,
                 vertexCount: 0
             })
+        }
+
+        // Built-in shape dropdown (if available)
+        if (builtinMeshes) {
+            const shapeGroup = document.createElement('div')
+            shapeGroup.className = 'control-group'
+
+            const shapeLabel = document.createElement('span')
+            shapeLabel.className = 'control-label'
+            shapeLabel.textContent = 'shape'
+            shapeGroup.appendChild(shapeLabel)
+
+            const select = document.createElement('select')
+            select.className = 'mesh-shape-select control-select'
+
+            const noneOption = document.createElement('option')
+            noneOption.value = ''
+            noneOption.textContent = '(custom file)'
+            select.appendChild(noneOption)
+
+            for (const name of Object.keys(builtinMeshes)) {
+                const option = document.createElement('option')
+                option.value = name
+                option.textContent = name
+                select.appendChild(option)
+            }
+
+            select.addEventListener('change', () => {
+                const shapeName = select.value
+                if (shapeName && builtinMeshes[shapeName]) {
+                    this._loadBuiltinMesh(stepIndex, shapeName, builtinMeshes[shapeName])
+                }
+            })
+
+            shapeGroup.appendChild(select)
+            section.appendChild(shapeGroup)
         }
 
         // File input group
@@ -648,6 +684,17 @@ export class UIController {
         const meshState = this._meshInputs.get(stepIndex)
         meshState.statusEl = statusSpan
 
+        // Auto-load the first built-in shape (after statusEl is set up)
+        if (builtinMeshes) {
+            const builtinNames = Object.keys(builtinMeshes)
+            if (builtinNames.length > 0) {
+                const defaultShape = builtinNames[0]
+                const select = section.querySelector('.mesh-shape-select')
+                if (select) select.value = defaultShape
+                this._loadBuiltinMesh(stepIndex, defaultShape, builtinMeshes[defaultShape])
+            }
+        }
+
         return section
     }
 
@@ -672,6 +719,31 @@ export class UIController {
                 meshState.loaded = true
                 meshState.vertexCount = result.vertexCount
                 meshState.statusEl.textContent = `${file.name}: ${result.vertexCount} vertices`
+            } else {
+                meshState.statusEl.textContent = `error: ${result.error || 'unknown'}`
+            }
+        } catch (err) {
+            meshState.statusEl.textContent = `error: ${err.message}`
+        }
+    }
+
+    /**
+     * Load a built-in mesh from a bundled OBJ file
+     * @private
+     */
+    async _loadBuiltinMesh(stepIndex, shapeName, url) {
+        const meshState = this._meshInputs.get(stepIndex)
+        if (!meshState) return
+
+        meshState.statusEl.textContent = 'loading...'
+
+        try {
+            const result = await this._renderer.loadOBJFromURL(url, meshState.meshId)
+
+            if (result.success) {
+                meshState.loaded = true
+                meshState.vertexCount = result.vertexCount
+                meshState.statusEl.textContent = `${shapeName}: ${result.vertexCount} vertices`
             } else {
                 meshState.statusEl.textContent = `error: ${result.error || 'unknown'}`
             }
@@ -2146,6 +2218,16 @@ render(o1)`
                 controlsDiv.appendChild(categoryGroup)
             }
 
+            // Add mesh input section into controls area (before "no controls" check)
+            if (effectDef.externalMesh) {
+                const meshSection = this._createMeshInputSection(
+                    effectInfo.stepIndex,
+                    effectDef.externalMesh,
+                    effectDef.builtinMeshes
+                )
+                controlsDiv.appendChild(meshSection)
+            }
+
             // Show message if effect has no controls
             if (controlsDiv.children.length === 0) {
                 const noControlsMsg = document.createElement('div')
@@ -2188,15 +2270,6 @@ render(o1)`
             // Initialize text canvas for textTex effects (reads settings from globals)
             if (effectDef.externalTexture === 'textTex') {
                 this._initTextCanvas(effectInfo.stepIndex, effectKey, effectDef)
-            }
-
-            // Add mesh input section for effects with externalMesh property
-            if (effectDef.externalMesh) {
-                const meshSection = this._createMeshInputSection(
-                    effectInfo.stepIndex,
-                    effectDef.externalMesh
-                )
-                contentDiv.appendChild(meshSection)
             }
 
             effectDiv.appendChild(contentDiv)

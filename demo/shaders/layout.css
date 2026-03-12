@@ -869,6 +869,46 @@ body.full-bleed-mode #canvas {
   font-style: italic;
 }
 
+/* Mesh input section - sits inside the 2-column controlsDiv grid */
+.mesh-input-section {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.mesh-file-input {
+  width: 100%;
+  font-size: 0.6875rem;
+  color: var(--color6);
+}
+
+.mesh-file-input::file-selector-button {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.625rem;
+  font-family: Nunito, sans-serif;
+  font-weight: 600;
+  text-transform: lowercase;
+  background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
+  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+  border-radius: var(--ui-corner-radius-small);
+  color: var(--color6);
+  cursor: pointer;
+  margin-right: 0.5rem;
+  transition: all 0.15s ease;
+}
+
+.mesh-file-input::file-selector-button:hover {
+  background: color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+  border-color: color-mix(in srgb, var(--accent3) 40%, transparent 60%);
+}
+
+.mesh-status {
+  font-size: 0.625rem;
+  color: var(--color5);
+  font-style: italic;
+}
+
 /* Ecosystem info text */
 .noisemaker-info {
   font-size: 0.625rem;

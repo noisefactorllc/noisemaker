@@ -23,7 +23,7 @@ meshLoader().meshRender(scale: 1.5, offsetY: -0.5).write(o0)
 ### View
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| rotateX | float | 0.3 | Rotation around X axis (radians) |
+| rotateX | float | 0.0 | Rotation around X axis (radians) |
 | rotateY | float | 0.0 | Rotation around Y axis (radians) |
 | rotateZ | float | 0.0 | Rotation around Z axis (radians) |
 | viewScale | float | 1.0 | Zoom/scale factor |

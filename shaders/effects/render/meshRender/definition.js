@@ -17,6 +17,8 @@ export default new Effect({
             default: 1.0,
             min: 0.01,
             max: 10.0,
+            randMin: 0.1,
+            randMax: 1.0,
             uniform: "meshScale",
             ui: {
                 label: "mesh scale",
@@ -30,6 +32,7 @@ export default new Effect({
             default: 0.0,
             min: -5.0,
             max: 5.0,
+            randChance: 0,
             uniform: "offsetX",
             ui: {
                 label: "mesh offset x",
@@ -43,6 +46,7 @@ export default new Effect({
             default: 0.0,
             min: -5.0,
             max: 5.0,
+            randChance: 0,
             uniform: "offsetY",
             ui: {
                 label: "mesh offset y",
@@ -56,6 +60,7 @@ export default new Effect({
             default: 0.0,
             min: -5.0,
             max: 5.0,
+            randChance: 0,
             uniform: "offsetZ",
             ui: {
                 label: "mesh offset z",
@@ -67,9 +72,10 @@ export default new Effect({
         // Camera/view rotation X
         rotateX: {
             type: "float",
-            default: 0.3,
-            min: -3.14159,
-            max: 3.14159,
+            default: 0,
+            min: -180,
+            max: 180,
+            step: 1,
             uniform: "rotateX",
             ui: {
                 label: "rotate x",
@@ -81,9 +87,10 @@ export default new Effect({
         // Camera/view rotation Y
         rotateY: {
             type: "float",
-            default: 0.0,
-            min: -3.14159,
-            max: 3.14159,
+            default: 0,
+            min: -180,
+            max: 180,
+            step: 1,
             uniform: "rotateY",
             ui: {
                 label: "rotate y",
@@ -95,9 +102,10 @@ export default new Effect({
         // Camera/view rotation Z
         rotateZ: {
             type: "float",
-            default: 0.0,
-            min: -3.14159,
-            max: 3.14159,
+            default: 0,
+            min: -180,
+            max: 180,
+            step: 1,
             uniform: "rotateZ",
             ui: {
                 label: "rotate z",
@@ -126,6 +134,7 @@ export default new Effect({
             default: 0.0,
             min: -10.0,
             max: 10.0,
+            randChance: 0,
             uniform: "posX",
             ui: {
                 label: "position x",
@@ -140,6 +149,7 @@ export default new Effect({
             default: 0.0,
             min: -10.0,
             max: 10.0,
+            randChance: 0,
             uniform: "posY",
             ui: {
                 label: "position y",

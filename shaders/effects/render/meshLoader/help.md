@@ -1,8 +1,6 @@
 # Mesh Loader
 
-**Note:** The mesh loader is a proof of concept that currently only supports OBJ format.
-
-Load external OBJ mesh files into mesh surface textures for GPU rendering.
+Load mesh data into mesh surface textures for GPU rendering. Includes built-in procedural shapes and supports custom OBJ file upload.
 
 ## Usage
 
@@ -10,11 +8,23 @@ Load external OBJ mesh files into mesh surface textures for GPU rendering.
 meshLoader().meshRender().write(o0)
 ```
 
-The demo UI shows a file picker when meshLoader is in the pipeline. Select an OBJ file to load it.
+The demo UI shows a shape dropdown and file picker when meshLoader is in the pipeline.
+
+## Built-in Shapes
+
+| Shape | Description |
+|-------|-------------|
+| cube | 8 vertices, 12 triangles |
+| sphere | UV sphere (32x16 segments) |
+| torus | Ring torus (32x16 segments) |
+| cylinder | Capped cylinder (32 segments) |
+| cone | Capped cone (32 segments) |
+| capsule | Cylinder with hemisphere caps (32x8 segments) |
+| icosphere | Subdivided icosahedron (2 levels) |
 
 ## Parameters
 
-This effect has no parameters. Mesh transforms (scale, offset) are applied in `meshRender()`.
+Mesh transforms (scale, offset) are applied in `meshRender()`, not here.
 
 ## OBJ Format Support
 

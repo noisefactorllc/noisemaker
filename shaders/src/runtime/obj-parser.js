@@ -86,14 +86,12 @@ export function parseOBJ(objText) {
                 }
 
                 // Triangulate the face (fan triangulation for convex polygons)
-                // OBJ files often use CW winding, but OpenGL expects CCW
-                // Reverse the vertex order: v0, v2, v1 instead of v0, v1, v2
+                // Reverse winding: OBJ CW to OpenGL CCW
                 for (let i = 1; i < faceVerts.length - 1; i++) {
                     const v0 = faceVerts[0]
                     const v1 = faceVerts[i]
                     const v2 = faceVerts[i + 1]
 
-                    // Add triangle vertices in reversed order for CCW winding
                     addVertex(v0)
                     addVertex(v2)
                     addVertex(v1)
@@ -156,10 +154,10 @@ function computeFaceNormals(positions, normals) {
     const faceNormals = new Float32Array(triangleCount * 3)
     for (let tri = 0; tri < triangleCount; tri++) {
         const i0 = tri * 9       // v0
-        const i1 = i0 + 3        // v2 (second vertex in our reversed order)
-        const i2 = i0 + 6        // v1 (third vertex in our reversed order)
+        const i1 = i0 + 3        // v2 (second vertex in reversed order)
+        const i2 = i0 + 6        // v1 (third vertex in reversed order)
 
-        // Get triangle vertices (a=v0, b=v2, c=v1 in our reversed order)
+        // Get triangle vertices (a=v0, b=v2, c=v1 in reversed order)
         const ax = positions[i0], ay = positions[i0 + 1], az = positions[i0 + 2]
         const bx = positions[i1], by = positions[i1 + 1], bz = positions[i1 + 2]
         const cx = positions[i2], cy = positions[i2 + 1], cz = positions[i2 + 2]

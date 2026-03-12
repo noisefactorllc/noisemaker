@@ -95,8 +95,9 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     position.y = position.y + u.meshOffsetY;
     position.z = position.z + u.meshOffsetZ;
     
-    // Build rotation matrix
-    let rotation = rotationZ(u.rotateZ) * rotationY(u.rotateY) * rotationX(u.rotateX);
+    // Build rotation matrix (uniforms are in degrees)
+    let deg2rad = 3.14159265 / 180.0;
+    let rotation = rotationZ(u.rotateZ * deg2rad) * rotationY(u.rotateY * deg2rad) * rotationX(u.rotateX * deg2rad);
     
     // Transform
     var rotatedPos = rotation * position;
