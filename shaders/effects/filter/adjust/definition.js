@@ -44,7 +44,7 @@ export default new Effect({
     },
     hueRange: {
       type: "float",
-      default: 40,
+      default: 100,
       uniform: "hueRange",
       min: 0,
       max: 200,
