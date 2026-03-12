@@ -20,6 +20,10 @@ export function compileGraph(source, options = {}) {
     const compilationResult = compile(source)
 
     if (compilationResult.diagnostics?.length > 0) {
+        const warnings = compilationResult.diagnostics.filter(d => d.severity === 'warning')
+        for (const w of warnings) {
+            console.warn(`[noisemaker] ${w.code}: ${w.message}`)
+        }
         const errors = compilationResult.diagnostics.filter(d => d.severity === 'error')
         if (errors.length > 0) {
             throw {

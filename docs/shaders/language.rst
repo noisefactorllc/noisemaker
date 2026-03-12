@@ -711,10 +711,26 @@ Diagnostics
      - Semantic
      - Error
      - Illegal chain structure
+   * - S004
+     - Semantic
+     - Error
+     - Cannot assign null or undefined
+   * - S005
+     - Semantic
+     - Error
+     - Illegal chain structure
    * - S006
      - Semantic
      - Error
      - Starter chain missing write() call
+   * - S007
+     - Semantic
+     - Warning
+     - Deprecated parameter alias
+   * - S008
+     - Semantic
+     - Warning
+     - Deprecated effect
    * - R001
      - Runtime
      - Error
@@ -727,3 +743,5 @@ Common Errors
 
 * **S005 (Illegal chain structure):** Generator functions (like ``osc``, ``noise``) must appear at the start of a chain. They cannot consume an existing chain output.
 * **S006 (Starter chain missing write):** Generator-driven chains must end with ``.write()`` to produce a reusable surface.
+* **S007 (Deprecated parameter alias):** A parameter name you used still works but has been renamed. Update to the current name.
+* **S008 (Deprecated effect):** An effect you used still works but has been replaced by a newer effect. Update to the current name.
