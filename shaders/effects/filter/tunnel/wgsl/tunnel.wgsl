@@ -10,9 +10,9 @@ struct Uniforms {
     speed: f32,
     rotation: f32,
     scale: f32,
+    center: f32,
     _pad1: f32,
     _pad2: f32,
-    _pad3: f32,
     aspectLens: i32
 }
 
@@ -57,9 +57,13 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         // Triangle
         r = polygonShape(centered * 2.0, 3);
     } else if (uniforms.shape == 2) {
+        // Rounded square (superellipse)
+        let p = centered * centered * centered * centered * centered * centered * centered * centered;
+        r = pow(p.x + p.y, 1.0 / 8.0);
+    } else if (uniforms.shape == 3) {
         // Square
         r = polygonShape(centered * 2.0, 4);
-    } else if (uniforms.shape == 3) {
+    } else if (uniforms.shape == 4) {
         // Hexagon
         r = polygonShape(centered * 2.0, 6);
     } else {
@@ -76,5 +80,18 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         a / PI + uniforms.time * uniforms.rotation
     ), 1.0);
 
-    return textureSample(inputTex, inputSampler, tunnelCoords);
+    var color = textureSample(inputTex, inputSampler, tunnelCoords);
+
+    // Center vignette: smooth falloff to hide moiré at vanishing point
+    if (uniforms.center != 0.0) {
+        let centerMask = smoothstep(0.0, 0.5, r);
+        let amt = uniforms.center / 100.0;
+        if (amt < 0.0) {
+            color = vec4<f32>(color.rgb * mix(1.0, centerMask, -amt), color.a);
+        } else {
+            color = vec4<f32>(mix(color.rgb, vec3<f32>(1.0), (1.0 - centerMask) * amt), color.a);
+        }
+    }
+
+    return color;
 }

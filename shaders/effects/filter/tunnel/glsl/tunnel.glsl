@@ -14,6 +14,7 @@ uniform int shape;
 uniform float speed;
 uniform float rotation;
 uniform float scale;
+uniform float center;
 uniform bool aspectLens;
 
 out vec4 fragColor;
@@ -52,9 +53,13 @@ void main() {
         // Triangle
         r = polygonShape(centered * 2.0, 3);
     } else if (shape == 2) {
+        // Rounded square (superellipse)
+        vec2 p = centered * centered * centered * centered * centered * centered * centered * centered;
+        r = pow(p.x + p.y, 1.0 / 8.0);
+    } else if (shape == 3) {
         // Square
         r = polygonShape(centered * 2.0, 4);
-    } else if (shape == 3) {
+    } else if (shape == 4) {
         // Hexagon
         r = polygonShape(centered * 2.0, 6);
     } else {
@@ -73,5 +78,18 @@ void main() {
     
     // Sample with gradient for proper filtering
     vec2 coordsForGrad = vec2(tunnelCoords.x, atan(tunnelCoords.y, abs(tunnelCoords.x)) / PI);
-    fragColor = textureGrad(inputTex, tunnelCoords, dFdx(coordsForGrad), dFdy(coordsForGrad));
+    vec4 color = textureGrad(inputTex, tunnelCoords, dFdx(coordsForGrad), dFdy(coordsForGrad));
+
+    // Center vignette: smooth falloff to hide moiré at vanishing point
+    if (center != 0.0) {
+        float centerMask = smoothstep(0.0, 0.5, r);
+        float amt = center / 100.0;
+        if (amt < 0.0) {
+            color.rgb *= mix(1.0, centerMask, -amt);
+        } else {
+            color.rgb = mix(color.rgb, vec3(1.0), (1.0 - centerMask) * amt);
+        }
+    }
+
+    fragColor = color;
 }

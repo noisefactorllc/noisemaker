@@ -19,9 +19,10 @@ export default new Effect({
       choices: {
         circle: 0,
         triangle: 1,
-        square: 2,
-        hexagon: 3,
-        octagon: 4
+        roundedRect: 2,
+        square: 3,
+        hexagon: 4,
+        octagon: 5
       },
       ui: {
         label: "shape",
@@ -60,6 +61,17 @@ export default new Effect({
       max: 2,
       ui: {
         label: "rot speed",
+        control: "slider"
+      }
+    },
+    center: {
+      type: "float",
+      default: 0,
+      uniform: "center",
+      min: -100,
+      max: 100,
+      ui: {
+        label: "center",
         control: "slider"
       }
     },
