@@ -6,6 +6,10 @@
 @group(0) @binding(5) var<uniform> edgeWidth : f32;
 @group(0) @binding(6) var<uniform> seed : i32;
 @group(0) @binding(7) var<uniform> invert : i32;
+@group(0) @binding(8) var<uniform> time : f32;
+@group(0) @binding(9) var<uniform> speed : f32;
+
+const TAU: f32 = 6.28318530718;
 
 // PCG PRNG - MIT License
 // https://github.com/riccardoscalco/glsl-pcg-prng
@@ -43,12 +47,14 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     var p = st * (31.0 - scale);
     p.x = p.x * aspect;
 
+    let spd = floor(speed);
     let cellCoord = floor(p);
     let cellFract = fract(p);
 
-    // Find nearest and second-nearest cell centers
+    // Pass 1: find nearest cell center
     var d1: f32 = 1e10;
-    var d2: f32 = 1e10;
+    var nearestPoint: vec2<f32> = vec2<f32>(0.0);
+    var nearestCell: vec2<f32> = vec2<f32>(0.0);
     var nearestHash: f32 = 0.0;
 
     for (var y: i32 = -1; y <= 1; y = y + 1) {
@@ -56,24 +62,41 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             let neighbor = vec2<f32>(f32(x), f32(y));
             let cellId = cellCoord + neighbor;
             let rnd = prng(vec3<f32>(cellId, f32(seed)));
-            let point = neighbor + rnd.xy - cellFract;
+            let wobble = sin(TAU * time * spd + rnd.xy * TAU) * 0.15 * min(spd, 1.0);
+            let point = neighbor + rnd.xy + wobble - cellFract;
             let dist = dot(point, point);
 
             if (dist < d1) {
-                d2 = d1;
                 d1 = dist;
+                nearestPoint = point;
+                nearestCell = cellId;
                 nearestHash = rnd.z;
-            } else if (dist < d2) {
-                d2 = dist;
             }
         }
     }
 
-    // Sharp edge detection at cell boundaries
-    let edgeDist = sqrt(d2) - sqrt(d1);
+    // Pass 2: find minimum perpendicular distance to any Voronoi edge
+    // (bisector between nearest center and each neighbor center)
+    var edgeDistVal: f32 = 1e10;
+    for (var y: i32 = -2; y <= 2; y = y + 1) {
+        for (var x: i32 = -2; x <= 2; x = x + 1) {
+            let neighbor = vec2<f32>(f32(x), f32(y));
+            let cellId = cellCoord + neighbor;
+            if (all(cellId == nearestCell)) { continue; }
+            let rnd = prng(vec3<f32>(cellId, f32(seed)));
+            let wobble = sin(TAU * time * spd + rnd.xy * TAU) * 0.15 * min(spd, 1.0);
+            let point = neighbor + rnd.xy + wobble - cellFract;
+            // Perpendicular distance to bisector between nearest and this neighbor
+            let mid = (nearestPoint + point) * 0.5;
+            let edge = normalize(point - nearestPoint);
+            let d = abs(dot(mid, edge));
+            edgeDistVal = min(edgeDistVal, d);
+        }
+    }
+
     var onEdge: f32;
     if (edgeWidth > 0.0) {
-        onEdge = step(edgeDist, edgeWidth);
+        onEdge = step(edgeDistVal, edgeWidth);
     } else {
         onEdge = 0.0;
     }

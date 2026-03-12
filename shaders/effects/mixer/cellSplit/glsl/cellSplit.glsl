@@ -10,8 +10,12 @@ uniform float scale;
 uniform float edgeWidth;
 uniform int seed;
 uniform int invert;
+uniform float time;
+uniform float speed;
 
 out vec4 fragColor;
+
+const float TAU = 6.28318530718;
 
 // PCG PRNG - MIT License
 // https://github.com/riccardoscalco/glsl-pcg-prng
@@ -45,12 +49,14 @@ void main() {
     vec2 p = st * (31.0 - scale);
     p.x *= aspect;
 
+    float spd = floor(speed);
     vec2 cellCoord = floor(p);
     vec2 cellFract = fract(p);
 
-    // Find nearest and second-nearest cell centers
+    // Pass 1: find nearest cell center
     float d1 = 1e10;
-    float d2 = 1e10;
+    vec2 nearestPoint = vec2(0.0);
+    vec2 nearestCell = vec2(0.0);
     float nearestHash = 0.0;
 
     for (int y = -1; y <= 1; y++) {
@@ -58,21 +64,38 @@ void main() {
             vec2 neighbor = vec2(float(x), float(y));
             vec2 cellId = cellCoord + neighbor;
             vec3 rnd = prng(vec3(cellId, float(seed)));
-            vec2 point = neighbor + rnd.xy - cellFract;
+            vec2 wobble = sin(TAU * time * spd + rnd.xy * TAU) * 0.15 * min(spd, 1.0);
+            vec2 point = neighbor + rnd.xy + wobble - cellFract;
             float dist = dot(point, point);
 
             if (dist < d1) {
-                d2 = d1;
                 d1 = dist;
+                nearestPoint = point;
+                nearestCell = cellId;
                 nearestHash = rnd.z;
-            } else if (dist < d2) {
-                d2 = dist;
             }
         }
     }
 
-    // Sharp edge detection at cell boundaries
-    float edgeDist = sqrt(d2) - sqrt(d1);
+    // Pass 2: find minimum perpendicular distance to any Voronoi edge
+    // (bisector between nearest center and each neighbor center)
+    float edgeDist = 1e10;
+    for (int y = -2; y <= 2; y++) {
+        for (int x = -2; x <= 2; x++) {
+            vec2 neighbor = vec2(float(x), float(y));
+            vec2 cellId = cellCoord + neighbor;
+            if (cellId == nearestCell) continue;
+            vec3 rnd = prng(vec3(cellId, float(seed)));
+            vec2 wobble = sin(TAU * time * spd + rnd.xy * TAU) * 0.15 * min(spd, 1.0);
+            vec2 point = neighbor + rnd.xy + wobble - cellFract;
+            // Perpendicular distance to bisector between nearest and this neighbor
+            vec2 mid = (nearestPoint + point) * 0.5;
+            vec2 edge = normalize(point - nearestPoint);
+            float d = abs(dot(mid, edge));
+            edgeDist = min(edgeDist, d);
+        }
+    }
+
     float onEdge = edgeWidth > 0.0 ? step(edgeDist, edgeWidth) : 0.0;
 
     float mask;

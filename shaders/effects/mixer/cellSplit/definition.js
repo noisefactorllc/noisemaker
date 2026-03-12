@@ -62,6 +62,15 @@ export default new Effect({
       min: 1,
       max: 100,
       ui: { label: "seed", control: "slider" }
+    },
+    speed: {
+      type: "int",
+      default: 1,
+      uniform: "speed",
+      min: 0,
+      max: 5,
+      zero: 0,
+      ui: { label: "speed", control: "slider" }
     }
   },
   defaultProgram: "search mixer, synth\n\nsolid(color: #000000)\n.write(o0)\n\nnoise()\n.cellSplit(invert: sourceB)\n.write(o1)\n",
