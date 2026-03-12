@@ -88,7 +88,12 @@ function hasTexSurface(effectDir) {
 
 function isHidden(effectDir) {
     const content = readDefinition(effectDir);
-    return content ? HIDDEN_RE.test(content) : false;
+    if (!content) return false;
+    // Only match hidden: true before the globals section — param-level
+    // ui.hidden must not flag the entire effect as hidden
+    const globalsIndex = content.search(/\bglobals\s*[:=]\s*\{/);
+    const searchContent = globalsIndex > 0 ? content.substring(0, globalsIndex) : content;
+    return HIDDEN_RE.test(searchContent);
 }
 
 function extractTags(effectDir) {
