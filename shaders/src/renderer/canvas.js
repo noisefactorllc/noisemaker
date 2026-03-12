@@ -21,6 +21,7 @@
 
 import { registerOp } from '../lang/ops.js'
 import { registerParamAliases } from '../lang/paramAliases.js'
+import { registerEffectAlias } from '../lang/effectAliases.js'
 import { registerStarterOps } from '../lang/validator.js'
 import { createRuntime, recompile } from '../runtime/compiler.js'
 import { registerEffect, getEffect } from '../runtime/registry.js'
@@ -1040,10 +1041,10 @@ export class CanvasRenderer {
      * @param {string} namespace - Effect namespace
      * @returns {string[]} Effect names
      */
-    getEffectsFromManifest(namespace) {
+    getEffectsFromManifest(namespace, { includeHidden = false } = {}) {
         const prefix = `${namespace}/`
         return Object.keys(this._manifest)
-            .filter(key => key.startsWith(prefix))
+            .filter(key => key.startsWith(prefix) && (includeHidden || !this._manifest[key].hidden))
             .map(key => key.slice(prefix.length))
             .sort()
     }
@@ -1209,6 +1210,10 @@ export class CanvasRenderer {
 
             if (instance.paramAliases) {
                 registerParamAliases(`${namespace}.${instance.func}`, instance.paramAliases)
+            }
+
+            if (instance.hidden && instance.deprecatedBy) {
+                registerEffectAlias(`${namespace}.${instance.func}`, instance.deprecatedBy)
             }
 
             return choicesToRegister

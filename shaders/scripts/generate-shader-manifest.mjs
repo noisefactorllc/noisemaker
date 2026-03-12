@@ -27,6 +27,12 @@ const EXTERNAL_MESH_RE = /externalMesh[:\s=]+"((?:[^"\\]|\\.)*)"|externalMesh[:\
 // Regex to extract tags array from definition.js
 const TAGS_RE = /\btags\s*[:=]\s*\[([^\]]*)\]/;
 
+// Regex to detect hidden: true
+const HIDDEN_RE = /\bhidden\s*[:=]\s*true\b/;
+
+// Regex to extract deprecatedBy from definition.js
+const DEPRECATED_BY_RE = /deprecatedBy[:\s=]+"((?:[^"\\]|\\.)*)"|deprecatedBy[:\s=]+'((?:[^'\\]|\\.)*)'/;
+
 // Regex to detect tex global with type: "surface"
 const TEX_SURFACE_RE = /\btex\s*[:=]\s*\{[^}]*type\s*[:=]\s*["']surface["']/s;
 
@@ -78,6 +84,11 @@ function extractExternalMesh(effectDir) {
 function hasTexSurface(effectDir) {
     const content = readDefinition(effectDir);
     return content ? TEX_SURFACE_RE.test(content) : false;
+}
+
+function isHidden(effectDir) {
+    const content = readDefinition(effectDir);
+    return content ? HIDDEN_RE.test(content) : false;
 }
 
 function extractTags(effectDir) {
@@ -221,6 +232,15 @@ function main() {
 
             const tags = extractTags(effectDir);
             if (tags) effectManifest.tags = tags;
+
+            if (isHidden(effectDir)) {
+                effectManifest.hidden = true;
+                const content = readDefinition(effectDir);
+                if (content) {
+                    const deprecatedBy = extractMatch(content, DEPRECATED_BY_RE);
+                    if (deprecatedBy) effectManifest.deprecatedBy = deprecatedBy;
+                }
+            }
 
             manifest[effectId] = effectManifest;
         }

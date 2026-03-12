@@ -9,8 +9,10 @@ export default new Effect({
   namespace: "filter",
   func: "colorspace",
   tags: ["color", "util"],
+  hidden: true,
+  deprecatedBy: "adjust",
 
-  description: "Interpret RGB as HSV, OKLab, or OKLCH and convert",
+  description: "Deprecated: use 'adjust' instead. Interpret RGB as HSV, OKLab, or OKLCH and convert",
   globals: {
     mode: {
       type: "int",

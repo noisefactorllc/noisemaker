@@ -77,6 +77,8 @@ export class Effect {
         if (config.paramAliases) this.paramAliases = config.paramAliases
         if (config.openCategories) this.openCategories = config.openCategories
         if (config.defaultProgram) this.defaultProgram = config.defaultProgram
+        if (config.hidden) this.hidden = true
+        if (config.deprecatedBy) this.deprecatedBy = config.deprecatedBy
 
         // Allow lifecycle hooks via config
         if (config.onInit) this._configOnInit = config.onInit

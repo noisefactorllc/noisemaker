@@ -9,8 +9,10 @@ export default new Effect({
   namespace: "filter",
   func: "bc",
   tags: ["color"],
+  hidden: true,
+  deprecatedBy: "adjust",
 
-  description: "Adjust brightness and/or contrast",
+  description: "Deprecated: use 'adjust' instead. Adjust brightness and/or contrast",
   globals: {
     brightness: {
       type: "float",

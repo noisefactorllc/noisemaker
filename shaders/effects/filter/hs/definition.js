@@ -9,8 +9,10 @@ export default new Effect({
   namespace: "filter",
   func: "hs",
   tags: ["color"],
+  hidden: true,
+  deprecatedBy: "adjust",
 
-  description: "Adjust hue and/or saturation",
+  description: "Deprecated: use 'adjust' instead. Adjust hue and/or saturation",
   globals: {
     rotation: {
       type: "float",

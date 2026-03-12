@@ -4,6 +4,7 @@ import { stdEnums } from './std_enums.js'
 import { ops } from './ops.js'
 import { normalizeMemberPath, pathStartsWith, applyEnumPrefix } from './enumPaths.js'
 import { resolveParamAliases } from './paramAliases.js'
+import { checkEffectAlias } from './effectAliases.js'
 
 /**
  * STRICT ALLOWLIST FOR STRING PARAMETERS
@@ -652,6 +653,11 @@ export function validate(ast) {
                 if (!spec) {
                     pushDiag('S001', original, `Unknown effect: '${call.name}'`)
                     continue
+                }
+                // Check for deprecated effect aliases
+                const effectAliasWarning = checkEffectAlias(opName)
+                if (effectAliasWarning) {
+                    pushDiag('S008', original, effectAliasWarning)
                 }
                 if (opName === 'prev') {
                     const idx = tempIndex++
