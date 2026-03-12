@@ -5,7 +5,7 @@
 struct Uniforms {
     // data[0] = (resolution.x, resolution.y, mode, depth)
     // data[1] = (density, seed, fill, outline)
-    // data[2] = (inputMix, wrap, unused, unused)
+    // data[2] = (inputMix, wrap, time, speed)
     data: array<vec4<f32>, 3>,
 }
 
@@ -31,11 +31,14 @@ fn prng(p: vec3<f32>) -> vec3<f32> {
 }
 
 // Get a random float for a cell at a given level and channel
-fn cellRand(cellMin: vec2<f32>, level: f32, channel: f32) -> f32 {
+// Golden ratio for staggering level transitions
+const PHI: f32 = 1.618033988749895;
+
+fn cellRand(cellMin: vec2<f32>, level: f32, channel: f32, animSeed: f32) -> f32 {
     let cx = floor(cellMin.x * 1000.0);
     let cy = floor(cellMin.y * 1000.0);
     let seed = u.data[1].y;
-    return prng(vec3<f32>(cx + level * 7.0, cy + level * 13.0, seed + channel)).x;
+    return prng(vec3<f32>(cx + level * 7.0, cy + level * 13.0, seed + channel + animSeed * 100.0)).x;
 }
 
 // Shape functions (1.0 inside, 0.0 outside)
@@ -82,6 +85,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let outlineWidthX = u.data[1].w / resolution.x;
     let outlineWidthY = u.data[1].w / resolution.y;
 
+    let time = u.data[2].z;
+    let spd = floor(u.data[2].w) * 2.0;
+
     let st = pos.xy / resolution;
 
     // Subdivision loop
@@ -92,7 +98,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     for (var level = 0; level < 6; level = level + 1) {
         if (level >= maxDepth) { break; }
 
-        let h = cellRand(cellMin, f32(level), 0.0);
+        // Stagger each level's transition using golden ratio
+        let levelTime = floor(time * spd + f32(level) * PHI);
+        let h = cellRand(cellMin, f32(level), 0.0, levelTime);
 
         if (h < dens) {
             // Skip splits that would create too-narrow cells (max 5:1 aspect)
@@ -102,7 +110,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             let canSplitV = min(cellW * 0.5, cellH) / max(cellW * 0.5, cellH) >= 0.2;
 
             if (modeType == 0) {
-                let dir = cellRand(cellMin, f32(level), 1.0);
+                let dir = cellRand(cellMin, f32(level), 1.0, levelTime);
                 var splitDir = -1;
                 if (dir < 0.5) {
                     if (canSplitH) { splitDir = 0; }
@@ -151,8 +159,11 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let halfW = cellPixelW / minDim * 0.5;
     let halfH = cellPixelH / minDim * 0.5;
 
+    // Visual properties use their own staggered phase
+    let visualTime = floor(time * spd + PHI * 7.0);
+
     // Pick shape and background shades from same palette
-    let shadeHash = cellRand(cellMin, 0.0, 2.0);
+    let shadeHash = cellRand(cellMin, 0.0, 2.0, visualTime);
     let shadeIdx = i32(shadeHash * 5.0);
     var shade: f32;
     if (shadeIdx == 0) { shade = 0.15; }
@@ -161,7 +172,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     else if (shadeIdx == 3) { shade = 0.75; }
     else { shade = 1.0; }
 
-    let bgHash = cellRand(cellMin, 0.0, 8.0);
+    let bgHash = cellRand(cellMin, 0.0, 8.0, visualTime);
     let bgIdx = i32(bgHash * 5.0);
     var bgShade: f32;
     if (bgIdx == 0) { bgShade = 0.15; }
@@ -175,12 +186,12 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     if (modeType == 0) {
         shapeType = 0;
     } else if (fillType == 5) {
-        let shapeHash = cellRand(cellMin, 0.0, 3.0);
+        let shapeHash = cellRand(cellMin, 0.0, 3.0, visualTime);
         shapeType = i32(shapeHash * 5.0);  // 0-4
     }
 
     // Draw shape
-    let cornerHash = cellRand(cellMin, 0.0, 4.0);
+    let cornerHash = cellRand(cellMin, 0.0, 4.0, visualTime);
     let shapeMask = drawShape(shapeType, centered, halfW, halfH, cornerHash);
     var color = mix(bgShade, shade, shapeMask);
 
@@ -189,7 +200,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Input texture blend (random scale, offset, aspect-preserving)
     let blend = u.data[2].x / 100.0;
     if (blend > 0.0) {
-        let texScale = 0.3 + cellRand(cellMin, 0.0, 5.0) * 0.7;
+        let texScale = 0.3 + cellRand(cellMin, 0.0, 5.0, visualTime) * 0.7;
         var texUv = cellUv;
         // Correct for aspect ratio difference between cell and texture
         let cellAspect = (cellSize.x * resolution.x) / (cellSize.y * resolution.y);
@@ -201,8 +212,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             texUv.y = 0.5 + (texUv.y - 0.5) / ratio;
         }
         texUv = texUv * texScale;
-        texUv.x = texUv.x + cellRand(cellMin, 0.0, 6.0) * (1.0 - texScale);
-        texUv.y = texUv.y + cellRand(cellMin, 0.0, 7.0) * (1.0 - texScale);
+        texUv.x = texUv.x + cellRand(cellMin, 0.0, 6.0, visualTime) * (1.0 - texScale);
+        texUv.y = texUv.y + cellRand(cellMin, 0.0, 7.0, visualTime) * (1.0 - texScale);
         // Apply wrap mode
         let wrapMode = i32(u.data[2].y);
         if (wrapMode == 0) {

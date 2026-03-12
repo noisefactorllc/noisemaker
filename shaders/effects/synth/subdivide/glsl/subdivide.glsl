@@ -17,6 +17,8 @@ uniform float fill;
 uniform float outline;
 uniform float inputMix;
 uniform float wrap;
+uniform float time;
+uniform float speed;
 
 out vec4 fragColor;
 
@@ -37,10 +39,13 @@ vec3 prng(vec3 p) {
     return vec3(pcg(uvec3(uint(p.x), uint(p.y), uint(p.z)))) / float(0xffffffffu);
 }
 
-float cellRand(vec2 cellMin, float level, float channel) {
+// Golden ratio for staggering level transitions
+const float PHI = 1.618033988749895;
+
+float cellRand(vec2 cellMin, float level, float channel, float animSeed) {
     float cx = floor(cellMin.x * 1000.0);
     float cy = floor(cellMin.y * 1000.0);
-    return prng(vec3(cx + level * 7.0, cy + level * 13.0, seed + channel)).x;
+    return prng(vec3(cx + level * 7.0, cy + level * 13.0, seed + channel + animSeed * 100.0)).x;
 }
 
 // Shape functions (1.0 inside, 0.0 outside)
@@ -84,6 +89,7 @@ void main() {
     float dens = density / 100.0;
     int fillType = int(fill);
     int modeType = int(mode);
+    float spd = floor(speed) * 2.0;
     float outlineWidthX = outline / resolution.x;
     float outlineWidthY = outline / resolution.y;
 
@@ -95,7 +101,9 @@ void main() {
     for (int level = 0; level < 6; level++) {
         if (level >= maxDepth) break;
 
-        float h = cellRand(cellMin, float(level), 0.0);
+        // Stagger each level's transition using golden ratio
+        float levelTime = floor(time * spd + float(level) * PHI);
+        float h = cellRand(cellMin, float(level), 0.0, levelTime);
 
         if (h < dens) {
             // Skip splits that would create too-narrow cells (max 5:1 aspect)
@@ -105,7 +113,7 @@ void main() {
             bool canSplitV = min(cellW * 0.5, cellH) / max(cellW * 0.5, cellH) >= 0.2;
 
             if (modeType == 0) {
-                float dir = cellRand(cellMin, float(level), 1.0);
+                float dir = cellRand(cellMin, float(level), 1.0, levelTime);
                 int splitDir = -1;
                 if (dir < 0.5) {
                     if (canSplitH) splitDir = 0;
@@ -154,8 +162,11 @@ void main() {
     float halfW = cellPixelW / minDim * 0.5;
     float halfH = cellPixelH / minDim * 0.5;
 
+    // Visual properties use their own staggered phase
+    float visualTime = floor(time * spd + PHI * 7.0);
+
     // Pick shape and background shades from same palette
-    float shadeHash = cellRand(cellMin, 0.0, 2.0);
+    float shadeHash = cellRand(cellMin, 0.0, 2.0, visualTime);
     int shadeIdx = int(shadeHash * 5.0);
     float shade;
     if (shadeIdx == 0) shade = 0.15;
@@ -164,7 +175,7 @@ void main() {
     else if (shadeIdx == 3) shade = 0.75;
     else shade = 1.0;
 
-    float bgHash = cellRand(cellMin, 0.0, 8.0);
+    float bgHash = cellRand(cellMin, 0.0, 8.0, visualTime);
     int bgIdx = int(bgHash * 5.0);
     float bgShade;
     if (bgIdx == 0) bgShade = 0.15;
@@ -178,12 +189,12 @@ void main() {
     if (modeType == 0) {
         shapeType = 0;
     } else if (fillType == 5) {
-        float shapeHash = cellRand(cellMin, 0.0, 3.0);
+        float shapeHash = cellRand(cellMin, 0.0, 3.0, visualTime);
         shapeType = int(shapeHash * 5.0);  // 0-4
     }
 
     // Draw shape
-    float cornerHash = cellRand(cellMin, 0.0, 4.0);
+    float cornerHash = cellRand(cellMin, 0.0, 4.0, visualTime);
     float shapeMask = drawShape(shapeType, centered, halfW, halfH, cornerHash);
     float color = mix(bgShade, shade, shapeMask);
 
@@ -192,7 +203,7 @@ void main() {
     // Input texture blend (scaled to wider side, aspect-preserving)
     float blend = inputMix / 100.0;
     if (blend > 0.0) {
-        float texScale = 0.3 + cellRand(cellMin, 0.0, 5.0) * 0.7;
+        float texScale = 0.3 + cellRand(cellMin, 0.0, 5.0, visualTime) * 0.7;
         vec2 texUv = cellUv;
         // Correct for aspect ratio difference between cell and texture
         float cellAspect = (cellSize.x * resolution.x) / (cellSize.y * resolution.y);
@@ -204,8 +215,8 @@ void main() {
             texUv.y = 0.5 + (texUv.y - 0.5) / ratio;
         }
         texUv = texUv * texScale;
-        texUv.x += cellRand(cellMin, 0.0, 6.0) * (1.0 - texScale);
-        texUv.y += cellRand(cellMin, 0.0, 7.0) * (1.0 - texScale);
+        texUv.x += cellRand(cellMin, 0.0, 6.0, visualTime) * (1.0 - texScale);
+        texUv.y += cellRand(cellMin, 0.0, 7.0, visualTime) * (1.0 - texScale);
         // Apply wrap mode
         int wrapMode = int(wrap);
         if (wrapMode == 0) {

@@ -12,6 +12,7 @@ Recursive grid subdivision with shapes
 | seed | int | 69 | 1-100 | Random seed |
 | fill | int | solid | solid/circle/diamond/square/arc/mixed | Cell fill shape |
 | outline | float | 3 | 0-10 | Grid line width in pixels |
+| speed | int | 1 | 0-20 | Animation speed |
 | tex | surface | none | - | Optional texture input |
 | inputMix | float | 0 | 0-100 | Blend with input texture |
 | wrap | int | mirror | mirror/repeat/clamp | Input texture coordinate wrap |

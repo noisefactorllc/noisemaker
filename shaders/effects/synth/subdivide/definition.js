@@ -17,6 +17,8 @@ export default new Effect({
     outline: { slot: 1, components: 'w' },
     inputMix: { slot: 2, components: 'x' },
     wrap: { slot: 2, components: 'y' },
+    time: { slot: 2, components: 'z' },
+    speed: { slot: 2, components: 'w' },
   },
   globals: {
     tex: {
@@ -117,6 +119,18 @@ export default new Effect({
         control: "slider",
         category: "input",
         enabledBy: { param: "tex", neq: "none" }
+      }
+    },
+    speed: {
+      type: "int",
+      default: 1,
+      uniform: "speed",
+      min: 0,
+      max: 20,
+      zero: 0,
+      ui: {
+        label: "speed",
+        control: "slider"
       }
     },
     wrap: {
