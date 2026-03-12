@@ -66,10 +66,11 @@ export default new Effect({
     },
     center: {
       type: "float",
-      default: 0,
+      default: 100,
       uniform: "center",
       min: -100,
       max: 100,
+      zero: 0,
       ui: {
         label: "center",
         control: "slider"
