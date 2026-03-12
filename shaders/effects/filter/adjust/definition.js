@@ -10,7 +10,7 @@ export default new Effect({
   func: "adjust",
   tags: ["color", "util"],
 
-  description: "Combined colorspace, hue/saturation, and brightness/contrast",
+  description: "Colorspace, hue/saturation (HSV), brightness/contrast",
   defaultProgram: "search filter, synth\n\nperlin(scale: 75, octaves: 2)\n.adjust(mode: hsv, rotation: 120, hueRange: 40)\n.write(o0)",
   openCategories: ["colorspace", "hue / saturation", "brightness / contrast"],
   globals: {
