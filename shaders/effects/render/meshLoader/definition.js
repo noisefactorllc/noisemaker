@@ -26,8 +26,8 @@ export default class MeshLoader extends Effect {
 
     // Built-in procedural meshes available via dropdown
     builtinMeshes = {
-        cube: "/share/meshes/cube.obj",
         sphere: "/share/meshes/sphere.obj",
+        cube: "/share/meshes/cube.obj",
         torus: "/share/meshes/torus.obj",
         cylinder: "/share/meshes/cylinder.obj",
         cone: "/share/meshes/cone.obj",
