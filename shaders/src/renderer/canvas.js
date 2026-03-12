@@ -965,7 +965,7 @@ export class CanvasRenderer {
                     cached.height,
                     cached.vertexCount
                 )
-                console.log(`[Canvas] Re-uploaded ${cached.vertexCount} vertices to ${meshId}`)
+
             } catch (err) {
                 console.warn(`[Canvas] Failed to re-upload mesh ${meshId}:`, err)
             }
@@ -1590,11 +1590,9 @@ export class CanvasRenderer {
             // Dynamic import to avoid loading parser until needed
             const { loadOBJ, packMeshDataForTextures } = await import('../runtime/obj-parser.js')
 
-            console.log(`[Canvas] Loading OBJ from: ${url}`)
             const meshData = await loadOBJ(url)
 
             const result = this._packCacheAndUploadMesh(meshId, meshData, packMeshDataForTextures)
-            console.log(`[Canvas] Uploaded ${result.vertexCount} vertices to ${meshId}`)
             return { success: true, vertexCount: result.vertexCount }
         } catch (err) {
             console.error('[Canvas] Failed to load OBJ:', err)
@@ -1619,7 +1617,6 @@ export class CanvasRenderer {
 
             const meshData = parseOBJ(objText)
             const result = this._packCacheAndUploadMesh(meshId, meshData, packMeshDataForTextures)
-            console.log(`[Canvas] Uploaded ${result.vertexCount} vertices from string to ${meshId}`)
             return { success: true, vertexCount: result.vertexCount }
         } catch (err) {
             console.error('[Canvas] Failed to parse OBJ:', err)
