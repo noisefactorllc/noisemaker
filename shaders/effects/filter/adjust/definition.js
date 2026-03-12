@@ -16,7 +16,7 @@ export default new Effect({
   globals: {
     mode: {
       type: "int",
-      default: 1,
+      default: 0,
       uniform: "mode",
       choices: {
         rgb: 0,
@@ -32,7 +32,7 @@ export default new Effect({
     },
     rotation: {
       type: "float",
-      default: 120,
+      default: 0,
       uniform: "rotation",
       min: -180,
       max: 180,
