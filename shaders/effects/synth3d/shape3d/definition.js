@@ -131,10 +131,10 @@ export default new Effect({
     },
     speedA: {
       type: "int",
-      default: 50,
+      default: 1,
       uniform: "speedA",
-      min: -100,
-      max: 100,
+      min: -5,
+      max: 5,
       zero: 0,
       ui: {
         label: "speed a",
@@ -143,10 +143,10 @@ export default new Effect({
     },
     speedB: {
       type: "int",
-      default: 50,
+      default: 1,
       uniform: "speedB",
-      min: -100,
-      max: 100,
+      min: -5,
+      max: 5,
       zero: 0,
       ui: {
         label: "speed b",
@@ -154,10 +154,7 @@ export default new Effect({
       }
     }
   },
-  paramAliases: {
-    loopAAmp: 'speedA',
-    loopBAmp: 'speedB'
-  },
+  defaultProgram: "search synth3d, filter3d, render\n\nshape3d(speedA: -2, speedB: 2)\n.render3d(threshold: 0.75)\n.write(o0)",
   passes: [
     {
       name: "precompute",

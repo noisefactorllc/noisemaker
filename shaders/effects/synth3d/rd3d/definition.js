@@ -75,7 +75,7 @@ export default new Effect({
     },
     "feed": {
       "type": "float",
-      "default": 55,
+      "default": 110,
       "uniform": "feed",
       "min": 10,
       "max": 110,
@@ -99,7 +99,7 @@ export default new Effect({
     },
     "rate1": {
       "type": "float",
-      "default": 100,
+      "default": 120,
       "uniform": "rate1",
       "min": 50,
       "max": 120,
@@ -111,7 +111,7 @@ export default new Effect({
     },
     "rate2": {
       "type": "float",
-      "default": 50,
+      "default": 30,
       "uniform": "rate2",
       "min": 20,
       "max": 80,

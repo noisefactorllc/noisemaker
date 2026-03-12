@@ -14,6 +14,7 @@ uniform float loopAScale;
 uniform float loopBScale;
 uniform float speedA;
 uniform float speedB;
+uniform float time;
 uniform int volumeSize;
 
 // MRT outputs: volume cache and geometry buffer
@@ -159,48 +160,32 @@ float shapeSDF(vec3 p, int shapeType) {
     return sphereSDF(p);
 }
 
-// Get offset value for a position
+// Get SDF-based offset for a position
 // p is in [0, 1]^3 normalized volume coordinates
-float offset3D(vec3 p, float freq, int loopOffset, float speed) {
+float offset3D(vec3 p, float freq, int loopOffset) {
     // Center at origin: [0,1] -> [-0.5, 0.5]
     vec3 cp = p - 0.5;
-    
-    // Get SDF and convert to offset
+
     // SDF is negative inside, positive outside
-    // We want high values inside, low outside for proper isosurface
+    // Convert to offset: invert and scale by freq for periodic shells
     float sdf = shapeSDF(cp, loopOffset);
-    
-    // Convert SDF to offset: invert and scale
-    // Larger freq = more repetitions of the periodic pattern
     return (0.5 - sdf) * freq;
 }
 
 // Compute full output value for a position (for gradient computation)
-float computeValue(vec3 p, float lf1, float lf2, float amp1, float amp2) {
-    float offset1 = offset3D(p, lf1, loopAOffset, amp1);
-    float offset2 = offset3D(p, lf2, loopBOffset, amp2);
-    
-    float t1 = p.z;
-    float t2 = p.z;
-    
-    if (speedA < 0.0) {
-        t1 = t1 + offset1;
-    } else if (speedA > 0.0) {
-        t1 = t1 - offset1;
-    }
-    
-    if (speedB < 0.0) {
-        t2 = t2 + offset2;
-    } else if (speedB > 0.0) {
-        t2 = t2 - offset2;
-    }
-    
+float computeValue(vec3 p, float lf1, float lf2) {
+    float offset1 = offset3D(p, lf1, loopAOffset);
+    float offset2 = offset3D(p, lf2, loopBOffset);
+
+    // Drive periodic function from SDF offset + time * speed
+    // Speed is integer so time (0-1 loop) stays seamless
+    float t1 = offset1 + time * floor(speedA);
+    float t2 = offset2 + time * floor(speedB);
+
     float a = periodicFunction(t1);
     float b = periodicFunction(t2);
-    
-    float combined = a * amp1 + b * amp2;
-    float totalAmp = amp1 + amp2;
-    return (totalAmp > 0.0) ? combined / totalAmp : 0.5;
+
+    return (a + b) * 0.5;
 }
 
 void main() {
@@ -218,19 +203,15 @@ void main() {
     // Calculate frequencies from scale parameters
     float lf1 = map(loopAScale, 1.0, 100.0, 6.0, 1.0);
     float lf2 = map(loopBScale, 1.0, 100.0, 6.0, 1.0);
-    
-    // Calculate amplitudes
-    float amp1 = map(abs(speedA), 0.0, 100.0, 0.0, 1.0);
-    float amp2 = map(abs(speedB), 0.0, 100.0, 0.0, 1.0);
-    
+
     // Compute value at this position
-    float d = computeValue(p, lf1, lf2, amp1, amp2);
-    
+    float d = computeValue(p, lf1, lf2);
+
     // Compute analytical gradient using finite differences
     float eps = 1.0 / volSizeF;
-    float dx = computeValue(p + vec3(eps, 0.0, 0.0), lf1, lf2, amp1, amp2);
-    float dy = computeValue(p + vec3(0.0, eps, 0.0), lf1, lf2, amp1, amp2);
-    float dz = computeValue(p + vec3(0.0, 0.0, eps), lf1, lf2, amp1, amp2);
+    float dx = computeValue(p + vec3(eps, 0.0, 0.0), lf1, lf2);
+    float dy = computeValue(p + vec3(0.0, eps, 0.0), lf1, lf2);
+    float dz = computeValue(p + vec3(0.0, 0.0, eps), lf1, lf2);
     
     vec3 gradient = vec3(dx - d, dy - d, dz - d) / eps;
     vec3 normal = normalize(-gradient + vec3(1e-6));

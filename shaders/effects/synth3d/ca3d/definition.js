@@ -175,6 +175,7 @@ export default new Effect({
         }
     },
   },
+  defaultProgram: "search synth3d, filter3d, render\n\nca3d(ruleIndex: diamoeba)\n.render3d()\n.write(o0)",
   passes: [
     {
       name: "simulate",

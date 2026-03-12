@@ -11,7 +11,8 @@
 @group(0) @binding(3) var<uniform> loopBScale: f32;
 @group(0) @binding(4) var<uniform> speedA: f32;
 @group(0) @binding(5) var<uniform> speedB: f32;
-@group(0) @binding(6) var<uniform> volumeSize: i32;
+@group(0) @binding(6) var<uniform> time: f32;
+@group(0) @binding(7) var<uniform> volumeSize: i32;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -140,48 +141,31 @@ fn shapeSDF(p: vec3<f32>, shapeType: i32) -> f32 {
     return sphereSDF(p);
 }
 
-// Get offset value for a position
-fn offset3D(p: vec3<f32>, freq: f32, loopOffset: i32, speed: f32) -> f32 {
+// Get SDF-based offset for a position
+fn offset3D(p: vec3<f32>, freq: f32, loopOffset: i32) -> f32 {
     // Center at origin: [0,1] -> [-0.5, 0.5]
     let cp = p - vec3<f32>(0.5);
-    
-    // Get SDF and convert to offset
+
+    // SDF is negative inside, positive outside
+    // Convert to offset: invert and scale by freq for periodic shells
     let sdf = shapeSDF(cp, loopOffset);
-    
-    // Convert SDF to offset: invert and scale
     return (0.5 - sdf) * freq;
 }
 
-// Helper to compute shape value at a position
-fn computeValue(p: vec3<f32>, lf1: f32, lf2: f32, amp1: f32, amp2: f32) -> f32 {
-    let offset1 = offset3D(p, lf1, loopAOffset, amp1);
-    let offset2 = offset3D(p, lf2, loopBOffset, amp2);
-    
-    var t1 = p.z;
-    var t2 = p.z;
-    
-    if (speedA < 0.0) {
-        t1 = t1 + offset1;
-    } else if (speedA > 0.0) {
-        t1 = t1 - offset1;
-    }
-    
-    if (speedB < 0.0) {
-        t2 = t2 + offset2;
-    } else if (speedB > 0.0) {
-        t2 = t2 - offset2;
-    }
-    
+// Compute full output value for a position (for gradient computation)
+fn computeValue(p: vec3<f32>, lf1: f32, lf2: f32) -> f32 {
+    let offset1 = offset3D(p, lf1, loopAOffset);
+    let offset2 = offset3D(p, lf2, loopBOffset);
+
+    // Drive periodic function from SDF offset + time * speed
+    // Speed is integer so time (0-1 loop) stays seamless
+    let t1 = offset1 + time * floor(speedA);
+    let t2 = offset2 + time * floor(speedB);
+
     let a = periodicFunction(t1);
     let b = periodicFunction(t2);
-    
-    let combined = a * amp1 + b * amp2;
-    let totalAmp = amp1 + amp2;
-    if (totalAmp > 0.0) {
-        return combined / totalAmp;
-    } else {
-        return 0.5;
-    }
+
+    return (a + b) * 0.5;
 }
 
 // MRT output structure for volume cache and geometry buffer
@@ -206,19 +190,15 @@ fn main(@builtin(position) position: vec4<f32>) -> FragOutput {
     // Calculate frequencies from scale parameters
     let lf1 = map_range(loopAScale, 1.0, 100.0, 6.0, 1.0);
     let lf2 = map_range(loopBScale, 1.0, 100.0, 6.0, 1.0);
-    
-    // Calculate amplitudes
-    let amp1 = map_range(abs(speedA), 0.0, 100.0, 0.0, 1.0);
-    let amp2 = map_range(abs(speedB), 0.0, 100.0, 0.0, 1.0);
-    
-    // Compute value at this position using helper function
-    let d = computeValue(p, lf1, lf2, amp1, amp2);
-    
+
+    // Compute value at this position
+    let d = computeValue(p, lf1, lf2);
+
     // Compute analytical gradient using finite differences
     let eps = 1.0 / volSizeF;
-    let dx = computeValue(p + vec3<f32>(eps, 0.0, 0.0), lf1, lf2, amp1, amp2);
-    let dy = computeValue(p + vec3<f32>(0.0, eps, 0.0), lf1, lf2, amp1, amp2);
-    let dz = computeValue(p + vec3<f32>(0.0, 0.0, eps), lf1, lf2, amp1, amp2);
+    let dx = computeValue(p + vec3<f32>(eps, 0.0, 0.0), lf1, lf2);
+    let dy = computeValue(p + vec3<f32>(0.0, eps, 0.0), lf1, lf2);
+    let dz = computeValue(p + vec3<f32>(0.0, 0.0, eps), lf1, lf2);
     
     let gradient = vec3<f32>(dx - d, dy - d, dz - d) / eps;
     let normal = normalize(-gradient + vec3<f32>(0.000001));

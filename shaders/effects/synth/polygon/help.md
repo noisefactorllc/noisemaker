@@ -11,8 +11,8 @@ Generates regular polygons with configurable sides, radius, rotation, and colors
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | sides | int | 3 | 3-64 | Sides |
-| radius | float | 0.3 | 0-1 | - |
-| smooth | float | 0.01 | 0-1 | - |
+| radius | float | 0.5 | 0-1 | Size |
+| smooth | float | 0.01 | 0-1 | Edge smoothness |
 | rotation | float | 0 | -180-180 | Rotation |
 | fgColor | vec3 | 1,1,1 | - | Foreground Color |
 | fgAlpha | float | 1 | 0-1 | Foreground Opacity |

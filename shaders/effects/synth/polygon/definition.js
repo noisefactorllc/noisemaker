@@ -22,7 +22,7 @@ export default new Effect({
     },
     "radius": {
         "type": "float",
-        "default": 0.3,
+        "default": 0.5,
         "min": 0,
         "max": 1,
         "uniform": "radius",

@@ -61,9 +61,9 @@ fn laplacian3D(voxel: vec3<i32>, volSize: i32) -> vec2<f32> {
     let zn = sampleState(voxel + vec3<i32>(0, 0, -1), volSize);
     
     // Standard discrete 3D Laplacian: sum of neighbors - 6 * center
-    // This is the proper second-order finite difference in 3D
-    let neighborSum = xp.rg + xn.rg + yp.rg + yn.rg + zp.rg + zn.rg;
-    let lap = neighborSum - 6.0 * center.rg;
+    // State layout: .r = B (density), .a = A (chemical)
+    let neighborSum = xp.ra + xn.ra + yp.ra + yn.ra + zp.ra + zn.ra;
+    let lap = neighborSum - 6.0 * center.ra;
     
     return lap;
 }
@@ -87,8 +87,8 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     
     // Current state
     let state = sampleState(voxel, volSize);
-    var a = state.r;  // Chemical A concentration
-    var b = state.g;  // Chemical B concentration
+    var b = state.r;  // Chemical B (density, used by render3d)
+    var a = state.a;  // Chemical A (simulation state)
     
     // Self-initialization: detect empty buffer (first frame) or reset requested
     let bufferIsEmpty = (state.r == 0.0 && state.g == 0.0 && state.b == 0.0 && state.a == 0.0);
@@ -123,7 +123,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             }
         }
 
-        return vec4<f32>(a, b, 0.0, 1.0);
+        return vec4<f32>(b, b, b, a);
     }
     
     // Compute Laplacian for diffusion
@@ -142,8 +142,9 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let s = (speed * 0.01) / iterF;
     
     // Gray-Scott reaction-diffusion equations
-    var newA = clamp(a + (r1 * lap.x - a * b * b + f * (1.0 - a)) * s, 0.0, 1.0);
-    var newB = clamp(b + (r2 * lap.y + a * b * b - (k + f) * b) * s, 0.0, 1.0);
+    // lap.x = Lap(B) from .r, lap.y = Lap(A) from .a
+    var newA = clamp(a + (r1 * lap.y - a * b * b + f * (1.0 - a)) * s, 0.0, 1.0);
+    var newB = clamp(b + (r2 * lap.x + a * b * b - (k + f) * b) * s, 0.0, 1.0);
     
     // Apply input weight blending from seedTex (inputTex3d)
     if (weight > 0.0) {
@@ -153,8 +154,8 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         newB = mix(newB, seedLum, weight * 0.01);
     }
     
-    // `render3d` treats the red channel as the density/SDF field.
-    // For Gray-Scott, chemical B is typically the visible concentration.
+    // .r = B (density for render3d), .a = A (simulation state)
+    // .rgb = visualization colors, .a = chemical A
     let density = newB;
     var outRgb: vec3<f32>;
     if (colorMode == 0) {
@@ -163,5 +164,5 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         outRgb = vec3<f32>(density, newA, 1.0 - density);
     }
 
-    return vec4<f32>(outRgb, 1.0);
+    return vec4<f32>(outRgb, newA);
 }

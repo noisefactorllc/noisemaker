@@ -67,9 +67,9 @@ vec2 laplacian3D(ivec3 voxel, int volSize) {
     vec4 zn = sampleState(voxel + ivec3(0, 0, -1), volSize);
     
     // Standard discrete 3D Laplacian: sum of neighbors - 6 * center
-    // This is the proper second-order finite difference in 3D
-    vec2 neighborSum = xp.rg + xn.rg + yp.rg + yn.rg + zp.rg + zn.rg;
-    vec2 lap = neighborSum - 6.0 * center.rg;
+    // State layout: .r = B (density), .a = A (chemical)
+    vec2 neighborSum = xp.ra + xn.ra + yp.ra + yn.ra + zp.ra + zn.ra;
+    vec2 lap = neighborSum - 6.0 * center.ra;
     
     return lap;
 }
@@ -92,8 +92,8 @@ void main() {
     
     // Current state
     vec4 state = sampleState(voxel, volSize);
-    float a = state.r;  // Chemical A concentration
-    float b = state.g;  // Chemical B concentration
+    float b = state.r;  // Chemical B (density, used by render3d)
+    float a = state.a;  // Chemical A (simulation state)
     
     // Self-initialization: detect empty buffer (first frame) or reset requested
     bool bufferIsEmpty = (state.r == 0.0 && state.g == 0.0 && state.b == 0.0 && state.a == 0.0);
@@ -126,7 +126,7 @@ void main() {
             }
         }
 
-        fragColor = vec4(a, b, 0.0, 1.0);
+        fragColor = vec4(b, b, b, a);
         return;
     }
     
@@ -147,9 +147,9 @@ void main() {
     float s = (speed * 0.01) / iterF;
     
     // Gray-Scott reaction-diffusion equations
-    // lap contains the discrete 3D Laplacian of each chemical
-    float newA = a + (r1 * lap.x - a * b * b + f * (1.0 - a)) * s;
-    float newB = b + (r2 * lap.y + a * b * b - (k + f) * b) * s;
+    // lap.x = Lap(B) from .r, lap.y = Lap(A) from .a
+    float newA = a + (r1 * lap.y - a * b * b + f * (1.0 - a)) * s;
+    float newB = b + (r2 * lap.x + a * b * b - (k + f) * b) * s;
     
     // Apply input weight blending from seedTex (inputTex3d)
     if (weight > 0.0) {
@@ -163,18 +163,15 @@ void main() {
     newA = clamp(newA, 0.0, 1.0);
     newB = clamp(newB, 0.0, 1.0);
     
-    // `render3d` treats the red channel as the density/SDF field.
-    // For Gray-Scott, chemical B is typically the "visible" concentration, so we
-    // store B in .r for rendering and optionally derive RGB for coloring.
+    // .r = B (density for render3d), .a = A (simulation state)
+    // .rgb = visualization colors, .a = chemical A
     float density = newB;
     vec3 outRgb;
     if (colorMode == 0) {
         outRgb = vec3(density);
     } else {
-        // Simple, deterministic gradient from the sim state (no external palette):
-        //   R: B (density), G: A, B: 1-B
         outRgb = vec3(density, newA, 1.0 - density);
     }
 
-    fragColor = vec4(outRgb, 1.0);
+    fragColor = vec4(outRgb, newA);
 }

@@ -29,7 +29,7 @@ export default new Effect({
     },
     mode: {
       type: "int",
-      default: 0,
+      default: 1,
       uniform: "mode",
       choices: {
         binary: 0,

@@ -6,7 +6,7 @@ Recursive grid subdivision with shapes
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| mode | int | binary | binary/quad | Subdivision type |
+| mode | int | quad | binary/quad | Subdivision type |
 | depth | int | 5 | 1-6 | Max subdivision levels |
 | density | float | 75 | 30-100 | Subdivision probability |
 | seed | int | 69 | 1-100 | Random seed |
