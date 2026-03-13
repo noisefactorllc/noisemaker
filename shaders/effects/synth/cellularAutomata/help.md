@@ -1,4 +1,4 @@
-# ca
+# cellularAutomata
 
 2D cellular automata with rule presets
 

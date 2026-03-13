@@ -1,8 +1,8 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
-  name: "Ca",
-  func: "ca",
+  name: "Cellular Automata",
+  func: "cellularAutomata",
   tags: ["sim"],
 
   description: "2D cellular automata with rule presets",
