@@ -11,9 +11,9 @@ export default new Effect({
   name: "Julia",
   namespace: "synth",
   func: "julia",
-  tags: ["geometric"],
+  tags: ["fractal"],
 
-  description: "Julia set explorer with deep zoom, distance estimation, and curated c-value gallery",
+  description: "Julia set explorer with deep zoom",
   uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
@@ -39,33 +39,33 @@ export default new Effect({
     // === Fractal ===
     poi: {
       type: "int",
-      default: 1,
+      default: 10,
       uniform: "poi",
       choices: {
         manual: 0,
-        douadyRabbit: 1,
-        siegel: 2,
-        dendrite: 3,
         basilica: 4,
+        dendrite: 3,
+        douadyRabbit: 1,
+        doubleSpiral: 10,
+        dragonCurve: 7,
         galaxy: 5,
         lightning: 6,
-        dragonCurve: 7,
         sanMarco: 8,
-        starfish: 9,
-        doubleSpiral: 10
+        siegel: 2,
+        starfish: 9
       },
       ui: { label: "preset", control: "dropdown", category: "fractal" }
     },
     outputMode: {
       type: "int",
-      default: 0,
+      default: 3,
       uniform: "outputMode",
       choices: {
-        smoothIteration: 0,
         distance: 1,
-        stripeAverage: 2,
+        normalMap: 4,
         orbitTrap: 3,
-        normalMap: 4
+        smoothIteration: 0,
+        stripeAverage: 2,  
       },
       ui: { label: "output mode", control: "dropdown", category: "fractal" }
     },
@@ -75,7 +75,7 @@ export default new Effect({
       uniform: "iterations",
       min: 50,
       max: 1000,
-      ui: { label: "iterations", control: "slider", category: "fractal" }
+      ui: { label: "iterations", control: "slider", category: "fractal", enabledBy: { param: "outputMode", neq: 1 } }
     },
     cReal: {
       type: "float",
@@ -121,6 +121,7 @@ export default new Effect({
       uniform: "centerX",
       min: -3,
       max: 3,
+      randChance: 0,
       ui: {
         label: "center x",
         control: "slider",
@@ -133,6 +134,7 @@ export default new Effect({
       uniform: "centerY",
       min: -3,
       max: 3,
+      randChance: 0,
       ui: {
         label: "center y",
         control: "slider",
@@ -159,9 +161,9 @@ export default new Effect({
       uniform: "cPath",
       choices: {
         none: 0,
+        bulb: 3,
         cardioid: 1,
-        circle: 2,
-        bulb: 3
+        circle: 2
       },
       ui: {
         label: "c path",
@@ -177,6 +179,7 @@ export default new Effect({
       min: 0,
       max: 2,
       zero: 0,
+      randMax: 0.5,
       ui: {
         label: "c speed",
         control: "slider",
@@ -205,6 +208,7 @@ export default new Effect({
       max: 5,
       step: 0.01,
       zero: 0,
+      randChance: 0,
       ui: {
         label: "zoom speed",
         control: "slider",
@@ -218,6 +222,7 @@ export default new Effect({
       min: 0,
       max: 14,
       step: 0.1,
+      randChance: 0,
       ui: {
         label: "zoom depth",
         control: "slider",
@@ -244,9 +249,9 @@ export default new Effect({
       default: 0,
       uniform: "trapShape",
       choices: {
-        point: 0,
+        circle: 2,
         cross: 1,
-        circle: 2
+        point: 0
       },
       ui: {
         label: "trap shape",

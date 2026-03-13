@@ -4,9 +4,9 @@ export default new Effect({
   name: "Newton",
   namespace: "synth",
   func: "newton",
-  tags: ["geometric"],
+  tags: ["fractal"],
 
-  description: "Newton fractal explorer with fractional degree, deep zoom, and animated parameters",
+  description: "Newton fractal explorer with deep zoom",
 
   uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
@@ -34,16 +34,16 @@ export default new Effect({
     // === Fractal ===
     poi: {
       type: "int",
-      default: 1,
+      default: 5,
       uniform: "poi",
       choices: {
         manual: 0,
-        triplePoint3: 1,
+        hexWeb6: 5,
+        octoFlower8: 6,
+        pentaSpiral5: 4,
         spiralJunction3: 2,
         starCenter5: 3,
-        pentaSpiral5: 4,
-        hexWeb6: 5,
-        octoFlower8: 6
+        triplePoint3: 1
       },
       ui: { label: "preset", control: "dropdown", category: "fractal" }
     },
@@ -52,9 +52,9 @@ export default new Effect({
       default: 2,
       uniform: "outputMode",
       choices: {
+        blended: 2,
         iteration: 0,
-        rootIndex: 1,
-        blended: 2
+        rootIndex: 1
       },
       ui: { label: "output mode", control: "dropdown", category: "fractal" }
     },
@@ -67,11 +67,10 @@ export default new Effect({
       ui: { label: "iterations", control: "slider", category: "fractal" }
     },
     degree: {
-      type: "float",
-      default: 3.0,
-      min: 3.0,
-      max: 8.0,
-      step: 0.01,
+      type: "int",
+      default: 3,
+      min: 3,
+      max: 8,
       uniform: "degree",
       ui: { label: "degree", control: "slider", category: "fractal", enabledBy: { param: "poi", eq: 0 } }
     },
@@ -100,16 +99,18 @@ export default new Effect({
       default: 0.0,
       min: -3,
       max: 3,
+      randChance: 0,
       uniform: "centerHiX",
-      ui: { label: "center x", control: "slider", category: "navigation" }
+      ui: { label: "center x", control: "slider", category: "navigation", enabledBy: { param: "poi", eq: 0 } }
     },
     centerY: {
       type: "float",
       default: 0.0,
       min: -3,
       max: 3,
+      randChance: 0,
       uniform: "centerHiY",
-      ui: { label: "center y", control: "slider", category: "navigation" }
+      ui: { label: "center y", control: "slider", category: "navigation", enabledBy: { param: "poi", eq: 0 } }
     },
 
     // === Animation ===
@@ -120,6 +121,7 @@ export default new Effect({
       max: 5,
       step: 0.01,
       zero: 0,
+      randChance: 0,
       uniform: "zoomSpeed",
       ui: { label: "zoom speed", control: "slider", category: "animation" }
     },
@@ -129,6 +131,7 @@ export default new Effect({
       min: 0,
       max: 14,
       step: 0.1,
+      randMax: 1,
       uniform: "zoomDepth",
       ui: { label: "zoom depth", control: "slider", category: "animation" }
     },
@@ -138,6 +141,7 @@ export default new Effect({
       min: 0.0,
       max: 1.0,
       step: 0.01,
+      randChance: 0,
       uniform: "degreeSpeed",
       ui: { label: "degree speed", control: "slider", category: "animation", enabledBy: { param: "poi", eq: 0 } }
     },
@@ -147,6 +151,7 @@ export default new Effect({
       min: 0.0,
       max: 3.0,
       step: 0.01,
+      randChance: 0,
       uniform: "degreeRange",
       ui: { label: "degree range", control: "slider", category: "animation", enabledBy: { param: "poi", eq: 0 } }
     },
@@ -156,6 +161,7 @@ export default new Effect({
       min: 0.0,
       max: 1.0,
       step: 0.01,
+      randChance: 0,
       uniform: "relaxSpeed",
       ui: { label: "relax speed", control: "slider", category: "animation" }
     },
@@ -165,6 +171,7 @@ export default new Effect({
       min: 0.0,
       max: 0.5,
       step: 0.01,
+      randChance: 0,
       uniform: "relaxRange",
       ui: { label: "relax range", control: "slider", category: "animation" }
     },

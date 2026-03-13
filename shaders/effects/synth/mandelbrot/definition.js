@@ -17,9 +17,9 @@ export default new Effect({
   name: "Mandelbrot",
   namespace: "synth",
   func: "mandelbrot",
-  tags: ["geometric"],
+  tags: ["fractal"],
 
-  description: "Deep-zoom Mandelbrot explorer with multiple output algorithms and animated zoom paths",
+  description: "Mandelbrot explorer with deep zoom",
 
   uniformLayout: {
     resolution:  { slot: 0, components: 'xy' },
@@ -44,18 +44,18 @@ export default new Effect({
     // === Fractal ===
     poi: {
       type: "int",
-      default: 1,
+      default: 0,
       uniform: "poi",
       choices: {
         manual: 0,
-        seahorseValley: 1,
-        elephantValley: 2,
-        scepterValley: 3,
-        miniBrot: 4,
-        feigenbaum: 5,
         birdOfParadise: 6,
-        spiralGalaxy: 7,
         doubleSpiral: 8,
+        elephantValley: 2,
+        feigenbaum: 5,
+        miniBrot: 4,
+        scepterValley: 3,
+        seahorseValley: 1,
+        spiralGalaxy: 7
       },
       ui: { label: "preset", control: "dropdown", category: "fractal" }
     },
@@ -64,11 +64,11 @@ export default new Effect({
       default: 0,
       uniform: "outputMode",
       choices: {
-        smoothIteration: 0,
         distance: 1,
-        stripeAverage: 2,
-        orbitTrap: 3,
         normalMap: 4,
+        orbitTrap: 3,
+        smoothIteration: 0,
+        stripeAverage: 2,  
       },
       ui: { label: "output mode", control: "dropdown", category: "fractal" }
     },
@@ -87,6 +87,7 @@ export default new Effect({
       uniform: "centerHiX",
       min: -3,
       max: 3,
+      randChance: 0,
       ui: {
         label: "center x",
         control: "slider",
@@ -100,6 +101,7 @@ export default new Effect({
       uniform: "centerHiY",
       min: -3,
       max: 3,
+      randChance: 0,
       ui: {
         label: "center y",
         control: "slider",
@@ -130,6 +132,7 @@ export default new Effect({
       max: 5,
       step: 0.01,
       zero: 0,
+      randChance: 0,
       ui: {
         label: "zoom speed",
         control: "slider",
@@ -143,6 +146,7 @@ export default new Effect({
       min: 0,
       max: 14,
       step: 0.1,
+      randMax: 1,
       ui: {
         label: "zoom depth",
         control: "slider",
@@ -168,7 +172,11 @@ export default new Effect({
       type: "int",
       default: 0,
       uniform: "trapShape",
-      choices: { point: 0, cross: 1, circle: 2 },
+      choices: { 
+        circle: 2,
+        cross: 1,
+        point: 0
+      },
       ui: {
         label: "trap shape",
         control: "dropdown",
