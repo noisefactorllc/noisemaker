@@ -150,14 +150,15 @@ function transformShadersDemoHtml() {
         import { EffectSelect } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';
         import { ToggleSwitch } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';
         import { MidiInputManager, AudioInputManager } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';
-        import { 
-            UIController, 
+        import {
+            UIController,
             extractEffectNamesFromDsl,
             getBackendFromURL,
             getUseBundlesFromURL,
             getEffectFromURL
         } from '../../lib/shaders/noisemaker-shaders-core.esm.min.js';
-        
+        import { HandfishControlFactory } from './lib/handfish-control-factory.js';
+
         // Always use bundles in deployed site (can be disabled with ?bundles=0)
         const params = new URLSearchParams(window.location.search);
         const useBundles = params.get('bundles') !== '0' && params.get('bundles') !== 'false';`
@@ -238,6 +239,12 @@ function copyShaderDemoLib() {
     const toggleSwitchSrc = path.join(libDir, 'toggle-switch.js')
     if (fs.existsSync(toggleSwitchSrc)) {
         copyFile(toggleSwitchSrc, path.join(destLibDir, 'toggle-switch.js'))
+    }
+
+    // Copy handfish-control-factory.js (demo-only, imports from control-factory.js)
+    const hcfSrc = path.join(libDir, 'handfish-control-factory.js')
+    if (fs.existsSync(hcfSrc)) {
+        copyFile(hcfSrc, path.join(destLibDir, 'handfish-control-factory.js'))
     }
 
     // Copy control-factory.js as-is (no external imports)
