@@ -1,19 +1,19 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * synth3d/ca3d - 3D cellular automata simulation
+ * synth3d/cellularAutomata3d - 3D cellular automata simulation
  *
  * Generates a 3D CA volume stored as a 2D atlas texture.
  * Reads seed input from global volume surface (vol0-vol7).
  *
  * Usage:
- *   ca3d(volumeSize: x32).render3d().write(o0)
- *   ca3d(source: vol1).render3d().write(o0)  // reads seed from vol1
+ *   cellularAutomata3d(volumeSize: x32).render3d().write(o0)
+ *   cellularAutomata3d(source: vol1).render3d().write(o0)  // reads seed from vol1
  */
 export default new Effect({
-  name: "Ca3D",
+  name: "Cellular Automata 3D",
   namespace: "synth3d",
-  func: "ca3d",
+  func: "cellularAutomata3d",
   tags: ["3d", "sim"],
 
   description: "3D cellular automata simulation",
@@ -175,7 +175,7 @@ export default new Effect({
         }
     },
   },
-  defaultProgram: "search synth3d, filter3d, render\n\nca3d(ruleIndex: diamoeba)\n.render3d()\n.write(o0)",
+  defaultProgram: "search synth3d, filter3d, render\n\ncellularAutomata3d(ruleIndex: diamoeba)\n.render3d()\n.write(o0)",
   passes: [
     {
       name: "simulate",

@@ -1,4 +1,4 @@
-# rd3d
+# reactionDiffusion3d
 
 3D reaction-diffusion simulation
 

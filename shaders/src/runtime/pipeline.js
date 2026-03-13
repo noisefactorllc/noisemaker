@@ -708,7 +708,8 @@ export class Pipeline {
 
         // Create 3D volume buffers (vol0-vol7) as 2D atlas textures
         // Using 64x4096 (64^3 stored as 64 slices of 64x64)
-        // This matches the atlas layout used by effects like ca3d, rd3d, noise3d
+        // This matches the atlas layout used by effects like cellularAutomata3d, 
+        // reactionDiffusion3d, noise3d
         const volumeSliceSize = 64
         const volumeAtlasHeight = volumeSliceSize * volumeSliceSize // 64 * 64 = 4096
         for (const name of volumeNames) {

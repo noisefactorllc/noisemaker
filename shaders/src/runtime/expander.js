@@ -142,7 +142,7 @@ export function expand(compilationResult, options = {}) {
         let currentParticlePipelineId = null
 
         // Pipeline uniforms accumulate from upstream effects for downstream consumption
-        // Example: noise3d sets volumeSize, ca3d uses it without declaring it
+        // Example: noise3d sets volumeSize, cellularAutomata3d uses it without declaring it
         const pipelineUniforms = {}
         const chainScopeId = `chain_${compilationResult.plans.indexOf(plan)}`
 
@@ -608,7 +608,7 @@ export function expand(compilationResult, options = {}) {
                 pass.uniforms = { ...pipelineUniforms }
 
                 // Initialize uniforms with defaults only if not already set from upstream
-                // This preserves pipeline inheritance (e.g., volumeSize from noise3d to ca3d)
+                // This preserves pipeline inheritance (e.g., volumeSize from noise3d to cellularAutomata3d)
                 if (effectDef.globals) {
                     for (const def of Object.values(effectDef.globals)) {
                         if (def.uniform && def.default !== undefined) {

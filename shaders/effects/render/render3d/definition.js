@@ -4,7 +4,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  * render/render3d - Universal 3D volume renderer
  *
  * This built-in effect extracts the common raymarching/rendering logic from all 3D effects
- * (noise3d, cell3d, shape3d, fractal3d, rd3d, ca3d, flow3d) into a reusable pipeline node.
+ * (noise3d, cell3d, shape3d, fractal3d, reactionDiffusion3d, cellularAutomata3d, flow3d) into a reusable pipeline node.
  *
  * It takes a 3D volume (inputTex3d) and renders it to 2D (outputTex) with optional geometry
  * buffer output (geoBuffer) for downstream post-processing.

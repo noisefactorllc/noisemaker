@@ -1,4 +1,4 @@
-# ca3d
+# cellularAutomata3d
 
 3D cellular automata simulation
 

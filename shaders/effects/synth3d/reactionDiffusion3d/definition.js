@@ -1,19 +1,19 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * synth3d/rd3d - 3D reaction-diffusion simulation
+ * synth3d/reactionDiffusion3d - 3D reaction-diffusion simulation
  *
  * Generates a 3D reaction-diffusion volume stored as a 2D atlas texture.
  * Reads seed input from global volume surface (vol0-vol7).
  *
  * Usage:
- *   rd3d(volumeSize: x32).render3d().write(o0)
- *   rd3d(source: vol1).render3d().write(o0)  // reads seed from vol1
+ *   reactionDiffusion3d(volumeSize: x32).render3d().write(o0)
+ *   reactionDiffusion3d(source: vol1).render3d().write(o0)  // reads seed from vol1
  */
 export default new Effect({
-  name: "Rd3D",
+  name: "Reaction-Diffusion 3D",
   namespace: "synth3d",
-  func: "rd3d",
+  func: "reactionDiffusion3d",
   tags: ["3d", "sim"],
 
   description: "3D reaction-diffusion simulation",
