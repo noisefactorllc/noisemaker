@@ -378,6 +378,23 @@ function copyShaderManifest() {
 }
 
 /**
+ * Copy mesh OBJ files
+ */
+function copyMeshFiles() {
+    const meshSrcDir = path.join(repoRoot, 'share', 'meshes')
+    const meshDestDir = path.join(siteDir, 'share', 'meshes')
+
+    if (fs.existsSync(meshSrcDir)) {
+        fs.mkdirSync(meshDestDir, { recursive: true })
+        const objFiles = fs.readdirSync(meshSrcDir).filter(f => f.endsWith('.obj'))
+        for (const f of objFiles) {
+            copyFile(path.join(meshSrcDir, f), path.join(meshDestDir, f))
+        }
+        console.log(`  ✓ share/meshes/ (${objFiles.length} OBJ files)`)
+    }
+}
+
+/**
  * Main entry point
  */
 async function main() {
@@ -432,6 +449,9 @@ async function main() {
 
     // Copy shader manifest
     copyShaderManifest()
+
+    // Copy mesh OBJ files
+    copyMeshFiles()
 
     console.log('\n✓ Site bundle written to dist/site/')
     console.log('\nTo test locally:')

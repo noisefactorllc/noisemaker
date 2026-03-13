@@ -177,6 +177,18 @@ async function main() {
             console.log('  ✓ manifest.json copied to dist/shaders/effects/')
         }
 
+        // Copy mesh OBJ files to dist/shaders/share/meshes/
+        const meshSrcDir = path.join(repoRoot, 'share', 'meshes')
+        const meshDestDir = path.join(repoRoot, 'dist', 'share', 'meshes')
+        if (fs.existsSync(meshSrcDir)) {
+            fs.mkdirSync(meshDestDir, { recursive: true })
+            const objFiles = fs.readdirSync(meshSrcDir).filter(f => f.endsWith('.obj'))
+            for (const f of objFiles) {
+                fs.copyFileSync(path.join(meshSrcDir, f), path.join(meshDestDir, f))
+            }
+            console.log(`  ✓ ${objFiles.length} mesh OBJ files copied to dist/share/meshes/`)
+        }
+
         console.log('\n✓ Shader bundle written to dist/shaders/')
 
         // List output files
