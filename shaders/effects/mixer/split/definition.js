@@ -50,6 +50,16 @@ export default new Effect({
       max: 1,
       zero: 0,
       ui: { label: "softness", control: "slider" }
+    },
+    speed: {
+      type: "int",
+      default: 0,
+      uniform: "speed",
+      min: 0,
+      max: 4,
+      zero: 0,
+      randMax: 2,
+      ui: { label: "speed", control: "slider" }
     }
   },
   defaultProgram: "search mixer, synth\n\nnoise(ridges: true, colorMode: mono)\n.write(o0)\n\nnoise(seed: 2, ridges: true)\n.split(tex: read(o0), softness: 1)\n.write(o1)",

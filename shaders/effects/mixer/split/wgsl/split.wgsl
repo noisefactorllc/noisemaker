@@ -5,6 +5,8 @@
 @group(0) @binding(4) var<uniform> rotation : f32;
 @group(0) @binding(5) var<uniform> softness : f32;
 @group(0) @binding(6) var<uniform> invert : i32;
+@group(0) @binding(7) var<uniform> speed : f32;
+@group(0) @binding(8) var<uniform> time : f32;
 
 const PI: f32 = 3.14159265359;
 
@@ -27,8 +29,14 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let rotated = vec2<f32>(centered.x * c - centered.y * s,
                             centered.x * s + centered.y * c);
 
+    // Animate position with wipe
+    var animPos = position;
+    if (speed > 0.0) {
+        animPos = animPos + sin(time * 2.0 * PI * speed);
+    }
+
     // Signed distance from the split line
-    let d = rotated.y - position;
+    let d = rotated.y - animPos;
 
     // Apply softness
     let halfSoft = max(softness * 0.5, 0.001);

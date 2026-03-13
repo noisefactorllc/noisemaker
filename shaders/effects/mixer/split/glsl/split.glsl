@@ -8,6 +8,8 @@ uniform float position;
 uniform float rotation;
 uniform float softness;
 uniform int invert;
+uniform float speed;
+uniform float time;
 
 out vec4 fragColor;
 
@@ -30,8 +32,14 @@ void main() {
     vec2 rotated = vec2(centered.x * c - centered.y * s,
                         centered.x * s + centered.y * c);
 
+    // Animate position with wipe
+    float animPos = position;
+    if (speed > 0.0) {
+        animPos += sin(time * 2.0 * PI * speed);
+    }
+
     // Signed distance from the split line
-    float d = rotated.y - position;
+    float d = rotated.y - animPos;
 
     // Apply softness
     float halfSoft = max(softness * 0.5, 0.001);

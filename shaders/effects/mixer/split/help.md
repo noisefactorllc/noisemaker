@@ -15,6 +15,7 @@ Divides the frame along a straight line, showing source A on one side and source
 | rotation | float | 0 | -180-180 | Angle of the split line in degrees |
 | softness | float | 0 | 0-1 | Edge feathering (0 = hard edge) |
 | invert | int | off | off/on | Swap which side shows which source |
+| speed | int | 0 | 0-4 | Animation speed
 
 ## Notes
 
@@ -24,4 +25,4 @@ Divides the frame along a straight line, showing source A on one side and source
 - **position**: Slides the split line along its perpendicular axis
 - **softness at 0**: Pixel-perfect hard edge between sources
 - **softness increased**: Smooth gradient transition at the boundary
-- Animate position for wipe transitions between sources
+- Animate for wipe transitions between sources
