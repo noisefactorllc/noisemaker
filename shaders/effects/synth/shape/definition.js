@@ -4,9 +4,9 @@ export default new Effect({
   name: "Shape",
   namespace: "synth",
   func: "shape",
-  tags: ["geometric", "noise"],
+  tags: ["geometric"],
 
-  description: "Dual-loop shape pattern generator",
+  description: "Interference patterns from geometric shapes",
   uniformLayout: {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },

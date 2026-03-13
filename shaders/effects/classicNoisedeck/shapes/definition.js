@@ -10,9 +10,9 @@ export default class Shapes extends Effect {
   name = "Shapes"
   namespace = "classicNoisedeck"
   func = "shapes"
-  tags = ["geometric", "noise"]
+  tags = ["geometric"]
 
-  description = "Geometric shapes generator"
+  description = "Interference patterns from geometric shapes"
 
 
   // WGSL uniform packing layout - maps uniform names to vec4 slots/components

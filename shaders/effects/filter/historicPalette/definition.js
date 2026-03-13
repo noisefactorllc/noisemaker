@@ -8,7 +8,7 @@ export default new Effect({
   name: "Historic Palette",
   namespace: "filter",
   func: "historicPalette",
-  tags: ["color"],
+  tags: ["color", "palette"],
 
   description: "Apply historical art color palettes",
   globals: {

@@ -36,6 +36,7 @@ export default new Effect({
       uniform: "matrixScale",
       min: 1,
       max: 8,
+      randMax: 4,
       ui: {
         label: "pattern scale",
         control: "slider"

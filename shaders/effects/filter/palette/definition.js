@@ -8,7 +8,7 @@ export default new Effect({
   name: "Palette",
   namespace: "filter",
   func: "palette",
-  tags: ["color"],
+  tags: ["color", "palette"],
 
   description: "Apply cosine color palettes based on luminance",
   globals: {

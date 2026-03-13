@@ -6,8 +6,8 @@ Apply cosine color palettes based on luminance
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| paletteIndex | member | palette.afterimage | - | Palette |
-| paletteRotation | int | none | none/fwd/back | Rotation |
-| paletteOffset | float | 0 | 0-100 | Offset |
-| paletteRepeat | int | 1 | 1-10 | Repeat |
+| index | member | palette.afterimage | - | Palette |
+| rotation | int | none | none/fwd/back | Rotation |
+| offset | float | 0 | 0-100 | Offset |
+| repeat | int | 1 | 1-10 | Repeat |
 | alpha | float | 1 | 0-1 | Alpha |
