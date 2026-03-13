@@ -1,4 +1,4 @@
-# inv
+# invert
 
 Invert image luminance
 

@@ -5,9 +5,9 @@ import { Effect } from '../../../src/runtime/effect.js'
  * Simple luminance inversion: 1.0 - brightness
  */
 export default new Effect({
-  name: "Inv",
+  name: "Invert",
   namespace: "filter",
-  func: "inv",
+  func: "invert",
   tags: ["color"],
 
   description: "Invert image luminance",
