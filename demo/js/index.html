@@ -44,6 +44,7 @@
 </head>
 <body>
   <div id="app-container">
+    <div id="mobile-divider"></div>
     <div id="left-panel" class="hf-scrollbar">
       <div class="shader-effect hf-panel" id="program-effect">
         <div class="effect-title">
@@ -935,6 +936,24 @@
         title.closest('.shader-effect').classList.toggle('collapsed');
       });
     });
+
+    // Mobile divider drag
+    const divider = document.getElementById('mobile-divider');
+    if (divider) {
+        let dragging = false;
+        const onMove = (clientY) => {
+            if (!dragging) return;
+            const frac = Math.max(0.15, Math.min(0.7, clientY / window.innerHeight));
+            document.documentElement.style.setProperty('--mobile-canvas-fraction', frac);
+        };
+        divider.addEventListener('pointerdown', (e) => {
+            dragging = true;
+            divider.setPointerCapture(e.pointerId);
+        });
+        divider.addEventListener('pointermove', (e) => onMove(e.clientY));
+        divider.addEventListener('pointerup', () => { dragging = false; });
+        divider.addEventListener('pointercancel', () => { dragging = false; });
+    }
   </script>
 
 </body>

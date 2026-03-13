@@ -691,3 +691,108 @@ body.full-bleed-mode #canvas {
 .noisemaker-info a:hover {
   opacity: 0.8;
 }
+
+/* Responsive: mobile — exact noisedeck pattern */
+@media (max-width: 960px) {
+  body {
+    overflow: hidden;
+    height: 100dvh;
+    width: 100vw;
+  }
+
+  #app-container {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  body.fixed-canvas-mode #canvas-container,
+  body:not(.full-bleed-mode) #canvas-container {
+    position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    height: calc(100dvh * var(--mobile-canvas-fraction, 0.35)) !important;
+    padding: 0 !important;
+    flex-shrink: 0 !important;
+    order: -1;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  body.fixed-canvas-mode #canvas,
+  body:not(.full-bleed-mode) #canvas {
+    max-width: 100% !important;
+    max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  #mobile-divider {
+    height: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: row-resize;
+    touch-action: none;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  #mobile-divider::after {
+    content: '';
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--hf-accent);
+  }
+
+  #left-panel {
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: auto !important;
+    width: 100% !important;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.5rem;
+  }
+
+  #controls {
+    grid-template-columns: 1fr;
+  }
+
+  .category-group {
+    grid-template-columns: 1fr;
+  }
+
+  .media-input-section,
+  .mesh-input-section {
+    grid-template-columns: 1fr;
+  }
+
+  #status,
+  .status {
+    position: relative;
+    bottom: auto;
+    right: auto;
+    max-width: none;
+  }
+
+  .loading {
+    height: calc(100dvh * var(--mobile-canvas-fraction, 0.35));
+  }
+}
+
+/* Desktop: hide mobile-only elements */
+@media (min-width: 961px) {
+  #mobile-divider {
+    display: none;
+  }
+}
