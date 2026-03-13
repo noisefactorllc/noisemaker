@@ -731,13 +731,16 @@ export class UIController {
      * Load a built-in mesh from a bundled OBJ file
      * @private
      */
-    async _loadBuiltinMesh(stepIndex, shapeName, url) {
+    async _loadBuiltinMesh(stepIndex, shapeName, relativePath) {
         const meshState = this._meshInputs.get(stepIndex)
         if (!meshState) return
 
         meshState.statusEl.textContent = 'loading...'
 
         try {
+            // Resolve relative to renderer's basePath (e.g. "../../shaders" or bundled URL)
+            const basePath = this._renderer._basePath || '../../shaders'
+            const url = `${basePath}/../${relativePath}`
             const result = await this._renderer.loadOBJFromURL(url, meshState.meshId)
 
             if (result.success) {
