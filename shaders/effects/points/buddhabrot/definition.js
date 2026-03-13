@@ -19,7 +19,7 @@ export default new Effect({
   name: "Buddhabrot",
   namespace: "points",
   func: "buddhabrot",
-  tags: ["sim"],
+  tags: ["fractal", "sim"],
 
   description: "Buddhabrot fractal via progressive orbit accumulation",
 
@@ -49,8 +49,8 @@ export default new Effect({
       default: 0,
       uniform: "mode",
       choices: {
-        standard: 0,
-        anti: 1
+        anti: 1,
+        standard: 0
       },
       ui: { label: "mode", control: "dropdown", category: "fractal" }
     },
@@ -80,6 +80,7 @@ export default new Effect({
       uniform: "centerX",
       min: -3,
       max: 3,
+      randChance: 0,
       step: 0.01,
       ui: { label: "center y", control: "slider", category: "navigation" }
     },
@@ -89,6 +90,7 @@ export default new Effect({
       uniform: "centerY",
       min: -3,
       max: 3,
+      randChance: 0,
       step: 0.01,
       ui: { label: "center x", control: "slider", category: "navigation" }
     },
@@ -99,6 +101,8 @@ export default new Effect({
       min: 0.1,
       max: 5,
       step: 0.1,
+      randMin: 0.5,
+      randMax: 2,
       ui: { label: "zoom", control: "slider", category: "navigation" }
     }
   },
