@@ -107,6 +107,7 @@ async function buildCoreBundle() {
         target: ['es2020'],
         legalComments: 'none',
         logLevel: 'warning',
+        external: ['handfish'],
     }
 
     // ESM build
