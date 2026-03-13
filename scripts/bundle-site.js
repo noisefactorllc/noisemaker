@@ -131,7 +131,8 @@ function transformShadersDemoHtml() {
         `<script type="importmap">
     {
         "imports": {
-            "noisemaker/shader-effects": "../../lib/shaders/noisemaker-shaders-core.esm.min.js"
+            "noisemaker/shader-effects": "../../lib/shaders/noisemaker-shaders-core.esm.min.js",
+            "handfish": "https://handfish.noisefactor.io/0.9.0/handfish.esm.js"
         }
     }
     </script>`
