@@ -8,48 +8,10 @@
  * styles. Override colors by providing your own color variables.
  */
 
-:root {
-  /* UI sizing tokens - override base values for demo */
-  --ui-corner-radius: 0.5rem;
-  --ui-corner-radius-small: 0.375rem;
-  --ui-corner-radius-large: 0.75rem;
-  --ui-corner-radius-pill: 999px;
-  
-  /* Chrome opacity tokens for glass effects */
-  --ui-chrome-highlight-blend: 86%;
-  --ui-chrome-highlight-tint: 14%;
-  --ui-chrome-shadow-blend: 72%;
-  --ui-chrome-shadow-shade: 28%;
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-:root {
-  transition: background-color 0.3s ease;
-}
-
-html, body {
-  margin: 0;
-  padding: 0;
-}
-
 body {
-  font-family: Nunito, sans-serif;
-  font-weight: 580;
-  font-stretch: 108%;
-  font-variation-settings: 'wght' 580;
-  letter-spacing: 0.01em;
-  background: var(--color1);
-  color: var(--color6);
   overflow: hidden;
   width: 100vw;
   height: 100vh;
-  text-size-adjust: none;
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #app-container {
@@ -72,8 +34,8 @@ body {
 /* Fixed canvas mode (default) */
 body.fixed-canvas-mode #canvas-container,
 body:not(.full-bleed-mode) #canvas-container {
-  left: 540px;
-  width: calc(100vw - 540px);
+  left: calc(500px + 3rem);
+  width: calc(100vw - 500px - 3rem);
   height: 100vh;
   justify-content: center;
   align-items: center;
@@ -86,7 +48,7 @@ body:not(.full-bleed-mode) #canvas {
   /* Square canvas, scales to fit available space */
   width: min(calc(100vw - 540px - 4rem), calc(100vh - 4rem));
   height: min(calc(100vw - 540px - 4rem), calc(100vh - 4rem));
-  border: 1px solid color-mix(in srgb, var(--accent3) 30%, transparent 70%);
+  border: 1px solid color-mix(in srgb, var(--hf-accent) 30%, transparent 70%);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
@@ -111,17 +73,17 @@ body.full-bleed-mode #canvas {
   /* Checkerboard pattern to show alpha transparency */
   background: 
     repeating-conic-gradient(
-      color-mix(in srgb, var(--color2) 60%, var(--color1) 40%) 0% 25%, 
-      color-mix(in srgb, var(--color3) 50%, var(--color2) 50%) 0% 50%
+      color-mix(in srgb, var(--hf-bg-surface) 60%, var(--hf-bg-base) 40%) 0% 25%, 
+      color-mix(in srgb, var(--hf-bg-elevated) 50%, var(--hf-bg-surface) 50%) 0% 50%
     ) 
     50% / 20px 20px;
 }
 
 #left-panel {
   position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
+  top: 1rem;
+  left: 1rem;
+  bottom: 1rem;
   width: 500px;
   display: flex;
   flex-direction: column;
@@ -142,14 +104,6 @@ body.full-bleed-mode #canvas {
 }
 
 .shader-effect {
-  background: color-mix(
-    in srgb,
-    var(--color2) var(--effect-surface-opacity),
-    transparent var(--effect-surface-transparency)
-  );
-  backdrop-filter: var(--glass-blur-strength);
-  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  border-radius: var(--ui-corner-radius);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -171,23 +125,23 @@ body.full-bleed-mode #canvas {
 .effect-title {
   background: color-mix(
     in srgb,
-    var(--effect-shared-accent) var(--effect-header-opacity),
-    transparent var(--effect-header-transparency)
+    var(--hf-accent-1) var(--hf-header-opacity),
+    transparent var(--hf-header-transparency)
   );
-  border-bottom: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  padding: 0.625em 0.875em;
-  font-size: 0.75rem;
-  font-weight: 700;
-  font-variation-settings: 'wght' 700;
-  color: color-mix(in srgb, var(--color6) 90%, var(--accent3) 10%);
-  text-transform: lowercase;
-  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--hf-border);
+  padding: var(--hf-space-2) var(--hf-space-3);
+  font-size: var(--hf-size-sm);
+  font-weight: var(--hf-weight-bold);
+  color: var(--hf-text-bright);
+  text-transform: var(--hf-text-transform, lowercase);
+  letter-spacing: var(--hf-tracking-wide);
   user-select: none;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 0.5em;
+  gap: var(--hf-space-2);
   cursor: pointer;
+  transition: background var(--hf-transition);
 }
 
 .effect-title-text {
@@ -198,8 +152,8 @@ body.full-bleed-mode #canvas {
 .effect-title:hover {
   background: color-mix(
     in srgb,
-    var(--effect-shared-accent) calc(var(--effect-header-opacity) + 5%),
-    transparent calc(var(--effect-header-transparency) - 5%)
+    var(--hf-accent-1) calc(var(--hf-header-opacity) + 5%),
+    transparent calc(var(--hf-header-transparency) - 5%)
   );
 }
 
@@ -223,33 +177,6 @@ body.full-bleed-mode #canvas {
   display: none;
 }
 
-/* Action button styles */
-.action-btn {
-  padding: 0.15rem 0.4rem;
-  font-size: 0.6rem;
-  font-family: Nunito, sans-serif;
-  font-weight: 600;
-  text-transform: lowercase;
-  background: transparent;
-  border: 1px solid color-mix(in srgb, var(--accent3) 30%, transparent 70%);
-  border-radius: var(--ui-corner-radius-small);
-  color: color-mix(in srgb, var(--color5) 70%, transparent 30%);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.action-btn:hover {
-  background: color-mix(in srgb, var(--accent3) 20%, transparent 80%);
-  border-color: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
-  color: var(--color6);
-}
-
-.action-btn.active {
-  background: color-mix(in srgb, var(--accent3) 40%, transparent 60%);
-  border-color: var(--accent3);
-  color: var(--color6);
-}
-
 /* Skipped effect styles */
 .shader-effect.skipped {
   opacity: 0.5;
@@ -258,14 +185,14 @@ body.full-bleed-mode #canvas {
 .shader-effect.skipped .effect-title {
   background: color-mix(
     in srgb,
-    var(--color3) 15%,
+    var(--hf-bg-elevated) 15%,
     transparent 85%
   );
 }
 
 .shader-effect.skipped .effect-title-text {
   text-decoration: line-through;
-  color: color-mix(in srgb, var(--color5) 60%, transparent 40%);
+  color: color-mix(in srgb, var(--hf-text-dim) 60%, transparent 40%);
 }
 
 /* Prevent expansion when skipped */
@@ -278,32 +205,32 @@ body.full-bleed-mode #canvas {
 }
 
 #dsl-run-btn:hover {
-  background: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
-  border-color: var(--accent3);
+  background: color-mix(in srgb, var(--hf-accent) 50%, transparent 50%);
+  border-color: var(--hf-accent);
 }
 
 #dsl-run-btn:active {
-  background: color-mix(in srgb, var(--accent3) 70%, transparent 30%);
+  background: color-mix(in srgb, var(--hf-accent) 70%, transparent 30%);
   transform: translateY(1px);
 }
 
 #dsl-editor:focus {
   outline: none;
-  border-color: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent3) 20%, transparent 80%);
+  border-color: color-mix(in srgb, var(--hf-accent) 50%, transparent 50%);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--hf-accent) 20%, transparent 80%);
 }
 
 #status {
   display: none;
   min-height: 20px;
-  font-size: 13px;
-  color: #8fa8ff;
+  font-size: var(--hf-size-xs);
+  color: var(--hf-accent);
 }
 
 #controls {
   background: transparent;
-  border: 1px solid color-mix(in srgb, var(--accent3) 15%, transparent 85%);
-  border-radius: var(--ui-corner-radius);
+  border: 1px solid var(--hf-border-subtle);
+  border-radius: var(--hf-radius);
   padding: 0.75rem;
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -331,7 +258,7 @@ body.full-bleed-mode #canvas {
   flex-wrap: wrap;
   gap: 0.25rem;
   padding-bottom: 0.5rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--accent3) 12%, transparent 88%);
+  border-bottom: 1px solid var(--hf-border-subtle);
 }
 
 /* When all categories collapsed, no border or padding below tag bar */
@@ -342,25 +269,6 @@ body.full-bleed-mode #canvas {
 
 .category-tag-bar:empty {
   display: none;
-}
-
-.category-tag {
-  font-size: 0.5625rem;
-  font-weight: 500;
-  padding: 0.1rem 0.35rem;
-  background: color-mix(in srgb, var(--accent3) 12%, transparent 88%);
-  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  border-radius: var(--ui-corner-radius-small);
-  color: color-mix(in srgb, var(--color5) 85%, var(--accent3) 15%);
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-  text-transform: lowercase;
-  letter-spacing: 0.03em;
-}
-
-.category-tag:hover {
-  background: color-mix(in srgb, var(--accent3) 20%, transparent 80%);
-  border-color: color-mix(in srgb, var(--accent3) 40%, transparent 60%);
 }
 
 /* Category group - wraps controls in a category */
@@ -383,13 +291,12 @@ body.full-bleed-mode #canvas {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  font-variation-settings: 'wght' 600;
-  color: color-mix(in srgb, var(--color5) 85%, var(--accent3) 15%);
+  font-size: var(--hf-size-sm);
+  font-weight: var(--hf-weight-semibold);
+  color: color-mix(in srgb, var(--hf-text-dim) 85%, var(--hf-accent) 15%);
   text-transform: lowercase;
   letter-spacing: 0.03em;
-  border-top: 1px solid color-mix(in srgb, var(--accent3) 12%, transparent 88%);
+  border-top: 1px solid var(--hf-border-subtle);
   margin: 0.5rem -0.5rem 0;
   padding: 0.5rem 0.5rem 0;
 }
@@ -403,20 +310,20 @@ body.full-bleed-mode #canvas {
 
 /* Restore border for non-first visible categories */
 .category-group:not(.collapsed) ~ .category-group:not(.collapsed) .category-label {
-  border-top: 1px solid color-mix(in srgb, var(--accent3) 12%, transparent 88%);
+  border-top: 1px solid var(--hf-border-subtle);
 }
 
 /* When tag bar is hidden, pull first category up to cancel effect padding */
 .category-tag-bar[style*="display"] ~ .category-group:not(.collapsed) .category-label {
   margin-top: -0.5rem;
-  border-top: 1px solid color-mix(in srgb, var(--accent3) 12%, transparent 88%);
+  border-top: 1px solid var(--hf-border-subtle);
 }
 
 .category-label .category-close {
   cursor: pointer;
-  font-size: 0.625rem;
+  font-size: var(--hf-size-xs);
   opacity: 0.5;
-  transition: opacity 0.15s ease;
+  transition: opacity var(--hf-transition);
 }
 
 .category-label .category-close:hover {
@@ -428,10 +335,9 @@ body.full-bleed-mode #canvas {
 }
 
 .control-label {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  font-variation-settings: 'wght' 600;
-  color: color-mix(in srgb, var(--color6) 85%, var(--accent3) 15%);
+  font-size: var(--hf-size-sm);
+  font-weight: var(--hf-weight-semibold);
+  color: color-mix(in srgb, var(--hf-text-normal) 85%, var(--hf-accent) 15%);
   text-transform: lowercase;
   letter-spacing: 0.03em;
   text-align: right;
@@ -441,9 +347,9 @@ body.full-bleed-mode #canvas {
 }
 
 .control-value {
-  font-size: 0.625rem;
-  font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
-  color: color-mix(in srgb, var(--color5) 90%, var(--accent3) 10%);
+  font-size: var(--hf-size-xs);
+  font-family: var(--hf-font-family-mono);
+  color: color-mix(in srgb, var(--hf-text-dim) 90%, var(--hf-accent) 10%);
   text-align: left;
 }
 
@@ -454,8 +360,8 @@ body.full-bleed-mode #canvas {
   width: 100%;
   height: 1.5rem;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--accent3) 35%, transparent 65%);
-  border-radius: var(--ui-corner-radius-small);
+  border: 1px solid color-mix(in srgb, var(--hf-accent) 35%, transparent 65%);
+  border-radius: var(--hf-radius-sm);
   background: transparent;
   cursor: pointer;
 }
@@ -466,12 +372,12 @@ body.full-bleed-mode #canvas {
 
 .control-color::-webkit-color-swatch {
   border: none;
-  border-radius: calc(var(--ui-corner-radius-small) - 2px);
+  border-radius: calc(var(--hf-radius-sm) - 2px);
 }
 
 .control-color::-moz-color-swatch {
   border: none;
-  border-radius: calc(var(--ui-corner-radius-small) - 2px);
+  border-radius: calc(var(--hf-radius-sm) - 2px);
 }
 
 .control-slider {
@@ -479,15 +385,15 @@ body.full-bleed-mode #canvas {
   height: 1.125rem;
   -webkit-appearance: none;
   appearance: none;
-  background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
-  border-radius: var(--ui-corner-radius-small);
+  background: color-mix(in srgb, var(--hf-accent) 15%, transparent 85%);
+  border-radius: var(--hf-radius-sm);
   outline: none;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background var(--hf-transition);
 }
 
 .control-slider:hover {
-  background: color-mix(in srgb, var(--accent3) 22%, transparent 78%);
+  background: color-mix(in srgb, var(--hf-accent) 22%, transparent 78%);
 }
 
 .control-slider::-webkit-slider-thumb {
@@ -496,15 +402,15 @@ body.full-bleed-mode #canvas {
   width: 0.875rem;
   height: 0.875rem;
   border-radius: 50%;
-  background: var(--accent3);
+  background: var(--hf-accent);
   cursor: pointer;
-  border: 2px solid color-mix(in srgb, var(--accent3) 100%, var(--color7) 0%);
+  border: 2px solid color-mix(in srgb, var(--hf-accent) 100%, var(--hf-text-bright) 0%);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  transition: all 0.15s ease;
+  transition: all var(--hf-transition);
 }
 
 .control-slider:hover::-webkit-slider-thumb {
-  background: color-mix(in srgb, var(--accent3) 85%, var(--color7) 15%);
+  background: color-mix(in srgb, var(--hf-accent) 85%, var(--hf-text-bright) 15%);
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
 }
 
@@ -512,105 +418,16 @@ body.full-bleed-mode #canvas {
   width: 0.875rem;
   height: 0.875rem;
   border-radius: 50%;
-  background: var(--accent3);
+  background: var(--hf-accent);
   cursor: pointer;
-  border: 2px solid color-mix(in srgb, var(--accent3) 100%, var(--color7) 0%);
+  border: 2px solid color-mix(in srgb, var(--hf-accent) 100%, var(--hf-text-bright) 0%);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  transition: all 0.15s ease;
+  transition: all var(--hf-transition);
 }
 
 .control-slider:hover::-moz-range-thumb {
-  background: color-mix(in srgb, var(--accent3) 85%, var(--color7) 15%);
+  background: color-mix(in srgb, var(--hf-accent) 85%, var(--hf-text-bright) 15%);
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
-}
-
-.control-select {
-  width: 100%;
-  padding: 0.25rem 0.375rem;
-  background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
-  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  border-radius: var(--ui-corner-radius-small);
-  color: var(--color6);
-  font-family: Nunito, sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 560;
-  font-variation-settings: 'wght' 560;
-  outline: none;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.control-select:hover {
-  background: color-mix(in srgb, var(--accent3) 22%, transparent 78%);
-  border-color: color-mix(in srgb, var(--accent3) 35%, transparent 65%);
-}
-
-.control-select:focus {
-  border-color: var(--accent3);
-  background: color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-}
-
-.control-button {
-  padding: 0.25rem 0.5rem;
-  background: color-mix(in srgb, var(--accent3) 20%, transparent 80%);
-  border: 1px solid color-mix(in srgb, var(--accent3) 35%, transparent 65%);
-  border-radius: var(--ui-corner-radius-small);
-  color: var(--color6);
-  font-family: Nunito, sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  font-variation-settings: 'wght' 600;
-  text-transform: lowercase;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.control-button:hover {
-  background: color-mix(in srgb, var(--accent3) 35%, transparent 65%);
-  border-color: var(--accent3);
-}
-
-.control-button:active {
-  background: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
-  transform: translateY(1px);
-}
-
-.control-number {
-  padding: 0.25rem 0.375rem;
-  background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
-  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  border-radius: var(--ui-corner-radius-small);
-  color: var(--color6);
-  font-family: Nunito, sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 560;
-  font-variation-settings: 'wght' 560;
-  outline: none;
-  transition: all 0.15s ease;
-}
-
-.control-number:hover {
-  background: color-mix(in srgb, var(--accent3) 22%, transparent 78%);
-  border-color: color-mix(in srgb, var(--accent3) 35%, transparent 65%);
-}
-
-.control-number:focus {
-  border-color: var(--accent3);
-  background: color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-}
-
-/* Hide number input spinners for cleaner look */
-.control-number::-webkit-outer-spin-button,
-.control-number::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.control-number {
-  -moz-appearance: textfield;
-  appearance: textfield;
 }
 
 /* Scrollbar styling for left panel */
@@ -619,18 +436,18 @@ body.full-bleed-mode #canvas {
 }
 
 #left-panel::-webkit-scrollbar-track {
-  background: color-mix(in srgb, var(--accent3) 5%, transparent 95%);
-  border-radius: var(--ui-corner-radius-small);
+  background: color-mix(in srgb, var(--hf-accent) 5%, transparent 95%);
+  border-radius: var(--hf-radius-sm);
 }
 
 #left-panel::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--accent3) 30%, transparent 70%);
-  border-radius: var(--ui-corner-radius-small);
-  transition: background 0.15s ease;
+  background: color-mix(in srgb, var(--hf-accent) 30%, transparent 70%);
+  border-radius: var(--hf-radius-sm);
+  transition: background var(--hf-transition);
 }
 
 #left-panel::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
+  background: color-mix(in srgb, var(--hf-accent) 50%, transparent 50%);
 }
 
 #status,
@@ -638,35 +455,35 @@ body.full-bleed-mode #canvas {
   position: fixed;
   bottom: 16px;
   right: 16px;
-  background: #1a1a1a;
-  border: 1px solid color-mix(in srgb, var(--color5, #888) 50%, transparent 50%);
+  background: var(--hf-bg-base);
+  border: 1px solid var(--hf-border);
   padding: 8px 12px;
-  font-size: 10px;
-  color: var(--color5, #888);
+  font-size: var(--hf-size-xs);
+  color: var(--hf-text-dim);
   max-width: 300px;
   z-index: 1000;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--color5, #888) 25%, transparent 75%);
+  box-shadow: var(--hf-shadow-sm);
+  border-radius: var(--hf-radius-sm);
 }
 
 #status.info,
 .status.info {
-  color: var(--color5, #888);
-  border-color: color-mix(in srgb, var(--color5, #888) 50%, transparent 50%);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--color5, #888) 25%, transparent 75%);
+  color: var(--hf-text-dim);
+  border-color: var(--hf-border);
 }
 
 #status.error,
 .status.error {
-  color: var(--red, #d44);
-  border-color: var(--red, #d44);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--red, #d44) 50%, transparent 50%);
+  color: var(--hf-red);
+  border-color: var(--hf-red);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--hf-red) 50%, transparent 50%);
 }
 
 #status.success,
 .status.success {
-  color: var(--green, #4d4);
-  border-color: var(--green, #4d4);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--green, #4d4) 50%, transparent 50%);
+  color: var(--hf-green);
+  border-color: var(--hf-green);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--hf-green) 50%, transparent 50%);
 }
 
 .loading {
@@ -674,63 +491,11 @@ body.full-bleed-mode #canvas {
   align-items: center;
   justify-content: center;
   height: 100vh;
-  font-size: 12px;
-  color: #666;
+  font-size: var(--hf-size-sm);
+  color: var(--hf-text-dim);
 }
 
-/* Loading dialog styles */
-#loading-dialog {
-  border: 1px solid color-mix(in srgb, var(--accent3) 20%, transparent 80%);
-  border-radius: var(--ui-corner-radius);
-  background: color-mix(in srgb, var(--color1) 90%, transparent 10%);
-  backdrop-filter: blur(8px);
-  padding: 1.25rem;
-  width: fit-content;
-  min-width: 240px;
-  max-width: 320px;
-  color: var(--color6);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  outline: none;
-  text-align: center;
-}
-
-#loading-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(2px);
-}
-
-#loading-dialog h3 {
-  margin: 0 0 0.75rem 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--color6);
-  display: block;
-}
-
-#loading-dialog .loading-status {
-  display: none;
-}
-
-#loading-dialog .loading-queue {
-  display: none;
-}
-
-#loading-dialog .loading-progress {
-  height: 3px;
-  background: color-mix(in srgb, var(--accent3) 10%, transparent 90%);
-  border-radius: 1.5px;
-  overflow: hidden;
-  margin-top: 0.5rem;
-}
-
-#loading-dialog .loading-progress-bar {
-  height: 100%;
-  background: var(--accent3);
-  transition: width 0.2s ease;
-  width: 0%;
-}
-
-/* 
+/*
  * Effect Chain Styling
  * Applies "chain" styling (connected effects) ONLY to the dynamic effects list.
  * Static effects (Pipeline, DSL, Inputs) retain their original spacing.
@@ -756,17 +521,17 @@ body.full-bleed-mode #canvas {
 #effect-controls-container .shader-effect[data-effect-name="read3d"],
 #effect-controls-container .shader-effect[data-effect-name="write"]:not([data-mid-chain="true"]) + .shader-effect,
 #effect-controls-container .shader-effect[data-effect-name="write3d"]:not([data-mid-chain="true"]) + .shader-effect {
-  border-top-left-radius: var(--ui-corner-radius);
-  border-top-right-radius: var(--ui-corner-radius);
+  border-top-left-radius: var(--hf-radius);
+  border-top-right-radius: var(--hf-radius);
 }
 
 /* End of a chain: Write/write3d node OR Last child */
 #effect-controls-container .shader-effect[data-effect-name="write"],
 #effect-controls-container .shader-effect[data-effect-name="write3d"],
 #effect-controls-container .shader-effect:last-child {
-  border-bottom-left-radius: var(--ui-corner-radius);
-  border-bottom-right-radius: var(--ui-corner-radius);
-  border-bottom: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
+  border-bottom-left-radius: var(--hf-radius);
+  border-bottom-right-radius: var(--hf-radius);
+  border-bottom: 1px solid var(--hf-border);
 }
 
 /* Restore spacing after a chain ends (after terminal write/write3d node, not mid-chain) */
@@ -797,7 +562,7 @@ body.full-bleed-mode #canvas {
   gap: 0.5rem;
   margin-top: 0.5rem;
   padding-top: 0.5rem;
-  border-top: 1px solid color-mix(in srgb, var(--accent3) 15%, transparent 85%);
+  border-top: 1px solid color-mix(in srgb, var(--hf-accent) 15%, transparent 85%);
 }
 
 .media-input-section .control-group {
@@ -814,39 +579,39 @@ body.full-bleed-mode #canvas {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  font-size: 0.6875rem;
-  color: var(--color6);
+  font-size: var(--hf-size-sm);
+  color: var(--hf-text-normal);
   cursor: pointer;
 }
 
 .media-source-radios input[type="radio"] {
-  accent-color: var(--accent3);
+  accent-color: var(--hf-accent);
 }
 
 .media-file-input {
   width: 100%;
-  font-size: 0.6875rem;
-  color: var(--color6);
+  font-size: var(--hf-size-sm);
+  color: var(--hf-text-normal);
 }
 
 .media-file-input::file-selector-button {
   padding: 0.2rem 0.5rem;
-  font-size: 0.625rem;
-  font-family: Nunito, sans-serif;
+  font-size: var(--hf-size-xs);
+  font-family: var(--hf-font-family);
   font-weight: 600;
   text-transform: lowercase;
-  background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
-  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  border-radius: var(--ui-corner-radius-small);
-  color: var(--color6);
+  background: color-mix(in srgb, var(--hf-accent) 15%, transparent 85%);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-sm);
+  color: var(--hf-text-normal);
   cursor: pointer;
   margin-right: 0.5rem;
-  transition: all 0.15s ease;
+  transition: all var(--hf-transition);
 }
 
 .media-file-input::file-selector-button:hover {
-  background: color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  border-color: color-mix(in srgb, var(--accent3) 40%, transparent 60%);
+  background: color-mix(in srgb, var(--hf-accent) 25%, transparent 75%);
+  border-color: color-mix(in srgb, var(--hf-accent) 40%, transparent 60%);
 }
 
 .media-camera-group .control-select {
@@ -864,8 +629,8 @@ body.full-bleed-mode #canvas {
 }
 
 .media-status {
-  font-size: 0.625rem;
-  color: var(--color5);
+  font-size: var(--hf-size-xs);
+  color: var(--hf-text-dim);
   font-style: italic;
 }
 
@@ -879,46 +644,47 @@ body.full-bleed-mode #canvas {
 
 .mesh-file-input {
   width: 100%;
-  font-size: 0.6875rem;
-  color: var(--color6);
+  font-size: var(--hf-size-sm);
+  color: var(--hf-text-normal);
 }
 
 .mesh-file-input::file-selector-button {
   padding: 0.2rem 0.5rem;
-  font-size: 0.625rem;
-  font-family: Nunito, sans-serif;
+  font-size: var(--hf-size-xs);
+  font-family: var(--hf-font-family);
   font-weight: 600;
   text-transform: lowercase;
-  background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
-  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  border-radius: var(--ui-corner-radius-small);
-  color: var(--color6);
+  background: color-mix(in srgb, var(--hf-accent) 15%, transparent 85%);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-sm);
+  color: var(--hf-text-normal);
   cursor: pointer;
   margin-right: 0.5rem;
-  transition: all 0.15s ease;
+  transition: all var(--hf-transition);
 }
 
 .mesh-file-input::file-selector-button:hover {
-  background: color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  border-color: color-mix(in srgb, var(--accent3) 40%, transparent 60%);
+  background: color-mix(in srgb, var(--hf-accent) 25%, transparent 75%);
+  border-color: color-mix(in srgb, var(--hf-accent) 40%, transparent 60%);
 }
 
 .mesh-status {
-  font-size: 0.625rem;
-  color: var(--color5);
+  font-size: var(--hf-size-xs);
+  color: var(--hf-text-dim);
   font-style: italic;
 }
 
 /* Ecosystem info text */
 .noisemaker-info {
-  font-size: 0.625rem;
-  color: color-mix(in srgb, var(--color5) 60%, transparent 40%);
+  font-size: var(--hf-size-xs);
+  color: color-mix(in srgb, var(--hf-text-dim) 60%, transparent 40%);
   line-height: 1.4;
-  padding: 0.5rem 0.875rem 0.75rem;
+  padding: 0.5rem 0.5rem 0.75rem;
+  text-align: center;
 }
 
 .noisemaker-info a {
-  color: var(--accent3);
+  color: var(--hf-accent);
   text-decoration: none;
 }
 

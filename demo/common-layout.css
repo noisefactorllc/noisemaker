@@ -252,73 +252,12 @@ body.two-column-layout h2 {
   gap: 10px;
 }
 
-select,
-button,
-input[type="number"],
-input[type="text"],
-.text-input {
-  background: var(--ui-input-surface);
-  color: inherit;
-  border: 1px solid var(--ui-input-border);
-  border-radius: var(--ui-corner-radius-small);
-  padding: 10px 12px;
-  font-family: inherit;
-  font-size: 14px;
-  transition: border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
-}
-
-select,
-input[type="number"],
-input[type="text"],
-.text-input {
-  width: 100%;
-}
-
-select:focus,
-button:focus,
-input[type="number"]:focus,
-input[type="text"]:focus,
-.text-input:focus {
-  outline: none;
-  border-color: var(--ui-input-border-strong);
-  box-shadow: var(--ui-input-shadow);
-}
-
-body.two-column-layout.js-demo-layout select,
-body.two-column-layout.js-demo-layout button,
-body.two-column-layout.js-demo-layout input[type="number"],
-body.two-column-layout.js-demo-layout input[type="text"],
-body.two-column-layout.js-demo-layout .text-input {
-  padding: 6px 10px;
-}
-
 body.two-column-layout.js-demo-layout .field-row {
   gap: 8px;
 }
 
 body.two-column-layout.js-demo-layout .button-row {
   gap: 6px;
-}
-
-button {
-  cursor: pointer;
-  background: var(--ui-button-surface);
-  border-color: transparent;
-  color: var(--ui-button-text);
-  font-weight: 650;
-  letter-spacing: 0.04em;
-}
-
-button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 14px 32px rgba(26, 36, 78, 0.45);
-}
-
-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
 
 .canvas-wrapper {
@@ -392,7 +331,7 @@ pre.code-block {
 }
 
 code {
-  font-family: "Fira Code", "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: var(--hf-font-family-mono);
 }
 
 .code-content {
@@ -488,40 +427,6 @@ body.two-column-layout.js-demo-layout #errorBanner {
   display: none;
 }
 
-#tabs,
-.tabs {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-#tabs button,
-.tabs button {
-  background: var(--ui-input-surface);
-  border: 1px solid var(--ui-input-border);
-  border-bottom: none;
-  border-radius: var(--ui-corner-radius-small) var(--ui-corner-radius-small) 0 0;
-  padding: 6px 12px;
-  font-size: 12px;
-  text-transform: lowercase;
-  letter-spacing: 0.08em;
-  color: color-mix(in srgb, var(--accent3) 65%, var(--color6) 35%);
-  cursor: pointer;
-  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
-  margin-bottom: -1px;
-}
-
-#tabs button.active,
-.tabs button.active {
-  background: color-mix(in srgb, var(--color1) 92%, transparent 8%);
-  border-color: color-mix(in srgb, var(--accent3) 22%, transparent 78%);
-  border-bottom: none;
-  color: color-mix(in srgb, var(--color6) 90%, var(--accent3) 10%);
-  font-weight: 650;
-  box-shadow: none;
-  z-index: 1;
-  position: relative;
-}
 
 .toggle-control,
 .toggle {

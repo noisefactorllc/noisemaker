@@ -1,16 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="gray-dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Noisemaker Shaders Demo</title>
+    <link rel="preload" href="https://fonts.noisefactor.io/fonts/nunito/Nunito-Blank.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono-Blank.woff2" as="font" type="font/woff2" crossorigin />
+    <style>
+      @font-face { font-family: 'Nunito Blank'; src: url('https://fonts.noisefactor.io/fonts/nunito/Nunito-Blank.woff2') format('woff2'); }
+      @font-face { font-family: 'Noto Sans Mono Blank'; src: url('https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono-Blank.woff2') format('woff2'); }
+    </style>
+    <link rel="stylesheet" href="https://handfish.noisefactor.io/0.9.0/styles/index.css" />
+    <link rel="stylesheet" href="https://handfish.noisefactor.io/0.9.0/styles/themes/gray.css" />
     <link rel="stylesheet" href="../common.css" />
-    <link rel="stylesheet" href="colors.css" />
     <link rel="stylesheet" href="layout.css" />
     <script type="importmap">
     {
         "imports": {
-            "noisemaker/shader-effects": "../../shaders/src/runtime/effect.js"
+            "noisemaker/shader-effects": "../../shaders/src/runtime/effect.js",
+            "handfish": "https://handfish.noisefactor.io/0.9.0/handfish.esm.js"
         }
     }
     </script>
@@ -19,47 +27,40 @@
     <div id="loading" class="loading">loading effects...</div>
     <div id="app-container" style="display: none;">
         <div id="left-panel">
-            <div class="shader-effect" id="pipeline-effect">
+            <div class="shader-effect hf-panel" id="pipeline-effect">
                 <div class="effect-title">
                     <span class="effect-title-text">Noisemaker Shaders Demo</span>
                     <span style="flex: 1;"></span>
-                    <button id="pause-play-btn" class="action-btn tooltip" data-title="Pause/play animation" aria-label="Pause/play animation">pause</button>
-                    <button id="pipeline-code-btn" class="action-btn tooltip" data-title="Edit DSL program" aria-label="Edit DSL program">code</button>
+                    <span id="fps-counter" class="hf-text-dim hf-text-xs hf-mono" style="font-variant-numeric: tabular-nums;">-- fps</span>
+                    <button id="pause-play-btn" class="hf-action-btn tooltip" data-title="Pause/play animation" aria-label="Pause/play animation">pause</button>
+                    <button id="pipeline-code-btn" class="hf-action-btn tooltip" data-title="Edit DSL program" aria-label="Edit DSL program">code</button>
                 </div>
-                <div class="effect-content" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                    <div class="control-group" style="margin-bottom: 0;">
-                        <div class="control-header">
-                            <span class="control-label">effect</span>
+                <div class="effect-content" style="display: flex; flex-direction: column; gap: 0.625rem;">
+                    <!-- Effect selector + backend -->
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <effect-select id="effect-select" style="flex: 1;"></effect-select>
+                        <div id="backend-tabs" class="hf-tabs-pill">
+                            <button class="hf-tab active" data-backend="glsl">glsl</button>
+                            <button class="hf-tab" data-backend="wgsl">wgsl</button>
                         </div>
-                        <effect-select id="effect-select"></effect-select>
                     </div>
 
-                    <div style="display: flex; flex-direction: row; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
-                        <label class="radio-option" style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6);">
-                            <input type="radio" name="backend" value="glsl" checked>
-                            <span>glsl</span>
-                        </label>
-                        <label class="radio-option" style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6);">
-                            <input type="radio" name="backend" value="wgsl">
-                            <span>wgsl</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6);">
-                            <span>duration</span>
-                            <input type="number" id="duration-input" value="10" min="1" max="60" step="1" style="width: 4rem; padding: 0.25rem 0.375rem; background: color-mix(in srgb, var(--accent3) 15%, transparent 85%); border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: Nunito, sans-serif; font-size: 0.6875rem; font-weight: 560; outline: none; -moz-appearance: textfield; appearance: textfield;">
-                        </label>
-                        <span style="flex: 1;"></span>
-                        <button id="midi-toggle-btn" class="action-btn tooltip" data-title="Enable MIDI input" aria-label="Enable MIDI input" style="opacity: 0.5;">midi</button>
-                        <button id="audio-toggle-btn" class="action-btn tooltip" data-title="Enable audio input" aria-label="Enable audio input" style="opacity: 0.5;">audio</button>
-                        <button id="obj-load-btn" class="action-btn tooltip" data-title="Load OBJ mesh file" aria-label="Load OBJ mesh file" style="opacity: 0.5;">obj</button>
+                    <!-- Settings row: duration, inputs -->
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span class="hf-text-dim hf-text-xs">duration</span>
+                        <slider-value id="duration-input" min="1" max="60" step="1" value="10" type="int" style="width: 6rem;"></slider-value>
+                        <div class="hf-separator-vertical" style="height: 1.25rem;"></div>
+                        <button id="midi-toggle-btn" class="hf-action-btn tooltip" data-title="Enable MIDI input" aria-label="Enable MIDI input" style="opacity: 0.5;">midi</button>
+                        <button id="audio-toggle-btn" class="hf-action-btn tooltip" data-title="Enable audio input" aria-label="Enable audio input" style="opacity: 0.5;">audio</button>
+                        <button id="obj-load-btn" class="hf-action-btn tooltip" data-title="Load OBJ mesh file" aria-label="Load OBJ mesh file" style="opacity: 0.5;">obj</button>
                         <input type="file" id="obj-file-input" accept=".obj" style="display: none;">
-                        <span id="fps-counter" style="font-size: 0.75rem; color: var(--color5); font-variant-numeric: tabular-nums; min-width: 5ch;">-- fps</span>
                     </div>
 
                     <!-- DSL Editor Section (hidden by default) -->
                     <div id="dsl-editor-section" style="display: none;">
-                        <textarea id="dsl-editor" spellcheck="false" style="margin: 0; padding: 0.5rem; width: 100%; min-height: 120px; resize: vertical; background: color-mix(in srgb, var(--color1) 85%, transparent 15%); border: 1px solid color-mix(in srgb, var(--accent3) 50%, transparent 50%); border-radius: var(--ui-corner-radius-small); font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace; font-size: 0.6875rem; line-height: 1.4; color: var(--color5); box-sizing: border-box;"></textarea>
+                        <code-editor id="dsl-editor" spellcheck="false" line-numbers="false" style="width: 100%; min-height: 120px; resize: vertical;"></code-editor>
                         <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-                            <button id="dsl-run-btn" style="flex: 1; padding: 0.375rem 0.75rem; background: color-mix(in srgb, var(--accent3) 70%, transparent 30%); border: 1px solid color-mix(in srgb, var(--accent3) 75%, transparent 25%); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: Nunito, sans-serif; font-size: 0.6875rem; font-weight: 600; cursor: pointer; transition: all 0.15s ease;">run</button>
+                            <button id="dsl-run-btn" class="hf-btn hf-btn-primary" style="flex: 1;">run</button>
                         </div>
                     </div>
                 </div>
@@ -76,7 +77,8 @@
         </div>
     </div>
 
-    <dialog id="loading-dialog">
+    <dialog id="loading-dialog" class="hf-dialog">
+        <div class="hf-dialog-body">
         <h3 id="loading-dialog-title">loading effect...</h3>
         <div id="loading-dialog-status" class="loading-status">preparing...</div>
         <div id="loading-dialog-queue" class="loading-queue"></div>
@@ -106,22 +108,19 @@
         const effectSelectPath = useBundles
             ? '../../dist/shaders/noisemaker-shaders-core.esm.min.js'
             : './lib/effect-select.js';
-        const toggleSwitchPath = useBundles
-            ? '../../dist/shaders/noisemaker-shaders-core.esm.min.js'
-            : './lib/toggle-switch.js';
-        
-        const [coreModule, demoUiModule, effectSelectModule, toggleSwitchModule, externalInputModule] = await Promise.all([
+        const [coreModule, demoUiModule, effectSelectModule, externalInputModule, handfishModule, handfishControlFactoryModule] = await Promise.all([
             import(corePath),
             import(demoUiPath),
             import(effectSelectPath),
-            import(toggleSwitchPath),
-            import('../../shaders/src/runtime/external-input.js')
+            import('../../shaders/src/runtime/external-input.js'),
+            import('https://handfish.noisefactor.io/0.9.0/handfish.esm.js'),
+            import('./lib/handfish-control-factory.js')
         ]);
-        
+
         const { CanvasRenderer, getEffect } = coreModule;
         const { EffectSelect } = effectSelectModule;
-        const { ToggleSwitch } = toggleSwitchModule;
         const { MidiInputManager, AudioInputManager } = externalInputModule;
+        const { HandfishControlFactory } = handfishControlFactoryModule;
         const { 
             UIController, 
             extractEffectNamesFromDsl,
@@ -409,7 +408,8 @@
             loadingDialogStatus,
             loadingDialogProgress,
             onControlChange: renderSingleFrameIfPaused,
-            onRequestRecompile: () => rebuildPipelineFromDsl({ rebuildControls: false })
+            onRequestRecompile: () => rebuildPipelineFromDsl({ rebuildControls: false }),
+            controlFactory: new HandfishControlFactory()
         });
 
         // =====================================================================
@@ -714,24 +714,28 @@
         // Event Handlers
         // =====================================================================
 
-        // Backend selector
-        document.querySelectorAll('input[name="backend"]').forEach(radio => {
-            radio.addEventListener('change', async (e) => {
-                const nextBackend = e.target.value;
+        // Backend selector (pill tabs)
+        document.querySelectorAll('#backend-tabs .hf-tab').forEach(tab => {
+            tab.addEventListener('click', async () => {
+                const nextBackend = tab.dataset.backend;
                 const currentBackend = renderer.backend;
-                
+
+                // Update active state
+                document.querySelectorAll('#backend-tabs .hf-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
                 if (nextBackend === currentBackend) {
                     return;
                 }
 
                 await renderer.switchBackend(nextBackend);
-                
+
                 // Update canvas reference after reset
                 canvas = document.getElementById('canvas');
                 renderer._canvas = canvas;
 
                 ui.showStatus(`switched to ${renderer.backend}`, 'success');
-                
+
                 const dsl = ui.getDsl();
                 if (dsl) {
                     await rebuildPipelineFromDsl({ rebuildControls: false });
@@ -746,7 +750,6 @@
             const newDuration = parseFloat(e.target.value);
             if (newDuration >= 1 && newDuration <= 300) {
                 renderer.setLoopDuration(newDuration);
-                ui.showStatus(`duration set to ${newDuration}s`, 'success');
             }
         });
 
@@ -766,11 +769,8 @@
         });
 
         // DSL editor keyboard shortcut (Ctrl+Enter or Cmd+Enter to run)
-        dslEditor.addEventListener('keydown', async (e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                e.preventDefault();
-                await rebuildPipelineFromDsl();
-            }
+        dslEditor.addEventListener('forcerecompile', async () => {
+            await rebuildPipelineFromDsl();
         });
 
         // Effect selector
@@ -801,8 +801,9 @@
                     if (urlBackend === 'wgsl') {
                         await renderer.switchBackend('wgsl');
                     }
-                    const radio = document.querySelector(`input[name="backend"][value="${urlBackend}"]`);
-                    if (radio) radio.checked = true;
+                    document.querySelectorAll('#backend-tabs .hf-tab').forEach(t => {
+                        t.classList.toggle('active', t.dataset.backend === urlBackend);
+                    });
                 }
 
                 // Check for effect in URL

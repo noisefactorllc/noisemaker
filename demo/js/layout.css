@@ -1,52 +1,11 @@
 /**
  * Noisemaker JS Demo - Layout & Structure
- * 
- * This file mirrors the shaders demo layout exactly:
- * identical padding, spacing, widths, positioning, and component styling.
  */
 
-:root {
-  /* UI sizing tokens - match shaders demo values */
-  --ui-corner-radius: 0.5rem;
-  --ui-corner-radius-small: 0.375rem;
-  --ui-corner-radius-large: 0.75rem;
-  --ui-corner-radius-pill: 999px;
-  
-  /* Chrome opacity tokens for glass effects */
-  --ui-chrome-highlight-blend: 86%;
-  --ui-chrome-highlight-tint: 14%;
-  --ui-chrome-shadow-blend: 72%;
-  --ui-chrome-shadow-shade: 28%;
-}
-
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-:root {
-  transition: background-color 0.3s ease;
-}
-
-html, body {
-  margin: 0;
-  padding: 0;
-}
-
 body {
-  font-family: Nunito, sans-serif;
-  font-weight: 580;
-  font-stretch: 108%;
-  font-variation-settings: 'wght' 580;
-  letter-spacing: 0.01em;
-  background: var(--color1);
-  color: var(--color6);
   overflow: hidden;
   width: 100vw;
   height: 100vh;
-  text-size-adjust: none;
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #app-container {
@@ -55,12 +14,12 @@ body {
   height: 100vh;
 }
 
-/* Left panel - matches shaders demo exactly */
+/* Left panel */
 #left-panel {
   position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
+  top: 1rem;
+  left: 1rem;
+  bottom: 1rem;
   width: 500px;
   display: flex;
   flex-direction: column;
@@ -72,20 +31,14 @@ body {
   backdrop-filter: none;
   border: none;
   z-index: 1000;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE/Edge */
 }
 
-#left-panel::-webkit-scrollbar {
-  display: none; /* Chrome/Safari/Opera */
-}
-
-/* Canvas container - matches shaders demo fixed canvas mode */
+/* Canvas container */
 #canvas-container {
   position: fixed;
   top: 0;
-  left: 540px;
-  width: calc(100vw - 540px);
+  left: calc(500px + 3rem);
+  width: calc(100vw - 500px - 3rem);
   height: 100vh;
   display: flex;
   align-items: center;
@@ -95,30 +48,20 @@ body {
 }
 
 #canvas-container canvas {
-  /* Square canvas, scales to fit available space, max 1024x1024 */
   width: min(1024px, calc(100vw - 540px - 4rem), calc(100vh - 4rem));
   height: min(1024px, calc(100vw - 540px - 4rem), calc(100vh - 4rem));
-  border: 1px solid color-mix(in srgb, var(--accent3) 30%, transparent 70%);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  /* Checkerboard pattern to show alpha transparency */
-  background: 
+  border: 1px solid var(--hf-border);
+  box-shadow: var(--hf-shadow-md);
+  background:
     repeating-conic-gradient(
-      color-mix(in srgb, var(--color2) 60%, var(--color1) 40%) 0% 25%, 
-      color-mix(in srgb, var(--color3) 50%, var(--color2) 50%) 0% 50%
-    ) 
+      color-mix(in srgb, var(--hf-bg-surface) 60%, var(--hf-bg-base) 40%) 0% 25%,
+      color-mix(in srgb, var(--hf-bg-elevated) 50%, var(--hf-bg-surface) 50%) 0% 50%
+    )
     50% / 20px 20px;
 }
 
-/* Shader effect styling - matches shaders demo exactly */
+/* Shader effect panels */
 .shader-effect {
-  background: color-mix(
-    in srgb,
-    var(--color2) var(--effect-surface-opacity),
-    transparent var(--effect-surface-transparency)
-  );
-  backdrop-filter: var(--glass-blur-strength);
-  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  border-radius: var(--ui-corner-radius);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -130,23 +73,23 @@ body {
 .effect-title {
   background: color-mix(
     in srgb,
-    var(--effect-shared-accent) var(--effect-header-opacity),
-    transparent var(--effect-header-transparency)
+    var(--hf-accent-1) var(--hf-header-opacity),
+    transparent var(--hf-header-transparency)
   );
-  border-bottom: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  padding: 0.625em 0.875em;
-  font-size: 0.75rem;
-  font-weight: 700;
-  font-variation-settings: 'wght' 700;
-  color: color-mix(in srgb, var(--color6) 90%, var(--accent3) 10%);
-  text-transform: lowercase;
-  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--hf-border);
+  padding: var(--hf-space-2) var(--hf-space-3);
+  font-size: var(--hf-size-sm);
+  font-weight: var(--hf-weight-bold);
+  color: var(--hf-text-bright);
+  text-transform: var(--hf-text-transform, lowercase);
+  letter-spacing: var(--hf-tracking-wide);
   user-select: none;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 0.5em;
+  gap: var(--hf-space-2);
   cursor: pointer;
+  transition: background var(--hf-transition);
 }
 
 .effect-title-text {
@@ -156,8 +99,8 @@ body {
 .effect-title:hover {
   background: color-mix(
     in srgb,
-    var(--effect-shared-accent) calc(var(--effect-header-opacity) + 5%),
-    transparent calc(var(--effect-header-transparency) - 5%)
+    var(--hf-accent-1) calc(var(--hf-header-opacity) + 5%),
+    transparent calc(var(--hf-header-transparency) - 5%)
   );
 }
 
@@ -182,7 +125,7 @@ body {
 }
 
 #header-effect .effect-title a:hover {
-  color: var(--accent3);
+  color: var(--hf-accent);
 }
 
 .effect-content {
@@ -193,7 +136,7 @@ body {
   display: none !important;
 }
 
-/* Control group styling - matches shaders demo */
+/* Control group styling */
 .control-group {
   display: grid;
   grid-template-columns: 80px 1fr 35px;
@@ -211,12 +154,11 @@ body {
 }
 
 .control-label {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  font-variation-settings: 'wght' 600;
-  color: color-mix(in srgb, var(--color6) 85%, var(--accent3) 15%);
+  font-size: var(--hf-size-sm);
+  font-weight: var(--hf-weight-semibold);
+  color: var(--hf-text-dim);
   text-transform: lowercase;
-  letter-spacing: 0.03em;
+  letter-spacing: var(--hf-tracking-wide);
   text-align: right;
   white-space: nowrap;
   overflow: hidden;
@@ -224,109 +166,10 @@ body {
 }
 
 .control-value {
-  font-size: 0.625rem;
-  font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
-  color: color-mix(in srgb, var(--color5) 90%, var(--accent3) 10%);
+  font-size: var(--hf-size-xs);
+  font-family: var(--hf-font-family-mono);
+  color: var(--hf-text-dim);
   text-align: left;
-}
-
-/* Select styling - matches shaders demo */
-.control-select {
-  width: 100%;
-  padding: 0.25rem 0.375rem;
-  background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
-  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  border-radius: var(--ui-corner-radius-small);
-  color: var(--color6);
-  font-family: Nunito, sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 560;
-  font-variation-settings: 'wght' 560;
-  outline: none;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.control-select:hover {
-  background: color-mix(in srgb, var(--accent3) 22%, transparent 78%);
-  border-color: color-mix(in srgb, var(--accent3) 35%, transparent 65%);
-}
-
-.control-select:focus {
-  border-color: var(--accent3);
-  background: color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-}
-
-/* Button styling - matches shaders demo */
-.control-button {
-  padding: 0.25rem 0.5rem;
-  background: color-mix(in srgb, var(--accent3) 20%, transparent 80%);
-  border: 1px solid color-mix(in srgb, var(--accent3) 35%, transparent 65%);
-  border-radius: var(--ui-corner-radius-small);
-  color: var(--color6);
-  font-family: Nunito, sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  font-variation-settings: 'wght' 600;
-  text-transform: lowercase;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.control-button:hover {
-  background: color-mix(in srgb, var(--accent3) 35%, transparent 65%);
-  border-color: var(--accent3);
-}
-
-.control-button:active {
-  background: color-mix(in srgb, var(--accent3) 50%, transparent 50%);
-  transform: translateY(1px);
-}
-
-.control-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* Number input styling - matches shaders demo */
-.control-number {
-  padding: 0.25rem 0.375rem;
-  background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
-  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  border-radius: var(--ui-corner-radius-small);
-  color: var(--color6);
-  font-family: Nunito, sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 560;
-  font-variation-settings: 'wght' 560;
-  outline: none;
-  transition: all 0.15s ease;
-}
-
-.control-number:hover {
-  background: color-mix(in srgb, var(--accent3) 22%, transparent 78%);
-  border-color: color-mix(in srgb, var(--accent3) 35%, transparent 65%);
-}
-
-.control-number:focus {
-  border-color: var(--accent3);
-  background: color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-}
-
-/* Hide number input spinners for cleaner look */
-.control-number::-webkit-outer-spin-button,
-.control-number::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  appearance: none;
-  margin: 0;
-}
-
-.control-number {
-  -moz-appearance: textfield;
-  appearance: textfield;
 }
 
 /* Button row styling */
@@ -336,11 +179,11 @@ body {
   flex-wrap: wrap;
 }
 
-/* Code panel styling - matches shaders demo */
+/* Code panel styling */
 .code-content {
-  background: color-mix(in srgb, var(--color1) 85%, transparent 15%);
-  border: 1px solid color-mix(in srgb, var(--accent3) 50%, transparent 50%);
-  border-radius: var(--ui-corner-radius-small);
+  background: var(--hf-bg-base);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-sm);
   overflow: hidden;
   max-height: 300px;
   overflow-y: auto;
@@ -349,57 +192,24 @@ body {
 .code-content pre {
   margin: 0;
   padding: 0.5rem;
-  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
-  font-size: 0.6875rem;
+  font-family: var(--hf-font-family-mono);
+  font-size: var(--hf-size-sm);
   line-height: 1.4;
-  color: var(--color5);
+  color: var(--hf-text-dim);
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-/* Tabs styling - matches shaders demo */
-#tabs {
-  display: flex;
-  gap: 0.25rem;
-  margin-bottom: 0.5rem;
-}
-
-#tabs button {
-  padding: 0.25rem 0.5rem;
-  background: transparent;
-  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  border-radius: var(--ui-corner-radius-small);
-  color: color-mix(in srgb, var(--color5) 70%, transparent 30%);
-  font-family: Nunito, sans-serif;
-  font-size: 0.625rem;
-  font-weight: 600;
-  text-transform: lowercase;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-#tabs button:hover {
-  background: color-mix(in srgb, var(--accent3) 15%, transparent 85%);
-  border-color: color-mix(in srgb, var(--accent3) 40%, transparent 60%);
-  color: var(--color6);
-}
-
-#tabs button.active {
-  background: color-mix(in srgb, var(--accent3) 30%, transparent 70%);
-  border-color: var(--accent3);
-  color: var(--color6);
-}
-
 /* Status styling */
 #status {
-  font-size: 0.625rem;
-  font-family: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
-  color: var(--color5);
+  font-size: var(--hf-size-xs);
+  font-family: var(--hf-font-family-mono);
+  color: var(--hf-text-dim);
   line-height: 1.4;
   padding: 0.25rem 0;
 }
 
-/* Error banner styling - matches shaders demo */
+/* Error banner */
 #errorBanner {
   position: absolute;
   left: 50%;
@@ -407,11 +217,11 @@ body {
   transform: translateX(-50%);
   width: min(90%, 420px);
   padding: 0.75rem 1rem;
-  background: color-mix(in srgb, var(--red, #ff5b6b) 12%, var(--color1) 88%);
-  border: 1px solid color-mix(in srgb, var(--red, #ff5b6b) 40%, transparent 60%);
-  border-radius: var(--ui-corner-radius-small);
-  color: color-mix(in srgb, var(--red, #ff5b6b) 35%, var(--color6) 65%);
-  font-size: 0.75rem;
+  background: color-mix(in srgb, var(--hf-red) 12%, var(--hf-bg-base) 88%);
+  border: 1px solid color-mix(in srgb, var(--hf-red) 40%, transparent 60%);
+  border-radius: var(--hf-radius-sm);
+  color: color-mix(in srgb, var(--hf-red) 35%, var(--hf-text-normal) 65%);
+  font-size: var(--hf-size-sm);
   white-space: pre-wrap;
   z-index: 1001;
 }
@@ -420,21 +230,21 @@ body {
   display: none;
 }
 
-/* Loading overlay styling - matches shaders demo */
+/* Loading overlay */
 #loadingOverlay {
   position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: color-mix(in srgb, var(--color1) 90%, transparent 10%);
-  backdrop-filter: blur(8px);
+  background: color-mix(in srgb, var(--hf-bg-base) 90%, transparent 10%);
+  backdrop-filter: var(--hf-glass-blur-sm);
   padding: 1rem 1.5rem;
-  border-radius: var(--ui-corner-radius);
-  border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  font-size: 0.875rem;
-  color: var(--accent3);
-  font-weight: 600;
+  border-radius: var(--hf-radius);
+  border: 1px solid var(--hf-border);
+  box-shadow: var(--hf-shadow-lg);
+  font-size: var(--hf-size-base);
+  color: var(--hf-accent);
+  font-weight: var(--hf-weight-semibold);
   pointer-events: none;
   z-index: 1000;
 }
@@ -450,18 +260,36 @@ body {
   display: flex;
   align-items: center;
   gap: 0.375rem;
-  font-size: 0.6875rem;
-  color: var(--color6);
+  font-size: var(--hf-size-sm);
+  color: var(--hf-text-normal);
 }
 
 .inline-field span {
-  color: color-mix(in srgb, var(--color5) 80%, var(--accent3) 20%);
-  font-size: 0.625rem;
+  color: var(--hf-text-dim);
+  font-size: var(--hf-size-xs);
   text-transform: lowercase;
 }
 
 .inline-field input {
   width: 4.5rem;
+}
+
+/* Ecosystem info text */
+.noisemaker-info {
+  font-size: var(--hf-size-xs);
+  color: color-mix(in srgb, var(--hf-text-dim) 60%, transparent 40%);
+  line-height: 1.4;
+  padding: 0.5rem 0.5rem 0.75rem;
+  text-align: center;
+}
+
+.noisemaker-info a {
+  color: var(--hf-accent);
+  text-decoration: none;
+}
+
+.noisemaker-info a:hover {
+  opacity: 0.8;
 }
 
 /* Loading state */
@@ -470,8 +298,8 @@ body {
   align-items: center;
   justify-content: center;
   height: 100vh;
-  font-size: 0.75rem;
-  color: var(--color5);
+  font-size: var(--hf-size-sm);
+  color: var(--hf-text-dim);
 }
 
 /* Responsive adjustments */
@@ -482,7 +310,7 @@ body {
     height: auto;
     overflow: visible;
   }
-  
+
   #canvas-container {
     position: relative;
     left: 0;
@@ -491,19 +319,19 @@ body {
     min-height: 50vh;
     padding: 1rem;
   }
-  
+
   #canvas-container canvas {
     width: 100%;
     height: auto;
     max-width: 100%;
     max-height: 60vh;
   }
-  
+
   body {
     overflow: auto;
     height: auto;
   }
-  
+
   #app-container {
     height: auto;
     display: flex;

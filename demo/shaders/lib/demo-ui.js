@@ -32,6 +32,7 @@ import {
 } from '../../../shaders/src/renderer/canvas.js'
 import { groupGlobalsByCategory } from '../../../shaders/src/runtime/effect.js'
 import { defaultControlFactory } from './control-factory.js'
+import { showSuccess, showError, showWarning, showInfo } from 'handfish'
 import { ProgramState } from './program-state.js'
 import { extractEffectsFromDsl } from './dsl-utils.js'
 
@@ -495,7 +496,7 @@ export class UIController {
         const cameraHandle = this._controlFactory.createSelect({
             choices: [{ value: '', label: 'select camera...' }],
             value: '',
-            className: 'control-select'
+            className: 'hf-input'
         })
         const cameraSelect = cameraHandle.element
         cameraSelect.dataset.stepIndex = stepIndex
@@ -505,12 +506,12 @@ export class UIController {
         cameraButtons.className = 'media-camera-buttons'
 
         const startBtn = document.createElement('button')
-        startBtn.className = 'action-btn'
+        startBtn.className = 'hf-action-btn'
         startBtn.textContent = 'start'
         startBtn.addEventListener('click', () => this._startCamera(stepIndex, cameraHandle.getValue()))
 
         const stopBtn = document.createElement('button')
-        stopBtn.className = 'action-btn'
+        stopBtn.className = 'hf-action-btn'
         stopBtn.textContent = 'stop'
         stopBtn.disabled = true
         stopBtn.addEventListener('click', () => this._stopCamera(stepIndex))
@@ -617,7 +618,7 @@ export class UIController {
             shapeGroup.appendChild(shapeLabel)
 
             const select = document.createElement('select')
-            select.className = 'mesh-shape-select control-select'
+            select.className = 'mesh-shape-select'
 
             const noneOption = document.createElement('option')
             noneOption.value = ''
@@ -1236,14 +1237,13 @@ export class UIController {
      * @param {string} [type='info'] - Message type (info, success, error)
      */
     showStatus(message, type = 'info') {
-        if (!this._statusEl) return
-
-        this._statusEl.textContent = message
-        this._statusEl.className = `status ${type}`
-        this._statusEl.style.display = 'block'
-        setTimeout(() => {
-            this._statusEl.style.display = 'none'
-        }, 3000)
+        if (type === 'success') {
+            showSuccess(message)
+        } else if (type === 'error') {
+            showError(message)
+        } else {
+            showInfo(message)
+        }
     }
 
     /**
@@ -1910,7 +1910,7 @@ render(o1)`
             }
 
             const effectDiv = document.createElement('div')
-            effectDiv.className = 'shader-effect'
+            effectDiv.className = 'shader-effect hf-panel'
             effectDiv.dataset.stepIndex = effectInfo.stepIndex
             effectDiv.dataset.effectName = effectInfo.name
 
@@ -1955,7 +1955,7 @@ render(o1)`
             let codeBtn = null
             if (effectDef.shaders) {
                 codeBtn = document.createElement('button')
-                codeBtn.className = 'action-btn tooltip'
+                codeBtn.className = 'hf-action-btn tooltip'
                 codeBtn.textContent = 'code'
                 codeBtn.dataset.title = 'Edit shader source code'
                 codeBtn.setAttribute('aria-label', 'Edit shader source code')
@@ -1964,7 +1964,7 @@ render(o1)`
 
             // Reset button
             const resetBtn = document.createElement('button')
-            resetBtn.className = 'action-btn tooltip'
+            resetBtn.className = 'hf-action-btn tooltip'
             resetBtn.textContent = 'reset'
             resetBtn.dataset.title = 'Reset all parameters to defaults'
             resetBtn.setAttribute('aria-label', 'Reset all parameters to defaults')
@@ -2046,7 +2046,7 @@ render(o1)`
 
             // Delete button
             const deleteBtn = document.createElement('button')
-            deleteBtn.className = 'action-btn tooltip'
+            deleteBtn.className = 'hf-action-btn tooltip'
             deleteBtn.textContent = 'delete'
             deleteBtn.dataset.title = 'Remove this effect from the pipeline'
             deleteBtn.setAttribute('aria-label', 'Remove this effect from the pipeline')
@@ -2058,7 +2058,7 @@ render(o1)`
 
             // Skip button
             const skipBtn = document.createElement('button')
-            skipBtn.className = 'action-btn tooltip'
+            skipBtn.className = 'hf-action-btn tooltip'
             skipBtn.textContent = 'skip'
             skipBtn.dataset.title = 'Skip this effect in the pipeline'
             skipBtn.setAttribute('aria-label', 'Skip this effect in the pipeline')
@@ -2153,7 +2153,7 @@ render(o1)`
 
                     // Create tag for this category
                     const tag = document.createElement('span')
-                    tag.className = 'category-tag'
+                    tag.className = 'hf-tag'
                     tag.textContent = category + '…'
                     tag.dataset.category = category
                     // Open category tags start hidden
@@ -2166,7 +2166,7 @@ render(o1)`
                         // Hide the tag
                         tag.style.display = 'none'
                         // Hide tag bar if all tags are hidden
-                        const visibleTags = tagBar.querySelectorAll('.category-tag:not([style*="display: none"])')
+                        const visibleTags = tagBar.querySelectorAll('.hf-tag:not([style*="display: none"])')
                         if (visibleTags.length === 0) {
                             tagBar.style.display = 'none'
                         }
@@ -2424,7 +2424,7 @@ render(o1)`
      */
     _createWriteEffect(planIndex, stepIndex, writeTarget, isMidChain = false) {
         const effectDiv = document.createElement('div')
-        effectDiv.className = 'shader-effect'
+        effectDiv.className = 'shader-effect hf-panel'
         effectDiv.dataset.planIndex = planIndex
         effectDiv.dataset.stepIndex = stepIndex
         effectDiv.dataset.effectName = 'write'
@@ -2476,7 +2476,7 @@ render(o1)`
         const handle = this._controlFactory.createSelect({
             choices: surfaces,
             value: currentTarget,
-            className: 'control-select'
+            className: 'hf-input'
         })
         const select = handle.element
 
@@ -2508,7 +2508,7 @@ render(o1)`
      */
     _createRenderEffect(renderTarget) {
         const effectDiv = document.createElement('div')
-        effectDiv.className = 'shader-effect'
+        effectDiv.className = 'shader-effect hf-panel'
         effectDiv.dataset.effectName = 'render'
 
         const titleDiv = document.createElement('div')
@@ -2552,7 +2552,7 @@ render(o1)`
         const handle = this._controlFactory.createSelect({
             choices: surfaces,
             value: currentTarget,
-            className: 'control-select'
+            className: 'hf-input'
         })
         const select = handle.element
 
@@ -2580,7 +2580,7 @@ render(o1)`
      */
     _createReadEffect(stepIndex, readSource) {
         const effectDiv = document.createElement('div')
-        effectDiv.className = 'shader-effect'
+        effectDiv.className = 'shader-effect hf-panel'
         effectDiv.dataset.stepIndex = stepIndex
         effectDiv.dataset.effectName = 'read'
 
@@ -2600,7 +2600,7 @@ render(o1)`
 
         // Delete button
         const deleteBtn = document.createElement('button')
-        deleteBtn.className = 'action-btn tooltip'
+        deleteBtn.className = 'hf-action-btn tooltip'
         deleteBtn.textContent = 'delete'
         deleteBtn.dataset.title = 'Remove this read from the pipeline'
         deleteBtn.setAttribute('aria-label', 'Remove this read from the pipeline')
@@ -2612,7 +2612,7 @@ render(o1)`
 
         // Skip button
         const skipBtn = document.createElement('button')
-        skipBtn.className = 'action-btn tooltip'
+        skipBtn.className = 'hf-action-btn tooltip'
         skipBtn.textContent = 'skip'
         skipBtn.dataset.title = 'Skip this read in the pipeline'
         skipBtn.setAttribute('aria-label', 'Skip this read in the pipeline')
@@ -2678,7 +2678,7 @@ render(o1)`
         const handle = this._controlFactory.createSelect({
             choices: surfaces,
             value: currentSource,
-            className: 'control-select'
+            className: 'hf-input'
         })
         const select = handle.element
 
@@ -2706,7 +2706,7 @@ render(o1)`
      */
     _createRead3dEffect(stepIndex, read3dSource) {
         const effectDiv = document.createElement('div')
-        effectDiv.className = 'shader-effect'
+        effectDiv.className = 'shader-effect hf-panel'
         effectDiv.dataset.stepIndex = stepIndex
         effectDiv.dataset.effectName = 'read3d'
 
@@ -2726,7 +2726,7 @@ render(o1)`
 
         // Delete button
         const deleteBtn = document.createElement('button')
-        deleteBtn.className = 'action-btn tooltip'
+        deleteBtn.className = 'hf-action-btn tooltip'
         deleteBtn.textContent = 'delete'
         deleteBtn.dataset.title = 'Remove this read3d from the pipeline'
         deleteBtn.setAttribute('aria-label', 'Remove this read3d from the pipeline')
@@ -2738,7 +2738,7 @@ render(o1)`
 
         // Skip button
         const skipBtn = document.createElement('button')
-        skipBtn.className = 'action-btn tooltip'
+        skipBtn.className = 'hf-action-btn tooltip'
         skipBtn.textContent = 'skip'
         skipBtn.dataset.title = 'Skip this read3d in the pipeline'
         skipBtn.setAttribute('aria-label', 'Skip this read3d in the pipeline')
@@ -2802,7 +2802,7 @@ render(o1)`
         const volHandle = this._controlFactory.createSelect({
             choices: volumes,
             value: currentVol,
-            className: 'control-select'
+            className: 'hf-input'
         })
         const volSelect = volHandle.element
 
@@ -2845,7 +2845,7 @@ render(o1)`
         const geoHandle = this._controlFactory.createSelect({
             choices: geometries,
             value: currentGeo,
-            className: 'control-select'
+            className: 'hf-input'
         })
         const geoSelect = geoHandle.element
 
@@ -2876,7 +2876,7 @@ render(o1)`
      */
     _createWrite3dEffect(planIndex, stepIndex, write3dArgs, isMidChain = false) {
         const effectDiv = document.createElement('div')
-        effectDiv.className = 'shader-effect'
+        effectDiv.className = 'shader-effect hf-panel'
         effectDiv.dataset.planIndex = planIndex
         effectDiv.dataset.stepIndex = stepIndex
         effectDiv.dataset.effectName = 'write3d'
@@ -2928,7 +2928,7 @@ render(o1)`
         const volHandle = this._controlFactory.createSelect({
             choices: volumes,
             value: currentVol,
-            className: 'control-select'
+            className: 'hf-input'
         })
         const volSelect = volHandle.element
 
@@ -2971,7 +2971,7 @@ render(o1)`
         const geoHandle = this._controlFactory.createSelect({
             choices: geometries,
             value: currentGeo,
-            className: 'control-select'
+            className: 'hf-input'
         })
         const geoSelect = geoHandle.element
 
@@ -3057,7 +3057,7 @@ render(o1)`
             programHandle = this._controlFactory.createSelect({
                 choices,
                 value: programNames[0],
-                className: 'control-select'
+                className: 'hf-input'
             })
             const programSelect = programHandle.element
             programSelect.style.cssText = 'margin-bottom: 0.5rem;'
@@ -3422,7 +3422,7 @@ render(o1)`
     _createButtonControl(container, key, spec) {
         const handle = this._controlFactory.createButton({
             label: spec.ui?.buttonLabel || 'reset',
-            className: 'control-button tooltip',
+            className: 'hf-action-btn tooltip',
             title: spec.ui?.label || key
         })
 
@@ -3501,7 +3501,7 @@ render(o1)`
         const handle = this._controlFactory.createSelect({
             choices,
             value,
-            className: 'control-select'
+            className: 'hf-input'
         })
 
         const select = handle.element
@@ -3542,7 +3542,7 @@ render(o1)`
             const handle = this._controlFactory.createSelect({
                 choices,
                 value,
-                className: 'control-select'
+                className: 'hf-input'
             })
 
             const select = handle.element
@@ -3627,7 +3627,7 @@ render(o1)`
                 const handle = this._controlFactory.createSelect({
                     choices,
                     value: initialValue,
-                    className: 'control-select'
+                    className: 'hf-input'
                 })
 
                 const select = handle.element
@@ -3674,15 +3674,20 @@ render(o1)`
         const slider = handle.element
         container.appendChild(slider)
 
-        const valueDisplayHandle = this._controlFactory.createValueDisplay({
-            value: value !== null ? formatVal(value) : '',
-            className: 'control-value'
-        })
-        container.appendChild(valueDisplayHandle.element)
+        // slider-value web component has a built-in value display — skip the duplicate
+        const hasBuiltInDisplay = slider.tagName === 'SLIDER-VALUE'
+        let valueDisplayHandle = null
+        if (!hasBuiltInDisplay) {
+            valueDisplayHandle = this._controlFactory.createValueDisplay({
+                value: value !== null ? formatVal(value) : '',
+                className: 'control-value'
+            })
+            container.appendChild(valueDisplayHandle.element)
+        }
 
         slider.addEventListener('input', () => {
             const numVal = isInt ? parseInt(handle.getValue()) : parseFloat(handle.getValue())
-            valueDisplayHandle.setValue(formatVal(numVal))
+            if (valueDisplayHandle) valueDisplayHandle.setValue(formatVal(numVal))
             this._programState.setValue(effectKey, key, numVal)
             this._syncTextInputsFromParams()
         })
@@ -3691,13 +3696,12 @@ render(o1)`
             this._onControlChange()
         })
 
-        // Wrap handle to include value display update
         container._controlHandle = {
             element: slider,
             getValue: () => isInt ? parseInt(handle.getValue()) : parseFloat(handle.getValue()),
             setValue: (v) => {
                 handle.setValue(v)
-                valueDisplayHandle.setValue(formatVal(v))
+                if (valueDisplayHandle) valueDisplayHandle.setValue(formatVal(v))
             }
         }
         container._valueDisplayHandle = valueDisplayHandle
@@ -3793,7 +3797,7 @@ render(o1)`
         const handle = this._controlFactory.createSelect({
             choices: surfaces,
             value: currentSurface,
-            className: 'control-select'
+            className: 'hf-input'
         })
 
         const select = handle.element
@@ -3857,7 +3861,7 @@ render(o1)`
         const handle = this._controlFactory.createSelect({
             choices: volumes,
             value: currentVolume,
-            className: 'control-select'
+            className: 'hf-input'
         })
 
         const select = handle.element
@@ -3910,7 +3914,7 @@ render(o1)`
         const handle = this._controlFactory.createSelect({
             choices: geometries,
             value: currentGeometry,
-            className: 'control-select'
+            className: 'hf-input'
         })
 
         const select = handle.element
@@ -3964,7 +3968,7 @@ render(o1)`
         const handle = this._controlFactory.createSelect({
             choices,
             value: value || spec.default || options[0],
-            className: 'control-select'
+            className: 'hf-input'
         })
 
         const select = handle.element

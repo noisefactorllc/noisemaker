@@ -1,36 +1,35 @@
 /**
  * Noisemaker Demo - Color Palette
- * 
- * This file contains only color-related CSS variables.
- * Import this file to get the default color scheme, or replace it with your own palette.
- * 
- * Downstream consumers (like Noisedeck) should import common-layout.css 
+ *
+ * Aliases noisemaker color variables to handfish design tokens.
+ * Pages that define their own :root colors (like index.html) override these.
+ *
+ * Downstream consumers (like Noisedeck) should import common-layout.css
  * and provide their own color definitions.
  */
 
-@font-face {
-  font-family: "Nunito";
-  src: url("./font/Nunito/Nunito-VariableFont_wght.ttf") format("truetype");
-  font-weight: 100 900;
-  font-style: normal;
-}
 
 :root {
-  /* Base color palette */
-  --color1: #07090d;
-  --color2: #101522;
-  --color3: #1b2538;
-  --color4: #26314f;
-  --color5: #98a7c8;
-  --color6: #d9deeb;
-  --color7: #f6f8ff;
-  
-  /* Accent colors */
-  --accent1: #141a2d;
-  --accent2: #1f2842;
-  --accent3: #a5b8ff;
-  --accent4: #dce6ff;
-  
-  /* Semantic colors */
-  --red: #ff5b6b;
+  /* Font stacks with blank-variant fallbacks for zero layout shift */
+  --hf-font-family: Nunito, 'Nunito Blank', system-ui, sans-serif;
+  --hf-font-family-mono: 'Noto Sans Mono', 'Noto Sans Mono Blank', ui-monospace, monospace;
+
+  /* Base color palette → handfish tokens */
+  --color1: var(--hf-color-1, #07090d);
+  --color2: var(--hf-color-2, #101522);
+  --color3: var(--hf-color-3, #1b2538);
+  --color4: var(--hf-color-4, #26314f);
+  --color5: var(--hf-color-5, #98a7c8);
+  --color6: var(--hf-color-6, #d9deeb);
+  --color7: var(--hf-color-7, #f6f8ff);
+
+  /* Accent colors → handfish tokens */
+  --accent1: var(--hf-accent-1, #141a2d);
+  --accent2: var(--hf-accent-2, #1f2842);
+  --accent3: var(--hf-accent-3, #a5b8ff);
+  --accent4: var(--hf-accent-4, #dce6ff);
+
+  /* Semantic colors → handfish tokens */
+  --red: var(--hf-red, #ff5b6b);
+  --green: var(--hf-green, #4d4);
 }

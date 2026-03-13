@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="gray-dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -31,66 +31,55 @@
   }
   </script>
   <link rel="icon" href="/img/favicon.png" />
+  <link rel="preload" href="https://fonts.noisefactor.io/fonts/nunito/Nunito-Blank.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono-Blank.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    @font-face { font-family: 'Nunito Blank'; src: url('https://fonts.noisefactor.io/fonts/nunito/Nunito-Blank.woff2') format('woff2'); }
+    @font-face { font-family: 'Noto Sans Mono Blank'; src: url('https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono-Blank.woff2') format('woff2'); }
+  </style>
+  <link rel="stylesheet" href="https://handfish.noisefactor.io/0.9.0/styles/index.css" />
+  <link rel="stylesheet" href="https://handfish.noisefactor.io/0.9.0/styles/themes/gray.css" />
   <link rel="stylesheet" href="../common.css" />
-  <link rel="stylesheet" href="colors.css" />
   <link rel="stylesheet" href="layout.css" />
 </head>
 <body>
   <div id="app-container">
-    <div id="left-panel">
-      <div class="shader-effect" id="program-effect">
+    <div id="left-panel" class="hf-scrollbar">
+      <div class="shader-effect hf-panel" id="program-effect">
         <div class="effect-title">
           <span class="effect-title-text">Noisemaker JS Demo (CPU)</span>
         </div>
-        <div class="effect-content" style="display: flex; flex-direction: column; gap: 0.75rem;">
-          <div class="control-group control-group--full-width">
-            <select id="preset" class="control-select"></select>
-          </div>
-          <div class="button-row">
-            <button id="randomPreset" class="control-button">Random Preset</button>
-            <button id="reroll" class="control-button">Re-roll</button>
-          </div>
+        <div class="effect-content" style="display: flex; flex-direction: row; gap: 0.5rem; align-items: center;">
+          <select-dropdown id="preset" style="flex: 1;"></select-dropdown>
+          <button id="randomPreset" class="hf-btn">Randomize All</button>
+          <button id="reroll" class="hf-btn">Randomize Params</button>
         </div>
       </div>
 
-      <div class="shader-effect" id="code-effect">
+      <div class="shader-effect hf-panel collapsed" id="code-effect">
         <div class="effect-title">
           <span class="effect-title-text">Preset Details</span>
         </div>
-        <div class="effect-content">
-          <div id="tabs">
-            <button id="tabFormula" class="active">Formula</button>
-            <button id="tabEvaluated">Evaluated</button>
+        <div class="effect-content" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div id="tabs" class="hf-tabs">
+            <button id="tabFormula" class="hf-tab active">Formula</button>
+            <button id="tabEvaluated" class="hf-tab">Evaluated</button>
           </div>
           <div class="code-content">
             <pre id="presetFormula"></pre>
             <pre id="presetEvaluated"></pre>
           </div>
-        </div>
-      </div>
-
-      <div class="shader-effect collapsed" id="development-effect">
-        <div class="effect-title">
-          <span class="effect-title-text">Development</span>
-        </div>
-        <div class="effect-content" style="display: flex; flex-direction: column; gap: 0.75rem;">
-          <div style="display: flex; flex-direction: row; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+          <div style="display: flex; flex-direction: row; gap: 1rem; align-items: center;">
+            <div id="status" class="hf-text-dim hf-text-xs hf-mono" style="border: none; background: none; box-shadow: none; padding: 0; min-height: 0;"></div>
+            <span style="flex: 1;"></span>
             <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6);">
               <span>seed</span>
-              <input id="seedInput" type="number" step="1" value="42" class="control-number" style="width: 5rem;" />
-            </label>
-            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6);">
-              <span>width</span>
-              <input id="canvasWidthInput" type="number" min="1" step="1" value="1024" class="control-number" style="width: 4.5rem;" />
-            </label>
-            <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6);">
-              <span>height</span>
-              <input id="canvasHeightInput" type="number" min="1" step="1" value="1024" class="control-number" style="width: 4.5rem;" />
+              <input id="seedInput" type="number" step="1" value="42" class="hf-number" style="width: 5rem;" />
             </label>
           </div>
-          <div id="status"></div>
         </div>
       </div>
+      <div class="noisemaker-info">CPU demo by <a href="https://noisefactor.io/" target="_blank" rel="noopener">Noise Factor</a>. Try the <a href="../shaders/">GPU shaders demo</a>.</div>
     </div>
 
     <div id="canvas-container">
@@ -102,6 +91,7 @@
     </div>
   </div>
     <script type="module">
+  await import('https://handfish.noisefactor.io/0.9.0/handfish.esm.js');
   import { Context } from '../../js/noisemaker/context.js';
   import { render, Preset } from '../../js/noisemaker/composer.js';
     import { ColorSpace } from '../../js/noisemaker/constants.js';
@@ -361,12 +351,7 @@
       presetSource[name] = extractPresetSource(dslSource, name);
     }
 
-    presetNames.sort().forEach((name) => {
-      const option = document.createElement('option');
-      option.value = name;
-      option.textContent = name;
-      presetSelect.appendChild(option);
-    });
+    presetSelect.setOptions(presetNames.sort().map((name) => ({ value: name, text: name })));
 
     function toSnake(str) {
       return str
@@ -894,8 +879,8 @@
       renderWithCatch(seed, currentPreset, options);
     });
 
-    presetSelect.addEventListener('change', (e) => {
-      currentPreset = e.target.value;
+    presetSelect.addEventListener('change', () => {
+      currentPreset = presetSelect.value;
       updateURL(currentPreset);
       const seed = Math.floor(random() * 1e9);
       const options = getManualAnimationOptions();
