@@ -6,7 +6,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 export default new Effect({
   name: "Rotate",
   namespace: "filter",
-  func: "rot",
+  func: "rotate",
   tags: ["transform"],
 
   description: "Rotate image by specified angle",

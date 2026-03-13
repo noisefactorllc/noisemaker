@@ -1,4 +1,4 @@
-# rot
+# rotate
 
 Rotate image by specified angle
 
