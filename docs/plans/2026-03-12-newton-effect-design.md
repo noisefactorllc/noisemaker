@@ -46,12 +46,18 @@ Each iteration checks distance to all roots. When |z - root_k| < tolerance, reco
 Continuous interpolation to eliminate banding:
 
 ```
-smooth_iter = iter + log(tolerance / |z - root|) / log(convergence_rate)
+smooth_iter = iter - log2(log(|z - root|) / log(tolerance))
 ```
+
+This maps the final convergence distance into a continuous fractional iteration, analogous to the smooth escape-time formula for Mandelbrot but adapted for convergence.
+
+### Fractional Degree Root Tracking
+
+For fractional n, only `floor(n)` roots are tracked (evenly spaced at angles 2*pi*k/n on the unit circle). Pixels that converge to attractors not in this table are treated as non-converged and output 0.0. This is a pragmatic approximation -- fractional-degree Newton fractals have different topology than integer-degree ones, but the floor(n) root set produces visually coherent basin structure that morphs continuously with n.
 
 ### Divergence Guard
 
-If |z| > 1e10 or |f'(z)| approaches zero (degenerate critical point), bail out and output 0.0.
+If |z| > bailout or |f'(z)| approaches zero (degenerate critical point), bail out and output 0.0. Bailout threshold scales with relaxation: `bailout = 1e10 * relaxation` to accommodate over-relaxation orbits that temporarily exceed large magnitudes before converging.
 
 ## df64 Coordinate System
 
@@ -156,7 +162,7 @@ Pre-baked POI table as shader constants. Each stores df64 center coordinates, de
 
 When POI is selected: centerX/centerY controls hidden, degree locked to POI value, auto-zoom drives toward pre-baked coordinates via time * zoomSpeed.
 
-POI coordinates determined empirically during implementation. Expandable by adding constants and dropdown choices.
+triplePoint3 is at the origin (0.0, 0.0) -- the primary triple-point where all three basins of z³-1 meet. Remaining POI coordinates determined empirically during implementation by rendering at each degree and identifying visually striking boundary locations. Expandable by adding constants and dropdown choices.
 
 ## Parameters
 
@@ -166,7 +172,7 @@ POI coordinates determined empirically during implementation. Expandable by addi
 |-----------|------|-------|---------|-------------|
 | degree | float | 3.0-8.0 | 3.0 | Polynomial degree for z^n - 1 |
 | relaxation | float | 0.5-2.0 | 1.0 | Newton damping factor (1.0 = standard) |
-| iterations | int | 10-500 | 100 | Max iteration budget |
+| iterations | int | 10-500 | 100 | Max iteration budget (packed as float in uniform vec4, cast to int in shader) |
 | tolerance | float | 0.0001-0.01 | 0.001 | Convergence threshold |
 
 ### Category: Zoom
@@ -176,8 +182,8 @@ POI coordinates determined empirically during implementation. Expandable by addi
 | poi | int/dropdown | 0-6 | 0 | Point of interest selector |
 | zoomSpeed | float | 0.0-2.0 | 0.5 | Exponential zoom rate |
 | zoomDepth | float | 1.0-15.0 | 10.0 | Max zoom exponent (10^n) |
-| centerX | float | -2.0-2.0 | 0.0 | Manual center X (hidden when POI active) |
-| centerY | float | -2.0-2.0 | 0.0 | Manual center Y (hidden when POI active) |
+| centerX | float | -2.0-2.0 | 0.0 | Manual center X (hidden when POI active). Maps to centerHi=centerX, centerLo=0.0 |
+| centerY | float | -2.0-2.0 | 0.0 | Manual center Y (hidden when POI active). Maps to centerHi=centerY, centerLo=0.0 |
 
 ### Category: Animation
 
@@ -211,7 +217,7 @@ POI coordinates determined empirically during implementation. Expandable by addi
 
 ```javascript
 passes: [
-  { name: "render", program: "newton" }
+  { name: "render", program: "newton", outputs: { fragColor: "outputTex" } }
 ]
 ```
 
@@ -220,7 +226,7 @@ Single-pass fragment shader. No internal textures, no compute passes, no feedbac
 ## Architecture Notes
 
 - Tags: `["geometric"]`
-- No alpha channel modification (project rule)
+- Alpha set to 1.0 (synth effect, no input texture)
 - No per-frame allocations in render path
 - Both GLSL and WGSL shader sources required
 - WGSL struct members end with `,` not `;`

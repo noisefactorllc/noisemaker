@@ -1564,7 +1564,7 @@ render(o1)`
             const viewModeDefault = viewModeSpec?.default
             const pointsRenderArgs = viewModeDefault ? `viewMode: ${viewModeDefault}` : ''
             const pointsRenderCall = pointsRenderArgs ? `pointsRender(${pointsRenderArgs})` : 'pointsRender()'
-            return `search points, synth, render\n\nnoise()\n  .pointsEmit()\n  .${effectCall}\n  .${pointsRenderCall}\n  .write(o0)\n\nrender(o0)`
+            return `search points, synth, render\n\nsolid()\n  .pointsEmit()\n  .${effectCall}\n  .${pointsRenderCall}\n  .write(o0)\n\nrender(o0)`
         }
 
         // Special case: loopBegin/loopEnd need paired usage with filter in between
