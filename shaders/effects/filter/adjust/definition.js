@@ -8,9 +8,9 @@ export default new Effect({
   name: "Adjust",
   namespace: "filter",
   func: "adjust",
-  tags: ["color", "util"],
+  tags: ["color"],
 
-  description: "Colorspace, hue/saturation (HSV), brightness/contrast",
+  description: "Colorspace, hue/saturation, brightness/contrast",
   defaultProgram: "search filter, synth\n\nperlin(scale: 75, octaves: 2)\n.adjust(mode: hsv, rotation: 120, hueRange: 40)\n.write(o0)",
   openCategories: ["colorspace", "hue / saturation", "brightness / contrast"],
   globals: {
@@ -72,6 +72,7 @@ export default new Effect({
       uniform: "brightness",
       min: 0,
       max: 10,
+      randChance: 0,
       ui: {
         label: "brightness",
         control: "slider",
@@ -84,6 +85,7 @@ export default new Effect({
       uniform: "contrast",
       min: 0,
       max: 1,
+      randChance: 0,
       ui: {
         label: "contrast",
         control: "slider",
