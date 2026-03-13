@@ -36,7 +36,8 @@ import { createReadStream, existsSync } from "fs";
 import { extname, join, resolve as pathResolve, normalize, basename } from "path";
 var httpServer = null;
 var refCount = 0;
-var activePort = 4173;
+var activePort = 0;
+var requestedPort = 0;
 var MIME_TYPES = {
   ".html": "text/html",
   ".js": "application/javascript",
@@ -79,13 +80,13 @@ function serveFile(filePath, res) {
 }
 async function acquireServer(port, viewerRoot, effectsDir) {
   if (refCount > 0) {
-    if (port !== activePort) {
-      throw new Error(`Server already running on port ${activePort}, cannot switch to ${port}`);
+    if (port !== requestedPort) {
+      throw new Error(`Server already running on port ${activePort} (requested ${requestedPort}), cannot switch to ${port}`);
     }
     refCount++;
     return getServerUrl();
   }
-  activePort = port;
+  requestedPort = port;
   const isFlatLayout = existsSync(join(effectsDir, "definition.json")) || existsSync(join(effectsDir, "definition.js"));
   const flatEffectName = isFlatLayout ? basename(effectsDir) : null;
   httpServer = createServer((req, res) => {
@@ -126,7 +127,11 @@ async function acquireServer(port, viewerRoot, effectsDir) {
     serveFile(filePath, res);
   });
   await new Promise((resolve3, reject) => {
-    httpServer.listen(port, "127.0.0.1", () => resolve3());
+    httpServer.listen(port, "127.0.0.1", () => {
+      const addr = httpServer.address();
+      activePort = typeof addr === "object" && addr ? addr.port : port;
+      resolve3();
+    });
     httpServer.on("error", reject);
   });
   refCount = 1;
@@ -138,6 +143,8 @@ function releaseServer() {
   if (refCount === 0 && httpServer) {
     httpServer.close();
     httpServer = null;
+    activePort = 0;
+    requestedPort = 0;
   }
 }
 function getServerUrl() {
@@ -145,6 +152,45 @@ function getServerUrl() {
 }
 function getRefCount() {
   return refCount;
+}
+
+// src/harness/browser-queue.ts
+var maxConcurrency = 1;
+var waiting = [];
+var active = 0;
+function setMaxBrowsers(n) {
+  maxConcurrency = Math.max(1, n);
+}
+function getMaxBrowsers() {
+  return maxConcurrency;
+}
+function getActiveBrowsers() {
+  return active;
+}
+function getQueueDepth() {
+  return waiting.length;
+}
+async function acquireBrowserSlot() {
+  if (active < maxConcurrency) {
+    active++;
+    return;
+  }
+  await new Promise((resolve3) => {
+    waiting.push(resolve3);
+  });
+}
+function releaseBrowserSlot() {
+  if (waiting.length > 0) {
+    const next = waiting.shift();
+    next();
+  } else {
+    active = Math.max(0, active - 1);
+  }
+}
+function resetBrowserQueue() {
+  active = 0;
+  waiting.length = 0;
+  maxConcurrency = 1;
 }
 
 // src/config.ts
@@ -160,16 +206,17 @@ function getConfig() {
   const projectRoot = process.env.SHADE_PROJECT_ROOT || process.cwd();
   return {
     effectsDir: process.env.SHADE_EFFECTS_DIR || resolve(projectRoot, "effects"),
-    viewerPort: parseInt(process.env.SHADE_VIEWER_PORT || "4173", 10),
+    viewerPort: parseInt(process.env.SHADE_VIEWER_PORT || "0", 10),
     defaultBackend: parseBackend(process.env.SHADE_BACKEND),
     projectRoot,
     globalsPrefix: process.env.SHADE_GLOBALS_PREFIX || void 0,
-    viewerPath: process.env.SHADE_VIEWER_PATH || void 0
+    viewerPath: process.env.SHADE_VIEWER_PATH || void 0,
+    maxBrowsers: parseInt(process.env.SHADE_MAX_BROWSERS || "1", 10)
   };
 }
 
 // src/harness/browser-session.ts
-var STATUS_TIMEOUT = 3e4;
+var STATUS_TIMEOUT = 3e5;
 function getBrowserLaunchOptions(headless, backend) {
   const args = ["--disable-gpu-sandbox"];
   if (backend === "webgpu") {
@@ -210,36 +257,51 @@ var BrowserSession = class {
   }
   async setup() {
     if (this._isSetup) throw new Error("Session already set up. Call teardown() first.");
-    this.baseUrl = await acquireServer(this.options.viewerPort, this.options.viewerRoot, this.options.effectsDir);
-    this.browser = await chromium.launch(
-      getBrowserLaunchOptions(this.options.headless, this.options.backend)
-    );
-    const viewportSize = process.env.CI ? { width: 256, height: 256 } : { width: 1280, height: 720 };
-    this.context = await this.browser.newContext({
-      viewport: viewportSize,
-      ignoreHTTPSErrors: true
-    });
-    this.page = await this.context.newPage();
-    this.page.setDefaultTimeout(STATUS_TIMEOUT);
-    this.page.setDefaultNavigationTimeout(STATUS_TIMEOUT);
-    this.consoleMessages = [];
-    this.page.on("console", (msg) => {
-      const text = msg.text();
-      if (text.includes("Error") || text.includes("error") || text.includes("warning") || text.includes("[compileEffect]") || text.includes("[expand]") || text.includes("[Pipeline") || text.includes("[MCP-UNIFORM]") || msg.type() === "error" || msg.type() === "warning") {
-        this.consoleMessages.push({ type: msg.type(), text });
-      }
-    });
-    this.page.on("pageerror", (error) => {
-      this.consoleMessages.push({ type: "pageerror", text: error.message });
-    });
-    await this.page.goto(`${this.baseUrl}${this.viewerPath}`, { waitUntil: "networkidle" });
-    const rendererGlobal = this.globals.canvasRenderer;
-    await this.page.waitForFunction(
-      (name) => !!window[name],
-      rendererGlobal,
-      { timeout: STATUS_TIMEOUT }
-    );
-    this._isSetup = true;
+    await acquireBrowserSlot();
+    try {
+      this.baseUrl = await acquireServer(this.options.viewerPort, this.options.viewerRoot, this.options.effectsDir);
+      this.browser = await chromium.launch(
+        getBrowserLaunchOptions(this.options.headless, this.options.backend)
+      );
+      const viewportSize = process.env.CI ? { width: 256, height: 256 } : { width: 1280, height: 720 };
+      this.context = await this.browser.newContext({
+        viewport: viewportSize,
+        ignoreHTTPSErrors: true
+      });
+      this.page = await this.context.newPage();
+      this.page.setDefaultTimeout(STATUS_TIMEOUT);
+      this.page.setDefaultNavigationTimeout(STATUS_TIMEOUT);
+      this.consoleMessages = [];
+      this.page.on("console", (msg) => {
+        const text = msg.text();
+        if (text.includes("Error") || text.includes("error") || text.includes("warning") || text.includes("[compileEffect]") || text.includes("[expand]") || text.includes("[Pipeline") || text.includes("[MCP-UNIFORM]") || msg.type() === "error" || msg.type() === "warning") {
+          this.consoleMessages.push({ type: msg.type(), text });
+        }
+      });
+      this.page.on("pageerror", (error) => {
+        this.consoleMessages.push({ type: "pageerror", text: error.message });
+      });
+      await this.page.goto(`${this.baseUrl}${this.viewerPath}`, { waitUntil: "networkidle" });
+      const rendererGlobal = this.globals.canvasRenderer;
+      await this.page.waitForFunction(
+        (name) => !!window[name],
+        rendererGlobal,
+        { timeout: STATUS_TIMEOUT }
+      );
+      this._isSetup = true;
+    } catch (err) {
+      if (this.page) await this.page.close().catch(() => {
+      });
+      if (this.context) await this.context.close().catch(() => {
+      });
+      if (this.browser) await this.browser.close().catch(() => {
+      });
+      this.page = null;
+      this.context = null;
+      this.browser = null;
+      releaseBrowserSlot();
+      throw err;
+    }
   }
   async teardown() {
     if (this.page) {
@@ -258,6 +320,7 @@ var BrowserSession = class {
       this.browser = null;
     }
     releaseServer();
+    releaseBrowserSlot();
     this.consoleMessages = [];
     this._isSetup = false;
   }
@@ -4498,7 +4561,7 @@ function matchEffects(allEffects, pattern) {
 }
 
 // src/tools/browser/compile.ts
-var STATUS_TIMEOUT2 = 3e4;
+var STATUS_TIMEOUT2 = 3e5;
 var compileEffectSchema = {
   effect_id: external_exports.string().optional().describe('Single effect ID (e.g., "synth/noise")'),
   effects: external_exports.string().optional().describe("CSV of effect IDs"),
@@ -4578,7 +4641,7 @@ async function renderEffectFrame(session, effectId, options = {}) {
       const s = document.getElementById("status");
       const t = (s?.textContent || "").toLowerCase();
       return t.includes("loaded") || t.includes("compiled") || t.includes("ready") || t.includes("error");
-    }, { timeout: 3e4 });
+    }, { timeout: 3e5 });
     if (options.uniforms) {
       await page.evaluate(({ unis, globals }) => {
         const pipeline = window[globals.renderingPipeline];
@@ -4732,7 +4795,7 @@ async function benchmarkEffectFPS(session, effectId, options = {}) {
       const s = document.getElementById("status");
       const t = (s?.textContent || "").toLowerCase();
       return t.includes("loaded") || t.includes("compiled") || t.includes("ready") || t.includes("error");
-    }, { timeout: 3e4 });
+    }, { timeout: 3e5 });
     const result = await page.evaluate(({ duration: duration2 }) => {
       return new Promise((resolve3) => {
         const frameTimes = [];
@@ -4808,7 +4871,7 @@ async function testNoPassthrough(session, effectId) {
       const s = document.getElementById("status");
       const t = (s?.textContent || "").toLowerCase();
       return t.includes("loaded") || t.includes("compiled") || t.includes("ready") || t.includes("error");
-    }, { timeout: 3e4 });
+    }, { timeout: 3e5 });
     const result = await page.evaluate((globals) => {
       const w = window;
       const pipeline = w[globals.renderingPipeline];
@@ -4917,7 +4980,7 @@ async function testPixelParity(session, effectId, options = {}) {
     const s = document.getElementById("status");
     const t = (s?.textContent || "").toLowerCase();
     return t.includes("loaded") || t.includes("compiled") || t.includes("ready");
-  }, { timeout: 3e4 });
+  }, { timeout: 3e5 });
   await session.page.evaluate(({ globals, seed: seed2 }) => {
     const w = window;
     if (w[globals.setPaused]) w[globals.setPaused](true);
@@ -5005,7 +5068,7 @@ async function testUniformResponsiveness(session, effectId) {
       const s = document.getElementById("status");
       const t = (s?.textContent || "").toLowerCase();
       return t.includes("loaded") || t.includes("compiled") || t.includes("ready");
-    }, { timeout: 3e4 });
+    }, { timeout: 3e5 });
     await page.evaluate((globals) => {
       const w = window;
       if (w[globals.setPaused]) w[globals.setPaused](true);
@@ -5140,7 +5203,7 @@ async function runDslProgram(session, dsl, options = {}) {
         };
         poll();
       });
-    }, { dsl, timeout: 3e4, globals: session.globals });
+    }, { dsl, timeout: 3e5, globals: session.globals });
     if (compileResult.status === "error") {
       return { status: "error", error: compileResult.message };
     }
@@ -5684,15 +5747,20 @@ export {
   compareShaders,
   compileEffect,
   computeImageMetrics,
+  getActiveBrowsers,
+  getMaxBrowsers,
+  getQueueDepth,
   getRefCount,
   getServerUrl,
   globalsFromPrefix,
   matchEffects,
   releaseServer,
   renderEffectFrame,
+  resetBrowserQueue,
   resolveEffectDir,
   resolveEffectIds,
   runDslProgram,
+  setMaxBrowsers,
   testNoPassthrough,
   testPixelParity,
   testUniformResponsiveness

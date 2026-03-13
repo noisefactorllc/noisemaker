@@ -7,6 +7,16 @@ declare function releaseServer(): void;
 declare function getServerUrl(): string;
 declare function getRefCount(): number;
 
+/**
+ * Async semaphore for pipelining browser sessions.
+ * Prevents CPU contention when multiple tool calls arrive concurrently.
+ */
+declare function setMaxBrowsers(n: number): void;
+declare function getMaxBrowsers(): number;
+declare function getActiveBrowsers(): number;
+declare function getQueueDepth(): number;
+declare function resetBrowserQueue(): void;
+
 interface ImageMetrics {
     mean_rgb: [number, number, number];
     mean_alpha: number;
@@ -67,4 +77,4 @@ declare function resolveEffectIds(args: {
 declare function resolveEffectDir(effectId: string, effectsDir: string): string;
 declare function matchEffects(allEffects: string[], pattern: string): string[];
 
-export { BenchmarkResult, BrowserSession, CompileResult, ParityResult, RenderResult, acquireServer, benchmarkEffectFPS, checkEffectStructure, compareShaders, compileEffect, computeImageMetrics, getRefCount, getServerUrl, matchEffects, releaseServer, renderEffectFrame, resolveEffectDir, resolveEffectIds, runDslProgram, testNoPassthrough, testPixelParity, testUniformResponsiveness };
+export { BenchmarkResult, BrowserSession, CompileResult, ParityResult, RenderResult, acquireServer, benchmarkEffectFPS, checkEffectStructure, compareShaders, compileEffect, computeImageMetrics, getActiveBrowsers, getMaxBrowsers, getQueueDepth, getRefCount, getServerUrl, matchEffects, releaseServer, renderEffectFrame, resetBrowserQueue, resolveEffectDir, resolveEffectIds, runDslProgram, setMaxBrowsers, testNoPassthrough, testPixelParity, testUniformResponsiveness };

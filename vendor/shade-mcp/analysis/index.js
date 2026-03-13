@@ -4149,11 +4149,12 @@ function getConfig() {
   const projectRoot = process.env.SHADE_PROJECT_ROOT || process.cwd();
   return {
     effectsDir: process.env.SHADE_EFFECTS_DIR || resolve(projectRoot, "effects"),
-    viewerPort: parseInt(process.env.SHADE_VIEWER_PORT || "4173", 10),
+    viewerPort: parseInt(process.env.SHADE_VIEWER_PORT || "0", 10),
     defaultBackend: parseBackend(process.env.SHADE_BACKEND),
     projectRoot,
     globalsPrefix: process.env.SHADE_GLOBALS_PREFIX || void 0,
-    viewerPath: process.env.SHADE_VIEWER_PATH || void 0
+    viewerPath: process.env.SHADE_VIEWER_PATH || void 0,
+    maxBrowsers: parseInt(process.env.SHADE_MAX_BROWSERS || "1", 10)
   };
 }
 
@@ -4358,7 +4359,7 @@ async function renderEffectFrame(session, effectId, options = {}) {
       const s = document.getElementById("status");
       const t = (s?.textContent || "").toLowerCase();
       return t.includes("loaded") || t.includes("compiled") || t.includes("ready") || t.includes("error");
-    }, { timeout: 3e4 });
+    }, { timeout: 3e5 });
     if (options.uniforms) {
       await page.evaluate(({ unis, globals }) => {
         const pipeline = window[globals.renderingPipeline];
