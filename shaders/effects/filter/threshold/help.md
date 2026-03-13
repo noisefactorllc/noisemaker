@@ -1,4 +1,4 @@
-# thresh
+# threshold
 
 Threshold/step function
 

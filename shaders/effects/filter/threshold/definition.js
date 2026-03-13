@@ -1,9 +1,9 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
-  name: "Thresh",
+  name: "Threshold",
   namespace: "filter",
-  func: "thresh",
+  func: "threshold",
   tags: ["color", "edges"],
 
   description: "Threshold/step function",
