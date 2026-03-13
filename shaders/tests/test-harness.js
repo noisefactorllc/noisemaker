@@ -778,7 +778,7 @@ async function main() {
         headless: !needsHeaded,  // Headed for pixel parity, headless otherwise
         globals: NOISEMAKER_GLOBALS,
         viewerRoot: PROJECT_ROOT,
-        viewerPath: '/demo/shaders/',
+        viewerPath: '/demo/shaders/?effect=synth/noise',
         effectsDir: path.join(PROJECT_ROOT, 'shaders', 'effects'),
     })
 
