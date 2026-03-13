@@ -1,4 +1,4 @@
-# rd
+# reactionDiffusion
 
 Gray-Scott reaction-diffusion
 

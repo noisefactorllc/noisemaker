@@ -1,8 +1,8 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
-  name: "Rd",
-  func: "rd",
+  name: "Reaction-Diffusion",
+  func: "reactionDiffusion",
   tags: ["sim"],
 
   description: "Gray-Scott reaction-diffusion",
