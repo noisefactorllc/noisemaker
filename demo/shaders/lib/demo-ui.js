@@ -1237,6 +1237,10 @@ export class UIController {
      * @param {string} [type='info'] - Message type (info, success, error)
      */
     showStatus(message, type = 'info') {
+        // Update hidden #status element for test harness (shade-mcp polls its textContent)
+        if (this._statusEl) {
+            this._statusEl.textContent = message
+        }
         if (type === 'success') {
             showSuccess(message)
         } else if (type === 'error') {
