@@ -382,7 +382,7 @@ function copyShaderManifest() {
  */
 function copyMeshFiles() {
     const meshSrcDir = path.join(repoRoot, 'share', 'meshes')
-    const meshDestDir = path.join(siteDir, 'share', 'meshes')
+    const meshDestDir = path.join(siteDir, 'lib', 'shaders', 'share', 'meshes')
 
     if (fs.existsSync(meshSrcDir)) {
         fs.mkdirSync(meshDestDir, { recursive: true })

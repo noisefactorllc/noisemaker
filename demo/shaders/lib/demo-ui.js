@@ -740,7 +740,7 @@ export class UIController {
         try {
             // Resolve relative to renderer's basePath (e.g. "../../shaders" or bundled URL)
             const basePath = this._renderer._basePath || '../../shaders'
-            const url = `${basePath}/../${relativePath}`
+            const url = `${basePath}/${relativePath}`
             const result = await this._renderer.loadOBJFromURL(url, meshState.meshId)
 
             if (result.success) {

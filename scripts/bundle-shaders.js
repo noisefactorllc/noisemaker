@@ -177,9 +177,9 @@ async function main() {
             console.log('  ✓ manifest.json copied to dist/shaders/effects/')
         }
 
-        // Copy mesh OBJ files to dist/shaders/share/meshes/
+        // Copy mesh OBJ files into dist/shaders/ so they deploy with the existing rsync
         const meshSrcDir = path.join(repoRoot, 'share', 'meshes')
-        const meshDestDir = path.join(repoRoot, 'dist', 'share', 'meshes')
+        const meshDestDir = path.join(distDir, 'share', 'meshes')
         if (fs.existsSync(meshSrcDir)) {
             fs.mkdirSync(meshDestDir, { recursive: true })
             const objFiles = fs.readdirSync(meshSrcDir).filter(f => f.endsWith('.obj'))
