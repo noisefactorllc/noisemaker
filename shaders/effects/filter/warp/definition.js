@@ -28,7 +28,7 @@ export default new Effect({
       type: "float",
       default: 1,
       uniform: "scale",
-      min: -5,
+      min: 1,
       max: 5,
       ui: {
         label: "scale",
