@@ -1,4 +1,4 @@
-# cf
+# convolutionFeedback
 
 Convolution feedback with blur and sharpen
 

@@ -10,10 +10,10 @@ import { Effect } from '../../../src/runtime/effect.js'
  * Configurable kernel sizes and amounts for both operations.
  */
 export default new Effect({
-  name: "Cf",
-  func: "cf",
+  name: "Convolution Feedback",
+  func: "convolutionFeedback",
   tags: ["sim"],
-  openCategories: ["general","sharpen", "blur"],
+  openCategories: ["general", "sharpen", "blur"],
 
   description: "Convolution feedback with blur and sharpen",
   globals: {
