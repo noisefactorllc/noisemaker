@@ -16,6 +16,7 @@ uniform float time;
 uniform float displacement;
 uniform float speed;
 uniform int seed;
+uniform float direction;
 
 out vec4 fragColor;
 
@@ -304,6 +305,12 @@ float warped_channel_value(
     float centered = (noise_value * 2.0 - 1.0) * mask;
     float angle = centered * TAU;
     vec2 offset = vec2(cos(angle), sin(angle)) * displacement * vec2(width, height);
+
+    // Rotate offset by direction
+    float dirRad = direction * TAU / 360.0;
+    float dc = cos(dirRad);
+    float ds = sin(dirRad);
+    offset = vec2(offset.x * dc - offset.y * ds, offset.x * ds + offset.y * dc);
     
     vec2 sample_pos = base_pos + offset;
     vec4 sampled = sample_bilinear(sample_pos, width, height);

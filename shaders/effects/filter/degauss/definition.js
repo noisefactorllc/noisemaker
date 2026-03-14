@@ -24,15 +24,14 @@ export default new Effect({
         control: "slider"
       }
     },
-    speed: {
+    direction: {
       type: "float",
-      default: 1.0,
-      uniform: "speed",
-      min: 0.0,
-      max: 2.0,
-      step: 0.1,
+      default: 0.0,
+      uniform: "direction",
+      min: -180,
+      max: 180,
       ui: {
-        label: "speed",
+        label: "direction",
         control: "slider"
       }
     },
@@ -45,6 +44,18 @@ export default new Effect({
       step: 1,
       ui: {
         label: "seed",
+        control: "slider"
+      }
+    },
+    speed: {
+      type: "float",
+      default: 1.0,
+      uniform: "speed",
+      min: 0.0,
+      max: 2.0,
+      step: 0.1,
+      ui: {
+        label: "speed",
         control: "slider"
       }
     }
@@ -60,7 +71,8 @@ export default new Effect({
       uniforms: {
         displacement: "displacement",
         speed: "speed",
-        seed: "seed"
+        seed: "seed",
+        direction: "direction"
       },
       outputs: {
         fragColor: "outputTex"

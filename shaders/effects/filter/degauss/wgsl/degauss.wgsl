@@ -7,7 +7,7 @@ const TAU : f32 = 6.28318530717958647692;
 
 struct DegaussParams {
     dims0 : vec4<f32>, // (width, height, displacement, time)
-    dims1 : vec4<f32>, // (speed, seed, _pad1, _pad2)
+    dims1 : vec4<f32>, // (speed, seed, direction, _pad)
 };
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
@@ -298,7 +298,13 @@ fn warped_channel_value(
     let noise_value : f32 = compute_noise_value(coord, width, height, freq, time, speed, channel);
     let centered : f32 = (noise_value * 2.0 - 1.0) * mask;
     let angle : f32 = centered * TAU;
-    let offset : vec2<f32> = vec2<f32>(cos(angle), sin(angle)) * displacement * vec2<f32>(width, height);
+    var offset : vec2<f32> = vec2<f32>(cos(angle), sin(angle)) * displacement * vec2<f32>(width, height);
+
+    // Rotate offset by direction
+    let dirRad : f32 = params.dims1.z * TAU / 360.0;
+    let dc : f32 = cos(dirRad);
+    let ds : f32 = sin(dirRad);
+    offset = vec2<f32>(offset.x * dc - offset.y * ds, offset.x * ds + offset.y * dc);
     let sample : vec4<f32> = sample_bilinear(base_pos + offset, width, height);
 
     switch channel {
