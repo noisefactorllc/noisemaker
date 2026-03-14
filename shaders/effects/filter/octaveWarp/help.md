@@ -6,8 +6,8 @@ Per-octave noise warp distortion
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| freq | float | 2 | 1-10 | Noise frequency |
-| octaves | int | 5 | 1-10 | Number of octaves |
-| displacement | float | 0.1 | 0-1 | Displacement amount |
-| speed | float | 1 | 0-5 | Animation speed |
+| freq | float | 2 | 1–10 | Noise frequency |
+| octaves | int | 3 | 1–5 | Number of octaves |
+| displacement | float | 0.2 | 0–1 | Displacement amount |
+| speed | int | 1 | 0–5 | Animation speed |
 | wrap | int | mirror | mirror/repeat/clamp | Edge wrapping mode |

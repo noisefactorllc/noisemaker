@@ -82,7 +82,7 @@ export default new Effect({
       max: 3,
       randChance: 0,
       step: 0.01,
-      ui: { label: "center y", control: "slider", category: "navigation" }
+      ui: { label: "center x", control: "slider", category: "navigation" }
     },
     centerY: {
       type: "float",
@@ -92,7 +92,7 @@ export default new Effect({
       max: 3,
       randChance: 0,
       step: 0.01,
-      ui: { label: "center x", control: "slider", category: "navigation" }
+      ui: { label: "center y", control: "slider", category: "navigation" }
     },
     zoom: {
       type: "float",
