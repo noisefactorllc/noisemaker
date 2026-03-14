@@ -82,7 +82,7 @@ function transformJsDemoHtml() {
     // Replace module imports with bundled version
     // The bundled version exposes everything on the Noisemaker global
     // Wrap in async IIFE since the original uses top-level await
-    const importPattern = /<script type="module">\s*import \{ Context \} from '[^']+context\.js';\s*import \{ render, Preset \} from '[^']+composer\.js';\s*import \{ ColorSpace \} from '[^']+constants\.js';\s*import PRESETS from '[^']+presets\.js';\s*import \{ random, setSeed \} from '[^']+util\.js';\s*import \{ yieldToMain \} from '[^']+asyncHelpers\.js';/
+    const importPattern = /<script type="module">[\s\S]*?import \{ Context \} from '[^']+context\.js';\s*import \{ render, Preset \} from '[^']+composer\.js';\s*import \{ ColorSpace \} from '[^']+constants\.js';\s*import PRESETS from '[^']+presets\.js';\s*import \{ random, setSeed \} from '[^']+util\.js';\s*import \{ yieldToMain \} from '[^']+asyncHelpers\.js';/
 
     if (importPattern.test(html)) {
         html = html.replace(
@@ -90,6 +90,7 @@ function transformJsDemoHtml() {
             `<script src="../../lib/noisemaker.min.js"></script>
     <script>
     (async () => {
+    await import('https://handfish.noisefactor.io/0.9.0/handfish.esm.js');
     const { Context, render, Preset, ColorSpace, PRESETS, random, setSeed, yieldToMain, getPresetsSource } = Noisemaker;`
         )
 
@@ -99,10 +100,11 @@ function transformJsDemoHtml() {
             `const dslSource = getPresetsSource();`
         )
 
-        // Close the async IIFE at the end of the script
+        // Close the async IIFE before the final </script>
         html = html.replace(
-            /(\s*}\);\s*)(<\/script>\s*<\/body>)/,
-            `$1})();
+            /(\s*<\/script>\s*<\/body>)/,
+            `
+  })();
   </script>
 
 </body>`
