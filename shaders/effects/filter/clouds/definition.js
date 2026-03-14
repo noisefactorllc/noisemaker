@@ -37,6 +37,16 @@ export default new Effect({
         label: "scale",
         control: "slider"
       }
+    },
+    speed: {
+      type: "int",
+      default: 0,
+      uniform: "speed",
+      min: 0,
+      max: 4,
+      zero: 0,
+      randMax: 2,
+      ui: { label: "speed", control: "slider" }
     }
   },
   defaultProgram: "search filter, synth\n\nsolid(color: #2d78f0)\n.clouds(scale: 0.55)\n.write(o0)",
@@ -49,7 +59,8 @@ export default new Effect({
       },
       uniforms: {
         seed: "seed",
-        scale: "scale"
+        scale: "scale",
+        speed: "speed"
       },
       outputs: {
         fragColor: "outputTex"

@@ -8,7 +8,11 @@
 struct Uniforms {
     seed: f32,
     scale: f32,
+    speed: i32,
+    time: f32,
 }
+
+const TAU: f32 = 6.28318530718;
 
 @group(0) @binding(0) var inputSampler: sampler;
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
@@ -48,7 +52,7 @@ fn simplex2d(v: vec2<f32>) -> f32 {
     return 130.0 * dot(m, g);
 }
 
-fn cloudNoise(uv: vec2<f32>, baseFreq: f32, octaves: i32) -> f32 {
+fn cloudNoise(uv: vec2<f32>, baseFreq: f32, octaves: i32, animPhase: f32, animSpeed: f32) -> f32 {
     var accum: f32 = 0.0;
     var totalAmp: f32 = 0.0;
 
@@ -57,7 +61,14 @@ fn cloudNoise(uv: vec2<f32>, baseFreq: f32, octaves: i32) -> f32 {
         let freq = baseFreq * pow(2.0, f32(i));
         let amp = 1.0 / pow(2.0, f32(i));
 
-        var n = simplex2d(uv * freq + vec2<f32>(f32(i) * 37.0, f32(i) * 53.0));
+        // Per-octave circular offset for morphing animation
+        // Subtract initial position so offset is zero at time=0
+        let octavePhase = f32(i) * 2.13;
+        let octaveRadius = (0.25 + f32(i) * 0.08) * animSpeed;
+        let timeOffset = (vec2<f32>(cos(animPhase + octavePhase), sin(animPhase + octavePhase))
+                        - vec2<f32>(cos(octavePhase), sin(octavePhase))) * octaveRadius;
+
+        var n = simplex2d(uv * freq + vec2<f32>(f32(i) * 37.0, f32(i) * 53.0) + timeOffset);
         n = n * 0.5 + 0.5;
 
         accum = accum + n * amp;
@@ -75,9 +86,15 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let inputColor = textureSample(inputTex, inputSampler, uv);
 
     let aspect = texSize.x / texSize.y;
-    let cloudUV = uv * vec2<f32>(aspect, 1.0) / uniforms.scale + vec2<f32>(uniforms.seed * 17.31, uniforms.seed * 23.71);
+    let seedOffset = vec2<f32>(uniforms.seed * 17.31, uniforms.seed * 23.71);
 
-    let cloud = cloudNoise(cloudUV, 1.0, 7);
+    // Animation phase (loops at 0-1 time boundary)
+    let animPhase = uniforms.time * TAU * f32(uniforms.speed);
+    let animSpeed = f32(uniforms.speed);
+
+    let cloudUV = uv * vec2<f32>(aspect, 1.0) / uniforms.scale + seedOffset;
+
+    let cloud = cloudNoise(cloudUV, 1.0, 7, animPhase, animSpeed);
     let cloudMask = smoothstep(0.45, 0.65, cloud);
 
     // Cloud shading: vary brightness within cloud for depth
@@ -87,8 +104,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Shadow: sample cloud at offset (light from upper-right)
     let shadowDist = min(texSize.x, texSize.y) * 0.008;
     let shadowOffset = vec2<f32>(-shadowDist, shadowDist) / texSize;
-    let shadowUV = (uv + shadowOffset) * vec2<f32>(aspect, 1.0) / uniforms.scale + vec2<f32>(uniforms.seed * 17.31, uniforms.seed * 23.71);
-    let shadowCloud = cloudNoise(shadowUV, 1.0, 7);
+    let shadowUV = (uv + shadowOffset) * vec2<f32>(aspect, 1.0) / uniforms.scale + seedOffset;
+    let shadowCloud = cloudNoise(shadowUV, 1.0, 7, animPhase, animSpeed);
     let shadowMask = smoothstep(0.45, 0.65, shadowCloud);
 
     let shadow = max(shadowMask - cloudMask, 0.0) * 0.5;

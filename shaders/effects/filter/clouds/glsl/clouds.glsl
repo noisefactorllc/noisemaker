@@ -12,8 +12,12 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform float seed;
 uniform float scale;
+uniform int speed;
+uniform float time;
 
 out vec4 fragColor;
+
+const float TAU = 6.28318530718;
 
 // Simplex 2D - MIT License (Ashima Arts)
 vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -49,7 +53,8 @@ float simplex2d(vec2 v) {
 }
 
 // Multi-octave FBM simplex noise, returns [0, 1]
-float cloudNoise(vec2 uv, float baseFreq, int octaves) {
+// When animSpeed > 0, each octave gets a circular time offset for seamless morphing
+float cloudNoise(vec2 uv, float baseFreq, int octaves, float animPhase, float animSpeed) {
     float accum = 0.0;
     float totalAmp = 0.0;
 
@@ -58,8 +63,14 @@ float cloudNoise(vec2 uv, float baseFreq, int octaves) {
         float freq = baseFreq * pow(2.0, float(i));
         float amp = 1.0 / pow(2.0, float(i));
 
-        float n = simplex2d(uv * freq + vec2(float(i) * 37.0, float(i) * 53.0));
-        // Map [-1,1] to [0,1]
+        // Per-octave circular offset for morphing animation
+        // Subtract initial position so offset is zero at time=0
+        float octavePhase = float(i) * 2.13;
+        float octaveRadius = (0.25 + float(i) * 0.08) * animSpeed;
+        vec2 timeOffset = (vec2(cos(animPhase + octavePhase), sin(animPhase + octavePhase))
+                         - vec2(cos(octavePhase), sin(octavePhase))) * octaveRadius;
+
+        float n = simplex2d(uv * freq + vec2(float(i) * 37.0, float(i) * 53.0) + timeOffset);
         n = n * 0.5 + 0.5;
 
         accum += n * amp;
@@ -78,9 +89,15 @@ void main() {
 
     // Scale UV for cloud size, aspect-correct, offset by seed
     float aspect = resolution.x / resolution.y;
-    vec2 cloudUV = uv * vec2(aspect, 1.0) / scale + vec2(seed * 17.31, seed * 23.71);
+    vec2 seedOffset = vec2(seed * 17.31, seed * 23.71);
 
-    float cloud = cloudNoise(cloudUV, 1.0, 7);
+    // Animation phase (loops at 0-1 time boundary)
+    float animPhase = time * TAU * float(speed);
+    float animSpeed = float(speed);
+
+    vec2 cloudUV = uv * vec2(aspect, 1.0) / scale + seedOffset;
+
+    float cloud = cloudNoise(cloudUV, 1.0, 7, animPhase, animSpeed);
 
     // Shape into clouds: threshold for puffy shapes
     float cloudMask = smoothstep(0.45, 0.65, cloud);
@@ -93,8 +110,8 @@ void main() {
     // Shadow: sample cloud at offset (light from upper-right)
     float shadowDist = min(resolution.x, resolution.y) * 0.008;
     vec2 shadowOffset = vec2(-shadowDist, shadowDist) / resolution;
-    vec2 shadowUV = (uv + shadowOffset) * vec2(aspect, 1.0) / scale + vec2(seed * 17.31, seed * 23.71);
-    float shadowCloud = cloudNoise(shadowUV, 1.0, 7);
+    vec2 shadowUV = (uv + shadowOffset) * vec2(aspect, 1.0) / scale + seedOffset;
+    float shadowCloud = cloudNoise(shadowUV, 1.0, 7, animPhase, animSpeed);
     float shadowMask = smoothstep(0.45, 0.65, shadowCloud);
 
     // Shadow only where there's cloud nearby but not at current pixel
