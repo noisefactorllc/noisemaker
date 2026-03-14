@@ -15,6 +15,8 @@ uniform vec3 color2;
 uniform vec3 color3;
 uniform vec3 color4;
 uniform int seed;
+uniform float time;
+uniform float speed;
 
 out vec4 fragColor;
 
@@ -125,17 +127,18 @@ void main() {
     
     vec3 color;
     float t;
-    
+    float timeOffset = time * speed;
+
     if (gradientType == 0) {
         // Conic/angular gradient
         float a = atan(rotatedCentered.y, rotatedCentered.x);
         t = (a + PI) / TAU;
-        t = fract(t * float(repeat));
+        t = fract(t * float(repeat) + timeOffset);
         color = blend4Colors(t);
     } else if (gradientType == 1) {
         // Diamond gradient - L1 distance with rotation
         t = abs(rotatedCentered.x) + abs(rotatedCentered.y);
-        t = fract(t * float(repeat));
+        t = fract(t * float(repeat) + timeOffset);
         color = blend4Colors(t);
     } else if (gradientType == 2) {
         // Four corners - bilinear interpolation
@@ -146,27 +149,27 @@ void main() {
     } else if (gradientType == 3) {
         // Linear gradient along rotated y-axis
         t = rotatedSt.y;
-        t = fract(t * float(repeat));
+        t = fract(t * float(repeat) + timeOffset);
         color = blend4Colors(t);
     } else if (gradientType == 4) {
         // Noise gradient with rotation
         vec2 noiseSt = rotatedCentered * 4.0;
         t = fbmNoise(noiseSt);
-        t = fract(t * float(repeat));
+        t = fract(t * float(repeat) + timeOffset);
         color = blend4Colors(t);
     } else if (gradientType == 5) {
         // Radial gradient from center
         vec2 rotatedPoint = mat2(c, -s, s, c) * centered;
         float dist = length(rotatedPoint) * 2.0;
         t = dist;
-        t = fract(t * float(repeat));
+        t = fract(t * float(repeat) + timeOffset);
         color = blend4Colors(t);
     } else if (gradientType == 6) {
         // Spiral gradient - angle + distance
         float a = atan(rotatedCentered.y, rotatedCentered.x);
         float dist = length(centered);
         t = fract(a / TAU + dist * 2.0);
-        t = fract(t * float(repeat));
+        t = fract(t * float(repeat) + timeOffset);
         color = blend4Colors(t);
     }
 

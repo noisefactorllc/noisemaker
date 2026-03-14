@@ -50,6 +50,22 @@ export default new Effect({
         enabledBy: { param: "type", neq: 2 }
       }
     },
+    speed: {
+      type: "int",
+      default: 0,
+      uniform: "speed",
+      min: -5,
+      max: 5,
+      zero: 0,
+      randMin: -2,
+      randMax: 2,
+      ui: {
+        label: "speed",
+        control: "slider",
+        category: "general",
+        enabledBy: { param: "type", neq: 2 }
+      }
+    },
     seed: {
       type: "int",
       default: 1,

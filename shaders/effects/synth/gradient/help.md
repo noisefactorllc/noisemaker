@@ -9,6 +9,7 @@ Multi-color gradient generator with various styles
 | type | int | conic | conic/diamond/fourCorners/linear/noiseGradient/radial/spiral | Type |
 | rotation | float | 0 | -180-180 | Rotation |
 | repeat | int | 1 | 1-4 | Repeat |
+| speed | int | 0 | -5-5 | Animation speed |
 | seed | int | 1 | 0-100 | Random seed (noise gradient only) |
 | color1 | color | 1,0,0 | - | Color 1 |
 | color2 | color | 1,1,0 | - | Color 2 |
@@ -22,6 +23,6 @@ Gradient types:
 - **diamond**: Diamond-shaped (L1/Manhattan distance) gradient from center
 - **fourCorners**: Bilinear interpolation with each color at a corner
 - **linear**: Smooth gradient transitioning through all 4 colors vertically
-- **noiseGradient**: Static value noise using PCG PRNG, driven by seed. Rotation rotates the noise field
+- **noiseGradient**: Value noise using PCG PRNG, driven by seed. Rotation rotates the noise field
 - **radial**: Circular gradient emanating from the center
 - **spiral**: Spiral gradient combining angle and distance
