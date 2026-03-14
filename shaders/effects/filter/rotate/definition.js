@@ -37,6 +37,17 @@ export default new Effect({
         label: "wrap",
         control: "dropdown"
       }
+    },
+    speed: {
+      type: "int",
+      default: 0,
+      uniform: "speed",
+      min: -4,
+      max: 4,
+      zero: 0,
+      randMin: -2,
+      randMax: 2,
+      ui: { label: "speed", control: "slider" }
     }
   },
   passes: [

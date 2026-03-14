@@ -5,8 +5,8 @@
 struct Uniforms {
     rotation: f32,
     wrap: i32,
-    _pad2: f32,
-    _pad3: f32,
+    speed: i32,
+    time: f32,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -26,10 +26,19 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
     var uv = pos.xy / texSize;
     
-    // Center, rotate, uncenter
+    // Animate rotation: full continuous rotation
+    var angle = uniforms.rotation;
+    if (uniforms.speed != 0) {
+        angle = angle + uniforms.time * 360.0 * f32(uniforms.speed);
+    }
+
+    // Center, correct aspect, rotate, uncorrect, uncenter
+    let aspect = texSize.x / texSize.y;
     let center = vec2<f32>(0.5);
     uv -= center;
-    uv = rotate2D(-uniforms.rotation * TAU / 360.0) * uv;
+    uv.x = uv.x * aspect;
+    uv = rotate2D(-angle * TAU / 360.0) * uv;
+    uv.x = uv.x / aspect;
     uv += center;
     
     // Apply wrap mode

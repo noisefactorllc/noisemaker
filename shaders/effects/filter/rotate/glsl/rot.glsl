@@ -9,6 +9,8 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform float rotation;
 uniform int wrap;
+uniform int speed;
+uniform float time;
 
 out vec4 fragColor;
 
@@ -24,10 +26,19 @@ void main() {
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
     
-    // Center, rotate, uncenter
+    // Animate rotation: full continuous rotation
+    float angle = rotation;
+    if (speed != 0) {
+        angle += time * 360.0 * float(speed);
+    }
+
+    // Center, correct aspect, rotate, uncorrect, uncenter
+    float aspect = float(texSize.x) / float(texSize.y);
     vec2 center = vec2(0.5);
     uv -= center;
-    uv = rotate2D(-rotation * TAU / 360.0) * uv;
+    uv.x *= aspect;
+    uv = rotate2D(-angle * TAU / 360.0) * uv;
+    uv.x /= aspect;
     uv += center;
     
     // Apply wrap mode
