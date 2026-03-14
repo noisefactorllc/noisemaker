@@ -89,11 +89,13 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let height = texSize.y;
 
     // Adjust frequency for aspect ratio
-    var freq = vec2<f32>(11.0 - uniforms.frequency);
-    if (width > height && height > 0.0) {
-        freq.y = uniforms.frequency * width / height;
-    } else if (height > width && width > 0.0) {
-        freq.x = uniforms.frequency * height / width;
+    let baseFreq = 11.0 - uniforms.frequency;
+    let aspect = width / height;
+    var freq = vec2<f32>(baseFreq);
+    if (aspect > 1.0) {
+        freq.y = freq.y * aspect;
+    } else {
+        freq.x = freq.x / aspect;
     }
 
     let uv = pos.xy / texSize;

@@ -144,6 +144,10 @@ void main() {
     vec2 uv = gl_FragCoord.xy / vec2(dims);
     vec4 base = texture(inputTex, uv);
 
+    // Aspect-corrected UV for noise sampling
+    float aspect = float(dims.x) / float(dims.y);
+    vec2 nUV = uv * vec2(aspect, 1.0);
+
     uint s = uint(seed) * 17u;
 
     // Seed-derived random frequencies (matching Python ranges)
@@ -157,29 +161,29 @@ void main() {
     float warpFreqX = mix(2.0, 3.0, hashf(pcg(s + 160u)));
     float warpFreqY = mix(1.0, 3.0, hashf(pcg(s + 170u)));
     // Use bilinear for warp displacement (simpler, just UV offsets)
-    float warpX = bilinearExpGrid(uv * vec2(warpFreqX, warpFreqY), s + 200u);
-    float warpY = bilinearExpGrid(uv * vec2(warpFreqX, warpFreqY), s + 300u);
+    float warpX = bilinearExpGrid(nUV * vec2(warpFreqX, warpFreqY), s + 200u);
+    float warpY = bilinearExpGrid(nUV * vec2(warpFreqX, warpFreqY), s + 300u);
     float disp = 1.0 + hashf(pcg(s + 150u));
-    vec2 warpedUV = uv + (vec2(warpX, warpY) - 0.5) * disp * 0.12;
+    vec2 warpedUV = nUV + (vec2(warpX, warpY) - 0.5) * disp * 0.12;
     float smear = expFbm6Bicubic(warpedUV, vec2(smearFreq), s + 100u);
 
     // -- Layer 2: Medium dots (4-oct bilinear exp FBM + brightness/contrast) --
     // Python: adjustBrightness(-1.0) + adjustContrast(4.0)
     // Analytical equivalent with mean~0.2: clamp(4*v - 1.6, 0, 1)
-    float dots = expFbm4Bilinear(uv, vec2(dotFreq), s + 43u);
+    float dots = expFbm4Bilinear(nUV, vec2(dotFreq), s + 43u);
     dots = clamp(4.0 * dots - 1.6, 0.0, 1.0);
 
     // -- Layer 3: Fine specks (4-oct bilinear exp FBM + brightness/contrast) --
     // Python: adjustBrightness(-1.25) + adjustContrast(4.0)
     // Analytical equivalent: clamp(4*v - 2.0, 0, 1)
-    float specks = expFbm4Bilinear(uv, vec2(speckFreq), s + 71u);
+    float specks = expFbm4Bilinear(nUV, vec2(speckFreq), s + 71u);
     specks = clamp(4.0 * specks - 2.0, 0.0, 1.0);
 
     // Combine: max of layers (Python uses tf.maximum)
     float combined = max(smear, max(dots, specks));
 
     // Subtract exp+ridged noise for breaks
-    float ridge = expRidgedFbm3Cosine(uv, vec2(ridgeFreq), s + 89u);
+    float ridge = expRidgedFbm3Cosine(nUV, vec2(ridgeFreq), s + 89u);
     combined = max(0.0, combined - ridge);
 
     // Density scales before threshold

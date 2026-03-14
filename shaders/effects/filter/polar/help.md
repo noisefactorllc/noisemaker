@@ -6,7 +6,8 @@ Polar and vortex coordinate transforms
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| mode | int | polar | polar/vortex | Mode |
-| scale | int | 0 | -2-2 | Scale |
-| rot speed | int | 0 | -2-2 | Rotation speed |
-| speed | float | 0 | -2-2 | Polar speed |
+| mode | int | polar | polar/vortex | Transform mode |
+| scale | float | 0 | -2–2 | Scale offset |
+| rotation | int | 0 | -2–2 | Rotation speed |
+| speed | int | 0 | -2–2 | Radial animation speed |
+| aspectLens | boolean | true | on/off | Correct for aspect ratio so transform is circular |

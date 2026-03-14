@@ -93,11 +93,13 @@ void main() {
     float height = dims.y;
 
     // Adjust frequency for aspect ratio
-    vec2 freq = vec2(11.0 - frequency);
-    if (width > height && height > 0.0) {
-        freq.y = frequency * width / height;
-    } else if (height > width && width > 0.0) {
-        freq.x = frequency * height / width;
+    float baseFreq = 11.0 - frequency;
+    float aspect = width / height;
+    vec2 freq = vec2(baseFreq);
+    if (aspect > 1.0) {
+        freq.y *= aspect;
+    } else {
+        freq.x /= aspect;
     }
 
     vec2 uv = gl_FragCoord.xy / resolution;

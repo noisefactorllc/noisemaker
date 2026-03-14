@@ -180,6 +180,10 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let uv: vec2<f32> = pos.xy / dims;
     let base: vec4<f32> = textureSample(inputTex, inputSampler, uv);
 
+    // Aspect-corrected UV for noise sampling
+    let aspect: f32 = dims.x / dims.y;
+    let nUV: vec2<f32> = uv * vec2<f32>(aspect, 1.0);
+
     let s: u32 = u32(uniforms.seed) * 17u;
     let user_color: vec3<f32> = vec3<f32>(uniforms.color_r, uniforms.color_g, uniforms.color_b);
 
@@ -192,25 +196,25 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // -- Layer 1: Large smear (6-oct bicubic exp FBM, domain warped) --
     let warpFreqX: f32 = mix(2.0, 3.0, hashf(pcg(s + 160u)));
     let warpFreqY: f32 = mix(1.0, 3.0, hashf(pcg(s + 170u)));
-    let warpX: f32 = bilinearExpGrid(uv * vec2<f32>(warpFreqX, warpFreqY), s + 200u);
-    let warpY: f32 = bilinearExpGrid(uv * vec2<f32>(warpFreqX, warpFreqY), s + 300u);
+    let warpX: f32 = bilinearExpGrid(nUV * vec2<f32>(warpFreqX, warpFreqY), s + 200u);
+    let warpY: f32 = bilinearExpGrid(nUV * vec2<f32>(warpFreqX, warpFreqY), s + 300u);
     let disp: f32 = 1.0 + hashf(pcg(s + 150u));
-    let warpedUV: vec2<f32> = uv + (vec2<f32>(warpX, warpY) - 0.5) * disp * 0.12;
+    let warpedUV: vec2<f32> = nUV + (vec2<f32>(warpX, warpY) - 0.5) * disp * 0.12;
     let smear: f32 = expFbm6Bicubic(warpedUV, vec2<f32>(smearFreq), s + 100u);
 
     // -- Layer 2: Medium dots (4-oct bilinear exp FBM + brightness/contrast) --
-    var dots: f32 = expFbm4Bilinear(uv, vec2<f32>(dotFreq), s + 43u);
+    var dots: f32 = expFbm4Bilinear(nUV, vec2<f32>(dotFreq), s + 43u);
     dots = clamp(4.0 * dots - 1.6, 0.0, 1.0);
 
     // -- Layer 3: Fine specks (4-oct bilinear exp FBM + brightness/contrast) --
-    var specks: f32 = expFbm4Bilinear(uv, vec2<f32>(speckFreq), s + 71u);
+    var specks: f32 = expFbm4Bilinear(nUV, vec2<f32>(speckFreq), s + 71u);
     specks = clamp(4.0 * specks - 2.0, 0.0, 1.0);
 
     // Combine: max of layers
     var combined: f32 = max(smear, max(dots, specks));
 
     // Subtract exp+ridged cosine noise for breaks
-    let ridge: f32 = expRidgedFbm3Cosine(uv, vec2<f32>(ridgeFreq), s + 89u);
+    let ridge: f32 = expRidgedFbm3Cosine(nUV, vec2<f32>(ridgeFreq), s + 89u);
     combined = max(0.0, combined - ridge);
 
     // Density scales before threshold

@@ -12,6 +12,7 @@ uniform int polarMode;
 uniform float speed;
 uniform float rotation;
 uniform float scale;
+uniform bool aspectLens;
 
 out vec4 fragColor;
 
@@ -25,16 +26,18 @@ vec2 smod2(vec2 v, float m) {
     return m * (0.75 - abs(fract(v) - 0.5) - 0.25);
 }
 
-vec2 polarCoords(vec2 uv) {
+vec2 polarCoords(vec2 uv, float aspect) {
     uv -= 0.5;
+    if (aspectLens) { uv.x *= aspect; }
     vec2 coord = vec2(atan(uv.y, uv.x) / TAU + 0.5, length(uv) - scale * 0.075);
     coord.x = smod(coord.x + time * -rotation, 1.0);
     coord.y = smod(coord.y + time * speed, 1.0);
     return coord;
 }
 
-vec2 vortexCoords(vec2 uv) {
+vec2 vortexCoords(vec2 uv, float aspect) {
     uv -= 0.5;
+    if (aspectLens) { uv.x *= aspect; }
     float r2 = dot(uv, uv) - scale * 0.01;
     uv = uv / r2;
     uv.x = smod(uv.x + time * -rotation, 1.0);
@@ -45,12 +48,13 @@ vec2 vortexCoords(vec2 uv) {
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
-    
+    float aspect = float(texSize.x) / float(texSize.y);
+
     vec2 coord;
     if (polarMode == 0) {
-        coord = polarCoords(uv);
+        coord = polarCoords(uv, aspect);
     } else {
-        coord = vortexCoords(uv);
+        coord = vortexCoords(uv, aspect);
     }
 
     fragColor = texture(inputTex, coord);

@@ -22,6 +22,15 @@ export default new Effect({
         label: "displacement",
         control: "slider"
       }
+    },
+    aspectLens: {
+      type: "boolean",
+      default: true,
+      uniform: "aspectLens",
+      ui: {
+        label: "1:1 aspect",
+        control: "checkbox"
+      }
     }
   },
   defaultProgram: "search filter, synth\n\ntestPattern(gridSize: 8)\n.lens(displacement: 0.5)\n.write(o0)",

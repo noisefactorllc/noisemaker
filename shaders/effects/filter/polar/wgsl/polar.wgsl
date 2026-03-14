@@ -8,7 +8,7 @@ struct Uniforms {
     speed: f32,
     rotation: f32,
     scale: f32,
-    _pad1: f32,
+    aspectLens: i32,
     _pad2: f32,
     _pad3: f32,
 }
@@ -23,16 +23,18 @@ fn smod1(v: f32, m: f32) -> f32 {
     return m * (0.75 - abs(fract(v) - 0.5) - 0.25);
 }
 
-fn polarCoords(uvIn: vec2<f32>) -> vec2<f32> {
-    let uv = uvIn - 0.5;
+fn polarCoords(uvIn: vec2<f32>, aspect: f32, doAspect: bool) -> vec2<f32> {
+    var uv = uvIn - 0.5;
+    if (doAspect) { uv.x = uv.x * aspect; }
     var coord = vec2<f32>(atan2(uv.y, uv.x) / TAU + 0.5, length(uv) - uniforms.scale * 0.075);
     coord.x = smod1(coord.x + uniforms.time * -uniforms.rotation, 1.0);
     coord.y = smod1(coord.y + uniforms.time * uniforms.speed, 1.0);
     return coord;
 }
 
-fn vortexCoords(uvIn: vec2<f32>) -> vec2<f32> {
+fn vortexCoords(uvIn: vec2<f32>, aspect: f32, doAspect: bool) -> vec2<f32> {
     var uv = uvIn - 0.5;
+    if (doAspect) { uv.x = uv.x * aspect; }
     let r2 = dot(uv, uv) - uniforms.scale * 0.01;
     uv = uv / r2;
     uv.x = smod1(uv.x + uniforms.time * -uniforms.rotation, 1.0);
@@ -44,12 +46,14 @@ fn vortexCoords(uvIn: vec2<f32>) -> vec2<f32> {
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = pos.xy / texSize;
-    
+    let aspect = texSize.x / texSize.y;
+    let doAspect = uniforms.aspectLens != 0;
+
     var coord: vec2<f32>;
     if (uniforms.polarMode == 0) {
-        coord = polarCoords(uv);
+        coord = polarCoords(uv, aspect, doAspect);
     } else {
-        coord = vortexCoords(uv);
+        coord = vortexCoords(uv, aspect, doAspect);
     }
 
     return textureSample(inputTex, inputSampler, coord);
