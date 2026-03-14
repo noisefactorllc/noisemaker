@@ -48,7 +48,7 @@ body:not(.full-bleed-mode) #canvas {
   /* Square canvas, scales to fit available space */
   width: min(calc(100vw - 540px - 4rem), calc(100vh - 4rem));
   height: min(calc(100vw - 540px - 4rem), calc(100vh - 4rem));
-  border: 1px solid color-mix(in srgb, var(--hf-accent) 30%, transparent 70%);
+  border: 1px solid var(--hf-accent-2);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
