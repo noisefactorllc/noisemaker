@@ -1,18 +1,5 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
-// Points of Interest — verified from authoritative sources
-// [centerX_hi, centerX_lo, centerY_hi, centerY_lo, maxZoomLog10]
-const POI_DATA = {
-  seahorseValley:  [-0.7445398569107056, -3.4452e-9, 0.12172377109527588, 2.7991e-9,  14], // MROB 18-digit
-  elephantValley:  [ 0.29833000898361206, -8.9836e-9, 0.0011099999537691474, 4.6231e-11, 7], // MROB
-  scepterValley:   [-1.7548776865005493, 2.0254e-8, 0.0, 0.0, 14],                         // period-3 nucleus
-  miniBrot:        [-1.7400623559951782, -2.6584e-8, 0.028175339102745056, 6.7647e-10, 14], // fractaljourney
-  feigenbaum:      [-1.4011552333831787, 4.4291e-8, 0.0, 0.0, 14],                         // mathematical constant
-  birdOfParadise:  [ 0.37500011920928955, 8.5258e-10, -0.21663938462734222, -3.8104e-9, 14], // superliminal
-  spiralGalaxy:    [-0.7445389032363892, -1.6764e-8, 0.12172418087720871, -8.7721e-10, 7], // MROB
-  doubleSpiral:    [-1.2553445100784302, -1.4722e-8, -0.3822004497051239, -1.3295e-8, 10], // MROB medallion
-}
-
 export default new Effect({
   name: "Mandelbrot",
   namespace: "synth",
@@ -68,7 +55,7 @@ export default new Effect({
         normalMap: 4,
         orbitTrap: 3,
         smoothIteration: 0,
-        stripeAverage: 2,  
+        stripeAverage: 2,
       },
       ui: { label: "output mode", control: "dropdown", category: "fractal" }
     },
@@ -172,7 +159,7 @@ export default new Effect({
       type: "int",
       default: 0,
       uniform: "trapShape",
-      choices: { 
+      choices: {
         circle: 2,
         cross: 1,
         point: 0

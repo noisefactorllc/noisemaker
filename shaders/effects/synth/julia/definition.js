@@ -65,7 +65,7 @@ export default new Effect({
         normalMap: 4,
         orbitTrap: 3,
         smoothIteration: 0,
-        stripeAverage: 2,  
+        stripeAverage: 2,
       },
       ui: { label: "output mode", control: "dropdown", category: "fractal" }
     },
