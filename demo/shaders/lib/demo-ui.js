@@ -32,7 +32,19 @@ import {
 } from '../../../shaders/src/renderer/canvas.js'
 import { groupGlobalsByCategory } from '../../../shaders/src/runtime/effect.js'
 import { defaultControlFactory } from './control-factory.js'
-import { showSuccess, showError, showWarning, showInfo } from 'handfish'
+// Handfish toast functions — set via setToastProvider(), falls back to console
+let showSuccess = (m) => console.log(m)
+let showError = (m) => console.error(m)
+let showWarning = (m) => console.warn(m)
+let showInfo = (m) => console.log(m)
+
+export function setToastProvider(provider) {
+    if (provider.showSuccess) showSuccess = provider.showSuccess
+    if (provider.showError) showError = provider.showError
+    if (provider.showWarning) showWarning = provider.showWarning
+    if (provider.showInfo) showInfo = provider.showInfo
+}
+
 import { ProgramState } from './program-state.js'
 import { extractEffectsFromDsl } from './dsl-utils.js'
 

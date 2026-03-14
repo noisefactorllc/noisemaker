@@ -127,8 +127,14 @@
             extractEffectNamesFromDsl,
             getBackendFromURL,
             getUseBundlesFromURL,
-            getEffectFromURL
+            getEffectFromURL,
+            setToastProvider
         } = demoUiModule;
+
+        // Wire up handfish toast notifications
+        if (setToastProvider && handfishModule) {
+            setToastProvider(handfishModule);
+        }
 
         // =====================================================================
         // DOM Elements
