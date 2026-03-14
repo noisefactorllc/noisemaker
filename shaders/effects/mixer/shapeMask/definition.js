@@ -51,6 +51,8 @@ export default new Effect({
       uniform: "radius",
       min: 0,
       max: 1,
+      randMin: 0.25,
+      randMax: 0.75,
       ui: { label: "radius", control: "slider" }
     },
     edgeSmooth: {
