@@ -166,14 +166,14 @@ class MyClass:
 ## Read the Docs Integration
 
 Documentation is automatically built and published on Read the Docs:
-- **URL**: http://noisemaker.readthedocs.io/
+- **URL**: https://noisemaker.readthedocs.io/
 - **Config**: `.readthedocs.yaml`
 - **Trigger**: Every push to master branch
 
 ### Configuration
 
 The `.readthedocs.yaml` file configures:
-- Python 3.12 environment
+- Python 3.13 environment (Dockerfile), Python 3.12 (Read the Docs)
 - Automatic installation from `pyproject.toml`
 - Sphinx requirements from `docs/sphinx-requirements.txt`
 - PDF and ePub export formats

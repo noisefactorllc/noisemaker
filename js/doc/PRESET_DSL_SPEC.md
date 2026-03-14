@@ -145,14 +145,13 @@ The preset context exposes read‑only surfaces and constants:
 
 ## 8. Integration with `demo.html`
 
-1. Replace the read‑only `<pre id="presetFormula">` with a `<textarea>` for
-   live editing.
-2. On each change, tokenize, parse and validate the DSL.  Display diagnostics
-   near the textarea and highlight erroneous spans.
-3. If parsing and validation succeed, evaluate the AST to produce the preset
-   object and render it to the canvas.
-4. Show the evaluated preset structure in `#presetEvaluated` as today.
-5. The evaluation happens inside the browser without invoking `eval` or
+The demo displays the DSL source and evaluated preset in two read-only
+`<pre>` elements with tab switching:
+
+1. `<pre id="presetFormula">` shows the raw DSL source for the active preset.
+2. `<pre id="presetEvaluated">` shows the evaluated preset structure.
+3. A tabbed UI toggles visibility between the two views.
+4. The evaluation happens inside the browser without invoking `eval` or
    executing user supplied JavaScript.
 
 ## 9. Security Considerations

@@ -19,7 +19,7 @@ When in doubt: refer to what the Python version is doing, and just do what it do
 ## 2. High‑level Architecture
 
 ### 2.1 Module Layout
-The library is organised as ES modules inside `src/`.
+The library is organised as ES modules inside `js/noisemaker/`.
 
 | Module | Responsibility |
 |---|---|
