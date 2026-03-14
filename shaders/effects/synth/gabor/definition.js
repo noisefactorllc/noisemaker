@@ -70,6 +70,7 @@ export default new Effect({
       uniform: "density",
       min: 1,
       max: 8,
+      randMax: 5,
       ui: {
         label: "density",
         control: "slider"

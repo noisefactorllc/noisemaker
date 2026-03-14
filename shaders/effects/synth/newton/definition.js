@@ -63,6 +63,7 @@ export default new Effect({
       default: 100,
       min: 10,
       max: 500,
+      randMax: 200,
       uniform: "iterations",
       ui: { label: "iterations", control: "slider", category: "fractal" }
     },
