@@ -18,6 +18,7 @@ Uses a signed distance field to divide the frame into inside and outside regions
 | posX | float | 0 | -1-1 | Horizontal position offset |
 | posY | float | 0 | -1-1 | Vertical position offset |
 | invert | int | off | off/on | Swap inside/outside sources |
+| speed | int | 0 | 0-4 | Pulse animation speed |
 
 ## Notes
 

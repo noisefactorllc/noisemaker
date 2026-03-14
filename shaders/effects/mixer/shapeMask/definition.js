@@ -87,6 +87,16 @@ export default new Effect({
       max: 1,
       randChance: 0,
       ui: { label: "position y", control: "slider", category: "position" }
+    },
+    speed: {
+      type: "int",
+      default: 0,
+      uniform: "speed",
+      min: 0,
+      max: 4,
+      zero: 0,
+      randMax: 2,
+      ui: { label: "speed", control: "slider" }
     }
   },
   defaultProgram: "search mixer, synth\n\nnoise(ridges: true, colorMode: mono)\n.write(o0)\n\nnoise(ridges: true)\n.shapeMask(tex: read(o0))\n.write(o1)",

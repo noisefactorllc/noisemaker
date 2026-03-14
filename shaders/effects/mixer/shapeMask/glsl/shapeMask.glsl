@@ -11,6 +11,8 @@ uniform float rotation;
 uniform float posX;
 uniform float posY;
 uniform int invert;
+uniform int speed;
+uniform float time;
 
 out vec4 fragColor;
 
@@ -91,24 +93,30 @@ void main() {
     float rad = rotation * PI / 180.0;
     p = rotate2D(p, rad);
 
+    // Animate radius: pulse in and out
+    float r = radius;
+    if (speed > 0) {
+        r = radius * 0.5 + sin(time * TAU * float(speed)) * radius * 0.5;
+    }
+
     // Evaluate SDF
     float d = 0.0;
     if (shape == 0) {
-        d = sdfCircle(p, radius);
+        d = sdfCircle(p, r);
     } else if (shape == 1) {
-        d = sdfTriangle(p, radius);
+        d = sdfTriangle(p, r);
     } else if (shape == 2) {
-        d = sdfPolygon(p, radius, 4.0);
+        d = sdfPolygon(p, r, 4.0);
     } else if (shape == 3) {
-        d = sdfPolygon(p, radius, 5.0);
+        d = sdfPolygon(p, r, 5.0);
     } else if (shape == 4) {
-        d = sdfPolygon(p, radius, 6.0);
+        d = sdfPolygon(p, r, 6.0);
     } else if (shape == 5) {
-        d = sdfFlower(p, radius);
+        d = sdfFlower(p, r);
     } else if (shape == 6) {
-        d = sdfRing(p, radius);
+        d = sdfRing(p, r);
     } else if (shape == 7) {
-        d = sdfStar5(p, radius);
+        d = sdfStar5(p, r);
     }
 
     // Smoothstep mask: 0 inside, 1 outside

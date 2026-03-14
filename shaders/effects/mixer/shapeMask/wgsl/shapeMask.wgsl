@@ -8,6 +8,8 @@
 @group(0) @binding(7) var<uniform> posX : f32;
 @group(0) @binding(8) var<uniform> posY : f32;
 @group(0) @binding(9) var<uniform> invert : i32;
+@group(0) @binding(10) var<uniform> speed : i32;
+@group(0) @binding(11) var<uniform> time : f32;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -87,24 +89,30 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let rad = rotation * PI / 180.0;
     p = rotate2D(p, rad);
 
+    // Animate radius: pulse in and out
+    var r = radius;
+    if (speed > 0) {
+        r = radius * 0.5 + sin(time * TAU * f32(speed)) * radius * 0.5;
+    }
+
     // Evaluate SDF
     var d: f32 = 0.0;
     if (shape == 0) {
-        d = sdfCircle(p, radius);
+        d = sdfCircle(p, r);
     } else if (shape == 1) {
-        d = sdfTriangle(p, radius);
+        d = sdfTriangle(p, r);
     } else if (shape == 2) {
-        d = sdfPolygon(p, radius, 4.0);
+        d = sdfPolygon(p, r, 4.0);
     } else if (shape == 3) {
-        d = sdfPolygon(p, radius, 5.0);
+        d = sdfPolygon(p, r, 5.0);
     } else if (shape == 4) {
-        d = sdfPolygon(p, radius, 6.0);
+        d = sdfPolygon(p, r, 6.0);
     } else if (shape == 5) {
-        d = sdfFlower(p, radius);
+        d = sdfFlower(p, r);
     } else if (shape == 6) {
-        d = sdfRing(p, radius);
+        d = sdfRing(p, r);
     } else if (shape == 7) {
-        d = sdfStar5(p, radius);
+        d = sdfStar5(p, r);
     }
 
     // Smoothstep mask: 0 inside, 1 outside
