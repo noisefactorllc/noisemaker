@@ -1454,11 +1454,20 @@ export class ProgramState extends Emitter {
 
         // Apply write target overrides (end of chain)
         for (const [planIndex, target] of this._writeTargetOverrides) {
-            if (compiled.plans[planIndex]) {
+            const plan = compiled.plans[planIndex]
+            if (plan) {
                 const isOutput = target.startsWith('o')
-                compiled.plans[planIndex].write = {
-                    type: isOutput ? 'OutputRef' : 'FeedbackRef',
-                    name: target
+                const ref = { kind: isOutput ? 'output' : 'feedback', name: target }
+                plan.write = ref
+
+                // Also update the terminal _write step in the chain, since the
+                // unparser uses its args.tex instead of plan.write when the chain
+                // ends with a _write step.
+                if (plan.chain) {
+                    const lastStep = plan.chain[plan.chain.length - 1]
+                    if (lastStep?.builtin && lastStep.op === '_write' && lastStep.args) {
+                        lastStep.args.tex = ref
+                    }
                 }
             }
         }

@@ -8,6 +8,7 @@ import assert from 'assert'
 import { Emitter } from '../demo/shaders/lib/emitter.js'
 import { ProgramState } from '../demo/shaders/lib/program-state.js'
 import { extractEffectsFromDsl } from '../demo/shaders/lib/dsl-utils.js'
+import { compile, unparse } from '../shaders/src/lang/index.js'
 
 // ============================================================================
 // Emitter Tests
@@ -798,6 +799,76 @@ console.log('Testing _skip leak on structure change...')
         `step_0._skip = ${skipAfter}`)
 
     console.log('  ✓ _skip does not leak across occurrences on structure change')
+}
+
+// Test: setWriteTarget override updates terminal _write step for unparse roundtrip
+{
+    // Build a compiled structure directly with a _write step in the chain,
+    // mimicking what the compiler produces for e.g. noise().write(o0)
+    const compiled = {
+        search: ['synth'],
+        plans: [{
+            chain: [
+                { op: 'noise', args: {}, from: null, temp: 0 },
+                { op: '_write', args: { tex: { kind: 'output', name: 'o0' } }, from: 0, temp: 1, builtin: true }
+            ],
+            write: { kind: 'output', name: 'o0' },
+            write3d: null,
+            final: null,
+            states: []
+        }],
+        render: { surface: { kind: 'output', name: 'o0' } }
+    }
+
+    const state = new ProgramState()
+    state.setWriteTarget(0, 'o3')
+    state._applyRoutingOverridesToCompiled(compiled)
+
+    // Both plan.write and the terminal _write step should be updated
+    const plan = compiled.plans[0]
+    const lastStep = plan.chain[plan.chain.length - 1]
+    assert.strictEqual(plan.write.name, 'o3')
+    assert.strictEqual(plan.write.kind, 'output')
+    assert.strictEqual(lastStep.args.tex.name, 'o3')
+    assert.strictEqual(lastStep.args.tex.kind, 'output')
+
+    // Unparse should emit .write(o3), not .write(o0)
+    const output = unparse(compiled)
+    assert.ok(output.includes('.write(o3)'), `Expected .write(o3) in output, got: ${output}`)
+    assert.ok(!output.includes('.write(o0)'), `Should not contain .write(o0), got: ${output}`)
+
+    console.log('  ✓ setWriteTarget override updates terminal _write step for unparse roundtrip')
+}
+
+// Test: setWriteTarget without terminal _write step updates plan.write only
+{
+    // Chain without a _write step — write target is only in plan.write
+    const compiled = {
+        search: ['synth'],
+        plans: [{
+            chain: [
+                { op: 'noise', args: {}, from: null, temp: 0 }
+            ],
+            write: { kind: 'output', name: 'o0' },
+            write3d: null,
+            final: null,
+            states: []
+        }],
+        render: { surface: { kind: 'output', name: 'o0' } }
+    }
+
+    const state = new ProgramState()
+    state.setWriteTarget(0, 'o5')
+    state._applyRoutingOverridesToCompiled(compiled)
+
+    assert.strictEqual(compiled.plans[0].write.name, 'o5')
+    assert.strictEqual(compiled.plans[0].write.kind, 'output')
+    assert.strictEqual(compiled.plans[0].chain.length, 1, 'Should not inject _write step')
+
+    const output = unparse(compiled)
+    assert.ok(output.includes('.write(o5)'), `Expected .write(o5) in output, got: ${output}`)
+
+    console.log('  ✓ setWriteTarget without terminal _write step updates plan.write only')
 }
 
 // ============================================================================
