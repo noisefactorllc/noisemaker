@@ -165,3 +165,20 @@ jobs:
         rsync -avz \
           dist/effects/ \
           deploy@${{ secrets.SCAFFOLD_SERVER_IP }}:~/sites/shaders.noisedeck.app/content/${VERSION}/effects/
+
+    - name: Generate app token
+      if: success()
+      id: app-token
+      uses: actions/create-github-app-token@v1
+      with:
+        app-id: 2959521
+        private-key: ${{ secrets.EHSRE_APP_PRIVATE_KEY }}
+        owner: noisedeck
+
+    - name: Purge CDN cache
+      if: success()
+      run: |
+        curl -sf -X POST https://api.github.com/repos/noisedeck/scaffold/dispatches \
+          -H "Authorization: token ${{ steps.app-token.outputs.token }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          -d '{"event_type":"cdn-purge","client_payload":{"repo":"noisedeck/noisemaker","sha":"${{ github.sha }}"}}'
