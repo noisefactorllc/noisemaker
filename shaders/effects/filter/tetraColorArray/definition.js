@@ -320,12 +320,13 @@ export default new Effect({
 
     // === Mapping Controls ===
     repeat: {
-      type: "int",
+      type: "float",
       default: 1,
       uniform: "repeat",
-      min: 1,
+      min: 0,
       max: 10,
       randMax: 5,
+      step: 0.01,
       ui: {
         label: "repeat",
         control: "slider",

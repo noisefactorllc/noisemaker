@@ -28,7 +28,7 @@ export default new Effect({
       type: "float",
       default: 1,
       uniform: "scale",
-      min: 1,
+      min: 0,
       max: 5,
       ui: {
         label: "scale",
@@ -50,7 +50,7 @@ export default new Effect({
       type: "int",
       default: 0,
       uniform: "speed",
-      min: -5,
+      min: 0,
       max: 5,
       ui: {
         label: "speed",
