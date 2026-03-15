@@ -9,6 +9,8 @@ import { Emitter } from '../demo/shaders/lib/emitter.js'
 import { ProgramState } from '../demo/shaders/lib/program-state.js'
 import { extractEffectsFromDsl } from '../demo/shaders/lib/dsl-utils.js'
 import { compile, unparse } from '../shaders/src/lang/index.js'
+import { registerOp } from '../shaders/src/lang/ops.js'
+import { registerStarterOps } from '../shaders/src/lang/validator.js'
 
 // ============================================================================
 // Emitter Tests
@@ -801,32 +803,29 @@ console.log('Testing _skip leak on structure change...')
     console.log('  ✓ _skip does not leak across occurrences on structure change')
 }
 
+// Register effects for compiler tests
+registerOp('synth.noise', { name: 'noise', args: [{ name: 'scale', type: 'float', default: 1 }] })
+registerOp('filter.grade', { name: 'grade', args: [{ name: 'brightness', type: 'float', default: 0 }] })
+registerStarterOps(['synth.noise'])
+
 // Test: setWriteTarget override updates terminal _write step for unparse roundtrip
 {
-    // Build a compiled structure directly with a _write step in the chain,
-    // mimicking what the compiler produces for e.g. noise().write(o0)
-    const compiled = {
-        search: ['synth'],
-        plans: [{
-            chain: [
-                { op: 'noise', args: {}, from: null, temp: 0 },
-                { op: '_write', args: { tex: { kind: 'output', name: 'o0' } }, from: 0, temp: 1, builtin: true }
-            ],
-            write: { kind: 'output', name: 'o0' },
-            write3d: null,
-            final: null,
-            states: []
-        }],
-        render: { surface: { kind: 'output', name: 'o0' } }
-    }
+    const dsl = 'search synth, filter\n\nnoise().grade().write(o0)\n\nrender(o0)'
+    const compiled = compile(dsl)
 
+    // Verify compiler produced a real _write step
+    const plan = compiled.plans[0]
+    const lastStep = plan.chain[plan.chain.length - 1]
+    assert.strictEqual(lastStep.builtin, true)
+    assert.strictEqual(lastStep.op, '_write')
+    assert.strictEqual(lastStep.args.tex.name, 'o0')
+
+    // Apply override to change write target from o0 to o3
     const state = new ProgramState()
     state.setWriteTarget(0, 'o3')
     state._applyRoutingOverridesToCompiled(compiled)
 
     // Both plan.write and the terminal _write step should be updated
-    const plan = compiled.plans[0]
-    const lastStep = plan.chain[plan.chain.length - 1]
     assert.strictEqual(plan.write.name, 'o3')
     assert.strictEqual(plan.write.kind, 'output')
     assert.strictEqual(lastStep.args.tex.name, 'o3')
@@ -840,35 +839,33 @@ console.log('Testing _skip leak on structure change...')
     console.log('  ✓ setWriteTarget override updates terminal _write step for unparse roundtrip')
 }
 
-// Test: setWriteTarget without terminal _write step updates plan.write only
+// Test: setWriteTarget override on multi-write chain updates only terminal _write
 {
-    // Chain without a _write step — write target is only in plan.write
-    const compiled = {
-        search: ['synth'],
-        plans: [{
-            chain: [
-                { op: 'noise', args: {}, from: null, temp: 0 }
-            ],
-            write: { kind: 'output', name: 'o0' },
-            write3d: null,
-            final: null,
-            states: []
-        }],
-        render: { surface: { kind: 'output', name: 'o0' } }
-    }
+    const dsl = 'search synth, filter\n\nnoise().write(o0).grade().write(o1)\n\nrender(o0)'
+    const compiled = compile(dsl)
 
+    const plan = compiled.plans[0]
+    // Chain: noise -> _write(o0) -> grade -> _write(o1)
+    assert.strictEqual(plan.chain.length, 4)
+    assert.strictEqual(plan.chain[1].op, '_write')
+    assert.strictEqual(plan.chain[1].args.tex.name, 'o0')
+    assert.strictEqual(plan.chain[3].op, '_write')
+    assert.strictEqual(plan.chain[3].args.tex.name, 'o1')
+
+    // Override terminal write target from o1 to o5
     const state = new ProgramState()
     state.setWriteTarget(0, 'o5')
     state._applyRoutingOverridesToCompiled(compiled)
 
-    assert.strictEqual(compiled.plans[0].write.name, 'o5')
-    assert.strictEqual(compiled.plans[0].write.kind, 'output')
-    assert.strictEqual(compiled.plans[0].chain.length, 1, 'Should not inject _write step')
+    // Terminal _write step should be o5, mid-chain _write should remain o0
+    assert.strictEqual(plan.chain[3].args.tex.name, 'o5')
+    assert.strictEqual(plan.chain[1].args.tex.name, 'o0', 'Mid-chain write should be unchanged')
 
     const output = unparse(compiled)
     assert.ok(output.includes('.write(o5)'), `Expected .write(o5) in output, got: ${output}`)
+    assert.ok(output.includes('.write(o0)'), `Expected mid-chain .write(o0) preserved, got: ${output}`)
 
-    console.log('  ✓ setWriteTarget without terminal _write step updates plan.write only')
+    console.log('  ✓ setWriteTarget override on multi-write chain updates only terminal _write')
 }
 
 // ============================================================================
