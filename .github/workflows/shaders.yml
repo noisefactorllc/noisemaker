@@ -165,12 +165,3 @@ jobs:
         rsync -avz \
           dist/effects/ \
           deploy@${{ secrets.SCAFFOLD_SERVER_IP }}:~/sites/shaders.noisedeck.app/content/${VERSION}/effects/
-
-  cdn-purge:
-    needs: deploy-shaders
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    uses: noisedeck/scaffold/.github/workflows/cdn-purge.yml@main
-    with:
-      repo: noisedeck/noisemaker
-      sha: ${{ github.sha }}
-    secrets: inherit
