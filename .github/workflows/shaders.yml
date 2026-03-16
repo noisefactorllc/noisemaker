@@ -165,3 +165,38 @@ jobs:
         rsync -avz \
           dist/effects/ \
           deploy@${{ secrets.SCAFFOLD_SERVER_IP }}:~/sites/shaders.noisedeck.app/content/${VERSION}/effects/
+
+    - name: Purge CDN cache
+      run: |
+        VERSION=${{ steps.version.outputs.version }}
+        DOMAIN="shaders.noisedeck.app"
+        EDGES="deploy@172.233.144.193 root@172.104.31.65 root@139.162.153.16 root@172.239.236.121 root@172.104.181.86 root@172.233.0.212 root@172.105.161.140"
+        for ip in 172.233.144.193 172.104.31.65 139.162.153.16 172.239.236.121 172.104.181.86 172.233.0.212 172.105.161.140; do
+          ssh-keyscan $ip >> ~/.ssh/known_hosts 2>/dev/null
+        done
+        FILES=""
+        for f in "/${VERSION}/noisemaker-shaders-core.esm.js" "/${VERSION}/noisemaker-shaders-core.esm.min.js" "/${VERSION}/noisemaker-shaders-core.min.js" "/${VERSION}/effects/manifest.json"; do
+          KEY="${DOMAIN}${f}"
+          HASH=$(echo -n "$KEY" | md5sum | cut -d' ' -f1)
+          L1="${HASH: -1}"
+          L2="${HASH: -3:2}"
+          FILES="$FILES /var/cache/nginx/cdn/${L1}/${L2}/${HASH}"
+        done
+        CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD)
+        while IFS= read -r f; do
+          case "$f" in
+            shaders/*|effects/*)
+              CDN_PATH="/${VERSION}/${f}"
+              KEY="${DOMAIN}${CDN_PATH}"
+              HASH=$(echo -n "$KEY" | md5sum | cut -d' ' -f1)
+              L1="${HASH: -1}"
+              L2="${HASH: -3:2}"
+              FILES="$FILES /var/cache/nginx/cdn/${L1}/${L2}/${HASH}"
+              ;;
+          esac
+        done <<< "$CHANGED"
+        for edge in $EDGES; do
+          count=$(ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new "$edge" \
+            "docker exec nf-cdn-cache sh -c 'count=0; for f in $FILES; do [ -f \"\$f\" ] && rm -f \"\$f\" && count=\$((count+1)); done; echo \$count'" 2>/dev/null || echo "ERR")
+          echo "  ${edge##*@}: purged $count files"
+        done
