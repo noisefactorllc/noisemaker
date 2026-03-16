@@ -29,8 +29,8 @@ void main() {
     vec4 current = texture(inputTex, uv);
     vec4 previous = texture(selfTex, uv);
     
-    // Map amount 0-100 to 0-1.6 (clamped, stronger motion blur)
-    float mixFactor = clamp(amount * 0.016, 0.0, 0.98);
+    // Map amount 0-100 to 0-0.8 (clamped)
+    float mixFactor = clamp(amount * 0.008, 0.0, 0.98);
     
     fragColor = mix(current, previous, mixFactor);
 }

@@ -16,7 +16,8 @@ uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform float alpha;
 uniform float time;
-uniform float speed;
+uniform float pause;
+uniform float density;
 
 out vec4 fragColor;
 
@@ -76,20 +77,20 @@ void main() {
     vec4 texel = texelFetch(inputTex, coords, 0);
 
     float alphaVal = clamp(alpha, 0.0, 1.0);
-    if (alphaVal <= 0.0) {
+    if (alphaVal == 0.0) {
         fragColor = texel;
         return;
     }
 
     vec2 pixelCoord = vec2(gl_FragCoord.x, gl_FragCoord.y);
-    float timeVal = time;
-    float speedVal = speed * 100.0;
+    float timeVal = pause > 0.5 ? 0.0 : time;
+    float speedVal = 100.0;
 
     float static_value = snow_noise(pixelCoord, timeVal, speedVal, STATIC_SEED);
     float limiter_value = snow_noise(pixelCoord, timeVal, speedVal, LIMITER_SEED);
-    float limiter_sq = limiter_value * limiter_value;
-    float limiter_pow4 = limiter_sq * limiter_sq;
-    float limiter_mask = clamp(limiter_pow4 * alphaVal, 0.0, 1.0);
+    float d = max(density * 0.01, 0.0001);
+    float exponent = (1.0 - d) / d;
+    float limiter_mask = pow(min(limiter_value, 0.99), exponent) * alphaVal;
 
     vec3 static_color = vec3(static_value);
     vec3 mixed_rgb = mix(texel.xyz, static_color, vec3(limiter_mask));

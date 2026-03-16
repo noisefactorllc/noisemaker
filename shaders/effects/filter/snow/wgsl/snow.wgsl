@@ -12,9 +12,9 @@ struct SnowParams {
     channels : f32,
     alpha : f32,
     time : f32,
-    speed : f32,
+    pause : f32,
+    density : f32,
     _pad0 : f32,
-    _pad1 : f32,
 };
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
@@ -92,20 +92,20 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let coords : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
     let texel : vec4<f32> = textureLoad(inputTex, coords, 0);
 
-    if (alpha <= 0.0) {
+    if (alpha == 0.0) {
         write_pixel(base_index, texel.xyz, texel.w);
         return;
     }
 
     let coord : vec2<f32> = vec2<f32>(f32(gid.x), f32(gid.y));
-    let time : f32 = params.time;
-    let speed : f32 = params.speed * 100.0;
+    let time : f32 = select(params.time, 0.0, params.pause > 0.5);
+    let speed : f32 = 100.0;
 
     let static_value : f32 = snow_noise(coord, time, speed, STATIC_SEED);
     let limiter_value : f32 = snow_noise(coord, time, speed, LIMITER_SEED);
-    let limiter_sq : f32 = limiter_value * limiter_value;
-    let limiter_pow4 : f32 = limiter_sq * limiter_sq;
-    let limiter_mask : f32 = clamp(limiter_pow4 * alpha, 0.0, 1.0);
+    let d : f32 = max(params.density * 0.01, 0.0001);
+    let exponent : f32 = (1.0 - d) / d;
+    let limiter_mask : f32 = pow(min(limiter_value, 0.99), exponent) * alpha;
 
     let static_color : vec3<f32> = vec3<f32>(static_value);
     let mixed_rgb : vec3<f32> = mix(texel.xyz, static_color, vec3<f32>(limiter_mask));

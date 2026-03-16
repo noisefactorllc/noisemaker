@@ -20,15 +20,23 @@ export default new Effect({
         control: "slider"
       }
     },
-    speed: {
-      type: "float",
-      default: 1.0,
-      uniform: "speed",
-      min: 0,
-      max: 5,
-      step: 0.1,
+    pause: {
+      type: "boolean",
+      default: false,
+      uniform: "pause",
       ui: {
-        label: "speed",
+        label: "pause",
+        control: "checkbox"
+      }
+    },
+    density: {
+      type: "float",
+      default: 75,
+      uniform: "density",
+      min: 0,
+      max: 100,
+      ui: {
+        label: "density",
         control: "slider"
       }
     }
@@ -42,7 +50,8 @@ export default new Effect({
       },
       uniforms: {
         alpha: "alpha",
-        speed: "speed"
+        pause: "pause",
+        density: "density"
       },
       outputs: {
         fragColor: "outputTex"

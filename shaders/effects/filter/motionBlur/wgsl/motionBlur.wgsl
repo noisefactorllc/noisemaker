@@ -29,8 +29,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let current = textureSample(inputTex, texSampler, uv);
     let previous = textureSample(selfTex, texSampler, uv);
     
-    // Map amount 0-100 to 0-1.6 (clamped, stronger motion blur)
-    let mixFactor = clamp(uniforms.amount * 0.016, 0.0, 0.98);
+    // Map amount 0-100 to 0-0.8 (clamped)
+    let mixFactor = clamp(uniforms.amount * 0.008, 0.0, 0.98);
     
     return mix(current, previous, mixFactor);
 }
