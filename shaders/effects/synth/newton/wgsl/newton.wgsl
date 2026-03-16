@@ -15,7 +15,7 @@
  */
 
 struct Uniforms {
-    data: array<vec4<f32>, 5>,
+    data: array<vec4<f32>, 6>,
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -108,8 +108,12 @@ struct CoordResult {
 }
 
 fn transformCoords_df64(fragCoord: vec2<f32>, cX_df: vec2<f32>, cY_df: vec2<f32>,
-                        res: vec2<f32>, z_zoom: f32) -> CoordResult {
-    let uv = (fragCoord - 0.5 * res) / min(res.x, res.y);
+                        res: vec2<f32>, z_zoom: f32, rot: f32) -> CoordResult {
+    var uv = (fragCoord - 0.5 * res) / min(res.x, res.y);
+    let angle = -rot * TAU / 360.0;
+    let c = cos(angle);
+    let s = sin(angle);
+    uv = vec2<f32>(c * uv.x + s * uv.y, -s * uv.x + c * uv.y);
     let scale = 2.5 / z_zoom;
     let uv_re_df = df64_mul_f(df64_from(uv.x), scale);
     let uv_im_df = df64_mul_f(df64_from(uv.y), scale);
@@ -169,8 +173,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     let relaxSpeed = uniforms.data[4].x;
     let relaxRangeU = uniforms.data[4].y;
-    let outputMode = uniforms.data[4].z;
-    let invertU = uniforms.data[4].w;
+    let rotationU = uniforms.data[4].z;
+    let outputMode = uniforms.data[5].x;
+    let invertU = uniforms.data[5].y;
 
     let maxIter = i32(iterations);
     let poiIdx = i32(poiU);
@@ -199,8 +204,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     if (poiIdx > 0) {
         let p = getPOI(poiIdx);
-        cHi = p.center.xy;
-        cLo = p.center.zw;
+        cHi = p.center.xy + cHi;
+        cLo = p.center.zw + cLo;
         effDegree = p.deg;
         effZoomDepth = min(zoomDepthU, p.maxZoom);
     }
@@ -218,7 +223,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     let coords = transformCoords_df64(pos.xy,
         vec2<f32>(cHi.x, cLo.x), vec2<f32>(cHi.y, cLo.y),
-        resolution, zoom);
+        resolution, zoom, rotationU);
 
     // --- Compute roots of z^n - 1 ---
 

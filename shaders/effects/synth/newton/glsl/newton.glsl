@@ -36,6 +36,7 @@ uniform float degreeSpeed;
 uniform float degreeRange;
 uniform float relaxSpeed;
 uniform float relaxRange;
+uniform float rotation;
 uniform float outputMode;
 uniform float invert;
 
@@ -120,8 +121,12 @@ void df64_cmul(vec2 ar, vec2 ai, vec2 br, vec2 bi, out vec2 rr, out vec2 ri) {
 // ============================================================================
 
 void transformCoords_df64(vec2 fragCoord, vec2 cX_df, vec2 cY_df, float z_zoom,
-                          out vec2 re_df, out vec2 im_df) {
+                          float rot, out vec2 re_df, out vec2 im_df) {
     vec2 uv = (fragCoord - 0.5 * resolution) / min(resolution.x, resolution.y);
+    float angle = -rot * TAU / 360.0;
+    float c = cos(angle);
+    float s = sin(angle);
+    uv = mat2(c, -s, s, c) * uv;
     float scale = 2.5 / z_zoom;
     vec2 uv_re_df = df64_mul_f(df64_from(uv.x), scale);
     vec2 uv_im_df = df64_mul_f(df64_from(uv.y), scale);
@@ -183,8 +188,8 @@ void main() {
 
     if (poiIdx > 0) {
         POIData p = getPOI(poiIdx);
-        cHi = p.center.xy;
-        cLo = p.center.zw;
+        cHi = p.center.xy + vec2(centerHiX, centerHiY);
+        cLo = p.center.zw + vec2(centerLoX, centerLoY);
         effDegree = p.deg;
         effZoomDepth = min(zoomDepth, p.maxZoom);
     } else {
@@ -205,7 +210,7 @@ void main() {
 
     vec2 re_df, im_df;
     transformCoords_df64(gl_FragCoord.xy, vec2(cHi.x, cLo.x), vec2(cHi.y, cLo.y),
-                         zoom, re_df, im_df);
+                         zoom, rotation, re_df, im_df);
 
     // --- Compute roots of z^n - 1 ---
 

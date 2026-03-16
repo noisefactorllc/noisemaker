@@ -26,8 +26,9 @@ export default new Effect({
     degreeRange:{ slot: 3, components: 'w' },
     relaxSpeed: { slot: 4, components: 'x' },
     relaxRange: { slot: 4, components: 'y' },
-    outputMode: { slot: 4, components: 'z' },
-    invert:     { slot: 4, components: 'w' }
+    rotation:   { slot: 4, components: 'z' },
+    outputMode: { slot: 5, components: 'x' },
+    invert:     { slot: 5, components: 'y' }
   },
 
   globals: {
@@ -73,7 +74,7 @@ export default new Effect({
       min: 3,
       max: 8,
       uniform: "degree",
-      ui: { label: "degree", control: "slider", category: "fractal", enabledBy: { param: "poi", eq: 0 } }
+      ui: { label: "degree", control: "slider", category: "fractal" }
     },
     relaxation: {
       type: "float",
@@ -102,7 +103,7 @@ export default new Effect({
       max: 3,
       randChance: 0,
       uniform: "centerHiX",
-      ui: { label: "center x", control: "slider", category: "navigation", enabledBy: { param: "poi", eq: 0 } }
+      ui: { label: "center x", control: "slider", category: "navigation" }
     },
     centerY: {
       type: "float",
@@ -111,7 +112,17 @@ export default new Effect({
       max: 3,
       randChance: 0,
       uniform: "centerHiY",
-      ui: { label: "center y", control: "slider", category: "navigation", enabledBy: { param: "poi", eq: 0 } }
+      ui: { label: "center y", control: "slider", category: "navigation" }
+    },
+    rotation: {
+      type: "float",
+      default: 0,
+      min: -180,
+      max: 180,
+      step: 0.1,
+      randChance: 0,
+      uniform: "rotation",
+      ui: { label: "rotation", control: "slider", category: "navigation" }
     },
 
     // === Animation ===
@@ -144,7 +155,7 @@ export default new Effect({
       step: 0.01,
       randChance: 0,
       uniform: "degreeSpeed",
-      ui: { label: "degree speed", control: "slider", category: "animation", enabledBy: { param: "poi", eq: 0 } }
+      ui: { label: "degree speed", control: "slider", category: "animation" }
     },
     degreeRange: {
       type: "float",
@@ -154,7 +165,7 @@ export default new Effect({
       step: 0.01,
       randChance: 0,
       uniform: "degreeRange",
-      ui: { label: "degree range", control: "slider", category: "animation", enabledBy: { param: "poi", eq: 0 } }
+      ui: { label: "degree range", control: "slider", category: "animation" }
     },
     relaxSpeed: {
       type: "float",
