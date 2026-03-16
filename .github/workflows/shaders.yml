@@ -168,6 +168,7 @@ jobs:
 
   cdn-purge:
     needs: deploy-shaders
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     uses: noisedeck/scaffold/.github/workflows/cdn-purge.yml@main
     with:
       repo: noisedeck/noisemaker
