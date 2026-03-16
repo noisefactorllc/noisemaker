@@ -36,7 +36,7 @@ function injectStyles() {
         effect-select {
             display: block;
             position: relative;
-            font-family: Nunito, sans-serif;
+            font-family: var(--hf-font-family);
             width: 280px;
         }
 
@@ -52,7 +52,7 @@ function injectStyles() {
             border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%);
             border-radius: var(--ui-corner-radius-small, 0.375rem);
             color: var(--color6, #d9deeb);
-            font-family: Nunito, sans-serif;
+            font-family: var(--hf-font-family);
             font-size: 0.6875rem;
             font-weight: 560;
             outline: none;

@@ -3087,7 +3087,7 @@ render(o1)`
         textarea.className = 'shader-source-editor'
         textarea.name = 'shader-source'
         textarea.spellcheck = false
-        textarea.style.cssText = 'width: 100%; min-height: 200px; resize: vertical; background: color-mix(in srgb, var(--color1) 60%, transparent 40%); border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%); border-radius: var(--ui-corner-radius-small); font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace; font-size: 0.625rem; line-height: 1.4; color: var(--color5); padding: 0.5rem; box-sizing: border-box;'
+        textarea.style.cssText = 'width: 100%; min-height: 200px; resize: vertical; background: color-mix(in srgb, var(--color1) 60%, transparent 40%); border: 1px solid color-mix(in srgb, var(--accent3) 25%, transparent 75%); border-radius: var(--ui-corner-radius-small); font-family: var(--hf-font-family-mono); font-size: 0.625rem; line-height: 1.4; color: var(--color5); padding: 0.5rem; box-sizing: border-box;'
         section.appendChild(textarea)
 
         // Button container
@@ -3098,13 +3098,13 @@ render(o1)`
         // Apply button
         const applyBtn = document.createElement('button')
         applyBtn.textContent = 'apply shader'
-        applyBtn.style.cssText = 'flex: 1; padding: 0.375rem 0.75rem; background: color-mix(in srgb, var(--accent3) 30%, transparent 70%); border: 1px solid color-mix(in srgb, var(--accent3) 50%, transparent 50%); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: Nunito, sans-serif; font-size: 0.6875rem; font-weight: 600; cursor: pointer;'
+        applyBtn.style.cssText = 'flex: 1; padding: 0.375rem 0.75rem; background: color-mix(in srgb, var(--accent3) 30%, transparent 70%); border: 1px solid color-mix(in srgb, var(--accent3) 50%, transparent 50%); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: var(--hf-font-family); font-size: 0.6875rem; font-weight: 600; cursor: pointer;'
         btnContainer.appendChild(applyBtn)
 
         // Reset button
         const resetBtn = document.createElement('button')
         resetBtn.textContent = 'reset to original'
-        resetBtn.style.cssText = 'flex: 1; padding: 0.375rem 0.75rem; background: transparent; border: 1px solid color-mix(in srgb, var(--accent3) 30%, transparent 70%); border-radius: var(--ui-corner-radius-small); color: var(--color5); font-family: Nunito, sans-serif; font-size: 0.6875rem; font-weight: 600; cursor: pointer;'
+        resetBtn.style.cssText = 'flex: 1; padding: 0.375rem 0.75rem; background: transparent; border: 1px solid color-mix(in srgb, var(--accent3) 30%, transparent 70%); border-radius: var(--ui-corner-radius-small); color: var(--color5); font-family: var(--hf-font-family); font-size: 0.6875rem; font-weight: 600; cursor: pointer;'
         btnContainer.appendChild(resetBtn)
 
         // Toggle visibility via the code button in title bar
@@ -3959,7 +3959,7 @@ render(o1)`
         if (!isMultiline) input.type = 'text'
         input.value = value || spec.default || ''
         if (isMultiline) input.rows = 3
-        input.style.cssText = 'width: 100%; padding: 0.375rem 0.5rem; background: var(--color1); border: 1px solid var(--color3); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: Nunito, sans-serif; font-size: 0.75rem; resize: vertical;'
+        input.style.cssText = 'width: 100%; padding: 0.375rem 0.5rem; background: var(--color1); border: 1px solid var(--color3); border-radius: var(--ui-corner-radius-small); color: var(--color6); font-family: var(--hf-font-family); font-size: 0.75rem; resize: vertical;'
 
         input.addEventListener('input', () => {
             this._programState.setValue(effectKey, key, input.value)

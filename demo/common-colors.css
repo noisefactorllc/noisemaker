@@ -10,10 +10,6 @@
 
 
 :root {
-  /* Font stacks with blank-variant fallbacks for zero layout shift */
-  --hf-font-family: Nunito, 'Nunito Blank', system-ui, sans-serif;
-  --hf-font-family-mono: 'Noto Sans Mono', 'Noto Sans Mono Blank', ui-monospace, monospace;
-
   /* Base color palette → handfish tokens */
   --color1: var(--hf-color-1, #07090d);
   --color2: var(--hf-color-2, #101522);

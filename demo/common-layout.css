@@ -39,7 +39,7 @@ body {
 
 body {
   margin: 0;
-  font-family: "Nunito", sans-serif;
+  font-family: var(--hf-font-family);
   font-weight: 580;
   font-stretch: 108%;
   font-variation-settings: "wght" 580;

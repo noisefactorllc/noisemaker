@@ -20,27 +20,34 @@
   <meta name="twitter:image" content="https://noisemaker.app/og-image.png" />
 
   <link rel="icon" href="data:," />
+  <link rel="preload" href="https://fonts.noisefactor.io/fonts/nunito/Nunito-Blank.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono-Blank.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    @font-face { font-family: 'Nunito Blank'; src: url('https://fonts.noisefactor.io/fonts/nunito/Nunito-Blank.woff2') format('woff2'); }
+    @font-face { font-family: 'Noto Sans Mono Blank'; src: url('https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono-Blank.woff2') format('woff2'); }
+  </style>
+  <link rel="stylesheet" href="https://handfish.noisefactor.io/0.9.0/styles/index.css" />
   <link rel="stylesheet" href="./demo/common.css" />
   <style>
     :root {
-      --color1: #0a0a0a;
-      --color2: #141414;
-      --color3: #1e1e1e;
-      --color4: #2a2a2a;
-      --color5: #888;
-      --color6: #ccc;
-      --color7: #f0f0f0;
-      --accent1: #1a1a1a;
-      --accent2: #252525;
-      --accent3: #ff00c1;
-      --accent4: #ff66d9;
-      --neon-green: #33ff00;
+      --hf-color-1: #0a0a0a;
+      --hf-color-2: #141414;
+      --hf-color-3: #1e1e1e;
+      --hf-color-4: #2a2a2a;
+      --hf-color-5: #888;
+      --hf-color-6: #ccc;
+      --hf-color-7: #f0f0f0;
+      --hf-accent-1: #1a1a1a;
+      --hf-accent-2: #252525;
+      --hf-accent-3: #ff00c1;
+      --hf-accent-4: #ff66d9;
+      --hf-green: #33ff00;
     }
 
     body.landing-page {
       padding: 0;
       min-height: 100vh;
-      background: #000;
+      background: var(--hf-bg-base);
     }
 
     #bg-canvas {
@@ -49,14 +56,14 @@
       left: 0;
       width: 100vw;
       height: 100vh;
-      z-index: 0;
+      z-index: var(--hf-z-base);
     }
 
     .content-overlay {
       position: relative;
       z-index: 1;
       width: 100%;
-      background: rgba(0, 0, 0, 0.5);
+      background: color-mix(in srgb, var(--hf-bg-base) 50%, transparent 50%);
       display: flex;
       justify-content: center;
       padding: clamp(40px, 12vh, 80px) clamp(16px, 5vw, 48px);
@@ -94,28 +101,28 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: clamp(16px, 3vw, 28px);
-      font-size: 13px;
-      letter-spacing: 0.04em;
-      color: var(--color5);
+      gap: clamp(1rem, 3vw, 2rem);
+      font-size: var(--hf-size-sm);
+      letter-spacing: var(--hf-tracking-wide);
+      color: var(--hf-text-dim);
     }
     main.landing-shell footer a {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      color: var(--color5);
-      transition: color 0.15s ease;
+      gap: var(--hf-space-2);
+      color: var(--hf-text-dim);
+      transition: var(--hf-transition-color);
     }
     main.landing-shell footer a:hover {
-      color: var(--color7);
+      color: var(--hf-text-bright);
     }
 
     a.demo-card {
-      background: rgba(10, 10, 10, 0.7);
+      background: color-mix(in srgb, var(--hf-bg-base) 70%, transparent 30%);
     }
     a.demo-card:hover,
     a.demo-card:focus-visible {
-      border-color: var(--neon-green);
+      border-color: var(--hf-green);
     }
   </style>
 </head>
@@ -148,7 +155,7 @@
       </section>
 
       <section class="demo-grid" style="margin-top: 0;">
-        <a class="demo-card" href="https://noisedeck.app/" style="grid-column: 1 / -1; border-color: var(--neon-green);">
+        <a class="demo-card" href="https://noisedeck.app/" style="grid-column: 1 / -1; border-color: var(--hf-green);">
           <span class="demo-name">Noisedeck</span>
           <span class="demo-summary">An approachable, powerful video synth built on Noisemaker. A must-have for any creator's toolkit.</span>
         </a>
@@ -160,6 +167,12 @@
         </a>
         <a href="https://github.com/noisedeck/noisemaker" class="tooltip" data-title="View on GitHub" aria-label="View on GitHub">
           <span>Source</span>
+        </a>
+        <a href="https://genart.social/@noisemakerbot" rel="me noopener" target="_blank">
+          <span>Mastodon</span>
+        </a>
+        <a href="https://bsky.app/profile/noisemakerbot.bsky.social" rel="noopener" target="_blank">
+          <span>Bluesky</span>
         </a>
       </footer>
     </main>
