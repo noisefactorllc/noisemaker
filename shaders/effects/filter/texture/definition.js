@@ -47,6 +47,7 @@ export default new Effect({
         min: 0.1,
         max: 10,
         step: 0.1,
+        randMax: 4,
         ui: {
             label: "scale",
             control: "slider"
