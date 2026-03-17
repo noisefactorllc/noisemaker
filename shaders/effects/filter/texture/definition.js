@@ -12,6 +12,22 @@ export default new Effect({
 
   description: "Texture overlay blend",
   globals: {
+    mode: {
+        type: "int",
+        default: 3,
+        uniform: "mode",
+        choices: {
+            "canvas": 0,
+            "crosshatch": 1,
+            "halftone": 2,
+            "paper": 3,
+            "stucco": 4
+        },
+        ui: {
+            label: "mode",
+            control: "dropdown"
+        }
+    },
     alpha: {
         type: "float",
         default: 0.5,
@@ -29,7 +45,7 @@ export default new Effect({
         default: 1.0,
         uniform: "scale",
         min: 0.1,
-        max: 5,
+        max: 10,
         step: 0.1,
         ui: {
             label: "scale",

@@ -3,10 +3,12 @@
 precision highp float;
 precision highp int;
 
-// Texture effect: generate animated ridged noise, derive a shadow from the
-// noise gradient, then blend that shade back into the source pixels.
+// Texture effect: generate a height field from one of several texture modes,
+// derive shading from the gradient, then blend back into the source pixels.
+// Modes: 0=canvas, 1=crosshatch, 2=halftone, 3=paper, 4=stucco
 
 uniform sampler2D inputTex;
+uniform int mode;
 uniform float time;
 uniform float alpha;
 uniform float scale;
@@ -14,8 +16,8 @@ uniform float scale;
 in vec2 v_texCoord;
 out vec4 fragColor;
 
+const float PI = 3.14159265359;
 const float INV_UINT32_MAX = 1.0 / 4294967295.0;
-const int OCTAVE_COUNT = 3;
 const int Z_LOOP = 2;
 const float SHADE_GAIN = 4.4;
 
@@ -39,7 +41,6 @@ vec2 freq_for_shape(float base_freq, vec2 dims) {
     return vec2(base_freq * h / w, base_freq);
 }
 
-// Simple hash function for integers
 uint hash_uint(uint x) {
     x ^= x >> 16u;
     x *= 0x7feb352du;
@@ -95,13 +96,14 @@ float value_noise(vec2 uv, vec2 freq, float motion, uint salt) {
     return mix(y0, y1, tz);
 }
 
-float multi_octave_noise(vec2 uv, vec2 base_freq, float motion) {
+// Paper: 3-octave ridged noise (original texture)
+float height_paper(vec2 uv, vec2 base_freq, float motion) {
     vec2 freq = max(base_freq, vec2(1.0, 1.0));
     float amplitude = 0.5;
     float accum = 0.0;
     float total = 0.0;
 
-    for (int octave = 0; octave < OCTAVE_COUNT; octave++) {
+    for (int octave = 0; octave < 3; octave++) {
         uint salt = 0x9e3779b9u * uint(octave + 1);
         float samp = value_noise(uv, freq, motion + float(octave) * 0.37, salt);
         float ridged = 1.0 - abs(samp * 2.0 - 1.0);
@@ -111,10 +113,63 @@ float multi_octave_noise(vec2 uv, vec2 base_freq, float motion) {
         amplitude *= 0.55;
     }
 
-    if (total <= 0.0) {
-        return clamp01(accum);
+    return total > 0.0 ? clamp01(accum / total) : clamp01(accum);
+}
+
+// Stucco: 2-octave smooth noise, lower frequency, rounder bumps
+float height_stucco(vec2 uv, vec2 base_freq, float motion) {
+    vec2 freq = max(base_freq, vec2(1.0, 1.0));
+    float amplitude = 0.5;
+    float accum = 0.0;
+    float total = 0.0;
+
+    for (int octave = 0; octave < 2; octave++) {
+        uint salt = 0x9e3779b9u * uint(octave + 1);
+        float samp = value_noise(uv, freq, motion + float(octave) * 0.37, salt);
+        accum += samp * amplitude;
+        total += amplitude;
+        freq *= 2.0;
+        amplitude *= 0.5;
     }
-    return clamp01(accum / total);
+
+    return total > 0.0 ? clamp01(accum / total) : clamp01(accum);
+}
+
+// Canvas: woven fabric pattern with slight noise perturbation
+float height_canvas(vec2 uv, vec2 base_freq, float motion) {
+    vec2 st = uv * base_freq;
+    float warpX = abs(sin(st.x * PI));
+    float weftY = abs(sin(st.y * PI));
+    float weave = warpX * weftY;
+
+    // Add subtle noise irregularity
+    float noise = value_noise(uv, base_freq * 0.5, motion, 0x12345678u);
+    return clamp01(weave * 0.85 + noise * 0.15);
+}
+
+// Halftone: regular circular dot grid
+float height_halftone(vec2 uv, vec2 base_freq) {
+    vec2 st = uv * base_freq;
+    vec2 cell = fract(st) - 0.5;
+    float dot = 1.0 - clamp01(length(cell) * 3.0);
+    return dot * dot;
+}
+
+// Crosshatch: two overlapping diagonal sine ridges
+float height_crosshatch(vec2 uv, vec2 base_freq) {
+    vec2 st = uv * base_freq;
+    float d1 = abs(sin((st.x + st.y) * PI));
+    float d2 = abs(sin((st.x - st.y) * PI));
+    return clamp01(d1 * d2);
+}
+
+// Dispatch to the active mode's height function
+float height_field(int m, vec2 uv, vec2 base_freq, float motion) {
+    if (m == 0) return height_canvas(uv, base_freq, motion);
+    if (m == 1) return height_crosshatch(uv, base_freq);
+    if (m == 2) return height_halftone(uv, base_freq);
+    if (m == 4) return height_stucco(uv, base_freq, motion);
+    return height_paper(uv, base_freq, motion);  // 3 = paper (default)
 }
 
 void main() {
@@ -128,22 +183,28 @@ void main() {
         return;
     }
 
-    vec2 base_freq = freq_for_shape(24.0 * scale, dims);
+    // Paper and stucco use different base frequencies
+    float freq_scale = (mode == 4) ? 8.0 : 24.0;
+    vec2 base_freq = freq_for_shape(freq_scale * (10.01 - scale), dims);
     float motion = time * float(Z_LOOP);
 
-    float noise_center = multi_octave_noise(v_texCoord, base_freq, motion);
-    float noise_right = multi_octave_noise(v_texCoord + vec2(pixel_step.x, 0.0), base_freq, motion);
-    float noise_left = multi_octave_noise(v_texCoord - vec2(pixel_step.x, 0.0), base_freq, motion);
-    float noise_up = multi_octave_noise(v_texCoord + vec2(0.0, pixel_step.y), base_freq, motion);
-    float noise_down = multi_octave_noise(v_texCoord - vec2(0.0, pixel_step.y), base_freq, motion);
+    // Sample height field at center and 4 neighbors for gradient
+    float h_center = height_field(mode, v_texCoord, base_freq, motion);
+    float h_right  = height_field(mode, v_texCoord + vec2(pixel_step.x, 0.0), base_freq, motion);
+    float h_left   = height_field(mode, v_texCoord - vec2(pixel_step.x, 0.0), base_freq, motion);
+    float h_up     = height_field(mode, v_texCoord + vec2(0.0, pixel_step.y), base_freq, motion);
+    float h_down   = height_field(mode, v_texCoord - vec2(0.0, pixel_step.y), base_freq, motion);
 
-    float gx = noise_right - noise_left;
-    float gy = noise_down - noise_up;
+    float gx = h_right - h_left;
+    float gy = h_down - h_up;
     float gradient = sqrt(gx * gx + gy * gy);
-    float shade_base = clamp01(gradient * SHADE_GAIN * 0.25);
+
+    // Stucco uses stronger shading for more pronounced bumps
+    float gain = (mode == 4) ? SHADE_GAIN * 0.5 : SHADE_GAIN * 0.25;
+    float shade_base = clamp01(gradient * gain);
 
     float highlight_mix = clamp01((shade_base * shade_base) * 1.25);
-    float base_factor = 0.9 + noise_center * 0.35;
+    float base_factor = 0.9 + h_center * 0.35;
     float factor = clamp(base_factor + highlight_mix * 0.35, 0.85, 1.6);
 
     vec3 scaled_rgb = clamp(base_color.rgb * factor, 0.0, 1.0);

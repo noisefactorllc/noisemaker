@@ -1,5 +1,6 @@
-// Texture effect: generate animated ridged noise, derive a shadow from the
-// noise gradient, then blend that shade back into the source pixels.
+// Texture effect: generate a height field from one of several texture modes,
+// derive shading from the gradient, then blend back into the source pixels.
+// Modes: 0=canvas, 1=crosshatch, 2=halftone, 3=paper, 4=stucco
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -8,12 +9,13 @@ struct VertexOutput {
 
 @group(0) @binding(0) var u_sampler: sampler;
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
-@group(0) @binding(2) var<uniform> alpha: f32;
-@group(0) @binding(3) var<uniform> scale: f32;
-@group(0) @binding(4) var<uniform> time: f32;
+@group(0) @binding(2) var<uniform> mode: i32;
+@group(0) @binding(3) var<uniform> alpha: f32;
+@group(0) @binding(4) var<uniform> scale: f32;
+@group(0) @binding(5) var<uniform> time: f32;
 
+const PI: f32 = 3.14159265359;
 const INV_UINT32_MAX: f32 = 1.0 / 4294967295.0;
-const OCTAVE_COUNT: u32 = 3u;
 const Z_LOOP: i32 = 2;
 const SHADE_GAIN: f32 = 4.4;
 
@@ -93,13 +95,14 @@ fn value_noise(uv: vec2<f32>, freq: vec2<f32>, motion: f32, salt: u32) -> f32 {
     return mix(y0, y1, tz);
 }
 
-fn multi_octave_noise(uv: vec2<f32>, base_freq: vec2<f32>, motion: f32) -> f32 {
+// Paper: 3-octave ridged noise (original texture)
+fn height_paper(uv: vec2<f32>, base_freq: vec2<f32>, motion: f32) -> f32 {
     var freq: vec2<f32> = max(base_freq, vec2<f32>(1.0, 1.0));
     var amplitude: f32 = 0.5;
     var accum: f32 = 0.0;
     var total: f32 = 0.0;
 
-    for (var octave: u32 = 0u; octave < OCTAVE_COUNT; octave = octave + 1u) {
+    for (var octave: u32 = 0u; octave < 3u; octave = octave + 1u) {
         let salt: u32 = 0x9e3779b9u * (octave + 1u);
         let sample_val: f32 = value_noise(uv, freq, motion + f32(octave) * 0.37, salt);
         let ridged: f32 = 1.0 - abs(sample_val * 2.0 - 1.0);
@@ -109,10 +112,64 @@ fn multi_octave_noise(uv: vec2<f32>, base_freq: vec2<f32>, motion: f32) -> f32 {
         amplitude = amplitude * 0.55;
     }
 
-    if (total <= 0.0) {
-        return clamp01(accum);
-    }
+    if (total <= 0.0) { return clamp01(accum); }
     return clamp01(accum / total);
+}
+
+// Stucco: 2-octave smooth noise, lower frequency, rounder bumps
+fn height_stucco(uv: vec2<f32>, base_freq: vec2<f32>, motion: f32) -> f32 {
+    var freq: vec2<f32> = max(base_freq, vec2<f32>(1.0, 1.0));
+    var amplitude: f32 = 0.5;
+    var accum: f32 = 0.0;
+    var total: f32 = 0.0;
+
+    for (var octave: u32 = 0u; octave < 2u; octave = octave + 1u) {
+        let salt: u32 = 0x9e3779b9u * (octave + 1u);
+        let sample_val: f32 = value_noise(uv, freq, motion + f32(octave) * 0.37, salt);
+        accum = accum + sample_val * amplitude;
+        total = total + amplitude;
+        freq = freq * 2.0;
+        amplitude = amplitude * 0.5;
+    }
+
+    if (total <= 0.0) { return clamp01(accum); }
+    return clamp01(accum / total);
+}
+
+// Canvas: woven fabric pattern with slight noise perturbation
+fn height_canvas(uv: vec2<f32>, base_freq: vec2<f32>, motion: f32) -> f32 {
+    let st: vec2<f32> = uv * base_freq;
+    let warpX: f32 = abs(sin(st.x * PI));
+    let weftY: f32 = abs(sin(st.y * PI));
+    let weave: f32 = warpX * weftY;
+
+    let noise: f32 = value_noise(uv, base_freq * 0.5, motion, 0x12345678u);
+    return clamp01(weave * 0.85 + noise * 0.15);
+}
+
+// Halftone: regular circular dot grid
+fn height_halftone(uv: vec2<f32>, base_freq: vec2<f32>) -> f32 {
+    let st: vec2<f32> = uv * base_freq;
+    let cell: vec2<f32> = fract(st) - 0.5;
+    let dot: f32 = 1.0 - clamp01(length(cell) * 3.0);
+    return dot * dot;
+}
+
+// Crosshatch: two overlapping diagonal sine ridges
+fn height_crosshatch(uv: vec2<f32>, base_freq: vec2<f32>) -> f32 {
+    let st: vec2<f32> = uv * base_freq;
+    let d1: f32 = abs(sin((st.x + st.y) * PI));
+    let d2: f32 = abs(sin((st.x - st.y) * PI));
+    return clamp01(d1 * d2);
+}
+
+// Dispatch to the active mode's height function
+fn height_field(m: i32, uv: vec2<f32>, base_freq: vec2<f32>, motion: f32) -> f32 {
+    if (m == 0) { return height_canvas(uv, base_freq, motion); }
+    if (m == 1) { return height_crosshatch(uv, base_freq); }
+    if (m == 2) { return height_halftone(uv, base_freq); }
+    if (m == 4) { return height_stucco(uv, base_freq, motion); }
+    return height_paper(uv, base_freq, motion);  // 3 = paper (default)
 }
 
 @fragment
@@ -126,22 +183,30 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
         return base_color;
     }
 
-    let base_freq: vec2<f32> = freq_for_shape(24.0 * scale, dims);
+    // Paper and stucco use different base frequencies
+    var freq_scale: f32 = 24.0;
+    if (mode == 4) { freq_scale = 8.0; }
+    let base_freq: vec2<f32> = freq_for_shape(freq_scale * scale, dims);
     let motion: f32 = time * f32(Z_LOOP);
 
-    let noise_center: f32 = multi_octave_noise(in.uv, base_freq, motion);
-    let noise_right: f32 = multi_octave_noise(in.uv + vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
-    let noise_left: f32 = multi_octave_noise(in.uv - vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
-    let noise_up: f32 = multi_octave_noise(in.uv + vec2<f32>(0.0, pixel_step.y), base_freq, motion);
-    let noise_down: f32 = multi_octave_noise(in.uv - vec2<f32>(0.0, pixel_step.y), base_freq, motion);
+    // Sample height field at center and 4 neighbors for gradient
+    let h_center: f32 = height_field(mode, in.uv, base_freq, motion);
+    let h_right: f32 = height_field(mode, in.uv + vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
+    let h_left: f32 = height_field(mode, in.uv - vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
+    let h_up: f32 = height_field(mode, in.uv + vec2<f32>(0.0, pixel_step.y), base_freq, motion);
+    let h_down: f32 = height_field(mode, in.uv - vec2<f32>(0.0, pixel_step.y), base_freq, motion);
 
-    let gx: f32 = noise_right - noise_left;
-    let gy: f32 = noise_down - noise_up;
+    let gx: f32 = h_right - h_left;
+    let gy: f32 = h_down - h_up;
     let gradient: f32 = sqrt(gx * gx + gy * gy);
-    let shade_base: f32 = clamp01(gradient * SHADE_GAIN * 0.25);
+
+    // Stucco uses stronger shading for more pronounced bumps
+    var gain: f32 = SHADE_GAIN * 0.25;
+    if (mode == 4) { gain = SHADE_GAIN * 0.5; }
+    let shade_base: f32 = clamp01(gradient * gain);
 
     let highlight_mix: f32 = clamp01((shade_base * shade_base) * 1.25);
-    let base_factor: f32 = 0.9 + noise_center * 0.35;
+    let base_factor: f32 = 0.9 + h_center * 0.35;
     let factor: f32 = clamp(base_factor + highlight_mix * 0.35, 0.85, 1.6);
 
     let scaled_rgb: vec3<f32> = clamp(base_color.xyz * factor, vec3<f32>(0.0), vec3<f32>(1.0));
