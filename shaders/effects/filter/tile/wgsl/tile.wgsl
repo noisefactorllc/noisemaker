@@ -8,6 +8,7 @@
 @group(0) @binding(7) var<uniform> offsetY: f32;
 @group(0) @binding(8) var<uniform> angle: f32;
 @group(0) @binding(9) var<uniform> repeat: f32;
+@group(0) @binding(10) var<uniform> aspectLens: i32;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -64,19 +65,28 @@ fn rotationalFold(uv: vec2<f32>, n: i32) -> vec2<f32> {
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = position.xy / texSize;
+    let asp = texSize.x / texSize.y;
+    let doAspect = aspectLens != 0;
 
-    // Rotate the entire tiled grid (before fract so all tiles rotate together)
-    var st = rot(uv - 0.5, angle * PI / 180.0) + 0.5;
+    // Rotate in aspect-corrected space to avoid shearing on non-square canvases
+    var st = uv - 0.5;
+    if (doAspect) { st.x *= asp; }
+    st = rot(st, angle * PI / 180.0);
+    if (doAspect) { st.x /= asp; }
+    st += 0.5;
+
+    // Aspect-corrected repeat count: more tiles along the longer axis
+    let rep = select(vec2<f32>(repeat), vec2<f32>(repeat * asp, repeat), doAspect);
 
     if (symmetry == 3) {
         // Hex tiling with 6-fold rotational symmetry
         // Offset pans the entire texture (applied before hex grid computation)
-        let local_hex = hexCoord((st + vec2<f32>(offsetX, offsetY)) * repeat);
+        let local_hex = hexCoord((st + vec2<f32>(offsetX, offsetY)) * rep);
         let local_scaled = local_hex / scale;
         st = rotationalFold(local_scaled + 0.5, 6);
     } else {
         // Square tiling
-        st = fract2(st * repeat);
+        st = fract2(st * rep);
 
         // Apply source region transforms (before fold — fold handles any input range)
         // mirrorXY needs half the range so edges match at default scale

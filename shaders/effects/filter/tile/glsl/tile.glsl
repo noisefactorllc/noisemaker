@@ -8,6 +8,7 @@ uniform float offsetX;
 uniform float offsetY;
 uniform float angle;
 uniform float repeat;
+uniform bool aspectLens;
 
 out vec4 fragColor;
 
@@ -74,19 +75,27 @@ vec2 rotationalFold(vec2 uv, int n) {
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
+    float aspect = float(texSize.x) / float(texSize.y);
 
-    // Rotate the entire tiled grid (before fract so all tiles rotate together)
-    vec2 st = rot(uv - 0.5, angle * PI / 180.0) + 0.5;
+    // Rotate in aspect-corrected space to avoid shearing on non-square canvases
+    vec2 st = uv - 0.5;
+    if (aspectLens) { st.x *= aspect; }
+    st = rot(st, angle * PI / 180.0);
+    if (aspectLens) { st.x /= aspect; }
+    st += 0.5;
+
+    // Aspect-corrected repeat count: more tiles along the longer axis
+    vec2 rep = aspectLens ? vec2(repeat * aspect, repeat) : vec2(repeat);
 
     if (symmetry == 3) {
         // Hex tiling with 6-fold rotational symmetry
         // Offset pans the entire texture (applied before hex grid computation)
-        vec2 local = hexCoord((st + vec2(offsetX, offsetY)) * repeat);
+        vec2 local = hexCoord((st + vec2(offsetX, offsetY)) * rep);
         local = local / scale;
         st = rotationalFold(local + 0.5, 6);
     } else {
         // Square tiling
-        st = st * repeat;
+        st = st * rep;
         st = fract(st);
 
         // Apply source region transforms (before fold — fold handles any input range)

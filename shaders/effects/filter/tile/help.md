@@ -16,6 +16,7 @@ Selects a region of the input and folds it using mirror or rotational symmetry. 
 | offset y | float | 0 | -1 to 1 | Pan source region vertically |
 | angle | float | 0 | 0-360 | Rotate the entire tiled output |
 | repeat | float | 2 | 1-10 | Number of tile repetitions to display |
+| 1:1 aspect | boolean | true | on/off | Correct tiles to square aspect ratio |
 
 ## Notes
 
@@ -26,3 +27,4 @@ Selects a region of the input and folds it using mirror or rotational symmetry. 
 - Adjust offset and scale to explore different regions of the input
 - Angle rotates the entire output grid, preserving seamlessness
 - Set repeat to 1 to output just the tile unit
+- When 1:1 aspect is enabled, tiles are square on non-square canvases (more tiles along the longer axis). Disable if you need the output image itself to tile seamlessly at the canvas aspect ratio.
