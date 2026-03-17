@@ -183,8 +183,9 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
         return base_color;
     }
 
-    // Frequency
+    // Paper and stucco use different base frequencies
     var freq_scale: f32 = 24.0;
+    if (mode == 4) { freq_scale = 48.0; }
     let base_freq: vec2<f32> = freq_for_shape(freq_scale * (10.01 - scale), dims);
     let motion: f32 = time * f32(Z_LOOP);
 

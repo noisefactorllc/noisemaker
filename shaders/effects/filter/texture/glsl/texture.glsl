@@ -183,8 +183,8 @@ void main() {
         return;
     }
 
-    // Frequency
-    float freq_scale = 24.0;
+    // Paper and stucco use different base frequencies
+    float freq_scale = (mode == 4) ? 48.0 : 24.0;
     vec2 base_freq = freq_for_shape(freq_scale * (10.01 - scale), dims);
     float motion = time * float(Z_LOOP);
 
