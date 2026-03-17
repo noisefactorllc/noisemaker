@@ -104,7 +104,7 @@ body.full-bleed-mode #canvas {
 }
 
 .shader-effect {
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -112,13 +112,15 @@ body.full-bleed-mode #canvas {
   z-index: 1;
 }
 
-/* Raise z-index when effect-select dropdown is open */
-.shader-effect:has(effect-select.open) {
+/* Raise z-index when any dropdown is open */
+.shader-effect:has(effect-select.open),
+.shader-effect:has(select-dropdown.dropdown-open) {
   z-index: 100;
   overflow: visible;
 }
 
-.shader-effect:has(effect-select.open) .effect-content {
+.shader-effect:has(effect-select.open) .effect-content,
+.shader-effect:has(select-dropdown.dropdown-open) .effect-content {
   overflow: visible;
 }
 
@@ -170,7 +172,7 @@ body.full-bleed-mode #canvas {
 
 .effect-content {
   padding: 0.5rem;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .shader-effect.collapsed .effect-content {
