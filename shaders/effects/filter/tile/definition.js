@@ -91,6 +91,7 @@ export default new Effect({
       type: "boolean",
       default: true,
       uniform: "aspectLens",
+      randChance: 0,
       ui: {
         label: "1:1 aspect",
         control: "checkbox"
