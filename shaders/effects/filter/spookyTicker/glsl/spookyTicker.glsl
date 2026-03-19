@@ -70,7 +70,7 @@ float sample_glyph(int digit, int localX, int localY) {
 float ticker_row_mask(int pixelX, int pixelY, int rowSeed, float t) {
     // Scroll offset in pixels
     float scrollSpeed = 0.5 + float(hash_mix(uint(rowSeed) ^ 17u) & 0xFFFFu) / 65535.0 * 1.5;
-    int offset = int(floor(t * scrollSpeed * 60.0));
+    int offset = int(floor(t * scrollSpeed * 120.0));
 
     int sx = pixelX + offset;
     // Handle negative modulo

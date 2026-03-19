@@ -61,7 +61,7 @@ fn sample_glyph(digit : i32, localX : i32, localY : i32) -> f32 {
 
 fn ticker_row_mask(pixelX : i32, pixelY : i32, rowSeed : i32, t : f32) -> f32 {
     let scrollSpeed = 0.5 + f32(hash_mix(u32(rowSeed) ^ 17u) & 0xFFFFu) / 65535.0 * 1.5;
-    let offset = i32(floor(t * scrollSpeed * 60.0));
+    let offset = i32(floor(t * scrollSpeed * 120.0));
 
     let sx = pixelX + offset;
     var cellX : i32;
