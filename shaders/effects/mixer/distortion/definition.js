@@ -75,7 +75,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "smoothing",
-        control: "slider"
+        control: "slider",
+        enabledBy: { param: "mode", neq: 0 }
       }
     },
     aberration: {
