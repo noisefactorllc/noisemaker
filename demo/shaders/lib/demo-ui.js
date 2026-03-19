@@ -1479,6 +1479,9 @@ export class UIController {
             const value = paramValues[key]
             if (value === undefined || value === null) continue
 
+            // Skip internal-only params (no UI control, set programmatically)
+            if (spec.ui && spec.ui.control === false) continue
+
             // Skip _skip: false
             if (key === '_skip' && value === false) continue
 

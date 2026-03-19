@@ -1413,9 +1413,14 @@ export class ProgramState extends Emitter {
             const effectInfo = this._structure[stepIndex]
 
             const stepOverrides = {}
+            const globals = stepState.effectDef?.globals
             for (const [paramName, value] of Object.entries(stepState.values)) {
                 // Skip internal flags EXCEPT _skip which is a DSL argument
                 if (paramName.startsWith('_') && paramName !== '_skip') continue
+
+                // Skip internal-only params (no UI control, set programmatically)
+                const spec = globals?.[paramName]
+                if (spec?.ui?.control === false) continue
 
                 // Check if this param is automated in the original DSL
                 const rawKwarg = effectInfo?.rawKwargs?.[paramName]
