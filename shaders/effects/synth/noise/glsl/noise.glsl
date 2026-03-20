@@ -12,8 +12,8 @@ precision highp int;
 uniform float time;
 uniform int seed;
 uniform vec2 resolution;
-uniform float xScale;
-uniform float yScale;
+uniform float scaleX;
+uniform float scaleY;
 uniform int noiseType;
 uniform int octaves;
 uniform bool ridges;
@@ -423,16 +423,16 @@ void main() {
     vec2 lf = vec2(1.0);
 
     if (noiseType == 11) {
-        freq.x = map(xScale, 1.0, 100.0, 40.0, 1.0);
-        freq.y = map(yScale, 1.0, 100.0, 40.0, 1.0);
+        freq.x = map(scaleX, 1.0, 100.0, 40.0, 1.0);
+        freq.y = map(scaleY, 1.0, 100.0, 40.0, 1.0);
         lf = vec2(map(loopScale, 1.0, 100.0, 10.0, 1.0));
     } else if (noiseType == 10) {
-        freq.x = map(xScale, 1.0, 100.0, 6.0, 0.5);
-        freq.y = map(yScale, 1.0, 100.0, 6.0, 0.5);
+        freq.x = map(scaleX, 1.0, 100.0, 6.0, 0.5);
+        freq.y = map(scaleY, 1.0, 100.0, 6.0, 0.5);
         lf = vec2(map(loopScale, 1.0, 100.0, 6.0, 0.5));
     } else {
-        freq.x = map(xScale, 1.0, 100.0, 20.0, 3.0);
-        freq.y = map(yScale, 1.0, 100.0, 20.0, 3.0);
+        freq.x = map(scaleX, 1.0, 100.0, 20.0, 3.0);
+        freq.y = map(scaleY, 1.0, 100.0, 20.0, 3.0);
         lf = vec2(map(loopScale, 1.0, 100.0, 12.0, 3.0));
     }
 

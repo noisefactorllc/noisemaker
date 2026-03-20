@@ -12,8 +12,8 @@ struct Uniforms {
 var<private> resolution : vec2<f32>;
 var<private> time : f32;
 var<private> aspectRatio : f32;
-var<private> xScale : f32;
-var<private> yScale : f32;
+var<private> scaleX : f32;
+var<private> scaleY : f32;
 var<private> seed : f32;
 var<private> loopScale : f32;
 var<private> speed : f32;
@@ -401,8 +401,8 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     resolution = uniforms.data[0].xy;
     time = uniforms.data[0].z;
     aspectRatio = uniforms.data[0].w;
-    xScale = uniforms.data[1].x;
-    yScale = uniforms.data[1].y;
+    scaleX = uniforms.data[1].x;
+    scaleY = uniforms.data[1].y;
     seed = uniforms.data[1].z;
     loopScale = uniforms.data[1].w;
     speed = uniforms.data[2].x;
@@ -421,16 +421,16 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     var lf = vec2<f32>(1.0);
 
     if (noiseType == 11) {
-        freq.x = map(xScale, 1.0, 100.0, 40.0, 1.0);
-        freq.y = map(yScale, 1.0, 100.0, 40.0, 1.0);
+        freq.x = map(scaleX, 1.0, 100.0, 40.0, 1.0);
+        freq.y = map(scaleY, 1.0, 100.0, 40.0, 1.0);
         lf = vec2<f32>(map(loopScale, 1.0, 100.0, 10.0, 1.0));
     } else if (noiseType == 10) {
-        freq.x = map(xScale, 1.0, 100.0, 6.0, 0.5);
-        freq.y = map(yScale, 1.0, 100.0, 6.0, 0.5);
+        freq.x = map(scaleX, 1.0, 100.0, 6.0, 0.5);
+        freq.y = map(scaleY, 1.0, 100.0, 6.0, 0.5);
         lf = vec2<f32>(map(loopScale, 1.0, 100.0, 6.0, 0.5));
     } else {
-        freq.x = map(xScale, 1.0, 100.0, 20.0, 3.0);
-        freq.y = map(yScale, 1.0, 100.0, 20.0, 3.0);
+        freq.x = map(scaleX, 1.0, 100.0, 20.0, 3.0);
+        freq.y = map(scaleY, 1.0, 100.0, 20.0, 3.0);
         lf = vec2<f32>(map(loopScale, 1.0, 100.0, 12.0, 3.0));
     }
 

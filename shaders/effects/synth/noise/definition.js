@@ -11,8 +11,8 @@ export default new Effect({
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     aspectRatio: { slot: 0, components: 'w' },
-    xScale: { slot: 1, components: 'x' },
-    yScale: { slot: 1, components: 'y' },
+    scaleX: { slot: 1, components: 'x' },
+    scaleY: { slot: 1, components: 'y' },
     seed: { slot: 1, components: 'z' },
     loopScale: { slot: 1, components: 'w' },
     speed: { slot: 2, components: 'x' },
@@ -55,10 +55,10 @@ export default new Effect({
         control: "slider"
       }
     },
-    xScale: {
+    scaleX: {
       type: "float",
       default: 75,
-      uniform: "xScale",
+      uniform: "scaleX",
       min: 1,
       max: 100,
       ui: {
@@ -67,10 +67,10 @@ export default new Effect({
         category: "transform"
       }
     },
-    yScale: {
+    scaleY: {
       type: "float",
       default: 75,
-      uniform: "yScale",
+      uniform: "scaleY",
       min: 1,
       max: 100,
       ui: {
@@ -180,7 +180,7 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { noiseType: 'type', loopAmp: 'speed' },
+  paramAliases: { noiseType: 'type', loopAmp: 'speed', xScale: 'scaleX', yScale: 'scaleY' },
   passes: [
     {
       name: "render",
