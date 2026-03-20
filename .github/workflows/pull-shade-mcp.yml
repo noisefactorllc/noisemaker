@@ -20,7 +20,7 @@ jobs:
         with:
           app-id: ${{ secrets.NOISEDECK_APP_ID }}
           private-key: ${{ secrets.NOISEDECK_APP_PRIVATE_KEY }}
-          owner: noisedeck
+          owner: noisefactorllc
 
       - name: Checkout noisemaker
         uses: actions/checkout@v4
