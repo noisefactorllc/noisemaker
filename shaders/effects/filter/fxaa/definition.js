@@ -8,7 +8,7 @@ export default new Effect({
   name: "Fxaa",
   namespace: "filter",
   func: "fxaa",
-  tags: ["util"],
+  tags: ["antialiasing"],
 
   description: "Fast approximate anti-aliasing",
   globals: {
