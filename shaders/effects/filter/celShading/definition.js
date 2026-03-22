@@ -45,11 +45,12 @@ export default new Effect({
     },
     gamma: {
       type: "float",
-      default: 1,
+      default: 0.65,
       uniform: "gamma",
       min: 0.1,
       max: 3,
       step: 0.05,
+      zero: 1,
       ui: {
         label: "gamma",
         control: "slider"
@@ -57,7 +58,7 @@ export default new Effect({
     },
     antialias: {
       type: "boolean",
-      default: true,
+      default: false,
       uniform: "antialias",
       ui: {
         label: "antialias",
@@ -132,6 +133,7 @@ export default new Effect({
       }
     }
   },
+  defaultProgram: "search filter, synth\n\nnoise(octaves: 4, scaleX: 100, scaleY: 100, ridges: true)\n  .celShading()\n  .write(o0)",
   textures: {
     celShadingColorTex: { width: "100%", height: "100%", format: "rgba16f" },
     celShadingEdgeTex: { width: "100%", height: "100%", format: "rgba16f" }
