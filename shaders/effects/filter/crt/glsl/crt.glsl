@@ -16,6 +16,7 @@ uniform vec2 resolution;
 uniform float time;
 uniform float speed;
 uniform int seed;
+uniform float alpha;
 
 uint as_u32(float value) {
     return uint(max(value, 0.0));
@@ -469,6 +470,12 @@ void main() {
         return;
     }
 
+    float alphaVal = clamp(alpha, 0.0, 1.0);
+    if (alphaVal == 0.0) {
+        fragColor = texelFetch(inputTex, ivec2(int(global_id.x), int(global_id.y)), 0);
+        return;
+    }
+
     float width_f = max(resolution.x, 1.0);
     float height_f = max(resolution.y, 1.0);
     float time = time;
@@ -494,7 +501,9 @@ void main() {
     float scan_value = sample_scanline_bilinear(x + base_offsets.x, y + base_offsets.y, width_f, height_f, scanline_base);
 
     // Step 3: Sample the input texture at the ORIGINAL, un-warped coordinates.
-    vec3 base_color = texelFetch(inputTex, ivec2(int(x), int(y)), 0).xyz;
+    vec4 base_sample = texelFetch(inputTex, ivec2(int(x), int(y)), 0);
+    vec3 base_color = base_sample.xyz;
+    float alpha = base_sample.w;
 
     // Step 4: Blend the original input color with the warped scanlines.
     vec3 color = mix(
@@ -582,5 +591,6 @@ void main() {
     color = clamp((color - local_mean) * 1.25 + local_mean, vec3(0.0), vec3(1.0));
     
     // Write output
-    fragColor = vec4(color.x, color.y, color.z, 1.0);
+    color = mix(base_color, color, alphaVal);
+    fragColor = vec4(color, base_sample.w);
 }

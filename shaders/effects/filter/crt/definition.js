@@ -7,6 +7,19 @@ export default new Effect({
   tags: ["distort"],
   description: "CRT monitor simulation",
   globals: {
+    alpha: {
+      type: "float",
+      default: 0.5,
+      uniform: "alpha",
+      min: 0,
+      max: 1,
+      step: 0.01,
+      zero: 0,
+      ui: {
+        label: "alpha",
+        control: "slider"
+      }
+    },
     speed: {
       type: "float",
       default: 1.0,
@@ -40,6 +53,7 @@ export default new Effect({
         inputTex: "inputTex"
       },
       uniforms: {
+        alpha: "alpha",
         speed: "speed",
         seed: "seed"
       },

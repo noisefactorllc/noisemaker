@@ -8,6 +8,7 @@ const INV_THREE : f32 = 0.3333333333333333;
 struct CRTParams {
     size : vec4<f32>,    // (width, height, channels, unused)
     motion : vec4<f32>,  // (time, speed, seed, unused)
+    extra : vec4<f32>,   // (alpha, unused, unused, unused)
 };
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
@@ -461,6 +462,18 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         return;
     }
 
+    let alphaVal : f32 = clamp(params.extra.x, 0.0, 1.0);
+    if (alphaVal == 0.0) {
+        let passthrough : vec4<f32> = textureLoad(inputTex, vec2<i32>(i32(gid.x), i32(gid.y)), 0);
+        let pi : u32 = gid.y * width + gid.x;
+        let bi : u32 = pi * 4u;
+        output_buffer[bi + 0u] = passthrough.x;
+        output_buffer[bi + 1u] = passthrough.y;
+        output_buffer[bi + 2u] = passthrough.z;
+        output_buffer[bi + 3u] = passthrough.w;
+        return;
+    }
+
     let width_f : f32 = max(params.size.x, 1.0);
     let height_f : f32 = max(params.size.y, 1.0);
     let time : f32 = params.motion.x;
@@ -486,7 +499,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let scan_value : f32 = sample_scanline_bilinear(x + base_offsets.x, y + base_offsets.y, width_f, height_f, scanline_base);
 
     // Step 3: Sample the input texture at the ORIGINAL, un-warped coordinates.
-    let base_color : vec3<f32> = textureLoad(inputTex, vec2<i32>(i32(x), i32(y)), 0).xyz;
+    let base_sample : vec4<f32> = textureLoad(inputTex, vec2<i32>(i32(x), i32(y)), 0);
+    let base_color : vec3<f32> = base_sample.xyz;
+    let alpha : f32 = base_sample.w;
 
     // Step 4: Blend the original input color with the warped scanlines.
     var color : vec3<f32> = mix(
@@ -574,10 +589,11 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     color = clamp((color - local_mean) * 1.25 + local_mean, vec3<f32>(0.0), vec3<f32>(1.0));
     
     // Write output
+    color = mix(base_color, color, alphaVal);
     let pixel_index : u32 = gid.y * width + gid.x;
     let base_index : u32 = pixel_index * 4u;
     output_buffer[base_index + 0u] = color.x;
     output_buffer[base_index + 1u] = color.y;
     output_buffer[base_index + 2u] = color.z;
-    output_buffer[base_index + 3u] = 1.0;
+    output_buffer[base_index + 3u] = base_sample.w;
 }
