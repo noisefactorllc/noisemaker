@@ -43,6 +43,27 @@ export default new Effect({
         control: "slider"
       }
     },
+    gamma: {
+      type: "float",
+      default: 1,
+      uniform: "gamma",
+      min: 0.1,
+      max: 3,
+      step: 0.05,
+      ui: {
+        label: "gamma",
+        control: "slider"
+      }
+    },
+    antialias: {
+      type: "boolean",
+      default: true,
+      uniform: "antialias",
+      ui: {
+        label: "antialias",
+        control: "checkbox"
+      }
+    },
 
     // Edge parameters
     edgeWidth: {

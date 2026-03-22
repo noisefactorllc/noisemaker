@@ -35,6 +35,15 @@ export default new Effect({
         label: "gamma",
         control: "slider"
       }
+    },
+    antialias: {
+      type: "boolean",
+      default: true,
+      uniform: "antialias",
+      ui: {
+        label: "antialias",
+        control: "checkbox"
+      }
     }
   },
   passes: [
@@ -43,10 +52,6 @@ export default new Effect({
       program: "posterize",
       inputs: {
         inputTex: "inputTex"
-      },
-      uniforms: {
-        levels: "levels",
-        gamma: "gamma"
       },
       outputs: {
         fragColor: "outputTex"

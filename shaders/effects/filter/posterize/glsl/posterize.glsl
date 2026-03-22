@@ -1,10 +1,15 @@
-#version 300 es
+/*
+ * Posterize: sRGB-aware color quantization with adjustable gamma
+ */
+
+#ifdef GL_ES
 precision highp float;
-precision highp int;
+#endif
 
 uniform sampler2D inputTex;
 uniform float levels;
 uniform float gamma;
+uniform bool antialias;
 
 out vec4 fragColor;
 
@@ -73,11 +78,17 @@ void main() {
     vec3 working_rgb = srgb_to_linear_rgb(texel.xyz);
     working_rgb = pow_vec3(clamp(working_rgb, vec3(0.0), vec3(1.0)), gamma_value);
 
-    // Posterize
-    working_rgb = working_rgb * level_factor;
-    working_rgb = working_rgb + vec3(half_step);
-    working_rgb = floor(working_rgb);
-    vec3 quantized_rgb = working_rgb * inv_factor;
+    // Posterize with optional edge smoothing
+    vec3 scaled = working_rgb * level_factor + vec3(half_step);
+    vec3 quantized_rgb;
+    if (antialias) {
+        vec3 f = fract(scaled);
+        vec3 fw = fwidth(scaled);
+        vec3 blend = smoothstep(0.5 - fw * 0.5, 0.5 + fw * 0.5, f);
+        quantized_rgb = (floor(scaled) + blend) * inv_factor;
+    } else {
+        quantized_rgb = floor(scaled) * inv_factor;
+    }
     quantized_rgb = pow_vec3(clamp(quantized_rgb, vec3(0.0), vec3(1.0)), inv_gamma);
 
     quantized_rgb = linear_to_srgb_rgb(quantized_rgb);

@@ -35,9 +35,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     if (texSize.x == 0 || texSize.y == 0) {
         return vec4f(0.0);
     }
-    
+
     let coord = vec2<i32>(pos.xy);
-    
+
     // Sample 3x3 neighborhood with thickness scaling
     let offset = i32(uniforms.edgeWidth);
     var samples: array<f32, 9>;
@@ -51,18 +51,18 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             idx = idx + 1;
         }
     }
-    
+
     // Sobel X kernel: [-1 0 1; -2 0 2; -1 0 1]
     let gx = -samples[0] + samples[2] - 2.0*samples[3] + 2.0*samples[5] - samples[6] + samples[8];
-    
+
     // Sobel Y kernel: [-1 -2 -1; 0 0 0; 1 2 1]
     let gy = -samples[0] - 2.0*samples[1] - samples[2] + samples[6] + 2.0*samples[7] + samples[8];
-    
+
     // Calculate edge magnitude
     let magnitude = sqrt(gx * gx + gy * gy);
-    
+
     // Apply threshold with smoothstep for anti-aliased edges
     let edge = smoothstep(uniforms.edgeThreshold * 0.5, uniforms.edgeThreshold * 1.5, magnitude);
-    
+
     return vec4f(edge, edge, edge, 1.0);
 }

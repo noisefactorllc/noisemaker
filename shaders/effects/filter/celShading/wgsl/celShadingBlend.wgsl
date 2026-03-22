@@ -18,16 +18,16 @@ struct Uniforms {
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = pos.xy / texSize;
-    
+
     let origColor = textureSample(inputTex, inputSampler, uv);
     let celColor = textureSample(colorTex, inputSampler, uv);
     let edgeStrength = textureSample(edgeTex, inputSampler, uv).r;
-    
+
     // Apply edge color where edges are detected
     var finalColor = mix(celColor.rgb, uniforms.edgeColor, edgeStrength);
-    
+
     // Mix with original based on mix amount
     finalColor = mix(origColor.rgb, finalColor, uniforms.mix);
-    
+
     return vec4f(finalColor, origColor.a);
 }

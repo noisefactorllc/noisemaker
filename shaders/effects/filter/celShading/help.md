@@ -14,6 +14,8 @@ Uses a three-pass approach:
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | levels | int | 4 | 2-8 | Levels |
+| gamma | float | 1 | 0.1-3 | Gamma curve before quantization |
+| antialias | boolean | true | on/off | Smooth edges between color bands |
 | edgeWidth | int | 1 | 0-5 | Width |
 | edgeThreshold | float | 0.15 | 0.01-1 | Threshold |
 | edgeColor | color | 0,0,0 | - | Color |

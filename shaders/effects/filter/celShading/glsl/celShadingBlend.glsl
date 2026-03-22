@@ -28,6 +28,6 @@ void main() {
 
     // Mix with original based on mix amount
     finalColor = mix(origColor.rgb, finalColor, mixAmount);
-    
+
     fragColor = vec4(finalColor, origColor.a);
 }
