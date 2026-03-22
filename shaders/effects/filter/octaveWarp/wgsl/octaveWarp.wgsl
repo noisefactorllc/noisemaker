@@ -11,6 +11,7 @@ struct Uniforms {
     displacement: f32,
     speed: f32,
     wrap: f32,
+    antialias: i32,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -137,5 +138,16 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         wrapFloat(sampleCoord.x, width, i32(uniforms.wrap)),
         wrapFloat(sampleCoord.y, height, i32(uniforms.wrap)),
     ) / texSize;
-    return textureSample(inputTex, inputSampler, finalUV);
+    if (uniforms.antialias != 0) {
+        let dx = dpdx(finalUV);
+        let dy = dpdy(finalUV);
+        var col = vec4<f32>(0.0);
+        col += textureSample(inputTex, inputSampler, finalUV + dx * -0.375 + dy * -0.125);
+        col += textureSample(inputTex, inputSampler, finalUV + dx *  0.125 + dy * -0.375);
+        col += textureSample(inputTex, inputSampler, finalUV + dx *  0.375 + dy *  0.125);
+        col += textureSample(inputTex, inputSampler, finalUV + dx * -0.125 + dy *  0.375);
+        return col * 0.25;
+    } else {
+        return textureSample(inputTex, inputSampler, finalUV);
+    }
 }

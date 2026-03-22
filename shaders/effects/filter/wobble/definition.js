@@ -7,7 +7,7 @@ export default new Effect({
   name: "Wobble",
   namespace: "filter",
   func: "wobble",
-  tags: ["distort"],
+  tags: ["transform"],
 
   description: "Wobble animation effect",
   globals: {

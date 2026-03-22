@@ -57,6 +57,15 @@ export default new Effect({
         label: "rotation",
         control: "slider"
       }
+    },
+    antialias: {
+      type: "boolean",
+      default: true,
+      uniform: "antialias",
+      ui: {
+        label: "antialias",
+        control: "checkbox"
+      }
     }
   },
   defaultProgram: "search synth, filter\ntestPattern(gridSize: 8)\n.bulge()\n.write(o0)",

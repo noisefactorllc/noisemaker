@@ -13,6 +13,7 @@ uniform float speed;
 uniform float rotation;
 uniform float scale;
 uniform bool aspectLens;
+uniform bool antialias;
 
 out vec4 fragColor;
 
@@ -57,5 +58,16 @@ void main() {
         coord = vortexCoords(uv, aspect);
     }
 
-    fragColor = texture(inputTex, coord);
+    if (antialias) {
+        vec2 dx = dFdx(coord);
+        vec2 dy = dFdy(coord);
+        vec4 col = vec4(0.0);
+        col += texture(inputTex, coord + dx * -0.375 + dy * -0.125);
+        col += texture(inputTex, coord + dx *  0.125 + dy * -0.375);
+        col += texture(inputTex, coord + dx *  0.375 + dy *  0.125);
+        col += texture(inputTex, coord + dx * -0.125 + dy *  0.375);
+        fragColor = col * 0.25;
+    } else {
+        fragColor = texture(inputTex, coord);
+    }
 }

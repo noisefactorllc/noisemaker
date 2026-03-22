@@ -16,6 +16,7 @@ uniform float rotation;
 uniform float scale;
 uniform float center;
 uniform bool aspectLens;
+uniform bool antialias;
 
 out vec4 fragColor;
 
@@ -76,9 +77,20 @@ void main() {
         a / PI + time * rotation
     ), 1.0);
     
-    // Sample with gradient for proper filtering
-    vec2 coordsForGrad = vec2(tunnelCoords.x, atan(tunnelCoords.y, abs(tunnelCoords.x)) / PI);
-    vec4 color = textureGrad(inputTex, tunnelCoords, dFdx(coordsForGrad), dFdy(coordsForGrad));
+    // Sample with optional supersampling
+    vec4 color;
+    if (antialias) {
+        vec2 dx = dFdx(tunnelCoords);
+        vec2 dy = dFdy(tunnelCoords);
+        color = vec4(0.0);
+        color += texture(inputTex, tunnelCoords + dx * -0.375 + dy * -0.125);
+        color += texture(inputTex, tunnelCoords + dx *  0.125 + dy * -0.375);
+        color += texture(inputTex, tunnelCoords + dx *  0.375 + dy *  0.125);
+        color += texture(inputTex, tunnelCoords + dx * -0.125 + dy *  0.375);
+        color *= 0.25;
+    } else {
+        color = texture(inputTex, tunnelCoords);
+    }
 
     // Center vignette: smooth falloff to hide moiré at vanishing point
     if (center != 0.0) {

@@ -84,6 +84,15 @@ export default new Effect({
         label: "1:1 aspect",
         control: "checkbox"
       }
+    },
+    antialias: {
+      type: "boolean",
+      default: true,
+      uniform: "antialias",
+      ui: {
+        label: "antialias",
+        control: "checkbox"
+      }
     }
   },
   passes: [

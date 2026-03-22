@@ -73,6 +73,15 @@ export default new Effect({
         label: "wrap",
         control: "dropdown"
       }
+    },
+    antialias: {
+      type: "boolean",
+      default: true,
+      uniform: "antialias",
+      ui: {
+        label: "antialias",
+        control: "checkbox"
+      }
     }
   },
   paramAliases: { frequency: 'freq' },

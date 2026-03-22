@@ -12,3 +12,4 @@ Perspective tunnel effect with shape options
 | rotation | int | 0 | -2–2 | Rotation speed |
 | center | float | 100 | -100–100 | Center vignette (negative=darken, positive=brighten) |
 | aspectLens | boolean | true | on/off | 1:1 aspect correction |
+| antialias | boolean | true | on/off | 4x rotated-grid supersampling (disable before palette effects) |

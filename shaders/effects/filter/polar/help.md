@@ -11,3 +11,4 @@ Polar and vortex coordinate transforms
 | rotation | int | 0 | -2–2 | Rotation speed |
 | speed | int | 0 | -2–2 | Radial animation speed |
 | aspectLens | boolean | true | on/off | Correct for aspect ratio so transform is circular |
+| antialias | boolean | true | on/off | 4x rotated-grid supersampling (disable before palette effects) |

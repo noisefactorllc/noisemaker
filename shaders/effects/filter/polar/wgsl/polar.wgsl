@@ -9,7 +9,7 @@ struct Uniforms {
     rotation: f32,
     scale: f32,
     aspectLens: i32,
-    _pad2: f32,
+    antialias: i32,
     _pad3: f32,
 }
 
@@ -56,5 +56,16 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         coord = vortexCoords(uv, aspect, doAspect);
     }
 
-    return textureSample(inputTex, inputSampler, coord);
+    if (uniforms.antialias != 0) {
+        let dx = dpdx(coord);
+        let dy = dpdy(coord);
+        var col = vec4<f32>(0.0);
+        col += textureSample(inputTex, inputSampler, coord + dx * -0.375 + dy * -0.125);
+        col += textureSample(inputTex, inputSampler, coord + dx *  0.125 + dy * -0.375);
+        col += textureSample(inputTex, inputSampler, coord + dx *  0.375 + dy *  0.125);
+        col += textureSample(inputTex, inputSampler, coord + dx * -0.125 + dy *  0.375);
+        return col * 0.25;
+    } else {
+        return textureSample(inputTex, inputSampler, coord);
+    }
 }

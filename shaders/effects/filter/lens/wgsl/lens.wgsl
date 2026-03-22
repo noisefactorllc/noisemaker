@@ -6,7 +6,7 @@
 struct Uniforms {
     lensDisplacement: f32,
     aspectLens: i32,
-    _pad2: f32,
+    antialias: i32,
     _pad3: f32,
 }
 
@@ -50,5 +50,16 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     let offset = fract(uv - displacement);
 
-    return textureSample(inputTex, inputSampler, offset);
+    if (uniforms.antialias != 0) {
+        let dx = dpdx(offset);
+        let dy = dpdy(offset);
+        var col = vec4<f32>(0.0);
+        col += textureSample(inputTex, inputSampler, offset + dx * -0.375 + dy * -0.125);
+        col += textureSample(inputTex, inputSampler, offset + dx *  0.125 + dy * -0.375);
+        col += textureSample(inputTex, inputSampler, offset + dx *  0.375 + dy *  0.125);
+        col += textureSample(inputTex, inputSampler, offset + dx * -0.125 + dy *  0.375);
+        return col * 0.25;
+    } else {
+        return textureSample(inputTex, inputSampler, offset);
+    }
 }

@@ -11,3 +11,4 @@ Per-octave noise warp distortion
 | displacement | float | 0.2 | 0–1 | Displacement amount |
 | speed | int | 1 | 0–5 | Animation speed |
 | wrap | int | mirror | mirror/repeat/clamp | Edge wrapping mode |
+| antialias | boolean | true | on/off | 4x rotated-grid supersampling (disable before palette effects) |

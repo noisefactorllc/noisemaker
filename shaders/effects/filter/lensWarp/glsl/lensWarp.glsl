@@ -13,6 +13,7 @@ uniform vec2 resolution;
 uniform float time;
 uniform float displacement;
 uniform float speed;
+uniform bool antialias;
 
 out vec4 fragColor;
 
@@ -91,5 +92,16 @@ void main() {
     // Wrap (mirror)
     uv = abs(mod(uv + 1.0, 2.0) - 1.0);
 
-    fragColor = texture(inputTex, uv);
+    if (antialias) {
+        vec2 dx = dFdx(uv);
+        vec2 dy = dFdy(uv);
+        vec4 col = vec4(0.0);
+        col += texture(inputTex, uv + dx * -0.375 + dy * -0.125);
+        col += texture(inputTex, uv + dx *  0.125 + dy * -0.375);
+        col += texture(inputTex, uv + dx *  0.375 + dy *  0.125);
+        col += texture(inputTex, uv + dx * -0.125 + dy *  0.375);
+        fragColor = col * 0.25;
+    } else {
+        fragColor = texture(inputTex, uv);
+    }
 }

@@ -81,6 +81,15 @@ export default new Effect({
         label: "rotation",
         control: "slider"
       }
+    },
+    antialias: {
+      type: "boolean",
+      default: true,
+      uniform: "antialias",
+      ui: {
+        label: "antialias",
+        control: "checkbox"
+      }
     }
   },
   passes: [

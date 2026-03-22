@@ -7,6 +7,7 @@ struct Uniforms {
     aspectLens: i32,
     wrap: i32,
     rotation: f32,
+    antialias: i32,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -70,5 +71,16 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Reverse rotation after distortion
     uv = rotate2D(uv, -uniforms.rotation / 180.0, aspectRatio);
 
-    return textureSample(inputTex, inputSampler, uv);
+    if (uniforms.antialias != 0) {
+        let dx = dpdx(uv);
+        let dy = dpdy(uv);
+        var col = vec4<f32>(0.0);
+        col += textureSample(inputTex, inputSampler, uv + dx * -0.375 + dy * -0.125);
+        col += textureSample(inputTex, inputSampler, uv + dx *  0.125 + dy * -0.375);
+        col += textureSample(inputTex, inputSampler, uv + dx *  0.375 + dy *  0.125);
+        col += textureSample(inputTex, inputSampler, uv + dx * -0.125 + dy *  0.375);
+        return col * 0.25;
+    } else {
+        return textureSample(inputTex, inputSampler, uv);
+    }
 }

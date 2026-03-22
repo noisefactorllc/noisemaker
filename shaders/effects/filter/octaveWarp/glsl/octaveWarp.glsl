@@ -18,6 +18,7 @@ uniform float octaves;
 uniform float displacement;
 uniform float speed;
 uniform float wrap;
+uniform bool antialias;
 
 out vec4 fragColor;
 
@@ -141,5 +142,16 @@ void main() {
         wrapFloat(sampleCoord.x, width, int(wrap)),
         wrapFloat(sampleCoord.y, height, int(wrap))
     ) / dims;
-    fragColor = texture(inputTex, finalUV);
+    if (antialias) {
+        vec2 dx = dFdx(finalUV);
+        vec2 dy = dFdy(finalUV);
+        vec4 col = vec4(0.0);
+        col += texture(inputTex, finalUV + dx * -0.375 + dy * -0.125);
+        col += texture(inputTex, finalUV + dx *  0.125 + dy * -0.375);
+        col += texture(inputTex, finalUV + dx *  0.375 + dy *  0.125);
+        col += texture(inputTex, finalUV + dx * -0.125 + dy *  0.375);
+        fragColor = col * 0.25;
+    } else {
+        fragColor = texture(inputTex, finalUV);
+    }
 }

@@ -10,6 +10,7 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform float lensDisplacement;
 uniform bool aspectLens;
+uniform bool antialias;
 
 out vec4 fragColor;
 
@@ -45,5 +46,16 @@ void main() {
 
     vec2 offset = fract(uv - displacement);
 
-    fragColor = texture(inputTex, offset);
+    if (antialias) {
+        vec2 dx = dFdx(offset);
+        vec2 dy = dFdy(offset);
+        vec4 col = vec4(0.0);
+        col += texture(inputTex, offset + dx * -0.375 + dy * -0.125);
+        col += texture(inputTex, offset + dx *  0.125 + dy * -0.375);
+        col += texture(inputTex, offset + dx *  0.375 + dy *  0.125);
+        col += texture(inputTex, offset + dx * -0.125 + dy *  0.375);
+        fragColor = col * 0.25;
+    } else {
+        fragColor = texture(inputTex, offset);
+    }
 }

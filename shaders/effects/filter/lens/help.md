@@ -8,3 +8,4 @@ Barrel or pincushion lens distortion — warps the image radially around the fra
 |-----------|------|---------|-------|-------------|
 | displacement | float | 0 | -1–1 | Distortion amount: positive = barrel, negative = pincushion |
 | aspectLens | boolean | true | on/off | Correct for aspect ratio so distortion is circular |
+| antialias | boolean | true | on/off | 4x rotated-grid supersampling (disable before palette effects) |

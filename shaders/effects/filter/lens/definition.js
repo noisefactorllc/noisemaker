@@ -31,6 +31,15 @@ export default new Effect({
         label: "1:1 aspect",
         control: "checkbox"
       }
+    },
+    antialias: {
+      type: "boolean",
+      default: true,
+      uniform: "antialias",
+      ui: {
+        label: "antialias",
+        control: "checkbox"
+      }
     }
   },
   defaultProgram: "search filter, synth\n\ntestPattern(gridSize: 8)\n.lens(displacement: 0.5)\n.write(o0)",

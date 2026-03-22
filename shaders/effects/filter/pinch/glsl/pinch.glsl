@@ -12,6 +12,7 @@ uniform float strength;
 uniform bool aspectLens;
 uniform int wrap;
 uniform float rotation;
+uniform bool antialias;
 
 out vec4 fragColor;
 
@@ -67,5 +68,16 @@ void main() {
     // Reverse rotation after distortion
     uv = rotate2D(uv, -rotation / 180.0, aspectRatio);
 
-    fragColor = texture(inputTex, uv);
+    if (antialias) {
+        vec2 dx = dFdx(uv);
+        vec2 dy = dFdy(uv);
+        vec4 col = vec4(0.0);
+        col += texture(inputTex, uv + dx * -0.375 + dy * -0.125);
+        col += texture(inputTex, uv + dx *  0.125 + dy * -0.375);
+        col += texture(inputTex, uv + dx *  0.375 + dy *  0.125);
+        col += texture(inputTex, uv + dx * -0.125 + dy *  0.375);
+        fragColor = col * 0.25;
+    } else {
+        fragColor = texture(inputTex, uv);
+    }
 }

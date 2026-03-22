@@ -11,7 +11,7 @@ struct Uniforms {
     rotation: f32,
     scale: f32,
     center: f32,
-    _pad1: f32,
+    antialias: i32,
     _pad2: f32,
     aspectLens: i32
 }
@@ -80,7 +80,19 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         a / PI + uniforms.time * uniforms.rotation
     ), 1.0);
 
-    var color = textureSample(inputTex, inputSampler, tunnelCoords);
+    var color: vec4<f32>;
+    if (uniforms.antialias != 0) {
+        let dx = dpdx(tunnelCoords);
+        let dy = dpdy(tunnelCoords);
+        color = vec4<f32>(0.0);
+        color += textureSample(inputTex, inputSampler, tunnelCoords + dx * -0.375 + dy * -0.125);
+        color += textureSample(inputTex, inputSampler, tunnelCoords + dx *  0.125 + dy * -0.375);
+        color += textureSample(inputTex, inputSampler, tunnelCoords + dx *  0.375 + dy *  0.125);
+        color += textureSample(inputTex, inputSampler, tunnelCoords + dx * -0.125 + dy *  0.375);
+        color = color * 0.25;
+    } else {
+        color = textureSample(inputTex, inputSampler, tunnelCoords);
+    }
 
     // Center vignette: smooth falloff to hide moiré at vanishing point
     if (uniforms.center != 0.0) {
