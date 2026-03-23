@@ -35,13 +35,15 @@ export default new Effect({
         control: "slider"
       }
     },
-    aspectLens: {
-      type: "boolean",
-      default: true,
-      uniform: "aspectLens",
+    rotation: {
+      type: "float",
+      default: 0,
+      uniform: "rotation",
+      min: -180,
+      max: 180,
       ui: {
-        label: "1:1 aspect",
-        control: "checkbox"
+        label: "rotation",
+        control: "slider"
       }
     },
     wrap: {
@@ -58,15 +60,13 @@ export default new Effect({
         control: "dropdown"
       }
     },
-    rotation: {
-      type: "float",
-      default: 0,
-      uniform: "rotation",
-      min: -180,
-      max: 180,
+    aspectLens: {
+      type: "boolean",
+      default: true,
+      uniform: "aspectLens",
       ui: {
-        label: "rotation",
-        control: "slider"
+        label: "1:1 aspect",
+        control: "checkbox"
       }
     },
     antialias: {
