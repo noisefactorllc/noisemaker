@@ -9,6 +9,7 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform float threshold;
+uniform bool antialias;
 
 out vec4 fragColor;
 
@@ -17,7 +18,12 @@ void main() {
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
     vec4 color = texture(inputTex, uv);
 
-    color.rgb = step(threshold, color.rgb);
+    if (antialias) {
+        vec3 fw = fwidth(color.rgb);
+        color.rgb = smoothstep(threshold - fw * 0.5, threshold + fw * 0.5, color.rgb);
+    } else {
+        color.rgb = step(threshold, color.rgb);
+    }
 
     fragColor = color;
 }

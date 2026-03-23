@@ -5,7 +5,7 @@
 
 struct Uniforms {
     threshold: f32,
-    _pad1: f32,
+    antialias: i32,
     _pad2: f32,
     _pad3: f32,
 }
@@ -22,7 +22,15 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let uv = pos.xy / texSize;
     var color = textureSample(inputTex, inputSampler, uv);
 
-    color = vec4<f32>(step(vec3<f32>(threshold), color.rgb), color.a);
+    if (uniforms.antialias != 0) {
+        let fw = fwidth(color.rgb);
+        color = vec4<f32>(
+            smoothstep(threshold - fw * 0.5, threshold + fw * 0.5, color.rgb),
+            color.a
+        );
+    } else {
+        color = vec4<f32>(step(vec3<f32>(threshold), color.rgb), color.a);
+    }
 
     return color;
 }
