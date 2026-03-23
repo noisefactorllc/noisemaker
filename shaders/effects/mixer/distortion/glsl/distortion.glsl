@@ -17,6 +17,7 @@ uniform float intensity;
 uniform int wrap;
 uniform float smoothing;
 uniform float aberration;
+uniform bool antialias;
 
 out vec4 fragColor;
 
@@ -103,7 +104,19 @@ vec4 applyDisplacement(vec2 uv, sampler2D mapTex, sampler2D targetTex) {
     offset.y = sin(len * TAU) * (intensity * 0.001);
     
     vec2 displacedUV = wrapCoords(uv + offset);
-    return texture(targetTex, displacedUV);
+
+    if (antialias) {
+        vec2 dx = dFdx(displacedUV);
+        vec2 dy = dFdy(displacedUV);
+        vec4 col = vec4(0.0);
+        col += texture(targetTex, displacedUV + dx * -0.375 + dy * -0.125);
+        col += texture(targetTex, displacedUV + dx *  0.125 + dy * -0.375);
+        col += texture(targetTex, displacedUV + dx *  0.375 + dy *  0.125);
+        col += texture(targetTex, displacedUV + dx * -0.125 + dy *  0.375);
+        return col * 0.25;
+    } else {
+        return texture(targetTex, displacedUV);
+    }
 }
 
 // Refraction effect based on surface normal
@@ -111,7 +124,19 @@ vec4 applyRefraction(vec2 uv, vec2 texelSize, sampler2D mapTex, sampler2D target
     vec3 normal = calculateNormal(uv, texelSize, mapTex);
     vec2 refractionOffset = normal.xy * (intensity * 0.0125);
     vec2 refractedUV = wrapCoords(uv + refractionOffset);
-    return texture(targetTex, refractedUV);
+
+    if (antialias) {
+        vec2 dx = dFdx(refractedUV);
+        vec2 dy = dFdy(refractedUV);
+        vec4 col = vec4(0.0);
+        col += texture(targetTex, refractedUV + dx * -0.375 + dy * -0.125);
+        col += texture(targetTex, refractedUV + dx *  0.125 + dy * -0.375);
+        col += texture(targetTex, refractedUV + dx *  0.375 + dy *  0.125);
+        col += texture(targetTex, refractedUV + dx * -0.125 + dy *  0.375);
+        return col * 0.25;
+    } else {
+        return texture(targetTex, refractedUV);
+    }
 }
 
 // Reflection effect with chromatic aberration
@@ -131,13 +156,51 @@ vec4 applyReflection(vec2 uv, vec2 texelSize, sampler2D mapTex, sampler2D target
     vec2 redOffset = reflectionOffset * (1.0 + aberration * 0.0075);
     vec2 greenOffset = reflectionOffset;
     vec2 blueOffset = reflectionOffset * (1.0 - aberration * 0.0075);
-    
-    float redChannel = texture(targetTex, wrapCoords(uv + redOffset)).r;
-    float greenChannel = texture(targetTex, wrapCoords(uv + greenOffset)).g;
-    float blueChannel = texture(targetTex, wrapCoords(uv + blueOffset)).b;
-    float alphaChannel = texture(targetTex, wrapCoords(uv + reflectionOffset)).a;
-    
-    return vec4(redChannel, greenChannel, blueChannel, alphaChannel);
+
+    vec2 redUV = wrapCoords(uv + redOffset);
+    vec2 greenUV = wrapCoords(uv + greenOffset);
+    vec2 blueUV = wrapCoords(uv + blueOffset);
+    vec2 alphaUV = wrapCoords(uv + reflectionOffset);
+
+    if (antialias) {
+        vec2 dx = dFdx(greenUV);
+        vec2 dy = dFdy(greenUV);
+
+        float r = 0.0, g = 0.0, b = 0.0, a = 0.0;
+        vec2 o1 = dx * -0.375 + dy * -0.125;
+        vec2 o2 = dx *  0.125 + dy * -0.375;
+        vec2 o3 = dx *  0.375 + dy *  0.125;
+        vec2 o4 = dx * -0.125 + dy *  0.375;
+
+        r += texture(targetTex, redUV + o1).r;
+        r += texture(targetTex, redUV + o2).r;
+        r += texture(targetTex, redUV + o3).r;
+        r += texture(targetTex, redUV + o4).r;
+
+        g += texture(targetTex, greenUV + o1).g;
+        g += texture(targetTex, greenUV + o2).g;
+        g += texture(targetTex, greenUV + o3).g;
+        g += texture(targetTex, greenUV + o4).g;
+
+        b += texture(targetTex, blueUV + o1).b;
+        b += texture(targetTex, blueUV + o2).b;
+        b += texture(targetTex, blueUV + o3).b;
+        b += texture(targetTex, blueUV + o4).b;
+
+        a += texture(targetTex, alphaUV + o1).a;
+        a += texture(targetTex, alphaUV + o2).a;
+        a += texture(targetTex, alphaUV + o3).a;
+        a += texture(targetTex, alphaUV + o4).a;
+
+        return vec4(r, g, b, a) * 0.25;
+    } else {
+        float redChannel = texture(targetTex, redUV).r;
+        float greenChannel = texture(targetTex, greenUV).g;
+        float blueChannel = texture(targetTex, blueUV).b;
+        float alphaChannel = texture(targetTex, alphaUV).a;
+
+        return vec4(redChannel, greenChannel, blueChannel, alphaChannel);
+    }
 }
 
 void main() {

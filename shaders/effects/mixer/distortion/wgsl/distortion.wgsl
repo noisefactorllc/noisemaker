@@ -16,6 +16,7 @@ const TAU: f32 = 6.28318530718;
 @group(0) @binding(6) var<uniform> wrap: i32;
 @group(0) @binding(7) var<uniform> smoothing: f32;
 @group(0) @binding(8) var<uniform> aberration: f32;
+@group(0) @binding(9) var<uniform> antialias: i32;
 
 // Convert RGB to luminosity
 fn getLuminosity(color: vec3f) -> f32 {
@@ -112,8 +113,24 @@ fn applyDisplacement(uv: vec2f, useInputTexAsMap: bool) -> vec4f {
     offset.y = sin(len * TAU) * (intensity * 0.001);
     
     let displacedUV = wrapCoords(uv + offset);
-    
-    if (useInputTexAsMap) {
+
+    if (antialias != 0) {
+        let dx = dpdx(displacedUV);
+        let dy = dpdy(displacedUV);
+        var col = vec4f(0.0);
+        if (useInputTexAsMap) {
+            col += textureSample(tex, samp, displacedUV + dx * -0.375 + dy * -0.125);
+            col += textureSample(tex, samp, displacedUV + dx *  0.125 + dy * -0.375);
+            col += textureSample(tex, samp, displacedUV + dx *  0.375 + dy *  0.125);
+            col += textureSample(tex, samp, displacedUV + dx * -0.125 + dy *  0.375);
+        } else {
+            col += textureSample(inputTex, samp, displacedUV + dx * -0.375 + dy * -0.125);
+            col += textureSample(inputTex, samp, displacedUV + dx *  0.125 + dy * -0.375);
+            col += textureSample(inputTex, samp, displacedUV + dx *  0.375 + dy *  0.125);
+            col += textureSample(inputTex, samp, displacedUV + dx * -0.125 + dy *  0.375);
+        }
+        return col * 0.25;
+    } else if (useInputTexAsMap) {
         return textureSample(tex, samp, displacedUV);
     } else {
         return textureSample(inputTex, samp, displacedUV);
@@ -125,8 +142,24 @@ fn applyRefraction(uv: vec2f, texelSize: vec2f, useInputTexAsMap: bool) -> vec4f
     let normal = calculateNormal(uv, texelSize, useInputTexAsMap);
     let refractionOffset = normal.xy * (intensity * 0.0125);
     let refractedUV = wrapCoords(uv + refractionOffset);
-    
-    if (useInputTexAsMap) {
+
+    if (antialias != 0) {
+        let dx = dpdx(refractedUV);
+        let dy = dpdy(refractedUV);
+        var col = vec4f(0.0);
+        if (useInputTexAsMap) {
+            col += textureSample(tex, samp, refractedUV + dx * -0.375 + dy * -0.125);
+            col += textureSample(tex, samp, refractedUV + dx *  0.125 + dy * -0.375);
+            col += textureSample(tex, samp, refractedUV + dx *  0.375 + dy *  0.125);
+            col += textureSample(tex, samp, refractedUV + dx * -0.125 + dy *  0.375);
+        } else {
+            col += textureSample(inputTex, samp, refractedUV + dx * -0.375 + dy * -0.125);
+            col += textureSample(inputTex, samp, refractedUV + dx *  0.125 + dy * -0.375);
+            col += textureSample(inputTex, samp, refractedUV + dx *  0.375 + dy *  0.125);
+            col += textureSample(inputTex, samp, refractedUV + dx * -0.125 + dy *  0.375);
+        }
+        return col * 0.25;
+    } else if (useInputTexAsMap) {
         return textureSample(tex, samp, refractedUV);
     } else {
         return textureSample(inputTex, samp, refractedUV);
@@ -150,24 +183,81 @@ fn applyReflection(uv: vec2f, texelSize: vec2f, useInputTexAsMap: bool) -> vec4f
     let redOffset = reflectionOffset * (1.0 + aberration * 0.0075);
     let greenOffset = reflectionOffset;
     let blueOffset = reflectionOffset * (1.0 - aberration * 0.0075);
-    
+
+    let redUV = wrapCoords(uv + redOffset);
+    let greenUV = wrapCoords(uv + greenOffset);
+    let blueUV = wrapCoords(uv + blueOffset);
+    let alphaUV = wrapCoords(uv + reflectionOffset);
+
+    if (antialias != 0) {
+        let dx = dpdx(greenUV);
+        let dy = dpdy(greenUV);
+        let o1 = dx * -0.375 + dy * -0.125;
+        let o2 = dx *  0.125 + dy * -0.375;
+        let o3 = dx *  0.375 + dy *  0.125;
+        let o4 = dx * -0.125 + dy *  0.375;
+
+        var r: f32 = 0.0;
+        var g: f32 = 0.0;
+        var b: f32 = 0.0;
+        var a: f32 = 0.0;
+
+        if (useInputTexAsMap) {
+            r += textureSample(tex, samp, redUV + o1).r;
+            r += textureSample(tex, samp, redUV + o2).r;
+            r += textureSample(tex, samp, redUV + o3).r;
+            r += textureSample(tex, samp, redUV + o4).r;
+            g += textureSample(tex, samp, greenUV + o1).g;
+            g += textureSample(tex, samp, greenUV + o2).g;
+            g += textureSample(tex, samp, greenUV + o3).g;
+            g += textureSample(tex, samp, greenUV + o4).g;
+            b += textureSample(tex, samp, blueUV + o1).b;
+            b += textureSample(tex, samp, blueUV + o2).b;
+            b += textureSample(tex, samp, blueUV + o3).b;
+            b += textureSample(tex, samp, blueUV + o4).b;
+            a += textureSample(tex, samp, alphaUV + o1).a;
+            a += textureSample(tex, samp, alphaUV + o2).a;
+            a += textureSample(tex, samp, alphaUV + o3).a;
+            a += textureSample(tex, samp, alphaUV + o4).a;
+        } else {
+            r += textureSample(inputTex, samp, redUV + o1).r;
+            r += textureSample(inputTex, samp, redUV + o2).r;
+            r += textureSample(inputTex, samp, redUV + o3).r;
+            r += textureSample(inputTex, samp, redUV + o4).r;
+            g += textureSample(inputTex, samp, greenUV + o1).g;
+            g += textureSample(inputTex, samp, greenUV + o2).g;
+            g += textureSample(inputTex, samp, greenUV + o3).g;
+            g += textureSample(inputTex, samp, greenUV + o4).g;
+            b += textureSample(inputTex, samp, blueUV + o1).b;
+            b += textureSample(inputTex, samp, blueUV + o2).b;
+            b += textureSample(inputTex, samp, blueUV + o3).b;
+            b += textureSample(inputTex, samp, blueUV + o4).b;
+            a += textureSample(inputTex, samp, alphaUV + o1).a;
+            a += textureSample(inputTex, samp, alphaUV + o2).a;
+            a += textureSample(inputTex, samp, alphaUV + o3).a;
+            a += textureSample(inputTex, samp, alphaUV + o4).a;
+        }
+
+        return vec4f(r, g, b, a) * 0.25;
+    }
+
     var redChannel: f32;
     var greenChannel: f32;
     var blueChannel: f32;
     var alphaChannel: f32;
-    
+
     if (useInputTexAsMap) {
-        redChannel = textureSample(tex, samp, wrapCoords(uv + redOffset)).r;
-        greenChannel = textureSample(tex, samp, wrapCoords(uv + greenOffset)).g;
-        blueChannel = textureSample(tex, samp, wrapCoords(uv + blueOffset)).b;
-        alphaChannel = textureSample(tex, samp, wrapCoords(uv + reflectionOffset)).a;
+        redChannel = textureSample(tex, samp, redUV).r;
+        greenChannel = textureSample(tex, samp, greenUV).g;
+        blueChannel = textureSample(tex, samp, blueUV).b;
+        alphaChannel = textureSample(tex, samp, alphaUV).a;
     } else {
-        redChannel = textureSample(inputTex, samp, wrapCoords(uv + redOffset)).r;
-        greenChannel = textureSample(inputTex, samp, wrapCoords(uv + greenOffset)).g;
-        blueChannel = textureSample(inputTex, samp, wrapCoords(uv + blueOffset)).b;
-        alphaChannel = textureSample(inputTex, samp, wrapCoords(uv + reflectionOffset)).a;
+        redChannel = textureSample(inputTex, samp, redUV).r;
+        greenChannel = textureSample(inputTex, samp, greenUV).g;
+        blueChannel = textureSample(inputTex, samp, blueUV).b;
+        alphaChannel = textureSample(inputTex, samp, alphaUV).a;
     }
-    
+
     return vec4f(redChannel, greenChannel, blueChannel, alphaChannel);
 }
 

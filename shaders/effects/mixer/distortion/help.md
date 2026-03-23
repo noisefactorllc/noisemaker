@@ -17,6 +17,7 @@ Applies displacement, reflection, and refraction effects between two surfaces us
 | wrap | int | mirror | clamp/mirror/repeat | Wrap |
 | smoothing | float | 1 | 1-100 | Smoothing |
 | aberration | float | 0 | 0-25 | Aberration |
+| antialias | boolean | false | on/off | 4x rotated-grid supersampling (disable before palette effects) |
 
 ## Notes
 

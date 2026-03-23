@@ -90,6 +90,15 @@ export default new Effect({
         control: "slider",
         enabledBy: { param: "mode", eq: 2 }
       }
+    },
+    antialias: {
+      type: "boolean",
+      default: false,
+      uniform: "antialias",
+      ui: {
+        label: "antialias",
+        control: "checkbox"
+      }
     }
   },
   defaultProgram: "search mixer, synth\n\ncell()\n.write(o0)\n\nnoise(ridges: true)\n.distortion(tex: read(o0))\n.write(o1)",
