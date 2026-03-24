@@ -3641,6 +3641,10 @@ render(o1)`
                     }
                 }
 
+                // Store resolved path in state (replaces numeric value from DSL)
+                // so enabledBy conditions can match against string paths
+                this._programState.setValue(effectKey, key, initialValue)
+
                 const handle = this._controlFactory.createSelect({
                     choices,
                     value: initialValue,
