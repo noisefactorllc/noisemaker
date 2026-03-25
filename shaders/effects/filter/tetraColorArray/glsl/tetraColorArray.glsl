@@ -47,6 +47,8 @@ uniform float repeat;
 uniform float offset;
 uniform float smoothness;
 uniform float alpha;
+uniform int rotation;   // -1 = backward, 0 = none, 1 = forward
+uniform float time;
 
 out vec4 fragColor;
 
@@ -308,8 +310,16 @@ void main() {
     // Calculate luminance as the t value
     float lum = dot(inputColor.rgb, vec3(0.299, 0.587, 0.114));
 
-    // Apply mapping: repeat and offset
-    float t = fract(lum * (1.0 - 1e-4) * repeat + offset);
+    // Apply mapping: repeat, offset, and rotation (animation)
+    float t = lum * (1.0 - 1e-4) * repeat + offset;
+
+    if (rotation == -1) {
+        t += time;
+    } else if (rotation == 1) {
+        t -= time;
+    }
+
+    t = fract(t);
 
     // Sample the color array gradient
     vec3 gradientColor = sampleColorArray(t, colorCount, smoothness);

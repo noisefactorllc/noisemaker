@@ -18,7 +18,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 // Maps uniform names to packed vec4 slots for WGSL
 // data[0].x = colorMode, .y = colorCount, .z = positionMode, .w = repeat
-// data[1].x = offset (mapping), .y = alpha, .zw = reserved
+// data[1].x = offset (mapping), .y = alpha, .z = smoothness, .w = rotation
 // data[2-9] = colors 1-8 (xyz = rgb, w = reserved)
 // data[10] = positions 1-4 (xyzw)
 // data[11] = positions 5-8 (xyzw)
@@ -30,6 +30,8 @@ const uniformLayout = {
   offset: { slot: 1, components: 'x' },
   alpha: { slot: 1, components: 'y' },
   smoothness: { slot: 1, components: 'z' },
+  rotation: { slot: 1, components: 'w' },
+  time: { slot: 2, components: 'w' },
   color0: { slot: 2, components: 'xyz' },
   color1: { slot: 3, components: 'xyz' },
   color2: { slot: 4, components: 'xyz' },
@@ -315,6 +317,18 @@ export default new Effect({
         control: "slider",
         category: "positions",
         enabledBy: { and: [{ param: "positionMode", eq: 1 }, { param: "colorCount", gt: 7 }] }
+      }
+    },
+
+    // === Rotation ===
+    rotation: {
+      type: "float",
+      default: 0,
+      uniform: "rotation",
+      choices: { none: 0, fwd: 1, back: -1 },
+      ui: {
+        label: "rotation",
+        control: "dropdown"
       }
     },
 

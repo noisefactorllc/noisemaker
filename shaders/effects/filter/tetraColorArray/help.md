@@ -34,6 +34,12 @@ This effect is fully compatible with Tetra's color array palette format and can 
   - Only visible when Position Mode is set to Manual
   - Positions should generally be in ascending order
 
+### Rotation
+- **Rotation**: Animate the palette mapping over time
+  - None: No animation
+  - Fwd: Palette cycles forward
+  - Back: Palette cycles backward
+
 ### Mapping
 - **Repeat**: Multiplier for the luminance value (1-10)
   - Higher values create more repetitions across the luminance range

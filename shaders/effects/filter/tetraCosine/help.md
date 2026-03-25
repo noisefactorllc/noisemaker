@@ -43,6 +43,12 @@ This effect is fully compatible with Tetra's cosine palette format and can load 
   - Controls where in the cosine cycle each channel starts
   - Default: 0.0, 0.33, 0.67 (rainbow)
 
+### Rotation
+- **Rotation**: Animate the palette mapping over time
+  - None: No animation
+  - Fwd: Palette cycles forward
+  - Back: Palette cycles backward
+
 ### Mapping
 - **Repeat**: Multiplier for the luminance value (1-10)
   - Higher values create more repetitions across the luminance range

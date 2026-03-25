@@ -20,6 +20,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 // data[1].xyz = amp (R, G, B), data[1].w = repeat
 // data[2].xyz = freq (R, G, B), data[2].w = offset (mapping)
 // data[3].xyz = phase (R, G, B), data[3].w = alpha
+// data[4].x = rotation
 const uniformLayout = {
   offsetR: { slot: 0, components: 'x' },
   offsetG: { slot: 0, components: 'y' },
@@ -36,7 +37,9 @@ const uniformLayout = {
   phaseR: { slot: 3, components: 'x' },
   phaseG: { slot: 3, components: 'y' },
   phaseB: { slot: 3, components: 'z' },
-  alpha: { slot: 3, components: 'w' }
+  alpha: { slot: 3, components: 'w' },
+  rotation: { slot: 4, components: 'x' },
+  time: { slot: 4, components: 'y' }
 }
 
 export default new Effect({
@@ -226,6 +229,18 @@ export default new Effect({
         label: "phase b",
         control: "slider",
         category: "phase"
+      }
+    },
+
+    // === Rotation ===
+    rotation: {
+      type: "float",
+      default: 0,
+      uniform: "rotation",
+      choices: { none: 0, fwd: 1, back: -1 },
+      ui: {
+        label: "rotation",
+        control: "dropdown"
       }
     },
 

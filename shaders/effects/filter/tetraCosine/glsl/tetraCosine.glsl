@@ -35,6 +35,8 @@ uniform float phaseB;
 uniform float repeat;
 uniform float offset;
 uniform float alpha;
+uniform int rotation;   // -1 = backward, 0 = none, 1 = forward
+uniform float time;
 
 out vec4 fragColor;
 
@@ -145,8 +147,16 @@ void main() {
     // Calculate luminance as the t value
     float lum = dot(inputColor.rgb, vec3(0.299, 0.587, 0.114));
 
-    // Apply mapping: repeat and offset
-    float t = fract(lum * repeat + offset);
+    // Apply mapping: repeat, offset, and rotation (animation)
+    float t = lum * repeat + offset;
+
+    if (rotation == -1) {
+        t += time;
+    } else if (rotation == 1) {
+        t -= time;
+    }
+
+    t = fract(t);
 
     // Build palette parameters from uniforms
     vec3 offset = vec3(offsetR, offsetG, offsetB);

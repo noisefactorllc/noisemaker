@@ -9,11 +9,12 @@
  */
 
 struct Uniforms {
-    data: array<vec4<f32>, 4>,
+    data: array<vec4<f32>, 5>,
     // data[0].x = offsetR, data[0].y = offsetG, data[0].z = offsetB, data[0].w = colorMode
     // data[1].x = ampR, data[1].y = ampG, data[1].z = ampB, data[1].w = repeat
     // data[2].x = freqR, data[2].y = freqG, data[2].z = freqB, data[2].w = offset (mapping)
     // data[3].x = phaseR, data[3].y = phaseG, data[3].z = phaseB, data[3].w = alpha
+    // data[4].x = rotation, data[4].y = time
 }
 
 @group(0) @binding(0) var samp: sampler;
@@ -127,6 +128,8 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let offsetVal = uniforms.data[2].w;
     let phase = uniforms.data[3].xyz;
     let alpha = uniforms.data[3].w;
+    let rotation = i32(uniforms.data[4].x);
+    let time = uniforms.data[4].y;
 
     // Calculate UV from position
     let size = vec2<f32>(textureDimensions(inputTex, 0));
@@ -138,8 +141,16 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     // Calculate luminance as the t value
     let lum = dot(inputColor.rgb, vec3<f32>(0.299, 0.587, 0.114));
 
-    // Apply mapping: repeat and offset
-    let t = fract(lum * repeatVal + offsetVal);
+    // Apply mapping: repeat, offset, and rotation (animation)
+    var t = lum * repeatVal + offsetVal;
+
+    if (rotation == -1) {
+        t = t + time;
+    } else if (rotation == 1) {
+        t = t - time;
+    }
+
+    t = fract(t);
 
     // Evaluate cosine palette
     let paletteColor = cosinePalette(t, offset, amp, freq, phase);

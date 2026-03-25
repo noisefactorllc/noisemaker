@@ -9,7 +9,8 @@
 struct Uniforms {
     data: array<vec4<f32>, 12>,
     // data[0].x = colorMode, data[0].y = colorCount, data[0].z = positionMode, data[0].w = repeat
-    // data[1].x = offset (mapping), data[1].y = alpha, data[1].z = smoothness, data[1].w = reserved
+    // data[1].x = offset (mapping), data[1].y = alpha, data[1].z = smoothness, data[1].w = rotation
+    // data[2].w = time (global, auto-provided)
     // data[2].xyz = color0 (rgb)
     // data[3].xyz = color1 (rgb)
     // data[4].xyz = color2 (rgb)
@@ -306,6 +307,8 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let offsetVal = uniforms.data[1].x;
     let alpha = uniforms.data[1].y;
     let smoothness = uniforms.data[1].z;
+    let rotation = i32(uniforms.data[1].w);
+    let time = uniforms.data[2].w;
 
     // Calculate UV from position
     let size = vec2<f32>(textureDimensions(inputTex, 0));
@@ -317,8 +320,16 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     // Calculate luminance as the t value
     let lum = dot(inputColor.rgb, vec3<f32>(0.299, 0.587, 0.114));
 
-    // Apply mapping: repeat and offset
-    let t = fract(lum * (1.0 - 1e-4) * repeatVal + offsetVal);
+    // Apply mapping: repeat, offset, and rotation (animation)
+    var t = lum * (1.0 - 1e-4) * repeatVal + offsetVal;
+
+    if (rotation == -1) {
+        t = t + time;
+    } else if (rotation == 1) {
+        t = t - time;
+    }
+
+    t = fract(t);
 
     // Sample the color array gradient
     let gradientColor = sampleColorArray(t, colorCount, positionMode, colorMode, smoothness);
