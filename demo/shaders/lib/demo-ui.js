@@ -3384,9 +3384,9 @@ render(o1)`
         } else if (spec.ui?.control === 'color' || spec.type === 'vec4') {
             // Color picker for vec4 or explicit color control
             this._createColorControl(controlGroup, key, value, effectKey, spec)
+        } else if (spec.type === 'vec2') {
+            this._createVector2dControl(controlGroup, key, value, effectKey, spec)
         } else if (spec.type === 'vec3') {
-            // Vector3 picker for vec3 (direction, position, etc.)
-            // Downstream projects can override _createVector3dControl with custom UI
             this._createVector3dControl(controlGroup, key, value, effectKey, spec)
         } else if (spec.choices) {
             this._createChoicesControl(controlGroup, key, spec, value, effectKey)
@@ -3776,15 +3776,49 @@ render(o1)`
     }
 
     /**
+     * Create a vector2d control for vec2 parameters.
+     * @private
+     */
+    _createVector2dControl(container, key, value, effectKey, spec) {
+        const val = Array.isArray(value) ? value : [0, 0]
+
+        const handle = this._controlFactory.createVector2dPicker({
+            value: val,
+            min: spec.min,
+            max: spec.max,
+            step: spec.step
+        })
+
+        handle.element.addEventListener('input', () => {
+            this._programState.setValue(effectKey, key, handle.getValue())
+            this._onControlChange()
+        })
+
+        container.appendChild(handle.element)
+        container._controlHandle = handle
+    }
+
+    /**
      * Create a vector3d control for vec3 parameters (direction, position, etc.).
-     * Downstream projects can override this to provide a custom vector editor.
-     * Default implementation delegates to color picker for compatibility.
      * @private
      */
     _createVector3dControl(container, key, value, effectKey, spec) {
-        // Default: delegate to color control for backward compatibility
-        // Downstream projects (e.g., Noisedeck) can override with custom vector picker
-        this._createColorControl(container, key, value, effectKey, spec)
+        const val = Array.isArray(value) ? value : [0, 0, 0]
+
+        const handle = this._controlFactory.createVector3dPicker({
+            value: val,
+            min: spec.min,
+            max: spec.max,
+            step: spec.step
+        })
+
+        handle.element.addEventListener('input', () => {
+            this._programState.setValue(effectKey, key, handle.getValue())
+            this._onControlChange()
+        })
+
+        container.appendChild(handle.element)
+        container._controlHandle = handle
     }
 
     /** @private */

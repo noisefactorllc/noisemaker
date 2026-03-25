@@ -254,6 +254,98 @@ export class ControlFactory {
     }
 
     /**
+     * Create a 2D vector picker control
+     * @param {object} options
+     * @param {Array<number>} options.value - [x, y] array
+     * @param {number} [options.min] - Minimum value for both axes (default: -1)
+     * @param {number} [options.max] - Maximum value for both axes (default: 1)
+     * @param {number} [options.step] - Step increment (default: 0.01)
+     * @returns {ControlHandle}
+     */
+    createVector2dPicker(options) {
+        // Default: two sliders as fallback
+        const container = document.createElement('div')
+        container.className = 'vector-picker-fallback'
+
+        const min = options.min ?? -1
+        const max = options.max ?? 1
+        const step = options.step ?? 0.01
+        const val = Array.isArray(options.value) ? options.value : [0, 0]
+
+        const sliders = ['x', 'y'].map((axis, i) => {
+            const row = document.createElement('div')
+            const label = document.createElement('span')
+            label.textContent = axis + ': '
+            const slider = document.createElement('input')
+            slider.type = 'range'
+            slider.min = min
+            slider.max = max
+            slider.step = step
+            slider.value = val[i] || 0
+            row.appendChild(label)
+            row.appendChild(slider)
+            container.appendChild(row)
+            return slider
+        })
+
+        return {
+            element: container,
+            getValue: () => sliders.map(s => parseFloat(s.value)),
+            setValue: (v) => {
+                if (Array.isArray(v)) {
+                    sliders.forEach((s, i) => { s.value = v[i] ?? 0 })
+                }
+            }
+        }
+    }
+
+    /**
+     * Create a 3D vector picker control
+     * @param {object} options
+     * @param {Array<number>} options.value - [x, y, z] array
+     * @param {number} [options.min] - Minimum value for all axes (default: -1)
+     * @param {number} [options.max] - Maximum value for all axes (default: 1)
+     * @param {number} [options.step] - Step increment (default: 0.01)
+     * @returns {ControlHandle}
+     */
+    createVector3dPicker(options) {
+        // Default: three sliders as fallback
+        const container = document.createElement('div')
+        container.className = 'vector-picker-fallback'
+
+        const min = options.min ?? -1
+        const max = options.max ?? 1
+        const step = options.step ?? 0.01
+        const val = Array.isArray(options.value) ? options.value : [0, 0, 0]
+
+        const sliders = ['x', 'y', 'z'].map((axis, i) => {
+            const row = document.createElement('div')
+            const label = document.createElement('span')
+            label.textContent = axis + ': '
+            const slider = document.createElement('input')
+            slider.type = 'range'
+            slider.min = min
+            slider.max = max
+            slider.step = step
+            slider.value = val[i] || 0
+            row.appendChild(label)
+            row.appendChild(slider)
+            container.appendChild(row)
+            return slider
+        })
+
+        return {
+            element: container,
+            getValue: () => sliders.map(s => parseFloat(s.value)),
+            setValue: (v) => {
+                if (Array.isArray(v)) {
+                    sliders.forEach((s, i) => { s.value = v[i] ?? 0 })
+                }
+            }
+        }
+    }
+
+    /**
      * Create a button control (momentary trigger)
      * @param {object} options
      * @param {string} options.label - Button text

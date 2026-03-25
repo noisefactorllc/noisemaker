@@ -126,6 +126,52 @@ export class HandfishControlFactory extends ControlFactory {
         }
     }
 
+    createVector2dPicker(options) {
+        const picker = document.createElement('vector2d-picker')
+        const val = Array.isArray(options.value) ? options.value : [0, 0]
+
+        if (options.min !== undefined) picker.setAttribute('min', options.min)
+        if (options.max !== undefined) picker.setAttribute('max', options.max)
+        if (options.step !== undefined) picker.setAttribute('step', options.step)
+        picker.setAttribute('value', JSON.stringify(val))
+
+        return {
+            element: picker,
+            getValue: () => {
+                const v = picker.value
+                return [v.x, v.y]
+            },
+            setValue: (v) => {
+                if (Array.isArray(v)) {
+                    picker.value = { x: v[0] ?? 0, y: v[1] ?? 0 }
+                }
+            }
+        }
+    }
+
+    createVector3dPicker(options) {
+        const picker = document.createElement('vector3d-picker')
+        const val = Array.isArray(options.value) ? options.value : [0, 0, 0]
+
+        if (options.min !== undefined) picker.setAttribute('min', options.min)
+        if (options.max !== undefined) picker.setAttribute('max', options.max)
+        if (options.step !== undefined) picker.setAttribute('step', options.step)
+        picker.setAttribute('value', JSON.stringify(val))
+
+        return {
+            element: picker,
+            getValue: () => {
+                const v = picker.value
+                return [v.x, v.y, v.z]
+            },
+            setValue: (v) => {
+                if (Array.isArray(v)) {
+                    picker.value = { x: v[0] ?? 0, y: v[1] ?? 0, z: v[2] ?? 0 }
+                }
+            }
+        }
+    }
+
     createButton(options) {
         const button = document.createElement('button')
         button.textContent = options.label
