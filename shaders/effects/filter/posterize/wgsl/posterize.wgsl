@@ -50,11 +50,7 @@ fn linear_to_srgb_rgb(rgb: vec3<f32>) -> vec3<f32> {
 }
 
 fn pow_vec3(value: vec3<f32>, exponent: f32) -> vec3<f32> {
-    return vec3<f32>(
-        pow(value.x, exponent),
-        pow(value.y, exponent),
-        pow(value.z, exponent),
-    );
+    return pow(value, vec3<f32>(exponent));
 }
 
 @fragment

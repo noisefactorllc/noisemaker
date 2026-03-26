@@ -262,7 +262,9 @@ void mandelbrot_df64(vec2 c_re, vec2 c_im, int maxIter,
         float post_mag2 = post_zx * post_zx + post_zy * post_zy;
 
         // Stripe + trap (float32 aux)
-        stripe += sin(stripeFreq * atan(post_zy, post_zx));
+        if (stripeFreq > 0.0) {
+            stripe += sin(stripeFreq * atan(post_zy, post_zx));
+        }
         trap = min(trap, trapDistance(vec2(post_zx, post_zy), trapShape));
 
         if (post_mag2 > BAILOUT * BAILOUT) break;

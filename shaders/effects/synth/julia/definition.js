@@ -221,7 +221,7 @@ export default new Effect({
       uniform: "zoomDepth",
       min: 0,
       max: 14,
-      step: 0.1,
+      step: 0.001,
       randChance: 0,
       ui: {
         label: "zoom depth",

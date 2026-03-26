@@ -198,9 +198,11 @@ fn juliaIterate(z0Re: vec2<f32>, z0Im: vec2<f32>, c: vec2<f32>,
 
         // Stripe average accumulation (float32 from hi parts)
         let zHi = vec2<f32>(zRe.x, zIm.x);
-        stripeLast = 0.5 * sin(freq * atan2(zHi.y, zHi.x)) + 0.5;
-        stripeSum = stripeSum + stripeLast;
-        stripeCount = stripeCount + 1.0;
+        if (freq > 0.0) {
+            stripeLast = 0.5 * sin(freq * atan2(zHi.y, zHi.x)) + 0.5;
+            stripeSum = stripeSum + stripeLast;
+            stripeCount = stripeCount + 1.0;
+        }
 
         // Orbit trap accumulation
         var td: f32;

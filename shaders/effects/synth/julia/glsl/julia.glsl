@@ -219,9 +219,11 @@ JuliaResult juliaIterate(vec2 z0Re, vec2 z0Im, vec2 c, int maxIter,
 
         // Stripe average accumulation (float32 from hi parts)
         vec2 zHi = vec2(zRe.x, zIm.x);
-        stripeLast = 0.5 * sin(freq * atan(zHi.y, zHi.x)) + 0.5;
-        stripeSum += stripeLast;
-        stripeCount += 1.0;
+        if (freq > 0.0) {
+            stripeLast = 0.5 * sin(freq * atan(zHi.y, zHi.x)) + 0.5;
+            stripeSum += stripeLast;
+            stripeCount += 1.0;
+        }
 
         // Orbit trap accumulation
         float td;

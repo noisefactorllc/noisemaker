@@ -51,11 +51,7 @@ vec3 linear_to_srgb_rgb(vec3 rgb) {
 }
 
 vec3 pow_vec3(vec3 value, float exponent) {
-    return vec3(
-        pow(value.x, exponent),
-        pow(value.y, exponent),
-        pow(value.z, exponent)
-    );
+    return pow(value, vec3(exponent));
 }
 
 void main() {
