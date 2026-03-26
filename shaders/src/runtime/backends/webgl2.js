@@ -20,6 +20,11 @@ export class WebGL2Backend extends Backend {
         this.fullscreenVAO = null
         this.presentProgram = null
         this.maxTextureUnits = 16
+
+        // Pre-allocated typed arrays for uniform setting (avoids per-frame allocations)
+        this._vec2Buf = new Float32Array(2)
+        this._vec3Buf = new Float32Array(3)
+        this._vec4Buf = new Float32Array(4)
     }
 
     /**
@@ -1273,18 +1278,16 @@ export class WebGL2Backend extends Backend {
                 gl.uniform1i(loc, typeof value === 'boolean' ? (value ? 1 : 0) : value)
                 break
             case gl.FLOAT_VEC2: {
-                // Ensure value is a proper 2-element Float32Array
                 const v2 = Array.isArray(value) ? value : [value, value]
-                const arr2 = new Float32Array(2)
+                const arr2 = this._vec2Buf
                 arr2[0] = v2[0] ?? 0
                 arr2[1] = v2[1] ?? 0
                 gl.uniform2fv(loc, arr2)
                 break
             }
             case gl.FLOAT_VEC3: {
-                // Ensure value is a proper 3-element Float32Array
                 const v3 = Array.isArray(value) ? value : [value, value, value]
-                const arr3 = new Float32Array(3)
+                const arr3 = this._vec3Buf
                 arr3[0] = v3[0] ?? 0
                 arr3[1] = v3[1] ?? 0
                 arr3[2] = v3[2] ?? 0
@@ -1292,9 +1295,8 @@ export class WebGL2Backend extends Backend {
                 break
             }
             case gl.FLOAT_VEC4: {
-                // Ensure value is a proper 4-element Float32Array
                 const v4 = Array.isArray(value) ? value : [value, value, value, value]
-                const arr4 = new Float32Array(4)
+                const arr4 = this._vec4Buf
                 arr4[0] = v4[0] ?? 0
                 arr4[1] = v4[1] ?? 0
                 arr4[2] = v4[2] ?? 0
