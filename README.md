@@ -2,6 +2,10 @@
 
 Noisemaker is a collection of creative coding effects for Python or JavaScript. It provides tools for composing layers of noise, applying image effects, and rendering generative art.
 
+## Noisedeck
+
+[Noisedeck](https://noisedeck.app) is a real-time shader video synth built on Noisemaker — 100+ effects, free-form routing, runs in the browser. No install required. [Try it free.](https://noisedeck.app)
+
 ## Documentation
 
 Full documentation, including the complete API reference and preset guide, is available on [Read the Docs](http://noisemaker.readthedocs.io/).
