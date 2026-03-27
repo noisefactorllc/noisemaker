@@ -184,7 +184,12 @@ export default new Effect({
         label: "c speed",
         control: "slider",
         category: "animation",
-        enabledBy: { param: "cPath", notIn: [0] }
+        enabledBy: {
+          and: [
+            { param: "poi", eq: 0 },
+            { param: "cPath", neq: 0 }
+          ]
+        }
       }
     },
     cRadius: {
@@ -197,7 +202,12 @@ export default new Effect({
         label: "c radius",
         control: "slider",
         category: "animation",
-        enabledBy: { param: "cPath", eq: 2 }
+        enabledBy: {
+          and: [
+            { param: "poi", eq: 0 },
+            { param: "cPath", eq: 2 }
+          ]
+        }
       }
     },
     zoomSpeed: {
