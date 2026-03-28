@@ -9,13 +9,14 @@
 @group(0) @binding(1) var<uniform> gradientType: i32;
 @group(0) @binding(2) var<uniform> rotation: f32;
 @group(0) @binding(3) var<uniform> repeat: i32;
-@group(0) @binding(4) var<uniform> color1: vec3<f32>;
-@group(0) @binding(5) var<uniform> color2: vec3<f32>;
-@group(0) @binding(6) var<uniform> color3: vec3<f32>;
-@group(0) @binding(7) var<uniform> color4: vec3<f32>;
-@group(0) @binding(8) var<uniform> seed: i32;
-@group(0) @binding(9) var<uniform> time: f32;
-@group(0) @binding(10) var<uniform> speed: f32;
+@group(0) @binding(4) var<uniform> colorCount: i32;
+@group(0) @binding(5) var<uniform> color1: vec3<f32>;
+@group(0) @binding(6) var<uniform> color2: vec3<f32>;
+@group(0) @binding(7) var<uniform> color3: vec3<f32>;
+@group(0) @binding(8) var<uniform> color4: vec3<f32>;
+@group(0) @binding(9) var<uniform> seed: i32;
+@group(0) @binding(10) var<uniform> time: f32;
+@group(0) @binding(11) var<uniform> speed: f32;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -33,27 +34,24 @@ fn rotate2D(st: vec2<f32>, angle: f32) -> vec2<f32> {
     return coord;
 }
 
-// Blend 4 colors based on a 0-1 parameter t, cycling through all 4
-fn blend4Colors(t_in: f32) -> vec3<f32> {
-    let t = fract(t_in); // Ensure t is in [0, 1]
-    let segment = t * 4.0;
+fn getColor(idx: i32) -> vec3<f32> {
+    switch idx {
+        case 0: { return color1; }
+        case 1: { return color2; }
+        case 2: { return color3; }
+        default: { return color4; }
+    }
+}
+
+// Blend colors based on a 0-1 parameter t, cycling through colorCount colors
+fn blendColors(t_in: f32) -> vec3<f32> {
+    let t = fract(t_in);
+    let segment = t * f32(colorCount);
     let idx = i32(floor(segment));
     let localT = fract(segment);
-    
-    switch idx {
-        case 0: {
-            return mix(color1, color2, localT);
-        }
-        case 1: {
-            return mix(color2, color3, localT);
-        }
-        case 2: {
-            return mix(color3, color4, localT);
-        }
-        default: {
-            return mix(color4, color1, localT);
-        }
-    }
+    var next = idx + 1;
+    if (next >= colorCount) { next = 0; }
+    return mix(getColor(idx), getColor(next), localT);
 }
 
 // PCG PRNG for noise gradient
@@ -139,33 +137,48 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             let a = atan2(rotatedCentered.y, rotatedCentered.x);
             t = (a + PI) / TAU;
             t = fract(t * f32(repeat) + timeOffset);
-            color = blend4Colors(t);
+            color = blendColors(t);
         }
         case 1: {
             // Diamond gradient - L1 distance with rotation
             t = abs(rotatedCentered.x) + abs(rotatedCentered.y);
             t = fract(t * f32(repeat) + timeOffset);
-            color = blend4Colors(t);
+            color = blendColors(t);
         }
         case 2: {
             // Four corners - bilinear interpolation
-            var cornerSt = rotate2D(st, angle);
-            let top = mix(color1, color2, cornerSt.x);
-            let bottom = mix(color3, color4, cornerSt.x);
+            // 4: TL=c1 TR=c2 BL=c3 BR=c4
+            // 3: TL=c1 TR=c2 BL=c3 BR=c3
+            // 2: TL=c1 TR=c1 BL=c2 BR=c2
+            let cornerSt = rotate2D(st, angle);
+            var cTL = color1;
+            var cTR = color1;
+            var cBL = color2;
+            var cBR = color2;
+            if (colorCount >= 3) {
+                cTR = color2;
+                cBL = color3;
+                cBR = color3;
+            }
+            if (colorCount >= 4) {
+                cBR = color4;
+            }
+            let top = mix(cTL, cTR, cornerSt.x);
+            let bottom = mix(cBL, cBR, cornerSt.x);
             color = mix(bottom, top, cornerSt.y);
         }
         case 3: {
             // Linear gradient along rotated y-axis
             t = rotatedSt.y;
             t = fract(t * f32(repeat) + timeOffset);
-            color = blend4Colors(t);
+            color = blendColors(t);
         }
         case 4: {
             // Noise gradient with rotation
             let noiseSt = rotatedCentered * 4.0;
             t = fbmNoise(noiseSt);
             t = fract(t * f32(repeat) + timeOffset);
-            color = blend4Colors(t);
+            color = blendColors(t);
         }
         case 5: {
             // Radial gradient from center
@@ -173,7 +186,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             let dist = length(rotatedPoint) * 2.0;
             t = dist;
             t = fract(t * f32(repeat) + timeOffset);
-            color = blend4Colors(t);
+            color = blendColors(t);
         }
         case 6: {
             // Spiral gradient - angle + distance
@@ -181,7 +194,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             let dist = length(centered);
             t = fract(a / TAU + dist * 2.0);
             t = fract(t * f32(repeat) + timeOffset);
-            color = blend4Colors(t);
+            color = blendColors(t);
         }
         default: {
             color = color1;

@@ -10,6 +10,7 @@ uniform vec2 resolution;
 uniform int gradientType;
 uniform float rotation;
 uniform int repeat;
+uniform int colorCount;
 uniform vec3 color1;
 uniform vec3 color2;
 uniform vec3 color3;
@@ -35,22 +36,22 @@ vec2 rotate2D(vec2 st, float angle) {
     return st;
 }
 
-// Blend 4 colors based on a 0-1 parameter t, cycling through all 4
-vec3 blend4Colors(float t) {
-    t = fract(t); // Ensure t is in [0, 1]
-    float segment = t * 4.0;
+vec3 getColor(int idx) {
+    if (idx == 0) return color1;
+    if (idx == 1) return color2;
+    if (idx == 2) return color3;
+    return color4;
+}
+
+// Blend colors based on a 0-1 parameter t, cycling through colorCount colors
+vec3 blendColors(float t) {
+    t = fract(t);
+    float segment = t * float(colorCount);
     int idx = int(floor(segment));
     float localT = fract(segment);
-    
-    if (idx == 0) {
-        return mix(color1, color2, localT);
-    } else if (idx == 1) {
-        return mix(color2, color3, localT);
-    } else if (idx == 2) {
-        return mix(color3, color4, localT);
-    } else {
-        return mix(color4, color1, localT);
-    }
+    int next = idx + 1;
+    if (next >= colorCount) next = 0;
+    return mix(getColor(idx), getColor(next), localT);
 }
 
 // PCG PRNG for noise gradient
@@ -134,43 +135,50 @@ void main() {
         float a = atan(rotatedCentered.y, rotatedCentered.x);
         t = (a + PI) / TAU;
         t = fract(t * float(repeat) + timeOffset);
-        color = blend4Colors(t);
+        color = blendColors(t);
     } else if (gradientType == 1) {
         // Diamond gradient - L1 distance with rotation
         t = abs(rotatedCentered.x) + abs(rotatedCentered.y);
         t = fract(t * float(repeat) + timeOffset);
-        color = blend4Colors(t);
+        color = blendColors(t);
     } else if (gradientType == 2) {
         // Four corners - bilinear interpolation
+        // 4: TL=c1 TR=c2 BL=c3 BR=c4
+        // 3: TL=c1 TR=c2 BL=c3 BR=c3
+        // 2: TL=c1 TR=c1 BL=c2 BR=c2
         vec2 cornerSt = rotate2D(st, angle);
-        vec3 top = mix(color1, color2, cornerSt.x);
-        vec3 bottom = mix(color3, color4, cornerSt.x);
+        vec3 cTL = color1;
+        vec3 cTR = colorCount >= 3 ? color2 : color1;
+        vec3 cBL = colorCount >= 3 ? color3 : color2;
+        vec3 cBR = colorCount >= 4 ? color4 : cBL;
+        vec3 top = mix(cTL, cTR, cornerSt.x);
+        vec3 bottom = mix(cBL, cBR, cornerSt.x);
         color = mix(bottom, top, cornerSt.y);
     } else if (gradientType == 3) {
         // Linear gradient along rotated y-axis
         t = rotatedSt.y;
         t = fract(t * float(repeat) + timeOffset);
-        color = blend4Colors(t);
+        color = blendColors(t);
     } else if (gradientType == 4) {
         // Noise gradient with rotation
         vec2 noiseSt = rotatedCentered * 4.0;
         t = fbmNoise(noiseSt);
         t = fract(t * float(repeat) + timeOffset);
-        color = blend4Colors(t);
+        color = blendColors(t);
     } else if (gradientType == 5) {
         // Radial gradient from center
         vec2 rotatedPoint = mat2(c, -s, s, c) * centered;
         float dist = length(rotatedPoint) * 2.0;
         t = dist;
         t = fract(t * float(repeat) + timeOffset);
-        color = blend4Colors(t);
+        color = blendColors(t);
     } else if (gradientType == 6) {
         // Spiral gradient - angle + distance
         float a = atan(rotatedCentered.y, rotatedCentered.x);
         float dist = length(centered);
         t = fract(a / TAU + dist * 2.0);
         t = fract(t * float(repeat) + timeOffset);
-        color = blend4Colors(t);
+        color = blendColors(t);
     }
 
     fragColor = vec4(color, 1.0);

@@ -15,6 +15,7 @@ Multi-color gradient generator with various styles
 | color2 | color | 1,1,0 | - | Color 2 |
 | color3 | color | 0,1,0 | - | Color 3 |
 | color4 | color | 0,0,1 | - | Color 4 |
+| colorCount | int | 4 | 2-4 | Number of colors |
 
 ## Notes
 

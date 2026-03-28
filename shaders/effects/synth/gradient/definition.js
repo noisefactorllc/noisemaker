@@ -79,6 +79,7 @@ export default new Effect({
         enabledBy: { param: "type", eq: 4 }
       }
     },
+
     color1: {
       type: "color",
       default: [1, 0, 0],
@@ -95,14 +96,37 @@ export default new Effect({
       type: "color",
       default: [0, 1, 0],
       uniform: "color3",
-      ui: { label: "color 3", control: "color", category: "color" }
+      ui: {
+        label: "color 3",
+        control: "color",
+        category: "color",
+        enabledBy: { param: "colorCount", gt: 2 }
+      }
     },
     color4: {
       type: "color",
       default: [0, 0, 1],
       uniform: "color4",
-      ui: { label: "color 4", control: "color", category: "color" }
-    }
+      ui: {
+        label: "color 4",
+        control: "color",
+        category: "color",
+        enabledBy: { param: "colorCount", gt: 3 }
+      }
+    },
+    colorCount: {
+      type: "int",
+      default: 4,
+      uniform: "colorCount",
+      min: 2,
+      max: 4,
+      step: 1,
+      ui: {
+        label: "color count",
+        control: "slider",
+        category: "color"
+      }
+    },
   },
   passes: [
     {
