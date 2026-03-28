@@ -989,9 +989,9 @@ export class Pipeline {
             }
         }
 
-        // Check if this is a scoped uniform (e.g., 'stateSize_node_5')
+        // Check if this is a scoped uniform (e.g., 'stateSize_node_5', 'volumeSize_chain_0')
         // Scoped uniforms should NOT propagate to other scoped variants
-        const isScopedUniform = /_node_\d+$/.test(name)
+        const isScopedUniform = /_node_\d+$/.test(name) || /_chain_\d+$/.test(name)
 
         // Also update the uniform in all passes that reference it
         // Additionally, propagate to scoped variants (e.g., stateSize -> stateSize_node_1)
@@ -1010,7 +1010,7 @@ export class Pipeline {
                 // This allows each pipeline's stateSize to be set independently
                 if (!isScopedUniform && pass.uniforms) {
                     for (const key of Object.keys(pass.uniforms)) {
-                        if (key.startsWith(name + '_node_')) {
+                        if (key.startsWith(name + '_node_') || key.startsWith(name + '_chain_')) {
                             // Don't overwrite automation configs
                             const currentValue = pass.uniforms[key]
                             if (!this.isAutomationConfig(currentValue)) {
