@@ -47,11 +47,6 @@ export const renameMap = {
     // classicNoisedeck
     // ---------------------------------------------------------------
 
-    'classicNoisedeck/background': {
-        backgroundType: 'type',           // Rule 1: remove effect name
-        opacity: 'alpha',                 // Rule 3: canonical transparency name
-    },
-
     'classicNoisedeck/bitEffects': {
         loopAmp: 'speed',                 // Rule 4: actually controls animation speed
     },

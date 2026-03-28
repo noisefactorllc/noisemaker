@@ -462,18 +462,6 @@ float quadratic3(float p0, float p1, float p2, float t) {
     return p0 * B0 + p1 * B1 + p2 * B2;
 }
 
-// Catmull-Rom interpolation for 3 samples (degree 3, interpolating)
-float catmullRom3(float p0, float p1, float p2, float t) {
-    // Degree 3 polynomial passing through p1
-    // Uses p0 and p2 to compute tangents
-    float t2 = t * t;
-    float t3 = t2 * t;
-    
-    return p1 + 0.5 * t * (p2 - p0) + 
-           0.5 * t2 * (2.0*p0 - 5.0*p1 + 4.0*p2 - p0) +
-           0.5 * t3 * (-p0 + 3.0*p1 - 3.0*p2 + p0);
-}
-
 float quadratic3x3Value(vec2 st, float freq) {
     vec2 lattice = st * freq;
     vec2 f = fract(lattice);
@@ -505,58 +493,6 @@ float quadratic3x3Value(vec2 st, float freq) {
     return quadratic3(y0, y1, y2, f.y);
 }
 
-// ---- 3×3 Catmull-Rom interpolation ----
-float catmullRom3x3Value(vec2 st, float freq) {
-    vec2 lattice = st * freq;
-    vec2 f = fract(lattice);
-    
-    float nd = 1.0 / freq;
-    
-    // Sample 3×3 grid (9 taps)
-    float v00 = constant(st + vec2(-nd, -nd), freq);
-    float v10 = constant(st + vec2(0.0, -nd), freq);
-    float v20 = constant(st + vec2(nd, -nd), freq);
-    
-    float v01 = constant(st + vec2(-nd, 0.0), freq);
-    float v11 = constant(st, freq);
-    float v21 = constant(st + vec2(nd, 0.0), freq);
-    
-    float v02 = constant(st + vec2(-nd, nd), freq);
-    float v12 = constant(st + vec2(0.0, nd), freq);
-    float v22 = constant(st + vec2(nd, nd), freq);
-    
-    // Catmull-Rom interpolation along x for each row
-    float y0 = catmullRom3(v00, v10, v20, f.x);
-    float y1 = catmullRom3(v01, v11, v21, f.x);
-    float y2 = catmullRom3(v02, v12, v22, f.x);
-    
-    // Catmull-Rom interpolation along y
-    return catmullRom3(y0, y1, y2, f.y);
-}
-
-// ---- End 3×3 quadratic B-spline & Catmull-Rom ----
-
-// cubic B-spline interpolation (degree 3, C² continuous, smoothing)
-float blendBicubic(float p0, float p1, float p2, float p3, float t) {
-    // B-spline basis functions for cubic (4 control points)
-    // Does NOT pass through control points (smoothing, not interpolating)
-    float t2 = t * t;
-    float t3 = t2 * t;
-    
-    float B0 = (1.0 - t) * (1.0 - t) * (1.0 - t) / 6.0;
-    float B1 = (3.0 * t3 - 6.0 * t2 + 4.0) / 6.0;
-    float B2 = (-3.0 * t3 + 3.0 * t2 + 3.0 * t + 1.0) / 6.0;
-    float B3 = t3 / 6.0;
-    
-    return p0 * B0 + p1 * B1 + p2 * B2 + p3 * B3;
-}
-
-// Catmull-Rom interpolation for 4 samples (degree 3, interpolating)
-float catmullRom4(float p0, float p1, float p2, float p3, float t) {
-    // Passes through p1 and p2, uses p0 and p3 for tangents
-    return p1 + 0.5 * t * (p2 - p0 + t * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3 + t * (3.0 * (p1 - p2) + p3 - p0)));
-}
-
 float blendLinearOrCosine(float a, float b, float amount, int interp) {
     if (interp == 1) {
         return mix(a, b, amount);
@@ -565,114 +501,14 @@ float blendLinearOrCosine(float a, float b, float amount, int interp) {
     return mix(a, b, smoothstep(0.0, 1.0, amount));
 }
 
-float bicubicValue(vec2 st, float freq) {
-    // Neighbor Distance
-    float ndX = 1.0 / freq;
-    float ndY = 1.0 / freq;
-
-    float u0 = st.x - ndX;
-    float u1 = st.x;
-    float u2 = st.x + ndX;
-    float u3 = st.x + ndX + ndX;
-
-    float v0 = st.y - ndY;
-    float v1 = st.y;
-    float v2 = st.y + ndY;
-    float v3 = st.y + ndY + ndY;
-
-    float x0y0 = constant(vec2(u0, v0), freq);
-    float x0y1 = constant(vec2(u0, v1), freq);
-    float x0y2 = constant(vec2(u0, v2), freq);
-    float x0y3 = constant(vec2(u0, v3), freq);
-
-    float x1y0 = constant(vec2(u1, v0), freq);
-    float x1y1 = constant(st, freq);
-    float x1y2 = constant(vec2(u1, v2), freq);
-    float x1y3 = constant(vec2(u1, v3), freq);
-
-    float x2y0 = constant(vec2(u2, v0), freq);
-    float x2y1 = constant(vec2(u2, v1), freq);
-    float x2y2 = constant(vec2(u2, v2), freq);
-    float x2y3 = constant(vec2(u2, v3), freq);
-
-    float x3y0 = constant(vec2(u3, v0), freq);
-    float x3y1 = constant(vec2(u3, v1), freq);
-    float x3y2 = constant(vec2(u3, v2), freq);
-    float x3y3 = constant(vec2(u3, v3), freq);
-
-    vec2 uv = st * freq;
-
-    float y0 = blendBicubic(x0y0, x1y0, x2y0, x3y0, fract(uv.x));
-    float y1 = blendBicubic(x0y1, x1y1, x2y1, x3y1, fract(uv.x));
-    float y2 = blendBicubic(x0y2, x1y2, x2y2, x3y2, fract(uv.x));
-    float y3 = blendBicubic(x0y3, x1y3, x2y3, x3y3, fract(uv.x));
-
-    return blendBicubic(y0, y1, y2, y3, fract(uv.y));
-}
-
-float catmullRom4x4Value(vec2 st, float freq) {
-    // Neighbor Distance
-    float ndX = 1.0 / freq;
-    float ndY = 1.0 / freq;
-
-    float u0 = st.x - ndX;
-    float u1 = st.x;
-    float u2 = st.x + ndX;
-    float u3 = st.x + ndX + ndX;
-
-    float v0 = st.y - ndY;
-    float v1 = st.y;
-    float v2 = st.y + ndY;
-    float v3 = st.y + ndY + ndY;
-
-    float x0y0 = constant(vec2(u0, v0), freq);
-    float x0y1 = constant(vec2(u0, v1), freq);
-    float x0y2 = constant(vec2(u0, v2), freq);
-    float x0y3 = constant(vec2(u0, v3), freq);
-
-    float x1y0 = constant(vec2(u1, v0), freq);
-    float x1y1 = constant(st, freq);
-    float x1y2 = constant(vec2(u1, v2), freq);
-    float x1y3 = constant(vec2(u1, v3), freq);
-
-    float x2y0 = constant(vec2(u2, v0), freq);
-    float x2y1 = constant(vec2(u2, v1), freq);
-    float x2y2 = constant(vec2(u2, v2), freq);
-    float x2y3 = constant(vec2(u2, v3), freq);
-
-    float x3y0 = constant(vec2(u3, v0), freq);
-    float x3y1 = constant(vec2(u3, v1), freq);
-    float x3y2 = constant(vec2(u3, v2), freq);
-    float x3y3 = constant(vec2(u3, v3), freq);
-
-    vec2 uv = st * freq;
-
-    float y0 = catmullRom4(x0y0, x1y0, x2y0, x3y0, fract(uv.x));
-    float y1 = catmullRom4(x0y1, x1y1, x2y1, x3y1, fract(uv.x));
-    float y2 = catmullRom4(x0y2, x1y2, x2y2, x3y2, fract(uv.x));
-    float y3 = catmullRom4(x0y3, x1y3, x2y3, x3y3, fract(uv.x));
-
-    return catmullRom4(y0, y1, y2, y3, fract(uv.y));
-}
-
-
 float value(vec2 st, float freq, int interp) {
     vec2 st2 = st - vec2(0.5 * aspectRatio, 0.5);
     float scaledTime = 1.0;
     float d = 0.0;
 
-    if (interp == 3) {
-        // 3×3 Catmull-Rom (9 taps)
-        d = catmullRom3x3Value(st, freq);
-    } else if (interp == 4) {
-        // 4×4 Catmull-Rom (16 taps)
-        d = catmullRom4x4Value(st, freq);
-    } else if (interp == 5) {
+    if (interp == 5) {
         // 3×3 quadratic B-spline (9 taps)
         d = quadratic3x3Value(st, freq);
-    } else if (interp == 6) {
-        // 4×4 cubic B-spline (16 taps)
-        d = bicubicValue(st, freq);
     } else if (interp == 10) {
         if (animate == -1) {
             scaledTime = simplexValue(st, freq, float(seed) + 40.0, time);
@@ -736,7 +572,7 @@ float offset(vec2 st, float freq) {
         d = shape(st, 3, freq * 0.5);
     } else if (loopOffset == 30) {
         d = (abs(st.x - 0.5 * aspectRatio) + abs(st.y - 0.5)) * freq * 0.5;
-    } else if (loopOffset >= 40 && loopOffset <= 120) {
+    } else if (loopOffset >= 40 && loopOffset <= 80) {
         int sides = loopOffset / 10;
         d = shape(st, sides, freq * 0.5);
     } else if (loopOffset == 200) {

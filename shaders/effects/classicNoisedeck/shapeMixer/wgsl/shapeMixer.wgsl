@@ -256,12 +256,6 @@ fn quadratic3(p0: f32, p1: f32, p2: f32, t: f32) -> f32 {
     return p0 * B0 + p1 * B1 + p2 * B2;
 }
 
-fn catmullRom3(p0: f32, p1: f32, p2: f32, t: f32) -> f32 {
-    let t2 = t * t;
-    let t3 = t2 * t;
-    return p1 + 0.5 * t * (p2 - p0) + 0.5 * t2 * (2.0*p0 - 5.0*p1 + 4.0*p2 - p0) + 0.5 * t3 * (-p0 + 3.0*p1 - 3.0*p2 + p0);
-}
-
 fn quadratic3x3Value(st: vec2f, freq: f32) -> f32 {
     let f = fract(st * freq);
     let nd = 1.0 / freq;
@@ -280,81 +274,9 @@ fn quadratic3x3Value(st: vec2f, freq: f32) -> f32 {
     return quadratic3(y0, y1, y2, f.y);
 }
 
-fn catmullRom3x3Value(st: vec2f, freq: f32) -> f32 {
-    let f = fract(st * freq);
-    let nd = 1.0 / freq;
-    let v00 = constant(st + vec2f(-nd, -nd), freq);
-    let v10 = constant(st + vec2f(0.0, -nd), freq);
-    let v20 = constant(st + vec2f(nd, -nd), freq);
-    let v01 = constant(st + vec2f(-nd, 0.0), freq);
-    let v11 = constant(st, freq);
-    let v21 = constant(st + vec2f(nd, 0.0), freq);
-    let v02 = constant(st + vec2f(-nd, nd), freq);
-    let v12 = constant(st + vec2f(0.0, nd), freq);
-    let v22 = constant(st + vec2f(nd, nd), freq);
-    let y0 = catmullRom3(v00, v10, v20, f.x);
-    let y1 = catmullRom3(v01, v11, v21, f.x);
-    let y2 = catmullRom3(v02, v12, v22, f.x);
-    return catmullRom3(y0, y1, y2, f.y);
-}
-
-fn blendBicubic(p0: f32, p1: f32, p2: f32, p3: f32, t: f32) -> f32 {
-    let t2 = t * t;
-    let t3 = t2 * t;
-    let B0 = (1.0 - t) * (1.0 - t) * (1.0 - t) / 6.0;
-    let B1 = (3.0 * t3 - 6.0 * t2 + 4.0) / 6.0;
-    let B2 = (-3.0 * t3 + 3.0 * t2 + 3.0 * t + 1.0) / 6.0;
-    let B3 = t3 / 6.0;
-    return p0 * B0 + p1 * B1 + p2 * B2 + p3 * B3;
-}
-
-fn catmullRom4(p0: f32, p1: f32, p2: f32, p3: f32, t: f32) -> f32 {
-    return p1 + 0.5 * t * (p2 - p0 + t * (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3 + t * (3.0 * (p1 - p2) + p3 - p0)));
-}
-
 fn blendLinearOrCosine(a: f32, b: f32, amount: f32, interp: i32) -> f32 {
     if (interp == 1) { return mix(a, b, amount); }
     return mix(a, b, smoothstep(0.0, 1.0, amount));
-}
-
-fn bicubicValue(st: vec2f, freq: f32) -> f32 {
-    let ndX = 1.0 / freq; let ndY = 1.0 / freq;
-    let u0 = st.x - ndX; let u1 = st.x; let u2 = st.x + ndX; let u3 = st.x + ndX + ndX;
-    let v0 = st.y - ndY; let v1 = st.y; let v2 = st.y + ndY; let v3 = st.y + ndY + ndY;
-    let x0y0 = constant(vec2f(u0, v0), freq); let x0y1 = constant(vec2f(u0, v1), freq);
-    let x0y2 = constant(vec2f(u0, v2), freq); let x0y3 = constant(vec2f(u0, v3), freq);
-    let x1y0 = constant(vec2f(u1, v0), freq); let x1y1 = constant(st, freq);
-    let x1y2 = constant(vec2f(u1, v2), freq); let x1y3 = constant(vec2f(u1, v3), freq);
-    let x2y0 = constant(vec2f(u2, v0), freq); let x2y1 = constant(vec2f(u2, v1), freq);
-    let x2y2 = constant(vec2f(u2, v2), freq); let x2y3 = constant(vec2f(u2, v3), freq);
-    let x3y0 = constant(vec2f(u3, v0), freq); let x3y1 = constant(vec2f(u3, v1), freq);
-    let x3y2 = constant(vec2f(u3, v2), freq); let x3y3 = constant(vec2f(u3, v3), freq);
-    let uv = st * freq;
-    let y0 = blendBicubic(x0y0, x1y0, x2y0, x3y0, fract(uv.x));
-    let y1 = blendBicubic(x0y1, x1y1, x2y1, x3y1, fract(uv.x));
-    let y2 = blendBicubic(x0y2, x1y2, x2y2, x3y2, fract(uv.x));
-    let y3 = blendBicubic(x0y3, x1y3, x2y3, x3y3, fract(uv.x));
-    return blendBicubic(y0, y1, y2, y3, fract(uv.y));
-}
-
-fn catmullRom4x4Value(st: vec2f, freq: f32) -> f32 {
-    let ndX = 1.0 / freq; let ndY = 1.0 / freq;
-    let u0 = st.x - ndX; let u1 = st.x; let u2 = st.x + ndX; let u3 = st.x + ndX + ndX;
-    let v0 = st.y - ndY; let v1 = st.y; let v2 = st.y + ndY; let v3 = st.y + ndY + ndY;
-    let x0y0 = constant(vec2f(u0, v0), freq); let x0y1 = constant(vec2f(u0, v1), freq);
-    let x0y2 = constant(vec2f(u0, v2), freq); let x0y3 = constant(vec2f(u0, v3), freq);
-    let x1y0 = constant(vec2f(u1, v0), freq); let x1y1 = constant(st, freq);
-    let x1y2 = constant(vec2f(u1, v2), freq); let x1y3 = constant(vec2f(u1, v3), freq);
-    let x2y0 = constant(vec2f(u2, v0), freq); let x2y1 = constant(vec2f(u2, v1), freq);
-    let x2y2 = constant(vec2f(u2, v2), freq); let x2y3 = constant(vec2f(u2, v3), freq);
-    let x3y0 = constant(vec2f(u3, v0), freq); let x3y1 = constant(vec2f(u3, v1), freq);
-    let x3y2 = constant(vec2f(u3, v2), freq); let x3y3 = constant(vec2f(u3, v3), freq);
-    let uv = st * freq;
-    let y0 = catmullRom4(x0y0, x1y0, x2y0, x3y0, fract(uv.x));
-    let y1 = catmullRom4(x0y1, x1y1, x2y1, x3y1, fract(uv.x));
-    let y2 = catmullRom4(x0y2, x1y2, x2y2, x3y2, fract(uv.x));
-    let y3 = catmullRom4(x0y3, x1y3, x2y3, x3y3, fract(uv.x));
-    return catmullRom4(y0, y1, y2, y3, fract(uv.y));
 }
 
 // Simplex noise
@@ -406,10 +328,7 @@ fn sineNoise(st_in: vec2f, freq: f32) -> f32 {
 }
 
 fn value(st: vec2f, freq: f32, interp: i32) -> f32 {
-    if (interp == 3) { return catmullRom3x3Value(st, freq); }
-    else if (interp == 4) { return catmullRom4x4Value(st, freq); }
-    else if (interp == 5) { return quadratic3x3Value(st, freq); }
-    else if (interp == 6) { return bicubicValue(st, freq); }
+    if (interp == 5) { return quadratic3x3Value(st, freq); }
     else if (interp == 10) {
         var scaledTime = 1.0;
         if (u.animate == -1) { scaledTime = simplexValue(st, freq, f32(u.seed) + 40.0, u.time); }
@@ -434,7 +353,7 @@ fn offset(st_in: vec2f, freq: f32) -> f32 {
     if (u.loopOffset == 10) { return circles(st, freq); }
     else if (u.loopOffset == 20) { return shape(st, 3, freq * 0.5); }
     else if (u.loopOffset == 30) { return (abs(st.x - 0.5 * aspectRatio()) + abs(st.y - 0.5)) * freq * 0.5; }
-    else if (u.loopOffset >= 40 && u.loopOffset <= 120) {
+    else if (u.loopOffset >= 40 && u.loopOffset <= 80) {
         let sides = u.loopOffset / 10;
         return shape(st, sides, freq * 0.5);
     }

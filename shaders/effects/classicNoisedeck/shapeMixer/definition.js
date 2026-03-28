@@ -58,10 +58,6 @@ export default class ShapeMixer extends Effect {
         hexagon: 60,
         heptagon: 70,
         octagon: 80,
-        nonagon: 90,
-        decagon: 100,
-        hendecagon: 110,
-        dodecagon: 120,
         "Directional:": null,
         horizontalScan: 200,
         verticalScan: 210,
@@ -69,10 +65,7 @@ export default class ShapeMixer extends Effect {
         noiseConstant: 300,
         noiseLinear: 310,
         noiseHermite: 320,
-        noiseCatmullRom3x3: 330,
-        noiseCatmullRom4x4: 340,
         noiseBSpline3x3: 350,
-        noiseBSpline4x4: 360,
         noiseSimplex: 370,
         noiseSine: 380,
         "Misc:": null,
@@ -102,7 +95,7 @@ export default class ShapeMixer extends Effect {
       ui: {
         label: "noise wrap",
         control: "checkbox",
-        enabledBy: { param: "loopOffset", in: [300, 310, 320, 330, 340, 350, 360] }
+        enabledBy: { param: "loopOffset", in: [300, 310, 320, 350] }
       }
     },
     seed: {
@@ -114,7 +107,7 @@ export default class ShapeMixer extends Effect {
       ui: {
         label: "noise seed",
         control: "slider",
-        enabledBy: { param: "loopOffset", in: [300, 310, 320, 330, 340, 350, 360, 370, 380] },
+        enabledBy: { param: "loopOffset", in: [300, 310, 320, 350, 370, 380] },
       }
     },
     animate: {
