@@ -56,10 +56,11 @@ fn noise(p: vec2<f32>) -> f32 {
 const TAU: f32 = 6.28318530717959;
 
 // Multi-octave noise - circular path through noise space so t=0 and t=1 are seamless
-fn simplexNoise(p: vec2<f32>, t: f32) -> f32 {
-    let angle = t * TAU;
-    let cx = cos(angle) * 0.5;
-    let cy = sin(angle) * 0.5;
+// phase offsets the angle per octave, radius scales the circular path
+fn simplexNoise(p: vec2<f32>, t: f32, phase: f32, radius: f32) -> f32 {
+    let angle = t * TAU + phase;
+    let cx = cos(angle) * radius;
+    let cy = sin(angle) * radius;
     var n = noise(p + vec2<f32>(cx, cy));
     n = n + noise(p * 2.0 + vec2<f32>(-cy, cx) * 0.75) * 0.5;
     n = n + noise(p * 4.0 + vec2<f32>(cx, -cy) * 0.5) * 0.25;
@@ -118,10 +119,14 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             break;
         }
 
+        // Per-octave phase and radius break up uniform circular motion
+        let phase = f32(octave) * 2.399;  // golden angle
+        let radius = 0.5 / sqrt(multiplier);
+
         // Compute reference angles from noise
         let noiseCoord = (sampleCoord / texSize) * freqScaled;
-        let refX = simplexNoise(noiseCoord + vec2<f32>(17.0, 29.0), time * uniforms.speed) * 2.0 - 1.0;
-        let refY = simplexNoise(noiseCoord + vec2<f32>(23.0, 31.0), time * uniforms.speed) * 2.0 - 1.0;
+        let refX = simplexNoise(noiseCoord + vec2<f32>(17.0, 29.0), time * uniforms.speed, phase, radius) * 2.0 - 1.0;
+        let refY = simplexNoise(noiseCoord + vec2<f32>(23.0, 31.0), time * uniforms.speed, phase, radius) * 2.0 - 1.0;
 
         // Calculate displacement (decreases with each octave)
         let displaceScale = displaceBase / multiplier;

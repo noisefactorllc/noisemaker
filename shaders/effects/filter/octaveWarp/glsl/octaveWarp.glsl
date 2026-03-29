@@ -61,10 +61,11 @@ const float TAU = 6.28318530717959;
 
 // Multi-octave noise for smoother results
 // Uses circular path through noise space so t=0 and t=1 are seamless
-float simplexNoise(vec2 p, float t) {
-    float angle = t * TAU;
-    float cx = cos(angle) * 0.5;
-    float cy = sin(angle) * 0.5;
+// phase offsets the angle per octave, radius scales the circular path
+float simplexNoise(vec2 p, float t, float phase, float radius) {
+    float angle = t * TAU + phase;
+    float cx = cos(angle) * radius;
+    float cy = sin(angle) * radius;
     float n = noise(p + vec2(cx, cy));
     n += noise(p * 2.0 + vec2(-cy, cx) * 0.75) * 0.5;
     n += noise(p * 4.0 + vec2(cx, -cy) * 0.5) * 0.25;
@@ -118,10 +119,14 @@ void main() {
 
         if (freqScaled.x >= width || freqScaled.y >= height) break;
 
+        // Per-octave phase and radius break up uniform circular motion
+        float phase = float(octave) * 2.399;  // golden angle
+        float radius = 0.5 / sqrt(multiplier);
+
         // Compute reference angles from noise
         vec2 noiseCoord = (sampleCoord / dims) * freqScaled;
-        float refX = simplexNoise(noiseCoord + vec2(17.0, 29.0), time * speed);
-        float refY = simplexNoise(noiseCoord + vec2(23.0, 31.0), time * speed);
+        float refX = simplexNoise(noiseCoord + vec2(17.0, 29.0), time * speed, phase, radius);
+        float refY = simplexNoise(noiseCoord + vec2(23.0, 31.0), time * speed, phase, radius);
 
         // Convert to signed range
         refX = refX * 2.0 - 1.0;
