@@ -95,6 +95,7 @@ export default new Effect({
       }
     }
   },
+  paramAliases: { freq: 'scale', nth: 'mode' },
   passes: [
     {
       name: "render",
