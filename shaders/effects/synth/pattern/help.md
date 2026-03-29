@@ -4,21 +4,21 @@ Geometric pattern generator
 
 ## Description
 
-Generates various geometric patterns including stripes, checkerboard, grid, dots, hexagons, triangles, concentric rings, radial lines, and spirals. Useful for creating backgrounds, textures, and masks with clean geometric shapes.
+Generates various geometric patterns including stripes, checkerboard, grid, dots, hexagons, triangles, concentric rings, radial lines, spirals, hearts, waves, and zigzags. Useful for creating backgrounds, textures, and masks with clean geometric shapes. Supports animation with seamless looping.
 
 ## Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| patternType | int | 7 | 0-8 | Pattern Type (0=Checkerboard, 1=ConcentricRings, 2=Dots, 3=Grid, 4=Hexagons, 5=RadialLines, 6=Spiral, 7=Stripes, 8=TriangularGrid) |
-| scale | float | 5 | 1-20 | Scale/size of pattern elements |
-| thickness | float | 0.5 | 0-1 | Line thickness for line-based patterns |
-| smoothness | float | 0.02 | 0-1 | Edge hardness (0=sharp, 1=very soft) |
+| patternType | int | 7 | 0-11 | Pattern type |
+| scale | float | 15 | 1-20 | Scale/size of pattern elements |
+| thickness | float | 0.5 | 0-1 | Line/shape thickness |
+| smoothness | float | 0.02 | 0-1 | Edge softness (0=sharp, 1=soft) |
 | rotation | float | 0 | -180-180 | Rotation angle in degrees |
-| offsetX | float | 0 | -1-1 | Horizontal offset |
-| offsetY | float | 0 | -1-1 | Vertical offset |
-| fgColor | vec3 | 1,1,1 | - | Foreground Color |
-| bgColor | vec3 | 0,0,0 | - | Background Color |
+| animation | int | 0 | 0-3 | Animation mode (0=None, 1=PanX, 2=PanY, 3=Rotate) |
+| speed | int | 1 | -5-5 | Animation speed and direction |
+| fgColor | vec3 | 1,1,1 | - | Foreground color |
+| bgColor | vec3 | 0,0,0 | - | Background color |
 
 ## Pattern Types
 
@@ -31,6 +31,13 @@ Generates various geometric patterns including stripes, checkerboard, grid, dots
 - **Spiral (6)**: Archimedean spiral, thickness controls arm width
 - **Stripes (7)**: Vertical stripes, use rotation for other orientations
 - **Triangular Grid (8)**: Equilateral triangle tiling, thickness controls fill
+- **Hearts (9)**: Tiled heart shapes
+- **Waves (10)**: Sine-displaced horizontal lines
+- **Zigzag (11)**: V-shaped zigzag lines
+
+## Animation
+
+All animation modes loop seamlessly. Speed controls both rate and direction (negative = reverse). Pan modes move along the pattern's own axes, so panning while rotated still loops cleanly.
 
 ## Usage
 
@@ -51,14 +58,14 @@ pattern({ patternType: 0, rotation: 45, scale: 10 })
   .write(o0)
 
 // Polka dots
-pattern({ patternType: 3, scale: 8, thickness: 0.6 })
+pattern({ patternType: 2, scale: 8, thickness: 0.6 })
   .write(o0)
 
 // Honeycomb
 pattern({ patternType: 4, scale: 6, fgColor: [1, 0.8, 0], bgColor: [0.2, 0.1, 0] })
   .write(o0)
 
-// Brick wall
-pattern({ patternType: 7, scale: 4, fgColor: [0.8, 0.3, 0.2] })
+// Animated hearts
+pattern({ patternType: 9, scale: 12, animation: 1, speed: 2, fgColor: [1, 0.2, 0.3] })
   .write(o0)
 ```

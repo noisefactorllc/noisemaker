@@ -17,11 +17,14 @@ export default new Effect({
           concentricRings: 1,
           dots: 2,
           grid: 3,
+          hearts: 9,
           hexagons: 4,
           radialLines: 5,
           spiral: 6,
           stripes: 7,
-          triangularGrid: 8
+          triangularGrid: 8,
+          waves: 10,
+          zigzag: 11
       },
       "ui": {
         "label": "pattern type",
@@ -70,6 +73,36 @@ export default new Effect({
       "ui": {
         "label": "rotation",
         "control": "slider"
+      }
+    },
+    "animation": {
+      "type": "int",
+      "default": 0,
+      "uniform": "animation",
+      "choices": {
+        none: 0,
+        panX: 1,
+        panY: 2,
+        rotate: 3
+      },
+      "ui": {
+        "label": "animation",
+        "control": "dropdown",
+        "category": "animation"
+      }
+    },
+    "speed": {
+      "type": "int",
+      "default": 1,
+      "uniform": "speed",
+      "min": -5,
+      "max": 5,
+      "zero": 0,
+      "ui": {
+        "label": "speed",
+        "control": "slider",
+        "category": "animation",
+        "enabledBy": { "param": "animation", "neq": 0 }
       }
     },
     "fgColor": {

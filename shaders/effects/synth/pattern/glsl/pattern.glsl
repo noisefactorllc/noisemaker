@@ -8,6 +8,9 @@ uniform float scale;
 uniform float thickness;
 uniform float smoothness;
 uniform float rotation;
+uniform int animation;
+uniform float speed;
+uniform float time;
 uniform vec3 fgColor;
 uniform vec3 bgColor;
 
@@ -27,6 +30,9 @@ out vec4 fragColor;
 #define SPIRAL 6
 #define STRIPES 7
 #define TRIANGULAR_GRID 8
+#define HEARTS 9
+#define WAVES 10
+#define ZIGZAG 11
 
 // Rotate a 2D point
 vec2 rotate2D(vec2 p, float angle) {
@@ -144,6 +150,49 @@ float spiralPattern(vec2 p, float t) {
     return edge1 - edge2;
 }
 
+// Heart SDF (based on Inigo Quilez)
+float heartSDF(vec2 p) {
+    p.x = abs(p.x);
+    if (p.y + p.x > 1.0)
+        return sqrt(dot(p - vec2(0.25, 0.75), p - vec2(0.25, 0.75))) - sqrt(2.0) / 4.0;
+    return sqrt(min(
+        dot(p - vec2(0.0, 1.0), p - vec2(0.0, 1.0)),
+        dot(p - 0.5 * max(p.x + p.y, 0.0), p - 0.5 * max(p.x + p.y, 0.0))
+    )) * sign(p.x - p.y);
+}
+
+// Hearts pattern (tiled heart shapes)
+float hearts(vec2 p, float t) {
+    vec2 cell = fract(p) - 0.5;
+    cell.y += 0.25;
+    float d = heartSDF(cell * 2.4);
+    float radius = 0.15 - (t * 0.15);
+    float sm = min(smoothness, radius + 0.15);
+    return 1.0 - smoothstep(-radius - sm, -radius + sm, d);
+}
+
+// Waves pattern (sine-displaced horizontal lines)
+float waves(vec2 p, float t) {
+    float y = fract(p.y) - 0.5;
+    y -= cos(p.x * TAU) * 0.15;
+    float dist = abs(y);
+    float halfW = t * 0.2;
+    float sm = min(smoothness, halfW + 0.01);
+    return 1.0 - smoothstep(halfW - sm, halfW + sm, dist);
+}
+
+// Zigzag pattern (V-shaped line per cell)
+float zigzag(vec2 p, float t) {
+    vec2 f = fract(p);
+    // Zigzag line: y = 1 - 2*abs(x - 0.5), scaled to 0.25–0.75 range
+    float lineY = 1.0 - 2.0 * abs(f.x - 0.5);
+    float dist = abs(f.y - lineY * 0.5 - 0.25);
+    // Max vertical distance to cell edge is 0.25; cap halfW + sm to stay within
+    float halfW = t * 0.12;
+    float sm = min(smoothness, max(0.24 - halfW, 0.005));
+    return 1.0 - smoothstep(halfW - sm, halfW + sm, dist);
+}
+
 void main() {
     // Normalize coordinates
     vec2 st = gl_FragCoord.xy / resolution;
@@ -154,9 +203,21 @@ void main() {
     float rad = rotation * PI / 180.0;
     st = rotate2D(st, rad);
     
+    // Apply animation rotation (before scale, around center)
+    if (animation == 3) {
+        st = rotate2D(st, time * TAU * floor(speed));
+    }
+
     // Apply scale, mapping so lower scale = higher frequency
     vec2 p = st * (21.0 - scale);
-    
+
+    // Apply animation pan (after scale, in pattern space)
+    if (animation == 1) {
+        p.x += time * -floor(speed);
+    } else if (animation == 2) {
+        p.y += time * floor(speed);
+    }
+
     // Compute pattern value
     float m = 0.0;
     
@@ -178,6 +239,12 @@ void main() {
         m = stripes(p, thickness);
     } else if (patternType == TRIANGULAR_GRID) {
         m = triangularGrid(p, thickness);
+    } else if (patternType == HEARTS) {
+        m = hearts(p, thickness);
+    } else if (patternType == WAVES) {
+        m = waves(p, thickness);
+    } else if (patternType == ZIGZAG) {
+        m = zigzag(p, thickness);
     }
     
     // Mix colors

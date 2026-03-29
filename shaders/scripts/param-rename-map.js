@@ -122,10 +122,6 @@ export const renameMap = {
         rotatePalette: 'rotate',          // Rule 1: within palette effect, prefix is redundant
     },
 
-    'classicNoisedeck/pattern': {
-        patternType: 'type',              // Rule 1: remove effect name
-    },
-
     'classicNoisedeck/refract': {
         refractDir: 'direction',          // Rule 1: remove "refract" prefix
         mixAmt: 'mix',                    // Rule 3: canonical mix name
