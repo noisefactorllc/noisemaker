@@ -101,6 +101,7 @@ export default new Effect({
       default: 0.0,
       min: -3,
       max: 3,
+      step: 0.001,
       randChance: 0,
       uniform: "centerHiX",
       ui: { label: "center x", control: "slider", category: "navigation" }
@@ -110,6 +111,7 @@ export default new Effect({
       default: 0.0,
       min: -3,
       max: 3,
+      step: 0.001,
       randChance: 0,
       uniform: "centerHiY",
       ui: { label: "center y", control: "slider", category: "navigation" }

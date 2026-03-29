@@ -74,6 +74,7 @@ export default new Effect({
       uniform: "centerHiX",
       min: -3,
       max: 3,
+      step: 0.001,
       randChance: 0,
       ui: {
         label: "center x",
@@ -88,6 +89,7 @@ export default new Effect({
       uniform: "centerHiY",
       min: -3,
       max: 3,
+      step: 0.001,
       randChance: 0,
       ui: {
         label: "center y",
