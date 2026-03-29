@@ -75,6 +75,15 @@ fn drawShape(shapeType: i32, centered: vec2<f32>, halfW: f32, halfH: f32, h: f32
     return 1.0;
 }
 
+fn shadeFromHash(h: f32) -> f32 {
+    let idx = i32(h * 5.0);
+    if (idx == 0) { return 0.15; }
+    if (idx == 1) { return 0.35; }
+    if (idx == 2) { return 0.55; }
+    if (idx == 3) { return 0.75; }
+    return 1.0;
+}
+
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let resolution = u.data[0].xy;
@@ -159,48 +168,48 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let halfW = cellPixelW / minDim * 0.5;
     let halfH = cellPixelH / minDim * 0.5;
 
-    // Visual properties use their own staggered phase
-    let visualTime = floor(time * spd + PHI * 7.0);
+    // Visual properties crossfade between current and next state
+    let visualT = time * spd + PHI * 7.0;
+    let curVisualTime = floor(visualT);
+    let nextVisualTime = curVisualTime + 1.0;
+    let visualBlend = smoothstep(0.0, 1.0, fract(visualT));
 
-    // Pick shape and background shades from same palette
-    let shadeHash = cellRand(cellMin, 0.0, 2.0, visualTime);
-    let shadeIdx = i32(shadeHash * 5.0);
-    var shade: f32;
-    if (shadeIdx == 0) { shade = 0.15; }
-    else if (shadeIdx == 1) { shade = 0.35; }
-    else if (shadeIdx == 2) { shade = 0.55; }
-    else if (shadeIdx == 3) { shade = 0.75; }
-    else { shade = 1.0; }
+    // Crossfade shades
+    let shade = mix(
+        shadeFromHash(cellRand(cellMin, 0.0, 2.0, curVisualTime)),
+        shadeFromHash(cellRand(cellMin, 0.0, 2.0, nextVisualTime)),
+        visualBlend);
+    let bgShade = mix(
+        shadeFromHash(cellRand(cellMin, 0.0, 8.0, curVisualTime)),
+        shadeFromHash(cellRand(cellMin, 0.0, 8.0, nextVisualTime)),
+        visualBlend);
 
-    let bgHash = cellRand(cellMin, 0.0, 8.0, visualTime);
-    let bgIdx = i32(bgHash * 5.0);
-    var bgShade: f32;
-    if (bgIdx == 0) { bgShade = 0.15; }
-    else if (bgIdx == 1) { bgShade = 0.35; }
-    else if (bgIdx == 2) { bgShade = 0.55; }
-    else if (bgIdx == 3) { bgShade = 0.75; }
-    else { bgShade = 1.0; }
-
-    // Pick shape (solid only in binary mode, mixed picks random)
-    var shapeType = fillType;
+    // Crossfade shapes (dissolve between current and next)
+    var curShapeType = fillType;
+    var nextShapeType = fillType;
     if (modeType == 0) {
-        shapeType = 0;
+        curShapeType = 0;
+        nextShapeType = 0;
     } else if (fillType == 5) {
-        let shapeHash = cellRand(cellMin, 0.0, 3.0, visualTime);
-        shapeType = i32(shapeHash * 5.0);  // 0-4
+        curShapeType = i32(cellRand(cellMin, 0.0, 3.0, curVisualTime) * 5.0);
+        nextShapeType = i32(cellRand(cellMin, 0.0, 3.0, nextVisualTime) * 5.0);
     }
+    let curCorner = cellRand(cellMin, 0.0, 4.0, curVisualTime);
+    let nextCorner = cellRand(cellMin, 0.0, 4.0, nextVisualTime);
+    let curMask = drawShape(curShapeType, centered, halfW, halfH, curCorner);
+    let nextMask = drawShape(nextShapeType, centered, halfW, halfH, nextCorner);
+    let shapeMask = mix(curMask, nextMask, visualBlend);
 
-    // Draw shape
-    let cornerHash = cellRand(cellMin, 0.0, 4.0, visualTime);
-    let shapeMask = drawShape(shapeType, centered, halfW, halfH, cornerHash);
-    var color = mix(bgShade, shade, shapeMask);
-
+    let color = mix(bgShade, shade, shapeMask);
     var result = vec3<f32>(color);
 
     // Input texture blend (random scale, offset, aspect-preserving)
     let blend = u.data[2].x / 100.0;
     if (blend > 0.0) {
-        let texScale = 0.3 + cellRand(cellMin, 0.0, 5.0, visualTime) * 0.7;
+        let curTexScale = 0.3 + cellRand(cellMin, 0.0, 5.0, curVisualTime) * 0.7;
+        let nextTexScale = 0.3 + cellRand(cellMin, 0.0, 5.0, nextVisualTime) * 0.7;
+        let texScale = mix(curTexScale, nextTexScale, visualBlend);
+
         var texUv = cellUv;
         // Correct for aspect ratio difference between cell and texture
         let cellAspect = (cellSize.x * resolution.x) / (cellSize.y * resolution.y);
@@ -212,8 +221,14 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             texUv.y = 0.5 + (texUv.y - 0.5) / ratio;
         }
         texUv = texUv * texScale;
-        texUv.x = texUv.x + cellRand(cellMin, 0.0, 6.0, visualTime) * (1.0 - texScale);
-        texUv.y = texUv.y + cellRand(cellMin, 0.0, 7.0, visualTime) * (1.0 - texScale);
+        texUv.x = texUv.x + mix(
+            cellRand(cellMin, 0.0, 6.0, curVisualTime),
+            cellRand(cellMin, 0.0, 6.0, nextVisualTime),
+            visualBlend) * (1.0 - texScale);
+        texUv.y = texUv.y + mix(
+            cellRand(cellMin, 0.0, 7.0, curVisualTime),
+            cellRand(cellMin, 0.0, 7.0, nextVisualTime),
+            visualBlend) * (1.0 - texScale);
         // Apply wrap mode
         let wrapMode = i32(u.data[2].y);
         if (wrapMode == 0) {

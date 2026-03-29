@@ -82,6 +82,15 @@ float drawShape(int shapeType, vec2 centered, float halfW, float halfH, float h)
     return 1.0;
 }
 
+float shadeFromHash(float h) {
+    int idx = int(h * 5.0);
+    if (idx == 0) return 0.15;
+    if (idx == 1) return 0.35;
+    if (idx == 2) return 0.55;
+    if (idx == 3) return 0.75;
+    return 1.0;
+}
+
 void main() {
     vec2 st = gl_FragCoord.xy / resolution;
 
@@ -162,48 +171,48 @@ void main() {
     float halfW = cellPixelW / minDim * 0.5;
     float halfH = cellPixelH / minDim * 0.5;
 
-    // Visual properties use their own staggered phase
-    float visualTime = floor(time * spd + PHI * 7.0);
+    // Visual properties crossfade between current and next state
+    float visualT = time * spd + PHI * 7.0;
+    float curVisualTime = floor(visualT);
+    float nextVisualTime = curVisualTime + 1.0;
+    float visualBlend = smoothstep(0.0, 1.0, fract(visualT));
 
-    // Pick shape and background shades from same palette
-    float shadeHash = cellRand(cellMin, 0.0, 2.0, visualTime);
-    int shadeIdx = int(shadeHash * 5.0);
-    float shade;
-    if (shadeIdx == 0) shade = 0.15;
-    else if (shadeIdx == 1) shade = 0.35;
-    else if (shadeIdx == 2) shade = 0.55;
-    else if (shadeIdx == 3) shade = 0.75;
-    else shade = 1.0;
+    // Crossfade shades
+    float shade = mix(
+        shadeFromHash(cellRand(cellMin, 0.0, 2.0, curVisualTime)),
+        shadeFromHash(cellRand(cellMin, 0.0, 2.0, nextVisualTime)),
+        visualBlend);
+    float bgShade = mix(
+        shadeFromHash(cellRand(cellMin, 0.0, 8.0, curVisualTime)),
+        shadeFromHash(cellRand(cellMin, 0.0, 8.0, nextVisualTime)),
+        visualBlend);
 
-    float bgHash = cellRand(cellMin, 0.0, 8.0, visualTime);
-    int bgIdx = int(bgHash * 5.0);
-    float bgShade;
-    if (bgIdx == 0) bgShade = 0.15;
-    else if (bgIdx == 1) bgShade = 0.35;
-    else if (bgIdx == 2) bgShade = 0.55;
-    else if (bgIdx == 3) bgShade = 0.75;
-    else bgShade = 1.0;
-
-    // Pick shape (solid only in binary mode, mixed picks random)
-    int shapeType = fillType;
+    // Crossfade shapes (dissolve between current and next)
+    int curShapeType = fillType;
+    int nextShapeType = fillType;
     if (modeType == 0) {
-        shapeType = 0;
+        curShapeType = 0;
+        nextShapeType = 0;
     } else if (fillType == 5) {
-        float shapeHash = cellRand(cellMin, 0.0, 3.0, visualTime);
-        shapeType = int(shapeHash * 5.0);  // 0-4
+        curShapeType = int(cellRand(cellMin, 0.0, 3.0, curVisualTime) * 5.0);
+        nextShapeType = int(cellRand(cellMin, 0.0, 3.0, nextVisualTime) * 5.0);
     }
+    float curCorner = cellRand(cellMin, 0.0, 4.0, curVisualTime);
+    float nextCorner = cellRand(cellMin, 0.0, 4.0, nextVisualTime);
+    float curMask = drawShape(curShapeType, centered, halfW, halfH, curCorner);
+    float nextMask = drawShape(nextShapeType, centered, halfW, halfH, nextCorner);
+    float shapeMask = mix(curMask, nextMask, visualBlend);
 
-    // Draw shape
-    float cornerHash = cellRand(cellMin, 0.0, 4.0, visualTime);
-    float shapeMask = drawShape(shapeType, centered, halfW, halfH, cornerHash);
     float color = mix(bgShade, shade, shapeMask);
-
     vec3 result = vec3(color);
 
     // Input texture blend (scaled to wider side, aspect-preserving)
     float blend = inputMix / 100.0;
     if (blend > 0.0) {
-        float texScale = 0.3 + cellRand(cellMin, 0.0, 5.0, visualTime) * 0.7;
+        float curTexScale = 0.3 + cellRand(cellMin, 0.0, 5.0, curVisualTime) * 0.7;
+        float nextTexScale = 0.3 + cellRand(cellMin, 0.0, 5.0, nextVisualTime) * 0.7;
+        float texScale = mix(curTexScale, nextTexScale, visualBlend);
+
         vec2 texUv = cellUv;
         // Correct for aspect ratio difference between cell and texture
         float cellAspect = (cellSize.x * resolution.x) / (cellSize.y * resolution.y);
@@ -215,8 +224,14 @@ void main() {
             texUv.y = 0.5 + (texUv.y - 0.5) / ratio;
         }
         texUv = texUv * texScale;
-        texUv.x += cellRand(cellMin, 0.0, 6.0, visualTime) * (1.0 - texScale);
-        texUv.y += cellRand(cellMin, 0.0, 7.0, visualTime) * (1.0 - texScale);
+        texUv.x += mix(
+            cellRand(cellMin, 0.0, 6.0, curVisualTime),
+            cellRand(cellMin, 0.0, 6.0, nextVisualTime),
+            visualBlend) * (1.0 - texScale);
+        texUv.y += mix(
+            cellRand(cellMin, 0.0, 7.0, curVisualTime),
+            cellRand(cellMin, 0.0, 7.0, nextVisualTime),
+            visualBlend) * (1.0 - texScale);
         // Apply wrap mode
         int wrapMode = int(wrap);
         if (wrapMode == 0) {
