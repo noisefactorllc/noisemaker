@@ -1,7 +1,7 @@
 /*
  * Low Poly - Voronoi-based low-polygon art style
  * Generates deterministic seed points, finds nearest Voronoi cell,
- * fills with input color at seed position, blends with distance for edges.
+ * fills with input color at seed position. Supports flat and distance modes.
  */
 
 #ifdef GL_ES
@@ -10,12 +10,18 @@ precision highp int;
 #endif
 
 uniform sampler2D inputTex;
-uniform float freq;
+uniform float scale;
 uniform float seed;
-uniform float nth;
+uniform int mode;
+uniform float edgeStrength;
+uniform vec3 edgeColor;
+uniform float speed;
+uniform float time;
 uniform float alpha;
 
 out vec4 fragColor;
+
+const float TAU = 6.28318530718;
 
 // PCG PRNG - MIT License
 uvec3 pcg(uvec3 v) {
@@ -44,8 +50,9 @@ void main() {
     vec2 resolution = vec2(texSize);
     vec2 uv = gl_FragCoord.xy / resolution;
 
-    float n = max(102.0 - freq, 2.0);
+    float n = max(102.0 - scale, 2.0);
     float s = seed;
+    float spd = speed * 0.3;
 
     // Aspect-corrected coordinates for square Voronoi cells
     float aspect = resolution.x / resolution.y;
@@ -68,8 +75,16 @@ void main() {
 
             // Generate seed point in this cell
             vec2 offset = hash2(neighborF, s);
-            vec2 point = (neighborF + offset) / n;
 
+            // Animate: per-cell circular drift with unique phase/radius
+            if (spd > 0.0) {
+                vec2 animRand = hash2(neighborF, s + 100.0);
+                float angle = time * TAU + animRand.x * TAU;
+                float radius = animRand.y * spd;
+                offset = clamp(offset + vec2(cos(angle), sin(angle)) * radius, 0.0, 1.0);
+            }
+
+            vec2 point = (neighborF + offset) / n;
             float d = distance(auv, point);
 
             if (d < minDist) {
@@ -90,15 +105,20 @@ void main() {
     vec4 cellColor = texture(inputTex, vec2(nearestPoint.x / aspect, nearestPoint.y));
 
     vec3 result;
-    if (nth < 0.5) {
-        // nth=0: flat cell color with subtle edge darkening
+    if (mode == 0) {
+        // Flat: pure solid cell color
+        result = cellColor.rgb;
+    } else if (mode == 1) {
+        // Edges: solid cell color with F2-F1 edge darkening
         float edgeDist = clamp((secondDist - minDist) * n * 2.0, 0.0, 1.0);
-        result = cellColor.rgb * (0.85 + 0.15 * edgeDist);
+        float edgeFactor = mix(edgeStrength, 0.0, edgeDist);
+        result = mix(cellColor.rgb, edgeColor, edgeFactor);
     } else {
-        // nth=1,2: blend distance field with cell color (matches Python lowpoly)
-        float selectedDist = (nth < 1.5) ? secondDist : thirdDist;
-        float distField = sqrt(clamp(selectedDist * n, 0.0, 1.0));
-        result = mix(vec3(distField), cellColor.rgb, 0.5);
+        // Distance: multiply distance field with cell color
+        float selectedDist = (mode == 2) ? secondDist : thirdDist;
+        float raw = clamp(selectedDist * n, 0.0, 1.0);
+        float distField = pow(raw, mix(0.5, 3.0, edgeStrength));
+        result = cellColor.rgb * distField;
     }
 
     // Alpha blend with original

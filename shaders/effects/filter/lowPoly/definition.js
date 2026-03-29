@@ -12,13 +12,12 @@ export default new Effect({
 
   description: "Low-polygon style render using Voronoi cells",
   globals: {
-    freq: {
+    scale: {
       type: "int",
       default: 50,
-      uniform: "freq",
+      uniform: "scale",
       min: 2,
       max: 100,
-      step: 1,
       ui: {
         label: "scale",
         control: "slider"
@@ -30,23 +29,46 @@ export default new Effect({
       uniform: "seed",
       min: 1,
       max: 100,
-      step: 1,
       ui: {
         label: "seed",
         control: "slider"
       }
     },
-    nth: {
+    mode: {
       type: "int",
-      default: 0,
-      uniform: "nth",
-      min: 0,
-      max: 2,
-      step: 1,
-      randChance: 0,
+      default: 1,
+      uniform: "mode",
+      choices: {
+        flat: 0,
+        edges: 1,
+        distance2: 2,
+        distance3: 3
+      },
       ui: {
-        label: "nth",
-        control: "slider"
+        label: "mode",
+        control: "dropdown"
+      }
+    },
+    edgeStrength: {
+      type: "float",
+      default: 0.15,
+      uniform: "edgeStrength",
+      min: 0.0,
+      max: 1.0,
+      ui: {
+        label: "strength",
+        control: "slider",
+        enabledBy: { param: "mode", neq: 0 }
+      }
+    },
+    edgeColor: {
+      type: "color",
+      default: [0.0, 0.0, 0.0],
+      uniform: "edgeColor",
+      ui: {
+        label: "edge color",
+        control: "color",
+        enabledBy: { param: "mode", eq: 1 }
       }
     },
     alpha: {
@@ -55,9 +77,20 @@ export default new Effect({
       uniform: "alpha",
       min: 0.0,
       max: 1.0,
-      step: 0.01,
       ui: {
         label: "alpha",
+        control: "slider"
+      }
+    },
+    speed: {
+      type: "int",
+      default: 0,
+      uniform: "speed",
+      min: 0,
+      max: 5,
+      zero: 0,
+      ui: {
+        label: "speed",
         control: "slider"
       }
     }

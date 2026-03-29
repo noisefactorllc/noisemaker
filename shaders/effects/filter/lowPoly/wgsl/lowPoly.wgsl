@@ -1,19 +1,25 @@
 /*
  * Low Poly - Voronoi-based low-polygon art style
  * Generates deterministic seed points, finds nearest Voronoi cell,
- * fills with input color at seed position, blends with distance for edges.
+ * fills with input color at seed position. Supports flat and distance modes.
  */
 
 struct Uniforms {
-    freq: f32,
+    scale: f32,
     seed: f32,
-    nth: f32,
+    mode: i32,
+    edgeStrength: f32,
+    edgeColor: vec3<f32>,
+    speed: f32,
+    time: f32,
     alpha: f32,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
+
+const TAU: f32 = 6.28318530718;
 
 // PCG PRNG - MIT License
 fn pcg(seed: vec3<u32>) -> vec3<u32> {
@@ -42,8 +48,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = pos.xy / texSize;
 
-    let n = max(102.0 - uniforms.freq, 2.0);
+    let n = max(102.0 - uniforms.scale, 2.0);
     let s = uniforms.seed;
+    let spd = f32(uniforms.speed) * 0.3;
 
     // Aspect-corrected coordinates for square Voronoi cells
     let aspect = texSize.x / texSize.y;
@@ -65,9 +72,17 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             let neighborF = vec2<f32>(neighbor);
 
             // Generate seed point in this cell
-            let offset = hash2(neighborF, s);
-            let point = (neighborF + offset) / n;
+            var offset = hash2(neighborF, s);
 
+            // Animate: per-cell circular drift with unique phase/radius
+            if (spd > 0.0) {
+                let animRand = hash2(neighborF, s + 100.0);
+                let angle = uniforms.time * TAU + animRand.x * TAU;
+                let radius = animRand.y * spd;
+                offset = clamp(offset + vec2<f32>(cos(angle), sin(angle)) * radius, vec2<f32>(0.0), vec2<f32>(1.0));
+            }
+
+            let point = (neighborF + offset) / n;
             let d = distance(auv, point);
 
             if (d < minDist) {
@@ -88,17 +103,22 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let cellColor = textureSample(inputTex, inputSampler, vec2<f32>(nearestPoint.x / aspect, nearestPoint.y));
 
     var result: vec3<f32>;
-    if (uniforms.nth < 0.5) {
-        // nth=0: flat cell color with subtle edge darkening
+    if (uniforms.mode == 0) {
+        // Flat: pure solid cell color
+        result = cellColor.rgb;
+    } else if (uniforms.mode == 1) {
+        // Edges: solid cell color with F2-F1 edge darkening
         let edgeDist = clamp((secondDist - minDist) * n * 2.0, 0.0, 1.0);
-        result = cellColor.rgb * (0.85 + 0.15 * edgeDist);
+        let edgeFactor = mix(uniforms.edgeStrength, 0.0, edgeDist);
+        result = mix(cellColor.rgb, uniforms.edgeColor, edgeFactor);
     } else {
-        // nth=1,2: blend distance field with cell color (matches Python lowpoly)
+        // Distance: multiply distance field with cell color
         var selectedDist: f32;
-        if (uniforms.nth < 1.5) { selectedDist = secondDist; }
+        if (uniforms.mode == 2) { selectedDist = secondDist; }
         else { selectedDist = thirdDist; }
-        let distField = sqrt(clamp(selectedDist * n, 0.0, 1.0));
-        result = mix(vec3<f32>(distField), cellColor.rgb, 0.5);
+        let raw = clamp(selectedDist * n, 0.0, 1.0);
+        let distField = pow(raw, mix(0.5, 3.0, uniforms.edgeStrength));
+        result = cellColor.rgb * distField;
     }
 
     // Alpha blend with original
