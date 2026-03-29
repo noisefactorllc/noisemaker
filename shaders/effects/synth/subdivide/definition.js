@@ -128,6 +128,7 @@ export default new Effect({
       min: 0,
       max: 20,
       zero: 0,
+      randMax: 5,
       ui: {
         label: "speed",
         control: "slider"
