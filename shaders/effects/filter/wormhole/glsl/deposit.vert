@@ -9,6 +9,7 @@ uniform vec2 resolution;
 uniform float kink;
 uniform float stride;
 uniform float rotation;
+uniform int wrap;
 
 out vec4 vColor;
 
@@ -54,11 +55,28 @@ void main() {
     float ox = (cos(angle) + 1.0) * pixelStride;
     float oy = (sin(angle) + 1.0) * pixelStride;
 
-    // JS: Math.floor(x + xo) % w, Math.floor(y + yo) % h
-    int destX = int(floor(float(srcX) + ox)) % w;
-    int destY = int(floor(float(srcY) + oy)) % h;
-    if (destX < 0) destX += w;
-    if (destY < 0) destY += h;
+    int destX = int(floor(float(srcX) + ox));
+    int destY = int(floor(float(srcY) + oy));
+
+    if (wrap == 0) {
+        // Mirror
+        destX = destX % (w * 2);
+        destY = destY % (h * 2);
+        if (destX < 0) destX += w * 2;
+        if (destY < 0) destY += h * 2;
+        if (destX >= w) destX = w * 2 - 1 - destX;
+        if (destY >= h) destY = h * 2 - 1 - destY;
+    } else if (wrap == 1) {
+        // Repeat
+        destX = destX % w;
+        destY = destY % h;
+        if (destX < 0) destX += w;
+        if (destY < 0) destY += h;
+    } else {
+        // Clamp
+        destX = clamp(destX, 0, w - 1);
+        destY = clamp(destY, 0, h - 1);
+    }
 
     // Convert to clip space
     float clipX = (float(destX) + 0.5) / float(w) * 2.0 - 1.0;

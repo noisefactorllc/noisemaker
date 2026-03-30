@@ -49,12 +49,27 @@ export default new Effect({
       type: "float",
       default: 0,
       uniform: "rotation",
-      min: 0,
-      max: 360,
+      min: -180,
+      max: 180,
       step: 1,
       ui: {
         label: "rotation",
         control: "slider"
+      }
+    },
+    wrap: {
+      type: "int",
+      default: 1,
+      uniform: "wrap",
+      choices: {
+        mirror: 0,
+        repeat: 1,
+        clamp: 2
+      },
+      randChance: 0,
+      ui: {
+        label: "wrap",
+        control: "dropdown"
       }
     },
     alpha: {
@@ -97,7 +112,8 @@ export default new Effect({
       uniforms: {
         kink: "kink",
         stride: "stride",
-        rotation: "rotation"
+        rotation: "rotation",
+        wrap: "wrap"
       },
 
       outputs: {

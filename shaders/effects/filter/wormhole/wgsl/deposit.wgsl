@@ -5,6 +5,7 @@ struct Uniforms {
     kink: f32,
     stride: f32,
     rotation: f32,
+    wrap: i32,
 };
 
 struct VertexOutput {
@@ -55,10 +56,28 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     let ox = (cos(angle) + 1.0) * pixelStride;
     let oy = (sin(angle) + 1.0) * pixelStride;
 
-    var destX = i32(floor(f32(srcX) + ox)) % w;
-    var destY = i32(floor(f32(srcY) + oy)) % h;
-    if (destX < 0) { destX = destX + w; }
-    if (destY < 0) { destY = destY + h; }
+    var destX = i32(floor(f32(srcX) + ox));
+    var destY = i32(floor(f32(srcY) + oy));
+
+    if (u.wrap == 0) {
+        // Mirror
+        destX = destX % (w * 2);
+        destY = destY % (h * 2);
+        if (destX < 0) { destX = destX + w * 2; }
+        if (destY < 0) { destY = destY + h * 2; }
+        if (destX >= w) { destX = w * 2 - 1 - destX; }
+        if (destY >= h) { destY = h * 2 - 1 - destY; }
+    } else if (u.wrap == 1) {
+        // Repeat
+        destX = destX % w;
+        destY = destY % h;
+        if (destX < 0) { destX = destX + w; }
+        if (destY < 0) { destY = destY + h; }
+    } else {
+        // Clamp
+        destX = clamp(destX, 0, w - 1);
+        destY = clamp(destY, 0, h - 1);
+    }
 
     let clipX = (f32(destX) + 0.5) / f32(w) * 2.0 - 1.0;
     // WebGPU Y is flipped vs WebGL2
