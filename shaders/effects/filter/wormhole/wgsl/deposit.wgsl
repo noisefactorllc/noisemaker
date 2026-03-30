@@ -59,24 +59,21 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     var destX = i32(floor(f32(srcX) + ox));
     var destY = i32(floor(f32(srcY) + oy));
 
+    // Branchless wrap modes (critical for vertex shader performance)
     if (u.wrap == 0) {
         // Mirror
-        destX = destX % (w * 2);
-        destY = destY % (h * 2);
-        if (destX < 0) { destX = destX + w * 2; }
-        if (destY < 0) { destY = destY + h * 2; }
-        if (destX >= w) { destX = w * 2 - 1 - destX; }
-        if (destY >= h) { destY = h * 2 - 1 - destY; }
-    } else if (u.wrap == 1) {
-        // Repeat
-        destX = destX % w;
-        destY = destY % h;
-        if (destX < 0) { destX = destX + w; }
-        if (destY < 0) { destY = destY + h; }
-    } else {
+        let mx = ((destX % (w * 2)) + w * 2) % (w * 2);
+        let my = ((destY % (h * 2)) + h * 2) % (h * 2);
+        destX = w - 1 - abs(mx - w + 1);
+        destY = h - 1 - abs(my - h + 1);
+    } else if (u.wrap == 2) {
         // Clamp
         destX = clamp(destX, 0, w - 1);
         destY = clamp(destY, 0, h - 1);
+    } else {
+        // Repeat (default)
+        destX = ((destX % w) + w) % w;
+        destY = ((destY % h) + h) % h;
     }
 
     let clipX = (f32(destX) + 0.5) / f32(w) * 2.0 - 1.0;

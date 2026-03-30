@@ -58,24 +58,21 @@ void main() {
     int destX = int(floor(float(srcX) + ox));
     int destY = int(floor(float(srcY) + oy));
 
+    // Branchless wrap modes (critical for vertex shader performance)
     if (wrap == 0) {
         // Mirror
-        destX = destX % (w * 2);
-        destY = destY % (h * 2);
-        if (destX < 0) destX += w * 2;
-        if (destY < 0) destY += h * 2;
-        if (destX >= w) destX = w * 2 - 1 - destX;
-        if (destY >= h) destY = h * 2 - 1 - destY;
-    } else if (wrap == 1) {
-        // Repeat
-        destX = destX % w;
-        destY = destY % h;
-        if (destX < 0) destX += w;
-        if (destY < 0) destY += h;
-    } else {
+        int mx = ((destX % (w * 2)) + w * 2) % (w * 2);
+        int my = ((destY % (h * 2)) + h * 2) % (h * 2);
+        destX = w - 1 - abs(mx - w + 1);
+        destY = h - 1 - abs(my - h + 1);
+    } else if (wrap == 2) {
         // Clamp
         destX = clamp(destX, 0, w - 1);
         destY = clamp(destY, 0, h - 1);
+    } else {
+        // Repeat (default)
+        destX = ((destX % w) + w) % w;
+        destY = ((destY % h) + h) % h;
     }
 
     // Convert to clip space
