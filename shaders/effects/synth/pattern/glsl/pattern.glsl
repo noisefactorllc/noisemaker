@@ -103,18 +103,18 @@ float hexagons(vec2 p, float t) {
     return smoothstep(edge + smoothness, edge - smoothness, d);
 }
 
-// Concentric rings pattern
-float concentricRings(vec2 p, float t) {
-    float d = fract(length(p));
+// Concentric rings pattern (timeOffset expands/contracts from center)
+float concentricRings(vec2 p, float t, float timeOffset) {
+    float d = fract(length(p) + timeOffset);
     float edge1 = smoothstep(0.5 - t * 0.5 - smoothness, 0.5 - t * 0.5 + smoothness, d);
     float edge2 = smoothstep(0.5 + t * 0.5 - smoothness, 0.5 + t * 0.5 + smoothness, d);
     return edge1 - edge2;
 }
 
-// Radial lines pattern
-float radialLines(vec2 p, float t) {
+// Radial lines pattern (timeOffset rotates around center)
+float radialLines(vec2 p, float t, float timeOffset) {
     float lineCount = max(1.0, floor(20.0 * t));
-    float angle = atan(p.y, p.x);
+    float angle = atan(p.y, p.x) + timeOffset * TAU;
     float d = fract(angle / TAU * lineCount);
     float edge1 = smoothstep(0.5 - 0.25 - smoothness, 0.5 - 0.25 + smoothness, d);
     float edge2 = smoothstep(0.5 + 0.25 - smoothness, 0.5 + 0.25 + smoothness, d);
@@ -140,10 +140,10 @@ float triangularGrid(vec2 p, float t) {
     return smoothstep(edge - smoothness, edge + smoothness, d);
 }
 
-// Spiral pattern
-float spiralPattern(vec2 p, float t) {
+// Spiral pattern (timeOffset rotates arms)
+float spiralPattern(vec2 p, float t, float timeOffset) {
     float dist = length(p);
-    float angle = atan(p.y, p.x);
+    float angle = atan(p.y, p.x) + timeOffset * TAU;
     float d = fract(angle / TAU + dist);
     float edge1 = smoothstep(0.5 - t * 0.5 - smoothness, 0.5 - t * 0.5 + smoothness, d);
     float edge2 = smoothstep(0.5 + t * 0.5 - smoothness, 0.5 + t * 0.5 + smoothness, d);
@@ -224,7 +224,7 @@ void main() {
     if (patternType == CHECKERBOARD) {
         m = checkerboard(p, smoothness);
     } else if (patternType == CONCENTRIC_RINGS) {
-        m = concentricRings(p, thickness);
+        m = concentricRings(p, thickness, -time * floor(speed));
     } else if (patternType == DOTS) {
         m = dots(p, thickness);
     } else if (patternType == GRID) {
@@ -232,9 +232,9 @@ void main() {
     } else if (patternType == HEXAGONS) {
         m = hexagons(p, thickness);
     } else if (patternType == RADIAL_LINES) {
-        m = radialLines(p, thickness);
+        m = radialLines(p, thickness, time * floor(speed));
     } else if (patternType == SPIRAL) {
-        m = spiralPattern(p, thickness);
+        m = spiralPattern(p, thickness, -time * floor(speed));
     } else if (patternType == STRIPES) {
         m = stripes(p, thickness);
     } else if (patternType == TRIANGULAR_GRID) {

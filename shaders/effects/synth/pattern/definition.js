@@ -88,7 +88,8 @@ export default new Effect({
       "ui": {
         "label": "animation",
         "control": "dropdown",
-        "category": "animation"
+        "category": "animation",
+        "enabledBy": { "param": "type", "notIn": [1, 5, 6] }
       }
     },
     "speed": {
@@ -101,8 +102,7 @@ export default new Effect({
       "ui": {
         "label": "speed",
         "control": "slider",
-        "category": "animation",
-        "enabledBy": { "param": "animation", "neq": 0 }
+        "category": "animation"
       }
     },
     "fgColor": {

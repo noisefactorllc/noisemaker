@@ -104,18 +104,18 @@ fn hexagons(p: vec2<f32>, t: f32, sm: f32) -> f32 {
     return smoothstep(edge + sm, edge - sm, d);
 }
 
-// Concentric rings pattern
-fn concentricRings(p: vec2<f32>, t: f32, sm: f32) -> f32 {
-    let d = fract(length(p));
+// Concentric rings pattern (timeOffset expands/contracts from center)
+fn concentricRings(p: vec2<f32>, t: f32, sm: f32, timeOffset: f32) -> f32 {
+    let d = fract(length(p) + timeOffset);
     let edge1 = smoothstep(0.5 - t * 0.5 - sm, 0.5 - t * 0.5 + sm, d);
     let edge2 = smoothstep(0.5 + t * 0.5 - sm, 0.5 + t * 0.5 + sm, d);
     return edge1 - edge2;
 }
 
-// Radial lines pattern
-fn radialLines(p: vec2<f32>, t: f32, sm: f32) -> f32 {
+// Radial lines pattern (timeOffset rotates around center)
+fn radialLines(p: vec2<f32>, t: f32, sm: f32, timeOffset: f32) -> f32 {
     let lineCount = max(1.0, floor(20.0 * t));
-    let angle = atan2(p.y, p.x);
+    let angle = atan2(p.y, p.x) + timeOffset * TAU;
     let d = fract(angle / TAU * lineCount);
     let edge1 = smoothstep(0.5 - 0.25 - sm, 0.5 - 0.25 + sm, d);
     let edge2 = smoothstep(0.5 + 0.25 - sm, 0.5 + 0.25 + sm, d);
@@ -139,10 +139,10 @@ fn triangularGrid(p: vec2<f32>, t: f32, sm: f32) -> f32 {
     return smoothstep(edge - sm, edge + sm, d);
 }
 
-// Spiral pattern
-fn spiralPattern(p: vec2<f32>, t: f32, sm: f32) -> f32 {
+// Spiral pattern (timeOffset rotates arms)
+fn spiralPattern(p: vec2<f32>, t: f32, sm: f32, timeOffset: f32) -> f32 {
     let dist = length(p);
-    let angle = atan2(p.y, p.x);
+    let angle = atan2(p.y, p.x) + timeOffset * TAU;
     let d = fract(angle / TAU + dist);
     let edge1 = smoothstep(0.5 - t * 0.5 - sm, 0.5 - t * 0.5 + sm, d);
     let edge2 = smoothstep(0.5 + t * 0.5 - sm, 0.5 + t * 0.5 + sm, d);
@@ -226,7 +226,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     if (patternType == CHECKERBOARD) {
         m = checkerboard(p, smoothness);
     } else if (patternType == CONCENTRIC_RINGS) {
-        m = concentricRings(p, thickness, smoothness);
+        m = concentricRings(p, thickness, smoothness, -time * floor(speed));
     } else if (patternType == DOTS) {
         m = dots(p, thickness, smoothness);
     } else if (patternType == GRID) {
@@ -234,9 +234,9 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     } else if (patternType == HEXAGONS) {
         m = hexagons(p, thickness, smoothness);
     } else if (patternType == RADIAL_LINES) {
-        m = radialLines(p, thickness, smoothness);
+        m = radialLines(p, thickness, smoothness, time * floor(speed));
     } else if (patternType == SPIRAL_PATTERN) {
-        m = spiralPattern(p, thickness, smoothness);
+        m = spiralPattern(p, thickness, smoothness, -time * floor(speed));
     } else if (patternType == STRIPES) {
         m = stripes(p, thickness, smoothness);
     } else if (patternType == TRIANGULAR_GRID) {
