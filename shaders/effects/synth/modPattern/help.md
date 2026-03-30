@@ -11,28 +11,39 @@ scales and blend modes to produce complex moiré and interference patterns.
 |-----------|------|---------|-------|-------------|
 | blend | int | 0 | 0-3 | Blend mode: add (0), max (1), mix (2), rgb (3) |
 | smoothing | int | 0 | 0-3 | Edge smoothing amount |
-| speed | int | 1 | 0-5 | Animation speed multiplier |
+
+### Animation
+| Parameter | Type | Default | Range | Description |
+|-----------|------|---------|-------|-------------|
+| animMode | int | 0 | 0-2 | Animation mode: shift (0), pan (1), phase (2) |
+| speed | int | 1 | 0-5 | Animation speed |
 
 ### Layer 1
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | shape1 | int | 0 | 0-2 | Shape type: plus (0), square (1), diamond (2) |
-| scale1 | float | 4.0 | 0.1-20 | Scale/frequency of the first layer |
-| repeat1 | float | 15.0 | 0-20 | Repetition multiplier for interference patterns |
+| scale1 | float | 18.0 | 0.1-20 | Scale/frequency of the first layer |
+| repeat1 | float | 5.0 | 0-20 | Repetition multiplier for interference patterns |
 
 ### Layer 2
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | shape2 | int | 1 | 0-2 | Shape type: plus (0), square (1), diamond (2) |
-| scale2 | float | 3.0 | 0.1-10 | Scale/frequency of the second layer |
+| scale2 | float | 8.0 | 0.1-10 | Scale/frequency of the second layer |
 | repeat2 | float | 8.0 | 0-10 | Repetition multiplier for interference patterns |
 
 ### Layer 3
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | shape3 | int | 2 | 0-2 | Shape type: plus (0), square (1), diamond (2) |
-| scale3 | float | 3.0 | 0.1-20 | Scale/frequency of the third layer |
+| scale3 | float | 1.5 | 0.1-20 | Scale/frequency of the third layer |
 | repeat3 | float | 1.5 | 0-5 | Repetition multiplier for interference patterns |
+
+## Animation Modes
+
+- **Shift**: Slides the combined pattern through fract space. Continuous forward motion, loops seamlessly at integer speed.
+- **Pan**: Each layer oscillates in a different direction (right, up, left) via sine, with amplitude scaled to match visual weight across layers. Loops seamlessly.
+- **Phase**: Each layer's value is offset independently over time, creating evolving moiré interference. Loops seamlessly at integer speed.
 
 ## Usage
 

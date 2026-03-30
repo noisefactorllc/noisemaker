@@ -22,7 +22,8 @@ export default new Effect({
 		repeat3: { slot: 3, components: "x" },
 		blend: { slot: 3, components: "y" },
 		speed: { slot: 3, components: "z" },
-		smoothing: { slot: 3, components: "w" }
+		smoothing: { slot: 3, components: "w" },
+		animMode: { slot: 4, components: "x" }
 	},
 
 	globals: {
@@ -175,6 +176,20 @@ export default new Effect({
 				label: "smoothing"
 			}
 		},
+		animMode: {
+			type: "int",
+			default: 0,
+			uniform: "animMode",
+			choices: {
+				shift: 0,
+				pan: 1,
+				phase: 2
+			},
+			ui: {
+				label: "animation",
+				category: "animation"
+			}
+		},
 		speed: {
 			type: "int",
 			default: 1,
@@ -184,7 +199,8 @@ export default new Effect({
 			zero: 0,
 			uniform: "speed",
 			ui: {
-				label: "speed"
+				label: "speed",
+				category: "animation"
 			}
 		}
 	},
