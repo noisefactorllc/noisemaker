@@ -18,6 +18,7 @@ uniform float octaves;
 uniform float displacement;
 uniform float speed;
 uniform float wrap;
+uniform float seed;
 uniform bool antialias;
 
 out vec4 fragColor;
@@ -39,7 +40,7 @@ float hash21(vec2 p) {
     uvec3 v = uvec3(
         uint(p.x >= 0.0 ? p.x * 2.0 : -p.x * 2.0 + 1.0),
         uint(p.y >= 0.0 ? p.y * 2.0 : -p.y * 2.0 + 1.0),
-        0u
+        uint(seed)
     );
     return float(pcg(v).x) / float(0xffffffffu);
 }

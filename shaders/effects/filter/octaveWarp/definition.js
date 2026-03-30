@@ -64,6 +64,17 @@ export default new Effect({
         control: "slider"
       }
     },
+    seed: {
+      type: "int",
+      default: 1,
+      uniform: "seed",
+      min: 1,
+      max: 100,
+      ui: {
+        label: "seed",
+        control: "slider"
+      }
+    },
     wrap: {
       type: "int",
       default: 0,
@@ -97,6 +108,7 @@ export default new Effect({
         octaves: "octaves",
         displacement: "displacement",
         speed: "speed",
+        seed: "seed",
         wrap: "wrap"
       },
       outputs: {

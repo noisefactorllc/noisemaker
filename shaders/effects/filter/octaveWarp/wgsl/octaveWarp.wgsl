@@ -11,6 +11,7 @@ struct Uniforms {
     displacement: f32,
     speed: f32,
     wrap: f32,
+    seed: f32,
     antialias: i32,
 }
 
@@ -35,7 +36,7 @@ fn hash21(p: vec2<f32>) -> f32 {
     let v = pcg(vec3<u32>(
         u32(select(-p.x * 2.0 + 1.0, p.x * 2.0, p.x >= 0.0)),
         u32(select(-p.y * 2.0 + 1.0, p.y * 2.0, p.y >= 0.0)),
-        0u,
+        u32(uniforms.seed),
     ));
     return f32(v.x) / f32(0xffffffffu);
 }
