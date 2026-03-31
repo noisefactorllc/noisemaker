@@ -51,7 +51,7 @@
  * Examples:
  *   node test-harness.js --effects synth/noise --backend webgl2
  *   node test-harness.js --effects "synth/*" --webgl2 --benchmark
- *   node test-harness.js --effects "classicNoisemaker/*" --webgpu --all
+ *   node test-harness.js --effects "filter/*" --webgpu --all
  *   node test-harness.js --effects "synth/noise,nm/worms" --glsl --uniforms
  *   node test-harness.js --structure-only --effects "classicNoisedeck/*" --webgl2
  */
@@ -136,9 +136,6 @@ const TRANSPARENT_EXEMPT_EFFECTS = new Set([
 const PASSTHROUGH_EXEMPT_EFFECTS = new Set([
     'filter/fxaa',        // FXAA anti-aliasing only modifies edge pixels - subtle effect on smooth noise input
     'filter/pixelate',    // Pixelate groups colors into blocks - preserves average but changes structure
-    'classicNoisemaker/aberration',      // Chromatic aberration uses edge mask (pow(dist, 3)) - center unchanged, edges shifted
-    'classicNoisemaker/onScreenDisplay', // OSD overlays text/UI elements - mostly passes through underlying image
-    'classicNoisemaker/strayHair',       // Hair overlay effect - sparse thin lines over image preserve most pixels
 ])
 
 // =========================================================================
@@ -239,7 +236,7 @@ function parseArgs() {
 
 /**
  * Discover all effects from the filesystem.
- * Returns array of effect IDs like "synth/noise", "classicNoisemaker/worms", etc.
+ * Returns array of effect IDs like "synth/noise", "filter/pixelSort", etc.
  */
 function discoverEffectsFromDisk() {
     const effectsDir = path.join(PROJECT_ROOT, 'shaders', 'effects')

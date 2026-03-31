@@ -148,22 +148,6 @@ export const renameMap = {
     },
 
     // ---------------------------------------------------------------
-    // classicNoisemaker
-    // ---------------------------------------------------------------
-
-    'classicNoisemaker/palette': {
-        paletteIndex: 'index',            // Rule 1: within palette effect, prefix is redundant
-    },
-
-    'classicNoisemaker/valueRefract': {
-        frequency: 'freq',                // Rule 3: canonical frequency name
-    },
-
-    'classicNoisemaker/warp': {
-        frequency: 'freq',                // Rule 3: canonical frequency name
-    },
-
-    // ---------------------------------------------------------------
     // filter
     // ---------------------------------------------------------------
 

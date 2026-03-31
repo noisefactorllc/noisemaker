@@ -46,8 +46,7 @@
         { namespace: 'points' },
         { namespace: 'synth3d' },
         { namespace: 'filter3d' },
-        { namespace: 'classicNoisedeck' },
-        { namespace: 'classicNoisemaker' }
+        { namespace: 'classicNoisedeck' }
     ];
     
     let NoisemakerShaders = null;
@@ -399,7 +398,7 @@
                     }
                     
                     if (!namespace) {
-                        for (const ns of ['classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth', 'sim']) {
+                        for (const ns of ['classicNoisedeck', 'filter', 'mixer', 'synth', 'sim']) {
                             const testId = `${ns}/${name}`;
                             if (manifest[testId]) {
                                 namespace = ns;
@@ -431,12 +430,9 @@
 
             // Build search directive
             // Classic namespaces stay in their lane - no cross-namespace search
-            // classicNoisemaker needs synth for noise() starter (it has no noise module)
             // Points effects need render namespace for pointsEmit/pointsRender
             let searchNs = effect.namespace;
-            if (effect.namespace === 'classicNoisemaker') {
-                searchNs = 'classicNoisemaker, synth';
-            } else if (['filter', 'mixer'].includes(effect.namespace)) {
+            if (['filter', 'mixer'].includes(effect.namespace)) {
                 searchNs = `${effect.namespace}, synth`;
             } else if (effect.namespace === 'points') {
                 searchNs = 'synth, points, render';

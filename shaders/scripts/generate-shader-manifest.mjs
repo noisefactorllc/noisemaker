@@ -204,7 +204,7 @@ function main() {
     const manifest = {};
 
     const namespaces = [
-        'classicNoisedeck', 'classicNoisemaker', 'filter', 'filter3d',
+        'classicNoisedeck', 'filter', 'filter3d',
         'mixer', 'points', 'render', 'synth', 'synth3d',
     ];
 

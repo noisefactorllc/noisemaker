@@ -37,8 +37,7 @@
         { namespace: 'points', label: 'Points (Particle/Agent)' },
         { namespace: 'synth3d', label: 'Synth 3D (Volumetric)' },
         { namespace: 'filter3d', label: 'Filter 3D (Volumetric)' },
-        { namespace: 'classicNoisedeck', label: 'Classic Noisedeck' },
-        { namespace: 'classicNoisemaker', label: 'Classic Noisemaker' }
+        { namespace: 'classicNoisedeck', label: 'Classic Noisedeck' }
     ];
     
     let NoisemakerShaders = null;
@@ -235,9 +234,7 @@
         const { isStarterEffect, hasTexSurfaceParam, is3dGenerator, is3dProcessor, hasExplicitTexParam, getVolGeoParams } = getHelpers();
 
         let searchNs = effect.namespace;
-        if (effect.namespace === 'classicNoisemaker') {
-            searchNs = 'classicNoisemaker, synth';
-        } else if (['filter', 'mixer'].includes(effect.namespace)) {
+        if (['filter', 'mixer'].includes(effect.namespace)) {
             searchNs = `${effect.namespace}, synth`;
         } else if (effect.namespace === 'points') {
             searchNs = 'synth, points, render';
@@ -353,7 +350,7 @@
                 }
                 
                 if (!namespace) {
-                    for (const ns of ['classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth', 'sim']) {
+                    for (const ns of ['classicNoisedeck', 'filter', 'mixer', 'synth', 'sim']) {
                         const testId = `${ns}/${name}`;
                         if (manifest[testId]) {
                             namespace = ns;

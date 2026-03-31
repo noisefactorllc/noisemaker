@@ -86,7 +86,6 @@ Shader development lives under ``shaders/``:
    │   ├── synth3d/              # 3D volumetric generators
    │   ├── filter3d/             # 3D volumetric processors
    │   ├── classicNoisedeck/     # Ported complex shaders
-   │   ├── classicNoisemaker/    # Python port implementations
    │   └── manifest.json         # Auto-generated effect registry
    └── tests/                    # Test suites
    demo/

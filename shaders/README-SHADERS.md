@@ -74,8 +74,7 @@ effects/
 ├── render/         # Rendering utilities (mesh, points, 3D, loops)
 ├── filter3d/       # 3D filter effects
 ├── synth3d/        # 3D source generators (raymarching, voxels)
-├── classicNoisedeck/  # Legacy Noisedeck effects
-└── classicNoisemaker/ # Legacy Noisemaker effects
+└── classicNoisedeck/  # Legacy Noisedeck effects
 ```
 
 Each effect lives in its own directory:

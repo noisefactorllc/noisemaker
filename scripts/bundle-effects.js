@@ -114,9 +114,7 @@ function buildDslSource(effectDef) {
 
     // Determine search directive
     let searchNs = namespace
-    if (namespace === 'classicNoisemaker') {
-        searchNs = 'classicNoisemaker, synth'
-    } else if (['filter', 'mixer'].includes(namespace)) {
+    if (['filter', 'mixer'].includes(namespace)) {
         searchNs = `${namespace}, synth`
     } else if (namespace === 'points') {
         searchNs = 'synth, points, render'

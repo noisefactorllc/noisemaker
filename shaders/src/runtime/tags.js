@@ -75,10 +75,6 @@ export const NAMESPACE_DESCRIPTIONS = Object.freeze({
         id: 'classicNoisedeck',
         description: 'Complex shaders ported from the original noisedeck.app pipeline'
     },
-    classicNoisemaker: {
-        id: 'classicNoisemaker',
-        description: 'Shader implementations of classic noisemaker effects'
-    },
     synth: {
         id: 'synth',
         description: 'Generator effects'

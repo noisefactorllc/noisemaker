@@ -13,7 +13,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 export default new Effect({
   name: "PixelSort",
-  namespace: "classicNoisemaker",
+  namespace: "filter",
   func: "pixelSort",
   tags: ["glitch", "pixel"],
 

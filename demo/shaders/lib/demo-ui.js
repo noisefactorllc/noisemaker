@@ -180,7 +180,7 @@ export function extractEffectNamesFromDsl(dsl, manifest) {
                 }
 
                 if (!namespace) {
-                    for (const ns of ['classicNoisemaker', 'classicNoisedeck', 'filter', 'mixer', 'synth']) {
+                    for (const ns of ['classicNoisedeck', 'filter', 'mixer', 'synth']) {
                         const testId = `${ns}/${name}`
                         if (manifest[testId]) {
                             namespace = ns
@@ -1514,11 +1514,8 @@ export class UIController {
 
         // Build search directive (with two line breaks after)
         // Classic namespaces stay in their lane - no cross-namespace search
-        // classicNoisemaker needs synth for noise() starter (it has no noise effect)
         let searchNs = effect.namespace
-        if (effect.namespace === 'classicNoisemaker') {
-            searchNs = 'classicNoisemaker, synth'
-        } else if (effect.namespace === 'render') {
+        if (effect.namespace === 'render') {
             searchNs = 'synth, filter, render'
         } else if (effect.namespace === 'points') {
             searchNs = 'synth, points, render'

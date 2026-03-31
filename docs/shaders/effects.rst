@@ -99,8 +99,6 @@ Namespace is the primary categorization and acts as an implicit tag. Each effect
      - Description
    * - ``classicNoisedeck``
      - Complex shaders ported from the original noisedeck.app pipeline
-   * - ``classicNoisemaker``
-     - Shader implementations of classic noisemaker effects
    * - ``synth``
      - 2D generator modules
    * - ``mixer``

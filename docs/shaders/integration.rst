@@ -493,8 +493,6 @@ Effect Namespaces
      - Render utilities: render3d, loopBegin/End, pointsEmitter/Render
    * - ``classicNoisedeck/``
      - Noisedeck-original effects
-   * - ``classicNoisemaker/``
-     - Noisemaker-original effects
 
 Bundle Exports Reference
 -------------------------
