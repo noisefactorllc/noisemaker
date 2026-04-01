@@ -13,7 +13,7 @@ const TAU: f32 = 6.283185307179586;
 
 // Simple 1D hash for noise
 fn hash11(p: f32, s: f32) -> f32 {
-    var pv = fract(p * 234.34 + s);
+    var pv = fract(p * 234.34 + s * 0.7183);
     pv = pv + pv * (pv + 34.23);
     return fract(pv * pv);
 }

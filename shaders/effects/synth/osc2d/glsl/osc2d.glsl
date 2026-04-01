@@ -17,7 +17,7 @@ const float TAU = 6.283185307179586;
 
 // Simple 1D hash for noise
 float hash11(float p, float s) {
-    p = fract(p * 234.34 + s);
+    p = fract(p * 234.34 + s * 0.7183);
     p += p * (p + 34.23);
     return fract(p * p);
 }
