@@ -225,9 +225,9 @@ fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {
     } else {
         // Soft (7) — gaussian falloff
         alpha = exp(-dot(p, p) * 8.0);
-        return vec4<f32>(in.color.rgb, alpha * in.color.a) * opacity;
+        return vec4<f32>(in.color.rgb * alpha, alpha * in.color.a) * opacity;
     }
 
     alpha = 1.0 - smoothstep(-0.02, 0.02, sdf);
-    return vec4<f32>(in.color.rgb, alpha * in.color.a) * opacity;
+    return vec4<f32>(in.color.rgb * alpha, alpha * in.color.a) * opacity;
 }
