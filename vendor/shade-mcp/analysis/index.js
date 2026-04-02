@@ -4345,6 +4345,7 @@ var renderEffectFrameSchema = {
 async function renderEffectFrame(session, effectId, options = {}) {
   return session.runWithConsoleCapture(async () => {
     const page = session.page;
+    await session.setBackend(session.backend);
     if (options.resolution) {
       await page.setViewportSize({ width: options.resolution[0], height: options.resolution[1] });
     }

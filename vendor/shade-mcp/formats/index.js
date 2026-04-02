@@ -49,7 +49,7 @@ function parseDefinitionJs(filePath, effectDir) {
   const name = extractString(source, /name\s*[:=]\s*['"]([^'"]+)['"]/);
   const namespace = extractString(source, /namespace\s*[:=]\s*['"](\w+)['"]/);
   const description = extractString(source, /description\s*[:=]\s*['"]([^'"]+)['"]/);
-  const starter = /starter\s*[:=]\s*true/.test(source) ? true : void 0;
+  const starter = /starter\s*[:=]\s*true/.test(source) ? true : /starter\s*[:=]\s*false/.test(source) ? false : void 0;
   const tagsMatch = source.match(/tags\s*[:=]\s*\[([^\]]+)\]/);
   const tags = tagsMatch ? tagsMatch[1].split(",").map((t) => t.trim().replace(/['"]/g, "")).filter(Boolean) : void 0;
   const passes = [];

@@ -4570,6 +4570,7 @@ var compileEffectSchema = {
 async function compileEffect(session, effectId) {
   return session.runWithConsoleCapture(async () => {
     const page = session.page;
+    await session.setBackend(session.backend);
     await page.evaluate((id) => {
       const select = document.getElementById("effect-select");
       if (select) {
@@ -4627,6 +4628,7 @@ var renderEffectFrameSchema = {
 async function renderEffectFrame(session, effectId, options = {}) {
   return session.runWithConsoleCapture(async () => {
     const page = session.page;
+    await session.setBackend(session.backend);
     if (options.resolution) {
       await page.setViewportSize({ width: options.resolution[0], height: options.resolution[1] });
     }
@@ -5162,6 +5164,7 @@ var runDslProgramSchema = {
 async function runDslProgram(session, dsl, options = {}) {
   return session.runWithConsoleCapture(async () => {
     const page = session.page;
+    await session.setBackend(session.backend);
     const compileResult = await page.evaluate(({ dsl: dsl2, timeout, globals }) => {
       return new Promise((resolve3) => {
         const editor = document.getElementById("dsl-editor");
@@ -5343,7 +5346,7 @@ function parseDefinitionJs(filePath, effectDir) {
   const name = extractString(source, /name\s*[:=]\s*['"]([^'"]+)['"]/);
   const namespace = extractString(source, /namespace\s*[:=]\s*['"](\w+)['"]/);
   const description = extractString(source, /description\s*[:=]\s*['"]([^'"]+)['"]/);
-  const starter = /starter\s*[:=]\s*true/.test(source) ? true : void 0;
+  const starter = /starter\s*[:=]\s*true/.test(source) ? true : /starter\s*[:=]\s*false/.test(source) ? false : void 0;
   const tagsMatch = source.match(/tags\s*[:=]\s*\[([^\]]+)\]/);
   const tags = tagsMatch ? tagsMatch[1].split(",").map((t) => t.trim().replace(/['"]/g, "")).filter(Boolean) : void 0;
   const passes = [];
