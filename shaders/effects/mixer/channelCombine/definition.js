@@ -7,6 +7,7 @@ export default new Effect({
   tags: ["color"],
 
   description: "Combine separate surface inputs into R, G, B channels",
+  starter: false,
   globals: {
     rTex: {
       type: "surface",

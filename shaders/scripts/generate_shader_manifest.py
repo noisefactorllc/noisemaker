@@ -32,6 +32,10 @@ TAGS_RE = re.compile(r'\btags\s*[:=]\s*\[([^\]]*)\]')
 # Matches: tex: { ... type: "surface" ... } or tex = { ... type: "surface" ... }
 TEX_SURFACE_RE = re.compile(r'\btex\s*[:=]\s*\{[^}]*type\s*[:=]\s*["\']surface["\']', re.DOTALL)
 
+# Regex to detect explicit starter: true/false
+STARTER_TRUE_RE = re.compile(r'\bstarter\s*[:=]\s*true\b')
+STARTER_FALSE_RE = re.compile(r'\bstarter\s*[:=]\s*false\b')
+
 # Known pipeline inputs that indicate a non-starter effect
 PIPELINE_INPUTS = {
     'inputTex', 'inputTex3d',
@@ -143,6 +147,14 @@ def is_starter_effect(effect_dir):
 
     try:
         content = definition_file.read_text(encoding="utf-8")
+
+        # Check for explicit starter property first
+        if STARTER_TRUE_RE.search(content):
+            return True
+        if STARTER_FALSE_RE.search(content):
+            return False
+
+        # Fall through to autodetection
 
         # Look for passes array
         # This is a simplified parse - look for inputs in passes

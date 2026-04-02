@@ -30,6 +30,10 @@ const TAGS_RE = /\btags\s*[:=]\s*\[([^\]]*)\]/;
 // Regex to detect hidden: true
 const HIDDEN_RE = /\bhidden\s*[:=]\s*true\b/;
 
+// Regex to detect explicit starter: true/false
+const STARTER_TRUE_RE = /\bstarter\s*[:=]\s*true\b/;
+const STARTER_FALSE_RE = /\bstarter\s*[:=]\s*false\b/;
+
 // Regex to extract deprecatedBy from definition.js
 const DEPRECATED_BY_RE = /deprecatedBy[:\s=]+"((?:[^"\\]|\\.)*)"|deprecatedBy[:\s=]+'((?:[^'\\]|\\.)*)'/;
 
@@ -111,6 +115,12 @@ function extractTags(effectDir) {
 function isStarterEffect(effectDir) {
     const content = readDefinition(effectDir);
     if (!content) return null;
+
+    // Check for explicit starter property first
+    if (STARTER_TRUE_RE.test(content)) return true;
+    if (STARTER_FALSE_RE.test(content)) return false;
+
+    // Fall through to autodetection
 
     // Look for passes array
     const passesMatch = content.match(/passes\s*[=:]\s*\[/);
