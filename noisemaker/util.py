@@ -133,7 +133,7 @@ def watermark(text: str, filename: str) -> Any:
     """
 
     return check_call(
-        ["mood", "--filename", filename, "--text", text, "--font", "Nunito-VariableFont_wght", "--font-size", "12", "--no-rect", "--bottom", "--right"]
+        ["mood", "--filename", filename, "--text", text, "--font", "Nunito-VariableFont_wght", "--font-size", "16", "--no-rect", "--bottom", "--right"]
     )
 
 

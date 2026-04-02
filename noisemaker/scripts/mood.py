@@ -19,10 +19,14 @@ def mood_text(input_filename, text, font="LiberationSans-Bold", font_size=42, fi
 
     font_path = os.path.join(os.path.expanduser("~"), ".noisemaker", "fonts", f"{font}.ttf")
 
-    font = ImageFont.truetype(font_path, font_size)
-    draw = ImageDraw.Draw(image, "RGBA")
+    # Supersample: render text at 4x size, then downscale for proper kerning
+    scale = 4
+    font = ImageFont.truetype(font_path, font_size * scale)
 
-    padding = 6
+    overlay = Image.new("RGBA", (input_width * scale, input_height * scale), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    padding = 6 * scale
 
     lines = textwrap.wrap(text, width=wrap_width)
 
@@ -35,7 +39,7 @@ def mood_text(input_filename, text, font="LiberationSans-Bold", font_size=42, fi
         line_metrics.append((line, line_w, line_h))
         text_height += line_h + padding
 
-    text_y: int | float = input_height - text_height
+    text_y: int | float = input_height * scale - text_height
 
     if bottom:
         text_y -= int(padding * 0.5)
@@ -49,19 +53,22 @@ def mood_text(input_filename, text, font="LiberationSans-Bold", font_size=42, fi
         shadow_color = (0, 0, 0, 128)
 
     if rect:
-        draw.rectangle(((0, text_y - padding), (input_width, text_y + text_height + padding)), fill=shadow_color)
+        draw.rectangle(((0, text_y - padding), (input_width * scale, text_y + text_height + padding)), fill=shadow_color)
 
     for line, line_w, line_h in line_metrics:
-        text_x: int | float = input_width - line_w
+        text_x: int | float = input_width * scale - line_w
         if right:
-            text_x -= padding + 4
+            text_x -= padding + 4 * scale
         else:
             text_x /= 2
 
-        draw.text((text_x + 1, text_y + 1), line, font=font, fill=shadow_color)
+        draw.text((text_x + scale, text_y + scale), line, font=font, fill=shadow_color)
         draw.text((text_x, text_y), line, font=font, fill=fill)
 
         text_y += line_h + padding
+
+    overlay = overlay.resize((input_width, input_height), Image.LANCZOS)
+    image = Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
 
     image.save(input_filename)
 
