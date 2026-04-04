@@ -59,6 +59,7 @@ export default new Effect({
         x32: 32,
         x64: 64
       },
+      randChoices: [4, 8, 16, 32, 64],
       ui: {
         label: "zoom",
         control: "dropdown"
@@ -88,6 +89,7 @@ export default new Effect({
       uniform: "speed",
       min: 10,
       max: 145,
+      randMax: 50,
       ui: {
         label: "speed",
         control: "slider"
@@ -127,6 +129,7 @@ export default new Effect({
         green: 4,
         blue: 5
       },
+      randChance: 0,
       ui: {
         label: "feed source",
         control: "dropdown",
@@ -139,6 +142,7 @@ export default new Effect({
       uniform: "feed",
       min: 10,
       max: 110,
+      randMin: 20,
       ui: {
         label: "feed value",
         control: "slider",
@@ -158,6 +162,7 @@ export default new Effect({
         green: 4,
         blue: 5
       },
+      randChance: 0,
       ui: {
         label: "kill source",
         control: "dropdown",
@@ -189,6 +194,7 @@ export default new Effect({
         green: 4,
         blue: 5
       },
+      randChance: 0,
       ui: {
         label: "rate 1 source",
         control: "dropdown",
@@ -220,6 +226,7 @@ export default new Effect({
         green: 4,
         blue: 5
       },
+      randChance: 0,
       ui: {
         label: "rate 2 source",
         control: "dropdown",
@@ -232,6 +239,7 @@ export default new Effect({
       uniform: "rate2",
       min: 20,
       max: 50,
+      randMax: 35,
       ui: {
         label: "rate 2 value",
         control: "slider",
@@ -244,6 +252,7 @@ export default new Effect({
       uniform: "iterations",
       min: 1,
       max: 32,
+      randMin: 6,
       ui: {
         label: "iterations",
         control: "slider",
@@ -270,6 +279,7 @@ export default new Effect({
       uniform: "inputIntensity",
       min: 0,
       max: 100,
+      randChance: 0,
       ui: {
         label: "input mix",
         control: "slider",

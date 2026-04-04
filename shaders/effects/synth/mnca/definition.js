@@ -60,6 +60,7 @@ export default new Effect({
         x32: 32,
         x64: 64
       },
+      randChoices: [4, 8, 16, 32, 64],
       ui: {
         label: "zoom",
         control: "dropdown"
@@ -134,6 +135,7 @@ export default new Effect({
       default: 21,
       min: 0,
       max: 100,
+      randMin: 20,
       ui: {
         label: "n1 thresh 1",
         control: "slider",
@@ -158,6 +160,7 @@ export default new Effect({
       default: 35,
       min: 0,
       max: 100,
+      randMin: 20,
       ui: {
         label: "n1 thresh 2",
         control: "slider",
@@ -182,6 +185,7 @@ export default new Effect({
       default: 75,
       min: 0,
       max: 100,
+      randMin: 20,
       ui: {
         label: "n1 thresh 3",
         control: "slider",
@@ -206,6 +210,7 @@ export default new Effect({
       default: 12,
       min: 0,
       max: 100,
+      randMin: 20,
       ui: {
         label: "n1 thresh 4",
         control: "slider",
@@ -230,6 +235,7 @@ export default new Effect({
       default: 10,
       min: 0,
       max: 100,
+      randMin: 20,
       ui: {
         label: "n2 thresh 1",
         control: "slider",
@@ -254,6 +260,7 @@ export default new Effect({
       default: 43,
       min: 0,
       max: 100,
+      randMin: 20,
       ui: {
         label: "n2 thresh 2",
         control: "slider",
