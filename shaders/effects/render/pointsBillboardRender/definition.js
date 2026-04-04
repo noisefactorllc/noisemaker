@@ -157,6 +157,7 @@ export default new Effect({
             default: 10.15,
             min: 0.0,
             max: 100.0,
+            randMin: 50,
             uniform: "inputIntensity",
             ui: {
                 label: "input mix",

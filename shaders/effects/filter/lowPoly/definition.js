@@ -77,6 +77,7 @@ export default new Effect({
       uniform: "alpha",
       min: 0.0,
       max: 1.0,
+      randChance: 0,
       ui: {
         label: "alpha",
         control: "slider"
