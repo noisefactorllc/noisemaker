@@ -143,6 +143,7 @@ export default new Effect({
       min: 10,
       max: 110,
       randMin: 35,
+      randMax: 50,
       ui: {
         label: "feed value",
         control: "slider",
@@ -176,6 +177,7 @@ export default new Effect({
       min: 45,
       max: 70,
       randMin: 50,
+      randMax: 65,
       ui: {
         label: "kill value",
         control: "slider",
