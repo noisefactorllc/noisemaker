@@ -27,6 +27,7 @@ export default new Effect({
       max: 10,
       step: 1,
       zero: 1,
+      randMax: 4,
       uniform: "repeat",
       ui: {
         label: "repeat",
