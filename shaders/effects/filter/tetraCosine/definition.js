@@ -251,7 +251,7 @@ export default new Effect({
       uniform: "repeat",
       min: 0,
       max: 10,
-      randMax: 5,
+      randChoices: [1, 2, 3, 4, 5],
       step: 0.01,
       ui: {
         label: "repeat",
