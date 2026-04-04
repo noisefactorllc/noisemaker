@@ -46,6 +46,8 @@ export default new Effect({
       uniform: "scale",
       min: 0,
       max: 200,
+      randMin: 2,
+      randMax: 20,
       ui: { label: "scale", control: "slider" }
     },
     offset: {

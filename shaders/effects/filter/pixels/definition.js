@@ -19,6 +19,7 @@ export default new Effect({
       min: 1,
       max: 256,
       zero: 1,
+      randMax: 50,
       ui: {
         label: "size",
         control: "slider"

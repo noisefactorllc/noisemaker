@@ -83,6 +83,7 @@ export default new Effect({
       min: 0.0,
       max: 1.0,
       step: 0.01,
+      randMin: 0.5,
       ui: {
         label: "mix",
         control: "slider"

@@ -19,6 +19,7 @@ export default new Effect({
       min: 0,
       max: 1,
       step: 0.01,
+      randMax: 0.25,
       ui: {
         label: "edge 0",
         control: "slider"
@@ -31,6 +32,7 @@ export default new Effect({
       min: 0,
       max: 1,
       step: 0.01,
+      randMin: 0.75,
       ui: {
         label: "edge 1",
         control: "slider"
