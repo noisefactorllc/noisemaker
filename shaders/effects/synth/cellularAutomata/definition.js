@@ -55,6 +55,7 @@ export default new Effect({
         x32: 32,
         x64: 64
       },
+      randChoices: [4, 8, 16, 32, 64],
       ui: {
         label: "zoom",
         control: "dropdown"
