@@ -145,7 +145,7 @@ export default new Effect({
       min: 0,
       max: 14,
       step: 0.001,
-      randMax: 1,
+      randChance: 0,
       uniform: "zoomDepth",
       ui: { label: "zoom depth", control: "slider", category: "animation" }
     },

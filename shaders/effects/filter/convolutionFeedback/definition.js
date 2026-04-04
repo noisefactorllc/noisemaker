@@ -24,6 +24,7 @@ export default new Effect({
       min: 1,
       max: 10,
       step: 1,
+      randMin: 4,
       ui: {
         label: "radius",
         control: "slider",
@@ -50,6 +51,7 @@ export default new Effect({
       min: 1,
       max: 10,
       step: 1,
+      randMax: 4, 
       ui: {
         label: "radius",
         control: "slider",

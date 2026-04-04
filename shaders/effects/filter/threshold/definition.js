@@ -13,6 +13,8 @@ export default new Effect({
         "default": 0.5,
         "min": 0,
         "max": 1,
+        "randMin": 0.5,
+        "randMax": 0.75,
         "uniform": "level",
         ui: {
             label: "level"
