@@ -62,6 +62,7 @@ export default new Effect({
         mirror: 0,
         repeat: 1
       },
+      randChoices: [0, 1],
       ui: {
         label: "wrap",
         control: "dropdown"

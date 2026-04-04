@@ -36,6 +36,7 @@ export default new Effect({
         "min": 0,
         "max": 1,
         "zero": 0,
+        "randMax": 0.5,
         "uniform": "smoothing",
         ui: {
             label: "smooth"
@@ -64,7 +65,7 @@ export default new Effect({
     "fgAlpha": {
         "type": "float",
         "default": 1.0,
-        "randMin": 0.75,
+        "randMin": 0.85,
         "min": 0.0,
         "max": 1.0,
         "uniform": "fgAlpha",
@@ -89,6 +90,7 @@ export default new Effect({
         "default": 1.0,
         "min": 0.0,
         "max": 1.0,
+        "randMin": 0.85,
         "uniform": "bgAlpha",
         "ui": {
             "label": "bg opacity",
