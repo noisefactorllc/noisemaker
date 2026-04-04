@@ -102,7 +102,8 @@ export default new Effect({
       "ui": {
         "label": "speed",
         "control": "slider",
-        "category": "animation"
+        "category": "animation",
+        "enabledBy": { "param": "animation", "neq": 0 }
       }
     },
     "fgColor": {
