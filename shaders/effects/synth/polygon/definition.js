@@ -25,6 +25,7 @@ export default new Effect({
         "default": 0.5,
         "min": 0,
         "max": 1,
+        "randMin": 0.5,
         "uniform": "radius",
         ui: {
             label: "radius"

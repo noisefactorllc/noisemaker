@@ -256,6 +256,7 @@ export default new Effect({
       uniform: "weight",
       min: 0,
       max: 100,
+      randChance: 0,
       ui: {
         label: "input weight",
         control: "slider",

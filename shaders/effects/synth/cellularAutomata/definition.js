@@ -144,6 +144,7 @@ export default new Effect({
       default: 0,
       min: 0,
       max: 100,
+      randChance: 0,
       ui: {
         label: "input weight",
         control: "slider",
