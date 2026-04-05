@@ -29,7 +29,8 @@ export default new Effect({
                 "x512": 512,
                 "x1024": 1024,
                 "x2048": 2048
-            }
+            },
+            randChoices: [64, 128, 256, 512]
         },
 
         // Initial distribution pattern
