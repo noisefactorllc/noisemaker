@@ -75,13 +75,13 @@ export default new Effect({
     },
     intensity: {
       type: "float",
-      default: 0.95,
+      default: 0.75,
       uniform: "intensity",
       min: 0,
       max: 1,
       step: 0.01,
       zero: 0,
-      randMin: 0.85,
+      randMin: 0.65,
       ui: {
         label: "feedback",
         control: "slider"
