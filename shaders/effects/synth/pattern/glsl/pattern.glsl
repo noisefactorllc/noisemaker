@@ -113,11 +113,11 @@ float concentricRings(vec2 p, float t, float timeOffset) {
 
 // Radial lines pattern (timeOffset rotates around center)
 float radialLines(vec2 p, float t, float timeOffset) {
-    float lineCount = max(1.0, floor(20.0 * t));
+    float lineCount = floor(scale);
     float angle = atan(p.y, p.x) + timeOffset * TAU;
     float d = fract(angle / TAU * lineCount);
-    float edge1 = smoothstep(0.5 - 0.25 - smoothness, 0.5 - 0.25 + smoothness, d);
-    float edge2 = smoothstep(0.5 + 0.25 - smoothness, 0.5 + 0.25 + smoothness, d);
+    float edge1 = smoothstep(0.5 - t * 0.5 - smoothness, 0.5 - t * 0.5 + smoothness, d);
+    float edge2 = smoothstep(0.5 + t * 0.5 - smoothness, 0.5 + t * 0.5 + smoothness, d);
     return edge1 - edge2;
 }
 

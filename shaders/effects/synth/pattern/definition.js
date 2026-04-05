@@ -103,7 +103,12 @@ export default new Effect({
         "label": "speed",
         "control": "slider",
         "category": "animation",
-        "enabledBy": { "param": "animation", "neq": 0 }
+        "enabledBy": {
+          "or": [
+            { "param": "type", "in": [1, 5, 6] },
+            { "and": [ { "param": "animation", "neq": 0 }, { "param": "type", "notIn": [1, 5, 6] }]},
+          ]
+        }
       }
     },
     "fgColor": {

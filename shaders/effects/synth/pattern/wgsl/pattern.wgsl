@@ -114,11 +114,11 @@ fn concentricRings(p: vec2<f32>, t: f32, sm: f32, timeOffset: f32) -> f32 {
 
 // Radial lines pattern (timeOffset rotates around center)
 fn radialLines(p: vec2<f32>, t: f32, sm: f32, timeOffset: f32) -> f32 {
-    let lineCount = max(1.0, floor(20.0 * t));
+    let lineCount = floor(scale);
     let angle = atan2(p.y, p.x) + timeOffset * TAU;
     let d = fract(angle / TAU * lineCount);
-    let edge1 = smoothstep(0.5 - 0.25 - sm, 0.5 - 0.25 + sm, d);
-    let edge2 = smoothstep(0.5 + 0.25 - sm, 0.5 + 0.25 + sm, d);
+    let edge1 = smoothstep(0.5 - t * 0.5 - sm, 0.5 - t * 0.5 + sm, d);
+    let edge2 = smoothstep(0.5 + t * 0.5 - sm, 0.5 + t * 0.5 + sm, d);
     return edge1 - edge2;
 }
 
