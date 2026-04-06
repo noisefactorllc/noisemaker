@@ -8,7 +8,6 @@ struct Uniforms {
     seed: i32,
     speed: i32,
     wrap: i32,
-    rotation: f32,
     antialias: i32,
 }
 
@@ -17,21 +16,7 @@ struct Uniforms {
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
 @group(0) @binding(3) var<uniform> time: f32;
 
-const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
-
-fn rotate2D(st_in: vec2<f32>, rot: f32, aspectRatio: f32) -> vec2<f32> {
-    var st = st_in;
-    st.x = st.x * aspectRatio;
-    let angle = rot * PI;
-    st = st - vec2<f32>(0.5 * aspectRatio, 0.5);
-    let c = cos(angle);
-    let s = sin(angle);
-    st = vec2<f32>(c * st.x - s * st.y, s * st.x + c * st.y);
-    st = st + vec2<f32>(0.5 * aspectRatio, 0.5);
-    st.x = st.x / aspectRatio;
-    return st;
-}
 
 fn pcg(v_in: vec3<u32>) -> vec3<u32> {
     var v = v_in * 1664525u + 1013904223u;
@@ -93,12 +78,13 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let seed = uniforms.seed;
     let t = time;
 
-    // Apply rotation before distortion
-    uv = rotate2D(uv, uniforms.rotation / 180.0, aspectRatio);
-
-    // Perlin warp
-    uv.x = uv.x + (perlinNoise(uv * vec2<f32>(aspectRatio, 1.0) + f32(seed), vec2<f32>(abs(scale * 3.0)), t) - 0.5) * strength * 0.01;
-    uv.y = uv.y + (perlinNoise(uv * vec2<f32>(aspectRatio, 1.0) + f32(seed) + 10.0, vec2<f32>(abs(scale * 3.0)), t) - 0.5) * strength * 0.01;
+    // Perlin warp — sample both axes before applying either
+    let noiseCoord = uv * vec2<f32>(aspectRatio, 1.0);
+    let noiseScale = vec2<f32>(abs(scale * 3.0));
+    let dx = (perlinNoise(noiseCoord + f32(seed), noiseScale, t) - 0.5) * strength * 0.01;
+    let dy = (perlinNoise(noiseCoord + f32(seed) + 10.0, noiseScale, t) - 0.5) * strength * 0.01;
+    uv.x = uv.x + dx;
+    uv.y = uv.y + dy;
 
     // Apply wrap mode
     if (uniforms.wrap == 0) {
@@ -111,9 +97,6 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         // clamp
         uv = clamp(uv, vec2<f32>(0.0), vec2<f32>(1.0));
     }
-
-    // Reverse rotation after distortion
-    uv = rotate2D(uv, -uniforms.rotation / 180.0, aspectRatio);
 
     if (uniforms.antialias != 0) {
         let dx = dpdx(uv);

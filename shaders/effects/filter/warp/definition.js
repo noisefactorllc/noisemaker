@@ -71,17 +71,6 @@ export default new Effect({
         control: "dropdown"
       }
     },
-    rotation: {
-      type: "float",
-      default: 0,
-      uniform: "rotation",
-      min: -180,
-      max: 180,
-      ui: {
-        label: "rotation",
-        control: "slider"
-      }
-    },
     antialias: {
       type: "boolean",
       default: true,

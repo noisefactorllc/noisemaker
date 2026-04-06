@@ -11,5 +11,4 @@ Perlin noise-based warp distortion
 | seed | int | 1 | 1-100 | Seed |
 | speed | int | 0 | -5-5 | Speed |
 | wrap | int | mirror | mirror/repeat/clamp | Wrap |
-| rotation | float | 0 | -180-180 | Rotation |
 | antialias | boolean | true | on/off | 4x rotated-grid supersampling (disable before palette effects) |

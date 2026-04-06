@@ -15,23 +15,12 @@ uniform float scale;
 uniform int seed;
 uniform int speed;
 uniform int wrap;
-uniform float rotation;
 uniform bool antialias;
 
 out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
-
-vec2 rotate2D(vec2 st, float rot, float aspectRatio) {
-    st.x *= aspectRatio;
-    float angle = rot * PI;
-    st -= vec2(0.5 * aspectRatio, 0.5);
-    st = mat2(cos(angle), -sin(angle), sin(angle), cos(angle)) * st;
-    st += vec2(0.5 * aspectRatio, 0.5);
-    st.x /= aspectRatio;
-    return st;
-}
 
 // PCG PRNG
 uvec3 pcg(uvec3 v) {
@@ -86,12 +75,13 @@ void main() {
     float aspectRatio = resolution.x / resolution.y;
     vec2 uv = gl_FragCoord.xy / resolution;
 
-    // Apply rotation before distortion
-    uv = rotate2D(uv, rotation / 180.0, aspectRatio);
-
-    // Perlin warp
-    uv.x += (perlinNoise(uv * vec2(aspectRatio, 1.0) + float(seed), vec2(abs(scale * 3.0))) - 0.5) * strength * 0.01;
-    uv.y += (perlinNoise(uv * vec2(aspectRatio, 1.0) + float(seed) + 10.0, vec2(abs(scale * 3.0))) - 0.5) * strength * 0.01;
+    // Perlin warp — sample both axes before applying either
+    vec2 noiseCoord = uv * vec2(aspectRatio, 1.0);
+    vec2 noiseScale = vec2(abs(scale * 3.0));
+    float dx = (perlinNoise(noiseCoord + float(seed), noiseScale) - 0.5) * strength * 0.01;
+    float dy = (perlinNoise(noiseCoord + float(seed) + 10.0, noiseScale) - 0.5) * strength * 0.01;
+    uv.x += dx;
+    uv.y += dy;
 
     // Apply wrap mode
     if (wrap == 0) {
@@ -104,9 +94,6 @@ void main() {
         // clamp
         uv = clamp(uv, 0.0, 1.0);
     }
-
-    // Reverse rotation after distortion
-    uv = rotate2D(uv, -rotation / 180.0, aspectRatio);
 
     if (antialias) {
         vec2 dx = dFdx(uv);
