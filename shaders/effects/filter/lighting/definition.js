@@ -33,6 +33,7 @@ export default new Effect({
       min: 1.0,
       max: 10.0,
       step: 0.1,
+      randMax: 5.0,
       ui: {
         label: "smoothing",
         control: "slider",
@@ -66,6 +67,7 @@ export default new Effect({
       min: 0.0,
       max: 2.0,
       step: 0.01,
+      randMax: 1.0,
       ui: {
         label: "intensity",
         control: "slider",
@@ -112,6 +114,7 @@ export default new Effect({
       min: 0.0,
       max: 100.0,
       step: 0.1,
+      randMax: 25.0,
       ui: {
         label: "reflection",
         control: "slider",
@@ -125,6 +128,7 @@ export default new Effect({
       min: 0.0,
       max: 100.0,
       step: 0.1,
+      randMax: 25.0,
       ui: {
         label: "refraction",
         control: "slider"
