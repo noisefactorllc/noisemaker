@@ -30,6 +30,8 @@ export default new Effect({
       uniform: "speed",
       min: -5,
       max: 5,
+      randMin: -1,
+      randMax: 1,
       ui: {
         label: "speed",
         control: "slider"

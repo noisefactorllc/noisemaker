@@ -103,6 +103,7 @@ export default new Effect({
         "min": 0,
         "max": 5,
         "zero": 0,
+        "randMax": 2,
         "uniform": "speed",
         ui: {
             label: "speed"
