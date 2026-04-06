@@ -1422,6 +1422,9 @@ export class ProgramState extends Emitter {
                 const spec = globals?.[paramName]
                 if (spec?.ui?.control === false) continue
 
+                // Skip button params (actions like resetState, not persistent state)
+                if (spec?.ui?.control === 'button') continue
+
                 // Check if this param is automated in the original DSL
                 const rawKwarg = effectInfo?.rawKwargs?.[paramName]
                 const isAutomatedInDsl = rawKwarg && typeof rawKwarg === 'object' && (
