@@ -61,41 +61,32 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let rotated = vec2<f32>(centered.x * c - centered.y * s, centered.x * s + centered.y * c);
     let coord = rotated + resolution * 0.5;
 
+    // Time offset — uses 256 (pattern period) so it loops seamlessly at any speed
+    let animOffset = i32(floor(time * f32(-speed) * 256.0));
+
     // Compute integer coordinates
-    var x = i32(floor(coord.x / pixelScale)) + offsetX;
+    var x = i32(floor(coord.x / pixelScale)) + offsetX + animOffset;
     var y = i32(floor(coord.y / pixelScale)) + offsetY;
 
     // Seed XORs into coordinates (dramatic pattern shifts)
     x = x ^ seed;
     y = y ^ (seed * 3);
 
-    // Animate mask: ping-pong through 8 bit-depth values, loops seamlessly
-    // speed controls how many complete ping-pongs per loop
-    var animMask = mask;
-    if (speed != 0) {
-        // 0→1 triangle wave, then scale to 0..7 integer steps
-        let t = fract(time * f32(speed));
-        let tri = 1.0 - abs(t * 2.0 - 1.0);
-        let step = i32(floor(tri * 7.999));
-        // Masks: 255, 127, 63, 31, 15, 7, 3, 1 (descending bit depth)
-        animMask = (1 << u32(8 - step)) - 1;
-    }
-
     if (colorMode == 0) {
         // Mono: same operation across all channels
-        let v = bitOp(x, y, operation, animMask);
+        let v = bitOp(x, y, operation, mask);
         return vec4<f32>(v, v, v, 1.0);
     } else if (colorMode == 1) {
         // RGB: channel-shifted patterns (chromatic aberration)
-        let r = bitOp(x, y, operation, animMask);
-        let g = bitOp(x + colorOffset, y, operation, animMask);
-        let b = bitOp(x, y + colorOffset, operation, animMask);
+        let r = bitOp(x, y, operation, mask);
+        let g = bitOp(x + colorOffset, y, operation, mask);
+        let b = bitOp(x, y + colorOffset, operation, mask);
         return vec4<f32>(r, g, b, 1.0);
     } else {
         // HSV: bitwise value drives hue, full saturation and value
         // Scale hue to avoid wrapping both ends to red
-        let v = bitOp(x, y, operation, animMask);
-        let hueScale = f32(animMask) / f32(animMask + 1);
+        let v = bitOp(x, y, operation, mask);
+        let hueScale = f32(mask) / f32(mask + 1);
         return vec4<f32>(hsv2rgb(vec3<f32>(v * hueScale, 1.0, 1.0)), 1.0);
     }
 }

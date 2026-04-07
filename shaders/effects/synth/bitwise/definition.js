@@ -130,7 +130,7 @@ export default new Effect({
       type: "int",
       default: 0,
       uniform: "speed",
-      min: 0,
+      min: -5,
       max: 5,
       zero: 0,
       randChance: 0,

@@ -53,43 +53,33 @@ void main() {
     vec2 rotated = vec2(centered.x * c - centered.y * s, centered.x * s + centered.y * c);
     vec2 coord = rotated + resolution * 0.5;
 
+    // Time offset — uses 256 (pattern period) so it loops seamlessly at any speed
+    int animOffset = int(floor(time * float(int(-speed)) * 256.0));
+
     // Compute integer coordinates
-    int x = int(floor(coord.x / pixelScale)) + offsetX;
+    int x = int(floor(coord.x / pixelScale)) + offsetX + animOffset;
     int y = int(floor(coord.y / pixelScale)) + offsetY;
 
     // Seed XORs into coordinates (dramatic pattern shifts)
     x = x ^ seed;
     y = y ^ (seed * 3);
 
-    // Animate mask: ping-pong through 8 bit-depth values, loops seamlessly
-    // speed controls how many complete ping-pongs per loop
-    int animMask = mask;
-    int spd = int(speed);
-    if (spd != 0) {
-        // 0→1 triangle wave, then scale to 0..7 integer steps
-        float t = fract(time * float(spd));
-        float tri = 1.0 - abs(t * 2.0 - 1.0);
-        int step = int(floor(tri * 7.999));
-        // Masks: 255, 127, 63, 31, 15, 7, 3, 1 (descending bit depth)
-        animMask = (1 << (8 - step)) - 1;
-    }
-
     float v;
     if (colorMode == 0) {
         // Mono: same operation across all channels
-        v = bitOp(x, y, operation, animMask);
+        v = bitOp(x, y, operation, mask);
         fragColor = vec4(v, v, v, 1.0);
     } else if (colorMode == 1) {
         // RGB: channel-shifted patterns (chromatic aberration)
-        float r = bitOp(x, y, operation, animMask);
-        float g = bitOp(x + colorOffset, y, operation, animMask);
-        float b = bitOp(x, y + colorOffset, operation, animMask);
+        float r = bitOp(x, y, operation, mask);
+        float g = bitOp(x + colorOffset, y, operation, mask);
+        float b = bitOp(x, y + colorOffset, operation, mask);
         fragColor = vec4(r, g, b, 1.0);
     } else {
         // HSV: bitwise value drives hue, full saturation and value
         // Scale hue to avoid wrapping both ends to red
-        v = bitOp(x, y, operation, animMask);
-        float hueScale = float(animMask) / float(animMask + 1);
+        v = bitOp(x, y, operation, mask);
+        float hueScale = float(mask) / float(mask + 1);
         fragColor = vec4(hsv2rgb(vec3(v * hueScale, 1.0, 1.0)), 1.0);
     }
 }

@@ -17,7 +17,7 @@ Generates patterns by applying bitwise and arithmetic operations to pixel coordi
 | mask | int | 255 | - | Bit depth mask (8-bit through 1-bit) |
 | seed | int | 0 | 0-255 | XORs into coordinates for pattern variation |
 | colorMode | int | 0 | 0-1 | Output mode (0=Mono, 1=RGB with channel shifts) |
-| speed | int | 0 | -5-5 | Animation speed (integer pixel shifts, loops seamlessly) |
+| speed | int | 0 | -5-5 | Animation speed (panning) |
 
 ## Operations
 
