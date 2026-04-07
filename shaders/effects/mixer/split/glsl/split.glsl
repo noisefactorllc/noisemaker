@@ -32,10 +32,19 @@ void main() {
     vec2 rotated = vec2(centered.x * c - centered.y * s,
                         centered.x * s + centered.y * c);
 
-    // Animate position with wipe
+    // Compute visible extent of rotated.y for seamless scrolling
+    // The projected range depends on aspect ratio and rotation angle
+    float extent = aspect * abs(s) + abs(c) + softness;
+
+    // Animate: continuous scroll across full visible range
+    // Alternates sweep direction each cycle so the wrap point is seamless
     float animPos = position;
+    bool flipCycle = false;
     if (speed > 0.0) {
-        animPos += sin(time * 2.0 * PI * speed);
+        float cycle = time * speed * 2.0;
+        float t = fract(cycle);
+        flipCycle = mod(floor(cycle), 2.0) == 1.0;
+        animPos = t * extent * 2.0 - extent;
     }
 
     // Signed distance from the split line
@@ -45,7 +54,7 @@ void main() {
     float halfSoft = max(softness * 0.5, 0.001);
     float mask = smoothstep(-halfSoft, halfSoft, d);
 
-    if (invert == 1) {
+    if ((invert == 1) != flipCycle) {
         mask = 1.0 - mask;
     }
 

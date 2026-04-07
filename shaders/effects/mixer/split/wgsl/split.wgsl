@@ -29,10 +29,19 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let rotated = vec2<f32>(centered.x * c - centered.y * s,
                             centered.x * s + centered.y * c);
 
-    // Animate position with wipe
+    // Compute visible extent of rotated.y for seamless scrolling
+    // The projected range depends on aspect ratio and rotation angle
+    let extent = aspect * abs(s) + abs(c) + softness;
+
+    // Animate: continuous scroll across full visible range
+    // Alternates sweep direction each cycle so the wrap point is seamless
     var animPos = position;
+    var flipCycle = false;
     if (speed > 0.0) {
-        animPos = animPos + sin(time * 2.0 * PI * speed);
+        let cycle = time * speed * 2.0;
+        let t = fract(cycle);
+        flipCycle = i32(floor(cycle)) % 2 == 1;
+        animPos = t * extent * 2.0 - extent;
     }
 
     // Signed distance from the split line
@@ -42,7 +51,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let halfSoft = max(softness * 0.5, 0.001);
     var mask = smoothstep(-halfSoft, halfSoft, d);
 
-    if (invert == 1) {
+    if ((invert == 1) != flipCycle) {
         mask = 1.0 - mask;
     }
 
