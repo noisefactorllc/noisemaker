@@ -86,7 +86,6 @@ void main() {
 	vec3 color = lp(bufTex, gl_FragCoord.xy, vec2(texSize));
 
     vec2 prevFrameCoord = gl_FragCoord.xy/vec2(texSize);
-    prevFrameCoord.y = 1.0 - prevFrameCoord.y;
 
     vec3 prevFrame = texture(inputTex, prevFrameCoord).rgb;
 

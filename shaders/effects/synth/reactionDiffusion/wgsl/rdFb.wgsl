@@ -77,7 +77,6 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     var color = lp(bufTex, pos.xy, texSize);
 
     var prevFrameCoord = pos.xy / texSize;
-    prevFrameCoord.y = 1.0 - prevFrameCoord.y;
 
     let prevFrame = textureSampleLevel(inputTex, samp, prevFrameCoord, 0.0).rgb;
 

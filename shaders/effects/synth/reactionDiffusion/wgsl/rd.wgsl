@@ -273,7 +273,6 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     // Blend with input texture
     if (inputIntensity > 0.0) {
         var inputUv = pos.xy / resolution;
-        inputUv.y = 1.0 - inputUv.y;
         let inputColor = textureSampleLevel(inputTex, samp, inputUv, 0.0).rgb;
         rdColor = mix(rdColor, inputColor, inputIntensity);
     }

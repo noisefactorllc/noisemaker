@@ -330,7 +330,6 @@ void main() {
     float blend = inputIntensity * 0.01;
     if (blend > 0.0) {
         vec2 inputUv = gl_FragCoord.xy / resolution;
-        inputUv.y = 1.0 - inputUv.y;
         vec3 inputColor = texture(inputTex, inputUv).rgb;
         rdColor = mix(rdColor, inputColor, blend);
     }
