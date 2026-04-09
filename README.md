@@ -35,6 +35,10 @@ Additional platform-specific guides:
 - Shader effects port is documented in the [Shaders README](shaders/README-SHADERS.md)
 - Container workflows appear in the [Docker README](README-DOCKER.md)
 
+## Credits
+
+Noisemaker's shader effects build on work shared by the creative coding community. See [CREDITS.md](CREDITS.md) for attributions.
+
 ## License
 
 Noisemaker is released under the [MIT License](LICENSE). Use of name in derivative products is subject to the [Trademark Policy](TRADEMARK.md).
