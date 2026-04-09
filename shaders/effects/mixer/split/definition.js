@@ -32,10 +32,10 @@ export default new Effect({
       uniform: "position",
       min: -1,
       max: 1,
-      ui: { 
-        label: "position", 
-        control: "slider", 
-        enabledBy: { param: 'speed', eq: 0 } 
+      ui: {
+        label: "position",
+        control: "slider",
+        enabledBy: { param: 'speed', eq: 0 }
       }
     },
     rotation: {
