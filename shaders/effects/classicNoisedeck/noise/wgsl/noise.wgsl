@@ -8,6 +8,13 @@ struct Uniforms {
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 
+// NOISE_TYPE is a compile-time const injected by the runtime via injectDefines
+// (see classicNoisedeck/noise/definition.js `globals.type.define`). Replacing
+// the runtime dispatch with a compile-time constant lets the WGSL compiler
+// constant-fold the variant selection — same fix as the GLSL backend (see
+// classicNoisedeck/noise/glsl/noise.glsl header). The expander always provides
+// this define for classicNoisedeck/noise programs.
+
 var<private> resolution : vec2<f32>;
 var<private> time : f32;
 var<private> aspectRatio : f32;
@@ -17,7 +24,6 @@ var<private> seed : f32;
 var<private> loopScale : f32;
 var<private> speed : f32;
 var<private> loopOffset : i32;
-var<private> noiseType : i32;
 var<private> octaves : i32;
 var<private> ridges : bool;
 var<private> wrap : bool;
@@ -396,27 +402,27 @@ fn sineNoise(st_in: vec2<f32>, freq: vec2<f32>, s: f32, blend: f32) -> f32 {
 }
 
 fn value(st: vec2<f32>, freq: vec2<f32>, s: f32, blend: f32) -> f32 {
-    if (noiseType == 3) {
+    if (NOISE_TYPE == 3) {
         // 3×3 Catmull-Rom (9 taps)
         return catmullRom3x3ValueNoise(st, freq, s, blend);
-    } else if (noiseType == 4) {
+    } else if (NOISE_TYPE == 4) {
         // 4×4 Catmull-Rom (16 taps)
         return catmullRom4x4ValueNoise(st, freq, s, blend);
-    } else if (noiseType == 5) {
+    } else if (NOISE_TYPE == 5) {
         // 3×3 quadratic B-spline (9 taps)
         return cubic3x3ValueNoise(st, freq, s, blend);
-    } else if (noiseType == 6) {
+    } else if (NOISE_TYPE == 6) {
         // 4×4 cubic B-spline (16 taps)
         return bicubicValue(st, freq, s, blend);
-    } else if (noiseType == 10) {
+    } else if (NOISE_TYPE == 10) {
         return simplexValue(st, freq, s, blend);
-    } else if (noiseType == 11) {
+    } else if (NOISE_TYPE == 11) {
         return sineNoise(st, freq, s, blend);
     }
 
     let lattice = st * freq;
     let x1y1 = constantFromLatticeWithOffset(lattice, freq, s, blend, vec2<i32>(0, 0));
-    if (noiseType == 0) {
+    if (NOISE_TYPE == 0) {
         return x1y1;
     }
 
@@ -425,9 +431,9 @@ fn value(st: vec2<f32>, freq: vec2<f32>, s: f32, blend: f32) -> f32 {
     let x2y2 = constantOffset(lattice, freq, s, blend, vec2<i32>(1, 1));
 
     let frac = fract(lattice);
-    let a = blendLinearOrCosine(x1y1, x2y1, frac.x, noiseType);
-    let b = blendLinearOrCosine(x1y2, x2y2, frac.x, noiseType);
-    return blendLinearOrCosine(a, b, frac.y, noiseType);
+    let a = blendLinearOrCosine(x1y1, x2y1, frac.x, NOISE_TYPE);
+    let b = blendLinearOrCosine(x1y2, x2y2, frac.x, NOISE_TYPE);
+    return blendLinearOrCosine(a, b, frac.y, NOISE_TYPE);
 }
 
 fn circles(st: vec2<f32>, freq: f32) -> f32 {
@@ -635,11 +641,11 @@ fn multires(st_in: vec2<f32>, freq: vec2<f32>, oct: i32, s: f32, blend: f32) -> 
     var color = vec3<f32>(0.0);
     var multiplicand = 0.0;
     var nominalFreq = vec2<f32>(0.0, 0.0);
-    if (noiseType == 11) {
+    if (NOISE_TYPE == 11) {
         // Sine noise uses [40, 1]; pin refract defaults to its midpoint.
         let base = map(75.0, 1.0, 100.0, 40.0, 1.0);
         nominalFreq = vec2<f32>(base, base);
-    } else if (noiseType == 10) {
+    } else if (NOISE_TYPE == 10) {
         // Simplex spans [6, 0.5]; keep axis ratios anchored to that midpoint.
         let base = map(75.0, 1.0, 100.0, 6.0, 0.5);
         nominalFreq = vec2<f32>(base, base);
@@ -777,7 +783,6 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     loopScale = uniforms.data[1].w;
     speed = uniforms.data[2].x;
     loopOffset = i32(uniforms.data[2].y);
-    noiseType = i32(uniforms.data[2].z);
     octaves = max(1, i32(uniforms.data[2].w));
     ridges = uniforms.data[3].x > 0.5;
     wrap = uniforms.data[3].y > 0.5;
@@ -804,12 +809,12 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     var freq = vec2<f32>(1.0, 1.0);
     var lf = vec2<f32>(1.0, 1.0);
 
-    if (noiseType == 11) {
+    if (NOISE_TYPE == 11) {
         freq.x = map(xScale, 1.0, 100.0, 40.0, 1.0);
         freq.y = map(yScale, 1.0, 100.0, 40.0, 1.0);
         let val = map(loopScale, 1.0, 100.0, 10.0, 1.0);
         lf = vec2<f32>(val, val);
-    } else if (noiseType == 10) {
+    } else if (NOISE_TYPE == 10) {
         freq.x = map(xScale, 1.0, 100.0, 6.0, 0.5);
         freq.y = map(yScale, 1.0, 100.0, 6.0, 0.5);
         let val = map(loopScale, 1.0, 100.0, 6.0, 0.5);
@@ -823,11 +828,11 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     if (loopOffset == 300) {
         var nominalFreq = vec2<f32>(1.0, 1.0);
-        if (noiseType == 11) {
+        if (NOISE_TYPE == 11) {
             // Sine noise maps into a wide [40, 1] range, so reuse its midpoint to match the field frequency.
             let base = map(75.0, 1.0, 100.0, 40.0, 1.0);
             nominalFreq = vec2<f32>(base, base);
-        } else if (noiseType == 10) {
+        } else if (NOISE_TYPE == 10) {
             // Simplex maps into [6, 0.5]; anchoring to its midpoint keeps loop stretch aligned with the main noise.
             let base = map(75.0, 1.0, 100.0, 6.0, 0.5);
             nominalFreq = vec2<f32>(base, base);
@@ -840,7 +845,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
         lf = lf * (freq / nominalFreq);
     }
 
-    if (noiseType != 4 && noiseType != 10 && wrap) {
+    if (NOISE_TYPE != 4 && NOISE_TYPE != 10 && wrap) {
         freq = floor(freq);
         if (loopOffset == 300) {
             lf = floor(lf);

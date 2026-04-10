@@ -26,7 +26,8 @@ export default class Noise extends Effect {
     loopScale: { slot: 1, components: 'w' },
     speed: { slot: 2, components: 'x' },
     loopOffset: { slot: 2, components: 'y' },
-    type: { slot: 2, components: 'z' },
+    // slot 2 component z is intentionally unused — `type` is a compile-time
+    // define (see globals.type below), not a runtime uniform.
     octaves: { slot: 2, components: 'w' },
     ridges: { slot: 3, components: 'x' },
     wrap: { slot: 3, components: 'y' },
@@ -51,7 +52,13 @@ export default class Noise extends Effect {
     type: {
       type: "int",
       default: 10,
-      uniform: "type",
+      // Compile-time define, not a runtime uniform. Changing this triggers a
+      // shader recompile via the expander/UI integration. Avoids ANGLE→D3D
+      // inlining the entire 9-way decision tree at every call site, which
+      // produced ~85 second compiles on Windows Chrome and was hard-crashing
+      // ANGLE for downstream effects (cellNoise, cellRefract, etc.) that use
+      // classicNoisedeck/noise as their upstream feed.
+      define: "NOISE_TYPE",
       choices: {
         constant: 0,
         linear: 1,
