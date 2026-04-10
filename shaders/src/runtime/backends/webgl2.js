@@ -726,7 +726,7 @@ export class WebGL2Backend extends Backend {
         const _tStatus = performance.now()
 
         // Knob 1: per-phase compile timings (logging only — see HANDOFF-shader-compile.md)
-        console.log(`[compile-glsl ${id}] vs=${(_tVs - _t0).toFixed(1)}ms fs=${(_tFs - _tVs).toFixed(1)}ms link=${(_tLink - _tFs).toFixed(1)}ms status=${(_tStatus - _tLink).toFixed(1)}ms total=${(_tStatus - _t0).toFixed(1)}ms src=${source.length}b`)
+        //console.log(`[compile-glsl ${id}] vs=${(_tVs - _t0).toFixed(1)}ms fs=${(_tFs - _tVs).toFixed(1)}ms link=${(_tLink - _tFs).toFixed(1)}ms status=${(_tStatus - _tLink).toFixed(1)}ms total=${(_tStatus - _t0).toFixed(1)}ms src=${source.length}b`)
 
         if (!_linkOk) {
             const log = gl.getProgramInfoLog(program)
