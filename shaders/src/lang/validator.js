@@ -776,7 +776,7 @@ export function validate(ast) {
                             value = node.hex || node.value
                         } else {
                             if (node && node.type && node.type !== 'Ident') {
-                                pushDiag('S002', node)
+                                pushDiag('S002', node, `Argument out of range for '${def.name}' in ${call.name}()`)
                             }
                             value = def.default
                         }
@@ -794,7 +794,7 @@ export function validate(ast) {
                                 if (arg.type === 'Number') {
                                     value.push(arg.value)
                                 } else {
-                                    pushDiag('S002', arg)
+                                    pushDiag('S002', arg, `Argument out of range for '${def.name}' in ${call.name}()`)
                                     value.push(0)
                                 }
                             }
@@ -802,7 +802,7 @@ export function validate(ast) {
                             value = node.value.slice(0, 3)
                         } else {
                             if (node && node.type && node.type !== 'Ident') {
-                                pushDiag('S002', node)
+                                pushDiag('S002', node, `Argument out of range for '${def.name}' in ${call.name}()`)
                             }
                             value = def.default ? def.default.slice() : [0,0,0]
                         }
@@ -820,7 +820,7 @@ export function validate(ast) {
                                 if (arg.type === 'Number') {
                                     value.push(arg.value)
                                 } else {
-                                    pushDiag('S002', arg)
+                                    pushDiag('S002', arg, `Argument out of range for '${def.name}' in ${call.name}()`)
                                     value.push(0)
                                 }
                             }
@@ -829,7 +829,7 @@ export function validate(ast) {
                             value = node.value.slice()
                         } else {
                             if (node && node.type && node.type !== 'Ident') {
-                                pushDiag('S002', node)
+                                pushDiag('S002', node, `Argument out of range for '${def.name}' in ${call.name}()`)
                             }
                             value = def.default ? def.default.slice() : [0,0,0,1]
                         }
@@ -860,7 +860,7 @@ export function validate(ast) {
                             if (node && node.type === 'Ident' && !stateValues.has(node.name)) {
                                 pushDiag('S003', node)
                             } else if (node && node.type && node.type !== 'Ident') {
-                                pushDiag('S002', node)
+                                pushDiag('S002', node, `Argument out of range for '${def.name}' in ${call.name}()`)
                             }
                             value = def.default !== undefined ? !!def.default : false
                         }
@@ -1027,7 +1027,7 @@ export function validate(ast) {
                             value = node.type === 'Boolean' ? (node.value ? 1 : 0) : node.value
                             const clamped = clamp(value, def.min, def.max)
                             if (clamped !== value) {
-                                pushDiag('S002', node)
+                                pushDiag('S002', node, `Argument out of range for '${def.name}' in ${call.name}() (got ${value}, clamped to ${clamped})`)
                             }
                             value = clamped
                             // Preserve variable reference marker for unparser round-trip
@@ -1181,13 +1181,13 @@ export function validate(ast) {
                             if (typeof cur === 'number') {
                                 value = clamp(cur, def.min, def.max)
                                 if (value !== cur) {
-                                    pushDiag('S002', node)
+                                    pushDiag('S002', node, `Argument out of range for '${def.name}' in ${call.name}() (got ${cur}, clamped to ${value})`)
                                 }
                             } else if (typeof cur === 'boolean') {
                                 const num = cur ? 1 : 0
                                 value = clamp(num, def.min, def.max)
                                 if (value !== num) {
-                                    pushDiag('S002', node)
+                                    pushDiag('S002', node, `Argument out of range for '${def.name}' in ${call.name}() (got ${num}, clamped to ${value})`)
                                 }
                             } else {
                                 pushDiag('S001', node, `Cannot resolve enum value for '${def.name}': '${node?.path?.join('.') || node?.name || 'unknown'}'`)
@@ -1222,7 +1222,7 @@ export function validate(ast) {
                             if (node && node.type === 'Ident' && !stateValues.has(node.name)) {
                                 pushDiag('S003', node)
                             } else if (node && node.type && node.type !== 'Ident') {
-                                pushDiag('S002', node)
+                                pushDiag('S002', node, `Argument out of range for '${def.name}' in ${call.name}()`)
                             }
                             if (def.defaultFrom) {
                                 // Look up the referenced arg by its DSL name (def.name), NOT uniform name
