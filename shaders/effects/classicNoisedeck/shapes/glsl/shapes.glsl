@@ -9,12 +9,25 @@
 precision highp float;
 precision highp int;
 
+// LOOP_A_OFFSET and LOOP_B_OFFSET are compile-time defines injected by the
+// runtime (see definition.js `globals.loopAOffset.define` and
+// `globals.loopBOffset.define`). Each unique (loopA, loopB) combination
+// produces its own compiled program. The default (40 = square, 30 = diamond)
+// doesn't reach the noise variants, so the entire 9-way value() dispatch and
+// the variant function bodies get dead-code-eliminated by the GLSL→HLSL
+// translator before ANGLE drives the D3D backend. This avoids the ~35s
+// compile hang on Windows Chrome — see HANDOFF-shader-compile.md.
+#ifndef LOOP_A_OFFSET
+#define LOOP_A_OFFSET 40
+#endif
+#ifndef LOOP_B_OFFSET
+#define LOOP_B_OFFSET 30
+#endif
+
 uniform float time;
 uniform int seed;
 uniform bool wrap;
 uniform vec2 resolution;
-uniform int loopAOffset;
-uniform int loopBOffset;
 uniform float loopAScale;
 uniform float loopBScale;
 uniform float speedA;
@@ -643,30 +656,30 @@ void main() {
     float lf1 = map(loopAScale, 1.0, 100.0, 6.0, 1.0);
     if (wrap) {
         lf1 = floor(lf1);  // for seamless noise
-        if (loopAOffset >= 200 && loopAOffset < 300) {
-            lf1 *= 2.0;
-        }
+#if LOOP_A_OFFSET >= 200 && LOOP_A_OFFSET < 300
+        lf1 *= 2.0;
+#endif
     }
     float amp1 = map(abs(speedA), 0.0, 100.0, 0.0, 1.0);
 	float t1 = 1.0;
 	if (speedA < 0.0) {
-	    t1 = time + offset(st, lf1, loopAOffset, amp1, float(seed));
+	    t1 = time + offset(st, lf1, LOOP_A_OFFSET, amp1, float(seed));
 	} else if (speedA > 0.0) {
-		t1 = time - offset(st, lf1, loopAOffset, amp1, float(seed));
+		t1 = time - offset(st, lf1, LOOP_A_OFFSET, amp1, float(seed));
 	}
     float lf2 = map(loopBScale, 1.0, 100.0, 6.0, 1.0);
     if (wrap) {
         lf2 = floor(lf2);  // for seamless noise
-        if (loopBOffset >= 200 && loopBOffset < 300) {
-            lf2 *= 2.0;
-        }
+#if LOOP_B_OFFSET >= 200 && LOOP_B_OFFSET < 300
+        lf2 *= 2.0;
+#endif
     }
     float amp2 = map(abs(speedB), 0.0, 100.0, 0.0, 1.0);
 	float t2 = 1.0;
 	if (speedB < 0.0) {
-	    t2 = time + offset(st, lf2, loopBOffset, amp2, float(seed) + 10.0);
+	    t2 = time + offset(st, lf2, LOOP_B_OFFSET, amp2, float(seed) + 10.0);
 	} else if (speedB > 0.0) {
-		t2 = time - offset(st, lf2, loopBOffset, amp2, float(seed) + 10.0);
+		t2 = time - offset(st, lf2, LOOP_B_OFFSET, amp2, float(seed) + 10.0);
 	}
 
     float a = periodicFunction(t1) * amp1;

@@ -21,8 +21,8 @@ export default class Shapes extends Effect {
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
     wrap: { slot: 1, components: 'x' },
-    loopAOffset: { slot: 1, components: 'y' },
-    loopBOffset: { slot: 1, components: 'z' },
+    // slot 1 components y/z intentionally unused — loopAOffset and loopBOffset
+    // are compile-time defines (see globals below), not runtime uniforms.
     loopAScale: { slot: 1, components: 'w' },
     loopBScale: { slot: 2, components: 'x' },
     speedA: { slot: 2, components: 'y' },
@@ -40,7 +40,11 @@ export default class Shapes extends Effect {
     loopAOffset: {
       type: "int",
       default: 40,
-      uniform: "loopAOffset",
+      // Compile-time define — each (loopA, loopB) combination produces its own
+      // compiled program. Avoids the 35s ANGLE→D3D inlining hang on Windows
+      // Chrome where the runtime if-cascade in offset() and the 9-way value()
+      // dispatch were both being inlined into every call site.
+      define: "LOOP_A_OFFSET",
       choices: {
         "Shapes:": null,
         circle: 10,
@@ -80,7 +84,8 @@ export default class Shapes extends Effect {
     loopBOffset: {
       type: "int",
       default: 30,
-      uniform: "loopBOffset",
+      // Compile-time define — see loopAOffset above.
+      define: "LOOP_B_OFFSET",
       choices: {
         "Shapes:": null,
         circle: 10,

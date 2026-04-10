@@ -10,12 +10,14 @@ struct Uniforms {
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 
+// LOOP_A_OFFSET and LOOP_B_OFFSET are compile-time consts injected by the
+// runtime via injectDefines(). See classicNoisedeck/shapes/definition.js
+// `globals.LOOP_A_OFFSET.define` / `globals.LOOP_B_OFFSET.define`.
+
 var<private> resolution : vec2<f32>;
 var<private> time : f32;
 var<private> seed : f32;
 var<private> wrap : bool;
-var<private> loopAOffset : i32;
-var<private> loopBOffset : i32;
 var<private> loopAScale : f32;
 var<private> loopBScale : f32;
 var<private> speedA : f32;
@@ -571,8 +573,6 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     seed = uniforms.data[0].w;
 
     wrap = uniforms.data[1].x > 0.5;
-    loopAOffset = i32(uniforms.data[1].y);
-    loopBOffset = i32(uniforms.data[1].z);
     loopAScale = uniforms.data[1].w;
 
     loopBScale = uniforms.data[2].x;
@@ -599,31 +599,31 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var lf1 = map(loopAScale, 1.0, 100.0, 6.0, 1.0);
     if (wrap) {
         lf1 = floor(lf1);
-        if (loopAOffset >= 200 && loopAOffset < 300) {
+        if (LOOP_A_OFFSET >= 200 && LOOP_A_OFFSET < 300) {
             lf1 = lf1 * 2.0;
         }
     }
     let amp1 = map(abs(speedA), 0.0, 100.0, 0.0, 1.0);
     var t1 = 1.0;
     if (speedA < 0.0) {
-        t1 = time + offset(st, lf1, loopAOffset, amp1, seed);
+        t1 = time + offset(st, lf1, LOOP_A_OFFSET, amp1, seed);
     } else if (speedA > 0.0) {
-        t1 = time - offset(st, lf1, loopAOffset, amp1, seed);
+        t1 = time - offset(st, lf1, LOOP_A_OFFSET, amp1, seed);
     }
 
     var lf2 = map(loopBScale, 1.0, 100.0, 6.0, 1.0);
     if (wrap) {
         lf2 = floor(lf2);
-        if (loopBOffset >= 200 && loopBOffset < 300) {
+        if (LOOP_B_OFFSET >= 200 && LOOP_B_OFFSET < 300) {
             lf2 = lf2 * 2.0;
         }
     }
     let amp2 = map(abs(speedB), 0.0, 100.0, 0.0, 1.0);
     var t2 = 1.0;
     if (speedB < 0.0) {
-        t2 = time + offset(st, lf2, loopBOffset, amp2, seed + 10.0);
+        t2 = time + offset(st, lf2, LOOP_B_OFFSET, amp2, seed + 10.0);
     } else if (speedB > 0.0) {
-        t2 = time - offset(st, lf2, loopBOffset, amp2, seed + 10.0);
+        t2 = time - offset(st, lf2, LOOP_B_OFFSET, amp2, seed + 10.0);
     }
 
     let a = periodicFunction(t1) * amp1;
