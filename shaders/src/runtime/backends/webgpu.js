@@ -830,7 +830,7 @@ export class WebGPUBackend extends Backend {
         const _tPipeline = performance.now()
 
         // Knob 1: per-phase compile timings (logging only — see HANDOFF-shader-compile.md)
-        console.log(`[compile-wgsl-render ${id}] module=${(_tModule - _t0).toFixed(1)}ms info=${(_tInfo - _tModule).toFixed(1)}ms pipeline=${(_tPipeline - _tBeforePipeline).toFixed(1)}ms total=${(_tPipeline - _t0).toFixed(1)}ms src=${source.length}b`)
+        //console.log(`[compile-wgsl-render ${id}] module=${(_tModule - _t0).toFixed(1)}ms info=${(_tInfo - _tModule).toFixed(1)}ms pipeline=${(_tPipeline - _tBeforePipeline).toFixed(1)}ms total=${(_tPipeline - _t0).toFixed(1)}ms src=${source.length}b`)
 
         // Create pipeline cache for different output formats/blend modes
         const pipelineCache = new Map()
