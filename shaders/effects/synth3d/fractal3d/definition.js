@@ -51,7 +51,9 @@ export default new Effect({
     type: {
       type: "int",
       default: 0,
-      uniform: "type",
+      // GPU uniform renamed from `type` to `noiseType` because `type` is a
+      // reserved keyword in WGSL — Dawn fails to parse `var<uniform> type: i32;`.
+      uniform: "noiseType",
       choices: {
         mandelbulb: 0,
         mandelcube: 1,

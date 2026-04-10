@@ -54,14 +54,18 @@ fn getSampleOffset(i: i32, count: i32) -> vec2<f32> {
 }
 
 fn msaaBlend(uv: vec2<f32>, texelSize: vec2<f32>, threshold: f32, sampleCount: i32, radius: f32) -> vec4<f32> {
-    let center = textureSample(inputTex, inputSampler, uv);
+    // Use textureSampleLevel throughout — the supersample loop below depends
+    // on per-pixel maxDiff (non-uniform control flow), so plain textureSample
+    // would be illegal in WGSL. textureSampleLevel takes an explicit mip level
+    // and has no derivative requirement. These shaders don't use mipmaps.
+    let center = textureSampleLevel(inputTex, inputSampler, uv, 0.0);
 
     // Threshold check: skip AA for low-contrast pixels
     let L = luminance(center.rgb);
-    let Ln = luminance(textureSample(inputTex, inputSampler, uv + vec2<f32>(0.0, -texelSize.y)).rgb);
-    let Ls = luminance(textureSample(inputTex, inputSampler, uv + vec2<f32>(0.0,  texelSize.y)).rgb);
-    let Lw = luminance(textureSample(inputTex, inputSampler, uv + vec2<f32>(-texelSize.x, 0.0)).rgb);
-    let Le = luminance(textureSample(inputTex, inputSampler, uv + vec2<f32>( texelSize.x, 0.0)).rgb);
+    let Ln = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(0.0, -texelSize.y), 0.0).rgb);
+    let Ls = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(0.0,  texelSize.y), 0.0).rgb);
+    let Lw = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(-texelSize.x, 0.0), 0.0).rgb);
+    let Le = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>( texelSize.x, 0.0), 0.0).rgb);
 
     let maxDiff = max(max(abs(L - Ln), abs(L - Ls)),
                       max(abs(L - Lw), abs(L - Le)));
@@ -75,7 +79,7 @@ fn msaaBlend(uv: vec2<f32>, texelSize: vec2<f32>, threshold: f32, sampleCount: i
     for (var i = 0; i < 8; i = i + 1) {
         if (i >= sampleCount) { break; }
         let offset = getSampleOffset(i, sampleCount) * radius;
-        sum = sum + textureSample(inputTex, inputSampler, uv + offset * texelSize);
+        sum = sum + textureSampleLevel(inputTex, inputSampler, uv + offset * texelSize, 0.0);
     }
     return sum / f32(sampleCount);
 }
@@ -193,7 +197,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let uv = pos.xy / texSize;
     let texelSize = 1.0 / texSize;
 
-    let original = textureSample(inputTex, inputSampler, uv);
+    let original = textureSampleLevel(inputTex, inputSampler, uv, 0.0);
     var result: vec4<f32>;
 
     if (smoothType == 0) {

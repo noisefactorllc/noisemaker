@@ -4,7 +4,7 @@ precision highp float;
 // Uniforms
 uniform float time;
 uniform int volumeSize;
-uniform int type;
+uniform int noiseType;
 uniform float power;
 uniform int iterations;
 uniform float bailout;
@@ -94,7 +94,7 @@ vec3 getOrbitPosition(float t) {
     // Mandelbulb boundary is ~1.5, Mandelbox ~2.0
     float orbitScale = 0.7;
     
-    // Use seed to select orbit type
+    // Use seed to select orbit noiseType
     int orbitType = int(mod(seed * 3.0, 3.0));
     
     if (orbitType == 0) {
@@ -269,7 +269,7 @@ FractalResult mandelbox(vec3 pos, float scale, int maxIter, float bail) {
 // ============================================================================
 
 FractalResult computeFractal(vec3 p) {
-    if (type == 0) {
+    if (noiseType == 0) {
         return mandelbulb(p, power, iterations, bailout);
     } else {
         return mandelbox(p, power, iterations, bailout);

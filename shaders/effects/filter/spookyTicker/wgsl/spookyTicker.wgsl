@@ -56,7 +56,8 @@ fn sample_glyph(digit : i32, localX : i32, localY : i32) -> f32 {
         return 0.0;
     }
     let row = GLYPHS[digit * 8 + gy];
-    return f32((row >> (6 - gx)) & 1);
+    // WGSL requires the right-hand side of `>>` to be a u32 (or vecN<u32>)
+    return f32((row >> u32(6 - gx)) & 1);
 }
 
 fn ticker_row_mask(pixelX : i32, pixelY : i32, rowSeed : i32, t : f32) -> f32 {
@@ -72,7 +73,8 @@ fn ticker_row_mask(pixelX : i32, pixelY : i32, rowSeed : i32, t : f32) -> f32 {
     }
     let localX = sx - cellX * CELL_W;
 
-    let h = hash_mix(u32(cellX) ^ u32(rowSeed) * 997u);
+    // WGSL requires explicit parens when mixing ^ and * (no implicit precedence)
+    let h = hash_mix(u32(cellX) ^ (u32(rowSeed) * 997u));
     let digit = i32(h % 10u);
 
     return sample_glyph(digit, localX, pixelY);

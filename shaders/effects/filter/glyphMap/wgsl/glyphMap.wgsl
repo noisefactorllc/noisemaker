@@ -149,7 +149,8 @@ fn glyphRow(g: i32, y: i32) -> i32 {
 // Return 1.0 if pixel (x, y) is set in glyph g, else 0.0
 fn glyphPixel(g: i32, x: i32, y: i32) -> f32 {
     let row = glyphRow(g, y);
-    let bit = (row >> (4 - x)) & 1;
+    // WGSL requires the right-hand side of `>>` to be a u32 (or vecN<u32>)
+    let bit = (row >> u32(4 - x)) & 1;
     return f32(bit);
 }
 

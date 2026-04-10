@@ -32,12 +32,15 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let dims = vec2<f32>(textureDimensions(inputTex, 0));
     let uv = position.xy / dims;
 
-    // Base image is the non-mask source
+    // Base image is the non-mask source. Use textureSampleLevel throughout
+    // because the blur loop below depends on per-pixel out-of-bounds checks
+    // (non-uniform control flow), which disqualifies plain textureSample
+    // (it would require uniform control flow for implicit derivatives).
     var baseColor: vec4<f32>;
     if (maskSource == 0) {
-        baseColor = textureSample(tex, samp, uv);
+        baseColor = textureSampleLevel(tex, samp, uv, 0.0);
     } else {
-        baseColor = textureSample(inputTex, samp, uv);
+        baseColor = textureSampleLevel(inputTex, samp, uv, 0.0);
     }
 
     // Mask UV shifted by shadow offset
@@ -62,9 +65,9 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 if (sampleUV.x >= 0.0 && sampleUV.x <= 1.0 && sampleUV.y >= 0.0 && sampleUV.y <= 1.0) {
                     var maskSample: vec4<f32>;
                     if (maskSource == 0) {
-                        maskSample = textureSample(inputTex, samp, sampleUV);
+                        maskSample = textureSampleLevel(inputTex, samp, sampleUV, 0.0);
                     } else {
-                        maskSample = textureSample(tex, samp, sampleUV);
+                        maskSample = textureSampleLevel(tex, samp, sampleUV, 0.0);
                     }
                     thresholded = step(threshold, getChannel(maskSample, sourceChannel));
                 }
@@ -82,9 +85,9 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 }
                 var maskSample: vec4<f32>;
                 if (maskSource == 0) {
-                    maskSample = textureSample(inputTex, samp, wrappedUV);
+                    maskSample = textureSampleLevel(inputTex, samp, wrappedUV, 0.0);
                 } else {
-                    maskSample = textureSample(tex, samp, wrappedUV);
+                    maskSample = textureSampleLevel(tex, samp, wrappedUV, 0.0);
                 }
                 thresholded = step(threshold, getChannel(maskSample, sourceChannel));
             }
@@ -107,9 +110,9 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     // Composite mask source (foreground) on top of the shadow
     var fgSample: vec4<f32>;
     if (maskSource == 0) {
-        fgSample = textureSample(inputTex, samp, uv);
+        fgSample = textureSampleLevel(inputTex, samp, uv, 0.0);
     } else {
-        fgSample = textureSample(tex, samp, uv);
+        fgSample = textureSampleLevel(tex, samp, uv, 0.0);
     }
     let fgMask = step(threshold, getChannel(fgSample, sourceChannel));
     let result = mix(withShadow, fgSample.rgb, fgMask);

@@ -30,7 +30,8 @@ struct VertexOutput {
 
 // Deterministic noise function for per-particle variation
 fn hash(n: f32) -> f32 {
-    return fract(sin(n + u.seed) * 43758.5453123);
+    // WGSL has no implicit i32→f32 conversion; cast u.seed to f32 explicitly
+    return fract(sin(n + f32(u.seed)) * 43758.5453123);
 }
 
 @vertex

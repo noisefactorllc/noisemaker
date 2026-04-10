@@ -2,7 +2,7 @@
 precision highp float;
 
 uniform int volumeSize;
-uniform int type;
+uniform int noiseType;
 uniform float power;
 uniform int iterations;
 uniform float bailout;
@@ -186,12 +186,12 @@ vec3 juliaCube(vec3 pos, vec3 c, float scale, int maxIter, float bail) {
 
 // Helper to get SDF result for a position
 vec3 computeFractal(vec3 p, vec3 juliaC) {
-    if (type == 0) {
+    if (noiseType == 0) {
         return mandelbulb(p, power, iterations, bailout);
-    } else if (type == 1) {
+    } else if (noiseType == 1) {
         float scale = clamp(power * 0.25, -3.0, 3.0);
         return mandelcube(p, scale, iterations, bailout);
-    } else if (type == 2) {
+    } else if (noiseType == 2) {
         return juliaBulb(p, juliaC, power, iterations, bailout);
     } else {
         float scale = clamp(power * 0.25, -3.0, 3.0);

@@ -3,7 +3,7 @@
 
 @group(0) @binding(0) var<uniform> time: f32;
 @group(0) @binding(1) var<uniform> volumeSize: i32;
-@group(0) @binding(2) var<uniform> type: i32;
+@group(0) @binding(2) var<uniform> noiseType: i32;
 @group(0) @binding(3) var<uniform> power: f32;
 @group(0) @binding(4) var<uniform> iterations: i32;
 @group(0) @binding(5) var<uniform> bailout: f32;
@@ -228,7 +228,7 @@ fn mandelbox(pos: vec3f, scale: f32, maxIter: i32, bail: f32) -> FractalResult {
 }
 
 fn computeFractal(p: vec3f) -> FractalResult {
-    if (type == 0) {
+    if (noiseType == 0) {
         return mandelbulb(p, power, iterations, bailout);
     } else {
         return mandelbox(p, power, iterations, bailout);

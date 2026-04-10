@@ -29,7 +29,9 @@ export default new Effect({
     type: {
       type: "int",
       default: 7,
-      uniform: "type",
+      // GPU uniform renamed from `type` to `patternType` because `type` is a
+      // reserved keyword in WGSL — Dawn fails to parse `var<uniform> type: i32;`.
+      uniform: "patternType",
       choices: {
         checkerboard: 0,
         concentricRings: 1,

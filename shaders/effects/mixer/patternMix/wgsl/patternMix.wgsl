@@ -1,7 +1,7 @@
 @group(0) @binding(0) var samp : sampler;
 @group(0) @binding(1) var inputTex : texture_2d<f32>;
 @group(0) @binding(2) var tex : texture_2d<f32>;
-@group(0) @binding(3) var<uniform> type : i32;
+@group(0) @binding(3) var<uniform> patternType : i32;
 @group(0) @binding(4) var<uniform> scale : f32;
 @group(0) @binding(5) var<uniform> thickness : f32;
 @group(0) @binding(6) var<uniform> smoothness : f32;
@@ -146,23 +146,23 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
     // Compute pattern mask
     var m: f32 = 0.0;
-    if (type == CHECKERBOARD) {
+    if (patternType == CHECKERBOARD) {
         m = checkerboard(p, smoothness);
-    } else if (type == CONCENTRIC_RINGS) {
+    } else if (patternType == CONCENTRIC_RINGS) {
         m = concentricRings(p, thickness, smoothness);
-    } else if (type == DOTS) {
+    } else if (patternType == DOTS) {
         m = dots(p, thickness, smoothness);
-    } else if (type == GRID) {
+    } else if (patternType == GRID) {
         m = grid(p, thickness, smoothness);
-    } else if (type == HEXAGONS) {
+    } else if (patternType == HEXAGONS) {
         m = hexagons(p, thickness, smoothness);
-    } else if (type == RADIAL_LINES) {
+    } else if (patternType == RADIAL_LINES) {
         m = radialLines(p, thickness, smoothness);
-    } else if (type == SPIRAL_PATTERN) {
+    } else if (patternType == SPIRAL_PATTERN) {
         m = spiralPattern(p, thickness, smoothness);
-    } else if (type == STRIPES) {
+    } else if (patternType == STRIPES) {
         m = stripes(p, thickness, smoothness);
-    } else if (type == TRIANGULAR_GRID) {
+    } else if (patternType == TRIANGULAR_GRID) {
         m = triangularGrid(p, thickness, smoothness);
     }
 

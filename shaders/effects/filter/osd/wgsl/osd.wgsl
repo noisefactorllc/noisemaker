@@ -70,7 +70,8 @@ fn sample_glyph(digit : i32, localX : i32, localY : i32) -> f32 {
         return 0.0;
     }
     let row : i32 = GLYPHS[digit * 8 + gy];
-    return f32((row >> (6 - gx)) & 1);
+    // WGSL requires the right-hand side of `>>` to be a u32 (or vecN<u32>)
+    return f32((row >> u32(6 - gx)) & 1);
 }
 
 fn write_pixel(base_index : u32, rgba : vec4<f32>) {

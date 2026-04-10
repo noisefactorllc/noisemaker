@@ -187,8 +187,12 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         }
     }
 
-    // Sample color from input
-    var color = textureSample(inputTex, samp, sampleUv).rgb;
+    // Sample color from input. Use textureSampleLevel because the channel-shift
+    // and bit-corruption branches below depend on per-pixel values, which
+    // disqualifies plain textureSample (which requires uniform control flow
+    // for implicit derivatives). textureSampleLevel takes an explicit mip
+    // level, no derivatives needed. These shaders don't use mipmaps anyway.
+    var color = textureSampleLevel(inputTex, samp, sampleUv, 0.0).rgb;
 
     // Channel separation
     if (channelShift > 0.0 && isCorrupt) {
@@ -198,8 +202,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         let bShift = (chHash.y - 0.5) * chAmt * 0.08;
         let rUv = vec2<f32>(fract(sampleUv.x + rShift), sampleUv.y);
         let bUv = vec2<f32>(fract(sampleUv.x + bShift), sampleUv.y);
-        color.r = textureSample(inputTex, samp, rUv).r;
-        color.b = textureSample(inputTex, samp, bUv).b;
+        color.r = textureSampleLevel(inputTex, samp, rUv, 0.0).r;
+        color.b = textureSampleLevel(inputTex, samp, bUv, 0.0).b;
     }
 
     // Bit corruption
