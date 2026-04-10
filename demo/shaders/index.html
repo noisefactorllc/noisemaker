@@ -429,6 +429,9 @@
         window.__noisemakerFrameCount = 0;
         window.__noisemakerGetEffectParams = () => ui.effectParameterValues;
         window.__noisemakerRegenerateDsl = () => ui.programState.toDsl();
+        // Test hook: expose ProgramState so integration tests can call setValue
+        // directly without driving custom-element controls through the DOM.
+        window.__noisemakerProgramState = ui.programState;
         window.__noisemakerCurrentDsl = '';
         window.__noisemakerGetLoopDuration = () => renderer.loopDuration;
         window.__noisemakerGetFPS = () => renderer.currentFPS;

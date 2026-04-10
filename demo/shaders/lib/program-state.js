@@ -81,6 +81,12 @@ export class ProgramState extends Emitter {
         // Batching state
         this._batchDepth = 0
         this._batchedChanges = []
+        // True if any setValue() in the current batch (or single call) mutated
+        // a compile-time-define-flagged param. Drives the `recompileNeeded`
+        // event so consumers (demo-ui) can rebuild the DSL and recompile the
+        // pipeline. We coalesce so a batch of setValue calls only triggers
+        // one recompile.
+        this._recompilePending = false
     }
 
     // =========================================================================
@@ -121,8 +127,9 @@ export class ProgramState extends Emitter {
 
         // Validate and coerce value
         const effectDef = stepState.effectDef
-        if (effectDef?.globals?.[paramName]) {
-            value = this._validateValue(value, effectDef.globals[paramName])
+        const spec = effectDef?.globals?.[paramName]
+        if (spec) {
+            value = this._validateValue(value, spec)
         }
 
         // Preserve automation binding (_varRef) if present (for oscillator, midi, audio)
@@ -133,11 +140,38 @@ export class ProgramState extends Emitter {
             stepState.values[paramName] = value
         }
 
+        // Compile-time defines (`define:` flag in the global spec) are baked
+        // into the shader source by the expander, so changing them requires
+        // regenerating the DSL and recompiling the pipeline — a runtime
+        // setUniform write does nothing. Flag the recompile (coalesced across
+        // a batch) when such a param actually changes value.
+        if (spec?.define && !this._valuesEqual(previousValue, value)) {
+            this._recompilePending = true
+        }
+
         // Apply to pipeline immediately
         this._applyToPipeline()
 
         // Emit change event (or batch)
         this._emitChange({ stepKey, paramName, value, previousValue })
+    }
+
+    /**
+     * Compare two parameter values for equality. Used to decide whether a
+     * compile-time-define change actually warrants a recompile (no point
+     * recompiling if the slider snaps back to the same int value).
+     * @private
+     */
+    _valuesEqual(a, b) {
+        if (a === b) return true
+        if (Array.isArray(a) && Array.isArray(b)) {
+            if (a.length !== b.length) return false
+            for (let i = 0; i < a.length; i++) {
+                if (a[i] !== b[i]) return false
+            }
+            return true
+        }
+        return false
     }
 
     /**
@@ -196,7 +230,9 @@ export class ProgramState extends Emitter {
     }
 
     /**
-     * Emit change event or queue for batching
+     * Emit change event or queue for batching. When called outside a batch,
+     * also flushes any pending recompile so a single setValue() that touches
+     * a `define:`-flagged param triggers exactly one recompile event.
      * @private
      */
     _emitChange(change) {
@@ -204,6 +240,7 @@ export class ProgramState extends Emitter {
             this._batchedChanges.push(change)
         } else {
             this.emit('change', change)
+            this._flushPendingRecompile()
         }
     }
 
@@ -229,6 +266,23 @@ export class ProgramState extends Emitter {
         }
 
         this._batchedChanges = []
+
+        // After all batched stepchange events have fired, emit a single
+        // recompileNeeded event if any compile-time define was mutated in
+        // this batch. Coalescing means a setStepValues() that bumps multiple
+        // define-flagged params triggers exactly one pipeline recompile.
+        this._flushPendingRecompile()
+    }
+
+    /**
+     * Emit `recompileNeeded` if any compile-time-define mutation is pending,
+     * then clear the flag. Safe to call when nothing is pending.
+     * @private
+     */
+    _flushPendingRecompile() {
+        if (!this._recompilePending) return
+        this._recompilePending = false
+        this.emit('recompileNeeded')
     }
 
     // =========================================================================

@@ -292,6 +292,17 @@ export class UIController {
         this._programState.on('change', () => {
             this._onControlChangeCallback?.()
         })
+
+        // Recompile the pipeline when ProgramState detects a mutation to a
+        // compile-time-define-flagged global. The expander bakes those values
+        // into the shader source, so a runtime setUniform write does nothing —
+        // we have to regenerate the DSL and ask the renderer to recompile.
+        // ProgramState coalesces batches into a single event so we never
+        // recompile more than once per user interaction.
+        this._programState.on('recompileNeeded', () => {
+            this._updateDslFromEffectParams()
+            this._recompilePipeline()
+        })
         this._shaderOverrides = {} // Map: stepIndex -> { programName: { glsl?, wgsl?, fragment?, vertex? } }
         this._parsedDslStructure = []
         this._allEffects = []
@@ -3523,13 +3534,9 @@ render(o1)`
         select.addEventListener('change', () => {
             this._programState.setValue(effectKey, key, handle.getValue())
             this._onControlChange()
-            // Compile-time defines (e.g. synth/noise type) bake the value into the
-            // shader source — changing them requires regenerating the DSL and
-            // recompiling the pipeline so the new variant gets picked up.
-            if (spec.define) {
-                this._updateDslFromEffectParams()
-                this._recompilePipeline()
-            }
+            // Note: compile-time `define:` globals trigger a recompile via the
+            // ProgramState `recompileNeeded` listener wired in the constructor;
+            // no per-control hook is needed.
         })
 
         container.appendChild(select)
