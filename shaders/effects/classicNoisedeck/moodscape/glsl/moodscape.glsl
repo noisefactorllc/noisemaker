@@ -261,6 +261,7 @@ float sineNoise(vec2 st, float xFreq, float yFreq, float s, float blend) {
 
     return (x + y) * 0.5 + 0.5;
 }
+#endif
 
 // Noisemaker value noise - MIT License
 int positiveModulo(int value, int modulus) {
@@ -342,12 +343,10 @@ float catmullRom3(float p0, float p1, float p2, float t) {
     float t2 = t * t;
     float t3 = t2 * t;
     
-    return p1 + 0.5 * t * (p2 - p0) + 
+    return p1 + 0.5 * t * (p2 - p0) +
            0.5 * t2 * (2.0*p0 - 5.0*p1 + 4.0*p2 - p0) +
            0.5 * t3 * (-p0 + 3.0*p1 - 3.0*p2 + p0);
 }
-
-#endif
 
 #if NOISE_TYPE == 5
 float quadratic3x3Value(vec2 st, float xFreq, float yFreq, float s) {
@@ -398,6 +397,7 @@ float catmullRom3x3Value(vec2 st, float xFreq, float yFreq, float s) {
     
     return catmullRom3(y0, y1, y2, f.y);
 }
+#endif
 
 // cubic B-spline interpolation
 float blendBicubic(float p0, float p1, float p2, float p3, float t) {
@@ -424,8 +424,6 @@ float blendLinearOrCosine(float a, float b, float amount, int nType) {
 
     return mix(a, b, smoothstep(0.0, 1.0, amount));
 }
-
-#endif
 
 #if NOISE_TYPE == 6
 float bicubicValue(vec2 st, float xFreq, float yFreq, float s) {
