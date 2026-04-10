@@ -8,12 +8,20 @@
 precision highp float;
 precision highp int;
 
+// NOISE_TYPE is a compile-time define injected by the runtime (see
+// definition.js `globals.interp.define`). Wrapping the variant dispatch in
+// #if blocks instead of a runtime if-cascade avoids ANGLE→D3D inlining the
+// entire 9-way decision tree at every call site, which produced ~31 second
+// compiles on Windows Chrome — see HANDOFF-shader-compile.md.
+#ifndef NOISE_TYPE
+#define NOISE_TYPE 10
+#endif
+
 uniform float time;
 uniform int seed;
 uniform bool wrap;
 uniform vec2 resolution;
 uniform float noiseScale;
-uniform int interp;
 uniform float speed;
 uniform float hueRotation;
 uniform float hueRange;
@@ -100,6 +108,7 @@ float periodicFunction(float p) {
 }
 
 // Simplex 2D - MIT License
+#if NOISE_TYPE == 10
 vec3 mod289(vec3 x) {
     return x - floor(x * (1.0 / 289.0)) * 289.0;
 }
@@ -149,7 +158,9 @@ float simplexValue(vec2 st, float xFreq, float yFreq, float s, float blend) {
 
     return periodicFunction(map(v, -1.0, 1.0, 0.0, 1.0) - blend);
 }
+#endif
 
+#if NOISE_TYPE == 11
 float sineNoise(vec2 st, float xFreq, float yFreq, float s, float blend) {
     vec2 uv = vec2(st.x * xFreq, st.y * yFreq);
     uv.x += s;
@@ -165,6 +176,7 @@ float sineNoise(vec2 st, float xFreq, float yFreq, float s, float blend) {
 
     return (x + y) * 0.5 + 0.5;
 }
+#endif
 
 // Value noise
 int positiveModulo(int value, int modulus) {
@@ -250,29 +262,32 @@ float catmullRom3(float p0, float p1, float p2, float t) {
            0.5 * t3 * (-p0 + 3.0*p1 - 3.0*p2 + p0);
 }
 
+#if NOISE_TYPE == 5
 float quadratic3x3Value(vec2 st, float xFreq, float yFreq, float s) {
     vec2 lattice = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(lattice);
-    
+
     float v00 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, -1));
     float v10 = constantOffset(st, xFreq, yFreq, s, ivec2( 0, -1));
     float v20 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, -1));
-    
+
     float v01 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, 0));
     float v11 = constant(st, xFreq, yFreq, s);
     float v21 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, 0));
-    
+
     float v02 = constantOffset(st, xFreq, yFreq, s, ivec2(-1, 1));
     float v12 = constantOffset(st, xFreq, yFreq, s, ivec2( 0, 1));
     float v22 = constantOffset(st, xFreq, yFreq, s, ivec2( 1, 1));
-    
+
     float y0 = quadratic3(v00, v10, v20, f.x);
     float y1 = quadratic3(v01, v11, v21, f.x);
     float y2 = quadratic3(v02, v12, v22, f.x);
-    
+
     return quadratic3(y0, y1, y2, f.y);
 }
+#endif
 
+#if NOISE_TYPE == 3
 float catmullRom3x3Value(vec2 st, float xFreq, float yFreq, float s) {
     vec2 lattice = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(lattice);
@@ -292,9 +307,10 @@ float catmullRom3x3Value(vec2 st, float xFreq, float yFreq, float s) {
     float y0 = catmullRom3(v00, v10, v20, f.x);
     float y1 = catmullRom3(v01, v11, v21, f.x);
     float y2 = catmullRom3(v02, v12, v22, f.x);
-    
+
     return catmullRom3(y0, y1, y2, f.y);
 }
+#endif
 
 float blendBicubic(float p0, float p1, float p2, float p3, float t) {
     float t2 = t * t;
@@ -313,13 +329,14 @@ float catmullRom4(float p0, float p1, float p2, float p3, float t) {
            t * (3.0 * (p1 - p2) + p3 - p0)));
 }
 
-float blendLinearOrCosine(float a, float b, float amount, int interp) {
-    if (interp == 1) {
+float blendLinearOrCosine(float a, float b, float amount, int nType) {
+    if (nType == 1) {
         return mix(a, b, amount);
     }
     return mix(a, b, smoothstep(0.0, 1.0, amount));
 }
 
+#if NOISE_TYPE == 6
 float bicubicValue(vec2 st, float xFreq, float yFreq, float s) {
     vec2 uv = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(uv);
@@ -351,7 +368,9 @@ float bicubicValue(vec2 st, float xFreq, float yFreq, float s) {
 
     return clamp(blendBicubic(y0, y1, y2, y3, f.y), 0.0, 1.0);
 }
+#endif
 
+#if NOISE_TYPE == 4
 float catmullRom4x4Value(vec2 st, float xFreq, float yFreq, float s) {
     vec2 uv = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(uv);
@@ -383,65 +402,53 @@ float catmullRom4x4Value(vec2 st, float xFreq, float yFreq, float s) {
 
     return clamp(catmullRom4(y0, y1, y2, y3, f.y), 0.0, 1.0);
 }
+#endif
 
 float value(vec2 st, float xFreq, float yFreq, float s) {
-    float scaledTime = 1.0;
-    
-    if (interp == 0) {
-        return constant(st, xFreq, yFreq, s);
-    }
-    
-    if (interp == 3) {
-        return catmullRom3x3Value(st, xFreq, yFreq, s);
-    }
-    
-    if (interp == 4) {
-        return catmullRom4x4Value(st, xFreq, yFreq, s);
-    }
-    
-    if (interp == 5) {
-        return quadratic3x3Value(st, xFreq, yFreq, s);
-    }
-    
-    if (interp == 6) {
-        return bicubicValue(st, xFreq, yFreq, s);
-    }
-    
-    if (interp == 10) {
-        scaledTime = simplexValue(st, xFreq, yFreq, s + 50.0, time) * speed * 0.0025;
-        return simplexValue(st, xFreq, yFreq, s, scaledTime);
-    }
-    
-    if (interp == 11) {
-        scaledTime = sineNoise(st, xFreq, yFreq, s + 50.0, time) * speed * 0.0025;
-        return sineNoise(st, xFreq, yFreq, s, scaledTime);
-    }
-
+#if NOISE_TYPE == 0
+    return constant(st, xFreq, yFreq, s);
+#elif NOISE_TYPE == 3
+    return catmullRom3x3Value(st, xFreq, yFreq, s);
+#elif NOISE_TYPE == 4
+    return catmullRom4x4Value(st, xFreq, yFreq, s);
+#elif NOISE_TYPE == 5
+    return quadratic3x3Value(st, xFreq, yFreq, s);
+#elif NOISE_TYPE == 6
+    return bicubicValue(st, xFreq, yFreq, s);
+#elif NOISE_TYPE == 10
+    float scaledTime10 = simplexValue(st, xFreq, yFreq, s + 50.0, time) * speed * 0.0025;
+    return simplexValue(st, xFreq, yFreq, s, scaledTime10);
+#elif NOISE_TYPE == 11
+    float scaledTime11 = sineNoise(st, xFreq, yFreq, s + 50.0, time) * speed * 0.0025;
+    return sineNoise(st, xFreq, yFreq, s, scaledTime11);
+#else
+    // NOISE_TYPE == 1 (linear) or NOISE_TYPE == 2 (cosine)
     vec2 uv = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(uv);
-    
+
     float x0y0 = constant(st, xFreq, yFreq, s);
     float x1y0 = constantOffset(st, xFreq, yFreq, s, ivec2(1, 0));
     float x0y1 = constantOffset(st, xFreq, yFreq, s, ivec2(0, 1));
     float x1y1 = constantOffset(st, xFreq, yFreq, s, ivec2(1, 1));
 
-    float a = blendLinearOrCosine(x0y0, x1y0, f.x, interp);
-    float b = blendLinearOrCosine(x0y1, x1y1, f.x, interp);
+    float a = blendLinearOrCosine(x0y0, x1y0, f.x, NOISE_TYPE);
+    float b = blendLinearOrCosine(x0y1, x1y1, f.x, NOISE_TYPE);
 
-    return clamp(blendLinearOrCosine(a, b, f.y, interp), 0.0, 1.0);
+    return clamp(blendLinearOrCosine(a, b, f.y, NOISE_TYPE), 0.0, 1.0);
+#endif
 }
 
 vec3 noise(vec2 st, float s) {
     float freq = 1.0;
-    if (interp != 10 && wrap) {
+#if NOISE_TYPE == 10
+    freq = map(noiseScale, 1.0, 100.0, 1.0, 0.5);
+#else
+    if (wrap) {
         freq = floor(map(noiseScale, 1.0, 100.0, 6.0, 2.0));
     } else {
-        if (interp == 10) {
-            freq = map(noiseScale, 1.0, 100.0, 1.0, 0.5);
-        } else {
-            freq = map(noiseScale, 1.0, 100.0, 6.0, 1.0);
-        }
+        freq = map(noiseScale, 1.0, 100.0, 6.0, 1.0);
     }
+#endif
 
     vec3 color = vec3(
         value(st, freq, freq, 0.0 + s),

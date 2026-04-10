@@ -11,7 +11,8 @@ export default new Effect({
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
-    interp: { slot: 1, components: 'x' },
+    // slot 1 component x is intentionally unused — `interp` is a compile-time
+    // define (see globals.interp below), not a runtime uniform.
     noiseScale: { slot: 1, components: 'y' },
     speed: { slot: 1, components: 'z' },
     wrap: { slot: 1, components: 'w' },
@@ -35,7 +36,10 @@ export default new Effect({
         sine: 11
       },
       ui: { label: "noise type", control: "dropdown"},
-      uniform: "interp"
+      // Compile-time define (not a runtime uniform). Same Knob 2 fix as
+      // synth/noise — switching variants triggers a one-shot recompile.
+      // Avoids the 31s ANGLE→D3D inlining hang on Windows Chrome.
+      define: "NOISE_TYPE"
     },
     noiseScale: {
       type: "float",

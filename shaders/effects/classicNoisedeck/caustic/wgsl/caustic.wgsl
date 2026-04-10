@@ -5,7 +5,7 @@
 
 // Packed uniforms layout:
 //   data[0]: resolution.xy, time, seed
-//   data[1]: interp, noiseScale, speed, wrap
+//   data[1]: (slot freed — interp is a compile-time define), noiseScale, speed, wrap
 //   data[2]: hueRotation, hueRange, intensity, _pad
 struct Uniforms {
     data: array<vec4<f32>, 3>,
@@ -13,10 +13,13 @@ struct Uniforms {
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
 
+// NOISE_TYPE is a compile-time const injected by the runtime via injectDefines.
+// See classicNoisedeck/caustic/definition.js `globals.interp.define`. The
+// expander always provides this define for caustic programs.
+
 var<private> resolution: vec2<f32>;
 var<private> time: f32;
 var<private> seed: i32;
-var<private> interp: i32;
 var<private> noiseScale: f32;
 var<private> speed: f32;
 var<private> wrap: i32;
@@ -28,7 +31,6 @@ fn unpackUniforms() {
     resolution = uniforms.data[0].xy;
     time = uniforms.data[0].z;
     seed = i32(uniforms.data[0].w);
-    interp = i32(uniforms.data[1].x);
     noiseScale = uniforms.data[1].y;
     speed = uniforms.data[1].z;
     wrap = i32(uniforms.data[1].w);
@@ -340,8 +342,8 @@ fn catmullRom4(p0: f32, p1: f32, p2: f32, p3: f32, t: f32) -> f32 {
            t * (3.0 * (p1 - p2) + p3 - p0)));
 }
 
-fn blendLinearOrCosine(a: f32, b: f32, amount: f32, interp: i32) -> f32 {
-    if (interp == 1) {
+fn blendLinearOrCosine(a: f32, b: f32, amount: f32, nType: i32) -> f32 {
+    if (nType == 1) {
         return mix(a, b, amount);
     }
     return mix(a, b, smoothstep(0.0, 1.0, amount));
@@ -410,34 +412,32 @@ fn catmullRom4x4Value(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
 }
 
 fn value(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
-    let interpVal: i32 = i32(interp);
-
-    if (interpVal == 0) {
+    if (NOISE_TYPE == 0) {
         return constant(st, xFreq, yFreq, s);
     }
 
-    if (interpVal == 3) {
+    if (NOISE_TYPE == 3) {
         return catmullRom3x3Value(st, xFreq, yFreq, s);
     }
 
-    if (interpVal == 4) {
+    if (NOISE_TYPE == 4) {
         return catmullRom4x4Value(st, xFreq, yFreq, s);
     }
 
-    if (interpVal == 5) {
+    if (NOISE_TYPE == 5) {
         return quadratic3x3Value(st, xFreq, yFreq, s);
     }
 
-    if (interpVal == 6) {
+    if (NOISE_TYPE == 6) {
         return bicubicValue(st, xFreq, yFreq, s);
     }
 
-    if (interpVal == 10) {
+    if (NOISE_TYPE == 10) {
         let simplexLoopSample: f32 = simplexValue(st, xFreq, yFreq, s + 50.0, time) * speed * 0.0025;
         return simplexValue(st, xFreq, yFreq, s, simplexLoopSample);
     }
 
-    if (interpVal == 11) {
+    if (NOISE_TYPE == 11) {
         let sineLoopSample: f32 = sineNoise(st, xFreq, yFreq, s + 50.0, time) * speed * 0.0025;
         return sineNoise(st, xFreq, yFreq, s, sineLoopSample);
     }
@@ -450,18 +450,18 @@ fn value(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
 
     var uv: vec2<f32> = vec2<f32>(st.x * xFreq, st.y * yFreq);
 
-    var a: f32 = blendLinearOrCosine(x1y1, x2y1, fract(uv.x), interpVal);
-    var b: f32 = blendLinearOrCosine(x1y2, x2y2, fract(uv.x), interpVal);
+    var a: f32 = blendLinearOrCosine(x1y1, x2y1, fract(uv.x), NOISE_TYPE);
+    var b: f32 = blendLinearOrCosine(x1y2, x2y2, fract(uv.x), NOISE_TYPE);
 
-    return clamp(blendLinearOrCosine(a, b, fract(uv.y), interpVal), 0.0, 1.0);
+    return clamp(blendLinearOrCosine(a, b, fract(uv.y), NOISE_TYPE), 0.0, 1.0);
 }
 
 fn noise(st: vec2<f32>, s: f32) -> vec3<f32> {
     var freq: f32 = 1.0;
-    if (i32(interp) != 10 && wrap > 0) {
+    if (NOISE_TYPE != 10 && wrap > 0) {
         freq = floor(map(noiseScale, 1.0, 100.0, 6.0, 2.0));
     } else {
-        if (i32(interp) == 10) {
+        if (NOISE_TYPE == 10) {
             freq = map(noiseScale, 1.0, 100.0, 1.0, 0.5);
         } else {
             freq = map(noiseScale, 1.0, 100.0, 6.0, 1.0);

@@ -8,13 +8,21 @@
 precision highp float;
 precision highp int;
 
+// NOISE_TYPE is a compile-time define injected by the runtime (see
+// definition.js `globals.NOISE_TYPE.define`). Wrapping the variant dispatch in
+// #if blocks instead of a runtime if-cascade avoids ANGLE→D3D inlining the
+// entire 9-way decision tree at every call site, which produced ~35 second
+// compiles on Windows Chrome — see HANDOFF-shader-compile.md.
+#ifndef NOISE_TYPE
+#define NOISE_TYPE 10
+#endif
+
 uniform float time;
 uniform int seed;
 uniform bool wrap;
 uniform vec2 resolution;
 uniform float noiseScale;
 uniform int colorMode;
-uniform int interp;
 uniform float refractAmt;
 uniform float speed;
 uniform float hueRotation;
@@ -189,6 +197,7 @@ vec3 permute(vec3 x) {
     return mod289(((x*34.0)+1.0)*x);
 }
 
+#if NOISE_TYPE == 10
 float simplexValue(vec2 st, float xFreq, float yFreq, float s, float blend) {
     const vec4 C = vec4(0.211324865405187,  // (3.0-sqrt(3.0))/6.0
                         0.366025403784439,  // 0.5*(sqrt(3.0)-1.0)
@@ -234,6 +243,9 @@ float simplexValue(vec2 st, float xFreq, float yFreq, float s, float blend) {
 }
 // end simplex
 
+#endif
+
+#if NOISE_TYPE == 11
 float sineNoise(vec2 st, float xFreq, float yFreq, float s, float blend) {
     vec2 uv = vec2(st.x * xFreq, st.y * yFreq);
     uv.x += s;
@@ -335,6 +347,9 @@ float catmullRom3(float p0, float p1, float p2, float t) {
            0.5 * t3 * (-p0 + 3.0*p1 - 3.0*p2 + p0);
 }
 
+#endif
+
+#if NOISE_TYPE == 5
 float quadratic3x3Value(vec2 st, float xFreq, float yFreq, float s) {
     vec2 lattice = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(lattice);
@@ -358,6 +373,9 @@ float quadratic3x3Value(vec2 st, float xFreq, float yFreq, float s) {
     return quadratic3(y0, y1, y2, f.y);
 }
 
+#endif
+
+#if NOISE_TYPE == 3
 float catmullRom3x3Value(vec2 st, float xFreq, float yFreq, float s) {
     vec2 lattice = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(lattice);
@@ -399,14 +417,17 @@ float catmullRom4(float p0, float p1, float p2, float p3, float t) {
            t * (3.0 * (p1 - p2) + p3 - p0)));
 }
 
-float blendLinearOrCosine(float a, float b, float amount, int interp) {
-    if (interp == 1) {
+float blendLinearOrCosine(float a, float b, float amount, int nType) {
+    if (nType == 1) {
         return mix(a, b, amount);
     }
 
     return mix(a, b, smoothstep(0.0, 1.0, amount));
 }
 
+#endif
+
+#if NOISE_TYPE == 6
 float bicubicValue(vec2 st, float xFreq, float yFreq, float s) {
     vec2 uv = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(uv);
@@ -439,6 +460,9 @@ float bicubicValue(vec2 st, float xFreq, float yFreq, float s) {
     return clamp(blendBicubic(y0, y1, y2, y3, f.y), 0.0, 1.0);
 }
 
+#endif
+
+#if NOISE_TYPE == 4
 float catmullRom4x4Value(vec2 st, float xFreq, float yFreq, float s) {
     vec2 uv = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(uv);
@@ -470,60 +494,40 @@ float catmullRom4x4Value(vec2 st, float xFreq, float yFreq, float s) {
 
     return clamp(catmullRom4(y0, y1, y2, y3, f.y), 0.0, 1.0);
 }
+#endif
 
 float value(vec2 st, float xFreq, float yFreq, float s) {
-    float scaledTime = 1.0;
-    
-    // 0 = constant (no interpolation)
-    if (interp == 0) {
-        return constant(st, xFreq, yFreq, s);
-    }
-    
-    // 3 = catmullRom3x3 (9 taps)
-    if (interp == 3) {
-        return catmullRom3x3Value(st, xFreq, yFreq, s);
-    }
-    
-    // 4 = catmullRom4x4 (16 taps)
-    if (interp == 4) {
-        return catmullRom4x4Value(st, xFreq, yFreq, s);
-    }
-    
-    // 5 = bSpline3x3 (9 taps)
-    if (interp == 5) {
-        return quadratic3x3Value(st, xFreq, yFreq, s);
-    }
-    
-    // 6 = bSpline4x4 (16 taps)
-    if (interp == 6) {
-        return bicubicValue(st, xFreq, yFreq, s);
-    }
-    
-    // 10 = simplex
-    if (interp == 10) {
-        scaledTime = simplexValue(st, xFreq, yFreq, s + 50.0, time) * speed * 0.0025;
-        return simplexValue(st, xFreq, yFreq, s, scaledTime);
-    }
-    
-    // 11 = sine
-    if (interp == 11) {
-        scaledTime = sineNoise(st, xFreq, yFreq, s + 50.0, time) * speed * 0.0025;
-        return sineNoise(st, xFreq, yFreq, s, scaledTime);
-    }
-
-    // 1 = linear, 2 = hermite (2x2 bilinear interpolation)
+#if NOISE_TYPE == 0
+    return constant(st, xFreq, yFreq, s);
+#elif NOISE_TYPE == 3
+    return catmullRom3x3Value(st, xFreq, yFreq, s);
+#elif NOISE_TYPE == 4
+    return catmullRom4x4Value(st, xFreq, yFreq, s);
+#elif NOISE_TYPE == 5
+    return quadratic3x3Value(st, xFreq, yFreq, s);
+#elif NOISE_TYPE == 6
+    return bicubicValue(st, xFreq, yFreq, s);
+#elif NOISE_TYPE == 10
+    float scaledTime10 = simplexValue(st, xFreq, yFreq, s + 50.0, time) * speed * 0.0025;
+    return simplexValue(st, xFreq, yFreq, s, scaledTime10);
+#elif NOISE_TYPE == 11
+    float scaledTime11 = sineNoise(st, xFreq, yFreq, s + 50.0, time) * speed * 0.0025;
+    return sineNoise(st, xFreq, yFreq, s, scaledTime11);
+#else
+    // NOISE_TYPE == 1 (linear) or NOISE_TYPE == 2 (hermite/cosine)
     vec2 uv = vec2(st.x * xFreq, st.y * yFreq);
     vec2 f = fract(uv);
-    
+
     float x0y0 = constant(st, xFreq, yFreq, s);
     float x1y0 = constantOffset(st, xFreq, yFreq, s, ivec2(1, 0));
     float x0y1 = constantOffset(st, xFreq, yFreq, s, ivec2(0, 1));
     float x1y1 = constantOffset(st, xFreq, yFreq, s, ivec2(1, 1));
 
-    float a = blendLinearOrCosine(x0y0, x1y0, f.x, interp);
-    float b = blendLinearOrCosine(x0y1, x1y1, f.x, interp);
+    float a = blendLinearOrCosine(x0y0, x1y0, f.x, NOISE_TYPE);
+    float b = blendLinearOrCosine(x0y1, x1y1, f.x, NOISE_TYPE);
 
-    return clamp(blendLinearOrCosine(a, b, f.y, interp), 0.0, 1.0);
+    return clamp(blendLinearOrCosine(a, b, f.y, NOISE_TYPE), 0.0, 1.0);
+#endif
 }
 
 void main() {
@@ -533,18 +537,21 @@ void main() {
 
     float xFreq = 1.0;
     float yFreq = 1.0;
-    if (interp != 4 && interp != 10 && wrap) {
+#if NOISE_TYPE == 10
+    xFreq = map(noiseScale, 1.0, 100.0, 1.0, 0.25);
+    yFreq = xFreq * 1.5;
+#elif NOISE_TYPE == 4
+    xFreq = map(noiseScale, 1.0, 100.0, 1.5, 1.0);
+    yFreq = xFreq * 1.5;
+#else
+    if (wrap) {
         xFreq = floor(map(noiseScale, 1.0, 100.0, 3.0, 2.0));
         yFreq = xFreq;
     } else {
-        if (interp == 10) {
-            xFreq = map(noiseScale, 1.0, 100.0, 1.0, 0.25);
-            yFreq = xFreq * 1.5;
-        } else {
-            xFreq = map(noiseScale, 1.0, 100.0, 1.5, 1.0);
-            yFreq = xFreq * 1.5;
-        }
+        xFreq = map(noiseScale, 1.0, 100.0, 1.5, 1.0);
+        yFreq = xFreq * 1.5;
     }
+#endif
 
     float s = float(seed);
 
