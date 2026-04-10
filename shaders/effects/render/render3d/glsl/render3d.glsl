@@ -11,12 +11,13 @@
 #version 300 es
 precision highp float;
 
+// FILTERING and INVERT are compile-time #defines injected by the expander
+// (see definition.js). Baking them lets the compiler eliminate the unused
+// raymarching path and the per-sample invert branch.
 uniform vec2 resolution;
 uniform float time;
 uniform float threshold;
-uniform int invert;
 uniform int volumeSize;
-uniform int filtering;
 uniform int orbitSpeed;
 uniform vec3 bgColor;
 uniform float bgAlpha;
@@ -83,23 +84,19 @@ vec4 sampleVolume(vec3 worldPos) {
     return mix(c0, c1, frac.z);
 }
 
-// Get the scalar field value at a point (what we're finding the isosurface of)
-// Uses red channel as the density/SDF field
-// Convention: HIGH values = SOLID, field < 0 = inside solid
+// Get the scalar field value at a point. INVERT is a compile-time #define;
+// the optimizer drops the dead branch.
 float getField(vec3 p) {
     float val = sampleVolume(p).r;
-    // Invert volume: invert the density so empty space becomes solid and vice versa
-    if (invert == 1) {
+    if (INVERT) {
         val = 1.0 - val;
     }
     return threshold - val;
 }
 
-// Check if a voxel is solid (above threshold - high values = solid)
 bool isVoxelSolid(ivec3 voxel) {
     float val = sampleVoxel(voxel).r;
-    // Invert volume: invert the density so empty space becomes solid and vice versa
-    if (invert == 1) {
+    if (INVERT) {
         val = 1.0 - val;
     }
     return val > threshold;
@@ -399,7 +396,9 @@ void main() {
     float depth = 1.0;  // Default depth (far)
     float alpha = 1.0;
     
-    if (filtering == 1) {
+    // FILTERING is a compile-time #define; the optimizer eliminates the
+    // unused raymarching path.
+    if (FILTERING == 1) {
         // Voxel mode - use DDA traversal
         VoxelHit hit = voxelTrace(ro, rd);
         if (hit.dist > 0.0) {

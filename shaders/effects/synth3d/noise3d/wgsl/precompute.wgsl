@@ -1,12 +1,14 @@
 // WGSL version – WebGPU
+// OCTAVES, COLOR_MODE, RIDGES are compile-time defines injected by the
+// expander (see definition.js). They drove a ~1.7s background compile in
+// Dawn before being promoted; baking them lets the optimizer fully unroll
+// the fbm4D octave loop, dead-code-eliminate the unused color/ridges
+// branches, and drop the overall compile cost dramatically.
 @group(0) @binding(0) var<uniform> time: f32;
 @group(0) @binding(1) var<uniform> scale: f32;
 @group(0) @binding(2) var<uniform> seed: i32;
-@group(0) @binding(3) var<uniform> octaves: i32;
-@group(0) @binding(4) var<uniform> ridges: i32;
-@group(0) @binding(5) var<uniform> volumeSize: i32;
-@group(0) @binding(6) var<uniform> colorMode: i32;
-@group(0) @binding(7) var<uniform> speed: f32;
+@group(0) @binding(3) var<uniform> volumeSize: i32;
+@group(0) @binding(4) var<uniform> speed: f32;
 
 // MRT output structure
 struct FragmentOutput {
@@ -119,22 +121,21 @@ fn noise4D(p: vec4<f32>) -> f32 {
     return mix(nxyz0, nxyz1, u.w);
 }
 
-// FBM using 4D noise with periodic w for time
-fn fbm4D(p: vec4<f32>, ridgesMode: i32) -> f32 {
-    let MAX_OCT: i32 = 8;
+// FBM using 4D noise with periodic w for time.
+// OCTAVES is a compile-time const so the loop bound is static and the
+// optimizer fully unrolls it. RIDGES is a compile-time bool so the per-octave
+// branch is dead-code-eliminated.
+fn fbm4D(p: vec4<f32>) -> f32 {
     var amplitude: f32 = 0.5;
     var frequency: f32 = 1.0;
     var sum: f32 = 0.0;
     var maxVal: f32 = 0.0;
-    var oct = octaves;
-    if (oct < 1) { oct = 1; }
-    
-    for (var i: i32 = 0; i < MAX_OCT; i = i + 1) {
-        if (i >= oct) { break; }
+
+    for (var i: i32 = 0; i < OCTAVES; i = i + 1) {
         let pos = vec4<f32>(p.xyz * frequency, p.w);
         var n = noise4D(pos);
         n = clamp(n * 1.5, -1.0, 1.0);
-        if (ridgesMode == 1) {
+        if (RIDGES) {
             n = 1.0 - abs(n);
         } else {
             n = (n + 1.0) * 0.5;
@@ -180,28 +181,28 @@ fn main(@builtin(position) position: vec4<f32>) -> FragmentOutput {
     
     // Compute 4D FBM noise at this point with time as w
     let p4d = vec4<f32>(scaledP, w);
-    let noiseVal = fbm4D(p4d, ridges);
-    
+    let noiseVal = fbm4D(p4d);
+
     // Compute analytical gradient using finite differences in noise space
     let eps = 0.01 / scale;
-    let nx = fbm4D(vec4<f32>(scaledP + vec3<f32>(eps, 0.0, 0.0), w), ridges);
-    let ny = fbm4D(vec4<f32>(scaledP + vec3<f32>(0.0, eps, 0.0), w), ridges);
-    let nz = fbm4D(vec4<f32>(scaledP + vec3<f32>(0.0, 0.0, eps), w), ridges);
-    
+    let nx = fbm4D(vec4<f32>(scaledP + vec3<f32>(eps, 0.0, 0.0), w));
+    let ny = fbm4D(vec4<f32>(scaledP + vec3<f32>(0.0, eps, 0.0), w));
+    let nz = fbm4D(vec4<f32>(scaledP + vec3<f32>(0.0, 0.0, eps), w));
+
     // Gradient points from low to high density
     let gradient = vec3<f32>(nx - noiseVal, ny - noiseVal, nz - noiseVal) / eps;
-    
+
     // Normal points outward (from high to low density), encode in [0,1] range
     let normal = normalize(-gradient + vec3<f32>(1e-6));
-    
-    // Output volume data based on colorMode
+
+    // Output volume data based on colorMode (compile-time const).
     var fragColor: vec4<f32>;
-    if (colorMode == 0) {
+    if (COLOR_MODE == 0) {
         fragColor = vec4<f32>(noiseVal, noiseVal, noiseVal, 1.0);
     } else {
         // For RGB color mode, compute 3 different noise channels with offsets
-        let g = fbm4D(vec4<f32>(scaledP, w) + vec4<f32>(0.0, 0.0, 0.0, 1.33), ridges);
-        let b = fbm4D(vec4<f32>(scaledP, w) + vec4<f32>(0.0, 0.0, 0.0, 2.67), ridges);
+        let g = fbm4D(vec4<f32>(scaledP, w) + vec4<f32>(0.0, 0.0, 0.0, 1.33));
+        let b = fbm4D(vec4<f32>(scaledP, w) + vec4<f32>(0.0, 0.0, 0.0, 2.67));
         fragColor = vec4<f32>(noiseVal, g, b, 1.0);
     }
     

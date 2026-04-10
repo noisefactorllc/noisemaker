@@ -1,13 +1,13 @@
 #version 300 es
 precision highp float;
 
+// OCTAVES, COLOR_MODE, RIDGES are compile-time #defines injected by the
+// expander. Baking them lets the GLSL compiler unroll the fbm4D loop and
+// dead-code-eliminate the unused color/ridges branches.
 uniform float time;
 uniform float scale;
 uniform int seed;
-uniform int octaves;
-uniform int ridges;
 uniform int volumeSize;
-uniform int colorMode;
 uniform float speed;
 
 // MRT outputs: volume cache and geometry buffer
@@ -120,22 +120,20 @@ float noise4D(vec4 p) {
     return mix(nxyz0, nxyz1, u.w);
 }
 
-// FBM using 4D noise with periodic w for time
-float fbm4D(vec4 p, int ridgesMode) {
-    const int MAX_OCT = 8;
+// FBM using 4D noise with periodic w for time. OCTAVES is a compile-time
+// #define so the loop bound is static; RIDGES likewise lets the per-octave
+// branch get DCE'd.
+float fbm4D(vec4 p) {
     float amplitude = 0.5;
     float frequency = 1.0;
     float sum = 0.0;
     float maxVal = 0.0;
-    int oct = octaves;
-    if (oct < 1) oct = 1;
-    
-    for (int i = 0; i < MAX_OCT; i++) {
-        if (i >= oct) break;
+
+    for (int i = 0; i < OCTAVES; i++) {
         vec4 pos = vec4(p.xyz * frequency, p.w);
         float n = noise4D(pos);
         n = clamp(n * 1.5, -1.0, 1.0);
-        if (ridgesMode == 1) {
+        if (RIDGES) {
             n = 1.0 - abs(n);
         } else {
             n = (n + 1.0) * 0.5;
@@ -183,29 +181,28 @@ void main() {
     
     // Compute 4D FBM noise at this point with time as w
     vec4 p4d = vec4(scaledP, w);
-    float noiseVal = fbm4D(p4d, ridges);
-    
+    float noiseVal = fbm4D(p4d);
+
     // Compute analytical gradient using finite differences in noise space
     // Use small epsilon scaled to the noise frequency
     float eps = 0.01 / scale;
-    float nx = fbm4D(vec4(scaledP + vec3(eps, 0.0, 0.0), w), ridges);
-    float ny = fbm4D(vec4(scaledP + vec3(0.0, eps, 0.0), w), ridges);
-    float nz = fbm4D(vec4(scaledP + vec3(0.0, 0.0, eps), w), ridges);
-    
+    float nx = fbm4D(vec4(scaledP + vec3(eps, 0.0, 0.0), w));
+    float ny = fbm4D(vec4(scaledP + vec3(0.0, eps, 0.0), w));
+    float nz = fbm4D(vec4(scaledP + vec3(0.0, 0.0, eps), w));
+
     // Gradient points from low to high density
     vec3 gradient = vec3(nx - noiseVal, ny - noiseVal, nz - noiseVal) / eps;
-    
+
     // Normal points outward (from high to low density), encode in [0,1] range
     vec3 normal = normalize(-gradient + vec3(1e-6));
-    
-    // Output volume data based on colorMode
-    // colorMode 0 = mono (grayscale), 1 = rgb (different noise per channel)
-    if (colorMode == 0) {
+
+    // Output volume data based on COLOR_MODE (compile-time #define).
+    if (COLOR_MODE == 0) {
         fragColor = vec4(noiseVal, noiseVal, noiseVal, 1.0);
     } else {
         // For RGB color mode, compute 3 different noise channels with offsets
-        float g = fbm4D(vec4(scaledP, w) + vec4(0.0, 0.0, 0.0, 1.33), ridges);
-        float b = fbm4D(vec4(scaledP, w) + vec4(0.0, 0.0, 0.0, 2.67), ridges);
+        float g = fbm4D(vec4(scaledP, w) + vec4(0.0, 0.0, 0.0, 1.33));
+        float b = fbm4D(vec4(scaledP, w) + vec4(0.0, 0.0, 0.0, 2.67));
         fragColor = vec4(noiseVal, g, b, 1.0);
     }
     

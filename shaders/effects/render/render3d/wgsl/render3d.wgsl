@@ -8,16 +8,18 @@
  * RGB channels are used for coloring.
  */
 
+// FILTERING and INVERT are compile-time defines injected by the expander
+// (see definition.js). They eliminate the unused raymarching path and the
+// per-sample invert branch respectively, dramatically reducing the work the
+// SPIR-V optimizer has to do on a 14kB shader.
 @group(0) @binding(0) var<uniform> resolution: vec2<f32>;
 @group(0) @binding(1) var<uniform> time: f32;
 @group(0) @binding(2) var<uniform> threshold: f32;
-@group(0) @binding(3) var<uniform> invert: i32;
-@group(0) @binding(4) var<uniform> volumeSize: i32;
-@group(0) @binding(5) var<uniform> filtering: i32;
-@group(0) @binding(6) var<uniform> orbitSpeed: i32;
-@group(0) @binding(7) var<uniform> bgColor: vec3<f32>;
-@group(0) @binding(8) var<uniform> bgAlpha: f32;
-@group(0) @binding(9) var volumeCache: texture_2d<f32>;
+@group(0) @binding(3) var<uniform> volumeSize: i32;
+@group(0) @binding(4) var<uniform> orbitSpeed: i32;
+@group(0) @binding(5) var<uniform> bgColor: vec3<f32>;
+@group(0) @binding(6) var<uniform> bgAlpha: f32;
+@group(0) @binding(7) var volumeCache: texture_2d<f32>;
 
 const TAU: f32 = 6.283185307179586;
 const PI: f32 = 3.141592653589793;
@@ -86,8 +88,8 @@ fn sampleVolume(worldPos: vec3<f32>) -> vec4<f32> {
 // Convention: HIGH values = SOLID, field < 0 = inside solid
 fn getField(p: vec3<f32>) -> f32 {
     var val = sampleVolume(p).r;
-    // Invert volume: invert the density so empty space becomes solid and vice versa
-    if (invert == 1) {
+    // INVERT is a compile-time const; the optimizer drops the dead branch.
+    if (INVERT) {
         val = 1.0 - val;
     }
     return threshold - val;
@@ -96,8 +98,7 @@ fn getField(p: vec3<f32>) -> f32 {
 // Check if a voxel is solid (above threshold - high values = solid)
 fn isVoxelSolid(voxel: vec3<i32>) -> bool {
     var val = sampleVoxel(voxel).r;
-    // Invert volume: invert the density so empty space becomes solid and vice versa
-    if (invert == 1) {
+    if (INVERT) {
         val = 1.0 - val;
     }
     return val > threshold;
@@ -388,7 +389,9 @@ fn main(@builtin(position) position: vec4<f32>) -> FragmentOutput {
     var depth: f32 = 1.0;
     var alpha: f32 = 1.0;
     
-    if (filtering == 1) {
+    // FILTERING is a compile-time const; the optimizer eliminates the
+    // unused raymarching path entirely.
+    if (FILTERING == 1) {
         let hit = voxelTrace(ro, rd);
         if (hit.dist > 0.0) {
             let p = ro + rd * hit.dist;

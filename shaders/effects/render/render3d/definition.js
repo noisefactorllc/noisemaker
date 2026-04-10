@@ -52,7 +52,11 @@ export default new Effect({
     "filtering": {
         "type": "int",
         "default": 0,
-        "uniform": "filtering",
+        // Compile-time define. The shader picks between two completely
+        // different raymarching paths (isosurface vs voxel). Baking this
+        // lets the optimizer eliminate the unused path entirely — that's
+        // the dominant background-compile cost in this 14kB shader.
+        "define": "FILTERING",
         "choices": {
             "isosurface": 0,
             "voxel": 1
@@ -77,7 +81,9 @@ export default new Effect({
         "type": "boolean",
         "default": false,
         "randChance": 0,
-        "uniform": "invert",
+        // Compile-time define — eliminates a per-sample branch in
+        // getField/isVoxelSolid that runs on every raymarch step.
+        "define": "INVERT",
         "ui": {
             "label": "invert thresh"
         }

@@ -62,14 +62,22 @@ export default new Effect({
         "default": 1,
         "min": 1,
         "max": 6,
-        "uniform": "octaves",
+        // Compile-time define. The fbm4D loop's iteration count drives roughly
+        // 64 hash4 calls per octave per fbm4D call, and the fragment makes 5+
+        // fbm4D calls. Baking OCTAVES lets the compiler fully unroll the loop
+        // and eliminates the worst hotspot in the WGSL gauntlet (~1.7s background
+        // compile of synth3d/noise3d/wgsl/precompute.wgsl on Windows Chrome).
+        "define": "OCTAVES",
         ui: {
             label: "octaves"
         }},
     "colorMode": {
         "type": "int",
         "default": 0,
-        "uniform": "colorMode",
+        // Compile-time define. When colorMode=0 (mono) the RGB branch's two
+        // extra fbm4D calls become dead code; baking this lets the compiler
+        // remove them entirely.
+        "define": "COLOR_MODE",
         "choices": {
             "mono": 0,
             "rgb": 1
@@ -82,7 +90,8 @@ export default new Effect({
     "ridges": {
         "type": "boolean",
         "default": false,
-        "uniform": "ridges",
+        // Compile-time define. Eliminates a per-octave branch inside fbm4D.
+        "define": "RIDGES",
         ui: {
             label: "ridges"
         }},
