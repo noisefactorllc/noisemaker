@@ -702,10 +702,13 @@ export class WebGL2Backend extends Backend {
         // Compile vertex shader
         const vsSource = spec.vertex || DEFAULT_VERTEX_SHADER
         const usingDefaultVertex = !spec.vertex
+        const _t0 = performance.now()
         const vertShader = this.compileShader(gl.VERTEX_SHADER, vsSource)
+        const _tVs = performance.now()
 
         // Compile fragment shader
         const fragShader = this.compileShader(gl.FRAGMENT_SHADER, source)
+        const _tFs = performance.now()
 
         // Link program
         const program = gl.createProgram()
@@ -717,8 +720,15 @@ export class WebGL2Backend extends Backend {
         }
 
         gl.linkProgram(program)
+        const _tLink = performance.now()
 
-        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        const _linkOk = gl.getProgramParameter(program, gl.LINK_STATUS)
+        const _tStatus = performance.now()
+
+        // Knob 1: per-phase compile timings (logging only — see HANDOFF-shader-compile.md)
+        console.log(`[compile-glsl ${id}] vs=${(_tVs - _t0).toFixed(1)}ms fs=${(_tFs - _tVs).toFixed(1)}ms link=${(_tLink - _tFs).toFixed(1)}ms status=${(_tStatus - _tLink).toFixed(1)}ms total=${(_tStatus - _t0).toFixed(1)}ms src=${source.length}b`)
+
+        if (!_linkOk) {
             const log = gl.getProgramInfoLog(program)
             throw {
                 code: 'ERR_SHADER_LINK',

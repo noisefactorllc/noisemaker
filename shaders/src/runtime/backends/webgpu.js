@@ -650,8 +650,11 @@ export class WebGPUBackend extends Backend {
     }
 
     async compileComputeProgram(id, source, spec) {
+        const _t0 = performance.now()
         const module = this.device.createShaderModule({ code: source })
+        const _tModule = performance.now()
         const compilationInfo = await module.getCompilationInfo()
+        const _tInfo = performance.now()
         const errors = compilationInfo.messages.filter(m => m.type === 'error')
 
         if (errors.length > 0) {
@@ -681,6 +684,7 @@ export class WebGPUBackend extends Backend {
 
         // Create default pipeline for the first/specified entry point
         const defaultEntryPoint = spec.computeEntryPoint || entryPoints[0] || 'main'
+        const _tBeforePipeline = performance.now()
         const defaultPipeline = this.device.createComputePipeline({
             layout: 'auto',
             compute: {
@@ -688,7 +692,11 @@ export class WebGPUBackend extends Backend {
                 entryPoint: defaultEntryPoint
             }
         })
+        const _tPipeline = performance.now()
         pipelines.set(defaultEntryPoint, defaultPipeline)
+
+        // Knob 1: per-phase compile timings (logging only — see HANDOFF-shader-compile.md)
+        console.log(`[compile-wgsl-compute ${id}] module=${(_tModule - _t0).toFixed(1)}ms info=${(_tInfo - _tModule).toFixed(1)}ms pipeline=${(_tPipeline - _tBeforePipeline).toFixed(1)}ms total=${(_tPipeline - _t0).toFixed(1)}ms src=${source.length}b`)
 
         const programInfo = {
             module,
@@ -708,6 +716,7 @@ export class WebGPUBackend extends Backend {
     }
 
     async compileRenderProgram(id, source, spec) {
+        const _t0 = performance.now()
         // Parse binding declarations from the shader
         let bindings = this.parseShaderBindings(source)
 
@@ -716,7 +725,9 @@ export class WebGPUBackend extends Backend {
 
         // Compile module (will be used for both vertex and fragment if combined)
         const mainModule = this.device.createShaderModule({ code: source })
+        const _tModule = performance.now()
         const moduleInfo = await mainModule.getCompilationInfo()
+        const _tInfo = performance.now()
         const moduleErrors = moduleInfo.messages.filter(m => m.type === 'error')
 
         if (moduleErrors.length > 0) {
@@ -780,6 +791,7 @@ export class WebGPUBackend extends Backend {
         const outputFormat = this.resolveFormat(spec?.outputFormat || 'rgba16float')
 
         // Create initial pipeline
+        const _tBeforePipeline = performance.now()
         const pipeline = this.device.createRenderPipeline({
             layout: 'auto',
             vertex: {
@@ -798,6 +810,10 @@ export class WebGPUBackend extends Backend {
                 topology: spec?.topology || 'triangle-list'
             }
         })
+        const _tPipeline = performance.now()
+
+        // Knob 1: per-phase compile timings (logging only — see HANDOFF-shader-compile.md)
+        console.log(`[compile-wgsl-render ${id}] module=${(_tModule - _t0).toFixed(1)}ms info=${(_tInfo - _tModule).toFixed(1)}ms pipeline=${(_tPipeline - _tBeforePipeline).toFixed(1)}ms total=${(_tPipeline - _t0).toFixed(1)}ms src=${source.length}b`)
 
         // Create pipeline cache for different output formats/blend modes
         const pipelineCache = new Map()
