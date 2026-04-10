@@ -13,8 +13,8 @@
 fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let uv = position.xy / resolution;
 
-    let src = textureSample(inputTex, u_sampler, uv);
-    let accum = textureSample(accumTex, u_sampler, uv);
+    let src = textureSampleLevel(inputTex, u_sampler, uv, 0.0);
+    let accum = textureSampleLevel(accumTex, u_sampler, uv, 0.0);
 
     // Estimate mean of accum buffer from 32x32 grid (1024 samples).
     // Mean is robust to sparse sampling unlike min/max.
@@ -23,7 +23,7 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     for (var gy : i32 = 0; gy < 32; gy = gy + 1) {
         for (var gx : i32 = 0; gx < 32; gx = gx + 1) {
             let sampleUV = (vec2<f32>(f32(gx), f32(gy)) + 0.5) / 32.0;
-            let s = textureSample(accumTex, u_sampler, sampleUV);
+            let s = textureSampleLevel(accumTex, u_sampler, sampleUV, 0.0);
             let v = (s.r + s.g + s.b) / 3.0;
             sum = sum + v;
             count = count + 1.0;

@@ -11,7 +11,8 @@ struct Uniforms {
 const EPSILON: f32 = 1e-10;
 const LUMA_WEIGHTS: vec3<f32> = vec3<f32>(0.299, 0.587, 0.114);
 
-@group(0) @binding(0) var inputSampler: sampler;
+// binding(0) deliberately unused — sampler declared previously was dead
+// (only textureLoad is used below, which doesn't need a sampler).
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
 

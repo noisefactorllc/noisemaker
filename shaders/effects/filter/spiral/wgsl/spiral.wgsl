@@ -87,12 +87,12 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         let dx = dpdx(uv);
         let dy = dpdy(uv);
         var col = vec4<f32>(0.0);
-        col += textureSample(inputTex, inputSampler, uv + dx * -0.375 + dy * -0.125);
-        col += textureSample(inputTex, inputSampler, uv + dx *  0.125 + dy * -0.375);
-        col += textureSample(inputTex, inputSampler, uv + dx *  0.375 + dy *  0.125);
-        col += textureSample(inputTex, inputSampler, uv + dx * -0.125 + dy *  0.375);
+        col += textureSampleLevel(inputTex, inputSampler, uv + dx * -0.375 + dy * -0.125, 0.0);
+        col += textureSampleLevel(inputTex, inputSampler, uv + dx *  0.125 + dy * -0.375, 0.0);
+        col += textureSampleLevel(inputTex, inputSampler, uv + dx *  0.375 + dy *  0.125, 0.0);
+        col += textureSampleLevel(inputTex, inputSampler, uv + dx * -0.125 + dy *  0.375, 0.0);
         return col * 0.25;
     } else {
-        return textureSample(inputTex, inputSampler, uv);
+        return textureSampleLevel(inputTex, inputSampler, uv, 0.0);
     }
 }

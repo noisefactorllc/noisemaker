@@ -38,18 +38,24 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let uv = pos.xy / texSize;
     let texel = uniforms.width / texSize;
 
+    // Use textureSampleLevel because noisemaker textures are rgba16float —
+    // unfilterable on WebGPU without the float32-filterable feature, which
+    // makes plain textureSample reject the auto-generated bind-group layout.
+    // textureSampleLevel takes an explicit mip level so no derivatives or
+    // filtering are needed.
+
     // Sample base color
-    let base = textureSample(inputTex, inputSampler, uv);
+    let base = textureSampleLevel(inputTex, inputSampler, uv, 0.0);
 
     // Sample 3x3 neighborhood for Sobel
-    let tl = luminance(textureSample(inputTex, inputSampler, uv + vec2<f32>(-texel.x, -texel.y)).rgb);
-    let tc = luminance(textureSample(inputTex, inputSampler, uv + vec2<f32>(0.0, -texel.y)).rgb);
-    let tr = luminance(textureSample(inputTex, inputSampler, uv + vec2<f32>(texel.x, -texel.y)).rgb);
-    let ml = luminance(textureSample(inputTex, inputSampler, uv + vec2<f32>(-texel.x, 0.0)).rgb);
-    let mr = luminance(textureSample(inputTex, inputSampler, uv + vec2<f32>(texel.x, 0.0)).rgb);
-    let bl = luminance(textureSample(inputTex, inputSampler, uv + vec2<f32>(-texel.x, texel.y)).rgb);
-    let bc = luminance(textureSample(inputTex, inputSampler, uv + vec2<f32>(0.0, texel.y)).rgb);
-    let br = luminance(textureSample(inputTex, inputSampler, uv + vec2<f32>(texel.x, texel.y)).rgb);
+    let tl = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(-texel.x, -texel.y), 0.0).rgb);
+    let tc = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(0.0, -texel.y), 0.0).rgb);
+    let tr = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(texel.x, -texel.y), 0.0).rgb);
+    let ml = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(-texel.x, 0.0), 0.0).rgb);
+    let mr = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(texel.x, 0.0), 0.0).rgb);
+    let bl = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(-texel.x, texel.y), 0.0).rgb);
+    let bc = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(0.0, texel.y), 0.0).rgb);
+    let br = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(texel.x, texel.y), 0.0).rgb);
 
     // Sobel kernels
     let gx = -tl - 2.0 * ml - bl + tr + 2.0 * mr + br;

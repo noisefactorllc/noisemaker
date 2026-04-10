@@ -1,4 +1,5 @@
-@group(0) @binding(0) var inputSampler : sampler;
+// binding(0) deliberately unused — sampler declared previously was dead
+// (only textureLoad is used below, which doesn't need a sampler).
 @group(0) @binding(1) var inputTex : texture_2d<f32>;
 @group(0) @binding(2) var overlayTex : texture_2d<f32>;
 @group(0) @binding(3) var<uniform> alpha : f32;

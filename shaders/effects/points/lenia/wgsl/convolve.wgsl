@@ -54,7 +54,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
             // Sample density at neighbor (wrap around edges)
             let sampleUV = fract(uv + vec2f(f32(dx), f32(dy)) * texelSize);
-            let density = textureSample(densityTex, densitySampler, sampleUV).r;
+            let density = textureSampleLevel(densityTex, densitySampler, sampleUV, 0.0).r;
 
             // Apply kernel weight
             let kVal = kernel(r, uniforms.muK, uniforms.sigmaK) * wK;

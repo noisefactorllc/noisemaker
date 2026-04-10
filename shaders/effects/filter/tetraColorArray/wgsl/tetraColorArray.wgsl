@@ -315,7 +315,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let uv = position.xy / size;
 
     // Get input color
-    let inputColor = textureSample(inputTex, samp, uv);
+    let inputColor = textureSampleLevel(inputTex, samp, uv, 0.0);
 
     // Calculate luminance as the t value
     let lum = dot(inputColor.rgb, vec3<f32>(0.299, 0.587, 0.114));

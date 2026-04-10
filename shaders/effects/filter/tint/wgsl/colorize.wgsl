@@ -44,7 +44,7 @@ fn hsv_to_rgb(hsv: vec3<f32>) -> vec3<f32> {
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   let size = max(textureDimensions(inputTex, 0), vec2<u32>(1, 1));
   let st = position.xy / vec2<f32>(size);
-  let base = textureSample(inputTex, samp, st);
+  let base = textureSampleLevel(inputTex, samp, st, 0.0);
   let base_rgb = clamp(base.rgb, vec3<f32>(0.0), vec3<f32>(1.0));
 
   let m = i32(mode);

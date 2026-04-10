@@ -20,7 +20,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let uv = pos.xy / texSize;
     let texelSize = 1.0 / texSize;
     
-    let origColor = textureSample(inputTex, inputSampler, uv);
+    let origColor = textureSampleLevel(inputTex, inputSampler, uv, 0.0);
     
     // Sharpen kernel
     let kernel = array<f32, 9>(-1.0, 0.0, -1.0, 0.0, 5.0, 0.0, -1.0, 0.0, -1.0);
@@ -40,7 +40,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var conv = vec3<f32>(0.0);
     
     for (var i = 0; i < 9; i = i + 1) {
-        let sample = textureSample(inputTex, inputSampler, uv + offsets[i] * uniforms.amount).rgb;
+        let sample = textureSampleLevel(inputTex, inputSampler, uv + offsets[i] * uniforms.amount, 0.0).rgb;
         conv = conv + sample * kernel[i];
     }
     

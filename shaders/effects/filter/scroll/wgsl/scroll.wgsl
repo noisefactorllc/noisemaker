@@ -32,6 +32,6 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
       st = clamp(st, vec2<f32>(0.0), vec2<f32>(1.0));
   }
   
-  let color = textureSample(inputTex, samp, st).rgb;
+  let color = textureSampleLevel(inputTex, samp, st, 0.0).rgb;
   return vec4<f32>(color, 1.0);
 }

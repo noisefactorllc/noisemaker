@@ -83,5 +83,5 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         }
     }
 
-    return textureSample(inputTex, inputSampler, uv);
+    return textureSampleLevel(inputTex, inputSampler, uv, 0.0);
 }

@@ -32,7 +32,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let wx = edgeWeight(st.x, blend, curve);
     let wy = edgeWeight(st.y, blend, curve);
 
-    let c00 = textureSample(inputTex, samp, st);
+    let c00 = textureSampleLevel(inputTex, samp, st, 0.0);
     let c10 = textureSample(inputTex, samp, fract2(st + vec2<f32>(0.5, 0.0)));
     let c01 = textureSample(inputTex, samp, fract2(st + vec2<f32>(0.0, 0.5)));
     let c11 = textureSample(inputTex, samp, fract2(st + vec2<f32>(0.5, 0.5)));

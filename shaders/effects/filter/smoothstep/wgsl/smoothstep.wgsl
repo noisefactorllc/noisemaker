@@ -21,7 +21,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = pos.xy / texSize;
-    var color = textureSample(inputTex, inputSampler, uv);
+    var color = textureSampleLevel(inputTex, inputSampler, uv, 0.0);
 
     color = vec4<f32>(smoothstep(vec3<f32>(edge0), vec3<f32>(edge1), color.rgb), color.a);
 

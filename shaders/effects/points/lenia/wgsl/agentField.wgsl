@@ -54,7 +54,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> FragmentOutput {
     // Use the field texture's actual size for correct texel stepping
     let fieldDims = textureDimensions(fieldTex, 0);
     let texelSize = 1.0 / vec2f(f32(fieldDims.x), f32(fieldDims.y));
-    let U = textureSample(fieldTex, fieldSampler, uv).r;
+    let U = textureSampleLevel(fieldTex, fieldSampler, uv, 0.0).r;
     let Ux_plus = textureSample(fieldTex, fieldSampler, fract(uv + vec2f(texelSize.x, 0.0))).r;
     let Ux_minus = textureSample(fieldTex, fieldSampler, fract(uv - vec2f(texelSize.x, 0.0))).r;
     let Uy_plus = textureSample(fieldTex, fieldSampler, fract(uv + vec2f(0.0, texelSize.y))).r;

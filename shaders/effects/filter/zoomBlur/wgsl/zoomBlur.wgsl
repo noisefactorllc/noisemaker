@@ -46,7 +46,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     for (var t = 0.0; t <= 40.0; t = t + 1.0) {
         let percent = (t + offset) / 40.0;
         let weight = 4.0 * (percent - percent * percent);
-        let tex = textureSample(inputTex, inputSampler, uv + toCenter * percent * uniforms.strength);
+        let tex = textureSampleLevel(inputTex, inputSampler, uv + toCenter * percent * uniforms.strength, 0.0);
         color = color + tex.rgb * weight;
         total = total + weight;
     }
