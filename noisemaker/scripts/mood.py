@@ -67,7 +67,7 @@ def mood_text(input_filename, text, font="LiberationSans-Bold", font_size=42, fi
 
         text_y += line_h + padding
 
-    overlay = overlay.resize((input_width, input_height), Image.LANCZOS)
+    overlay = overlay.resize((input_width, input_height), Image.Resampling.LANCZOS)
     image = Image.alpha_composite(image.convert("RGBA"), overlay).convert("RGB")
 
     image.save(input_filename)
