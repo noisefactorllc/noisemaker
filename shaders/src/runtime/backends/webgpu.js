@@ -188,8 +188,12 @@ export class WebGPUBackend extends Backend {
 
     createTexture(id, spec) {
         const format = this.resolveFormat(spec.format)
-        // Include copySrc in default usage to allow readback for testing/debugging
-        const usage = this.resolveUsage(spec.usage || ['render', 'sample', 'copySrc'])
+        // Include copySrc + copyDst in default usage so the texture can serve as
+        // both the source and destination of copyTextureToTexture (used by the
+        // chain-handoff path at line ~480). Without copyDst Dawn rejects the
+        // copy with "Destination texture needs to have CopyDst and RenderAttachment
+        // usage", which surfaces as a soft validation error per affected effect.
+        const usage = this.resolveUsage(spec.usage || ['render', 'sample', 'copySrc', 'copyDst'])
 
         const texture = this.device.createTexture({
             size: {
@@ -707,8 +711,20 @@ export class WebGPUBackend extends Backend {
             entryPoints,  // All available entry points
             entryPointBindings,  // Map of entry point -> Set of used binding indices
             bindings,  // Store parsed bindings for bind group creation
+            // True if the source contains any `@binding` declarations at all,
+            // even ones we filtered out as dead. Used by createBindGroup to
+            // distinguish "modern shader, all bindings filtered as dead" (use
+            // empty bind group) from "legacy shader, no bindings declared"
+            // (fall back to legacy entry builder).
+            _sourceHasBindings: /@binding\s*\(/.test(source),
             // Use definition-provided uniformLayout if available, fall back to shader parsing
-            packedUniformLayout: spec.uniformLayout || this.parsePackedUniformLayout(source)
+            packedUniformLayout: spec.uniformLayout || this.parsePackedUniformLayout(source),
+            // Minimum size of any var<uniform> struct in the shader (computed from
+            // the source). The bind-group buffer must be at least this big or
+            // Dawn rejects with "Binding size (X) is smaller than the minimum
+            // binding size (Y)". Catches cases where the packed-layout parser
+            // under-estimates because the shader only references a subset of slots.
+            declaredUniformBufferSize: this.parseDeclaredUniformBufferSize(source)
         }
 
         this.programs.set(id, programInfo)
@@ -835,12 +851,130 @@ export class WebGPUBackend extends Backend {
             outputFormat,
             pipelineCache,
             bindings, // Store parsed bindings for bind group creation
+            // See compileComputeProgram for what this flag is for.
+            _sourceHasBindings: /@binding\s*\(/.test(source),
             // Use definition-provided uniformLayout if available, fall back to shader parsing
-            packedUniformLayout: spec.uniformLayout || this.parsePackedUniformLayout(source)
+            packedUniformLayout: spec.uniformLayout || this.parsePackedUniformLayout(source),
+            // Minimum size of any var<uniform> struct in the shader (computed from
+            // the source). The bind-group buffer must be at least this big or
+            // Dawn rejects with "Binding size (X) is smaller than the minimum
+            // binding size (Y)". Catches cases where the packed-layout parser
+            // under-estimates because the shader only references a subset of slots.
+            declaredUniformBufferSize: this.parseDeclaredUniformBufferSize(source)
         }
 
         this.programs.set(id, programInfo)
         return programInfo
+    }
+
+    /**
+     * Parse the source for `var<uniform> name: StructName;` and return the
+     * minimum byte size of the referenced struct, computed from its field
+     * declarations. Handles `array<vec4<f32>, N>`, `array<f32, N>`, scalar
+     * fields, and vector fields. Returns 0 if no struct is found.
+     *
+     * Used as a buffer-size floor in createUniformBuffer so the runtime never
+     * allocates a uniform buffer smaller than the shader's declared struct,
+     * which Dawn rejects.
+     */
+    parseDeclaredUniformBufferSize(source) {
+        // Find any struct used as a uniform binding.
+        const bindingRegex = /var<uniform>\s+\w+\s*:\s*(\w+)\s*;/g
+        let largestSize = 0
+        let bindingMatch
+        while ((bindingMatch = bindingRegex.exec(source)) !== null) {
+            const structName = bindingMatch[1]
+            // Find the matching struct declaration.
+            const structRegex = new RegExp(`struct\\s+${structName}\\s*\\{([^}]+)\\}`, 'g')
+            const structMatch = structRegex.exec(source)
+            if (!structMatch) continue
+            const body = structMatch[1]
+            // Compute the byte size of the struct body.
+            const size = this.computeWgslStructSize(body)
+            if (size > largestSize) largestSize = size
+        }
+        return largestSize
+    }
+
+    /**
+     * Given the body of a WGSL struct (the contents inside the braces),
+     * compute its minimum byte size following std140-compatible alignment
+     * rules used by WebGPU uniform buffers.
+     *
+     * This is a defensive estimator — it errs toward larger sizes when in
+     * doubt, since over-allocation is harmless but under-allocation causes
+     * Dawn to reject the bind group.
+     */
+    computeWgslStructSize(body) {
+        // Strip line comments so they don't interfere with field parsing.
+        const cleaned = body.replace(/\/\/[^\n]*/g, '')
+
+        // Match each `name: type` field, where `type` may be a scalar, vector,
+        // or `array<...>`. We capture the type expression up to the next comma
+        // or end of struct.
+        const fieldRegex = /\w+\s*:\s*([^,}]+)/g
+        let offset = 0
+        let maxAlign = 4
+        let fieldMatch
+        while ((fieldMatch = fieldRegex.exec(cleaned)) !== null) {
+            const typeExpr = fieldMatch[1].trim()
+            const { size, align } = this.computeWgslTypeSize(typeExpr)
+            if (size === 0) continue
+            offset = Math.ceil(offset / align) * align
+            offset += size
+            if (align > maxAlign) maxAlign = align
+        }
+        // WGSL struct size is rounded up to the largest member alignment.
+        return Math.ceil(offset / maxAlign) * maxAlign
+    }
+
+    /**
+     * Compute size + alignment for a WGSL type expression. Returns
+     * { size: 0, align: 4 } for unrecognized types.
+     */
+    computeWgslTypeSize(typeExpr) {
+        // array<T, N> — N is required for uniform-buffer use
+        const arrayMatch = /^array\s*<\s*(.+?)\s*,\s*(\d+)\s*>$/.exec(typeExpr)
+        if (arrayMatch) {
+            const elemType = arrayMatch[1]
+            const count = parseInt(arrayMatch[2], 10)
+            const elem = this.computeWgslTypeSize(elemType)
+            // For uniform buffers, the array stride is rounded up to 16.
+            const stride = Math.max(elem.size, 16)
+            return { size: stride * count, align: Math.max(elem.align, 16) }
+        }
+        // Scalars and vectors
+        const t = typeExpr.replace(/\s+/g, '')
+        const map = {
+            'f32': { size: 4, align: 4 },
+            'i32': { size: 4, align: 4 },
+            'u32': { size: 4, align: 4 },
+            'f16': { size: 2, align: 2 },
+            'bool': { size: 4, align: 4 },
+            'vec2<f32>': { size: 8, align: 8 },
+            'vec2f': { size: 8, align: 8 },
+            'vec2<i32>': { size: 8, align: 8 },
+            'vec2i': { size: 8, align: 8 },
+            'vec2<u32>': { size: 8, align: 8 },
+            'vec2u': { size: 8, align: 8 },
+            'vec3<f32>': { size: 12, align: 16 },
+            'vec3f': { size: 12, align: 16 },
+            'vec3<i32>': { size: 12, align: 16 },
+            'vec3i': { size: 12, align: 16 },
+            'vec3<u32>': { size: 12, align: 16 },
+            'vec3u': { size: 12, align: 16 },
+            'vec4<f32>': { size: 16, align: 16 },
+            'vec4f': { size: 16, align: 16 },
+            'vec4<i32>': { size: 16, align: 16 },
+            'vec4i': { size: 16, align: 16 },
+            'vec4<u32>': { size: 16, align: 16 },
+            'vec4u': { size: 16, align: 16 },
+            'mat3x3<f32>': { size: 48, align: 16 },
+            'mat3x3f': { size: 48, align: 16 },
+            'mat4x4<f32>': { size: 64, align: 16 },
+            'mat4x4f': { size: 64, align: 16 },
+        }
+        return map[t] || { size: 0, align: 4 }
     }
 
     /**
@@ -1241,13 +1375,36 @@ export class WebGPUBackend extends Backend {
             })
         }
 
+        // Drop bindings that are declared but never referenced anywhere in the
+        // shader body. Dawn's auto-generated bind group layout DCEs unused
+        // bindings, so if we still hand them to createBindGroup we get a
+        // "binding index N not present in the bind group layout" error from
+        // the asynchronous validation path (which the synchronous try/catch
+        // around createBindGroup can't see, since WebGPU validation errors
+        // surface via the uncaptured error event, not as thrown exceptions).
+        //
+        // Strategy: strip line comments, then count word-boundary occurrences
+        // of each binding name. A count of 1 means only the declaration line
+        // mentions it, so the binding is dead. Storage textures are never
+        // dropped — they're typically MRT outputs whose name only appears in
+        // textureStore() calls that the regex would match anyway, but we
+        // exclude them defensively to avoid corrupting compute pipelines.
+        const sourceNoLineComments = source.replace(/\/\/[^\n]*/g, '')
+        const filtered = bindings.filter(b => {
+            if (b.type === 'storage_texture' || b.type === 'storage') return true
+            // Match `name` as a whole word (so `inputTex` doesn't match `inputTex2`).
+            const re = new RegExp(`\\b${b.name}\\b`, 'g')
+            const count = (sourceNoLineComments.match(re) || []).length
+            return count > 1
+        })
+
         // Sort by group then binding
-        bindings.sort((a, b) => {
+        filtered.sort((a, b) => {
             if (a.group !== b.group) return a.group - b.group
             return a.binding - b.binding
         })
 
-        return bindings
+        return filtered
     }
 
     getDefaultVertexModule() {
@@ -2097,9 +2254,24 @@ export class WebGPUBackend extends Backend {
             }
         }
 
-        // If no bindings were parsed (maybe older shader format), fall back to legacy approach
+        // If no bindings were parsed AND the shader source has zero `@binding`
+        // declarations at all, the shader uses the older format — fall back to
+        // the legacy entry builder. But if the shader DOES declare bindings and
+        // the parsed list is just empty (because parseShaderBindings filtered
+        // all of them out as dead), we want an empty bind group, NOT the
+        // legacy fallback. The legacy fallback would blindly add entries from
+        // pass.inputs + a uniform buffer, which would mismatch the empty
+        // auto-generated layout.
         if (bindings.length === 0) {
-            return this.createLegacyBindGroup(pass, program, state)
+            const sourceHasBindings = program.module && program._sourceHasBindings
+            if (!sourceHasBindings) {
+                return this.createLegacyBindGroup(pass, program, state)
+            }
+            // Shader declared bindings but they're all dead — empty bind group is correct.
+            return this.device.createBindGroup({
+                layout: targetPipeline.getBindGroupLayout(0),
+                entries: []
+            })
         }
 
 
@@ -2380,8 +2552,13 @@ export class WebGPUBackend extends Backend {
         const texture = this.device.createTexture({
             size: { width, height },
             format: 'rgba16float',
+            // Include COPY_DST so copyTextureToTexture can target this texture
+            // (used by the chain-handoff path). Without it Dawn rejects with
+            // "Destination texture needs to have CopyDst and RenderAttachment
+            // usage" — this storage texture has RENDER_ATTACHMENT but was
+            // missing COPY_DST.
             usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING |
-                   GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT
+                   GPUTextureUsage.COPY_SRC | GPUTextureUsage.COPY_DST | GPUTextureUsage.RENDER_ATTACHMENT
         })
 
         const view = texture.createView()
@@ -2518,17 +2695,28 @@ export class WebGPUBackend extends Backend {
             ? this.packUniformsWithLayout(merged, packedLayout)
             : this.packUniforms(merged)
 
-        // Get or create buffer from pool
-        let buffer = this.getBufferFromPool(data.byteLength)
+        // Determine the buffer size we actually need. Some shaders declare a
+        // Uniforms struct whose minimum binding size exceeds what the packed
+        // layout parser inferred (e.g. `data: array<vec4<f32>, 2>` is 32 bytes
+        // but if the parser only matched references to data[0] the inferred
+        // size collapses to 16). Use the program's `declaredUniformBufferSize`
+        // if known so the buffer matches the shader's actual struct.
+        const declaredMin = program?.declaredUniformBufferSize || 0
+        const bufferSize = Math.max(data.byteLength, declaredMin, 16)
+
+        // Get or create buffer from pool. Note: pool entries are sized large
+        // enough for any prior request, so the pool is fine for the larger
+        // declared size too.
+        let buffer = this.getBufferFromPool(bufferSize)
 
         if (!buffer) {
             buffer = this.device.createBuffer({
-                size: Math.max(data.byteLength, 16), // Minimum 16 bytes
+                size: bufferSize,
                 usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
             })
         }
 
-        this.queue.writeBuffer(buffer, 0, data)
+        this.queue.writeBuffer(buffer, 0, data.buffer || data, data.byteOffset || 0, data.byteLength)
         this.activeUniformBuffers.push(buffer)
 
         return buffer

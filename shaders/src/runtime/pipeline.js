@@ -652,14 +652,14 @@ export class Pipeline {
                 width: surfaceWidth,
                 height: surfaceHeight,
                 format: surfaceFormat,
-                usage: ['render', 'sample', 'copySrc', 'storage']
+                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
             })
 
             this.backend.createTexture(`global_${name}_write`, {
                 width: surfaceWidth,
                 height: surfaceHeight,
                 format: surfaceFormat,
-                usage: ['render', 'sample', 'copySrc', 'storage']
+                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
             })
 
             this.surfaces.set(name, {
@@ -689,14 +689,14 @@ export class Pipeline {
                 width: this.width,
                 height: this.height,
                 format: 'rgba16f',
-                usage: ['render', 'sample', 'copySrc', 'storage']
+                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
             })
 
             this.backend.createTexture(`global_${name}_write`, {
                 width: this.width,
                 height: this.height,
                 format: 'rgba16f',
-                usage: ['render', 'sample', 'copySrc', 'storage']
+                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
             })
 
             this.surfaces.set(name, {
@@ -730,14 +730,14 @@ export class Pipeline {
                 width: volumeSliceSize,
                 height: volumeAtlasHeight,
                 format: 'rgba16f',
-                usage: ['render', 'sample', 'copySrc', 'storage']
+                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
             })
 
             this.backend.createTexture(`global_${name}_write`, {
                 width: volumeSliceSize,
                 height: volumeAtlasHeight,
                 format: 'rgba16f',
-                usage: ['render', 'sample', 'copySrc', 'storage']
+                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
             })
 
             this.surfaces.set(name, {
@@ -892,13 +892,13 @@ export class Pipeline {
                     width,
                     height,
                     format,
-                    usage: ['render', 'sample', 'copySrc', 'storage']
+                    usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
                 })
                 this.backend.createTexture(writeTexId, {
                     width,
                     height,
                     format,
-                    usage: ['render', 'sample', 'copySrc', 'storage']
+                    usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
                 })
             } else {
                 // Handle regular (non-global) texture
