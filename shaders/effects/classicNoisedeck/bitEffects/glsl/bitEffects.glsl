@@ -10,6 +10,15 @@ precision highp float;
 precision highp int;
 
 uniform float time;
+// MODE is a compile-time define injected by the runtime (see definition.js
+// `globals.mode.define`). Picks bitField vs bitMask at compile time so the
+// unused half of the shader is dead-code-eliminated. Each mode has its own
+// independent set of helpers, ~1.4s of compile each on Windows Chrome via
+// ANGLE→D3D, so splitting them halves the worst-case compile time.
+#ifndef MODE
+#define MODE 1
+#endif
+
 uniform int seed;
 uniform vec2 resolution;
 uniform int formula;
@@ -19,7 +28,7 @@ uniform int interp;
 uniform float scale;
 uniform float rotation;
 uniform float speed;
-uniform int mode;
+// `mode` is no longer a runtime uniform — see MODE define at top of file.
 uniform int maskFormula;
 uniform float tiles;
 uniform float complexity;
@@ -457,14 +466,14 @@ void main() {
     vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
     vec2 st = gl_FragCoord.xy;
 
-    if (mode == 0) {
-        // bit field
-        color.rgb = bitField(st);
-    } else {
-        st = gl_FragCoord.xy / resolution.y;
-        st += float(seed) + 1000.0;
-        color.rgb = bitMask(st);
-    }
+#if MODE == 0
+    // bit field
+    color.rgb = bitField(st);
+#else
+    st = gl_FragCoord.xy / resolution.y;
+    st += float(seed) + 1000.0;
+    color.rgb = bitMask(st);
+#endif
 
     st = gl_FragCoord.xy / resolution;
 

@@ -9,6 +9,14 @@
 precision highp float;
 precision highp int;
 
+// LOOP_OFFSET is a compile-time define injected by the runtime (see
+// definition.js `globals.LOOP_OFFSET.define`). When the default is circle
+// (10), the entire noise value() function and all 9 variant functions are
+// unreachable and get DCE'd, dropping the compile from 3.9s to ~200ms.
+#ifndef LOOP_OFFSET
+#define LOOP_OFFSET 10
+#endif
+
 uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform float time;
@@ -16,8 +24,7 @@ uniform bool wrap;
 uniform int seed;
 uniform float speed;
 uniform float loopScale;
-uniform int loopOffset;
-uniform float kaleido; 
+uniform float kaleido;
 uniform int metric;
 uniform int direction;
 uniform int kernel;
@@ -757,79 +764,79 @@ float getMetric(vec2 st) {
 }
 
 float offset(vec2 st, float freq) {
-    if (loopOffset == 10) {
+    if (LOOP_OFFSET == 10) {
         // circle
         return circles(st, freq);
-    } else if (loopOffset == 20) {
+    } else if (LOOP_OFFSET == 20) {
         // triangle
         return shape(st, 3, freq * 0.5);
-    } else if (loopOffset == 30) {
+    } else if (LOOP_OFFSET == 30) {
         // diamond
         return (abs(st.x - 0.5 * aspectRatio) + abs(st.y - 0.5)) * freq * 0.5;
-    } else if (loopOffset == 40) {
+    } else if (LOOP_OFFSET == 40) {
         // square
         return shape(st, 4, freq * 0.5);
-    } else if (loopOffset == 50) {
+    } else if (LOOP_OFFSET == 50) {
         // pentagon
         return shape(st, 5, freq * 0.5);
-    } else if (loopOffset == 60) {
+    } else if (LOOP_OFFSET == 60) {
         // hexagon
         return shape(st, 6, freq * 0.5);
-    } else if (loopOffset == 70) {
+    } else if (LOOP_OFFSET == 70) {
         // heptagon
         return shape(st, 7, freq * 0.5);
-    } else if (loopOffset == 80) {
+    } else if (LOOP_OFFSET == 80) {
         // octagon
         return shape(st, 8, freq * 0.5);
-    } else if (loopOffset == 90) {
+    } else if (LOOP_OFFSET == 90) {
         // nonagon
         return shape(st, 9, freq * 0.5);
-    } else if (loopOffset == 100) {
+    } else if (LOOP_OFFSET == 100) {
         // decagon
         return shape(st, 10, freq * 0.5);
-    } else if (loopOffset == 110) {
+    } else if (LOOP_OFFSET == 110) {
         // hendecagon
         return shape(st, 11, freq * 0.5);
-    } else if (loopOffset == 120) {
+    } else if (LOOP_OFFSET == 120) {
         // dodecagon
         return shape(st, 12, freq * 0.5);
-    } else if (loopOffset == 200) {
+    } else if (LOOP_OFFSET == 200) {
         // horizontal scan
         return st.x * freq * 0.5;
-    } else if (loopOffset == 210) {
+    } else if (LOOP_OFFSET == 210) {
         // vertical scan
         return st.y * freq * 0.5;
-    } else if (loopOffset == 300) {
+    } else if (LOOP_OFFSET == 300) {
         // constant
         return 1.0 - value(st, freq, 0);
-    } else if (loopOffset == 310) {
+    } else if (LOOP_OFFSET == 310) {
         // linear
         return 1.0 - value(st, freq, 1);
-    } else if (loopOffset == 320) {
+    } else if (LOOP_OFFSET == 320) {
         // hermite
         return 1.0 - value(st, freq, 2);
-    } else if (loopOffset == 330) {
+    } else if (LOOP_OFFSET == 330) {
         // catmull-rom 3x3
         return 1.0 - value(st, freq, 3);
-    } else if (loopOffset == 340) {
+    } else if (LOOP_OFFSET == 340) {
         // catmull-rom 4x4
         return 1.0 - value(st, freq, 4);
-    } else if (loopOffset == 350) {
+    } else if (LOOP_OFFSET == 350) {
         // b-spline 3x3
         return 1.0 - value(st, freq, 5);
-    } else if (loopOffset == 360) {
+    } else if (LOOP_OFFSET == 360) {
         // b-spline 4x4
         return 1.0 - value(st, freq, 6);
-    } else if (loopOffset == 370) {
+    } else if (LOOP_OFFSET == 370) {
         // simplex
         return 1.0 - value(st, freq, 10);
-    } else if (loopOffset == 380) {
+    } else if (LOOP_OFFSET == 380) {
         // sine
         return 1.0 - value(st, freq, 11);
-    } else if (loopOffset == 400) {
+    } else if (LOOP_OFFSET == 400) {
         // rings
         return 1.0 - rings(st, freq);
-    } else if (loopOffset == 410) {
+    } else if (LOOP_OFFSET == 410) {
         // sine
         return 1.0 - diamonds(st, freq);
     }

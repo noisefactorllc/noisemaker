@@ -9,11 +9,19 @@
 precision highp float;
 precision highp int;
 
+// NOISE_TYPE is a compile-time define injected by the runtime (see
+// definition.js `globals.type.define`). Picks one SDF/noise variant at
+// compile time inside getDist() (which is called many times per pixel by
+// the raymarcher), so the GLSL→HLSL translator dead-code-eliminates the
+// other 8 branches before they get inlined into every raymarch step.
+#ifndef NOISE_TYPE
+#define NOISE_TYPE 12
+#endif
+
 uniform float time;
 uniform int seed;
 uniform vec2 resolution;
 uniform float scale;
-uniform int noiseType;
 uniform bool ridges;
 uniform float offsetX;
 uniform float offsetY;
@@ -480,47 +488,48 @@ float cubes(vec3 p) {
 // get the nearest distance to the SDFs
 float getDist(vec3 p) {
     float d;
-    
-    if (noiseType == 12) {
-        // simplex
-        float scale = map(scale, 1.0, 100.0, 0.25, 0.025); 
-        d = snoise(p * scale + float(seed)) * 0.5 + 0.5;
-        d = smootherstep(d);
-    } else if (noiseType == 20) {
-        // cell
-        float scale = map(scale, 1.0, 100.0, 0.1, 0.35); 
-        d = cellular(p * 0.1 + float(seed)).x;
-        d = smoothstep(scale, 0.5, d);
-    } else if (noiseType == 21) {
-        // cell v2
-        d = voronoi3d(p * 0.1 + float(seed)).x;
-        float scale = map(scale, 1.0, 100.0, 0.1, 0.35); 
-        d = smoothstep(scale, 0.5, d);
-    } else if (noiseType == 30) {
-        // sine
-        float scale = map(scale, 1.0, 100.0, 1.0, 0.1); 
-        d = sine3D(p * scale);
-    } else if (noiseType == 40) {
-        d = spheres(p);
-    } else if (noiseType == 50) {
-        d = cubes(p);
-    } else if (noiseType == 60) {
-        // wavy planes both
-        float scale = map(scale, 1.0, 100.0, 0.25, 0.025); 
-        d = -abs(p.y) + 4.0 + snoise(p * scale + float(seed)) * 0.75;
-    } else if (noiseType == 61) {
-        // wavy plane lower
-        float scale = map(scale, 1.0, 100.0, 0.25, 0.025); 
-        d = p.y + 4.0 + snoise(p * scale + float(seed)) * 0.75;
-    } else if (noiseType == 62) {
-        // wavy plane upper
-        float scale = map(scale, 1.0, 100.0, 0.25, 0.025); 
-        d = -p.y + 2.0 + snoise(p * scale + float(seed)) * 0.75;
-    }
 
-    if (ridges && noiseType == 12) {
+#if NOISE_TYPE == 12
+    // simplex
+    float scaleN = map(scale, 1.0, 100.0, 0.25, 0.025);
+    d = snoise(p * scaleN + float(seed)) * 0.5 + 0.5;
+    d = smootherstep(d);
+    if (ridges) {
         d = 1.0 - smoothabs(d * 2.0 - 1.0, 0.05);
     }
+#elif NOISE_TYPE == 20
+    // cell
+    float scaleN = map(scale, 1.0, 100.0, 0.1, 0.35);
+    d = cellular(p * 0.1 + float(seed)).x;
+    d = smoothstep(scaleN, 0.5, d);
+#elif NOISE_TYPE == 21
+    // cell v2
+    d = voronoi3d(p * 0.1 + float(seed)).x;
+    float scaleN = map(scale, 1.0, 100.0, 0.1, 0.35);
+    d = smoothstep(scaleN, 0.5, d);
+#elif NOISE_TYPE == 30
+    // sine
+    float scaleN = map(scale, 1.0, 100.0, 1.0, 0.1);
+    d = sine3D(p * scaleN);
+#elif NOISE_TYPE == 40
+    d = spheres(p);
+#elif NOISE_TYPE == 50
+    d = cubes(p);
+#elif NOISE_TYPE == 60
+    // wavy planes both
+    float scaleN = map(scale, 1.0, 100.0, 0.25, 0.025);
+    d = -abs(p.y) + 4.0 + snoise(p * scaleN + float(seed)) * 0.75;
+#elif NOISE_TYPE == 61
+    // wavy plane lower
+    float scaleN = map(scale, 1.0, 100.0, 0.25, 0.025);
+    d = p.y + 4.0 + snoise(p * scaleN + float(seed)) * 0.75;
+#elif NOISE_TYPE == 62
+    // wavy plane upper
+    float scaleN = map(scale, 1.0, 100.0, 0.25, 0.025);
+    d = -p.y + 2.0 + snoise(p * scaleN + float(seed)) * 0.75;
+#else
+    d = 0.0;
+#endif
 
     return d;
 }

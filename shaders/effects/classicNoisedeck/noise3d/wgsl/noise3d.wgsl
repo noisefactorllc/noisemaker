@@ -11,12 +11,15 @@
  * - Lighting and fog
  */
 
+// NOISE_TYPE is a compile-time const injected by the runtime via injectDefines.
+// See classicNoisedeck/noise3d/definition.js `globals.type.define`. Binding 4
+// (formerly NOISE_TYPE) is freed; the other binding indices are unchanged.
+
 // Uniforms - individual bindings pattern for generator effects
 @group(0) @binding(0) var<uniform> time: f32;
 @group(0) @binding(1) var<uniform> seed: i32;
 @group(0) @binding(2) var<uniform> resolution: vec2<f32>;
 @group(0) @binding(3) var<uniform> noiseScale: f32;
-@group(0) @binding(4) var<uniform> noiseType: i32;
 @group(0) @binding(5) var<uniform> ridges: i32;
 @group(0) @binding(6) var<uniform> offsetX: f32;
 @group(0) @binding(7) var<uniform> offsetY: f32;
@@ -400,38 +403,38 @@ fn cubes(p_in: vec3<f32>) -> f32 {
 fn getDist(p: vec3<f32>) -> f32 {
     var d: f32;
     
-    if (noiseType == 12) {
+    if (NOISE_TYPE == 12) {
         // simplex
         let scale = map_value(noiseScale, 1.0, 100.0, 0.25, 0.025);
         d = snoise(p * scale + f32(seed)) * 0.5 + 0.5;
         d = smootherstep(d);
-    } else if (noiseType == 20) {
+    } else if (NOISE_TYPE == 20) {
         // cell
         let scale = map_value(noiseScale, 1.0, 100.0, 0.1, 0.35);
         d = cellular(p * 0.1 + f32(seed)).x;
         d = smoothstep(scale, 0.5, d);
-    } else if (noiseType == 21) {
+    } else if (NOISE_TYPE == 21) {
         // cell v2
         d = voronoi3d(p * 0.1 + f32(seed)).x;
         let scale = map_value(noiseScale, 1.0, 100.0, 0.1, 0.35);
         d = smoothstep(scale, 0.5, d);
-    } else if (noiseType == 30) {
+    } else if (NOISE_TYPE == 30) {
         // sine
         let scale = map_value(noiseScale, 1.0, 100.0, 1.0, 0.1);
         d = sine3D(p * scale);
-    } else if (noiseType == 40) {
+    } else if (NOISE_TYPE == 40) {
         d = spheres(p);
-    } else if (noiseType == 50) {
+    } else if (NOISE_TYPE == 50) {
         d = cubes(p);
-    } else if (noiseType == 60) {
+    } else if (NOISE_TYPE == 60) {
         // wavy planes both
         let scale = map_value(noiseScale, 1.0, 100.0, 0.25, 0.025);
         d = -abs(p.y) + 4.0 + snoise(p * scale + f32(seed)) * 0.75;
-    } else if (noiseType == 61) {
+    } else if (NOISE_TYPE == 61) {
         // wavy plane lower
         let scale = map_value(noiseScale, 1.0, 100.0, 0.25, 0.025);
         d = p.y + 4.0 + snoise(p * scale + f32(seed)) * 0.75;
-    } else if (noiseType == 62) {
+    } else if (NOISE_TYPE == 62) {
         // wavy plane upper
         let scale = map_value(noiseScale, 1.0, 100.0, 0.25, 0.025);
         d = -p.y + 2.0 + snoise(p * scale + f32(seed)) * 0.75;
@@ -442,7 +445,7 @@ fn getDist(p: vec3<f32>) -> f32 {
         d = smootherstep(d);
     }
 
-    if (ridges != 0 && noiseType == 12) {
+    if (ridges != 0 && NOISE_TYPE == 12) {
         d = 1.0 - smoothabs(d * 2.0 - 1.0, 0.05);
     }
 

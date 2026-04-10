@@ -350,23 +350,23 @@ fn value(st: vec2f, freq: f32, interp: i32) -> f32 {
 fn offset(st_in: vec2f, freq: f32) -> f32 {
     var st = st_in;
     st.x *= aspectRatio();
-    if (u.loopOffset == 10) { return circles(st, freq); }
-    else if (u.loopOffset == 20) { return shape(st, 3, freq * 0.5); }
-    else if (u.loopOffset == 30) { return (abs(st.x - 0.5 * aspectRatio()) + abs(st.y - 0.5)) * freq * 0.5; }
-    else if (u.loopOffset >= 40 && u.loopOffset <= 80) {
-        let sides = u.loopOffset / 10;
+    if (LOOP_OFFSET == 10) { return circles(st, freq); }
+    else if (LOOP_OFFSET == 20) { return shape(st, 3, freq * 0.5); }
+    else if (LOOP_OFFSET == 30) { return (abs(st.x - 0.5 * aspectRatio()) + abs(st.y - 0.5)) * freq * 0.5; }
+    else if (LOOP_OFFSET >= 40 && LOOP_OFFSET <= 80) {
+        let sides = LOOP_OFFSET / 10;
         return shape(st, sides, freq * 0.5);
     }
-    else if (u.loopOffset == 200) { return st.x * freq * 0.5; }
-    else if (u.loopOffset == 210) { return st.y * freq * 0.5; }
-    else if (u.loopOffset == 380) { return 1.0 - sineNoise(st, freq); }
-    else if (u.loopOffset >= 300 && u.loopOffset <= 370) {
-        let idx = (u.loopOffset - 300) / 10;
+    else if (LOOP_OFFSET == 200) { return st.x * freq * 0.5; }
+    else if (LOOP_OFFSET == 210) { return st.y * freq * 0.5; }
+    else if (LOOP_OFFSET == 380) { return 1.0 - sineNoise(st, freq); }
+    else if (LOOP_OFFSET >= 300 && LOOP_OFFSET <= 370) {
+        let idx = (LOOP_OFFSET - 300) / 10;
         let interp = select(idx + 3, idx, idx <= 6);
         return 1.0 - value(st, freq, interp);
     }
-    else if (u.loopOffset == 400) { return 1.0 - rings(st, freq); }
-    else if (u.loopOffset == 410) { return 1.0 - diamonds(st, freq) * 0.5 + 0.5; }
+    else if (LOOP_OFFSET == 400) { return 1.0 - rings(st, freq); }
+    else if (LOOP_OFFSET == 410) { return 1.0 - diamonds(st, freq) * 0.5 + 0.5; }
     return 0.0;
 }
 
@@ -419,12 +419,12 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let color2 = textureSample(tex, samp, st);
 
     var freq = 1.0;
-    if (u.loopOffset == 350) {
+    if (LOOP_OFFSET == 350) {
         freq = mapRange(u.loopScale, 1.0, 100.0, 12.0, 0.5);
     } else {
         freq = mapRange(u.loopScale, 1.0, 100.0, 10.0, 2.0);
     }
-    if (u.loopOffset >= 300 && u.loopOffset < 340 && u.wrap != 0) {
+    if (LOOP_OFFSET >= 300 && LOOP_OFFSET < 340 && u.wrap != 0) {
         freq = floor(freq) * 2.0;
     }
 
@@ -434,7 +434,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     else { t = offset(st, freq); }
     var blendy = periodicFunction(t);
 
-    if (u.loopOffset == 0) { blendy = 0.5; }
+    if (LOOP_OFFSET == 0) { blendy = 0.5; }
 
     let avg1 = luminance(color1.rgb);
     let avg2 = luminance(color2.rgb);

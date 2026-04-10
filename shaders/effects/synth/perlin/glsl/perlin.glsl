@@ -2,6 +2,15 @@
 precision highp float;
 precision highp int;
 
+// DIMENSIONS is a compile-time define injected by the runtime (see
+// definition.js `globals.dimensions.define`). Picks 2D vs 3D noise at
+// compile time so the unused implementation gets DCE'd. Avoids ANGLE→D3D
+// inlining both fbm2D + fbm3D + domainWarp2D + domainWarp3D into main(),
+// which was producing a 1.3s compile via filter/adjust on Windows Chrome.
+#ifndef DIMENSIONS
+#define DIMENSIONS 2
+#endif
+
 uniform vec2 resolution;
 uniform float aspect;
 uniform float time;
@@ -9,7 +18,6 @@ uniform float scale;
 uniform int seed;
 uniform int octaves;
 uniform int colorMode;
-uniform int dimensions;
 uniform int ridges;
 uniform int warpIterations;
 uniform float warpScale;
@@ -102,6 +110,7 @@ float wrapZ(float z) {
     return mod(z, Z_PERIOD);
 }
 
+#if DIMENSIONS == 2
 // 2D periodic grid function - gradient angle animates with time
 float grid2D(vec2 st, vec2 cell, float timeAngle, float channelOffset) {
     float angle = prng(vec3(cell + float(seed), 1.0)).r * TAU;
@@ -127,7 +136,9 @@ float noise2D(vec2 st, float timeAngle, float channelOffset) {
     
     return val;  // Returns -1..1
 }
+#endif
 
+#if DIMENSIONS == 3
 // 3D gradient noise - Perlin-style with quintic interpolation
 // z-axis is periodic with period Z_PERIOD
 float noise3D(vec3 p) {
@@ -164,7 +175,9 @@ float noise3D(vec3 p) {
     // Final interpolation along z
     return mix(nxy0, nxy1, u.z);
 }
+#endif
 
+#if DIMENSIONS == 2
 // FBM for 2D periodic noise
 float fbm2D(vec2 st, float timeAngle, float channelOffset, int ridgedMode) {
     const int MAX_OCT = 8;
@@ -191,7 +204,9 @@ float fbm2D(vec2 st, float timeAngle, float channelOffset, int ridgedMode) {
     }
     return sum / maxVal;
 }
+#endif
 
+#if DIMENSIONS == 3
 // FBM using 3D noise with circular time for seamless looping
 // 2D cross-section moves through 3D noise as time varies
 float fbm3D(vec2 st, float timeAngle, float channelOffset, int ridgedMode) {
@@ -226,14 +241,12 @@ float fbm3D(vec2 st, float timeAngle, float channelOffset, int ridgedMode) {
     }
     return sum / maxVal;
 }
+#endif
 
-// Single-octave warp noise helpers (cheap, no fbm)
+#if DIMENSIONS == 2
+// Single-octave warp noise helper (cheap, no fbm)
 float warpNoise2D(vec2 p, float timeAngle) {
     return noise2D(p, timeAngle, 0.0);
-}
-
-float warpNoise3D(vec2 p, float z) {
-    return noise3D(vec3(p, z));
 }
 
 // Domain warp: iteratively displace coordinates using noise
@@ -251,6 +264,12 @@ vec2 domainWarp2D(vec2 st, float timeAngle, int iterations, float wScale, float 
     }
     return p;
 }
+#endif
+
+#if DIMENSIONS == 3
+float warpNoise3D(vec2 p, float z) {
+    return noise3D(vec3(p, z));
+}
 
 vec2 domainWarp3D(vec2 st, float z, int iterations, float wScale, float wIntensity) {
     float wFreq = max(0.1, 100.0 / max(wScale, 0.01));
@@ -265,6 +284,7 @@ vec2 domainWarp3D(vec2 st, float z, int iterations, float wScale, float wIntensi
     }
     return p;
 }
+#endif
 
 void main() {
     vec2 res = resolution;
@@ -284,28 +304,30 @@ void main() {
     float timeAngle = time * speed * TAU;
 
     // Apply domain warp if enabled
+#if DIMENSIONS == 2
     if (warpIterations > 0) {
-        if (dimensions == 2) {
-            st = domainWarp2D(st, timeAngle, warpIterations, warpScale, warpIntensity);
-        } else {
-            float z = timeAngle / TAU * Z_PERIOD;
-            st = domainWarp3D(st, z, warpIterations, warpScale, warpIntensity);
-        }
+        st = domainWarp2D(st, timeAngle, warpIterations, warpScale, warpIntensity);
     }
+#else
+    float zWarp = timeAngle / TAU * Z_PERIOD;
+    if (warpIterations > 0) {
+        st = domainWarp3D(st, zWarp, warpIterations, warpScale, warpIntensity);
+    }
+#endif
 
     float r, g, b;
-    
-    if (dimensions == 2) {
-        // 2D periodic noise (faster)
-        r = fbm2D(st, timeAngle, 0.0, ridges);
-        g = fbm2D(st, timeAngle, 0.333, ridges);
-        b = fbm2D(st, timeAngle, 0.667, ridges);
-    } else {
-        // 3D cross-section noise (original)
-        r = fbm3D(st, timeAngle, 0.0, ridges);
-        g = fbm3D(st, timeAngle, 1.33, ridges);
-        b = fbm3D(st, timeAngle, 2.67, ridges);
-    }
+
+#if DIMENSIONS == 2
+    // 2D periodic noise (faster)
+    r = fbm2D(st, timeAngle, 0.0, ridges);
+    g = fbm2D(st, timeAngle, 0.333, ridges);
+    b = fbm2D(st, timeAngle, 0.667, ridges);
+#else
+    // 3D cross-section noise (original)
+    r = fbm3D(st, timeAngle, 0.0, ridges);
+    g = fbm3D(st, timeAngle, 1.33, ridges);
+    b = fbm3D(st, timeAngle, 2.67, ridges);
+#endif
     
     vec3 col;
     if (colorMode == 0) {

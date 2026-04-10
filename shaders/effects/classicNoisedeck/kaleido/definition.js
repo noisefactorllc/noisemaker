@@ -40,7 +40,12 @@ export default new Effect({
     loopOffset: {
       type: "int",
       default: 10,
+      // uniform is preserved for wgsl struct layout; value is also injected as
+      // a compile-time define so the GLSL→HLSL translator DCEs the noise variant
+      // functions when a non-noise loopOffset is chosen. Dropped compile from
+      // 3.9s to sub-200ms on Windows Chrome.
       uniform: "loopOffset",
+      define: "LOOP_OFFSET",
       choices: {
         "Shapes:": null,
         circle: 10,

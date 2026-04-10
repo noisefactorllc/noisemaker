@@ -45,7 +45,14 @@ export default new Effect({
         "default": 2,
         "min": 2,
         "max": 3,
+        // Compile-time define — picks 2D vs 3D noise implementation. Each
+        // produces its own compiled program. Avoids ANGLE→D3D inlining both
+        // fbm2D + fbm3D + domainWarp2D + domainWarp3D into main(), which was
+        // producing a 1.3s compile via filter/adjust on Windows Chrome.
+        // The uniform field is preserved on the wgsl side for layout
+        // compatibility but is no longer read by the shader.
         "uniform": "dimensions",
+        "define": "DIMENSIONS",
         ui: {
             label: "dimensions"
         }},

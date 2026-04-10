@@ -13,10 +13,15 @@ uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
 uniform float time;
+// LOOP_OFFSET is a compile-time define injected by the runtime (see
+// definition.js `globals.LOOP_OFFSET.define`). Same fix as kaleido/shapes.
+#ifndef LOOP_OFFSET
+#define LOOP_OFFSET 10
+#endif
+
 uniform int seed;
 uniform int blendMode;
 uniform float loopScale;
-uniform int loopOffset;
 uniform int paletteMode;
 uniform vec3 paletteOffset;
 uniform vec3 paletteAmp;
@@ -565,30 +570,30 @@ float offset(vec2 st, float freq) {
     st.x *= aspectRatio;
 
     float d = 0.0;
-    if (loopOffset == 10) {
+    if (LOOP_OFFSET == 10) {
         // circle
         d = circles(st, freq);
-    } else if (loopOffset == 20) {
+    } else if (LOOP_OFFSET == 20) {
         d = shape(st, 3, freq * 0.5);
-    } else if (loopOffset == 30) {
+    } else if (LOOP_OFFSET == 30) {
         d = (abs(st.x - 0.5 * aspectRatio) + abs(st.y - 0.5)) * freq * 0.5;
-    } else if (loopOffset >= 40 && loopOffset <= 80) {
-        int sides = loopOffset / 10;
+    } else if (LOOP_OFFSET >= 40 && LOOP_OFFSET <= 80) {
+        int sides = LOOP_OFFSET / 10;
         d = shape(st, sides, freq * 0.5);
-    } else if (loopOffset == 200) {
+    } else if (LOOP_OFFSET == 200) {
         d = st.x * freq * 0.5;
-    } else if (loopOffset == 210) {
+    } else if (LOOP_OFFSET == 210) {
         d = st.y * freq * 0.5;
-    } else if (loopOffset == 380) {
+    } else if (LOOP_OFFSET == 380) {
         return 1.0 - sineNoise(st, freq);
-    } else if (loopOffset >= 300 && loopOffset <= 370) {
-        int idx = (loopOffset - 300) / 10;
+    } else if (LOOP_OFFSET >= 300 && LOOP_OFFSET <= 370) {
+        int idx = (LOOP_OFFSET - 300) / 10;
         int interp = idx <= 6 ? idx : idx + 3;
         d = 1.0 - value(st, freq, interp);
-    } else if (loopOffset == 400) {
+    } else if (LOOP_OFFSET == 400) {
         // rings
         d = 1.0 - rings(st, freq);
-    } else if (loopOffset == 410) {
+    } else if (LOOP_OFFSET == 410) {
         // sine
         d = 1.0 - diamonds(st, freq) * 0.5 + 0.5;
     }
@@ -696,12 +701,12 @@ void main() {
     vec4 color2 = texture(tex, st);
 
     float freq = 1.0;
-    if (loopOffset == 350) {
+    if (LOOP_OFFSET == 350) {
         freq = map(loopScale, 1.0, 100.0, 12.0, 0.5);
     } else {
         freq = map(loopScale, 1.0, 100.0, 10.0, 2.0);
     }
-    if (loopOffset >= 300 && loopOffset < 340 && wrap) {
+    if (LOOP_OFFSET >= 300 && LOOP_OFFSET < 340 && wrap) {
         freq = floor(freq);  // for seamless noise
         freq *= 2.0;
     }
@@ -716,7 +721,7 @@ void main() {
     }
     float blendy = periodicFunction(t);
 
-    if (loopOffset == 0) {
+    if (LOOP_OFFSET == 0) {
         blendy = 0.5;
     }
 

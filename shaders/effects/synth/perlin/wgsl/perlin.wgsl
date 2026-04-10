@@ -1,4 +1,11 @@
 // WGSL version – WebGPU
+//
+// DIMENSIONS is a compile-time const injected by the runtime via injectDefines.
+// See synth/perlin/definition.js `globals.dimensions.define`. Picking 2D vs 3D
+// at compile time lets the WGSL compiler dead-code-eliminate the unused
+// implementation. The Params.dimensions field is left in place to preserve the
+// uniform layout but is no longer read by the shader.
+
 struct Params {
     resolution: vec2<f32>,
     aspect: f32,
@@ -281,7 +288,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
     // Apply domain warp if enabled
     if (params.warpIterations > 0) {
-        if (params.dimensions == 2) {
+        if (DIMENSIONS == 2) {
             st = domainWarp2D(st, timeAngle, params.warpIterations, params.warpScale, params.warpIntensity);
         } else {
             let z = timeAngle / TAU * Z_PERIOD;
@@ -293,7 +300,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     var g: f32;
     var b: f32;
 
-    if (params.dimensions == 2) {
+    if (DIMENSIONS == 2) {
         // 2D periodic noise (faster)
         r = fbm2D(st, timeAngle, 0.0, params.ridges);
         g = fbm2D(st, timeAngle, 0.333, params.ridges);

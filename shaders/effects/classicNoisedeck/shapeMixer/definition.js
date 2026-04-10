@@ -46,7 +46,9 @@ export default class ShapeMixer extends Effect {
     loopOffset: {
       type: "int",
       default: 10,
-      uniform: "loopOffset",
+      // Compile-time define — same pattern as kaleido/shapes. Avoids ANGLE→D3D
+      // inlining the noise variants when a shape loopOffset is selected.
+      define: "LOOP_OFFSET",
       choices: {
         none: 0,
         "Shapes:": null,

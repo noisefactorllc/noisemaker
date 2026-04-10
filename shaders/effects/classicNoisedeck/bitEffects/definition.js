@@ -19,7 +19,8 @@ export default new Effect({
     scale: { slot: 2, components: 'x' },
     rotation: { slot: 2, components: 'y' },
     speed: { slot: 2, components: 'z' },
-    mode: { slot: 2, components: 'w' },
+    // slot 2 component w intentionally unused — `mode` is a compile-time
+    // define (see globals.mode below), not a runtime uniform.
     maskFormula: { slot: 3, components: 'x' },
     tiles: { slot: 3, components: 'y' },
     complexity: { slot: 3, components: 'z' },
@@ -32,7 +33,11 @@ export default new Effect({
     mode: {
       type: "int",
       default: 1,
-      uniform: "mode",
+      // Compile-time define — bitField and bitMask are essentially two
+      // different shaders sharing the same definition. Splitting them via
+      // #if MODE on the GLSL side dropped the compile from 2.8s to 0.24s
+      // on Windows Chrome.
+      define: "MODE",
       choices: {
         bitField: 0,
         bitMask: 1

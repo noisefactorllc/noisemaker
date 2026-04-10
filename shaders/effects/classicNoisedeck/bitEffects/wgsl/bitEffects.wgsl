@@ -19,7 +19,8 @@ var<private> interp : i32;
 var<private> scale : f32;
 var<private> rotation : f32;
 var<private> speed : f32;
-var<private> mode : i32;
+// MODE is a compile-time const injected by the runtime via injectDefines.
+// See classicNoisedeck/bitEffects/definition.js `globals.mode.define`.
 var<private> maskFormula : i32;
 var<private> tiles : f32;
 var<private> complexity : f32;
@@ -424,7 +425,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     scale = uniforms.data[2].x;
     rotation = uniforms.data[2].y;
     speed = uniforms.data[2].z;
-    mode = i32(uniforms.data[2].w);
+    // slot 2 component w is unused — `mode` is a compile-time define
 
     maskFormula = i32(uniforms.data[3].x);
     tiles = uniforms.data[3].y;
@@ -438,7 +439,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
     var st = pos.xy;
 
-    if (mode == 0) {
+    if (MODE == 0) {
         color = vec4<f32>(bitField(st), color.a);
     } else {
         st = pos.xy / resolution.y;

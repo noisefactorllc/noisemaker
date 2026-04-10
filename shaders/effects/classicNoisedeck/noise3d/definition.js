@@ -11,7 +11,10 @@ export default new Effect({
     type: {
       type: "int",
       default: 12,
-      uniform: "noiseType",
+      // Compile-time define — picks one SDF variant for the raymarcher's
+      // getDist() loop. Avoids ANGLE→D3D inlining 9 SDF branches into every
+      // raymarch step on Windows Chrome.
+      define: "NOISE_TYPE",
       choices: {
         cubes: 50,
         simplex: 12,
