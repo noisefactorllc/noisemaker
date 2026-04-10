@@ -9,6 +9,12 @@ struct Uniforms {
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 
+// NOISE_TYPE is a compile-time const injected by the runtime via injectDefines
+// (see synth/noise/definition.js `globals.type.define`). Replacing the runtime
+// dispatch with a compile-time constant lets the WGSL compiler dead-code-eliminate
+// the unused noise variants — same fix as the GLSL backend (see noise.glsl header
+// comment). The expander always provides this define for synth/noise programs.
+
 var<private> resolution : vec2<f32>;
 var<private> time : f32;
 var<private> aspectRatio : f32;
@@ -18,7 +24,6 @@ var<private> seed : f32;
 var<private> loopScale : f32;
 var<private> speed : f32;
 var<private> loopOffset : i32;
-var<private> noiseType : i32;
 var<private> octaves : i32;
 var<private> ridges : bool;
 var<private> wrap : bool;
@@ -285,24 +290,24 @@ fn sineNoise(st: vec2<f32>, freq: vec2<f32>, s: f32, blend: f32) -> f32 {
 }
 
 fn value(st: vec2<f32>, freq: vec2<f32>, s: f32, blend: f32) -> f32 {
-    if (noiseType == 3) { return catmullRom3x3ValueNoise(st, freq, s, blend); }
-    if (noiseType == 4) { return catmullRom4x4ValueNoise(st, freq, s, blend); }
-    if (noiseType == 5) { return cubic3x3ValueNoise(st, freq, s, blend); }
-    if (noiseType == 6) { return bicubicValue(st, freq, s, blend); }
-    if (noiseType == 10) { return simplexValue(st, freq, s, blend); }
-    if (noiseType == 11) { return sineNoise(st, freq, s, blend); }
+    if (NOISE_TYPE == 3) { return catmullRom3x3ValueNoise(st, freq, s, blend); }
+    if (NOISE_TYPE == 4) { return catmullRom4x4ValueNoise(st, freq, s, blend); }
+    if (NOISE_TYPE == 5) { return cubic3x3ValueNoise(st, freq, s, blend); }
+    if (NOISE_TYPE == 6) { return bicubicValue(st, freq, s, blend); }
+    if (NOISE_TYPE == 10) { return simplexValue(st, freq, s, blend); }
+    if (NOISE_TYPE == 11) { return sineNoise(st, freq, s, blend); }
 
     let lattice = st * freq;
     let x1y1 = constantFromLattice(lattice, freq, s, blend);
-    if (noiseType == 0) { return x1y1; }
+    if (NOISE_TYPE == 0) { return x1y1; }
 
     let x2y1 = constantOffset(lattice, freq, s, blend, vec2<i32>(1, 0));
     let x1y2 = constantOffset(lattice, freq, s, blend, vec2<i32>(0, 1));
     let x2y2 = constantOffset(lattice, freq, s, blend, vec2<i32>(1, 1));
     let fr = fract(lattice);
-    let aa = blendLinearOrCosine(x1y1, x2y1, fr.x, noiseType);
-    let bb = blendLinearOrCosine(x1y2, x2y2, fr.x, noiseType);
-    return blendLinearOrCosine(aa, bb, fr.y, noiseType);
+    let aa = blendLinearOrCosine(x1y1, x2y1, fr.x, NOISE_TYPE);
+    let bb = blendLinearOrCosine(x1y2, x2y2, fr.x, NOISE_TYPE);
+    return blendLinearOrCosine(aa, bb, fr.y, NOISE_TYPE);
 }
 
 fn circles(st: vec2<f32>, freq: f32) -> f32 {
@@ -407,7 +412,6 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     loopScale = uniforms.data[1].w;
     speed = uniforms.data[2].x;
     loopOffset = i32(uniforms.data[2].y);
-    noiseType = i32(uniforms.data[2].z);
     octaves = i32(uniforms.data[2].w);
     ridges = uniforms.data[3].x > 0.5;
     wrap = uniforms.data[3].y > 0.5;
@@ -420,11 +424,11 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     var freq = vec2<f32>(1.0);
     var lf = vec2<f32>(1.0);
 
-    if (noiseType == 11) {
+    if (NOISE_TYPE == 11) {
         freq.x = map(scaleX, 1.0, 100.0, 40.0, 1.0);
         freq.y = map(scaleY, 1.0, 100.0, 40.0, 1.0);
         lf = vec2<f32>(map(loopScale, 1.0, 100.0, 10.0, 1.0));
-    } else if (noiseType == 10) {
+    } else if (NOISE_TYPE == 10) {
         freq.x = map(scaleX, 1.0, 100.0, 6.0, 0.5);
         freq.y = map(scaleY, 1.0, 100.0, 6.0, 0.5);
         lf = vec2<f32>(map(loopScale, 1.0, 100.0, 6.0, 0.5));
@@ -436,10 +440,10 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
     if (loopOffset == 300) {
         var nominalFreq = vec2<f32>(1.0);
-        if (noiseType == 11) {
+        if (NOISE_TYPE == 11) {
             let base = map(75.0, 1.0, 100.0, 40.0, 1.0);
             nominalFreq = vec2<f32>(base);
-        } else if (noiseType == 10) {
+        } else if (NOISE_TYPE == 10) {
             let base = map(75.0, 1.0, 100.0, 6.0, 0.5);
             nominalFreq = vec2<f32>(base);
         } else {
@@ -449,7 +453,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         lf *= freq / nominalFreq;
     }
 
-    if (noiseType != 4 && noiseType != 10 && wrap) {
+    if (NOISE_TYPE != 4 && NOISE_TYPE != 10 && wrap) {
         freq = floor(freq);
         if (loopOffset == 300) {
             lf = floor(lf);

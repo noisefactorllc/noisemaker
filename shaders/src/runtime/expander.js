@@ -355,6 +355,38 @@ export function expand(compilationResult, options = {}) {
                 currentInputRgba = null
             }
 
+            // Compile-time defines: globals declared with `define: 'MACRO_NAME'` become
+            // preprocessor #defines (GLSL) / module-scope const (WGSL) instead of runtime
+            // uniforms. Their value is baked into the shader source at compile time, and
+            // the program cache key incorporates the value so each variant gets its own
+            // compiled program. See synth/noise for the canonical example: changing
+            // noiseType triggers a one-shot recompile of the new variant.
+            const compileTimeDefines = {}
+            if (effectDef.globals) {
+                const sortedGlobalNames = Object.keys(effectDef.globals).sort()
+                for (const globalName of sortedGlobalNames) {
+                    const def = effectDef.globals[globalName]
+                    if (!def || !def.define) continue
+                    let value = def.default
+                    if (step.args && Object.prototype.hasOwnProperty.call(step.args, globalName)) {
+                        const argVal = step.args[globalName]
+                        value = (argVal !== null && typeof argVal === 'object' && 'value' in argVal) ? argVal.value : argVal
+                    }
+                    if (def.type === 'member' && typeof value === 'string') {
+                        const resolved = resolveEnum(value)
+                        if (resolved !== null) value = resolved
+                    }
+                    if (value !== undefined && value !== null) {
+                        compileTimeDefines[def.define] = value
+                    }
+                }
+            }
+            // Build a deterministic suffix for the program cache key. Sorted entries so
+            // the suffix is stable regardless of insertion order.
+            const programDefineSuffix = Object.entries(compileTimeDefines)
+                .map(([k, v]) => `__${k}_${v}`)
+                .join('')
+
             // Collect programs - check for per-step shader overrides first
             // Overrides are keyed by step.temp (the unique step index)
             const stepOverrides = shaderOverrides[step.temp]
@@ -364,7 +396,8 @@ export function expand(compilationResult, options = {}) {
                 for (const [progName, shaders] of Object.entries(shadersSource)) {
                     // Use nodeId prefix for ALL programs to prevent collisions between effects
                     // (e.g., both physarum and flow have an "agent" program with different outputs)
-                    const uniqueProgName = `${nodeId}_${progName}`
+                    // Append compile-time-define suffix so each variant has its own cache entry.
+                    const uniqueProgName = `${nodeId}_${progName}${programDefineSuffix}`
 
                     if (!programs[uniqueProgName]) {
                         // Support both per-program layouts (uniformLayouts) and legacy single layout (uniformLayout)
@@ -372,7 +405,10 @@ export function expand(compilationResult, options = {}) {
                         const programLayout = effectDef.uniformLayouts?.[progName] || effectDef.uniformLayout
                         programs[uniqueProgName] = {
                             ...shaders,
-                            uniformLayout: programLayout
+                            uniformLayout: programLayout,
+                            // Pass defines to the backend's compileProgram, which forwards them
+                            // to injectDefines() to bake them into the shader source.
+                            defines: { ...compileTimeDefines }
                         }
                     }
                 }
@@ -575,8 +611,10 @@ export function expand(compilationResult, options = {}) {
                 const passDef = effectPasses[i]
                 const passId = `${nodeId}_pass_${i}`
 
-                // Use nodeId prefix for program name to match program collection above
-                const programName = `${nodeId}_${passDef.program}`
+                // Use nodeId prefix for program name to match program collection above.
+                // Append the same compile-time-define suffix so passes reference the
+                // variant-specific program entry.
+                const programName = `${nodeId}_${passDef.program}${programDefineSuffix}`
 
                 const pass = {
                     id: passId,

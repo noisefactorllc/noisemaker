@@ -9,12 +9,19 @@
 precision highp float;
 precision highp int;
 
+// NOISE_TYPE is a compile-time define injected by the runtime (see definition.js
+// `globals.type.define`). Wrapping the variant dispatch in #if blocks instead of a
+// runtime if-else avoids ANGLE→D3D inlining the entire 9-way decision tree into
+// every call site, which was causing 16+ second compiles on Windows Chrome.
+#ifndef NOISE_TYPE
+#define NOISE_TYPE 10
+#endif
+
 uniform float time;
 uniform int seed;
 uniform vec2 resolution;
 uniform float scaleX;
 uniform float scaleY;
-uniform int noiseType;
 uniform int octaves;
 uniform bool ridges;
 uniform float loopScale;
@@ -128,10 +135,11 @@ float latticeValue(vec2 lattice, vec2 freq, float s, float blend) {
     return constantFromLattice(lattice, freq, s, blend);
 }
 
+#if NOISE_TYPE == 5
 float cubic3x3ValueNoise(vec2 st, vec2 freq, float s, float blend) {
     vec2 lattice = st * freq;
     vec2 f = fract(lattice);
-    
+
     float v00 = constantFromLatticeWithOffset(lattice, freq, s, blend, ivec2(-1, -1));
     float v10 = constantFromLatticeWithOffset(lattice, freq, s, blend, ivec2( 0, -1));
     float v20 = constantFromLatticeWithOffset(lattice, freq, s, blend, ivec2( 1, -1));
@@ -141,13 +149,14 @@ float cubic3x3ValueNoise(vec2 st, vec2 freq, float s, float blend) {
     float v02 = constantFromLatticeWithOffset(lattice, freq, s, blend, ivec2(-1,  1));
     float v12 = constantFromLatticeWithOffset(lattice, freq, s, blend, ivec2( 0,  1));
     float v22 = constantFromLatticeWithOffset(lattice, freq, s, blend, ivec2( 1,  1));
-    
+
     float y0 = quadratic3(v00, v10, v20, f.x);
     float y1 = quadratic3(v01, v11, v21, f.x);
     float y2 = quadratic3(v02, v12, v22, f.x);
-    
+
     return quadratic3(y0, y1, y2, f.y);
 }
+#endif
 
 float blendBicubic(float p0, float p1, float p2, float p3, float t) {
     float t2 = t * t;
@@ -180,6 +189,7 @@ float constantOffset(vec2 lattice, vec2 freq, float s, float blend, ivec2 offset
     return constantFromLatticeWithOffset(lattice, freq, s, blend, offset);
 }
 
+#if NOISE_TYPE == 6
 float bicubicValue(vec2 st, vec2 freq, float s, float blend) {
     vec2 lattice = st * freq;
 
@@ -207,11 +217,13 @@ float bicubicValue(vec2 st, vec2 freq, float s, float blend) {
     float y3 = blendBicubic(x0y3, x1y3, x2y3, x3y3, frac.x);
     return blendBicubic(y0, y1, y2, y3, frac.y);
 }
+#endif
 
+#if NOISE_TYPE == 3
 float catmullRom3x3ValueNoise(vec2 st, vec2 freq, float s, float blend) {
     vec2 lattice = st * freq;
     vec2 f = fract(lattice);
-    
+
     float v00 = constantFromLatticeWithOffset(lattice, freq, s, blend, ivec2(-1, -1));
     float v10 = constantFromLatticeWithOffset(lattice, freq, s, blend, ivec2( 0, -1));
     float v20 = constantFromLatticeWithOffset(lattice, freq, s, blend, ivec2( 1, -1));
@@ -221,16 +233,18 @@ float catmullRom3x3ValueNoise(vec2 st, vec2 freq, float s, float blend) {
     float v02 = constantFromLatticeWithOffset(lattice, freq, s, blend, ivec2(-1,  1));
     float v12 = constantFromLatticeWithOffset(lattice, freq, s, blend, ivec2( 0,  1));
     float v22 = constantFromLatticeWithOffset(lattice, freq, s, blend, ivec2( 1,  1));
-    
+
     float y0 = catmullRom3(v00, v10, v20, f.x);
     float y1 = catmullRom3(v01, v11, v21, f.x);
     float y2 = catmullRom3(v02, v12, v22, f.x);
     return catmullRom3(y0, y1, y2, f.y);
 }
+#endif
 
+#if NOISE_TYPE == 4
 float catmullRom4x4ValueNoise(vec2 st, vec2 freq, float s, float blend) {
     vec2 lattice = st * freq;
-    
+
     float x0y0 = constantOffset(lattice, freq, s, blend, ivec2(-1, -1));
     float x0y1 = constantOffset(lattice, freq, s, blend, ivec2(-1, 0));
     float x0y2 = constantOffset(lattice, freq, s, blend, ivec2(-1, 1));
@@ -255,7 +269,9 @@ float catmullRom4x4ValueNoise(vec2 st, vec2 freq, float s, float blend) {
     float y3 = catmullRom4(x0y3, x1y3, x2y3, x3y3, frac.x);
     return catmullRom4(y0, y1, y2, y3, frac.y);
 }
+#endif
 
+#if NOISE_TYPE == 10
 // Simplex 2D - MIT License (Ashima Arts)
 vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -291,7 +307,9 @@ float simplexValue(vec2 st, vec2 freq, float s, float blend) {
 
     return periodicFunction(map(v, -1.0, 1.0, 0.0, 1.0) - blend);
 }
+#endif
 
+#if NOISE_TYPE == 11
 float sineNoise(vec2 st, vec2 freq, float s, float blend) {
     st *= freq;
     st.x += s;
@@ -304,26 +322,35 @@ float sineNoise(vec2 st, vec2 freq, float s, float blend) {
     float y = sin(r2.x * st.x + sin(r2.y * st.y + b) + sin(r2.z * st.y + c) + a);
     return (x + y) * 0.5 + 0.5;
 }
+#endif
 
 float value(vec2 st, vec2 freq, float s, float blend) {
-    if (noiseType == 3) return catmullRom3x3ValueNoise(st, freq, s, blend);
-    if (noiseType == 4) return catmullRom4x4ValueNoise(st, freq, s, blend);
-    if (noiseType == 5) return cubic3x3ValueNoise(st, freq, s, blend);
-    if (noiseType == 6) return bicubicValue(st, freq, s, blend);
-    if (noiseType == 10) return simplexValue(st, freq, s, blend);
-    if (noiseType == 11) return sineNoise(st, freq, s, blend);
-
+#if NOISE_TYPE == 3
+    return catmullRom3x3ValueNoise(st, freq, s, blend);
+#elif NOISE_TYPE == 4
+    return catmullRom4x4ValueNoise(st, freq, s, blend);
+#elif NOISE_TYPE == 5
+    return cubic3x3ValueNoise(st, freq, s, blend);
+#elif NOISE_TYPE == 6
+    return bicubicValue(st, freq, s, blend);
+#elif NOISE_TYPE == 10
+    return simplexValue(st, freq, s, blend);
+#elif NOISE_TYPE == 11
+    return sineNoise(st, freq, s, blend);
+#elif NOISE_TYPE == 0
+    return constantFromLattice(st * freq, freq, s, blend);
+#else
+    // NOISE_TYPE == 1 (linear) or NOISE_TYPE == 2 (hermite/cosine)
     vec2 lattice = st * freq;
     float x1y1 = constantFromLattice(lattice, freq, s, blend);
-    if (noiseType == 0) return x1y1;
-
     float x2y1 = constantOffset(lattice, freq, s, blend, ivec2(1, 0));
     float x1y2 = constantOffset(lattice, freq, s, blend, ivec2(0, 1));
     float x2y2 = constantOffset(lattice, freq, s, blend, ivec2(1, 1));
     vec2 frac = fract(lattice);
-    float a = blendLinearOrCosine(x1y1, x2y1, frac.x, noiseType);
-    float b = blendLinearOrCosine(x1y2, x2y2, frac.x, noiseType);
-    return blendLinearOrCosine(a, b, frac.y, noiseType);
+    float a = blendLinearOrCosine(x1y1, x2y1, frac.x, NOISE_TYPE);
+    float b = blendLinearOrCosine(x1y2, x2y2, frac.x, NOISE_TYPE);
+    return blendLinearOrCosine(a, b, frac.y, NOISE_TYPE);
+#endif
 }
 
 float circles(vec2 st, float freq) {
@@ -422,41 +449,40 @@ void main() {
     vec2 freq = vec2(1.0);
     vec2 lf = vec2(1.0);
 
-    if (noiseType == 11) {
-        freq.x = map(scaleX, 1.0, 100.0, 40.0, 1.0);
-        freq.y = map(scaleY, 1.0, 100.0, 40.0, 1.0);
-        lf = vec2(map(loopScale, 1.0, 100.0, 10.0, 1.0));
-    } else if (noiseType == 10) {
-        freq.x = map(scaleX, 1.0, 100.0, 6.0, 0.5);
-        freq.y = map(scaleY, 1.0, 100.0, 6.0, 0.5);
-        lf = vec2(map(loopScale, 1.0, 100.0, 6.0, 0.5));
-    } else {
-        freq.x = map(scaleX, 1.0, 100.0, 20.0, 3.0);
-        freq.y = map(scaleY, 1.0, 100.0, 20.0, 3.0);
-        lf = vec2(map(loopScale, 1.0, 100.0, 12.0, 3.0));
-    }
+#if NOISE_TYPE == 11
+    freq.x = map(scaleX, 1.0, 100.0, 40.0, 1.0);
+    freq.y = map(scaleY, 1.0, 100.0, 40.0, 1.0);
+    lf = vec2(map(loopScale, 1.0, 100.0, 10.0, 1.0));
+#elif NOISE_TYPE == 10
+    freq.x = map(scaleX, 1.0, 100.0, 6.0, 0.5);
+    freq.y = map(scaleY, 1.0, 100.0, 6.0, 0.5);
+    lf = vec2(map(loopScale, 1.0, 100.0, 6.0, 0.5));
+#else
+    freq.x = map(scaleX, 1.0, 100.0, 20.0, 3.0);
+    freq.y = map(scaleY, 1.0, 100.0, 20.0, 3.0);
+    lf = vec2(map(loopScale, 1.0, 100.0, 12.0, 3.0));
+#endif
 
     if (loopOffset == 300) {
-        vec2 nominalFreq = vec2(1.0);
-        if (noiseType == 11) {
-            float base = map(75.0, 1.0, 100.0, 40.0, 1.0);
-            nominalFreq = vec2(base);
-        } else if (noiseType == 10) {
-            float base = map(75.0, 1.0, 100.0, 6.0, 0.5);
-            nominalFreq = vec2(base);
-        } else {
-            float base = map(75.0, 1.0, 100.0, 20.0, 3.0);
-            nominalFreq = vec2(base);
-        }
+#if NOISE_TYPE == 11
+        float base = map(75.0, 1.0, 100.0, 40.0, 1.0);
+#elif NOISE_TYPE == 10
+        float base = map(75.0, 1.0, 100.0, 6.0, 0.5);
+#else
+        float base = map(75.0, 1.0, 100.0, 20.0, 3.0);
+#endif
+        vec2 nominalFreq = vec2(base);
         lf *= freq / nominalFreq;
     }
 
-    if (noiseType != 4 && noiseType != 10 && wrap) {
+#if NOISE_TYPE != 4 && NOISE_TYPE != 10
+    if (wrap) {
         freq = floor(freq);
         if (loopOffset == 300) {
             lf = floor(lf);
         }
     }
+#endif
 
     float t = 1.0;
     if (speed < 0.0) {

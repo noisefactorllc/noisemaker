@@ -3523,6 +3523,13 @@ render(o1)`
         select.addEventListener('change', () => {
             this._programState.setValue(effectKey, key, handle.getValue())
             this._onControlChange()
+            // Compile-time defines (e.g. synth/noise type) bake the value into the
+            // shader source — changing them requires regenerating the DSL and
+            // recompiling the pipeline so the new variant gets picked up.
+            if (spec.define) {
+                this._updateDslFromEffectParams()
+                this._recompilePipeline()
+            }
         })
 
         container.appendChild(select)

@@ -17,7 +17,8 @@ export default new Effect({
     loopScale: { slot: 1, components: 'w' },
     speed: { slot: 2, components: 'x' },
     loopOffset: { slot: 2, components: 'y' },
-    noiseType: { slot: 2, components: 'z' },
+    // slot 2 component z is intentionally unused — noiseType is a compile-time
+    // define (see globals.type below), not a runtime uniform.
     octaves: { slot: 2, components: 'w' },
     ridges: { slot: 3, components: 'x' },
     wrap: { slot: 3, components: 'y' },
@@ -27,7 +28,11 @@ export default new Effect({
     type: {
       type: "int",
       default: 10,
-      uniform: "noiseType",
+      // Compile-time define (NOT a runtime uniform). Changing this triggers a
+      // shader recompile via the expander/UI integration. This avoids ANGLE→D3D
+      // inlining the entire noise-variant decision tree at every call site, which
+      // produced ~16s shader compiles on Windows Chrome (HANDOFF-shader-compile.md).
+      define: "NOISE_TYPE",
       choices: {
         constant: 0,
         linear: 1,
