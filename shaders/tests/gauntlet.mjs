@@ -176,10 +176,11 @@ async function runGauntlet(backend, effects) {
         }
 
         // If the pipeline timed out OR completed but no compile log arrived yet,
-        // poll for up to STRAGGLER_WAIT_MS waiting for the [compile-...] line
-        // associated with the effect's main program. The compile may still be
-        // running in the background; we want its real number for the report.
-        const STRAGGLER_WAIT_MS = 120_000
+        // poll briefly for the [compile-...] line associated with the effect's
+        // main program. Capped low so the gauntlet finishes in reasonable time;
+        // for effects that exceed this we just report TIMEOUT (which already
+        // tells us they're broken — precise time isn't needed for triage).
+        const STRAGGLER_WAIT_MS = 5_000
         const stragglerStart = Date.now()
         while (Date.now() - stragglerStart < STRAGGLER_WAIT_MS) {
             const slot = collected.get(effectId)
