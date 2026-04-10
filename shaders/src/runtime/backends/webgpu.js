@@ -226,8 +226,9 @@ export class WebGPUBackend extends Backend {
      */
     createTexture3D(id, spec) {
         const format = this.resolveFormat(spec.format)
-        // Include storage usage for compute shader write access
-        const usage = this.resolveUsage(spec.usage || ['storage', 'sample', 'copySrc'])
+        // Include storage usage for compute shader write access. copyDst lets
+        // the chain-handoff path target this texture without Dawn rejecting.
+        const usage = this.resolveUsage(spec.usage || ['storage', 'sample', 'copySrc', 'copyDst'])
 
         const texture = this.device.createTexture({
             size: {
@@ -909,15 +910,35 @@ export class WebGPUBackend extends Backend {
         // Strip line comments so they don't interfere with field parsing.
         const cleaned = body.replace(/\/\/[^\n]*/g, '')
 
-        // Match each `name: type` field, where `type` may be a scalar, vector,
-        // or `array<...>`. We capture the type expression up to the next comma
-        // or end of struct.
-        const fieldRegex = /\w+\s*:\s*([^,}]+)/g
+        // Split the struct body into fields at top-level commas only —
+        // commas inside `<>` (generic args like `array<vec4<f32>, 2>`) must
+        // not split a field. A naive `[^,]+` regex would break on the inner
+        // comma and miss the second half of the type expression.
+        const fields = []
+        let depth = 0
+        let start = 0
+        for (let i = 0; i < cleaned.length; i++) {
+            const c = cleaned[i]
+            if (c === '<') depth++
+            else if (c === '>') depth--
+            else if ((c === ',' || c === ';') && depth === 0) {
+                const piece = cleaned.slice(start, i).trim()
+                if (piece) fields.push(piece)
+                start = i + 1
+            }
+        }
+        const tail = cleaned.slice(start).trim()
+        if (tail) fields.push(tail)
+
         let offset = 0
         let maxAlign = 4
-        let fieldMatch
-        while ((fieldMatch = fieldRegex.exec(cleaned)) !== null) {
-            const typeExpr = fieldMatch[1].trim()
+        for (const field of fields) {
+            // Each field is `name: type` (possibly with @align/@size attrs).
+            // We don't honor those attrs — over-allocation is harmless, under
+            // is what we're trying to avoid — so just split on the first colon.
+            const colonIdx = field.indexOf(':')
+            if (colonIdx < 0) continue
+            const typeExpr = field.slice(colonIdx + 1).trim()
             const { size, align } = this.computeWgslTypeSize(typeExpr)
             if (size === 0) continue
             offset = Math.ceil(offset / align) * align

@@ -93,13 +93,17 @@ function extractTextureSpecs(passes, options, textureSpecs = {}) {
             width: effectSpec.width || 'screen',
             height: effectSpec.height || 'screen',
             format: effectSpec.format || 'rgba16f',
-            usage: ['render', 'sample', 'copySrc']
+            // copyDst is required so the chain-handoff path can target this texture
+            // via copyTextureToTexture, and so updateTextureFromSource /
+            // copyExternalImageToTexture can write into it without Dawn rejecting
+            // with "Destination texture needs to have CopyDst usage".
+            usage: ['render', 'sample', 'copySrc', 'copyDst']
         }
         // Handle 3D textures
         if (effectSpec.is3D) {
             spec.depth = effectSpec.depth || effectSpec.width || 64
             spec.is3D = true
-            spec.usage = ['storage', 'sample', 'copySrc']
+            spec.usage = ['storage', 'sample', 'copySrc', 'copyDst']
         }
         textures.set(texId, spec)
     }
@@ -117,7 +121,7 @@ function extractTextureSpecs(passes, options, textureSpecs = {}) {
                     width: 'screen',
                     height: 'screen',
                     format: 'rgba16f',
-                    usage: ['render', 'sample', 'copySrc']
+                    usage: ['render', 'sample', 'copySrc', 'copyDst']
                 })
             }
         }
