@@ -122,63 +122,35 @@ jobs:
           deploy@${{ secrets.SCAFFOLD_SERVER_IP }}:~/sites/noisemaker.app/content/
 
   deploy-shaders:
-    name: Deploy shaders to scaffold
+    name: Dispatch scaffold library-release
     runs-on: ubuntu-latest
     needs: bundle
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    # Under the tag-on-commit scheme, scaffold is the sole authority
+    # for shader library releases: it builds, computes next patch,
+    # deploys to the CDN origin, updates the rolling MAJOR.MINOR
+    # symlink, creates the git tag, and purges the CDN. This job just
+    # fires the workflow_dispatch. See scaffold/platform/README.md
+    # "Tag-on-commit mechanism" for the full contract.
 
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm install --include=dev
-
-    - name: Build shader bundles
-      run: npm run bundle:shaders
-
-    - name: Resolve project version
-      id: version
-      run: |
-        VERSION=$(node -e "const fs=require('fs'); const match=fs.readFileSync('pyproject.toml','utf8').match(/^version\s*=\s*\"([^\"]+)\"/m); if(!match){process.exit(1);} console.log(match[1].replace(/\.dev\d+$/, ''));")
-        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-    - name: Set up SSH
-      run: |
-        mkdir -p ~/.ssh
-        chmod 700 ~/.ssh
-        echo "${{ secrets.SCAFFOLD_SSH_KEY }}" | base64 -d > ~/.ssh/id_ed25519
-        chmod 600 ~/.ssh/id_ed25519
-        ssh-keyscan ${{ secrets.SCAFFOLD_SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null
-
-    - name: Deploy shaders to scaffold
-      run: |
-        VERSION=${{ steps.version.outputs.version }}
-        rsync -avz \
-          dist/shaders/ \
-          deploy@${{ secrets.SCAFFOLD_SERVER_IP }}:~/sites/shaders.noisedeck.app/content/${VERSION}/
-        rsync -avz \
-          dist/effects/ \
-          deploy@${{ secrets.SCAFFOLD_SERVER_IP }}:~/sites/shaders.noisedeck.app/content/${VERSION}/effects/
-
-    - name: Generate app token
-      if: success()
+    - name: Mint scaffold GitHub App token
       id: app-token
       uses: actions/create-github-app-token@v1
       with:
         app-id: 2959521
         private-key: ${{ secrets.EHSRE_APP_PRIVATE_KEY }}
         owner: noisefactorllc
+        repositories: scaffold
 
-    - name: Purge CDN cache
-      if: success()
+    - name: Dispatch scaffold library-release for noisemaker
+      env:
+        GH_TOKEN: ${{ steps.app-token.outputs.token }}
       run: |
-        curl -sf -X POST https://api.github.com/repos/noisefactorllc/scaffold/dispatches \
-          -H "Authorization: token ${{ steps.app-token.outputs.token }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          -d '{"event_type":"cdn-purge","client_payload":{"domain":"shaders.noisedeck.app"}}'
+        gh workflow run library-release.yml \
+          --repo noisefactorllc/scaffold \
+          --ref main \
+          -f library=noisemaker \
+          -f sha=${{ github.sha }}
+        echo "Dispatched scaffold library-release for noisemaker @ ${{ github.sha }}"
