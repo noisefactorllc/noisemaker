@@ -12,8 +12,8 @@ export default new Effect({
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
     wrap: { slot: 1, components: 'x' },
-    loopAOffset: { slot: 1, components: 'y' },
-    loopBOffset: { slot: 1, components: 'z' },
+    // slot 1 components y/z intentionally unused — loopAOffset and loopBOffset
+    // are compile-time defines (see globals below), not runtime uniforms.
     loopAScale: { slot: 1, components: 'w' },
     loopBScale: { slot: 2, components: 'x' },
     speedA: { slot: 2, components: 'y' },
@@ -23,7 +23,10 @@ export default new Effect({
     loopAOffset: {
       type: "int",
       default: 40,
-      uniform: "loopAOffset",
+      // Compile-time define — same fix as classicNoisedeck/shapes. Each
+      // (loopA, loopB) combination produces its own compiled program.
+      // Avoids the 25s ANGLE→D3D inlining hang on Windows Chrome.
+      define: "LOOP_A_OFFSET",
       choices: {
         "Shapes:": null,
         circle: 10,
@@ -63,7 +66,8 @@ export default new Effect({
     loopBOffset: {
       type: "int",
       default: 30,
-      uniform: "loopBOffset",
+      // Compile-time define — see loopAOffset above.
+      define: "LOOP_B_OFFSET",
       choices: {
         "Shapes:": null,
         circle: 10,
