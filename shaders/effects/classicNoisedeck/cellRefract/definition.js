@@ -58,7 +58,13 @@ export default new Effect({
     shape: {
       type: "int",
       default: 1,
-      uniform: "shape",
+      // Compile-time define. The 5-way shape dispatch is hit 25 times per
+      // pixel inside the cells() inner loop; baking it lets the compiler
+      // emit only the active branch. Side note: the WGSL backend had a pre-
+      // existing latent bug here where the uniform name didn't match the
+      // global, so it always rendered circle regardless — promoting to a
+      // define routes through injectDefines and fixes that as a side effect.
+      define: "SHAPE",
       choices: {
         circle: 0,
         diamond: 1,
@@ -136,7 +142,11 @@ export default new Effect({
     kernel: {
       type: "int",
       default: 0,
-      uniform: "kernel",
+      // Compile-time define. Same multi-way convolution dispatch as
+      // classicNoisedeck/effects, called once at the end of main(). Each
+      // kernel is a separate function inlined into the call site, so DCE
+      // is the win — only one body is compiled.
+      define: "KERNEL",
       choices: {
         none: 0,
         blur: 1,

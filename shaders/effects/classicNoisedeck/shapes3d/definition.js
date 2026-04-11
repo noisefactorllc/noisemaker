@@ -15,16 +15,18 @@ export default class Shapes3D extends Effect {
   description = "3D geometric shapes"
 
   // WGSL uniform packing layout - contiguous vec3/vec4 layout
+  // Slots marked "unused" used to hold ints that have since been promoted to
+  // compile-time defines (see globals.{shapeA,shapeB,blendMode}.define).
   uniformLayout = {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
-    shapeA: { slot: 1, components: 'x' },
-    shapeB: { slot: 1, components: 'y' },
+    // slot 1.x was shapeA — now compile-time SHAPE_A
+    // slot 1.y was shapeB — now compile-time SHAPE_B
     shapeAScale: { slot: 1, components: 'z' },
     shapeBScale: { slot: 1, components: 'w' },
     shapeAThickness: { slot: 2, components: 'x' },
     shapeBThickness: { slot: 2, components: 'y' },
-    blendMode: { slot: 2, components: 'z' },
+    // slot 2.z was blendMode — now compile-time BLEND_MODE
     smoothness: { slot: 2, components: 'w' },
     spin: { slot: 3, components: 'x' },
     flip: { slot: 3, components: 'y' },
@@ -53,7 +55,10 @@ export default class Shapes3D extends Effect {
     shapeA: {
       type: "int",
       default: 30,
-      uniform: "shapeA",
+      // Compile-time define. shapeA is consumed by shape3dA() inside getDist(),
+      // which the raymarcher inlines per-step (~100+ inlines per pixel). The
+      // 9-way runtime dispatch was the dominant compile cost.
+      define: "SHAPE_A",
       choices: {
         capsuleHoriz: 70,
         capsuleVert: 60,
@@ -73,7 +78,8 @@ export default class Shapes3D extends Effect {
     shapeB: {
       type: "int",
       default: 10,
-      uniform: "shapeB",
+      // Compile-time define. Same rationale as SHAPE_A.
+      define: "SHAPE_B",
       choices: {
         capsuleHoriz: 70,
         capsuleVert: 60,
@@ -137,7 +143,9 @@ export default class Shapes3D extends Effect {
     blendMode: {
       type: "int",
       default: 10,
-      uniform: "blendMode",
+      // Compile-time define. 8-way blend dispatch in blend(), called per
+      // raymarch step.
+      define: "BLEND_MODE",
       choices: {
         intersect: 40,
         union: 30,

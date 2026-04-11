@@ -9,16 +9,28 @@
 precision highp float;
 precision highp int;
 
+// EFFECT and FLIP are compile-time defines injected by the runtime (see
+// definition.js `globals.effect.define` / `globals.flip.define`). Same Knob 2
+// rationale as classicNoisedeck/noise: a runtime ~20-way `effect` dispatch
+// pulls every leaf effect function (bloom, sobel, derivatives, convolution
+// kernels, etc.) into HLSL inlining at the same call site, even though only
+// one is reachable at a time. Wrapping the cascade in #if blocks lets ANGLE
+// DCE the unreachable branches.
+#ifndef EFFECT
+#define EFFECT 0
+#endif
+#ifndef FLIP
+#define FLIP 0
+#endif
+
 uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform float time;
-uniform int effect;
 uniform float effectAmt;
 uniform float scaleAmt;
 uniform float rotation;
 uniform float offsetX;
 uniform float offsetY;
-uniform int flip;
 uniform float intensity;
 uniform float saturation;
 out vec4 fragColor;
@@ -353,45 +365,42 @@ vec3 shadow(vec3 color, vec2 uv) {
     return hsv2rgb(color);
 }
 
-vec3 convolution(int kernel, vec3 color, vec2 uv) {
-    vec3 color1 = vec3(0.0);
-
-    if (kernel == 0) {
-        return color;
-    } else if (kernel == 1) {
-        color1 = convolve(uv, blur, true);
-    } else if (kernel == 2) {
-        // deriv divide
-        color1 = derivatives(color, uv, true);
-    } else if (kernel == 120) {
-        // deriv
-        color1 = clamp(derivatives(color, uv, false) * 2.5, 0.0, 1.0);
-    } else if (kernel == 3) {
-        color1 = convolve(uv, edge2, true);
-        color1 = color * color1;
-    } else if (kernel == 4) {
-        color1 = convolve(uv, emboss, false);
-    } else if (kernel == 5) {
-        color1 = outline(color, uv);
-    } else if (kernel == 6) {
-        color1 = shadow(color, uv);
-    } else if (kernel == 7) {
-        color1 = convolve(uv, sharpen, false);
-    } else if (kernel == 8) {
-        color1 = sobel(color, uv);
-    } else if (kernel == 9) {
-        // lit edge
-        color1 = convolve(uv, edge2, true);
-        color1 = max(color, color1);
-    } else if (kernel == 300) {
-        // blur-sharpen
-        color1 = convolve(uv, sharpenBlur, true);
-    } else if (kernel == 301) {
-        // smooth edge
-        color1 = convolve(uv, edge3, true);
-    }
-
-    return color1;
+// Convolution kernel branch — only the active kernel for the current EFFECT
+// gets compiled in. Called from main() inside the EFFECT == kernel #elif
+// branch, so this function only needs to emit one kernel body.
+vec3 convolutionEffect(vec3 color, vec2 uv) {
+#if EFFECT == 1
+    return convolve(uv, blur, true);
+#elif EFFECT == 2
+    // deriv divide
+    return derivatives(color, uv, true);
+#elif EFFECT == 120
+    // deriv
+    return clamp(derivatives(color, uv, false) * 2.5, 0.0, 1.0);
+#elif EFFECT == 3
+    return color * convolve(uv, edge2, true);
+#elif EFFECT == 4
+    return convolve(uv, emboss, false);
+#elif EFFECT == 5
+    return outline(color, uv);
+#elif EFFECT == 6
+    return shadow(color, uv);
+#elif EFFECT == 7
+    return convolve(uv, sharpen, false);
+#elif EFFECT == 8
+    return sobel(color, uv);
+#elif EFFECT == 9
+    // lit edge
+    return max(color, convolve(uv, edge2, true));
+#elif EFFECT == 300
+    // blur-sharpen
+    return convolve(uv, sharpenBlur, true);
+#elif EFFECT == 301
+    // smooth edge
+    return convolve(uv, edge3, true);
+#else
+    return color;
+#endif
 }
 
 float periodicFunction(float p) {
@@ -614,69 +623,69 @@ void main() {
 
     uv = fract(uv);
 
-    if (flip == 1) {
-       // flip both
-       uv.x = 1.0 - uv.x;
-       uv.y = 1.0 - uv.y;
-    } else if (flip == 2) {
-       // flip h
-       uv.x = 1.0 - uv.x;
-    } else if (flip == 3) {
-       // flip v
-       uv.y = 1.0 - uv.y;
-    } else if (flip == 11) {
-       // mirror lr
-       if (uv.x > 0.5) {
-           uv.x = 1.0 - uv.x;
-       }
-    } else if (flip == 12) {
-       // mirror rl
-       if (uv.x < 0.5) {
-           uv.x = 1.0 - uv.x;
-       }
-    } else if (flip == 13) {
-       // mirror ud
-       if (uv.y > 0.5) {
-           uv.y = 1.0 - uv.y;
-       }
-    } else if (flip == 14) {
-       // mirror du
-       if (uv.y < 0.5) {
-           uv.y = 1.0 - uv.y;
-       }
-    } else if (flip == 15) {
-       // mirror lr ud
-       if (uv.x > 0.5) {
-           uv.x = 1.0 - uv.x;
-       }
-       if (uv.y > 0.5) {
-           uv.y = 1.0 - uv.y;
-       }
-    } else if (flip == 16) {
-       // mirror lr du
-       if (uv.x > 0.5) {
-           uv.x = 1.0 - uv.x;
-       }
-       if (uv.y < 0.5) {
-           uv.y = 1.0 - uv.y;
-       }
-    } else if (flip == 17) {
-       // mirror rl ud
-       if (uv.x < 0.5) {
-           uv.x = 1.0 - uv.x;
-       }
-       if (uv.y > 0.5) {
-           uv.y = 1.0 - uv.y;
-       }
-    } else if (flip == 18) {
-       // mirror rl du
-       if (uv.x < 0.5) {
-           uv.x = 1.0 - uv.x;
-       }
-       if (uv.y < 0.5) {
-           uv.y = 1.0 - uv.y;
-       }
+#if FLIP == 1
+    // flip both
+    uv.x = 1.0 - uv.x;
+    uv.y = 1.0 - uv.y;
+#elif FLIP == 2
+    // flip h
+    uv.x = 1.0 - uv.x;
+#elif FLIP == 3
+    // flip v
+    uv.y = 1.0 - uv.y;
+#elif FLIP == 11
+    // mirror lr
+    if (uv.x > 0.5) {
+        uv.x = 1.0 - uv.x;
     }
+#elif FLIP == 12
+    // mirror rl
+    if (uv.x < 0.5) {
+        uv.x = 1.0 - uv.x;
+    }
+#elif FLIP == 13
+    // mirror ud
+    if (uv.y > 0.5) {
+        uv.y = 1.0 - uv.y;
+    }
+#elif FLIP == 14
+    // mirror du
+    if (uv.y < 0.5) {
+        uv.y = 1.0 - uv.y;
+    }
+#elif FLIP == 15
+    // mirror lr ud
+    if (uv.x > 0.5) {
+        uv.x = 1.0 - uv.x;
+    }
+    if (uv.y > 0.5) {
+        uv.y = 1.0 - uv.y;
+    }
+#elif FLIP == 16
+    // mirror lr du
+    if (uv.x > 0.5) {
+        uv.x = 1.0 - uv.x;
+    }
+    if (uv.y < 0.5) {
+        uv.y = 1.0 - uv.y;
+    }
+#elif FLIP == 17
+    // mirror rl ud
+    if (uv.x < 0.5) {
+        uv.x = 1.0 - uv.x;
+    }
+    if (uv.y > 0.5) {
+        uv.y = 1.0 - uv.y;
+    }
+#elif FLIP == 18
+    // mirror rl du
+    if (uv.x < 0.5) {
+        uv.x = 1.0 - uv.x;
+    }
+    if (uv.y < 0.5) {
+        uv.y = 1.0 - uv.y;
+    }
+#endif
 
     loadKernels();
 
@@ -686,23 +695,26 @@ void main() {
     vec4 origcolor = texture(inputTex, uv);
     color = origcolor;
 
-    if (effectAmt != 0.0 && effect != 0) {
-        if (effect == 100) {
-            color.rgb = pixellate(uv, effectAmt);
-        } else if (effect == 110) {
-            color.rgb = posterize(color.rgb, effectAmt);
-        } else if (effect == 200) {
-            color.rgb = cga(color, uv);
-        } else if (effect == 210) {
-            color.rgb = subpixel(uv, effectAmt);
-        } else if (effect == 220) {
-            color.rgb = bloom(uv);
-        } else if (effect == 230) {
-            color.rgb = zoomBlur(uv);
-        } else {
-            color.rgb = convolution(effect, color.rgb, uv);
-        }
+#if EFFECT != 0
+    if (effectAmt != 0.0) {
+#if EFFECT == 100
+        color.rgb = pixellate(uv, effectAmt);
+#elif EFFECT == 110
+        color.rgb = posterize(color.rgb, effectAmt);
+#elif EFFECT == 200
+        color.rgb = cga(color, uv);
+#elif EFFECT == 210
+        color.rgb = subpixel(uv, effectAmt);
+#elif EFFECT == 220
+        color.rgb = bloom(uv);
+#elif EFFECT == 230
+        color.rgb = zoomBlur(uv);
+#else
+        // convolution kernel branches handled inside convolutionEffect()
+        color.rgb = convolutionEffect(color.rgb, uv);
+#endif
     }
+#endif
 
     // brightness/contrast/saturation
     color.rgb = brightnessContrast(color.rgb);

@@ -12,7 +12,12 @@ export default new Effect({
     effect: {
       type: "int",
       default: 0,
-      uniform: "effect",
+      // Compile-time define. The runtime ~20-way effect dispatch pulled every
+      // leaf effect function (bloom, sobel, derivatives, convolution kernels)
+      // into HLSL inlining at the same call site even though only one was
+      // reachable. Each variant is its own compiled program; switching the
+      // effect dropdown triggers a one-shot recompile.
+      define: "EFFECT",
       choices: {
         none: 0,
         bloom: 220,
@@ -101,7 +106,8 @@ export default new Effect({
     flip: {
       type: "int",
       default: 0,
-      uniform: "flip",
+      // Compile-time define. 10-way uv flip/mirror dispatch in main().
+      define: "FLIP",
       choices: {
         none: 0,
         "Flip:": null,

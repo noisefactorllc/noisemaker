@@ -9,15 +9,28 @@
 precision highp float;
 precision highp int;
 
+// SHAPE_A, SHAPE_B and BLEND_MODE are compile-time defines injected by the
+// runtime (see definition.js `globals.{shapeA,shapeB,blendMode}.define`).
+// Same Knob 2 rationale as classicNoisedeck/noise: the per-raymarch-step
+// dispatch on shape index/blend mode (~100 steps × 2 shapes per pixel)
+// inflates HLSL bytecode badly when left as runtime; baking the choice lets
+// the compiler keep only the active branch.
+#ifndef SHAPE_A
+#define SHAPE_A 30
+#endif
+#ifndef SHAPE_B
+#define SHAPE_B 10
+#endif
+#ifndef BLEND_MODE
+#define BLEND_MODE 10
+#endif
+
 uniform float time;
 uniform vec2 resolution;
-uniform int shapeA;
-uniform int shapeB;
 uniform float shapeAScale;
 uniform float shapeBScale;
 uniform float shapeAThickness;
 uniform float shapeBThickness;
-uniform int blendMode;
 uniform float smoothness;
 uniform float spin;
 uniform float flip;
@@ -291,80 +304,119 @@ float smax(float d1, float d2, float k) {
 
 // 3D distance functions - MIT License
 // https://iquilezles.org/articles/distfunctions/
-float shape3d(vec3 p, vec3 origin, int index, float scale, float thickness) {
+//
+// shape3d() is split into per-define helpers shape3dA() and shape3dB(): each
+// variant only emits the body of the active shape branch. The two helpers
+// have the same body keyed off SHAPE_A vs SHAPE_B; they're textually
+// duplicated rather than macroized because the duplication is short and the
+// macro form would obscure the per-variant compile-time selection.
+float shape3dA(vec3 p, vec3 origin, float scale, float thickness) {
     float d = 0.0;
     float s = scale * 0.25;
-    if (index == 20) {
-        // sphere
-        d = length(p - origin) - s;
-    } else if (index == 30) {
-        // torus - vert
-        vec2 q = vec2(length(p.xy)-s, p.z);
-        d = length(q)-0.2; 
-    } else if (index == 31) {
-        // torus -hoirz
-        vec2 q = vec2(length(p.xz)-s, p.y);
-        d = length(q)-0.2; 
-    } else if (index == 10) {
-        // cube
-        s *= 0.75;
-        p -= clamp(p, -s, s);
-		d = length(p)-.01;
-    } else if (index == 40) {
-        // cylinder vertical
-        s *= 0.75;
-        d = length(p.xz) - s;
-    } else if (index == 50) {
-        // cylinder horizontal
-        s *= 0.75;
-        d = max(length(p-clamp(p, -s, s)), (length(p.xy) - s));
-    } else if (index == 60) {
-        // capsule vertical
-        p.y -= clamp(p.y, -scale * 0.5, scale * 0.5);
-        d = length(p) - s * 0.5;
-    } else if (index == 70) {
-        // capsule horizontal
-        p.x -= clamp(p.x, -scale * 0.5, scale * 0.5);
-        d = length(p) - s * 0.5;
-    } else if (index == 80) {
-        // octahedron
-        p = abs(p);
-        return (p.x + p.y + p.z - s) * 0.57735027;
-    }
+#if SHAPE_A == 20
+    // sphere
+    d = length(p - origin) - s;
+#elif SHAPE_A == 30
+    // torus - vert
+    vec2 q = vec2(length(p.xy) - s, p.z);
+    d = length(q) - 0.2;
+#elif SHAPE_A == 31
+    // torus - horiz
+    vec2 q = vec2(length(p.xz) - s, p.y);
+    d = length(q) - 0.2;
+#elif SHAPE_A == 10
+    // cube
+    s *= 0.75;
+    p -= clamp(p, -s, s);
+    d = length(p) - 0.01;
+#elif SHAPE_A == 40
+    // cylinder vertical
+    s *= 0.75;
+    d = length(p.xz) - s;
+#elif SHAPE_A == 50
+    // cylinder horizontal
+    s *= 0.75;
+    d = max(length(p - clamp(p, -s, s)), (length(p.xy) - s));
+#elif SHAPE_A == 60
+    // capsule vertical
+    p.y -= clamp(p.y, -scale * 0.5, scale * 0.5);
+    d = length(p) - s * 0.5;
+#elif SHAPE_A == 70
+    // capsule horizontal
+    p.x -= clamp(p.x, -scale * 0.5, scale * 0.5);
+    d = length(p) - s * 0.5;
+#elif SHAPE_A == 80
+    // octahedron
+    p = abs(p);
+    return (p.x + p.y + p.z - s) * 0.57735027;
+#endif
+    d = abs(d) - (thickness * 0.01);
+    return d;
+}
 
+float shape3dB(vec3 p, vec3 origin, float scale, float thickness) {
+    float d = 0.0;
+    float s = scale * 0.25;
+#if SHAPE_B == 20
+    d = length(p - origin) - s;
+#elif SHAPE_B == 30
+    vec2 q = vec2(length(p.xy) - s, p.z);
+    d = length(q) - 0.2;
+#elif SHAPE_B == 31
+    vec2 q = vec2(length(p.xz) - s, p.y);
+    d = length(q) - 0.2;
+#elif SHAPE_B == 10
+    s *= 0.75;
+    p -= clamp(p, -s, s);
+    d = length(p) - 0.01;
+#elif SHAPE_B == 40
+    s *= 0.75;
+    d = length(p.xz) - s;
+#elif SHAPE_B == 50
+    s *= 0.75;
+    d = max(length(p - clamp(p, -s, s)), (length(p.xy) - s));
+#elif SHAPE_B == 60
+    p.y -= clamp(p.y, -scale * 0.5, scale * 0.5);
+    d = length(p) - s * 0.5;
+#elif SHAPE_B == 70
+    p.x -= clamp(p.x, -scale * 0.5, scale * 0.5);
+    d = length(p) - s * 0.5;
+#elif SHAPE_B == 80
+    p = abs(p);
+    return (p.x + p.y + p.z - s) * 0.57735027;
+#endif
     d = abs(d) - (thickness * 0.01);
     return d;
 }
 
 float blend(float shape1, float shape2) {
-    float d = 0.0;
-    if (blendMode == 10) {
-        // smooth min (union)
-        d = smin(shape1, shape2, smoothness * 0.02);
-    } else if (blendMode == 20) {
-        // smooth max (intersect)
-        d = smax(shape1, shape2, smoothness * 0.01);
-    } else if (blendMode == 25) {
-        // smooth subtract
-        d = ssub(shape1, shape2, smoothness * 0.02);
-    } else if (blendMode == 26) {
-        // smooth subtract
-        d = ssub(-shape1, shape2, smoothness * 0.02);
-    } else if (blendMode == 30) {
-        // min (union)
-        d = min(shape1, shape2);
-    } else if (blendMode == 40) {
-        // max (intersect)
-        d = max(shape1, shape2);
-    } else if (blendMode == 50) {
-        // subtract
-        d = max(-shape1, shape2);
-    } else if (blendMode == 51) {
-        // subtract
-        d = max(shape1, -shape2);
-    }
-
-    return d;
+#if BLEND_MODE == 10
+    // smooth min (union)
+    return smin(shape1, shape2, smoothness * 0.02);
+#elif BLEND_MODE == 20
+    // smooth max (intersect)
+    return smax(shape1, shape2, smoothness * 0.01);
+#elif BLEND_MODE == 25
+    // smooth subtract
+    return ssub(shape1, shape2, smoothness * 0.02);
+#elif BLEND_MODE == 26
+    // smooth subtract (flipped)
+    return ssub(-shape1, shape2, smoothness * 0.02);
+#elif BLEND_MODE == 30
+    // min (union)
+    return min(shape1, shape2);
+#elif BLEND_MODE == 40
+    // max (intersect)
+    return max(shape1, shape2);
+#elif BLEND_MODE == 50
+    // subtract
+    return max(-shape1, shape2);
+#elif BLEND_MODE == 51
+    // subtract (flipped)
+    return max(shape1, -shape2);
+#else
+    return 0.0;
+#endif
 }
 
 
@@ -399,8 +451,8 @@ vec3 applyTransform(vec3 p, TransformData data) {
 float getDist(vec3 p, TransformData data, ShapeParams params) {
     p = applyTransform(p, data);
 
-    float shape1 = shape3d(p, vec3(0.0), shapeA, params.scaleA, params.thicknessA);
-    float shape2 = shape3d(p, vec3(0.0), shapeB, params.scaleB, params.thicknessB);
+    float shape1 = shape3dA(p, vec3(0.0), params.scaleA, params.thicknessA);
+    float shape2 = shape3dB(p, vec3(0.0), params.scaleB, params.thicknessB);
 
     return blend(shape1, shape2);
 }

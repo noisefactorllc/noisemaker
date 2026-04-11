@@ -17,12 +17,20 @@ precision highp int;
 #define NOISE_TYPE 10
 #endif
 
+// COLOR_MODE is a compile-time define injected by the runtime (see
+// definition.js `globals.colorMode.define`). Same Knob 2 fix as
+// classicNoisedeck/noise: the 4-way color cascade in main() pulls hsv2rgb,
+// rgb2hsv, oklab and srgb conversions into HLSL inlining at the same call
+// site even though only one is reachable.
+#ifndef COLOR_MODE
+#define COLOR_MODE 2
+#endif
+
 uniform float time;
 uniform int seed;
 uniform bool wrap;
 uniform vec2 resolution;
 uniform float noiseScale;
-uniform int colorMode;
 uniform float refractAmt;
 uniform float speed;
 uniform float hueRotation;
@@ -560,53 +568,53 @@ void main() {
     float ref = map(refractAmt, 0.0, 100.0, 0.0, 2.5);
     vec2 uv = vec2(st.x + xRef * ref, st.y + yRef * ref);
 
-    if (colorMode == 0) {
-        color.rgb = vec3(value(uv, xFreq, yFreq, s));
-    } else {
-        color = vec4(
-            value(uv, xFreq, yFreq, s),
-            value(uv, xFreq, yFreq, 10.0 + s),
-            value(uv, xFreq, yFreq, 20.0 + s),
-            1.0);
-    }
+#if COLOR_MODE == 0
+    color.rgb = vec3(value(uv, xFreq, yFreq, s));
+#else
+    color = vec4(
+        value(uv, xFreq, yFreq, s),
+        value(uv, xFreq, yFreq, 10.0 + s),
+        value(uv, xFreq, yFreq, 20.0 + s),
+        1.0);
+#endif
 
-    if (colorMode == 0) {
-        // grayscale
-        if (ridges) {
-            color = 1.0 - abs(color * 2.0 - 1.0);
-        }
-    } else if (colorMode == 1) {
-        // rgb
-        if (ridges) {
-            color = 1.0 - abs(color * 2.0 - 1.0);
-        }
-        color.rgb = rgb2hsv(color.rgb);
-        color.r += 1.0 - (hueRotation / 360.0);
-        color.r = fract(color.r);
-        color.rgb = hsv2rgb(color.rgb);
-    } else if (colorMode == 2) {
-        // hsv
-        color.r = color.r * hueRange * 0.01;
-        color.r += 1.0 - (hueRotation / 360.0);
-        if (ridges) {
-            color.b = 1.0 - abs(color.b * 2.0 - 1.0);
-        }
-        color.rgb = hsv2rgb(color.rgb);
-    } else {
-        // oklab
-        color.g = color.g * -.509 + .276;
-        color.b = color.b * -.509 + .198;
-
-        color.rgb = linear_srgb_from_oklab(color.rgb);
-        color.rgb = linearToSrgb(color.rgb);
-        color.rgb = rgb2hsv(color.rgb);
-        color.r += 1.0 - (hueRotation / 360.0);
-        color.r = fract(color.r);
-        if (ridges) {
-            color.b = 1.0 - abs(color.b * 2.0 - 1.0);
-        }
-        color.rgb = hsv2rgb(color.rgb);
+#if COLOR_MODE == 0
+    // grayscale
+    if (ridges) {
+        color = 1.0 - abs(color * 2.0 - 1.0);
     }
+#elif COLOR_MODE == 1
+    // rgb
+    if (ridges) {
+        color = 1.0 - abs(color * 2.0 - 1.0);
+    }
+    color.rgb = rgb2hsv(color.rgb);
+    color.r += 1.0 - (hueRotation / 360.0);
+    color.r = fract(color.r);
+    color.rgb = hsv2rgb(color.rgb);
+#elif COLOR_MODE == 2
+    // hsv
+    color.r = color.r * hueRange * 0.01;
+    color.r += 1.0 - (hueRotation / 360.0);
+    if (ridges) {
+        color.b = 1.0 - abs(color.b * 2.0 - 1.0);
+    }
+    color.rgb = hsv2rgb(color.rgb);
+#else
+    // oklab (COLOR_MODE == 3)
+    color.g = color.g * -.509 + .276;
+    color.b = color.b * -.509 + .198;
+
+    color.rgb = linear_srgb_from_oklab(color.rgb);
+    color.rgb = linearToSrgb(color.rgb);
+    color.rgb = rgb2hsv(color.rgb);
+    color.r += 1.0 - (hueRotation / 360.0);
+    color.r = fract(color.r);
+    if (ridges) {
+        color.b = 1.0 - abs(color.b * 2.0 - 1.0);
+    }
+    color.rgb = hsv2rgb(color.rgb);
+#endif
 
     color.rgb = brightnessContrast(color.rgb);
     color.a = 1.0;

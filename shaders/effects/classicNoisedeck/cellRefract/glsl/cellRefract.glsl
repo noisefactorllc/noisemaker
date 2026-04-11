@@ -9,11 +9,22 @@
 precision highp float;
 precision highp int;
 
+// SHAPE and KERNEL are compile-time defines injected by the runtime (see
+// definition.js `globals.{shape,kernel}.define`). Same Knob 2 rationale as
+// classicNoisedeck/effects: shape is dispatched 25 times per pixel inside
+// the cells() inner loop, and kernel is the same multi-way convolution
+// dispatch used by classicNoisedeck/effects — both balloon HLSL inlining.
+#ifndef SHAPE
+#define SHAPE 1
+#endif
+#ifndef KERNEL
+#define KERNEL 0
+#endif
+
 uniform sampler2D inputTex;
 uniform float time;
 uniform int seed;
 uniform vec2 resolution;
-uniform int shape;
 uniform float scale;
 uniform float cellScale;
 uniform float cellSmooth;
@@ -22,7 +33,6 @@ uniform float speed;
 uniform float refractAmt;
 uniform float direction;
 uniform int wrap;
-uniform int kernel;
 uniform float effectWidth;
 out vec4 fragColor;
 
@@ -276,39 +286,35 @@ vec3 outline(vec3 color, vec2 uv) {
     return max(outcolor, 0.0);
 }
 
-vec3 convolution(int kernel, vec3 color, vec2 uv) {
-    vec3 color1 = vec3(0.0);
-
-    if (kernel == 0) {
-        return color;
-    } else if (kernel == 1) {
-        color1 = convolve(uv, blur, true);
-    } else if (kernel == 2) {
-        // deriv divide
-        color1 = derivatives(color, uv, true);
-    } else if (kernel == 120) {
-        // deriv
-        color1 = clamp(derivatives(color, uv, false) * 2.5, 0.0, 1.0);
-    } else if (kernel == 3) {
-        color1 = convolve(uv, edge2, true);
-        color1 = color * color1;
-    } else if (kernel == 4) {
-        color1 = convolve(uv, emboss, false);
-    } else if (kernel == 5) {
-        color1 = outline(color, uv);
-    } else if (kernel == 6) {
-        color1 = shadow(color, uv);
-    } else if (kernel == 7) {
-        color1 = convolve(uv, sharpen, false);
-    } else if (kernel == 8) {
-        color1 = sobel(color, uv);
-    } else if (kernel == 9) {
-        // lit edge
-        color1 = convolve(uv, edge2, true);
-        color1 = max(color, color1);
-    }
-
-    return color1;
+// Per-KERNEL convolution branch — only the active kernel for the current
+// program gets compiled. Called from main() inside `KERNEL != 0/100/110`.
+vec3 convolutionKernel(vec3 color, vec2 uv) {
+#if KERNEL == 1
+    return convolve(uv, blur, true);
+#elif KERNEL == 2
+    // deriv divide
+    return derivatives(color, uv, true);
+#elif KERNEL == 120
+    // deriv
+    return clamp(derivatives(color, uv, false) * 2.5, 0.0, 1.0);
+#elif KERNEL == 3
+    return color * convolve(uv, edge2, true);
+#elif KERNEL == 4
+    return convolve(uv, emboss, false);
+#elif KERNEL == 5
+    return outline(color, uv);
+#elif KERNEL == 6
+    return shadow(color, uv);
+#elif KERNEL == 7
+    return convolve(uv, sharpen, false);
+#elif KERNEL == 8
+    return sobel(color, uv);
+#elif KERNEL == 9
+    // lit edge
+    return max(color, convolve(uv, edge2, true));
+#else
+    return color;
+#endif
 }
 
 float periodicFunction(float p) {
@@ -321,27 +327,27 @@ float polarShape(vec2 st, int sides) {
     return cos(floor(0.5 + a / r) * r - a) * length(st);
 }
 
-float shapeDistance(vec2 st, vec2 offset, int type, float scale) {
+float shapeDistance(vec2 st, vec2 offset, float scale) {
 	st += offset;
 
 	float d = 1.0;
-	if (type == 0) {
-        // circle
-		d = length(st * 1.2);
-	} else if (type == 2) {
-        // hexagon
-		d = polarShape(st * 1.2, 6);
-	} else if (type == 3) {
-        // octagon
-		d = polarShape(st * 1.2, 8);
-    } else if (type == 4) {
-        // square
-        d = polarShape(st * 1.5, 4);
-	} else if (type == 6) {
-        // triangle
-        st.y += 0.05;
-		d = polarShape(st * 1.5, 3);
-    }
+#if SHAPE == 0
+    // circle
+    d = length(st * 1.2);
+#elif SHAPE == 2
+    // hexagon
+    d = polarShape(st * 1.2, 6);
+#elif SHAPE == 3
+    // octagon
+    d = polarShape(st * 1.2, 8);
+#elif SHAPE == 4
+    // square
+    d = polarShape(st * 1.5, 4);
+#elif SHAPE == 6
+    // triangle
+    st.y += 0.05;
+    d = polarShape(st * 1.5, 3);
+#endif
 
 	return d * scale;
 }
@@ -361,7 +367,7 @@ float smin(float a, float b, float k) {
     return min( a, b ) - h*h*k*(1.0/4.0);
 }
 
-float cells(vec2 st, float freq, float cellSize, int sides) {
+float cells(vec2 st, float freq, float cellSize) {
 	st *= freq;
 	st += prng(vec3(float(seed))).xy;
 
@@ -377,17 +383,18 @@ float cells(vec2 st, float freq, float cellSize, int sides) {
             //wrap = wrapEdges(wrap, freq);
 			vec2 point = prng(vec3(wrap, float(seed))).xy;
 
-            vec3 r1 = prng(vec3(float(seed), wrap)) * 0.5 - 0.25; 
+            vec3 r1 = prng(vec3(float(seed), wrap)) * 0.5 - 0.25;
 			vec3 r2 = prng(vec3(wrap, float(seed))) * 2.0 - 1.0;
             float spd = floor(speed);
             point += vec2(sin(time * TAU * spd + r2.x) * r1.x, cos(time * TAU * spd + r2.y) * r1.y);
 
             vec2 diff = n + point - f;
-			float dist = shapeDistance(vec2(diff.x, -diff.y), vec2(0.0), sides, cellSize);
-            if (shape == 1) {
-                dist = abs(n.x + point.x - f.x) + abs(n.y + point.y - f.y);
-                dist *= cellSize;
-            }
+#if SHAPE == 1
+            // diamond — Manhattan distance, special-cased outside shapeDistance()
+            float dist = (abs(n.x + point.x - f.x) + abs(n.y + point.y - f.y)) * cellSize;
+#else
+            float dist = shapeDistance(vec2(diff.x, -diff.y), vec2(0.0), cellSize);
+#endif
 
             dist += r1.z * (variation * 0.01); // size variation
             d = smin(d, dist, cellSmooth * 0.01);
@@ -435,7 +442,7 @@ void main() {
 
     float freq = map(scale, 1.0, 100.0, 20.0, 1.0);
     float cellSize = map(cellScale, 1.0, 100.0, 3.0, 0.75);
-    float d = cells(st * vec2(aspectRatio, 1.0), freq, cellSize, shape);
+    float d = cells(st * vec2(aspectRatio, 1.0), freq, cellSize);
     float ref = map(refractAmt, 0.0, 100.0, 0.0, 0.125);
 
     float refLen = d + direction / 360.0;
@@ -448,15 +455,17 @@ void main() {
 
     color = texture(inputTex, st);
 
-    if (effectWidth != 0.0 && kernel != 0) {
-        if (kernel == 100) {
-            color.rgb = pixellate(st, effectWidth * 4.0);
-        } else if (kernel == 110) {
-            color.rgb = posterize(color.rgb, floor(map(effectWidth, 0.0, 10.0, 0.0, 20.0)));
-        } else {
-            color.rgb = convolution(kernel, color.rgb, st);
-        }
+#if KERNEL != 0
+    if (effectWidth != 0.0) {
+#if KERNEL == 100
+        color.rgb = pixellate(st, effectWidth * 4.0);
+#elif KERNEL == 110
+        color.rgb = posterize(color.rgb, floor(map(effectWidth, 0.0, 10.0, 0.0, 20.0)));
+#else
+        color.rgb = convolutionKernel(color.rgb, st);
+#endif
     }
+#endif
     
     fragColor = color;
 }

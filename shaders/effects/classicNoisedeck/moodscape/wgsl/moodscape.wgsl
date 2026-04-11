@@ -3,14 +3,16 @@
  * Refracted value noise with multiple color modes.
  */
 
-// NOISE_TYPE is a compile-time const injected by the runtime via injectDefines.
-// See classicNoisedeck/moodscape/definition.js `globals.interp.define`. The
-// expander always provides this define for moodscape programs.
+// NOISE_TYPE and COLOR_MODE are compile-time consts injected by the runtime
+// via injectDefines. See classicNoisedeck/moodscape/definition.js
+// `globals.{interp,colorMode}.define`. Same fix as the GLSL backend —
+// collapses the runtime color cascade so Dawn constant-folds the variant
+// branches.
 
 // Packed uniforms layout:
 //   data[0]: resolution.xy, time, seed
 //   data[1]: (slot freed — interp is a compile-time define), noiseScale, speed, refractAmt
-//   data[2]: ridges, wrap, colorMode, hueRotation
+//   data[2]: ridges, wrap, (slot freed — colorMode is now compile-time COLOR_MODE), hueRotation
 //   data[3]: hueRange, intensity, _pad, _pad
 struct Uniforms {
     data: array<vec4<f32>, 4>,
@@ -26,7 +28,6 @@ var<private> speed: f32;
 var<private> refractAmt: f32;
 var<private> ridges: i32;
 var<private> wrap: i32;
-var<private> colorMode: i32;
 var<private> hueRotation: f32;
 var<private> hueRange: f32;
 var<private> intensity: f32;
@@ -40,7 +41,7 @@ fn unpackUniforms() {
     refractAmt = uniforms.data[1].w;
     ridges = i32(uniforms.data[2].x);
     wrap = i32(uniforms.data[2].y);
-    colorMode = i32(uniforms.data[2].z);
+    // uniforms.data[2].z was colorMode — now compile-time COLOR_MODE
     hueRotation = uniforms.data[2].w;
     hueRange = uniforms.data[3].x;
     intensity = uniforms.data[3].y;
@@ -570,14 +571,14 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let grayscaleColor: vec4<f32> = vec4<f32>(vec3<f32>(valueR), 1.0);
     let rgbColor: vec4<f32> = vec4<f32>(valueR, valueG, valueB, 1.0);
 
-    color = select(rgbColor, grayscaleColor, i32(colorMode) == 0);
+    color = select(rgbColor, grayscaleColor, COLOR_MODE == 0);
 
-    if (i32(colorMode) == 0) {
+    if (COLOR_MODE == 0) {
         // grayscale
         if (ridges > 0) {
             color = 1.0 - abs(color * 2.0 - 1.0);
         }
-    } else if (i32(colorMode) == 1) {
+    } else if (COLOR_MODE == 1) {
         // rgb
         if (ridges > 0) {
             color = 1.0 - abs(color * 2.0 - 1.0);
@@ -586,7 +587,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         color.r += 1.0 - (hueRotation / 360.0);
         color.r = fract(color.r);
         color = vec4<f32>(hsv2rgb(color.rgb), color.a);
-    } else if (i32(colorMode) == 2) {
+    } else if (COLOR_MODE == 2) {
         // hsv
         color.r = color.r * hueRange * 0.01;
         color.r += 1.0 - (hueRotation / 360.0);
@@ -595,7 +596,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         }
         color = vec4<f32>(hsv2rgb(color.rgb), color.a);
     } else {
-        // oklab
+        // oklab (COLOR_MODE == 3)
         color.g = color.g * -.509 + .276;
         color.b = color.b * -.509 + .198;
 

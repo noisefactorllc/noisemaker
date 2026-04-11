@@ -7,6 +7,11 @@
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> u: Uniforms;
 
+// EFFECT and FLIP are compile-time consts injected by the runtime via
+// injectDefines (see classicNoisedeck/effects/definition.js
+// `globals.effect.define` / `globals.flip.define`). Same fix as the GLSL
+// backend — collapses the runtime cascade so Dawn constant-folds the variant
+// branches.
 struct Uniforms {
     time: f32,
     deltaTime: f32,
@@ -15,9 +20,9 @@ struct Uniforms {
     resolution: vec2f,
     aspect: f32,
     // Effect params in definition.js globals order:
-    effect: i32,
+    // (effect was here — now compile-time EFFECT)
     effectAmt: f32,
-    flip: i32,
+    // (flip was here — now compile-time FLIP)
     scaleAmt: f32,
     rotation: f32,
     offsetX: f32,
@@ -202,7 +207,7 @@ fn shadow(color_in: vec3f, uv: vec2f) -> vec3f {
     return hsv2rgb(color);
 }
 
-fn convolution(kernel: i32, color: vec3f, uv: vec2f) -> vec3f {
+fn convolutionEffect(color: vec3f, uv: vec2f) -> vec3f {
     let emboss = array<f32, 9>(-2.0, -1.0, 0.0, -1.0, 1.0, 1.0, 0.0, 1.0, 2.0);
     let sharpen = array<f32, 9>(-1.0, 0.0, -1.0, 0.0, 5.0, 0.0, -1.0, 0.0, -1.0);
     let blur = array<f32, 9>(1.0, 2.0, 1.0, 2.0, 4.0, 2.0, 1.0, 2.0, 1.0);
@@ -210,19 +215,18 @@ fn convolution(kernel: i32, color: vec3f, uv: vec2f) -> vec3f {
     let edge3 = array<f32, 9>(-0.875, -0.75, -0.875, -0.75, 5.0, -0.75, -0.875, -0.75, -0.875);
     let sharpenBlur = array<f32, 9>(-2.0, 2.0, -2.0, 2.0, 1.0, 2.0, -2.0, 2.0, -2.0);
 
-    if (kernel == 0) { return color; }
-    else if (kernel == 1) { return convolve(uv, blur, true); }
-    else if (kernel == 2) { return derivatives(color, uv, true); }
-    else if (kernel == 120) { return clamp(derivatives(color, uv, false) * 2.5, vec3f(0.0), vec3f(1.0)); }
-    else if (kernel == 3) { return color * convolve(uv, edge2, true); }
-    else if (kernel == 4) { return convolve(uv, emboss, false); }
-    else if (kernel == 5) { return outline(color, uv); }
-    else if (kernel == 6) { return shadow(color, uv); }
-    else if (kernel == 7) { return convolve(uv, sharpen, false); }
-    else if (kernel == 8) { return sobel(color, uv); }
-    else if (kernel == 9) { return max(color, convolve(uv, edge2, true)); }
-    else if (kernel == 300) { return convolve(uv, sharpenBlur, true); }
-    else if (kernel == 301) { return convolve(uv, edge3, true); }
+    if (EFFECT == 1) { return convolve(uv, blur, true); }
+    else if (EFFECT == 2) { return derivatives(color, uv, true); }
+    else if (EFFECT == 120) { return clamp(derivatives(color, uv, false) * 2.5, vec3f(0.0), vec3f(1.0)); }
+    else if (EFFECT == 3) { return color * convolve(uv, edge2, true); }
+    else if (EFFECT == 4) { return convolve(uv, emboss, false); }
+    else if (EFFECT == 5) { return outline(color, uv); }
+    else if (EFFECT == 6) { return shadow(color, uv); }
+    else if (EFFECT == 7) { return convolve(uv, sharpen, false); }
+    else if (EFFECT == 8) { return sobel(color, uv); }
+    else if (EFFECT == 9) { return max(color, convolve(uv, edge2, true)); }
+    else if (EFFECT == 300) { return convolve(uv, sharpenBlur, true); }
+    else if (EFFECT == 301) { return convolve(uv, edge3, true); }
     return color;
 }
 
@@ -346,28 +350,28 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     uv = fract(uv);
 
     // flip/mirror
-    if (u.flip == 1) { uv = 1.0 - uv; }
-    else if (u.flip == 2) { uv.x = 1.0 - uv.x; }
-    else if (u.flip == 3) { uv.y = 1.0 - uv.y; }
-    else if (u.flip == 11) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } }
-    else if (u.flip == 12) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } }
-    else if (u.flip == 13) { if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (u.flip == 14) { if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (u.flip == 15) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (u.flip == 16) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (u.flip == 17) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
-    else if (u.flip == 18) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
+    if (FLIP == 1) { uv = 1.0 - uv; }
+    else if (FLIP == 2) { uv.x = 1.0 - uv.x; }
+    else if (FLIP == 3) { uv.y = 1.0 - uv.y; }
+    else if (FLIP == 11) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } }
+    else if (FLIP == 12) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } }
+    else if (FLIP == 13) { if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 14) { if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 15) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 16) { if (uv.x > 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 17) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
+    else if (FLIP == 18) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
 
     var color = textureSample(inputTex, samp, uv);
 
-    if (u.effectAmt != 0.0 && u.effect != 0) {
-        if (u.effect == 100) { color = vec4f(pixellate(uv, u.effectAmt), color.a); }
-        else if (u.effect == 110) { color = vec4f(posterize(color.rgb, u.effectAmt), color.a); }
-        else if (u.effect == 200) { color = vec4f(cga(color, uv), color.a); }
-        else if (u.effect == 210) { color = vec4f(subpixel(uv, u.effectAmt), color.a); }
-        else if (u.effect == 220) { color = vec4f(bloom(uv), color.a); }
-        else if (u.effect == 230) { color = vec4f(zoomBlur(uv), color.a); }
-        else { color = vec4f(convolution(u.effect, color.rgb, uv), color.a); }
+    if (u.effectAmt != 0.0 && EFFECT != 0) {
+        if (EFFECT == 100) { color = vec4f(pixellate(uv, u.effectAmt), color.a); }
+        else if (EFFECT == 110) { color = vec4f(posterize(color.rgb, u.effectAmt), color.a); }
+        else if (EFFECT == 200) { color = vec4f(cga(color, uv), color.a); }
+        else if (EFFECT == 210) { color = vec4f(subpixel(uv, u.effectAmt), color.a); }
+        else if (EFFECT == 220) { color = vec4f(bloom(uv), color.a); }
+        else if (EFFECT == 230) { color = vec4f(zoomBlur(uv), color.a); }
+        else { color = vec4f(convolutionEffect(color.rgb, uv), color.a); }
     }
 
     var c = brightnessContrast(color.rgb);

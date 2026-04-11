@@ -18,7 +18,7 @@ export default new Effect({
     refractAmt: { slot: 1, components: 'w' },
     ridges: { slot: 2, components: 'x' },
     wrap: { slot: 2, components: 'y' },
-    colorMode: { slot: 2, components: 'z' },
+    // slot 2.z was colorMode — now compile-time COLOR_MODE
     hueRotation: { slot: 2, components: 'w' },
     hueRange: { slot: 3, components: 'x' },
     intensity: { slot: 3, components: 'y' }
@@ -99,7 +99,10 @@ export default new Effect({
         "oklab": 3
       },
       ui: { label: "color mode", control: "dropdown", category: "color" },
-      uniform: "colorMode"
+      // Compile-time define. The 4-way color cascade in main() pulls hsv2rgb,
+      // rgb2hsv, oklab and srgb conversions into HLSL inlining at the same
+      // call site even though only one is reachable.
+      define: "COLOR_MODE"
     },
     hueRotation: {
       type: "float",

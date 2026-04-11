@@ -23,15 +23,17 @@ struct Uniforms {
 @group(0) @binding(1) var samp : sampler;
 @group(0) @binding(5) var inputTex : texture_2d<f32>;
 
+// SHAPE_A, SHAPE_B and BLEND_MODE are compile-time consts injected by the
+// runtime via injectDefines (see definition.js `globals.{shapeA,shapeB,
+// blendMode}.define`). Same fix as the GLSL backend — collapses the per-
+// raymarch-step dispatch so Dawn constant-folds it.
+
 var<private> resolution : vec2<f32>;
 var<private> time : f32;
-var<private> shapeA : i32;
-var<private> shapeB : i32;
 var<private> shapeAScale : f32;
 var<private> shapeBScale : f32;
 var<private> shapeAThickness : f32;
 var<private> shapeBThickness : f32;
-var<private> blendMode : i32;
 var<private> smoothness : f32;
 var<private> spin : f32;
 var<private> flip : f32;
@@ -167,37 +169,37 @@ fn smax(a: f32, b: f32, k: f32) -> f32 {
     return mix(b, a, h) + k*h*(1.0 - h);
 }
 
-fn shape3d(p: vec3<f32>, origin: vec3<f32>, index: i32, scale: f32, thickness: f32) -> f32 {
+fn shape3dA(p: vec3<f32>, origin: vec3<f32>, scale: f32, thickness: f32) -> f32 {
     var d: f32 = 0.0;
     var s = scale * 0.25;
     var q = p;
-    if (index == 20) {
+    if (SHAPE_A == 20) {
         d = length(p - origin) - s;
-    } else if (index == 30) {
+    } else if (SHAPE_A == 30) {
         q = vec3<f32>(length(p.xy) - s, p.z, 0.0);
         d = length(q.xy) - 0.2;
-    } else if (index == 31) {
+    } else if (SHAPE_A == 31) {
         q = vec3<f32>(length(p.xz) - s, p.y, 0.0);
         d = length(q.xy) - 0.2;
-    } else if (index == 10) {
+    } else if (SHAPE_A == 10) {
         s = s * 0.75;
         q = p - clamp(p, vec3<f32>(-s), vec3<f32>(s));
         d = length(q) - 0.01;
-    } else if (index == 40) {
+    } else if (SHAPE_A == 40) {
         s = s * 0.75;
         d = length(p.xz) - s;
-    } else if (index == 50) {
+    } else if (SHAPE_A == 50) {
         s = s * 0.75;
         d = max(length(p - clamp(p, vec3<f32>(-s), vec3<f32>(s))), length(p.xy) - s);
-    } else if (index == 60) {
+    } else if (SHAPE_A == 60) {
         q = p;
         q.y = q.y - clamp(q.y, -scale * 0.5, scale * 0.5);
         d = length(q) - s * 0.5;
-    } else if (index == 70) {
+    } else if (SHAPE_A == 70) {
         q = p;
         q.x = q.x - clamp(q.x, -scale * 0.5, scale * 0.5);
         d = length(q) - s * 0.5;
-    } else if (index == 80) {
+    } else if (SHAPE_A == 80) {
         q = abs(p);
         return (q.x + q.y + q.z - s) * 0.57735027;
     }
@@ -205,23 +207,61 @@ fn shape3d(p: vec3<f32>, origin: vec3<f32>, index: i32, scale: f32, thickness: f
     return d;
 }
 
-fn blend(shape1: f32, shape2: f32, mode: i32, smoothness: f32) -> f32 {
+fn shape3dB(p: vec3<f32>, origin: vec3<f32>, scale: f32, thickness: f32) -> f32 {
     var d: f32 = 0.0;
-    if (mode == 10) {
+    var s = scale * 0.25;
+    var q = p;
+    if (SHAPE_B == 20) {
+        d = length(p - origin) - s;
+    } else if (SHAPE_B == 30) {
+        q = vec3<f32>(length(p.xy) - s, p.z, 0.0);
+        d = length(q.xy) - 0.2;
+    } else if (SHAPE_B == 31) {
+        q = vec3<f32>(length(p.xz) - s, p.y, 0.0);
+        d = length(q.xy) - 0.2;
+    } else if (SHAPE_B == 10) {
+        s = s * 0.75;
+        q = p - clamp(p, vec3<f32>(-s), vec3<f32>(s));
+        d = length(q) - 0.01;
+    } else if (SHAPE_B == 40) {
+        s = s * 0.75;
+        d = length(p.xz) - s;
+    } else if (SHAPE_B == 50) {
+        s = s * 0.75;
+        d = max(length(p - clamp(p, vec3<f32>(-s), vec3<f32>(s))), length(p.xy) - s);
+    } else if (SHAPE_B == 60) {
+        q = p;
+        q.y = q.y - clamp(q.y, -scale * 0.5, scale * 0.5);
+        d = length(q) - s * 0.5;
+    } else if (SHAPE_B == 70) {
+        q = p;
+        q.x = q.x - clamp(q.x, -scale * 0.5, scale * 0.5);
+        d = length(q) - s * 0.5;
+    } else if (SHAPE_B == 80) {
+        q = abs(p);
+        return (q.x + q.y + q.z - s) * 0.57735027;
+    }
+    d = abs(d) - (thickness * 0.01);
+    return d;
+}
+
+fn blend(shape1: f32, shape2: f32, smoothness: f32) -> f32 {
+    var d: f32 = 0.0;
+    if (BLEND_MODE == 10) {
         d = smin(shape1, shape2, smoothness * 0.02);
-    } else if (mode == 20) {
+    } else if (BLEND_MODE == 20) {
         d = smax(shape1, shape2, smoothness * 0.01);
-    } else if (mode == 25) {
+    } else if (BLEND_MODE == 25) {
         d = ssub(shape1, shape2, smoothness * 0.02);
-    } else if (mode == 26) {
+    } else if (BLEND_MODE == 26) {
         d = ssub(-shape1, shape2, smoothness * 0.02);
-    } else if (mode == 30) {
+    } else if (BLEND_MODE == 30) {
         d = min(shape1, shape2);
-    } else if (mode == 40) {
+    } else if (BLEND_MODE == 40) {
         d = max(shape1, shape2);
-    } else if (mode == 50) {
+    } else if (BLEND_MODE == 50) {
         d = max(-shape1, shape2);
-    } else if (mode == 51) {
+    } else if (BLEND_MODE == 51) {
         d = max(shape1, -shape2);
     } else {
         d = shape1;
@@ -257,9 +297,9 @@ fn applyTransform(p0: vec3<f32>) -> vec3<f32> {
 
 fn getDist(p0: vec3<f32>) -> f32 {
     let p = applyTransform(p0);
-    let shape1 = shape3d(p, vec3<f32>(0.0, 0.0, 0.0), shapeA, 1.0 + shapeAScale * 0.1, shapeAThickness);
-    let shape2 = shape3d(p, vec3<f32>(0.0, 0.0, 0.0), shapeB, 1.0 + shapeBScale * 0.1, shapeBThickness);
-    return blend(shape1, shape2, blendMode, smoothness);
+    let shape1 = shape3dA(p, vec3<f32>(0.0, 0.0, 0.0), 1.0 + shapeAScale * 0.1, shapeAThickness);
+    let shape2 = shape3dB(p, vec3<f32>(0.0, 0.0, 0.0), 1.0 + shapeBScale * 0.1, shapeBThickness);
+    return blend(shape1, shape2, smoothness);
 }
 
 fn getNormal(p: vec3<f32>) -> vec3<f32> {
@@ -292,14 +332,14 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     resolution = uniforms.data[0].xy;
     time = uniforms.data[0].z;
 
-    shapeA = i32(uniforms.data[1].x);
-    shapeB = i32(uniforms.data[1].y);
+    // uniforms.data[1].x was shapeA — now compile-time SHAPE_A
+    // uniforms.data[1].y was shapeB — now compile-time SHAPE_B
     shapeAScale = uniforms.data[1].z;
     shapeBScale = uniforms.data[1].w;
 
     shapeAThickness = uniforms.data[2].x;
     shapeBThickness = uniforms.data[2].y;
-    blendMode = i32(uniforms.data[2].z);
+    // uniforms.data[2].z was blendMode — now compile-time BLEND_MODE
     smoothness = uniforms.data[2].w;
 
     spin = uniforms.data[3].x;
