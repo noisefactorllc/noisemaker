@@ -7,8 +7,8 @@
 struct Uniforms {
     // Contiguous vec4 packing:
     // 0: resolution.xy, time, (unused)
-    // 1: shapeA, shapeB, shapeAScale, shapeBScale
-    // 2: shapeAThickness, shapeBThickness, blendMode, smoothness
+    // 1: (was shapeA — now SHAPE_A), (was shapeB — now SHAPE_B), shapeAScale, shapeBScale
+    // 2: shapeAThickness, shapeBThickness, (was blendMode — now BLEND_MODE), smoothness
     // 3: spin, flip, spinSpeed, flipSpeed
     // 4: repetition, animation, flythroughSpeed, spacing
     // 5: cameraDist, backgroundOpacity, colorMode, weight
