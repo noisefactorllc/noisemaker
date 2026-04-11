@@ -14,9 +14,9 @@ export default new Effect({
     scale: { slot: 1, components: 'x' },
     seed: { slot: 1, components: 'y' },
     speed: { slot: 1, components: 'z' },
-    octaves: { slot: 1, components: 'w' },
-    ridges: { slot: 2, components: 'x' },
-    outputMode: { slot: 2, components: 'y' },
+    // slot 1.w was octaves — now compile-time OCTAVES
+    // slot 2.x was ridges — now compile-time RIDGES
+    // slot 2.y was outputMode — now compile-time OUTPUT_MODE
     intensity: { slot: 2, components: 'z' }
   },
   globals: {
@@ -34,7 +34,12 @@ export default new Effect({
     octaves: {
       type: "int",
       default: 1,
-      uniform: "octaves",
+      // Compile-time define. fbmSimplex3D's loop bound becomes static so the
+      // ANGLE/Dawn compilers fully unroll it and DCE the unused iterations.
+      // Curl calls fbmSimplex3D 12 times per pixel; with runtime octaves the
+      // HLSL inlining exploded to ~36 simplex3D copies. With OCTAVES baked,
+      // the default octaves=1 case compiles ~3x faster.
+      define: "OCTAVES",
       min: 1,
       max: 3,
       ui: {
@@ -56,7 +61,8 @@ export default new Effect({
     ridges: {
       type: "boolean",
       default: true,
-      uniform: "ridges",
+      // Compile-time define — small win but consistent with the pattern.
+      define: "RIDGES",
       ui: {
         label: "ridges",
         control: "checkbox"
@@ -88,7 +94,10 @@ export default new Effect({
     outputMode: {
       type: "int",
       default: 3,
-      uniform: "outputMode",
+      // Compile-time define. Small 5-way cascade at the end of main(); baking
+      // it is more for consistency than perf — lets the compiler pick exactly
+      // one branch.
+      define: "OUTPUT_MODE",
       choices: {
         flowX: 0,
         flowY: 1,

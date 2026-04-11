@@ -1,14 +1,31 @@
 #version 300 es
 precision highp float;
 
+// OCTAVES, RIDGES, OUTPUT_MODE are compile-time defines injected by the
+// runtime (see definition.js `globals.{octaves,ridges,outputMode}.define`).
+//
+// The primary win is OCTAVES: curlNoise3D calls fbmSimplex3D 12 times per
+// pixel, each of which loops `for (i = 0; i < 3; i++) if (i >= octaves) break`.
+// ANGLE unrolls the 3-iteration loop and runtime-guards each iteration. With
+// OCTAVES as a compile-time constant the loop bound collapses and dead
+// iterations vanish, so the default octaves=1 case drops from 36 simplex3D
+// inlines per pixel to 12 — that's the single biggest contributor to this
+// effect's ~600 ms cold compile on Windows Chrome.
+#ifndef OCTAVES
+#define OCTAVES 1
+#endif
+#ifndef RIDGES
+#define RIDGES true
+#endif
+#ifndef OUTPUT_MODE
+#define OUTPUT_MODE 3
+#endif
+
 uniform vec2 resolution;
 uniform float time;
 uniform float scale;
 uniform int seed;
 uniform float speed;
-uniform int octaves;
-uniform bool ridges;
-uniform int outputMode;
 uniform float intensity;
 
 out vec4 fragColor;
@@ -100,24 +117,23 @@ float simplex3D(vec3 v) {
     return 42.0 * dot(m * m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
 }
 
-// FBM
-float fbmSimplex3D(vec3 p, int numOctaves) {
+// FBM — loop bound is the compile-time OCTAVES macro so ANGLE fully unrolls
+// and DCE's the unused iterations.
+float fbmSimplex3D(vec3 p) {
     float sum = 0.0;
     float amp = 1.0;
     float freq = 1.0;
     float maxAmp = 0.0;
-    
-    for (int i = 0; i < 3; i++) {
-        if (i >= numOctaves) break;
-        
+
+    for (int i = 0; i < OCTAVES; i++) {
         float n = simplex3D(p * freq);
-        
+
         sum += n * amp;
         maxAmp += amp;
         freq *= 2.0;
         amp *= 0.5;
     }
-    
+
     return sum / maxAmp;
 }
 
@@ -126,35 +142,35 @@ float fbmSimplex3D(vec3 p, int numOctaves) {
 // curl(F) = (dFz/dy - dFy/dz, dFx/dz - dFz/dx, dFy/dx - dFx/dy)
 // ============================================================================
 
-vec3 curlNoise3D(vec3 p, int numOctaves) {
+vec3 curlNoise3D(vec3 p) {
     const float eps = 1.0;
-    
+
     // We need 3 independent scalar fields to compute curl of a vector field
     // Use offset positions to create decorrelated fields
-    float a = (sin(time * 6.28318) * (speed) + 1.0) / float(numOctaves) * 0.2;
-    float b = (cos(time * 6.28318) * (speed) + 1.0) / float(numOctaves) * 0.2;
+    float a = (sin(time * 6.28318) * (speed) + 1.0) / float(OCTAVES) * 0.2;
+    float b = (cos(time * 6.28318) * (speed) + 1.0) / float(OCTAVES) * 0.2;
 
     vec3 offset1 = vec3(a, b, 0.0);
     vec3 offset2 = vec3(31.416 - a, 47.853 - b, 12.793);
     vec3 offset3 = vec3(93.719 - b, 61.248 - a, 73.561);
-    
+
     // Sample Fx derivatives
-    float Fx_py = fbmSimplex3D(p + vec3(0.0, eps, 0.0) - offset1, numOctaves);
-    float Fx_ny = fbmSimplex3D(p - vec3(0.0, eps, 0.0) + offset1, numOctaves);
-    float Fx_pz = fbmSimplex3D(p + vec3(0.0, 0.0, eps) - offset1, numOctaves);
-    float Fx_nz = fbmSimplex3D(p - vec3(0.0, 0.0, eps) + offset1, numOctaves);
-    
+    float Fx_py = fbmSimplex3D(p + vec3(0.0, eps, 0.0) - offset1);
+    float Fx_ny = fbmSimplex3D(p - vec3(0.0, eps, 0.0) + offset1);
+    float Fx_pz = fbmSimplex3D(p + vec3(0.0, 0.0, eps) - offset1);
+    float Fx_nz = fbmSimplex3D(p - vec3(0.0, 0.0, eps) + offset1);
+
     // Sample Fy derivatives
-    float Fy_px = fbmSimplex3D(p + vec3(eps, 0.0, 0.0) - offset2, numOctaves);
-    float Fy_nx = fbmSimplex3D(p - vec3(eps, 0.0, 0.0) + offset2, numOctaves);
-    float Fy_pz = fbmSimplex3D(p + vec3(0.0, 0.0, eps) - offset2, numOctaves);
-    float Fy_nz = fbmSimplex3D(p - vec3(0.0, 0.0, eps) + offset2, numOctaves);
-    
+    float Fy_px = fbmSimplex3D(p + vec3(eps, 0.0, 0.0) - offset2);
+    float Fy_nx = fbmSimplex3D(p - vec3(eps, 0.0, 0.0) + offset2);
+    float Fy_pz = fbmSimplex3D(p + vec3(0.0, 0.0, eps) - offset2);
+    float Fy_nz = fbmSimplex3D(p - vec3(0.0, 0.0, eps) + offset2);
+
     // Sample Fz derivatives
-    float Fz_px = fbmSimplex3D(p + vec3(eps, 0.0, 0.0) - offset3, numOctaves);
-    float Fz_nx = fbmSimplex3D(p - vec3(eps, 0.0, 0.0) + offset3, numOctaves);
-    float Fz_py = fbmSimplex3D(p + vec3(0.0, eps, 0.0) - offset3, numOctaves);
-    float Fz_ny = fbmSimplex3D(p - vec3(0.0, eps, 0.0) + offset3, numOctaves);
+    float Fz_px = fbmSimplex3D(p + vec3(eps, 0.0, 0.0) - offset3);
+    float Fz_nx = fbmSimplex3D(p - vec3(eps, 0.0, 0.0) + offset3);
+    float Fz_py = fbmSimplex3D(p + vec3(0.0, eps, 0.0) - offset3);
+    float Fz_ny = fbmSimplex3D(p - vec3(0.0, eps, 0.0) + offset3);
     
     // Compute partial derivatives
     float dFx_dy = (Fx_py - Fx_ny) / (2.0 * eps);
@@ -175,44 +191,43 @@ vec3 curlNoise3D(vec3 p, int numOctaves) {
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution;
     float aspect = resolution.x / resolution.y;
-    
+
     // Center and scale coordinates
     vec2 centered = (uv - 0.5) * vec2(aspect, 1.0);
     vec3 p = vec3(centered * (21.0 - scale), 0.5);
-    
-    // Clamp octaves to valid range
-    int oct = clamp(octaves, 1, 3);
-    
+
     // Compute 3D curl noise
-    vec3 curl = curlNoise3D(p, oct);
-    
+    vec3 curl = curlNoise3D(p);
+
     // Smooth compression to [0, 1] — tanh saturates gracefully, intensity controls curve
     curl = tanh(curl * intensity) * 0.5 + 0.5;
-    
+
     vec3 color;
-    
-    if (outputMode == 0) {
-        // flowX: curl.x component
-        color = vec3(curl.x);
-    } else if (outputMode == 1) {
-        // flowY: curl.y component
-        color = vec3(curl.y);
-    } else if (outputMode == 2) {
-        // flowZ: curl.z component
-        color = vec3(curl.z);
-    } else if (outputMode == 3) {
-        // full: all three components as RGB
-        color = curl;
-    } else {
-        // magnitude: length of curl vector
+
+#if OUTPUT_MODE == 0
+    // flowX: curl.x component
+    color = vec3(curl.x);
+#elif OUTPUT_MODE == 1
+    // flowY: curl.y component
+    color = vec3(curl.y);
+#elif OUTPUT_MODE == 2
+    // flowZ: curl.z component
+    color = vec3(curl.z);
+#elif OUTPUT_MODE == 3
+    // full: all three components as RGB
+    color = curl;
+#else
+    // magnitude: length of curl vector
+    {
         vec3 curlCentered = curl * 2.0 - 1.0; // Back to [-1, 1]
         float mag = length(curlCentered);
         color = vec3(mag);
     }
+#endif
 
-    if (ridges) {
+    if (RIDGES) {
         color = 1.0 - abs(color * 2.0 - 1.0);
     }
-    
+
     fragColor = vec4(color, 1.0);
 }

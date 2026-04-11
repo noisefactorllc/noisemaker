@@ -69,6 +69,39 @@ const SUITES = [
             { param: 'interp', values: [0, 1, 2, 3, 4, 5, 6, 10, 11] },
         ],
     },
+    {
+        effect: 'classicNoisedeck.bitEffects',
+        variants: [
+            // mode picks bitField (0) vs bitMask (1) — the outer MODE split
+            { param: 'mode', values: [0, 1] },
+            // MODE==0 path: formula (6), colorScheme (15), interp (2)
+            { param: 'formula', values: [0, 1, 2, 3, 4, 5] },
+            { param: 'colorScheme', values: [0, 1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14, 15, 20] },
+            { param: 'interp', values: [0, 1] },
+            // MODE==1 path: maskFormula (4), maskColorScheme (4)
+            { param: 'maskFormula', values: [10, 11, 20, 30] },
+            { param: 'maskColorScheme', values: [0, 1, 2, 3] },
+        ],
+    },
+    {
+        effect: 'classicNoisedeck.kaleido',
+        variants: [
+            { param: 'metric', values: [0, 1, 2, 3, 4, 5] },
+            { param: 'direction', values: [0, 1, 2] },
+            // kernel: all 12 convolution kernels used by kaleido
+            { param: 'kernel', values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 110, 120] },
+            // loopOffset sample across shapes, directional, all 9 noise variants, rings/sine
+            { param: 'loopOffset', values: [10, 30, 60, 200, 300, 310, 320, 330, 340, 350, 360, 370, 380, 400, 410] },
+        ],
+    },
+    {
+        effect: 'synth.curl',
+        variants: [
+            { param: 'octaves', values: [1, 2, 3] },
+            { param: 'ridges', values: [false, true] },
+            { param: 'outputMode', values: [0, 1, 2, 3, 4] },
+        ],
+    },
 ]
 
 async function main() {

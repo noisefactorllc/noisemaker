@@ -19,20 +19,36 @@ uniform float time;
 #define MODE 1
 #endif
 
+// FORMULA, COLOR_SCHEME, INTERP are compile-time defines used only when
+// MODE == 0 (bitField). MASK_FORMULA, MASK_COLOR_SCHEME are only used when
+// MODE == 1 (bitMask). Same Knob 2 rationale as the rest of the series —
+// baking these lets ANGLE DCE the unreachable branches in the now-dispatched
+// functions.
+#ifndef FORMULA
+#define FORMULA 0
+#endif
+#ifndef COLOR_SCHEME
+#define COLOR_SCHEME 20
+#endif
+#ifndef INTERP
+#define INTERP 0
+#endif
+#ifndef MASK_FORMULA
+#define MASK_FORMULA 10
+#endif
+#ifndef MASK_COLOR_SCHEME
+#define MASK_COLOR_SCHEME 1
+#endif
+
 uniform int seed;
 uniform vec2 resolution;
-uniform int formula;
-uniform int colorScheme;
 uniform float n;
-uniform int interp;
 uniform float scale;
 uniform float rotation;
 uniform float speed;
 // `mode` is no longer a runtime uniform — see MODE define at top of file.
-uniform int maskFormula;
 uniform float tiles;
 uniform float complexity;
-uniform int maskColorScheme;
 uniform float hueRange;
 uniform float hueRotation;
 uniform float baseHueRange;
@@ -128,14 +144,11 @@ float constant(vec2 st, float xFreq, float yFreq, float s) {
 }
 
 float value(vec2 st, float xFreq, float yFreq, float s) {
-    float scaledTime = 1.0;
-
     float x1y1 = constant(st, xFreq, yFreq, s);
 
-    if (interp == 0) {
-        return x1y1;
-    }
-
+#if INTERP == 0
+    return x1y1;
+#else
     // Neighbor Distance
     float ndX = 1.0 / xFreq;
     float ndY = 1.0 / yFreq;
@@ -150,6 +163,7 @@ float value(vec2 st, float xFreq, float yFreq, float s) {
     float b = mix(x1y2, x2y2, fract(uv.x));
 
     return mix(a, b, fract(uv.y));
+#endif
 }
 
 // bitwise operations
@@ -199,25 +213,25 @@ float bitValue(vec2 st, float freq, float nForColor) {
 
     float v = 1.0;
 
-    if (formula == 0) {
-        // alien
-        v = mod(xor(st.x * freq, st.y * freq), blendy);
-    } else if (formula == 1) {
-        // sierpinski
-        v = mod(or(st.x * freq, st.y * freq), blendy);
-    } else if (formula == 2) {
-        // circular
-        v = mod((st.x * freq) * (st.y * freq), blendy);
-    } else if (formula == 3) {
-        // steps
-        v = float(xor(st.x * freq, st.y * freq) < blendy);
-    } else if (formula == 4) {
-        // beams
-        v = mod(st.x * freq * blendy, st.y * freq);
-    } else if (formula == 5) {
-        // perspective
-        v = mod(((st.x * freq - 0.5) * 0.25), st.y * freq - 0.5);
-    }
+#if FORMULA == 0
+    // alien
+    v = mod(xor(st.x * freq, st.y * freq), blendy);
+#elif FORMULA == 1
+    // sierpinski
+    v = mod(or(st.x * freq, st.y * freq), blendy);
+#elif FORMULA == 2
+    // circular
+    v = mod((st.x * freq) * (st.y * freq), blendy);
+#elif FORMULA == 3
+    // steps
+    v = float(xor(st.x * freq, st.y * freq) < blendy);
+#elif FORMULA == 4
+    // beams
+    v = mod(st.x * freq * blendy, st.y * freq);
+#elif FORMULA == 5
+    // perspective
+    v = mod(((st.x * freq - 0.5) * 0.25), st.y * freq - 0.5);
+#endif
 
     return v > 1.0 ? 0.0 : 1.0;
 }
@@ -230,57 +244,57 @@ vec3 bitField(vec2 st) {
 
     vec3 color = vec3(0.0);
 
-    if (colorScheme == 0) {
-        // blue
-        color.b = bitValue(st, freq, n);
-    } else if (colorScheme == 1) {
-        // cyan
-        color.gb = vec2(bitValue(st, freq, n));
-    } else if (colorScheme == 2) {
-        // green
-        color.g = bitValue(st, freq, n);
-    } else if (colorScheme == 3) {
-        // magenta
-        color.br = vec2(bitValue(st, freq, n));
-    } else if (colorScheme == 4) {
-        // red
-        color.r = bitValue(st, freq, n);
-    } else if (colorScheme == 5) {
-        // white
-        color.rgb = vec3(bitValue(st, freq, n));
-    } else if (colorScheme == 6) {
-        // yellow
-        color.rg = vec2(bitValue(st, freq, n));
-    } else if (colorScheme == 10) {
-        // blue green
-        color.b = bitValue(st, freq, n);
-        color.g = bitValue(st, freq, n + 1.0);
-    } else if (colorScheme == 11) {
-        // blue red
-        color.b = bitValue(st, freq, n);
-        color.r = bitValue(st, freq, n + 1.0);
-    } else if (colorScheme == 12) {
-        // blue yellow
-        color.b = bitValue(st, freq, n);
-        color.rg = vec2(bitValue(st, freq, n + 1.0));
-    } else if (colorScheme == 13) {
-        // green magenta
-        color.g = bitValue(st, freq, n);
-        color.rb = vec2(bitValue(st, freq, n + 1.0));
-    } else if (colorScheme == 14) {
-        // green red
-        color.g = bitValue(st, freq, n);
-        color.r = bitValue(st, freq, n + 1.0);
-    } else if (colorScheme == 15) {
-        // red cyan
-        color.r = bitValue(st, freq, n);
-        color.bg = vec2(bitValue(st, freq, n + 1.0));
-    } else if (colorScheme == 20) {
-        // rgb
-        color.r = bitValue(st, freq, n);
-        color.g = bitValue(st, freq, n + 1.0);
-        color.b = bitValue(st, freq, n + 2.0);
-    }
+#if COLOR_SCHEME == 0
+    // blue
+    color.b = bitValue(st, freq, n);
+#elif COLOR_SCHEME == 1
+    // cyan
+    color.gb = vec2(bitValue(st, freq, n));
+#elif COLOR_SCHEME == 2
+    // green
+    color.g = bitValue(st, freq, n);
+#elif COLOR_SCHEME == 3
+    // magenta
+    color.br = vec2(bitValue(st, freq, n));
+#elif COLOR_SCHEME == 4
+    // red
+    color.r = bitValue(st, freq, n);
+#elif COLOR_SCHEME == 5
+    // white
+    color.rgb = vec3(bitValue(st, freq, n));
+#elif COLOR_SCHEME == 6
+    // yellow
+    color.rg = vec2(bitValue(st, freq, n));
+#elif COLOR_SCHEME == 10
+    // blue green
+    color.b = bitValue(st, freq, n);
+    color.g = bitValue(st, freq, n + 1.0);
+#elif COLOR_SCHEME == 11
+    // blue red
+    color.b = bitValue(st, freq, n);
+    color.r = bitValue(st, freq, n + 1.0);
+#elif COLOR_SCHEME == 12
+    // blue yellow
+    color.b = bitValue(st, freq, n);
+    color.rg = vec2(bitValue(st, freq, n + 1.0));
+#elif COLOR_SCHEME == 13
+    // green magenta
+    color.g = bitValue(st, freq, n);
+    color.rb = vec2(bitValue(st, freq, n + 1.0));
+#elif COLOR_SCHEME == 14
+    // green red
+    color.g = bitValue(st, freq, n);
+    color.r = bitValue(st, freq, n + 1.0);
+#elif COLOR_SCHEME == 15
+    // red cyan
+    color.r = bitValue(st, freq, n);
+    color.bg = vec2(bitValue(st, freq, n + 1.0));
+#elif COLOR_SCHEME == 20
+    // rgb
+    color.r = bitValue(st, freq, n);
+    color.g = bitValue(st, freq, n + 1.0);
+    color.b = bitValue(st, freq, n + 2.0);
+#endif
 
     return color;
 }
@@ -408,13 +422,13 @@ float invaders(vec2 st, float freq, float _seed) {
 float bitMaskValue(vec2 st, float freq, float _seed) {
     float v = 1.0;
 
-    if (maskFormula == 10 || maskFormula == 11) {
-        v = invaders(st, freq, _seed);
-    } else if (maskFormula == 20) {
-        v = glyphs(st, freq, _seed);
-    } else if (maskFormula == 30) {
-        v = areciboNum(st, freq, _seed);
-    }
+#if MASK_FORMULA == 10 || MASK_FORMULA == 11
+    v = invaders(st, freq, _seed);
+#elif MASK_FORMULA == 20
+    v = glyphs(st, freq, _seed);
+#elif MASK_FORMULA == 30
+    v = areciboNum(st, freq, _seed);
+#endif
 
     return v;
 }
@@ -428,37 +442,39 @@ vec3 bitMask(vec2 st) {
 
     st.x -= 0.5 * aspectRatio;
 
-    if (maskFormula == 11) {
-        st.y *= 2.0;
-    }
+#if MASK_FORMULA == 11
+    st.y *= 2.0;
+#endif
 
     float freq = floor(map(complexity, 1.0, 100.0, 5.0, 12.0));
 
     float mask = bitMaskValue(st, freq, -100.0) > 0.5 ? 1.0 : 0.0;
 
-    if (maskColorScheme == 0) {
-        color.r = mask;
-        color.g = mask;
-        color.b = mask;
-    } else {
+#if MASK_COLOR_SCHEME == 0
+    color.r = mask;
+    color.g = mask;
+    color.b = mask;
+#else
+    {
         float baseHue = 0.01 + maskValue(st, 1.0, -100.0) * baseHueRange * 0.01;
 
         color.r = fract(baseHue + bitMaskValue(st, freq, 0.0) * hueRange * 0.01 + (1.0 - (hueRotation / 360.0))) * mask;
 
-        if (maskColorScheme == 3) {
-            color.g = mask;
-        } else {
-            color.g = bitMaskValue(st, freq, 25.0) * mask;
-        }
+#if MASK_COLOR_SCHEME == 3
+        color.g = mask;
+#else
+        color.g = bitMaskValue(st, freq, 25.0) * mask;
+#endif
 
-        if (maskColorScheme == 2 || maskColorScheme == 3) {
-            color.b = mask;
-        } else {
-            color.b = bitMaskValue(st, freq, 50.0) * mask;
-        }
+#if MASK_COLOR_SCHEME == 2 || MASK_COLOR_SCHEME == 3
+        color.b = mask;
+#else
+        color.b = bitMaskValue(st, freq, 50.0) * mask;
+#endif
 
         color = hsv2rgb(color);
     }
+#endif
     return color;
 }
 

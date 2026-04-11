@@ -23,7 +23,8 @@ export default new Effect({
     metric: {
       type: "int",
       default: 0,
-      uniform: "metric",
+      // Compile-time define. 6-way distance metric dispatch in getMetric().
+      define: "METRIC",
       choices: {
         circle: 0,
         diamond: 1,
@@ -40,11 +41,9 @@ export default new Effect({
     loopOffset: {
       type: "int",
       default: 10,
-      // uniform is preserved for wgsl struct layout; value is also injected as
-      // a compile-time define so the GLSL→HLSL translator DCEs the noise variant
-      // functions when a non-noise loopOffset is chosen. Dropped compile from
-      // 3.9s to sub-200ms on Windows Chrome.
-      uniform: "loopOffset",
+      // Compile-time define. Previously had both `uniform:` and `define:`
+      // flagged because the WGSL struct kept a `loopOffset: i32` field; the
+      // WGSL struct no longer has that field so the uniform is dropped.
       define: "LOOP_OFFSET",
       choices: {
         "Shapes:": null,
@@ -137,7 +136,8 @@ export default new Effect({
     direction: {
       type: "int",
       default: 2,
-      uniform: "direction",
+      // Compile-time define. Small 3-way rotation-direction picker.
+      define: "DIRECTION",
       choices: {
         clockwise: 0,
         counterclock: 1,
@@ -152,7 +152,9 @@ export default new Effect({
     kernel: {
       type: "int",
       default: 0,
-      uniform: "kernel",
+      // Compile-time define. Same multi-way convolution dispatch as
+      // classicNoisedeck/effects, called once at the end of main().
+      define: "KERNEL",
       choices: {
         none: 0,
         blur: 1,

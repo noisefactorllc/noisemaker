@@ -12,19 +12,18 @@ export default new Effect({
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
     seed: { slot: 0, components: 'w' },
-    formula: { slot: 1, components: 'x' },
-    colorScheme: { slot: 1, components: 'y' },
+    // slot 1.x was formula — now compile-time FORMULA
+    // slot 1.y was colorScheme — now compile-time COLOR_SCHEME
     n: { slot: 1, components: 'z' },
-    interp: { slot: 1, components: 'w' },
+    // slot 1.w was interp — now compile-time INTERP
     scale: { slot: 2, components: 'x' },
     rotation: { slot: 2, components: 'y' },
     speed: { slot: 2, components: 'z' },
-    // slot 2 component w intentionally unused — `mode` is a compile-time
-    // define (see globals.mode below), not a runtime uniform.
-    maskFormula: { slot: 3, components: 'x' },
+    // slot 2.w intentionally unused — `mode` is a compile-time define
+    // slot 3.x was maskFormula — now compile-time MASK_FORMULA
     tiles: { slot: 3, components: 'y' },
     complexity: { slot: 3, components: 'z' },
-    maskColorScheme: { slot: 3, components: 'w' },
+    // slot 3.w was maskColorScheme — now compile-time MASK_COLOR_SCHEME
     hueRange: { slot: 4, components: 'x' },
     hueRotation: { slot: 4, components: 'y' },
     baseHueRange: { slot: 4, components: 'z' }
@@ -62,7 +61,9 @@ export default new Effect({
     formula: {
       type: "int",
       default: 0,
-      uniform: "formula",
+      // Compile-time define. 6-way formula dispatch in bitValue() (only
+      // reachable when MODE == 0).
+      define: "FORMULA",
       choices: {
         alien: 0,
         sierpinski: 1
@@ -116,7 +117,9 @@ export default new Effect({
     colorScheme: {
       type: "int",
       default: 20,
-      uniform: "colorScheme",
+      // Compile-time define. 15-way color scheme dispatch in bitField() (only
+      // reachable when MODE == 0).
+      define: "COLOR_SCHEME",
       choices: {
         blue: 0,
         cyan: 1,
@@ -143,7 +146,9 @@ export default new Effect({
     interp: {
       type: "int",
       default: 0,
-      uniform: "interp",
+      // Compile-time define. Small 2-way dispatch in value(); consistent with
+      // the batch pattern even though the inlining impact is modest.
+      define: "INTERP",
       choices: {
         constant: 0,
         linear: 1
@@ -158,7 +163,9 @@ export default new Effect({
     maskFormula: {
       type: "int",
       default: 10,
-      uniform: "maskFormula",
+      // Compile-time define. 3-way mask formula dispatch in bitMaskValue()
+      // (only reachable when MODE == 1).
+      define: "MASK_FORMULA",
       choices: {
         invaders: 10,
         wideInvaders: 11,
@@ -201,7 +208,9 @@ export default new Effect({
     maskColorScheme: {
       type: "int",
       default: 1,
-      uniform: "maskColorScheme",
+      // Compile-time define. 4-way color scheme dispatch in bitMask() (only
+      // reachable when MODE == 1).
+      define: "MASK_COLOR_SCHEME",
       choices: {
         blackWhite: 0,
         justHue: 3,

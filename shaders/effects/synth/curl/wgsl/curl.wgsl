@@ -1,3 +1,9 @@
+// OCTAVES, RIDGES, OUTPUT_MODE are compile-time consts injected by the
+// runtime via injectDefines (see definition.js `globals.{octaves,ridges,
+// outputMode}.define`). Same fix as the GLSL backend — collapsing the
+// fbmSimplex3D loop bound from runtime to compile-time drops the default
+// case from 36 simplex3D inlines/pixel to 12.
+
 struct Uniforms {
     resolution: vec2f,
     time: f32,
@@ -5,9 +11,12 @@ struct Uniforms {
     scale: f32,
     seed: i32,
     speed: f32,
-    octaves: f32,
-    ridges: f32,
-    outputMode: f32,
+    // Slots kept as padding so field offsets still match the definition.js
+    // vec4 uniformLayout — the JS-side packer targets the vec4 component
+    // offsets explicitly and needs the WGSL struct to line up.
+    _pad_octaves: f32,     // was octaves — now compile-time OCTAVES
+    _pad_ridges: f32,      // was ridges — now compile-time RIDGES
+    _pad_outputMode: f32,  // was outputMode — now compile-time OUTPUT_MODE
     intensity: f32,
 }
 
@@ -101,24 +110,23 @@ fn simplex3D(v: vec3f) -> f32 {
     return 42.0 * dot(m * m, vec4f(dot(p0n, x0), dot(p1n, x1), dot(p2n, x2), dot(p3n, x3)));
 }
 
-// FBM
-fn fbmSimplex3D(p: vec3f, numOctaves: i32) -> f32 {
+// FBM — loop bound is the compile-time OCTAVES const so Dawn fully unrolls
+// and DCE's the unused iterations.
+fn fbmSimplex3D(p: vec3f) -> f32 {
     var sum: f32 = 0.0;
     var amp: f32 = 1.0;
     var freq: f32 = 1.0;
     var maxAmp: f32 = 0.0;
-    
-    for (var i: i32 = 0; i < 3; i = i + 1) {
-        if (i >= numOctaves) { break; }
-        
+
+    for (var i: i32 = 0; i < OCTAVES; i = i + 1) {
         var n = simplex3D(p * freq);
-        
+
         sum = sum + n * amp;
         maxAmp = maxAmp + amp;
         freq = freq * 2.0;
         amp = amp * 0.5;
     }
-    
+
     return sum / maxAmp;
 }
 
@@ -127,35 +135,35 @@ fn fbmSimplex3D(p: vec3f, numOctaves: i32) -> f32 {
 // curl(F) = (dFz/dy - dFy/dz, dFx/dz - dFz/dx, dFy/dx - dFx/dy)
 // ============================================================================
 
-fn curlNoise3D(p: vec3f, numOctaves: i32) -> vec3f {
+fn curlNoise3D(p: vec3f) -> vec3f {
     let eps: f32 = 1.0;
-    
+
     // We need 3 independent scalar fields to compute curl of a vector field
     // Use offset positions to create decorrelated fields
-    let a = (sin(u.time * 6.28318) * (u.speed) + 1.0) / u.octaves * 0.2;
-    let b = (cos(u.time * 6.28318) * (u.speed) + 1.0) / u.octaves * 0.2;
+    let a = (sin(u.time * 6.28318) * (u.speed) + 1.0) / f32(OCTAVES) * 0.2;
+    let b = (cos(u.time * 6.28318) * (u.speed) + 1.0) / f32(OCTAVES) * 0.2;
 
     let offset1 = vec3f(a, b, 0.0);
     let offset2 = vec3f(31.416 - a, 47.853 - b, 12.793);
     let offset3 = vec3f(93.719 - b, 61.248 - a, 73.561);
-    
+
     // Sample Fx derivatives
-    let Fx_py = fbmSimplex3D(p + vec3f(0.0, eps, 0.0) - offset1, numOctaves);
-    let Fx_ny = fbmSimplex3D(p - vec3f(0.0, eps, 0.0) + offset1, numOctaves);
-    let Fx_pz = fbmSimplex3D(p + vec3f(0.0, 0.0, eps) - offset1, numOctaves);
-    let Fx_nz = fbmSimplex3D(p - vec3f(0.0, 0.0, eps) + offset1, numOctaves);
-    
+    let Fx_py = fbmSimplex3D(p + vec3f(0.0, eps, 0.0) - offset1);
+    let Fx_ny = fbmSimplex3D(p - vec3f(0.0, eps, 0.0) + offset1);
+    let Fx_pz = fbmSimplex3D(p + vec3f(0.0, 0.0, eps) - offset1);
+    let Fx_nz = fbmSimplex3D(p - vec3f(0.0, 0.0, eps) + offset1);
+
     // Sample Fy derivatives
-    let Fy_px = fbmSimplex3D(p + vec3f(eps, 0.0, 0.0) - offset2, numOctaves);
-    let Fy_nx = fbmSimplex3D(p - vec3f(eps, 0.0, 0.0) + offset2, numOctaves);
-    let Fy_pz = fbmSimplex3D(p + vec3f(0.0, 0.0, eps) - offset2, numOctaves);
-    let Fy_nz = fbmSimplex3D(p - vec3f(0.0, 0.0, eps) + offset2, numOctaves);
-    
+    let Fy_px = fbmSimplex3D(p + vec3f(eps, 0.0, 0.0) - offset2);
+    let Fy_nx = fbmSimplex3D(p - vec3f(eps, 0.0, 0.0) + offset2);
+    let Fy_pz = fbmSimplex3D(p + vec3f(0.0, 0.0, eps) - offset2);
+    let Fy_nz = fbmSimplex3D(p - vec3f(0.0, 0.0, eps) + offset2);
+
     // Sample Fz derivatives
-    let Fz_px = fbmSimplex3D(p + vec3f(eps, 0.0, 0.0) - offset3, numOctaves);
-    let Fz_nx = fbmSimplex3D(p - vec3f(eps, 0.0, 0.0) + offset3, numOctaves);
-    let Fz_py = fbmSimplex3D(p + vec3f(0.0, eps, 0.0) - offset3, numOctaves);
-    let Fz_ny = fbmSimplex3D(p - vec3f(0.0, eps, 0.0) + offset3, numOctaves);
+    let Fz_px = fbmSimplex3D(p + vec3f(eps, 0.0, 0.0) - offset3);
+    let Fz_nx = fbmSimplex3D(p - vec3f(eps, 0.0, 0.0) + offset3);
+    let Fz_py = fbmSimplex3D(p + vec3f(0.0, eps, 0.0) - offset3);
+    let Fz_ny = fbmSimplex3D(p - vec3f(0.0, eps, 0.0) + offset3);
     
     // Compute partial derivatives
     let dFx_dy = (Fx_py - Fx_ny) / (2.0 * eps);
@@ -177,33 +185,29 @@ fn curlNoise3D(p: vec3f, numOctaves: i32) -> vec3f {
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let uv = fragCoord.xy / u.resolution;
     let aspect = u.resolution.x / u.resolution.y;
-    
+
     // Center and scale coordinates
     let centered = (uv - 0.5) * vec2f(aspect, 1.0);
     let p = vec3f(centered * (21.0 - u.scale), 0.5);
-    
-    // Clamp octaves to valid range
-    let oct = clamp(i32(u.octaves), 1, 3);
-    
+
     // Compute 3D curl noise
-    var curl = curlNoise3D(p, oct);
-    
+    var curl = curlNoise3D(p);
+
     // Smooth compression to [0, 1] — tanh saturates gracefully, intensity controls curve
     let curlNorm = tanh(curl * u.intensity) * 0.5 + 0.5;
-    
+
     var color: vec3f;
-    let outputInt = i32(u.outputMode);
-    
-    if (outputInt == 0) {
+
+    if (OUTPUT_MODE == 0) {
         // flowX: curl.x component
         color = vec3f(curlNorm.x);
-    } else if (outputInt == 1) {
+    } else if (OUTPUT_MODE == 1) {
         // flowY: curl.y component
         color = vec3f(curlNorm.y);
-    } else if (outputInt == 2) {
+    } else if (OUTPUT_MODE == 2) {
         // flowZ: curl.z component
         color = vec3f(curlNorm.z);
-    } else if (outputInt == 3) {
+    } else if (OUTPUT_MODE == 3) {
         // full: all three components as RGB
         color = curlNorm;
     } else {
@@ -213,9 +217,9 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         color = vec3f(mag);
     }
 
-    if (u.ridges > 0.5) {
+    if (RIDGES) {
         color = 1.0 - abs(color * 2.0 - 1.0);
     }
-    
+
     return vec4f(color, 1.0);
 }

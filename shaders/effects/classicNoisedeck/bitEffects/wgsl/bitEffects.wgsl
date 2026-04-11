@@ -12,19 +12,17 @@ struct Uniforms {
 var<private> time : f32;
 var<private> seed : f32;
 var<private> resolution : vec2<f32>;
-var<private> formula : i32;
-var<private> colorScheme : i32;
 var<private> n : f32;
-var<private> interp : i32;
 var<private> scale : f32;
 var<private> rotation : f32;
 var<private> speed : f32;
-// MODE is a compile-time const injected by the runtime via injectDefines.
-// See classicNoisedeck/bitEffects/definition.js `globals.mode.define`.
-var<private> maskFormula : i32;
+// MODE, FORMULA, COLOR_SCHEME, INTERP, MASK_FORMULA, MASK_COLOR_SCHEME are
+// compile-time consts injected by the runtime via injectDefines. See
+// classicNoisedeck/bitEffects/definition.js `globals.{mode,formula,
+// colorScheme,interp,maskFormula,maskColorScheme}.define`. Same fix as the
+// GLSL backend — collapses the runtime dispatches so Dawn constant-folds.
 var<private> tiles : f32;
 var<private> complexity : f32;
-var<private> maskColorScheme : i32;
 var<private> hueRange : f32;
 var<private> hueRotation : f32;
 var<private> baseHueRange : f32;
@@ -90,7 +88,7 @@ fn constant(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
 fn value(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
     let x1y1 = constant(st, xFreq, yFreq, s);
 
-    if (interp == 0) {
+    if (INTERP == 0) {
         return x1y1;
     }
 
@@ -157,17 +155,17 @@ fn bitValue(st: vec2<f32>, freq: f32, nForColor: f32) -> f32 {
 
     var v = 1.0;
 
-    if (formula == 0) {
+    if (FORMULA == 0) {
         v = mod_f(xor_f(st.x * freq, st.y * freq), blendy);
-    } else if (formula == 1) {
+    } else if (FORMULA == 1) {
         v = mod_f(or_f(st.x * freq, st.y * freq), blendy);
-    } else if (formula == 2) {
+    } else if (FORMULA == 2) {
         v = mod_f((st.x * freq) * (st.y * freq), blendy);
-    } else if (formula == 3) {
+    } else if (FORMULA == 3) {
         v = f32(xor_f(st.x * freq, st.y * freq) < blendy);
-    } else if (formula == 4) {
+    } else if (FORMULA == 4) {
         v = mod_f(st.x * freq * blendy, st.y * freq);
-    } else if (formula == 5) {
+    } else if (FORMULA == 5) {
         v = mod_f(((st.x * freq - 0.5) * 0.25), st.y * freq - 0.5);
     }
 
@@ -182,51 +180,51 @@ fn bitField(st: vec2<f32>) -> vec3<f32> {
 
     var color = vec3<f32>(0.0);
 
-    if (colorScheme == 0) {
+    if (COLOR_SCHEME == 0) {
         color.z = bitValue(st2, freq, n);
-    } else if (colorScheme == 1) {
+    } else if (COLOR_SCHEME == 1) {
         let v1 = bitValue(st2, freq, n);
         color.y = v1;
         color.z = v1;
-    } else if (colorScheme == 2) {
+    } else if (COLOR_SCHEME == 2) {
         color.y = bitValue(st2, freq, n);
-    } else if (colorScheme == 3) {
+    } else if (COLOR_SCHEME == 3) {
         let v2 = bitValue(st2, freq, n);
         color.x = v2;
         color.z = v2;
-    } else if (colorScheme == 4) {
+    } else if (COLOR_SCHEME == 4) {
         color.x = bitValue(st2, freq, n);
-    } else if (colorScheme == 5) {
+    } else if (COLOR_SCHEME == 5) {
         color = vec3<f32>(bitValue(st2, freq, n));
-    } else if (colorScheme == 6) {
+    } else if (COLOR_SCHEME == 6) {
         let v3 = bitValue(st2, freq, n);
         color.x = v3;
         color.y = v3;
-    } else if (colorScheme == 10) {
+    } else if (COLOR_SCHEME == 10) {
         color.z = bitValue(st2, freq, n);
         color.y = bitValue(st2, freq, n + 1.0);
-    } else if (colorScheme == 11) {
+    } else if (COLOR_SCHEME == 11) {
         color.z = bitValue(st2, freq, n);
         color.x = bitValue(st2, freq, n + 1.0);
-    } else if (colorScheme == 12) {
+    } else if (COLOR_SCHEME == 12) {
         color.z = bitValue(st2, freq, n);
         let v4 = bitValue(st2, freq, n + 1.0);
         color.x = v4;
         color.y = v4;
-    } else if (colorScheme == 13) {
+    } else if (COLOR_SCHEME == 13) {
         color.y = bitValue(st2, freq, n);
         let v5 = bitValue(st2, freq, n + 1.0);
         color.x = v5;
         color.z = v5;
-    } else if (colorScheme == 14) {
+    } else if (COLOR_SCHEME == 14) {
         color.y = bitValue(st2, freq, n);
         color.x = bitValue(st2, freq, n + 1.0);
-    } else if (colorScheme == 15) {
+    } else if (COLOR_SCHEME == 15) {
         color.x = bitValue(st2, freq, n);
         let v6 = bitValue(st2, freq, n + 1.0);
         color.z = v6;
         color.y = v6;
-    } else if (colorScheme == 20) {
+    } else if (COLOR_SCHEME == 20) {
         color.x = bitValue(st2, freq, n);
         color.y = bitValue(st2, freq, n + 1.0);
         color.z = bitValue(st2, freq, n + 2.0);
@@ -357,11 +355,11 @@ fn invaders(st: vec2<f32>, freq: f32, _seed: i32) -> f32 {
 fn bitMaskValue(st: vec2<f32>, freq: f32, _seed: i32) -> f32 {
     var v = 1.0;
 
-    if (maskFormula == 10 || maskFormula == 11) {
+    if (MASK_FORMULA == 10 || MASK_FORMULA == 11) {
         v = invaders(st, freq, _seed);
-    } else if (maskFormula == 20) {
+    } else if (MASK_FORMULA == 20) {
         v = glyphs(st, freq, _seed);
-    } else if (maskFormula == 30) {
+    } else if (MASK_FORMULA == 30) {
         v = areciboNum(st, freq, _seed);
     }
 
@@ -379,7 +377,7 @@ fn bitMask(st: vec2<f32>) -> vec3<f32> {
 
     st2.x = st2.x - 0.5 * aspectRatio;
 
-    if (maskFormula == 11) {
+    if (MASK_FORMULA == 11) {
         st2.y = st2.y * 2.0;
     }
 
@@ -387,20 +385,20 @@ fn bitMask(st: vec2<f32>) -> vec3<f32> {
 
     let mask = select(0.0, 1.0, bitMaskValue(st2, freq, -100) > 0.5);
 
-    if (maskColorScheme == 0) {
+    if (MASK_COLOR_SCHEME == 0) {
         color = vec3<f32>(mask);
     } else {
         let baseHue = 0.01 + maskValue(st2, 1.0, -100.0) * baseHueRange * 0.01;
 
         color.x = fract(baseHue + bitMaskValue(st2, freq, 0) * hueRange * 0.01 + (1.0 - (hueRotation / 360.0))) * mask;
 
-        if (maskColorScheme == 3) {
+        if (MASK_COLOR_SCHEME == 3) {
             color.y = mask;
         } else {
             color.y = bitMaskValue(st2, freq, 25) * mask;
         }
 
-        if (maskColorScheme == 2 || maskColorScheme == 3) {
+        if (MASK_COLOR_SCHEME == 2 || MASK_COLOR_SCHEME == 3) {
             color.z = mask;
         } else {
             color.z = bitMaskValue(st2, freq, 50) * mask;
@@ -417,20 +415,20 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     time = uniforms.data[0].z;
     seed = uniforms.data[0].w;
 
-    formula = i32(uniforms.data[1].x);
-    colorScheme = i32(uniforms.data[1].y);
+    // uniforms.data[1].x was formula — now compile-time FORMULA
+    // uniforms.data[1].y was colorScheme — now compile-time COLOR_SCHEME
     n = uniforms.data[1].z;
-    interp = i32(uniforms.data[1].w);
+    // uniforms.data[1].w was interp — now compile-time INTERP
 
     scale = uniforms.data[2].x;
     rotation = uniforms.data[2].y;
     speed = uniforms.data[2].z;
     // slot 2 component w is unused — `mode` is a compile-time define
 
-    maskFormula = i32(uniforms.data[3].x);
+    // uniforms.data[3].x was maskFormula — now compile-time MASK_FORMULA
     tiles = uniforms.data[3].y;
     complexity = uniforms.data[3].z;
-    maskColorScheme = i32(uniforms.data[3].w);
+    // uniforms.data[3].w was maskColorScheme — now compile-time MASK_COLOR_SCHEME
 
     hueRange = uniforms.data[4].x;
     hueRotation = uniforms.data[4].y;

@@ -17,6 +17,21 @@ precision highp int;
 #define LOOP_OFFSET 10
 #endif
 
+// METRIC, DIRECTION, KERNEL are compile-time defines for the same reason —
+// the remaining runtime int dispatches in this shader. METRIC is hit once
+// per pixel by getMetric() inside kaleidoscope(); KERNEL dispatches the
+// shared convolution helper used by many classicNoisedeck effects; DIRECTION
+// is a small 3-way rotation picker.
+#ifndef METRIC
+#define METRIC 0
+#endif
+#ifndef DIRECTION
+#define DIRECTION 2
+#endif
+#ifndef KERNEL
+#define KERNEL 0
+#endif
+
 uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform float time;
@@ -25,9 +40,6 @@ uniform int seed;
 uniform float speed;
 uniform float loopScale;
 uniform float kaleido;
-uniform int metric;
-uniform int direction;
-uniform int kernel;
 uniform float effectWidth;
 out vec4 fragColor;
 
@@ -674,35 +686,32 @@ vec3 shadow(vec3 color, vec2 uv) {
     return hsv2rgb(color);
 }
 
-vec3 convolution(int kernel, vec3 color, vec2 uv) {
-    vec3 color1 = vec3(0.0);
-
-    if (kernel == 0) {
-        return color;
-    } else if (kernel == 1) {
-        color1 = convolve(uv, blur, true);
-    } else if (kernel == 2) {
-        // deriv divide
-        color1 = derivatives(color, uv, true);
-    } else if (kernel == 120) {
-        // deriv
-        color1 = clamp(derivatives(color, uv, false) * 2.5, 0.0, 1.0);
-    } else if (kernel == 3) {
-        color1 = convolve(uv, edge2, true);
-        color1 = color * color1;
-    } else if (kernel == 4) {
-        color1 = convolve(uv, emboss, false);
-    } else if (kernel == 5) {
-        color1 = outline(color, uv);
-    } else if (kernel == 6) {
-        color1 = shadow(color, uv);
-    } else if (kernel == 7) {
-        color1 = convolve(uv, sharpen, false);
-    } else if (kernel == 8) {
-        color1 = sobel(color, uv);
-    }
-
-    return color1;
+// Per-KERNEL convolution branch — only the active kernel for the current
+// program gets compiled. Called from main() inside `KERNEL != 0/10/110`.
+vec3 convolutionKernel(vec3 color, vec2 uv) {
+#if KERNEL == 1
+    return convolve(uv, blur, true);
+#elif KERNEL == 2
+    // deriv divide
+    return derivatives(color, uv, true);
+#elif KERNEL == 120
+    // deriv
+    return clamp(derivatives(color, uv, false) * 2.5, 0.0, 1.0);
+#elif KERNEL == 3
+    return color * convolve(uv, edge2, true);
+#elif KERNEL == 4
+    return convolve(uv, emboss, false);
+#elif KERNEL == 5
+    return outline(color, uv);
+#elif KERNEL == 6
+    return shadow(color, uv);
+#elif KERNEL == 7
+    return convolve(uv, sharpen, false);
+#elif KERNEL == 8
+    return sobel(color, uv);
+#else
+    return color;
+#endif
 }
 
 float shape(vec2 st, int sides, float blend) {
@@ -738,29 +747,28 @@ vec3 pixellate(vec2 uv, float size) {
 
 float getMetric(vec2 st) {
     vec2 diff = vec2(0.5 * aspectRatio, 0.5) - st;
-    float r = 1.0;
 
-    if (metric == 0) {
-        // euclidean
-        r = length(st - vec2(0.5 * aspectRatio, 0.5));
-    } else if (metric == 1) {
-		// manhattan
-        r = abs(diff.x) + abs(diff.y);
-    } else if (metric == 2) {
-		// hexagon
-        r = max(max(abs(diff.x) - diff.y * -0.5, -1.0 * diff.y), max(abs(diff.x) - diff.y * 0.5, 1.0 * diff.y));
-    } else if (metric == 3) {
-        // octagon
-        r = max((abs(diff.x) + abs(diff.y)) / sqrt(2.0), max(abs(diff.x), abs(diff.y)));
-    } else if (metric == 4) {
-        // chebychev
-        r = max(abs(diff.x), abs(diff.y));
-    } else if (metric == 5) {
-        // triangle
-        r = max(abs(diff.x) - (diff.y) * -0.5, -1.0 * (diff.y));
-    }
-
-    return r;
+#if METRIC == 0
+    // euclidean
+    return length(st - vec2(0.5 * aspectRatio, 0.5));
+#elif METRIC == 1
+    // manhattan
+    return abs(diff.x) + abs(diff.y);
+#elif METRIC == 2
+    // hexagon
+    return max(max(abs(diff.x) - diff.y * -0.5, -1.0 * diff.y), max(abs(diff.x) - diff.y * 0.5, 1.0 * diff.y));
+#elif METRIC == 3
+    // octagon
+    return max((abs(diff.x) + abs(diff.y)) / sqrt(2.0), max(abs(diff.x), abs(diff.y)));
+#elif METRIC == 4
+    // chebychev
+    return max(abs(diff.x), abs(diff.y));
+#elif METRIC == 5
+    // triangle
+    return max(abs(diff.x) - (diff.y) * -0.5, -1.0 * (diff.y));
+#else
+    return 1.0;
+#endif
 }
 
 float offset(vec2 st, float freq) {
@@ -850,12 +858,13 @@ vec2 kaleidoscope(vec2 st, float sides, float blendy) {
     st = st - vec2(0.5 * aspectRatio, 0.5);
 	float a = atan(st.y, st.x);
 
+#if DIRECTION == 1
+	float dir = -time;
+#elif DIRECTION == 2
+	float dir = 1.0;
+#else
 	float dir = time;
-	if (direction == 1) {
-		dir *= -1.0;
-	} else if (direction == 2) {
-		dir = 1.0;
-	}
+#endif
 	// Repeat side according to angle
 	float ma = mod(a + radians(90.0) - radians(360.0 / sides * dir), TAU/sides);
 	ma = abs(ma - PI/sides);
@@ -883,15 +892,17 @@ void main() {
 	uv = kaleidoscope(uv, kaleido, blendy);
 	color = texture(inputTex, uv);
 	
-    if (effectWidth != 0.0 && kernel != 0) {
-        if (kernel == 10) {
-		    color.rgb = pixellate(uv, effectWidth * 4.0);
-        } else if (kernel == 110) {
-            color.rgb = posterize(color.rgb, floor(map(effectWidth, 0.0, 10.0, 0.0, 20.0)));
-        } else {
-		    color.rgb = convolution(kernel, color.rgb, uv);
-        }
+#if KERNEL != 0
+    if (effectWidth != 0.0) {
+#if KERNEL == 10
+        color.rgb = pixellate(uv, effectWidth * 4.0);
+#elif KERNEL == 110
+        color.rgb = posterize(color.rgb, floor(map(effectWidth, 0.0, 10.0, 0.0, 20.0)));
+#else
+        color.rgb = convolutionKernel(color.rgb, uv);
+#endif
     }
+#endif
 
 	fragColor = color;
 }

@@ -7,6 +7,10 @@
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> u: Uniforms;
 
+// LOOP_OFFSET, METRIC, DIRECTION and KERNEL are compile-time consts injected
+// by the runtime via injectDefines (see definition.js
+// `globals.{loopOffset,metric,direction,kernel}.define`). Same fix as the
+// GLSL backend — collapses the runtime dispatches so Dawn constant-folds.
 struct Uniforms {
     time: f32,
     deltaTime: f32,
@@ -16,14 +20,14 @@ struct Uniforms {
     aspect: f32,
     // Effect params in definition.js globals order:
     kaleido: i32,
-    metric: i32,
-    direction: i32,
-    loopOffset: i32,
+    // (metric was here — now compile-time METRIC)
+    // (direction was here — now compile-time DIRECTION)
+    // (loopOffset was here — now compile-time LOOP_OFFSET)
     loopScale: f32,
     speed: f32,
     seed: i32,
     wrap: i32,
-    kernel: i32,
+    // (kernel was here — now compile-time KERNEL)
     effectWidth: f32,
 }
 
@@ -353,21 +357,20 @@ fn shadow(color_in: vec3f, uv: vec2f) -> vec3f {
     return hsv2rgb(color);
 }
 
-fn convolution(kernel: i32, color: vec3f, uv: vec2f) -> vec3f {
+fn convolutionKernel(color: vec3f, uv: vec2f) -> vec3f {
     let emboss = array<f32, 9>(-2.0, -1.0, 0.0, -1.0, 1.0, 1.0, 0.0, 1.0, 2.0);
     let sharpen = array<f32, 9>(-1.0, 0.0, -1.0, 0.0, 5.0, 0.0, -1.0, 0.0, -1.0);
     let blur = array<f32, 9>(1.0, 2.0, 1.0, 2.0, 4.0, 2.0, 1.0, 2.0, 1.0);
     let edge2 = array<f32, 9>(-1.0, 0.0, -1.0, 0.0, 4.0, 0.0, -1.0, 0.0, -1.0);
-    if (kernel == 0) { return color; }
-    else if (kernel == 1) { return convolve(uv, blur, true); }
-    else if (kernel == 2) { return derivatives(color, uv, true); }
-    else if (kernel == 120) { return clamp(derivatives(color, uv, false) * 2.5, vec3f(0.0), vec3f(1.0)); }
-    else if (kernel == 3) { return color * convolve(uv, edge2, true); }
-    else if (kernel == 4) { return convolve(uv, emboss, false); }
-    else if (kernel == 5) { return outline(color, uv); }
-    else if (kernel == 6) { return shadow(color, uv); }
-    else if (kernel == 7) { return convolve(uv, sharpen, false); }
-    else if (kernel == 8) { return sobel(color, uv); }
+    if (KERNEL == 1) { return convolve(uv, blur, true); }
+    else if (KERNEL == 2) { return derivatives(color, uv, true); }
+    else if (KERNEL == 120) { return clamp(derivatives(color, uv, false) * 2.5, vec3f(0.0), vec3f(1.0)); }
+    else if (KERNEL == 3) { return color * convolve(uv, edge2, true); }
+    else if (KERNEL == 4) { return convolve(uv, emboss, false); }
+    else if (KERNEL == 5) { return outline(color, uv); }
+    else if (KERNEL == 6) { return shadow(color, uv); }
+    else if (KERNEL == 7) { return convolve(uv, sharpen, false); }
+    else if (KERNEL == 8) { return sobel(color, uv); }
     return color;
 }
 
@@ -408,12 +411,12 @@ fn diamonds(st: vec2f, freq: f32) -> f32 {
 
 fn getMetric(st: vec2f) -> f32 {
     let diff = vec2f(0.5 * aspectRatio(), 0.5) - st;
-    if (u.metric == 0) { return length(st - vec2f(0.5 * aspectRatio(), 0.5)); }
-    else if (u.metric == 1) { return abs(diff.x) + abs(diff.y); }
-    else if (u.metric == 2) { return max(max(abs(diff.x) - diff.y * -0.5, -1.0 * diff.y), max(abs(diff.x) - diff.y * 0.5, 1.0 * diff.y)); }
-    else if (u.metric == 3) { return max((abs(diff.x) + abs(diff.y)) / sqrt(2.0), max(abs(diff.x), abs(diff.y))); }
-    else if (u.metric == 4) { return max(abs(diff.x), abs(diff.y)); }
-    else if (u.metric == 5) { return max(abs(diff.x) - diff.y * -0.5, -1.0 * diff.y); }
+    if (METRIC == 0) { return length(st - vec2f(0.5 * aspectRatio(), 0.5)); }
+    else if (METRIC == 1) { return abs(diff.x) + abs(diff.y); }
+    else if (METRIC == 2) { return max(max(abs(diff.x) - diff.y * -0.5, -1.0 * diff.y), max(abs(diff.x) - diff.y * 0.5, 1.0 * diff.y)); }
+    else if (METRIC == 3) { return max((abs(diff.x) + abs(diff.y)) / sqrt(2.0), max(abs(diff.x), abs(diff.y))); }
+    else if (METRIC == 4) { return max(abs(diff.x), abs(diff.y)); }
+    else if (METRIC == 5) { return max(abs(diff.x) - diff.y * -0.5, -1.0 * diff.y); }
     return 1.0;
 }
 
@@ -451,8 +454,8 @@ fn kaleidoscope(st_in: vec2f, sides: f32, blendy: f32) -> vec2f {
     var st = st_in - vec2f(0.5 * aspectRatio(), 0.5);
     var a = atan2(st.y, st.x);
     var dir = u.time;
-    if (u.direction == 1) { dir *= -1.0; }
-    else if (u.direction == 2) { dir = 1.0; }
+    if (DIRECTION == 1) { dir *= -1.0; }
+    else if (DIRECTION == 2) { dir = 1.0; }
     var ma = (a + radians(90.0) - radians(360.0 / sides * dir)) % (TAU / sides);
     ma = abs(ma - PI / sides);
     st = r * vec2f(cos(ma), sin(ma));
@@ -472,10 +475,10 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     uv = kaleidoscope(uv, f32(u.kaleido), blendy);
     var color = textureSample(inputTex, samp, uv);
 
-    if (u.effectWidth != 0.0 && u.kernel != 0) {
-        if (u.kernel == 10) { color = vec4f(pixellate(uv, u.effectWidth * 4.0), color.a); }
-        else if (u.kernel == 110) { color = vec4f(posterize(color.rgb, floor(mapRange(u.effectWidth, 0.0, 10.0, 0.0, 20.0))), color.a); }
-        else { color = vec4f(convolution(u.kernel, color.rgb, uv), color.a); }
+    if (u.effectWidth != 0.0 && KERNEL != 0) {
+        if (KERNEL == 10) { color = vec4f(pixellate(uv, u.effectWidth * 4.0), color.a); }
+        else if (KERNEL == 110) { color = vec4f(posterize(color.rgb, floor(mapRange(u.effectWidth, 0.0, 10.0, 0.0, 20.0))), color.a); }
+        else { color = vec4f(convolutionKernel(color.rgb, uv), color.a); }
     }
 
     return color;
