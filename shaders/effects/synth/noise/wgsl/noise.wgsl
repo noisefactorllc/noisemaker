@@ -23,7 +23,6 @@ var<private> scaleY : f32;
 var<private> seed : f32;
 var<private> loopScale : f32;
 var<private> speed : f32;
-var<private> loopOffset : i32;
 var<private> octaves : i32;
 var<private> ridges : bool;
 var<private> wrap : bool;
@@ -335,26 +334,26 @@ fn shape(st: vec2<f32>, sides: i32, blend: f32) -> f32 {
 }
 
 fn offset(st: vec2<f32>, freq: vec2<f32>, pos: vec2<f32>) -> f32 {
-    if (loopOffset == 10) { return circles(st, freq.x); }
-    if (loopOffset == 20) { return shape(st, 3, freq.x * 0.5); }
-    if (loopOffset == 30) { return (abs(st.x - 0.5 * aspectRatio) + abs(st.y - 0.5)) * freq.x * 0.5; }
-    if (loopOffset == 40) { return shape(st, 4, freq.x * 0.5); }
-    if (loopOffset == 50) { return shape(st, 5, freq.x * 0.5); }
-    if (loopOffset == 60) { return shape(st, 6, freq.x * 0.5); }
-    if (loopOffset == 70) { return shape(st, 7, freq.x * 0.5); }
-    if (loopOffset == 80) { return shape(st, 8, freq.x * 0.5); }
-    if (loopOffset == 90) { return shape(st, 9, freq.x * 0.5); }
-    if (loopOffset == 100) { return shape(st, 10, freq.x * 0.5); }
-    if (loopOffset == 110) { return shape(st, 11, freq.x * 0.5); }
-    if (loopOffset == 120) { return shape(st, 12, freq.x * 0.5); }
-    if (loopOffset == 200) { return st.x * freq.x * 0.5; }
-    if (loopOffset == 210) { return st.y * freq.x * 0.5; }
-    if (loopOffset == 300) {
+    if (LOOP_OFFSET == 10) { return circles(st, freq.x); }
+    if (LOOP_OFFSET == 20) { return shape(st, 3, freq.x * 0.5); }
+    if (LOOP_OFFSET == 30) { return (abs(st.x - 0.5 * aspectRatio) + abs(st.y - 0.5)) * freq.x * 0.5; }
+    if (LOOP_OFFSET == 40) { return shape(st, 4, freq.x * 0.5); }
+    if (LOOP_OFFSET == 50) { return shape(st, 5, freq.x * 0.5); }
+    if (LOOP_OFFSET == 60) { return shape(st, 6, freq.x * 0.5); }
+    if (LOOP_OFFSET == 70) { return shape(st, 7, freq.x * 0.5); }
+    if (LOOP_OFFSET == 80) { return shape(st, 8, freq.x * 0.5); }
+    if (LOOP_OFFSET == 90) { return shape(st, 9, freq.x * 0.5); }
+    if (LOOP_OFFSET == 100) { return shape(st, 10, freq.x * 0.5); }
+    if (LOOP_OFFSET == 110) { return shape(st, 11, freq.x * 0.5); }
+    if (LOOP_OFFSET == 120) { return shape(st, 12, freq.x * 0.5); }
+    if (LOOP_OFFSET == 200) { return st.x * freq.x * 0.5; }
+    if (LOOP_OFFSET == 210) { return st.y * freq.x * 0.5; }
+    if (LOOP_OFFSET == 300) {
         let stt = st - vec2<f32>(aspectRatio * 0.5, 0.5);
         return value(stt, freq, seed + 50.0, 0.0);
     }
-    if (loopOffset == 400) { return 1.0 - rings(st, freq.x); }
-    if (loopOffset == 410) { return 1.0 - diamonds(st, freq.x, pos); }
+    if (LOOP_OFFSET == 400) { return 1.0 - rings(st, freq.x); }
+    if (LOOP_OFFSET == 410) { return 1.0 - diamonds(st, freq.x, pos); }
     return 0.0;
 }
 
@@ -411,7 +410,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     seed = uniforms.data[1].z;
     loopScale = uniforms.data[1].w;
     speed = uniforms.data[2].x;
-    loopOffset = i32(uniforms.data[2].y);
+    // uniforms.data[2].y was loopOffset (now compile-time LOOP_OFFSET)
     octaves = i32(uniforms.data[2].w);
     ridges = uniforms.data[3].x > 0.5;
     wrap = uniforms.data[3].y > 0.5;
@@ -438,7 +437,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         lf = vec2<f32>(map(loopScale, 1.0, 100.0, 12.0, 3.0));
     }
 
-    if (loopOffset == 300) {
+    if (LOOP_OFFSET == 300) {
         var nominalFreq = vec2<f32>(1.0);
         if (NOISE_TYPE == 11) {
             let base = map(75.0, 1.0, 100.0, 40.0, 1.0);
@@ -455,7 +454,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
     if (NOISE_TYPE != 4 && NOISE_TYPE != 10 && wrap) {
         freq = floor(freq);
-        if (loopOffset == 300) {
+        if (LOOP_OFFSET == 300) {
             lf = floor(lf);
         }
     }

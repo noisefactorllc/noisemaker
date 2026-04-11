@@ -8,12 +8,12 @@ struct Uniforms {
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 
-// NOISE_TYPE is a compile-time const injected by the runtime via injectDefines
-// (see classicNoisedeck/noise/definition.js `globals.type.define`). Replacing
-// the runtime dispatch with a compile-time constant lets the WGSL compiler
-// constant-fold the variant selection — same fix as the GLSL backend (see
-// classicNoisedeck/noise/glsl/noise.glsl header). The expander always provides
-// this define for classicNoisedeck/noise programs.
+// NOISE_TYPE, COLOR_MODE, REFRACT_MODE, LOOP_OFFSET and METRIC are compile-time
+// consts injected by the runtime via injectDefines (see
+// classicNoisedeck/noise/definition.js `globals.*.define`). Replacing the
+// runtime dispatches with compile-time constants lets Dawn constant-fold the
+// variant selection — same fix as the GLSL backend (see
+// classicNoisedeck/noise/glsl/noise.glsl header).
 
 var<private> resolution : vec2<f32>;
 var<private> time : f32;
@@ -23,16 +23,12 @@ var<private> yScale : f32;
 var<private> seed : f32;
 var<private> loopScale : f32;
 var<private> speed : f32;
-var<private> loopOffset : i32;
 var<private> octaves : i32;
 var<private> ridges : bool;
 var<private> wrap : bool;
-var<private> refractMode : i32;
+var<private> paletteMode : i32;
 var<private> refractAmt : f32;
 var<private> kaleido : f32;
-var<private> metric : i32;
-var<private> colorMode : i32;
-var<private> paletteMode : i32;
 var<private> cyclePalette : i32;
 var<private> rotatePalette : f32;
 var<private> repeatPalette : f32;
@@ -463,17 +459,17 @@ fn getMetric(st_in: vec2<f32>) -> f32 {
     var st = st_in;
     let diff = vec2<f32>(0.5 * aspectRatio, 0.5) - st;
     var r = 1.0;
-    if (metric == 0) {
+    if (METRIC == 0) {
         r = length(st - vec2<f32>(0.5 * aspectRatio, 0.5));
-    } else if (metric == 1) {
+    } else if (METRIC == 1) {
         r = abs(diff.x) + abs(diff.y);
-    } else if (metric == 2) {
+    } else if (METRIC == 2) {
         r = max(max(abs(diff.x) - diff.y * -0.5, -1.0 * diff.y), max(abs(diff.x) - diff.y * 0.5, diff.y));
-    } else if (metric == 3) {
+    } else if (METRIC == 3) {
         r = max((abs(diff.x) + abs(diff.y)) / sqrt(2.0), max(abs(diff.x), abs(diff.y)));
-    } else if (metric == 4) {
+    } else if (METRIC == 4) {
         r = max(abs(diff.x), abs(diff.y));
-    } else if (metric == 5) {
+    } else if (METRIC == 5) {
         r = max(abs(diff.x) - diff.y * -0.5, -1.0 * diff.y);
     }
     return r;
@@ -630,7 +626,7 @@ fn generate_octave(st: vec2<f32>, freq: vec2<f32>, s: f32, blend: f32, octave: f
         value(st, freq, seed + 20.0 * octave, blend),
         value(st, freq, seed + 30.0 * octave, blend)
     );
-    if (ridges && colorMode == 6) {
+    if (ridges && COLOR_MODE == 6) {
         layer.z = 1.0 - abs(layer.z * 2.0 - 1.0);
     }
     return layer;
@@ -662,7 +658,7 @@ fn multires(st_in: vec2<f32>, freq: vec2<f32>, oct: i32, s: f32, blend: f32) -> 
         let nominalBase = nominalFreq.x * 0.5 * multiplier;
         multiplicand = multiplicand + 1.0 / multiplier;
 
-        if (refractMode == 1 || refractMode == 2) {
+        if (REFRACT_MODE == 1 || REFRACT_MODE == 2) {
             let xRefractFreq = vec2<f32>(baseFreq.x, nominalBase);
             let yRefractFreq = vec2<f32>(nominalBase, baseFreq.y);
             let xRef = value(st, xRefractFreq, s + 10.0 * f32(i), blend) - 0.5;
@@ -673,7 +669,7 @@ fn multires(st_in: vec2<f32>, freq: vec2<f32>, oct: i32, s: f32, blend: f32) -> 
 
         var layer = generate_octave(st, baseFreq, s + 10.0 * f32(i), blend, f32(i));
 
-        if (refractMode == 0 || refractMode == 2) {
+        if (REFRACT_MODE == 0 || REFRACT_MODE == 2) {
             let xOff = cos(layer.z) * 0.5 + 0.5;
             let yOff = sin(layer.z) * 0.5 + 0.5;
             let refLayer = generate_octave(vec2<f32>(st.x + xOff, st.y + yOff), baseFreq, s + 15.0 * f32(i), blend, f32(i));
@@ -687,21 +683,21 @@ fn multires(st_in: vec2<f32>, freq: vec2<f32>, oct: i32, s: f32, blend: f32) -> 
     color = color / multiplicand;
 
     var result = color;
-    if (colorMode == 0) {
+    if (COLOR_MODE == 0) {
         if (ridges) {
             result.z = 1.0 - abs(result.z * 2.0 - 1.0);
         }
         result = vec3<f32>(result.z);
-    } else if (colorMode == 1) {
+    } else if (COLOR_MODE == 1) {
         result = srgbToLinear(result);
-    } else if (colorMode == 2) {
+    } else if (COLOR_MODE == 2) {
         // srgb, no change
-    } else if (colorMode == 3) {
+    } else if (COLOR_MODE == 3) {
         result.y = result.y * -0.509 + 0.276;
         result.z = result.z * -0.509 + 0.198;
         result = linear_srgb_from_oklab(result);
         result = linearToSrgb(result);
-    } else if (colorMode == 4) {
+    } else if (COLOR_MODE == 4) {
         if (ridges) {
             result.z = 1.0 - abs(result.z * 2.0 - 1.0);
         }
@@ -719,11 +715,11 @@ fn multires(st_in: vec2<f32>, freq: vec2<f32>, oct: i32, s: f32, blend: f32) -> 
         result = hsv2rgb(hsv);
     }
 
-    if (colorMode != 4 && colorMode != 6) {
+    if (COLOR_MODE != 4 && COLOR_MODE != 6) {
         var hsv = rgb2hsv(result);
         hsv.x = hsv.x + 1.0 - (hueRotation / 360.0);
         hsv.x = fract(hsv.x);
-        if (ridges && (colorMode == 1 || colorMode == 2 || colorMode == 3)) {
+        if (ridges && (COLOR_MODE == 1 || COLOR_MODE == 2 || COLOR_MODE == 3)) {
             hsv.z = 1.0 - abs(hsv.z * 2.0 - 1.0);
         }
         result = hsv2rgb(hsv);
@@ -733,40 +729,40 @@ fn multires(st_in: vec2<f32>, freq: vec2<f32>, oct: i32, s: f32, blend: f32) -> 
 }
 
 fn offset(st_in: vec2<f32>, freq: vec2<f32>) -> f32 {
-    if (loopOffset == 10) {
+    if (LOOP_OFFSET == 10) {
         return circles(st_in, freq.x);
-    } else if (loopOffset == 20) {
+    } else if (LOOP_OFFSET == 20) {
         return shape(st_in, 3, freq.x * 0.5);
-    } else if (loopOffset == 30) {
+    } else if (LOOP_OFFSET == 30) {
         return (abs(st_in.x - 0.5 * aspectRatio) + abs(st_in.y - 0.5)) * freq.x * 0.5;
-    } else if (loopOffset == 40) {
+    } else if (LOOP_OFFSET == 40) {
         return shape(st_in, 4, freq.x * 0.5);
-    } else if (loopOffset == 50) {
+    } else if (LOOP_OFFSET == 50) {
         return shape(st_in, 5, freq.x * 0.5);
-    } else if (loopOffset == 60) {
+    } else if (LOOP_OFFSET == 60) {
         return shape(st_in, 6, freq.x * 0.5);
-    } else if (loopOffset == 70) {
+    } else if (LOOP_OFFSET == 70) {
         return shape(st_in, 7, freq.x * 0.5);
-    } else if (loopOffset == 80) {
+    } else if (LOOP_OFFSET == 80) {
         return shape(st_in, 8, freq.x * 0.5);
-    } else if (loopOffset == 90) {
+    } else if (LOOP_OFFSET == 90) {
         return shape(st_in, 9, freq.x * 0.5);
-    } else if (loopOffset == 100) {
+    } else if (LOOP_OFFSET == 100) {
         return shape(st_in, 10, freq.x * 0.5);
-    } else if (loopOffset == 110) {
+    } else if (LOOP_OFFSET == 110) {
         return shape(st_in, 11, freq.x * 0.5);
-    } else if (loopOffset == 120) {
+    } else if (LOOP_OFFSET == 120) {
         return shape(st_in, 12, freq.x * 0.5);
-    } else if (loopOffset == 200) {
+    } else if (LOOP_OFFSET == 200) {
         return st_in.x * freq.x * 0.5;
-    } else if (loopOffset == 210) {
+    } else if (LOOP_OFFSET == 210) {
         return st_in.y * freq.x * 0.5;
-    } else if (loopOffset == 300) {
+    } else if (LOOP_OFFSET == 300) {
         let st = st_in - vec2<f32>(aspectRatio * 0.5, 0.5);
         return value(st, freq, seed + 50.0, 0.0);
-    } else if (loopOffset == 400) {
+    } else if (LOOP_OFFSET == 400) {
         return 1.0 - rings(st_in, freq.x);
-    } else if (loopOffset == 410) {
+    } else if (LOOP_OFFSET == 410) {
         return 1.0 - diamonds(st_in, freq.x);
     }
     return 0.0;
@@ -782,15 +778,15 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     seed = uniforms.data[1].z;
     loopScale = uniforms.data[1].w;
     speed = uniforms.data[2].x;
-    loopOffset = i32(uniforms.data[2].y);
+    // uniforms.data[2].y was loopOffset (now compile-time LOOP_OFFSET)
     octaves = max(1, i32(uniforms.data[2].w));
     ridges = uniforms.data[3].x > 0.5;
     wrap = uniforms.data[3].y > 0.5;
-    refractMode = i32(uniforms.data[3].z);
+    // uniforms.data[3].z was refractMode (now compile-time REFRACT_MODE)
     refractAmt = uniforms.data[3].w;
     kaleido = uniforms.data[4].x;
-    metric = i32(uniforms.data[4].y);
-    colorMode = i32(uniforms.data[4].z);
+    // uniforms.data[4].y was metric (now compile-time METRIC)
+    // uniforms.data[4].z was colorMode (now compile-time COLOR_MODE)
     paletteMode = i32(uniforms.data[4].w);
     cyclePalette = i32(uniforms.data[5].x);
     rotatePalette = uniforms.data[5].y;
@@ -826,7 +822,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
         lf = vec2<f32>(val, val);
     }
 
-    if (loopOffset == 300) {
+    if (LOOP_OFFSET == 300) {
         var nominalFreq = vec2<f32>(1.0, 1.0);
         if (NOISE_TYPE == 11) {
             // Sine noise maps into a wide [40, 1] range, so reuse its midpoint to match the field frequency.
@@ -847,7 +843,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     if (NOISE_TYPE != 4 && NOISE_TYPE != 10 && wrap) {
         freq = floor(freq);
-        if (loopOffset == 300) {
+        if (LOOP_OFFSET == 300) {
             lf = floor(lf);
         }
     }

@@ -17,6 +17,12 @@ precision highp int;
 #define NOISE_TYPE 10
 #endif
 
+// LOOP_OFFSET is a compile-time define for the same reason — see
+// classicNoisedeck/noise/glsl/noise.glsl for the rationale.
+#ifndef LOOP_OFFSET
+#define LOOP_OFFSET 300
+#endif
+
 uniform float time;
 uniform int seed;
 uniform vec2 resolution;
@@ -26,7 +32,6 @@ uniform int octaves;
 uniform bool ridges;
 uniform float loopScale;
 uniform float speed;
-uniform int loopOffset;
 uniform int colorMode;
 uniform bool wrap;
 out vec4 fragColor;
@@ -378,27 +383,44 @@ float shape(vec2 st, int sides, float blend) {
 }
 
 float offset(vec2 st, vec2 freq) {
-    if (loopOffset == 10) return circles(st, freq.x);
-    if (loopOffset == 20) return shape(st, 3, freq.x * 0.5);
-    if (loopOffset == 30) return (abs(st.x - 0.5 * aspectRatio) + abs(st.y - 0.5)) * freq.x * 0.5;
-    if (loopOffset == 40) return shape(st, 4, freq.x * 0.5);
-    if (loopOffset == 50) return shape(st, 5, freq.x * 0.5);
-    if (loopOffset == 60) return shape(st, 6, freq.x * 0.5);
-    if (loopOffset == 70) return shape(st, 7, freq.x * 0.5);
-    if (loopOffset == 80) return shape(st, 8, freq.x * 0.5);
-    if (loopOffset == 90) return shape(st, 9, freq.x * 0.5);
-    if (loopOffset == 100) return shape(st, 10, freq.x * 0.5);
-    if (loopOffset == 110) return shape(st, 11, freq.x * 0.5);
-    if (loopOffset == 120) return shape(st, 12, freq.x * 0.5);
-    if (loopOffset == 200) return st.x * freq.x * 0.5;
-    if (loopOffset == 210) return st.y * freq.x * 0.5;
-    if (loopOffset == 300) {
-        st -= vec2(aspectRatio * 0.5, 0.5);
-        return value(st, freq, float(seed) + 50.0, 0.0);
-    }
-    if (loopOffset == 400) return 1.0 - rings(st, freq.x);
-    if (loopOffset == 410) return 1.0 - diamonds(st, freq.x);
+#if LOOP_OFFSET == 10
+    return circles(st, freq.x);
+#elif LOOP_OFFSET == 20
+    return shape(st, 3, freq.x * 0.5);
+#elif LOOP_OFFSET == 30
+    return (abs(st.x - 0.5 * aspectRatio) + abs(st.y - 0.5)) * freq.x * 0.5;
+#elif LOOP_OFFSET == 40
+    return shape(st, 4, freq.x * 0.5);
+#elif LOOP_OFFSET == 50
+    return shape(st, 5, freq.x * 0.5);
+#elif LOOP_OFFSET == 60
+    return shape(st, 6, freq.x * 0.5);
+#elif LOOP_OFFSET == 70
+    return shape(st, 7, freq.x * 0.5);
+#elif LOOP_OFFSET == 80
+    return shape(st, 8, freq.x * 0.5);
+#elif LOOP_OFFSET == 90
+    return shape(st, 9, freq.x * 0.5);
+#elif LOOP_OFFSET == 100
+    return shape(st, 10, freq.x * 0.5);
+#elif LOOP_OFFSET == 110
+    return shape(st, 11, freq.x * 0.5);
+#elif LOOP_OFFSET == 120
+    return shape(st, 12, freq.x * 0.5);
+#elif LOOP_OFFSET == 200
+    return st.x * freq.x * 0.5;
+#elif LOOP_OFFSET == 210
+    return st.y * freq.x * 0.5;
+#elif LOOP_OFFSET == 300
+    st -= vec2(aspectRatio * 0.5, 0.5);
+    return value(st, freq, float(seed) + 50.0, 0.0);
+#elif LOOP_OFFSET == 400
+    return 1.0 - rings(st, freq.x);
+#elif LOOP_OFFSET == 410
+    return 1.0 - diamonds(st, freq.x);
+#else
     return 0.0;
+#endif
 }
 
 vec3 generate_octave(vec2 st, vec2 freq, float s, float blend, float layer) {
@@ -463,24 +485,26 @@ void main() {
     lf = vec2(map(loopScale, 1.0, 100.0, 12.0, 3.0));
 #endif
 
-    if (loopOffset == 300) {
+#if LOOP_OFFSET == 300
 #if NOISE_TYPE == 11
-        float base = map(75.0, 1.0, 100.0, 40.0, 1.0);
+    float base = map(75.0, 1.0, 100.0, 40.0, 1.0);
 #elif NOISE_TYPE == 10
-        float base = map(75.0, 1.0, 100.0, 6.0, 0.5);
+    float base = map(75.0, 1.0, 100.0, 6.0, 0.5);
 #else
-        float base = map(75.0, 1.0, 100.0, 20.0, 3.0);
+    float base = map(75.0, 1.0, 100.0, 20.0, 3.0);
 #endif
+    {
         vec2 nominalFreq = vec2(base);
         lf *= freq / nominalFreq;
     }
+#endif
 
 #if NOISE_TYPE != 4 && NOISE_TYPE != 10
     if (wrap) {
         freq = floor(freq);
-        if (loopOffset == 300) {
-            lf = floor(lf);
-        }
+#if LOOP_OFFSET == 300
+        lf = floor(lf);
+#endif
     }
 #endif
 

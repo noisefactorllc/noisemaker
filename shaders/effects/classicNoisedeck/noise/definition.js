@@ -16,6 +16,9 @@ export default class Noise extends Effect {
   description = "Noise pattern generator"
 
   // WGSL uniform packing layout - maps uniform names to vec4 slots/components
+  // Slots marked "unused" used to hold ints that have since been promoted to
+  // compile-time defines (see globals.*.define below). Leaving the layout
+  // holes in place keeps the rest of the slot addresses stable.
   uniformLayout = {
     resolution: { slot: 0, components: 'xy' },
     time: { slot: 0, components: 'z' },
@@ -25,17 +28,16 @@ export default class Noise extends Effect {
     seed: { slot: 1, components: 'z' },
     loopScale: { slot: 1, components: 'w' },
     speed: { slot: 2, components: 'x' },
-    loopOffset: { slot: 2, components: 'y' },
-    // slot 2 component z is intentionally unused — `type` is a compile-time
-    // define (see globals.type below), not a runtime uniform.
+    // slot 2.y was loopOffset — now compile-time LOOP_OFFSET
+    // slot 2.z was unused (noiseType/type was already promoted to NOISE_TYPE)
     octaves: { slot: 2, components: 'w' },
     ridges: { slot: 3, components: 'x' },
     wrap: { slot: 3, components: 'y' },
-    refractMode: { slot: 3, components: 'z' },
+    // slot 3.z was refractMode — now compile-time REFRACT_MODE
     refractAmt: { slot: 3, components: 'w' },
     kaleido: { slot: 4, components: 'x' },
-    metric: { slot: 4, components: 'y' },
-    colorMode: { slot: 4, components: 'z' },
+    // slot 4.y was metric — now compile-time METRIC
+    // slot 4.z was colorMode — now compile-time COLOR_MODE
     paletteMode: { slot: 4, components: 'w' },
     cyclePalette: { slot: 5, components: 'x' },
     rotatePalette: { slot: 5, components: 'y' },
@@ -143,7 +145,11 @@ export default class Noise extends Effect {
     refractMode: {
       type: "int",
       default: 2,
-      uniform: "refractMode",
+      // Compile-time define. Each (refract mode) variant is its own program;
+      // changing the dropdown triggers a one-shot recompile. Same rationale as
+      // NOISE_TYPE — runtime branches in the per-octave inner loop blow up
+      // ANGLE→D3D inlining.
+      define: "REFRACT_MODE",
       choices: {
         color: 0,
         topology: 1,
@@ -171,7 +177,10 @@ export default class Noise extends Effect {
     loopOffset: {
       type: "int",
       default: 300,
-      uniform: "loopOffset",
+      // Compile-time define. The 17-way dispatch in offset() inflates HLSL
+      // bytecode badly when left as a uniform; baking it lets the compiler DCE
+      // the unreachable branches.
+      define: "LOOP_OFFSET",
       choices: {
         "Shapes:": null,
         circle: 10,
@@ -241,7 +250,8 @@ export default class Noise extends Effect {
     metric: {
       type: "int",
       default: 0,
-      uniform: "metric",
+      // Compile-time define. 6-way dispatch inside getMetric().
+      define: "METRIC",
       choices: {
         circle: 0,
         diamond: 1,
@@ -261,6 +271,11 @@ export default class Noise extends Effect {
       type: "int",
       default: 3,
       uniform: "paletteMode",
+      // Set indirectly by palette selection via expandPalette() in
+      // program-state. Stays a runtime uniform because the palette dropdown
+      // change is routed through expandPalette() rather than setValue() for
+      // this param, and pal() (the only consumer) is only reached when
+      // COLOR_MODE == 4 — small inlining cost to leave the runtime if-cascade.
       ui: {
         control: false
       }
@@ -294,7 +309,10 @@ export default class Noise extends Effect {
     colorMode: {
       type: "int",
       default: 6,
-      uniform: "colorMode",
+      // Compile-time define. The 6-way colorization branch in multires() pulls
+      // hsv2rgb/rgb2hsv/oklab/srgb/pal into HLSL inlining; baking the choice
+      // lets the compiler keep only the path actually used.
+      define: "COLOR_MODE",
       choices: {
         mono: 0,
         linearRgb: 1,

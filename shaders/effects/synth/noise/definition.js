@@ -16,9 +16,8 @@ export default new Effect({
     seed: { slot: 1, components: 'z' },
     loopScale: { slot: 1, components: 'w' },
     speed: { slot: 2, components: 'x' },
-    loopOffset: { slot: 2, components: 'y' },
-    // slot 2 component z is intentionally unused — noiseType is a compile-time
-    // define (see globals.type below), not a runtime uniform.
+    // slot 2.y was loopOffset — now compile-time LOOP_OFFSET
+    // slot 2.z was unused (noiseType/type was promoted to NOISE_TYPE)
     octaves: { slot: 2, components: 'w' },
     ridges: { slot: 3, components: 'x' },
     wrap: { slot: 3, components: 'y' },
@@ -117,7 +116,10 @@ export default new Effect({
     loopOffset: {
       type: "int",
       default: 300,
-      uniform: "loopOffset",
+      // Compile-time define. Same rationale as classicNoisedeck/noise — the
+      // 17-way dispatch in offset() is dispatched once per fragment but its
+      // unreachable branches still inflate ANGLE→D3D inlining.
+      define: "LOOP_OFFSET",
       choices: {
         "Shapes:": null,
         circle: 10,

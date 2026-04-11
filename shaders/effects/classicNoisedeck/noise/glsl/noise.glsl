@@ -16,6 +16,23 @@ precision highp int;
 #define NOISE_TYPE 10
 #endif
 
+// COLOR_MODE, REFRACT_MODE, LOOP_OFFSET, and METRIC are also compile-time
+// defines. Same rationale as NOISE_TYPE: each is a multi-way dispatch on a
+// uniform that ANGLE inlines into large function bodies, and wrapping the
+// variants in #if blocks lets dead-code elimination drop the unreachable paths
+// before HLSL emission.
+#ifndef COLOR_MODE
+#define COLOR_MODE 6
+#endif
+#ifndef REFRACT_MODE
+#define REFRACT_MODE 2
+#endif
+#ifndef LOOP_OFFSET
+#define LOOP_OFFSET 300
+#endif
+#ifndef METRIC
+#define METRIC 0
+#endif
 uniform float time;
 uniform int seed;
 uniform vec2 resolution;
@@ -23,14 +40,10 @@ uniform float xScale;
 uniform float yScale;
 uniform int octaves;
 uniform bool ridges;
-uniform int refractMode;
 uniform float refractAmt;
 uniform float kaleido;
-uniform int metric;
 uniform float loopScale;
 uniform float speed;
-uniform int loopOffset;
-uniform int colorMode;
 uniform int paletteMode;
 uniform vec3 paletteOffset;
 uniform vec3 paletteAmp;
@@ -525,29 +538,28 @@ float shape(vec2 st, int sides, float blend) {
 
 float getMetric(vec2 st) {
     vec2 diff = vec2(0.5 * aspectRatio, 0.5) - st;
-    float r = 1.0;
 
-    if (metric == 0) {
-        // euclidean
-        r = length(st - vec2(0.5 * aspectRatio, 0.5));
-    } else if (metric == 1) {
-		// manhattan
-        r = abs(diff.x) + abs(diff.y);
-    } else if (metric == 2) {
-		// hexagon
-        r = max(max(abs(diff.x) - diff.y * -0.5, -1.0 * diff.y), max(abs(diff.x) - diff.y * 0.5, 1.0 * diff.y));
-    } else if (metric == 3) {
-        // octagon
-        r = max((abs(diff.x) + abs(diff.y)) / sqrt(2.0), max(abs(diff.x), abs(diff.y)));
-    } else if (metric == 4) {
-        // chebychev
-        r = max(abs(diff.x), abs(diff.y));
-    } else if (metric == 5) {
-        // triangle
-        r = max(abs(diff.x) - (diff.y) * -0.5, -1.0 * (diff.y));
-    }
-
-    return r;
+#if METRIC == 0
+    // euclidean
+    return length(st - vec2(0.5 * aspectRatio, 0.5));
+#elif METRIC == 1
+    // manhattan
+    return abs(diff.x) + abs(diff.y);
+#elif METRIC == 2
+    // hexagon
+    return max(max(abs(diff.x) - diff.y * -0.5, -1.0 * diff.y), max(abs(diff.x) - diff.y * 0.5, 1.0 * diff.y));
+#elif METRIC == 3
+    // octagon
+    return max((abs(diff.x) + abs(diff.y)) / sqrt(2.0), max(abs(diff.x), abs(diff.y)));
+#elif METRIC == 4
+    // chebychev
+    return max(abs(diff.x), abs(diff.y));
+#elif METRIC == 5
+    // triangle
+    return max(abs(diff.x) - (diff.y) * -0.5, -1.0 * (diff.y));
+#else
+    return 1.0;
+#endif
 }
 
 vec2 rotate2D(vec2 st, float rot) {
@@ -577,59 +589,45 @@ vec2 kaleidoscope(vec2 st, float sides, float blendy) {
 }
 
 float offset(vec2 st, vec2 freq) {
-    if (loopOffset == 10) {
-        // circle
-        return circles(st, freq.x);
-    } else if (loopOffset == 20) {
-        // triangle
-        return shape(st, 3, freq.x * 0.5);
-    } else if (loopOffset == 30) {
-        // diamond
-        return (abs(st.x - 0.5 * aspectRatio) + abs(st.y - 0.5)) * freq.x * 0.5;
-    } else if (loopOffset == 40) {
-        // square
-        return shape(st, 4, freq.x * 0.5);
-    } else if (loopOffset == 50) {
-        // pentagon
-        return shape(st, 5, freq.x * 0.5);
-    } else if (loopOffset == 60) {
-        // hexagon
-        return shape(st, 6, freq.x * 0.5);
-    } else if (loopOffset == 70) {
-        // heptagon
-        return shape(st, 7, freq.x * 0.5);
-    } else if (loopOffset == 80) {
-        // octagon
-        return shape(st, 8, freq.x * 0.5);
-    } else if (loopOffset == 90) {
-        // nonagon
-        return shape(st, 9, freq.x * 0.5);
-    } else if (loopOffset == 100) {
-        // decagon
-        return shape(st, 10, freq.x * 0.5);
-    } else if (loopOffset == 110) {
-        // hendecagon
-        return shape(st, 11, freq.x * 0.5);
-    } else if (loopOffset == 120) {
-        // dodecagon
-        return shape(st, 12, freq.x * 0.5);
-    } else if (loopOffset == 200) {
-        // horizontal scan
-        return st.x * freq.x * 0.5;
-    } else if (loopOffset == 210) {
-        // vertical scan
-        return st.y * freq.x * 0.5;
-    } else if (loopOffset == 300) {
-        // noise
-        st -= vec2(aspectRatio * 0.5, 0.5);
-        return value(st, freq, float(seed) + 50.0, 0.0);
-    } else if (loopOffset == 400) {
-        // rings
-        return 1.0 - rings(st, freq.x);
-    } else if (loopOffset == 410) {
-        // sine
-        return 1.0 - diamonds(st, freq.x);
-    }
+#if LOOP_OFFSET == 10
+    return circles(st, freq.x);
+#elif LOOP_OFFSET == 20
+    return shape(st, 3, freq.x * 0.5);
+#elif LOOP_OFFSET == 30
+    return (abs(st.x - 0.5 * aspectRatio) + abs(st.y - 0.5)) * freq.x * 0.5;
+#elif LOOP_OFFSET == 40
+    return shape(st, 4, freq.x * 0.5);
+#elif LOOP_OFFSET == 50
+    return shape(st, 5, freq.x * 0.5);
+#elif LOOP_OFFSET == 60
+    return shape(st, 6, freq.x * 0.5);
+#elif LOOP_OFFSET == 70
+    return shape(st, 7, freq.x * 0.5);
+#elif LOOP_OFFSET == 80
+    return shape(st, 8, freq.x * 0.5);
+#elif LOOP_OFFSET == 90
+    return shape(st, 9, freq.x * 0.5);
+#elif LOOP_OFFSET == 100
+    return shape(st, 10, freq.x * 0.5);
+#elif LOOP_OFFSET == 110
+    return shape(st, 11, freq.x * 0.5);
+#elif LOOP_OFFSET == 120
+    return shape(st, 12, freq.x * 0.5);
+#elif LOOP_OFFSET == 200
+    return st.x * freq.x * 0.5;
+#elif LOOP_OFFSET == 210
+    return st.y * freq.x * 0.5;
+#elif LOOP_OFFSET == 300
+    // noise
+    st -= vec2(aspectRatio * 0.5, 0.5);
+    return value(st, freq, float(seed) + 50.0, 0.0);
+#elif LOOP_OFFSET == 400
+    return 1.0 - rings(st, freq.x);
+#elif LOOP_OFFSET == 410
+    return 1.0 - diamonds(st, freq.x);
+#else
+    return 0.0;
+#endif
 }
 
 vec3 hsv2rgb(vec3 hsv) {
@@ -744,6 +742,7 @@ vec3 linear_srgb_from_oklab(vec3 c) {
 }
 // end oklab
 
+#if COLOR_MODE == 4
 vec3 pal(float t) {
     vec3 a = paletteOffset;
     vec3 b = paletteAmp;
@@ -763,10 +762,11 @@ vec3 pal(float t) {
         color.b = color.b * -.509 + .198;
         color = linear_srgb_from_oklab(color);
         color = linearToSrgb(color);
-    } 
+    }
 
     return color;
 }
+#endif
 
 vec3 generate_octave(vec2 st, vec2 freq, float s, float blend, float octave) {
     vec3 layer = vec3(
@@ -774,9 +774,11 @@ vec3 generate_octave(vec2 st, vec2 freq, float s, float blend, float octave) {
         value(st, freq, float(seed) + 20.0 * octave, blend),
         value(st, freq, float(seed) + 30.0 * octave, blend));
 
-    if (ridges && colorMode == 6) {
+#if COLOR_MODE == 6
+    if (ridges) {
         layer.b = 1.0 - abs(layer.b * 2.0 - 1.0);
     }
+#endif
     return layer;
 }
 
@@ -802,8 +804,9 @@ vec3 multires(vec2 st, vec2 freq, int octaves, float s, float blend) {
         vec2 baseFreq = freq * 0.5 * multiplier;
         float nominalBase = nominalFreq.x * 0.5 * multiplier;
         multiplicand += 1.0 / multiplier;
-        
-        if (refractMode == 1 || refractMode == 2) {
+
+#if REFRACT_MODE == 1 || REFRACT_MODE == 2
+        {
             vec2 xRefractFreq = vec2(baseFreq.x, nominalBase);
             vec2 yRefractFreq = vec2(nominalBase, baseFreq.y);
             float xRef = value(st, xRefractFreq, s + 10.0 * float(i), blend) - 0.5;
@@ -811,40 +814,43 @@ vec3 multires(vec2 st, vec2 freq, int octaves, float s, float blend) {
             float ref = map(refractAmt, 0.0, 100.0, 0.0, 1.0) / multiplier;
             st = vec2(st.x + xRef * ref, st.y + yRef * ref);
         }
+#endif
 
         vec3 layer = generate_octave(st, baseFreq, s + 10.0 * float(i), blend, float(i));
-        
-        if (refractMode == 0 || refractMode == 2) {
+
+#if REFRACT_MODE == 0 || REFRACT_MODE == 2
+        {
             float xOff = cos(layer.b) * 0.5 + 0.5;
             float yOff = sin(layer.b) * 0.5 + 0.5;
             vec3 ref = generate_octave(vec2(st.x + xOff, st.y + yOff), baseFreq, s + 15.0 * float(i), blend, float(i));
             layer = mix(layer, ref, map(refractAmt, 0.0, 100.0, 0.0, 1.0));
         }
+#endif
 
         color.rgb += layer / multiplier;
     }
 
     color.rgb /= multiplicand;
-    
-    if (colorMode == 0) {
-        // grayscale
-        if (ridges) color.b = 1.0 - abs(color.b * 2.0 - 1.0);
-        return vec3(color.b);
-    } else if (colorMode == 1) {
-        // linear rgb
-        color = srgbToLinear(color);
-    } else if (colorMode == 2) {
-        // srgb
-        color = color; 
-    } else if (colorMode == 3) {
-        // oklab
-        color.g = color.g * -.509 + .276;
-        color.b = color.b * -.509 + .198;
-        color = linear_srgb_from_oklab(color);
-        color = linearToSrgb(color);
-    } else if (colorMode == 4) {
-        // palette
-        if (ridges) color.b = 1.0 - abs(color.b * 2.0 - 1.0);
+
+#if COLOR_MODE == 0
+    // grayscale
+    if (ridges) color.b = 1.0 - abs(color.b * 2.0 - 1.0);
+    return vec3(color.b);
+#elif COLOR_MODE == 1
+    // linear rgb
+    color = srgbToLinear(color);
+#elif COLOR_MODE == 2
+    // srgb (no-op)
+#elif COLOR_MODE == 3
+    // oklab
+    color.g = color.g * -.509 + .276;
+    color.b = color.b * -.509 + .198;
+    color = linear_srgb_from_oklab(color);
+    color = linearToSrgb(color);
+#elif COLOR_MODE == 4
+    // palette
+    if (ridges) color.b = 1.0 - abs(color.b * 2.0 - 1.0);
+    {
         float d = color.b;
         if (cyclePalette == -1) {
             d += time;
@@ -852,25 +858,29 @@ vec3 multires(vec2 st, vec2 freq, int octaves, float s, float blend) {
             d -= time;
         }
         color = pal(d);
-    } else {
-        color.r = color.r * hueRange * 0.01;
-        color.r += 1.0 - (hueRotation / 360.0);
-        color = hsv2rgb(color); 
     }
+#else
+    // hsv (default, COLOR_MODE == 6)
+    color.r = color.r * hueRange * 0.01;
+    color.r += 1.0 - (hueRotation / 360.0);
+    color = hsv2rgb(color);
+#endif
 
-    if (colorMode != 4 && colorMode != 6) {
-        color = rgb2hsv(color);
+#if COLOR_MODE != 4 && COLOR_MODE != 6 && COLOR_MODE != 0
+    color = rgb2hsv(color);
 
-        color.r += 1.0 - (hueRotation / 360.0);
-        color.r = fract(color.r);
+    color.r += 1.0 - (hueRotation / 360.0);
+    color.r = fract(color.r);
 
-        if (ridges && (colorMode == 1 || colorMode == 2 || colorMode == 3)) {
-            color.b = 1.0 - abs(color.b * 2.0 - 1.0);
-        }
-
-        color = hsv2rgb(color);
+#if COLOR_MODE == 1 || COLOR_MODE == 2 || COLOR_MODE == 3
+    if (ridges) {
+        color.b = 1.0 - abs(color.b * 2.0 - 1.0);
     }
-   
+#endif
+
+    color = hsv2rgb(color);
+#endif
+
     return color;
 }
 
@@ -900,29 +910,31 @@ void main() {
     lf = vec2(map(loopScale, 1.0, 100.0, 12.0, 3.0));
 #endif
 
-    if (loopOffset == 300) {
+#if LOOP_OFFSET == 300
 #if NOISE_TYPE == 11
-        // Sine noise maps the UI slider into [40, 1]; reuse its midpoint so loop freq matches the visible field.
-        float baseLoop = map(75.0, 1.0, 100.0, 40.0, 1.0);
+    // Sine noise maps the UI slider into [40, 1]; reuse its midpoint so loop freq matches the visible field.
+    float baseLoop = map(75.0, 1.0, 100.0, 40.0, 1.0);
 #elif NOISE_TYPE == 10
-        // Simplex noise shrinks to ~[6, 0.5]; base on its midpoint to keep loop axes in sync with main noise.
-        float baseLoop = map(75.0, 1.0, 100.0, 6.0, 0.5);
+    // Simplex noise shrinks to ~[6, 0.5]; base on its midpoint to keep loop axes in sync with main noise.
+    float baseLoop = map(75.0, 1.0, 100.0, 6.0, 0.5);
 #else
-        // Legacy value noise families share [20, 3]; anchor to that midpoint for consistent ratios.
-        float baseLoop = map(75.0, 1.0, 100.0, 20.0, 3.0);
+    // Legacy value noise families share [20, 3]; anchor to that midpoint for consistent ratios.
+    float baseLoop = map(75.0, 1.0, 100.0, 20.0, 3.0);
 #endif
+    {
         vec2 nominalFreq = vec2(baseLoop);
         // Lock loop noise axes to the same per-axis scaling as the main field
         // so vertical tweaks do not squash the horizontal domain (and vice versa).
         lf *= freq / nominalFreq;
     }
+#endif
 
 #if NOISE_TYPE != 4 && NOISE_TYPE != 10
     if (wrap) {
         freq = floor(freq);
-        if (loopOffset == 300) {
-            lf = floor(lf);
-        }
+#if LOOP_OFFSET == 300
+        lf = floor(lf);
+#endif
     }
 #endif
 
