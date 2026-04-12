@@ -6,9 +6,18 @@ precision highp int;
 // Texture effect: generate a height field from one of several texture modes,
 // derive shading from the gradient, then blend back into the source pixels.
 // Modes: 0=canvas, 1=crosshatch, 2=halftone, 3=paper, 4=stucco
+//
+// MODE is a compile-time define injected by the runtime (see definition.js
+// `globals.mode.define`). Same Knob 2 rationale as the rest of the series:
+// height_field() is called 5 times per pixel (center + 4 neighbors for the
+// gradient). With a runtime int dispatch, ANGLE inlines all 5 variant height
+// functions at each call site — 25 variant inlines per pixel. Baking MODE
+// lets the compiler emit only the active variant (5 inlines of one function).
+#ifndef MODE
+#define MODE 3
+#endif
 
 uniform sampler2D inputTex;
-uniform int mode;
 uniform float time;
 uniform float alpha;
 uniform float scale;
@@ -163,13 +172,20 @@ float height_crosshatch(vec2 uv, vec2 base_freq) {
     return clamp01(d1 * d2);
 }
 
-// Dispatch to the active mode's height function
-float height_field(int m, vec2 uv, vec2 base_freq, float motion) {
-    if (m == 0) return height_canvas(uv, base_freq, motion);
-    if (m == 1) return height_crosshatch(uv, base_freq);
-    if (m == 2) return height_halftone(uv, base_freq);
-    if (m == 4) return height_stucco(uv, base_freq, motion);
+// Dispatch to the active mode's height function — single variant selected
+// at compile time by the MODE define.
+float height_field(vec2 uv, vec2 base_freq, float motion) {
+#if MODE == 0
+    return height_canvas(uv, base_freq, motion);
+#elif MODE == 1
+    return height_crosshatch(uv, base_freq);
+#elif MODE == 2
+    return height_halftone(uv, base_freq);
+#elif MODE == 4
+    return height_stucco(uv, base_freq, motion);
+#else
     return height_paper(uv, base_freq, motion);  // 3 = paper (default)
+#endif
 }
 
 void main() {
@@ -184,23 +200,31 @@ void main() {
     }
 
     // Paper and stucco use different base frequencies
-    float freq_scale = (mode == 4) ? 48.0 : 24.0;
+#if MODE == 4
+    float freq_scale = 48.0;
+#else
+    float freq_scale = 24.0;
+#endif
     vec2 base_freq = freq_for_shape(freq_scale * (10.01 - scale), dims);
     float motion = time * float(Z_LOOP);
 
     // Sample height field at center and 4 neighbors for gradient
-    float h_center = height_field(mode, v_texCoord, base_freq, motion);
-    float h_right  = height_field(mode, v_texCoord + vec2(pixel_step.x, 0.0), base_freq, motion);
-    float h_left   = height_field(mode, v_texCoord - vec2(pixel_step.x, 0.0), base_freq, motion);
-    float h_up     = height_field(mode, v_texCoord + vec2(0.0, pixel_step.y), base_freq, motion);
-    float h_down   = height_field(mode, v_texCoord - vec2(0.0, pixel_step.y), base_freq, motion);
+    float h_center = height_field(v_texCoord, base_freq, motion);
+    float h_right  = height_field(v_texCoord + vec2(pixel_step.x, 0.0), base_freq, motion);
+    float h_left   = height_field(v_texCoord - vec2(pixel_step.x, 0.0), base_freq, motion);
+    float h_up     = height_field(v_texCoord + vec2(0.0, pixel_step.y), base_freq, motion);
+    float h_down   = height_field(v_texCoord - vec2(0.0, pixel_step.y), base_freq, motion);
 
     float gx = h_right - h_left;
     float gy = h_down - h_up;
     float gradient = sqrt(gx * gx + gy * gy);
 
     // Stucco uses stronger shading for more pronounced bumps
-    float gain = (mode == 4) ? SHADE_GAIN * 0.5 : SHADE_GAIN * 0.25;
+#if MODE == 4
+    float gain = SHADE_GAIN * 0.5;
+#else
+    float gain = SHADE_GAIN * 0.25;
+#endif
     float shade_base = clamp01(gradient * gain);
 
     float highlight_mix = clamp01((shade_base * shade_base) * 1.25);

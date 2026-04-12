@@ -15,7 +15,12 @@ export default new Effect({
     mode: {
         type: "int",
         default: 3,
-        uniform: "mode",
+        // Compile-time define. height_field() is called 5 times per pixel
+        // (center + 4 neighbors for the gradient). With a runtime int
+        // dispatch ANGLE inlines all 5 variant height functions at each call
+        // site — 25 variant inlines per pixel. Baking MODE emits only one
+        // variant body per compiled program.
+        define: "MODE",
         choices: {
             "canvas": 0,
             "crosshatch": 1,

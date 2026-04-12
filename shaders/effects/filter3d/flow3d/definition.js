@@ -91,7 +91,10 @@ export default new Effect({
     "behavior": {
       "type": "int",
       "default": 1,
-      "uniform": "behavior",
+      // Compile-time define. 7-way computeRotationBias() dispatch in the
+      // agent pass, hit once per agent per frame. Same Knob 2 rationale as
+      // the rest of the series.
+      "define": "BEHAVIOR",
       "choices": {
         "none": 0,
         "obedient": 1,
@@ -204,7 +207,7 @@ export default new Effect({
         inputGeoTex: "inputGeo"
       },
       uniforms: {
-        behavior: "behavior",
+        // behavior was here — now compile-time BEHAVIOR (see globals.behavior.define)
         density: "density",
         stride: "stride",
         strideDeviation: "strideDeviation",

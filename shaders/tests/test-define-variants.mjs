@@ -113,6 +113,25 @@ const SUITES = [
             { param: 'outputMode', values: [0, 1, 2, 3, 4] },
         ],
     },
+    {
+        effect: 'filter.texture',
+        // Texture overlay filter has a 5-way height_field dispatch baked into
+        // the shader via MODE. All 5 variants are exercised so every #elif
+        // branch is exercised.
+        variants: [
+            { param: 'mode', values: [0, 1, 2, 3, 4] },
+        ],
+    },
+    {
+        effect: 'filter3d.flow3d',
+        // BEHAVIOR drives the computeRotationBias dispatch in the agent pass.
+        // All 7 legal behavior values (0=none, 1=obedient, 2=crosshatch,
+        // 3=unruly, 4=chaotic, 5=randomMix, 10=meandering) get their own
+        // compiled program.
+        variants: [
+            { param: 'behavior', values: [0, 1, 2, 3, 4, 5, 10] },
+        ],
+    },
 ]
 
 async function main() {

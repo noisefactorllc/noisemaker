@@ -10,6 +10,15 @@ precision highp int;
  * - state3: [age, initialized, strideRand, 0] - age, init flag, per-agent stride random
  */
 
+// BEHAVIOR is a compile-time define injected by the runtime (see
+// definition.js `globals.behavior.define`). Same Knob 2 rationale as the
+// rest of the series: the 7-way computeRotationBias() dispatch was a
+// runtime uniform int that HLSL inlined at every call site (once per agent
+// per frame). Baking it lets ANGLE emit only one rotation-bias branch.
+#ifndef BEHAVIOR
+#define BEHAVIOR 1
+#endif
+
 uniform sampler2D stateTex1;
 uniform sampler2D stateTex2;
 uniform sampler2D stateTex3;
@@ -19,7 +28,6 @@ uniform float strideDeviation;
 uniform float kink;
 uniform float time;
 uniform float lifetime;
-uniform float behavior;
 uniform float density;
 uniform int volumeSize;
 
@@ -99,42 +107,43 @@ float normalized_sine(float value) {
     return (sin(value) + 1.0) * 0.5;
 }
 
-// Compute rotation bias based on behavior mode - direct port from 2D flow
-// For 3D, we use this for azimuthal angle, same logic as 2D
-float computeRotationBias(int behaviorMode, float baseHeading, float baseRotRand, float time, int agentIndex, int totalAgents) {
-    if (behaviorMode <= 0) {
-        return 0.0;
-    } else if (behaviorMode == 1) {
-        // Obedient: all same direction
+// Compute rotation bias based on BEHAVIOR compile-time define - direct port
+// from 2D flow. For 3D, we use this for azimuthal angle, same logic as 2D.
+// Only the active BEHAVIOR branch compiles into the pipeline.
+float computeRotationBias(float baseHeading, float baseRotRand, float time, int agentIndex, int totalAgents) {
+#if BEHAVIOR <= 0
+    return 0.0;
+#elif BEHAVIOR == 1
+    // Obedient: all same direction
+    return baseHeading;
+#elif BEHAVIOR == 2
+    // Crosshatch: 4 cardinal directions (same as 2D)
+    return baseHeading + floor(baseRotRand * 4.0) * RIGHT_ANGLE;
+#elif BEHAVIOR == 3
+    // Unruly: small deviation from base
+    return baseHeading + (baseRotRand - 0.5) * 0.25;
+#elif BEHAVIOR == 4
+    // Chaotic: random direction
+    return baseRotRand * TAU;
+#elif BEHAVIOR == 5
+    // Random Mix: divide agents into 4 quarters
+    int quarterSize = max(1, totalAgents / 4);
+    int band = agentIndex / quarterSize;
+    if (band <= 0) {
         return baseHeading;
-    } else if (behaviorMode == 2) {
-        // Crosshatch: 4 cardinal directions (same as 2D)
+    } else if (band == 1) {
         return baseHeading + floor(baseRotRand * 4.0) * RIGHT_ANGLE;
-    } else if (behaviorMode == 3) {
-        // Unruly: small deviation from base
+    } else if (band == 2) {
         return baseHeading + (baseRotRand - 0.5) * 0.25;
-    } else if (behaviorMode == 4) {
-        // Chaotic: random direction
-        return baseRotRand * TAU;
-    } else if (behaviorMode == 5) {
-        // Random Mix: divide agents into 4 quarters
-        int quarterSize = max(1, totalAgents / 4);
-        int band = agentIndex / quarterSize;
-        if (band <= 0) {
-            return baseHeading;
-        } else if (band == 1) {
-            return baseHeading + floor(baseRotRand * 4.0) * RIGHT_ANGLE;
-        } else if (band == 2) {
-            return baseHeading + (baseRotRand - 0.5) * 0.25;
-        } else {
-            return baseRotRand * TAU;
-        }
-    } else if (behaviorMode == 10) {
-        // Meandering
-        return normalized_sine((time - baseRotRand) * TAU);
     } else {
         return baseRotRand * TAU;
     }
+#elif BEHAVIOR == 10
+    // Meandering
+    return normalized_sine((time - baseRotRand) * TAU);
+#else
+    return baseRotRand * TAU;
+#endif
 }
 
 void main() {
@@ -234,10 +243,9 @@ void main() {
     vec4 texel = sampleVoxel(ivec3(xi, yi, zi), volSize);
     float indexValue = oklab_l(texel.rgb);
     
-    // Compute rotation bias based on behavior uniform
+    // Compute rotation bias based on BEHAVIOR compile-time define
     float baseHeading = hash(0u) * TAU;
-    int behaviorMode = int(behavior);
-    float rotationBias = computeRotationBias(behaviorMode, baseHeading, rotRand, time, agentIndex, totalAgents);
+    float rotationBias = computeRotationBias(baseHeading, rotRand, time, agentIndex, totalAgents);
     
     // For 3D: azimuth angle (XY plane) - direct extension of 2D angle
     float azimuth = indexValue * TAU * kink + rotationBias;

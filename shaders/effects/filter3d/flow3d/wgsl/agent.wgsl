@@ -13,6 +13,11 @@ struct Outputs {
     @location(2) outState3: vec4<f32>,
 }
 
+// BEHAVIOR is a compile-time const injected by the runtime via injectDefines
+// (see definition.js `globals.behavior.define`). Same fix as the GLSL
+// backend — emits only one rotation-bias branch per compiled program. The
+// old `behavior` binding at @group(0) @binding(9) is removed.
+
 @group(0) @binding(0) var stateTex1: texture_2d<f32>;
 @group(0) @binding(1) var stateTex2: texture_2d<f32>;
 @group(0) @binding(2) var stateTex3: texture_2d<f32>;
@@ -22,7 +27,6 @@ struct Outputs {
 @group(0) @binding(6) var<uniform> kink: f32;
 @group(0) @binding(7) var<uniform> time: f32;
 @group(0) @binding(8) var<uniform> lifetime: f32;
-@group(0) @binding(9) var<uniform> behavior: f32;
 @group(0) @binding(10) var<uniform> volumeSize: i32;
 
 const TAU: f32 = 6.283185307179586;
@@ -125,18 +129,18 @@ fn normalized_sine(value: f32) -> f32 {
     return (sin(value) + 1.0) * 0.5;
 }
 
-fn computeRotationBias(behaviorMode: i32, baseHeading: f32, baseRotRand: f32, time: f32, agentIndex: i32, totalAgents: i32) -> f32 {
-    if (behaviorMode <= 0) {
+fn computeRotationBias(baseHeading: f32, baseRotRand: f32, time: f32, agentIndex: i32, totalAgents: i32) -> f32 {
+    if (BEHAVIOR <= 0) {
         return 0.0;
-    } else if (behaviorMode == 1) {
+    } else if (BEHAVIOR == 1) {
         return baseHeading;
-    } else if (behaviorMode == 2) {
+    } else if (BEHAVIOR == 2) {
         return baseHeading + floor(baseRotRand * 6.0) * (TAU / 6.0);
-    } else if (behaviorMode == 3) {
+    } else if (BEHAVIOR == 3) {
         return baseHeading + (baseRotRand - 0.5) * 0.25;
-    } else if (behaviorMode == 4) {
+    } else if (BEHAVIOR == 4) {
         return baseRotRand * TAU;
-    } else if (behaviorMode == 5) {
+    } else if (BEHAVIOR == 5) {
         let quarterSize = max(1, totalAgents / 4);
         let band = agentIndex / quarterSize;
         if (band <= 0) {
@@ -148,7 +152,7 @@ fn computeRotationBias(behaviorMode: i32, baseHeading: f32, baseRotRand: f32, ti
         } else {
             return baseRotRand * TAU;
         }
-    } else if (behaviorMode == 10) {
+    } else if (BEHAVIOR == 10) {
         return normalized_sine((time - baseRotRand) * TAU);
     } else {
         return baseRotRand * TAU;
@@ -262,8 +266,7 @@ fn main(@builtin(position) position: vec4<f32>) -> Outputs {
     }
     
     let baseHeading = hash(0u) * TAU;
-    let behaviorMode = i32(behavior);
-    let rotationBias = computeRotationBias(behaviorMode, baseHeading, rotRand, time, agentIndex, totalAgents);
+    let rotationBias = computeRotationBias(baseHeading, rotRand, time, agentIndex, totalAgents);
     
     theta = theta + indexValue * TAU * kink * 0.1 + rotationBias * 0.1;
     phi = phi + (indexValue - 0.5) * PI * kink * 0.1;

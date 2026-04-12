@@ -1,6 +1,13 @@
 // Texture effect: generate a height field from one of several texture modes,
 // derive shading from the gradient, then blend back into the source pixels.
 // Modes: 0=canvas, 1=crosshatch, 2=halftone, 3=paper, 4=stucco
+//
+// MODE is a compile-time const injected by the runtime via injectDefines
+// (see definition.js `globals.mode.define`). Same fix as the GLSL backend —
+// collapses the 5-way height_field dispatch so Dawn constant-folds it and
+// emits only one variant body per compiled program. The old `mode` binding
+// at @group(0) @binding(2) is removed; bindings 3/4/5 keep their original
+// indices (WGSL binding numbers don't need to be contiguous).
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
@@ -9,7 +16,6 @@ struct VertexOutput {
 
 @group(0) @binding(0) var u_sampler: sampler;
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
-@group(0) @binding(2) var<uniform> mode: i32;
 @group(0) @binding(3) var<uniform> alpha: f32;
 @group(0) @binding(4) var<uniform> scale: f32;
 @group(0) @binding(5) var<uniform> time: f32;
@@ -163,12 +169,13 @@ fn height_crosshatch(uv: vec2<f32>, base_freq: vec2<f32>) -> f32 {
     return clamp01(d1 * d2);
 }
 
-// Dispatch to the active mode's height function
-fn height_field(m: i32, uv: vec2<f32>, base_freq: vec2<f32>, motion: f32) -> f32 {
-    if (m == 0) { return height_canvas(uv, base_freq, motion); }
-    if (m == 1) { return height_crosshatch(uv, base_freq); }
-    if (m == 2) { return height_halftone(uv, base_freq); }
-    if (m == 4) { return height_stucco(uv, base_freq, motion); }
+// Dispatch to the active mode's height function — single variant selected
+// at compile time by the MODE const (Dawn constant-folds).
+fn height_field(uv: vec2<f32>, base_freq: vec2<f32>, motion: f32) -> f32 {
+    if (MODE == 0) { return height_canvas(uv, base_freq, motion); }
+    if (MODE == 1) { return height_crosshatch(uv, base_freq); }
+    if (MODE == 2) { return height_halftone(uv, base_freq); }
+    if (MODE == 4) { return height_stucco(uv, base_freq, motion); }
     return height_paper(uv, base_freq, motion);  // 3 = paper (default)
 }
 
@@ -185,16 +192,16 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Paper and stucco use different base frequencies
     var freq_scale: f32 = 24.0;
-    if (mode == 4) { freq_scale = 48.0; }
+    if (MODE == 4) { freq_scale = 48.0; }
     let base_freq: vec2<f32> = freq_for_shape(freq_scale * (10.01 - scale), dims);
     let motion: f32 = time * f32(Z_LOOP);
 
     // Sample height field at center and 4 neighbors for gradient
-    let h_center: f32 = height_field(mode, in.uv, base_freq, motion);
-    let h_right: f32 = height_field(mode, in.uv + vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
-    let h_left: f32 = height_field(mode, in.uv - vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
-    let h_up: f32 = height_field(mode, in.uv + vec2<f32>(0.0, pixel_step.y), base_freq, motion);
-    let h_down: f32 = height_field(mode, in.uv - vec2<f32>(0.0, pixel_step.y), base_freq, motion);
+    let h_center: f32 = height_field(in.uv, base_freq, motion);
+    let h_right: f32 = height_field(in.uv + vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
+    let h_left: f32 = height_field(in.uv - vec2<f32>(pixel_step.x, 0.0), base_freq, motion);
+    let h_up: f32 = height_field(in.uv + vec2<f32>(0.0, pixel_step.y), base_freq, motion);
+    let h_down: f32 = height_field(in.uv - vec2<f32>(0.0, pixel_step.y), base_freq, motion);
 
     let gx: f32 = h_right - h_left;
     let gy: f32 = h_down - h_up;
@@ -202,7 +209,7 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
 
     // Stucco uses stronger shading for more pronounced bumps
     var gain: f32 = SHADE_GAIN * 0.25;
-    if (mode == 4) { gain = SHADE_GAIN * 0.5; }
+    if (MODE == 4) { gain = SHADE_GAIN * 0.5; }
     let shade_base: f32 = clamp01(gradient * gain);
 
     let highlight_mix: f32 = clamp01((shade_base * shade_base) * 1.25);
