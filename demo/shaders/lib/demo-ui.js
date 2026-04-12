@@ -1568,7 +1568,7 @@ noise(ridges: true)
     tex: read(o0),
     pointSize: 40,
     sizeVariation: 50,
-    rotationVariation: 50
+    rotationVar: 50
   )
   .write(o1)
 
