@@ -71,6 +71,17 @@ const SUITES = [
     },
     {
         effect: 'classicNoisedeck.bitEffects',
+        // Coverage note: this walk is additive, not product. `mode` flips to 1
+        // in the first sub-walk, and the subsequent FORMULA/COLOR_SCHEME/INTERP
+        // iterations all run with mode stuck at 1 (the last value in its
+        // list). That still exercises every #elif branch in those cascades for
+        // compile-correctness because bitField() and bitValue() live at file
+        // scope — the GLSL preprocessor selects and compiles the chosen FORMULA
+        // branch regardless of MODE, so the body is reachable by the compiler
+        // even if it's dead at runtime. Same reasoning in reverse for
+        // MASK_FORMULA/MASK_COLOR_SCHEME landing under mode=1 (the live half).
+        // If you reorder this list, preserve that invariant or add an explicit
+        // mode reset between the two halves.
         variants: [
             // mode picks bitField (0) vs bitMask (1) — the outer MODE split
             { param: 'mode', values: [0, 1] },
