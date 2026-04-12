@@ -139,8 +139,8 @@ export default new Effect({
       // Compile-time define. Small 3-way rotation-direction picker.
       define: "DIRECTION",
       choices: {
-        clockwise: 0,
-        counterclock: 1,
+        clockwise: 1,
+        counterclock: 0,
         none: 2
       },
       ui: {
