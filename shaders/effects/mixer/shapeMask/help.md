@@ -14,7 +14,7 @@ Uses a signed distance field to divide the frame into inside and outside regions
 | invert | int | sourceA | sourceA/sourceB | Which source fills the shape interior |
 | shape | int | circle | circle/triangle/square/pentagon/hexagon/flower/ring/star | Shape type |
 | radius | float | 0.7 | 0–1 | Shape size |
-| smoothness | float | 0.01 | 0–0.25 | Edge softness (0 = hard edge) |
+| edgeSmooth | float | 0.01 | 0–0.25 | Edge softness (0 = hard edge) |
 | rotation | float | 0 | -180–180 | Rotation in degrees |
 | posX | float | 0 | -1–1 | Horizontal position offset |
 | posY | float | 0 | -1–1 | Vertical position offset |

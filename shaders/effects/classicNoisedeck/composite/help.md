@@ -10,4 +10,4 @@ Multi-layer compositing
 | blendMode | int | greenscreenAB | colorSplash/greenscreenAB/greenscreenBA/aBBlack/aBColorBlack/aBHue/aBSaturation/aBValue/bABlack/bAColorBlack/bAHue/bASaturation/bAValue/mix/psychedelic/psychedelic2 | Mode |
 | inputColor | color | 0,0,0 | - | Color |
 | range | float | 20 | 0-100 | Range |
-| mixAmt | float | 50 | 0-100 | Mix |
+| mix | float | 50 | 0-100 | Mix |

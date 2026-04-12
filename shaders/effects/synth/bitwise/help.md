@@ -10,13 +10,13 @@ Generates patterns by applying bitwise and arithmetic operations to pixel coordi
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| operation | int | 0 | 0-7 | Bitwise op (0=XOR, 1=AND, 2=OR, 3=NAND, 4=XNOR, 5=MUL, 6=ADD, 7=SUB) |
+| operation | int | xor | xor/and/or/nand/xnor/mul/add/sub | Bitwise operation |
 | scale | float | 50 | 1-100 | Cell size (higher = bigger cells) |
 | offsetX | int | 0 | -256-256 | Horizontal coordinate offset |
 | offsetY | int | 0 | -256-256 | Vertical coordinate offset |
-| mask | int | 255 | - | Bit depth mask (8-bit through 1-bit) |
+| mask | int | bit8 | bit8/bit7/bit6/bit5/bit4/bit3/bit2/bit1 | Bit depth mask |
 | seed | int | 0 | 0-255 | XORs into coordinates for pattern variation |
-| colorMode | int | 0 | 0-1 | Output mode (0=Mono, 1=RGB with channel shifts) |
+| colorMode | int | mono | mono/rgb/hsv | Color mode |
 | speed | int | 0 | -5-5 | Animation speed (panning) |
 
 ## Operations

@@ -44,7 +44,7 @@ Professional multi-stage color grading pipeline
 | vignetteMidpoint | float | 0.5 | 0-1 | Vignette Midpoint |
 | vignetteRoundness | float | 0 | -1-1 | Vignette Roundness |
 | vignetteFeather | float | 0.5 | 0-1 | Vignette Feather |
-| vignetteHighlightProtect | float | 0 | 0-1 | Highlight Protect |
+| vigHiProtect | float | 0 | 0-1 | Highlight Protect |
 
 ## Notes
 

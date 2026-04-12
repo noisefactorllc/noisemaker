@@ -9,15 +9,15 @@
 | volumeSize | int | x32 | x16/x32/x64/x128 | Volume size |
 | seed | int | 1 | 0-100 | - |
 | iterations | int | 8 | 1-32 | Iterations |
-| feed | float | 55 | 10-110 | Feed rate |
+| feed | float | 110 | 10-110 | Feed rate |
 | kill | float | 62 | 45-70 | Kill rate |
-| rate1 | float | 100 | 50-120 | Diffuse rate A |
-| rate2 | float | 50 | 20-80 | Diffuse rate B |
+| rate1 | float | 120 | 50-120 | Diffuse rate A |
+| rate2 | float | 30 | 20-80 | Diffuse rate B |
 | speed | int | 100 | 10-200 | Sim speed |
 | colorMode | int | mono | mono/gradient | Color mode |
 | resetState | boolean | false | - | State |
-| source vol | volume | vol0 | - | Source volume |
-| source feo | geometry | geo0 | - | Source geometry |
+| source | volume | vol0 | - | Source volume |
+| geoSource | geometry | geo0 | - | Source geometry |
 | weight | float | 0 | 0-100 | Input weight |
 
 ## Notes

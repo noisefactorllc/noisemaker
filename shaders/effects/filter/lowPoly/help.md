@@ -8,7 +8,7 @@ Low-polygon style render using Voronoi cells
 |-----------|------|---------|-------|-------------|
 | scale | int | 50 | 2-100 | Cell size |
 | seed | int | 1 | 1-100 | Random seed for cell layout |
-| mode | int | 1 | 0-3 | Rendering mode (0=Flat, 1=Edges, 2=Distance2, 3=Distance3) |
+| mode | int | edges | flat/edges/distance2/distance3 | Rendering mode |
 | edgeStrength | float | 0.15 | 0-1 | Strength of edge/distance effect |
 | edgeColor | color | 0,0,0 | - | Edge color (edges mode only) |
 | alpha | float | 1.0 | 0-1 | Blend with original input |
@@ -16,10 +16,10 @@ Low-polygon style render using Voronoi cells
 
 ## Modes
 
-- **Flat (0)**: Pure solid cell color, no edges
-- **Edges (1)**: Solid cell color with darkened edges toward edge color
-- **Distance2 (2)**: 2nd-nearest Voronoi distance multiplied with cell color — shows cell edge structure
-- **Distance3 (3)**: 3rd-nearest Voronoi distance multiplied with cell color — shows ridge/intersection patterns
+- **flat**: Pure solid cell color, no edges
+- **edges**: Solid cell color with darkened edges toward edge color
+- **distance2**: 2nd-nearest Voronoi distance multiplied with cell color — shows cell edge structure
+- **distance3**: 3rd-nearest Voronoi distance multiplied with cell color — shows ridge/intersection patterns
 
 ## Animation
 

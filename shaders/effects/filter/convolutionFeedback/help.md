@@ -10,7 +10,7 @@ Convolution feedback with blur and sharpen
 | sharpenAmount | float | 2.5 | 0-3 | Sharpen Amount |
 | blurRadius | int | 4 | 1-10 | Blur Radius |
 | blurAmount | float | 0.5 | 0-1 | Blur Amount |
-| intensity | float | 0.55 | 0-1 | Feedback Intensity |
+| intensity | float | 0.75 | 0-1 | Feedback Intensity |
 | resetState | boolean | false | - | State |
 
 ## Notes

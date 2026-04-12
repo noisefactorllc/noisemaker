@@ -6,7 +6,7 @@ Prismatic aberration with hue controls
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| aberrationAmt | float | 50 | 0-100 | Aberration |
+| aberration | float | 50 | 0-100 | Aberration |
 | modulate | boolean | false | - | Modulate |
 | hueRotation | float | 0 | -180-180 | Hue rotate |
 | hueRange | float | 0 | 0-100 | Hue range |

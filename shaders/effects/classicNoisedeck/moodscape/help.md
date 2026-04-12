@@ -12,7 +12,7 @@ Refracted value noise with multiple color modes
 | refractAmt | float | 5 | 0-100 | Refract |
 | ridges | boolean | true | - | Ridges |
 | wrap | boolean | true | - | Wrap |
-| seed | float | 44 | 0-100 | Seed |
+| seed | int | 44 | 0-100 | Seed |
 | colorMode | int | hsv | mono/rgb/hsv/oklab | Color Mode |
 | hueRotation | float | 180 | 0-360 | Hue Rotation |
 | hueRange | float | 25 | 0-100 | Hue Range |

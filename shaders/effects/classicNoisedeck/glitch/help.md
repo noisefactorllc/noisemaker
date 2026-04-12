@@ -7,7 +7,7 @@ Digital glitch effects
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | glitchiness | float | 0 | 0-100 | Glitchiness |
-| aberrationAmt | float | 0 | 0-100 | Aberration |
+| aberration | float | 0 | 0-100 | Aberration |
 | xChonk | int | 1 | 1-100 | Width |
 | yChonk | int | 1 | 1-100 | Height |
 | seed | int | 1 | 1-100 | Seed |

@@ -10,7 +10,7 @@ Uses one input as a mask to generate an offset, blurred shadow that composites o
 |-----------|------|---------|-------|-------------|
 | tex | surface | none | — | Source B input surface |
 | maskSource | int | sourceA | dropdown | Which input provides the mask shape (sourceA or sourceB) |
-| channel | int | red | dropdown | Channel to read from mask (red, green, blue, alpha) |
+| sourceChannel | int | red | dropdown | Channel to read from mask (red, green, blue, alpha) |
 | threshold | float | 0.5 | 0-1 | Cutoff for the mask — values above become shadow, below are ignored |
 | color | color | black | — | Shadow or glow color |
 | offsetX | float | 0.1 | -1-1 | Horizontal shadow offset as fraction of width |

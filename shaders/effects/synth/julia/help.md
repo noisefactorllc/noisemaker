@@ -23,4 +23,4 @@ Julia set explorer with deep zoom, distance estimation, and curated c-value gall
 | lightAngle | float | 45 | 0–360 | Normal map light angle |
 | invert | boolean | false | - | Invert output |
 | zoomSpeed | float | 0 | 0–5 | Auto-zoom speed |
-| zoomDepth | float | 4 | 1–7 | Zoom depth (powers of 10) |
+| zoomDepth | float | 0 | 0–14 | Zoom depth (powers of 10) |

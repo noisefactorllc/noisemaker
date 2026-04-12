@@ -7,4 +7,4 @@ Alpha transparency blend
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | tex | surface | none | - | Source B |
-| mixAmt | float | 0 | -100-100 | Mix |
+| mix | float | 0 | -100-100 | Mix |

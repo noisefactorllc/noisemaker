@@ -1,6 +1,6 @@
 # shapes
 
-Geometric shapes generator
+Interference patterns from geometric shapes
 
 ## Parameters
 

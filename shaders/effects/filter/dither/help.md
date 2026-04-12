@@ -6,10 +6,10 @@ Ordered dithering with classic patterns and retro color palettes
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| type | choice | bayer 8x8 | bayer 2x2, bayer 4x4, bayer 8x8, dot, line, crosshatch, noise | Dithering pattern type |
+| type | int | bayer4x4 | bayer2x2/bayer4x4/bayer8x8/dot/line/crosshatch/noise | Dithering pattern type |
 | threshold | float | 0 | -0.5 to 0.5 | Threshold bias/offset for dither pattern |
-| pattern scale | float | 1 | 1-8 | Scale of the dither pattern on screen |
-| palette | choice | monochrome | input 1-bit, input 2-bit, monochrome, dot matrix green, amber monitor, pico8, commodore 64, CGA palette 1, zx spectrum, apple II, EGA | Color palette for quantization |
+| matrixScale | int | 2 | 1-8 | Scale of the dither pattern on screen |
+| palette | int | input2bit | input1bit/input2bit/monochrome/dotMatrixGreen/amberMonitor/pico8/commodore64/cgaPalette1/zxSpectrum/appleII/ega | Color palette for quantization |
 | mix | float | 1 | 0-1 | Blend between original input (0) and dithered output (1) |
 
 ## Dither Types

@@ -9,33 +9,33 @@ scales and blend modes to produce complex moiré and interference patterns.
 ### General
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| blend | int | 0 | 0-3 | Blend mode: add (0), max (1), mix (2), rgb (3) |
-| smoothing | int | 0 | 0-3 | Edge smoothing amount |
+| blend | int | add | add/max/mix/rgb | Blend mode |
+| smoothing | float | 0 | 0-3 | Edge smoothing amount |
 
 ### Animation
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| animMode | int | 0 | 0-2 | Animation mode: shift (0), pan (1), phase (2) |
+| animMode | int | shift | shift/pan/phase | Animation mode |
 | speed | int | 1 | 0-5 | Animation speed |
 
 ### Layer 1
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| shape1 | int | 0 | 0-2 | Shape type: plus (0), square (1), diamond (2) |
+| shape1 | int | plus | plus/square/diamond | Shape type |
 | scale1 | float | 18.0 | 0.1-20 | Scale/frequency of the first layer |
 | repeat1 | float | 5.0 | 0-20 | Repetition multiplier for interference patterns |
 
 ### Layer 2
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| shape2 | int | 1 | 0-2 | Shape type: plus (0), square (1), diamond (2) |
+| shape2 | int | square | plus/square/diamond | Shape type |
 | scale2 | float | 8.0 | 0.1-10 | Scale/frequency of the second layer |
 | repeat2 | float | 8.0 | 0-10 | Repetition multiplier for interference patterns |
 
 ### Layer 3
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| shape3 | int | 2 | 0-2 | Shape type: plus (0), square (1), diamond (2) |
+| shape3 | int | diamond | plus/square/diamond | Shape type |
 | scale3 | float | 1.5 | 0.1-20 | Scale/frequency of the third layer |
 | repeat3 | float | 1.5 | 0-5 | Repetition multiplier for interference patterns |
 

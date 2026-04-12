@@ -7,7 +7,7 @@
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | volumeSize | int | x64 | x16/x32/x64/x128 | Volume size |
-| fractalType | int | mandelbulb | mandelbulb/mandelcube/juliaBulb/juliaCube | Type |
+| type | int | mandelbulb | mandelbulb/mandelcube/juliaBulb/juliaCube | Type |
 | power | float | 8 | 2-16 | Power |
 | iterations | int | 10 | 1-20 | Iterations |
 | bailout | float | 2 | 1-8 | Bailout |

@@ -21,9 +21,8 @@ Generates a moving volume-of-interest (VOI) that samples fractal space around a 
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| `fractalType` | choice | mandelbox | mandelbulb, mandelbox | Fractal formula |
-| `power` | float | 8.0 | 2-16 | Mandelbulb power exponent |
-| `boxScale` | float | -1.5 | -3 to 3 | Mandelbox scale (negative = interesting interiors) |
+| `type` | int | mandelbulb | mandelbulb/mandelbox | Fractal type |
+| `power` | float | 8.0 | -3-16 | Mandelbulb power exponent |
 | `iterations` | int | 12 | 4-24 | Fractal iteration depth |
 | `bailout` | float | 4.0 | 1-16 | Escape radius |
 
@@ -59,12 +58,12 @@ flythrough3d().render3d().out(o0)
 
 Fast Mandelbulb flight:
 ```
-flythrough3d(fractalType: mandelbulb, speed: 0.5, power: 8).render3d().out(o0)
+flythrough3d(type: mandelbulb, speed: 0.5, power: 8).render3d().out(o0)
 ```
 
 Deep Mandelbox interior:
 ```
-flythrough3d(fractalType: mandelbox, boxScale: -2.0, voiSize: 0.3, interiorHaze: 0.5).render3d().out(o0)
+flythrough3d(type: mandelbox, voiSize: 0.3).render3d().out(o0)
 ```
 
 Voxel-style rendering:

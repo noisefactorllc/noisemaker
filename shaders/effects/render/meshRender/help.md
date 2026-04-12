@@ -33,16 +33,14 @@ meshLoader().meshRender(scale: 1.5, offsetY: -0.5).write(o0)
 ### Lighting
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| lightX | float | 0.5 | Light direction X |
-| lightY | float | 0.7 | Light direction Y |
-| lightZ | float | 0.5 | Light direction Z |
+| lightDirection | vec3 | 0.5,0.7,0.5 | Light direction |
 
 ### Appearance
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | meshColor | color | [0.8, 0.8, 0.8] | Mesh surface color |
 | bgColor | color | [0.1, 0.1, 0.15] | Background color |
-| wireframe | choice | solid | Render mode: solid or wireframe |
+| wireframe | int | solid | Render mode: solid or wireframe |
 
 ## Draw Mode
 

@@ -15,8 +15,8 @@ Each particle is rendered as a quad with a procedural SDF shape or external text
 | depositOpacity | float | 20 | 1-100 | Deposit opacity — scales particle contribution to reduce additive blowout |
 | pointSize | float | 8 | 1-64 | Point size |
 | sizeVariation | float | 0 | 0-100 | Size variation |
-| rotationVariation | float | 0 | 0-100 | Rotation variation |
-| seed | float | 42 | 0-1000 | Seed |
+| rotationVar | float | 0 | 0-100 | Rotation variation |
+| seed | int | 42 | 0-1000 | Seed |
 | density | float | 50 | 0-100 | Density |
 | intensity | float | 75 | 0-100 | Trail intensity |
 | inputIntensity | float | 10.15 | 0-100 | Input mix |

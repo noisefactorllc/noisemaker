@@ -10,15 +10,15 @@ Generates various geometric patterns including stripes, checkerboard, grid, dots
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| patternType | int | 7 | 0-11 | Pattern type |
+| type | int | stripes | checkerboard/concentricRings/dots/grid/hearts/hexagons/radialLines/spiral/stripes/triangularGrid/waves/zigzag | Pattern type |
 | scale | float | 15 | 1-20 | Scale/size of pattern elements |
 | thickness | float | 0.5 | 0-1 | Line/shape thickness |
 | smoothness | float | 0.02 | 0-1 | Edge softness (0=sharp, 1=soft) |
 | rotation | float | 0 | -180-180 | Rotation angle in degrees |
-| animation | int | 0 | 0-3 | Animation mode (0=None, 1=PanX, 2=PanY, 3=Rotate) |
+| animation | int | none | none/panX/panY/rotate | Animation mode |
 | speed | int | 1 | -5-5 | Animation speed and direction |
-| fgColor | vec3 | 1,1,1 | - | Foreground color |
-| bgColor | vec3 | 0,0,0 | - | Background color |
+| fgColor | color | 1,1,1 | - | Foreground color |
+| bgColor | color | 0,0,0 | - | Background color |
 
 ## Pattern Types
 

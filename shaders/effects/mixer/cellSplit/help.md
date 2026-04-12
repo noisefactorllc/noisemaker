@@ -16,7 +16,7 @@ Generates a Voronoi diagram and randomly assigns each cell to show either source
 | edgeWidth | float | 0.08 | 0-0.2 | Width of visible edge lines at cell boundaries |
 | seed | int | 1 | 1-100 | Random seed for cell layout and assignment |
 | speed | int | 1 | 0-5 | Animation speed |
-| invert | int | off | off/on | Swap source assignment |
+| invert | int | sourceA | sourceA/sourceB | Swap source assignment |
 
 ## Notes
 

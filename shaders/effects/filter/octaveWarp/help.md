@@ -15,5 +15,5 @@ For each octave, generates noise at increasing frequencies and uses it to displa
 | displacement | float | 0.2 | 0-1 | Displacement amount |
 | speed | int | 1 | 0-5 | Animation speed |
 | seed | int | 1 | 1-100 | Random seed for noise pattern |
-| wrap | int | 0 | 0-2 | Edge wrapping (0=Mirror, 1=Repeat, 2=Clamp) |
+| wrap | int | mirror | mirror/repeat/clamp | Edge wrapping |
 | antialias | boolean | true | on/off | 4x rotated-grid supersampling |

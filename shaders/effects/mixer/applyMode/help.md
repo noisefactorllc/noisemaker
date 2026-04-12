@@ -8,4 +8,4 @@ Apply brightness, hue, or saturation from source B to source A
 |-----------|------|---------|-------|-------------|
 | tex | surface | none | - | Source B |
 | mode | int | brightness | brightness/hue/saturation | Mode |
-| mixAmt | float | 0 | -100-100 | Mix |
+| mix | float | 0 | -100-100 | Mix |

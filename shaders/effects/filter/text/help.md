@@ -13,8 +13,8 @@ Overlay text onto the image
 | posY | float | 0.5 | 0-1 | - |
 | rotation | float | 0 | -180-180 | - |
 | color | color | #ffffff | - | - |
-| bgColor | color | #000000 | - | - |
-| bgOpacity | float | 0 | 0-1 | - |
+| matteColor | color | #000000 | - | - |
+| matteOpacity | float | 0 | 0-1 | - |
 | justify | string | center | left/center/right | - |
 
 ## Notes

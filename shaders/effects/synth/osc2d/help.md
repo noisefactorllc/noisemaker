@@ -7,7 +7,7 @@
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
 | oscType | member | oscType.sine | - | - |
-| frequency | int | 5 | 1-32 | - |
+| freq | int | 5 | 1-32 | - |
 | speed | int | 4 | 0-10 | - |
 | rotation | float | 0 | -180-180 | - |
 | seed | int | 0 | 0-1000 | Seed |

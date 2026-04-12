@@ -9,8 +9,8 @@ Cellular noise patterns
 | shape | int | circle | circle/diamond/hexagon/octagon/square/triangle | Shape |
 | scale | float | 75 | 1-100 | Noise scale |
 | cellScale | float | 87 | 1-100 | Cell scale |
-| cellSmooth | float | 11 | 0-100 | Cell smooth |
-| cellVariation | float | 50 | 0-100 | Cell variation |
+| smooth | float | 11 | 0-100 | Cell smooth |
+| variation | float | 50 | 0-100 | Cell variation |
 | speed | int | 1 | 0-5 | Speed |
 | paletteMode | int | 4 | - | - |
 | seed | int | 1 | 1-100 | Seed |
@@ -24,5 +24,5 @@ Cellular noise patterns
 | repeatPalette | int | 1 | 1-10 | Repeat palette |
 | palettePhase | vec3 | 1,1,1 | - | Palette phase |
 | tex | surface | none | - | Texture |
-| influence | int | warp | add/divide/min/max/mod/multiply/subtract/warp | Texture influence |
-| input weight | float | 0 | 0-100 | Texture weight |
+| texInfluence | int | warp | add/divide/min/max/mod/multiply/subtract/warp | Texture influence |
+| texIntensity | float | 0 | 0-100 | Texture weight |

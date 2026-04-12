@@ -19,8 +19,8 @@ Uses a three-pass approach:
 | edgeWidth | int | 1 | 0-5 | Width |
 | edgeThreshold | float | 0.15 | 0.01-1 | Threshold |
 | edgeColor | color | 0,0,0 | - | Color |
-| lightDir | vec3 | 0.5,0.5,1 | - | Light Direction |
-| shading | float | 0 | 0-1 | Shading Strength |
+| lightDirection | vec3 | 0.5,0.5,1 | - | Light Direction |
+| strength | float | 0 | 0-1 | Shading Strength |
 | mix | float | 1 | 0-1 | Mix |
 
 ## Notes

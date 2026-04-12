@@ -25,4 +25,4 @@ Implements the Gray-Scott model of reaction-diffusion, producing organic, self-o
 | rate2 | float | 22 | 20-50 | Rate 2 value |
 | iterations | int | 8 | 1-32 | Iterations |
 | weight | float | 0 | 0-100 | Input weight |
-| intensity | float | 0 | 0-100 | Input mix |
+| inputIntensity | float | 0 | 0-100 | Input mix |

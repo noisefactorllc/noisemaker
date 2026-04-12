@@ -1,6 +1,6 @@
 # bitEffects
 
-Bit-crushing and digital artifacts
+Bit field and bit mask effects
 
 ## Parameters
 
@@ -13,7 +13,7 @@ Bit-crushing and digital artifacts
 | colorScheme | int | redGreenAndBlue | blue/cyan/green/magenta/red/white/yellow/blueAndGreen/blueAndRed/blueAndYellow/greenAndMagenta/greenAndRed/redAndCyan/redGreenAndBlue | Colors |
 | interp | int | constant | constant/linear | Blend |
 | scale | float | 75 | 1-100 | Scale |
-| rotation | int | 0 | -180-180 | Rotate |
+| rotation | float | 0 | -180-180 | Rotate |
 | maskFormula | int | invaders | invaders/wideInvaders/glyphs/areciboNumber | Formula |
 | tiles | int | 5 | 1-40 | Tiles |
 | complexity | float | 57 | 1-100 | Complexity |

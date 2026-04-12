@@ -8,7 +8,7 @@ Texture overlay blend. Generates a procedural height field and derives bump-map 
 |-----------|------|---------|-------|-------------|
 | mode | int | paper | canvas/crosshatch/halftone/paper/stucco | Texture type |
 | alpha | float | 0.5 | 0-1 | Blend opacity |
-| scale | float | 1.0 | 0.1-5 | Texture density |
+| scale | float | 1.0 | 0.1-10 | Texture density |
 
 ## Modes
 

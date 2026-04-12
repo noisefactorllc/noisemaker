@@ -12,11 +12,11 @@ Lens distortion simulation
 | loopScale | float | 100 | 1-100 | Loop scale |
 | speed | float | 0 | -100-100 | Speed |
 | mode | int | chromaticRgb | chromaticRgb/prismaticHsv | Mode |
-| aberrationAmt | float | 50 | 0-100 | Aberration |
+| aberration | float | 50 | 0-100 | Aberration |
 | blendMode | int | add | add/alpha | Blend |
 | modulate | boolean | false | - | Modulate |
 | tint | color | 0,0,0 | - | Tint |
-| opacity | float | 0 | 0-100 | Tint opacity |
+| alpha | float | 0 | 0-100 | Tint opacity |
 | hueRotation | float | 0 | 0-360 | Hue rotate |
 | hueRange | float | 0 | 0-100 | Hue range |
 | saturation | float | 0 | -100-100 | Saturation |

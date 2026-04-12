@@ -13,7 +13,7 @@ Uses the luminosity of the depth source texture as a proxy for depth. Pixels wit
 | tex | surface | none | - | Source B |
 | focalDistance | float | 50 | 1-100 | Focal dist |
 | aperture | float | 4 | 1-10 | Aperture |
-| bias | float | 10 | 2-20 | Sample spread |
+| sampleBias | float | 10 | 2-20 | Sample spread |
 | depthSource | int | sourceB | sourceA/sourceB | Depth source |
 
 ## Notes

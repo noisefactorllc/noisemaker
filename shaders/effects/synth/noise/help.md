@@ -10,7 +10,7 @@ Generates procedural value noise with various interpolation algorithms including
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| noiseType | int | simplex | constant/linear/hermite/catmullRom3x3/catmullRom4x4/bSpline3x3/bSpline4x4/simplex/sine | Noise type |
+| type | int | simplex | constant/linear/hermite/catmullRom3x3/catmullRom4x4/bSpline3x3/bSpline4x4/simplex/sine | Noise type |
 | octaves | int | 2 | 1-8 | Octaves |
 | scaleX | float | 75 | 1-100 | Horiz scale |
 | scaleY | float | 75 | 1-100 | Vert scale |

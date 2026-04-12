@@ -10,9 +10,9 @@ Generates procedural noise by scattering Gabor kernels (windowed cosines) across
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| scale | float | 50 | 1-100 | Spatial frequency of the noise |
+| scale | float | 75 | 1-100 | Spatial frequency of the noise |
 | orientation | float | 0 | -180-180 | Dominant grain direction in degrees |
-| bandwidth | float | 50 | 1-100 | Kernel width — lower values give sharper, more defined patterns |
+| bandwidth | float | 75 | 1-100 | Kernel width — lower values give sharper, more defined patterns |
 | isotropy | float | 0 | 0-100 | 0 = fully directional, 100 = random orientations per kernel |
 | density | int | 3 | 1-8 | Number of impulse points per grid cell |
 | octaves | int | 1 | 1-5 | Fractal layering — each octave adds finer detail |

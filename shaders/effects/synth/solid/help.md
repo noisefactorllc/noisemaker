@@ -6,5 +6,5 @@ Solid color fill
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| color | color | [1, 1, 1] | - | Color |
-| alpha | float | 0.5 | 0-1 | Opacity (0 = transparent, 1 = opaque) |
+| color | color | [0.5, 0.5, 0.5] | - | Color |
+| alpha | float | 1.0 | 0-1 | Opacity (0 = transparent, 1 = opaque) |

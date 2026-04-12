@@ -6,7 +6,7 @@ Spiral distortion
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| strength | float | 25 | -100-100 | Strength |
+| strength | float | -100 | -100-100 | Strength |
 | speed | int | 0 | -5-5 | Speed |
 | rotation | float | 0 | -180-180 | Rotation |
 | wrap | int | mirror | mirror/repeat/clamp | Wrap |

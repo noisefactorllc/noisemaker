@@ -9,23 +9,23 @@ Universal 3D volume raymarcher with advanced lighting controls
 | volumeSize | int | v64 | v16/v32/v64/v128 | Volume resolution (inherited from upstream) |
 | shape | int | cube | cube/sphere | Bounding shape for the volume |
 | threshold | float | 0.5 | 0-1 | Surface threshold |
-| invert thresh | boolean | false | - | Invert threshold |
+| invert | boolean | false | - | Invert threshold |
 | orbitSpeed | int | 1 | -5 to 5 | Volume rotation speed |
-| cameraPos | vec3 | 0,0.1,0.7 | -1 to 1 | Camera position (scaled 5x, 0,0,0 = center) |
-| bgColor | vec3 | 0.02,0.02,0.02 | - | Background color |
+| cameraPosition | vec3 | 0,0.1425,1.0 | -1 to 1 | Camera position (scaled 5x, 0,0,0 = center) |
+| bgColor | color | 0,0,0 | - | Background color |
 | bgAlpha | float | 1 | 0-1 | Background alpha |
 
 ### Lighting Parameters
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| lightDir | vec3 | 0.5,0.5,1.0 | - | Direction of the light source |
+| lightDirection | vec3 | 0.5,0.5,1.0 | - | Direction of the light source |
 | diffuseColor | color | 1.0,1.0,1.0 | - | Color of diffuse lighting |
 | diffuseIntensity | float | 0.7 | 0-2 | Intensity of diffuse lighting |
 | specularColor | color | 1.0,1.0,1.0 | - | Color of specular highlights |
 | specularIntensity | float | 0.3 | 0-2 | Intensity of specular highlights |
 | shininess | float | 32 | 1-256 | Specular shininess (higher = tighter highlights) |
-| ambientColor | color | 0.15,0.15,0.15 | - | Ambient light color |
+| ambientColor | color | 0.1,0.1,0.1 | - | Ambient light color |
 | rimIntensity | float | 0.15 | 0-1 | Intensity of rim/fresnel lighting |
 | rimPower | float | 3.0 | 0.5-8 | Rim lighting falloff power |
 

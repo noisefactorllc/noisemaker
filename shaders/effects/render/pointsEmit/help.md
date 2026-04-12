@@ -15,7 +15,7 @@ This is the starting point for all agent-based effects. It creates and manages t
 |-----------|------|---------|-------|-------------|
 | stateSize | int | x256 | x64/x128/x256/x512/x1024/x2048 | State size |
 | layout | int | random | random/grid/center/ring/clusters/spiral | Layout |
-| seed | float | 0 | 0-100 | Seed |
+| seed | int | 0 | 0-100 | Seed |
 | attrition | float | 0 | 0-10 | Attrition |
 | resetState | boolean | false | - | State |
 

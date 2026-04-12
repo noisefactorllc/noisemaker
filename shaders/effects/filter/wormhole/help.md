@@ -13,11 +13,11 @@ Each pixel is scattered to a new position based on its OKLab luminance. The disp
 | kink | float | 1 | 0-5 | Displacement curve intensity |
 | stride | float | 1 | 0-2 | Scatter distance |
 | rotation | float | 0 | -180-180 | Displacement angle offset |
-| wrap | int | 1 | 0-2 | Out-of-bounds handling (0=Mirror, 1=Repeat, 2=Clamp) |
+| wrap | int | repeat | mirror/repeat/clamp | Out-of-bounds handling |
 | alpha | float | 1 | 0-1 | Blend with original |
 
 ## Wrap Modes
 
-- **Mirror (0)**: Pixels that scatter beyond the edge reflect back
-- **Repeat (1)**: Pixels wrap around to the opposite side (default)
-- **Clamp (2)**: Pixels that scatter beyond the edge pile up at the border
+- **mirror**: Pixels that scatter beyond the edge reflect back
+- **repeat**: Pixels wrap around to the opposite side (default)
+- **clamp**: Pixels that scatter beyond the edge pile up at the border

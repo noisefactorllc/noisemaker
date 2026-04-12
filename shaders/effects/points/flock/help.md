@@ -17,7 +17,7 @@ Agents follow classic flocking rules:
 | alignment | float | 1 | 0-5 | Alignment |
 | cohesion | float | 1 | 0-5 | Cohesion |
 | perceptionRadius | float | 50 | 10-200 | Perception |
-| sep radius | float | 25 | 5-100 | Separation radius |
+| separationRadius | float | 25 | 5-100 | Separation radius |
 | maxSpeed | float | 4 | 0.5-10 | Max speed |
 | maxForce | float | 0.3 | 0.01-1 | Max force |
 | boundaryMode | int | wrap | wrap/softWall | Boundary |

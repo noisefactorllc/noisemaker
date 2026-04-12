@@ -16,7 +16,7 @@ Divides the frame using one of nine geometric patterns, showing source A in one 
 | thickness | float | 0.5 | 0-1 | Line/dot thickness |
 | smoothness | float | 0.01 | 0-0.25 | Edge softness (0 = hard edge) |
 | rotation | float | 0 | -180-180 | Rotation in degrees |
-| invert | int | off | off/on | Swap which input appears in each region |
+| invert | int | sourceB | sourceA/sourceB | Swap which input appears in each region |
 
 ## Notes
 
