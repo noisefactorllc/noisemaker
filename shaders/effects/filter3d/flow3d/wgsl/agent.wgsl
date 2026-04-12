@@ -135,7 +135,9 @@ fn computeRotationBias(baseHeading: f32, baseRotRand: f32, time: f32, agentIndex
     } else if (BEHAVIOR == 1) {
         return baseHeading;
     } else if (BEHAVIOR == 2) {
-        return baseHeading + floor(baseRotRand * 6.0) * (TAU / 6.0);
+        // Crosshatch: 4 cardinal directions (PI/2 spacing) to match the 2D
+        // reference in points/flow and the GLSL flow3d backend.
+        return baseHeading + floor(baseRotRand * 4.0) * RIGHT_ANGLE;
     } else if (BEHAVIOR == 3) {
         return baseHeading + (baseRotRand - 0.5) * 0.25;
     } else if (BEHAVIOR == 4) {
@@ -146,7 +148,8 @@ fn computeRotationBias(baseHeading: f32, baseRotRand: f32, time: f32, agentIndex
         if (band <= 0) {
             return baseHeading;
         } else if (band == 1) {
-            return baseHeading + floor(baseRotRand * 6.0) * (TAU / 6.0);
+            // Also 4 cardinal directions for parity with 2D reference.
+            return baseHeading + floor(baseRotRand * 4.0) * RIGHT_ANGLE;
         } else if (band == 2) {
             return baseHeading + (baseRotRand - 0.5) * 0.25;
         } else {
