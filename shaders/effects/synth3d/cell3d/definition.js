@@ -43,6 +43,7 @@ export default new Effect({
         "x64": 64,
         "x128": 128
       },
+      "randChoices": [16, 32, 64],
       "ui": {
         "label": "volume size",
         "control": "dropdown"
