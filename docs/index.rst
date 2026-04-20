@@ -77,7 +77,7 @@ Quick Start
 
 .. code-block:: javascript
 
-    const SHADER_CDN = 'https://shaders.noisedeck.app/0.9.0'
+    const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
     const { CanvasRenderer } = await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
