@@ -56,7 +56,7 @@ Import directly from the Noisemaker CDN. No build step, no vendoring. This is th
 
 .. code-block:: javascript
 
-    const SHADER_CDN = 'https://shaders.noisedeck.app/0'
+    const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
     const { CanvasRenderer, ProgramState, compile, unparse, getEffect } =
         await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
@@ -81,35 +81,35 @@ The CDN exposes three URL shapes for every release. Pick the one that matches ho
    * - URL shape
      - Meaning
      - When to use
-   * - ``shaders.noisedeck.app/0``
-     - Rolling latest within **major 0**. Auto-tracks every minor and patch release (e.g., ``0.10.0`` → ``0.10.1`` → ``0.11.0``) until a ``1.0`` ships, at which point this URL freezes and consumers explicitly migrate to ``/1``.
+   * - ``shaders.noisedeck.app/1``
+     - Rolling latest within **major 1**. Auto-tracks every minor and patch release (e.g., ``1.0.0`` → ``1.0.1`` → ``1.1.0``) until a ``2.0`` ships, at which point this URL freezes and consumers explicitly migrate to ``/2``.
      - Most integrations. No code change needed for minor upgrades.
-   * - ``shaders.noisedeck.app/0.10``
-     - Rolling latest within the **0.10 minor series**. Stays on the 0.10.x line even if 0.11 or 1.0 ships.
+   * - ``shaders.noisedeck.app/1.0``
+     - Rolling latest within the **1.0 minor series**. Stays on the 1.0.x line even if 1.1 or 2.0 ships.
      - When you want patch-level updates but explicit control over minor-version changes.
-   * - ``shaders.noisedeck.app/0.10.1``
+   * - ``shaders.noisedeck.app/1.0.1``
      - **Exact pin**, immutable. This directory's contents never change once published.
      - Reproducible builds, security-audited integrations, and frozen historical versions.
 
-Example — rolling latest within major 0 (recommended default):
+Example — rolling latest within major 1 (recommended default):
 
 .. code-block:: javascript
 
-    const SHADER_CDN = 'https://shaders.noisedeck.app/0'
+    const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
-Example — pinned to the 0.10 minor series:
+Example — pinned to the 1.0 minor series:
 
 .. code-block:: javascript
 
-    const SHADER_CDN = 'https://shaders.noisedeck.app/0.10'
+    const SHADER_CDN = 'https://shaders.noisedeck.app/1.0'
 
 Example — exact immutable pin:
 
 .. code-block:: javascript
 
-    const SHADER_CDN = 'https://shaders.noisedeck.app/0.10.1'
+    const SHADER_CDN = 'https://shaders.noisedeck.app/1.0.1'
 
-All subsequent examples in this guide use ``shaders.noisedeck.app/0`` — substitute any pinning level above.
+All subsequent examples in this guide use ``shaders.noisedeck.app/1`` — substitute any pinning level above.
 
 Vendored Bundles
 ^^^^^^^^^^^^^^^^
@@ -153,7 +153,7 @@ Minimal (render only)
 
 .. code-block:: javascript
 
-    const SHADER_CDN = 'https://shaders.noisedeck.app/0'
+    const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
     const { CanvasRenderer } = await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
@@ -176,7 +176,7 @@ With State Management
 
 .. code-block:: javascript
 
-    const SHADER_CDN = 'https://shaders.noisedeck.app/0'
+    const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
     const { CanvasRenderer, ProgramState } =
         await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
@@ -211,7 +211,7 @@ Creates and manages the GPU rendering pipeline.
 
 .. code-block:: javascript
 
-    const SHADER_CDN = 'https://shaders.noisedeck.app/0'
+    const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
     const renderer = new CanvasRenderer({
         canvas,                            // HTMLCanvasElement (required)
@@ -231,7 +231,7 @@ Creates and manages the GPU rendering pipeline.
 **Path configuration:**
 
 ``basePath``
-    Root URL for shader assets. Use any of the CDN pinning levels (e.g. ``https://shaders.noisedeck.app/0`` for rolling latest within major 0, ``/0.10`` for minor-pinned, or ``/0.10.1`` for an exact immutable pin — see `Pinning levels`_ above), a local vendor path, or a relative path to the ``shaders/`` directory for source mode.
+    Root URL for shader assets. Use any of the CDN pinning levels (e.g. ``https://shaders.noisedeck.app/1`` for rolling latest within major 1, ``/1.0`` for minor-pinned, or ``/1.0.1`` for an exact immutable pin — see `Pinning levels`_ above), a local vendor path, or a relative path to the ``shaders/`` directory for source mode.
 
 ``bundlePath``
     Directory containing per-effect bundles and ``manifest.json``. Typically ``${basePath}/effects``.
@@ -582,7 +582,7 @@ Example: Vanilla JS
         </div>
 
         <script type="module">
-            const SHADER_CDN = 'https://shaders.noisedeck.app/0'
+            const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
             const { CanvasRenderer, ProgramState } =
                 await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
@@ -619,7 +619,7 @@ Example: React
 
     import { useEffect, useState, useRef } from 'react'
 
-    const SHADER_CDN = 'https://shaders.noisedeck.app/0'
+    const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
     function NoiseGenerator() {
         const canvasRef = useRef(null)

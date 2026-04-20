@@ -3,7 +3,7 @@
 Release Process
 ===============
 
-Noisemaker is a monorepo with three release tracks: Python, JavaScript, and Shaders. The project version is defined in ``pyproject.toml`` and ``package.json`` as a ``MAJOR.MINOR`` string (currently pre-1.0). Patch numbers are never written by hand — they are computed by CI on every release, from the set of existing git tags.
+Noisemaker is a monorepo with three release tracks: Python, JavaScript, and Shaders. The project version is defined in ``pyproject.toml`` and ``package.json`` as a ``MAJOR.MINOR`` string. Patch numbers are never written by hand — they are computed by CI on every release, from the set of existing git tags.
 
 Versioning
 ----------
@@ -11,7 +11,7 @@ Versioning
 Noisemaker follows a **Living Version** scheme for in-repo metadata combined with **tag-on-commit** for the shader track:
 
 - In-repo metadata (``pyproject.toml``, ``package.json``, ``js/bin/noisemaker-js``, ``docs/conf.py``) carries **only** ``MAJOR.MINOR``. You never see a ``PATCH`` segment in source, and you never see a ``-SNAPSHOT`` / ``.dev0`` suffix.
-- Humans only edit the metadata when crossing a minor (``0.10`` → ``0.11``) or major (``0.x`` → ``1.0``) boundary.
+- Humans only edit the metadata when crossing a minor (``1.0`` → ``1.1``) or major (``1.x`` → ``2.0``) boundary.
 - Every qualifying push to ``main`` is a shader release. CI computes the next patch as ``max existing vMAJOR.MINOR.* tag + 1`` (or ``0`` if none), builds, deploys, and creates the ``vMAJOR.MINOR.PATCH`` annotated tag automatically.
 
 This means: for any given commit on ``main``, the resulting release has a concrete patch version that nobody typed — it's derived from history.
@@ -71,16 +71,16 @@ Shader bundles are hosted at ``shaders.noisedeck.app`` in per-patch directories,
 ::
 
     shaders.noisedeck.app/
-    ├── 0.10.0/      ← immutable exact release
-    ├── 0.10.1/      ← immutable exact release
-    ├── 0.10   → 0.10.1   ← rolling latest within the 0.10 minor series
-    ├── 0      → 0.10.1   ← rolling latest within major 0
+    ├── 1.0.0/      ← immutable exact release
+    ├── 1.0.1/      ← immutable exact release
+    ├── 1.0   → 1.0.1   ← rolling latest within the 1.0 minor series
+    ├── 1      → 1.0.1   ← rolling latest within major 1
 
 Three pinning levels are available to consumers:
 
-- ``shaders.noisedeck.app/0/`` — rolling latest within **major 0**. Automatically tracks every minor and patch release until a ``1.0`` ships; at that point ``/0/`` freezes and consumers explicitly migrate to ``/1/``. This is the recommended default for most integrations.
-- ``shaders.noisedeck.app/0.10/`` — rolling latest within the **0.10 minor series**. Stays pinned to the 0.10.x line; never automatically crosses a minor boundary.
-- ``shaders.noisedeck.app/0.10.1/`` — **exact pin**, immutable. Required for reproducible builds.
+- ``shaders.noisedeck.app/1/`` — rolling latest within **major 1**. Automatically tracks every minor and patch release until a ``2.0`` ships; at that point ``/1/`` freezes and consumers explicitly migrate to ``/2/``. This is the recommended default for most integrations.
+- ``shaders.noisedeck.app/1.0/`` — rolling latest within the **1.0 minor series**. Stays pinned to the 1.0.x line; never automatically crosses a minor boundary.
+- ``shaders.noisedeck.app/1.0.1/`` — **exact pin**, immutable. Required for reproducible builds.
 
 See :doc:`shaders/integration` for usage examples at each pinning level.
 
@@ -122,4 +122,4 @@ Release Cadence
 - **Python**: repo-only (CI verification). No published packages yet.
 - **JavaScript snapshots**: updated automatically on every push to ``main``.
 - **Shaders**: released automatically on every qualifying push to ``main``. Each release creates a new immutable ``/MAJOR.MINOR.PATCH/`` directory on the CDN and refreshes the rolling ``/MAJOR/`` and ``/MAJOR.MINOR/`` symlinks. The git ``v*`` tag is created by CI, which in turn triggers the tagged release workflow to publish a GitHub release with all artifacts.
-- **Minor and major bumps**: initiated by a human commit that edits the ``MAJOR.MINOR`` string in metadata. The next automated release after such a commit will land ``.0`` of the new series (e.g., editing ``0.10`` → ``0.11`` produces ``v0.11.0``; editing ``0.12`` → ``1.0`` produces ``v1.0.0``). The workflow never back-patches older series.
+- **Minor and major bumps**: initiated by a human commit that edits the ``MAJOR.MINOR`` string in metadata. The next automated release after such a commit will land ``.0`` of the new series (e.g., editing ``1.0`` → ``1.1`` produces ``v1.1.0``; editing ``1.9`` → ``2.0`` produces ``v2.0.0``). The workflow never back-patches older series.
