@@ -128,12 +128,17 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         color = mix(middle, color2, factor);
     }
 
-    // Porter-Duff "over" alpha compositing
-    // Blend RGB based on top layer alpha, preserving base layer where top is transparent
-    let effectiveAlpha = color2.a * amt;
+    // Porter-Duff "over" alpha compositing:
+    // blend at full strength where top is opaque, preserve base where top is transparent.
+    // amt is already applied above in the mixer branch that selected `color` on the
+    // color1 <-> middle <-> color2 axis, so it must NOT be folded into the PD factor
+    // for RGB here — doing so applies amt a second time and halves the blend at the
+    // midpoint. The alpha output still scales with amt so fading out the layer
+    // fades out the composite alpha.
+    let alphaFactor = color2.a * amt;
     color = vec4<f32>(
-        mix(color1.rgb, color.rgb, effectiveAlpha),
-        effectiveAlpha + color1.a * (1.0 - effectiveAlpha)
+        mix(color1.rgb, color.rgb, color2.a),
+        alphaFactor + color1.a * (1.0 - alphaFactor)
     );
     return color;
 }

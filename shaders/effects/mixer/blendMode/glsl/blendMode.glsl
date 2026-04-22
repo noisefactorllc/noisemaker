@@ -124,9 +124,12 @@ void main() {
         color = mix(middle, color2, factor);
     }
 
-    // Porter-Duff "over" alpha compositing
-    // Blend RGB based on top layer alpha, preserving base layer where top is transparent
-    color.rgb = mix(color1.rgb, color.rgb, color2.a * amt);
+    // Porter-Duff "over" alpha compositing:
+    // blend at full strength where top is opaque, preserve base where top is transparent.
+    // amt is already applied above in the mixer branch that selected `color` on the
+    // color1 <-> middle <-> color2 axis, so it must NOT be folded into the PD factor
+    // here — doing so applies amt a second time and halves the blend at the midpoint.
+    color.rgb = mix(color1.rgb, color.rgb, color2.a);
     // Output alpha: top + base * (1 - top), scaled by mix amount
     color.a = color2.a * amt + color1.a * (1.0 - color2.a * amt);
 
