@@ -2,6 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <script>
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      if (params.has('preset')) {
+        window.location.replace('/demo/js/' + window.location.search + window.location.hash);
+      }
+    })();
+  </script>
   <title>Noisemaker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="Open source GPU rendering engine for the browser. MIT-licensed visual effects format, orchestration language, and rendering pipeline." />
