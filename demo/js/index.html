@@ -75,7 +75,7 @@
             <span style="flex: 1;"></span>
             <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--color6);">
               <span>seed</span>
-              <input id="seedInput" type="number" step="1" value="42" class="hf-number" style="width: 5rem;" />
+              <input id="seedInput" type="number" step="1" class="hf-number" style="width: 5rem;" />
             </label>
           </div>
         </div>
@@ -205,7 +205,7 @@
     let animationPendingCount = 0;
     let frameIndex = 0;
     let currentPreset = null;
-    let currentSeed = 42;
+    let currentSeed = Math.floor(Math.random() * 1e9);
     let isRendering = false;
     let renderProgress = 0;
 
@@ -478,7 +478,7 @@
     }
     
     currentPreset = presetSelect.value;
-    currentSeed = Number(seedInput.value) || 42;
+    currentSeed = Number(seedInput.value) || currentSeed;
     seedInput.value = currentSeed;
 
     function parseSeed(value) {
