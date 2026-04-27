@@ -8,6 +8,8 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float strength;
 uniform int speed;
@@ -32,8 +34,11 @@ vec2 rotate2D(vec2 st, float rot, float aspectRatio) {
 }
 
 void main() {
-    float aspectRatio = resolution.x / resolution.y;
-    vec2 uv = gl_FragCoord.xy / resolution;
+    // Compute distortion in global UV space so the spiral center is
+    // at the full image center, not each tile's center.
+    float aspectRatio = fullResolution.x / fullResolution.y;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution;
 
     // Apply rotation before distortion
     uv = rotate2D(uv, rotation / 180.0, aspectRatio);
@@ -76,16 +81,21 @@ void main() {
     // Reverse rotation after distortion
     uv = rotate2D(uv, -rotation / 180.0, aspectRatio);
 
+    // Convert distorted global UV back to tile-local for texture sampling.
+    // When not tiling, tileOffset=0 and fullResolution=resolution, so this
+    // is a no-op (identity transform).
+    vec2 sampleUV = (uv * fullResolution - tileOffset) / resolution;
+
     if (antialias) {
-        vec2 dx = dFdx(uv);
-        vec2 dy = dFdy(uv);
+        vec2 dx = dFdx(sampleUV);
+        vec2 dy = dFdy(sampleUV);
         vec4 col = vec4(0.0);
-        col += texture(inputTex, uv + dx * -0.375 + dy * -0.125);
-        col += texture(inputTex, uv + dx *  0.125 + dy * -0.375);
-        col += texture(inputTex, uv + dx *  0.375 + dy *  0.125);
-        col += texture(inputTex, uv + dx * -0.125 + dy *  0.375);
+        col += texture(inputTex, sampleUV + dx * -0.375 + dy * -0.125);
+        col += texture(inputTex, sampleUV + dx *  0.125 + dy * -0.375);
+        col += texture(inputTex, sampleUV + dx *  0.375 + dy *  0.125);
+        col += texture(inputTex, sampleUV + dx * -0.125 + dy *  0.375);
         fragColor = col * 0.25;
     } else {
-        fragColor = texture(inputTex, uv);
+        fragColor = texture(inputTex, sampleUV);
     }
 }

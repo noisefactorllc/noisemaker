@@ -4,6 +4,8 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int shape;
 uniform float power;
 uniform float hardness;
@@ -140,12 +142,13 @@ void main() {
     vec4 edgeColor = texture(inputTex, st);
     vec4 centerColor = texture(tex, st);
 
-    float minRes = min(resolution.x, resolution.y);
+    float minRes = min(fullResolution.x, fullResolution.y);
 
-    // Centered, aspect-correct position:
-    // corner is the maximum |p| at the image corners.
-    vec2 p = (gl_FragCoord.xy - 0.5 * resolution) / (0.5 * minRes);
-    vec2 corner = resolution / minRes;
+    // Centered, aspect-correct position using full image dimensions
+    // so the mask center is at the image center, not tile center.
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 p = (globalCoord - 0.5 * fullResolution) / (0.5 * minRes);
+    vec2 corner = fullResolution / minRes;
 
     float dist01 = clamp01(distanceMetric(p, corner, shape));
     // Remap power from -100..100 to 0.1..25.05 (Old 0 maps to New 100)
