@@ -5,8 +5,6 @@ uniform sampler2D rTex;
 uniform sampler2D gTex;
 uniform sampler2D bTex;
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float rLevel;
 uniform float gLevel;
 uniform float bLevel;
@@ -17,7 +15,6 @@ float luminance(vec4 c) {
 }
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 st = gl_FragCoord.xy / resolution;
 
     float r = luminance(texture(rTex, st)) * rLevel / 100.0;

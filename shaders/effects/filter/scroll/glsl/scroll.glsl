@@ -2,8 +2,6 @@
 precision highp float;
 
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float aspect;
 uniform float x;
 uniform float y;
@@ -17,8 +15,7 @@ out vec4 fragColor;
 
 /* Scrolls texture coordinates with wraparound. */
 void main(){
-  vec2 globalCoord = gl_FragCoord.xy + tileOffset;
-  vec2 st = globalCoord / fullResolution;
+  vec2 st = gl_FragCoord.xy / resolution;
   st.x *= aspect;
   vec2 offset = vec2(-x + time * -speedX, y + time * speedY);
   offset.x *= aspect;

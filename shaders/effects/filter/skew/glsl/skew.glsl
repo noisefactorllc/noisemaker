@@ -7,8 +7,6 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float skewAmt;
 uniform float rotation;
 uniform float wrap;
@@ -18,11 +16,10 @@ out vec4 fragColor;
 const float PI = 3.14159265359;
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 resolution = vec2(texSize);
-    vec2 st = globalCoord / fullResolution;
-    float aspect = fullResolution.x / fullResolution.y;
+    vec2 st = gl_FragCoord.xy / resolution;
+    float aspect = resolution.x / resolution.y;
 
     // Center, aspect-correct, rotate, skew, undo aspect, uncenter
     st -= 0.5;

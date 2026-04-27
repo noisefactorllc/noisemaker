@@ -8,8 +8,6 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float strength;
 uniform bool aspectLens;
 uniform int wrap;
@@ -31,9 +29,8 @@ vec2 rotate2D(vec2 st, float rot, float aspectRatio) {
 }
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
-    float aspectRatio = fullResolution.x / fullResolution.y;
-    vec2 uv = globalCoord / fullResolution;
+    float aspectRatio = resolution.x / resolution.y;
+    vec2 uv = gl_FragCoord.xy / resolution;
 
     // Apply rotation before distortion
     uv = rotate2D(uv, rotation / 180.0, aspectRatio);

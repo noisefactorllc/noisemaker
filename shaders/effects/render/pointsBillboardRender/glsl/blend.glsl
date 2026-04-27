@@ -4,16 +4,13 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D trailTex;
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float inputIntensity;
 
 out vec4 fragColor;
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 uv = gl_FragCoord.xy / resolution;
-
+    
     vec4 inputColor = texture(inputTex, uv);
     vec4 trailColor = texture(trailTex, uv);
     

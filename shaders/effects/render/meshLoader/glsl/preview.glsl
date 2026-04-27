@@ -5,15 +5,12 @@ precision highp float;
 // Renders positions/normals as colors for debugging
 
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform sampler2D positionsTex;
 uniform sampler2D normalsTex;
 
 out vec4 fragColor;
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 uv = gl_FragCoord.xy / resolution;
     
     // Sample mesh data using texture() for proper UV sampling

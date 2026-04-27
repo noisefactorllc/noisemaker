@@ -11,8 +11,6 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float focalDistance;
 uniform float aperture;
 uniform float sampleBias;
@@ -63,9 +61,8 @@ vec4 applyFocusBlur(sampler2D sceneTex, sampler2D depthTex, vec2 uv) {
 }
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 uv = gl_FragCoord.xy / resolution;
-
+    
     vec4 color;
     
     // depthSource: 0 = use inputTex (A) as depth map, blur tex (B)

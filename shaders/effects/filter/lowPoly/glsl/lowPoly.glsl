@@ -10,8 +10,6 @@ precision highp int;
 #endif
 
 uniform sampler2D inputTex;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float scale;
 uniform float seed;
 uniform int mode;
@@ -48,19 +46,17 @@ vec2 hash2(vec2 p, float s) {
 }
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 resolution = vec2(texSize);
     vec2 uv = gl_FragCoord.xy / resolution;
-    vec2 globalUV = globalCoord / fullResolution;
 
     float n = max(102.0 - scale, 2.0);
     float s = seed;
     float spd = speed * 0.3;
 
     // Aspect-corrected coordinates for square Voronoi cells
-    float aspect = fullResolution.x / fullResolution.y;
-    vec2 auv = vec2(globalUV.x * aspect, globalUV.y);
+    float aspect = resolution.x / resolution.y;
+    vec2 auv = vec2(uv.x * aspect, uv.y);
 
     // Scale to grid in corrected space
     vec2 scaled = auv * n;
@@ -106,10 +102,7 @@ void main() {
     }
 
     // Convert nearest point back to UV space for texture sampling
-    // Map from global UV to tile-local UV for texture sampling
-    vec2 cellGlobalUV = vec2(nearestPoint.x / aspect, nearestPoint.y);
-    vec2 cellLocalUV = (cellGlobalUV * fullResolution - tileOffset) / resolution;
-    vec4 cellColor = texture(inputTex, clamp(cellLocalUV, 0.0, 1.0));
+    vec4 cellColor = texture(inputTex, vec2(nearestPoint.x / aspect, nearestPoint.y));
 
     vec3 result;
     if (mode == 0) {

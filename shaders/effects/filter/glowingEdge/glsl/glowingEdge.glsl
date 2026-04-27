@@ -7,8 +7,6 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float alpha;
 uniform float sobelMetric;
 uniform float width;
@@ -35,7 +33,6 @@ float distance_metric(float gx, float gy, int metric) {
 }
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 uv = gl_FragCoord.xy / resolution;
     vec2 texel = width / resolution;
 

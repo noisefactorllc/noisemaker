@@ -10,8 +10,6 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float time;
 uniform float displacement;
 uniform float speed;
@@ -72,20 +70,18 @@ float perlinNoise(vec2 st, vec2 noiseScale) {
 }
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
-    float aspectRatio = fullResolution.x / fullResolution.y;
+    float aspectRatio = resolution.x / resolution.y;
     vec2 uv = gl_FragCoord.xy / resolution;
-    vec2 globalUV = globalCoord / fullResolution;
 
     // Singularity mask: distance from center, pow(5)
     // Concentrates warp at edges, center stays stable
-    vec2 delta = abs(globalUV - vec2(0.5));
+    vec2 delta = abs(uv - vec2(0.5));
     vec2 scaled = vec2(delta.x * aspectRatio, delta.y);
     float maxRadius = length(vec2(aspectRatio * 0.5, 0.5));
     float mask = pow(clamp(length(scaled) / maxRadius, 0.0, 1.0), 5.0);
 
     // Two independent Perlin noise fields for X and Y displacement
-    vec2 noiseCoord = globalUV * vec2(aspectRatio, 1.0);
+    vec2 noiseCoord = uv * vec2(aspectRatio, 1.0);
     float noiseX = perlinNoise(noiseCoord + 42.0, vec2(2.0));
     float noiseY = perlinNoise(noiseCoord + 97.0, vec2(2.0));
 

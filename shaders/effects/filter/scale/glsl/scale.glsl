@@ -2,8 +2,6 @@
 precision highp float;
 
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float aspect;
 uniform float scaleX;
 uniform float scaleY;
@@ -16,8 +14,7 @@ out vec4 fragColor;
 
 /* Scales UVs around an arbitrary center point. */
 void main(){
-  vec2 globalCoord = gl_FragCoord.xy + tileOffset;
-  vec2 st = globalCoord / fullResolution;
+  vec2 st = gl_FragCoord.xy / resolution;
   vec2 c = vec2(-centerX, centerY);
   st -= c;
   st.x *= aspect;

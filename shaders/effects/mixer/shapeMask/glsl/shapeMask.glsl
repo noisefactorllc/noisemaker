@@ -4,8 +4,6 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform int shape;
 uniform float radius;
 uniform float edgeSmooth;
@@ -78,16 +76,14 @@ float sdfRing(vec2 p, float r) {
 }
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 st = gl_FragCoord.xy / resolution;
-    vec2 globalST = globalCoord / fullResolution;
 
     vec4 colorA = texture(inputTex, st);
     vec4 colorB = texture(tex, st);
 
     // Centered, aspect-correct coordinates
-    float aspect = fullResolution.x / fullResolution.y;
-    vec2 p = (globalST - 0.5) * 2.0;
+    float aspect = resolution.x / resolution.y;
+    vec2 p = (st - 0.5) * 2.0;
     p.x *= aspect;
 
     // Apply position offset

@@ -11,8 +11,6 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform int mode;
 uniform int quantize;
 uniform int mapSource;
@@ -55,9 +53,8 @@ float calculateBlendFactor(float mapValue, float thresh, float rng) {
 }
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 uv = gl_FragCoord.xy / resolution;
-
+    
     vec4 colorA = texture(inputTex, uv);
     vec4 colorB = texture(tex, uv);
     

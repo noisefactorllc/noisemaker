@@ -8,8 +8,6 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float time;
 uniform float strength;
 uniform float scale;
@@ -34,37 +32,29 @@ vec2 rotate2D(vec2 st, float rot, float aspectRatio) {
 }
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
-    float aspectRatio = fullResolution.x / fullResolution.y;
+    float aspectRatio = resolution.x / resolution.y;
     vec2 uv = gl_FragCoord.xy / resolution;
-    vec2 globalUV = globalCoord / fullResolution;
-
-    // Work in global UV space for consistent distortion
-    vec2 warpUV = globalUV;
 
     // Apply rotation before distortion
-    warpUV = rotate2D(warpUV, rotation / 180.0, aspectRatio);
+    uv = rotate2D(uv, rotation / 180.0, aspectRatio);
 
     // Sine wave distortion
-    warpUV.y += sin(warpUV.x * scale * 10.0 + time * TAU * float(speed)) * (strength * 0.01);
+    uv.y += sin(uv.x * scale * 10.0 + time * TAU * float(speed)) * (strength * 0.01);
 
     // Apply wrap mode
     if (wrap == 0) {
         // mirror
-        warpUV = abs(mod(warpUV + 1.0, 2.0) - 1.0);
+        uv = abs(mod(uv + 1.0, 2.0) - 1.0);
     } else if (wrap == 1) {
         // repeat
-        warpUV = mod(warpUV, 1.0);
+        uv = mod(uv, 1.0);
     } else {
         // clamp
-        warpUV = clamp(warpUV, 0.0, 1.0);
+        uv = clamp(uv, 0.0, 1.0);
     }
 
     // Reverse rotation after distortion
-    warpUV = rotate2D(warpUV, -rotation / 180.0, aspectRatio);
-
-    // Map back to tile-local UV for texture sampling
-    uv = warpUV;
+    uv = rotate2D(uv, -rotation / 180.0, aspectRatio);
 
     if (antialias) {
         vec2 dx = dFdx(uv);

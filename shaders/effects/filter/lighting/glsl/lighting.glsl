@@ -9,8 +9,6 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform vec3 diffuseColor;
 uniform vec3 specularColor;
 uniform float specularIntensity;
@@ -109,7 +107,6 @@ vec4 applyReflection(vec2 uv, vec3 normal) {
 }
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 resolution = vec2(texSize);
     vec2 uv = gl_FragCoord.xy / resolution;

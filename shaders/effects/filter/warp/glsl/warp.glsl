@@ -9,8 +9,6 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float time;
 uniform float strength;
 uniform float scale;
@@ -74,13 +72,11 @@ float perlinNoise(vec2 st, vec2 noiseScale) {
 }
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
-    float aspectRatio = fullResolution.x / fullResolution.y;
+    float aspectRatio = resolution.x / resolution.y;
     vec2 uv = gl_FragCoord.xy / resolution;
-    vec2 globalUV = globalCoord / fullResolution;
 
     // Perlin warp — sample both axes before applying either
-    vec2 noiseCoord = globalUV * vec2(aspectRatio, 1.0);
+    vec2 noiseCoord = uv * vec2(aspectRatio, 1.0);
     vec2 noiseScale = vec2(abs(scale * 3.0));
     float dx = (perlinNoise(noiseCoord + float(seed), noiseScale) - 0.5) * strength * 0.01;
     float dy = (perlinNoise(noiseCoord + float(seed) + 10.0, noiseScale) - 0.5) * strength * 0.01;

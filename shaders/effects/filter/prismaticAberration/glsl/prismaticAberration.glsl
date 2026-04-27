@@ -10,8 +10,6 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float time;
 uniform float aberrationAmt;
 uniform float hueRotation;
@@ -23,7 +21,7 @@ out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
-#define aspectRatio fullResolution.x / fullResolution.y
+#define aspectRatio resolution.x / resolution.y
 
 float map(float value, float inMin, float inMax, float outMin, float outMax) {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
@@ -93,13 +91,11 @@ vec3 saturate(vec3 color) {
 }
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 uv = gl_FragCoord.xy / resolution;
-    vec2 globalUV = globalCoord / fullResolution;
 
     vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
 
-    vec2 diff = vec2(0.5 * aspectRatio, 0.5) - vec2(globalUV.x * aspectRatio, globalUV.y);
+    vec2 diff = vec2(0.5 * aspectRatio, 0.5) - vec2(uv.x * aspectRatio, uv.y);
     float centerDist = length(diff);
 
     // No distortion/zoom

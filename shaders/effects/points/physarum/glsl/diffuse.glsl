@@ -5,8 +5,6 @@ precision highp float;
 
 uniform sampler2D trailTex;
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float decay;
 uniform bool resetState;
 
@@ -19,9 +17,8 @@ void main() {
         return;
     }
     
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 uv = gl_FragCoord.xy / resolution;
-
+    
     // Sample the trail texture directly (no blur)
     vec4 trailColor = texture(trailTex, uv);
     

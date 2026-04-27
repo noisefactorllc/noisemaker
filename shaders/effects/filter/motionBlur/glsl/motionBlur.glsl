@@ -12,17 +12,14 @@ precision highp int;
 uniform sampler2D inputTex;   // Live input from previous effect
 uniform sampler2D selfTex;    // Feedback buffer (previous frame output)
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float amount;
 uniform bool resetState;
 
 out vec4 fragColor;
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 uv = gl_FragCoord.xy / resolution;
-
+    
     // If resetState is true, bypass feedback and return input directly
     if (resetState) {
         fragColor = texture(inputTex, uv);

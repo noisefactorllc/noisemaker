@@ -4,14 +4,11 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D gridTex;
 uniform vec2 resolution;
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform float matteOpacity;
 
 out vec4 fragColor;
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 uv = gl_FragCoord.xy / resolution;
     vec4 inputCol = texture(inputTex, uv);
     vec4 grid = texture(gridTex, uv);
