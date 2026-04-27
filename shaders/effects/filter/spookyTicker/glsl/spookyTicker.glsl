@@ -6,6 +6,7 @@ precision highp int;
 // Spooky ticker - scrolling bank_ocr digit rows at the bottom of the screen
 
 uniform sampler2D inputTex;
+uniform float renderScale;
 uniform float time;
 uniform float speed;
 uniform float alpha;
@@ -42,10 +43,8 @@ const int GLYPHS[80] = int[80](
 
 const int GLYPH_W = 7;
 const int GLYPH_H = 8;
-const int SCALE = 3;
-const int CELL_W = GLYPH_W * SCALE;  // 21 pixels
-const int CELL_H = GLYPH_H * SCALE;  // 24 pixels
-const int ROW_GAP = 4;
+const int BASE_SCALE = 3;
+const int BASE_ROW_GAP = 4;
 
 uint hash_mix(uint v) {
     v = v ^ (v >> 16u);
@@ -57,17 +56,17 @@ uint hash_mix(uint v) {
 }
 
 // Sample the bitmap for a given digit at pixel-local coords
-float sample_glyph(int digit, int localX, int localY) {
+float sample_glyph(int digit, int localX, int localY, int iScale) {
     // Scale down to glyph coords
-    int gx = localX / SCALE;
-    int gy = localY / SCALE;
+    int gx = localX / iScale;
+    int gy = localY / iScale;
     if (gx < 0 || gx >= GLYPH_W || gy < 0 || gy >= GLYPH_H) return 0.0;
     int row = GLYPHS[digit * 8 + gy];
     return float((row >> (6 - gx)) & 1);
 }
 
 // Get the ticker mask value at a given pixel position for one row
-float ticker_row_mask(int pixelX, int pixelY, int rowSeed, float t) {
+float ticker_row_mask(int pixelX, int pixelY, int rowSeed, float t, int CELL_W, int iScale) {
     // Scroll offset in pixels
     float scrollSpeed = 0.5 + float(hash_mix(uint(rowSeed) ^ 17u) & 0xFFFFu) / 65535.0 * 1.5;
     int offset = int(floor(t * scrollSpeed * 120.0));
@@ -81,10 +80,16 @@ float ticker_row_mask(int pixelX, int pixelY, int rowSeed, float t) {
     uint h = hash_mix(uint(cellX) ^ uint(rowSeed) * 997u);
     int digit = int(h % 10u);
 
-    return sample_glyph(digit, localX, pixelY);
+    return sample_glyph(digit, localX, pixelY, iScale);
 }
 
 void main() {
+    // Scale pixel-space sizes by renderScale for high-res export
+    int iScale = max(int(float(BASE_SCALE) * renderScale), 1);
+    int CELL_W = GLYPH_W * iScale;
+    int CELL_H = GLYPH_H * iScale;
+    int ROW_GAP = max(int(float(BASE_ROW_GAP) * renderScale), 1);
+
     vec2 dims = vec2(textureSize(inputTex, 0));
     vec4 src = texture(inputTex, v_texCoord);
 
@@ -116,13 +121,14 @@ void main() {
     int rowSeed = int(hash_mix(uint(rowIdx) + baseSeed));
 
     // Main glyph
-    float mask = ticker_row_mask(px, localY, rowSeed, t);
+    float mask = ticker_row_mask(px, localY, rowSeed, t, CELL_W, iScale);
 
-    // Shadow: sample at offset (+2, +2) pixels — shifted right and down
+    // Shadow: sample at offset pixels — shifted right and down, scaled
     float shadow = 0.0;
-    int shadowLocalY = localY + 2;
+    int shadowOff = max(int(2.0 * renderScale), 1);
+    int shadowLocalY = localY + shadowOff;
     if (shadowLocalY < CELL_H) {
-        shadow = ticker_row_mask(px + 2, shadowLocalY, rowSeed, t);
+        shadow = ticker_row_mask(px + shadowOff, shadowLocalY, rowSeed, t, CELL_W, iScale);
     }
 
     // Composite

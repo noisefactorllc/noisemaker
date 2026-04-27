@@ -13,6 +13,7 @@ uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform vec2 tileOffset;
 uniform vec2 fullResolution;
+uniform float renderScale;
 uniform float time;
 uniform float levels;
 uniform int dither;
@@ -278,7 +279,7 @@ void main() {
 
     } else if (dither == 4) {
         // bayer
-        vec2 coord = mod(globalCoord, 4.0).xy - 0.5;
+        vec2 coord = mod(globalCoord / renderScale, 4.0).xy - 0.5;
 
         if (bright < 0.12) {
             color.rgb = vec3(0.0);

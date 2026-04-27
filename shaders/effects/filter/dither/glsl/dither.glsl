@@ -11,6 +11,7 @@ uniform sampler2D inputTex;
 uniform int ditherType;
 uniform float threshold;
 uniform float matrixScale;
+uniform float renderScale;
 uniform int palette;
 uniform float time;
 uniform float mixAmount;
@@ -450,7 +451,7 @@ void main() {
     vec4 color = texture(inputTex, uv);
     
     // Get dither threshold for current pixel
-    float ditherValue = getDitherThreshold(gl_FragCoord.xy, ditherType, matrixScale);
+    float ditherValue = getDitherThreshold(gl_FragCoord.xy, ditherType, matrixScale * renderScale);
     
     vec3 result;
     

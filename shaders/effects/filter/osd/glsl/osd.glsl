@@ -9,6 +9,7 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform float renderScale;
 uniform float alpha;
 uniform float seed;
 uniform float speed;
@@ -44,11 +45,8 @@ const int GLYPHS[80] = int[80](
 
 const int GLYPH_W = 7;
 const int GLYPH_H = 8;
-const int SCALE = 3;
-const int CELL_W = GLYPH_W * SCALE;  // 21 pixels
-const int CELL_H = GLYPH_H * SCALE;  // 24 pixels
-const int GAP = SCALE;               // gap between glyphs
-const int PADDING = 25;
+const int BASE_SCALE = 3;
+const int BASE_PADDING = 25;
 
 uint pcg(uint v_in) {
     uint state = v_in * 747796405u + 2891336453u;
@@ -65,15 +63,22 @@ uint hash3(uint a, uint b, uint c) {
 }
 
 // Sample the bitmap for a given digit at pixel-local coords
-float sample_glyph(int digit, int localX, int localY) {
-    int gx = localX / SCALE;
-    int gy = localY / SCALE;
+float sample_glyph(int digit, int localX, int localY, int iScale) {
+    int gx = localX / iScale;
+    int gy = localY / iScale;
     if (gx < 0 || gx >= GLYPH_W || gy < 0 || gy >= GLYPH_H) return 0.0;
     int row = GLYPHS[digit * 8 + gy];
     return float((row >> (6 - gx)) & 1);
 }
 
 void main() {
+    // Scale all pixel-space sizes by renderScale for high-res export
+    int iScale = max(int(float(BASE_SCALE) * renderScale), 1);
+    int CELL_W = GLYPH_W * iScale;
+    int CELL_H = GLYPH_H * iScale;
+    int GAP = iScale;
+    int PADDING = int(float(BASE_PADDING) * renderScale);
+
     ivec2 coord = ivec2(gl_FragCoord.xy);
     ivec2 texDims = textureSize(inputTex, 0);
     int width = max(texDims.x, 1);
@@ -84,7 +89,8 @@ void main() {
     float blend_alpha = clamp(alpha, 0.0, 1.0);
 
     // Subtle scanline tint across entire image (OSD monitor feel)
-    float scanline = 1.0 - 0.03 * blend_alpha * float(coord.y & 1);
+    int scanlineStep = max(iScale / BASE_SCALE, 1);
+    float scanline = 1.0 - 0.03 * blend_alpha * float((coord.y / scanlineStep) & 1);
     vec3 base_rgb = texel.rgb * scanline;
 
     if (blend_alpha <= 0.0) {
@@ -154,7 +160,7 @@ void main() {
             uint digit_hash = hash3(base_seed, uint(glyph_idx), uint(time_cell));
             int digit = int(digit_hash % 10u);
 
-            mask = sample_glyph(digit, within_glyph_x, local_y);
+            mask = sample_glyph(digit, within_glyph_x, local_y, iScale);
         }
     }
 

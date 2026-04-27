@@ -5,6 +5,7 @@ precision highp int;
 uniform vec2 resolution;
 uniform vec2 tileOffset;
 uniform vec2 fullResolution;
+uniform float renderScale;
 uniform float time;
 uniform int operation;
 uniform float scale;
@@ -44,8 +45,9 @@ float bitOp(int a, int b, int op, int m) {
 }
 
 void main() {
-    // Map scale so higher value = bigger cells (lower frequency)
-    float pixelScale = scale * 0.1;
+    // Map scale so higher value = bigger cells (lower frequency).
+    // Multiply by renderScale so pixel-sized cells scale with export resolution.
+    float pixelScale = scale * 0.1 * renderScale;
 
     // Apply rotation around screen center
     float angle = rotation * PI / 180.0;

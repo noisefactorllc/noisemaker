@@ -9,6 +9,7 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
+uniform float renderScale;
 uniform int cellSize;
 uniform int seed;
 uniform int colorMode;
@@ -297,7 +298,9 @@ void main() {
     vec2 resolution = vec2(texSize);
     vec2 pixelCoord = gl_FragCoord.xy;
 
-    int cs = max(cellSize, 1);
+    // Scale cell size by renderScale so glyphs maintain their visual size
+    // regardless of export resolution.
+    int cs = max(int(float(cellSize) * renderScale), 1);
     float csf = float(cs);
 
     // Which cell are we in?

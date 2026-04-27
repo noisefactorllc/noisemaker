@@ -27,6 +27,7 @@ uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform vec2 tileOffset;
 uniform vec2 fullResolution;
+uniform float renderScale;
 uniform float time;
 uniform float effectAmt;
 uniform float scaleAmt;
@@ -454,7 +455,7 @@ vec3 cga(vec4 color, vec2 st) {
     if (amt < 0.01) {
         return color.rgb;
     }
-    float pixelDensity = amt;
+    float pixelDensity = amt * renderScale;
 	float size = 2. * pixelDensity;
 	float dSize = 2. * size;
 
@@ -513,7 +514,7 @@ vec3 cga(vec4 color, vec2 st) {
 // end cga
 
 vec3 subpixel(vec2 st, float scale) {
-	scale = map(scale, 0.0, 100.0, 0.0, 10.0);
+	scale = map(scale, 0.0, 100.0, 0.0, 10.0) * renderScale;
 
 	vec3 orig = pixellate(st, 4.0 * scale);
     vec3 color = orig;

@@ -962,13 +962,15 @@ export class Pipeline {
      * Set tile region for tiled large-resolution rendering.
      * When set, shaders receive tileOffset and fullResolution uniforms
      * so they can compute global coordinates across the full image.
-     * @param {{offset: number[], fullResolution: number[]}} region
+     * @param {{offset: number[], fullResolution: number[], renderScale?: number}} region
      * @param {number[]} region.offset - [x, y] pixel offset of this tile in the full image
      * @param {number[]} region.fullResolution - [w, h] dimensions of the complete output image
+     * @param {number} [region.renderScale] - scale factor vs original canvas (e.g. 5.86 for 6000px from 1024px)
      */
-    setTileRegion({ offset, fullResolution }) {
+    setTileRegion({ offset, fullResolution, renderScale }) {
         this._tileOffset = offset
         this._fullResolution = fullResolution
+        this._renderScale = renderScale ?? 1
     }
 
     /**
@@ -977,6 +979,7 @@ export class Pipeline {
     clearTileRegion() {
         this._tileOffset = null
         this._fullResolution = null
+        this._renderScale = null
     }
 
     /**
@@ -1328,6 +1331,7 @@ export class Pipeline {
             g.aspect = aspectValue
             g.aspectRatio = aspectValue
         }
+        g.renderScale = this._renderScale || 1.0
 
         // Audio data (128 float arrays, 0-1)
         if (this.externalState.audio?.waveform) {
