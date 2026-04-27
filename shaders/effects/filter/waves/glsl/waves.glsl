@@ -59,8 +59,9 @@ void main() {
     // Reverse rotation after distortion
     uv = rotate2D(uv, -rotation / 180.0, aspectRatio);
 
-    // Convert distorted global UV back to tile-local for texture sampling
-    vec2 sampleUV = (uv * fullResolution - tileOffset) / resolution;
+    // Convert distorted global UV back to tile-local for texture sampling.
+    // Clamp to tile bounds so wrap modes don't sample past tile coverage.
+    vec2 sampleUV = clamp((uv * fullResolution - tileOffset) / resolution, 0.0, 1.0);
 
     if (antialias) {
         vec2 dx = dFdx(sampleUV);

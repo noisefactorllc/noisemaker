@@ -83,8 +83,10 @@ void main() {
 
     // Convert distorted global UV back to tile-local for texture sampling.
     // When not tiling, tileOffset=0 and fullResolution=resolution, so this
-    // is a no-op (identity transform).
-    vec2 sampleUV = (uv * fullResolution - tileOffset) / resolution;
+    // is a no-op (identity transform). Clamp to tile bounds so that wrap
+    // modes referencing other parts of the image don't sample past this
+    // tile's coverage (producing edge-clamped stripes).
+    vec2 sampleUV = clamp((uv * fullResolution - tileOffset) / resolution, 0.0, 1.0);
 
     if (antialias) {
         vec2 dx = dFdx(sampleUV);
