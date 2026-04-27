@@ -4,6 +4,8 @@ precision highp float;
 uniform sampler2D inputTex; // sorted
 uniform sampler2D originalTex; // original
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float angled;
 uniform bool darkest;
 uniform float wrap;
@@ -27,6 +29,7 @@ vec2 applyWrap(vec2 coord, vec2 size) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 texSize = vec2(textureSize(inputTex, 0));
     vec2 center = texSize * 0.5;
     vec2 pixelCoord = gl_FragCoord.xy - center;

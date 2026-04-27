@@ -24,6 +24,8 @@ precision highp int;
 #endif
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform int seed;
 uniform bool wrap;
@@ -38,6 +40,7 @@ const float PI = 3.14159265359;
 const float TAU = 6.28318530718;
 
 float aspectRatio;
+vec2 globalCoord;
 
 float map(float value, float inMin, float inMax, float outMin, float outMax) {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
@@ -422,7 +425,7 @@ float rings(vec2 st, float freq) {
 }
 
 float diamonds(vec2 st, float freq) {
-    vec2 stLocal = gl_FragCoord.xy / resolution.y;
+    vec2 stLocal = globalCoord / fullResolution.y;
     stLocal -= vec2(0.5 * aspectRatio, 0.5);
     stLocal *= freq;
     return (cos(stLocal.x * PI) + cos(stLocal.y * PI));
@@ -464,8 +467,9 @@ float offset(vec2 st, float freq, int loopOffset, float speed, float seedVal) {
 
 void main() {
     vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
-    vec2 st = gl_FragCoord.xy / resolution.y;
-    aspectRatio = resolution.x / resolution.y;
+    globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 st = globalCoord / fullResolution.y;
+    aspectRatio = fullResolution.x / fullResolution.y;
 
     float lf1 = map(loopAScale, 1.0, 100.0, 6.0, 1.0);
     if (wrap) {

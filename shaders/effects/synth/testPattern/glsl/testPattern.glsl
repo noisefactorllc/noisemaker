@@ -2,6 +2,8 @@
 precision highp float;
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int gridSize;
 uniform int pattern;
 
@@ -169,7 +171,8 @@ vec4 dotGrid(vec2 uv) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution;
 
     if (pattern == 1) {
         fragColor = colorBars(uv);

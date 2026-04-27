@@ -11,6 +11,8 @@ precision highp int;
 #endif
 
 uniform sampler2D inputTex;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float seed;
 uniform float intensity;
@@ -127,13 +129,13 @@ vec2 meltDisplace(vec2 uv, float meltAmt, float t, float resX) {
 }
 
 // Scatter: per-pixel random displacement
-vec2 scatterDisplace(vec2 uv, float scatterAmt, float t) {
-    vec3 phaseHash = prng(vec3(floor(gl_FragCoord.xy), seed + 700.0));
+vec2 scatterDisplace(vec2 uv, float scatterAmt, float t, vec2 gCoord) {
+    vec3 phaseHash = prng(vec3(floor(gCoord), seed + 700.0));
     float pixTime = floor((t + phaseHash.x) * 8.0);
-    vec3 pixHash = prng(vec3(floor(gl_FragCoord.xy), pixTime + seed));
+    vec3 pixHash = prng(vec3(floor(gCoord), pixTime + seed));
     float threshold = mix(0.98, 0.1, scatterAmt * scatterAmt);
     if (pixHash.x > threshold) {
-        vec3 dirHash = prng(vec3(floor(gl_FragCoord.xy) + 1000.0, pixTime + seed));
+        vec3 dirHash = prng(vec3(floor(gCoord) + 1000.0, pixTime + seed));
         float dist = scatterAmt * 0.15 * (0.5 + pixHash.y * 0.5);
         uv.x = fract(uv.x + (dirHash.x - 0.5) * dist);
         uv.y = clamp(uv.y + (dirHash.y - 0.5) * dist, 0.0, 1.0);
@@ -142,14 +144,15 @@ vec2 scatterDisplace(vec2 uv, float scatterAmt, float t) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 resolution = vec2(textureSize(inputTex, 0));
     vec2 uv = gl_FragCoord.xy / resolution;
-    float resX = resolution.x;
+    float resX = fullResolution.x;
     float spd = floor(speed);
     float t = time * TAU * spd;
 
     // Scanline grouping
-    float rawRow = gl_FragCoord.y;
+    float rawRow = globalCoord.y;
     float bh = max(1.0, floor(bandHeight * 0.32));
     float row = floor(rawRow / bh);
 
@@ -170,7 +173,7 @@ void main() {
     }
     float scatterAmt = scatter / 100.0;
     if (scatterAmt > 0.0) {
-        sampleUv = scatterDisplace(sampleUv, scatterAmt, t);
+        sampleUv = scatterDisplace(sampleUv, scatterAmt, t, globalCoord);
     }
 
     // Band-based corruption to UV

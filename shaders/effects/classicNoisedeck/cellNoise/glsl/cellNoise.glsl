@@ -12,6 +12,8 @@ precision highp int;
 uniform float time;
 uniform int seed;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int shape;
 uniform float scale;
 uniform float cellScale;
@@ -36,7 +38,7 @@ out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
-#define aspectRatio resolution.x / resolution.y
+#define aspectRatio fullResolution.x / fullResolution.y
 
 float map(float value, float inMin, float inMax, float outMin, float outMax) {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
@@ -291,15 +293,16 @@ float cells(vec2 st, float freq, float cellSize, int sides) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec4 color = vec4(0.0, 0.0, 1.0, 1.0);
-    vec2 st = gl_FragCoord.xy / resolution.y;	
+    vec2 st = globalCoord / fullResolution.y;
 
     float freq = map(scale, 1.0, 100.0, 20.0, 1.0);
     float cellSize = map(cellScale, 1.0, 100.0, 3.0, 0.75);
 
     float texLuminosity = 0.0;
     float texFactor = texIntensity * 0.01;
-    vec2 texCoord = gl_FragCoord.xy / resolution;
+    vec2 texCoord = globalCoord / fullResolution;
 
     if (texInfluence > 0) {
         vec3 texRGB = texture(tex, texCoord).rgb;
@@ -346,7 +349,7 @@ void main() {
         color.rgb = pal(d);
     }
 
-    st = gl_FragCoord.xy / resolution;
+    st = globalCoord / fullResolution;
 
     fragColor = color;
 }

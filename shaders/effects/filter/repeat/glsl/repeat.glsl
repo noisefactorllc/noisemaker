@@ -2,6 +2,8 @@
 precision highp float;
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float aspect;
 uniform float x;
 uniform float y;
@@ -14,7 +16,8 @@ out vec4 fragColor;
 
 /* Tiles the input texture across the screen. */
 void main(){
-  vec2 st = gl_FragCoord.xy / resolution;
+  vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+  vec2 st = globalCoord / fullResolution;
   st.x *= aspect;
   st = st * vec2(x, y) + vec2(offsetX * aspect, offsetY);
   st.x /= aspect;

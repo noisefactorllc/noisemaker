@@ -13,6 +13,8 @@ precision highp int;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform int blendMode;
 uniform float mixAmt;
@@ -254,8 +256,9 @@ vec3 blend(vec4 color1, vec4 color2, int mode, float factor) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec4 color = vec4(0.0, 0.0, 1.0, 1.0);
-    vec2 st = gl_FragCoord.xy / resolution;
+    vec2 st = globalCoord / fullResolution;
 
     if (blendMode == 100) {
         color = cloak(st);

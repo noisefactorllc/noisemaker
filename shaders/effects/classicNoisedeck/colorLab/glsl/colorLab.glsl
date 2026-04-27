@@ -11,6 +11,8 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float levels;
 uniform int dither;
@@ -33,7 +35,7 @@ out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
-#define aspectRatio resolution.x / resolution.y
+#define aspectRatio fullResolution.x / fullResolution.y
 
 // PCG PRNG from https://github.com/riccardoscalco/glsl-pcg-prng, MIT license
 uvec3 pcg(uvec3 v) {
@@ -247,7 +249,8 @@ vec3 pal(float t) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution;
 
     vec4 color = vec4(0.0);
 
@@ -267,15 +270,15 @@ void main() {
 
     } else if (dither == 2) {
         // random
-        color.rgb *= vec3(step(random(gl_FragCoord.xy), bright));
+        color.rgb *= vec3(step(random(globalCoord), bright));
 
     } else if (dither == 3) {
         // random + time
-        color.rgb *= vec3(step(periodicFunction(random(gl_FragCoord.xy) + time), bright));
+        color.rgb *= vec3(step(periodicFunction(random(globalCoord) + time), bright));
 
     } else if (dither == 4) {
         // bayer
-        vec2 coord = mod(gl_FragCoord, 4.0).xy - 0.5;
+        vec2 coord = mod(globalCoord, 4.0).xy - 0.5;
 
         if (bright < 0.12) {
             color.rgb = vec3(0.0);

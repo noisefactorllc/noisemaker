@@ -13,6 +13,8 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int maskSource;
 uniform int sourceChannel;
 uniform float threshold;
@@ -34,6 +36,7 @@ float getChannel(vec4 color, int channel) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 uv = gl_FragCoord.xy / resolution;
 
     // Base image is the non-mask source

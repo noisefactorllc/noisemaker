@@ -9,6 +9,8 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float mode;
 uniform float depth;
 uniform float density;
@@ -92,15 +94,16 @@ float shadeFromHash(float h) {
 }
 
 void main() {
-    vec2 st = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 st = globalCoord / fullResolution;
 
     int maxDepth = int(depth);
     float dens = density / 100.0;
     int fillType = int(fill);
     int modeType = int(mode);
     float spd = floor(speed) * 2.0;
-    float outlineWidthX = outline / resolution.x;
-    float outlineWidthY = outline / resolution.y;
+    float outlineWidthX = outline / fullResolution.x;
+    float outlineWidthY = outline / fullResolution.y;
 
     // Subdivision loop
     vec2 cellMin = vec2(0.0);
@@ -116,8 +119,8 @@ void main() {
 
         if (h < dens) {
             // Skip splits that would create too-narrow cells (max 5:1 aspect)
-            float cellW = (cellMax.x - cellMin.x) * resolution.x;
-            float cellH = (cellMax.y - cellMin.y) * resolution.y;
+            float cellW = (cellMax.x - cellMin.x) * fullResolution.x;
+            float cellH = (cellMax.y - cellMin.y) * fullResolution.y;
             bool canSplitH = min(cellW, cellH * 0.5) / max(cellW, cellH * 0.5) >= 0.2;
             bool canSplitV = min(cellW * 0.5, cellH) / max(cellW * 0.5, cellH) >= 0.2;
 
@@ -162,8 +165,8 @@ void main() {
     vec2 cellUv = (st - cellMin) / cellSize;
 
     // 1:1 aspect-corrected coords, scaled to fit shorter side
-    float cellPixelW = cellSize.x * resolution.x;
-    float cellPixelH = cellSize.y * resolution.y;
+    float cellPixelW = cellSize.x * fullResolution.x;
+    float cellPixelH = cellSize.y * fullResolution.y;
     float minDim = min(cellPixelW, cellPixelH);
     vec2 centered = cellUv - 0.5;
     centered.x *= cellPixelW / minDim;
@@ -215,8 +218,8 @@ void main() {
 
         vec2 texUv = cellUv;
         // Correct for aspect ratio difference between cell and texture
-        float cellAspect = (cellSize.x * resolution.x) / (cellSize.y * resolution.y);
-        float texAspect = resolution.x / resolution.y;
+        float cellAspect = (cellSize.x * fullResolution.x) / (cellSize.y * fullResolution.y);
+        float texAspect = fullResolution.x / fullResolution.y;
         float ratio = cellAspect / texAspect;
         if (ratio > 1.0) {
             texUv.x = 0.5 + (texUv.x - 0.5) * ratio;

@@ -2,6 +2,8 @@
 precision highp float;
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform int shape1;
 uniform float scale1;
@@ -55,7 +57,8 @@ vec3 smoothFract(vec3 v) {
 }
 
 void main() {
-	vec2 uv = (gl_FragCoord.xy - resolution * 0.5) / min(resolution.x, resolution.y);
+	vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+	vec2 uv = (globalCoord - fullResolution * 0.5) / min(fullResolution.x, fullResolution.y);
 
 	float spd = floor(speed);
 	float anim = time * spd;

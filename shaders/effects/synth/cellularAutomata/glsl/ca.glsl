@@ -17,6 +17,8 @@ precision highp int;
 uniform float time;
 uniform int seed;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D fbTex;
 uniform int smoothing;
 uniform sampler2D prevFrameTex;
@@ -24,7 +26,7 @@ out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
-#define aspectRatio resolution.x / resolution.y
+#define aspectRatio fullResolution.x / fullResolution.y
 
 
 // Quadratic B-spline interpolation for 3 samples (degree 2 polynomial)
@@ -226,56 +228,57 @@ float cosineMix(float a, float b, float t) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     float state = 0.0;
 
     // Smoothing modes mirror the UI enum ordering; avoid renumbering without
     // updating module metadata and defaults.
     if (smoothing == 0) {
         // constant
-        state = texture(fbTex, gl_FragCoord.xy / resolution).g;
+        state = texture(fbTex, globalCoord / fullResolution).g;
     } else if (smoothing == 3) {
         // catmull-rom 3x3 (9 taps)
         vec2 texSize = vec2(textureSize(fbTex, 0));
         vec2 texelSize = 1.0 / texSize;
-        vec2 scaling = resolution / texSize;
-        vec2 uv = (gl_FragCoord.xy - scaling * 0.5) / resolution;
+        vec2 scaling = fullResolution / texSize;
+        vec2 uv = (globalCoord - scaling * 0.5) / fullResolution;
 
         state = catmullRom3x3(fbTex, uv, texelSize).g;
     } else if (smoothing == 4) {
         // catmull-rom 4x4 (16 taps)
         vec2 texSize = vec2(textureSize(fbTex, 0));
         vec2 texelSize = 1.0 / texSize;
-        vec2 scaling = resolution / texSize;
-        vec2 uv = (gl_FragCoord.xy - scaling * 0.5) / resolution;
+        vec2 scaling = fullResolution / texSize;
+        vec2 uv = (globalCoord - scaling * 0.5) / fullResolution;
 
         state = catmullRom4x4(fbTex, uv, texelSize).g;
     } else if (smoothing == 5) {
         // b-spline 3x3 (9 taps)
         vec2 texSize = vec2(textureSize(fbTex, 0));
         vec2 texelSize = 1.0 / texSize;
-        vec2 scaling = resolution / texSize;
-        vec2 uv = (gl_FragCoord.xy - scaling * 0.5) / resolution;
+        vec2 scaling = fullResolution / texSize;
+        vec2 uv = (globalCoord - scaling * 0.5) / fullResolution;
 
         state = quadratic(fbTex, uv, texelSize).g;
     } else if (smoothing == 6) {
         // b-spline 4x4 (16 taps)
         vec2 texSize = vec2(textureSize(fbTex, 0));
         vec2 texelSize = 1.0 / texSize;
-        vec2 scaling = resolution / texSize;
-        vec2 uv = (gl_FragCoord.xy - scaling * 0.5) / resolution;
+        vec2 scaling = fullResolution / texSize;
+        vec2 uv = (globalCoord - scaling * 0.5) / fullResolution;
 
         state = bicubic(fbTex, uv, texelSize).g;
     } else {
         // linear-style smoothing that samples a texel quad.
         vec2 texSize = vec2(textureSize(fbTex, 0));
-        vec2 nd2 = resolution / texSize; // scaled neighbor pixel distance
+        vec2 nd2 = fullResolution / texSize; // scaled neighbor pixel distance
         // To avoid directional bias, center sampled points equidistantly around origin.
-        vec2 xy = gl_FragCoord.xy - nd2 * 0.5;
+        vec2 xy = globalCoord - nd2 * 0.5;
 
-        float v00 = texture(fbTex, xy / resolution).g;
-        float v10 = texture(fbTex, (xy + vec2(nd2.x, 0.0)) / resolution).g;
-        float v01 = texture(fbTex, (xy + vec2(0.0, nd2.y)) / resolution).g;
-        float v11 = texture(fbTex, (xy + vec2(nd2.x, nd2.y)) / resolution).g;
+        float v00 = texture(fbTex, xy / fullResolution).g;
+        float v10 = texture(fbTex, (xy + vec2(nd2.x, 0.0)) / fullResolution).g;
+        float v01 = texture(fbTex, (xy + vec2(0.0, nd2.y)) / fullResolution).g;
+        float v11 = texture(fbTex, (xy + vec2(nd2.x, nd2.y)) / fullResolution).g;
 
         float xAmount = fract(xy.x / nd2.x);
         float yAmount = fract(xy.y / nd2.y);

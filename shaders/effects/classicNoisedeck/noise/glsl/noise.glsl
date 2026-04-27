@@ -36,6 +36,8 @@ precision highp int;
 uniform float time;
 uniform int seed;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float xScale;
 uniform float yScale;
 uniform int octaves;
@@ -59,7 +61,7 @@ out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
-#define aspectRatio resolution.x / resolution.y
+#define aspectRatio fullResolution.x / fullResolution.y
 
 // PCG PRNG - MIT License
 // https://github.com/riccardoscalco/glsl-pcg-prng
@@ -523,7 +525,7 @@ float concentric(vec2 st, float freq) {
 }
 
 float diamonds(vec2 st, float freq) {
-    st = gl_FragCoord.xy / resolution.y;
+    st = (gl_FragCoord.xy + tileOffset) / fullResolution.y;
     st -= vec2(0.5 * aspectRatio, 0.5);
     st *= freq;
     return (cos(st.x * PI) + cos(st.y * PI));
@@ -885,8 +887,9 @@ vec3 multires(vec2 st, vec2 freq, int octaves, float s, float blend) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
-    vec2 st = gl_FragCoord.xy / resolution.y;
+    vec2 st = globalCoord / fullResolution.y;
     st = kaleidoscope(st, kaleido, 0.5);
     vec2 centered = st - vec2(aspectRatio * 0.5, 0.5);
 
@@ -948,7 +951,7 @@ void main() {
 
     color.rgb = multires(centered, freq, octaves, float(seed), blend);
 
-    st = gl_FragCoord.xy / resolution;
+    st = globalCoord / fullResolution;
 
     fragColor = color;
 }

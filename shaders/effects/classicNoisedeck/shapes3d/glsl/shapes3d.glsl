@@ -27,6 +27,8 @@ precision highp int;
 
 uniform float time;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float shapeAScale;
 uniform float shapeBScale;
 uniform float shapeAThickness;
@@ -60,7 +62,7 @@ out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
-#define aspectRatio resolution.x / resolution.y
+#define aspectRatio fullResolution.x / fullResolution.y
 
 const float MIN_DIST = 0.01;
 const float MAX_DIST = 200.0;
@@ -488,8 +490,9 @@ float rayMarch(vec3 rayOrigin, vec3 rayDirection, TransformData data, ShapeParam
 // end raymarching
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec4 color = vec4(1.0);
-    vec2 st = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;
+    vec2 st = (globalCoord - 0.5 * fullResolution.xy) / fullResolution.y;
 
     // ray marching - calculate distance to scene objects
     vec3 rayOrigin = vec3(0.0, 0.0, -cameraDist);
@@ -557,7 +560,7 @@ void main() {
         color = mix(color, vec4(bgColor, bgAlpha * 0.01), floor(fogDist));
     }
 
-    st = gl_FragCoord.xy / resolution;
+    st = globalCoord / fullResolution;
 
     fragColor = color;
 }

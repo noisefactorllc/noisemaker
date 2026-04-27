@@ -42,6 +42,8 @@ uniform float time;
 
 uniform int seed;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float n;
 uniform float scale;
 uniform float rotation;
@@ -56,7 +58,7 @@ out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
-#define aspectRatio resolution.x / resolution.y
+#define aspectRatio fullResolution.x / fullResolution.y
 
 float map(float value, float inMin, float inMax, float outMin, float outMax) {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
@@ -88,9 +90,9 @@ vec3 prng (vec3 p) {
 vec2 rotate2D(vec2 st, float rot) {
     rot = map(rot, 0.0, 360.0, 0.0, 1.0);
     float angle = rot * TAU;
-    st -= resolution * 0.5;
+    st -= fullResolution * 0.5;
     st = mat2(cos(angle), -sin(angle), sin(angle), cos(angle)) * st;
-    st += resolution * 0.5;
+    st += fullResolution * 0.5;
     return st;
 }
 
@@ -479,19 +481,20 @@ vec3 bitMask(vec2 st) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
-    vec2 st = gl_FragCoord.xy;
+    vec2 st = globalCoord;
 
 #if MODE == 0
     // bit field
     color.rgb = bitField(st);
 #else
-    st = gl_FragCoord.xy / resolution.y;
+    st = globalCoord / fullResolution.y;
     st += float(seed) + 1000.0;
     color.rgb = bitMask(st);
 #endif
 
-    st = gl_FragCoord.xy / resolution;
+    st = globalCoord / fullResolution;
 
     fragColor = color;
 }

@@ -2,6 +2,8 @@
 precision highp float;
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float deltaTime;
 uniform vec3 lineColor;
@@ -15,7 +17,8 @@ uniform sampler2D noteGridTex;
 out vec4 fragColor;
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution;
 
     // Scroll: sample feedback shifted right (notes enter at left, scroll right)
     float scrollAmount = speed * deltaTime * 0.5;
@@ -40,7 +43,7 @@ void main() {
 
     // Sample note grid for this key and its neighbor
     float maxVel = 0.0;
-    float lanePixels = resolution.y / 16.0;
+    float lanePixels = fullResolution.y / 16.0;
     float keysPerPixel = float(keyRange) / lanePixels;
     int spread = max(1, int(ceil(keysPerPixel)));
 
@@ -54,7 +57,7 @@ void main() {
     }
 
     // Write new note data at the left edge
-    float edgeWidth = 4.0 / resolution.x;
+    float edgeWidth = 4.0 / fullResolution.x;
     float noteVal = 0.0;
     if (uv.x < edgeWidth && maxVel > 0.0) {
         noteVal = maxVel * gain;

@@ -275,6 +275,9 @@ export class Pipeline {
         this.lastPassCount = 0
         // Flag to prevent rendering during async program compilation
         this.isCompiling = false
+        // Tile region state for tiled large-resolution export
+        this._tileOffset = null       // [x, y] pixel offset, or null when not tiling
+        this._fullResolution = null   // [w, h] full image size, or null when not tiling
         // External input state (MIDI & Audio) - set by host application
         this.externalState = {
             midi: null,   // MidiState instance
@@ -956,6 +959,27 @@ export class Pipeline {
     }
 
     /**
+     * Set tile region for tiled large-resolution rendering.
+     * When set, shaders receive tileOffset and fullResolution uniforms
+     * so they can compute global coordinates across the full image.
+     * @param {{offset: number[], fullResolution: number[]}} region
+     * @param {number[]} region.offset - [x, y] pixel offset of this tile in the full image
+     * @param {number[]} region.fullResolution - [w, h] dimensions of the complete output image
+     */
+    setTileRegion({ offset, fullResolution }) {
+        this._tileOffset = offset
+        this._fullResolution = fullResolution
+    }
+
+    /**
+     * Clear tile region, returning to normal (non-tiled) rendering.
+     */
+    clearTileRegion() {
+        this._tileOffset = null
+        this._fullResolution = null
+    }
+
+    /**
      * Set a global uniform value
      * Automatically triggers texture resizing if the parameter affects texture dimensions
      * NOTE: Does not overwrite automation configs (oscillator, midi, audio) in pass uniforms
@@ -1276,8 +1300,34 @@ export class Pipeline {
             g.resolution[0] = this.width
             g.resolution[1] = this.height
         }
-        g.aspect = aspectValue
-        g.aspectRatio = aspectValue // Alias for shaders expecting this name
+        // Tile region uniforms for tiled large-resolution export
+        // Defaults (tileOffset=0, fullResolution=resolution) are no-ops
+        if (!g.tileOffset) {
+            g.tileOffset = [0, 0]
+        }
+        if (!g.fullResolution) {
+            g.fullResolution = [this.width, this.height]
+        }
+        if (this._tileOffset) {
+            g.tileOffset[0] = this._tileOffset[0]
+            g.tileOffset[1] = this._tileOffset[1]
+        } else {
+            g.tileOffset[0] = 0
+            g.tileOffset[1] = 0
+        }
+        if (this._fullResolution) {
+            g.fullResolution[0] = this._fullResolution[0]
+            g.fullResolution[1] = this._fullResolution[1]
+            // When tiling, aspect ratio uses full image dimensions
+            const fullAspect = this._fullResolution[0] / this._fullResolution[1]
+            g.aspect = fullAspect
+            g.aspectRatio = fullAspect
+        } else {
+            g.fullResolution[0] = this.width
+            g.fullResolution[1] = this.height
+            g.aspect = aspectValue
+            g.aspectRatio = aspectValue
+        }
 
         // Audio data (128 float arrays, 0-1)
         if (this.externalState.audio?.waveform) {

@@ -2,6 +2,8 @@
 precision highp float;
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float aspect;
 uniform int sides;
 uniform float radius;
@@ -24,7 +26,8 @@ float polygon(vec2 st, float sides){
 }
 
 void main(){
-  vec2 st = gl_FragCoord.xy / resolution;
+  vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+  vec2 st = globalCoord / fullResolution;
   st = (st - 0.5) * 2.0;
   st.x *= aspect;
   // Apply rotation

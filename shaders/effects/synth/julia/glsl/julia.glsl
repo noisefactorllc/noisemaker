@@ -16,6 +16,8 @@ precision highp int;
 #endif
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 
 uniform float cReal;
@@ -155,7 +157,7 @@ vec2 resolveC() {
 
 void transformCoords(vec2 fragCoord, float zm,
                      out vec2 reDF, out vec2 imDF) {
-    vec2 uv = (fragCoord - 0.5 * resolution) / min(resolution.x, resolution.y);
+    vec2 uv = (fragCoord - 0.5 * fullResolution) / min(fullResolution.x, fullResolution.y);
     float angle = -rotation * TAU / 360.0;
     float cs = cos(angle);
     float sn = sin(angle);
@@ -344,6 +346,7 @@ float outputNormalMap(vec2 fragCoord, vec2 c, int maxIter, float angle, float zm
 // ============================================================================
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 c = resolveC();
 
     // Zoom: sinusoidal when animated, static pow(10, depth) when not
@@ -358,10 +361,10 @@ void main() {
     float value;
 
     if (outputMode == 4) {
-        value = outputNormalMap(gl_FragCoord.xy, c, iterations, lightAngle, effectiveZoom);
+        value = outputNormalMap(globalCoord, c, iterations, lightAngle, effectiveZoom);
     } else {
         vec2 reDF, imDF;
-        transformCoords(gl_FragCoord.xy, effectiveZoom, reDF, imDF);
+        transformCoords(globalCoord, effectiveZoom, reDF, imDF);
         JuliaResult r = juliaIterate(reDF, imDF, c, iterations, stripeFreq, trapShape);
 
         if (outputMode == 0) {

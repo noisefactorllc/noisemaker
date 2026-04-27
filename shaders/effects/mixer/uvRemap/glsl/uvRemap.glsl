@@ -4,6 +4,8 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int mapSource;
 uniform int channel;
 uniform float scale;
@@ -32,6 +34,7 @@ vec2 applyWrap(vec2 uv, int wrapMode) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 st = gl_FragCoord.xy / resolution;
 
     vec4 colorA = texture(inputTex, st);

@@ -15,6 +15,8 @@ precision highp int;
 #endif
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 
 uniform int poi;
@@ -162,7 +164,7 @@ void getPOI(int index, out vec2 cX_df, out vec2 cY_df) {
 // df64 transform: returns (re_hi, re_lo, im_hi, im_lo)
 void transformCoords_df64(vec2 fragCoord, vec2 cX_df, vec2 cY_df, float z, float rot,
                           out vec2 re_df, out vec2 im_df) {
-    vec2 uv = (fragCoord - 0.5 * resolution) / min(resolution.x, resolution.y);
+    vec2 uv = (fragCoord - 0.5 * fullResolution) / min(fullResolution.x, fullResolution.y);
 
     float angle = -rot * TAU / 360.0;
     float c = cos(angle);
@@ -338,7 +340,7 @@ float computeValueAt_df64(vec2 fragCoord, vec2 cX_df, vec2 cY_df, float z_zoom, 
 
 float outputNormalMap(vec2 fragCoord, vec2 cX_df, vec2 cY_df,
                       float z_zoom, float rot, int maxIter, float angle) {
-    float eps = 1.0 / min(resolution.x, resolution.y);
+    float eps = 1.0 / min(fullResolution.x, fullResolution.y);
     float h0 = computeValueAt_df64(fragCoord, cX_df, cY_df, z_zoom, rot, maxIter);
     float hx = computeValueAt_df64(fragCoord + vec2(1.0, 0.0), cX_df, cY_df, z_zoom, rot, maxIter);
     float hy = computeValueAt_df64(fragCoord + vec2(0.0, 1.0), cX_df, cY_df, z_zoom, rot, maxIter);
@@ -375,6 +377,7 @@ float getEffectiveZoom(int poiIndex) {
 // ============================================================================
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     int maxIter = min(iterations, MAX_ITER);
     float effZoom = getEffectiveZoom(poi);
     float rot = (poi > 0) ? 0.0 : rotation;
@@ -387,7 +390,7 @@ void main() {
 
     if (outputMode == 4) {
         // Normal map: special case, needs 3 evaluations
-        value = outputNormalMap(gl_FragCoord.xy, cX_df, cY_df,
+        value = outputNormalMap(globalCoord, cX_df, cY_df,
                                effZoom, rot, maxIter, lightAngle);
     } else {
         float smoothI, rawI;
@@ -395,7 +398,7 @@ void main() {
         float stripeAcc, trapMin;
 
         vec2 re_df, im_df;
-        transformCoords_df64(gl_FragCoord.xy, cX_df, cY_df, effZoom, rot, re_df, im_df);
+        transformCoords_df64(globalCoord, cX_df, cY_df, effZoom, rot, re_df, im_df);
         mandelbrot_df64(re_df, im_df, maxIter, smoothI, rawI, z_final, dz_final, stripeAcc, trapMin);
 
         if (outputMode == 0) {

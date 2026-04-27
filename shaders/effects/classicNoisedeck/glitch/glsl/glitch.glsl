@@ -12,6 +12,8 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform int seed;
 uniform bool aspectLens;
@@ -27,7 +29,7 @@ out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
-#define aspectRatio resolution.x / resolution.y
+#define aspectRatio fullResolution.x / fullResolution.y
 
 // PCG PRNG - MIT License
 // https://github.com/riccardoscalco/glsl-pcg-prng
@@ -110,7 +112,7 @@ vec4 scanlines(vec4 color, vec2 st) {
 }
 
 vec4 snow(vec4 color, vec2 st) {
-    st = gl_FragCoord.xy;
+    st = gl_FragCoord.xy + tileOffset;
     float amt = snowAmt / 100.0;
     float noise = prng(vec3(st, time * 1000.0)).x;
 
@@ -196,7 +198,8 @@ vec4 glitch(vec2 st) {
 }
 
 void main() {
-	vec2 uv = gl_FragCoord.xy / resolution;
+	vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+	vec2 uv = globalCoord / fullResolution;
 
 	vec4 color = vec4(0.0);
 

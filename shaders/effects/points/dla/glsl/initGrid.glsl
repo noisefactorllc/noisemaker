@@ -5,6 +5,8 @@ precision highp float;
 
 uniform sampler2D gridTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int frame;
 uniform float decay;
 uniform float anchorDensity;
@@ -19,6 +21,7 @@ float hash21(vec2 p) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 uv = gl_FragCoord.xy / resolution;
     
     // If resetState is true, clear the grid

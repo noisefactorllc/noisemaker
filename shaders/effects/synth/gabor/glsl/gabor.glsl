@@ -10,6 +10,8 @@ precision highp int;
 #endif
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float seed;
 uniform float scale;
@@ -89,7 +91,8 @@ float gaborNoise(vec2 st, float freq, float sigma, float baseAngle, float iso, i
 }
 
 void main() {
-    vec2 st = gl_FragCoord.xy / resolution.y;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 st = globalCoord / fullResolution.y;
 
     float freq = map(scale, 1.0, 100.0, 20.0, 1.0);
     float sigma = map(bandwidth, 1.0, 100.0, 0.05, 0.35);

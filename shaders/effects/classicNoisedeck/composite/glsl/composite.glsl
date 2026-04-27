@@ -12,6 +12,8 @@ precision highp int;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform vec3 inputColor;
 uniform int blendMode;
@@ -186,8 +188,9 @@ vec3 blend(vec3 color1, vec3 color2) {
 
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec4 color = vec4(0.0, 0.0, 1.0, 1.0);
-    vec2 st = gl_FragCoord.xy / resolution;
+    vec2 st = globalCoord / fullResolution;
 
     vec4 color1 = texture(inputTex, st);
     vec4 color2 = texture(tex, st);

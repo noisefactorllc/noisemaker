@@ -2,6 +2,8 @@
 precision highp float;
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float audioWaveform[128];
 uniform vec3 lineColor;
 uniform float lineThickness;
@@ -10,7 +12,8 @@ uniform float gain;
 out vec4 fragColor;
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution;
 
     // Sample the waveform at this x position
     // Map uv.x [0,1] to array index [0,127]
@@ -28,7 +31,7 @@ void main() {
     wval = 0.5 + (wval - 0.5) * gain;
 
     // Distance from fragment to waveform line, in pixels
-    float dist = abs(uv.y - wval) * resolution.y;
+    float dist = abs(uv.y - wval) * fullResolution.y;
 
     // Anti-aliased line
     float line = smoothstep(lineThickness + 1.0, lineThickness, dist);

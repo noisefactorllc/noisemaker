@@ -11,6 +11,8 @@ precision highp int;
 
 uniform float time;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int type;
 uniform int symmetry; // 2 3 4 5
 uniform float offsetX;
@@ -40,7 +42,7 @@ out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
-#define aspectRatio resolution.x / resolution.y
+#define aspectRatio fullResolution.x / fullResolution.y
 
 
 float map(float value, float inMin, float inMax, float outMin, float outMax) {
@@ -329,8 +331,9 @@ float mandelbrot(vec2 st) {
 // end mandelbrot
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec4 color = vec4(0.0, 0.0, 1.0, 1.0);
-    vec2 st = gl_FragCoord.xy / resolution.y;	
+    vec2 st = globalCoord / fullResolution.y;
 
     float blend = periodicFunction(time - offset(st));
 
@@ -377,7 +380,7 @@ void main() {
 
     
 
-    st = gl_FragCoord.xy / resolution;
+    st = globalCoord / fullResolution;
 
     fragColor = color;
 }

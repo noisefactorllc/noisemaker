@@ -11,6 +11,8 @@ precision highp float;
 uniform sampler2D imageTex;
 uniform vec2 imageSize;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform int position;
 uniform float rotation;
@@ -63,7 +65,7 @@ vec2 tile(vec2 st) {
 
 vec4 getImage(vec2 st) {
     vec2 size = imageSize;
-    st = gl_FragCoord.xy / size;
+    st = (gl_FragCoord.xy + tileOffset) / size;
     st.y = 1.0 - st.y;
 
     float scale = 100.0 / scaleAmt;
@@ -76,41 +78,41 @@ vec4 getImage(vec2 st) {
     // Position adjustments based on anchor point
     if (position == 0) {
         // top left
-        st.y += (resolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        st.y += (fullResolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
     } else if (position == 1) {
         // top center
-        st.x -= (resolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
-        st.y += (resolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        st.x -= (fullResolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+        st.y += (fullResolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
     } else if (position == 2) {
         // top right
-        st.x -= (resolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
-        st.y += (resolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
+        st.x -= (fullResolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+        st.y += (fullResolution.y / size.y * scale) - (scale - (1.0 / size.y * scale));
     } else if (position == 3) {
         // mid left
-        st.y += (resolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        st.y += (fullResolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
     } else if (position == 4) {
         // mid center
-        st.x -= (resolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
-        st.y += (resolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        st.x -= (fullResolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+        st.y += (fullResolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
     } else if (position == 5) {
         // mid right
-        st.x -= (resolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
-        st.y += (resolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
+        st.x -= (fullResolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+        st.y += (fullResolution.y / size.y * scale * 0.5) + (0.5 - (1.0 / size.y * scale)) - (scale);
     } else if (position == 6) {
         // bottom left
         st.y += 1.0 - (scale - (1.0 / size.y * scale));
     } else if (position == 7) {
         // bottom center
-        st.x -= (resolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
+        st.x -= (fullResolution.x / size.x * scale * 0.5) - (0.5 - (1.0 / size.x * scale));
         st.y += 1.0 - (scale - (1.0 / size.y * scale));
     } else if (position == 8) {
         // bottom right
-        st.x -= (resolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
+        st.x -= (fullResolution.x / size.x * scale) - (1.0 - (1.0 / size.x * scale));
         st.y += 1.0 - (scale - (1.0 / size.y * scale));
     }
 
-    st.x -= map(offsetX, -100.0, 100.0, -resolution.x / size.x * scale, resolution.x / size.x * scale) * 1.5;
-    st.y -= map(offsetY, -100.0, 100.0, -resolution.y / size.y * scale, resolution.y / size.y * scale) * 1.5;
+    st.x -= map(offsetX, -100.0, 100.0, -fullResolution.x / size.x * scale, fullResolution.x / size.x * scale) * 1.5;
+    st.y -= map(offsetY, -100.0, 100.0, -fullResolution.y / size.y * scale, fullResolution.y / size.y * scale) * 1.5;
 
     // Correct for aspect ratio before rotation
     st.x *= size.x / size.y;
@@ -206,7 +208,8 @@ vec4 getImage(vec2 st) {
 
 
 void main() {
-    vec2 st = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 st = globalCoord / fullResolution;
     st.y = 1.0 - st.y;
 
     fragColor = getImage(st);

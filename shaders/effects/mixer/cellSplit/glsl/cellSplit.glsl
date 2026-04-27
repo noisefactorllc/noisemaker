@@ -5,6 +5,8 @@ precision highp int;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int mode;
 uniform float scale;
 uniform float edgeWidth;
@@ -39,14 +41,16 @@ vec3 prng(vec3 p) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 st = gl_FragCoord.xy / resolution;
+    vec2 globalST = globalCoord / fullResolution;
 
     vec4 colorA = texture(inputTex, st);
     vec4 colorB = texture(tex, st);
 
     // Aspect-correct, scaled coordinates
-    float aspect = resolution.x / resolution.y;
-    vec2 p = st * (31.0 - scale);
+    float aspect = fullResolution.x / fullResolution.y;
+    vec2 p = globalST * (31.0 - scale);
     p.x *= aspect;
 
     float spd = floor(speed);

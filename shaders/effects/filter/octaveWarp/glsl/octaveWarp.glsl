@@ -12,6 +12,8 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float frequency;
 uniform float octaves;
@@ -91,7 +93,8 @@ float wrapFloat(float value, float limit, int mode) {
 }
 
 void main() {
-    vec2 dims = resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 dims = fullResolution;
     float width = dims.x;
     float height = dims.y;
 
@@ -106,7 +109,8 @@ void main() {
     }
 
     vec2 uv = gl_FragCoord.xy / resolution;
-    vec2 sampleCoord = uv * dims;
+    vec2 globalUV = globalCoord / fullResolution;
+    vec2 sampleCoord = globalUV * dims;
 
     int numOctaves = max(int(octaves), 1);
     float displaceBase = displacement;

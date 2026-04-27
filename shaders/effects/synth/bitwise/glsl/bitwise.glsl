@@ -3,6 +3,8 @@ precision highp float;
 precision highp int;
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform int operation;
 uniform float scale;
@@ -49,9 +51,10 @@ void main() {
     float angle = rotation * PI / 180.0;
     float c = cos(angle);
     float s = sin(angle);
-    vec2 centered = gl_FragCoord.xy - resolution * 0.5;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 centered = globalCoord - fullResolution * 0.5;
     vec2 rotated = vec2(centered.x * c - centered.y * s, centered.x * s + centered.y * c);
-    vec2 coord = rotated + resolution * 0.5;
+    vec2 coord = rotated + fullResolution * 0.5;
 
     // Time offset — uses 256 (pattern period) so it loops seamlessly at any speed
     int animOffset = int(floor(time * float(int(-speed)) * 256.0));

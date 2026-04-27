@@ -4,6 +4,8 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int mode;
 uniform float mixAmt;
 out vec4 fragColor;
@@ -107,6 +109,7 @@ vec4 applyBlendMode(vec4 color1, vec4 color2, int m) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 st = gl_FragCoord.xy / resolution;
 
     vec4 color1 = texture(inputTex, st);

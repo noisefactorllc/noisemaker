@@ -9,11 +9,14 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D accumTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float alpha;
 
 out vec4 fragColor;
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 uv = gl_FragCoord.xy / resolution;
 
     vec4 src = texture(inputTex, uv);

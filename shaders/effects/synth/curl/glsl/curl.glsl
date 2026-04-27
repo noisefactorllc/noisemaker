@@ -22,6 +22,8 @@ precision highp float;
 #endif
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float scale;
 uniform int seed;
@@ -189,8 +191,9 @@ vec3 curlNoise3D(vec3 p) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / resolution;
-    float aspect = resolution.x / resolution.y;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution;
+    float aspect = fullResolution.x / fullResolution.y;
 
     // Center and scale coordinates
     vec2 centered = (uv - 0.5) * vec2(aspect, 1.0);

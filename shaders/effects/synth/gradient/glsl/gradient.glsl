@@ -7,6 +7,8 @@ precision highp float;
  */
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int gradientType;
 uniform float rotation;
 uniform int repeat;
@@ -25,7 +27,7 @@ out vec4 fragColor;
 #define TAU 6.28318530718
 
 vec2 rotate2D(vec2 st, float angle) {
-    float aspectRatio = resolution.x / resolution.y;
+    float aspectRatio = fullResolution.x / fullResolution.y;
     st.x *= aspectRatio;
     st -= vec2(aspectRatio * 0.5, 0.5);
     float c = cos(angle);
@@ -107,8 +109,9 @@ float fbmNoise(vec2 p) {
 }
 
 void main() {
-    vec2 st = gl_FragCoord.xy / resolution;
-    float aspectRatio = resolution.x / resolution.y;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 st = globalCoord / fullResolution;
+    float aspectRatio = fullResolution.x / fullResolution.y;
     
     // Convert rotation from degrees to radians
     float angle = -rotation * PI / 180.0;

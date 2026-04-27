@@ -20,6 +20,8 @@ precision highp int;
 #endif
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float degree;
 uniform float relaxation;
@@ -122,7 +124,7 @@ void df64_cmul(vec2 ar, vec2 ai, vec2 br, vec2 bi, out vec2 rr, out vec2 ri) {
 
 void transformCoords_df64(vec2 fragCoord, vec2 cX_df, vec2 cY_df, float z_zoom,
                           float rot, out vec2 re_df, out vec2 im_df) {
-    vec2 uv = (fragCoord - 0.5 * resolution) / min(resolution.x, resolution.y);
+    vec2 uv = (fragCoord - 0.5 * fullResolution) / min(fullResolution.x, fullResolution.y);
     float angle = -rot * TAU / 360.0;
     float c = cos(angle);
     float s = sin(angle);
@@ -162,6 +164,7 @@ POIData getPOI(int idx) {
 // ============================================================================
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     int maxIter = int(iterations);
     int poiIdx = int(poi);
     int outMode = int(outputMode);
@@ -209,7 +212,7 @@ void main() {
     // --- df64 coordinate transform ---
 
     vec2 re_df, im_df;
-    transformCoords_df64(gl_FragCoord.xy, vec2(cHi.x, cLo.x), vec2(cHi.y, cLo.y),
+    transformCoords_df64(globalCoord, vec2(cHi.x, cLo.x), vec2(cHi.y, cLo.y),
                          zoom, rotation, re_df, im_df);
 
     // --- Compute roots of z^n - 1 ---

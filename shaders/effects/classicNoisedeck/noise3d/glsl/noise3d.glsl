@@ -21,6 +21,8 @@ precision highp int;
 uniform float time;
 uniform int seed;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float scale;
 uniform bool ridges;
 uniform float offsetX;
@@ -33,7 +35,7 @@ out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
-#define aspectRatio resolution.x / resolution.y
+#define aspectRatio fullResolution.x / fullResolution.y
 
 // PCG PRNG - MIT License
 // https://github.com/riccardoscalco/glsl-pcg-prng
@@ -627,8 +629,9 @@ vec3 rgb2hsv(vec3 rgb) {
 
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
-    vec2 st = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;	
+    vec2 st = (globalCoord - 0.5 * fullResolution.xy) / fullResolution.y;
 
     // ray marching - calculate distance to scene objects
     vec3 rayOrigin = vec3(offsetX * 0.1, offsetY * 0.1, -8.0 + time * TAU * speed);
@@ -666,7 +669,7 @@ void main() {
     color.rgb = mix(color.rgb, vec3(0.0), fogDist);
 
 
-    st = gl_FragCoord.xy / resolution;
+    st = globalCoord / fullResolution;
 
     fragColor = color;
 }

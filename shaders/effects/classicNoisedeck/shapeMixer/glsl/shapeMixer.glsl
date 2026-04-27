@@ -12,6 +12,8 @@ precision highp int;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 // LOOP_OFFSET is a compile-time define injected by the runtime (see
 // definition.js `globals.LOOP_OFFSET.define`). Same fix as kaleido/shapes.
@@ -37,7 +39,7 @@ out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
-#define aspectRatio resolution.x / resolution.y
+#define aspectRatio fullResolution.x / fullResolution.y
 
 // PCG PRNG - MIT License
 // https://github.com/riccardoscalco/glsl-pcg-prng
@@ -255,7 +257,7 @@ float circles(vec2 st, float freq) {
 }
 
 float diamonds(vec2 st, float freq) {
-    st = gl_FragCoord.xy / resolution.y;
+    st = (gl_FragCoord.xy + tileOffset) / fullResolution.y;
     st -= vec2(0.5 * aspectRatio, 0.5);
     st *= freq;
     return (cos(st.x * PI) + cos(st.y * PI));
@@ -694,8 +696,9 @@ float blend(float color1, float color2, int mode, float factor) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec4 color = vec4(0.0, 0.0, 1.0, 1.0);
-    vec2 st = gl_FragCoord.xy / resolution;
+    vec2 st = globalCoord / fullResolution;
 
     vec4 color1 = texture(inputTex, st);
     vec4 color2 = texture(tex, st);

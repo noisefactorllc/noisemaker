@@ -34,6 +34,8 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform bool wrap;
 uniform int seed;
@@ -45,7 +47,7 @@ out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
-#define aspectRatio resolution.x / resolution.y
+#define aspectRatio fullResolution.x / fullResolution.y
 
 // convolution kernels
 float emboss[9];
@@ -876,7 +878,8 @@ vec2 kaleidoscope(vec2 st, float sides, float blendy) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / resolution.y;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution.y;
 
 	vec4 color = vec4(0.0);
     loadKernels();

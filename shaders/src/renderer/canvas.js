@@ -624,6 +624,21 @@ export class CanvasRenderer {
     }
 
     /**
+     * Set tile region for tiled large-resolution rendering.
+     * @param {{offset: number[], fullResolution: number[]}} region
+     */
+    setTileRegion(region) {
+        if (this._pipeline) this._pipeline.setTileRegion(region)
+    }
+
+    /**
+     * Clear tile region, returning to normal rendering.
+     */
+    clearTileRegion() {
+        if (this._pipeline) this._pipeline.clearTileRegion()
+    }
+
+    /**
      * Resize the renderer
      * @param {number} width - New width
      * @param {number} height - New height
