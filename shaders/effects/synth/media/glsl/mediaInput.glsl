@@ -13,6 +13,7 @@ uniform vec2 imageSize;
 uniform vec2 resolution;
 uniform vec2 tileOffset;
 uniform vec2 fullResolution;
+uniform float renderScale;
 uniform float time;
 uniform int position;
 uniform float rotation;
@@ -64,7 +65,7 @@ vec2 tile(vec2 st) {
 }
 
 vec4 getImage(vec2 st) {
-    vec2 size = imageSize;
+    vec2 size = imageSize * renderScale;
     st = (gl_FragCoord.xy + tileOffset) / size;
     st.y = 1.0 - st.y;
 
