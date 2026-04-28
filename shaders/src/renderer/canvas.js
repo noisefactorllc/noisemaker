@@ -569,6 +569,14 @@ export class CanvasRenderer {
     }
 
     /**
+     * Get the last normalized time value rendered by the pipeline.
+     * @returns {number} Normalized time (0-1)
+     */
+    get lastTime() {
+        return this._pipeline?.lastTime || 0
+    }
+
+    /**
      * Get device capabilities from the current pipeline.
      * Returns default capabilities if no pipeline is active.
      * @returns {{isMobile: boolean, floatBlend: boolean, floatLinear: boolean, colorBufferFloat: boolean, maxDrawBuffers: number, maxTextureSize: number, maxStateSize: number}}
