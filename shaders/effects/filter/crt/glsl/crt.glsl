@@ -17,6 +17,7 @@ uniform float time;
 uniform float speed;
 uniform int seed;
 uniform float alpha;
+uniform float renderScale;
 
 uint as_u32(float value) {
     return uint(max(value, 0.0));
@@ -414,10 +415,7 @@ vec2 get_scanline_base_values(float time, float speed) {
 
 // Get interpolated scanline value for a given y coordinate
 // The scanline pattern is based on Y position to create horizontal lines
-float get_scanline_value_interpolated(float y, float height, vec2 base_values) {
-    // Goal: ~500 bars for 1000px image = ~2px per bar, increased by 25% = 2.5px per bar
-    // Each bar alternates between the 2 base values
-    float pixels_per_bar = 2.5;
+float get_scanline_value_interpolated(float y, float height, vec2 base_values, float pixels_per_bar) {
     float y_scaled = y / pixels_per_bar;
     int scanline_index = int(floor(y_scaled)) % 2;
     
@@ -425,7 +423,7 @@ float get_scanline_value_interpolated(float y, float height, vec2 base_values) {
 }
 
 // Sample scanline with bilinear interpolation at fractional coordinates
-float sample_scanline_bilinear(float sample_x, float sample_y, float width, float height, vec2 base_values) {
+float sample_scanline_bilinear(float sample_x, float sample_y, float width, float height, vec2 base_values, float pixels_per_bar) {
     // Wrap coordinates
     float wrapped_x = sample_x - floor(sample_x / width) * width;
     float wrapped_y = sample_y - floor(sample_y / height) * height;
@@ -446,10 +444,10 @@ float sample_scanline_bilinear(float sample_x, float sample_y, float width, floa
     float y_fract = clamp(wrapped_y - y0, 0.0, 1.0);
     
     // Get scanline values at the 4 corners
-    float val_x0_y0 = get_scanline_value_interpolated(y0, height, base_values);
-    float val_x1_y0 = get_scanline_value_interpolated(y0, height, base_values);
-    float val_x0_y1 = get_scanline_value_interpolated(y1, height, base_values);
-    float val_x1_y1 = get_scanline_value_interpolated(y1, height, base_values);
+    float val_x0_y0 = get_scanline_value_interpolated(y0, height, base_values, pixels_per_bar);
+    float val_x1_y0 = get_scanline_value_interpolated(y0, height, base_values, pixels_per_bar);
+    float val_x0_y1 = get_scanline_value_interpolated(y1, height, base_values, pixels_per_bar);
+    float val_x1_y1 = get_scanline_value_interpolated(y1, height, base_values, pixels_per_bar);
     
     // Bilinear blend
     float val_y0 = mix(val_x0_y0, val_x1_y0, x_fract);
@@ -476,12 +474,14 @@ void main() {
         return;
     }
 
-    float width_f = max(resolution.x, 1.0);
-    float height_f = max(resolution.y, 1.0);
+    // Scale pixel-space dimensions so CRT patterns maintain visual size
+    float rs = max(renderScale, 1.0);
+    float width_f = max(resolution.x / rs, 1.0);
+    float height_f = max(resolution.y / rs, 1.0);
     float time = time;
     float speed = speed;
-    float x = float(global_id.x);
-    float y = float(global_id.y);
+    float x = float(global_id.x) / rs;
+    float y = float(global_id.y) / rs;
 
     float displacement = 0.0625;
     vec2 freq = freq_for_shape(2.0, width_f, height_f);
@@ -498,10 +498,11 @@ void main() {
     // Step 2: Sample the procedural scanline texture at the WARPED coordinates.
     // This correctly applies the lens warp to the scanlines.
     vec2 scanline_base = get_scanline_base_values(time, speed);
-    float scan_value = sample_scanline_bilinear(x + base_offsets.x, y + base_offsets.y, width_f, height_f, scanline_base);
+    float ppb = 2.5; // ~500 bars for 1000px, scanline spacing in scaled pixels
+    float scan_value = sample_scanline_bilinear(x + base_offsets.x, y + base_offsets.y, width_f, height_f, scanline_base, ppb);
 
     // Step 3: Sample the input texture at the ORIGINAL, un-warped coordinates.
-    vec4 base_sample = texelFetch(inputTex, ivec2(int(x), int(y)), 0);
+    vec4 base_sample = texelFetch(inputTex, ivec2(global_id.xy), 0);
     vec3 base_color = base_sample.xyz;
     float alpha = base_sample.w;
 
@@ -531,7 +532,7 @@ void main() {
         red_x = blend_linear(red_x, x, gradient);
         float red_sample_x = blend_cosine(x, red_x, aber_mask);
         
-        vec3 red_base_col = texelFetch(inputTex, ivec2(int(red_sample_x), int(y)), 0).xyz;
+        vec3 red_base_col = texelFetch(inputTex, ivec2(int(red_sample_x * rs), int(global_id.y)), 0).xyz;
         vec2 red_offsets = compute_lens_offsets(
             vec2(red_sample_x, y),
             width_f,
@@ -541,7 +542,7 @@ void main() {
             speed,
             displacement
         );
-        float red_scan_val = sample_scanline_bilinear(red_sample_x + red_offsets.x, y + red_offsets.y, width_f, height_f, scanline_base);
+        float red_scan_val = sample_scanline_bilinear(red_sample_x + red_offsets.x, y + red_offsets.y, width_f, height_f, scanline_base, ppb);
         vec3 red_blended = mix(red_base_col, (red_base_col + red_scan_val) * red_scan_val, 0.5);
 
         // Green channel is the original computed color for this pixel
@@ -552,7 +553,7 @@ void main() {
         blue_x = blend_linear(x, blue_x, gradient);
         float blue_sample_x = blend_cosine(x, blue_x, aber_mask);
 
-        vec3 blue_base_col = texelFetch(inputTex, ivec2(int(blue_sample_x), int(y)), 0).xyz;
+        vec3 blue_base_col = texelFetch(inputTex, ivec2(int(blue_sample_x * rs), int(global_id.y)), 0).xyz;
         vec2 blue_offsets = compute_lens_offsets(
             vec2(blue_sample_x, y),
             width_f,
@@ -562,7 +563,7 @@ void main() {
             speed,
             displacement
         );
-        float blue_scan_val = sample_scanline_bilinear(blue_sample_x + blue_offsets.x, y + blue_offsets.y, width_f, height_f, scanline_base);
+        float blue_scan_val = sample_scanline_bilinear(blue_sample_x + blue_offsets.x, y + blue_offsets.y, width_f, height_f, scanline_base, ppb);
         vec3 blue_blended = mix(blue_base_col, (blue_base_col + blue_scan_val) * blue_scan_val, 0.5);
 
         // Combine, applying hue shift to each component before assembling

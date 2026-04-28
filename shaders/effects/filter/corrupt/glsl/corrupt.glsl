@@ -22,6 +22,7 @@ uniform float speed;
 uniform float melt;
 uniform float scatter;
 uniform float bandHeight;
+uniform float renderScale;
 
 out vec4 fragColor;
 
@@ -111,7 +112,7 @@ vec3 bitCorrupt(vec3 color, vec2 uv, float row, float bitAmt, float rt, float re
 }
 
 // Melt: vertical displacement weighted by position, pixels drip downward
-vec2 meltDisplace(vec2 uv, float meltAmt, float t, float resX) {
+vec2 meltDisplace(vec2 uv, float meltAmt, float t, float resX, float rs) {
     float col = floor(uv.x * resX / 3.0);
     float colPhase = prng(vec3(col, seed + 601.0, 0.0)).x;
     vec3 dripHash = prng(vec3(col, seed + 600.0, floor((t + colPhase) * 8.0)));
@@ -127,13 +128,14 @@ vec2 meltDisplace(vec2 uv, float meltAmt, float t, float resX) {
 }
 
 // Scatter: per-pixel random displacement
-vec2 scatterDisplace(vec2 uv, float scatterAmt, float t) {
-    vec3 phaseHash = prng(vec3(floor(gl_FragCoord.xy), seed + 700.0));
+vec2 scatterDisplace(vec2 uv, float scatterAmt, float t, float rs) {
+    vec2 scaledCoord = floor(gl_FragCoord.xy / rs);
+    vec3 phaseHash = prng(vec3(scaledCoord, seed + 700.0));
     float pixTime = floor((t + phaseHash.x) * 8.0);
-    vec3 pixHash = prng(vec3(floor(gl_FragCoord.xy), pixTime + seed));
+    vec3 pixHash = prng(vec3(scaledCoord, pixTime + seed));
     float threshold = mix(0.98, 0.1, scatterAmt * scatterAmt);
     if (pixHash.x > threshold) {
-        vec3 dirHash = prng(vec3(floor(gl_FragCoord.xy) + 1000.0, pixTime + seed));
+        vec3 dirHash = prng(vec3(scaledCoord + 1000.0, pixTime + seed));
         float dist = scatterAmt * 0.15 * (0.5 + pixHash.y * 0.5);
         uv.x = fract(uv.x + (dirHash.x - 0.5) * dist);
         uv.y = clamp(uv.y + (dirHash.y - 0.5) * dist, 0.0, 1.0);
@@ -144,12 +146,15 @@ vec2 scatterDisplace(vec2 uv, float scatterAmt, float t) {
 void main() {
     vec2 resolution = vec2(textureSize(inputTex, 0));
     vec2 uv = gl_FragCoord.xy / resolution;
-    float resX = resolution.x;
+    // Scale pixel-space coordinates so corruption patterns maintain their
+    // visual size regardless of export resolution
+    float rs = max(renderScale, 1.0);
+    float resX = resolution.x / rs;
     float spd = floor(speed);
     float t = time * TAU * spd;
 
-    // Scanline grouping
-    float rawRow = gl_FragCoord.y;
+    // Scanline grouping — scale band height so rows stay visually consistent
+    float rawRow = gl_FragCoord.y / rs;
     float bh = max(1.0, floor(bandHeight * 0.32));
     float row = floor(rawRow / bh);
 
@@ -166,11 +171,11 @@ void main() {
     // 2D effects (not band-based)
     float meltAmt = melt / 100.0;
     if (meltAmt > 0.0) {
-        sampleUv = meltDisplace(sampleUv, meltAmt, t, resX);
+        sampleUv = meltDisplace(sampleUv, meltAmt, t, resX, rs);
     }
     float scatterAmt = scatter / 100.0;
     if (scatterAmt > 0.0) {
-        sampleUv = scatterDisplace(sampleUv, scatterAmt, t);
+        sampleUv = scatterDisplace(sampleUv, scatterAmt, t, rs);
     }
 
     // Band-based corruption to UV
