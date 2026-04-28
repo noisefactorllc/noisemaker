@@ -8,6 +8,7 @@ precision highp int;
 uniform sampler2D valueTexture;
 uniform float sobelMetric;
 uniform float thickness;
+uniform float renderScale;
 
 out vec4 fragColor;
 
@@ -53,7 +54,7 @@ void main() {
     int metric = int(sobelMetric);
 
     // Sample 3x3 neighborhood with thickness scaling
-    int offset = max(1, int(thickness));
+    int offset = max(1, int(thickness * renderScale));
     float samples[9];
     int idx = 0;
     for (int ky = -1; ky <= 1; ++ky) {

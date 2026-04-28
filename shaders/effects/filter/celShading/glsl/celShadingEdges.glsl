@@ -10,6 +10,7 @@ precision highp float;
 uniform sampler2D colorTex;
 uniform float edgeWidth;
 uniform float edgeThreshold;
+uniform float renderScale;
 
 out vec4 fragColor;
 
@@ -39,7 +40,7 @@ void main() {
     ivec2 coord = ivec2(gl_FragCoord.xy);
 
     // Sample 3x3 neighborhood with thickness scaling
-    int offset = int(edgeWidth);
+    int offset = max(1, int(edgeWidth * renderScale));
     float samples[9];
     int idx = 0;
     for (int ky = -1; ky <= 1; ++ky) {

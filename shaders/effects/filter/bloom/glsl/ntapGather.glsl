@@ -10,6 +10,7 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform float radius;
+uniform float renderScale;
 uniform int taps;
 
 out vec4 fragColor;
@@ -26,8 +27,8 @@ void main() {
     vec2 uv = gl_FragCoord.xy / texSize;
     vec2 texelSize = 1.0 / texSize;
     
-    // Bloom radius in UV space
-    vec2 radiusUV = radius * texelSize;
+    // Bloom radius in UV space, scaled for export resolution
+    vec2 radiusUV = radius * renderScale * texelSize;
 
     // Clamp taps to valid range
     int tapCount = clamp(taps, 1, MAX_TAPS);

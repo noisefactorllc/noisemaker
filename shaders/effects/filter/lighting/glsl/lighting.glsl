@@ -17,6 +17,7 @@ uniform vec3 ambientColor;
 uniform vec3 lightDirection;
 uniform float normalStrength;
 uniform float smoothing;
+uniform float renderScale;
 uniform float reflection;
 uniform float refraction;
 uniform float aberration;
@@ -31,7 +32,7 @@ float getLuminosity(vec3 color) {
 // Calculate surface normal from height map using Sobel convolution
 vec3 calculateNormal(vec2 uv, vec2 texelSize) {
     // Apply smoothing to texel size for smoother normals
-    vec2 sampleSize = texelSize * smoothing;
+    vec2 sampleSize = texelSize * smoothing * renderScale;
     
     // Sobel X kernel
     float sobel_x[9];

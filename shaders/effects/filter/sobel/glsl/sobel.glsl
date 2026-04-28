@@ -9,6 +9,7 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform float amount;
+uniform float renderScale;
 uniform float alpha;
 
 out vec4 fragColor;
@@ -48,7 +49,7 @@ void main() {
     vec3 convY = vec3(0.0);
     
     for (int i = 0; i < 9; i++) {
-        vec3 texSample = texture(inputTex, uv + offsets[i] * amount).rgb;
+        vec3 texSample = texture(inputTex, uv + offsets[i] * amount * renderScale).rgb;
         convX += texSample * sobel_x[i];
         convY += texSample * sobel_y[i];
     }

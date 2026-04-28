@@ -9,6 +9,7 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform float kernel;
 uniform float size;
+uniform float renderScale;
 uniform float blend;
 uniform float invert;
 uniform float channel;
@@ -61,7 +62,7 @@ void main() {
     vec4 origColor = texture(inputTex, uv);
 
     int kernelType = int(kernel);
-    int radius = int(size) + 1; // 0->1, 1->2, 2->3
+    int radius = int((size + 1.0) * renderScale); // scale kernel radius for export
     int blendMode = int(blend);
     bool doInvert = invert > 0.5;
     bool useLuma = channel > 0.5;

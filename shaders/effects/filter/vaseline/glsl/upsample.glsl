@@ -6,6 +6,7 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform float renderScale;
 uniform float alpha;
 
 out vec4 fragColor;
@@ -35,7 +36,7 @@ void main() {
     }
 
     vec2 texelSize = 1.0 / resolution;
-    vec2 radiusUV = RADIUS * texelSize;
+    vec2 radiusUV = RADIUS * renderScale * texelSize;
 
     // N-tap gather using golden angle spiral (Poisson-like distribution)
     vec3 blurAccum = vec3(0.0);

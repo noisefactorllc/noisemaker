@@ -9,6 +9,7 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform float amount;
+uniform float renderScale;
 
 out vec4 fragColor;
 
@@ -27,8 +28,8 @@ void main() {
     
     // Sample neighbors for derivative calculation
     vec3 center = desaturate(color.rgb);
-    vec3 right = desaturate(texture(inputTex, uv + vec2(texelSize.x * amount, 0.0)).rgb);
-    vec3 bottom = desaturate(texture(inputTex, uv + vec2(0.0, texelSize.y * amount)).rgb);
+    vec3 right = desaturate(texture(inputTex, uv + vec2(texelSize.x * amount * renderScale, 0.0)).rgb);
+    vec3 bottom = desaturate(texture(inputTex, uv + vec2(0.0, texelSize.y * amount * renderScale)).rgb);
     
     // Compute derivatives
     vec3 dx = center - right;

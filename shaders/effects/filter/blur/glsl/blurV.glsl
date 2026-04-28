@@ -8,6 +8,7 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform float radiusY;
+uniform float renderScale;
 
 out vec4 fragColor;
 
@@ -17,8 +18,8 @@ void main() {
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
     vec2 texelSize = 1.0 / vec2(texSize);
-    
-    int radius = int(radiusY);
+
+    int radius = int(radiusY * renderScale);
     if (radius <= 0) {
         fragColor = texture(inputTex, uv);
         return;
