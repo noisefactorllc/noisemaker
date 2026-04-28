@@ -11,6 +11,7 @@ uniform sampler2D inputTex;
 uniform vec2 resolution;
 uniform vec2 tileOffset;
 uniform vec2 fullResolution;
+uniform float renderScale;
 uniform float mode;
 uniform float depth;
 uniform float density;
@@ -102,8 +103,8 @@ void main() {
     int fillType = int(fill);
     int modeType = int(mode);
     float spd = floor(speed) * 2.0;
-    float outlineWidthX = outline / fullResolution.x;
-    float outlineWidthY = outline / fullResolution.y;
+    float outlineWidthX = outline * renderScale / fullResolution.x;
+    float outlineWidthY = outline * renderScale / fullResolution.y;
 
     // Subdivision loop
     vec2 cellMin = vec2(0.0);
