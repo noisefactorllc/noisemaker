@@ -49,7 +49,7 @@ Quick Start
            });
 
            await renderer.loadManifest();
-           await renderer.compile('noise().write(o0)\nrender(o0)');
+           await renderer.compile('search synth\nnoise().write(o0)\nrender(o0)');
            renderer.start();
        </script>
    </head>
@@ -86,7 +86,7 @@ The core rendering engine that manages the GPU pipeline:
    await renderer.loadManifest();
 
    // Compile and run DSL
-   await renderer.compile('noise().write(o0)\nrender(o0)');
+   await renderer.compile('search synth\nnoise().write(o0)\nrender(o0)');
    renderer.start();
 
    // Control playback
@@ -127,10 +127,12 @@ Effects are composed using a chainable DSL:
 .. code-block:: text
 
    // Basic noise
+   search synth
    noise().write(o0)
    render(o0)
 
    // Chained effects
+   search synth, filter
    noise(octaves: 4, scale: 2.0)
      .posterize(levels: 8)
      .bloom(radius: 0.5)
@@ -138,6 +140,7 @@ Effects are composed using a chainable DSL:
    render(o0)
 
    // Multiple surfaces
+   search synth, mixer
    noise().write(o0)
    noise(seed: 42).write(o1)
    blend(tex: read(o1), amount: 0.5).write(o0)
@@ -179,7 +182,7 @@ Using Bundles
    });
 
    await renderer.loadManifest();
-   await renderer.compile('noise().write(o0)');
+   await renderer.compile('search synth\nnoise().write(o0)\nrender(o0)');
    renderer.start();
 
 URL Parameters

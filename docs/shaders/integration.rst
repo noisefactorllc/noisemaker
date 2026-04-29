@@ -168,7 +168,7 @@ Minimal (render only)
     })
 
     await renderer.loadManifest()
-    await renderer.compile('noise().write(o0)\nrender(o0)')
+    await renderer.compile('search synth\nnoise().write(o0)\nrender(o0)')
     renderer.start()
 
 With State Management
@@ -191,7 +191,7 @@ With State Management
     await renderer.loadManifest()
 
     const state = new ProgramState({ renderer })
-    state.fromDsl('noise(octaves: 4, scale: 2.0).write(o0)\nrender(o0)')
+    state.fromDsl('search synth\nnoise(octaves: 4, scale: 2.0).write(o0)\nrender(o0)')
     await renderer.compile(state.toDsl())
     renderer.start()
 
@@ -334,7 +334,7 @@ Direct access to parsing and code generation, independent of state or rendering.
     import { compile, unparse, validate } from '...'
 
     // Compile DSL text to a structured representation
-    const compiled = compile('noise(octaves: 4).write(o0)\nrender(o0)')
+    const compiled = compile('search synth\nnoise(octaves: 4).write(o0)\nrender(o0)')
 
     // Generate DSL text from a compiled structure
     const dsl = unparse(compiled)
@@ -598,7 +598,7 @@ Example: Vanilla JS
             await renderer.loadManifest()
 
             const state = new ProgramState({ renderer })
-            state.fromDsl('noise(octaves: 4, scale: 2.0).write(o0)\nrender(o0)')
+            state.fromDsl('search synth\nnoise(octaves: 4, scale: 2.0).write(o0)\nrender(o0)')
             await renderer.compile(state.toDsl())
             renderer.start()
 
@@ -644,7 +644,7 @@ Example: React
                 await renderer.loadManifest()
 
                 const programState = new ProgramState({ renderer })
-                programState.fromDsl('noise().write(o0)\nrender(o0)')
+                programState.fromDsl('search synth\nnoise().write(o0)\nrender(o0)')
                 await renderer.compile(programState.toDsl())
                 renderer.start()
                 setState(programState)

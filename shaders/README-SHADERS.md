@@ -186,7 +186,7 @@ renderer.registerEffectsFromBundle(synthBundle);
 
 // Initialize enums and compile
 await renderer.initEnums();
-await renderer.compile('noise().write(o0)');
+await renderer.compile('search synth\nnoise().write(o0)\nrender(o0)');
 renderer.start();
 ```
 

@@ -90,7 +90,7 @@ Quick Start
     })
 
     await renderer.loadManifest()
-    await renderer.compile('noise().write(o0)\nrender(o0)')
+    await renderer.compile('search synth\nnoise().write(o0)\nrender(o0)')
     renderer.start()
 
 See :doc:`shaders/integration` for full API documentation.
