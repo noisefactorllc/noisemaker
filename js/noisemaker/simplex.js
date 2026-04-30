@@ -600,14 +600,20 @@ export function random(time = 0, seed, speed = 1) {
 export function simplex(shape, { time = 0, seed, speed = 1 } = {}) {
   const [height, width, channels = 1] = shape
   const baseSeed = seed ?? getSeed() // RNG call if seed absent
-  const angle = Math.PI * 2 * time
+  // (z, w) traces a circle of radius `speed` so the loop visits unique noise
+  // states; otherwise z = cos alone palindromes around t=0.5 (noise(t)==noise(1-t)).
+  // Wrap time to [0,1) so sin/cos are exact at integer times; otherwise
+  // Math.sin(2π) ≈ -2.45e-16 nudges integer y across a lattice boundary.
+  const fractionalTime = time - Math.floor(time)
+  const angle = Math.PI * 2 * fractionalTime
   const z = Math.cos(angle) * speed
+  const w = Math.sin(angle) * speed
   const data = new Float32Array(height * width * channels)
   for (let c = 0; c < channels; c++) {
     const { os } = fromSeed(baseSeed + c * 65535)
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        const val = os.noise3D(x, y, z)
+        const val = os.noise3D(x, y + w, z)
         data[(y * width + x) * channels + c] = (val + 1) * 0.5
       }
     }

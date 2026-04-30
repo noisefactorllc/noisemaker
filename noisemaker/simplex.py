@@ -738,14 +738,20 @@ def simplex(shape, time: int | float = 0, seed: int | None = None, speed: int | 
     height, width = shape[0], shape[1]
     channels = shape[2] if len(shape) > 2 else 1
     base_seed = seed if seed is not None else get_seed()
-    angle = math.pi * 2 * time
+    # (z, w) traces a circle of radius `speed` so the loop visits unique noise
+    # states; otherwise z = cos alone palindromes around t=0.5 (noise(t)==noise(1-t)).
+    # Wrap time to [0,1) so sin/cos are exact at integer times; otherwise
+    # math.sin(2π) ≈ -2.45e-16 nudges integer y across a lattice boundary.
+    fractional_time = time - math.floor(time)
+    angle = math.tau * fractional_time
     z = math.cos(angle) * speed
+    w = math.sin(angle) * speed
     data = np.empty((height, width, channels), dtype=np.float32)
     for c in range(channels):
         os, _ = from_seed(base_seed + c * 65535)
         for y in range(height):
             for x in range(width):
-                val = os.noise3d(x, y, z)
+                val = os.noise3d(x, y + w, z)
                 data[y][x][c] = (val + 1) * 0.5
     if not as_np:
         data = tf.stack(data)
