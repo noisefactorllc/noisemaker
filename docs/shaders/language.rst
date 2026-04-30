@@ -313,7 +313,7 @@ The ``palette`` enum provides named color palettes for effects like ``palette()`
 .. code-block:: none
 
    search filter
-   read(o0).palette(paletteIndex: palette.vaporwave).write(o1)
+   read(o0).palette(paletteIndex: vaporwave).write(o1)
 
 **Available Palettes:**
 
@@ -322,117 +322,117 @@ The ``palette`` enum provides named color palettes for effects like ``palette()`
 
    * - Name
      - Description
-   * - ``palette.none``
+   * - ``none``
      - Neutral (grayscale)
-   * - ``palette.grayscale``
+   * - ``grayscale``
      - Grayscale gradient
-   * - ``palette.afterimage``
+   * - ``afterimage``
      - Warm afterimage effect
-   * - ``palette.barstow``
+   * - ``barstow``
      - Desert sunset tones
-   * - ``palette.bloob``
+   * - ``bloob``
      - Cool cyan and blue
-   * - ``palette.blueSkies``
+   * - ``blueSkies``
      - Sky blue gradient
-   * - ``palette.brushedMetal``
+   * - ``brushedMetal``
      - Metallic gray tones
-   * - ``palette.burningSky``
+   * - ``burningSky``
      - Fiery orange and purple
-   * - ``palette.california``
+   * - ``california``
      - Warm sunset colors
-   * - ``palette.columbia``
+   * - ``columbia``
      - Bright magenta and cyan
-   * - ``palette.cottonCandy``
+   * - ``cottonCandy``
      - Soft pink and blue pastels
-   * - ``palette.darkSatin``
+   * - ``darkSatin``
      - Dark smooth gradient
-   * - ``palette.dealerHat``
+   * - ``dealerHat``
      - Warm orange and brown
-   * - ``palette.dreamy``
+   * - ``dreamy``
      - Soft dream-like tones
-   * - ``palette.eventHorizon``
+   * - ``eventHorizon``
      - Deep space blues
-   * - ``palette.fiveG``
+   * - ``fiveG``
      - Vibrant tech colors
-   * - ``palette.ghostly``
+   * - ``ghostly``
      - Pale ethereal tones
-   * - ``palette.hazySunset``
+   * - ``hazySunset``
      - Warm hazy oranges
-   * - ``palette.heatmap``
+   * - ``heatmap``
      - Thermal imaging colors
-   * - ``palette.hypercolor``
+   * - ``hypercolor``
      - Bright neon colors
-   * - ``palette.jester``
+   * - ``jester``
      - Bold contrasting hues
-   * - ``palette.justBlue``
+   * - ``justBlue``
      - Pure blue channel
-   * - ``palette.justCyan``
+   * - ``justCyan``
      - Pure cyan (green + blue)
-   * - ``palette.justGreen``
+   * - ``justGreen``
      - Pure green channel
-   * - ``palette.justPurple``
+   * - ``justPurple``
      - Pure magenta (red + blue)
-   * - ``palette.justRed``
+   * - ``justRed``
      - Pure red channel
-   * - ``palette.justYellow``
+   * - ``justYellow``
      - Pure yellow (red + green)
-   * - ``palette.mars``
+   * - ``mars``
      - Rusty red planet tones
-   * - ``palette.modesto``
+   * - ``modesto``
      - Earthy green and purple
-   * - ``palette.moss``
+   * - ``moss``
      - Forest green and brown
-   * - ``palette.neptune``
+   * - ``neptune``
      - Deep ocean blues
-   * - ``palette.netOfGems``
+   * - ``netOfGems``
      - Jewel-toned purples
-   * - ``palette.organic``
+   * - ``organic``
      - Natural earthy tones
-   * - ``palette.papaya``
+   * - ``papaya``
      - Tropical orange
-   * - ``palette.radioactive``
+   * - ``radioactive``
      - Toxic green glow
-   * - ``palette.royal``
+   * - ``royal``
      - Deep purple royalty
-   * - ``palette.santaCruz``
+   * - ``santaCruz``
      - Beach sunset colors
-   * - ``palette.seventiesShirt``
+   * - ``seventiesShirt``
      - Retro 70s colors
-   * - ``palette.sherbet``
+   * - ``sherbet``
      - Citrus orange and pink
-   * - ``palette.sherbetDouble``
+   * - ``sherbetDouble``
      - Double-frequency sherbet
-   * - ``palette.silvermane``
+   * - ``silvermane``
      - Silver metallic (OkLab)
-   * - ``palette.skykissed``
+   * - ``skykissed``
      - Soft pink sky
-   * - ``palette.solaris``
+   * - ``solaris``
      - Solar flare oranges
-   * - ``palette.spooky``
+   * - ``spooky``
      - Halloween orange and black (OkLab)
-   * - ``palette.springtime``
+   * - ``springtime``
      - Fresh spring pastels
-   * - ``palette.sproingtime``
+   * - ``sproingtime``
      - Bright spring greens
-   * - ``palette.sulphur``
+   * - ``sulphur``
      - Yellow sulfur tones
-   * - ``palette.summoning``
+   * - ``summoning``
      - Dark ritual magenta
-   * - ``palette.superhero``
+   * - ``superhero``
      - Bold comic book colors
-   * - ``palette.toxic``
+   * - ``toxic``
      - Poisonous green
-   * - ``palette.tropicalia``
+   * - ``tropicalia``
      - Tropical paradise (OkLab)
-   * - ``palette.tungsten``
+   * - ``tungsten``
      - Cool tungsten lighting
-   * - ``palette.vaporwave``
+   * - ``vaporwave``
      - 80s synthwave aesthetic
-   * - ``palette.vibrant``
+   * - ``vibrant``
      - High saturation colors
-   * - ``palette.vintage``
+   * - ``vintage``
      - Aged photograph tones
-   * - ``palette.vintagePhoto``
+   * - ``vintagePhoto``
      - Sepia photo effect
 
 Oscillators
@@ -447,7 +447,7 @@ Use the ``osc()`` function to create an oscillator:
 
 .. code-block:: none
 
-   osc(type: oscKind.sine)
+   osc(type: sine)
 
 **Parameters:**
 
@@ -485,12 +485,12 @@ Use the ``osc()`` function to create an oscillator:
 
 **Oscillator Types (oscKind):**
 
-* ``oscKind.sine`` - Smooth sine wave: 0 → 1 → 0
-* ``oscKind.tri`` - Linear triangle wave: 0 → 1 → 0
-* ``oscKind.saw`` - Sawtooth wave: 0 → 1
-* ``oscKind.sawInv`` - Inverted sawtooth: 1 → 0
-* ``oscKind.square`` - Square wave: 0 or 1
-* ``oscKind.noise`` - Periodic 2D noise (seamlessly looping)
+* ``sine`` - Smooth sine wave: 0 → 1 → 0
+* ``tri`` - Linear triangle wave: 0 → 1 → 0
+* ``saw`` - Sawtooth wave: 0 → 1
+* ``sawInv`` - Inverted sawtooth: 1 → 0
+* ``square`` - Square wave: 0 or 1
+* ``noise`` - Periodic 2D noise (seamlessly looping)
 
 Usage Examples
 ^^^^^^^^^^^^^^
@@ -500,15 +500,15 @@ Usage Examples
 .. code-block:: none
 
    search synth
-   noise(scale: osc(type: oscKind.sine, min: 2, max: 8)).write(o0)
+   noise(scale: osc(type: sine, min: 2, max: 8)).write(o0)
 
 **Using variables for reusable oscillators:**
 
 .. code-block:: none
 
    search synth
-   let scaleOsc = osc(type: oscKind.sine, min: 2, max: 8)
-   let rotOsc = osc(type: oscKind.saw, min: 0, max: 360)
+   let scaleOsc = osc(type: sine, min: 2, max: 8)
+   let rotOsc = osc(type: saw, min: 0, max: 360)
    noise(scale: scaleOsc, rotation: rotOsc).write(o0)
 
 **Speed control for synchronized loops:**
@@ -517,16 +517,16 @@ Usage Examples
 
    search synth
    // speed: 2 means the oscillator completes 2 cycles per animation loop
-   noise(scale: osc(type: oscKind.tri, min: 1, max: 10, speed: 2)).write(o0)
+   noise(scale: osc(type: tri, min: 1, max: 10, speed: 2)).write(o0)
 
 **Phase offset for staggered animations:**
 
 .. code-block:: none
 
    search synth
-   let osc1 = osc(type: oscKind.sine, offset: 0)
-   let osc2 = osc(type: oscKind.sine, offset: 0.25)
-   let osc3 = osc(type: oscKind.sine, offset: 0.5)
+   let osc1 = osc(type: sine, offset: 0)
+   let osc2 = osc(type: sine, offset: 0.25)
+   let osc3 = osc(type: sine, offset: 0.5)
    // Three oscillators at different phases create wave-like patterns
 
 **Noise oscillator with seed:**
@@ -534,7 +534,7 @@ Usage Examples
 .. code-block:: none
 
    search synth
-   noise(scale: osc(type: oscKind.noise, min: 2, max: 8, seed: 42)).write(o0)
+   noise(scale: osc(type: noise, min: 2, max: 8, seed: 42)).write(o0)
 
 Runtime Behavior
 ^^^^^^^^^^^^^^^^
@@ -551,13 +551,13 @@ Use ``midi()`` and ``audio()`` to drive parameters from external signals. Both m
 ``midi(channel, mode?, min?, max?, sensitivity?)``
 
 * ``channel`` (required): MIDI channel 1-16
-* ``mode``: ``midiMode.*`` (default ``midiMode.velocity``)
+* ``mode``: midiMode value (default ``velocity``)
 * ``min`` / ``max``: Output range (default 0..1)
 * ``sensitivity``: Decay rate for trigger modes (default 1)
 
 ``audio(band, min?, max?)``
 
-* ``band`` (required): ``audioBand.low | audioBand.mid | audioBand.high | audioBand.vol``
+* ``band`` (required): ``low | mid | high | vol``
 * ``min`` / ``max``: Output range (default 0..1)
 
 Example:
@@ -567,7 +567,7 @@ Example:
    search synth
    noise(
      scale: midi(channel: 1, min: 1, max: 10),
-     speed: audio(band: audioBand.low, min: 0.5, max: 2)
+     speed: audio(band: low, min: 0.5, max: 2)
    ).write(o0)
 
 For detailed behavior and host integration, see :doc:`midi-audio`.
