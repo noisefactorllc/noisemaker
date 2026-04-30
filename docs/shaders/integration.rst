@@ -58,7 +58,7 @@ Import directly from the Noisemaker CDN. No build step, no vendoring. This is th
 
     const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
-    const { CanvasRenderer, ProgramState, compile, unparse, getEffect, extractEffectNamesFromDsl } =
+    const { CanvasRenderer, ProgramState, compile, unparse, getEffect } =
         await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
 Add a preconnect hint in your HTML for faster loading:
@@ -67,7 +67,7 @@ Add a preconnect hint in your HTML for faster loading:
 
     <link rel="preconnect" href="https://shaders.noisedeck.app" crossorigin>
 
-Per-effect bundles are served from ``${SHADER_CDN}/effects/`` and are fetched on demand by ``renderer.loadEffects(effectIds)`` before each ``compile()`` call (see Quick Start below).
+Per-effect bundles are served from ``${SHADER_CDN}/effects/`` and are fetched on demand via ``renderer.loadEffect(effectId)`` (or ``loadEffects([...])`` for multiple) before each ``compile()`` call (see Quick Start below).
 
 Pinning levels
 """"""""""""""
@@ -155,8 +155,7 @@ Minimal (render only)
 
     const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
-    const { CanvasRenderer, extractEffectNamesFromDsl } =
-        await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
+    const { CanvasRenderer } = await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
     const canvas = document.getElementById('canvas')
     const renderer = new CanvasRenderer({
@@ -169,11 +168,13 @@ Minimal (render only)
     })
 
     await renderer.loadManifest()
+    await renderer.loadEffect('synth/noise')
 
-    const dsl = 'search synth\nnoise().write(o0)\nrender(o0)'
-    const effectIds = extractEffectNamesFromDsl(dsl, renderer.manifest).map(e => e.effectId)
-    await renderer.loadEffects(effectIds)
-    await renderer.compile(dsl)
+    await renderer.compile(`
+        search synth
+        noise().write(o0)
+        render(o0)
+    `)
 
     renderer.start()
 
@@ -184,7 +185,7 @@ With State Management
 
     const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
-    const { CanvasRenderer, ProgramState, extractEffectNamesFromDsl } =
+    const { CanvasRenderer, ProgramState } =
         await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
     const renderer = new CanvasRenderer({
@@ -195,10 +196,13 @@ With State Management
         bundlePath: `${SHADER_CDN}/effects`
     })
     await renderer.loadManifest()
+    await renderer.loadEffect('synth/noise')
 
-    const dsl = 'search synth\nnoise(octaves: 4, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)'
-    const effectIds = extractEffectNamesFromDsl(dsl, renderer.manifest).map(e => e.effectId)
-    await renderer.loadEffects(effectIds)
+    const dsl = `
+        search synth
+        noise(octaves: 4, scaleX: 50, scaleY: 50).write(o0)
+        render(o0)
+    `
     await renderer.compile(dsl)
 
     const state = new ProgramState({ renderer })
@@ -256,7 +260,8 @@ Creates and manages the GPU rendering pipeline.
 
     // Lifecycle
     await renderer.loadManifest()          // Load effect registry (call first)
-    await renderer.loadEffects(effectIds)  // Fetch per-effect bundles for the DSL (required before compile)
+    await renderer.loadEffect('synth/noise')           // Fetch one effect bundle, or...
+    await renderer.loadEffects(['synth/noise', 'filter/bloom'])  // ...several at once
     await renderer.compile(dsl)            // Compile DSL string into a shader pipeline
     renderer.start()                       // Start the render loop
     renderer.stop()                        // Stop the render loop
@@ -382,6 +387,32 @@ Look up effect definitions to build parameter UIs. Effects must be loaded via ``
         console.log(`${id}: ${def.description}`)
     }
 
+Loading Effects from a DSL
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When the DSL isn't a literal string in your code (user input, saved presets, dynamically generated chains), use ``extractEffectNamesFromDsl`` to walk the DSL against the manifest and build the list of effect IDs to pass to ``loadEffects()``:
+
+.. code-block:: javascript
+
+    const { extractEffectNamesFromDsl } =
+        await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
+
+    await renderer.loadManifest()
+
+    const effectIds = extractEffectNamesFromDsl(userDsl, renderer.manifest)
+        .map(e => e.effectId)
+
+    await renderer.loadEffects(effectIds)
+    await renderer.compile(userDsl)
+
+Returns ``[{ effectId, namespace, name }, ...]`` for every call site in the DSL that resolves against ``renderer.manifest``. Unknown calls are skipped, so the resulting list is always safe to feed to ``loadEffects()``.
+
+The static-DSL quickstart at the top of this guide loads its single effect by ID directly — reach for ``extractEffectNamesFromDsl`` when the DSL text isn't known at write time.
+
+.. note::
+
+   The current bundle's ``extractEffectNamesFromDsl`` is regex-based and consumes inline ``//`` comments on the same line as the ``search`` directive (it folds the comment text into the namespace name). If your DSL uses inline comments after ``search``, either move them to their own line or strip line comments before calling: ``dsl.replace(/\/\/.*$/gm, '')``.
+
 Parameter Types
 ---------------
 
@@ -483,6 +514,8 @@ Build multi-effect pipelines using the DSL:
 
 .. code-block:: javascript
 
+    await renderer.loadEffects(['synth/noise', 'filter/posterize', 'filter/bloom'])
+
     const dsl = `
         search synth, filter
         noise(octaves: 4, scaleX: 50, scaleY: 50)
@@ -491,12 +524,8 @@ Build multi-effect pipelines using the DSL:
           .write(o0)
         render(o0)
     `
+    await renderer.compile(dsl)
     state.fromDsl(dsl)
-
-    const compiled = state.toDsl()
-    const effectIds = extractEffectNamesFromDsl(compiled, renderer.manifest).map(e => e.effectId)
-    await renderer.loadEffects(effectIds)
-    await renderer.compile(compiled)
 
 Effects are chained with ``.``: generators at the start, filters in the middle, ``.write(oN)`` to assign to a surface, ``render(oN)`` to display. Multiple chains can write to different surfaces and be composited.
 
@@ -601,7 +630,7 @@ Example: Vanilla JS
         <script type="module">
             const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
-            const { CanvasRenderer, ProgramState, extractEffectNamesFromDsl } =
+            const { CanvasRenderer, ProgramState } =
                 await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
             const renderer = new CanvasRenderer({
@@ -613,10 +642,13 @@ Example: Vanilla JS
             })
 
             await renderer.loadManifest()
+            await renderer.loadEffect('synth/noise')
 
-            const dsl = 'search synth\nnoise(octaves: 4, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)'
-            const effectIds = extractEffectNamesFromDsl(dsl, renderer.manifest).map(e => e.effectId)
-            await renderer.loadEffects(effectIds)
+            const dsl = `
+                search synth
+                noise(octaves: 4, scaleX: 50, scaleY: 50).write(o0)
+                render(o0)
+            `
             await renderer.compile(dsl)
 
             const state = new ProgramState({ renderer })
@@ -652,7 +684,7 @@ Example: React
             let renderer
 
             async function init() {
-                const { CanvasRenderer, ProgramState, extractEffectNamesFromDsl } =
+                const { CanvasRenderer, ProgramState } =
                     await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
                 renderer = new CanvasRenderer({
@@ -664,10 +696,13 @@ Example: React
                 })
 
                 await renderer.loadManifest()
+                await renderer.loadEffect('synth/noise')
 
-                const dsl = 'search synth\nnoise(octaves: 4, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)'
-                const effectIds = extractEffectNamesFromDsl(dsl, renderer.manifest).map(e => e.effectId)
-                await renderer.loadEffects(effectIds)
+                const dsl = `
+                    search synth
+                    noise(octaves: 4, scaleX: 50, scaleY: 50).write(o0)
+                    render(o0)
+                `
                 await renderer.compile(dsl)
 
                 const programState = new ProgramState({ renderer })

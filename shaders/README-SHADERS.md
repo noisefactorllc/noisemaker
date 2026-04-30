@@ -177,13 +177,10 @@ This produces:
 
 ### Using Bundles
 
-The core bundle is loaded once. Each effect referenced by your DSL is fetched on demand from `dist/effects/` via `renderer.loadEffects()` before `renderer.compile()`:
+The core bundle is loaded once. Each effect you use is fetched on demand from `dist/effects/` via `renderer.loadEffect()` (or `loadEffects([...])` for several at once) before `renderer.compile()`:
 
 ```javascript
-import {
-    CanvasRenderer,
-    extractEffectNamesFromDsl
-} from './dist/shaders/noisemaker-shaders-core.esm.min.js';
+import { CanvasRenderer } from './dist/shaders/noisemaker-shaders-core.esm.min.js';
 
 const renderer = new CanvasRenderer({
     canvas,
@@ -194,11 +191,8 @@ const renderer = new CanvasRenderer({
 });
 
 await renderer.loadManifest();
-
-const dsl = 'search synth\nnoise().write(o0)\nrender(o0)';
-const effectIds = extractEffectNamesFromDsl(dsl, renderer.manifest).map(e => e.effectId);
-await renderer.loadEffects(effectIds);
-await renderer.compile(dsl);
+await renderer.loadEffect('synth/noise');
+await renderer.compile('search synth\nnoise().write(o0)\nrender(o0)');
 
 renderer.start();
 ```
