@@ -58,7 +58,7 @@ Import directly from the Noisemaker CDN. No build step, no vendoring. This is th
 
     const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
-    const { CanvasRenderer, ProgramState, compile, unparse, getEffect } =
+    const { CanvasRenderer, ProgramState, compile, unparse, getEffect, extractEffectNamesFromDsl } =
         await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
 Add a preconnect hint in your HTML for faster loading:
@@ -67,7 +67,7 @@ Add a preconnect hint in your HTML for faster loading:
 
     <link rel="preconnect" href="https://shaders.noisedeck.app" crossorigin>
 
-Effects are loaded automatically from ``${SHADER_CDN}/effects/``.
+Per-effect bundles are served from ``${SHADER_CDN}/effects/`` and are fetched on demand by ``renderer.loadEffects(effectIds)`` before each ``compile()`` call (see Quick Start below).
 
 Pinning levels
 """"""""""""""
@@ -155,7 +155,8 @@ Minimal (render only)
 
     const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
-    const { CanvasRenderer } = await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
+    const { CanvasRenderer, extractEffectNamesFromDsl } =
+        await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
     const canvas = document.getElementById('canvas')
     const renderer = new CanvasRenderer({
@@ -168,7 +169,12 @@ Minimal (render only)
     })
 
     await renderer.loadManifest()
-    await renderer.compile('search synth\nnoise().write(o0)\nrender(o0)')
+
+    const dsl = 'search synth\nnoise().write(o0)\nrender(o0)'
+    const effectIds = extractEffectNamesFromDsl(dsl, renderer.manifest).map(e => e.effectId)
+    await renderer.loadEffects(effectIds)
+    await renderer.compile(dsl)
+
     renderer.start()
 
 With State Management
@@ -178,7 +184,7 @@ With State Management
 
     const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
-    const { CanvasRenderer, ProgramState } =
+    const { CanvasRenderer, ProgramState, extractEffectNamesFromDsl } =
         await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
     const renderer = new CanvasRenderer({
@@ -190,14 +196,19 @@ With State Management
     })
     await renderer.loadManifest()
 
+    const dsl = 'search synth\nnoise(octaves: 4, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)'
+    const effectIds = extractEffectNamesFromDsl(dsl, renderer.manifest).map(e => e.effectId)
+    await renderer.loadEffects(effectIds)
+    await renderer.compile(dsl)
+
     const state = new ProgramState({ renderer })
-    state.fromDsl('search synth\nnoise(octaves: 4, scale: 2.0).write(o0)\nrender(o0)')
-    await renderer.compile(state.toDsl())
+    state.fromDsl(dsl)
+
     renderer.start()
 
     // Modify parameters (automatically applied to the pipeline)
     state.setValue('step_0', 'octaves', 6)
-    state.setValue('step_0', 'scale', 3.0)
+    state.setValue('step_0', 'scaleX', 30)
 
 Core API
 --------
@@ -245,6 +256,7 @@ Creates and manages the GPU rendering pipeline.
 
     // Lifecycle
     await renderer.loadManifest()          // Load effect registry (call first)
+    await renderer.loadEffects(effectIds)  // Fetch per-effect bundles for the DSL (required before compile)
     await renderer.compile(dsl)            // Compile DSL string into a shader pipeline
     renderer.start()                       // Start the render loop
     renderer.stop()                        // Stop the render loop
@@ -274,14 +286,14 @@ Manages parameter state for a compiled pipeline. Emits events so your UI can rea
     const state = new ProgramState({ renderer })
 
     // Read/write parameters
-    state.getValue('step_0', 'scale')              // Get a single value
-    state.setValue('step_0', 'scale', 2.0)         // Set a single value
+    state.getValue('step_0', 'scaleX')             // Get a single value
+    state.setValue('step_0', 'scaleX', 50)         // Set a single value
     state.getStepValues('step_0')                  // All values for a step
-    state.setStepValues('step_0', { scale: 2.0, octaves: 4 })
+    state.setStepValues('step_0', { scaleX: 50, octaves: 4 })
 
     // Batch multiple changes into a single event
     state.batch(() => {
-        state.setValue('step_0', 'scale', 2.0)
+        state.setValue('step_0', 'scaleX', 50)
         state.setValue('step_0', 'octaves', 4)
     })
 
@@ -472,14 +484,19 @@ Build multi-effect pipelines using the DSL:
 .. code-block:: javascript
 
     const dsl = `
-        noise(octaves: 4, scale: 2.0)
+        search synth, filter
+        noise(octaves: 4, scaleX: 50, scaleY: 50)
           .posterize(levels: 8)
-          .bloom(radius: 0.3)
+          .bloom(threshold: 0.5)
           .write(o0)
         render(o0)
     `
     state.fromDsl(dsl)
-    await renderer.compile(state.toDsl())
+
+    const compiled = state.toDsl()
+    const effectIds = extractEffectNamesFromDsl(compiled, renderer.manifest).map(e => e.effectId)
+    await renderer.loadEffects(effectIds)
+    await renderer.compile(compiled)
 
 Effects are chained with ``.``: generators at the start, filters in the middle, ``.write(oN)`` to assign to a surface, ``render(oN)`` to display. Multiple chains can write to different surfaces and be composited.
 
@@ -558,7 +575,7 @@ The core bundle (``noisemaker-shaders-core.esm.js``) exports:
    * - **External Input**
      - ``MidiInputManager``, ``AudioInputManager``
    * - **State**
-     - ``ProgramState``, ``Emitter``, ``extractEffectsFromDsl``
+     - ``ProgramState``, ``Emitter``, ``extractEffectsFromDsl``, ``extractEffectNamesFromDsl``
 
 .. note::
 
@@ -578,13 +595,13 @@ Example: Vanilla JS
         <canvas id="canvas" width="512" height="512"></canvas>
         <div>
             <label>Octaves: <input type="range" id="octaves" min="1" max="8" value="4"></label>
-            <label>Scale: <input type="range" id="scale" min="0.1" max="10" step="0.1" value="2"></label>
+            <label>Horizontal scale: <input type="range" id="scaleX" min="1" max="100" step="1" value="50"></label>
         </div>
 
         <script type="module">
             const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
-            const { CanvasRenderer, ProgramState } =
+            const { CanvasRenderer, ProgramState, extractEffectNamesFromDsl } =
                 await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
             const renderer = new CanvasRenderer({
@@ -597,16 +614,21 @@ Example: Vanilla JS
 
             await renderer.loadManifest()
 
+            const dsl = 'search synth\nnoise(octaves: 4, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)'
+            const effectIds = extractEffectNamesFromDsl(dsl, renderer.manifest).map(e => e.effectId)
+            await renderer.loadEffects(effectIds)
+            await renderer.compile(dsl)
+
             const state = new ProgramState({ renderer })
-            state.fromDsl('search synth\nnoise(octaves: 4, scale: 2.0).write(o0)\nrender(o0)')
-            await renderer.compile(state.toDsl())
+            state.fromDsl(dsl)
+
             renderer.start()
 
             document.getElementById('octaves').addEventListener('input', e => {
                 state.setValue('step_0', 'octaves', +e.target.value)
             })
-            document.getElementById('scale').addEventListener('input', e => {
-                state.setValue('step_0', 'scale', +e.target.value)
+            document.getElementById('scaleX').addEventListener('input', e => {
+                state.setValue('step_0', 'scaleX', +e.target.value)
             })
         </script>
     </body>
@@ -624,13 +646,13 @@ Example: React
     function NoiseGenerator() {
         const canvasRef = useRef(null)
         const [state, setState] = useState(null)
-        const [params, setParams] = useState({ octaves: 4, scale: 2.0 })
+        const [params, setParams] = useState({ octaves: 4, scaleX: 50 })
 
         useEffect(() => {
             let renderer
 
             async function init() {
-                const { CanvasRenderer, ProgramState } =
+                const { CanvasRenderer, ProgramState, extractEffectNamesFromDsl } =
                     await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
                 renderer = new CanvasRenderer({
@@ -643,9 +665,14 @@ Example: React
 
                 await renderer.loadManifest()
 
+                const dsl = 'search synth\nnoise(octaves: 4, scaleX: 50, scaleY: 50).write(o0)\nrender(o0)'
+                const effectIds = extractEffectNamesFromDsl(dsl, renderer.manifest).map(e => e.effectId)
+                await renderer.loadEffects(effectIds)
+                await renderer.compile(dsl)
+
                 const programState = new ProgramState({ renderer })
-                programState.fromDsl('search synth\nnoise().write(o0)\nrender(o0)')
-                await renderer.compile(programState.toDsl())
+                programState.fromDsl(dsl)
+
                 renderer.start()
                 setState(programState)
             }
@@ -669,9 +696,9 @@ Example: React
                         onChange={e => handleChange('octaves', +e.target.value)} />
                 </label>
                 <label>
-                    Scale: {params.scale.toFixed(2)}
-                    <input type="range" min={0.1} max={10} step={0.1} value={params.scale}
-                        onChange={e => handleChange('scale', +e.target.value)} />
+                    Horizontal scale: {params.scaleX}
+                    <input type="range" min={1} max={100} step={1} value={params.scaleX}
+                        onChange={e => handleChange('scaleX', +e.target.value)} />
                 </label>
             </div>
         )

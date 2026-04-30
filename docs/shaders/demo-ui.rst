@@ -38,7 +38,7 @@ Quick Start
    <html>
    <head>
        <script type="module">
-           import { CanvasRenderer, UIController } from './lib/demo-ui.js';
+           import { CanvasRenderer, UIController, extractEffectNamesFromDsl } from './lib/demo-ui.js';
 
            const canvas = document.getElementById('canvas');
            const renderer = new CanvasRenderer({
@@ -49,7 +49,12 @@ Quick Start
            });
 
            await renderer.loadManifest();
-           await renderer.compile('search synth\nnoise().write(o0)\nrender(o0)');
+
+           const dsl = 'search synth\nnoise().write(o0)\nrender(o0)';
+           const effectIds = extractEffectNamesFromDsl(dsl, renderer.manifest).map(e => e.effectId);
+           await renderer.loadEffects(effectIds);
+           await renderer.compile(dsl);
+
            renderer.start();
        </script>
    </head>
@@ -69,6 +74,7 @@ The core rendering engine that manages the GPU pipeline:
 .. code-block:: javascript
 
    import { CanvasRenderer } from './shaders/src/renderer/canvas.js';
+   import { extractEffectNamesFromDsl } from './lib/demo-ui.js';
 
    const renderer = new CanvasRenderer({
        canvas: HTMLCanvasElement,     // Target canvas
@@ -85,8 +91,12 @@ The core rendering engine that manages the GPU pipeline:
    // Load effect manifest
    await renderer.loadManifest();
 
-   // Compile and run DSL
-   await renderer.compile('search synth\nnoise().write(o0)\nrender(o0)');
+   // Fetch the per-effect bundles referenced by the DSL, then compile
+   const dsl = 'search synth\nnoise().write(o0)\nrender(o0)';
+   const effectIds = extractEffectNamesFromDsl(dsl, renderer.manifest).map(e => e.effectId);
+   await renderer.loadEffects(effectIds);
+   await renderer.compile(dsl);
+
    renderer.start();
 
    // Control playback
@@ -171,7 +181,7 @@ Using Bundles
 
 .. code-block:: javascript
 
-   import { CanvasRenderer, UIController } from './noisemaker-shaders-core.esm.js';
+   import { CanvasRenderer, UIController, extractEffectNamesFromDsl } from './noisemaker-shaders-core.esm.js';
 
    const renderer = new CanvasRenderer({
        canvas,
@@ -182,7 +192,12 @@ Using Bundles
    });
 
    await renderer.loadManifest();
-   await renderer.compile('search synth\nnoise().write(o0)\nrender(o0)');
+
+   const dsl = 'search synth\nnoise().write(o0)\nrender(o0)';
+   const effectIds = extractEffectNamesFromDsl(dsl, renderer.manifest).map(e => e.effectId);
+   await renderer.loadEffects(effectIds);
+   await renderer.compile(dsl);
+
    renderer.start();
 
 URL Parameters

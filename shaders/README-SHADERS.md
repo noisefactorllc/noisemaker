@@ -165,39 +165,43 @@ Shader effects can be bundled into standalone JavaScript modules for distributio
 npm run bundle:shaders
 ```
 
-This produces bundles in `dist/shaders/`:
+This produces:
 
-| Bundle | Description |
-|--------|-------------|
-| `noisemaker-shaders-core.esm.js` | Runtime only (no effects) |
-| `noisemaker-shaders-<namespace>.esm.js` | Per-namespace effect bundles |
-| `noisemaker-shaders-all.esm.js` | All namespaces combined |
-| `*.min.js` | Minified IIFE variants |
+| Path | Description |
+|------|-------------|
+| `dist/shaders/noisemaker-shaders-core.esm.js` | Core runtime (CanvasRenderer, ProgramState, etc.) — no effects inlined |
+| `dist/shaders/noisemaker-shaders-core.esm.min.js` | Minified ESM variant |
+| `dist/shaders/noisemaker-shaders-core.min.js` | Minified IIFE variant (exposes `window.NoisemakerShadersCore`) |
+| `dist/effects/<namespace>/<effect>.js` | Per-effect bundle with shaders inlined |
+| `dist/effects/manifest.json` | Effect registry consumed by `renderer.loadManifest()` |
 
 ### Using Bundles
 
+The core bundle is loaded once. Each effect referenced by your DSL is fetched on demand from `dist/effects/` via `renderer.loadEffects()` before `renderer.compile()`:
+
 ```javascript
-// Import a namespace bundle
-import synthBundle from './dist/shaders/noisemaker-shaders-synth.esm.js';
+import {
+    CanvasRenderer,
+    extractEffectNamesFromDsl
+} from './dist/shaders/noisemaker-shaders-core.esm.min.js';
 
-// Create renderer and register effects from bundle
-const renderer = new CanvasRenderer({ canvas, width: 512, height: 512 });
-renderer.registerEffectsFromBundle(synthBundle);
+const renderer = new CanvasRenderer({
+    canvas,
+    width: 512, height: 512,
+    basePath: './dist',
+    useBundles: true,
+    bundlePath: './dist/effects'
+});
 
-// Initialize enums and compile
-await renderer.initEnums();
-await renderer.compile('search synth\nnoise().write(o0)\nrender(o0)');
+await renderer.loadManifest();
+
+const dsl = 'search synth\nnoise().write(o0)\nrender(o0)';
+const effectIds = extractEffectNamesFromDsl(dsl, renderer.manifest).map(e => e.effectId);
+await renderer.loadEffects(effectIds);
+await renderer.compile(dsl);
+
 renderer.start();
 ```
-
-### Bundle vs Lazy Loading
-
-| Approach | Use Case |
-|----------|----------|
-| **Bundle** | CDN distribution, offline apps, known effect sets |
-| **Lazy Loading** | Large apps, dynamic effect discovery, development |
-
-Both approaches can coexist—bundle core effects, lazy-load extras.
 
 ---
 

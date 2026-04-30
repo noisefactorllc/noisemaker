@@ -79,7 +79,8 @@ Quick Start
 
     const SHADER_CDN = 'https://shaders.noisedeck.app/1'
 
-    const { CanvasRenderer } = await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
+    const { CanvasRenderer, extractEffectNamesFromDsl } =
+        await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
 
     const renderer = new CanvasRenderer({
         canvas: document.getElementById('canvas'),
@@ -90,7 +91,12 @@ Quick Start
     })
 
     await renderer.loadManifest()
-    await renderer.compile('search synth\nnoise().write(o0)\nrender(o0)')
+
+    const dsl = 'search synth\nnoise().write(o0)\nrender(o0)'
+    const effectIds = extractEffectNamesFromDsl(dsl, renderer.manifest).map(e => e.effectId)
+    await renderer.loadEffects(effectIds)
+    await renderer.compile(dsl)
+
     renderer.start()
 
 See :doc:`shaders/integration` for full API documentation.
