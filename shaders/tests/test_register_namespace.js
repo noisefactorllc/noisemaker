@@ -5,7 +5,9 @@ import {
     isValidNamespace,
     getNamespaceDescription,
     BUILTIN_NAMESPACE,
-    IO_FUNCTIONS
+    IO_FUNCTIONS,
+    registerNamespace,
+    unregisterNamespace
 } from '../src/runtime/tags.js'
 
 let failures = 0
@@ -109,6 +111,39 @@ test('BUILTIN_NAMESPACE and IO_FUNCTIONS are unchanged', () => {
     assert(IO_FUNCTIONS.includes('read'), "IO_FUNCTIONS includes 'read'")
     assert(IO_FUNCTIONS.includes('write3d'), "IO_FUNCTIONS includes 'write3d'")
     assert(IO_FUNCTIONS.includes('render'), "IO_FUNCTIONS includes 'render'")
+})
+
+// ---------- Task 3: register/unregister happy path ----------
+
+test('registerNamespace adds a new namespace and unregisterNamespace removes it', () => {
+    assertEquals(isValidNamespace('myFooHappy'), false, "before: isValidNamespace('myFooHappy')")
+    const desc = registerNamespace('myFooHappy', { description: 'Foo collection' })
+    try {
+        assertEquals(desc?.id, 'myFooHappy', 'returned descriptor.id')
+        assertEquals(desc?.description, 'Foo collection', 'returned descriptor.description')
+        assertEquals(isValidNamespace('myFooHappy'), true, "after register: isValidNamespace('myFooHappy')")
+        assert(VALID_NAMESPACES.includes('myFooHappy'), "VALID_NAMESPACES includes 'myFooHappy'")
+        assert('myFooHappy' in NAMESPACE_DESCRIPTIONS, "'myFooHappy' in NAMESPACE_DESCRIPTIONS")
+        assertEquals(NAMESPACE_DESCRIPTIONS.myFooHappy?.description, 'Foo collection', 'proxy read after register')
+        assertEquals(getNamespaceDescription('myFooHappy')?.description, 'Foo collection', 'getNamespaceDescription after register')
+        assertEquals(Object.isFrozen(desc), true, 'returned descriptor is frozen')
+    } finally {
+        const removed = unregisterNamespace('myFooHappy')
+        assertEquals(removed, true, 'unregisterNamespace returns true')
+    }
+    assertEquals(isValidNamespace('myFooHappy'), false, "after unregister: isValidNamespace('myFooHappy')")
+    assertEquals(VALID_NAMESPACES.includes('myFooHappy'), false, "VALID_NAMESPACES no longer includes 'myFooHappy'")
+    assertEquals('myFooHappy' in NAMESPACE_DESCRIPTIONS, false, "'myFooHappy' no longer in NAMESPACE_DESCRIPTIONS")
+})
+
+test('unregisterNamespace returns false for never-registered ids', () => {
+    assertEquals(unregisterNamespace('neverRegistered'), false, 'never registered → false')
+})
+
+test('unregisterNamespace returns false on second call (idempotent removal)', () => {
+    registerNamespace('myFooTwice', { description: 'twice' })
+    assertEquals(unregisterNamespace('myFooTwice'), true, 'first remove → true')
+    assertEquals(unregisterNamespace('myFooTwice'), false, 'second remove → false')
 })
 
 if (failures > 0) {

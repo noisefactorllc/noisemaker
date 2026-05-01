@@ -179,6 +179,46 @@ export function getNamespaceDescription(namespaceId) {
 }
 
 /**
+ * Register a new effect namespace. Once registered the id is accepted by
+ * the DSL parser's `search` directive and by `isValidNamespace`.
+ *
+ * Validation rules: the id must match /^[a-z][a-zA-Z0-9]*$/, must not be
+ * a DSL reserved keyword or function name, and must not collide with a
+ * built-in namespace. Re-registering with the same description is an
+ * idempotent no-op; with a different description, throws. Built-ins
+ * cannot be re-registered.
+ *
+ * @param {string} id - Namespace identifier.
+ * @param {{description: string}} descriptor - Descriptor with non-empty description.
+ * @returns {{id: string, description: string}} The registered descriptor (frozen).
+ * @throws {Error} on invalid id, reserved word, built-in collision, or
+ *   re-registration with a different description.
+ */
+export function registerNamespace(id, descriptor) {
+    const frozen = Object.freeze({ id, description: descriptor.description })
+    _namespaces.set(id, frozen)
+    VALID_NAMESPACES.push(id)
+    return frozen
+}
+
+/**
+ * Remove a previously-registered namespace. Built-ins cannot be unregistered.
+ * Effects already registered under the namespace remain in the registry but
+ * become unreachable via `search`. Primarily for test isolation.
+ *
+ * @param {string} id - Namespace identifier.
+ * @returns {boolean} true if removed, false if not registered.
+ * @throws {Error} on built-in id.
+ */
+export function unregisterNamespace(id) {
+    if (!_namespaces.has(id)) return false
+    _namespaces.delete(id)
+    const i = VALID_NAMESPACES.indexOf(id)
+    if (i >= 0) VALID_NAMESPACES.splice(i, 1)
+    return true
+}
+
+/**
  * Validate an array of tags.
  * @param {string[]} tags - Array of tag IDs to validate
  * @returns {{ valid: boolean, invalidTags: string[] }} Validation result
