@@ -225,11 +225,21 @@ export function registerNamespace(id, descriptor) {
     if (_RESERVED_FUNCTION_NAMES.includes(id)) {
         throw new Error(`Cannot register namespace '${id}': reserved function name`)
     }
+    if (_builtinIds.has(id)) {
+        throw new Error(`Cannot register namespace '${id}': built-in namespace`)
+    }
     if (descriptor === null || typeof descriptor !== 'object') {
         throw new Error(`Invalid descriptor for namespace '${id}': must be an object`)
     }
     if (typeof descriptor.description !== 'string' || descriptor.description.length === 0) {
         throw new Error(`Invalid descriptor for namespace '${id}': 'description' must be a non-empty string`)
+    }
+    const existing = _namespaces.get(id)
+    if (existing) {
+        if (existing.description !== descriptor.description) {
+            throw new Error(`Cannot re-register namespace '${id}' with a different description`)
+        }
+        return existing
     }
     const frozen = Object.freeze({ id, description: descriptor.description })
     _namespaces.set(id, frozen)
@@ -247,6 +257,9 @@ export function registerNamespace(id, descriptor) {
  * @throws {Error} on built-in id.
  */
 export function unregisterNamespace(id) {
+    if (_builtinIds.has(id)) {
+        throw new Error(`Cannot unregister namespace '${id}': built-in namespace`)
+    }
     if (!_namespaces.has(id)) return false
     _namespaces.delete(id)
     const i = VALID_NAMESPACES.indexOf(id)

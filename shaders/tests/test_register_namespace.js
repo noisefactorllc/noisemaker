@@ -189,6 +189,49 @@ test('registerNamespace rejects bad descriptors', () => {
     assertThrows(() => registerNamespace('myFooDesc', { description: 42 }), 'description', 'non-string description')
 })
 
+// ---------- Task 5: idempotency, conflict, built-in protection ----------
+
+test('registerNamespace is idempotent for same descriptor', () => {
+    const a = registerNamespace('myFooIdem', { description: 'same' })
+    try {
+        const b = registerNamespace('myFooIdem', { description: 'same' })
+        assertEquals(a, b, 'idempotent register returns the same frozen descriptor')
+        assertEquals(VALID_NAMESPACES.filter(n => n === 'myFooIdem').length, 1, 'no duplicate in VALID_NAMESPACES')
+    } finally {
+        unregisterNamespace('myFooIdem')
+    }
+})
+
+test('registerNamespace throws on conflicting re-registration', () => {
+    registerNamespace('myFooConflict', { description: 'first' })
+    try {
+        assertThrows(
+            () => registerNamespace('myFooConflict', { description: 'different' }),
+            'different description',
+            'conflicting re-register'
+        )
+    } finally {
+        unregisterNamespace('myFooConflict')
+    }
+})
+
+test('registerNamespace throws on built-in collision', () => {
+    for (const builtin of ['io', 'classicNoisedeck', 'synth', 'mixer', 'filter', 'render', 'points', 'synth3d', 'filter3d', 'user']) {
+        assertThrows(() => registerNamespace(builtin, { description: 'x' }), null, builtin)
+    }
+})
+
+test('unregisterNamespace throws on built-in', () => {
+    for (const builtin of ['synth', 'filter', 'user']) {
+        assertThrows(() => unregisterNamespace(builtin), 'built-in', builtin)
+    }
+})
+
+test('built-ins remain after attempted built-in unregister', () => {
+    try { unregisterNamespace('synth') } catch {}
+    assertEquals(isValidNamespace('synth'), true, "synth still valid after attempted unregister")
+})
+
 if (failures > 0) {
     console.error(`\n${failures} test(s) failed`)
     process.exitCode = 1
