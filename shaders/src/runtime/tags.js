@@ -6,6 +6,8 @@
  * for effect groupings.
  */
 
+import { RESERVED_KEYWORDS } from '../lang/lexer.js'
+
 /**
  * Tag definitions.
  * Each tag has a unique key and a description.
@@ -88,6 +90,19 @@ const _namespaces = new Map(
 )
 
 const _builtinIds = new Set(_namespaces.keys())
+
+/**
+ * Function names that are reserved but aren't lexer keywords or IO_FUNCTIONS.
+ * Registering a namespace with one of these would shadow the function in
+ * bare-name resolution.
+ *   from    — namespace-override directive (handled in parser; would shadow)
+ *   osc     — external-input function (oscillator)
+ *   midi    — external-input function (MIDI controller value)
+ *   audio   — external-input function (audio FFT/level)
+ */
+const _RESERVED_FUNCTION_NAMES = ['from', 'osc', 'midi', 'audio']
+
+const _ID_PATTERN = /^[a-z][a-zA-Z0-9]*$/
 
 /**
  * Read-only object view of all registered namespaces.
@@ -195,6 +210,27 @@ export function getNamespaceDescription(namespaceId) {
  *   re-registration with a different description.
  */
 export function registerNamespace(id, descriptor) {
+    if (typeof id !== 'string' || id.length === 0) {
+        throw new Error(`Invalid namespace id: must be a non-empty string`)
+    }
+    if (!_ID_PATTERN.test(id)) {
+        throw new Error(`Invalid namespace id '${id}': must match ${_ID_PATTERN}`)
+    }
+    if (Object.prototype.hasOwnProperty.call(RESERVED_KEYWORDS, id)) {
+        throw new Error(`Cannot register namespace '${id}': reserved DSL keyword`)
+    }
+    if (IO_FUNCTIONS.includes(id)) {
+        throw new Error(`Cannot register namespace '${id}': reserved IO function name`)
+    }
+    if (_RESERVED_FUNCTION_NAMES.includes(id)) {
+        throw new Error(`Cannot register namespace '${id}': reserved function name`)
+    }
+    if (descriptor === null || typeof descriptor !== 'object') {
+        throw new Error(`Invalid descriptor for namespace '${id}': must be an object`)
+    }
+    if (typeof descriptor.description !== 'string' || descriptor.description.length === 0) {
+        throw new Error(`Invalid descriptor for namespace '${id}': 'description' must be a non-empty string`)
+    }
     const frozen = Object.freeze({ id, description: descriptor.description })
     _namespaces.set(id, frozen)
     VALID_NAMESPACES.push(id)

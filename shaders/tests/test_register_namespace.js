@@ -146,6 +146,49 @@ test('unregisterNamespace returns false on second call (idempotent removal)', ()
     assertEquals(unregisterNamespace('myFooTwice'), false, 'second remove → false')
 })
 
+// ---------- Task 4: validation rules ----------
+
+test('registerNamespace rejects invalid id shapes', () => {
+    assertThrows(() => registerNamespace('', { description: 'x' }), 'must be a non-empty string', "''")
+    assertThrows(() => registerNamespace(null, { description: 'x' }), 'must be a non-empty string', 'null')
+    assertThrows(() => registerNamespace(undefined, { description: 'x' }), 'must be a non-empty string', 'undefined')
+    assertThrows(() => registerNamespace(42, { description: 'x' }), 'must be a non-empty string', '42')
+    assertThrows(() => registerNamespace('Foo', { description: 'x' }), 'must match', "'Foo'")
+    assertThrows(() => registerNamespace('1foo', { description: 'x' }), 'must match', "'1foo'")
+    assertThrows(() => registerNamespace('foo-bar', { description: 'x' }), 'must match', "'foo-bar'")
+    assertThrows(() => registerNamespace('foo bar', { description: 'x' }), 'must match', "'foo bar'")
+    assertThrows(() => registerNamespace('foo.bar', { description: 'x' }), 'must match', "'foo.bar'")
+})
+
+test('registerNamespace rejects reserved DSL keywords', () => {
+    for (const kw of ['render', 'let', 'search', 'subchain', 'write', 'write3d', 'if', 'elif', 'else', 'break', 'continue', 'return']) {
+        assertThrows(() => registerNamespace(kw, { description: 'x' }), 'reserved DSL keyword', kw)
+    }
+})
+
+test('registerNamespace rejects IO function names', () => {
+    for (const fn of ['read', 'write', 'read3d', 'write3d', 'render', 'render3d']) {
+        // Note: write/write3d/render are also lexer keywords and may be caught earlier;
+        // read/read3d/render3d are pure IO function names.
+        assertThrows(() => registerNamespace(fn, { description: 'x' }), null, fn)
+    }
+})
+
+test('registerNamespace rejects reserved function names (from/osc/midi/audio)', () => {
+    for (const fn of ['from', 'osc', 'midi', 'audio']) {
+        assertThrows(() => registerNamespace(fn, { description: 'x' }), 'reserved', fn)
+    }
+})
+
+test('registerNamespace rejects bad descriptors', () => {
+    assertThrows(() => registerNamespace('myFooDesc', null), 'descriptor', 'null descriptor')
+    assertThrows(() => registerNamespace('myFooDesc', undefined), 'descriptor', 'undefined descriptor')
+    assertThrows(() => registerNamespace('myFooDesc', 'string'), 'descriptor', 'string descriptor')
+    assertThrows(() => registerNamespace('myFooDesc', {}), 'description', 'missing description')
+    assertThrows(() => registerNamespace('myFooDesc', { description: '' }), 'description', 'empty description')
+    assertThrows(() => registerNamespace('myFooDesc', { description: 42 }), 'description', 'non-string description')
+})
+
 if (failures > 0) {
     console.error(`\n${failures} test(s) failed`)
     process.exitCode = 1
