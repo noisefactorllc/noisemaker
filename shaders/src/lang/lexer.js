@@ -1,4 +1,26 @@
 /**
+ * Reserved DSL keyword → token-type map.
+ * Single source of truth shared by the lexer and namespace validation
+ * (shaders/src/runtime/tags.js → registerNamespace).
+ */
+export const RESERVED_KEYWORDS = Object.freeze({
+    let: 'LET',
+    render: 'RENDER',
+    write: 'WRITE',
+    write3d: 'WRITE3D',
+    true: 'TRUE',
+    false: 'FALSE',
+    if: 'IF',
+    elif: 'ELIF',
+    else: 'ELSE',
+    break: 'BREAK',
+    continue: 'CONTINUE',
+    return: 'RETURN',
+    search: 'SEARCH',
+    subchain: 'SUBCHAIN'
+})
+
+/**
  * Lexer for the live-coding DSL
  * Produces an array of tokens: {type, lexeme, line, col}
  * @param {string} src source code
@@ -16,22 +38,7 @@ export function lex(src) {
 
     const isDigit = c => c >= '0' && c <= '9'
     const isLetter = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
-    const keywords = {
-        let: 'LET',
-        render: 'RENDER',
-        write: 'WRITE',
-        write3d: 'WRITE3D',
-        true: 'TRUE',
-        false: 'FALSE',
-        if: 'IF',
-        elif: 'ELIF',
-        else: 'ELSE',
-        break: 'BREAK',
-        continue: 'CONTINUE',
-        return: 'RETURN',
-        search: 'SEARCH',
-        subchain: 'SUBCHAIN'
-    }
+    const keywords = RESERVED_KEYWORDS
 
     while (i < src.length) {
         let ch = src[i]
