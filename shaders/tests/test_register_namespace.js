@@ -1,4 +1,12 @@
 import { lex, RESERVED_KEYWORDS } from '../src/lang/lexer.js'
+import {
+    NAMESPACE_DESCRIPTIONS,
+    VALID_NAMESPACES,
+    isValidNamespace,
+    getNamespaceDescription,
+    BUILTIN_NAMESPACE,
+    IO_FUNCTIONS
+} from '../src/runtime/tags.js'
 
 let failures = 0
 
@@ -54,6 +62,53 @@ test('Lexer still tokenizes keywords correctly after refactor', () => {
     sourceCheck('subchain', 'SUBCHAIN')
     sourceCheck('write3d', 'WRITE3D')
     sourceCheck('elif', 'ELIF')
+})
+
+// ---------- Task 2: tags.js Proxy refactor ----------
+
+test('Built-in namespaces are still readable through NAMESPACE_DESCRIPTIONS', () => {
+    assertEquals(NAMESPACE_DESCRIPTIONS.synth?.id, 'synth', 'NAMESPACE_DESCRIPTIONS.synth.id')
+    assertEquals(NAMESPACE_DESCRIPTIONS.synth?.description, 'Generator effects', 'NAMESPACE_DESCRIPTIONS.synth.description')
+    assert('filter' in NAMESPACE_DESCRIPTIONS, "'filter' in NAMESPACE_DESCRIPTIONS")
+    assertEquals(NAMESPACE_DESCRIPTIONS.notARealNamespace, undefined, 'unknown key returns undefined')
+})
+
+test('Object.keys(NAMESPACE_DESCRIPTIONS) enumerates all built-ins', () => {
+    const keys = Object.keys(NAMESPACE_DESCRIPTIONS).sort()
+    const expected = ['classicNoisedeck', 'filter', 'filter3d', 'io', 'mixer', 'points', 'render', 'synth', 'synth3d', 'user']
+    assertEquals(JSON.stringify(keys), JSON.stringify(expected), 'all 10 built-in keys enumerated')
+})
+
+test('NAMESPACE_DESCRIPTIONS direct mutation throws', () => {
+    assertThrows(() => { NAMESPACE_DESCRIPTIONS.foo = { id: 'foo', description: 'x' } }, null, 'set on proxy')
+    assertThrows(() => { delete NAMESPACE_DESCRIPTIONS.synth }, null, 'delete on proxy')
+})
+
+test('VALID_NAMESPACES is a live array reflecting all built-ins', () => {
+    assert(Array.isArray(VALID_NAMESPACES), 'VALID_NAMESPACES is an array')
+    assert(VALID_NAMESPACES.includes('synth'), "'synth' in VALID_NAMESPACES")
+    assert(VALID_NAMESPACES.includes('user'), "'user' in VALID_NAMESPACES")
+    assertEquals(VALID_NAMESPACES.length, 10, 'all 10 built-ins')
+})
+
+test('isValidNamespace returns true for built-ins, false for unknowns', () => {
+    assertEquals(isValidNamespace('synth'), true, "isValidNamespace('synth')")
+    assertEquals(isValidNamespace('user'), true, "isValidNamespace('user')")
+    assertEquals(isValidNamespace('notReal'), false, "isValidNamespace('notReal')")
+})
+
+test('getNamespaceDescription returns descriptors for built-ins', () => {
+    const synth = getNamespaceDescription('synth')
+    assertEquals(synth?.id, 'synth', 'synth.id')
+    assertEquals(synth?.description, 'Generator effects', 'synth.description')
+    assertEquals(getNamespaceDescription('notReal'), null, 'unknown returns null')
+})
+
+test('BUILTIN_NAMESPACE and IO_FUNCTIONS are unchanged', () => {
+    assertEquals(BUILTIN_NAMESPACE, 'io', "BUILTIN_NAMESPACE === 'io'")
+    assert(IO_FUNCTIONS.includes('read'), "IO_FUNCTIONS includes 'read'")
+    assert(IO_FUNCTIONS.includes('write3d'), "IO_FUNCTIONS includes 'write3d'")
+    assert(IO_FUNCTIONS.includes('render'), "IO_FUNCTIONS includes 'render'")
 })
 
 if (failures > 0) {

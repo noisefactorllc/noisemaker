@@ -65,47 +65,55 @@ export const VALID_TAGS = Object.freeze(Object.keys(TAG_DEFINITIONS))
 /**
  * Namespace descriptions.
  * Namespace acts as an implicit tag - effects receive it automatically.
+ *
+ * Internal state is a private Map. Public reads go through the
+ * NAMESPACE_DESCRIPTIONS Proxy and the live VALID_NAMESPACES array.
+ * registerNamespace() / unregisterNamespace() mutate the map and array.
  */
-export const NAMESPACE_DESCRIPTIONS = Object.freeze({
-    io: {
-        id: 'io',
-        description: 'Pipeline I/O functions (built-in, no search required)'
+const _builtinDescriptors = [
+    { id: 'io',               description: 'Pipeline I/O functions (built-in, no search required)' },
+    { id: 'classicNoisedeck', description: 'Complex shaders ported from the original noisedeck.app pipeline' },
+    { id: 'synth',            description: 'Generator effects' },
+    { id: 'mixer',            description: 'Blend two sources from A to B' },
+    { id: 'filter',           description: 'Apply special effects to 2D input' },
+    { id: 'render',           description: 'Rendering utilities and feedback loops' },
+    { id: 'points',           description: 'Particle and agent-based simulations' },
+    { id: 'synth3d',          description: '3D volumetric generators' },
+    { id: 'filter3d',         description: '3D volumetric processors' },
+    { id: 'user',             description: 'User-defined effects' }
+]
+
+const _namespaces = new Map(
+    _builtinDescriptors.map(d => [d.id, Object.freeze({ id: d.id, description: d.description })])
+)
+
+const _builtinIds = new Set(_namespaces.keys())
+
+/**
+ * Read-only object view of all registered namespaces.
+ * Mutation throws — use registerNamespace() / unregisterNamespace().
+ */
+export const NAMESPACE_DESCRIPTIONS = new Proxy({}, {
+    get(_, key) {
+        return typeof key === 'string' ? _namespaces.get(key) : undefined
     },
-    classicNoisedeck: {
-        id: 'classicNoisedeck',
-        description: 'Complex shaders ported from the original noisedeck.app pipeline'
+    has(_, key) {
+        return typeof key === 'string' && _namespaces.has(key)
     },
-    synth: {
-        id: 'synth',
-        description: 'Generator effects'
+    ownKeys() {
+        return [..._namespaces.keys()]
     },
-    mixer: {
-        id: 'mixer',
-        description: 'Blend two sources from A to B'
+    getOwnPropertyDescriptor(_, key) {
+        if (typeof key === 'string' && _namespaces.has(key)) {
+            return { enumerable: true, configurable: true, value: _namespaces.get(key) }
+        }
+        return undefined
     },
-    filter: {
-        id: 'filter',
-        description: 'Apply special effects to 2D input'
+    set(_, key) {
+        throw new TypeError(`Cannot mutate NAMESPACE_DESCRIPTIONS directly; use registerNamespace() to add namespace '${String(key)}'`)
     },
-    render: {
-        id: 'render',
-        description: 'Rendering utilities and feedback loops'
-    },
-    points: {
-        id: 'points',
-        description: 'Particle and agent-based simulations'
-    },
-    synth3d: {
-        id: 'synth3d',
-        description: '3D volumetric generators'
-    },
-    filter3d: {
-        id: 'filter3d',
-        description: '3D volumetric processors'
-    },
-    user: {
-        id: 'user',
-        description: 'User-defined effects'
+    deleteProperty(_, key) {
+        throw new TypeError(`Cannot delete from NAMESPACE_DESCRIPTIONS directly; use unregisterNamespace() to remove namespace '${String(key)}'`)
     }
 })
 
@@ -129,9 +137,10 @@ export const IO_FUNCTIONS = Object.freeze([
 ])
 
 /**
- * Valid namespace IDs.
+ * Live array of valid namespace IDs. Mutated in place by
+ * registerNamespace() / unregisterNamespace().
  */
-export const VALID_NAMESPACES = Object.freeze(Object.keys(NAMESPACE_DESCRIPTIONS))
+export const VALID_NAMESPACES = [..._namespaces.keys()]
 
 /**
  * Check if a tag ID is valid.
@@ -148,7 +157,7 @@ export function isValidTag(tagId) {
  * @returns {boolean} True if valid
  */
 export function isValidNamespace(namespaceId) {
-    return VALID_NAMESPACES.includes(namespaceId)
+    return _namespaces.has(namespaceId)
 }
 
 /**
@@ -166,7 +175,7 @@ export function getTagDefinition(tagId) {
  * @returns {object|null} Namespace description or null if not found
  */
 export function getNamespaceDescription(namespaceId) {
-    return NAMESPACE_DESCRIPTIONS[namespaceId] || null
+    return _namespaces.get(namespaceId) ?? null
 }
 
 /**
