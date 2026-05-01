@@ -277,6 +277,38 @@ test('Unregister hides namespace from search but leaves the registry alone', () 
     assertThrows(() => parse(lex('search myFooRegistry\nbar().write(o0)')), 'Invalid namespace', 'search rejects')
 })
 
+// ---------- Code review follow-ups: I-1, I-2, M-2 ----------
+
+test('NAMESPACE_DESCRIPTIONS supports primitive coercion (String, template, concat)', () => {
+    // Regression test for I-1: previously the Proxy's get trap returned
+    // undefined for Symbol.toPrimitive/toString/valueOf, breaking String().
+    let s
+    s = String(NAMESPACE_DESCRIPTIONS)
+    assertEquals(s, '[object Object]', 'String(NAMESPACE_DESCRIPTIONS)')
+    s = `${NAMESPACE_DESCRIPTIONS}`
+    assertEquals(s, '[object Object]', 'template literal')
+    s = '' + NAMESPACE_DESCRIPTIONS
+    assertEquals(s, '[object Object]', 'string concat')
+    assertEquals(Object.prototype.toString.call(NAMESPACE_DESCRIPTIONS), '[object Object]', 'Object.prototype.toString.call')
+})
+
+test('delete on a non-registered key is a silent no-op', () => {
+    // Regression test for I-2: previously deleteProperty threw on any key,
+    // including non-existent ones. Object.freeze({...}) returns true silently.
+    let result
+    result = (delete NAMESPACE_DESCRIPTIONS.notARealKey)
+    assertEquals(result, true, 'delete missing key returns true')
+})
+
+test('delete on a registered key still throws', () => {
+    assertThrows(() => { delete NAMESPACE_DESCRIPTIONS.synth }, 'unregisterNamespace', 'delete built-in')
+})
+
+test("registerNamespace rejects 'null' and 'undefined' as namespace ids", () => {
+    assertThrows(() => registerNamespace('null', { description: 'x' }), 'reserved', "'null'")
+    assertThrows(() => registerNamespace('undefined', { description: 'x' }), 'reserved', "'undefined'")
+})
+
 if (failures > 0) {
     console.error(`\n${failures} test(s) failed`)
     process.exitCode = 1

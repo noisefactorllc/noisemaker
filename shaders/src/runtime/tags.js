@@ -92,28 +92,37 @@ const _namespaces = new Map(
 const _builtinIds = new Set(_namespaces.keys())
 
 /**
- * Function names that are reserved but aren't lexer keywords or IO_FUNCTIONS.
- * Registering a namespace with one of these would shadow the function in
- * bare-name resolution.
- *   from    — namespace-override directive (handled in parser; would shadow)
- *   osc     — external-input function (oscillator)
- *   midi    — external-input function (MIDI controller value)
- *   audio   — external-input function (audio FFT/level)
+ * Names that are reserved but aren't lexer keywords or IO_FUNCTIONS.
+ * Registering a namespace with one of these would shadow the function or
+ * literal in bare-name resolution.
+ *   from        — namespace-override directive (handled in parser; would shadow)
+ *   osc         — external-input function (oscillator)
+ *   midi        — external-input function (MIDI controller value)
+ *   audio       — external-input function (audio FFT/level)
+ *   null        — literal handled by validator's bare-name diagnostic
+ *   undefined   — literal handled by validator's bare-name diagnostic
  */
-const _RESERVED_FUNCTION_NAMES = ['from', 'osc', 'midi', 'audio']
+const _RESERVED_FUNCTION_NAMES = ['from', 'osc', 'midi', 'audio', 'null', 'undefined']
 
 const _ID_PATTERN = /^[a-z][a-zA-Z0-9]*$/
 
 /**
  * Read-only object view of all registered namespaces.
- * Mutation throws — use registerNamespace() / unregisterNamespace().
+ * Mutation traps fire only for registered keys — unknown / Symbol keys
+ * fall through to the empty target so primitive coercion (String(),
+ * template literals) and `delete obj.notAKey` behave like the previous
+ * Object.freeze({...}) shape.
  */
 export const NAMESPACE_DESCRIPTIONS = new Proxy({}, {
-    get(_, key) {
-        return typeof key === 'string' ? _namespaces.get(key) : undefined
+    get(target, key, receiver) {
+        if (typeof key === 'string' && _namespaces.has(key)) {
+            return _namespaces.get(key)
+        }
+        return Reflect.get(target, key, receiver)
     },
-    has(_, key) {
-        return typeof key === 'string' && _namespaces.has(key)
+    has(target, key) {
+        if (typeof key === 'string' && _namespaces.has(key)) return true
+        return Reflect.has(target, key)
     },
     ownKeys() {
         return [..._namespaces.keys()]
@@ -128,7 +137,10 @@ export const NAMESPACE_DESCRIPTIONS = new Proxy({}, {
         throw new TypeError(`Cannot mutate NAMESPACE_DESCRIPTIONS directly; use registerNamespace() to add namespace '${String(key)}'`)
     },
     deleteProperty(_, key) {
-        throw new TypeError(`Cannot delete from NAMESPACE_DESCRIPTIONS directly; use unregisterNamespace() to remove namespace '${String(key)}'`)
+        if (typeof key === 'string' && _namespaces.has(key)) {
+            throw new TypeError(`Cannot delete from NAMESPACE_DESCRIPTIONS directly; use unregisterNamespace() to remove namespace '${key}'`)
+        }
+        return true
     }
 })
 
