@@ -32,7 +32,9 @@ export {
     isIOFunction,
     getTagDefinition,
     getNamespaceDescription,
-    validateTags
+    validateTags,
+    registerNamespace,
+    unregisterNamespace
 } from './runtime/tags.js'
 
 // Backend & Pipeline

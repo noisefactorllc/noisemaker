@@ -9,6 +9,9 @@ import {
     registerNamespace,
     unregisterNamespace
 } from '../src/runtime/tags.js'
+import { registerEffect, getEffect } from '../src/runtime/registry.js'
+import { parse } from '../src/lang/parser.js'
+import * as engineIndex from '../src/index.js'
 
 let failures = 0
 
@@ -230,6 +233,48 @@ test('unregisterNamespace throws on built-in', () => {
 test('built-ins remain after attempted built-in unregister', () => {
     try { unregisterNamespace('synth') } catch {}
     assertEquals(isValidNamespace('synth'), true, "synth still valid after attempted unregister")
+})
+
+// ---------- Task 6: DSL integration + index re-export ----------
+
+test('registerNamespace and unregisterNamespace are re-exported from index.js', () => {
+    assertEquals(typeof engineIndex.registerNamespace, 'function', 'engineIndex.registerNamespace')
+    assertEquals(typeof engineIndex.unregisterNamespace, 'function', 'engineIndex.unregisterNamespace')
+})
+
+test('DSL search directive accepts a registered namespace', () => {
+    registerNamespace('myFooDsl', { description: 'Foo DSL test' })
+    const stub = { name: 'bar', namespace: 'myFooDsl' }
+    registerEffect('myFooDsl/bar', stub)
+    try {
+        const tokens = lex('search myFooDsl\nbar().write(o0)')
+        const ast = parse(tokens)
+        assert(ast.namespace, 'AST has namespace metadata')
+        assert(Array.isArray(ast.namespace.searchOrder), 'AST has searchOrder array')
+        assertEquals(ast.namespace.searchOrder.length, 1, 'one namespace in searchOrder')
+        assertEquals(ast.namespace.searchOrder[0], 'myFooDsl', 'searchOrder[0] is myFooDsl')
+    } finally {
+        unregisterNamespace('myFooDsl')
+    }
+})
+
+test('DSL search directive rejects an unregistered namespace', () => {
+    assertThrows(() => parse(lex('search notAnyNamespace\nfoo().write(o0)')), 'Invalid namespace', 'unregistered ns')
+})
+
+test('DSL search rejects an unregistered namespace AFTER it has been unregistered', () => {
+    registerNamespace('myFooEphemeral', { description: 'temp' })
+    unregisterNamespace('myFooEphemeral')
+    assertThrows(() => parse(lex('search myFooEphemeral\nfoo().write(o0)')), 'Invalid namespace', 'unregistered ns')
+})
+
+test('Unregister hides namespace from search but leaves the registry alone', () => {
+    registerNamespace('myFooRegistry', { description: 'reg' })
+    const stub = { name: 'bar', namespace: 'myFooRegistry' }
+    registerEffect('myFooRegistry/bar', stub)
+    unregisterNamespace('myFooRegistry')
+    assertEquals(getEffect('myFooRegistry/bar'), stub, 'effect remains in registry after unregister')
+    assertThrows(() => parse(lex('search myFooRegistry\nbar().write(o0)')), 'Invalid namespace', 'search rejects')
 })
 
 if (failures > 0) {
