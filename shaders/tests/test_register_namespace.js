@@ -9,7 +9,7 @@ import {
     registerNamespace,
     unregisterNamespace
 } from '../src/runtime/tags.js'
-import { registerEffect, getEffect } from '../src/runtime/registry.js'
+import { registerEffect, getEffect, unregisterEffect } from '../src/runtime/registry.js'
 import { parse } from '../src/lang/parser.js'
 import * as engineIndex from '../src/index.js'
 
@@ -255,6 +255,7 @@ test('DSL search directive accepts a registered namespace', () => {
         assertEquals(ast.namespace.searchOrder[0], 'myFooDsl', 'searchOrder[0] is myFooDsl')
     } finally {
         unregisterNamespace('myFooDsl')
+        unregisterEffect('myFooDsl/bar')
     }
 })
 
@@ -272,9 +273,13 @@ test('Unregister hides namespace from search but leaves the registry alone', () 
     registerNamespace('myFooRegistry', { description: 'reg' })
     const stub = { name: 'bar', namespace: 'myFooRegistry' }
     registerEffect('myFooRegistry/bar', stub)
-    unregisterNamespace('myFooRegistry')
-    assertEquals(getEffect('myFooRegistry/bar'), stub, 'effect remains in registry after unregister')
-    assertThrows(() => parse(lex('search myFooRegistry\nbar().write(o0)')), 'Invalid namespace', 'search rejects')
+    try {
+        unregisterNamespace('myFooRegistry')
+        assertEquals(getEffect('myFooRegistry/bar'), stub, 'effect remains in registry after unregister')
+        assertThrows(() => parse(lex('search myFooRegistry\nbar().write(o0)')), 'Invalid namespace', 'search rejects')
+    } finally {
+        unregisterEffect('myFooRegistry/bar')
+    }
 })
 
 // ---------- Code review follow-ups: I-1, I-2, M-2 ----------
@@ -307,6 +312,31 @@ test('delete on a registered key still throws', () => {
 test("registerNamespace rejects 'null' and 'undefined' as namespace ids", () => {
     assertThrows(() => registerNamespace('null', { description: 'x' }), 'reserved', "'null'")
     assertThrows(() => registerNamespace('undefined', { description: 'x' }), 'reserved', "'undefined'")
+})
+
+// ---------- Code review follow-up: unregisterEffect (M-5) ----------
+
+test('unregisterEffect removes an effect from the registry', () => {
+    const stub = { name: 'baz', namespace: 'fooNs' }
+    registerEffect('fooNs/baz', stub)
+    assertEquals(getEffect('fooNs/baz'), stub, 'baseline: registered')
+    const removed = unregisterEffect('fooNs/baz')
+    assertEquals(removed, true, 'unregisterEffect returns true on removal')
+    assertEquals(getEffect('fooNs/baz'), undefined, 'getEffect returns undefined after unregister')
+})
+
+test('unregisterEffect returns false for never-registered names', () => {
+    assertEquals(unregisterEffect('neverRegistered/foo'), false, 'never registered → false')
+})
+
+test('unregisterEffect returns false on second call', () => {
+    registerEffect('fooNs/twice', { name: 'twice' })
+    assertEquals(unregisterEffect('fooNs/twice'), true, 'first remove → true')
+    assertEquals(unregisterEffect('fooNs/twice'), false, 'second remove → false')
+})
+
+test('unregisterEffect is re-exported from index.js', () => {
+    assertEquals(typeof engineIndex.unregisterEffect, 'function', 'engineIndex.unregisterEffect')
 })
 
 if (failures > 0) {

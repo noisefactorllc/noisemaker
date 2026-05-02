@@ -15,7 +15,7 @@ export { default as stdEnums } from './lang/enums.js'
 // Runtime Core
 import { Effect, groupGlobalsByCategory, getUniformCategory, getCategories, DEFAULT_CATEGORY } from './runtime/effect.js'
 export { Effect, groupGlobalsByCategory, getUniformCategory, getCategories, DEFAULT_CATEGORY }
-export { registerEffect, getEffect, getAllEffects } from './runtime/registry.js'
+export { registerEffect, unregisterEffect, getEffect, getAllEffects } from './runtime/registry.js'
 export { expand } from './runtime/expander.js'
 export { analyzeLiveness, allocateResources } from './runtime/resources.js'
 
