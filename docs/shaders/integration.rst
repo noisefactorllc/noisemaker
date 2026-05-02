@@ -582,6 +582,58 @@ Effect Namespaces
    * - ``classicNoisedeck/``
      - Noisedeck-original effects
 
+Custom Namespaces
+^^^^^^^^^^^^^^^^^
+
+External integrations that ship their own effect collection can introduce a top-level namespace as a sibling to the built-ins, without vendoring the engine or sharing the ``user`` namespace.
+
+.. code-block:: javascript
+
+    import { registerNamespace, registerEffect, registerOp } from '...'
+
+    registerNamespace('myLib', { description: 'My effect collection' })
+    registerEffect('myLib/bar', myLibBarInstance)
+    registerEffect('myLib.bar', myLibBarInstance)
+    registerOp    ('myLib.bar', myLibBarOpSpec)
+
+After registration, the DSL parser accepts the new namespace in the ``search`` directive:
+
+.. code-block:: none
+
+    search myLib
+    bar(...).write(o0)
+
+**API:**
+
+.. code-block:: javascript
+
+    // Register a new namespace. Returns the frozen descriptor.
+    // Throws on invalid id, reserved word, built-in collision, or
+    // re-registration with a mismatched description. Same-description
+    // re-registration is an idempotent no-op.
+    registerNamespace(id, { description })
+
+    // Remove a previously-registered namespace. Returns true on
+    // removal, false if the id was never registered. Throws on
+    // built-in ids. Effects already registered remain in the
+    // registry but become unreachable via `search`.
+    unregisterNamespace(id)
+
+    // Remove an effect from the registry. Returns true on removal,
+    // false if the name was never registered. Symmetric with
+    // registerEffect.
+    unregisterEffect(name)
+
+**Validation rules for namespace ids:**
+
+* Must match ``/^[a-z][a-zA-Z0-9]*$/`` (lowercase-leading identifier).
+* Must not be a DSL reserved keyword (``let``, ``render``, ``write``, ``write3d``, ``if``, ``elif``, ``else``, ``break``, ``continue``, ``return``, ``search``, ``subchain``, ``true``, ``false``).
+* Must not collide with an IO function name (``read``, ``write``, ``read3d``, ``write3d``, ``render``, ``render3d``).
+* Must not be a reserved function name (``from``, ``osc``, ``midi``, ``audio``, ``null``, ``undefined``).
+* Must not collide with a built-in namespace (``synth``, ``filter``, ``mixer``, ``render``, ``points``, ``synth3d``, ``filter3d``, ``classicNoisedeck``, ``io``, ``user``).
+
+Multiple integrations sharing the same engine instance are responsible for picking distinct namespace ids — ``registerNamespace`` throws on collision so the conflict is visible, not silent.
+
 Bundle Exports Reference
 -------------------------
 
@@ -598,7 +650,9 @@ The core bundle (``noisemaker-shaders-core.esm.js``) exports:
    * - **Language**
      - ``compile``, ``unparse``, ``lex``, ``parse``, ``applyParameterUpdates``, ``formatValue``, ``validate``
    * - **Runtime**
-     - ``Effect``, ``registerEffect``, ``getEffect``, ``getAllEffects``, ``Pipeline``
+     - ``Effect``, ``registerEffect``, ``unregisterEffect``, ``getEffect``, ``getAllEffects``, ``Pipeline``
+   * - **Namespaces**
+     - ``registerNamespace``, ``unregisterNamespace``, ``isValidNamespace``, ``getNamespaceDescription``, ``NAMESPACE_DESCRIPTIONS``, ``VALID_NAMESPACES``
    * - **Backends**
      - ``WebGL2Backend``, ``WebGPUBackend``
    * - **External Input**

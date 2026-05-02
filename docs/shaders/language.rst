@@ -269,6 +269,13 @@ In addition to the actively developed and maintained namespaces above, the follo
 
 * ``classicNoisedeck``: These are complex and often slower shaders brought over from the "Classic" Noisedeck.app shader graph.
 
+Custom Namespaces
+^^^^^^^^^^^^^^^^^
+
+External integrations can introduce their own top-level namespace at runtime via the ``registerNamespace()`` API, alongside the built-ins listed above. Once registered, the new id is accepted by the ``search`` directive and behaves like any built-in namespace. The reserved ``user`` namespace is also available without registration for ad-hoc effects.
+
+See :doc:`integration` for the full API: ``registerNamespace(id, descriptor)``, ``unregisterNamespace(id)``, and validation rules.
+
 Search Order
 ^^^^^^^^^^^^
 
