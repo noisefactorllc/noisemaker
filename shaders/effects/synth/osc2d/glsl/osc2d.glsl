@@ -2,6 +2,8 @@
 precision highp float;
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float aspect;
 uniform float time;
 uniform int oscType;
@@ -82,11 +84,11 @@ float oscSquare(float t) {
 }
 
 void main() {
-    vec2 res = resolution;
+    vec2 res = fullResolution;
     if (res.x < 1.0) res = vec2(1024.0, 1024.0);
-    
+
     // Normalized coordinates
-    vec2 st = gl_FragCoord.xy / res;
+    vec2 st = (gl_FragCoord.xy + tileOffset) / res;
     
     // Center for rotation
     st -= 0.5;
