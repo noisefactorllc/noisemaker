@@ -1,5 +1,6 @@
 import { getEffect } from './registry.js'
 import { stdEnums } from '../lang/std_enums.js'
+import { expandPalette } from './palette-expansion.js'
 
 const SURFACE_REF_PATTERN = /^(?:o|vol|geo|xyz|vel|rgba)[0-7]$/
 
@@ -753,6 +754,29 @@ export function expand(compilationResult, options = {}) {
                                     if (resolved !== null) val = resolved
                                 }
                                 pass.uniforms[uniformName] = val
+                            }
+                        }
+                    }
+                }
+
+                // Expand classicNoisedeck palette index into the dependent
+                // paletteOffset/Amp/Freq/Phase/Mode uniforms so the first frame
+                // renders with the correct palette. Without this, consumers that
+                // skip ProgramState (e.g. polymorphic, embeds) would see the
+                // default cosine palette until the next setUniform/applyStep
+                // call rebuilt the expansion.
+                if (effectDef.globals) {
+                    for (const [argName, globalDef] of Object.entries(effectDef.globals)) {
+                        if (globalDef.type !== 'palette') continue
+                        const uniformName = globalDef.uniform || argName
+                        const index = pass.uniforms[uniformName]
+                        if (typeof index !== 'number') continue
+                        const expanded = expandPalette(index)
+                        if (!expanded) continue
+                        for (const [uName, uValue] of Object.entries(expanded)) {
+                            if (uName in pass.uniforms) {
+                                pass.uniforms[uName] = Array.isArray(uValue) ? uValue.slice() : uValue
+                                pipelineUniforms[uName] = pass.uniforms[uName]
                             }
                         }
                     }
