@@ -28,6 +28,7 @@ import { registerEffect, getEffect } from '../runtime/registry.js'
 import { mergeIntoEnums } from '../lang/enums.js'
 import { stdEnums } from '../lang/std_enums.js'
 import { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInputManager } from '../runtime/external-input.js'
+import { expandPalette } from '../runtime/palette-expansion.js'
 
 // Re-export for convenience
 export { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInputManager }
@@ -1911,6 +1912,11 @@ export class CanvasRenderer {
                 }
             }
 
+            // Track palette expansion so it can be applied AFTER per-param writes —
+            // otherwise paletteOffset/Amp/Freq/Phase/Mode in stepParams (which carry
+            // the spec defaults from ProgramState) would clobber the expanded values.
+            let paletteExpansion = null
+
             // Apply each step-specific parameter to this pass's uniforms
             for (const [paramName, value] of Object.entries(stepParams)) {
                 if (paramName === '_skip') continue  // Skip internal flags
@@ -1933,6 +1939,18 @@ export class CanvasRenderer {
                 // Propagate to chain-scoped variant so resolveDimension() sees the update
                 if (pass.scopedParams && pass.scopedParams[uniformName]) {
                     pass.uniforms[pass.scopedParams[uniformName]] = pass.uniforms[uniformName]
+                }
+
+                if (spec.type === 'palette') {
+                    paletteExpansion = expandPalette(converted)
+                }
+            }
+
+            if (paletteExpansion) {
+                for (const [uName, uValue] of Object.entries(paletteExpansion)) {
+                    if (uName in pass.uniforms) {
+                        pass.uniforms[uName] = Array.isArray(uValue) ? uValue.slice() : uValue
+                    }
                 }
             }
         }
