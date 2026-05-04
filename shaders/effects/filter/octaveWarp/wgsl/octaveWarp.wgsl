@@ -19,6 +19,8 @@ struct Uniforms {
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
 @group(0) @binding(3) var<uniform> time: f32;
+@group(0) @binding(4) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(5) var<uniform> fullResolution: vec2<f32>;
 
 fn pcg(seed: vec3<u32>) -> vec3<u32> {
     var v = seed * 1664525u + 1013904223u;
@@ -88,8 +90,9 @@ fn wrapFloat(value: f32, limit: f32, mode: i32) -> f32 {
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
-    let width = texSize.x;
-    let height = texSize.y;
+    let fullRes = select(texSize, fullResolution, fullResolution.x > 0.0);
+    let width = fullRes.x;
+    let height = fullRes.y;
 
     // Adjust frequency for aspect ratio
     let baseFreq = 11.0 - uniforms.frequency;
@@ -101,8 +104,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         freq.x = freq.x / aspect;
     }
 
-    let uv = pos.xy / texSize;
-    var sampleCoord = uv * texSize;
+    let posFromBottom = vec2<f32>(pos.x, texSize.y - pos.y);
+    let uv = (posFromBottom + tileOffset) / fullRes;
+    var sampleCoord = uv * fullRes;
 
     let numOctaves = max(i32(uniforms.octaves), 1);
     let displaceBase = uniforms.displacement;
@@ -125,7 +129,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         let radius = 0.5 / sqrt(multiplier);
 
         // Compute reference angles from noise
-        let noiseCoord = (sampleCoord / texSize) * freqScaled;
+        let noiseCoord = (sampleCoord / fullRes) * freqScaled;
         let refX = simplexNoise(noiseCoord + vec2<f32>(17.0, 29.0), time * uniforms.speed, phase, radius) * 2.0 - 1.0;
         let refY = simplexNoise(noiseCoord + vec2<f32>(23.0, 31.0), time * uniforms.speed, phase, radius) * 2.0 - 1.0;
 
@@ -143,7 +147,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let finalUV = vec2<f32>(
         wrapFloat(sampleCoord.x, width, i32(uniforms.wrap)),
         wrapFloat(sampleCoord.y, height, i32(uniforms.wrap)),
-    ) / texSize;
+    ) / fullRes;
     if (uniforms.antialias != 0) {
         let dx = dpdx(finalUV);
         let dy = dpdy(finalUV);

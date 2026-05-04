@@ -11,6 +11,8 @@ struct Uniforms {
     aspectLens: i32,
     antialias: i32,
     _pad3: f32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -45,8 +47,10 @@ fn vortexCoords(uvIn: vec2<f32>, aspect: f32, doAspect: bool) -> vec2<f32> {
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
-    let uv = pos.xy / texSize;
-    let aspect = texSize.x / texSize.y;
+    let fullRes = select(texSize, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
+    let posFromBottom = vec2<f32>(pos.x, texSize.y - pos.y);
+    let uv = (posFromBottom + uniforms.tileOffset) / fullRes;
+    let aspect = fullRes.x / fullRes.y;
     let doAspect = uniforms.aspectLens != 0;
 
     var coord: vec2<f32>;

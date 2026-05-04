@@ -13,6 +13,8 @@ struct Uniforms {
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
 @group(0) @binding(3) var<uniform> time: f32;
 @group(0) @binding(4) var<uniform> speed: f32;
+@group(0) @binding(5) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(6) var<uniform> fullResolution: vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -69,8 +71,10 @@ fn perlinNoise(st_in: vec2<f32>, noiseScale: vec2<f32>, t: f32, spd: f32) -> f32
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
-    let aspectRatio = texSize.x / texSize.y;
-    var uv = pos.xy / texSize;
+    let fullRes = select(texSize, fullResolution, fullResolution.x > 0.0);
+    let aspectRatio = fullRes.x / fullRes.y;
+    let posFromBottom = vec2<f32>(pos.x, texSize.y - pos.y);
+    var uv = (posFromBottom + tileOffset) / fullRes;
 
     let disp = uniforms.displacement;
     let t = time;
