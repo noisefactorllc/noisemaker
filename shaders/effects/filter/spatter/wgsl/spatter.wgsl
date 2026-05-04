@@ -20,6 +20,8 @@ struct Uniforms {
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
 @group(0) @binding(3) var<uniform> time: f32;
+@group(0) @binding(4) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(5) var<uniform> fullResolution: vec2<f32>;
 
 // --- PCG PRNG ---
 
@@ -177,12 +179,15 @@ fn expRidgedFbm3Cosine(uv: vec2<f32>, freq: vec2<f32>, sd: u32) -> f32 {
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let dims: vec2<f32> = vec2<f32>(textureDimensions(inputTex));
+    let fullRes = select(dims, fullResolution, fullResolution.x > 0.0);
     let uv: vec2<f32> = pos.xy / dims;
+    let posFromBottom = vec2<f32>(pos.x, dims.y - pos.y);
+    let globalUV = (posFromBottom + tileOffset) / fullRes;
     let base: vec4<f32> = textureSample(inputTex, inputSampler, uv);
 
     // Aspect-corrected UV for noise sampling
-    let aspect: f32 = dims.x / dims.y;
-    let nUV: vec2<f32> = uv * vec2<f32>(aspect, 1.0);
+    let aspect: f32 = fullRes.x / fullRes.y;
+    let nUV: vec2<f32> = globalUV * vec2<f32>(aspect, 1.0);
 
     let s: u32 = u32(uniforms.seed) * 17u;
     let user_color: vec3<f32> = vec3<f32>(uniforms.color_r, uniforms.color_g, uniforms.color_b);
