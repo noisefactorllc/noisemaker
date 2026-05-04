@@ -19,6 +19,8 @@ const uint BASE_SEED = 0x1234u;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float renderScale;
 uniform float alpha;
 uniform float time;
@@ -225,9 +227,11 @@ float sample_grain_noise(
 void main() {
     uvec3 global_id = uvec3(uint(gl_FragCoord.x), uint(gl_FragCoord.y), 0u);
 
-    uint u_width = max(as_u32(resolution.x), 1u);
-    uint u_height = max(as_u32(resolution.y), 1u);
-    if (global_id.x >= u_width || global_id.y >= u_height) {
+    vec2 res = fullResolution.x > 0.0 ? fullResolution : resolution;
+    uint u_width = max(as_u32(res.x), 1u);
+    uint u_height = max(as_u32(res.y), 1u);
+    uvec2 global_pixel = uvec2(uint(gl_FragCoord.x + tileOffset.x), uint(gl_FragCoord.y + tileOffset.y));
+    if (global_pixel.x >= u_width || global_pixel.y >= u_height) {
         return;
     }
 
@@ -245,7 +249,7 @@ void main() {
 
     // Scale pixel coordinates so grain size stays visually consistent
     float rs = max(renderScale, 1.0);
-    uvec2 scaled_id = uvec2(vec2(global_id.xy) / rs);
+    uvec2 scaled_id = uvec2(vec2(global_pixel) / rs);
     float noise_value = sample_grain_noise(
         scaled_id,
         vec2(float(u_width) / rs, float(u_height) / rs),

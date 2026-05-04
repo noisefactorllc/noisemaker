@@ -14,6 +14,8 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform vec3 color;
 uniform float density;
@@ -144,9 +146,12 @@ void main() {
     vec2 uv = gl_FragCoord.xy / vec2(dims);
     vec4 base = texture(inputTex, uv);
 
+    // Use global UV for noise pattern so it tiles correctly at large resolutions
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : vec2(dims);
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
     // Aspect-corrected UV for noise sampling
-    float aspect = float(dims.x) / float(dims.y);
-    vec2 nUV = uv * vec2(aspect, 1.0);
+    float aspect = fullRes.x / fullRes.y;
+    vec2 nUV = globalUV * vec2(aspect, 1.0);
 
     uint s = uint(seed) * 17u;
 

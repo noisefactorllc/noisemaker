@@ -8,6 +8,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int ditherType;
 uniform float threshold;
 uniform float matrixScale;
@@ -447,11 +449,13 @@ vec3 ditherWithPalette(vec3 color, float ditherValue, float thresh, int paletteT
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
-    
+
     vec4 color = texture(inputTex, uv);
-    
+
+    // Use global pixel coordinate for dither pattern so it aligns across tiles
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     // Get dither threshold for current pixel
-    float ditherValue = getDitherThreshold(gl_FragCoord.xy, ditherType, matrixScale * renderScale);
+    float ditherValue = getDitherThreshold(globalCoord, ditherType, matrixScale * renderScale);
     
     vec3 result;
     

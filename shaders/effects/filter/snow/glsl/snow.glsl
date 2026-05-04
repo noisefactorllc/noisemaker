@@ -14,6 +14,8 @@ const vec3 LIMITER_SEED = vec3(113.0, 71.0, 193.0);
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float alpha;
 uniform float time;
 uniform float pause;
@@ -82,7 +84,7 @@ void main() {
         return;
     }
 
-    vec2 pixelCoord = vec2(gl_FragCoord.x, gl_FragCoord.y);
+    vec2 pixelCoord = vec2(gl_FragCoord.x + tileOffset.x, gl_FragCoord.y + tileOffset.y);
     float timeVal = pause > 0.5 ? 0.0 : time;
     float speedVal = 100.0;
 
