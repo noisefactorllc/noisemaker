@@ -8,6 +8,9 @@
 @group(0) @binding(7) var<uniform> invert : i32;
 @group(0) @binding(8) var<uniform> time : f32;
 @group(0) @binding(9) var<uniform> speed : f32;
+@group(0) @binding(10) var<uniform> resolution : vec2<f32>;
+@group(0) @binding(11) var<uniform> tileOffset : vec2<f32>;
+@group(0) @binding(12) var<uniform> fullResolution : vec2<f32>;
 
 const TAU: f32 = 6.28318530718;
 
@@ -42,9 +45,16 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let colorA = textureSample(inputTex, samp, st);
     let colorB = textureSample(tex, samp, st);
 
-    // Aspect-correct, scaled coordinates
-    let aspect = dims.x / dims.y;
-    var p = st * (31.0 - scale);
+    // Tile-aware: compute global UV so Voronoi cells are consistent across tiles.
+    var fullRes = fullResolution;
+    if (fullRes.x < 1.0) { fullRes = dims; }
+    let posFromBottom = vec2<f32>(position.x, dims.y - position.y);
+    let globalCoord = posFromBottom + tileOffset;
+    let globalUV = globalCoord / fullRes;
+
+    // Aspect-correct, scaled coordinates using full image dimensions
+    let aspect = fullRes.x / fullRes.y;
+    var p = globalUV * (31.0 - scale);
     p.x = p.x * aspect;
 
     let spd = floor(speed);

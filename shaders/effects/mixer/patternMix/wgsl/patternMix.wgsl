@@ -7,6 +7,9 @@
 @group(0) @binding(6) var<uniform> smoothness : f32;
 @group(0) @binding(7) var<uniform> rotation : f32;
 @group(0) @binding(8) var<uniform> invert : i32;
+@group(0) @binding(9) var<uniform> resolution : vec2<f32>;
+@group(0) @binding(10) var<uniform> tileOffset : vec2<f32>;
+@group(0) @binding(11) var<uniform> fullResolution : vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const SQRT3: f32 = 1.7320508075688772;
@@ -132,9 +135,16 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let colorA = textureSample(inputTex, samp, st);
     let colorB = textureSample(tex, samp, st);
 
-    // Center and aspect-correct
-    let aspect = dims.x / dims.y;
-    var p = (st - vec2<f32>(0.5, 0.5)) * 2.0;
+    // Tile-aware: compute global UV so the pattern is consistent across tiles.
+    var fullRes = fullResolution;
+    if (fullRes.x < 1.0) { fullRes = dims; }
+    let posFromBottom = vec2<f32>(position.x, dims.y - position.y);
+    let globalCoord = posFromBottom + tileOffset;
+    let globalUV = globalCoord / fullRes;
+
+    // Center and aspect-correct using full image coordinates
+    let aspect = fullRes.x / fullRes.y;
+    var p = (globalUV - vec2<f32>(0.5, 0.5)) * 2.0;
     p.x = p.x * aspect;
 
     // Apply rotation

@@ -7,6 +7,9 @@
 @group(0) @binding(6) var<uniform> invert : i32;
 @group(0) @binding(7) var<uniform> speed : f32;
 @group(0) @binding(8) var<uniform> time : f32;
+@group(0) @binding(9) var<uniform> resolution : vec2<f32>;
+@group(0) @binding(10) var<uniform> tileOffset : vec2<f32>;
+@group(0) @binding(11) var<uniform> fullResolution : vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 
@@ -18,8 +21,16 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let colorA = textureSample(inputTex, samp, st);
     let colorB = textureSample(tex, samp, st);
 
-    let aspect = dims.x / dims.y;
-    var centered = (st - vec2<f32>(0.5, 0.5)) * 2.0;
+    // Tile-aware: compute global UV so the split line position is consistent
+    // across tiles rather than relative to each tile's local coordinates.
+    var fullRes = fullResolution;
+    if (fullRes.x < 1.0) { fullRes = dims; }
+    let posFromBottom = vec2<f32>(pos.x, dims.y - pos.y);
+    let globalCoord = posFromBottom + tileOffset;
+    let globalUV = globalCoord / fullRes;
+
+    let aspect = fullRes.x / fullRes.y;
+    var centered = (globalUV - vec2<f32>(0.5, 0.5)) * 2.0;
     centered.x = centered.x * aspect;
 
     // Rotate the split line
