@@ -10,6 +10,8 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float displacement;
 uniform float speed;
@@ -70,8 +72,9 @@ float perlinNoise(vec2 st, vec2 noiseScale) {
 }
 
 void main() {
-    float aspectRatio = resolution.x / resolution.y;
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    float aspectRatio = fullRes.x / fullRes.y;
+    vec2 uv = (gl_FragCoord.xy + tileOffset) / fullRes;
 
     // Singularity mask: distance from center, pow(5)
     // Concentrates warp at edges, center stays stable

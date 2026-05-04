@@ -10,6 +10,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float seed;
 uniform float scale;
 uniform int speed;
@@ -82,8 +84,10 @@ float cloudNoise(vec2 uv, float baseFreq, int octaves, float animPhase, float an
 
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
-    vec2 resolution = vec2(texSize);
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 tileDims = vec2(texSize);
+    vec2 resolution = fullResolution.x > 0.0 ? fullResolution : tileDims;
+    vec2 uv = gl_FragCoord.xy / tileDims;
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / resolution;
 
     vec4 inputColor = texture(inputTex, uv);
 
@@ -95,7 +99,7 @@ void main() {
     float animPhase = time * TAU * float(speed);
     float animSpeed = float(speed);
 
-    vec2 cloudUV = uv * vec2(aspect, 1.0) / scale + seedOffset;
+    vec2 cloudUV = globalUV * vec2(aspect, 1.0) / scale + seedOffset;
 
     float cloud = cloudNoise(cloudUV, 1.0, 7, animPhase, animSpeed);
 
@@ -110,7 +114,7 @@ void main() {
     // Shadow: sample cloud at offset (light from upper-right)
     float shadowDist = min(resolution.x, resolution.y) * 0.008;
     vec2 shadowOffset = vec2(-shadowDist, shadowDist) / resolution;
-    vec2 shadowUV = (uv + shadowOffset) * vec2(aspect, 1.0) / scale + seedOffset;
+    vec2 shadowUV = (globalUV + shadowOffset) * vec2(aspect, 1.0) / scale + seedOffset;
     float shadowCloud = cloudNoise(shadowUV, 1.0, 7, animPhase, animSpeed);
     float shadowMask = smoothstep(0.45, 0.65, shadowCloud);
 

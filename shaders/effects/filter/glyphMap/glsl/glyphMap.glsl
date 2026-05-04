@@ -9,6 +9,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float renderScale;
 uniform int cellSize;
 uniform int seed;
@@ -296,7 +298,8 @@ float glyphPixel(int g, int x, int y) {
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 resolution = vec2(texSize);
-    vec2 pixelCoord = gl_FragCoord.xy;
+    // Use global pixel coordinate so glyph cells align across tiles
+    vec2 pixelCoord = gl_FragCoord.xy + tileOffset;
 
     // Scale cell size by renderScale so glyphs maintain their visual size
     // regardless of export resolution.
@@ -314,8 +317,9 @@ void main() {
     gy = clamp(gy, 0, 6);
 
     // Sample the center of the cell for brightness
+    // cellCenter is in global pixel space; convert back to tile-local UV for sampling
     vec2 cellCenter = (cellIndex + 0.5) * csf;
-    vec2 sampleUV = cellCenter / resolution;
+    vec2 sampleUV = (cellCenter - tileOffset) / resolution;
     vec4 srcColor = texture(inputTex, sampleUV);
 
     // Compute luminance

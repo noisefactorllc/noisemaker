@@ -8,6 +8,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float strength;
 
 out vec4 fragColor;
@@ -31,11 +33,14 @@ vec3 prng(vec3 p) {
 
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
-    vec2 uv = gl_FragCoord.xy / vec2(texSize);
-    
+    vec2 tileDims = vec2(texSize);
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : tileDims;
+    vec2 uv = gl_FragCoord.xy / tileDims;
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
+
     vec3 color = vec3(0.0);
     float total = 0.0;
-    vec2 toCenter = uv - 0.5;
+    vec2 toCenter = globalUV - 0.5;
     
     // Randomize the lookup values to hide the fixed number of samples
     float offset = prng(vec3(12.9898, 78.233, 151.7182)).x;

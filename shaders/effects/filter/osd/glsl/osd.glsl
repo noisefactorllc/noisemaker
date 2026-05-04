@@ -9,6 +9,8 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float renderScale;
 uniform float alpha;
 uniform float seed;
@@ -81,8 +83,12 @@ void main() {
 
     ivec2 coord = ivec2(gl_FragCoord.xy);
     ivec2 texDims = textureSize(inputTex, 0);
-    int width = max(texDims.x, 1);
-    int height = max(texDims.y, 1);
+    // Use full image dimensions for corner positioning so OSD appears in the correct corner
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : vec2(texDims);
+    int width = max(int(fullRes.x), 1);
+    int height = max(int(fullRes.y), 1);
+    // Adjust coord by tileOffset for global pixel position
+    ivec2 globalCoord = coord + ivec2(tileOffset);
 
     vec4 texel = texelFetch(inputTex, coord, 0);
 
@@ -90,7 +96,7 @@ void main() {
 
     // Subtle scanline tint across entire image (OSD monitor feel)
     int scanlineStep = max(iScale / BASE_SCALE, 1);
-    float scanline = 1.0 - 0.03 * blend_alpha * float((coord.y / scanlineStep) & 1);
+    float scanline = 1.0 - 0.03 * blend_alpha * float((globalCoord.y / scanlineStep) & 1);
     vec3 base_rgb = texel.rgb * scanline;
 
     if (blend_alpha <= 0.0) {
@@ -135,14 +141,14 @@ void main() {
     int panel_y1 = origin_y + overlay_h + panel_pad;
 
     // Outside panel region: just scanline
-    if (coord.x < panel_x0 || coord.x >= panel_x1 || coord.y < panel_y0 || coord.y >= panel_y1) {
+    if (globalCoord.x < panel_x0 || globalCoord.x >= panel_x1 || globalCoord.y < panel_y0 || globalCoord.y >= panel_y1) {
         fragColor = vec4(base_rgb, texel.a);
         return;
     }
 
     // Check if pixel is in OSD glyph region
-    int lx = coord.x - origin_x;
-    int ly = coord.y - origin_y;
+    int lx = globalCoord.x - origin_x;
+    int ly = globalCoord.y - origin_y;
 
     float mask = 0.0;
     if (lx >= 0 && lx < overlay_w && ly >= 0 && ly < overlay_h) {

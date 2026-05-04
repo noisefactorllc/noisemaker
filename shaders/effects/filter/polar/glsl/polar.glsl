@@ -7,6 +7,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform int polarMode;
 uniform float speed;
@@ -48,8 +50,10 @@ vec2 vortexCoords(vec2 uv, float aspect) {
 
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
-    vec2 uv = gl_FragCoord.xy / vec2(texSize);
-    float aspect = float(texSize.x) / float(texSize.y);
+    vec2 tileDims = vec2(texSize);
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : tileDims;
+    vec2 uv = (gl_FragCoord.xy + tileOffset) / fullRes;
+    float aspect = fullRes.x / fullRes.y;
 
     vec2 coord;
     if (polarMode == 0) {

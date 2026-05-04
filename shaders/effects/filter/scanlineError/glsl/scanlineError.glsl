@@ -10,6 +10,8 @@ precision highp int;
 const float TAU = 6.283185307179586;
 
 uniform sampler2D inputTex;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float speed;
 uniform float timeOffset;
 uniform float distortion;
@@ -304,25 +306,29 @@ void main() {
     uvec3 gid = uvec3(uint(gl_FragCoord.x), uint(gl_FragCoord.y), 0u);
 
     ivec2 input_size = textureSize(inputTex, 0);
-    uint width = uint(input_size.x);
-    uint height = uint(input_size.y);
+    uint tile_width = uint(input_size.x);
+    uint tile_height = uint(input_size.y);
 
-    if (width == 0u || height == 0u || gid.x >= width || gid.y >= height) {
+    if (tile_width == 0u || tile_height == 0u || gid.x >= tile_width || gid.y >= tile_height) {
         fragColor = vec4(0.0);
         return;
     }
 
-    float width_f = float(width);
-    float height_f = float(height);
+    // Use full image dimensions for pattern generation so scanlines align across tiles
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : vec2(input_size);
+    float width_f = fullRes.x;
+    float height_f = fullRes.y;
     vec2 dims = vec2(width_f, height_f);
+    // Global pixel coordinate for pattern computation
+    uvec2 globalGid = uvec2(gid.x + uint(tileOffset.x), gid.y + uint(tileOffset.y));
     float time_value = time + timeOffset;
     float speed_value = max(speed, 0.0);
     int m = int(mode);
 
     if (m == 1) {
         // VHS mode
-        float yNorm = (float(gid.y) + 0.5) / height_f;
-        float xNorm = (float(gid.x) + 0.5) / width_f;
+        float yNorm = (float(globalGid.y) + 0.5) / height_f;
+        float xNorm = (float(globalGid.x) + 0.5) / width_f;
         vec2 destCoord = vec2(xNorm, yNorm);
 
         float gradDest = vhs_gradValue(yNorm, 5.0, time_value, speed_value);
@@ -338,7 +344,7 @@ void main() {
         float scanDest = vhs_scanNoise(destCoord, scanFreq, time_value, speed_value * 100.0);
 
         float shiftAmount = floor(scanDest * width_f * gradDest * gradDest * distortion);
-        int srcX = wrap_coord(int(gid.x) - int(shiftAmount), int(width));
+        int srcX = wrap_coord(int(globalGid.x) - int(shiftAmount), int(tile_width));
 
         vec4 srcTexel = texelFetch(inputTex, ivec2(srcX, int(gid.y)), 0);
 
@@ -355,7 +361,7 @@ void main() {
         ivec2 base_coord = ivec2(int(gid.x), int(gid.y));
         vec4 input_texel = texelFetch(inputTex, base_coord, 0);
 
-        vec2 coord_norm = normalized_coord(gid.xy, dims);
+        vec2 coord_norm = normalized_coord(globalGid, dims);
         vec2 freq_line = vec2(
             max(floor(width_f * 0.5), 1.0),
             max(floor(height_f * 0.5), 1.0)
@@ -388,7 +394,7 @@ void main() {
         float combined_error = clamp01(line_weighted + white_weighted);
         float shift_amount = combined_error * width_f * 0.025 * distortion;
         int shift_pixels = int(floor(shift_amount));
-        int sample_x = wrap_coord(int(gid.x) - shift_pixels, int(width));
+        int sample_x = wrap_coord(int(globalGid.x) - shift_pixels, int(tile_width));
 
         vec4 texel = texelFetch(inputTex, ivec2(sample_x, int(gid.y)), 0);
 

@@ -9,6 +9,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform int shape;
 uniform float speed;
@@ -35,13 +37,15 @@ vec2 smod(vec2 v, float m) {
 
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
-    vec2 uv = gl_FragCoord.xy / vec2(texSize);
-    
+    vec2 tileDims = vec2(texSize);
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : tileDims;
+    vec2 uv = (gl_FragCoord.xy + tileOffset) / fullRes;
+
     // Center the coordinates
     vec2 centered = uv - 0.5;
 
     // Optional aspect ratio correction
-    float aspectRatio = float(texSize.x) / float(texSize.y);
+    float aspectRatio = fullRes.x / fullRes.y;
     if (aspectLens) { centered.x *= aspectRatio; }
     
     float a = atan(centered.y, centered.x);

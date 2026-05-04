@@ -13,6 +13,8 @@ const float INV_THREE = 0.3333333333333333;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float speed;
 uniform int seed;
@@ -476,12 +478,13 @@ void main() {
 
     // Scale pixel-space dimensions so CRT patterns maintain visual size
     float rs = max(renderScale, 1.0);
-    float width_f = max(resolution.x / rs, 1.0);
-    float height_f = max(resolution.y / rs, 1.0);
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    float width_f = max(fullRes.x / rs, 1.0);
+    float height_f = max(fullRes.y / rs, 1.0);
     float time = time;
     float speed = speed;
-    float x = float(global_id.x) / rs;
-    float y = float(global_id.y) / rs;
+    float x = (float(global_id.x) + tileOffset.x) / rs;
+    float y = (float(global_id.y) + tileOffset.y) / rs;
 
     float displacement = 0.0625;
     vec2 freq = freq_for_shape(2.0, width_f, height_f);

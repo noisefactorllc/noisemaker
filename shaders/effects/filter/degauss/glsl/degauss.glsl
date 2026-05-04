@@ -12,6 +12,8 @@ const float TAU = 6.28318530717958647692;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float displacement;
 uniform float speed;
@@ -338,9 +340,10 @@ void main() {
         return;
     }
 
-    float width_f = resolution.x;
-    float height_f = resolution.y;
-    vec2 uv = (vec2(float(global_id.x), float(global_id.y)) + vec2(0.5, 0.5))
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    float width_f = fullRes.x;
+    float height_f = fullRes.y;
+    vec2 uv = (vec2(float(global_id.x) + tileOffset.x, float(global_id.y) + tileOffset.y) + vec2(0.5, 0.5))
         / vec2(max(width_f, 1.0), max(height_f, 1.0));
     float mask = singularity_mask(uv, width_f, height_f);
     if (mask <= 0.0) {

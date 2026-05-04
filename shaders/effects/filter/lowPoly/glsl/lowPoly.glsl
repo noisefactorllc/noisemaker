@@ -10,6 +10,8 @@ precision highp int;
 #endif
 
 uniform sampler2D inputTex;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float scale;
 uniform float seed;
 uniform int mode;
@@ -47,8 +49,10 @@ vec2 hash2(vec2 p, float s) {
 
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
-    vec2 resolution = vec2(texSize);
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 tileDims = vec2(texSize);
+    vec2 resolution = fullResolution.x > 0.0 ? fullResolution : tileDims;
+    vec2 uv = gl_FragCoord.xy / tileDims;
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / resolution;
 
     float n = max(102.0 - scale, 2.0);
     float s = seed;
@@ -56,7 +60,7 @@ void main() {
 
     // Aspect-corrected coordinates for square Voronoi cells
     float aspect = resolution.x / resolution.y;
-    vec2 auv = vec2(uv.x * aspect, uv.y);
+    vec2 auv = vec2(globalUV.x * aspect, globalUV.y);
 
     // Scale to grid in corrected space
     vec2 scaled = auv * n;

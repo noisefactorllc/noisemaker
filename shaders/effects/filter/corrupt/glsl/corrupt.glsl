@@ -11,6 +11,8 @@ precision highp int;
 #endif
 
 uniform sampler2D inputTex;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float seed;
 uniform float intensity;
@@ -128,8 +130,8 @@ vec2 meltDisplace(vec2 uv, float meltAmt, float t, float resX, float rs) {
 }
 
 // Scatter: per-pixel random displacement
-vec2 scatterDisplace(vec2 uv, float scatterAmt, float t, float rs) {
-    vec2 scaledCoord = floor(gl_FragCoord.xy / rs);
+vec2 scatterDisplace(vec2 uv, float scatterAmt, float t, float rs, vec2 tileOff) {
+    vec2 scaledCoord = floor((gl_FragCoord.xy + tileOff) / rs);
     vec3 phaseHash = prng(vec3(scaledCoord, seed + 700.0));
     float pixTime = floor((t + phaseHash.x) * 8.0);
     vec3 pixHash = prng(vec3(scaledCoord, pixTime + seed));
@@ -144,8 +146,10 @@ vec2 scatterDisplace(vec2 uv, float scatterAmt, float t, float rs) {
 }
 
 void main() {
-    vec2 resolution = vec2(textureSize(inputTex, 0));
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 tileDims = vec2(textureSize(inputTex, 0));
+    vec2 resolution = fullResolution.x > 0.0 ? fullResolution : tileDims;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / resolution;
     // Scale pixel-space coordinates so corruption patterns maintain their
     // visual size regardless of export resolution
     float rs = max(renderScale, 1.0);
@@ -154,7 +158,7 @@ void main() {
     float t = time * TAU * spd;
 
     // Scanline grouping — scale band height so rows stay visually consistent
-    float rawRow = gl_FragCoord.y / rs;
+    float rawRow = globalCoord.y / rs;
     float bh = max(1.0, floor(bandHeight * 0.32));
     float row = floor(rawRow / bh);
 
@@ -175,7 +179,7 @@ void main() {
     }
     float scatterAmt = scatter / 100.0;
     if (scatterAmt > 0.0) {
-        sampleUv = scatterDisplace(sampleUv, scatterAmt, t, rs);
+        sampleUv = scatterDisplace(sampleUv, scatterAmt, t, rs, tileOffset);
     }
 
     // Band-based corruption to UV
