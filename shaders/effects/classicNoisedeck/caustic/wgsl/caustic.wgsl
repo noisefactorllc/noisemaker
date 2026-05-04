@@ -12,6 +12,8 @@ struct Uniforms {
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
+@group(0) @binding(1) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(2) var<uniform> fullResolution: vec2<f32>;
 
 // NOISE_TYPE is a compile-time const injected by the runtime via injectDefines.
 // See classicNoisedeck/caustic/definition.js `globals.interp.define`. The
@@ -492,9 +494,14 @@ fn noise(st: vec2<f32>, s: f32) -> vec3<f32> {
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     unpackUniforms();
 
+    var fullRes = fullResolution;
+    if (fullRes.x < 1.0) { fullRes = resolution; }
+    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
+    let globalCoord = posFromBottom + tileOffset;
+
     var color: vec4<f32> = vec4<f32>(0.0, 0.0, 1.0, 1.0);
-    var st: vec2<f32> = pos.xy / resolution.y;
-    st -= vec2<f32>(resolution.x / resolution.y * 0.5, 0.5);
+    var st: vec2<f32> = globalCoord / fullRes.y;
+    st -= vec2<f32>(fullRes.x / fullRes.y * 0.5, 0.5);
 
     var leftColor: vec3<f32> = noise(st, f32(seed));
     var rightColor: vec3<f32> = noise(st, f32(seed) + 10.0);

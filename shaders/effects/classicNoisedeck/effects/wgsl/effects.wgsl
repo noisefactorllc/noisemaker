@@ -29,6 +29,8 @@ struct Uniforms {
     offsetY: f32,
     intensity: f32,
     saturation: f32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
 }
 
 const PI: f32 = 3.14159265359;
@@ -332,7 +334,11 @@ fn offsets(st: vec2f) -> f32 {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    var uv = fragCoord.xy / u.resolution;
+    var fullRes = u.fullResolution;
+    if (fullRes.x < 1.0) { fullRes = u.resolution; }
+    let posFromBottom = vec2f(fragCoord.x, u.resolution.y - fragCoord.y);
+    let globalCoord = posFromBottom + u.tileOffset;
+    var uv = globalCoord / fullRes;
 
     var scale = 100.0 / u.scaleAmt;
     if (scale == 0.0) { scale = 1.0; }

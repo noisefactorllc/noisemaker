@@ -15,6 +15,9 @@ const TAU : f32 = 6.28318530718;
 @group(0) @binding(5) var<uniform> blendMode : i32;
 @group(0) @binding(6) var<uniform> mixAmt : f32;
 @group(0) @binding(7) var<uniform> wrap : i32;
+@group(0) @binding(8) var<uniform> resolution : vec2<f32>;
+@group(0) @binding(9) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(10) var<uniform> fullResolution: vec2<f32>;
 
 fn map_range(value : f32, inMin : f32, inMax : f32, outMin : f32, outMax : f32) -> f32 {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
@@ -196,8 +199,11 @@ fn blend_colors(color1 : vec4<f32>, color2 : vec4<f32>) -> vec3<f32> {
 
 @fragment
 fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
-    let dims = vec2<f32>(textureDimensions(inputTex, 0));
-    var uv = position.xy / dims;
+    var res = fullResolution;
+    if (res.x < 1.0) { res = resolution; }
+    let posFromBottom = vec2<f32>(position.x, resolution.y - position.y);
+    let globalCoord = posFromBottom + tileOffset;
+    var uv = globalCoord / res;
 
     var color = vec4<f32>(0.0);
     let inputColor = textureSample(inputTex, samp, uv);

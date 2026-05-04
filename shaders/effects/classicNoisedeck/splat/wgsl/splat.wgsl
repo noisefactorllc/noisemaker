@@ -21,6 +21,9 @@ struct Uniforms {
     speckSeed: f32,
     speckColor: vec3<f32>,
     speckMode: i32,
+    resolution: vec2<f32>,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(2) var<uniform> u : Uniforms;
@@ -29,8 +32,9 @@ const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
 
 fn getAspectRatio() -> f32 {
-    let dims = vec2<f32>(textureDimensions(inputTex, 0));
-    return dims.x / dims.y;
+    var fullRes = u.fullResolution;
+    if (fullRes.x < 1.0) { fullRes = u.resolution; }
+    return fullRes.x / fullRes.y;
 }
 
 fn mapRange(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
@@ -111,9 +115,12 @@ fn speckle(st: vec2<f32>, scale: vec2<f32>) -> f32 {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
-    let dims = vec2<f32>(textureDimensions(inputTex, 0));
-    let aspectRatio = dims.x / dims.y;
-    var uv = fragCoord.xy / dims;
+    var fullRes = u.fullResolution;
+    if (fullRes.x < 1.0) { fullRes = u.resolution; }
+    let posFromBottom = vec2<f32>(fragCoord.x, u.resolution.y - fragCoord.y);
+    let globalCoord = posFromBottom + u.tileOffset;
+    var uv = globalCoord / fullRes;
+    let aspectRatio = fullRes.x / fullRes.y;
 
     var color = textureSample(inputTex, samp, uv);
     

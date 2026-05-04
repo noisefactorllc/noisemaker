@@ -19,6 +19,8 @@ struct Uniforms {
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
+@group(0) @binding(1) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(2) var<uniform> fullResolution: vec2<f32>;
 
 var<private> resolution: vec2<f32>;
 var<private> time: f32;
@@ -536,9 +538,14 @@ fn value(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     unpackUniforms();
 
+    var fullRes = fullResolution;
+    if (fullRes.x < 1.0) { fullRes = resolution; }
+    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
+    let globalCoord = posFromBottom + tileOffset;
+
     var color: vec4<f32> = vec4<f32>(0.0, 0.0, 1.0, 1.0);
-    var st: vec2<f32> = pos.xy / resolution.y;
-    st -= vec2<f32>(resolution.x / resolution.y * 0.5, 0.5);
+    var st: vec2<f32> = globalCoord / fullRes.y;
+    st -= vec2<f32>(fullRes.x / fullRes.y * 0.5, 0.5);
 
     var xFreq: f32 = 1.0;
     var yFreq: f32 = 1.0;

@@ -35,13 +35,17 @@ struct Uniforms {
     rotatePalette: f32,
     repeatPalette: i32,
     levels: i32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
 }
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
 
 fn aspectRatio() -> f32 {
-    return u.resolution.x / u.resolution.y;
+    var fullRes = u.fullResolution;
+    if (fullRes.x < 1.0) { fullRes = u.resolution; }
+    return fullRes.x / fullRes.y;
 }
 
 fn mapRange(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
@@ -413,7 +417,11 @@ fn blendVec3(color1: vec3f, color2: vec3f, mode: i32, factorIn: f32) -> vec3f {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    var st = fragCoord.xy / u.resolution;
+    var fullRes = u.fullResolution;
+    if (fullRes.x < 1.0) { fullRes = u.resolution; }
+    let posFromBottom = vec2f(fragCoord.x, u.resolution.y - fragCoord.y);
+    let globalCoord = posFromBottom + u.tileOffset;
+    var st = globalCoord / fullRes;
 
     let color1 = textureSample(inputTex, samp, st);
     let color2 = textureSample(tex, samp, st);
