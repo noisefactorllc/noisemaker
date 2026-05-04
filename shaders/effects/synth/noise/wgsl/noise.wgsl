@@ -8,6 +8,8 @@ struct Uniforms {
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
+@group(0) @binding(1) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(2) var<uniform> fullResolution: vec2<f32>;
 
 // NOISE_TYPE is a compile-time const injected by the runtime via injectDefines
 // (see synth/noise/definition.js `globals.type.define`). Replacing the runtime
@@ -319,8 +321,8 @@ fn rings(st: vec2<f32>, freq: f32) -> f32 {
     return cos(dist * PI * freq);
 }
 
-fn diamonds(st: vec2<f32>, freq: f32, pos: vec2<f32>) -> f32 {
-    var stt = pos / resolution.y;
+fn diamonds(st: vec2<f32>, freq: f32, gCoord: vec2<f32>) -> f32 {
+    var stt = gCoord / resolution.y;
     stt -= vec2<f32>(0.5 * aspectRatio, 0.5);
     stt *= freq;
     return (cos(stt.x * PI) + cos(stt.y * PI));
@@ -404,7 +406,6 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     // Unpack uniforms
     resolution = uniforms.data[0].xy;
     time = uniforms.data[0].z;
-    aspectRatio = uniforms.data[0].w;
     scaleX = uniforms.data[1].x;
     scaleY = uniforms.data[1].y;
     seed = uniforms.data[1].z;
@@ -416,8 +417,14 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     wrap = uniforms.data[3].y > 0.5;
     colorMode = i32(uniforms.data[3].z);
 
+    var fullRes = fullResolution;
+    if (fullRes.x < 1.0) { fullRes = resolution; }
+    let posFromBottom = vec2<f32>(position.x, resolution.y - position.y);
+    let globalCoord = posFromBottom + tileOffset;
+    aspectRatio = fullRes.x / fullRes.y;
+
     var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    var st = position.xy / resolution.y;
+    var st = globalCoord / fullRes.y;
     let centered = st - vec2<f32>(aspectRatio * 0.5, 0.5);
 
     var freq = vec2<f32>(1.0);
@@ -461,9 +468,9 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
     var t = 1.0;
     if (speed < 0.0) {
-        t = time + offset(st, lf, position.xy);
+        t = time + offset(st, lf, globalCoord);
     } else {
-        t = time - offset(st, lf, position.xy);
+        t = time - offset(st, lf, globalCoord);
     }
     let blend = periodicFunction(t) * abs(speed) * 0.01;
 

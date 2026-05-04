@@ -9,6 +9,8 @@ struct Uniforms {
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
+@group(0) @binding(1) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(2) var<uniform> fullResolution: vec2<f32>;
 
 const PI : f32 = 3.14159265359;
 const TAU : f32 = 6.28318530718;
@@ -131,10 +133,15 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let variation = uniforms.data[2].x;
     let speed = uniforms.data[2].y;
 
-    let aspect = resolution.x / resolution.y;
+    var fullRes = fullResolution;
+    if (fullRes.x < 1.0) { fullRes = resolution; }
+    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
+    let globalCoord = posFromBottom + tileOffset;
+
+    let aspect = fullRes.x / fullRes.y;
 
     var color = vec4<f32>(0.0, 0.0, 1.0, 1.0);
-    var st = pos.xy / resolution.y;
+    var st = globalCoord / fullRes.y;
 
     let freq = map(scale, 1.0, 100.0, 20.0, 1.0);
     let cellSize = map(cellScale, 1.0, 100.0, 3.0, 0.75);

@@ -7,6 +7,8 @@
 @group(0) @binding(5) var<uniform> speed: f32;
 @group(0) @binding(6) var<uniform> rotation: f32;
 @group(0) @binding(7) var<uniform> seed: i32;
+@group(0) @binding(8) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(9) var<uniform> fullResolution: vec2<f32>;
 
 const PI: f32 = 3.141592653589793;
 const TAU: f32 = 6.283185307179586;
@@ -79,11 +81,13 @@ fn oscSquare(t: f32) -> f32 {
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    var res = resolution;
-    if (res.x < 1.0) { res = vec2<f32>(1024.0, 1024.0); }
-    
-    // Normalized coordinates (flip y for WebGPU coordinate system)
-    var st = vec2<f32>(position.x, res.y - position.y) / res;
+    var res = fullResolution;
+    if (res.x < 1.0) { res = resolution; }
+
+    // Tile-aware: compute global pixel coordinate
+    let posFromBottom = vec2<f32>(position.x, resolution.y - position.y);
+    let globalCoord = posFromBottom + tileOffset;
+    var st = globalCoord / res;
     
     // Center for rotation
     st = st - 0.5;

@@ -4,6 +4,8 @@
 @group(0) @binding(2) var<uniform> lineColor: vec3<f32>;
 @group(0) @binding(3) var<uniform> lineThickness: f32;
 @group(0) @binding(4) var<uniform> gain: f32;
+@group(0) @binding(5) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(6) var<uniform> fullResolution: vec2<f32>;
 
 fn sampleSpectrum(index: u32) -> f32 {
     return audioSpectrum[index / 4u][index % 4u];
@@ -11,7 +13,11 @@ fn sampleSpectrum(index: u32) -> f32 {
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    let uv = vec2<f32>(position.x, resolution.y - position.y) / resolution;
+    var res = fullResolution;
+    if (res.x < 1.0) { res = resolution; }
+    let posFromBottom = vec2<f32>(position.x, resolution.y - position.y);
+    let globalCoord = posFromBottom + tileOffset;
+    let uv = globalCoord / res;
 
     // Sample the spectrum at this x position
     let fIndex = uv.x * 127.0;
@@ -25,13 +31,13 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let mag = mix(s0, s1, fract_i) * gain;
 
     // Distance from fragment to spectrum curve, in pixels
-    let dist = abs(uv.y - mag) * resolution.y;
+    let dist = abs(uv.y - mag) * res.y;
 
     // Anti-aliased line
     let line = smoothstep(lineThickness + 1.0, lineThickness, dist);
 
     // Fill below the curve
-    let fill = smoothstep(mag + 1.0 / resolution.y, mag, uv.y) * 0.15;
+    let fill = smoothstep(mag + 1.0 / res.y, mag, uv.y) * 0.15;
 
     let alpha = max(line, fill);
     return vec4<f32>(lineColor * alpha, alpha);

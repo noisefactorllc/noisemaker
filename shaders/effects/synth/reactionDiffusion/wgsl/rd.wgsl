@@ -14,6 +14,8 @@ struct Uniforms {
 @group(0) @binding(1) var samp : sampler;
 @group(0) @binding(2) var fbTex : texture_2d<f32>;
 @group(0) @binding(3) var inputTex : texture_2d<f32>;
+@group(0) @binding(4) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(5) var<uniform> fullResolution: vec2<f32>;
 
 const PI : f32 = 3.14159265359;
 
@@ -175,18 +177,24 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let smoothing = i32(uniforms.data[3].w);
     let inputIntensity = uniforms.data[1].x * 0.01;
 
+    var res = fullResolution;
+    if (res.x < 1.0) { res = resolution; }
+    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
+    let globalCoord = posFromBottom + tileOffset;
+    let uv_global = globalCoord / res;
+
     var intensity = 1.0;
 
     if (smoothing == 0) {
         let texSizeI = vec2<i32>(textureDimensions(fbTex, 0));
         let texSizeF = vec2<f32>(f32(texSizeI.x), f32(texSizeI.y));
-        let coord = vec2<i32>(floor(pos.xy * texSizeF / resolution));
+        let coord = vec2<i32>(floor(uv_global * texSizeF));
         let clamped = clamp(coord, vec2<i32>(0), texSizeI - vec2<i32>(1));
         intensity = clamp(textureLoad(fbTex, clamped, 0).g, 0.0, 1.0);
     } else if (smoothing == 2) {
         // hermite (smoothstep)
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
-        let texelPos = (pos.xy * texSize / resolution) - vec2<f32>(0.5);
+        let texelPos = (uv_global * texSize) - vec2<f32>(0.5);
         let base = floor(texelPos);
         let weights = fract(texelPos);
         let next = base + vec2<f32>(1.0);
@@ -212,7 +220,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
         let scaling = resolution / texSize;
-        let uv = (pos.xy - scaling * 0.5) / resolution;
+        let uv = uv_global;
         let sample = quadratic(fbTex, uv, texelSize);
         intensity = clamp(sample.g, 0.0, 1.0);
     } else if (smoothing == 4) {
@@ -220,7 +228,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
         let scaling = resolution / texSize;
-        let uv = (pos.xy - scaling * 0.5) / resolution;
+        let uv = uv_global;
         let sample = bicubic(fbTex, uv, texelSize);
         intensity = clamp(sample.g, 0.0, 1.0);
     } else if (smoothing == 5) {
@@ -228,7 +236,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
         let scaling = resolution / texSize;
-        let uv = (pos.xy - scaling * 0.5) / resolution;
+        let uv = uv_global;
         let sample = catmullRom3x3(fbTex, uv, texelSize);
         intensity = clamp(sample.g, 0.0, 1.0);
     } else if (smoothing == 6) {
@@ -236,12 +244,12 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
         let scaling = resolution / texSize;
-        let uv = (pos.xy - scaling * 0.5) / resolution;
+        let uv = uv_global;
         let sample = catmullRom4x4(fbTex, uv, texelSize);
         intensity = clamp(sample.g, 0.0, 1.0);
     } else {
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
-        let texelPos = (pos.xy * texSize / resolution) - vec2<f32>(0.5, 0.5);
+        let texelPos = (uv_global * texSize) - vec2<f32>(0.5, 0.5);
         let base = floor(texelPos);
         let weights = fract(texelPos);
         let next = base + vec2<f32>(1.0, 1.0);
@@ -272,7 +280,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     // Blend with input texture
     if (inputIntensity > 0.0) {
-        var inputUv = pos.xy / resolution;
+        var inputUv = uv_global;
         let inputColor = textureSampleLevel(inputTex, samp, inputUv, 0.0).rgb;
         rdColor = mix(rdColor, inputColor, inputIntensity);
     }

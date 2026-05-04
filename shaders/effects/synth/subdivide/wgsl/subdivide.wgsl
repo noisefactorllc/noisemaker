@@ -12,6 +12,8 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var samp: sampler;
 @group(0) @binding(2) var inputTex: texture_2d<f32>;
+@group(0) @binding(3) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(4) var<uniform> fullResolution: vec2<f32>;
 
 // PCG PRNG - deterministic across platforms
 fn pcg(v_in: vec3<u32>) -> vec3<u32> {
@@ -97,7 +99,11 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let time = u.data[2].z;
     let spd = floor(u.data[2].w) * 2.0;
 
-    let st = pos.xy / resolution;
+    var res = fullResolution;
+    if (res.x < 1.0) { res = resolution; }
+    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
+    let globalCoord = posFromBottom + tileOffset;
+    let st = globalCoord / res;
 
     // Subdivision loop
     var cellMin = vec2<f32>(0.0);

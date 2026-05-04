@@ -19,6 +19,8 @@ struct Uniforms {
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
+@group(0) @binding(1) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(2) var<uniform> fullResolution: vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -221,9 +223,14 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     // --- df64 coordinate transform ---
 
-    let coords = transformCoords_df64(pos.xy,
+    var fullRes = fullResolution;
+    if (fullRes.x < 1.0) { fullRes = resolution; }
+    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
+    let globalCoord = posFromBottom + tileOffset;
+
+    let coords = transformCoords_df64(globalCoord,
         vec2<f32>(cHi.x, cLo.x), vec2<f32>(cHi.y, cLo.y),
-        resolution, zoom, rotationU);
+        fullRes, zoom, rotationU);
 
     // --- Compute roots of z^n - 1 ---
 

@@ -9,8 +9,11 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var samp : sampler;
 @group(0) @binding(2) var imageTex : texture_2d<f32>;
+@group(0) @binding(3) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(4) var<uniform> fullResolution: vec2<f32>;
 
 var<private> resolution : vec2<f32>;
+var<private> fullRes : vec2<f32>;
 var<private> time : f32;
 var<private> posIndex : i32;
 var<private> rotation : f32;
@@ -66,33 +69,33 @@ fn getImage(pos: vec2<f32>) -> vec4<f32> {
     st = st * scale;
 
     if (posIndex == 0) {
-        st.y = st.y + (resolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
+        st.y = st.y + (fullRes.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
     } else if (posIndex == 1) {
-        st.x = st.x - (resolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
-        st.y = st.y + (resolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
+        st.x = st.x - (fullRes.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
+        st.y = st.y + (fullRes.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
     } else if (posIndex == 2) {
-        st.x = st.x - (resolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
-        st.y = st.y + (resolution.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
+        st.x = st.x - (fullRes.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
+        st.y = st.y + (fullRes.y / imageSize.y * scale) - (scale - (1.0 / imageSize.y * scale));
     } else if (posIndex == 3) {
-        st.y = st.y + (resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
+        st.y = st.y + (fullRes.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
     } else if (posIndex == 4) {
-        st.x = st.x - (resolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
-        st.y = st.y + (resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
+        st.x = st.x - (fullRes.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
+        st.y = st.y + (fullRes.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
     } else if (posIndex == 5) {
-        st.x = st.x - (resolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
-        st.y = st.y + (resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
+        st.x = st.x - (fullRes.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
+        st.y = st.y + (fullRes.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale;
     } else if (posIndex == 6) {
         st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
     } else if (posIndex == 7) {
-        st.x = st.x - (resolution.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
+        st.x = st.x - (fullRes.x / imageSize.x * scale * 0.5) + (0.5 - (1.0 / imageSize.x * scale));
         st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
     } else if (posIndex == 8) {
-        st.x = st.x - (resolution.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
+        st.x = st.x - (fullRes.x / imageSize.x * scale) + (1.0 - (1.0 / imageSize.x * scale));
         st.y = st.y + 1.0 - (scale - (1.0 / imageSize.y * scale));
     }
 
-    st.x = st.x - map(offsetX, -100.0, 100.0, -resolution.x / imageSize.x * scale, resolution.x / imageSize.x * scale) * 1.5;
-    st.y = st.y - map(offsetY, -100.0, 100.0, -resolution.y / imageSize.y * scale, resolution.y / imageSize.y * scale) * 1.5;
+    st.x = st.x - map(offsetX, -100.0, 100.0, -fullRes.x / imageSize.x * scale, fullRes.x / imageSize.x * scale) * 1.5;
+    st.y = st.y - map(offsetY, -100.0, 100.0, -fullRes.y / imageSize.y * scale, fullRes.y / imageSize.y * scale) * 1.5;
 
     st.x = st.x * (imageSize.x / imageSize.y);
     st = rotate2D(st);
@@ -166,6 +169,11 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     imageSize = uniforms.data[4].xy;
 
-    // Get current frame image
-    return getImage(pos.xy);
+    fullRes = fullResolution;
+    if (fullRes.x < 1.0) { fullRes = resolution; }
+    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
+    let globalCoord = posFromBottom + tileOffset;
+
+    // Get current frame image using global pixel coordinate
+    return getImage(globalCoord);
 }

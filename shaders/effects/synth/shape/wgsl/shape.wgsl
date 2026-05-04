@@ -9,6 +9,8 @@ struct Uniforms {
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
+@group(0) @binding(1) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(2) var<uniform> fullResolution: vec2<f32>;
 
 var<private> resolution : vec2<f32>;
 // LOOP_A_OFFSET and LOOP_B_OFFSET are compile-time consts injected by the
@@ -375,8 +377,8 @@ fn rings(st: vec2<f32>, freq: f32) -> f32 {
     return cos(dist * PI * freq);
 }
 
-fn diamonds(pos: vec4<f32>, freq: f32) -> f32 {
-    var stLocal = pos.xy / resolution.y;
+fn diamonds(gCoord: vec2<f32>, freq: f32) -> f32 {
+    var stLocal = gCoord / resolution.y;
     stLocal = stLocal - vec2<f32>(0.5 * aspectRatio, 0.5);
     stLocal = stLocal * freq;
     return (cos(stLocal.x * PI) + cos(stLocal.y * PI));
@@ -389,7 +391,7 @@ fn shape(st: vec2<f32>, sides: i32, blend: f32) -> f32 {
     return cos(floor(0.5 + a / r) * r - a) * length(stLocal) * blend;
 }
 
-fn offset(st: vec2<f32>, freq: f32, loopOffset: i32, speed: f32, seedVal: f32, pos: vec4<f32>) -> f32 {
+fn offset(st: vec2<f32>, freq: f32, loopOffset: i32, speed: f32, seedVal: f32, gCoord: vec2<f32>) -> f32 {
     if (loopOffset == 10) {
         return circles(st, freq);
     } else if (loopOffset == 20) {
@@ -411,7 +413,7 @@ fn offset(st: vec2<f32>, freq: f32, loopOffset: i32, speed: f32, seedVal: f32, p
     } else if (loopOffset == 400) {
         return 1.0 - rings(st, freq);
     } else if (loopOffset == 410) {
-        return 1.0 - diamonds(pos, freq);
+        return 1.0 - diamonds(gCoord, freq);
     }
     return 0.0;
 }
@@ -432,10 +434,15 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     // Slots [3] and [4] unused (were palette parameters)
 
-    aspectRatio = resolution.x / resolution.y;
+    var fullRes = fullResolution;
+    if (fullRes.x < 1.0) { fullRes = resolution; }
+    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
+    let globalCoord = posFromBottom + tileOffset;
+
+    aspectRatio = fullRes.x / fullRes.y;
 
     var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    var st = pos.xy / resolution.y;
+    var st = globalCoord / fullRes.y;
 
     var lf1 = map(loopAScale, 1.0, 100.0, 6.0, 1.0);
     if (wrap) {
@@ -447,9 +454,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let amp1 = map(abs(speedA), 0.0, 100.0, 0.0, 1.0);
     var t1 = 1.0;
     if (speedA < 0.0) {
-        t1 = time + offset(st, lf1, LOOP_A_OFFSET, amp1, seed, pos);
+        t1 = time + offset(st, lf1, LOOP_A_OFFSET, amp1, seed, globalCoord);
     } else if (speedA > 0.0) {
-        t1 = time - offset(st, lf1, LOOP_A_OFFSET, amp1, seed, pos);
+        t1 = time - offset(st, lf1, LOOP_A_OFFSET, amp1, seed, globalCoord);
     }
 
     var lf2 = map(loopBScale, 1.0, 100.0, 6.0, 1.0);
@@ -462,9 +469,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let amp2 = map(abs(speedB), 0.0, 100.0, 0.0, 1.0);
     var t2 = 1.0;
     if (speedB < 0.0) {
-        t2 = time + offset(st, lf2, LOOP_B_OFFSET, amp2, seed + 10.0, pos);
+        t2 = time + offset(st, lf2, LOOP_B_OFFSET, amp2, seed + 10.0, globalCoord);
     } else if (speedB > 0.0) {
-        t2 = time - offset(st, lf2, LOOP_B_OFFSET, amp2, seed + 10.0, pos);
+        t2 = time - offset(st, lf2, LOOP_B_OFFSET, amp2, seed + 10.0, globalCoord);
     }
 
     let a = periodicFunction(t1) * amp1;

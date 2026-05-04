@@ -15,6 +15,8 @@ struct Uniforms {
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
+@group(0) @binding(1) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(2) var<uniform> fullResolution: vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -361,6 +363,11 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     let rot = select(rotation, 0.0, poi > 0);
 
+    var fullRes = fullResolution;
+    if (fullRes.x < 1.0) { fullRes = resolution; }
+    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
+    let globalCoord = posFromBottom + tileOffset;
+
     // Resolve POI coordinates
     let poiCoords = getPOI(poi, centerHiX, centerLoX, centerHiY, centerLoY);
     let cX_df = poiCoords.cX;
@@ -369,11 +376,11 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var value: f32;
 
     if (outputMode == 4) {
-        value = outputNormalMap(pos.xy, resolution, cX_df, cY_df,
+        value = outputNormalMap(globalCoord, fullRes, cX_df, cY_df,
                                effZoom, rot, maxIter, lightAngle,
                                stripeFreq, trapShape);
     } else {
-        let coords = transformCoords_df64(pos.xy, resolution, cX_df, cY_df, effZoom, rot);
+        let coords = transformCoords_df64(globalCoord, fullRes, cX_df, cY_df, effZoom, rot);
         let r = mandelbrot_df64(coords.re, coords.im, maxIter, stripeFreq, trapShape);
 
         if (outputMode == 0) {
