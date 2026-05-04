@@ -4,11 +4,8 @@
 
 const GLYPH_W : i32 = 7;
 const GLYPH_H : i32 = 8;
-const SCALE : i32 = 3;
-const CELL_W : i32 = 21;  // GLYPH_W * SCALE
-const CELL_H : i32 = 24;  // GLYPH_H * SCALE
-const GAP : i32 = 3;      // SCALE
-const PADDING : i32 = 25;
+const BASE_SCALE : i32 = 3;
+const BASE_PADDING : i32 = 25;
 
 // Bank OCR bitmaps: 10 digits, 7 wide x 8 tall each
 const GLYPHS = array<i32, 80>(
@@ -43,6 +40,12 @@ struct OsdParams {
     speed : f32,
     time : f32,
     corner : f32,
+    tileOffset : vec2<f32>,
+    renderScale : f32,
+    _pad0 : f32,
+    fullResolution : vec2<f32>,
+    _pad1 : f32,
+    _pad2 : f32,
 }
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
@@ -63,9 +66,9 @@ fn hash3(a : u32, b : u32, c : u32) -> u32 {
     return pcg(hash2(a, b) ^ (c * 0x94d049bbu + 0x5bf03635u));
 }
 
-fn sample_glyph(digit : i32, localX : i32, localY : i32) -> f32 {
-    let gx : i32 = localX / SCALE;
-    let gy : i32 = localY / SCALE;
+fn sample_glyph(digit : i32, localX : i32, localY : i32, iScale : i32) -> f32 {
+    let gx : i32 = localX / iScale;
+    let gy : i32 = localY / iScale;
     if (gx < 0 || gx >= GLYPH_W || gy < 0 || gy >= GLYPH_H) {
         return 0.0;
     }
@@ -89,7 +92,16 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         return;
     }
 
+    // Scale glyph sizes by renderScale for high-res export
+    let iScale : i32 = max(i32(f32(BASE_SCALE) * max(params.renderScale, 1.0)), 1);
+    let CELL_W : i32 = GLYPH_W * iScale;
+    let CELL_H : i32 = GLYPH_H * iScale;
+    let GAP : i32 = iScale;
+    let PADDING : i32 = i32(f32(BASE_PADDING) * max(params.renderScale, 1.0));
+
     let coord : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
+    // Global pixel position (for OSD corner positioning and scanline)
+    let globalCoord : vec2<i32> = coord + vec2<i32>(i32(params.tileOffset.x), i32(params.tileOffset.y));
     let texel : vec4<f32> = textureLoad(inputTex, coord, 0);
     let pixel_index : u32 = gid.y * w + gid.x;
     let base_index : u32 = pixel_index * 4u;
@@ -97,7 +109,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let blend_alpha : f32 = clamp(params.alpha, 0.0, 1.0);
 
     // Subtle scanline tint across entire image (OSD monitor feel)
-    let scanline : f32 = 1.0 - 0.03 * blend_alpha * f32(coord.y & 1);
+    let scanlineStep : i32 = max(iScale / BASE_SCALE, 1);
+    let scanline : f32 = 1.0 - 0.03 * blend_alpha * f32((globalCoord.y / scanlineStep) & 1);
     let base_rgb : vec3<f32> = texel.rgb * scanline;
 
     if (blend_alpha <= 0.0) {
@@ -106,8 +119,11 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     }
 
     let base_seed : u32 = u32(max(params.seed, 1.0));
-    let width : i32 = i32(w);
-    let height : i32 = i32(h);
+
+    // Use full image dimensions for corner positioning
+    let fullRes : vec2<f32> = select(vec2<f32>(f32(w), f32(h)), params.fullResolution, params.fullResolution.x > 0.0);
+    let width : i32 = max(i32(fullRes.x), 1);
+    let height : i32 = max(i32(fullRes.y), 1);
 
     // Glyph count: 3-6 from seed
     let glyph_count : i32 = 3 + i32(hash2(base_seed, 42u) % 4u);
@@ -148,15 +164,15 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let panel_x1 : i32 = origin_x + overlay_w + panel_pad;
     let panel_y1 : i32 = origin_y + overlay_h + panel_pad;
 
-    // Outside panel region: just scanline
-    if (coord.x < panel_x0 || coord.x >= panel_x1 || coord.y < panel_y0 || coord.y >= panel_y1) {
+    // Outside panel region: just scanline (use globalCoord for correct tiling)
+    if (globalCoord.x < panel_x0 || globalCoord.x >= panel_x1 || globalCoord.y < panel_y0 || globalCoord.y >= panel_y1) {
         write_pixel(base_index, vec4<f32>(base_rgb.x, base_rgb.y, base_rgb.z, texel.a));
         return;
     }
 
     // Check if pixel is in OSD glyph region
-    let lx : i32 = coord.x - origin_x;
-    let ly : i32 = coord.y - origin_y;
+    let lx : i32 = globalCoord.x - origin_x;
+    let ly : i32 = globalCoord.y - origin_y;
 
     var mask : f32 = 0.0;
     if (lx >= 0 && lx < overlay_w && ly >= 0 && ly < overlay_h) {
@@ -174,7 +190,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
             let digit_hash : u32 = hash3(base_seed, u32(glyph_idx), u32(time_cell));
             let digit : i32 = i32(digit_hash % 10u);
 
-            mask = sample_glyph(digit, within_glyph_x, local_y);
+            mask = sample_glyph(digit, within_glyph_x, local_y, iScale);
         }
     }
 
