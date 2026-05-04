@@ -21,6 +21,8 @@ struct Uniforms {
     _pad0: f32,
     _pad1: f32,
     _pad2: f32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(2) var<uniform> u: Uniforms;
@@ -200,14 +202,17 @@ fn glitch(st_in: vec2<f32>, aspectRatio: f32, time: f32, xChonk: f32, yChonk: f3
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
-    let resolution = u.resolution;
-    let aspectRatio = resolution.x / resolution.y;
-    
-    var uv = fragCoord.xy / resolution;
-    
+    var res = u.fullResolution;
+    if (res.x < 1.0) { res = u.resolution; }
+    let aspectRatio = res.x / res.y;
+
+    let posFromBottom = vec2<f32>(fragCoord.x, u.resolution.y - fragCoord.y);
+    let globalCoord = posFromBottom + u.tileOffset;
+    var uv = globalCoord / res;
+
     var color = glitch(uv, aspectRatio, u.time, u.xChonk, u.yChonk, u.glitchiness, u.aspectLens, u.distortion, u.aberration);
-    color = scanlines(color, uv, resolution, u.scanlinesAmt, u.time, u.seed);
-    color = snow(color, fragCoord.xy, u.snowAmt, u.time);
+    color = scanlines(color, uv, res, u.scanlinesAmt, u.time, u.seed);
+    color = snow(color, globalCoord, u.snowAmt, u.time);
     
     // vignette
     if (u.vignetteAmt < 0.0) {

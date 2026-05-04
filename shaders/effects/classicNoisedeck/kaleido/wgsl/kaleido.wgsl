@@ -29,13 +29,22 @@ struct Uniforms {
     wrap: i32,
     // (kernel was here — now compile-time KERNEL)
     effectWidth: f32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
 
+fn fullRes() -> vec2f {
+    var res = u.fullResolution;
+    if (res.x < 1.0) { res = u.resolution; }
+    return res;
+}
+
 fn aspectRatio() -> f32 {
-    return u.resolution.x / u.resolution.y;
+    let res = fullRes();
+    return res.x / res.y;
 }
 
 fn mapRange(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
@@ -464,7 +473,10 @@ fn kaleidoscope(st_in: vec2f, sides: f32, blendy: f32) -> vec2f {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    var uv = fragCoord.xy / u.resolution.y;
+    let res = fullRes();
+    let posFromBottom = vec2f(fragCoord.x, u.resolution.y - fragCoord.y);
+    let globalCoord = posFromBottom + u.tileOffset;
+    var uv = globalCoord / res.y;
 
     var lf = mapRange(u.loopScale, 1.0, 100.0, 6.0, 1.0);
     if (u.wrap != 0) { lf = floor(lf); }
