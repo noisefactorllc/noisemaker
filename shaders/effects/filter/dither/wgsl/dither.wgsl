@@ -12,6 +12,8 @@ struct Uniforms {
     matrixScale: f32,
     time: f32,
     mix: f32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -366,11 +368,13 @@ fn ditherWithPalette(color: vec3<f32>, ditherValue: f32, thresh: f32, paletteTyp
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = pos.xy / texSize;
-    
+    let posFromBottom = vec2<f32>(pos.x, texSize.y - pos.y);
+    let globalCoord = posFromBottom + uniforms.tileOffset;
+
     var color = textureSample(inputTex, inputSampler, uv);
-    
-    // Get dither threshold for current pixel
-    let ditherValue = getDitherThreshold(pos.xy, uniforms.ditherType, uniforms.matrixScale, uniforms.time);
+
+    // Get dither threshold for current pixel using global coord so pattern aligns across tiles
+    let ditherValue = getDitherThreshold(globalCoord, uniforms.ditherType, uniforms.matrixScale, uniforms.time);
     
     var result: vec3<f32>;
     

@@ -9,6 +9,8 @@ struct Uniforms {
     seed: i32,
     colorMode: i32,
     _pad: i32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -157,7 +159,9 @@ fn glyphPixel(g: i32, x: i32, y: i32) -> f32 {
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
-    let pixelCoord = pos.xy;
+    // Use global pixel coordinate so glyph cells align across tiles
+    let posFromBottom = vec2<f32>(pos.x, texSize.y - pos.y);
+    let pixelCoord = posFromBottom + uniforms.tileOffset;
 
     let cs = max(uniforms.cellSize, 1);
     let csf = f32(cs);
@@ -173,8 +177,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     gy = clamp(gy, 0, 6);
 
     // Sample the center of the cell for brightness
+    // cellCenter is in global pixel space; convert back to tile-local UV for sampling
     let cellCenter = (cellIndex + 0.5) * csf;
-    let sampleUV = cellCenter / texSize;
+    let sampleUV = (cellCenter - uniforms.tileOffset) / texSize;
     let srcColor = textureSample(inputTex, inputSampler, sampleUV);
 
     // Compute luminance
