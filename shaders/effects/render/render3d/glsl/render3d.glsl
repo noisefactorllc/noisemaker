@@ -15,6 +15,8 @@ precision highp float;
 // (see definition.js). Baking them lets the compiler eliminate the unused
 // raymarching path and the per-sample invert branch.
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float threshold;
 uniform int volumeSize;
@@ -374,10 +376,12 @@ vec3 shadeVoxel(vec3 p, vec3 rd, vec3 n, ivec3 voxel) {
 }
 
 void main() {
-    vec2 res = resolution;
-    if (res.x < 1.0) res = vec2(1024.0, 1024.0);
-    
-    vec2 uv = (gl_FragCoord.xy - 0.5 * res) / res.y;
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    if (fullRes.x < 1.0) fullRes = vec2(1024.0, 1024.0);
+
+    // Use global pixel coord so each tile casts the correct view ray
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = (globalCoord - 0.5 * fullRes) / fullRes.y;
     
     // Camera setup - orbiting view
     float camDist = 3.5;

@@ -5,22 +5,28 @@ precision highp float;
 // Renders positions/normals as colors for debugging
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D positionsTex;
 uniform sampler2D normalsTex;
 
 out vec4 fragColor;
 
 void main() {
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    // Global UV for image-space layout decisions (left/right half split)
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
+    // Tile-local UV for sampling the mesh textures
     vec2 uv = gl_FragCoord.xy / resolution;
-    
+
     // Sample mesh data using texture() for proper UV sampling
     // The mesh textures are smaller than output, so use UV coordinates
     vec4 pos = texture(positionsTex, uv);
     vec4 normal = texture(normalsTex, uv);
-    
+
     // Visualize: left half shows positions, right half shows normals
     vec3 color;
-    if (uv.x < 0.5) {
+    if (globalUV.x < 0.5) {
         // Position visualization: map -1..1 to 0..1
         color = pos.xyz * 0.5 + 0.5;
     } else {
