@@ -8,6 +8,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float lensDisplacement;
 uniform bool aspectLens;
 uniform bool antialias;
@@ -18,8 +20,9 @@ const float HALF_FRAME = 0.5;
 
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
-    vec2 dims = vec2(texSize);
-    vec2 uv = gl_FragCoord.xy / dims;
+    vec2 tileDims = vec2(texSize);
+    vec2 dims = fullResolution.x > 0.0 ? fullResolution : tileDims;
+    vec2 uv = (gl_FragCoord.xy + tileOffset) / dims;
 
     // Zoom for negative displacement (pincushion)
     float zoom = (lensDisplacement < 0.0) ? (lensDisplacement * -0.25) : 0.0;
@@ -44,7 +47,9 @@ void main() {
     // Convert displacement back to UV space
     if (aspectLens) { displacement.x /= aspect; }
 
-    vec2 offset = fract(uv - displacement);
+    // globalOffset is in full-image UV space; convert to tile-local UV for sampling
+    vec2 globalOffset = fract(uv - displacement);
+    vec2 offset = (globalOffset * dims - tileOffset) / tileDims;
 
     if (antialias) {
         vec2 dx = dFdx(offset);

@@ -10,6 +10,8 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float aberrationAmt;
 uniform float hueRotation;
@@ -92,10 +94,13 @@ vec3 saturate(vec3 color) {
 
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
+    float globalAspect = fullRes.x / fullRes.y;
 
     vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
 
-    vec2 diff = vec2(0.5 * aspectRatio, 0.5) - vec2(uv.x * aspectRatio, uv.y);
+    vec2 diff = vec2(0.5 * globalAspect, 0.5) - vec2(globalUV.x * globalAspect, globalUV.y);
     float centerDist = length(diff);
 
     // No distortion/zoom

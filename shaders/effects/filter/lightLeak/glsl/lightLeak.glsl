@@ -12,6 +12,8 @@ const int POINT_COUNT = 6;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float alpha;
 uniform vec3 color;
 uniform float speed;
@@ -97,8 +99,9 @@ float centerMask(vec2 uv) {
 
 void main() {
     ivec2 coords = ivec2(gl_FragCoord.xy);
-    ivec2 dims = textureSize(inputTex, 0);
-    vec2 uv = gl_FragCoord.xy / vec2(dims);
+    ivec2 tileDims = textureSize(inputTex, 0);
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : vec2(tileDims);
+    vec2 uv = (gl_FragCoord.xy + tileOffset) / fullRes;
 
     vec4 base = texelFetch(inputTex, coords, 0);
     float blend_alpha = clamp(alpha, 0.0, 1.0);
@@ -143,10 +146,10 @@ void main() {
     // Vaseline-style soft blur via neighbor texel fetches
     vec3 soft_accum = masked * 4.0;
     float soft_w = 4.0;
-    ivec2 nb0 = clamp(coords + ivec2(2, 0), ivec2(0), dims - 1);
-    ivec2 nb1 = clamp(coords + ivec2(-2, 0), ivec2(0), dims - 1);
-    ivec2 nb2 = clamp(coords + ivec2(0, 2), ivec2(0), dims - 1);
-    ivec2 nb3 = clamp(coords + ivec2(0, -2), ivec2(0), dims - 1);
+    ivec2 nb0 = clamp(coords + ivec2(2, 0), ivec2(0), tileDims - 1);
+    ivec2 nb1 = clamp(coords + ivec2(-2, 0), ivec2(0), tileDims - 1);
+    ivec2 nb2 = clamp(coords + ivec2(0, 2), ivec2(0), tileDims - 1);
+    ivec2 nb3 = clamp(coords + ivec2(0, -2), ivec2(0), tileDims - 1);
     soft_accum += texelFetch(inputTex, nb0, 0).rgb;
     soft_accum += texelFetch(inputTex, nb1, 0).rgb;
     soft_accum += texelFetch(inputTex, nb2, 0).rgb;

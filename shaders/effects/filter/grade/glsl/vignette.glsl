@@ -9,6 +9,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float vignetteAmount;
 uniform float vignetteMidpoint;
 uniform float vignetteRoundness;
@@ -99,7 +101,9 @@ vec3 applyVignette(vec3 rgb, float vignetteMask, float amount, float highlightPr
 
 void main() {
     vec2 texSize = vec2(textureSize(inputTex, 0));
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : texSize;
     vec2 uv = gl_FragCoord.xy / texSize;
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
     
     ivec2 coord = ivec2(gl_FragCoord.xy);
     vec4 color = texelFetch(inputTex, coord, 0);
@@ -113,16 +117,16 @@ void main() {
     // Decode to linear
     vec3 rgb = srgbToLinear(color.rgb);
     
-    // Compute aspect ratio for ellipse
+    // Compute aspect ratio for ellipse using full image dimensions
     vec2 aspectRatio = vec2(1.0);
-    if (texSize.x > texSize.y) {
-        aspectRatio = vec2(texSize.x / texSize.y, 1.0);
+    if (fullRes.x > fullRes.y) {
+        aspectRatio = vec2(fullRes.x / fullRes.y, 1.0);
     } else {
-        aspectRatio = vec2(1.0, texSize.y / texSize.x);
+        aspectRatio = vec2(1.0, fullRes.y / fullRes.x);
     }
-    
-    // Compute vignette mask
-    float vignetteMask = computeVignette(uv, aspectRatio, vignetteMidpoint, 
+
+    // Compute vignette mask using global UV so center is full-image center
+    float vignetteMask = computeVignette(globalUV, aspectRatio, vignetteMidpoint,
                                          vignetteRoundness, vignetteFeather);
     
     // Apply vignette

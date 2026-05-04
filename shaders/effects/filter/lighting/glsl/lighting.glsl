@@ -9,6 +9,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform vec3 diffuseColor;
 uniform vec3 specularColor;
 uniform float specularIntensity;
@@ -84,9 +86,9 @@ vec4 applyRefraction(vec2 uv, vec3 normal) {
 }
 
 // Apply reflection effect with chromatic aberration
-vec4 applyReflection(vec2 uv, vec3 normal) {
+vec4 applyReflection(vec2 uv, vec2 globalUV, vec3 normal) {
     // Calculate incident vector for reflection, from center of image
-    vec3 incident = vec3(normalize(uv - 0.5), 100.0);
+    vec3 incident = vec3(normalize(globalUV - 0.5), 100.0);
     
     // Calculate reflection vector
     vec3 reflectionVec = reflect(incident, normal);
@@ -110,7 +112,9 @@ vec4 applyReflection(vec2 uv, vec3 normal) {
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 resolution = vec2(texSize);
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
     vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
     vec2 texelSize = 1.0 / resolution;
     
     // Get original color
@@ -150,7 +154,7 @@ void main() {
     
     // Apply reflection (with chromatic aberration) if enabled
     if (reflection > 0.0 || aberration > 0.0) {
-        vec4 reflectedColor = applyReflection(uv, normal);
+        vec4 reflectedColor = applyReflection(uv, globalUV, normal);
         workingColor = mix(workingColor, reflectedColor, reflection / 100.0);
     }
     

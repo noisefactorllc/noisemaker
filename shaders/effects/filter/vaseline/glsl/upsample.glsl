@@ -6,6 +6,8 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float renderScale;
 uniform float alpha;
 
@@ -27,6 +29,8 @@ float chebyshev_mask(vec2 uv) {
 
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
     vec4 original = texelFetch(inputTex, ivec2(gl_FragCoord.xy), 0);
     float a = clamp(alpha, 0.0, 1.0);
 
@@ -59,8 +63,8 @@ void main() {
     vec3 blurred = blurAccum / weightSum;
     vec3 boosted = clamp01(blurred + vec3(BRIGHTNESS_ADJUST));
 
-    // Edge mask - more effect at edges
-    float edgeMask = chebyshev_mask(uv);
+    // Edge mask - more effect at edges, using global UV so center is full-image center
+    float edgeMask = chebyshev_mask(globalUV);
     edgeMask = smoothstep(0.0, 0.8, edgeMask);
 
     vec3 sourceClamped = clamp01(original.rgb);

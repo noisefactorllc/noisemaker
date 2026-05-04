@@ -7,6 +7,8 @@ precision highp float;
 #endif
 
 uniform sampler2D inputTex;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float vignetteBrightness;
 uniform float alpha;
 
@@ -32,12 +34,14 @@ float computeVignetteMask(vec2 uv, vec2 dims) {
 
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
-    vec2 dims = vec2(texSize);
-    vec2 uv = gl_FragCoord.xy / dims;
-    
+    vec2 tileDims = vec2(texSize);
+    vec2 dims = fullResolution.x > 0.0 ? fullResolution : tileDims;
+    vec2 uv = gl_FragCoord.xy / tileDims;
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / dims;
+
     vec4 texel = texture(inputTex, uv);
-    
-    float mask = computeVignetteMask(uv, dims);
+
+    float mask = computeVignetteMask(globalUV, dims);
     
     // Apply brightness to RGB only, preserve alpha
     vec3 brightnessRgb = vec3(vignetteBrightness);
