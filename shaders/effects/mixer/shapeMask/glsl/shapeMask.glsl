@@ -4,6 +4,8 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int shape;
 uniform float radius;
 uniform float edgeSmooth;
@@ -81,9 +83,11 @@ void main() {
     vec4 colorA = texture(inputTex, st);
     vec4 colorB = texture(tex, st);
 
-    // Centered, aspect-correct coordinates
-    float aspect = resolution.x / resolution.y;
-    vec2 p = (st - 0.5) * 2.0;
+    // Centered, aspect-correct coordinates using full image dimensions
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    float aspect = fullRes.x / fullRes.y;
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
+    vec2 p = (globalUV - 0.5) * 2.0;
     p.x *= aspect;
 
     // Apply position offset

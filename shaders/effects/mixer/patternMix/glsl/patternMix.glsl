@@ -4,6 +4,8 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int patternType;
 uniform float scale;
 uniform float thickness;
@@ -133,9 +135,11 @@ void main() {
     vec4 colorA = texture(inputTex, st);
     vec4 colorB = texture(tex, st);
 
-    // Center and aspect-correct
-    float aspect = resolution.x / resolution.y;
-    vec2 p = (st - 0.5) * 2.0;
+    // Center and aspect-correct using full image coordinates
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    float aspect = fullRes.x / fullRes.y;
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
+    vec2 p = (globalUV - 0.5) * 2.0;
     p.x *= aspect;
 
     // Apply rotation

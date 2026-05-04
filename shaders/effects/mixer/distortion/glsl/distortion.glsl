@@ -11,6 +11,8 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int mode;
 uniform int mapSource;
 uniform float intensity;
@@ -140,11 +142,11 @@ vec4 applyRefraction(vec2 uv, vec2 texelSize, sampler2D mapTex, sampler2D target
 }
 
 // Reflection effect with chromatic aberration
-vec4 applyReflection(vec2 uv, vec2 texelSize, sampler2D mapTex, sampler2D targetTex) {
+vec4 applyReflection(vec2 uv, vec2 globalUV, vec2 texelSize, sampler2D mapTex, sampler2D targetTex) {
     vec3 normal = calculateNormal(uv, texelSize, mapTex);
-    
-    // Calculate incident vector for reflection, from center of image
-    vec3 incident = vec3(normalize(uv - 0.5), 100.0);
+
+    // Calculate incident vector for reflection, from center of full image
+    vec3 incident = vec3(normalize(globalUV - 0.5), 100.0);
     
     // Calculate reflection vector
     vec3 reflectionVec = reflect(incident, normal);
@@ -206,14 +208,17 @@ vec4 applyReflection(vec2 uv, vec2 texelSize, sampler2D mapTex, sampler2D target
 void main() {
     vec2 uv = gl_FragCoord.xy / resolution;
     vec2 texelSize = 1.0 / resolution;
-    
+
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
+
     vec4 color;
-    
+
     // Determine which texture is the map source and which is the target
     // mapSource: 0 = inputTex (A), 1 = tex (B)
     // When A is map, we sample from B with A's normals
     // When B is map, we sample from A with B's normals
-    
+
     if (mode == 0) {
         // Displacement
         if (mapSource == 0) {
@@ -231,11 +236,11 @@ void main() {
     } else if (mode == 2) {
         // Reflection
         if (mapSource == 0) {
-            color = applyReflection(uv, texelSize, inputTex, tex);
+            color = applyReflection(uv, globalUV, texelSize, inputTex, tex);
         } else {
-            color = applyReflection(uv, texelSize, tex, inputTex);
+            color = applyReflection(uv, globalUV, texelSize, tex, inputTex);
         }
     }
-    
+
     fragColor = color;
 }

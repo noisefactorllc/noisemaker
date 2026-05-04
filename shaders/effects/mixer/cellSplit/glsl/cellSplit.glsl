@@ -5,6 +5,8 @@ precision highp int;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform int mode;
 uniform float scale;
 uniform float edgeWidth;
@@ -44,9 +46,12 @@ void main() {
     vec4 colorA = texture(inputTex, st);
     vec4 colorB = texture(tex, st);
 
-    // Aspect-correct, scaled coordinates
-    float aspect = resolution.x / resolution.y;
-    vec2 p = st * (31.0 - scale);
+    // Aspect-correct, scaled coordinates using full image dimensions
+    // so Voronoi cells are consistent across tiles
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    float aspect = fullRes.x / fullRes.y;
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
+    vec2 p = globalUV * (31.0 - scale);
     p.x *= aspect;
 
     float spd = floor(speed);

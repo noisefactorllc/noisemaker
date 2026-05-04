@@ -4,6 +4,8 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float position;
 uniform float rotation;
 uniform float softness;
@@ -21,8 +23,10 @@ void main() {
     vec4 colorA = texture(inputTex, st);
     vec4 colorB = texture(tex, st);
 
-    float aspect = resolution.x / resolution.y;
-    vec2 centered = (st - 0.5) * 2.0;
+    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
+    float aspect = fullRes.x / fullRes.y;
+    vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
+    vec2 centered = (globalUV - 0.5) * 2.0;
     centered.x *= aspect;
 
     // Rotate the split line
