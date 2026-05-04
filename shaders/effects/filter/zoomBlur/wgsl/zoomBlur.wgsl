@@ -8,6 +8,8 @@ struct Uniforms {
     _pad1: f32,
     _pad2: f32,
     _pad3: f32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -34,11 +36,14 @@ fn prng(p: vec3<f32>) -> vec3<f32> {
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
+    let fullRes = select(texSize, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
     let uv = pos.xy / texSize;
-    
+    let posFromBottom = vec2<f32>(pos.x, texSize.y - pos.y);
+    let globalUV = (posFromBottom + uniforms.tileOffset) / fullRes;
+
     var color = vec3<f32>(0.0);
     var total = 0.0;
-    let toCenter = uv - 0.5;
+    let toCenter = globalUV - 0.5;
     
     // Randomize the lookup values to hide the fixed number of samples
     let offset = prng(vec3<f32>(12.9898, 78.233, 151.7182)).x;

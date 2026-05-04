@@ -5,6 +5,8 @@ struct Params {
     resolution: vec2f,
     alpha: f32,
     _pad0: f32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
 }
 
 @group(0) @binding(0) var inputTex: texture_2d<f32>;
@@ -30,6 +32,9 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let coord = vec2i(fragCoord.xy);
     let fullSize = params.resolution;
     let uv = (vec2f(coord) + 0.5) / fullSize;
+    let fullRes = select(fullSize, params.fullResolution, params.fullResolution.x > 0.0);
+    let posFromBottom = vec2f(fragCoord.x, fullSize.y - fragCoord.y);
+    let globalUV = (posFromBottom + params.tileOffset) / fullRes;
 
     let original = textureLoad(inputTex, coord, 0);
     let a = clamp(params.alpha, 0.0, 1.0);
@@ -62,8 +67,8 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let blurred = blurAccum / weightSum;
     let boosted = clamp01v(blurred + vec3f(BRIGHTNESS_ADJUST));
 
-    // Edge mask - more effect at edges
-    var edgeMask = chebyshev_mask(uv);
+    // Edge mask - more effect at edges, using global UV so center is full-image center
+    var edgeMask = chebyshev_mask(globalUV);
     edgeMask = smoothstep(0.0, 0.8, edgeMask);
 
     let sourceClamped = clamp01v(original.rgb);
