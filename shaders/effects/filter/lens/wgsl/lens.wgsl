@@ -8,6 +8,8 @@ struct Uniforms {
     aspectLens: i32,
     antialias: i32,
     _pad3: f32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -19,7 +21,9 @@ const HALF_FRAME: f32 = 0.5;
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
-    let uv = pos.xy / texSize;
+    let fullRes = select(texSize, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
+    let posFromBottom = vec2<f32>(pos.x, texSize.y - pos.y);
+    let uv = (posFromBottom + uniforms.tileOffset) / fullRes;
 
     // Zoom for negative displacement (pincushion)
     var zoom: f32 = 0.0;
@@ -28,7 +32,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
 
     // Distance from center, optionally aspect-corrected for circular distortion
-    let aspect = texSize.x / texSize.y;
+    let aspect = fullRes.x / fullRes.y;
     let dist = uv - HALF_FRAME;
     var aDist = dist;
     if (uniforms.aspectLens != 0) { aDist.x = aDist.x * aspect; }
@@ -48,7 +52,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Convert displacement back to UV space
     if (uniforms.aspectLens != 0) { displacement.x = displacement.x / aspect; }
 
-    let offset = fract(uv - displacement);
+    // globalOffset is in full-image UV space; convert to tile-local UV for sampling
+    let globalOffset = fract(uv - displacement);
+    let offset = (globalOffset * fullRes - uniforms.tileOffset) / texSize;
 
     if (uniforms.antialias != 0) {
         let dx = dpdx(offset);

@@ -17,6 +17,8 @@ struct Uniforms {
     reflection: f32,
     refraction: f32,
     aberration: f32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -86,9 +88,9 @@ fn applyRefraction(uv: vec2f, normal: vec3f) -> vec4f {
 }
 
 // Apply reflection effect with chromatic aberration
-fn applyReflection(uv: vec2f, normal: vec3f) -> vec4f {
-    // Calculate incident vector for reflection, from center of image
-    let incident = vec3f(normalize(uv - 0.5), 100.0);
+fn applyReflection(uv: vec2f, globalUV: vec2f, normal: vec3f) -> vec4f {
+    // Calculate incident vector for reflection, from center of full image
+    let incident = vec3f(normalize(globalUV - 0.5), 100.0);
     
     // Calculate reflection vector
     let reflectionVec = reflect(incident, normal);
@@ -112,7 +114,10 @@ fn applyReflection(uv: vec2f, normal: vec3f) -> vec4f {
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
+    let fullRes = select(texSize, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
     let uv = pos.xy / texSize;
+    let posFromBottom = vec2f(pos.x, texSize.y - pos.y);
+    let globalUV = (posFromBottom + uniforms.tileOffset) / fullRes;
     let texelSize = 1.0 / texSize;
     
     // Get original color
@@ -152,7 +157,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     
     // Apply reflection (with chromatic aberration) if enabled
     if (uniforms.reflection > 0.0 || uniforms.aberration > 0.0) {
-        let reflectedColor = applyReflection(uv, normal);
+        let reflectedColor = applyReflection(uv, globalUV, normal);
         workingColor = mix(workingColor, reflectedColor, uniforms.reflection / 100.0);
     }
     
