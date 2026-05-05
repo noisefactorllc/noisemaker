@@ -85,8 +85,7 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     
     if (u.viewMode == 0) {
         // 2D mode: positions are normalized 0..1
-        // WebGPU Y is flipped vs WebGL2 - flip Y to match
-        clipPos = vec2<f32>(pos.x * 2.0 - 1.0, 1.0 - pos.y * 2.0);
+        clipPos = pos.xy * 2.0 - 1.0;
     } else {
         // 3D mode: apply rotation and orthographic projection
         var p = pos.xyz;
@@ -118,11 +117,10 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
         p.y = p.y + u.posY;
         
         // Orthographic projection with scale
-        // Flip Y for WebGPU coordinate system
         if (is2DSystem) {
-            clipPos = vec2<f32>(p.x * 3.5 * u.viewScale, -p.y * 3.5 * u.viewScale);
+            clipPos = p.xy * 3.5 * u.viewScale;
         } else {
-            clipPos = vec2<f32>(p.x / 40.0 * u.viewScale, -p.y / 40.0 * u.viewScale);
+            clipPos = p.xy / 40.0 * u.viewScale;
         }
     }
     

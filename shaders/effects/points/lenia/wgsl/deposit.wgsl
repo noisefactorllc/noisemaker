@@ -44,8 +44,7 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     }
 
     // Convert position (0..1) to clip space (-1..1)
-    // WebGPU Y is flipped vs WebGL2 - flip Y to match
-    let clipPos = vec2<f32>(pos.x * 2.0 - 1.0, 1.0 - pos.y * 2.0);
+    let clipPos = pos.xy * 2.0 - 1.0;
 
     out.position = vec4<f32>(clipPos, 0.0, 1.0);
     out.amount = u.depositAmount;

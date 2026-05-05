@@ -10,9 +10,8 @@
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let size = max(resolution, vec2<f32>(1.0));
     var uv = position.xy / size;
-    let flippedUV = vec2<f32>(uv.x, 1.0 - uv.y);
-    
-    let inputColor = textureSample(inputTex, u_sampler, flippedUV);
+
+    let inputColor = textureSample(inputTex, u_sampler, uv);
     let trailColor = textureSample(trailTex, u_sampler, uv);
     
     // Blend: trail over scaled input using alpha
