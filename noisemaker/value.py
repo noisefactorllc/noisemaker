@@ -175,8 +175,11 @@ def values(
 
     elif ValueDistribution.is_noise(distrib):
         base_seed = simplex.get_seed()
+        # Static value field; periodic_value below provides the animation. Passing
+        # an animated noise here would double-animate and produce frame-over-frame
+        # spikes (lattice crossings on top of the sine cycle).
         value_noise = tf.cast(
-            simplex.simplex(initial_shape, time=time, seed=base_seed, speed=speed),
+            simplex.simplex(initial_shape, time=0.0, seed=base_seed, speed=1),
             tf.float32,
         )
 

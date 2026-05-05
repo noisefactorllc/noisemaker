@@ -358,10 +358,13 @@ export function values(freq, shape, opts = {}) {
     )
   } else if (distrib === ValueDistribution.simplex || distrib === ValueDistribution.exp) {
     const baseSeed = (seed ?? getSimplexSeed()) >>> 0
+    // Static value field; periodicValue below provides the animation. Passing
+    // an animated noise here would double-animate and produce frame-over-frame
+    // spikes (lattice crossings on top of the sine cycle).
     const baseNoise = simplexNoise([initHeight, initWidth, channels], {
-      time,
+      time: 0,
       seed: baseSeed,
-      speed,
+      speed: 1,
     })
     if (speed === 0) {
       // Only skip periodic wrapping if speed is exactly 0 (no animation)
