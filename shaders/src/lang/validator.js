@@ -442,56 +442,6 @@ export function validate(ast) {
         } : null
         const states = []
 
-        // Coerce a vec2/3/4 argument node into a numeric array. Accepts:
-        //   - vec2()/vec3()/vec4() Call constructors (legacy form)
-        //   - ArrayLiteral with the matching arity (preferred form)
-        //   - Color nodes (truncated/extended to the right arity)
-        // Anything else is rejected with S002 and the def.default is used.
-        function coerceVec(node, def, call, dim, fallback) {
-            if (node && node.type === 'String') {
-                pushDiag('S001', node, `String literal not allowed for vec${dim} parameter '${def.name}'`)
-                return def.default ? def.default.slice() : fallback.slice()
-            }
-            if (node && node.type === 'Call' && node.name === `vec${dim}` && Array.isArray(node.args) && node.args.length === dim) {
-                const value = []
-                for (const arg of node.args) {
-                    if (arg.type === 'Number') {
-                        value.push(arg.value)
-                    } else {
-                        pushDiag('S002', arg, `Argument out of range for '${def.name}' in ${call.name}()`)
-                        value.push(0)
-                    }
-                }
-                return value
-            }
-            if (node && node.type === 'ArrayLiteral') {
-                if (node.elements.length !== dim) {
-                    pushDiag('S002', node, `Array literal for '${def.name}' must have ${dim} element${dim === 1 ? '' : 's'} (got ${node.elements.length}) in ${call.name}()`)
-                    return def.default ? def.default.slice() : fallback.slice()
-                }
-                const value = []
-                for (const el of node.elements) {
-                    if (el.type === 'Number') {
-                        value.push(el.value)
-                    } else {
-                        pushDiag('S002', el, `Array element must be a number for '${def.name}' in ${call.name}()`)
-                        value.push(0)
-                    }
-                }
-                return value
-            }
-            if (node && node.type === 'Color') {
-                // Color is RGBA (4 floats); truncate or pad as needed.
-                if (dim === 4) return node.value.slice()
-                if (dim < 4) return node.value.slice(0, dim)
-                return [...node.value, 1].slice(0, dim)
-            }
-            if (node && node.type && node.type !== 'Ident') {
-                pushDiag('S002', node, `Argument out of range for '${def.name}' in ${call.name}()`)
-            }
-            return def.default ? def.default.slice() : fallback.slice()
-        }
-
         function processChain(calls, input, options = {}) {
             const allowStarterless = options.allowStarterless === true
             let current = input
@@ -831,12 +781,59 @@ export function validate(ast) {
                             value = def.default
                         }
                         args[argKey] = value
-                    } else if (def.type === 'vec2') {
-                        args[argKey] = coerceVec(node, def, call, 2, [0, 0])
                     } else if (def.type === 'vec3') {
-                        args[argKey] = coerceVec(node, def, call, 3, [0, 0, 0])
+                        if (node && node.type === 'String') {
+                            pushDiag('S001', node, `String literal not allowed for vec3 parameter '${def.name}'`)
+                            args[argKey] = def.default ? def.default.slice() : [0,0,0]
+                            continue
+                        }
+                        let value
+                        if (node && node.type === 'Call' && node.name === 'vec3' && node.args && node.args.length === 3) {
+                            value = []
+                            for (const arg of node.args) {
+                                if (arg.type === 'Number') {
+                                    value.push(arg.value)
+                                } else {
+                                    pushDiag('S002', arg, `Argument out of range for '${def.name}' in ${call.name}()`)
+                                    value.push(0)
+                                }
+                            }
+                        } else if (node && node.type === 'Color') {
+                            value = node.value.slice(0, 3)
+                        } else {
+                            if (node && node.type && node.type !== 'Ident') {
+                                pushDiag('S002', node, `Argument out of range for '${def.name}' in ${call.name}()`)
+                            }
+                            value = def.default ? def.default.slice() : [0,0,0]
+                        }
+                        args[argKey] = value
                     } else if (def.type === 'vec4') {
-                        args[argKey] = coerceVec(node, def, call, 4, [0, 0, 0, 1])
+                        if (node && node.type === 'String') {
+                            pushDiag('S001', node, `String literal not allowed for vec4 parameter '${def.name}'`)
+                            args[argKey] = def.default ? def.default.slice() : [0,0,0,1]
+                            continue
+                        }
+                        let value
+                        if (node && node.type === 'Call' && node.name === 'vec4' && node.args && node.args.length === 4) {
+                            value = []
+                            for (const arg of node.args) {
+                                if (arg.type === 'Number') {
+                                    value.push(arg.value)
+                                } else {
+                                    pushDiag('S002', arg, `Argument out of range for '${def.name}' in ${call.name}()`)
+                                    value.push(0)
+                                }
+                            }
+                        } else if (node && node.type === 'Color') {
+                            // Color nodes already have 4 components [r, g, b, a]
+                            value = node.value.slice()
+                        } else {
+                            if (node && node.type && node.type !== 'Ident') {
+                                pushDiag('S002', node, `Argument out of range for '${def.name}' in ${call.name}()`)
+                            }
+                            value = def.default ? def.default.slice() : [0,0,0,1]
+                        }
+                        args[argKey] = value
                     } else if (def.type === 'boolean') {
                         if (node && node.type === 'String') {
                             pushDiag('S001', node, `String literal not allowed for boolean parameter '${def.name}'`)

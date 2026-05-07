@@ -31,9 +31,8 @@ Grammar
    Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | VolRef | GeoRef | XyzRef | VelRef | RgbaRef | MeshRef | Func | '(' Expr ')'
    Call           ::= Ident '(' ArgList? ')'
    ArgList        ::= Arg ( ',' Arg )* ','?
-   Arg            ::= NumberExpr | String | Boolean | Color | ArrayLiteral | Ident | Member | OutputRef | VolRef | GeoRef | XyzRef | VelRef | RgbaRef | MeshRef | Func
+   Arg            ::= NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | VolRef | GeoRef | XyzRef | VelRef | RgbaRef | MeshRef | Func
    NumberExpr     ::= Number | 'Math.PI' | '(' NumberExpr ')' | NumberExpr ( '+' | '-' | '*' | '/' ) NumberExpr
-   ArrayLiteral   ::= '[' ( Arg ( ',' Arg )* )? ']'
    Member         ::= Ident ( '.' Ident )+
    Func           ::= '(' ')' '=>' Expr
    OutputRef      ::= 'o' Digit+
@@ -120,29 +119,15 @@ Numeric arguments support inline arithmetic (``+``, ``-``, ``*``, ``/``) and con
 
 **Vector parameters:**
 
-Some effects accept multi-component vector parameters. The canonical
-form is an array literal — comma-separated numbers in square brackets:
+Some effects accept multi-component vector parameters. Use the built-in vector constructors:
+
+* ``vec2(x, y)`` — 2-component vector
+* ``vec3(x, y, z)`` — 3-component vector  
+* ``vec4(x, y, z, w)`` — 4-component vector
 
 .. code-block:: none
 
-  effect(pos: [0.5, 0.25]).write(o0)
-  effect(quad: [0.05, 0.05, 0.45, 0.95]).write(o0)
-
-Element count is checked against the parameter's declared type
-(``vec2``, ``vec3``, ``vec4``); a length mismatch produces an ``S002``
-diagnostic. Elements may be any numeric expression (negative numbers,
-arithmetic, ``Math.PI``).
-
-**Backward-compatible alternatives.** The legacy ``vecN`` constructor
-calls — ``vec2(x, y)``, ``vec3(x, y, z)``, ``vec4(x, y, z, w)`` — are
-still accepted by the parser. Existing programs continue to work
-unchanged. The unparser emits array-literal form going forward, so a
-parse-then-unparse round trip rewrites old constructor calls into
-``[…]`` syntax.
-
-**Color parameters** (``type: 'color'``) are unaffected — they still
-serialize as ``#RRGGBB`` / ``#RRGGBBAA`` hex literals regardless of the
-underlying tuple arity.
+  effect(param: vec2(0.5, 0.25)).write(o0)
 
 Variables & Aliases
 ^^^^^^^^^^^^^^^^^^^

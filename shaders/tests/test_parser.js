@@ -242,34 +242,3 @@ test('Subchain as first in chain should error (at validation)', 'search synth\ns
     return true
 })
 
-
-test('Array literal — vec4 arg', 'search synth\nnoise(pos: [0.05, 0.1, 0.45, 0.95]).write(o0)', (ast) => {
-    const call = ast.plans[0].chain[0]
-    const arg = call.kwargs?.pos
-    if (!arg) throw new Error('Expected pos kwarg')
-    if (arg.type !== 'ArrayLiteral') throw new Error('Expected ArrayLiteral, got ' + arg.type)
-    if (arg.elements.length !== 4) throw new Error('Expected 4 elements')
-    if (arg.elements[0].type !== 'Number' || arg.elements[0].value !== 0.05) throw new Error('Expected first element to be Number 0.05')
-    if (arg.elements[3].value !== 0.95) throw new Error('Expected last element to be 0.95')
-})
-
-test('Array literal — empty', 'search synth\nnoise(extra: []).write(o0)', (ast) => {
-    const arg = ast.plans[0].chain[0].kwargs?.extra
-    if (arg.type !== 'ArrayLiteral') throw new Error('Expected ArrayLiteral')
-    if (arg.elements.length !== 0) throw new Error('Expected empty elements')
-})
-
-test('Array literal — supports unary minus and arithmetic', 'search synth\nnoise(p: [-1, 2 + 0.5, 3]).write(o0)', (ast) => {
-    const els = ast.plans[0].chain[0].kwargs.p.elements
-    if (els.length !== 3) throw new Error('Expected 3 elements')
-    if (els[0].value !== -1) throw new Error('Expected -1')
-    if (els[1].value !== 2.5) throw new Error('Expected 2.5')
-})
-
-test('Array literal — unterminated should error', 'search synth\nnoise(p: [1, 2, 3).write(o0)', () => {
-    throw new Error('Should have thrown')
-}, (e) => {
-    if (!(e instanceof SyntaxError)) throw new Error('Expected SyntaxError')
-    console.log('PASS: Unterminated array literal correctly errors')
-    return true
-})

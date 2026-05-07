@@ -332,40 +332,57 @@ function formatValue(value, spec, options = {}) {
     if (isArrayLike) {
         // Convert typed arrays to regular arrays for processing
         const arr = Array.isArray(value) ? value : Array.from(value)
-        const isColorControl = spec?.type === 'color'
-        const formatArrayLiteral = (a) =>
-            `[${a.map(v => formatValue(v, null, options)).join(', ')}]`
-        const toHex2 = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
 
-        // Color params always serialize as hex regardless of underlying
-        // arity — the DSL accepts hex literals as colors directly.
-        if (isColorControl && arr.length >= 3 && arr.every(v => typeof v === 'number')) {
-            const base = `#${toHex2(arr[0])}${toHex2(arr[1])}${toHex2(arr[2])}`
-            return arr.length >= 4 ? `${base}${toHex2(arr[3])}` : base
-        }
-
-        // Typed vec params (and length-inferred numeric arrays) all
-        // serialize as array literals — `[a, b, c, d]`. The parser still
-        // accepts the legacy `vecN(a, b, c, d)` form for backward compat
-        // with existing programs.
+        // Handle vec2 explicitly if spec says so
         if (type === 'vec2' && arr.length === 2 && arr.every(v => typeof v === 'number')) {
-            return formatArrayLiteral(arr)
+            return `vec2(${arr.map(v => formatValue(v, null, options)).join(', ')})`
         }
+
+        // Check if this is a color param (should format as hex regardless of vec3/vec4 type)
+        const isColorControl = spec?.type === 'color'
+
+        // Handle vec3 explicitly if spec says so
         if (type === 'vec3' && arr.length === 3 && arr.every(v => typeof v === 'number')) {
-            return formatArrayLiteral(arr)
+            // If it's a color control, format as hex (6-digit, no alpha)
+            if (isColorControl) {
+                const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
+                return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}`
+            }
+            return `vec3(${arr.map(v => formatValue(v, null, options)).join(', ')})`
         }
+
+        // Handle vec4 explicitly if spec says so - format as hex color
         if (type === 'vec4' && arr.length === 4 && arr.every(v => typeof v === 'number')) {
-            return formatArrayLiteral(arr)
+            const toHex = (n) => Math.round(n * 255).toString(16).padStart(2, '0')
+            return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}${toHex(arr[3])}`
         }
 
-        // Length-inferred fall-through for arrays whose type isn't tagged
-        // explicitly in the spec.
-        if (arr.every(v => typeof v === 'number') && arr.length >= 2 && arr.length <= 4) {
-            return formatArrayLiteral(arr)
+        // Infer type from array length for numeric arrays
+        if (arr.every(v => typeof v === 'number')) {
+            if (arr.length === 2) {
+                return `vec2(${arr.map(v => formatValue(v, null, options)).join(', ')})`
+            }
+            if (arr.length === 3) {
+                // If it's a color control, format as hex (6-digit, no alpha)
+                if (isColorControl) {
+                    const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
+                    return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}`
+                }
+                return `vec3(${arr.map(v => formatValue(v, null, options)).join(', ')})`
+            }
+            if (arr.length === 4) {
+                // 4 elements - hex color
+                const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
+                return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}${toHex(arr[3])}`
+            }
         }
-
-        // Last-resort fallback — emit whatever we have as an array literal.
-        return formatArrayLiteral(arr.slice(0, Math.min(4, arr.length)))
+        // Fallback for other arrays - this should not happen in valid DSL
+        // If it's a color control, format as hex
+        if (isColorControl && arr.length >= 3) {
+            const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
+            return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}`
+        }
+        return `vec3(${arr.slice(0, 3).map(v => formatValue(v, null, options)).join(', ')})`
     }
 
     if (typeof value === 'object') {
@@ -518,18 +535,24 @@ function formatValue(value, spec, options = {}) {
         }
     }
 
-    // SAFETY: Never let arrays become raw comma-separated strings.
-    // This catches any array-like that slipped through earlier checks.
+    // SAFETY: Never let arrays become raw comma-separated strings
+    // This catches any array-like that slipped through earlier checks
     if (value && typeof value === 'object' && typeof value.length === 'number') {
         const arr = Array.from(value)
         const isColorControl = spec?.type === 'color'
         if (arr.length >= 2 && arr.length <= 4 && arr.every(v => typeof v === 'number')) {
-            if (isColorControl && arr.length >= 3) {
-                const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
-                const base = `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}`
-                return arr.length >= 4 ? `${base}${toHex(arr[3])}` : base
+            if (arr.length === 2) return `vec2(${arr.join(', ')})`
+            if (arr.length === 3) {
+                // If it's a color control, format as hex (6-digit, no alpha)
+                if (isColorControl) {
+                    const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
+                    return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}`
+                }
+                return `vec3(${arr.join(', ')})`
             }
-            return `[${arr.join(', ')}]`
+            // 4 elements - hex color
+            const toHex = (n) => Math.max(0, Math.min(255, Math.round(n * 255))).toString(16).padStart(2, '0')
+            return `#${toHex(arr[0])}${toHex(arr[1])}${toHex(arr[2])}${toHex(arr[3])}`
         }
     }
 
