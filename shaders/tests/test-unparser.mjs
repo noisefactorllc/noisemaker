@@ -263,8 +263,9 @@ test('read() starts new chain - never inline', () => {
     assertIncludes(result, '\n\nread(o0)', 'read() should start a new chain after blank line');
 });
 
-// Test 12: Arrays must never be output as bare lists - use vec3() or hex colors
-test('Arrays never output as bare lists', () => {
+// Test 12: Arrays must never be output as bare comma-separated values.
+// Canonical form is an array literal `[a, b, c]` (or hex for color params).
+test('Arrays output as array literals', () => {
     const compiled = {
         searchNamespaces: ['synth'],
         plans: [
@@ -275,13 +276,11 @@ test('Arrays never output as bare lists', () => {
         ]
     };
     const result = unparse(compiled, {}, {});
-    // Bare list syntax [x, y, z] is BANNED
-    assertNotIncludes(result, '[', 'Arrays must never be output as bare lists');
-    // Should use either vec3() or hex color format
-    const hasVec3 = result.includes('vec3(');
+    // Should use either array-literal `[...]` or hex color format
+    const hasArrayLiteral = /\[\s*0\.5\s*,\s*0\.5\s*,\s*0\.5\s*\]/.test(result);
     const hasHex = result.includes('#');
-    if (!hasVec3 && !hasHex) {
-        throw new Error('Should use vec3() or hex color for arrays, got: ' + result);
+    if (!hasArrayLiteral && !hasHex) {
+        throw new Error('Should use array literal or hex color for arrays, got: ' + result);
     }
 });
 
@@ -299,11 +298,11 @@ test('Float32Array never output as raw comma-separated values', () => {
     const result = unparse(compiled, {}, {});
     // Raw comma-separated format like "0.5,0.5,0.5" is BANNED
     assertNotIncludes(result, '0.5,0.5,0.5', 'Float32Array must not become raw comma-separated values');
-    // Should use either vec3() or hex color format
-    const hasVec3 = result.includes('vec3(');
+    // Should use either array-literal `[...]` or hex color format
+    const hasArrayLiteral = /\[\s*0\.5\s*,\s*0\.5\s*,\s*0\.5\s*\]/.test(result);
     const hasHex = result.includes('#');
-    if (!hasVec3 && !hasHex) {
-        throw new Error('Should use vec3() or hex color for Float32Array, got: ' + result);
+    if (!hasArrayLiteral && !hasHex) {
+        throw new Error('Should use array literal or hex color for Float32Array, got: ' + result);
     }
 });
 
@@ -326,8 +325,11 @@ test('Raw comma-separated numbers are BANNED', () => {
         };
         const result = unparse(compiled, {}, {});
         
-        // Check for raw comma-separated pattern (excluding inside vec2/vec3/vec4 parentheses)
-        const withoutVec = result.replace(/vec[234]\([^)]+\)/g, '');
+        // Check for raw comma-separated pattern (excluding inside vec2/vec3/vec4
+        // parentheses or array literals — both have surrounding delimiters).
+        const withoutVec = result
+            .replace(/vec[234]\([^)]+\)/g, '')
+            .replace(/\[[^\]]+\]/g, '');
         if (rawArrayPattern.test(withoutVec)) {
             throw new Error(`Raw comma-separated numbers found for ${tc.desc}: ${result}`);
         }
@@ -384,7 +386,10 @@ test('Numeric enum values are BANNED - must use names', () => {
     assertNotIncludes(result, 'mode: 2', 'Numeric enum value 2 is BANNED');
 });
 
-// Test 16: Vec3 values with spec.type must use vec3() - never raw comma-separated
+// Test 16: Vec3 values with spec.type must use array-literal form, never
+// raw comma-separated. The legacy `vec3(...)` constructor is still
+// accepted by the parser for backward compat but is no longer the
+// canonical output.
 test('Vec3 spec type formats correctly', () => {
     // Mock effect with vec3 params like grade's shadow/highlight tints
     const mockEffectDef = {
@@ -421,10 +426,11 @@ test('Vec3 spec type formats correctly', () => {
     
     const result = unparse(compiled, {}, { getEffectDef });
     
-    // Should use vec3() notation, never raw comma-separated
-    assertIncludes(result, 'vec3(', 'Vec3 values must use vec3() wrapper');
-    assertNotIncludes(result, '0.3,0.4,0.5', 'Raw comma-separated vec3 is BANNED');
-    assertNotIncludes(result, '0.6,0.7,0.8', 'Raw comma-separated Float32Array is BANNED');
+    // Should use array-literal `[...]`, never raw comma-separated
+    assertIncludes(result, '[0.3, 0.4, 0.5]', 'Vec3 should serialize as array literal')
+    assertIncludes(result, '[0.6, 0.7, 0.8]', 'Float32Array vec3 should serialize as array literal')
+    assertNotIncludes(result, '0.3,0.4,0.5', 'Raw comma-separated vec3 is BANNED')
+    assertNotIncludes(result, '0.6,0.7,0.8', 'Raw comma-separated Float32Array is BANNED')
 });
 
 // Test: String values with spaces must be quoted
@@ -494,6 +500,48 @@ test('Strings starting with digits must be quoted', () => {
     
     // id starting with digit must be quoted (not a valid identifier)
     assertIncludes(result, 'id: "0vjd"', 'String starting with digit must be quoted');
+});
+
+// Test: Array literal round-trip — parse [...] then unparse, confirm it
+// comes back as [...] (not vec3() — array literal is the canonical form
+// for vec params now).
+test('Array literal round-trips through parser+unparser', () => {
+    const compiled = {
+        searchNamespaces: ['filter'],
+        plans: [{
+            chain: [{ op: 'filter.test', args: { pos: [0.05, 0.5, 0.95, 1.0] } }],
+            write: { kind: 'output', name: 'o0' }
+        }]
+    };
+    const getEffectDef = (name) => {
+        if (name === 'filter.test') {
+            return { globals: { pos: { type: 'vec4', default: [0, 0, 0, 0] } } };
+        }
+        return null;
+    };
+    const result = unparse(compiled, {}, { getEffectDef });
+    assertIncludes(result, '[0.05, 0.5, 0.95, 1]', 'vec4 should serialize as array literal');
+    assertNotIncludes(result, 'vec4(', 'vec4() constructor is no longer the canonical output');
+});
+
+// Test: Color params still serialize as hex (didn't regress)
+test('Color params still serialize as hex', () => {
+    const compiled = {
+        searchNamespaces: ['filter'],
+        plans: [{
+            chain: [{ op: 'filter.test', args: { fg: [1, 0.5, 0] } }],
+            write: { kind: 'output', name: 'o0' }
+        }]
+    };
+    const getEffectDef = (name) => {
+        if (name === 'filter.test') {
+            return { globals: { fg: { type: 'color', default: [0, 0, 0] } } };
+        }
+        return null;
+    };
+    const result = unparse(compiled, {}, { getEffectDef });
+    assertIncludes(result, '#', 'color params must serialize as hex');
+    assertNotIncludes(result, '[1', 'color must NOT serialize as array literal');
 });
 
 // Summary
