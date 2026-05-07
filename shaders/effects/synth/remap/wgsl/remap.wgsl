@@ -7,18 +7,14 @@
  */
 
 struct Uniforms {
-    data: array<vec4<f32>, 79>,
+    data: array<vec4<f32>, 75>,
     // slot 0:      bgR, bgG, bgB, bgAlpha
-    // slot 1:      zoneCount, smoothEdge, warpEnabled, time
+    // slot 1:      zoneCount, smoothEdge, _, time
     // slot 2..9:   per-zone meta (vertexCount, active, _, alpha)
     //              `active` is 1 when zoneN_tex is wired, 0 when "none".
     // slot 10..73: per-zone polygons; 8 vec4s per zone (16 verts packed two
     //              per vec4 as v_2k.xy + v_2k+1.xy)
-    // slot 74:     warp corner 0 (TL.xy) + corner 1 (TR.xy)
-    // slot 75:     warp corner 2 (BR.xy) + corner 3 (BL.xy)
-    // slot 76:     warp midpoint 0 (T.xy) + midpoint 1 (R.xy)
-    // slot 77:     warp midpoint 2 (B.xy) + midpoint 3 (L.xy)
-    // slot 78.xy:  resolution (auto-filled by the runtime)
+    // slot 74.xy:  resolution (auto-filled by the runtime)
 }
 
 @group(0) @binding(0) var samp: sampler;
@@ -101,83 +97,9 @@ fn distToZoneEdge(p: vec2<f32>, zoneIdx: u32) -> f32 {
     return d;
 }
 
-// =====================================================================
-// Coons-patch warp — see the GLSL companion for the full derivation.
-// =====================================================================
-
-fn quadBezier(a: vec2<f32>, b: vec2<f32>, c: vec2<f32>, t: f32) -> vec2<f32> {
-    let inv = 1.0 - t;
-    return inv * inv * a + 2.0 * inv * t * b + t * t * c;
-}
-
-fn warpCorner(i: u32) -> vec2<f32> {
-    if (i == 0u) { return uniforms.data[74].xy; }
-    if (i == 1u) { return uniforms.data[74].zw; }
-    if (i == 2u) { return uniforms.data[75].xy; }
-    return uniforms.data[75].zw;
-}
-
-fn warpMid(i: u32) -> vec2<f32> {
-    if (i == 0u) { return uniforms.data[76].xy; }
-    if (i == 1u) { return uniforms.data[76].zw; }
-    if (i == 2u) { return uniforms.data[77].xy; }
-    return uniforms.data[77].zw;
-}
-
-fn sampleCoonsPatch(uv: vec2<f32>) -> vec2<f32> {
-    let c0 = warpCorner(0u);
-    let c1 = warpCorner(1u);
-    let c2 = warpCorner(2u);
-    let c3 = warpCorner(3u);
-    let m0 = warpMid(0u);
-    let m1 = warpMid(1u);
-    let m2 = warpMid(2u);
-    let m3 = warpMid(3u);
-
-    let top    = quadBezier(c0, m0, c1, uv.x);
-    let bottom = quadBezier(c3, m2, c2, uv.x);
-    let left   = quadBezier(c0, m3, c3, uv.y);
-    let right  = quadBezier(c1, m1, c2, uv.y);
-
-    let lr = mix(left, right, vec2<f32>(uv.x));
-    let tb = mix(top, bottom, vec2<f32>(uv.y));
-    let corner = mix(
-        mix(c0, c1, vec2<f32>(uv.x)),
-        mix(c3, c2, vec2<f32>(uv.x)),
-        vec2<f32>(uv.y)
-    );
-    return lr + tb - corner;
-}
-
-fn inverseWarp(target: vec2<f32>) -> vec2<f32> {
-    var uv = target;
-    for (var i: i32 = 0; i < 8; i = i + 1) {
-        let p = sampleCoonsPatch(uv);
-        let err = p - target;
-        if (dot(err, err) < 1e-10) { break; }
-
-        // 5e-3 is comfortably small relative to the 0..1 source-UV range
-        // while staying far enough from the boundary that probes near a
-        // corner don't bias the gradient with extrapolated samples.
-        let H: f32 = 5e-3;
-        let dpdu = (sampleCoonsPatch(uv + vec2<f32>(H, 0.0)) - sampleCoonsPatch(uv - vec2<f32>(H, 0.0))) / (2.0 * H);
-        let dpdv = (sampleCoonsPatch(uv + vec2<f32>(0.0, H)) - sampleCoonsPatch(uv - vec2<f32>(0.0, H))) / (2.0 * H);
-
-        let det = dpdu.x * dpdv.y - dpdu.y * dpdv.x;
-        if (abs(det) < 1e-10) { break; }
-        let invDet = 1.0 / det;
-        let delta = vec2<f32>(
-            invDet * ( dpdv.y * err.x - dpdv.x * err.y),
-            invDet * (-dpdu.y * err.x + dpdu.x * err.y)
-        );
-        uv = uv - delta;
-    }
-    return uv;
-}
-
 @fragment
 fn fragmentMain(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
-    let resolution = uniforms.data[78].xy;
+    let resolution = uniforms.data[74].xy;
     let uv = fragCoord.xy / resolution;
     // Remap JSON uses top-left origin; WGSL @builtin(position) is also
     // top-left, so `uv` already matches the JSON convention and we sample
@@ -185,17 +107,7 @@ fn fragmentMain(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f3
     // — once to convert gl_FragCoord (bottom-left) into JSON convention
     // for the polygon test, and once more to convert back to bottom-left
     // for texture sampling. Two flips there, zero here, by design.
-    let warpEnabled = uniforms.data[1].z > 0.5;
-    var p: vec2<f32>;
-    if (warpEnabled) {
-        p = inverseWarp(uv);
-        if (p.x < 0.0 || p.x > 1.0 || p.y < 0.0 || p.y > 1.0) {
-            let bg = uniforms.data[0];
-            return vec4<f32>(bg.xyz, bg.w);
-        }
-    } else {
-        p = uv;
-    }
+    let p = uv;
 
     let header = uniforms.data[0];
     let header2 = uniforms.data[1];

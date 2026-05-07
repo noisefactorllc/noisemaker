@@ -1,6 +1,6 @@
 # synth/remap
 
-Polygon-zone router that pairs with the Remap projection-mapping app.
+Polygon-zone router that pairs with the Remap zone-editor app.
 
 ## Overview
 
@@ -10,13 +10,13 @@ This effect is the rendering counterpart to the [Remap web app](https://remap.no
 
 ## Workflow
 
-1. Open the [Remap app](https://remap.noisedeck.app), calibrate the projector, and paint your zones.
+1. Open the [Remap app](https://remap.noisedeck.app) and paint your zones on the canvas.
 2. From the Export view's **Effect params** tab, copy the parameter object.
 3. In Noisemaker, drop a `synth/remap` effect into your composition.
 4. In your DSL, wire each zone's source: `remap(zone0_tex: read(o0), zone2_tex: read(o5), ...).write(o7)`.
-5. Apply the polygon and warp parameters via the renderer: `applyStepParameterValues({ step_N: params })`.
+5. Apply the polygon parameters via the renderer: `applyStepParameterValues({ step_N: params })`.
 
-The shape parameters (`zoneN_count`, `zoneN_vP`) and the warp handles (`warpCornerN`, `warpMidN`) are hidden from the UI because they're meant to be loaded as a batch from the Remap app, not edited by hand. The visible controls are background, alpha, smoothing, the warp toggle, and per-zone alpha.
+The shape parameters (`zoneN_count`, `zoneN_vP`) are hidden from the UI because they're meant to be loaded as a batch from the Remap app, not edited by hand. The visible controls are background, alpha, smoothing, and per-zone alpha.
 
 ## Parameters
 
@@ -25,9 +25,6 @@ The shape parameters (`zoneN_count`, `zoneN_vP`) and the warp handles (`warpCorn
 - **Background**: color for pixels outside every active zone.
 - **Background alpha**: alpha channel for the background.
 - **Edge smoothing**: soft falloff at polygon boundaries to hide aliased seams between adjacent zones.
-
-### Warp
-- **Warp enabled**: when on, every output pixel is run through the inverse of the eight-handle Coons-patch warp described by `warpCorner0..3` and `warpMid0..3` (the same handles you adjust on the Calibrate view of the Remap app). Pixels that fall outside the source rectangle render as background. The handle uniforms are populated by the Remap app's effect-params export.
 
 ### Zones (1–8)
 For each zone:
@@ -46,3 +43,15 @@ Vertices are normalized: `(0, 0)` is top-left and `(1, 1)` is bottom-right. The 
 - 16 vertices per zone
 
 If you need more vertices per zone, decompose the polygon into multiple zones and wire them all to the same source surface.
+
+## Geometry correction (deferred)
+
+This effect intentionally does not include software geometry correction (warping the rectangular projector output onto a non-rectangular physical surface). For now, use your projector's keystone or 4-corner correction.
+
+A future revision may bring back an 8-handle Coons-patch warp, suitable for the cases hardware can't handle:
+
+- curved surfaces (cylinders, columns, fabric drops)
+- non-contiguous targets (one projector hitting multiple separate surfaces)
+- multi-projector setups with edge feathering
+
+When that happens, the warp will be additive: the existing zone-routing semantics will not change, and the new uniforms will be opt-in.
