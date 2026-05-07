@@ -122,12 +122,31 @@ Numeric arguments support inline arithmetic (``+``, ``-``, ``*``, ``/``) and con
 Some effects accept multi-component vector parameters. Use the built-in vector constructors:
 
 * ``vec2(x, y)`` — 2-component vector
-* ``vec3(x, y, z)`` — 3-component vector  
+* ``vec3(x, y, z)`` — 3-component vector
 * ``vec4(x, y, z, w)`` — 4-component vector
 
 .. code-block:: none
 
   effect(param: vec2(0.5, 0.25)).write(o0)
+
+**Array literals:**
+
+Array literals — comma-separated numbers in square brackets — are an
+additional input form for any vector-valued argument. They are parsed
+and validated the same way ``vec2()`` / ``vec3()`` / ``vec4()`` are,
+and round-trip through the unparser as ``[…]`` so a program written
+with array literals comes back from a parse → unparse cycle in the
+same form. The vector constructor calls are unchanged and remain the
+canonical form for programs that already use them.
+
+.. code-block:: none
+
+  effect(param: [0.5, 0.25]).write(o0)
+  effect(quad: [0.05, 0.05, 0.45, 0.95]).write(o0)
+
+Elements may be any numeric expression (negative numbers, arithmetic,
+``Math.PI``). Array length is not enforced by the validator — whatever
+elements the source declared are passed through to the runtime.
 
 Variables & Aliases
 ^^^^^^^^^^^^^^^^^^^

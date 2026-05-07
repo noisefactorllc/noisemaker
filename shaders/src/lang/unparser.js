@@ -147,7 +147,7 @@ function formatEnumName(name) {
  * @param {object} options - Optional options { customFormatter, enums }
  * @returns {string} Formatted string representation
  */
-function formatValue(value, spec, options = {}) {
+function formatValue(value, spec, options = {}, sourceForm) {
     const { customFormatter, enums = {} } = typeof options === 'function'
         ? { customFormatter: options } // Legacy: 3rd arg was customFormatter
         : options
@@ -162,6 +162,17 @@ function formatValue(value, spec, options = {}) {
 
     if (value === null || value === undefined) {
         return 'null'
+    }
+
+    // Round-trip array literal source form: when the validator tagged an
+    // arg as having come from a `[…]` source, emit it back as `[…]`.
+    // Existing programs never tag args this way, so this branch is
+    // invisible to every program written before the array-literal
+    // feature. The `vecN(...)` and hex-color paths below are not
+    // touched.
+    if (sourceForm === 'array' && (Array.isArray(value) || ArrayBuffer.isView(value))) {
+        const arr = Array.isArray(value) ? value : Array.from(value)
+        return `[${arr.map(v => formatValue(v, null, options)).join(', ')}]`
     }
 
     // Handle variable reference marker - output just the variable name
@@ -582,10 +593,15 @@ function unparseCall(call, options = {}) {
 
             // Get spec from options if available
             const spec = specs[key] || null
+            // Round-trip the source form for this key when the compiled
+            // step carries a sidecar `argSources` (added when the source
+            // contained a literal `[…]`). Absent for every existing
+            // program — vec3()/vec4()/hex paths run unchanged.
+            const sourceForm = call.argSources?.[key]
 
             // Check against default value
             if (spec && spec.default !== undefined) {
-                const formattedValue = formatValue(value, spec, options)
+                const formattedValue = formatValue(value, spec, options, sourceForm)
                 const formattedDefault = formatValue(spec.default, spec, options)
 
                 // For surface params, 'none' must always be explicit when set
@@ -597,7 +613,7 @@ function unparseCall(call, options = {}) {
                 }
             }
 
-            parts.push(`${key}: ${formatValue(value, spec, options)}`)
+            parts.push(`${key}: ${formatValue(value, spec, options, sourceForm)}`)
         }
     }
 
@@ -915,6 +931,11 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 kwargs: {},
                 args: []
             }
+            // Carry the validator's source-form sidecar through so the
+            // kwarg formatter can round-trip array literals back to
+            // `[…]`. Absent for steps that didn't use any source-tagged
+            // input form, so existing programs see no behavior change.
+            if (step.argSources) call.argSources = step.argSources
 
             // Start with original args (already keyed by param names)
             if (step.args) {

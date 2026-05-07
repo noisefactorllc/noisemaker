@@ -79,7 +79,7 @@ export function parse(tokens) {
     const exprStartTokens = new Set([
         'PLUS', 'MINUS', 'NUMBER', 'HEX', 'FUNC', 'STRING',
         'IDENT', 'OUTPUT_REF', 'SOURCE_REF', 'VOL_REF', 'GEO_REF', 'MESH_REF',
-        'XYZ_REF', 'VEL_REF', 'RGBA_REF', 'LPAREN',
+        'XYZ_REF', 'VEL_REF', 'RGBA_REF', 'LPAREN', 'LBRACKET',
         'TRUE', 'FALSE'
     ])
 
@@ -977,6 +977,30 @@ export function parse(tokens) {
                     a = parseInt(hex.slice(6, 8), 16) / 255
                 }
                 return {type: 'Color', value: [r / 255, g / 255, b / 255, a]}
+            }
+            case 'LBRACKET': {
+                // Array literal — comma-separated arg expressions, used as
+                // an alternate input form for vec2/vec3/vec4 parameters.
+                // Existing programs (vecN(...) calls, hex colors) are
+                // unaffected: this branch only fires when the source
+                // contains a literal `[`.
+                const startLine = token.line
+                const startCol = token.col
+                advance()
+                const elements = []
+                if (peek().type !== 'RBRACKET') {
+                    elements.push(parseArg())
+                    while (peek().type === 'COMMA') {
+                        advance()
+                        elements.push(parseArg())
+                    }
+                }
+                if (peek().type !== 'RBRACKET') {
+                    const t = peek()
+                    throw new SyntaxError(`Expected ']' at line ${t.line} col ${t.col}`)
+                }
+                advance()
+                return {type: 'ArrayLiteral', elements, loc: { line: startLine, col: startCol }}
             }
             case 'FUNC':
                 advance()

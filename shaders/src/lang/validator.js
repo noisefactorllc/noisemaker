@@ -684,6 +684,11 @@ export function validate(ast) {
                     pushDiag('S005', original)
                 }
                 const args = {}
+                // Sidecar map remembering the source form of each arg
+                // (e.g. 'array' when the source was a literal `[…]`).
+                // Stays null until something sets a form, so existing
+                // programs add no new keys to the compiled step.
+                let argSources = null
                 const kw = call.kwargs
                 // Resolve deprecated param aliases
                 if (kw) {
@@ -710,6 +715,31 @@ export function validate(ast) {
                         continue
                     }
                     if (kw && kw[def.name] !== undefined) seen.add(def.name)
+                    // Array literal — additive input form. Only fires when
+                    // the source contains a literal `[…]`. Existing programs
+                    // can never produce ArrayLiteral nodes (the lexer only
+                    // emits LBRACKET when the source has `[`), so this
+                    // branch is invisible to every program written before
+                    // the array literal feature shipped. No length/type
+                    // gating: pass the elements through as a numeric array
+                    // and let the runtime decide what's valid. The source
+                    // form is recorded so the unparser can round-trip back
+                    // to `[…]` instead of any other form.
+                    if (node && node.type === 'ArrayLiteral') {
+                        const value = []
+                        for (const el of node.elements) {
+                            if (el.type === 'Number') {
+                                value.push(el.value)
+                            } else {
+                                pushDiag('S002', el, `Array element must be a number for '${def.name}' in ${call.name}()`)
+                                value.push(0)
+                            }
+                        }
+                        args[argKey] = value
+                        argSources = argSources || {}
+                        argSources[argKey] = 'array'
+                        continue
+                    }
                     if (def.type === 'surface') {
                         if (node && node.type === 'String') {
                             pushDiag('S001', node, `String literal not allowed for surface parameter '${def.name}'`)
@@ -1299,6 +1329,10 @@ export function validate(ast) {
                 if (original.kwargs && Object.keys(original.kwargs).length > 0) {
                     step.rawKwargs = original.kwargs
                 }
+                // Sidecar source-form metadata for unparser round-trip.
+                // Absent when no arg used a source-tagged input form, so
+                // existing programs add no new fields to compiled output.
+                if (argSources) { step.argSources = argSources }
                 chain.push(step)
                 current = idx
             }
