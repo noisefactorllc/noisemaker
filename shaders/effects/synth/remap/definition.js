@@ -66,52 +66,6 @@ const uniformLayout = (() => {
     return layout
 })()
 
-function makeZoneGlobals() {
-    const out = {}
-    for (let z = 0; z < MAX_ZONES; z++) {
-        // Zone N's UI controls light up only when zoneCount > N — so with
-        // zoneCount = 0 nothing under "zone 1" is interactable, with
-        // zoneCount = 2 zones 1 and 2 are interactable, etc.
-        const enabled = { enabledBy: { param: 'zoneCount', gt: z } }
-        const cat = `zone ${z + 1}`
-        out[`zone${z}_tex`] = {
-            type: 'surface',
-            default: 'none',
-            colorModeUniform: `zone${z}_active`,
-            ui: { label: `zone ${z + 1} source`, category: cat, ...enabled }
-        }
-        out[`zone${z}_count`] = {
-            type: 'int',
-            default: 0,
-            uniform: `zone${z}_count`,
-            min: 0,
-            max: MAX_VERTS_PER_ZONE,
-            ui: { label: 'vertices', control: false, category: cat, ...enabled }
-        }
-        out[`zone${z}_alpha`] = {
-            type: 'float',
-            default: 1.0,
-            uniform: `zone${z}_alpha`,
-            min: 0,
-            max: 1,
-            ui: { label: 'alpha', control: 'slider', category: cat, ...enabled }
-        }
-        for (let pair = 0; pair < MAX_VERTS_PER_ZONE / 2; pair++) {
-            out[`zone${z}_v${pair}`] = {
-                type: 'vec4',
-                default: [0, 0, 0, 0],
-                uniform: `zone${z}_v${pair}`,
-                ui: {
-                    label: `verts ${pair * 2}–${pair * 2 + 1}`,
-                    control: false,
-                    category: cat
-                }
-            }
-        }
-    }
-    return out
-}
-
 const passInputs = (() => {
     const inputs = {}
     for (let z = 0; z < MAX_ZONES; z++) inputs[`zone${z}_tex`] = `zone${z}_tex`
@@ -177,24 +131,25 @@ export default new Effect({
       uniform: "warpEnabled",
       ui: { label: "warp enabled", control: "checkbox", category: "warp" }
     },
-    warpCorner0: { type: "vec2", default: [0, 0], uniform: "warpCorner0", ui: { label: "TL", control: false, category: "warp" } },
-    warpCorner1: { type: "vec2", default: [1, 0], uniform: "warpCorner1", ui: { label: "TR", control: false, category: "warp" } },
-    warpCorner2: { type: "vec2", default: [1, 1], uniform: "warpCorner2", ui: { label: "BR", control: false, category: "warp" } },
-    warpCorner3: { type: "vec2", default: [0, 1], uniform: "warpCorner3", ui: { label: "BL", control: false, category: "warp" } },
-    warpMid0:    { type: "vec2", default: [0.5, 0], uniform: "warpMid0", ui: { label: "T",  control: false, category: "warp" } },
-    warpMid1:    { type: "vec2", default: [1, 0.5], uniform: "warpMid1", ui: { label: "R",  control: false, category: "warp" } },
-    warpMid2:    { type: "vec2", default: [0.5, 1], uniform: "warpMid2", ui: { label: "B",  control: false, category: "warp" } },
-    warpMid3:    { type: "vec2", default: [0, 0.5], uniform: "warpMid3", ui: { label: "L",  control: false, category: "warp" } },
+    // Warp handles are populated as a batch by the Remap app's effect-
+    // params export. They're suppressed in the form panel via
+    // `ui.hidden: true` (rather than `control: false`) so that
+    // programState round-trips them through DSL when serializing the
+    // effect's state — which the noisedeck remap loader relies on.
+    warpCorner0: { type: "vec2", default: [0, 0], uniform: "warpCorner0", ui: { label: "TL", hidden: true, category: "warp" } },
+    warpCorner1: { type: "vec2", default: [1, 0], uniform: "warpCorner1", ui: { label: "TR", hidden: true, category: "warp" } },
+    warpCorner2: { type: "vec2", default: [1, 1], uniform: "warpCorner2", ui: { label: "BR", hidden: true, category: "warp" } },
+    warpCorner3: { type: "vec2", default: [0, 1], uniform: "warpCorner3", ui: { label: "BL", hidden: true, category: "warp" } },
+    warpMid0:    { type: "vec2", default: [0.5, 0], uniform: "warpMid0", ui: { label: "T",  hidden: true, category: "warp" } },
+    warpMid1:    { type: "vec2", default: [1, 0.5], uniform: "warpMid1", ui: { label: "R",  hidden: true, category: "warp" } },
+    warpMid2:    { type: "vec2", default: [0.5, 1], uniform: "warpMid2", ui: { label: "B",  hidden: true, category: "warp" } },
+    warpMid3:    { type: "vec2", default: [0, 0.5], uniform: "warpMid3", ui: { label: "L",  hidden: true, category: "warp" } },
 
     ...makeZoneGlobals()
   },
 
-  // The shader DSL lexer doesn't accept [a, b, c, d] array literals, so
-  // we can't load polygon vertices through the demo program — those come
-  // from the Remap app's effect-params export at runtime via
-  // renderer.applyStepParameterValues. The demo just proves the effect
-  // compiles and renders the background; users wire up real zones via
-  // the Remap app.
+  // Demo program — proves the effect compiles. Users populate real
+  // zones via the Remap app's loader UI in noisedeck.
   defaultProgram: "search synth\n\nremap(bgColor: #336699, bgAlpha: 1)\n  .write(o0)",
 
   passes: [
@@ -206,3 +161,62 @@ export default new Effect({
     }
   ]
 })
+
+// Helper for the per-zone globals. Defined here (after the Effect
+// export) on purpose — function declarations hoist to the top of the
+// module, so the spread `...makeZoneGlobals()` above still works at
+// load time, while the source-text scanner that reads this file looking
+// for top-level `hidden: true` (the manifest-generator's autodetect for
+// "this whole effect is hidden") only sees text up to the `globals: {`
+// substring. Keeping this body AFTER that substring lets us use
+// `hidden: true` on per-param `ui:` blocks without false-positiving the
+// effect itself out of the dropdown. `ui.hidden` (vs. `ui.control:
+// false`) is also what programState's `_buildParameterOverrides` looks
+// for when deciding which params to round-trip through DSL on
+// serialization — required for the loader UI to survive a recompile.
+function makeZoneGlobals() {
+    const out = {}
+    for (let z = 0; z < MAX_ZONES; z++) {
+        // Zone N's UI controls light up only when zoneCount > N — so with
+        // zoneCount = 0 nothing under "zone 1" is interactable, with
+        // zoneCount = 2 zones 1 and 2 are interactable, etc.
+        const enabled = { enabledBy: { param: 'zoneCount', gt: z } }
+        const cat = `zone ${z + 1}`
+        out[`zone${z}_tex`] = {
+            type: 'surface',
+            default: 'none',
+            colorModeUniform: `zone${z}_active`,
+            ui: { label: `zone ${z + 1} source`, category: cat, ...enabled }
+        }
+        out[`zone${z}_count`] = {
+            type: 'int',
+            default: 0,
+            uniform: `zone${z}_count`,
+            min: 0,
+            max: MAX_VERTS_PER_ZONE,
+            ui: { label: 'vertices', control: 'slider', hidden: true, category: cat, ...enabled }
+        }
+        out[`zone${z}_alpha`] = {
+            type: 'float',
+            default: 1.0,
+            uniform: `zone${z}_alpha`,
+            min: 0,
+            max: 1,
+            ui: { label: 'alpha', control: 'slider', category: cat, ...enabled }
+        }
+        for (let pair = 0; pair < MAX_VERTS_PER_ZONE / 2; pair++) {
+            out[`zone${z}_v${pair}`] = {
+                type: 'vec4',
+                default: [0, 0, 0, 0],
+                uniform: `zone${z}_v${pair}`,
+                ui: {
+                    label: `verts ${pair * 2}–${pair * 2 + 1}`,
+                    control: 'slider',
+                    hidden: true,
+                    category: cat
+                }
+            }
+        }
+    }
+    return out
+}
