@@ -1115,17 +1115,12 @@ export class ProgramState extends Emitter {
             pipeline.recreateTextures(pipeline.collectDefaultUniforms())
         }
 
-        // Handle volumeSize → pipeline.setUniform('volumeSize', ...)
+        // stateSize → scoped pipeline.setUniform('stateSize_node_N', ...).
+        // Each pointsEmit has its own particle pipeline with node-scoped textures,
+        // so the per-step value goes directly to its own uniform key. (volumeSize
+        // and zoom are chain-scoped at expand time and propagated above via the
+        // scopedParamChanged → recreateTextures path; no broadcast needed.)
         if (pipeline.setUniform) {
-            for (const [, stepState] of this._stepStates) {
-                if ('volumeSize' in stepState.values) {
-                    pipeline.setUniform('volumeSize', stepState.values.volumeSize)
-                    break
-                }
-            }
-
-            // Handle stateSize → scoped pipeline.setUniform('stateSize_node_N', ...)
-            // Each pointsEmit has its own particle pipeline with scoped textures
             for (const [stepKey, stepState] of this._stepStates) {
                 if ('stateSize' in stepState.values) {
                     const match = stepKey.match(/^step_(\d+)$/)

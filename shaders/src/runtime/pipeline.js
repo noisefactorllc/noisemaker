@@ -996,13 +996,20 @@ export class Pipeline {
             }
         }
 
-        // Check if this is a scoped uniform (e.g., 'stateSize_node_5', 'volumeSize_chain_0')
-        // Scoped uniforms should NOT propagate to other scoped variants
+        // Scoped uniforms (e.g. stateSize_node_5, volumeSize_chain_0) target
+        // exactly one chain or particle pipeline; don't fan out to siblings.
         const isScopedUniform = /_node_\d+$/.test(name) || /_chain_\d+$/.test(name)
 
-        // Also update the uniform in all passes that reference it
-        // Additionally, propagate to scoped variants (e.g., stateSize -> stateSize_node_1)
-        // This supports multiple particle pipelines with per-pipeline texture sizing
+        // Update the uniform in all passes that reference it.
+        //
+        // For unscoped sizing names (zoom, volumeSize, stateSize), also fan
+        // out to chain-scoped (`_chain_N`) and node-scoped (`_node_N`) variants.
+        // This is the legacy "host wants to set this for the whole pipeline"
+        // path used by docs viewer, MCP harness, foundry, etc., which work
+        // with single-chain DSLs. For multi-chain DSLs the DSL itself supplies
+        // per-chain values via the expander; callers that want to update one
+        // chain at runtime should use applyStepParameterValues / _applyToPipeline,
+        // which write the scoped names directly and never enter this branch.
         if (this.graph && this.graph.passes) {
             for (const pass of this.graph.passes) {
                 if (pass.uniforms && name in pass.uniforms) {
@@ -1013,12 +1020,9 @@ export class Pipeline {
                         pass.uniforms[name] = value
                     }
                 }
-                // Only propagate from base name to scoped variants, not from scoped to scoped
-                // This allows each pipeline's stateSize to be set independently
                 if (!isScopedUniform && pass.uniforms) {
                     for (const key of Object.keys(pass.uniforms)) {
                         if (key.startsWith(name + '_node_') || key.startsWith(name + '_chain_')) {
-                            // Don't overwrite automation configs
                             const currentValue = pass.uniforms[key]
                             if (!this.isAutomationConfig(currentValue)) {
                                 pass.uniforms[key] = value
@@ -1053,26 +1057,35 @@ export class Pipeline {
     }
 
     /**
-     * Check if a dimension spec references a specific parameter
+     * Check if a dimension spec references a specific parameter directly.
+     * Matches both `{ param: 'X' }` (used by 3D atlases, particle state) and
+     * `{ screenDivide: 'X' }` (used by sim surfaces).
      * @param {number|string|object} spec - Dimension specification
      * @param {string} paramName - Parameter name to check for
      * @returns {boolean} True if the spec references the parameter
      */
     dimensionReferencesParam(spec, paramName) {
-        return typeof spec === 'object' && spec !== null && spec.param === paramName
+        return typeof spec === 'object' && spec !== null &&
+               (spec.param === paramName || spec.screenDivide === paramName)
     }
 
     /**
-     * Check if a dimension spec references a scoped variant of a parameter
-     * Scoped params look like 'stateSize_node_1' for param 'stateSize'
+     * Check if a dimension spec references a scoped variant of a parameter.
+     * Scoped params take two forms:
+     *   - `paramName_node_N` (per-particle-pipeline, e.g. stateSize_node_5)
+     *   - `paramName_chain_N` (per-chain, e.g. volumeSize_chain_0, zoom_chain_0)
      * @param {number|string|object} spec - Dimension specification
      * @param {string} paramName - Base parameter name to check for
      * @returns {boolean} True if the spec references a scoped version of the parameter
      */
     dimensionReferencesScopedParam(spec, paramName) {
-        return typeof spec === 'object' && spec !== null &&
-               typeof spec.param === 'string' &&
-               spec.param.startsWith(paramName + '_node_')
+        if (typeof spec !== 'object' || spec === null) return false
+        const ref = (typeof spec.param === 'string') ? spec.param
+                  : (typeof spec.screenDivide === 'string') ? spec.screenDivide
+                  : null
+        if (!ref) return false
+        return ref.startsWith(paramName + '_node_') ||
+               ref.startsWith(paramName + '_chain_')
     }
 
     /**

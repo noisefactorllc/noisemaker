@@ -447,9 +447,21 @@ export function expand(compilationResult, options = {}) {
                     //
                     // For node-local textures that reference stateSize, we also need to scope
                     // the param when in a particle pipeline, so textures match particle state size.
+                    //
+                    // Even outside particle pipelines, node-local textures that reference a
+                    // sizing param (e.g. noise3d's volumeCache referencing volumeSize) must
+                    // be scoped so two chains with different volumeSize don't collide on a
+                    // single shared lookup key. Within-chain inheritance is preserved because
+                    // pipelineUniforms still propagates the unscoped value through the chain;
+                    // the scoped variant rides along on the same propagation.
+                    const dimReferencesParam = (dim) =>
+                        typeof dim === 'object' && dim !== null &&
+                        (dim.param !== undefined || dim.screenDivide !== undefined)
+                    const hasParamRef = dimReferencesParam(spec.width) || dimReferencesParam(spec.height)
                     let resolvedSpec = { ...spec }
                     const shouldScopeParams = shouldScopeAsParticle || shouldScopeAsChain ||
-                        (currentParticlePipelineId && !texName.startsWith('global_'))
+                        (currentParticlePipelineId && !texName.startsWith('global_')) ||
+                        hasParamRef
                     if (shouldScopeParams) {
                         const scopeSuffix = shouldScopeAsParticle ? currentParticlePipelineId : chainScopeId
                         // Helper to scope a dimension spec's param reference to this pipeline/chain

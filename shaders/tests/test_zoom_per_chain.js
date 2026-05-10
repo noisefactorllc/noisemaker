@@ -193,6 +193,17 @@ render(o1)`
     assertSize(pipeline, 'global_rd_state_chain_1', '512x512', 'chain_1 still at x2')
 })
 
+test('setUniform("zoom", N) resizes single-chain simulation surface (host-driven path)', () => {
+    const { pipeline } = buildPipeline(
+        `search synth, filter
+cellularAutomata(zoom: x4).write(o0)
+render(o0)`
+    )
+    assertSize(pipeline, 'global_ca_state_chain_0', '256x256', 'initial')
+    pipeline.setUniform('zoom', 32)
+    assertSize(pipeline, 'global_ca_state_chain_0', '32x32', 'after setUniform("zoom", 32)')
+})
+
 test('applyParameterValues (single-effect mode) resizes simulation surface', async () => {
     const { pipeline } = buildPipeline(
         `search synth, filter
