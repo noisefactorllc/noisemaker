@@ -15,7 +15,7 @@
 
 import {
     compile, registerEffect, registerOp, registerStarterOps,
-    mergeIntoEnums, stdEnums, getEffect
+    mergeIntoEnums, stdEnums
 } from '../src/index.js'
 import { expand } from '../src/runtime/expander.js'
 

@@ -231,7 +231,7 @@ test('unregisterNamespace throws on built-in', () => {
 })
 
 test('built-ins remain after attempted built-in unregister', () => {
-    try { unregisterNamespace('synth') } catch {}
+    try { unregisterNamespace('synth') } catch { /* expected: throws on built-in */ }
     assertEquals(isValidNamespace('synth'), true, "synth still valid after attempted unregister")
 })
 
