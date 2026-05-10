@@ -247,7 +247,6 @@ export class Pipeline {
         this.globalUniforms = {}
         this.width = 0
         this.height = 0
-        this.zoom = 1  // Zoom factor for effect surfaces
         // Pre-allocate frame Maps to avoid per-frame allocation
         this.frameReadTextures = new Map()
         this.frameWriteTextures = new Map()
@@ -336,12 +335,11 @@ export class Pipeline {
      * Initialize the pipeline
      * @param {number} width - Width in pixels
      * @param {number} height - Height in pixels
-     * @param {number} [zoom=1] - Zoom factor for effect surfaces
      */
-    async init(width, height, zoom = 1) {
+    async init(width, height) {
         await this.backend.init()
         await this.compilePrograms()
-        this.resize(width, height, zoom)
+        this.resize(width, height)
     }
 
     /**
@@ -398,12 +396,10 @@ export class Pipeline {
      * Resize the pipeline
      * @param {number} width - Width in pixels
      * @param {number} height - Height in pixels
-     * @param {number} [zoom=1] - Zoom factor for effect surfaces
      */
-    resize(width, height, zoom = 1) {
+    resize(width, height) {
         this.width = width
         this.height = height
-        this.zoom = zoom
 
         // Create/recreate global surfaces
         this.createSurfaces()
@@ -508,8 +504,12 @@ export class Pipeline {
     }
 
     /**
-     * Collect default uniform values from all passes
-     * Used for resolving parameter-based texture dimensions
+     * Collect uniform values from all passes for resolving parameter-based
+     * texture dimensions. Per-effect uniforms (zoom, stateSize, ...) are
+     * authoritative on each pass; the chain-scoped variants written by the
+     * expander (e.g. `zoom_chain_0`) carry the per-effect value into a
+     * unique key so different chains don't clobber each other when the
+     * passes are merged here.
      */
     collectDefaultUniforms() {
         const uniforms = {}
@@ -517,24 +517,6 @@ export class Pipeline {
             for (const pass of this.graph.passes) {
                 if (pass.uniforms) {
                     Object.assign(uniforms, pass.uniforms)
-                }
-            }
-        }
-        // Ensure pipeline-level zoom (from resize()) is the authoritative value.
-        // This covers code paths where pipeline.resize() is called before
-        // pass.uniforms are updated (e.g. programState._applyToPipeline).
-        if (this.zoom != null) {
-            const numZoom = Number(this.zoom)
-            if (numZoom > 0) {
-                uniforms.zoom = numZoom
-                // Propagate to chain-scoped variants (e.g., zoom_chain_0)
-                // so resolveDimension() for screenDivide specs sees the update
-                if (this.graph && this.graph.passes) {
-                    for (const pass of this.graph.passes) {
-                        if (pass.scopedParams && pass.scopedParams.zoom) {
-                            uniforms[pass.scopedParams.zoom] = numZoom
-                        }
-                    }
                 }
             }
         }
@@ -614,16 +596,16 @@ export class Pipeline {
             }
         }
 
-        // Create global surfaces (o0-o7 and dynamic globals)
+        // Create global surfaces (o0-o7 and dynamic globals).
+        // Per-effect zoom (e.g. screenDivide:'zoom_chain_N') is resolved by
+        // resolveDimension() reading the chain-scoped uniform out of
+        // defaultUniforms. There is no pipeline-wide zoom; sizing is owned
+        // by each effect via its own textures spec.
         for (const name of surfaceNames) {
-            // Calculate scaled dimensions for zoom-sensitive surfaces
             let surfaceWidth = this.width
             let surfaceHeight = this.height
             let surfaceFormat = 'rgba16f'
 
-            // Check if there's a texture spec for this surface in graph.textures
-            // This handles effect-defined textures that need ping-pong buffering
-            // Support both naming conventions: "global_name" and "globalName"
             const underscoreId = `global_${name}`
             let texSpec = this.graph?.textures?.get?.(underscoreId)
             if (texSpec) {
@@ -631,8 +613,6 @@ export class Pipeline {
                 surfaceHeight = this.resolveDimension(texSpec.height, this.height, defaultUniforms)
                 if (texSpec.format) surfaceFormat = texSpec.format
             }
-            // No fallback zoom scaling — zoom is per-effect, declared in
-            // each effect's textures spec via { screenDivide: 'zoom' }
 
             // Check if existing surface can be reused (preserves sim state on recompile)
             const oldSurface = this.surfaces.get(name)
@@ -1752,7 +1732,6 @@ export class Pipeline {
  * @param {number} options.width - Width in pixels
  * @param {number} options.height - Height in pixels
  * @param {boolean} options.preferWebGPU - Use WebGPU if available
- * @param {number} [options.zoom=1] - Zoom factor for effect surfaces
  */
 export async function createPipeline(graph, options = {}) {
     let backend
@@ -1801,7 +1780,7 @@ export async function createPipeline(graph, options = {}) {
     }
 
     const pipeline = new Pipeline(graph, backend)
-    await pipeline.init(options.width || 800, options.height || 600, options.zoom || 1)
+    await pipeline.init(options.width || 800, options.height || 600)
 
     return pipeline
 }

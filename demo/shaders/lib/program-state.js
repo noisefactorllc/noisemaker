@@ -1015,6 +1015,11 @@ export class ProgramState extends Emitter {
 
         const pipeline = this._renderer.pipeline
 
+        // Track whether any chain-scoped param changed so we know to re-resolve
+        // texture dimensions (e.g. screenDivide:'zoom' → zoom_chain_N).
+        // Keep in sync with canvas.applyParameterValues / applyStepParameterValues.
+        let scopedParamChanged = false
+
         for (const [stepKey, stepState] of this._stepStates) {
             const match = stepKey.match(/^step_(\d+)$/)
             if (!match) continue
@@ -1065,6 +1070,13 @@ export class ProgramState extends Emitter {
                         pass.uniforms[uniformName] = Array.isArray(converted)
                             ? converted.slice()
                             : converted
+
+                        // Propagate to chain-scoped variant so resolveDimension()
+                        // sees the per-effect value (e.g. zoom → zoom_chain_N).
+                        if (pass.scopedParams && pass.scopedParams[uniformName]) {
+                            pass.uniforms[pass.scopedParams[uniformName]] = pass.uniforms[uniformName]
+                            scopedParamChanged = true
+                        }
                     }
 
                     // Legacy classicNoisedeck palette expansion:
@@ -1096,15 +1108,11 @@ export class ProgramState extends Emitter {
             }
         }
 
-        // Handle zoom → pipeline.resize()
-        if (pipeline.resize) {
-            for (const [, stepState] of this._stepStates) {
-                const zoom = stepState.values.zoom
-                if (zoom !== undefined) {
-                    pipeline.resize(pipeline.width, pipeline.height, zoom)
-                    break // only one zoom value applies
-                }
-            }
+        // A chain-scoped param (e.g. zoom_chain_N) drives screenDivide-sized
+        // simulation buffers. When any changes, recompute affected texture
+        // dimensions; recreateTextures is a no-op for unchanged sizes.
+        if (scopedParamChanged && pipeline.recreateTextures) {
+            pipeline.recreateTextures(pipeline.collectDefaultUniforms())
         }
 
         // Handle volumeSize → pipeline.setUniform('volumeSize', ...)

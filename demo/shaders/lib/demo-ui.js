@@ -3260,8 +3260,7 @@ render(o1)`
 
         try {
             await this._renderer.compile(dsl, {
-                shaderOverrides: this._shaderOverrides,
-                zoom: this._getZoomFromEffectParams()
+                shaderOverrides: this._shaderOverrides
             })
             this.showStatus('shader applied', 'success')
         } catch (err) {
@@ -3280,8 +3279,7 @@ render(o1)`
 
         try {
             await this._renderer.compile(dsl, {
-                shaderOverrides: this._shaderOverrides,
-                zoom: this._getZoomFromEffectParams()
+                shaderOverrides: this._shaderOverrides
             })
             this.showStatus('pipeline updated', 'success')
         } catch (err) {
@@ -4329,32 +4327,6 @@ render(o1)`
     clearShaderOverrides() {
         this._shaderOverrides = {}
         this._programState.clearRoutingOverrides()
-    }
-
-    /**
-     * Get zoom value from parameters
-     * @param {object} [effect] - Current effect
-     * @returns {number} Zoom value
-     */
-    getZoomValue(effect) {
-        return this._parameterValues.zoom ||
-            (effect?.instance?.globals?.zoom?.default)
-    }
-
-    /**
-     * Get zoom value from effect parameter values (for recompilation)
-     * @private
-     * @returns {number} Zoom value
-     */
-    _getZoomFromEffectParams() {
-        // Check programState first (DSL pipeline parameters)
-        for (const params of Object.values(this._programState.getAllStepValues())) {
-            if (params.zoom !== undefined) {
-                return params.zoom
-            }
-        }
-        // Fall back to _parameterValues (single-effect mode)
-        return this._parameterValues.zoom
     }
 
     /**

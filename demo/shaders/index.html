@@ -630,14 +630,12 @@
                 }
             }
 
-            const zoomValue = ui.getZoomValue(currentEffect);
-
             // Auto-enable external inputs when DSL references them (must await to preserve user gesture)
             if (needsMidi(dsl) && !midiManager.enabled) await midiManager.enable()
             if (needsAudio(dsl) && !audioManager.enabled) await audioManager.enable()
 
             try {
-                await renderer.compile(dsl, { zoom: zoomValue });
+                await renderer.compile(dsl);
 
                 window.__noisemakerRenderingPipeline = renderer.pipeline;
 
@@ -691,10 +689,8 @@
             if (needsMidi(dsl) && !midiManager.enabled) await midiManager.enable()
             if (needsAudio(dsl) && !audioManager.enabled) await audioManager.enable()
 
-            const zoomValue = ui.getZoomValue(renderer.currentEffect);
-
             try {
-                await renderer.compile(dsl, { zoom: zoomValue });
+                await renderer.compile(dsl);
 
                 window.__noisemakerRenderingPipeline = renderer.pipeline;
 

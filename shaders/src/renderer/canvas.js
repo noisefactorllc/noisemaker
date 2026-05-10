@@ -651,15 +651,12 @@ export class CanvasRenderer {
      * Resize the renderer
      * @param {number} width - New width
      * @param {number} height - New height
-     * @param {number} [zoom] - Zoom factor (defaults to current pipeline zoom, or 1)
      */
-    resize(width, height, zoom) {
+    resize(width, height) {
         this._width = width
         this._height = height
         if (this._pipeline && this._pipeline.resize) {
-            // Preserve pipeline's current zoom if not explicitly provided
-            const effectiveZoom = zoom != null ? zoom : (this._pipeline.zoom ?? 1)
-            this._pipeline.resize(width, height, effectiveZoom)
+            this._pipeline.resize(width, height)
         }
     }
 
@@ -877,12 +874,10 @@ export class CanvasRenderer {
      * Compile DSL and create pipeline
      * @param {string} dsl - DSL source code
      * @param {object} [options] - Compilation options
-     * @param {number} [options.zoom=1] - Zoom factor
      * @param {object} [options.shaderOverrides] - Per-step shader overrides
      * @returns {Promise<object>} The created pipeline
      */
     async compile(dsl, options = {}) {
-        const zoom = options.zoom || 1
         const shaderOverrides = options.shaderOverrides
 
         this._currentDsl = dsl
@@ -893,7 +888,6 @@ export class CanvasRenderer {
                 width: this._width,
                 height: this._height,
                 preferWebGPU: this._preferWebGPU,
-                zoom,
                 shaderOverrides
             })
             // Apply external input state to new pipeline
@@ -904,9 +898,6 @@ export class CanvasRenderer {
                 this._pipeline.setAudioState(this._audioState)
             }
         } else {
-            // Update zoom so recompile uses the correct value for surface creation
-            this._pipeline.zoom = zoom
-
             // Set isCompiling flag BEFORE recompile swaps the graph
             // This prevents the render loop from trying to execute passes
             // with programs that haven't been compiled yet
@@ -923,7 +914,6 @@ export class CanvasRenderer {
                         width: this._width,
                         height: this._height,
                         preferWebGPU: this._preferWebGPU,
-                        zoom,
                         shaderOverrides
                     })
                     try {
@@ -942,18 +932,6 @@ export class CanvasRenderer {
                     this._pipeline.isCompiling = false
                 }
                 throw err
-            }
-        }
-
-        // Auto-extract zoom from DSL if not explicitly provided.
-        // Effects like ca/mnca define zoom as a pipeline-level parameter (no shader uniform)
-        // that controls simulation surface texture sizing.
-        if (options.zoom == null && this._pipeline?.graph?.passes) {
-            for (const pass of this._pipeline.graph.passes) {
-                if (pass.uniforms && pass.uniforms.zoom !== undefined && pass.uniforms.zoom > 1) {
-                    this._pipeline.resize(this._pipeline.width, this._pipeline.height, pass.uniforms.zoom)
-                    break
-                }
             }
         }
 
@@ -1844,6 +1822,11 @@ export class CanvasRenderer {
 
         const globals = effect.instance.globals || {}
 
+        // Track whether any chain-scoped param changed so dependent texture
+        // dimensions (e.g. screenDivide:'zoom_chain_N') get re-resolved.
+        // Keep in sync with applyStepParameterValues / program-state._applyToPipeline.
+        let scopedParamChanged = false
+
         for (const [paramName, spec] of Object.entries(globals)) {
             if (spec.type === 'surface') {
                 continue
@@ -1868,13 +1851,24 @@ export class CanvasRenderer {
                     continue
                 }
                 pass.uniforms[binding.uniformName] = Array.isArray(converted) ? converted.slice() : converted
+
+                // Propagate to chain-scoped variant so resolveDimension() sees the update
+                if (pass.scopedParams && pass.scopedParams[binding.uniformName]) {
+                    pass.uniforms[pass.scopedParams[binding.uniformName]] = pass.uniforms[binding.uniformName]
+                    scopedParamChanged = true
+                }
             }
+        }
+
+        if (scopedParamChanged && this._pipeline.recreateTextures) {
+            this._pipeline.recreateTextures(this._pipeline.collectDefaultUniforms())
         }
     }
 
     /**
      * Apply per-step parameter values to the pipeline.
      * This allows different instances of the same effect to have different uniform values.
+     * Recreates simulation textures if a chain-scoped param (e.g. zoom) changed.
      * @param {object} stepParameterValues - Map of step_N -> {paramName: value}
      */
     applyStepParameterValues(stepParameterValues) {
@@ -1882,10 +1876,11 @@ export class CanvasRenderer {
             return
         }
 
-        // Track if zoom was applied - we'll need to resize textures if so
-        let zoomValue = null
+        // Track whether any pass updated a chain-scoped param so we know to
+        // re-resolve dependent texture dimensions (e.g. screenDivide:'zoom').
+        // Keep in sync with applyParameterValues / program-state._applyToPipeline.
+        let scopedParamChanged = false
 
-        // Iterate through all passes and apply step-specific values
         for (const pass of this._pipeline.graph.passes) {
             if (!pass || pass.stepIndex === undefined) continue
 
@@ -1893,12 +1888,6 @@ export class CanvasRenderer {
             const stepParams = stepParameterValues[stepKey]
             if (!stepParams) continue
 
-            // Check if zoom is in step params (for resize later)
-            if (stepParams.zoom !== undefined && zoomValue === null) {
-                zoomValue = stepParams.zoom
-            }
-
-            // Get the effect definition for this pass
             const effectKey = pass.effectKey
             const effectDef = effectKey ? getEffect(effectKey) : null
             if (!effectDef || !effectDef.globals) continue
@@ -1917,7 +1906,6 @@ export class CanvasRenderer {
             // the spec defaults from ProgramState) would clobber the expanded values.
             let paletteExpansion = null
 
-            // Apply each step-specific parameter to this pass's uniforms
             for (const [paramName, value] of Object.entries(stepParams)) {
                 if (paramName === '_skip') continue  // Skip internal flags
 
@@ -1939,6 +1927,7 @@ export class CanvasRenderer {
                 // Propagate to chain-scoped variant so resolveDimension() sees the update
                 if (pass.scopedParams && pass.scopedParams[uniformName]) {
                     pass.uniforms[pass.scopedParams[uniformName]] = pass.uniforms[uniformName]
+                    scopedParamChanged = true
                 }
 
                 if (spec.type === 'palette') {
@@ -1955,11 +1944,11 @@ export class CanvasRenderer {
             }
         }
 
-        // If zoom was applied, resize the pipeline to update texture dimensions.
-        // This ensures simulation buffers (ca_state, mnca_state, rd_state) get sized
-        // correctly when the DSL contains a zoom parameter like ca(zoom: x4).
-        if (zoomValue !== null && this._pipeline.resize) {
-            this._pipeline.resize(this._pipeline.width, this._pipeline.height, zoomValue)
+        // A chain-scoped param (e.g. zoom_chain_N) drives screenDivide-sized
+        // simulation buffers. When one changes, recompute affected texture
+        // dimensions; recreateTextures is a no-op for unchanged sizes.
+        if (scopedParamChanged && this._pipeline.recreateTextures) {
+            this._pipeline.recreateTextures(this._pipeline.collectDefaultUniforms())
         }
     }
 }
