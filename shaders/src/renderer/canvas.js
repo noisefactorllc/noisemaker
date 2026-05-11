@@ -1824,7 +1824,12 @@ export class CanvasRenderer {
 
         // Track whether any chain-scoped param changed so dependent texture
         // dimensions (e.g. screenDivide:'zoom_chain_N') get re-resolved.
-        // Keep in sync with applyStepParameterValues / program-state._applyToPipeline.
+        // The three runtime UI paths (this method, applyStepParameterValues,
+        // program-state._applyToPipeline) share the same (gate, propagate,
+        // broadcast) pattern for chain-scoped params — if you change one,
+        // change all three. The gate currently fires only for volumeSize
+        // (via pass.inheritsVolumeSize) because that's the only param with
+        // upstream-inherit semantics today.
         let scopedParamChanged = false
 
         for (const [paramName, spec] of Object.entries(globals)) {
@@ -1850,12 +1855,19 @@ export class CanvasRenderer {
                 if (!pass || !pass.uniforms) {
                     continue
                 }
+                // Consumer passes inherit volumeSize from upstream — skip the
+                // write so a stale local value doesn't clobber the chain's
+                // source via the scopedParams propagation below.
+                if (binding.uniformName === 'volumeSize' && pass.inheritsVolumeSize) continue
                 pass.uniforms[binding.uniformName] = Array.isArray(converted) ? converted.slice() : converted
 
-                // Propagate to chain-scoped variant so resolveDimension() sees the update
+                // Propagate to chain-scoped variant so resolveDimension() sees the update,
+                // and broadcast to other chain members for consistent atlas sizing.
                 if (pass.scopedParams && pass.scopedParams[binding.uniformName]) {
-                    pass.uniforms[pass.scopedParams[binding.uniformName]] = pass.uniforms[binding.uniformName]
+                    const scopedName = pass.scopedParams[binding.uniformName]
+                    pass.uniforms[scopedName] = pass.uniforms[binding.uniformName]
                     scopedParamChanged = true
+                    this._pipeline.broadcastChainScopedParam(pass, binding.uniformName, scopedName)
                 }
             }
         }
@@ -1878,7 +1890,10 @@ export class CanvasRenderer {
 
         // Track whether any pass updated a chain-scoped param so we know to
         // re-resolve dependent texture dimensions (e.g. screenDivide:'zoom').
-        // Keep in sync with applyParameterValues / program-state._applyToPipeline.
+        // Shares the (gate, propagate, broadcast) pattern with
+        // applyParameterValues and program-state._applyToPipeline; keep them
+        // in sync. The pass.inheritsVolumeSize gate covers consumer passes
+        // whose volumeSize comes from the upstream emitter.
         let scopedParamChanged = false
 
         for (const pass of this._pipeline.graph.passes) {
@@ -1921,13 +1936,23 @@ export class CanvasRenderer {
 
                 if (!pass.uniforms || !(uniformName in pass.uniforms)) continue
 
+                // Consumer passes inherit volumeSize from the upstream source
+                // emitter — their own step-state default is stale. Writing it
+                // would clobber the chain-scoped variant via the scopedParams
+                // propagation below, breaking atlas sizing for the whole chain.
+                if (uniformName === 'volumeSize' && pass.inheritsVolumeSize) continue
+
                 const converted = this.convertParameterForUniform(value, spec)
                 pass.uniforms[uniformName] = Array.isArray(converted) ? converted.slice() : converted
 
-                // Propagate to chain-scoped variant so resolveDimension() sees the update
+                // Propagate to chain-scoped variant so resolveDimension() sees the update,
+                // and broadcast to other chain members so collectDefaultUniforms() merges
+                // consistently and consumer shaders pick up the new size.
                 if (pass.scopedParams && pass.scopedParams[uniformName]) {
-                    pass.uniforms[pass.scopedParams[uniformName]] = pass.uniforms[uniformName]
+                    const scopedName = pass.scopedParams[uniformName]
+                    pass.uniforms[scopedName] = pass.uniforms[uniformName]
                     scopedParamChanged = true
+                    this._pipeline.broadcastChainScopedParam(pass, uniformName, scopedName)
                 }
 
                 if (spec.type === 'palette') {

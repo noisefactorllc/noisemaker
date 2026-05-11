@@ -654,6 +654,19 @@ export function expand(compilationResult, options = {}) {
                 pass.nodeId = nodeId
                 pass.stepIndex = step.temp  // Track which step this pass belongs to
 
+                // Mark consumer passes that inherit volumeSize from upstream. Mirrors
+                // the existing inherit guard in args processing
+                // (`currentInput3d && pipelineUniforms['volumeSize'] !== undefined`):
+                // when an effect reads inputTex3d from upstream, the volume's size
+                // is dictated by the source emitter, not by this effect's own arg
+                // or default. Runtime UI paths (canvas.applyStep*, ProgramState.
+                // _applyToPipeline) check this flag and skip writing volumeSize so
+                // they don't reintroduce a stale local default into the chain-scoped
+                // variant.
+                if (currentInput3d && pipelineUniforms['volumeSize'] !== undefined) {
+                    pass.inheritsVolumeSize = true
+                }
+
                 // Start with pipeline uniforms inherited from upstream effects
                 // This allows downstream effects to use uniforms like volumeSize without redeclaring them
                 pass.uniforms = { ...pipelineUniforms }

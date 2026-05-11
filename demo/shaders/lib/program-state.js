@@ -1067,15 +1067,26 @@ export class ProgramState extends Emitter {
                     }
 
                     if (uniformName in pass.uniforms) {
+                        // Consumer passes inherit volumeSize from the upstream
+                        // source emitter — their step-state default is stale.
+                        // Writing it would clobber the chain-scoped variant via
+                        // the scopedParams propagation below.
+                        if (uniformName === 'volumeSize' && pass.inheritsVolumeSize) continue
+
                         pass.uniforms[uniformName] = Array.isArray(converted)
                             ? converted.slice()
                             : converted
 
                         // Propagate to chain-scoped variant so resolveDimension()
-                        // sees the per-effect value (e.g. zoom → zoom_chain_N).
+                        // sees the per-effect value (e.g. zoom → zoom_chain_N),
+                        // and broadcast to other chain members so atlas sizing
+                        // stays consistent and consumer shaders pick up the new
+                        // size (volumeSize specifically).
                         if (pass.scopedParams && pass.scopedParams[uniformName]) {
-                            pass.uniforms[pass.scopedParams[uniformName]] = pass.uniforms[uniformName]
+                            const scopedName = pass.scopedParams[uniformName]
+                            pass.uniforms[scopedName] = pass.uniforms[uniformName]
                             scopedParamChanged = true
+                            pipeline.broadcastChainScopedParam(pass, uniformName, scopedName)
                         }
                     }
 
@@ -1118,8 +1129,10 @@ export class ProgramState extends Emitter {
         // stateSize → scoped pipeline.setUniform('stateSize_node_N', ...).
         // Each pointsEmit has its own particle pipeline with node-scoped textures,
         // so the per-step value goes directly to its own uniform key. (volumeSize
-        // and zoom are chain-scoped at expand time and propagated above via the
-        // scopedParamChanged → recreateTextures path; no broadcast needed.)
+        // is handled above via broadcastChainScopedParam because consumers inherit
+        // it from the upstream emitter; zoom is chain-scoped at expand time but
+        // each effect owns its own zoom and the scopedParamChanged →
+        // recreateTextures path covers it without needing a broadcast.)
         if (pipeline.setUniform) {
             for (const [stepKey, stepState] of this._stepStates) {
                 if ('stateSize' in stepState.values) {

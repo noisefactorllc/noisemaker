@@ -30,9 +30,9 @@ mergeIntoEnums(stdEnums)
 let passed = 0
 let failed = 0
 
-function test(name, fn) {
+async function test(name, fn) {
     try {
-        fn()
+        await fn()
         console.log(`PASS: ${name}`)
         passed++
     } catch (err) {
@@ -127,7 +127,7 @@ function assertSize(pipeline, texId, expected, label) {
 
 // ---------------------------------------------------------------------------
 
-test('two reactionDiffusions with different zooms get distinct sizes', () => {
+await test('two reactionDiffusions with different zooms get distinct sizes', () => {
     const { pipeline } = buildPipeline(
         `search synth, filter
 perlin().write(o0)
@@ -139,7 +139,7 @@ render(o2)`
     assertSize(pipeline, 'global_rd_state_chain_2', '64x64',   'second RD (zoom=x16)')
 })
 
-test('cellularAutomata + reactionDiffusion get independent sizes', () => {
+await test('cellularAutomata + reactionDiffusion get independent sizes', () => {
     const { pipeline } = buildPipeline(
         `search synth, filter
 cellularAutomata(zoom: x4).write(o0)
@@ -150,7 +150,7 @@ render(o1)`
     assertSize(pipeline, 'global_rd_state_chain_1', '64x64',   'RD (zoom=x16)')
 })
 
-test('single reactionDiffusion sized by its own zoom', () => {
+await test('single reactionDiffusion sized by its own zoom', () => {
     const { pipeline } = buildPipeline(
         `search synth, filter
 reactionDiffusion(zoom: x8).write(o0)
@@ -159,7 +159,7 @@ render(o0)`
     assertSize(pipeline, 'global_rd_state_chain_0', '128x128', 'single RD (zoom=x8)')
 })
 
-test('applyStepParameterValues resizes only the affected chain', () => {
+await test('applyStepParameterValues resizes only the affected chain', () => {
     const { graph, pipeline } = buildPipeline(
         `search synth, filter
 reactionDiffusion(zoom: x4).write(o0)
@@ -193,7 +193,7 @@ render(o1)`
     assertSize(pipeline, 'global_rd_state_chain_1', '512x512', 'chain_1 still at x2')
 })
 
-test('setUniform("zoom", N) resizes single-chain simulation surface (host-driven path)', () => {
+await test('setUniform("zoom", N) resizes single-chain simulation surface (host-driven path)', () => {
     const { pipeline } = buildPipeline(
         `search synth, filter
 cellularAutomata(zoom: x4).write(o0)
@@ -204,7 +204,7 @@ render(o0)`
     assertSize(pipeline, 'global_ca_state_chain_0', '32x32', 'after setUniform("zoom", 32)')
 })
 
-test('applyParameterValues (single-effect mode) resizes simulation surface', async () => {
+await test('applyParameterValues (single-effect mode) resizes simulation surface', async () => {
     const { pipeline } = buildPipeline(
         `search synth, filter
 reactionDiffusion(zoom: x4).write(o0)

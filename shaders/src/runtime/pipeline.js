@@ -1057,6 +1057,38 @@ export class Pipeline {
     }
 
     /**
+     * Broadcast a runtime update to a chain-scoped param to all other passes
+     * in the same chain. The scoped variant name (e.g. 'volumeSize_chain_0')
+     * uniquely identifies chain membership — any pass that has it in its
+     * uniforms belongs to that chain (the expander seeds it via pipelineUniforms
+     * propagation, so every pass in the chain holds a copy).
+     *
+     * Without this broadcast, runtime updates would leave per-pass copies
+     * inconsistent, and `collectDefaultUniforms()`'s last-write-wins merge
+     * would pick a stale value — causing atlas sizing to ignore the source
+     * emitter's new value.
+     *
+     * For consumer passes that inherit the unscoped uniform from upstream
+     * (`pass.inheritsVolumeSize`), also update the unscoped value so the
+     * shader sees the new size. Currently only volumeSize has this inherit
+     * semantics; downstream 3D effects use it.
+     */
+    broadcastChainScopedParam(sourcePass, uniformName, scopedName) {
+        if (!this.graph || !this.graph.passes || !sourcePass.uniforms) return
+        const value = sourcePass.uniforms[uniformName]
+        for (const otherPass of this.graph.passes) {
+            if (otherPass === sourcePass || !otherPass.uniforms) continue
+            if (!(scopedName in otherPass.uniforms)) continue
+            otherPass.uniforms[scopedName] = value
+            if (uniformName === 'volumeSize' &&
+                otherPass.inheritsVolumeSize &&
+                uniformName in otherPass.uniforms) {
+                otherPass.uniforms[uniformName] = value
+            }
+        }
+    }
+
+    /**
      * Check if a dimension spec references a specific parameter directly.
      * Matches both `{ param: 'X' }` (used by 3D atlases, particle state) and
      * `{ screenDivide: 'X' }` (used by sim surfaces).
