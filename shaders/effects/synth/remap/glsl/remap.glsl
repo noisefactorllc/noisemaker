@@ -20,6 +20,10 @@ precision highp float;
 
 // Auto-filled by the runtime — output framebuffer dimensions.
 uniform vec2 resolution;
+// Auto-filled when noisedeck is doing a tiled large-resolution export.
+// When not tiling: tileOffset = (0, 0), fullResolution = resolution.
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 
 // Per-zone source surfaces. Wired in DSL via `zoneN_tex: read(oN)`.
 uniform sampler2D zone0_tex;
@@ -228,14 +232,17 @@ float distToZoneEdge(vec2 p, int zoneIdx) {
 }
 
 void main() {
-    vec2 screen = gl_FragCoord.xy / resolution;
-    // gl_FragCoord is bottom-left origin (Y-up); remap JSON is top-left
-    // (Y-down). Flip y so polygon tests match the JSON. The WGSL path
-    // does NOT apply this flip because @builtin(position) is already
-    // top-left in WebGPU.
-    vec2 p = vec2(screen.x, 1.0 - screen.y);
-    // Texture sampling expects bottom-left origin in this codebase.
-    vec2 sampleUv = vec2(p.x, 1.0 - p.y);
+    // Polygon tests use GLOBAL UV so zones land in the same image position
+    // regardless of which tile is rendering. gl_FragCoord is bottom-left
+    // origin (Y-up); remap JSON is top-left (Y-down) — flip y after the
+    // global-coord conversion to match the JSON convention.
+    vec2 globalScreen = (gl_FragCoord.xy + tileOffset) / fullResolution;
+    vec2 p = vec2(globalScreen.x, 1.0 - globalScreen.y);
+    // Texture sampling stays TILE-LOCAL: each zoneN_tex is the current
+    // tile's slice of its source surface, so we sample at the tile-local
+    // pixel position, not the global one. Bottom-left origin to match
+    // the codebase texture convention.
+    vec2 sampleUv = gl_FragCoord.xy / resolution;
 
     vec4 result = vec4(bgColor, bgAlpha);
     int activeCount = min(zoneCount, MAX_ZONES);

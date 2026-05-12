@@ -27,6 +27,10 @@ struct Uniforms {
 @group(0) @binding(7) var zone5_tex: texture_2d<f32>;
 @group(0) @binding(8) var zone6_tex: texture_2d<f32>;
 @group(0) @binding(9) var zone7_tex: texture_2d<f32>;
+// Auto-filled when noisedeck is doing a tiled large-resolution export.
+// When not tiling: tileOffset = (0, 0), fullResolution = resolution.
+@group(0) @binding(10) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(11) var<uniform> fullResolution: vec2<f32>;
 
 const MAX_ZONES: u32 = 8u;
 const MAX_VERTS_PER_ZONE: u32 = 16u;
@@ -100,14 +104,18 @@ fn distToZoneEdge(p: vec2<f32>, zoneIdx: u32) -> f32 {
 @fragment
 fn fragmentMain(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     let resolution = uniforms.data[74].xy;
-    let uv = fragCoord.xy / resolution;
-    // Remap JSON uses top-left origin; WGSL @builtin(position) is also
-    // top-left, so `uv` already matches the JSON convention and we sample
-    // surfaces with `p` directly. The GLSL counterpart has to flip y twice
-    // — once to convert gl_FragCoord (bottom-left) into JSON convention
-    // for the polygon test, and once more to convert back to bottom-left
-    // for texture sampling. Two flips there, zero here, by design.
-    let p = uv;
+    // Polygon tests use GLOBAL UV so zones land in the same image position
+    // regardless of which tile is rendering. WGSL @builtin(position) is
+    // top-left (Y-down); tileOffset is sent in GLSL (Y-from-bottom)
+    // convention, so convert: posFromBottom.y = resolution.y - pos.y,
+    // global = posFromBottom + tileOffset, then flip Y-down for the JSON.
+    let posFromBottom = vec2<f32>(fragCoord.x, resolution.y - fragCoord.y);
+    let globalYup = (posFromBottom + tileOffset) / fullResolution;
+    let p = vec2<f32>(globalYup.x, 1.0 - globalYup.y);
+    // Texture sampling stays TILE-LOCAL: each zoneN_tex is the current
+    // tile's slice of its source surface, so sample at the tile-local
+    // pixel position (Y-down to match WGSL textureSampleLevel convention).
+    let sampleUv = fragCoord.xy / resolution;
 
     let header = uniforms.data[0];
     let header2 = uniforms.data[1];
@@ -123,7 +131,7 @@ fn fragmentMain(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f3
         let meta = getZoneMeta(z);
         if (meta.y < 0.5) { continue; }  // zoneN_tex not wired
         if (!pointInZone(p, z)) { continue; }
-        let src = sampleZone(z, p);
+        let src = sampleZone(z, sampleUv);
         let zAlpha = meta.w;
         // smoothEdge is user-facing 0..1; scale to the actual source-UV
         // distance (0..0.05), beyond which the fade looks like washout.
