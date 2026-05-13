@@ -4,12 +4,17 @@ name: Dependabot auto-merge
 #   1. All check_runs for the head SHA passed (no required-status-checks
 #      branch protection on these repos, so gh pr merge --auto can't gate
 #      on its own).
-#   2. Every version bump in the PR body is patch-level (same major + minor,
-#      different patch). Minor/major bumps stay open for human review.
+#   2. The PR is patch-level only. Classification:
+#      - Grouped PRs use the group name in the title:
+#          *"-patches group"*       → auto-merge
+#          *"-minor-major group"*   → human review
+#      - Single-package PRs: parse version pair from title.
 #
-# Dependabot.yml splits groups by update-type so most non-patch bumps come in
-# a separate PR — the body parsing here is belt-and-suspenders for any
-# straggler bump that gets grouped unexpectedly.
+# Title formats Dependabot emits (after our dependabot.yml split):
+#   - "deps(npm): bump the npm-patches group with 5 updates"
+#   - "deps(npm): bump the npm-minor-major group with 2 updates"
+#   - "deps: bump playwright from 1.57.0 to 1.60.0"
+#   - "deps: bump express-rate-limit from 7.5.1 to 8.5.1 in the npm-patches group"
 
 on:
   workflow_run:
@@ -62,38 +67,42 @@ jobs:
             exit 0
           fi
 
-          # Check every bump in PR body is patch-only (same major+minor)
-          BODY=$(echo "$PR_DATA" | jq -r '.body // ""')
-          NON_PATCH=0
-          DETAILS=""
-          while IFS= read -r line; do
-            [ -z "$line" ] && continue
-            from=$(echo "$line" | sed -E 's/.*from ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-            to=$(echo "$line"   | sed -E 's/.*to ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-            from_maj=$(echo "$from" | cut -d. -f1)
-            to_maj=$(echo "$to"   | cut -d. -f1)
-            from_min=$(echo "$from" | cut -d. -f2)
-            to_min=$(echo "$to"   | cut -d. -f2)
-            if [ "$from_maj" != "$to_maj" ] || [ "$from_min" != "$to_min" ]; then
-              NON_PATCH=$((NON_PATCH + 1))
-              pkg=$(echo "$line" | grep -oE '`[^`]+`' | head -1 | tr -d '`')
-              DETAILS="$DETAILS\n- $pkg: $from → $to"
-            fi
-          done < <(echo "$BODY" | grep -oE 'Updates `[^`]+` from [0-9]+\.[0-9]+\.[0-9]+ to [0-9]+\.[0-9]+\.[0-9]+')
+          # Classify by title: grouped vs single-package, patch vs non-patch
+          TITLE=$(echo "$PR_DATA" | jq -r '.title // ""')
+          REASON=""
 
-          if [ "$NON_PATCH" -gt 0 ]; then
-            echo "PR #$PR_NUM has $NON_PATCH non-patch bump(s) — needs human review"
-            COMMENT=$(printf "Auto-merge skipped: this PR includes %d non-patch (minor/major) bump(s).%b\n\nPatch-level bumps auto-merge after CI passes; minor and major bumps need a human to review and merge." "$NON_PATCH" "$DETAILS")
-            # Only comment once per PR
-            EXISTING=$(gh api "repos/$REPO/issues/$PR_NUM/comments" --jq '[.[] | select(.user.login=="github-actions[bot]" and (.body | startswith("Auto-merge skipped")))] | length')
-            if [ "$EXISTING" = "0" ]; then
-              gh pr comment "$PR_NUM" -R "$REPO" --body "$COMMENT"
+          if echo "$TITLE" | grep -qE 'bump the [a-z-]+-patches group'; then
+            REASON="grouped patches"
+          elif echo "$TITLE" | grep -qE 'bump the [a-z-]+-minor-major group'; then
+            REASON="non-patch grouped bump (minor/major group)"
+          else
+            # Single-package — extract version pair from title
+            VER_LINE=$(echo "$TITLE" | grep -oE 'from [0-9]+\.[0-9]+\.[0-9]+ to [0-9]+\.[0-9]+\.[0-9]+' | head -1)
+            if [ -z "$VER_LINE" ]; then
+              echo "Cannot classify PR title — leaving open for review: $TITLE"
+              exit 0
             fi
-            exit 0
+            from=$(echo "$VER_LINE" | sed -E 's/from ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+            to=$(echo "$VER_LINE"   | sed -E 's/.*to ([0-9]+\.[0-9]+\.[0-9]+)/\1/')
+            fm=$(echo "$from" | cut -d. -f1); tm=$(echo "$to" | cut -d. -f1)
+            fn=$(echo "$from" | cut -d. -f2); tn=$(echo "$to" | cut -d. -f2)
+            if [ "$fm" = "$tm" ] && [ "$fn" = "$tn" ]; then
+              REASON="single patch $from → $to"
+            else
+              REASON="single non-patch $from → $to"
+            fi
           fi
 
-          echo "All bumps are patch-level and CI is green — merging PR #$PR_NUM"
-          echo "pr_num=$PR_NUM" >> "$GITHUB_OUTPUT"
+          case "$REASON" in
+            "grouped patches"|"single patch"*)
+              echo "Patch-only ($REASON) and CI green — merging PR #$PR_NUM"
+              echo "pr_num=$PR_NUM" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "PR #$PR_NUM is $REASON — NOT auto-merging"
+              gh pr comment "$PR_NUM" -R "$REPO" --body "Auto-merge skipped: $REASON. Patch-level bumps auto-merge after CI passes; minor and major bumps need a human to review and merge." || true
+              ;;
+          esac
 
       - name: Approve
         if: steps.eval.outputs.pr_num != ''
