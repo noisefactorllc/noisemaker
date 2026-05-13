@@ -1,6 +1,19 @@
 name: Dependabot auto-merge
 
-on: pull_request_target
+# Fires AFTER any CI workflow completes (success or failure). Verifies all
+# check runs for the PR's head SHA passed, then approves + merges.
+# Without this gate, `gh pr merge --auto` on the PR open event would merge
+# immediately since these repos have no required-status-checks branch protection.
+
+on:
+  workflow_run:
+    workflows:
+      - ci
+      - JavaScript
+      - Python
+      - Test
+      - Build
+    types: [completed]
 
 permissions:
   contents: write
@@ -8,17 +21,54 @@ permissions:
 
 jobs:
   auto-merge:
-    if: github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'pull_request'
     steps:
-      - name: Approve
-        run: gh pr review --approve "$PR_URL"
+      - name: Find PR and verify all checks green
+        id: verify
         env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          PR_DATA=$(gh api "repos/$REPO/commits/$HEAD_SHA/pulls" --jq '.[0] // empty')
+          if [ -z "$PR_DATA" ]; then
+            echo "No PR for commit $HEAD_SHA"
+            exit 0
+          fi
 
-      - name: Enable auto-merge
-        run: gh pr merge --auto --squash --delete-branch "$PR_URL"
+          PR_NUM=$(echo "$PR_DATA" | jq -r '.number')
+          PR_USER=$(echo "$PR_DATA" | jq -r '.user.login')
+          if [ "$PR_USER" != "dependabot[bot]" ]; then
+            echo "PR #$PR_NUM author is $PR_USER (not Dependabot) — skipping"
+            exit 0
+          fi
+
+          # Verify every check run for this SHA passed
+          CHECKS=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs?per_page=100" --jq '.check_runs')
+          PENDING=$(echo "$CHECKS" | jq '[.[] | select(.status != "completed")] | length')
+          FAILED=$(echo "$CHECKS" | jq '[.[] | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out")] | length')
+
+          if [ "$PENDING" -gt 0 ]; then
+            echo "$PENDING check(s) still pending — will retry on next workflow_run"
+            exit 0
+          fi
+          if [ "$FAILED" -gt 0 ]; then
+            echo "$FAILED check(s) failed — NOT auto-merging PR #$PR_NUM"
+            exit 0
+          fi
+
+          echo "All checks green — proceeding"
+          echo "pr_num=$PR_NUM" >> "$GITHUB_OUTPUT"
+
+      - name: Approve
+        if: steps.verify.outputs.pr_num != ''
         env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr review --approve "${{ steps.verify.outputs.pr_num }}" -R "${{ github.repository }}" || true
+
+      - name: Merge
+        if: steps.verify.outputs.pr_num != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge --squash --delete-branch "${{ steps.verify.outputs.pr_num }}" -R "${{ github.repository }}"
