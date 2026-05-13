@@ -1,9 +1,15 @@
 name: Dependabot auto-merge
 
-# Fires AFTER any CI workflow completes (success or failure). Verifies all
-# check runs for the PR's head SHA passed, then approves + merges.
-# Without this gate, `gh pr merge --auto` on the PR open event would merge
-# immediately since these repos have no required-status-checks branch protection.
+# Fires AFTER any CI workflow completes. Auto-merges Dependabot PRs ONLY if:
+#   1. All check_runs for the head SHA passed (no required-status-checks
+#      branch protection on these repos, so gh pr merge --auto can't gate
+#      on its own).
+#   2. Every version bump in the PR body is patch-level (same major + minor,
+#      different patch). Minor/major bumps stay open for human review.
+#
+# Dependabot.yml splits groups by update-type so most non-patch bumps come in
+# a separate PR — the body parsing here is belt-and-suspenders for any
+# straggler bump that gets grouped unexpectedly.
 
 on:
   workflow_run:
@@ -24,33 +30,31 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.workflow_run.event == 'pull_request'
     steps:
-      - name: Find PR and verify all checks green
-        id: verify
+      - name: Evaluate PR
+        id: eval
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
+          set -e
           PR_DATA=$(gh api "repos/$REPO/commits/$HEAD_SHA/pulls" --jq '.[0] // empty')
-          if [ -z "$PR_DATA" ]; then
-            echo "No PR for commit $HEAD_SHA"
-            exit 0
-          fi
+          if [ -z "$PR_DATA" ]; then echo "No PR for $HEAD_SHA"; exit 0; fi
 
           PR_NUM=$(echo "$PR_DATA" | jq -r '.number')
           PR_USER=$(echo "$PR_DATA" | jq -r '.user.login')
           if [ "$PR_USER" != "dependabot[bot]" ]; then
-            echo "PR #$PR_NUM author is $PR_USER (not Dependabot) — skipping"
+            echo "PR #$PR_NUM by $PR_USER — not Dependabot, skipping"
             exit 0
           fi
 
-          # Verify every check run for this SHA passed
+          # Verify every check_run for this SHA passed
           CHECKS=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs?per_page=100" --jq '.check_runs')
           PENDING=$(echo "$CHECKS" | jq '[.[] | select(.status != "completed")] | length')
-          FAILED=$(echo "$CHECKS" | jq '[.[] | select(.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out")] | length')
+          FAILED=$(echo "$CHECKS" | jq '[.[] | select(.conclusion=="failure" or .conclusion=="cancelled" or .conclusion=="timed_out")] | length')
 
           if [ "$PENDING" -gt 0 ]; then
-            echo "$PENDING check(s) still pending — will retry on next workflow_run"
+            echo "$PENDING check(s) pending — wait for next workflow_run"
             exit 0
           fi
           if [ "$FAILED" -gt 0 ]; then
@@ -58,17 +62,47 @@ jobs:
             exit 0
           fi
 
-          echo "All checks green — proceeding"
+          # Check every bump in PR body is patch-only (same major+minor)
+          BODY=$(echo "$PR_DATA" | jq -r '.body // ""')
+          NON_PATCH=0
+          DETAILS=""
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            from=$(echo "$line" | sed -E 's/.*from ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+            to=$(echo "$line"   | sed -E 's/.*to ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+            from_maj=$(echo "$from" | cut -d. -f1)
+            to_maj=$(echo "$to"   | cut -d. -f1)
+            from_min=$(echo "$from" | cut -d. -f2)
+            to_min=$(echo "$to"   | cut -d. -f2)
+            if [ "$from_maj" != "$to_maj" ] || [ "$from_min" != "$to_min" ]; then
+              NON_PATCH=$((NON_PATCH + 1))
+              pkg=$(echo "$line" | grep -oE '`[^`]+`' | head -1 | tr -d '`')
+              DETAILS="$DETAILS\n- $pkg: $from → $to"
+            fi
+          done < <(echo "$BODY" | grep -oE 'Updates `[^`]+` from [0-9]+\.[0-9]+\.[0-9]+ to [0-9]+\.[0-9]+\.[0-9]+')
+
+          if [ "$NON_PATCH" -gt 0 ]; then
+            echo "PR #$PR_NUM has $NON_PATCH non-patch bump(s) — needs human review"
+            COMMENT=$(printf "Auto-merge skipped: this PR includes %d non-patch (minor/major) bump(s).%b\n\nPatch-level bumps auto-merge after CI passes; minor and major bumps need a human to review and merge." "$NON_PATCH" "$DETAILS")
+            # Only comment once per PR
+            EXISTING=$(gh api "repos/$REPO/issues/$PR_NUM/comments" --jq '[.[] | select(.user.login=="github-actions[bot]" and (.body | startswith("Auto-merge skipped")))] | length')
+            if [ "$EXISTING" = "0" ]; then
+              gh pr comment "$PR_NUM" -R "$REPO" --body "$COMMENT"
+            fi
+            exit 0
+          fi
+
+          echo "All bumps are patch-level and CI is green — merging PR #$PR_NUM"
           echo "pr_num=$PR_NUM" >> "$GITHUB_OUTPUT"
 
       - name: Approve
-        if: steps.verify.outputs.pr_num != ''
+        if: steps.eval.outputs.pr_num != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr review --approve "${{ steps.verify.outputs.pr_num }}" -R "${{ github.repository }}" || true
+        run: gh pr review --approve "${{ steps.eval.outputs.pr_num }}" -R "${{ github.repository }}" || true
 
       - name: Merge
-        if: steps.verify.outputs.pr_num != ''
+        if: steps.eval.outputs.pr_num != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh pr merge --squash --delete-branch "${{ steps.verify.outputs.pr_num }}" -R "${{ github.repository }}"
+        run: gh pr merge --squash --delete-branch "${{ steps.eval.outputs.pr_num }}" -R "${{ github.repository }}"
