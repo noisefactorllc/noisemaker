@@ -25,17 +25,16 @@ void main() {
         return;
     }
 
-    // alpha blend
-    vec4 middle = mix(color1, color2, color2.a);
-
-    float amt = map(mixAmt, -100.0, 100.0, 0.0, 1.0);
+    // alpha blend. slider direction selects which input is on top, so either slot
+    // can serve as the alpha source — slide negative for A-on-top, positive for
+    // B-on-top. each half reaches a full Porter-Duff source-over at the midpoint.
     vec4 color;
-    if (amt < 0.5) {
-        float factor = amt * 2.0;
-        color = mix(color1, middle, factor);
+    if (mixAmt < 0.0) {
+        vec4 AoverB = color2 * (1.0 - color1.a) + color1 * color1.a;
+        color = mix(color1, AoverB, map(mixAmt, -100.0, 0.0, 0.0, 1.0));
     } else {
-        float factor = (amt - 0.5) * 2.0;
-        color = mix(middle, color2, factor);
+        vec4 BoverA = color1 * (1.0 - color2.a) + color2 * color2.a;
+        color = mix(BoverA, color2, map(mixAmt, 0.0, 100.0, 0.0, 1.0));
     }
 
     color.a = max(color1.a, color2.a);
