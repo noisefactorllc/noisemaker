@@ -22,17 +22,16 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
         return vec4<f32>(color1.rgb, color1.a * maskVal);
     }
 
-    // alpha blend
-    let middle = mix(color1, color2, color2.a);
-
-    let amt = map_range(mixAmt, -100.0, 100.0, 0.0, 1.0);
+    // alpha blend. slider direction selects which input is on top, so either slot
+    // can serve as the alpha source — slide negative for A-on-top, positive for
+    // B-on-top. each half reaches a full Porter-Duff source-over at the midpoint.
     var color : vec4<f32>;
-    if (amt < 0.5) {
-        let factor = amt * 2.0;
-        color = mix(color1, middle, factor);
+    if (mixAmt < 0.0) {
+        let AoverB = color2 * (1.0 - color1.a) + color1 * color1.a;
+        color = mix(color1, AoverB, map_range(mixAmt, -100.0, 0.0, 0.0, 1.0));
     } else {
-        let factor = (amt - 0.5) * 2.0;
-        color = mix(middle, color2, factor);
+        let BoverA = color1 * (1.0 - color2.a) + color2 * color2.a;
+        color = mix(BoverA, color2, map_range(mixAmt, 0.0, 100.0, 0.0, 1.0));
     }
 
     color.a = max(color1.a, color2.a);
