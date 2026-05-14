@@ -38,22 +38,13 @@ struct Uniforms {
     refractDir: f32,
     wrap: i32,
     seed: i32,
-    tileOffset: vec2<f32>,
-    fullResolution: vec2<f32>,
 }
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
 
-fn fullRes() -> vec2f {
-    var res = u.fullResolution;
-    if (res.x < 1.0) { res = u.resolution; }
-    return res;
-}
-
 fn aspectRatio() -> f32 {
-    let res = fullRes();
-    return res.x / res.y;
+    return u.resolution.x / u.resolution.y;
 }
 
 // PCG PRNG
@@ -262,10 +253,7 @@ fn pixellate(uv: vec2f, size: f32) -> vec3f {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    let res = fullRes();
-    let posFromBottom = vec2f(fragCoord.x, u.resolution.y - fragCoord.y);
-    let globalCoord = posFromBottom + u.tileOffset;
-    var st = globalCoord / res;
+    var st = fragCoord.xy / u.resolution;
 
     let freq = mapRange(u.scale, 1.0, 100.0, 20.0, 1.0);
     let cellSize = mapRange(u.cellScale, 1.0, 100.0, 3.0, 0.75);

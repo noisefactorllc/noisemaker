@@ -11,8 +11,6 @@
 @group(0) @binding(9) var<uniform> time: f32;
 @group(0) @binding(10) var<uniform> fgColor: vec3<f32>;
 @group(0) @binding(11) var<uniform> bgColor: vec3<f32>;
-@group(0) @binding(12) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(13) var<uniform> fullResolution: vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const SQRT3: f32 = 1.7320508075688772;
@@ -198,13 +196,8 @@ fn zigzag(p: vec2<f32>, t: f32, sm: f32) -> f32 {
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    var res = fullResolution;
-    if (res.x < 1.0) { res = resolution; }
-    let posFromBottom = vec2<f32>(position.x, resolution.y - position.y);
-    let globalCoord = posFromBottom + tileOffset;
-
     // Normalize coordinates
-    var st = globalCoord / res;
+    var st = position.xy / resolution;
     st = (st - vec2<f32>(0.5, 0.5)) * 2.0;
     st.x = st.x * aspect;
     

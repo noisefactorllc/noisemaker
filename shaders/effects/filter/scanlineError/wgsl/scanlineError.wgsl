@@ -16,8 +16,6 @@ struct VertexOutput {
 @group(0) @binding(4) var<uniform> noise_amount: f32;
 @group(0) @binding(5) var<uniform> mode: f32;
 @group(0) @binding(6) var<uniform> time: f32;
-@group(0) @binding(7) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(8) var<uniform> fullResolution: vec2<f32>;
 
 fn clamp01(value: f32) -> f32 {
     return clamp(value, 0.0, 1.0);
@@ -267,22 +265,16 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
         return vec4<f32>(0.0);
     }
 
-    // Use full image dimensions for pattern generation so scanlines align across tiles
-    let fullRes = select(dims, fullResolution, fullResolution.x > 0.0);
-    let width_f = fullRes.x;
-    let height_f = fullRes.y;
-    // Global pixel coordinate: WGSL pos.y is Y-from-top; tileOffset is Y-from-bottom
-    let posFromBottom = vec2<f32>(in.position.x, dims.y - in.position.y);
-    let globalX = i32(posFromBottom.x + tileOffset.x);
-    let globalY = i32(posFromBottom.y + tileOffset.y);
+    let width_f = dims.x;
+    let height_f = dims.y;
     let time_value = time + timeOffset;
     let speed_value = max(speed, 0.0);
     let m = i32(mode);
 
     if (m == 1) {
         // VHS mode
-        let yNorm = (f32(globalY) + 0.5) / height_f;
-        let xNorm = (f32(globalX) + 0.5) / width_f;
+        let yNorm = (f32(coord.y) + 0.5) / height_f;
+        let xNorm = (f32(coord.x) + 0.5) / width_f;
         let destCoord = vec2<f32>(xNorm, yNorm);
 
         let gradDest = vhs_gradValue(yNorm, 5.0, time_value, speed_value);
@@ -297,11 +289,11 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
         let scanDest = vhs_scanNoise(destCoord, scanFreq, time_value, speed_value * 100.0);
 
         let shiftAmount = i32(floor(scanDest * width_f * gradDest * gradDest * distortion));
-        let srcX = wrap_coord(globalX - shiftAmount, width);
+        let srcX = wrap_coord(coord.x - shiftAmount, width);
 
         let srcTexel = textureLoad(inputTex, vec2<i32>(srcX, coord.y), 0);
 
-        let srcXNorm = (f32(srcX + i32(tileOffset.x)) + 0.5) / width_f;
+        let srcXNorm = (f32(srcX) + 0.5) / width_f;
         let scanSource = vhs_scanNoise(vec2<f32>(srcXNorm, yNorm), scanFreq, time_value, speed_value * 100.0);
         let gradSource = vhs_gradValue(yNorm, 5.0, time_value, speed_value);
 
@@ -313,7 +305,7 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
         // Scanline error mode (default)
         let input_texel = textureLoad(inputTex, coord, 0);
 
-        let coord_norm = (vec2<f32>(globalX, globalY) + 0.5) / fullRes;
+        let coord_norm = (vec2<f32>(coord) + 0.5) / dims;
         let freq_line = vec2<f32>(max(floor(width_f * 0.5), 1.0), max(floor(height_f * 0.5), 1.0));
         let swerve_height = max(floor(height_f * 0.01), 1.0);
         let freq_swerve = vec2<f32>(1.0, swerve_height);
@@ -334,7 +326,7 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
         let combined_error = clamp01(line_weighted + white_weighted);
         let shift_amount = combined_error * width_f * 0.025 * distortion;
         let shift_pixels = i32(floor(shift_amount));
-        let sample_x = wrap_coord(globalX - shift_pixels, width);
+        let sample_x = wrap_coord(coord.x - shift_pixels, width);
 
         let texel = textureLoad(inputTex, vec2<i32>(sample_x, coord.y), 0);
 

@@ -10,8 +10,6 @@ struct Uniforms {
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
-@group(0) @binding(1) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(2) var<uniform> fullResolution: vec2<f32>;
 
 // GLSL-compatible mod function: mod(x, y) = x - y * floor(x/y)
 // WGSL % operator behaves like C's fmod, which gives different results for negative numbers
@@ -79,15 +77,11 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 	let smoothing = i32(uniforms.data[3].w);
 	let animMode = i32(uniforms.data[4].x);
 
-	var res = fullResolution;
-	if (res.x < 1.0) { res = resolution; }
-
-	// Tile-aware: compute global pixel coordinate
-	let posFromBottom = vec2<f32>(position.x, resolution.y - position.y);
-	let globalCoord = posFromBottom + tileOffset;
+	var res = resolution;
+	if (res.x < 1.0) { res = vec2<f32>(1024.0, 1024.0); }
 
 	// Normalized coordinates
-	var uv = (globalCoord - res * 0.5) / min(res.x, res.y);
+	var uv = (position.xy - res * 0.5) / min(res.x, res.y);
 
 	let spd = floor(f32(speed));
 	let anim = time * spd;

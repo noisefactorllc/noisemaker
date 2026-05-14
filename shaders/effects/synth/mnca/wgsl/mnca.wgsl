@@ -7,8 +7,6 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var fbTex: texture_2d<f32>;
 @group(0) @binding(2) var mySampler: sampler;
-@group(0) @binding(3) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(4) var<uniform> fullResolution: vec2<f32>;
 
 fn cubic(xIn: f32) -> f32 {
     var x = abs(xIn);
@@ -159,47 +157,45 @@ fn cosineMix(a: f32, b: f32, t: f32) -> f32 {
     let resolution = uniforms.data[0].xy;
     let smoothing = i32(uniforms.data[1].y);
 
-    var res = fullResolution;
-    if (res.x < 1.0) { res = resolution; }
-    let posFromBottom = vec2<f32>(fragCoord.x, resolution.y - fragCoord.y);
-    let globalCoord = posFromBottom + tileOffset;
-    let uv_global = globalCoord / res;
-
     var state: f32 = 0.0;
     if (smoothing == 0) {
         // constant - use textureLoad for exact nearest-neighbor sampling
         let texSizeI = vec2<i32>(textureDimensions(fbTex, 0));
         let texSizeF = vec2<f32>(f32(texSizeI.x), f32(texSizeI.y));
-        let pixelCoord = vec2<i32>(floor(uv_global * texSizeF));
+        let pixelCoord = vec2<i32>(floor(fragCoord.xy * texSizeF / resolution));
         state = textureLoad(fbTex, clamp(pixelCoord, vec2<i32>(0), texSizeI - vec2<i32>(1)), 0).g;
     } else if (smoothing == 3) {
         // quadratic B-spline (3x3, 9 taps)
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
-        let uv = uv_global;
+        let scaling = resolution / texSize;
+        let uv = (fragCoord.xy - scaling * 0.5) / resolution;
         state = quadraticSample(fbTex, mySampler, uv, texelSize).g;
     } else if (smoothing == 4) {
         // cubic B-spline (4×4, 16 taps)
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
-        let uv = uv_global;
+        let scaling = resolution / texSize;
+        let uv = (fragCoord.xy - scaling * 0.5) / resolution;
         state = bicubicSample(fbTex, mySampler, uv, texelSize).g;
     } else if (smoothing == 5) {
         // catmull-rom 3x3 (9 taps, interpolating)
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
-        let uv = uv_global;
+        let scaling = resolution / texSize;
+        let uv = (fragCoord.xy - scaling * 0.5) / resolution;
         state = catmullRom3x3Sample(fbTex, mySampler, uv, texelSize).g;
     } else if (smoothing == 6) {
         // catmull-rom 4x4 (16 taps, interpolating)
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
         let texelSize = 1.0 / texSize;
-        let uv = uv_global;
+        let scaling = resolution / texSize;
+        let uv = (fragCoord.xy - scaling * 0.5) / resolution;
         state = catmullRom4x4Sample(fbTex, mySampler, uv, texelSize).g;
     } else {
         // linear-style smoothing — sample texel centres explicitly to avoid seams.
         let texSize = vec2<f32>(textureDimensions(fbTex, 0));
-        let texelPos = (uv_global * texSize) - vec2<f32>(0.5, 0.5);
+        let texelPos = (fragCoord.xy * texSize / resolution) - vec2<f32>(0.5, 0.5);
         let base = floor(texelPos);
         let weights = fract(texelPos);
         let next = base + vec2<f32>(1.0, 1.0);

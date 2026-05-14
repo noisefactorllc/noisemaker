@@ -22,8 +22,6 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var samp : sampler;
 @group(0) @binding(5) var inputTex : texture_2d<f32>;
-@group(0) @binding(6) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(7) var<uniform> fullResolution: vec2<f32>;
 
 // SHAPE_A, SHAPE_B and BLEND_MODE are compile-time consts injected by the
 // runtime via injectDefines (see definition.js `globals.{shapeA,shapeB,
@@ -369,13 +367,8 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     repeatPalette = uniforms.data[9].w;
     palettePhase = uniforms.data[10].xyz;
 
-    var fullRes = fullResolution;
-    if (fullRes.x < 1.0) { fullRes = resolution; }
-    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
-    let globalCoord = posFromBottom + tileOffset;
-
     var color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
-    var st = (globalCoord - 0.5 * fullRes) / fullRes.y;
+    var st = (pos.xy - 0.5 * resolution) / resolution.y;
 
     let rayOrigin = vec3<f32>(0.0, 0.0, -cameraDist);
     let rayDirection = normalize(vec3<f32>(st, 1.0));
@@ -422,6 +415,8 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     } else {
         color = mix(color, bkg, floor(fogDist));
     }
+
+    let st2 = pos.xy / resolution;
 
     return color;
 }

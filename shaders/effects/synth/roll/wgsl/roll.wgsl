@@ -7,16 +7,10 @@
 @group(0) @binding(6) var feedbackTex: texture_2d<f32>;
 @group(0) @binding(7) var noteGridSampler: sampler;
 @group(0) @binding(8) var noteGridTex: texture_2d<f32>;
-@group(0) @binding(9) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(10) var<uniform> fullResolution: vec2<f32>;
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    var res = fullResolution;
-    if (res.x < 1.0) { res = resolution; }
-    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
-    let globalCoord = posFromBottom + tileOffset;
-    let uv = globalCoord / res;
+    let uv = pos.xy / resolution;
 
     // Scroll feedback right (notes enter at left)
     let scrollAmount = speed * deltaTime * 0.5;

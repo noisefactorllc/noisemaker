@@ -19,8 +19,6 @@ struct Uniforms {
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uniforms: Uniforms;
 @group(0) @binding(3) var<uniform> time: f32;
-@group(0) @binding(4) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(5) var<uniform> fullResolution: vec2<f32>;
 
 fn pcg(seed: vec3<u32>) -> vec3<u32> {
     var v = seed * 1664525u + 1013904223u;
@@ -103,13 +101,11 @@ fn centerMask(uv : vec2<f32>) -> f32 {
 @fragment
 fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let texSize : vec2<f32> = vec2<f32>(textureDimensions(inputTex));
-    let fullRes = select(texSize, fullResolution, fullResolution.x > 0.0);
+    let uv : vec2<f32> = pos.xy / texSize;
     let coords : vec2<i32> = vec2<i32>(i32(pos.x), i32(pos.y));
     let dims : vec2<i32> = vec2<i32>(textureDimensions(inputTex));
-    let posFromBottom = vec2<f32>(pos.x, texSize.y - pos.y);
-    let uv : vec2<f32> = (posFromBottom + tileOffset) / fullRes;
 
-    let base : vec4<f32> = textureLoad(inputTex, coords, 0);
+    let base : vec4<f32> = textureSample(inputTex, inputSampler, uv);
     let blend_alpha : f32 = clamp(uniforms.alpha, 0.0, 1.0);
     if (blend_alpha <= 0.0) {
         return base;

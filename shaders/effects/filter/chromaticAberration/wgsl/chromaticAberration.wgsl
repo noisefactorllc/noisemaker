@@ -14,8 +14,6 @@ struct Uniforms {
     aspect: f32,
     aberrationAmt: f32,
     passthru: f32,
-    tileOffset: vec2<f32>,
-    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(2) var<uniform> u: Uniforms;
@@ -28,17 +26,10 @@ fn mapVal(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    var res = u.fullResolution;
-    if (res.x < 1.0) { res = u.resolution; }
-    let aspectRatio = res.x / res.y;
-    // Tile-local UV for texture sampling
+    let aspectRatio = u.resolution.x / u.resolution.y;
     let uv = fragCoord.xy / u.resolution;
-    // Global UV for aberration center computation
-    let posFromBottom = vec2f(fragCoord.x, u.resolution.y - fragCoord.y);
-    let globalCoord = posFromBottom + u.tileOffset;
-    let globalUV = globalCoord / res;
 
-    let diff = vec2f(0.5 * aspectRatio, 0.5) - vec2f(globalUV.x * aspectRatio, globalUV.y);
+    let diff = vec2f(0.5 * aspectRatio, 0.5) - vec2f(uv.x * aspectRatio, uv.y);
     let centerDist = length(diff);
 
     let aberrationOffset = mapVal(u.aberrationAmt, 0.0, 100.0, 0.0, 0.05) * centerDist * PI * 0.5;

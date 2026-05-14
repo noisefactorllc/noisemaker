@@ -8,13 +8,10 @@ struct Uniforms {
     data : array<vec4<f32>, 5>
 };
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
-@group(0) @binding(1) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(2) var<uniform> fullResolution: vec2<f32>;
 
 var<private> time : f32;
 var<private> seed : f32;
 var<private> resolution : vec2<f32>;
-var<private> fullRes : vec2<f32>;
 var<private> n : f32;
 var<private> scale : f32;
 var<private> rotation : f32;
@@ -62,12 +59,12 @@ fn prng(p: vec3<f32>) -> vec3<f32> {
 fn rotate2D(st: vec2<f32>, rot: f32) -> vec2<f32> {
     var st2 = st;
     let angle = map(rot, 0.0, 360.0, 0.0, 1.0) * TAU;
-    st2 = st2 - fullRes * 0.5;
+    st2 = st2 - resolution * 0.5;
     let c = cos(angle);
     let s = sin(angle);
     let m = mat2x2<f32>(c, -s, s, c);
     st2 = m * st2;
-    st2 = st2 + fullRes * 0.5;
+    st2 = st2 + resolution * 0.5;
     return st2;
 }
 
@@ -373,7 +370,7 @@ fn bitMask(st: vec2<f32>) -> vec3<f32> {
     var color = vec3<f32>(0.0);
 
     var st2 = st;
-    let aspectRatio = fullRes.x / fullRes.y;
+    let aspectRatio = resolution.x / resolution.y;
     st2 = st2 - vec2<f32>(0.5 * aspectRatio, 0.5);
     st2 = st2 * tiles;
     st2 = st2 + vec2<f32>(0.5 * aspectRatio, 0.5);
@@ -437,21 +434,18 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     hueRotation = uniforms.data[4].y;
     baseHueRange = uniforms.data[4].z;
 
-    fullRes = fullResolution;
-    if (fullRes.x < 1.0) { fullRes = resolution; }
-    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
-    let globalCoord = posFromBottom + tileOffset;
-
     var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    var st = globalCoord;
+    var st = pos.xy;
 
     if (MODE == 0) {
         color = vec4<f32>(bitField(st), color.a);
     } else {
-        st = globalCoord / fullRes.y;
+        st = pos.xy / resolution.y;
         st = st + f32(seed) + 1000.0;
         color = vec4<f32>(bitMask(st), color.a);
     }
+
+    var st2 = pos.xy / resolution;
 
     return color;
 }

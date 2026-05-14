@@ -9,8 +9,6 @@ struct Uniforms {
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
-@group(0) @binding(1) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(2) var<uniform> fullResolution: vec2<f32>;
 
 // LOOP_A_OFFSET and LOOP_B_OFFSET are compile-time consts injected by the
 // runtime via injectDefines(). See classicNoisedeck/shapes/definition.js
@@ -593,15 +591,10 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     palettePhase = uniforms.data[6].xyz;
 
-    var fullRes = fullResolution;
-    if (fullRes.x < 1.0) { fullRes = resolution; }
-    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
-    let globalCoord = posFromBottom + tileOffset;
-
-    aspectRatio = fullRes.x / fullRes.y;
+    aspectRatio = resolution.x / resolution.y;
 
     var color = vec4<f32>(0.0, 0.0, 1.0, 1.0);
-    var st = globalCoord / fullRes.y;
+    var st = pos.xy / resolution.y;
 
     var lf1 = map(loopAScale, 1.0, 100.0, 6.0, 1.0);
     if (wrap) {
@@ -643,6 +636,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         d = d - time;
     }
     color = vec4<f32>(pal(d), color.a);
+
+    var st2 = pos.xy / resolution;
 
     return color;
 }

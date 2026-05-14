@@ -21,8 +21,6 @@ struct Uniforms {
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
-@group(0) @binding(1) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(2) var<uniform> fullResolution: vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -354,11 +352,6 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let zoomSpeed = uniforms.data[5].x;
     let zoomDepth = uniforms.data[5].y;
 
-    var fullRes = fullResolution;
-    if (fullRes.x < 1.0) { fullRes = resolution; }
-    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
-    let globalCoord = posFromBottom + tileOffset;
-
     // Resolve c-value
     let c = resolveC(poi, cPath, time, cSpeed, cRadius, cReal, cImag);
 
@@ -375,9 +368,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var value: f32;
 
     if (outputMode == 4) {
-        value = outputNormalMap(globalCoord, c, iterations, lightAngle, fullRes, centerX, centerY, effectiveZoom, rotation);
+        value = outputNormalMap(pos.xy, c, iterations, lightAngle, resolution, centerX, centerY, effectiveZoom, rotation);
     } else {
-        let coords = transformCoords(globalCoord, fullRes, centerX, centerY, effectiveZoom, rotation);
+        let coords = transformCoords(pos.xy, resolution, centerX, centerY, effectiveZoom, rotation);
         let r = juliaIterate(coords[0], coords[1], c, iterations, stripeFreq, trapShape);
 
         if (outputMode == 0) {

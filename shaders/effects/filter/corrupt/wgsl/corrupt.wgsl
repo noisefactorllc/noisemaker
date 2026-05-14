@@ -12,8 +12,6 @@ struct Uniforms {
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
 @group(0) @binding(1) var samp: sampler;
 @group(0) @binding(2) var inputTex: texture_2d<f32>;
-@group(0) @binding(3) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(4) var<uniform> fullResolution: vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -146,18 +144,14 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let scatter = uniforms.data[2].y;
     let bandHeight = uniforms.data[2].z;
 
-    let tileDims = vec2<f32>(textureDimensions(inputTex));
-    let resolution = select(tileDims, fullResolution, fullResolution.x > 0.0);
+    let resolution = vec2<f32>(textureDimensions(inputTex));
     let resX = resolution.x;
-    // Convert tile-local Y-from-top to global Y-from-bottom for UV computation
-    let posFromBottom = vec2<f32>(pos.x, tileDims.y - pos.y);
-    let globalCoord = posFromBottom + tileOffset;
-    let uv = globalCoord / resolution;
+    let uv = pos.xy / resolution;
     let spd = floor(speed);
     let t = time * TAU * spd;
 
-    // Scanline grouping - use global Y-from-bottom so rows align across tiles
-    let rawRow = globalCoord.y;
+    // Scanline grouping
+    let rawRow = pos.y;
     let bh = max(1.0, floor(bandHeight * 0.32));
     let row = floor(rawRow / bh);
 
@@ -178,7 +172,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
     let scatterAmt = scatter / 100.0;
     if (scatterAmt > 0.0) {
-        sampleUv = scatterDisplace(sampleUv, scatterAmt, t, seed, globalCoord);
+        sampleUv = scatterDisplace(sampleUv, scatterAmt, t, seed, pos.xy);
     }
 
     // Band-based corruption to UV

@@ -14,9 +14,6 @@ const TAU : f32 = 6.28318530718;
 @group(0) @binding(4) var<uniform> blendMode : i32;
 @group(0) @binding(5) var<uniform> range : f32;
 @group(0) @binding(6) var<uniform> mixAmt : f32;
-@group(0) @binding(7) var<uniform> resolution : vec2<f32>;
-@group(0) @binding(8) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(9) var<uniform> fullResolution: vec2<f32>;
 
 fn hsv2rgb(hsv : vec3<f32>) -> vec3<f32> {
     let h = fract(hsv.x);
@@ -183,11 +180,8 @@ fn blend_colors(color1_in : vec3<f32>, color2_in : vec3<f32>) -> vec3<f32> {
 
 @fragment
 fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
-    var res = fullResolution;
-    if (res.x < 1.0) { res = resolution; }
-    let posFromBottom = vec2<f32>(position.x, resolution.y - position.y);
-    let globalCoord = posFromBottom + tileOffset;
-    var st = globalCoord / res;
+    let dims = vec2<f32>(textureDimensions(inputTex, 0));
+    var st = position.xy / dims;
 
     let color1 = textureSample(inputTex, samp, st);
     let color2 = textureSample(tex, samp, st);

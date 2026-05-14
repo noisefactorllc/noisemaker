@@ -7,8 +7,6 @@ struct Uniforms {
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
-@group(0) @binding(1) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(2) var<uniform> fullResolution: vec2<f32>;
 
 // NOISE_TYPE, COLOR_MODE, REFRACT_MODE, LOOP_OFFSET and METRIC are compile-time
 // consts injected by the runtime via injectDefines (see
@@ -774,6 +772,7 @@ fn offset(st_in: vec2<f32>, freq: vec2<f32>) -> f32 {
 fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     resolution = uniforms.data[0].xy;
     time = uniforms.data[0].z;
+    aspectRatio = uniforms.data[0].w;
     xScale = uniforms.data[1].x;
     yScale = uniforms.data[1].y;
     seed = uniforms.data[1].z;
@@ -799,13 +798,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     paletteFreq = uniforms.data[9].xyz;
     palettePhase = uniforms.data[10].xyz;
 
-    var fullRes = fullResolution;
-    if (fullRes.x < 1.0) { fullRes = resolution; }
-    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
-    let globalCoord = posFromBottom + tileOffset;
-    aspectRatio = fullRes.x / fullRes.y;
-
-    var st = globalCoord / fullRes.y;
+    var st = pos.xy / resolution.y;
     st = kaleidoscope(st, kaleido, 0.5);
     let centered = st - vec2<f32>(aspectRatio * 0.5, 0.5);
 

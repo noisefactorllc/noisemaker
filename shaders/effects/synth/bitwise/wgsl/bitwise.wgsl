@@ -17,8 +17,6 @@ fn hsv2rgb(c: vec3<f32>) -> vec3<f32> {
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
-@group(0) @binding(1) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(2) var<uniform> fullResolution: vec2<f32>;
 
 // Perform the selected bitwise/arithmetic operation on two integers,
 // mask the result, then normalize to 0..1
@@ -52,11 +50,6 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let rotation = uniforms.data[2].w;
     let colorOffset = i32(uniforms.data[3].x);
 
-    var fullRes = fullResolution;
-    if (fullRes.x < 1.0) { fullRes = resolution; }
-    let posFromBottom = vec2<f32>(position.x, resolution.y - position.y);
-    let globalCoord = posFromBottom + tileOffset;
-
     // Map scale so higher value = bigger cells (lower frequency)
     let pixelScale = scale * 0.1;
 
@@ -64,9 +57,9 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let angle = rotation * PI / 180.0;
     let c = cos(angle);
     let s = sin(angle);
-    let centered = globalCoord - fullRes * 0.5;
+    let centered = position.xy - resolution * 0.5;
     let rotated = vec2<f32>(centered.x * c - centered.y * s, centered.x * s + centered.y * c);
-    let coord = rotated + fullRes * 0.5;
+    let coord = rotated + resolution * 0.5;
 
     // Time offset — uses 256 (pattern period) so it loops seamlessly at any speed
     let animOffset = i32(floor(time * f32(-speed) * 256.0));

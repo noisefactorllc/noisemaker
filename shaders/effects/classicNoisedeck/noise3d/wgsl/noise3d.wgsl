@@ -27,8 +27,6 @@
 @group(0) @binding(9) var<uniform> colorMode: i32;
 @group(0) @binding(10) var<uniform> hueRotation: f32;
 @group(0) @binding(11) var<uniform> hueRange: f32;
-@group(0) @binding(12) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(13) var<uniform> fullResolution: vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -517,13 +515,8 @@ fn hsv2rgb(hsv: vec3<f32>) -> vec3<f32> {
 // ===== Main fragment shader =====
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    var fullRes = fullResolution;
-    if (fullRes.x < 1.0) { fullRes = resolution; }
-    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
-    let globalCoord = posFromBottom + tileOffset;
-
     var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    let st = (globalCoord - 0.5 * fullRes) / fullRes.y;
+    let st = (pos.xy - 0.5 * resolution) / resolution.y;
 
     // Ray marching - calculate distance to scene objects
     let rayOrigin = vec3<f32>(offsetX * 0.1, offsetY * 0.1, -8.0 + time * TAU * f32(speed));

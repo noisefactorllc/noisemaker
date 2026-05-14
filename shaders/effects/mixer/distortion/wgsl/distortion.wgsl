@@ -17,9 +17,6 @@ const TAU: f32 = 6.28318530718;
 @group(0) @binding(7) var<uniform> smoothing: f32;
 @group(0) @binding(8) var<uniform> aberration: f32;
 @group(0) @binding(9) var<uniform> antialias: i32;
-@group(0) @binding(10) var<uniform> resolution : vec2<f32>;
-@group(0) @binding(11) var<uniform> tileOffset : vec2<f32>;
-@group(0) @binding(12) var<uniform> fullResolution : vec2<f32>;
 
 // Convert RGB to luminosity
 fn getLuminosity(color: vec3f) -> f32 {
@@ -170,11 +167,11 @@ fn applyRefraction(uv: vec2f, texelSize: vec2f, useInputTexAsMap: bool) -> vec4f
 }
 
 // Reflection effect with chromatic aberration
-fn applyReflection(uv: vec2f, globalUV: vec2f, texelSize: vec2f, useInputTexAsMap: bool) -> vec4f {
+fn applyReflection(uv: vec2f, texelSize: vec2f, useInputTexAsMap: bool) -> vec4f {
     let normal = calculateNormal(uv, texelSize, useInputTexAsMap);
-
-    // Calculate incident vector for reflection, from center of full image
-    let incident = vec3f(normalize(globalUV - vec2f(0.5)), 100.0);
+    
+    // Calculate incident vector for reflection, from center of image
+    let incident = vec3f(normalize(uv - vec2f(0.5)), 100.0);
     
     // Calculate reflection vector
     let reflectionVec = reflect(incident, normal);
@@ -269,24 +266,15 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let dims = vec2f(textureDimensions(inputTex, 0));
     let uv = position.xy / dims;
     let texelSize = 1.0 / dims;
-
-    // Tile-aware: global UV for reflection incident vector (from center of full image).
-    // Displacement and refraction use tile-local uv for sampling — only reflection
-    // needs the global position for the incident direction.
-    var fullRes = fullResolution;
-    if (fullRes.x < 1.0) { fullRes = dims; }
-    let posFromBottom = vec2f(position.x, dims.y - position.y);
-    let globalCoord = posFromBottom + tileOffset;
-    let globalUV = globalCoord / fullRes;
-
+    
     var color: vec4f;
-
+    
     // Determine which texture is the map source and which is the target
     // mapSource: 0 = inputTex (A), 1 = tex (B)
     // When A is map, we sample from B with A's normals
     // When B is map, we sample from A with B's normals
     let useInputTexAsMap = mapSource == 0;
-
+    
     if (mode == 0) {
         // Displacement
         color = applyDisplacement(uv, useInputTexAsMap);
@@ -295,8 +283,8 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         color = applyRefraction(uv, texelSize, useInputTexAsMap);
     } else if (mode == 2) {
         // Reflection
-        color = applyReflection(uv, globalUV, texelSize, useInputTexAsMap);
+        color = applyReflection(uv, texelSize, useInputTexAsMap);
     }
-
+    
     return color;
 }

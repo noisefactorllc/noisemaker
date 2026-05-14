@@ -8,11 +8,6 @@ struct Uniforms {
     wrap: i32,
     rotation: f32,
     antialias: i32,
-    _pad0: f32,
-    _pad1: f32,
-    _pad2: f32,
-    tileOffset: vec2<f32>,
-    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -37,10 +32,8 @@ fn rotate2D(st_in: vec2<f32>, rot: f32, aspectRatio: f32) -> vec2<f32> {
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
-    let fullRes = select(texSize, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
-    let aspectRatio = fullRes.x / fullRes.y;
-    let posFromBottom = vec2<f32>(pos.x, texSize.y - pos.y);
-    var uv = (posFromBottom + uniforms.tileOffset) / fullRes;
+    let aspectRatio = texSize.x / texSize.y;
+    var uv = pos.xy / texSize;
 
     // Apply rotation before distortion
     uv = rotate2D(uv, uniforms.rotation / 180.0, aspectRatio);
@@ -78,19 +71,16 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Reverse rotation after distortion
     uv = rotate2D(uv, -uniforms.rotation / 180.0, aspectRatio);
 
-    // Convert distorted global UV back to tile-local for texture sampling
-    let sampleUV = clamp((uv * fullRes - uniforms.tileOffset) / texSize, vec2<f32>(0.0), vec2<f32>(1.0));
-
     if (uniforms.antialias != 0) {
-        let dx = dpdx(sampleUV);
-        let dy = dpdy(sampleUV);
+        let dx = dpdx(uv);
+        let dy = dpdy(uv);
         var col = vec4<f32>(0.0);
-        col += textureSample(inputTex, inputSampler, sampleUV + dx * -0.375 + dy * -0.125);
-        col += textureSample(inputTex, inputSampler, sampleUV + dx *  0.125 + dy * -0.375);
-        col += textureSample(inputTex, inputSampler, sampleUV + dx *  0.375 + dy *  0.125);
-        col += textureSample(inputTex, inputSampler, sampleUV + dx * -0.125 + dy *  0.375);
+        col += textureSample(inputTex, inputSampler, uv + dx * -0.375 + dy * -0.125);
+        col += textureSample(inputTex, inputSampler, uv + dx *  0.125 + dy * -0.375);
+        col += textureSample(inputTex, inputSampler, uv + dx *  0.375 + dy *  0.125);
+        col += textureSample(inputTex, inputSampler, uv + dx * -0.125 + dy *  0.375);
         return col * 0.25;
     } else {
-        return textureSample(inputTex, inputSampler, sampleUV);
+        return textureSample(inputTex, inputSampler, uv);
     }
 }

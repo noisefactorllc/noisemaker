@@ -4,8 +4,6 @@ struct Uniforms {
     resolution: vec2f,
     gridSize: i32,
     pattern: i32,
-    tileOffset: vec2<f32>,
-    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -177,11 +175,7 @@ fn dotGrid(uv: vec2f) -> vec4f {
 
 @fragment
 fn main(@builtin(position) position: vec4f) -> @location(0) vec4f {
-    var res = uniforms.fullResolution;
-    if (res.x < 1.0) { res = uniforms.resolution; }
-    let posFromBottom = vec2f(position.x, uniforms.resolution.y - position.y);
-    let globalCoord = posFromBottom + uniforms.tileOffset;
-    let uv = globalCoord / res;
+    let uv = position.xy / uniforms.resolution;
 
     if (uniforms.pattern == 1) {
         return colorBars(uv);

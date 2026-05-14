@@ -10,8 +10,6 @@ struct Uniforms {
     scale: f32,
     speed: i32,
     time: f32,
-    tileOffset: vec2<f32>,
-    fullResolution: vec2<f32>,
 }
 
 const TAU: f32 = 6.28318530718;
@@ -83,21 +81,18 @@ fn cloudNoise(uv: vec2<f32>, baseFreq: f32, octaves: i32, animPhase: f32, animSp
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
-    let fullRes = select(texSize, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
     let uv = pos.xy / texSize;
-    let posFromBottom = vec2<f32>(pos.x, texSize.y - pos.y);
-    let globalUV = (posFromBottom + uniforms.tileOffset) / fullRes;
 
     let inputColor = textureSample(inputTex, inputSampler, uv);
 
-    let aspect = fullRes.x / fullRes.y;
+    let aspect = texSize.x / texSize.y;
     let seedOffset = vec2<f32>(uniforms.seed * 17.31, uniforms.seed * 23.71);
 
     // Animation phase (loops at 0-1 time boundary)
     let animPhase = uniforms.time * TAU * f32(uniforms.speed);
     let animSpeed = f32(uniforms.speed);
 
-    let cloudUV = globalUV * vec2<f32>(aspect, 1.0) / uniforms.scale + seedOffset;
+    let cloudUV = uv * vec2<f32>(aspect, 1.0) / uniforms.scale + seedOffset;
 
     let cloud = cloudNoise(cloudUV, 1.0, 7, animPhase, animSpeed);
     let cloudMask = smoothstep(0.45, 0.65, cloud);
@@ -107,9 +102,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let cloudBrightness = mix(0.75, 1.0, cloudDepth);
 
     // Shadow: sample cloud at offset (light from upper-right)
-    let shadowDist = min(fullRes.x, fullRes.y) * 0.008;
-    let shadowOffset = vec2<f32>(-shadowDist, shadowDist) / fullRes;
-    let shadowUV = (globalUV + shadowOffset) * vec2<f32>(aspect, 1.0) / uniforms.scale + seedOffset;
+    let shadowDist = min(texSize.x, texSize.y) * 0.008;
+    let shadowOffset = vec2<f32>(-shadowDist, shadowDist) / texSize;
+    let shadowUV = (uv + shadowOffset) * vec2<f32>(aspect, 1.0) / uniforms.scale + seedOffset;
     let shadowCloud = cloudNoise(shadowUV, 1.0, 7, animPhase, animSpeed);
     let shadowMask = smoothstep(0.45, 0.65, shadowCloud);
 

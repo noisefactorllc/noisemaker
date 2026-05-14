@@ -16,9 +16,6 @@ const TAU : f32 = 6.28318530718;
 @group(0) @binding(6) var<uniform> refractBAmt : f32;
 @group(0) @binding(7) var<uniform> refractADir : f32;
 @group(0) @binding(8) var<uniform> refractBDir : f32;
-@group(0) @binding(9) var<uniform> resolution : vec2<f32>;
-@group(0) @binding(10) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(11) var<uniform> fullResolution: vec2<f32>;
 
 fn map_range(value : f32, inMin : f32, inMax : f32, outMin : f32, outMax : f32) -> f32 {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
@@ -275,11 +272,8 @@ fn blend_colors(color1 : vec4<f32>, color2 : vec4<f32>, mode : i32, factor_in : 
 
 @fragment
 fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
-    var res = fullResolution;
-    if (res.x < 1.0) { res = resolution; }
-    let posFromBottom = vec2<f32>(position.x, resolution.y - position.y);
-    let globalCoord = posFromBottom + tileOffset;
-    var st = globalCoord / res;
+    let dims = vec2<f32>(textureDimensions(inputTex, 0));
+    var st = position.xy / dims;
 
     var color = vec4<f32>(0.0, 0.0, 1.0, 1.0);
 

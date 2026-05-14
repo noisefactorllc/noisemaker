@@ -40,8 +40,6 @@ struct Uniforms {
     contrast: i32,       // offset 144
     levels: i32,         // offset 148
     dither: i32,         // offset 152
-    tileOffset: vec2f,
-    fullResolution: vec2f,
 }
 
 @group(0) @binding(2) var<uniform> u: Uniforms;
@@ -224,11 +222,7 @@ fn pal(t_in: f32) -> vec3f {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    var fullRes = u.fullResolution;
-    if (fullRes.x < 1.0) { fullRes = u.resolution; }
-    let posFromBottom = vec2f(fragCoord.x, u.resolution.y - fragCoord.y);
-    let globalCoord = posFromBottom + u.tileOffset;
-    var uv = globalCoord / fullRes;
+    var uv = fragCoord.xy / u.resolution;
 
     var color = textureSample(inputTex, samp, uv);
 
@@ -241,11 +235,11 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     if (u.dither == 1) {
         color = vec4f(color.rgb * vec3f(step(0.5, bright)), color.a);
     } else if (u.dither == 2) {
-        color = vec4f(color.rgb * vec3f(step(random(globalCoord), bright)), color.a);
+        color = vec4f(color.rgb * vec3f(step(random(fragCoord.xy), bright)), color.a);
     } else if (u.dither == 3) {
-        color = vec4f(color.rgb * vec3f(step(periodicFunction(random(globalCoord) + u.time), bright)), color.a);
+        color = vec4f(color.rgb * vec3f(step(periodicFunction(random(fragCoord.xy) + u.time), bright)), color.a);
     } else if (u.dither == 4) {
-        let coord = (globalCoord % 4.0) - 0.5;
+        let coord = (fragCoord.xy % 4.0) - 0.5;
         if (bright < 0.12) {
             color = vec4f(vec3f(0.0), color.a);
         } else if (bright < 0.24) {

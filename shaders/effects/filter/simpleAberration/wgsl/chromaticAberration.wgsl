@@ -20,7 +20,6 @@ struct Uniforms {
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     var uv = fragCoord.xy / u.resolution;
-    uv.y = 1.0 - uv.y;
 
     let redOffset = clamp(uv.x + u.displacement, 0.0, 1.0);
     let red = textureSample(inputTex, samp, vec2f(redOffset, uv.y));

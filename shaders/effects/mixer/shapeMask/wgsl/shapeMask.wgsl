@@ -10,9 +10,6 @@
 @group(0) @binding(9) var<uniform> invert : i32;
 @group(0) @binding(10) var<uniform> speed : i32;
 @group(0) @binding(11) var<uniform> time : f32;
-@group(0) @binding(12) var<uniform> resolution : vec2<f32>;
-@group(0) @binding(13) var<uniform> tileOffset : vec2<f32>;
-@group(0) @binding(14) var<uniform> fullResolution : vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -80,17 +77,9 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let colorA = textureSample(inputTex, samp, st);
     let colorB = textureSample(tex, samp, st);
 
-    // Tile-aware: convert to from-bottom convention, add tile offset, normalize
-    // by full image resolution so the SDF is consistent across tiles.
-    var fullRes = fullResolution;
-    if (fullRes.x < 1.0) { fullRes = dims; }
-    let posFromBottom = vec2<f32>(position.x, dims.y - position.y);
-    let globalCoord = posFromBottom + tileOffset;
-    let globalUV = globalCoord / fullRes;
-
     // Centered, aspect-correct coordinates
-    let aspect = fullRes.x / fullRes.y;
-    var p = (globalUV - vec2<f32>(0.5, 0.5)) * 2.0;
+    let aspect = dims.x / dims.y;
+    var p = (st - vec2<f32>(0.5, 0.5)) * 2.0;
     p.x = p.x * aspect;
 
     // Apply position offset

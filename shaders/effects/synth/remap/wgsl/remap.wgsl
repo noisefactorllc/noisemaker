@@ -109,7 +109,7 @@ fn fragmentMain(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f3
     // top-left (Y-down); tileOffset is sent in GLSL (Y-from-bottom)
     // convention, so convert: posFromBottom.y = resolution.y - pos.y,
     // global = posFromBottom + tileOffset, then flip Y-down for the JSON.
-    let posFromBottom = vec2<f32>(fragCoord.x, resolution.y - fragCoord.y);
+    let posFromBottom = vec2<f32>(fragCoord.x, fragCoord.y);
     let globalYup = (posFromBottom + tileOffset) / fullResolution;
     let p = vec2<f32>(globalYup.x, 1.0 - globalYup.y);
     // Texture sampling stays TILE-LOCAL: each zoneN_tex is the current

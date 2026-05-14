@@ -8,12 +8,6 @@ const TAU : f32 = 6.28318530717958647692;
 struct DegaussParams {
     dims0 : vec4<f32>, // (width, height, displacement, time)
     dims1 : vec4<f32>, // (speed, seed, direction, _pad)
-    tileOffset : vec2<f32>,
-    _pad0 : f32,
-    _pad1 : f32,
-    fullResolution : vec2<f32>,
-    _pad2 : f32,
-    _pad3 : f32,
 };
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
@@ -352,10 +346,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         return;
     }
 
-    let fullRes : vec2<f32> = select(params.dims0.xy, params.fullResolution, params.fullResolution.x > 0.0);
-    let width_f : f32 = fullRes.x;
-    let height_f : f32 = fullRes.y;
-    let uv : vec2<f32> = (vec2<f32>(f32(gid.x) + params.tileOffset.x, f32(gid.y) + params.tileOffset.y) + vec2<f32>(0.5, 0.5))
+    let width_f : f32 = params.dims0.x;
+    let height_f : f32 = params.dims0.y;
+    let uv : vec2<f32> = (vec2<f32>(f32(gid.x), f32(gid.y)) + vec2<f32>(0.5, 0.5))
         / vec2<f32>(max(width_f, 1.0), max(height_f, 1.0));
     let mask : f32 = singularity_mask(uv, width_f, height_f);
     if (mask <= 0.0) {

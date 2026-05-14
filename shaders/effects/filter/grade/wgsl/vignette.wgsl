@@ -13,8 +13,6 @@ struct Uniforms {
     _pad0: f32,
     _pad1: f32,
     _pad2: f32,
-    tileOffset: vec2<f32>,
-    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -93,27 +91,23 @@ fn applyVignette(rgb: vec3<f32>, vignetteMask: f32, amount: f32, highlightProtec
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
-    let fullRes = select(texSize, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
     let uv = pos.xy / texSize;
-    let posFromBottom = vec2<f32>(pos.x, texSize.y - pos.y);
-    let globalUV = (posFromBottom + uniforms.tileOffset) / fullRes;
-    let coord = vec2<i32>(pos.xy);
-    let color = textureLoad(inputTex, coord, 0);
-
+    let color = textureSample(inputTex, inputSampler, uv);
+    
     if (abs(uniforms.vignetteAmount) < 0.001) {
         return color;
     }
-
+    
     var rgb = srgbToLinear(color.rgb);
-
+    
     var aspectRatio: vec2<f32>;
-    if (fullRes.x > fullRes.y) {
-        aspectRatio = vec2<f32>(fullRes.x / fullRes.y, 1.0);
+    if (texSize.x > texSize.y) {
+        aspectRatio = vec2<f32>(texSize.x / texSize.y, 1.0);
     } else {
-        aspectRatio = vec2<f32>(1.0, fullRes.y / fullRes.x);
+        aspectRatio = vec2<f32>(1.0, texSize.y / texSize.x);
     }
-
-    let vignetteMask = computeVignette(globalUV, aspectRatio, uniforms.vignetteMidpoint,
+    
+    let vignetteMask = computeVignette(uv, aspectRatio, uniforms.vignetteMidpoint, 
                                         uniforms.vignetteRoundness, uniforms.vignetteFeather);
     
     rgb = applyVignette(rgb, vignetteMask, uniforms.vignetteAmount, 

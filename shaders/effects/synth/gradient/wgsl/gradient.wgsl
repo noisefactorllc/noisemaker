@@ -17,8 +17,6 @@
 @group(0) @binding(9) var<uniform> seed: i32;
 @group(0) @binding(10) var<uniform> time: f32;
 @group(0) @binding(11) var<uniform> speed: f32;
-@group(0) @binding(12) var<uniform> tileOffset: vec2<f32>;
-@group(0) @binding(13) var<uniform> fullResolution: vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -111,12 +109,8 @@ fn fbmNoise(p: vec2<f32>) -> f32 {
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    var res = fullResolution;
-    if (res.x < 1.0) { res = resolution; }
-    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
-    let globalCoord = posFromBottom + tileOffset;
-    let st = globalCoord / res;
-    let aspectRatio = res.x / res.y;
+    let st = pos.xy / resolution;
+    let aspectRatio = resolution.x / resolution.y;
     
     // Convert rotation from degrees to radians
     let angle = -rotation * PI / 180.0;

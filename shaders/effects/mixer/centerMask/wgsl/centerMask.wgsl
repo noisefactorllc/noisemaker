@@ -5,9 +5,6 @@
 @group(0) @binding(4) var<uniform> shape : i32;
 @group(0) @binding(5) var<uniform> hardness : f32;
 @group(0) @binding(6) var<uniform> blendMode : i32;
-@group(0) @binding(7) var<uniform> resolution : vec2<f32>;
-@group(0) @binding(8) var<uniform> tileOffset : vec2<f32>;
-@group(0) @binding(9) var<uniform> fullResolution : vec2<f32>;
 
 fn clamp01(x: f32) -> f32 {
     return clamp(x, 0.0, 1.0);
@@ -146,18 +143,11 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let edgeColor = textureSample(inputTex, samp, st);
     let centerColor = textureSample(tex, samp, st);
 
-    // Tile-aware: compute global pixel coordinate so mask center is at the
-    // center of the full image, not the center of each tile.
-    var fullRes = fullResolution;
-    if (fullRes.x < 1.0) { fullRes = dims; }
-    let posFromBottom = vec2<f32>(position.x, dims.y - position.y);
-    let globalCoord = posFromBottom + tileOffset;
+    let minRes = min(dims.x, dims.y);
 
-    let minRes = min(fullRes.x, fullRes.y);
-
-    // Centered, aspect-correct position using full image dimensions
-    let p = (globalCoord - 0.5 * fullRes) / (0.5 * minRes);
-    let corner = fullRes / minRes;
+    // Centered, aspect-correct position (matches the GLSL path)
+    let p = (position.xy - 0.5 * dims) / (0.5 * minRes);
+    let corner = dims / minRes;
 
     let dist01 = clamp01(distance_metric(p, corner, shape));
     // Remap power from -100..100 to 0.1..25.05 (Old 0 maps to New 100)

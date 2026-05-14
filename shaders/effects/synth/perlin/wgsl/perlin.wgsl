@@ -8,8 +8,6 @@
 
 struct Params {
     resolution: vec2<f32>,
-    tileOffset: vec2<f32>,
-    fullResolution: vec2<f32>,
     aspect: f32,
     time: f32,
     scale: f32,
@@ -271,16 +269,9 @@ fn domainWarp3D(st: vec2<f32>, z: f32, iterations: i32, wScale: f32, wIntensity:
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    var res = params.fullResolution;
+    var res = params.resolution;
     if (res.x < 1.0) { res = vec2<f32>(1024.0, 1024.0); }
-    // Convert from WGSL position (Y from top) to from-bottom convention,
-    // add the tile offset (in from-bottom convention as noisedeck sends),
-    // then normalize by the full output resolution. When tiling is inactive,
-    // tileOffset = (0, 0) and fullResolution = canvas resolution, so this
-    // collapses to the same value as the previous (position.xy / res; flip).
-    let posFromBottom = vec2(position.x, params.resolution.y - position.y);
-    let globalCoord = posFromBottom + params.tileOffset;
-    var st = globalCoord / res;
+    var st = position.xy / res;
     // Center UVs so zoom scales from center, not corner
     st = st - 0.5;
     st.x = st.x * params.aspect;

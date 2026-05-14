@@ -19,8 +19,6 @@ struct Uniforms {
     hueRange: f32,
     saturation: f32,
     passthru: f32,
-    tileOffset: vec2f,
-    fullResolution: vec2f,
 }
 
 @group(0) @binding(2) var<uniform> u: Uniforms;
@@ -103,17 +101,12 @@ fn saturateColor(color: vec3f) -> vec3f {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    let res = select(u.resolution, u.fullResolution, u.fullResolution.x > 0.0);
-    let aspectRatio = res.x / res.y;
-    // Tile-local UV for texture sampling
+    let aspectRatio = u.resolution.x / u.resolution.y;
     var uv = fragCoord.xy / u.resolution;
-    // Global UV for center distance computation
-    let posFromBottom = vec2f(fragCoord.x, u.resolution.y - fragCoord.y);
-    let globalUV = (posFromBottom + u.tileOffset) / res;
 
     var color = vec4f(0.0, 0.0, 0.0, 1.0);
 
-    let diff = vec2f(0.5 * aspectRatio, 0.5) - vec2f(globalUV.x * aspectRatio, globalUV.y);
+    let diff = vec2f(0.5 * aspectRatio, 0.5) - vec2f(uv.x * aspectRatio, uv.y);
     let centerDist = length(diff);
 
     // No distortion/zoom
