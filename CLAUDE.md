@@ -12,6 +12,7 @@ Use the **shade** MCP server for all shader development tasks: compiling, render
 - **NEVER run build commands** (`npm run build`, `npx rollup`, etc.) — dist/ bundles are built externally
 - **ONE WAY ONLY**: Do not add aliases, alternatives, or "also supports" options. If a pattern exists, use it.
 - Do not produce documentation unless requested
+- **NEVER commit hard-coded dev-environment paths or hacks.** No absolute paths to a user home, no `localhost`/`127.0.0.1` URLs, no machine-specific config in any checked-in file (`.mcp.json`, `package.json`, configs, scripts, etc.). Files committed to this repo must work for any contributor who clones it.
 
 ## Project Structure
 
@@ -30,6 +31,7 @@ Use the **shade** MCP server for all shader development tasks: compiling, render
 - WGSL struct members end with `,` (comma), not `;`.
 - Never read DOM in render paths. UI controls use event listeners writing to state objects. The render loop reads only from state objects.
 - Avoid per-frame allocations (`new Map()`, object spreads, `console.log()`) in render loops.
+- Any changes to shader effects must be validated with Shade.
 
 ## Agent-Based Effects Pattern
 
