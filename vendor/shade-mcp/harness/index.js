@@ -249,7 +249,8 @@ var BrowserSession = class {
     this.viewerPath = opts.viewerPath ?? config.viewerPath ?? "/";
     this.options = {
       backend: opts.backend,
-      headless: opts.headless !== false,
+      // headless is opt-in via { headless: true } or SHADE_HEADLESS=1. Default headed.
+      headless: opts.headless ?? (process.env.SHADE_HEADLESS === "1" || process.env.SHADE_HEADLESS === "true"),
       viewerPort: opts.viewerPort ?? config.viewerPort,
       viewerRoot: opts.viewerRoot ?? process.env.SHADE_VIEWER_ROOT ?? resolve2(config.projectRoot, "viewer"),
       effectsDir: opts.effectsDir ?? config.effectsDir
@@ -329,17 +330,24 @@ var BrowserSession = class {
     await this.page.evaluate(async ({ targetBackend: targetBackend2, timeout, globals }) => {
       const w = window;
       const current = typeof w[globals.currentBackend] === "function" ? w[globals.currentBackend]() : "glsl";
-      if (current !== targetBackend2) {
-        const radio = document.querySelector(`input[name="backend"][value="${targetBackend2}"]`);
-        if (radio) {
-          radio.click();
-          const start = Date.now();
-          while (Date.now() - start < timeout) {
-            const nowBackend = typeof w[globals.currentBackend] === "function" ? w[globals.currentBackend]() : "glsl";
-            if (nowBackend === targetBackend2) break;
-            await new Promise((r) => setTimeout(r, 50));
-          }
+      if (current === targetBackend2) return;
+      const renderer = w[globals.canvasRenderer];
+      if (renderer && typeof renderer.switchBackend === "function") {
+        await renderer.switchBackend(targetBackend2);
+      } else {
+        const btn = document.querySelector(`button[data-backend="${targetBackend2}"]`);
+        if (btn) {
+          btn.click();
+        } else {
+          const radio = document.querySelector(`input[name="backend"][value="${targetBackend2}"]`);
+          if (radio) radio.click();
         }
+      }
+      const start = Date.now();
+      while (Date.now() - start < timeout) {
+        const nowBackend = typeof w[globals.currentBackend] === "function" ? w[globals.currentBackend]() : "glsl";
+        if (nowBackend === targetBackend2) break;
+        await new Promise((r) => setTimeout(r, 50));
       }
     }, { targetBackend, timeout: STATUS_TIMEOUT, globals: this.globals });
   }
@@ -5004,8 +5012,21 @@ async function testPixelParity(session, effectId, options = {}) {
     return { status: "error", maxDiff: 0, meanDiff: 0, mismatchCount: 0, mismatchPercent: 0, resolution: [0, 0], details: "Failed to capture WebGL2" };
   }
   await session.setBackend("webgpu");
+  await session.page.evaluate((id) => {
+    const select = document.getElementById("effect-select");
+    if (select) {
+      select.value = id;
+      select.dispatchEvent(new Event("change"));
+    }
+  }, effectId);
+  await session.page.waitForFunction(() => {
+    const s = document.getElementById("status");
+    const t = (s?.textContent || "").toLowerCase();
+    return t.includes("loaded") || t.includes("compiled") || t.includes("ready");
+  }, { timeout: 3e5 });
   await session.page.evaluate(({ globals, seed: seed2 }) => {
     const w = window;
+    if (w[globals.setPaused]) w[globals.setPaused](true);
     if (w[globals.setPausedTime]) w[globals.setPausedTime](0);
     const pipeline = w[globals.renderingPipeline];
     if (pipeline) {
