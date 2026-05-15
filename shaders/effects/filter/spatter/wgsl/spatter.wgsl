@@ -14,6 +14,9 @@ struct Uniforms {
     color_b: f32,
     _pad0: f32,
     _pad1: f32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
+    renderScale: f32,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -177,11 +180,11 @@ fn expRidgedFbm3Cosine(uv: vec2<f32>, freq: vec2<f32>, sd: u32) -> f32 {
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let dims: vec2<f32> = vec2<f32>(textureDimensions(inputTex));
-    let uv: vec2<f32> = pos.xy / dims;
+    let uv = (pos.xy + uniforms.tileOffset) / uniforms.fullResolution;
     let base: vec4<f32> = textureSample(inputTex, inputSampler, uv);
 
     // Aspect-corrected UV for noise sampling
-    let aspect: f32 = dims.x / dims.y;
+    let aspect: f32 = uniforms.fullResolution.x / uniforms.fullResolution.y;
     let nUV: vec2<f32> = uv * vec2<f32>(aspect, 1.0);
 
     let s: u32 = u32(uniforms.seed) * 17u;

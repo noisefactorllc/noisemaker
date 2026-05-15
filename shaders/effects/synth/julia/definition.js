@@ -33,7 +33,9 @@ export default new Effect({
     cRadius: { slot: 4, components: 'z' },
     invert: { slot: 4, components: 'w' },
     zoomSpeed: { slot: 5, components: 'x' },
-    zoomDepth: { slot: 5, components: 'y' }
+    zoomDepth: { slot: 5, components: 'y' },
+    tileOffset: { slot: 6, components: 'xy' },
+    fullResolution: { slot: 6, components: 'zw' }
   },
   globals: {
     // === Fractal ===

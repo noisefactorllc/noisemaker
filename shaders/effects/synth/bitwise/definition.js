@@ -21,7 +21,10 @@ export default new Effect({
     colorMode: { slot: 2, components: "y" },
     speed: { slot: 2, components: "z" },
     rotation: { slot: 2, components: "w" },
-    colorOffset: { slot: 3, components: "x" }
+    colorOffset: { slot: 3, components: "x" },
+    tileOffset: { slot: 4, components: "xy" },
+    fullResolution: { slot: 4, components: "zw" },
+    renderScale: { slot: 5, components: "x" }
   },
 
   globals: {

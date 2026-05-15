@@ -10,6 +10,9 @@ struct Uniforms {
     scale: f32,
     speed: i32,
     time: f32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
+    renderScale: f32,
 }
 
 const TAU: f32 = 6.28318530718;
@@ -81,11 +84,11 @@ fn cloudNoise(uv: vec2<f32>, baseFreq: f32, octaves: i32, animPhase: f32, animSp
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
-    let uv = pos.xy / texSize;
+    let uv = (pos.xy + uniforms.tileOffset) / uniforms.fullResolution;
 
     let inputColor = textureSample(inputTex, inputSampler, uv);
 
-    let aspect = texSize.x / texSize.y;
+    let aspect = uniforms.fullResolution.x / uniforms.fullResolution.y;
     let seedOffset = vec2<f32>(uniforms.seed * 17.31, uniforms.seed * 23.71);
 
     // Animation phase (loops at 0-1 time boundary)

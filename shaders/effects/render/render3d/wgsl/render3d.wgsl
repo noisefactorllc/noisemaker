@@ -20,6 +20,8 @@
 @group(0) @binding(5) var<uniform> bgColor: vec3<f32>;
 @group(0) @binding(6) var<uniform> bgAlpha: f32;
 @group(0) @binding(7) var volumeCache: texture_2d<f32>;
+@group(0) @binding(8) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(9) var<uniform> fullResolution: vec2<f32>;
 
 const TAU: f32 = 6.283185307179586;
 const PI: f32 = 3.141592653589793;
@@ -367,10 +369,10 @@ fn shadeVoxel(p: vec3<f32>, rd: vec3<f32>, n: vec3<f32>, voxel: vec3<i32>) -> ve
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> FragmentOutput {
-    var res = resolution;
-    if (res.x < 1.0) { res = vec2<f32>(1024.0, 1024.0); }
-    
-    let uv = (position.xy - 0.5 * res) / res.y;
+    var fullRes = select(resolution, fullResolution, fullResolution.x > 0.0);
+    if (fullRes.x < 1.0) { fullRes = vec2<f32>(1024.0, 1024.0); }
+
+    let uv = ((position.xy + tileOffset) - 0.5 * fullRes) / fullRes.y;
     let uvFlipped = vec2<f32>(uv.x, -uv.y);
     
     let camAngle = time * TAU * f32(orbitSpeed);

@@ -18,7 +18,9 @@ export default new Effect({
     wrap: { slot: 1, components: 'w' },
     hueRotation: { slot: 2, components: 'x' },
     hueRange: { slot: 2, components: 'y' },
-    intensity: { slot: 2, components: 'z' }
+    intensity: { slot: 2, components: 'z' },
+    tileOffset: { slot: 3, components: 'xy' },
+    fullResolution: { slot: 3, components: 'zw' }
   },
   globals: {
     interp: {

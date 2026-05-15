@@ -48,7 +48,9 @@ export default class Shapes3D extends Effect {
     rotatePalette: { slot: 8, components: 'w' },
     paletteFreq: { slot: 9, components: 'xyz' },
     repeatPalette: { slot: 9, components: 'w' },
-    palettePhase: { slot: 10, components: 'xyz' }
+    palettePhase: { slot: 10, components: 'xyz' },
+    tileOffset: { slot: 11, components: 'xy' },
+    fullResolution: { slot: 11, components: 'zw' }
   }
 
   globals = {

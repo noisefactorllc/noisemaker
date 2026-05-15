@@ -21,7 +21,9 @@ export default new Effect({
     octaves: { slot: 2, components: 'w' },
     ridges: { slot: 3, components: 'x' },
     wrap: { slot: 3, components: 'y' },
-    colorMode: { slot: 3, components: 'z' }
+    colorMode: { slot: 3, components: 'z' },
+    tileOffset: { slot: 4, components: 'xy' },
+    fullResolution: { slot: 4, components: 'zw' }
   },
   globals: {
     type: {

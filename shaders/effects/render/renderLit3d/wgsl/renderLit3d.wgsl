@@ -39,7 +39,10 @@ struct Uniforms {
     // Next vec3f must align to 16 bytes -> offset 112
     ambientColor: vec3f,     // offset 112, size 12
     rimPower: f32,           // offset 124, size 4
-    // Struct size: 128 bytes (already 16-byte aligned)
+    // Next vec2f aligns to 8 bytes -> offset 128
+    tileOffset: vec2f,       // offset 128, size 8
+    fullResolution: vec2f,   // offset 136, size 8
+    // Struct size: 144 bytes (16-byte aligned)
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -361,13 +364,13 @@ fn shade(p: vec3f, n: vec3f, rd: vec3f, worldLightDir: vec3f) -> vec3f {
 
 @fragment
 fn fragmentMain(input: VertexOutput) -> FragmentOutput {
-    var res = u.resolution;
-    if (res.x < 1.0) {
-        res = vec2f(1024.0, 1024.0);
+    var fullRes = select(u.resolution, u.fullResolution, u.fullResolution.x > 0.0);
+    if (fullRes.x < 1.0) {
+        fullRes = vec2f(1024.0, 1024.0);
     }
-    
+
     let fragCoord = input.position.xy;
-    let uv = (fragCoord - 0.5 * res) / res.y;
+    let uv = ((fragCoord + u.tileOffset) - 0.5 * fullRes) / fullRes.y;
     
     // Camera setup - fixed position, volume rotates
     // Scale camera position from 0-1 UI range to world coords

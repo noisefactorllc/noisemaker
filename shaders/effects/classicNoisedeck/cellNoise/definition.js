@@ -36,7 +36,9 @@ export default class CellNoise extends Effect {
     repeatPalette: { slot: 5, components: 'w' },
     palettePhase: { slot: 6, components: 'xyz' },
     texInfluence: { slot: 7, components: 'x' },
-    texIntensity: { slot: 7, components: 'y' }
+    texIntensity: { slot: 7, components: 'y' },
+    tileOffset: { slot: 8, components: 'xy' },
+    fullResolution: { slot: 8, components: 'zw' }
   }
   globals = {
     shape: {

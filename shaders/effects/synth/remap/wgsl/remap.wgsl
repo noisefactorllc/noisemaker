@@ -51,19 +51,24 @@ fn getVert(zoneIdx: u32, vertIdx: u32) -> vec2<f32> {
 }
 
 fn sampleZone(z: u32, uv: vec2<f32>) -> vec4<f32> {
-    if (z == 0u) { return textureSample(zone0_tex, samp, uv); }
-    if (z == 1u) { return textureSample(zone1_tex, samp, uv); }
-    if (z == 2u) { return textureSample(zone2_tex, samp, uv); }
-    if (z == 3u) { return textureSample(zone3_tex, samp, uv); }
-    if (z == 4u) { return textureSample(zone4_tex, samp, uv); }
-    if (z == 5u) { return textureSample(zone5_tex, samp, uv); }
-    if (z == 6u) { return textureSample(zone6_tex, samp, uv); }
-    return textureSample(zone7_tex, samp, uv);
+    // textureSampleLevel (explicit LOD 0) — sampleZone is called from the
+    // per-pixel, data-dependent zone loop (non-uniform control flow), which
+    // disqualifies plain textureSample (it needs implicit derivatives /
+    // uniform control flow). Zone surfaces are non-mipmapped render targets,
+    // so LOD 0 is exactly GLSL's texture() here. Mirrors the mixer/shadow port.
+    if (z == 0u) { return textureSampleLevel(zone0_tex, samp, uv, 0.0); }
+    if (z == 1u) { return textureSampleLevel(zone1_tex, samp, uv, 0.0); }
+    if (z == 2u) { return textureSampleLevel(zone2_tex, samp, uv, 0.0); }
+    if (z == 3u) { return textureSampleLevel(zone3_tex, samp, uv, 0.0); }
+    if (z == 4u) { return textureSampleLevel(zone4_tex, samp, uv, 0.0); }
+    if (z == 5u) { return textureSampleLevel(zone5_tex, samp, uv, 0.0); }
+    if (z == 6u) { return textureSampleLevel(zone6_tex, samp, uv, 0.0); }
+    return textureSampleLevel(zone7_tex, samp, uv, 0.0);
 }
 
 fn pointInZone(p: vec2<f32>, zoneIdx: u32) -> bool {
-    let meta = getZoneMeta(zoneIdx);
-    let n = i32(meta.x);
+    let zoneMeta = getZoneMeta(zoneIdx);
+    let n = i32(zoneMeta.x);
     if (n < 3) { return false; }
     var inside: bool = false;
     var prev = getVert(zoneIdx, u32(n) - 1u);
@@ -83,8 +88,8 @@ fn pointInZone(p: vec2<f32>, zoneIdx: u32) -> bool {
 }
 
 fn distToZoneEdge(p: vec2<f32>, zoneIdx: u32) -> f32 {
-    let meta = getZoneMeta(zoneIdx);
-    let n = i32(meta.x);
+    let zoneMeta = getZoneMeta(zoneIdx);
+    let n = i32(zoneMeta.x);
     if (n < 3) { return 1e9; }
     var d: f32 = 1e9;
     var prev = getVert(zoneIdx, u32(n) - 1u);
@@ -125,14 +130,14 @@ fn fragmentMain(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f3
     let smoothEdge: f32 = header2.y;
 
     var result = vec4<f32>(bgColor, bgAlpha);
-    let active: i32 = min(zoneCount, i32(MAX_ZONES));
+    let activeCount: i32 = min(zoneCount, i32(MAX_ZONES));
     for (var z: u32 = 0u; z < MAX_ZONES; z = z + 1u) {
-        if (i32(z) >= active) { break; }
-        let meta = getZoneMeta(z);
-        if (meta.y < 0.5) { continue; }  // zoneN_tex not wired
+        if (i32(z) >= activeCount) { break; }
+        let zoneMeta = getZoneMeta(z);
+        if (zoneMeta.y < 0.5) { continue; }  // zoneN_tex not wired
         if (!pointInZone(p, z)) { continue; }
         let src = sampleZone(z, sampleUv);
-        let zAlpha = meta.w;
+        let zAlpha = zoneMeta.w;
         // smoothEdge is user-facing 0..1; scale to the actual source-UV
         // distance (0..0.05), beyond which the fade looks like washout.
         let edgeWidth = smoothEdge * 0.05;

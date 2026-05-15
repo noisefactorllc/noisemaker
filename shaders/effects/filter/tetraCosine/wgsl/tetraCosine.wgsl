@@ -9,7 +9,7 @@
  */
 
 struct Uniforms {
-    data: array<vec4<f32>, 5>,
+    data: array<vec4<f32>, 6>,
     // data[0].x = offsetR, data[0].y = offsetG, data[0].z = offsetB, data[0].w = colorMode
     // data[1].x = ampR, data[1].y = ampG, data[1].z = ampB, data[1].w = repeat
     // data[2].x = freqR, data[2].y = freqG, data[2].z = freqB, data[2].w = offset (mapping)

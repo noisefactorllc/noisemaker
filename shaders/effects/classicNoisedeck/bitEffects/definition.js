@@ -26,7 +26,9 @@ export default new Effect({
     // slot 3.w was maskColorScheme — now compile-time MASK_COLOR_SCHEME
     hueRange: { slot: 4, components: 'x' },
     hueRotation: { slot: 4, components: 'y' },
-    baseHueRange: { slot: 4, components: 'z' }
+    baseHueRange: { slot: 4, components: 'z' },
+    tileOffset: { slot: 5, components: 'xy' },
+    fullResolution: { slot: 5, components: 'zw' }
   },
   globals: {
     mode: {

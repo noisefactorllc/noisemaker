@@ -17,7 +17,7 @@ struct Uniforms {
     // 8: paletteAmp.xyz, rotatePalette
     // 9: paletteFreq.xyz, repeatPalette
     // 10: palettePhase.xyz, (unused)
-    data : array<vec4<f32>, 11>,
+    data : array<vec4<f32>, 12>,
 };
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 @group(0) @binding(1) var samp : sampler;
@@ -368,7 +368,9 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     palettePhase = uniforms.data[10].xyz;
 
     var color = vec4<f32>(1.0, 1.0, 1.0, 1.0);
-    var st = (pos.xy - 0.5 * resolution) / resolution.y;
+    let tileOffset = uniforms.data[11].xy;
+    let fullResolution = uniforms.data[11].zw;
+    var st = ((pos.xy + tileOffset) - 0.5 * fullResolution) / fullResolution.y;
 
     let rayOrigin = vec3<f32>(0.0, 0.0, -cameraDist);
     let rayDirection = normalize(vec3<f32>(st, 1.0));

@@ -18,6 +18,8 @@ export default new Effect({
     density: { slot: 2, components: 'x' },
     octaves: { slot: 2, components: 'y' },
     speed: { slot: 2, components: 'z' },
+    tileOffset: { slot: 3, components: 'xy' },
+    fullResolution: { slot: 3, components: 'zw' }
   },
   globals: {
     scale: {

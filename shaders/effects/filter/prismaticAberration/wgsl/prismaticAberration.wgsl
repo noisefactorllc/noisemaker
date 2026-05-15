@@ -19,6 +19,8 @@ struct Uniforms {
     hueRange: f32,
     saturation: f32,
     passthru: f32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
 }
 
 @group(0) @binding(2) var<uniform> u: Uniforms;
@@ -101,8 +103,9 @@ fn saturateColor(color: vec3f) -> vec3f {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    let aspectRatio = u.resolution.x / u.resolution.y;
-    var uv = fragCoord.xy / u.resolution;
+    let aspectRatio = u.fullResolution.x / u.fullResolution.y;
+    var uv = (fragCoord.xy + u.tileOffset) / u.fullResolution;
+    let texSize = vec2f(textureDimensions(inputTex, 0));
 
     var color = vec4f(0.0, 0.0, 0.0, 1.0);
 
@@ -115,12 +118,12 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let aberrationOffset = mapVal(u.aberrationAmt, 0.0, 100.0, 0.0, 0.05) * centerDist * PI * 0.5;
 
     let redOffset = mix(clamp(lensedCoords.x + aberrationOffset, 0.0, 1.0), lensedCoords.x, lensedCoords.x);
-    let red = textureSample(inputTex, samp, vec2f(redOffset, lensedCoords.y));
+    let red = textureSample(inputTex, samp, (vec2f(redOffset, lensedCoords.y) * u.fullResolution - u.tileOffset) / texSize);
 
-    let green = textureSample(inputTex, samp, lensedCoords);
+    let green = textureSample(inputTex, samp, (lensedCoords * u.fullResolution - u.tileOffset) / texSize);
 
     let blueOffset = mix(lensedCoords.x, clamp(lensedCoords.x - aberrationOffset, 0.0, 1.0), lensedCoords.x);
-    let blue = textureSample(inputTex, samp, vec2f(blueOffset, lensedCoords.y));
+    let blue = textureSample(inputTex, samp, (vec2f(blueOffset, lensedCoords.y) * u.fullResolution - u.tileOffset) / texSize);
 
     // from aberration
     var hsv = vec3f(1.0);

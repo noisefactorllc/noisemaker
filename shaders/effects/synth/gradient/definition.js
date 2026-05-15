@@ -8,6 +8,22 @@ export default new Effect({
   openCategories: ["general", "color"],
 
   description: "Multi-color gradient generator with various styles",
+  uniformLayout: {
+    resolution: { slot: 0, components: 'xy' },
+    time: { slot: 0, components: 'z' },
+    speed: { slot: 0, components: 'w' },
+    rotation: { slot: 1, components: 'x' },
+    gradientType: { slot: 1, components: 'y' },
+    repeat: { slot: 1, components: 'z' },
+    colorCount: { slot: 1, components: 'w' },
+    seed: { slot: 2, components: 'x' },
+    color1: { slot: 3, components: 'xyz' },
+    color2: { slot: 4, components: 'xyz' },
+    color3: { slot: 5, components: 'xyz' },
+    color4: { slot: 6, components: 'xyz' },
+    tileOffset: { slot: 7, components: 'xy' },
+    fullResolution: { slot: 7, components: 'zw' }
+  },
   globals: {
     type: {
       type: "int",

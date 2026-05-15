@@ -3,26 +3,36 @@
 /*
  * Gradient generator shader.
  * Renders linear, radial, conic, and four corners gradients with rotation and repeat.
+ *
+ * Uniforms are packed into a single struct (one uniform buffer) rather than
+ * 12+ individual @binding uniforms: gradient otherwise hits the WebGPU
+ * maxUniformBuffersPerShaderStage limit (12) once the universal tile globals
+ * (tileOffset, fullResolution) are added, producing an invalid pipeline.
+ * Packing layout is declared in this effect's own definition.js uniformLayout.
  */
 
-@group(0) @binding(0) var<uniform> resolution: vec2<f32>;
-@group(0) @binding(1) var<uniform> gradientType: i32;
-@group(0) @binding(2) var<uniform> rotation: f32;
-@group(0) @binding(3) var<uniform> repeat: i32;
-@group(0) @binding(4) var<uniform> colorCount: i32;
-@group(0) @binding(5) var<uniform> color1: vec3<f32>;
-@group(0) @binding(6) var<uniform> color2: vec3<f32>;
-@group(0) @binding(7) var<uniform> color3: vec3<f32>;
-@group(0) @binding(8) var<uniform> color4: vec3<f32>;
-@group(0) @binding(9) var<uniform> seed: i32;
-@group(0) @binding(10) var<uniform> time: f32;
-@group(0) @binding(11) var<uniform> speed: f32;
+struct Uniforms {
+    data : array<vec4<f32>, 8>,
+};
+
+@group(0) @binding(0) var<uniform> uniforms : Uniforms;
+
+// Values referenced by helper functions (set from `uniforms` in main).
+var<private> resolution : vec2<f32>;
+var<private> fullResolution : vec2<f32>;
+var<private> seed : i32;
+var<private> colorCount : i32;
+var<private> color1 : vec3<f32>;
+var<private> color2 : vec3<f32>;
+var<private> color3 : vec3<f32>;
+var<private> color4 : vec3<f32>;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
 
 fn rotate2D(st: vec2<f32>, angle: f32) -> vec2<f32> {
-    let aspectRatio = resolution.x / resolution.y;
+    let fullRes = select(resolution, fullResolution, fullResolution.x > 0.0);
+    let aspectRatio = fullRes.x / fullRes.y;
     var coord = st;
     coord.x = coord.x * aspectRatio;
     coord = coord - vec2<f32>(aspectRatio * 0.5, 0.5);
@@ -109,24 +119,40 @@ fn fbmNoise(p: vec2<f32>) -> f32 {
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let st = pos.xy / resolution;
-    let aspectRatio = resolution.x / resolution.y;
-    
+    resolution = uniforms.data[0].xy;
+    let time = uniforms.data[0].z;
+    let speed = uniforms.data[0].w;
+    let rotation = uniforms.data[1].x;
+    let gradientType = i32(uniforms.data[1].y);
+    let repeat = i32(uniforms.data[1].z);
+    colorCount = i32(uniforms.data[1].w);
+    seed = i32(uniforms.data[2].x);
+    color1 = uniforms.data[3].xyz;
+    color2 = uniforms.data[4].xyz;
+    color3 = uniforms.data[5].xyz;
+    color4 = uniforms.data[6].xyz;
+    let tileOffset = uniforms.data[7].xy;
+    fullResolution = uniforms.data[7].zw;
+
+    let fullRes = select(resolution, fullResolution, fullResolution.x > 0.0);
+    let st = (pos.xy + tileOffset) / fullRes;
+    let aspectRatio = fullRes.x / fullRes.y;
+
     // Convert rotation from degrees to radians
     let angle = -rotation * PI / 180.0;
-    
+
     // Apply rotation for linear and conic gradients
     let rotatedSt = rotate2D(st, angle);
-    
+
     // Centered coordinates for radial and conic
     var centered = st - 0.5;
     centered.x = centered.x * aspectRatio;
-    
+
     // Rotated centered for conic
     let c = cos(angle);
     let s = sin(angle);
     let rotatedCentered = mat2x2<f32>(c, -s, s, c) * centered;
-    
+
     var color: vec3<f32>;
     var t: f32;
     let timeOffset = time * speed;
@@ -200,6 +226,6 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
             color = color1;
         }
     }
-    
+
     return vec4<f32>(color, 1.0);
 }

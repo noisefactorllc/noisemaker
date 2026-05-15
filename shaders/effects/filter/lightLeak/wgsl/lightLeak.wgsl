@@ -13,6 +13,8 @@ struct Uniforms {
     _pad0: f32,
     color: vec3<f32>,
     _pad1: f32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -101,11 +103,13 @@ fn centerMask(uv : vec2<f32>) -> f32 {
 @fragment
 fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let texSize : vec2<f32> = vec2<f32>(textureDimensions(inputTex));
-    let uv : vec2<f32> = pos.xy / texSize;
+    // Global UV for the leak pattern (Voronoi / center mask) so it is
+    // continuous across tiles; texel fetches below stay tile-local.
+    let uv : vec2<f32> = (pos.xy + uniforms.tileOffset) / uniforms.fullResolution;
     let coords : vec2<i32> = vec2<i32>(i32(pos.x), i32(pos.y));
     let dims : vec2<i32> = vec2<i32>(textureDimensions(inputTex));
 
-    let base : vec4<f32> = textureSample(inputTex, inputSampler, uv);
+    let base : vec4<f32> = textureSample(inputTex, inputSampler, pos.xy / texSize);
     let blend_alpha : f32 = clamp(uniforms.alpha, 0.0, 1.0);
     if (blend_alpha <= 0.0) {
         return base;

@@ -2,6 +2,9 @@
 
 struct Uniforms {
     resolution: vec2<f32>,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
+    renderScale: f32,
 };
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -12,7 +15,7 @@ struct Uniforms {
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    let uv = position.xy / u.resolution;
+    let uv = (position.xy + u.tileOffset) / u.fullResolution;
     
     // Sample mesh textures using UV coordinates
     let pos = textureSample(positionsTex, positionsSampler, uv);

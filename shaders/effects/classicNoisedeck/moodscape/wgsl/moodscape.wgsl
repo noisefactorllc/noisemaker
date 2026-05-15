@@ -15,7 +15,7 @@
 //   data[2]: ridges, wrap, (slot freed — colorMode is now compile-time COLOR_MODE), hueRotation
 //   data[3]: hueRange, intensity, _pad, _pad
 struct Uniforms {
-    data: array<vec4<f32>, 4>,
+    data: array<vec4<f32>, 5>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -537,8 +537,10 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     unpackUniforms();
 
     var color: vec4<f32> = vec4<f32>(0.0, 0.0, 1.0, 1.0);
-    var st: vec2<f32> = pos.xy / resolution.y;
-    st -= vec2<f32>(resolution.x / resolution.y * 0.5, 0.5);
+    let tileOffset = uniforms.data[4].xy;
+    let fullResolution = uniforms.data[4].zw;
+    var st: vec2<f32> = (pos.xy + tileOffset) / fullResolution.y;
+    st -= vec2<f32>(fullResolution.x / fullResolution.y * 0.5, 0.5);
 
     var xFreq: f32 = 1.0;
     var yFreq: f32 = 1.0;

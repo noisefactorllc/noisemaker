@@ -13,6 +13,8 @@ struct Uniforms {
     speed: f32,
     time: f32,
     alpha: f32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -47,14 +49,15 @@ fn hash2(p: vec2<f32>, s: f32) -> vec2<f32> {
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = pos.xy / texSize;
+    let globalUV = (pos.xy + uniforms.tileOffset) / uniforms.fullResolution;
 
     let n = max(102.0 - uniforms.scale, 2.0);
     let s = uniforms.seed;
     let spd = f32(uniforms.speed) * 0.3;
 
     // Aspect-corrected coordinates for square Voronoi cells
-    let aspect = texSize.x / texSize.y;
-    let auv = vec2<f32>(uv.x * aspect, uv.y);
+    let aspect = uniforms.fullResolution.x / uniforms.fullResolution.y;
+    let auv = vec2<f32>(globalUV.x * aspect, globalUV.y);
 
     // Scale to grid in corrected space
     let scaled = auv * n;
@@ -100,7 +103,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
 
     // Convert nearest point back to UV space for texture sampling
-    let cellColor = textureSample(inputTex, inputSampler, vec2<f32>(nearestPoint.x / aspect, nearestPoint.y));
+    let cellColor = textureSample(inputTex, inputSampler, (vec2<f32>(nearestPoint.x / aspect, nearestPoint.y) * uniforms.fullResolution - uniforms.tileOffset) / texSize);
 
     var result: vec3<f32>;
     if (uniforms.mode == 0) {

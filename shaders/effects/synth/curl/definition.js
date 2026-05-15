@@ -17,7 +17,9 @@ export default new Effect({
     // slot 1.w was octaves — now compile-time OCTAVES
     // slot 2.x was ridges — now compile-time RIDGES
     // slot 2.y was outputMode — now compile-time OUTPUT_MODE
-    intensity: { slot: 2, components: 'z' }
+    intensity: { slot: 2, components: 'z' },
+    tileOffset: { slot: 3, components: 'xy' },
+    fullResolution: { slot: 3, components: 'zw' }
   },
   globals: {
     scale: {

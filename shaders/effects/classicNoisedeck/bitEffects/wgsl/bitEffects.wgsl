@@ -5,7 +5,7 @@
  */
 
 struct Uniforms {
-    data : array<vec4<f32>, 5>
+    data : array<vec4<f32>, 6>
 };
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
 
@@ -435,12 +435,14 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     baseHueRange = uniforms.data[4].z;
 
     var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    var st = pos.xy;
+    let tileOffset = uniforms.data[5].xy;
+    let fullResolution = uniforms.data[5].zw;
+    var st = pos.xy + tileOffset;
 
     if (MODE == 0) {
         color = vec4<f32>(bitField(st), color.a);
     } else {
-        st = pos.xy / resolution.y;
+        st = (pos.xy + tileOffset) / fullResolution.y;
         st = st + f32(seed) + 1000.0;
         color = vec4<f32>(bitMask(st), color.a);
     }

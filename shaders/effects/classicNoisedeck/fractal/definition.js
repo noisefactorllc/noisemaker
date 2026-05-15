@@ -43,7 +43,9 @@ export default class Fractal extends Effect {
     bgAlpha: { slot: 7, components: 'w' },
     palettePhase: { slot: 8, components: 'xyz' },
     cutoff: { slot: 8, components: 'w' },
-    bgColor: { slot: 9, components: 'xyz' }
+    bgColor: { slot: 9, components: 'xyz' },
+    tileOffset: { slot: 10, components: 'xy' },
+    fullResolution: { slot: 10, components: 'zw' }
   }
 
   globals = {

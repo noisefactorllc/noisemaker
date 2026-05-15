@@ -16,7 +16,9 @@ export default new Effect({
     cellScale: { slot: 1, components: 'z' },
     cellSmooth: { slot: 1, components: 'w' },
     variation: { slot: 2, components: 'x' },
-    speed: { slot: 2, components: 'y' }
+    speed: { slot: 2, components: 'y' },
+    tileOffset: { slot: 3, components: 'xy' },
+    fullResolution: { slot: 3, components: 'zw' }
   },
   globals: {
     shape: {

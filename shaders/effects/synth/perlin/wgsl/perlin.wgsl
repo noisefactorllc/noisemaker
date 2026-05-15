@@ -20,6 +20,9 @@ struct Params {
     warpIterations: i32,
     warpScale: f32,
     warpIntensity: f32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
+    renderScale: f32,
 }
 
 @group(0) @binding(0) var<uniform> params: Params;
@@ -271,7 +274,7 @@ fn domainWarp3D(st: vec2<f32>, z: f32, iterations: i32, wScale: f32, wIntensity:
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     var res = params.resolution;
     if (res.x < 1.0) { res = vec2<f32>(1024.0, 1024.0); }
-    var st = position.xy / res;
+    var st = (position.xy + params.tileOffset) / params.fullResolution;
     // Center UVs so zoom scales from center, not corner
     st = st - 0.5;
     st.x = st.x * params.aspect;

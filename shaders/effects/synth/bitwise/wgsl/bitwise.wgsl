@@ -5,7 +5,7 @@ struct Uniforms {
     // Slot 1: scale, offsetX, offsetY, mask
     // Slot 2: seed, colorMode, speed, rotation
     // Slot 3: colorOffset
-    data: array<vec4<f32>, 4>,
+    data: array<vec4<f32>, 6>,
 };
 
 const PI: f32 = 3.14159265358979;
@@ -49,17 +49,20 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let speed = i32(uniforms.data[2].z);
     let rotation = uniforms.data[2].w;
     let colorOffset = i32(uniforms.data[3].x);
+    let tileOffset = uniforms.data[4].xy;
+    let fullResolution = uniforms.data[4].zw;
+    let renderScale = uniforms.data[5].x;
 
     // Map scale so higher value = bigger cells (lower frequency)
-    let pixelScale = scale * 0.1;
+    let pixelScale = scale * 0.1 * renderScale;
 
     // Apply rotation around screen center
     let angle = rotation * PI / 180.0;
     let c = cos(angle);
     let s = sin(angle);
-    let centered = position.xy - resolution * 0.5;
+    let centered = (position.xy + tileOffset) - fullResolution * 0.5;
     let rotated = vec2<f32>(centered.x * c - centered.y * s, centered.x * s + centered.y * c);
-    let coord = rotated + resolution * 0.5;
+    let coord = rotated + fullResolution * 0.5;
 
     // Time offset — uses 256 (pattern period) so it loops seamlessly at any speed
     let animOffset = i32(floor(time * f32(-speed) * 256.0));

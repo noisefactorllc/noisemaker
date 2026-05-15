@@ -17,7 +17,7 @@ struct Uniforms {
     // Slot 3: iterations, stripeFreq, trapShape, lightAngle
     // Slot 4: cPath, cSpeed, cRadius, invert
     // Slot 5: zoomSpeed, zoomDepth, (unused), (unused)
-    data: array<vec4<f32>, 6>,
+    data: array<vec4<f32>, 7>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -352,6 +352,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let zoomSpeed = uniforms.data[5].x;
     let zoomDepth = uniforms.data[5].y;
 
+    let tileOffset = uniforms.data[6].xy;
+    let fullResolution = uniforms.data[6].zw;
+
     // Resolve c-value
     let c = resolveC(poi, cPath, time, cSpeed, cRadius, cReal, cImag);
 
@@ -368,9 +371,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var value: f32;
 
     if (outputMode == 4) {
-        value = outputNormalMap(pos.xy, c, iterations, lightAngle, resolution, centerX, centerY, effectiveZoom, rotation);
+        value = outputNormalMap(pos.xy + tileOffset, c, iterations, lightAngle, fullResolution, centerX, centerY, effectiveZoom, rotation);
     } else {
-        let coords = transformCoords(pos.xy, resolution, centerX, centerY, effectiveZoom, rotation);
+        let coords = transformCoords(pos.xy + tileOffset, fullResolution, centerX, centerY, effectiveZoom, rotation);
         let r = juliaIterate(coords[0], coords[1], c, iterations, stripeFreq, trapShape);
 
         if (outputMode == 0) {

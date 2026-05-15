@@ -14,6 +14,8 @@ struct Uniforms {
     aspect: f32,
     aberrationAmt: f32,
     passthru: f32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
 }
 
 @group(0) @binding(2) var<uniform> u: Uniforms;
@@ -26,8 +28,9 @@ fn mapVal(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    let aspectRatio = u.resolution.x / u.resolution.y;
-    let uv = fragCoord.xy / u.resolution;
+    let aspectRatio = u.fullResolution.x / u.fullResolution.y;
+    let uv = (fragCoord.xy + u.tileOffset) / u.fullResolution;
+    let texSize = vec2f(textureDimensions(inputTex, 0));
 
     let diff = vec2f(0.5 * aspectRatio, 0.5) - vec2f(uv.x * aspectRatio, uv.y);
     let centerDist = length(diff);
@@ -35,12 +38,12 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let aberrationOffset = mapVal(u.aberrationAmt, 0.0, 100.0, 0.0, 0.05) * centerDist * PI * 0.5;
 
     let redOffset = mix(clamp(uv.x + aberrationOffset, 0.0, 1.0), uv.x, uv.x);
-    let red = textureSample(inputTex, samp, vec2f(redOffset, uv.y));
+    let red = textureSample(inputTex, samp, (vec2f(redOffset, uv.y) * u.fullResolution - u.tileOffset) / texSize);
 
-    let green = textureSample(inputTex, samp, uv);
+    let green = textureSample(inputTex, samp, fragCoord.xy / texSize);
 
     let blueOffset = mix(uv.x, clamp(uv.x - aberrationOffset, 0.0, 1.0), uv.x);
-    let blue = textureSample(inputTex, samp, vec2f(blueOffset, uv.y));
+    let blue = textureSample(inputTex, samp, (vec2f(blueOffset, uv.y) * u.fullResolution - u.tileOffset) / texSize);
 
     // chromatic aberration - extract color fringing edges only
     let aberrated = vec3f(red.r, green.g, blue.b);

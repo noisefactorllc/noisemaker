@@ -16,7 +16,7 @@ struct Uniforms {
     // 7: paletteFreq.xyz, backgroundOpacity
     // 8: palettePhase.xyz, cutoff
     // 9: backgroundColor.xyz, (unused)
-    data: array<vec4<f32>, 10>,
+    data: array<vec4<f32>, 11>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -273,10 +273,12 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var palettePhase = uniforms.data[8].xyz;
     let cutoff = uniforms.data[8].w;
     let backgroundColor = uniforms.data[9].xyz;
-    let aspect = resolution.x / resolution.y;
+    let tileOffset = uniforms.data[10].xy;
+    let fullResolution = uniforms.data[10].zw;
+    let aspect = fullResolution.x / fullResolution.y;
 
     var color = vec4<f32>(0.0, 0.0, 1.0, 1.0);
-    var st = pos.xy / resolution.y;
+    var st = (pos.xy + tileOffset) / fullResolution.y;
     var d = 0.0;
     if (fractalType == 0) {
         d = julia(st, zoomAmt, speed, offsetX, offsetY, rotation, centerX, centerY, iterations, cutoff, time, mode, aspect);

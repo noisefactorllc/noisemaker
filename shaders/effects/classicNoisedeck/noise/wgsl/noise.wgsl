@@ -3,7 +3,7 @@
  */
 
 struct Uniforms {
-    data : array<vec4<f32>, 11>,
+    data : array<vec4<f32>, 12>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -798,7 +798,9 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     paletteFreq = uniforms.data[9].xyz;
     palettePhase = uniforms.data[10].xyz;
 
-    var st = pos.xy / resolution.y;
+    let tileOffset = uniforms.data[11].xy;
+    let fullResolution = uniforms.data[11].zw;
+    var st = (pos.xy + tileOffset) / fullResolution.y;
     st = kaleidoscope(st, kaleido, 0.5);
     let centered = st - vec2<f32>(aspectRatio * 0.5, 0.5);
 

@@ -47,7 +47,9 @@ export default class Noise extends Effect {
     paletteOffset: { slot: 7, components: 'xyz' },
     paletteAmp: { slot: 8, components: 'xyz' },
     paletteFreq: { slot: 9, components: 'xyz' },
-    palettePhase: { slot: 10, components: 'xyz' }
+    palettePhase: { slot: 10, components: 'xyz' },
+    tileOffset: { slot: 11, components: 'xy' },
+    fullResolution: { slot: 11, components: 'zw' }
   }
 
   globals = {

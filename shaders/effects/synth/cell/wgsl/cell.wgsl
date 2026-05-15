@@ -5,7 +5,7 @@
  */
 
 struct Uniforms {
-    data : array<vec4<f32>, 3>,
+    data : array<vec4<f32>, 4>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -131,10 +131,12 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let variation = uniforms.data[2].x;
     let speed = uniforms.data[2].y;
 
-    let aspect = resolution.x / resolution.y;
+    let tileOffset = uniforms.data[3].xy;
+    let fullResolution = uniforms.data[3].zw;
+    let aspect = fullResolution.x / fullResolution.y;
 
     var color = vec4<f32>(0.0, 0.0, 1.0, 1.0);
-    var st = pos.xy / resolution.y;
+    var st = (pos.xy + tileOffset) / fullResolution.y;
 
     let freq = map(scale, 1.0, 100.0, 20.0, 1.0);
     let cellSize = map(cellScale, 1.0, 100.0, 3.0, 0.75);

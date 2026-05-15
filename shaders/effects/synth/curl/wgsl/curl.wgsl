@@ -18,6 +18,9 @@ struct Uniforms {
     _pad_ridges: f32,      // was ridges — now compile-time RIDGES
     _pad_outputMode: f32,  // was outputMode — now compile-time OUTPUT_MODE
     intensity: f32,
+    _pad_intensity_w: f32, // slot 2.w padding so tile fields land on slot 3
+    tileOffset: vec2f,     // slot 3.xy
+    fullResolution: vec2f, // slot 3.zw
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -183,8 +186,8 @@ fn curlNoise3D(p: vec3f) -> vec3f {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    let uv = fragCoord.xy / u.resolution;
-    let aspect = u.resolution.x / u.resolution.y;
+    let uv = (fragCoord.xy + u.tileOffset) / u.fullResolution;
+    let aspect = u.fullResolution.x / u.fullResolution.y;
 
     // Center and scale coordinates
     let centered = (uv - 0.5) * vec2f(aspect, 1.0);

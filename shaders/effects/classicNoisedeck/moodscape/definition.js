@@ -21,7 +21,9 @@ export default new Effect({
     // slot 2.z was colorMode — now compile-time COLOR_MODE
     hueRotation: { slot: 2, components: 'w' },
     hueRange: { slot: 3, components: 'x' },
-    intensity: { slot: 3, components: 'y' }
+    intensity: { slot: 3, components: 'y' },
+    tileOffset: { slot: 4, components: 'xy' },
+    fullResolution: { slot: 4, components: 'zw' }
   },
   globals: {
     interp: {
