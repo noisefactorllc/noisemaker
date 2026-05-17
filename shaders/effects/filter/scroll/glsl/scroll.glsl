@@ -2,6 +2,8 @@
 precision highp float;
 
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float aspect;
 uniform float x;
 uniform float y;
@@ -15,24 +17,29 @@ out vec4 fragColor;
 
 /* Scrolls texture coordinates with wraparound. */
 void main(){
-  vec2 st = gl_FragCoord.xy / resolution;
-  st.x *= aspect;
+  vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+  vec2 globalUV = globalCoord / fullResolution;
+  
+  globalUV.x *= aspect;
   vec2 offset = vec2(-x + time * -speedX, y + time * speedY);
   offset.x *= aspect;
-  st += offset;
-  st.x /= aspect;
+  globalUV += offset;
+  globalUV.x /= aspect;
   
-  // Apply wrap mode
+  // Convert to local UV for sampling
+  vec2 localUV = (globalUV * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0));
+  
+  // Apply wrap mode in local UV space to constrain to tile bounds
   if (wrap == 0) {
       // mirror
-      st = abs(mod(st + 1.0, 2.0) - 1.0);
+      localUV = abs(mod(localUV + 1.0, 2.0) - 1.0);
   } else if (wrap == 1) {
       // repeat
-      st = fract(st);
+      localUV = fract(localUV);
   } else {
       // clamp
-      st = clamp(st, 0.0, 1.0);
+      localUV = clamp(localUV, 0.0, 1.0);
   }
   
-  fragColor = vec4(texture(inputTex, st).rgb, 1.0);
+  fragColor = vec4(texture(inputTex, localUV).rgb, 1.0);
 }

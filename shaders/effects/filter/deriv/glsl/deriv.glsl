@@ -7,6 +7,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform float amount;
 uniform float renderScale;
@@ -20,18 +22,17 @@ vec3 desaturate(vec3 color) {
 
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
-    vec2 resolution = vec2(texSize);
-    vec2 uv = gl_FragCoord.xy / resolution;
-    vec2 texelSize = 1.0 / resolution;
+    vec2 texelSize = 1.0 / vec2(texSize);
+    vec2 localUV = gl_FragCoord.xy * texelSize;
     
-    vec4 color = texture(inputTex, uv);
+    float radiusPixels = amount * renderScale;
+    radiusPixels = min(radiusPixels, 256.0);
     
-    // Sample neighbors for derivative calculation
+    vec4 color = texture(inputTex, localUV);
     vec3 center = desaturate(color.rgb);
-    vec3 right = desaturate(texture(inputTex, uv + vec2(texelSize.x * amount * renderScale, 0.0)).rgb);
-    vec3 bottom = desaturate(texture(inputTex, uv + vec2(0.0, texelSize.y * amount * renderScale)).rgb);
+    vec3 right = desaturate(texture(inputTex, localUV + vec2(radiusPixels, 0.0) * texelSize).rgb);
+    vec3 bottom = desaturate(texture(inputTex, localUV + vec2(0.0, radiusPixels) * texelSize).rgb);
     
-    // Compute derivatives
     vec3 dx = center - right;
     vec3 dy = center - bottom;
     

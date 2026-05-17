@@ -2,6 +2,8 @@
 precision highp float;
 
 // Uniforms
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform int volumeSize;
 uniform int noiseType;
@@ -306,6 +308,7 @@ vec3 applyCollisionAvoidance(vec3 pos) {
 // ============================================================================
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     int volSize = volumeSize;
     float volSizeF = float(volSize);
     

@@ -1,6 +1,8 @@
 #version 300 es
 precision highp float;
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform int symmetry;
 uniform float scale;
@@ -73,12 +75,12 @@ vec2 rotationalFold(vec2 uv, int n) {
 }
 
 void main() {
-    ivec2 texSize = textureSize(inputTex, 0);
-    vec2 uv = gl_FragCoord.xy / vec2(texSize);
-    float aspect = float(texSize.x) / float(texSize.y);
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 globalUV = globalCoord / fullResolution;
+    float aspect = fullResolution.x / fullResolution.y;
 
     // Rotate in aspect-corrected space to avoid shearing on non-square canvases
-    vec2 st = uv - 0.5;
+    vec2 st = globalUV - 0.5;
     if (aspectLens) { st.x *= aspect; }
     st = rot(st, angle * PI / 180.0);
     if (aspectLens) { st.x /= aspect; }
@@ -118,8 +120,8 @@ void main() {
         }
     }
 
-    // Clamp to valid texture range
-    st = clamp(st, 0.0, 1.0);
+    // Wrap for seamless tiling across tile boundaries
+    vec2 localUV = fract(st);
 
-    fragColor = vec4(texture(inputTex, st).rgb, 1.0);
+    fragColor = vec4(texture(inputTex, localUV).rgb, 1.0);
 }

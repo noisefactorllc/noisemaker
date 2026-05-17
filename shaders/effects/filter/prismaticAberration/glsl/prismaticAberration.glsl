@@ -23,7 +23,7 @@ out vec4 fragColor;
 
 #define PI 3.14159265359
 #define TAU 6.28318530718
-#define aspectRatio resolution.x / resolution.y
+#define aspectRatio fullResolution.x / fullResolution.y
 
 float map(float value, float inMin, float inMax, float outMin, float outMax) {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
@@ -93,7 +93,8 @@ vec3 saturate(vec3 color) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution;
     vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
     vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
     float globalAspect = fullRes.x / fullRes.y;
@@ -108,13 +109,20 @@ void main() {
 
     float aberrationOffset = map(aberrationAmt, 0.0, 100.0, 0.0, 0.05) * centerDist * PI * 0.5;
 
-    float redOffset = mix(clamp(lensedCoords.x + aberrationOffset, 0.0, 1.0), lensedCoords.x, lensedCoords.x);
-    vec4 red = texture(inputTex, vec2(redOffset, lensedCoords.y));
+    vec2 texelSize = 1.0 / vec2(textureSize(inputTex, 0));
 
-    vec4 green = texture(inputTex, lensedCoords);
+    float redOffset = mix(clamp(lensedCoords.x + aberrationOffset, 0.0, 1.0), lensedCoords.x, lensedCoords.x);
+    vec2 redUV = vec2(redOffset, lensedCoords.y);
+    vec2 redLocalUV = (redUV * fullResolution - tileOffset) * texelSize;
+    vec4 red = texture(inputTex, redLocalUV);
+
+    vec2 greenLocalUV = (lensedCoords * fullResolution - tileOffset) * texelSize;
+    vec4 green = texture(inputTex, greenLocalUV);
 
     float blueOffset = mix(lensedCoords.x, clamp(lensedCoords.x - aberrationOffset, 0.0, 1.0), lensedCoords.x);
-    vec4 blue = texture(inputTex, vec2(blueOffset, lensedCoords.y));
+    vec2 blueUV = vec2(blueOffset, lensedCoords.y);
+    vec2 blueLocalUV = (blueUV * fullResolution - tileOffset) * texelSize;
+    vec4 blue = texture(inputTex, blueLocalUV);
 
     // from aberration
     vec3 hsv = vec3(1.0);

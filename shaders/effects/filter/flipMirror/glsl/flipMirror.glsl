@@ -7,6 +7,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform int flipMode;
 
@@ -14,71 +16,75 @@ out vec4 fragColor;
 
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
-    vec2 uv = gl_FragCoord.xy / vec2(texSize);
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 globalUV = globalCoord / fullResolution;
+
+    vec2 warpedUV = globalUV;
 
     if (flipMode == 1) {
         // flip both
-        uv.x = 1.0 - uv.x;
-        uv.y = 1.0 - uv.y;
+        warpedUV.x = 1.0 - warpedUV.x;
+        warpedUV.y = 1.0 - warpedUV.y;
     } else if (flipMode == 2) {
         // flip horizontal
-        uv.x = 1.0 - uv.x;
+        warpedUV.x = 1.0 - warpedUV.x;
     } else if (flipMode == 3) {
         // flip vertical
-        uv.y = 1.0 - uv.y;
+        warpedUV.y = 1.0 - warpedUV.y;
     } else if (flipMode == 11) {
         // mirror left to right
-        if (uv.x > 0.5) {
-            uv.x = 1.0 - uv.x;
+        if (warpedUV.x > 0.5) {
+            warpedUV.x = 1.0 - warpedUV.x;
         }
     } else if (flipMode == 12) {
         // mirror right to left
-        if (uv.x < 0.5) {
-            uv.x = 1.0 - uv.x;
+        if (warpedUV.x < 0.5) {
+            warpedUV.x = 1.0 - warpedUV.x;
         }
     } else if (flipMode == 13) {
         // mirror up to down
-        if (uv.y > 0.5) {
-            uv.y = 1.0 - uv.y;
+        if (warpedUV.y > 0.5) {
+            warpedUV.y = 1.0 - warpedUV.y;
         }
     } else if (flipMode == 14) {
         // mirror down to up
-        if (uv.y < 0.5) {
-            uv.y = 1.0 - uv.y;
+        if (warpedUV.y < 0.5) {
+            warpedUV.y = 1.0 - warpedUV.y;
         }
     } else if (flipMode == 15) {
         // mirror left to right, up to down
-        if (uv.x > 0.5) {
-            uv.x = 1.0 - uv.x;
+        if (warpedUV.x > 0.5) {
+            warpedUV.x = 1.0 - warpedUV.x;
         }
-        if (uv.y > 0.5) {
-            uv.y = 1.0 - uv.y;
+        if (warpedUV.y > 0.5) {
+            warpedUV.y = 1.0 - warpedUV.y;
         }
     } else if (flipMode == 16) {
         // mirror left to right, down to up
-        if (uv.x > 0.5) {
-            uv.x = 1.0 - uv.x;
+        if (warpedUV.x > 0.5) {
+            warpedUV.x = 1.0 - warpedUV.x;
         }
-        if (uv.y < 0.5) {
-            uv.y = 1.0 - uv.y;
+        if (warpedUV.y < 0.5) {
+            warpedUV.y = 1.0 - warpedUV.y;
         }
     } else if (flipMode == 17) {
         // mirror right to left, up to down
-        if (uv.x < 0.5) {
-            uv.x = 1.0 - uv.x;
+        if (warpedUV.x < 0.5) {
+            warpedUV.x = 1.0 - warpedUV.x;
         }
-        if (uv.y > 0.5) {
-            uv.y = 1.0 - uv.y;
+        if (warpedUV.y > 0.5) {
+            warpedUV.y = 1.0 - warpedUV.y;
         }
     } else if (flipMode == 18) {
         // mirror right to left, down to up
-        if (uv.x < 0.5) {
-            uv.x = 1.0 - uv.x;
+        if (warpedUV.x < 0.5) {
+            warpedUV.x = 1.0 - warpedUV.x;
         }
-        if (uv.y < 0.5) {
-            uv.y = 1.0 - uv.y;
+        if (warpedUV.y < 0.5) {
+            warpedUV.y = 1.0 - warpedUV.y;
         }
     }
 
-    fragColor = texture(inputTex, uv);
+    vec2 localUV = fract((warpedUV * fullResolution - tileOffset) / vec2(texSize));
+    fragColor = texture(inputTex, localUV);
 }

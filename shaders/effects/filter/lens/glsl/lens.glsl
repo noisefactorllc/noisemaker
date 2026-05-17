@@ -19,6 +19,7 @@ out vec4 fragColor;
 const float HALF_FRAME = 0.5;
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 tileDims = vec2(texSize);
     vec2 dims = fullResolution.x > 0.0 ? fullResolution : tileDims;
@@ -47,20 +48,38 @@ void main() {
     // Convert displacement back to UV space
     if (aspectLens) { displacement.x /= aspect; }
 
-    // globalOffset is in full-image UV space; convert to tile-local UV for sampling
-    vec2 globalOffset = fract(uv - displacement);
-    vec2 offset = (globalOffset * dims - tileOffset) / tileDims;
+    bool isTileRendering = length(tileOffset) > 0.0;
+    
+    // For tile rendering, limit displacement to stay within overlap
+    if (isTileRendering) {
+        float maxDispPixels = 256.0;
+        float dispPixels = length(displacement * dims);
+        if (dispPixels > maxDispPixels) {
+            displacement *= maxDispPixels / dispPixels;
+        }
+    }
+
+    // Non-tiling keeps the fract() wrap so normal-size output is
+    // byte-identical to the pre-tile-aware shader (zero baseline
+    // regression). Tiling drops the wrap (displacement is clamped above so
+    // the sample stays within the tile overlap).
+    vec2 warpedGlobalUV = isTileRendering ? (uv - displacement) : fract(uv - displacement);
+    vec2 offset = (warpedGlobalUV * dims - tileOffset) / tileDims;
+    
+    vec2 sampledUV = offset;
 
     if (antialias) {
-        vec2 dx = dFdx(offset);
-        vec2 dy = dFdy(offset);
+        vec2 dx = dFdx(sampledUV);
+        vec2 dy = dFdy(sampledUV);
         vec4 col = vec4(0.0);
-        col += texture(inputTex, offset + dx * -0.375 + dy * -0.125);
-        col += texture(inputTex, offset + dx *  0.125 + dy * -0.375);
-        col += texture(inputTex, offset + dx *  0.375 + dy *  0.125);
-        col += texture(inputTex, offset + dx * -0.125 + dy *  0.375);
+        
+        col += texture(inputTex, sampledUV + dx * -0.375 + dy * -0.125);
+        col += texture(inputTex, sampledUV + dx *  0.125 + dy * -0.375);
+        col += texture(inputTex, sampledUV + dx *  0.375 + dy *  0.125);
+        col += texture(inputTex, sampledUV + dx * -0.125 + dy *  0.375);
+        
         fragColor = col * 0.25;
     } else {
-        fragColor = texture(inputTex, offset);
+        fragColor = texture(inputTex, sampledUV);
     }
 }

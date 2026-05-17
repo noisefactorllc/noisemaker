@@ -6,10 +6,13 @@ precision highp int;
 // Input has min in .r, max in .g (from previous reduce pass)
 // Samples 16x16 block and outputs new min/max
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 out vec4 fragColor;
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 outCoord = ivec2(gl_FragCoord.xy);
     ivec2 inSize = textureSize(inputTex, 0);
     

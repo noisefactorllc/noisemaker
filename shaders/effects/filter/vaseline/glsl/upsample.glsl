@@ -28,7 +28,8 @@ float chebyshev_mask(vec2 uv) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution;
     vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
     vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
     vec4 original = texelFetch(inputTex, ivec2(gl_FragCoord.xy), 0);
@@ -39,7 +40,7 @@ void main() {
         return;
     }
 
-    vec2 texelSize = 1.0 / resolution;
+    vec2 texelSize = 1.0 / fullResolution;
     vec2 radiusUV = RADIUS * renderScale * texelSize;
 
     // N-tap gather using golden angle spiral (Poisson-like distribution)
@@ -55,8 +56,9 @@ void main() {
         float sigma = 0.4;
         float weight = exp(-0.5 * (r * r) / (sigma * sigma));
 
-        vec2 sampleUV = clamp(uv + offset * radiusUV, vec2(0.0), vec2(1.0));
-        blurAccum += texture(inputTex, sampleUV).rgb * weight;
+        vec2 sampleGlobalUV = clamp(uv + offset * radiusUV, vec2(0.0), vec2(1.0));
+        vec2 sampleLocalUV = (sampleGlobalUV * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0));
+        blurAccum += texture(inputTex, sampleLocalUV).rgb * weight;
         weightSum += weight;
     }
 

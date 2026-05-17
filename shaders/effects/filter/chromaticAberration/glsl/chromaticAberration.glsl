@@ -16,14 +16,15 @@ uniform float passthru;
 out vec4 fragColor;
 
 #define PI 3.14159265359
-#define aspectRatio resolution.x / resolution.y
+#define aspectRatio fullResolution.x / fullResolution.y
 
 float map(float value, float inMin, float inMax, float outMin, float outMax) {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution;
     vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
     vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
     float globalAspect = fullRes.x / fullRes.y;
@@ -34,12 +35,12 @@ void main() {
     float aberrationOffset = map(aberrationAmt, 0.0, 100.0, 0.0, 0.05) * centerDist * PI * 0.5;
 
     float redOffset = mix(clamp(uv.x + aberrationOffset, 0.0, 1.0), uv.x, uv.x);
-    vec4 red = texture(inputTex, vec2(redOffset, uv.y));
+    vec4 red = texture(inputTex, ((vec2(redOffset, uv.y)) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0)));
 
-    vec4 green = texture(inputTex, uv);
+    vec4 green = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
 
     float blueOffset = mix(uv.x, clamp(uv.x - aberrationOffset, 0.0, 1.0), uv.x);
-    vec4 blue = texture(inputTex, vec2(blueOffset, uv.y));
+    vec4 blue = texture(inputTex, ((vec2(blueOffset, uv.y)) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0)));
 
     // chromatic aberration - extract color fringing edges only
     vec3 aberrated = vec3(red.r, green.g, blue.b);

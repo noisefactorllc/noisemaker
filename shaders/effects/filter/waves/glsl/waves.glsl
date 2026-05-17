@@ -42,7 +42,15 @@ void main() {
     uv = rotate2D(uv, rotation / 180.0, aspectRatio);
 
     // Sine wave distortion
-    uv.y += sin(uv.x * scale * 10.0 + time * TAU * float(speed)) * (strength * 0.01);
+    float displacement = sin(uv.x * scale * 10.0 + time * TAU * float(speed)) * (strength * 0.01);
+    
+    // Bound displacement to overlap in tile mode to prevent seams
+    if (any(notEqual(tileOffset, vec2(0.0)))) {
+        float maxDisplacementUV = 256.0 / fullResolution.y;
+        displacement = clamp(displacement, -maxDisplacementUV, maxDisplacementUV);
+    }
+    
+    uv.y += displacement;
 
     // Apply wrap mode
     if (wrap == 0) {
@@ -59,9 +67,11 @@ void main() {
     // Reverse rotation after distortion
     uv = rotate2D(uv, -rotation / 180.0, aspectRatio);
 
-    // Convert distorted global UV back to tile-local for texture sampling.
-    // Clamp to tile bounds so wrap modes don't sample past tile coverage.
-    vec2 sampleUV = clamp((uv * fullResolution - tileOffset) / resolution, 0.0, 1.0);
+    // Convert distorted global UV to tile-local UV.
+    vec2 localCoord = (uv * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0));
+    
+    // In tile mode, wrap to enable seamless tiling. In normal mode, clamp to preserve original behavior.
+    vec2 sampleUV = any(notEqual(tileOffset, vec2(0.0))) ? fract(localCoord) : clamp(localCoord, 0.0, 1.0);
 
     if (antialias) {
         vec2 dx = dFdx(sampleUV);

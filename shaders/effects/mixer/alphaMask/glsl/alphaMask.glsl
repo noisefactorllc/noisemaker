@@ -4,6 +4,8 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float mixAmt;
 uniform bool maskMode;
 out vec4 fragColor;
@@ -13,10 +15,11 @@ float map(float value, float inMin, float inMax, float outMin, float outMax) {
 }
 
 void main() {
-    vec2 st = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 st = globalCoord / fullResolution;
 
-    vec4 color1 = texture(inputTex, st);
-    vec4 color2 = texture(tex, st);
+    vec4 color1 = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
+    vec4 color2 = texture(tex, gl_FragCoord.xy / vec2(textureSize(tex, 0)));
 
     // luminance mask mode
     if (maskMode) {

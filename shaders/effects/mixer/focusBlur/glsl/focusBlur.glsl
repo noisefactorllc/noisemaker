@@ -11,6 +11,8 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float focalDistance;
 uniform float aperture;
 uniform float sampleBias;
@@ -33,7 +35,7 @@ float computeBlurFactor(float depth) {
 // Apply depth of field blur
 vec4 applyFocusBlur(sampler2D sceneTex, sampler2D depthTex, vec2 uv) {
     // Sample depth texture and compute luminosity as depth proxy
-    vec4 depthSample = texture(depthTex, uv);
+    vec4 depthSample = texture(depthTex, gl_FragCoord.xy / vec2(textureSize(depthTex, 0)));
     float depth = getLuminosity(depthSample.rgb);
     
     // Calculate blur amount based on distance from focal plane
@@ -52,7 +54,7 @@ vec4 applyFocusBlur(sampler2D sceneTex, sampler2D depthTex, vec2 uv) {
             float sigma2 = 2.0 * blurFactor * blurFactor;
             float weight = exp(-dist2 / max(sigma2, 0.001));
             
-            color += texture(sceneTex, uv + offset) * weight;
+            color += texture(sceneTex, ((uv + offset) * fullResolution - tileOffset) / vec2(textureSize(sceneTex, 0))) * weight;
             totalWeight += weight;
         }
     }
@@ -61,7 +63,8 @@ vec4 applyFocusBlur(sampler2D sceneTex, sampler2D depthTex, vec2 uv) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution;
     
     vec4 color;
     
@@ -74,7 +77,7 @@ void main() {
     }
     
     // Preserve maximum alpha from both sources
-    color.a = max(texture(inputTex, uv).a, texture(tex, uv).a);
+    color.a = max(texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0))).a, texture(tex, gl_FragCoord.xy / vec2(textureSize(tex, 0))).a);
     
     fragColor = color;
 }

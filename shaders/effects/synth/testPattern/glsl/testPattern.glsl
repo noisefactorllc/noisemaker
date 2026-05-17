@@ -38,7 +38,7 @@ bool renderNumber(int number, vec2 cellUV) {
     if (number >= 10) numDigits = 2;
     if (number >= 100) numDigits = 3;
 
-    // Glyph dimensions in UV space (centered, scaled to fit nicely)
+    // Glyph dimensions in UV space (centered, cell-local)
     float glyphWidth = 0.15;
     float glyphHeight = 0.35;
     float spacing = 0.05;
@@ -84,8 +84,8 @@ bool renderNumber(int number, vec2 cellUV) {
 // Pattern 0: Numbered checkerboard
 vec4 checkerboard(vec2 uv) {
     int n = max(gridSize, 1);
-    int cellX = int(uv.x * float(n));
-    int cellY = int(uv.y * float(n));
+    int cellX = int(uv.x * float(n)) % n;
+    int cellY = int(uv.y * float(n)) % n;
 
     int cellNum = (n - 1 - cellY) * n + cellX;
 
@@ -137,8 +137,13 @@ vec4 gridLines(vec2 uv) {
     int n = max(gridSize, 1);
     vec2 cellUV = fract(uv * float(n));
     vec2 edge = min(cellUV, 1.0 - cellUV);
-    vec2 fw = fwidth(uv * float(n));
-    float line = 1.0 - smoothstep(0.0, 1.5 * fw.x, edge.x) * smoothstep(0.0, 1.5 * fw.y, edge.y);
+    
+    // Use direct calculation instead of fwidth() for tile-aware rendering.
+    // This maintains the same line thickness in normal rendering while ensuring
+    // continuity across tile boundaries during large-format print export.
+    vec2 fw = vec2(1.0) / fullResolution * float(n);
+    
+    float line = 1.0 - smoothstep(0.0, 2.0 * fw.x, edge.x) * smoothstep(0.0, 2.0 * fw.y, edge.y);
     return vec4(vec3(line), 1.0);
 }
 
@@ -153,8 +158,8 @@ vec3 hue2rgb(float h) {
 // Pattern 5: Each cell gets a unique hue
 vec4 colorGrid(vec2 uv) {
     int n = max(gridSize, 1);
-    int cellX = int(uv.x * float(n));
-    int cellY = int(uv.y * float(n));
+    int cellX = int(uv.x * float(n)) % n;
+    int cellY = int(uv.y * float(n)) % n;
     int cellIndex = cellY * n + cellX;
     float hue = fract(float(cellIndex) * 0.618033988749895);
     return vec4(hue2rgb(hue), 1.0);

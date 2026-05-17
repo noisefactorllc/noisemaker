@@ -11,7 +11,6 @@ const int TILE_SIZE = 8;
 const int MAX_TILE_DIM = 512; // Supports resolutions up to 4096px.
 
 uniform sampler2D statsTex;
-uniform vec2 resolution;
 
 out vec4 fragColor;
 
@@ -22,9 +21,10 @@ void main() {
         return;
     }
 
+    ivec2 statsTexSize = textureSize(statsTex, 0);
     ivec2 tileCount = ivec2(
-        (int(resolution.x) + TILE_SIZE - 1) / TILE_SIZE,
-        (int(resolution.y) + TILE_SIZE - 1) / TILE_SIZE
+        (statsTexSize.x + TILE_SIZE - 1) / TILE_SIZE,
+        (statsTexSize.y + TILE_SIZE - 1) / TILE_SIZE
     );
 
     float globalMin = F32_MAX;

@@ -13,6 +13,8 @@ const vec3 LUMA_WEIGHTS = vec3(0.299, 0.587, 0.114);
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float strength;
 uniform float sharpness;
 uniform float threshold;
@@ -68,6 +70,7 @@ float weight_from_luma(float center_luma, float neighbor_luma) {
 out vec4 fragColor;
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     uvec3 global_id = uvec3(uint(gl_FragCoord.x), uint(gl_FragCoord.y), 0u);
 
     uint width_u = max(as_u32(resolution.x), 1u);

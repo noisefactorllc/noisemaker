@@ -225,6 +225,7 @@ float sample_grain_noise(
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     uvec3 global_id = uvec3(uint(gl_FragCoord.x), uint(gl_FragCoord.y), 0u);
 
     vec2 res = fullResolution.x > 0.0 ? fullResolution : resolution;
@@ -244,14 +245,11 @@ void main() {
         return;
     }
 
-    // When paused, use time=0 for static noise; otherwise use actual time
     float effective_time = pause > 0.5 ? 0.0 : time;
 
-    // Scale pixel coordinates so grain size stays visually consistent
     float rs = max(renderScale, 1.0);
-    uvec2 scaled_id = uvec2(vec2(global_pixel) / rs);
     float noise_value = sample_grain_noise(
-        scaled_id,
+        global_pixel,
         vec2(float(u_width) / rs, float(u_height) / rs),
         effective_time,
         100.0

@@ -14,6 +14,7 @@ uniform int seed;
 uniform vec2 resolution;
 uniform vec2 tileOffset;
 uniform vec2 fullResolution;
+uniform float renderScale;
 uniform int shape;
 uniform float scale;
 uniform float cellScale;
@@ -305,7 +306,7 @@ void main() {
     vec2 texCoord = globalCoord / fullResolution;
 
     if (texInfluence > 0) {
-        vec3 texRGB = texture(tex, texCoord).rgb;
+        vec3 texRGB = texture(tex, gl_FragCoord.xy / vec2(textureSize(tex, 0))).rgb;
 
         texLuminosity = luminance(texRGB);
 

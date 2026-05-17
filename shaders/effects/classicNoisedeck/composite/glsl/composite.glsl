@@ -192,8 +192,8 @@ void main() {
     vec4 color = vec4(0.0, 0.0, 1.0, 1.0);
     vec2 st = globalCoord / fullResolution;
 
-    vec4 color1 = texture(inputTex, st);
-    vec4 color2 = texture(tex, st);
+    vec4 color1 = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
+    vec4 color2 = texture(tex, gl_FragCoord.xy / vec2(textureSize(tex, 0)));
 
     color.rgb = blend(color1.rgb, color2.rgb);
     color.a = mix(color1.a, color2.a, mixAmt * 0.01);

@@ -77,25 +77,25 @@ void loadKernels() {
 	edge2[6] = -1.0; edge2[7] = 0.0; edge2[8] = -1.0;
 }
 
-vec3 convolve(vec2 uv, float kernel[9], bool divide) {
-    vec2 steps = 1.0 / resolution; // 1.0 / width = 1 texel
+vec3 convolve(vec2 localUV, float kernel[9], bool divide) {
+    vec2 texelSize = 1.0 / vec2(textureSize(inputTex, 0));
     vec2 offset[9];
-    offset[0] = vec2(-steps.x, -steps.y);   // top left
-    offset[1] = vec2(0.0, -steps.y);        // top middle
-    offset[2] = vec2(steps.x, -steps.y);    // top right
-    offset[3] = vec2(-steps.x, 0.0);        // middle left
+    offset[0] = vec2(-texelSize.x, -texelSize.y);   // top left
+    offset[1] = vec2(0.0, -texelSize.y);        // top middle
+    offset[2] = vec2(texelSize.x, -texelSize.y);    // top right
+    offset[3] = vec2(-texelSize.x, 0.0);        // middle left
     offset[4] = vec2(0.0, 0.0);             //middle
-    offset[5] = vec2(steps.x, 0.0);         //middle right
-    offset[6] = vec2(-steps.x, steps.y);    //bottom left
-    offset[7] = vec2(0.0, steps.y);         //bottom middle
-    offset[8] = vec2(steps.x, steps.y);     //bottom right
+    offset[5] = vec2(texelSize.x, 0.0);         //middle right
+    offset[6] = vec2(-texelSize.x, texelSize.y);    //bottom left
+    offset[7] = vec2(0.0, texelSize.y);         //bottom middle
+    offset[8] = vec2(texelSize.x, texelSize.y);     //bottom right
 
     float kernelWeight = 0.0;
     vec3 conv = vec3(0.0);
 
     for(int i = 0; i < 9; i++){
         //sample a 3x3 grid of pixels
-        vec3 color = texture(inputTex, uv + offset[i] * effectWidth).rgb;
+        vec3 color = texture(inputTex, localUV + offset[i] * effectWidth).rgb;
 
         // multiply the color by the kernel value and add it to our conv total
         conv += color * kernel[i];
@@ -200,7 +200,7 @@ vec3 desaturate(vec3 color) {
 	return vec3(avg);
 }
 
-vec3 derivatives(vec3 color, vec2 uv, bool divide) {
+vec3 derivatives(vec3 color, vec2 localUV, bool divide) {
 	// use: desaturate, get deriv_x and deriv_y and calculate dist between, then multiply by color
 	vec3 dcolor = desaturate(color);
 
@@ -214,13 +214,13 @@ vec3 derivatives(vec3 color, vec2 uv, bool divide) {
 	deriv_y[3] = 0.0; deriv_y[4] = 1.0; deriv_y[5] = 0.0;
 	deriv_y[6] = 0.0; deriv_y[7] = -1.0; deriv_y[8] = 0.0;
 
-	vec3 s1 = convolve(uv, deriv_x, divide);
-	vec3 s2 = convolve(uv, deriv_y, divide);
+	vec3 s1 = convolve(localUV, deriv_x, divide);
+	vec3 s2 = convolve(localUV, deriv_y, divide);
 	float dist = distance(s1, s2);
 	return color *= dist;
 }
 
-vec3 sobel(vec3 color, vec2 uv) {
+vec3 sobel(vec3 color, vec2 localUV) {
 	// use: desaturate, get sobel_x and sobel_y and calculate dist between, then multiply by color
 	vec3 dcolor = desaturate(color);
 	
@@ -234,13 +234,13 @@ vec3 sobel(vec3 color, vec2 uv) {
 	sobel_y[3] = 0.0; sobel_y[4] = 0.0; sobel_y[5] = 0.0;
 	sobel_y[6] = -1.0; sobel_y[7] = -2.0; sobel_y[8] = -1.0;
 
-	vec3 s1 = convolve(uv, sobel_x, false);
-	vec3 s2 = convolve(uv, sobel_y, false);
+	vec3 s1 = convolve(localUV, sobel_x, false);
+	vec3 s2 = convolve(localUV, sobel_y, false);
 	float dist = distance(s1, s2);
 	return color *= dist;
 }
 
-vec3 shadow(vec3 color, vec2 uv) {
+vec3 shadow(vec3 color, vec2 localUV) {
 	float sobel_x[9];
 	sobel_x[0] = 1.0; sobel_x[1] = 0.0; sobel_x[2] = -1.0;
 	sobel_x[3] = 2.0; sobel_x[4] = 0.0; sobel_x[5] = -2.0;
@@ -253,8 +253,8 @@ vec3 shadow(vec3 color, vec2 uv) {
 
 	color = rgb2hsv(color);
 
-	vec3 x = convolve(uv, sobel_x, false);
-	vec3 y = convolve(uv, sobel_y, false);
+	vec3 x = convolve(localUV, sobel_x, false);
+	vec3 y = convolve(localUV, sobel_y, false);
 
 	float shade = distance(x, y);
 	float highlight = shade * shade;
@@ -266,7 +266,7 @@ vec3 shadow(vec3 color, vec2 uv) {
 	return hsv2rgb(color);
 }
 
-vec3 outline(vec3 color, vec2 uv) {
+vec3 outline(vec3 color, vec2 localUV) {
     // use: desaturate, get sobel_x and sobel_y and calculate dist between, then multiply by color
     vec3 dcolor = desaturate(color);
 
@@ -280,8 +280,8 @@ vec3 outline(vec3 color, vec2 uv) {
     sobel_y[3] = 0.0; sobel_y[4] = 0.0; sobel_y[5] = 0.0;
     sobel_y[6] = -1.0; sobel_y[7] = -2.0; sobel_y[8] = -1.0;
 
-    vec3 s1 = convolve(uv, sobel_x, false);
-    vec3 s2 = convolve(uv, sobel_y, false);
+    vec3 s1 = convolve(localUV, sobel_x, false);
+    vec3 s2 = convolve(localUV, sobel_y, false);
     float dist = distance(s1, s2);
 
     vec3 outcolor = color - dist;
@@ -290,30 +290,30 @@ vec3 outline(vec3 color, vec2 uv) {
 
 // Per-KERNEL convolution branch — only the active kernel for the current
 // program gets compiled. Called from main() inside `KERNEL != 0/100/110`.
-vec3 convolutionKernel(vec3 color, vec2 uv) {
+vec3 convolutionKernel(vec3 color, vec2 localUV) {
 #if KERNEL == 1
-    return convolve(uv, blur, true);
+    return convolve(localUV, blur, true);
 #elif KERNEL == 2
     // deriv divide
-    return derivatives(color, uv, true);
+    return derivatives(color, localUV, true);
 #elif KERNEL == 120
     // deriv
-    return clamp(derivatives(color, uv, false) * 2.5, 0.0, 1.0);
+    return clamp(derivatives(color, localUV, false) * 2.5, 0.0, 1.0);
 #elif KERNEL == 3
-    return color * convolve(uv, edge2, true);
+    return color * convolve(localUV, edge2, true);
 #elif KERNEL == 4
-    return convolve(uv, emboss, false);
+    return convolve(localUV, emboss, false);
 #elif KERNEL == 5
-    return outline(color, uv);
+    return outline(color, localUV);
 #elif KERNEL == 6
-    return shadow(color, uv);
+    return shadow(color, localUV);
 #elif KERNEL == 7
-    return convolve(uv, sharpen, false);
+    return convolve(localUV, sharpen, false);
 #elif KERNEL == 8
-    return sobel(color, uv);
+    return sobel(color, localUV);
 #elif KERNEL == 9
     // lit edge
-    return max(color, convolve(uv, edge2, true));
+    return max(color, convolve(localUV, edge2, true));
 #else
     return color;
 #endif
@@ -420,14 +420,15 @@ vec3 posterize(vec3 color, float lev) {
     return color;
 }
 
-vec3 pixellate(vec2 uv, float size) {
+vec3 pixellate(vec2 localUV, float size) {
     if (size <= 1.0) {
-        return texture(inputTex, uv).rgb;
+        return texture(inputTex, localUV).rgb;
     }
 
-    float dx = size * (1.0 / resolution.x);
-    float dy = size * (1.0 / resolution.y);
-    vec2 coord = vec2(dx * floor(uv.x / dx), dy * floor(uv.y / dy));
+    vec2 texelSize = 1.0 / vec2(textureSize(inputTex, 0));
+    float dx = size * texelSize.x;
+    float dy = size * texelSize.y;
+    vec2 coord = vec2(dx * floor(localUV.x / dx), dy * floor(localUV.y / dy));
     return texture(inputTex, coord).rgb;
 }
 
@@ -456,16 +457,18 @@ void main() {
         st = fract(st);
     }
 
-    color = texture(inputTex, st);
+    // Convert warped global UV to tile-local UV
+    vec2 localUV = (st * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0));
+    color = texture(inputTex, localUV);
 
 #if KERNEL != 0
     if (effectWidth != 0.0) {
 #if KERNEL == 100
-        color.rgb = pixellate(st, effectWidth * 4.0);
+        color.rgb = pixellate(localUV, effectWidth * 4.0);
 #elif KERNEL == 110
         color.rgb = posterize(color.rgb, floor(map(effectWidth, 0.0, 10.0, 0.0, 20.0)));
 #else
-        color.rgb = convolutionKernel(color.rgb, st);
+        color.rgb = convolutionKernel(color.rgb, localUV);
 #endif
     }
 #endif

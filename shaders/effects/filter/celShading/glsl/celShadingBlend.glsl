@@ -7,6 +7,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform sampler2D colorTex;
 uniform sampler2D edgeTex;
@@ -16,6 +18,7 @@ uniform float mixAmount;
 out vec4 fragColor;
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
 

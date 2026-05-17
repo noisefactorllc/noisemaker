@@ -5,6 +5,8 @@ precision highp int;
 
 // Outline blend pass - darken base where edges are detected
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform sampler2D edgesTexture;
 uniform float invert;
@@ -12,6 +14,7 @@ uniform float invert;
 out vec4 fragColor;
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 dimensions = textureSize(inputTex, 0);
     if (dimensions.x == 0 || dimensions.y == 0) {
         fragColor = vec4(0.0);

@@ -257,7 +257,7 @@ void main() {
 
     float blendy = periodicFunction(time - offsets(uv));
 
-    color = texture(inputTex, uv);
+    color = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
 
     if (levels != 0.0) {
         color.rgb = posterize(color.rgb, levels);

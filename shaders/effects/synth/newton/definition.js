@@ -28,7 +28,9 @@ export default new Effect({
     relaxRange: { slot: 4, components: 'y' },
     rotation:   { slot: 4, components: 'z' },
     outputMode: { slot: 5, components: 'x' },
-    invert:     { slot: 5, components: 'y' }
+    invert:     { slot: 5, components: 'y' },
+    tileOffset:      { slot: 6, components: 'xy' },
+    fullResolution:  { slot: 6, components: 'zw' }
   },
 
   globals: {

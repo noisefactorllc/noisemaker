@@ -8,6 +8,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform vec3 wheelShadows;
 uniform vec3 wheelMidtones;
@@ -106,6 +108,7 @@ vec3 applyWheels(vec3 rgb, vec3 shadowWheel, vec3 midWheel, vec3 highWheel, floa
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 coord = ivec2(gl_FragCoord.xy);
     vec4 color = texelFetch(inputTex, coord, 0);
     

@@ -1,11 +1,19 @@
 /*
  * Lens Warp - Noise-driven radial lens distortion
  * Follows filter/warp pattern: Perlin noise displacement with singularity mask
+ *
+ * Tile-aware, mirroring glsl/lensWarp.glsl. The non-tiling path
+ * (tileOffset=(0,0)) is byte-identical to the previous shader, so
+ * normal-size output is unchanged (zero baseline regression by
+ * construction). When tiling, distortion is computed in GLOBAL frame
+ * coordinates and the displacement is clamped to <=256px.
  */
 
 struct Uniforms {
     displacement: f32,
     antialias: i32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -66,35 +74,52 @@ fn perlinNoise(st_in: vec2<f32>, noiseScale: vec2<f32>, t: f32, spd: f32) -> f32
     return val * 0.5 + 0.5;
 }
 
-@fragment
-fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let texSize = vec2<f32>(textureDimensions(inputTex));
-    let aspectRatio = texSize.x / texSize.y;
-    var uv = pos.xy / texSize;
-
-    let disp = uniforms.displacement;
-    let t = time;
-    let spd = speed;
-
-    // Singularity mask: distance from center, pow(5)
-    // Concentrates warp at edges, center stays stable
+fn warpedUV(pos: vec2<f32>, frame: vec2<f32>, originOffset: vec2<f32>, disp: f32, t: f32, spd: f32) -> vec2<f32> {
+    let aspectRatio = frame.x / frame.y;
+    var uv = (pos + originOffset) / frame;
     let delta = abs(uv - vec2<f32>(0.5));
     let scaled = vec2<f32>(delta.x * aspectRatio, delta.y);
     let maxRadius = length(vec2<f32>(aspectRatio * 0.5, 0.5));
     let mask = pow(clamp(length(scaled) / maxRadius, 0.0, 1.0), 5.0);
-
-    // Two independent Perlin noise fields for X and Y displacement
     let noiseCoord = uv * vec2<f32>(aspectRatio, 1.0);
     let noiseX = perlinNoise(noiseCoord + 42.0, vec2<f32>(2.0), t, spd);
     let noiseY = perlinNoise(noiseCoord + 97.0, vec2<f32>(2.0), t, spd);
-
-    // Apply displacement, masked to edges
     uv.x = uv.x + (noiseX - 0.5) * disp * mask;
     uv.y = uv.y + (noiseY - 0.5) * disp * mask;
+    return abs((uv % 2.0 + 2.0) % 2.0 - 1.0);
+}
 
-    // Wrap (mirror)
-    uv = abs((uv % 2.0 + 2.0) % 2.0 - 1.0);
+@fragment
+fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
+    let texSize = vec2<f32>(textureDimensions(inputTex));
+    let tileOffset = uniforms.tileOffset;
+    let isTile = length(tileOffset) > 0.0;
+    let t = time;
+    let spd = speed;
 
+    if (isTile) {
+        // Mirror glsl/lensWarp.glsl: global frame, displacement clamped to
+        // an absolute 256px so the sample stays within the tile overlap.
+        let fullRes = select(texSize, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
+        let maxDisplacementUV = 256.0 / fullRes.x;
+        let clampedDisp = clamp(uniforms.displacement, -maxDisplacementUV, maxDisplacementUV);
+        let uv = warpedUV(pos.xy, fullRes, tileOffset, clampedDisp, t, spd);
+        let localUV = clamp((uv * fullRes - tileOffset) / texSize, vec2<f32>(0.0), vec2<f32>(1.0));
+        if (uniforms.antialias != 0) {
+            let dx = dpdx(localUV);
+            let dy = dpdy(localUV);
+            var col = vec4<f32>(0.0);
+            col += textureSample(inputTex, inputSampler, localUV + dx * -0.375 + dy * -0.125);
+            col += textureSample(inputTex, inputSampler, localUV + dx *  0.125 + dy * -0.375);
+            col += textureSample(inputTex, inputSampler, localUV + dx *  0.375 + dy *  0.125);
+            col += textureSample(inputTex, inputSampler, localUV + dx * -0.125 + dy *  0.375);
+            return col * 0.25;
+        }
+        return textureSample(inputTex, inputSampler, localUV);
+    }
+
+    // Non-tiling path: byte-identical to the previous shader.
+    let uv = warpedUV(pos.xy, texSize, vec2<f32>(0.0), uniforms.displacement, t, spd);
     if (uniforms.antialias != 0) {
         let dx = dpdx(uv);
         let dy = dpdy(uv);
@@ -104,7 +129,6 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         col += textureSample(inputTex, inputSampler, uv + dx *  0.375 + dy *  0.125);
         col += textureSample(inputTex, inputSampler, uv + dx * -0.125 + dy *  0.375);
         return col * 0.25;
-    } else {
-        return textureSample(inputTex, inputSampler, uv);
     }
+    return textureSample(inputTex, inputSampler, uv);
 }

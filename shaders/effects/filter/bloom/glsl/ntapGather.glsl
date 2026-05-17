@@ -8,6 +8,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform float radius;
 uniform float renderScale;
@@ -23,6 +25,7 @@ const float GOLDEN_ANGLE = 2.39996323;
 const float PI = 3.14159265359;
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 texSize = vec2(textureSize(inputTex, 0));
     vec2 uv = gl_FragCoord.xy / texSize;
     vec2 texelSize = 1.0 / texSize;

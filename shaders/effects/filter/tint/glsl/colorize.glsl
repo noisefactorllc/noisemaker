@@ -1,6 +1,8 @@
 #version 300 es
 precision highp float;
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform vec3 color;
 uniform float alpha;
 uniform float mode;
@@ -43,6 +45,7 @@ vec3 hsv_to_rgb(vec3 hsv) {
 }
 
 void main() {
+  vec2 globalCoord = gl_FragCoord.xy + tileOffset;
   vec2 st = gl_FragCoord.xy / vec2(max(textureSize(inputTex, 0), ivec2(1)));
   vec4 base = texture(inputTex, st);
   vec3 base_rgb = clamp(base.rgb, 0.0, 1.0);

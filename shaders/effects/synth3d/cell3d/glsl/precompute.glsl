@@ -1,6 +1,8 @@
 #version 300 es
 precision highp float;
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float scale;
 uniform int seed;
 uniform int metric;
@@ -79,6 +81,7 @@ vec2 cellNoise3D(vec3 p) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     // Use uniform for volume size
     int volSize = volumeSize;
     float volSizeF = float(volSize);

@@ -45,8 +45,8 @@ vec4 cloak(vec2 st) {
     float ra = map(refractAAmt, 0.0, 100.0, 0.0, 0.125);
     float rb = map(refractBAmt, 0.0, 100.0, 0.0, 0.125);
 
-    vec4 leftColor = texture(inputTex, st);
-    vec4 rightColor = texture(tex, st);
+    vec4 leftColor = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
+    vec4 rightColor = texture(tex, gl_FragCoord.xy / vec2(textureSize(tex, 0)));
 
     // When the mixer is all the way to the left, we see left refracted by right
     vec2 leftUV = vec2(st);
@@ -54,7 +54,8 @@ vec4 cloak(vec2 st) {
     leftUV.x += cos(rightLen * TAU) * ra;
     leftUV.y += sin(rightLen * TAU) * ra;
 
-    vec4 leftRefracted = texture(inputTex, fract(leftUV));
+    vec2 leftLocalUV = (leftUV * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0));
+    vec4 leftRefracted = texture(inputTex, fract(leftLocalUV));
 
     // When the mixer is all the way to the right, we see right refracted by left
     vec2 rightUV = vec2(st);
@@ -62,7 +63,8 @@ vec4 cloak(vec2 st) {
     rightUV.x += cos(leftLen * TAU) * rb;
     rightUV.y += sin(leftLen * TAU) * rb;
 
-    vec4 rightRefracted = texture(tex, fract(rightUV));
+    vec2 rightLocalUV = (rightUV * fullResolution - tileOffset) / vec2(textureSize(tex, 0));
+    vec4 rightRefracted = texture(tex, fract(rightLocalUV));
 
     // As the mixer approaches midpoint, mix the two refracted outputs using the same
     // logic as the "reflect" mode in coalesce.
@@ -76,7 +78,7 @@ vec4 cloak(vec2 st) {
         right = rightReflected;
     } else {
         left = leftReflected;
-        right = mix(rightReflected, rightRefracted, map(mixAmt, 0.0, 100.0, 0.0, 1.0));
+        right = mix(rightRefracted, rightRefracted, map(mixAmt, 0.0, 100.0, 0.0, 1.0));
     }
 
     return mix(left, right, m);
@@ -266,8 +268,8 @@ void main() {
         float ra = map(refractAAmt, 0.0, 100.0, 0.0, 0.125);
         float rb = map(refractBAmt, 0.0, 100.0, 0.0, 0.125);
 
-        vec4 leftColor = texture(inputTex, st);
-        vec4 rightColor = texture(tex, st);
+        vec4 leftColor = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
+        vec4 rightColor = texture(tex, gl_FragCoord.xy / vec2(textureSize(tex, 0)));
 
         // refract a->b
         vec2 leftUV = vec2(st);
@@ -275,7 +277,8 @@ void main() {
         leftUV.x += cos(rightLen * TAU) * ra;
         leftUV.y += sin(rightLen * TAU) * ra;
         
-        //leftUV += refract(normalize(leftColor.rgb), normalize(rightColor.rgb), refractAAmt * 0.005).xz;
+        vec2 leftLocalUV = (leftUV * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0));
+        vec4 color1 = texture(inputTex, fract(leftLocalUV));
 
         // refract b->a
         vec2 rightUV = vec2(st);
@@ -283,10 +286,8 @@ void main() {
         rightUV.x += cos(leftLen * TAU) * rb;
         rightUV.y += sin(leftLen * TAU) * rb;
 
-        //rightUV += refract(normalize(rightColor.rgb), normalize(leftColor.rgb), refractBAmt * 0.005).xz;
-
-        vec4 color1 = texture(inputTex, leftUV);
-        vec4 color2 = texture(tex, rightUV);
+        vec2 rightLocalUV = (rightUV * fullResolution - tileOffset) / vec2(textureSize(tex, 0));
+        vec4 color2 = texture(tex, fract(rightLocalUV));
 
         color.rgb = blend(color1, color2, blendMode, mixAmt);
         color.a = max(color1.a, color2.a);

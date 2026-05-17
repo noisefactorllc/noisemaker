@@ -48,6 +48,7 @@ vec2 hash2(vec2 p, float s) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 tileDims = vec2(texSize);
     vec2 resolution = fullResolution.x > 0.0 ? fullResolution : tileDims;
@@ -59,7 +60,7 @@ void main() {
     float spd = speed * 0.3;
 
     // Aspect-corrected coordinates for square Voronoi cells
-    float aspect = resolution.x / resolution.y;
+    float aspect = fullResolution.x / fullResolution.y;
     vec2 auv = vec2(globalUV.x * aspect, globalUV.y);
 
     // Scale to grid in corrected space
@@ -105,8 +106,10 @@ void main() {
         }
     }
 
-    // Convert nearest point back to UV space for texture sampling
-    vec4 cellColor = texture(inputTex, vec2(nearestPoint.x / aspect, nearestPoint.y));
+    // Convert nearest point from aspect-corrected global UV to tile-local UV for sampling
+    vec2 globalUV_sample = vec2(nearestPoint.x / aspect, nearestPoint.y);
+    vec2 localUV_sample = (globalUV_sample * resolution - tileOffset) / tileDims;
+    vec4 cellColor = texture(inputTex, localUV_sample);
 
     vec3 result;
     if (mode == 0) {

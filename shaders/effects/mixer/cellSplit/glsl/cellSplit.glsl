@@ -41,10 +41,11 @@ vec3 prng(vec3 p) {
 }
 
 void main() {
-    vec2 st = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 st = globalCoord / fullResolution;
 
-    vec4 colorA = texture(inputTex, st);
-    vec4 colorB = texture(tex, st);
+    vec4 colorA = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
+    vec4 colorB = texture(tex, gl_FragCoord.xy / vec2(textureSize(tex, 0)));
 
     // Aspect-correct, scaled coordinates using full image dimensions
     // so Voronoi cells are consistent across tiles

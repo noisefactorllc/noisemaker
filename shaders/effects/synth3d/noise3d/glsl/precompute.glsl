@@ -4,6 +4,8 @@ precision highp float;
 // OCTAVES, COLOR_MODE, RIDGES are compile-time #defines injected by the
 // expander. Baking them lets the GLSL compiler unroll the fbm4D loop and
 // dead-code-eliminate the unused color/ridges branches.
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float time;
 uniform float scale;
 uniform int seed;
@@ -147,6 +149,7 @@ float fbm4D(vec4 p) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     // Use uniform for volume size
     int volSize = volumeSize;
     float volSizeF = float(volSize);

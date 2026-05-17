@@ -6,6 +6,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform float kernel;
 uniform float size;
@@ -56,13 +58,12 @@ vec4 applyBlend(vec4 edge, vec4 orig, int mode) {
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 resolution = vec2(texSize);
-    vec2 uv = gl_FragCoord.xy / resolution;
     vec2 texelSize = 1.0 / resolution;
 
-    vec4 origColor = texture(inputTex, uv);
+    vec4 origColor = texture(inputTex, gl_FragCoord.xy * texelSize);
 
     int kernelType = int(kernel);
-    int radius = int((size + 1.0) * renderScale); // scale kernel radius for export
+    int radius = min(int((size + 1.0) * renderScale), 256);
     int blendMode = int(blend);
     bool doInvert = invert > 0.5;
     bool useLuma = channel > 0.5;
@@ -79,8 +80,9 @@ void main() {
             float w = getWeight(dx, dy, kernelType);
             if (w == 0.0) continue;
 
-            vec2 offset = vec2(float(dx), float(dy)) * texelSize;
-            vec3 s = texture(inputTex, uv + offset).rgb;
+            vec2 sampleCoord = gl_FragCoord.xy + vec2(float(dx), float(dy));
+            vec2 localUV = sampleCoord * texelSize;
+            vec3 s = texture(inputTex, localUV).rgb;
 
             if (useLuma) {
                 conv += vec3(dot(s, LUMA)) * w;

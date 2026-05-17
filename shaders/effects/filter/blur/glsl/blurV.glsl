@@ -6,6 +6,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform float radiusY;
 uniform float renderScale;
@@ -15,6 +17,7 @@ out vec4 fragColor;
 const float PI = 3.14159265359;
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
     vec2 texelSize = 1.0 / vec2(texSize);

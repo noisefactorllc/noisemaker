@@ -7,6 +7,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform int mode;        // 0: off, 1: HSV, 2: OKLab, 3: OKLCH
 uniform float rotation;
@@ -89,6 +91,7 @@ vec3 linearToSrgb(vec3 linear) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
     vec4 color = texture(inputTex, uv);

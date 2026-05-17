@@ -11,6 +11,8 @@ precision highp float;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 fullResolution;
+uniform vec2 tileOffset;
 uniform float strength;
 uniform float seed;
 
@@ -134,18 +136,19 @@ float refracted_exponential(vec2 uv, vec2 freq, vec2 px, float disp, float s) {
 }
 
 void main() {
-    vec2 dims = max(resolution, vec2(1.0));
-    vec2 px = 1.0 / dims;
-    vec2 uv = v_texCoord;
-    vec4 base_color = texture(inputTex, uv);
+    vec2 tileSize = vec2(textureSize(inputTex, 0));
+    vec2 globalCoord = v_texCoord * tileSize + tileOffset;
+    vec2 globalUV = globalCoord / fullResolution;
+    vec2 px = 1.0 / fullResolution;
+    vec4 base_color = texture(inputTex, v_texCoord);
 
     float str = max(strength, 0.0);
     float s = seed;
 
     // Multi-octave noise mask, self-refracted
-    vec2 freq_mask = freq_for_shape(5.0, dims.x, dims.y);
-    float mask_refracted = refracted_field(uv, freq_mask, px, 1.0, s + 11.0);
-    float mask_gradient = chebyshev_gradient(uv, freq_mask, px, 1.0, s + 11.0);
+    vec2 freq_mask = freq_for_shape(5.0, fullResolution.x, fullResolution.y);
+    float mask_refracted = refracted_field(globalUV, freq_mask, px, 1.0, s + 11.0);
+    float mask_gradient = chebyshev_gradient(globalUV, freq_mask, px, 1.0, s + 11.0);
     float mask_value = clamp01(mix(mask_refracted, mask_gradient, 0.125));
 
     // Blend input with dark dust using squared mask
@@ -153,15 +156,15 @@ void main() {
     vec3 dusty = mix(base_color.rgb, vec3(0.15), mask_power);
 
     // Speck overlay: dropout + exponential noise, refracted
-    vec2 freq_specks = dims * 0.1;
-    float dropout = hash21(uv * dims + vec2(s + 37.0, s * 1.37)) < 0.4 ? 1.0 : 0.0;
-    float specks_field = refracted_exponential(uv, freq_specks, px, 0.25, s + 71.0) * dropout;
+    vec2 freq_specks = fullResolution * 0.1;
+    float dropout = hash21(globalUV * fullResolution + vec2(s + 37.0, s * 1.37)) < 0.4 ? 1.0 : 0.0;
+    float specks_field = refracted_exponential(globalUV, freq_specks, px, 0.25, s + 71.0) * dropout;
     float trimmed = clamp01((specks_field - 0.3) / 0.7);
     float specks = 1.0 - sqrt(trimmed);
 
     // Sparse noise
-    float sparse_mask = hash21(uv * dims + vec2(s + 113.0, s + 171.0)) < 0.25 ? 1.0 : 0.0;
-    float sparse_noise = exponential_noise(uv, dims, s + 131.0) * sparse_mask;
+    float sparse_mask = hash21(globalUV * fullResolution + vec2(s + 113.0, s + 171.0)) < 0.25 ? 1.0 : 0.0;
+    float sparse_noise = exponential_noise(globalUV, fullResolution, s + 131.0) * sparse_mask;
 
     // Combine
     dusty = mix(dusty, vec3(sparse_noise), 0.15);

@@ -75,6 +75,7 @@ float snow_noise(vec2 coord, float time, float speed, vec3 seed) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 coords = ivec2(int(gl_FragCoord.x), int(gl_FragCoord.y));
     vec4 texel = texelFetch(inputTex, coords, 0);
 

@@ -289,6 +289,7 @@ vec2 domainWarp3D(vec2 st, float z, int iterations, float wScale, float wIntensi
 #endif
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 res = fullResolution;
     if (res.x < 1.0) res = vec2(1024.0, 1024.0);
     vec2 st = (gl_FragCoord.xy + tileOffset) / res;

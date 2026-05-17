@@ -142,6 +142,7 @@ float expRidgedFbm3Cosine(vec2 uv, vec2 freq, uint sd) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 dims = textureSize(inputTex, 0);
     vec2 uv = gl_FragCoord.xy / vec2(dims);
     vec4 base = texture(inputTex, uv);

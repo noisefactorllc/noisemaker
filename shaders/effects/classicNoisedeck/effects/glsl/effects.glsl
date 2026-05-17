@@ -227,7 +227,7 @@ vec3 posterize(vec3 color, float lev) {
 
 vec3 pixellate(vec2 uv, float size) {
     if (size < 1.0) {
-        return texture(inputTex, uv).rgb;
+        return texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0))).rgb;
     }
 
     size *= 4.0;
@@ -263,7 +263,7 @@ vec3 convolve(vec2 uv, float kernel[9], bool divide) {
 
     for(int i = 0; i < 9; i++){
         //sample a 3x3 grid of pixels
-        vec3 color = texture(inputTex, uv + offset[i] * effectAmt).rgb;
+        vec3 color = texture(inputTex, ((uv + offset[i] * effectAmt) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).rgb;
 
         // multiply the color by the kernel value and add it to our conv total
         conv += color * kernel[i];
@@ -461,7 +461,7 @@ vec3 cga(vec4 color, vec2 st) {
 
 	float amount = resolution.x / size;
 	float d = 1.0 / amount;
-	float ar = resolution.x / resolution.y;
+	float ar = fullResolution.x / fullResolution.y;
 	float sx = floor( st.x / d ) * d;
 	d = ar / amount;
 	float sy = floor( st.y / d ) * d;
@@ -696,7 +696,7 @@ void main() {
     float blendy = periodicFunction(time - offsets(uv));
 
     vec2 origUV = uv;
-    vec4 origcolor = texture(inputTex, uv);
+    vec4 origcolor = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
     color = origcolor;
 
 #if EFFECT != 0

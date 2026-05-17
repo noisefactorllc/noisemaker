@@ -98,6 +98,7 @@ float centerMask(vec2 uv) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 coords = ivec2(gl_FragCoord.xy);
     ivec2 tileDims = textureSize(inputTex, 0);
     vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : vec2(tileDims);

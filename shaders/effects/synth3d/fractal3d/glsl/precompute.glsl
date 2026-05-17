@@ -10,6 +10,8 @@ uniform float juliaX;
 uniform float juliaY;
 uniform float juliaZ;
 uniform int colorMode;
+uniform vec2 tileOffset;
+uniform float renderScale;
 
 // MRT outputs: volume cache and geometry buffer
 layout(location = 0) out vec4 fragColor;
@@ -201,21 +203,23 @@ vec3 computeFractal(vec3 p, vec3 juliaC) {
 
 void main() {
     int volSize = volumeSize;
-    float volSizeF = float(volSize);
+    int scaledVolSize = int(float(volSize) * renderScale);
+    float scaledVolSizeF = float(scaledVolSize);
     
-    ivec2 pixelCoord = ivec2(gl_FragCoord.xy);
+    vec2 globalPixelCoord = gl_FragCoord.xy + tileOffset;
+    ivec2 pixelCoord = ivec2(globalPixelCoord);
     
-    int x = pixelCoord.x;
-    int y = pixelCoord.y % volSize;
-    int z = pixelCoord.y / volSize;
+    int x = int(mod(float(pixelCoord.x), scaledVolSizeF));
+    int y = pixelCoord.y % scaledVolSize;
+    int z = pixelCoord.y / scaledVolSize;
     
-    if (x >= volSize || y >= volSize || z >= volSize) {
+    if (x >= scaledVolSize || y >= scaledVolSize || z >= scaledVolSize) {
         fragColor = vec4(0.0);
         geoOut = vec4(0.5, 0.5, 0.5, 0.0);
         return;
     }
     
-    vec3 p = (vec3(float(x), float(y), float(z)) / (volSizeF - 1.0) * 2.0 - 1.0) * 1.5;
+    vec3 p = (vec3(float(x), float(y), float(z)) / (scaledVolSizeF - 1.0) * 2.0 - 1.0) * 1.5;
     
     vec3 juliaC = vec3(juliaX, juliaY, juliaZ) * 0.01;
     

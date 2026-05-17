@@ -105,7 +105,7 @@ vec4 scanlines(vec4 color, vec2 st) {
 
     float noise = periodicFunction(bicubic(st * 4.0) - time) * map(scanlinesAmt, 0.0, 100.0, 0.0, 0.5);
 
-    float hatch = (sin(mix(st.y, st.y + noise, pow(centerDistance, 8.0)) * resolution.y * 1.5) + 1.0) * 0.5;
+    float hatch = (sin(mix(st.y, st.y + noise, pow(centerDistance, 8.0)) * fullResolution.y * 1.5) + 1.0) * 0.5;
 
     color.rgb = mix(color.rgb, color.rgb * hatch, map(scanlinesAmt, 0.0, 100.0, 0.0, 0.5));
     return color;
@@ -187,12 +187,15 @@ vec4 glitch(vec2 st) {
     float aberrationOffset = map(aberration, 0.0, 100.0, 0.0, 0.05) * centerDist * PI * 0.5;
 
     float redOffset = mix(clamp(lensedCoords.x + aberrationOffset, 0.0, 1.0), lensedCoords.x, lensedCoords.x);
-    vec4 red = texture(inputTex, vec2(redOffset, lensedCoords.y));
+    vec2 localUV_red = fract((vec2(redOffset, lensedCoords.y) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0)));
+    vec4 red = texture(inputTex, localUV_red);
 
-    vec4 green = texture(inputTex, lensedCoords);
+    vec2 localUV_green = fract((lensedCoords * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0)));
+    vec4 green = texture(inputTex, localUV_green);
 
     float blueOffset = mix(lensedCoords.x, clamp(lensedCoords.x - aberrationOffset, 0.0, 1.0), lensedCoords.x);
-    vec4 blue = texture(inputTex, vec2(blueOffset, lensedCoords.y));
+    vec2 localUV_blue = fract((vec2(blueOffset, lensedCoords.y) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0)));
+    vec4 blue = texture(inputTex, localUV_blue);
 
     return vec4(red.r, green.g, blue.b, green.a);
 }
@@ -204,9 +207,6 @@ void main() {
 	vec4 color = vec4(0.0);
 
 	float blendy = periodicFunction(time - offsets(uv));
-
-	vec4 origcolor = texture(inputTex, uv);
-    color = origcolor;
 
 	color = glitch(uv);
 	color = scanlines(color, uv);

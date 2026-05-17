@@ -8,6 +8,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform sampler2D bloomTex;
 uniform float intensity;
@@ -16,6 +18,7 @@ uniform vec3 tint;
 out vec4 fragColor;
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 coord = ivec2(gl_FragCoord.xy);
     
     // Get original scene color (HDR)

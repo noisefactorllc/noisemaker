@@ -4,6 +4,8 @@ struct Uniforms {
     resolution: vec2f,
     gridSize: i32,
     pattern: i32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -87,8 +89,8 @@ fn renderNumber(number: i32, cellUV: vec2f) -> bool {
 // Pattern 0: Numbered checkerboard
 fn checkerboard(uv: vec2f) -> vec4f {
     let n = max(uniforms.gridSize, 1);
-    let cellX = i32(uv.x * f32(n));
-    let cellY = i32(uv.y * f32(n));
+    let cellX = i32(uv.x * f32(n)) % n;
+    let cellY = i32(uv.y * f32(n)) % n;
 
     let cellNum = (n - 1 - cellY) * n + cellX;
 
@@ -140,8 +142,21 @@ fn gridLines(uv: vec2f) -> vec4f {
     let n = max(uniforms.gridSize, 1);
     let cellUV = fract(uv * f32(n));
     let edge = min(cellUV, 1.0 - cellUV);
-    let fw = fwidthFine(uv * f32(n));
-    let line = 1.0 - smoothstep(0.0, 1.5 * fw.x, edge.x) * smoothstep(0.0, 1.5 * fw.y, edge.y);
+    // Non-tiling: original fwidth-based AA (byte-identical baseline).
+    // Tiling: analytic AA width mirroring glsl/testPattern.glsl, which is
+    // seam-stable across tiles where screen-space derivatives are not.
+    let isTile = length(uniforms.tileOffset) > 0.0;
+    // fwidthFine must be evaluated in uniform control flow (function scope),
+    // so compute it unconditionally, then override only when tiling. The
+    // analytic-width divide is skipped entirely on the non-tile path.
+    var fw = fwidthFine(uv * f32(n));
+    var edgeMul = 1.5;
+    if (isTile) {
+        let fr = select(uniforms.resolution, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
+        fw = vec2f(1.0) / fr * f32(n);
+        edgeMul = 2.0;
+    }
+    let line = 1.0 - smoothstep(0.0, edgeMul * fw.x, edge.x) * smoothstep(0.0, edgeMul * fw.y, edge.y);
     return vec4f(vec3f(line), 1.0);
 }
 
@@ -156,8 +171,8 @@ fn hue2rgb(h: f32) -> vec3f {
 // Pattern 5: Each cell gets a unique hue
 fn colorGrid(uv: vec2f) -> vec4f {
     let n = max(uniforms.gridSize, 1);
-    let cellX = i32(uv.x * f32(n));
-    let cellY = i32(uv.y * f32(n));
+    let cellX = i32(uv.x * f32(n)) % n;
+    let cellY = i32(uv.y * f32(n)) % n;
     let cellIndex = cellY * n + cellX;
     let hue = fract(f32(cellIndex) * 0.618033988749895);
     return vec4f(hue2rgb(hue), 1.0);
@@ -175,7 +190,10 @@ fn dotGrid(uv: vec2f) -> vec4f {
 
 @fragment
 fn main(@builtin(position) position: vec4f) -> @location(0) vec4f {
-    let uv = position.xy / uniforms.resolution;
+    // Tile-aware global UV (mirror glsl/testPattern.glsl). Non-tiling
+    // (tileOffset=(0,0), fullResolution=resolution) is byte-identical.
+    let fr = select(uniforms.resolution, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
+    let uv = (position.xy + uniforms.tileOffset) / fr;
 
     if (uniforms.pattern == 1) {
         return colorBars(uv);

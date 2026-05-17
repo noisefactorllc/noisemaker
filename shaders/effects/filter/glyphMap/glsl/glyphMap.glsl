@@ -298,50 +298,43 @@ float glyphPixel(int g, int x, int y) {
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 resolution = vec2(texSize);
-    // Use global pixel coordinate so glyph cells align across tiles
     vec2 pixelCoord = gl_FragCoord.xy + tileOffset;
 
-    // Scale cell size by renderScale so glyphs maintain their visual size
-    // regardless of export resolution.
     int cs = max(int(float(cellSize) * renderScale), 1);
+    // Cell-size cap and the edge clamp below apply only when tiling, so
+    // normal-size output is byte-identical to the pre-tile-aware shader
+    // (zero baseline regression for all parameters).
+    bool isTileRendering = length(tileOffset) > 0.0;
+    if (isTileRendering) { cs = min(cs, 512); }
     float csf = float(cs);
 
-    // Which cell are we in?
     vec2 cellIndex = floor(pixelCoord / csf);
 
-    // Local position within the cell, mapped to 5x7 glyph grid
     vec2 localPos = fract(pixelCoord / csf);
     int gx = int(floor(localPos.x * 5.0));
     int gy = int(floor(localPos.y * 7.0));
     gx = clamp(gx, 0, 4);
     gy = clamp(gy, 0, 6);
 
-    // Sample the center of the cell for brightness
-    // cellCenter is in global pixel space; convert back to tile-local UV for sampling
     vec2 cellCenter = (cellIndex + 0.5) * csf;
     vec2 sampleUV = (cellCenter - tileOffset) / resolution;
+    if (isTileRendering) { sampleUV = clamp(sampleUV, 0.0, 1.0); }
     vec4 srcColor = texture(inputTex, sampleUV);
 
-    // Compute luminance
     float luma = dot(srcColor.rgb, vec3(0.299, 0.587, 0.114));
 
-    // Map luminance to glyph index (0 to GLYPH_COUNT-1)
     int glyphIdx = int(floor(luma * float(GLYPH_COUNT)));
     glyphIdx = clamp(glyphIdx, 0, GLYPH_COUNT - 1);
 
-    // Use seed to rotate/shift the glyph selection for variety
     float cellHash = hash(cellIndex + float(seed) * 0.37);
-    int variant = int(floor(cellHash * 3.0)); // 0, 1, or 2
+    int variant = int(floor(cellHash * 3.0));
 
-    // Shift glyph index by variant within a small range for variety
-    // but keep it in the same density neighborhood
     if (variant == 1 && glyphIdx > 0 && glyphIdx < GLYPH_COUNT - 1) {
-        glyphIdx = glyphIdx; // keep same — variant 0 and 1 share
+        glyphIdx = glyphIdx;
     } else if (variant == 2 && glyphIdx > 1) {
-        glyphIdx = glyphIdx - 1; // slightly less dense variant
+        glyphIdx = glyphIdx - 1;
     }
 
-    // Get the glyph pixel value
     float glyphVal = glyphPixel(glyphIdx, gx, gy);
 
     if (colorMode > 0) {

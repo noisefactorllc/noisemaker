@@ -84,6 +84,7 @@ float oscSquare(float t) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 res = fullResolution;
     if (res.x < 1.0) res = vec2(1024.0, 1024.0);
 

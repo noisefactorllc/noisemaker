@@ -8,6 +8,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform int smoothType;
 uniform float threshold;
@@ -21,6 +23,7 @@ float luminance(vec3 rgb) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
     ivec2 coord = ivec2(gl_FragCoord.xy);
 

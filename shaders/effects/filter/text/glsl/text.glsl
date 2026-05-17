@@ -10,16 +10,19 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D textTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform vec3 matteColor;
 uniform float matteOpacity;
 
 out vec4 fragColor;
 
 void main() {
-    vec2 st = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 st = globalCoord / fullResolution;
 
-    vec4 inputColor = texture(inputTex, st);
-    vec4 text = texture(textTex, st);
+    vec4 inputColor = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
+    vec4 text = texture(textTex, gl_FragCoord.xy / vec2(textureSize(textTex, 0)));
 
     // Text presence from canvas alpha
     float textPresence = text.a;

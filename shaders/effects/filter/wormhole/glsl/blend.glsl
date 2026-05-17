@@ -9,15 +9,18 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D accumTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float alpha;
 
 out vec4 fragColor;
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution;
 
-    vec4 src = texture(inputTex, uv);
-    vec4 accum = texture(accumTex, uv);
+    vec4 src = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
+    vec4 accum = texture(accumTex, gl_FragCoord.xy / vec2(textureSize(accumTex, 0)));
 
     // Estimate mean of accum buffer from 32x32 grid (1024 samples).
     // Mean is robust to sparse sampling unlike min/max.

@@ -16,6 +16,9 @@ uniform float speedA;
 uniform float speedB;
 uniform float time;
 uniform int volumeSize;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
+uniform float renderScale;
 
 // MRT outputs: volume cache and geometry buffer
 layout(location = 0) out vec4 fragColor;
@@ -189,9 +192,10 @@ float computeValue(vec3 p, float lf1, float lf2) {
 }
 
 void main() {
-    // Convert 2D fragment position to 3D volume coordinates
+    // Convert 2D fragment position to 3D volume coordinates using tile-local coordinates
     int volSize = volumeSize;
     float volSizeF = float(volSize);
+    
     int x = int(gl_FragCoord.x);
     int yAtlas = int(gl_FragCoord.y);
     int y = yAtlas % volSize;

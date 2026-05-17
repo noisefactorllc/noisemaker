@@ -130,10 +130,11 @@ float spiralPattern(vec2 p, float t) {
 }
 
 void main() {
-    vec2 st = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 st = globalCoord / fullResolution;
 
-    vec4 colorA = texture(inputTex, st);
-    vec4 colorB = texture(tex, st);
+    vec4 colorA = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
+    vec4 colorB = texture(tex, gl_FragCoord.xy / vec2(textureSize(tex, 0)));
 
     // Center and aspect-correct using full image coordinates
     vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;

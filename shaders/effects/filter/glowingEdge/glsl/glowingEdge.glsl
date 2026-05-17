@@ -7,6 +7,8 @@ precision highp int;
 
 uniform sampler2D inputTex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform float alpha;
 uniform float sobelMetric;
 uniform float width;
@@ -33,21 +35,22 @@ float distance_metric(float gx, float gy, int metric) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution;
     vec2 texel = width / resolution;
 
     // Sample base color
-    vec4 base = texture(inputTex, uv);
+    vec4 base = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
 
     // Sample 3x3 neighborhood for Sobel
-    float tl = luminance(texture(inputTex, uv + vec2(-texel.x, -texel.y)).rgb);
-    float tc = luminance(texture(inputTex, uv + vec2(0.0, -texel.y)).rgb);
-    float tr = luminance(texture(inputTex, uv + vec2(texel.x, -texel.y)).rgb);
-    float ml = luminance(texture(inputTex, uv + vec2(-texel.x, 0.0)).rgb);
-    float mr = luminance(texture(inputTex, uv + vec2(texel.x, 0.0)).rgb);
-    float bl = luminance(texture(inputTex, uv + vec2(-texel.x, texel.y)).rgb);
-    float bc = luminance(texture(inputTex, uv + vec2(0.0, texel.y)).rgb);
-    float br = luminance(texture(inputTex, uv + vec2(texel.x, texel.y)).rgb);
+    float tl = luminance(texture(inputTex, ((uv + vec2(-texel.x, -texel.y)) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).rgb);
+    float tc = luminance(texture(inputTex, ((uv + vec2(0.0, -texel.y)) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).rgb);
+    float tr = luminance(texture(inputTex, ((uv + vec2(texel.x, -texel.y)) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).rgb);
+    float ml = luminance(texture(inputTex, ((uv + vec2(-texel.x, 0.0)) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).rgb);
+    float mr = luminance(texture(inputTex, ((uv + vec2(texel.x, 0.0)) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).rgb);
+    float bl = luminance(texture(inputTex, ((uv + vec2(-texel.x, texel.y)) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).rgb);
+    float bc = luminance(texture(inputTex, ((uv + vec2(0.0, texel.y)) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).rgb);
+    float br = luminance(texture(inputTex, ((uv + vec2(texel.x, texel.y)) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).rgb);
 
     // Sobel kernels
     float gx = -tl - 2.0*ml - bl + tr + 2.0*mr + br;

@@ -306,7 +306,7 @@ float warped_channel_value(
     float noise_value = compute_noise_value(coord, width, height, freq, time, speed, channel);
     float centered = (noise_value * 2.0 - 1.0) * mask;
     float angle = centered * TAU;
-    vec2 offset = vec2(cos(angle), sin(angle)) * displacement * vec2(width, height);
+    vec2 offset = vec2(cos(angle), sin(angle)) * displacement * vec2(resolution.x, resolution.y);
 
     // Rotate offset by direction
     float dirRad = direction * TAU / 360.0;
@@ -315,7 +315,7 @@ float warped_channel_value(
     offset = vec2(offset.x * dc - offset.y * ds, offset.x * ds + offset.y * dc);
     
     vec2 sample_pos = base_pos + offset;
-    vec4 sampled = sample_bilinear(sample_pos, width, height);
+    vec4 sampled = sample_bilinear(sample_pos, resolution.x, resolution.y);
     
     if (channel == 0u) return sampled.r;
     if (channel == 1u) return sampled.g;
@@ -351,9 +351,16 @@ void main() {
         return;
     }
 
+    float renderScale = fullResolution.x > 0.0 ? fullResolution.x / max(resolution.x, 1.0) : 1.0;
+    bool isTiling = renderScale > 1.01;
+    float maxOffsetPixels = isTiling ? 256.0 : max(resolution.x, resolution.y);
+    float maxAllowedDisplacement = maxOffsetPixels / max(resolution.x, 1.0);
+    float clampedDisplacement = min(displacement, maxAllowedDisplacement);
+
     vec2 freq = freq_for_shape(2.0, width_f, height_f);
     vec2 base_pos = vec2(float(global_id.x), float(global_id.y));
-    uvec2 coord = global_id.xy;
+    vec2 globalCoordVec = vec2(float(global_id.x), float(global_id.y)) + tileOffset;
+    uvec2 coord = uvec2(globalCoordVec);
 
     float red = warped_channel_value(
         0u,
@@ -362,7 +369,7 @@ void main() {
         width_f,
         height_f,
         freq,
-        displacement,
+        clampedDisplacement,
         mask,
         time,
         speed
@@ -374,7 +381,7 @@ void main() {
         width_f,
         height_f,
         freq,
-        displacement,
+        clampedDisplacement,
         mask,
         time,
         speed
@@ -386,7 +393,7 @@ void main() {
         width_f,
         height_f,
         freq,
-        displacement,
+        clampedDisplacement,
         mask,
         time,
         speed

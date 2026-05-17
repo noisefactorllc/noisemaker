@@ -12,6 +12,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 
 // Color mode: 0=RGB, 1=HSV, 2=OkLab, 3=OKLCH
@@ -137,6 +139,7 @@ vec3 cosinePalette(float t, vec3 offset, vec3 amp, vec3 freq, vec3 phase) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     // Calculate UV from gl_FragCoord
     vec2 texSize = vec2(textureSize(inputTex, 0));
     vec2 uv = gl_FragCoord.xy / texSize;

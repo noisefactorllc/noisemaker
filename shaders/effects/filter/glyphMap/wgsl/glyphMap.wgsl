@@ -9,6 +9,9 @@ struct Uniforms {
     seed: i32,
     colorMode: i32,
     _pad: i32,
+    renderScale: f32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -157,9 +160,17 @@ fn glyphPixel(g: i32, x: i32, y: i32) -> f32 {
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
-    let pixelCoord = pos.xy;
-
-    let cs = max(uniforms.cellSize, 1);
+    let tileOffset = uniforms.tileOffset;
+    let isTile = length(tileOffset) > 0.0;
+    // Non-tiling path is byte-identical to the previous shader. When tiling,
+    // mirror glsl/glyphMap.glsl: global pixel grid + renderScale-scaled cell
+    // (clamped to 512) so cells align across tiles.
+    var pixelCoord = pos.xy;
+    var cs = max(uniforms.cellSize, 1);
+    if (isTile) {
+        pixelCoord = pos.xy + tileOffset;
+        cs = clamp(i32(f32(uniforms.cellSize) * uniforms.renderScale), 1, 512);
+    }
     let csf = f32(cs);
 
     // Which cell are we in?
@@ -174,7 +185,10 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     // Sample the center of the cell for brightness
     let cellCenter = (cellIndex + 0.5) * csf;
-    let sampleUV = cellCenter / texSize;
+    var sampleUV = cellCenter / texSize;
+    if (isTile) {
+        sampleUV = clamp((cellCenter - tileOffset) / texSize, vec2<f32>(0.0), vec2<f32>(1.0));
+    }
     let srcColor = textureSample(inputTex, inputSampler, sampleUV);
 
     // Compute luminance

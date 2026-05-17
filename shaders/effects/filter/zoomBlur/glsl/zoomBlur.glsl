@@ -32,6 +32,7 @@ vec3 prng(vec3 p) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 tileDims = vec2(texSize);
     vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : tileDims;

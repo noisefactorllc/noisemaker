@@ -15,7 +15,7 @@
  */
 
 struct Uniforms {
-    data: array<vec4<f32>, 6>,
+    data: array<vec4<f32>, 7>,
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -177,6 +177,13 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let outputMode = uniforms.data[5].x;
     let invertU = uniforms.data[5].y;
 
+    // Tile-aware global coords (mirror glsl/newton.glsl). When not tiling the
+    // engine supplies tileOffset=(0,0) and fullResolution=resolution, so the
+    // transform below is byte-identical to the previous shader.
+    let tileOffset = uniforms.data[6].xy;
+    let fullResolution = uniforms.data[6].zw;
+    let frRes = select(resolution, fullResolution, fullResolution.x > 0.0);
+
     let maxIter = i32(iterations);
     let poiIdx = i32(poiU);
     let outMode = i32(outputMode);
@@ -221,9 +228,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     // --- df64 coordinate transform ---
 
-    let coords = transformCoords_df64(pos.xy,
+    let coords = transformCoords_df64(pos.xy + tileOffset,
         vec2<f32>(cHi.x, cLo.x), vec2<f32>(cHi.y, cLo.y),
-        resolution, zoom, rotationU);
+        frRes, zoom, rotationU);
 
     // --- Compute roots of z^n - 1 ---
 

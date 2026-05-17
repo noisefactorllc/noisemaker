@@ -72,8 +72,8 @@ void main() {
     uv = rotate2D(uv, -rotation / 180.0, aspectRatio);
 
     // Convert distorted global UV back to tile-local for texture sampling.
-    // Clamp to tile bounds so wrap modes don't sample past tile coverage.
-    vec2 sampleUV = clamp((uv * fullResolution - tileOffset) / resolution, 0.0, 1.0);
+    // Use fract() to seamlessly wrap samples at tile boundaries.
+    vec2 sampleUV = fract((uv * fullResolution - tileOffset) / resolution);
 
     if (antialias) {
         // 4x supersample using distortion derivatives for adaptive spread

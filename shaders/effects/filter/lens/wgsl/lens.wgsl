@@ -1,6 +1,13 @@
 /*
  * Lens distortion (barrel/pincushion)
- * Warps sample coordinates radially around the frame center
+ * Warps sample coordinates radially around the frame center.
+ *
+ * Tile-aware, mirroring glsl/lens.glsl. The non-tiling path
+ * (tileOffset=(0,0)) is byte-identical to the previous shader, so
+ * normal-size output is unchanged (zero baseline regression by
+ * construction). When tiling, distortion is computed in GLOBAL frame
+ * coordinates and the per-tile displacement is clamped to <=256px so the
+ * sample stays within the tile overlap.
  */
 
 struct Uniforms {
@@ -8,6 +15,8 @@ struct Uniforms {
     aspectLens: i32,
     antialias: i32,
     _pad3: f32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -19,7 +28,12 @@ const HALF_FRAME: f32 = 0.5;
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
-    let uv = pos.xy / texSize;
+    let tileOffset = uniforms.tileOffset;
+    let dims = select(texSize, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
+    let isTile = length(tileOffset) > 0.0;
+
+    // Global UV when tiling; identical to pos.xy/texSize when not.
+    let uv = (pos.xy + tileOffset) / dims;
 
     // Zoom for negative displacement (pincushion)
     var zoom: f32 = 0.0;
@@ -28,7 +42,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
 
     // Distance from center, optionally aspect-corrected for circular distortion
-    let aspect = texSize.x / texSize.y;
+    let aspect = dims.x / dims.y;
     let dist = uv - HALF_FRAME;
     var aDist = dist;
     if (uniforms.aspectLens != 0) { aDist.x = aDist.x * aspect; }
@@ -48,8 +62,30 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Convert displacement back to UV space
     if (uniforms.aspectLens != 0) { displacement.x = displacement.x / aspect; }
 
-    let offset = fract(uv - displacement);
+    if (isTile) {
+        // Limit displacement so the sample stays within the tile overlap.
+        let maxDispPixels = 256.0;
+        let dispPixels = length(displacement * dims);
+        if (dispPixels > maxDispPixels) {
+            displacement = displacement * (maxDispPixels / dispPixels);
+        }
+        let warpedGlobalUV = uv - displacement;
+        let offset = (warpedGlobalUV * dims - tileOffset) / texSize;
+        if (uniforms.antialias != 0) {
+            let dx = dpdx(offset);
+            let dy = dpdy(offset);
+            var col = vec4<f32>(0.0);
+            col += textureSample(inputTex, inputSampler, offset + dx * -0.375 + dy * -0.125);
+            col += textureSample(inputTex, inputSampler, offset + dx *  0.125 + dy * -0.375);
+            col += textureSample(inputTex, inputSampler, offset + dx *  0.375 + dy *  0.125);
+            col += textureSample(inputTex, inputSampler, offset + dx * -0.125 + dy *  0.375);
+            return col * 0.25;
+        }
+        return textureSample(inputTex, inputSampler, offset);
+    }
 
+    // Non-tiling path: byte-identical to the previous shader.
+    let offset = fract(uv - displacement);
     if (uniforms.antialias != 0) {
         let dx = dpdx(offset);
         let dy = dpdy(offset);
@@ -59,7 +95,6 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         col += textureSample(inputTex, inputSampler, offset + dx *  0.375 + dy *  0.125);
         col += textureSample(inputTex, inputSampler, offset + dx * -0.125 + dy *  0.375);
         return col * 0.25;
-    } else {
-        return textureSample(inputTex, inputSampler, offset);
     }
+    return textureSample(inputTex, inputSampler, offset);
 }

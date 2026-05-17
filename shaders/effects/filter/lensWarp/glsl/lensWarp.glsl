@@ -76,6 +76,10 @@ void main() {
     float aspectRatio = fullRes.x / fullRes.y;
     vec2 uv = (gl_FragCoord.xy + tileOffset) / fullRes;
 
+    // Clamp displacement to stay within overlap and avoid seams
+    float maxDisplacementUV = 256.0 / fullRes.x;
+    float clampedDisplacement = clamp(displacement, -maxDisplacementUV, maxDisplacementUV);
+
     // Singularity mask: distance from center, pow(5)
     // Concentrates warp at edges, center stays stable
     vec2 delta = abs(uv - vec2(0.5));
@@ -89,22 +93,35 @@ void main() {
     float noiseY = perlinNoise(noiseCoord + 97.0, vec2(2.0));
 
     // Apply displacement, masked to edges
-    uv.x += (noiseX - 0.5) * displacement * mask;
-    uv.y += (noiseY - 0.5) * displacement * mask;
+    uv.x += (noiseX - 0.5) * clampedDisplacement * mask;
+    uv.y += (noiseY - 0.5) * clampedDisplacement * mask;
 
     // Wrap (mirror)
     uv = abs(mod(uv + 1.0, 2.0) - 1.0);
+
+    // Convert to local UV for tile-aware sampling
+    vec2 localUV = (uv * fullRes - tileOffset) / resolution;
+    localUV = clamp(localUV, 0.0, 1.0);
 
     if (antialias) {
         vec2 dx = dFdx(uv);
         vec2 dy = dFdy(uv);
         vec4 col = vec4(0.0);
-        col += texture(inputTex, uv + dx * -0.375 + dy * -0.125);
-        col += texture(inputTex, uv + dx *  0.125 + dy * -0.375);
-        col += texture(inputTex, uv + dx *  0.375 + dy *  0.125);
-        col += texture(inputTex, uv + dx * -0.125 + dy *  0.375);
+        
+        vec2 sUV = ((uv + dx * -0.375 + dy * -0.125) * fullRes - tileOffset) / resolution;
+        col += texture(inputTex, clamp(sUV, 0.0, 1.0));
+        
+        sUV = ((uv + dx *  0.125 + dy * -0.375) * fullRes - tileOffset) / resolution;
+        col += texture(inputTex, clamp(sUV, 0.0, 1.0));
+        
+        sUV = ((uv + dx *  0.375 + dy *  0.125) * fullRes - tileOffset) / resolution;
+        col += texture(inputTex, clamp(sUV, 0.0, 1.0));
+        
+        sUV = ((uv + dx * -0.125 + dy *  0.375) * fullRes - tileOffset) / resolution;
+        col += texture(inputTex, clamp(sUV, 0.0, 1.0));
+        
         fragColor = col * 0.25;
     } else {
-        fragColor = texture(inputTex, uv);
+        fragColor = texture(inputTex, localUV);
     }
 }

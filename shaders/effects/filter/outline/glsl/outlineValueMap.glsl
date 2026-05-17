@@ -5,6 +5,8 @@ precision highp int;
 
 // Outline value map pass - convert input to luminance for edge detection
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 
 out vec4 fragColor;
@@ -41,6 +43,7 @@ float valueMapComponent(vec4 texel) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 dimensions = textureSize(inputTex, 0);
     vec2 uv = (gl_FragCoord.xy - vec2(0.5)) / vec2(max(dimensions.x, 1), max(dimensions.y, 1));
     vec4 texel = texture(inputTex, uv);

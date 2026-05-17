@@ -100,6 +100,7 @@ vec3 applyVignette(vec3 rgb, float vignetteMask, float amount, float highlightPr
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 texSize = vec2(textureSize(inputTex, 0));
     vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : texSize;
     vec2 uv = gl_FragCoord.xy / texSize;

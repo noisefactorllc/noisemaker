@@ -8,6 +8,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform int paletteIndex;
 uniform int rotation;   // -1 = backward, 0 = none, 1 = forward
@@ -492,6 +494,7 @@ vec3 cosinePalette(float t, vec3 amp, vec3 freq, vec3 offset, vec3 phase) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     // Calculate UV from gl_FragCoord
     vec2 texSize = vec2(textureSize(inputTex, 0));
     vec2 uv = gl_FragCoord.xy / texSize;

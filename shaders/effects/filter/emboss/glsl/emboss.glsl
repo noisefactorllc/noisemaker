@@ -7,6 +7,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform float amount;
 uniform float renderScale;
@@ -14,12 +16,13 @@ uniform float renderScale;
 out vec4 fragColor;
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 resolution = vec2(texSize);
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 uv = globalCoord / fullResolution;
     vec2 texelSize = 1.0 / resolution;
     
-    vec4 origColor = texture(inputTex, uv);
+    vec4 origColor = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
     
     // Emboss kernel
     // -2 -1  0
@@ -44,7 +47,7 @@ void main() {
     vec3 conv = vec3(0.0);
     
     for (int i = 0; i < 9; i++) {
-        vec3 texSample = texture(inputTex, uv + offsets[i] * amount * renderScale).rgb;
+        vec3 texSample = texture(inputTex, ((uv + offsets[i] * amount * renderScale) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).rgb;
         conv += texSample * kernel[i];
     }
     

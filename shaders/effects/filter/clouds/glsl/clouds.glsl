@@ -83,6 +83,7 @@ float cloudNoise(vec2 uv, float baseFreq, int octaves, float animPhase, float an
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 tileDims = vec2(texSize);
     vec2 resolution = fullResolution.x > 0.0 ? fullResolution : tileDims;
@@ -92,7 +93,7 @@ void main() {
     vec4 inputColor = texture(inputTex, uv);
 
     // Scale UV for cloud size, aspect-correct, offset by seed
-    float aspect = resolution.x / resolution.y;
+    float aspect = fullResolution.x / fullResolution.y;
     vec2 seedOffset = vec2(seed * 17.31, seed * 23.71);
 
     // Animation phase (loops at 0-1 time boundary)

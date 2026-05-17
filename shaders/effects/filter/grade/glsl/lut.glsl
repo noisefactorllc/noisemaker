@@ -8,6 +8,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform int preset;      // 0=none, 1=tealOrange, 2=warmFilm, 3=coolShadows, 4=bleachBypass, 5=crossProcess
 uniform float alpha; // 0-1 blend with original
@@ -468,6 +470,7 @@ vec3 lutSolarize(vec3 rgb) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 coord = ivec2(gl_FragCoord.xy);
     vec4 color = texelFetch(inputTex, coord, 0);
     

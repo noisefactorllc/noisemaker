@@ -190,7 +190,7 @@ vec4 getImage(vec2 st) {
        }
     }
     
-    vec4 text = texture(imageTex, st);
+    vec4 text = texture(imageTex, gl_FragCoord.xy / vec2(textureSize(imageTex, 0)));
 
     if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) {
         // Don't draw texture if out of coordinate bounds

@@ -18,10 +18,11 @@ out vec4 fragColor;
 #define PI 3.14159265359
 
 void main() {
-    vec2 st = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 st = globalCoord / fullResolution;
 
-    vec4 colorA = texture(inputTex, st);
-    vec4 colorB = texture(tex, st);
+    vec4 colorA = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
+    vec4 colorB = texture(tex, gl_FragCoord.xy / vec2(textureSize(tex, 0)));
 
     vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
     float aspect = fullRes.x / fullRes.y;

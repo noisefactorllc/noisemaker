@@ -5,6 +5,8 @@ precision highp int;
 const uint CHANNEL_COUNT = 4u;
 const uint CHANNEL_CAP = 4u;
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform vec4 size;
 uniform vec4 motion;
@@ -110,6 +112,7 @@ float compute_reference_value(ivec2 coords, uint channelCount) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     uvec3 global_id = uvec3(uint(gl_FragCoord.x), uint(gl_FragCoord.y), 0u);
 
     uint width = as_u32(size.x);

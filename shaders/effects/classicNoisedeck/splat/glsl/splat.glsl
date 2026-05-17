@@ -122,7 +122,7 @@ void main() {
 	vec2 globalCoord = gl_FragCoord.xy + tileOffset;
 	vec2 uv = globalCoord / fullResolution;
 
-	vec4 color = texture(inputTex, uv);
+	vec4 color = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
 
     vec2 noiseCoord = uv * vec2(aspectRatio, 1.0);
 
@@ -132,7 +132,7 @@ void main() {
         if (speckMode == 0) {
             color.rgb = mix(color.rgb, speckColor, speckMask); // color
         } else if (speckMode == 1) {
-            color = texture(inputTex, uv + speckMask * 0.1); // displace
+            color = texture(inputTex, ((uv + speckMask * 0.1) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))); // displace
         } else if (speckMode == 2) {
             color.rgb = mix(color.rgb, 1.0 - color.rgb, speckMask); // invert
         } else if (speckMode == 3) {
@@ -146,7 +146,7 @@ void main() {
         if (mode == 0) {
             color.rgb = mix(color.rgb, splatColor, splatMask); // color
         } else if (mode == 1) {
-            vec4 texColor = texture(inputTex, uv + splatMask * 0.1); // displace
+            vec4 texColor = texture(inputTex, ((uv + splatMask * 0.1) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))); // displace
             color = mix(color, texColor, splatMask);
         } else if (mode == 2) {
             color.rgb = mix(color.rgb, 1.0 - color.rgb, splatMask); // invert

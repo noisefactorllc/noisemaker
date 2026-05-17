@@ -6,6 +6,8 @@ precision highp int;
 // Ridge effect.
 // Parameterized ridge transform with configurable midpoint level.
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform float level;
 
@@ -18,6 +20,7 @@ vec4 ridge_transform(vec4 value, float lvl) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 dims = textureSize(inputTex, 0);
     vec2 uv = gl_FragCoord.xy / vec2(dims);
 

@@ -18,6 +18,7 @@ uniform float distortion;
 uniform float noise;
 uniform float mode;
 uniform float time;
+uniform float renderScale;
 
 out vec4 fragColor;
 
@@ -314,21 +315,23 @@ void main() {
         return;
     }
 
-    // Use full image dimensions for pattern generation so scanlines align across tiles
-    vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : vec2(input_size);
+    // Compute canvas resolution for tile-aware rendering
+    vec2 fullRes = fullResolution.x > 0.0 ? (fullResolution / renderScale) : vec2(input_size);
     float width_f = fullRes.x;
     float height_f = fullRes.y;
     vec2 dims = vec2(width_f, height_f);
-    // Global pixel coordinate for pattern computation
-    uvec2 globalGid = uvec2(gid.x + uint(tileOffset.x), gid.y + uint(tileOffset.y));
+    
+    // Global pixel coordinate for pattern generation and sampling
+    vec2 globalGid_f = vec2(float(gid.x) + tileOffset.x, float(gid.y) + tileOffset.y);
+    uvec2 globalGid = uvec2(uint(globalGid_f.x), uint(globalGid_f.y));
     float time_value = time + timeOffset;
     float speed_value = max(speed, 0.0);
     int m = int(mode);
 
     if (m == 1) {
         // VHS mode
-        float yNorm = (float(globalGid.y) + 0.5) / height_f;
-        float xNorm = (float(globalGid.x) + 0.5) / width_f;
+        float yNorm = (float(globalGid.y) + 0.5) / fullResolution.y;
+        float xNorm = (float(globalGid.x) + 0.5) / fullResolution.x;
         vec2 destCoord = vec2(xNorm, yNorm);
 
         float gradDest = vhs_gradValue(yNorm, 5.0, time_value, speed_value);
@@ -343,12 +346,18 @@ void main() {
 
         float scanDest = vhs_scanNoise(destCoord, scanFreq, time_value, speed_value * 100.0);
 
-        float shiftAmount = floor(scanDest * width_f * gradDest * gradDest * distortion);
-        int srcX = wrap_coord(int(globalGid.x) - int(shiftAmount), int(tile_width));
+        float fullWidth = fullResolution.x > 0.0 ? fullResolution.x : width_f;
+        float shiftAmount = floor(scanDest * fullWidth * gradDest * gradDest * distortion);
+        
+        float globalSampleX = float(globalGid.x) - shiftAmount;
+        int wrappedGlobalX = wrap_coord(int(globalSampleX), int(fullWidth));
+        int localSampleX = wrappedGlobalX - int(tileOffset.x);
+        if (localSampleX < 0) localSampleX += int(tile_width);
+        localSampleX = clamp(localSampleX, 0, int(tile_width) - 1);
 
-        vec4 srcTexel = texelFetch(inputTex, ivec2(srcX, int(gid.y)), 0);
+        vec4 srcTexel = texelFetch(inputTex, ivec2(localSampleX, int(gid.y)), 0);
 
-        float srcXNorm = (float(srcX) + 0.5) / width_f;
+        float srcXNorm = (float(wrappedGlobalX) + 0.5) / fullResolution.x;
         float scanSource = vhs_scanNoise(vec2(srcXNorm, yNorm), scanFreq, time_value, speed_value * 100.0);
         float gradSource = vhs_gradValue(yNorm, 5.0, time_value, speed_value);
 
@@ -392,11 +401,17 @@ void main() {
         float white_weighted = white_base * swerve_weight;
 
         float combined_error = clamp01(line_weighted + white_weighted);
-        float shift_amount = combined_error * width_f * 0.025 * distortion;
+        float fullWidth = fullResolution.x > 0.0 ? fullResolution.x : width_f;
+        float shift_amount = combined_error * fullWidth * 0.025 * distortion;
         int shift_pixels = int(floor(shift_amount));
-        int sample_x = wrap_coord(int(globalGid.x) - shift_pixels, int(tile_width));
+        
+        float globalSampleX = float(globalGid.x) - float(shift_pixels);
+        int wrappedGlobalX = wrap_coord(int(globalSampleX), int(fullWidth));
+        int localSampleX = wrappedGlobalX - int(tileOffset.x);
+        if (localSampleX < 0) localSampleX += int(tile_width);
+        localSampleX = clamp(localSampleX, 0, int(tile_width) - 1);
 
-        vec4 texel = texelFetch(inputTex, ivec2(sample_x, int(gid.y)), 0);
+        vec4 texel = texelFetch(inputTex, ivec2(localSampleX, int(gid.y)), 0);
 
         float additive = clamp(line_weighted * white_weighted * 4.0 * noise, 0.0, 4.0);
         vec3 boosted = clamp(texel.rgb + vec3(additive), vec3(0.0), vec3(1.0));

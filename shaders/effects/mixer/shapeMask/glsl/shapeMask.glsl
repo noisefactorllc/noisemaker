@@ -78,10 +78,11 @@ float sdfRing(vec2 p, float r) {
 }
 
 void main() {
-    vec2 st = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 st = globalCoord / fullResolution;
 
-    vec4 colorA = texture(inputTex, st);
-    vec4 colorB = texture(tex, st);
+    vec4 colorA = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
+    vec4 colorB = texture(tex, gl_FragCoord.xy / vec2(textureSize(tex, 0)));
 
     // Centered, aspect-correct coordinates using full image dimensions
     vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;

@@ -14,6 +14,7 @@ uniform int seed;
 uniform vec2 resolution;
 uniform vec2 tileOffset;
 uniform vec2 fullResolution;
+uniform float renderScale;
 uniform int metric;
 uniform float scale;
 uniform float cellScale;

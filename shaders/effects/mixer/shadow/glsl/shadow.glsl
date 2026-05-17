@@ -13,6 +13,9 @@ precision highp float;
 uniform sampler2D inputTex;
 uniform sampler2D tex;
 uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
+uniform float renderScale;
 uniform int maskSource;
 uniform int sourceChannel;
 uniform float threshold;
@@ -34,47 +37,53 @@ float getChannel(vec4 color, int channel) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution;
 
     // Base image is the non-mask source
-    vec4 baseColor = (maskSource == 0) ? texture(tex, uv) : texture(inputTex, uv);
+    vec4 baseColor = (maskSource == 0) ? texture(tex, gl_FragCoord.xy / vec2(textureSize(tex, 0))) : texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
 
-    // Mask UV shifted by shadow offset
-    vec2 maskUV = uv - vec2(offsetX, offsetY) * 0.1;
+    // Mask UV shifted by shadow offset, scaled for print resolution
+    vec2 maskUV = uv - vec2(offsetX, offsetY) * 0.1 * renderScale;
 
     // Gaussian blur of thresholded mask
     float shadowMask = 0.0;
     float totalWeight = 0.0;
 
-    float sigma = max(blur, 0.001);
+    // Scale blur by renderScale and cap at overlap
+    float blurPixels = min(blur * renderScale, 256.0);
+    float sigma = max(blurPixels, 0.001);
     float sigma2 = 2.0 * sigma * sigma;
 
     for (int x = -5; x <= 5; x++) {
         for (int y = -5; y <= 5; y++) {
-            vec2 offset = vec2(float(x), float(y)) * blur / resolution;
+            vec2 offset = vec2(float(x), float(y)) * blurPixels / resolution;
             vec2 sampleUV = maskUV + offset;
+
+            // Convert global UV to local UV for tile-local texture sampling
+            vec2 localUV = (sampleUV * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0));
 
             // Apply wrap mode to sample UVs
             float thresholded = 0.0;
             if (wrap == 0) {
                 // hide: treat out-of-bounds as empty
-                if (sampleUV.x >= 0.0 && sampleUV.x <= 1.0 && sampleUV.y >= 0.0 && sampleUV.y <= 1.0) {
+                if (localUV.x >= 0.0 && localUV.x <= 1.0 && localUV.y >= 0.0 && localUV.y <= 1.0) {
                     vec4 maskSample = (maskSource == 0)
-                        ? texture(inputTex, sampleUV)
-                        : texture(tex, sampleUV);
+                        ? texture(inputTex, localUV)
+                        : texture(tex, localUV);
                     thresholded = step(threshold, getChannel(maskSample, sourceChannel));
                 }
             } else {
-                vec2 wrappedUV = sampleUV;
+                vec2 wrappedUV = localUV;
                 if (wrap == 1) {
                     // mirror
-                    wrappedUV = abs(mod(sampleUV + 1.0, 2.0) - 1.0);
+                    wrappedUV = abs(mod(localUV + 1.0, 2.0) - 1.0);
                 } else if (wrap == 2) {
                     // repeat
-                    wrappedUV = fract(sampleUV);
+                    wrappedUV = fract(localUV);
                 } else {
                     // clamp
-                    wrappedUV = clamp(sampleUV, 0.0, 1.0);
+                    wrappedUV = clamp(localUV, 0.0, 1.0);
                 }
                 vec4 maskSample = (maskSource == 0)
                     ? texture(inputTex, wrappedUV)
@@ -99,8 +108,8 @@ void main() {
 
     // Composite mask source (foreground) on top of the shadow
     vec4 fgSample = (maskSource == 0)
-        ? texture(inputTex, uv)
-        : texture(tex, uv);
+        ? texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)))
+        : texture(tex, gl_FragCoord.xy / vec2(textureSize(tex, 0)));
     float fgMask = step(threshold, getChannel(fgSample, sourceChannel));
     vec3 result = mix(withShadow, fgSample.rgb, fgMask);
 

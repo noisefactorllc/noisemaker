@@ -5,6 +5,9 @@ precision highp int;
 
 // Reindex Pass 3 (Apply): remap pixels using previously computed global min/max.
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
+uniform vec2 resolution;
 uniform sampler2D inputTex;
 uniform sampler2D statsTex;
 uniform float uDisplacement;
@@ -51,23 +54,6 @@ float value_map_component(vec4 texel) {
     return oklab_l_component(texel.xyz);
 }
 
-float wrap_float(float value, float range) {
-    if (range <= 0.0) {
-        return 0.0;
-    }
-    return value - range * floor(value / range);
-}
-
-int wrap_index(float value, int dimension) {
-    if (dimension <= 0) {
-        return 0;
-    }
-    float dimension_f = float(dimension);
-    float wrapped = wrap_float(value, dimension_f);
-    float max_index = float(dimension - 1);
-    return int(clamp(floor(wrapped), 0.0, max_index));
-}
-
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
     ivec2 pixel = ivec2(gl_FragCoord.xy);
@@ -90,8 +76,14 @@ void main() {
 
     float modRange = float(min(texSize.x, texSize.y));
     float offsetValue = normalized * uDisplacement * modRange + normalized;
-    int sampleX = wrap_index(offsetValue, texSize.x);
-    int sampleY = wrap_index(offsetValue, texSize.y);
+    
+    // Use fract() for smooth wrapping to avoid seams at tile boundaries
+    int sampleX = int(fract(offsetValue / float(texSize.x)) * float(texSize.x));
+    int sampleY = int(fract(offsetValue / float(texSize.y)) * float(texSize.y));
+    
+    // Clamp to valid texture coordinates
+    sampleX = min(sampleX, texSize.x - 1);
+    sampleY = min(sampleY, texSize.y - 1);
 
     vec4 sampled = texelFetch(inputTex, ivec2(sampleX, sampleY), 0);
     fragColor = sampled;

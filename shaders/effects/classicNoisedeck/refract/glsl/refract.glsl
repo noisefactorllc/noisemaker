@@ -31,7 +31,10 @@ float map(float value, float inMin, float inMax, float outMin, float outMax) {
 }
 
 vec3 convolve(vec2 uv, float kernel[9], bool divide) {
-    vec2 steps = 1.0 / resolution; // 1.0 / width = 1 texel
+    // Convert global UV to local UV for sampling inputTex
+    vec2 localUV = (uv * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0));
+    
+    vec2 steps = 1.0 / vec2(textureSize(inputTex, 0)); // 1.0 / width = 1 texel
     vec2 offset[9];
     offset[0] = vec2(-steps.x, -steps.y);     // top left
     offset[1] = vec2(0.0, -steps.y);         // top middle
@@ -48,7 +51,7 @@ vec3 convolve(vec2 uv, float kernel[9], bool divide) {
 
     for(int i = 0; i < 9; i++){
         //sample a 3x3 grid of pixels
-        vec3 color = texture(inputTex, uv + offset[i] * floor(map(amount, 0.0, 100.0, 0.0, 20.0))).rgb;
+        vec3 color = texture(inputTex, localUV + offset[i] * floor(map(amount, 0.0, 100.0, 0.0, 20.0))).rgb;
 
         // multiply the color by the kernel value and add it to our conv total
         conv += color * kernel[i];
@@ -191,19 +194,24 @@ void main() {
 
     vec4 color = vec4(0.0);
 
-    vec4 inputColor = texture(inputTex, uv);
+    // Convert global UV to local UV for sampling inputTex
+    vec2 localUV = (uv * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0));
+    vec4 inputColor = texture(inputTex, localUV);
     float brightness = desaturate(inputColor.rgb) + direction / 360.0;
 
+    // In tiling mode, clamp displacement to overlap budget
+    float displacement = amount * 0.01;
+    if (fullResolution.x > resolution.x || fullResolution.y > resolution.y) {
+        float maxDisplacement = 256.0 / max(fullResolution.x, fullResolution.y);
+        displacement = min(displacement, maxDisplacement);
+    }
+
     if (mode == 0) {
-        uv.x += cos(brightness * TAU) * amount * 0.01;
-        uv.y += sin(brightness * TAU) * amount * 0.01;
-
-        //color = texture(inputTex, fract(uv));
+        uv.x += cos(brightness * TAU) * displacement;
+        uv.y += sin(brightness * TAU) * displacement;
     } else if (mode == 1) {
-        uv.y += desaturate(derivX(inputColor.rgb, uv, false)) * amount * 0.01;
-        uv.x += desaturate(derivY(inputColor.rgb, uv, false)) * amount * 0.01;
-
-        //color = texture(inputTex, fract(uv));
+        uv.y += desaturate(derivX(inputColor.rgb, uv, false)) * displacement;
+        uv.x += desaturate(derivY(inputColor.rgb, uv, false)) * displacement;
     }
 
     if (wrap == 0) {
@@ -217,7 +225,9 @@ void main() {
         uv = clamp(uv, 0.0, 1.0);
     }
 
-    color = texture(inputTex, uv);
+    // Convert warped global UV to local UV for sampling
+    vec2 warpedLocalUV = (uv * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0));
+    color = texture(inputTex, warpedLocalUV);
 
     color.rgb = blend(inputColor, color);
 

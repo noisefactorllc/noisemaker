@@ -5,6 +5,8 @@ precision highp int;
 
 // Outline Sobel pass - edge detection with configurable metric
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D valueTexture;
 uniform float sobelMetric;
 uniform float thickness;
@@ -44,6 +46,7 @@ float distanceMetric(float gx, float gy, int metric) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 dimensions = textureSize(valueTexture, 0);
     if (dimensions.x == 0 || dimensions.y == 0) {
         fragColor = vec4(0.0);

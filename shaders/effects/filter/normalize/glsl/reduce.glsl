@@ -6,10 +6,13 @@ precision highp int;
 // Output: .r = min, .g = max
 // This reduces the texture by 16x in each dimension
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 out vec4 fragColor;
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 outCoord = ivec2(gl_FragCoord.xy);
     ivec2 inSize = textureSize(inputTex, 0);
     

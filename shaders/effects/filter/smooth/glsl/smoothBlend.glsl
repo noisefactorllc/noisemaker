@@ -9,6 +9,8 @@
 precision highp float;
 #endif
 
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform sampler2D edgeTex;
 uniform int smoothType;
@@ -195,6 +197,7 @@ vec4 edgeBlur(ivec2 texSize) {
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
     vec2 texelSize = 1.0 / vec2(texSize);

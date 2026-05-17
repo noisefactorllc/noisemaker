@@ -462,6 +462,7 @@ float sample_scanline_bilinear(float sample_x, float sample_y, float width, floa
 out vec4 fragColor;
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     uvec3 global_id = uvec3(uint(gl_FragCoord.x), uint(gl_FragCoord.y), 0u);
 
     uint width = as_u32(resolution.x);
@@ -535,7 +536,9 @@ void main() {
         red_x = blend_linear(red_x, x, gradient);
         float red_sample_x = blend_cosine(x, red_x, aber_mask);
         
-        vec3 red_base_col = texelFetch(inputTex, ivec2(int(red_sample_x * rs), int(global_id.y)), 0).xyz;
+        float red_sample_global_x = red_sample_x * renderScale;
+        float red_sample_local_x = red_sample_global_x - tileOffset.x;
+        vec3 red_base_col = texelFetch(inputTex, ivec2(int(red_sample_local_x), int(global_id.y)), 0).xyz;
         vec2 red_offsets = compute_lens_offsets(
             vec2(red_sample_x, y),
             width_f,
@@ -556,7 +559,9 @@ void main() {
         blue_x = blend_linear(x, blue_x, gradient);
         float blue_sample_x = blend_cosine(x, blue_x, aber_mask);
 
-        vec3 blue_base_col = texelFetch(inputTex, ivec2(int(blue_sample_x * rs), int(global_id.y)), 0).xyz;
+        float blue_sample_global_x = blue_sample_x * renderScale;
+        float blue_sample_local_x = blue_sample_global_x - tileOffset.x;
+        vec3 blue_base_col = texelFetch(inputTex, ivec2(int(blue_sample_local_x), int(global_id.y)), 0).xyz;
         vec2 blue_offsets = compute_lens_offsets(
             vec2(blue_sample_x, y),
             width_f,

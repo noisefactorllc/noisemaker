@@ -63,7 +63,7 @@ vec3 calculateNormal(vec2 uv, vec2 texelSize) {
     float dy = 0.0;
     
     for (int i = 0; i < 9; i++) {
-        vec3 texSample = texture(inputTex, uv + offsets[i]).rgb;
+        vec3 texSample = texture(inputTex, ((uv + offsets[i]) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).rgb;
         float height = getLuminosity(texSample);
         dx += height * sobel_x[i];
         dy += height * sobel_y[i];
@@ -82,7 +82,7 @@ vec3 calculateNormal(vec2 uv, vec2 texelSize) {
 // Apply refraction effect based on surface normal
 vec4 applyRefraction(vec2 uv, vec3 normal) {
     vec2 refractionOffset = normal.xy * (refraction * 0.0125);
-    return texture(inputTex, uv + refractionOffset);
+    return texture(inputTex, ((uv + refractionOffset) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0)));
 }
 
 // Apply reflection effect with chromatic aberration
@@ -101,24 +101,25 @@ vec4 applyReflection(vec2 uv, vec2 globalUV, vec3 normal) {
     vec2 greenOffset = reflectionOffset;
     vec2 blueOffset = reflectionOffset * (1.0 - aberration * 0.0075);
     
-    float redChannel = texture(inputTex, uv + redOffset).r;
-    float greenChannel = texture(inputTex, uv + greenOffset).g;
-    float blueChannel = texture(inputTex, uv + blueOffset).b;
-    float alphaChannel = texture(inputTex, uv + reflectionOffset).a;
+    float redChannel = texture(inputTex, ((uv + redOffset) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).r;
+    float greenChannel = texture(inputTex, ((uv + greenOffset) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).g;
+    float blueChannel = texture(inputTex, ((uv + blueOffset) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).b;
+    float alphaChannel = texture(inputTex, ((uv + reflectionOffset) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).a;
     
     return vec4(redChannel, greenChannel, blueChannel, alphaChannel);
 }
 
 void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 resolution = vec2(texSize);
     vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
-    vec2 uv = gl_FragCoord.xy / resolution;
+    vec2 uv = globalCoord / fullResolution;
     vec2 globalUV = (gl_FragCoord.xy + tileOffset) / fullRes;
     vec2 texelSize = 1.0 / resolution;
     
     // Get original color
-    vec4 origColor = texture(inputTex, uv);
+    vec4 origColor = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
     
     // Calculate surface normal
     vec3 normal = calculateNormal(uv, texelSize);
