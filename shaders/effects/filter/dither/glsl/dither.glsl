@@ -15,6 +15,7 @@ uniform float threshold;
 uniform float matrixScale;
 uniform float renderScale;
 uniform int palette;
+uniform int levels;
 uniform float time;
 uniform float mixAmount;
 
@@ -30,17 +31,16 @@ const int DITHER_CROSSHATCH = 5;
 const int DITHER_NOISE = 6;
 
 // Palette constants
-const int PALETTE_INPUT_1BIT = 0;
-const int PALETTE_INPUT_2BIT = 1;
-const int PALETTE_MONOCHROME = 2;
-const int PALETTE_DOT_MATRIX_GREEN = 3;
-const int PALETTE_AMBER = 4;
-const int PALETTE_PICO8 = 5;
-const int PALETTE_C64 = 6;
-const int PALETTE_CGA = 7;
-const int PALETTE_ZX_SPECTRUM = 8;
-const int PALETTE_APPLE_II = 9;
-const int PALETTE_EGA = 10;
+const int PALETTE_INPUT = 0;
+const int PALETTE_MONOCHROME = 1;
+const int PALETTE_DOT_MATRIX_GREEN = 2;
+const int PALETTE_AMBER = 3;
+const int PALETTE_PICO8 = 4;
+const int PALETTE_C64 = 5;
+const int PALETTE_CGA = 6;
+const int PALETTE_ZX_SPECTRUM = 7;
+const int PALETTE_APPLE_II = 8;
+const int PALETTE_EGA = 9;
 
 // Bayer matrices
 const mat4 bayer2x2 = mat4(
@@ -458,13 +458,10 @@ void main() {
     float ditherValue = getDitherThreshold(globalCoord, ditherType, matrixScale * renderScale);
     
     vec3 result;
-    
-    if (palette == PALETTE_INPUT_1BIT) {
-        // 1-bit: 2 colors per channel
-        result = quantizeWithDither(color.rgb, 2.0, ditherValue, threshold);
-    } else if (palette == PALETTE_INPUT_2BIT) {
-        // 2-bit: 4 colors per channel
-        result = quantizeWithDither(color.rgb, 4.0, ditherValue, threshold);
+
+    if (palette == PALETTE_INPUT) {
+        // Per-channel quantization to the chosen number of levels
+        result = quantizeWithDither(color.rgb, float(levels), ditherValue, threshold);
     } else {
         // Use palette-based dithering
         result = ditherWithPalette(color.rgb, ditherValue, threshold, palette);

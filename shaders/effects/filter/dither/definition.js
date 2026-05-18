@@ -56,24 +56,35 @@ export default new Effect({
     },
     palette: {
       type: "int",
-      default: 1,
+      default: 0,
       uniform: "palette",
       choices: {
-        input1bit: 0,
-        input2bit: 1,
-        monochrome: 2,
-        dotMatrixGreen: 3,
-        amberMonitor: 4,
-        pico8: 5,
-        commodore64: 6,
-        cgaPalette1: 7,
-        zxSpectrum: 8,
-        appleII: 9,
-        ega: 10
+        input: 0,
+        monochrome: 1,
+        dotMatrixGreen: 2,
+        amberMonitor: 3,
+        pico8: 4,
+        commodore64: 5,
+        cgaPalette1: 6,
+        zxSpectrum: 7,
+        appleII: 8,
+        ega: 9
       },
       ui: {
         label: "palette",
         control: "dropdown"
+      }
+    },
+    levels: {
+      type: "int",
+      default: 4,
+      uniform: "levels",
+      min: 2,
+      max: 16,
+      ui: {
+        label: "levels",
+        control: "slider",
+        enabledBy: { param: "palette", eq: 0 }
       }
     },
     mix: {

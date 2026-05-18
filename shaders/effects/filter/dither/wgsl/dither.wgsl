@@ -7,7 +7,7 @@ struct Uniforms {
     ditherType: i32,
     palette: i32,
     _pad0: i32,
-    _pad1: i32,
+    levels: i32,
     threshold: f32,
     matrixScale: f32,
     time: f32,
@@ -28,17 +28,16 @@ const DITHER_CROSSHATCH: i32 = 5;
 const DITHER_NOISE: i32 = 6;
 
 // Palette constants
-const PALETTE_INPUT_1BIT: i32 = 0;
-const PALETTE_INPUT_2BIT: i32 = 1;
-const PALETTE_MONOCHROME: i32 = 2;
-const PALETTE_DOT_MATRIX_GREEN: i32 = 3;
-const PALETTE_AMBER: i32 = 4;
-const PALETTE_PICO8: i32 = 5;
-const PALETTE_C64: i32 = 6;
-const PALETTE_CGA: i32 = 7;
-const PALETTE_ZX_SPECTRUM: i32 = 8;
-const PALETTE_APPLE_II: i32 = 9;
-const PALETTE_EGA: i32 = 10;
+const PALETTE_INPUT: i32 = 0;
+const PALETTE_MONOCHROME: i32 = 1;
+const PALETTE_DOT_MATRIX_GREEN: i32 = 2;
+const PALETTE_AMBER: i32 = 3;
+const PALETTE_PICO8: i32 = 4;
+const PALETTE_C64: i32 = 5;
+const PALETTE_CGA: i32 = 6;
+const PALETTE_ZX_SPECTRUM: i32 = 7;
+const PALETTE_APPLE_II: i32 = 8;
+const PALETTE_EGA: i32 = 9;
 
 // Bayer 2x2 matrix values
 fn getBayer2x2(x: i32, y: i32) -> f32 {
@@ -373,13 +372,10 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let ditherValue = getDitherThreshold(pos.xy, uniforms.ditherType, uniforms.matrixScale, uniforms.time);
     
     var result: vec3<f32>;
-    
-    if (uniforms.palette == PALETTE_INPUT_1BIT) {
-        // 1-bit: 2 colors per channel
-        result = quantizeWithDither(color.rgb, 2.0, ditherValue, uniforms.threshold);
-    } else if (uniforms.palette == PALETTE_INPUT_2BIT) {
-        // 2-bit: 4 colors per channel
-        result = quantizeWithDither(color.rgb, 4.0, ditherValue, uniforms.threshold);
+
+    if (uniforms.palette == PALETTE_INPUT) {
+        // Per-channel quantization to the chosen number of levels
+        result = quantizeWithDither(color.rgb, f32(uniforms.levels), ditherValue, uniforms.threshold);
     } else {
         // Use palette-based dithering
         result = ditherWithPalette(color.rgb, ditherValue, uniforms.threshold, uniforms.palette);
