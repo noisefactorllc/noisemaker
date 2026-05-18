@@ -747,6 +747,9 @@
                 } else if (renderer.currentEffect) {
                     await rebuildPipeline({ silent: true });
                 }
+
+                // Re-upload media textures — old backend's GPU resources were destroyed
+                ui.reuploadAllMediaTextures();
             });
         });
 

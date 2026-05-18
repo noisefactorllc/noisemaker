@@ -382,6 +382,17 @@ export class UIController {
     }
 
     /**
+     * Re-upload all active media textures (e.g., after backend switch destroys GPU resources)
+     */
+    reuploadAllMediaTextures() {
+        for (const [stepIndex, media] of this._mediaInputs) {
+            if (!media.source) continue
+            this._updateMediaTexture(stepIndex)
+        }
+        this._applyStepParams()
+    }
+
+    /**
      * Update all media textures that need continuous updates (video/camera)
      * @private
      */
@@ -416,12 +427,19 @@ export class UIController {
 
         const texId = media.textureId
         // Don't flip Y - the mediaInput shader handles UV flipping internally (st.y = 1.0 - st.y)
-        const result = this._renderer.updateTextureFromSource(texId, media.source, { flipY: false })
+        const resultOrPromise = this._renderer.updateTextureFromSource(texId, media.source, { flipY: false })
 
-        if (result.width > 0 && result.height > 0) {
-            // Update imageSize uniform for this specific step (not globally)
-            const effectKey = `step_${stepIndex}`
-            this._programState.setValue(effectKey, 'imageSize', [result.width, result.height])
+        const applySize = (result) => {
+            if (result.width > 0 && result.height > 0) {
+                const effectKey = `step_${stepIndex}`
+                this._programState.setValue(effectKey, 'imageSize', [result.width, result.height])
+            }
+        }
+
+        if (resultOrPromise && typeof resultOrPromise.then === 'function') {
+            resultOrPromise.then(applySize).catch(() => {})
+        } else {
+            applySize(resultOrPromise)
         }
     }
 
@@ -596,6 +614,13 @@ export class UIController {
                 fileGroup.style.display = 'block'
                 cameraGroup.style.display = 'none'
                 this._stopCamera(stepIndex)
+                // Restore previous image source if available
+                const media = this._mediaInputs.get(stepIndex)
+                if (media?.imageEl?.complete && media.imageEl.naturalWidth > 0) {
+                    media.source = media.imageEl
+                    this._updateMediaTexture(stepIndex)
+                    this._applyStepParams()
+                }
             }
         })
 

@@ -1,5 +1,5 @@
 /*
- * WGSL media input shader with motion blur support.
+ * WGSL media input shader.
  * Mirrors the GLSL normalization and crop logic for camera feeds.
  */
 
@@ -131,15 +131,15 @@ fn getImage(pos: vec2<f32>) -> vec4<f32> {
         if (st.y < 0.5) { st.y = 1.0 - st.y; }
     }
 
+    // Compensate for WebGPU blit Y-flip (present shader maps UV y=0 to screen bottom)
+    st.y = 1.0 - st.y;
+
     var text = textureSample(imageTex, samp, st);
 
     if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) {
         return vec4<f32>(bgColor, bgAlpha);
     }
 
-    // Un-premultiply to compensate for linear filtering on straight-alpha textures
-    // Linear filtering averages with black (0,0,0,0) transparent pixels, darkening edges
-    // Dividing by alpha restores the original RGB values
     if (text.a > 0.0) {
         text = vec4<f32>(text.rgb / text.a, text.a);
     }
@@ -149,7 +149,6 @@ fn getImage(pos: vec2<f32>) -> vec4<f32> {
 
 @fragment
 fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
-    // Unpack uniforms from packed array
     resolution = uniforms.data[0].xy;
     time = uniforms.data[0].z;
     posIndex = i32(uniforms.data[1].x);
@@ -166,6 +165,8 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     imageSize = uniforms.data[4].xy;
 
-    // Get current frame image
-    return getImage(pos.xy);
+    // Convert from WGSL top-down to bottom-up coordinates (matching GLSL gl_FragCoord)
+    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
+
+    return getImage(posFromBottom);
 }
