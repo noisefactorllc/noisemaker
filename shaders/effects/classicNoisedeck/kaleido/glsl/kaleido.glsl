@@ -878,11 +878,8 @@ vec2 kaleidoscope(vec2 st, float sides, float blendy) {
 }
 
 void main() {
-    vec2 localCoord = gl_FragCoord.xy;
-    
-    // Convert to global UV
-    vec2 globalCoord = localCoord + tileOffset;
-    vec2 globalUV = globalCoord / fullResolution;
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution.y;
 
 	vec4 color = vec4(0.0);
     loadKernels();
@@ -892,27 +889,20 @@ void main() {
         lf = floor(lf);
     }
 
-    float t = time + offset(globalUV, lf) * speed * 0.01;
+    float t = time + offset(uv, lf) * speed * 0.01;
 	float blendy = periodicFunction(t) * map(abs(speed), 0.0, 100.0, 0.0, 2.0);
 
-	vec2 warpedGlobalUV = kaleidoscope(globalUV, kaleido, blendy);
-	
-	// Convert warped global UV back to local UV for sampling inputTex
-	vec2 warpedLocalUV = (warpedGlobalUV * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0));
-	
-	// Wrap to handle out-of-bounds sampling
-	warpedLocalUV = fract(warpedLocalUV);
-	
-	color = texture(inputTex, warpedLocalUV);
-	
+	uv = kaleidoscope(uv, kaleido, blendy);
+	color = texture(inputTex, uv);
+
 #if KERNEL != 0
     if (effectWidth != 0.0) {
 #if KERNEL == 10
-        color.rgb = pixellate(warpedLocalUV, effectWidth * 4.0);
+        color.rgb = pixellate(uv, effectWidth * 4.0);
 #elif KERNEL == 110
         color.rgb = posterize(color.rgb, floor(map(effectWidth, 0.0, 10.0, 0.0, 20.0)));
 #else
-        color.rgb = convolutionKernel(color.rgb, warpedLocalUV);
+        color.rgb = convolutionKernel(color.rgb, uv);
 #endif
     }
 #endif
