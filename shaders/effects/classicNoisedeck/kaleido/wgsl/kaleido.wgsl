@@ -29,13 +29,27 @@ struct Uniforms {
     wrap: i32,
     // (kernel was here — now compile-time KERNEL)
     effectWidth: f32,
+    // Tile-aware large-format fields. The runtime writes these for every
+    // classicNoisedeck effect; kaleido.wgsl must declare them so its uniform
+    // buffer view matches the buffer layout (a short struct misreads
+    // resolution → degenerate UV → solid-color output). Mirrors the GLSL
+    // backend's tileOffset/fullResolution (see glsl/kaleido.glsl main()).
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
 
+fn fullRes() -> vec2f {
+    var res = u.fullResolution;
+    if (res.x < 1.0) { res = u.resolution; }
+    return res;
+}
+
 fn aspectRatio() -> f32 {
-    return u.resolution.x / u.resolution.y;
+    let res = fullRes();
+    return res.x / res.y;
 }
 
 fn mapRange(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
@@ -464,7 +478,11 @@ fn kaleidoscope(st_in: vec2f, sides: f32, blendy: f32) -> vec2f {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    var uv = fragCoord.xy / u.resolution.y;
+    // Tile-aware aspect-preserving UV, mirroring glsl/kaleido.glsl main():
+    //   globalCoord = gl_FragCoord.xy + tileOffset; uv = globalCoord / fullResolution.y
+    // No posFromBottom Y-flip (391f445d: that inverted Y for downstream consumers).
+    let globalCoord = fragCoord.xy + u.tileOffset;
+    var uv = globalCoord / fullRes().y;
 
     var lf = mapRange(u.loopScale, 1.0, 100.0, 6.0, 1.0);
     if (u.wrap != 0) { lf = floor(lf); }
