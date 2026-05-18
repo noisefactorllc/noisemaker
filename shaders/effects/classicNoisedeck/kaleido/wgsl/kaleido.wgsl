@@ -19,14 +19,7 @@ struct Uniforms {
     resolution: vec2f,
     aspect: f32,
     // Effect params in definition.js globals order:
-    // `kaleido` is the polygon side count, consumed as a float in the
-    // kaleidoscope() angle math. The GLSL backend declares it
-    // `uniform float kaleido` (glsl/kaleido.glsl) and the runtime packs
-    // this slot as f32 — so the WGSL struct MUST read it as f32. Reading
-    // it as i32 reinterprets the float bits as a huge integer, which
-    // collapses TAU/sides and the angle fold toward 0, making every
-    // fragment sample one texel → solid-color output.
-    kaleido: f32,
+    kaleido: i32,
     // (metric was here — now compile-time METRIC)
     // (direction was here — now compile-time DIRECTION)
     // (loopOffset was here — now compile-time LOOP_OFFSET)
@@ -51,10 +44,7 @@ const TAU: f32 = 6.28318530718;
 fn fullRes() -> vec2f {
     var res = u.fullResolution;
     if (res.x < 1.0) { res = u.resolution; }
-    // Never return a zero/negative extent: the UV divide and aspect
-    // ratio below would become Inf/NaN, making every fragment sample
-    // one texel — a flat, solid-color frame.
-    return max(res, vec2f(1.0, 1.0));
+    return res;
 }
 
 fn aspectRatio() -> f32 {
@@ -473,27 +463,14 @@ fn offset(st: vec2f, freq: f32) -> f32 {
     return 0.0;
 }
 
-// GLSL mod(x,y) = x - y*floor(x/y) (result takes the sign of y). WGSL
-// `%` is x - y*trunc(x/y) (result takes the sign of x); the two diverge
-// for negative x. kaleidoscope() folds a signed angle, so it must use
-// the GLSL definition to match glsl/kaleido.glsl.
-fn glslMod(x: f32, y: f32) -> f32 {
-    return x - y * floor(x / y);
-}
-
-fn kaleidoscope(st_in: vec2f, sides_in: f32, blendy: f32) -> vec2f {
-    // sides drives every angular divisor below (360/sides, TAU/sides,
-    // PI/sides). Clamp to the definition.js minimum so a zero/garbage
-    // value can't divide by ~0 and collapse the fold to a constant
-    // direction — which samples one texel and yields a solid frame.
-    let sides = max(sides_in, 2.0);
+fn kaleidoscope(st_in: vec2f, sides: f32, blendy: f32) -> vec2f {
     let r = getMetric(st_in) + blendy;
     var st = st_in - vec2f(0.5 * aspectRatio(), 0.5);
     var a = atan2(st.y, st.x);
     var dir = u.time;
     if (DIRECTION == 1) { dir *= -1.0; }
     else if (DIRECTION == 2) { dir = 1.0; }
-    var ma = glslMod(a + radians(90.0) - radians(360.0 / sides * dir), TAU / sides);
+    var ma = (a + radians(90.0) - radians(360.0 / sides * dir)) % (TAU / sides);
     ma = abs(ma - PI / sides);
     st = r * vec2f(cos(ma), sin(ma));
     return fract(st);
@@ -501,15 +478,11 @@ fn kaleidoscope(st_in: vec2f, sides_in: f32, blendy: f32) -> vec2f {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    // Aspect-preserving UV mirroring glsl/kaleido.glsl main():
+    // Tile-aware aspect-preserving UV, mirroring glsl/kaleido.glsl main():
     //   globalCoord = gl_FragCoord.xy + tileOffset; uv = globalCoord / fullResolution.y
-    // No posFromBottom Y-flip (391f445d established that the flip
-    // inverts Y for downstream consumers and broke production). res is
-    // clamped >= 1 in fullRes() so this divide can never blow up to
-    // Inf/NaN and flatten the frame to a solid color.
-    let res = fullRes();
+    // No posFromBottom Y-flip (391f445d: that inverted Y for downstream consumers).
     let globalCoord = fragCoord.xy + u.tileOffset;
-    var uv = globalCoord / res.y;
+    var uv = globalCoord / fullRes().y;
 
     var lf = mapRange(u.loopScale, 1.0, 100.0, 6.0, 1.0);
     if (u.wrap != 0) { lf = floor(lf); }
@@ -517,7 +490,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let t = u.time + offset(uv, lf) * u.speed * 0.01;
     let blendy = periodicFunction(t) * mapRange(abs(u.speed), 0.0, 100.0, 0.0, 2.0);
 
-    uv = kaleidoscope(uv, u.kaleido, blendy);
+    uv = kaleidoscope(uv, f32(u.kaleido), blendy);
     var color = textureSample(inputTex, samp, uv);
 
     if (u.effectWidth != 0.0 && KERNEL != 0) {
