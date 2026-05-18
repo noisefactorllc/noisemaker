@@ -4,7 +4,7 @@ Geometric pattern generator
 
 ## Description
 
-Generates various geometric patterns including stripes, checkerboard, grid, dots, hexagons, triangles, concentric rings, radial lines, spirals, hearts, waves, and zigzags. Useful for creating backgrounds, textures, and masks with clean geometric shapes. Supports animation with seamless looping.
+Generates various geometric patterns including stripes, checkerboard, grid, dots, hexagons, triangles, concentric rings, radial lines, spirals, hearts, waves, and zigzags. Useful for creating backgrounds, textures, and masks with clean geometric shapes. The skew parameter applies a horizontal shear to all pattern types, slanting the result. Supports animation with seamless looping.
 
 ## Parameters
 
@@ -15,6 +15,7 @@ Generates various geometric patterns including stripes, checkerboard, grid, dots
 | thickness | float | 0.5 | 0-1 | Line/shape thickness |
 | smoothness | float | 0.02 | 0-1 | Edge softness (0=sharp, 1=soft) |
 | rotation | float | 0 | -180-180 | Rotation angle in degrees |
+| skew | float | 0 | -2-2 | Horizontal shear factor (slope); 1 ~= 45 degree lean |
 | animation | int | none | none/panX/panY/rotate | Animation mode |
 | speed | int | 1 | -5-5 | Animation speed and direction |
 | fgColor | color | 1,1,1 | - | Foreground color |

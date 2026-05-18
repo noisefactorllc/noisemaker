@@ -10,6 +10,7 @@ uniform float scale;
 uniform float thickness;
 uniform float smoothness;
 uniform float rotation;
+uniform float skew;
 uniform int animation;
 uniform float speed;
 uniform float time;
@@ -211,6 +212,9 @@ void main() {
     if (!centered && animation == 3) {
         st = rotate2D(st, time * TAU * floor(speed));
     }
+
+    // Horizontal shear (screen-vertical axis), applied as the final transform
+    st.x += st.y * skew;
 
     // Apply scale, mapping so lower scale = higher frequency
     vec2 p = st * (21.0 - scale);

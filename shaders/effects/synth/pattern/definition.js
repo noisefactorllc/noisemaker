@@ -75,6 +75,17 @@ export default new Effect({
         "control": "slider"
       }
     },
+    "skew": {
+      "type": "float",
+      "default": 0.0,
+      "min": -2.0,
+      "max": 2.0,
+      "uniform": "skew",
+      "ui": {
+        "label": "skew",
+        "control": "slider"
+      }
+    },
     "animation": {
       "type": "int",
       "default": 0,

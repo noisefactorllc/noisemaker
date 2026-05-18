@@ -11,6 +11,7 @@
 @group(0) @binding(9) var<uniform> time: f32;
 @group(0) @binding(10) var<uniform> fgColor: vec3<f32>;
 @group(0) @binding(11) var<uniform> bgColor: vec3<f32>;
+@group(0) @binding(12) var<uniform> skew: f32;
 
 const PI: f32 = 3.14159265359;
 const SQRT3: f32 = 1.7320508075688772;
@@ -210,6 +211,9 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     if (!centered && animation == 3) {
         st = rotate2D(st, time * TAU * floor(speed));
     }
+
+    // Horizontal shear (screen-vertical axis), applied as the final transform
+    st.x = st.x + st.y * skew;
 
     // Apply scale, mapping so lower scale = higher frequency
     var p = st * (21.0 - scale);
