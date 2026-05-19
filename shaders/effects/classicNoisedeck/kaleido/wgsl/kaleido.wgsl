@@ -19,7 +19,10 @@ struct Uniforms {
     resolution: vec2f,
     aspect: f32,
     // Effect params in definition.js globals order:
-    kaleido: i32,
+    // GLSL declares `uniform float kaleido` (glsl/kaleido.glsl) and uses
+    // it as the float side count in kaleidoscope(). Match that type so
+    // the slot is read consistently with the GLSL reference.
+    kaleido: f32,
     // (metric was here — now compile-time METRIC)
     // (direction was here — now compile-time DIRECTION)
     // (loopOffset was here — now compile-time LOOP_OFFSET)
@@ -463,6 +466,13 @@ fn offset(st: vec2f, freq: f32) -> f32 {
     return 0.0;
 }
 
+// GLSL mod(x,y) = x - y*floor(x/y) (sign of y). WGSL `%` = x - y*trunc(x/y)
+// (sign of x); they diverge for negative x. kaleidoscope() folds a signed
+// angle, so it must use the GLSL definition to match glsl/kaleido.glsl.
+fn glslMod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
+}
+
 fn kaleidoscope(st_in: vec2f, sides: f32, blendy: f32) -> vec2f {
     let r = getMetric(st_in) + blendy;
     var st = st_in - vec2f(0.5 * aspectRatio(), 0.5);
@@ -470,7 +480,7 @@ fn kaleidoscope(st_in: vec2f, sides: f32, blendy: f32) -> vec2f {
     var dir = u.time;
     if (DIRECTION == 1) { dir *= -1.0; }
     else if (DIRECTION == 2) { dir = 1.0; }
-    var ma = (a + radians(90.0) - radians(360.0 / sides * dir)) % (TAU / sides);
+    var ma = glslMod(a + radians(90.0) - radians(360.0 / sides * dir), TAU / sides);
     ma = abs(ma - PI / sides);
     st = r * vec2f(cos(ma), sin(ma));
     return fract(st);
@@ -490,7 +500,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let t = u.time + offset(uv, lf) * u.speed * 0.01;
     let blendy = periodicFunction(t) * mapRange(abs(u.speed), 0.0, 100.0, 0.0, 2.0);
 
-    uv = kaleidoscope(uv, f32(u.kaleido), blendy);
+    uv = kaleidoscope(uv, u.kaleido, blendy);
     var color = textureSample(inputTex, samp, uv);
 
     if (u.effectWidth != 0.0 && KERNEL != 0) {
