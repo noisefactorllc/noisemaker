@@ -18,41 +18,26 @@ struct Uniforms {
     _pad0: f32,
     resolution: vec2f,
     aspect: f32,
-    // Effect params in definition.js globals order:
-    // GLSL declares `uniform float kaleido` (glsl/kaleido.glsl) and uses
-    // it as the float side count in kaleidoscope(). Match that type so
-    // the slot is read consistently with the GLSL reference.
+    // Effect params in definition.js globals order. GLSL declares
+    // `uniform float kaleido` and uses it as the float side count in
+    // kaleidoscope(); match that type so the slot reads consistently.
     kaleido: f32,
-    // (metric was here — now compile-time METRIC)
-    // (direction was here — now compile-time DIRECTION)
-    // (loopOffset was here — now compile-time LOOP_OFFSET)
+    // metric was here — now compile-time METRIC
+    // direction was here — now compile-time DIRECTION
+    // loopOffset was here — now compile-time LOOP_OFFSET
     loopScale: f32,
     speed: f32,
     seed: i32,
     wrap: i32,
-    // (kernel was here — now compile-time KERNEL)
+    // kernel was here — now compile-time KERNEL
     effectWidth: f32,
-    // Tile-aware large-format fields. The runtime writes these for every
-    // classicNoisedeck effect; kaleido.wgsl must declare them so its uniform
-    // buffer view matches the buffer layout (a short struct misreads
-    // resolution → degenerate UV → solid-color output). Mirrors the GLSL
-    // backend's tileOffset/fullResolution (see glsl/kaleido.glsl main()).
-    tileOffset: vec2<f32>,
-    fullResolution: vec2<f32>,
 }
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
 
-fn fullRes() -> vec2f {
-    var res = u.fullResolution;
-    if (res.x < 1.0) { res = u.resolution; }
-    return res;
-}
-
 fn aspectRatio() -> f32 {
-    let res = fullRes();
-    return res.x / res.y;
+    return u.resolution.x / u.resolution.y;
 }
 
 fn mapRange(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
@@ -488,11 +473,11 @@ fn kaleidoscope(st_in: vec2f, sides: f32, blendy: f32) -> vec2f {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    // Tile-aware aspect-preserving UV, mirroring glsl/kaleido.glsl main():
-    //   globalCoord = gl_FragCoord.xy + tileOffset; uv = globalCoord / fullResolution.y
-    // No posFromBottom Y-flip (391f445d: that inverted Y for downstream consumers).
-    let globalCoord = fragCoord.xy + u.tileOffset;
-    var uv = globalCoord / fullRes().y;
+    // Aspect-preserving UV from resolution (uv.x in [0, aspect], uv.y in
+    // [0, 1]), matching glsl/kaleido.glsl `gl_FragCoord.xy / fullResolution.y`
+    // for the non-tiled case. Uses u.resolution like working sibling
+    // classicNoisedeck WGSL effects; the runtime always populates it.
+    var uv = fragCoord.xy / u.resolution.y;
 
     var lf = mapRange(u.loopScale, 1.0, 100.0, 6.0, 1.0);
     if (u.wrap != 0) { lf = floor(lf); }
