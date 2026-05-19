@@ -208,7 +208,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     
     // Apply animation rotation/pan (only for non-centered patterns)
     let centered = patternType == CONCENTRIC_RINGS || patternType == RADIAL_LINES || patternType == SPIRAL_PATTERN;
-    if (!centered && animation == 3) {
+    if (!centered && animation == 2) {
         st = rotate2D(st, time * TAU * floor(speed));
     }
 
@@ -218,12 +218,8 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     // Apply scale, mapping so lower scale = higher frequency
     var p = st * (21.0 - scale);
 
-    if (!centered) {
-        if (animation == 1) {
-            p.x += time * -floor(speed);
-        } else if (animation == 2) {
-            p.y += time * floor(speed);
-        }
+    if (!centered && animation == 1) {
+        p.x += time * -floor(speed);
     }
 
     // Compute pattern value

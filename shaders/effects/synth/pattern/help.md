@@ -16,7 +16,7 @@ Generates various geometric patterns including stripes, checkerboard, grid, dots
 | smoothness | float | 0.02 | 0-1 | Edge softness (0=sharp, 1=soft) |
 | rotation | float | 0 | -180-180 | Rotation angle in degrees |
 | skew | float | 0 | -2-2 | Horizontal shear factor (slope); 1 ~= 45 degree lean |
-| animation | int | none | none/panX/panY/rotate | Animation mode |
+| animation | int | none | none/pan/rotate | Animation mode |
 | speed | int | 1 | -5-5 | Animation speed and direction |
 | fgColor | color | 1,1,1 | - | Foreground color |
 | bgColor | color | 0,0,0 | - | Background color |
@@ -38,7 +38,7 @@ Generates various geometric patterns including stripes, checkerboard, grid, dots
 
 ## Animation
 
-All animation modes loop seamlessly. Speed controls both rate and direction (negative = reverse). Pan modes move along the pattern's own axes, so panning while rotated still loops cleanly.
+All animation modes loop seamlessly. Speed controls both rate and direction (negative = reverse). Pan moves along the pattern's own X axis; use the rotation parameter to pan in any other direction while still looping cleanly.
 
 ## Usage
 

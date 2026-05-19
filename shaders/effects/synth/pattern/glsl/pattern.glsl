@@ -209,7 +209,7 @@ void main() {
     
     // Apply animation rotation/pan (only for non-centered patterns)
     bool centered = patternType == CONCENTRIC_RINGS || patternType == RADIAL_LINES || patternType == SPIRAL;
-    if (!centered && animation == 3) {
+    if (!centered && animation == 2) {
         st = rotate2D(st, time * TAU * floor(speed));
     }
 
@@ -219,12 +219,8 @@ void main() {
     // Apply scale, mapping so lower scale = higher frequency
     vec2 p = st * (21.0 - scale);
 
-    if (!centered) {
-        if (animation == 1) {
-            p.x += time * -floor(speed);
-        } else if (animation == 2) {
-            p.y += time * floor(speed);
-        }
+    if (!centered && animation == 1) {
+        p.x += time * -floor(speed);
     }
 
     // Compute pattern value

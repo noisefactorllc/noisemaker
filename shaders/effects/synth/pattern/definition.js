@@ -92,9 +92,8 @@ export default new Effect({
       "uniform": "animation",
       "choices": {
         none: 0,
-        panX: 1,
-        panY: 2,
-        rotate: 3
+        pan: 1,
+        rotate: 2
       },
       "ui": {
         "label": "animation",
