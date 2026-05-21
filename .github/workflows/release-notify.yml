@@ -1,0 +1,56 @@
+# Release → Discord (#releases) — copy this workflow into each product repo
+# that should announce its releases. The payload is intentionally minimal.
+#
+# ============================ SANITIZATION CONTRACT =========================
+# The payload posted to Discord MUST contain ONLY:
+#   - product/repo name
+#   - release tag (version)
+#   - release HTML URL
+#
+# It MUST NOT contain:
+#   - server IPs, hostnames, deploy paths, SSH users
+#   - secret names or any secrets
+#   - run logs, runner OS, internal CI detail
+#   - private repo names
+#
+# Anyone could be reading #releases — keep it public-safe.
+# ============================================================================
+#
+# Setup (per product repo):
+#   1. Add a repo secret DISCORD_RELEASES_WEBHOOK with the #releases
+#      webhook URL printed by `python provision.py --apply` in the
+#      discord repo. Treat the URL like a secret.
+#   2. Copy this file to `.github/workflows/release-notify.yml` in the
+#      product repo.
+#   3. Push and create a release (or push a tag) to verify.
+
+name: Release → Discord
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post sanitized release announcement
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_RELEASES_WEBHOOK }}
+          # Only these three sanitized values cross the boundary into Discord:
+          PRODUCT: ${{ github.event.repository.name }}
+          TAG: ${{ github.event.release.tag_name }}
+          URL: ${{ github.event.release.html_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DISCORD_WEBHOOK}" ]; then
+            echo "DISCORD_RELEASES_WEBHOOK secret not set; skipping."
+            exit 0
+          fi
+          payload=$(jq -n \
+            --arg p "$PRODUCT" \
+            --arg t "$TAG" \
+            --arg u "$URL" \
+            '{embeds:[{title:($p+" "+$t+" released"), url:$u, color:5814783}]}')
+          curl -sS -X POST -H "Content-Type: application/json" \
+            -d "$payload" "$DISCORD_WEBHOOK" > /dev/null
