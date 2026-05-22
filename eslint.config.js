@@ -56,6 +56,15 @@ export default [
       'no-undef': 'error',
       'semi': ['error', 'never'],
       'no-trailing-spaces': 'error',
+      // @eslint/js 10's recommended preset enabled these; existing code
+      // hasn't been audited against them. Leaving them off until a code
+      // pass — see TODOs below.
+      // TODO: walk composer.js catch handlers and rethrow with { cause: err }.
+      'preserve-caught-error': 'off',
+      // TODO: most simplex.js hits are false positives (pre-computed lattice
+      // values used in later branches); audit effects.js/generators.js/rng.js
+      // for genuine dead assignments before re-enabling.
+      'no-useless-assignment': 'off',
     },
   },
 ];
