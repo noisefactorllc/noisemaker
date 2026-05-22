@@ -29,7 +29,7 @@ for name, value in _MASKS_DATA.items():
 
 # Procedural mask shapes
 
-_mask_shapes = {}
+_mask_shapes: dict[ValueMask, Any] = {}
 
 
 # Masks wanting to use this decorator should first be added to the ValueMask enum in constants.py
