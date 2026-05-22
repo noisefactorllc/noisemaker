@@ -35,14 +35,14 @@
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.60.0",
     "esbuild": "^0.28.0",
-    "eslint": "^10.3.0",
+    "eslint": "^10.4.0",
     "globals": "^17.6.0",
     "http-server": "^14.1.1",
     "jpeg-js": "^0.4.4",
     "jsdom": "^29.1.1",
     "pngjs": "^7.0.0",
     "postject": "^1.0.0-alpha.6",
-    "puppeteer": "^24.43.1"
+    "puppeteer": "^25.0.4"
   },
   "dependencies": {}
 }
