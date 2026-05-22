@@ -74,14 +74,18 @@ jobs:
           fi
 
           # Gate 2: clean rebase — PR base must match current main HEAD.
-          # If main has moved since this PR was last rebased, ask Dependabot
-          # to rebase. The next workflow_run after rebase will re-check.
+          # If main has moved since this PR was last rebased, rebase via the
+          # GitHub API. (Commenting "@dependabot rebase" doesn't work from
+          # github-actions[bot] — Dependabot only accepts that command from
+          # collaborators, not GITHUB_TOKEN.) The new head SHA fires a fresh
+          # pull_request workflow run, and this auto-merge job re-evaluates
+          # on its workflow_run completion.
           BASE_REF=$(echo "$PR_DATA" | jq -r '.base.ref')
           BASE_SHA=$(echo "$PR_DATA" | jq -r '.base.sha')
           MAIN_SHA=$(gh api "repos/$REPO/commits/$BASE_REF" --jq '.sha')
           if [ "$BASE_SHA" != "$MAIN_SHA" ]; then
-            echo "PR #$PR_NUM base ($BASE_SHA) != $BASE_REF HEAD ($MAIN_SHA) — requesting rebase"
-            gh pr comment "$PR_NUM" -R "$REPO" --body "@dependabot rebase" || true
+            echo "PR #$PR_NUM base ($BASE_SHA) != $BASE_REF HEAD ($MAIN_SHA) — rebasing via API"
+            gh pr update-branch --rebase "$PR_NUM" -R "$REPO" || true
             exit 0
           fi
 
