@@ -41,8 +41,7 @@
     "jpeg-js": "^0.4.4",
     "jsdom": "^29.1.1",
     "pngjs": "^7.0.0",
-    "postject": "^1.0.0-alpha.6",
-    "puppeteer": "^24.43.1"
+    "postject": "^1.0.0-alpha.6"
   },
   "dependencies": {}
 }
