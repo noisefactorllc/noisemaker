@@ -219,7 +219,10 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     var p = st * (21.0 - scale);
 
     if (!centered && animation == 1) {
-        p.x += time * -floor(speed);
+        // Checkerboard's spatial period along p.x is 2 (cell parity flips every unit),
+        // so double the shift to keep the time=1 wrap landing on an even cell boundary.
+        let panPeriod = select(1.0, 2.0, patternType == CHECKERBOARD);
+        p.x += time * -floor(speed) * panPeriod;
     }
 
     // Compute pattern value

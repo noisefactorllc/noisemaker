@@ -220,7 +220,10 @@ void main() {
     vec2 p = st * (21.0 - scale);
 
     if (!centered && animation == 1) {
-        p.x += time * -floor(speed);
+        // Checkerboard's spatial period along p.x is 2 (cell parity flips every unit),
+        // so double the shift to keep the time=1 wrap landing on an even cell boundary.
+        float panPeriod = (patternType == CHECKERBOARD) ? 2.0 : 1.0;
+        p.x += time * -floor(speed) * panPeriod;
     }
 
     // Compute pattern value
