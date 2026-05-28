@@ -5,7 +5,7 @@
 
 struct Uniforms {
     edgeColor: vec3f,
-    mix: f32,
+    mixAmount: f32,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -27,7 +27,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var finalColor = mix(celColor.rgb, uniforms.edgeColor, edgeStrength);
 
     // Mix with original based on mix amount
-    finalColor = mix(origColor.rgb, finalColor, uniforms.mix);
+    finalColor = mix(origColor.rgb, finalColor, uniforms.mixAmount);
 
     return vec4f(finalColor, origColor.a);
 }

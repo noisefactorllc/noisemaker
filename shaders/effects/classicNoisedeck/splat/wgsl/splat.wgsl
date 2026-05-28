@@ -13,7 +13,7 @@ struct Uniforms {
     cutoff: f32,
     speed: f32,
     seed: f32,
-    splatColor: vec3<f32>,
+    color: vec3<f32>,
     mode: i32,
     speckScale: f32,
     speckCutoff: f32,
@@ -137,7 +137,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
         let splatMask = splat(noiseCoord + u.seed, vec2<f32>(mapRange(u.scale, 1.0, 5.0, 2.0, 0.5)));
         
         if (u.mode == 0) {
-            color = vec4<f32>(mix(color.rgb, u.splatColor, splatMask), color.a); // color
+            color = vec4<f32>(mix(color.rgb, u.color, splatMask), color.a); // color
         } else if (u.mode == 1) {
             let texColor = textureSample(inputTex, samp, uv + splatMask * 0.1); // displace
             color = mix(color, texColor, splatMask);

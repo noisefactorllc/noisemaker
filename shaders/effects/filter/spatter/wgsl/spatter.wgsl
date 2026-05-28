@@ -8,11 +8,9 @@
 struct Uniforms {
     density: f32,
     alpha: f32,
-    color_r: f32,
-    color_g: f32,
     seed: i32,
-    color_b: f32,
     _pad0: f32,
+    color: vec3<f32>,
     _pad1: f32,
     tileOffset: vec2<f32>,
     fullResolution: vec2<f32>,
@@ -188,7 +186,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let nUV: vec2<f32> = uv * vec2<f32>(aspect, 1.0);
 
     let s: u32 = u32(uniforms.seed) * 17u;
-    let user_color: vec3<f32> = vec3<f32>(uniforms.color_r, uniforms.color_g, uniforms.color_b);
+    let user_color: vec3<f32> = uniforms.color;
 
     // Seed-derived random frequencies (matching Python ranges)
     let smearFreq: f32 = mix(3.0, 6.0, hashf(pcg(s + 10u)));

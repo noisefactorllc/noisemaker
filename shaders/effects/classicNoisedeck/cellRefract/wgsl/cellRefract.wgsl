@@ -30,12 +30,12 @@ struct Uniforms {
     scale: f32,
     cellScale: f32,
     cellSmooth: f32,
-    cellVariation: f32,
+    variation: f32,
     speed: f32,
     // (kernel was here — now compile-time KERNEL)
     effectWidth: f32,
     refractAmt: f32,
-    refractDir: f32,
+    direction: f32,
     wrap: i32,
     seed: i32,
 }
@@ -228,7 +228,7 @@ fn cells(st_in: vec2f, freq: f32, cellSize: f32) -> f32 {
             } else {
                 dist = shapeFn(vec2f(diff.x, -diff.y), vec2f(0.0), cellSize);
             }
-            dist += r1.z * (u.cellVariation * 0.01);
+            dist += r1.z * (u.variation * 0.01);
             d = smin(d, dist, u.cellSmooth * 0.01);
         }
     }
@@ -259,7 +259,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let cellSize = mapRange(u.cellScale, 1.0, 100.0, 3.0, 0.75);
     let d = cells(st * vec2f(aspectRatio(), 1.0), freq, cellSize);
     let refAmt = mapRange(u.refractAmt, 0.0, 100.0, 0.0, 0.125);
-    let refLen = d + u.refractDir / 360.0;
+    let refLen = d + u.direction / 360.0;
     st.x += cos(refLen * TAU) * refAmt;
     st.y += sin(refLen * TAU) * refAmt;
 

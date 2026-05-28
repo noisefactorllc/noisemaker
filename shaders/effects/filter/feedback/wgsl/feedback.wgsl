@@ -10,7 +10,7 @@ struct Uniforms {
     scaleAmt: f32,
     rotation: f32,
     blendMode: i32,
-    mix: f32,
+    mixAmt: f32,
     hueRotation: f32,
     intensity: f32,
     distortion: f32,
@@ -57,7 +57,7 @@ fn blendSoftLight(base: f32, blend: f32) -> f32 {
 
 fn blend(color1: vec4<f32>, color2: vec4<f32>, mode: i32, factor: f32) -> vec4<f32> {
     var middle: vec4<f32>;
-    let amt = map(uniforms.mix, 0.0, 100.0, 0.0, 1.0);
+    let amt = map(uniforms.mixAmt, 0.0, 100.0, 0.0, 1.0);
 
     switch (mode) {
         case 0: { // add
@@ -294,7 +294,7 @@ fn getImage(st_in: vec2<f32>) -> vec4<f32> {
 }
 
 fn cloak(st: vec2<f32>) -> vec4<f32> {
-    let m = map(uniforms.mix, 0.0, 100.0, 0.0, 1.0);
+    let m = map(uniforms.mixAmt, 0.0, 100.0, 0.0, 1.0);
     let ra = map(uniforms.refractAAmt, 0.0, 100.0, 0.0, 0.125);
     let rb = map(uniforms.refractBAmt, 0.0, 100.0, 0.0, 0.125);
 
@@ -318,12 +318,12 @@ fn cloak(st: vec2<f32>) -> vec4<f32> {
 
     var left: vec4<f32>;
     var right: vec4<f32>;
-    if (uniforms.mix < 50.0) {
-        left = mix(leftRefracted, leftReflected, map(uniforms.mix, 0.0, 50.0, 0.0, 1.0));
+    if (uniforms.mixAmt < 50.0) {
+        left = mix(leftRefracted, leftReflected, map(uniforms.mixAmt, 0.0, 50.0, 0.0, 1.0));
         right = rightReflected;
     } else {
         left = leftReflected;
-        right = mix(rightReflected, rightRefracted, map(uniforms.mix, 50.0, 100.0, 0.0, 1.0));
+        right = mix(rightReflected, rightRefracted, map(uniforms.mixAmt, 50.0, 100.0, 0.0, 1.0));
     }
 
     return mix(left, right, m);
@@ -359,7 +359,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         rightUV.x += cos(leftLen * TAU) * rb;
         rightUV.y += sin(leftLen * TAU) * rb;
 
-        color = blend(textureSample(inputTex, texSampler, leftUV), getImage(rightUV), uniforms.blendMode, uniforms.mix * 0.01);
+        color = blend(textureSample(inputTex, texSampler, leftUV), getImage(rightUV), uniforms.blendMode, uniforms.mixAmt * 0.01);
     }
 
     // hue rotation

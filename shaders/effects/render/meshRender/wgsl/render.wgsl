@@ -5,9 +5,9 @@ struct Uniforms {
     resolution: vec2<f32>,
     aspect: f32,
     meshScale: f32,
-    meshOffsetX: f32,
-    meshOffsetY: f32,
-    meshOffsetZ: f32,
+    offsetX: f32,
+    offsetY: f32,
+    offsetZ: f32,
     rotateX: f32,
     rotateY: f32,
     rotateZ: f32,
@@ -91,9 +91,9 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     
     // Apply mesh model transforms (scale then offset)
     position = position * u.meshScale;
-    position.x = position.x + u.meshOffsetX;
-    position.y = position.y + u.meshOffsetY;
-    position.z = position.z + u.meshOffsetZ;
+    position.x = position.x + u.offsetX;
+    position.y = position.y + u.offsetY;
+    position.z = position.z + u.offsetZ;
     
     // Build rotation matrix (uniforms are in degrees)
     let deg2rad = 3.14159265 / 180.0;

@@ -6,8 +6,8 @@
 struct Uniforms {
     edgeWidth: f32,
     edgeThreshold: f32,
-    _pad1: f32,
-    _pad2: f32,
+    renderScale: f32,
+    _pad: f32,
 }
 
 @group(0) @binding(0) var colorTex: texture_2d<f32>;
@@ -38,8 +38,11 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     let coord = vec2<i32>(pos.xy);
 
-    // Sample 3x3 neighborhood with thickness scaling
-    let offset = i32(uniforms.edgeWidth);
+    // Sample 3x3 neighborhood with thickness scaling. Mirrors GLSL: clamp to minimum 1 so
+    // offset never collapses all 9 taps onto the same pixel (which silently turned the pass
+    // into a visual passthrough whenever edgeWidth rounded to 0).
+    let renderScale = select(uniforms.renderScale, 1.0, uniforms.renderScale <= 0.0);
+    let offset = max(1, i32(uniforms.edgeWidth * renderScale));
     var samples: array<f32, 9>;
     var idx = 0;
     for (var ky = -1; ky <= 1; ky = ky + 1) {

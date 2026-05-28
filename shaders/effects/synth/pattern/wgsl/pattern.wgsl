@@ -1,17 +1,22 @@
 // WGSL version – WebGPU
-@group(0) @binding(0) var<uniform> resolution: vec2<f32>;
-@group(0) @binding(1) var<uniform> aspect: f32;
-@group(0) @binding(2) var<uniform> patternType: i32;
-@group(0) @binding(3) var<uniform> scale: f32;
-@group(0) @binding(4) var<uniform> thickness: f32;
-@group(0) @binding(5) var<uniform> smoothness: f32;
-@group(0) @binding(6) var<uniform> rotation: f32;
-@group(0) @binding(7) var<uniform> animation: i32;
-@group(0) @binding(8) var<uniform> speed: f32;
-@group(0) @binding(9) var<uniform> time: f32;
-@group(0) @binding(10) var<uniform> fgColor: vec3<f32>;
-@group(0) @binding(11) var<uniform> bgColor: vec3<f32>;
-@group(0) @binding(12) var<uniform> skew: f32;
+// Consolidated into a single Uniforms struct so the fragment stage holds
+// 1 uniform buffer instead of 13 (the WebGPU per-stage limit is 12).
+struct Uniforms {
+    resolution: vec2<f32>,
+    aspect: f32,
+    patternType: i32,
+    scale: f32,
+    thickness: f32,
+    smoothness: f32,
+    rotation: f32,
+    animation: i32,
+    speed: f32,
+    time: f32,
+    skew: f32,
+    fgColor: vec3<f32>,
+    bgColor: vec3<f32>,
+}
+@group(0) @binding(0) var<uniform> u: Uniforms;
 
 const PI: f32 = 3.14159265359;
 const SQRT3: f32 = 1.7320508075688772;
@@ -115,7 +120,7 @@ fn concentricRings(p: vec2<f32>, t: f32, sm: f32, timeOffset: f32) -> f32 {
 
 // Radial lines pattern (timeOffset rotates around center)
 fn radialLines(p: vec2<f32>, t: f32, sm: f32, timeOffset: f32) -> f32 {
-    let lineCount = floor(scale);
+    let lineCount = floor(u.scale);
     let angle = atan2(p.y, p.x) + timeOffset * TAU;
     let d = fract(angle / TAU * lineCount);
     let edge1 = smoothstep(0.5 - t * 0.5 - sm, 0.5 - t * 0.5 + sm, d);
@@ -198,64 +203,64 @@ fn zigzag(p: vec2<f32>, t: f32, sm: f32) -> f32 {
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     // Normalize coordinates
-    var st = position.xy / resolution;
+    var st = position.xy / u.resolution;
     st = (st - vec2<f32>(0.5, 0.5)) * 2.0;
-    st.x = st.x * aspect;
-    
+    st.x = st.x * u.aspect;
+
     // Apply rotation
-    let rad = rotation * PI / 180.0;
+    let rad = u.rotation * PI / 180.0;
     st = rotate2D(st, rad);
-    
+
     // Apply animation rotation/pan (only for non-centered patterns)
-    let centered = patternType == CONCENTRIC_RINGS || patternType == RADIAL_LINES || patternType == SPIRAL_PATTERN;
-    if (!centered && animation == 2) {
-        st = rotate2D(st, time * TAU * floor(speed));
+    let centered = u.patternType == CONCENTRIC_RINGS || u.patternType == RADIAL_LINES || u.patternType == SPIRAL_PATTERN;
+    if (!centered && u.animation == 2) {
+        st = rotate2D(st, u.time * TAU * floor(u.speed));
     }
 
     // Horizontal shear (screen-vertical axis), applied as the final transform
-    st.x = st.x + st.y * skew;
+    st.x = st.x + st.y * u.skew;
 
     // Apply scale, mapping so lower scale = higher frequency
-    var p = st * (21.0 - scale);
+    var p = st * (21.0 - u.scale);
 
-    if (!centered && animation == 1) {
+    if (!centered && u.animation == 1) {
         // Checkerboard's spatial period along p.x is 2 (cell parity flips every unit),
         // so double the shift to keep the time=1 wrap landing on an even cell boundary.
-        let panPeriod = select(1.0, 2.0, patternType == CHECKERBOARD);
-        p.x += time * -floor(speed) * panPeriod;
+        let panPeriod = select(1.0, 2.0, u.patternType == CHECKERBOARD);
+        p.x += u.time * -floor(u.speed) * panPeriod;
     }
 
     // Compute pattern value
     var m: f32 = 0.0;
-    
-    if (patternType == CHECKERBOARD) {
-        m = checkerboard(p, smoothness);
-    } else if (patternType == CONCENTRIC_RINGS) {
-        m = concentricRings(p, thickness, smoothness, -time * floor(speed));
-    } else if (patternType == DOTS) {
-        m = dots(p, thickness, smoothness);
-    } else if (patternType == GRID) {
-        m = grid(p, thickness, smoothness);
-    } else if (patternType == HEXAGONS) {
-        m = hexagons(p, thickness, smoothness);
-    } else if (patternType == RADIAL_LINES) {
-        m = radialLines(p, thickness, smoothness, time * floor(speed));
-    } else if (patternType == SPIRAL_PATTERN) {
-        m = spiralPattern(p, thickness, smoothness, -time * floor(speed));
-    } else if (patternType == STRIPES) {
-        m = stripes(p, thickness, smoothness);
-    } else if (patternType == TRIANGULAR_GRID) {
-        m = triangularGrid(p, thickness, smoothness);
-    } else if (patternType == HEARTS) {
-        m = hearts(p, thickness, smoothness);
-    } else if (patternType == WAVES) {
-        m = waves(p, thickness, smoothness);
-    } else if (patternType == ZIGZAG) {
-        m = zigzag(p, thickness, smoothness);
+
+    if (u.patternType == CHECKERBOARD) {
+        m = checkerboard(p, u.smoothness);
+    } else if (u.patternType == CONCENTRIC_RINGS) {
+        m = concentricRings(p, u.thickness, u.smoothness, -u.time * floor(u.speed));
+    } else if (u.patternType == DOTS) {
+        m = dots(p, u.thickness, u.smoothness);
+    } else if (u.patternType == GRID) {
+        m = grid(p, u.thickness, u.smoothness);
+    } else if (u.patternType == HEXAGONS) {
+        m = hexagons(p, u.thickness, u.smoothness);
+    } else if (u.patternType == RADIAL_LINES) {
+        m = radialLines(p, u.thickness, u.smoothness, u.time * floor(u.speed));
+    } else if (u.patternType == SPIRAL_PATTERN) {
+        m = spiralPattern(p, u.thickness, u.smoothness, -u.time * floor(u.speed));
+    } else if (u.patternType == STRIPES) {
+        m = stripes(p, u.thickness, u.smoothness);
+    } else if (u.patternType == TRIANGULAR_GRID) {
+        m = triangularGrid(p, u.thickness, u.smoothness);
+    } else if (u.patternType == HEARTS) {
+        m = hearts(p, u.thickness, u.smoothness);
+    } else if (u.patternType == WAVES) {
+        m = waves(p, u.thickness, u.smoothness);
+    } else if (u.patternType == ZIGZAG) {
+        m = zigzag(p, u.thickness, u.smoothness);
     }
-    
+
     // Mix colors
-    let color = mix(bgColor, fgColor, m);
-    
+    let color = mix(u.bgColor, u.fgColor, m);
+
     return vec4<f32>(color, 1.0);
 }

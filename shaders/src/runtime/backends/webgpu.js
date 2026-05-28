@@ -2247,6 +2247,22 @@ export class WebGPUBackend extends Backend {
                             value = [0, 0, 0]
                         } else if (binding.typeDecl.startsWith('vec4')) {
                             value = [0, 0, 0, 0]
+                        } else if (binding.typeDecl.startsWith('array<')) {
+                            // array<vec4<f32>, N> / array<f32, N> / etc.
+                            // Default to a zero-filled flat float buffer sized for the array,
+                            // so the bind group buffer matches the shader's expected size.
+                            const m = binding.typeDecl.match(/^array<\s*([^,>]+(?:<[^>]+>)?)\s*,\s*(\d+)\s*>/)
+                            if (m) {
+                                const elemType = m[1].trim()
+                                const count = parseInt(m[2], 10)
+                                let stride = 16 // vec4 stride
+                                if (elemType === 'f32' || elemType === 'i32' || elemType === 'u32') stride = 4
+                                else if (elemType.startsWith('vec2')) stride = 8
+                                else if (elemType.startsWith('vec3') || elemType.startsWith('vec4')) stride = 16
+                                value = new Array((count * stride) / 4).fill(0)
+                            } else {
+                                value = 0
+                            }
                         } else {
                             value = 0 // Default for f32 and others
                         }
@@ -2385,9 +2401,25 @@ export class WebGPUBackend extends Backend {
                 arr[3] = value[3]
                 byteLength = 16
             } else {
-                // Fallback for other sizes - must allocate
-                data = new Float32Array(value)
-                byteLength = data.byteLength
+                // Fallback for other sizes — handle large arrays (e.g. audio waveform
+                // declared as array<vec4<f32>, 32> in WGSL, which needs a 512-byte
+                // buffer). When the typeDecl indicates a vec4 array, pad each input
+                // entry up to 16-byte stride so the buffer size matches the shader's
+                // expected minimum binding size.
+                if (typeof typeDecl === 'string' && /^array<\s*vec4/.test(typeDecl)) {
+                    const m = typeDecl.match(/^array<[^,>]+(?:<[^>]+>)?\s*,\s*(\d+)\s*>/)
+                    const count = m ? parseInt(m[1], 10) : Math.ceil(value.length / 4)
+                    // Build a flat buffer of count * 4 floats. Treat the input as a
+                    // flat sequence — every 4 input values become one vec4 entry.
+                    const flat = new Float32Array(count * 4)
+                    const copyLen = Math.min(value.length, flat.length)
+                    for (let i = 0; i < copyLen; i++) flat[i] = value[i]
+                    data = flat
+                    byteLength = flat.byteLength
+                } else {
+                    data = new Float32Array(value)
+                    byteLength = data.byteLength
+                }
             }
             if (!data) data = arr
         }
