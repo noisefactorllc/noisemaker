@@ -7,7 +7,7 @@
  */
 
 struct Uniforms {
-    // data[0] = (redDelay, greenDelay, blueDelay, resetState)
+    // data[0] = (redDelay, greenDelay, blueDelay, unused)
     data : array<vec4<f32>, 1>,
 };
 
@@ -28,16 +28,11 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let redDelay = uniforms.data[0].x;
     let greenDelay = uniforms.data[0].y;
     let blueDelay = uniforms.data[0].z;
-    let resetState = uniforms.data[0].w > 0.5;
 
     let texSize = vec2<f32>(textureDimensions(inputTex, 0));
     let uv = pos.xy / texSize;
 
     let cur = textureSampleLevel(inputTex, samp, uv, 0.0);
-
-    if (resetState) {
-        return cur;
-    }
 
     // slots[0] = live (delay 0); slots[1..8] = history (delay 1..8) with empty -> live.
     var slots : array<vec4<f32>, 9>;

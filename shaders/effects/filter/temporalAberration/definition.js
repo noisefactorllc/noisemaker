@@ -61,16 +61,6 @@ export default new Effect({
         label: "blue delay",
         control: "slider"
       }
-    },
-    resetState: {
-      type: "boolean",
-      default: false,
-      uniform: "resetState",
-      ui: {
-        control: "button",
-        buttonLabel: "reset",
-        label: "state"
-      }
     }
   },
 
@@ -89,11 +79,7 @@ noise(
     temporalAberration: {
       redDelay: { slot: 0, components: 'x' },
       greenDelay: { slot: 0, components: 'y' },
-      blueDelay: { slot: 0, components: 'z' },
-      resetState: { slot: 0, components: 'w' }
-    },
-    delayShift: {
-      resetState: { slot: 0, components: 'x' }
+      blueDelay: { slot: 0, components: 'z' }
     }
   },
 
@@ -135,49 +121,49 @@ noise(
     {
       name: "shift8",
       program: "delayShift",
-      inputs: { srcTex: "_h7", liveTex: "inputTex" },
+      inputs: { srcTex: "_h7" },
       outputs: { fragColor: "_h8" }
     },
     {
       name: "shift7",
       program: "delayShift",
-      inputs: { srcTex: "_h6", liveTex: "inputTex" },
+      inputs: { srcTex: "_h6" },
       outputs: { fragColor: "_h7" }
     },
     {
       name: "shift6",
       program: "delayShift",
-      inputs: { srcTex: "_h5", liveTex: "inputTex" },
+      inputs: { srcTex: "_h5" },
       outputs: { fragColor: "_h6" }
     },
     {
       name: "shift5",
       program: "delayShift",
-      inputs: { srcTex: "_h4", liveTex: "inputTex" },
+      inputs: { srcTex: "_h4" },
       outputs: { fragColor: "_h5" }
     },
     {
       name: "shift4",
       program: "delayShift",
-      inputs: { srcTex: "_h3", liveTex: "inputTex" },
+      inputs: { srcTex: "_h3" },
       outputs: { fragColor: "_h4" }
     },
     {
       name: "shift3",
       program: "delayShift",
-      inputs: { srcTex: "_h2", liveTex: "inputTex" },
+      inputs: { srcTex: "_h2" },
       outputs: { fragColor: "_h3" }
     },
     {
       name: "shift2",
       program: "delayShift",
-      inputs: { srcTex: "_h1", liveTex: "inputTex" },
+      inputs: { srcTex: "_h1" },
       outputs: { fragColor: "_h2" }
     },
     {
       name: "shift1",
       program: "delayShift",
-      inputs: { srcTex: "inputTex", liveTex: "inputTex" },
+      inputs: { srcTex: "inputTex" },
       outputs: { fragColor: "_h1" }
     }
   ]

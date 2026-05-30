@@ -29,7 +29,6 @@ uniform sampler2D h8;
 uniform float redDelay;
 uniform float greenDelay;
 uniform float blueDelay;
-uniform bool resetState;
 
 out vec4 fragColor;
 
@@ -38,13 +37,6 @@ void main() {
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
 
     vec4 cur = texture(inputTex, uv);
-
-    // On reset the delay line is being refilled with the live frame this frame; show the
-    // live frame directly so the reset is clean from this frame onward.
-    if (resetState) {
-        fragColor = cur;
-        return;
-    }
 
     // slots[0] = live (delay 0); slots[1..8] = history (delay 1..8) with empty -> live.
     vec4 slots[9];
