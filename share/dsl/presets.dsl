@@ -2668,7 +2668,7 @@
     settings: {
         distrib: random_member([ValueDistribution.simplex, ValueDistribution.ones]),
         freq: 6 * random_int(2, 3),
-        mask: random_member(ValueMask.procedural_members()),
+        mask: random_member(mask),
         pixel_sort_angled: false,
         pixel_sort_darkest: false,
         spline_order: InterpolationType.constant,
