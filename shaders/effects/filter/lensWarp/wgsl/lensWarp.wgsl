@@ -86,7 +86,7 @@ fn warpedUV(pos: vec2<f32>, frame: vec2<f32>, originOffset: vec2<f32>, disp: f32
     let noiseY = perlinNoise(noiseCoord + 97.0, vec2<f32>(2.0), t, spd);
     uv.x = uv.x + (noiseX - 0.5) * disp * mask;
     uv.y = uv.y + (noiseY - 0.5) * disp * mask;
-    return abs((uv % 2.0 + 2.0) % 2.0 - 1.0);
+    return abs(((uv + 1.0) % 2.0 + 2.0) % 2.0 - 1.0);
 }
 
 @fragment

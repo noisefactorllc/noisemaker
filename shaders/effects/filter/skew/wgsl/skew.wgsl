@@ -42,7 +42,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         st = clamp(st, vec2<f32>(0.0), vec2<f32>(1.0));
     } else if (wrapMode == 1) {
         // mirror
-        st = abs((st % 2.0 + 2.0) % 2.0 - 1.0);
+        st = abs(((st + 1.0) % 2.0 + 2.0) % 2.0 - 1.0);
     } else {
         // repeat
         st = (st % 1.0 + 1.0) % 1.0;

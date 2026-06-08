@@ -44,7 +44,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Apply wrap mode
     if (uniforms.wrap == 0) {
         // mirror
-        uv = abs((uv % 2.0 + 2.0) % 2.0 - 1.0);
+        uv = abs(((uv + 1.0) % 2.0 + 2.0) % 2.0 - 1.0);
     } else if (uniforms.wrap == 1) {
         // repeat
         uv = (uv % 1.0 + 1.0) % 1.0;
