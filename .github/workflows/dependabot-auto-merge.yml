@@ -1,26 +1,20 @@
 name: Dependabot auto-merge
 
-# Fires AFTER any CI workflow completes. Auto-merges Dependabot PRs ONLY if
-# ALL THREE gates pass:
+# Fires AFTER any CI workflow completes. Auto-merges Dependabot PRs ONLY if:
 #   1. All check_runs for the head SHA passed (no required-status-checks
 #      branch protection on these repos, so gh pr merge --auto can't gate
 #      on its own).
-#   2. Clean rebase: PR base SHA == current main HEAD. After each merge,
-#      main moves, so every other open Dependabot PR must rebase before
-#      it can also merge — that re-runs CI against the new main and
-#      catches conflicts a stale base would miss.
-#   3. Bump level is patch or minor. Majors stay open for human review
-#      (cf. express 4 → 5 outage 2026-05-13, stripe 14 → 15 silent break).
+#   2. The PR is patch-level only. Classification:
+#      - Grouped PRs use the group name in the title:
+#          *"-patches group"*       → auto-merge
+#          *"-minor-major group"*   → human review
+#      - Single-package PRs: parse version pair from title.
 #
-# Classification:
-#   - Grouped PRs (our dependabot.yml splits patches/minor/major):
-#       *"-patches group"*     → patch
-#       *"-minor group"*       → minor
-#       *"-major group"*       → major (human review)
-#       *"-minor-major group"* → mixed/legacy (human review)
-#   - Single-package PRs: parse version pair from title. Supports both:
-#       "bump X from A.B.C to D.E.F"
-#       "update X requirement from <Y to >=Z" (range-pinned deps)
+# Title formats Dependabot emits (after our dependabot.yml split):
+#   - "deps(npm): bump the npm-patches group with 5 updates"
+#   - "deps(npm): bump the npm-minor-major group with 2 updates"
+#   - "deps: bump playwright from 1.57.0 to 1.60.0"
+#   - "deps: bump express-rate-limit from 7.5.1 to 8.5.1 in the npm-patches group"
 
 on:
   workflow_run:
@@ -59,7 +53,7 @@ jobs:
             exit 0
           fi
 
-          # Gate 1: every check_run for this SHA passed
+          # Verify every check_run for this SHA passed
           CHECKS=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs?per_page=100" --jq '.check_runs')
           PENDING=$(echo "$CHECKS" | jq '[.[] | select(.status != "completed")] | length')
           FAILED=$(echo "$CHECKS" | jq '[.[] | select(.conclusion=="failure" or .conclusion=="cancelled" or .conclusion=="timed_out")] | length')
@@ -73,76 +67,40 @@ jobs:
             exit 0
           fi
 
-          # Gate 2: clean rebase — PR base must match current main HEAD.
-          # If main has moved since this PR was last rebased, rebase via the
-          # GitHub API. (Commenting "@dependabot rebase" doesn't work from
-          # github-actions[bot] — Dependabot only accepts that command from
-          # collaborators, not GITHUB_TOKEN.) The new head SHA fires a fresh
-          # pull_request workflow run, and this auto-merge job re-evaluates
-          # on its workflow_run completion.
-          BASE_REF=$(echo "$PR_DATA" | jq -r '.base.ref')
-          BASE_SHA=$(echo "$PR_DATA" | jq -r '.base.sha')
-          MAIN_SHA=$(gh api "repos/$REPO/commits/$BASE_REF" --jq '.sha')
-          if [ "$BASE_SHA" != "$MAIN_SHA" ]; then
-            echo "PR #$PR_NUM base ($BASE_SHA) != $BASE_REF HEAD ($MAIN_SHA) — rebasing via API"
-            gh pr update-branch --rebase "$PR_NUM" -R "$REPO" || true
-            exit 0
-          fi
-
-          # Gate 3: classify the bump into patch / minor / major
+          # Classify by title: grouped vs single-package, patch vs non-patch
           TITLE=$(echo "$PR_DATA" | jq -r '.title // ""')
-          LEVEL=""
+          REASON=""
 
-          # Grouped — order matters: check -minor-major before -major
           if echo "$TITLE" | grep -qE 'bump the [a-z-]+-patches group'; then
-            LEVEL="patch"
+            REASON="grouped patches"
           elif echo "$TITLE" | grep -qE 'bump the [a-z-]+-minor-major group'; then
-            LEVEL="mixed"
-          elif echo "$TITLE" | grep -qE 'bump the [a-z-]+-minor group'; then
-            LEVEL="minor"
-          elif echo "$TITLE" | grep -qE 'bump the [a-z-]+-major group'; then
-            LEVEL="major"
+            REASON="non-patch grouped bump (minor/major group)"
           else
-            # Single-package — try both title formats
-            # Format A: "bump X from A.B.C to D.E.F"
-            FROM=$(echo "$TITLE" | grep -oE 'from [0-9]+(\.[0-9]+)+' | head -1 | sed 's/^from //')
-            TO=$(echo "$TITLE"   | grep -oE 'to [0-9]+(\.[0-9]+)+'   | head -1 | sed 's/^to //')
-            # Format B: "update X requirement from <Y to >=Z,<W"
-            if [ -z "$FROM" ] || [ -z "$TO" ]; then
-              VERSIONS=$(echo "$TITLE" | grep -oE '>=[0-9]+(\.[0-9]+)+' | sed 's/^>=//')
-              FROM=$(echo "$VERSIONS" | sed -n '1p')
-              TO=$(echo "$VERSIONS"   | sed -n '2p')
+            # Single-package — extract version pair from title
+            VER_LINE=$(echo "$TITLE" | grep -oE 'from [0-9]+\.[0-9]+\.[0-9]+ to [0-9]+\.[0-9]+\.[0-9]+' | head -1)
+            if [ -z "$VER_LINE" ]; then
+              echo "Cannot classify PR title — leaving open for review: $TITLE"
+              exit 0
             fi
-            if [ -n "$FROM" ] && [ -n "$TO" ]; then
-              fm=$(echo "$FROM" | cut -d. -f1); tm=$(echo "$TO" | cut -d. -f1)
-              fn=$(echo "$FROM" | cut -d. -f2); tn=$(echo "$TO" | cut -d. -f2)
-              if [ "$fm" != "$tm" ]; then
-                LEVEL="major"
-              elif [ "$fn" != "$tn" ]; then
-                LEVEL="minor"
-              else
-                LEVEL="patch"
-              fi
+            from=$(echo "$VER_LINE" | sed -E 's/from ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+            to=$(echo "$VER_LINE"   | sed -E 's/.*to ([0-9]+\.[0-9]+\.[0-9]+)/\1/')
+            fm=$(echo "$from" | cut -d. -f1); tm=$(echo "$to" | cut -d. -f1)
+            fn=$(echo "$from" | cut -d. -f2); tn=$(echo "$to" | cut -d. -f2)
+            if [ "$fm" = "$tm" ] && [ "$fn" = "$tn" ]; then
+              REASON="single patch $from → $to"
+            else
+              REASON="single non-patch $from → $to"
             fi
           fi
 
-          if [ -z "$LEVEL" ]; then
-            echo "Could not classify PR title — leaving open for review: $TITLE"
-            exit 0
-          fi
-
-          case "$LEVEL" in
-            patch|minor)
-              echo "$LEVEL bump, CI green, base clean — merging PR #$PR_NUM ($TITLE)"
+          case "$REASON" in
+            "grouped patches"|"single patch"*)
+              echo "Patch-only ($REASON) and CI green — merging PR #$PR_NUM"
               echo "pr_num=$PR_NUM" >> "$GITHUB_OUTPUT"
               ;;
-            major)
-              echo "PR #$PR_NUM is a major bump — NOT auto-merging"
-              gh pr comment "$PR_NUM" -R "$REPO" --body "Auto-merge skipped: major version bump. Major bumps need a human to review and merge (cf. express 4 → 5 outage 2026-05-13)." || true
-              ;;
-            mixed)
-              echo "PR #$PR_NUM is a legacy mixed minor-major group — NOT auto-merging"
-              gh pr comment "$PR_NUM" -R "$REPO" --body "Auto-merge skipped: legacy minor-major mixed group (minors and majors are now separate groups). Recreate this PR after the next Dependabot schedule, or merge manually if every bump in it is minor or lower." || true
+            *)
+              echo "PR #$PR_NUM is $REASON — NOT auto-merging"
+              gh pr comment "$PR_NUM" -R "$REPO" --body "Auto-merge skipped: $REASON. Patch-level bumps auto-merge after CI passes; minor and major bumps need a human to review and merge." || true
               ;;
           esac
 
