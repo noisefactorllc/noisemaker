@@ -3143,12 +3143,23 @@ export class WebGPUBackend extends Backend {
         this.queue.submit([commandEncoder.finish()])
     }
 
-    destroy() {
-        for (const id of Array.from(this.textures.keys())) {
-            this.destroyTexture(id)
+    destroy(options = {}) {
+        if (!options?.skipTextures) {
+            for (const id of Array.from(this.textures.keys())) {
+                this.destroyTexture(id)
+            }
+
+            this.textures.clear()
         }
 
-        this.textures.clear()
+        // The depth texture is owned by the backend but lives outside
+        // this.textures, so free it explicitly regardless of skipTextures —
+        // neither teardown path reaches it through the texture registry.
+        if (this.depthTexture) {
+            this.depthTexture.destroy()
+            this.depthTexture = null
+            this.depthTextureSize = { width: 0, height: 0 }
+        }
 
         this.programs.clear()
         this.pipelines.clear()

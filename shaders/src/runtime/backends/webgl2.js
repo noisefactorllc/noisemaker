@@ -1363,12 +1363,14 @@ export class WebGL2Backend extends Backend {
             return
         }
 
-        // Delete textures and associated framebuffers
-        for (const id of Array.from(this.textures.keys())) {
-            this.destroyTexture(id)
-        }
+        if (!options?.skipTextures) {
+            // Delete textures and associated framebuffers
+            for (const id of Array.from(this.textures.keys())) {
+                this.destroyTexture(id)
+            }
 
-        this.textures.clear()
+            this.textures.clear()
+        }
 
         // Delete compiled programs
         for (const program of this.programs.values()) {
@@ -1392,6 +1394,15 @@ export class WebGL2Backend extends Backend {
             gl.deleteVertexArray(this.emptyVAO)
             this.emptyVAO = null
         }
+
+        // Depth renderbuffers live outside this.textures, so free them
+        // explicitly — destroyTexture only releases per-texture FBOs.
+        for (const entry of this.depthBuffers.values()) {
+            if (entry?.buffer) {
+                gl.deleteRenderbuffer(entry.buffer)
+            }
+        }
+        this.depthBuffers.clear()
 
         this.fbos.clear()
 

@@ -1741,23 +1741,21 @@ export class Pipeline {
         }
         this._asyncRenders.clear()
 
-        // Destroy all global surfaces
-        for (const [name] of this.surfaces) {
-            this.backend.destroyTexture(`global_${name}_read`)
-            this.backend.destroyTexture(`global_${name}_write`)
+        // Every texture the pipeline owns is registered with the backend:
+        // global surfaces (including mesh positions/normals/uvs triplets),
+        // graph textures, and runtime-managed textures such as MIDI grids,
+        // media inputs, and async-init uploads. A single sweep of the backend
+        // texture registry destroys each one exactly once.
+        if (this.backend?.textures) {
+            for (const texId of Array.from(this.backend.textures.keys())) {
+                this.backend.destroyTexture(texId)
+            }
         }
         this.surfaces.clear()
 
-        // Destroy all graph textures
-        if (this.graph && this.graph.textures) {
-            for (const texId of this.graph.textures.keys()) {
-                if (!texId.startsWith('global_') && !texId.startsWith('feedback_')) {
-                    this.backend.destroyTexture(texId)
-                }
-            }
-        }
-
-        // Destroy backend resources
+        // Release the remaining backend resources — programs, buffers,
+        // samplers, depth attachments, and context. Textures are already
+        // gone, so skip the backend's own texture sweep.
         if (this.backend && typeof this.backend.destroy === 'function') {
             this.backend.destroy({ skipTextures: true })
         }

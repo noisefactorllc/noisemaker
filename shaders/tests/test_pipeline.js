@@ -120,6 +120,57 @@ test('Pipeline - Initialization', async () => {
     }
 })
 
+test('Pipeline - Dispose destroys all pipeline-owned textures', async () => {
+    const backend = new MockBackend()
+    const graph = {
+        passes: [],
+        textures: new Map([
+            ['tex_0', { width: 800, height: 600, format: 'rgba8' }]
+        ])
+    }
+
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(800, 600)
+
+    // Mesh surfaces are positions/normals/uvs triplets (not read/write), graph
+    // textures come from the compiled graph, and runtime-managed textures such
+    // as MIDI grids are registered directly with the backend. Dispose must
+    // destroy every one of these, each exactly once.
+    const meshTriplet = ['global_mesh0_positions', 'global_mesh0_normals', 'global_mesh0_uvs']
+    for (const id of meshTriplet) {
+        if (!backend.textures.has(id)) {
+            throw new Error(`Expected mesh texture ${id} to be created before dispose`)
+        }
+    }
+    if (!backend.textures.has('tex_0')) {
+        throw new Error('Expected graph texture to be created before dispose')
+    }
+
+    backend.createTexture('midiNoteGrid', { width: 128, height: 16, format: 'rgba32f' })
+
+    // Record every destroyTexture call to verify coverage and that no texture
+    // is destroyed more than once.
+    const destroyed = []
+    const realDestroy = backend.destroyTexture.bind(backend)
+    backend.destroyTexture = (id) => {
+        destroyed.push(id)
+        realDestroy(id)
+    }
+
+    pipeline.dispose()
+
+    if (backend.textures.size !== 0) {
+        throw new Error(`Expected dispose to destroy all textures, found: ${Array.from(backend.textures.keys()).join(', ')}`)
+    }
+
+    for (const id of [...meshTriplet, 'tex_0', 'midiNoteGrid']) {
+        const count = destroyed.filter((x) => x === id).length
+        if (count !== 1) {
+            throw new Error(`Expected ${id} to be destroyed exactly once, got ${count}`)
+        }
+    }
+})
+
 test('Pipeline - Frame Execution', async () => {
     const backend = new MockBackend()
     const graph = {
