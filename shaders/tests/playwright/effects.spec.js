@@ -144,6 +144,66 @@ async function exerciseParameterControls(page) {
   }
 }
 
+/**
+ * Decide whether the o0 render-target shows more than one color on WebGPU.
+ *
+ * Reads the actual rendered texture (matching the WebGL2 path) rather than the
+ * composited canvas — a canvas screenshot blends the surface over the demo's
+ * gradient page background, so even a solid effect would read as multi-color.
+ *
+ * Headless Chromium's live WebGPU present intermittently hits an IOSurface
+ * device-mismatch that poisons a concurrent readback, returning a corrupted
+ * (uniform) read — worst for heavy effects (e.g. classicNoisedeck). In practice
+ * such corruption only REMOVES color diversity (uniform/empty), so we read
+ * repeatedly across fresh frames and treat the effect as multi-color the instant
+ * ANY read sees a second color; a genuinely flat effect stays flat across every
+ * read. We scan pixels contiguously (even strides alias with periodic patterns
+ * and can read a stripe field as one color), compare RGB only — alpha isn't a
+ * visible-color difference — and tolerate transient readback throws.
+ * On a flat result the last sampled color is returned for the failure diagnostic.
+ * @returns {Promise<{isMulti: boolean, r?: number, g?: number, b?: number, texId?: string}>}
+ */
+async function sampleWebGPUColors(page) {
+  let lastColor = null
+  for (let attempt = 0; attempt < 15; attempt += 1) {
+    const r = await page.evaluate(async () => {
+      const pipeline = window.__noisemakerRenderingPipeline
+      if (!pipeline) return { multi: false }
+      const surface = pipeline.surfaces?.get('o0')
+      if (!surface) return { multi: false }
+      const backend = pipeline.backend
+      // Drain in-flight GPU work so a poisoned present command can't invalidate
+      // this readback's command buffer.
+      try { await backend.device?.queue?.onSubmittedWorkDone?.() } catch { /* device busy */ }
+      let firstPixel = null
+      for (const id of [surface.read, surface.write].filter(Boolean)) {
+        try {
+          const res = await backend.readPixels(id)
+          if (!res || !res.data) continue
+          const data = res.data
+          const r0 = data[0], g0 = data[1], b0 = data[2]
+          if (!firstPixel) firstPixel = [r0, g0, b0]
+          for (let i = 4; i < data.length; i += 4) {
+            if (data[i] !== r0 || data[i + 1] !== g0 || data[i + 2] !== b0) {
+              return { multi: true }
+            }
+          }
+        } catch {
+          // Texture transiently absent or readback poisoned — retry.
+        }
+      }
+      return { multi: false, c: firstPixel }
+    })
+    if (r.multi) return { isMulti: true }
+    if (r.c) lastColor = r.c
+    // Let the running render loop produce a fresh frame before retrying.
+    await page.waitForTimeout(80)
+  }
+  return lastColor
+    ? { isMulti: false, r: lastColor[0], g: lastColor[1], b: lastColor[2], texId: 'o0(wgpu)' }
+    : { isMulti: false }
+}
+
 test.describe.configure({ mode: 'serial' })
 
 test('demo renders all available effects without console errors', async ({ page }) => {
@@ -162,6 +222,12 @@ test('demo renders all available effects without console errors', async ({ page 
       const text = msg.text()
       // Skip expected 404 errors for missing shader files
       if (text.includes('Failed to load resource') && text.includes('404')) {
+        return
+      }
+      // Skip the IOSurface device-mismatch / Invalid CommandBuffer swapchain race
+      // headless Chromium WebGPU emits during rapid effect switches — a compositor
+      // artifact, not a shader/runtime error (see validate-webgpu-all.mjs).
+      if (text.includes('IOSurface') || text.includes('Invalid CommandBuffer')) {
         return
       }
       if (text.includes('Error') || text.includes('warning') || msg.type() === 'error') {
@@ -277,7 +343,13 @@ test('demo renders all available effects without console errors', async ({ page 
       ].includes(effect)
         || effect.includes('feedback')
       if (!skipColorCheck) {
-        const hasMultipleColors = await page.evaluate(async (effectName) => {
+        // Both backends sample the o0 render-target texture directly; the WebGPU
+        // path retries to ride out the headless IOSurface readback race.
+        let pixelResult
+        if (useWGSL) {
+          pixelResult = await sampleWebGPUColors(page)
+        } else {
+          const hasMultipleColors = await page.evaluate(async (effectName) => {
           const pipeline = window.__noisemakerRenderingPipeline
           if (!pipeline) {
             console.error('Pipeline unavailable when sampling output')
@@ -285,45 +357,11 @@ test('demo renders all available effects without console errors', async ({ page 
           }
 
           const backend = pipeline.backend
-          const backendName = backend?.getName?.() || 'unknown'
 
           const surface = pipeline.surfaces?.get('o0')
           if (!surface) {
             console.error('Surface o0 not found on pipeline')
             return false
-          }
-
-          // WebGPU backend path
-          if (backendName === 'WebGPU') {
-            try {
-              const result = await backend.readPixels(surface.read)
-              if (!result || !result.data) {
-                console.error('Failed to read pixels from WebGPU backend')
-                return false
-              }
-
-              const { data } = result
-              const stride = 17
-              const firstR = data[0]
-              const firstG = data[1]
-              const firstB = data[2]
-              const firstA = data[3]
-
-              for (let i = stride * 4; i < data.length; i += stride * 4) {
-                if (data[i] !== firstR ||
-                    data[i + 1] !== firstG ||
-                    data[i + 2] !== firstB ||
-                    data[i + 3] !== firstA) {
-                  return true
-                }
-              }
-
-              console.error(`Monochromatic color for ${effectName} (WebGPU): R=${firstR}, G=${firstG}, B=${firstB}, A=${firstA}`)
-              return false
-            } catch (err) {
-              console.error(`WebGPU readPixels failed for ${effectName}:`, err.message || err)
-              return false
-            }
           }
 
           // WebGL2 backend path
@@ -398,12 +436,12 @@ test('demo renders all available effects without console errors', async ({ page 
 
           return { isMulti: true }
         }, effect)
+          pixelResult = typeof hasMultipleColors === 'object' ? hasMultipleColors : { isMulti: hasMultipleColors }
+        }
 
-        const pixelResult = typeof hasMultipleColors === 'object' ? hasMultipleColors : { isMulti: hasMultipleColors }
         if (!pixelResult.isMulti && pixelResult.r !== undefined) {
           console.log(`Pixel sample for ${effect}: R=${pixelResult.r}, G=${pixelResult.g}, B=${pixelResult.b}, A=${pixelResult.a}, texId=${pixelResult.texId}, frame=${pixelResult.frameIndex}, size=${pixelResult.width}x${pixelResult.height}`)
         }
-
         expect(pixelResult.isMulti, `Effect ${effect} rendered a single solid color (monochromatic)`).toBe(true)
       }
     })

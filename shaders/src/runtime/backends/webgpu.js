@@ -1100,8 +1100,12 @@ export class WebGPUBackend extends Backend {
         // Skip structs that have comment annotations with component names
         // These should be handled by parseNamedStructLayout which properly maps
         // individual uniform names (width, height, time, etc.) to struct field components
-        // Pattern: // (name1, name2, name3, name4)
-        if (/\/\/\s*\([^)]+\)/.test(structBody)) {
+        // Pattern: // (name1, name2, name3, name4) — a comma-separated identifier list.
+        // Require the comma-separated list of identifiers so prose comments that merely
+        // contain parentheses (e.g. "// (metric was here — now a compile-time define)")
+        // don't false-trigger the slot-based parser, which would mispack a struct of
+        // plain named fields and leave the shader reading garbage uniforms.
+        if (/\/\/\s*\(\s*\w+(?:\s*,\s*\w+)+\s*\)/.test(structBody)) {
             return null
         }
 
@@ -2142,7 +2146,20 @@ export class WebGPUBackend extends Backend {
                 // Parse global texture reference
                 const surfaceName = this.parseGlobalName(texId)
 
-                if (surfaceName) {
+                // Mesh data textures (global_meshN_positions/normals/uvs) are static
+                // uploads from loadOBJ, not ping-pong surfaces. Chain scoping can create
+                // a same-named ping-pong surface in state.surfaces; binding that empty
+                // surface instead of the uploaded mesh texture makes the vertex shader
+                // read zeroed positions and the mesh renders degenerate (blank). Resolve
+                // these to the uploaded texture by its chain-stripped name first.
+                const unscopedMeshId = typeof texId === 'string' ? texId.replace(/_chain_\d+$/, '') : texId
+                const isMeshData = typeof unscopedMeshId === 'string' &&
+                    /^global_mesh\d+_(?:positions|normals|uvs)$/.test(unscopedMeshId)
+
+                if (isMeshData) {
+                    const meshTex = this.textures.get(texId) || this.textures.get(unscopedMeshId)
+                    textureView = meshTex?.view
+                } else if (surfaceName) {
                     // Check if it's a ping-pong global surface (o0-o7, geo0-geo7, vol0-vol7)
                     const surfaceObj = state.surfaces?.[surfaceName]
                     if (surfaceObj?.view) {
