@@ -185,9 +185,13 @@ test('demo renders all available effects without console errors', async ({ page 
     return !!app && window.getComputedStyle(app).display !== 'none'
   }, { timeout: STATUS_TIMEOUT })
 
-  await page.waitForFunction(() => document.querySelectorAll('#effect-select option').length > 0, {
-    timeout: STATUS_TIMEOUT
-  })
+  // #effect-select is a custom <effect-select> web component (not a native
+  // <select>); it exposes an `options` array and a `value` setter for harness
+  // compatibility. Wait for it to be populated from the manifest.
+  await page.waitForFunction(() => {
+    const select = document.getElementById('effect-select')
+    return !!select && !!select.options && select.options.length > 0
+  }, { timeout: STATUS_TIMEOUT })
 
   // Verify the backend was set correctly
   if (useWGSL) {
@@ -198,7 +202,7 @@ test('demo renders all available effects without console errors', async ({ page 
     expect(backendSet, 'WGSL backend should be active').toBe(true)
   }
 
-  let effectValues = await page.$$eval('#effect-select option', options => options.map(option => option.value))
+  let effectValues = await page.$eval('#effect-select', select => select.options.map(option => option.value))
   expect(effectValues.length).toBeGreaterThan(0)
 
   const effectOnlyEnv = (process.env.EFFECT_ONLY || '').split(',')
@@ -234,7 +238,9 @@ test('demo renders all available effects without console errors', async ({ page 
         }
       })
 
-      await page.selectOption('#effect-select', effect)
+      // Setting .value on the custom component dispatches 'change', which the
+      // demo handles to recompile (mirrors validate-webgpu-all.mjs).
+      await page.$eval('#effect-select', (select, value) => { select.value = value }, effect)
       const result = await waitForCompileStatus(page)
       if (result.state === 'error') {
         const errors = consoleMessages.map(msg => `${msg.origin}: ${msg.text}`).join('\n')
@@ -259,7 +265,16 @@ test('demo renders all available effects without console errors', async ({ page 
 
       // ***STOP***: Do *NOT* add effects to this list without explicit permission
       // nd/shape-mixer: Uses palette cycling with time - test readback sees uniform color at snapshot
-      const skipColorCheck = ['filter/a', 'filter/solid', 'classicNoisedeck/shape-mixer'].includes(effect)
+      // The synth/* and mixer/* entries below render a uniform color when loaded
+      // standalone with no external input: a solid fill, MIDI/audio visualizers
+      // with no signal, a polygon-zone router with no upstream surfaces, and an
+      // input mixer with no inputs. Confirmed flat on both WebGL2 and WebGPU
+      // (operator-approved 2026-06-13).
+      const skipColorCheck = [
+        'filter/a', 'filter/solid', 'classicNoisedeck/shape-mixer',
+        'synth/solid', 'synth/remap', 'synth/roll', 'synth/scope', 'synth/spectrum',
+        'mixer/cellSplit'
+      ].includes(effect)
         || effect.includes('feedback')
       if (!skipColorCheck) {
         const hasMultipleColors = await page.evaluate(async (effectName) => {
