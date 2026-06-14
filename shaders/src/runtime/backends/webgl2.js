@@ -574,6 +574,48 @@ export class WebGL2Backend extends Backend {
         return { success: true, vertexCount }
     }
 
+    /**
+     * Read pixels from a texture for testing/parity diffing. Mirrors
+     * WebGPUBackend.readPixels(): returns top-down RGBA8 (0-255) regardless of the
+     * texture's internal format. gl.readPixels is bottom-up, so the rows are flipped
+     * to top-down to match the WebGPU backend's readback orientation.
+     * @param {string} textureId
+     * @returns {{width:number, height:number, data:Uint8Array}}
+     */
+    readPixels(textureId) {
+        const gl = this.gl
+        const tex = this.textures.get(textureId)
+        if (!tex) throw new Error(`Texture ${textureId} not found`)
+        const { handle, width, height, glFormat } = tex
+
+        const fbo = gl.createFramebuffer()
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, handle, 0)
+
+        const out = new Uint8Array(width * height * 4)
+        if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE) {
+            const isFloat = glFormat && (glFormat.type === gl.HALF_FLOAT || glFormat.type === gl.FLOAT)
+            if (isFloat) {
+                const buf = new Float32Array(width * height * 4)
+                gl.readPixels(0, 0, width, height, gl.RGBA, gl.FLOAT, buf)
+                for (let i = 0; i < out.length; i++) {
+                    out[i] = Math.max(0, Math.min(255, Math.round(buf[i] * 255)))
+                }
+            } else {
+                gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, out)
+            }
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        gl.deleteFramebuffer(fbo)
+
+        const flipped = new Uint8Array(width * height * 4)
+        const rowBytes = width * 4
+        for (let y = 0; y < height; y++) {
+            flipped.set(out.subarray((height - 1 - y) * rowBytes, (height - y) * rowBytes), y * rowBytes)
+        }
+        return { width, height, data: flipped }
+    }
+
     destroyTexture(id) {
         const gl = this.gl
         const tex = this.textures.get(id)

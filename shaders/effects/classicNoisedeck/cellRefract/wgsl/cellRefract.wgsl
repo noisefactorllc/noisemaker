@@ -208,7 +208,11 @@ fn smin(a: f32, b: f32, k: f32) -> f32 {
 
 fn cells(st_in: vec2f, freq: f32, cellSize: f32) -> f32 {
     var st = st_in * freq;
-    st += prng(vec3f(f32(u.seed), 0.0, 0.0)).xy;
+    // GLSL uses prng(vec3(float(seed))), i.e. the seed splatted to (seed,seed,seed).
+    // (seed,0,0) feeds the PRNG a different vector (pcg mixes all 3 components), so
+    // the per-seed cell-grid origin offset lands elsewhere and the cells appear
+    // shifted vs glsl/cellRefract.glsl. Splat the seed to match the reference.
+    st += prng(vec3f(f32(u.seed))).xy;
     let i = floor(st);
     let f = fract(st);
     var d = 1.0;

@@ -2195,6 +2195,19 @@ export class WebGPUBackend extends Backend {
             }
         }
 
+        // WebGL2 createTexture sets NEAREST min/mag on every surface render target;
+        // WebGPU historically bound the LINEAR 'default' sampler for all inputs
+        // (pass.samplerTypes is never populated), so filter effects sampled their
+        // intermediate surface input LINEAR on WebGPU vs NEAREST on WebGL2 — a parity
+        // gap. Mirror WebGL2: surface inputs sample NEAREST. External (video/image)
+        // uploads are LINEAR in WebGL2, so a pass sampling one of those (isExternal)
+        // keeps LINEAR here too.
+        const inputSamplerDefault = (pass.inputs && Object.values(pass.inputs).some(texId => {
+            const t = this.textures.get(texId) ||
+                (typeof texId === 'string' ? this.textures.get(texId.replace(/_chain_\d+$/, '')) : null)
+            return t?.isExternal === true
+        })) ? 'default' : 'nearest'
+
         // Create entries based on parsed shader bindings
         for (const binding of bindings) {
             if (binding.group !== 0) continue // Only support group 0 for now
@@ -2228,7 +2241,7 @@ export class WebGPUBackend extends Backend {
                     entries.push(entry)
                 }
             } else if (binding.type === 'sampler') {
-                const samplerType = pass.samplerTypes?.[binding.name] || 'default'
+                const samplerType = pass.samplerTypes?.[binding.name] || inputSamplerDefault
                 entry.resource = this.samplers.get(samplerType) || this.samplers.get('default')
                 entries.push(entry)
             } else if (binding.type === 'uniform') {
@@ -2674,7 +2687,12 @@ export class WebGPUBackend extends Backend {
                         resource: textureView
                     })
 
-                    const samplerType = pass.samplerTypes?.[samplerName] || 'default'
+                    // Match WebGL2 surface filtering (NEAREST) for surface inputs;
+                    // external (video/image) uploads are LINEAR on WebGL2, keep LINEAR.
+                    const texRec = this.textures.get(texId) ||
+                        (typeof texId === 'string' ? this.textures.get(texId.replace(/_chain_\d+$/, '')) : null)
+                    const legacyDefault = texRec?.isExternal ? 'default' : 'nearest'
+                    const samplerType = pass.samplerTypes?.[samplerName] || legacyDefault
                     entries.push({
                         binding: binding++,
                         resource: this.samplers.get(samplerType) || this.samplers.get('default')
