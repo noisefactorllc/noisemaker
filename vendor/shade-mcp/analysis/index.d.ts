@@ -1,4 +1,4 @@
-import { B as BrowserSession } from '../browser-session-ZRj1tPM6.js';
+import { B as BrowserSession } from '../browser-session-C_48BKwP.js';
 import 'playwright';
 
 declare function checkAlgEquiv(effectId: string): Promise<any>;

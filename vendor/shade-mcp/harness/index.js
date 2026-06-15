@@ -4938,115 +4938,111 @@ var testPixelParitySchema = {
   epsilon: external_exports.number().optional().default(1).describe("Allowed per-channel difference (0-255)"),
   seed: external_exports.number().optional().default(42).describe("Random seed for reproducible noise")
 };
-var CAPTURE_PIXELS_FN = `
-function capturePixels(globals) {
-  var w = window;
-  var renderer = w[globals.canvasRenderer];
-  var pipeline = w[globals.renderingPipeline];
-  if (!renderer) return null;
-
-  renderer.render(0);
-  var canvas = renderer.canvas;
-  var width = canvas.width, height = canvas.height;
-
-  // Try WebGL readPixels
-  var gl = pipeline && pipeline.backend && pipeline.backend.gl;
-  if (gl) {
-    var pixels = new Uint8Array(width * height * 4);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-    // Flip Y to top-down for consistent comparison
-    var flipped = new Uint8Array(width * height * 4);
-    var rowBytes = width * 4;
-    for (var y = 0; y < height; y++) {
-      flipped.set(pixels.subarray((height - 1 - y) * rowBytes, (height - y) * rowBytes), y * rowBytes);
-    }
-    return { data: Array.from(flipped), width: width, height: height };
-  }
-
-  // Fallback: canvas 2D context (works for WebGPU)
-  var tmpCanvas = document.createElement('canvas');
-  tmpCanvas.width = width;
-  tmpCanvas.height = height;
-  var ctx = tmpCanvas.getContext('2d');
-  if (!ctx) return null;
-  ctx.drawImage(canvas, 0, 0);
-  var imageData = ctx.getImageData(0, 0, width, height);
-  return { data: Array.from(imageData.data), width: width, height: height };
+async function waitReady(session) {
+  await session.page.waitForFunction((globals) => {
+    const w = window;
+    const p = w[globals.renderingPipeline];
+    if (!p || p.isCompiling) return false;
+    return !!(p.graph && p.graph.passes && p.graph.passes.length > 0);
+  }, session.globals, { timeout: 3e5, polling: 50 });
 }
-`;
+async function warmUp(session, frames = 6) {
+  const start = await session.page.evaluate((globals) => {
+    const w = window;
+    if (w[globals.setPaused]) w[globals.setPaused](false);
+    return w[globals.frameCount] || 0;
+  }, session.globals);
+  await session.page.waitForFunction(
+    ({ globals, target }) => (window[globals.frameCount] || 0) >= target,
+    { globals: session.globals, target: start + frames },
+    { timeout: 3e4, polling: 30 }
+  );
+}
+async function captureSurface(session, seed) {
+  return await session.page.evaluate(async ({ globals, seed: seed2 }) => {
+    const w = window;
+    if (w[globals.setPaused]) w[globals.setPaused](true);
+    if (w[globals.setPausedTime]) w[globals.setPausedTime](0);
+    const p = w[globals.renderingPipeline];
+    if (!p) return null;
+    if (p.globalUniforms) p.globalUniforms.seed = seed2;
+    for (const pass of p.graph?.passes || []) if (pass.uniforms) pass.uniforms.seed = seed2;
+    const r = w[globals.canvasRenderer];
+    const b = p.backend;
+    if (!r || !b || !b.readPixels || !b.textures) return null;
+    const surf = p.graph?.renderSurface;
+    if (!surf) return null;
+    const readSurface = async () => {
+      const candidates = ["global_" + surf + "_read"];
+      try {
+        const nodes = [];
+        for (const k of b.textures.keys()) if (/node_\d+_out/.test(k)) nodes.push(k);
+        nodes.sort((a, c) => parseInt(a.match(/node_(\d+)/)[1], 10) - parseInt(c.match(/node_(\d+)/)[1], 10));
+        if (nodes.length) candidates.push(nodes[nodes.length - 1]);
+      } catch (e) {
+      }
+      for (const id of candidates) {
+        try {
+          const px2 = await b.readPixels(id);
+          if (px2 && px2.width && px2.height && px2.data) return px2;
+        } catch (e) {
+        }
+      }
+      return null;
+    };
+    let px = null;
+    for (let attempt = 0; attempt < 6 && !px; attempt++) {
+      r.render(0);
+      r.render(0);
+      px = await readSurface();
+      if (!px) await new Promise((res) => setTimeout(res, 80));
+    }
+    if (!px) return null;
+    let data = px.data;
+    if (!b.gl) {
+      const flipped = new Uint8Array(px.width * px.height * 4);
+      const rowBytes = px.width * 4;
+      for (let y = 0; y < px.height; y++) {
+        flipped.set(data.subarray((px.height - 1 - y) * rowBytes, (px.height - y) * rowBytes), y * rowBytes);
+      }
+      data = flipped;
+    }
+    return { data: Array.from(data), width: px.width, height: px.height };
+  }, { globals: session.globals, seed });
+}
 async function testPixelParity(session, effectId, options = {}) {
   const epsilon = options.epsilon ?? 1;
   const seed = options.seed ?? 42;
   await session.setBackend("webgl2");
-  await session.page.evaluate((id) => {
-    const select = document.getElementById("effect-select");
-    if (select) {
-      select.value = id;
-      select.dispatchEvent(new Event("change"));
-    }
-  }, effectId);
-  await session.page.waitForFunction(() => {
-    const s = document.getElementById("status");
-    const t = (s?.textContent || "").toLowerCase();
-    return t.includes("loaded") || t.includes("compiled") || t.includes("ready");
-  }, { timeout: 3e5 });
-  await session.page.evaluate(({ globals, seed: seed2 }) => {
-    const w = window;
-    if (w[globals.setPaused]) w[globals.setPaused](true);
-    if (w[globals.setPausedTime]) w[globals.setPausedTime](0);
-    const pipeline = w[globals.renderingPipeline];
-    if (pipeline) {
-      if (pipeline.globalUniforms) pipeline.globalUniforms.seed = seed2;
-      const passes = pipeline.graph?.passes || [];
-      for (const pass of passes) {
-        if (pass.uniforms) pass.uniforms.seed = seed2;
-      }
-    }
-  }, { globals: session.globals, seed });
-  const glslPixels = await session.page.evaluate(
-    new Function("globals", CAPTURE_PIXELS_FN + "return capturePixels(globals);"),
-    session.globals
-  );
+  await session.selectEffect(effectId);
+  await waitReady(session);
+  await warmUp(session);
+  const glslPixels = await captureSurface(session, seed);
   if (!glslPixels) {
     return { status: "error", maxDiff: 0, meanDiff: 0, mismatchCount: 0, mismatchPercent: 0, resolution: [0, 0], details: "Failed to capture WebGL2" };
   }
   await session.setBackend("webgpu");
-  await session.page.evaluate((id) => {
-    const select = document.getElementById("effect-select");
-    if (select) {
-      select.value = id;
-      select.dispatchEvent(new Event("change"));
-    }
-  }, effectId);
-  await session.page.waitForFunction(() => {
-    const s = document.getElementById("status");
-    const t = (s?.textContent || "").toLowerCase();
-    return t.includes("loaded") || t.includes("compiled") || t.includes("ready");
-  }, { timeout: 3e5 });
-  await session.page.evaluate(({ globals, seed: seed2 }) => {
-    const w = window;
-    if (w[globals.setPaused]) w[globals.setPaused](true);
-    if (w[globals.setPausedTime]) w[globals.setPausedTime](0);
-    const pipeline = w[globals.renderingPipeline];
-    if (pipeline) {
-      if (pipeline.globalUniforms) pipeline.globalUniforms.seed = seed2;
-      const passes = pipeline.graph?.passes || [];
-      for (const pass of passes) {
-        if (pass.uniforms) pass.uniforms.seed = seed2;
-      }
-    }
-  }, { globals: session.globals, seed });
-  const wgslPixels = await session.page.evaluate(
-    new Function("globals", CAPTURE_PIXELS_FN + "return capturePixels(globals);"),
-    session.globals
-  );
+  await session.selectEffect(effectId);
+  await waitReady(session);
+  await warmUp(session);
+  const wgslPixels = await captureSurface(session, seed);
   await session.page.evaluate((globals) => {
-    const w = window;
-    if (w[globals.setPaused]) w[globals.setPaused](false);
+    const w2 = window;
+    if (w2[globals.setPaused]) w2[globals.setPaused](false);
   }, session.globals);
   if (!wgslPixels) {
     return { status: "error", maxDiff: 0, meanDiff: 0, mismatchCount: 0, mismatchPercent: 0, resolution: [glslPixels.width, glslPixels.height], details: "Failed to capture WebGPU" };
+  }
+  if (glslPixels.width !== wgslPixels.width || glslPixels.height !== wgslPixels.height) {
+    return {
+      status: "error",
+      maxDiff: 0,
+      meanDiff: 0,
+      mismatchCount: 0,
+      mismatchPercent: 0,
+      resolution: [glslPixels.width, glslPixels.height],
+      details: `Capture size mismatch: glsl ${glslPixels.width}x${glslPixels.height} vs wgsl ${wgslPixels.width}x${wgslPixels.height}`
+    };
   }
   let maxDiff = 0;
   let totalDiff = 0;
@@ -5060,14 +5056,76 @@ async function testPixelParity(session, effectId, options = {}) {
   }
   const meanDiff = totalDiff / totalChannels;
   const mismatchPercent = mismatchCount / totalChannels * 100;
+  const w = glslPixels.width, h = glslPixels.height;
+  function checkSolid(pixels, label) {
+    const n = pixels.width * pixels.height;
+    let rS = 0, gS = 0, bS = 0;
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      rS += pixels.data[i];
+      gS += pixels.data[i + 1];
+      bS += pixels.data[i + 2];
+    }
+    const rM = rS / n, gM = gS / n, bM = bS / n;
+    let rV = 0, gV = 0, bV = 0;
+    for (let i = 0; i < pixels.data.length; i += 4) {
+      rV += (pixels.data[i] - rM) ** 2;
+      gV += (pixels.data[i + 1] - gM) ** 2;
+      bV += (pixels.data[i + 2] - bM) ** 2;
+    }
+    rV /= n;
+    gV /= n;
+    bV /= n;
+    const isSolid = rV < 5 && gV < 5 && bV < 5;
+    return { label, isSolid, variance: [Math.round(rV), Math.round(gV), Math.round(bV)], mean: [Math.round(rM), Math.round(gM), Math.round(bM)] };
+  }
+  const glslSolid = checkSolid(glslPixels, "glsl");
+  const wgslSolid = checkSolid(wgslPixels, "wgsl");
+  let yFlipMismatch = 0;
+  let yFlipTotalDiff = 0;
+  const rowBytes = w * 4;
+  for (let y = 0; y < h; y++) {
+    const glslRow = y;
+    const wgslFlippedRow = h - 1 - y;
+    for (let x = 0; x < rowBytes; x++) {
+      const diff = Math.abs(glslPixels.data[glslRow * rowBytes + x] - wgslPixels.data[wgslFlippedRow * rowBytes + x]);
+      yFlipTotalDiff += diff;
+      if (diff > epsilon) yFlipMismatch++;
+    }
+  }
+  const yFlipPercent = yFlipMismatch / totalChannels * 100;
+  const yFlipMeanDiff = yFlipTotalDiff / totalChannels;
+  const yFlipRatio = meanDiff > 0 ? yFlipMeanDiff / meanDiff : 1;
+  const isYFlipped = meanDiff > 2 && // there is a real difference to explain
+  yFlipMeanDiff < meanDiff && // flipping must actually help
+  yFlipRatio < 0.7;
+  const isCleanYFlip = meanDiff > 2 && yFlipRatio < 0.25;
+  const issues = [];
+  if (glslSolid.isSolid) issues.push(`GLSL SOLID COLOR (mean=${glslSolid.mean})`);
+  if (wgslSolid.isSolid) issues.push(`WGSL SOLID COLOR (mean=${wgslSolid.mean})`);
+  if (isYFlipped) {
+    issues.push(
+      `${isCleanYFlip ? "Y-FLIP" : "PARTIAL Y-FLIP"} DETECTED (flipped meanDiff=${yFlipMeanDiff.toFixed(2)} vs normal meanDiff=${meanDiff.toFixed(2)}, ratio=${yFlipRatio.toFixed(2)}, flip mismatch=${yFlipPercent.toFixed(1)}% vs normal=${mismatchPercent.toFixed(1)}%)`
+    );
+  }
+  const status = mismatchPercent < 1 ? "ok" : "mismatch";
   return {
-    status: mismatchPercent < 1 ? "ok" : "mismatch",
+    status,
     maxDiff,
     meanDiff: Math.round(meanDiff * 100) / 100,
     mismatchCount,
     mismatchPercent: Math.round(mismatchPercent * 100) / 100,
-    resolution: [glslPixels.width, glslPixels.height],
-    details: mismatchPercent < 1 ? `Pixel parity OK (maxDiff=${maxDiff}, meanDiff=${meanDiff.toFixed(2)})` : `Pixel mismatch: ${mismatchPercent.toFixed(1)}% channels differ by >${epsilon}`
+    resolution: [w, h],
+    glslSolid: glslSolid.isSolid,
+    wgslSolid: wgslSolid.isSolid,
+    glslVariance: glslSolid.variance,
+    wgslVariance: wgslSolid.variance,
+    yFlipDetected: isYFlipped,
+    yFlipCleanFlip: isCleanYFlip,
+    yFlipMismatchPercent: Math.round(yFlipPercent * 100) / 100,
+    yFlipMeanDiff: Math.round(yFlipMeanDiff * 100) / 100,
+    yFlipRatio: Math.round(yFlipRatio * 1e3) / 1e3,
+    issues,
+    details: issues.length > 0 ? issues.join("; ") : mismatchPercent < 1 ? `Pixel parity OK (maxDiff=${maxDiff}, meanDiff=${meanDiff.toFixed(2)})` : `Pixel mismatch: ${mismatchPercent.toFixed(1)}% channels differ by >${epsilon}`
   };
 }
 

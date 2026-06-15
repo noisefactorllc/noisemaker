@@ -1,5 +1,5 @@
-import { B as BrowserSession, C as CompileResult, R as RenderResult, a as BenchmarkResult, P as ParityResult } from '../browser-session-ZRj1tPM6.js';
-export { b as BrowserSessionOptions, D as DEFAULT_GLOBALS, I as ImageMetrics, V as ViewerGlobals, g as globalsFromPrefix } from '../browser-session-ZRj1tPM6.js';
+import { B as BrowserSession, C as CompileResult, R as RenderResult, a as BenchmarkResult, P as ParityResult } from '../browser-session-C_48BKwP.js';
+export { b as BrowserSessionOptions, D as DEFAULT_GLOBALS, I as ImageMetrics, V as ViewerGlobals, g as globalsFromPrefix } from '../browser-session-C_48BKwP.js';
 import 'playwright';
 
 declare function acquireServer(port: number, viewerRoot: string, effectsDir: string): Promise<string>;
