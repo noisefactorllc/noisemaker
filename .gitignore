@@ -8,6 +8,7 @@ node_modules/
 *.pyc
 noisemaker.egg-info
 dist/
+test-results/
 .vscode/
 .openai
 .anthropic
