@@ -373,8 +373,7 @@ fn main(@builtin(position) position: vec4<f32>) -> FragmentOutput {
     if (fullRes.x < 1.0) { fullRes = vec2<f32>(1024.0, 1024.0); }
 
     let uv = ((position.xy + tileOffset) - 0.5 * fullRes) / fullRes.y;
-    let uvFlipped = vec2<f32>(uv.x, -uv.y);
-    
+
     let camAngle = time * TAU * f32(orbitSpeed);
     let camDist: f32 = 3.5;
     let ro = vec3<f32>(sin(camAngle) * camDist, 0.5, cos(camAngle) * camDist);
@@ -384,7 +383,7 @@ fn main(@builtin(position) position: vec4<f32>) -> FragmentOutput {
     let right = normalize(cross(vec3<f32>(0.0, 1.0, 0.0), forward));
     let up = cross(forward, right);
     
-    let rd = normalize(forward + uvFlipped.x * right + uvFlipped.y * up);
+    let rd = normalize(forward + uv.x * right + uv.y * up);
     
     var color: vec3<f32>;
     var normal = vec3<f32>(0.0, 0.0, 1.0);

@@ -1,7 +1,7 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * render/renderCubemap3D - Cubemap 3D volume renderer (lit blob)
+ * render/renderCubemap3d - Cubemap 3D volume renderer (lit blob)
  *
  * A multi-face clone of render3d: renders a 3D volume (inputTex3d) into seamless
  * cubemap faces using the per-face cube camera (cubeBasis) instead of render3d's
@@ -10,14 +10,14 @@ import { Effect } from '../../../src/runtime/effect.js'
  * true-color ray sample lives in the sibling renderCubemapSurface.)
  *
  * Usage in DSL:
- *   noise3d().renderCubemap3D().write(o0)
- *   cell3d().renderCubemap3D(threshold: 0.3, filtering: voxel).write(o0)
+ *   noise3d().renderCubemap3d().write(o0)
+ *   cell3d().renderCubemap3d(threshold: 0.3, filtering: voxel).write(o0)
  */
 export default new Effect({
   name: "RenderCubemap3D",
   namespace: "render",
   tags: ["3d"],
-  func: "renderCubemap3D",
+  func: "renderCubemap3d",
 
   description: "Render a 3D volume into cubemap faces (lit isosurface/voxel)",
   textures: {
@@ -112,7 +112,7 @@ export default new Effect({
   passes: [
     {
       name: "render",
-      program: "renderCubemap3D",
+      program: "renderCubemap3d",
       drawBuffers: 2,
       inputs: {
         volumeCache: "inputTex3d",

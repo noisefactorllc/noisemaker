@@ -970,7 +970,7 @@ export class Pipeline {
      * The returned array is reused and its entries overwritten on every call;
      * copy the faces (or their `data`) if you need to retain them across calls.
      * The render style (lit blob vs raw sample) is whichever cubemap renderer the
-     * graph ends in (renderCubemap3D / renderCubemapSurface) — not a parameter here.
+     * graph ends in (renderCubemap3d / renderCubemapSurface) — not a parameter here.
      * @param {{size?:number, outputSurface?:string, time?:number}} cfg
      * @returns {Promise<Array<{width:number,height:number,data:Uint8Array}>>} reused buffer — copy if retaining
      */

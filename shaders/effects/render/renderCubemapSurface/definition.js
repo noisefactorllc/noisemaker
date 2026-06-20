@@ -7,7 +7,7 @@ import { Effect } from '../../../src/runtime/effect.js'
  * field along the per-face cube camera rays (cubeBasis, 90-degree frustum from
  * the volume center). Front-to-back emission/absorption with NO lighting and NO
  * gamma — the raw, true color of the field shows through exactly as sampled.
- * (The lit isosurface/voxel "blob in space" view lives in renderCubemap3D.)
+ * (The lit isosurface/voxel "blob in space" view lives in renderCubemap3d.)
  *
  * Usage in DSL:
  *   noise3d().renderCubemapSurface().write(o0)

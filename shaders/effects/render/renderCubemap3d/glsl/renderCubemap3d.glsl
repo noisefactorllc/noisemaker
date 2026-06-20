@@ -1,5 +1,5 @@
 /*
- * Cubemap 3D volume renderer (GLSL) — renderCubemap3D
+ * Cubemap 3D volume renderer (GLSL) — renderCubemap3d
  *
  * A multi-face clone of render3d: the lit "blob in space" projected onto cube
  * faces. Same isosurface/voxel raymarching and shading as render3d (including

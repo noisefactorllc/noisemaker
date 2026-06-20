@@ -6,7 +6,7 @@ Render a 3D volume into six seamless cube faces — for skyboxes, planetary surf
 Two renderers turn a volume into cube faces, differing only in how they show the field:
 
 - ``renderCubemapSurface`` — the field's **raw true color**, sampled along each face ray (no lighting, no gamma). Same dynamic range as the field's 2D view.
-- ``renderCubemap3D`` — a lit **``render3d``-style solid** (isosurface or voxel, with shading and gamma).
+- ``renderCubemap3d`` — a lit **``render3d``-style solid** (isosurface or voxel, with shading and gamma).
 
 .. note::
 
@@ -45,7 +45,7 @@ field:
      - What it shows
    * - ``renderCubemapSurface``
      - The **raw, true color** of the field, sampled along the face normal (front-to-back emission/absorption). No lighting, no gamma — the same dynamic range as the field's 2D view. Use this to see the field as-is.
-   * - ``renderCubemap3D``
+   * - ``renderCubemap3d``
      - The lit **"blob in space"** — a multi-face clone of ``render3d``: isosurface or voxel raymarching with shading and gamma. (A future ``renderCubemapLit3D`` will mirror ``renderLit3d``.)
 
 .. code-block:: dsl
@@ -88,7 +88,7 @@ renderCubemapSurface parameters
      - ``[0.02,0.02,0.02]`` / 1
      - Background behind the volume
 
-renderCubemap3D parameters
+renderCubemap3d parameters
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. list-table::
@@ -128,13 +128,13 @@ Examples
 
     // Lit isosurface "planet shell"
     search synth3d, filter3d, render
-    noise3d(volumeSize: x64).renderCubemap3D(threshold: 0.55).write(o0)
+    noise3d(volumeSize: x64).renderCubemap3d(threshold: 0.55).write(o0)
     render(o0)
 
 Rendering All Six Faces
 -----------------------
 
-A cubemap renderer renders one face at a time (whichever ``cubeBasis`` the driver sets). To produce all six faces, call ``renderCubemap()`` on the renderer (or pipeline). It runs the compiled graph six times — once per face — and returns six pixel buffers. The render style is whichever cubemap renderer the graph ends in (``renderCubemapSurface`` / ``renderCubemap3D``) — not a driver option.
+A cubemap renderer renders one face at a time (whichever ``cubeBasis`` the driver sets). To produce all six faces, call ``renderCubemap()`` on the renderer (or pipeline). It runs the compiled graph six times — once per face — and returns six pixel buffers. The render style is whichever cubemap renderer the graph ends in (``renderCubemapSurface`` / ``renderCubemap3d``) — not a driver option.
 
 .. code-block:: javascript
 

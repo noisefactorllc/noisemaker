@@ -4,7 +4,7 @@
  * Samples a 3D volume (inputTex3d) along the per-face cube camera rays and shows
  * the RAW, TRUE color of the field exactly as sampled — front-to-back
  * emission/absorption, with NO lighting and NO gamma. (The lit isosurface/voxel
- * "blob in space" view lives in the sibling renderCubemap3D.)
+ * "blob in space" view lives in the sibling renderCubemap3d.)
  *
  * The volume's red channel drives per-step opacity; RGB is the emitted color.
  */

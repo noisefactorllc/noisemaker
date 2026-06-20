@@ -7,7 +7,7 @@ a 90-degree frustum per face (`cubeBasis`), so adjacent faces share edge
 directions and tile without seams. The volume's red channel drives per-step
 opacity; RGB is the emitted color.
 
-For a lit isosurface/voxel "blob in space," use `renderCubemap3D`.
+For a lit isosurface/voxel "blob in space," use `renderCubemap3d`.
 
 - **density** — scales the field's contribution to per-step opacity (`1 - exp(-field·density·absorption·dt)`). Higher is thicker.
 - **absorption** — further scales how strongly the medium attenuates along the ray.
