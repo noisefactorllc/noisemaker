@@ -414,6 +414,39 @@ export class WebGL2Backend extends Backend {
     }
 
     /**
+     * Allocate a cube-map texture (6 faces, all same size).
+     * @param {string} id - Texture identifier
+     * @param {{ size: number }} options - Cube face edge length in pixels
+     */
+    createCubeTexture(id, { size }) {
+        const gl = this.gl
+        const handle = gl.createTexture()
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, handle)
+        for (let f = 0; f < 6; f++) {
+            gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + f, 0, gl.RGBA8, size, size, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
+        }
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+        gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+        this.textures.set(id, { handle, width: size, height: size, cube: true })
+        return this.textures.get(id)
+    }
+
+    /**
+     * Upload RGBA8 pixel data to one face of a cube-map texture.
+     * @param {string} id - Texture identifier (must have been created with createCubeTexture)
+     * @param {number} face - Face index 0..5 (added to TEXTURE_CUBE_MAP_POSITIVE_X)
+     * @param {{ width: number, height: number, data: Uint8Array }} faceData
+     */
+    uploadCubeFace(id, face, { width, height, data }) {
+        const gl = this.gl
+        const tex = this.textures.get(id)
+        gl.bindTexture(gl.TEXTURE_CUBE_MAP, tex.handle)
+        gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X + face, 0, gl.RGBA8, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data)
+    }
+
+    /**
      * Update a texture from an external source (video, image, canvas).
      * This is used for media input effects that need to display camera/video content.
      * @param {string} id - Texture ID

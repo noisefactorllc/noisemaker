@@ -48,7 +48,7 @@ function isAutomationControlled(value) {
 const KNOWN_3D_GENERATORS = ['noise3d', 'cell3d', 'shape3d', 'fractal3d', 'flythrough3d', 'cellularAutomata3d', 'reactionDiffusion3d']
 
 // Known 3D processor effects (modify volumes, need inputTex3d)
-const KNOWN_3D_PROCESSORS = ['flow3d', 'render3d', 'renderLit3d']
+const KNOWN_3D_PROCESSORS = ['flow3d', 'render3d', 'renderLit3d', 'renderCube']
 
 /**
  * Deep clone a parameter value
@@ -645,6 +645,16 @@ export class CanvasRenderer {
      */
     clearTileRegion() {
         if (this._pipeline) this._pipeline.clearTileRegion()
+    }
+
+    /**
+     * Render the active effect into 6 cubemap faces. See Pipeline.renderCubemap.
+     * The returned array is reused on each call — copy the faces if retaining.
+     * @returns {Promise<Array<{width,height,data}>>} reused buffer — copy if retaining
+     */
+    renderCubemap(config) {
+        if (this._pipeline) return this._pipeline.renderCubemap(config)
+        return Promise.resolve([])
     }
 
     /**

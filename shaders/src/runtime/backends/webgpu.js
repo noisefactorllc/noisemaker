@@ -73,6 +73,7 @@ export class WebGPUBackend extends Backend {
         // Pre-allocated typed arrays for single uniform buffers (common sizes)
         this._singleUniformFloat32 = new Float32Array(4)  // Up to vec4
         this._singleUniformInt32 = new Int32Array(4)  // Up to vec4
+        this._singleUniformMat3Float32 = new Float32Array(12)  // mat3x3<f32>: 3 cols padded to vec4
         // Pre-allocated uniform buffer data (reuse for packUniforms)
         this._uniformBufferData = new ArrayBuffer(512)  // Large enough for most cases
         this._uniformDataView = new DataView(this._uniformBufferData)
@@ -264,6 +265,57 @@ export class WebGPUBackend extends Backend {
             tex.handle.destroy()
             this.textures.delete(id)
         }
+    }
+
+    /**
+     * Allocate a cube-map texture (6 faces, all same size).
+     * @param {string} id - Texture identifier
+     * @param {{ size: number }} options - Cube face edge length in pixels
+     */
+    createCubeTexture(id, { size }) {
+        const device = this.device
+        const handle = device.createTexture({
+            size: [size, size, 6],
+            format: 'rgba8unorm',
+            dimension: '2d',
+            usage: GPUTextureUsage.TEXTURE_BINDING |
+                   GPUTextureUsage.COPY_DST |
+                   GPUTextureUsage.RENDER_ATTACHMENT
+        })
+        const view = handle.createView({ dimension: 'cube' })
+        this.textures.set(id, { handle, view, width: size, height: size, cube: true })
+        return this.textures.get(id)
+    }
+
+    /**
+     * Upload RGBA8 pixel data to one face of a cube-map texture.
+     * Mirrors uploadDataTexture's writeTexture + 256-byte row-alignment pattern.
+     * @param {string} id - Texture identifier (must have been created with createCubeTexture)
+     * @param {number} face - Face index 0..5 (array layer)
+     * @param {{ width: number, height: number, data: Uint8Array }} faceData
+     */
+    uploadCubeFace(id, face, { width, height, data }) {
+        const device = this.device
+        const tex = this.textures.get(id)
+        // RGBA8: 4 bytes per pixel; rows must be aligned to 256 bytes for WebGPU
+        const unalignedBytesPerRow = width * 4
+        const bytesPerRow = Math.ceil(unalignedBytesPerRow / 256) * 256
+
+        let uploadData = data
+        if (bytesPerRow !== unalignedBytesPerRow) {
+            const paddedData = new Uint8Array(bytesPerRow * height)
+            for (let y = 0; y < height; y++) {
+                paddedData.set(data.subarray(y * unalignedBytesPerRow, (y + 1) * unalignedBytesPerRow), y * bytesPerRow)
+            }
+            uploadData = paddedData
+        }
+
+        device.queue.writeTexture(
+            { texture: tex.handle, origin: [0, 0, face] },
+            uploadData,
+            { bytesPerRow, rowsPerImage: height },
+            { width, height, depthOrArrayLayers: 1 }
+        )
     }
 
     /**
@@ -2293,6 +2345,10 @@ export class WebGPUBackend extends Backend {
                             } else {
                                 value = 0
                             }
+                        } else if (binding.typeDecl.startsWith('mat3')) {
+                            // mat3x3<f32>: identity is the neutral transform default, and
+                            // yields a correct 48-byte buffer instead of a 4-byte scalar.
+                            value = [1, 0, 0, 0, 1, 0, 0, 0, 1]
                         } else {
                             value = 0 // Default for f32 and others
                         }
@@ -2430,6 +2486,18 @@ export class WebGPUBackend extends Backend {
                 arr[2] = value[2]
                 arr[3] = value[3]
                 byteLength = 16
+            } else if (value.length === 9) {
+                // mat3x3<f32>: 3 columns, each padded to vec4 (16 bytes) = 48 bytes total.
+                // Reuse the pre-allocated buffer to honor this function's no-per-frame-alloc contract.
+                const mat3buf = this._singleUniformMat3Float32
+                for (let col = 0; col < 3; col++) {
+                    mat3buf[col * 4 + 0] = value[col * 3 + 0]
+                    mat3buf[col * 4 + 1] = value[col * 3 + 1]
+                    mat3buf[col * 4 + 2] = value[col * 3 + 2]
+                    mat3buf[col * 4 + 3] = 0  // column padding
+                }
+                data = mat3buf
+                byteLength = 48
             } else {
                 // Fallback for other sizes — handle large arrays (e.g. audio waveform
                 // declared as array<vec4<f32>, 32> in WGSL, which needs a 512-byte

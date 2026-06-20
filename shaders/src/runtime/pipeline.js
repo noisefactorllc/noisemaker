@@ -8,6 +8,7 @@ import { WebGPUBackend } from './backends/webgpu.js'
 import { expandPalette } from './palette-expansion.js'
 import { getEffect } from './registry.js'
 import { Effect } from './effect.js'
+import { CUBE_FACE_BASES } from '../renderer/cubeCamera.js'
 
 /**
  * Oscillator evaluation functions.
@@ -960,6 +961,33 @@ export class Pipeline {
         this._tileOffset = null
         this._fullResolution = null
         this._renderScale = null
+    }
+
+    /**
+     * Render the current graph once per cube face into 6 face pixel buffers.
+     * Faces are ordered +X,-X,+Y,-Y,+Z,-Z (GL cubemap order).
+     *
+     * The returned array is reused and its entries overwritten on every call;
+     * copy the faces (or their `data`) if you need to retain them across calls.
+     * @param {{size?:number, mode?:('volumetric'|'isosurface'), outputSurface?:string, time?:number}} cfg
+     * @returns {Promise<Array<{width:number,height:number,data:Uint8Array}>>} reused buffer — copy if retaining
+     */
+    async renderCubemap({ size = 512, mode = 'volumetric', outputSurface = 'o0', time = 0 } = {}) {
+        const prevW = this.width, prevH = this.height
+        if (this.width !== size || this.height !== size) this.resize(size, size)
+        this.setUniform('cubeMode', mode === 'isosurface' ? 0 : 1)
+        if (!this._cubeFaces) this._cubeFaces = new Array(6)
+        for (let face = 0; face < 6; face++) {
+            this.setUniform('cubeBasis', CUBE_FACE_BASES[face])
+            this.render(time)
+            const surface = this.surfaces.get(outputSurface)
+            if (!surface) {
+                throw new Error(`renderCubemap: output surface "${outputSurface}" not found — the composition must write its renderCube result to it (e.g. .renderCube().write(${outputSurface}))`)
+            }
+            this._cubeFaces[face] = await this.backend.readPixels(surface.read)
+        }
+        if (prevW !== size || prevH !== size) this.resize(prevW, prevH)
+        return this._cubeFaces
     }
 
     /**
