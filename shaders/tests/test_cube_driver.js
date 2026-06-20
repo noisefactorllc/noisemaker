@@ -44,7 +44,7 @@ class MockBackend extends Backend {
     endFrame() {}
     resize() {}
 
-    readPixels(id) {
+    readPixels() {
         const n = SIZE * SIZE * 4
         const data = new Uint8Array(n)
         data[0] = this.basesSeen.length

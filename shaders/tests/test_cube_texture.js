@@ -3,7 +3,7 @@ import { WebGL2Backend } from '../src/runtime/backends/webgl2.js'
 const calls = []
 const stubGl = new Proxy({ TEXTURE_CUBE_MAP: 34067, TEXTURE_CUBE_MAP_POSITIVE_X: 34069, RGBA: 6408, RGBA8: 32856, UNSIGNED_BYTE: 5121,
   TEXTURE_MIN_FILTER: 10241, TEXTURE_MAG_FILTER: 10240, LINEAR: 9729, TEXTURE_WRAP_S: 10242, TEXTURE_WRAP_T: 10243, CLAMP_TO_EDGE: 33071 },
-  { get: (t, k) => (k in t ? t[k] : (...a) => { calls.push(String(k)); return k === 'createTexture' ? {} : undefined }) })
+  { get: (t, k) => (k in t ? t[k] : () => { calls.push(String(k)); return k === 'createTexture' ? {} : undefined }) })
 
 const b = Object.create(WebGL2Backend.prototype)
 b.gl = stubGl
