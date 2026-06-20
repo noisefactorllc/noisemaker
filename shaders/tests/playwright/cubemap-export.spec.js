@@ -21,16 +21,16 @@ test('renderCube exports 6 distinct cube faces (readback works on this backend)'
       'WGSL backend should be active').toBe('wgsl')
   }
 
-  // Cube export only works when the graph terminates in renderCube fed by a 3D volume.
+  // Cube export only works when the graph terminates in a cubemap renderer fed by a 3D volume.
   const DSL = [
     'search synth3d, filter3d, render', '',
-    'noise3d(volumeSize: x64)', '  .renderCube()', '  .write(o0)', '',
+    'noise3d(volumeSize: x64)', '  .renderCubemapSurface()', '  .write(o0)', '',
     'render(o0)',
   ].join('\n')
 
   const result = await page.evaluate(async (dsl) => {
     const r = window.__noisemakerCanvasRenderer
-    await r.loadEffects(['synth3d/noise3d', 'render/renderCube'])
+    await r.loadEffects(['synth3d/noise3d', 'render/renderCubemapSurface'])
     await r.compile(dsl)
     const p = r.pipeline
     if (r.stop) r.stop() // pause RAF loop so the driver owns cubeBasis

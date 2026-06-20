@@ -74,15 +74,15 @@ test('CUBE_FACE_BASES is precomputed and matches faceBasisMat3', () => {
 test('renderCubemap renders 6 faces with the 6 distinct bases', async () => {
     const backend = new MockBackend()
     const graph = {
-        passes: [{ id: 'p0', program: 'renderCube' }],
+        passes: [{ id: 'p0', program: 'renderCubemapSurface' }],
         textures: new Map(),
-        programs: { renderCube: { fragment: 'void main() {}' } },
+        programs: { renderCubemapSurface: { fragment: 'void main() {}' } },
         renderSurface: 'o0'
     }
     const pipeline = new Pipeline(graph, backend)
     await pipeline.init(SIZE, SIZE)
 
-    const faces = await pipeline.renderCubemap({ size: SIZE, mode: 'volumetric', outputSurface: 'o0' })
+    const faces = await pipeline.renderCubemap({ size: SIZE, outputSurface: 'o0' })
 
     if (faces.length !== 6) throw new Error(`expected 6 faces, got ${faces.length}`)
 

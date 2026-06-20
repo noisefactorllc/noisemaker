@@ -1,7 +1,12 @@
 Cubemaps
 ========
 
-Render a 3D volume into six seamless cube faces — for skyboxes, planetary surfaces, nebulae, and stars. Works on both the WebGL2 and WebGPU backends.
+Render a 3D volume into six seamless cube faces — for skyboxes, planetary surfaces, nebulae, and stars — on both the WebGL2 and WebGPU backends.
+
+Two renderers turn a volume into cube faces, differing only in how they show the field:
+
+- ``renderCubemapSurface`` — the field's **raw true color**, sampled along each face ray (no lighting, no gamma). Same dynamic range as the field's 2D view.
+- ``renderCubemap3D`` — a lit **``render3d``-style solid** (isosurface or voxel, with shading and gamma).
 
 .. note::
 
@@ -28,103 +33,113 @@ Each output pixel becomes a 3D view ray, and the ray marches the volume. Because
 Generating Cube Faces
 ---------------------
 
-The ``renderCube`` effect is a 3D renderer: feed it a volume and it renders the current cube face. Drive it from a 3D generator such as ``noise3d``:
+Two cubemap renderers take a 3D volume and render the current cube face; drive
+either from a 3D generator such as ``noise3d``. They differ in how they show the
+field:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 76
+
+   * - Renderer
+     - What it shows
+   * - ``renderCubemapSurface``
+     - The **raw, true color** of the field, sampled along the face normal (front-to-back emission/absorption). No lighting, no gamma — the same dynamic range as the field's 2D view. Use this to see the field as-is.
+   * - ``renderCubemap3D``
+     - The lit **"blob in space"** — a multi-face clone of ``render3d``: isosurface or voxel raymarching with shading and gamma. (A future ``renderCubemapLit3D`` will mirror ``renderLit3d``.)
 
 .. code-block:: dsl
 
     search synth3d, filter3d, render
 
     noise3d(volumeSize: x64)
-      .renderCube()
+      .renderCubemapSurface()
       .write(o0)
 
     render(o0)
 
 ``volumeSize`` (on the generator) sets the volume resolution: ``x16``, ``x32``, ``x64``, or ``x128`` (16³ … 128³).
 
-Modes
-~~~~~
+renderCubemapSurface parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. list-table::
    :header-rows: 1
-   :widths: 20 80
-
-   * - Mode
-     - Description
-   * - ``volumetric``
-     - Front-to-back emission/absorption integration (nebula / cloud look). Default.
-   * - ``isosurface``
-     - SDF raymarch to a threshold crossing, refined by bisection (solid surface look).
-
-Parameters
-~~~~~~~~~~
-
-.. list-table::
-   :header-rows: 1
-   :widths: 18 14 14 54
+   :widths: 22 18 18 42
 
    * - Parameter
      - Type
      - Default
      - Description
-   * - ``mode``
-     - ``isosurface`` | ``volumetric``
-     - ``volumetric``
-     - Compositing mode (see above)
    * - ``density``
      - number (0–20)
      - 4
-     - Volumetric: scales the field's contribution to per-step opacity
+     - Scales the field's contribution to per-step opacity
    * - ``absorption``
      - number (0–4)
      - 1
-     - Volumetric: how strongly the medium attenuates along the ray
+     - How strongly the medium attenuates along the ray
    * - ``emission``
      - number (0–4)
      - 1
-     - Volumetric: how much each sample emits
+     - How much each sample emits
+   * - ``bgColor`` / ``bgAlpha``
+     - color / number
+     - ``[0.02,0.02,0.02]`` / 1
+     - Background behind the volume
+
+renderCubemap3D parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 18 18 42
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``filtering``
+     - ``isosurface`` | ``voxel``
+     - ``isosurface``
+     - Smooth isosurface raymarch, or blocky voxel (DDA) traversal
    * - ``threshold``
      - number (0–1)
      - 0.5
-     - Isosurface: field cutoff the surface is traced to
+     - Field cutoff the surface is traced to
    * - ``invert``
      - boolean
      - false
-     - Isosurface: flip the inside/outside test
-   * - ``bgColor``
-     - color
-     - ``[0.02, 0.02, 0.02]``
+     - Flip the inside/outside test
+   * - ``bgColor`` / ``bgAlpha``
+     - color / number
+     - ``[0.02,0.02,0.02]`` / 1
      - Background behind the volume
-   * - ``bgAlpha``
-     - number (0–1)
-     - 1
-     - Background opacity
 
 Examples
 ~~~~~~~~
 
 .. code-block:: dsl
 
-    // Dense nebula
+    // Raw field, denser
     search synth3d, filter3d, render
-    noise3d(volumeSize: x64).renderCube(density: 8, emission: 2).write(o0)
+    noise3d(volumeSize: x64).renderCubemapSurface(density: 8, emission: 2).write(o0)
     render(o0)
 
-    // Solid isosurface planet shell
+    // Lit isosurface "planet shell"
     search synth3d, filter3d, render
-    noise3d(volumeSize: x64).renderCube(mode: isosurface, threshold: 0.55).write(o0)
+    noise3d(volumeSize: x64).renderCubemap3D(threshold: 0.55).write(o0)
     render(o0)
 
 Rendering All Six Faces
 -----------------------
 
-``renderCube`` renders one face at a time (whichever ``cubeBasis`` the driver sets). To produce all six faces, call ``renderCubemap()`` on the renderer (or pipeline). It runs the compiled graph six times — once per face — and returns six pixel buffers.
+A cubemap renderer renders one face at a time (whichever ``cubeBasis`` the driver sets). To produce all six faces, call ``renderCubemap()`` on the renderer (or pipeline). It runs the compiled graph six times — once per face — and returns six pixel buffers. The render style is whichever cubemap renderer the graph ends in (``renderCubemapSurface`` / ``renderCubemap3D``) — not a driver option.
 
 .. code-block:: javascript
 
     const faces = await renderer.renderCubemap({
         size: 512,            // face edge length in pixels
-        mode: 'volumetric',   // 'volumetric' | 'isosurface'
         outputSurface: 'o0',  // the surface the DSL writes to
     })
     // faces: 6 × { width, height, data: Uint8Array }  (RGBA8), in +X,-X,+Y,-Y,+Z,-Z order
@@ -141,20 +156,16 @@ Rendering All Six Faces
      - number
      - 512
      - Face edge length in pixels (the graph is rendered at ``size`` × ``size``)
-   * - ``mode``
-     - string
-     - ``volumetric``
-     - ``isosurface`` or ``volumetric``
    * - ``outputSurface``
      - string
      - ``o0``
-     - The user surface (``o0``–``o7``) the DSL writes its ``renderCube`` result to
+     - The user surface (``o0``–``o7``) the DSL writes its cubemap-renderer result to
    * - ``time``
      - number
      - 0
      - Time value passed to the render (for animated volumes)
 
-The graph must terminate in ``renderCube`` writing to ``outputSurface``. ``outputSurface`` must name a real surface the DSL wrote to; an unknown name throws. A flat 2D chain (no ``renderCube``) would render the same image six times.
+The graph must terminate in a cubemap renderer writing to ``outputSurface``. ``outputSurface`` must name a real surface the DSL wrote to; an unknown name throws. A flat 2D chain (no cubemap renderer) would render the same image six times.
 
 Exporting
 ---------
@@ -183,18 +194,18 @@ For application developers saving the six faces. See :doc:`integration` for rend
 
 .. code-block:: javascript
 
-    // 1. Compile a graph that ends in renderCube, then pause the render loop so the
-    //    driver owns the per-face camera while it bakes.
-    await renderer.loadEffects(['synth3d/noise3d', 'render/renderCube'])
+    // 1. Compile a graph that ends in a cubemap renderer, then pause the render loop
+    //    so the driver owns the per-face camera while it bakes.
+    await renderer.loadEffects(['synth3d/noise3d', 'render/renderCubemapSurface'])
     await renderer.compile(`
         search synth3d, filter3d, render
-        noise3d(volumeSize: x64).renderCube().write(o0)
+        noise3d(volumeSize: x64).renderCubemapSurface().write(o0)
         render(o0)
     `)
     renderer.stop()
 
     // 2. Render all six faces.
-    const faces = await renderer.renderCubemap({ size: 1024, mode: 'volumetric' })
+    const faces = await renderer.renderCubemap({ size: 1024 })
 
     // 3. Encode each face to a PNG blob in the browser.
     async function faceToPng(face) {

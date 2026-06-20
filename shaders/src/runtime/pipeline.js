@@ -969,20 +969,21 @@ export class Pipeline {
      *
      * The returned array is reused and its entries overwritten on every call;
      * copy the faces (or their `data`) if you need to retain them across calls.
-     * @param {{size?:number, mode?:('volumetric'|'isosurface'), outputSurface?:string, time?:number}} cfg
+     * The render style (lit blob vs raw sample) is whichever cubemap renderer the
+     * graph ends in (renderCubemap3D / renderCubemapSurface) — not a parameter here.
+     * @param {{size?:number, outputSurface?:string, time?:number}} cfg
      * @returns {Promise<Array<{width:number,height:number,data:Uint8Array}>>} reused buffer — copy if retaining
      */
-    async renderCubemap({ size = 512, mode = 'volumetric', outputSurface = 'o0', time = 0 } = {}) {
+    async renderCubemap({ size = 512, outputSurface = 'o0', time = 0 } = {}) {
         const prevW = this.width, prevH = this.height
         if (this.width !== size || this.height !== size) this.resize(size, size)
-        this.setUniform('cubeMode', mode === 'isosurface' ? 0 : 1)
         if (!this._cubeFaces) this._cubeFaces = new Array(6)
         for (let face = 0; face < 6; face++) {
             this.setUniform('cubeBasis', CUBE_FACE_BASES[face])
             this.render(time)
             const surface = this.surfaces.get(outputSurface)
             if (!surface) {
-                throw new Error(`renderCubemap: output surface "${outputSurface}" not found — the composition must write its renderCube result to it (e.g. .renderCube().write(${outputSurface}))`)
+                throw new Error(`renderCubemap: output surface "${outputSurface}" not found — the composition must write its cubemap-renderer result to it (e.g. .renderCubemapSurface().write(${outputSurface}))`)
             }
             this._cubeFaces[face] = await this.backend.readPixels(surface.read)
         }

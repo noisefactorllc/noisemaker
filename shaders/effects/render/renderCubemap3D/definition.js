@@ -1,23 +1,25 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 /**
- * render/renderCube - Cubemap volume renderer
+ * render/renderCubemap3D - Cubemap 3D volume renderer (lit blob)
  *
- * Renders a 3D volume (inputTex3d) into a 2D output using a center-camera
- * 90-degree mat3 frustum projection. Supports two compositing modes selectable
- * via cubeMode: isosurface (SDF raymarching with bisection refinement) and
- * volumetric (front-to-back emission/absorption integration, nebula look).
+ * A multi-face clone of render3d: renders a 3D volume (inputTex3d) into seamless
+ * cubemap faces using the per-face cube camera (cubeBasis) instead of render3d's
+ * orbit camera. Keeps render3d's isosurface/voxel filtering switch, lighting, and
+ * gamma — it shows the lit "blob in space," analogous to render3d. (The raw
+ * true-color ray sample lives in the sibling renderCubemapSurface.)
  *
  * Usage in DSL:
- *   noise3d().renderCube().out(o0)
+ *   noise3d().renderCubemap3D().write(o0)
+ *   cell3d().renderCubemap3D(threshold: 0.3, filtering: voxel).write(o0)
  */
 export default new Effect({
-  name: "RenderCube",
+  name: "RenderCubemap3D",
   namespace: "render",
   tags: ["3d"],
-  func: "renderCube",
+  func: "renderCubemap3D",
 
-  description: "Render a 3D volume into seamless cubemap faces",
+  description: "Render a 3D volume into cubemap faces (lit isosurface/voxel)",
   textures: {
     screenGeoBuffer: {
       width: "resolution",
@@ -37,50 +39,24 @@ export default new Effect({
             "v128": 128
         },
         "ui": {
-            "control": false
+            "control": false  // Always inherited from upstream volume effect
         }
     },
-    "mode": {
+    "filtering": {
         "type": "int",
-        "default": 1,
-        "uniform": "cubeMode",
+        "default": 0,
+        // Compile-time define. The shader picks between two completely
+        // different raymarching paths (isosurface vs voxel). Baking this
+        // lets the optimizer eliminate the unused path entirely — that's
+        // the dominant background-compile cost in this 14kB shader.
+        "define": "FILTERING",
         "choices": {
             "isosurface": 0,
-            "volumetric": 1
+            "voxel": 1
         },
         "ui": {
-            "label": "mode",
+            "label": "filtering",
             "control": "dropdown"
-        }
-    },
-    "density": {
-        "type": "float",
-        "default": 4.0,
-        "min": 0,
-        "max": 20,
-        "uniform": "density",
-        "ui": {
-            "label": "density"
-        }
-    },
-    "absorption": {
-        "type": "float",
-        "default": 1.0,
-        "min": 0,
-        "max": 4,
-        "uniform": "absorption",
-        "ui": {
-            "label": "absorption"
-        }
-    },
-    "emission": {
-        "type": "float",
-        "default": 1.0,
-        "min": 0,
-        "max": 4,
-        "uniform": "emission",
-        "ui": {
-            "label": "emission"
         }
     },
     "threshold": {
@@ -98,6 +74,8 @@ export default new Effect({
         "type": "boolean",
         "default": false,
         "randChance": 0,
+        // Compile-time define — eliminates a per-sample branch in
+        // getField/isVoxelSolid that runs on every raymarch step.
         "define": "INVERT",
         "ui": {
             "label": "invert thresh"
@@ -105,7 +83,7 @@ export default new Effect({
     },
     "cubeBasis": {
         "type": "mat3",
-        "default": [1,0,0, 0,1,0, 0,0,1],
+        "default": [1, 0, 0, 0, 1, 0, 0, 0, 1],
         "uniform": "cubeBasis",
         "ui": {
             "control": false
@@ -134,7 +112,7 @@ export default new Effect({
   passes: [
     {
       name: "render",
-      program: "renderCube",
+      program: "renderCubemap3D",
       drawBuffers: 2,
       inputs: {
         volumeCache: "inputTex3d",
