@@ -40,9 +40,9 @@ Vertices are normalized: `(0, 0)` is top-left and `(1, 1)` is bottom-right. The 
 ## Limits
 
 - 8 zones (matches the eight engine user surfaces `o0`…`o7`)
-- 16 vertices per zone
+- 64 vertices per zone
 
-If you need more vertices per zone, decompose the polygon into multiple zones and wire them all to the same source surface.
+If you need more than 64 vertices per zone, decompose the polygon into multiple zones and wire them all to the same source surface.
 
 ## Geometry correction (deferred)
 

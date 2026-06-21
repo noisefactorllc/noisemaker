@@ -25,6 +25,11 @@ export class WebGL2Backend extends Backend {
         this._vec2Buf = new Float32Array(2)
         this._vec3Buf = new Float32Array(3)
         this._vec4Buf = new Float32Array(4)
+        this._mergedUniforms = {}
+        this._mergedUniformKeys = []
+        this._packedUniformBuffer = new ArrayBuffer(512)
+        this._packedUniformView = new DataView(this._packedUniformBuffer)
+        this._packedUniformBytes = new Uint8Array(this._packedUniformBuffer)
     }
 
     /**
@@ -808,6 +813,7 @@ export class WebGL2Backend extends Backend {
 
         // Extract uniforms and attribute locations
         const uniforms = this.extractUniforms(program)
+        const uniformBlocks = this.extractUniformBlocks(program, spec)
         const attributes = {
             a_position: gl.getAttribLocation(program, 'a_position'),
             aPosition: gl.getAttribLocation(program, 'aPosition')
@@ -816,6 +822,7 @@ export class WebGL2Backend extends Backend {
         const compiledProgram = {
             handle: program,
             uniforms,
+            uniformBlocks,
             attributes
         }
 
@@ -885,6 +892,67 @@ export class WebGL2Backend extends Backend {
         }
 
         return uniforms
+    }
+
+    extractUniformBlocks(program, spec) {
+        const gl = this.gl
+        const blocks = []
+        const count = gl.getProgramParameter(program, gl.ACTIVE_UNIFORM_BLOCKS)
+        if (!count || !spec.uniformLayout) return blocks
+
+        const maxBlockSize = gl.getParameter(gl.MAX_UNIFORM_BLOCK_SIZE)
+        for (let i = 0; i < count; i++) {
+            const name = gl.getActiveUniformBlockName(program, i)
+            if (!name) continue
+
+            const declaredSize = gl.getActiveUniformBlockParameter(program, i, gl.UNIFORM_BLOCK_DATA_SIZE)
+            const layoutSize = this.getPackedUniformLayoutSize(spec.uniformLayout)
+            const size = Math.max(declaredSize, layoutSize)
+            if (size > maxBlockSize) {
+                throw {
+                    code: 'ERR_UNIFORM_BLOCK_TOO_LARGE',
+                    detail: `Uniform block ${name} requires ${size} bytes; device limit is ${maxBlockSize}`,
+                    program
+                }
+            }
+
+            const bindingPoint = blocks.length
+            const buffer = gl.createBuffer()
+            gl.bindBuffer(gl.UNIFORM_BUFFER, buffer)
+            gl.bufferData(gl.UNIFORM_BUFFER, size, gl.DYNAMIC_DRAW)
+            gl.bindBuffer(gl.UNIFORM_BUFFER, null)
+            gl.uniformBlockBinding(program, i, bindingPoint)
+
+            blocks.push({
+                name,
+                index: i,
+                bindingPoint,
+                buffer,
+                size,
+                layout: spec.uniformLayout
+            })
+        }
+
+        return blocks
+    }
+
+    getPackedUniformLayoutSize(layout) {
+        const layoutArray = this.normalizePackedUniformLayout(layout)
+        let maxSlot = 0
+        for (const entry of layoutArray) {
+            maxSlot = Math.max(maxSlot, entry.slot)
+        }
+        return (maxSlot + 1) * 16
+    }
+
+    normalizePackedUniformLayout(layout) {
+        if (Array.isArray(layout)) return layout
+
+        const layoutArray = []
+        for (const [name, spec] of Object.entries(layout || {})) {
+            layoutArray.push({ name, slot: spec.slot, components: spec.components })
+        }
+        return layoutArray
     }
 
     executePass(pass, state) {
@@ -1011,6 +1079,7 @@ export class WebGL2Backend extends Backend {
 
         // Bind uniforms
         this.bindUniforms(effectivePass, program, state)
+        this.bindUniformBlocks(effectivePass, program, state)
 
         // Handle Blending
         if (effectivePass.blend) {
@@ -1335,6 +1404,123 @@ export class WebGL2Backend extends Backend {
                 this._setUniform(gl, uniform, value)
             }
         }
+    }
+
+    bindUniformBlocks(pass, program, state) {
+        if (!program.uniformBlocks || program.uniformBlocks.length === 0) return
+
+        const gl = this.gl
+        const merged = this._mergedUniforms
+        const mergedKeys = this._mergedUniformKeys
+
+        for (let i = 0; i < mergedKeys.length; i++) {
+            merged[mergedKeys[i]] = undefined
+        }
+        mergedKeys.length = 0
+
+        if (pass.uniforms) {
+            for (const key in pass.uniforms) {
+                const val = pass.uniforms[key]
+                if (val !== undefined) {
+                    merged[key] = val
+                    mergedKeys.push(key)
+                }
+            }
+        }
+
+        if (state.globalUniforms) {
+            for (const key in state.globalUniforms) {
+                if (pass.uniforms && key in pass.uniforms) continue
+                const val = state.globalUniforms[key]
+                if (val !== undefined) {
+                    if (merged[key] === undefined) {
+                        mergedKeys.push(key)
+                    }
+                    merged[key] = val
+                }
+            }
+        }
+
+        for (const block of program.uniformBlocks) {
+            const data = this.packUniformsWithLayout(merged, block.layout, block.size)
+            gl.bindBuffer(gl.UNIFORM_BUFFER, block.buffer)
+            gl.bufferSubData(gl.UNIFORM_BUFFER, 0, data)
+            gl.bindBufferBase(gl.UNIFORM_BUFFER, block.bindingPoint, block.buffer)
+        }
+        gl.bindBuffer(gl.UNIFORM_BUFFER, null)
+    }
+
+    _resolveUniformAlias(name, uniforms) {
+        if (uniforms[name] !== undefined) return uniforms[name]
+        if (name === 'width' && uniforms.resolution) return uniforms.resolution[0]
+        if (name === 'height' && uniforms.resolution) return uniforms.resolution[1]
+        if (name === 'channels') return 4.0
+        return undefined
+    }
+
+    packUniformsWithLayout(uniforms, layout, minSize = 0) {
+        const layoutArray = this.normalizePackedUniformLayout(layout)
+        let maxSlot = 0
+        for (const entry of layoutArray) {
+            maxSlot = Math.max(maxSlot, entry.slot)
+        }
+
+        const bufferSize = Math.max(minSize, (maxSlot + 1) * 16)
+        if (bufferSize > this._packedUniformBuffer.byteLength) {
+            this._packedUniformBuffer = new ArrayBuffer(bufferSize)
+            this._packedUniformView = new DataView(this._packedUniformBuffer)
+            this._packedUniformBytes = new Uint8Array(this._packedUniformBuffer)
+        }
+
+        const bytes = this._packedUniformBytes
+        const view = this._packedUniformView
+        bytes.fill(0, 0, bufferSize)
+
+        const componentOffset = { x: 0, y: 4, z: 8, w: 12 }
+
+        for (const entry of layoutArray) {
+            const value = this._resolveUniformAlias(entry.name, uniforms)
+            if (value === undefined || value === null) continue
+
+            const slotOffset = entry.slot * 16
+            if (entry.components.length === 1) {
+                const offset = slotOffset + componentOffset[entry.components]
+                if (typeof value === 'boolean') {
+                    view.setFloat32(offset, value ? 1.0 : 0.0, true)
+                } else if (typeof value === 'number') {
+                    view.setFloat32(offset, value, true)
+                }
+            } else if (entry.components.length === 2) {
+                const offset = slotOffset + componentOffset[entry.components[0]]
+                if (Array.isArray(value)) {
+                    for (let i = 0; i < Math.min(value.length, 2); i++) {
+                        view.setFloat32(offset + i * 4, value[i], true)
+                    }
+                } else if (typeof value === 'number') {
+                    view.setFloat32(offset, value, true)
+                }
+            } else if (entry.components.length === 3) {
+                const offset = slotOffset + componentOffset[entry.components[0]]
+                if (Array.isArray(value)) {
+                    for (let i = 0; i < Math.min(value.length, 3); i++) {
+                        view.setFloat32(offset + i * 4, value[i], true)
+                    }
+                } else if (typeof value === 'number') {
+                    view.setFloat32(offset, value, true)
+                }
+            } else if (entry.components.length === 4) {
+                const offset = slotOffset
+                if (Array.isArray(value)) {
+                    for (let i = 0; i < Math.min(value.length, 4); i++) {
+                        view.setFloat32(offset + i * 4, value[i], true)
+                    }
+                } else if (typeof value === 'number') {
+                    view.setFloat32(offset, value, true)
+                }
+            }
+        }
+
+        return bytes.subarray(0, bufferSize)
     }
 
     /** @private Helper to set a single uniform value */

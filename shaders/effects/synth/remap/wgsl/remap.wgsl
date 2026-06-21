@@ -7,14 +7,14 @@
  */
 
 struct Uniforms {
-    data: array<vec4<f32>, 75>,
+    data: array<vec4<f32>, 267>,
     // slot 0:      bgR, bgG, bgB, bgAlpha
     // slot 1:      zoneCount, smoothEdge, _, time
     // slot 2..9:   per-zone meta (vertexCount, active, _, alpha)
     //              `active` is 1 when zoneN_tex is wired, 0 when "none".
-    // slot 10..73: per-zone polygons; 8 vec4s per zone (16 verts packed two
+    // slot 10..265: per-zone polygons; 32 vec4s per zone (64 verts packed two
     //              per vec4 as v_2k.xy + v_2k+1.xy)
-    // slot 74.xy:  resolution (auto-filled by the runtime)
+    // slot 266.xy: resolution (auto-filled by the runtime)
 }
 
 @group(0) @binding(0) var samp: sampler;
@@ -33,8 +33,8 @@ struct Uniforms {
 @group(0) @binding(11) var<uniform> fullResolution: vec2<f32>;
 
 const MAX_ZONES: u32 = 8u;
-const MAX_VERTS_PER_ZONE: u32 = 16u;
-const PAIRS_PER_ZONE: u32 = 8u;  // MAX_VERTS_PER_ZONE / 2
+const MAX_VERTS_PER_ZONE: u32 = 64u;
+const PAIRS_PER_ZONE: u32 = 32u;  // MAX_VERTS_PER_ZONE / 2
 
 fn getZoneMeta(z: u32) -> vec4<f32> {
     return uniforms.data[2u + z];
@@ -108,7 +108,7 @@ fn distToZoneEdge(p: vec2<f32>, zoneIdx: u32) -> f32 {
 
 @fragment
 fn fragmentMain(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
-    let resolution = uniforms.data[74].xy;
+    let resolution = uniforms.data[266].xy;
     // Polygon tests use GLOBAL UV so zones land in the same image position
     // regardless of which tile is rendering. WGSL @builtin(position) is
     // top-left (Y-down); tileOffset is sent in GLSL (Y-from-bottom)

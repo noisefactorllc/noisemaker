@@ -24,19 +24,19 @@ import { Effect } from '../../../src/runtime/effect.js'
  */
 
 const MAX_ZONES = 8
-const MAX_VERTS_PER_ZONE = 16
+const MAX_VERTS_PER_ZONE = 64
 
 // Build the uniformLayout programmatically so the per-zone slots stay in sync.
-// Layout (75 vec4 slots total):
+// Layout (267 vec4 slots total):
 //   slot 0:      bgR, bgG, bgB, bgAlpha
 //   slot 1:      zoneCount, smoothEdge, _, time
 //   slot 2..9:   zone meta (xyzw = vertexCount, active, _, alpha) for zones 0..7
 //                `active` is set by the runtime via colorModeUniform: 1 when
 //                the zoneN_tex surface input is wired, 0 when it's "none".
-//   slot 10..73: zone polygons
-//                Each zone gets MAX_VERTS_PER_ZONE/2 = 8 vec4s
+//   slot 10..265: zone polygons
+//                Each zone gets MAX_VERTS_PER_ZONE/2 = 32 vec4s
 //                packed vec4 = (vert n.x, vert n.y, vert n+1.x, vert n+1.y)
-//   slot 74.xy:  resolution (auto-filled by the runtime; needed because
+//   slot 266.xy: resolution (auto-filled by the runtime; needed because
 //                this is a starter effect with no inputTex binding)
 const uniformLayout = (() => {
     const layout = {
@@ -45,7 +45,7 @@ const uniformLayout = (() => {
         zoneCount:   { slot: 1, components: 'x' },
         smoothEdge:  { slot: 1, components: 'y' },
         time:        { slot: 1, components: 'w' },
-        resolution:  { slot: 74, components: 'xy' }
+        resolution:  { slot: 10 + MAX_ZONES * (MAX_VERTS_PER_ZONE / 2), components: 'xy' }
     }
     for (let z = 0; z < MAX_ZONES; z++) {
         const metaSlot = 2 + z
