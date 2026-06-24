@@ -153,6 +153,10 @@ module = [
 ]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["numpy.*"]
+ignore_errors = true
+
 [tool.pytest.ini_options]
 testpaths = ["test"]
 python_files = ["test_*.py"]
