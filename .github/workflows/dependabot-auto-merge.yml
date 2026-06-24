@@ -38,6 +38,10 @@ jobs:
     steps:
       - name: Mint EHSRE app token
         id: app-token
+        # EHSRE_APP_PRIVATE_KEY is an org secret with visibility=private, so it
+        # is absent in public repos. continue-on-error lets us fall back to
+        # github.token (which has write access and suffices for merge + approve).
+        continue-on-error: true
         uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
         with:
           app-id: 2959521
@@ -49,7 +53,7 @@ jobs:
       - name: Evaluate PR
         id: eval
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
@@ -142,11 +146,11 @@ jobs:
       - name: Approve
         if: steps.eval.outputs.pr_num != ''
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         run: gh pr review --approve "${{ steps.eval.outputs.pr_num }}" -R "${{ github.repository }}" || true
 
       - name: Merge
         if: steps.eval.outputs.pr_num != ''
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         run: gh pr merge --squash --delete-branch "${{ steps.eval.outputs.pr_num }}" -R "${{ github.repository }}"
