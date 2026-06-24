@@ -55,10 +55,10 @@ export default new Effect({
     },
     sampleBias: {
       type: "float",
-      default: 10,
+      default: 12,
       uniform: "sampleBias",
       min: 2,
-      max: 20,
+      max: 64,
       ui: {
         label: "bias",
         control: "slider"

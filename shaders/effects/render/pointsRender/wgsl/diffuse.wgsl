@@ -19,5 +19,5 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     // Apply intensity decay (persistence) - faithfully matches flow implementation
     // intensity=100 means no decay, intensity=0 means instant fade
     let decay = clamp(u.intensity / 100.0, 0.0, 1.0);
-    return trailColor * decay;
+    return clamp(trailColor * decay, vec4<f32>(0.0), vec4<f32>(1.0));
 }

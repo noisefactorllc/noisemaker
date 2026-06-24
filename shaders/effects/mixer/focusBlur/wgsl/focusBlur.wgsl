@@ -24,73 +24,53 @@ fn computeBlurFactor(depth: f32) -> f32 {
     return clamp(blur, 0.0, 1.0);
 }
 
-// Apply depth of field blur using inputTex as scene, tex as depth
+// depthSource 0: inputTex = depth, tex = scene
 fn applyFocusBlurAB(uv: vec2f, resolution: vec2f) -> vec4f {
-    // Sample depth texture and compute luminosity as depth proxy
     let depthSample = textureSample(inputTex, samp, uv);
     let depth = getLuminosity(depthSample.rgb);
-    
-    // Calculate blur amount based on distance from focal plane
-    let blurFactor = computeBlurFactor(depth) * 10.0;
-    
+
+    let blurRadius = computeBlurFactor(depth) * sampleBias;
+
     var color = vec4f(0.0);
-    var totalWeight: f32 = 0.0;
-    
-    // Gaussian blur convolution kernel (9x9)
-    for (var x: i32 = -4; x <= 4; x = x + 1) {
-        for (var y: i32 = -4; y <= 4; y = y + 1) {
-            let offset = vec2f(f32(x), f32(y)) * sampleBias / resolution;
-            
-            // Gaussian weight based on distance from center
-            let dist2 = f32(x * x + y * y);
-            let sigma2 = 2.0 * blurFactor * blurFactor;
-            let weight = exp(-dist2 / max(sigma2, 0.001));
-            
-            color = color + textureSample(tex, samp, uv + offset) * weight;
-            totalWeight = totalWeight + weight;
-        }
+    let GOLDEN: f32 = 2.399963;
+
+    for (var i: i32 = 0; i < 64; i = i + 1) {
+        let r = sqrt(f32(i) / 64.0);
+        let theta = f32(i) * GOLDEN;
+        let offset = vec2f(cos(theta), sin(theta)) * r * blurRadius / resolution;
+        color = color + textureSample(tex, samp, uv + offset);
     }
-    
-    return color / totalWeight;
+
+    return color / 64.0;
 }
 
-// Apply depth of field blur using tex as scene, inputTex as depth
+// depthSource 1: tex = depth, inputTex = scene
 fn applyFocusBlurBA(uv: vec2f, resolution: vec2f) -> vec4f {
-    // Sample depth texture and compute luminosity as depth proxy
     let depthSample = textureSample(tex, samp, uv);
     let depth = getLuminosity(depthSample.rgb);
-    
-    // Calculate blur amount based on distance from focal plane
-    let blurFactor = computeBlurFactor(depth) * 10.0;
-    
+
+    let blurRadius = computeBlurFactor(depth) * sampleBias;
+
     var color = vec4f(0.0);
-    var totalWeight: f32 = 0.0;
-    
-    // Gaussian blur convolution kernel (9x9)
-    for (var x: i32 = -4; x <= 4; x = x + 1) {
-        for (var y: i32 = -4; y <= 4; y = y + 1) {
-            let offset = vec2f(f32(x), f32(y)) * sampleBias / resolution;
-            
-            // Gaussian weight based on distance from center
-            let dist2 = f32(x * x + y * y);
-            let sigma2 = 2.0 * blurFactor * blurFactor;
-            let weight = exp(-dist2 / max(sigma2, 0.001));
-            
-            color = color + textureSample(inputTex, samp, uv + offset) * weight;
-            totalWeight = totalWeight + weight;
-        }
+    let GOLDEN: f32 = 2.399963;
+
+    for (var i: i32 = 0; i < 64; i = i + 1) {
+        let r = sqrt(f32(i) / 64.0);
+        let theta = f32(i) * GOLDEN;
+        let offset = vec2f(cos(theta), sin(theta)) * r * blurRadius / resolution;
+        color = color + textureSample(inputTex, samp, uv + offset);
     }
-    
-    return color / totalWeight;
+
+    return color / 64.0;
 }
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     let dims = vec2f(textureDimensions(inputTex, 0));
     let uv = position.xy / dims;
-    
+
     var color: vec4f;
-    
+
     // depthSource: 0 = use inputTex (A) as depth map, blur tex (B)
     //              1 = use tex (B) as depth map, blur inputTex (A)
     if (depthSource == 0) {
@@ -98,11 +78,11 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
     } else {
         color = applyFocusBlurBA(uv, dims);
     }
-    
+
     // Preserve maximum alpha from both sources
     let alpha1 = textureSample(inputTex, samp, uv).a;
     let alpha2 = textureSample(tex, samp, uv).a;
     color.a = max(alpha1, alpha2);
-    
+
     return color;
 }
