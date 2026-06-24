@@ -53,6 +53,22 @@ export default new Effect({
             }
         },
 
+        // Blend mode for deposit pass
+        blendMode: {
+            type: "int",
+            default: 0,
+            uniform: "blendMode",
+            choices: {
+                additive: 0,
+                alpha: 1
+            },
+            ui: {
+                label: "blend",
+                control: "dropdown",
+                category: "visual"
+            }
+        },
+
         // Deposit opacity (controls additive blowout)
         depositOpacity: {
             type: "float",
@@ -314,13 +330,14 @@ export default new Effect({
             }
         },
 
-        // Pass 3: Deposit - scatter billboard quads to trail
+        // Pass 3a: Deposit (additive) - scatter billboard quads to trail with GL_ONE/GL_ONE
         {
             name: "deposit",
             program: "deposit",
             drawMode: "billboards",
             count: 'input', // Derive from xyzTex dimensions for dynamic stateSize
             blend: true,
+            conditions: { runIf: [{ uniform: "blendMode", equals: 0 }] },
 
             inputs: {
                 // Read from shared global textures
@@ -351,7 +368,44 @@ export default new Effect({
             }
         },
 
-        // Pass 4: Blend - composite trail with input
+        // Pass 3b: Deposit (alpha) - same geometry, premultiplied alpha blend (ONE/ONE_MINUS_SRC_ALPHA)
+        {
+            name: "deposit_alpha",
+            program: "deposit",
+            drawMode: "billboards",
+            count: 'input',
+            blend: ['ONE', 'ONE_MINUS_SRC_ALPHA'],
+            conditions: { runIf: [{ uniform: "blendMode", equals: 1 }] },
+
+            inputs: {
+                xyzTex: "global_xyz",
+                rgbaTex: "global_rgba",
+                spriteTex: "tex"
+            },
+
+            uniforms: {
+                shapeMode: "shapeMode",
+                depositOpacity: "depositOpacity",
+                density: "density",
+                pointSize: "pointSize",
+                sizeVariation: "sizeVariation",
+                rotationVar: "rotationVar",
+                seed: "seed",
+                viewMode: "viewMode",
+                rotateX: "rotateX",
+                rotateY: "rotateY",
+                rotateZ: "rotateZ",
+                viewScale: "viewScale",
+                posX: "posX",
+                posY: "posY"
+            },
+
+            outputs: {
+                fragColor: "global_billboard_trail"
+            }
+        },
+
+        // Pass 5: Blend - composite trail with input
         {
             name: "blend",
             program: "blend",
@@ -362,7 +416,8 @@ export default new Effect({
             },
 
             uniforms: {
-                inputIntensity: "inputIntensity"
+                inputIntensity: "inputIntensity",
+                blendMode: "blendMode"
             },
 
             outputs: {

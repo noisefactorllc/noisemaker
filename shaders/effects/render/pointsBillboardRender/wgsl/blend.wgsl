@@ -5,6 +5,7 @@
 @group(0) @binding(2) var trailTex: texture_2d<f32>;
 @group(0) @binding(3) var<uniform> resolution: vec2<f32>;
 @group(0) @binding(4) var<uniform> inputIntensity: f32;
+@group(0) @binding(5) var<uniform> blendMode: i32;
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
@@ -13,20 +14,28 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
 
     let inputColor = textureSample(inputTex, u_sampler, uv);
     let trailColor = textureSample(trailTex, u_sampler, uv);
-    
-    // Blend: trail over scaled input using alpha
-    // inputIntensity 0 = trail only, 100 = trail over full input
+
     let t = inputIntensity / 100.0;
     let scaledInput = inputColor * t;
-    
-    // Alpha compositing: trail over input
-    let outAlpha = trailColor.a + scaledInput.a * (1.0 - trailColor.a);
+
     var outRGB: vec3<f32>;
-    if (outAlpha > 0.0) {
-        outRGB = (trailColor.rgb * trailColor.a + scaledInput.rgb * scaledInput.a * (1.0 - trailColor.a)) / outAlpha;
+    var outAlpha: f32;
+
+    if (blendMode == 1) {
+        // Alpha mode: trail stores premultiplied values (rgb = actual_color * alpha).
+        // Use premultiplied OVER operator then convert to straight for output.
+        outAlpha = trailColor.a + scaledInput.a * (1.0 - trailColor.a);
+        let outRGB_pre = trailColor.rgb + scaledInput.rgb * scaledInput.a * (1.0 - trailColor.a);
+        outRGB = select(vec3<f32>(0.0), outRGB_pre / outAlpha, outAlpha > 0.0);
     } else {
-        outRGB = vec3<f32>(0.0);
+        // Additive mode: trail stores additive sums; treat as pseudo-non-premultiplied.
+        outAlpha = trailColor.a + scaledInput.a * (1.0 - trailColor.a);
+        if (outAlpha > 0.0) {
+            outRGB = (trailColor.rgb * trailColor.a + scaledInput.rgb * scaledInput.a * (1.0 - trailColor.a)) / outAlpha;
+        } else {
+            outRGB = vec3<f32>(0.0);
+        }
     }
-    
+
     return clamp(vec4<f32>(outRGB, outAlpha), vec4<f32>(0.0), vec4<f32>(1.0));
 }

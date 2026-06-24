@@ -37,7 +37,7 @@ fn hash(n: f32) -> f32 {
 @vertex
 fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     var out: VertexOutput;
-    
+
     // Each quad uses 6 vertices (2 triangles)
     let particleID = i32(vertexIndex) / 6;
     let vertexInQuad = i32(vertexIndex) % 6;
