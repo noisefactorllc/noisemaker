@@ -1,20 +1,21 @@
 name: Dependabot auto-merge
 
-# Fires AFTER any CI workflow completes. Auto-merges Dependabot PRs ONLY if:
-#   1. All check_runs for the head SHA passed (no required-status-checks
-#      branch protection on these repos, so gh pr merge --auto can't gate
-#      on its own).
-#   2. The PR is patch-level only. Classification:
-#      - Grouped PRs use the group name in the title:
-#          *"-patches group"*       → auto-merge
-#          *"-minor-major group"*   → human review
-#      - Single-package PRs: parse version pair from title.
+# Fires AFTER any CI workflow completes. Auto-merges Dependabot PRs if:
+#   1. All PR-triggered CI runs for the head SHA passed.
+#   2. The bump is not a major version change.
 #
-# Title formats Dependabot emits (after our dependabot.yml split):
-#   - "deps(npm): bump the npm-patches group with 5 updates"
-#   - "deps(npm): bump the npm-minor-major group with 2 updates"
+# Policy: patch AND minor bumps ship automatically after the dependabot
+# cooldown (7d default / 14d for majors). Only actual major version bumps
+# need a human to review and merge.
+#
+# Title formats Dependabot emits:
+#   - "deps: bump the npm-patches group with 5 updates"
+#   - "deps: bump the npm-minor-major group with 2 updates"
+#   - "deps: bump express from 7.5.1 to 8.5.1 in the npm-minor-major group"
 #   - "deps: bump playwright from 1.57.0 to 1.60.0"
-#   - "deps: bump express-rate-limit from 7.5.1 to 8.5.1 in the npm-patches group"
+#   - "deps(pip): update fastapi requirement from ==0.137.* to ==0.138.*"
+#   - "deps(pip): update pytest requirement from >=9.1.0 to >=9.1.1"
+#   - "deps(pip): bump sphinxcontrib-programoutput from 0.19 to 0.20"
 
 on:
   workflow_run:
@@ -35,10 +36,20 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.workflow_run.event == 'pull_request'
     steps:
+      - name: Mint EHSRE app token
+        id: app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1.12.0
+        with:
+          app-id: 2959521
+          private-key: ${{ secrets.EHSRE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-actions: read
+
       - name: Evaluate PR
         id: eval
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPO: ${{ github.repository }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
@@ -53,10 +64,13 @@ jobs:
             exit 0
           fi
 
-          # Verify every check_run for this SHA passed
-          CHECKS=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs?per_page=100" --jq '.check_runs')
-          PENDING=$(echo "$CHECKS" | jq '[.[] | select(.status != "completed")] | length')
-          FAILED=$(echo "$CHECKS" | jq '[.[] | select(.conclusion=="failure" or .conclusion=="cancelled" or .conclusion=="timed_out")] | length')
+          # Verify every CI run for this SHA passed. The EHSRE app has no
+          # `checks` permission, so read Actions workflow runs (covered by
+          # `actions`) instead of check-runs. Consider only PR-triggered CI
+          # runs, which excludes this workflow_run-triggered auto-merge run.
+          RUNS=$(gh api "repos/$REPO/actions/runs?head_sha=$HEAD_SHA&per_page=100" --jq '.workflow_runs')
+          PENDING=$(echo "$RUNS" | jq '[.[] | select(.event=="pull_request" and .status != "completed")] | length')
+          FAILED=$(echo "$RUNS" | jq '[.[] | select(.event=="pull_request" and (.conclusion=="failure" or .conclusion=="cancelled" or .conclusion=="timed_out"))] | length')
 
           if [ "$PENDING" -gt 0 ]; then
             echo "$PENDING check(s) pending — wait for next workflow_run"
@@ -67,51 +81,72 @@ jobs:
             exit 0
           fi
 
-          # Classify by title: grouped vs single-package, patch vs non-patch
+          # ------------------------------------------------------------------
+          # Classify the bump. Policy: patch AND minor bumps ship automatically;
+          # only major version bumps need a human to review.
+          # ------------------------------------------------------------------
           TITLE=$(echo "$PR_DATA" | jq -r '.title // ""')
+          BODY=$(echo "$PR_DATA"  | jq -r '.body  // ""')
           REASON=""
+          SKIP_REASON=""
 
-          if echo "$TITLE" | grep -qE 'bump the [a-z-]+-patches group'; then
+          # 1. Grouped patch PRs ("in the X-patches group" / "bump the X-patches group")
+          if echo "$TITLE" | grep -qiE '(the |in the )[a-z0-9-]+-patches group'; then
             REASON="grouped patches"
-          elif echo "$TITLE" | grep -qE 'bump the [a-z-]+-minor-major group'; then
-            REASON="non-patch grouped bump (minor/major group)"
+
+          # 2. Grouped minor / minor-major PRs: auto-merge only when every
+          #    bump in the group stays on the same major version.
+          #    Dependabot body lines: "Updates X from 1.2.3 to 1.3.0"
+          elif echo "$TITLE" | grep -qiE '(the |in the )[a-z0-9-]+-minor(-major)? group'; then
+            HAS_MAJOR=$(echo "$BODY" \
+              | grep -oE 'from [0-9][0-9.]+ to [0-9][0-9.]+' \
+              | sed -E 's/from ([0-9]+)[^ ]* to ([0-9]+).*/\1 \2/' \
+              | awk '$1 != $2 {print "MAJOR"; exit}')
+            if [ -n "$HAS_MAJOR" ]; then
+              SKIP_REASON="grouped PR contains a major version bump"
+            else
+              REASON="grouped minors (no major bumps)"
+            fi
+
           else
-            # Single-package — extract version pair from title
-            VER_LINE=$(echo "$TITLE" | grep -oE 'from [0-9]+\.[0-9]+\.[0-9]+ to [0-9]+\.[0-9]+\.[0-9]+' | head -1)
-            if [ -z "$VER_LINE" ]; then
+            # 3. Single-package PR: extract the major version number from the
+            #    "from … to …" pair in the title. Handles full semver (1.2.3),
+            #    two-part (0.19), pip pinned (==1.2.*), and pip range (>=1.2.0).
+            FROM_MAJ=$(echo " $TITLE " | grep -oE ' from [^0-9]*[0-9]+' | grep -oE '[0-9]+$' | head -1)
+            TO_MAJ=$(echo " $TITLE "   | grep -oE ' to [^0-9]*[0-9]+'   | grep -oE '[0-9]+$' | head -1)
+
+            if [ -z "$FROM_MAJ" ] || [ -z "$TO_MAJ" ]; then
               echo "Cannot classify PR title — leaving open for review: $TITLE"
               exit 0
             fi
-            from=$(echo "$VER_LINE" | sed -E 's/from ([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
-            to=$(echo "$VER_LINE"   | sed -E 's/.*to ([0-9]+\.[0-9]+\.[0-9]+)/\1/')
-            fm=$(echo "$from" | cut -d. -f1); tm=$(echo "$to" | cut -d. -f1)
-            fn=$(echo "$from" | cut -d. -f2); tn=$(echo "$to" | cut -d. -f2)
-            if [ "$fm" = "$tm" ] && [ "$fn" = "$tn" ]; then
-              REASON="single patch $from → $to"
+
+            if [ "$FROM_MAJ" = "$TO_MAJ" ]; then
+              REASON="single non-major (major stays at $FROM_MAJ)"
             else
-              REASON="single non-patch $from → $to"
+              SKIP_REASON="single major bump ($FROM_MAJ → $TO_MAJ)"
             fi
           fi
 
           case "$REASON" in
-            "grouped patches"|"single patch"*)
-              echo "Patch-only ($REASON) and CI green — merging PR #$PR_NUM"
-              echo "pr_num=$PR_NUM" >> "$GITHUB_OUTPUT"
+            "")
+              echo "PR #$PR_NUM: $SKIP_REASON — NOT auto-merging"
+              gh pr comment "$PR_NUM" -R "$REPO" \
+                --body "Auto-merge skipped: $SKIP_REASON. Patch and minor bumps auto-merge after CI passes; major bumps need a human to review and merge." || true
               ;;
             *)
-              echo "PR #$PR_NUM is $REASON — NOT auto-merging"
-              gh pr comment "$PR_NUM" -R "$REPO" --body "Auto-merge skipped: $REASON. Patch-level bumps auto-merge after CI passes; minor and major bumps need a human to review and merge." || true
+              echo "Non-major ($REASON) and CI green — merging PR #$PR_NUM"
+              echo "pr_num=$PR_NUM" >> "$GITHUB_OUTPUT"
               ;;
           esac
 
       - name: Approve
         if: steps.eval.outputs.pr_num != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: gh pr review --approve "${{ steps.eval.outputs.pr_num }}" -R "${{ github.repository }}" || true
 
       - name: Merge
         if: steps.eval.outputs.pr_num != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: gh pr merge --squash --delete-branch "${{ steps.eval.outputs.pr_num }}" -R "${{ github.repository }}"
