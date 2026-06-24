@@ -25,5 +25,5 @@ void main() {
         ? (trailColor.rgb * trailColor.a + scaledInput.rgb * scaledInput.a * (1.0 - trailColor.a)) / outAlpha
         : vec3(0.0);
     
-    fragColor = vec4(outRGB, outAlpha);
+    fragColor = clamp(vec4(outRGB, outAlpha), 0.0, 1.0);
 }

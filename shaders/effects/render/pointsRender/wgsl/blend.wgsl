@@ -30,5 +30,5 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     // Alpha: where trail exists, full opacity; elsewhere, matte opacity
     let alpha = max(trailPresence, matteAlpha);
     
-    return vec4<f32>(rgb, alpha);
+    return clamp(vec4<f32>(rgb, alpha), vec4<f32>(0.0), vec4<f32>(1.0));
 }

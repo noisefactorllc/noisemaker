@@ -30,5 +30,5 @@ void main() {
     // Alpha: where trail exists, full opacity; elsewhere, matte opacity
     float alpha = max(trailPresence, matteAlpha);
     
-    fragColor = vec4(rgb, alpha);
+    fragColor = clamp(vec4(rgb, alpha), 0.0, 1.0);
 }

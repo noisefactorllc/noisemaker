@@ -28,5 +28,5 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         outRGB = vec3<f32>(0.0);
     }
     
-    return vec4<f32>(outRGB, outAlpha);
+    return clamp(vec4<f32>(outRGB, outAlpha), vec4<f32>(0.0), vec4<f32>(1.0));
 }
