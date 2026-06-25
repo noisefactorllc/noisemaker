@@ -28,13 +28,11 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         let outRGB_pre = trailColor.rgb + scaledInput.rgb * scaledInput.a * (1.0 - trailColor.a);
         outRGB = select(vec3<f32>(0.0), outRGB_pre / outAlpha, outAlpha > 0.0);
     } else {
-        // Additive mode: trail stores additive sums; treat as pseudo-non-premultiplied.
-        outAlpha = trailColor.a + scaledInput.a * (1.0 - trailColor.a);
-        if (outAlpha > 0.0) {
-            outRGB = (trailColor.rgb * trailColor.a + scaledInput.rgb * scaledInput.a * (1.0 - trailColor.a)) / outAlpha;
-        } else {
-            outRGB = vec3<f32>(0.0);
-        }
+        // Additive mode: clamp trail to [0,1] then screen-blend with input (avoids overflow).
+        let trail = clamp(trailColor.rgb, vec3<f32>(0.0), vec3<f32>(1.0));
+        let trailPresence = max(max(trail.r, trail.g), trail.b);
+        outRGB = trail + scaledInput.rgb * (1.0 - trail);
+        outAlpha = max(trailPresence, scaledInput.a);
     }
 
     return clamp(vec4<f32>(outRGB, outAlpha), vec4<f32>(0.0), vec4<f32>(1.0));

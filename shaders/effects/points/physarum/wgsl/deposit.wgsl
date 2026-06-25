@@ -45,8 +45,8 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
         return out;
     }
     
-    // Convert position (0..1) to clip space (-1..1)
-    let clipPos = pos.xy * 2.0 - 1.0;
+    // Convert display-space position (0..1, top-left Y) to WebGPU clip space.
+    let clipPos = vec2<f32>(pos.x * 2.0 - 1.0, 1.0 - pos.y * 2.0);
     
     out.position = vec4<f32>(clipPos, 0.0, 1.0);
     

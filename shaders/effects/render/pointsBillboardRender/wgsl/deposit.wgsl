@@ -28,10 +28,14 @@ struct VertexOutput {
 @group(0) @binding(1) var xyzTex: texture_2d<f32>;
 @group(0) @binding(2) var rgbaTex: texture_2d<f32>;
 
-// Deterministic noise function for per-particle variation
+fn hash_uint_bb(seed: u32) -> u32 {
+    var state = seed * 747796405u + 2891336453u;
+    let word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
 fn hash(n: f32) -> f32 {
-    // WGSL has no implicit i32→f32 conversion; cast u.seed to f32 explicitly
-    return fract(sin(n + f32(u.seed)) * 43758.5453123);
+    return f32(hash_uint_bb(bitcast<u32>(n + f32(u.seed)))) / 4294967295.0;
 }
 
 @vertex
@@ -85,7 +89,7 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     
     if (u.viewMode == 0) {
         // 2D mode: positions are normalized 0..1
-        clipPos = pos.xy * 2.0 - 1.0;
+        clipPos = vec2<f32>(pos.x * 2.0 - 1.0, 1.0 - pos.y * 2.0);
     } else {
         // 3D mode: apply rotation and orthographic projection
         var p = pos.xyz;
@@ -122,6 +126,7 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
         } else {
             clipPos = p.xy / 40.0 * u.viewScale;
         }
+        clipPos.y = -clipPos.y;
     }
     
     // Per-particle size variation (seeded deterministic)

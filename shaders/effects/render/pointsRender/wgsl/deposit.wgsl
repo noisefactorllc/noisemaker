@@ -65,7 +65,7 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     
     if (u.viewMode == 0) {
         // 2D mode: positions are normalized 0..1
-        clipPos = pos.xy * 2.0 - 1.0;
+        clipPos = vec2<f32>(pos.x * 2.0 - 1.0, 1.0 - pos.y * 2.0);
     } else {
         // 3D mode: apply rotation and orthographic projection
         var p = pos.xyz;
@@ -107,6 +107,7 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
             // 3D attractors: coords range roughly ±40, normalize then scale
             clipPos = p.xy / 40.0 * u.viewScale;
         }
+        clipPos.y = -clipPos.y;
     }
     
     out.position = vec4<f32>(clipPos, 0.0, 1.0);

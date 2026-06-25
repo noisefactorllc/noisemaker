@@ -45,7 +45,7 @@ vec2 hash2(uint seed) {
 }
 
 float hashFloat(float n) {
-    return fract(sin(n) * 43758.5453123);
+    return float(hash_uint(floatBitsToUint(n))) / 4294967295.0;
 }
 
 float noise2D(vec2 p) {

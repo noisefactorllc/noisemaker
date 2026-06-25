@@ -96,13 +96,12 @@ void main() {
     float seed = vel.x;
     float agentRand = vel.w;
     
-    // Initialize or evolve seed - include frame to ensure different random each frame
+    // Initialize or evolve seed using per-particle deterministic chain
     uint agentId = uint(coord.x + coord.y * stateDims.x);
-    if (seed <= 0.0 || frame <= 1) {
-        seed = hash(agentId + uint(time * 1000.0)) + 0.001;
+    if (seed <= 0.0) {
+        seed = hash(agentId) + 0.001;
     }
-    // Mix in frame number to ensure different random direction each frame
-    uint frameSeed = hash_uint(agentId * 31u + uint(frame));
+    uint frameSeed = hash_uint(agentId * 31u + floatBitsToUint(seed));
     seed = uintBitsToFloat((frameSeed & 0x007FFFFFu) | 0x3F800000u) - 1.0;
     
     // If not alive, pass through (waiting for respawn from pointsEmit)
