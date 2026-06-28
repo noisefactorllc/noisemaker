@@ -97,6 +97,8 @@ Namespace is the primary categorization and acts as an implicit tag. Each effect
 
    * - Namespace
      - Description
+   * - ``io``
+     - Pipeline I/O functions (built-in, no search required)
    * - ``classicNoisedeck``
      - Complex shaders ported from the original noisedeck.app pipeline
    * - ``synth``
@@ -113,6 +115,8 @@ Namespace is the primary categorization and acts as an implicit tag. Each effect
      - 3D volumetric generators (e.g. noise3d, cellularAutomata3d, reactionDiffusion3d, fractal3d, shape3d)
    * - ``filter3d``
      - 3D volumetric processors (flow3d, palette3d)
+   * - ``user``
+     - User-defined effects
 
 **Tags**
 
@@ -126,26 +130,58 @@ Tags are curated labels for additional categorization. An effect may have multip
      - Description
    * - ``3d``
      - 3D volumetric effects
+   * - ``agents``
+     - Particle and agent-based systems
+   * - ``antialiasing``
+     - Edge smoothing and antialiasing
    * - ``audio``
      - Audio-reactive effects
+   * - ``blend``
+     - Compositing and blend modes
+   * - ``blur``
+     - Blur and softening
    * - ``color``
      - Color manipulation
    * - ``distort``
      - Input distortion
    * - ``edges``
      - Accentuate or isolate texture edges
+   * - ``fractal``
+     - Fractal patterns
    * - ``geometric``
      - Shapes
+   * - ``geometry``
+     - 3D mesh geometry
+   * - ``glitch``
+     - Glitch and corruption effects
+   * - ``image``
+     - Image-input effects
    * - ``lens``
      - Emulated camera lens effects
+   * - ``mesh``
+     - 3D mesh rendering
+   * - ``midi``
+     - MIDI-reactive effects
    * - ``noise``
      - Very noisy
+   * - ``palette``
+     - Color palette mapping
+   * - ``pattern``
+     - Repeating or structured patterns
+   * - ``pixel``
+     - Pixelation and pixel-level effects
    * - ``sim``
      - Simulations with temporal state
+   * - ``text``
+     - Text rendering
+   * - ``tiling``
+     - Seamless tiling
    * - ``transform``
      - Moves stuff around
    * - ``util``
      - Utility function
+   * - ``video``
+     - Video-input effects
 
 **Usage in Effect Definitions:**
 
