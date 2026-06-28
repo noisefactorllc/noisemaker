@@ -173,7 +173,7 @@ This produces:
 | `dist/shaders/noisemaker-shaders-core.esm.min.js` | Minified ESM variant |
 | `dist/shaders/noisemaker-shaders-core.min.js` | Minified IIFE variant (exposes `window.NoisemakerShadersCore`) |
 | `dist/effects/<namespace>/<effect>.js` | Per-effect bundle with shaders inlined |
-| `dist/effects/manifest.json` | Effect registry consumed by `renderer.loadManifest()` |
+| `dist/shaders/effects/manifest.json` | Effect registry consumed by `renderer.loadManifest()` |
 
 ### Using Bundles
 
@@ -185,9 +185,9 @@ import { CanvasRenderer } from './dist/shaders/noisemaker-shaders-core.esm.min.j
 const renderer = new CanvasRenderer({
     canvas,
     width: 512, height: 512,
-    basePath: './dist',
+    basePath: './dist/shaders',   // core bundle + effects/manifest.json
     useBundles: true,
-    bundlePath: './dist/effects'
+    bundlePath: './dist/effects'  // per-effect bundles
 });
 
 await renderer.loadManifest();

@@ -105,12 +105,14 @@ Namespace is the primary categorization and acts as an implicit tag. Each effect
      - Blend two sources from A to B
    * - ``filter``
      - Apply special effects to 2D input
-   * - ``sim``
-     - Simulations with temporal state
+   * - ``points``
+     - Agent and particle simulations (physarum, flock, dla, lenia, life, flow)
+   * - ``render``
+     - Rendering utilities (render3d, cubemaps, mesh and points rendering, render loops)
    * - ``synth3d``
-     - 3D volumetric generators (noise3d, ca3d, rd3d, cell3d, fractal3d, shape3d)
+     - 3D volumetric generators (e.g. noise3d, cellularAutomata3d, reactionDiffusion3d, fractal3d, shape3d)
    * - ``filter3d``
-     - 3D volumetric processors (flow3d, render3d)
+     - 3D volumetric processors (flow3d, palette3d)
 
 **Tags**
 
@@ -124,18 +126,18 @@ Tags are curated labels for additional categorization. An effect may have multip
      - Description
    * - ``3d``
      - 3D volumetric effects
-   * - ``agents``
-     - Particle and agent-based systems
+   * - ``audio``
+     - Audio-reactive effects
    * - ``color``
      - Color manipulation
-   * - ``debug``
-     - Debugging and development utilities
    * - ``distort``
      - Input distortion
+   * - ``edges``
+     - Accentuate or isolate texture edges
    * - ``geometric``
      - Shapes
-   * - ``gradient``
-     - Gradient generation
+   * - ``lens``
+     - Emulated camera lens effects
    * - ``noise``
      - Very noisy
    * - ``sim``
