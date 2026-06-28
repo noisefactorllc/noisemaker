@@ -106,7 +106,7 @@ Namespace is the primary categorization and acts as an implicit tag. Each effect
    * - ``filter``
      - Apply special effects to 2D input
    * - ``points``
-     - Agent and particle simulations (physarum, flock, dla, lenia, life, flow)
+     - Agent and particle simulations (e.g. physarum, flock, dla, lenia, life)
    * - ``render``
      - Rendering utilities (render3d, cubemaps, mesh and points rendering, render loops)
    * - ``synth3d``
