@@ -70,7 +70,7 @@ process.env.SHADE_PROJECT_ROOT = PROJECT_ROOT
 
 import {
     BrowserSession,
-    compileEffect, renderEffectFrame, benchmarkEffectFPS,
+    compileEffect, renderEffectFrame as shadeRenderEffectFrame, benchmarkEffectFPS,
     testNoPassthrough, testPixelParity, testUniformResponsiveness,
     checkEffectStructure,
     matchEffects,
@@ -100,6 +100,194 @@ const NOISEMAKER_GLOBALS = {
 
 function gracePeriod(ms = 125) {
     return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function renderEffectFrame(session, effectId, options = {}) {
+    if (session.backend !== 'webgpu') {
+        return shadeRenderEffectFrame(session, effectId, options)
+    }
+
+    return session.runWithConsoleCapture(async () => {
+        const page = session.page
+        await session.setBackend(session.backend)
+
+        if (options.resolution) {
+            await page.setViewportSize({ width: options.resolution[0], height: options.resolution[1] })
+        }
+
+        await page.evaluate((id) => {
+            const select = document.getElementById('effect-select')
+            if (select) {
+                select.value = id
+                select.dispatchEvent(new Event('change'))
+            }
+        }, effectId)
+
+        await page.waitForFunction(() => {
+            const status = document.getElementById('status')
+            const text = (status?.textContent || '').toLowerCase()
+            return text.includes('loaded') || text.includes('compiled') || text.includes('ready') || text.includes('error')
+        }, { timeout: 300000 })
+
+        if (options.uniforms) {
+            await page.evaluate(({ uniforms, globals }) => {
+                const pipeline = window[globals.renderingPipeline]
+                if (!pipeline) return
+                for (const [key, value] of Object.entries(uniforms)) {
+                    if (pipeline.setUniform) pipeline.setUniform(key, value)
+                    else if (pipeline.globalUniforms) pipeline.globalUniforms[key] = value
+                }
+            }, { uniforms: options.uniforms, globals: session.globals })
+        }
+
+        if (options.time !== undefined) {
+            await page.evaluate(({ time, globals }) => {
+                if (window[globals.setPaused]) window[globals.setPaused](true)
+                if (window[globals.setPausedTime]) window[globals.setPausedTime](time)
+            }, { time: options.time, globals: session.globals })
+        }
+
+        const warmupFrames = options.warmupFrames ?? 10
+        await page.evaluate(({ frames, globals }) => {
+            return new Promise((resolve) => {
+                const start = window[globals.frameCount] || 0
+                const poll = () => {
+                    const current = window[globals.frameCount] || 0
+                    if (current - start >= frames) resolve()
+                    else requestAnimationFrame(poll)
+                }
+                poll()
+            })
+        }, { frames: warmupFrames, globals: session.globals })
+
+        return page.evaluate(async ({ globals, captureImage }) => {
+            const renderer = window[globals.canvasRenderer]
+            const pipeline = window[globals.renderingPipeline]
+            const backend = pipeline?.backend
+            if (!renderer || !pipeline || !backend) {
+                return { status: 'error', backend: 'unknown', error: 'No renderer' }
+            }
+            if (typeof backend.readPixels !== 'function') {
+                return { status: 'error', backend: backend.getName?.() || 'unknown', error: 'Backend cannot read pixels' }
+            }
+
+            const readSurface = async () => {
+                const candidates = []
+                const surface = pipeline.graph?.renderSurface
+                const frameReadId = surface ? pipeline.frameReadTextures?.get(surface) : null
+                if (frameReadId) candidates.push(frameReadId)
+                if (surface) {
+                    candidates.push(`global_${surface}_read`)
+                    candidates.push(`global_${surface}_write`)
+                }
+                try {
+                    const nodeIds = []
+                    for (const key of backend.textures.keys()) {
+                        if (/node_\d+_out/.test(key)) nodeIds.push(key)
+                    }
+                    nodeIds.sort((a, b) => parseInt(a.match(/node_(\d+)/)[1], 10) - parseInt(b.match(/node_(\d+)/)[1], 10))
+                    if (nodeIds.length) candidates.push(nodeIds[nodeIds.length - 1])
+                } catch {}
+
+                for (const textureId of [...new Set(candidates)]) {
+                    try {
+                        const pixels = await backend.readPixels(textureId)
+                        if (pixels?.width && pixels?.height && pixels?.data) {
+                            return pixels
+                        }
+                    } catch {}
+                }
+                return null
+            }
+
+            let pixels = null
+            for (let attempt = 0; attempt < 6 && !pixels; attempt++) {
+                renderer.render(0)
+                renderer.render(0)
+                pixels = await readSurface()
+                if (!pixels) await new Promise(resolve => setTimeout(resolve, 80))
+            }
+
+            if (!pixels) {
+                return { status: 'error', backend: backend.getName?.() || 'unknown', error: 'Failed to read pixels' }
+            }
+
+            const { data, width, height } = pixels
+            const pixelCount = width * height
+            const stride = Math.max(1, Math.floor(pixelCount / 1000))
+            let sumR = 0
+            let sumG = 0
+            let sumB = 0
+            let sumA = 0
+            let sumR2 = 0
+            let sumG2 = 0
+            let sumB2 = 0
+            let samples = 0
+            const colorSet = new Set()
+
+            for (let i = 0; i < pixelCount; i += stride) {
+                const idx = i * 4
+                const r = data[idx] / 255
+                const g = data[idx + 1] / 255
+                const b = data[idx + 2] / 255
+                const a = data[idx + 3] / 255
+                sumR += r
+                sumG += g
+                sumB += b
+                sumA += a
+                sumR2 += r * r
+                sumG2 += g * g
+                sumB2 += b * b
+                colorSet.add(`${data[idx]},${data[idx + 1]},${data[idx + 2]}`)
+                samples++
+            }
+
+            const meanR = sumR / samples
+            const meanG = sumG / samples
+            const meanB = sumB / samples
+            const stdR = Math.sqrt(sumR2 / samples - meanR * meanR)
+            const stdG = Math.sqrt(sumG2 / samples - meanG * meanG)
+            const stdB = Math.sqrt(sumB2 / samples - meanB * meanB)
+            const luma = 0.299 * meanR + 0.587 * meanG + 0.114 * meanB
+            let lumaVar = 0
+
+            for (let i = 0; i < pixelCount; i += stride) {
+                const idx = i * 4
+                const sampleLuma = 0.299 * data[idx] / 255 + 0.587 * data[idx + 1] / 255 + 0.114 * data[idx + 2] / 255
+                lumaVar += (sampleLuma - luma) * (sampleLuma - luma)
+            }
+            lumaVar /= samples
+
+            let imageUri = null
+            if (captureImage) {
+                const tmpCanvas = document.createElement('canvas')
+                tmpCanvas.width = width
+                tmpCanvas.height = height
+                const ctx = tmpCanvas.getContext('2d')
+                const imageData = ctx.createImageData(width, height)
+                imageData.data.set(data)
+                ctx.putImageData(imageData, 0, 0)
+                imageUri = tmpCanvas.toDataURL('image/png')
+            }
+
+            return {
+                status: 'ok',
+                backend: backend.getName?.() || 'WebGPU',
+                frame: { image_uri: imageUri, width, height },
+                metrics: {
+                    mean_rgb: [meanR, meanG, meanB],
+                    mean_alpha: sumA / samples,
+                    std_rgb: [stdR, stdG, stdB],
+                    luma_variance: lumaVar,
+                    unique_sampled_colors: colorSet.size,
+                    is_all_zero: meanR === 0 && meanG === 0 && meanB === 0,
+                    is_all_transparent: sumA / samples < 0.01,
+                    is_essentially_blank: lumaVar < 1e-4,
+                    is_monochrome: colorSet.size <= 1,
+                }
+            }
+        }, { globals: session.globals, captureImage: !!options.captureImage })
+    })
 }
 
 // =========================================================================
