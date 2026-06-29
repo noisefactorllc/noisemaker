@@ -272,6 +272,10 @@ export class CanvasRenderer {
         this._loadedEffects = new Map()
         this._effectLoadingPromises = new Map()
 
+        // Effect-string localization (opt-in; English unless a locale is set)
+        this._locale = null
+        this._strings = {}
+
         // Enum registry (shared with lang system)
         this._enums = {}
 
@@ -1062,13 +1066,73 @@ export class CanvasRenderer {
     }
 
     /**
-     * Get effect description from manifest
+     * Get effect description (localized when a locale is set, else from manifest).
      * @param {string} effectId - Effect ID (namespace/name)
      * @returns {string|null} Description or null if not found
      */
     getEffectDescription(effectId) {
         const entry = this._manifest?.[effectId]
-        return entry?.description ?? null
+        return this.localize(`${effectId}#desc`, entry?.description ?? null)
+    }
+
+    /**
+     * Set the active locale for effect-facing strings (display names,
+     * descriptions, parameter labels, enum option labels). Opt-in: until this is
+     * called, all strings stay English and no catalog is fetched. Lazily fetches
+     * `${basePath}/effects/strings.<locale>.json` (plus the English base) and
+     * caches it. Pass a falsy value to return to the default (English) behavior.
+     * @param {string|null} locale
+     * @returns {Promise<string|null>} the active locale
+     */
+    async setLocale(locale) {
+        this._locale = locale || null
+        if (!this._locale) return this._locale
+        if (!this._strings.en) this._strings.en = await this._fetchStrings('en')
+        if (this._locale !== 'en' && !this._strings[this._locale]) {
+            this._strings[this._locale] = await this._fetchStrings(this._locale)
+        }
+        return this._locale
+    }
+
+    /** @returns {string|null} the active effect-string locale */
+    getLocale() {
+        return this._locale
+    }
+
+    /**
+     * Resolve an effect-string id to the active locale, falling back to the
+     * English base catalog, then to `fallback`. With no locale set (the default)
+     * this returns `fallback` unchanged, so existing callers get today's English.
+     * @param {string} id - e.g. "filter/adjust", "filter/adjust#desc", "filter/adjust.rotation"
+     * @param {string|null} [fallback]
+     * @returns {string|null}
+     */
+    localize(id, fallback = null) {
+        if (this._locale) {
+            // Treat null/missing/empty as "no translation" so a blank locale
+            // value falls back to English rather than rendering an empty label.
+            const hit = this._strings[this._locale]?.[id]
+            if (hit) return hit
+            const base = this._strings.en?.[id]
+            if (base) return base
+        }
+        return fallback
+    }
+
+    /**
+     * Fetch a string catalog for a locale; returns {} on any failure so a
+     * missing locale file degrades gracefully to English fallbacks.
+     * @param {string} locale
+     * @returns {Promise<object>}
+     */
+    async _fetchStrings(locale) {
+        try {
+            const res = await fetch(`${this._basePath}/effects/strings.${locale}.json`)
+            if (res.ok) return await res.json()
+        } catch {
+            // fall through to empty catalog
+        }
+        return {}
     }
 
     /**
