@@ -93,5 +93,31 @@ await test('locale set: resolves locale -> en base -> fallback, and resets', asy
     }
 })
 
+await test('missing locale catalog falls back to English base without throwing', async () => {
+    const enCat = {
+        'filter/adjust': 'Adjust',
+        'filter/adjust#desc': 'EN description',
+    }
+    const origFetch = global.fetch
+    global.fetch = async (url) => {
+        if (url.endsWith('strings.en.json')) {
+            return { ok: true, json: async () => enCat }
+        }
+        return { ok: false, json: async () => ({}) }
+    }
+    try {
+        const r = new CanvasRenderer({ basePath: '/x' })
+        r._manifest = { 'filter/adjust': { description: 'manifest desc' } }
+
+        assertEqual(await r.setLocale('missing'), 'missing', 'missing locale still becomes active')
+        assertEqual(r.getLocale(), 'missing', 'getLocale reflects requested locale')
+        assertEqual(r.localize('filter/adjust', 'fb'), 'Adjust', 'missing locale -> en base')
+        assertEqual(r.getEffectDescription('filter/adjust'), 'EN description', 'description -> en base')
+        assertEqual(r.localize('totally/missing', 'fb'), 'fb', 'unknown key -> fallback')
+    } finally {
+        global.fetch = origFetch
+    }
+})
+
 if (failed) process.exit(1)
 console.log('\nAll effect-string localization tests passed.')
