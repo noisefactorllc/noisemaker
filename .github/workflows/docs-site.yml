@@ -56,7 +56,7 @@ jobs:
         cp shaders/effects/manifest.json docs/_static/effects/
 
     - name: Build Sphinx HTML
-      run: sphinx-build -b html docs docs/_build/html
+      run: sphinx-build -b dirhtml docs docs/_build/html
 
     - name: Generate deployment metadata
       run: |
