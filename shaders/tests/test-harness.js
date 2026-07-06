@@ -187,7 +187,9 @@ async function renderEffectFrame(session, effectId, options = {}) {
                     }
                     nodeIds.sort((a, b) => parseInt(a.match(/node_(\d+)/)[1], 10) - parseInt(b.match(/node_(\d+)/)[1], 10))
                     if (nodeIds.length) candidates.push(nodeIds[nodeIds.length - 1])
-                } catch {}
+                } catch {
+                    // Some backends do not expose a texture map in harness mode.
+                }
 
                 for (const textureId of [...new Set(candidates)]) {
                     try {
@@ -195,7 +197,9 @@ async function renderEffectFrame(session, effectId, options = {}) {
                         if (pixels?.width && pixels?.height && pixels?.data) {
                             return pixels
                         }
-                    } catch {}
+                    } catch {
+                        // Try the next candidate texture.
+                    }
                 }
                 return null
             }
