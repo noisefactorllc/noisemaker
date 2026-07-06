@@ -1,0 +1,269 @@
+# Noisemaker Agent Overview
+
+Noisemaker is an open source shader framework for humans and coding agents building expressive, extensible visual tools in the browser. It is the engine behind Noisedeck, Layers, Polymorphic, Foundry, Shade, Visualize, Photobox, Glitcher, and Noodles. It includes the effect format, DSL, runtime, release system, ports, adapters, and tools needed to build apps, write effects, package portable work, and validate generated shader output.
+
+Noisemaker is friendly to coding agents because the engine is documented and inspectable. It is not a license to invent shader code and hope. People get the same benefit: explicit effect definitions, portable packages, and validation tools. Use the DSL, effect definitions, docs, and tests.
+
+## What Noisemaker is
+
+- A browser-native shader engine with WebGL2 and WebGPU backends.
+- A Polymorphic DSL for composing effects into visual programs.
+- A declarative effect format for globals, textures, passes, GLSL, WGSL, tags, namespaces, and help docs.
+- A custom namespace system for external integrations.
+- A portable effect format for user-created packages.
+- A CDN release system with rolling major/minor pins and immutable patch pins.
+- A compiler that parses DSL, analyzes namespaces and parameters, expands effects into render graph passes, allocates GPU resources, and produces an execution plan.
+- A runtime that keeps frame data on the GPU and dispatches sorted passes each frame.
+
+## Public entry points
+
+- Homepage: `https://noisemaker.app/`
+- Shader demo: `https://noisemaker.app/demo/shaders/`
+- Docs: `https://docs.noisemaker.app/`
+- Source: `https://github.com/noisefactorllc/noisemaker`
+- Shader CDN major pin: `https://shaders.noisedeck.app/1`
+
+## Runtime integration pattern
+
+```js
+const SHADER_CDN = 'https://shaders.noisedeck.app/1'
+
+const DSL_PROGRAM = `search synth, filter, mixer
+
+perlin(
+  scale: 100,
+  dimensions: 3,
+  ridges: true,
+  speed: 2
+)
+  .write(o0)
+
+read(o0)
+  .tetraColorArray(
+    colorCount: 3,
+    color0: #010000,
+    color1: #111111,
+    color2: #fd01c0,
+    color3: #fb31c9,
+    color4: #32ff03,
+    alpha: 0.46
+  )
+  .lighting(
+    normalStrength: 4.3,
+    smoothing: 1.4,
+    specularIntensity: 0.38,
+    shininess: 65,
+    reflection: 26,
+    refraction: 23.6,
+    aberration: 28.1
+  )
+  .focusBlur(
+    tex: read(o0),
+    focalDistance: 84.88,
+    aperture: 1,
+    sampleBias: 64
+  )
+  .write(o1)
+
+render(o1)`
+
+const { CanvasRenderer, extractEffectNamesFromDsl } =
+  await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
+
+const renderer = new CanvasRenderer({
+  canvas,
+  width: 1024,
+  height: 1024,
+  basePath: SHADER_CDN,
+  useBundles: true,
+  bundlePath: `${SHADER_CDN}/effects`
+})
+
+await renderer.loadManifest()
+const effects = extractEffectNamesFromDsl(DSL_PROGRAM, renderer.manifest || {})
+await renderer.loadEffects(effects.map((effect) => effect.effectId))
+await renderer.compile(DSL_PROGRAM)
+renderer.setLoopDuration(15)
+renderer.start()
+```
+
+## Polymorphic DSL basics
+
+The DSL composes effects. It is not shader source.
+
+```text
+search synth, filter, mixer
+
+perlin(
+  scale: 100,
+  dimensions: 3,
+  ridges: true,
+  speed: 2
+)
+  .write(o0)
+
+read(o0)
+  .tetraColorArray(
+    colorCount: 3,
+    color0: #010000,
+    color1: #111111,
+    color2: #fd01c0,
+    color3: #fb31c9,
+    color4: #32ff03,
+    alpha: 0.46
+  )
+  .lighting(
+    normalStrength: 4.3,
+    smoothing: 1.4,
+    specularIntensity: 0.38,
+    shininess: 65,
+    reflection: 26,
+    refraction: 23.6,
+    aberration: 28.1
+  )
+  .focusBlur(
+    tex: read(o0),
+    focalDistance: 84.88,
+    aperture: 1,
+    sampleBias: 64
+  )
+  .write(o1)
+
+render(o1)
+```
+
+Rules:
+
+- Start with `search` and include the namespaces you need.
+- Generator chains must eventually call `.write(surface)`.
+- Use `render(surface)` to choose the displayed surface.
+- Use `read(o0)` to read a previously written surface.
+- Enum values are unquoted DSL identifiers.
+- Colors use hex literals such as `#ff00c1`.
+
+Important namespaces:
+
+- `synth`: 2D generators.
+- `filter`: 2D single-input transforms.
+- `mixer`: two-input compositing and blend modes.
+- `points`: particle and agent simulation effects.
+- `render`: points, meshes, loops, 3D render helpers.
+- `synth3d`: volumetric generators.
+- `filter3d`: volumetric processors.
+- `user`: imported or custom effects.
+
+## Capability snapshot
+
+The shader catalog contains 185+ mapped effects and keeps growing. It covers filters, generators, mixers, point systems, render utilities, 3D generators and processors, media, audio, MIDI, text, geometry, and user or portable extension points.
+
+Common tags include color, noise, distortion, geometry, simulation, 3D, blending, edges, transform, utility, pattern, lens, blur, palette, fractal, glitch, pixel, text, tiling, agents, audio, MIDI, video, and image.
+
+## Pipeline
+
+Noisemaker transforms source text into GPU work in stages:
+
+1. Parse DSL into an AST.
+2. Analyze namespaces, variables, chains, effect lookup, arguments, and output writes.
+3. Expand logical effects into concrete render or compute passes.
+4. Build a render graph with explicit texture dependencies.
+5. Analyze resource lifetimes and allocate pooled physical textures.
+6. Execute the sorted pass list through WebGL2 or WebGPU.
+
+WebGPU uses native render and compute pipelines. WebGL2 uses render passes and GPGPU patterns for compute-style work where the effect contract can be represented safely.
+
+## Effect definitions
+
+Effects live under `shaders/effects/{namespace}/{effectName}/` in the source tree. A normal effect directory contains:
+
+```text
+definition.js
+help.md
+glsl/{program}.glsl
+wgsl/{program}.wgsl
+```
+
+Definitions declare:
+
+- `name`: display name.
+- `namespace`: effect group.
+- `func`: DSL function name.
+- `tags`: searchable effect categories.
+- `globals`: user-facing parameters and shader uniforms.
+- `textures`: internal render targets.
+- `passes`: render or compute passes, with input and output texture mappings.
+
+Private textures should be declared inside the effect. Do not use `o0` through `o7` for private state inside effect definitions. Those surfaces belong to the user composition graph.
+
+## Extensibility and compatibility
+
+- Use `registerNamespace(id, { description })` to introduce an external namespace accepted by DSL `search`.
+- Use `unregisterNamespace(id)` for test isolation or unloading a previously registered namespace.
+- Use the `user` namespace for imported or ad-hoc effects.
+- Use portable effects when packaging external work for Noisedeck and related apps.
+- Use CDN major, minor, or exact patch pins depending on how much release drift the app accepts.
+- Use vendored bundles when offline or self-hosted deployments matter.
+
+## Ports and source adapters
+
+- Unity / HLSL: `https://github.com/noisefactorllc/noisemaker-hlsl`
+- Blender: `https://github.com/noisefactorllc/noisemaker-blender`
+- Godot: `https://github.com/noisefactorllc/noisemaker-godot`
+- TouchDesigner: `https://github.com/noisefactorllc/noisemaker-td`
+- Three.js: `https://github.com/noisefactorllc/noisemaker-threejs`
+- Babylon.js: `https://github.com/noisefactorllc/noisemaker-babylonjs`
+
+Use these when a Noisemaker program needs to travel outside the reference browser renderer.
+
+## Agent workflow
+
+Use `shade-mcp` when developing or inspecting shader effects:
+
+- `searchEffects`: find effects by concept, tag, algorithm, or visual style.
+- `analyzeEffect`: inspect definition, shader source, uniforms, and passes.
+- `searchShaderSource`: regex search across GLSL source.
+- `searchShaderKnowledge`: search curated DSL, GLSL, patterns, and error knowledge.
+- `compileEffect`: compile one or many effects.
+- `renderEffectFrame`: render a frame and compute metrics.
+- `runDslProgram`: compile and execute arbitrary DSL.
+- `testUniformResponsiveness`: verify parameter changes affect output.
+- `testNoPassthrough`: verify filters modify input.
+- `testPixelParity`: compare WebGL2 and WebGPU output.
+- `checkEffectStructure`: inspect definitions, references, names, parity, and unused files.
+- `generateManifest`: rebuild the effects manifest after effect changes.
+
+Use `portable` when building self-contained effects for import into Noisedeck and related tools. Portable effects include `definition.json`, `help.md`, GLSL, WGSL, and a viewer. Portable effects normally register in the `user` namespace.
+
+## Validation expectations
+
+For generated shader work:
+
+- Compile the effect or DSL program.
+- Render at least one frame.
+- Check for blank output, monochrome output, missing animation, and low color variety.
+- Test uniforms when the effect exposes parameters.
+- Check WebGL2/WebGPU parity when both shaders are present.
+- Inspect console errors.
+- Do not disable tests or remove diagnostics to make a result appear valid.
+
+## Common confusions
+
+- DSL is not GLSL or WGSL.
+- `synth/noise` is an effect path, not a DSL function call.
+- `noise()` is a DSL function, not a file path.
+- Shader code belongs in GLSL or WGSL files, not inside DSL.
+- User-created or portable effects usually require `search user`.
+- Points effects need the render namespace helpers that create and render agent state.
+
+## Related projects
+
+- Noisedeck: realtime shader art and live visuals.
+- Layers: image and video editor using Noisemaker effects.
+- Foundry: shader effect authoring and hot reload.
+- Polymorphic: live coding and high-level composition.
+- Shade: AI-native shader editing.
+- Visualize: audio-reactive visual generation.
+- Photobox: image treatment and generative photo workflows.
+- Glitcher: glitch, distortion, and texture work.
+- Noodles: node-based composition experiments.
+- shade-mcp: MCP server for agent validation and shader knowledge.
+- portable: portable effect package format.

@@ -1,0 +1,44 @@
+# Noisemaker
+
+Noisemaker is an open source shader framework for humans and coding agents building expressive, extensible visual tools in the browser. It supports WebGL2 and WebGPU, a high-level Polymorphic DSL, declarative effect definitions, portable effect packages, external media/audio/MIDI inputs, and CDN-distributed shader bundles.
+
+Use this file as the short public map. For a fuller agent-oriented overview, read `/llms-full.txt`.
+
+## Primary Links
+
+- [Homepage](https://noisemaker.app/): Product overview and demos.
+- [Shader demo](https://noisemaker.app/demo/shaders/): Interactive effect browser and DSL editor.
+- [Docs](https://docs.noisemaker.app/): In-house documentation root.
+- [Source](https://github.com/noisefactorllc/noisemaker): Noisemaker repository.
+
+## Core Documentation
+
+- [Shader integration](https://docs.noisemaker.app/shaders/integration/): Embedding `CanvasRenderer` from the CDN or local bundles.
+- [Shader specs](https://docs.noisemaker.app/shaders/specs/): Effect format, Polymorphic DSL, pipeline, compiler, and effect reference.
+- [Pipeline spec](https://docs.noisemaker.app/shaders/pipeline/): DSL to render graph, resource allocation, and GPU dispatch.
+- [Language spec](https://docs.noisemaker.app/shaders/language/): Polymorphic DSL syntax and semantics.
+- [Effect definition spec](https://docs.noisemaker.app/shaders/effects/): Effect definitions, namespaces, tags, globals, textures, and passes.
+- [Release process](https://docs.noisemaker.app/releases/): CDN pinning, immutable patch releases, and release channels.
+
+## Agent Tooling
+
+- [shade-mcp](https://github.com/noisefactorllc/shade-mcp): MCP server for effect search, source search, compile, render, metrics, parity, and structure checks.
+- [portable](https://github.com/noisefactorllc/portable): Portable effect package format with definition JSON, help docs, GLSL, WGSL, and viewer.
+
+## Ports and source adapters
+
+- [Unity / HLSL](https://github.com/noisefactorllc/noisemaker-hlsl): Unity package and shader port.
+- [Blender](https://github.com/noisefactorllc/noisemaker-blender): Blender GPU port for compositor-feeding workflows.
+- [Godot](https://github.com/noisefactorllc/noisemaker-godot): RenderingDevice addon with in-engine DSL compiler.
+- [TouchDesigner](https://github.com/noisefactorllc/noisemaker-td): TOP port for realtime creative patches.
+- [Three.js](https://github.com/noisefactorllc/noisemaker-threejs): Thin backend adapter using the published engine.
+- [Babylon.js](https://github.com/noisefactorllc/noisemaker-babylonjs): Backend adapter for Babylon primitives.
+
+## Notes For Agents
+
+- Polymorphic DSL is not GLSL or WGSL.
+- Effect paths such as `synth/noise` are not DSL function calls.
+- Effects should use internal textures for private state. User surfaces `o0` through `o7` belong to the composition graph.
+- Custom integrations can use `registerNamespace()` and the `user` namespace.
+- Portable effects use `definition.json`, `help.md`, GLSL, WGSL, and the Noisemaker DSL.
+- Validate generated shader work by compiling, rendering, checking metrics, and testing WebGL2/WebGPU parity when both backends matter.

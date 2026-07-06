@@ -4,6 +4,7 @@
  *
  * Creates a self-contained site in dist/site/ with:
  * - index.html (landing page)
+ * - site.css, site.js, llms.txt, llms-full.txt
  * - demo/common.css, demo/common-colors.css, demo/common-layout.css
  * - demo/font/Nunito/ (fonts)
  * - demo/js/ (JS demo, pointing at bundled noisemaker.min.js)
@@ -206,6 +207,27 @@ function copyCssFiles() {
         if (fs.existsSync(src)) {
             copyFile(src, dest)
             console.log(`  ✓ ${cssFile}`)
+        }
+    }
+}
+
+/**
+ * Copy root-level homepage assets.
+ */
+function copyRootSiteFiles() {
+    const files = [
+        'site.css',
+        'site.js',
+        'llms.txt',
+        'llms-full.txt'
+    ]
+
+    for (const file of files) {
+        const src = path.join(repoRoot, file)
+        const dest = path.join(siteDir, file)
+        if (fs.existsSync(src)) {
+            copyFile(src, dest)
+            console.log(`  ✓ ${file}`)
         }
     }
 }
@@ -442,6 +464,9 @@ async function main() {
 
     // Copy CSS
     copyCssFiles()
+
+    // Copy homepage assets
+    copyRootSiteFiles()
 
     // Copy fonts
     copyFonts()
