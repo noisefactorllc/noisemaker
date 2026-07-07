@@ -1523,6 +1523,7 @@
   "filter/lighting.aberration": "aberration",
   "filter/lighting.ambientColor": "ambient",
   "filter/lighting.diffuseColor": "color",
+  "filter/lighting.heightMap": "height map",
   "filter/lighting.lightDirection": "direction",
   "filter/lighting.normalStrength": "depth",
   "filter/lighting.reflection": "reflection",

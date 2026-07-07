@@ -3,6 +3,11 @@ import { stdEnums } from '../lang/std_enums.js'
 import { expandPalette } from './palette-expansion.js'
 
 const SURFACE_REF_PATTERN = /^(?:o|vol|geo|xyz|vel|rgba)[0-7]$/
+const TEXTURE_ARG_KINDS = new Set(['temp', 'output', 'source', 'feedback', 'vol', 'geo', 'xyz', 'vel', 'rgba', 'pipeline'])
+
+function isTextureArg(arg) {
+    return arg !== null && typeof arg === 'object' && TEXTURE_ARG_KINDS.has(arg.kind)
+}
 
 /** Register passthrough outputs for a node that doesn't generate passes */
 function registerPassthrough(nodeId, textureMap, currentInput, currentInput3d, currentInputGeo, currentInputXyz, currentInputVel, currentInputRgba) {
@@ -563,11 +568,9 @@ export function expand(compilationResult, options = {}) {
             // being set to its default before we know if a surface is provided
             if (step.args) {
                 for (const [argName, arg] of Object.entries(step.args)) {
-                    const isObjectArg = arg !== null && typeof arg === 'object'
-
                     // Handle surface arguments that may resolve to 'none'
                     // If the global has a colorModeUniform, set it based on whether surface is 'none'
-                    if (isObjectArg && (arg.kind === 'temp' || arg.kind === 'output' || arg.kind === 'source' || arg.kind === 'feedback' || arg.kind === 'xyz' || arg.kind === 'vel' || arg.kind === 'rgba')) {
+                    if (isTextureArg(arg)) {
                         // Check if this global has a colorModeUniform property
                         const globalDef = effectDef.globals?.[argName]
                         if (globalDef?.colorModeUniform) {
@@ -586,7 +589,7 @@ export function expand(compilationResult, options = {}) {
                     const isObjectArg = arg !== null && typeof arg === 'object'
 
                     // Skip surface arguments (already processed in first pass)
-                    if (isObjectArg && (arg.kind === 'temp' || arg.kind === 'output' || arg.kind === 'source' || arg.kind === 'feedback' || arg.kind === 'xyz' || arg.kind === 'vel' || arg.kind === 'rgba')) {
+                    if (isTextureArg(arg)) {
                         continue
                     }
 
@@ -713,7 +716,7 @@ export function expand(compilationResult, options = {}) {
                         const isObjectArg = arg !== null && typeof arg === 'object'
 
                         // Skip texture arguments (handled in inputs)
-                        if (isObjectArg && (arg.kind === 'temp' || arg.kind === 'output' || arg.kind === 'source' || arg.kind === 'feedback' || arg.kind === 'xyz' || arg.kind === 'vel' || arg.kind === 'rgba')) {
+                        if (isTextureArg(arg)) {
                             continue
                         }
 
@@ -875,6 +878,8 @@ export function expand(compilationResult, options = {}) {
 
                             if (arg.kind === 'temp') {
                                 pass.inputs[uniformName] = textureMap.get(`node_${arg.index}_out`)
+                            } else if (arg.kind === 'pipeline' && (arg.name === 'inputTex' || arg.name === 'inputColor')) {
+                                pass.inputs[uniformName] = currentInput || arg.name
                             } else if (arg.kind === 'output' || arg.kind === 'source' || arg.kind === 'vol' ||
                                        arg.kind === 'geo' || arg.kind === 'xyz' || arg.kind === 'vel' || arg.kind === 'rgba') {
                                 pass.inputs[uniformName] = arg.name === 'none' ? 'none' : `global_${arg.name}`

@@ -21,11 +21,16 @@ struct Uniforms {
 
 @group(0) @binding(0) var inputSampler: sampler;
 @group(0) @binding(1) var inputTex: texture_2d<f32>;
-@group(0) @binding(2) var<uniform> uniforms: Uniforms;
+@group(0) @binding(2) var heightMap: texture_2d<f32>;
+@group(0) @binding(3) var<uniform> uniforms: Uniforms;
 
 // Convert RGB to luminosity
 fn getLuminosity(color: vec3f) -> f32 {
     return dot(color, vec3f(0.299, 0.587, 0.114));
+}
+
+fn getHeight(uv: vec2f) -> f32 {
+    return getLuminosity(textureSample(heightMap, inputSampler, uv).rgb);
 }
 
 // Calculate surface normal from height map using Sobel convolution
@@ -63,8 +68,7 @@ fn calculateNormal(uv: vec2f, texelSize: vec2f) -> vec3f {
     var dy: f32 = 0.0;
     
     for (var i: i32 = 0; i < 9; i = i + 1) {
-        let sample = textureSample(inputTex, inputSampler, uv + offsets[i]);
-        let height = getLuminosity(sample.rgb);
+        let height = getHeight(uv + offsets[i]);
         dx += height * sobel_x[i];
         dy += height * sobel_y[i];
     }
