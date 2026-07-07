@@ -207,7 +207,13 @@ async function main() {
     const consoleMessages = []
     page.on('console', (message) => {
         if (['error', 'warning'].includes(message.type())) {
-            consoleMessages.push(`[${message.type()}] ${message.text()}`)
+            const text = message.text()
+            // CI GL stacks emit performance advisories (e.g. "GPU stall due to
+            // ReadPixels") for this test's own readbacks; they are not defects
+            if (message.type() === 'warning' && text.includes('GL Driver Message (OpenGL, Performance')) {
+                return
+            }
+            consoleMessages.push(`[${message.type()}] ${text}`)
         }
     })
     page.on('pageerror', (error) => consoleMessages.push(`[pageerror] ${error.message}`))
