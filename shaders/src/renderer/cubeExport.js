@@ -12,10 +12,10 @@ export function faceFileNames() {
 //        [-Y]
 // Guarantee (proven in test/cubeExport.test.js): ray directions are CONTINUOUS
 // across every interior border, under the shader's (u,-v,1) formula and top-down
-// readback (webgl2.js readPixels flips gl.readPixels to top-down). Residual per-pixel
-// border diffs are sub-texel sampling that scales ~1/size — negligible for volumetric;
-// only an isosurface grazing a border shows a thin, resolution-shrinking line. The
-// ordering depends on top-down readback: a bottom-up buffer would flip the +Y/-Y caps.
+// readback (webgl2.js readPixels flips gl.readPixels to top-down). Cubemap renderers
+// sample edge pixels exactly at u/v = +/-1, so adjacent exported borders land on the
+// same ray directions. The ordering depends on top-down readback: a bottom-up buffer
+// would flip the +Y/-Y caps.
 // Grid cell (col, row) per face index (px,nx,py,ny,pz,nz):
 export const CROSS_CELL = [
   [0, 1], // +X

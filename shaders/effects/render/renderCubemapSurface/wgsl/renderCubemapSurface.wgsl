@@ -90,13 +90,20 @@ fn intersectBox(ro: vec3<f32>, rd: vec3<f32>) -> vec2<f32> {
     return vec2<f32>(tEnter, tExit);
 }
 
+fn cubemapFaceUv(position: vec2<f32>, offset: vec2<f32>, res: vec2<f32>) -> vec2<f32> {
+    let size = max(res, vec2<f32>(1.0));
+    let pixel = position + offset - vec2<f32>(0.5);
+    let denom = max(size - vec2<f32>(1.0), vec2<f32>(1.0));
+    return pixel / denom * 2.0 - vec2<f32>(1.0);
+}
+
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> FragmentOutput {
-    // Square face: uv in [-1, 1], 90-degree frustum. Camera at the volume center.
+    // Square face: edge pixels land exactly on u/v = +/-1.
     let res = select(resolution, fullResolution, fullResolution.x > 0.0);
-    let uv = ((position.xy + tileOffset) - 0.5 * res) / (0.5 * res.y);
+    let uv = cubemapFaceUv(position.xy, tileOffset, res);
     let ro = vec3<f32>(0.0, 0.0, 0.0);
-    let rd = normalize(cubeBasis * vec3<f32>(uv.x, -uv.y, 1.0));
+    let rd = normalize(cubeBasis * vec3<f32>(uv.x, uv.y, 1.0));
 
     // Front-to-back emission/absorption. NO gamma, NO lighting: the raw field
     // color shows through exactly as sampled.

@@ -80,10 +80,17 @@ fn cloudField(s: vec4<f32>) -> f32 {
     return clamp(max(s.r, max(s.g, s.b)), 0.0, 1.0);
 }
 
+fn cubemapFaceUv(position: vec2<f32>, offset: vec2<f32>, res: vec2<f32>) -> vec2<f32> {
+    let size = max(res, vec2<f32>(1.0));
+    let pixel = position + offset - vec2<f32>(0.5);
+    let denom = max(size - vec2<f32>(1.0), vec2<f32>(1.0));
+    return pixel / denom * 2.0 - vec2<f32>(1.0);
+}
+
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> FragmentOutput {
     let res = select(u.resolution, u.fullResolution, u.fullResolution.x > 0.0);
-    let uv = ((position.xy + u.tileOffset) - 0.5 * res) / (0.5 * res.y);
+    let uv = cubemapFaceUv(position.xy, u.tileOffset, res);
     let rd = normalize(cubeBasis * vec3<f32>(uv.x, uv.y, 1.0));
     let normal = normalize(rd);
     let lightDir = normalize(u.lightDirection);

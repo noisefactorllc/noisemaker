@@ -376,12 +376,19 @@ vec3 shadeVoxel(vec3 p, vec3 rd, vec3 n, ivec3 voxel) {
     return baseColor * (amb + diff * 0.7);
 }
 
+vec2 cubemapFaceUv(vec2 fragCoord, vec2 offset, vec2 res) {
+    vec2 size = max(res, vec2(1.0));
+    vec2 pixel = fragCoord + offset - vec2(0.5);
+    vec2 denom = max(size - vec2(1.0), vec2(1.0));
+    return pixel / denom * 2.0 - 1.0;
+}
+
 void main() {
-    // Square face: uv in [-1,1], 90-degree frustum. Camera at the volume center,
+    // Square face: edge pixels land exactly on u/v = +/-1. Camera at the volume center,
     // looking out along the per-face basis (cubeBasis). Replaces render3d's orbit.
     vec2 fullRes = fullResolution.x > 0.0 ? fullResolution : resolution;
     if (fullRes.x < 1.0) fullRes = vec2(1024.0, 1024.0);
-    vec2 uv = ((gl_FragCoord.xy + tileOffset) - 0.5 * fullRes) / (0.5 * fullRes.y);
+    vec2 uv = cubemapFaceUv(gl_FragCoord.xy, tileOffset, fullRes);
     vec3 ro = vec3(0.0);
     vec3 rd = normalize(cubeBasis * vec3(uv.x, -uv.y, 1.0));
     
