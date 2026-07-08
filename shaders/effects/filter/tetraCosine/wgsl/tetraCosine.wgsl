@@ -35,7 +35,7 @@ fn hsv2rgb(hsv: vec3<f32>) -> vec3<f32> {
 
     let c = v * s;
     let hp = h * 6.0;
-    let x = c * (1.0 - abs(hp % 2.0 - 1.0));
+    let x = c * (1.0 - abs((hp % 2.0 + 2.0) % 2.0 - 1.0));
     let m = v - c;
 
     var rgb: vec3<f32>;

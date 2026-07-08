@@ -232,9 +232,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         // Apply wrap mode
         let wrapMode = i32(u.data[2].y);
         if (wrapMode == 0) {
-            texUv = abs((texUv + 1.0) % 2.0 - 1.0);
+            texUv = abs(((texUv + 1.0) % 2.0 + 2.0) % 2.0 - 1.0);
         } else if (wrapMode == 1) {
-            texUv = texUv % 1.0;
+            texUv = (texUv % 1.0 + 1.0) % 1.0;
         } else {
             texUv = clamp(texUv, vec2<f32>(0.0), vec2<f32>(1.0));
         }

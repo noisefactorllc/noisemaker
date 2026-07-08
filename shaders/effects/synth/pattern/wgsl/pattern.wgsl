@@ -59,7 +59,7 @@ fn checkerboard(p: vec2<f32>, sm: f32) -> f32 {
     let d = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y));
     // Determine which cell we're in
     let cell = floor(p);
-    let check = (cell.x + cell.y) % 2.0;
+    let check = ((cell.x + cell.y) % 2.0 + 2.0) % 2.0;
     // Apply smoothness at edges
     let edge = smoothstep(0.0, sm * 0.5, d);
     return mix(1.0 - check, check, edge);
@@ -94,8 +94,8 @@ fn hexagons(p: vec2<f32>, t: f32, sm: f32) -> f32 {
     let h = s * 0.5;
     
     // Two offset grids
-    let a = (p % s) - h;
-    let b = ((p + h) % s) - h;
+    let a = ((p % s) + s) % s - h;
+    let b = (((p + h) % s) + s) % s - h;
     
     // Choose closest hexagon center
     var g: vec2<f32>;

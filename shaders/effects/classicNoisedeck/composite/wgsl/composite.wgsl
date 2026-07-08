@@ -55,7 +55,7 @@ fn rgb2hsv(rgb : vec3<f32>) -> vec3<f32> {
     var h : f32 = 0.0;
     if (delta != 0.0) {
         if (max_val == r) {
-            h = (((g - b) / delta) % 6.0) / 6.0;
+            h = ((((g - b) / delta) % 6.0 + 6.0) % 6.0) / 6.0;
         } else if (max_val == g) {
             h = ((b - r) / delta + 2.0) / 6.0;
         } else if (max_val == b) {

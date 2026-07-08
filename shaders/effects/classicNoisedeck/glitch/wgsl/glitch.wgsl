@@ -163,8 +163,8 @@ fn glitch(st_in: vec2<f32>, aspectRatio: f32, time: f32, xChonk: f32, yChonk: f3
     
     let refract = g * 0.125;
     
-    st.x = (st.x + sin(xOffset * TAU) * refract) % 1.0;
-    st.y = (st.y + sin(yOffset * TAU) * refract) % 1.0;
+    st.x = fract(st.x + sin(xOffset * TAU) * refract);
+    st.y = fract(st.y + sin(yOffset * TAU) * refract);
     
     // aberration and lensing
     var diff = vec2<f32>(0.5 - st.x, 0.5 - st.y);

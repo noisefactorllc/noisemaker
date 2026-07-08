@@ -66,7 +66,7 @@ fn simplex3D(v: vec3f) -> f32 {
     let x3 = x0 - D.yyy;
     
     // Permutations
-    let iMod = i % 289.0;
+    let iMod = (i % 289.0 + 289.0) % 289.0;
     let p = permute4(permute4(permute4(
         iMod.z + vec4f(0.0, i1.z, i2.z, 1.0))
         + iMod.y + vec4f(0.0, i1.y, i2.y, 1.0))
