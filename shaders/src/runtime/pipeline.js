@@ -971,14 +971,31 @@ export class Pipeline {
      * copy the faces (or their `data`) if you need to retain them across calls.
      * The render style (lit blob vs raw sample) is whichever cubemap renderer the
      * graph ends in (renderCubemap3d / renderCubemapSurface) — not a parameter here.
-     * @param {{size?:number, outputSurface?:string, time?:number}} cfg
+     * yieldBetweenFaces awaits an animation frame before each face render so a
+     * host render loop keeps painting during large (e.g. 1024px) captures.
+     * @param {{size?:number, outputSurface?:string, time?:number, yieldBetweenFaces?:boolean}} cfg
      * @returns {Promise<Array<{width:number,height:number,data:Uint8Array}>>} reused buffer — copy if retaining
      */
-    async renderCubemap({ size = 512, outputSurface = 'o0', time = 0 } = {}) {
+    async renderCubemap({ size = 512, outputSurface = 'o0', time = 0, yieldBetweenFaces = false } = {}) {
         const prevW = this.width, prevH = this.height
         if (this.width !== size || this.height !== size) this.resize(size, size)
         if (!this._cubeFaces) this._cubeFaces = new Array(6)
         for (let face = 0; face < 6; face++) {
+            if (yieldBetweenFaces) {
+                // Race rAF against a timer: rAF alone never fires in a
+                // hidden/backgrounded tab, which would otherwise stall this
+                // loop indefinitely instead of just yielding a paint.
+                await new Promise((resolve) => {
+                    let settled = false
+                    const finish = () => {
+                        if (settled) return
+                        settled = true
+                        resolve()
+                    }
+                    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(finish)
+                    setTimeout(finish, 120)
+                })
+            }
             this.setUniform('cubeBasis', CUBE_FACE_BASES[face])
             this.render(time)
             const surface = this.surfaces.get(outputSurface)
