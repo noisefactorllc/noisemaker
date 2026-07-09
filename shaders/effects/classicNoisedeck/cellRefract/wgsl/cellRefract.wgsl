@@ -267,7 +267,11 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     st.x += cos(refLen * TAU) * refAmt;
     st.y += sin(refLen * TAU) * refAmt;
 
-    if (u.wrap == 1) {
+    if (u.wrap == 0) {
+        // mirror
+        st = abs(((st + 1.0) % 2.0 + 2.0) % 2.0 - 1.0);
+    } else if (u.wrap == 1) {
+        // repeat
         st = fract(st);
     }
 

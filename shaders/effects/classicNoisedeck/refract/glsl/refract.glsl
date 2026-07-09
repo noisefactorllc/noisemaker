@@ -216,7 +216,7 @@ void main() {
 
     if (wrap == 0) {
         // mirror (default)
-        uv = uv;
+        uv = abs(mod(uv + 1.0, 2.0) - 1.0);
     } else if (wrap == 1) {
         // repeat
         uv = mod(uv, 1.0);
