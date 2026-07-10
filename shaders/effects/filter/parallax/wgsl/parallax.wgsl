@@ -6,6 +6,10 @@
 struct Uniforms {
     direction: vec3f,
     pivot: f32,
+    // No renderScale: the GLSL sibling declares none (parallax has no
+    // pixel-fixed-size elements), and the tails must stay matched.
+    tileOffset: vec2f,
+    fullResolution: vec2f,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -22,19 +26,39 @@ fn getLuminosity(color: vec3f) -> f32 {
 }
 
 fn getHeight(uv: vec2f) -> f32 {
-    return getLuminosity(textureSampleLevel(heightMap, inputSampler, uv, 0.0).rgb);
+    let mapSize = vec2<f32>(textureDimensions(heightMap));
+    let localUV = (uv * uniforms.fullResolution - uniforms.tileOffset) / mapSize;
+    return getLuminosity(textureSampleLevel(heightMap, inputSampler, localUV, 0.0).rgb);
+}
+
+fn getInput(uv: vec2f) -> vec4f {
+    let texSize = vec2<f32>(textureDimensions(inputTex));
+    let localUV = (uv * uniforms.fullResolution - uniforms.tileOffset) / texSize;
+    return textureSampleLevel(inputTex, inputSampler, localUV, 0.0);
 }
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let texSize = vec2<f32>(textureDimensions(inputTex));
-    let uv = pos.xy / texSize;
+    let globalCoord = pos.xy + uniforms.tileOffset;
+    let uv = globalCoord / uniforms.fullResolution;
 
     var v = vec3f(0.0, 0.0, 1.0);
     if (length(uniforms.direction) > 0.0) {
         v = normalize(uniforms.direction);
     }
-    let shift = v.xy * SHIFT_SCALE;
+    var shift = v.xy * SHIFT_SCALE;
+
+    // Tile rendering: clamp the ray-march shift to the tile overlap budget
+    // (absolute pixels in fullResolution space) so displaced samples never
+    // leave the tile's rendered region. No-op when tileOffset is zero.
+    let isTileRendering = length(uniforms.tileOffset) > 0.0;
+    if (isTileRendering) {
+        let maxDispPixels: f32 = 256.0;
+        let dispPixels = length(shift * uniforms.fullResolution);
+        if (dispPixels > maxDispPixels) {
+            shift = shift * (maxDispPixels / dispPixels);
+        }
+    }
 
     // View ray crosses this fragment's UV at height == pivot
     var t: f32 = 1.0;
@@ -58,5 +82,5 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         }
     }
 
-    return textureSampleLevel(inputTex, inputSampler, rayUV, 0.0);
+    return getInput(rayUV);
 }

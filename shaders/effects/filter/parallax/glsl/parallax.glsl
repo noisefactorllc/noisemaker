@@ -43,6 +43,18 @@ void main() {
     vec3 v = length(direction) > 0.0 ? normalize(direction) : vec3(0.0, 0.0, 1.0);
     vec2 shift = v.xy * SHIFT_SCALE;
 
+    // Tile rendering: clamp the ray-march shift to the tile overlap budget
+    // (absolute pixels in fullResolution space) so displaced samples never
+    // leave the tile's rendered region. No-op when tileOffset is zero.
+    bool isTileRendering = length(tileOffset) > 0.0;
+    if (isTileRendering) {
+        float maxDispPixels = 256.0;
+        float dispPixels = length(shift * fullResolution);
+        if (dispPixels > maxDispPixels) {
+            shift *= maxDispPixels / dispPixels;
+        }
+    }
+
     // View ray crosses this fragment's UV at height == pivot
     float t = 1.0;
     vec2 rayUV = uv + shift * (1.0 - pivot);
