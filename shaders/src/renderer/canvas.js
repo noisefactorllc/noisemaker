@@ -849,6 +849,12 @@ export class CanvasRenderer {
         this._canvasContainer.replaceChild(newCanvas, this._canvas)
         this._canvas = newCanvas
 
+        // A lost context belonged to the canvas we just discarded, and its
+        // webglcontextrestored event can never fire now. Without this reset,
+        // render() stays a silent no-op on every future backend — the render
+        // loop keeps drawing but single-frame renders (exports) stay black.
+        this._isContextLost = false
+
         // Re-attach context loss listeners to new canvas
         this._setupContextLossHandlers()
     }
@@ -956,6 +962,14 @@ export class CanvasRenderer {
 
         // Re-upload cached mesh data to new backend
         await this._reuploadCachedMeshes()
+
+        // A context loss stops the render loop. When the loss was resolved by
+        // replacing the canvas (backend switch) rather than a restore event,
+        // this fresh pipeline is the recovery point — resume the loop here.
+        if (this._wasRunningBeforeContextLoss && !this._isRunning && !this._isContextLost) {
+            this._wasRunningBeforeContextLoss = false
+            this.start()
+        }
 
         return this._pipeline
     }
