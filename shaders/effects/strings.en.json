@@ -1286,6 +1286,7 @@
   "filter/dither.type.bayer8x8": "bayer8x8",
   "filter/dither.type.crosshatch": "crosshatch",
   "filter/dither.type.dot": "dot",
+  "filter/dither.type.errorDiffusion": "error diffusion",
   "filter/dither.type.line": "line",
   "filter/dither.type.noise": "noise",
   "filter/edge": "Edge",
