@@ -1,0 +1,89 @@
+# Out-of-Band Ledger
+
+Some layers of the platform are allowed to lag behind feature work: the
+primary development pass ships the feature, and a separate catch-up pass
+tops these layers off later. This file is the checkpoint record for those
+passes.
+
+Each section records:
+
+- **Checkpoint** — the commit (SHA, date) through which the category is
+  known to be caught up. "Caught up through X" describes what was audited,
+  not where the fix landed. Cross-repo categories list one checkpoint per
+  repo.
+- **Scope** — what the pass owns.
+- **Gap detection** — how to compute outstanding work since the checkpoint.
+- **Log** — one line per completed pass, newest first.
+
+Running a catch-up pass: compute the gap over `<checkpoint>..HEAD`, do the
+work, verify it, then update the checkpoint and append a log line.
+
+## I18n strings
+
+- **Checkpoint:** noisemaker `45a34489` (2026-07-10)
+- **Scope:** the translation catalogs
+  `shaders/effects/strings.{de,es,fr,it,ja,pt}.json`. The English catalog
+  `strings.en.json` is generated from effect definitions (`npm run strings`)
+  and drift-tested by `npm run test:shaders:i18n`, so it never lags and is
+  not part of this pass. Missing locale keys fall back to English at
+  runtime, so gaps are invisible without the diff below.
+- **Gap detection:** every key present in `strings.en.json` and absent from
+  a locale file needs a translation. From `shaders/effects/`:
+
+  ```
+  node -e 'const fs=require("fs");const en=Object.keys(JSON.parse(fs.readFileSync("strings.en.json","utf8")));for(const l of["de","es","fr","it","ja","pt"]){const t=new Set(Object.keys(JSON.parse(fs.readFileSync("strings."+l+".json","utf8"))));const m=en.filter(k=>!t.has(k));if(m.length)console.log(l+":",m.join(", "))}'
+  ```
+
+  Keys stay in the same (sorted) order as the English catalog. Match each
+  locale's existing conventions — parameter labels lowercase, effect names
+  capitalized, description tone per locale — and reuse the file's existing
+  translation for a term before inventing a new one.
+- **Log:**
+  - 2026-07-10 — initial top-off, 37 strings: `filter/parallax` block
+    (5 keys, de/fr/it/ja/pt), `filter/dither.type.errorDiffusion` and
+    `filter/lighting.heightMap` (all six locales).
+
+## Large-format tiling
+
+- **Checkpoint:** noisemaker `45a34489` / noisedeck `75262325` (preview
+  branch), 2026-07-10
+- **Scope:** every effect must be classified for Noisedeck's large-format
+  (tiled print) export. Tile-aware effects consume the global `tileOffset`
+  and `fullResolution` uniforms in both GLSL and WGSL (packed WGSL layouts
+  may need explicit `uniformLayout` slots). Effects that cannot render
+  tiled belong in one of noisedeck's deny-lists:
+  `app/js/utils/hasStatefulEffects.js` (state textures cannot re-render at
+  print resolution) or `app/js/utils/hasUpscaleOnlyEffects.js` (would seam
+  at the 1024 px tile overlap). An effect in none of the three states
+  silently produces seamed prints.
+- **Gap detection:** list effects added since the checkpoint
+  (`git log --diff-filter=A --name-only <checkpoint>..HEAD -- 'shaders/effects/*/*/definition.js'`)
+  and classify each: make it tile-aware, or route it into the appropriate
+  deny-list. Verify tile-aware claims with noisedeck's seam harness
+  (`tests/large-format-seams/`).
+- **Log:**
+  - 2026-07-10 — post-ship catch-up: parallax tile-clamped + synth WGSL
+    ports (noisemaker `45a34489`); effects added since ship routed into
+    deny-lists, seam-harness hardening (noisedeck `a12ee01e`..`75262325`).
+  - 2026-05-16 — feature shipped (noisemaker `f1b0a919`, noisedeck
+    `913b722b`).
+
+## Documentation
+
+- **Checkpoint:** noisemaker `45a34489` (2026-07-10)
+- **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
+  by `.github/workflows/docs-site.yml`) and the per-effect
+  `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
+  `help.md` is normally written in-band with the effect; this pass catches
+  stragglers and decides which shipped features merit a narrative guide.
+- **Gap detection:**
+  1. Effects missing `help.md`: compare `shaders/effects/*/*/definition.js`
+     against the corresponding `help.md` paths.
+  2. Features shipped since the checkpoint that merit a guide under
+     `docs/shaders/features.rst` (pattern: `docs/shaders/cubemaps.rst`).
+  3. Narrative statements invalidated by recent commits (grep the affected
+     terms in `docs/`).
+- **Log:**
+  - 2026-07-10 — initial catch-up: added `help.md` for
+    `mixer/channelCombine` and `filter/temporalAberration`; added feature
+    guides for parallax, the 3D pipeline, and mashup.
