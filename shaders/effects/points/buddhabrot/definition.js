@@ -107,7 +107,7 @@ export default new Effect({
     }
   },
 
-  defaultProgram: "search points, synth, render\n\nsolid()\n  .pointsEmit(stateSize: 512)\n  .buddhabrot()\n  .pointsRender(intensity: 99)\n  .write(o0)\n\nrender(o0)",
+  defaultProgram: "search points, synth, render\n\nperlin()\n  .pointsEmit(stateSize: 512)\n  .buddhabrot()\n  .pointsRender(intensity: 99)\n  .write(o0)\n\nrender(o0)",
 
   openCategories: ["fractal"],
 

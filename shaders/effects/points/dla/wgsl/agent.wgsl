@@ -58,7 +58,9 @@ fn wrap01(v: vec2<f32>) -> vec2<f32> {
 
 fn sampleGrid(uv: vec2<f32>) -> f32 {
     let dims = vec2<f32>(textureDimensions(gridTex));
-    let coord = vec2<i32>(wrap01(uv) * dims);
+    let w = wrap01(uv);
+    // WebGPU: gridTex y=0=top, worldPos y=0=visual-bottom. Read at 1-y.
+    let coord = vec2<i32>(vec2f(w.x, 1.0 - w.y) * dims);
     return textureLoad(gridTex, coord, 0).a;
 }
 
@@ -92,12 +94,11 @@ fn main(in: VertexOutput) -> FragmentOutputs {
     var seed = vel.x;
     let agentRand = vel.w;
     
-    // Initialize or evolve seed using agent ID and existing seed
+    // Initialize or evolve seed using per-particle deterministic chain (matches GLSL)
     let agentId = u32(coord.x + coord.y * i32(stateDims.x));
     if (seed <= 0.0) {
-        seed = hash(agentId + 12345u) + 0.001;
+        seed = hash(agentId) + 0.001;
     }
-    // Mix in agentId and previous seed to ensure different random direction each frame
     let frameSeed = hash_uint(agentId * 31u + bitcast<u32>(seed));
     seed = bitcast<f32>((frameSeed & 0x007FFFFFu) | 0x3F800000u) - 1.0;
     
@@ -126,7 +127,9 @@ fn main(in: VertexOutput) -> FragmentOutputs {
     var stepDir = randomDir;
     if (inputW > 0.0) {
         let inputDims = textureDimensions(inputTex);
-        let inputCoord = vec2<i32>(wrap01(pos) * vec2<f32>(inputDims));
+        let wpos = wrap01(pos);
+        // WebGPU: inputTex y=0=top, worldPos y=0=visual-bottom. Read at 1-y.
+        let inputCoord = vec2<i32>(vec2f(wpos.x, 1.0 - wpos.y) * vec2<f32>(inputDims));
         let inputVal = textureLoad(inputTex, inputCoord, 0);
         var inputDir = inputVal.xy * 2.0 - 1.0;
         if (length(inputDir) > 0.01) {

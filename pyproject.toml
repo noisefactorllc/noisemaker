@@ -54,7 +54,7 @@ docs = [
 
 [project.urls]
 Homepage = "https://github.com/noisedeck/noisemaker"
-Documentation = "http://noisemaker.readthedocs.io/"
+Documentation = "https://docs.noisemaker.app/"
 Repository = "https://github.com/noisedeck/noisemaker"
 Issues = "https://github.com/noisedeck/noisemaker/issues"
 
@@ -133,7 +133,7 @@ ignore = [
 "noisemaker/presets.py" = ["N802"]  # PRESETS() and Preset() follow DSL naming conventions
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false  # Start lenient, tighten over time

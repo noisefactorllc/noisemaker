@@ -56,6 +56,70 @@ export const TAG_DEFINITIONS = Object.freeze({
     audio: {
         id: 'audio',
         description: 'Audio-reactive effects'
+    },
+    agents: {
+        id: 'agents',
+        description: 'Particle and agent-based systems'
+    },
+    antialiasing: {
+        id: 'antialiasing',
+        description: 'Edge smoothing and antialiasing'
+    },
+    blend: {
+        id: 'blend',
+        description: 'Compositing and blend modes'
+    },
+    blur: {
+        id: 'blur',
+        description: 'Blur and softening'
+    },
+    fractal: {
+        id: 'fractal',
+        description: 'Fractal patterns'
+    },
+    geometry: {
+        id: 'geometry',
+        description: '3D mesh geometry'
+    },
+    glitch: {
+        id: 'glitch',
+        description: 'Glitch and corruption effects'
+    },
+    image: {
+        id: 'image',
+        description: 'Image-input effects'
+    },
+    mesh: {
+        id: 'mesh',
+        description: '3D mesh rendering'
+    },
+    midi: {
+        id: 'midi',
+        description: 'MIDI-reactive effects'
+    },
+    palette: {
+        id: 'palette',
+        description: 'Color palette mapping'
+    },
+    pattern: {
+        id: 'pattern',
+        description: 'Repeating or structured patterns'
+    },
+    pixel: {
+        id: 'pixel',
+        description: 'Pixelation and pixel-level effects'
+    },
+    text: {
+        id: 'text',
+        description: 'Text rendering'
+    },
+    tiling: {
+        id: 'tiling',
+        description: 'Seamless tiling'
+    },
+    video: {
+        id: 'video',
+        description: 'Video-input effects'
     }
 })
 

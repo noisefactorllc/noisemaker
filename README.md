@@ -8,7 +8,7 @@ Noisemaker is a collection of creative coding effects for Python or JavaScript. 
 
 ## Documentation
 
-Full documentation, including the complete API reference and preset guide, is available on [Read the Docs](http://noisemaker.readthedocs.io/).
+Full documentation, including the complete API reference and preset guide, is available at [docs.noisemaker.app](https://docs.noisemaker.app/).
 
 ## Features
 

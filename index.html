@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <script>
@@ -12,247 +12,280 @@
   </script>
   <title>Noisemaker</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Open source GPU rendering engine for the browser. MIT-licensed visual effects format, orchestration language, and rendering pipeline." />
+  <meta name="description" content="Noisemaker is an open source shader framework for humans and coding agents building expressive, extensible visual tools in the browser. WebGL2, WebGPU, Polymorphic DSL, portable effects, and 100+ mapped shader effects." />
+  <meta name="keywords" content="noisemaker, gpu rendering, shader engine, webgl2, webgpu, polymorphic dsl, realtime visuals, shader effects, creative coding, ai coding agents" />
+  <link rel="canonical" href="https://noisemaker.app/" />
 
-  <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Noisemaker" />
-  <meta property="og:description" content="Open source GPU rendering engine for the browser." />
+  <meta property="og:description" content="Open source shader framework for expressive, extensible visual tools in the browser." />
   <meta property="og:image" content="https://noisemaker.app/og-image.png" />
   <meta property="og:url" content="https://noisemaker.app/" />
+  <meta property="og:site_name" content="Noisemaker" />
 
-  <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Noisemaker" />
-  <meta name="twitter:description" content="Open source GPU rendering engine for the browser." />
+  <meta name="twitter:description" content="Open source shader framework for expressive, extensible visual tools in the browser." />
   <meta name="twitter:image" content="https://noisemaker.app/og-image.png" />
 
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareSourceCode",
+    "name": "Noisemaker",
+    "description": "Open source shader framework for expressive, extensible visual tools in the browser.",
+    "codeRepository": "https://github.com/noisefactorllc/noisemaker",
+    "license": "https://opensource.org/licenses/MIT",
+    "programmingLanguage": ["JavaScript", "GLSL", "WGSL"],
+    "runtimePlatform": ["WebGL2", "WebGPU"]
+  }
+  </script>
+
   <link rel="icon" href="data:," />
+  <link rel="preconnect" href="https://handfish.noisefactor.io" crossorigin />
+  <link rel="preconnect" href="https://fonts.noisefactor.io" crossorigin />
+  <link rel="preconnect" href="https://shaders.noisedeck.app" crossorigin />
   <link rel="preload" href="https://fonts.noisefactor.io/fonts/nunito/Nunito-Blank.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono-Blank.woff2" as="font" type="font/woff2" crossorigin />
-  <style>
-    @font-face { font-family: 'Nunito Blank'; src: url('https://fonts.noisefactor.io/fonts/nunito/Nunito-Blank.woff2') format('woff2'); }
-    @font-face { font-family: 'Noto Sans Mono Blank'; src: url('https://fonts.noisefactor.io/fonts/noto-sans-mono/NotoSansMono-Blank.woff2') format('woff2'); }
-  </style>
-  <link rel="stylesheet" href="https://handfish.noisefactor.io/0.9.0/styles/index.css" />
-  <link rel="stylesheet" href="./demo/common.css" />
-  <style>
-    :root {
-      --hf-color-1: #0a0a0a;
-      --hf-color-2: #141414;
-      --hf-color-3: #1e1e1e;
-      --hf-color-4: #2a2a2a;
-      --hf-color-5: #888;
-      --hf-color-6: #ccc;
-      --hf-color-7: #f0f0f0;
-      --hf-accent-1: #1a1a1a;
-      --hf-accent-2: #252525;
-      --hf-accent-3: #ff00c1;
-      --hf-accent-4: #ff66d9;
-      --hf-green: #33ff00;
-    }
-
-    body.landing-page {
-      padding: 0;
-      min-height: 100vh;
-      background: var(--hf-bg-base);
-    }
-
-    #bg-canvas {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      z-index: var(--hf-z-base);
-    }
-
-    .content-overlay {
-      position: relative;
-      z-index: 1;
-      width: 100%;
-      background: color-mix(in srgb, var(--hf-bg-base) 50%, transparent 50%);
-      display: flex;
-      justify-content: center;
-      padding: clamp(40px, 12vh, 80px) clamp(16px, 5vw, 48px);
-    }
-
-    main.landing-shell header {
-      display: flex;
-      align-items: center;
-      gap: clamp(12px, 2vw, 20px);
-      text-align: left;
-    }
-
-    .landing-logo {
-      width: clamp(48px, 8vw, 72px);
-      height: auto;
-      flex-shrink: 0;
-    }
-
-    .header-text h1 {
-      margin: 0;
-    }
-
-    .header-text p {
-      margin: 0;
-    }
-
-    @media (max-width: 480px) {
-      main.landing-shell header {
-        flex-direction: column;
-        text-align: center;
-      }
-    }
-
-    main.landing-shell footer {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: clamp(1rem, 3vw, 2rem);
-      font-size: var(--hf-size-sm);
-      letter-spacing: var(--hf-tracking-wide);
-      color: var(--hf-text-dim);
-    }
-    main.landing-shell footer a {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--hf-space-2);
-      color: var(--hf-text-dim);
-      transition: var(--hf-transition-color);
-    }
-    main.landing-shell footer a:hover {
-      color: var(--hf-text-bright);
-    }
-
-    a.demo-card {
-      background: color-mix(in srgb, var(--hf-bg-base) 70%, transparent 30%);
-    }
-    a.demo-card:hover,
-    a.demo-card:focus-visible {
-      border-color: var(--hf-green);
-    }
-  </style>
+  <link rel="stylesheet" href="https://handfish.noisefactor.io/0/styles/tokens.css" />
+  <link rel="stylesheet" href="./site.css?v=20260706ad" />
+  <script type="module" src="./site.js?v=20260706p"></script>
 </head>
-<body class="landing-page">
-  <canvas id="bg-canvas"></canvas>
+<body>
+  <header class="nm-header">
+    <canvas id="nm-strip-canvas" class="nm-header-canvas" aria-hidden="true"></canvas>
+    <a class="nm-brand" href="/" aria-label="Noisemaker home">
+      <img src="./noisemaker.png" alt="" class="nm-brand-mark" />
+      <span>Noisemaker</span>
+    </a>
+    <nav class="nm-nav" aria-label="Primary navigation">
+      <a href="#arch">Architecture</a>
+      <a href="#effects">Effects</a>
+      <a href="#free">Free &amp; open</a>
+      <a href="#agents">Humans &amp; agents</a>
+      <a href="#built">Apps</a>
+    </nav>
+  </header>
 
-  <div class="content-overlay">
-    <main class="landing-shell">
-      <header>
-        <img src="noisemaker.png" alt="Noisemaker" class="landing-logo" />
-        <div class="header-text">
-          <h1>Noisemaker</h1>
-          <p>Visual effects rendering engine for the browser.</p>
+  <main>
+    <section class="nm-hero">
+      <div class="nm-hero-copy">
+        <p class="nm-kicker">Open source shader engine</p>
+        <h1>It's Noisemaker, the friendly and extendable shader art engine.</h1>
+        <p class="nm-lede">
+          Noisemaker gives visual tool builders an open effect format, an expressive composition language, an agnostic WebGL2/WebGPU runtime, portable packaging, and 100+ mapped shader effects. It is the graphics layer people, creative tools, and coding agents can build on.
+        </p>
+        <div class="nm-hero-actions" aria-label="Primary actions">
+          <a class="nm-button nm-button-primary" href="./demo/shaders/">Open shader demo</a>
+          <a class="nm-button" href="https://docs.noisemaker.app/">Read docs</a>
+          <a class="nm-button" href="https://github.com/noisefactorllc/noisemaker">Source</a>
         </div>
-      </header>
+      </div>
 
-      <section class="demo-grid">
-        <a class="demo-card" href="demo/shaders/">
-          <span class="demo-name">shaders demo</span>
-          <span class="demo-summary">live effect browser</span>
+    </section>
+
+    <section class="nm-section nm-thesis" aria-labelledby="thesis-title">
+      <div>
+        <p class="nm-kicker">We know you're thinking it</p>
+        <h2 id="thesis-title">Is this slop?</h2>
+      </div>
+      <p>
+        No. You can't build a solid foundation on vibes alone. Noisemaker is backed by decades of real-world learning, experience, and human comprehension that AI can't match; not now, and not soon.
+      </p>
+    </section>
+
+    <section class="nm-section" id="arch" aria-labelledby="language-title">
+      <div class="nm-section-heading">
+        <p class="nm-kicker">Architecture</p>
+        <h2 id="language-title">Effects as data, composition as readable code.</h2>
+      </div>
+      <div class="nm-feature-grid">
+        <article class="nm-feature">
+          <h3>Effect contracts</h3>
+          <p>Every effect declares its parameters, inputs, textures, passes, tags, and shader programs so tools can inspect what they are about to run.</p>
+        </article>
+        <article class="nm-feature">
+          <h3>Readable composition</h3>
+          <p>A layer stack, a camera filter, an audio visualizer, or a 3D volume can be represented as a compact program string.</p>
+        </article>
+        <article class="nm-feature">
+          <h3>Live inputs</h3>
+          <p>Oscillators, MIDI, audio bands, media textures, image sources, text, meshes, and volume buffers all enter through named contracts.</p>
+        </article>
+        <article class="nm-feature">
+          <h3>Program state mutation</h3>
+          <p>The runtime can compile, unparse, list steps, replace compatible effects, and apply parameter updates without treating source as opaque text.</p>
+        </article>
+        <article class="nm-feature">
+          <h3>Subchains and routing</h3>
+          <p>Programs can group contiguous effects, write intermediate surfaces, and route multiple chains through explicit buffers.</p>
+        </article>
+        <article class="nm-feature">
+          <h3>Human and agent scale</h3>
+          <p>The DSL is terse enough for live coding and structured enough for a coding agent to inspect, modify, and validate.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="nm-section" id="effects" aria-labelledby="effects-title">
+      <div class="nm-section-heading">
+        <p class="nm-kicker">Capability</p>
+        <h2 id="effects-title">100+ mapped effects, always growing.</h2>
+      </div>
+      <p class="nm-section-copy">
+        The catalog covers the work visual systems actually need: sources, transforms, simulation,
+        compositing, 3D volumes, feedback, media, text, color, geometry, and render utilities.
+      </p>
+      <div class="nm-feature-grid">
+        <article class="nm-feature">
+          <h3>Filters</h3>
+          <p>Color, blur, distortion, grading, lens, glitch, text, pixel, palette, edges, temporal effects, and more.</p>
+        </article>
+        <article class="nm-feature">
+          <h3>Generators</h3>
+          <p>Noise, fractals, cellular systems, gradients, media, scopes, polygon sources, and procedural starters.</p>
+        </article>
+        <article class="nm-feature">
+          <h3>Mixers</h3>
+          <p>Compositing and blend modes make images, videos, generated textures, and intermediate surfaces combine cleanly.</p>
+        </article>
+        <article class="nm-feature">
+          <h3>Point systems</h3>
+          <p>Agent and particle behaviors cover physarum, flow, flocking, life-like systems, trails, and simulation patterns.</p>
+        </article>
+        <article class="nm-feature">
+          <h3>Volumes and 3D</h3>
+          <p>Volumetric generators and processors give shader programs structured 3D texture sources and transforms.</p>
+        </article>
+        <article class="nm-feature">
+          <h3>Render utilities</h3>
+          <p>Mesh, point, cubemap, feedback, loop, and presentation helpers connect shader programs to real browser output.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="nm-section" id="free" aria-labelledby="ports-title">
+      <div class="nm-section-heading">
+        <p class="nm-kicker">Be free, little shader engine</p>
+        <h2 id="ports-title">How free and open are we talking here?</h2>
+      </div>
+      <p class="nm-section-copy">
+        We mean, pretty free. Pretty open. We want Noisemaker to be used, free of encumbrance.
+        The MIT license is extremely permissible. Individuals and businesses agree.
+      </p>
+      <p class="nm-section-copy">
+        And we're committed to not being a walled garden. Ports and source adapters bring the same
+        compositions into other creative runtimes, with pixel-level parity to our core reference
+        implementation. We want you to take it everywhere.
+      </p>
+      <div class="nm-adapter-list">
+        <a href="https://github.com/noisefactorllc/noisemaker-hlsl">
+          <strong>Unity</strong>
+          <span>C#/HLSL port with standalone renderer and Shader Graph nodes.</span>
         </a>
-        <a class="demo-card" href="http://noisemaker.readthedocs.io/">
-          <span class="demo-name">docs</span>
-          <span class="demo-summary">integration, specs, case studies</span>
+        <a href="https://github.com/noisefactorllc/noisemaker-blender">
+          <strong>Blender</strong>
+          <span>GPU-backed compositor feeding through baked Image datablocks.</span>
         </a>
-        <a class="demo-card" href="demo/js/">
-          <span class="demo-name">composer demo</span>
-          <span class="demo-summary">cpu presets (python &amp; js)</span>
+        <a href="https://github.com/noisefactorllc/noisemaker-godot">
+          <strong>Godot</strong>
+          <span>RenderingDevice addon with an in-engine DSL compiler.</span>
         </a>
-      </section>
-
-      <section class="demo-grid" style="margin-top: 0;">
-        <a class="demo-card" href="https://noisedeck.app/" style="grid-column: 1 / -1; border-color: var(--hf-green);">
-          <span class="demo-name">Noisedeck</span>
-          <span class="demo-summary">An approachable, powerful video synth built on Noisemaker. A must-have for any creator's toolkit.</span>
+        <a href="https://github.com/noisefactorllc/noisemaker-td">
+          <strong>TouchDesigner</strong>
+          <span>TOP port for realtime creative patches.</span>
         </a>
-      </section>
-
-      <footer>
-        <a href="https://noisefactor.io/">
-          <span>Noise Factor LLC</span>
+        <a href="https://github.com/noisefactorllc/noisemaker-threejs">
+          <strong>Three.js</strong>
+          <span>Thin backend adapter using the published engine and GLSL catalog.</span>
         </a>
-        <a href="https://github.com/noisefactorllc/noisemaker" class="tooltip" data-title="View on GitHub" aria-label="View on GitHub">
-          <span>Source</span>
+        <a href="https://github.com/noisefactorllc/noisemaker-babylonjs">
+          <strong>Babylon.js</strong>
+          <span>Backend adapter that runs the reference engine on Babylon primitives.</span>
         </a>
-        <a href="https://genart.social/@noisemakerbot" rel="me noopener" target="_blank">
-          <span>Mastodon</span>
+      </div>
+    </section>
+
+    <section class="nm-section" id="agents" aria-labelledby="agents-title">
+      <div class="nm-section-heading">
+        <p class="nm-kicker">So you want to build a shader visualizer</p>
+        <h2 id="agents-title">The starting point for Claude, Codex, Gemini, and <span class="nm-human-rainbow">Humans</span>.</h2>
+      </div>
+      <p class="nm-section-copy">
+        It's dangerous to go alone. Take this. Web shader development is absolutely fraught with peril.
+        No matter how you're building it, Noisemaker is a good place to start.
+      </p>
+      <div class="nm-agent-grid">
+        <article>
+          <h3>Read the docs first</h3>
+          <p>Humans can start with the <a href="./demo/shaders/">shader demo</a>, <a href="https://docs.noisemaker.app/shaders/integration/">integration guide</a>, and <a href="https://docs.noisemaker.app/shaders/specs/">shader specs</a>. Robots should read <a href="./llms.txt">llms.txt</a> for the public index and <a href="./llms-full.txt">llms-full.txt</a> for the fuller system overview.</p>
+        </article>
+        <article>
+          <h3>shade-mcp</h3>
+          <p><a href="https://github.com/noisefactorllc/shade-mcp">shade-mcp</a> can search effects, inspect definitions, compile DSL, render frames, test uniforms, and compare WebGL2 against WebGPU.</p>
+        </article>
+        <article>
+          <h3>portable</h3>
+          <p>For those writing low-level shader code for <a href="https://noisedeck.app/">Noisedeck.app</a> or another Noisemaker-based product, the <a href="https://github.com/noisefactorllc/portable">portable</a> spec defines self-contained effects with definition JSON, help docs, GLSL, WGSL, and a viewer.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="nm-section" id="built" aria-labelledby="built-title">
+      <div class="nm-section-heading">
+        <p class="nm-kicker">Built on Noisemaker</p>
+        <h2 id="built-title">Look at all the things we're using it for.</h2>
+      </div>
+      <div class="nm-product-list">
+        <a href="https://noisedeck.app/">
+          <strong>Noisedeck</strong>
+          <span>Realtime shader art and live visuals, powered by the Noisemaker rendering engine.</span>
         </a>
-        <a href="https://bsky.app/profile/noisemakerbot.bsky.social" rel="noopener" target="_blank">
-          <span>Bluesky</span>
+        <a href="https://layers.noisefactor.io/">
+          <strong>Layers</strong>
+          <span>Meet our "Photoshop Killer". Image and video clip editing built on the Noisemaker DSL.</span>
         </a>
-      </footer>
-    </main>
-  </div>
+        <a href="https://foundry.noisedeck.app/">
+          <strong>Foundry</strong>
+          <span>Hot-reloading shader effect authoring for WebGL2 and WebGPU implementations.</span>
+        </a>
+        <a href="https://polymorphic.noisedeck.app/">
+          <strong>Polymorphic</strong>
+          <span>Noisemaker's live coding and high-level visual composition language.</span>
+        </a>
+        <a href="https://shade.noisedeck.app/">
+          <strong>Shade</strong>
+          <span>AI-native shader editing connected to the same effect contracts and validation loop.</span>
+        </a>
+        <a href="https://visualize.noisedeck.app/">
+          <strong>Visualize</strong>
+          <span>Dual-deck VJ mixer built around Noisemaker shader programs.</span>
+        </a>
+        <a href="https://photobox.noisefactor.io/">
+          <strong>Photobox</strong>
+          <span>Image treatment and generative photo workflows using the same effect engine.</span>
+        </a>
+        <a href="https://glitcher.noisefactor.io/">
+          <strong>Glitcher</strong>
+          <span>Fast glitch, distortion, and texture work driven by Noisemaker effects.</span>
+        </a>
+        <a href="https://noodles.noisedeck.app/">
+          <strong>Noodles</strong>
+          <span>Node-based composition experiments backed by the Noisemaker runtime.</span>
+        </a>
+      </div>
+    </section>
+  </main>
 
-  <script type="module">
-    const SHADER_CDN = 'https://shaders.noisedeck.app/1';
-
-    const DSL_PROGRAM = `search synth, filter
-
-perlin(
-  scale: 55.53,
-  dimensions: 3,
-  ridges: true
-)
-  .tetraColorArray(
-    colorCount: 3,
-    color0: #010000,
-    color1: #111111,
-    color2: #fd01c0,
-    color3: #fb31c9,
-    color4: #32ff03,
-    alpha: 0.6
-  )
-  .write(o0)
-
-render(o0)`;
-
-    function updateCanvasSize(canvas) {
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = Math.floor(window.innerWidth * dpr);
-      canvas.height = Math.floor(window.innerHeight * dpr);
-      return { width: canvas.width, height: canvas.height };
-    }
-
-    document.addEventListener('DOMContentLoaded', async () => {
-      const canvas = document.getElementById('bg-canvas');
-      if (!canvas) return;
-
-      try {
-        const size = updateCanvasSize(canvas);
-
-        const module = await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`);
-        const { CanvasRenderer, extractEffectNamesFromDsl } = module;
-
-        const renderer = new CanvasRenderer({
-          canvas,
-          width: size.width,
-          height: size.height,
-          preferWebGPU: false,
-          useBundles: true,
-          basePath: SHADER_CDN,
-          bundlePath: `${SHADER_CDN}/effects`
-        });
-
-        await renderer.loadManifest();
-
-        const effectData = extractEffectNamesFromDsl(DSL_PROGRAM, renderer.manifest || {});
-        const effectIds = effectData.map(e => e.effectId);
-        if (effectIds.length > 0) await renderer.loadEffects(effectIds);
-
-        await renderer.compile(DSL_PROGRAM);
-        renderer.start();
-
-        window.addEventListener('resize', () => {
-          const newSize = updateCanvasSize(canvas);
-          renderer.resize(newSize.width, newSize.height);
-        });
-      } catch (e) {
-        console.error('Background shader failed:', e);
-      }
-    });
-  </script>
+  <footer class="nm-footer">
+    <div>
+      <a href="https://noisefactor.io">Noise Factor LLC</a>
+    </div>
+    <nav aria-label="Footer navigation">
+      <a href="https://github.com/noisefactorllc/noisemaker">GitHub</a>
+      <a href="https://genart.social/@noisemakerbot" rel="me noopener" target="_blank">Mastodon</a>
+      <a href="https://bsky.app/profile/noisemakerbot.bsky.social" rel="noopener" target="_blank">Bluesky</a>
+    </nav>
+  </footer>
 </body>
 </html>

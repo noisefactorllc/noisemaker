@@ -8,5 +8,5 @@
 fn main(@builtin(position) position: vec4f) -> @location(0) vec4f {
     let dims = textureDimensions(inputTex, 0);
     let uv = position.xy / vec2f(f32(dims.x), f32(dims.y));
-    return textureSampleLevel(inputTex, inputSampler, uv, 0.0);
+    return textureSampleLevel(inputTex, inputSampler, vec2f(uv.x, 1.0 - uv.y), 0.0);
 }

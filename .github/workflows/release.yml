@@ -196,3 +196,16 @@ jobs:
           dist/artifacts/noisemaker-cli-macos-arm64/noisemaker-cli-macos-arm64.tar.gz \
           dist/artifacts/noisemaker-cli-windows-x64/noisemaker-cli-windows-x64.zip \
           dist/artifacts/noisemaker-shaders/noisemaker-shaders.tar.gz
+
+    - name: Prune old releases
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ github.ref_name }}
+      run: |
+        MAJOR="${TAG%%.*}"
+        gh release list --repo "$GITHUB_REPOSITORY" --limit 200 \
+          --json tagName,createdAt \
+          --jq "[.[] | select(.tagName | startswith(\"${MAJOR}.\"))] | sort_by(.createdAt) | reverse | .[5:] | .[].tagName" \
+          | while read -r tag; do
+            gh release delete "$tag" --yes --cleanup-tag
+          done

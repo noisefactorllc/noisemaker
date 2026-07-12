@@ -33,6 +33,7 @@ struct Outputs {
 @group(0) @binding(6) var dataTex: texture_2d<f32>;
 @group(0) @binding(7) var forceMatrix: texture_2d<f32>;
 @group(0) @binding(8) var inputTex: texture_2d<f32>;
+@group(0) @binding(9) var inputSampler: sampler;
 
 // === HASH FUNCTIONS ===
 
@@ -298,9 +299,7 @@ fn main(@builtin(position) position: vec4f) -> Outputs {
         outColor = vec4f(typeColor(i32(typeId), u.typeCount), 1.0);
     } else {
         // Sample from input texture based on position
-        let inputDims = vec2f(textureDimensions(inputTex));
-        let inputCoord = vec2i(pos * inputDims);
-        outColor = textureLoad(inputTex, inputCoord, 0);
+        outColor = textureSampleLevel(inputTex, inputSampler, vec2f(pos.x, 1.0 - pos.y), 0.0);
     }
 
     // Output updated state

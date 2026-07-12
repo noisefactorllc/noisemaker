@@ -147,6 +147,14 @@ export default new Effect({
         category: "reflection",
         enabledBy: { param: "reflection", gt: 0 }
       }
+    },
+    heightMap: {
+      type: "surface",
+      default: "inputTex",
+      ui: {
+        label: "height map",
+        category: "general"
+      }
     }
   },
   defaultProgram: "search filter, synth\n\nnoise(ridges: true)\n.lighting(normalStrength: 2)\n.write(o0)",
@@ -155,7 +163,8 @@ export default new Effect({
       name: "render",
       program: "lighting",
       inputs: {
-        inputTex: "inputTex"
+        inputTex: "inputTex",
+        heightMap: "heightMap"
       },
       outputs: {
         fragColor: "outputTex"

@@ -40,7 +40,7 @@ fn hash(seed: u32) -> f32 {
 }
 
 fn hash_f(n: f32) -> f32 {
-    return fract(sin(n) * 43758.5453123);
+    return hash(bitcast<u32>(n));
 }
 
 // Wrap position to [0,1]

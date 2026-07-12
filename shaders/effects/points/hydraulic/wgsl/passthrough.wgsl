@@ -9,5 +9,5 @@ struct Uniforms {
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let uv = fragCoord.xy / u.resolution;
-    return textureSample(inputTex, inputTexSampler, uv);
+    return textureSample(inputTex, inputTexSampler, vec2f(uv.x, 1.0 - uv.y));
 }

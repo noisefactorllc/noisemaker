@@ -108,7 +108,7 @@ fn smoothlerp(x: f32, a: f32, b: f32) -> f32 {
 
 // Wrap z index for periodicity at lattice level
 fn wrapZ(z: f32) -> f32 {
-    return z % Z_PERIOD;
+    return (z % Z_PERIOD + Z_PERIOD) % Z_PERIOD;
 }
 
 // 2D periodic grid function - gradient angle animates with time

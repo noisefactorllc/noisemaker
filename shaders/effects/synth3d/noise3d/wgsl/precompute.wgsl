@@ -61,7 +61,7 @@ fn quintic(t: f32) -> f32 {
 
 // Wrap w index for periodicity at lattice level
 fn wrapW(w: f32) -> f32 {
-    return w % W_PERIOD;
+    return (w % W_PERIOD + W_PERIOD) % W_PERIOD;
 }
 
 // 4D gradient noise - Perlin-style with quintic interpolation

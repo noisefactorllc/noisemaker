@@ -121,7 +121,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     
     // Sample input texture at current position for flow direction
     let texSize = textureDimensions(inputTex, 0);
-    var texCoord = vec2i(i32(px * f32(texSize.x)), i32(py * f32(texSize.y)));
+    var texCoord = vec2i(i32(px * f32(texSize.x)), i32((1.0 - py) * f32(texSize.y)));
     texCoord = clamp(texCoord, vec2i(0), vec2i(texSize) - vec2i(1));
     let texel = textureLoad(inputTex, texCoord, 0);
     let inputLuma = oklab_l(texel.rgb);

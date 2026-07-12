@@ -46,7 +46,7 @@ fn hash2(seed: u32) -> vec2f {
 }
 
 fn hashFloat(n: f32) -> f32 {
-    return fract(sin(n) * 43758.5453123);
+    return hash(bitcast<u32>(n));
 }
 
 fn noise2D(p: vec2f) -> f32 {

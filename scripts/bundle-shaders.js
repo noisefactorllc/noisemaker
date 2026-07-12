@@ -177,6 +177,18 @@ async function main() {
             console.log('  ✓ manifest.json copied to dist/shaders/effects/')
         }
 
+        // Copy effect-string catalogs (strings.<locale>.json) alongside the manifest
+        // so consumers can fetch them from the same CDN path via renderer.setLocale().
+        const stringCatalogs = fs.readdirSync(path.join(shadersDir, 'effects'))
+            .filter(f => /^strings\.[\w-]+\.json$/.test(f))
+        if (stringCatalogs.length) {
+            fs.mkdirSync(manifestDestDir, { recursive: true })
+            for (const f of stringCatalogs) {
+                fs.copyFileSync(path.join(shadersDir, 'effects', f), path.join(manifestDestDir, f))
+            }
+            console.log(`  ✓ ${stringCatalogs.length} effect-string catalog(s) copied to dist/shaders/effects/`)
+        }
+
         // Copy mesh OBJ files into dist/shaders/ so they deploy with the existing rsync
         const meshSrcDir = path.join(repoRoot, 'share', 'meshes')
         const meshDestDir = path.join(distDir, 'share', 'meshes')

@@ -75,7 +75,7 @@ fn oklab_l(rgb: vec3f) -> f32 {
 fn fetch_texel(x: i32, y: i32, width: i32, height: i32) -> vec4f {
     let wrapped_x = wrap_int(x, width);
     let wrapped_y = wrap_int(y, height);
-    return textureLoad(inputTex, vec2i(wrapped_x, wrapped_y), 0);
+    return textureLoad(inputTex, vec2i(wrapped_x, height - 1 - wrapped_y), 0);
 }
 
 fn luminance_at(x: i32, y: i32, width: i32, height: i32) -> f32 {
