@@ -163,16 +163,20 @@ class MyClass:
         self.attr1 = param
 ```
 
-## Read the Docs Integration
+## Documentation Publishing
 
-Documentation is automatically built and published on Read the Docs:
-- **URL**: https://noisemaker.readthedocs.io/
-- **Config**: `.readthedocs.yaml`
-- **Trigger**: Every push to master branch
+Documentation is automatically built and published in two places:
+- **Primary URL**: https://docs.noisemaker.app/
+- **Parallel ReadTheDocs URL**: https://noisemaker.readthedocs.io/
+- **Primary config**: `.github/workflows/docs-site.yml`
+- **ReadTheDocs config**: `.readthedocs.yaml`
+- **Trigger**: Every push to main branch
 
 ### Configuration
 
-The `.readthedocs.yaml` file configures:
+The `.github/workflows/docs-site.yml` file configures the first-party docs site. The `.readthedocs.yaml` file keeps ReadTheDocs publishing active in parallel.
+
+The ReadTheDocs file configures:
 - Python 3.13 environment (Dockerfile), Python 3.12 (Read the Docs)
 - Automatic installation from `pyproject.toml`
 - Sphinx requirements from `docs/sphinx-requirements.txt`

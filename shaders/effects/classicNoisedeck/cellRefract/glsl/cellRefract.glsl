@@ -453,7 +453,11 @@ void main() {
     st.x += cos(refLen * TAU) * ref;
     st.y += sin(refLen * TAU) * ref;
 
-    if (wrap == 1) {
+    if (wrap == 0) {
+        // mirror
+        st = abs(mod(st + 1.0, 2.0) - 1.0);
+    } else if (wrap == 1) {
+        // repeat
         st = fract(st);
     }
 

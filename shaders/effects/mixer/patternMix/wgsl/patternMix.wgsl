@@ -39,7 +39,7 @@ fn checkerboard(p: vec2<f32>, sm: f32) -> f32 {
     let f = fract(p);
     let d = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y));
     let cell = floor(p);
-    let check = (cell.x + cell.y) % 2.0;
+    let check = ((cell.x + cell.y) % 2.0 + 2.0) % 2.0;
     let edge = smoothstep(0.0, sm * 0.5, d);
     return mix(1.0 - check, check, edge);
 }
@@ -66,8 +66,8 @@ fn hexDist(p: vec2<f32>) -> f32 {
 fn hexagons(p: vec2<f32>, t: f32, sm: f32) -> f32 {
     let s = vec2<f32>(1.0, SQRT3);
     let h = s * 0.5;
-    let a = (p % s) - h;
-    let b = ((p + h) % s) - h;
+    let a = ((p % s) + s) % s - h;
+    let b = (((p + h) % s) + s) % s - h;
     var g: vec2<f32>;
     if (length(a) < length(b)) {
         g = a;

@@ -36,7 +36,7 @@ float hash(uint seed) {
 }
 
 float hash_f(float n) {
-    return fract(sin(n) * 43758.5453123);
+    return float(hash_uint(floatBitsToUint(n))) / 4294967295.0;
 }
 
 // Wrap position to [0,1]

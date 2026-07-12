@@ -23,7 +23,8 @@ export default new Effect({
         dot: 3,
         line: 4,
         crosshatch: 5,
-        noise: 6
+        noise: 6,
+        errorDiffusion: 7
       },
       ui: {
         label: "type",

@@ -28,11 +28,11 @@ void main() {
         vec3 outRGB_pre = trailColor.rgb + scaledInput.rgb * scaledInput.a * (1.0 - trailColor.a);
         outRGB = outAlpha > 0.0 ? outRGB_pre / outAlpha : vec3(0.0);
     } else {
-        // Additive mode: trail stores additive sums; treat as pseudo-non-premultiplied.
-        outAlpha = trailColor.a + scaledInput.a * (1.0 - trailColor.a);
-        outRGB = outAlpha > 0.0
-            ? (trailColor.rgb * trailColor.a + scaledInput.rgb * scaledInput.a * (1.0 - trailColor.a)) / outAlpha
-            : vec3(0.0);
+        // Additive mode: clamp trail to [0,1] then screen-blend with input (avoids overflow).
+        vec3 trail = clamp(trailColor.rgb, 0.0, 1.0);
+        float trailPresence = max(max(trail.r, trail.g), trail.b);
+        outRGB = trail + scaledInput.rgb * (1.0 - trail);
+        outAlpha = max(trailPresence, scaledInput.a);
     }
 
     fragColor = clamp(vec4(outRGB, outAlpha), 0.0, 1.0);

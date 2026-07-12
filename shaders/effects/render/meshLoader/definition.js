@@ -17,7 +17,7 @@ export default class MeshLoader extends Effect {
     name = "Mesh Loader"
     namespace = "render"
     func = "meshLoader"
-    tags = ["mesh", "geometry", "3D", "OBJ"]
+    tags = ["mesh", "geometry", "3d"]
     description = "Load mesh data from OBJ files into GPU textures."
 
     // Mark this as requiring external mesh data (like externalTexture for media)

@@ -29,6 +29,7 @@ const int DITHER_DOT = 3;
 const int DITHER_LINE = 4;
 const int DITHER_CROSSHATCH = 5;
 const int DITHER_NOISE = 6;
+const int DITHER_ERROR_DIFFUSION = 7;
 
 // Palette constants
 const int PALETTE_INPUT = 0;
@@ -446,6 +447,124 @@ vec3 ditherWithPalette(vec3 color, float ditherValue, float thresh, int paletteT
     return findClosestPaletteColor(dithered, paletteType);
 }
 
+// Error diffusion (Floyd-Steinberg). Fragments cannot share sequential state,
+// so each fragment re-simulates the raster scan over its containing block of
+// FS_BLOCK x FS_BLOCK diffusion cells, extended by a burn-in apron on the
+// left and top so the error state entering the block is driven by the
+// neighboring image content; without it the severed error flow at block
+// edges reads as a square grid. Three details keep the block structure
+// statistically invisible: the apron length is jittered per block (flat
+// regions otherwise phase-lock to the shared scan origin), apron rows are
+// seeded with hash noise of typical steady-state magnitude (an all-zero
+// start is atypical and phase-aligned), and rows extend FS_RPAD cells past
+// the block's right edge (the right column otherwise never receives its
+// down-left error taps). A cell covers matrixScale screen pixels, like the
+// ordered pattern cells.
+const int FS_BLOCK = 4;
+const int FS_APRON_MIN = 4;
+const int FS_APRON_MAX = 11;
+const int FS_RPAD = 2;
+// error row width: block + max apron + right pad + one left pad cell
+const int FS_ERR_W = FS_BLOCK + FS_APRON_MAX + FS_RPAD + 1;
+
+// Quantize for error diffusion: nearest palette color, or nearest of
+// `levels` evenly spaced per-channel levels when palette == input.
+vec3 fsQuantize(vec3 v) {
+    if (palette == PALETTE_INPUT) {
+        float maxLevel = float(levels) - 1.0;
+        // floor(x + 0.5) instead of round(): GLSL leaves round-half direction
+        // implementation-defined while WGSL rounds half to even, and the
+        // chaotic error feedback amplifies any halfway-tie mismatch.
+        return floor(v * maxLevel + 0.5) / maxLevel;
+    }
+    return findClosestPaletteColor(v, palette);
+}
+
+// Working-value scale shared by the threshold bias and the block seeds,
+// matching the ordered paths' scaling at their neutral dither value.
+float fsScale() {
+    if (palette == PALETTE_INPUT) {
+        return 1.0 / float(levels);
+    }
+    return 0.25;
+}
+
+// Per-block, per-lane noise in [-0.5, 0.5) for seeding error state.
+// Lanes 0..FS_ERR_W-1 seed the incoming error row; higher lanes seed each
+// scan row's right-flowing error.
+vec3 fsSeedNoise(ivec2 blockOrigin, int lane) {
+    uvec3 v = pcg(uvec3(uint(blockOrigin.x + 1), uint(blockOrigin.y + 1), uint(lane + 1)));
+    return vec3(v) / float(0xffffffffu) - 0.5;
+}
+
+// Source color for a diffusion cell: its center pixel, clamped to the tile.
+vec3 fsFetchCell(ivec2 cell, float cellSize, ivec2 texSize) {
+    vec2 pGlobal = (vec2(cell) + 0.5) * cellSize;
+    ivec2 pLocal = ivec2(floor(pGlobal)) - ivec2(tileOffset);
+    pLocal = clamp(pLocal, ivec2(0), texSize - 1);
+    return texelFetch(inputTex, pLocal, 0).rgb;
+}
+
+vec3 errorDiffusion(vec2 globalCoord, float cellSize, ivec2 texSize) {
+    ivec2 cell = ivec2(floor(globalCoord / cellSize));
+    ivec2 blockOrigin = (cell / FS_BLOCK) * FS_BLOCK;
+    int lx = cell.x - blockOrigin.x;
+    int ly = cell.y - blockOrigin.y;
+
+    // Per-block scan-start jitter
+    uvec3 jitterHash = pcg(uvec3(uint(blockOrigin.x + 1), uint(blockOrigin.y + 1), 0x517cc1b7u));
+    int apronX = FS_APRON_MIN + int(jitterHash.x % uint(FS_APRON_MAX - FS_APRON_MIN + 1));
+    int apronY = FS_APRON_MIN + int(jitterHash.y % uint(FS_APRON_MAX - FS_APRON_MIN + 1));
+
+    float stepScale = fsScale();
+    vec3 bias = vec3(threshold * stepScale);
+    // Single in-place error row; array index = cell x + FS_APRON_MAX + 1 so
+    // every index is a compile-time constant once the inner loop unrolls,
+    // letting the row state live in registers instead of scratch memory.
+    // Jitter is applied by masking cells left of -apronX instead of by
+    // changing the loop bounds.
+    vec3 errRow[FS_ERR_W];
+    for (int i = 0; i < FS_ERR_W; i++) {
+        errRow[i] = fsSeedNoise(blockOrigin, i) * stepScale;
+    }
+
+    vec3 carried = vec3(0.0);
+    for (int r = -FS_APRON_MAX; r <= ly; r++) {
+        if (r < -apronY) {
+            continue;
+        }
+        bool lastRow = r == ly;
+        vec3 rightErr = fsSeedNoise(blockOrigin, FS_ERR_W + FS_APRON_MAX + r) * stepScale;
+        vec3 diag = vec3(0.0);
+        for (int c = -FS_APRON_MAX; c < FS_BLOCK + FS_RPAD; c++) {
+            if (c >= -apronX && !(lastRow && c >= lx)) {
+                vec3 src = fsFetchCell(blockOrigin + ivec2(c, r), cellSize, texSize);
+                vec3 v = clamp(src + errRow[c + FS_APRON_MAX + 1] + rightErr + bias, 0.0, 1.0);
+                vec3 err = v - fsQuantize(v);
+                rightErr = err * (7.0 / 16.0);
+                errRow[c + FS_APRON_MAX] += err * (3.0 / 16.0);
+                errRow[c + FS_APRON_MAX + 1] = diag + err * (5.0 / 16.0);
+                diag = err * (1.0 / 16.0);
+            }
+        }
+        if (lastRow) {
+            // Incoming error for this fragment's own cell; keep the array
+            // read on constant indices so it stays register-resident.
+            vec3 incoming = errRow[FS_APRON_MAX + 1];
+            if (lx == 1) incoming = errRow[FS_APRON_MAX + 2];
+            if (lx == 2) incoming = errRow[FS_APRON_MAX + 3];
+            if (lx == 3) incoming = errRow[FS_APRON_MAX + 4];
+            carried = incoming + rightErr;
+        }
+    }
+
+    // This fragment's own pixel, carrying the diffused error so per-pixel
+    // detail survives when a cell spans multiple pixels
+    vec3 src = texelFetch(inputTex, ivec2(gl_FragCoord.xy), 0).rgb;
+    vec3 v = clamp(src + carried + bias, 0.0, 1.0);
+    return fsQuantize(v);
+}
+
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 uv = gl_FragCoord.xy / vec2(texSize);
@@ -454,17 +573,22 @@ void main() {
 
     // Use global pixel coordinate for dither pattern so it aligns across tiles
     vec2 globalCoord = gl_FragCoord.xy + tileOffset;
-    // Get dither threshold for current pixel
-    float ditherValue = getDitherThreshold(globalCoord, ditherType, matrixScale * renderScale);
-    
+
     vec3 result;
 
-    if (palette == PALETTE_INPUT) {
-        // Per-channel quantization to the chosen number of levels
-        result = quantizeWithDither(color.rgb, float(levels), ditherValue, threshold);
+    if (ditherType == DITHER_ERROR_DIFFUSION) {
+        result = errorDiffusion(globalCoord, matrixScale * renderScale, texSize);
     } else {
-        // Use palette-based dithering
-        result = ditherWithPalette(color.rgb, ditherValue, threshold, palette);
+        // Get dither threshold for current pixel
+        float ditherValue = getDitherThreshold(globalCoord, ditherType, matrixScale * renderScale);
+
+        if (palette == PALETTE_INPUT) {
+            // Per-channel quantization to the chosen number of levels
+            result = quantizeWithDither(color.rgb, float(levels), ditherValue, threshold);
+        } else {
+            // Use palette-based dithering
+            result = ditherWithPalette(color.rgb, ditherValue, threshold, palette);
+        }
     }
     
     // Blend between original input and dithered result

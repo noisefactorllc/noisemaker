@@ -85,7 +85,7 @@ fn wrapCoords(st_in: vec2f) -> vec2f {
     var st = st_in;
     if (wrap == 0) {
         // mirror
-        st = abs(st % vec2f(2.0) - vec2f(1.0));
+        st = abs((st % vec2f(2.0) + vec2f(2.0)) % vec2f(2.0) - vec2f(1.0));
         st = vec2f(1.0) - st;
     } else if (wrap == 1) {
         // repeat

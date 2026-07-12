@@ -26,5 +26,5 @@ void main() {
     vec2 pos = xyz.xy * 2.0 - 1.0;
 
     gl_Position = vec4(pos, 0.0, 1.0);
-    gl_PointSize = 2.0;  // Slightly larger deposit for more presence
+    gl_PointSize = 1.0;
 }

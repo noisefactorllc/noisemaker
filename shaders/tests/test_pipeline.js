@@ -82,6 +82,15 @@ class MockBackend extends Backend {
         // no-op
     }
 
+    async readPixels(textureId) {
+        const texture = this.textures.get(textureId)
+        return {
+            width: texture?.width ?? 1,
+            height: texture?.height ?? 1,
+            data: new Uint8Array(4)
+        }
+    }
+
     getName() {
         return 'Mock'
     }
@@ -408,6 +417,43 @@ test('Pipeline - No Render Surface Skips Present', async () => {
     // Buffers should still swap
     if (o0.read !== initialWrite || o0.write !== initialRead) {
         throw new Error('Buffers should swap even without renderSurface')
+    }
+})
+
+test('Pipeline - renderCubemap can yield between face renders', async () => {
+    const backend = new MockBackend()
+    const graph = { passes: [], textures: new Map() }
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(16, 16)
+
+    let rafCalls = 0
+    const previousRaf = globalThis.requestAnimationFrame
+    globalThis.requestAnimationFrame = (callback) => {
+        rafCalls++
+        queueMicrotask(callback)
+        return rafCalls
+    }
+
+    try {
+        const faces = await pipeline.renderCubemap({ size: 8, yieldBetweenFaces: true })
+
+        if (faces.length !== 6) {
+            throw new Error(`Expected 6 cubemap faces, got ${faces.length}`)
+        }
+
+        if (backend.frameCount !== 6) {
+            throw new Error(`Expected one render per cubemap face, got ${backend.frameCount}`)
+        }
+
+        if (rafCalls !== 6) {
+            throw new Error(`Expected one yield per cubemap face, got ${rafCalls}`)
+        }
+    } finally {
+        if (previousRaf) {
+            globalThis.requestAnimationFrame = previousRaf
+        } else {
+            delete globalThis.requestAnimationFrame
+        }
     }
 })
 

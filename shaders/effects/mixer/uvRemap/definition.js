@@ -4,7 +4,7 @@ export default new Effect({
   name: "UvRemap",
   namespace: "mixer",
   func: "uvRemap",
-  tags: ["blend", "distortion"],
+  tags: ["blend", "distort"],
 
   description: "Remap UVs of one input using color channels of another",
   globals: {

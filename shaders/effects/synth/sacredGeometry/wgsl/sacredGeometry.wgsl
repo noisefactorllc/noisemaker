@@ -15,6 +15,9 @@ struct Uniforms {
     animation: i32,
     fgColor: vec3<f32>,
     bgColor: vec3<f32>,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
+    renderScale: f32,
 }
 @group(0) @binding(0) var<uniform> u: Uniforms;
 
@@ -278,7 +281,7 @@ fn starPolygonMask(p_in: vec2<f32>, n: i32) -> f32 {
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    var st = position.xy / u.resolution;
+    var st = (position.xy + u.tileOffset) / u.fullResolution;
     st = (st - vec2<f32>(0.5, 0.5)) * 2.0;
     st.x = st.x * u.aspect;
 

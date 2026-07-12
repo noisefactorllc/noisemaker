@@ -6,7 +6,7 @@ Ordered dithering with classic patterns and retro color palettes
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
-| type | int | bayer4x4 | bayer2x2/bayer4x4/bayer8x8/dot/line/crosshatch/noise | Dithering pattern type |
+| type | int | bayer4x4 | bayer2x2/bayer4x4/bayer8x8/dot/line/crosshatch/noise/errorDiffusion | Dithering pattern type |
 | threshold | float | 0 | -0.5 to 0.5 | Threshold bias/offset for dither pattern |
 | matrixScale | int | 2 | 1-8 | Scale of the dither pattern on screen |
 | palette | int | input | input/monochrome/dotMatrixGreen/amberMonitor/pico8/commodore64/cgaPalette1/zxSpectrum/appleII/ega | Color palette for quantization |
@@ -26,6 +26,7 @@ Classic ordered dithering using threshold matrices of various sizes:
 - **line**: Horizontal line pattern
 - **crosshatch**: Diagonal crosshatch pattern
 - **noise**: Random noise dithering (animated)
+- **error diffusion**: Floyd-Steinberg error diffusion, computed block-wise with a seeded burn-in margin
 
 ## Palettes
 

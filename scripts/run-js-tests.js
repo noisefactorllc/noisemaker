@@ -38,6 +38,7 @@ const testEntries = [
   { file: 'test/canvas.test.js', parity: false },
   { file: 'test/cubeCamera.test.js', parity: false },
   { file: 'test/cubeExport.test.js', parity: false },
+  { file: 'shaders/tests/test_pipeline.js', parity: false },
   { file: 'shaders/tests/test_cube_driver.js', parity: false },
   { file: 'shaders/tests/test_cube_texture.js', parity: false },
   { file: 'shaders/tests/test_remap_contract.js', parity: false },

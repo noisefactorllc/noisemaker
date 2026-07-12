@@ -9,7 +9,9 @@ struct Uniforms {
     time: f32,
     aspectRatio: f32,
     scale: f32,
-    seed: i32,
+    // f32, not i32: definition uniformLayout slots are packed with setFloat32
+    // (packUniformsWithLayout) — an i32 field here reads the float's bit pattern.
+    seed: f32,
     speed: f32,
     // Slots kept as padding so field offsets still match the definition.js
     // vec4 uniformLayout — the JS-side packer targets the vec4 component
@@ -49,7 +51,7 @@ fn simplex3D(v: vec3f) -> f32 {
     let D = vec4f(0.0, 0.5, 1.0, 2.0);
     
     // Apply seed offset to input
-    let vSeeded = v + f32(u.seed) * 0.0001;
+    let vSeeded = v + u.seed * 0.1271;
     
     // First corner
     let i = floor(vSeeded + dot(vSeeded, C.yyy));
@@ -66,7 +68,7 @@ fn simplex3D(v: vec3f) -> f32 {
     let x3 = x0 - D.yyy;
     
     // Permutations
-    let iMod = i % 289.0;
+    let iMod = (i % 289.0 + 289.0) % 289.0;
     let p = permute4(permute4(permute4(
         iMod.z + vec4f(0.0, i1.z, i2.z, 1.0))
         + iMod.y + vec4f(0.0, i1.y, i2.y, 1.0))

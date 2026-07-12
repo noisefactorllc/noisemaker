@@ -769,7 +769,7 @@ export class WebGPUBackend extends Backend {
             // distinguish "modern shader, all bindings filtered as dead" (use
             // empty bind group) from "legacy shader, no bindings declared"
             // (fall back to legacy entry builder).
-            _sourceHasBindings: /@binding\s*\(/.test(source),
+            _sourceHasBindings: this.hasShaderBindings(source),
             // Use definition-provided uniformLayout if available, fall back to shader parsing
             packedUniformLayout: spec.uniformLayout || this.parsePackedUniformLayout(source),
             // Minimum size of any var<uniform> struct in the shader (computed from
@@ -788,6 +788,7 @@ export class WebGPUBackend extends Backend {
         //const _t0 = performance.now()
         // Parse binding declarations from the shader
         let bindings = this.parseShaderBindings(source)
+        let sourceHasBindings = this.hasShaderBindings(source)
 
         // Check if source contains @vertex (combined shader)
         const hasVertex = /@vertex\s/.test(source)
@@ -831,6 +832,7 @@ export class WebGPUBackend extends Backend {
 
             // Parse vertex shader bindings and merge with fragment bindings
             const vertexBindings = this.parseShaderBindings(vertexSource)
+            sourceHasBindings = sourceHasBindings || this.hasShaderBindings(vertexSource)
             if (vertexBindings.length > 0) {
                 // Merge, preferring vertex bindings for conflicts (same group/binding)
                 const bindingKey = b => `${b.group}:${b.binding}`
@@ -905,7 +907,7 @@ export class WebGPUBackend extends Backend {
             pipelineCache,
             bindings, // Store parsed bindings for bind group creation
             // See compileComputeProgram for what this flag is for.
-            _sourceHasBindings: /@binding\s*\(/.test(source),
+            _sourceHasBindings: sourceHasBindings,
             // Use definition-provided uniformLayout if available, fall back to shader parsing
             packedUniformLayout: spec.uniformLayout || this.parsePackedUniformLayout(source),
             // Minimum size of any var<uniform> struct in the shader (computed from
@@ -1411,6 +1413,7 @@ export class WebGPUBackend extends Backend {
      */
     parseShaderBindings(source) {
         const bindings = []
+        const sourceNoComments = this.stripWGSLComments(source)
 
         // Match @group(N) @binding(M) var<...> name or @group(N) @binding(M) var name
         // Patterns:
@@ -1421,7 +1424,7 @@ export class WebGPUBackend extends Backend {
         const bindingRegex = /@group\s*\(\s*(\d+)\s*\)\s*@binding\s*\(\s*(\d+)\s*\)\s*var(?:<([^>]+)>)?\s+(\w+)\s*:\s*([^;]+)/g
 
         let match
-        while ((match = bindingRegex.exec(source)) !== null) {
+        while ((match = bindingRegex.exec(sourceNoComments)) !== null) {
             const group = parseInt(match[1], 10)
             const binding = parseInt(match[2], 10)
             const storage = match[3] || '' // e.g., 'uniform', 'storage, read_write'
@@ -1460,18 +1463,17 @@ export class WebGPUBackend extends Backend {
         // around createBindGroup can't see, since WebGPU validation errors
         // surface via the uncaptured error event, not as thrown exceptions).
         //
-        // Strategy: strip line comments, then count word-boundary occurrences
+        // Strategy: strip comments, then count word-boundary occurrences
         // of each binding name. A count of 1 means only the declaration line
         // mentions it, so the binding is dead. Storage textures are never
         // dropped — they're typically MRT outputs whose name only appears in
         // textureStore() calls that the regex would match anyway, but we
         // exclude them defensively to avoid corrupting compute pipelines.
-        const sourceNoLineComments = source.replace(/\/\/[^\n]*/g, '')
         const filtered = bindings.filter(b => {
             if (b.type === 'storage_texture' || b.type === 'storage') return true
             // Match `name` as a whole word (so `inputTex` doesn't match `inputTex2`).
             const re = new RegExp(`\\b${b.name}\\b`, 'g')
-            const count = (sourceNoLineComments.match(re) || []).length
+            const count = (sourceNoComments.match(re) || []).length
             return count > 1
         })
 
@@ -1482,6 +1484,51 @@ export class WebGPUBackend extends Backend {
         })
 
         return filtered
+    }
+
+    hasShaderBindings(source) {
+        return /@binding\s*\(/.test(this.stripWGSLComments(source))
+    }
+
+    stripWGSLComments(source) {
+        let stripped = ''
+        let blockDepth = 0
+
+        for (let i = 0; i < source.length;) {
+            const char = source[i]
+            const next = source[i + 1]
+
+            if (blockDepth > 0) {
+                if (char === '/' && next === '*') {
+                    stripped += '  '
+                    blockDepth++
+                    i += 2
+                } else if (char === '*' && next === '/') {
+                    stripped += '  '
+                    blockDepth--
+                    i += 2
+                } else {
+                    stripped += char === '\n' ? '\n' : ' '
+                    i++
+                }
+            } else if (char === '/' && next === '/') {
+                stripped += '  '
+                i += 2
+                while (i < source.length && source[i] !== '\n') {
+                    stripped += ' '
+                    i++
+                }
+            } else if (char === '/' && next === '*') {
+                stripped += '  '
+                blockDepth = 1
+                i += 2
+            } else {
+                stripped += char
+                i++
+            }
+        }
+
+        return stripped
     }
 
     getDefaultVertexModule() {
