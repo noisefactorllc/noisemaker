@@ -42,6 +42,7 @@ class MockBackend extends Backend {
 
     createTexture(id, spec) {
         this.textures.set(id, {
+            id,
             handle: `mock_texture_${id}`,
             width: spec.width,
             height: spec.height,
@@ -63,10 +64,50 @@ class MockBackend extends Backend {
     }
 
     executePass(pass, state) {
+        // Record the resolved read/write physical texture IDs for every
+        // global_ (ping-pong) surface this pass declares in inputs/outputs,
+        // so tests can pin the exact per-iteration binding sequence instead
+        // of only observing which passes ran. state.surfaces/writeSurfaces
+        // are reused/mutated objects (see Pipeline.getFrameState), so only
+        // primitive string IDs are copied out here -- never a reference.
+        const surfaceBindings = {}
+        for (const ioMap of [pass.inputs, pass.outputs]) {
+            if (!ioMap) continue
+            for (const texId of Object.values(ioMap)) {
+                if (typeof texId !== 'string' || !texId.startsWith('global_')) continue
+                const name = texId.slice('global_'.length)
+                if (surfaceBindings[name]) continue
+                const readTex = state.surfaces[name]
+                surfaceBindings[name] = {
+                    read: readTex ? readTex.id : undefined,
+                    write: state.writeSurfaces[name]
+                }
+            }
+        }
+
         this.passes.push({
             passId: pass.id,
             program: pass.program,
-            frameIndex: state.frameIndex
+            frameIndex: state.frameIndex,
+            uniforms: pass.uniforms ? { ...pass.uniforms } : undefined,
+            operational: {
+                entryPoint: pass.entryPoint,
+                clear: pass.clear,
+                blend: pass.blend,
+                drawMode: pass.drawMode,
+                drawBuffers: pass.drawBuffers,
+                count: pass.count,
+                countUniform: pass.countUniform,
+                repeat: pass.repeat,
+                conditions: pass.conditions,
+                viewport: pass.viewport,
+                samplerTypes: pass.samplerTypes,
+                workgroups: pass.workgroups,
+                size: pass.size,
+                storageBuffers: pass.storageBuffers,
+                storageTextures: pass.storageTextures
+            },
+            surfaceBindings
         })
     }
 
@@ -291,6 +332,191 @@ test('Pipeline - Surface Double Buffering', async () => {
 
     if (afterWrite !== initialRead) {
         throw new Error('Write buffer not swapped correctly')
+    }
+})
+
+test('Pipeline - Repeat Pass Binding Sequence (seed -> repeat -> final)', async () => {
+    // Regression test for repeat-pass ping-pong desynchronization after a
+    // non-repeat seed pass. Mirrors the shape used by effects like
+    // filter/median and synth/navierStokes: a non-repeat seed pass writes a
+    // global_ surface, a repeat: pass reads/writes it N times, and a final
+    // pass consumes the last iteration's write.
+    //
+    // Pre-fix, swapIterationBuffers() (renamed adoptIterationBindings()) recomputed
+    // the read/write swap from the stale cross-frame `this.surfaces` record instead
+    // of adopting the frame-local maps that updateFrameSurfaceBindings() had just
+    // advanced -- and then clobbered those frame-local maps with the recomputed
+    // (wrong) values. Because the seed pass is non-repeat, it never called
+    // swapIterationBuffers(), so `this.surfaces` was still at its pre-frame value
+    // when the repeat pass's first iteration finished. Tracing it through by hand
+    // with physical buffers A (initial read) / B (initial write): the seed pass
+    // writes B, so iteration 0 correctly read B. But the post-iteration clobber
+    // then swapped the still-pre-frame `this.surfaces` record ({read: A, write: B})
+    // and wrote that BACK into the frame maps as {read: B, write: A} -- undoing
+    // updateFrameSurfaceBindings()'s correct advance to {read: A, write: B}. So
+    // iteration 1 re-read B instead of A (iteration 0's write), silently redoing
+    // iteration 0's work instead of advancing. A requested repeat: 3 therefore only
+    // produced 2 distinct simulation steps (repeat of N behaved as N-1; repeat of 2
+    // behaved as 1), and the final pass read B instead of A. Post-fix, the sequence
+    // strictly alternates and this test's assertions hold.
+    const backend = new MockBackend()
+    const graph = {
+        passes: [
+            {
+                id: 'seed',
+                program: 'seed_program',
+                inputs: {},
+                outputs: { fragColor: 'global_state' }
+            },
+            {
+                id: 'repeatPass',
+                program: 'repeat_program',
+                repeat: 3,
+                inputs: { bufTex: 'global_state' },
+                outputs: { fragColor: 'global_state' }
+            },
+            {
+                id: 'final',
+                program: 'final_program',
+                inputs: { bufTex: 'global_state' },
+                outputs: { color: 'tex_0' }
+            }
+        ],
+        textures: new Map([
+            ['tex_0', { width: 800, height: 600, format: 'rgba8' }]
+        ]),
+        programs: {
+            'seed_program': { fragment: 'void main() {}' },
+            'repeat_program': { fragment: 'void main() {}' },
+            'final_program': { fragment: 'void main() {}' }
+        }
+    }
+
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(800, 600)
+
+    // The two physical buffer IDs never change -- only which one is bound as
+    // "read" vs "write" changes. Capture them before render() so assertions
+    // below read as buffer identities rather than magic strings.
+    const stateSurface = pipeline.surfaces.get('state')
+    const A = stateSurface.read
+    const B = stateSurface.write
+
+    pipeline.render(0)
+
+    // seed (1) + repeatPass (3 iterations) + final (1) = 5 executed passes
+    if (backend.passes.length !== 5) {
+        throw new Error(`Expected 5 executed pass iterations, got ${backend.passes.length}`)
+    }
+
+    const [seedEntry, iter0, iter1, iter2, finalEntry] = backend.passes
+
+    if (seedEntry.surfaceBindings.state.write !== B) {
+        throw new Error(`Expected seed pass to write ${B}, wrote ${seedEntry.surfaceBindings.state.write}`)
+    }
+
+    if (iter0.surfaceBindings.state.read !== B) {
+        throw new Error(`Expected repeat iteration 0 to read the seed pass's write buffer (${B}), read ${iter0.surfaceBindings.state.read}`)
+    }
+    if (iter0.surfaceBindings.state.write !== A) {
+        throw new Error(`Expected repeat iteration 0 to write ${A}, wrote ${iter0.surfaceBindings.state.write}`)
+    }
+
+    // The load-bearing assertion: this fails on the pre-fix code, where
+    // iteration 1 re-reads the seed buffer (B) instead of iteration 0's
+    // write (A).
+    if (iter1.surfaceBindings.state.read !== A) {
+        throw new Error(`Expected repeat iteration 1 to read iteration 0's write (${A}), read ${iter1.surfaceBindings.state.read} instead (pre-fix bug: re-reads the seed buffer)`)
+    }
+    if (iter1.surfaceBindings.state.write !== B) {
+        throw new Error(`Expected repeat iteration 1 to write ${B}, wrote ${iter1.surfaceBindings.state.write}`)
+    }
+
+    if (iter2.surfaceBindings.state.read !== B) {
+        throw new Error(`Expected repeat iteration 2 to read iteration 1's write (${B}), read ${iter2.surfaceBindings.state.read}`)
+    }
+    if (iter2.surfaceBindings.state.write !== A) {
+        throw new Error(`Expected repeat iteration 2 to write ${A}, wrote ${iter2.surfaceBindings.state.write}`)
+    }
+
+    if (finalEntry.surfaceBindings.state.read !== A) {
+        throw new Error(`Expected final pass to read iteration 2's write (${A}), read ${finalEntry.surfaceBindings.state.read}`)
+    }
+})
+
+test('Pipeline - Repeat Pass Binding Sequence (self-seeding, persists across frames)', async () => {
+    // Covers the other shipped repeat topology: a single repeat: pass that is
+    // the surface's only writer (the shape used by synth/reactionDiffusion,
+    // where "simulate" reads and writes global_rd_state every iteration with
+    // no separate seed pass). Unlike the seed-then-repeat topology above,
+    // nothing desyncs `this.surfaces` from the frame-local maps before this
+    // pass's first iteration runs each frame, so -- traced by hand the same
+    // way -- this sequence comes out correct both pre- and post-fix. It's
+    // pinned here anyway to guard the invariant for this topology too,
+    // including cross-frame persistence via swapBuffers()'s state-surface
+    // path, which the single-frame test above never exercises.
+    const backend = new MockBackend()
+    const graph = {
+        passes: [
+            {
+                id: 'simulate',
+                program: 'rdFb',
+                repeat: 2,
+                inputs: { bufTex: 'global_rd_state' },
+                outputs: { fragColor: 'global_rd_state' }
+            }
+        ],
+        textures: new Map(),
+        programs: {
+            'rdFb': { fragment: 'void main() {}' }
+        }
+    }
+
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(800, 600)
+
+    const rdState = pipeline.surfaces.get('rd_state')
+    const A = rdState.read
+    const B = rdState.write
+
+    // Frame 1
+    pipeline.render(0)
+
+    if (backend.passes.length !== 2) {
+        throw new Error(`Expected 2 executed pass iterations in frame 1, got ${backend.passes.length}`)
+    }
+
+    const [f1iter0, f1iter1] = backend.passes
+
+    if (f1iter0.surfaceBindings.rd_state.read !== A || f1iter0.surfaceBindings.rd_state.write !== B) {
+        throw new Error(`Expected frame 1 iteration 0 to read ${A}/write ${B}, got read ${f1iter0.surfaceBindings.rd_state.read}/write ${f1iter0.surfaceBindings.rd_state.write}`)
+    }
+
+    // Iteration 1 must read iteration 0's write, not re-read A.
+    if (f1iter1.surfaceBindings.rd_state.read !== f1iter0.surfaceBindings.rd_state.write) {
+        throw new Error(`Expected frame 1 iteration 1 to read iteration 0's write (${f1iter0.surfaceBindings.rd_state.write}), read ${f1iter1.surfaceBindings.rd_state.read} instead`)
+    }
+
+    const frame1LastWrite = f1iter1.surfaceBindings.rd_state.write
+
+    // Frame 2
+    backend.passes = []
+    pipeline.render(0.016)
+
+    if (backend.passes.length !== 2) {
+        throw new Error(`Expected 2 executed pass iterations in frame 2, got ${backend.passes.length}`)
+    }
+
+    const [f2iter0, f2iter1] = backend.passes
+
+    // The end-of-frame persisted record must carry frame 1's last write
+    // forward as frame 2's first read.
+    if (f2iter0.surfaceBindings.rd_state.read !== frame1LastWrite) {
+        throw new Error(`Expected frame 2 iteration 0 to read frame 1's last write (${frame1LastWrite}), read ${f2iter0.surfaceBindings.rd_state.read} instead`)
+    }
+
+    if (f2iter1.surfaceBindings.rd_state.read !== f2iter0.surfaceBindings.rd_state.write) {
+        throw new Error(`Expected frame 2 iteration 1 to read iteration 0's write (${f2iter0.surfaceBindings.rd_state.write}), read ${f2iter1.surfaceBindings.rd_state.read} instead`)
     }
 })
 

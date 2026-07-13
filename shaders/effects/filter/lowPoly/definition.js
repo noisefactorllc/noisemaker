@@ -2,7 +2,9 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Low Poly - Voronoi-based low-polygon art style
- * Generates seed points, finds nearest for each pixel, fills cells with input color
+ * Generates seed points, finds nearest for each pixel, fills cells with input color.
+ * borderWidth adds edgeColor along Voronoi boundaries; lightIntensity raises
+ * the selected mode's cell shading without illuminating those borders.
  */
 export default new Effect({
   name: "Low Poly",
@@ -68,7 +70,38 @@ export default new Effect({
       ui: {
         label: "edge color",
         control: "color",
-        enabledBy: { param: "mode", eq: 1 }
+        enabledBy: {
+          or: [
+            { param: "borderWidth", gt: 0 },
+            { param: "mode", eq: 1 }
+          ]
+        }
+      }
+    },
+    borderWidth: {
+      type: "int",
+      default: 0,
+      uniform: "borderWidth",
+      define: "LP_BORDER",
+      min: 0,
+      max: 100,
+      zero: 0,
+      ui: {
+        label: "border width",
+        control: "slider"
+      }
+    },
+    lightIntensity: {
+      type: "int",
+      default: 0,
+      uniform: "lightIntensity",
+      define: "LP_LIGHT",
+      min: 0,
+      max: 100,
+      zero: 0,
+      ui: {
+        label: "light intensity",
+        control: "slider"
       }
     },
     alpha: {

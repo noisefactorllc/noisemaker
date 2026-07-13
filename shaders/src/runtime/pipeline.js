@@ -1321,9 +1321,11 @@ export class Pipeline {
                             throw err
                         }
 
-                        // Swap global surface read/write pointers for ping-pong between iterations
+                        // Adopt this iteration's frame-local ping-pong bindings into
+                        // the cross-frame surface record (frame-local maps remain
+                        // the source of truth -- see adoptIterationBindings() doc).
                         if (repeatCount > 1) {
-                            this.swapIterationBuffers(pass)
+                            this.adoptIterationBindings(pass)
                         }
                     }
                 }
@@ -1579,35 +1581,44 @@ export class Pipeline {
     }
 
     /**
-     * Swap read/write pointers for global surfaces written by a pass.
-     * Used for ping-pong between iterations of a repeated pass.
+     * Adopt a repeated pass's frame-local ping-pong bindings into the
+     * cross-frame surface record. Frame-local maps (frameReadTextures/
+     * frameWriteTextures) are the source of truth -- updateFrameSurfaceBindings()
+     * has already advanced them for this iteration; this mirrors those bindings
+     * into this.surfaces so end-of-frame persistence and the surface.read/write
+     * fallback stay consistent between iterations of a repeated pass. Do NOT
+     * recompute the swap from this.surfaces here: a preceding non-repeat pass
+     * (e.g. a seed pass) advances only the frame-local maps, so this.surfaces
+     * can be stale when this first runs, and re-deriving from it would clobber
+     * the correct binding.
      * @param {Object} pass - The pass that just executed
      */
-    swapIterationBuffers(pass) {
+    adoptIterationBindings(pass) {
         if (!pass.outputs) return
 
         for (const outputName of Object.values(pass.outputs)) {
             if (typeof outputName !== 'string') continue
 
-            // Only swap global surfaces (not feedback surfaces)
+            // Only affects global surfaces (not feedback surfaces)
             const globalName = this.parseGlobalName(outputName)
             if (!globalName) continue
 
             const surface = this.surfaces.get(globalName)
             if (!surface) continue
 
-            // Swap read/write pointers
-            const temp = surface.read
-            surface.read = surface.write
-            surface.write = temp
-
-            // Update frameReadTextures and frameWriteTextures to match
-            if (this.frameReadTextures) {
-                this.frameReadTextures.set(globalName, surface.read)
-            }
-            if (this.frameWriteTextures) {
-                this.frameWriteTextures.set(globalName, surface.write)
-            }
+            // updateFrameSurfaceBindings() runs after every pass and has already
+            // advanced this frame's within-frame ping-pong bindings
+            // (frameReadTextures/frameWriteTextures) for this surface. Mirror
+            // those frame-local bindings into the cross-frame surface record so
+            // end-of-frame persistence and the surface.read/write fallback stay
+            // consistent. Recomputing the swap from surface.read/write here would
+            // desync whenever a preceding non-repeat pass (e.g. a seed pass)
+            // advanced only the frame-local maps -- the stale surface record
+            // would then clobber the correct read binding on the first iteration.
+            const frameRead = this.frameReadTextures?.get(globalName)
+            const frameWrite = this.frameWriteTextures?.get(globalName)
+            if (frameRead !== undefined) surface.read = frameRead
+            if (frameWrite !== undefined) surface.write = frameWrite
         }
     }
 

@@ -19,6 +19,11 @@ struct VertexOutput {
 @group(0) @binding(3) var<uniform> alpha: f32;
 @group(0) @binding(4) var<uniform> scale: f32;
 @group(0) @binding(5) var<uniform> time: f32;
+@group(0) @binding(6) var<uniform> intensity: f32;
+@group(0) @binding(7) var<uniform> contrast: f32;
+@group(0) @binding(8) var<uniform> mono: i32;
+@group(0) @binding(9) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(10) var<uniform> fullResolution: vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const INV_UINT32_MAX: f32 = 1.0 / 4294967295.0;
@@ -27,6 +32,11 @@ const SHADE_GAIN: f32 = 4.4;
 
 fn clamp01(value: f32) -> f32 {
     return clamp(value, 0.0, 1.0);
+}
+
+fn s_curve01(value: f32) -> f32 {
+    let c: f32 = clamp01(value);
+    return c * c * (3.0 - 2.0 * c);
 }
 
 fn fade(t: f32) -> f32 {
@@ -179,15 +189,170 @@ fn height_field(uv: vec2<f32>, base_freq: vec2<f32>, motion: f32) -> f32 {
     return height_paper(uv, base_freq, motion);  // 3 = paper (default)
 }
 
+fn material_hash(p: vec2<i32>, salt: u32, layer: u32) -> u32 {
+    var h: u32 = salt ^ (layer * 0x9e3779b9u);
+    h ^= bitcast<u32>(p.x) * 0x27d4eb2du;
+    h = hash_uint(h);
+    h ^= bitcast<u32>(p.y) * 0xc2b2ae35u;
+    return hash_uint(h);
+}
+
+fn material_gradient(p: vec2<i32>, salt: u32, layer: u32) -> vec2<f32> {
+    let h: u32 = material_hash(p, salt, layer);
+    var gradient = vec2<f32>(f32(h & 0xffffu), f32(h >> 16u)) * (2.0 / 65535.0) - 1.0;
+    gradient *= inverseSqrt(max(dot(gradient, gradient), 0.000001));
+    return gradient;
+}
+
+fn material_fade(t: vec2<f32>) -> vec2<f32> {
+    return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+}
+
+fn material_gradient_layer(p: vec2<f32>, salt: u32, layer: u32) -> f32 {
+    let cellFloor = floor(p);
+    let cell = vec2<i32>(i32(cellFloor.x), i32(cellFloor.y));
+    let local = fract(p);
+    let n00 = dot(material_gradient(cell, salt, layer), local);
+    let n10 = dot(material_gradient(cell + vec2<i32>(1, 0), salt, layer), local - vec2<f32>(1.0, 0.0));
+    let n01 = dot(material_gradient(cell + vec2<i32>(0, 1), salt, layer), local - vec2<f32>(0.0, 1.0));
+    let n11 = dot(material_gradient(cell + vec2<i32>(1, 1), salt, layer), local - vec2<f32>(1.0, 1.0));
+    let blend = material_fade(local);
+    return mix(mix(n00, n10, blend.x), mix(n01, n11, blend.x), blend.y);
+}
+
+fn material_noise(globalPixel: vec2<f32>, cellSize: vec2<f32>, motion: f32, salt: u32) -> f32 {
+    let p = globalPixel / max(cellSize, vec2<f32>(0.5));
+    let zFloor = floor(motion);
+    let z0 = i32(zFloor) % Z_LOOP;
+    let z1 = (z0 + 1) % Z_LOOP;
+    let n0 = material_gradient_layer(p, salt, u32(z0));
+    let n1 = material_gradient_layer(p, salt, u32(z1));
+    let n = mix(n0, n1, material_fade(vec2<f32>(fract(motion))).x);
+    return clamp01(0.5 + n * 0.72);
+}
+
+fn material_soft(globalPixel: vec2<f32>, motion: f32, salt: u32, size: f32) -> f32 {
+    // Two incommensurate gradient fields make a smooth isotropic surface.
+    // Quintic interpolation keeps enlarged cells continuous without exposing
+    // the square lattice that value noise reveals at high scale.
+    let primaryCell = vec2<f32>(max(size * 3.25, 1.5));
+    let primary = material_noise(globalPixel, primaryCell, motion, salt);
+    let secondary = material_noise(globalPixel + vec2<f32>(17.31, 29.17), primaryCell * 1.87,
+        motion + 0.41, salt ^ 0x68bc21ebu);
+    return primary * 0.68 + secondary * 0.32;
+}
+
+fn material_directional(globalPixel: vec2<f32>, motion: f32, salt: u32, size: f32) -> f32 {
+    // Strongly anisotropic gradient fields create continuous fibers directly,
+    // avoiding both a stretched square lattice and a costly multi-tap blur.
+    let primaryCell = vec2<f32>(max(size * 22.0, 8.0), max(size * 2.0, 1.25));
+    let secondaryCell = vec2<f32>(max(size * 37.0, 13.0), max(size * 3.7, 2.3));
+    let primary = material_noise(globalPixel, primaryCell, motion, salt);
+    let secondary = material_noise(globalPixel + vec2<f32>(19.37, 11.83), secondaryCell,
+        motion + 0.41, salt ^ 0x68bc21ebu);
+    return primary * 0.72 + secondary * 0.28;
+}
+
+fn material_sprinkles(globalPixel: vec2<f32>, motion: f32, salt: u32, size: f32) -> f32 {
+    let p: vec2<f32> = globalPixel / max(4.0 * size, 1.0) + vec2<f32>(motion * 0.31, motion * 0.19);
+    let cellFloor = floor(p);
+    let baseCell = vec2<i32>(i32(cellFloor.x), i32(cellFloor.y));
+    let local = fract(p);
+    var nearest = 10.0;
+    for (var y = -1; y <= 1; y++) {
+        for (var x = -1; x <= 1; x++) {
+            let cell = baseCell + vec2<i32>(x, y);
+            let jx = fast_hash(vec3<i32>(cell, 0), salt) - 0.5;
+            let jy = fast_hash(vec3<i32>(cell, 1), salt ^ 0x68bc21ebu) - 0.5;
+            let point = vec2<f32>(f32(x), f32(y)) + 0.5 + vec2<f32>(jx, jy) * 0.6;
+            nearest = min(nearest, length(local - point));
+        }
+    }
+    return mix(0.45, 1.0, 1.0 - smoothstep(0.10, 0.22, nearest));
+}
+
+fn material_edge_mask(uv: vec2<f32>, pixelStep: vec2<f32>) -> f32 {
+    let weights: vec3<f32> = vec3<f32>(0.2126, 0.7152, 0.0722);
+    let l: f32 = dot(textureSample(inputTex, u_sampler, uv - vec2<f32>(pixelStep.x, 0.0)).xyz, weights);
+    let r: f32 = dot(textureSample(inputTex, u_sampler, uv + vec2<f32>(pixelStep.x, 0.0)).xyz, weights);
+    let d: f32 = dot(textureSample(inputTex, u_sampler, uv - vec2<f32>(0.0, pixelStep.y)).xyz, weights);
+    let u: f32 = dot(textureSample(inputTex, u_sampler, uv + vec2<f32>(0.0, pixelStep.y)).xyz, weights);
+    return clamp(length(vec2<f32>(r - l, u - d)) * 6.0, 0.0, 1.0);
+}
+
+fn material_value(globalPixel: vec2<f32>, dims: vec2<f32>, uv: vec2<f32>, motion: f32, salt: u32) -> f32 {
+    let size: f32 = max(scale, 0.1);
+    if (MODE == 6) {
+        return material_soft(globalPixel, motion, salt, size);
+    }
+    if (MODE == 7) {
+        return material_sprinkles(globalPixel, motion, salt, size);
+    }
+    if (MODE == 8) {
+        let a: f32 = material_noise(globalPixel, vec2<f32>(13.0 * size), motion, salt);
+        let b: f32 = material_noise(globalPixel, vec2<f32>(6.0 * size), motion + 0.31, salt ^ 0x9e3779b9u);
+        let c: f32 = material_noise(globalPixel, vec2<f32>(2.5 * size), motion + 0.67, salt ^ 0x85ebca6bu);
+        return a * 0.58 + b * 0.28 + c * 0.14;
+    }
+    if (MODE == 9) {
+        let n: f32 = material_noise(globalPixel, vec2<f32>(max(size * 1.5, 0.8)), motion, salt);
+        return s_curve01(s_curve01(n));
+    }
+    if (MODE == 10) {
+        return material_noise(globalPixel, vec2<f32>(4.5 * size), motion, salt);
+    }
+    if (MODE == 11) {
+        return step(0.5, material_noise(globalPixel, vec2<f32>(max(size * 1.5, 0.8)), motion, salt));
+    }
+    if (MODE == 12) {
+        return material_directional(globalPixel, motion, salt, size);
+    }
+    if (MODE == 13) {
+        return material_directional(globalPixel.yx, motion, salt, size);
+    }
+    if (MODE == 14) {
+        let n: f32 = material_noise(globalPixel, vec2<f32>(max(size * 1.5, 0.8)), motion, salt);
+        return mix(0.5, n, material_edge_mask(uv, 1.0 / dims));
+    }
+    return material_noise(globalPixel, vec2<f32>(max(size * 1.5, 0.8)), motion, salt);
+}
+
+fn shape_material(raw: f32) -> f32 {
+    let amount: f32 = intensity / 40.0;
+    let shaped: f32 = raw * amount + 0.5 * (1.0 - amount);
+    let c: f32 = clamp(contrast / 100.0, 0.0, 1.0);
+    if (c < 0.5) { return mix(0.5, shaped, c * 2.0); }
+    return mix(shaped, s_curve01(shaped), (c - 0.5) * 2.0);
+}
+
 @fragment
 fn main(in: VertexOutput) -> @location(0) vec4<f32> {
-    let base_color: vec4<f32> = textureSample(inputTex, u_sampler, in.uv);
+    // Modes 0..4 retain their established sampling contract. The material
+    // modes were added later and normalize the source UV so their presented
+    // image matches the GLSL backend instead of inheriting that old flip.
+    var sourceUV = in.uv;
+    if (MODE >= 5) { sourceUV.y = 1.0 - sourceUV.y; }
+    let base_color: vec4<f32> = textureSample(inputTex, u_sampler, sourceUV);
     let dims: vec2<f32> = vec2<f32>(textureDimensions(inputTex, 0));
     let pixel_step: vec2<f32> = 1.0 / dims;
 
     let a: f32 = clamp(alpha, 0.0, 1.0);
     if (a <= 0.0) {
         return base_color;
+    }
+
+    if (MODE >= 5) {
+        var globalDims: vec2<f32> = dims;
+        if (fullResolution.x > 0.0) { globalDims = fullResolution; }
+        let globalPixel: vec2<f32> = in.position.xy + tileOffset;
+        let materialMotion: f32 = time * f32(Z_LOOP);
+        let r: f32 = shape_material(material_value(globalPixel, globalDims, sourceUV, materialMotion, 0x1234abcdu));
+        var material: vec3<f32> = vec3<f32>(r);
+        if (mono == 0) {
+            material.g = shape_material(material_value(globalPixel, globalDims, sourceUV, materialMotion, 0x68bc21ebu));
+            material.b = shape_material(material_value(globalPixel, globalDims, sourceUV, materialMotion, 0x02e5be93u));
+        }
+        return vec4<f32>(clamp(mix(base_color.xyz, material, a), vec3<f32>(0.0), vec3<f32>(1.0)), base_color.w);
     }
 
     // Paper and stucco use different base frequencies

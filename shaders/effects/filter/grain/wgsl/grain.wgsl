@@ -19,8 +19,10 @@ struct GrainParams {
     alpha : f32,
     time : f32,
     pause : f32,
+    renderScale : f32,
     _pad0 : f32,
-    _pad1 : f32,
+    tileOffset : vec2<f32>,
+    fullResolution : vec2<f32>,
 };
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
@@ -238,6 +240,19 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         return;
     }
 
+    let full_width : u32 = select(width, max(as_u32(params.fullResolution.x), 1u), params.fullResolution.x > 0.0);
+    let full_height : u32 = select(height, max(as_u32(params.fullResolution.y), 1u), params.fullResolution.y > 0.0);
+    let tile_offset : vec2<i32> = vec2<i32>(
+        i32(round(params.tileOffset.x)),
+        i32(round(params.tileOffset.y)),
+    );
+    let global_pixel_signed : vec2<i32> = vec2<i32>(gid.xy) + tile_offset;
+    if (global_pixel_signed.x < 0 || global_pixel_signed.y < 0 ||
+        global_pixel_signed.x >= i32(full_width) || global_pixel_signed.y >= i32(full_height)) {
+        return;
+    }
+    let global_pixel : vec2<u32> = vec2<u32>(global_pixel_signed);
+
     let coords : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
     let texel : vec4<f32> = textureLoad(inputTex, coords, 0);
     let pixel_index : u32 = gid.y * width + gid.x;
@@ -252,9 +267,10 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     // When paused, use time=0 for static noise; otherwise use actual time
     let effective_time : f32 = select(params.time, 0.0, params.pause > 0.5);
 
+    let rs : f32 = max(params.renderScale, 1.0);
     let noise_value : f32 = sample_grain_noise(
-        gid.xy,
-        vec2<f32>(f32(width), f32(height)),
+        global_pixel,
+        vec2<f32>(f32(full_width), f32(full_height)) / rs,
         effective_time,
         100.0,
     );

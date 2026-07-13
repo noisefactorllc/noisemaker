@@ -11,6 +11,9 @@ struct Uniforms {
     threshold: f32,
     amount: f32,
     mixAmt: f32,
+    level: f32,
+    contourSide: f32,
+    renderScale: f32,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -49,6 +52,56 @@ fn applyBlend(edge: vec4<f32>, orig: vec4<f32>, mode: i32) -> vec4<f32> {
     return edge;                                                                         // normal (6)
 }
 
+// Contour: mark only the selected side of a level crossing against the 4
+// cardinal neighbors (Trace Contour). Returns a binary vec3:
+// 1.0 = background (white), 0.0 = contour line (dark).
+fn contourConv(uv: vec2<f32>, texelSize: vec2<f32>, centerRGB: vec3<f32>, lvl: f32, useLuma: bool, upperSide: bool) -> vec3<f32> {
+    let northRGB = textureSample(inputTex, inputSampler, uv + vec2<f32>(0.0,  1.0) * texelSize).rgb;
+    let southRGB = textureSample(inputTex, inputSampler, uv + vec2<f32>(0.0, -1.0) * texelSize).rgb;
+    let eastRGB  = textureSample(inputTex, inputSampler, uv + vec2<f32>( 1.0, 0.0) * texelSize).rgb;
+    let westRGB  = textureSample(inputTex, inputSampler, uv + vec2<f32>(-1.0, 0.0) * texelSize).rgb;
+
+    if (useLuma) {
+        let centerL = dot(centerRGB, LUMA);
+        var centerOnSide = centerL < lvl;
+        if (upperSide) {
+            centerOnSide = centerL >= lvl;
+        }
+        let crossing = centerOnSide && select(
+            dot(northRGB, LUMA) >= lvl || dot(southRGB, LUMA) >= lvl ||
+            dot(eastRGB, LUMA) >= lvl  || dot(westRGB, LUMA) >= lvl,
+            dot(northRGB, LUMA) < lvl || dot(southRGB, LUMA) < lvl ||
+            dot(eastRGB, LUMA) < lvl  || dot(westRGB, LUMA) < lvl,
+            upperSide
+        );
+        return vec3<f32>(select(1.0, 0.0, crossing));
+    }
+
+    var centerOnSide = centerRGB < vec3<f32>(lvl);
+    if (upperSide) {
+        centerOnSide = centerRGB >= vec3<f32>(lvl);
+    }
+
+    let crossR = centerOnSide.r && select(
+        northRGB.r >= lvl || southRGB.r >= lvl || eastRGB.r >= lvl || westRGB.r >= lvl,
+        northRGB.r < lvl || southRGB.r < lvl || eastRGB.r < lvl || westRGB.r < lvl,
+        upperSide);
+    let crossG = centerOnSide.g && select(
+        northRGB.g >= lvl || southRGB.g >= lvl || eastRGB.g >= lvl || westRGB.g >= lvl,
+        northRGB.g < lvl || southRGB.g < lvl || eastRGB.g < lvl || westRGB.g < lvl,
+        upperSide);
+    let crossB = centerOnSide.b && select(
+        northRGB.b >= lvl || southRGB.b >= lvl || eastRGB.b >= lvl || westRGB.b >= lvl,
+        northRGB.b < lvl || southRGB.b < lvl || eastRGB.b < lvl || westRGB.b < lvl,
+        upperSide);
+
+    return vec3<f32>(
+        select(1.0, 0.0, crossR),
+        select(1.0, 0.0, crossG),
+        select(1.0, 0.0, crossB)
+    );
+}
+
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
@@ -58,7 +111,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let origColor = textureSample(inputTex, inputSampler, uv);
 
     let kernelType = i32(u.kernel);
-    let radius = i32(u.size) + 1; // 0->1, 1->2, 2->3
+    // Match edge.glsl: scale the kernel radius by renderScale so edge width
+    // stays consistent under tiled / large-format (non-unit-scale) export.
+    let radius = min(i32((u.size + 1.0) * u.renderScale), 256);
     let blendMode = i32(u.blend);
     let doInvert = u.invert > 0.5;
     let useLuma = u.channel > 0.5;
@@ -67,33 +122,38 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var conv = vec3<f32>(0.0);
     var centerWeight: f32 = 0.0;
 
-    for (var dy = -3; dy <= 3; dy = dy + 1) {
-        for (var dx = -3; dx <= 3; dx = dx + 1) {
-            if (abs(dx) > radius || abs(dy) > radius) { continue; }
-            if (dx == 0 && dy == 0) { continue; }
+    if (kernelType == 2) {
+        // Contour: level-crossing trace, not a weighted convolution.
+        conv = contourConv(uv, texelSize, origColor.rgb, u.level / 100.0, useLuma, u.contourSide > 0.5);
+    } else {
+        for (var dy = -3; dy <= 3; dy = dy + 1) {
+            for (var dx = -3; dx <= 3; dx = dx + 1) {
+                if (abs(dx) > radius || abs(dy) > radius) { continue; }
+                if (dx == 0 && dy == 0) { continue; }
 
-            let w = getWeight(dx, dy, kernelType);
-            if (w == 0.0) { continue; }
+                let w = getWeight(dx, dy, kernelType);
+                if (w == 0.0) { continue; }
 
-            let offset = vec2<f32>(f32(dx), f32(dy)) * texelSize;
-            let s = textureSample(inputTex, inputSampler, uv + offset).rgb;
+                let offset = vec2<f32>(f32(dx), f32(dy)) * texelSize;
+                let s = textureSample(inputTex, inputSampler, uv + offset).rgb;
 
-            if (useLuma) {
-                conv = conv + vec3<f32>(dot(s, LUMA)) * w;
-            } else {
-                conv = conv + s * w;
+                if (useLuma) {
+                    conv = conv + vec3<f32>(dot(s, LUMA)) * w;
+                } else {
+                    conv = conv + s * w;
+                }
+
+                centerWeight = centerWeight - w;
             }
-
-            centerWeight = centerWeight - w;
         }
-    }
 
-    // Center sample
-    var centerSample = origColor.rgb;
-    if (useLuma) {
-        centerSample = vec3<f32>(dot(centerSample, LUMA));
+        // Center sample
+        var centerSample = origColor.rgb;
+        if (useLuma) {
+            centerSample = vec3<f32>(dot(centerSample, LUMA));
+        }
+        conv = conv + centerSample * centerWeight;
     }
-    conv = conv + centerSample * centerWeight;
 
     // Amount
     conv = conv * (u.amount / 50.0);

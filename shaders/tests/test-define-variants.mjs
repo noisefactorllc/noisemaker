@@ -14,10 +14,20 @@
 import { chromium } from 'playwright'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const CHROME_PATH = String.raw`C:\Program Files\Google\Chrome\Application\chrome.exe`
-const VIEWER_BASE = 'http://127.0.0.1:8001/demo/shaders/'
+// Portable and self-contained: start the repo's own static harness server and
+// drive playwright's bundled Chromium headless with a platform-appropriate
+// ANGLE backend. No machine-specific browser path and no externally-started
+// server -- this runs for any contributor on macOS, Linux, or Windows.
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+const effectsDir = join(repoRoot, 'shaders/effects')
+process.env.SHADE_EFFECTS_DIR = effectsDir
+process.env.SHADE_PROJECT_ROOT = repoRoot
+const { acquireServer, releaseServer } = await import(join(repoRoot, 'vendor/shade-mcp/harness/index.js'))
+const baseUrl = await acquireServer(undefined, repoRoot, effectsDir)
+const VIEWER_BASE = `${baseUrl}/demo/shaders/`
 
 // Each entry: { effect: 'namespace.func', variants: [{ param, values }, ...] }
 const SUITES = [
@@ -115,11 +125,10 @@ const SUITES = [
     },
     {
         effect: 'filter.texture',
-        // Texture overlay filter has a 5-way height_field dispatch baked into
-        // the shader via MODE. All 5 variants are exercised so every #elif
-        // branch is exercised.
+        // Texture has five relief surfaces and ten material-noise kernels baked
+        // into the shader via MODE. Exercise every compile-time branch.
         variants: [
-            { param: 'mode', values: [0, 1, 2, 3, 4] },
+            { param: 'mode', values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14] },
         ],
     },
     {
@@ -137,10 +146,12 @@ const SUITES = [
 async function main() {
     const userDataDir = mkdtempSync(join(tmpdir(), 'noisemaker-variants-'))
     const ctx = await chromium.launchPersistentContext(userDataDir, {
-        executablePath: CHROME_PATH,
-        headless: false,
+        headless: true,
         viewport: { width: 1280, height: 900 },
-        args: ['--enable-unsafe-webgpu', '--use-angle=d3d11', '--ignore-gpu-blocklist'],
+        args: ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--ignore-gpu-blocklist',
+            process.platform === 'darwin' ? '--use-angle=metal'
+                : process.platform === 'win32' ? '--use-angle=d3d11'
+                    : '--use-angle=vulkan'],
     })
     const page = ctx.pages()[0] || (await ctx.newPage())
 
@@ -208,7 +219,9 @@ async function main() {
     }
     await ctx.close()
     try { rmSync(userDataDir, { recursive: true, force: true }) } catch {}
-    process.exit(totalFailures > 0 || suiteFailures > 0 ? 1 : 0)
+    return totalFailures > 0 || suiteFailures > 0
 }
 
-main().catch(e => { console.error(e); process.exit(1) })
+main()
+    .then(async (failed) => { await releaseServer(); process.exit(failed ? 1 : 0) })
+    .catch(async (e) => { console.error(e); await releaseServer(); process.exit(1) })

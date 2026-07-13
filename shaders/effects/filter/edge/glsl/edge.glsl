@@ -6,8 +6,6 @@
 precision highp float;
 #endif
 
-uniform vec2 tileOffset;
-uniform vec2 fullResolution;
 uniform sampler2D inputTex;
 uniform float kernel;
 uniform float size;
@@ -18,6 +16,8 @@ uniform float channel;
 uniform float threshold;
 uniform float amount;
 uniform float mixAmt;
+uniform float level;
+uniform float contourSide;
 
 out vec4 fragColor;
 
@@ -55,6 +55,42 @@ vec4 applyBlend(vec4 edge, vec4 orig, int mode) {
     return edge;                                                                // normal (6)
 }
 
+// Contour: mark only the selected side of a level crossing against the 4
+// cardinal neighbors (Trace Contour). Returns a binary vec3:
+// 1.0 = background (white), 0.0 = contour line (dark).
+vec3 contourConv(vec2 fragCoord, vec2 texelSize, vec3 centerRGB, float lvl, bool useLuma, bool upperSide) {
+    vec3 northRGB = texture(inputTex, (fragCoord + vec2(0.0,  1.0)) * texelSize).rgb;
+    vec3 southRGB = texture(inputTex, (fragCoord + vec2(0.0, -1.0)) * texelSize).rgb;
+    vec3 eastRGB  = texture(inputTex, (fragCoord + vec2( 1.0, 0.0)) * texelSize).rgb;
+    vec3 westRGB  = texture(inputTex, (fragCoord + vec2(-1.0, 0.0)) * texelSize).rgb;
+
+    if (useLuma) {
+        float centerL = dot(centerRGB, LUMA);
+        bool centerOnSide = upperSide ? centerL >= lvl : centerL < lvl;
+        bool crossing = centerOnSide && (upperSide
+            ? dot(northRGB, LUMA) < lvl || dot(southRGB, LUMA) < lvl ||
+              dot(eastRGB, LUMA) < lvl  || dot(westRGB, LUMA) < lvl
+            : dot(northRGB, LUMA) >= lvl || dot(southRGB, LUMA) >= lvl ||
+              dot(eastRGB, LUMA) >= lvl  || dot(westRGB, LUMA) >= lvl);
+        return vec3(crossing ? 0.0 : 1.0);
+    }
+
+    bvec3 centerOnSide = upperSide ? greaterThanEqual(centerRGB, vec3(lvl))
+                                    : lessThan(centerRGB, vec3(lvl));
+    bvec3 crossing = bvec3(
+        centerOnSide.r && (upperSide
+            ? northRGB.r < lvl || southRGB.r < lvl || eastRGB.r < lvl || westRGB.r < lvl
+            : northRGB.r >= lvl || southRGB.r >= lvl || eastRGB.r >= lvl || westRGB.r >= lvl),
+        centerOnSide.g && (upperSide
+            ? northRGB.g < lvl || southRGB.g < lvl || eastRGB.g < lvl || westRGB.g < lvl
+            : northRGB.g >= lvl || southRGB.g >= lvl || eastRGB.g >= lvl || westRGB.g >= lvl),
+        centerOnSide.b && (upperSide
+            ? northRGB.b < lvl || southRGB.b < lvl || eastRGB.b < lvl || westRGB.b < lvl
+            : northRGB.b >= lvl || southRGB.b >= lvl || eastRGB.b >= lvl || westRGB.b >= lvl)
+    );
+    return vec3(crossing.r ? 0.0 : 1.0, crossing.g ? 0.0 : 1.0, crossing.b ? 0.0 : 1.0);
+}
+
 void main() {
     ivec2 texSize = textureSize(inputTex, 0);
     vec2 resolution = vec2(texSize);
@@ -72,34 +108,39 @@ void main() {
     vec3 conv = vec3(0.0);
     float centerWeight = 0.0;
 
-    for (int dy = -3; dy <= 3; dy++) {
-        for (int dx = -3; dx <= 3; dx++) {
-            if (abs(dx) > radius || abs(dy) > radius) continue;
-            if (dx == 0 && dy == 0) continue;
+    if (kernelType == 2) {
+        // Contour: level-crossing trace, not a weighted convolution.
+        conv = contourConv(gl_FragCoord.xy, texelSize, origColor.rgb, level / 100.0, useLuma, contourSide > 0.5);
+    } else {
+        for (int dy = -3; dy <= 3; dy++) {
+            for (int dx = -3; dx <= 3; dx++) {
+                if (abs(dx) > radius || abs(dy) > radius) continue;
+                if (dx == 0 && dy == 0) continue;
 
-            float w = getWeight(dx, dy, kernelType);
-            if (w == 0.0) continue;
+                float w = getWeight(dx, dy, kernelType);
+                if (w == 0.0) continue;
 
-            vec2 sampleCoord = gl_FragCoord.xy + vec2(float(dx), float(dy));
-            vec2 localUV = sampleCoord * texelSize;
-            vec3 s = texture(inputTex, localUV).rgb;
+                vec2 sampleCoord = gl_FragCoord.xy + vec2(float(dx), float(dy));
+                vec2 localUV = sampleCoord * texelSize;
+                vec3 s = texture(inputTex, localUV).rgb;
 
-            if (useLuma) {
-                conv += vec3(dot(s, LUMA)) * w;
-            } else {
-                conv += s * w;
+                if (useLuma) {
+                    conv += vec3(dot(s, LUMA)) * w;
+                } else {
+                    conv += s * w;
+                }
+
+                centerWeight -= w;
             }
-
-            centerWeight -= w;
         }
-    }
 
-    // Center sample
-    vec3 centerSample = origColor.rgb;
-    if (useLuma) {
-        centerSample = vec3(dot(centerSample, LUMA));
+        // Center sample
+        vec3 centerSample = origColor.rgb;
+        if (useLuma) {
+            centerSample = vec3(dot(centerSample, LUMA));
+        }
+        conv += centerSample * centerWeight;
     }
-    conv += centerSample * centerWeight;
 
     // Amount
     conv *= amount / 50.0;

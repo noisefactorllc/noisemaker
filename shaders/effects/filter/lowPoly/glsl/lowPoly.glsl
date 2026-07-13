@@ -21,6 +21,17 @@ uniform float speed;
 uniform float time;
 uniform float alpha;
 
+// LP_BORDER / LP_LIGHT are compile-time defines injected by the runtime
+// (definition.js `define:` fields bake borderWidth / lightIntensity). Keeping
+// them compile-time lets the border and lighting blocks be preprocessed out of
+// the default variant, so a plain render is byte-identical to the mode result.
+#ifndef LP_BORDER
+#define LP_BORDER 0
+#endif
+#ifndef LP_LIGHT
+#define LP_LIGHT 0
+#endif
+
 out vec4 fragColor;
 
 const float TAU = 6.28318530718;
@@ -47,6 +58,22 @@ vec2 hash2(vec2 p, float s) {
     return vec2(v.xy) / float(0xffffffffu);
 }
 
+#if LP_BORDER > 0
+vec2 lowPolySite(ivec2 siteCell, float n, float s, float spd) {
+    vec2 siteCellF = vec2(siteCell);
+    vec2 offset = hash2(siteCellF, s);
+
+    if (spd > 0.0) {
+        vec2 animRand = hash2(siteCellF, s + 100.0);
+        float angle = time * TAU + animRand.x * TAU;
+        float radius = animRand.y * spd;
+        offset = clamp(offset + vec2(cos(angle), sin(angle)) * radius, 0.0, 1.0);
+    }
+
+    return (siteCellF + offset) / n;
+}
+#endif
+
 void main() {
     vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     ivec2 texSize = textureSize(inputTex, 0);
@@ -71,24 +98,25 @@ void main() {
     float secondDist = 1e10;
     float thirdDist = 1e10;
     vec2 nearestPoint = vec2(0.0);
+#if LP_BORDER > 0
+    ivec2 nearestCell = ivec2(0);
+#endif
 
     // Search 3x3 neighborhood of cells
     for (int dy = -1; dy <= 1; dy++) {
         for (int dx = -1; dx <= 1; dx++) {
             ivec2 neighbor = cell + ivec2(dx, dy);
+            // Inlined seed computation (identical math to lowPolySite) so the
+            // primary nearest-site search retains its original per-pixel FP
+            // result; lowPolySite() is reused by the border pass below.
             vec2 neighborF = vec2(neighbor);
-
-            // Generate seed point in this cell
             vec2 offset = hash2(neighborF, s);
-
-            // Animate: per-cell circular drift with unique phase/radius
             if (spd > 0.0) {
                 vec2 animRand = hash2(neighborF, s + 100.0);
                 float angle = time * TAU + animRand.x * TAU;
                 float radius = animRand.y * spd;
                 offset = clamp(offset + vec2(cos(angle), sin(angle)) * radius, 0.0, 1.0);
             }
-
             vec2 point = (neighborF + offset) / n;
             float d = distance(auv, point);
 
@@ -97,6 +125,9 @@ void main() {
                 secondDist = minDist;
                 minDist = d;
                 nearestPoint = point;
+#if LP_BORDER > 0
+                nearestCell = neighbor;
+#endif
             } else if (d < secondDist) {
                 thirdDist = secondDist;
                 secondDist = d;
@@ -127,6 +158,79 @@ void main() {
         float distField = pow(raw, mix(0.5, 3.0, edgeStrength));
         result = cellColor.rgb * distField;
     }
+
+    // Optional borders and lighting layer over the selected Low Poly mode.
+    // Both controls are compile-time defines (LP_BORDER / LP_LIGHT): when zero
+    // these blocks are preprocessed out entirely, so the established mode result
+    // reaches the blend byte-identical to a plain render.
+#if (LP_BORDER > 0) || (LP_LIGHT > 0)
+    vec3 modeResult = result;
+    float borderMask = 0.0;
+#endif
+
+#if LP_BORDER > 0
+    // Draw a controllable band along cell boundaries. A bounded 5x5 site search
+    // measures perpendicular distance to nearby Voronoi bisectors; width is a
+    // percentage of the nominal cell radius.
+    {
+        // The established mode path above intentionally retains its original
+        // 3x3 search. Borders opt into a wider exact-nearest search because a
+        // fully jittered site two cells away can own the current pixel.
+        vec2 borderNearestPoint = nearestPoint;
+        ivec2 borderNearestCell = nearestCell;
+        float borderNearestDist = minDist;
+        for (int dy = -2; dy <= 2; dy++) {
+            for (int dx = -2; dx <= 2; dx++) {
+                ivec2 candidateCell = cell + ivec2(dx, dy);
+                vec2 candidatePoint = lowPolySite(candidateCell, n, s, spd);
+                float candidateDist = distance(auv, candidatePoint);
+                if (candidateDist < borderNearestDist) {
+                    borderNearestDist = candidateDist;
+                    borderNearestPoint = candidatePoint;
+                    borderNearestCell = candidateCell;
+                }
+            }
+        }
+        float distToEdge = 1e10;
+        for (int dy = -2; dy <= 2; dy++) {
+            for (int dx = -2; dx <= 2; dx++) {
+                ivec2 candidateCell = cell + ivec2(dx, dy);
+                if (any(notEqual(candidateCell, borderNearestCell))) {
+                    vec2 candidatePoint = lowPolySite(candidateCell, n, s, spd);
+                    vec2 siteVector = candidatePoint - borderNearestPoint;
+                    float siteDistance = max(length(siteVector), 1e-8);
+                    float bisectorDistance = dot(
+                        (borderNearestPoint + candidatePoint) * 0.5 - auv,
+                        siteVector / siteDistance
+                    );
+                    distToEdge = min(distToEdge, bisectorDistance);
+                }
+            }
+        }
+        float cellRadius = 0.5 / n;
+        float borderHalfWidth = (float(LP_BORDER) / 100.0) * cellRadius;
+        float borderFeather = max(fwidth(distToEdge), 1e-6);
+        borderMask = 1.0 - smoothstep(
+            borderHalfWidth - borderFeather,
+            borderHalfWidth + borderFeather,
+            distToEdge
+        );
+        result = mix(modeResult, edgeColor, borderMask);
+    }
+#endif
+
+#if LP_LIGHT > 0
+    // Raise the selected mode's value with a bounded exposure curve while
+    // scaling RGB together. Composite the border afterward so it never brightens.
+    {
+        float intensity = clamp(float(LP_LIGHT) / 100.0, 0.0, 1.0);
+        float paneValue = max(max(modeResult.r, modeResult.g), modeResult.b);
+        float exposure = mix(1.0, 2.25, intensity);
+        float litValue = 1.0 - pow(max(1.0 - paneValue, 0.0), exposure);
+        vec3 litMode = paneValue > 1e-6 ? modeResult * (litValue / paneValue) : modeResult;
+        result = mix(litMode, edgeColor, borderMask);
+    }
+#endif
 
     // Alpha blend with original
     vec4 original = texture(inputTex, uv);

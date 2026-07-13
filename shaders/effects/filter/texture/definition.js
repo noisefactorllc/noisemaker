@@ -2,7 +2,7 @@ import { Effect } from '../../../src/runtime/effect.js'
 
 /**
  * Texture
- * Animated ridged noise texture overlay
+ * Procedural surface and material texture overlay
  */
 export default new Effect({
   name: "Texture",
@@ -10,7 +10,7 @@ export default new Effect({
   func: "texture",
   tags: ["noise"],
 
-  description: "Texture overlay blend",
+  description: "Procedural surface and material texture overlay",
   globals: {
     mode: {
         type: "int",
@@ -26,7 +26,17 @@ export default new Effect({
             "crosshatch": 1,
             "halftone": 2,
             "paper": 3,
-            "stucco": 4
+            "stucco": 4,
+            "regular": 5,
+            "soft": 6,
+            "sprinkles": 7,
+            "clumped": 8,
+            "contrasty": 9,
+            "enlarged": 10,
+            "stippled": 11,
+            "horizontal": 12,
+            "vertical": 13,
+            "speckle": 14
         },
         ui: {
             label: "mode",
@@ -57,6 +67,40 @@ export default new Effect({
             label: "scale",
             control: "slider"
         }
+    },
+    intensity: {
+        type: "float",
+        default: 40,
+        uniform: "intensity",
+        min: 0,
+        max: 100,
+        ui: {
+            label: "intensity",
+            control: "slider",
+            enabledBy: { param: "mode", gt: 4 }
+        }
+    },
+    contrast: {
+        type: "float",
+        default: 50,
+        uniform: "contrast",
+        min: 0,
+        max: 100,
+        ui: {
+            label: "contrast",
+            control: "slider",
+            enabledBy: { param: "mode", gt: 4 }
+        }
+    },
+    mono: {
+        type: "boolean",
+        default: true,
+        uniform: "mono",
+        ui: {
+            label: "mono",
+            control: "checkbox",
+            enabledBy: { param: "mode", gt: 4 }
+        }
     }
   },
   defaultProgram: "search filter, synth\n\nsolid(color: #d1d1d1)\n  .texture(alpha: 0.75)\n  .write(o0)",
@@ -69,7 +113,10 @@ export default new Effect({
       },
       uniforms: {
         alpha: "alpha",
-        scale: "scale"
+        scale: "scale",
+        intensity: "intensity",
+        contrast: "contrast",
+        mono: "mono"
       },
       outputs: {
         fragColor: "outputTex"

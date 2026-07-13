@@ -14,11 +14,38 @@ export default new Effect({
       uniform: "kernel",
       choices: {
         fine: 0,
-        bold: 1
+        bold: 1,
+        contour: 2
       },
       ui: {
         label: "kernel",
         control: "dropdown"
+      }
+    },
+    level: {
+      type: "float",
+      default: 50,
+      uniform: "level",
+      min: 0,
+      max: 100,
+      ui: {
+        label: "level",
+        control: "slider",
+        enabledBy: { param: "kernel", eq: 2 }
+      }
+    },
+    contourSide: {
+      type: "int",
+      default: 0,
+      uniform: "contourSide",
+      choices: {
+        lower: 0,
+        upper: 1
+      },
+      ui: {
+        label: "contour side",
+        control: "dropdown",
+        enabledBy: { param: "kernel", eq: 2 }
       }
     },
     size: {
@@ -31,7 +58,8 @@ export default new Effect({
       },
       ui: {
         label: "size",
-        control: "dropdown"
+        control: "dropdown",
+        enabledBy: { param: "kernel", notIn: [2] }
       }
     },
     channel: {

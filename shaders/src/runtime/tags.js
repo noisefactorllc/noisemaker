@@ -65,6 +65,10 @@ export const TAG_DEFINITIONS = Object.freeze({
         id: 'antialiasing',
         description: 'Edge smoothing and antialiasing'
     },
+    artist: {
+        id: 'artist',
+        description: 'Artistic media emulation'
+    },
     blend: {
         id: 'blend',
         description: 'Compositing and blend modes'
