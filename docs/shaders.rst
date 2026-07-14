@@ -64,6 +64,7 @@ Noisemaker's GPU rendering engine. Dual WebGL2 and WebGPU backends, a composable
    :maxdepth: 2
 
    shaders/integration
+   shaders/agent-instrumentation
    shaders/effect-i18n
    shaders/specs
    shaders/features

@@ -5,6 +5,16 @@ Pipeline Spec
 
 This document outlines the specification for the Noisemaker Rendering Pipeline and effect definition format. It is designed to support complex, multi-pass effects defined declaratively, executed on a unified GPU pipeline supporting either WebGL 2 or WebGPU backends.
 
+.. warning::
+
+   This document mixes implemented behavior with a historical target design.
+   It is not the current authoring or diagnostic contract. See
+   :ref:`shader-agent-instrumentation` and ``llms-full.txt`` for behavior traced
+   to runtime source and tests. Current code expands passes in declaration
+   order; it does not consume a physical allocation plan, authorable
+   ``persistent``/mip texture fields, pass ``conditions``, or the ``ERR_*``
+   objects proposed below.
+
 1. Core Philosophy
 ------------------
 
@@ -866,4 +876,3 @@ Validation errors MUST prevent graph execution entirely. Runtime errors (GPU out
 * **Render Graph (Passes):** A lower-level graph where Effects have been expanded into their constituent Render/Compute Passes. Produced by the Effect Expander.
 * **Execution Plan (Linear Pass Schedule):** A linear list of passes sorted topologically, with resources allocated and barriers inserted. This is what the runtime executes.
 * **Compiled Graph:** The final runtime object containing the Execution Plan, allocated resources, and compiled pipelines.
-

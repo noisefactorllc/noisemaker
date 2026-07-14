@@ -1,269 +1,2866 @@
-# Noisemaker Agent Overview
+# Noisemaker AI development contract
 
-Noisemaker is an open source shader framework for humans and coding agents building expressive, extensible visual tools in the browser. It is the engine behind Noisedeck, Layers, Polymorphic, Foundry, Shade, Visualize, Photobox, Glitcher, and Noodles. It includes the effect format, DSL, runtime, release system, ports, adapters, and tools needed to build apps, write effects, package portable work, and validate generated shader output.
+This document is an executable-source companion for an agent that must inspect,
+author, validate, and diagnose Noisemaker programs and effects without guessing.
+It describes current behavior, not intended behavior.
 
-Noisemaker is friendly to coding agents because the engine is documented and inspectable. It is not a license to invent shader code and hope. People get the same benefit: explicit effect definitions, portable packages, and validation tools. Use the DSL, effect definitions, docs, and tests.
+Source snapshots used for this contract:
 
-## What Noisemaker is
+- Noisemaker: `755071128ba6112753b9e976dc0ebbb8e55449b5`.
+- Shade MCP: `7fd0d9758e64ec587950a49496b31eb59ae17857`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.1.0`, protocol
+  `2025-06-18`, with 18 tools returned by `tools/list`.
+- The repository config runs `npx -y github:noisedeck/shade-mcp`; it does not pin
+  that commit. Re-resolve and re-capture tool contracts before relying on this
+  snapshot after dependency installation changes. See GAP-013.
 
-- A browser-native shader engine with WebGL2 and WebGPU backends.
-- A Polymorphic DSL for composing effects into visual programs.
-- A declarative effect format for globals, textures, passes, GLSL, WGSL, tags, namespaces, and help docs.
-- A custom namespace system for external integrations.
-- A portable effect format for user-created packages.
-- A CDN release system with rolling major/minor pins and immutable patch pins.
-- A compiler that parses DSL, analyzes namespaces and parameters, expands effects into render graph passes, allocates GPU resources, and produces an execution plan.
-- A runtime that keeps frame data on the GPU and dispatches sorted passes each frame.
+Primary source roots:
 
-## Public entry points
+- DSL: `shaders/src/lang/`.
+- definition and graph runtime: `shaders/src/runtime/`.
+- effect loading and DSL registration: `shaders/src/renderer/canvas.js`.
+- backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
+- repository validation policy: `shaders/tests/test-harness.js`.
+- Shade MCP source for the pinned snapshot:
+  `https://github.com/noisedeck/shade-mcp/tree/7fd0d9758e64ec587950a49496b31eb59ae17857/src`.
 
-- Homepage: `https://noisemaker.app/`
-- Shader demo: `https://noisemaker.app/demo/shaders/`
-- Docs: `https://docs.noisemaker.app/`
-- Source: `https://github.com/noisefactorllc/noisemaker`
-- Shader CDN major pin: `https://shaders.noisedeck.app/1`
+## Reading the contract
 
-## Runtime integration pattern
+Every field or behavior has one of these statuses:
+
+- **enforced**: current validation rejects an illegal value.
+- **consumed**: runtime code reads the value and changes behavior, but validation
+  may be partial.
+- **observed**: checked-in definitions contain the value; this does not imply the
+  runtime consumes it.
+- **unsupported**: there is no current authoring/query contract. It is a gap.
+
+An omitted JavaScript property is `undefined`. JSON cannot represent functions,
+`Map`, `Set`, class instances, `undefined`, or cyclic state; JSON shapes below are
+the observable projections of those runtime values.
+
+Common structural types:
+
+```ts
+type BackendName = "webgl2" | "webgpu"
+type NonNegativeInteger = number // semantic predicate: integer && value >= 0
+type FiniteNumber = number       // semantic predicate: Number.isFinite(value)
+type Vec2 = [number, number]
+type Vec3 = [number, number, number]
+type Vec4 = [number, number, number, number]
+type JsonPrimitive = string | number | boolean | null
+type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue }
+
+type Diagnostic = {
+  code: "S001" | "S002" | "S003" | "S004" | "S005" | "S006" |
+        "S007" | "S008"
+  message: string
+  severity: "error" | "warning"
+  nodeId?: string | number
+  location?: { line: number, column: number | undefined }
+  identifier?: string
+}
+
+type CompilationFailure = {
+  code: "ERR_COMPILATION_FAILED"
+  diagnostics: Diagnostic[]
+}
+
+type ExpansionFailure = {
+  code: "ERR_EXPANSION_FAILED"
+  errors: Array<{ message: string, step?: CompiledStep }>
+}
+```
+
+`Diagnostic.location.column` is written from `node.loc.column`, while parser
+nodes store `loc.col`; it can therefore be `undefined`. This is GAP-002.
+
+## Runtime overview
+
+The browser integration path is:
+
+1. `CanvasRenderer.loadManifest()` discovers effect assets.
+2. `CanvasRenderer.loadEffect()` imports `definition.js`, loads shader source,
+   registers the effect and its DSL operator, and registers starter state.
+3. `CanvasRenderer.compile(source)` calls `compileGraph(source)`.
+4. `compileGraph()` lexes/parses/validates, expands effect steps into passes,
+   computes a liveness allocation map, and returns a graph.
+5. `Pipeline.compilePrograms()` compiles every referenced program for the active
+   backend.
+6. `Pipeline.render(time)` executes expanded passes in array order, presents the
+   selected surface, then advances double-buffer bindings.
+
+Sources: `shaders/src/renderer/canvas.js` — `loadEffectShaders()`,
+`registerEffectWithRuntime()`; `shaders/src/runtime/compiler.js` —
+`compileGraph()`; `shaders/src/runtime/pipeline.js` — `compilePrograms()`,
+`render()`.
+
+<!-- SURFACE:DSL -->
+## DSL program
+
+### Introspect
+
+Legal namespaces are the current `VALID_NAMESPACES` set in
+`shaders/src/runtime/tags.js`. Loaded operators are queryable through the
+exported `ops` object in `shaders/src/lang/ops.js`. A loaded effect definition is
+queryable with `getEffect(name)` or `getAllEffects()` from
+`shaders/src/runtime/registry.js`.
+
+The parse/compile projections are:
+
+```ts
+type Token = { type: string, lexeme: string, line: number, col: number }
+
+type ParsedProgram = {
+  type: "Program"
+  plans: ParsedStatement[]
+  vars?: Array<{ type: "VarAssign", name: string, expr: ParsedExpr }>
+  render: { type: "OutputRef", name: string } | null
+  namespace: {
+    imports: Array<{ name: string, source: "search", explicit: true }>
+    default: { name: string, source: "search", explicit: true }
+    searchOrder: string[]
+  }
+  trailingComments?: string[]
+}
+
+type SurfaceValue =
+  | { kind: "output", name: string }
+  | { kind: "source", name: string }
+  | { kind: "xyz", name: string }
+  | { kind: "vel", name: string }
+  | { kind: "rgba", name: string }
+  | { kind: "mesh", name: string }
+  | { kind: "state", name: "time" | "frame" | "mouse" | "resolution" |
+                             "seed" | "a" }
+  | { kind: "vol", name: string }
+  | { kind: "geo", name: string }
+  | { kind: "pipeline", name: string }
+  | { kind: "temp", index: number }
+
+type CompiledStep = {
+  op: string
+  args: Record<string, unknown>
+  from: number | null
+  temp: number
+  builtin?: boolean
+  namespace?: object
+  rawKwargs?: Record<string, ParsedExpr>
+  argSources?: Record<string, "array">
+  leadingComments?: string[]
+}
+
+type CompiledPlan = {
+  chain: CompiledStep[]
+  write: { kind: "output", name: string } | null
+  write3d: {
+    tex3d: { kind: "vol", name: string }
+    geo: { kind: "geo", name: string }
+  } | null
+  final: number | null
+  states: object[]
+  leadingComments?: string[]
+}
+
+type CompiledProgram = {
+  plans: Array<CompiledPlan | CompiledBranch | { type: "Break" | "Continue" } |
+               { type: "Return", value?: ParsedExpr }>
+  diagnostics: Diagnostic[]
+  render: string | null
+  vars: ParsedProgram["vars"]
+  searchNamespaces: string[]
+  trailingComments?: string[]
+}
+```
+
+Surface tokens and actual allocation behavior:
+
+| Token family | Parser token | Read/write role | Preallocated state |
+|---|---|---|---|
+| `oN` | `OUTPUT_REF` | `read`, surface arg, `write`, `render` | `o0`–`o7`, double buffered |
+| `sN` | `SOURCE_REF` | `read`, surface arg | not initially preallocated; graph references create a dynamic global surface |
+| `volN` | `VOL_REF` | volume arg or `read3d`; `write3d` texture | `vol0`–`vol7` as 64×4096 2D atlases |
+| `geoN` | `GEO_REF` | geometry arg or `read3d`; `write3d` geometry | `geo0`–`geo7`, screen-sized RGBA16F |
+| `xyzN` | `XYZ_REF` | `read`, surface arg, `write` | dynamic global state surface when referenced |
+| `velN` | `VEL_REF` | `read`, surface arg, `write` | dynamic global state surface when referenced |
+| `rgbaN` | `RGBA_REF` | `read`, surface arg, `write` | dynamic global state surface when referenced |
+| `meshN` | `MESH_REF` | `read`, surface arg, `write` | `mesh0`–`mesh7`; positions/normals/UV triplet, 256×256 defaults |
+
+The lexer accepts one or more digits for every family. Only volume and geometry
+parameter resolution explicitly checks `0` through `7`; `o8`, `o99`, and
+`read(o8)` pass lexing and surface conversion. Do not infer an enforced `o0`–
+`o7` range from the public model. See GAP-001.
+
+Current connections are observable after compilation in
+`graph.passes[].inputs`, `graph.passes[].outputs`, `graph.renderSurface`, and at
+runtime in `pipeline.surfaces`, `pipeline.frameReadTextures`, and
+`pipeline.frameWriteTextures`.
+
+Sources: `shaders/src/lang/lexer.js` — `lex()`;
+`shaders/src/lang/parser.js` — `parse()`;
+`shaders/src/lang/validator.js` — `validate()`, `toSurface()`;
+`shaders/src/runtime/pipeline.js` — `createSurfaces()`, `getFrameState()`.
+
+### Act
+
+The implemented grammar is below. It supersedes the optional-search grammar in
+the comment at the top of `parser.js`; `search` is mandatory in code.
+
+```ebnf
+Program        ::= Comments SearchDirective Semicolons
+                   { Comments Statement Semicolons }
+                   [ Comments RenderDirective Semicolons Comments ] EOF
+SearchDirective::= "search" Namespace { "," Namespace }
+Statement      ::= VarAssign | ChainStmt | IfStmt | BreakStmt |
+                   ContinueStmt | ReturnStmt
+VarAssign      ::= "let" Identifier "=" Expr
+IfStmt         ::= "if" "(" Expr ")" Block
+                   { "elif" "(" Expr ")" Block }
+                   [ "else" Block ]
+Block          ::= "{" { Statement Semicolons } "}"
+BreakStmt      ::= "break"
+ContinueStmt   ::= "continue"
+ReturnStmt     ::= "return" [ Expr ]
+ChainStmt      ::= Chain                         (* validator requires terminal write *)
+Chain          ::= ChainHead { "." ChainElement }
+ChainHead      ::= Call | ReadCall | Read3DCall
+ChainElement   ::= Call | WriteCall | Write3DCall | Subchain
+Call           ::= Identifier "(" [ ArgList ] ")"
+ArgList        ::= PositionalArgs | KeywordArgs
+PositionalArgs ::= Expr { "," Expr } [ "," ]
+KeywordArgs    ::= Identifier ":" Expr
+                   { "," Identifier ":" Expr } [ "," ]
+ReadCall       ::= "read" "(" SurfaceExpr ")"
+Read3DCall     ::= "read3d" "(" VolumeExpr [ "," GeometryExpr ] ")"
+WriteCall      ::= "write" "(" WriteTarget ")"
+WriteTarget    ::= OutputRef | XyzRef | VelRef | RgbaRef | MeshRef | "none"
+Write3DCall    ::= "write3d" "(" (Identifier | OutputRef | VolRef) ","
+                   (Identifier | OutputRef | GeoRef) ")"
+RenderDirective::= "render" "(" OutputRef ")"
+Subchain       ::= "subchain" "(" SubchainArgs ")" "{"
+                   "." Call { "." Call } "}"
+SubchainArgs   ::= String | [ "name" ":" String [ "," "id" ":" String ] ]
+
+Expr           ::= Additive
+Additive       ::= Multiplicative { ("+" | "-") Multiplicative }
+Multiplicative ::= Unary { ("*" | "/") Unary }
+Unary          ::= [ "+" | "-" ] Primary
+Primary        ::= Number | String | TripleString | Boolean | HexColor |
+                   Array | ArrowFunction | "Math.PI" | Member | Identifier |
+                   SurfaceRef | Call | Chain | "(" Expr ")"
+Array          ::= "[" [ Expr { "," Expr } ] "]"
+Member         ::= Identifier "." MemberSegment { "." MemberSegment }
+HexColor       ::= "#" (3Hex | 6Hex | 8Hex)
+ArrowFunction  ::= "()" "=>" RawExpressionText
+Comments       ::= { LineComment | BlockComment }
+Semicolons     ::= { ";" }
+```
+
+`Namespace` must already be registered and valid. Inline call namespaces such
+as `synth.noise()` are rejected; put the namespace in `search`, or use
+`from(namespace, call())` to override resolution for one call. Positional and
+keyword arguments cannot be mixed.
+
+`read(oN)` has two different legal roles:
+
+1. At a chain head it becomes builtin `_read` and establishes the current input.
+2. As a value for a `surface` global it resolves directly to that surface (or a
+   nested call/chain can be expanded to a temporary surface).
+
+`.read(oN)` after another chain element is illegal and produces `S001`. A chain
+statement must have an explicit terminal `write(...)` or `write3d(...)`; a
+separate `render(oN)` chooses presentation but does not satisfy the write
+requirement. `render()` accepts only an `OUTPUT_REF` token.
+
+Numeric arithmetic is constant-folded during parsing. Operators accept only
+`Number` nodes; applying arithmetic to another expression throws `SyntaxError:
+Expected number`. Division by zero is not rejected and can produce `Infinity`.
+Array elements reach argument validation; non-number elements become `0` plus
+an `S002` warning. Arrow-function bodies are captured as raw text and compiled
+with `new Function` during validation.
+
+Special value calls are transformed by the parser:
+
+```ts
+osc(type = oscKind.sine, min = 0, max = 1, speed = 1, offset = 0, seed = 1)
+midi(channel, mode = midiMode.velocity, min = 0, max = 1, sensitivity = 1)
+audio(band, min = 0, max = 1)
+from(namespaceIdentifier, callExpression)
+```
+
+For oscillators, MIDI, and audio, `min` and `max` are clamped to `[0, 1]` in the
+compiled automation object. `midi` requires `channel`; `audio` requires `band`.
+Only `osc` rejects unknown keyword names explicitly.
+
+Disallowed forms include: no `search`; multiple/late `search`; multiple
+`render`; non-output `render`; namespaced call syntax; mixed positional/keyword
+arguments; `.write()` inside an expression; missing/invalid write targets;
+empty subchains; a starter in a non-head position; a non-starter at a chain
+head; inline `.read`/`.read3d`; unquoted strings for most value types; and
+unknown arguments.
+
+Sources: `shaders/src/lang/lexer.js` — `lex()`;
+`shaders/src/lang/parser.js` — `parseProgram()`, `parseCall()`,
+`parsePrimary()`; `shaders/src/lang/validator.js` — `compileChainStatement()`,
+`processChain()`.
+
+### Validate
+
+Use these falsifiable stages:
+
+| Stage | Measurement | Pass threshold |
+|---|---|---|
+| lex | token list ends with one `EOF` | exactly one terminal `EOF`; no thrown `SyntaxError` |
+| parse | `ParsedProgram.namespace.searchOrder.length` | `>= 1` |
+| semantic | `diagnostics.filter(d => d.severity === "error").length` | `=== 0` |
+| expansion | `graph.passes.length` and `graph.renderSurface` | passes `>= 1` and render surface non-null |
+| backend compile | every referenced program in backend program map | compile completes without throw |
+| execution | `pipeline.lastPassCount` after a frame | equals number of non-skipped expanded passes after repeat expansion |
+
+Warnings (`S002`, `S007`, `S008`) do not make `compileGraph()` fail. Any semantic
+error does. `runDslProgram` is a convenient combined validator on WebGL2; its
+exact contract and WebGPU limitation are in the MCP section.
+
+Sources: `shaders/src/lang/index.js` — `compile()`;
+`shaders/src/runtime/compiler.js` — `compileGraph()`;
+`shaders/src/runtime/pipeline.js` — `compilePrograms()`, `render()`.
+
+### Diagnose
+
+Declared diagnostic codes are:
+
+| Code | Stage/severity | Implemented use |
+|---|---|---|
+| `L001` | lexer/error | declared only; lexer throws raw unexpected-character `SyntaxError` |
+| `L002` | lexer/error | declared only; lexer throws raw unterminated-comment/string errors |
+| `P001` | parser/error | declared only; parser throws raw `SyntaxError` messages |
+| `P002` | parser/error | declared only; parser throws raw `SyntaxError` messages |
+| `S001` | semantic/error | unknown effect/argument/enum, invalid surface, illegal inline read, invalid function, and other semantic failures |
+| `S002` | semantic/warning | clamping, wrong numeric/vector/array form |
+| `S003` | semantic/error | unresolved identifier or enum choice |
+| `S004` | semantic/error | assigning `null` or `undefined` |
+| `S005` | semantic/error | illegal starter/chain/input position |
+| `S006` | semantic/error | starter chain missing terminal write |
+| `S007` | semantic/warning | deprecated parameter alias |
+| `S008` | semantic/warning | deprecated effect alias |
+| `R001` | runtime/error | declared but not emitted by the compiler/backends shown here |
+
+Raw lexer/parser failures are `SyntaxError` instances whose messages contain
+text plus line/column for most, but not all, cases. They do not have `code`,
+`severity`, or a separately typed location. `compileGraph()` only wraps semantic
+diagnostics as `ERR_COMPILATION_FAILED`; raw lex/parse exceptions escape.
+
+Expansion failures have shape `ExpansionFailure`. Current enumerated messages
+are `Effect '<name>' not found` with the failing step, and `No render surface
+specified and no write() found - add render(oN) or write(oN)` without a step.
+
+Sources: `shaders/src/lang/diagnostics.js` — default export;
+`shaders/src/lang/lexer.js` — thrown `SyntaxError` sites;
+`shaders/src/lang/parser.js` — thrown `SyntaxError` sites;
+`shaders/src/runtime/compiler.js` — `compileGraph()`;
+`shaders/src/runtime/expander.js` — `expand()`.
+
+<!-- SURFACE:EFFECT -->
+## Effect definition
+
+### Introspect
+
+After loading, call `getEffect(name)`/`getAllEffects()` to obtain the live class
+instance. `analyzeEffect` returns a JSON projection of the definition plus
+combined `.glsl`/`.wgsl` sources. `checkEffectStructure` returns filesystem and
+cross-language structure signals. Before loading, inspect
+`shaders/effects/<namespace>/<effect>/definition.js` and the generated
+`shaders/effects/manifest.json` entry.
+
+An effect directory has this consumed layout:
+
+```text
+<namespace>/<effect>/
+  definition.js             required by Noisemaker catalog
+  glsl/<program>.glsl       combined WebGL2 source, or .vert + .frag
+  wgsl/<program>.wgsl       WebGPU source
+  help.md                    optional UI/help content
+```
+
+The manifest records each program as GLSL `"combined"` or split `{v:1,f:1}`
+and WGSL `1`. `loadEffectShaders()` only loads files declared in the manifest;
+a failed fetch silently leaves the shader bucket empty, so the missing-source
+failure occurs later in backend compilation.
+
+Sources: `shaders/src/runtime/registry.js` — `getEffect()`, `getAllEffects()`;
+`shaders/src/renderer/canvas.js` — `loadEffectShaders()`;
+`shaders/scripts/generate-shader-manifest.mjs`;
+Shade MCP `src/tools/knowledge/analyze-effect.ts` — `registerAnalyzeEffect()`.
+
+### Act
+
+The full constructor-accepted and downstream-consumed structural grammar is
+below. Inline annotations distinguish copied-only fields from fields with a
+production consumer:
+
+```ts
+interface EffectDefinition {
+  // Copied by new Effect(config)
+  name: string
+  namespace?: string
+  func?: string
+  description?: string
+  tags?: string[]
+  globals?: Record<string, GlobalSpec>
+  passes: PassSpec[]
+  textures?: Record<string, TextureSpec2D>
+  outputTex3d?: string
+  outputGeo?: string
+  uniformLayout?: UniformLayout
+  uniformLayouts?: Record<string, UniformLayout>
+  paramAliases?: Record<string, string>
+  openCategories?: string[]
+  defaultProgram?: string
+  hidden?: boolean
+  deprecatedBy?: string
+  // Copied by Effect, but no production renderer caller exists (GAP-026).
+  onInit?: (this: EffectHookThis) => void
+  onUpdate?: (this: EffectHookThis,
+              context: { time: number, delta: number,
+                         uniforms: Record<string, unknown> }) =>
+              Record<string, unknown> | void
+  onDestroy?: (this: EffectHookThis) => void
+  // Copied and invoked by Pipeline after texture allocation.
+  asyncInit?: (this: EffectHookThis, context: AsyncInitContext) => Promise<void>
+
+  // Consumed by expander/loader when exposed by a subclass or assigned later.
+  // The base Effect constructor does NOT copy these config keys.
+  outputTex?: string
+  outputXyz?: string
+  outputVel?: string
+  outputRgba?: string
+  textures3d?: Record<string, TextureSpec3D>
+  externalTexture?: string
+  shaders?: Record<string, ProgramSources> // populated by loader in normal use
+
+  // Observed in current definitions/manifests but not consumed by Effect,
+  // expander, or Pipeline as effect-definition contracts.
+  externalMesh?: string
+  builtinMeshes?: unknown
+}
+
+type ProgramSources = {
+  glsl?: string
+  source?: string
+  fragment?: string
+  vertex?: string
+  wgsl?: string
+  vertexWGSL?: string
+  vertexWgsl?: string
+  fragmentEntryPoint?: string
+  vertexEntryPoint?: string
+  computeEntryPoint?: string
+  outputFormat?: string
+  topology?: string
+  uniformLayout?: UniformLayout
+  defines?: Record<string, boolean | number | string>
+}
+
+type UniformLayout =
+  | Array<{ name: string, slot: NonNegativeInteger, components: number }>
+  | Record<string, { slot: NonNegativeInteger, components: number }>
+
+type AsyncInitContext = {
+  updateTexture: (textureName: string, canvas: HTMLCanvasElement) => void
+  width: number
+  height: number
+  params: Record<string, unknown>
+  isCancelled: () => boolean
+}
+
+type EffectHookThis = InstanceType<typeof Effect> & {
+  state: Record<string, unknown>
+  uniforms: Record<string, unknown>
+}
+```
+
+Use `export default new Effect({...})` for data-only definitions. Use a subclass
+when you must expose consumed fields the base constructor does not copy or
+override lifecycle methods. Do not assume an arbitrary config property is
+copied: the constructor uses an explicit allowlist.
+
+When an `Effect` wrapper method invokes a config hook, it uses `.call(this)`
+with the live instance, not the definition object. `this.state` and
+`this.uniforms` are initialized to empty objects before config fields are
+copied; subclasses can add more instance members. The production pipeline
+invokes `asyncInit()` after texture allocation. No production code invokes
+`onInit()`, `onUpdate()`, or `onDestroy()`; only the test harness does. Treat
+those three as copied callbacks, not working production lifecycle authoring
+points. This is GAP-026.
+
+`func` is the DSL call name. The loader registers the same instance under
+`func`, `namespace.func`, `namespace/effectDirectory`, and
+`namespace.effectDirectory`. `globals` insertion order is positional DSL
+argument order; append new optional arguments after existing positional
+arguments to preserve old calls.
+
+Sources: `shaders/src/runtime/effect.js` — `Effect.constructor`, lifecycle
+methods; `shaders/src/renderer/canvas.js` — `registerEffectWithRuntime()`;
+`shaders/src/runtime/expander.js` — `expand()`.
+
+### Validate
+
+`validateEffectDefinition(def)` returns `string[]`. Its only pass predicate is
+`errors.length === 0`. It checks:
+
+- `name` is a non-empty string.
+- `passes` is a non-empty array.
+- every pass has a string `program`.
+- present pass `inputs` and `outputs` are objects.
+- present `globals` is an object.
+- every global has a truthy `type`.
+
+That validator does not prove the complete grammar. A development gate must
+also require:
+
+1. `checkEffectStructure.status === "ok"`.
+2. `compileEffect` returns `status === "ok"` for WebGL2.
+3. `compileEffect` returns `status === "ok"` for WebGPU when parity is required.
+4. `renderEffectFrame.status === "ok"` and the output-specific predicates in the
+   Rendered output section pass.
+5. `testPixelParity.status === "ok"` for parity-authorable effects.
+
+`checkEffectStructure.status === "warning"` when any implemented structural
+issue is present. The precise issue arrays are in its MCP contract.
+
+Sources: `shaders/src/runtime/effect-validator.js` —
+`validateEffectDefinition()`; Shade MCP `src/tools/analysis/structure.ts` —
+`checkEffectStructure()`.
+
+### Diagnose
+
+The complete definition-validator strings are:
+
+```text
+Effect definition is null or undefined
+Missing or invalid "name" property
+Missing or empty "passes" array
+Pass <index>: Missing "program" string
+Pass <index>: "inputs" must be an object
+Pass <index>: "outputs" must be an object
+"globals" must be an object
+Global '<key>': Missing "type"
+```
+
+Asset/load failures include:
+
+```text
+No default export in <effectId>/definition.js
+No default export in bundle <effectId>
+Invalid effect ID: <effectId>
+Could not load shader manifest - lazy loading requires manifest.json
+```
+
+Backend compilation then reports missing shader source, shader compilation,
+linking, or program-spec failures enumerated under Cross-backend parity.
+
+Unknown fields, wrong tag values, wrong global defaults/ranges, wrong pass field
+values, texture shape, shader/declaration binding agreement, and lifecycle
+signatures are not checked by `validateEffectDefinition()`. See GAP-003.
+
+Sources: `shaders/src/runtime/effect-validator.js` —
+`validateEffectDefinition()`; `shaders/src/renderer/canvas.js` — load/import
+failure sites; backend `compileProgram()` methods.
+
+<!-- SURFACE:GLOBALS -->
+## Parameters and globals
+
+### Introspect
+
+The authoritative author-facing map is `effect.globals`. After registration,
+`ops[namespace.func].args` is the DSL projection, in positional order. After
+expansion, `graph.passes[].uniforms` contains resolved defaults, DSL arguments,
+upstream inherited uniforms, pass-level mappings, and internal globals.
+`graph.passes[].uniformSpecs` contains numeric automation ranges keyed by shader
+uniform name.
+
+Current definition census contains these `type` strings:
+
+```text
+boolean color float geometry int mat3 member palette string surface
+vec2 vec3 vec4 volume
+```
+
+The runtime has explicit argument branches for `surface`, `color`, `vec3`,
+`vec4`, `volume`, `geometry`, and `string`; other types use the numeric/general
+branch. During DSL registration, `vec4` is projected as DSL type `color`.
+
+Current observed global keys are:
+
+```text
+choices colorModeUniform default define enum max min randChance randChoices
+randMax randMin step type ui uniform zero
+```
+
+`type`, `default`, `uniform`, `min`, `max`, `choices`, `enum`, `define`, and
+`colorModeUniform` affect compilation/expansion. `step`, `ui`, and randomization
+metadata are UI/program-generation policy, not shader binding validation.
+
+Sources: `shaders/effects/**/definition.js` — `globals` census;
+`shaders/src/renderer/canvas.js` — `registerEffectWithRuntime()`;
+`shaders/src/lang/validator.js` — argument type branches;
+`shaders/src/runtime/expander.js` — global/uniform mapping.
+
+### Act
+
+```ts
+interface GlobalSpec {
+  type: "float" | "int" | "boolean" | "member" | "surface" | "volume" |
+        "geometry" | "color" | "vec2" | "vec3" | "vec4" | "mat3" |
+        "palette" | "string"
+  default?: unknown
+  uniform?: string
+  min?: number
+  max?: number
+  step?: number
+  enum?: string                 // dotted enum root, e.g. "channel"
+  choices?: Record<string, number | string | null> // null entries are group labels
+  define?: string               // compile-time GLSL macro / WGSL const name
+  colorModeUniform?: string     // 0 for surface "none", otherwise 1
+  zero?: unknown                // observed program-generation metadata
+  randMin?: number              // observed randomization metadata
+  randMax?: number
+  randChance?: number
+  randChoices?: unknown[]
+  ui?: {
+    label?: string
+    control?: "slider" | "checkbox" | "dropdown" | "color" | "button" |
+              "vec3" | "vector3" | false
+    category?: string
+    hidden?: boolean
+    enabledBy?: EnableCondition
+    hint?: string
+    multiline?: boolean
+    buttonLabel?: string
+  }
+}
+
+type EnableCondition =
+  | string // legacy parameter-name truthiness check
+  | {
+      or?: EnableCondition[]
+      and?: EnableCondition[]
+      not?: EnableCondition
+      param?: string
+      eq?: unknown
+      neq?: unknown
+      gt?: number
+      gte?: number
+      lt?: number
+      lte?: number
+      in?: unknown[]
+      notIn?: unknown[]
+    }
+```
+
+Binding pipeline:
+
+1. The object key is the DSL parameter name and positional slot.
+2. `registerEffectWithRuntime()` maps `vec4` to DSL `color`, copies
+   `default/min/max/uniform/choices`, and sets `enum`/`enumPath`.
+3. If `choices` exists without `enum`, it generates enum root
+   `<namespace>.<func>.<parameter>`.
+4. Choice keys ending in `:` are group labels and are not registered as enum
+   identifiers. Other keys are registered as written and, when different, under
+   a sanitized identifier.
+5. The validator stores the resolved value under the DSL parameter name in
+   `step.args`.
+6. The expander binds it to `spec.uniform` when present, otherwise the DSL name.
+7. `PassSpec.uniforms` can map a shader uniform name to a global parameter name.
+8. `define` removes the value from runtime-uniform intent and creates a
+   program-cache suffix plus a GLSL `#define` or WGSL module `const`.
+
+Formal value contracts:
+
+| Type | DSL form and resolution |
+|---|---|
+| numeric/general | number, boolean→`0/1`, enum member, matching bare enum/choice identifier, state identifier, automation, or default; clamp to present `min/max` |
+| `member` | normally enum member/bare enum identifier; stored as numeric value after enum resolution |
+| `surface` | `oN`, `sN`, `xyzN`, `velN`, `rgbaN`, `meshN`, `none`, `read(surface)`, or nested call/chain producing a temp; quoted string rejected |
+| `volume` | `vol0`–`vol7`, `none`, or single-argument `read3d(volN)` |
+| `geometry` | `geo0`–`geo7`, `none`, or single-argument `read3d(geoN)` |
+| `color` | hex color; invalid form falls back to default with diagnostic |
+| `vec3` | `vec3(n,n,n)`, hex color RGB, numeric array literal, or default |
+| `vec4` | `vec4(n,n,n,n)`, hex RGBA, numeric array literal, or default; normal loader projects it to DSL `color` |
+| `string` | quoted string only for `text.text`, `text.font`, `text.justify`; matching choice identifier also accepted |
+| `palette` | numeric/general argument; expander additionally writes dependent palette uniforms already present on the pass |
+
+`defaultFrom` exists in validator operator specs but is not copied by
+`registerEffectWithRuntime()` from `GlobalSpec`; effect definitions cannot use it
+through the normal loader without separate operator registration.
+
+Sources: `shaders/src/renderer/canvas.js` —
+`registerEffectWithRuntime()`; `shaders/src/lang/validator.js` — argument
+resolution; `shaders/src/runtime/expander.js` — compile-time defines and uniform
+mapping; `shaders/src/lang/enums.js` — `mergeIntoEnums()`;
+`demo/shaders/lib/demo-ui.js` — `_evaluateEnableCondition()`.
+
+### Validate
+
+Numeric input pass/fail is measurable:
+
+- Resolved numeric range is `[min,max]` when either bound exists.
+- Input below `min` or above `max` is clamped and emits `S002`; compilation still
+  succeeds because `S002` is a warning.
+- A strict authoring gate should require zero `S002` diagnostics rather than
+  treating clamping as success.
+- An `int` test value in `testUniformResponsiveness` is rounded; normal DSL
+  numeric validation does not round `int` arguments.
+
+Runtime responsiveness uses two rendered mean-RGB vectors. Define:
+
+```text
+baseline_luma = (baseline_r + baseline_g + baseline_b) / 3
+test_luma     = (test_r + test_g + test_b) / 3
+luma_delta    = abs(test_luma - baseline_luma)
+max_channel_delta = max(abs(test_r-baseline_r),
+                        abs(test_g-baseline_g),
+                        abs(test_b-baseline_b))
+```
+
+A tested uniform passes when `luma_delta > 0.002` OR
+`max_channel_delta > 0.002`. Only globals with `uniform`, numeric `min` and
+`max`, unequal bounds, and a type other than `boolean`/`button` are tested.
+The test value is `min + 0.75*(max-min)` when default equals min, otherwise
+`min + 0.25*(max-min)`; `int` is rounded.
+
+Important: the tool's overall status is `ok` when **any** tested uniform passes,
+even if other entries are `name:fail`. A strict effect gate must require every
+`tested_uniforms` entry to end in `:pass`. See GAP-010.
+
+Sources: `shaders/src/lang/validator.js` — `clamp()` and numeric argument
+branch; Shade MCP `src/tools/browser/uniforms.ts` —
+`testUniformResponsiveness()`.
+
+### Diagnose
+
+Parameter-related semantic failures use `Diagnostic`:
+
+- `S001`: quoted string for a non-string type, invalid surface/volume/geometry,
+  unknown argument, unresolved enum, illegal string parameter, invalid function.
+- `S002`: out-of-range value with `(got <v>, clamped to <c>)`, wrong value form,
+  or nonnumeric array element.
+- `S003`: undefined variable, enum identifier, or inline choice.
+- `S007`: a deprecated parameter alias was rewritten.
+
+`testUniformResponsiveness` returns:
+
+```ts
+type UniformResponsiveness =
+  | { status: "ok" | "skipped" | "error",
+      tested_uniforms: Array<`${string}:pass` | `${string}:fail` |
+                             `${string}:error`>,
+      details: string,
+      console_errors?: string[] }
+  | { status: "error", error: string }
+```
+
+Enumerated in-page failures are `No effect loaded` and `Failed to capture
+baseline`; outer browser/session failures use `{status:"error",error:string}`.
+The output does not report the selected test value, baseline means, test means,
+or deltas, so a failing global cannot be quantitatively diagnosed from this
+tool alone. See GAP-011.
+
+Sources: `shaders/src/lang/validator.js` — argument diagnostics;
+Shade MCP `src/tools/browser/uniforms.ts` — output paths.
+
+<!-- SURFACE:GRAPH -->
+## Passes and render graph
+
+### Introspect
+
+`compileGraph(source)` returns the expanded graph:
+
+```ts
+type CompiledGraph = {
+  id: string                         // signed 32-bit source hash in base 36
+  source: string
+  passes: ExpandedPass[]             // execution order; no hidden sort
+  programs: Record<string, ProgramSources>
+  allocations: Map<string, `phys_${number}`>
+  textures: Map<string, RuntimeTextureSpec>
+  renderSurface: string | null
+  compiledAt: number                 // Date.now(), milliseconds since epoch
+}
+
+type ExpandedPass = {
+  id: string
+  program: string
+  type?: "render"                    // present on generated write/final blits
+  entryPoint?: string
+  drawMode?: "points" | "billboards" | "triangles"
+  drawBuffers?: number
+  count?: number | "auto" | "screen" | "input"
+  countUniform?: string
+  repeat?: number | string
+  blend?: boolean | [string | number, string | number]
+  workgroups?: [number, number, number]
+  storageBuffers?: Record<string, unknown>
+  storageTextures?: Record<string, string>
+  inputs: Record<string, string>      // shader sampler/binding -> virtual texture
+  outputs: Record<string, string>     // fragment attachment -> virtual texture
+  uniforms: Record<string, unknown>   // shader uniform -> resolved value
+  uniformSpecs?: Record<string, { min: number, max: number }>
+  scopedParams?: Record<string, string>
+  inheritsVolumeSize?: boolean
+  effectKey?: string
+  effectFunc?: string
+  effectNamespace?: string | null
+  nodeId?: string
+  stepIndex?: number
+}
+```
+
+To make `Map` values machine-readable:
 
 ```js
-const SHADER_CDN = 'https://shaders.noisedeck.app/1'
+const graphView = {
+  ...graph,
+  allocations: Object.fromEntries(graph.allocations),
+  textures: Object.fromEntries(graph.textures),
+}
+```
 
-const DSL_PROGRAM = `search synth, filter, mixer
+Current connections are exactly `passes[i].inputs` and `passes[i].outputs`.
+For every input entry, the key is the shader sampler/binding name and the value
+is the resolved virtual texture ID. For every output entry, the key is the
+shader output attachment name and the value is the resolved target ID.
 
-perlin(
-  scale: 100,
-  dimensions: 3,
-  ridges: true,
-  speed: 2
-)
-  .write(o0)
+Passes are appended in DSL plan order, effect-step order, and definition pass
+array order. Builtin read/write/blit passes are inserted at the point the
+expander encounters them. There is no topological sort, dependency object,
+barrier plan, cycle detector, or `ERR_CYCLE` in current code.
 
-read(o0)
-  .tetraColorArray(
-    colorCount: 3,
-    color0: #010000,
-    color1: #111111,
-    color2: #fd01c0,
-    color3: #fb31c9,
-    color4: #32ff03,
-    alpha: 0.46
-  )
-  .lighting(
-    normalStrength: 4.3,
-    smoothing: 1.4,
-    specularIntensity: 0.38,
-    shininess: 65,
-    reflection: 26,
-    refraction: 23.6,
-    aberration: 28.1
-  )
-  .focusBlur(
-    tex: read(o0),
-    focalDistance: 84.88,
-    aperture: 1,
-    sampleBias: 64
-  )
-  .write(o1)
+Sources: `shaders/src/runtime/compiler.js` — `compileGraph()`;
+`shaders/src/runtime/expander.js` — `expand()`;
+`shaders/src/runtime/resources.js` — `analyzeLiveness()`,
+`allocateResources()`.
 
-render(o1)`
+### Act
 
-const { CanvasRenderer, extractEffectNamesFromDsl } =
-  await import(`${SHADER_CDN}/noisemaker-shaders-core.esm.min.js`)
+The definition-level authoring grammar is:
 
-const renderer = new CanvasRenderer({
-  canvas,
-  width: 1024,
-  height: 1024,
-  basePath: SHADER_CDN,
-  useBundles: true,
-  bundlePath: `${SHADER_CDN}/effects`
+```ts
+interface PassSpec {
+  program: string
+  inputs?: Record<string, TextureReference>
+  outputs?: Record<string, TextureReference>
+  uniforms?: Record<string, string> // shader name -> GlobalSpec key/name
+  entryPoint?: string
+  drawMode?: "points" | "billboards" | "triangles"
+  drawBuffers?: number
+  count?: number | "auto" | "screen" | "input"
+  countUniform?: string
+  repeat?: number | string
+  blend?: boolean | [BlendFactor, BlendFactor]
+  workgroups?: [number, number, number]
+  storageBuffers?: Record<string, unknown>
+  storageTextures?: Record<string, string>
+
+  // Present in current definitions, but expand() does not copy these fields.
+  // They are observed, not authorable runtime controls through definition.js.
+  name?: string
+  conditions?: PassConditions
+  viewport?: { x: number, y: number, w: number, h: number }
+
+  // Pipeline/backends understand these on a manually constructed graph pass,
+  // but expand() does not copy them from PassSpec.
+  clear?: boolean
+  samplerTypes?: Record<string, "default" | "nearest" | "repeat">
+  type?: "render" | "compute"
+}
+
+type TextureReference = string
+type BlendFactor =
+  | "ZERO" | "ONE" | "SRC_COLOR" | "ONE_MINUS_SRC_COLOR"
+  | "DST_COLOR" | "ONE_MINUS_DST_COLOR" | "SRC_ALPHA"
+  | "ONE_MINUS_SRC_ALPHA" | "DST_ALPHA" | "ONE_MINUS_DST_ALPHA"
+  | "CONSTANT_COLOR" | "ONE_MINUS_CONSTANT_COLOR" | "CONSTANT_ALPHA"
+  | "ONE_MINUS_CONSTANT_ALPHA" | "SRC_ALPHA_SATURATE"
+  | "zero" | "one" | "src" | "one-minus-src" | "dst"
+  | "one-minus-dst" | "src-alpha" | "one-minus-src-alpha"
+  | "dst-alpha" | "one-minus-dst-alpha"
+  | number
+
+type PassConditions = {
+  skipIf?: Array<{ uniform: string, equals: unknown }>
+  runIf?: Array<{ uniform: string, equals: unknown }>
+}
+```
+
+Input resolution rules, in priority order for each `inputs` entry:
+
+1. `inputTex` and `o<digits>` use the current 2D chain input or the literal
+   reference when no input exists.
+2. `inputTex3d`, `inputGeo`, `inputXyz`, `inputVel`, and `inputRgba` use the
+   corresponding upstream channel or remain literal.
+3. `noise` becomes `global_noise`; `midiNoteGrid` remains `midiNoteGrid`.
+4. `feedback`/`selfTex` maps to the chain write surface, or current input.
+5. A matching surface global in `step.args` resolves a temp, current pipeline
+   input, named global surface, or `none`.
+6. A matching `GlobalSpec.default` resolves `none`, input, global surface,
+   chain-scoped `global_...`, or literal name.
+7. An explicit `global_...` value is chain/particle scoped.
+8. `outputTex` refers to this effect node's primary output.
+9. Anything else is a node-local texture and becomes `<nodeId>_<name>`.
+
+Output resolution rules:
+
+- `outputTex` becomes the node primary output. The last pass of the last step
+  can write directly to the chain's global surface.
+- `outputTex3d`, `outputXyz`, `outputVel`, and `outputRgba` create typed node
+  outputs.
+- `inputTex3d`, `inputGeo`, `inputXyz`, `inputVel`, `inputRgba` write in place to
+  their upstream channel when one exists.
+- `global_...` is chain/particle scoped; `feedback_...` remains literal;
+  otherwise the target is node-local.
+
+`uniforms: {shaderName: globalName}` reads the already resolved pipeline value,
+then the referenced global's default. It does not declare a new global.
+
+`repeat` is resolved at execution. A number becomes
+`max(1,floor(repeat))`. A string looks up `globalUniforms[name]`, then
+`pass.uniforms[name]`; numeric values use `max(1,floor(value))`, otherwise one.
+Repeated writes advance frame-local ping-pong bindings after every iteration.
+
+`drawBuffers > 1` or more than one output activates MRT. `blend: true` is
+additive one/one. A two-item blend array selects explicit factors. Unknown
+WebGL factors fall back to `ONE`; WebGPU lowercases/replaces underscores and
+lets device validation reject invalid factors.
+
+`type` does not select a WebGPU compute program. WebGPU detects a compute-only
+program from `@compute` without `@fragment`; WebGL detects compute-style work
+from `storageTextures` or an `outputBuffer` output and applies a fragment-pass
+fallback.
+
+Sources: `shaders/src/runtime/expander.js` — pass construction and input/output
+mapping; `shaders/src/runtime/pipeline.js` — `render()`,
+`resolveRepeatCount()`; backend `executePass()` and blend resolvers.
+
+### Validate
+
+A source-grounded graph gate can assert:
+
+```text
+semantic_error_count === 0
+expansion_error_count === 0
+passes.length >= 1
+renderSurface !== null
+every pass.program resolves in graph.programs
+every pass output is a nonempty string
+every pass input is a nonempty string or intentionally omitted for null arg
+every non-global produced texture has an allocations entry
+```
+
+`analyzeLiveness(passes)` returns `{start,end}` indices for every non-`global_`
+texture touched as an input or output. Both indices are in
+`[0, passes.length-1]` and `start <= end`. `allocateResources()` assigns
+`phys_0`, `phys_1`, ... to non-global outputs and reuses a slot only when its
+previous texture's `end < currentPassIndex`.
+
+The allocation map is an analysis result only: no pipeline/backend consumer
+reads `graph.allocations`. Therefore it validates the analyzer, not actual GPU
+pooling. See GAP-006.
+
+There is no dependency/cycle validator. A pass that reads a texture before a
+producer can compile and may sample a default, stale, or missing texture. A
+formal authoring gate must perform its own source-order check:
+
+```text
+For each non-global, non-external input at pass i:
+  some pass j < i must produce it, OR it must be intentionally frame-persistent.
+```
+
+That predicate is recommended policy, not an engine-emitted result.
+
+Sources: `shaders/src/runtime/resources.js` — liveness/allocation;
+repository search for `graph.allocations` (creation only); backend texture
+binding fallbacks.
+
+### Diagnose
+
+Expansion uses `ExpansionFailure`. Graph/backend failures include:
+
+```ts
+{ code: "ERR_PROGRAM_SPEC_MISSING", program: string, pass: string }
+{ code: "ERR_PROGRAM_NOT_FOUND", program: string, pass: string }
+{ code: "ERR_TEXTURE_NOT_FOUND", texture: string, pass: string } // WebGPU
+{ code: "ERR_NO_MRT_OUTPUTS", pass: string }                     // WebGPU
+{ code: "ERR_COMPUTE_DISPATCH_UNRESOLVED", pass: string,
+  detail: "Compute dispatch dimensions could not be inferred" }
+```
+
+WebGL2 missing FBOs and MRT textures are console warnings, not throws. WebGL
+errors discovered after a draw are logged with pass/effect/program/output/input
+context and drained, not converted into a structured failure. WebGPU missing MRT
+members are warnings until all outputs are absent; device validation arrives as
+an `uncapturederror` console message. These non-structured paths are GAP-007.
+
+Definition fields `name`, `conditions`, `viewport`, `clear`, `samplerTypes`, and
+`type` are not copied by `expand()` even though downstream code understands
+some of them. `conditions` in checked-in definitions therefore does not reach
+`Pipeline.shouldSkipPass()`. This is GAP-005.
+
+Sources: `shaders/src/runtime/pipeline.js` — `compilePrograms()`, `render()`,
+`shouldSkipPass()`; backend `executePass()` implementations;
+`shaders/src/runtime/expander.js` — constructed pass keys.
+
+<!-- SURFACE:TEXTURES -->
+## Textures and surface resources
+
+### Introspect
+
+Definition texture specs are available at `effect.textures` (2D) and, for
+class-based effects, `effect.textures3d`. Expanded/scoped specs are returned in
+`graph.textures: Map<string,RuntimeTextureSpec>`. Allocated backend records are
+in `pipeline.backend.textures`; double-buffer records are in
+`pipeline.surfaces`.
+
+```ts
+type RuntimeTextureSpec = {
+  width: DimensionSpec
+  height: DimensionSpec
+  depth?: DimensionSpec
+  format: string
+  is3D?: boolean
+  usage: Array<"render" | "sample" | "storage" | "copySrc" | "copyDst">
+}
+
+type SurfaceRecord2D = {
+  read: string
+  write: string
+  currentFrame: number
+}
+
+type MeshSurfaceRecord = {
+  positions: string
+  normals: string
+  uvs: string
+  width: number
+  height: number
+}
+```
+
+Node-local texture names are prefixed with `node_<step>_`. Non-particle names
+beginning `global_` are chain-scoped. Particle state names are scoped to the
+creating particle node. Normal global surfaces have `_read`/`_write` backend
+textures.
+
+Sources: `shaders/src/runtime/expander.js` — texture-spec collection/scoping;
+`shaders/src/runtime/compiler.js` — `extractTextureSpecs()`;
+`shaders/src/runtime/pipeline.js` — `createSurfaces()`, `recreateTextures()`.
+
+### Act
+
+```ts
+type DimensionSpec =
+  | number
+  | "screen"
+  | "auto"
+  | `${number}%`
+  | { param: string, paramDefault?: number, multiply?: number,
+      power?: number, default?: number }
+  | { screenDivide: string, default?: number }
+  | { scale: number, clamp?: { min?: number, max?: number } }
+
+type TextureFormat2D =
+  | "rgba8" | "rgba16f" | "rgba32f"
+  | "r8" | "r16f" | "r32f"
+  | "rgba8unorm" | "rgba16float" | "rgba32float"
+  | "r8unorm" | "r16float" | "r32float"
+  | "rg8" | "rg16f" | "rg32f"
+  | "bgra8unorm"
+  | string
+
+interface TextureSpec2D {
+  width?: DimensionSpec
+  height?: DimensionSpec
+  format?: TextureFormat2D
+}
+
+interface TextureSpec3D extends TextureSpec2D {
+  depth?: DimensionSpec
+}
+
+type TextureSpec = TextureSpec2D | TextureSpec3D
+```
+
+Omitted/falsy definition width or height becomes `screen`; omitted format
+becomes `rgba16f`. Graph-generated pass outputs also use screen size,
+`rgba16f`, and usage `render/sample/copySrc/copyDst`. A 3D spec gets
+`is3D:true`; its depth default is `effectSpec.depth || effectSpec.width || 64`
+and usage is `storage/sample/copySrc/copyDst`.
+
+Dimension resolution:
+
+| Spec | Resolved pixels |
+|---|---|
+| number | `max(1,floor(spec))` |
+| `screen` / `auto` | the corresponding pipeline screen dimension |
+| percentage string | `max(1,floor(screenSize * parseFloat(spec)/100))` |
+| `{param}` | uniform value or `paramDefault` or 64; then multiply/power; transformed missing-param can use final `default`; floor and clamp to at least 1 |
+| `{screenDivide}` | `max(1,round(screenSize/(uniform or default or 1)))` |
+| `{scale}` | floor of screenSize×scale, optional min/max clamp, then at least 1 |
+| any other value/string | screen size |
+
+`"input"` appears in existing definitions but has no special resolver branch;
+it falls through to screen size. It does not query the input texture.
+
+WebGL2 2D textures always use nearest minification/magnification and clamp-to-
+edge. Its recognized format map is exactly `rgba8`, `rgba16f`, `rgba32f`, `r8`,
+`r16f`, `r32f`; any other string, including WebGPU spelling
+`rgba8unorm`, falls back to RGBA8. WebGL2 3D textures use linear filtering
+and cannot be render targets. Although `createTexture3D()` can honor
+`spec.filter === "nearest"` on a manually constructed runtime spec,
+`extractTextureSpecs()` does not copy that key. A definition-level `filter` is discarded and is not authorable through `definition.js`.
+
+WebGPU maps the six WebGL spellings plus `rg8/rg16f/rg32f`, accepts listed WebGPU
+spellings, and otherwise returns the provided string to WebGPU validation. The
+normal surface sampler defaults to nearest for parity with WebGL2; external
+uploads use the default linear sampler.
+
+There is no 2D mip field, mip-level allocation, or mip generation path. There
+is no authorable `persistent`, `transient`, or 3D filter field. Do not emit
+them. See GAP-004.
+
+Sources: `shaders/src/runtime/pipeline.js` — `resolveDimension()`;
+`shaders/src/runtime/backends/webgl2.js` — `createTexture()`,
+`createTexture3D()`, `resolveFormat()`;
+`shaders/src/runtime/backends/webgpu.js` — texture creation, samplers,
+`resolveFormat()`.
+
+### Validate
+
+Measurable resource predicates after `pipeline.resize(width,height)`:
+
+```text
+every resolved non-screen dimension >= 1
+every graph texture has backend record with matching width and height
+every 3D graph texture has matching depth and is3D === true
+every global 2D surface has distinct read and write texture IDs
+every pass output intended for WebGL rendering has an FBO
+every format is recognized by the target backend before compilation/execution
+```
+
+WebGL FBO completeness is checked during creation but only logged. WebGPU device
+creation validates size/format/usage asynchronously through normal exceptions
+or `uncapturederror`. There is no public aggregate resource-validation report.
+
+Frame lifetime is behavior, not an authoring flag:
+
+- Backend texture objects survive frames until resize, recompilation/recreation,
+  or `dispose()`.
+- WebGL passes do not clear color targets before a normal draw.
+- WebGPU normal render attachments use `loadOp:"load"` unless `pass.clear`, but
+  `clear` is not copied from effect definitions.
+- Global surfaces are double-buffered. Display surfaces swap at frame end.
+  Names classified as state (`xyz`, `vel`, `rgba`, `trail`, suffix variants,
+  names containing `state`, scoped particle state) preserve final frame-local
+  bindings.
+- A node-local texture can therefore retain data across frames, but the engine
+  exposes no declaration, preservation-on-resize guarantee, or queryable
+  persistent/transient class.
+
+Sources: backend texture/FBO creation; `shaders/src/runtime/pipeline.js` —
+`swapBuffers()`, `resize()`, `dispose()`.
+
+### Diagnose
+
+Resource failures include:
+
+```text
+WebGL Error: Texture <textureId> not found                 (raw Error in readPixels)
+WebGPU: {code:"ERR_TEXTURE_NOT_FOUND", pass, texture}
+WebGL console: FBO incomplete for texture <id>: <status>
+WebGL console: MRT FBO incomplete for <id>: <status>
+WebGL console: [executePass] FBO not found for <id> in pass <pass>
+WebGPU console: Storage texture <id> not found
+WebGPU uncaptured error: <device validation message>
+```
+
+WebGL unknown formats silently become RGBA8; WebGPU unknown formats reach device
+validation. Unknown dimension forms silently become screen size. Neither path
+returns a structured authoring diagnostic. There is no mip/persistence
+rejection because those keys are not validated and are ignored. See GAP-004 and
+GAP-007.
+
+Sources: backend texture and pass execution methods;
+`shaders/src/runtime/pipeline.js` — `resolveDimension()`.
+
+<!-- SURFACE:MUTATION -->
+## Compatibility and mutation
+
+### Introspect
+
+Compile the DSL, then call `listSteps(compiled)`:
+
+```ts
+type StepInfo = {
+  stepIndex: number
+  planIndex: number
+  chainIndex: number
+  effectName: string
+  isStarter: boolean
+  isStarterPosition: boolean
+  canReplaceWithStarter: boolean
+  canReplaceWithNonStarter: boolean
+  args: Record<string, unknown>
+}
+```
+
+`stepIndex` is the compiled step's `temp`. Branch objects do not have `chain`
+and are skipped by these mutation helpers. `listSteps()` does not filter for
+effect nodes: it returns every member of `plan.chain`, including the terminal
+`write` builtin. A two-effect chain ending in `.write(o0)` therefore returns
+three entries. `getCompatibleReplacements()` enumerates the currently
+registered `ops` and partitions them by starter state.
+
+Sources: `shaders/src/lang/transform.js` — `listSteps()`,
+`getCompatibleReplacements()`; `shaders/src/lang/ops.js` — `ops`;
+`shaders/tests/test_transform.js` — stale effect-only length assertions
+(GAP-022).
+
+### Act
+
+```ts
+type ReplacementQuery =
+  | { success: true, compatible: string[], incompatible: string[] }
+  | { success: false, error: string }
+
+type ReplacementResult =
+  | { success: true, program: CompiledProgram }
+  | { success: false, error: string }
+
+getCompatibleReplacements(
+  compiled: CompiledProgram,
+  stepIndex: number,
+  options?: { searchOrder?: string[] }
+): ReplacementQuery
+
+replaceEffect(
+  compiled: CompiledProgram,
+  stepIndex: number,
+  newEffectName: string,
+  newArgs?: Record<string, unknown>,
+  options?: { searchOrder?: string[] }
+): ReplacementResult
+```
+
+The checkable current definition of compatible is exactly:
+
+```text
+target effect exists in ops
+AND
+(target chainIndex === 0) === isStarterOp(target effect)
+```
+
+No other shape participates. On success, `replaceEffect` deep-clones the
+compiled program, starts with every target argument default, overlays
+`newArgs`, rounds non-integer numeric `newArgs` to three decimal places, sets
+the resolved operator name, resets namespace metadata, and adds the namespace
+to `searchNamespaces` if needed.
+
+Sources: `shaders/src/lang/transform.js` — `replaceEffect()`.
+
+### Validate
+
+Mutation succeeds only when `result.success === true`. That proves effect
+existence and starter-position compatibility. It does **not** prove the mutated
+program compiles or renders. A complete falsifiable gate is:
+
+```text
+replacement.success === true
+AND unparse(replacement.program) parses
+AND semantic_error_count === 0
+AND expansion_error_count === 0
+AND both required backend compilers succeed
+AND rendered-output thresholds pass
+AND parity status is ok when required
+```
+
+`getCompatibleReplacements().compatible` is therefore a candidate list, not a
+swappability guarantee. See GAP-008.
+
+Sources: `shaders/tests/test_transform.js`; compiler, render, and parity
+contracts in this document.
+
+### Diagnose
+
+Enumerated mutation rejection strings are:
+
+```text
+Invalid compiled program: missing plans
+Step with index <stepIndex> not found
+Effect '<newEffectName>' not found
+Cannot replace starter effect '<old>' with non-starter effect '<new>'. The first effect in a chain must be a starting effect.
+Cannot replace non-starter effect '<old>' with starter effect '<new>'. Starting effects can only appear at the beginning of a chain.
+```
+
+After a successful replacement, all parse, semantic, expansion, backend, output,
+and parity failures use their respective surfaces' diagnostic channels.
+Parameter names/types/ranges, required textures, pass shape, shader availability,
+and backend support are absent from compatibility preflight. This missing
+queryable shape contract is GAP-008.
+
+The same unfiltered-chain behavior exposes terminal `write` as a replaceable
+nonstarter step. Callers must exclude builtin names themselves because
+`StepInfo` has no node-kind discriminator. This is GAP-022.
+
+Sources: `shaders/src/lang/transform.js` — all `success:false` paths.
+
+<!-- SURFACE:OUTPUT -->
+## Rendered output
+
+### Introspect
+
+`renderEffectFrame` samples the WebGL default framebuffer after warmup. The
+decoded success payload is:
+
+```ts
+type ImageMetrics = {
+  mean_rgb: Vec3                 // each component in [0,1]
+  mean_alpha: number             // [0,1]
+  std_rgb: Vec3                  // each population stddev in [0,0.5]
+  luma_variance: number          // population variance in [0,0.25]
+  unique_sampled_colors: number  // integer in [1,sample_count]
+  is_all_zero: boolean
+  is_all_transparent: boolean
+  is_essentially_blank: boolean
+  is_monochrome: boolean
+}
+
+type RenderSuccess = {
+  effect_id: string
+  status: "ok"
+  backend: string
+  frame: { image_uri: string | null, width: number, height: number }
+  metrics: ImageMetrics
+  console_errors?: string[]
+}
+
+type RenderFailure = {
+  effect_id?: string
+  status: "error"
+  backend?: "unknown" | string
+  error: string
+  console_errors?: string[]
+}
+```
+
+The sample stride is
+`max(1,floor(width*height/1000))`; every `stride`th pixel is sampled. Therefore
+sample count is `ceil(width*height/stride)` and can exceed 1000 (for the worked
+90×90 capture it is 1013). Colors are exact 8-bit RGB triplets; alpha is not
+part of color cardinality.
+
+Sources: Shade MCP `src/tools/browser/render.ts` —
+`renderEffectFrame()`; `src/harness/types.ts` — `ImageMetrics`, `RenderResult`.
+
+### Act
+
+Call the MCP verb documented in the tool section, or render through
+`CanvasRenderer`/`Pipeline` and read `pipeline.getOutput()` with backend
+readback. For deterministic MCP captures, omit `time`; the current tool pauses
+before waiting for warmup frames when `time` is present and can deadlock. See
+GAP-014.
+
+Uniform override keys are shader uniform names as consumed by
+`pipeline.setUniform`, not necessarily DSL global names. `resolution` changes
+the browser viewport; it does not guarantee the internal canvas dimensions,
+as shown by the worked call requesting 256×256 and capturing 90×90.
+
+Sources: Shade MCP `src/tools/browser/render.ts` — request handling;
+Noisemaker `shaders/src/runtime/pipeline.js` — `setUniform()`, `getOutput()`.
+
+### Validate
+
+The implemented predicates are exactly:
+
+```text
+is_all_zero         = mean_r === 0 && mean_g === 0 && mean_b === 0
+is_all_transparent  = mean_alpha < 0.01
+is_essentially_blank= luma_variance < 0.0001
+is_monochrome       = unique_sampled_colors <= 1
+```
+
+For an ordinary non-exempt effect, the repository harness requires:
+
+```text
+status === "ok"
+is_all_transparent === false
+is_essentially_blank === false
+is_monochrome === false
+console error count === 0
+```
+
+`is_essentially_blank` means low spatial luma variance, not black. A constant
+white image satisfies it. The harness exemptions are:
+
+- monochrome: `filter/a`, `filter/shape`, `filter/solid`, `synth/solid`.
+- low-luma-variance: `synth/solid`.
+- transparency: none.
+
+There is no implemented no-animation metric or pass threshold. There is no
+implemented low-variety threshold between one and many colors. Use of a made-up
+`unique_sampled_colors > N` gate would not be source-grounded. These are
+GAP-009.
+
+The separate filter modification tool uses `temporalDiff > 0.01` OR
+`uniqueColors > 5`, but that predicate says "modifies input" and cannot
+serve as a general animation/variety validator.
+
+The repository sustained benchmark gate uses median frame time after 20 warmup
+frames and 100 measured frames and fails when `fps < 30`; equivalently it passes
+when `fps >= 30`. The MCP benchmark instead passes when
+`fps >= target_fps`, where the default target is 60.
+
+Sources: Shade MCP `src/tools/browser/render.ts`, `passthrough.ts`,
+`benchmark.ts`; `shaders/tests/test-harness.js` — metric gates, exemptions, and
+sustained benchmark.
+
+### Diagnose
+
+In-page render failures are:
+
+```text
+No renderer
+Failed to read pixels
+```
+
+Outer browser/session failures use `{effect_id,status:"error",error:string}`.
+Captured console messages can appear as `console_errors`, but backend console
+diagnostics are strings rather than typed error objects.
+
+The current upstream `renderEffectFrame` reads only `pipeline.backend.gl` and
+therefore returns `Failed to read pixels` on WebGPU. Noisemaker's vendored test
+harness supplies its own WebGPU `backend.readPixels()` wrapper; that wrapper is
+not the MCP verb contract. See GAP-012.
+
+The shared/vendored image-metric helper uses a different "essentially blank"
+definition (dark mean plus quantized color cardinality) than the current MCP
+verb's luma-variance predicate. Consumers must use the verb implementation for
+the fields documented here. This implementation drift is GAP-015.
+
+Sources: Shade MCP `src/tools/browser/render.ts`; vendored
+`vendor/shade-mcp/harness/pixel-reader.js`; `shaders/tests/test-harness.js` —
+WebGPU render wrapper.
+
+<!-- SURFACE:PARITY -->
+## Cross-backend parity
+
+### Introspect
+
+Before rendering, inspect the manifest and `checkEffectStructure`:
+
+- every referenced program must have a GLSL `.glsl` or `.vert`/`.frag` entry;
+- every referenced program must have a same-stem WGSL `.wgsl` entry;
+- `structuralParityIssues` must be empty;
+- `compareShaders` exposes line counts, detected functions, and detected uniform
+  declarations, but does not establish semantic equivalence;
+- `checkAlgEquiv` is an optional AI judgment, not a numeric parity signal.
+
+Backend authorability from current source:
+
+| Feature | WebGL2 authoring | WebGPU authoring | Predictable parity status |
+|---|---|---|---|
+| fullscreen fragment | GLSL ES 3 combined fragment or split vertex/fragment | WGSL fragment, optional WGSL vertex | authorable when both sources/bindings implement same math |
+| MRT | multiple fragment outputs; device draw-buffer limit | multiple `@location` outputs/attachments | authorable within both devices' attachment limits |
+| points/billboards/triangles | draw modes supported | draw modes supported | authorable; coordinate/winding conventions still require pixel test |
+| compile-time define | GLSL `#define` | typed WGSL module `const` | authorable for boolean/numeric compatible uses |
+| native compute | absent | compute-only WGSL selected from `@compute` | impossible as native parity |
+| compute-style fallback | hand-authored GLSL fragment plus `storageTextures`/output mapping | native compute/storage | only authorable when the GLSL fragment explicitly reproduces the algorithm; no translation exists |
+| storage buffers | no equivalent binding path | parsed/bound by WebGPU | generally impossible parity without a different GLSL algorithm |
+| 3D sampling | supported | supported | authorable |
+| rendering directly to 3D texture | explicitly unsupported | storage/render workflows available | impossible direct parity; use a 2D atlas/common algorithm |
+
+There is no single capability-preflight API that consumes a definition and
+returns this determination. `pipeline.getCapabilities()` reports device limits,
+not effect authorability. See GAP-016.
+
+Sources: `shaders/src/renderer/canvas.js` — `loadEffectShaders()`;
+backend `compileProgram()`, `executePass()`, `createTexture3D()`;
+Shade MCP analysis tools.
+
+### Act
+
+Author same-stem shader programs and keep binding names/types aligned with the
+expanded pass. WebGL `compileProgram()` accepts `spec.source`, `spec.glsl`, or
+`spec.fragment`, plus optional `spec.vertex`. WebGPU accepts `spec.wgsl`, then
+generic non-GLSL `source`, then non-GLSL `fragment`. WebGPU detects entry points
+from annotations and uses `entryPoint`/specific entry-point fields where
+provided.
+
+Pixel parity request:
+
+```ts
+testPixelParity({
+  effect_id?: string,
+  effects?: string,  // CSV, not expanded glob syntax
+  epsilon?: number,  // default 1; no runtime range validation
+  seed?: number      // default 42
 })
-
-await renderer.loadManifest()
-const effects = extractEffectNamesFromDsl(DSL_PROGRAM, renderer.manifest || {})
-await renderer.loadEffects(effects.map((effect) => effect.effectId))
-await renderer.compile(DSL_PROGRAM)
-renderer.setLoopDuration(15)
-renderer.start()
 ```
 
-## Polymorphic DSL basics
+The tool selects WebGL2, waits for a noncompiling graph, warms six live frames,
+captures the offscreen render surface at time zero, then repeats under WebGPU.
+It writes the seed to pipeline/pass uniforms. WebGPU rows are vertically flipped
+to the same top-down orientation as WebGL before comparison.
 
-The DSL composes effects. It is not shader source.
+Sources: Shade MCP `src/tools/browser/parity.ts` — `testPixelParity()`,
+`captureSurface()`.
+
+### Validate
+
+For RGBA8 channel arrays of equal dimensions:
 
 ```text
-search synth, filter, mixer
-
-perlin(
-  scale: 100,
-  dimensions: 3,
-  ridges: true,
-  speed: 2
-)
-  .write(o0)
-
-read(o0)
-  .tetraColorArray(
-    colorCount: 3,
-    color0: #010000,
-    color1: #111111,
-    color2: #fd01c0,
-    color3: #fb31c9,
-    color4: #32ff03,
-    alpha: 0.46
-  )
-  .lighting(
-    normalStrength: 4.3,
-    smoothing: 1.4,
-    specularIntensity: 0.38,
-    shininess: 65,
-    reflection: 26,
-    refraction: 23.6,
-    aberration: 28.1
-  )
-  .focusBlur(
-    tex: read(o0),
-    focalDistance: 84.88,
-    aperture: 1,
-    sampleBias: 64
-  )
-  .write(o1)
-
-render(o1)
+channel_diff       = abs(webgl_channel - webgpu_channel)        // [0,255]
+channel_mismatch   = channel_diff > epsilon
+max_diff           = max(channel_diff)                           // [0,255]
+mean_diff          = sum(channel_diff) / channel_count           // [0,255]
+mismatch_count     = count(channel_mismatch)                      // [0,channel_count]
+mismatch_percent   = 100 * mismatch_count / channel_count        // [0,100]
+status             = "ok" iff mismatch_percent < 1
 ```
 
-Rules:
+The required literal contract marker is `mismatch_percent < 1`.
 
-- Start with `search` and include the namespaces you need.
-- Generator chains must eventually call `.write(surface)`.
-- Use `render(surface)` to choose the displayed surface.
-- Use `read(o0)` to read a previously written surface.
-- Enum values are unquoted DSL identifiers.
-- Colors use hex literals such as `#ff00c1`.
+Solid-color diagnostics compute raw 0–255 RGB population variance for each
+backend. A backend is solid when all three variances are `< 5`. Variances and
+means are rounded to integer arrays in output; the predicate uses unrounded
+values.
 
-Important namespaces:
-
-- `synth`: 2D generators.
-- `filter`: 2D single-input transforms.
-- `mixer`: two-input compositing and blend modes.
-- `points`: particle and agent simulation effects.
-- `render`: points, meshes, loops, 3D render helpers.
-- `synth3d`: volumetric generators.
-- `filter3d`: volumetric processors.
-- `user`: imported or custom effects.
-
-## Capability snapshot
-
-The shader catalog contains 185+ mapped effects and keeps growing. It covers filters, generators, mixers, point systems, render utilities, 3D generators and processors, media, audio, MIDI, text, geometry, and user or portable extension points.
-
-Common tags include color, noise, distortion, geometry, simulation, 3D, blending, edges, transform, utility, pattern, lens, blur, palette, fractal, glitch, pixel, text, tiling, agents, audio, MIDI, video, and image.
-
-## Pipeline
-
-Noisemaker transforms source text into GPU work in stages:
-
-1. Parse DSL into an AST.
-2. Analyze namespaces, variables, chains, effect lookup, arguments, and output writes.
-3. Expand logical effects into concrete render or compute passes.
-4. Build a render graph with explicit texture dependencies.
-5. Analyze resource lifetimes and allocate pooled physical textures.
-6. Execute the sorted pass list through WebGL2 or WebGPU.
-
-WebGPU uses native render and compute pipelines. WebGL2 uses render passes and GPGPU patterns for compute-style work where the effect contract can be represented safely.
-
-## Effect definitions
-
-Effects live under `shaders/effects/{namespace}/{effectName}/` in the source tree. A normal effect directory contains:
+Y-flip diagnostics compare normal mean absolute difference with a vertically
+flipped WebGPU comparison:
 
 ```text
-definition.js
-help.md
-glsl/{program}.glsl
-wgsl/{program}.wgsl
+y_flip_ratio = y_flip_mean_diff / mean_diff, or 1 when mean_diff === 0
+y_flip_detected = mean_diff > 2
+                  && y_flip_mean_diff < mean_diff
+                  && y_flip_ratio < 0.7
+y_flip_clean_flip = mean_diff > 2 && y_flip_ratio < 0.25
 ```
 
-Definitions declare:
+`epsilon` is described as 0–255 but Zod does not enforce that range. A strict
+caller must require `0 <= epsilon <= 255` and a finite value before calling.
 
-- `name`: display name.
-- `namespace`: effect group.
-- `func`: DSL function name.
-- `tags`: searchable effect categories.
-- `globals`: user-facing parameters and shader uniforms.
-- `textures`: internal render targets.
-- `passes`: render or compute passes, with input and output texture mappings.
+Sources: Shade MCP `src/tools/browser/parity.ts` — comparison, solid, and
+Y-flip predicates.
 
-Private textures should be declared inside the effect. Do not use `o0` through `o7` for private state inside effect definitions. Those surfaces belong to the user composition graph.
+### Diagnose
 
-## Extensibility and compatibility
+```ts
+type ParitySuccessOrMismatch = {
+  effect_id: string
+  status: "ok" | "mismatch"
+  maxDiff: number
+  meanDiff: number
+  mismatchCount: number
+  mismatchPercent: number
+  resolution: [number, number]
+  glslSolid: boolean
+  wgslSolid: boolean
+  glslVariance: [number, number, number]
+  wgslVariance: [number, number, number]
+  yFlipDetected: boolean
+  yFlipCleanFlip: boolean
+  yFlipMismatchPercent: number
+  yFlipMeanDiff: number
+  yFlipRatio: number
+  issues: string[]
+  details: string
+  console_errors?: string[]
+}
 
-- Use `registerNamespace(id, { description })` to introduce an external namespace accepted by DSL `search`.
-- Use `unregisterNamespace(id)` for test isolation or unloading a previously registered namespace.
-- Use the `user` namespace for imported or ad-hoc effects.
-- Use portable effects when packaging external work for Noisedeck and related apps.
-- Use CDN major, minor, or exact patch pins depending on how much release drift the app accepts.
-- Use vendored bundles when offline or self-hosted deployments matter.
+type ParityFailure = {
+  effect_id?: string
+  status: "error"
+  maxDiff?: 0
+  meanDiff?: 0
+  mismatchCount?: 0
+  mismatchPercent?: 0
+  resolution?: [number, number]
+  details?: string
+  error?: string
+  console_errors?: string[]
+}
+```
 
-## Ports and source adapters
+Enumerated in-tool error details are `Failed to capture WebGL2`, `Failed to
+capture WebGPU`, and
+`Capture size mismatch: glsl <w>x<h> vs wgsl <w>x<h>`. Compile/browser failures
+can instead use the outer `{effect_id,status:"error",error}` shape.
 
-- Unity / HLSL: `https://github.com/noisefactorllc/noisemaker-hlsl`
-- Blender: `https://github.com/noisefactorllc/noisemaker-blender`
-- Godot: `https://github.com/noisefactorllc/noisemaker-godot`
-- TouchDesigner: `https://github.com/noisefactorllc/noisemaker-td`
-- Three.js: `https://github.com/noisefactorllc/noisemaker-threejs`
-- Babylon.js: `https://github.com/noisefactorllc/noisemaker-babylonjs`
+Issues include `GLSL SOLID COLOR (mean=...)`, `WGSL SOLID COLOR (mean=...)`, and
+`Y-FLIP`/`PARTIAL Y-FLIP DETECTED (...)`. Solid-color and Y-flip issues do not
+change `status`; status depends only on mismatch percentage. A strict gate must
+also assert both solid flags false and `yFlipDetected === false` unless the
+effect is intentionally solid.
 
-Use these when a Noisemaker program needs to travel outside the reference browser renderer.
+Backend compilation failures:
 
-## Agent workflow
+```ts
+// Shared pipeline
+{ code: "ERR_PROGRAM_SPEC_MISSING", program: string, pass: string }
 
-Use `shade-mcp` when developing or inspecting shader effects:
+// WebGL2
+Error("Shader source missing for program '<id>'. You may need to regenerate the shader manifest.")
+{ code: "ERR_SHADER_COMPILE", detail: string, source: string }
+{ code: "ERR_SHADER_LINK", detail: string, program: string }
+{ code: "ERR_UNIFORM_BLOCK_TOO_LARGE", detail: string, program: WebGLProgram }
+{ code: "ERR_PROGRAM_NOT_FOUND", pass: string, program: string }
+{ code: "ERR_TOO_MANY_TEXTURES", pass: string, limit: number }
 
-- `searchEffects`: find effects by concept, tag, algorithm, or visual style.
-- `analyzeEffect`: inspect definition, shader source, uniforms, and passes.
-- `searchShaderSource`: regex search across GLSL source.
-- `searchShaderKnowledge`: search curated DSL, GLSL, patterns, and error knowledge.
-- `compileEffect`: compile one or many effects.
-- `renderEffectFrame`: render a frame and compute metrics.
-- `runDslProgram`: compile and execute arbitrary DSL.
-- `testUniformResponsiveness`: verify parameter changes affect output.
-- `testNoPassthrough`: verify filters modify input.
-- `testPixelParity`: compare WebGL2 and WebGPU output.
-- `checkEffectStructure`: inspect definitions, references, names, parity, and unused files.
-- `generateManifest`: rebuild the effects manifest after effect changes.
+// WebGPU
+{ code: "ERR_NO_WGSL_SOURCE", detail: string, program: string }
+{ code: "ERR_SHADER_COMPILE", detail: string, program: string }
+{ code: "ERR_PROGRAM_NOT_FOUND", pass: string, program: string }
+{ code: "ERR_TEXTURE_NOT_FOUND", pass: string, texture: string }
+{ code: "ERR_NO_MRT_OUTPUTS", pass: string }
+{ code: "ERR_COMPUTE_DISPATCH_UNRESOLVED", pass: string, detail: string }
+```
 
-Use `portable` when building self-contained effects for import into Noisedeck and related tools. Portable effects include `definition.json`, `help.md`, GLSL, WGSL, and a viewer. Portable effects normally register in the `user` namespace.
+Sources: backend compile/execute methods; Shade MCP
+`src/tools/browser/parity.ts`.
 
-## Validation expectations
+<!-- SURFACE:MCP -->
+## Shade MCP tool contracts
 
-For generated shader work:
+### Introspect
 
-- Compile the effect or DSL program.
-- Render at least one frame.
-- Check for blank output, monochrome output, missing animation, and low color variety.
-- Test uniforms when the effect exposes parameters.
-- Check WebGL2/WebGPU parity when both shaders are present.
-- Inspect console errors.
-- Do not disable tests or remove diagnostics to make a result appear valid.
+Use MCP `initialize`, send `notifications/initialized`, then call `tools/list`.
+For the snapshot at the top of this document, `tools/list` returned the 18 verb
+names documented below. The transport result for every verb is:
 
-## Common confusions
+```ts
+type McpTextResult = {
+  content: Array<{ type: "text", text: string /* JSON.stringify(payload) */ }>
+}
+```
 
-- DSL is not GLSL or WGSL.
-- `synth/noise` is an effect path, not a DSL function call.
-- `noise()` is a DSL function, not a file path.
-- Shader code belongs in GLSL or WGSL files, not inside DSL.
-- User-created or portable effects usually require `search user`.
-- Points effects need the render namespace helpers that create and render agent state.
+Decode `JSON.parse(result.content.find(x => x.type === "text").text)` before
+applying the payload types below. These tools do not declare MCP structured
+content/output schemas; JSON is carried as text.
 
-## Related projects
+The repository config supplies:
 
-- Noisedeck: realtime shader art and live visuals.
-- Layers: image and video editor using Noisemaker effects.
-- Foundry: shader effect authoring and hot reload.
-- Polymorphic: live coding and high-level composition.
-- Shade: AI-native shader editing.
-- Visualize: audio-reactive visual generation.
-- Photobox: image treatment and generative photo workflows.
-- Glitcher: glitch, distortion, and texture work.
-- Noodles: node-based composition experiments.
-- shade-mcp: MCP server for agent validation and shader knowledge.
-- portable: portable effect package format.
+```text
+SHADE_EFFECTS_DIR=./shaders/effects
+SHADE_VIEWER_ROOT=.
+SHADE_VIEWER_PATH=/demo/shaders/
+SHADE_GLOBALS_PREFIX=__noisemaker
+```
+
+Sources: `.mcp.json`; `.codex/config.toml`; Shade MCP `src/index.ts` — all
+registration calls; `src/config.ts`.
+
+### Act
+
+Shared input and batch behavior:
+
+```ts
+type EffectSelector = {
+  effect_id?: string
+  effects?: string // comma-separated IDs; takes precedence over effect_id
+}
+
+type BrowserSelector = EffectSelector & {
+  backend?: "webgl2" | "webgpu" // defaults to webgl2 where present
+}
+
+type Batched<T> = T | T[] // object for exactly one selected ID, array otherwise
+type OuterEffectError = { effect_id: string, status: "error", error: string }
+```
+
+`effects` is split on commas and trimmed. Despite some tool descriptions, it is
+not glob-expanded. With neither selector, `resolveEffectIds()` scans
+`SHADE_EFFECTS_DIR`: one discovered effect is selected, multiple effects cause
+an error, and a flat effect directory uses its basename. See GAP-018.
+
+No numeric schema below uses Zod `.int()`, `.finite()`, `.min()`, `.max()`, or a
+positive-resolution refinement unless explicitly stated. Descriptive ranges
+are not validation.
+
+#### compileEffect
+
+```ts
+type CompileEffectInput = EffectSelector & {
+  backend?: "webgl2" | "webgpu" // default webgl2
+}
+
+type CompileEffectResult = Batched<
+  | { effect_id: string, status: "ok" | "error", backend: string,
+      passes: Array<{ id: string, status: "ok" | "error",
+                      errors?: string[] }>,
+      message: string, console_errors?: string[] }
+  | OuterEffectError
+>
+```
+
+The tool selects the effect and polls status text for up to 300000 ms. On
+success it projects expanded passes to `{id:p.name || "pass_<index>",status}`;
+expanded passes normally have no `name`, so `pass_<index>` is expected. Success
+message is `Compiled successfully`; timeout message is `Compile timeout`.
+
+The status text can still describe the previous effect immediately after the
+selection event. Unlike `testPixelParity`, this tool does not wait for
+`pipeline.isCompiling === false` and a nonempty current graph. Its returned
+passes can therefore belong to the previous graph while status is `ok`. Do not
+accept the pass list unless an independent current-effect/graph identity check
+agrees. This is GAP-024.
+
+Source: Shade MCP `src/tools/browser/compile.ts` — `compileEffectSchema`,
+`compileEffect()`.
+
+#### renderEffectFrame
+
+```ts
+type RenderEffectFrameInput = BrowserSelector & {
+  warmup_frames?: number                 // default 10
+  capture_image?: boolean                // default false
+  uniforms?: Record<string, number>
+  time?: number                          // seconds; current deadlock risk
+  resolution?: [number, number]
+}
+
+type RenderEffectFrameResult = Batched<RenderSuccess | RenderFailure>
+```
+
+Metric definitions, ranges, and thresholds are in Rendered output. A captured
+image is a `data:image/png;base64,...` URI; otherwise `image_uri` is null.
+
+Source: Shade MCP `src/tools/browser/render.ts` —
+`renderEffectFrameSchema`, `renderEffectFrame()`.
+
+#### describeEffectFrame
+
+```ts
+type DescribeEffectFrameInput = EffectSelector & {
+  prompt: string
+  backend?: "webgl2" | "webgpu" // default webgl2
+}
+
+type DescribeEffectFrameResult = Batched<
+  | { effect_id: string, status: "ok",
+      frame: { image_uri: string },
+      vision: JsonValue | null }
+  | { effect_id: string, status: "error", error: string }
+>
+```
+
+The intended AI JSON is `{description,tags,notes}`, but successful `JSON.parse`
+output is not schema-checked and can be any `JsonValue`. If parsing throws, the
+fallback is `{description:<raw text>,tags:[],notes:null}`. Failure strings
+include the common no-key message and `Failed to render frame`.
+
+Source: Shade MCP `src/tools/browser/describe.ts` — schema and
+`describeEffectFrame()`; `src/ai/provider.ts` — provider/no-key behavior.
+
+#### benchmarkEffectFPS
+
+```ts
+type BenchmarkEffectFPSInput = BrowserSelector & {
+  target_fps?: number       // default 60
+  duration_seconds?: number // default 5
+  resolution?: [number, number]
+}
+
+type BenchmarkEffectFPSResult = Batched<
+  | { effect_id: string, status: "ok", backend: string,
+      achieved_fps: number,
+      meets_target: boolean,
+      stats: {
+        frame_count: number,
+        avg_frame_time_ms: number,
+        jitter_ms: number,
+        min_frame_time_ms: number,
+        max_frame_time_ms: number
+      }, console_errors?: string[] }
+  | OuterEffectError
+>
+```
+
+`achieved_fps = frame_count/(sum(frame_times_ms)/1000)` and
+`meets_target = achieved_fps >= target_fps`; the literal contract marker is
+`fps >= target_fps`. Jitter is sample standard deviation with divisor
+`frame_count-1`, or zero for at most one frame. Reported values are rounded to
+two decimals. Tool status remains `ok` when `meets_target` is false; callers
+must inspect the boolean.
+
+Source: Shade MCP `src/tools/browser/benchmark.ts` — schema and
+`benchmarkEffectFPS()`.
+
+#### testUniformResponsiveness
+
+```ts
+type TestUniformResponsivenessInput = BrowserSelector
+type TestUniformResponsivenessResult = Batched<
+  | ({ effect_id: string } & UniformResponsiveness)
+  | OuterEffectError
+>
+```
+
+The test set, perturbation rule, `luma_delta > 0.002` and
+`max_channel_delta > 0.002` thresholds, and overall-status weakness are in
+Parameters and globals.
+
+Source: Shade MCP `src/tools/browser/uniforms.ts` — schema and
+`testUniformResponsiveness()`.
+
+#### testNoPassthrough
+
+```ts
+type TestNoPassthroughInput = BrowserSelector
+
+type TestNoPassthroughResult = Batched<
+  | { effect_id: string, status: "ok" | "passthrough",
+      isFilterEffect: true,
+      temporalDiff: number,       // normalized [0,1]
+      uniqueColors: number,
+      details: "Effect modifies input" |
+               "Effect may be passing through unchanged",
+      console_errors?: string[] }
+  | { effect_id: string, status: "skipped" | "error",
+      isFilterEffect: false, similarity: null, details: string,
+      console_errors?: string[] }
+  | OuterEffectError
+>
+```
+
+The tool classifies an effect as a filter only when an expanded pass input value
+contains the substring `input`. It captures WebGL frames at render times 0 and
+1, samples with the same approximately-1000-pixel stride, and computes average
+absolute RGB channel difference divided by 255. It returns `ok` when
+`temporalDiff > 0.01` OR `uniqueColors > 5`. These are the literal returned
+metric names. Nonfilters return `Not a filter effect`.
+In-page failures include `No effect loaded` and `No GL context`.
+
+This test does not compare output to input; it compares output at two times and
+color cardinality. A static varied passthrough can pass. See GAP-019.
+
+Source: Shade MCP `src/tools/browser/passthrough.ts` — schema and
+`testNoPassthrough()`.
+
+#### testPixelParity
+
+```ts
+type TestPixelParityInput = EffectSelector & {
+  epsilon?: number // default 1, described 0..255 but not range-checked
+  seed?: number    // default 42
+}
+
+type TestPixelParityResult = Batched<
+  ParitySuccessOrMismatch | ParityFailure | OuterEffectError
+>
+```
+
+All output fields and predicates are in Cross-backend parity.
+
+Source: Shade MCP `src/tools/browser/parity.ts` — schema and
+`testPixelParity()`.
+
+#### runDslProgram
+
+```ts
+type RunDslProgramInput = {
+  dsl: string
+  backend?: "webgl2" | "webgpu" // default webgl2
+  warmup_frames?: number         // default 10
+  capture_image?: boolean        // default false
+  uniforms?: Record<string, number>
+}
+
+type RunDslProgramResult =
+  | { status: "ok", backend: string,
+      frame: { width: number, height: number, image_uri: string | null },
+      metrics: {
+        mean_rgb: Vec3,
+        unique_sampled_colors: number,
+        is_all_zero: boolean,
+        is_monochrome: boolean
+      }, console_errors?: string[] }
+  | { status: "error", error: string, console_errors?: string[] }
+```
+
+Compilation attempts the page editor/run button, then renderer `compile()`, and
+polls for up to 300000 ms. Enumerated messages are `No DSL editor or renderer
+found`, `Compile timeout`, `No renderer`, and `No GL context`, plus page status
+or thrown compiler text. It directly requires `pipeline.backend.gl`, so a
+WebGPU request cannot reach success. It does not return alpha, standard
+deviation, luma variance, transparency, or low-luma-variance metrics.
+
+Source: Shade MCP `src/tools/browser/dsl.ts` — schema and `runDslProgram()`.
+
+#### checkEffectStructure
+
+```ts
+type CheckEffectStructureInput = { effect_id: string }
+
+type CheckEffectStructureResult =
+  | { status: "ok" | "warning",
+      unusedFiles: string[],
+      namingIssues: Array<{ type: "func" | "global", name: string,
+                            reason: "Must be camelCase" }>,
+      nameCollisions: Array<{
+        type: "uniform_function" | "reserved_word" | "builtin_shadow",
+        name: string, file: string, message: string
+      }>,
+      leakedInternalUniforms: string[],
+      missingDescription: boolean,
+      structuralParityIssues: Array<{
+        type: "missing_wgsl" | "missing_glsl", program: string, message: string
+      }>,
+      requiredUniformIssues: unknown[],
+      multiPass: boolean,
+      passCount: number }
+  | { status: "error", error: string }
+```
+
+Status is warning when any unused file, naming issue, name collision, leaked
+internal uniform, missing description, or structural parity issue exists.
+`requiredUniformIssues` is initialized but never populated or included in the
+status predicate. Pass `name` values are not checked. GLSL reserved/builtin
+collision checks use regex-extracted declarations.
+
+Source: Shade MCP `src/tools/analysis/structure.ts` —
+`checkEffectStructure()`.
+
+#### checkAlgEquiv
+
+```ts
+type CheckAlgEquivInput = { effect_id: string }
+
+type CheckAlgEquivResult =
+  | { status: "ok" | "divergent",
+      pairs: Array<{
+        program: string,
+        parity: "equivalent" | "divergent" | "error" | string,
+        confidence?: "high" | "medium" | "low" | string,
+        notes?: string,
+        concerns?: string[],
+        [key: string]: unknown
+      }>,
+      unmatchedGlsl?: string[],
+      unmatchedWgsl?: string[],
+      summary: string }
+  | { status: "error", error: string }
+```
+
+Only same-stem `.glsl` and `.wgsl` files are paired; split `.vert`/`.frag` files
+are ignored. AI JSON is not schema-validated. Overall divergence counts only
+entries whose `parity` is exactly `divergent`; AI parse/error entries can leave
+overall status `ok`. Errors include the no-key message, `Missing glsl/ or wgsl/
+directory`, and `No matching GLSL/WGSL pairs found`.
+
+Source: Shade MCP `src/tools/analysis/alg-equiv.ts` — `checkAlgEquiv()`.
+
+#### compareShaders
+
+```ts
+type CompareShadersInput = { effect_id: string }
+
+type ShaderStructure = {
+  lines: number
+  functions: string[]
+  uniforms: string[]
+}
+
+type CompareShadersResult = {
+  status: "ok"
+  programs: Array<
+    | { program: string, glsl: ShaderStructure, wgsl: ShaderStructure,
+        lineDiff: number, functionCountDiff: number }
+    | { program: string, glsl: ShaderStructure | null,
+        wgsl: ShaderStructure | null,
+        note: "No WGSL counterpart" | "No GLSL counterpart" }
+  >
+  summary: string
+}
+```
+
+Only `.glsl` and `.wgsl` files are scanned. Function/uniform detection uses
+regex after comment stripping. This tool always returns status `ok`, including
+missing counterparts; inspect `note` and null sides.
+
+Source: Shade MCP `src/tools/analysis/compare.ts` — extractors and
+`compareShaders()`.
+
+#### analyzeBranching
+
+```ts
+type AnalyzeBranchingInput = {
+  effect_id: string
+  backend?: "webgl2" | "webgpu" // default webgl2
+}
+
+type AnalyzeBranchingResult =
+  | ({ status: JsonValue } & Record<string, JsonValue>)
+  | { status: "error", error: string }
+```
+
+GLSL mode reads `.glsl`; WebGPU reads `.wgsl`. AI output is not schema-
+validated. The handler first computes `warning` when the sum of all returned
+opportunity-array lengths is at least two and `ok` otherwise, irrespective of
+severity. It then spreads parsed AI JSON after that field. An AI object with a
+`status` member therefore overwrites the computed value with any JSON value;
+callers must validate `shaders` themselves and recompute the opportunity count.
+This is GAP-025. Errors before the AI call use `status:"error"` and include no
+AI key, missing shader directory, and no shader files.
+
+Source: Shade MCP `src/tools/analysis/branching.ts` —
+`analyzeBranching()`.
+
+#### searchEffects
+
+```ts
+type SearchEffectsInput = { query: string, limit?: number /* default 10 */ }
+type SearchEffectsResult = {
+  query: string
+  results: Array<{ id: string, description: string,
+                   tags: string[], score: number }>
+  total: number
+}
+```
+
+The query is lowercased, synonym-expanded, and whitespace-tokenized. Score is
+an unbounded additive relevance number: full ID substring +20; per keyword ID
++8, name +15, description +5, tag +8, namespace +12. Only positive scores are
+returned, descending, sliced to `limit`.
+
+Source: Shade MCP `src/tools/knowledge/search-effects.ts`;
+`src/knowledge/effect-index.ts` — `search()`.
+
+#### analyzeEffect
+
+```ts
+type AnalyzeEffectInput = { effect_id: string }
+type AnalyzeEffectResult =
+  | { effectId: string, name?: string, description?: string,
+      namespace?: string, tags: string[],
+      globals: Record<string, unknown>, passes: Array<Record<string, unknown>>,
+      format: "js" | "json",
+      shaders: Record<`glsl/${string}.glsl` | `wgsl/${string}.wgsl`, string> }
+  | { error: string }
+```
+
+For `definition.js`, Shade uses a regex/balanced-brace projection rather than
+importing the live class. It extracts only globals that contain a `uniform`, a
+limited set of scalar fields, and pass `program` names; it does not reproduce
+the full Noisemaker definition. Shader reads ignore split `.vert`/`.frag` files.
+Use this tool for discovery, not full definition introspection. See GAP-017.
+
+Source: Shade MCP `src/tools/knowledge/analyze-effect.ts`;
+`src/formats/definition-js.ts` — `parseDefinitionJs()`.
+
+#### searchShaderSource
+
+```ts
+type SearchShaderSourceInput = {
+  query: string
+  context_lines?: number // default 5
+  limit?: number         // default 10
+}
+type SearchShaderSourceResult = {
+  query: string
+  matchCount: number
+  results: Array<{
+    effectId: string, file: string, lineNumber: number,
+    matchLine: string, context: string
+  }>
+}
+```
+
+Only `.glsl` files are indexed. `query` is compiled case-insensitively as a
+regular expression; invalid regex syntax is escaped and treated literally.
+Context line numbers are one-based. After a match, nearby lines equal to the
+context window are skipped.
+
+Source: Shade MCP `src/tools/knowledge/search-source.ts`;
+`src/knowledge/glsl-index.ts` — `search()`.
+
+#### searchShaderKnowledge
+
+```ts
+type SearchShaderKnowledgeInput = {
+  query: string
+  category?: string
+  limit?: number // default 5
+}
+type SearchShaderKnowledgeResult = {
+  query: string
+  category: string
+  matchCount: number
+  databaseStats: {
+    totalDocuments: number, totalTerms: number, indexed: boolean,
+    categories: Record<string, number>
+  }
+  results: Array<{
+    title: string, category: string, score: number,
+    snippet: string, tags?: string[], content?: string
+  }>
+}
+```
+
+Search uses synonym expansion and TF-IDF cosine similarity. Returned score is
+rounded to three decimals and must be at least `0.05`; cosine similarity is in
+`[0,1]`. Full `content` is included only for the first three results.
+
+Source: Shade MCP `src/tools/knowledge/search-knowledge.ts`;
+`src/knowledge/vector-db.ts` — `search()`, `getStats()`.
+
+#### listEffects
+
+```ts
+type ListEffectsInput = { namespace?: string }
+type ListEffectsResult = {
+  namespace: string
+  count: number
+  effects: Array<{
+    id: string, name: string | undefined, description: string,
+    tags: string[], passes: number
+  }>
+}
+```
+
+Without a filter, `namespace` in output is `all`. The list uses Shade's lossy
+definition projection; pass counts and names reflect that parser, not imported
+Noisemaker class instances.
+
+Source: Shade MCP `src/tools/utility/list-effects.ts`;
+`src/knowledge/effect-index.ts` — `list()`.
+
+#### generateManifest
+
+```ts
+type GenerateManifestInput = Record<string, unknown> // schema has no properties and no additionalProperties:false; handler ignores args
+type GenerateManifestResult =
+  | { status: "ok", path: string, effectCount: number }
+  | { error: string }
+```
+
+This verb writes `<SHADE_EFFECTS_DIR>/manifest.json` immediately with compact,
+sorted JSON. It scans definition source with regexes for description, external
+texture/mesh, tags, surface globals, and starter heuristics, and scans shader
+files. It is state-changing; do not call during read-only introspection. The
+only explicit error is `Effects directory not found: <path>`; filesystem write
+exceptions escape the handler.
+
+Source: Shade MCP `src/tools/utility/generate-manifest.ts` —
+`registerGenerateManifest()`.
+
+### Validate
+
+A tool call is protocol-valid when the MCP result is not an MCP `error` and its
+text content parses as JSON. That is not domain success. Apply the verb-specific
+predicate:
+
+| Verb | Domain pass predicate |
+|---|---|
+| `compileEffect` | every result `status === "ok"` and every pass status `ok` |
+| `renderEffectFrame` | status `ok`, then output metrics/harness exemptions |
+| `describeEffectFrame` | status `ok` and required application-specific vision fields present |
+| `benchmarkEffectFPS` | status `ok` and `meets_target === true` |
+| `testUniformResponsiveness` | status `ok` and every entry ends `:pass` |
+| `testNoPassthrough` | `ok`, or `skipped` only for a confirmed nonfilter |
+| `testPixelParity` | status `ok`, no disallowed solid/Y-flip flags |
+| `runDslProgram` | status `ok`, then its limited metrics pass |
+| `checkEffectStructure` | status `ok` and all issue arrays empty |
+| `checkAlgEquiv` | status `ok`, every pair exactly `equivalent`, no unmatched lists |
+| `compareShaders` | both sides non-null and no `note` for every program |
+| `analyzeBranching` | validate AI JSON, then recompute opportunity count; `>=2` maps to the tool's intended warning, because returned status is overwritable (GAP-025) |
+| search/list/analyze | requested record present; these have no success status |
+| `generateManifest` | status `ok`, then independently inspect the written diff |
+
+Batch callers must validate every array member. Never treat transport success,
+outer `status:"ok"`, or a nonempty result as universal validation.
+
+### Diagnose
+
+Selector/scan failures thrown before per-effect loops include:
+
+```text
+Effects directory not found: <dir>. Specify effect_id or set SHADE_EFFECTS_DIR.
+Failed to scan effects directory: <dir>
+No effects found in <dir>. Specify effect_id.
+Multiple effects found (<n>). Please specify effect_id or effects parameter. Available: ...
+```
+
+Browser tools usually catch per-effect exceptions as
+`OuterEffectError`. Analysis/knowledge tools use several incompatible forms:
+`{status:"error",error}`, `{error}`, or unconditional `status:"ok"` plus notes.
+No shared machine-readable failure union is declared by the MCP server. See
+GAP-020.
+
+AI-dependent tools use this exact no-key message:
+
+```text
+No AI API key found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY, or create .anthropic/.openai file in project root.
+```
+
+Browser results can append `console_errors:string[]` through
+`runWithConsoleCapture`, but field presence depends on the wrapper/result and
+the messages are not categorized. Tool-specific failures are enumerated under
+each verb above.
+
+For `compileEffect`, `renderEffectFrame`, `describeEffectFrame`,
+`benchmarkEffectFPS`, `testUniformResponsiveness`, `testNoPassthrough`, and
+`runDslProgram`, a domain-shaped `ok` response can still be stale. Six wait on
+status text directly; `describeEffectFrame` delegates to `renderEffectFrame`.
+No returned field identifies that failure, so graph/effect identity
+disagreement must be diagnosed outside the returned contract. This is
+GAP-024. `testPixelParity` uses the current `pipeline.isCompiling` signal and
+does not share this specific race.
+
+Sources: Shade MCP `src/tools/resolve-effects.ts`; all tool registration files;
+`src/ai/provider.ts` — `NO_AI_KEY_MESSAGE`;
+`src/harness/browser-session.ts` — console capture.
+
+## Fully worked, source-complete, validated effect
+
+This instance is the repository's `synth/testPattern` effect. The three source
+blocks below are complete, not excerpts. The MCP evidence was captured against
+Noisemaker commit `755071128ba6112753b9e976dc0ebbb8e55449b5` and Shade MCP
+commit `7fd0d9758e64ec587950a49496b31eb59ae17857`. MCP request JSON is shown in
+wire order. Each response is the JSON value decoded from the server's
+`content[0].text` field.
+
+### Authoring inputs
+
+<!-- WORKED:DEFINITION -->
+
+`shaders/effects/synth/testPattern/definition.js`:
+
+```js
+import { Effect } from '../../../src/runtime/effect.js'
+
+export default new Effect({
+  name: "Test Pattern",
+  namespace: "synth",
+  func: "testPattern",
+  tags: ["util"],
+
+  description: "Test patterns for debugging and calibration",
+  globals: {
+    pattern: {
+      type: "int",
+      default: 0,
+      uniform: "pattern",
+      choices: { checkerboard: 0, colorBars: 1, gradient: 2, uvMap: 3, gridLines: 4, colorGrid: 5, dotGrid: 6 },
+      ui: { label: "pattern", control: "dropdown" }
+    },
+    gridSize: {
+      type: "int",
+      default: 4,
+      min: 1,
+      max: 16,
+      uniform: "gridSize",
+      ui: {
+        label: "grid size",
+        control: "slider",
+        enabledBy: { param: "pattern", in: [0, 4, 5, 6] }
+      }
+    }
+  },
+  passes: [
+    {
+      name: "main",
+      program: "testPattern",
+      inputs: {},
+      outputs: {
+        color: "outputTex"
+      }
+    }
+  ]
+})
+```
+
+<!-- WORKED:GLSL -->
+
+`shaders/effects/synth/testPattern/glsl/testPattern.glsl`:
+
+```glsl
+#version 300 es
+precision highp float;
+
+uniform vec2 resolution;
+uniform vec2 tileOffset;
+uniform vec2 fullResolution;
+uniform int gridSize;
+uniform int pattern;
+
+out vec4 fragColor;
+
+// 3x5 pixel font for digits 0-9
+// Each digit is encoded as 15 bits (3 columns x 5 rows, row-major)
+const int GLYPH[10] = int[10](
+    0x7B6F,  // 0: 111 101 101 101 111
+    0x2492,  // 1: 010 010 010 010 010
+    0x73E7,  // 2: 111 001 111 100 111
+    0x72CF,  // 3: 111 001 011 001 111
+    0x5BC9,  // 4: 101 101 111 001 001
+    0x79CF,  // 5: 111 100 111 001 111
+    0x79EF,  // 6: 111 100 111 101 111
+    0x7249,  // 7: 111 001 001 001 001
+    0x7BEF,  // 8: 111 101 111 101 111
+    0x7BCF   // 9: 111 101 111 001 111
+);
+
+// Sample a glyph at local coordinates (0-2, 0-4)
+bool sampleGlyph(int digit, int x, int y) {
+    if (digit < 0 || digit > 9 || x < 0 || x > 2 || y < 0 || y > 4) return false;
+    int bitIndex = y * 3 + (2 - x);  // row-major, top-left origin
+    return ((GLYPH[digit] >> bitIndex) & 1) == 1;
+}
+
+// Render a number at a position within a cell
+bool renderNumber(int number, vec2 cellUV) {
+    // Determine how many digits we need
+    int numDigits = 1;
+    if (number >= 10) numDigits = 2;
+    if (number >= 100) numDigits = 3;
+
+    // Glyph dimensions in UV space (centered, cell-local)
+    float glyphWidth = 0.15;
+    float glyphHeight = 0.35;
+    float spacing = 0.05;
+
+    float totalWidth = float(numDigits) * glyphWidth + float(numDigits - 1) * spacing;
+    float startX = 0.5 - totalWidth * 0.5;
+    float startY = 0.5 - glyphHeight * 0.5;
+
+    // Check if we're in the vertical range for glyphs
+    if (cellUV.y < startY || cellUV.y >= startY + glyphHeight) return false;
+
+    // Extract digits (right to left)
+    int digits[3];
+    int temp = number;
+    for (int i = 0; i < 3; i++) {
+        digits[i] = temp % 10;
+        temp /= 10;
+    }
+
+    // Check each digit position (left to right)
+    for (int d = 0; d < numDigits; d++) {
+        float digitX = startX + float(d) * (glyphWidth + spacing);
+
+        if (cellUV.x >= digitX && cellUV.x < digitX + glyphWidth) {
+            // We're in this digit's horizontal range
+            float localX = (cellUV.x - digitX) / glyphWidth;
+            float localY = (cellUV.y - startY) / glyphHeight;
+
+            // Map to 3x5 grid
+            int gx = int(localX * 3.0);
+            int gy = int(localY * 5.0);
+
+            // Get the correct digit (numDigits-1-d because digits[] is reversed)
+            int digit = digits[numDigits - 1 - d];
+
+            return sampleGlyph(digit, gx, gy);
+        }
+    }
+
+    return false;
+}
+
+// Pattern 0: Numbered checkerboard
+vec4 checkerboard(vec2 uv) {
+    int n = max(gridSize, 1);
+    int cellX = int(uv.x * float(n)) % n;
+    int cellY = int(uv.y * float(n)) % n;
+
+    int cellNum = (n - 1 - cellY) * n + cellX;
+
+    bool isWhiteCell = ((cellX + cellY) % 2) == 0;
+
+    vec2 cellUV = fract(uv * float(n));
+
+    bool isGlyph = renderNumber(cellNum, cellUV);
+
+    float cellColor = isWhiteCell ? 1.0 : 0.0;
+    float glyphColor = isWhiteCell ? 0.0 : 1.0;
+    float finalColor = isGlyph ? glyphColor : cellColor;
+
+    return vec4(vec3(finalColor), 1.0);
+}
+
+// Pattern 1: 8 vertical SMPTE-style color bars
+vec4 colorBars(vec2 uv) {
+    int bar = int(uv.x * 8.0);
+    bar = clamp(bar, 0, 7);
+
+    // white, yellow, cyan, green, magenta, red, blue, black
+    vec3 colors[8] = vec3[8](
+        vec3(1.0, 1.0, 1.0),
+        vec3(1.0, 1.0, 0.0),
+        vec3(0.0, 1.0, 1.0),
+        vec3(0.0, 1.0, 0.0),
+        vec3(1.0, 0.0, 1.0),
+        vec3(1.0, 0.0, 0.0),
+        vec3(0.0, 0.0, 1.0),
+        vec3(0.0, 0.0, 0.0)
+    );
+
+    return vec4(colors[bar], 1.0);
+}
+
+// Pattern 2: Horizontal black-to-white gradient ramp
+vec4 gradient(vec2 uv) {
+    return vec4(vec3(uv.x), 1.0);
+}
+
+// Pattern 3: UV map (R=u, G=v, B=0)
+vec4 uvMap(vec2 uv) {
+    return vec4(uv.x, uv.y, 0.0, 1.0);
+}
+
+// Pattern 4: Thin white grid lines on black
+vec4 gridLines(vec2 uv) {
+    int n = max(gridSize, 1);
+    vec2 cellUV = fract(uv * float(n));
+    vec2 edge = min(cellUV, 1.0 - cellUV);
+
+    // Use direct calculation instead of fwidth() for tile-aware rendering.
+    // This maintains the same line thickness in normal rendering while ensuring
+    // continuity across tile boundaries during large-format print export.
+    vec2 fw = vec2(1.0) / fullResolution * float(n);
+
+    float line = 1.0 - smoothstep(0.0, 2.0 * fw.x, edge.x) * smoothstep(0.0, 2.0 * fw.y, edge.y);
+    return vec4(vec3(line), 1.0);
+}
+
+// HSV to RGB (hue only, full saturation & value)
+vec3 hue2rgb(float h) {
+    float r = abs(h * 6.0 - 3.0) - 1.0;
+    float g = 2.0 - abs(h * 6.0 - 2.0);
+    float b = 2.0 - abs(h * 6.0 - 4.0);
+    return clamp(vec3(r, g, b), 0.0, 1.0);
+}
+
+// Pattern 5: Each cell gets a unique hue
+vec4 colorGrid(vec2 uv) {
+    int n = max(gridSize, 1);
+    int cellX = int(uv.x * float(n)) % n;
+    int cellY = int(uv.y * float(n)) % n;
+    int cellIndex = cellY * n + cellX;
+    float hue = fract(float(cellIndex) * 0.618033988749895);
+    return vec4(hue2rgb(hue), 1.0);
+}
+
+// Pattern 6: Filled circle at each grid intersection
+vec4 dotGrid(vec2 uv) {
+    int n = max(gridSize, 1);
+    vec2 scaled = uv * float(n);
+    vec2 nearest = round(scaled);
+    float dist = length(scaled - nearest);
+    float dot = 1.0 - smoothstep(0.12, 0.15, dist);
+    return vec4(vec3(dot), 1.0);
+}
+
+void main() {
+    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
+    vec2 uv = globalCoord / fullResolution;
+
+    if (pattern == 1) {
+        fragColor = colorBars(uv);
+    } else if (pattern == 2) {
+        fragColor = gradient(uv);
+    } else if (pattern == 3) {
+        fragColor = uvMap(uv);
+    } else if (pattern == 4) {
+        fragColor = gridLines(uv);
+    } else if (pattern == 5) {
+        fragColor = colorGrid(uv);
+    } else if (pattern == 6) {
+        fragColor = dotGrid(uv);
+    } else {
+        fragColor = checkerboard(uv);
+    }
+}
+```
+
+<!-- WORKED:WGSL -->
+
+`shaders/effects/synth/testPattern/wgsl/testPattern.wgsl`:
+
+```wgsl
+// WGSL version – WebGPU
+
+struct Uniforms {
+    resolution: vec2f,
+    gridSize: i32,
+    pattern: i32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
+}
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+
+// 3x5 pixel font for digits 0-9
+// Each digit is encoded as 15 bits (3 columns x 5 rows, row-major)
+const GLYPH = array<i32, 10>(
+    0x7B6F,  // 0: 111 101 101 101 111
+    0x2492,  // 1: 010 010 010 010 010
+    0x73E7,  // 2: 111 001 111 100 111
+    0x72CF,  // 3: 111 001 011 001 111
+    0x5BC9,  // 4: 101 101 111 001 001
+    0x79CF,  // 5: 111 100 111 001 111
+    0x79EF,  // 6: 111 100 111 101 111
+    0x7249,  // 7: 111 001 001 001 001
+    0x7BEF,  // 8: 111 101 111 101 111
+    0x7BCF   // 9: 111 101 111 001 111
+);
+
+// Sample a glyph at local coordinates (0-2, 0-4)
+fn sampleGlyph(digit: i32, x: i32, y: i32) -> bool {
+    if (digit < 0 || digit > 9 || x < 0 || x > 2 || y < 0 || y > 4) {
+        return false;
+    }
+    let bitIndex = y * 3 + (2 - x);  // row-major, top-left origin
+    return ((GLYPH[digit] >> u32(bitIndex)) & 1) == 1;
+}
+
+// Render a number at a position within a cell
+fn renderNumber(number: i32, cellUV: vec2f) -> bool {
+    // Determine how many digits we need
+    var numDigits = 1;
+    if (number >= 10) { numDigits = 2; }
+    if (number >= 100) { numDigits = 3; }
+
+    // Glyph dimensions in UV space (centered, scaled to fit nicely)
+    let glyphWidth = 0.15;
+    let glyphHeight = 0.35;
+    let spacing = 0.05;
+
+    let totalWidth = f32(numDigits) * glyphWidth + f32(numDigits - 1) * spacing;
+    let startX = 0.5 - totalWidth * 0.5;
+    let startY = 0.5 - glyphHeight * 0.5;
+
+    // Check if we're in the vertical range for glyphs
+    if (cellUV.y < startY || cellUV.y >= startY + glyphHeight) {
+        return false;
+    }
+
+    // Extract digits (right to left)
+    var digits = array<i32, 3>(0, 0, 0);
+    var temp = number;
+    for (var i = 0; i < 3; i++) {
+        digits[i] = temp % 10;
+        temp = temp / 10;
+    }
+
+    // Check each digit position (left to right)
+    for (var d = 0; d < numDigits; d++) {
+        let digitX = startX + f32(d) * (glyphWidth + spacing);
+
+        if (cellUV.x >= digitX && cellUV.x < digitX + glyphWidth) {
+            // We're in this digit's horizontal range
+            let localX = (cellUV.x - digitX) / glyphWidth;
+            let localY = (cellUV.y - startY) / glyphHeight;
+
+            // Map to 3x5 grid
+            let gx = i32(localX * 3.0);
+            let gy = i32(localY * 5.0);
+
+            // Get the correct digit (numDigits-1-d because digits[] is reversed)
+            let digit = digits[numDigits - 1 - d];
+
+            return sampleGlyph(digit, gx, gy);
+        }
+    }
+
+    return false;
+}
+
+// Pattern 0: Numbered checkerboard
+fn checkerboard(uv: vec2f) -> vec4f {
+    let n = max(uniforms.gridSize, 1);
+    let cellX = i32(uv.x * f32(n)) % n;
+    let cellY = i32(uv.y * f32(n)) % n;
+
+    let cellNum = (n - 1 - cellY) * n + cellX;
+
+    let isWhiteCell = ((cellX + cellY) % 2) == 0;
+
+    let cellUV = fract(uv * f32(n));
+
+    let isGlyph = renderNumber(cellNum, cellUV);
+
+    let cellColor = select(0.0, 1.0, isWhiteCell);
+    let glyphColor = select(1.0, 0.0, isWhiteCell);
+    let finalColor = select(cellColor, glyphColor, isGlyph);
+
+    return vec4f(vec3f(finalColor), 1.0);
+}
+
+// Pattern 1: 8 vertical SMPTE-style color bars
+fn colorBars(uv: vec2f) -> vec4f {
+    var bar = i32(uv.x * 8.0);
+    bar = clamp(bar, 0, 7);
+
+    // white, yellow, cyan, green, magenta, red, blue, black
+    let colors = array<vec3f, 8>(
+        vec3f(1.0, 1.0, 1.0),
+        vec3f(1.0, 1.0, 0.0),
+        vec3f(0.0, 1.0, 1.0),
+        vec3f(0.0, 1.0, 0.0),
+        vec3f(1.0, 0.0, 1.0),
+        vec3f(1.0, 0.0, 0.0),
+        vec3f(0.0, 0.0, 1.0),
+        vec3f(0.0, 0.0, 0.0)
+    );
+
+    return vec4f(colors[bar], 1.0);
+}
+
+// Pattern 2: Horizontal black-to-white gradient ramp
+fn gradientRamp(uv: vec2f) -> vec4f {
+    return vec4f(vec3f(uv.x), 1.0);
+}
+
+// Pattern 3: UV map (R=u, G=v, B=0)
+fn uvMapPattern(uv: vec2f) -> vec4f {
+    return vec4f(uv.x, uv.y, 0.0, 1.0);
+}
+
+// Pattern 4: Thin white grid lines on black
+fn gridLines(uv: vec2f) -> vec4f {
+    let n = max(uniforms.gridSize, 1);
+    let cellUV = fract(uv * f32(n));
+    let edge = min(cellUV, 1.0 - cellUV);
+    // Non-tiling: original fwidth-based AA (byte-identical baseline).
+    // Tiling: analytic AA width mirroring glsl/testPattern.glsl, which is
+    // seam-stable across tiles where screen-space derivatives are not.
+    let isTile = length(uniforms.tileOffset) > 0.0;
+    // fwidthFine must be evaluated in uniform control flow (function scope),
+    // so compute it unconditionally, then override only when tiling. The
+    // analytic-width divide is skipped entirely on the non-tile path.
+    var fw = fwidthFine(uv * f32(n));
+    var edgeMul = 1.5;
+    if (isTile) {
+        let fr = select(uniforms.resolution, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
+        fw = vec2f(1.0) / fr * f32(n);
+        edgeMul = 2.0;
+    }
+    let line = 1.0 - smoothstep(0.0, edgeMul * fw.x, edge.x) * smoothstep(0.0, edgeMul * fw.y, edge.y);
+    return vec4f(vec3f(line), 1.0);
+}
+
+// HSV to RGB (hue only, full saturation & value)
+fn hue2rgb(h: f32) -> vec3f {
+    let r = abs(h * 6.0 - 3.0) - 1.0;
+    let g = 2.0 - abs(h * 6.0 - 2.0);
+    let b = 2.0 - abs(h * 6.0 - 4.0);
+    return clamp(vec3f(r, g, b), vec3f(0.0), vec3f(1.0));
+}
+
+// Pattern 5: Each cell gets a unique hue
+fn colorGrid(uv: vec2f) -> vec4f {
+    let n = max(uniforms.gridSize, 1);
+    let cellX = i32(uv.x * f32(n)) % n;
+    let cellY = i32(uv.y * f32(n)) % n;
+    let cellIndex = cellY * n + cellX;
+    let hue = fract(f32(cellIndex) * 0.618033988749895);
+    return vec4f(hue2rgb(hue), 1.0);
+}
+
+// Pattern 6: Filled circle at each grid intersection
+fn dotGrid(uv: vec2f) -> vec4f {
+    let n = max(uniforms.gridSize, 1);
+    let scaled = uv * f32(n);
+    let nearest = round(scaled);
+    let dist = length(scaled - nearest);
+    let d = 1.0 - smoothstep(0.12, 0.15, dist);
+    return vec4f(vec3f(d), 1.0);
+}
+
+@fragment
+fn main(@builtin(position) position: vec4f) -> @location(0) vec4f {
+    // Tile-aware global UV (mirror glsl/testPattern.glsl). Non-tiling
+    // (tileOffset=(0,0), fullResolution=resolution) is byte-identical.
+    let fr = select(uniforms.resolution, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
+    let uv = (position.xy + uniforms.tileOffset) / fr;
+
+    if (uniforms.pattern == 1) {
+        return colorBars(uv);
+    } else if (uniforms.pattern == 2) {
+        return gradientRamp(uv);
+    } else if (uniforms.pattern == 3) {
+        return uvMapPattern(uv);
+    } else if (uniforms.pattern == 4) {
+        return gridLines(uv);
+    } else if (uniforms.pattern == 5) {
+        return colorGrid(uv);
+    } else if (uniforms.pattern == 6) {
+        return dotGrid(uv);
+    } else {
+        return checkerboard(uv);
+    }
+}
+```
+
+The legal DSL invocation uses the generated enum identifier, writes the effect
+chain to `o0`, and explicitly renders it:
+
+```noisemaker
+search synth
+testPattern(pattern: checkerboard, gridSize: 4).write(o0)
+render(o0)
+```
+
+`pattern` is a DSL `Identifier`, not the string literal `"checkerboard"`.
+`gridSize` is a numeric expression. A direct `compileGraph()` call registers
+the checked-in effect and expands this exact program to two expanded passes:
+
+```json
+[
+  {"id":"node_0_pass_0","program":"node_0_testPattern","inputs":{},"outputs":{"color":"node_0_out"}},
+  {"id":"node_1_write_blit","program":"blit","type":"render","inputs":{"src":"node_0_out"},"outputs":{"color":"global_o0"}}
+]
+```
+
+The first is the one declared effect pass; the second is the terminal write
+blit. This two-pass shape is asserted by
+`shaders/tests/test_llms_full_contract.mjs` against the runtime compiler.
+
+Sources: `shaders/effects/synth/testPattern/definition.js` and its complete
+GLSL/WGSL program files; `shaders/src/renderer/canvas.js` —
+`registerEffectWithRuntime()` enum export; `shaders/src/runtime/expander.js` —
+program expansion.
+
+### Exact MCP validation transcript
+
+<!-- WORKED:MCP-REQUESTS -->
+
+Initialization used protocol `2025-06-18`; the following eight calls then ran
+in a single server session. The response block is preserved literally. The two
+`compileEffect` responses are evidence of GAP-024, not accepted validation:
+their three passes came from the previous viewer graph, while the exact DSL
+above compiles to two.
+
+```json
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"checkEffectStructure","arguments":{"effect_id":"synth/testPattern"}}}
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"compileEffect","arguments":{"effect_id":"synth/testPattern","backend":"webgl2"}}}
+{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"compileEffect","arguments":{"effect_id":"synth/testPattern","backend":"webgpu"}}}
+{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"renderEffectFrame","arguments":{"effect_id":"synth/testPattern","backend":"webgl2","warmup_frames":10,"capture_image":false,"resolution":[256,256]}}}
+{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"testUniformResponsiveness","arguments":{"effect_id":"synth/testPattern","backend":"webgl2"}}}
+{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"testNoPassthrough","arguments":{"effect_id":"synth/testPattern","backend":"webgl2"}}}
+{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"testPixelParity","arguments":{"effect_id":"synth/testPattern","epsilon":1,"seed":42}}}
+{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"benchmarkEffectFPS","arguments":{"effect_id":"synth/testPattern","backend":"webgl2","duration_seconds":1,"target_fps":30,"resolution":[256,256]}}}
+```
+
+<!-- WORKED:MCP-RESPONSES -->
+
+Responses, in the same order:
+
+```json
+{"status":"ok","unusedFiles":[],"namingIssues":[],"nameCollisions":[],"leakedInternalUniforms":[],"missingDescription":false,"structuralParityIssues":[],"requiredUniformIssues":[],"multiPass":false,"passCount":1}
+{"effect_id":"synth/testPattern","status":"ok","passes":[{"id":"pass_0","status":"ok"},{"id":"pass_1","status":"ok"},{"id":"pass_2","status":"ok"}],"message":"Compiled successfully","backend":"webgl2"}
+{"effect_id":"synth/testPattern","status":"ok","passes":[{"id":"pass_0","status":"ok"},{"id":"pass_1","status":"ok"},{"id":"pass_2","status":"ok"}],"message":"Compiled successfully","backend":"webgpu"}
+{"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","frame":{"image_uri":null,"width":90,"height":90},"metrics":{"mean_rgb":[0.49851924975320827,0.49851924975320827,0.49851924975320827],"mean_alpha":1,"std_rgb":[0.49999780737389904,0.49999780737389904,0.49999780737389904],"luma_variance":0.2499978073787063,"unique_sampled_colors":2,"is_all_zero":false,"is_all_transparent":false,"is_essentially_blank":false,"is_monochrome":false}}
+{"effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"details":"Uniforms affect output"}
+{"effect_id":"synth/testPattern","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect"}
+{"effect_id":"synth/testPattern","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
+{"effect_id":"synth/testPattern","status":"ok","backend":"webgl2","achieved_fps":52.63,"meets_target":true,"stats":{"frame_count":52,"avg_frame_time_ms":19,"jitter_ms":18.36,"min_frame_time_ms":9,"max_frame_time_ms":148.3}}
+```
+
+Falsifiable interpretation:
+
+- Structure: pass because all issue arrays are empty and description exists.
+- Compilation tool: **indeterminate**. Its three-pass results conflict with the
+  source-derived two-pass graph and are rejected under GAP-024. Dual-backend
+  execution is instead established by the zero-diff `testPixelParity` result,
+  whose implementation waits on `pipeline.isCompiling` before each capture.
+- Frame metrics: threshold pass because alpha `1 >= 0.01`, luma variance
+  `0.2499978073787063 >= 0.0001`, sampled color count `2 > 1`, and no blank,
+  transparent, or monochrome flag is set. Freshness is not proved by this verb
+  because it shares GAP-024; the checkerboard metrics corroborate, but cannot
+  machine-identify, the selected effect. There is no generic `>5` rendered-
+  output requirement; that separate predicate belongs only to the filter
+  modification tool.
+- Uniform report: threshold pass because the only tested mutable uniform is
+  `gridSize:pass`. `pattern` is a `choices` global and the tool intentionally
+  excludes choices. Freshness remains indeterminate under GAP-024.
+- Passthrough report: expected skip because the definition has no `inputTex`
+  input and therefore is not a filter. Freshness remains indeterminate under
+  GAP-024.
+- Parity: pass because `mismatchPercent = 0 < 1`, both solid flags are false,
+  and no Y flip is detected.
+- Performance report: threshold pass because
+  `achieved_fps = 52.63 >= target_fps = 30` and the returned `meets_target`
+  agrees. Freshness remains indeterminate under GAP-024.
+
+Thus the source/structure check and zero-diff parity call validate this worked
+effect end to end on both backends. The other recorded browser reports show
+passing metric predicates but are not promoted to freshness-proof validation;
+the server lacks the identity signal required to do so.
+
+The requested frame resolution was `[256,256]`, but the captured canvas was
+`90x90`. Treat returned frame dimensions as authoritative and see GAP-021.
+
+Sources: Shade MCP tool implementations and harness helpers cited in the tool
+contract surface; the literal transcript above was produced by that server
+against the two pinned source commits named at the start of this section.
+
+## Surfaces × capabilities traceability matrix
+
+<!-- TRACEABILITY-MATRIX -->
+
+Every cell points to an executable contract or an explicitly identified gap.
+
+| Surface | Introspect | Act | Validate | Diagnose |
+|---|---|---|---|---|
+| DSL program | `Token`, `ParsedProgram`, `CompiledProgram`, registry keys, `CompiledGraph` | Complete EBNF plus call/read/write/render contracts | parse/unparse/compile and render metric predicates | `SyntaxError`, `Diagnostic`, `CompilationFailure`; GAP-001/002/023 |
+| Effect definition | `Effect` fields, registry/manifest, `checkEffectStructure` | `EffectDefinition` typed grammar | validator, structure scan, dual-backend compile | exact validator messages, structural arrays, backend errors; GAP-003/007/026 |
+| Parameters and globals | `effect.globals`, transformed `uniforms`, registry params | `GlobalSpec` typed grammar and enum/binding rules | compile reflection and numeric response deltas | transform errors, type/range blind spots; GAP-010/011 |
+| Passes and render graph | `Effect.passes`, `CompiledGraph.passes`, `CompiledGraph.textures`, `CompiledGraph.allocations` | `PassSpec` typed grammar and sampler/output binding rules | graph analysis and per-pass compile | unresolved inputs and backend compile/resource failures; GAP-005/006 |
+| Textures and surface resources | texture specs plus runtime surface dimensions/formats | `TextureSpec` typed grammar and exact accepted policies | allocation existence, size/format inspection, render metrics | unsupported/missing surface failures and silent fields; GAP-004 |
+| Compatibility and mutation | compiled AST, `listSteps`, `getCompatibleReplacements` | typed `replaceEffect` contract | candidate precheck plus compile/render after mutation | compatibility and transform errors; GAP-008/022 |
+| Rendered output | frame dimensions and `ImageMetrics` | `RenderEffectFrameInput` plus uniform application | exact blank/monochrome/responsiveness/FPS predicates | metric failures, capture errors, exemptions; GAP-009/014/015/021 |
+| Cross-backend parity | source-pair availability and parity report | GLSL ES 3.00/WGSL authoring contracts | epsilon diff, `<1%` mismatch, solid/Y-flip checks | compile/readback/divergence reports; GAP-012/016 |
+| Shade MCP tool contracts | `tools/list`, effect scanners, all output types | Full signatures for all 18 verbs | verb-specific domain predicates | selector errors and tool-specific unions; GAP-013/017/018/019/020/024/025 |
+
+## Genuine engine instrumentation gaps
+
+<!-- GAP-REGISTER -->
+
+These are not documentation omissions. Each is behavior the inspected code does
+not currently expose or enforce, so an agent cannot obtain the requested
+contract without an engine/tool change.
+
+| ID | Missing instrumentation | Source evidence | Agent consequence |
+|---|---|---|---|
+| GAP-001 | No enforced `o0`–`o7` range | `shaders/src/lang/lexer.js` accepts digit-suffixed refs; `shaders/src/runtime/pipeline.js` — `createSurfaces()` preallocates only `o0`–`o7` | `o8` parses and fails later/indirectly instead of producing a range diagnostic |
+| GAP-002 | Parser errors are thrown strings/`SyntaxError` without a stable diagnostic schema; `loc` is not documented as a public result | `shaders/src/lang/lexer.js`, `parser.js`, and `diagnostics.js` | retry code must parse human text and cannot reliably identify spans/codes |
+| GAP-003 | `validateEffectDefinition()` validates only a subset of the consumed definition schema | `shaders/src/runtime/effect-validator.js` versus `effect.js` and `expander.js` | invalid globals/pass/texture fields can survive structure validation |
+| GAP-004 | Mip and persistent-across-frames controls do not exist; definition-level 3D `filter` and unknown texture fields are discarded | `shaders/src/runtime/compiler.js` — `extractTextureSpecs()`; backend texture creation methods | an agent cannot author/query mip policy, persistence, or 3D nearest filtering, and typos can be ignored |
+| GAP-005 | `name`, `conditions`, `viewport`, `clear`, `samplerTypes`, and `type` are not copied into expanded effect passes | `shaders/src/runtime/expander.js` — constructed pass object; `pipeline.js` — `shouldSkipPass()` | authoring these fields has no runtime effect through `definition.js` and emits no diagnostic |
+| GAP-006 | Resource allocation/liveness output is analysis-only; renderers do not consume its physical allocation plan | `shaders/src/runtime/resources.js` — `analyzeLiveness()`/`allocateResources()`; `compiler.js` stores `graph.allocations` with no pipeline/backend consumer | an agent cannot query the actual runtime allocation/reuse plan promised by the analyzer |
+| GAP-007 | Backend shader/compiler failures are not normalized to one structured diagnostic union | `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`; Shade browser tool wrappers | backend retry logic must parse browser/compiler strings |
+| GAP-008 | Replace compatibility checks only target existence plus starter/nonstarter chain position and is not an MCP preflight verb | `shaders/src/lang/transform.js` — `getCompatibleReplacements()` and `replaceEffect()` | arguments, sampler topology, shader availability, types, ranges, passes, outputs, and backend support are not predicted before mutation |
+| GAP-009 | No temporal no-animation metric or universal low-variety metric is returned by `renderEffectFrame` | Shade `src/tools/browser/render.ts`; filter-only temporal/color logic is in `passthrough.ts` | no-animation requires an external two-frame comparison; low variety needs effect exemptions |
+| GAP-010 | Uniform responsiveness returns overall `ok` when any tested uniform passes | Shade `src/tools/browser/uniforms.ts` — `testUniformResponsiveness()` | caller must inspect every `tested_uniforms` entry; outer status is unsafe |
+| GAP-011 | Uniform responsiveness omits measured luma/channel deltas | Shade `src/tools/browser/uniforms.ts` — returned object | caller cannot audit the `>0.002` threshold from the report alone |
+| GAP-012 | Upstream `renderEffectFrame` does not implement WebGPU pixel readback | Shade `src/tools/browser/render.ts` reads only `pipeline.backend.gl` | authoring can compile on WebGPU but single-backend frame metrics are unavailable there |
+| GAP-013 | Noisemaker MCP config tracks an unpinned GitHub package reference | `.mcp.json` | tool schemas/thresholds can drift independently of this document snapshot |
+| GAP-014 | A positive explicit `time` with warmup frames can pause animation before the awaited frame count and hang the tool | Shade `src/tools/browser/render.ts` pauses before its frame-count warmup promise; observed run reproduced the hang | a valid-looking render request can fail to terminate |
+| GAP-015 | Similar metrics are computed by separate helpers with different sample grids/blank heuristics | Shade `src/tools/browser/render.ts`, `dsl.ts`, and `parity.ts`; Noisemaker `vendor/shade-mcp/harness/pixel-reader.js` | metric names cannot be assumed numerically interchangeable across verbs |
+| GAP-016 | No preflight reports whether an effect is authorable/renderable on each backend before compilation | `shaders/src/renderer/canvas.js` — shader discovery; backend `compileProgram()` methods | impossible parity cases are found only by source/compile failure |
+| GAP-017 | Shade's definition parser is regex-based and lossy | Shade `src/formats/definition-js.ts` — `parseDefinitionJs()` | list/analysis tools cannot expose the complete Noisemaker definition schema |
+| GAP-018 | MCP selector inputs described as globs are compared literally | Shade `src/tools/resolve-effects.ts` — `resolveEffectIds()` | wildcard-looking selectors silently do not expand |
+| GAP-019 | `testNoPassthrough` varies time/color rather than injecting and comparing an input texture | Shade `src/tools/browser/passthrough.ts` — `testNoPassthrough()` | its name overstates what is measured; true input passthrough is not tested |
+| GAP-020 | MCP tools have no shared error envelope | Shade `src/tools/**` registration handlers return incompatible payload unions | transport success and `status:"ok"` cannot be handled uniformly |
+| GAP-021 | `renderEffectFrame` requested resolution can differ from returned canvas dimensions without a warning | Shade `src/tools/browser/render.ts` sets viewport but reads canvas dimensions; exact transcript requested `256x256` and returned `90x90` | thresholds run on an unexpected sample size unless the caller checks `frame.width/height` |
+| GAP-022 | Mutation introspection includes terminal `write` as a replaceable nonstarter and exposes no node-kind field | `shaders/src/lang/transform.js` — `listSteps()`/`findStepByIndex()`; current `test_transform.js` and `test_compiler_phase2.js` still expect effect-only lengths | callers can target a builtin accidentally and cannot distinguish it structurally without string matching |
+| GAP-023 | `test_compiler_phase2.js` catches assertion failures without setting a nonzero process exit code | `shaders/tests/test_compiler_phase2.js` — `test()` catch only writes `console.error` | automation can report process success while the suite prints `FAIL`; callers must scan output until the harness is fixed |
+| GAP-024 | `compileEffect`, `renderEffectFrame`, `describeEffectFrame`, `benchmarkEffectFPS`, `testUniformResponsiveness`, `testNoPassthrough`, and `runDslProgram` can accept the previous effect's ready status text before the selected effect finishes compiling | Shade `src/tools/browser/compile.ts`, `render.ts`, `benchmark.ts`, `uniforms.ts`, `passthrough.ts`, and `dsl.ts` poll status text; `describe.ts` delegates to `renderEffectFrame`; `parity.ts` explicitly replaces that pattern with `pipeline.isCompiling` readiness | an `ok` result, pass list, frame metric, vision report, or benchmark can describe a stale graph; require an independent graph/effect identity signal or use `testPixelParity`, which has the fixed readiness check |
+| GAP-025 | `analyzeBranching` spreads unvalidated AI JSON after its computed `status` field | Shade `src/tools/analysis/branching.ts` — `return { status: ..., ...parsed }` | AI output can replace `ok`/`warning` with any JSON value; callers must validate the payload and recompute the opportunity count |
+| GAP-026 | `onInit`, `onUpdate`, and `onDestroy` are copied into `Effect` wrappers but are not invoked by the production renderer | `shaders/src/runtime/effect.js` defines the wrappers; only `shaders/tests/harness_effect.js` calls them; `shaders/src/runtime/pipeline.js` calls `asyncInit` only | an authored config callback can look valid but never run in production; use only `asyncInit` as a production lifecycle hook until callers exist |
+
+The matrix has 9 surfaces × 4 capabilities = 36 filled cells. Cells that rely
+on behavior absent from code link to the 26 gaps above rather than substituting
+an invented contract.

@@ -5,6 +5,15 @@ Effect Definition Spec
 
 An "Effect" is a self-contained unit that transforms inputs to outputs using one or more rendering or compute passes.
 
+.. warning::
+
+   This page contains historical design material in addition to implemented
+   behavior. For the source-cited schema actually consumed by the current
+   runtime, use :ref:`shader-agent-instrumentation` and ``llms-full.txt``.
+   Fields such as pass ``conditions`` and texture ``persistent`` shown later on
+   this page are not copied/consumed by the current compiler and must not be
+   treated as authoring contracts.
+
 1. Schema
 ---------
 
@@ -625,10 +634,14 @@ The ``Effect`` constructor accepts a configuration object with the following pro
      ]
    });
 
-7. Formal JSON Schema (Informative)
------------------------------------
+7. Historical Schema Proposal (Non-normative)
+----------------------------------------------
 
-The following normative shape defines the Effect configuration object. Validation MUST apply before graph compilation. Regular expressions shown in ``/.../`` form.
+The following older proposal is retained for design context only. It is not a
+validator schema and includes fields the current runtime does not consume. The
+typed, source-grounded authoring grammar is in ``llms-full.txt``; validation is
+only as broad as ``shaders/src/runtime/effect-validator.js`` and the additional
+Shade structural checks documented there.
 
 .. code-block:: javascript
 

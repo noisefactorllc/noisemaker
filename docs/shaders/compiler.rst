@@ -5,6 +5,14 @@ Compiler Spec
 
 The Noisemaker Rendering Pipeline compiler is responsible for transforming high-level Polymorphic DSL code into an executable GPU Render Graph. It bridges the gap between the user's intent (DSL) and the machine's execution model (Pipeline).
 
+.. warning::
+
+   This page includes target-design assembly behavior. The current compiler
+   does not topologically sort expanded passes or make renderers consume the
+   resource analyzer's physical allocation plan. For the exact current graph,
+   mutation, validation, and failure contracts, see
+   :ref:`shader-agent-instrumentation` and ``llms-full.txt``.
+
 Compilation Pipeline
 --------------------
 
@@ -323,4 +331,3 @@ The following table maps error codes to the compilation stage where they are rai
    * - ``ERR_CONTROL_FLOW_INVALID``
      - Analysis
      - Break/continue in invalid context
-

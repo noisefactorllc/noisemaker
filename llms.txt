@@ -2,7 +2,9 @@
 
 Noisemaker is an open source shader framework for humans and coding agents building expressive, extensible visual tools in the browser. It supports WebGL2 and WebGPU, a high-level Polymorphic DSL, declarative effect definitions, portable effect packages, external media/audio/MIDI inputs, and CDN-distributed shader bundles.
 
-Use this file as the short public map. For a fuller agent-oriented overview, read `/llms-full.txt`.
+Use this file as the short public map. For the source-pinned authoring schemas,
+validation thresholds, failure taxonomies, complete Shade MCP signatures, and
+instrumentation gaps, read `/llms-full.txt`.
 
 ## Primary Links
 
@@ -18,6 +20,7 @@ Use this file as the short public map. For a fuller agent-oriented overview, rea
 - [Pipeline spec](https://docs.noisemaker.app/shaders/pipeline/): DSL to render graph, resource allocation, and GPU dispatch.
 - [Language spec](https://docs.noisemaker.app/shaders/language/): Polymorphic DSL syntax and semantics.
 - [Effect definition spec](https://docs.noisemaker.app/shaders/effects/): Effect definitions, namespaces, tags, globals, textures, and passes.
+- [AI development instrumentation](https://docs.noisemaker.app/shaders/agent-instrumentation/): Human entry point for the source-grounded machine contract and gap register.
 - [Release process](https://docs.noisemaker.app/releases/): CDN pinning, immutable patch releases, and release channels.
 
 ## Agent Tooling

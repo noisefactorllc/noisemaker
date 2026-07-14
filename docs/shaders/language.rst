@@ -656,14 +656,17 @@ The DSL allows writing to named outputs (Surfaces) and reading from them.
 
 **2D Surfaces:**
 
-* **Global Surfaces:** ``o0``-``o7`` are persistent 2D textures.
+* **Global Surfaces:** ``o0``-``o7`` are preallocated, double-buffered 2D
+  surfaces. Same-size buffers survive frame swaps; resize recreation does not
+  promise content preservation.
 * **Output:** ``.write(o0)`` marks the chain as writing to ``o0``.
 * **Input:** ``read(o0)`` creates a read dependency on ``o0``.
 * **None:** ``none`` disables a surface parameter (e.g., ``effect(tex: none)``).
 
 **3D Volume Surfaces:**
 
-* **Global Volumes:** ``vol0``-``vol7`` are persistent 3D texture volumes (default 64³).
+* **Global Volumes:** ``vol0``-``vol7`` are preallocated 3D texture volumes
+  (default 64³). There is no authorable ``persistent`` texture field.
 * **Global Geometry Buffers:** ``geo0``-``geo7`` are 2D geometry buffers storing surface normals and depth.
 * **Output:** ``.write3d(vol0, geo0)`` writes 3D volume data and geometry to the specified surfaces.
 * **Input (starter):** ``read3d(vol0, geo0)`` reads from a volume and its geometry buffer to start a chain.
