@@ -27,12 +27,12 @@ Use this file as the short public map. For a fuller agent-oriented overview, rea
 
 ## Ports and source adapters
 
-- [Noisemaker for Unity](https://github.com/noisefactorllc/noisemaker-unity): Unity package and shader port.
-- [Noisemaker for Blender](https://github.com/noisefactorllc/noisemaker-blender): Blender GPU port for compositor-feeding workflows.
-- [Noisemaker for Godot](https://github.com/noisefactorllc/noisemaker-godot): RenderingDevice addon with in-engine DSL compiler.
-- [Noisemaker for TouchDesigner](https://github.com/noisefactorllc/noisemaker-td): TOP port for realtime creative patches.
-- [Noisemaker for Three.js](https://github.com/noisefactorllc/noisemaker-threejs): Thin backend adapter using the published engine.
-- [Noisemaker for Babylon.js](https://github.com/noisefactorllc/noisemaker-babylonjs): Backend adapter for Babylon primitives.
+- [Noisemaker for Unity](https://github.com/noisefactorllc/noisemaker-for-unity): Unity package and shader port.
+- [Noisemaker for Blender](https://github.com/noisefactorllc/noisemaker-for-blender): Blender GPU port for compositor-feeding workflows.
+- [Noisemaker for Godot](https://github.com/noisefactorllc/noisemaker-for-godot): RenderingDevice addon with in-engine DSL compiler.
+- [Noisemaker for TouchDesigner](https://github.com/noisefactorllc/noisemaker-for-touchdesigner): TOP port for realtime creative patches.
+- [Noisemaker for Three.js](https://github.com/noisefactorllc/noisemaker-for-threejs): Thin backend adapter using the published engine.
+- [Noisemaker for Babylon.js](https://github.com/noisefactorllc/noisemaker-for-babylonjs): Backend adapter for Babylon primitives.
 
 ## Notes For Agents
 
