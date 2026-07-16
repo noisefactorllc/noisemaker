@@ -2055,6 +2055,14 @@ export class CanvasRenderer {
                     }
                 }
             }
+
+            // Mirror the demo program-state path: a changed non-alpha param on
+            // an asyncInit effect (fibers/scratches/strayHair CPU overlays)
+            // must re-render its overlay texture. checkAsyncRegen caches
+            // per-node param values and debounces, so unchanged params no-op.
+            if (pass.nodeId) {
+                this._pipeline.checkAsyncRegen?.(pass.nodeId, effectKey, stepParams)
+            }
         }
 
         // A chain-scoped param (e.g. zoom_chain_N) drives screenDivide-sized

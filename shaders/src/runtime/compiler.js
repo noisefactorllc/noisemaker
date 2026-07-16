@@ -193,6 +193,14 @@ export function recompile(pipeline, newSource, options = {}) {
         const defaultUniforms = pipeline.collectDefaultUniforms()
         pipeline.recreateTextures(defaultUniforms)
 
+        // Re-render CPU-generated overlay textures (asyncInit effects such as
+        // filter/fibers, filter/scratches, filter/strayHair). recreateTextures
+        // just allocated their overlay textures empty, and initAsyncEffects
+        // otherwise only runs from resize() — so a hot-recompiled program
+        // containing an asyncInit effect rendered a blank overlay (the effect
+        // silently passed its input through unchanged).
+        pipeline.initAsyncEffects()
+
         return newGraph
     } catch (error) {
         console.error('Recompilation failed:', formatError(error))

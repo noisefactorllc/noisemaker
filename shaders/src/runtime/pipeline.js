@@ -419,6 +419,21 @@ export class Pipeline {
     initAsyncEffects() {
         if (!this.graph || !this.graph.passes) return
 
+        // Full reset before re-rendering: cancel in-flight traces (including
+        // nodes no longer present in the current graph), drop pending
+        // debounced regens, and clear the param cache. Without the cache
+        // clear, a post-recompile checkAsyncRegen with the step's real values
+        // would compare against values recorded for a PREVIOUS graph's
+        // overlay and suppress the corrective re-trace, leaving the overlay
+        // rendered with effect defaults while the UI reports the real value.
+        for (const cancel of this._asyncRenders.values()) cancel()
+        this._asyncRenders.clear()
+        if (this._asyncDebounceTimers) {
+            for (const timer of this._asyncDebounceTimers.values()) clearTimeout(timer)
+            this._asyncDebounceTimers.clear()
+        }
+        this._asyncParamCache?.clear()
+
         // Find unique effects with asyncInit by scanning passes
         const seen = new Set()
         for (const pass of this.graph.passes) {
@@ -453,6 +468,11 @@ export class Pipeline {
         for (const [paramName, value] of Object.entries(stepValues)) {
             if (paramName === 'alpha' || paramName.startsWith('_')) continue
             if (value === undefined || value === null) continue
+            // Automation configs (oscillator/midi/audio) and vector values are
+            // object-shaped; identity comparison would flag "changed" on every
+            // application and re-trace constantly. Async overlays consume only
+            // scalar params, so objects are ignored here.
+            if (typeof value === 'object') continue
             if (!effectDef.globals?.[paramName]) continue
             if (cache[paramName] !== value) {
                 changed = true
@@ -1797,6 +1817,13 @@ export class Pipeline {
             cancel()
         }
         this._asyncRenders.clear()
+
+        // Pending debounced regens would fire _startAsyncInit after dispose —
+        // a full CPU worm trace whose uploads all no-op on the dead backend.
+        if (this._asyncDebounceTimers) {
+            for (const timer of this._asyncDebounceTimers.values()) clearTimeout(timer)
+            this._asyncDebounceTimers.clear()
+        }
 
         // Every texture the pipeline owns is registered with the backend:
         // global surfaces (including mesh positions/normals/uvs triplets),
