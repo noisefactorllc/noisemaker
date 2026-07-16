@@ -87,3 +87,41 @@ work, verify it, then update the checkpoint and append a log line.
   - 2026-07-10 — initial catch-up: added `help.md` for
     `mixer/channelCombine` and `filter/temporalAberration`; added feature
     guides for parallax, the 3D pipeline, and mashup.
+
+## AI development contract (llms-full.txt)
+
+- **Checkpoint:** noisemaker `75507112` / shade-mcp `7fd0d975`, 2026-07-14
+- **Scope:** the hand-authored agent contract `llms-full.txt` — the
+  executable-source companion served at the site root that describes
+  *current* runtime behavior across nine surfaces (DSL, effect definition,
+  parameters/globals, passes/graph, textures, compatibility/mutation,
+  rendered output, cross-backend parity, Shade MCP tool contracts), a fully
+  worked validated effect, the surface × capability traceability matrix, and
+  the gap register (GAP-001..026). The file pins its own audited SHAs in the
+  "Source snapshots used for this contract" block at its head; that block and
+  this checkpoint are the same two SHAs and must be advanced together. There
+  is no generator — every update is a hand edit verified against live source.
+  The short public index `llms.txt` carries no pinned snapshot and is kept
+  current in-band with its links, so it is not part of this pass.
+- **Gap detection:**
+  1. Noisemaker drift — commits since the noisemaker checkpoint touching the
+     primary source roots the contract reads:
+
+     ```
+     git log --oneline 75507112..HEAD -- shaders/src/lang/ shaders/src/runtime/ shaders/src/renderer/canvas.js shaders/tests/test-harness.js
+     ```
+
+     Each can invalidate a behavior statement, typed grammar, or validator
+     message, or change a gap's status. Re-audit the affected surface
+     section(s) and re-check every gap whose "Source evidence" file changed.
+  2. Shade MCP drift (GAP-013) — `.mcp.json` runs
+     `npx -y github:noisedeck/shade-mcp` unpinned. Re-resolve it to its current
+     commit; if it moved off the pinned shade-mcp SHA, re-capture `tools/list`
+     (tool count and signatures) and the `shade-mcp` server/protocol version
+     triple, then re-audit the "Shade MCP tool contracts" section and the
+     MCP-side gaps.
+- **Log:**
+  - 2026-07-14 — contract instrumented (`dc67827b`) at snapshot noisemaker
+    `75507112` / shade-mcp `7fd0d975`: nine surface sections, worked validated
+    effect, 9×4 traceability matrix, 26-gap register. Audited clean through
+    `478989b6`; checkpoint established at the contract's own snapshot.
