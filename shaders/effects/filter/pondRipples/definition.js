@@ -36,6 +36,18 @@ export default new Effect({
         control: "slider"
       }
     },
+    speed: {
+      type: "int",
+      default: 0,
+      uniform: "speed",
+      min: -5,
+      max: 5,
+      zero: 0,
+      ui: {
+        label: "speed",
+        control: "slider"
+      }
+    },
     style: {
       type: "int",
       default: 2,

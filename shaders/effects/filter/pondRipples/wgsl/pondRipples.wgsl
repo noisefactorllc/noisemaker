@@ -42,9 +42,11 @@
 struct Uniforms {
     amount: f32,
     ridges: i32,
+    speed: i32,
     antialias: i32,
     tileOffset: vec2<f32>,
     fullResolution: vec2<f32>,
+    time: f32,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -67,7 +69,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     uv.x = uv.x * aspectRatio;
 
     let r = length(uv);
-    let phase = r * f32(uniforms.ridges) * 2.0 * PI;
+    let phase = r * f32(uniforms.ridges) * 2.0 * PI - uniforms.time * 2.0 * PI * f32(uniforms.speed);
     // Clamp the damping term at 0 so corners beyond r=1 (aspect ratios
     // wider/taller than ~1.73:1) don't invert phase and amplify instead
     // of damping.

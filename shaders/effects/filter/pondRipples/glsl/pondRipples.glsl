@@ -2,11 +2,14 @@
  * Pond Ripples - concentric ring distortion around the fixed image center.
  *
  * r = distance from center (aspect-corrected, tile-aware global UV);
- * phase = r * ridges * 2*PI; w = sin(phase) * amountGain * 0.05 *
+ * phase = r * ridges * 2*PI - time * 2*PI * speed, so integer speed
+ * values shift the phase by whole wave cycles per normalized time loop
+ * (positive speed travels outward, negative inward, 0 is static and
+ * loop-seamless either way); w = sin(phase) * amountGain * 0.05 *
  * (1 - r) is the per-ring wave displacement, damped toward the image
- * edge - and exactly 0 at r=0 (the center pixel) regardless of the
- * damping term, since sin(0)=0, which keeps the polar reconstruction
- * singularity-free.
+ * edge. At speed=0 w is exactly 0 at r=0 (sin(0)=0); with animation
+ * the center-pixel w can be nonzero, and the r>0 direction guard in
+ * main() is what keeps the polar reconstruction singularity-free.
  *
  * aroundCenter (style 0) rotates the sample's angular position by
  * w*2*PI*0.25 with the radius unchanged (tangential swirl).
@@ -46,6 +49,8 @@ uniform vec2 tileOffset;
 uniform vec2 fullResolution;
 uniform float amount;
 uniform int ridges;
+uniform int speed;
+uniform float time;
 uniform bool antialias;
 
 out vec4 fragColor;
@@ -61,7 +66,7 @@ void main() {
     uv.x *= aspectRatio;
 
     float r = length(uv);
-    float phase = r * float(ridges) * 2.0 * PI;
+    float phase = r * float(ridges) * 2.0 * PI - time * 2.0 * PI * float(speed);
     // Clamp the damping term at 0 so corners beyond r=1 (aspect ratios
     // wider/taller than ~1.73:1) don't invert phase and amplify instead
     // of damping.
@@ -97,9 +102,10 @@ void main() {
     rDelta = w * 0.5;
 #endif
 
-    // r>0.0 guard avoids a 0/0 direction at the exact center pixel; w is
-    // always exactly 0 there (see header), so any direction would do,
-    // but this keeps the math NaN-free rather than relying on that.
+    // r>0.0 guard avoids a 0/0 direction at the exact center pixel. With
+    // speed=0, w is exactly 0 there anyway; with animation w can be
+    // nonzero at r=0, and the zero dir pins the center pixel to sample
+    // the center, keeping the reconstruction NaN-free and stable.
     vec2 dir = (r > 0.0) ? uv / r : vec2(0.0);
 
     float rot = rotDelta * 2.0 * PI * 0.25;

@@ -1789,6 +1789,7 @@
   "filter/pondRipples.amount": "amount",
   "filter/pondRipples.antialias": "antialias",
   "filter/pondRipples.ridges": "ridges",
+  "filter/pondRipples.speed": "speed",
   "filter/pondRipples.style": "style",
   "filter/pondRipples.style.aroundCenter": "around center",
   "filter/pondRipples.style.outFromCenter": "out from center",
