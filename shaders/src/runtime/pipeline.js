@@ -103,7 +103,7 @@ function oscNoise(t, seed) {
  * @param {number} normalizedTime - Time normalized to animation duration (0..1)
  * @returns {number} The evaluated oscillator value
  */
-function evaluateOscillator(osc, normalizedTime) {
+export function evaluateOscillator(osc, normalizedTime) {
     const { oscType, min, max, speed, offset, seed } = osc
 
     // Apply speed and offset
@@ -265,7 +265,6 @@ export class Pipeline {
         // Pre-allocate frame Maps to avoid per-frame allocation
         this.frameReadTextures = new Map()
         this.frameWriteTextures = new Map()
-        this.animationDuration = 10  // Default animation loop duration in seconds
         // Pre-allocate frame state object to avoid per-frame allocation
         this._frameState = {
             frameIndex: 0,
@@ -344,15 +343,6 @@ export class Pipeline {
             maxTextureSize: 4096,
             maxStateSize: 2048
         }
-    }
-
-    /**
-     * Set the animation duration for oscillators.
-     * Oscillators loop evenly over this duration.
-     * @param {number} seconds - Animation loop duration in seconds
-     */
-    setAnimationDuration(seconds) {
-        this.animationDuration = seconds
     }
 
     /**
