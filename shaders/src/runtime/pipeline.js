@@ -103,7 +103,7 @@ function oscNoise(t, seed) {
  * @param {number} normalizedTime - Time normalized to animation duration (0..1)
  * @returns {number} The evaluated oscillator value
  */
-function evaluateOscillator(osc, normalizedTime) {
+export function evaluateOscillator(osc, normalizedTime) {
     const { oscType, min, max, speed, offset, seed } = osc
 
     // Apply speed and offset
