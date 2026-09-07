@@ -163,6 +163,13 @@ Elements may be any numeric expression (negative numbers, arithmetic,
 ``Math.PI``). The validator does not enforce array length. It passes every declared
 element to the runtime.
 
+For a ``vec4`` parameter whose effect definition sets ``ui.format: 'vector'``,
+the unparser writes four finite numeric values as an array literal without
+rounding or color clamping. Remap's packed vertex parameters use this format
+to preserve exact coordinates when the editor regenerates DSL. Other
+``vec4`` parameters retain their existing formatting. See :doc:`effects`
+for the definition contract.
+
 Variables & Aliases
 ^^^^^^^^^^^^^^^^^^^
 

@@ -58,6 +58,15 @@ testPattern(pattern: uvMap)
 
 render(o0)`
 
+const REMAP_DSL = `search synth
+
+testPattern(pattern: uvMap).write(o1)
+remap(zoneCount: 1, zone0_count: 4,
+  zone0_v0: [0.08, 0.12, 0.85, 0.12], zone0_v1: [0.85, 0.72, 0.08, 0.72],
+  zone0_alpha: 1, zone0_tex: read(o1), smoothEdge: 0,
+  bgColor: #102030, bgAlpha: 1).write(o0)
+render(o0)`
+
 const TEXT_DSL = `search synth, filter
 
 testPattern(pattern: uvMap)
@@ -78,7 +87,7 @@ async function install(preferWebGPU, width, height) {
 import { CanvasRenderer } from '${baseUrl}/shaders/src/index.js';
 const r = new CanvasRenderer({canvas:document.getElementById('canvas'),width:${width},height:${height},basePath:'${baseUrl}/shaders',preferWebGPU:${preferWebGPU}});
 await r.loadManifest();
-await r.loadEffects(['synth/testPattern','filter/scatter','filter/relief','filter/spinBlur','filter/craquelure','filter/extrude','filter/hatch','filter/lensFlare','filter/oilPaint','filter/patchwork','filter/pondRipples','filter/stamp','filter/stipple','filter/strokes','filter/watercolor','filter/emboss','filter/text']);
+await r.loadEffects(['synth/testPattern','filter/scatter','filter/relief','filter/spinBlur','filter/craquelure','filter/extrude','filter/hatch','filter/lensFlare','filter/oilPaint','filter/patchwork','filter/pondRipples','filter/stamp','filter/stipple','filter/strokes','filter/watercolor','filter/emboss','filter/text','synth/remap']);
 window.renderDsl=async(dsl,region)=>{await r.compile(dsl);if(region)r.setTileRegion(region);else r.clearTileRegion();r.render(0);r.render(0);const q=r.pipeline?.backend?.device?.queue;if(q?.onSubmittedWorkDone)await q.onSubmittedWorkDone();return r.pipeline.backend.getName();};
 window.renderTextDsl=async(dsl,region)=>{
   await r.compile(dsl);
@@ -177,6 +186,33 @@ try {
                 results.push({ name, label, max: -1, ok: false })
                 console.log(`ERR  ${label.padEnd(7)} ${name.padEnd(12)} ${String(err.message || err).slice(0, 90).replace(/\s+/g, ' ')}`)
             }
+        }
+
+        // Active polygon routing must sample the current tile's source slice.
+        // A default Remap has no zones and cannot expose a sampling seam.
+        try {
+            const offset = [15, 27]
+            const full = await install(preferWebGPU, FULL, FULL)
+            assert.equal(await full.page.evaluate(d => window.renderDsl(d), REMAP_DSL), label)
+            const fullImg = await capture(full.page)
+            assert.deepEqual(full.errors, [], `${label}: full Remap browser errors`)
+            await full.page.close()
+            const tile = await install(preferWebGPU, TILE, TILE)
+            assert.equal(await tile.page.evaluate(({ d, region }) => window.renderDsl(d, region),
+                { d: REMAP_DSL, region: { offset, fullResolution: [FULL, FULL] } }), label)
+            const tileImg = await capture(tile.page)
+            assert.deepEqual(tile.errors, [], `${label}: tile Remap browser errors`)
+            await tile.page.close()
+            const colors = new Set()
+            for (let i = 0; i < tileImg.data.length; i += 4) colors.add(tileImg.data.readUInt32BE(i))
+            assert.ok(colors.size > 100, `${label}: active Remap must contain a patterned source`)
+            const { max, worst } = interiorMaxDiff(tileImg, cropFromBottomLeft(fullImg, offset, TILE, TILE), 0)
+            const ok = max === 0
+            results.push({ name: 'remap', label, max, ok })
+            console.log(`${ok ? 'PASS' : 'FAIL'} ${label.padEnd(7)} ${'remap'.padEnd(12)} active zone maxDiff=${max}${worst ? ` @${worst}` : ''}`)
+        } catch (err) {
+            results.push({ name: 'remap', label, max: -1, ok: false })
+            console.log(`ERR  ${label.padEnd(7)} ${'remap'.padEnd(12)} ${String(err.message || err).slice(0, 90).replace(/\s+/g, ' ')}`)
         }
 
         // The regression fixed here is WGSL-specific; the GLSL shader path is

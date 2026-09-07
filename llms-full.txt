@@ -14,8 +14,8 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `691eea1664b4359bba06141d0a489c795950f38d`.
-- Shade MCP: `23258ca3bbbec335abf0337b8fc85a2f21be950c`.
+- Noisemaker: `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424`.
+- Shade MCP: `0a92bd839adf89caa1641e90b201182a24f8fb25`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.2`, protocol
   `2025-11-25`, with 18 tools returned by `tools/list`.
 - The repository config runs `npx -y github:noisedeck/shade-mcp`. It does not pin
@@ -29,7 +29,7 @@ Primary source roots:
 - backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
 - repository validation policy: `shaders/tests/test-harness.js`.
 - Shade MCP source for the pinned snapshot:
-  `https://github.com/noisefactorllc/shade-mcp/tree/23258ca3bbbec335abf0337b8fc85a2f21be950c/src`.
+  `https://github.com/noisefactorllc/shade-mcp/tree/0a92bd839adf89caa1641e90b201182a24f8fb25/src`.
 
 ## Freshness and maintenance
 
@@ -385,19 +385,26 @@ Special value calls are transformed by the parser:
 ```ts
 osc(type = oscKind.sine, min = 0, max = 1, speed = 1, offset = 0, seed = 1)
 midi(channel, mode = midiMode.velocity, min = 0, max = 1, sensitivity = 1,
-     name?: string, id?: string)
+     cc?: number, nrpn?: number, name?: string, id?: string)
+midi(zone: midiZone.lower | midiZone.upper, members?: number,
+     mode?: number, min?: number, max?: number, sensitivity?: number,
+     cc?: number, nrpn?: number, name?: string, id?: string)
 audio(band, min = 0, max = 1,
       channel?: PositiveInteger, name?: string, id?: string)
 from(namespaceIdentifier, callExpression)
 ```
 
-`midi` requires `channel`. Its `name` and `id` selectors are keyword-only,
-quoted, and nonempty, and `id` requires `name`. The parser accepts at most five
-MIDI positionals.
+`midi` requires exactly one of `channel` and `zone`. `members` requires `zone`.
+The `cc`, `nrpn`, `zone`, `members`, `name`, and `id` selectors are keyword-only.
+Identity strings must be quoted and nonempty, and `id` requires `name`.
+The parser accepts at most five MIDI positionals, in the original
+`channel,mode,min,max,sensitivity` order.
 
-`audio` requires `band`. `channel`, `name`, and `id` are
-keyword-only, a selected device requires both `name` and `channel`, and `id`
-requires `name`. The parser accepts at most three audio positionals.
+`audio` requires `band`. `channel`, `name`, and `id` are keyword-only.
+A named device requires `channel`, and `id` requires `name`. A channel without
+identity selects the default device. Valid channels are integers 1-32; the host
+must actually deliver that channel. The parser accepts at most three audio
+positionals.
 
 Both calls
 reject unknown keywords. Identity strings use JSON decoding so values emitted
@@ -405,9 +412,21 @@ by `JSON.stringify()` round-trip. The decoder preserves unknown legacy escapes.
 
 `audioBand` values are `low=0`, `mid=1`, `high=2`, `vol=3`, and `raw=4`.
 `midiMode` values are `noteChange=0`, `gateNote=1`, `gateVelocity=2`,
-`triggerNote=3`, and `velocity=4`.
+`triggerNote=3`, `velocity=4`, `cc=5`, `cc14=6`, `nrpn=7`, `pitchBend=8`,
+`pressure=9`, and `polyPressure=10`. `midiZone` is `lower=0` or `upper=1`.
 
-`osc` has no nested `type`. `midi` has no nested `channel` or `mode`. `audio` has no nested `band`, `channel`, or identity field.
+CC modes default to controller 1. `cc` must be an integer 0-127, or 0-31 in
+CC14 mode. NRPN mode requires `nrpn`, an integer 0-16382; 16383 is the null
+address. `members`, when supplied, must be an integer 1-15. Fixed channels
+in modes 5-10 must be integers 1-16. Invalid numeric selectors produce `S002`
+and an inert `_invalid:true` descriptor. Channel validation for modes 0-4
+retains GAP-031. Valid unused controller/parameter selectors can survive a
+mode change and are retained by the unparser.
+
+`osc` has no nested `type`. MIDI channel, mode, controller, parameter, zone,
+and member count are static selectors. Audio band, channel, and identity
+are also static. Numeric selectors accept literals or resolved `let` aliases;
+identity fields require quoted string literals.
 
 The automatable fields are `osc.min/max/speed/offset/seed`,
 `midi.min/max/sensitivity`, and `audio.min/max`. Literal `min` and `max` values
@@ -416,10 +435,12 @@ Variable cycles and a ninth nested level produce `S001`. The compiled object
 retains named nested references so parse/compile/unparse preserves `let` uses.
 
 For the remaining scalar forms, oscillator numeric fields and MIDI
-`channel/min/max/sensitivity` also normalize booleans and resolvable numeric
-enum members. Audio `min/max` accept only numbers or automation, and audio
-`channel` accepts only a numeric positive integer. `midiMode` and `audioBand`
-accept the named members or implemented numeric values listed above.
+`min/max/sensitivity` also normalize booleans and resolvable numeric enum
+members. Legacy MIDI channels in modes 0-4 retain that permissive handling;
+strict MIDI selectors reject booleans and live automation. Audio `min/max`
+accept only numbers or automation, and audio `channel` accepts a resolved
+numeric integer from 1 to 32. The enum selectors accept their named members
+or the implemented numeric values listed above.
 
 `oscKind` accepts `sine=0`, `tri=1`, `saw=2`, `sawInv=3`, `square=4`, and
 `noise`/`noise1d=5`, or numeric values 0 through 5. Although the shared enum
@@ -794,6 +815,14 @@ randMax randMin step type ui uniform zero
 `colorModeUniform` affect compilation/expansion. `step`, `ui`, and randomization
 metadata are UI/program-generation policy, not shader binding validation.
 
+`ui.format: "vector"` is consumed by the unparser for a `vec4` parameter.
+With its definition available and an array or typed array of four finite
+numbers, `formatValue()` emits exact decimal array literals without rounding,
+color clamping, or exponent notation. Remap's 256 packed vertex-pair globals
+use this metadata. `unparse()` callers supply definitions through
+`getEffectDef`; custom formatters run first and may override the result.
+Other vector/color formatting and legacy hexadecimal input remain unchanged.
+
 Sources: `shaders/effects/**/definition.js` - `globals` census;
 `shaders/src/renderer/canvas.js` - `registerEffectWithRuntime()`;
 `shaders/src/lang/validator.js` - argument type branches;
@@ -826,6 +855,7 @@ interface GlobalSpec {
               "vec3" | "vector3" | false
     category?: string
     hidden?: boolean
+    format?: "vector" // consumed by vec4 DSL formatting, not shader validation
     enabledBy?: EnableCondition
     hint?: string
     multiline?: boolean
@@ -902,13 +932,18 @@ type OscillatorValue = {
 
 type MidiValue = {
   type: "Midi"
-  channel: number
-  mode: 0 | 1 | 2 | 3 | 4
+  channel?: number
+  zone?: 0 | 1
+  members?: number
+  mode: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
+  cc?: number
+  nrpn?: number
   min: number | AutomationValue
   max: number | AutomationValue
   sensitivity: number | AutomationValue
   name?: string
   id?: string
+  _invalid?: true
   _ast: object
   _varRef?: string
 }
@@ -957,20 +992,70 @@ object bypasses the validator.
 `Pipeline.setMidiState()` and `setAudioState()` install the live state used by
 automation. `MidiState` keeps an aggregate 16-channel state plus isolated
 per-port states. Exact `id` selection is authoritative. A name-only selector
-must uniquely match a connected port. Missing, disconnected, or ambiguous
+must uniquely match a connected port in the inventory supplied through
+`setPortInventory()`, including physically present ports whose open failed.
+Without an inventory, lookup uses registered connected ports. Missing, disconnected, or ambiguous
 selection returns `min` rather than falling back to aggregate state.
 
 Incoming
 messages update both the originating port and aggregate state. Disconnect
 resets the isolated state but retains its disconnected identity for host UI.
 
-The validator currently finite-checks `midi.channel` but does not enforce an
-integer or the documented 1-16 range. `MidiState.getChannel()` silently falls
-back to channel 1 for an invalid value. See GAP-031.
+`MidiInputManager` installs lifecycle handling before awaiting input opens,
+deduplicates in-flight opens, and ignores obsolete callbacks after a disconnect,
+replacement, or disable. `getPorts()` returns its physical inventory, including
+failed opens and disconnected history; `connected` does not mean operational.
+Only successful current opens register live state. `MidiState.getPorts()`
+instead reports registered ports. Hosts must feed each message once through
+`handleMessage(data, port)` to retain source isolation.
+
+CC state holds 128 seven-bit values and 32 paired fourteen-bit values per
+channel and port. Either byte of a CC14 pair updates the value immediately
+using the retained other byte, initially zero. Aggregate CC14 uses the complete
+pair from the last contributing port, never bytes from different ports.
+CC/CC14 values are divided by 127/16383 and mapped through `min/max`.
+Notes and `sensitivity` do not change these values.
+
+NRPN uses CC99/98 to select an address and CC6/38 for data entry. Both selector
+bytes must arrive before the first write; later selector updates retain the
+other byte. Values persist per port/channel/parameter. CC6 replaces the coarse
+value and clears its fine byte; CC38 replaces the fine byte using that
+parameter's retained coarse value. CC96/97 change the value by one, saturating
+at 0 and 16383. RPN selection through CC101/100 prevents writes to the prior
+NRPN, and null address 16383 disables writes. CC121 nulls selectors and resets
+controllers, bend, and pressure while retaining notes, parameter values, and
+the runtime's retained-controller set, including CC74. Full reset clears
+parameter state; disconnect clears the originating port's aggregate values.
+
+Pitch bend reads the unsigned fourteen-bit value divided by 16383, with neutral
+8192. Channel pressure and per-key polyphonic pressure divide by 127. Fixed
+polyphonic-pressure bindings read the channel's latest key. These are raw
+positions; the runtime does not convert bend to semitones or accumulate
+relative encoder messages.
+
+MPE lower/upper zones select the newest held member note by Note On order.
+Without explicit `members`, each port follows RPN 6 configuration on manager
+channel 1/16, or defaults to 15 members until configured. CC6 count zero
+disables a zone; newer configuration takes overlapping members from the other
+zone. Changed membership clears affected notes and resets expression with
+CC74 initialized to 64. Explicit `members` overrides discovery for that
+binding. Note Off falls back to the newest remaining held note; no held note
+returns `min` in every mode. Repeated Note On replaces the same key; sustain
+does not retain released notes. Member expression is used directly without
+combining manager expression. Direct root-channel mutation does not populate
+the per-port held-note selection; use `handleMessage()`.
+
+The validator and runtime enforce integer channels 1-16 for modes 5-10. For
+legacy modes 0-4, validation only finite-checks `midi.channel`, and
+`MidiState.getChannel()` still falls back to channel 1 for an invalid value.
+GAP-031 remains open only for those legacy modes.
 
 `AudioState` likewise holds aggregate analysis and a registry of device/channel
-states. Exact `id` is authoritative. Name-only selection must be unique and
-must include a positive-integer channel. `setChannelValues()` clamps
+states. Exact `id` is authoritative. Name-only selection must be unique in the
+full inventory supplied through `setDeviceInventory()`, including uncaptured
+devices; without inventory it uses registered connected devices. Channels must
+be integers 1-32. A channel with no identity selects independent default-input
+state, not the aggregate analyser. `setChannelValues()` clamps
 `low/mid/high/vol` to `[0,1]` and `raw` to `[-1,1]`. `audioBand.raw` returns
 `min` until `rawReady`, then maps the bipolar value to `[0,1]` before applying
 `min/max`. Missing, disconnected, ambiguous, out-of-range, or malformed
@@ -980,9 +1065,18 @@ selection returns `min`, with no aggregate fallback.
 one isolated state per declared channel. `disconnectDevice()` resets those
 states while preserving a disconnected inventory entry for host UI.
 
+Hosts register the delivered default-input count with
+`registerDefaultChannels(count)` and populate `getDefaultChannelState(channel)`.
+`disconnectDefaultInput()` clears those samples and marks them unavailable.
+`setRawUnavailable()` and `setDeviceRawUnavailable(id)` clear raw readiness
+without treating missing input as a real zero sample. `resetAggregate()` clears
+only the legacy samples and smoothing; `reset()` also clears independently
+captured channel samples while retaining identities and connection flags.
+
 `Pipeline.getAudioInputRequirements()` recursively inspects pass uniforms and
 returns `{needsLegacy,needsLegacyRaw,selected}`. Each selected entry is
-`{id:string|null,name:string,channel:number,needsRaw:boolean}`. Duplicate
+`{id:string|null,name:string|null,channel:number,needsRaw:boolean}`. Entries with
+null identity request default-device channels. Duplicate
 identity/channel tuples are merged and `needsRaw` is ORed. Aggregate audio is
 reported by the two legacy flags. An invalid outer audio descriptor suppresses
 both its own request and traversal into nested fields. Effects tagged `audio`
@@ -1093,8 +1187,10 @@ baseline`. Outer browser/session failures use `{status:"error",error:string}`.
 The output does not report the selected test value, baseline means, test means, or deltas.
 Therefore, this tool alone cannot quantify the failure of a global. See GAP-011.
 
-MIDI's unenforced channel range emits no diagnostic. Invalid values silently
-select channel 1 at runtime. The missing validation is GAP-031. Audio selected
+Legacy MIDI modes 0-4 emit no diagnostic for a fractional or out-of-range
+channel and silently select channel 1 at runtime (GAP-031). Modes 5-10 reject
+those channels with `S002` and return `min`. Invalid CC/NRPN/zone/member
+selection likewise produces an inert descriptor. Audio selected
 input and raw capture that the built-in manager cannot supply likewise has no
 runtime diagnostic. It simply evaluates to `min` under GAP-032.
 
@@ -2302,6 +2398,12 @@ names documented below. Every tool descriptor declares
 with string `propertyNames` and numeric `additionalProperties`. The Zod 4
 upgrade did not change their `Record<string,number>` application contract.
 
+This snapshot changes tool and parameter descriptions, AI prompts, and several
+error strings without changing accepted argument types/defaults or result
+schemas. The curated knowledge also revises looping guidance and corrects a
+half-cycle example. Knowledge-search results are source guidance, not a
+rendered-loop validation result.
+
 The transport result for every verb is:
 
 ```ts
@@ -2390,13 +2492,14 @@ type Batched<T> = T | T[] // object for exactly one selected ID, array otherwise
 type OuterEffectError = { effect_id: string, status: "error", error: string }
 ```
 
-`effects` is split on commas and trimmed. Despite some tool descriptions, it is
-not glob-expanded. With neither selector, `resolveEffectIds()` scans
+`effects` is split on commas and trimmed. Selectors are literal IDs; the tool
+descriptions now specify comma-separated IDs without promising glob expansion.
+With neither selector, `resolveEffectIds()` scans
 `SHADE_EFFECTS_DIR`: one discovered effect is selected, multiple effects cause
 an error, and a flat effect directory uses its basename. Filesystem analysis
 tools reject absolute effect IDs and IDs containing `.` or `..` path segments
 with `Invalid effect id: <id>` before reading. Browser selectors remain literal.
-See GAP-018.
+The documentation/selector mismatch formerly recorded as GAP-018 is closed.
 
 No numeric schema below uses Zod `.int()`, `.finite()`, `.min()`, `.max()`, or a
 positive-resolution refinement unless explicitly stated. Descriptive ranges
@@ -2978,7 +3081,7 @@ union. See GAP-020.
 AI-dependent tools use this exact no-key message:
 
 ```text
-No AI API key found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY, or create .anthropic/.openai file in project root.
+No AI API key found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY. Alternatively, create a .anthropic or .openai file in the project root.
 ```
 
 Provider calls allow at most one retry. `describeEffectFrame` and
@@ -3015,16 +3118,15 @@ Sources: Shade MCP `src/tools/resolve-effects.ts`; all tool registration files;
 
 This instance is the repository's `synth/testPattern` effect. The three source
 blocks below are complete, not excerpts, and were re-audited at Noisemaker
-commit `691eea1664b4359bba06141d0a489c795950f38d`. The MCP evidence below was
+commit `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424`. The MCP evidence below was
 freshly captured against that Noisemaker commit and Shade MCP commit
-`23258ca3bbbec335abf0337b8fc85a2f21be950c`.
+`0a92bd839adf89caa1641e90b201182a24f8fb25`.
 
-Noisemaker's watched source roots
-added selected MIDI/audio input and nested automation behavior, but did not
-change this effect, its shaders, compiler, or expander. Shade MCP changed only
-its README hero and image after the prior snapshot. The cited tool handlers and
-browser harness remain byte-identical. Those changes do not alter this
-single-output 2D effect or resolve GAP-024.
+Noisemaker's watched source roots added lossless vector formatting, MIDI
+controller/expression modes, MPE routing, and default audio channels. They did
+not change this effect, its shaders, compiler, or expander. Shade MCP revised
+tool descriptions, prompts, knowledge, and error strings; the browser readiness
+logic remains unchanged. Those changes do not resolve GAP-024.
 
 MCP request JSON is shown in wire order. Each response is the JSON value decoded
 from the server's `content[0].text` field.
@@ -3567,10 +3669,10 @@ Responses, in the same order:
 {"effect_id":"synth/testPattern","status":"ok","passes":[{"id":"pass_0","status":"ok"},{"id":"pass_1","status":"ok"},{"id":"pass_2","status":"ok"}],"message":"Compiled successfully","backend":"webgl2"}
 {"effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"}],"message":"Compiled successfully","backend":"webgpu"}
 {"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","frame":{"image_uri":null,"width":90,"height":90},"metrics":{"mean_rgb":[0.49851924975320827,0.49851924975320827,0.49851924975320827],"mean_alpha":1,"std_rgb":[0.49999780737389904,0.49999780737389904,0.49999780737389904],"luma_variance":0.2499978073787063,"unique_sampled_colors":2,"is_all_zero":false,"is_all_transparent":false,"is_essentially_blank":false,"is_monochrome":false}}
-{"effect_id":"synth/testPattern","status":"ok","tested_uniforms":["rotation:pass","hueRange:pass","saturation:pass","brightness:pass","contrast:pass"],"details":"Uniforms affect output"}
+{"effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"details":"Uniforms affect output"}
 {"effect_id":"synth/testPattern","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect"}
 {"effect_id":"synth/testPattern","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"effect_id":"synth/testPattern","status":"ok","backend":"webgl2","achieved_fps":60.9,"meets_target":true,"stats":{"frame_count":61,"avg_frame_time_ms":16.42,"jitter_ms":3.52,"min_frame_time_ms":1.7,"max_frame_time_ms":32.6}}
+{"effect_id":"synth/testPattern","status":"ok","backend":"webgl2","achieved_fps":59.88,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.7,"jitter_ms":4.07,"min_frame_time_ms":5,"max_frame_time_ms":42.8}}
 ```
 
 Falsifiable interpretation:
@@ -3587,12 +3689,11 @@ Falsifiable interpretation:
   machine-identify, the selected effect. There is no generic `>5` rendered-
   output requirement. That separate predicate belongs only to the filter
   modification tool.
-- Uniform report: **indeterminate and rejected**. The response claims
-  `rotation`, `hueRange`, `saturation`, `brightness`, and `contrast`, none of
-  which is a global in the source-complete `synth/testPattern` definition
-  above. Its apparent `ok` status is direct evidence that the browser tool
-  measured a stale or different graph under GAP-024. It does not validate any
-  worked-effect uniform.
+- Uniform report: `gridSize:pass` matches the worked effect's numeric uniform.
+  The response still provides neither numeric deltas nor effect/graph/backend
+  identity. The result is consistent with the definition, but freshness remains
+  indeterminate under GAP-024. The prior snapshot returned unrelated uniforms;
+  this run does not establish that the readiness race has been repaired.
 - Passthrough report: expected skip because the definition has no `inputTex`
   input and therefore is not a filter. Effect and backend freshness remain
   indeterminate under GAP-024.
@@ -3605,7 +3706,7 @@ Falsifiable interpretation:
   This call does not establish that either buffer came from the worked effect or
   its named backend. See GAP-024.
 - Performance report: threshold pass because
-  `achieved_fps = 60.9 >= target_fps = 30` and the returned `meets_target`
+  `achieved_fps = 59.88 >= target_fps = 30` and the returned `meets_target`
   agrees. The `backend` field is the configured session value. Effect and
   actual-backend freshness remain indeterminate under GAP-024.
 
@@ -3623,7 +3724,7 @@ The requested frame resolution was `[256,256]`, but the captured canvas was
 
 Sources: Shade MCP tool implementations and harness helpers cited in the tool
 contract surface; the literal transcript above was produced by that server
-against the pinned pair Noisemaker `691eea16` and Shade MCP `23258ca3` named at
+against the pinned pair Noisemaker `246ff57f` and Shade MCP `0a92bd83` named at
 the start of this section.
 
 ## Surfaces x capabilities traceability matrix
@@ -3657,6 +3758,10 @@ These are not documentation omissions. Each is behavior the inspected code does
 not currently expose or enforce, so an agent cannot obtain the requested
 contract without an engine/tool change.
 
+GAP-018 is closed at Shade MCP `0a92bd83`: tool descriptions now specify
+literal comma-separated IDs and no longer promise glob support. This corrects
+the interface description; it does not add wildcard expansion.
+
 | ID | Missing instrumentation | Source evidence | Agent consequence |
 |---|---|---|---|
 | GAP-001 | No enforced `o0`-`o7` range | `shaders/src/lang/lexer.js` accepts digit-suffixed refs; `shaders/src/runtime/pipeline.js` - `createSurfaces()` preallocates only `o0`-`o7` | `o8` parses and fails later/indirectly instead of producing a range diagnostic |
@@ -3676,7 +3781,6 @@ contract without an engine/tool change.
 | GAP-015 | Similar metrics are computed by separate helpers with different sample grids/blank heuristics | Shade `src/tools/browser/render.ts`, `dsl.ts`, and `parity.ts`; Noisemaker `vendor/shade-mcp/harness/pixel-reader.js` | metric names cannot be assumed numerically interchangeable across verbs |
 | GAP-016 | No preflight reports whether an effect is authorable/renderable on each backend or how device limits will change its texture formats | `shaders/src/renderer/canvas.js` - shader discovery; `shaders/src/runtime/pipeline.js` - capability access and `applyMrtFormatBudget()`; backend `compileProgram()` methods | impossible cases and device-specific precision changes are discovered only during pipeline initialization/compilation, so parity cannot be predicted from the definition alone |
 | GAP-017 | Shade's definition parser is regex-based and lossy | Shade `src/formats/definition-js.ts` - `parseDefinitionJs()` | list/analysis tools cannot expose the complete Noisemaker definition schema |
-| GAP-018 | MCP selector inputs described as globs are compared literally | Shade `src/tools/resolve-effects.ts` - `resolveEffectIds()` | wildcard-looking selectors silently do not expand |
 | GAP-019 | `testNoPassthrough` varies time/color rather than injecting and comparing an input texture | Shade `src/tools/browser/passthrough.ts` - `testNoPassthrough()` | its name overstates what is measured. True input passthrough is not tested |
 | GAP-020 | MCP tools have a shared whole-call `isError` marker but no shared domain error envelope | Shade `src/tools/tool-result.ts` marks top-level object failures; all 18 handlers use it for ordinary returns, while batch arrays retain per-entry incompatible unions | partial batch failures and verb-specific payload success/failure still cannot be handled uniformly, and callers must not assume every error text is JSON |
 | GAP-021 | `renderEffectFrame` requested resolution can differ from returned canvas dimensions without a warning | Shade `src/tools/browser/render.ts` sets viewport but reads canvas dimensions; exact transcript requested `256x256` and returned `90x90` | thresholds run on an unexpected sample size unless the caller checks `frame.width/height` |
@@ -3688,9 +3792,9 @@ contract without an engine/tool change.
 | GAP-028 | Frame export has no terminal result or cancellation counter for accepted frames discarded by reconfigure or close | `shaders/src/runtime/frame-export.js` - `configure()`, `close()`, `_destroySlots()`, `_release()` | accepted work can lose its callback without incrementing `completed`, `failed`, or `dropped`, so a host cannot reconcile or selectively retry canceled frames |
 | GAP-029 | Effect-index invalidation does not supersede an in-flight rebuild | Shade `src/knowledge/shared-instances.ts` leaves `building` intact in `invalidateSharedEffectIndex()` and shares it with the next reader | a list/search immediately after a library change or `generateManifest` can retain a pre-change index for the next five-second TTL. Retry after that TTL when freshness matters |
 | GAP-030 | MRT budget adaptation does not invalidate same-size backend textures whose format no longer matches the graph | `shaders/src/runtime/pipeline.js` - `applyMrtFormatBudget()` mutates `graph.textures`, while `createSurfaces()` and `recreateTextures()` reuse global and regular textures by dimensions (plus depth for 3D) without comparing format | after resize or hot recompilation the graph can report `rgba16f` while the backend still allocates `rgba32f`. Byte-budget validation must inspect backend records and an unsupported FBO can still be created |
-| GAP-031 | MIDI automation does not enforce the documented integer channel range 1-16 | `shaders/src/lang/validator.js` - `compileAutomationDescriptor()` finite-checks `midi.channel` without integer/min/max predicates; `shaders/src/runtime/external-input.js` - `MidiState.getChannel()` falls back to channel 1 | A fractional, zero, or out-of-range MIDI channel compiles without a diagnostic and reads channel 1. A caller cannot distinguish invalid authoring from an intentional channel-1 binding. |
-| GAP-032 | The built-in browser audio manager cannot populate selected-device channels or any `rawReady` value | `shaders/src/runtime/external-input.js` - `AudioInputManager.enable()` opens one default stream and `_updateLoop()` updates only aggregate spectrum, waveform, bands, and volume; selected/raw setters exist only on `AudioState` | `audio(...,name:,channel:)` and `audioBand.raw` evaluate to `min` under the shipped manager unless the host separately consumes `getAudioInputRequirements()` and populates `AudioState`. The runtime gives no warning when that integration is absent. |
+| GAP-031 | Legacy MIDI note modes 0-4 do not enforce the documented integer channel range 1-16 | `shaders/src/lang/validator.js` - `compileAutomationDescriptor()` enables strict channel predicates only for modes 5-10; `shaders/src/runtime/external-input.js` - `MidiState.getChannel()` falls back to channel 1 | A fractional, zero, or out-of-range channel in a legacy note mode compiles without a diagnostic and reads channel 1. CC and expression modes instead diagnose invalid channels and resolve to `min`. |
+| GAP-032 | The built-in browser audio manager cannot populate selected-device/default-channel state or any `rawReady` value | `shaders/src/runtime/external-input.js` - `AudioInputManager.enable()` opens one default stream and `_updateLoop()` updates only aggregate spectrum, waveform, bands, and volume; selected/raw setters exist only on `AudioState` | Channel-only, named-channel, and raw audio bindings evaluate to `min` under the shipped manager unless the host separately consumes `getAudioInputRequirements()` and populates `AudioState`. The runtime gives no warning when that integration is absent. |
 
 The matrix has 9 surfaces x 4 capabilities = 36 filled cells. Cells that rely
-on behavior absent from code link to the 31 gaps above rather than substituting
+on behavior absent from code link to the 30 gaps above rather than substituting
 an invented contract.

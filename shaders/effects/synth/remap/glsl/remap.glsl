@@ -116,7 +116,6 @@ float distToZoneEdge(vec2 p, int zoneIdx) {
 }
 
 void main() {
-    vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     // Polygon tests use GLOBAL UV so zones land in the same image position
     // regardless of which tile is rendering. gl_FragCoord is bottom-left
     // origin (Y-up); remap JSON is top-left (Y-down) - flip y after the
@@ -127,7 +126,7 @@ void main() {
     // tile's slice of its source surface, so we sample at the tile-local
     // pixel position, not the global one. Bottom-left origin to match
     // the codebase texture convention.
-    vec2 sampleUv = globalCoord / fullResolution;
+    vec2 sampleUv = gl_FragCoord.xy / data[266].xy;
 
     vec4 header = data[HEADER_SLOT];
     vec4 controls = data[CONTROLS_SLOT];

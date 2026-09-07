@@ -37,6 +37,8 @@ For each zone:
 
 Vertices are normalized: `(0, 0)` is top-left and `(1, 1)` is bottom-right. The GLSL backend flips the y axis internally so polygons match the canvas editor's orientation on either backend.
 
+Regenerated DSL stores each packed vertex pair as four exact numbers, such as `[0.8000000780001997, 0.45, 0.1, 0.45]`. The effect's `ui.format: 'vector'` metadata preserves these coordinates through editing and saving. Legacy hexadecimal vertex literals still load, with their original 8-bit color precision.
+
 ## Limits
 
 - 8 zones (matches the eight engine user surfaces `o0`…`o7`)

@@ -280,6 +280,26 @@ A global registry defines common enumerations for consistency and reduced duplic
 
 The runtime resolves the string value (e.g., ``"linear"``) to its integer counterpart (``1``) before binding to the shader.
 
+**Exact vector formatting:**
+
+For ``vec4`` parameters that store coordinates, set ``ui.format: 'vector'``
+to preserve their numeric values when generating DSL:
+
+.. code-block:: javascript
+
+   vertices: {
+     type: 'vec4',
+     default: [0, 0, 1, 1],
+     ui: { format: 'vector' }
+   }
+
+When the unparser receives this parameter definition and an array or typed
+array of four finite numbers, it emits an array literal without rounding,
+color clamping, or exponent notation. Remap uses this for its packed vertex
+pairs. Hosts that call ``unparse()`` must supply effect definitions through
+``getEffectDef`` so the formatter can read the metadata. This property does
+not change the parameter's shader type or reject legacy hexadecimal input.
+
 4b. UI Categories
 -----------------
 

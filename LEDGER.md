@@ -20,7 +20,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## I18n strings
 
-- **Checkpoint:** noisemaker `691eea16` / noisedeck `0f3917fb` (2026-09-03)
+- **Checkpoint:** noisemaker `d30d1045` / noisedeck `94f4d002` (2026-09-07)
 - **Scope:** two translation surfaces:
   - Noisemaker effect catalogs
     `shaders/effects/strings.{de,es,fr,it,ja,pt}.json`. The English catalog
@@ -57,6 +57,21 @@ work, verify it, then update the checkpoint and append a log line.
      non-empty string values plus every placeholder, plural leaf, and markup tag
      from the English catalog.
 - **Log:**
+  - 2026-09-07 — caught up through noisemaker `d30d1045` / noisedeck
+    `94f4d002`: audited all 20 live-capture settings, status, permission,
+    recording-limit, and export-warning strings; all six UI translations
+    were already complete. All six effect catalogs retain all 3,639 English
+    keys. Generated-English drift, key order, placeholders, markup, fallback,
+    and locale checks passed, along with Noisedeck's full 806-test Node suite
+    and both affected toolbar/settings browser tests. No catalog edits were
+    required.
+  - 2026-09-07 — caught up through noisemaker `d30d1045` / noisedeck
+    `00cb87d2`: all six effect catalogs contain all 3,639 English keys.
+    Audited the new Remap editor and MIDI CC, NRPN, MPE, and audio-channel
+    copy plus the removed Sync retry string; all six UI locales were already
+    complete. Generated-English drift, exact key order, non-empty values,
+    placeholders, markup, fallback, and async locale checks passed, as did
+    Noisedeck's full 806-test Node suite. No catalog edits were required.
   - 2026-09-03 — caught up through noisemaker `691eea16` / noisedeck
     `0f3917fb`: verified that the updated Cell description is present in all six
     translated effect catalogs and that Noisedeck's insert-zone, MIDI-device,
@@ -95,8 +110,8 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Large-format tiling
 
-- **Checkpoint:** noisemaker `ee523ab9` / noisedeck `539ee089` (preview
-  branch), 2026-09-04
+- **Checkpoint:** noisemaker `827b2e91` / noisedeck `539ee089` (preview
+  branch), 2026-09-07
 - **Scope:** every effect must be classified for Noisedeck's large-format
   (tiled print) export. Tile-aware effects consume the global `tileOffset`
   and `fullResolution` uniforms in both GLSL and WGSL when their coordinates
@@ -114,6 +129,20 @@ work, verify it, then update the checkpoint and append a log line.
   deny-list. Verify tile-aware claims with noisedeck's seam harness
   (`tests/large-format-seams/`).
 - **Log:**
+  - 2026-09-07 — caught up through noisemaker `827b2e91`: no new effects;
+    rechecked the changed Remap definition and Text shader. Remap's active
+    zones exposed a GLSL seam: source surfaces are tile-local, but sampling
+    used global UV. Corrected the source lookup to use the packed resolution
+    slot; polygon coordinates remain global and WGSL already uses local
+    source sampling. Remap now has a zero-pixel source displacement and needs
+    no deny-list entry. Both backends match full-frame captures exactly at
+    2048x2048 and 2048x3000 using Noisedeck's seam harness; four untiled
+    before/after captures remain byte-identical. Added a nontrivial active-zone
+    regression, renewed source-bound strict Remap parity evidence, and passed
+    33 tile checks, 126 harness/classifier tests, Shade compilation/structure,
+    and the full non-parity JS suite. Text's external-overlay tile regression
+    also passes. No Noisedeck routing changes were required.
+
   - 2026-09-04 — caught up through noisemaker `ee523ab9` / noisedeck
     `539ee089`: audited 25 added artistic filters and seven changed effect
     definitions. Classified 23 additions as tile-safe, routed `spinBlur` and
@@ -134,7 +163,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `acb26f80` (2026-09-04)
+- **Checkpoint:** noisemaker `d30d1045` (2026-09-07)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -148,6 +177,15 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-07 — caught up through `d30d1045`: verified help coverage for
+    all 210 effects and 1,223 documented parameters across the 200 effects
+    recognized by the table checker. Documented lossless Remap vertex
+    formatting in the language, effect-authoring, and effect-help references.
+    Re-audited the in-band MIDI CC, CC14, NRPN, MPE, audio-channel, and capture
+    capability guides; no additional feature guide was needed. The existing
+    non-parity suite, six Remap round-trip tests, and four static-asset checks
+    passed. The production-format Sphinx dirhtml build passed with 18 warnings
+    in unchanged documentation and configuration.
   - 2026-09-04 — caught up through `acb26f80`: verified `help.md`
     file coverage for all 210 effect definitions and ran the existing
     parameter-table checker across the 200 definitions it recognizes. Corrected
@@ -216,14 +254,15 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `691eea16` / shade-mcp `23258ca3`, 2026-09-04
+- **Checkpoint:** noisemaker `246ff57f` / shade-mcp `0a92bd83`, 2026-09-07
 - **Scope:** the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
   *current* runtime behavior across nine surfaces (DSL, effect definition,
   parameters/globals, passes/graph, textures, compatibility/mutation,
   rendered output, cross-backend parity, Shade MCP tool contracts), a fully
   worked validated effect, the surface × capability traceability matrix, and
-  the 31-entry gap register (GAP-001..024 and GAP-026..032). The file pins its
+  the 30-entry open gap register (GAP-001..017, GAP-019..024, and
+  GAP-026..032). The file pins its
   own audited SHAs in the "Source snapshots used for this contract" block at
   its head; that block and this checkpoint are the same two SHAs and must be
   advanced together. There is no generator — every update is a hand edit
@@ -235,7 +274,7 @@ work, verify it, then update the checkpoint and append a log line.
      primary source roots the contract reads:
 
      ```
-     git log --oneline 691eea16..HEAD -- shaders/src/lang/ shaders/src/runtime/ shaders/src/renderer/canvas.js shaders/tests/test-harness.js
+     git log --oneline 246ff57f..HEAD -- shaders/src/lang/ shaders/src/runtime/ shaders/src/renderer/canvas.js shaders/tests/test-harness.js
      ```
 
      Each can invalidate a behavior statement, typed grammar, or validator
@@ -248,6 +287,19 @@ work, verify it, then update the checkpoint and append a log line.
      triple, then re-audit the "Shade MCP tool contracts" section and the
      MCP-side gaps.
 - **Log:**
+  - 2026-09-07 — caught up through noisemaker `246ff57f` / shade-mcp
+    `0a92bd83`: documented lossless vec4 formatting, CC/CC14, NRPN, pressure,
+    bend, MPE selection, port inventories/lifecycle, default audio channels,
+    and aggregate/raw cleanup. Narrowed GAP-031 to legacy note modes, extended
+    GAP-032 to default channels, and closed GAP-018 after the tool descriptions
+    stopped promising glob support. Rechecked changed-source engine and MCP
+    gaps. Resolved the runtime mirror to the pinned Shade commit, built its
+    locked dependencies, and captured the 0.2.2/2025-11-25 handshake, all 18
+    schemas, and eight worked calls in one session. Tool descriptions and error
+    strings changed; argument types/defaults did not. The exact two-pass source
+    graph reproduced, while the compile reports still demonstrate GAP-024.
+    Noisemaker language/runtime and focused MIDI suites passed; Shade's 157
+    tests, typecheck, build, and standalone-drop checks passed.
   - 2026-09-04 — caught up through noisemaker `691eea16` / shade-mcp
     `23258ca3`: re-audited selected MIDI ports, selected audio device/channels,
     bipolar raw audio, recursive capture requirements, and eight-level nested
