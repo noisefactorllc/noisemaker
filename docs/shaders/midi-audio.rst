@@ -518,6 +518,17 @@ and `Web Audio channel limit <https://github.com/chromium/chromium/blob/152.0.79
 
 A 240-channel mixer therefore cannot expose all of its inputs through this
 capture path. Higher channel counts require a different capture integration.
+
+Chromium's Web Audio bridge is a second, separate limit. The sink that feeds a
+``MediaStreamAudioSourceNode`` from any track is fixed to a stereo layout, so
+a wider track reaches the audio graph as a two-channel fold, whatever count the
+track's settings report. Channels past the second are unreachable through
+``createMediaStreamSource``. Noisedeck reads wider tracks frame by frame with
+``MediaStreamTrackProcessor`` and plays them into the graph from an
+``AudioWorklet``; without that API it reports two channels. See the pinned
+`Web Audio media stream sink <https://github.com/chromium/chromium/blob/152.0.7977.82/third_party/blink/renderer/modules/mediastream/webaudio_media_stream_audio_sink.cc>`_.
+Hosts that rely on ``createMediaStreamSource`` alone must report two channels
+for such devices.
 Repeated requests for the same physical device reuse Chromium's native source;
 they do not create independently patchable virtual input ports. See
 `Chromium device reuse <https://github.com/chromium/chromium/blob/148.0.7778.180/content/browser/renderer_host/media/media_stream_manager.cc#L3650>`_.

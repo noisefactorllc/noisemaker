@@ -653,7 +653,8 @@ raw silence then maps to the midpoint of the output range.
 
 Audio channel choices must follow the host's actual delivered count. The DSL's
 32-channel processing ceiling does not guarantee 32-channel hardware capture:
-the Chromium 152 Linux capture path currently requests two channels per device.
+the Chromium 152 Linux capture path currently requests two channels per device,
+and Chromium's Web Audio bridge hands the graph a stereo fold of any track.
 See :doc:`midi-audio` for backend limits and capture requirements.
 
 Example:
