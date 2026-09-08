@@ -48,7 +48,7 @@ void main() {
   vec2 globalCoord = gl_FragCoord.xy + tileOffset;
   vec2 st = gl_FragCoord.xy / vec2(max(textureSize(inputTex, 0), ivec2(1)));
   vec4 base = texture(inputTex, st);
-  vec3 base_rgb = clamp(base.rgb, 0.0, 1.0);
+  vec3 base_rgb = base.a > 0.0 ? clamp(base.rgb / base.a, 0.0, 1.0) : vec3(0.0);
 
   int m = int(mode);
   vec3 tinted;
@@ -66,5 +66,5 @@ void main() {
   }
 
   vec3 rgb = mix(base_rgb, tinted, alpha);
-  fragColor = vec4(rgb, base.a);
+  fragColor = vec4(rgb * base.a, base.a);
 }

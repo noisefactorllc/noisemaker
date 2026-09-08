@@ -19,10 +19,11 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let uv = pos.xy / texSize;
     var color = textureSample(inputTex, inputSampler, uv);
 
+    // Invert the underlying color and retain premultiplied coverage.
     if (uniforms.mode == 1) {
-        color = vec4<f32>(min(color.rgb, 1.0 - color.rgb), color.a);
+        color = vec4<f32>(min(color.rgb, color.a - color.rgb), color.a);
     } else {
-        color = vec4<f32>(1.0 - color.rgb, color.a);
+        color = vec4<f32>(color.a - color.rgb, color.a);
     }
 
     return color;

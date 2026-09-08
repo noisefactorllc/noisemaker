@@ -45,7 +45,10 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   let size = max(textureDimensions(inputTex, 0), vec2<u32>(1, 1));
   let st = position.xy / vec2<f32>(size);
   let base = textureSampleLevel(inputTex, samp, st, 0.0);
-  let base_rgb = clamp(base.rgb, vec3<f32>(0.0), vec3<f32>(1.0));
+  var base_rgb = vec3<f32>(0.0);
+  if (base.a > 0.0) {
+      base_rgb = clamp(base.rgb / base.a, vec3<f32>(0.0), vec3<f32>(1.0));
+  }
 
   let m = i32(mode);
   var tinted: vec3<f32>;
@@ -63,5 +66,5 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   }
 
   let rgb = mix(base_rgb, tinted, vec3<f32>(alpha));
-  return vec4<f32>(rgb, base.a);
+  return vec4<f32>(rgb * base.a, base.a);
 }

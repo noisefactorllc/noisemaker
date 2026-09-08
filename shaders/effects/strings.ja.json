@@ -2294,6 +2294,7 @@
   "filter3d/palette3d.volumeSize.x64": "x64",
   "mixer/alphaMask": "アルファマスク",
   "mixer/alphaMask#desc": "アルファ透明度によるブレンド",
+  "mixer/alphaMask.baseTex": "マスクの背景",
   "mixer/alphaMask.maskMode": "グレースケールマスク",
   "mixer/alphaMask.mix": "ミックス",
   "mixer/alphaMask.tex": "ソース b",

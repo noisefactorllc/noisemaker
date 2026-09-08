@@ -2294,6 +2294,7 @@
   "filter3d/palette3d.volumeSize.x64": "x64",
   "mixer/alphaMask": "Masque alpha",
   "mixer/alphaMask#desc": "Fusion de transparence alpha",
+  "mixer/alphaMask.baseTex": "arrière-plan du masque",
   "mixer/alphaMask.maskMode": "masque en niveaux de gris",
   "mixer/alphaMask.mix": "mélange",
   "mixer/alphaMask.tex": "source b",

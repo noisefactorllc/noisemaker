@@ -13,6 +13,11 @@ export default new Effect({
       default: "none",
       ui: { label: "source b" }
     },
+    baseTex: {
+      type: "surface",
+      default: "none",
+      ui: { label: "mask background", enabledBy: { param: "maskMode", eq: true } }
+    },
     mix: {
       type: "float",
       default: 0,
@@ -34,7 +39,7 @@ export default new Effect({
     {
       name: "render",
       program: "alphaMask",
-      inputs: { inputTex: "inputTex", tex: "tex" },
+      inputs: { inputTex: "inputTex", tex: "tex", baseTex: "baseTex" },
       uniforms: { mixAmt: "mix", maskMode: "maskMode" },
       outputs: { fragColor: "outputTex" }
     }
