@@ -95,7 +95,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let color = textureSample(inputTex, inputSampler, uv);
     
     if (abs(uniforms.vignetteAmount) < 0.001) {
-        return color;
+        return vec4<f32>(color.rgb * color.a, color.a);
     }
     
     var rgb = srgbToLinear(color.rgb);
@@ -115,5 +115,5 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     
     rgb = linearToSrgb(max(rgb, vec3<f32>(0.0)));
     
-    return vec4<f32>(rgb, color.a);
+    return vec4<f32>(rgb * color.a, color.a);
 }

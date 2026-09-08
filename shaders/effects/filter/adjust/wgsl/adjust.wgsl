@@ -101,6 +101,12 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let uv = pos.xy / texSize;
     var color = textureSample(inputTex, inputSampler, uv);
+    // Color operations use straight RGB; retain coverage at the boundary.
+    if (color.a > 0.0) {
+        color = vec4<f32>(color.rgb / color.a, color.a);
+    } else {
+        color = vec4<f32>(0.0);
+    }
 
     // --- Colorspace reinterpretation ---
     if (uniforms.mode == 1) {
@@ -137,5 +143,5 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let contrastFactor = uniforms.contrast * 2.0;
     color = vec4<f32>((color.rgb - 0.5) * contrastFactor + 0.5, color.a);
 
-    return color;
+    return vec4<f32>(color.rgb * color.a, color.a);
 }

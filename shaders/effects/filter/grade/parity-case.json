@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "effects": [
+    "synth/testPattern",
+    "synth/solid",
+    "mixer/alphaMask",
+    "filter/grade"
+  ],
+  "dsl": "search synth, mixer, filter\n\ntestPattern(pattern: colorBars).alphaMask(tex: solid(color: #808080), maskMode: true).grade(exposure: 0.2, contrast: 0.15, fadedFilm: 0.15, preset: warmFilm, alpha: 0.6, vignetteAmount: 0.4).write(o0)\nrender(o0)"
+}
