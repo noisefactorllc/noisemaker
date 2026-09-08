@@ -57,6 +57,21 @@ fn tile(st: vec2<f32>) -> vec2<f32> {
     return st;
 }
 
+// External uploads use straight alpha; filter premultiplied texels.
+fn mediaTexel(p: vec2<i32>, size: vec2<i32>) -> vec4<f32> {
+    let c = textureLoad(imageTex, clamp(p, vec2<i32>(0), size - vec2<i32>(1)), 0);
+    return vec4<f32>(c.rgb * c.a, c.a);
+}
+
+fn sampleMedia(uv: vec2<f32>) -> vec4<f32> {
+    let size = vec2<i32>(textureDimensions(imageTex));
+    let p = uv * vec2<f32>(size) - vec2<f32>(0.5);
+    let lo = vec2<i32>(floor(p));
+    let f = fract(p);
+    return mix(mix(mediaTexel(lo, size), mediaTexel(lo + vec2<i32>(1, 0), size), f.x),
+               mix(mediaTexel(lo + vec2<i32>(0, 1), size), mediaTexel(lo + vec2<i32>(1, 1), size), f.x), f.y);
+}
+
 fn getImage(pos: vec2<f32>) -> vec4<f32> {
     var st = pos / imageSize;
     st.y = 1.0 - st.y;
@@ -95,7 +110,8 @@ fn getImage(pos: vec2<f32>) -> vec4<f32> {
     st.y = st.y - map(offsetY, -100.0, 100.0, -resolution.y / imageSize.y * scale, resolution.y / imageSize.y * scale) * 1.5;
 
     st.x = st.x * (imageSize.x / imageSize.y);
-    st = rotate2D(st);
+    // Preserve exact texture coordinates for the identity transform.
+    if (rotation != 0.0) { st = rotate2D(st); }
     st.x = st.x / (imageSize.x / imageSize.y);
 
     st = tile(st);
@@ -134,14 +150,10 @@ fn getImage(pos: vec2<f32>) -> vec4<f32> {
     // Compensate for WebGPU blit Y-flip (present shader maps UV y=0 to screen bottom)
     st.y = 1.0 - st.y;
 
-    var text = textureSample(imageTex, samp, st);
+    let text = sampleMedia(st);
 
     if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) {
-        return vec4<f32>(bgColor, bgAlpha);
-    }
-
-    if (text.a > 0.0) {
-        text = vec4<f32>(text.rgb / text.a, text.a);
+        return vec4<f32>(bgColor * bgAlpha, bgAlpha);
     }
 
     return text;

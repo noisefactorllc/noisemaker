@@ -4,6 +4,12 @@ import path from 'node:path'
 
 export const PARITY_ATTESTATION_SCHEMA_VERSION = 1
 
+export function isReadbackPerformanceWarning(type, message) {
+    // Pixel certification deliberately performs synchronous GPU readback.
+    // Chrome's driver reports that synchronization as a performance warning.
+    return type === 'warning' && /^\[\.WebGL-[^\]]+\]GL Driver Message \(OpenGL, Performance, [^)]+\): GPU stall due to ReadPixels(?: \(this message will no longer repeat\))?$/.test(message)
+}
+
 function assertEffectId(effectId) {
     if (!/^[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/.test(effectId)) {
         throw new Error(`Invalid effect ID: ${effectId}`)
@@ -179,6 +185,21 @@ export function validateParityCase(parityCase, effectId) {
     if (parityCase?.epsilon !== 0) errors.push('parity case epsilon must be zero')
     if (parityCase?.requireColorVariation !== true) {
         errors.push('parity case must require color variation')
+    }
+    if (parityCase?.textureInputs !== undefined) {
+        if (!Array.isArray(parityCase.textureInputs)) {
+            errors.push('parity case texture inputs must be an array')
+        } else {
+            for (const texture of parityCase.textureInputs) {
+                if (!texture || !parityCase.effects?.includes(texture.effect) ||
+                    typeof texture.uniform !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(texture.uniform) ||
+                    !integerInRange(texture.width, 1, 64) || !integerInRange(texture.height, 1, 64) ||
+                    !Array.isArray(texture.data) || texture.data.length !== texture.width * texture.height * 4 ||
+                    !texture.data.every((value) => integerInRange(value, 0, 255))) {
+                    errors.push('parity case texture input must name a loaded effect and uniform, with valid dimensions and RGBA bytes')
+                }
+            }
+        }
     }
     return errors
 }

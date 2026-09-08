@@ -4,12 +4,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
+import { shaderTestBrowserOptions } from './lib/shader-test-browser.mjs'
 
 import {
     comparePixelFrames,
     computeFileHash,
     computeParitySourceHash,
     effectDirectory,
+    isReadbackPerformanceWarning,
     matchesTargetEffectPass,
     PARITY_ATTESTATION_SCHEMA_VERSION,
     validateFrameEvidence,
@@ -34,16 +36,20 @@ if (!fs.existsSync(casePath)) {
     throw new Error(`${effectId} has no parity-case.json`)
 }
 
+const initialCaseHash = computeFileHash(casePath)
 const parityCase = JSON.parse(fs.readFileSync(casePath, 'utf8'))
+assert.equal(computeFileHash(casePath), initialCaseHash, 'Parity case changed while loading')
 const caseErrors = validateParityCase(parityCase, effectId)
 if (caseErrors.length > 0) throw new Error(`Invalid parity case: ${caseErrors.join('; ')}`)
 const resolution = parityCase.resolution
+const initialSourceHash = computeParitySourceHash(repoRoot, parityCase)
 
 async function renderBackend(browser, baseUrl, preferWebGPU) {
     const [width, height] = resolution
     const page = await browser.newPage({ viewport: { width, height } })
     const consoleMessages = []
     page.on('console', (message) => {
+        if (isReadbackPerformanceWarning(message.type(), message.text())) return
         if (message.type() === 'error' || message.type() === 'warning') consoleMessages.push(message.text())
     })
     page.on('pageerror', (error) => consoleMessages.push(error.message))
@@ -70,10 +76,27 @@ await renderer.loadEffects(${JSON.stringify(parityCase.effects)});
 await renderer.compile(${JSON.stringify(parityCase.dsl)});
 renderer.stop();
 renderer.render(0);
+const matchesTargetEffectPass = ${matchesTargetEffectPass.toString()};
+for (const texture of ${JSON.stringify(parityCase.textureInputs || [])}) {
+    const source = document.createElement('canvas');
+    source.width = texture.width;
+    source.height = texture.height;
+    source.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(texture.data), texture.width, texture.height), 0, 0);
+    const passes = renderer.pipeline.graph.passes.filter((pass) => matchesTargetEffectPass(pass, texture.effect));
+    if (!passes.length) throw new Error('Texture fixture has no executing effect: ' + texture.effect);
+    for (const pass of passes) {
+        const textureId = pass.inputs?.[texture.uniform];
+        if (typeof textureId !== 'string') throw new Error('Texture fixture uniform is not bound: ' + texture.uniform);
+        const uploaded = renderer.updateTextureFromSource(textureId, source, { flipY: false });
+        if (uploaded?.width !== texture.width || uploaded?.height !== texture.height) {
+            throw new Error('Texture fixture upload dimensions differ');
+        }
+    }
+}
+renderer.render(0);
 renderer.render(0);
 await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone?.();
 const surface = renderer.pipeline.surfaces.get(${JSON.stringify(parityCase.surface || 'o0')});
-const matchesTargetEffectPass = ${matchesTargetEffectPass.toString()};
 const candidates = [surface?.read, surface?.write].filter(Boolean);
 let capture = null;
 for (const id of candidates) {
@@ -130,14 +153,7 @@ const baseUrl = await acquireServer(undefined, repoRoot, effectsDir)
 let browser
 
 try {
-    browser = await chromium.launch({
-        headless: true,
-        args: [
-            '--enable-unsafe-webgpu',
-            '--enable-features=Vulkan',
-            process.platform === 'darwin' ? '--use-angle=metal' : '--use-angle=vulkan',
-        ],
-    })
+    browser = await chromium.launch(shaderTestBrowserOptions())
     const webglResult = await renderBackend(browser, baseUrl, false)
     const webgpuResult = await renderBackend(browser, baseUrl, true)
     const webgl = webglResult.capture
@@ -170,14 +186,26 @@ try {
 
     const parity = comparePixelFrames(webgl, webgpu)
     if (parity.mismatchCount !== 0 || parity.maxDiff !== 0) {
-        throw new Error(`PIXEL PARITY FAILED: ${JSON.stringify(parity)}`)
+        const samples = []
+        for (let y = 0; y < webgl.height && samples.length < 8; y++) {
+            for (let x = 0; x < webgl.width && samples.length < 8; x++) {
+                const gl = webgl.data.slice((y * webgl.width + x) * 4, (y * webgl.width + x + 1) * 4)
+                const gpuIndex = ((webgpu.height - 1 - y) * webgpu.width + x) * 4
+                const gpu = webgpu.data.slice(gpuIndex, gpuIndex + 4)
+                if (gl.some((value, channel) => value !== gpu[channel])) samples.push({ x, y, webgl2: gl, webgpu: gpu })
+            }
+        }
+        throw new Error(`PIXEL PARITY FAILED: ${JSON.stringify({ ...parity, samples })}`)
     }
+
+    assert.equal(computeParitySourceHash(repoRoot, parityCase), initialSourceHash, 'Shader sources changed during attestation')
+    assert.equal(computeFileHash(casePath), initialCaseHash, 'Parity case changed during attestation')
 
     const attestation = {
         schemaVersion: PARITY_ATTESTATION_SCHEMA_VERSION,
         effect: effectId,
-        sourceHash: computeParitySourceHash(repoRoot, parityCase),
-        caseHash: computeFileHash(casePath),
+        sourceHash: initialSourceHash,
+        caseHash: initialCaseHash,
         resolution,
         frames,
         execution,

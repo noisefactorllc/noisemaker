@@ -61,6 +61,9 @@ jobs:
     - name: Run shader compile and render test
       run: npm run test:shaders:render:webgl2
 
+    - name: Verify alpha compositing on both GPU backends
+      run: npm run test:shaders:alpha
+
     - name: Run shader structure tests
       run: npm run test:shaders:structure
 

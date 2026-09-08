@@ -12,6 +12,7 @@ import {
     comparePixelFrames,
     computeEffectSourceHash,
     computeParitySourceHash,
+    isReadbackPerformanceWarning,
     matchesTargetEffectPass,
     registeredParityEffectIds,
     validateWgslTextureBindings,
@@ -22,6 +23,12 @@ import {
 
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'noisemaker-parity-attestation-'))
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+const readbackWarning = '[.WebGL-0x2400154e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels'
+assert.equal(isReadbackPerformanceWarning('warning', readbackWarning), true)
+assert.equal(isReadbackPerformanceWarning('error', readbackWarning), false)
+assert.equal(isReadbackPerformanceWarning('warning', 'GPU stall due to ReadPixels'), false)
+assert.equal(isReadbackPerformanceWarning('warning', readbackWarning.replace('Performance', 'Error')), false)
+assert.equal(isReadbackPerformanceWarning('warning', 'Texture binding failed'), false)
 
 const brightestSource = fs.readFileSync(path.join(
     repoRoot,
@@ -76,6 +83,14 @@ try {
         requireColorVariation: true,
     }
     assert.deepEqual(validateParityCase(completeParityCase, 'filter/example'), [])
+    const textureInput = { effect: 'filter/example', uniform: 'imageTex', width: 2, height: 2,
+        data: [255, 0, 0, 255, 0, 255, 0, 128, 0, 0, 255, 64, 128, 64, 32, 128] }
+    assert.deepEqual(validateParityCase({ ...completeParityCase, textureInputs: [textureInput] }, 'filter/example'), [])
+    for (const change of [{ width: 0 }, { data: [255] }, { data: new Array(16).fill(-1) },
+        { effect: 'unknown/effect' }, { uniform: 'bad.name' }]) {
+        assert.ok(validateParityCase({ ...completeParityCase, textureInputs: [{ ...textureInput, ...change }] },
+            'filter/example').some(error => error.includes('texture')), 'invalid texture evidence must be rejected')
+    }
     assert.equal(matchesTargetEffectPass({
         effectKey: 'example',
         effectFunc: 'example',

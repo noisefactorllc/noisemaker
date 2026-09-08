@@ -115,26 +115,23 @@ void main() {
     vec4 color1 = texture(inputTex, gl_FragCoord.xy / vec2(textureSize(inputTex, 0)));
     vec4 color2 = texture(tex, gl_FragCoord.xy / vec2(textureSize(tex, 0)));
 
-    vec4 middle = applyBlendMode(color1, color2, mode);
-
     float amt = map(mixAmt, -100.0, 100.0, 0.0, 1.0);
-    vec4 color;
-    if (amt < 0.5) {
-        float factor = amt * 2.0;
-        color = mix(color1, middle, factor);
-    } else {
-        float factor = (amt - 0.5) * 2.0;
-        color = mix(middle, color2, factor);
+
+    // The normal mixer axis is source opacity. Other modes reach the full
+    // blend at the midpoint, then transition to normal source-over at +100.
+    float opacity = mode == 8 ? amt : min(amt * 2.0, 1.0);
+    float sourceAlpha = color2.a * opacity;
+    vec3 source = color2.rgb * opacity;
+    if (mode != 8) {
+        // Surfaces are premultiplied. Blend functions operate on straight RGB
+        // only where both inputs cover the pixel; uncovered source stays intact.
+        vec4 baseColor = vec4(color1.a > 0.0 ? color1.rgb / color1.a : vec3(0.0), 1.0);
+        vec4 sourceColor = vec4(color2.a > 0.0 ? color2.rgb / color2.a : vec3(0.0), 1.0);
+        vec3 blended = applyBlendMode(baseColor, sourceColor, mode).rgb;
+        blended = mix(blended, sourceColor.rgb, max(amt * 2.0 - 1.0, 0.0));
+        source = source * (1.0 - color1.a) + blended * sourceAlpha * color1.a;
     }
 
-    // Porter-Duff "over" alpha compositing:
-    // blend at full strength where top is opaque, preserve base where top is transparent.
-    // amt is already applied above in the mixer branch that selected `color` on the
-    // color1 <-> middle <-> color2 axis, so it must NOT be folded into the PD factor
-    // here — doing so applies amt a second time and halves the blend at the midpoint.
-    color.rgb = mix(color1.rgb, color.rgb, color2.a);
-    // Output alpha: top + base * (1 - top), scaled by mix amount
-    color.a = color2.a * amt + color1.a * (1.0 - color2.a * amt);
-
-    fragColor = color;
+    fragColor = vec4(source + color1.rgb * (1.0 - sourceAlpha),
+        sourceAlpha + color1.a * (1.0 - sourceAlpha));
 }
