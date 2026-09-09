@@ -14,6 +14,14 @@ import { Effect } from '../../../src/runtime/effect.js'
  * zoneN_tex unwired (default "none") are skipped, and pixels falling
  * outside every active zone show the background color.
  *
+ * Compositing: zones stack in index order — the last (highest-numbered)
+ * zone containing a pixel is on top, lower zones show through transparent
+ * areas of the zones above, and the background sits under everything.
+ * Sources are premultiplied and composited with their own alpha times the
+ * zone's alpha. Edge smoothing feathers each zone OUTWARD by
+ * `smoothEdge * 0.05 * min(canvas width, height)` pixels and never erodes
+ * the interior, so shared edges show no seam and canvas borders stay clean.
+ *
  * Geometry correction (warping the rectangular projector output onto a
  * non-rectangular physical surface — e.g. a curved wall or a tilted
  * screen) is intentionally NOT in this effect. Use the projector's
@@ -26,7 +34,7 @@ const MAX_ZONES = 8
 const MAX_VERTS_PER_ZONE = 64
 
 // Build the uniformLayout programmatically so the per-zone slots stay in sync.
-// Layout (267 vec4 slots total):
+// Layout (275 vec4 slots total):
 //   slot 0:      bgR, bgG, bgB, bgAlpha
 //   slot 1:      zoneCount, smoothEdge, _, time
 //   slot 2..9:   zone meta (xyzw = vertexCount, active, _, alpha) for zones 0..7
@@ -37,6 +45,12 @@ const MAX_VERTS_PER_ZONE = 64
 //                packed vec4 = (vert n.x, vert n.y, vert n+1.x, vert n+1.y)
 //   slot 266.xy: resolution (auto-filled by the runtime; needed because
 //                this is a starter effect with no inputTex binding)
+//   slot 267..274: zone bounds [minX, minY, maxX, maxY] for zones 0..7,
+//                normalized. The shader skips a zone for pixels outside
+//                its box (dilated by the feather). The default [0, 0, 1, 1]
+//                never rejects, so maps without bounds render as before,
+//                only slower. Noisedeck's canvas editor writes them.
+const BOUNDS_SLOT = 10 + MAX_ZONES * (MAX_VERTS_PER_ZONE / 2) + 1
 const uniformLayout = (() => {
     const layout = {
         bgColor:     { slot: 0, components: 'xyz' },
@@ -51,6 +65,7 @@ const uniformLayout = (() => {
         layout[`zone${z}_count`]  = { slot: metaSlot, components: 'x' }
         layout[`zone${z}_active`] = { slot: metaSlot, components: 'y' }
         layout[`zone${z}_alpha`]  = { slot: metaSlot, components: 'w' }
+        layout[`zone${z}_bounds`] = { slot: BOUNDS_SLOT + z, components: 'xyzw' }
         for (let pair = 0; pair < MAX_VERTS_PER_ZONE / 2; pair++) {
             const slot = 10 + z * (MAX_VERTS_PER_ZONE / 2) + pair
             layout[`zone${z}_v${pair}`] = { slot, components: 'xyzw' }
@@ -171,6 +186,15 @@ function makeZoneGlobals() {
             min: 0,
             max: 1,
             ui: { label: 'alpha', control: 'slider', category: cat, ...enabled }
+        }
+        // Polygon bounding box, written by the canvas editor so the shader
+        // can skip the zone for pixels it cannot touch. The default box is
+        // the whole canvas, which never skips anything.
+        out[`zone${z}_bounds`] = {
+            type: 'vec4',
+            default: [0, 0, 1, 1],
+            uniform: `zone${z}_bounds`,
+            ui: { label: 'bounds', control: 'slider', hidden: true, format: 'vector', category: cat }
         }
         for (let pair = 0; pair < MAX_VERTS_PER_ZONE / 2; pair++) {
             out[`zone${z}_v${pair}`] = {

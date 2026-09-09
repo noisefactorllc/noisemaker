@@ -35,7 +35,7 @@
     "strings": "node shaders/scripts/generate-effect-strings.mjs",
     "lint": "eslint js/ scripts/ test/ shaders/ demo/",
     "lint:fix": "eslint js/ scripts/ test/ shaders/ demo/ --fix",
-    "test:shaders:alpha": "node shaders/tests/test_blend_mode_alpha.mjs && node shaders/tests/test_media_alpha.mjs && node shaders/tests/test_alpha_mask.mjs && node shaders/tests/test_adjustment_alpha.mjs && node scripts/attest-shader-parity.mjs mixer/blendMode && node scripts/attest-shader-parity.mjs synth/media && node scripts/attest-shader-parity.mjs mixer/alphaMask && node scripts/attest-shader-parity.mjs filter/invert && node scripts/attest-shader-parity.mjs filter/tint && node scripts/attest-shader-parity.mjs filter/adjust && node scripts/attest-shader-parity.mjs filter/grade"
+    "test:shaders:alpha": "node shaders/tests/test_blend_mode_alpha.mjs && node shaders/tests/test_media_alpha.mjs && node shaders/tests/test_alpha_mask.mjs && node shaders/tests/test_adjustment_alpha.mjs && node shaders/tests/test_remap_render.mjs && node scripts/attest-shader-parity.mjs mixer/blendMode && node scripts/attest-shader-parity.mjs synth/media && node scripts/attest-shader-parity.mjs mixer/alphaMask && node scripts/attest-shader-parity.mjs filter/invert && node scripts/attest-shader-parity.mjs filter/tint && node scripts/attest-shader-parity.mjs filter/adjust && node scripts/attest-shader-parity.mjs filter/grade"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

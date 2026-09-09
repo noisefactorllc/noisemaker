@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "synth/remap",
-  "sourceHash": "e9906b382e7daca4808800984ba2a1f2459b01f54b138700b1f42b3745749351",
-  "caseHash": "4083c517e40dba1956c7231de131ddb1290fc30b9979b12dc8a40e0f190957e1",
+  "sourceHash": "9085c68ff470b351ca024412ec752c979683ba3425bd1b90a88e0492a950a26c",
+  "caseHash": "d2a332f4d99f249f5c058a29679cbedf46cb87556c6b69075acfe0bccdd33cbf",
   "resolution": [
     192,
     128
@@ -13,14 +13,14 @@
       "height": 128,
       "nonzeroRgbPixels": 24576,
       "nonzeroAlphaPixels": 24576,
-      "uniqueColors": 56
+      "uniqueColors": 250
     },
     "webgpu": {
       "width": 192,
       "height": 128,
       "nonzeroRgbPixels": 24576,
       "nonzeroAlphaPixels": 24576,
-      "uniqueColors": 56
+      "uniqueColors": 250
     }
   },
   "execution": {

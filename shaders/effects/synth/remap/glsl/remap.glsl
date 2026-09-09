@@ -1,13 +1,21 @@
 /**
  * Remap - GLSL fragment shader
  *
- * For each pixel, walks active zones (vertexCount >= 3 and source wired)
- * and tests whether the UV is inside the polygon. The first matching
- * zone wins; the pixel samples from that zone's wired source surface.
- * Pixels outside every active zone show the background color.
+ * Polygon-zone router. Zones are composited TOP-DOWN: the last active zone
+ * (highest index) that contains a pixel is on top. A zone's coverage is 1
+ * everywhere inside its polygon and feathers OUTWARD over
+ * `smoothEdge * 0.05 * min(fullResolution)` pixels, so the interior is
+ * never eroded: adjacent zones meet without a seam and canvas borders
+ * stay clean. Sources are premultiplied and stacked with the premultiplied
+ * "under" operator, so a transparent source shows the zone below it, or
+ * the background.
  *
- * Edge smoothing is applied as a soft alpha falloff at polygon boundaries
- * so adjacent zones blend instead of producing aliased edges.
+ * Per zone, ONE pass over the packed vertex pairs (one uniform fetch per
+ * two vertices) evaluates the even-odd inside test and the squared pixel
+ * distance to the boundary together. With smoothEdge 0 the walk carries no
+ * distance math at all, a host-supplied bounding box (zoneN_bounds) skips
+ * zones the pixel cannot touch, and the zone loop stops as soon as the
+ * pixel is opaque.
  */
 
 #ifdef GL_ES
@@ -15,15 +23,16 @@ precision highp float;
 #endif
 
 #define MAX_ZONES 8
-#define MAX_VERTS_PER_ZONE 64
 #define MAX_PAIRS 32  // MAX_VERTS_PER_ZONE / 2
 #define HEADER_SLOT 0
 #define CONTROLS_SLOT 1
 #define ZONE_META_SLOT 2
 #define ZONE_VERTS_SLOT 10
+#define RESOLUTION_SLOT 266
+#define ZONE_BOUNDS_SLOT 267
 
 layout(std140) uniform RemapUniforms {
-    vec4 data[267];
+    vec4 data[275];
 };
 
 // Auto-filled when noisedeck is doing a tiled large-resolution export.
@@ -43,31 +52,6 @@ uniform sampler2D zone7_tex;
 
 out vec4 fragColor;
 
-vec4 getZoneMeta(int z) {
-    return data[ZONE_META_SLOT + z];
-}
-
-vec4 getZonePack(int zoneIdx, int pairIdx) {
-    return data[ZONE_VERTS_SLOT + zoneIdx * MAX_PAIRS + pairIdx];
-}
-
-vec2 getVert(int zoneIdx, int vertIdx) {
-    vec4 packed = getZonePack(zoneIdx, vertIdx / 2);
-    return (vertIdx % 2 == 0) ? packed.xy : packed.zw;
-}
-
-int getZoneCount(int z) {
-    return int(getZoneMeta(z).x);
-}
-
-int getZoneActive(int z) {
-    return int(getZoneMeta(z).y + 0.5);
-}
-
-float getZoneAlpha(int z) {
-    return getZoneMeta(z).w;
-}
-
 vec4 sampleZone(int z, vec2 uv) {
     if (z == 0) return texture(zone0_tex, uv);
     if (z == 1) return texture(zone1_tex, uv);
@@ -79,78 +63,114 @@ vec4 sampleZone(int z, vec2 uv) {
     return texture(zone7_tex, uv);
 }
 
-bool pointInZone(vec2 p, int zoneIdx) {
-    int n = getZoneCount(zoneIdx);
-    if (n < 3) return false;
-    bool inside = false;
-    vec2 prev = getVert(zoneIdx, n - 1);
-    for (int i = 0; i < MAX_VERTS_PER_ZONE; i++) {
-        if (i >= n) break;
-        vec2 cur = getVert(zoneIdx, i);
-        bool crosses = (cur.y > p.y) != (prev.y > p.y);
-        if (crosses) {
-            float xCross = (prev.x - cur.x) * (p.y - cur.y) / (prev.y - cur.y + 1e-9) + cur.x;
-            if (p.x < xCross) inside = !inside;
-        }
-        prev = cur;
+// Polygon state accumulated over one zone's edges for the current pixel.
+struct ZoneTest {
+    bool inside;   // even-odd crossing parity
+    float d2;      // squared pixel distance to the nearest boundary point
+};
+
+// Folds the edge between vertex `a` and its predecessor `b` into `t`.
+// All positions are global pixel coordinates (top-left origin).
+ZoneTest testEdge(ZoneTest t, vec2 a, vec2 b, vec2 q, bool needDist) {
+    vec2 e = b - a;
+    vec2 w = q - a;
+    // Even-odd crossing count along the +x ray from q, branch-free. The
+    // half-open scanline rule keeps an edge shared by two zones unambiguous.
+    bvec3 c = bvec3((q.y >= a.y), (q.y < b.y), (e.x * w.y > e.y * w.x));
+    if (all(c) || !any(c)) t.inside = !t.inside;
+    if (needDist) {
+        float s = clamp(dot(w, e) / max(dot(e, e), 1e-6), 0.0, 1.0);
+        vec2 r = w - e * s;
+        t.d2 = min(t.d2, dot(r, r));
     }
-    return inside;
+    return t;
 }
 
-float distToZoneEdge(vec2 p, int zoneIdx) {
-    int n = getZoneCount(zoneIdx);
-    if (n < 3) return 1e9;
-    float d = 1e9;
-    vec2 prev = getVert(zoneIdx, n - 1);
-    for (int i = 0; i < MAX_VERTS_PER_ZONE; i++) {
-        if (i >= n) break;
-        vec2 cur = getVert(zoneIdx, i);
-        vec2 ab = cur - prev;
-        float len2 = max(dot(ab, ab), 1e-9);
-        float t = clamp(dot(p - prev, ab) / len2, 0.0, 1.0);
-        vec2 closest = prev + t * ab;
-        d = min(d, length(p - closest));
-        prev = cur;
+// Walks one zone's packed vertex pairs (one uniform fetch per two vertices)
+// and returns the inside parity plus the squared pixel distance to the
+// boundary. `needDist` is a constant at each call site in main(), so the
+// smoothEdge-0 walk is compiled without any distance math.
+ZoneTest walkZone(int base, int n, vec2 q, bool needDist) {
+    ZoneTest t = ZoneTest(false, 1e30);
+    int last = n - 1;
+    vec4 lastPack = data[base + last / 2];
+    vec2 prev = (last % 2 == 0 ? lastPack.xy : lastPack.zw) * fullResolution;
+    int pairs = (n + 1) / 2;
+    for (int pair = 0; pair < MAX_PAIRS; pair++) {
+        if (pair >= pairs) break;
+        vec4 pack = data[base + pair];
+        vec2 v0 = pack.xy * fullResolution;
+        t = testEdge(t, v0, prev, q, needDist);
+        prev = v0;
+        if (pair * 2 + 1 < n) {
+            vec2 v1 = pack.zw * fullResolution;
+            t = testEdge(t, v1, prev, q, needDist);
+            prev = v1;
+        }
     }
-    return d;
+    return t;
 }
 
 void main() {
-    // Polygon tests use GLOBAL UV so zones land in the same image position
-    // regardless of which tile is rendering. gl_FragCoord is bottom-left
-    // origin (Y-up); remap JSON is top-left (Y-down) - flip y after the
-    // global-coord conversion to match the JSON convention.
-    vec2 globalScreen = (gl_FragCoord.xy + tileOffset) / fullResolution;
-    vec2 p = vec2(globalScreen.x, 1.0 - globalScreen.y);
+    // Polygon tests use the GLOBAL pixel position so zones land in the same
+    // image position regardless of which tile is rendering. gl_FragCoord is
+    // bottom-left origin (Y-up); remap JSON is top-left (Y-down), so flip y
+    // after the global-coord conversion to match the JSON convention.
+    vec2 globalPx = gl_FragCoord.xy + tileOffset;
+    vec2 q = vec2(globalPx.x, fullResolution.y - globalPx.y);
+    vec2 p = q / fullResolution;   // normalized, for the zone bounds test
     // Texture sampling stays TILE-LOCAL: each zoneN_tex is the current
     // tile's slice of its source surface, so we sample at the tile-local
     // pixel position, not the global one. Bottom-left origin to match
     // the codebase texture convention.
-    vec2 sampleUv = gl_FragCoord.xy / data[266].xy;
+    vec2 sampleUv = gl_FragCoord.xy / data[RESOLUTION_SLOT].xy;
 
     vec4 header = data[HEADER_SLOT];
     vec4 controls = data[CONTROLS_SLOT];
-    vec3 bgColor = header.xyz;
-    float bgAlpha = header.w;
     int activeCount = min(int(controls.x), MAX_ZONES);
-    float smoothEdge = controls.y;
+    // Feather width in pixels, proportional to the shorter canvas side, so
+    // it is the same width on both axes whatever the aspect ratio. smoothEdge
+    // is clamped at 0: an automated negative value would otherwise make the
+    // bounds dilation negative and SHRINK every zone's reject box.
+    float featherPx = max(controls.y, 0.0) * 0.05 * min(fullResolution.x, fullResolution.y);
+    bool needDist = featherPx > 0.0;
+    vec2 dilate = vec2(featherPx) / fullResolution;   // feather in normalized units per axis
 
-    vec4 result = vec4(bgColor, bgAlpha);
-    for (int z = 0; z < MAX_ZONES; z++) {
-        if (z >= activeCount) break;
-        if (getZoneActive(z) == 0) continue;  // source surface not wired
-        if (!pointInZone(p, z)) continue;
-        vec4 src = sampleZone(z, sampleUv);
-        float zAlpha = getZoneAlpha(z);
-        // smoothEdge is user-facing 0..1; scale to the actual source-UV
-        // distance (0..0.05), beyond which the fade looks like washout.
-        float edgeWidth = smoothEdge * 0.05;
-        float edge = edgeWidth > 0.0
-            ? smoothstep(0.0, edgeWidth, distToZoneEdge(p, z))
-            : 1.0;
-        float a = zAlpha * edge;
-        result = vec4(mix(result.rgb, src.rgb, a), max(result.a, src.a * a));
+    vec4 result = vec4(0.0);
+    for (int k = 0; k < MAX_ZONES; k++) {
+        int z = activeCount - 1 - k;   // top-down: highest index first
+        if (z < 0) break;
+        vec4 zoneMeta = data[ZONE_META_SLOT + z];
+        // Clamped: a host-supplied count above the per-zone capacity would
+        // otherwise walk past this zone's slots into the next zone's.
+        int n = min(int(zoneMeta.x), MAX_PAIRS * 2);
+        if (n < 3 || zoneMeta.y < 0.5) continue;   // degenerate, or source not wired
+        // Host-supplied bounding box [minX, minY, maxX, maxY], dilated by the
+        // feather. The default [0, 0, 1, 1] never rejects a canvas pixel.
+        vec4 bounds = data[ZONE_BOUNDS_SLOT + z];
+        if (any(lessThan(p, bounds.xy - dilate)) || any(greaterThan(p, bounds.zw + dilate))) continue;
+        int base = ZONE_VERTS_SLOT + z * MAX_PAIRS;
+
+        ZoneTest t;
+        if (needDist) {
+            t = walkZone(base, n, q, true);
+        } else {
+            t = walkZone(base, n, q, false);
+        }
+
+        float coverage = 1.0;
+        if (!t.inside) {
+            if (!needDist) continue;
+            coverage = 1.0 - smoothstep(0.0, featherPx, sqrt(t.d2));
+            if (coverage <= 0.0) continue;
+        }
+        // Premultiplied "under": this zone is above everything still to come.
+        vec4 src = sampleZone(z, sampleUv) * (coverage * zoneMeta.w);
+        result += src * (1.0 - result.a);
+        if (result.a >= 0.999) break;
     }
+    // Background goes under whatever the zones left uncovered.
+    result += vec4(header.xyz * header.w, header.w) * (1.0 - result.a);
 
     fragColor = result;
 }
