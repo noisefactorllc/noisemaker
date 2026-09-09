@@ -91,7 +91,7 @@ function transformJsDemoHtml() {
             `<script src="../../lib/noisemaker.min.js"></script>
     <script>
     (async () => {
-    await import('https://handfish.noisefactor.io/0.9.0/handfish.esm.js');
+    await import('https://handfish.noisefactor.io/0/handfish.esm.js');
     const { Context, render, Preset, ColorSpace, PRESETS, random, setSeed, yieldToMain, getPresetsSource } = Noisemaker;`
         )
 
@@ -135,7 +135,7 @@ function transformShadersDemoHtml() {
     {
         "imports": {
             "noisemaker/shader-effects": "../../lib/shaders/noisemaker-shaders-core.esm.min.js",
-            "handfish": "https://handfish.noisefactor.io/0.9.0/handfish.esm.js"
+            "handfish": "https://handfish.noisefactor.io/0/handfish.esm.js"
         }
     }
     </script>`
