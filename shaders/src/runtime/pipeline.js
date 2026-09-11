@@ -1044,13 +1044,9 @@ export class Pipeline {
         // before any texture spec is read for allocation.
         this.applyMrtFormatBudget()
 
-        const surfaceNames = new Set(['o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7'])
-
-        // Global geometry buffers (geo0-geo7) - 2D textures with normals + depth
-        const geoBufferNames = new Set(['geo0', 'geo1', 'geo2', 'geo3', 'geo4', 'geo5', 'geo6', 'geo7'])
-
-        // Global 3D volume buffers (vol0-vol7)
-        const volumeNames = new Set(['vol0', 'vol1', 'vol2', 'vol3', 'vol4', 'vol5', 'vol6', 'vol7'])
+        const surfaceNames = new Set(['o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7',
+            'geo0', 'geo1', 'geo2', 'geo3', 'geo4', 'geo5', 'geo6', 'geo7',
+            'vol0', 'vol1', 'vol2', 'vol3', 'vol4', 'vol5', 'vol6', 'vol7'])
 
         // Global mesh surfaces (mesh0-mesh7) - each mesh has 3 linked textures
         const meshNames = new Set(['mesh0', 'mesh1', 'mesh2', 'mesh3', 'mesh4', 'mesh5', 'mesh6', 'mesh7'])
@@ -1102,8 +1098,11 @@ export class Pipeline {
         // defaultUniforms. There is no pipeline-wide zoom; sizing is owned
         // by each effect via its own textures spec.
         for (const name of surfaceNames) {
-            let surfaceWidth = this.width
-            let surfaceHeight = this.height
+            // Unwritten volume surfaces retain the native default atlas size.
+            // write3d supplies explicit producer specs for both volume and geometry.
+            const isVolume = /^vol[0-7]$/.test(name)
+            let surfaceWidth = isVolume ? 64 : this.width
+            let surfaceHeight = isVolume ? 4096 : this.height
             let surfaceFormat = 'rgba16f'
 
             const underscoreId = `global_${name}`
@@ -1142,84 +1141,6 @@ export class Pipeline {
                 width: surfaceWidth,
                 height: surfaceHeight,
                 format: surfaceFormat,
-                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
-            })
-
-            this.surfaces.set(name, {
-                read: `global_${name}_read`,
-                write: `global_${name}_write`,
-                currentFrame: 0
-            })
-        }
-
-        // Create geometry buffers (geo0-geo7) - 2D textures with normals + depth
-        // These store precomputed raymarching results for post-processing
-        for (const name of geoBufferNames) {
-            const oldSurface = this.surfaces.get(name)
-            if (oldSurface) {
-                const existingTex = this.backend.textures?.get?.(oldSurface.read)
-                if (existingTex &&
-                    existingTex.width === this.width &&
-                    existingTex.height === this.height) {
-                    continue
-                }
-                this.backend.destroyTexture(`global_${name}_read`)
-                this.backend.destroyTexture(`global_${name}_write`)
-            }
-
-            // Geometry buffers are screen-sized, RGBA16F (xyz=normal, w=depth)
-            this.backend.createTexture(`global_${name}_read`, {
-                width: this.width,
-                height: this.height,
-                format: 'rgba16f',
-                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
-            })
-
-            this.backend.createTexture(`global_${name}_write`, {
-                width: this.width,
-                height: this.height,
-                format: 'rgba16f',
-                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
-            })
-
-            this.surfaces.set(name, {
-                read: `global_${name}_read`,
-                write: `global_${name}_write`,
-                currentFrame: 0
-            })
-        }
-
-        // Create 3D volume buffers (vol0-vol7) as 2D atlas textures
-        // Using 64x4096 (64^3 stored as 64 slices of 64x64)
-        // This matches the atlas layout used by effects like cellularAutomata3d,
-        // reactionDiffusion3d, noise3d
-        const volumeSliceSize = 64
-        const volumeAtlasHeight = volumeSliceSize * volumeSliceSize // 64 * 64 = 4096
-        for (const name of volumeNames) {
-            const oldSurface = this.surfaces.get(name)
-            if (oldSurface) {
-                const existingTex = this.backend.textures?.get?.(oldSurface.read)
-                if (existingTex &&
-                    existingTex.width === volumeSliceSize &&
-                    existingTex.height === volumeAtlasHeight) {
-                    continue
-                }
-                this.backend.destroyTexture(`global_${name}_read`)
-                this.backend.destroyTexture(`global_${name}_write`)
-            }
-
-            // Volume atlases are volumeSliceSize x volumeSliceSize^2, RGBA16F
-            this.backend.createTexture(`global_${name}_read`, {
-                width: volumeSliceSize,
-                height: volumeAtlasHeight,
-                format: 'rgba16f',
-                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
-            })
-
-            this.backend.createTexture(`global_${name}_write`, {
-                width: volumeSliceSize,
-                height: volumeAtlasHeight,
-                format: 'rgba16f',
                 usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
             })
 
@@ -1332,24 +1253,9 @@ export class Pipeline {
 
             if (isGlobalSurface) {
                 // Handle double-buffered global surface
-                // Extract the surface name from the texture ID
-                // texId might be "global_node_0_caState" or "globalCaState"
-                let surfaceName = null
-                if (texId.startsWith('global_')) {
-                    // "global_node_0_caState" -> find the surface name after last underscore segment
-                    // Actually, we need to match against our surfaces Map
-                    // Try to find matching surface - could be "caState" or "node_0_caState"
-                    for (const name of this.surfaces.keys()) {
-                        if (texId.includes(name) || texId.endsWith(name)) {
-                            surfaceName = name
-                            break
-                        }
-                    }
-                } else if (texId.startsWith('global')) {
-                    // "globalCaState" -> "caState"
-                    const suffix = texId.slice(6)
-                    surfaceName = suffix.charAt(0).toLowerCase() + suffix.slice(1)
-                }
+                // Match the complete surface name: geo0 contains "o0", but must
+                // never resize the display surface when its atlas changes size.
+                const surfaceName = this.parseGlobalName(texId)
 
                 if (!surfaceName || !this.surfaces.has(surfaceName)) {
                     continue  // Can't find matching surface

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "surface": "o0",
+  "resolution": [
+    96,
+    80
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "effects": [
+    "synth/testPattern",
+    "synth3d/heightmap3d",
+    "render/renderLandscape3d"
+  ],
+  "dsl": "search synth, synth3d, render\nheightmap3d(heightTex: testPattern(pattern: gradient), tex: testPattern(pattern: colorBars), volumeSize: x32, heightScale: 0.6, baseHeight: 0.1).renderLandscape3d(panY: -0.1, zoom: 1.1).write(o0)\nrender(o0)"
+}

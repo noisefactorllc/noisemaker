@@ -114,6 +114,9 @@ export function expand(compilationResult, options = {}) {
     const programs = {}
     const textureSpecs = {} // nodeId_texName -> { width, height, format, is3D?, depth? }
     const textureMap = new Map() // logical_id -> virtual_texture_id
+    const writtenVolumes = new Map() // exported volume -> source sizing uniform
+    const readVolumes = new Map() // reader sizing scope -> volume and preceding writer
+    const exportedTextures = new Map() // exported atlas -> source texture
     let lastWrittenSurface = null // Track the last surface written to
 
     // Helper to resolve enum paths
@@ -151,6 +154,7 @@ export function expand(compilationResult, options = {}) {
         // Example: noise3d sets volumeSize, cellularAutomata3d uses it without declaring it
         const pipelineUniforms = {}
         const chainScopeId = `chain_${compilationResult.plans.indexOf(plan)}`
+        const volumeSizeParam = `volumeSize_${chainScopeId}`
 
         for (const step of plan.chain) {
             // Handle builtin read operations - these just set the current input
@@ -182,6 +186,16 @@ export function expand(compilationResult, options = {}) {
                     } else {
                         currentInputGeo = geo.name || geo
                     }
+                }
+                // Resolve the producer scope after all plans have been expanded:
+                // readers may precede writers to consume the previous frame.
+                const volume = writtenVolumes.get(currentInput3d)
+                if (currentInput3d) {
+                    // Preserve the writer visible at this read. A later filter
+                    // may rewrite the same surface without becoming its size owner.
+                    readVolumes.set(volumeSizeParam, { surface: currentInput3d, writer: volume })
+                    pipelineUniforms.volumeSize = volume?.value ?? 64
+                    pipelineUniforms[volumeSizeParam] = pipelineUniforms.volumeSize
                 }
                 // Register the read3d output so subsequent steps can find it via step.from
                 const nodeId = `node_${step.temp}`
@@ -243,6 +257,13 @@ export function expand(compilationResult, options = {}) {
                 // Blit 3D volume to target global surface (skip if "none")
                 if (tex3d && tex3d.name !== 'none' && currentInput3d) {
                     const targetVol = `global_${tex3d.name}`
+                    exportedTextures.set(targetVol, currentInput3d)
+                    if (textureSpecs[currentInput3d]) {
+                        textureSpecs[targetVol] = { ...textureSpecs[currentInput3d] }
+                    }
+                    if (pipelineUniforms.volumeSize !== undefined) {
+                        writtenVolumes.set(targetVol, { param: volumeSizeParam, value: pipelineUniforms.volumeSize })
+                    }
 
                     // Only add blit if the current input is not already the target
                     if (currentInput3d !== targetVol) {
@@ -265,6 +286,10 @@ export function expand(compilationResult, options = {}) {
                 // Blit geometry buffer to target global surface (skip if "none")
                 if (geo && geo.name !== 'none' && currentInputGeo) {
                     const targetGeo = `global_${geo.name}`
+                    exportedTextures.set(targetGeo, currentInputGeo)
+                    if (textureSpecs[currentInputGeo]) {
+                        textureSpecs[targetGeo] = { ...textureSpecs[currentInputGeo] }
+                    }
 
                     // Only add blit if the current input is not already the target
                     if (currentInputGeo !== targetGeo) {
@@ -474,7 +499,7 @@ export function expand(compilationResult, options = {}) {
                         const scopeDimSpec = (dimSpec) => {
                             if (typeof dimSpec === 'object' && dimSpec.param !== undefined) {
                                 const originalParam = dimSpec.param
-                                const scopedParam = `${originalParam}_${scopeSuffix}`
+                                const scopedParam = originalParam === 'volumeSize' ? volumeSizeParam : `${originalParam}_${scopeSuffix}`
                                 // Track this mapping so we can copy uniform values later
                                 scopedParamMap.set(originalParam, scopedParam)
                                 return {
@@ -1169,6 +1194,47 @@ export function expand(compilationResult, options = {}) {
                 }
                 passes.push(blitPass)
             }
+        }
+    }
+
+    // Follow volume handoffs after expansion so ordering and re-export do not
+    // change atlas dimensions. Cycles without a producer retain their defaults.
+    const resolveVolume = (param, visited = new Set()) => {
+        if (visited.has(param)) return null
+        visited.add(param)
+        const read = readVolumes.get(param)
+        const writer = read?.writer || writtenVolumes.get(read?.surface)
+        if (!writer || writer.param === param) return null
+        return resolveVolume(writer.param, visited) || writer
+    }
+    const resolvedVolumes = new Map()
+    for (const param of readVolumes.keys()) {
+        const source = resolveVolume(param)
+        if (source) resolvedVolumes.set(param, source)
+    }
+    const resolveExport = (id, visited = new Set()) => {
+        if (visited.has(id)) return textureSpecs[id]
+        visited.add(id)
+        const source = exportedTextures.get(id)
+        if (!source || source === id) return textureSpecs[id]
+        const spec = resolveExport(source, visited)
+        if (spec) textureSpecs[id] = { ...spec }
+        return textureSpecs[id]
+    }
+    for (const id of exportedTextures.keys()) resolveExport(id)
+    for (const spec of Object.values(textureSpecs)) {
+        for (const axis of ['width', 'height', 'depth']) {
+            const source = resolvedVolumes.get(spec[axis]?.param)
+            if (source) spec[axis] = { ...spec[axis], param: source.param }
+        }
+    }
+    for (const pass of passes) {
+        for (const [param, source] of resolvedVolumes) {
+            if (!(param in pass.uniforms)) continue
+            delete pass.uniforms[param]
+            pass.uniforms[source.param] = source.value
+            pass.uniforms.volumeSize = source.value
+            if (pass.scopedParams?.volumeSize === param) pass.scopedParams.volumeSize = source.param
         }
     }
 

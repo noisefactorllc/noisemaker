@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "render/renderLandscape3d",
+  "sourceHash": "a6ee5ee60520e81aded7f2803ee8ca6775c16ca106353ea467e42759a68e2906",
+  "caseHash": "74b4938614784c41d5923e61327c6e96858d5458bb14adba3304ba0e9ce5634c",
+  "resolution": [
+    96,
+    80
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 96,
+      "height": 80,
+      "nonzeroRgbPixels": 6500,
+      "nonzeroAlphaPixels": 7680,
+      "uniqueColors": 16
+    },
+    "webgpu": {
+      "width": 96,
+      "height": 80,
+      "nonzeroRgbPixels": 6500,
+      "nonzeroAlphaPixels": 7680,
+      "uniqueColors": 16
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}
