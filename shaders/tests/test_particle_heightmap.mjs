@@ -121,7 +121,9 @@ try {
                 // fixtures are exact; rotated/noisy scenes allow only isolated
                 // 8-bit edge rounding, never a shifted image or different noise.
                 const edgeRounding = ['default-landscape', 'rotateY', 'rotateZ'].includes(name)
-                const maxChannels = rotatedSprite ? (name.endsWith('sharp') ? 4 : 192) : edgeRounding ? 16 : 0
+                // For a rotated soft sprite, permit one-LSB rounding in less
+                // than 0.1% of the frame's channels across GPU drivers.
+                const maxChannels = rotatedSprite ? (name.endsWith('sharp') ? 4 : Math.floor(data.length / 1000)) : edgeRounding ? 16 : 0
                 const maxDelta = rotatedSprite ? (name.endsWith('sharp') ? 8 : 1) : edgeRounding ? 5 : 0
                 assert.ok(changed <= maxChannels && maximum <= maxDelta,
                     `${name}: backend pixel mismatch (${changed} channels; max ${maximum})`)
