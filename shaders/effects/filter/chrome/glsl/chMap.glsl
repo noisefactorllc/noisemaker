@@ -9,15 +9,23 @@
  * blurred texture for height/gradient math; inputTex is read solely for its
  * alpha channel.
  *
- * Gradient: a true central difference in UV space with 1px taps -
- *   grad = vec2(h(uv + (texel.x,0)) - h(uv - (texel.x,0)),
- *               h(uv + (0,texel.y)) - h(uv - (0,texel.y)))
+ * Gradient: central difference in UV space with 1px taps, normalized by the
+ * per-axis sampling distance so grad represents ∂L/∂uv rather than
+ * ∂L/∂tap. Without this normalization, the two components live in different
+ * scales on non-square textures (hT-hB is scaled by texel.y, hR-hL by
+ * texel.x), which biases the warp direction and magnitude along the longer
+ * texture axis.
+ *   grad = vec2((h(uv+(texel.x,0)) - h(uv-(texel.x,0))) / (2*texel.x),
+ *               (h(uv+(0,texel.y)) - h(uv-(0,texel.y))) / (2*texel.y))
  * (NOT the forward-difference relief shading relief-shade form, and NOT the 3x3 Sobel
  * Sobel gradient form).
  *
- * uv2 = uv + grad * (distortion/100) * 0.5: distortion scales the
- * self-warp strength; distortion = 0 collapses uv2 to uv exactly (grad's
- * contribution is multiplied to zero, not merely diminished).
+ * uv2 = uv + grad * texel * (distortion/100): converting per-UV gradient
+ * back to a UV offset via texel gives an aspect-symmetric pixel-space
+ * displacement — the physical warp is the same magnitude regardless of
+ * whether the shape's luminance gradient runs along X or Y. On square
+ * textures this reduces exactly to the earlier `grad_raw * 0.5 * (distortion/100)`
+ * formulation. distortion = 0 collapses uv2 to uv exactly.
  *
  * h2 = lum(blur at uv2): the height field re-read at the distorted sample
  * point - this second read (not the original h) is what feeds the tone
@@ -76,9 +84,13 @@ void main() {
     float hR = lum(texture(blurTex, uv + vec2(texel.x, 0.0)).rgb);
     float hB = lum(texture(blurTex, uv - vec2(0.0, texel.y)).rgb);
     float hT = lum(texture(blurTex, uv + vec2(0.0, texel.y)).rgb);
-    vec2 grad = vec2(hR - hL, hT - hB);
+    // Per-UV luminance gradient (normalize each finite difference by its own
+    // sampling distance so the two components live on the same scale).
+    vec2 grad = vec2((hR - hL) / (2.0 * texel.x), (hT - hB) / (2.0 * texel.y));
 
-    vec2 uv2 = uv + grad * (distortion / 100.0) * 0.5;
+    // Convert per-UV gradient back to a UV offset via texel — aspect-symmetric
+    // pixel-space displacement. Reduces to `grad_raw * 0.5 * d` on square textures.
+    vec2 uv2 = uv + grad * texel * (distortion / 100.0);
     float h2 = lum(texture(blurTex, uv2).rgb);
 
     float cycles = mix(1.0, 7.0, detail / 100.0);

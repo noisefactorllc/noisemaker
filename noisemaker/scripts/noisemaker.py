@@ -574,10 +574,7 @@ def magic_mashup(ctx, input_dir, width, height, seed, effect_preset, filename, s
 
     dirnames = _usable_mashup_dirs(input_dir, frame_count)
     if len(dirnames) < MASHUP_MIN_INPUTS:
-        click.echo(
-            f"Need at least {MASHUP_MIN_INPUTS} input dirs holding {frame_count}+ frames "
-            f"in {input_dir}, found {len(dirnames)}"
-        )
+        click.echo(f"Need at least {MASHUP_MIN_INPUTS} input dirs holding {frame_count}+ frames " f"in {input_dir}, found {len(dirnames)}")
         sys.exit(1)
 
     collage_count = min(random.randint(MASHUP_MIN_INPUTS, MASHUP_MAX_INPUTS), len(dirnames))
@@ -816,11 +813,7 @@ def _usable_mashup_dirs(input_dir, frame_count):
 def _sample_luminance(frame_path):
     """Block luminance of a finished frame, for the stroboscopic check."""
 
-    return strobe.luminance_grid(
-        tf.image.convert_image_dtype(
-            util.load(frame_path, channels=3), dtype=tf.float32
-        ).numpy()
-    )
+    return strobe.luminance_grid(tf.image.convert_image_dtype(util.load(frame_path, channels=3), dtype=tf.float32).numpy())
 
 
 def _use_reasonable_speed(preset, frame_count):

@@ -31,9 +31,13 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let hR = lum(textureSample(blurTex, inputSampler, uv + vec2<f32>(texel.x, 0.0)).rgb);
     let hB = lum(textureSample(blurTex, inputSampler, uv - vec2<f32>(0.0, texel.y)).rgb);
     let hT = lum(textureSample(blurTex, inputSampler, uv + vec2<f32>(0.0, texel.y)).rgb);
-    let grad = vec2<f32>(hR - hL, hT - hB);
+    // Per-UV luminance gradient (normalize each finite difference by its own
+    // sampling distance so the two components live on the same scale).
+    let grad = vec2<f32>((hR - hL) / (2.0 * texel.x), (hT - hB) / (2.0 * texel.y));
 
-    let uv2 = uv + grad * (uniforms.distortion / 100.0) * 0.5;
+    // Convert per-UV gradient back to a UV offset via texel — aspect-symmetric
+    // pixel-space displacement. Reduces to `grad_raw * 0.5 * d` on square textures.
+    let uv2 = uv + grad * texel * (uniforms.distortion / 100.0);
     let h2 = lum(textureSample(blurTex, inputSampler, uv2).rgb);
 
     let cycles = mix(1.0, 7.0, uniforms.detail / 100.0);

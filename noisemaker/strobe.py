@@ -41,14 +41,10 @@ def luminance_grid(image):
 
     # sRGB -> linear, then the WCAG luminance coefficients.
     linear = np.where(a <= 0.04045, a / 12.92, ((a + 0.055) / 1.055) ** 2.4)
-    luminance = (
-        linear[..., 0] * 0.2126 + linear[..., 1] * 0.7152 + linear[..., 2] * 0.0722
-    )
+    luminance = linear[..., 0] * 0.2126 + linear[..., 1] * 0.7152 + linear[..., 2] * 0.0722
 
     rows = np.array_split(luminance, GRID, axis=0)
-    return np.array(
-        [[block.mean() for block in np.array_split(row, GRID, axis=1)] for row in rows]
-    )
+    return np.array([[block.mean() for block in np.array_split(row, GRID, axis=1)] for row in rows])
 
 
 def _opposing_change_indices(series):
@@ -105,10 +101,7 @@ def max_flashes_per_second(series, fps):
         return 0.0
 
     window = int(round(fps))
-    peak = max(
-        int(((reversals >= start) & (reversals < start + window)).sum())
-        for start in range(len(series))
-    )
+    peak = max(int(((reversals >= start) & (reversals < start + window)).sum()) for start in range(len(series)))
 
     # A flash is a pair of opposing changes, so two reversals make one flash.
     # Counting reversals directly would double every rate and, in effect,
@@ -130,11 +123,7 @@ def is_strobing(grids, fps=30):
     if max_flashes_per_second(stack.mean(axis=(1, 2)), fps) > MAX_FLASHES_PER_SECOND:
         return True
 
-    flashing = [
-        max_flashes_per_second(stack[:, row, col], fps) > MAX_FLASHES_PER_SECOND
-        for row in range(stack.shape[1])
-        for col in range(stack.shape[2])
-    ]
+    flashing = [max_flashes_per_second(stack[:, row, col], fps) > MAX_FLASHES_PER_SECOND for row in range(stack.shape[1]) for col in range(stack.shape[2])]
 
     return float(np.mean(flashing)) >= MIN_FLASHING_AREA
 

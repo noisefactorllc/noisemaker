@@ -17,14 +17,20 @@ import { Effect } from '../../../src/runtime/effect.js'
  * blurred texture for height/gradient math; inputTex is read solely for
  * its alpha channel.
  *
- * Gradient: a true central difference in UV space with 1px taps -
- *   grad = vec2(h(uv+(texel.x,0)) - h(uv-(texel.x,0)),
- *               h(uv+(0,texel.y)) - h(uv-(0,texel.y)))
+ * Gradient: central difference in UV space with 1px taps, normalized by the
+ * per-axis sampling distance so grad represents ∂L/∂uv rather than ∂L/∂tap.
+ * Without this normalization, the two components live in different scales on
+ * non-square textures, biasing the warp direction and magnitude along the
+ * longer texture axis.
+ *   grad = vec2((h(uv+(texel.x,0)) - h(uv-(texel.x,0))) / (2*texel.x),
+ *               (h(uv+(0,texel.y)) - h(uv-(0,texel.y))) / (2*texel.y))
  * (NOT the forward-difference relief shading relief-shade form, and NOT the 3x3 Sobel
  * Sobel gradient form).
  *
- * uv2 = uv + grad * (distortion/100) * 0.5: distortion scales the self-
- * warp strength; distortion = 0 collapses uv2 to uv exactly.
+ * uv2 = uv + grad * texel * (distortion/100): converting per-UV gradient back
+ * to a UV offset via texel makes the pixel-space displacement aspect-symmetric.
+ * On square textures reduces exactly to the earlier `grad_raw * 0.5 * d` form.
+ * distortion scales the self-warp strength; distortion = 0 collapses uv2 to uv.
  * h2 = lum(blur at uv2): the height re-read after self-distortion - this
  * second read (not the original h) feeds the tone curve, so the "liquid"
  * warp visibly displaces the metal bands relative to the underlying image
