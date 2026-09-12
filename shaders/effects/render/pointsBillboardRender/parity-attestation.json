@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "render/pointsBillboardRender",
-  "sourceHash": "998acd4e8472862b376c6a6bc3eb0afa6bdf089ffce2e6c980ae4e8df8d8ac1e",
-  "caseHash": "e2b525f1e7dce36d6d2208af1ba3f5f4c5581687591dc6688058732164e77f28",
+  "sourceHash": "0b3f14489e4841b637cbb007040ea06d75135a6517fbaaf4890f4d75e8fca0d2",
+  "caseHash": "cd90a59ae400ee180f0f61f30788e4817229329b234f8fe39146a6abb1e02fef",
   "resolution": [
     96,
     80
@@ -11,21 +11,21 @@
     "webgl2": {
       "width": 96,
       "height": 80,
-      "nonzeroRgbPixels": 3817,
-      "nonzeroAlphaPixels": 3817,
-      "uniqueColors": 598
+      "nonzeroRgbPixels": 4028,
+      "nonzeroAlphaPixels": 4267,
+      "uniqueColors": 413
     },
     "webgpu": {
       "width": 96,
       "height": 80,
-      "nonzeroRgbPixels": 3817,
-      "nonzeroAlphaPixels": 3817,
-      "uniqueColors": 598
+      "nonzeroRgbPixels": 4028,
+      "nonzeroAlphaPixels": 4267,
+      "uniqueColors": 413
     }
   },
   "execution": {
-    "webgl2TargetPasses": 9,
-    "webgpuTargetPasses": 9
+    "webgl2TargetPasses": 38,
+    "webgpuTargetPasses": 38
   },
   "parity": {
     "epsilon": 0,

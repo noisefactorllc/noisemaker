@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "points/heightGrid",
-  "sourceHash": "998acd4e8472862b376c6a6bc3eb0afa6bdf089ffce2e6c980ae4e8df8d8ac1e",
+  "sourceHash": "0b3f14489e4841b637cbb007040ea06d75135a6517fbaaf4890f4d75e8fca0d2",
   "caseHash": "e2b525f1e7dce36d6d2208af1ba3f5f4c5581687591dc6688058732164e77f28",
   "resolution": [
     96,
@@ -11,16 +11,16 @@
     "webgl2": {
       "width": 96,
       "height": 80,
-      "nonzeroRgbPixels": 3817,
-      "nonzeroAlphaPixels": 3817,
-      "uniqueColors": 598
+      "nonzeroRgbPixels": 3915,
+      "nonzeroAlphaPixels": 3915,
+      "uniqueColors": 1099
     },
     "webgpu": {
       "width": 96,
       "height": 80,
-      "nonzeroRgbPixels": 3817,
-      "nonzeroAlphaPixels": 3817,
-      "uniqueColors": 598
+      "nonzeroRgbPixels": 3915,
+      "nonzeroAlphaPixels": 3915,
+      "uniqueColors": 1099
     }
   },
   "execution": {

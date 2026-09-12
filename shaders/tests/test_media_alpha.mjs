@@ -36,6 +36,22 @@ window.capture = async (edge, blend) => {
     await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone();
     return {backend:renderer.pipeline.backend.getName(), png:renderer.canvas.toDataURL()};
 };
+window.captureScaled = async (extra) => {
+    renderer.canvas.width=256;renderer.canvas.height=256;
+    renderer.resize(256,256);
+    await renderer.compile('search synth\nmedia(bgAlpha:0, scaleAmt:400'+extra+').write(o0)\nrender(o0)');
+    renderer.stop();
+    const source=document.createElement('canvas');source.width=64;source.height=64;
+    const context=source.getContext('2d');
+    context.fillStyle='rgba(255,0,0,.8)';context.fillRect(6,10,10,18);
+    context.fillStyle='rgba(0,255,0,.6)';context.fillRect(26,32,12,12);
+    context.fillStyle='blue';context.fillRect(46,12,10,20);
+    const pass=renderer.pipeline.graph.passes.find(p=>p.effectFunc==='media');
+    renderer.updateTextureFromSource('imageTex_step_'+pass.stepIndex,source,{flipY:false});
+    renderer.applyStepParameterValues({['step_'+pass.stepIndex]:{imageSize:[64,64]}});
+    renderer.render(0);
+    await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone();
+};
 </script>`)
         await page.waitForFunction(() => typeof window.capture === 'function')
         const results = []
@@ -49,11 +65,25 @@ window.capture = async (edge, blend) => {
             else close(at(8), [128,64,32,blend ? 64 : 128])
             results.push(png.data)
         }
+        // A vertically asymmetric sprite exposes applying the WebGPU Y
+        // conversion after anchor/offset transforms instead of before them.
+        for (const extra of ['', ', position: 0, offsetY: 13', ', rotation: 90', ', flip: 3']) {
+            await page.evaluate(extra => window.captureScaled(extra), extra)
+            const png = PNG.sync.read(await page.locator('canvas').screenshot({ omitBackground: true }))
+            if (!extra) {
+                const at = (x, y) => [...png.data.subarray((y * 256 + x) * 4, (y * 256 + x) * 4 + 4)]
+                assert.deepEqual(at(30, 50), [255, 0, 0, 204])
+                assert.deepEqual(at(120, 150), [0, 255, 0, 153])
+                assert.deepEqual(at(200, 80), [0, 0, 255, 255])
+                assert.deepEqual(at(20, 20), [0, 0, 0, 0])
+            }
+            results.push(png.data)
+        }
         captures.push(results)
         await page.close()
     }
-    captures[0].forEach((bytes, i) => assert.deepEqual(bytes, captures[1][i], 'GLSL/WGSL pixels differ'))
-    console.log('Media fractional alpha, blended opacity, and transparent-edge filtering: 3 cases on both backends; exact pixel parity')
+    captures[0].forEach((bytes, i) => assert.ok(bytes.equals(captures[1][i]), `GLSL/WGSL pixels differ in media case ${i}`))
+    console.log('Media alpha, transparent-edge filtering and asymmetric transformed sprites: 7 cases on both backends; exact pixel parity')
 } finally {
     await browser.close()
     await releaseServer()

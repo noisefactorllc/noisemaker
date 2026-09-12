@@ -82,12 +82,18 @@ vec4 blurSample(vec2 uv) {
 float blurWeight(vec2 uv, vec2 center, float expansion) {
     vec2 p = (uv - center) / expansion;
     float gaussian = exp(-dot(p, p) / 0.0648) * (1.0 - smoothstep(0.45, 0.5, length(p)));
-    return gaussian * min(1.0, 1.0 / (0.2035752 * expansion * expansion));
+    // Integral of the tapered radial kernel is 0.19724318. Its minimum
+    // expansion keeps the normalized peak <= 1 without discarding mass.
+    float normalization = 1.0 / (0.19724318 * expansion * expansion);
+    return gaussian * normalization;
 }
 
 vec4 shadeParticle() {
+#if VIEW_MODE == 0
+    return shadeSprite(vSpriteUV);
+#else
     if (vBlurRadius <= 0.0) return shadeSprite(vSpriteUV);
-    float expansion = 1.0 + 2.0 * vBlurRadius;
+    float expansion = max(1.0 + 2.0 * vBlurRadius, 2.2516403);
     vec4 blurred = vec4(0.0);
     if (shapeMode == 0) {
         for (int y = 0; y < 5; y++) {
@@ -104,6 +110,7 @@ vec4 shadeParticle() {
     }
     if (vBlurRadius >= 0.5) return blurred;
     return mix(blurSample(vSpriteUV), blurred, smoothstep(0.0, 0.5, vBlurRadius));
+#endif
 }
 
 void main() {

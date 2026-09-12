@@ -13,6 +13,7 @@ process.env.SHADE_PROJECT_ROOT = root
 const { acquireServer, releaseServer } = await import('../../vendor/shade-mcp/harness/index.js')
 const baseUrl = await acquireServer(0, root, process.env.SHADE_EFFECTS_DIR)
 const browser = await chromium.launch(shaderTestBrowserOptions())
+const depthSort = process.argv.includes('--alpha-depth')
 const results = []
 try {
     for (const backend of ['webgl2', 'webgpu']) {
@@ -22,7 +23,18 @@ try {
         page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
         await page.goto(baseUrl)
         await page.setContent('<canvas width="1280" height="720"></canvas>')
-        const result = await page.evaluate(async ({ baseUrl, backend, dsl }) => {
+        const result = await page.evaluate(async ({ baseUrl, backend, dsl, depthSort }) => {
+            let adapterInfo = null
+            if (backend === 'webgpu') {
+                const requestAdapter = navigator.gpu.requestAdapter.bind(navigator.gpu)
+                navigator.gpu.requestAdapter = async options => {
+                    const adapter = await requestAdapter(options)
+                    const info = adapter?.info
+                    adapterInfo = info ? { vendor: info.vendor, architecture: info.architecture,
+                        device: info.device, description: info.description, fallback: adapter.isFallbackAdapter ?? info.isFallbackAdapter ?? false } : null
+                    return adapter
+                }
+            }
             const { CanvasRenderer } = await import(`${baseUrl}/shaders/src/renderer/canvas.js`)
             const renderer = new CanvasRenderer({
                 canvas: document.querySelector('canvas'), width: 1280, height: 720,
@@ -33,6 +45,22 @@ try {
             await renderer.compile(dsl)
             renderer.stop()
             const pipeline = renderer.pipeline, gpu = pipeline.backend, gl = gpu.gl
+            let lost = false
+            gpu.device?.lost.then(() => { lost = true })
+            const deviceDescription = gl ? gl.getParameter(gl.getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || gl.RENDERER)
+                : Object.values(adapterInfo || {}).join(' ')
+            if (!deviceDescription || /swiftshader|llvmpipe|software|lavapipe/i.test(deviceDescription) || adapterInfo?.fallback) {
+                throw new Error(`FPS acceptance requires a verified hardware adapter: ${deviceDescription}`)
+            }
+            const draws = []
+            const target = gl || GPURenderPassEncoder.prototype
+            const method = gl ? 'drawArrays' : 'draw'
+            const draw = target[method]
+            target[method] = function(...args) { draws.push(gl ? args[2] : args[0]); return draw.apply(this, args) }
+            try { renderer.render(0) } finally { target[method] = draw }
+            const vertexCount = Math.max(...draws)
+            const particleCount = vertexCount / 6
+            if (particleCount !== 65536) throw new Error(`Expected 65536 submitted billboards, got ${particleCount}`)
             gpu.device?.addEventListener('uncapturederror', event => console.error(event.error.message))
             const step = pipeline.graph.passes.find(pass => pass.effectFunc === 'pointsBillboardRender').stepIndex
             const apply = values => renderer.applyStepParameterValues({ [`step_${step}`]: values })
@@ -43,11 +71,15 @@ try {
                     // putting a synchronous readback in every timed frame.
                     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
                     gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, probe)
-                    if (gl.isContextLost()) throw new Error('WebGL context lost during FPS acceptance')
+                    if (gl.isContextLost() || gl.getError() !== gl.NO_ERROR) throw new Error('WebGL error or context loss during FPS acceptance')
                 } else await gpu.queue.onSubmittedWorkDone()
+                if (lost) throw new Error('GPU device lost during FPS acceptance')
             }
             const cases = []
-            for (const parameters of [
+            for (const parameters of depthSort ? [
+                { blendMode: 1, aperture: 0, focalDistance: 65 },
+                { blendMode: 1, aperture: 0, animatedCamera: true }
+            ] : [
                 { aperture: 0, focalDistance: 65 },
                 { aperture: 1.5, focalDistance: 65 },
                 { aperture: 20, focalDistance: 65 },
@@ -59,6 +91,10 @@ try {
                     if (parameters.animated) apply({
                         aperture: 10 + 10 * Math.sin(frame * 0.08),
                         focalDistance: 250 + 249 * Math.sin(frame * 0.05)
+                    })
+                    if (parameters.animatedCamera) apply({
+                        rotateX: 0.55 + 0.2 * Math.sin(frame * 0.06),
+                        rotateY: 0.5 * Math.sin(frame * 0.08)
                     })
                     renderer.render((frame % 100) / 100)
                 }
@@ -93,11 +129,11 @@ try {
                 })
             }
             return {
-                backend: gpu.getName().toLowerCase(), resolution: [1280, 720], particleCount: 65536,
-                device: gl ? gl.getParameter(gl.getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || gl.RENDERER) : gpu.adapter?.info?.description,
+                backend: gpu.getName().toLowerCase(), resolution: [1280, 720], particleCount,
+                submittedVertexCount: vertexCount, device: deviceDescription, adapterInfo,
                 cases
             }
-        }, { baseUrl, backend, dsl: heightGrid.defaultProgram })
+        }, { baseUrl, backend, dsl: heightGrid.defaultProgram, depthSort })
         results.push(result)
         console.log(JSON.stringify(result, null, 2))
         assert.equal(result.backend, backend, 'the requested hardware backend must run')
@@ -105,7 +141,7 @@ try {
         // Allow scheduler jitter around a 60 Hz display, while requiring the
         // completed GPU batches themselves to fit the 16.7 ms frame budget.
         assert.ok(result.cases.every(sample => sample.throughputMs <= 1000 / 60 && sample.fps >= 58),
-            `${backend}: particle focus must sustain 60 FPS with 65,536 particles at 1280×720`)
+            `${backend}: particle ${depthSort ? 'depth sorting' : 'focus'} must sustain 60 FPS with 65,536 particles at 1280×720`)
         await page.close()
     }
 } finally {

@@ -11,6 +11,8 @@ export default new Effect({
 
     // Internal trail texture for accumulation
     textures: {
+        depthOrderA: { width: { param: 'stateSize', default: 256 }, height: { param: 'stateSize', default: 256 }, format: "rgba32f" },
+        depthOrderB: { width: { param: 'stateSize', default: 256 }, height: { param: 'stateSize', default: 256 }, format: "rgba32f" },
         spriteMeanTiles: { width: 160, height: 160, format: "rgba32f" },
         spriteMean: { width: 5, height: 5, format: "rgba32f" },
         defocus: { width: "25%", height: "25%", format: "rgba16f" },
@@ -26,6 +28,8 @@ export default new Effect({
         shapeMode: {
             type: "int",
             default: 1,
+            min: 0,
+            max: 7,
             uniform: "shapeMode",
             choices: {
                 texture: 0,
@@ -189,6 +193,8 @@ export default new Effect({
         viewMode: {
             type: "int",
             default: 0,
+            min: 0,
+            max: 2,
             uniform: "viewMode",
             choices: {
                 "flat": 0,
@@ -393,9 +399,35 @@ export default new Effect({
 
     passes: [
         {
+            name: "depthKeys",
+            type: "compute",
+            program: "depthKeys",
+            conditions: { runIf: [{ uniform: "blendMode", equals: 1 }], skipIf: [{ uniform: "viewMode", equals: 0 }] },
+            inputs: { xyzTex: "global_xyz" },
+            uniforms: { viewMode: "viewMode", rotateX: "rotateX", rotateY: "rotateY", posZ: "posZ" },
+            outputs: { fragColor: "depthOrderA" }
+        },
+        // Merge sorted runs entirely on the GPU, ending in depthOrderA.
+        // Stages beyond the actual texture size copy through, so live emitter
+        // resizing cannot leave a stale uniform deciding the number of stages.
+        ...Array.from({ length: 22 }, (_, stage) => ({
+            name: `depthMerge${stage}`,
+            type: "compute",
+            program: "depthMerge",
+            conditions: {
+                runIf: [{ uniform: "blendMode", equals: 1 }],
+                skipIf: [{ uniform: "viewMode", equals: 0 }]
+            },
+            inputs: { orderTex: stage % 2 === 0 ? "depthOrderA" : "depthOrderB" },
+            uniforms: { runLength: 2 ** stage },
+            outputs: { fragColor: stage % 2 === 0 ? "depthOrderB" : "depthOrderA" }
+        })),
+        {
             name: "spriteMeanTiles",
             type: "compute",
             program: "spriteMeanTiles",
+            conditions: { runIf: [{ uniform: "shapeMode", equals: 0 }],
+                skipIf: [{ uniform: "aperture", equals: 0 }, { uniform: "viewMode", equals: 0 }] },
             inputs: { spriteTex: "tex" },
             uniforms: { shapeMode: "shapeMode", aperture: "aperture", viewMode: "viewMode" },
             outputs: { fragColor: "spriteMeanTiles" }
@@ -404,6 +436,7 @@ export default new Effect({
             name: "spriteMean",
             type: "compute",
             program: "spriteMean",
+            conditions: { skipIf: [{ uniform: "aperture", equals: 0 }, { uniform: "viewMode", equals: 0 }] },
             inputs: { tilesTex: "spriteMeanTiles" },
             uniforms: { shapeMode: "shapeMode", aperture: "aperture", viewMode: "viewMode" },
             outputs: { fragColor: "spriteMean" }
@@ -411,6 +444,8 @@ export default new Effect({
         {
             name: "clearDefocus",
             program: "clearDefocus",
+            conditions: { runIf: [{ uniform: "blendMode", equals: 0 }],
+                skipIf: [{ uniform: "aperture", equals: 0 }, { uniform: "viewMode", equals: 0 }] },
             uniforms: { clearValue: 0 },
             outputs: { fragColor: "defocus" }
         },
@@ -418,6 +453,8 @@ export default new Effect({
         {
             name: "depositDefocus",
             program: "deposit",
+            conditions: { runIf: [{ uniform: "blendMode", equals: 0 }],
+                skipIf: [{ uniform: "aperture", equals: 0 }, { uniform: "viewMode", equals: 0 }] },
             drawMode: "billboards",
             count: 'input', // Derive from xyzTex dimensions for dynamic stateSize
             blend: true,
@@ -426,6 +463,7 @@ export default new Effect({
                 // Read from shared global textures
                 xyzTex: "global_xyz",
                 rgbaTex: "global_rgba",
+                orderTex: "depthOrderA",
                 spriteTex: "tex",
                 spriteMeanTex: "spriteMean"
             },
@@ -509,6 +547,7 @@ export default new Effect({
                 // Read from shared global textures
                 xyzTex: "global_xyz",
                 rgbaTex: "global_rgba",
+                orderTex: "depthOrderA",
                 spriteTex: "tex",
                 spriteMeanTex: "spriteMean"
             },
@@ -555,6 +594,7 @@ export default new Effect({
             inputs: {
                 xyzTex: "global_xyz",
                 rgbaTex: "global_rgba",
+                orderTex: "depthOrderA",
                 spriteTex: "tex",
                 spriteMeanTex: "spriteMean"
             },
@@ -608,5 +648,22 @@ export default new Effect({
                 fragColor: "outputTex"
             }
         }
-    ]
+    ].flatMap(pass => {
+        if (pass.program !== 'deposit' && pass.program !== 'depthKeys') return [pass]
+        // Keep mode controls live while the GPU compiles away the other views,
+        // blend modes, and defocus layer in each selected draw.
+        const views = pass.name === 'depositDefocus' || pass.program === 'depthKeys' ? [1, 2] : [0, 1, 2]
+        return views.map(viewMode => ({
+            ...pass,
+            name: `${pass.name}_${viewMode}`,
+            defines: { VIEW_MODE: viewMode, ...(pass.program === 'deposit' ? {
+                BLEND_MODE: pass.name === 'deposit_alpha' ? 1 : 0,
+                BLUR_LAYER: pass.name === 'depositDefocus' ? 1 : 0
+            } : {}) },
+            conditions: {
+                ...pass.conditions,
+                runIf: [...(pass.conditions?.runIf || []), { uniform: 'viewMode', equals: viewMode }]
+            }
+        }))
+    })
 })

@@ -872,7 +872,9 @@ export class WebGL2Backend extends Backend {
         const source = this.injectDefines(rawSource, spec.defines || {})
 
         // Compile vertex shader
-        const vsSource = spec.vertex || DEFAULT_VERTEX_SHADER
+        const vsSource = spec.vertex && Object.keys(spec.defines || {}).length
+            ? this.injectDefines(spec.vertex, spec.defines)
+            : spec.vertex || DEFAULT_VERTEX_SHADER
         const usingDefaultVertex = !spec.vertex
         const vertShader = this.compileShader(gl.VERTEX_SHADER, vsSource)
 

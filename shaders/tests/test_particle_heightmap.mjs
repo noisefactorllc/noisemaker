@@ -170,6 +170,32 @@ render(o0)`
             })
             const animated = await page.evaluate(() => window.readState('outXYZ'))
             assert.ok(Math.abs(animated.values[1] - 5.152) < 0.00001, 'height input must resample after a parameter update')
+            assert.deepEqual(await page.evaluate(() => window.readState('outRGBA')), rgba,
+                'changing height must leave every diffuse texel unchanged')
+            await page.evaluate(() => {
+                const r = window.r
+                const diffuse = r.pipeline.graph.passes.filter(p => p.effectFunc === 'solid')[1]
+                const grid = r.pipeline.graph.passes.find(p => p.effectFunc === 'heightGrid')
+                r.applyStepParameterValues({ [`step_${diffuse.stepIndex}`]: { color: [1, 0, 0], alpha: 1 } })
+                r.render(0.5)
+                window.gridStep = grid.stepIndex
+            })
+            assert.deepEqual(await page.evaluate(() => window.readState('outXYZ')), animated,
+                'changing diffuse must leave every particle position unchanged')
+            const recolored = await page.evaluate(() => window.readState('outRGBA'))
+            for (let i = 0; i < recolored.values.length; i += 4) assert.deepEqual(recolored.values.slice(i, i + 4), [255, 0, 0, 255])
+            await page.evaluate(() => {
+                r.applyStepParameterValues({ [`step_${window.gridStep}`]: { gridScale: 40, heightOffset: 3 } })
+                r.render(0.5)
+            })
+            const adjusted = await page.evaluate(() => window.readState('outXYZ'))
+            for (let i = 0; i < adjusted.values.length; i += 4) {
+                assert.ok(Math.abs(adjusted.values[i] - animated.values[i] / 2) < 0.00001)
+                assert.ok(Math.abs(adjusted.values[i + 2] - animated.values[i + 2] / 2) < 0.00001)
+                assert.ok(Math.abs(adjusted.values[i + 1] - animated.values[i + 1] - 5) < 0.00001)
+            }
+            assert.deepEqual(await page.evaluate(() => window.readState('outRGBA')), recolored,
+                'grid width and height offset must preserve diffuse state')
             await frame('negative-height', stateDsl('#ffffff', -10, 'x128'))
             const larger = await page.evaluate(() => window.readState('outXYZ'))
             assert.equal(larger.width * larger.height, 16384, 'particle count follows state size rather than canvas resolution')

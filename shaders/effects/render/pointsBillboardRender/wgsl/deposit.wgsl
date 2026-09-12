@@ -9,7 +9,6 @@ struct Uniforms {
     sizeVariation: f32,
     rotationVar: f32,
     seed: i32,
-    viewMode: i32,
     rotateX: f32,
     rotateY: f32,
     rotateZ: f32,
@@ -22,8 +21,6 @@ struct Uniforms {
     brightnessDistance: f32,
     aperture: f32,
     focalDistance: f32,
-    blendMode: i32,
-    blurLayer: i32,
 };
 
 struct VertexOutput {
@@ -36,6 +33,7 @@ struct VertexOutput {
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var xyzTex: texture_2d<f32>;
 @group(0) @binding(2) var rgbaTex: texture_2d<f32>;
+@group(0) @binding(6) var orderTex: texture_2d<f32>;
 
 fn hash_uint_bb(seed: u32) -> u32 {
     var state = seed * 747796405u + 2891336453u;
@@ -51,12 +49,12 @@ fn hash(n: f32) -> f32 {
 fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     var out: VertexOutput;
 
-    if (u.blurLayer == 1 && (u.viewMode == 0 || u.aperture <= 0.0 || u.blendMode != 0)) {
+    if (BLUR_LAYER == 1 && (VIEW_MODE == 0 || u.aperture <= 0.0 || BLEND_MODE != 0)) {
         out.position = vec4f(2.0, 2.0, 0.0, 1.0);
         return out;
     }
     // Each quad uses 6 vertices (2 triangles)
-    let particleID = i32(vertexIndex) / 6;
+    var particleID = i32(vertexIndex) / 6;
     let vertexInQuad = i32(vertexIndex) % 6;
     
     // Get state size from xyz texture dimensions
@@ -72,6 +70,10 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
         return out;
     }
     
+    if (BLEND_MODE == 1 && VIEW_MODE != 0) {
+        particleID = i32(textureLoad(orderTex, vec2i(particleID % stateSize, particleID / stateSize), 0).g);
+    }
+
     // Density-based culling
     let cullThreshold = u.density / 100.0;
     let particleRandom = fract(f32(particleID) * 0.618033988749895);
@@ -103,7 +105,7 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     var cameraDistance = 0.0;
     var projectedScale = 1.0;
     
-    if (u.viewMode == 0) {
+    if (VIEW_MODE == 0) {
         // 2D mode: positions are normalized 0..1
         clipPos = vec2<f32>(pos.x * 2.0 - 1.0, 1.0 - pos.y * 2.0);
     } else {
@@ -111,7 +113,7 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
         var p = pos.xyz;
         
         // Detect if this is a 2D system or 3D attractor
-        let is2DSystem = u.viewMode == 1 && abs(p.z) < 1.0 && p.x >= 0.0 && p.x <= 1.0 && p.y >= 0.0 && p.y <= 1.0;
+        let is2DSystem = VIEW_MODE == 1 && abs(p.z) < 1.0 && p.x >= 0.0 && p.x <= 1.0 && p.y >= 0.0 && p.y <= 1.0;
         
         if (is2DSystem) {
             p = vec3<f32>(p.x - 0.5, p.y - 0.5, 0.0);
@@ -140,7 +142,7 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
         cameraDistance = length(vec3f(p.xy, cameraDepth));
         
         // Orthographic projection with scale
-        if (u.viewMode == 2) {
+        if (VIEW_MODE == 2) {
             if (cameraDepth <= 0.1) {
                 out.position = vec4f(2.0, 2.0, 0.0, 1.0);
                 out.color = vec4f(0.0);
@@ -165,7 +167,7 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     var sizeFade = 1.0;
     var brightnessFade = 1.0;
     var blurPixels = 0.0;
-    if (u.viewMode != 0) {
+    if (VIEW_MODE != 0) {
         if (u.sizeDistance > 0.0) { sizeFade = 1.0 - smoothstep(0.0, u.sizeDistance, cameraDistance); }
         if (u.brightnessDistance > 0.0) { brightnessFade = 1.0 - smoothstep(0.0, u.brightnessDistance, cameraDistance); }
         blurPixels = min(32.0, u.aperture * abs(cameraDepth - u.focalDistance) / max(abs(cameraDepth), 0.1));
@@ -173,11 +175,15 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     let baseSize = u.pointSize * sizeMultiplier * projectedScale;
     // Keep the source square padding only for textured spatial nodes.
     let blurRadius = blurPixels / max(baseSize, 0.001);
-    let lowWeight = select(0.0, smoothstep(4.0, 8.0, blurPixels * sizeFade) * smoothstep(0.5, 1.0, blurRadius), u.blendMode == 0);
-    let layerWeight = select(1.0 - lowWeight, lowWeight, u.blurLayer == 1);
+    // Match the normalized kernel's minimum support without changing the
+    // requested radius used by interpolation and resolution-layer selection.
+    let supportRadius = select(0.0, max(blurRadius, 0.62582015), blurPixels > 0.0);
+    let supportPixels = select(0.0, max(blurPixels, baseSize * 0.62582015), blurPixels > 0.0);
+    let lowWeight = select(0.0, smoothstep(4.0, 8.0, blurPixels * sizeFade) * smoothstep(0.5, 1.0, blurRadius), BLEND_MODE == 0);
+    let layerWeight = select(1.0 - lowWeight, lowWeight, BLUR_LAYER == 1);
     let proceduralPadding = select(0.0, 0.04, u.shapeMode == 5);
     let blurPadding = select(0.0, select(proceduralPadding, 0.5, u.shapeMode == 0), blurPixels > 0.0);
-    let finalSize = (baseSize * (1.0 + 2.0 * blurPadding) + 2.0 * blurPixels) * sizeFade;
+    let finalSize = (baseSize * (1.0 + 2.0 * blurPadding) + 2.0 * supportPixels) * sizeFade;
     if (finalSize <= 0.0 || brightnessFade <= 0.0 || layerWeight <= 0.0) {
         out.position = vec4f(2.0, 2.0, 0.0, 1.0);
         out.color = vec4f(0.0);
@@ -218,13 +224,13 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     var finalPos = clipPos + rotatedOffset * sizeClip;
     // Perspective world positions and local sprite geometry share the same
     // presentation Y convention. Preserve the legacy flat/ortho convention.
-    if (u.viewMode == 2) { finalPos.y = clipPos.y - rotatedOffset.y * sizeClip.y; }
+    if (VIEW_MODE == 2) { finalPos.y = clipPos.y - rotatedOffset.y * sizeClip.y; }
     
     out.position = vec4<f32>(finalPos, 0.0, 1.0);
     out.color = col * brightnessFade * layerWeight;
     
     // Sprite UV coordinates (0-1 range)
-    out.spriteUV = offset * (0.5 + blurPadding + out.blurRadius) + 0.5;
+    out.spriteUV = offset * (0.5 + blurPadding + supportRadius) + 0.5;
 
     return out;
 }
@@ -300,12 +306,16 @@ fn blurSample(uv: vec2f, color: vec4f) -> vec4f {
 fn blurWeight(uv: vec2f, center: vec2f, expansion: f32) -> f32 {
     let p = (uv - center) / expansion;
     let gaussian = exp(-dot(p, p) / 0.0648) * (1.0 - smoothstep(0.45, 0.5, length(p)));
-    return gaussian * min(1.0, 1.0 / (0.2035752 * expansion * expansion));
+    // The tapered radial kernel has integral 0.19724318. Minimum expansion
+    // bounds its normalized peak without discarding source contribution.
+    let normalization = 1.0 / (0.19724318 * expansion * expansion);
+    return gaussian * normalization;
 }
 
 fn shadeParticle(in: VertexOutput) -> vec4f {
+    if (VIEW_MODE == 0) { return shadeSprite(in.spriteUV, in.color); }
     if (in.blurRadius <= 0.0) { return shadeSprite(in.spriteUV, in.color); }
-    let expansion = 1.0 + 2.0 * in.blurRadius;
+    let expansion = max(1.0 + 2.0 * in.blurRadius, 2.2516403);
     var blurred = vec4f(0.0);
     if (u.shapeMode == 0) {
         for (var y = 0; y < 5; y++) {

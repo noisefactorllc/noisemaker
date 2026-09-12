@@ -499,7 +499,9 @@ export function expand(compilationResult, options = {}) {
                         const scopeDimSpec = (dimSpec) => {
                             if (typeof dimSpec === 'object' && dimSpec.param !== undefined) {
                                 const originalParam = dimSpec.param
-                                const scopedParam = originalParam === 'volumeSize' ? volumeSizeParam : `${originalParam}_${scopeSuffix}`
+                                const dimensionScope = originalParam === 'stateSize' && currentParticlePipelineId && !texName.startsWith('global_')
+                                    ? currentParticlePipelineId : scopeSuffix
+                                const scopedParam = originalParam === 'volumeSize' ? volumeSizeParam : `${originalParam}_${dimensionScope}`
                                 // Track this mapping so we can copy uniform values later
                                 scopedParamMap.set(originalParam, scopedParam)
                                 return {
@@ -648,6 +650,12 @@ export function expand(compilationResult, options = {}) {
 
             // Expand passes
             const effectPasses = effectDef.passes || []
+            const conditionalUniforms = new Set()
+            for (const passDef of effectPasses) {
+                for (const condition of [...(passDef.conditions?.runIf || []), ...(passDef.conditions?.skipIf || [])]) {
+                    conditionalUniforms.add(condition.uniform)
+                }
+            }
             for (let i = 0; i < effectPasses.length; i++) {
                 const passDef = effectPasses[i]
                 const passId = `${nodeId}_pass_${i}`
@@ -655,7 +663,22 @@ export function expand(compilationResult, options = {}) {
                 // Use nodeId prefix for program name to match program collection above.
                 // Append the same compile-time-define suffix so passes reference the
                 // variant-specific program entry.
-                const programName = `${nodeId}_${passDef.program}${programDefineSuffix}`
+                let programName = `${nodeId}_${passDef.program}${programDefineSuffix}`
+                if (passDef.defines) {
+                    // Conditional passes can select precompiled variants without
+                    // freezing an animated selector into a global define.
+                    const baseProgram = programs[programName]
+                    const passDefineSuffix = Object.entries(passDef.defines)
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([key, value]) => `__${key}_${value}`).join('')
+                    programName += passDefineSuffix
+                    if (baseProgram && !programs[programName]) {
+                        programs[programName] = {
+                            ...baseProgram,
+                            defines: { ...compileTimeDefines, ...passDef.defines }
+                        }
+                    }
+                }
 
                 const pass = {
                     id: passId,
@@ -667,6 +690,7 @@ export function expand(compilationResult, options = {}) {
                     countUniform: passDef.countUniform,  // For dynamic vertex count from uniforms
                     repeat: passDef.repeat,  // Number of iterations per frame
                     blend: passDef.blend,
+                    conditions: passDef.conditions,
                     workgroups: passDef.workgroups,
                     storageBuffers: passDef.storageBuffers,
                     storageTextures: passDef.storageTextures,
@@ -730,6 +754,14 @@ export function expand(compilationResult, options = {}) {
                             pass.uniformSpecs[uniformName] = {
                                 min: def.min ?? 0,
                                 max: def.max ?? 100
+                            }
+                        } else if (def.type === 'int' && def.choices && conditionalUniforms.has(uniformName)) {
+                            // A conditional selector must use the same integer in
+                            // every shader pass and in CPU-side pass selection.
+                            pass.uniformSpecs[uniformName] = { type: 'int' }
+                            if (Number.isFinite(def.min) && Number.isFinite(def.max)) {
+                                pass.uniformSpecs[uniformName].min = def.min
+                                pass.uniformSpecs[uniformName].max = def.max
                             }
                         }
                     }

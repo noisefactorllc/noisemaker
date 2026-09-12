@@ -60,14 +60,17 @@ export default new Effect({
             }
         },
 
-        // 3D viewport: view mode (0=2D normalized, 1=3D orthographic)
+        // Existing flat and orthographic modes retain their projection.
         viewMode: {
             type: "int",
             default: 0,
+            min: 0,
+            max: 2,
             uniform: "viewMode",
             choices: {
                 "flat": 0,
-                "ortho": 1
+                "ortho": 1,
+                "perspective": 2
             },
             ui: {
                 label: "view",
@@ -172,6 +175,36 @@ export default new Effect({
             }
         },
 
+        posZ: {
+            type: "float",
+            default: 0,
+            uniform: "posZ",
+            min: -200,
+            max: 200,
+            step: 0.1,
+            ui: {
+                label: "pos z",
+                control: "slider",
+                category: "view",
+                enabledBy: "viewMode"
+            }
+        },
+
+        fieldOfView: {
+            type: "float",
+            default: 60,
+            uniform: "fieldOfView",
+            min: 10,
+            max: 150,
+            step: 1,
+            ui: {
+                label: "field of view",
+                control: "slider",
+                category: "view",
+                enabledBy: { param: "viewMode", eq: 2 }
+            }
+        },
+
         // Matte opacity (0=transparent background, 1=opaque)
         matteOpacity: {
             type: "float",
@@ -244,7 +277,9 @@ export default new Effect({
                 rotateZ: "rotateZ",
                 viewScale: "viewScale",
                 posX: "posX",
-                posY: "posY"
+                posY: "posY",
+                posZ: "posZ",
+                fieldOfView: "fieldOfView"
             },
 
             outputs: {
@@ -271,5 +306,10 @@ export default new Effect({
                 fragColor: "outputTex"
             }
         }
-    ]
+    ].flatMap(pass => pass.name === 'deposit' ? [0, 1, 2].map(viewMode => ({
+        ...pass,
+        name: `${pass.name}_${viewMode}`,
+        defines: { VIEW_MODE: viewMode },
+        conditions: { runIf: [{ uniform: 'viewMode', equals: viewMode }] }
+    })) : [pass])
 })

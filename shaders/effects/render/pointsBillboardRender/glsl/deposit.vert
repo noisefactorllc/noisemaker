@@ -5,6 +5,7 @@ precision highp float;
 
 uniform sampler2D xyzTex;
 uniform sampler2D rgbaTex;
+uniform sampler2D orderTex;
 uniform vec2 resolution;
 uniform float density;
 uniform float pointSize;
@@ -12,11 +13,11 @@ uniform float sizeVariation;
 uniform float rotationVar;
 uniform float seed;
 uniform int shapeMode;
-uniform int blendMode;
-uniform int blurLayer;
+const int blendMode = BLEND_MODE;
+const int blurLayer = BLUR_LAYER;
 
 // 3D viewport uniforms
-uniform int viewMode;
+const int viewMode = VIEW_MODE;
 uniform float rotateX;
 uniform float rotateY;
 uniform float rotateZ;
@@ -46,12 +47,14 @@ float hash(float n) {
 
 void main() {
     vBlurRadius = 0.0;
-    if (blurLayer == 1 && (viewMode == 0 || aperture <= 0.0 || blendMode != 0)) {
+#if BLUR_LAYER == 1
+    if (aperture <= 0.0) {
         gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
         vColor = vec4(0.0);
         vSpriteUV = vec2(0.0);
         return;
     }
+#endif
     // Each quad uses 6 vertices (2 triangles)
     int particleID = gl_VertexID / 6;
     int vertexInQuad = gl_VertexID % 6;
@@ -69,6 +72,10 @@ void main() {
         return;
     }
     
+    if (blendMode == 1 && viewMode != 0) {
+        particleID = int(texelFetch(orderTex, ivec2(particleID % stateSize, particleID / stateSize), 0).g);
+    }
+
     // Density-based culling
     float cullThreshold = density / 100.0;
     float particleRandom = fract(float(particleID) * 0.618033988749895);
@@ -173,12 +180,16 @@ void main() {
     // Textured blur integrates nodes across the whole source square. A
     // procedural footprint needs only its center's displacement as padding.
     float blurRadius = blurPixels / max(baseSize, 0.001);
+    // Match the normalized fragment kernel's minimum support. Keep the
+    // requested radius for interpolation and resolution-layer selection.
+    float supportRadius = blurPixels > 0.0 ? max(blurRadius, 0.62582015) : 0.0;
+    float supportPixels = blurPixels > 0.0 ? max(blurPixels, baseSize * 0.62582015) : 0.0;
     // Only broad, fully softened additive footprints can use the smaller
     // target. Complementary weights prevent a focus transition from popping.
     float lowWeight = blendMode == 0 ? smoothstep(4.0, 8.0, blurPixels * sizeFade) * smoothstep(0.5, 1.0, blurRadius) : 0.0;
     float layerWeight = blurLayer == 1 ? lowWeight : 1.0 - lowWeight;
     float blurPadding = blurPixels > 0.0 ? (shapeMode == 0 ? 0.5 : (shapeMode == 5 ? 0.04 : 0.0)) : 0.0;
-    float finalSize = (baseSize * (1.0 + 2.0 * blurPadding) + 2.0 * blurPixels) * sizeFade;
+    float finalSize = (baseSize * (1.0 + 2.0 * blurPadding) + 2.0 * supportPixels) * sizeFade;
     if (finalSize <= 0.0 || brightnessFade <= 0.0 || layerWeight <= 0.0) {
         gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
         vColor = vec4(0.0);
@@ -223,5 +234,5 @@ void main() {
     vColor = col * brightnessFade * layerWeight;
     
     // Sprite UV coordinates (0-1 range)
-    vSpriteUV = offset * (0.5 + blurPadding + vBlurRadius) + 0.5;
+    vSpriteUV = offset * (0.5 + blurPadding + supportRadius) + 0.5;
 }

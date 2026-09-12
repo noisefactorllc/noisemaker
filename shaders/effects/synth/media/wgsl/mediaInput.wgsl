@@ -147,9 +147,6 @@ fn getImage(pos: vec2<f32>) -> vec4<f32> {
         if (st.y < 0.5) { st.y = 1.0 - st.y; }
     }
 
-    // Compensate for WebGPU blit Y-flip (present shader maps UV y=0 to screen bottom)
-    st.y = 1.0 - st.y;
-
     let text = sampleMedia(st);
 
     if (st.x < 0.0 || st.x > 1.0 || st.y < 0.0 || st.y > 1.0) {
@@ -177,8 +174,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     imageSize = uniforms.data[4].xy;
 
-    // Convert from WGSL top-down to bottom-up coordinates (matching GLSL gl_FragCoord)
-    let posFromBottom = vec2<f32>(pos.x, resolution.y - pos.y);
-
-    return getImage(posFromBottom);
+    // Internal rows match GLSL texture rows; presentation applies the final
+    // Y conversion. Keep anchor, offset and rotation in that same space.
+    return getImage(pos.xy);
 }

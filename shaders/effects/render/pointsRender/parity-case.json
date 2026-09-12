@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "surface": "o0",
+  "resolution": [160, 144],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "effects": [
+    "synth/testPattern",
+    "synth/solid",
+    "render/pointsEmit",
+    "points/heightGrid",
+    "render/pointsRender"
+  ],
+  "dsl": "search synth, points, render\ntestPattern(pattern: gradient).write(o1)\ntestPattern(pattern: colorBars).write(o2)\nsolid().pointsEmit(stateSize: x64).heightGrid(heightTex: read(o1), diffuseTex: read(o2), gridScale: 64, heightScale: 18).pointsRender(viewMode: perspective, rotateX: 0.55, posY: -10, posZ: 12, fieldOfView: 75, density: 100, intensity: 0, inputIntensity: 0, matteOpacity: 0).write(o0)\nrender(o0)"
+}

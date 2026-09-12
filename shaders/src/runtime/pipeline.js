@@ -1719,13 +1719,11 @@ export class Pipeline {
             try {
                 for (let i = 0; i < this.graph.passes.length; i++) {
                     const originalPass = this.graph.passes[i]
+                    const pass = this.resolvePassUniforms(originalPass, time)
                     // Check pass conditions
-                    if (this.shouldSkipPass(originalPass)) {
+                    if (this.shouldSkipPass(pass)) {
                         continue
                     }
-
-                    // Resolve oscillators in pass uniforms for this frame
-                    const pass = this.resolvePassUniforms(originalPass, time)
 
                     // Determine iteration count (repeat N times per frame)
                     const repeatCount = this.resolveRepeatCount(pass)
@@ -1865,7 +1863,8 @@ export class Pipeline {
         // `time` is already normalized 0..1 by CanvasRenderer. Recursive
         // evaluation uses the same absolute time, so seeking and export remain
         // independent of frame order.
-        return evaluateAutomation(value, time, paramSpec, this.externalState)
+        const resolved = evaluateAutomation(value, time, paramSpec, this.externalState)
+        return paramSpec?.type === 'int' ? Math.round(resolved) : resolved
     }
 
     /**
@@ -1939,7 +1938,7 @@ export class Pipeline {
         // Check skipIf conditions - skip if ANY condition matches
         if (skipIf) {
             for (const condition of skipIf) {
-                const value = this.globalUniforms[condition.uniform] ?? pass.uniforms?.[condition.uniform]
+                const value = pass.uniforms?.[condition.uniform] ?? this.globalUniforms[condition.uniform]
                 if (value === condition.equals) {
                     return true
                 }
@@ -1950,7 +1949,7 @@ export class Pipeline {
         if (runIf) {
             let shouldRun = true
             for (const condition of runIf) {
-                const value = this.globalUniforms[condition.uniform] ?? pass.uniforms?.[condition.uniform]
+                const value = pass.uniforms?.[condition.uniform] ?? this.globalUniforms[condition.uniform]
                 if (value !== condition.equals) {
                     shouldRun = false
                     break
