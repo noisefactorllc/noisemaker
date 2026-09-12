@@ -45,10 +45,10 @@ function isAutomationControlled(value) {
 }
 
 // Known 3D generator effects (self-initialize volumes)
-const KNOWN_3D_GENERATORS = ['noise3d', 'cell3d', 'shape3d', 'fractal3d', 'flythrough3d', 'cellularAutomata3d', 'reactionDiffusion3d']
+const KNOWN_3D_GENERATORS = ['noise3d', 'cell3d', 'shape3d', 'fractal3d', 'flythrough3d', 'cellularAutomata3d', 'reactionDiffusion3d', 'heightmap3d']
 
 // Known 3D processor effects (modify volumes, need inputTex3d)
-const KNOWN_3D_PROCESSORS = ['flow3d', 'palette3d', 'render3d', 'renderLit3d', 'renderCubemap3d', 'renderCubemapSurface']
+const KNOWN_3D_PROCESSORS = ['flow3d', 'palette3d', 'render3d', 'renderLit3d', 'renderCubemap3d', 'renderCubemapSurface', 'renderLandscape3d']
 
 /**
  * Deep clone a parameter value
