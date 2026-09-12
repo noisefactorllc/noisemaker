@@ -3349,7 +3349,11 @@ export class WebGPUBackend extends Backend {
 
         if (this.context?.unconfigure) {
             try {
-                this.context.unconfigure()
+                // A replacement backend can configure the same canvas before this
+                // backend is disposed. Only release a configuration we still own.
+                if (!this.context.getConfiguration || this.context.getConfiguration()?.device === this.device) {
+                    this.context.unconfigure()
+                }
             } catch (err) {
                 console.warn('Failed to unconfigure WebGPU canvas context', err)
             }

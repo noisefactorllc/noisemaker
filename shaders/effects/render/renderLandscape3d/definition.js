@@ -5,7 +5,7 @@ export default new Effect({
   namespace: 'render',
   func: 'renderLandscape3d',
   tags: ['3d'],
-  description: 'Orthographic isometric voxel renderer with face lighting',
+  description: 'Isometric and perspective voxel renderer with face lighting',
   textures: {
     screenGeoBuffer: { width: 'screen', height: 'screen', format: 'rgba16f' }
   },
@@ -16,12 +16,14 @@ export default new Effect({
     },
     threshold: {
       type: 'float', default: 0.5, min: 0, max: 1, uniform: 'threshold',
-      ui: { label: 'density threshold', control: 'slider' }
+      // Keep the DSL cutoff for continuous geometry fields, not as a heightfield slider.
+      ui: { label: 'density threshold', control: false }
     },
     densitySource: {
-      type: 'int', default: 0, uniform: 'densitySource',
-      choices: { geometry: 0, red: 1 },
-      ui: { label: 'density source', control: 'dropdown' }
+      // Preserve the positional argument slot. Occupancy always comes from geometry.
+      type: 'int', default: 0,
+      choices: { geometry: 0 },
+      ui: { label: 'density source', control: false }
     },
     zoom: {
       type: 'float', default: 1, min: 0.25, max: 4, uniform: 'zoom',
@@ -59,6 +61,44 @@ export default new Effect({
     bgAlpha: {
       type: 'float', default: 1, min: 0, max: 1, uniform: 'bgAlpha',
       ui: { label: 'background opacity', control: 'slider' }
+    },
+    viewMode: {
+      type: 'int', default: 1, define: 'VIEW_MODE',
+      choices: { ortho: 1, perspective: 2 },
+      ui: { label: 'view', control: 'dropdown', category: 'view' }
+    },
+    rotateX: {
+      type: 'float', default: 0.3, min: 0, max: 6.283185, step: 0.01, uniform: 'rotateX',
+      ui: { label: 'rotate x', control: 'slider', category: 'view', enabledBy: { param: 'viewMode', eq: 2 } }
+    },
+    rotateY: {
+      type: 'float', default: 0, min: 0, max: 6.283185, step: 0.01, uniform: 'rotateY',
+      ui: { label: 'rotate y', control: 'slider', category: 'view', enabledBy: { param: 'viewMode', eq: 2 } }
+    },
+    rotateZ: {
+      type: 'float', default: 0, min: 0, max: 6.283185, step: 0.01, uniform: 'rotateZ',
+      ui: { label: 'rotate z', control: 'slider', category: 'view', enabledBy: { param: 'viewMode', eq: 2 } }
+    },
+    viewScale: {
+      type: 'float', default: 0.8, min: 0.1, max: 10, step: 0.01, uniform: 'viewScale',
+      // Preserve billboard-compatible DSL scaling; the shared zoom is the UI control.
+      ui: { label: 'zoom', control: false }
+    },
+    posX: {
+      type: 'float', default: 0, min: -50, max: 50, step: 0.1, uniform: 'posX',
+      ui: { label: 'pos x', control: 'slider', category: 'view', enabledBy: { param: 'viewMode', eq: 2 } }
+    },
+    posY: {
+      type: 'float', default: 0, min: -50, max: 50, step: 0.1, uniform: 'posY',
+      ui: { label: 'pos y', control: 'slider', category: 'view', enabledBy: { param: 'viewMode', eq: 2 } }
+    },
+    posZ: {
+      type: 'float', default: 0, min: -200, max: 200, step: 0.1, uniform: 'posZ',
+      ui: { label: 'pos z', control: 'slider', category: 'view', enabledBy: { param: 'viewMode', eq: 2 } }
+    },
+    fieldOfView: {
+      type: 'float', default: 60, min: 10, max: 150, step: 1, uniform: 'fieldOfView',
+      ui: { label: 'field of view', control: 'slider', category: 'view', enabledBy: { param: 'viewMode', eq: 2 } }
     }
   },
   passes: [{

@@ -489,6 +489,59 @@ test('backend switch during restoration loss-safely cancels the stale result wit
     ])
 })
 
+test('overlapping initial compiles share one canvas initialization and apply in order', async () => {
+    const renderer = bareRenderer()
+    const creation = deferred()
+    let creations = 0
+    renderer._createRuntime = () => { creations++; return creation.promise }
+    const first = renderer.compile('search synth\nrender(o0)')
+    const second = renderer.compile('search synth\nrender(o1)')
+    await flushMicrotasks()
+    assert.equal(creations, 1, 'two initializations must not reconfigure the same canvas concurrently')
+    const pipeline = {
+        ...stalePipeline([], 'initial'), width: 16, height: 16,
+        createSurfaces() {}, collectDefaultUniforms() { return {} },
+        recreateTextures() {}, initAsyncEffects() {}, async compilePrograms() {}
+    }
+    creation.resolve(pipeline)
+    assert.equal(await first, pipeline)
+    assert.equal(await second, pipeline)
+    assert.equal(creations, 1)
+    assert.equal(renderer.pipeline.graph.renderSurface, 'o1')
+    assert.equal(renderer.currentDsl, 'search synth\nrender(o1)')
+})
+
+test('a failed compile does not block the next queued compile', async () => {
+    const renderer = bareRenderer()
+    const creation = deferred()
+    const pipeline = stalePipeline([], 'recovered')
+    let creations = 0
+    renderer._createRuntime = () => ++creations === 1 ? creation.promise : Promise.resolve(pipeline)
+    const first = renderer.compile('search synth\nrender(o0)')
+    const second = renderer.compile('search synth\nrender(o1)')
+    const settled = Promise.allSettled([first, second])
+    creation.reject(new Error('initial compile failed'))
+    const results = await settled
+    assert.equal(results[0].status, 'rejected')
+    assert.equal(results[1].status, 'fulfilled')
+    assert.equal(results[1].value, pipeline)
+    assert.equal(renderer.pipeline, pipeline)
+})
+
+test('disposal invalidates queued compiles before they can configure a canvas', async () => {
+    const renderer = bareRenderer()
+    const creation = deferred()
+    let creations = 0
+    renderer._createRuntime = () => { creations++; return creation.promise }
+    const first = renderer.compile('search synth\nrender(o0)')
+    const second = renderer.compile('search synth\nrender(o1)')
+    await renderer.dispose()
+    creation.resolve(stalePipeline([], 'stale'))
+    assert.deepEqual(await Promise.all([first, second]), [null, null])
+    assert.equal(creations, 1)
+    assert.equal(renderer.pipeline, null)
+})
+
 for (const { name, fn } of tests) {
     try {
         await fn()

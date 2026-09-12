@@ -207,6 +207,10 @@ function formatLosslessNumber(value) {
  * @returns {string} Formatted string representation
  */
 function formatValue(value, spec, options = {}, sourceForm) {
+    // Temporary surfaces represent nested effect chains, not named surfaces.
+    if (value?.kind === 'temp' && options.formatTemp) {
+        return options.formatTemp(value.index)
+    }
     const { customFormatter, enums = {} } = typeof options === 'function'
         ? { customFormatter: options } // Legacy: 3rd arg was customFormatter
         : options
@@ -866,7 +870,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
     const searchNamespaces = compiled.searchNamespaces || []
 
     // Add search directive if present (with two line breaks after)
-    if (searchNamespaces.length > 0) {
+    if (searchNamespaces.length > 0 && !options.omitSearchDirective) {
         lines.push(`search ${searchNamespaces.join(', ')}`)
         lines.push('') // First blank line after search
     }
@@ -894,6 +898,47 @@ export function unparse(compiled, overrides = {}, options = {}) {
         const plan = plans[planIndex]
         if (!plan.chain || plan.chain.length === 0) continue
 
+        // The compiler flattens inline surface producers into the plan. Rebuild
+        // those dependency chains as arguments, retaining each producer's edits.
+        const stepsByTemp = new Map(plan.chain.map((step, index) => [step.temp, {
+            step, override: overrides[globalStepIndex + index] || {}
+        }]))
+        const collectDependencies = (index, collected) => {
+            if (collected.has(index)) return
+            const entry = stepsByTemp.get(index)
+            if (!entry) return
+            collected.add(index)
+            if (entry.step.from !== null && entry.step.from !== undefined) {
+                collectDependencies(entry.step.from, collected)
+            }
+            for (const value of Object.values({ ...entry.step.args, ...entry.override })) {
+                if (value?.kind === 'temp') collectDependencies(value.index, collected)
+            }
+        }
+        const inlineTemps = new Set()
+        for (const { step, override } of stepsByTemp.values()) {
+            for (const value of [...Object.values(step.args || {}), ...Object.values(override)]) {
+                if (value?.kind === 'temp') collectDependencies(value.index, inlineTemps)
+            }
+        }
+        const inlineCode = new Map()
+        const planOptions = { ...options, formatTemp: index => {
+            if (!inlineCode.has(index)) {
+                const dependencies = new Set()
+                collectDependencies(index, dependencies)
+                const chain = []
+                const nestedOverrides = {}
+                for (const [temp, entry] of stepsByTemp) {
+                    if (!dependencies.has(temp)) continue
+                    nestedOverrides[chain.length] = entry.override
+                    chain.push(entry.step)
+                }
+                inlineCode.set(index, unparse({ searchNamespaces, plans: [{ chain }] }, nestedOverrides,
+                    { ...options, multilineKwargs: false, omitSearchDirective: true }))
+            }
+            return inlineCode.get(index)
+        } }
+
         // Emit plan-level leading comments
         if (plan.leadingComments && plan.leadingComments.length > 0) {
             for (const comment of plan.leadingComments) {
@@ -908,6 +953,10 @@ export function unparse(compiled, overrides = {}, options = {}) {
         let inSubchain = false  // Track subchain context for proper indentation
 
         for (const step of plan.chain) {
+            if (inlineTemps.has(step.temp)) {
+                globalStepIndex++
+                continue
+            }
             // Helper to build a chain element with optional comments
             const makeChainElement = (code) => {
                 const elem = { code }
@@ -1059,7 +1108,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
                     if (key === '_skip' && value !== true) continue
 
                     // Handle surface references
-                    if (value && typeof value === 'object' && value.kind) {
+                    if (value && typeof value === 'object' && value.kind && value.kind !== 'temp') {
                         call.kwargs[key] = value.name
                     } else {
                         call.kwargs[key] = value
@@ -1093,7 +1142,7 @@ export function unparse(compiled, overrides = {}, options = {}) {
 
             // Calculate indent: 4 spaces inside subchain, 2 outside; 0 for first element
             const callIndent = currentChain.length === 0 ? 0 : (inSubchain ? 4 : 2)
-            let callCode = unparseCall(call, { ...options, specs, indent: callIndent })
+            let callCode = unparseCall(call, { ...planOptions, specs, indent: callIndent })
             // Wrap in from(namespace, call) for cross-namespace references
             if (isFromOverride && fromNamespace) {
                 callCode = `from(${fromNamespace}, ${callCode})`

@@ -4,6 +4,14 @@
  */
 
 import { unparse } from '../src/lang/unparser.js';
+import assert from 'node:assert/strict';
+import { compile } from '../src/lang/index.js';
+import { registerOp } from '../src/lang/ops.js';
+import { registerStarterOps } from '../src/lang/validator.js';
+import solid from '../effects/synth/solid/definition.js';
+import invert from '../effects/filter/invert/definition.js';
+import heightmap from '../effects/synth3d/heightmap3d/definition.js';
+import landscape from '../effects/render/renderLandscape3d/definition.js';
 
 let passed = 0;
 let failed = 0;
@@ -494,6 +502,31 @@ test('Strings starting with digits must be quoted', () => {
     
     // id starting with digit must be quoted (not a valid identifier)
     assertIncludes(result, 'id: "0vjd"', 'String starting with digit must be quoted');
+});
+
+// Compile real effect chains so the test detects dropped or misplaced inputs,
+// including edits to producers that the compiler flattened into temporary steps.
+const inlineDefinitions = new Map([solid, invert, heightmap, landscape].map(def => [`${def.namespace}.${def.func}`, def]));
+for (const [name, def] of inlineDefinitions) {
+    registerOp(name, { name: def.func, args: Object.entries(def.globals).map(([key, spec]) => ({ name: key, ...spec })) });
+}
+registerStarterOps(['synth.solid', 'synth3d.heightmap3d']);
+const inlineOptions = { getEffectDef: name => inlineDefinitions.get(name) };
+const surfaceProgram = 'search synth, filter, synth3d, render\nheightmap3d(heightTex: solid(color: #00ff00).invert(), tex: solid(color: #ff0000)).renderLandscape3d().write(o0)\nrender(o0)';
+const semantics = dsl => compile(dsl).plans.map(plan => plan.chain.map(({ op, args, from, temp }) => ({ op, args, from, temp })));
+
+test('Inline height and color chains retain independent producer edits during mode changes', () => {
+    const overrides = { 0: { color: [1, 0, 0] }, 2: { color: [0, 0, 1] }, 4: { viewMode: 2 } };
+    const result = unparse(compile(surfaceProgram), overrides, inlineOptions);
+    const expected = surfaceProgram.replace('#00ff00', '#ff0000').replace('tex: solid(color: #ff0000)', 'tex: solid(color: #0000ff)')
+        .replace('renderLandscape3d()', 'renderLandscape3d(viewMode: perspective)');
+    assert.deepEqual(semantics(result), semantics(expected));
+});
+
+test('Replacing an inline surface removes its unused producer chain', () => {
+    const result = unparse(compile(surfaceProgram), { 3: { heightTex: 'none' } }, inlineOptions);
+    const expected = surfaceProgram.replace('heightTex: solid(color: #00ff00).invert(), ', '');
+    assert.deepEqual(semantics(result), semantics(expected));
 });
 
 // Summary

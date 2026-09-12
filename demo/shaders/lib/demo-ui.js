@@ -3306,6 +3306,11 @@ render(o1)`
             await this._renderer.compile(dsl, {
                 shaderOverrides: this._shaderOverrides
             })
+            // Surface edits can remove inline producers and shift every later step.
+            // Rebind state and controls to the new graph before accepting another edit.
+            if (!this.checkStructureAndApplyState(dsl)) {
+                this.loadDslAndCreateControls(dsl)
+            }
             this.showStatus('pipeline updated', 'success')
         } catch (err) {
             console.error('Pipeline compilation failed:', this.formatCompilationError(err))
@@ -3872,7 +3877,10 @@ render(o1)`
 
         // Parse current value to get the surface ID
         let currentSurface = spec.default || 'o1'
-        if (value && typeof value === 'object' && value.name) {
+        if (value?.kind === 'temp') {
+            currentSurface = value
+            surfaces.unshift({ value, label: 'inline' })
+        } else if (value && typeof value === 'object' && value.name) {
             currentSurface = value.name
         } else if (typeof value === 'string') {
             const match = value.match(/read\(([^)]+)\)|^(o[0-7])$/)
@@ -3890,10 +3898,11 @@ render(o1)`
         })
 
         const select = handle.element
+        const surfaceValue = val => val?.kind === 'temp' || val === 'none' ? val : `read(${val})`
 
         select.addEventListener('change', async () => {
             const val = handle.getValue()
-            this._programState.setValue(effectKey, key, val === 'none' ? 'none' : `read(${val})`)
+            this._programState.setValue(effectKey, key, surfaceValue(val))
             this._updateDslFromEffectParams()
             await this._recompilePipeline()
             this._updateDependentControls()
@@ -3906,11 +3915,16 @@ render(o1)`
             element: select,
             getValue: () => {
                 const val = handle.getValue()
-                return val === 'none' ? 'none' : `read(${val})`
+                return surfaceValue(val)
             },
             setValue: (v) => {
                 let surfaceId = v
-                if (typeof v === 'object' && v.name) {
+                if (v?.kind === 'temp') {
+                    const inline = surfaces.findIndex(choice => choice.value?.kind === 'temp')
+                    if (inline >= 0) surfaces[inline] = { value: v, label: 'inline' }
+                    else surfaces.unshift({ value: v, label: 'inline' })
+                    handle.setChoices?.(surfaces)
+                } else if (v && typeof v === 'object' && v.name) {
                     surfaceId = v.name
                 } else if (typeof v === 'string') {
                     const match = v.match(/read\(([^)]+)\)|^(o[0-7])$/)
@@ -4146,6 +4160,8 @@ render(o1)`
             if (!params) continue
 
             const isEnabled = this._evaluateEnableCondition(enabledBy, params)
+            element.inert = !isEnabled
+            element.setAttribute('aria-disabled', String(!isEnabled))
 
             if (isEnabled) {
                 element.classList.remove('disabled')

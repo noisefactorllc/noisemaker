@@ -46,7 +46,7 @@ async function runBackend(preferWebGPU) {
             window.renderer = new CanvasRenderer({ canvas: document.querySelector('canvas'), width: 128, height: 128,
                 basePath: `${baseUrl}/shaders`, preferWebGPU })
             await renderer.loadManifest()
-            await renderer.loadEffects(['synth3d/heightmap3d', 'render/renderLandscape3d', 'synth3d/shape3d', 'synth3d/cellularAutomata3d', 'filter3d/palette3d'])
+            await renderer.loadEffects(['synth3d/heightmap3d', 'render/renderLandscape3d', 'synth3d/shape3d', 'synth3d/noise3d', 'filter3d/palette3d'])
         }, { baseUrl, preferWebGPU })
         async function compile(program, inputs = {}) {
             return page.evaluate(async ({ program, inputs }) => {
@@ -184,10 +184,10 @@ render(o0)`)
         assert.ok(nativeGeo.data.some((v, i) => i % 4 === 3 && v < 255), 'native 3D geometry must render')
 
         await compile(`search synth3d, render
-cellularAutomata3d(volumeSize: x16).renderLandscape3d(densitySource: red).write(o0)
+noise3d(volumeSize: x16).renderLandscape3d().write(o0)
 render(o0)`)
         const scalarGeo = await readOutput('renderLandscape3d', 'geoOut')
-        assert.ok(scalarGeo.data.some((v, i) => i % 4 === 3 && v < 255), 'native scalar-field chains without geometry must render from red density')
+        assert.ok(scalarGeo.data.some((v, i) => i % 4 === 3 && v < 255), 'native scalar fields must render from their geometry density')
         assert.deepEqual(errors, [], `${backend} console must be clean`)
         console.log(`PASS heightmap/landscape voxel, color, luminance, empty-volume and native-chain contracts (${backend})`)
         return screenshot

@@ -253,6 +253,11 @@ body.full-bleed-mode #canvas {
   pointer-events: none;
 }
 
+/* RGB parameters have no alpha channel; opacity has its own parameter. */
+color-picker[data-alpha-supported="false"] .alpha-container {
+  display: none;
+}
+
 /* Category tag bar - shows collapsed categories as clickable tags */
 .category-tag-bar {
   grid-column: 1 / -1;

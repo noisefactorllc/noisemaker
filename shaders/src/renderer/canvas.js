@@ -985,6 +985,21 @@ export class CanvasRenderer {
      * @returns {Promise<object>} The created pipeline
      */
     async compile(dsl, options = {}) {
+        const generation = this._lifecycleGeneration ?? 0
+        const run = () => this._isLifecycleCurrent(generation) ? this._compile(dsl, options) : null
+        // UI mode changes and initial loading can overlap. Serialize all callers
+        // so they cannot configure or mutate the same canvas pipeline concurrently.
+        const pending = this._compileQueue ? this._compileQueue.then(run, run) : run()
+        this._compileQueue = pending
+        const clear = () => {
+            if (this._compileQueue === pending) this._compileQueue = null
+        }
+        pending.then(clear, clear)
+        return pending
+    }
+
+    /** @private Compile after earlier requests for this canvas have settled. */
+    async _compile(dsl, options = {}) {
         const shaderOverrides = options.shaderOverrides
         const lifecycleGeneration = this._lifecycleGeneration ?? 0
 
