@@ -114,7 +114,9 @@ try {
                     }
                     changed++; maximum = Math.max(maximum, d)
                 }
-                assert.ok(faintEdgeChannels <= 32, `${name}: excessive faint fringe differences (${faintEdgeChannels} channels)`)
+                // Bilinear reconstruction spreads a source edge across more
+                // pixels; the visible difference remains at most 1/255.
+                assert.ok(faintEdgeChannels <= 64, `${name}: excessive faint fringe differences (${faintEdgeChannels} channels)`)
                 if (faintEdgeChannels) console.log(`${name}: ${faintEdgeChannels} channels differ only at alpha <= 1/255`)
                 // Coverage at a handful of triangle edges can round differently
                 // through float16 blending and canvas unpremultiplication. Core
@@ -206,6 +208,14 @@ render(o0)`
             const softTexture = await frame('texture-stripe-defocus', textureDsl)
             assert.deepEqual(liveTexture, softTexture, 'live focus update must match a fresh compile')
             assert.ok(softTexture.some((v, i) => i % 4 === 3 && v > 0), 'defocus must retain texture content between integration sample sites')
+            await page.evaluate(() => {
+                const r = window.r
+                const pass = r.pipeline.graph.passes.find(p => p.effectFunc === 'pointsBillboardRender')
+                r.applyStepParameterValues({ ['step_' + pass.stepIndex]: { aperture: 0 } })
+                r.render(0)
+            })
+            const refocused = PNG.sync.read(await page.locator('canvas').screenshot({ omitBackground: true })).data
+            assert.deepEqual(refocused, sharpTexture, 'turning off aperture must clear the coarse blur immediately')
             const centroid = (data, channel = 3) => {
                 let mass = 0, x = 0, y = 0
                 for (let i = 0; i < data.length; i += 4) {
@@ -252,6 +262,25 @@ render(o0)`
                 }
             }
             assert.equal(components, 1, 'defocus must remain one continuous soft particle rather than separated sprite copies')
+            const trailStart = await frame('defocus-trail', isolated(20)
+                .replace('pointSize: 3', 'pointSize: 16, depositOpacity: 100')
+                .replace('intensity: 0,', 'intensity: 50,'))
+            const alphaMass = data => data.reduce((total, value, index) => total + (index % 4 === 3 ? value : 0), 0)
+            let previousMass = alphaMass(trailStart)
+            assert.ok(previousMass > 1000, 'the defocused trail fixture must carry visible energy')
+            for (let frameIndex = 0; frameIndex < 2; frameIndex++) {
+                await page.evaluate(() => {
+                    const r = window.r
+                    const pass = r.pipeline.graph.passes.find(p => p.effectFunc === 'pointsBillboardRender')
+                    r.applyStepParameterValues({ ['step_' + pass.stepIndex]: { posZ: 200 } })
+                    r.render(0)
+                })
+                const fadedTrail = PNG.sync.read(await page.locator('canvas').screenshot({ omitBackground: true })).data
+                const mass = alphaMass(fadedTrail)
+                assert.ok(mass / previousMass > 0.45 && mass / previousMass < 0.55,
+                    'coarse blur must decay once per frame without stale scratch or lost trail history')
+                previousMass = mass
+            }
             const near = await frame('landscape', dsl('aperture: 0'))
             assert.ok(near.some((v, i) => i % 4 === 0 && v > 10), 'landscape must render red diffuse particles')
             assert.ok(near.every((v, i) => i % 4 === 0 || i % 4 === 3 || v === 0), 'white height input must not replace red diffuse color')

@@ -11,6 +11,9 @@ uniform float pointSize;
 uniform float sizeVariation;
 uniform float rotationVar;
 uniform float seed;
+uniform int shapeMode;
+uniform int blendMode;
+uniform int blurLayer;
 
 // 3D viewport uniforms
 uniform int viewMode;
@@ -43,6 +46,12 @@ float hash(float n) {
 
 void main() {
     vBlurRadius = 0.0;
+    if (blurLayer == 1 && (viewMode == 0 || aperture <= 0.0 || blendMode != 0)) {
+        gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
+        vColor = vec4(0.0);
+        vSpriteUV = vec2(0.0);
+        return;
+    }
     // Each quad uses 6 vertices (2 triangles)
     int particleID = gl_VertexID / 6;
     int vertexInQuad = gl_VertexID % 6;
@@ -161,15 +170,22 @@ void main() {
         blurPixels = min(32.0, aperture * abs(cameraDepth - focalDistance) / max(abs(cameraDepth), 0.1));
     }
     float baseSize = pointSize * sizeMultiplier * projectedScale;
-    float blurPadding = blurPixels > 0.0 ? 0.5 : 0.0;
+    // Textured blur integrates nodes across the whole source square. A
+    // procedural footprint needs only its center's displacement as padding.
+    float blurRadius = blurPixels / max(baseSize, 0.001);
+    // Only broad, fully softened additive footprints can use the smaller
+    // target. Complementary weights prevent a focus transition from popping.
+    float lowWeight = blendMode == 0 ? smoothstep(4.0, 8.0, blurPixels * sizeFade) * smoothstep(0.5, 1.0, blurRadius) : 0.0;
+    float layerWeight = blurLayer == 1 ? lowWeight : 1.0 - lowWeight;
+    float blurPadding = blurPixels > 0.0 ? (shapeMode == 0 ? 0.5 : (shapeMode == 5 ? 0.04 : 0.0)) : 0.0;
     float finalSize = (baseSize * (1.0 + 2.0 * blurPadding) + 2.0 * blurPixels) * sizeFade;
-    if (finalSize <= 0.0 || brightnessFade <= 0.0) {
+    if (finalSize <= 0.0 || brightnessFade <= 0.0 || layerWeight <= 0.0) {
         gl_Position = vec4(2.0, 2.0, 0.0, 1.0);
         vColor = vec4(0.0);
         vSpriteUV = vec2(0.0);
         return;
     }
-    vBlurRadius = blurPixels / max(baseSize, 0.001);
+    vBlurRadius = blurRadius;
     
     // Per-particle rotation (seeded deterministic)
     float rotationNoise = hash(float(particleID) + 1234.5);
@@ -204,7 +220,7 @@ void main() {
     vec2 finalPos = clipPos + rotatedOffset * sizeClip;
     
     gl_Position = vec4(finalPos, 0.0, 1.0);
-    vColor = col * brightnessFade;
+    vColor = col * brightnessFade * layerWeight;
     
     // Sprite UV coordinates (0-1 range)
     vSpriteUV = offset * (0.5 + blurPadding + vBlurRadius) + 0.5;

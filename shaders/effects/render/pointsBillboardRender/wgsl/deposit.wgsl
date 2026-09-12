@@ -22,6 +22,8 @@ struct Uniforms {
     brightnessDistance: f32,
     aperture: f32,
     focalDistance: f32,
+    blendMode: i32,
+    blurLayer: i32,
 };
 
 struct VertexOutput {
@@ -49,6 +51,10 @@ fn hash(n: f32) -> f32 {
 fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     var out: VertexOutput;
 
+    if (u.blurLayer == 1 && (u.viewMode == 0 || u.aperture <= 0.0 || u.blendMode != 0)) {
+        out.position = vec4f(2.0, 2.0, 0.0, 1.0);
+        return out;
+    }
     // Each quad uses 6 vertices (2 triangles)
     let particleID = i32(vertexIndex) / 6;
     let vertexInQuad = i32(vertexIndex) % 6;
@@ -165,15 +171,20 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
         blurPixels = min(32.0, u.aperture * abs(cameraDepth - u.focalDistance) / max(abs(cameraDepth), 0.1));
     }
     let baseSize = u.pointSize * sizeMultiplier * projectedScale;
-    let blurPadding = select(0.0, 0.5, blurPixels > 0.0);
+    // Keep the source square padding only for textured spatial nodes.
+    let blurRadius = blurPixels / max(baseSize, 0.001);
+    let lowWeight = select(0.0, smoothstep(4.0, 8.0, blurPixels * sizeFade) * smoothstep(0.5, 1.0, blurRadius), u.blendMode == 0);
+    let layerWeight = select(1.0 - lowWeight, lowWeight, u.blurLayer == 1);
+    let proceduralPadding = select(0.0, 0.04, u.shapeMode == 5);
+    let blurPadding = select(0.0, select(proceduralPadding, 0.5, u.shapeMode == 0), blurPixels > 0.0);
     let finalSize = (baseSize * (1.0 + 2.0 * blurPadding) + 2.0 * blurPixels) * sizeFade;
-    if (finalSize <= 0.0 || brightnessFade <= 0.0) {
+    if (finalSize <= 0.0 || brightnessFade <= 0.0 || layerWeight <= 0.0) {
         out.position = vec4f(2.0, 2.0, 0.0, 1.0);
         out.color = vec4f(0.0);
         out.spriteUV = vec2f(0.0);
         return out;
     }
-    out.blurRadius = blurPixels / max(baseSize, 0.001);
+    out.blurRadius = blurRadius;
     
     // Per-particle rotation (seeded deterministic)
     let rotationNoise = hash(f32(particleID) + 1234.5);
@@ -210,11 +221,11 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     if (u.viewMode == 2) { finalPos.y = clipPos.y - rotatedOffset.y * sizeClip.y; }
     
     out.position = vec4<f32>(finalPos, 0.0, 1.0);
-    out.color = col * brightnessFade;
+    out.color = col * brightnessFade * layerWeight;
     
     // Sprite UV coordinates (0-1 range)
     out.spriteUV = offset * (0.5 + blurPadding + out.blurRadius) + 0.5;
-    
+
     return out;
 }
 
@@ -305,15 +316,11 @@ fn shadeParticle(in: VertexOutput) -> vec4f {
         }
         blurred *= in.color * (u.depositOpacity / 100.0);
     } else {
-        var meanColor = vec4f(0.0);
-        for (var y = 0; y < 5; y++) {
-            for (var x = 0; x < 5; x++) {
-                meanColor += shadeSprite((vec2f(f32(x), f32(y)) + 0.5) / 5.0, in.color);
-            }
-        }
+        let meanColor = textureLoad(spriteMeanTex, vec2i(0), 0) * in.color * (u.depositOpacity / 100.0);
         let center = select(vec2f(0.5), vec2f(0.5, 0.54), u.shapeMode == 5);
-        blurred = meanColor / 25.0 * blurWeight(in.spriteUV, center, expansion);
+        blurred = meanColor * blurWeight(in.spriteUV, center, expansion);
     }
+    if (in.blurRadius >= 0.5) { return blurred; }
     return mix(blurSample(in.spriteUV, in.color), blurred, smoothstep(0.0, 0.5, in.blurRadius));
 }
 

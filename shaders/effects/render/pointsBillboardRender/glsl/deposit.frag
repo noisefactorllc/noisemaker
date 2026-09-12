@@ -98,15 +98,11 @@ vec4 shadeParticle() {
         }
         blurred *= vColor * (depositOpacity / 100.0);
     } else {
-        vec4 meanColor = vec4(0.0);
-        for (int y = 0; y < 5; y++) {
-            for (int x = 0; x < 5; x++) {
-                meanColor += shadeSprite((vec2(float(x), float(y)) + 0.5) / 5.0);
-            }
-        }
+        vec4 meanColor = texelFetch(spriteMeanTex, ivec2(0), 0) * vColor * (depositOpacity / 100.0);
         vec2 center = shapeMode == 5 ? vec2(0.5, 0.54) : vec2(0.5);
-        blurred = meanColor / 25.0 * blurWeight(vSpriteUV, center, expansion);
+        blurred = meanColor * blurWeight(vSpriteUV, center, expansion);
     }
+    if (vBlurRadius >= 0.5) return blurred;
     return mix(blurSample(vSpriteUV), blurred, smoothstep(0.0, 0.5, vBlurRadius));
 }
 

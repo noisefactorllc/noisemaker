@@ -13,6 +13,7 @@ export default new Effect({
     textures: {
         spriteMeanTiles: { width: 160, height: 160, format: "rgba32f" },
         spriteMean: { width: 5, height: 5, format: "rgba32f" },
+        defocus: { width: "25%", height: "25%", format: "rgba16f" },
         global_billboard_trail: {
             width: "100%",
             height: "100%",
@@ -407,17 +408,73 @@ export default new Effect({
             uniforms: { shapeMode: "shapeMode", aperture: "aperture", viewMode: "viewMode" },
             outputs: { fragColor: "spriteMean" }
         },
+        {
+            name: "clearDefocus",
+            program: "clearDefocus",
+            uniforms: { clearValue: 0 },
+            outputs: { fragColor: "defocus" }
+        },
+        // Broad additive blur is rasterized at quarter resolution.
+        {
+            name: "depositDefocus",
+            program: "deposit",
+            drawMode: "billboards",
+            count: 'input', // Derive from xyzTex dimensions for dynamic stateSize
+            blend: true,
+
+            inputs: {
+                // Read from shared global textures
+                xyzTex: "global_xyz",
+                rgbaTex: "global_rgba",
+                spriteTex: "tex",
+                spriteMeanTex: "spriteMean"
+            },
+
+            uniforms: {
+                shapeMode: "shapeMode",
+                blendMode: "blendMode",
+                blurLayer: 1,
+                depositOpacity: "depositOpacity",
+                density: "density",
+                pointSize: "pointSize",
+                sizeVariation: "sizeVariation",
+                rotationVar: "rotationVar",
+                seed: "seed",
+                viewMode: "viewMode",
+                rotateX: "rotateX",
+                rotateY: "rotateY",
+                rotateZ: "rotateZ",
+                viewScale: "viewScale",
+                posX: "posX",
+                posY: "posY",
+                posZ: "posZ",
+                fieldOfView: "fieldOfView",
+                sizeDistance: "sizeDistance",
+                brightnessDistance: "brightnessDistance",
+                aperture: "aperture",
+                focalDistance: "focalDistance"
+            },
+
+            outputs: {
+                fragColor: "defocus"
+            }
+        },
+
         // Pass 1: Diffuse - decay existing trail
         {
             name: "diffuse",
             program: "diffuse",
 
             inputs: {
-                trailTex: "global_billboard_trail"
+                trailTex: "global_billboard_trail",
+                defocusTex: "defocus"
             },
 
             uniforms: {
-                intensity: "intensity"
+                intensity: "intensity",
+                aperture: "aperture",
+                viewMode: "viewMode",
+                blendMode: "blendMode"
             },
 
             outputs: {
@@ -458,6 +515,8 @@ export default new Effect({
 
             uniforms: {
                 shapeMode: "shapeMode",
+                blendMode: "blendMode",
+                blurLayer: 0,
                 depositOpacity: "depositOpacity",
                 density: "density",
                 pointSize: "pointSize",
@@ -502,6 +561,8 @@ export default new Effect({
 
             uniforms: {
                 shapeMode: "shapeMode",
+                blendMode: "blendMode",
+                blurLayer: 0,
                 depositOpacity: "depositOpacity",
                 density: "density",
                 pointSize: "pointSize",

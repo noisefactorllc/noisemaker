@@ -790,6 +790,12 @@ export function expand(compilationResult, options = {}) {
                 // This ensures specific passes get the uniforms they need from globals
                 if (passDef.uniforms) {
                     for (const [uniformName, globalRef] of Object.entries(passDef.uniforms)) {
+                        // Constants specialize draws that share a program,
+                        // without exposing internal pass selection as DSL args.
+                        if (typeof globalRef === 'number') {
+                            pass.uniforms[uniformName] = globalRef
+                            continue
+                        }
                         // globalRef is the name of the global parameter
                         // Look up the value from pipelineUniforms (includes defaults and DSL args)
                         if (pipelineUniforms[uniformName] !== undefined) {
