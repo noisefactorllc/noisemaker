@@ -67,6 +67,9 @@ jobs:
     - name: Verify voxel heightfields and landscape rendering on both GPU backends
       run: npm run test:shaders:landscape
 
+    - name: Verify particle heightmaps and focus on both GPU backends
+      run: npm run test:shaders:particles
+
     - name: Run shader structure tests
       run: npm run test:shaders:structure
 

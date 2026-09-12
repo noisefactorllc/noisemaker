@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "points/heightmap",
+  "sourceHash": "fad1b1fcb5adbfd1ad6d46b3aa28277243a8b9aaa80c7a8db9b401ee0fc81509",
+  "caseHash": "d83d8a806208ec8d875a539924bdf62ae93349bf5f04c20736148ad5ba26b9c3",
+  "resolution": [
+    96,
+    80
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 96,
+      "height": 80,
+      "nonzeroRgbPixels": 3817,
+      "nonzeroAlphaPixels": 3817,
+      "uniqueColors": 593
+    },
+    "webgpu": {
+      "width": 96,
+      "height": 80,
+      "nonzeroRgbPixels": 3817,
+      "nonzeroAlphaPixels": 3817,
+      "uniqueColors": 593
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 2,
+    "webgpuTargetPasses": 2
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

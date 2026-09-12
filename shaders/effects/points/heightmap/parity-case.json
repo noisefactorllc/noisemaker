@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "surface": "o0",
+  "resolution": [
+    96,
+    80
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "effects": [
+    "synth/testPattern",
+    "synth/solid",
+    "render/pointsEmit",
+    "points/heightmap",
+    "render/pointsBillboardRender"
+  ],
+  "dsl": "search synth, points, render\ntestPattern(pattern: gradient).write(o1)\ntestPattern(pattern: colorBars).write(o2)\nsolid().pointsEmit(stateSize: x64).heightmap(heightTex: read(o1), diffuseTex: read(o2), gridScale: 80, heightScale: 25).pointsBillboardRender(viewMode: perspective, rotateX: 0.55, posY: -12, posZ: 10, pointSize: 2, density: 100, intensity: 0, inputIntensity: 0, sizeDistance: 160, brightnessDistance: 200, aperture: 0.5, focalDistance: 80).write(o0)\nrender(o0)"
+}

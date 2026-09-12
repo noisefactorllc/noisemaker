@@ -11,6 +11,8 @@ export default new Effect({
 
     // Internal trail texture for accumulation
     textures: {
+        spriteMeanTiles: { width: 160, height: 160, format: "rgba32f" },
+        spriteMean: { width: 5, height: 5, format: "rgba32f" },
         global_billboard_trail: {
             width: "100%",
             height: "100%",
@@ -182,14 +184,15 @@ export default new Effect({
             }
         },
 
-        // 3D viewport: view mode (0=2D normalized, 1=3D orthographic)
+        // Existing modes retain their projection; perspective uses world coordinates.
         viewMode: {
             type: "int",
             default: 0,
             uniform: "viewMode",
             choices: {
                 "flat": 0,
-                "ortho": 1
+                "ortho": 1,
+                "perspective": 2
             },
             ui: {
                 label: "view",
@@ -292,12 +295,118 @@ export default new Effect({
                 category: "view",
                 enabledBy: "viewMode"
             }
+        },
+
+        posZ: {
+            type: "float",
+            default: 0,
+            uniform: "posZ",
+            min: -200,
+            max: 200,
+            step: 0.1,
+            ui: {
+                label: "pos z",
+                control: "slider",
+                category: "view",
+                enabledBy: "viewMode"
+            }
+        },
+
+        fieldOfView: {
+            type: "float",
+            default: 60,
+            uniform: "fieldOfView",
+            min: 10,
+            max: 150,
+            step: 1,
+            ui: {
+                label: "field of view",
+                control: "slider",
+                category: "view",
+                enabledBy: { param: "viewMode", eq: 2 }
+            }
+        },
+
+        sizeDistance: {
+            type: "float",
+            default: 0,
+            uniform: "sizeDistance",
+            min: 0,
+            max: 500,
+            step: 1,
+            ui: {
+                label: "size fade distance",
+                control: "slider",
+                category: "distance",
+                enabledBy: "viewMode"
+            }
+        },
+
+        brightnessDistance: {
+            type: "float",
+            default: 0,
+            uniform: "brightnessDistance",
+            min: 0,
+            max: 500,
+            step: 1,
+            ui: {
+                label: "brightness fade distance",
+                control: "slider",
+                category: "distance",
+                enabledBy: "viewMode"
+            }
+        },
+
+        aperture: {
+            type: "float",
+            default: 0,
+            uniform: "aperture",
+            min: 0,
+            max: 20,
+            step: 0.1,
+            ui: {
+                label: "aperture",
+                control: "slider",
+                category: "focus",
+                enabledBy: "viewMode"
+            }
+        },
+
+        focalDistance: {
+            type: "float",
+            default: 80,
+            uniform: "focalDistance",
+            min: 1,
+            max: 500,
+            step: 1,
+            ui: {
+                label: "focal dist",
+                control: "slider",
+                category: "focus",
+                enabledBy: "viewMode"
+            }
         }
     },
 
     paramAliases: { rotationVariation: 'rotationVar' },
 
     passes: [
+        {
+            name: "spriteMeanTiles",
+            type: "compute",
+            program: "spriteMeanTiles",
+            inputs: { spriteTex: "tex" },
+            uniforms: { shapeMode: "shapeMode", aperture: "aperture", viewMode: "viewMode" },
+            outputs: { fragColor: "spriteMeanTiles" }
+        },
+        {
+            name: "spriteMean",
+            type: "compute",
+            program: "spriteMean",
+            inputs: { tilesTex: "spriteMeanTiles" },
+            uniforms: { shapeMode: "shapeMode", aperture: "aperture", viewMode: "viewMode" },
+            outputs: { fragColor: "spriteMean" }
+        },
         // Pass 1: Diffuse - decay existing trail
         {
             name: "diffuse",
@@ -343,7 +452,8 @@ export default new Effect({
                 // Read from shared global textures
                 xyzTex: "global_xyz",
                 rgbaTex: "global_rgba",
-                spriteTex: "tex"
+                spriteTex: "tex",
+                spriteMeanTex: "spriteMean"
             },
 
             uniforms: {
@@ -360,7 +470,13 @@ export default new Effect({
                 rotateZ: "rotateZ",
                 viewScale: "viewScale",
                 posX: "posX",
-                posY: "posY"
+                posY: "posY",
+                posZ: "posZ",
+                fieldOfView: "fieldOfView",
+                sizeDistance: "sizeDistance",
+                brightnessDistance: "brightnessDistance",
+                aperture: "aperture",
+                focalDistance: "focalDistance"
             },
 
             outputs: {
@@ -380,7 +496,8 @@ export default new Effect({
             inputs: {
                 xyzTex: "global_xyz",
                 rgbaTex: "global_rgba",
-                spriteTex: "tex"
+                spriteTex: "tex",
+                spriteMeanTex: "spriteMean"
             },
 
             uniforms: {
@@ -397,7 +514,13 @@ export default new Effect({
                 rotateZ: "rotateZ",
                 viewScale: "viewScale",
                 posX: "posX",
-                posY: "posY"
+                posY: "posY",
+                posZ: "posZ",
+                fieldOfView: "fieldOfView",
+                sizeDistance: "sizeDistance",
+                brightnessDistance: "brightnessDistance",
+                aperture: "aperture",
+                focalDistance: "focalDistance"
             },
 
             outputs: {

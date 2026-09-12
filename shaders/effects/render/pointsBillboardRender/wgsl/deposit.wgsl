@@ -16,12 +16,19 @@ struct Uniforms {
     viewScale: f32,
     posX: f32,
     posY: f32,
+    posZ: f32,
+    fieldOfView: f32,
+    sizeDistance: f32,
+    brightnessDistance: f32,
+    aperture: f32,
+    focalDistance: f32,
 };
 
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) color: vec4<f32>,
     @location(1) spriteUV: vec2<f32>,
+    @location(2) blurRadius: f32,
 };
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -86,6 +93,9 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     }
     
     var clipPos: vec2<f32>;
+    var cameraDepth = 80.0;
+    var cameraDistance = 0.0;
+    var projectedScale = 1.0;
     
     if (u.viewMode == 0) {
         // 2D mode: positions are normalized 0..1
@@ -95,7 +105,7 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
         var p = pos.xyz;
         
         // Detect if this is a 2D system or 3D attractor
-        let is2DSystem = abs(p.z) < 1.0 && p.x >= 0.0 && p.x <= 1.0 && p.y >= 0.0 && p.y <= 1.0;
+        let is2DSystem = u.viewMode == 1 && abs(p.z) < 1.0 && p.x >= 0.0 && p.x <= 1.0 && p.y >= 0.0 && p.y <= 1.0;
         
         if (is2DSystem) {
             p = vec3<f32>(p.x - 0.5, p.y - 0.5, 0.0);
@@ -119,9 +129,23 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
         // Apply X/Y offset after rotation
         p.x = p.x + u.posX;
         p.y = p.y + u.posY;
+        p.z += u.posZ;
+        cameraDepth = 80.0 - p.z;
+        cameraDistance = length(vec3f(p.xy, cameraDepth));
         
         // Orthographic projection with scale
-        if (is2DSystem) {
+        if (u.viewMode == 2) {
+            if (cameraDepth <= 0.1) {
+                out.position = vec4f(2.0, 2.0, 0.0, 1.0);
+                out.color = vec4f(0.0);
+                out.spriteUV = vec2f(0.0);
+                return out;
+            }
+            let focalLength = 1.0 / tan(clamp(u.fieldOfView, 10.0, 150.0) * 0.00872664626);
+            clipPos = p.xy * focalLength * u.viewScale / cameraDepth;
+            clipPos.x *= u.resolution.y / u.resolution.x;
+            projectedScale = 80.0 * focalLength * u.viewScale / (1.732050808 * cameraDepth);
+        } else if (is2DSystem) {
             clipPos = p.xy * 3.5 * u.viewScale;
         } else {
             clipPos = p.xy / 40.0 * u.viewScale;
@@ -132,7 +156,24 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     // Per-particle size variation (seeded deterministic)
     let sizeNoise = hash(f32(particleID));
     let sizeMultiplier = 1.0 - (u.sizeVariation / 100.0) * (sizeNoise - 0.5);
-    let finalSize = u.pointSize * sizeMultiplier;
+    var sizeFade = 1.0;
+    var brightnessFade = 1.0;
+    var blurPixels = 0.0;
+    if (u.viewMode != 0) {
+        if (u.sizeDistance > 0.0) { sizeFade = 1.0 - smoothstep(0.0, u.sizeDistance, cameraDistance); }
+        if (u.brightnessDistance > 0.0) { brightnessFade = 1.0 - smoothstep(0.0, u.brightnessDistance, cameraDistance); }
+        blurPixels = min(32.0, u.aperture * abs(cameraDepth - u.focalDistance) / max(abs(cameraDepth), 0.1));
+    }
+    let baseSize = u.pointSize * sizeMultiplier * projectedScale;
+    let blurPadding = select(0.0, 0.5, blurPixels > 0.0);
+    let finalSize = (baseSize * (1.0 + 2.0 * blurPadding) + 2.0 * blurPixels) * sizeFade;
+    if (finalSize <= 0.0 || brightnessFade <= 0.0) {
+        out.position = vec4f(2.0, 2.0, 0.0, 1.0);
+        out.color = vec4f(0.0);
+        out.spriteUV = vec2f(0.0);
+        return out;
+    }
+    out.blurRadius = blurPixels / max(baseSize, 0.001);
     
     // Per-particle rotation (seeded deterministic)
     let rotationNoise = hash(f32(particleID) + 1234.5);
@@ -163,32 +204,35 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     );
     
     // Scale offset and add to center position
-    let finalPos = clipPos + rotatedOffset * sizeClip;
+    var finalPos = clipPos + rotatedOffset * sizeClip;
+    // Perspective world positions and local sprite geometry share the same
+    // presentation Y convention. Preserve the legacy flat/ortho convention.
+    if (u.viewMode == 2) { finalPos.y = clipPos.y - rotatedOffset.y * sizeClip.y; }
     
     out.position = vec4<f32>(finalPos, 0.0, 1.0);
-    out.color = vec4<f32>(col.rgb, col.a);
+    out.color = col * brightnessFade;
     
     // Sprite UV coordinates (0-1 range)
-    out.spriteUV = offset * 0.5 + 0.5;
+    out.spriteUV = offset * (0.5 + blurPadding + out.blurRadius) + 0.5;
     
     return out;
 }
 
 @group(0) @binding(3) var spriteTex: texture_2d<f32>;
 @group(0) @binding(4) var spriteSampler: sampler;
+@group(0) @binding(5) var spriteMeanTex: texture_2d<f32>;
 
-@fragment
-fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {
+fn shadeSprite(uv: vec2f, color: vec4f) -> vec4f {
     let opacity = u.depositOpacity / 100.0;
 
     if (u.shapeMode == 0) {
         // Texture mode: sample sprite texture
-        let spriteColor = textureSample(spriteTex, spriteSampler, in.spriteUV);
-        return vec4<f32>(spriteColor.rgb * in.color.rgb, spriteColor.a * in.color.a) * opacity;
+        let spriteColor = textureSampleLevel(spriteTex, spriteSampler, uv, 0.0);
+        return vec4<f32>(spriteColor.rgb * color.rgb, spriteColor.a * color.a) * opacity;
     }
 
     // Procedural SDF shapes
-    let p = in.spriteUV - 0.5;
+    let p = uv - 0.5;
     var sdf: f32;
     var alpha: f32;
 
@@ -229,9 +273,52 @@ fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {
     } else {
         // Soft (7) — gaussian falloff
         alpha = exp(-dot(p, p) * 8.0);
-        return vec4<f32>(in.color.rgb * alpha, alpha * in.color.a) * opacity;
+        return vec4<f32>(color.rgb * alpha, alpha * color.a) * opacity;
     }
 
     alpha = 1.0 - smoothstep(-0.02, 0.02, sdf);
-    return vec4<f32>(in.color.rgb * alpha, alpha * in.color.a) * opacity;
+    return vec4<f32>(color.rgb * alpha, alpha * color.a) * opacity;
+}
+
+fn blurSample(uv: vec2f, color: vec4f) -> vec4f {
+    if (any(uv < vec2f(0.0)) || any(uv > vec2f(1.0))) { return vec4f(0.0); }
+    return shadeSprite(uv, color);
+}
+
+// Continuous source-grid footprints retain RGBA mass and spatial centers.
+fn blurWeight(uv: vec2f, center: vec2f, expansion: f32) -> f32 {
+    let p = (uv - center) / expansion;
+    let gaussian = exp(-dot(p, p) / 0.0648) * (1.0 - smoothstep(0.45, 0.5, length(p)));
+    return gaussian * min(1.0, 1.0 / (0.2035752 * expansion * expansion));
+}
+
+fn shadeParticle(in: VertexOutput) -> vec4f {
+    if (in.blurRadius <= 0.0) { return shadeSprite(in.spriteUV, in.color); }
+    let expansion = 1.0 + 2.0 * in.blurRadius;
+    var blurred = vec4f(0.0);
+    if (u.shapeMode == 0) {
+        for (var y = 0; y < 5; y++) {
+            for (var x = 0; x < 5; x++) {
+                let source = textureLoad(spriteMeanTex, vec2i(x, y), 0);
+                blurred += source * blurWeight(in.spriteUV, vec2f(f32(x), f32(y)) / 4.0, expansion);
+            }
+        }
+        blurred *= in.color * (u.depositOpacity / 100.0);
+    } else {
+        var meanColor = vec4f(0.0);
+        for (var y = 0; y < 5; y++) {
+            for (var x = 0; x < 5; x++) {
+                meanColor += shadeSprite((vec2f(f32(x), f32(y)) + 0.5) / 5.0, in.color);
+            }
+        }
+        let center = select(vec2f(0.5), vec2f(0.5, 0.54), u.shapeMode == 5);
+        blurred = meanColor / 25.0 * blurWeight(in.spriteUV, center, expansion);
+    }
+    return mix(blurSample(in.spriteUV, in.color), blurred, smoothstep(0.0, 0.5, in.blurRadius));
+}
+
+@fragment
+fn fragmentMain(in: VertexOutput) -> @location(0) vec4f {
+    let color = shadeParticle(in);
+    return color;
 }

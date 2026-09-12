@@ -4,24 +4,26 @@ precision highp float;
 // Billboard Deposit Fragment Shader - SDF shapes or sprite texture
 
 uniform sampler2D spriteTex;
+uniform sampler2D spriteMeanTex;
 uniform int shapeMode;
 uniform float depositOpacity;
 
 in vec4 vColor;
 in vec2 vSpriteUV;
+in float vBlurRadius;
 
 out vec4 fragColor;
 
-void main() {
+vec4 shadeSprite(vec2 uv) {
     float opacity = depositOpacity / 100.0;
 
     if (shapeMode == 0) {
         // Texture mode: sample sprite texture
-        vec4 spriteColor = texture(spriteTex, vSpriteUV);
-        fragColor = vec4(spriteColor.rgb * vColor.rgb, spriteColor.a * vColor.a) * opacity;
+        vec4 spriteColor = texture(spriteTex, uv);
+        return vec4(spriteColor.rgb * vColor.rgb, spriteColor.a * vColor.a) * opacity;
     } else {
         // Procedural SDF shapes
-        vec2 p = vSpriteUV - 0.5;
+        vec2 p = uv - 0.5;
         float sdf;
         float alpha;
 
@@ -62,11 +64,53 @@ void main() {
         } else {
             // Soft (7) — gaussian falloff
             alpha = exp(-dot(p, p) * 8.0);
-            fragColor = vec4(vColor.rgb * alpha, alpha * vColor.a) * opacity;
-            return;
+            return vec4(vColor.rgb * alpha, alpha * vColor.a) * opacity;
         }
 
         alpha = 1.0 - smoothstep(-0.02, 0.02, sdf);
-        fragColor = vec4(vColor.rgb * alpha, alpha * vColor.a) * opacity;
+        return vec4(vColor.rgb * alpha, alpha * vColor.a) * opacity;
     }
+}
+
+vec4 blurSample(vec2 uv) {
+    if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) return vec4(0.0);
+    return shadeSprite(uv);
+}
+
+// Each source-grid contribution has continuous, symmetric support. Keeping
+// their locations preserves both color and coverage centers during defocus.
+float blurWeight(vec2 uv, vec2 center, float expansion) {
+    vec2 p = (uv - center) / expansion;
+    float gaussian = exp(-dot(p, p) / 0.0648) * (1.0 - smoothstep(0.45, 0.5, length(p)));
+    return gaussian * min(1.0, 1.0 / (0.2035752 * expansion * expansion));
+}
+
+vec4 shadeParticle() {
+    if (vBlurRadius <= 0.0) return shadeSprite(vSpriteUV);
+    float expansion = 1.0 + 2.0 * vBlurRadius;
+    vec4 blurred = vec4(0.0);
+    if (shapeMode == 0) {
+        for (int y = 0; y < 5; y++) {
+            for (int x = 0; x < 5; x++) {
+                vec4 source = texelFetch(spriteMeanTex, ivec2(x, y), 0);
+                blurred += source * blurWeight(vSpriteUV, vec2(x, y) / 4.0, expansion);
+            }
+        }
+        blurred *= vColor * (depositOpacity / 100.0);
+    } else {
+        vec4 meanColor = vec4(0.0);
+        for (int y = 0; y < 5; y++) {
+            for (int x = 0; x < 5; x++) {
+                meanColor += shadeSprite((vec2(float(x), float(y)) + 0.5) / 5.0);
+            }
+        }
+        vec2 center = shapeMode == 5 ? vec2(0.5, 0.54) : vec2(0.5);
+        blurred = meanColor / 25.0 * blurWeight(vSpriteUV, center, expansion);
+    }
+    return mix(blurSample(vSpriteUV), blurred, smoothstep(0.0, 0.5, vBlurRadius));
+}
+
+void main() {
+    vec4 color = shadeParticle();
+    fragColor = color;
 }
