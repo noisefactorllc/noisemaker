@@ -5,7 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
 import { shaderTestBrowserOptions } from '../../scripts/lib/shader-test-browser.mjs'
-import heightmap from '../effects/points/heightmap/definition.js'
+import heightGrid from '../effects/points/heightGrid/definition.js'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 process.env.SHADE_EFFECTS_DIR = path.join(root, 'shaders/effects')
@@ -29,7 +29,7 @@ try {
                 basePath: `${baseUrl}/shaders`, preferWebGPU: backend === 'webgpu'
             })
             await renderer.loadManifest()
-            await renderer.loadEffects(['synth/solid', 'synth/perlin', 'render/pointsEmit', 'points/heightmap', 'render/pointsBillboardRender'])
+            await renderer.loadEffects(['synth/solid', 'synth/perlin', 'render/pointsEmit', 'points/heightGrid', 'render/pointsBillboardRender'])
             await renderer.compile(dsl)
             renderer.stop()
             const pipeline = renderer.pipeline, gpu = pipeline.backend, gl = gpu.gl
@@ -97,7 +97,7 @@ try {
                 device: gl ? gl.getParameter(gl.getExtension('WEBGL_debug_renderer_info')?.UNMASKED_RENDERER_WEBGL || gl.RENDERER) : gpu.adapter?.info?.description,
                 cases
             }
-        }, { baseUrl, backend, dsl: heightmap.defaultProgram })
+        }, { baseUrl, backend, dsl: heightGrid.defaultProgram })
         results.push(result)
         console.log(JSON.stringify(result, null, 2))
         assert.equal(result.backend, backend, 'the requested hardware backend must run')

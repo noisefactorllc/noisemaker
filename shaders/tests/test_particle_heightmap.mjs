@@ -34,10 +34,10 @@ try {
             const r = new CanvasRenderer({ canvas: document.querySelector('canvas'), width: 256, height: 256, basePath: `${baseUrl}/shaders`, preferWebGPU: backend === 'webgpu' })
             window.r = r
             await r.loadManifest()
-            await r.loadEffects(['synth/solid', 'synth/perlin', 'synth/media', 'render/pointsEmit', 'render/pointsBillboardRender', ...(legacyOnly ? [] : ['points/heightmap'])])
+            await r.loadEffects(['synth/solid', 'synth/perlin', 'synth/media', 'render/pointsEmit', 'render/pointsBillboardRender', ...(legacyOnly ? [] : ['points/heightGrid'])])
             window.readState = async key => {
                 const p = r.pipeline, b = p.backend
-                const pass = p.graph.passes.find(pass => pass.effectFunc === 'heightmap')
+                const pass = p.graph.passes.find(pass => pass.effectFunc === 'heightGrid')
                 const id = p.surfaces.get(pass.outputs[key].slice(7)).read
                 const tex = b.textures.get(id)
                 const isFloat = tex.format === 'rgba32f' || tex.gpuFormat === 'rgba32float'
@@ -138,12 +138,12 @@ try {
         await frame('legacy-flat', legacy('flat'))
         await frame('legacy-ortho', legacy('ortho'))
         if (!legacyOnly) {
-            assert.ok(fs.existsSync(path.join(effectsDir, 'points/heightmap/definition.js')), 'native heightmap behavior must be available')
+            assert.ok(fs.existsSync(path.join(effectsDir, 'points/heightGrid/definition.js')), 'native heightGrid behavior must be available')
             const stateDsl = (color = '#ff0000', height = 10, gridSize = 'x64') => `search synth, points, render
 solid(color: ${color}).write(o1)
 solid(color: #0000ff, alpha: 0.5).write(o2)
 solid(color: #ffffff).pointsEmit(stateSize: ${gridSize}, layout: center, attrition: 10)
-.heightmap(heightTex: read(o1), diffuseTex: read(o2), gridScale: 80, heightScale: ${height}, heightOffset: -2)
+.heightGrid(heightTex: read(o1), diffuseTex: read(o2), gridScale: 80, heightScale: ${height}, heightOffset: -2)
 .pointsBillboardRender(viewMode: perspective, intensity: 0, inputIntensity: 0).write(o0)
 render(o0)`
             await frame('state-red-height', stateDsl())
@@ -162,7 +162,7 @@ render(o0)`
             const rgba = await page.evaluate(() => window.readState('outRGBA'))
             for (let i = 0; i < rgba.values.length; i += 4) assert.deepEqual(rgba.values.slice(i, i + 4), [0, 0, 128, 128], 'diffuse blue and alpha must be retained')
             const velocity = await page.evaluate(() => window.readState('outVel'))
-            for (let i = 0; i < velocity.values.length; i += 4) assert.deepEqual(velocity.values.slice(i, i + 3), [0, 0, 0], 'heightmap must clear particle motion')
+            for (let i = 0; i < velocity.values.length; i += 4) assert.deepEqual(velocity.values.slice(i, i + 3), [0, 0, 0], 'heightGrid must clear particle motion')
             await page.evaluate(() => {
                 const pass = window.r.pipeline.graph.passes.find(p => p.effectFunc === 'solid')
                 window.r.applyStepParameterValues({ ['step_' + pass.stepIndex]: { color: [0, 1, 0] } })
@@ -174,15 +174,15 @@ render(o0)`
             const larger = await page.evaluate(() => window.readState('outXYZ'))
             assert.equal(larger.width * larger.height, 16384, 'particle count follows state size rather than canvas resolution')
             assert.ok(Math.abs(larger.values[1] + 12) < 0.00001, 'negative height scale must invert relief')
-            const dsl = params => `search synth, points, render\nsolid(color: #ff0000).write(o1)\nsolid(color: #ffffff).pointsEmit(stateSize: x64).heightmap(heightScale: 20, diffuseTex: read(o1)).pointsBillboardRender(viewMode: perspective, rotateX: 0.6, posY: -10, intensity: 0, inputIntensity: 0, density: 100, pointSize: 3, ${params}).write(o0)\nrender(o0)`
+            const dsl = params => `search synth, points, render\nsolid(color: #ff0000).write(o1)\nsolid(color: #ffffff).pointsEmit(stateSize: x64).heightGrid(heightScale: 20, diffuseTex: read(o1)).pointsBillboardRender(viewMode: perspective, rotateX: 0.6, posY: -10, intensity: 0, inputIntensity: 0, density: 100, pointSize: 3, ${params}).write(o0)\nrender(o0)`
             await frame('source-perlin', 'search synth\nperlin(scale: 22, octaves: 4, colorMode: mono).write(o0)\nrender(o0)')
-            const beforeHeightmap = await frame('source-emitter', 'search synth, render\nperlin(scale: 22, octaves: 4, colorMode: mono).pointsEmit(stateSize: x64).write(o0)\nrender(o0)')
-            const afterHeightmap = await frame('source-height-pass', 'search synth, points, render\nperlin(scale: 22, octaves: 4, colorMode: mono).pointsEmit(stateSize: x64).heightmap().write(o0)\nrender(o0)')
-            assert.deepEqual(afterHeightmap, beforeHeightmap, 'heightmap must preserve the incoming asymmetric 2D surface')
-            const { default: effect } = await import('../effects/points/heightmap/definition.js')
+            const beforeHeightGrid = await frame('source-emitter', 'search synth, render\nperlin(scale: 22, octaves: 4, colorMode: mono).pointsEmit(stateSize: x64).write(o0)\nrender(o0)')
+            const afterHeightGrid = await frame('source-height-pass', 'search synth, points, render\nperlin(scale: 22, octaves: 4, colorMode: mono).pointsEmit(stateSize: x64).heightGrid().write(o0)\nrender(o0)')
+            assert.deepEqual(afterHeightGrid, beforeHeightGrid, 'heightGrid must preserve the incoming asymmetric 2D surface')
+            const { default: effect } = await import('../effects/points/heightGrid/definition.js')
             await frame('default-landscape', effect.defaultProgram)
             const isolated = aperture => `search synth, points, render
-solid(color: #ffffff).pointsEmit(stateSize: x64).heightmap(gridScale: 1, heightScale: 0)
+solid(color: #ffffff).pointsEmit(stateSize: x64).heightGrid(gridScale: 1, heightScale: 0)
 .pointsBillboardRender(viewMode: perspective, rotateX: 0, density: 0.001, pointSize: 3, intensity: 0, inputIntensity: 0, aperture: ${aperture}, focalDistance: 20).write(o0)
 render(o0)`
             const sharpPoint = await frame('isolated-sharp', isolated(0))
@@ -308,7 +308,7 @@ render(o0)`
             assert.ok(clipped.every(v => v === 0), 'particles behind the camera must be clipped')
         }
         assert.deepEqual(errors, [], `${backend}: no browser or shader errors`)
-        console.log(`PASS ${backend}: ${legacyOnly ? 'legacy capture' : 'heightmap and distance controls'}`)
+        console.log(`PASS ${backend}: ${legacyOnly ? 'legacy capture' : 'heightGrid and distance controls'}`)
         await page.close()
     }
 } finally { await browser.close(); await releaseServer() }

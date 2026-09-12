@@ -1,9 +1,9 @@
 import { Effect } from '../../../src/runtime/effect.js'
 
 export default new Effect({
-    name: "Heightmap",
+    name: "Height Grid",
     namespace: "points",
-    func: "heightmap",
+    func: "heightGrid",
     tags: ["agents"],
     description: "Arrange every particle in a landscape grid with separate height and diffuse surfaces",
     openCategories: ["source", "terrain"],
@@ -35,7 +35,7 @@ export default new Effect({
             ui: { label: "height offset", control: "slider", category: "terrain" }
         }
     },
-    defaultProgram: "search synth, points, render\n\nperlin(scale: 35, colorMode: rgb)\n  .write(o1)\n\nperlin(scale: 22, octaves: 4, colorMode: mono)\n  .write(o2)\n\nsolid()\n  .pointsEmit(stateSize: x256)\n  .heightmap(heightTex: read(o2), diffuseTex: read(o1), heightScale: 25)\n  .pointsBillboardRender(viewMode: perspective, rotateX: 0.55, posY: -12, posZ: 22, pointSize: 2, density: 100, intensity: 0, inputIntensity: 0, depositOpacity: 65, sizeDistance: 150, brightnessDistance: 180, aperture: 1.5, focalDistance: 65)\n  .write(o0)\n\nrender(o0)",
+    defaultProgram: "search synth, points, render\n\nperlin(scale: 35, colorMode: rgb)\n  .write(o1)\n\nperlin(scale: 22, octaves: 4, colorMode: mono)\n  .write(o2)\n\nsolid()\n  .pointsEmit(stateSize: x256)\n  .heightGrid(heightTex: read(o2), diffuseTex: read(o1), heightScale: 25)\n  .pointsBillboardRender(viewMode: perspective, rotateX: 0.55, posY: -12, posZ: 22, pointSize: 2, density: 100, intensity: 0, inputIntensity: 0, depositOpacity: 65, sizeDistance: 150, brightnessDistance: 180, aperture: 1.5, focalDistance: 65)\n  .write(o0)\n\nrender(o0)",
     passes: [
         {
             name: "agent",

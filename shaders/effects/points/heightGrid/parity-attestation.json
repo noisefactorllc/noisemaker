@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "effect": "points/heightmap",
-  "sourceHash": "bc86b27000cceb54fe0b4f06173db64eb11672400a0985ca6716de08e3329eab",
-  "caseHash": "d83d8a806208ec8d875a539924bdf62ae93349bf5f04c20736148ad5ba26b9c3",
+  "effect": "points/heightGrid",
+  "sourceHash": "998acd4e8472862b376c6a6bc3eb0afa6bdf089ffce2e6c980ae4e8df8d8ac1e",
+  "caseHash": "e2b525f1e7dce36d6d2208af1ba3f5f4c5581687591dc6688058732164e77f28",
   "resolution": [
     96,
     80
