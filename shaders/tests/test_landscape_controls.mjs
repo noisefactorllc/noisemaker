@@ -265,13 +265,16 @@ try {
                         'background must follow the native premultiplied RGBA contract')
                     // WebGPU canvas textures expire after presentation. Capture the running
                     // demo, as displayed to a user, rather than an idle swap-chain texture.
+                    await editor.bringToFront()
                     const frameCount = await editor.evaluate(() => {
                         const r = window.__noisemakerCanvasRenderer
                         r.start()
                         return r._frameCount
                     })
                     await editor.waitForFunction(before => window.__noisemakerCanvasRenderer._frameCount >= before + 2, frameCount)
-                    const screenshot = await canvas.screenshot()
+                    // Capture can require several software-composited frames in CI.
+                    // Keep its deadline separate from the control action deadline.
+                    const screenshot = await canvas.screenshot({ timeout: 30000 })
                     await editor.evaluate(() => window.__noisemakerCanvasRenderer.stop())
                     if (artifacts) fs.writeFileSync(path.join(artifacts, `${backend}-${mode}-opacity-${alpha}-display.png`), screenshot)
                     const displayed = PNG.sync.read(screenshot)
