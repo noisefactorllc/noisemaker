@@ -67,17 +67,7 @@ try {
             }
             const pixels = PNG.sync.read(await page.locator('canvas').screenshot({ omitBackground: true })).data
             if (backend === 'webgl2') captures.set(name, pixels)
-            else if (name === 'transparent-hole') {
-                // The ring's antialiased edge coverage can round differently
-                // between GPU drivers. Allow only isolated one-LSB differences.
-                const other = captures.get(name)
-                let changed = 0, maximum = 0
-                for (let i = 0; i < pixels.length; i++) {
-                    const d = Math.abs(pixels[i] - other[i])
-                    if (d) { changed++; maximum = Math.max(maximum, d) }
-                }
-                if (changed > 4 || maximum > 1) failures.push(`${name}: backend pixels differ in ${changed} channels by up to ${maximum}`)
-            } else if (!pixels.equals(captures.get(name))) failures.push(`${name}: backend pixels differ`)
+            else if (!pixels.equals(captures.get(name))) failures.push(`${name}: backend pixels differ`)
         }
         for (const view of ['perspective', 'ortho']) {
             await capture(`${view}-near-first`, { view }, [255, 0, 0, 255])

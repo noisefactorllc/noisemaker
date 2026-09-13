@@ -10,10 +10,7 @@ import { shaderTestBrowserOptions } from '../../scripts/lib/shader-test-browser.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const recordLegacy = process.argv.includes('--record-legacy')
 const fixturePath = new URL('./fixtures/points-render-legacy-hashes.json', import.meta.url)
-// Each legacy view lists one hash per GPU driver family, each captured from
-// the renderer before perspective controls existed. Point rasterization at
-// pixel boundaries differs between drivers, but never within one.
-const legacyHashes = JSON.parse(fs.readFileSync(fixturePath, 'utf8'))
+const legacyHashes = recordLegacy ? {} : JSON.parse(fs.readFileSync(fixturePath, 'utf8'))
 const recorded = {}, captures = new Map()
 const width = 160, height = 144
 process.env.SHADE_PROJECT_ROOT = root
@@ -83,7 +80,7 @@ try {
             const hash = createHash('sha256').update(pixels).digest('hex')
             recorded[backend][name] = hash
             if (!recordLegacy) {
-                assert.ok(legacyHashes[backend][name].includes(hash), `${backend} ${name}: existing projection changed (${hash})`)
+                assert.equal(hash, legacyHashes[backend][name], `${backend} ${name}: existing projection changed`)
                 const ignored = await capture(`legacy-${name}-new-controls`, null, { posZ: 75, fieldOfView: 120 })
                 assert.deepEqual(ignored, pixels, 'perspective-only controls must preserve old views')
             }
@@ -97,8 +94,8 @@ try {
             }
             // The first grid slot is (-31.5, 12, -31.5). These pixel locations
             // are hand-derived for the camera at Z=80 and a 160 by 144 viewport.
-            // Each projected center stays at least 1/16 pixel from a pixel edge;
-            // drivers snap to subpixel grids and resolve edge ties differently.
+            // Each projected center stays at least 1/16 pixel from a pixel edge,
+            // where rasterizers snap to subpixel grids and break ties differently.
             for (const [name, values, position] of [
                 ['perspective', {}, [59, 64]],
                 ['fov-60', { fieldOfView: 60 }, [44, 58]],
@@ -139,16 +136,7 @@ try {
         console.log(`PASS ${backend}: ${recordLegacy ? 'legacy capture' : 'pointsRender camera and legacy pixels'}`)
         await page.close()
     }
-    if (recordLegacy) {
-        // Add this driver's capture without discarding other drivers' hashes.
-        for (const [backend, views] of Object.entries(recorded)) {
-            for (const [name, hash] of Object.entries(views)) {
-                const known = (legacyHashes[backend] ??= {})[name] ??= []
-                if (!known.includes(hash)) known.push(hash)
-            }
-        }
-        fs.writeFileSync(fixturePath, JSON.stringify(legacyHashes, null, 2) + '\n')
-    }
+    if (recordLegacy) fs.writeFileSync(fixturePath, JSON.stringify(recorded, null, 2) + '\n')
 } finally {
     await browser.close()
     await releaseServer()

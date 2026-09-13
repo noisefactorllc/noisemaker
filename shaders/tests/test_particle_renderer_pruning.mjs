@@ -13,14 +13,10 @@ process.env.SHADE_PROJECT_ROOT = root
 process.env.SHADE_EFFECTS_DIR = path.join(root, 'shaders/effects')
 const { acquireServer, releaseServer } = await import('../../vendor/shade-mcp/harness/index.js')
 const baseUrl = await acquireServer(0, root, process.env.SHADE_EFFECTS_DIR)
+const browser = await chromium.launch(shaderTestBrowserOptions())
 const failures = [], captures = new Map()
-let browser
 try {
     for (const backend of ['webgl2', 'webgpu']) {
-        // Give each backend its own browser. On the software Vulkan driver a
-        // WebGPU device slows by orders of magnitude after WebGL2 has run in
-        // the same GPU process.
-        browser = await chromium.launch(shaderTestBrowserOptions())
         const page = await browser.newPage()
         const errors = []
         page.on('pageerror', error => errors.push(error.message))
@@ -36,37 +32,12 @@ try {
         }, { baseUrl, backend })
         const dsl = (renderer, view = 'flat') => `search synth, render
 solid(color: #804020).pointsEmit(stateSize: x64, layout: center, resetState: true)
-  .${renderer}(viewMode: ${view}, density: 1, intensity: 0, inputIntensity: 0${renderer === 'pointsBillboardRender'
+  .${renderer}(viewMode: ${view}, density: 100, intensity: 0, inputIntensity: 0${renderer === 'pointsBillboardRender'
     ? ', tex: solid(color: #ffffff), shapeMode: square, pointSize: 8, depositOpacity: 20, focalDistance: 1' : ', matteOpacity: 0'}).write(o0)
 render(o0)`
         async function check(name, renderer, source, values, view, count, time = 0, blend = 0) {
-            // Report each case's duration: software GPU cost varies by case.
-            const started = Date.now(), phases = {}
-            try { await audit(name, renderer, source, values, view, count, time, blend, phases) } finally {
-                console.log(`${backend} ${name}: ${Date.now() - started}ms ${JSON.stringify(phases)}`)
-            }
-        }
-        async function audit(name, renderer, source, values, view, count, time, blend, phases) {
             const result = await page.evaluate(async ({ renderer, source, values, time }) => {
-                // Keep the canvas out of compositing while GPU work is in flight. On
-                // the software Vulkan driver, compositing a WebGPU canvas during a
-                // recompile stalls WebGPU callbacks until a 30 second timeout.
-                document.querySelector('canvas').style.visibility = 'hidden'
-                const phases = {}, mark = (phase, since) => { phases[phase] = Math.round(performance.now() - since); return performance.now() }
-                let since = performance.now()
-                if (source) {
-                    // Compile each program on a fresh canvas and renderer. On the CI
-                    // software Vulkan driver an in-place WebGPU recompile stalls every
-                    // later GPU callback for tens of seconds. Parameter changes below
-                    // still exercise live variant selection on one pipeline.
-                    const canvas = document.createElement('canvas')
-                    canvas.width = 64; canvas.height = 64
-                    document.querySelector('canvas').replaceWith(canvas)
-                    window.r = new r.constructor({ canvas, width: 64, height: 64, basePath: r._basePath ?? r.basePath, preferWebGPU: r._preferWebGPU })
-                    await r.loadManifest()
-                    await r.loadEffects(['synth/solid', 'render/pointsEmit', 'render/pointsRender', 'render/pointsBillboardRender'])
-                    await r.compile(source); r.stop(); since = mark('compile', since)
-                }
+                if (source) { await r.compile(source); r.stop() }
                 const p = r.pipeline, b = p.backend
                 const step = p.graph.passes.find(pass => pass.effectFunc === renderer).stepIndex
                 if (values) r.applyStepParameterValues({ [`step_${step}`]: values })
@@ -81,15 +52,11 @@ render(o0)`
                     return execute.call(this, pass, state)
                 }
                 try { r.render(time) } finally { b.executePass = execute }
-                since = mark('render', since)
                 await b.device?.queue.onSubmittedWorkDone()
-                since = mark('gpu', since)
                 const pixels = await b.readPixels(p.surfaces.get('o0').read)
-                mark('readback', since)
-                return { phases, backend: b.getName().toLowerCase(), executed, pixels: Array.from(pixels.data),
+                return { backend: b.getName().toLowerCase(), executed, pixels: Array.from(pixels.data),
                     cached: programsBefore.length === b.programs.size && programsBefore.every(program => [...b.programs.values()].includes(program)) }
             }, { renderer, source, values, time })
-            Object.assign(phases, result.phases)
             assert.equal(result.backend, backend)
             assert.ok(result.cached, 'live mode changes must reuse compiled programs')
             if (result.executed.length !== count) failures.push(`${backend} ${name}: expected ${count} passes, got ${result.executed.length}`)
@@ -112,26 +79,9 @@ render(o0)`
                 }
             }
             assert.ok(result.pixels.some(value => value > 0), `${name}: fixture must render`)
-            await page.evaluate(() => { document.querySelector('canvas').style.visibility = 'visible' })
-            const captureStarted = Date.now()
-            const displayed = PNG.sync.read(await page.locator('canvas').screenshot({ omitBackground: true })).data
-            phases.capture = Date.now() - captureStarted
-            // Compare each channel's visible premultiplied contribution. Capture
-            // unpremultiplies translucent defocus fringes, which magnifies
-            // sub-LSB float16 blending differences between GPU drivers.
-            const pixels = Buffer.from(displayed.map((value, i) => i % 4 === 3 ? value : Math.round(value * displayed[i - i % 4 + 3] / 255)))
+            const pixels = PNG.sync.read(await page.locator('canvas').screenshot({ omitBackground: true })).data
             if (backend === 'webgl2') captures.set(name, pixels)
-            else if (renderer === 'pointsBillboardRender' && count > 4) {
-                // Defocus accumulates many float16 blends. As in the heightmap
-                // defocus fixtures, allow only isolated one-LSB rounding.
-                const other = captures.get(name)
-                let changed = 0, maximum = 0
-                for (let i = 0; i < pixels.length; i++) {
-                    const d = Math.abs(pixels[i] - other[i])
-                    if (d) { changed++; maximum = Math.max(maximum, d) }
-                }
-                assert.ok(changed <= 4 && maximum <= 1, `${name}: backend pixels differ in ${changed} channels by up to ${maximum}`)
-            } else assert.deepEqual(pixels, captures.get(name), `${name}: exact backend pixels`)
+            else assert.deepEqual(pixels, captures.get(name), `${name}: exact backend pixels`)
         }
         for (const renderer of ['pointsRender', 'pointsBillboardRender']) {
             await check(`${renderer}-flat`, renderer, dsl(renderer), null, 0, 4)
@@ -166,12 +116,12 @@ render(o0)`
             await check(`bb-fractional-shape-${fraction}`, bb, fractionalShape, null, 2, count)
         }
         assert.deepEqual(errors, [], `${backend}: no browser or GPU errors`)
-        await browser.close(); browser = null
+        await page.close()
         console.log(`Checked ${backend}: mode specialization, pass pruning, live switching, and automation`)
     }
     assert.deepEqual(failures, [])
     console.log('PASS: particle renderer inactive branches and exact backend pixels')
 } finally {
-    await browser?.close()
+    await browser.close()
     await releaseServer()
 }

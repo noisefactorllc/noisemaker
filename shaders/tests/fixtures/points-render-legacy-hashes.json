@@ -1,28 +1,12 @@
 {
   "webgl2": {
-    "flat": [
-      "9c948586070411802187ae8a03e3cf49c832181b0eb178c9e6fc8dfddf3998ae"
-    ],
-    "ortho-2d": [
-      "79fa1de2ee54e60753ba4e2e2e63f22ca50d1a12e4c9598ef280ff42b754994d",
-      "dd5ad1cd0c8bde367a5c62fa4ff4ca650545f02e170a165dc0b6e881433141e3"
-    ],
-    "ortho-world": [
-      "fa53afab8984c38b9482dc09bbaad27dd98d6184530a558ff3966089d37faec7",
-      "c3975e610b3c67eca101bea19347219b88d86bd36828b8f073c187c56040c271"
-    ]
+    "flat": "9c948586070411802187ae8a03e3cf49c832181b0eb178c9e6fc8dfddf3998ae",
+    "ortho-2d": "79fa1de2ee54e60753ba4e2e2e63f22ca50d1a12e4c9598ef280ff42b754994d",
+    "ortho-world": "fa53afab8984c38b9482dc09bbaad27dd98d6184530a558ff3966089d37faec7"
   },
   "webgpu": {
-    "flat": [
-      "9c948586070411802187ae8a03e3cf49c832181b0eb178c9e6fc8dfddf3998ae"
-    ],
-    "ortho-2d": [
-      "79fa1de2ee54e60753ba4e2e2e63f22ca50d1a12e4c9598ef280ff42b754994d",
-      "dd5ad1cd0c8bde367a5c62fa4ff4ca650545f02e170a165dc0b6e881433141e3"
-    ],
-    "ortho-world": [
-      "fa53afab8984c38b9482dc09bbaad27dd98d6184530a558ff3966089d37faec7",
-      "c3975e610b3c67eca101bea19347219b88d86bd36828b8f073c187c56040c271"
-    ]
+    "flat": "9c948586070411802187ae8a03e3cf49c832181b0eb178c9e6fc8dfddf3998ae",
+    "ortho-2d": "79fa1de2ee54e60753ba4e2e2e63f22ca50d1a12e4c9598ef280ff42b754994d",
+    "ortho-world": "fa53afab8984c38b9482dc09bbaad27dd98d6184530a558ff3966089d37faec7"
   }
 }

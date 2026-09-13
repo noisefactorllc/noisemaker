@@ -256,50 +256,40 @@ try {
             })
             await check(mode, 'bgAlpha.presentation', async () => {
                 await start(program(mode, { bgColor: '#ff0000' }, { heightTex: 'none' }))
-                // The CI software Vulkan compositor never completes a capture of the full
-                // editor page. Capture presentation on a canvas-sized page with the same
-                // renderer, as the camera and heightfield tests do; the live editor output
-                // is proven texel-identical to the compiled program below.
-                const display = await browser.newPage({ viewport: { width: 256, height: 256 } })
-                try {
-                    display.on('pageerror', e => errors.push(e.message))
-                    display.on('console', m => { if (m.type() === 'error') errors.push(m.text()) })
-                    await display.goto(`${baseUrl}/shaders/effects/manifest.json`)
-                    await display.setContent('<link rel="icon" href="data:,"><style>body{margin:0;background:#00ff00}canvas{display:block}</style><canvas width="256" height="256"></canvas>')
-                    await display.evaluate(async ({ baseUrl, backend }) => {
-                        const { CanvasRenderer } = await import(`${baseUrl}/shaders/src/index.js`)
-                        window.displayRenderer = new CanvasRenderer({ canvas: document.querySelector('canvas'), width: 256, height: 256,
-                            basePath: `${baseUrl}/shaders`, preferWebGPU: backend === 'webgpu' })
-                        await displayRenderer.loadManifest()
-                        await displayRenderer.loadEffects(['synth/gradient', 'synth3d/heightmap3d', 'render/renderLandscape3d'])
-                    }, { baseUrl, backend })
-                    for (const alpha of [0, 0.5, 1]) {
-                        const dsl = program(mode, { bgColor: '#ff0000', bgAlpha: alpha }, { heightTex: 'none' })
-                        await editor.bringToFront()
-                        await scalar(rendererPanel, 'bgAlpha', alpha)
-                        const raw = await compare(dsl, `${mode}-opacity-${alpha}`)
-                        assert.deepEqual([...raw.subarray(0, 4)], [Math.round(alpha * 255), 0, 0, Math.round(alpha * 255)],
-                            'background must follow the native premultiplied RGBA contract')
-                        await display.bringToFront()
-                        const renderer = await display.evaluate(async dsl => {
-                            const r = window.displayRenderer
-                            await r.compile(dsl); r.stop(); r.render(0); r.render(0)
-                            await r.pipeline.backend.device?.queue.onSubmittedWorkDone()
-                            return r.pipeline.backend.getName().toLowerCase()
-                        }, dsl)
-                        assert.equal(renderer, backend)
-                        const screenshot = await display.locator('canvas').screenshot()
-                        if (artifacts) fs.writeFileSync(path.join(artifacts, `${backend}-${mode}-opacity-${alpha}-display.png`), screenshot)
-                        const displayed = PNG.sync.read(screenshot)
-                        const offset = (5 * displayed.width + 5) * 4
-                        const expected = [Math.round(alpha * 255), Math.round((1 - alpha) * 255), 0, 255]
-                        for (let channel = 0; channel < 4; channel++) assert.ok(Math.abs(displayed.data[offset + channel] - expected[channel]) <= 1,
-                            `canvas opacity ${alpha} channel ${channel}: ${displayed.data[offset + channel]} must match ${expected[channel]}`)
-                    }
-                } finally {
-                    await display.close()
+                const canvas = editor.locator('#canvas')
+                await canvas.evaluate(el => { el.style.background = '#00ff00' })
+                for (const alpha of [0, 0.5, 1]) {
+                    await scalar(rendererPanel, 'bgAlpha', alpha)
+                    const raw = await compare(program(mode, { bgColor: '#ff0000', bgAlpha: alpha }, { heightTex: 'none' }), `${mode}-opacity-${alpha}`)
+                    assert.deepEqual([...raw.subarray(0, 4)], [Math.round(alpha * 255), 0, 0, Math.round(alpha * 255)],
+                        'background must follow the native premultiplied RGBA contract')
+                    // WebGPU canvas textures expire after presentation. Capture the running
+                    // demo, as displayed to a user, rather than an idle swap-chain texture.
                     await editor.bringToFront()
+                    const frameCount = await editor.evaluate(() => {
+                        const r = window.__noisemakerCanvasRenderer
+                        r.start()
+                        return r._frameCount
+                    })
+                    await editor.waitForFunction(before => window.__noisemakerCanvasRenderer._frameCount >= before + 2, frameCount)
+                    // Capture the visible canvas rectangle while presentation runs.
+                    // Prove that its geometry stays fixed across the capture.
+                    const rect = await canvas.boundingBox()
+                    const viewport = editor.viewportSize()
+                    assert.ok(rect && rect.x >= 0 && rect.y >= 0 &&
+                        rect.x + rect.width <= viewport.width && rect.y + rect.height <= viewport.height,
+                    'the complete canvas must be visible in the viewport')
+                    const screenshot = await editor.screenshot({ clip: rect, timeout: 30000 })
+                    assert.deepEqual(await canvas.boundingBox(), rect, 'canvas geometry must remain fixed during capture')
+                    await editor.evaluate(() => window.__noisemakerCanvasRenderer.stop())
+                    if (artifacts) fs.writeFileSync(path.join(artifacts, `${backend}-${mode}-opacity-${alpha}-display.png`), screenshot)
+                    const displayed = PNG.sync.read(screenshot)
+                    const offset = (5 * displayed.width + 5) * 4
+                    const expected = [Math.round(alpha * 255), Math.round((1 - alpha) * 255), 0, 255]
+                    for (let channel = 0; channel < 4; channel++) assert.ok(Math.abs(displayed.data[offset + channel] - expected[channel]) <= 1,
+                        `canvas opacity ${alpha} channel ${channel}: ${displayed.data[offset + channel]} must match ${expected[channel]}`)
                 }
+                await canvas.evaluate(el => { el.style.background = '' })
             })
             await check(mode, 'viewMode', async () => {
                 const original = await start(program(mode))
