@@ -36,14 +36,33 @@ try {
     for (const backend of ['webgl2', 'webgpu']) {
         const editor = await browser.newPage({ viewport: { width: 1280, height: 900 } })
         editor.setDefaultTimeout(5000)
+        // Select the audit resolution before initialization submits its first
+        // frame. Resizing after compilation leaves display-sized GPU work queued.
+        await editor.addInitScript(() => {
+            Object.defineProperty(window, '__noisemakerCanvasRenderer', {
+                configurable: true,
+                set(renderer) {
+                    renderer.resize(256, 256)
+                    Object.defineProperty(window, '__noisemakerCanvasRenderer', {
+                        configurable: true, writable: true, value: renderer
+                    })
+                }
+            })
+        })
         const reference = await browser.newPage()
         const errors = []
         for (const page of [editor, reference]) {
             page.on('pageerror', e => errors.push(e.message))
             page.on('console', m => { if (m.type() === 'error') errors.push(m.text()) })
         }
-        await reference.goto(baseUrl)
-        await reference.setContent('<canvas width="256" height="256"></canvas>')
+        // Navigate directly to an empty same-origin fixture. Loading the home
+        // page and then replacing its DOM leaves its asynchronous header renderer
+        // alive, competing with this audit for the software GPU.
+        const referenceUrl = `${baseUrl}/__landscape-audit-reference`
+        await reference.route(referenceUrl, route => route.fulfill({
+            contentType: 'text/html', body: '<canvas width="256" height="256"></canvas>'
+        }))
+        await reference.goto(referenceUrl)
         await reference.evaluate(async ({ baseUrl, backend }) => {
             const { CanvasRenderer } = await import(`${baseUrl}/shaders/src/index.js`)
             window.auditRenderer = new CanvasRenderer({ canvas: document.querySelector('canvas'), width: 256, height: 256,
@@ -57,7 +76,7 @@ try {
         await editor.goto(`${baseUrl}/demo/shaders/?backend=${backend === 'webgl2' ? 'glsl' : 'wgsl'}&effect=filter.adjust`)
         await editor.waitForFunction(() => {
             const r = window.__noisemakerCanvasRenderer
-            return r?.pipeline && !r._compileQueue
+            return r?.pipeline && !r._compileQueue && r._frameCount > 0
         }, null, { polling: 100, timeout: 60000 })
         await editor.evaluate(async () => {
             const r = window.__noisemakerCanvasRenderer
@@ -80,10 +99,14 @@ try {
                     const r = window.__noisemakerCanvasRenderer
                     return { currentDsl: r?.currentDsl, backend: r?.backend,
                         expectedDsl: window.auditExpectedDsl,
+                        running: r?._isRunning, frameCount: r?._frameCount,
                         compiling: r?.pipeline?.isCompiling, queued: Boolean(r?._compileQueue),
                         sameGraph: r?.pipeline?.graph === window.auditPreviousGraph }
                 }).catch(e => ({ unavailable: e.message }))
                 console.error(JSON.stringify({ state, browserErrors: errors }))
+                // A timed-out compile may still own the renderer. Do not queue
+                // later cases behind it and turn one failure into a backlog.
+                throw error
             }
         }
         const readFrame = async (page, name) => {
@@ -112,7 +135,9 @@ try {
             if (!await editor.getByRole('textbox').count()) await editor.getByRole('button', { name: 'Edit DSL program', exact: true }).click()
             await editor.getByRole('textbox').fill(dsl)
             await editor.evaluate(dsl => {
-                window.auditPreviousGraph = window.__noisemakerCanvasRenderer?.pipeline?.graph
+                const r = window.__noisemakerCanvasRenderer
+                r.stop()
+                window.auditPreviousGraph = r.pipeline?.graph
                 window.auditExpectedDsl = dsl
             }, dsl)
             await editor.getByRole('button', { name: 'run', exact: true }).click()

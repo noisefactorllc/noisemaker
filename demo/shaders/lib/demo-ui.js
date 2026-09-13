@@ -3302,10 +3302,13 @@ render(o1)`
         const dsl = this.getDsl()
         if (!dsl) return
 
+        const request = this._recompileRequest = Symbol()
         try {
             await this._renderer.compile(dsl, {
                 shaderOverrides: this._shaderOverrides
             })
+            // A later edit owns the controls while its compile is queued.
+            if (this._recompileRequest !== request) return
             // Surface edits can remove inline producers and shift every later step.
             // Rebind state and controls to the new graph before accepting another edit.
             if (!this.checkStructureAndApplyState(dsl)) {
@@ -3313,6 +3316,7 @@ render(o1)`
             }
             this.showStatus('pipeline updated', 'success')
         } catch (err) {
+            if (this._recompileRequest !== request) return
             console.error('Pipeline compilation failed:', this.formatCompilationError(err))
             this.showStatus('compilation error: ' + this.formatCompilationError(err), 'error')
         }
