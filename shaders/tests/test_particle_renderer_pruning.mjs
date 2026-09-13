@@ -36,10 +36,17 @@ try {
         }, { baseUrl, backend })
         const dsl = (renderer, view = 'flat') => `search synth, render
 solid(color: #804020).pointsEmit(stateSize: x64, layout: center, resetState: true)
-  .${renderer}(viewMode: ${view}, density: 100, intensity: 0, inputIntensity: 0${renderer === 'pointsBillboardRender'
+  .${renderer}(viewMode: ${view}, density: 1, intensity: 0, inputIntensity: 0${renderer === 'pointsBillboardRender'
     ? ', tex: solid(color: #ffffff), shapeMode: square, pointSize: 8, depositOpacity: 20, focalDistance: 1' : ', matteOpacity: 0'}).write(o0)
 render(o0)`
         async function check(name, renderer, source, values, view, count, time = 0, blend = 0) {
+            // Report each case's duration: software GPU cost varies by case.
+            const started = Date.now()
+            try { await audit(name, renderer, source, values, view, count, time, blend) } finally {
+                console.log(`${backend} ${name}: ${Date.now() - started}ms`)
+            }
+        }
+        async function audit(name, renderer, source, values, view, count, time, blend) {
             const result = await page.evaluate(async ({ renderer, source, values, time }) => {
                 if (source) { await r.compile(source); r.stop() }
                 const p = r.pipeline, b = p.backend
