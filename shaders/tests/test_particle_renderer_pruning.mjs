@@ -41,14 +41,16 @@ solid(color: #804020).pointsEmit(stateSize: x64, layout: center, resetState: tru
 render(o0)`
         async function check(name, renderer, source, values, view, count, time = 0, blend = 0) {
             // Report each case's duration: software GPU cost varies by case.
-            const started = Date.now()
-            try { await audit(name, renderer, source, values, view, count, time, blend) } finally {
-                console.log(`${backend} ${name}: ${Date.now() - started}ms`)
+            const started = Date.now(), phases = {}
+            try { await audit(name, renderer, source, values, view, count, time, blend, phases) } finally {
+                console.log(`${backend} ${name}: ${Date.now() - started}ms ${JSON.stringify(phases)}`)
             }
         }
-        async function audit(name, renderer, source, values, view, count, time, blend) {
+        async function audit(name, renderer, source, values, view, count, time, blend, phases) {
             const result = await page.evaluate(async ({ renderer, source, values, time }) => {
-                if (source) { await r.compile(source); r.stop() }
+                const phases = {}, mark = (phase, since) => { phases[phase] = Math.round(performance.now() - since); return performance.now() }
+                let since = performance.now()
+                if (source) { await r.compile(source); r.stop(); since = mark('compile', since) }
                 const p = r.pipeline, b = p.backend
                 const step = p.graph.passes.find(pass => pass.effectFunc === renderer).stepIndex
                 if (values) r.applyStepParameterValues({ [`step_${step}`]: values })
@@ -63,11 +65,15 @@ render(o0)`
                     return execute.call(this, pass, state)
                 }
                 try { r.render(time) } finally { b.executePass = execute }
+                since = mark('render', since)
                 await b.device?.queue.onSubmittedWorkDone()
+                since = mark('gpu', since)
                 const pixels = await b.readPixels(p.surfaces.get('o0').read)
-                return { backend: b.getName().toLowerCase(), executed, pixels: Array.from(pixels.data),
+                mark('readback', since)
+                return { phases, backend: b.getName().toLowerCase(), executed, pixels: Array.from(pixels.data),
                     cached: programsBefore.length === b.programs.size && programsBefore.every(program => [...b.programs.values()].includes(program)) }
             }, { renderer, source, values, time })
+            Object.assign(phases, result.phases)
             assert.equal(result.backend, backend)
             assert.ok(result.cached, 'live mode changes must reuse compiled programs')
             if (result.executed.length !== count) failures.push(`${backend} ${name}: expected ${count} passes, got ${result.executed.length}`)
@@ -90,7 +96,9 @@ render(o0)`
                 }
             }
             assert.ok(result.pixels.some(value => value > 0), `${name}: fixture must render`)
+            const captureStarted = Date.now()
             const displayed = PNG.sync.read(await page.locator('canvas').screenshot({ omitBackground: true })).data
+            phases.capture = Date.now() - captureStarted
             // Compare each channel's visible premultiplied contribution. Capture
             // unpremultiplies translucent defocus fringes, which magnifies
             // sub-LSB float16 blending differences between GPU drivers.
