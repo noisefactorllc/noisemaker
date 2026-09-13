@@ -61,22 +61,48 @@ jobs:
     - name: Run shader compile and render test
       run: npm run test:shaders:render:webgl2
 
-    - name: Verify alpha compositing on both GPU backends
-      run: npm run test:shaders:alpha
-
-    - name: Verify voxel heightfields and landscape rendering on both GPU backends
-      run: npm run test:shaders:landscape
-
-    - name: Verify particle heightmaps and focus on both GPU backends
-      run: npm run test:shaders:particles
-
     - name: Run shader structure tests
       run: npm run test:shaders:structure
+
+  # The software GPU suites are independent and each takes minutes on the
+  # CI Vulkan driver. Run them side by side to keep the workflow short.
+  gpu:
+    name: GPU tests (${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: alpha
+            description: Verify alpha compositing on both GPU backends
+          - suite: landscape
+            description: Verify voxel heightfields and landscape rendering on both GPU backends
+          - suite: particles
+            description: Verify particle heightmaps and focus on both GPU backends
+
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+    - name: Set up Node.js
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: '22'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm install --include=dev
+
+    - name: Install Playwright browsers
+      run: npx playwright install chromium
+
+    - name: ${{ matrix.description }}
+      run: npm run test:shaders:${{ matrix.suite }}
 
   bundle:
     name: Bundle shaders
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, gpu]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
