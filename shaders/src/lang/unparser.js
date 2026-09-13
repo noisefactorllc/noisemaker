@@ -252,6 +252,10 @@ function formatValue(value, spec, options = {}, sourceForm) {
         return value._varRef
     }
 
+    if (value?._ast?.type === 'Ident') {
+        return value._ast.name
+    }
+
     if (typeof value === 'boolean') {
         return value ? 'true' : 'false'
     }

@@ -529,6 +529,24 @@ test('Replacing an inline surface removes its unused producer chain', () => {
     assert.deepEqual(semantics(result), semantics(expected));
 });
 
+test('Bare state arguments preserve their runtime values after unparsing', () => {
+    const definition = { globals: { amount: { type: 'float', default: 0, min: 0, max: 100 } } };
+    registerOp('synth.stateRoundtrip', { name: 'stateRoundtrip', args: [{ name: 'amount', ...definition.globals.amount }] });
+    registerStarterOps(['synth.stateRoundtrip']);
+    for (const name of ['seed', 'time', 'frame', 'u1']) {
+        const source = `search synth\nstateRoundtrip(amount: ${name}).write(o0)\nrender(o0)`;
+        const before = compile(source);
+        const output = unparse(before, {}, { getEffectDef: () => definition });
+        assertIncludes(output, `amount: ${name}`, 'Keep the state expression as DSL');
+        const after = compile(output);
+        assert.deepEqual(after.diagnostics, before.diagnostics);
+        for (const value of [0, 7, 31]) {
+            const state = { [name]: value };
+            assert.equal(after.plans[0].chain[0].args.amount.fn(state), value);
+        }
+    }
+});
+
 // Summary
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

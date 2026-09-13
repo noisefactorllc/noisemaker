@@ -1370,7 +1370,7 @@ export function validate(ast) {
                             }
                         } else if (node && node.type === 'Ident' && stateValues.has(node.name)) {
                             const key = node.name
-                            value = {fn: (state) => state[key], min:def.min, max:def.max}
+                            value = {fn: (state) => state[key], min:def.min, max:def.max, _ast: node}
                         } else if (node && node.type === 'Ident' && def.enum) {
                             // Try to resolve bare identifier as enum value within the param's enum path
                             const prefix = normalizeMemberPath(def.enum)
