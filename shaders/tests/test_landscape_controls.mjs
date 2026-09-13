@@ -71,7 +71,14 @@ try {
             } catch (error) {
                 results.push({ backend, mode, key, status: 'fail', error: error.message })
                 failures.push(`${backend} ${mode} ${key}: ${error.message}`)
-                console.error(`FAIL ${backend} ${mode} ${key}: ${error.message}`)
+                console.error(`FAIL ${backend} ${mode} ${key}: ${error.stack}`)
+                const state = await editor.evaluate(() => {
+                    const r = window.__noisemakerCanvasRenderer
+                    return { currentDsl: r?.currentDsl, backend: r?.backend,
+                        compiling: r?.pipeline?.isCompiling, queued: Boolean(r?._compileQueue),
+                        sameGraph: r?.pipeline?.graph === window.auditPreviousGraph }
+                }).catch(e => ({ unavailable: e.message }))
+                console.error(JSON.stringify({ state, browserErrors: errors }))
             }
         }
         const readFrame = async (page, name) => {
