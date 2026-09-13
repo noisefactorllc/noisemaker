@@ -54,7 +54,19 @@ render(o0)`
                 document.querySelector('canvas').style.visibility = 'hidden'
                 const phases = {}, mark = (phase, since) => { phases[phase] = Math.round(performance.now() - since); return performance.now() }
                 let since = performance.now()
-                if (source) { await r.compile(source); r.stop(); since = mark('compile', since) }
+                if (source) {
+                    // Compile each program on a fresh canvas and renderer. On the CI
+                    // software Vulkan driver an in-place WebGPU recompile stalls every
+                    // later GPU callback for tens of seconds. Parameter changes below
+                    // still exercise live variant selection on one pipeline.
+                    const canvas = document.createElement('canvas')
+                    canvas.width = 64; canvas.height = 64
+                    document.querySelector('canvas').replaceWith(canvas)
+                    window.r = new r.constructor({ canvas, width: 64, height: 64, basePath: r._basePath ?? r.basePath, preferWebGPU: r._preferWebGPU })
+                    await r.loadManifest()
+                    await r.loadEffects(['synth/solid', 'render/pointsEmit', 'render/pointsRender', 'render/pointsBillboardRender'])
+                    await r.compile(source); r.stop(); since = mark('compile', since)
+                }
                 const p = r.pipeline, b = p.backend
                 const step = p.graph.passes.find(pass => pass.effectFunc === renderer).stepIndex
                 if (values) r.applyStepParameterValues({ [`step_${step}`]: values })
