@@ -51,10 +51,14 @@ try {
             await auditRenderer.loadManifest()
             await auditRenderer.loadEffects(['synth/noise', 'synth/gradient', 'synth/solid', 'synth3d/heightmap3d', 'render/renderLandscape3d'])
         }, { baseUrl, backend })
-        await editor.goto(`${baseUrl}/demo/shaders/?backend=${backend === 'webgl2' ? 'glsl' : 'wgsl'}&effect=render.renderLandscape3d`)
-        await editor.waitForFunction(() => window.__noisemakerCanvasRenderer?.pipeline)
-        // Use the same render size for the initial run and every later capture.
-        // A display-sized initial frame can block the first control action.
+        // Initialize with a simple program before loading the audited landscape.
+        // Otherwise the demo compiles and renders it at its display resolution
+        // before the test can select the 256x256 audit resolution.
+        await editor.goto(`${baseUrl}/demo/shaders/?backend=${backend === 'webgl2' ? 'glsl' : 'wgsl'}&effect=filter.adjust`)
+        await editor.waitForFunction(() => {
+            const r = window.__noisemakerCanvasRenderer
+            return r?.pipeline && !r._compileQueue
+        }, null, { polling: 100, timeout: 60000 })
         await editor.evaluate(async () => {
             const r = window.__noisemakerCanvasRenderer
             await r._compileQueue
@@ -75,6 +79,7 @@ try {
                 const state = await editor.evaluate(() => {
                     const r = window.__noisemakerCanvasRenderer
                     return { currentDsl: r?.currentDsl, backend: r?.backend,
+                        expectedDsl: window.auditExpectedDsl,
                         compiling: r?.pipeline?.isCompiling, queued: Boolean(r?._compileQueue),
                         sameGraph: r?.pipeline?.graph === window.auditPreviousGraph }
                 }).catch(e => ({ unavailable: e.message }))
@@ -106,12 +111,15 @@ try {
             for (const dialog of await editor.locator('dialog[open]').all()) await dialog.getByRole('button', { name: 'close', exact: true }).click()
             if (!await editor.getByRole('textbox').count()) await editor.getByRole('button', { name: 'Edit DSL program', exact: true }).click()
             await editor.getByRole('textbox').fill(dsl)
-            await editor.evaluate(() => { window.auditPreviousGraph = window.__noisemakerCanvasRenderer?.pipeline?.graph })
+            await editor.evaluate(dsl => {
+                window.auditPreviousGraph = window.__noisemakerCanvasRenderer?.pipeline?.graph
+                window.auditExpectedDsl = dsl
+            }, dsl)
             await editor.getByRole('button', { name: 'run', exact: true }).click()
             await editor.waitForFunction(dsl => {
                 const r = window.__noisemakerCanvasRenderer
                 return r?.currentDsl === dsl && r.pipeline && !r.pipeline.isCompiling && r.pipeline.graph !== window.auditPreviousGraph
-            }, dsl)
+            }, dsl, { polling: 100, timeout: 60000 })
             await editor.getByRole('button', { name: 'Edit DSL program', exact: true }).click()
             if (await editor.getByText('view…', { exact: true }).isVisible()) await editor.getByText('view…', { exact: true }).click()
             return readFrame(editor)
