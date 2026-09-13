@@ -64,22 +64,19 @@ jobs:
     - name: Run shader structure tests
       run: npm run test:shaders:structure
 
-  # The software GPU suites are independent and each takes minutes on the
-  # CI Vulkan driver. Run them side by side to keep the workflow short.
+  # WebGL2/WebGPU suites run on a real GPU: the office Apple Silicon runner
+  # (spare.lan). Hosted runners only offer software Vulkan, where these
+  # suites take over an hour. This public repository must never run fork
+  # pull requests on that machine, so the job only runs for pushes and for
+  # pull requests from branches in this repository.
   gpu:
-    name: GPU tests (${{ matrix.suite }})
-    runs-on: ubuntu-latest
+    name: GPU tests
+    runs-on: [self-hosted, macOS, ARM64, noisemaker-gpu]
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     timeout-minutes: 18
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - suite: alpha
-            description: Verify alpha compositing on both GPU backends
-          - suite: landscape
-            description: Verify voxel heightfields and landscape rendering on both GPU backends
-          - suite: particles
-            description: Verify particle heightmaps and focus on both GPU backends
+    concurrency:
+      group: noisemaker-gpu-runner
+      cancel-in-progress: false
 
     steps:
     - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
@@ -96,8 +93,14 @@ jobs:
     - name: Install Playwright browsers
       run: npx playwright install chromium
 
-    - name: ${{ matrix.description }}
-      run: npm run test:shaders:${{ matrix.suite }}
+    - name: Verify alpha compositing on both GPU backends
+      run: npm run test:shaders:alpha
+
+    - name: Verify voxel heightfields and landscape rendering on both GPU backends
+      run: npm run test:shaders:landscape
+
+    - name: Verify particle heightmaps and focus on both GPU backends
+      run: npm run test:shaders:particles
 
   bundle:
     name: Bundle shaders
