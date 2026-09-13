@@ -52,6 +52,14 @@ try {
             await auditRenderer.loadEffects(['synth/noise', 'synth/gradient', 'synth/solid', 'synth3d/heightmap3d', 'render/renderLandscape3d'])
         }, { baseUrl, backend })
         await editor.goto(`${baseUrl}/demo/shaders/?backend=${backend === 'webgl2' ? 'glsl' : 'wgsl'}&effect=render.renderLandscape3d`)
+        await editor.waitForFunction(() => window.__noisemakerCanvasRenderer?.pipeline)
+        // Use the same render size for the initial run and every later capture.
+        // A display-sized initial frame can block the first control action.
+        await editor.evaluate(async () => {
+            const r = window.__noisemakerCanvasRenderer
+            await r._compileQueue
+            r.stop(); r.resize(256, 256)
+        })
         await editor.bringToFront()
         const rendererPanel = editor.locator('[data-effect-name="renderLandscape3d"]')
         const heightPanel = editor.locator('[data-effect-name="heightmap3d"]')

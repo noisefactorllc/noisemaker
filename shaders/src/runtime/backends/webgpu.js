@@ -3290,11 +3290,12 @@ export class WebGPUBackend extends Backend {
 
         // Use a render pass to blit the texture to the canvas
         // This handles format conversion (e.g., rgba16float -> bgra8unorm)
+        const canvasTexture = this.context.getCurrentTexture()
+        const exactPixels = tex.width === canvasTexture.width && tex.height === canvasTexture.height
         const pipeline = this.getBlitPipeline()
-        const bindGroup = this.createBlitBindGroup(tex)
+        const bindGroup = this.createBlitBindGroup(tex, exactPixels)
 
         const commandEncoder = this.device.createCommandEncoder()
-        const canvasTexture = this.context.getCurrentTexture()
         const canvasView = canvasTexture.createView()
 
         const renderPass = commandEncoder.beginRenderPass({
@@ -3429,9 +3430,11 @@ export class WebGPUBackend extends Backend {
     /**
      * Create a bind group for blitting a texture to the canvas
      */
-    createBlitBindGroup(tex) {
+    createBlitBindGroup(tex, exactPixels = false) {
         const pipeline = this.getBlitPipeline()
-        const sampler = this.samplers.get('default')
+        // Interpolated UVs can drift from texel centers. Avoid mixing neighbors
+        // during a same-size copy, but retain linear filtering when scaling.
+        const sampler = this.samplers.get(exactPixels ? 'nearest' : 'default')
 
         return this.device.createBindGroup({
             layout: pipeline.getBindGroupLayout(0),
