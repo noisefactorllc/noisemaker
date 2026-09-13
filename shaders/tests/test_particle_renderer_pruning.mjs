@@ -48,6 +48,10 @@ render(o0)`
         }
         async function audit(name, renderer, source, values, view, count, time, blend, phases) {
             const result = await page.evaluate(async ({ renderer, source, values, time }) => {
+                // Keep the canvas out of compositing while GPU work is in flight. On
+                // the software Vulkan driver, compositing a WebGPU canvas during a
+                // recompile stalls WebGPU callbacks until a 30 second timeout.
+                document.querySelector('canvas').style.visibility = 'hidden'
                 const phases = {}, mark = (phase, since) => { phases[phase] = Math.round(performance.now() - since); return performance.now() }
                 let since = performance.now()
                 if (source) { await r.compile(source); r.stop(); since = mark('compile', since) }
@@ -96,6 +100,7 @@ render(o0)`
                 }
             }
             assert.ok(result.pixels.some(value => value > 0), `${name}: fixture must render`)
+            await page.evaluate(() => { document.querySelector('canvas').style.visibility = 'visible' })
             const captureStarted = Date.now()
             const displayed = PNG.sync.read(await page.locator('canvas').screenshot({ omitBackground: true })).data
             phases.capture = Date.now() - captureStarted
