@@ -324,19 +324,27 @@ pointsRender
    * - ``viewMode``
      - enum
      - flat
-     - Viewport mode: flat (2D) or ortho (3D)
+     - Viewport mode: flat (2D), ortho (fixed 3D rotation), or perspective (movable camera)
    * - ``rotateX/Y/Z``
      - float
      - varies
-     - 3D rotation in radians (when viewMode=ortho)
+     - 3D rotation in radians (when viewMode=ortho or perspective)
    * - ``viewScale``
      - float
      - 0.8
-     - Zoom factor for 3D view
+     - Zoom factor for ortho view; perspective view uses ``fieldOfView`` instead
    * - ``posX/Y``
      - float
      - 0.0
-     - Position offset for 3D view
+     - Camera position offset (when viewMode=ortho or perspective)
+   * - ``posZ``
+     - float
+     - 0.0
+     - Camera position offset along the depth axis (when viewMode=perspective)
+   * - ``fieldOfView``
+     - float
+     - 60.0
+     - Perspective camera field of view in degrees (when viewMode=perspective)
 
 **Internal Passes:**
 
@@ -346,7 +354,83 @@ pointsRender
 4. **Blend**: Composite trail over input texture
 
 .. note::
-   Additional sprite rendering modes (textured sprites, billboards, custom shapes) are planned for future releases.
+   ``pointsRender`` deposits one hardware point per agent. For textured
+   sprites, procedural shapes, and depth-sorted alpha blending, use
+   ``pointsBillboardRender`` instead — see below.
+
+pointsBillboardRender
+^^^^^^^^^^^^^^^^^^^^^
+
+**Namespace:** ``render``
+
+**Purpose:** Like ``pointsRender``, but scatters each agent as a screen-facing
+quad (billboard) instead of a single hardware point, so it can carry a
+texture or a procedural shape, size and rotation variation, and (in
+``perspective`` view) depth-sorted alpha blending with aperture defocus blur.
+
+**Key Parameters:**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 15 15 50
+
+   * - Parameter
+     - Type
+     - Default
+     - Description
+   * - ``shapeMode``
+     - enum
+     - texture
+     - Billboard fill: ``texture`` (sample ``tex``), or a procedural SDF shape
+       (circle, ring, square, diamond, triangle, star, soft)
+   * - ``tex``
+     - surface
+     - none
+     - Sprite texture, used when ``shapeMode`` is ``texture``
+   * - ``blendMode``
+     - enum
+     - additive
+     - ``additive`` accumulates trail brightness; ``alpha`` composites
+       depth-sorted, back-to-front
+   * - ``pointSize``
+     - float
+     - 8.0
+     - Base billboard size in pixels
+   * - ``sizeVariation`` / ``rotationVar``
+     - float
+     - 0.0
+     - Per-agent size / rotation randomization (0–100), seeded by ``seed``
+   * - ``depositOpacity``
+     - float
+     - 20.0
+     - Per-billboard opacity contribution
+   * - ``viewMode`` / ``rotateX/Y/Z`` / ``viewScale`` / ``posX/Y/Z`` / ``fieldOfView``
+     - —
+     - —
+     - Same camera model as ``pointsRender`` (flat / ortho / perspective)
+   * - ``sizeDistance`` / ``brightnessDistance``
+     - float
+     - 0.0
+     - When viewMode is ortho or perspective: distance (world units) over
+       which billboards shrink / dim as camera distance grows; 0 disables
+       the fade
+   * - ``aperture``
+     - float
+     - 0.0
+     - When viewMode is ortho or perspective: defocus blur strength; 0
+       disables it
+   * - ``focalDistance``
+     - float
+     - 80.0
+     - When viewMode is ortho or perspective: camera distance that stays in
+       focus when ``aperture`` > 0
+
+``blendMode: alpha`` sorts agents back-to-front every frame (a GPU merge
+sort over their camera-space depth) before drawing, so overlapping
+billboards composite correctly instead of fighting z-order under additive
+blending. ``aperture`` blurs billboards in proportion to their distance
+from ``focalDistance``, using a precomputed mean-sprite texture so the blur
+cost does not scale with billboard count.
 
 ----
 
@@ -387,6 +471,10 @@ Available Behaviors
      - Particle Lenia: continuous cellular automata with kernel-based attraction
    * - ``attractor``
      - Strange attractors: Lorenz, Rössler, Aizawa, Thomas, etc.
+   * - ``heightGrid``
+     - Not a simulation: arranges every agent into a fixed XZ grid with Y set
+       from a height map, and color from a diffuse map — a landscape's worth
+       of positions rather than a physics or flow-field behavior
 
 ----
 

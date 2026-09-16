@@ -163,7 +163,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `d30d1045` (2026-09-07)
+- **Checkpoint:** noisemaker `c68fb3c8` (2026-09-15)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -177,6 +177,30 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-15 — caught up through `c68fb3c8`: the range added three
+    effects (`synth3d/heightmap3d`, `render/renderLandscape3d`,
+    `points/heightGrid`) landing a native voxel-heightfield landscape
+    renderer, plus a perspective camera and depth-sorted alpha/aperture
+    defocus for `pointsBillboardRender`, and a full rewrite of `synth/remap`'s
+    zone compositor. Wrote the two missing `help.md` files
+    (`heightmap3d`, `renderLandscape3d`); `heightGrid`,
+    `pointsRender`/`pointsBillboardRender`, and `remap` already carried
+    accurate in-band `help.md` updates. Corrected `docs/shaders/smrticles.rst`:
+    `pointsRender`'s parameter table was missing `posZ`/`fieldOfView`
+    (present in the definition since before this checkpoint, so this was a
+    pre-existing gap, not new this round) and still described `viewMode` as
+    flat/ortho only; added a `pointsBillboardRender` reference section
+    (shape modes, blend modes, depth sort, defocus) that did not exist
+    despite the effect predating this checkpoint, replaced a stale note
+    claiming billboards/textured sprites were "planned for future releases"
+    when `pointsBillboardRender` already ships them, and added `heightGrid`
+    to the behavior-middleware table. Corrected `docs/shaders/pipeline-3d.rst`:
+    added `heightmap3d` to the generators list and `renderLandscape3d` to
+    the renderers table, both previously absent. Confirmed the help-table
+    checker passes (1,263 documented parameters across 203 effects) and the
+    production-format Sphinx dirhtml build passes with the same 18
+    pre-existing warnings as the prior checkpoint (all `Pygments lexer name
+    'dsl' is not known`, unrelated to this pass).
   - 2026-09-07 — caught up through `d30d1045`: verified help coverage for
     all 210 effects and 1,223 documented parameters across the 200 effects
     recognized by the table checker. Documented lossless Remap vertex

@@ -37,7 +37,15 @@ Generators (synth3d)
 
 Volume generators live in the ``synth3d`` namespace: ``noise3d``, ``cell3d``,
 ``fractal3d``, ``shape3d``, ``cellularAutomata3d``, ``reactionDiffusion3d``,
-and ``flythrough3d``. The Effect Reference documents each generator's parameters.
+``flythrough3d``, and ``heightmap3d``. The Effect Reference documents each
+generator's parameters.
+
+``heightmap3d`` differs from the others: instead of generating a volume
+procedurally, it bakes two ordinary 2D surfaces into one — a height map
+(luminance sets each XZ column's fill height) and a diffuse map (color
+stored at every voxel in that column) — producing a voxel heightfield
+volume from arbitrary 2D input. It is the generator half of a landscape
+chain; see ``renderLandscape3d`` below.
 
 Volumetric filters (filter3d)
 -----------------------------
@@ -72,3 +80,9 @@ A renderer consumes the volume and produces the frame:
    * - ``renderCubemapSurface`` / ``renderCubemap3d``
      - Six seamless cube faces for skyboxes and planetary surfaces — see the
        Cubemaps guide
+   * - ``renderLandscape3d``
+     - Isometric or perspective voxel raymarcher for ``heightmap3d`` volumes,
+       with face-normal lighting. The perspective camera (``viewMode:
+       perspective``) shares its projection with ``pointsRender`` /
+       ``pointsBillboardRender``, so a landscape and a particle system (see
+       the SMRTicles guide's ``heightGrid`` behavior) can share one camera
