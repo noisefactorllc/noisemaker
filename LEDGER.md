@@ -20,7 +20,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## I18n strings
 
-- **Checkpoint:** noisemaker `d30d1045` / noisedeck `94f4d002` (2026-09-07)
+- **Checkpoint:** noisemaker `c68fb3c8` / noisedeck `47b145e0` (2026-09-16)
 - **Scope:** two translation surfaces:
   - Noisemaker effect catalogs
     `shaders/effects/strings.{de,es,fr,it,ja,pt}.json`. The English catalog
@@ -57,6 +57,26 @@ work, verify it, then update the checkpoint and append a log line.
      non-empty string values plus every placeholder, plural leaf, and markup tag
      from the English catalog.
 - **Log:**
+  - 2026-09-16 — caught up through noisemaker `c68fb3c8` / noisedeck
+    `47b145e0`, closing the gap left by incomplete Tearoff #156 (below) as
+    well as this task's own nominal range (noisemaker `ff1bfbc1..c68fb3c8`,
+    noisedeck `458f7758..47b145e0`) — audited from the stale checkpoint
+    forward rather than trusting #156's own narrative, per this file's
+    "audit the target's actual state" rule. Both gap-detection commands
+    came back clean: the noisemaker key-diff found zero missing keys in any
+    of the six locales, and noisedeck's `tests/i18n.node-test.js` passed
+    6/6 with no catalog-parity failures. Spot-checked that the round's three
+    new effects (`synth3d/heightmap3d`, `render/renderLandscape3d`,
+    `points/heightGrid`) already carry real, non-empty translations across
+    all six noisemaker locales (e.g. `synth3d/heightmap3d` →
+    "Höhenkarte 3D" / "Mapa de alturas 3D" / "Carte de hauteur 3D" /
+    "Mappa di altezza 3D" / "3D高さマップ" / "Mapa de altura 3D"), not just
+    present-but-empty stand-ins. `npm run test:shaders:i18n` passed 5/5.
+    No translation work was needed on either surface — #156's own catalog
+    work (3,689 English keys, all six locales complete) was already correct
+    and complete; only this checkpoint had never been advanced to reflect
+    it. #156's Log entry below is left untouched; its remaining
+    non-i18n items (browser/runtime fixes) are outside this section's scope.
   - 2026-09-07 — caught up through noisemaker `d30d1045` / noisedeck
     `94f4d002`: audited all 20 live-capture settings, status, permission,
     recording-limit, and export-warning strings; all six UI translations
