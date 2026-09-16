@@ -219,7 +219,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `c68fb3c8` (2026-09-15)
+- **Checkpoint:** noisemaker `5a142567` (2026-09-16)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -233,6 +233,19 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-16 — caught up through `5a142567`: the range (`c68fb3c8..5a142567`)
+    contains no new or changed effect definitions and no other `docs/`
+    edits — its only doc-relevant content is this section's own prior
+    catch-up commit (`5a142567` itself, the four files logged below) plus
+    unrelated dependency bumps (Playwright, eslint, ruff, types-requests)
+    and browser/CI test-harness fixes (WebGPU presentation sampling,
+    landscape capture timing, renderer pruning audit) that touch no
+    Sphinx narrative or effect-help content. Confirmed via
+    `git diff --stat c68fb3c8..5a142567 -- docs/
+    'shaders/effects/*/*/definition.js' 'shaders/effects/*/*/help.md'`
+    (only the four already-logged files) and re-ran the production
+    `dirhtml` Sphinx build: same 18 pre-existing warnings, no new ones.
+    No gaps to close.
   - 2026-09-15 — caught up through `c68fb3c8`: the range added three
     effects (`synth3d/heightmap3d`, `render/renderLandscape3d`,
     `points/heightGrid`) landing a native voxel-heightfield landscape
