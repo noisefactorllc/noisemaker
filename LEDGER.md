@@ -314,7 +314,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `246ff57f` / shade-mcp `0a92bd83`, 2026-09-07
+- **Checkpoint:** noisemaker `9a31314c` / shade-mcp `0a92bd83`, 2026-09-15
 - **Scope:** the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
   *current* runtime behavior across nine surfaces (DSL, effect definition,
@@ -347,6 +347,32 @@ work, verify it, then update the checkpoint and append a log line.
      triple, then re-audit the "Shade MCP tool contracts" section and the
      MCP-side gaps.
 - **Log:**
+  - 2026-09-15 — caught up through noisemaker `9a31314c` (shade-mcp
+    unchanged): re-audited the perspective/depth-sort/defocus/3D-landscape
+    round's 7 commits touching the watched source roots. Narrowed GAP-005 —
+    `conditions` used to be on its uncopied-pass-field list; `expander.js`
+    now copies it and `Pipeline.shouldSkipPass()` consumes it at execution
+    time, the mechanism this round's per-`viewMode`/`blendMode` pass-cloning
+    pattern relies on to select which cloned pass variant runs (`name`,
+    `viewport`, `clear`, `samplerTypes`, `type` remain uncopied). Added
+    `PassSpec.defines` to the typed grammar (undocumented before this pass):
+    it does not land on the expanded pass object directly, but derives a
+    `__KEY_value`-suffixed compiled-program variant merging effect- and
+    pass-level compile-time defines. Documented that a numeric `PassSpec.
+    uniforms` value bypasses global lookup as a literal compile-time
+    constant, that `evaluateAutomation()` now rounds `int`-typed globals'
+    resolved automation value, that `expander.js` follows volume/geometry
+    surface dimensions through `write3d()`/`read3d()` handoffs (exports,
+    forward reads, repeated same-surface filters) instead of resetting to
+    the 64 default, and that a custom vertex shader now receives the same
+    `#define` injection as the fragment stage. Re-resolved the unpinned
+    Shade MCP package to its current commit: still `0a92bd83`, no drift, so
+    the MCP-side sections and worked-example transcript needed no
+    re-capture — confirmed by source inspection that the worked
+    `synth/testPattern` effect's own files are unchanged in this range and
+    none of the round's expander/pipeline changes are reachable by an
+    effect using none of those mechanisms. The full non-parity JS test
+    suite passed.
   - 2026-09-07 — caught up through noisemaker `246ff57f` / shade-mcp
     `0a92bd83`: documented lossless vec4 formatting, CC/CC14, NRPN, pressure,
     bend, MPE selection, port inventories/lifecycle, default audio channels,

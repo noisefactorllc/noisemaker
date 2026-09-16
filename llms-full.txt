@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424`.
+- Noisemaker: `9a31314cef825ace1476536d5ab429f7f2c55fff`.
 - Shade MCP: `0a92bd839adf89caa1641e90b201182a24f8fb25`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.2`, protocol
   `2025-11-25`, with 18 tools returned by `tools/list`.
@@ -894,7 +894,9 @@ Binding pipeline:
 5. The validator stores the resolved value under the DSL parameter name in
    `step.args`.
 6. The expander binds it to `spec.uniform` when present, otherwise the DSL name.
-7. `PassSpec.uniforms` can map a shader uniform name to a global parameter name.
+7. `PassSpec.uniforms` can map a shader uniform name to a global parameter
+   name, or supply a literal number that specializes a compiled program
+   variant instead.
 8. `define` removes the value from runtime-uniform intent and creates a
    program-cache suffix plus a GLSL `#define` or WGSL module `const`.
 
@@ -976,7 +978,12 @@ Its shape determines whether integration uses an exact integral, a constant exte
 Literal values for `speed`,
 `offset`, `seed`, and `sensitivity` are only required to be finite and are not
 clamped to those nested-source ranges. The outer automation result is finally
-mapped through the consuming uniform's finite `{min,max}` range when present.
+mapped through the consuming uniform's finite `{min,max}` range when present,
+then rounded with `Math.round()` when the consuming global's `type` is `int`.
+This rounding is specific to `Pipeline.resolvePassUniforms()`'s automation
+evaluation at render time; it is unrelated to `testUniformResponsiveness`'s
+own `int` test-value rounding (Validate, below) and to the DSL validator's
+literal-numeric-argument clamping, which still does not round `int` values.
 
 A nested oscillator `speed` is frequency modulation.
 The runtime integrates the rate from zero to the requested normalized time.
@@ -1097,7 +1104,8 @@ Sources: `shaders/src/renderer/canvas.js` -
 resolution and `compileAutomationDescriptor()`;
 `shaders/src/lang/unparser.js` - automation round-trip;
 `shaders/src/runtime/expander.js` - compile-time defines and uniform mapping;
-`shaders/src/runtime/pipeline.js` - `evaluateAutomation()`, external state, and
+`shaders/src/runtime/pipeline.js` - `evaluateAutomation()`,
+`resolvePassUniforms()`, external state, and
 `getAudioInputRequirements()`; `shaders/src/runtime/external-input.js` - state
 and input managers; `shaders/src/lang/enums.js` - `mergeIntoEnums()`;
 `demo/shaders/lib/demo-ui.js` - `_evaluateEnableCondition()`.
@@ -1279,7 +1287,7 @@ interface PassSpec {
   program: string
   inputs?: Record<string, TextureReference>
   outputs?: Record<string, TextureReference>
-  uniforms?: Record<string, string> // shader name -> GlobalSpec key/name
+  uniforms?: Record<string, string | number> // shader name -> GlobalSpec key/name, or a literal compile-time constant
   entryPoint?: string
   drawMode?: "points" | "billboards" | "triangles"
   drawBuffers?: number
@@ -1291,10 +1299,19 @@ interface PassSpec {
   storageBuffers?: Record<string, unknown>
   storageTextures?: Record<string, string>
 
+  // Copied into the expanded pass and consumed by Pipeline.shouldSkipPass()
+  // at execution time. See below.
+  conditions?: PassConditions
+
+  // Not copied onto the expanded pass object directly. Instead, when present,
+  // expand() derives a define-suffixed variant of this pass's compiled
+  // program (merged with any effect-level compile-time defines) and points
+  // this pass at that variant. See below.
+  defines?: Record<string, boolean | number | string>
+
   // Present in current definitions, but expand() does not copy these fields.
   // They are observed, not authorable runtime controls through definition.js.
   name?: string
-  conditions?: PassConditions
   viewport?: { x: number, y: number, w: number, h: number }
 
   // Pipeline/backends understand these on a manually constructed graph pass,
@@ -1350,7 +1367,32 @@ Output resolution rules:
   Otherwise the target is node-local.
 
 `uniforms: {shaderName: globalName}` reads the already resolved pipeline value,
-then the referenced global's default. It does not declare a new global.
+then the referenced global's default. It does not declare a new global. A
+numeric `uniforms` value instead is copied straight to `pass.uniforms` as a
+literal, bypassing global lookup entirely; it specializes one compiled variant
+of a program shared by several passes (for example, one pass's `blurLayer: 1`
+versus a sibling pass's `blurLayer: 0`) without exposing that selector as a
+DSL argument.
+
+`conditions.skipIf`/`runIf` are copied onto the expanded pass and consumed
+by `Pipeline.shouldSkipPass()` at execution time, once per frame, after that
+frame's pass uniforms are resolved. `skipIf` skips the pass if any listed
+`{uniform, equals}` condition matches; `runIf` skips it unless every listed
+condition matches. Each condition's `uniform` is looked up first on
+`pass.uniforms`, then on `globalUniforms` (pass-level values take priority
+over pipeline-wide ones). A pass with no `conditions` never skips.
+
+`defines` lets several passes in one effect share a `program` name while each
+compiling to a different variant: `expand()` builds a
+`__KEY_value` suffix from the sorted `defines` entries, points this pass's
+`program` at the suffixed variant, and (creating it once, from the base
+variant) compiles that variant with `{...effect-level compile-time defines,
+...this pass's defines}` injected as GLSL `#define`s / WGSL module `const`s.
+This is how one effect definition can `.flatMap()`/clone several `PassSpec`
+entries for the same `program` (for example, once per `viewMode` value) and
+have each compile as its own specialized program without a runtime branch in
+the shader. A `defines` key never appears as a field on the expanded pass
+object itself; only the resulting `program` name changes.
 
 `repeat` is resolved at execution. A number becomes
 `max(1,floor(repeat))`. A string looks up `globalUniforms[name]`, then
@@ -1394,8 +1436,8 @@ from `storageTextures` or an `outputBuffer` output and applies a fragment-pass
 fallback.
 
 Sources: `shaders/src/runtime/expander.js` - pass construction and input/output
-mapping; `shaders/src/runtime/pipeline.js` - `render()`,
-`resolveRepeatCount()`, `applyMrtFormatBudget()`; backend `executePass()` and
+mapping, `defines`-suffixed program-variant construction; `shaders/src/runtime/pipeline.js` - `render()`,
+`resolveRepeatCount()`, `applyMrtFormatBudget()`, `shouldSkipPass()`; backend `executePass()` and
 blend resolvers.
 
 ### Validate
@@ -1457,10 +1499,13 @@ context and drained, not converted into a structured failure. WebGPU missing MRT
 members are warnings until all outputs are absent. Device validation arrives as
 an `uncapturederror` console message. These non-structured paths are GAP-007.
 
-Definition fields `name`, `conditions`, `viewport`, `clear`, `samplerTypes`, and
-`type` are not copied by `expand()` even though downstream code understands
-some of them. `conditions` in checked-in definitions therefore does not reach
-`Pipeline.shouldSkipPass()`. This is GAP-005.
+Definition fields `name`, `viewport`, `clear`, `samplerTypes`, and `type` are
+not copied by `expand()` even though downstream code understands some of
+them. This is GAP-005, narrowed at noisemaker `ff1bfbc1`: `conditions` used
+to be on this list too, but is now copied by `expand()` and reaches
+`Pipeline.shouldSkipPass()` (the mechanism this round's per-`viewMode`/
+`blendMode` pass-cloning pattern relies on to select which cloned pass
+variant actually runs).
 
 Sources: `shaders/src/runtime/pipeline.js` - `compilePrograms()`, `render()`,
 `shouldSkipPass()`; backend `executePass()` implementations;
@@ -1593,6 +1638,23 @@ Dimension resolution:
 | `{scale}` | floor of screenSizexscale, optional min/max clamp, then at least 1 |
 | any other value/string | screen size |
 
+`expand()` also follows a volume/geometry surface's dimensions through
+`write3d()`/`read3d()` handoffs, so a later chain that reads a previously
+exported `volN`/`geoN` (via `read3d(volN)`/`read3d(geoN)`, not the producing
+chain's own local reference) inherits that surface's actual size instead of
+defaulting to 64. It tracks, per expansion: every chain-scoped
+`volumeSize_<chainScope>` parameter a `write3d()` call last wrote (and the
+numeric value it wrote), every `read3d()` call's producer surface and scope,
+and every surface a `write3d()`/`write3d`-adjacent geometry blit exports to.
+After all plans expand, it resolves each reader's scope to its writer
+(following re-exports and repeated same-surface filters transitively, with
+cycle protection), rewrites that reader's `textureSpecs` width/height/depth
+to reference the resolved writer's sizing parameter, and rewrites any pass
+uniform still holding the reader's own placeholder parameter name to the
+resolved writer's parameter and value. A `volN`/`geoN` surface with no
+preceding `write3d()` in the compiled program is unaffected and keeps its
+default sizing (64 for volumes, screen-sized for geometry).
+
 Before each `createSurfaces()` allocation pass, numeric uniforms named exactly
 `volumeSize` or starting with `volumeSize_chain_`/`volumeSize_node_` are
 clamped against `capabilities.maxTextureSize`. A value whose square fits is
@@ -1644,6 +1706,9 @@ them. See GAP-004.
 Sources: `shaders/src/runtime/pipeline.js` - `resolveDimension()`,
 `clampVolumeSize()`, `clampGraphVolumeSizes()`, `applyMrtFormatBudget()`,
 `setUniform()`, `broadcastChainScopedParam()`;
+`shaders/src/runtime/expander.js` - `write3d`/`read3d` volume/geometry
+dimension-handoff resolution (`writtenVolumes`, `readVolumes`,
+`exportedTextures`, `resolveVolume()`, `resolveExport()`);
 `shaders/src/renderer/canvas.js` - `applyStepParameterValues()`;
 `shaders/src/runtime/backends/webgl2.js` - `createTexture()`,
 `createTexture3D()`, `resolveFormat()`, `probeColorBytesPerSample()`,
@@ -2210,7 +2275,13 @@ Shade MCP analysis tools.
 
 Author shader programs with the same filename stem.
 Keep binding names/types aligned with the expanded pass. WebGL `compileProgram()` accepts `spec.source`, `spec.glsl`, or
-`spec.fragment`, plus optional `spec.vertex`. WebGPU accepts `spec.wgsl`, then
+`spec.fragment`, plus optional `spec.vertex`. As of noisemaker `ff1bfbc1`,
+`spec.defines` is injected as `#define`s into a custom `spec.vertex` whenever
+one is present and `spec.defines` is non-empty, the same way it already was
+into the fragment stage; before that fix a custom vertex shader referencing a
+`defines`-only identifier (for example a per-pass `defines`-selected constant
+from `PassSpec.defines`, see Passes and render graph) would fail to compile
+with an undeclared-identifier error. WebGPU accepts `spec.wgsl`, then
 generic non-GLSL `source`, then non-GLSL `fragment`. WebGPU detects entry points
 from annotations and uses `entryPoint`/specific entry-point fields where
 provided.
@@ -3117,10 +3188,19 @@ Sources: Shade MCP `src/tools/resolve-effects.ts`; all tool registration files;
 ## Fully worked, source-complete effect and validation finding
 
 This instance is the repository's `synth/testPattern` effect. The three source
-blocks below are complete, not excerpts, and were re-audited at Noisemaker
-commit `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424`. The MCP evidence below was
-freshly captured against that Noisemaker commit and Shade MCP commit
-`0a92bd839adf89caa1641e90b201182a24f8fb25`.
+blocks below are complete, not excerpts, and were last live-captured at
+Noisemaker commit `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424` and Shade MCP
+commit `0a92bd839adf89caa1641e90b201182a24f8fb25`. Re-audited at Noisemaker
+`9a31314cef825ace1476536d5ab429f7f2c55fff` by source inspection: `synth/
+testPattern`'s own definition.js and shader files are byte-unchanged in that
+range, none of the range's `expander.js`/`pipeline.js` changes (pass-level
+`conditions`/`defines` consumption, literal-number pass uniforms, write3d/
+read3d volume-dimension handoffs) are reachable by an effect that uses none
+of those mechanisms, and the full non-parity JS test suite
+(`node scripts/run-js-tests.js --skip-parity`) passes. The MCP evidence below
+was not re-captured live this pass — Shade MCP is confirmed unchanged at
+`0a92bd83` (re-resolved and re-fetched this pass, still current), so no
+source path this transcript depends on moved.
 
 Noisemaker's watched source roots added lossless vector formatting, MIDI
 controller/expression modes, MPE routing, and default audio channels. They did
@@ -3762,13 +3842,18 @@ GAP-018 is closed at Shade MCP `0a92bd83`: tool descriptions now specify
 literal comma-separated IDs and no longer promise glob support. This corrects
 the interface description; it does not add wildcard expansion.
 
+GAP-005 is narrowed, not closed, at noisemaker `ff1bfbc1`: `conditions` is
+copied by `expand()` and reaches `Pipeline.shouldSkipPass()`, so it is no
+longer on the uncopied-field list below. `name`, `viewport`, `clear`,
+`samplerTypes`, and `type` remain uncopied.
+
 | ID | Missing instrumentation | Source evidence | Agent consequence |
 |---|---|---|---|
 | GAP-001 | No enforced `o0`-`o7` range | `shaders/src/lang/lexer.js` accepts digit-suffixed refs; `shaders/src/runtime/pipeline.js` - `createSurfaces()` preallocates only `o0`-`o7` | `o8` parses and fails later/indirectly instead of producing a range diagnostic |
 | GAP-002 | Parser errors are thrown strings/`SyntaxError` without a stable diagnostic schema. `loc` is not documented as a public result | `shaders/src/lang/lexer.js`, `parser.js`, and `diagnostics.js` | retry code must parse human text and cannot reliably identify spans/codes |
 | GAP-003 | `validateEffectDefinition()` validates only a subset of the consumed definition schema | `shaders/src/runtime/effect-validator.js` versus `effect.js` and `expander.js` | invalid globals/pass/texture fields can survive structure validation |
 | GAP-004 | Mip and persistent-across-frames controls do not exist. Definition-level 3D `filter` and unknown texture fields are discarded | `shaders/src/runtime/compiler.js` - `extractTextureSpecs()`; backend texture creation methods | an agent cannot author/query mip policy, persistence, or 3D nearest filtering, and typos can be ignored |
-| GAP-005 | `name`, `conditions`, `viewport`, `clear`, `samplerTypes`, and `type` are not copied into expanded effect passes | `shaders/src/runtime/expander.js` - constructed pass object; `pipeline.js` - `shouldSkipPass()` | authoring these fields has no runtime effect through `definition.js` and emits no diagnostic |
+| GAP-005 | `name`, `viewport`, `clear`, `samplerTypes`, and `type` are not copied into expanded effect passes. (Narrowed at noisemaker `ff1bfbc1`: `conditions` used to be on this list; `expand()` now copies it and `Pipeline.shouldSkipPass()` consumes it.) | `shaders/src/runtime/expander.js` - constructed pass object; `pipeline.js` - `shouldSkipPass()` | authoring these remaining fields has no runtime effect through `definition.js` and emits no diagnostic |
 | GAP-006 | Resource allocation/liveness output is analysis-only. Renderers do not consume its physical allocation plan | `shaders/src/runtime/resources.js` - `analyzeLiveness()`/`allocateResources()`; `compiler.js` stores `graph.allocations` with no pipeline/backend consumer | an agent cannot query the actual runtime allocation/reuse plan promised by the analyzer |
 | GAP-007 | Backend shader/compiler failures are not normalized to one structured diagnostic union | `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`; Shade browser tool wrappers | backend retry logic must parse browser/compiler strings |
 | GAP-008 | Replace compatibility checks only target existence plus starter/nonstarter chain position and is not an MCP preflight verb | `shaders/src/lang/transform.js` - `getCompatibleReplacements()` and `replaceEffect()` | arguments, sampler topology, shader availability, types, ranges, passes, outputs, and backend support are not predicted before mutation |
