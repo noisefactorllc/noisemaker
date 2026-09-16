@@ -110,8 +110,8 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Large-format tiling
 
-- **Checkpoint:** noisemaker `827b2e91` / noisedeck `539ee089` (preview
-  branch), 2026-09-07
+- **Checkpoint:** noisemaker `ff1bfbc1` / noisedeck `dacd2046` (preview
+  branch), 2026-09-15
 - **Scope:** every effect must be classified for Noisedeck's large-format
   (tiled print) export. Tile-aware effects consume the global `tileOffset`
   and `fullResolution` uniforms in both GLSL and WGSL when their coordinates
@@ -129,6 +129,42 @@ work, verify it, then update the checkpoint and append a log line.
   deny-list. Verify tile-aware claims with noisedeck's seam harness
   (`tests/large-format-seams/`).
 - **Log:**
+  - 2026-09-15 — caught up through noisemaker `ff1bfbc1`: classified the
+    perspective/depth-sort/defocus round's 3 new and 7 changed effects.
+    `points/heightGrid` (new: writes agent state via MRT like the other
+    `points/*` behaviors already listed) needed a new
+    `hasStatefulEffects.js` entry, mirrored in the seam harness's
+    `enumerator.js`. The other 9 needed no routing change: `synth3d/
+    heightmap3d` (new) is a volume-atlas bake pass upstream of the canvas
+    tile boundary, the same structural class already documented for
+    `palette3d`; `render/renderLandscape3d` (new, plus this round's own
+    definition change for its perspective camera) correctly derives one
+    tile-aware `uv` from `fullResolution`/`tileOffset` shared by both its
+    isometric and new perspective branches, verified in both GLSL and
+    WGSL; `render/pointsRender` and `render/pointsBillboardRender` were
+    already deny-listed and this round's new perspective/depth-sort/
+    defocus passes don't change that; `synth/remap`'s full zone-compositor
+    rewrite preserved the tile-local-source-sampling / global-polygon-
+    coordinate invariant fixed in the 2026-09-07 pass below; `filter/
+    chrome`, `filter/grade`, and `mixer/alphaMask`'s premultiplied-alpha/
+    gradient fixes didn't touch spatial handling and remain tile-safe.
+    Verified 23/23 classifier + harness-mirror tests
+    (`has-stateful-effects.node-test.js`, `enumerator.node-test.js`).
+    Ran noisedeck's live GLSL seam harness (headless Chromium) for
+    `mixer/alphaMask` (pass) and `synth/remap` (trivial/uniform default
+    DSL); could not run it for the two new 3D-landscape effects — this
+    checkout has no synced `app/js/noisemaker/vendor/`, and the harness's
+    live-CDN fallback doesn't resolve newly-published effect bundles for
+    its effect loader. Their classification rests on direct source
+    verification, the same determinant method this file's own scope note
+    and `hasUpscaleOnlyEffects.js`'s header prescribe for structural-safety
+    claims, not live seam-harness pixels — flagged for a real render once
+    a synced vendor/ checkout is available. Also found, untouched (out of
+    scope): noisedeck's `preview` branch carries a second, older stash
+    (`fix(fullscreen): restore canvas dimensions on exit for any entry
+    path`) and a large set of uncommitted working-tree changes matching
+    the dangling Tearoff #156 I18n narrative — both predate this pass and
+    were left exactly as found.
   - 2026-09-07 — caught up through noisemaker `827b2e91`: no new effects;
     rechecked the changed Remap definition and Text shader. Remap's active
     zones exposed a GLSL seam: source surfaces are tile-local, but sampling
