@@ -20,7 +20,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## I18n strings
 
-- **Checkpoint:** noisemaker `c68fb3c8` / noisedeck `47b145e0` (2026-09-16)
+- **Checkpoint:** noisemaker `da1b6985` / noisedeck `73538a8f` (2026-09-17)
 - **Scope:** two translation surfaces:
   - Noisemaker effect catalogs
     `shaders/effects/strings.{de,es,fr,it,ja,pt}.json`. The English catalog
@@ -57,6 +57,17 @@ work, verify it, then update the checkpoint and append a log line.
      non-empty string values plus every placeholder, plural leaf, and markup tag
      from the English catalog.
 - **Log:**
+  - 2026-09-17 — caught up through noisemaker `da1b6985` / noisedeck
+    `73538a8f`: audited noisedeck range `47b145e0..73538a8f` (covering Tearoff
+    #194 trigger `adef85dd`) and noisemaker `c68fb3c8..da1b6985`. The only UI string
+    addition in the range (`menus.app.downloadApp` in `adef85dd`) was already
+    translated in all six UI locales (`de`, `es`, `fr`, `it`, `ja`, `pt`);
+    all 3,689 Noisemaker effect strings remain in exact key parity with zero
+    missing keys across all six translated catalogs. Verified via Noisemaker
+    gap detection, `npm run test:shaders:i18n` (5/5), Noisedeck's
+    `tests/i18n.node-test.js` (6/6), `export-dialog-i18n`,
+    `standalone-account-menu`, and the Noisemaker JS test suite (58/58 passed).
+    No catalog edits were required.
   - 2026-09-16 — caught up through noisemaker `c68fb3c8` / noisedeck
     `47b145e0`, closing the gap left by incomplete Tearoff #156 (below) as
     well as this task's own nominal range (noisemaker `ff1bfbc1..c68fb3c8`,
