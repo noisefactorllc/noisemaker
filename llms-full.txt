@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `688c514655d35f4adb10249c28c88680fbcd13e3`.
+- Noisemaker: `ead42a5df110a7f04d732cb200a1a39629db8a67`.
 - Shade MCP: `0a92bd839adf89caa1641e90b201182a24f8fb25`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.2`, protocol
   `2025-11-25`, with 18 tools returned by `tools/list`.
@@ -1859,8 +1859,21 @@ The checkable current definition of compatible is exactly:
 ```text
 target effect exists in ops
 AND
-(target chainIndex === 0) === isStarterOp(target effect)
+isStarterPosition(step) === isStarterOp(target effect)
 ```
+
+where `isStarterPosition(step)` is:
+
+```text
+chainIndex === 0
+OR (isStarterOp(step.op) AND (step.from === null OR step.from === undefined))
+```
+
+A step is in starter position if it is either (a) the first step in the chain
+(`chainIndex === 0`), or (b) an inline surface producer — a registered starter
+effect with no pipeline predecessor (`from === null/undefined`) that the compiler
+flattened into the chain as a dependency of a surface-type parameter (e.g.
+`heightTex: noise()`).
 
 No other shape participates. On success, `replaceEffect` performs these steps:
 
@@ -3192,11 +3205,12 @@ This instance is the repository's `synth/testPattern` effect. The three source
 blocks below are complete, not excerpts, and were last live-captured at
 Noisemaker commit `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424` and Shade MCP
 commit `0a92bd839adf89caa1641e90b201182a24f8fb25`. Re-audited at Noisemaker
-`688c514655d35f4adb10249c28c88680fbcd13e3` by source inspection: `synth/
+`ead42a5df110a7f04d732cb200a1a39629db8a67` by source inspection: `synth/
 testPattern`'s own definition.js and shader files are byte-unchanged in that
-range, none of the range's changes (WebGPU frame export resolve row inversion)
-are reachable by an effect that uses none of those mechanisms, and the full
-non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`) passes.
+range, none of the range's changes (WebGPU frame export resolve row inversion,
+starter-position check for inline surface producers) are reachable by an
+effect that uses none of those mechanisms, and the full non-parity JS test suite
+(`node scripts/run-js-tests.js --skip-parity`) passes.
 The MCP evidence below was not re-captured live this pass — Shade MCP is
 confirmed unchanged at `0a92bd83` (re-resolved and re-fetched this pass, still
 current), so no source path this transcript depends on moved.
@@ -3855,7 +3869,7 @@ longer on the uncopied-field list below. `name`, `viewport`, `clear`,
 | GAP-005 | `name`, `viewport`, `clear`, `samplerTypes`, and `type` are not copied into expanded effect passes. (Narrowed at noisemaker `ff1bfbc1`: `conditions` used to be on this list; `expand()` now copies it and `Pipeline.shouldSkipPass()` consumes it.) | `shaders/src/runtime/expander.js` - constructed pass object; `pipeline.js` - `shouldSkipPass()` | authoring these remaining fields has no runtime effect through `definition.js` and emits no diagnostic |
 | GAP-006 | Resource allocation/liveness output is analysis-only. Renderers do not consume its physical allocation plan | `shaders/src/runtime/resources.js` - `analyzeLiveness()`/`allocateResources()`; `compiler.js` stores `graph.allocations` with no pipeline/backend consumer | an agent cannot query the actual runtime allocation/reuse plan promised by the analyzer |
 | GAP-007 | Backend shader/compiler failures are not normalized to one structured diagnostic union | `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`; Shade browser tool wrappers | backend retry logic must parse browser/compiler strings |
-| GAP-008 | Replace compatibility checks only target existence plus starter/nonstarter chain position and is not an MCP preflight verb | `shaders/src/lang/transform.js` - `getCompatibleReplacements()` and `replaceEffect()` | arguments, sampler topology, shader availability, types, ranges, passes, outputs, and backend support are not predicted before mutation |
+| GAP-008 | Replace compatibility checks only target existence plus starter position (chain head or inline starter surface producer) and is not an MCP preflight verb | `shaders/src/lang/transform.js` - `getCompatibleReplacements()` and `replaceEffect()` | arguments, sampler topology, shader availability, types, ranges, passes, outputs, and backend support are not predicted before mutation |
 | GAP-009 | No temporal no-animation metric or universal low-variety metric is returned by `renderEffectFrame` | Shade `src/tools/browser/render.ts`; filter-only temporal/color logic is in `passthrough.ts` | no-animation requires an external two-frame comparison. Low variety needs effect exemptions |
 | GAP-010 | Uniform responsiveness returns overall `ok` when any tested uniform passes | Shade `src/tools/browser/uniforms.ts` - `testUniformResponsiveness()` | caller must inspect every `tested_uniforms` entry. Outer status is unsafe |
 | GAP-011 | Uniform responsiveness omits measured luma/channel deltas | Shade `src/tools/browser/uniforms.ts` - returned object | caller cannot audit the `>0.002` threshold from the report alone |

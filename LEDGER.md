@@ -466,7 +466,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `688c5146` / shade-mcp `0a92bd83`, 2026-09-17
+- **Checkpoint:** noisemaker `ead42a5d` / shade-mcp `0a92bd83`, 2026-09-18
 - **Scope:** the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
   *current* runtime behavior across nine surfaces (DSL, effect definition,
@@ -499,6 +499,16 @@ work, verify it, then update the checkpoint and append a log line.
      triple, then re-audit the "Shade MCP tool contracts" section and the
      MCP-side gaps.
 - **Log:**
+  - 2026-09-18 — caught up through noisemaker `ead42a5d` (shade-mcp
+    unchanged): audited watched source roots across range `688c5146..ead42a5d`.
+    Single code commit `f2506d21` modified `shaders/src/lang/transform.js`,
+    expanding starter-position detection in `replaceEffect()`, `listSteps()`,
+    and `getCompatibleReplacements()` to recognize inline surface producers
+    (registered starter effects with no pipeline predecessor flattened as a
+    dependency of a surface parameter like `heightTex: noise()`). Updated
+    compatibility definitions and narrowed GAP-008 in the contract. Shade MCP
+    remains at `0a92bd83`. Verified non-parity JS tests pass cleanly. Updated
+    contract snapshot block and LEDGER.md checkpoint together.
   - 2026-09-17 — caught up through noisemaker `688c5146` (shade-mcp
     unchanged): audited WebGPU frame export row-orientation fix (`5ceb97ba`
     and `688c5146`). Documented that WebGPU frame export resolve inverts vertical
