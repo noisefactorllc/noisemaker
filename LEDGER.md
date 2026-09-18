@@ -328,7 +328,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `5a142567` (2026-09-16)
+- **Checkpoint:** noisemaker `ead42a5d` (2026-09-18)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -342,6 +342,16 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-18 — caught up through `ead42a5d`: audited range
+    `5a142567..ead42a5d`. Gap detection identified zero missing `help.md`
+    files across all 213 effect definitions. Shipped commits in the range
+    include the WebGPU frame export row-inversion orientation fix
+    (`5ceb97ba`/`688c5146`), `defaultProgram` discrete-chain updates for
+    `synth3d/heightmap3d` and `render/renderLandscape3d` (`f2506d21`), and
+    associated parity attestations (`ead42a5d`). None invalidated existing
+    Sphinx narrative in `docs/` or required new feature guides under
+    `docs/shaders/features.rst`. Verified `node --test test/docs-static-paths.test.js`
+    (4/4 pass). No documentation gaps to close.
   - 2026-09-16 — caught up through `5a142567`: the range (`c68fb3c8..5a142567`)
     contains no new or changed effect definitions and no other `docs/`
     edits — its only doc-relevant content is this section's own prior
