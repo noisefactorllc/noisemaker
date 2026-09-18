@@ -88,6 +88,89 @@ work, verify it, then update the checkpoint and append a log line.
     and complete; only this checkpoint had never been advanced to reflect
     it. #156's Log entry below is left untouched; its remaining
     non-i18n items (browser/runtime fixes) are outside this section's scope.
+  - 2026-09-12 — Tearoff #156 remains incomplete. Audited Noisemaker
+    `7d6cc7127457..ff1bfbc1740c` and Noisedeck
+    `94f4d0021133..458f77583394`. Removed four obsolete landscape-control
+    keys from all seven effect catalogs. All six translations contain all
+    3,689 English keys. Noisedeck requires no catalog changes.
+    Corrected Noisedeck's audio fixtures, cache teardown handling,
+    browser-specific clipboard permissions, and Remap test interactions.
+    Bounds checks use the accepted pointer coordinates and still require
+    exact uniform values. Its latest Node suite reported 873 passes, one existing
+    conditional skip, and no failures. All 40 Chromium audio tests passed.
+    Affected browser checks reported 120 passes and three existing skips
+    across Chromium, Firefox, and Linux WebKit with a virtual display.
+    The WebKit viewport test exceeded its 45-second budget with two CPUs,
+    then passed in 42.4 seconds with four CPUs and unchanged assertions.
+    The full browser suite then exposed a Noisemaker state-expression
+    serialization defect. The compiler and unparser fix passed the language,
+    runtime, i18n, prescribed JavaScript, and parity-evidence checks.
+    Browser replay of seed `110457923` passed all 500 mutations against
+    the fixed source, with no skipped mutations. The published engine
+    still needs this fix before the full browser suite can complete.
+    Both I18n checkpoints remain unchanged. The operator authorized
+    autonomous publication. The compiler fix is pushed as `c68fb3c8`.
+    Shader CI exposed the same Linux landscape pixel failure as `ff1bfbc1`.
+    A same-size WebGPU presentation copy was interpolating adjacent texels.
+    A focused GPU regression failed before selecting the nearest sampler
+    for same-size copies, then passed on Mac and Linux. Scaled copies still
+    use linear filtering. The Linux landscape camera test now passes exact
+    cross-backend parity. Setting the existing test resolution before the
+    first run also resolved the controls audit timeout; all 100 Linux audit
+    cases passed. Mac camera parity, runtime, JavaScript, and all registered
+    parity evidence checks passed. The follow-up fix is pushed as `9a31314c`.
+    Its CI camera checks passed, but the controls audit timed out on WebGPU.
+    A second CI run with diagnostics (`b02b42ec`) instead timed out during
+    initial editor loading. The audit now starts with a simple program,
+    selects the required 256x256 resolution, and uses a separate 60-second
+    compilation wait. Its five-second UI action limit and exact pixel checks
+    remain unchanged. This test fix is pushed as `5fea6395`; all 100 local
+    Linux audit cases passed. Its CI run was canceled after repeated
+    control timeouts; it did not pass. Further harness inspection found
+    that loading the reference page started an unrelated asynchronous
+    homepage renderer. The reference now uses an empty same-origin fixture.
+    The editor selects its test resolution before its first frame and stops
+    before each program change. A full audit of these changes is in progress.
+    That audit passed 69 cases, then rapid WebGPU mode changes settled on
+    the older selection. A completed compile callback was restoring its old
+    DSL state while a later compile was queued. The UI now lets only the latest
+    request restore controls and report completion. A deterministic regression
+    failed before the fix and passed afterward. All 100 browser audit cases
+    then passed with unchanged source hashes. Language, runtime, i18n, and lint
+    checks passed. The fix is pushed as `bb158566`. Its CI passed the
+    earlier gates, then timed out waiting for screenshot stability within five
+    seconds. The capture now brings the editor forward and has a separate
+    30-second deadline; its pixel checks and control-action limits are unchanged.
+    All four focused presentation cases passed. This harness fix is pushed as
+    `6f60c815`. Its CI reached the same screenshot stability timeout at 30
+    seconds. The audit now captures the visible canvas rectangle and explicitly
+    verifies unchanged geometry across capture. All four presentation cases
+    passed. This change is pushed as `f37bd787`; exact-commit CI and shader
+    release verification remain pending.
+    A Noisedeck browser preflight passed 211 cases before exposing obsolete
+    startup-carousel assertions. Startup now shows static resource slides;
+    its tests now verify paging and no preview canvases. The gallery retains
+    its live-context checks. All 15 focused cases passed across Chromium,
+    Firefox, and Linux WebKit. Full released-engine validation is pending.
+    A later preflight exposed a cached HTTP 429 for a Godot kit file that
+    currently returns HTTP 200. The shared test cache now stores only successful
+    responses and lets waiting requests recover after an uncacheable error.
+    All five cache regressions passed, including stale-error recovery and lock
+    contention. The real Godot archive-cancellation test then passed.
+  - 2026-09-18 — verified the state left by the entry above. All seven
+    noisemaker fixes (`c68fb3c8` through `f37bd787`) are merged to main;
+    CI has passed on every push since, most recently `688c5146`. The
+    noisedeck fixes (origin-cache eviction of uncacheable responses,
+    disposed-response handling after page close, browser-specific
+    clipboard grants, pointer-rounding tolerance in the remap bounds
+    checks, and the resource-carousel test rewrite) are committed on
+    `preview` at `c48fe396`: full node suite 1046/1047 (one pre-existing
+    skip), Chromium 73/73 (one pre-existing skip), Firefox clipboard fix
+    passing. WebKit did not run locally — this machine's Playwright
+    WebKit build is frozen and rejects a protocol setting Playwright now
+    sends, unrelated to the change — so it still needs its usual Linux
+    CI pass once pushed. This closes out the remaining non-i18n items
+    from the 2026-09-12 entry; nothing from that entry is still open.
   - 2026-09-07 — caught up through noisemaker `d30d1045` / noisedeck
     `94f4d002`: audited all 20 live-capture settings, status, permission,
     recording-limit, and export-warning strings; all six UI translations
