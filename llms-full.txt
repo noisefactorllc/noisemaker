@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `9a31314cef825ace1476536d5ab429f7f2c55fff`.
+- Noisemaker: `688c514655d35f4adb10249c28c88680fbcd13e3`.
 - Shade MCP: `0a92bd839adf89caa1641e90b201182a24f8fb25`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.2`, protocol
   `2025-11-25`, with 18 tools returned by `tools/list`.
@@ -2087,11 +2087,12 @@ without submitting to sinks.
 Both backend queues produce top-down, tightly packed RGBA8. WebGL2 resolves to
 an RGBA8 texture, flips vertically in the resolve shader, reads into a pixel
 pack buffer, and polls a fence with zero timeout. WebGPU resolves to
-`rgba8unorm`, copies into 256-byte-aligned staging rows, maps asynchronously,
-and removes row padding before delivery. `straight` preserves RGBA, `opaque`
-forces alpha to one, and `premultiplied` multiplies RGB by alpha. `colorSpace`
-and `fps` are validated descriptor metadata. Neither backend adapter performs a
-color-space conversion or frame-rate throttle.
+`rgba8unorm` (inverting vertical orientation in the resolve shader to match
+canvas presentation), copies into 256-byte-aligned staging rows, maps
+asynchronously, and removes row padding before delivery. `straight` preserves
+RGBA, `opaque` forces alpha to one, and `premultiplied` multiplies RGB by
+alpha. `colorSpace` and `fps` are validated descriptor metadata. Neither backend
+adapter performs a color-space conversion or frame-rate throttle.
 
 Each slot reuses one `PackedFrame` object and `Uint8Array`. A callback that
 retains a frame past later deliveries on the same slot must copy its data.
@@ -3191,16 +3192,14 @@ This instance is the repository's `synth/testPattern` effect. The three source
 blocks below are complete, not excerpts, and were last live-captured at
 Noisemaker commit `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424` and Shade MCP
 commit `0a92bd839adf89caa1641e90b201182a24f8fb25`. Re-audited at Noisemaker
-`9a31314cef825ace1476536d5ab429f7f2c55fff` by source inspection: `synth/
+`688c514655d35f4adb10249c28c88680fbcd13e3` by source inspection: `synth/
 testPattern`'s own definition.js and shader files are byte-unchanged in that
-range, none of the range's `expander.js`/`pipeline.js` changes (pass-level
-`conditions`/`defines` consumption, literal-number pass uniforms, write3d/
-read3d volume-dimension handoffs) are reachable by an effect that uses none
-of those mechanisms, and the full non-parity JS test suite
-(`node scripts/run-js-tests.js --skip-parity`) passes. The MCP evidence below
-was not re-captured live this pass — Shade MCP is confirmed unchanged at
-`0a92bd83` (re-resolved and re-fetched this pass, still current), so no
-source path this transcript depends on moved.
+range, none of the range's changes (WebGPU frame export resolve row inversion)
+are reachable by an effect that uses none of those mechanisms, and the full
+non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`) passes.
+The MCP evidence below was not re-captured live this pass — Shade MCP is
+confirmed unchanged at `0a92bd83` (re-resolved and re-fetched this pass, still
+current), so no source path this transcript depends on moved.
 
 Noisemaker's watched source roots added lossless vector formatting, MIDI
 controller/expression modes, MPE routing, and default audio channels. They did

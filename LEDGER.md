@@ -358,7 +358,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `9a31314c` / shade-mcp `0a92bd83`, 2026-09-15
+- **Checkpoint:** noisemaker `688c5146` / shade-mcp `0a92bd83`, 2026-09-17
 - **Scope:** the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
   *current* runtime behavior across nine surfaces (DSL, effect definition,
@@ -391,6 +391,12 @@ work, verify it, then update the checkpoint and append a log line.
      triple, then re-audit the "Shade MCP tool contracts" section and the
      MCP-side gaps.
 - **Log:**
+  - 2026-09-17 — caught up through noisemaker `688c5146` (shade-mcp
+    unchanged): audited WebGPU frame export row-orientation fix (`5ceb97ba`
+    and `688c5146`). Documented that WebGPU frame export resolve inverts vertical
+    orientation in the resolve shader (`textureDimensions(sourceTexture).y - 1 - i32(position.y)`)
+    to match canvas presentation and WebGL2 parity. Verified non-parity JS
+    tests and WebGPU frame export unit tests all pass cleanly.
   - 2026-09-15 — caught up through noisemaker `9a31314c` (shade-mcp
     unchanged): re-audited the perspective/depth-sort/defocus/3D-landscape
     round's 7 commits touching the watched source roots. Narrowed GAP-005 —
