@@ -24,7 +24,9 @@ fn vs_main(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
 }
 
 fn loadColor(position: vec4<f32>) -> vec4<f32> {
-    let sourceCoord = vec2<i32>(i32(position.x), i32(position.y));
+    // Match the row orientation used when presenting the surface to the canvas.
+    let sourceSize = textureDimensions(sourceTexture);
+    let sourceCoord = vec2<i32>(i32(position.x), i32(sourceSize.y) - 1 - i32(position.y));
     return textureLoad(sourceTexture, sourceCoord, 0);
 }
 
