@@ -224,8 +224,8 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Large-format tiling
 
-- **Checkpoint:** noisemaker `ff1bfbc1` / noisedeck `dacd2046` (preview
-  branch), 2026-09-15
+- **Checkpoint:** noisemaker `ead42a5d` / noisedeck `d6fd477a` (preview
+  branch), 2026-09-18
 - **Scope:** every effect must be classified for Noisedeck's large-format
   (tiled print) export. Tile-aware effects consume the global `tileOffset`
   and `fullResolution` uniforms in both GLSL and WGSL when their coordinates
@@ -243,6 +243,21 @@ work, verify it, then update the checkpoint and append a log line.
   deny-list. Verify tile-aware claims with noisedeck's seam harness
   (`tests/large-format-seams/`).
 - **Log:**
+  - 2026-09-18 — caught up through noisemaker `ead42a5d` / noisedeck
+    `d6fd477a`: gap detection (`git log --diff-filter=A`) identified zero
+    new effects in range `ff1bfbc1..ead42a5d`. Audited the two effects with
+    changed definitions in the range: `synth3d/heightmap3d` and
+    `render/renderLandscape3d` (`f2506d21`). Their definitions changed
+    only `defaultProgram` to use discrete `write`/`read` pipelines instead
+    of inline surface parameter calls; neither shader implementation (.glsl /
+    .wgsl) or spatial coordinate handling was modified. Both effects remain
+    tile-safe under their established classifications (`heightmap3d` volume
+    bake pass upstream of canvas tiles; `renderLandscape3d` global-UV
+    projection from `tileOffset`/`fullResolution`). No additions to
+    `hasStatefulEffects.js` or `hasUpscaleOnlyEffects.js` required. Verified
+    83/83 classifier and seam harness tests in noisedeck
+    (`has-stateful-effects.node-test.js`, `has-upscale-only-effects.node-test.js`,
+    `enumerator.node-test.js`).
   - 2026-09-15 — caught up through noisemaker `ff1bfbc1`: classified the
     perspective/depth-sort/defocus round's 3 new and 7 changed effects.
     `points/heightGrid` (new: writes agent state via MRT like the other
