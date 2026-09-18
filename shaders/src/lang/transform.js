@@ -126,8 +126,14 @@ export function replaceEffect(compiled, stepIndex, newEffectName, newArgs = {}, 
     const { planIndex, chainIndex, step } = location
     const oldEffectName = step.op
 
-    // Also check position in chain - first effect in chain is "starter position"
+    // A step is in "starter position" if it is either:
+    // (a) the first step in the chain (chainIndex === 0), OR
+    // (b) an inline surface producer — a registered starter effect with no
+    //     pipeline predecessor (from === null/undefined), which the compiler
+    //     flattened into the chain as a dependency of a surface-type parameter.
+    const currentIsStarter = checkIsStarter(step.op, searchOrder)
     const isStarterPosition = chainIndex === 0
+        || (currentIsStarter && (step.from === null || step.from === undefined))
 
     // Check if new effect is a starter
     const newIsStarter = checkIsStarter(newEffectName, searchOrder)
@@ -255,8 +261,9 @@ export function listSteps(compiled, options = {}) {
 
         for (let chainIndex = 0; chainIndex < plan.chain.length; chainIndex++) {
             const step = plan.chain[chainIndex]
-            const isStarterPosition = chainIndex === 0
             const isStarter = checkIsStarter(step.op, searchOrder)
+            const isStarterPosition = chainIndex === 0
+                || (isStarter && (step.from === null || step.from === undefined))
 
             steps.push({
                 stepIndex: step.temp,
@@ -298,8 +305,10 @@ export function getCompatibleReplacements(compiled, stepIndex, options = {}) {
         return { success: false, error: `Step with index ${stepIndex} not found` }
     }
 
-    const { chainIndex } = location
+    const { chainIndex, step } = location
+    const currentIsStarter = checkIsStarter(step.op, searchOrder)
     const isStarterPosition = chainIndex === 0
+        || (currentIsStarter && (step.from === null || step.from === undefined))
 
     // Collect all registered ops
     const starters = []

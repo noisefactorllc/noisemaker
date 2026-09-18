@@ -70,8 +70,25 @@ registerOp('synth3d.distort', {
     ]
 })
 
+// Register a starter with surface-type params (like heightmap3d)
+registerOp('synth3d.heightmap', {
+    name: 'heightmap',
+    args: [
+        { name: 'heightTex', type: 'surface', default: 'none' },
+        { name: 'tex', type: 'surface', default: 'none' },
+        { name: 'scale', type: 'float', default: 1 }
+    ]
+})
+
+registerOp('synth.solid', {
+    name: 'solid',
+    args: [
+        { name: 'color', type: 'color', default: '#ff0000' }
+    ]
+})
+
 // Register starters
-registerStarterOps(['synth.noise', 'synth.voronoi', 'synth.gradient', 'synth3d.fractal'])
+registerStarterOps(['synth.noise', 'synth.voronoi', 'synth.gradient', 'synth3d.fractal', 'synth3d.heightmap', 'synth.solid'])
 
 function compile(code) {
     const tokens = lex(code)
@@ -344,6 +361,53 @@ test('replaceEffect - same namespace does not duplicate searchNamespaces', () =>
     assertTrue(result.success, 'Replacement should succeed')
     assertEqual(result.program.searchNamespaces.length, 2, 'Should not duplicate namespace')
     assertEqual(result.program.searchNamespaces[0], 'synth', 'Should keep original namespace')
+})
+
+// ============================================================================
+// Inline surface producer tests (effects as texture params, e.g. heightTex: noise())
+// ============================================================================
+
+test('listSteps - inline surface producers are in starter position', () => {
+    const compiled = compile('search synth, synth3d\nheightmap(heightTex: noise(), tex: gradient()).write(o0)')
+    const steps = listSteps(compiled)
+
+    const noiseStep = steps.find(s => s.effectName === 'synth.noise')
+    const gradientStep = steps.find(s => s.effectName === 'synth.gradient')
+    const heightmapStep = steps.find(s => s.effectName === 'synth3d.heightmap')
+
+    assertTrue(noiseStep, 'Should find noise step')
+    assertTrue(gradientStep, 'Should find gradient step')
+    assertTrue(heightmapStep, 'Should find heightmap step')
+
+    assertTrue(noiseStep.isStarterPosition, 'Inline noise producer should be in starter position')
+    assertTrue(gradientStep.isStarterPosition, 'Inline gradient producer should be in starter position')
+    assertTrue(heightmapStep.isStarterPosition, 'Heightmap (chain head) should be in starter position')
+
+    assertTrue(noiseStep.canReplaceWithStarter, 'Inline noise producer should accept starter replacement')
+    assertFalse(noiseStep.canReplaceWithNonStarter, 'Inline noise producer should reject non-starter replacement')
+})
+
+test('replaceEffect - replace inline surface producer starter with another starter (valid)', () => {
+    const compiled = compile('search synth, synth3d\nheightmap(heightTex: noise(), tex: gradient()).write(o0)')
+    const steps = listSteps(compiled)
+    const gradientStep = steps.find(s => s.effectName === 'synth.gradient')
+
+    const result = replaceEffect(compiled, gradientStep.stepIndex, 'solid')
+
+    assertTrue(result.success, 'Replacing inline starter producer with another starter should succeed')
+    const replacedStep = result.program.plans[0].chain.find(s => s.temp === gradientStep.stepIndex)
+    assertEqual(replacedStep.op, 'synth.solid', 'Effect should be replaced to solid')
+})
+
+test('replaceEffect - replace inline surface producer starter with non-starter (invalid)', () => {
+    const compiled = compile('search synth, synth3d, filter\nheightmap(heightTex: noise(), tex: gradient()).write(o0)')
+    const steps = listSteps(compiled)
+    const gradientStep = steps.find(s => s.effectName === 'synth.gradient')
+
+    const result = replaceEffect(compiled, gradientStep.stepIndex, 'kaleid')
+
+    assertFalse(result.success, 'Replacing inline starter producer with non-starter should fail')
+    assertTrue(result.error.includes('starter'), 'Error should mention starter')
 })
 
 console.log('\nAll transform tests completed!')
