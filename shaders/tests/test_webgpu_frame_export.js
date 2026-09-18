@@ -326,7 +326,7 @@ test('three slots allocate exact fixed resolve and aligned staging resources', (
     assert.equal(alignedSlot.bufferSize, 512)
 })
 
-test('the resolve shader uses textureLoad, explicit unfilterable-float layout, and three alpha variants', () => {
+test('the resolve shader uses textureLoad, explicit unfilterable-float layout, bottom-up source coordinates, and three alpha variants', () => {
     const { device, adapter } = makeHarness()
     const slots = [
         adapter.createSlot(0, { ...DESCRIPTOR, alphaMode: 'straight' }),
@@ -336,6 +336,7 @@ test('the resolve shader uses textureLoad, explicit unfilterable-float layout, a
     const code = device.created.shaderModules[0].descriptor.code
 
     assert.match(code, /textureLoad\s*\(/)
+    assert.match(code, /vec2<i32>\s*\(\s*i32\s*\(\s*position\.x\s*\)\s*,\s*i32\s*\(\s*sourceSize\.y\s*\)\s*-\s*1\s*-\s*i32\s*\(\s*position\.y\s*\)\s*\)/)
     assert.doesNotMatch(code, /sampler/)
     assert.match(code, /vec4<f32>\s*\(\s*color\.rgb\s*,\s*1\.0\s*\)/)
     assert.match(code, /color\.rgb\s*\*\s*color\.a/)

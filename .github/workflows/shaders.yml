@@ -102,6 +102,9 @@ jobs:
     - name: Verify alpha compositing on both GPU backends
       run: npm run test:shaders:alpha
 
+    - name: Verify WebGPU frame export matches canvas presentation
+      run: npm run test:shaders:frame-export-orientation
+
     - name: Verify voxel heightfields and landscape rendering on both GPU backends
       run: npm run test:shaders:landscape
 
