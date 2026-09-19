@@ -478,14 +478,14 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `ead42a5d` / shade-mcp `0a92bd83`, 2026-09-18
+- **Checkpoint:** noisemaker `0209609e` / shade-mcp `088e1ef`, 2026-09-19
 - **Scope:** the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
   *current* runtime behavior across nine surfaces (DSL, effect definition,
   parameters/globals, passes/graph, textures, compatibility/mutation,
   rendered output, cross-backend parity, Shade MCP tool contracts), a fully
   worked validated effect, the surface × capability traceability matrix, and
-  the 30-entry open gap register (GAP-001..017, GAP-019..024, and
+  the 29-entry open gap register (GAP-001..017, GAP-019..022, GAP-024, and
   GAP-026..032). The file pins its
   own audited SHAs in the "Source snapshots used for this contract" block at
   its head; that block and this checkpoint are the same two SHAs and must be
@@ -511,6 +511,15 @@ work, verify it, then update the checkpoint and append a log line.
      triple, then re-audit the "Shade MCP tool contracts" section and the
      MCP-side gaps.
 - **Log:**
+  - 2026-09-19 — caught up through noisemaker `0209609e` / shade-mcp `088e1ef`:
+    audited watched source roots across noisemaker range `ead42a5d..0209609e`
+    (zero commits touched watched source roots; GAP-023 already documented as
+    closed at `f1d2b46a`). In shade-mcp across range `0a92bd83..088e1ef`, single
+    commit `088e1ef` modified CI workflow files only (`.github/workflows/`),
+    with zero changes to runtime tools, schemas, dependencies, or server version
+    (18 tools, v0.2.2, protocol 2025-11-25 unchanged). Re-audited worked effect
+    transcript note. Verified non-parity JS tests pass cleanly. Advanced
+    llms-full.txt snapshot block and LEDGER.md checkpoint together.
   - 2026-09-18 — caught up through noisemaker `ead42a5d` (shade-mcp
     unchanged): audited watched source roots across range `688c5146..ead42a5d`.
     Single code commit `f2506d21` modified `shaders/src/lang/transform.js`,
