@@ -1,6 +1,6 @@
 # Active Framework Gap: GAP-023
 
-Status: active
+Status: closed
 
 ## Gap
 
@@ -51,7 +51,7 @@ Agent consequence:
 - [x] Register the phase-2 harness and regression test in required repository suites.
 - [x] Run focused and required checks, review the complete diff, and fix actionable findings.
 - [x] Update `llms-full.txt` only after evidence proves GAP-023 is closed.
-- [ ] Commit, rebase, push, and verify required CI for the exact pushed commit.
+- [x] Commit, rebase, push, and verify required CI for the exact pushed commit.
 
 ## Completed Evidence
 
@@ -64,7 +64,12 @@ Agent consequence:
 - Non-parity JavaScript suite: `node scripts/run-js-tests.js --skip-parity` exited `0`.
 - Lint: `npm run lint` exited `0` with no diagnostics.
 - Diff review found one actionable pre-existing hidden failure. The `Chained Variables` assertion expected two plan steps. The compiler has included terminal `_write` as the third step since December 2025. The test now checks all three steps. Production compiler behavior did not change.
+- Implementation commit: `f1d2b46a277333413160f9f5693b93a286153612` (`test: close compiler harness exit-status gap`).
+- Pre-push synchronization: `git pull --rebase` reported `Current branch main is up to date.` The tested source did not change.
+- Push: the normal `git push origin main` advanced `main` from `bda13694` to `f1d2b46a`.
+- Exact-commit CI: GitHub Actions run `35458993724` (`Shaders`) completed successfully. Its shader, GPU, bundle, library-release dispatch, and site-release dispatch jobs passed.
+- Exact-commit CI: runs `35458993785` (`JavaScript`), `35458993704` (`Docs site`), `35458993769` (`Site`), and `35458993705` (`Downstream`) completed successfully.
 
 ## Remaining Work
 
-Commit, rebase, push, and required CI verification remain open. Keep this target active until those checks pass.
+None. All GAP-023 completion criteria passed. Select the next gap only in a later scheduled run.
