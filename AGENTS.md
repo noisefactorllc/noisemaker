@@ -1,5 +1,55 @@
-See [CLAUDE.md](CLAUDE.md) for project instructions.
+# Noisemaker
 
-HARD, PERMANENT, INVIOLABLE BAN: BANNED FROM SYMLINKS. Never create, introduce, or use symbolic links anywhere in checkouts, repositories, configuration, scripts, or documentation. All files must be regular files. Zero exceptions.
+Browser-based shader effect platform. WebGL2 and WebGPU backends.
 
-HARD, PERMANENT, INVIOLABLE BAN: Research documents must be written and presented strictly in the established technical whitepaper style. Banned from slop headlines, promotional/slogan headers, parenthetical subtitles in titles, stat cards, metric cards, decorative callouts, marketing-speak, and invented report layouts. For Sync research reports, titles must strictly follow `Sync 1080p60: <lowercase technical noun phrase>` (or `Sync 1080p60: next research plan`). Documents must strictly reuse the stylesheet, numbered sections, methods, implementation details, measurement definitions, results, limitations, and inline evidence references established by `research-2026-09-12-camera-frame-ownership/` (for research reports) or `research-2026-09-11-next-research-plan/` (for research plans). Zero exceptions. The permanent global instruction is stored in `/Users/alex/.codex/AGENTS.md`.
+## MCP
+
+Use the **shade** MCP server for all shader development tasks: compiling, rendering, testing, structure analysis, effect search, and manifest generation. Prefer MCP tools over manual shell commands whenever a shade tool covers the task.
+
+## Rules
+
+- **NEVER push to the repo** without explicit user instruction
+- **NEVER run build commands** (`npm run build`, `npx rollup`, etc.) — dist/ bundles are built externally
+- **ONE WAY ONLY**: Do not add aliases, alternatives, or "also supports" options. If a pattern exists, use it.
+- Do not produce documentation unless requested
+- **NEVER commit hard-coded dev-environment paths or hacks.** No absolute paths to a user home, no `localhost`/`127.0.0.1` URLs, no machine-specific config in any checked-in file (`.mcp.json`, `package.json`, configs, scripts, etc.). Files committed to this repo must work for any contributor who clones it.
+
+## Project Structure
+
+- Effects: `shaders/effects/{namespace}/{effectName}/definition.js`
+- Backends: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`
+- Canvas orchestrator: `shaders/src/renderer/canvas.js`
+- Presets: `share/dsl/presets.dsl` (shared by Python and JS — do not move or duplicate)
+- Python core: `noisemaker/` (TensorFlow-based)
+- JS port: `js/` (strict parity with Python, see `js/doc/VANILLA_JS_PORT_SPEC.md`)
+
+## Shader Conventions
+
+- Surfaces `o0`..`o7` are **USER-ONLY**. Effects must allocate internal textures for feedback/temp storage. Never hardwire `o0`..`o7` in effect definitions.
+- Use `type: "compute"` for state updates, simulations, and multi-output passes. The WebGL2 backend converts these to GPGPU render passes automatically. Never write separate "simplified" WebGL2 shaders.
+- All textures are 4-channel RGBA.
+- WGSL struct members end with `,` (comma), not `;`.
+- Never read DOM in render paths. UI controls use event listeners writing to state objects. The render loop reads only from state objects.
+- Avoid per-frame allocations (`new Map()`, object spreads, `console.log()`) in render loops.
+- Any changes to shader effects must be validated with Shade.
+
+## Agent-Based Effects Pattern
+
+1. **Agent pass** (`type: "compute"`): Update agent state with MRT for multiple state textures
+2. **Deposit pass** (`drawMode: "points"`): Agents scatter trails to accumulation texture
+3. **Diffuse pass** (`type: "compute"`): Blur/spread accumulated trails
+4. **Blend pass** (`type: "render"`): Combine with input for final output
+
+## Testing
+
+- JS tests: `node scripts/run-js-tests.js --skip-parity`
+- Visual test: `node shaders/tests/test_visual_playwright.js` (requires system Chrome)
+- Python: `pytest` (only when modifying Python code)
+- Resolve all console errors before returning a solution
+
+## JS/Python Parity
+
+- When the focus is JS, do not change the reference Python implementation
+- Do not disable, remove, or hobble tests
+- Never simulate weighted randomness by repeating values — use explicit probability checks
+- Node is allowed only for tests; production JS is vanilla browser-only
