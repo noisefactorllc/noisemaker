@@ -328,7 +328,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `ead42a5d` (2026-09-18)
+- **Checkpoint:** noisemaker `f90a4d2a` (2026-09-19)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -342,6 +342,18 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-19 — caught up through `f90a4d2a`: audited range
+    `ead42a5d..f90a4d2a`. Gap detection confirmed zero missing `help.md`
+    files across all 213 effect definitions. Shipped commits in the range
+    include the compiler phase-2 harness nonzero exit status fix
+    (`f1d2b46a`, GAP-023), related active framework gap status resolution
+    (`f90a4d2a`), starter-position documentation in llms-full.txt (`f3d6f9a6`),
+    agent doc unifications, and symlink ban enforcements. None invalidated
+    existing Sphinx narrative in `docs/` or required new feature guides under
+    `docs/shaders/features.rst`. Verified `node --test test/docs-static-paths.test.js`
+    (4/4 pass) and `node shaders/tests/test_effect_help_params.mjs` (1263
+    documented parameters across 203 effects matching definitions). No
+    documentation gaps to close.
   - 2026-09-18 — caught up through `ead42a5d`: audited range
     `5a142567..ead42a5d`. Gap detection identified zero missing `help.md`
     files across all 213 effect definitions. Shipped commits in the range
