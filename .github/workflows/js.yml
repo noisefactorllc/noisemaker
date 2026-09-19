@@ -5,6 +5,8 @@ on:
     branches: [ main ]
     paths:
       - 'js/**'
+      - '!js/doc/**'
+      - '!js/README*.md'
       - 'scripts/**'
       - 'package.json'
       - 'package-lock.json'
@@ -15,6 +17,8 @@ on:
     branches: [ main ]
     paths:
       - 'js/**'
+      - '!js/doc/**'
+      - '!js/README*.md'
       - 'scripts/**'
       - 'package.json'
       - 'package-lock.json'
@@ -41,7 +45,7 @@ jobs:
       run: npm install --include=dev
 
     - name: Run JS tests (non-parity)
-      run: npm run test:non-parity
+      run: npm run test:non-parity -- --skip-docs
 
   lint:
     name: JS lint

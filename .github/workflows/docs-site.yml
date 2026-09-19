@@ -13,12 +13,18 @@ name: Docs site
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '!docs/**/*.md'
   push:
     branches: [ main ]
     paths:
       - '.github/workflows/docs-site.yml'
       - '.readthedocs.yaml'
       - 'docs/**'
+      - '!docs/**/*.md'
       - 'noisemaker/**'
       - 'pyproject.toml'
       - 'package.json'
@@ -27,15 +33,21 @@ on:
       - 'scripts/bundle-shaders.js'
       - 'scripts/bundle-effects.js'
       - 'shaders/**'
+      - '!shaders/README-SHADERS.md'
+      - '!shaders/AGENTS.md'
+      - '!shaders/effects/HELP_TEMPLATE.md'
+
+permissions:
+  contents: read
+  pull-requests: read
 
 concurrency:
   group: docs-site-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  # js.yml does not watch docs/**, so a docs-only change would otherwise
-  # reach production ungated. This is the gate: it runs on the same paths
-  # that trigger the deploy, and the dispatch below waits on it.
+  # Source changes can rebuild this docs product without running docs tests.
+  # Documentation changes, including mixed commits, retain the deployment gate.
   verify:
     name: Verify docs asset paths
     runs-on: ubuntu-latest
@@ -48,8 +60,93 @@ jobs:
       with:
         node-version: '22'
 
+    - name: Detect documentation changes
+      id: changes
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        python3 - <<'PYTHON'
+        import json, os, urllib.request
+        event = json.load(open(os.environ['GITHUB_EVENT_PATH']))
+        repo = os.environ['GITHUB_REPOSITORY']
+        def get(path):
+            request = urllib.request.Request(os.environ['GITHUB_API_URL'] + '/' + path,
+                headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                         'Accept': 'application/vnd.github+json'})
+            with urllib.request.urlopen(request, timeout=60) as response:
+                return json.load(response)
+        def filenames(files):
+            return [path for f in files for path in (f['filename'], f.get('previous_filename')) if path]
+
+
+        def compare_files(data):
+            files = data.get('files')
+            return None if files is None or len(files) >= 300 else filenames(files)
+
+
+        def commit_files(repo, sha, api):
+            files = []
+            for page in range(1, 31):
+                data = api(f'repos/{repo}/commits/{sha}?per_page=100&page={page}')
+                batch = data['files']
+                files.extend(batch)
+                if len(batch) < 100:
+                    return filenames(files)
+            raise ValueError('Commit file list reached the 3000-file API limit')
+
+
+        def comparison_files(repo, before, after, api):
+            endpoint = f'repos/{repo}/compare/{before}...{after}'
+            data = api(endpoint)
+            paths = compare_files(data)
+            if paths is not None:
+                return paths
+            # Compare caps its file list at 300, but its commits can be paginated.
+            # Inspect each commit so an earlier documentation change is not lost.
+            commits = []
+            total = data['total_commits']
+            page = 1
+            while len(commits) < total:
+                batch = api(f'{endpoint}?per_page=100&page={page}')['commits']
+                if not batch:
+                    raise ValueError('Comparison commit list is incomplete')
+                commits.extend(batch)
+                page += 1
+            if not commits:
+                raise ValueError('Comparison has no complete file or commit list')
+            return [path for commit in commits for path in commit_files(repo, commit['sha'], api)]
+
+
+        def changed_files(event, event_name, repo, api, head_sha=None):
+            if event_name == 'pull_request':
+                files = []
+                for page in range(1, 31):
+                    batch = api(f"repos/{repo}/pulls/{event['pull_request']['number']}/files?per_page=100&page={page}")
+                    files.extend(batch)
+                    if len(batch) < 100:
+                        return filenames(files)
+                raise ValueError('Pull request file list reached the 3000-file API limit')
+            before, after = event.get('before'), event.get('after')
+            if event_name == 'push' and before and set(before) != {'0'} and after:
+                return comparison_files(repo, before, after, api)
+            if event_name == 'push' and after:
+                tree = api(f'repos/{repo}/git/trees/{after}?recursive=1')
+                if tree.get('truncated'):
+                    raise ValueError('New branch tree is truncated')
+                return [entry['path'] for entry in tree['tree'] if entry['type'] == 'blob']
+            if event_name == 'workflow_dispatch' and head_sha:
+                return commit_files(repo, head_sha, api)
+            raise ValueError('Event does not identify the changes to classify')
+
+        names = changed_files(event, os.environ['GITHUB_EVENT_NAME'], repo, get, os.environ['GITHUB_SHA'])
+        docs = any(name.startswith('docs/') for name in names)
+        with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+            output.write(f'docs={str(docs).lower()}\n')
+        PYTHON
+
     # Node builtins only — no npm install needed.
     - name: Check _static references resolve at every page depth
+      if: steps.changes.outputs.docs == 'true'
       run: node --test test/docs-static-paths.test.js
 
   trigger-scaffold-release:

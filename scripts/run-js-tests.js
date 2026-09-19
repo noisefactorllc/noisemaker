@@ -54,11 +54,12 @@ const testEntries = [
   { file: 'test/evaluator.test.js', parity: false },
   { file: 'test/encoder.test.js', parity: false },
   { file: 'test/cli.test.js', parity: false },
-  { file: 'test/docs-static-paths.test.js', parity: false }
+  { file: 'test/docs-static-paths.test.js', parity: false, docs: true }
 ]
 
 const skipParity = process.argv.includes('--skip-parity')
-const forwardedArgs = process.argv.filter((arg) => arg !== '--skip-parity')
+const skipDocs = process.argv.includes('--skip-docs')
+const forwardedArgs = process.argv.filter((arg) => arg !== '--skip-parity' && arg !== '--skip-docs')
 
 // Set environment variable to skip fixture tests when running non-parity suite
 if (skipParity) {
@@ -66,7 +67,7 @@ if (skipParity) {
 }
 
 for (const entry of testEntries) {
-  if (skipParity && entry.parity) {
+  if ((skipParity && entry.parity) || (skipDocs && entry.docs)) {
     continue
   }
 

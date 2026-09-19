@@ -6,7 +6,11 @@ on:
     branches: [main]
     paths:
       - 'shaders/**'
+      - '!shaders/README-SHADERS.md'
+      - '!shaders/AGENTS.md'
+      - '!shaders/effects/HELP_TEMPLATE.md'
       - 'docs/**'
+      - '!docs/**/*.md'
 
 jobs:
   notify:
