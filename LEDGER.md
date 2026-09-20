@@ -340,7 +340,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `beabda38` (2026-09-20)
+- **Checkpoint:** noisemaker `ac8a8d90` (2026-09-20)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -354,6 +354,18 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-20 — caught up through `ac8a8d90`: audited range
+    `beabda38..ac8a8d90`. Gap detection confirmed zero missing `help.md`
+    files across all 213 effect definitions. Commits in the range consist of
+    documentation and ledger synchronizations: active framework gap resolution
+    (`b8332f16`, closing GAP-031), prior Documentation checkpoint and Sphinx
+    narrative updates (`8ddf9e6e`), contract snapshot re-audit (`1086890d`),
+    and I18n strings checkpoint advancement (`ac8a8d90`). None invalidated
+    existing Sphinx narrative in `docs/` or required new feature guides under
+    `docs/shaders/features.rst`. Verified `node --test test/docs-static-paths.test.js`
+    (4/4 pass) and `node shaders/tests/test_effect_help_params.mjs` (1263
+    documented parameters across 203 effects matching definitions). No
+    documentation gaps to close.
   - 2026-09-20 — caught up through `beabda38`: audited range
     `f90a4d2a..beabda38`. Gap detection confirmed zero missing `help.md`
     files across all 213 effect definitions. Shipped commits in the range
