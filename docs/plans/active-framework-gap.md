@@ -1,6 +1,6 @@
 # Active Framework Gap: GAP-030
 
-Status: active
+Status: closed
 
 ## Gap
 
@@ -53,8 +53,8 @@ Agent consequence:
 - [x] Add focused regressions for same-size global, regular 2D, and regular 3D format changes, and verify that they fail for the stale-format behavior.
 - [x] Make pipeline texture reuse require matching format in addition to the existing dimension and depth checks.
 - [x] Review the complete diff, run all required checks, and fix actionable findings.
-- [ ] Update `llms-full.txt` only after evidence proves GAP-030 is closed.
-- [ ] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
+- [x] Update `llms-full.txt` only after evidence proves GAP-030 is closed.
+- [x] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
 
 ## Completed Evidence
 
@@ -72,7 +72,14 @@ Agent consequence:
 - Shader runtime suite: `npm run test:shaders:runtime` exited `0`.
 - Non-parity JavaScript suite: `node scripts/run-js-tests.js --skip-parity` exited `0`.
 - Lint: `npm run lint` exited `0` with no diagnostics.
+- Final local verification after review fixes: the shader language suite, shader runtime suite, non-parity JavaScript suite, and lint all exited `0` on the committed source.
+- Implementation commit: `6e0166ceea2be30bd1032c11748d817cc7f6e34f` (`fix: refresh textures when formats change`).
+- Pre-push synchronization: `git pull --rebase` reported `Current branch main is up to date.` The tested source did not change.
+- Push: the normal `git push origin main` advanced `main` from `72971c02` to `6e0166ce`.
+- Exact-commit CI: GitHub Actions run `35498504791` (`Shaders`) completed successfully. Shader tests, GPU tests, the shader bundle, the library-release dispatch, and the static-site-release dispatch passed.
+- Exact-commit CI: runs `35498504823` (`Docs site`) and `35498504794` (`Downstream`) completed successfully. No JavaScript or Site workflow was triggered for this path set.
+- Register closeout: `llms-full.txt` now records GAP-030 as closed, removes it from the open-gap table, and updates the open count from 29 to 28.
 
 ## Remaining Work
 
-Local implementation, review, and verification are complete. Exact-commit CI, the evidence-backed `llms-full.txt` closeout, and final active-record closure remain.
+None. All GAP-030 completion criteria passed. Select the next gap only in a later scheduled run.
