@@ -547,9 +547,14 @@ export class WebGL2Backend extends Backend {
      * Update a texture from an external source (video, image, canvas).
      * This is used for media input effects that need to display camera/video content.
      * @param {string} id - Texture ID
-     * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement|ImageBitmap} source - Media source
+     * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement|ImageBitmap|VideoFrame} source - Borrowed media source
      * @param {object} [options] - Update options
      * @param {boolean} [options.flipY=true] - Whether to flip the Y axis
+     * @returns {{width: number, height: number}} Submitted display dimensions; zero for an unusable source.
+     * VideoFrame crop, rotation, color and alpha follow TexImageSource semantics.
+     * Frames requiring display-size scaling are rejected: native WebGL uploads
+     * visible pixels without that scaling. Submission is synchronous; callers retain ownership and may
+     * close their frame after this method returns, before GPU work completes.
      */
     updateTextureFromSource(id, source, options = {}) {
         const gl = this.gl
@@ -560,7 +565,16 @@ export class WebGL2Backend extends Backend {
 
         // Get source dimensions
         let width, height
-        if (source instanceof HTMLVideoElement) {
+        if (typeof VideoFrame === 'function' && source instanceof VideoFrame) {
+            width = source.displayWidth
+            height = source.displayHeight
+            const rect = source.visibleRect
+            const rotated = source.rotation === 90 || source.rotation === 270
+            if (!rect || width !== (rotated ? rect.height : rect.width) ||
+                height !== (rotated ? rect.width : rect.height)) {
+                return { width: 0, height: 0 }
+            }
+        } else if (source instanceof HTMLVideoElement) {
             width = source.videoWidth
             height = source.videoHeight
         } else if (source instanceof HTMLImageElement) {

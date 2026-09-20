@@ -462,7 +462,7 @@ export class WebGPUBackend extends Backend {
      * Update a texture from an external source (video, image, canvas).
      * This is used for media input effects that need to display camera/video content.
      * @param {string} id - Texture ID
-     * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement|ImageBitmap} source - Media source
+     * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement|ImageBitmap|VideoFrame} source - Borrowed media source
      * @param {object} [options] - Update options
      * @param {boolean} [options.flipY=true] - Whether to flip the Y axis
      * @returns {{ width: number, height: number }} Source dimensions
@@ -473,13 +473,19 @@ export class WebGPUBackend extends Backend {
      * imageSize uniform). Declaring this `async` returned a Promise instead,
      * so those reads silently yielded undefined on WebGPU. Every write below
      * is a queue submission, so there is nothing to await.
+     * VideoFrame crop, display size, rotation, color and alpha follow external
+     * image copy semantics. The caller owns the frame and may close it after
+     * submission returns; this method neither retains nor closes its handle.
      */
     updateTextureFromSource(id, source, options = {}) {
         let tex = this.textures.get(id)
 
         // Get source dimensions
         let width, height
-        if (source instanceof HTMLVideoElement) {
+        if (typeof VideoFrame === 'function' && source instanceof VideoFrame) {
+            width = source.displayWidth
+            height = source.displayHeight
+        } else if (source instanceof HTMLVideoElement) {
             width = source.videoWidth
             height = source.videoHeight
         } else if (source instanceof HTMLImageElement) {
