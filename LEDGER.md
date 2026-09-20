@@ -328,7 +328,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `f90a4d2a` (2026-09-19)
+- **Checkpoint:** noisemaker `beabda38` (2026-09-20)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -342,6 +342,20 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-20 — caught up through `beabda38`: audited range
+    `f90a4d2a..beabda38`. Gap detection confirmed zero missing `help.md`
+    files across all 213 effect definitions. Shipped commits in the range
+    include borrowed VideoFrame texture upload support (`2df19feb`),
+    dynamic surface/texture format recreation on format changes (`6e0166ce`,
+    GAP-030), and static integer 1..16 channel enforcement for legacy MIDI
+    modes (`beabda38`, GAP-031). Narrative audit identified an invalidated
+    statement in `docs/shaders/midi-audio.rst` regarding legacy note mode
+    channel handling, which was corrected to reflect static integer 1–16
+    validation across all channel-based modes; also documented borrowed
+    `VideoFrame` upload support in `docs/shaders/integration.rst`. Verified
+    `node --test test/docs-static-paths.test.js` (4/4 pass) and
+    `node shaders/tests/test_effect_help_params.mjs` (1263 documented
+    parameters across 203 effects matching definitions).
   - 2026-09-19 — caught up through `f90a4d2a`: audited range
     `ead42a5d..f90a4d2a`. Gap detection confirmed zero missing `help.md`
     files across all 213 effect definitions. Shipped commits in the range

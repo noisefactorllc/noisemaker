@@ -208,9 +208,8 @@ Notes and note-off messages do not change them, and ``sensitivity`` has no
 effect on CC modes. Initially the value resolves to ``min``; controller
 resets can set protocol defaults without receiving that controller directly
 (for example, CC11 becomes 127). MPE zone changes also initialize CC74 to 64.
-Invalid CC numbers or CC-mode channels produce diagnostics and resolve to
-``min``. Use channels 1–16; the older note modes retain their legacy channel
-handling.
+Invalid CC numbers or channel numbers produce diagnostics and resolve to
+``min``. All channel-based modes require static integer channels 1–16.
 
 NRPN parameters
 ~~~~~~~~~~~~~~~

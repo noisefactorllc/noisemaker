@@ -278,7 +278,7 @@ Creates and manages the GPU rendering pipeline.
     renderer.applyStepParameterValues(values)  // Apply parameter values from state
 
     // Textures
-    renderer.updateTextureFromSource(id, source)  // Update texture from image/video/canvas
+    renderer.updateTextureFromSource(id, source)  // Update texture from image/video/canvas/VideoFrame
 
     // Backend
     await renderer.switchBackend('wgsl')   // Switch to WebGPU
@@ -494,6 +494,11 @@ Some effects accept external textures (images, video, camera). Check for this vi
     video.srcObject = stream
     await video.play()
     // Then feed frames via requestAnimationFrame as above
+
+    // VideoFrame (e.g. from MediaStreamTrackProcessor or WebCodecs)
+    // Synchronously uploaded; callers retain ownership and may close the frame immediately
+    renderer.updateTextureFromSource('imageTex', frame)
+    frame.close()
 
 Undo/Redo
 ---------
