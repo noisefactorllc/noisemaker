@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `0209609ed6efabae1c3fcf3073a275a2d7049199`.
+- Noisemaker: `2df19feb6ce143636809b1e581699a7110b1f94d`.
 - Shade MCP: `088e1ef600eb3472365c55d2ec71bcdc7e54b0db`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.2`, protocol
   `2025-11-25`, with 18 tools returned by `tools/list`.
@@ -1693,8 +1693,16 @@ normal surface sampler defaults to nearest for parity with WebGL2. External
 uploads use the default linear sampler.
 
 Both backends expose synchronous `updateTextureFromSource(id,source,options)`
-and return `{width,height}` from the source's intrinsic dimensions. WebGPU
-submits `copyExternalImageToTexture()` without an awaitable completion step.
+accepting `HTMLVideoElement`, `HTMLImageElement`, `HTMLCanvasElement`, `ImageBitmap`,
+or borrowed `VideoFrame`, and return `{width,height}` from the source's display or intrinsic dimensions.
+For borrowed `VideoFrame` sources, both backends synchronously extract display
+dimensions and submit to the GPU queue without requiring intermediate `ImageBitmap`
+conversion; callers retain ownership and may close their frame synchronously immediately
+after the method returns without waiting for GPU execution. WebGL2 uploads visible
+pixels via `texImage2D` and rejects anamorphic display scaling (`displayWidth !== rect.width`
+or `displayHeight !== rect.height`, accounting for 90°/270° rotation) returning `{width: 0, height: 0}`.
+WebGPU submits `copyExternalImageToTexture()` without an awaitable completion step, handling
+display scaling, rotation, crop, color, and alpha via external image copy semantics.
 Unknown or zero-sized sources return zero dimensions. Canvas/media callers may
 therefore read the dimensions directly on either backend rather than awaiting a
 backend-specific promise.
@@ -3205,12 +3213,12 @@ This instance is the repository's `synth/testPattern` effect. The three source
 blocks below are complete, not excerpts, and were last live-captured at
 Noisemaker commit `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424` and Shade MCP
 commit `0a92bd839adf89caa1641e90b201182a24f8fb25`. Re-audited at Noisemaker
-`0209609ed6efabae1c3fcf3073a275a2d7049199` and Shade MCP
+`2df19feb6ce143636809b1e581699a7110b1f94d` and Shade MCP
 `088e1ef600eb3472365c55d2ec71bcdc7e54b0db` by source inspection: `synth/
 testPattern`'s own definition.js and shader files are byte-unchanged in that
-range, none of the range's changes (test harness exit status and doc updates)
-affect runtime execution or reach this effect, and the full non-parity JS test suite
-(`node scripts/run-js-tests.js --skip-parity`) passes.
+range, none of the range's changes (borrowed VideoFrame texture upload support in
+WebGL2/WebGPU backends, CI workflow updates) affect runtime execution or reach this effect,
+and the full non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`) passes.
 The MCP evidence below was not re-captured live this pass — Shade MCP's commit
 `088e1ef` changed only CI workflow filters, leaving runtime tools, schemas, and
 behavior identical to `0a92bd83`, so no source path this transcript depends on moved.

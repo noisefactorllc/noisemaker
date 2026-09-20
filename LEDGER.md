@@ -478,7 +478,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `0209609e` / shade-mcp `088e1ef`, 2026-09-19
+- **Checkpoint:** noisemaker `2df19feb` / shade-mcp `088e1ef`, 2026-09-19
 - **Scope:** the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
   *current* runtime behavior across nine surfaces (DSL, effect definition,
@@ -511,6 +511,17 @@ work, verify it, then update the checkpoint and append a log line.
      triple, then re-audit the "Shade MCP tool contracts" section and the
      MCP-side gaps.
 - **Log:**
+  - 2026-09-19 — caught up through noisemaker `2df19feb` (shade-mcp unchanged
+    at `088e1ef`): audited watched source roots across noisemaker range
+    `0209609e..2df19feb`. Commit `2df19feb` added borrowed `VideoFrame` support
+    in `updateTextureFromSource` on both WebGL2 and WebGPU backends (synchronous
+    display dimension extraction, immediate queue submission without ImageBitmap
+    conversion, synchronous caller release, and anamorphic scaling rejection on
+    WebGL2). Updated texture surface contract in `llms-full.txt`. Shade MCP
+    unchanged at `088e1ef` (18 tools, v0.2.2, protocol 2025-11-25). Verified
+    Playwright VideoFrame upload tests (2/2 pass) and non-parity JS test suite
+    pass cleanly. Advanced llms-full.txt snapshot block and LEDGER.md checkpoint
+    together.
   - 2026-09-19 — caught up through noisemaker `0209609e` / shade-mcp `088e1ef`:
     audited watched source roots across noisemaker range `ead42a5d..0209609e`
     (zero commits touched watched source roots; GAP-023 already documented as
