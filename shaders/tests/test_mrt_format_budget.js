@@ -132,6 +132,18 @@ function createdFormat(pipeline, keyPrefix) {
     return null
 }
 
+function buildTexturePipeline(texId, spec) {
+    const graph = {
+        passes: [],
+        textures: new Map([[texId, spec]])
+    }
+    const pipeline = new Pipeline(graph, new StubBackend())
+    pipeline.width = 512
+    pipeline.height = 512
+    pipeline.recreateTextures()
+    return { graph, pipeline }
+}
+
 // ---------------------------------------------------------------------------
 
 await test('32-byte budget demotes pointsEmit vel to rgba16f, keeps xyz at rgba32f', () => {
@@ -163,6 +175,105 @@ await test('backend without the capability is left untouched (headless stubs)', 
     const { graph } = buildPipeline(undefined)
     const vel = specFormat(graph, 'global_vel')
     if (vel.format !== 'rgba32f') throw new Error(`expected rgba32f untouched, got ${vel.format}`)
+})
+
+await test('same-size global surface is recreated when MRT budgeting changes its format', () => {
+    const { graph, pipeline } = buildPipeline({ maxColorBytesPerSample: 64 })
+    const initialVel = specFormat(graph, 'global_vel')
+    const surfaceName = pipeline.parseGlobalName(initialVel.key)
+    const surface = pipeline.surfaces.get(surfaceName)
+    const beforeRead = pipeline.backend.textures.get(surface.read)
+    const beforeWrite = pipeline.backend.textures.get(surface.write)
+    if (beforeRead.format !== 'rgba32f' || beforeWrite.format !== 'rgba32f') {
+        throw new Error(`initial vel textures: expected rgba32f/rgba32f, got ${beforeRead.format}/${beforeWrite.format}`)
+    }
+
+    pipeline.backend.capabilities.maxColorBytesPerSample = 32
+    pipeline.createSurfaces()
+
+    const vel = specFormat(graph, 'global_vel')
+    const afterRead = pipeline.backend.textures.get(surface.read)
+    const afterWrite = pipeline.backend.textures.get(surface.write)
+    if (!vel || vel.format !== 'rgba16f') {
+        throw new Error(`budgeted vel spec: expected rgba16f, got ${JSON.stringify(vel)}`)
+    }
+    if (afterRead.format !== 'rgba16f' || afterWrite.format !== 'rgba16f') {
+        throw new Error(`budgeted vel textures: expected rgba16f/rgba16f, got ${afterRead.format}/${afterWrite.format}`)
+    }
+    if (afterRead === beforeRead || afterWrite === beforeWrite) {
+        throw new Error('same-size global vel textures were reused after their format changed')
+    }
+
+    pipeline.createSurfaces()
+    if (pipeline.backend.textures.get(surface.read) !== afterRead ||
+        pipeline.backend.textures.get(surface.write) !== afterWrite) {
+        throw new Error('matching global vel textures were recreated unnecessarily')
+    }
+})
+
+await test('global texture recreation rejects a stale write-side format', () => {
+    const { graph, pipeline } = buildPipeline({ maxColorBytesPerSample: 32 })
+    const vel = specFormat(graph, 'global_vel')
+    const surfaceName = pipeline.parseGlobalName(vel.key)
+    const surface = pipeline.surfaces.get(surfaceName)
+    const beforeRead = pipeline.backend.textures.get(surface.read)
+    const beforeWrite = pipeline.backend.textures.get(surface.write)
+
+    beforeWrite.format = 'rgba32f'
+    pipeline.recreateTextures(pipeline.collectDefaultUniforms())
+
+    const afterRead = pipeline.backend.textures.get(surface.read)
+    const afterWrite = pipeline.backend.textures.get(surface.write)
+    if (afterRead.format !== 'rgba16f' || afterWrite.format !== 'rgba16f') {
+        throw new Error(`recreated vel textures: expected rgba16f/rgba16f, got ${afterRead.format}/${afterWrite.format}`)
+    }
+    if (afterRead === beforeRead || afterWrite === beforeWrite) {
+        throw new Error('global vel pair was reused with a stale write-side format')
+    }
+})
+
+await test('same-size regular 2D texture is recreated when its format changes', () => {
+    const spec = { width: 'screen', height: 'screen', format: 'rgba32f' }
+    const { pipeline } = buildTexturePipeline('node_0_state', spec)
+    const before = pipeline.backend.textures.get('node_0_state')
+
+    spec.format = 'rgba16f'
+    pipeline.recreateTextures()
+
+    const after = pipeline.backend.textures.get('node_0_state')
+    if (after.format !== 'rgba16f') {
+        throw new Error(`regular 2D texture: expected rgba16f, got ${after.format}`)
+    }
+    if (after === before) {
+        throw new Error('same-size regular 2D texture was reused after its format changed')
+    }
+
+    pipeline.recreateTextures()
+    if (pipeline.backend.textures.get('node_0_state') !== after) {
+        throw new Error('matching regular 2D texture was recreated unnecessarily')
+    }
+})
+
+await test('same-size regular 3D texture is recreated when its format changes', () => {
+    const spec = { width: 16, height: 16, depth: 16, format: 'rgba32f', is3D: true }
+    const { pipeline } = buildTexturePipeline('node_0_volume', spec)
+    const before = pipeline.backend.textures.get('node_0_volume')
+
+    spec.format = 'rgba16f'
+    pipeline.recreateTextures()
+
+    const after = pipeline.backend.textures.get('node_0_volume')
+    if (after.format !== 'rgba16f') {
+        throw new Error(`regular 3D texture: expected rgba16f, got ${after.format}`)
+    }
+    if (after === before) {
+        throw new Error('same-size regular 3D texture was reused after its format changed')
+    }
+
+    pipeline.recreateTextures()
+    if (pipeline.backend.textures.get('node_0_volume') !== after) {
+        throw new Error('matching regular 3D texture was recreated unnecessarily')
+    }
 })
 
 // ---------------------------------------------------------------------------

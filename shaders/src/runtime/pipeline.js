@@ -1113,17 +1113,22 @@ export class Pipeline {
                 if (texSpec.format) surfaceFormat = texSpec.format
             }
 
-            // Check if existing surface can be reused (preserves sim state on recompile)
+            // Reuse only a complete matching surface (preserves sim state on recompile).
             const oldSurface = this.surfaces.get(name)
             if (oldSurface) {
-                const existingTex = this.backend.textures?.get?.(oldSurface.read)
-                if (existingTex &&
-                    existingTex.width === surfaceWidth &&
-                    existingTex.height === surfaceHeight) {
-                    // Surface exists with correct dimensions, preserve it
+                const existingReadTex = this.backend.textures?.get?.(oldSurface.read)
+                const existingWriteTex = this.backend.textures?.get?.(oldSurface.write)
+                if (existingReadTex && existingWriteTex &&
+                    existingReadTex.width === surfaceWidth &&
+                    existingReadTex.height === surfaceHeight &&
+                    existingReadTex.format === surfaceFormat &&
+                    existingWriteTex.width === surfaceWidth &&
+                    existingWriteTex.height === surfaceHeight &&
+                    existingWriteTex.format === surfaceFormat) {
+                    // Surface has a matching allocation, preserve it.
                     continue
                 }
-                // Dimensions changed, destroy old surface
+                // Allocation changed, destroy the old surface.
                 this.backend.destroyTexture(`global_${name}_read`)
                 this.backend.destroyTexture(`global_${name}_write`)
             }
@@ -1265,9 +1270,17 @@ export class Pipeline {
                 const readTexId = surface.read
                 const writeTexId = surface.write
 
-                // Check if size changed
-                const existingTex = this.backend.textures?.get?.(readTexId)
-                if (existingTex && existingTex.width === width && existingTex.height === height) {
+                // Reuse only when both halves match the graph allocation.
+                const expectedFormat = spec.format || 'rgba16f'
+                const existingReadTex = this.backend.textures?.get?.(readTexId)
+                const existingWriteTex = this.backend.textures?.get?.(writeTexId)
+                if (existingReadTex && existingWriteTex &&
+                    existingReadTex.width === width &&
+                    existingReadTex.height === height &&
+                    existingReadTex.format === expectedFormat &&
+                    existingWriteTex.width === width &&
+                    existingWriteTex.height === height &&
+                    existingWriteTex.format === expectedFormat) {
                     continue  // No change needed
                 }
 
@@ -1291,9 +1304,12 @@ export class Pipeline {
                 })
             } else {
                 // Handle regular (non-global) texture
-                // Check if size changed
+                // Reuse only when dimensions, format, and depth all match.
                 const existingTex = this.backend.textures?.get?.(texId)
-                if (existingTex && existingTex.width === width && existingTex.height === height) {
+                if (existingTex &&
+                    existingTex.width === width &&
+                    existingTex.height === height &&
+                    existingTex.format === spec.format) {
                     // For 3D textures, also check depth
                     if (!spec.is3D || existingTex.depth === this.resolveDimension(spec.depth, width, uniforms)) {
                         continue  // No change needed
