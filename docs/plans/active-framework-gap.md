@@ -1,6 +1,6 @@
 # Active Framework Gap: GAP-031
 
-Status: active
+Status: closed
 
 ## Gap
 
@@ -53,8 +53,8 @@ Agent consequence:
 - [x] Add focused regressions for invalid and boundary legacy-mode channels, and verify that they fail for the current permissive behavior.
 - [x] Apply the existing static integer `1..16` channel predicate to every channel-based MIDI mode.
 - [x] Review the complete diff, run all required checks, and fix actionable findings.
-- [ ] Update `llms-full.txt` only after evidence proves GAP-031 is closed.
-- [ ] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
+- [x] Update `llms-full.txt` only after evidence proves GAP-031 is closed.
+- [x] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
 
 ## Completed Evidence
 
@@ -70,7 +70,14 @@ Agent consequence:
 - Shader language suite: `npm run test:shaders:lang` exited `0`, including the 57-case focused MIDI/audio parser suite and the 15-case nested automation suite.
 - Non-parity JavaScript suite: `node scripts/run-js-tests.js --skip-parity` exited `0`, including the focused compiler regression, 58 external-input cases, nested automation, runtime pipeline coverage, and documentation source checks.
 - Lint: `npm run lint` exited `0` with no diagnostics.
+- Implementation commit: `beabda385253a3461d2ee5ee2f1b032cbe9a2832` (`fix: validate legacy MIDI channels`).
+- Pre-push synchronization: `git pull --rebase` reported `Current branch main is up to date.` The tested source did not change.
+- Push: the normal `git push origin main` advanced `main` from `dfdc91a9` to `beabda38`.
+- Exact-commit CI: GitHub Actions run `35518576056` (`Shaders`) completed successfully. Shader tests, GPU tests, the shader bundle, the library-release dispatch, and the static-site-release dispatch passed.
+- Exact-commit CI: runs `35518576090` (`Docs site`) and `35518576148` (`Downstream`) completed successfully. No JavaScript or Site workflow was triggered for this path set.
+- Register closeout: `llms-full.txt` now records GAP-031 as closed, removes it from the open-gap table, updates the MIDI validation contract, and changes the open count from 28 to 27.
+- Closeout documentation check: `node --test test/docs-static-paths.test.js` exited `0` with 4 passed and 0 failed.
 
 ## Remaining Work
 
-- Update the gap register after exact-commit CI confirms the implementation, close this record, and complete the commit/rebase/push/CI sequence.
+None. All GAP-031 completion criteria passed. Select the next gap only in a later scheduled run.
