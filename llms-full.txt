@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `2df19feb6ce143636809b1e581699a7110b1f94d`.
+- Noisemaker: `beabda385253a3461d2ee5ee2f1b032cbe9a2832`.
 - Shade MCP: `088e1ef600eb3472365c55d2ec71bcdc7e54b0db`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.2`, protocol
   `2025-11-25`, with 18 tools returned by `tools/list`.
@@ -3207,11 +3207,12 @@ This instance is the repository's `synth/testPattern` effect. The three source
 blocks below are complete, not excerpts, and were last live-captured at
 Noisemaker commit `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424` and Shade MCP
 commit `0a92bd839adf89caa1641e90b201182a24f8fb25`. Re-audited at Noisemaker
-`2df19feb6ce143636809b1e581699a7110b1f94d` and Shade MCP
+`beabda385253a3461d2ee5ee2f1b032cbe9a2832` and Shade MCP
 `088e1ef600eb3472365c55d2ec71bcdc7e54b0db` by source inspection: `synth/
 testPattern`'s own definition.js and shader files are byte-unchanged in that
-range, none of the range's changes (borrowed VideoFrame texture upload support in
-WebGL2/WebGPU backends, CI workflow updates) affect runtime execution or reach this effect,
+range, none of the range's changes (texture reuse format parity in pipeline.js,
+legacy MIDI channel validation in validator.js, borrowed VideoFrame texture
+uploads, CI workflow updates) affect runtime execution or reach this effect,
 and the full non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`) passes.
 The MCP evidence below was not re-captured live this pass — Shade MCP's commit
 `088e1ef` changed only CI workflow filters, leaving runtime tools, schemas, and
@@ -3830,15 +3831,15 @@ Every cell points to an executable contract or an explicitly identified gap.
 
 | Surface | Introspect | Act | Validate | Diagnose |
 |---|---|---|---|---|
-| DSL program | `Token`, `ParsedProgram`, `CompiledProgram`, registry keys, `CompiledGraph` | Complete EBNF plus call/read/write/render and nested-automation contracts | parse/unparse/compile and render metric predicates | `SyntaxError`, `Diagnostic`, `CompilationFailure`. GAP-001/002/023/027/031 |
+| DSL program | `Token`, `ParsedProgram`, `CompiledProgram`, registry keys, `CompiledGraph` | Complete EBNF plus call/read/write/render and nested-automation contracts | parse/unparse/compile and render metric predicates | `SyntaxError`, `Diagnostic`, `CompilationFailure`. GAP-001/002/027 |
 | Effect definition | `Effect` fields, registry/manifest, `checkEffectStructure` | `EffectDefinition` typed grammar | validator and structure scan. Browser backend identity is GAP-024 | exact validator messages, structural arrays, backend errors. GAP-003/007/024/026 |
-| Parameters and globals | `effect.globals`, transformed `uniforms`, registry params, MIDI/audio state and capture requirements | `GlobalSpec`, nested automation, and selected-input contracts | compile reflection, state-selection predicates, and numeric response deltas | transform errors, type/range/identity/capture blind spots. GAP-010/011/024/031/032 |
-| Passes and render graph | `Effect.passes`, `CompiledGraph.passes`, `CompiledGraph.textures`, `CompiledGraph.allocations` | `PassSpec` typed grammar, sampler/output binding rules, and MRT byte adaptation | graph analysis and per-pass compile | unresolved inputs and backend compile/resource failures. GAP-005/006/030 |
-| Textures and surface resources | texture specs, `DeviceCapabilities`, and runtime surface dimensions/formats | `TextureSpec` typed grammar, exact accepted policies, and volume atlas clamp | allocation existence, size/format/limit inspection, render metrics | unsupported/missing surface failures, silent fields, and stale reused formats. GAP-004/030 |
+| Parameters and globals | `effect.globals`, transformed `uniforms`, registry params, MIDI/audio state and capture requirements | `GlobalSpec`, nested automation, and selected-input contracts | compile reflection, state-selection predicates, and numeric response deltas | transform errors, type/range/identity/capture blind spots. GAP-010/011/024/032 |
+| Passes and render graph | `Effect.passes`, `CompiledGraph.passes`, `CompiledGraph.textures`, `CompiledGraph.allocations` | `PassSpec` typed grammar, sampler/output binding rules, and MRT byte adaptation | graph analysis and per-pass compile | unresolved inputs and backend compile/resource failures. GAP-005/006 |
+| Textures and surface resources | texture specs, `DeviceCapabilities`, and runtime surface dimensions/formats | `TextureSpec` typed grammar, exact accepted policies, and volume atlas clamp | allocation existence, size/format/limit inspection, render metrics | unsupported/missing surface failures and silent fields. GAP-004 |
 | Compatibility and mutation | compiled AST, `listSteps`, `getCompatibleReplacements` | typed `replaceEffect` contract | candidate precheck. Post-mutation browser identity is GAP-024 | compatibility and transform errors. GAP-008/022/024 |
 | Rendered output | frame dimensions, `ImageMetrics`, sink stats, and `PackedFrame` | `RenderEffectFrameInput`, `Sink`, and `FrameExportQueue` contracts | exact metric predicates plus bounded queue/accounting rules | metric, capture, sink, and export failures. GAP-009/014/015/021/024/028 |
-| Cross-backend parity | source-pair availability and parity report | GLSL ES 3.00/WGSL authoring contracts | buffer diff predicates. Requested-effect/backend proof and allocated-format parity are GAP-024/030 | compile/readback/divergence/identity reports. GAP-012/016/024/030 |
-| Shade MCP tool contracts | `tools/list`, effect scanners, all output types | Full signatures for all 18 verbs | verb-specific domain predicates | selector errors and tool-specific unions. GAP-013/017/018/019/020/024/029 |
+| Cross-backend parity | source-pair availability and parity report | GLSL ES 3.00/WGSL authoring contracts | buffer diff predicates. Requested-effect/backend proof is GAP-024 | compile/readback/divergence/identity reports. GAP-012/016/024 |
+| Shade MCP tool contracts | `tools/list`, effect scanners, all output types | Full signatures for all 18 verbs | verb-specific domain predicates | selector errors and tool-specific unions. GAP-013/017/019/020/024/029 |
 
 External ports are deliberately outside this matrix. Their repositories define
 separate candidate renderers, golden-image comparators, tolerance policies, and
