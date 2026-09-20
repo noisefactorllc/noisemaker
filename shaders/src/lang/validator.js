@@ -529,7 +529,6 @@ export function validate(ast) {
         if (node.type === 'Midi') {
             const mode = resolveAutomationEnum(
                 node.mode, 'midiMode', 4, new Set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]), 'midi', 'mode')
-            const strictChannel = mode >= 5
             const hasZone = node.zone !== undefined
             const zone = hasZone
                 ? resolveAutomationEnum(node.zone, 'midiZone', undefined, new Set([0, 1]), 'midi', 'zone')
@@ -545,10 +544,8 @@ export function validate(ast) {
             if (hasZone && node.channel !== undefined) validSelection = false
             let validChannel = true
             const channel = hasZone ? undefined : resolveAutomationNumber(node.channel, 'midi', 'channel', 1,
-                strictChannel
-                    ? {integer:true, min:1, max:16, allowMember:false,
-                        onInvalid:() => { validChannel = false }}
-                    : {allowBoolean:true}, depth)
+                {integer:true, min:1, max:16, allowMember:false,
+                    onInvalid:() => { validChannel = false }}, depth)
             let validCc = true
             const cc = node.cc !== undefined || mode === 5 || mode === 6
                 ? resolveAutomationNumber(node.cc, 'midi', 'cc', 1,

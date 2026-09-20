@@ -550,6 +550,30 @@ test('validates numeric midi mode values used by Noisedeck', () => {
     }
 })
 
+test('legacy MIDI note mode channels must be static integers from one to sixteen', () => {
+    const modes = ['noteChange', 'gateNote', 'gateVelocity', 'triggerNote', 'velocity']
+    for (const mode of modes) {
+        for (const channel of ['0', '17', '1.5', 'true', '"1"', 'osc()']) {
+            const compiled = compile(
+                `search synth\nnoise(scale: midi(channel: ${channel}, mode: midiMode.${mode})).write(o0)`
+            )
+            assert(compiled.diagnostics.some(diagnostic => diagnostic.code === 'S001' || diagnostic.code === 'S002'),
+                `${mode} channel ${channel} should produce a validation diagnostic`)
+            assertEqual(compiled.plans[0].chain[0].args.scale._invalid, true,
+                `${mode} channel ${channel} should keep the descriptor inert`)
+        }
+        for (const channel of [1, 16]) {
+            const compiled = compile(
+                `search synth\nnoise(scale: midi(channel: ${channel}, mode: midiMode.${mode})).write(o0)`
+            )
+            assertEqual(compiled.diagnostics.length, 0,
+                `${mode} channel ${channel} should remain valid`)
+            assertEqual(compiled.plans[0].chain[0].args.scale.channel, channel,
+                `${mode} channel ${channel} should compile unchanged`)
+        }
+    }
+})
+
 test('validates audio band enum values', () => {
     const bands = ['low', 'mid', 'high', 'vol', 'raw']
 

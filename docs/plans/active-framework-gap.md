@@ -1,85 +1,76 @@
-# Active Framework Gap: GAP-030
+# Active Framework Gap: GAP-031
 
-Status: closed
+Status: active
 
 ## Gap
 
-**GAP-030 — MRT budget adaptation does not invalidate same-size backend textures whose format no longer matches the graph.**
+**GAP-031 — Legacy MIDI note modes 0-4 do not enforce the documented integer channel range 1-16.**
 
 Exact problem statement from `llms-full.txt`:
 
-> MRT budget adaptation does not invalidate same-size backend textures whose format no longer matches the graph.
+> Legacy MIDI note modes 0-4 do not enforce the documented integer channel range 1-16.
 
 Agent consequence:
 
-> After resize or hot recompilation the graph can report `rgba16f` while the backend still allocates `rgba32f`. Byte-budget validation must inspect backend records and an unsupported FBO can still be created.
+> A fractional, zero, or out-of-range channel in a legacy note mode compiles without a diagnostic and reads channel 1. CC and expression modes instead diagnose invalid channels and resolve to `min`.
 
 ## Source Files and Observed Behavior
 
-- `shaders/src/runtime/pipeline.js`: `applyMrtFormatBudget()` can demote a graph texture from `rgba32f` or `rgba32float` to `rgba16f` before allocation.
-- `shaders/src/runtime/pipeline.js`: `createSurfaces()` reuses an existing double-buffered global surface when width and height match, without comparing the backend texture format with the graph texture format.
-- `shaders/src/runtime/pipeline.js`: `recreateTextures()` reuses an existing regular texture when width, height, and, for 3D textures, depth match, without comparing format.
-- `shaders/tests/test_mrt_format_budget.js`: existing coverage proves cold allocation uses the demoted format, but does not exercise same-size reuse after the required format changes.
-- Observed before implementation: after a same-size re-evaluation changes an MRT attachment spec from `rgba32f` to `rgba16f`, the graph reports `rgba16f` while the existing backend texture remains `rgba32f`.
+- `shaders/src/lang/validator.js`: `compileAutomationDescriptor()` applies the static integer `1..16` channel predicate only when the resolved MIDI mode is `5` or greater.
+- `shaders/src/runtime/external-input.js`: `MidiState.getChannel()` falls back to channel 1 when a compiled descriptor supplies a channel that does not exist.
+- `shaders/tests/test_midi_audio_parser.js`: existing coverage rejects invalid channels for CC modes, but legacy note-mode coverage checks only valid channels and modes.
+- Observed before implementation: legacy modes `0..4` accept boolean, fractional, zero, and out-of-range channel values without marking the descriptor invalid, allowing runtime fallback to channel 1.
 
 ## Backward-Compatibility Contract
 
-- Preserve DSL parsing, validation, expansion, saved programs, step indexes, and public result shapes.
-- Preserve texture reuse when dimensions, depth, and format still match so persistent simulation state is not reset unnecessarily.
-- Preserve current format-selection and MRT-demotion policy; only invalidate allocations that no longer match the already-selected graph format.
-- Preserve runtime defaults and rendered output intent. The change must prevent invalid/stale allocations rather than introduce a new authoring behavior.
-- Do not change effect definitions, shader source, production bundles, or backend capability thresholds.
+- Preserve DSL parsing, expansion, saved programs, step indexes, and public result shapes.
+- Preserve valid MIDI descriptors for every mode, including numeric mode values used by Noisedeck.
+- Preserve the default channel value of 1 when a valid descriptor omits its channel through supported parser defaults.
+- Preserve mode numbering, MIDI runtime state, unparse/format behavior, min/max/sensitivity handling, selected-port identity, and rendered output for valid programs.
+- Do not change the runtime fallback used by direct internal callers; close the authoring gap at the compiler validation boundary.
+- Invalid legacy descriptors may gain the same existing validation diagnostics and inert `_invalid` behavior already used by CC and expression modes.
 
 ## Objective Completion Criteria
 
-- A same-size double-buffered global surface is recreated when its graph format changes.
-- A same-size regular 2D texture is recreated when its graph format changes.
-- A same-size regular 3D texture is recreated when its graph format changes while unchanged matching allocations remain reusable.
-- Focused regression tests demonstrate the pre-fix mismatch and pass after the implementation.
-- Required shader language/runtime suites, non-parity JavaScript checks, and lint pass.
+- Every MIDI mode that uses a channel requires a static integer from 1 through 16.
+- Legacy modes `0..4` diagnose boolean, fractional, zero, and out-of-range channels and mark the compiled descriptor inert.
+- Valid boundary channels 1 and 16 continue to compile without diagnostics for legacy modes.
+- Existing CC, expression, MPE, round-trip, identity, and numeric-mode behavior remains unchanged.
+- Focused regression tests demonstrate the pre-fix acceptance and pass after the implementation.
+- Required shader language, non-parity JavaScript, and lint checks pass.
 - The exact pushed commit passes all required GitHub Actions checks triggered for the changed paths.
 
 ## Required Tests and CI Checks
 
-- `node shaders/tests/test_mrt_format_budget.js`
+- `node shaders/tests/test_midi_audio_parser.js`
 - `npm run test:shaders:lang`
-- `npm run test:shaders:runtime`
 - `node scripts/run-js-tests.js --skip-parity`
 - `npm run lint`
-- GitHub Actions checks for the exact pushed commit, including the Shaders, JavaScript, Docs site, Site, and Downstream workflows when triggered.
+- GitHub Actions checks for the exact pushed commit, including Shaders, JavaScript, Docs site, Site, and Downstream workflows when triggered.
 
 ## Bounded Work Items
 
-- [x] Add focused regressions for same-size global, regular 2D, and regular 3D format changes, and verify that they fail for the stale-format behavior.
-- [x] Make pipeline texture reuse require matching format in addition to the existing dimension and depth checks.
+- [x] Add focused regressions for invalid and boundary legacy-mode channels, and verify that they fail for the current permissive behavior.
+- [x] Apply the existing static integer `1..16` channel predicate to every channel-based MIDI mode.
 - [x] Review the complete diff, run all required checks, and fix actionable findings.
-- [x] Update `llms-full.txt` only after evidence proves GAP-030 is closed.
-- [x] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
+- [ ] Update `llms-full.txt` only after evidence proves GAP-031 is closed.
+- [ ] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
 
 ## Completed Evidence
 
-- Checkout safety: `git status --short --branch` reported `## main...origin/main` with no working-tree changes and no active Git operation.
-- Initial synchronization: `git pull --rebase` fast-forwarded `main` from `6956bfec` to `72971c02` without conflicts.
-- Target selection: the previous GAP-023 record was closed before this scheduled run. GAP-030 is repository-owned, correctness-focused, and bounded to allocation reuse plus existing MRT-budget regression coverage.
-- Shade MCP availability check: no Shade MCP tool is exposed in this run. GAP-030 changes pipeline allocation bookkeeping rather than an effect definition or shader program, so repository unit/integration checks are the applicable executable evidence.
-- Initial focused regression: `node shaders/tests/test_mrt_format_budget.js` exited `1`. The new cases proved that same-size global, regular 2D, and regular 3D allocations remained `rgba32f` after their graph specs changed to `rgba16f`.
-- Review follow-up red test: the strengthened focused suite exited `1` because `recreateTextures()` accepted an `rgba16f` read texture paired with a stale `rgba32f` write texture.
-- Implementation: global surface reuse in both `createSurfaces()` and `recreateTextures()` now requires matching read/write width, height, and format. Regular texture reuse requires matching width, height, format, and existing 3D depth.
-- Focused regression after both fixes: `node shaders/tests/test_mrt_format_budget.js` exited `0` with 7 passed and 0 failed. It also proves matching allocations remain stable instead of being recreated unnecessarily.
-- Adjacent checks: `node shaders/tests/test_pipeline.js` exited `0` with 22 pipeline cases; `node shaders/tests/test_volumesize_runtime_update.js` exited `0` with 7 cases; `node shaders/tests/test_volumesize_device_clamp.js` exited `0` with 6 cases.
-- Independent diff review found two important issues: validate both global ping-pong halves in `recreateTextures()` and assert exact read/write allocations in the regression. Both were fixed. Re-review found no remaining behavioral issue; its final minor comment findings were also corrected.
-- Shader language suite: `npm run test:shaders:lang` exited `0`, including the 7-case focused MRT suite.
-- Shader runtime suite: `npm run test:shaders:runtime` exited `0`.
-- Non-parity JavaScript suite: `node scripts/run-js-tests.js --skip-parity` exited `0`.
+- Checkout safety: `git status --porcelain=v2 --branch` reported clean `main` at `dfdc91a9`, synchronized with `origin/main`, with no active Git operation.
+- Initial synchronization: `git pull --rebase` reported `Already up to date.`
+- Target selection: the previous GAP-030 record was closed before this scheduled run. GAP-031 is repository-owned, correctness-focused, and bounded to the existing MIDI descriptor validation path and its adjacent parser/compiler tests.
+- Root cause: `compileAutomationDescriptor()` selects `{allowBoolean:true}` for channels in modes `0..4`, while modes `5..10` use the documented static integer `1..16` predicate. Every channel-based mode is later resolved through the same `MidiState.getChannel()` table.
+- Shade MCP availability check: no Shade MCP tool is exposed in this run. GAP-031 changes DSL validation rather than an effect definition or shader program, so repository language and JavaScript checks are the applicable executable evidence.
+- Initial focused regression: `node shaders/tests/test_midi_audio_parser.js` exited `1`; legacy `noteChange` accepted channel `0` without an `S002` diagnostic or inert descriptor.
+- Implementation: `compileAutomationDescriptor()` now applies the existing static integer `1..16` predicate to every channel-based MIDI mode. MPE zone selection continues to bypass channel compilation.
+- Focused regression after the fix: `node shaders/tests/test_midi_audio_parser.js` exited `0` with 57 passed and 0 failed. It covers all five legacy note modes, invalid boolean/fractional/zero/out-of-range/static-type channels, and valid boundary channels 1 and 16.
+- Complete diff review: valid descriptors, numeric aliases, channel defaults, MPE zone selectors, descriptor shapes, MIDI runtime state, and round-trip formatting remain unchanged. The only finding was overly specific evidence wording that named `S002` for all invalid types; the record now reflects the established `S001`/`S002` split.
+- Shader language suite: `npm run test:shaders:lang` exited `0`, including the 57-case focused MIDI/audio parser suite and the 15-case nested automation suite.
+- Non-parity JavaScript suite: `node scripts/run-js-tests.js --skip-parity` exited `0`, including the focused compiler regression, 58 external-input cases, nested automation, runtime pipeline coverage, and documentation source checks.
 - Lint: `npm run lint` exited `0` with no diagnostics.
-- Final local verification after review fixes: the shader language suite, shader runtime suite, non-parity JavaScript suite, and lint all exited `0` on the committed source.
-- Implementation commit: `6e0166ceea2be30bd1032c11748d817cc7f6e34f` (`fix: refresh textures when formats change`).
-- Pre-push synchronization: `git pull --rebase` reported `Current branch main is up to date.` The tested source did not change.
-- Push: the normal `git push origin main` advanced `main` from `72971c02` to `6e0166ce`.
-- Exact-commit CI: GitHub Actions run `35498504791` (`Shaders`) completed successfully. Shader tests, GPU tests, the shader bundle, the library-release dispatch, and the static-site-release dispatch passed.
-- Exact-commit CI: runs `35498504823` (`Docs site`) and `35498504794` (`Downstream`) completed successfully. No JavaScript or Site workflow was triggered for this path set.
-- Register closeout: `llms-full.txt` now records GAP-030 as closed, removes it from the open-gap table, and updates the open count from 29 to 28.
 
 ## Remaining Work
 
-None. All GAP-030 completion criteria passed. Select the next gap only in a later scheduled run.
+- Update the gap register after exact-commit CI confirms the implementation, close this record, and complete the commit/rebase/push/CI sequence.
