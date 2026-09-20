@@ -20,7 +20,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## I18n strings
 
-- **Checkpoint:** noisemaker `da1b6985` / noisedeck `73538a8f` (2026-09-17)
+- **Checkpoint:** noisemaker `1086890d` / noisedeck `e1146981` (2026-09-20)
 - **Scope:** two translation surfaces:
   - Noisemaker effect catalogs
     `shaders/effects/strings.{de,es,fr,it,ja,pt}.json`. The English catalog
@@ -57,6 +57,18 @@ work, verify it, then update the checkpoint and append a log line.
      non-empty string values plus every placeholder, plural leaf, and markup tag
      from the English catalog.
 - **Log:**
+  - 2026-09-20 — caught up through noisemaker `1086890d` / noisedeck
+    `e1146981`: audited noisedeck range `73538a8f..e1146981` (covering Tearoff
+    #293 trigger `adef85dd..0a2a7012`) and noisemaker `da1b6985..1086890d`.
+    UI string additions in noisedeck (`startup.statuses.enabled`,
+    `startup.statuses.midiNoDevices`, `startup.statuses.midiPortFailed` in
+    `0a2a7012`) were already translated across all six UI locales (`de`, `es`,
+    `fr`, `it`, `ja`, `pt`); all 3,689 Noisemaker effect strings remain in
+    exact key parity with zero missing keys across all six translated catalogs.
+    Verified via Noisemaker gap detection, `npm run test:shaders:i18n` (5/5),
+    Noisedeck's `tests/i18n.node-test.js` (6/6), `export-dialog-i18n` (2/2),
+    `startup-backend` (13/13), and the Noisemaker JS test suite (58/58 passed).
+    No catalog edits were required.
   - 2026-09-17 — caught up through noisemaker `da1b6985` / noisedeck
     `73538a8f`: audited noisedeck range `47b145e0..73538a8f` (covering Tearoff
     #194 trigger `adef85dd`) and noisemaker `c68fb3c8..da1b6985`. The only UI string
