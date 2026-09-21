@@ -1,6 +1,6 @@
 # Active Framework Gap: GAP-001
 
-Status: active
+Status: closed
 
 ## Gap
 
@@ -53,7 +53,7 @@ Agent consequence:
 - [x] Add the minimal lexer range check with a located `SyntaxError`; verify the focused regression passes.
 - [x] Review the complete diff and run the focused and required repository checks.
 - [x] Update `llms-full.txt` only after evidence proves GAP-001 is closed.
-- [ ] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
+- [x] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
 
 ## Completed Evidence
 
@@ -73,7 +73,12 @@ Agent consequence:
 - Register closeout: `llms-full.txt` records located pre-parse range enforcement, preserves dotted-member and non-output reference behavior, removes GAP-001 from the open table and matrix, and changes the open count from 25 to 24.
 - Closeout documentation check: `node --test test/docs-static-paths.test.js` exited `0` with 4 passed and 0 failed.
 - Register structure and diff hygiene: the open-gap table contains exactly 24 rows and `git diff --check` exited `0`.
+- Implementation commit: `50b8f909ff59f177eb1312de7be461b16bbdd657` (`fix: enforce DSL output surface range`).
+- Pre-push synchronization: `git pull --rebase` rebased the implementation onto upstream `353de205`. Upstream changed `LEDGER.md`, `docs/shaders/renderer-output.rst`, and `llms-full.txt`; it did not change the lexer or test sources.
+- Post-rebase documentation verification: `node --test test/docs-static-paths.test.js` exited `0` with 4 passed and 0 failed; the open-gap table still contained exactly 24 rows and diff hygiene passed.
+- Push: the normal `git push origin main` advanced `main` from `353de205` to `50b8f909`.
+- Exact-commit CI: Shaders run `35629197573`, JavaScript run `35629197578`, Docs site run `35629197549`, Downstream run `35629197535`, and Site run `35629198011` all completed successfully for `50b8f909ff59f177eb1312de7be461b16bbdd657`. Shaders included the language and render suites, GPU checks, shader bundle packaging, and both scaffold release-dispatch jobs.
 
 ## Remaining Work
 
-The local implementation and documentation criteria pass. Commit, pre-push rebase, normal push, and exact-commit GitHub Actions verification remain.
+None. All GAP-001 completion criteria passed. Select the next gap only in a later scheduled run.
