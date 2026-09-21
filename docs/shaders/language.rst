@@ -38,7 +38,7 @@ Grammar
    NumberExpr     ::= Number | 'Math.PI' | '(' NumberExpr ')' | NumberExpr ( '+' | '-' | '*' | '/' ) NumberExpr
    Member         ::= Ident ( '.' Ident )+
    Func           ::= '(' ')' '=>' Expr
-   OutputRef      ::= 'o' Digit+
+   OutputRef      ::= 'o' OutputDigit
    VolRef         ::= 'vol' Digit+
    GeoRef         ::= 'geo' Digit+
    XyzRef         ::= 'xyz' Digit+
@@ -50,6 +50,7 @@ Grammar
    Number         ::= Digit+ ( '.' Digit+ )?
    String         ::= '"' [^"\n]* '"' | '"""' .* '"""'
    Digit          ::= '0'…'9'
+   OutputDigit    ::= '0'…'7'
    Letter         ::= 'A'…'Z' | 'a'…'z'
    Boolean        ::= 'true' | 'false'
    Color          ::= '#' HexDigit HexDigit HexDigit ( HexDigit HexDigit HexDigit )? ( HexDigit HexDigit )?
@@ -713,7 +714,7 @@ The DSL provides symmetric operations for reading and writing textures:
 * **write(surface):** Writes the chain output to a 2D surface.
   
   - Example: ``noise(10).write(o0)``
-  - Surfaces: ``o0``-``o7`` (global)
+  - Surfaces: ``o0``-``o7`` (global; references outside this range produce a ``SyntaxError`` at parse time)
   - **Chainable:** ``write()`` can appear mid-chain, passing the texture through to subsequent nodes.
   
     - Example: ``noise().write(o0).blur().write(o1)`` — writes noise to ``o0``, then blurs and writes to ``o1``.
