@@ -1,6 +1,6 @@
 # Active Framework Gap: GAP-028
 
-Status: active
+Status: closed
 
 ## Gap
 
@@ -58,7 +58,7 @@ Agent consequence:
 - [x] Count each pending accepted record as dropped before reconfiguration or close releases it, without changing the public stats shape or callback/error semantics.
 - [x] Review the complete diff, run all required checks, and fix actionable findings.
 - [x] Update `llms-full.txt` only after evidence proves GAP-028 is closed.
-- [ ] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
+- [x] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
 
 ## Completed Evidence
 
@@ -83,7 +83,15 @@ Agent consequence:
 - CI root cause and bounded fix: the functional test performs one rejected enqueue and closes one accepted pending frame, so both are now counted as dropped. The assertion was updated to `dropped: 2`; no runtime code changed.
 - Exact local CI reproduction after the fix: `npm run test:shaders:frame-export-orientation` exited `0` with 1 passed and 0 failed on WebGPU.
 - CI-fix review: follow-up read-only review confirmed the one-literal expectation change matches the five accepted, four completed, one rejected, and one canceled lifecycle, with no actionable findings.
+- Implementation commit: `0139e958aca5f88e4953986654bc757f114ec0f6` (`fix: account for canceled frame exports`).
+- First pre-push synchronization: `git pull --rebase` reported `Current branch main is up to date.` The tested source did not change.
+- First push: the normal `git push origin main` advanced `main` from `15352d60` to `0139e958`.
+- CI-fix commit: `9a160e5d22c3414fcf2e5b254160c242edf7100c` (`test: update frame export cancellation stats`).
+- Second pre-push synchronization: `git pull --rebase` reported `Current branch main is up to date.` The tested files did not change.
+- Second push: the normal `git push origin main` advanced `main` from `0139e958` to `9a160e5d`.
+- Exact-commit CI: GitHub Actions run `35549686450` (`Shaders`) completed successfully. Hosted shader tests, GPU tests, the exact WebGPU frame-export orientation check, shader bundle, library-release dispatch, and static-site-release dispatch passed.
+- Exact-commit CI: runs `35549686447` (`Docs site`) and `35549686478` (`Downstream`) completed successfully. No JavaScript or Site workflow was triggered for the final path set.
 
 ## Remaining Work
 
-- Complete review, required local checks, register closeout, commit, rebase, push, and exact-commit CI verification.
+None. All GAP-028 completion criteria passed. Select the next gap only in a later scheduled run.
