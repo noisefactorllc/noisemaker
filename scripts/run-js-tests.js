@@ -54,6 +54,7 @@ const testEntries = [
   { file: 'test/evaluator.test.js', parity: false },
   { file: 'test/encoder.test.js', parity: false },
   { file: 'test/cli.test.js', parity: false },
+  { file: 'test/mcp-config.test.js', parity: false },
   { file: 'test/docs-static-paths.test.js', parity: false, docs: true }
 ]
 
