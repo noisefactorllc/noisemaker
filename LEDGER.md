@@ -248,8 +248,8 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Large-format tiling
 
-- **Checkpoint:** noisemaker `ead42a5d` / noisedeck `d6fd477a` (preview
-  branch), 2026-09-18
+- **Checkpoint:** noisemaker `eef25e91` / noisedeck `4e412eb5` (preview
+  branch), 2026-09-21
 - **Scope:** every effect must be classified for Noisedeck's large-format
   (tiled print) export. Tile-aware effects consume the global `tileOffset`
   and `fullResolution` uniforms in both GLSL and WGSL when their coordinates
@@ -267,6 +267,17 @@ work, verify it, then update the checkpoint and append a log line.
   deny-list. Verify tile-aware claims with noisedeck's seam harness
   (`tests/large-format-seams/`).
 - **Log:**
+  - 2026-09-21 — caught up through noisemaker `eef25e91` / noisedeck
+    `4e412eb5`: gap detection (`git log --diff-filter=A`) identified zero
+    new effects in range `ead42a5d..eef25e91` (covering Tearoff #313 trigger
+    `f2506d21..2f855c9c`). Audited the effects changed in the range: commit
+    `2f855c9c` retired `filter/bc`, `filter/colorspace`, and `filter/hs`, none
+    of which were in noisedeck's deny-lists (`hasStatefulEffects.js` or
+    `hasUpscaleOnlyEffects.js`). In noisedeck, zero classifier changes occurred
+    across `d6fd477a..4e412eb5`. Verified 83/83 classifier and seam harness tests
+    in noisedeck (`has-stateful-effects.node-test.js`,
+    `has-upscale-only-effects.node-test.js`, `enumerator.node-test.js`). No additions
+    to `hasStatefulEffects.js` or `hasUpscaleOnlyEffects.js` required.
   - 2026-09-18 — caught up through noisemaker `ead42a5d` / noisedeck
     `d6fd477a`: gap detection (`git log --diff-filter=A`) identified zero
     new effects in range `ff1bfbc1..ead42a5d`. Audited the two effects with
