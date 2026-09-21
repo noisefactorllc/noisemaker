@@ -1,83 +1,79 @@
-# Active Framework Gap: GAP-013
+# Active Framework Gap: GAP-001
 
-Status: closed
+Status: active
 
 ## Gap
 
-**GAP-013 — Noisemaker MCP config tracks an unpinned GitHub package reference.**
+**GAP-001 — No enforced `o0`-`o7` range.**
 
 Exact problem statement from `llms-full.txt`:
 
-> Noisemaker MCP config tracks an unpinned GitHub package reference.
+> No enforced `o0`-`o7` range.
 
 Agent consequence:
 
-> Tool schemas/thresholds can drift independently of this document snapshot.
+> `o8` parses and fails later/indirectly instead of producing a range diagnostic.
 
 ## Source Files and Observed Behavior
 
-- `.mcp.json`: the Shade server uses `github:noisedeck/shade-mcp` without a tag or commit selector.
-- GitHub currently resolves `noisedeck/shade-mcp` `main` and the peeled `v0.2.3` tag to `cbcab33363851016f65391fbb9ef71d66729c07f`.
-- Observed before implementation: a semantic configuration check requiring `github:noisedeck/shade-mcp#<40-hex-commit>` fails on the floating package reference.
-- `scripts/run-js-tests.js`: the non-parity test route has no regression guarding the MCP dependency contract.
+- `shaders/src/lang/lexer.js`: the output-reference scanner accepts one or more digits after `o`, so `o8` and `o99` become ordinary `OUTPUT_REF` tokens.
+- `shaders/src/lang/parser.js`: `render()`, `read()`, `write()`, expressions, and effect arguments accept those tokens without a range check.
+- `shaders/src/runtime/pipeline.js`: the public display-surface set is `o0` through `o7`, but graph scanning can allocate other `global_*` names, allowing invalid output references to escape the declared DSL boundary.
+- `package.json` and `scripts/run-js-tests.js`: the required language and non-parity routes have no focused regression for the output-surface range.
 
 ## Backward-Compatibility Contract
 
-- Preserve DSL behavior, rendered output, defaults, saved programs, step indexes, and public result shapes.
-- Preserve the `shade` server name, `npx` command, `-y` argument, relative environment paths, viewer path, and globals prefix.
-- Resolve the same current Shade MCP release while replacing branch-tip drift with an immutable full commit selector.
-- Do not vendor Shade, add a second MCP configuration, add an alias, or change any Shade tool schema or threshold in this repository.
+- Preserve valid DSL behavior for `o0` through `o7`, rendered output, defaults, saved valid programs, step indexes, and public compile result shapes.
+- Reject only output references outside the already documented and runtime-supported public `o0`-`o7` contract.
+- Preserve source-reference and non-output surface token behavior.
+- Use the existing located `SyntaxError` convention; do not add an alias, alternate syntax, compatibility fallback, or new public result wrapper.
+- Do not change effect definitions, shader programs, backend allocation, or the Python implementation.
 
 ## Objective Completion Criteria
 
-- `.mcp.json` identifies Shade MCP with a full 40-character lowercase commit SHA.
-- The pinned SHA exists upstream and is the commit selected for this run.
-- The pinned package installs and starts through the configured `npx` entrypoint with the existing environment contract.
-- A focused regression fails on the pre-change floating reference and passes on the pinned reference.
-- The regression runs in the non-parity JavaScript route.
-- Non-parity JavaScript, lint, configuration smoke, and documentation-path checks pass.
-- The exact pushed commit passes all required GitHub Actions checks triggered for the changed paths.
+- The public DSL compiler rejects every digit-suffixed output reference outside `o0` through `o7` before parsing or graph expansion.
+- The failure is a `SyntaxError` that identifies the invalid reference, the accepted range, and its source line and column.
+- Valid boundary references `o0` and `o7` retain their existing tokens and compiler behavior.
+- A focused regression fails against the pre-change lexer and passes after the implementation.
+- The regression runs in both the shader language suite and the non-parity JavaScript suite.
+- Shader language tests, non-parity JavaScript tests, lint, documentation-path checks, and the exact pushed commit's required GitHub Actions checks pass.
 
 ## Required Tests and CI Checks
 
-- `node --test test/mcp-config.test.js`
+- `node --test shaders/tests/test_output_surface_range.js`
+- `npm run test:shaders:lang`
 - `node scripts/run-js-tests.js --skip-parity`
 - `npm run lint`
-- A clean-stdin `npx -y <pinned-package-reference>` startup smoke check.
 - `node --test test/docs-static-paths.test.js` after changing `llms-full.txt`.
-- GitHub Actions checks for the exact pushed commit, including JavaScript and any other workflows triggered for the changed paths.
+- GitHub Actions checks for the exact pushed commit, including every workflow triggered by the changed paths.
 
 ## Bounded Work Items
 
-- [x] Add and register a semantic regression requiring the Shade GitHub package reference to use a full commit SHA; verify the pre-change failure.
-- [x] Pin the existing Shade MCP package reference to the selected upstream commit without changing its command or environment.
-- [x] Verify the pinned package entrypoint, review the complete diff, and run all required checks.
-- [x] Update `llms-full.txt` only after evidence proves GAP-013 is closed.
-- [x] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
+- [x] Add and register a public-compile regression covering invalid output references in render, read, and write positions plus valid `o0`/`o7` boundaries; verify the pre-change failure.
+- [x] Add the minimal lexer range check with a located `SyntaxError`; verify the focused regression passes.
+- [x] Review the complete diff and run the focused and required repository checks.
+- [x] Update `llms-full.txt` only after evidence proves GAP-001 is closed.
+- [ ] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
 
 ## Completed Evidence
 
-- Checkout safety: `git status --short --branch` reported clean `main` tracking `origin/main`, with no active merge, rebase, cherry-pick, or revert operation.
-- Initial synchronization: `git pull --rebase` reported `Already up to date.`
-- Target selection: the previous GAP-028 record was closed before this scheduled run. GAP-013 is repository-owned, reliability-focused, bounded to the existing MCP configuration, and does not require unavailable Shade shader-development tools.
-- Shade MCP availability check: no Shade MCP tool is exposed in this run. This target changes only how the existing external server package is resolved; it does not modify or validate shader source.
-- Upstream identity: `git ls-remote` reported `cbcab33363851016f65391fbb9ef71d66729c07f` for both Shade MCP `HEAD`/`main` and the peeled `v0.2.3` tag.
-- Focused red check: the semantic pin assertion exited `1` and reported `Shade package reference is not pinned to a full commit: github:noisedeck/shade-mcp`.
-- Focused committed-test red run: `node --test test/mcp-config.test.js` exited `1` with 0 passed and 1 failed because the floating package reference did not match the immutable full-commit contract.
-- Implementation: `.mcp.json` now selects `github:noisedeck/shade-mcp#cbcab33363851016f65391fbb9ef71d66729c07f`; the server name, command, argument order, relative environment paths, viewer path, and globals prefix are unchanged.
-- Focused green run: `node --test test/mcp-config.test.js` exited `0` with 1 passed and 0 failed. The regression also asserts the existing `npx -y` invocation shape and is registered in the non-parity JavaScript runner.
-- Package smoke: `printf '' | npx -y 'github:noisedeck/shade-mcp#cbcab33363851016f65391fbb9ef71d66729c07f'` completed the Git package preparation, launched the configured binary with clean stdin, and exited `0`.
-- Complete diff review found one documentation consistency issue: the configured `v0.2.3` commit differs from the older audited Shade MCP source snapshot recorded by `llms-full.txt`. The closeout text now preserves both exact revisions and states that the configured server is not freshness evidence for the different audited snapshot. No runtime or test issue remained.
-- Non-parity JavaScript suite: `node scripts/run-js-tests.js --skip-parity` exited `0`, including the new MCP configuration regression, shader runtime and language coverage, CPU JavaScript coverage, and documentation source checks.
+- Checkout safety: `git status --short --branch` reported clean `main` tracking `origin/main`, with no active merge, rebase, or cherry-pick operation.
+- Initial synchronization: `git pull --rebase` fast-forwarded `main` from `782f0726` to `5a1225f8` without conflicts. The upstream changes were limited to Python dependency metadata and an audio test.
+- Target selection: the previous GAP-013 record was closed before this scheduled run. GAP-001 is repository-owned, correctness-focused, and bounded to the existing DSL output-surface contract.
+- Shade MCP availability check: no Shade MCP tool is exposed in this run. This target changes lexer validation and does not modify effect definitions, shader programs, or rendered output.
+- Focused red run: `node --test shaders/tests/test_output_surface_range.js` exited `1`; the valid boundary case passed, while render `o8`, read `o99`, and write `o10` all failed because the compiler did not throw.
+- Initial implementation: `shaders/src/lang/lexer.js` rejects output references that do not match `o0` through `o7` with the reference, accepted range, line, and column in a `SyntaxError`.
+- Independent review found one Important compatibility issue: the first implementation also rejected output-shaped dotted member segments such as `foo.o8`, which the parser intentionally accepts. A second red run reproduced that regression.
+- Review fix: range enforcement now excludes a token whose immediately preceding token is `DOT`. Regression coverage preserves `foo.o0`, `foo.o7`, `foo.o8`, `foo.o99`, and the existing `s99`, `vol99`, `geo99`, `xyz99`, `vel99`, `rgba99`, and `mesh99` token families.
+- Focused green run: `node --test shaders/tests/test_output_surface_range.js` exited `0` with 6 passed and 0 failed.
+- Independent re-review reported no Critical, Important, or Minor issues and judged the change ready for broader suites and closeout.
+- Shader language suite: `npm run test:shaders:lang` exited `0`, including the new output-surface regression and all existing language/compiler checks.
+- Non-parity JavaScript suite: `node scripts/run-js-tests.js --skip-parity` exited `0`, including the registered regression, shader runtime/language coverage, CPU JavaScript coverage, and documentation source checks.
 - Lint: `npm run lint` exited `0` with no diagnostics.
-- Register closeout: `llms-full.txt` records the immutable configured revision, removes GAP-013 from the open-gap table and matrix, and changes the open count from 26 to 25 without claiming the configured revision was fully re-audited for the older contract snapshot.
+- Register closeout: `llms-full.txt` records located pre-parse range enforcement, preserves dotted-member and non-output reference behavior, removes GAP-001 from the open table and matrix, and changes the open count from 25 to 24.
 - Closeout documentation check: `node --test test/docs-static-paths.test.js` exited `0` with 4 passed and 0 failed.
-- Register structure check counted exactly 25 open gap rows, `.mcp.json` parsed successfully, and `git diff --check` exited `0`.
-- Implementation commit: `7706a71577866a65b010b930ae6d8f8e2c8e0392` (`chore: pin Shade MCP dependency`).
-- Pre-push synchronization: `git pull --rebase` reported `Current branch main is up to date.` The tested source did not change.
-- Push: the normal `git push origin main` advanced `main` from `2f855c9c` to `7706a715`.
-- Exact-commit CI: GitHub Actions run `35572206261` (`JavaScript`) completed successfully for `7706a71577866a65b010b930ae6d8f8e2c8e0392`. Lint, non-parity tests, browser and CLI bundle builds, Linux/macOS/Windows standalone builds, artifact uploads, and snapshot publication passed. No other workflow was triggered for the changed paths.
+- Register structure and diff hygiene: the open-gap table contains exactly 24 rows and `git diff --check` exited `0`.
 
 ## Remaining Work
 
-None. All GAP-013 completion criteria passed. Select the next gap only in a later scheduled run.
+The local implementation and documentation criteria pass. Commit, pre-push rebase, normal push, and exact-commit GitHub Actions verification remain.
