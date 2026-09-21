@@ -120,7 +120,7 @@ function serveFile(filePath, res, corsOrigin) {
 async function acquireServer(port, viewerRoot, effectsDir) {
   if (refCount > 0) {
     if (port !== requestedPort) {
-      throw new Error(`Server already running on port ${activePort} (requested ${requestedPort}), cannot switch to ${port}`);
+      throw new Error(`The server already runs on port ${activePort} (requested ${requestedPort}). It cannot switch to ${port}.`);
     }
     refCount++;
     return getServerUrl();
@@ -345,7 +345,7 @@ var BrowserSession = class {
     };
   }
   async setup() {
-    if (this._isSetup) throw new Error("Session already set up. Call teardown() first.");
+    if (this._isSetup) throw new Error("The session is already initialized. Call teardown() first.");
     await acquireBrowserSlot();
     this._slotAcquired = true;
     try {
@@ -15159,8 +15159,8 @@ function matchEffects(allEffects, pattern) {
 
 // src/tools/browser/compile.ts
 var compileEffectSchema = {
-  effect_id: external_exports.string().optional().describe('Single effect ID (e.g., "synth/noise")'),
-  effects: external_exports.string().optional().describe("CSV of effect IDs"),
+  effect_id: external_exports.string().optional().describe('One effect ID, such as "synth/noise"'),
+  effects: external_exports.string().optional().describe("Comma-separated effect IDs"),
   backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Rendering backend")
 };
 async function compileEffect(session, effectId) {
@@ -15212,14 +15212,14 @@ async function compileEffect(session, effectId) {
 
 // src/tools/browser/render.ts
 var renderEffectFrameSchema = {
-  effect_id: external_exports.string().optional().describe('Single effect ID (e.g., "synth/noise")'),
-  effects: external_exports.string().optional().describe("CSV of effect IDs"),
+  effect_id: external_exports.string().optional().describe('One effect ID, such as "synth/noise"'),
+  effects: external_exports.string().optional().describe("Comma-separated effect IDs"),
   backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Rendering backend"),
   warmup_frames: external_exports.number().optional().default(10).describe("Frames to wait before capture"),
-  capture_image: external_exports.boolean().optional().default(false).describe("Capture PNG data URI"),
-  uniforms: external_exports.record(external_exports.string(), external_exports.number()).optional().describe("Uniform overrides"),
-  time: external_exports.number().optional().describe("Pause and render at specific time value (seconds)"),
-  resolution: external_exports.tuple([external_exports.number(), external_exports.number()]).optional().describe("Viewport resolution [width, height]")
+  capture_image: external_exports.boolean().optional().default(false).describe("Capture the frame as a PNG data URI"),
+  uniforms: external_exports.record(external_exports.string(), external_exports.number()).optional().describe("Values that override uniforms"),
+  time: external_exports.number().optional().describe("Time in seconds at which to pause and render the frame"),
+  resolution: external_exports.tuple([external_exports.number(), external_exports.number()]).optional().describe("Viewport resolution as [width, height]")
 };
 async function renderEffectFrame(session, effectId, options = {}) {
   return session.runWithConsoleCapture(async () => {
@@ -15367,12 +15367,12 @@ async function renderEffectFrame(session, effectId, options = {}) {
 
 // src/tools/browser/benchmark.ts
 var benchmarkEffectFPSSchema = {
-  effect_id: external_exports.string().optional().describe('Single effect ID (e.g., "synth/noise")'),
-  effects: external_exports.string().optional().describe("CSV of effect IDs"),
+  effect_id: external_exports.string().optional().describe('One effect ID, such as "synth/noise"'),
+  effects: external_exports.string().optional().describe("Comma-separated effect IDs"),
   backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Rendering backend"),
   target_fps: external_exports.number().optional().default(60).describe("Target FPS"),
   duration_seconds: external_exports.number().optional().default(5).describe("Benchmark duration in seconds"),
-  resolution: external_exports.tuple([external_exports.number(), external_exports.number()]).optional().describe("Viewport resolution [width, height]")
+  resolution: external_exports.tuple([external_exports.number(), external_exports.number()]).optional().describe("Viewport resolution as [width, height]")
 };
 async function benchmarkEffectFPS(session, effectId, options = {}) {
   const targetFps = options.targetFps ?? 60;
@@ -15452,8 +15452,8 @@ async function benchmarkEffectFPS(session, effectId, options = {}) {
 
 // src/tools/browser/passthrough.ts
 var testNoPassthroughSchema = {
-  effect_id: external_exports.string().optional().describe('Single effect ID (e.g., "synth/noise")'),
-  effects: external_exports.string().optional().describe("CSV of effect IDs"),
+  effect_id: external_exports.string().optional().describe('One effect ID, such as "synth/noise"'),
+  effects: external_exports.string().optional().describe("Comma-separated effect IDs"),
   backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Rendering backend")
 };
 async function testNoPassthrough(session, effectId) {
@@ -15523,8 +15523,8 @@ async function testNoPassthrough(session, effectId) {
 
 // src/tools/browser/parity.ts
 var testPixelParitySchema = {
-  effect_id: external_exports.string().optional().describe('Single effect ID (e.g., "synth/noise")'),
-  effects: external_exports.string().optional().describe("CSV of effect IDs"),
+  effect_id: external_exports.string().optional().describe('One effect ID, such as "synth/noise"'),
+  effects: external_exports.string().optional().describe("Comma-separated effect IDs"),
   epsilon: external_exports.number().optional().default(1).describe("Allowed per-channel difference (0-255)"),
   seed: external_exports.number().optional().default(42).describe("Random seed for reproducible noise")
 };
@@ -15721,8 +15721,8 @@ async function testPixelParity(session, effectId, options = {}) {
 
 // src/tools/browser/uniforms.ts
 var testUniformResponsivenessSchema = {
-  effect_id: external_exports.string().optional().describe('Single effect ID (e.g., "synth/noise")'),
-  effects: external_exports.string().optional().describe("CSV of effect IDs"),
+  effect_id: external_exports.string().optional().describe('One effect ID, such as "synth/noise"'),
+  effects: external_exports.string().optional().describe("Comma-separated effect IDs"),
   backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Rendering backend")
 };
 async function testUniformResponsiveness(session, effectId) {
@@ -15827,9 +15827,9 @@ async function testUniformResponsiveness(session, effectId) {
 var runDslProgramSchema = {
   dsl: external_exports.string().describe("DSL program string"),
   backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Rendering backend"),
-  warmup_frames: external_exports.number().optional().default(10).describe("Frames to wait"),
-  capture_image: external_exports.boolean().optional().default(false).describe("Capture PNG data URI"),
-  uniforms: external_exports.record(external_exports.string(), external_exports.number()).optional().describe("Uniform overrides")
+  warmup_frames: external_exports.number().optional().default(10).describe("Number of frames to wait before measuring output"),
+  capture_image: external_exports.boolean().optional().default(false).describe("Capture the frame as a PNG data URI"),
+  uniforms: external_exports.record(external_exports.string(), external_exports.number()).optional().describe("Values that override uniforms")
 };
 async function runDslProgram(session, dsl, options = {}) {
   return session.runWithConsoleCapture(async () => {
@@ -16427,7 +16427,7 @@ async function checkEffectStructure(effectId) {
           type: "uniform_function",
           name: u,
           file: `glsl/${gf}`,
-          message: `Uniform "${u}" collides with function "${u}()" in same file`
+          message: `Uniform "${u}" collides with function "${u}()" in the same file`
         });
       }
       if (GLSL_RESERVED.has(u)) {

@@ -95,7 +95,7 @@ async function callAnthropic(options) {
   });
   let system = options.system;
   if (options.jsonMode) {
-    system += "\n\nIMPORTANT: Respond with valid JSON only. No markdown, no explanation.";
+    system += "\n\nRespond with valid JSON only. Do not include Markdown or explanations.";
   }
   const response = await client.messages.create({
     model: options.ai.model,
@@ -125,7 +125,7 @@ async function callOpenAI(options) {
   });
   return response.choices[0]?.message?.content || null;
 }
-var NO_AI_KEY_MESSAGE = "No AI API key found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY, or create .anthropic/.openai file in project root.";
+var NO_AI_KEY_MESSAGE = "No AI API key found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY. Alternatively, create a .anthropic or .openai file in the project root.";
 export {
   NO_AI_KEY_MESSAGE,
   aiClientOptions,

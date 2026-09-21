@@ -14619,7 +14619,7 @@ async function callAnthropic(options) {
   });
   let system = options.system;
   if (options.jsonMode) {
-    system += "\n\nIMPORTANT: Respond with valid JSON only. No markdown, no explanation.";
+    system += "\n\nRespond with valid JSON only. Do not include Markdown or explanations.";
   }
   const response = await client.messages.create({
     model: options.ai.model,
@@ -14649,7 +14649,7 @@ async function callOpenAI(options) {
   });
   return response.choices[0]?.message?.content || null;
 }
-var NO_AI_KEY_MESSAGE = "No AI API key found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY, or create .anthropic/.openai file in project root.";
+var NO_AI_KEY_MESSAGE = "No AI API key found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY. Alternatively, create a .anthropic or .openai file in the project root.";
 
 // src/tools/resolve-effects.ts
 import { readdirSync, existsSync, statSync } from "fs";
@@ -14764,7 +14764,7 @@ import { readFileSync as readFileSync3, readdirSync as readdirSync3, existsSync 
 import { join as join4 } from "path";
 var analyzeBranchingSchema = {
   effect_id: external_exports.string().describe('Effect ID (e.g., "synth/noise")'),
-  backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Which shader language to analyze")
+  backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Backend that selects the shader language to analyze")
 };
 async function analyzeBranching(effectId, backend) {
   const config2 = getConfig();
@@ -14794,7 +14794,7 @@ async function analyzeBranching(effectId, backend) {
   const shaderText = sources.map((s) => `--- ${s.file} ---
 ${s.source}`).join("\n\n");
   const response = await callAI({
-    system: "You are a senior GPU shader developer. Identify UNNECESSARY branching in shader code that could be flattened for better GPU performance. Focus on simple if/else over uniforms, not complex algorithms. Severity: high (inner loops), medium (per-fragment), low (negligible). Respond with JSON: {shaders: [{file, opportunities: [{location, description, severity}], notes}], summary}",
+    system: "You are a senior GPU shader developer. Identify unnecessary shader branches that could be flattened for better GPU performance. Focus on simple if/else over uniforms. Exclude complex algorithms. Assign severity:\n- high: inner loops\n- medium: per-fragment\n- low: negligible.\n Respond with JSON: {shaders: [{file, opportunities: [{location, description, severity}], notes}], summary}",
     userContent: [
       { type: "text", text: `Effect definition:
 ${defContext}
@@ -14837,14 +14837,14 @@ import { extname, join as join5, resolve as pathResolve, normalize, basename as 
 
 // src/tools/browser/render.ts
 var renderEffectFrameSchema = {
-  effect_id: external_exports.string().optional().describe('Single effect ID (e.g., "synth/noise")'),
-  effects: external_exports.string().optional().describe("CSV of effect IDs"),
+  effect_id: external_exports.string().optional().describe('One effect ID, such as "synth/noise"'),
+  effects: external_exports.string().optional().describe("Comma-separated effect IDs"),
   backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Rendering backend"),
   warmup_frames: external_exports.number().optional().default(10).describe("Frames to wait before capture"),
-  capture_image: external_exports.boolean().optional().default(false).describe("Capture PNG data URI"),
-  uniforms: external_exports.record(external_exports.string(), external_exports.number()).optional().describe("Uniform overrides"),
-  time: external_exports.number().optional().describe("Pause and render at specific time value (seconds)"),
-  resolution: external_exports.tuple([external_exports.number(), external_exports.number()]).optional().describe("Viewport resolution [width, height]")
+  capture_image: external_exports.boolean().optional().default(false).describe("Capture the frame as a PNG data URI"),
+  uniforms: external_exports.record(external_exports.string(), external_exports.number()).optional().describe("Values that override uniforms"),
+  time: external_exports.number().optional().describe("Time in seconds at which to pause and render the frame"),
+  resolution: external_exports.tuple([external_exports.number(), external_exports.number()]).optional().describe("Viewport resolution as [width, height]")
 };
 async function renderEffectFrame(session, effectId, options = {}) {
   return session.runWithConsoleCapture(async () => {
@@ -14992,8 +14992,8 @@ async function renderEffectFrame(session, effectId, options = {}) {
 
 // src/tools/browser/describe.ts
 var describeEffectFrameSchema = {
-  effect_id: external_exports.string().optional().describe('Single effect ID (e.g., "synth/noise")'),
-  effects: external_exports.string().optional().describe("CSV of effect IDs"),
+  effect_id: external_exports.string().optional().describe('One effect ID, such as "synth/noise"'),
+  effects: external_exports.string().optional().describe("Comma-separated effect IDs"),
   prompt: external_exports.string().describe("Analysis prompt for the AI vision model"),
   backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Rendering backend"),
   capture_image: external_exports.boolean().optional().default(false).describe("Return the rendered PNG data URI alongside the description")
