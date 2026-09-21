@@ -340,7 +340,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `ac8a8d90` (2026-09-20)
+- **Checkpoint:** noisemaker `f61ac073` (2026-09-21)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -354,7 +354,20 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-21 — caught up through `f61ac073`: audited range
+    `ac8a8d90..f61ac073` (covering Tearoff #306 trigger `8ddf9e6e..2f855c9c`
+    through HEAD). Gap detection confirmed zero missing `help.md` files
+    across all 210 effect definitions (accounting for the removal of expired
+    effects `bc`, `colorspace`, and `hs` in `2f855c9c`). Invalidation audit
+    identified an outdated warning in `docs/shaders/renderer-output.rst`
+    regarding frame-export queue reconfiguration/close accounting; corrected
+    it to document that canceled pending frames are now accounted as `dropped`
+    (resolved by GAP-028 in `0139e958`). Verified `node --test test/docs-static-paths.test.js`
+    (4/4 pass), `node shaders/tests/test_effect_help_params.mjs` (1257 documented
+    parameters across 200 effects matching definitions), and `node scripts/run-js-tests.js --skip-parity`
+    (57/57 passed).
   - 2026-09-20 — caught up through `ac8a8d90`: audited range
+
     `beabda38..ac8a8d90`. Gap detection confirmed zero missing `help.md`
     files across all 213 effect definitions. Commits in the range consist of
     documentation and ledger synchronizations: active framework gap resolution

@@ -141,12 +141,13 @@ context are the same values passed to ``enqueue()``. ``queue.available`` says
 whether a configured, open queue currently has a free slot, and ``queue.stats``
 tracks ``accepted``, ``dropped``, ``completed``, and ``failed`` frames.
 
-.. warning::
+.. note::
 
-    Reconfiguring or closing a queue releases pending frames without invoking
-    their callbacks or incrementing ``completed``, ``failed``, or ``dropped``.
-    If terminal delivery or accounting is required, do not reconfigure or close
-    the queue while accepted frames are pending.
+    Reconfiguring or closing a queue releases pending accepted frames without
+    invoking their callbacks, incrementing ``dropped`` once for each canceled
+    frame before releasing its record. Completed and failed frames are not
+    counted again.
+
 
 Frame Format and Backends
 -------------------------
