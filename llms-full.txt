@@ -2176,9 +2176,14 @@ invoke `onError` when supplied. A callback increments `completed` only after it
 returns normally. A failed slot is released for reuse. Descriptor validation
 and slot allocation failures from `configure()` throw synchronously.
 
-No accepted-frame terminal result is recorded when reconfiguration or close
-destroys a pending slot. The callback is cleared, but `completed`, `failed`, and
-`dropped` are unchanged. This accounting hole is GAP-028.
+When reconfiguration or close destroys a pending slot, the queue increments
+`dropped` before clearing its callback and context. This also applies to
+backend-loss close, without attempting GPU destruction. Completed and failed
+records are already released and are not counted again. A host that separately
+tracks enqueue results and pending callbacks can use the increment to reconcile
+outstanding frames after the lifecycle call. `dropped` also includes enqueue
+attempts rejected before acceptance, so stats alone do not identify which
+accepted frame was canceled.
 
 Sources: Shade MCP `src/tools/browser/render.ts`, `passthrough.ts`,
 `benchmark.ts`; `shaders/tests/test-harness.js` - metric gates, exemptions, and
@@ -2239,8 +2244,8 @@ Adapters additionally report missing textures, source/configured extent
 mismatches, unusable or wrongly sequenced slots, allocation/compile/link/fence
 failures, unavailable WebGPU constants, and map failures. Queue `onError`
 receives those objects but no texture ID, timestamp, slot index, or normalized
-phase field. On reconfigure/close, accepted pending frames disappear without a
-callback or terminal counter. See GAP-028.
+phase field. On reconfigure/close, accepted pending frames suppress their
+callbacks and increment `dropped` once before their records are released.
 
 Sources: Shade MCP `src/tools/browser/render.ts`; vendored
 `vendor/shade-mcp/harness/pixel-reader.js`; `shaders/tests/test-harness.js` -
@@ -3837,7 +3842,7 @@ Every cell points to an executable contract or an explicitly identified gap.
 | Passes and render graph | `Effect.passes`, `CompiledGraph.passes`, `CompiledGraph.textures`, `CompiledGraph.allocations` | `PassSpec` typed grammar, sampler/output binding rules, and MRT byte adaptation | graph analysis and per-pass compile | unresolved inputs and backend compile/resource failures. GAP-005/006 |
 | Textures and surface resources | texture specs, `DeviceCapabilities`, and runtime surface dimensions/formats | `TextureSpec` typed grammar, exact accepted policies, and volume atlas clamp | allocation existence, size/format/limit inspection, render metrics | unsupported/missing surface failures and silent fields. GAP-004 |
 | Compatibility and mutation | compiled AST, `listSteps`, `getCompatibleReplacements` | typed `replaceEffect` contract | candidate precheck. Post-mutation browser identity is GAP-024 | compatibility and transform errors. GAP-008/022/024 |
-| Rendered output | frame dimensions, `ImageMetrics`, sink stats, and `PackedFrame` | `RenderEffectFrameInput`, `Sink`, and `FrameExportQueue` contracts | exact metric predicates plus bounded queue/accounting rules | metric, capture, sink, and export failures. GAP-009/014/015/021/024/028 |
+| Rendered output | frame dimensions, `ImageMetrics`, sink stats, and `PackedFrame` | `RenderEffectFrameInput`, `Sink`, and `FrameExportQueue` contracts | exact metric predicates plus bounded queue/accounting rules | metric, capture, sink, and export failures. GAP-009/014/015/021/024 |
 | Cross-backend parity | source-pair availability and parity report | GLSL ES 3.00/WGSL authoring contracts | buffer diff predicates. Requested-effect/backend proof is GAP-024 | compile/readback/divergence/identity reports. GAP-012/016/024 |
 | Shade MCP tool contracts | `tools/list`, effect scanners, all output types | Full signatures for all 18 verbs | verb-specific domain predicates | selector errors and tool-specific unions. GAP-013/017/019/020/024/029 |
 
@@ -3875,6 +3880,12 @@ the existing validation diagnostics and remain inert instead of reaching the
 runtime's channel-1 fallback. Regression coverage exercises all five legacy
 modes, invalid selector types and ranges, and valid boundary channels.
 
+This checkout closes GAP-028. Reconfiguration, normal close, and backend-loss
+close now count every pending accepted frame as `dropped` before releasing its
+record. Completed and failed frames are not counted again. Regression coverage
+exercises replacement-ring reuse, destruction failure, terminal re-close, and
+backend-loss abandonment without GPU destruction.
+
 GAP-005 is narrowed, not closed, at noisemaker `ff1bfbc1`: `conditions` is
 copied by `expand()` and reaches `Pipeline.shouldSkipPass()`, so it is no
 longer on the uncopied-field list below. `name`, `viewport`, `clear`,
@@ -3906,10 +3917,9 @@ longer on the uncopied-field list below. `name`, `viewport`, `clear`,
 | GAP-024 | Browser MCP readiness and backend switching are not bound to requested effect, compiled graph, and actual backend identity | Shade `src/tools/browser/compile.ts`, `render.ts`, `benchmark.ts`, `uniforms.ts`, `passthrough.ts`, and `dsl.ts` poll status text; `describe.ts` delegates to `renderEffectFrame`; `src/tools/browser/parity.ts` waits only for a noncompiling nonempty graph; `src/harness/browser-session.ts` dispatches selection without awaiting the Noisemaker asynchronous load and `setBackend()` silently exits after its poll timeout | any browser `ok` result, including parity, can describe a previously ready graph or unintended backend. Configured backend labels do not prove page state, and no current result field makes those identity mismatches uniformly diagnosable |
 | GAP-026 | `onInit`, `onUpdate`, and `onDestroy` are copied into `Effect` wrappers but are not invoked by the production renderer | `shaders/src/runtime/effect.js` defines the wrappers; only `shaders/tests/harness_effect.js` calls them; `shaders/src/runtime/pipeline.js` calls `asyncInit` only | an authored config callback can look valid but never run in production. Use only `asyncInit` as a production lifecycle hook until callers exist |
 | GAP-027 | Subchain arguments have no enforced key set, separator rule, duplicate-key diagnostic, or discarded-key report | `shaders/src/lang/parser.js` - `parseSubchainCall()` accepts arbitrary identifier/string pairs, makes commas optional, overwrites duplicates in `kwargs`, and projects only `name`/`id` into the AST | a typo or unknown subchain key can parse successfully and disappear. Retry logic receives no machine-readable failure |
-| GAP-028 | Frame export has no terminal result or cancellation counter for accepted frames discarded by reconfigure or close | `shaders/src/runtime/frame-export.js` - `configure()`, `close()`, `_destroySlots()`, `_release()` | accepted work can lose its callback without incrementing `completed`, `failed`, or `dropped`, so a host cannot reconcile or selectively retry canceled frames |
 | GAP-029 | Effect-index invalidation does not supersede an in-flight rebuild | Shade `src/knowledge/shared-instances.ts` leaves `building` intact in `invalidateSharedEffectIndex()` and shares it with the next reader | a list/search immediately after a library change or `generateManifest` can retain a pre-change index for the next five-second TTL. Retry after that TTL when freshness matters |
 | GAP-032 | The built-in browser audio manager cannot populate selected-device/default-channel state or any `rawReady` value | `shaders/src/runtime/external-input.js` - `AudioInputManager.enable()` opens one default stream and `_updateLoop()` updates only aggregate spectrum, waveform, bands, and volume; selected/raw setters exist only on `AudioState` | Channel-only, named-channel, and raw audio bindings evaluate to `min` under the shipped manager unless the host separately consumes `getAudioInputRequirements()` and populates `AudioState`. The runtime gives no warning when that integration is absent. |
 
 The matrix has 9 surfaces x 4 capabilities = 36 filled cells. Cells that rely
-on behavior absent from code link to the 27 open gaps above rather than substituting
+on behavior absent from code link to the 26 open gaps above rather than substituting
 an invented contract.

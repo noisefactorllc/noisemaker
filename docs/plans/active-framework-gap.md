@@ -1,83 +1,84 @@
-# Active Framework Gap: GAP-031
+# Active Framework Gap: GAP-028
 
-Status: closed
+Status: active
 
 ## Gap
 
-**GAP-031 — Legacy MIDI note modes 0-4 do not enforce the documented integer channel range 1-16.**
+**GAP-028 — Frame export has no terminal result or cancellation counter for accepted frames discarded by reconfigure or close.**
 
 Exact problem statement from `llms-full.txt`:
 
-> Legacy MIDI note modes 0-4 do not enforce the documented integer channel range 1-16.
+> Frame export has no terminal result or cancellation counter for accepted frames discarded by reconfigure or close.
 
 Agent consequence:
 
-> A fractional, zero, or out-of-range channel in a legacy note mode compiles without a diagnostic and reads channel 1. CC and expression modes instead diagnose invalid channels and resolve to `min`.
+> Accepted work can lose its callback without incrementing `completed`, `failed`, or `dropped`, so a host cannot reconcile or selectively retry canceled frames.
 
 ## Source Files and Observed Behavior
 
-- `shaders/src/lang/validator.js`: `compileAutomationDescriptor()` applies the static integer `1..16` channel predicate only when the resolved MIDI mode is `5` or greater.
-- `shaders/src/runtime/external-input.js`: `MidiState.getChannel()` falls back to channel 1 when a compiled descriptor supplies a channel that does not exist.
-- `shaders/tests/test_midi_audio_parser.js`: existing coverage rejects invalid channels for CC modes, but legacy note-mode coverage checks only valid channels and modes.
-- Observed before implementation: legacy modes `0..4` accept boolean, fractional, zero, and out-of-range channel values without marking the descriptor invalid, allowing runtime fallback to channel 1.
+- `shaders/src/runtime/frame-export.js`: `configure()` and `close()` release pending records through `_destroySlots()` or `_abandonSlots()` without updating any terminal counter.
+- `shaders/src/runtime/frame-export.js`: `_release()` clears the callback, texture ID, timestamp, context, and pending state but does not distinguish completion, failure, or cancellation.
+- `shaders/tests/test_frame_export.js`: close and backend-loss coverage proves callbacks are suppressed, but the normal-close expectation leaves two accepted pending frames absent from every terminal counter and backend-loss coverage has no stats assertion.
+- Observed before implementation: after two accepted frames are closed, stats remain `{ accepted: 2, dropped: 0, completed: 0, failed: 0 }`; reconfiguration has the same accounting hole.
 
 ## Backward-Compatibility Contract
 
-- Preserve DSL parsing, expansion, saved programs, step indexes, and public result shapes.
-- Preserve valid MIDI descriptors for every mode, including numeric mode values used by Noisedeck.
-- Preserve the default channel value of 1 when a valid descriptor omits its channel through supported parser defaults.
-- Preserve mode numbering, MIDI runtime state, unparse/format behavior, min/max/sensitivity handling, selected-port identity, and rendered output for valid programs.
-- Do not change the runtime fallback used by direct internal callers; close the authoring gap at the compiler validation boundary.
-- Invalid legacy descriptors may gain the same existing validation diagnostics and inert `_invalid` behavior already used by CC and expression modes.
+- Preserve DSL behavior, rendered output, defaults, saved programs, step indexes, and public result shapes.
+- Preserve the existing `stats` object identity and its four fields: `accepted`, `dropped`, `completed`, and `failed`.
+- Preserve enqueue acceptance/rejection, slot reuse, callback delivery, callback suppression during reconfigure/close, error reporting, destruction order, backend-loss abandonment, and terminal close behavior.
+- Preserve the existing meanings of `completed` and `failed`.
+- Count an accepted pending frame released by reconfigure, normal close, or backend-loss close as `dropped`; do not invoke its callback or report it as an adapter error.
+- Do not add a second cancellation API, counter, callback shape, or compatibility alias.
 
 ## Objective Completion Criteria
 
-- Every MIDI mode that uses a channel requires a static integer from 1 through 16.
-- Legacy modes `0..4` diagnose boolean, fractional, zero, and out-of-range channels and mark the compiled descriptor inert.
-- Valid boundary channels 1 and 16 continue to compile without diagnostics for legacy modes.
-- Existing CC, expression, MPE, round-trip, identity, and numeric-mode behavior remains unchanged.
-- Focused regression tests demonstrate the pre-fix acceptance and pass after the implementation.
-- Required shader language, non-parity JavaScript, and lint checks pass.
+- Every accepted frame released by reconfiguration or close receives exactly one terminal count in `dropped`.
+- Reconfiguration drops pending frames before creating the replacement slot ring and the queue remains usable afterward.
+- Normal close drops pending frames even when slot destruction throws, while still attempting every slot destruction and preserving the first destruction error.
+- Backend-loss close drops pending frames without attempting GPU destruction.
+- Completed and failed frames are not double-counted as dropped.
+- Once no work remains, `accepted === completed + failed + dropped` for the exercised lifecycle paths.
+- Focused regression tests demonstrate the pre-fix accounting hole and pass after the implementation.
+- Required shader runtime, non-parity JavaScript, lint, and documentation checks pass.
 - The exact pushed commit passes all required GitHub Actions checks triggered for the changed paths.
 
 ## Required Tests and CI Checks
 
-- `node shaders/tests/test_midi_audio_parser.js`
-- `npm run test:shaders:lang`
+- `node --test shaders/tests/test_frame_export.js`
+- `npm run test:shaders:runtime`
 - `node scripts/run-js-tests.js --skip-parity`
 - `npm run lint`
+- `node --test test/docs-static-paths.test.js` after changing `llms-full.txt`
 - GitHub Actions checks for the exact pushed commit, including Shaders, JavaScript, Docs site, Site, and Downstream workflows when triggered.
 
 ## Bounded Work Items
 
-- [x] Add focused regressions for invalid and boundary legacy-mode channels, and verify that they fail for the current permissive behavior.
-- [x] Apply the existing static integer `1..16` channel predicate to every channel-based MIDI mode.
+- [x] Add focused regressions for reconfigure, normal close with a destruction error, and backend-loss close, and verify that they fail for the current missing terminal accounting.
+- [x] Count each pending accepted record as dropped before reconfiguration or close releases it, without changing the public stats shape or callback/error semantics.
 - [x] Review the complete diff, run all required checks, and fix actionable findings.
-- [x] Update `llms-full.txt` only after evidence proves GAP-031 is closed.
-- [x] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
+- [x] Update `llms-full.txt` only after evidence proves GAP-028 is closed.
+- [ ] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
 
 ## Completed Evidence
 
-- Checkout safety: `git status --porcelain=v2 --branch` reported clean `main` at `dfdc91a9`, synchronized with `origin/main`, with no active Git operation.
-- Initial synchronization: `git pull --rebase` reported `Already up to date.`
-- Target selection: the previous GAP-030 record was closed before this scheduled run. GAP-031 is repository-owned, correctness-focused, and bounded to the existing MIDI descriptor validation path and its adjacent parser/compiler tests.
-- Root cause: `compileAutomationDescriptor()` selects `{allowBoolean:true}` for channels in modes `0..4`, while modes `5..10` use the documented static integer `1..16` predicate. Every channel-based mode is later resolved through the same `MidiState.getChannel()` table.
-- Shade MCP availability check: no Shade MCP tool is exposed in this run. GAP-031 changes DSL validation rather than an effect definition or shader program, so repository language and JavaScript checks are the applicable executable evidence.
-- Initial focused regression: `node shaders/tests/test_midi_audio_parser.js` exited `1`; legacy `noteChange` accepted channel `0` without an `S002` diagnostic or inert descriptor.
-- Implementation: `compileAutomationDescriptor()` now applies the existing static integer `1..16` predicate to every channel-based MIDI mode. MPE zone selection continues to bypass channel compilation.
-- Focused regression after the fix: `node shaders/tests/test_midi_audio_parser.js` exited `0` with 57 passed and 0 failed. It covers all five legacy note modes, invalid boolean/fractional/zero/out-of-range/static-type channels, and valid boundary channels 1 and 16.
-- Complete diff review: valid descriptors, numeric aliases, channel defaults, MPE zone selectors, descriptor shapes, MIDI runtime state, and round-trip formatting remain unchanged. The only finding was overly specific evidence wording that named `S002` for all invalid types; the record now reflects the established `S001`/`S002` split.
-- Shader language suite: `npm run test:shaders:lang` exited `0`, including the 57-case focused MIDI/audio parser suite and the 15-case nested automation suite.
-- Non-parity JavaScript suite: `node scripts/run-js-tests.js --skip-parity` exited `0`, including the focused compiler regression, 58 external-input cases, nested automation, runtime pipeline coverage, and documentation source checks.
+- Checkout safety: `git status --short --branch` reported clean `main` tracking `origin/main`, with no active merge, rebase, cherry-pick, revert, or bisect operation.
+- Initial synchronization: `git pull --rebase` fast-forwarded `main` from `b8332f16` to `15352d60` without conflicts.
+- Target selection: the previous GAP-031 record was closed before this scheduled run. GAP-028 is repository-owned, reliability-focused, and bounded to the existing frame-export queue lifecycle and its focused tests.
+- Root cause: `configure()` and both close paths clear pending records through `_destroySlots()` or `_abandonSlots()`, which call `_release()` without recording a terminal disposition.
+- Shade MCP availability check: no Shade MCP tool is exposed in this run. GAP-028 changes queue lifecycle accounting rather than an effect definition or shader program, so repository runtime and JavaScript checks are the applicable executable evidence.
+- Baseline focused suite: `node --test shaders/tests/test_frame_export.js` exited `0` with 14 passed and 0 failed before adding the missing cancellation assertions.
+- Focused red run: `node --test shaders/tests/test_frame_export.js` exited `1` with the three new lifecycle assertions failing exactly because reconfigure, normal close, and backend-loss close left pending accepted frames at `dropped: 0`.
+- Implementation: `FrameExportQueue._drop()` now increments `dropped` only while a record is pending and then uses the existing release path. Both slot destruction and backend-loss abandonment use that single cancellation path.
+- Focused green run: `node --test shaders/tests/test_frame_export.js` exited `0` with 15 passed and 0 failed. Coverage includes a completed sibling that is not double-counted, replacement-ring reuse, a normal close whose first destruction throws, terminal re-close, and backend-loss abandonment without GPU destruction.
+- Independent review: a read-only reviewer found no critical, important, or minor issues. It confirmed that completed, failed, and repeatedly released records cannot be counted again; destruction order, first-error preservation, callback suppression, backend-loss behavior, stats identity, and the four-field public shape remain intact.
+- Final register review found two documentation-only issues: a stale matrix reference to GAP-028 and an overstatement that aggregate stats alone support selective retry. Both were corrected; the matrix no longer links the closed gap, and the contract now states that hosts must separately track enqueue results and pending callbacks to identify canceled frames. Follow-up review confirmed the 26-row register and found no remaining actionable issues.
+- Shader runtime suite: `npm run test:shaders:runtime` exited `0`, including pipeline sink lifecycle, the 15-case focused queue suite, shared backend contracts, renderer API integration, WebGPU context lifecycle, and both concrete frame-export adapters.
+- Non-parity JavaScript suite: `node scripts/run-js-tests.js --skip-parity` exited `0`, including shader runtime coverage, language/compiler suites, CPU JavaScript coverage, and documentation source checks.
 - Lint: `npm run lint` exited `0` with no diagnostics.
-- Implementation commit: `beabda385253a3461d2ee5ee2f1b032cbe9a2832` (`fix: validate legacy MIDI channels`).
-- Pre-push synchronization: `git pull --rebase` reported `Current branch main is up to date.` The tested source did not change.
-- Push: the normal `git push origin main` advanced `main` from `dfdc91a9` to `beabda38`.
-- Exact-commit CI: GitHub Actions run `35518576056` (`Shaders`) completed successfully. Shader tests, GPU tests, the shader bundle, the library-release dispatch, and the static-site-release dispatch passed.
-- Exact-commit CI: runs `35518576090` (`Docs site`) and `35518576148` (`Downstream`) completed successfully. No JavaScript or Site workflow was triggered for this path set.
-- Register closeout: `llms-full.txt` now records GAP-031 as closed, removes it from the open-gap table, updates the MIDI validation contract, and changes the open count from 28 to 27.
+- Register closeout: `llms-full.txt` now records pending accepted reconfigure/close releases as `dropped`, removes GAP-028 from the open-gap table, and changes the open count from 27 to 26.
 - Closeout documentation check: `node --test test/docs-static-paths.test.js` exited `0` with 4 passed and 0 failed.
+- Complete diff hygiene: `git diff --check HEAD` exited `0`.
 
 ## Remaining Work
 
-None. All GAP-031 completion criteria passed. Select the next gap only in a later scheduled run.
+- Complete review, required local checks, register closeout, commit, rebase, push, and exact-commit CI verification.

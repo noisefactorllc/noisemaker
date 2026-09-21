@@ -123,6 +123,24 @@ test('FrameExportQueue configures reusable slots with one descriptor and preserv
     assert.equal(queue.available, true)
 })
 
+test('FrameExportQueue reconfiguration drops only pending accepted frames before replacing slots', () => {
+    const adapter = new FakeAdapter()
+    const queue = new FrameExportQueue(adapter, { slots: 2 })
+    queue.configure({ width: 4, height: 4 })
+    queue.enqueue('completed', 10, () => {})
+    queue.enqueue('canceled', 20, () => assert.fail('reconfigured queue delivered a canceled callback'))
+    adapter.complete(0, 'frame')
+    queue.poll()
+
+    queue.configure({ width: 8, height: 8 })
+
+    assert.deepEqual(queue.stats, { accepted: 2, dropped: 1, completed: 1, failed: 0 })
+    assert.equal(queue.stats.accepted,
+        queue.stats.completed + queue.stats.failed + queue.stats.dropped)
+    assert.equal(queue.available, true)
+    assert.equal(queue.enqueue('replacement', 30, () => {}), true)
+})
+
 test('FrameExportQueue rolls back a partially created ring and preserves the primary configure error', () => {
     const adapter = new FakeAdapter()
     const cleanupErrors = []
@@ -350,8 +368,11 @@ test('FrameExportQueue closes pending slots exactly once, attempts every destroy
     assert.equal(adapter.slots[1].destroys, 1)
     assert.equal(queue.adapter, null)
     assert.equal(queue.available, false)
+    assert.deepEqual(queue.stats, { accepted: 2, dropped: 2, completed: 0, failed: 0 })
+    assert.equal(queue.stats.accepted,
+        queue.stats.completed + queue.stats.failed + queue.stats.dropped)
     assert.equal(queue.enqueue('later', 30, () => {}), false)
-    assert.deepEqual(queue.stats, { accepted: 2, dropped: 1, completed: 0, failed: 0 })
+    assert.deepEqual(queue.stats, { accepted: 2, dropped: 3, completed: 0, failed: 0 })
 })
 
 test('FrameExportQueue backendLost close abandons every slot and adapter reference without GPU destruction', () => {
@@ -379,4 +400,7 @@ test('FrameExportQueue backendLost close abandons every slot and adapter referen
     adapter.complete(0, 'late')
     queue.poll()
     assert.equal(callbacks, 0)
+    assert.deepEqual(queue.stats, { accepted: 1, dropped: 1, completed: 0, failed: 0 })
+    assert.equal(queue.stats.accepted,
+        queue.stats.completed + queue.stats.failed + queue.stats.dropped)
 })
