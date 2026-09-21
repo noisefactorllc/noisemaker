@@ -17,7 +17,7 @@ const registry = Object.create(null)
 /**
  * Register a deprecated effect alias.
  *
- * @param {string} oldOpName  Fully-qualified old op name, e.g. 'filter.hs'
+ * @param {string} oldOpName  Fully-qualified old op name
  * @param {string} newName    Human-readable replacement name, e.g. 'adjust'
  */
 export function registerEffectAlias(oldOpName, newName) {

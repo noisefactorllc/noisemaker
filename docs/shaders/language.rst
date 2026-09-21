@@ -252,8 +252,8 @@ You can omit both arguments or pass ``name`` as a positional argument.
        .loopEnd()
      }
      .subchain(name: "color grading") {
-       .colorspace()
-       .hs(rotation: 180, saturation: 0.5)
+       .adjust(mode: hsv)
+       .adjust(rotation: 180, saturation: 0.5)
      }
      .write(o0)
 
