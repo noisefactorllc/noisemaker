@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `ea113f9727d33769c4284d4b94ab4f5264f4daf9`.
+- Noisemaker: `50b8f909ff59f177eb1312de7be461b16bbdd657`.
 - Shade MCP: `cbcab33363851016f65391fbb9ef71d66729c07f`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.3`, protocol
   `2025-11-25`, with 18 tools returned by `tools/list`.
@@ -3215,12 +3215,11 @@ This instance is the repository's `synth/testPattern` effect. The three source
 blocks below are complete, not excerpts, and were last live-captured at
 Noisemaker commit `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424` and Shade MCP
 commit `0a92bd839adf89caa1641e90b201182a24f8fb25`. Re-audited at Noisemaker
-`ea113f9727d33769c4284d4b94ab4f5264f4daf9` and Shade MCP
-`cbcab33363851016f65391fbb9ef71d66729c07f` by source inspection: `synth/
-testPattern`'s own definition.js and shader files are byte-unchanged in that
-range, none of the range's changes (removal of expired effects bc/hs/colorspace,
-dropped frame accounting on export reconfigure/close, 32-channel discrete modulation
-tests, dependency pinning) affect runtime execution or reach this effect,
+`50b8f909ff59f177eb1312de7be461b16bbdd657` and Shade MCP
+`cbcab33363851016f65391fbb9ef71d66729c07f` by source inspection:
+`synth/testPattern`'s own definition.js and shader files are byte-unchanged in that
+range, none of the range's changes (enforcement of DSL output surface range
+`o0`..`o7` in lexer.js, closing GAP-001) affect runtime execution or reach this effect,
 and the full non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`) passes.
 The MCP evidence below was not re-captured live this pass — Shade MCP's commit
 `cbcab33` bumped the version to 0.2.3 and migrated retired effect references to

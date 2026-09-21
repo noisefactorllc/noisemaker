@@ -563,14 +563,14 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `ea113f97` / shade-mcp `cbcab33`, 2026-09-21
+- **Checkpoint:** noisemaker `50b8f909` / shade-mcp `cbcab33`, 2026-09-21
 - **Scope:** the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
   *current* runtime behavior across nine surfaces (DSL, effect definition,
   parameters/globals, passes/graph, textures, compatibility/mutation,
   rendered output, cross-backend parity, Shade MCP tool contracts), a fully
   worked validated effect, the surface × capability traceability matrix, and
-  the 25-entry open gap register (GAP-001..012, GAP-014..017, GAP-019..022,
+  the 24-entry open gap register (GAP-002..012, GAP-014..017, GAP-019..022,
   GAP-024, GAP-026..027, GAP-029, and GAP-032). The file pins its
   own audited SHAs in the "Source snapshots used for this contract" block at
   its head; that block and this checkpoint are the same two SHAs and must be
@@ -597,6 +597,16 @@ work, verify it, then update the checkpoint and append a log line.
      version triple, then re-audit the "Shade MCP tool contracts" section and
      the MCP-side gaps.
 - **Log:**
+  - 2026-09-21 — caught up through noisemaker `50b8f909` / shade-mcp `cbcab33`:
+    audited watched source roots across noisemaker range `ea113f97..50b8f909`.
+    Commit `50b8f909` closed GAP-001 by enforcing DSL output surface range
+    `o0..o7` in `shaders/src/lang/lexer.js`, throwing located `SyntaxError`
+    before parsing, while preserving member segment access and other reference
+    families. Added 6 unit tests in `shaders/tests/test_output_surface_range.js`.
+    Open gap count stands at 24 entries. Shade MCP unchanged at `cbcab33` (18
+    tools, v0.2.3, protocol 2025-11-25). Verified non-parity JS test suite
+    (`node scripts/run-js-tests.js --skip-parity`, 64 tests pass). Advanced
+    `llms-full.txt` snapshot block and `LEDGER.md` checkpoint together.
   - 2026-09-21 — caught up through noisemaker `ea113f97` / shade-mcp `cbcab33`:
     audited watched source roots across noisemaker range `beabda38..ea113f97`.
     Commit `0139e958` closed GAP-028 by accounting canceled pending frame-export
