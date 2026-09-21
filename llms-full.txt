@@ -14,15 +14,13 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `beabda385253a3461d2ee5ee2f1b032cbe9a2832`.
-- Shade MCP: `088e1ef600eb3472365c55d2ec71bcdc7e54b0db`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.2.2`, protocol
+- Noisemaker: `ea113f9727d33769c4284d4b94ab4f5264f4daf9`.
+- Shade MCP: `cbcab33363851016f65391fbb9ef71d66729c07f`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.2.3`, protocol
   `2025-11-25`, with 18 tools returned by `tools/list`.
 - The repository config runs
-  `npx -y github:noisedeck/shade-mcp#cbcab33363851016f65391fbb9ef71d66729c07f`.
-  This immutable configured revision differs from the audited Shade MCP source
-  snapshot above. Re-audit and re-capture the tool contracts before treating the
-  configured server as evidence for this snapshot.
+  `npx -y github:noisedeck/shade-mcp#cbcab33363851016f65391fbb9ef71d66729c07f`,
+  matching this audited Shade MCP source snapshot.
 
 Primary source roots:
 
@@ -32,7 +30,7 @@ Primary source roots:
 - backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
 - repository validation policy: `shaders/tests/test-harness.js`.
 - Shade MCP source for the pinned snapshot:
-  `https://github.com/noisefactorllc/shade-mcp/tree/088e1ef600eb3472365c55d2ec71bcdc7e54b0db/src`.
+  `https://github.com/noisefactorllc/shade-mcp/tree/cbcab33363851016f65391fbb9ef71d66729c07f/src`.
 
 ## Freshness and maintenance
 
@@ -3215,15 +3213,16 @@ This instance is the repository's `synth/testPattern` effect. The three source
 blocks below are complete, not excerpts, and were last live-captured at
 Noisemaker commit `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424` and Shade MCP
 commit `0a92bd839adf89caa1641e90b201182a24f8fb25`. Re-audited at Noisemaker
-`beabda385253a3461d2ee5ee2f1b032cbe9a2832` and Shade MCP
-`088e1ef600eb3472365c55d2ec71bcdc7e54b0db` by source inspection: `synth/
+`ea113f9727d33769c4284d4b94ab4f5264f4daf9` and Shade MCP
+`cbcab33363851016f65391fbb9ef71d66729c07f` by source inspection: `synth/
 testPattern`'s own definition.js and shader files are byte-unchanged in that
-range, none of the range's changes (texture reuse format parity in pipeline.js,
-legacy MIDI channel validation in validator.js, borrowed VideoFrame texture
-uploads, CI workflow updates) affect runtime execution or reach this effect,
+range, none of the range's changes (removal of expired effects bc/hs/colorspace,
+dropped frame accounting on export reconfigure/close, 32-channel discrete modulation
+tests, dependency pinning) affect runtime execution or reach this effect,
 and the full non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`) passes.
 The MCP evidence below was not re-captured live this pass — Shade MCP's commit
-`088e1ef` changed only CI workflow filters, leaving runtime tools, schemas, and
+`cbcab33` bumped the version to 0.2.3 and migrated retired effect references to
+`adjust` in knowledge exemplars/catalog, leaving runtime tools, schemas, and
 behavior identical to `0a92bd83`, so no source path this transcript depends on moved.
 
 Noisemaker's watched source roots added lossless vector formatting, MIDI

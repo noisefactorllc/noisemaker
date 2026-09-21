@@ -529,15 +529,15 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `beabda38` / shade-mcp `088e1ef`, 2026-09-20
+- **Checkpoint:** noisemaker `ea113f97` / shade-mcp `cbcab33`, 2026-09-21
 - **Scope:** the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
   *current* runtime behavior across nine surfaces (DSL, effect definition,
   parameters/globals, passes/graph, textures, compatibility/mutation,
   rendered output, cross-backend parity, Shade MCP tool contracts), a fully
   worked validated effect, the surface × capability traceability matrix, and
-  the 27-entry open gap register (GAP-001..017, GAP-019..022, GAP-024,
-  GAP-026..029, and GAP-032). The file pins its
+  the 25-entry open gap register (GAP-001..012, GAP-014..017, GAP-019..022,
+  GAP-024, GAP-026..027, GAP-029, and GAP-032). The file pins its
   own audited SHAs in the "Source snapshots used for this contract" block at
   its head; that block and this checkpoint are the same two SHAs and must be
   advanced together. There is no generator — every update is a hand edit
@@ -555,13 +555,26 @@ work, verify it, then update the checkpoint and append a log line.
      Each can invalidate a behavior statement, typed grammar, or validator
      message, or change a gap's status. Re-audit the affected surface
      section(s) and re-check every gap whose "Source evidence" file changed.
-  2. Shade MCP drift (GAP-013) — `.mcp.json` runs
-     `npx -y github:noisedeck/shade-mcp` unpinned. Re-resolve it to its current
-     commit; if it moved off the pinned shade-mcp SHA, re-capture `tools/list`
-     (tool count and signatures) and the `shade-mcp` server/protocol version
-     triple, then re-audit the "Shade MCP tool contracts" section and the
-     MCP-side gaps.
+  2. Shade MCP drift — `.mcp.json` runs
+     `npx -y github:noisedeck/shade-mcp#<sha>` pinned to an immutable commit
+     (GAP-013 closed). Check upstream `noisefactorllc/shade-mcp` for new
+     commits or releases; if `.mcp.json` or upstream moved off the pinned SHA,
+     re-capture `tools/list` (tool count and signatures) and the server/protocol
+     version triple, then re-audit the "Shade MCP tool contracts" section and
+     the MCP-side gaps.
 - **Log:**
+  - 2026-09-21 — caught up through noisemaker `ea113f97` / shade-mcp `cbcab33`:
+    audited watched source roots across noisemaker range `beabda38..ea113f97`.
+    Commit `0139e958` closed GAP-028 by accounting canceled pending frame-export
+    queue frames as `dropped`. Commit `7706a715` / `782f0726` closed GAP-013 by
+    pinning the Shade MCP package reference in `.mcp.json` to immutable commit
+    `cbcab33363851016f65391fbb9ef71d66729c07f`. Commit `2f855c9c` removed expired
+    effects `bc`, `colorspace`, and `hs`. Shade MCP `cbcab33` bumped version to
+    0.2.3 and migrated exemplar/catalog references to `adjust` (18 tools, v0.2.3,
+    protocol 2025-11-25). Open gap count stands at 25 entries. Verified
+    non-parity JS tests pass cleanly (57 tests, 15 nested automation tests, 4
+    docs tests, 1 mcp config test). Advanced `llms-full.txt` snapshot block and
+    `LEDGER.md` checkpoint together.
   - 2026-09-20 — caught up through noisemaker `beabda38` / shade-mcp `088e1ef`:
     audited watched source roots across noisemaker range `2df19feb..beabda38`.
     Commit `6e0166ce` closed GAP-030 by enforcing backend format parity when
