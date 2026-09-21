@@ -1,6 +1,6 @@
 # Active Framework Gap: GAP-022
 
-Status: active
+Status: closed
 
 ## Gap
 
@@ -57,7 +57,7 @@ Agent consequence:
 - [x] Review the complete diff and fix every actionable finding.
 - [x] Run the focused and required repository checks.
 - [x] Update `llms-full.txt` only after evidence proves GAP-022 is closed.
-- [ ] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
+- [x] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
 
 ## Completed Evidence
 
@@ -77,7 +77,11 @@ Agent consequence:
 - Lint: `npm run lint` exited `0` with no diagnostics.
 - Register closeout: `llms-full.txt` now documents effect-only mutation introspection and builtin-index rejection, removes GAP-022 from the traceability matrix and open table, and changes the open count from 24 to 23.
 - Documentation and structure checks: `node --test test/docs-static-paths.test.js` exited `0` with 4 passed and 0 failed; `package.json` parsed as JSON; each aggregate route contains exactly one transform-suite registration; the open table contains 23 rows; GAP-022 appears once in its closure note; and `git diff --check` exited `0`.
+- Implementation commit: `68d37721091a6fb9f5ab25c9ae1f0d9c84f51318` (`fix: exclude builtins from mutation introspection`).
+- Pre-push synchronization: `git pull --rebase` reported `main` up to date and did not change tested sources.
+- Push: the normal `git push origin main` advanced `main` from `c9136462` to `68d37721`.
+- Exact-commit CI: Shaders run `35666811891`, JavaScript run `35666811854`, Docs site run `35666812198`, Site run `35666811945`, and Downstream run `35666811998` all completed successfully for `68d37721091a6fb9f5ab25c9ae1f0d9c84f51318`. Shaders included language/runtime/render coverage, GPU acceptance, bundle packaging, and both scaffold release dispatches.
 
 ## Remaining Work
 
-Commit the verified bounded work, rebase, push normally, and verify required CI for the exact pushed commit. Keep the target active until those checks pass.
+None. All GAP-022 completion criteria passed. Select the next gap only in a later scheduled run.
