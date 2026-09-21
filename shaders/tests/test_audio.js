@@ -594,6 +594,83 @@ test('audio channel 32 remains distinct from 31 and from other devices', () => {
         JSON.stringify([{ id: null, channel: 32 }, { id: 'mixer-a', channel: 32 }]), 'capture requirements must retain high physical channel numbers')
 })
 
+test('32 discrete channels simultaneously modulate 32 uniforms with zero crosstalk and zero inversion', () => {
+    const { pipeline, audioState } = createTestPipeline()
+    const deviceId = 'audio-fuse-32'
+    const deviceName = 'Arturia AudioFuse 32'
+    audioState.registerDevice({ id: deviceId, name: deviceName, channelCount: 32 })
+
+    // Assign 32 distinct let-bindings / uniforms across all 32 channels
+    const uniforms = {}
+    for (let c = 1; c <= 32; c++) {
+        uniforms[`mod_${c}`] = { type: 'Audio', band: 4, min: 0, max: 1, channel: c, id: deviceId, name: deviceName }
+    }
+
+    // Set linear ramp: raw sample on channel c = (c / 16) - 1, mapping to (raw + 1) * 0.5 = c / 32
+    for (let c = 1; c <= 32; c++) {
+        const raw = (c / 16) - 1
+        audioState.setChannelValues(deviceId, c, { raw })
+    }
+
+    // Verify each uniform resolves to exactly c / 32
+    for (let c = 1; c <= 32; c++) {
+        const expected = c / 32
+        const actual = pipeline.resolveUniformValue(uniforms[`mod_${c}`], 0)
+        assertApprox(actual, expected, 0.000001, `channel ${c} must resolve to ${expected}, got ${actual}`)
+    }
+
+    // Zero crosstalk perturbation test: alter channel 17
+    const original17 = pipeline.resolveUniformValue(uniforms.mod_17, 0)
+    audioState.setChannelValues(deviceId, 17, { raw: 1.0 })
+    const new17 = pipeline.resolveUniformValue(uniforms.mod_17, 0)
+    assertApprox(new17, 1.0, 0.000001, 'channel 17 must update to 1.0')
+    assertEqual(new17 !== original17, true, 'channel 17 must have changed')
+
+    // Verify all other 31 channels have strictly 0.0 delta (zero crosstalk)
+    for (let c = 1; c <= 32; c++) {
+        if (c === 17) continue
+        const expected = c / 32
+        const actual = pipeline.resolveUniformValue(uniforms[`mod_${c}`], 0)
+        assertEqual(actual, expected, `crosstalk detected on channel ${c} when channel 17 perturbed: expected ${expected}, got ${actual}`)
+    }
+
+    // Channel inversion check: verify monotonicity
+    let previous = -1
+    for (let c = 1; c <= 32; c++) {
+        const val = (c === 17) ? original17 : pipeline.resolveUniformValue(uniforms[`mod_${c}`], 0)
+        assertEqual(val > previous, true, `channel ${c} (${val}) must be strictly greater than channel ${c - 1} (${previous})`)
+        previous = val
+    }
+})
+
+test('32 discrete channels evaluate FFT frequency bands (low, mid, high, vol) independently', () => {
+    const { pipeline, audioState } = createTestPipeline()
+    const deviceId = 'audio-fft-32'
+    const deviceName = 'Multichannel Interface'
+    audioState.registerDevice({ id: deviceId, name: deviceName, channelCount: 32 })
+
+    for (let c = 1; c <= 32; c++) {
+        audioState.setChannelValues(deviceId, c, {
+            low: c / 32,
+            mid: (33 - c) / 32,
+            high: (c % 2 === 0) ? 0.8 : 0.2,
+            vol: 0.5
+        })
+    }
+
+    for (let c = 1; c <= 32; c++) {
+        const lowConfig = { type: 'Audio', band: 0, min: 0, max: 1, channel: c, id: deviceId, name: deviceName }
+        const midConfig = { type: 'Audio', band: 1, min: 0, max: 1, channel: c, id: deviceId, name: deviceName }
+        const highConfig = { type: 'Audio', band: 2, min: 0, max: 1, channel: c, id: deviceId, name: deviceName }
+        const volConfig = { type: 'Audio', band: 3, min: 0, max: 1, channel: c, id: deviceId, name: deviceName }
+
+        assertApprox(pipeline.resolveUniformValue(lowConfig, 0), c / 32, 0.000001, `channel ${c} low band`)
+        assertApprox(pipeline.resolveUniformValue(midConfig, 0), (33 - c) / 32, 0.000001, `channel ${c} mid band`)
+        assertApprox(pipeline.resolveUniformValue(highConfig, 0), (c % 2 === 0) ? 0.8 : 0.2, 0.000001, `channel ${c} high band`)
+        assertApprox(pipeline.resolveUniformValue(volConfig, 0), 0.5, 0.000001, `channel ${c} vol band`)
+    }
+})
+
 // ============================================================================
 // Summary
 // ============================================================================
