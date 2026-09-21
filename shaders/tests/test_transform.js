@@ -135,6 +135,8 @@ test('listSteps - simple chain', () => {
     const steps = listSteps(compiled)
 
     assertEqual(steps.length, 2, 'Should have 2 steps')
+    assertEqual(steps[0].stepIndex, 0, 'First effect should keep its compiled step index')
+    assertEqual(steps[1].stepIndex, 1, 'Second effect should keep its compiled step index')
 
     // First step is noise (starter)
     assertEqual(steps[0].effectName, 'synth.noise', 'First step should be noise')
@@ -235,6 +237,16 @@ test('replaceEffect - invalid step index', () => {
     assertTrue(result.error.includes('not found'), 'Error should mention not found')
 })
 
+test('replaceEffect - builtin step index is not a replacement target', () => {
+    const compiled = compile('search synth, filter\nnoise(10).write(o0)')
+    const builtinStepIndex = compiled.plans[0].chain.find(step => step.builtin).temp
+
+    const result = replaceEffect(compiled, builtinStepIndex, 'bloom')
+
+    assertFalse(result.success, 'Replacement should fail')
+    assertEqual(result.error, `Step with index ${builtinStepIndex} not found`, 'Builtin should use the existing not-found failure')
+})
+
 test('replaceEffect - immutability', () => {
     const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
     const steps = listSteps(compiled)
@@ -296,6 +308,16 @@ test('getCompatibleReplacements - invalid step index', () => {
 
     assertFalse(result.success, 'Should fail')
     assertTrue(result.error.includes('not found'), 'Error should mention not found')
+})
+
+test('getCompatibleReplacements - builtin step index is not a replacement target', () => {
+    const compiled = compile('search synth, filter\nnoise(10).write(o0)')
+    const builtinStepIndex = compiled.plans[0].chain.find(step => step.builtin).temp
+
+    const result = getCompatibleReplacements(compiled, builtinStepIndex)
+
+    assertFalse(result.success, 'Compatibility lookup should fail')
+    assertEqual(result.error, `Step with index ${builtinStepIndex} not found`, 'Builtin should use the existing not-found failure')
 })
 
 // ============================================================================

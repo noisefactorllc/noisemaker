@@ -42,7 +42,7 @@ function findStepByIndex(compiled, stepIndex) {
 
         for (let chainIndex = 0; chainIndex < plan.chain.length; chainIndex++) {
             const step = plan.chain[chainIndex]
-            if (step.temp === stepIndex) {
+            if (!step.builtin && step.temp === stepIndex) {
                 return { planIndex, chainIndex, step }
             }
         }
@@ -261,6 +261,8 @@ export function listSteps(compiled, options = {}) {
 
         for (let chainIndex = 0; chainIndex < plan.chain.length; chainIndex++) {
             const step = plan.chain[chainIndex]
+            if (step.builtin) continue
+
             const isStarter = checkIsStarter(step.op, searchOrder)
             const isStarterPosition = chainIndex === 0
                 || (isStarter && (step.from === null || step.from === undefined))

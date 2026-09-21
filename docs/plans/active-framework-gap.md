@@ -1,46 +1,49 @@
-# Active Framework Gap: GAP-001
+# Active Framework Gap: GAP-022
 
-Status: closed
+Status: active
 
 ## Gap
 
-**GAP-001 — No enforced `o0`-`o7` range.**
+**GAP-022 — Mutation introspection exposes terminal builtins as replaceable steps.**
 
 Exact problem statement from `llms-full.txt`:
 
-> No enforced `o0`-`o7` range.
+> Mutation introspection includes terminal `write` as a replaceable nonstarter and exposes no node-kind field.
 
 Agent consequence:
 
-> `o8` parses and fails later/indirectly instead of producing a range diagnostic.
+> Callers can target a builtin accidentally and cannot distinguish it structurally without string matching.
 
 ## Source Files and Observed Behavior
 
-- `shaders/src/lang/lexer.js`: the output-reference scanner accepts one or more digits after `o`, so `o8` and `o99` become ordinary `OUTPUT_REF` tokens.
-- `shaders/src/lang/parser.js`: `render()`, `read()`, `write()`, expressions, and effect arguments accept those tokens without a range check.
-- `shaders/src/runtime/pipeline.js`: the public display-surface set is `o0` through `o7`, but graph scanning can allocate other `global_*` names, allowing invalid output references to escape the declared DSL boundary.
-- `package.json` and `scripts/run-js-tests.js`: the required language and non-parity routes have no focused regression for the output-surface range.
+- `shaders/src/lang/transform.js`: `listSteps()` iterates every compiled chain node, including nodes with `builtin: true`, and reports `_write` as a replaceable nonstarter.
+- `shaders/src/lang/transform.js`: the shared `findStepByIndex()` lookup also returns builtin nodes, so `replaceEffect()` and `getCompatibleReplacements()` accept a builtin step index as a mutation target.
+- `shaders/src/lang/validator.js`: compiled terminal nodes already carry the structural `builtin: true` discriminator needed to exclude them without parsing operation names.
+- `shaders/tests/test_transform.js`: the focused suite already expects effect-only lengths and currently fails because a two-effect chain produces three `listSteps()` entries; it lacks direct coverage for builtin indexes passed to mutation APIs.
+- `package.json` and `scripts/run-js-tests.js`: the focused transform suite is not registered in the shader-language or non-parity aggregate routes.
 
 ## Backward-Compatibility Contract
 
-- Preserve valid DSL behavior for `o0` through `o7`, rendered output, defaults, saved valid programs, step indexes, and public compile result shapes.
-- Reject only output references outside the already documented and runtime-supported public `o0`-`o7` contract.
-- Preserve source-reference and non-output surface token behavior.
-- Use the existing located `SyntaxError` convention; do not add an alias, alternate syntax, compatibility fallback, or new public result wrapper.
-- Do not change effect definitions, shader programs, backend allocation, or the Python implementation.
+- Preserve DSL behavior, rendered output, defaults, saved programs, compiled chain contents, and every existing effect step `temp` index.
+- Preserve the existing `listSteps()`, `replaceEffect()`, and `getCompatibleReplacements()` result object fields and error shape.
+- Restore the intended effect-only `listSteps()` contract by omitting compiled nodes already marked `builtin: true`; do not add an alias, alternate option, node-name heuristic, or new public discriminator field.
+- Treat a builtin step index exactly like any other non-target index through the existing `Step with index <n> not found` result.
+- Preserve inline surface-producer discovery and starter-position behavior.
+- Do not change compilation, unparsing, effect definitions, shader programs, backends, rendered output, or the Python implementation.
 
 ## Objective Completion Criteria
 
-- The public DSL compiler rejects every digit-suffixed output reference outside `o0` through `o7` before parsing or graph expansion.
-- The failure is a `SyntaxError` that identifies the invalid reference, the accepted range, and its source line and column.
-- Valid boundary references `o0` and `o7` retain their existing tokens and compiler behavior.
-- A focused regression fails against the pre-change lexer and passes after the implementation.
-- The regression runs in both the shader language suite and the non-parity JavaScript suite.
+- `listSteps()` returns only non-builtin effect steps for single-chain, multi-chain, and inline surface-producer programs.
+- The returned effect steps keep their original `stepIndex`, `planIndex`, `chainIndex`, metadata, argument objects, and existing public result shape.
+- `replaceEffect()` cannot target a compiled builtin index and returns the existing not-found failure shape without modifying the program.
+- `getCompatibleReplacements()` cannot target a compiled builtin index and returns the existing not-found failure shape.
+- A focused regression demonstrates the pre-change failures and passes after the minimal implementation.
+- The focused regression runs in both the shader-language and non-parity JavaScript suites.
 - Shader language tests, non-parity JavaScript tests, lint, documentation-path checks, and the exact pushed commit's required GitHub Actions checks pass.
 
 ## Required Tests and CI Checks
 
-- `node --test shaders/tests/test_output_surface_range.js`
+- `node shaders/tests/test_transform.js`
 - `npm run test:shaders:lang`
 - `node scripts/run-js-tests.js --skip-parity`
 - `npm run lint`
@@ -49,36 +52,32 @@ Agent consequence:
 
 ## Bounded Work Items
 
-- [x] Add and register a public-compile regression covering invalid output references in render, read, and write positions plus valid `o0`/`o7` boundaries; verify the pre-change failure.
-- [x] Add the minimal lexer range check with a located `SyntaxError`; verify the focused regression passes.
-- [x] Review the complete diff and run the focused and required repository checks.
-- [x] Update `llms-full.txt` only after evidence proves GAP-001 is closed.
-- [x] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
+- [x] Strengthen and register the focused transform regression to cover preserved effect indexes and direct builtin targeting through both mutation APIs; verify the pre-change failures.
+- [x] Filter compiled nodes marked `builtin: true` in `listSteps()` and the shared mutation lookup; verify the focused regression passes.
+- [x] Review the complete diff and fix every actionable finding.
+- [x] Run the focused and required repository checks.
+- [x] Update `llms-full.txt` only after evidence proves GAP-022 is closed.
+- [ ] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
 
 ## Completed Evidence
 
-- Checkout safety: `git status --short --branch` reported clean `main` tracking `origin/main`, with no active merge, rebase, or cherry-pick operation.
-- Initial synchronization: `git pull --rebase` fast-forwarded `main` from `782f0726` to `5a1225f8` without conflicts. The upstream changes were limited to Python dependency metadata and an audio test.
-- Target selection: the previous GAP-013 record was closed before this scheduled run. GAP-001 is repository-owned, correctness-focused, and bounded to the existing DSL output-surface contract.
-- Shade MCP availability check: no Shade MCP tool is exposed in this run. This target changes lexer validation and does not modify effect definitions, shader programs, or rendered output.
-- Focused red run: `node --test shaders/tests/test_output_surface_range.js` exited `1`; the valid boundary case passed, while render `o8`, read `o99`, and write `o10` all failed because the compiler did not throw.
-- Initial implementation: `shaders/src/lang/lexer.js` rejects output references that do not match `o0` through `o7` with the reference, accepted range, line, and column in a `SyntaxError`.
-- Independent review found one Important compatibility issue: the first implementation also rejected output-shaped dotted member segments such as `foo.o8`, which the parser intentionally accepts. A second red run reproduced that regression.
-- Review fix: range enforcement now excludes a token whose immediately preceding token is `DOT`. Regression coverage preserves `foo.o0`, `foo.o7`, `foo.o8`, `foo.o99`, and the existing `s99`, `vol99`, `geo99`, `xyz99`, `vel99`, `rgba99`, and `mesh99` token families.
-- Focused green run: `node --test shaders/tests/test_output_surface_range.js` exited `0` with 6 passed and 0 failed.
-- Independent re-review reported no Critical, Important, or Minor issues and judged the change ready for broader suites and closeout.
-- Shader language suite: `npm run test:shaders:lang` exited `0`, including the new output-surface regression and all existing language/compiler checks.
-- Non-parity JavaScript suite: `node scripts/run-js-tests.js --skip-parity` exited `0`, including the registered regression, shader runtime/language coverage, CPU JavaScript coverage, and documentation source checks.
+- Checkout safety: `git status --short --branch` reported clean `main` tracking `origin/main`, with no active merge, rebase, cherry-pick, or revert operation.
+- Initial synchronization: `git pull --rebase` fast-forwarded `main` from `7ea31be3` to `c9136462` without conflicts.
+- Target selection: the previous GAP-001 record was closed before this scheduled run. GAP-022 is repository-owned, correctness-focused, and bounded to existing mutation introspection.
+- Shade MCP availability check: no Shade MCP tool is exposed in this run. This target changes DSL mutation introspection and does not modify effect definitions, shader programs, backends, or rendered output.
+- Root-cause reproduction: `node shaders/tests/test_transform.js` exited `1`; the single-chain length expected 2 and received 3, and the two-chain length expected 4 and received 6.
+- Structural evidence: the extra compiled terminal node has `op: "_write"`, `temp: 2`, and `builtin: true`. `listSteps()` currently reports it with `canReplaceWithNonStarter: true` because neither listing nor lookup checks the existing builtin flag.
+- Focused red run after strengthening the regression: `node shaders/tests/test_transform.js` exited `1`. In addition to both length failures, `replaceEffect()` successfully replaced the builtin and `getCompatibleReplacements()` returned a successful candidate list for it.
+- Minimal implementation: `findStepByIndex()` ignores compiled nodes with `builtin: true`, and `listSteps()` omits those same nodes. The implementation uses the validator's existing structural flag rather than operation-name matching and does not alter compiled chains or indexes.
+- Aggregate registration: `package.json` runs `test_transform.js` in `test:shaders:lang`, and `scripts/run-js-tests.js` includes it once with `parity: false`.
+- Focused green run: `node shaders/tests/test_transform.js` exited `0` with all 22 cases passing, including preserved effect indexes, effect-only lengths, builtin rejection through both mutation APIs, inline producer behavior, immutability, and namespace behavior.
+- Independent review: two read-only high-reasoning passes found no Critical, Important, or Minor issues. The reviewer separately verified noncontiguous multi-chain indexes, a leading `read()` builtin, inline producers, exact failure shapes, compiled-program immutability, aggregate registration placement, JSON syntax, and failure propagation.
+- Shader language suite: `npm run test:shaders:lang` exited `0` and executed the registered transform regression.
+- Non-parity JavaScript suite: `node scripts/run-js-tests.js --skip-parity` exited `0` and executed the registered transform regression plus documentation source checks.
 - Lint: `npm run lint` exited `0` with no diagnostics.
-- Register closeout: `llms-full.txt` records located pre-parse range enforcement, preserves dotted-member and non-output reference behavior, removes GAP-001 from the open table and matrix, and changes the open count from 25 to 24.
-- Closeout documentation check: `node --test test/docs-static-paths.test.js` exited `0` with 4 passed and 0 failed.
-- Register structure and diff hygiene: the open-gap table contains exactly 24 rows and `git diff --check` exited `0`.
-- Implementation commit: `50b8f909ff59f177eb1312de7be461b16bbdd657` (`fix: enforce DSL output surface range`).
-- Pre-push synchronization: `git pull --rebase` rebased the implementation onto upstream `353de205`. Upstream changed `LEDGER.md`, `docs/shaders/renderer-output.rst`, and `llms-full.txt`; it did not change the lexer or test sources.
-- Post-rebase documentation verification: `node --test test/docs-static-paths.test.js` exited `0` with 4 passed and 0 failed; the open-gap table still contained exactly 24 rows and diff hygiene passed.
-- Push: the normal `git push origin main` advanced `main` from `353de205` to `50b8f909`.
-- Exact-commit CI: Shaders run `35629197573`, JavaScript run `35629197578`, Docs site run `35629197549`, Downstream run `35629197535`, and Site run `35629198011` all completed successfully for `50b8f909ff59f177eb1312de7be461b16bbdd657`. Shaders included the language and render suites, GPU checks, shader bundle packaging, and both scaffold release-dispatch jobs.
+- Register closeout: `llms-full.txt` now documents effect-only mutation introspection and builtin-index rejection, removes GAP-022 from the traceability matrix and open table, and changes the open count from 24 to 23.
+- Documentation and structure checks: `node --test test/docs-static-paths.test.js` exited `0` with 4 passed and 0 failed; `package.json` parsed as JSON; each aggregate route contains exactly one transform-suite registration; the open table contains 23 rows; GAP-022 appears once in its closure note; and `git diff --check` exited `0`.
 
 ## Remaining Work
 
-None. All GAP-001 completion criteria passed. Select the next gap only in a later scheduled run.
+Commit the verified bounded work, rebase, push normally, and verify required CI for the exact pushed commit. Keep the target active until those checks pass.
