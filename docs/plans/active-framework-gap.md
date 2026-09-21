@@ -1,6 +1,6 @@
 # Active Framework Gap: GAP-013
 
-Status: active
+Status: closed
 
 ## Gap
 
@@ -53,7 +53,7 @@ Agent consequence:
 - [x] Pin the existing Shade MCP package reference to the selected upstream commit without changing its command or environment.
 - [x] Verify the pinned package entrypoint, review the complete diff, and run all required checks.
 - [x] Update `llms-full.txt` only after evidence proves GAP-013 is closed.
-- [ ] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
+- [x] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
 
 ## Completed Evidence
 
@@ -73,8 +73,11 @@ Agent consequence:
 - Register closeout: `llms-full.txt` records the immutable configured revision, removes GAP-013 from the open-gap table and matrix, and changes the open count from 26 to 25 without claiming the configured revision was fully re-audited for the older contract snapshot.
 - Closeout documentation check: `node --test test/docs-static-paths.test.js` exited `0` with 4 passed and 0 failed.
 - Register structure check counted exactly 25 open gap rows, `.mcp.json` parsed successfully, and `git diff --check` exited `0`.
+- Implementation commit: `7706a71577866a65b010b930ae6d8f8e2c8e0392` (`chore: pin Shade MCP dependency`).
+- Pre-push synchronization: `git pull --rebase` reported `Current branch main is up to date.` The tested source did not change.
+- Push: the normal `git push origin main` advanced `main` from `2f855c9c` to `7706a715`.
+- Exact-commit CI: GitHub Actions run `35572206261` (`JavaScript`) completed successfully for `7706a71577866a65b010b930ae6d8f8e2c8e0392`. Lint, non-parity tests, browser and CLI bundle builds, Linux/macOS/Windows standalone builds, artifact uploads, and snapshot publication passed. No other workflow was triggered for the changed paths.
 
 ## Remaining Work
 
-- Commit the verified implementation, rebase, push normally, and verify exact-commit CI.
-- Mark this record closed only after all completion criteria pass.
+None. All GAP-013 completion criteria passed. Select the next gap only in a later scheduled run.
