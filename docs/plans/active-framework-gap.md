@@ -45,6 +45,7 @@ Agent consequence:
 ## Required Tests and CI Checks
 
 - `node --test shaders/tests/test_frame_export.js`
+- `npm run test:shaders:frame-export-orientation`
 - `npm run test:shaders:runtime`
 - `node scripts/run-js-tests.js --skip-parity`
 - `npm run lint`
@@ -78,6 +79,10 @@ Agent consequence:
 - Register closeout: `llms-full.txt` now records pending accepted reconfigure/close releases as `dropped`, removes GAP-028 from the open-gap table, and changes the open count from 27 to 26.
 - Closeout documentation check: `node --test test/docs-static-paths.test.js` exited `0` with 4 passed and 0 failed.
 - Complete diff hygiene: `git diff --check HEAD` exited `0`.
+- First exact-commit CI attempt: Shaders run `35549486852` failed only in the WebGPU frame-export orientation step. The runtime job passed. All three retries produced the intended new stats `{ accepted: 5, dropped: 2, completed: 4, failed: 0 }` while the Playwright assertion still expected the pre-fix missing-cancellation value `dropped: 1`.
+- CI root cause and bounded fix: the functional test performs one rejected enqueue and closes one accepted pending frame, so both are now counted as dropped. The assertion was updated to `dropped: 2`; no runtime code changed.
+- Exact local CI reproduction after the fix: `npm run test:shaders:frame-export-orientation` exited `0` with 1 passed and 0 failed on WebGPU.
+- CI-fix review: follow-up read-only review confirmed the one-literal expectation change matches the five accepted, four completed, one rejected, and one canceled lifecycle, with no actionable findings.
 
 ## Remaining Work
 

@@ -181,7 +181,7 @@ test('WebGPU frame export matches canvas presentation, including padded rows and
         expect(item.pendingAtClose).toBe(true)
         expect(item.closedUnavailable).toBe(true)
         expect(item.callbacksAfterClose).toBe(4)
-        expect(item.stats).toEqual({ accepted: 5, dropped: 1, completed: 4, failed: 0 })
+        expect(item.stats).toEqual({ accepted: 5, dropped: 2, completed: 4, failed: 0 })
         expect(item.frames.map(frame => frame.timestamp)).toEqual([0, 1, 2, 4])
         for (const frame of item.frames) {
             expect([frame.width, frame.height, frame.rowStride]).toEqual([item.width, item.height, item.width * 4])
