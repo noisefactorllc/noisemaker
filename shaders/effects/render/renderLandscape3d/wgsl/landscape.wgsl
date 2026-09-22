@@ -82,29 +82,39 @@ fn isSolid(p: vec3f) -> bool {
     return density > 0.0 && density >= u.threshold;
 }
 
-fn isosurfaceDistance(origin: vec3f, direction: vec3f, start: f32, leave: f32) -> f32 {
-    if (isSolid(origin + direction * start)) { return start; }
+struct IsoHit {
+    distance: f32,
+    position: vec3f,
+}
+
+fn traceIsosurface(origin: vec3f, direction: vec3f, start: f32, leave: f32) -> IsoHit {
+    var position = origin + direction * start;
+    if (isSolid(position)) { return IsoHit(start, position); }
     // Half-voxel steps cover the entire box, including long diagonal rays.
     let stepSize = 0.5 / length(direction);
     var previous = start;
     for (var step = 0; step < u.volumeSize * 4; step++) {
         let distance = min(previous + stepSize, leave);
-        if (isSolid(origin + direction * distance)) {
+        position = origin + direction * distance;
+        if (isSolid(position)) {
             var lo = previous;
             var hi = distance;
             for (var refine = 0; refine < 8; refine++) {
                 let mid = (lo + hi) * 0.5;
-                if (isSolid(origin + direction * mid)) { hi = mid; }
-                else { lo = mid; }
+                let candidate = origin + direction * mid;
+                if (isSolid(candidate)) {
+                    hi = mid;
+                    position = candidate;
+                } else { lo = mid; }
             }
-            // Keep the hit on the solid side, including threshold zero where
-            // the midpoint can still have no contributing material samples.
-            return hi;
+            // Retain the tested solid position. Reconstructing it from depth
+            // can round back onto empty material at threshold zero.
+            return IsoHit(hi, position);
         }
         if (distance >= leave) { break; }
         previous = distance;
     }
-    return -1.0;
+    return IsoHit(-1.0, vec3f(0.0));
 }
 
 fn isosurfaceNormal(p: vec3f, fallback: vec3f) -> vec3f {
@@ -182,13 +192,13 @@ fn renderPerspective(uv: vec2f) -> FragmentOutput {
     }
     // FILTERING is a module constant; the compiler removes the inactive path.
     if (FILTERING == 0) {
-        let hit = isosurfaceDistance(origin, direction, distance, leave);
-        if (hit < 0.0) { return out; }
-        let p = origin + direction * hit;
-        if (hit > distance) { normal = isosurfaceNormal(p, normal); }
+        let hit = traceIsosurface(origin, direction, distance, leave);
+        if (hit.distance < 0.0) { return out; }
+        let p = hit.position;
+        if (hit.distance > distance) { normal = isosurfaceNormal(p, normal); }
         let worldNormal = forwardRotation(normal);
         out.fragColor = vec4f(lighting(sampleAtlas(volumeCache, p, true).rgb, worldNormal, viewDirection), 1.0);
-        out.geoOut = vec4f(worldNormal * 0.5 + 0.5, clamp(hit / 320.0, 0.0, 1.0));
+        out.geoOut = vec4f(worldNormal * 0.5 + 0.5, clamp(hit.distance / 320.0, 0.0, 1.0));
         return out;
     }
     for (var step = 0; step < u.volumeSize * 3; step++) {
@@ -241,12 +251,12 @@ fn main(@builtin(position) position: vec4f) -> FragmentOutput {
     else if (nearT.x >= nearT.z) { normal = vec3f(1.0, 0.0, 0.0); }
 
     if (FILTERING == 0) {
-        let hit = isosurfaceDistance(origin, vec3f(-1.0), distance, leave);
-        if (hit < 0.0) { return out; }
-        let p = origin - hit;
-        if (hit > distance) { normal = isosurfaceNormal(p, normal); }
+        let hit = traceIsosurface(origin, vec3f(-1.0), distance, leave);
+        if (hit.distance < 0.0) { return out; }
+        let p = hit.position;
+        if (hit.distance > distance) { normal = isosurfaceNormal(p, normal); }
         out.fragColor = vec4f(lighting(sampleAtlas(volumeCache, p, true).rgb, normal, vec3f(0.5773502692)), 1.0);
-        out.geoOut = vec4f(normal * 0.5 + 0.5, clamp(hit / (size * 4.0), 0.0, 1.0));
+        out.geoOut = vec4f(normal * 0.5 + 0.5, clamp(hit.distance / (size * 4.0), 0.0, 1.0));
         return out;
     }
     for (var step = 0; step < u.volumeSize * 3; step++) {

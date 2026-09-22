@@ -88,29 +88,39 @@ bool isSolid(vec3 p) {
     return density > 0.0 && density >= threshold;
 }
 
-float isosurfaceDistance(vec3 origin, vec3 direction, float start, float leave) {
-    if (isSolid(origin + direction * start)) return start;
+struct IsoHit {
+    float distance;
+    vec3 position;
+};
+
+IsoHit traceIsosurface(vec3 origin, vec3 direction, float start, float leave) {
+    vec3 position = origin + direction * start;
+    if (isSolid(position)) return IsoHit(start, position);
     // Half-voxel steps cover the entire box, including long diagonal rays.
     float stepSize = 0.5 / length(direction);
     float previous = start;
     for (int step = 0; step < volumeSize * 4; step++) {
         float distance = min(previous + stepSize, leave);
-        if (isSolid(origin + direction * distance)) {
+        position = origin + direction * distance;
+        if (isSolid(position)) {
             float lo = previous;
             float hi = distance;
             for (int refine = 0; refine < 8; refine++) {
                 float mid = (lo + hi) * 0.5;
-                if (isSolid(origin + direction * mid)) hi = mid;
-                else lo = mid;
+                vec3 candidate = origin + direction * mid;
+                if (isSolid(candidate)) {
+                    hi = mid;
+                    position = candidate;
+                } else lo = mid;
             }
-            // Keep the hit on the solid side, including threshold zero where
-            // the midpoint can still have no contributing material samples.
-            return hi;
+            // Retain the tested solid position. Reconstructing it from depth
+            // can round back onto empty material at threshold zero.
+            return IsoHit(hi, position);
         }
         if (distance >= leave) break;
         previous = distance;
     }
-    return -1.0;
+    return IsoHit(-1.0, vec3(0.0));
 }
 
 vec3 isosurfaceNormal(vec3 p, vec3 fallback) {
@@ -188,13 +198,13 @@ void renderPerspective(vec2 uv) {
     }
     // FILTERING is injected as a constant when the runtime compiles a variant.
     if (FILTERING == 0) {
-        float hit = isosurfaceDistance(origin, direction, distance, leave);
-        if (hit < 0.0) return;
-        vec3 p = origin + direction * hit;
-        if (hit > distance) normal = isosurfaceNormal(p, normal);
+        IsoHit hit = traceIsosurface(origin, direction, distance, leave);
+        if (hit.distance < 0.0) return;
+        vec3 p = hit.position;
+        if (hit.distance > distance) normal = isosurfaceNormal(p, normal);
         vec3 worldNormal = forwardRotation(normal);
         fragColor = vec4(lighting(sampleAtlas(volumeCache, p, true).rgb, worldNormal, viewDirection), 1.0);
-        geoOut = vec4(worldNormal * 0.5 + 0.5, clamp(hit / 320.0, 0.0, 1.0));
+        geoOut = vec4(worldNormal * 0.5 + 0.5, clamp(hit.distance / 320.0, 0.0, 1.0));
         return;
     }
     for (int step = 0; step < volumeSize * 3; step++) {
@@ -249,12 +259,12 @@ void main() {
     else if (nearT.x >= nearT.z) normal = vec3(1.0, 0.0, 0.0);
 
     if (FILTERING == 0) {
-        float hit = isosurfaceDistance(origin, vec3(-1.0), distance, leave);
-        if (hit < 0.0) return;
-        vec3 p = origin - hit;
-        if (hit > distance) normal = isosurfaceNormal(p, normal);
+        IsoHit hit = traceIsosurface(origin, vec3(-1.0), distance, leave);
+        if (hit.distance < 0.0) return;
+        vec3 p = hit.position;
+        if (hit.distance > distance) normal = isosurfaceNormal(p, normal);
         fragColor = vec4(lighting(sampleAtlas(volumeCache, p, true).rgb, normal, vec3(0.5773502692)), 1.0);
-        geoOut = vec4(normal * 0.5 + 0.5, clamp(hit / (size * 4.0), 0.0, 1.0));
+        geoOut = vec4(normal * 0.5 + 0.5, clamp(hit.distance / (size * 4.0), 0.0, 1.0));
         return;
     }
     // A ray crosses at most 3*N cells, including tied boundaries.
