@@ -129,7 +129,7 @@ aggregates), `llms-full.txt` (proven public contract), and this active record.
 - [x] Review the full diff and run the focused suite, shader-language suite,
   non-parity JS suite, lint, documentation path tests, and diff hygiene.
 - [x] Narrow only the proven lexer limitation in the register; leave GAP-002 open.
-- [ ] Commit this run's files, rebase, push normally, and verify exact-commit CI.
+- [x] Commit this run's files, rebase, push normally, and verify exact-commit CI.
 
 Startup: clean `main` at `52ac841bcda0e80042b6f399bca4b7d66268f48a`, no active
 Git operation. Initial pull fast-forwarded to `a0ff705a` with upstream changes
@@ -161,3 +161,19 @@ this item changes language diagnostics only, not shader programs or rendering.
 - The non-parity suite's `MIDI access failed: Error: adapter unavailable` log is
   an expected operational-error fixture followed by PASS, not an unresolved
   console error.
+
+- Implementation commit `643b2be1e28b62e3282a4009c2ea65c583ed6ccc`
+  (`feat: expose structured DSL lexer diagnostics`) was pushed normally after
+  `git pull --rebase` reported main up to date; tested sources did not change.
+- Exact-commit CI passed: Shaders `35744969052`, Docs site `35744968934`,
+  Site `35744968979`, and Downstream `35744968932`. One persistent
+  `gh run watch 35744969052 --exit-status` exited 0 after hosted tests, all
+  GPU suites, bundle packaging, and both scaffold release dispatches passed.
+  JavaScript CI was not triggered by this shader-only source change; its local
+  non-parity suite and lint both passed. Dependabot auto-merge was inapplicable
+  and skipped.
+
+All selected lexer work is complete, with no remaining work in this bounded
+item. GAP-002 stays active for structured parser errors, parser coordinates
+and unavailable spans, full-contract regressions, and the remaining full-gap
+checks. Select no other gap on the next run.
