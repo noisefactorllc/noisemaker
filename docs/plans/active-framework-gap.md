@@ -16,8 +16,8 @@ Agent consequence:
 
 - `shaders/src/lang/lexer.js` and `parser.js` throw human-readable `SyntaxError` messages without a stable structured diagnostic contract.
 - `shaders/src/lang/diagnostics.js` already catalogs lexer, parser, and semantic codes, but lexer/parser failures do not expose those codes uniformly.
-- `shaders/src/lang/validator.js`: `pushDiag()` reads `node.loc.column`, while parser-authored locations use `node.loc.col`. Existing semantic diagnostic locations therefore lose their column when serialized.
-- Reproduction through public `compile()`: `search synth\n  read(123).write(o0)` produces located S001 and S005 diagnostics with line 2 and undefined columns instead of columns 3 and 13.
+- Before this run, `shaders/src/lang/validator.js`: `pushDiag()` read `node.loc.column`, while parser-authored locations use `node.loc.col`. Existing semantic diagnostic locations therefore lost their column when serialized.
+- Pre-fix reproduction through public `compile()`: `search synth\n  read(123).write(o0)` produces located S001 and S005 diagnostics with line 2 and undefined columns instead of columns 3 and 13.
 - Many AST nodes have no `loc` at all. This run does not invent coordinates for those nodes or claim complete source-span coverage.
 
 ## Backward-Compatibility Contract
@@ -56,7 +56,7 @@ Selected for this run; finish all before returning:
 - [x] Map parser `loc.col` into existing diagnostic `location.column`, preserving explicit `loc.column` values and all other fields.
 - [x] Review the complete diff, fix actionable findings, and run focused plus required checks.
 - [x] Update only the proven semantic-column limitation in `llms-full.txt`; retain GAP-002 and the open-gap count.
-- [ ] Commit only this run's files, pull/rebase, push normally, and monitor exact-commit CI.
+- [x] Commit only this run's files, pull/rebase, push normally, and monitor exact-commit CI.
 
 Later runs, not selected now:
 
@@ -83,6 +83,13 @@ Later runs, not selected now:
 
 - Independent high-reasoning review of all six changed files found no Critical, Important, or Minor issues. The reviewer reran the five focused tests and diff hygiene, checked caller column zero, and compared baseline/current behavior: only the intended parser-provided columns changed. Aggregate registration propagates failures correctly.
 
+- Implementation commit: `e5bd2013087e54d53841db8c45a54f973aaa5174` (`fix: preserve source columns in DSL diagnostics`).
+- Pre-push `git pull --rebase` reported main up to date and did not change tested sources.
+- Normal push advanced `origin/main` from `3001db91` to `e5bd2013`.
+- Exact-commit CI passed: Shaders `35698026719`, JavaScript `35698026738`, Docs site `35698026995`, Site `35698026613`, and Downstream `35698026692` all completed successfully for the implementation SHA.
+- Shaders included hosted language/runtime/render/structure checks, all GPU suites, bundle packaging, and both scaffold release dispatches. One persistent `gh run watch` monitored this workflow to successful completion.
+- Follow-on Release `35698413358` also passed for the implementation SHA, including Linux/macOS/Windows standalone builds, JS/shader bundles, and release publication. It was monitored with a separate sequential persistent watch after Shaders completed. Dependabot auto-merge runs were skipped as inapplicable.
+
 ## Remaining Work
 
-Finish this run's semantic-column item and its CI. GAP-002 stays active for structured lexer/parser errors and source-coordinate coverage; do not select another gap.
+This run's semantic-column item is complete and verified locally and in exact-commit CI. GAP-002 stays active: structured lexer/parser errors, a defined source-coordinate contract with coverage, and regressions for that full contract remain. Continue GAP-002 on the next run; do not select another gap.
