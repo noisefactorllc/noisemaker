@@ -207,7 +207,7 @@ llms-full.txt, and this active record. No shader programs/effects or Python edit
 - [x] Review and run focused diagnostics, shader-language aggregate, non-parity
   JS aggregate, lint, documentation path checks, and diff hygiene.
 - [x] Update only the proven register limitation; retain GAP-002 as active.
-- [ ] Commit, rebase, normally push, verify exact-source CI and publication.
+- [x] Commit, rebase, normally push, verify exact-source CI and publication.
 
 Existing publication consequences: Shaders runs hosted and GPU suites before
 bundles and Scaffold static-site/library release dispatches; generated release
@@ -233,3 +233,23 @@ tags trigger Release artifact builds. No manual dispatch or local build is neede
 - Remaining full-gap criteria: other parser throw sites, source-derived parser
   coordinates/spans, and full-contract verification. This bounded item does
   not claim full parser diagnostic coverage.
+
+- Implementation commit `44bc4ed4ac729bddaa95b083d64bee942ade35da`
+  (`feat: expose structured parser expectation diagnostics`) pushed normally
+  after an unchanged pre-push rebase.
+- Exact-commit workflows passed: Shaders `35795782020`, Docs site
+  `35795781884`, Site `35795781762`, and Downstream `35795782012`.
+  JavaScript CI was not triggered by these paths; required local JS/lint passed.
+  Inapplicable Dependabot auto-merge was skipped.
+- One persistent Shaders watch exited 0 after all hosted and GPU suites,
+  bundle upload, and both Scaffold dispatches passed. The uploaded shader
+  artifact is nonempty, unexpired, and tied to the implementation SHA.
+- Scaffold library release `35796072192` passed for the implementation SHA,
+  including CDN purge. Follow-on Release `35796113305` passed under one
+  sequential persistent watch, publishing `v1.0.169` with nonempty Linux,
+  macOS, Windows, shader, and JavaScript assets. The remote annotated tag
+  peels to exactly `44bc4ed4ac729bddaa95b083d64bee942ade35da`.
+
+All selected parser-expectation work is complete. GAP-002 remains active for
+other parser failure paths, source-derived parser coordinate/span coverage,
+and full-contract verification. Continue this same gap next run.
