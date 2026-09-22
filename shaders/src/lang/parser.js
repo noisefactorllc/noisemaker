@@ -43,6 +43,7 @@
  * @returns {object} AST
  */
 import { isValidNamespace, VALID_NAMESPACES } from '../runtime/tags.js'
+import diagnostics from './diagnostics.js'
 
 export function parse(tokens) {
     let current = 0
@@ -61,7 +62,22 @@ export function parse(tokens) {
     const expect = (type, msg) => {
         const token = peek()
         if (token.type === type) return advance()
-        throw new SyntaxError(`${msg} at line ${token.line} col ${token.col}`)
+        const error = new SyntaxError(`${msg} at line ${token.line} col ${token.col}`)
+        const code = type === 'RPAREN' ? 'P002' : 'P001'
+        const hasLocation = Number.isInteger(token.line) && token.line > 0
+            && Number.isInteger(token.col) && token.col > 0
+        Object.defineProperty(error, 'diagnostic', {
+            value: {
+                code,
+                stage: diagnostics[code].stage,
+                severity: diagnostics[code].severity,
+                message: error.message,
+                location: hasLocation ? { line: token.line, column: token.col } : null,
+                // Public tokens have no source offsets; do not infer a span from lexeme length.
+                span: null
+            }
+        })
+        throw error
     }
 
     /**

@@ -6,16 +6,16 @@ Status: active
 
 Exact problem statement from `llms-full.txt`:
 
-> Parser errors are thrown strings/`SyntaxError` without a stable diagnostic schema. `loc` is not documented as a public result
+> Parser errors outside shared token expectations lack a stable diagnostic schema; parser locations retain token-counter limitations and source spans are unavailable. Complete AST `loc` coverage is not a public contract
 
 Agent consequence:
 
-> retry code must parse human text and cannot reliably identify spans/codes
+> retry code must still parse human text for remaining parser failures and cannot reliably identify parser source spans
 
 ## Source Files and Observed Behavior
 
-- `shaders/src/lang/lexer.js` now attaches structured diagnostics to native `SyntaxError` failures; `parser.js` still throws human-readable errors without that contract.
-- `shaders/src/lang/diagnostics.js` catalogs lexer, parser, and semantic codes. Lexer failures expose L001-L004; parser failures do not yet expose catalog codes.
+- `shaders/src/lang/lexer.js` now attaches structured diagnostics to native `SyntaxError` failures; `parser.js` now exposes structured P001/P002 diagnostics for shared token expectations; other throw paths remain unstructured.
+- `shaders/src/lang/diagnostics.js` catalogs lexer, parser, and semantic codes. Lexer failures expose L001-L004; shared parser token expectations expose P001/P002; other parser failures do not yet expose catalog codes.
 - Before the semantic-column fix, `shaders/src/lang/validator.js`: `pushDiag()` read `node.loc.column`, while parser-authored locations use `node.loc.col`. Existing semantic diagnostic locations therefore lost their column when serialized.
 - Pre-fix reproduction through public `compile()`: `search synth\n  read(123).write(o0)` produces located S001 and S005 diagnostics with line 2 and undefined columns instead of columns 3 and 13.
 - Many AST nodes have no `loc` at all. This run does not invent coordinates for those nodes or claim complete source-span coverage.
@@ -177,3 +177,59 @@ All selected lexer work is complete, with no remaining work in this bounded
 item. GAP-002 stays active for structured parser errors, parser coordinates
 and unavailable spans, full-contract regressions, and the remaining full-gap
 checks. Select no other gap on the next run.
+
+
+## Current Run: Parser Token Expectations (2026-09-22 evening)
+
+Continue GAP-002. Startup: clean main at ae4e3302, synchronized with origin/main,
+no active Git operation or pending job-owned publication; initial pull/rebase
+reported already up to date. Select only the shared parser expect() failure
+path for this run. Other parser throw sites and source-derived parser spans
+remain later bounded work.
+
+Design: preserve native SyntaxError class and exact message; add the existing
+non-enumerable diagnostic property shape with P002 for expected RPAREN and
+P001 for other token mismatches, catalog stage/severity, and message. Location
+copies the unexpected token's positive integer line/col as line/column; if
+either is unavailable, location is null. Span is explicitly null because the
+public token contract does not carry source offsets. Token coordinates retain
+legacy scanner limitations; this does not claim source-derived parser coverage.
+Successful token/AST/compile shapes, accepted DSL, defaults, saved programs,
+rendered output, and step indexes remain unchanged.
+
+Files: shaders/src/lang/parser.js, shaders/tests/test_diagnostic_locations.js,
+llms-full.txt, and this active record. No shader programs/effects or Python edits.
+
+- [x] Prove shared-expect failures lack diagnostics through parse(lex(source))
+  and compile(source), with legacy messages, EOF, multiline/UTF-16, serialization,
+  and unavailable caller-token location coverage.
+- [x] Add the bounded compatible parser diagnostics.
+- [x] Review and run focused diagnostics, shader-language aggregate, non-parity
+  JS aggregate, lint, documentation path checks, and diff hygiene.
+- [x] Update only the proven register limitation; retain GAP-002 as active.
+- [ ] Commit, rebase, normally push, verify exact-source CI and publication.
+
+Existing publication consequences: Shaders runs hosted and GPU suites before
+bundles and Scaffold static-site/library release dispatches; generated release
+tags trigger Release artifact builds. No manual dispatch or local build is needed.
+
+### Parser Expectation Evidence
+
+- Focused red run: 15 existing cases passed, all 11 added cases failed because
+  error.diagnostic was undefined; legacy class/message assertions passed.
+- Focused green run: 26 passed, 0 failed, exit 0.
+- Baseline differential check against ae4e3302: 3,265 lexable mutations;
+  685 accepted ASTs identical, 2,580 rejected inputs kept error class/message;
+  1,809 errors gained the intended structured expectation diagnostic.
+- Shader-language aggregate, ESLint, and four-case docs static-path suite
+  passed with exit 0. Non-parity JS aggregate also passed, exit 0.
+  Its MIDI adapter-unavailable log is an expected fixture followed by PASS.
+- No local builds or shader changes. No callable Shade tools were available.
+- Independent read-only review found no actionable issues; it reran the
+  26-case suite and compared 16 rejected inputs and three accepted ASTs with
+  ae4e3302, preserving all legacy behavior. Full-diff review and diff hygiene
+  passed. Only the four planned files are changed; the 23-row open register
+  remains open.
+- Remaining full-gap criteria: other parser throw sites, source-derived parser
+  coordinates/spans, and full-contract verification. This bounded item does
+  not claim full parser diagnostic coverage.

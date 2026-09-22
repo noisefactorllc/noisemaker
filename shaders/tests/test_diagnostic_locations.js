@@ -142,3 +142,56 @@ test('structured lexer failures leave successful tokens unchanged', () => {
         { type: 'EOF', lexeme: '', line: 2, col: 13 }
     ])
 })
+
+
+const parserExpectFailures = [
+    ['opening parenthesis', 'search synth\nrender o0', 'P001', "Expect '(' at line 2 col 8", 2, 8],
+    ['closing parenthesis at EOF', 'search synth\nrender(o0', 'P002', "Expect ')' at line 2 col 10", 2, 10],
+    ['identifier', 'search synth\nlet = 1', 'P001', 'Expected identifier at line 2 col 5', 2, 5],
+    ['assignment sign', 'search synth\nlet x 1', 'P001', "Expect '=' at line 2 col 7", 2, 7],
+    ['block opening', 'search synth\nif(true) return 1', 'P001', "Expect '{' at line 2 col 10", 2, 10],
+    ['end of input', 'search synth\nrender(o0) xyz', 'P001', 'Expected end of input at line 2 col 12', 2, 12],
+    ['call closing parenthesis', 'search synth\nfoo(1', 'P002', "Expect ')' at line 2 col 6", 2, 6],
+    ['write3d separator', 'search synth\nfoo().write3d(tex3d0 geo0)', 'P001', "Expect ',' between tex3d and geo in write3d() at line 2 col 22", 2, 22],
+    ['CRLF and tab', '// 😀\r\nsearch synth\r\n\trender(o0', 'P002', "Expect ')' at line 3 col 11", 3, 11],
+    ['UTF-16 column', 'search synth\nlet x = "😀"; render o0', 'P001', "Expect '(' at line 2 col 22", 2, 22]
+]
+
+for (const [name, source, code, message, line, column] of parserExpectFailures) {
+    test(`parser expectation diagnostic: ${name}`, () => {
+        for (const entryPoint of [source => parse(lex(source)), compile]) {
+            assert.throws(() => entryPoint(source), error => {
+                assert.equal(Object.getPrototypeOf(error), SyntaxError.prototype)
+                assert.equal(error.message, message)
+                assert.equal(String(error), `SyntaxError: ${message}`)
+                assert.deepEqual(Object.keys(error), [])
+                assert.equal(JSON.stringify(error), '{}')
+                const expected = {
+                    code, stage: 'parser', severity: 'error', message,
+                    location: { line, column }, span: null
+                }
+                assert.deepEqual(error.diagnostic, expected)
+                assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), expected)
+                return true
+            })
+        }
+    })
+}
+
+test('parser expectation diagnostics represent unavailable caller-token coordinates explicitly', () => {
+    for (const coordinates of [{}, { line: 1 }, { line: 0, col: 1 }, { line: 1, col: NaN }]) {
+        const tokens = lex('search synth\nrender o0').map(token => {
+            if (token.type !== 'OUTPUT_REF') return token
+            return { type: token.type, lexeme: token.lexeme, ...coordinates }
+        })
+        assert.throws(() => parse(tokens), error => {
+            assert.equal(error.message, `Expect '(' at line ${coordinates.line} col ${coordinates.col}`)
+            assert.deepEqual(error.diagnostic, {
+                code: 'P001', stage: 'parser', severity: 'error', message: error.message,
+                location: null, span: null
+            })
+            assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), error.diagnostic)
+            return true
+        })
+    }
+})
