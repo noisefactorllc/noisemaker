@@ -152,7 +152,7 @@ export function validate(ast) {
         // Add source location if available
         let location = null
         if (node?.loc) {
-            location = { line: node.loc.line, column: node.loc.column }
+            location = { line: node.loc.line, column: node.loc.column ?? node.loc.col }
         }
         diagnosticsList.push({
             code,

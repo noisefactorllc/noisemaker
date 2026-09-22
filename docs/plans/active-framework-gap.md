@@ -1,87 +1,88 @@
-# Active Framework Gap: GAP-022
+# Active Framework Gap: GAP-002
 
-Status: closed
+Status: active
 
 ## Gap
 
-**GAP-022 — Mutation introspection exposes terminal builtins as replaceable steps.**
-
 Exact problem statement from `llms-full.txt`:
 
-> Mutation introspection includes terminal `write` as a replaceable nonstarter and exposes no node-kind field.
+> Parser errors are thrown strings/`SyntaxError` without a stable diagnostic schema. `loc` is not documented as a public result
 
 Agent consequence:
 
-> Callers can target a builtin accidentally and cannot distinguish it structurally without string matching.
+> retry code must parse human text and cannot reliably identify spans/codes
 
 ## Source Files and Observed Behavior
 
-- `shaders/src/lang/transform.js`: `listSteps()` iterates every compiled chain node, including nodes with `builtin: true`, and reports `_write` as a replaceable nonstarter.
-- `shaders/src/lang/transform.js`: the shared `findStepByIndex()` lookup also returns builtin nodes, so `replaceEffect()` and `getCompatibleReplacements()` accept a builtin step index as a mutation target.
-- `shaders/src/lang/validator.js`: compiled terminal nodes already carry the structural `builtin: true` discriminator needed to exclude them without parsing operation names.
-- `shaders/tests/test_transform.js`: the focused suite already expects effect-only lengths and currently fails because a two-effect chain produces three `listSteps()` entries; it lacks direct coverage for builtin indexes passed to mutation APIs.
-- `package.json` and `scripts/run-js-tests.js`: the focused transform suite is not registered in the shader-language or non-parity aggregate routes.
+- `shaders/src/lang/lexer.js` and `parser.js` throw human-readable `SyntaxError` messages without a stable structured diagnostic contract.
+- `shaders/src/lang/diagnostics.js` already catalogs lexer, parser, and semantic codes, but lexer/parser failures do not expose those codes uniformly.
+- `shaders/src/lang/validator.js`: `pushDiag()` reads `node.loc.column`, while parser-authored locations use `node.loc.col`. Existing semantic diagnostic locations therefore lose their column when serialized.
+- Reproduction through public `compile()`: `search synth\n  read(123).write(o0)` produces located S001 and S005 diagnostics with line 2 and undefined columns instead of columns 3 and 13.
+- Many AST nodes have no `loc` at all. This run does not invent coordinates for those nodes or claim complete source-span coverage.
 
 ## Backward-Compatibility Contract
 
-- Preserve DSL behavior, rendered output, defaults, saved programs, compiled chain contents, and every existing effect step `temp` index.
-- Preserve the existing `listSteps()`, `replaceEffect()`, and `getCompatibleReplacements()` result object fields and error shape.
-- Restore the intended effect-only `listSteps()` contract by omitting compiled nodes already marked `builtin: true`; do not add an alias, alternate option, node-name heuristic, or new public discriminator field.
-- Treat a builtin step index exactly like any other non-target index through the existing `Step with index <n> not found` result.
-- Preserve inline surface-producer discovery and starter-position behavior.
-- Do not change compilation, unparsing, effect definitions, shader programs, backends, rendered output, or the Python implementation.
+- Preserve accepted/rejected DSL behavior, rendered output, defaults, saved programs, effect step indexes, compiled plans, and public result fields.
+- Populate the existing `Diagnostic.location.column` from parser-authored `loc.col`; preserve an explicit existing `loc.column` on caller-supplied ASTs.
+- Preserve diagnostics without a location, code/message/severity/identifier fields, and the parser AST shape. Do not introduce a second public location field.
+- Preserve existing thrown error classes and messages. Future structured lexer/parser diagnostics must be additive on existing errors or opt-in/versioned if their result contract changes.
+- No effect definitions, shader programs, backend behavior, or Python code changes.
 
 ## Objective Completion Criteria
 
-- `listSteps()` returns only non-builtin effect steps for single-chain, multi-chain, and inline surface-producer programs.
-- The returned effect steps keep their original `stepIndex`, `planIndex`, `chainIndex`, metadata, argument objects, and existing public result shape.
-- `replaceEffect()` cannot target a compiled builtin index and returns the existing not-found failure shape without modifying the program.
-- `getCompatibleReplacements()` cannot target a compiled builtin index and returns the existing not-found failure shape.
-- A focused regression demonstrates the pre-change failures and passes after the minimal implementation.
-- The focused regression runs in both the shader-language and non-parity JavaScript suites.
-- Shader language tests, non-parity JavaScript tests, lint, documentation-path checks, and the exact pushed commit's required GitHub Actions checks pass.
+- [ ] Lexer and parser failures expose a stable machine-readable diagnostic contract without parsing message text, while preserving legacy calls.
+- [ ] Diagnostic source coordinates have a defined public convention and reliable coverage for lexer/parser failures, with explicitly represented unavailable spans.
+- [x] Existing located semantic diagnostics preserve their line and obtain the parser-provided column; caller-supplied columns and unlocated diagnostics remain compatible.
+- [ ] Regressions prove the new contracts and legacy compatibility through public entry points.
+- [ ] All required local checks and exact-commit CI pass for each bounded implementation.
 
 ## Required Tests and CI Checks
 
-- `node shaders/tests/test_transform.js`
-- `npm run test:shaders:lang`
-- `node scripts/run-js-tests.js --skip-parity`
-- `npm run lint`
-- `node --test test/docs-static-paths.test.js` after changing `llms-full.txt`.
-- GitHub Actions checks for the exact pushed commit, including every workflow triggered by the changed paths.
+For this run's semantic-column item:
+
+- `node shaders/tests/test_diagnostic_locations.js` (new public-compile and direct-validator regressions).
+- `npm run test:shaders:lang` with the new suite registered.
+- `node scripts/run-js-tests.js --skip-parity` with the new suite registered.
+- `npm run lint`.
+- `node --test test/docs-static-paths.test.js` after updating `llms-full.txt`.
+- `git diff --check` and exact pushed commit's triggered GitHub Actions workflows, including Shaders, JavaScript, Docs site, Site, and Downstream when triggered.
+- Future lexer/parser work must add focused failures, legacy error compatibility checks, and the same aggregate/CI gates before it is selected.
 
 ## Bounded Work Items
 
-- [x] Strengthen and register the focused transform regression to cover preserved effect indexes and direct builtin targeting through both mutation APIs; verify the pre-change failures.
-- [x] Filter compiled nodes marked `builtin: true` in `listSteps()` and the shared mutation lookup; verify the focused regression passes.
-- [x] Review the complete diff and fix every actionable finding.
-- [x] Run the focused and required repository checks.
-- [x] Update `llms-full.txt` only after evidence proves GAP-022 is closed.
-- [x] Commit only this run's files, rebase, push normally, and verify required CI for the exact pushed commit.
+Selected for this run; finish all before returning:
+
+- [x] Add and register regression coverage for exact columns on read/write and multiline inline-read failures, serialized locations, explicit caller-provided columns, missing locations, and unchanged valid plans. Demonstrate the missing-column failure before implementation.
+- [x] Map parser `loc.col` into existing diagnostic `location.column`, preserving explicit `loc.column` values and all other fields.
+- [x] Review the complete diff, fix actionable findings, and run focused plus required checks.
+- [x] Update only the proven semantic-column limitation in `llms-full.txt`; retain GAP-002 and the open-gap count.
+- [ ] Commit only this run's files, pull/rebase, push normally, and monitor exact-commit CI.
+
+Later runs, not selected now:
+
+- [ ] Define and implement the compatible structured lexer/parser error contract and source-coordinate coverage with red-green tests.
+- [ ] Verify the full GAP-002 contract, update the gap register from evidence, and mark this record closed only after all completion criteria pass.
 
 ## Completed Evidence
 
-- Checkout safety: `git status --short --branch` reported clean `main` tracking `origin/main`, with no active merge, rebase, cherry-pick, or revert operation.
-- Initial synchronization: `git pull --rebase` fast-forwarded `main` from `7ea31be3` to `c9136462` without conflicts.
-- Target selection: the previous GAP-001 record was closed before this scheduled run. GAP-022 is repository-owned, correctness-focused, and bounded to existing mutation introspection.
-- Shade MCP availability check: no Shade MCP tool is exposed in this run. This target changes DSL mutation introspection and does not modify effect definitions, shader programs, backends, or rendered output.
-- Root-cause reproduction: `node shaders/tests/test_transform.js` exited `1`; the single-chain length expected 2 and received 3, and the two-chain length expected 4 and received 6.
-- Structural evidence: the extra compiled terminal node has `op: "_write"`, `temp: 2`, and `builtin: true`. `listSteps()` currently reports it with `canReplaceWithNonStarter: true` because neither listing nor lookup checks the existing builtin flag.
-- Focused red run after strengthening the regression: `node shaders/tests/test_transform.js` exited `1`. In addition to both length failures, `replaceEffect()` successfully replaced the builtin and `getCompatibleReplacements()` returned a successful candidate list for it.
-- Minimal implementation: `findStepByIndex()` ignores compiled nodes with `builtin: true`, and `listSteps()` omits those same nodes. The implementation uses the validator's existing structural flag rather than operation-name matching and does not alter compiled chains or indexes.
-- Aggregate registration: `package.json` runs `test_transform.js` in `test:shaders:lang`, and `scripts/run-js-tests.js` includes it once with `parity: false`.
-- Focused green run: `node shaders/tests/test_transform.js` exited `0` with all 22 cases passing, including preserved effect indexes, effect-only lengths, builtin rejection through both mutation APIs, inline producer behavior, immutability, and namespace behavior.
-- Independent review: two read-only high-reasoning passes found no Critical, Important, or Minor issues. The reviewer separately verified noncontiguous multi-chain indexes, a leading `read()` builtin, inline producers, exact failure shapes, compiled-program immutability, aggregate registration placement, JSON syntax, and failure propagation.
-- Shader language suite: `npm run test:shaders:lang` exited `0` and executed the registered transform regression.
-- Non-parity JavaScript suite: `node scripts/run-js-tests.js --skip-parity` exited `0` and executed the registered transform regression plus documentation source checks.
-- Lint: `npm run lint` exited `0` with no diagnostics.
-- Register closeout: `llms-full.txt` now documents effect-only mutation introspection and builtin-index rejection, removes GAP-022 from the traceability matrix and open table, and changes the open count from 24 to 23.
-- Documentation and structure checks: `node --test test/docs-static-paths.test.js` exited `0` with 4 passed and 0 failed; `package.json` parsed as JSON; each aggregate route contains exactly one transform-suite registration; the open table contains 23 rows; GAP-022 appears once in its closure note; and `git diff --check` exited `0`.
-- Implementation commit: `68d37721091a6fb9f5ab25c9ae1f0d9c84f51318` (`fix: exclude builtins from mutation introspection`).
-- Pre-push synchronization: `git pull --rebase` reported `main` up to date and did not change tested sources.
-- Push: the normal `git push origin main` advanced `main` from `c9136462` to `68d37721`.
-- Exact-commit CI: Shaders run `35666811891`, JavaScript run `35666811854`, Docs site run `35666812198`, Site run `35666811945`, and Downstream run `35666811998` all completed successfully for `68d37721091a6fb9f5ab25c9ae1f0d9c84f51318`. Shaders included language/runtime/render coverage, GPU acceptance, bundle packaging, and both scaffold release dispatches.
+- Started on clean `main` at `3001db9130769634ec29b55b0c95fb3772a13776`, tracking `origin/main`, with no active Git operation.
+- Initial `git pull --rebase`: already up to date.
+- Previous active target GAP-022 was closed. Selected GAP-002 for a bounded developer-contract correction.
+- Shade tool discovery returned no callable Shade tools. This item changes language diagnostics only, with no shader development or rendered-output changes.
+- Root cause confirmed by public `compile()` reproduction and the parser/validator location field mismatch.
+
+- Focused red run: after correcting the test fixture's AST path, `node shaders/tests/test_diagnostic_locations.js` exited 1 with exactly two missing-column failures (expected columns 3/13 and 17, received undefined); all three compatibility cases passed before implementation.
+- Minimal implementation: `pushDiag()` now uses `node.loc.column ?? node.loc.col` for the existing `location.column` field. No new public fields or validation policy were introduced.
+- Focused green run: `node shaders/tests/test_diagnostic_locations.js` exited 0 with 5 passed and 0 failed.
+- Aggregate coverage: registered the focused suite once in `test:shaders:lang` and once in the non-parity JavaScript runner.
+- `npm run test:shaders:lang` exited 0 and ran all five new cases.
+- `node scripts/run-js-tests.js --skip-parity` exited 0 and ran all five new cases. Its MIDI adapter-unavailable message is an expected operational-error test fixture, followed by PASS.
+- `npm run lint` exited 0 with no diagnostics.
+- `node --test test/docs-static-paths.test.js` exited 0 with 4 passed and 0 failed.
+- `git diff --check` exited 0. The register retains GAP-002 and its existing open-gap count.
+
+- Independent high-reasoning review of all six changed files found no Critical, Important, or Minor issues. The reviewer reran the five focused tests and diff hygiene, checked caller column zero, and compared baseline/current behavior: only the intended parser-provided columns changed. Aggregate registration propagates failures correctly.
 
 ## Remaining Work
 
-None. All GAP-022 completion criteria passed. Select the next gap only in a later scheduled run.
+Finish this run's semantic-column item and its CI. GAP-002 stays active for structured lexer/parser errors and source-coordinate coverage; do not select another gap.

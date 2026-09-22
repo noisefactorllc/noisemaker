@@ -102,8 +102,11 @@ type ExpansionFailure = {
 }
 ```
 
-`Diagnostic.location.column` is written from `node.loc.column`, while parser
-nodes store `loc.col`. It can therefore be `undefined`. This is GAP-002.
+`Diagnostic.location` preserves the parser's one-based line and column when
+the diagnostic node has `loc`: parser `loc.col` populates `location.column`,
+and an explicit `loc.column` on a caller-supplied AST retains precedence.
+Nodes without `loc` still omit `location`; complete source coverage and
+structured lexer/parser failures remain open under GAP-002.
 
 ## Runtime overview
 
@@ -3907,6 +3910,12 @@ nodes marked `builtin: true`, and the shared lookup used by replacement and
 compatibility queries cannot resolve builtin indexes. Effect step and chain
 indexes, result shapes, and starter-position behavior remain unchanged. The
 focused regression runs in both the shader-language and non-parity suites.
+
+GAP-002 remains open. The semantic diagnostic column mismatch is fixed:
+parser-authored `loc.col` now populates the existing `location.column` field.
+Regression coverage checks exact multiline coordinates, JSON serialization,
+caller-supplied columns, unlocated nodes, and unchanged valid compiled plans.
+Lexer/parser errors still lack a stable structured diagnostic contract.
 
 GAP-005 is narrowed, not closed, at noisemaker `ff1bfbc1`: `conditions` is
 copied by `expand()` and reaches `Pipeline.shouldSkipPass()`, so it is no
