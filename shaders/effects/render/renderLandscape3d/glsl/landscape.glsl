@@ -65,11 +65,20 @@ vec4 interpolateAtlas(vec4 a, vec4 b, float weight) {
     return a + (b - a) * weight;
 }
 
-vec4 sampleAtlas(sampler2D atlas, vec3 p, bool material) {
+struct AtlasCoords {
+    ivec3 lo;
+    vec3 fraction;
+};
+
+AtlasCoords atlasCoords(vec3 p) {
     vec3 texel = clamp(p - 0.5, vec3(0.0), vec3(float(volumeSize - 1)));
-    ivec3 lo = ivec3(floor(texel));
+    return AtlasCoords(ivec3(floor(texel)), fract(texel));
+}
+
+vec4 sampleAtlasCoords(sampler2D atlas, AtlasCoords coords, bool material) {
+    ivec3 lo = coords.lo;
     ivec3 hi = min(lo + 1, ivec3(volumeSize - 1));
-    vec3 f = fract(texel);
+    vec3 f = coords.fraction;
     vec4 c00 = interpolateAtlas(sampleAtlasTexel(atlas, ivec3(lo.x, lo.y, lo.z), material),
                    sampleAtlasTexel(atlas, ivec3(hi.x, lo.y, lo.z), material), f.x);
     vec4 c10 = interpolateAtlas(sampleAtlasTexel(atlas, ivec3(lo.x, hi.y, lo.z), material),
@@ -83,44 +92,53 @@ vec4 sampleAtlas(sampler2D atlas, vec3 p, bool material) {
     return value;
 }
 
-bool isSolid(vec3 p) {
-    float density = sampleAtlas(analyticalGeo, p, false).a;
+vec4 sampleAtlas(sampler2D atlas, vec3 p, bool material) {
+    return sampleAtlasCoords(atlas, atlasCoords(p), material);
+}
+
+bool isSolid(AtlasCoords coords) {
+    float density = sampleAtlasCoords(analyticalGeo, coords, false).a;
     return density > 0.0 && density >= threshold;
 }
 
 struct IsoHit {
     float distance;
     vec3 position;
+    AtlasCoords coords;
 };
 
 IsoHit traceIsosurface(vec3 origin, vec3 direction, float start, float leave) {
     vec3 position = origin + direction * start;
-    if (isSolid(position)) return IsoHit(start, position);
+    AtlasCoords coords = atlasCoords(position);
+    if (isSolid(coords)) return IsoHit(start, position, coords);
     // Half-voxel steps cover the entire box, including long diagonal rays.
     float stepSize = 0.5 / length(direction);
     float previous = start;
     for (int step = 0; step < volumeSize * 4; step++) {
         float distance = min(previous + stepSize, leave);
         position = origin + direction * distance;
-        if (isSolid(position)) {
+        coords = atlasCoords(position);
+        if (isSolid(coords)) {
             float lo = previous;
             float hi = distance;
             for (int refine = 0; refine < 8; refine++) {
                 float mid = (lo + hi) * 0.5;
                 vec3 candidate = origin + direction * mid;
-                if (isSolid(candidate)) {
+                AtlasCoords candidateCoords = atlasCoords(candidate);
+                if (isSolid(candidateCoords)) {
                     hi = mid;
                     position = candidate;
+                    coords = candidateCoords;
                 } else lo = mid;
             }
-            // Retain the tested solid position. Reconstructing it from depth
-            // can round back onto empty material at threshold zero.
-            return IsoHit(hi, position);
+            // Reuse the tested interpolation coordinates for material sampling.
+            // Recomputing them from position can round onto the empty boundary.
+            return IsoHit(hi, position, coords);
         }
         if (distance >= leave) break;
         previous = distance;
     }
-    return IsoHit(-1.0, vec3(0.0));
+    return IsoHit(-1.0, vec3(0.0), AtlasCoords(ivec3(0), vec3(0.0)));
 }
 
 vec3 isosurfaceNormal(vec3 p, vec3 fallback) {
@@ -203,7 +221,7 @@ void renderPerspective(vec2 uv) {
         vec3 p = hit.position;
         if (hit.distance > distance) normal = isosurfaceNormal(p, normal);
         vec3 worldNormal = forwardRotation(normal);
-        fragColor = vec4(lighting(sampleAtlas(volumeCache, p, true).rgb, worldNormal, viewDirection), 1.0);
+        fragColor = vec4(lighting(sampleAtlasCoords(volumeCache, hit.coords, true).rgb, worldNormal, viewDirection), 1.0);
         geoOut = vec4(worldNormal * 0.5 + 0.5, clamp(hit.distance / 320.0, 0.0, 1.0));
         return;
     }
@@ -263,7 +281,7 @@ void main() {
         if (hit.distance < 0.0) return;
         vec3 p = hit.position;
         if (hit.distance > distance) normal = isosurfaceNormal(p, normal);
-        fragColor = vec4(lighting(sampleAtlas(volumeCache, p, true).rgb, normal, vec3(0.5773502692)), 1.0);
+        fragColor = vec4(lighting(sampleAtlasCoords(volumeCache, hit.coords, true).rgb, normal, vec3(0.5773502692)), 1.0);
         geoOut = vec4(normal * 0.5 + 0.5, clamp(hit.distance / (size * 4.0), 0.0, 1.0));
         return;
     }

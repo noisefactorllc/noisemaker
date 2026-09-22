@@ -35,8 +35,8 @@ try {
             await r.loadEffects(['synth/testPattern', 'synth/solid', 'synth3d/heightmap3d',
                 'synth3d/shape3d', 'synth3d/noise3d', 'filter3d/palette3d', 'render/renderLandscape3d'])
         }, { baseUrl, backend })
-        async function frame(name, view, filtering, source = terrain, extra = '') {
-            const dsl = `search synth, synth3d, filter3d, render\n${source}.renderLandscape3d(viewMode: ${view}, bgAlpha: 0, rotateX: 0.62, rotateY: 0.5, posY: 12${filtering ? `, filtering: ${filtering}` : ''}${extra}).write(o0)\nrender(o0)`
+        async function frame(name, view, filtering, source = terrain, extra = '', rotateX = 0.62) {
+            const dsl = `search synth, synth3d, filter3d, render\n${source}.renderLandscape3d(viewMode: ${view}, bgAlpha: 0, rotateX: ${rotateX}, rotateY: 0.5, posY: 12${filtering ? `, filtering: ${filtering}` : ''}${extra}).write(o0)\nrender(o0)`
             const result = await page.evaluate(async dsl => {
                 try { await r.compile(dsl) } catch (error) { throw new Error(JSON.stringify(error)) }
                 r.stop(); r.render(0); r.render(0)
@@ -102,6 +102,18 @@ try {
                 assert.ok(hitCount(white) > 100, 'white heightfield must render')
                 assert.ok(white.color.every((v, i) => white.color[i - i % 4 + 3] === 0 || v === 255),
                     'empty voxels must not dim constant diffuse color at any threshold')
+            }
+            if (view === 'perspective') {
+                // These rays refine very close to the empty side of a slab.
+                // Vary the camera so boundary arithmetic is not GPU-specific.
+                for (const rotateX of [0.207, 0.214, 0.228, 0.543, 0.627]) {
+                    const white = await frame(`${view}-white-boundary-${rotateX}`, view, 'isosurface',
+                        'heightmap3d(heightTex: solid(color: #ffffff), tex: solid(color: #ffffff), volumeSize: x16, heightScale: 0.5)',
+                        ', threshold: 0, ambient: 1, diffuseIntensity: 0, specularIntensity: 0', rotateX)
+                    assert.ok(hitCount(white) > 100, 'boundary fixture must render')
+                    assert.ok(white.color.every((v, i) => white.color[i - i % 4 + 3] === 0 || v === 255),
+                        `threshold-zero surface must retain white material at rotateX ${rotateX}`)
+                }
             }
             const paletteSource = 'heightmap3d(heightTex: solid(color: #ffffff), tex: solid(color: #3399cc), volumeSize: x16, heightScale: 0.5).palette3d(index: palette.vaporwave)'
             const unlit = ', ambient: 1, diffuseIntensity: 0, specularIntensity: 0'
