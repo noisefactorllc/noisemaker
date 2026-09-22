@@ -574,7 +574,8 @@ work, verify it, then update the checkpoint and append a log line.
 ## AI development contract (llms-full.txt)
 
 - **Checkpoint:** noisemaker `50b8f909` / shade-mcp `cbcab33`, 2026-09-21
-- **Scope:** the hand-authored agent contract `llms-full.txt` — the
+- **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
+  this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
   *current* runtime behavior across nine surfaces (DSL, effect definition,
   parameters/globals, passes/graph, textures, compatibility/mutation,
@@ -588,24 +589,65 @@ work, verify it, then update the checkpoint and append a log line.
   verified against live source.
   The short public index `llms.txt` carries no pinned snapshot and is kept
   current in-band with its links, so it is not part of this pass.
+  Work spans both repositories even when only one changed. Noisemaker owns
+  the engine, effects, viewer, MCP configuration, and vendored integration;
+  Shade MCP owns its parsers, analysis, knowledge, browser tools, and harness
+  exports. Fix affected integration code in its owning repository before
+  describing the pair as compatible. Preserve valid DSL behavior, rendered
+  output, defaults, saved programs, step indexes, and public tool result
+  shapes. Unrelated engine gap closure is outside this pass.
+- **Delivery evidence:** record four identities separately in each completed
+  pass: Noisemaker source SHA, Shade MCP source SHA, the immutable Shade MCP
+  commit configured in `.mcp.json`, and the release tag/source SHA delivered
+  to `vendor/shade-mcp/`. The MCP pin and vendored harness are independent
+  delivery paths. A local Shade build or source fix proves neither release
+  nor installation. Use the existing release and `pull-shade-mcp` process;
+  never hand-edit generated vendor bundles or replace the immutable pin
+  with a floating branch. Commit, push, release, and deployment actions
+  still require explicit operator authorization.
 - **Gap detection:**
-  1. Noisemaker drift — commits since the noisemaker checkpoint touching the
-     primary source roots the contract reads:
+  1. Noisemaker drift — inspect changes since this section's current
+     Noisemaker checkpoint, including source consumed by Shade and changes
+     to either delivery path:
 
      ```
-     git log --oneline 246ff57f..HEAD -- shaders/src/lang/ shaders/src/runtime/ shaders/src/renderer/canvas.js shaders/tests/test-harness.js
+     git log --oneline <noisemaker-checkpoint>..HEAD -- shaders/src/ shaders/effects/ shaders/tests/ demo/shaders/ .mcp.json vendor/shade-mcp/ pull-shade-mcp .github/workflows/pull-shade-mcp.yml test/mcp-config.test.js
      ```
 
      Each can invalidate a behavior statement, typed grammar, or validator
-     message, or change a gap's status. Re-audit the affected surface
-     section(s) and re-check every gap whose "Source evidence" file changed.
+     message, catalog reference, viewer bridge, harness API, or gap status.
+     Check Shade's consumers against these changes, re-audit the affected
+     contract sections, and re-check gaps whose "Source evidence" changed.
   2. Shade MCP drift — `.mcp.json` runs
      `npx -y github:noisedeck/shade-mcp#<sha>` pinned to an immutable commit
      (GAP-013 closed). Check upstream `noisefactorllc/shade-mcp` for new
-     commits or releases; if `.mcp.json` or upstream moved off the pinned SHA,
-     re-capture `tools/list` (tool count and signatures) and the server/protocol
-     version triple, then re-audit the "Shade MCP tool contracts" section and
-     the MCP-side gaps.
+     commits since the Shade checkpoint and for newer releases. Compare
+     tool schemas/results, harness exports, and browser behavior with
+     Noisemaker's viewer, vendor imports, and configured MCP. Reconcile both
+     delivery paths with the tested Shade source and record their provenance.
+     A newer release does not reopen GAP-013: that gap tracks immutable
+     pinning, not freshness.
+  3. Audit both complete checkpoint-to-source ranges. A queue trigger range
+     is not evidence that an earlier pass completed. Missing vendor
+     provenance, pending source fixes, undelivered releases, and unavailable
+     checks are explicit blockers, not grounds to advance a checkpoint.
+- **Validation and completion:** run Noisemaker's prescribed JS tests and
+  lint, Shade's typecheck and tests, relevant structure/compile/render checks
+  on WebGL2 and WebGPU through the configured MCP and vendored harness, and
+  Shade's real viewer smoke test (`NOISEMAKER` set to the Noisemaker checkout,
+  `node scripts/browser-smoke.mjs`). Build Shade when needed under its
+  instructions; never build Noisemaker dist locally. Re-capture MCP
+  initialization, `tools/list`, the server/protocol version triple, and the
+  affected worked request/response from one session at the tested immutable
+  pin. Unit tests or a tool count alone do not prove browser compatibility.
+  Verify required CI for each changed repository's exact published commit
+  and verify the resulting delivery state. Then update affected contract
+  sections, the traceability matrix, and source-evidence gaps, and advance
+  both checkpoints together with the contract's snapshot block. Include all
+  four identities and validation evidence in the log. If any part remains
+  unverified, keep the last completed checkpoints and record remaining work
+  here. Historical entries below do not retroactively certify these added
+  delivery checks.
 - **Log:**
   - 2026-09-21 — caught up through noisemaker `50b8f909` / shade-mcp `cbcab33`:
     audited watched source roots across noisemaker range `ea113f97..50b8f909`.
