@@ -586,7 +586,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `50b8f909` / shade-mcp `cbcab33`, 2026-09-21
+- **Checkpoint:** noisemaker `e5bd2013` / shade-mcp `00340b1`, 2026-09-22
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -594,7 +594,7 @@ work, verify it, then update the checkpoint and append a log line.
   parameters/globals, passes/graph, textures, compatibility/mutation,
   rendered output, cross-backend parity, Shade MCP tool contracts), a fully
   worked validated effect, the surface × capability traceability matrix, and
-  the 24-entry open gap register (GAP-002..012, GAP-014..017, GAP-019..022,
+  the 23-entry open gap register (GAP-002..012, GAP-014..017, GAP-019..021,
   GAP-024, GAP-026..027, GAP-029, and GAP-032). The file pins its
   own audited SHAs in the "Source snapshots used for this contract" block at
   its head; that block and this checkpoint are the same two SHAs and must be
@@ -662,6 +662,24 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
+  - 2026-09-22 — caught up through noisemaker `e5bd2013` / shade-mcp `00340b1`:
+    audited watched source roots across noisemaker range `50b8f909..e5bd2013`.
+    Commit `68d37721` closed GAP-022 by excluding compiled nodes marked `builtin: true`
+    from mutation introspection (`listSteps`, `replaceEffect`, `getCompatibleReplacements`)
+    in `shaders/src/lang/transform.js`. Commit `e5bd2013` narrowed GAP-002 by preserving
+    source columns from parser `loc.col` into `location.column` in `shaders/src/lang/validator.js`.
+    In shade-mcp across range `cbcab33..00340b1`, commit `00340b1` documented paired
+    Noisemaker compatibility and delivery checks in `CLAUDE.md`, with zero runtime,
+    tool, or schema changes. Verified four identities: Noisemaker source `e5bd2013087e54d53841db8c45a54f973aaa5174`,
+    Shade MCP source `00340b148e109464b1a87d89ff29fc7622d384c9`, `.mcp.json` pinned to
+    `cbcab33363851016f65391fbb9ef71d66729c07f`, and `vendor/shade-mcp/` delivered from
+    release `v0.2.3` (`cbcab33363851016f65391fbb9ef71d66729c07f`). Open gap count stands
+    at 23 entries. Verified Noisemaker non-parity JS tests (`node scripts/run-js-tests.js --skip-parity`,
+    64 tests pass) and lint, Shade MCP typecheck (`npm run typecheck`, 0 errors) and unit tests
+    (`npm test`, 24 files / 157 tests pass), Shade MCP build and drop check, structure-only check
+    via vendored harness, and live browser smoke test against Noisemaker viewer
+    (`NOISEMAKER=... node scripts/browser-smoke.mjs`, all 3 checks OK). Advanced `llms-full.txt`
+    snapshot block and `LEDGER.md` checkpoint together.
   - 2026-09-21 — caught up through noisemaker `50b8f909` / shade-mcp `cbcab33`:
     audited watched source roots across noisemaker range `ea113f97..50b8f909`.
     Commit `50b8f909` closed GAP-001 by enforcing DSL output surface range

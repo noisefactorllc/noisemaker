@@ -14,13 +14,13 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `50b8f909ff59f177eb1312de7be461b16bbdd657`.
-- Shade MCP: `cbcab33363851016f65391fbb9ef71d66729c07f`.
+- Noisemaker: `e5bd2013087e54d53841db8c45a54f973aaa5174`.
+- Shade MCP: `00340b148e109464b1a87d89ff29fc7622d384c9`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.3`, protocol
   `2025-11-25`, with 18 tools returned by `tools/list`.
 - The repository config runs
   `npx -y github:noisedeck/shade-mcp#cbcab33363851016f65391fbb9ef71d66729c07f`,
-  matching this audited Shade MCP source snapshot.
+  matching release v0.2.3 delivered to `vendor/shade-mcp/`.
 
 Primary source roots:
 
@@ -3220,16 +3220,17 @@ This instance is the repository's `synth/testPattern` effect. The three source
 blocks below are complete, not excerpts, and were last live-captured at
 Noisemaker commit `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424` and Shade MCP
 commit `0a92bd839adf89caa1641e90b201182a24f8fb25`. Re-audited at Noisemaker
-`50b8f909ff59f177eb1312de7be461b16bbdd657` and Shade MCP
-`cbcab33363851016f65391fbb9ef71d66729c07f` by source inspection:
+`e5bd2013087e54d53841db8c45a54f973aaa5174` and Shade MCP
+`00340b148e109464b1a87d89ff29fc7622d384c9` (v0.2.3 delivery at
+`cbcab33363851016f65391fbb9ef71d66729c07f`) by source inspection:
 `synth/testPattern`'s own definition.js and shader files are byte-unchanged in that
-range, none of the range's changes (enforcement of DSL output surface range
-`o0`..`o7` in lexer.js, closing GAP-001) affect runtime execution or reach this effect,
-and the full non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`) passes.
-The MCP evidence below was not re-captured live this pass — Shade MCP's commit
-`cbcab33` bumped the version to 0.2.3 and migrated retired effect references to
-`adjust` in knowledge exemplars/catalog, leaving runtime tools, schemas, and
-behavior identical to `0a92bd83`, so no source path this transcript depends on moved.
+range, none of the range's changes (excluding builtins from mutation introspection,
+closing GAP-022; and preserving source columns in DSL diagnostics, narrowing GAP-002)
+affect runtime execution or reach this effect, and the full non-parity JS test suite
+(`node scripts/run-js-tests.js --skip-parity`) passes. The MCP evidence below was
+not re-captured live this pass — Shade MCP commit `00340b1` updated paired
+documentation in CLAUDE.md only, leaving runtime tools, schemas, and behavior
+identical to `cbcab33`, so no source path this transcript depends on moved.
 
 Noisemaker's watched source roots added lossless vector formatting, MIDI
 controller/expression modes, MPE routing, and default audio channels. They did
