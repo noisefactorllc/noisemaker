@@ -18,6 +18,9 @@ uniform float diffuseIntensity;
 uniform float specularIntensity;
 uniform vec3 bgColor;
 uniform float bgAlpha;
+#ifndef FILTERING
+#define FILTERING 1
+#endif
 #ifndef VIEW_MODE
 #define VIEW_MODE 1
 #endif
@@ -42,6 +45,81 @@ vec3 lighting(vec3 color, vec3 normal, vec3 viewDirection) {
         specular = pow(max(dot(normal, normalize(halfVector)), 0.0), 32.0) * specularIntensity;
     }
     return color * (ambient + max(dot(normal, light), 0.0) * diffuseIntensity) + specular;
+}
+
+// The landscape lattice stores samples at voxel centers. Filter the 3D
+// coordinates explicitly so interpolation never crosses unrelated atlas rows.
+vec4 sampleAtlasTexel(sampler2D atlas, ivec3 p, bool material) {
+    ivec2 coord = ivec2(p.x, p.y + p.z * volumeSize);
+    vec4 value = texelFetch(atlas, coord, 0);
+    if (material) {
+        // Geometry defines empty samples. Volume alpha can hold unrelated data.
+        float present = texelFetch(analyticalGeo, coord, 0).a > 0.0 ? 1.0 : 0.0;
+        return vec4(value.rgb * present, present);
+    }
+    return value;
+}
+
+// Preserve constant fields exactly so flat surfaces have zero tangential gradient.
+vec4 interpolateAtlas(vec4 a, vec4 b, float weight) {
+    return a + (b - a) * weight;
+}
+
+vec4 sampleAtlas(sampler2D atlas, vec3 p, bool material) {
+    vec3 texel = clamp(p - 0.5, vec3(0.0), vec3(float(volumeSize - 1)));
+    ivec3 lo = ivec3(floor(texel));
+    ivec3 hi = min(lo + 1, ivec3(volumeSize - 1));
+    vec3 f = fract(texel);
+    vec4 c00 = interpolateAtlas(sampleAtlasTexel(atlas, ivec3(lo.x, lo.y, lo.z), material),
+                   sampleAtlasTexel(atlas, ivec3(hi.x, lo.y, lo.z), material), f.x);
+    vec4 c10 = interpolateAtlas(sampleAtlasTexel(atlas, ivec3(lo.x, hi.y, lo.z), material),
+                   sampleAtlasTexel(atlas, ivec3(hi.x, hi.y, lo.z), material), f.x);
+    vec4 c01 = interpolateAtlas(sampleAtlasTexel(atlas, ivec3(lo.x, lo.y, hi.z), material),
+                   sampleAtlasTexel(atlas, ivec3(hi.x, lo.y, hi.z), material), f.x);
+    vec4 c11 = interpolateAtlas(sampleAtlasTexel(atlas, ivec3(lo.x, hi.y, hi.z), material),
+                   sampleAtlasTexel(atlas, ivec3(hi.x, hi.y, hi.z), material), f.x);
+    vec4 value = interpolateAtlas(interpolateAtlas(c00, c10, f.y), interpolateAtlas(c01, c11, f.y), f.z);
+    if (material && value.a > 0.0) value.rgb /= value.a;
+    return value;
+}
+
+bool isSolid(vec3 p) {
+    float density = sampleAtlas(analyticalGeo, p, false).a;
+    return density > 0.0 && density >= threshold;
+}
+
+float isosurfaceDistance(vec3 origin, vec3 direction, float start, float leave) {
+    if (isSolid(origin + direction * start)) return start;
+    // Half-voxel steps cover the entire box, including long diagonal rays.
+    float stepSize = 0.5 / length(direction);
+    float previous = start;
+    for (int step = 0; step < volumeSize * 4; step++) {
+        float distance = min(previous + stepSize, leave);
+        if (isSolid(origin + direction * distance)) {
+            float lo = previous;
+            float hi = distance;
+            for (int refine = 0; refine < 8; refine++) {
+                float mid = (lo + hi) * 0.5;
+                if (isSolid(origin + direction * mid)) hi = mid;
+                else lo = mid;
+            }
+            // Keep the hit on the solid side, including threshold zero where
+            // the midpoint can still have no contributing material samples.
+            return hi;
+        }
+        if (distance >= leave) break;
+        previous = distance;
+    }
+    return -1.0;
+}
+
+vec3 isosurfaceNormal(vec3 p, vec3 fallback) {
+    vec3 gradient = vec3(
+        sampleAtlas(analyticalGeo, p - vec3(0.5, 0.0, 0.0), false).a - sampleAtlas(analyticalGeo, p + vec3(0.5, 0.0, 0.0), false).a,
+        sampleAtlas(analyticalGeo, p - vec3(0.0, 0.5, 0.0), false).a - sampleAtlas(analyticalGeo, p + vec3(0.0, 0.5, 0.0), false).a,
+        sampleAtlas(analyticalGeo, p - vec3(0.0, 0.0, 0.5), false).a - sampleAtlas(analyticalGeo, p + vec3(0.0, 0.0, 0.5), false).a);
+    if (dot(gradient, gradient) > 1e-12) return normalize(gradient);
+    return fallback;
 }
 
 #if VIEW_MODE == 2
@@ -108,6 +186,17 @@ void renderPerspective(vec2 uv) {
         else if (nearT.x >= nearT.z) normal.x = -float(stepDir.x);
         else normal.z = -float(stepDir.z);
     }
+    // FILTERING is injected as a constant when the runtime compiles a variant.
+    if (FILTERING == 0) {
+        float hit = isosurfaceDistance(origin, direction, distance, leave);
+        if (hit < 0.0) return;
+        vec3 p = origin + direction * hit;
+        if (hit > distance) normal = isosurfaceNormal(p, normal);
+        vec3 worldNormal = forwardRotation(normal);
+        fragColor = vec4(lighting(sampleAtlas(volumeCache, p, true).rgb, worldNormal, viewDirection), 1.0);
+        geoOut = vec4(worldNormal * 0.5 + 0.5, clamp(hit / 320.0, 0.0, 1.0));
+        return;
+    }
     for (int step = 0; step < volumeSize * 3; step++) {
         if (any(lessThan(cell, ivec3(0))) || any(greaterThanEqual(cell, ivec3(volumeSize))) || distance >= leave) break;
         ivec2 atlas = ivec2(cell.x, cell.y + cell.z * volumeSize);
@@ -159,6 +248,15 @@ void main() {
     if (nearT.y >= nearT.x && nearT.y >= nearT.z) normal = vec3(0.0, 1.0, 0.0);
     else if (nearT.x >= nearT.z) normal = vec3(1.0, 0.0, 0.0);
 
+    if (FILTERING == 0) {
+        float hit = isosurfaceDistance(origin, vec3(-1.0), distance, leave);
+        if (hit < 0.0) return;
+        vec3 p = origin - hit;
+        if (hit > distance) normal = isosurfaceNormal(p, normal);
+        fragColor = vec4(lighting(sampleAtlas(volumeCache, p, true).rgb, normal, vec3(0.5773502692)), 1.0);
+        geoOut = vec4(normal * 0.5 + 0.5, clamp(hit / (size * 4.0), 0.0, 1.0));
+        return;
+    }
     // A ray crosses at most 3*N cells, including tied boundaries.
     for (int step = 0; step < volumeSize * 3; step++) {
         if (any(lessThan(cell, ivec3(0))) || distance >= leave) break;

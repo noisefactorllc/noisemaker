@@ -16,7 +16,7 @@ const failures = []
 const perspectiveKeys = ['rotateX', 'rotateY', 'rotateZ', 'posX', 'posY', 'posZ', 'fieldOfView']
 const sharedKeys = ['zoom', 'panX', 'panY', 'ambient', 'diffuseIntensity', 'specularIntensity', 'bgAlpha', 'bgColor', 'lightDirection']
 assert.deepEqual(Object.keys(landscape.globals).filter(key => landscape.globals[key].ui?.control !== false).sort(),
-    [...sharedKeys, ...perspectiveKeys, 'viewMode'].sort(), 'every renderer control must have an audit case')
+    [...sharedKeys, ...perspectiveKeys, 'viewMode', 'filtering'].sort(), 'every renderer control must have an audit case')
 assert.deepEqual(Object.keys(heightmap.globals).sort(), ['heightTex', 'tex', 'volumeSize', 'heightScale', 'baseHeight'].sort())
 
 function program(mode, renderArgs = {}, heightArgs = {}, auxiliary = false) {
@@ -290,6 +290,20 @@ try {
                         `canvas opacity ${alpha} channel ${channel}: ${displayed.data[offset + channel]} must match ${expected[channel]}`)
                 }
                 await canvas.evaluate(el => { el.style.background = '' })
+            })
+            await check(mode, 'filtering', async () => {
+                const original = await start(program(mode))
+                for (const choice of ['isosurface', 'voxel', 'isosurface', 'voxel']) {
+                    await dropdown(rendererPanel, 'filtering', choice)
+                    await editor.waitForFunction(value => {
+                        const r = window.__noisemakerCanvasRenderer
+                        const pass = r.pipeline.graph.passes.find(p => p.effectFunc === 'renderLandscape3d')
+                        return !r._compileQueue && !r.pipeline.isCompiling &&
+                            r.pipeline.graph.programs[pass.program].defines.FILTERING === value
+                    }, choice === 'isosurface' ? 0 : 1)
+                    const actual = await compare(program(mode, { filtering: choice }), `${mode}-${choice}`)
+                    assert.equal(actual.equals(original), choice === 'voxel', 'filtering must switch and restore the rendered mode')
+                }
             })
             await check(mode, 'viewMode', async () => {
                 const original = await start(program(mode))

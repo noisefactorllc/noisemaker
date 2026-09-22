@@ -1,6 +1,6 @@
 # renderLandscape3d
 
-Raymarch a voxel volume (from `heightmap3d`, or any other volume/geometry generator) as a lit landscape, in either a fixed isometric view or a movable perspective camera. Each hit voxel is shaded from its face normal and the light direction; the background shows through where the ray never hits geometry.
+Raymarch a voxel volume (from `heightmap3d`, or any other volume/geometry generator) as a lit landscape, in either a fixed isometric view or a movable perspective camera. Voxel mode shades flat faces; isosurface mode interpolates geometry density and diffuse color, refines threshold crossings, and shades smooth normals. The background shows through where the ray never hits geometry.
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
@@ -25,5 +25,6 @@ Raymarch a voxel volume (from `heightmap3d`, or any other volume/geometry genera
 | posY | float | 0 | -50-50 | Perspective camera position Y (perspective mode only) |
 | posZ | float | 0 | -200-200 | Perspective camera position Z (perspective mode only) |
 | fieldOfView | float | 60 | 10-150 | Perspective camera field of view in degrees (perspective mode only) |
+| filtering | int | voxel | isosurface/voxel | Smooth interpolated surface or flat voxel faces; changing modes compiles a shader variant that prunes the inactive path |
 
 The perspective camera shares its projection with `pointsRender`/`pointsBillboardRender`'s own `viewMode: perspective`, so a landscape and a particle system can be composited from the same virtual camera. `threshold` and `volumeSize` normally come from the upstream generator (e.g. `heightmap3d`) and rarely need overriding by hand.

@@ -99,6 +99,13 @@ export default new Effect({
     fieldOfView: {
       type: 'float', default: 60, min: 10, max: 150, step: 1, uniform: 'fieldOfView',
       ui: { label: 'field of view', control: 'slider', category: 'view', enabledBy: { param: 'viewMode', eq: 2 } }
+    },
+    filtering: {
+      // Specialize each mode so the compiler removes the inactive traversal.
+      // Append the parameter to preserve existing positional calls and voxel output.
+      type: 'int', default: 1, define: 'FILTERING',
+      choices: { isosurface: 0, voxel: 1 },
+      ui: { label: 'filtering', control: 'dropdown' }
     }
   },
   passes: [{

@@ -42,6 +42,80 @@ fn lighting(color: vec3f, normal: vec3f, viewDirection: vec3f) -> vec3f {
     return color * (u.ambient + max(dot(normal, light), 0.0) * u.diffuseIntensity) + specular;
 }
 
+// Filter voxel-center coordinates explicitly, avoiding unrelated atlas rows.
+fn sampleAtlasTexel(atlas: texture_2d<f32>, p: vec3i, material: bool) -> vec4f {
+    let coord = vec2i(p.x, p.y + p.z * u.volumeSize);
+    let value = textureLoad(atlas, coord, 0);
+    if (material) {
+        // Geometry defines empty samples. Volume alpha can hold unrelated data.
+        let present = select(0.0, 1.0, textureLoad(analyticalGeo, coord, 0).a > 0.0);
+        return vec4f(value.rgb * present, present);
+    }
+    return value;
+}
+
+// Preserve constant fields exactly so flat surfaces have zero tangential gradient.
+fn interpolateAtlas(a: vec4f, b: vec4f, weight: f32) -> vec4f {
+    return a + (b - a) * weight;
+}
+
+fn sampleAtlas(atlas: texture_2d<f32>, p: vec3f, material: bool) -> vec4f {
+    let texel = clamp(p - 0.5, vec3f(0.0), vec3f(f32(u.volumeSize - 1)));
+    let lo = vec3i(floor(texel));
+    let hi = min(lo + 1, vec3i(u.volumeSize - 1));
+    let f = fract(texel);
+    let c00 = interpolateAtlas(sampleAtlasTexel(atlas, vec3i(lo.x, lo.y, lo.z), material),
+                  sampleAtlasTexel(atlas, vec3i(hi.x, lo.y, lo.z), material), f.x);
+    let c10 = interpolateAtlas(sampleAtlasTexel(atlas, vec3i(lo.x, hi.y, lo.z), material),
+                  sampleAtlasTexel(atlas, vec3i(hi.x, hi.y, lo.z), material), f.x);
+    let c01 = interpolateAtlas(sampleAtlasTexel(atlas, vec3i(lo.x, lo.y, hi.z), material),
+                  sampleAtlasTexel(atlas, vec3i(hi.x, lo.y, hi.z), material), f.x);
+    let c11 = interpolateAtlas(sampleAtlasTexel(atlas, vec3i(lo.x, hi.y, hi.z), material),
+                  sampleAtlasTexel(atlas, vec3i(hi.x, hi.y, hi.z), material), f.x);
+    let value = interpolateAtlas(interpolateAtlas(c00, c10, f.y), interpolateAtlas(c01, c11, f.y), f.z);
+    if (material && value.a > 0.0) { return vec4f(value.rgb / value.a, value.a); }
+    return value;
+}
+
+fn isSolid(p: vec3f) -> bool {
+    let density = sampleAtlas(analyticalGeo, p, false).a;
+    return density > 0.0 && density >= u.threshold;
+}
+
+fn isosurfaceDistance(origin: vec3f, direction: vec3f, start: f32, leave: f32) -> f32 {
+    if (isSolid(origin + direction * start)) { return start; }
+    // Half-voxel steps cover the entire box, including long diagonal rays.
+    let stepSize = 0.5 / length(direction);
+    var previous = start;
+    for (var step = 0; step < u.volumeSize * 4; step++) {
+        let distance = min(previous + stepSize, leave);
+        if (isSolid(origin + direction * distance)) {
+            var lo = previous;
+            var hi = distance;
+            for (var refine = 0; refine < 8; refine++) {
+                let mid = (lo + hi) * 0.5;
+                if (isSolid(origin + direction * mid)) { hi = mid; }
+                else { lo = mid; }
+            }
+            // Keep the hit on the solid side, including threshold zero where
+            // the midpoint can still have no contributing material samples.
+            return hi;
+        }
+        if (distance >= leave) { break; }
+        previous = distance;
+    }
+    return -1.0;
+}
+
+fn isosurfaceNormal(p: vec3f, fallback: vec3f) -> vec3f {
+    let gradient = vec3f(
+        sampleAtlas(analyticalGeo, p - vec3f(0.5, 0.0, 0.0), false).a - sampleAtlas(analyticalGeo, p + vec3f(0.5, 0.0, 0.0), false).a,
+        sampleAtlas(analyticalGeo, p - vec3f(0.0, 0.5, 0.0), false).a - sampleAtlas(analyticalGeo, p + vec3f(0.0, 0.5, 0.0), false).a,
+        sampleAtlas(analyticalGeo, p - vec3f(0.0, 0.0, 0.5), false).a - sampleAtlas(analyticalGeo, p + vec3f(0.0, 0.0, 0.5), false).a);
+    if (dot(gradient, gradient) > 1e-12) { return normalize(gradient); }
+    return fallback;
+}
+
 // Inverse of the billboard renderer's X -> Y -> Z rotation.
 fn inverseRotation(input: vec3f) -> vec3f {
     let c = cos(vec3f(u.rotateX, u.rotateY, u.rotateZ));
@@ -106,6 +180,17 @@ fn renderPerspective(uv: vec2f) -> FragmentOutput {
         else if (nearT.x >= nearT.z) { normal.x = -f32(stepDir.x); }
         else { normal.z = -f32(stepDir.z); }
     }
+    // FILTERING is a module constant; the compiler removes the inactive path.
+    if (FILTERING == 0) {
+        let hit = isosurfaceDistance(origin, direction, distance, leave);
+        if (hit < 0.0) { return out; }
+        let p = origin + direction * hit;
+        if (hit > distance) { normal = isosurfaceNormal(p, normal); }
+        let worldNormal = forwardRotation(normal);
+        out.fragColor = vec4f(lighting(sampleAtlas(volumeCache, p, true).rgb, worldNormal, viewDirection), 1.0);
+        out.geoOut = vec4f(worldNormal * 0.5 + 0.5, clamp(hit / 320.0, 0.0, 1.0));
+        return out;
+    }
     for (var step = 0; step < u.volumeSize * 3; step++) {
         if (any(cell < vec3i(0)) || any(cell >= vec3i(u.volumeSize)) || distance >= leave) { break; }
         let atlas = vec2i(cell.x, cell.y + cell.z * u.volumeSize);
@@ -155,6 +240,15 @@ fn main(@builtin(position) position: vec4f) -> FragmentOutput {
     if (nearT.y >= nearT.x && nearT.y >= nearT.z) { normal = vec3f(0.0, 1.0, 0.0); }
     else if (nearT.x >= nearT.z) { normal = vec3f(1.0, 0.0, 0.0); }
 
+    if (FILTERING == 0) {
+        let hit = isosurfaceDistance(origin, vec3f(-1.0), distance, leave);
+        if (hit < 0.0) { return out; }
+        let p = origin - hit;
+        if (hit > distance) { normal = isosurfaceNormal(p, normal); }
+        out.fragColor = vec4f(lighting(sampleAtlas(volumeCache, p, true).rgb, normal, vec3f(0.5773502692)), 1.0);
+        out.geoOut = vec4f(normal * 0.5 + 0.5, clamp(hit / (size * 4.0), 0.0, 1.0));
+        return out;
+    }
     for (var step = 0; step < u.volumeSize * 3; step++) {
         if (any(cell < vec3i(0)) || distance >= leave) { break; }
         let atlas = vec2i(cell.x, cell.y + cell.z * u.volumeSize);
