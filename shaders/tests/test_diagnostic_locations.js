@@ -55,3 +55,90 @@ test('valid source retains its compiled effect and builtin indexes', () => {
     ])
     assert.deepEqual(Object.keys(result).sort(), ['diagnostics', 'plans', 'render', 'searchNamespaces', 'vars'])
 })
+
+const lexerFailures = [
+    {
+        name: 'unexpected character after CRLF, tab, and UTF-16 text',
+        source: '// 😀\r\n\t@', code: 'L001',
+        message: "Unexpected character '@' at line 2 col 2",
+        location: { line: 2, column: 2 }, span: { start: 8, end: 9 }
+    },
+    {
+        name: 'unterminated double-quoted string at EOF',
+        source: '"abc', code: 'L002',
+        message: 'Unterminated string literal at line 1 col 1',
+        location: { line: 1, column: 1 }, span: { start: 0, end: 4 }
+    },
+    {
+        name: 'unterminated single-quoted string at LF',
+        source: " 'abc\nnext", code: 'L002',
+        message: 'Unterminated string literal at line 1 col 2',
+        location: { line: 1, column: 2 }, span: { start: 1, end: 5 }
+    },
+    {
+        name: 'unterminated triple-quoted string across lines',
+        source: '\n  """a\nb', code: 'L002',
+        message: 'Unterminated triple-quoted string at line 2 col 3',
+        location: { line: 2, column: 3 }, span: { start: 3, end: 9 }
+    },
+    {
+        name: 'unterminated block comment across lines',
+        source: '\n /* a\nb', code: 'L003',
+        message: 'Unterminated comment at line 2 col 2',
+        location: { line: 2, column: 2 }, span: { start: 2, end: 8 }
+    },
+    {
+        name: 'out-of-range output reference',
+        source: 'search synth\nrender(o99)', code: 'L004',
+        message: "Output surface reference 'o99' is out of range; expected o0-o7 at line 2 col 8",
+        location: { line: 2, column: 8 }, span: { start: 20, end: 23 }
+    },
+    {
+        name: 'UTF-16 columns after a string',
+        source: '"😀" @', code: 'L001',
+        message: "Unexpected character '@' at line 1 col 6",
+        location: { line: 1, column: 6 }, span: { start: 5, end: 6 }
+    },
+    {
+        name: 'source coordinates after a multiline function token',
+        source: '() => (1\n + 2), @', code: 'L001',
+        message: "Unexpected character '@' at line 1 col 17",
+        location: { line: 2, column: 8 }, span: { start: 16, end: 17 }
+    },
+    {
+        name: 'source coordinates after an escaped LF in a string',
+        source: '"a\\\nb" @', code: 'L001',
+        message: "Unexpected character '@' at line 1 col 8",
+        location: { line: 2, column: 4 }, span: { start: 7, end: 8 }
+    }
+]
+
+for (const { name, source, code, message, location, span } of lexerFailures) {
+    test(`lexer diagnostic: ${name}`, () => {
+        for (const entryPoint of [lex, compile]) {
+            assert.throws(() => entryPoint(source), error => {
+                assert.equal(Object.getPrototypeOf(error), SyntaxError.prototype)
+                assert.equal(error.name, 'SyntaxError')
+                assert.equal(error.message, message)
+                assert.equal(String(error), `SyntaxError: ${message}`)
+                assert.deepEqual(Object.keys(error), [])
+                assert.equal(JSON.stringify(error), '{}')
+                const expected = { code, stage: 'lexer', severity: 'error', message, location, span }
+                assert.deepEqual(error.diagnostic, expected)
+                assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), expected)
+                return true
+            })
+        }
+    })
+}
+
+test('structured lexer failures leave successful tokens unchanged', () => {
+    assert.deepEqual(lex('/*x*/\nfoo.o99 "😀"'), [
+        { type: 'COMMENT', lexeme: '/*x*/', line: 1, col: 1 },
+        { type: 'IDENT', lexeme: 'foo', line: 2, col: 1 },
+        { type: 'DOT', lexeme: '.', line: 2, col: 4 },
+        { type: 'OUTPUT_REF', lexeme: 'o99', line: 2, col: 5 },
+        { type: 'STRING', lexeme: '😀', line: 2, col: 9 },
+        { type: 'EOF', lexeme: '', line: 2, col: 13 }
+    ])
+})

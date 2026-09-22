@@ -1,3 +1,5 @@
+import diagnostics from './diagnostics.js'
+
 /**
  * Reserved DSL keyword → token-type map.
  * Single source of truth shared by the lexer and namespace validation
@@ -36,6 +38,29 @@ export function lex(src) {
         tokens.push({type, lexeme, line, col})
     }
 
+    // Only scan source coordinates on failure. Successful tokens and legacy
+    // error messages retain their existing position bookkeeping.
+    function fail(code, message, start, end) {
+        let errorLine = 1
+        let column = 1
+        for (let offset = 0; offset < start; offset++) {
+            if (src[offset] === '\n') { errorLine++; column = 1 }
+            else { column++ }
+        }
+        const error = new SyntaxError(message)
+        Object.defineProperty(error, 'diagnostic', {
+            value: {
+                code,
+                stage: diagnostics[code].stage,
+                severity: diagnostics[code].severity,
+                message,
+                location: { line: errorLine, column },
+                span: { start, end }
+            }
+        })
+        throw error
+    }
+
     const isDigit = c => c >= '0' && c <= '9'
     const isLetter = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
     const keywords = RESERVED_KEYWORDS
@@ -70,7 +95,7 @@ export function lex(src) {
                 else { endCol++ }
                 j++
             }
-            if (j >= src.length) throw new SyntaxError(`Unterminated comment at line ${startLine} col ${startCol}`)
+            if (j >= src.length) fail('L003', `Unterminated comment at line ${startLine} col ${startCol}`, i, src.length)
             j += 2
             const text = src.slice(i, j)
             add('COMMENT', text, startLine, startCol)
@@ -88,7 +113,7 @@ export function lex(src) {
             const tokenType = ch === 'o' ? 'OUTPUT_REF' : 'SOURCE_REF'
             const isMemberSegment = tokens[tokens.length - 1]?.type === 'DOT'
             if (tokenType === 'OUTPUT_REF' && !isMemberSegment && !/^o[0-7]$/.test(lexeme)) {
-                throw new SyntaxError(`Output surface reference '${lexeme}' is out of range; expected o0-o7 at line ${startLine} col ${startCol}`)
+                fail('L004', `Output surface reference '${lexeme}' is out of range; expected o0-o7 at line ${startLine} col ${startCol}`, i, j)
             }
             add(tokenType, lexeme, startLine, startCol)
             col += j - i
@@ -244,7 +269,7 @@ export function lex(src) {
                 j++
             }
             if (j >= src.length - 2 || !(src[j] === '"' && src[j + 1] === '"' && src[j + 2] === '"')) {
-                throw new SyntaxError(`Unterminated triple-quoted string at line ${startLine} col ${startCol}`)
+                fail('L002', `Unterminated triple-quoted string at line ${startLine} col ${startCol}`, i, src.length)
             }
             // Extract string content without the triple quotes
             const content = src.slice(i + 3, j)
@@ -272,7 +297,7 @@ export function lex(src) {
                 }
             }
             if (j >= src.length || src[j] === '\n') {
-                throw new SyntaxError(`Unterminated string literal at line ${line} col ${col}`)
+                fail('L002', `Unterminated string literal at line ${line} col ${col}`, i, j)
             }
             // Extract string content without quotes
             const content = src.slice(i + 1, j)
@@ -310,7 +335,7 @@ export function lex(src) {
             continue
         }
 
-        throw new SyntaxError(`Unexpected character '${ch}' at line ${line} col ${col}`)
+        fail('L001', `Unexpected character '${ch}' at line ${line} col ${col}`, i, i + 1)
     }
 
     add('EOF', '', line, col)

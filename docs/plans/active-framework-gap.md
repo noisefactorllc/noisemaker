@@ -14,9 +14,9 @@ Agent consequence:
 
 ## Source Files and Observed Behavior
 
-- `shaders/src/lang/lexer.js` and `parser.js` throw human-readable `SyntaxError` messages without a stable structured diagnostic contract.
-- `shaders/src/lang/diagnostics.js` already catalogs lexer, parser, and semantic codes, but lexer/parser failures do not expose those codes uniformly.
-- Before this run, `shaders/src/lang/validator.js`: `pushDiag()` read `node.loc.column`, while parser-authored locations use `node.loc.col`. Existing semantic diagnostic locations therefore lost their column when serialized.
+- `shaders/src/lang/lexer.js` now attaches structured diagnostics to native `SyntaxError` failures; `parser.js` still throws human-readable errors without that contract.
+- `shaders/src/lang/diagnostics.js` catalogs lexer, parser, and semantic codes. Lexer failures expose L001-L004; parser failures do not yet expose catalog codes.
+- Before the semantic-column fix, `shaders/src/lang/validator.js`: `pushDiag()` read `node.loc.column`, while parser-authored locations use `node.loc.col`. Existing semantic diagnostic locations therefore lost their column when serialized.
 - Pre-fix reproduction through public `compile()`: `search synth\n  read(123).write(o0)` produces located S001 and S005 diagnostics with line 2 and undefined columns instead of columns 3 and 13.
 - Many AST nodes have no `loc` at all. This run does not invent coordinates for those nodes or claim complete source-span coverage.
 
@@ -38,7 +38,7 @@ Agent consequence:
 
 ## Required Tests and CI Checks
 
-For this run's semantic-column item:
+For the completed semantic-column item and current lexer item:
 
 - `node shaders/tests/test_diagnostic_locations.js` (new public-compile and direct-validator regressions).
 - `npm run test:shaders:lang` with the new suite registered.
@@ -50,7 +50,7 @@ For this run's semantic-column item:
 
 ## Bounded Work Items
 
-Selected for this run; finish all before returning:
+Previously completed semantic-column work:
 
 - [x] Add and register regression coverage for exact columns on read/write and multiline inline-read failures, serialized locations, explicit caller-provided columns, missing locations, and unchanged valid plans. Demonstrate the missing-column failure before implementation.
 - [x] Map parser `loc.col` into existing diagnostic `location.column`, preserving explicit `loc.column` values and all other fields.
@@ -58,7 +58,7 @@ Selected for this run; finish all before returning:
 - [x] Update only the proven semantic-column limitation in `llms-full.txt`; retain GAP-002 and the open-gap count.
 - [x] Commit only this run's files, pull/rebase, push normally, and monitor exact-commit CI.
 
-Later runs, not selected now:
+Remaining full-gap work:
 
 - [ ] Define and implement the compatible structured lexer/parser error contract and source-coordinate coverage with red-green tests.
 - [ ] Verify the full GAP-002 contract, update the gap register from evidence, and mark this record closed only after all completion criteria pass.
@@ -92,4 +92,72 @@ Later runs, not selected now:
 
 ## Remaining Work
 
-This run's semantic-column item is complete and verified locally and in exact-commit CI. GAP-002 stays active: structured lexer/parser errors, a defined source-coordinate contract with coverage, and regressions for that full contract remain. Continue GAP-002 on the next run; do not select another gap.
+The semantic-column item is complete and verified locally and in exact-commit CI. The current lexer item and its evidence are below. GAP-002 stays active: structured parser errors, parser coordinate coverage and unavailable-span representation, and full-contract compatibility regressions remain. Continue GAP-002 on the next run; do not select another gap.
+
+
+## Current Run: Structured Lexer Failures (2026-09-22)
+
+Bounded design: keep throwing native `SyntaxError` with byte-for-byte legacy
+messages. Add one non-enumerable `diagnostic` property containing JSON-safe
+`code`, `stage`, `severity`, `message`, `location`, and `span`. Preserve ordinary
+error enumeration/JSON and all successful token, AST, and compile result shapes.
+Use existing L001/L002 codes and add L003 for unterminated comments and L004 for
+out-of-range output references. Single-, double-, and triple-quoted strings use L002.
+
+Coordinates: `location.line` and `location.column` are one-based; columns and
+zero-based half-open `span.start`/`span.end` offsets count UTF-16 code units.
+Only LF starts a new line; CR and tabs each occupy one column. Compute locations
+from the source on the failure path so existing scanner bookkeeping quirks do
+not corrupt the structured location or require changes to successful tokens.
+Unexpected characters cover the rejected code unit; invalid output references
+cover the reference; unterminated constructs cover their opening delimiter
+through EOF or up to but excluding the unescaped LF ending a single-/double-quoted string scan.
+All lexer failures have known spans. Parser diagnostics and unavailable-span
+representation remain outside this bounded item.
+
+Files: `shaders/src/lang/lexer.js` (failure construction and five throw sites),
+`shaders/src/lang/diagnostics.js` (L003/L004 catalog entries),
+`shaders/tests/test_diagnostic_locations.js` (already registered in both
+aggregates), `llms-full.txt` (proven public contract), and this active record.
+
+- [x] Add public `lex()`/`compile()` regressions for all lexer failure branches,
+  exact legacy error messages/classes, JSON-safe diagnostics, precise spans,
+  multiline/CRLF/tab/UTF-16 coordinates, and unchanged successful token shapes.
+  Run the suite before implementation and verify missing diagnostics fail.
+- [x] Add structured lexer failures using the existing diagnostic catalog without
+  changing accepted/rejected source or successful results.
+- [x] Review the full diff and run the focused suite, shader-language suite,
+  non-parity JS suite, lint, documentation path tests, and diff hygiene.
+- [x] Narrow only the proven lexer limitation in the register; leave GAP-002 open.
+- [ ] Commit this run's files, rebase, push normally, and verify exact-commit CI.
+
+Startup: clean `main` at `52ac841bcda0e80042b6f399bca4b7d66268f48a`, no active
+Git operation. Initial pull fast-forwarded to `a0ff705a` with upstream changes
+only in `LEDGER.md` and `llms-full.txt`. No callable Shade tools were available;
+this item changes language diagnostics only, not shader programs or rendering.
+
+
+### Current Run Evidence
+
+- After correcting two fixture assumptions (escaped-LF source length and a
+  function token requiring a delimiter), the focused pre-implementation run
+  exited 1: all nine new failure cases lacked `error.diagnostic`; all six
+  compatibility/previous cases passed. Every legacy message assertion passed.
+- Focused green run: `node shaders/tests/test_diagnostic_locations.js` exited 0,
+  15 passed / 0 failed. New failure cases exercise both `lex()` and `compile()`.
+- `npm run test:shaders:lang`, `node scripts/run-js-tests.js --skip-parity`, and
+  `npm run lint` each exited 0. The existing suite registration includes all
+  15 focused cases in both aggregates; no registration changes were needed.
+- `node --test test/docs-static-paths.test.js`: 4 passed / 0 failed, exit 0.
+- `git diff --check`: exit 0. GAP-002 and the 23-row open register remain open.
+- No builds were run locally. No shader effects, parser behavior, Python code,
+  DSL defaults, rendered output, saved programs, or compiled indexes changed.
+
+- Full-diff review found no actionable issues. Independent review also found no
+  actionable findings and reran the focused 15-case suite plus diff hygiene.
+  Its baseline differential check against `a0ff705a` passed 25,000 inputs:
+  4,651 accepted inputs had identical tokens; 20,349 rejected inputs preserved
+  error classes/messages and had valid structured coordinates.
+- The non-parity suite's `MIDI access failed: Error: adapter unavailable` log is
+  an expected operational-error fixture followed by PASS, not an unresolved
+  console error.

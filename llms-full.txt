@@ -105,8 +105,38 @@ type ExpansionFailure = {
 `Diagnostic.location` preserves the parser's one-based line and column when
 the diagnostic node has `loc`: parser `loc.col` populates `location.column`,
 and an explicit `loc.column` on a caller-supplied AST retains precedence.
-Nodes without `loc` still omit `location`; complete source coverage and
-structured lexer/parser failures remain open under GAP-002.
+Nodes without `loc` still omit `location`; complete AST source coverage and
+structured parser failures remain open under GAP-002.
+
+Lexer failures from `lex(source)` or `compile(source)` throw the same native
+`SyntaxError` with the same message as before. Each carries a non-enumerable
+`error.diagnostic` property; explicitly serialize that property to obtain:
+
+```ts
+type LexerDiagnostic = {
+  code: "L001" | "L002" | "L003" | "L004"
+  stage: "lexer"
+  severity: "error"
+  message: string // identical to error.message
+  location: { line: number, column: number }
+  span: { start: number, end: number }
+}
+```
+
+L001 identifies an unexpected character, L002 an unterminated single-, double-,
+or triple-quoted string, L003 an unterminated block comment, and L004 an
+out-of-range output reference. Locations are one-based, with columns measured
+in UTF-16 code units. Only LF starts a new line; tabs and CR each count as one
+column. Spans are zero-based half-open UTF-16 offsets into the original source.
+An unexpected-character span covers the rejected code unit; an output-reference
+span covers the full reference; an unterminated construct spans its opening
+delimiter through EOF, or up to but excluding the unescaped LF that terminates
+a single-/double-quoted string scan. All lexer diagnostic locations and spans
+are available. They are computed from source independently of legacy token
+position counters, so structured coordinates can correct historical multiline
+counter drift while the legacy error message and successful tokens stay intact.
+Parser failures do not yet implement this property or an unavailable-span
+contract. Ordinary error enumeration and `JSON.stringify(error)` are unchanged.
 
 ## Runtime overview
 
@@ -3916,7 +3946,12 @@ GAP-002 remains open. The semantic diagnostic column mismatch is fixed:
 parser-authored `loc.col` now populates the existing `location.column` field.
 Regression coverage checks exact multiline coordinates, JSON serialization,
 caller-supplied columns, unlocated nodes, and unchanged valid compiled plans.
-Lexer/parser errors still lack a stable structured diagnostic contract.
+Lexer errors now expose a stable JSON-safe `error.diagnostic` contract with
+L001-L004 codes and source-derived locations/spans while retaining legacy
+`SyntaxError` classes/messages and successful result shapes. Regressions cover
+all five lexer failure branches through `lex()` and `compile()`, including
+CRLF, tabs, UTF-16 text, and multiline scanner-counter drift. Parser errors
+still lack a stable structured diagnostic contract.
 
 GAP-005 is narrowed, not closed, at noisemaker `ff1bfbc1`: `conditions` is
 copied by `expand()` and reaches `Pipeline.shouldSkipPass()`, so it is no

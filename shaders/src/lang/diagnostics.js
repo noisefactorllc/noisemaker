@@ -5,6 +5,8 @@
 const diagnostics = {
   L001: { stage: 'lexer', severity: 'error', message: 'Unexpected character' },
   L002: { stage: 'lexer', severity: 'error', message: 'Unterminated string literal' },
+  L003: { stage: 'lexer', severity: 'error', message: 'Unterminated comment' },
+  L004: { stage: 'lexer', severity: 'error', message: 'Output surface reference out of range' },
   P001: { stage: 'parser', severity: 'error', message: 'Unexpected token' },
   P002: { stage: 'parser', severity: 'error', message: 'Expected closing parenthesis' },
   S001: { stage: 'semantic', severity: 'error', message: 'Unknown identifier' },
