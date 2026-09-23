@@ -1525,7 +1525,9 @@ export class Pipeline {
                 // Chain- and node-scoped sizing values live only in pass
                 // uniforms. Resolving from globalUniforms alone shrinks every
                 // other scoped texture to its fallback size.
-                this.updateParameterTextures({ ...this.collectDefaultUniforms(), ...this.globalUniforms })
+                // Pass values also take precedence in the backends: UI updates
+                // can leave older sizing values cached in globalUniforms.
+                this.updateParameterTextures({ ...this.globalUniforms, ...this.collectDefaultUniforms() })
             }
         }
     }

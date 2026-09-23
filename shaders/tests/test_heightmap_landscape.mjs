@@ -46,7 +46,7 @@ async function runBackend(preferWebGPU) {
             window.renderer = new CanvasRenderer({ canvas: document.querySelector('canvas'), width: 128, height: 128,
                 basePath: `${baseUrl}/shaders`, preferWebGPU })
             await renderer.loadManifest()
-            await renderer.loadEffects(['synth3d/heightmap3d', 'render/renderLandscape3d', 'synth3d/shape3d', 'synth3d/noise3d', 'filter3d/palette3d'])
+            await renderer.loadEffects(['synth3d/heightmap3d', 'render/renderLandscape3d', 'synth3d/shape3d', 'synth3d/noise3d', 'filter3d/palette3d', 'synth/solid', 'render/pointsEmit'])
         }, { baseUrl, preferWebGPU })
         async function compile(program, inputs = {}) {
             return page.evaluate(async ({ program, inputs }) => {
@@ -106,6 +106,33 @@ async function runBackend(preferWebGPU) {
         assert.ok(screenGeo.data.some((v, i) => i % 4 === 3 && v < 255), 'renderer must hit colored and black voxels')
         const screenshot = PNG.sync.read(await page.locator('canvas').screenshot())
         assert.ok(screenshot.data.some((v, i) => i % 4 === 0 && v < 20), 'black diffuse columns must remain visible on white background')
+
+        // Products initialize ProgramState after compiling. Its pointsEmit
+        // sizing writes must preserve the landscape, including after an older
+        // host-wide size was superseded by the DSL values.
+        const mixedDsl = dsl.replace('search synth3d, render', 'search synth, synth3d, render')
+            .replace('render(o0)', `solid().pointsEmit(stateSize: x64).write(o3)
+solid().pointsEmit(stateSize: x128).write(o4)
+render(o0)`)
+        await compile(mixedDsl, { o1: height, o2: texel })
+        const sizes = await page.evaluate(async ({ baseUrl, mixedDsl }) => {
+            const { ProgramState } = await import(`${baseUrl}/demo/shaders/lib/program-state.js`)
+            renderer.setUniform('volumeSize', 32)
+            const state = new ProgramState({ renderer })
+            state.fromDsl(mixedDsl)
+            renderer.render(0)
+            await renderer.pipeline.backend.waitForIdle?.()
+            return ['node_0_volumeCache', 'node_0_geoBuffer', 'global_xyz_node_4_read', 'global_xyz_node_7_read']
+                .map(id => {
+                    const texture = renderer.pipeline.backend.textures.get(id)
+                    return [texture.width, texture.height]
+                })
+        }, { baseUrl, mixedDsl })
+        assert.deepEqual(sizes, [[16, 256], [16, 256], [64, 64], [128, 128]], `${backend}: ProgramState texture sizes`)
+        assertPixelsEqual(PNG.sync.read(await page.locator('canvas').screenshot()).data, screenshot.data,
+            `${backend}: ProgramState initialization must preserve displayed landscape pixels`)
+        console.log(`PASS mixed landscape/particle ProgramState initialization preserves displayed pixels (${backend})`)
+        await compile(dsl, { o1: height, o2: texel })
 
         await page.evaluate(() => {
             const step = renderer.pipeline.graph.passes.find(p => p.effectFunc === 'heightmap3d').stepIndex

@@ -31,6 +31,7 @@ import {
 } from '../src/index.js'
 import { compileGraph } from '../src/runtime/compiler.js'
 import { Pipeline } from '../src/runtime/pipeline.js'
+import assert from 'node:assert/strict'
 
 mergeIntoEnums(stdEnums)
 
@@ -102,6 +103,10 @@ async function loadEffect(file, namespace, name) {
 await loadEffect(new URL('../effects/synth3d/noise3d/definition.js', import.meta.url).pathname, 'synth3d', 'noise3d')
 await loadEffect(new URL('../effects/filter3d/flow3d/definition.js', import.meta.url).pathname, 'filter3d', 'flow3d')
 await loadEffect(new URL('../effects/render/render3d/definition.js', import.meta.url).pathname, 'render', 'render3d')
+await loadEffect(new URL('../effects/synth/solid/definition.js', import.meta.url).pathname, 'synth', 'solid')
+await loadEffect(new URL('../effects/synth3d/heightmap3d/definition.js', import.meta.url).pathname, 'synth3d', 'heightmap3d')
+await loadEffect(new URL('../effects/render/renderLandscape3d/definition.js', import.meta.url).pathname, 'render', 'renderLandscape3d')
+await loadEffect(new URL('../effects/render/pointsEmit/definition.js', import.meta.url).pathname, 'render', 'pointsEmit')
 
 class StubBackend {
     constructor() { this.textures = new Map() }
@@ -446,6 +451,64 @@ render(o0)`
     assertSize(pipeline, 'global_flow3d_trail_chain_1_read', '16x256',    'chain_1 trail resized')
     assertSize(pipeline, 'global_flow3d_trail_chain_0_read', '128x16384', 'chain_0 trail unchanged')
     assertSize(pipeline, 'node_0_volumeCache',               '128x16384', 'chain_0 noise3d atlas unchanged')
+})
+
+for (const previousGlobalSize of [undefined, 64]) {
+    await test(`ProgramState.fromDsl preserves landscape and particle sizes after global size ${previousGlobalSize}`, () => {
+        const dsl = `search synth, synth3d, render
+heightmap3d(volumeSize: x128).renderLandscape3d().write(o0)
+solid().pointsEmit(stateSize: x64).write(o1)
+solid().pointsEmit(stateSize: x128).write(o2)
+render(o0)`
+        const { graph, pipeline } = buildPipeline(dsl)
+        if (previousGlobalSize !== undefined) pipeline.setUniform('volumeSize', previousGlobalSize)
+
+        const state = new ProgramState({ renderer: makeFakeRenderer(pipeline) })
+        state.fromDsl(dsl)
+
+        const checkSizes = () => {
+            assertSize(pipeline, 'node_0_volumeCache', '128x16384', 'landscape color atlas')
+            assertSize(pipeline, 'node_0_geoBuffer', '128x16384', 'landscape geometry atlas')
+            for (const pass of graph.passes) {
+                if ('volumeSize' in pass.uniforms) {
+                    assert.equal(pass.uniforms.volumeSize, 128, `${pass.id}: shader volumeSize`)
+                }
+            }
+            for (const [node, size] of [[4, 64], [7, 128]]) {
+                for (const texture of ['xyz', 'vel', 'rgba']) {
+                    for (const side of ['read', 'write']) {
+                        assertSize(pipeline, `global_${texture}_node_${node}_${side}`, `${size}x${size}`, 'particle state')
+                    }
+                }
+            }
+        }
+        checkSizes()
+
+        state.setValue('step_4', 'stateSize', 256)
+        assertSize(pipeline, 'global_xyz_node_4_read', '256x256', 'resized particle state')
+        assertSize(pipeline, 'global_xyz_node_7_read', '128x128', 'other particle state')
+        assertSize(pipeline, 'node_0_volumeCache', '128x16384', 'landscape after particle edit')
+    })
+}
+
+await test('setUniform preserves a newer per-step size over cached global uniforms', () => {
+    const { graph, pipeline } = buildPipeline(`search synth3d, filter3d, render
+noise3d(volumeSize: x32).flow3d().write3d(vol0, geo0)
+noise3d(volumeSize: x32).flow3d().write3d(vol1, geo1)
+render(o0)`)
+    pipeline.setUniform('volumeSize', 64)
+    const renderer = Object.create(CanvasRenderer.prototype)
+    renderer._pipeline = pipeline
+    renderer.applyStepParameterValues({ step_0: { volumeSize: 128 } })
+    assertSize(pipeline, 'node_0_volumeCache', '128x16384', 'atlas after per-step edit')
+    const atlas = pipeline.backend.textures.get('node_0_volumeCache')
+
+    pipeline.setUniform('volumeSize_chain_1', 16)
+
+    assertSize(pipeline, 'node_0_volumeCache', '128x16384', 'atlas after unrelated setter')
+    assert.equal(pipeline.backend.textures.get('node_0_volumeCache'), atlas, 'unchanged atlas must not be destroyed')
+    assert.equal(findPassByStepIndex(graph, 0).uniforms.volumeSize, 128, 'shader must match atlas')
+    assertSize(pipeline, 'global_flow3d_trail_chain_1_read', '16x256', 'target chain still resizes')
 })
 
 console.log()
