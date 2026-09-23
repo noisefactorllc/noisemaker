@@ -807,6 +807,14 @@ Diagnostics
      - Lexer
      - Error
      - Unterminated string literal
+   * - L003
+     - Lexer
+     - Error
+     - Unterminated comment
+   * - L004
+     - Lexer
+     - Error
+     - Output surface reference out of range
    * - P001
      - Parser
      - Error
@@ -815,6 +823,10 @@ Diagnostics
      - Parser
      - Error
      - Expected closing parenthesis
+   * - P003
+     - Parser
+     - Error
+     - Invalid automation arguments
    * - S001
      - Semantic
      - Error
@@ -827,10 +839,6 @@ Diagnostics
      - Semantic
      - Error
      - Variable used before assignment
-   * - S005
-     - Semantic
-     - Error
-     - Illegal chain structure
    * - S004
      - Semantic
      - Error

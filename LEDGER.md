@@ -394,7 +394,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `eb46047b` (2026-09-22)
+- **Checkpoint:** noisemaker `731b76e4` (2026-09-23)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -408,6 +408,19 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-23 — caught up through `731b76e4`: audited range
+    `eb46047b..731b76e4` (covering Tearoff #402 triggers `44bc4ed4..9e188535`
+    and `532ed647..e32a5a4a` through HEAD). Gap detection confirmed zero missing
+    `help.md` files across all 210 effect definitions. Verified all 1,258 documented
+    parameters across 200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
+    Invalidation audit updated `docs/shaders/language.rst` to add `L003` (Unterminated
+    comment), `L004` (Output surface reference out of range), and `P003` (Invalid
+    automation arguments) to the DSL diagnostics table and remove duplicate `S005` entry.
+    Audited automation argument diagnostics (`e32a5a4a`, P003 in `parse(tokens)` /
+    `compile(source)` for `osc()`, `midi()`, `audio()`), documented in `llms-full.txt`
+    and `docs/plans/active-framework-gap.md`. Verified docs static paths (`node --test
+    test/docs-static-paths.test.js`, 4/4 pass), ESLint (`npm run lint`), and non-parity
+    JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-22 — caught up through `eb46047b`: audited range
     `2779b409..eb46047b` (covering Tearoff #394 trigger `e5bd2013..44bc4ed4`
     through HEAD). Gap detection confirmed zero missing `help.md` files
