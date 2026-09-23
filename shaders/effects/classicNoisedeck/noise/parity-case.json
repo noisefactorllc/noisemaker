@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "surface": "o0",
+  "resolution": [160, 144],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "effects": [
+    "classicNoisedeck/noise"
+  ],
+  "dsl": "search classicNoisedeck\nnoise(seed: 1, refractAmt: 35).write(o0)\nrender(o0)"
+}
