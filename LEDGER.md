@@ -20,7 +20,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## I18n strings
 
-- **Checkpoint:** noisemaker `7ea31be3` / noisedeck `4e412eb5` (2026-09-21)
+- **Checkpoint:** noisemaker `dd38fdd2` / noisedeck `697d2df9` (2026-09-22)
 - **Scope:** two translation surfaces:
   - Noisemaker effect catalogs
     `shaders/effects/strings.{de,es,fr,it,ja,pt}.json`. The English catalog
@@ -57,6 +57,21 @@ work, verify it, then update the checkpoint and append a log line.
      non-empty string values plus every placeholder, plural leaf, and markup tag
      from the English catalog.
 - **Log:**
+  - 2026-09-22 — caught up through noisemaker `dd38fdd2` / noisedeck
+    `697d2df9`: audited noisemaker range `7ea31be3..dd38fdd2` (covering Tearoff
+    #392 trigger `2f855c9c..36a519a2` through HEAD) and noisedeck
+    `4e412eb5..697d2df9`. In noisemaker, commit `36a519a2` added
+    `render/renderLandscape3d.filtering`, `render/renderLandscape3d.filtering.isosurface`,
+    and `render/renderLandscape3d.filtering.voxel` across all seven effect
+    catalogs (`en` and `de`, `es`, `fr`, `it`, `ja`, `pt`), bringing the
+    active catalog to 3,677 keys in exact parity. Noisedeck had zero UI string
+    additions or deletions across the range. Verified via Noisemaker gap
+    detection (0 missing keys across all 6 locales), `npm run test:shaders:i18n`
+    (5/5), Noisemaker JS test suite (65/65 passed), Noisedeck
+    `tests/i18n.node-test.js` (6/6), `tests/export-dialog-i18n.node-test.js` (2/2),
+    `tests/downstream-workflow.node-test.js` (1/1), and
+    `tests/menu-shortcuts-accelerators.node-test.js` (7/7). No catalog edits were
+    required.
   - 2026-09-21 — caught up through noisemaker `7ea31be3` / noisedeck
     `4e412eb5`: audited noisemaker range `1086890d..7ea31be3` (covering Tearoff
     #312 trigger `c68fb3c8..2f855c9c`) and noisedeck `e1146981..4e412eb5`.
