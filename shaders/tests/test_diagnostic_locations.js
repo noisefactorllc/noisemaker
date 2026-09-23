@@ -303,3 +303,69 @@ test('valid automation invocations retain AST defaults and keys', () => {
         }
     ])
 })
+
+const missingSearchMessage = "Missing required 'search' directive. Every program must start with 'search <namespace>, ...' to specify namespace search order."
+const searchFailures = [
+    ['empty program', '', missingSearchMessage, 1, 1],
+    ['missing directive after statements', 'let x = 1', missingSearchMessage, 1, 10],
+    ['duplicate directive', 'search synth search filter', 'Only one search directive is allowed per program at line 1 col 14', 1, 14],
+    ['invalid namespace', 'search bogus', "Invalid namespace 'bogus' at line 1 col 8. Valid namespaces: io, classicNoisedeck, synth, mixer, filter, render, points, synth3d, filter3d, user", 1, 8],
+    ['missing first namespace', 'search', 'Expected namespace identifier after search at line 1 col 7', 1, 7],
+    ['missing additional namespace', 'search synth,', 'Expected namespace identifier after comma at line 1 col 14', 1, 14],
+    ['misplaced directive', 'let x = 1; search synth', "'search' directive must appear before other statements at line 1 col 12", 1, 12],
+    ['nested directive', 'search synth\nif(true) { search filter }', "'search' directive is only allowed at the start of the program at line 2 col 12", 2, 12],
+    ['CRLF and tab', '// 😀\r\n\tsearch 1', 'Expected namespace identifier after search at line 2 col 9', 2, 9],
+    ['UTF-16 column', 'search synth\nlet x = "😀"; search filter', "'search' directive must appear before other statements at line 2 col 15", 2, 15]
+]
+
+for (const [name, source, message, line, column] of searchFailures) {
+    test(`parser search diagnostic: ${name}`, () => {
+        for (const entryPoint of [source => parse(lex(source)), compile]) {
+            assert.throws(() => entryPoint(source), error => {
+                assert.equal(Object.getPrototypeOf(error), SyntaxError.prototype)
+                assert.equal(error.message, message)
+                assert.equal(String(error), `SyntaxError: ${message}`)
+                assert.deepEqual(Object.keys(error), [])
+                assert.equal(JSON.stringify(error), '{}')
+                const expected = {
+                    code: 'P004', stage: 'parser', severity: 'error', message,
+                    location: { line, column }, span: null
+                }
+                assert.deepEqual(error.diagnostic, expected)
+                assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), expected)
+                return true
+            })
+        }
+    })
+}
+
+test('parser search diagnostics preserve unavailable caller-token coordinates', () => {
+    for (const [, source] of searchFailures) {
+        for (const coordinates of [{}, { line: 1 }, { line: 0, col: 1 }, { line: 1, col: NaN }]) {
+            const tokens = lex(source).map(({ type, lexeme }) => ({ type, lexeme, ...coordinates }))
+            assert.throws(() => parse(tokens), error => {
+                assert.equal(Object.getPrototypeOf(error), SyntaxError.prototype)
+                assert.deepEqual(error.diagnostic, {
+                    code: 'P004', stage: 'parser', severity: 'error', message: error.message,
+                    location: null, span: null
+                })
+                assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), error.diagnostic)
+                return true
+            })
+        }
+    }
+})
+
+test('valid search directives retain namespace order, keyword namespaces, and compiled indexes', () => {
+    const source = '/* leading */ search render, synth, synth; diagProbe().write(o0)'
+    const ast = parse(lex(source))
+    assert.deepEqual(ast.namespace.searchOrder, ['render', 'synth', 'synth'])
+    const result = compile(source)
+    assert.deepEqual(result.searchNamespaces, ['render', 'synth', 'synth'])
+    assert.deepEqual(result.diagnostics, [])
+    assert.deepEqual(result.plans[0].chain, [
+        { op: 'synth.diagProbe', args: {}, from: null, temp: 0 },
+        { op: '_write', args: { tex: { kind: 'output', name: 'o0' } }, from: 0, temp: 1, builtin: true }
+    ])
+    assert.deepEqual(Object.keys(result).sort(), ['diagnostics', 'plans', 'render', 'searchNamespaces', 'vars'])
+})

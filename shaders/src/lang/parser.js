@@ -488,7 +488,7 @@ export function parse(tokens) {
         function parseSearchDirective() {
             if (programSearchOrder !== null) {
                 const t = peek()
-                throw new SyntaxError(`Only one search directive is allowed per program at line ${t.line} col ${t.col}`)
+                throw parserError('P004', `Only one search directive is allowed per program at line ${t.line} col ${t.col}`, t)
             }
             advance() // consume 'search'
             const namespaces = []
@@ -497,14 +497,14 @@ export function parse(tokens) {
             function validateNamespace(token) {
                 const ns = token.lexeme
                 if (!isValidNamespace(ns)) {
-                    throw new SyntaxError(`Invalid namespace '${ns}' at line ${token.line} col ${token.col}. Valid namespaces: ${VALID_NAMESPACES.join(', ')}`)
+                    throw parserError('P004', `Invalid namespace '${ns}' at line ${token.line} col ${token.col}. Valid namespaces: ${VALID_NAMESPACES.join(', ')}`, token)
                 }
             }
 
             // Expect at least one namespace identifier (allow keywords as namespace names)
             const firstToken = peek()
             if (!namespaceTokenTypes.has(firstToken.type)) {
-                throw new SyntaxError(`Expected namespace identifier after search at line ${firstToken.line} col ${firstToken.col}`)
+                throw parserError('P004', `Expected namespace identifier after search at line ${firstToken.line} col ${firstToken.col}`, firstToken)
             }
             advance()
             validateNamespace(firstToken)
@@ -514,7 +514,7 @@ export function parse(tokens) {
                 advance() // consume ','
                 const nsToken = peek()
                 if (!namespaceTokenTypes.has(nsToken.type)) {
-                    throw new SyntaxError(`Expected namespace identifier after comma at line ${nsToken.line} col ${nsToken.col}`)
+                    throw parserError('P004', `Expected namespace identifier after comma at line ${nsToken.line} col ${nsToken.col}`, nsToken)
                 }
                 advance()
                 validateNamespace(nsToken)
@@ -546,7 +546,7 @@ export function parse(tokens) {
             if (peek().type === 'SEARCH') {
                 if (plans.length || vars.length || render) {
                     const t = peek()
-                    throw new SyntaxError(`'search' directive must appear before other statements at line ${t.line} col ${t.col}`)
+                    throw parserError('P004', `'search' directive must appear before other statements at line ${t.line} col ${t.col}`, t)
                 }
                 parseSearchDirective()
                 continue
@@ -572,9 +572,9 @@ export function parse(tokens) {
             appendStatement(stmt)
             while (peek().type === 'SEMICOLON') advance()
         }
-        expect('EOF', 'Expected end of input')
+        const eof = expect('EOF', 'Expected end of input')
         if (!programSearchOrder || programSearchOrder.length === 0) {
-            throw new SyntaxError("Missing required 'search' directive. Every program must start with 'search <namespace>, ...' to specify namespace search order.")
+            throw parserError('P004', "Missing required 'search' directive. Every program must start with 'search <namespace>, ...' to specify namespace search order.", eof)
         }
 
         const program = { type: 'Program', plans, render }
@@ -611,7 +611,7 @@ export function parse(tokens) {
     function parseStatement() {
         if (peek().type === 'SEARCH') {
             const t = peek()
-            throw new SyntaxError(`'search' directive is only allowed at the start of the program at line ${t.line} col ${t.col}`)
+            throw parserError('P004', `'search' directive is only allowed at the start of the program at line ${t.line} col ${t.col}`, t)
         }
         if (peek().type === 'LET') {
             advance()
