@@ -263,8 +263,8 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Large-format tiling
 
-- **Checkpoint:** noisemaker `eef25e91` / noisedeck `4e412eb5` (preview
-  branch), 2026-09-21
+- **Checkpoint:** noisemaker `1d581ffa` / noisedeck `697d2df9` (preview
+  branch), 2026-09-22
 - **Scope:** every effect must be classified for Noisedeck's large-format
   (tiled print) export. Tile-aware effects consume the global `tileOffset`
   and `fullResolution` uniforms in both GLSL and WGSL when their coordinates
@@ -282,6 +282,22 @@ work, verify it, then update the checkpoint and append a log line.
   deny-list. Verify tile-aware claims with noisedeck's seam harness
   (`tests/large-format-seams/`).
 - **Log:**
+  - 2026-09-22 — caught up through noisemaker `1d581ffa` / noisedeck
+    `697d2df9`: gap detection (`git log --diff-filter=A`) identified zero
+    new effects in range `eef25e91..1d581ffa` (covering Tearoff #393 trigger
+    `2f855c9c..36a519a2` through HEAD). Audited the one effect with changed
+    definition in the range: `render/renderLandscape3d` (`36a519a2`), which
+    added a pruned isosurface filtering mode. Both perspective and isometric
+    isosurface raymarch paths derive global UV coordinates from `tileOffset`
+    and `fullResolution` across GLSL and WGSL, preserving its tile-aware
+    classification. No additions to `hasStatefulEffects.js` or
+    `hasUpscaleOnlyEffects.js` required. Verified Noisemaker landscape tests
+    (`npm run test:shaders:landscape`, 13/13 passing with dual WebGL2/WebGPU
+    parity attestations for `synth3d/heightmap3d` and `render/renderLandscape3d`),
+    Noisemaker JS test suite (65/65 passed), and Noisedeck classifier and seam
+    harness tests (83/83 passed across `has-stateful-effects.node-test.js`,
+    `has-upscale-only-effects.node-test.js`, and
+    `tests/large-format-seams/enumerator.node-test.js`).
   - 2026-09-21 — caught up through noisemaker `eef25e91` / noisedeck
     `4e412eb5`: gap detection (`git log --diff-filter=A`) identified zero
     new effects in range `ead42a5d..eef25e91` (covering Tearoff #313 trigger
