@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `ad60cc9b62aa3b5f0674c590880898694ede5ddf`.
+- Noisemaker: `9e188535a1736780f5318d5412f0154f4209e8b1`.
 - Shade MCP: `00340b148e109464b1a87d89ff29fc7622d384c9`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.3`, protocol
   `2025-11-25`, with 18 tools returned by `tools/list`.
@@ -3262,12 +3262,12 @@ This instance is the repository's `synth/testPattern` effect. The three source
 blocks below are complete, not excerpts, and were last live-captured at
 Noisemaker commit `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424` and Shade MCP
 commit `0a92bd839adf89caa1641e90b201182a24f8fb25`. Re-audited at Noisemaker
-`ad60cc9b62aa3b5f0674c590880898694ede5ddf` and Shade MCP
+`9e188535a1736780f5318d5412f0154f4209e8b1` and Shade MCP
 `00340b148e109464b1a87d89ff29fc7622d384c9` (v0.2.3 delivery at
 `cbcab33363851016f65391fbb9ef71d66729c07f`) by source inspection:
 `synth/testPattern`'s own definition.js and shader files are byte-unchanged in that
-range, none of the range's changes (exposing structured DSL lexer diagnostics,
-narrowing GAP-002; and ledger documentation updates)
+range, none of the range's changes (pruned isosurface mode for renderLandscape3d;
+structured parser expectation diagnostics, narrowing GAP-002; and ledger/docs updates)
 affect runtime execution or reach this effect, and the full non-parity JS test suite
 (`node scripts/run-js-tests.js --skip-parity`) passes. The MCP evidence below was
 not re-captured live this pass — Shade MCP commit `00340b1` updated paired

@@ -644,7 +644,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `ad60cc9b` / shade-mcp `00340b1`, 2026-09-22
+- **Checkpoint:** noisemaker `9e188535` / shade-mcp `00340b1`, 2026-09-22
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -720,6 +720,27 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
+  - 2026-09-22 — caught up through noisemaker `9e188535` / shade-mcp `00340b1`:
+    audited watched source roots across noisemaker range `ad60cc9b..9e188535`
+    (covering Tearoff #395 trigger `e5bd2013..44bc4ed4` through HEAD).
+    Commits `36a519a2`, `31ab014f`, and `ae4e3302` added pruned isosurface mode
+    to `renderLandscape3d` with coordinate fixes. Commits `44bc4ed4` and `dd38fdd2`
+    narrowed GAP-002 by exposing structured parser expectation diagnostics
+    (P001/P002 in parser `expect()`) with token coordinates and null spans while
+    retaining legacy errors, updating `llms-full.txt` and `docs/plans/active-framework-gap.md`.
+    Commits `1d581ffa`, `eb46047b`, and `9e188535` advanced ledger and docs
+    checkpoints. Shade MCP source unchanged at `00340b1`. Verified four
+    identities: Noisemaker source `9e188535a1736780f5318d5412f0154f4209e8b1`,
+    Shade MCP source `00340b148e109464b1a87d89ff29fc7622d384c9`, `.mcp.json` pinned
+    to `cbcab33363851016f65391fbb9ef71d66729c07f`, and `vendor/shade-mcp/`
+    delivered from release `v0.2.3` (`cbcab33363851016f65391fbb9ef71d66729c07f`).
+    Open gap count stands at 23 entries. Verified Noisemaker non-parity JS tests
+    (`node scripts/run-js-tests.js --skip-parity`, 65 tests pass) and lint, Shade MCP
+    typecheck (`npm run typecheck`, 0 errors) and unit tests (`npm test`, 24 files /
+    157 tests pass), structure check via vendored harness (206/206 pass), and
+    live browser smoke test against Noisemaker viewer (`NOISEMAKER=... node scripts/browser-smoke.mjs`,
+    all 3 checks OK). Advanced `llms-full.txt` snapshot block and `LEDGER.md`
+    checkpoint together.
   - 2026-09-22 — caught up through noisemaker `ad60cc9b` / shade-mcp `00340b1`:
     audited watched source roots across noisemaker range `e5bd2013..ad60cc9b`
     (covering Tearoff #375 trigger `e5bd2013..643b2be1` through HEAD).
