@@ -285,7 +285,7 @@ found no callable tools; this bounded item is language diagnostics only.
 - [x] Review the complete diff; run focused diagnostics, shader-language and
   non-parity JS aggregates, lint, docs static-path checks, and diff hygiene.
 - [x] Narrow only the proven register limitation; retain the 23 open gap rows.
-- [ ] Commit scoped work, pull/rebase, normally push, verify exact-source CI
+- [x] Commit scoped work, pull/rebase, normally push, verify exact-source CI
   and the existing downstream publication; publish final evidence.
 
 Publication path reviewed: Shaders runs hosted and real GPU tests, bundles,
@@ -316,3 +316,25 @@ local builds, manual dispatches, branches, worktrees, or PRs.
 - No local builds or shader/rendering changes. GAP-002 remains active for
   other parser throw sites, source-derived parser coordinates/spans, and
   full-contract verification.
+
+- Implementation `e32a5a4a2e1f7b20e4b0db010ad41fd3a30b396b`
+  (`feat: expose structured automation argument diagnostics`) pushed normally
+  after an unchanged pre-push rebase; remote main confirmed at that SHA.
+- Exact-commit CI passed: Shaders `35830018106`, Docs site `35830018127`,
+  Site `35830018161`, and Downstream `35830018186`. JavaScript workflow was
+  not triggered by these paths; required local JS/lint checks passed.
+  Inapplicable Dependabot auto-merge was skipped.
+- The persistent Shaders CLI watch exited 0 after hosted/GPU suites, bundle
+  upload, and both Scaffold dispatches passed. The shader artifact is nonempty
+  (1,441,094 bytes), unexpired, and records the exact implementation SHA.
+- Scaffold library release `35830522179` passed for the implementation SHA,
+  including CDN purge. Static-site releases `35830028038` and `35830520406`
+  passed for noisemaker-site at the same SHA.
+- Follow-on Release `35830555378` passed under one sequential persistent
+  CLI watch, publishing `v1.0.170`. Its annotated remote tag peels to the exact
+  implementation SHA; all eight Linux/macOS/Windows/shader/JS assets are
+  nonempty and the release is published, not a draft.
+
+All selected automation-argument work is complete. GAP-002 remains active for
+other parser failure paths, source-derived parser coordinate/span coverage,
+and full-contract verification. Continue this same gap next run.
