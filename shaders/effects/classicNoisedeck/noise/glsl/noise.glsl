@@ -808,7 +808,8 @@ vec3 multires(vec2 st, vec2 freq, int octaves, float s, float blend) {
         multiplicand += 1.0 / multiplier;
 
 #if REFRACT_MODE == 1 || REFRACT_MODE == 2
-        {
+        // A zero refract amount leaves st unchanged; skip the two noise lookups.
+        if (refractAmt != 0.0) {
             vec2 xRefractFreq = vec2(baseFreq.x, nominalBase);
             vec2 yRefractFreq = vec2(nominalBase, baseFreq.y);
             float xRef = value(st, xRefractFreq, s + 10.0 * float(i), blend) - 0.5;
@@ -821,7 +822,8 @@ vec3 multires(vec2 st, vec2 freq, int octaves, float s, float blend) {
         vec3 layer = generate_octave(st, baseFreq, s + 10.0 * float(i), blend, float(i));
 
 #if REFRACT_MODE == 0 || REFRACT_MODE == 2
-        {
+        // mix() with a zero amount returns layer; skip the second octave.
+        if (refractAmt != 0.0) {
             float xOff = cos(layer.b) * 0.5 + 0.5;
             float yOff = sin(layer.b) * 0.5 + 0.5;
             vec3 ref = generate_octave(vec2(st.x + xOff, st.y + yOff), baseFreq, s + 15.0 * float(i), blend, float(i));

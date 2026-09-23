@@ -658,7 +658,8 @@ fn multires(st_in: vec2<f32>, freq: vec2<f32>, oct: i32, s: f32, blend: f32) -> 
         let nominalBase = nominalFreq.x * 0.5 * multiplier;
         multiplicand = multiplicand + 1.0 / multiplier;
 
-        if (REFRACT_MODE == 1 || REFRACT_MODE == 2) {
+        // A zero refract amount leaves st unchanged; skip the two noise lookups.
+        if ((REFRACT_MODE == 1 || REFRACT_MODE == 2) && refractAmt != 0.0) {
             let xRefractFreq = vec2<f32>(baseFreq.x, nominalBase);
             let yRefractFreq = vec2<f32>(nominalBase, baseFreq.y);
             let xRef = value(st, xRefractFreq, s + 10.0 * f32(i), blend) - 0.5;
@@ -669,7 +670,8 @@ fn multires(st_in: vec2<f32>, freq: vec2<f32>, oct: i32, s: f32, blend: f32) -> 
 
         var layer = generate_octave(st, baseFreq, s + 10.0 * f32(i), blend, f32(i));
 
-        if (REFRACT_MODE == 0 || REFRACT_MODE == 2) {
+        // mix() with a zero amount returns layer; skip the second octave.
+        if ((REFRACT_MODE == 0 || REFRACT_MODE == 2) && refractAmt != 0.0) {
             let xOff = cos(layer.z) * 0.5 + 0.5;
             let yOff = sin(layer.z) * 0.5 + 0.5;
             let refLayer = generate_octave(vec2<f32>(st.x + xOff, st.y + yOff), baseFreq, s + 15.0 * f32(i), blend, f32(i));
