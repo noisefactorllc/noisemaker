@@ -426,6 +426,28 @@ render(o0)`
     }
 })
 
+await test('pipeline.setUniform on one scope keeps other chains at their DSL volumeSize', () => {
+    // Bug reported (2026-09): ProgramState.fromDsl writes each pointsEmit's
+    // stateSize through pipeline.setUniform('stateSize_node_N'). setUniform
+    // then resized every param-sized texture from globalUniforms alone, which
+    // never holds the expander's chain-scoped values. A heightmap3d chain at
+    // x128 fell back to 64x4096 while its shaders still sampled at 128.
+    const { pipeline } = buildPipeline(
+        `search synth3d, filter3d, render
+noise3d(volumeSize: x128).flow3d().write3d(vol0, geo0)
+noise3d(volumeSize: x32).flow3d().write3d(vol1, geo1)
+render(o0)`
+    )
+    assertSize(pipeline, 'global_flow3d_trail_chain_0_read', '128x16384', 'chain_0 trail before')
+    assertSize(pipeline, 'global_flow3d_trail_chain_1_read', '32x1024',   'chain_1 trail before')
+
+    pipeline.setUniform('volumeSize_chain_1', 16)
+
+    assertSize(pipeline, 'global_flow3d_trail_chain_1_read', '16x256',    'chain_1 trail resized')
+    assertSize(pipeline, 'global_flow3d_trail_chain_0_read', '128x16384', 'chain_0 trail unchanged')
+    assertSize(pipeline, 'node_0_volumeCache',               '128x16384', 'chain_0 noise3d atlas unchanged')
+})
+
 console.log()
 console.log(`${passed} passed, ${failed} failed`)
 process.exit(failed > 0 ? 1 : 0)

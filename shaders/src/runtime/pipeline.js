@@ -1522,7 +1522,10 @@ export class Pipeline {
             }
 
             if (affectsTextures) {
-                this.updateParameterTextures(this.globalUniforms)
+                // Chain- and node-scoped sizing values live only in pass
+                // uniforms. Resolving from globalUniforms alone shrinks every
+                // other scoped texture to its fallback size.
+                this.updateParameterTextures({ ...this.collectDefaultUniforms(), ...this.globalUniforms })
             }
         }
     }
