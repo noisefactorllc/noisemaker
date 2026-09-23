@@ -372,7 +372,7 @@ checks also apply. No local builds or manual release/dispatch operations.
 - [x] Review the complete diff and run focused, language, non-parity JS, lint,
   documentation-path, compatibility differential, and diff-hygiene checks.
 - [x] Narrow the proven register limitation; retain GAP-002 and 23 open gaps.
-- [ ] Commit scoped changes, rebase, push normally, verify exact-source CI and
+- [x] Commit scoped changes, rebase, push normally, verify exact-source CI and
   downstream artifacts, and publish final evidence.
 
 
@@ -398,5 +398,33 @@ checks also apply. No local builds or manual release/dispatch operations.
 - Exactly the five planned files changed. `git diff --check` passed; the register
   retains 23 open gaps and GAP-002 stays active. No local builds or shader,
   renderer, runtime, or Python changes.
-- Exact-source CI and existing downstream publication remain pending until
-  the scoped commit is pushed and verified below.
+- Implementation `0766743e6fb8e7d640f7958aa1b2930544e4da22`
+  (`feat: expose structured search directive diagnostics`) pushed normally
+  after an unchanged pre-push rebase. Remote main confirmed at that SHA.
+- Exact-source CI passed: Shaders `35878981076`, Docs site `35878981097`,
+  Site `35878980896`, and Downstream `35878980941`. Shaders included hosted
+  and real GPU suites, bundles, and both existing release dispatches.
+  JavaScript workflow did not trigger for these paths; local JS/lint passed.
+  Inapplicable Dependabot auto-merge was skipped.
+- The persistent Shaders CLI watch exited 0. Its unexpired shader artifact
+  records the exact implementation SHA and is nonempty (1,440,036 bytes).
+- Scaffold library release `35879409666` passed for this exact SHA, including
+  CDN purge. Static-site releases `35878996863` and `35879409076` passed for
+  noisemaker-site; `35879019886` passed for noisemaker-docs at the same SHA.
+  The site workflow's optional CDN verification/purge jobs were skipped by
+  its existing conditions; no separate live CDN assertion is made here.
+- Release `35879492002` passed for the implementation SHA and published
+  `v1.0.171`. The remote annotated tag was independently resolved through
+  GitHub's API to the exact SHA; all eight Linux/macOS/Windows/shader/JS assets
+  are nonempty, and the release is neither draft nor prerelease. One
+  sequential persistent CLI watch was used for each of Shaders, library
+  release, and Release; all exited 0 (Release was already successful when
+  watched).
+- SSH remote checks later failed twice with public-key authentication errors.
+  Existing GitHub CLI HTTPS credentials verified remote main and completed
+  an unchanged pull/rebase using command-scoped transport configuration.
+  No repository or authentication configuration was changed.
+
+All selected search-directive work is complete. GAP-002 remains active for
+other parser throw paths, source-derived parser coordinates/spans, and
+full-contract verification. Continue this target on the next run.
