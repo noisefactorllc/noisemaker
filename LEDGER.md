@@ -394,7 +394,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `2779b409` (2026-09-22)
+- **Checkpoint:** noisemaker `eb46047b` (2026-09-22)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -408,6 +408,20 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-22 — caught up through `eb46047b`: audited range
+    `2779b409..eb46047b` (covering Tearoff #394 trigger `e5bd2013..44bc4ed4`
+    through HEAD). Gap detection confirmed zero missing `help.md` files
+    across all 210 effect definitions. Verified all 1,258 documented
+    parameters across 200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`,
+    incremented from 1,257 due to `filtering` added to `renderLandscape3d` in
+    `36a519a2`). Invalidation audit updated `docs/shaders/pipeline-3d.rst` to
+    document `renderLandscape3d`'s new smooth `isosurface` mode alongside
+    `voxel` mode. Audited parser expectation diagnostics (`44bc4ed4`,
+    P001/P002 in `parse(tokens)` / `compile(source)`), already documented in
+    `llms-full.txt` and `docs/plans/active-framework-gap.md`. Verified docs
+    static paths (`node --test test/docs-static-paths.test.js`, 4/4 pass) and
+    non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`,
+    65 tests pass).
   - 2026-09-22 — caught up through `2779b409`: audited range
     `e5bd2013..2779b409` (covering Tearoff #374 trigger `e5bd2013..643b2be1`
     through HEAD). Gap detection confirmed zero missing `help.md` files

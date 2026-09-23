@@ -81,8 +81,9 @@ A renderer consumes the volume and produces the frame:
      - Six seamless cube faces for skyboxes and planetary surfaces — see the
        Cubemaps guide
    * - ``renderLandscape3d``
-     - Isometric or perspective voxel raymarcher for ``heightmap3d`` volumes,
-       with face-normal lighting. The perspective camera (``viewMode:
-       perspective``) shares its projection with ``pointsRender`` /
-       ``pointsBillboardRender``, so a landscape and a particle system (see
-       the SMRTicles guide's ``heightGrid`` behavior) can share one camera
+     - Isometric or perspective raymarcher for ``heightmap3d`` volumes: smooth
+       ``isosurface`` mode or flat-face ``voxel`` mode, with lighting. The
+       perspective camera (``viewMode: perspective``) shares its projection
+       with ``pointsRender`` / ``pointsBillboardRender``, so a landscape and a
+       particle system (see the SMRTicles guide's ``heightGrid`` behavior) can
+       share one camera
