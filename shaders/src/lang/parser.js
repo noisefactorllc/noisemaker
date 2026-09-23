@@ -59,11 +59,8 @@ export function parse(tokens) {
 
     const peek = () => tokens[current]
     const advance = () => tokens[current++]
-    const expect = (type, msg) => {
-        const token = peek()
-        if (token.type === type) return advance()
-        const error = new SyntaxError(`${msg} at line ${token.line} col ${token.col}`)
-        const code = type === 'RPAREN' ? 'P002' : 'P001'
+    const parserError = (code, message, token) => {
+        const error = new SyntaxError(message)
         const hasLocation = Number.isInteger(token.line) && token.line > 0
             && Number.isInteger(token.col) && token.col > 0
         Object.defineProperty(error, 'diagnostic', {
@@ -77,7 +74,13 @@ export function parse(tokens) {
                 span: null
             }
         })
-        throw error
+        return error
+    }
+    const expect = (type, msg) => {
+        const token = peek()
+        if (token.type === type) return advance()
+        throw parserError(type === 'RPAREN' ? 'P002' : 'P001',
+            `${msg} at line ${token.line} col ${token.col}`, token)
     }
 
     /**
@@ -156,7 +159,7 @@ export function parse(tokens) {
         // Validate kwargs - reject unknown parameters
         for (const key of Object.keys(kwargs)) {
             if (!validParams.has(key)) {
-                throw new SyntaxError(`osc() unknown parameter '${key}' at line ${nameToken.line} col ${nameToken.col}. Valid: ${paramOrder.join(', ')}`)
+                throw parserError('P003', `osc() unknown parameter '${key}' at line ${nameToken.line} col ${nameToken.col}. Valid: ${paramOrder.join(', ')}`, nameToken)
             }
         }
 
@@ -211,11 +214,11 @@ export function parse(tokens) {
         const keywordOnlyParams = ['name', 'id', 'cc', 'nrpn', 'zone', 'members']
         const validParams = [...paramOrder, ...keywordOnlyParams]
         if (args.length > paramOrder.length) {
-            throw new SyntaxError(`midi() name, id, cc, nrpn, zone and members are keyword-only at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `midi() name, id, cc, nrpn, zone and members are keyword-only at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
         for (const key of Object.keys(kwargs)) {
             if (!validParams.includes(key)) {
-                throw new SyntaxError(`midi() unknown parameter '${key}' at line ${nameToken.line} col ${nameToken.col}. Valid: ${validParams.join(', ')}`)
+                throw parserError('P003', `midi() unknown parameter '${key}' at line ${nameToken.line} col ${nameToken.col}. Valid: ${validParams.join(', ')}`, nameToken)
             }
         }
         const defaults = {
@@ -243,29 +246,29 @@ export function parse(tokens) {
         }
 
         if (posCursor < args.length) {
-            throw new SyntaxError(`midi() has an excess positional argument at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `midi() has an excess positional argument at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
 
         if (!resolved.channel && kwargs.zone === undefined) {
-            throw new SyntaxError(`midi() requires 'channel' or 'zone' argument at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `midi() requires 'channel' or 'zone' argument at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
         if (resolved.channel && kwargs.zone !== undefined) {
-            throw new SyntaxError(`midi() 'channel' and 'zone' are mutually exclusive at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `midi() 'channel' and 'zone' are mutually exclusive at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
         if (kwargs.members !== undefined && kwargs.zone === undefined) {
-            throw new SyntaxError(`midi() 'members' requires 'zone' at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `midi() 'members' requires 'zone' at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
         if (kwargs.id !== undefined && kwargs.name === undefined) {
-            throw new SyntaxError(`midi() 'id' requires readable 'name' at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `midi() 'id' requires readable 'name' at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
         for (const paramName of ['name', 'id']) {
             const value = kwargs[paramName]
             if (value === undefined) continue
             if (value.type !== 'String') {
-                throw new SyntaxError(`midi() '${paramName}' requires a quoted string at line ${nameToken.line} col ${nameToken.col}`)
+                throw parserError('P003', `midi() '${paramName}' requires a quoted string at line ${nameToken.line} col ${nameToken.col}`, nameToken)
             }
             if (value.value.length === 0) {
-                throw new SyntaxError(`midi() '${paramName}' must not be empty at line ${nameToken.line} col ${nameToken.col}`)
+                throw parserError('P003', `midi() '${paramName}' must not be empty at line ${nameToken.line} col ${nameToken.col}`, nameToken)
             }
         }
 
@@ -308,11 +311,11 @@ export function parse(tokens) {
         const keywordOnlyParams = ['channel', 'name', 'id']
         const validParams = [...paramOrder, ...keywordOnlyParams]
         if (args.length > paramOrder.length) {
-            throw new SyntaxError(`audio() channel, name and id are keyword-only at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `audio() channel, name and id are keyword-only at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
         for (const key of Object.keys(kwargs)) {
             if (!validParams.includes(key)) {
-                throw new SyntaxError(`audio() unknown parameter '${key}' at line ${nameToken.line} col ${nameToken.col}. Valid: ${validParams.join(', ')}`)
+                throw parserError('P003', `audio() unknown parameter '${key}' at line ${nameToken.line} col ${nameToken.col}. Valid: ${validParams.join(', ')}`, nameToken)
             }
         }
         const defaults = {
@@ -338,26 +341,26 @@ export function parse(tokens) {
         }
 
         if (posCursor < args.length) {
-            throw new SyntaxError(`audio() has an excess positional argument at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `audio() has an excess positional argument at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
 
         if (!resolved.band) {
-            throw new SyntaxError(`audio() requires 'band' argument at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `audio() requires 'band' argument at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
         if (kwargs.id !== undefined && kwargs.name === undefined) {
-            throw new SyntaxError(`audio() 'id' requires readable 'name' at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `audio() 'id' requires readable 'name' at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
         if (kwargs.name !== undefined && kwargs.channel === undefined) {
-            throw new SyntaxError(`audio() selected device requires both 'name' and 'channel' at line ${nameToken.line} col ${nameToken.col}`)
+            throw parserError('P003', `audio() selected device requires both 'name' and 'channel' at line ${nameToken.line} col ${nameToken.col}`, nameToken)
         }
         for (const paramName of ['name', 'id']) {
             const value = kwargs[paramName]
             if (value === undefined) continue
             if (value.type !== 'String') {
-                throw new SyntaxError(`audio() '${paramName}' requires a quoted string at line ${nameToken.line} col ${nameToken.col}`)
+                throw parserError('P003', `audio() '${paramName}' requires a quoted string at line ${nameToken.line} col ${nameToken.col}`, nameToken)
             }
             if (value.value.length === 0) {
-                throw new SyntaxError(`audio() '${paramName}' must not be empty at line ${nameToken.line} col ${nameToken.col}`)
+                throw parserError('P003', `audio() '${paramName}' must not be empty at line ${nameToken.line} col ${nameToken.col}`, nameToken)
             }
         }
 

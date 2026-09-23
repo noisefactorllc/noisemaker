@@ -9,6 +9,7 @@ const diagnostics = {
   L004: { stage: 'lexer', severity: 'error', message: 'Output surface reference out of range' },
   P001: { stage: 'parser', severity: 'error', message: 'Unexpected token' },
   P002: { stage: 'parser', severity: 'error', message: 'Expected closing parenthesis' },
+  P003: { stage: 'parser', severity: 'error', message: 'Invalid automation arguments' },
   S001: { stage: 'semantic', severity: 'error', message: 'Unknown identifier' },
   S002: { stage: 'semantic', severity: 'warning', message: 'Argument out of range' },
   S003: { stage: 'semantic', severity: 'error', message: 'Variable used before assignment' },

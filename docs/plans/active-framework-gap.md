@@ -6,7 +6,7 @@ Status: active
 
 Exact problem statement from `llms-full.txt`:
 
-> Parser errors outside shared token expectations lack a stable diagnostic schema; parser locations retain token-counter limitations and source spans are unavailable. Complete AST `loc` coverage is not a public contract
+> Parser errors outside shared token expectations and automation argument validation lack a stable diagnostic schema; parser locations retain token-counter limitations and source spans are unavailable. Complete AST `loc` coverage is not a public contract
 
 Agent consequence:
 
@@ -14,8 +14,8 @@ Agent consequence:
 
 ## Source Files and Observed Behavior
 
-- `shaders/src/lang/lexer.js` now attaches structured diagnostics to native `SyntaxError` failures; `parser.js` now exposes structured P001/P002 diagnostics for shared token expectations; other throw paths remain unstructured.
-- `shaders/src/lang/diagnostics.js` catalogs lexer, parser, and semantic codes. Lexer failures expose L001-L004; shared parser token expectations expose P001/P002; other parser failures do not yet expose catalog codes.
+- `shaders/src/lang/lexer.js` now attaches structured diagnostics to native `SyntaxError` failures; `parser.js` exposes structured P001/P002 diagnostics for shared token expectations and P003 for automation argument validation; other throw paths remain unstructured.
+- `shaders/src/lang/diagnostics.js` catalogs lexer, parser, and semantic codes. Lexer failures expose L001-L004; shared parser token expectations expose P001/P002 and automation argument validation exposes P003; other parser failures do not yet expose catalog codes.
 - Before the semantic-column fix, `shaders/src/lang/validator.js`: `pushDiag()` read `node.loc.column`, while parser-authored locations use `node.loc.col`. Existing semantic diagnostic locations therefore lost their column when serialized.
 - Pre-fix reproduction through public `compile()`: `search synth\n  read(123).write(o0)` produces located S001 and S005 diagnostics with line 2 and undefined columns instead of columns 3 and 13.
 - Many AST nodes have no `loc` at all. This run does not invent coordinates for those nodes or claim complete source-span coverage.
@@ -253,3 +253,66 @@ tags trigger Release artifact builds. No manual dispatch or local build is neede
 All selected parser-expectation work is complete. GAP-002 remains active for
 other parser failure paths, source-derived parser coordinate/span coverage,
 and full-contract verification. Continue this same gap next run.
+
+## Current Run: Automation Argument Failures (2026-09-23)
+
+Continue GAP-002 on the existing main checkout. Startup was clean at
+`dd38fdd2baf820b112520bd024e4db8c55f09789`, with no active Git operation or
+pending job-owned publication. Initial pull/rebase fast-forwarded to
+`532ed64775000635e43caac085e4451c06e71afc`; upstream changes were documentation.
+
+Bounded design: use the existing non-enumerable `error.diagnostic` contract for
+all explicit argument-validation failures in `transformOscInvocation`,
+`transformMidiInvocation`, and `transformAudioInvocation`. Add catalog code
+P003 (invalid automation arguments). Reuse the shared parser error construction
+for P001/P002 and P003; keep native SyntaxError class, exact messages, ordinary
+error enumeration/JSON, accepted DSL, successful AST/compile fields and indexes,
+and all defaults unchanged. P003 locations identify the invocation's name token;
+invalid/missing token coordinates produce null. Spans stay explicitly null.
+Token-counter limitations and other parser failure paths remain open.
+
+Files: `shaders/src/lang/parser.js`, `shaders/src/lang/diagnostics.js`,
+`shaders/tests/test_diagnostic_locations.js`, `llms-full.txt`, and this record.
+No shader effects/programs, Python, or runtime changes. Shade tool discovery
+found no callable tools; this bounded item is language diagnostics only.
+
+- [x] Add public parse/compile regressions for every selected failure branch,
+  both selector fields, error serialization, CRLF/tab/UTF-16 locations, missing
+  caller-token coordinates, and preserved valid automation defaults/results.
+  Demonstrate absent diagnostics before implementing.
+- [x] Extract the existing parser diagnostic constructor, add P003, and convert
+  only the selected automation failure sites without changing validation.
+- [x] Review the complete diff; run focused diagnostics, shader-language and
+  non-parity JS aggregates, lint, docs static-path checks, and diff hygiene.
+- [x] Narrow only the proven register limitation; retain the 23 open gap rows.
+- [ ] Commit scoped work, pull/rebase, normally push, verify exact-source CI
+  and the existing downstream publication; publish final evidence.
+
+Publication path reviewed: Shaders runs hosted and real GPU tests, bundles,
+and Scaffold static-site/library dispatches. Library publication creates the
+release tag that triggers Release artifact builds. Docs site, Site, and
+Downstream run for applicable paths. Preserve these existing workflows; no
+local builds, manual dispatches, branches, worktrees, or PRs.
+
+
+### Automation Argument Evidence
+
+- Initial regression run exposed missing diagnostics and one incorrect column
+  fixture. Checked the baseline parser and corrected column 26 to column 24.
+  Replayed the corrected suite against baseline parser `532ed647`: exit 1,
+  27 passed / 24 failed, all failures from missing structured diagnostics.
+- Current focused suite: exit 0, 51 passed / 0 failed. It exercises all 18
+  selected throw sites, both name/id branches, public parse and compile,
+  serialization, invalid caller-token coordinates, and valid AST defaults.
+- Baseline differential check: 2,536 inputs; 1,020 accepted ASTs and compiled
+  results unchanged; 1,516 errors preserve class, message, enumeration, and
+  JSON. Of those errors, 1,132 gained P003; other parser errors stayed unchanged.
+- Shader-language aggregate, non-parity JavaScript aggregate, ESLint, and
+  four-case documentation static-path suite all exited 0. The existing MIDI
+  adapter-unavailable fixture logged its expected error and passed.
+- Complete diff review and independent read-only review found no actionable
+  findings. The reviewer independently passed all 51 focused cases and diff
+  hygiene. Exactly the five planned files changed; 23 open-gap rows remain.
+- No local builds or shader/rendering changes. GAP-002 remains active for
+  other parser throw sites, source-derived parser coordinates/spans, and
+  full-contract verification.

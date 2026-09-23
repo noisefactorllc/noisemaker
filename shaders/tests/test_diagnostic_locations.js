@@ -195,3 +195,111 @@ test('parser expectation diagnostics represent unavailable caller-token coordina
         })
     }
 })
+
+const automationFailures = [
+    ['osc(type: oscKind.sine, bogus: 1)', "osc() unknown parameter 'bogus'", '. Valid: type, min, max, speed, offset, seed'],
+    ['midi(1, 2, 3, 4, 5, 6)', 'midi() name, id, cc, nrpn, zone and members are keyword-only'],
+    ['midi(bogus: 1)', "midi() unknown parameter 'bogus'", '. Valid: channel, mode, min, max, sensitivity, name, id, cc, nrpn, zone, members'],
+    ['midi(1, 2, 3, 4, 5, channel: 1)', 'midi() has an excess positional argument'],
+    ['midi()', "midi() requires 'channel' or 'zone' argument"],
+    ['midi(1, zone: 1)', "midi() 'channel' and 'zone' are mutually exclusive"],
+    ['midi(1, members: 2)', "midi() 'members' requires 'zone'"],
+    ['midi(1, id: "port")', "midi() 'id' requires readable 'name'"],
+    ['midi(1, name: 1)', "midi() 'name' requires a quoted string"],
+    ['midi(1, name: "")', "midi() 'name' must not be empty"],
+    ['midi(1, name: "port", id: 1)', "midi() 'id' requires a quoted string"],
+    ['midi(1, name: "port", id: "")', "midi() 'id' must not be empty"],
+    ['audio(1, 2, 3, 4)', 'audio() channel, name and id are keyword-only'],
+    ['audio(bogus: 1)', "audio() unknown parameter 'bogus'", '. Valid: band, min, max, channel, name, id'],
+    ['audio(1, 2, 3, band: 1)', 'audio() has an excess positional argument'],
+    ['audio()', "audio() requires 'band' argument"],
+    ['audio(1, id: "device")', "audio() 'id' requires readable 'name'"],
+    ['audio(1, name: "device")', "audio() selected device requires both 'name' and 'channel'"],
+    ['audio(1, channel: 1, name: 1)', "audio() 'name' requires a quoted string"],
+    ['audio(1, channel: 1, name: "")', "audio() 'name' must not be empty"],
+    ['audio(1, channel: 1, name: "device", id: 1)', "audio() 'id' requires a quoted string"],
+    ['audio(1, channel: 1, name: "device", id: "")', "audio() 'id' must not be empty"]
+]
+
+for (const [invocation, prefix, suffix = ''] of automationFailures) {
+    test(`parser automation diagnostic: ${invocation}`, () => {
+        const source = `search synth\nlet x = ${invocation}`
+        const message = `${prefix} at line 2 col 9${suffix}`
+        for (const entryPoint of [source => parse(lex(source)), compile]) {
+            assert.throws(() => entryPoint(source), error => {
+                assert.equal(Object.getPrototypeOf(error), SyntaxError.prototype)
+                assert.equal(error.message, message)
+                assert.equal(String(error), `SyntaxError: ${message}`)
+                assert.deepEqual(Object.keys(error), [])
+                assert.equal(JSON.stringify(error), '{}')
+                const expected = {
+                    code: 'P003', stage: 'parser', severity: 'error', message,
+                    location: { line: 2, column: 9 }, span: null
+                }
+                assert.deepEqual(error.diagnostic, expected)
+                assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), expected)
+                return true
+            })
+        }
+    })
+}
+
+test('parser automation diagnostics locate invocation names after CRLF, tabs, and UTF-16 text', () => {
+    const source = 'search synth\r\n\tlet x = "😀"; let y = midi()'
+    for (const entryPoint of [source => parse(lex(source)), compile]) {
+        assert.throws(() => entryPoint(source), error => {
+            assert.equal(error.message, "midi() requires 'channel' or 'zone' argument at line 2 col 24")
+            assert.deepEqual(error.diagnostic, {
+                code: 'P003', stage: 'parser', severity: 'error', message: error.message,
+                location: { line: 2, column: 24 }, span: null
+            })
+            return true
+        })
+    }
+})
+
+test('parser automation diagnostics preserve unavailable caller-token coordinates', () => {
+    for (const invocation of ['osc(type: 1, bogus: 1)', 'midi()', 'audio()']) {
+        for (const coordinates of [{}, { line: 1 }, { line: 0, col: 1 }, { line: 1, col: NaN }]) {
+            const tokens = lex(`search synth\nlet x = ${invocation}`).map(token => {
+                if (!['osc', 'midi', 'audio'].includes(token.lexeme)) return token
+                return { type: token.type, lexeme: token.lexeme, ...coordinates }
+            })
+            assert.throws(() => parse(tokens), error => {
+                assert.equal(Object.getPrototypeOf(error), SyntaxError.prototype)
+                assert.ok(error.message.includes(`at line ${coordinates.line} col ${coordinates.col}`))
+                assert.deepEqual(error.diagnostic, {
+                    code: 'P003', stage: 'parser', severity: 'error', message: error.message,
+                    location: null, span: null
+                })
+                assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), error.diagnostic)
+                return true
+            })
+        }
+    }
+})
+
+test('valid automation invocations retain AST defaults and keys', () => {
+    const source = 'search synth\nlet a = osc(); let b = midi(1); let c = audio(audioBand.low)'
+    assert.deepEqual(parse(lex(source)).vars.map(variable => variable.expr), [
+        {
+            type: 'Oscillator', oscType: { type: 'Member', path: ['oscKind', 'sine'] },
+            min: { type: 'Number', value: 0 }, max: { type: 'Number', value: 1 },
+            speed: { type: 'Number', value: 1 }, offset: { type: 'Number', value: 0 },
+            seed: { type: 'Number', value: 1 }, loc: { line: 2, col: 9 }
+        },
+        {
+            type: 'Midi', channel: { type: 'Number', value: 1 },
+            mode: { type: 'Member', path: ['midiMode', 'velocity'] },
+            min: { type: 'Number', value: 0 }, max: { type: 'Number', value: 1 },
+            sensitivity: { type: 'Number', value: 1 }, cc: undefined, nrpn: undefined,
+            zone: undefined, members: undefined, name: undefined, id: undefined,
+            loc: { line: 2, col: 24 }
+        },
+        {
+            type: 'Audio', band: { type: 'Member', path: ['audioBand', 'low'] },
+            min: { type: 'Number', value: 0 }, max: { type: 'Number', value: 1 },
+            channel: undefined, name: undefined, id: undefined, loc: { line: 2, col: 41 }
+        }
+    ])
+})
