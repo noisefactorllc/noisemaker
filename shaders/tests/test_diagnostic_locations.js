@@ -6,6 +6,7 @@ import { registerStarterOps } from '../src/lang/validator.js'
 
 registerOp('synth.diagProbe', { name: 'diagProbe', args: [] })
 registerStarterOps(['synth.diagProbe'])
+registerOp('synth.diagFilter', { name: 'diagFilter', args: [] })
 
 test('compile preserves exact read and write diagnostic columns through JSON', () => {
     const result = compile('search synth\n  read(123).write(o0)')
@@ -473,4 +474,98 @@ test('valid output operations retain surface forms, render selection, and compil
         { op: '_write', args: { tex: { kind: 'output', name: 'o1' } }, from: 0, temp: 1, builtin: true }
     ])
     assert.deepEqual(Object.keys(result).sort(), ['diagnostics', 'plans', 'render', 'searchNamespaces', 'vars'])
+})
+
+const subchainFailures = [
+    ['non-string argument', 'search synth\nread(o0).subchain(name: 1) { .diagProbe() }', 'Expected string value for subchain name at line 2 col 25', 2, 25],
+    ['argument at EOF', 'search synth\nread(o0).subchain(name:', 'Expected string value for subchain name at line 2 col 24', 2, 24],
+    ['missing body dot', 'search synth\nread(o0).subchain() { diagProbe() }', "Expected '.' before chain element in subchain body at line 2 col 23", 2, 23],
+    ['body at EOF', 'search synth\nread(o0).subchain() {', "Expected '.' before chain element in subchain body at line 2 col 22", 2, 22],
+    ['empty body', 'search synth\nread(o0).subchain() {}', 'Subchain body cannot be empty at line 2 col 10', 2, 10],
+    ['comment-only body', 'search synth\nread(o0).subchain() { /* empty */ }', 'Subchain body cannot be empty at line 2 col 10', 2, 10],
+    ['CRLF tab and UTF-16 argument', '// 😀\r\nsearch synth\r\n\tread(o0).subchain(name: "😀", id: 1) { .diagProbe() }', 'Expected string value for subchain id at line 3 col 36', 3, 36],
+    ['missing dot after comment', 'search synth\nread(o0).subchain() { /* 😀 */ missing() }', "Expected '.' before chain element in subchain body at line 2 col 32", 2, 32],
+    ['unclosed nonempty body', 'search synth\nread(o0).subchain() { .diagProbe()', "Expected '.' before chain element in subchain body at line 2 col 35", 2, 35]
+]
+
+for (const [name, source, message, line, column] of subchainFailures) {
+    test(`parser subchain diagnostic: ${name}`, () => {
+        for (const entryPoint of [source => parse(lex(source)), compile]) {
+            assert.throws(() => entryPoint(source), error => {
+                assert.equal(Object.getPrototypeOf(error), SyntaxError.prototype)
+                assert.equal(error.message, message)
+                assert.equal(String(error), `SyntaxError: ${message}`)
+                assert.deepEqual(Object.keys(error), [])
+                assert.equal(JSON.stringify(error), '{}')
+                const expected = {
+                    code: 'P006', stage: 'parser', severity: 'error', message,
+                    location: { line, column }, span: null
+                }
+                assert.deepEqual(error.diagnostic, expected)
+                assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), expected)
+                assert.deepEqual(Object.getOwnPropertyDescriptor(error, 'diagnostic'), {
+                    value: expected, writable: false, enumerable: false, configurable: false
+                })
+                return true
+            })
+        }
+    })
+}
+
+test('subchain diagnostics preserve unavailable caller-token coordinates', () => {
+    for (const [, source] of subchainFailures) {
+        for (const coordinates of [{}, { line: 1 }, { line: 0, col: 1 }, { line: 1, col: NaN }]) {
+            const tokens = lex(source).map(({ type, lexeme }) => ({ type, lexeme, ...coordinates }))
+            assert.throws(() => parse(tokens), error => {
+                assert.equal(Object.getPrototypeOf(error), SyntaxError.prototype)
+                assert.deepEqual(error.diagnostic, {
+                    code: 'P006', stage: 'parser', severity: 'error', message: error.message,
+                    location: null, span: null
+                })
+                assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), error.diagnostic)
+                return true
+            })
+        }
+    }
+})
+
+test('subchain syntax preserves shared expectation diagnostic precedence', () => {
+    for (const [source, code, message] of [
+        ['search synth\nread(o0).subchain(1) {}', 'P002', "Expect ')' after subchain arguments at line 2 col 19"],
+        ['search synth\nread(o0).subchain() { . }', 'P001', 'Expected identifier at line 2 col 25']
+    ]) {
+        for (const entryPoint of [source => parse(lex(source)), compile]) {
+            assert.throws(() => entryPoint(source), error => {
+                assert.equal(error.message, message)
+                assert.equal(error.diagnostic.code, code)
+                return true
+            })
+        }
+    }
+})
+
+test('valid subchains preserve permissive arguments, defaults, body and compiled indexes', () => {
+    for (const [args, name, id] of [
+        ['', null, null], ['"positional"', 'positional', null],
+        ['name: "named", id: "s"', 'named', 's'],
+        ['foo: "x" name: "a" name: "b" id: "s"', 'b', 's']
+    ]) {
+        const source = `search synth\nread(o0).subchain(${args}) { .diagFilter() }.write(o1)`
+        const ast = parse(lex(source))
+        assert.deepEqual(ast.plans[0].chain[1], {
+            type: 'Subchain', name, id, body: [{ type: 'Call', name: 'diagFilter', args: [] }],
+            loc: { line: 2, col: 10 }
+        })
+        const result = compile(source)
+        assert.deepEqual(result.diagnostics, [])
+        assert.deepEqual(result.plans[0].chain, [
+            { op: '_read', args: { tex: { kind: 'output', name: 'o0' } }, from: null, temp: 0, builtin: true },
+            { op: '_subchain_begin', args: { name, id }, from: 0, temp: 1, builtin: true },
+            { op: 'synth.diagFilter', args: {}, from: 1, temp: 2 },
+            { op: '_subchain_end', args: { name, id }, from: 2, temp: 3, builtin: true },
+            { op: '_write', args: { tex: { kind: 'output', name: 'o1' } }, from: 3, temp: 4, builtin: true }
+        ])
+        assert.equal(result.render, null)
+        assert.deepEqual(Object.keys(result).sort(), ['diagnostics', 'plans', 'render', 'searchNamespaces', 'vars'])
+    }
 })

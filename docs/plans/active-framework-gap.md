@@ -6,7 +6,7 @@ Status: active
 
 Exact problem statement from `llms-full.txt`:
 
-> Parser errors outside shared token expectations, automation argument validation, search directive validation, and reachable output validation lack a stable diagnostic schema; parser locations retain token-counter limitations and source spans are unavailable. Complete AST `loc` coverage is not a public contract
+> Parser errors outside shared token expectations, automation argument validation, search directive validation, reachable output validation, and explicit subchain validation lack a stable diagnostic schema; parser locations retain token-counter limitations and source spans are unavailable. Complete AST `loc` coverage is not a public contract
 
 Agent consequence:
 
@@ -14,8 +14,8 @@ Agent consequence:
 
 ## Source Files and Observed Behavior
 
-- `shaders/src/lang/lexer.js` now attaches structured diagnostics to native `SyntaxError` failures; `parser.js` exposes structured P001/P002 diagnostics for shared token expectations and P003 for automation argument validation and P004 for search directive validation and P005 for reachable output validation; other throw paths remain unstructured.
-- `shaders/src/lang/diagnostics.js` catalogs lexer, parser, and semantic codes. Lexer failures expose L001-L004; shared parser token expectations expose P001/P002 and automation argument validation exposes P003 and search directive validation exposes P004 and reachable output validation exposes P005; other parser failures do not yet expose catalog codes.
+- `shaders/src/lang/lexer.js` now attaches structured diagnostics to native `SyntaxError` failures; `parser.js` exposes structured P001/P002 diagnostics for shared token expectations and P003 for automation argument validation and P004 for search directive validation and P005 for reachable output validation and P006 for explicit subchain validation; other throw paths remain unstructured.
+- `shaders/src/lang/diagnostics.js` catalogs lexer, parser, and semantic codes. Lexer failures expose L001-L004; shared parser token expectations expose P001/P002 and automation argument validation exposes P003 and search directive validation exposes P004 and reachable output validation exposes P005 and explicit subchain validation exposes P006; other parser failures do not yet expose catalog codes.
 - Before the semantic-column fix, `shaders/src/lang/validator.js`: `pushDiag()` read `node.loc.column`, while parser-authored locations use `node.loc.col`. Existing semantic diagnostic locations therefore lost their column when serialized.
 - Pre-fix reproduction through public `compile()`: `search synth\n  read(123).write(o0)` produces located S001 and S005 diagnostics with line 2 and undefined columns instead of columns 3 and 13.
 - Many AST nodes have no `loc` at all. This run does not invent coordinates for those nodes or claim complete source-span coverage.
@@ -539,3 +539,64 @@ Full source-derived parser coordinates and remaining throw paths stay open.
 The prior output-validation implementation and publication are verified. This
 run completes its evidence record only. GAP-002 remains active for other parser
 throw paths, source-derived coordinates/spans, and full-contract verification.
+
+
+## Current Run: Structured Subchain Failures (2026-09-24)
+
+Bounded design: add P006 (invalid subchain) through the existing parserError
+helper at the three explicit parseSubchainCall validation sites. Invalid string
+values and missing body dots use the rejected token, including EOF. Empty bodies
+use the invocation token. Preserve native SyntaxError messages, JSON/enumeration,
+accepted AST/compile shapes, defaults, indexes, and shared-expectation precedence.
+Locations retain the existing positive-integer token coordinate contract; unknown
+locations and source spans remain null. This does not tighten subchain argument
+keys, separators, or duplicates and does not close GAP-027.
+
+Files: shaders/src/lang/parser.js, shaders/src/lang/diagnostics.js,
+shaders/tests/test_diagnostic_locations.js, llms-full.txt, and this record.
+
+- [x] Add regressions through parse and compile for all three sites, EOF,
+  comments, CRLF/tab/UTF-16, unavailable caller coordinates, legacy error shape,
+  shared-expectation precedence, and accepted subchain arguments/body/indexes.
+  Verify the new diagnostic assertions fail before implementation.
+- [x] Add P006 and replace only the three selected SyntaxError constructors.
+- [x] Review the entire diff; run focused diagnostics, language aggregate,
+  non-parity JavaScript, ESLint, documentation paths, compatibility differential,
+  and diff hygiene; correct actionable findings.
+- [x] Narrow the proven GAP-002 statement without closing it or GAP-027.
+- [ ] Commit scoped work, rebase, push normally, verify exact-source CI and
+  existing downstream artifacts, and publish final evidence.
+
+Review focus: EOF targets; invocation location for empty/comment-only bodies;
+malformed caller coordinates; shared expectation precedence; preserved unknown
+keys, optional commas, duplicate overwrite behavior, defaults and step indexes.
+
+Startup: clean main at 9928905a; no active Git operation or local-only commits;
+initial pull/rebase unchanged. Prior publication is complete. Existing workflows
+trigger Shaders, Docs site, Site and Downstream for these paths, with shader
+bundle, scaffold library/site dispatches, and the resulting tagged Release.
+The configured GitHub actor has push access and existing dispatch secrets are
+present. No callable Shade tools were discovered; this is language diagnostic
+work, with no shader programs, effects, or renderer changes.
+
+
+### Subchain Validation Evidence
+
+- Corrected the accepted fixture to use a registered filter instead of a
+  starter-only effect before final red verification. Corrected red run exited
+  1 with 81 passed / 10 failed; every failure was a missing diagnostic.
+- Focused green run: 91 passed / 0 failed, exit 0. Both parse and compile cover
+  all three explicit sites, EOF, comment-only bodies, CRLF/tab/UTF-16 text,
+  unavailable caller coordinates, native error properties/JSON, shared error
+  precedence, accepted permissive arguments, defaults, and compiled indexes.
+- Shader-language aggregate, non-parity JavaScript aggregate, ESLint, and
+  documentation paths (4/4) exited 0. No local builds ran.
+- Differential verification against 9928905a: 6,741 generated inputs; 165 lexer
+  rejections excluded, 126 accepted ASTs unchanged, 6,450 parser rejections
+  preserving legacy class/message/JSON/enumeration, and 3,459 errors gaining
+  P006. Other structured diagnostics remained identical.
+- Complete five-file diff reviewed; diff hygiene passes and 23 open gap rows
+  remain. GAP-002 and GAP-027 stay open. Independent review found no actionable
+  findings and passed 91 focused tests plus 80 additional baseline compatibility,
+  coordinate, EOF/comment and precedence checks. Publication verification is
+  pending. The expected MIDI adapter-unavailable fixture passed.

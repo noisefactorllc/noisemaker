@@ -3998,8 +3998,10 @@ validation failures expose P004 with rejected-token locations (EOF for missing
 required search) and null spans. Five reachable output-validation sites expose
 P005 for invalid render targets, expression-context writes, and invalid
 write/write3d arguments, preserving legacy messages and shared-expectation
-precedence. Other parser failure paths and source-derived parser
-coordinates/spans remain open.
+precedence. Three explicit subchain validation sites expose P006 for non-string
+arguments, missing body dots, and empty bodies, preserving permissive argument
+keys/separators/duplicates and shared-expectation precedence. Other parser
+failure paths and source-derived parser coordinates/spans remain open.
 
 GAP-005 is narrowed, not closed, at noisemaker `ff1bfbc1`: `conditions` is
 copied by `expand()` and reaches `Pipeline.shouldSkipPass()`, so it is no
@@ -4008,7 +4010,7 @@ longer on the uncopied-field list below. `name`, `viewport`, `clear`,
 
 | ID | Missing instrumentation | Source evidence | Agent consequence |
 |---|---|---|---|
-| GAP-002 | Parser errors outside shared token expectations, automation argument validation, search directive validation, and reachable output validation lack a stable diagnostic schema; parser locations retain token-counter limitations and source spans are unavailable. Complete AST `loc` coverage is not a public contract | `shaders/src/lang/parser.js` (shared `expect()` exposes P001/P002 and automation argument validation exposes P003, search directive validation exposes P004, and reachable output validation exposes P005; remaining throw paths are unstructured; `lexer.js` implemented at `643b2be1`) | retry code must still parse human text for remaining parser failures and cannot reliably identify parser source spans |
+| GAP-002 | Parser errors outside shared token expectations, automation argument validation, search directive validation, reachable output validation, and explicit subchain validation lack a stable diagnostic schema; parser locations retain token-counter limitations and source spans are unavailable. Complete AST `loc` coverage is not a public contract | `shaders/src/lang/parser.js` (shared `expect()` exposes P001/P002 and automation argument validation exposes P003, search directive validation exposes P004, reachable output validation exposes P005, and explicit subchain validation exposes P006; remaining throw paths are unstructured; `lexer.js` implemented at `643b2be1`) | retry code must still parse human text for remaining parser failures and cannot reliably identify parser source spans |
 | GAP-003 | `validateEffectDefinition()` validates only a subset of the consumed definition schema | `shaders/src/runtime/effect-validator.js` versus `effect.js` and `expander.js` | invalid globals/pass/texture fields can survive structure validation |
 | GAP-004 | Mip and persistent-across-frames controls do not exist. Definition-level 3D `filter` and unknown texture fields are discarded | `shaders/src/runtime/compiler.js` - `extractTextureSpecs()`; backend texture creation methods | an agent cannot author/query mip policy, persistence, or 3D nearest filtering, and typos can be ignored |
 | GAP-005 | `name`, `viewport`, `clear`, `samplerTypes`, and `type` are not copied into expanded effect passes. (Narrowed at noisemaker `ff1bfbc1`: `conditions` used to be on this list; `expand()` now copies it and `Pipeline.shouldSkipPass()` consumes it.) | `shaders/src/runtime/expander.js` - constructed pass object; `pipeline.js` - `shouldSkipPass()` | authoring these remaining fields has no runtime effect through `definition.js` and emits no diagnostic |

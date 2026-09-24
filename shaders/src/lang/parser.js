@@ -825,8 +825,9 @@ export function parse(tokens) {
      * The subchain as a whole is chainable - it takes input and produces output.
      */
     function parseSubchainCall() {
-        const tokenLine = peek().line
-        const tokenCol = peek().col
+        const nameToken = peek()
+        const tokenLine = nameToken.line
+        const tokenCol = nameToken.col
 
         advance() // consume 'subchain'
         expect('LPAREN', "Expect '(' after subchain")
@@ -844,7 +845,7 @@ export function parse(tokens) {
                     const key = advance().lexeme
                     advance() // consume ':'
                     if (peek().type !== 'STRING') {
-                        throw new SyntaxError(`Expected string value for subchain ${key} at line ${peek().line} col ${peek().col}`)
+                        throw parserError('P006', `Expected string value for subchain ${key} at line ${peek().line} col ${peek().col}`, peek())
                     }
                     kwargs[key] = { type: 'String', value: advance().lexeme }
                     if (peek().type === 'COMMA') {
@@ -868,7 +869,7 @@ export function parse(tokens) {
 
             // Each chain element must start with a dot
             if (peek().type !== 'DOT') {
-                throw new SyntaxError(`Expected '.' before chain element in subchain body at line ${peek().line} col ${peek().col}`)
+                throw parserError('P006', `Expected '.' before chain element in subchain body at line ${peek().line} col ${peek().col}`, peek())
             }
             advance() // consume '.'
 
@@ -887,7 +888,7 @@ export function parse(tokens) {
         expect('RBRACE', "Expect '}' to end subchain body")
 
         if (body.length === 0) {
-            throw new SyntaxError(`Subchain body cannot be empty at line ${tokenLine} col ${tokenCol}`)
+            throw parserError('P006', `Subchain body cannot be empty at line ${tokenLine} col ${tokenCol}`, nameToken)
         }
 
         return {

@@ -12,6 +12,7 @@ const diagnostics = {
   P003: { stage: 'parser', severity: 'error', message: 'Invalid automation arguments' },
   P004: { stage: 'parser', severity: 'error', message: 'Invalid search directive' },
   P005: { stage: 'parser', severity: 'error', message: 'Invalid output operation' },
+  P006: { stage: 'parser', severity: 'error', message: 'Invalid subchain' },
   S001: { stage: 'semantic', severity: 'error', message: 'Unknown identifier' },
   S002: { stage: 'semantic', severity: 'warning', message: 'Argument out of range' },
   S003: { stage: 'semantic', severity: 'error', message: 'Variable used before assignment' },
