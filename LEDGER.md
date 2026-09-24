@@ -20,7 +20,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## I18n strings
 
-- **Checkpoint:** noisemaker `dd38fdd2` / noisedeck `697d2df9` (2026-09-22)
+- **Checkpoint:** noisemaker `5b81e04f` / noisedeck `a5d448b2` (2026-09-23)
 - **Scope:** two translation surfaces:
   - Noisemaker effect catalogs
     `shaders/effects/strings.{de,es,fr,it,ja,pt}.json`. The English catalog
@@ -57,6 +57,20 @@ work, verify it, then update the checkpoint and append a log line.
      non-empty string values plus every placeholder, plural leaf, and markup tag
      from the English catalog.
 - **Log:**
+  - 2026-09-23 — caught up through noisemaker `5b81e04f` / noisedeck
+    `a5d448b2`: audited noisemaker range `dd38fdd2..5b81e04f` and noisedeck
+    `697d2df9..a5d448b2` (covering Tearoff #425 trigger `0a2a7012..df632d0a`).
+    In noisemaker, zero effect definitions or parameters were added or removed,
+    leaving all 3,677 keys in exact parity across all seven catalogs (`en` and
+    `de`, `es`, `fr`, `it`, `ja`, `pt`). In noisedeck, `sync.previewPaused` was
+    added to English (`34295fbf`) and translated across all six UI locales
+    (`55fa1a24`), merged in `df632d0a`; all UI string leaf keys remain in exact
+    parity. Verified via Noisemaker gap detection (0 missing keys across all 6
+    locales), `npm run test:shaders:i18n` (5/5), Noisemaker JS test suite (63/63
+    passed), Noisedeck `tests/i18n.node-test.js` (6/6),
+    `tests/export-dialog-i18n.node-test.js` (2/2),
+    `tests/menu-shortcuts-accelerators.node-test.js` (7/7), and
+    `tests/downstream-workflow.node-test.js` (1/1). No catalog edits were required.
   - 2026-09-22 — caught up through noisemaker `dd38fdd2` / noisedeck
     `697d2df9`: audited noisemaker range `7ea31be3..dd38fdd2` (covering Tearoff
     #392 trigger `2f855c9c..36a519a2` through HEAD) and noisedeck
