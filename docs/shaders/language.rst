@@ -831,6 +831,10 @@ Diagnostics
      - Parser
      - Error
      - Invalid search directive
+   * - P005
+     - Parser
+     - Error
+     - Invalid output operation
    * - S001
      - Semantic
      - Error
