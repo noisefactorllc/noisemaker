@@ -542,6 +542,37 @@ test('disposal invalidates queued compiles before they can configure a canvas', 
     assert.equal(renderer.pipeline, null)
 })
 
+test('render loop skips the draw while a sink defers and resumes afterward', () => {
+    let deferNext = true
+    const renders = []
+    const pipeline = {
+        shouldDeferRender: () => deferNext,
+        render: (time) => renders.push(time),
+        lastPassCount: 1
+    }
+    const renderer = bareRenderer(pipeline)
+    Object.assign(renderer, {
+        _isRunning: true, _deferredFrameCount: 0, _loopStartTime: 0, _loopDuration: 10,
+        _frameTimeBuffer: new Float64Array(4), _frameTimeIndex: 0, _frameTimeCount: 0,
+        _frameTimeBufferSize: 4, _fpsFrameCount: 0, _fpsLastUpdateTime: 0, _boundRenderLoop: () => {}
+    })
+    const previousRaf = globalThis.requestAnimationFrame
+    globalThis.requestAnimationFrame = () => 1
+    try {
+        renderer._renderLoop(16)
+        assert.equal(renders.length, 0)
+        assert.equal(renderer.deferredFrameCount, 1)
+        assert.equal(renderer.frameCount, 0)
+        deferNext = false
+        renderer._renderLoop(33)
+        assert.equal(renders.length, 1)
+        assert.equal(renderer.deferredFrameCount, 1)
+        assert.equal(renderer.frameCount, 1)
+    } finally {
+        globalThis.requestAnimationFrame = previousRaf
+    }
+})
+
 for (const { name, fn } of tests) {
     try {
         await fn()

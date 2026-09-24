@@ -569,6 +569,14 @@ export class Pipeline {
     }
 
     /**
+     * Report whether a registered sink asks to skip drawing the next frame.
+     * @returns {boolean}
+     */
+    shouldDeferRender() {
+        return this.sinkManager.shouldDeferRender()
+    }
+
+    /**
      * Set the MIDI state for midi() function resolution.
      * The host application should create a MidiState instance and pass it here.
      * @param {import('./external-input.js').MidiState} midiState

@@ -255,6 +255,7 @@ export class CanvasRenderer {
 
         // Frame counting and FPS measurement
         this._frameCount = 0
+        this._deferredFrameCount = 0
         this._fpsFrameCount = 0
         this._fpsLastUpdateTime = performance.now()
         this._currentFPS = 0
@@ -518,6 +519,11 @@ export class CanvasRenderer {
     /** @returns {number} Total frames rendered */
     get frameCount() {
         return this._frameCount
+    }
+
+    /** @returns {number} Loop frames skipped because an output sink deferred rendering */
+    get deferredFrameCount() {
+        return this._deferredFrameCount
     }
 
     /** @returns {number} Current measured FPS */
@@ -835,7 +841,11 @@ export class CanvasRenderer {
 
         this._animationFrameId = requestAnimationFrame(this._boundRenderLoop)
 
-        if (this._pipeline) {
+        if (this._pipeline && this._pipeline.shouldDeferRender?.()) {
+            // An output sink is behind (for example an encoder backlog). Skip
+            // this draw so the sink's GPU work can complete; time still advances.
+            this._deferredFrameCount++
+        } else if (this._pipeline) {
             try {
                 const renderStart = performance.now()
                 const elapsedSeconds = (time - this._loopStartTime) / 1000
