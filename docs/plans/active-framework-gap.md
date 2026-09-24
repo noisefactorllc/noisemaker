@@ -564,7 +564,7 @@ shaders/tests/test_diagnostic_locations.js, llms-full.txt, and this record.
   non-parity JavaScript, ESLint, documentation paths, compatibility differential,
   and diff hygiene; correct actionable findings.
 - [x] Narrow the proven GAP-002 statement without closing it or GAP-027.
-- [ ] Commit scoped work, rebase, push normally, verify exact-source CI and
+- [x] Commit scoped work, rebase, push normally, verify exact-source CI and
   existing downstream artifacts, and publish final evidence.
 
 Review focus: EOF targets; invocation location for empty/comment-only bodies;
@@ -599,4 +599,37 @@ work, with no shader programs, effects, or renderer changes.
   remain. GAP-002 and GAP-027 stay open. Independent review found no actionable
   findings and passed 91 focused tests plus 80 additional baseline compatibility,
   coordinate, EOF/comment and precedence checks. Publication verification is
-  pending. The expected MIDI adapter-unavailable fixture passed.
+  recorded below. The expected MIDI adapter-unavailable fixture passed.
+
+
+### Subchain Validation Publication
+
+- Implementation `13fa8b54002539df71ceffa34b4d894cb0a4573d`
+  (`feat: expose structured subchain validation diagnostics`) contains only the
+  five reviewed files. Pre-push pull/rebase did not change tested sources.
+  Normal push succeeded and independent remote inspection confirmed the SHA.
+- Exact-source [Shaders 36017840363](https://github.com/noisefactorllc/noisemaker/actions/runs/36017840363),
+  [Docs site 36017840357](https://github.com/noisefactorllc/noisemaker/actions/runs/36017840357),
+  [Site 36017840320](https://github.com/noisefactorllc/noisemaker/actions/runs/36017840320),
+  and [Downstream 36017840207](https://github.com/noisefactorllc/noisemaker/actions/runs/36017840207)
+  all passed. Shaders passed hosted tests, GPU tests, bundle creation and both
+  release dispatches. Its exact-SHA artifact is nonempty (1,440,051 bytes) and
+  unexpired. JavaScript CI was not triggered by these paths; local JS and lint
+  passed. Inapplicable Dependabot auto-merge was skipped.
+- [Scaffold library release 36018297071](https://github.com/noisefactorllc/scaffold/actions/runs/36018297071)
+  passed for the exact implementation SHA, including 7/7 CDN edge purges.
+  Static-site runs [36017859777](https://github.com/noisefactorllc/scaffold/actions/runs/36017859777)
+  and [36018294941](https://github.com/noisefactorllc/scaffold/actions/runs/36018294941)
+  passed for noisemaker-site, and [36017877111](https://github.com/noisefactorllc/scaffold/actions/runs/36017877111)
+  passed for noisemaker-docs at the same SHA. Their optional CDN jobs were skipped
+  by existing conditions; no separate live-site assertion is made.
+- [Release 36018361328](https://github.com/noisefactorllc/noisemaker/actions/runs/36018361328)
+  passed. The annotated `v1.0.177` tag resolves exactly to the implementation SHA.
+  All eight expected desktop, shader, and JavaScript assets are nonempty; the
+  release is neither draft nor prerelease. Shaders, library release and Release
+  each used one sequential persistent `gh run watch --exit-status` process,
+  all exiting 0. No manual dispatch or release was performed.
+
+All selected subchain work is complete. GAP-002 remains active for remaining
+parser throw paths, source-derived parser coordinates/spans and full-contract
+verification. The gap register retains 23 open gaps, including GAP-027.
