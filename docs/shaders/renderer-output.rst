@@ -19,14 +19,15 @@ The host must register new sinks on the replacement pipeline.
 Output Sinks
 ------------
 
-A sink implements three methods:
+A sink implements three required methods and one optional method:
 
 .. code-block:: javascript
 
     const sink = {
         configure(descriptor) {},
         submit(textureId, presentationTimestamp) { return true },
-        close(options) {}
+        close(options) {},
+        deferRender() { return false } // optional
     }
 
     const remove = renderer.addSink(sink)
@@ -48,6 +49,14 @@ A sink implements three methods:
     Releases sink resources. During backend loss, ``options.backendLost`` is
     ``true`` so the sink can abandon invalid GPU resources without trying to
     destroy them.
+
+``deferRender()`` (optional)
+    Requests that the render loop defer drawing this tick while the sink catches
+    up (for example, while a video encoder clears a backlog of queued frames).
+    While any active sink returns ``true``, the render loop skips that tick's draw
+    pass, holding the current canvas contents while animation time continues to
+    advance. ``renderer.deferredFrameCount`` tracks the cumulative number of
+    deferred frames. Sinks without this method never defer rendering.
 
 The pipeline supplies this descriptor:
 
