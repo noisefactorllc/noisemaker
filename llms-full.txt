@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `e11f0767993ae77eab6f3e353c942cf721aa9c90`.
+- Noisemaker: `7a54ab3856d71ce037f11215572e8137ad4f53c0`.
 - Shade MCP: `00340b148e109464b1a87d89ff29fc7622d384c9`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.3`, protocol
   `2025-11-25`, with 18 tools returned by `tools/list`.
@@ -2076,6 +2076,7 @@ type Sink = {
   configure(descriptor: SinkDescriptor): unknown
   submit(textureId: string, presentationTimestamp: number): boolean | unknown
   close(options?: { backendLost?: boolean }): unknown
+  deferRender?(): boolean
 }
 
 type SinkStats = { accepted: number, dropped: number, failed: number }
@@ -2163,8 +2164,13 @@ must call `poll()`. There is no internal timer. A successful callback receives
 Pipeline resize configures all current sinks with exactly
 `{width,height,format:"rgba8unorm",colorSpace:"srgb",
 alphaMode:"premultiplied",fps:60}`. A sink added after resize is configured
-immediately with the same descriptor. Rendering submits the selected pre-swap
-texture ID and the caller's presentation timestamp, or `performance.now()`
+immediately with the same descriptor. Sinks may implement an optional
+`deferRender(): boolean` method: while any active sink returns `true`,
+`Pipeline.shouldDeferRender()` returns `true` and the host render loop
+(`CanvasRenderer._renderLoop`) skips drawing the current tick while holding canvas
+contents and advancing animation time, incrementing `CanvasRenderer.deferredFrameCount`.
+Sinks without `deferRender()` never defer rendering. Rendering submits the selected
+pre-swap texture ID and the caller's presentation timestamp, or `performance.now()`
 with a `Date.now()` fallback. A graph with no render surface advances the frame
 without submitting to sinks.
 
@@ -2181,9 +2187,10 @@ adapter performs a color-space conversion or frame-rate throttle.
 Each slot reuses one `PackedFrame` object and `Uint8Array`. A callback that
 retains a frame past later deliveries on the same slot must copy its data.
 
-Sources: `shaders/src/renderer/canvas.js` - `addSink()`,
+Sources: `shaders/src/renderer/canvas.js` - `addSink()`, `deferredFrameCount`,
 `createFrameExportQueue()`; `shaders/src/runtime/pipeline.js` - `resize()`,
-`render()`; `shaders/src/runtime/frame-export.js`;
+`render()`, `shouldDeferRender()`; `shaders/src/runtime/sink.js` -
+`shouldDeferRender()`; `shaders/src/runtime/frame-export.js`;
 `shaders/src/runtime/backends/webgl2-frame-export.js`;
 `shaders/src/runtime/backends/webgpu-frame-export.js`.
 
@@ -2230,12 +2237,13 @@ when `fps >= 30`. The MCP benchmark instead passes when
 `fps >= target_fps`, where the default target is 60.
 
 For a `SinkManager`, `submit() === true` increments `accepted`, false increments
-`dropped`, and a thrown submit or broadcast-`configure()` error increments
-`failed`. Other return values change no counter. One failing registered sink
-does not stop later sinks. Adding a sink after the manager is configured calls
-that sink's `configure()` before registration. If it throws, `add()` propagates
-the error and creates no stats record. For the pipeline's default manager there
-is no `onError` callback, so inspect its stats when an external sink can throw.
+`dropped`, and a thrown submit, broadcast-`configure()`, or `deferRender()` error increments
+`failed`. Thrown errors in `deferRender()` are isolated and do not defer rendering;
+if `onError` was supplied it is invoked with `(error, sink)`. Other return values change
+no counter. One failing registered sink does not stop later sinks. Adding a sink after
+the manager is configured calls that sink's `configure()` before registration. If it throws,
+`add()` propagates the error and creates no stats record. For the pipeline's default
+manager there is no `onError` callback, so inspect its stats when an external sink can throw.
 
 For a `FrameExportQueue`, a successful adapter `begin()` increments `accepted`.
 Unconfigured, closed, or full-queue enqueue attempts increment `dropped` and
