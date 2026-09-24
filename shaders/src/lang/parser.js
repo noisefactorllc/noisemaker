@@ -379,9 +379,9 @@ export function parse(tokens) {
     function transformFromInvocation(call, nameToken) {
         const fail = (message) => {
             if (nameToken && typeof nameToken.line === 'number' && typeof nameToken.col === 'number') {
-                throw new SyntaxError(`${message} at line ${nameToken.line} col ${nameToken.col}`)
+                throw parserError('P007', `${message} at line ${nameToken.line} col ${nameToken.col}`, nameToken)
             }
-            throw new SyntaxError(message)
+            throw parserError('P007', message, nameToken)
         }
         if (call.kwargs && Object.keys(call.kwargs).length) {
             fail("'from' does not support named arguments")
@@ -471,7 +471,7 @@ export function parse(tokens) {
         const consumeRender = () => {
             if (render) {
                 const t = peek()
-                throw new SyntaxError(`Duplicate render() directive at line ${t.line} col ${t.col}`)
+                throw parserError('P005', `Duplicate render() directive at line ${t.line} col ${t.col}`, t)
             }
             render = parseRenderDirective()
             while (peek().type === 'SEMICOLON') advance()
@@ -619,7 +619,7 @@ export function parse(tokens) {
             expect('EQUAL', "Expect '='")
             if (!exprStartTokens.has(peek().type)) {
                 const t = peek()
-                throw new SyntaxError(`Expected expression after '=' at line ${t.line} col ${t.col}`)
+                throw parserError('P001', `Expected expression after '=' at line ${t.line} col ${t.col}`, t)
             }
             const expr = parseAdditive()
             return {type: 'VarAssign', name, expr}
@@ -806,7 +806,7 @@ export function parse(tokens) {
                 loc: { line: tokenLine, col: tokenCol }
             }
         }
-        throw new SyntaxError(`Expected write or write3d at line ${tokenLine} col ${tokenCol}`)
+        throw parserError('P005', `Expected write or write3d at line ${tokenLine} col ${tokenCol}`, { line: tokenLine, col: tokenCol })
     }
 
     /**
@@ -909,10 +909,12 @@ export function parse(tokens) {
             if (next && next.type === 'IDENT') {
                 const after = tokens[current + 2]
                 if (after?.type === 'LPAREN') {
-                    throw new SyntaxError(
+                    throw parserError(
+                        'P007',
                         `Inline namespace syntax '${nameToken.lexeme}.${next.lexeme}()' is not allowed. ` +
                         `Use 'search ${nameToken.lexeme}' at the start of the program instead, ` +
-                        `at line ${nameToken.line} col ${nameToken.col}`
+                        `at line ${nameToken.line} col ${nameToken.col}`,
+                        nameToken
                     )
                 }
             }
@@ -928,14 +930,14 @@ export function parse(tokens) {
                 if (peek().type === 'IDENT' && tokens[current + 1]?.type === 'COLON') {
                     if (positional && !allowMixed) {
                         const t = peek()
-                        throw new SyntaxError(`Cannot mix positional and keyword arguments at line ${t.line} col ${t.col}`)
+                        throw parserError('P007', `Cannot mix positional and keyword arguments at line ${t.line} col ${t.col}`, t)
                     }
                     keyword = true
                     parseKwarg(kwargs)
                 } else {
                     if (keyword && !allowMixed) {
                         const t = peek()
-                        throw new SyntaxError(`Cannot mix positional and keyword arguments at line ${t.line} col ${t.col}`)
+                        throw parserError('P007', `Cannot mix positional and keyword arguments at line ${t.line} col ${t.col}`, t)
                     }
                     positional = true
                     args.push(parseArg())
@@ -1098,7 +1100,7 @@ export function parse(tokens) {
                 }
                 if (peek().type !== 'RBRACKET') {
                     const t = peek()
-                    throw new SyntaxError(`Expected ']' at line ${t.line} col ${t.col}`)
+                    throw parserError('P001', `Expected ']' at line ${t.line} col ${t.col}`, t)
                 }
                 advance()
                 return {type: 'ArrayLiteral', elements, loc: { line: startLine, col: startCol }}
@@ -1136,7 +1138,7 @@ export function parse(tokens) {
                     if (!next) break
                     if (tokens[current + 2]?.type === 'LPAREN') break
                     if (!memberTokenTypes.has(next.type)) {
-                        throw new SyntaxError(`Expected identifier after '.' at line ${next.line} col ${next.col}`)
+                        throw parserError('P001', `Expected identifier after '.' at line ${next.line} col ${next.col}`, next)
                     }
                     advance() // consume '.'
                     advance() // consume segment token stored in next
@@ -1178,13 +1180,15 @@ export function parse(tokens) {
                 return expr
             }
             default:
-                throw new SyntaxError(`Unexpected token ${token.type} at line ${token.line} col ${token.col}`)
+                throw parserError('P001', `Unexpected token ${token.type} at line ${token.line} col ${token.col}`, token)
         }
     }
 
     function toNumber(node) {
         if (node.type !== 'Number') {
-            throw new SyntaxError('Expected number')
+            // Number coercion failures locate the offending AST node when it has
+            // parser-authored coordinates; the location is otherwise explicitly null.
+            throw parserError('P001', 'Expected number', node.loc ?? {})
         }
         return node.value
     }
@@ -1194,7 +1198,7 @@ export function parse(tokens) {
         expect('COLON', "Expect ':'")
         if (!exprStartTokens.has(peek().type)) {
             const t = peek()
-            throw new SyntaxError(`Expected expression after '=' at line ${t.line} col ${t.col}`)
+            throw parserError('P001', `Expected expression after '=' at line ${t.line} col ${t.col}`, t)
         }
         obj[key] = parseArg()
     }

@@ -633,3 +633,74 @@ work, with no shader programs, effects, or renderer changes.
 All selected subchain work is complete. GAP-002 remains active for remaining
 parser throw paths, source-derived parser coordinates/spans and full-contract
 verification. The gap register retains 23 open gaps, including GAP-027.
+
+
+## Current Run: Remaining Parser Throw Paths (2026-09-24)
+
+Bounded design: structure every remaining parser throw path through the
+existing parserError helper, completing parser diagnostic coverage. Add P007
+(invalid call expression) for the `from()` argument-validation `fail()` helper
+(five explicit branches), the forbidden inline namespace syntax, and both
+mixed positional/keyword argument sites. Reuse P001 for the remaining
+token-expectation failures: missing expressions after `=` (VarAssign and
+keyword arguments), missing array-closing brackets, non-identifier member
+segments after `.`, unexpected primary tokens, and number coercion. Number
+coercion locates the offending AST node's parser-authored `loc` when present
+and is explicitly null otherwise. Attach P005 to the two unreachable
+defense-in-depth sites (duplicate render directive and write/write3d dispatch
+fallback) for contract completeness; they are unreachable through public
+`parse`/`compile`, so no public regression can target them and control flow is
+unchanged. Preserve native SyntaxError classes, exact messages, ordinary error
+enumeration/JSON, accepted DSL, AST/compile shapes, defaults, indexes, and
+shared-expectation precedence. Spans stay explicitly null; token-counter
+location limitations remain. GAP-002 stays active for the full-contract
+verification and closure decision.
+
+Files: shaders/src/lang/parser.js, shaders/src/lang/diagnostics.js,
+shaders/tests/test_diagnostic_locations.js, llms-full.txt, and this record.
+No shader programs, effects, backends, or Python changes.
+
+- [x] Add parse/compile regressions for all reachable selected sites, EOF,
+  CRLF/tab/UTF-16, unavailable caller coordinates, explicit null locations for
+  number coercion, legacy error shape/JSON/enumeration, shared-expectation
+  precedence, and preserved valid `from()` overrides and mixed automation
+  arguments. Demonstrate missing diagnostics against the baseline first.
+- [x] Add P007 to the catalog and convert the thirteen remaining raw
+  SyntaxError constructor sites without changing validation or messages.
+- [x] Review the entire diff; run focused diagnostics, language aggregate,
+  non-parity JavaScript, ESLint, documentation paths, dependency install,
+  compatibility differential, and diff hygiene.
+- [x] Narrow the proven GAP-002 statement; retain GAP-002 and 23 open gaps.
+- [ ] Commit scoped work, rebase, push normally, verify exact-source CI and
+  existing downstream artifacts, and publish final evidence.
+
+
+### Remaining Parser Throw Path Evidence
+
+- Startup: clean main at 13853df matching the gap revision; no active Git
+  operation or pending job-owned publication. A missing local node_modules
+  tree was restored with the check-defined
+  `npm ci --bin-links=false --ignore-scripts --no-audit --no-fund` (exit 0).
+- Baseline probes confirmed all thirteen raw sites, including that
+  `parseWriteCall()` is only entered for WRITE/WRITE3D tokens and that the
+  statement loop breaks after consuming `render()`, making the two defense-in-
+  depth sites unreachable through public entry points.
+- Focused red run against the baseline parser (stash-verified): exit 1,
+  92 passed / 18 failed; every failure was a missing diagnostic and all legacy
+  class/message assertions passed.
+- Focused green run: exit 0, 110 passed / 0 failed. New coverage includes all
+  four reachable `from()` branches, inline namespace syntax, both mixed-
+  argument branches, both expression-after-`=` sites, closing brackets,
+  member-segment expectations, unexpected primary tokens, number coercion with
+  explicit null locations, CRLF/tab/UTF-16 columns, unavailable caller
+  coordinates, non-enumerable property descriptors, and valid `from()` override
+  plus midi mixed-argument shapes.
+- Differential verification against 13853df: 8,000 generated inputs; 89
+  accepted ASTs identical; 7,911 rejections preserving legacy class, message,
+  enumeration, and JSON; 2,591 errors gained structured diagnostics (P007
+  1,307, P001 1,284); zero mismatches. No P005/P006 regressions and the two
+  unreachable sites were never observed, as expected.
+- Shader-language aggregate, non-parity JavaScript aggregate, ESLint, and the
+  four-case documentation static-path suite all exited 0. `git diff --check`
+  passed; the register retains 23 open gaps and GAP-002 stays active.
+- No local builds, shader, renderer, runtime, or Python changes.

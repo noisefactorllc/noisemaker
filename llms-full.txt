@@ -106,7 +106,7 @@ type ExpansionFailure = {
 the diagnostic node has `loc`: parser `loc.col` populates `location.column`,
 and an explicit `loc.column` on a caller-supplied AST retains precedence.
 Nodes without `loc` still omit `location`; complete AST source coverage and
-structured parser failures remain open under GAP-002.
+source-derived parser coordinates remain open under GAP-002.
 
 Lexer failures from `lex(source)` or `compile(source)` throw the same native
 `SyntaxError` with the same message as before. Each carries a non-enumerable
@@ -161,14 +161,25 @@ invalid render targets, write/write3d in expression context, invalid write
 surfaces, and invalid write3d texture/geometry arguments. Its location identifies
 the rejected argument token (EOF when missing), or the write/write3d keyword
 for expression-context failures; it uses the same null-location/span rules.
-P006 covers explicit subchain validation failures: non-string argument values,
-missing body dots before chain elements, and empty bodies. Its location identifies
-the rejected argument token, the dot-expectation token (EOF when missing), or
-the subchain keyword for empty-body failures, with the same coordinate limitations
-and null spans. Permissive argument keys, separators, and duplicates are
-preserved. Shared token-expectation failures retain P001/P002 (such as missing
-argument closing parenthesis or missing body identifier). Other parser throw
-paths remain unstructured under GAP-002.
+P006 covers explicit subchain validation: non-string argument values, missing
+body dots (including EOF and comment-only scans), and empty bodies, locating
+the rejected or invocation token with the same rules. P007 covers invalid call
+forms: `from()` argument validation (named arguments, argument count, namespace
+identifier, and call-expression target), forbidden inline namespace syntax, and
+mixed positional/keyword arguments. P007 locations identify the invocation name
+token (the offending keyword token for mixed-argument failures), or are `null`
+when caller-supplied coordinates are unavailable. Beyond the shared expectation
+path, P001 also covers missing expressions after `=` (in assignments and
+keyword arguments), missing array-closing brackets, non-identifier member
+segments after `.`, unexpected primary tokens, and number coercion. Number
+coercion carries no token, so its location is `null` unless the offending AST
+node has parser-authored coordinates. The two defense-in-depth throw sites that
+are unreachable through public `parse`/`compile` (a duplicate `render()`
+directive and the write/write3d dispatch fallback) also carry P005 for
+contract completeness. Shared token-expectation failures retain P001/P002,
+including repeated render statements rejected at end of input. Every parser
+throw path now carries a structured diagnostic; source-derived parser
+coordinates and complete AST `loc` coverage remain open under GAP-002.
 
 ## Runtime overview
 
@@ -578,6 +589,7 @@ Declared diagnostic codes are:
 | `P004` | parser/error | Explicit search directive validation failures; additive `error.diagnostic` on the legacy `SyntaxError` |
 | `P005` | parser/error | Invalid render targets, expression-context writes, and invalid write/write3d target arguments; additive `error.diagnostic` on the legacy `SyntaxError` |
 | `P006` | parser/error | Invalid subchains (non-string arguments, missing body dot, empty body); additive `error.diagnostic` on the legacy `SyntaxError` |
+| `P007` | parser/error | Invalid call forms: `from()` argument validation, forbidden inline namespace syntax, and mixed positional/keyword arguments; additive `error.diagnostic` on the legacy `SyntaxError` |
 | `S001` | semantic/error | unknown effect/argument/enum, invalid surface, illegal inline read, invalid function, and other semantic failures |
 | `S002` | semantic/warning | clamping, wrong numeric/vector/array form |
 | `S003` | semantic/error | unresolved identifier or enum choice |
@@ -588,9 +600,9 @@ Declared diagnostic codes are:
 | `S008` | semantic/warning | deprecated effect alias |
 | `R001` | runtime/error | declared but not emitted by the compiler/backends shown here |
 
-Raw lexer/parser failures are `SyntaxError` instances whose messages contain
-text plus line/column for most, but not all, cases. They do not have `code`,
-`severity`, or a separately typed location. `compileGraph()` only wraps semantic
+Raw lexer/parser failures are `SyntaxError` instances with the unchanged legacy
+messages. Every lexer and parser throw path now also exposes the non-enumerable
+`error.diagnostic` property described above. `compileGraph()` only wraps semantic
 diagnostics as `ERR_COMPILATION_FAILED`. Raw lex/parse exceptions escape.
 
 Subchain metadata typos and duplicates produce no failure at all: unknown keys
@@ -4016,7 +4028,7 @@ longer on the uncopied-field list below. `name`, `viewport`, `clear`,
 
 | ID | Missing instrumentation | Source evidence | Agent consequence |
 |---|---|---|---|
-| GAP-002 | Parser errors outside shared token expectations, automation argument validation, search directive validation, reachable output validation, and explicit subchain validation lack a stable diagnostic schema; parser locations retain token-counter limitations and source spans are unavailable. Complete AST `loc` coverage is not a public contract | `shaders/src/lang/parser.js` (shared `expect()` exposes P001/P002 and automation argument validation exposes P003, search directive validation exposes P004, reachable output validation exposes P005, and explicit subchain validation exposes P006; remaining throw paths are unstructured; `lexer.js` implemented at `643b2be1`) | retry code must still parse human text for remaining parser failures and cannot reliably identify parser source spans |
+| GAP-002 | Parser errors outside shared token expectations, automation argument validation, search directive validation, reachable output validation, and explicit subchain validation lack a stable diagnostic schema; parser locations retain token-counter limitations and source spans are unavailable. Complete AST `loc` coverage is not a public contract | `shaders/src/lang/parser.js` (shared `expect()` exposes P001/P002, automation argument validation exposes P003, search directive validation exposes P004, reachable output validation exposes P005, explicit subchain validation exposes P006, and remaining call-form and expectation paths expose P007/P001/P005, including unreachable defense-in-depth sites; `lexer.js` implemented at `643b2be1`; source-derived parser coordinates remain open) | retry code must still parse human text for source-derived parser coordinates; token-counter parser locations and null spans are the public convention |
 | GAP-003 | `validateEffectDefinition()` validates only a subset of the consumed definition schema | `shaders/src/runtime/effect-validator.js` versus `effect.js` and `expander.js` | invalid globals/pass/texture fields can survive structure validation |
 | GAP-004 | Mip and persistent-across-frames controls do not exist. Definition-level 3D `filter` and unknown texture fields are discarded | `shaders/src/runtime/compiler.js` - `extractTextureSpecs()`; backend texture creation methods | an agent cannot author/query mip policy, persistence, or 3D nearest filtering, and typos can be ignored |
 | GAP-005 | `name`, `viewport`, `clear`, `samplerTypes`, and `type` are not copied into expanded effect passes. (Narrowed at noisemaker `ff1bfbc1`: `conditions` used to be on this list; `expand()` now copies it and `Pipeline.shouldSkipPass()` consumes it.) | `shaders/src/runtime/expander.js` - constructed pass object; `pipeline.js` - `shouldSkipPass()` | authoring these remaining fields has no runtime effect through `definition.js` and emits no diagnostic |
