@@ -369,3 +369,108 @@ test('valid search directives retain namespace order, keyword namespaces, and co
     ])
     assert.deepEqual(Object.keys(result).sort(), ['diagnostics', 'plans', 'render', 'searchNamespaces', 'vars'])
 })
+
+const outputFailures = [
+    ['invalid render target', 'search synth\nrender(1)', 'Expected output reference in render()', 2, 8],
+    ['render target at EOF', 'search synth\nrender(', 'Expected output reference in render()', 2, 8],
+    ['write in expression', 'search synth\nlet x = diagProbe().write(o0)', "'.write()' is only allowed in statement context at line 2 col 21", 2, 21],
+    ['write3d in expression', 'search synth\nlet x = diagProbe().write3d(vol0, geo0)', "'.write()' is only allowed in statement context at line 2 col 21", 2, 21],
+    ['missing write surface', 'search synth\ndiagProbe().write()', 'write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none) at line 2 col 19', 2, 19],
+    ['write surface at EOF', 'search synth\ndiagProbe().write(', 'write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none) at line 2 col 19', 2, 19],
+    ['invalid write surface', 'search synth\ndiagProbe().write(1)', 'write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none) at line 2 col 19', 2, 19],
+    ['invalid write3d texture', 'search synth\ndiagProbe().write3d(1, geo0)', 'Expected tex3d reference in write3d() at line 2 col 21', 2, 21],
+    ['write3d texture at EOF', 'search synth\ndiagProbe().write3d(', 'Expected tex3d reference in write3d() at line 2 col 21', 2, 21],
+    ['invalid write3d geometry', 'search synth\ndiagProbe().write3d(vol0, 1)', 'Expected geo reference in write3d() at line 2 col 27', 2, 27],
+    ['write3d geometry at EOF', 'search synth\ndiagProbe().write3d(vol0,', 'Expected geo reference in write3d() at line 2 col 26', 2, 26],
+    ['CRLF and tab render target', '// 😀\r\nsearch synth\r\n\trender("😀")', 'Expected output reference in render()', 3, 9],
+    ['UTF-16 render target column', 'search synth\nlet x = "😀"; render(none)', 'Expected output reference in render()', 2, 22]
+]
+
+for (const [name, source, message, line, column] of outputFailures) {
+    test(`parser output diagnostic: ${name}`, () => {
+        for (const entryPoint of [source => parse(lex(source)), compile]) {
+            assert.throws(() => entryPoint(source), error => {
+                assert.equal(Object.getPrototypeOf(error), SyntaxError.prototype)
+                assert.equal(error.message, message)
+                assert.equal(String(error), `SyntaxError: ${message}`)
+                assert.deepEqual(Object.keys(error), [])
+                assert.equal(JSON.stringify(error), '{}')
+                const expected = {
+                    code: 'P005', stage: 'parser', severity: 'error', message,
+                    location: { line, column }, span: null
+                }
+                assert.deepEqual(error.diagnostic, expected)
+                assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), expected)
+                return true
+            })
+        }
+    })
+}
+
+test('parser output diagnostics represent unavailable caller-token coordinates', () => {
+    for (const [, source] of outputFailures) {
+        for (const coordinates of [{}, { line: 1 }, { line: 0, col: 1 }, { line: 1, col: NaN }]) {
+            const tokens = lex(source).map(({ type, lexeme }) => ({ type, lexeme, ...coordinates }))
+            assert.throws(() => parse(tokens), error => {
+                assert.equal(Object.getPrototypeOf(error), SyntaxError.prototype)
+                assert.deepEqual(error.diagnostic, {
+                    code: 'P005', stage: 'parser', severity: 'error', message: error.message,
+                    location: null, span: null
+                })
+                assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), error.diagnostic)
+                return true
+            })
+        }
+    }
+})
+
+test('output syntax preserves shared expectation diagnostic precedence', () => {
+    const cases = [
+        ['search synth\nrender o0', 'P001', "Expect '(' at line 2 col 8"],
+        ['search synth\nrender(o0', 'P002', "Expect ')' at line 2 col 10"],
+        ['search synth\nrender(o0) render(o1)', 'P001', 'Expected end of input at line 2 col 12'],
+        ['search synth\ndiagProbe().write(o0', 'P002', "Expect ')' at line 2 col 21"],
+        ['search synth\ndiagProbe().write3d(vol0 geo0)', 'P001', "Expect ',' between tex3d and geo in write3d() at line 2 col 26"]
+    ]
+    for (const [source, code, message] of cases) {
+        for (const entryPoint of [source => parse(lex(source)), compile]) {
+            assert.throws(() => entryPoint(source), error => {
+                assert.equal(error.message, message)
+                assert.equal(error.diagnostic.code, code)
+                return true
+            })
+        }
+    }
+})
+
+test('valid output operations retain surface forms, render selection, and compiled indexes', () => {
+    for (const [name, type] of [
+        ['o0', 'OutputRef'], ['xyz0', 'XyzRef'], ['vel0', 'VelRef'],
+        ['rgba0', 'RgbaRef'], ['mesh0', 'MeshRef'], ['none', 'OutputRef']
+    ]) {
+        const ast = parse(lex(`search synth\ndiagProbe().write(${name})`))
+        assert.deepEqual(ast.plans[0].chain[1], {
+            type: 'Write', surface: { type, name }, loc: { line: 2, col: 13 }
+        })
+        assert.deepEqual(ast.plans[0].write, { type, name })
+        assert.equal(ast.render, null)
+    }
+    for (const [tex, texType, geo, geoType] of [
+        ['vol0', 'VolRef', 'geo0', 'GeoRef'], ['o0', 'OutputRef', 'o1', 'OutputRef'],
+        ['volume', 'Ident', 'geometry', 'Ident']
+    ]) {
+        const ast = parse(lex(`search synth\ndiagProbe().write3d(${tex}, ${geo})`))
+        assert.deepEqual(ast.plans[0].chain[1], {
+            type: 'Write3D', tex3d: { type: texType, name: tex },
+            geo: { type: geoType, name: geo }, loc: { line: 2, col: 13 }
+        })
+    }
+    const result = compile('search synth\ndiagProbe().write(o1) render(o1)')
+    assert.deepEqual(result.diagnostics, [])
+    assert.equal(result.render, 'o1')
+    assert.deepEqual(result.plans[0].chain, [
+        { op: 'synth.diagProbe', args: {}, from: null, temp: 0 },
+        { op: '_write', args: { tex: { kind: 'output', name: 'o1' } }, from: 0, temp: 1, builtin: true }
+    ])
+    assert.deepEqual(Object.keys(result).sort(), ['diagnostics', 'plans', 'render', 'searchNamespaces', 'vars'])
+})

@@ -156,8 +156,14 @@ conflicting selectors, and invalid device-name/id strings. Explicit search
 directive validation failures expose P004: missing or duplicate directives,
 invalid or missing namespaces, and misplaced top-level or nested directives.
 P004 locations identify the rejected token, or EOF for a missing required
-directive, with the same coordinate limitations and null spans. Other parser
-throw paths remain unstructured under GAP-002.
+directive, with the same coordinate limitations and null spans. P005 covers
+invalid render targets, write/write3d in expression context, invalid write
+surfaces, and invalid write3d texture/geometry arguments. Its location identifies
+the rejected argument token (EOF when missing), or the write/write3d keyword
+for expression-context failures; it uses the same null-location/span rules.
+Shared token-expectation failures retain P001/P002, including repeated render
+statements rejected at end of input. Other parser throw paths remain
+unstructured under GAP-002.
 
 ## Runtime overview
 
@@ -565,6 +571,7 @@ Declared diagnostic codes are:
 | `P002` | parser/error | Expected closing parenthesis; additive `error.diagnostic` on the legacy `SyntaxError` |
 | `P003` | parser/error | Invalid arguments in `osc()`/`midi()`/`audio()` automation transformations; additive `error.diagnostic` on the legacy `SyntaxError` |
 | `P004` | parser/error | Explicit search directive validation failures; additive `error.diagnostic` on the legacy `SyntaxError` |
+| `P005` | parser/error | Invalid render targets, expression-context writes, and invalid write/write3d target arguments; additive `error.diagnostic` on the legacy `SyntaxError` |
 | `S001` | semantic/error | unknown effect/argument/enum, invalid surface, illegal inline read, invalid function, and other semantic failures |
 | `S002` | semantic/warning | clamping, wrong numeric/vector/array form |
 | `S003` | semantic/error | unresolved identifier or enum choice |
@@ -3980,8 +3987,11 @@ and explicitly unavailable spans (`null`), retaining legacy errors and success
 shapes. Automation argument failures in `osc()`/`midi()`/`audio()` now expose
 P003 with invocation-token locations and null spans. Explicit search directive
 validation failures expose P004 with rejected-token locations (EOF for missing
-required search) and null spans. Other parser failure paths and source-derived
-parser coordinates/spans remain open.
+required search) and null spans. Five reachable output-validation sites expose
+P005 for invalid render targets, expression-context writes, and invalid
+write/write3d arguments, preserving legacy messages and shared-expectation
+precedence. Other parser failure paths and source-derived parser
+coordinates/spans remain open.
 
 GAP-005 is narrowed, not closed, at noisemaker `ff1bfbc1`: `conditions` is
 copied by `expand()` and reaches `Pipeline.shouldSkipPass()`, so it is no
@@ -3990,7 +4000,7 @@ longer on the uncopied-field list below. `name`, `viewport`, `clear`,
 
 | ID | Missing instrumentation | Source evidence | Agent consequence |
 |---|---|---|---|
-| GAP-002 | Parser errors outside shared token expectations, automation argument validation, and search directive validation lack a stable diagnostic schema; parser locations retain token-counter limitations and source spans are unavailable. Complete AST `loc` coverage is not a public contract | `shaders/src/lang/parser.js` (shared `expect()` exposes P001/P002 and automation argument validation exposes P003, and search directive validation exposes P004; remaining throw paths are unstructured; `lexer.js` implemented at `643b2be1`) | retry code must still parse human text for remaining parser failures and cannot reliably identify parser source spans |
+| GAP-002 | Parser errors outside shared token expectations, automation argument validation, search directive validation, and reachable output validation lack a stable diagnostic schema; parser locations retain token-counter limitations and source spans are unavailable. Complete AST `loc` coverage is not a public contract | `shaders/src/lang/parser.js` (shared `expect()` exposes P001/P002 and automation argument validation exposes P003, search directive validation exposes P004, and reachable output validation exposes P005; remaining throw paths are unstructured; `lexer.js` implemented at `643b2be1`) | retry code must still parse human text for remaining parser failures and cannot reliably identify parser source spans |
 | GAP-003 | `validateEffectDefinition()` validates only a subset of the consumed definition schema | `shaders/src/runtime/effect-validator.js` versus `effect.js` and `expander.js` | invalid globals/pass/texture fields can survive structure validation |
 | GAP-004 | Mip and persistent-across-frames controls do not exist. Definition-level 3D `filter` and unknown texture fields are discarded | `shaders/src/runtime/compiler.js` - `extractTextureSpecs()`; backend texture creation methods | an agent cannot author/query mip policy, persistence, or 3D nearest filtering, and typos can be ignored |
 | GAP-005 | `name`, `viewport`, `clear`, `samplerTypes`, and `type` are not copied into expanded effect passes. (Narrowed at noisemaker `ff1bfbc1`: `conditions` used to be on this list; `expand()` now copies it and `Pipeline.shouldSkipPass()` consumes it.) | `shaders/src/runtime/expander.js` - constructed pass object; `pipeline.js` - `shouldSkipPass()` | authoring these remaining fields has no runtime effect through `definition.js` and emits no diagnostic |

@@ -6,7 +6,7 @@ Status: active
 
 Exact problem statement from `llms-full.txt`:
 
-> Parser errors outside shared token expectations, automation argument validation, and search directive validation lack a stable diagnostic schema; parser locations retain token-counter limitations and source spans are unavailable. Complete AST `loc` coverage is not a public contract
+> Parser errors outside shared token expectations, automation argument validation, search directive validation, and reachable output validation lack a stable diagnostic schema; parser locations retain token-counter limitations and source spans are unavailable. Complete AST `loc` coverage is not a public contract
 
 Agent consequence:
 
@@ -14,8 +14,8 @@ Agent consequence:
 
 ## Source Files and Observed Behavior
 
-- `shaders/src/lang/lexer.js` now attaches structured diagnostics to native `SyntaxError` failures; `parser.js` exposes structured P001/P002 diagnostics for shared token expectations and P003 for automation argument validation and P004 for search directive validation; other throw paths remain unstructured.
-- `shaders/src/lang/diagnostics.js` catalogs lexer, parser, and semantic codes. Lexer failures expose L001-L004; shared parser token expectations expose P001/P002 and automation argument validation exposes P003 and search directive validation exposes P004; other parser failures do not yet expose catalog codes.
+- `shaders/src/lang/lexer.js` now attaches structured diagnostics to native `SyntaxError` failures; `parser.js` exposes structured P001/P002 diagnostics for shared token expectations and P003 for automation argument validation and P004 for search directive validation and P005 for reachable output validation; other throw paths remain unstructured.
+- `shaders/src/lang/diagnostics.js` catalogs lexer, parser, and semantic codes. Lexer failures expose L001-L004; shared parser token expectations expose P001/P002 and automation argument validation exposes P003 and search directive validation exposes P004 and reachable output validation exposes P005; other parser failures do not yet expose catalog codes.
 - Before the semantic-column fix, `shaders/src/lang/validator.js`: `pushDiag()` read `node.loc.column`, while parser-authored locations use `node.loc.col`. Existing semantic diagnostic locations therefore lost their column when serialized.
 - Pre-fix reproduction through public `compile()`: `search synth\n  read(123).write(o0)` produces located S001 and S005 diagnostics with line 2 and undefined columns instead of columns 3 and 13.
 - Many AST nodes have no `loc` at all. This run does not invent coordinates for those nodes or claim complete source-span coverage.
@@ -428,3 +428,73 @@ checks also apply. No local builds or manual release/dispatch operations.
 All selected search-directive work is complete. GAP-002 remains active for
 other parser throw paths, source-derived parser coordinates/spans, and
 full-contract verification. Continue this target on the next run.
+
+
+## Current Run: Output Validation Failures (2026-09-23 evening)
+
+Continue GAP-002. Startup: clean main at cc1ba2687f9a10d8aa8488323d155a5e0fccc338,
+no active Git operation or pending job-owned publication. Initial pull/rebase
+reported already up to date. The remote default branch is main and the existing
+HTTPS publication path is accessible.
+
+Bounded design: attach P005 (invalid output operation) using the existing
+parserError helper at five reachable explicit validation sites: render target,
+write/write3d in expression context, write surface, write3d texture, and
+write3d geometry. Preserve native SyntaxError and exact messages, accepted and
+rejected DSL, validation order, successful AST/compile shapes, defaults, saved
+programs, rendered output, and step indexes. Location identifies the rejected
+token (write keyword for expression-context rejection), or is null for missing
+caller coordinates; span remains null. Token-counter limitations remain.
+The unreachable duplicate-render and write-dispatch fallback throw sites are
+not selected; no control-flow change is authorized by this item.
+
+Files: shaders/src/lang/parser.js, shaders/src/lang/diagnostics.js,
+shaders/tests/test_diagnostic_locations.js, llms-full.txt, and this record.
+No shader programs, effects, backends, or Python changes. No callable Shade
+tools were discovered; this item changes language errors only.
+
+Publication consequences: existing Shaders hosted/GPU tests gate bundles and
+Scaffold library/static-site dispatches; library tags trigger Release artifacts.
+Docs site, Site, and Downstream also trigger for the selected paths. No manual
+dispatch, local build, or publication-system change.
+
+- [x] Add parse/compile regressions for all five sites, EOF, multiline/CRLF/tab/
+  UTF-16 input, unavailable caller coordinates, unchanged shared-expect errors,
+  and valid render/write/write3d shapes. Verify missing diagnostics fail first.
+- [x] Add P005 to the catalog and replace only the five selected error constructors.
+- [x] Review the complete diff; run focused diagnostics, language aggregate,
+  non-parity JS aggregate, lint, docs static paths, differential compatibility,
+  and diff hygiene. Fix every actionable finding.
+- [x] Narrow the proven gap statement; keep GAP-002 active and the open count.
+- [ ] Commit scoped changes, rebase, push normally, verify exact-source CI and
+  existing downstream artifacts, and publish final evidence.
+
+Review focus: malformed caller-token coordinates, EOF targets, UTF-16 columns,
+shared expectation precedence, and accepted output forms/defaults/indexes.
+Full source-derived parser coordinates and remaining throw paths stay open.
+
+
+### Output Validation Evidence
+
+- Corrected the success fixture to assert the existing render result string
+  (`o1`) before final red verification. Corrected red run exited 1: 65 passed /
+  14 failed, all failures because error.diagnostic was missing. Legacy message
+  and class checks passed, as did accepted-form and precedence compatibility.
+- Focused green run: 79 passed / 0 failed, exit 0. Both parse and compile cover
+  all five selected sites; EOF, CRLF/tab/UTF-16, unavailable caller coordinates,
+  native error/JSON compatibility, accepted surface/reference forms, render
+  selection, shared expectation precedence, and compiled indexes are covered.
+
+- Shader-language aggregate, non-parity JavaScript aggregate, ESLint, and
+  four-case docs static-path suite all exited 0. The existing MIDI adapter-
+  unavailable fixture logged its expected error and passed.
+- Differential verification against cc1ba268: 4,555 generated inputs, 5 lexer
+  rejections excluded, 354 accepted ASTs/compile outcomes unchanged, 4,196 parser
+  rejections preserving legacy class/message/JSON/enumeration, and 2,167 errors
+  gaining P005. Other structured diagnostics stayed unchanged.
+- Complete diff review and independent read-only review found no actionable
+  issues. The independent reviewer reran 79 focused cases and diff hygiene;
+  an additional 65 caller-coordinate/property-descriptor checks passed.
+- Only the five planned files changed. Diff hygiene passed; 23 open gap rows
+  remain. GAP-002 is active for remaining parser throw paths, source-derived
+  coordinates/spans, and full-contract verification. No local builds ran.

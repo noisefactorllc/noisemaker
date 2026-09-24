@@ -446,7 +446,7 @@ export function parse(tokens) {
         advance()
         expect('LPAREN', "Expect '('")
         if (peek().type !== 'OUTPUT_REF') {
-            throw new SyntaxError('Expected output reference in render()')
+            throw parserError('P005', 'Expected output reference in render()', peek())
         }
         const out = { type: 'OutputRef', name: advance().lexeme }
         expect('RPAREN', "Expect ')'")
@@ -709,7 +709,7 @@ export function parse(tokens) {
             if (nextType === 'WRITE' || nextType === 'WRITE3D') {
                 if (context === 'expression') {
                     const t = peek()
-                    throw new SyntaxError(`'.write()' is only allowed in statement context at line ${t.line} col ${t.col}`)
+                    throw parserError('P005', `'.write()' is only allowed in statement context at line ${t.line} col ${t.col}`, t)
                 }
                 // Parse write/write3d as a node in the chain (chainable)
                 const writeNode = parseWriteCall()
@@ -762,7 +762,7 @@ export function parse(tokens) {
                 // "none" is a valid target meaning "don't write to any surface"
                 surface = { type: 'OutputRef', name: advance().lexeme }
             } else {
-                throw new SyntaxError(`write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none) at line ${peek().line} col ${peek().col}`)
+                throw parserError('P005', `write() requires an explicit surface reference (e.g., o0, o1, xyz0, vel0, rgba0, mesh0, none) at line ${peek().line} col ${peek().col}`, peek())
             }
             expect('RPAREN', "Expect ')'")
             return {
@@ -783,7 +783,7 @@ export function parse(tokens) {
                         ? { type: 'VolRef', name: advance().lexeme }
                         : { type: 'Ident', name: advance().lexeme }
             } else {
-                throw new SyntaxError(`Expected tex3d reference in write3d() at line ${peek().line} col ${peek().col}`)
+                throw parserError('P005', `Expected tex3d reference in write3d() at line ${peek().line} col ${peek().col}`, peek())
             }
             expect('COMMA', "Expect ',' between tex3d and geo in write3d()")
             // Parse geo reference
@@ -796,7 +796,7 @@ export function parse(tokens) {
                         ? { type: 'GeoRef', name: advance().lexeme }
                         : { type: 'Ident', name: advance().lexeme }
             } else {
-                throw new SyntaxError(`Expected geo reference in write3d() at line ${peek().line} col ${peek().col}`)
+                throw parserError('P005', `Expected geo reference in write3d() at line ${peek().line} col ${peek().col}`, peek())
             }
             expect('RPAREN', "Expect ')'")
             return {
