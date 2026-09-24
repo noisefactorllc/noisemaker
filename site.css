@@ -9,10 +9,11 @@
   --nm-muted: #b6adb5;
   --nm-dim: oklch(78.1% 0.017 325.8);
   --nm-magenta: #ff6fbc;
-  /* Ink for text sitting on --nm-magenta surfaces (header bar, primary button). Dark enough for
-     WCAG AA on that pink (4.74:1); --nm-bg only reaches 3.83:1 there. Value in OKLCH per the
-     handfish design system. */
-  --nm-on-magenta: oklch(33.4% 0.003 286.2);
+  /* Ink for text sitting on --nm-magenta surfaces (header bar, primary button). White per
+     operator preference: the previous AA-tuned dark ink (4.74:1) read as too dark over the
+     bright header strip. White measures 2.54:1 on the pink — below WCAG AA — so the header
+     pairs it with a dark text-shadow for legibility. */
+  --nm-on-magenta: #ffffff;
   --nm-pink: #ffaad6;
   --nm-lime: #33ff00;
   --nm-cyan: #6ae8ff;
@@ -96,7 +97,7 @@ pre {
   font-weight: 900;
   font-size: 1.05rem;
   line-height: 1;
-  text-shadow: 0 1px 2px color-mix(in srgb, var(--nm-text) 45%, transparent);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 0, 0, 0.45);
 }
 
 .nm-brand:hover {
@@ -126,7 +127,7 @@ pre {
   color: var(--nm-on-magenta);
   opacity: 1;
   font-weight: 750;
-  text-shadow: 0 1px 2px color-mix(in srgb, var(--nm-text) 45%, transparent);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 0, 0, 0.45);
 }
 
 .nm-nav a:hover {
