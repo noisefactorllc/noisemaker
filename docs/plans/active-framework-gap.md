@@ -466,7 +466,7 @@ dispatch, local build, or publication-system change.
   non-parity JS aggregate, lint, docs static paths, differential compatibility,
   and diff hygiene. Fix every actionable finding.
 - [x] Narrow the proven gap statement; keep GAP-002 active and the open count.
-- [ ] Commit scoped changes, rebase, push normally, verify exact-source CI and
+- [x] Commit scoped changes, rebase, push normally, verify exact-source CI and
   existing downstream artifacts, and publish final evidence.
 
 Review focus: malformed caller-token coordinates, EOF targets, UTF-16 columns,
@@ -498,3 +498,44 @@ Full source-derived parser coordinates and remaining throw paths stay open.
 - Only the five planned files changed. Diff hygiene passed; 23 open gap rows
   remain. GAP-002 is active for remaining parser throw paths, source-derived
   coordinates/spans, and full-contract verification. No local builds ran.
+
+### Output Validation Publication Reconciliation (2026-09-24)
+
+- The previous run stopped before pushing because concurrent unrelated edits
+  made the checkout unsafe. Its corrected scoped commit was
+  `7a54ab3856d71ce037f11215572e8137ad4f53c0`; no unrelated work was published by
+  that run. This run verified all five retained commit blobs against its
+  checkpoint and reviewed the complete diff again with no actionable findings.
+- Startup was clean main at `285e50f538371ffa1ed5656821a417fef36e7c5c`, with no
+  active Git operation or local-only commits. Initial pull/rebase was unchanged.
+  Remote main already contained the implementation through published tip
+  `c9ee8a049b2b63cd300da67c01ee40baf29dc288`. The only changes between the
+  implementation and that tip were `LEDGER.md` and `llms-full.txt`; shader
+  sources, tests, dependency manifests, scripts, and workflows were identical.
+- There are no CI runs for ancestor `7a54ab38` itself. Exact published-tip CI at
+  `c9ee8a04` passed: [Shaders 35958155355](https://github.com/noisefactorllc/noisemaker/actions/runs/35958155355),
+  [Docs site 35958155293](https://github.com/noisefactorllc/noisemaker/actions/runs/35958155293),
+  [Site 35958155325](https://github.com/noisefactorllc/noisemaker/actions/runs/35958155325),
+  and [Downstream 35958155287](https://github.com/noisefactorllc/noisemaker/actions/runs/35958155287).
+  Shaders passed hosted tests, GPU tests, bundles, and both release dispatches.
+  Its exact-SHA artifact was nonempty (1,441,592 bytes) and unexpired.
+- [Scaffold library release 35958426549](https://github.com/noisefactorllc/scaffold/actions/runs/35958426549)
+  passed for `c9ee8a04`, including successful purge of all seven CDN edges.
+  Scaffold static-site runs `35958166180` and `35958425307` passed for
+  noisemaker-site; `35958182265` passed for noisemaker-docs at that same SHA.
+  No separate current live-site or live-CDN assertion is made.
+- [Release 35958467661](https://github.com/noisefactorllc/noisemaker/actions/runs/35958467661)
+  passed. The `v1.0.176` annotated tag resolves to exactly `c9ee8a04`; all eight
+  expected desktop, shader, and JavaScript assets are nonempty. The release is
+  neither draft nor prerelease. One sequential `gh run watch --exit-status`
+  process for each of Shaders, library release, and Release exited 0; all had
+  already completed successfully. No manual dispatch or release was performed.
+- Fresh local verification on unchanged engine sources: focused diagnostics
+  79/79, shader-language aggregate, non-parity JavaScript aggregate, ESLint,
+  and documentation paths 4/4 all passed. The expected MIDI adapter-unavailable
+  fixture passed. JavaScript CI was not triggered by the published paths;
+  inapplicable Dependabot auto-merge was skipped. No local builds ran.
+
+The prior output-validation implementation and publication are verified. This
+run completes its evidence record only. GAP-002 remains active for other parser
+throw paths, source-derived coordinates/spans, and full-contract verification.
