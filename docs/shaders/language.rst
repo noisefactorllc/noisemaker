@@ -835,6 +835,10 @@ Diagnostics
      - Parser
      - Error
      - Invalid output operation
+   * - P006
+     - Parser
+     - Error
+     - Invalid subchain
    * - S001
      - Semantic
      - Error
