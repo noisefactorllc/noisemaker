@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `7a54ab3856d71ce037f11215572e8137ad4f53c0`.
+- Noisemaker: `823bbff1d17061d231cb0c7f5bf4527b3344abab`.
 - Shade MCP: `00340b148e109464b1a87d89ff29fc7622d384c9`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.3`, protocol
   `2025-11-25`, with 18 tools returned by `tools/list`.
