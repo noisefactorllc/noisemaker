@@ -827,6 +827,10 @@ Diagnostics
      - Parser
      - Error
      - Invalid automation arguments
+   * - P004
+     - Parser
+     - Error
+     - Invalid search directive
    * - S001
      - Semantic
      - Error
