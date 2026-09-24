@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "surface": "o0",
+  "resolution": [160, 144],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "effects": [
+    "classicNoisedeck/noise",
+    "classicNoisedeck/glitch"
+  ],
+  "dsl": "search classicNoisedeck\nnoise(seed: 1).glitch(glitchiness: 40, scanlinesAmt: 50, snowAmt: 30).write(o0)\nrender(o0)"
+}
