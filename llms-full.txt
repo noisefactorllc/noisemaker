@@ -453,8 +453,17 @@ column. `parse(tokens, { subchainArguments: 'strict' })` and
 `compile(src, { subchainArguments: 'strict' })` are the one explicit opt-in
 path that rejects the same conditions with `SyntaxError` diagnostics carrying
 the same codes, severity `error`, and source spans. Default parse acceptance
-is unchanged. GAP-027 documents this contract; closure of GAP-027 is pending
-publication and exact-source verification of the implementing revision.
+is unchanged. The contract is implemented in
+`240740dd2d30cbd0984b179834ab24abe71c8fb2`, which registers the focused suite
+`shaders/tests/test_subchain_arguments.js` and the committed differential gate
+`shaders/tests/test_subchain_argument_differential.js` (with fixture
+`shaders/tests/fixtures/subchain-argument-baseline.json`) against the recorded
+baseline revision `3886ecfa41fdebdf2428f07fec05ab46602c07f2`. All six of that
+revision's public push runs completed successfully (Shaders 36105621091,
+Docs site 36105621142, Site 36105621096, Downstream 36105621082, JavaScript
+36105621083, Release 36106261468). GAP-027 remains open: closure waits on
+independent review and exact-source verification of the published contract
+record, including this file's own Site deployment revision.
 
 `Namespace` must already be registered and valid. Inline call namespaces such
 as `synth.noise()` are rejected. Put the namespace in `search`, or use
