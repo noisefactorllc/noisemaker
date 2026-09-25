@@ -1823,7 +1823,18 @@ export class Pipeline {
             try {
                 for (let i = 0; i < this.graph.passes.length; i++) {
                     const originalPass = this.graph.passes[i]
+                    // Resolve authored viewport specs (GAP-005) before the
+                    // oscillator proxy is built so the proxy can carry the
+                    // cached resolved box; re-resolve after uniform
+                    // resolution so param-driven viewports track the
+                    // frame's uniform values.
+                    if (originalPass.viewport !== undefined) {
+                        this.resolvePassViewport(originalPass)
+                    }
                     const pass = this.resolvePassUniforms(originalPass, time)
+                    if (originalPass.viewport !== undefined) {
+                        this.resolvePassViewport(pass, originalPass)
+                    }
                     // Check pass conditions
                     if (this.shouldSkipPass(pass)) {
                         continue
@@ -2024,6 +2035,7 @@ export class Pipeline {
         proxy.repeat = pass.repeat
         proxy.conditions = pass.conditions
         proxy.viewport = pass.viewport
+        proxy.viewportResolved = pass.viewportResolved
         proxy.drawBuffers = pass.drawBuffers
         proxy.storageTextures = pass.storageTextures
         proxy.samplerTypes = pass.samplerTypes
@@ -2096,6 +2108,58 @@ export class Pipeline {
         }
 
         return 1
+    }
+
+    /**
+     * Resolve an authored pass viewport spec to backend {x, y, w, h} numbers
+     * (GAP-005). The authored spec accepts the same dimension grammar as
+     * texture sizes (numbers, 'screen', percentages, {param}/{screenDivide}/
+     * {scale, clamp} forms) on the x/y/w/h/width/height keys. Resolution is
+     * cached per pass: the reusable box is mutated in place each frame so
+     * param-driven viewports track uniform changes without per-frame
+     * allocation. The authored spec stays queryable on `pass.viewport`; the
+     * resolved numbers land on `pass.viewportResolved`, which the backends
+     * prefer over the raw spec.
+     * @param {Object} pass - Pass providing the uniforms for resolution (the
+     *   oscillator-resolved proxy when applicable)
+     * @param {Object} [cacheHolder] - Object carrying the cached resolution
+     *   (the original compiled pass; defaults to `pass`)
+     */
+    resolvePassViewport(pass, cacheHolder = pass) {
+        const spec = cacheHolder.viewport
+        if (!spec || typeof spec !== 'object') return
+
+        if (cacheHolder._viewportSpecSource !== spec) {
+            Object.defineProperty(cacheHolder, '_viewportSpecSource', { value: spec, enumerable: false, configurable: true, writable: true })
+            const isNumericBox = typeof spec.x === 'number' && typeof spec.y === 'number' &&
+                typeof spec.w === 'number' && typeof spec.h === 'number'
+            if (isNumericBox) {
+                // Legacy contract: an already-numeric viewport passes through
+                // unchanged, exactly like a manually constructed graph pass.
+                Object.defineProperty(cacheHolder, '_viewportBox', { value: null, enumerable: false, configurable: true, writable: true })
+                cacheHolder.viewportResolved = spec
+                if (pass !== cacheHolder) pass.viewportResolved = spec
+                return
+            }
+            const box = { x: 0, y: 0, w: 0, h: 0 }
+            Object.defineProperty(cacheHolder, '_viewportBox', { value: box, enumerable: false, configurable: true, writable: true })
+        }
+
+        if (cacheHolder.viewportResolved === spec) {
+            if (pass !== cacheHolder) pass.viewportResolved = spec
+            return
+        }
+
+        const box = cacheHolder._viewportBox
+        const uniforms = pass.uniforms || {}
+        box.x = this.resolveDimension(spec.x ?? 0, this.width, uniforms)
+        box.y = this.resolveDimension(spec.y ?? 0, this.height, uniforms)
+        const widthSpec = spec.w ?? spec.width
+        const heightSpec = spec.h ?? spec.height
+        box.w = widthSpec !== undefined ? this.resolveDimension(widthSpec, this.width, uniforms) : this.width
+        box.h = heightSpec !== undefined ? this.resolveDimension(heightSpec, this.height, uniforms) : this.height
+        cacheHolder.viewportResolved = box
+        if (pass !== cacheHolder) pass.viewportResolved = box
     }
 
     /**

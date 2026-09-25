@@ -2242,8 +2242,12 @@ export class WebGPUBackend extends Backend {
             return { x: 0, y: 0, w: tex.width, h: tex.height }
         }
 
-        if (pass.viewport) {
-            return { x: pass.viewport.x, y: pass.viewport.y, w: pass.viewport.w, h: pass.viewport.h }
+        // Authored viewport resolution (GAP-005): the pipeline-resolved
+        // numbers take precedence over a raw spec; a manually supplied
+        // numeric viewport keeps its legacy direct read.
+        const viewport = pass.viewportResolved || pass.viewport
+        if (viewport) {
+            return { x: viewport.x, y: viewport.y, w: viewport.w, h: viewport.h }
         }
 
         if (this.context?.canvas) {

@@ -1280,10 +1280,16 @@ export class WebGL2Backend extends Backend {
         // Set viewport
         if (viewportTex) {
             gl.viewport(0, 0, viewportTex.width, viewportTex.height)
-        } else if (effectivePass.viewport) {
-            gl.viewport(effectivePass.viewport.x, effectivePass.viewport.y, effectivePass.viewport.w, effectivePass.viewport.h)
         } else {
-            gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight)
+            // Authored viewport resolution (GAP-005): the pipeline-resolved
+            // numbers take precedence over a raw spec; a manually supplied
+            // numeric viewport keeps its legacy direct read.
+            const viewport = effectivePass.viewportResolved || effectivePass.viewport
+            if (viewport) {
+                gl.viewport(viewport.x, viewport.y, viewport.w, viewport.h)
+            } else {
+                gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight)
+            }
         }
 
         // DEBUG: Clear to random color to verify FBO write
