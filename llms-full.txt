@@ -4028,7 +4028,7 @@ convention is documented: one-based line/column counting UTF-16 code units,
 LF-only line breaks, CR and tabs one column, and non-enumerable token
 `position` metadata that leaves the public token shape, enumeration, and
 `JSON.stringify` unchanged. Legacy error messages, including their historical
-token-counter text, are byte-for-byte preserved. Regressions (115 focused
+token-counter text, are byte-for-byte preserved. Regressions (122 focused
 cases) prove every contract branch and legacy compatibility through public
 `lex()`, `parse()`, and `compile()` entry points, with red-green
 demonstration, an independent source-walk oracle, and differential
@@ -4036,7 +4036,23 @@ verification against the pre-change baseline. Semantic diagnostics preserve
 parser-provided columns. The diagnostic schema, coordinate convention, source
 files, and evidence are recorded in `docs/plans/active-framework-gap.md`.
 Source-derived parser coordinates and spans are part of the implemented
-contract; complete AST `loc` coverage is not a public contract.
+contract; complete AST `loc` coverage is not a public contract. Verification
+provenance: implementation commits `4891b9953f9fd8a61cf9ae0dda2fe747a9be82df`
+(call-form and expectation diagnostics), `9fa1a2213141cbec4bca3e5ef2768cd00eae617f`
+(source-derived parser coordinates), and
+`fca611fd8f91424661d4e531d39313d24ea21134` (numeric-coercion source positions)
+were published to `main` through independent review. Exact-commit CI for the
+final published SHA `fca611fd8f91424661d4e531d39313d24ea21134` passed: Shaders
+`36091601774`, Docs site `36091601761`, Site `36091601784`, and Downstream
+`36091601748`; `4891b9953f9fd8a61cf9ae0dda2fe747a9be82df` passed Shaders
+`36086042048`, Docs site `36086042055`, Site `36086042037`, Downstream
+`36086042178`, and Release `36086653725` (`v1.0.178`). Release `v1.0.179`
+(https://github.com/noisefactorllc/noisemaker/actions/runs/36091877629, with
+Scaffold library release `36091843217`) resolves to exactly
+`fca611fd8f91424661d4e531d39313d24ea21134`, publishes all eight assets, and
+purges all seven CDN edges; https://noisemaker.app/ serves that SHA. The
+closure-record updates live in `docs/plans/active-framework-gap.md`
+(`8a21c9ca34a7963e4235274cbe680ed0d354142a`).
 
 GAP-005 is narrowed, not closed, at noisemaker `ff1bfbc1`: `conditions` is
 copied by `expand()` and reaches `Pipeline.shouldSkipPass()`, so it is no
