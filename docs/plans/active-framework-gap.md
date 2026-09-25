@@ -1,6 +1,6 @@
 # Active Framework Gap: GAP-027
 
-Status: open (bounded implementation in progress; closure pending publication and verification)
+Status: closed
 
 The prior active-target record for GAP-002 is preserved below, unchanged. It
 closed and published successfully; see its "Completed Evidence" section.
@@ -110,9 +110,9 @@ One contract, reported through the existing language API:
 - [x] Run all seven declared checks (dependencies, diagnostic-locations,
   shader-language, javascript, lint, docs-paths, diff-hygiene) plus
   `npm run test:shaders:lang`: all exit 0 at the candidate commit.
-- [ ] Independent review of the exact commits, direct-main publication,
+- [x] Independent review of the exact commits, direct-main publication,
       exact-commit CI, and exact-revision site verification.
-- [ ] Update the `llms-full.txt` GAP-027 row and open-gap register from
+- [x] Update the `llms-full.txt` GAP-027 row and open-gap register from
       verified evidence; mark GAP-027 closed only after the full contract is
       proven published.
 
@@ -127,6 +127,17 @@ One contract, reported through the existing language API:
 - Aggregate: `npm run test:shaders:lang` exited 0 including the registered
   suite; `node --test test/docs-static-paths.test.js` exited 0 after the
   record/`llms-full.txt` update; `git diff --check` exited 0.
+- Closure evidence (2026-09-25): implementing revision
+  `240740dd2d30cbd0984b179834ab24abe71c8fb2` has six successful public push
+  runs (Shaders 36105621091, Docs site 36105621142, Site 36105621096,
+  Downstream 36105621082, JavaScript 36105621083, Release 36106261468).
+  Publication record `0610e077e294ff19f4c341f3bb2336a97d217bc1` passed
+  independent review (7c8806d0-839c-4bf3-984e-191ac6fdf814), all seven
+  declared source checks, its own exact-source Site run (36139959380,
+  success), and exact-revision deployment verification at
+  https://noisemaker.app/ (`deployment-meta.json` serves that SHA; verified
+  2026-09-25T13:17:24.773Z). The `llms-full.txt` GAP-027 row was removed and
+  the open-gap register updated from 22 to 21 entries.
 
 # Prior Active-Target Record: GAP-002 (closed, preserved)
 

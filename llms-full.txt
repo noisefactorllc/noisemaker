@@ -461,9 +461,12 @@ is unchanged. The contract is implemented in
 baseline revision `3886ecfa41fdebdf2428f07fec05ab46602c07f2`. All six of that
 revision's public push runs completed successfully (Shaders 36105621091,
 Docs site 36105621142, Site 36105621096, Downstream 36105621082, JavaScript
-36105621083, Release 36106261468). GAP-027 remains open: closure waits on
-independent review and exact-source verification of the published contract
-record, including this file's own Site deployment revision.
+36105621083, Release 36106261468). The publication record revision
+`0610e077e294ff19f4c341f3bb2336a97d217bc1` then passed independent review
+(7c8806d0-839c-4bf3-984e-191ac6fdf814), its seven declared source checks, its
+own exact-source Site workflow run (36139959380, success), and exact-revision
+deployment verification at https://noisemaker.app/ (`deployment-meta.json`
+serves that same SHA; verified 2026-09-25T13:17:24.773Z). GAP-027 is closed.
 
 `Namespace` must already be registered and valid. Inline call namespaces such
 as `synth.noise()` are rejected. Put the namespace in `search`, or use
@@ -3970,7 +3973,7 @@ Every cell points to an executable contract or an explicitly identified gap.
 
 | Surface | Introspect | Act | Validate | Diagnose |
 |---|---|---|---|---|
-| DSL program | `Token`, `ParsedProgram`, `CompiledProgram`, registry keys, `CompiledGraph` | Complete EBNF plus call/read/write/render and nested-automation contracts | parse/unparse/compile and render metric predicates | `SyntaxError`, `Diagnostic`, `CompilationFailure`. GAP-027 |
+| DSL program | `Token`, `ParsedProgram`, `CompiledProgram`, registry keys, `CompiledGraph` | Complete EBNF plus call/read/write/render and nested-automation contracts | parse/unparse/compile and render metric predicates | `SyntaxError`, `Diagnostic`, `CompilationFailure` |
 | Effect definition | `Effect` fields, registry/manifest, `checkEffectStructure` | `EffectDefinition` typed grammar | validator and structure scan. Browser backend identity is GAP-024 | exact validator messages, structural arrays, backend errors. GAP-003/007/024/026 |
 | Parameters and globals | `effect.globals`, transformed `uniforms`, registry params, MIDI/audio state and capture requirements | `GlobalSpec`, nested automation, and selected-input contracts | compile reflection, state-selection predicates, and numeric response deltas | transform errors, type/range/identity/capture blind spots. GAP-010/011/024/032 |
 | Passes and render graph | `Effect.passes`, `CompiledGraph.passes`, `CompiledGraph.textures`, `CompiledGraph.allocations` | `PassSpec` typed grammar, sampler/output binding rules, and MRT byte adaptation | graph analysis and per-pass compile | unresolved inputs and backend compile/resource failures. GAP-005/006 |
@@ -4100,10 +4103,9 @@ longer on the uncopied-field list below. `name`, `viewport`, `clear`,
 | GAP-021 | `renderEffectFrame` requested resolution can differ from returned canvas dimensions without a warning | Shade `src/tools/browser/render.ts` sets viewport but reads canvas dimensions; exact transcript requested `256x256` and returned `90x90` | thresholds run on an unexpected sample size unless the caller checks `frame.width/height` |
 | GAP-024 | Browser MCP readiness and backend switching are not bound to requested effect, compiled graph, and actual backend identity | Shade `src/tools/browser/compile.ts`, `render.ts`, `benchmark.ts`, `uniforms.ts`, `passthrough.ts`, and `dsl.ts` poll status text; `describe.ts` delegates to `renderEffectFrame`; `src/tools/browser/parity.ts` waits only for a noncompiling nonempty graph; `src/harness/browser-session.ts` dispatches selection without awaiting the Noisemaker asynchronous load and `setBackend()` silently exits after its poll timeout | any browser `ok` result, including parity, can describe a previously ready graph or unintended backend. Configured backend labels do not prove page state, and no current result field makes those identity mismatches uniformly diagnosable |
 | GAP-026 | `onInit`, `onUpdate`, and `onDestroy` are copied into `Effect` wrappers but are not invoked by the production renderer | `shaders/src/runtime/effect.js` defines the wrappers; only `shaders/tests/harness_effect.js` calls them; `shaders/src/runtime/pipeline.js` calls `asyncInit` only | an authored config callback can look valid but never run in production. Use only `asyncInit` as a production lifecycle hook until callers exist |
-| GAP-027 | Subchain-argument validation now exists (pending publication/verification): enforced key set `name`/`id`, duplicate-key and missing-separator reports, and discarded-key reporting with stable codes P008/P009/P010 and source locations; opt-in strict rejection via `subchainArguments: 'strict'` | `shaders/src/lang/parser.js` - `parseSubchainCall()`; `shaders/src/lang/diagnostics.js`; `shaders/src/lang/validator.js` | closed once the implementing revision passes review, exact-source CI, and exact-revision site verification |
 | GAP-029 | Effect-index invalidation does not supersede an in-flight rebuild | Shade `src/knowledge/shared-instances.ts` leaves `building` intact in `invalidateSharedEffectIndex()` and shares it with the next reader | a list/search immediately after a library change or `generateManifest` can retain a pre-change index for the next five-second TTL. Retry after that TTL when freshness matters |
 | GAP-032 | The built-in browser audio manager cannot populate selected-device/default-channel state or any `rawReady` value | `shaders/src/runtime/external-input.js` - `AudioInputManager.enable()` opens one default stream and `_updateLoop()` updates only aggregate spectrum, waveform, bands, and volume; selected/raw setters exist only on `AudioState` | Channel-only, named-channel, and raw audio bindings evaluate to `min` under the shipped manager unless the host separately consumes `getAudioInputRequirements()` and populates `AudioState`. The runtime gives no warning when that integration is absent. |
 
 The matrix has 9 surfaces x 4 capabilities = 36 filled cells. Cells that rely
-on behavior absent from code link to the 22 open gaps above rather than substituting
+on behavior absent from code link to the 21 open gaps above rather than substituting
 an invented contract.
