@@ -497,9 +497,16 @@ function evaluateAudio(config, audioState, min = config.min, max = config.max) {
 }
 
 export class Pipeline {
-    constructor(graph, backend) {
+    constructor(graph, backend, options = {}) {
         this.graph = graph
         this.backend = backend
+        // Opt-in consumption of the analyzer's physical allocation plan
+        // (graph.allocations): pooled virtual textures share one backend
+        // texture. Default off preserves the historical one-texture-per-virtual
+        // behavior for every existing program.
+        this.texturePooling = options.texturePooling === true
+        // virtualId -> storageId for pooled textures (rebuilt per recreateTextures)
+        this._textureAliases = new Map()
         this.sinkManager = new SinkManager()
         this._sinkDescriptor = {
             width: 0,
@@ -1317,6 +1324,14 @@ export class Pipeline {
     recreateTextures(uniforms = {}) {
         if (!this.graph || !this.graph.textures) return
 
+        // Rebuild the pooling plan from the analyzer's allocation map. Must run
+        // after applyMrtFormatBudget() so demoted formats are seen here.
+        const previousAliases = this._textureAliases
+        this._textureAliases = this.texturePooling
+            ? this.buildTexturePoolingPlan()
+            : new Map()
+        this.releaseRegroupedTextures(previousAliases, this._textureAliases)
+
         for (const [texId, spec] of this.graph.textures.entries()) {
             // Check if this is a global surface (double-buffered)
             // Global surfaces use naming like "global_node_X_caState" in textures map
@@ -1386,6 +1401,12 @@ export class Pipeline {
                 })
             } else {
                 // Handle regular (non-global) texture
+                // Pooled secondary members skip their own allocation: the
+                // storage texture is created once under the group's primary id
+                // and aliased below (applyTextureAliases()).
+                const storageId = this._textureAliases.get(texId)
+                if (storageId && storageId !== texId) continue
+
                 // Reuse only when dimensions, format, and depth all match.
                 const existingTex = this.backend.textures?.get?.(texId)
                 if (existingTex &&
@@ -1418,7 +1439,188 @@ export class Pipeline {
                 }
             }
         }
+        this.applyTextureAliases()
         this.refreshMipTargets()
+    }
+
+    /**
+     * Build the pooling plan consumed from the analyzer's physical allocation
+     * map (graph.allocations, produced by allocateResources()). Returns a Map
+     * of virtualId -> storageId for every poolable texture; members of a
+     * physical group share one backend texture created under the group's
+     * primary (first) member id.
+     *
+     * A group is poolable only when every member carries an identical plain
+     * 2D spec: persistent textures must keep their cross-frame contents, and
+     * mipmapped/3D textures carry policy state a shared record must not
+     * absorb. Groups with mismatched dimensions or formats fall back to
+     * standalone textures.
+     *
+     * First-read safety: a member whose first touch in the pass list is an
+     * input read (or that is sampled by its own producing pass) expects the
+     * zero-initialized/previous-frame contents a standalone texture would
+     * hold, so it is never pooled into a slot a group-mate writes earlier in
+     * the same frame. The same protection excludes textures written by
+     * partial/non-clearing passes — any explicit `drawMode` (points,
+     * billboards, triangles) scatters geometry without covering the surface,
+     * and `blend` makes the result depend on the destination's previous
+     * contents — because pooled storage would hand them a group-mate's
+     * content instead of their own accumulated state.
+     * @returns {Map} Map<virtualId, storageId>
+     */
+    buildTexturePoolingPlan() {
+        const allocations = this.graph?.allocations
+        const textures = this.graph?.textures
+        const aliases = new Map()
+        if (!(allocations instanceof Map) || !textures) return aliases
+
+        // First-touch classification from the pass list
+        const firstTouchIsWrite = new Map()
+        const selfSampled = new Set()
+        const partiallyWritten = new Set()
+        for (const pass of this.graph.passes || []) {
+            const inputs = new Set(Object.values(pass.inputs || {}))
+            const outputs = Object.values(pass.outputs || {})
+            // A pass that does not fully overwrite its target (scatter draw
+            // modes, blending against the destination) leaves the texture's
+            // previous contents observable, so pooled storage is unsafe.
+            if (pass.drawMode || pass.blend) {
+                for (const texId of outputs) partiallyWritten.add(texId)
+            }
+            for (const texId of outputs) {
+                if (!firstTouchIsWrite.has(texId)) firstTouchIsWrite.set(texId, true)
+                if (inputs.has(texId)) selfSampled.add(texId)
+            }
+            for (const texId of inputs) {
+                if (!firstTouchIsWrite.has(texId)) firstTouchIsWrite.set(texId, false)
+            }
+        }
+
+        const groups = new Map() // physicalId -> [virtualIds]
+        for (const [texId, physicalId] of allocations) {
+            if (!physicalId || !textures.has(texId)) continue
+            // Global surfaces are double-buffered and never pooled
+            if (texId.startsWith('global')) continue
+            if (firstTouchIsWrite.get(texId) === false) continue
+            if (selfSampled.has(texId)) continue
+            if (partiallyWritten.has(texId)) continue
+            if (!groups.has(physicalId)) groups.set(physicalId, [])
+            groups.get(physicalId).push(texId)
+        }
+
+        for (const members of groups.values()) {
+            if (members.length < 2) continue
+            const specs = members.map(id => textures.get(id))
+            if (specs.some(spec => !spec ||
+                spec.persistent === true ||
+                spec.mipmaps === true ||
+                spec.is3D === true)) {
+                continue
+            }
+            const signature = spec => JSON.stringify([spec.width, spec.height, spec.format])
+            const first = signature(specs[0])
+            if (!specs.every(spec => signature(spec) === first)) continue
+
+            const storageId = members[0]
+            for (const member of members) aliases.set(member, storageId)
+        }
+        return aliases
+    }
+
+    /**
+     * Destroy backend textures of pooling groups whose membership changed
+     * since the previous plan, so the recreation loop rebuilds them with the
+     * correct (standalone or re-grouped) sharing.
+     */
+    releaseRegroupedTextures(previousAliases, nextAliases) {
+        if (!(previousAliases instanceof Map) || previousAliases.size === 0) return
+        const groups = new Map()
+        for (const [member, storage] of previousAliases) {
+            if (!groups.has(storage)) groups.set(storage, [])
+            groups.get(storage).push(member)
+        }
+        for (const [storage, members] of groups) {
+            const unchanged = members.every(m => nextAliases.get(m) === storage)
+            if (unchanged) continue
+            for (const member of members) {
+                if (this.backend.textures?.has?.(member)) {
+                    this.backend.destroyTexture(member)
+                }
+            }
+        }
+    }
+
+    /**
+     * Point every pooled secondary member's backend map entry at its group's
+     * shared storage record, so pass execution binds the same texture through
+     * either id.
+     */
+    applyTextureAliases() {
+        for (const [member, storage] of this._textureAliases) {
+            if (member === storage) continue
+            const record = this.backend.textures?.get?.(storage)
+            if (!record) continue
+            const existing = this.backend.textures?.get?.(member)
+            if (existing && existing !== record) {
+                this.backend.destroyTexture(member)
+            }
+            this.backend.textures?.set?.(member, record)
+        }
+    }
+
+    /**
+     * Query the actual runtime texture allocation/reuse plan.
+     *
+     * Reports the analyzer's physical allocation map (graph.allocations) and
+     * the sharing the renderer actually materialized: non-global graph
+     * textures grouped by identical backend texture record. With texture
+     * pooling enabled, members of a `sharedTextures` group are served by one
+     * physical texture; without it every virtual texture owns its own record.
+     * @returns {object} { pooling, allocations, sharedTextures, textures }
+     */
+    getResourcePlan() {
+        const textures = this.graph?.textures
+        if (!textures) {
+            return {
+                pooling: this.texturePooling === true,
+                allocations: new Map(),
+                sharedTextures: [],
+                textures: []
+            }
+        }
+        const allocations = this.graph.allocations instanceof Map
+            ? this.graph.allocations
+            : new Map()
+
+        const records = new Map() // backend record object -> { id, members }
+        for (const [texId] of textures) {
+            if (texId.startsWith('global')) continue
+            const record = this.backend?.textures?.get?.(texId)
+            if (!record) continue
+            if (!records.has(record)) records.set(record, { id: texId, members: [] })
+            records.get(record).members.push(texId)
+        }
+
+        const textureRecords = []
+        const sharedTextures = []
+        for (const { id, members } of records.values()) {
+            const record = this.backend.textures.get(id)
+            textureRecords.push({
+                id,
+                width: record?.width,
+                height: record?.height,
+                format: record?.format,
+                virtualTextures: members
+            })
+            if (members.length > 1) sharedTextures.push(members)
+        }
+
+        return {
+            pooling: this.texturePooling === true,
+            allocations,
+            sharedTextures,
+            textures: textureRecords
+        }
     }
 
     /**
@@ -2506,7 +2708,7 @@ export async function createPipeline(graph, options = {}) {
         throw new Error('No backend available or canvas not provided')
     }
 
-    const pipeline = new Pipeline(graph, backend)
+    const pipeline = new Pipeline(graph, backend, options)
     await pipeline.init(options.width || 800, options.height || 600)
 
     return pipeline
