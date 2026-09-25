@@ -1,6 +1,6 @@
 # Active Framework Gap: GAP-003
 
-Status: implemented (closure pending exact-source CI/publication verification)
+Status: closed (implemented and verified at 9d3474dfdc6cb737ebb7b2f3598b16d940af1544)
 
 The prior active-target record for GAP-027 is preserved below, unchanged. It
 closed and published successfully; see its "Completed Evidence" section.
@@ -55,10 +55,46 @@ capability checks, and runtime behavior; the validator proves structure only.
 - All 16 tests and the corpus gate pass locally at the candidate tree;
   `git diff --check` clean; trailing-newline convention restored on the
   validator module.
-- Closure is contingent: exact-source CI (all six declared source workflows
-  and named jobs, including the version-tag Release run), publication, the
-  pinned artifacts check, and exact-revision live site verification must pass
-  at the published implementation commit before GAP-003 is marked closed.
+
+## Completed Evidence (this run)
+
+- Implementation commit: `9d3474dfdc6cb737ebb7b2f3598b16d940af1544` (main,
+  `ba87ffa` validator/tests + `9d3474d` contract completion, wiring, and
+  implementation-phase records). Independent review approved the exact
+  commits (review `0c4ca419-56b3-4d0c-b4cc-e5d1e79422d4`).
+- All six declared source workflows succeeded at that exact SHA: Release
+  (tag `v1.0.181`, run 36155221398: Build JS bundles, Build shader bundle,
+  Build standalone Linux/macOS/Windows, Publish release), JavaScript
+  (36154763053: JS tests, JS lint, bundles, standalones, Publish snapshot
+  release), Shaders (36154762848: Shader tests, GPU tests, Bundle shaders,
+  Dispatch scaffold static-site-release, Dispatch scaffold library-release),
+  Site (36154762845), Downstream (36154762970), Docs site (36154762881).
+- Exact-revision deployments at that SHA: https://noisemaker.app/,
+  https://docs.noisemaker.app/, and the `noisemaker-shaders-core.esm.js`
+  CDN artifact (revision pointers all serve
+  `9d3474dfdc6cb737ebb7b2f3598b16d940af1544`; digests in the verification
+  receipt, verified 2026-09-25T15:39:55.746Z).
+- Pinned artifacts check passed: release `v1.0.181` archive (asset
+  sha256 `7d0761df750fdfa030ea1eefda2a83c035124f9bd91939325589abd9de8875bb`),
+  manifest inventory expected=228 executed=228 passed=228 failed=0, docs/CDN
+  revision and body digests matching the source SHA.
+- Machine verification receipt: `"verified": true` at
+  2026-09-25T15:39:55.746Z for candidate
+  `9d3474dfdc6cb737ebb7b2f3598b16d940af1544` with checks dependencies,
+  shader-language, shader-runtime, effect-harness, javascript, lint,
+  docs-paths, diff-hygiene, artifacts.
+
+## Retained criteria and ownership (explicitly not proven by this record)
+
+- `inputOverride` in dimension specs is accepted (string, non-empty) because
+  shipped 3D effects declare it, but no runtime consumer was found; it remains
+  silently uncopied under the GAP-005 uncopied-field gap. GAP-005 retains that
+  propagation gap.
+- `storageBuffers`/`storageTextures` shapes are validated only as objects; no
+  declaration metadata exists to validate their internal grammar structurally.
+- Declaration/schema validation is distinct from shader compilation, GPU
+  capability, and runtime behavior; this record never claims those are proven
+  by CPU structure checks.
 
 ## GAP-027
 
