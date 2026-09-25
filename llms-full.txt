@@ -1852,6 +1852,10 @@ specs may author a filtering policy:
   textures render/compute-write into level 0 (`renderView`/single-mip
   views) and sample through the full-chain view with a linear mipmap
   sampler. Backend texture records expose `mipmaps` and `mipLevels`.
+  Double-buffered global surfaces regenerate both halves each frame; for
+  the read half this is idempotent (its level 0 was not written that
+  frame, so the chain already matches its contents from when it was the
+  write half).
 - `persistent: true` (2D only) preserves contents when the texture is
   recreated at a new size (resize or parameter-driven recreation): the
   pipeline copies the old texture into a temporary, recreates at the new

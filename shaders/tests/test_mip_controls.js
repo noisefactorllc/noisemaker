@@ -311,6 +311,31 @@ await test('mipmapped textures are regenerated after each frame', async () => {
     }
 })
 
+await test('global surface resize recreates each half exactly once (no orphaned texture)', async () => {
+    const backend = new RecordingBackend()
+    const graph = {
+        passes: [{ id: 'p0', program: 'probe', inputs: { src: 'o0' }, outputs: { color: 'o0' } }],
+        textures: new Map(),
+        programs: { probe: { fragment: 'void main() {}' } }
+    }
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(256, 256)
+
+    const id = 'global_o0_read'
+    assert.equal(backend.created.filter(c => c.id === id).length, 1,
+        'init must create the global read texture exactly once')
+    assert.ok(backend.textures.has(id), 'global read texture must be registered after init')
+
+    pipeline.resize(128, 128)
+
+    assert.equal(backend.created.filter(c => c.id === id).length, 2,
+        'resize must recreate the global read texture exactly once (a third create orphans the previous GL texture)')
+    assert.equal(backend.destroyed.filter(d => d === id).length, 1,
+        'resize must destroy the old global read texture exactly once')
+    assert.ok(backend.textures.has(id), 'recreated texture must be registered')
+    assert.equal(backend.textures.get(id).width, 128, 'recreated texture must use the new size')
+})
+
 // ---------------------------------------------------------------------------
 // Part 3: WebGL2 backend — mip chain allocation and generation (real backend
 // against a recording stub GL context, per the error-gating test pattern)

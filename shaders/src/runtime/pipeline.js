@@ -1207,6 +1207,7 @@ export class Pipeline {
                     mipmaps: texSpec?.mipmaps === true,
                     persistent: texSpec?.persistent === true
                 })
+                continue
             }
 
             // Create double-buffered surface
