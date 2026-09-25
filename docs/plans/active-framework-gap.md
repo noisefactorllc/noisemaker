@@ -1,4 +1,86 @@
-# Active Framework Gap: GAP-004
+# Active Framework Gap: GAP-005
+
+Status: implemented locally (publication and verification pending at
+`fa83eeabf278f1f4999c1d1fff43e2e5338b72ba`); the prior GAP-004 record is preserved below, unchanged.
+
+The prior active-target records for GAP-004, GAP-003, and GAP-027 are
+preserved below, unchanged. See their "Completed Evidence" sections.
+
+## GAP-005
+
+Gap statement from `llms-full.txt`:
+
+> `name`, `viewport`, `clear`, `samplerTypes`, and `type` are not copied into
+> expanded effect passes. (Narrowed at noisemaker `ff1bfbc1`: `conditions`
+> used to be on this list; `expand()` now copies it and
+> `Pipeline.shouldSkipPass()` consumes it.)
+
+Source evidence: `shaders/src/runtime/expander.js` - constructed pass object;
+`shaders/src/runtime/pipeline.js` - `shouldSkipPass()`. Consequence: authoring
+these remaining fields has no runtime effect through `definition.js` and emits
+no diagnostic.
+
+## Selected Contract (backward compatible)
+
+- `expand()` copies `name`, `viewport`, `clear`, `samplerTypes`, and `type`
+  verbatim from each pass definition onto the constructed expanded pass, so
+  authoring through `definition.js` reaches `CompiledGraph.passes` as queryable
+  pass state. Unauthored fields stay `undefined` (default parity).
+- `viewport` accepts the same dimension grammar as texture sizes (numbers,
+  'screen', percentages, `{param}`/`{screenDivide}`/`{scale, clamp}` forms on
+  the x/y/w/h/width/height keys, exactly what `validateEffectDefinition()`
+  already accepts). At execution time `Pipeline.resolvePassViewport()` resolves
+  the spec per frame into `viewportResolved` {x, y, w, h} numbers (x/y default
+  0; missing w/h default to the frame screen size), using the pass uniforms so
+  param-driven viewports track uniform updates. The reusable resolved box is
+  cached per pass (no per-frame allocation), the authored spec stays queryable
+  on `viewport`, and a fully numeric viewport passes through unchanged.
+- The WebGPU and WebGL2 backends prefer `viewportResolved` over the raw spec in
+  their existing fallback paths; output-texture dimensions keep priority in
+  both backends, and the legacy direct read of a manually supplied numeric
+  `viewport` on a hand-built graph pass is preserved. `clear` reaches the
+  WebGPU render-pass loadOp and `samplerTypes` the WebGPU per-binding sampler
+  selection through their existing consumers.
+- No new rejection of previously accepted input: shipped definitions author
+  `name`/`type`/dimension-form `viewport`, none author `clear` or
+  `samplerTypes`, and every newly effective path keeps its existing priority
+  rules, so rendered behavior is unchanged.
+
+## Implementation-phase evidence (local, pre-verification)
+
+- Red run: `node shaders/tests/test_pass_fields.js` exited 1 with 1 passed /
+  7 failed — every failure was missing field propagation (verbatim copy,
+  backend-execution reach, viewport resolution and uniform tracking, numeric
+  pass-through, oscillator proxy); the two default-parity compatibility cases
+  passed before and after.
+- Green run: 8 passed / 0 failed, exit 0.
+- Test wiring (functional): the suite is registered in
+  `scripts/run-js-tests.js` and inserted into the existing
+  `test:shaders:runtime` npm script; no workflow files changed.
+- `npm run test:shaders:runtime` exited 0 at the candidate tree (including the
+  new suite); `node shaders/tests/test_mip_controls.js` 15/15 and
+  `node shaders/tests/test_pipeline.js` passed, confirming the neighboring
+  contract suites still pass.
+- Files: `shaders/src/runtime/expander.js` (verbatim copy),
+  `shaders/src/runtime/pipeline.js` (`resolvePassViewport()` plus render-loop
+  and oscillator-proxy wiring), `shaders/src/runtime/backends/webgl2.js` and
+  `webgpu.js` (prefer `viewportResolved` in the existing fallback viewport
+  paths), `shaders/tests/test_pass_fields.js`, `scripts/run-js-tests.js`,
+  `package.json`, `llms-full.txt`, and this record.
+
+## Retained criteria and ownership (explicitly not proven by this record)
+
+- `name` and `type` are queryable pass labels; backend shader-kind dispatch
+  remains source-derived, so `type` has no behavioral consumer on the expanded
+  pass.
+- `inputOverride` on dimension specs remains accepted-but-unconsumed; it is a
+  dimension-spec field outside this pass-field row (the closed GAP-003
+  retained note now says the same).
+- WebGPU device-level viewport/sampler behavior rides the repository's
+  existing GPU-test job; no GPU-device test in this repository executes the
+  WebGPU backend headlessly.
+
+## GAP-004 (closed; preserved record unchanged)
 
 Status: closed (implemented and verified at 2f47612c29045c1b91af94887a8ff20106e980ef)
 
