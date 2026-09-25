@@ -156,6 +156,7 @@ test('unknown global-spec, ui, pass, and texture-spec fields are diagnosed (incl
     assert.equal(errors.filter(e => /widht/.test(e)).length, 1)
     // Nested diagnosis still applies to Effect instances.
     const inst = new Effect(validDefinition())
+    inst.globals.amount.unkown = 1
     assert.equal(validate(inst).filter(e => /unkown/.test(e)).length, 1)
 })
 

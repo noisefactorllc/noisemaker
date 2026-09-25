@@ -1,9 +1,64 @@
-# Active Framework Gap: GAP-027
+# Active Framework Gap: GAP-003
 
-Status: closed
+Status: implemented (closure pending exact-source CI/publication verification)
 
-The prior active-target record for GAP-002 is preserved below, unchanged. It
+The prior active-target record for GAP-027 is preserved below, unchanged. It
 closed and published successfully; see its "Completed Evidence" section.
+
+## GAP-003
+
+Gap statement from `llms-full.txt`:
+
+> `validateEffectDefinition()` validates only a subset of the consumed
+> definition schema
+
+Source evidence: `shaders/src/runtime/effect-validator.js` versus `effect.js`
+and `expander.js`. Consequence: invalid globals/pass/texture fields can survive
+structure validation.
+
+## Selected Contract (backward compatible)
+
+`validateEffectDefinition(def)` remains a deterministic, side-effect-free
+structure check returning error strings (`[]` for valid input). It now covers:
+
+- Plain definition objects and supported `Effect` instances (top-level
+  unknown-field diagnosis runs on plain objects; nested declarative containers
+  are fully diagnosed on every input shape; legitimate subclass instance state
+  is not rejected).
+- Definition metadata, tags (validated against `VALID_TAGS`), lifecycle hook
+  field types, globals (types incl. `string`, defaults, scalar-or-array
+  min/max with componentwise checks, choices incl. string-typed globals,
+  std-enum resolution for `member`/`enum`, uniform/define/colorModeUniform
+  strings), pass fields and binding references (inputs/outputs/uniforms/
+  conditions/countUniform, numeric literals preserved), texture specs and
+  dimension expressions (numbers, keywords, percentages, `{param}`/
+  `{screenDivide}`/`{scale, clamp}` forms), both existing uniform-layout forms
+  (slot/component and byte form, with duplicate and overlapping-conflict
+  detection), and param aliases.
+- Malformed/null/array/non-object containers are reported without throwing;
+  errors follow declaration insertion order; the input is never mutated and
+  lifecycle hooks are never invoked; runtime globals are never sorted.
+
+Declaration/schema validation is distinct from shader compilation, GPU
+capability checks, and runtime behavior; the validator proves structure only.
+
+## Implementation-phase evidence (local, pre-verification)
+
+- Tests-first: `shaders/tests/test_effect_definition_validation.js` — 16
+  focused tests covering the negative/compatibility matrix above, plus a
+  dynamic corpus gate over the tracked definitions with explicit denominators
+  (expected=210 executed=210 pass=210 failure=0 skip=0 unexecuted=0). Import
+  errors and unexecuted definitions are failures, not skips.
+- Test wiring (functional): the suite is registered in
+  `scripts/run-js-tests.js` and prepended to the existing
+  `test:shaders:runtime` npm script; no workflow files changed.
+- All 16 tests and the corpus gate pass locally at the candidate tree;
+  `git diff --check` clean; trailing-newline convention restored on the
+  validator module.
+- Closure is contingent: exact-source CI (all six declared source workflows
+  and named jobs, including the version-tag Release run), publication, the
+  pinned artifacts check, and exact-revision live site verification must pass
+  at the published implementation commit before GAP-003 is marked closed.
 
 ## GAP-027
 

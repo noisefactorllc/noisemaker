@@ -19,14 +19,15 @@ import { stdEnums } from '../lang/std_enums.js'
 
 const GLOBAL_TYPES = [
     'float', 'int', 'boolean', 'vec2', 'vec3', 'vec4', 'mat3',
-    'color', 'surface', 'volume', 'geometry', 'member', 'palette', 'button'
+    'color', 'surface', 'volume', 'geometry', 'member', 'palette', 'button',
+    'string'
 ]
 
 const UI_CONTROLS = ['slider', 'checkbox', 'dropdown', 'color', 'button', 'vector3', 'vec3']
 
-const UI_KEYS = ['label', 'control', 'category', 'hidden', 'hint', 'format', 'buttonLabel', 'enabledBy']
+const UI_KEYS = ['label', 'control', 'category', 'hidden', 'hint', 'format', 'buttonLabel', 'enabledBy', 'multiline']
 
-const ENABLED_BY_OPS = ['eq', 'neq', 'lt', 'gt', 'in', 'notIn']
+const ENABLED_BY_OPS = ['eq', 'neq', 'lt', 'gt', 'gte', 'lte', 'in', 'notIn']
 
 const GLOBAL_SPEC_KEYS = [
     'type', 'default', 'uniform', 'define', 'choices', 'enum',
@@ -57,7 +58,7 @@ const LAYOUT_ENTRY_KEYS = new Set(['name', 'slot', 'components'])
 
 const BYTE_LAYOUT_KEYS = new Set(['name', 'offset', 'size', 'type'])
 
-const DIM_SPEC_KEYS = new Set(['param', 'power', 'multiply', 'default', 'paramDefault', 'screenDivide', 'scale', 'clamp'])
+const DIM_SPEC_KEYS = new Set(['param', 'power', 'multiply', 'default', 'paramDefault', 'screenDivide', 'scale', 'clamp', 'inputOverride'])
 
 const TOP_LEVEL_KEYS = new Set([
     'name', 'namespace', 'func', 'description', 'tags', 'globals', 'passes',
@@ -154,6 +155,10 @@ function validateDimSpec(spec, errors, label) {
             if (spec.paramDefault !== undefined && !isFiniteNumber(spec.paramDefault)) {
                 errors.push(`${label}: "paramDefault" must be a finite number`)
             }
+            if (spec.inputOverride !== undefined &&
+                (typeof spec.inputOverride !== 'string' || !spec.inputOverride)) {
+                errors.push(`${label}: "inputOverride" must be a non-empty string`)
+            }
             return
         }
         if (spec.screenDivide !== undefined) {
@@ -224,6 +229,7 @@ function validateUniformLayout(layout, errors, label) {
                 errors.push(`${label}: unknown byte-layout field '${key}'`)
             }
         }
+        const byteEntries = []
         for (let i = 0; i < layout.layout.length; i++) {
             const entry = layout.layout[i]
             const entryLabel = `${label}.layout[${i}]`
@@ -248,7 +254,13 @@ function validateUniformLayout(layout, errors, label) {
             if (typeof entry.type !== 'string' || !entry.type) {
                 errors.push(`${entryLabel}: missing "type" string`)
             }
+            if (typeof entry.name === 'string' && entry.name &&
+                Number.isInteger(entry.offset) && entry.offset >= 0 &&
+                Number.isInteger(entry.size) && entry.size > 0) {
+                byteEntries.push(entry)
+            }
         }
+        checkByteLayoutConflicts(byteEntries, errors, label)
         return
     }
     const entries = []
@@ -265,6 +277,10 @@ function validateUniformLayout(layout, errors, label) {
     }
     checkLayoutConflicts(entries, errors, label)
 }
+
+// Semantic component order consumed by the backends' uniform packing
+// ({x: 0, y: 1, z: 2, w: 3}); ASCII codes do not follow xyzw order.
+const COMPONENT_ORDER = { x: 0, y: 1, z: 2, w: 3 }
 
 function validateLayoutEntry(entry, errors, label) {
     if (!isObj(entry)) {
@@ -287,9 +303,29 @@ function validateLayoutEntry(entry, errors, label) {
         return
     }
     for (let i = 1; i < entry.components.length; i++) {
-        if (entry.components.charCodeAt(i) <= entry.components.charCodeAt(i - 1)) {
+        if (COMPONENT_ORDER[entry.components[i]] <= COMPONENT_ORDER[entry.components[i - 1]]) {
             errors.push(`${label}: "components" '${entry.components}' must be in ascending xyzw order`)
             break
+        }
+    }
+}
+
+function checkByteLayoutConflicts(entries, errors, label) {
+    for (let i = 0; i < entries.length; i++) {
+        const a = entries[i]
+        for (let j = i + 1; j < entries.length; j++) {
+            const b = entries[j]
+            if (a.name === b.name) {
+                errors.push(`${label}: duplicate byte-layout entries '${a.name}' (offsets ${a.offset} and ${b.offset})`)
+                continue
+            }
+            const aStart = a.offset
+            const aEnd = a.offset + a.size
+            const bStart = b.offset
+            const bEnd = b.offset + b.size
+            if (aStart < bEnd && bStart < aEnd) {
+                errors.push(`${label}: byte layout conflict: '${a.name}' (offset ${a.offset}, size ${a.size}) overlaps '${b.name}' (offset ${b.offset}, size ${b.size})`)
+            }
         }
     }
 }
@@ -391,6 +427,9 @@ function validateUi(ui, errors, label, context) {
     if (ui.hidden !== undefined && typeof ui.hidden !== 'boolean') {
         errors.push(`${label}: "hidden" must be a boolean`)
     }
+    if (ui.multiline !== undefined && typeof ui.multiline !== 'boolean') {
+        errors.push(`${label}: "multiline" must be a boolean`)
+    }
     for (const key of ['hint', 'format', 'buttonLabel']) {
         if (ui[key] !== undefined && (typeof ui[key] !== 'string' || !ui[key])) {
             errors.push(`${label}: "${key}" must be a non-empty string`)
@@ -436,6 +475,11 @@ function validateDefault(spec, errors, label) {
                 errors.push(`${label}: "default" must be a 3-component color array or '#rrggbb' string`)
             }
             break
+        case 'string':
+            if (typeof value !== 'string') {
+                errors.push(`${label}: "default" must be a string`)
+            }
+            break
         case 'surface':
         case 'volume':
         case 'geometry':
@@ -452,6 +496,82 @@ function validateDefault(spec, errors, label) {
         default:
             // Unknown type already reported separately.
             break
+    }
+}
+
+/**
+ * Resolve the component count a min/max/default array must have for a global
+ * type. Non-vector types are scalar (1); color behaves as a 3-component
+ * vector; mat3 carries 9 components.
+ */
+function rangeDims(type) {
+    if (type === 'vec2') return 2
+    if (type === 'vec3' || type === 'color') return 3
+    if (type === 'vec4') return 4
+    if (type === 'mat3') return 9
+    return 1
+}
+
+/**
+ * Validate min/max range bounds: each bound must be a finite number (broadcast
+ * across the type's components) or an array of exactly the type's component
+ * count of finite numbers. min and max must agree on scalar-vs-array form,
+ * min must not exceed max (componentwise for arrays), and a numeric default
+ * must fall inside the declared range.
+ */
+function validateRangeBounds(spec, errors, label) {
+    const type = typeof spec.type === 'string' ? spec.type : null
+    const dims = rangeDims(type)
+
+    const boundValues = {}
+    for (const field of ['min', 'max']) {
+        const value = spec[field]
+        if (value === undefined) continue
+        if (isFiniteNumber(value)) {
+            boundValues[field] = [value]
+        } else if (Array.isArray(value) && value.length === dims && value.every(isFiniteNumber)) {
+            boundValues[field] = value
+        } else if (Array.isArray(value)) {
+            errors.push(`${label}: "${field}" must be an array of ${dims} finite numbers for type '${type ?? 'unknown'}'`)
+        } else {
+            errors.push(`${label}: "${field}" must be a finite number or an array of ${dims} finite numbers`)
+        }
+    }
+
+    if (boundValues.min !== undefined && boundValues.max !== undefined) {
+        const sameForm = (boundValues.min.length === 1) === (boundValues.max.length === 1)
+        if (!sameForm) {
+            errors.push(`${label}: "min" and "max" must both be scalars or both be arrays`)
+        } else {
+            const min = boundValues.min
+            const max = boundValues.max
+            for (let i = 0; i < min.length; i++) {
+                if (min[i] > max[i]) {
+                    errors.push(`${label}: "min" must not exceed "max"`)
+                    break
+                }
+            }
+        }
+    }
+
+    // Default containment: broadcast scalar bounds, compare componentwise.
+    const dflt = spec.default
+    if (Array.isArray(dflt) && dflt.every(isFiniteNumber) &&
+        boundValues.min !== undefined && boundValues.max !== undefined) {
+        for (let i = 0; i < dflt.length; i++) {
+            const min = boundValues.min.length === 1 ? boundValues.min[0] : boundValues.min[i]
+            const max = boundValues.max.length === 1 ? boundValues.max[0] : boundValues.max[i]
+            if (dflt[i] < min || dflt[i] > max) {
+                errors.push(`${label}: default [${dflt.join(', ')}] is outside the declared range`)
+                break
+            }
+        }
+    } else if (isFiniteNumber(dflt) &&
+        boundValues.min !== undefined && boundValues.max !== undefined &&
+        boundValues.min.length === 1 && boundValues.max.length === 1) {
+        if (dflt < boundValues.min[0] || dflt > boundValues.max[0]) {
+            errors.push(`${label}: default ${dflt} is outside the declared range [${boundValues.min[0]}, ${boundValues.max[0]}]`)
+        }
     }
 }
 
@@ -488,14 +608,8 @@ function validateGlobals(globals, errors, context) {
             validateDefault(spec, errors, label)
         }
 
-        if (spec.min !== undefined && spec.max !== undefined &&
-            isFiniteNumber(spec.min) && isFiniteNumber(spec.max) && spec.min > spec.max) {
-            errors.push(`${label}: "min" must not exceed "max"`)
-        }
-        if (isFiniteNumber(spec.min) && isFiniteNumber(spec.max) &&
-            isFiniteNumber(spec.default) &&
-            (spec.default < spec.min || spec.default > spec.max)) {
-            errors.push(`${label}: default ${spec.default} is outside the declared range [${spec.min}, ${spec.max}]`)
+        if (spec.min !== undefined || spec.max !== undefined) {
+            validateRangeBounds(spec, errors, label)
         }
 
         for (const field of ['step', 'zero', 'randMin', 'randMax', 'randChance']) {
@@ -530,11 +644,20 @@ function validateGlobals(globals, errors, context) {
 
         if (spec.choices !== undefined) {
             if (!isObj(spec.choices)) {
-                errors.push(`${label}: "choices" must be an object mapping names to numbers`)
+                errors.push(`${label}: "choices" must be an object mapping names to values`)
             } else {
                 const numeric = []
+                const stringType = spec.type === 'string'
                 for (const [choiceName, value] of Object.entries(spec.choices)) {
                     if (value === null) continue // Section headers in dropdown menus.
+                    if (stringType) {
+                        // String-typed globals carry string-valued choices
+                        // (e.g. font families); consumed by the UI control layer.
+                        if (typeof value !== 'string') {
+                            errors.push(`${label}: choices['${choiceName}'] must be a string for type 'string'`)
+                        }
+                        continue
+                    }
                     if (!isFiniteNumber(value)) {
                         errors.push(`${label}: choices['${choiceName}'] must be a number or null`)
                     } else {
