@@ -1,7 +1,9 @@
 # Active Framework Gap: GAP-005
 
-Status: implemented locally (publication and verification pending at
-`fa83eeabf278f1f4999c1d1fff43e2e5338b72ba`); the prior GAP-004 record is preserved below, unchanged.
+Status: closed (implemented at fa83eeabf278f1f4999c1d1fff43e2e5338b72ba and
+verified at the published record commit
+8eeb7b5ac14eb37a8d16037f607a88ce63924cd3). The prior GAP-004 record is
+preserved below, unchanged.
 
 The prior active-target records for GAP-004, GAP-003, and GAP-027 are
 preserved below, unchanged. See their "Completed Evidence" sections.
@@ -79,6 +81,31 @@ no diagnostic.
 - WebGPU device-level viewport/sampler behavior rides the repository's
   existing GPU-test job; no GPU-device test in this repository executes the
   WebGPU backend headlessly.
+
+## Completed Evidence (this run)
+
+- Implementation commit: `fa83eeabf278f1f4999c1d1fff43e2e5338b72ba`
+  (`feat(shaders): copy name/viewport/clear/samplerTypes/type onto expanded
+  passes (GAP-005)`); record commit
+  `8eeb7b5ac14eb37a8d16037f607a88ce63924cd3` (`docs: close GAP-005 with
+  pass-field propagation evidence for fa83eeab`), both pushed to
+  `refs/heads/main`. Independent review approved the exact published tip
+  `8eeb7b5ac14eb37a8d16037f607a88ce63924cd3` (review
+  `baecabf7-3710-4591-ab88-54e0ee6fca6f`).
+- All eight declared local checks passed at that SHA (dependencies,
+  shader-language, shader-runtime, effect-harness, javascript, lint,
+  docs-paths, diff-hygiene).
+- Exact-commit CI passed at `8eeb7b5ac14eb37a8d16037f607a88ce63924cd3`:
+  Shaders (36197728173), Site (36197728193), Downstream (36197728267),
+  Docs site (36197728143), JavaScript (36197728187).
+- Machine verification receipt: `"verified": true` at
+  2026-09-25T22:45:40.102Z for
+  `8eeb7b5ac14eb37a8d16037f607a88ce63924cd3`; the `noisemaker-site`
+  deployment serves that SHA at https://noisemaker.app/.
+- The `llms-full.txt` GAP-005 register row now reads "Closed at noisemaker
+  `fa83eeabf278f1f4999c1d1fff43e2e5338b72ba` (verified
+  2026-09-25T22:45:40.102Z)" with the contract and evidence above; the
+  open-gap count dropped from 19 to 18.
 
 ## GAP-004 (closed; preserved record unchanged)
 
