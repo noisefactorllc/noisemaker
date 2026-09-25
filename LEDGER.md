@@ -408,7 +408,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `fa4b2f02` (2026-09-25)
+- **Checkpoint:** noisemaker `69d83b80` (2026-09-25)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -422,6 +422,30 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-25 — caught up through `69d83b80`: audited range
+    `fa4b2f02..69d83b80` (Tearoff item 538, delivered as the observed ranges
+    `2f47612c..63349a7d` and `fa4b2f0..69d83b80`; the trigger end is a
+    force-push/non-contiguous delivery, so the range was diffed directly in
+    the checkout). Gap detection confirmed zero missing `help.md` files
+    across all 210 effect definitions and all 1,258 documented parameters
+    across 200 effects match definitions
+    (`node shaders/tests/test_effect_help_params.mjs`). The range's
+    Documentation-scope changes are this pass's own prior Sphinx edits
+    (`69d83b80`: GAP-003 `validateEffectDefinition` in
+    `docs/shaders/pipeline.rst` and `docs/shaders/effects.rst`) plus
+    `63349a7`'s `docs/releases.rst` rewrite for the retired per-push
+    SNAPSHOT release (checked against the remaining workflow narrative —
+    accurate); no invalidated narrative statements remained. The range's
+    engine commits (`a021a28`, `62eb56f`, `2f47612`, GAP-004 texture
+    policies and backend mip handling) and closure docs (`85ded3a`) were
+    audited under the AI development contract section; no new narrative
+    feature guides required under `docs/shaders/features.rst`. Verified the
+    Sphinx docs build locally at the exact source
+    (`sphinx-build -b dirhtml docs` with `docs/sphinx-requirements.txt`:
+    build succeeded, 18 pre-existing warnings, 0 errors), docs static paths
+    (`node --test test/docs-static-paths.test.js`, 4/4 pass), ESLint
+    (`npm run lint`), and non-parity JS test suite
+    (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-25 — caught up through `fa4b2f02`: audited range
     `cfccdf96..fa4b2f02` (covering Tearoff #534 trigger `60b90af3..9d3474df`
     through HEAD). Gap detection confirmed zero missing `help.md` files across
