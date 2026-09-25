@@ -34,7 +34,7 @@ Runs on push/PR to ``main`` when ``js/``, ``scripts/``, or related files change.
 
 - **PR / push**: lint (ESLint) and tests run in parallel.
 - **Push to main** (after tests pass): builds browser bundles (``noisemaker.bundle.js``, ``.min.js``, ``.esm.js``, ``.cjs``) and a CLI bundle. It builds standalone executables for Linux x64, macOS arm64, and Windows x64.
-- **Snapshot release**: the workflow creates or replaces a GitHub pre-release tagged ``{version}-SNAPSHOT`` with all JS bundles and platform executables. It updates the snapshot on every qualifying push to ``main``.
+- **No release**: these builds verify the commit and keep their outputs as workflow artifacts for seven days. The tagged release publishes the JS bundles and executables.
 
 Shaders (``shaders.yml``)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -57,7 +57,7 @@ Runs on push/PR to ``main`` when ``shaders/``, ``scripts/``, ``demo/``, or relat
   8. Pushes the tag to this repository.
 - **Demo site deploy**: each qualifying push also builds and syncs the noisemaker.app demo site, which is separate from the shader CDN.
 
-There is no manual tagging step. There is no ``-SNAPSHOT`` for shaders. Every commit that touches shader code produces a concrete, immutable patch release and a new ``v*`` tag.
+There is no manual tagging step. There is no ``-SNAPSHOT`` release. Every commit that touches shader code produces a concrete, immutable patch release and a new ``v*`` tag.
 
 Tagged release (``release.yml``)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -107,19 +107,19 @@ Release Artifacts
      - Included in
    * - Browser bundles
      - ``.bundle.js``, ``.min.js``, ``.esm.js``, ``.cjs``
-     - Snapshot, Tagged
+     - Tagged
    * - CLI bundle
      - built via ``build:cli``
-     - Snapshot, Tagged
+     - Tagged
    * - Standalone CLI (Linux x64)
      - ``.tar.gz``
-     - Snapshot, Tagged
+     - Tagged
    * - Standalone CLI (macOS arm64)
      - ``.tar.gz``
-     - Snapshot, Tagged
+     - Tagged
    * - Standalone CLI (Windows x64)
      - ``.zip``
-     - Snapshot, Tagged
+     - Tagged
    * - Shader bundle
      - ``.tar.gz``
      - Tagged
@@ -131,6 +131,6 @@ Release Cadence
 ---------------
 
 - **Python**: repo-only (CI verification). No published packages yet.
-- **JavaScript snapshots**: updated automatically on every push to ``main``.
+- **JavaScript**: bundles and executables ship only in tagged releases.
 - **Shaders**: released automatically on every qualifying push to ``main``. Each release creates a new immutable ``/MAJOR.MINOR.PATCH/`` directory on the CDN and refreshes the rolling ``/MAJOR/`` and ``/MAJOR.MINOR/`` symlinks. CI creates the git ``v*`` tag. The tag triggers the tagged release workflow, which publishes a GitHub release with all artifacts.
 - **Minor and major bumps**: a human initiates these with a commit that edits ``MAJOR.MINOR`` in metadata. The next automated release produces ``.0`` of the new series. For example, changing ``1.0`` to ``1.1`` produces ``v1.1.0``. Changing ``1.9`` to ``2.0`` produces ``v2.0.0``. The workflow never applies patches to older series.
