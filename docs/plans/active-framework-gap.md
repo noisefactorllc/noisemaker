@@ -56,13 +56,20 @@ One contract, reported through the existing language API:
 
 ## Compatibility Proofs
 
-- Differential gate against `git archive` of the recorded source revision
-  `3886ecfa41fdebdf2428f07fec05ab46602c07f2`: 19-program generated corpus
-  (valid forms, permissive legacy forms, historically rejected forms, CRLF,
-  comments, EOF variants) compared on acceptance, thrown error class/message,
-  plans, render, vars, and searchNamespaces: 0 mismatches. Current-code
-  diagnostics beyond the baseline are only P008/P009/P010 on the targeted
-  inputs.
+- Differential gate registered in the repository:
+  `shaders/tests/test_subchain_argument_differential.js` with
+  `shaders/tests/fixtures/subchain-argument-baseline.json`, a recorded
+  snapshot of the exact public `compile()` results and thrown errors of a
+  generated 18-program corpus (valid forms, permissive legacy forms,
+  historically rejected forms, CRLF, comments, EOF variants) taken from
+  `git archive` of the recorded source revision
+  `3886ecfa41fdebdf2428f07fec05ab46602c07f2` (the revision GAP-027 was
+  selected at). The committed test asserts current `compile()` matches the
+  recorded baseline on acceptance, thrown error class/message, plans, render,
+  vars, and searchNamespaces, and that the only permitted added diagnostics
+  are P008/P009/P010; it also pins the strict opt-in throw codes over the
+  same corpus. Registered in `test:shaders:lang` and the non-parity
+  JavaScript runner like the other new checks.
 - Existing legacy errors preserved byte-identically: P006 non-string value
   message, positional+keyword mixing rejection (P002), shared expectation
   precedence (P001/P002), and subchain-in-subchain rejection (P001).
@@ -75,10 +82,16 @@ One contract, reported through the existing language API:
 
 - `node shaders/tests/test_subchain_arguments.js` (new suite, registered in
   `test:shaders:lang` and the non-parity JavaScript runner): key set,
-  separator, duplicate precedence, discarded-key reporting, source-order and
-  tie-break conventions, strict opt-in throws with location/span, legacy
-  message compatibility, CRLF/comment/no-position fallback, unparse and
-  serialized-AST shape equality.
+  separator, duplicate precedence (including repeated unknown keys reporting
+  P008 per occurrence and never P009), discarded-key reporting, source-order
+  and tie-break conventions, strict opt-in throws with location/span,
+  location conventions including the no-position fallback and the fully
+  position-less report, legacy message compatibility, CRLF/comment behavior,
+  unparse and serialized-AST shape equality.
+- `node shaders/tests/test_subchain_argument_differential.js` with
+  `shaders/tests/fixtures/subchain-argument-baseline.json` (recorded baseline
+  revision `3886ecfa41fdebdf2428f07fec05ab46602c07f2`): registered
+  differential gate over the generated corpus, in both aggregate suites.
 - The job's seven declared checks plus `npm run test:shaders:lang`.
 - Exact-commit CI (Shaders, Docs site, Site, Downstream) and the
   `noisemaker-site` exact-revision deployment verification before closure.
@@ -89,10 +102,14 @@ One contract, reported through the existing language API:
 - [x] Red: focused suite fails before implementation (10 of 19 cases red).
 - [x] Implement the contract (parser report collection, diagnostics catalog
   P008-P010, validator surfacing, strict opt-in on parse/compile).
-- [x] Differential gate: 0 mismatches over the 19-program corpus.
-- [x] Register the new suite in `test:shaders:lang` and
-  `scripts/run-js-tests.js`.
-- [ ] Run all seven declared checks plus the aggregate language suite.
+- [x] Differential gate: 0 mismatches over the generated corpus, both as the
+  initial job-time `git archive` run and as the committed registered suite.
+- [x] Register the new suites in `test:shaders:lang` and
+  `scripts/run-js-tests.js`, including the committed differential suite
+  against the recorded baseline revision.
+- [x] Run all seven declared checks (dependencies, diagnostic-locations,
+  shader-language, javascript, lint, docs-paths, diff-hygiene) plus
+  `npm run test:shaders:lang`: all exit 0 at the candidate commit.
 - [ ] Independent review of the exact commits, direct-main publication,
       exact-commit CI, and exact-revision site verification.
 - [ ] Update the `llms-full.txt` GAP-027 row and open-gap register from

@@ -213,7 +213,16 @@ test('validate surfaces parser-attached subchain reports for caller-supplied AST
     assert.equal(findDiagnostics(result, 'P008').length, 1)
 })
 
-test('subchain reports carry no location when tokens lack source positions', () => {
+test('repeated unknown keys report P008 once per occurrence and never P009', () => {
+    const source = subchainSource('nme: "x", nme: "y", name: "ok"')
+    const result = compile(source)
+    assert.deepEqual(findDiagnostics(result, 'P008').length, 2)
+    assert.equal(findDiagnostics(result, 'P009').length, 0)
+    const begin = result.plans[0].chain.find(step => step.op === '_subchain_begin')
+    assert.deepEqual(begin.args, { name: 'ok', id: null })
+})
+
+test('subchain reports fall back to token line/col when tokens lack source positions', () => {
     // Caller-supplied tokens without `position` metadata keep their line/col
     // fallback; verify the report is still machine-readable.
     const tokens = lex(subchainSource('nme: "typo", name: "ok"')).map(({ position, ...rest }) => {
@@ -224,4 +233,20 @@ test('subchain reports carry no location when tokens lack source positions', () 
     const report = findDiagnostics(result, 'P008')[0]
     assert.equal(report.code, 'P008')
     assert.equal(report.location.line, 3)
+})
+
+test('subchain reports carry no location when tokens lack all position data', () => {
+    // Tokens without `position`, `line`, or `col`: the report is still
+    // machine-readable but carries no location, per the "where available"
+    // convention.
+    const tokens = lex(subchainSource('nme: "typo", name: "ok"')).map(({ position, line, col, ...rest }) => {
+        void position
+        void line
+        void col
+        return rest
+    })
+    const result = validate(parse(tokens))
+    const report = findDiagnostics(result, 'P008')[0]
+    assert.equal(report.code, 'P008')
+    assert.equal(Object.hasOwn(report, 'location'), false)
 })

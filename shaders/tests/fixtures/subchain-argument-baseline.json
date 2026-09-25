@@ -1,0 +1,883 @@
+{
+  "baselineRevision": "3886ecfa41fdebdf2428f07fec05ab46602c07f2",
+  "corpus": [
+    {
+      "name": "empty-args",
+      "source": "search synth\nread(o0).subchain() { .diagFilter() }.write(o1)",
+      "threw": null,
+      "result": {
+        "plans": [
+          {
+            "chain": [
+              {
+                "op": "_read",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o0"
+                  }
+                },
+                "from": null,
+                "temp": 0,
+                "builtin": true
+              },
+              {
+                "op": "_subchain_begin",
+                "args": {
+                  "name": null,
+                  "id": null
+                },
+                "from": 0,
+                "temp": 1,
+                "builtin": true
+              },
+              {
+                "op": "synth.diagFilter",
+                "args": {},
+                "from": 1,
+                "temp": 2
+              },
+              {
+                "op": "_subchain_end",
+                "args": {
+                  "name": null,
+                  "id": null
+                },
+                "from": 2,
+                "temp": 3,
+                "builtin": true
+              },
+              {
+                "op": "_write",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o1"
+                  }
+                },
+                "from": 3,
+                "temp": 4,
+                "builtin": true
+              }
+            ],
+            "write": {
+              "kind": "output",
+              "name": "o1"
+            },
+            "write3d": null,
+            "final": 4,
+            "states": []
+          }
+        ],
+        "render": null,
+        "vars": [],
+        "searchNamespaces": [
+          "synth"
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "positional-name",
+      "source": "search synth\nread(o0).subchain(\"positional\") { .diagFilter() }.write(o1)",
+      "threw": null,
+      "result": {
+        "plans": [
+          {
+            "chain": [
+              {
+                "op": "_read",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o0"
+                  }
+                },
+                "from": null,
+                "temp": 0,
+                "builtin": true
+              },
+              {
+                "op": "_subchain_begin",
+                "args": {
+                  "name": "positional",
+                  "id": null
+                },
+                "from": 0,
+                "temp": 1,
+                "builtin": true
+              },
+              {
+                "op": "synth.diagFilter",
+                "args": {},
+                "from": 1,
+                "temp": 2
+              },
+              {
+                "op": "_subchain_end",
+                "args": {
+                  "name": "positional",
+                  "id": null
+                },
+                "from": 2,
+                "temp": 3,
+                "builtin": true
+              },
+              {
+                "op": "_write",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o1"
+                  }
+                },
+                "from": 3,
+                "temp": 4,
+                "builtin": true
+              }
+            ],
+            "write": {
+              "kind": "output",
+              "name": "o1"
+            },
+            "write3d": null,
+            "final": 4,
+            "states": []
+          }
+        ],
+        "render": null,
+        "vars": [],
+        "searchNamespaces": [
+          "synth"
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "name-only",
+      "source": "search synth\nread(o0).subchain(name: \"a\") { .diagFilter() }.write(o1)",
+      "threw": null,
+      "result": {
+        "plans": [
+          {
+            "chain": [
+              {
+                "op": "_read",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o0"
+                  }
+                },
+                "from": null,
+                "temp": 0,
+                "builtin": true
+              },
+              {
+                "op": "_subchain_begin",
+                "args": {
+                  "name": "a",
+                  "id": null
+                },
+                "from": 0,
+                "temp": 1,
+                "builtin": true
+              },
+              {
+                "op": "synth.diagFilter",
+                "args": {},
+                "from": 1,
+                "temp": 2
+              },
+              {
+                "op": "_subchain_end",
+                "args": {
+                  "name": "a",
+                  "id": null
+                },
+                "from": 2,
+                "temp": 3,
+                "builtin": true
+              },
+              {
+                "op": "_write",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o1"
+                  }
+                },
+                "from": 3,
+                "temp": 4,
+                "builtin": true
+              }
+            ],
+            "write": {
+              "kind": "output",
+              "name": "o1"
+            },
+            "write3d": null,
+            "final": 4,
+            "states": []
+          }
+        ],
+        "render": null,
+        "vars": [],
+        "searchNamespaces": [
+          "synth"
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "name-and-id",
+      "source": "search synth\nread(o0).subchain(name: \"a\", id: \"b\") { .diagFilter() }.write(o1)",
+      "threw": null,
+      "result": {
+        "plans": [
+          {
+            "chain": [
+              {
+                "op": "_read",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o0"
+                  }
+                },
+                "from": null,
+                "temp": 0,
+                "builtin": true
+              },
+              {
+                "op": "_subchain_begin",
+                "args": {
+                  "name": "a",
+                  "id": "b"
+                },
+                "from": 0,
+                "temp": 1,
+                "builtin": true
+              },
+              {
+                "op": "synth.diagFilter",
+                "args": {},
+                "from": 1,
+                "temp": 2
+              },
+              {
+                "op": "_subchain_end",
+                "args": {
+                  "name": "a",
+                  "id": "b"
+                },
+                "from": 2,
+                "temp": 3,
+                "builtin": true
+              },
+              {
+                "op": "_write",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o1"
+                  }
+                },
+                "from": 3,
+                "temp": 4,
+                "builtin": true
+              }
+            ],
+            "write": {
+              "kind": "output",
+              "name": "o1"
+            },
+            "write3d": null,
+            "final": 4,
+            "states": []
+          }
+        ],
+        "render": null,
+        "vars": [],
+        "searchNamespaces": [
+          "synth"
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "id-only",
+      "source": "search synth\nread(o0).subchain(id: \"b\") { .diagFilter() }.write(o1)",
+      "threw": null,
+      "result": {
+        "plans": [
+          {
+            "chain": [
+              {
+                "op": "_read",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o0"
+                  }
+                },
+                "from": null,
+                "temp": 0,
+                "builtin": true
+              },
+              {
+                "op": "_subchain_begin",
+                "args": {
+                  "name": null,
+                  "id": "b"
+                },
+                "from": 0,
+                "temp": 1,
+                "builtin": true
+              },
+              {
+                "op": "synth.diagFilter",
+                "args": {},
+                "from": 1,
+                "temp": 2
+              },
+              {
+                "op": "_subchain_end",
+                "args": {
+                  "name": null,
+                  "id": "b"
+                },
+                "from": 2,
+                "temp": 3,
+                "builtin": true
+              },
+              {
+                "op": "_write",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o1"
+                  }
+                },
+                "from": 3,
+                "temp": 4,
+                "builtin": true
+              }
+            ],
+            "write": {
+              "kind": "output",
+              "name": "o1"
+            },
+            "write3d": null,
+            "final": 4,
+            "states": []
+          }
+        ],
+        "render": null,
+        "vars": [],
+        "searchNamespaces": [
+          "synth"
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "permissive-legacy",
+      "source": "search synth\nread(o0).subchain(foo: \"x\" name: \"a\" name: \"b\" id: \"s\") { .diagFilter() }.write(o1)",
+      "threw": null,
+      "result": {
+        "plans": [
+          {
+            "chain": [
+              {
+                "op": "_read",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o0"
+                  }
+                },
+                "from": null,
+                "temp": 0,
+                "builtin": true
+              },
+              {
+                "op": "_subchain_begin",
+                "args": {
+                  "name": "b",
+                  "id": "s"
+                },
+                "from": 0,
+                "temp": 1,
+                "builtin": true
+              },
+              {
+                "op": "synth.diagFilter",
+                "args": {},
+                "from": 1,
+                "temp": 2
+              },
+              {
+                "op": "_subchain_end",
+                "args": {
+                  "name": "b",
+                  "id": "s"
+                },
+                "from": 2,
+                "temp": 3,
+                "builtin": true
+              },
+              {
+                "op": "_write",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o1"
+                  }
+                },
+                "from": 3,
+                "temp": 4,
+                "builtin": true
+              }
+            ],
+            "write": {
+              "kind": "output",
+              "name": "o1"
+            },
+            "write3d": null,
+            "final": 4,
+            "states": []
+          }
+        ],
+        "render": null,
+        "vars": [],
+        "searchNamespaces": [
+          "synth"
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "missing-separator",
+      "source": "search synth\nread(o0).subchain(name: \"a\" id: \"b\") { .diagFilter() }.write(o1)",
+      "threw": null,
+      "result": {
+        "plans": [
+          {
+            "chain": [
+              {
+                "op": "_read",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o0"
+                  }
+                },
+                "from": null,
+                "temp": 0,
+                "builtin": true
+              },
+              {
+                "op": "_subchain_begin",
+                "args": {
+                  "name": "a",
+                  "id": "b"
+                },
+                "from": 0,
+                "temp": 1,
+                "builtin": true
+              },
+              {
+                "op": "synth.diagFilter",
+                "args": {},
+                "from": 1,
+                "temp": 2
+              },
+              {
+                "op": "_subchain_end",
+                "args": {
+                  "name": "a",
+                  "id": "b"
+                },
+                "from": 2,
+                "temp": 3,
+                "builtin": true
+              },
+              {
+                "op": "_write",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o1"
+                  }
+                },
+                "from": 3,
+                "temp": 4,
+                "builtin": true
+              }
+            ],
+            "write": {
+              "kind": "output",
+              "name": "o1"
+            },
+            "write3d": null,
+            "final": 4,
+            "states": []
+          }
+        ],
+        "render": null,
+        "vars": [],
+        "searchNamespaces": [
+          "synth"
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "unknown-key",
+      "source": "search synth\nread(o0).subchain(nme: \"typo\", name: \"ok\") { .diagFilter() }.write(o1)",
+      "threw": null,
+      "result": {
+        "plans": [
+          {
+            "chain": [
+              {
+                "op": "_read",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o0"
+                  }
+                },
+                "from": null,
+                "temp": 0,
+                "builtin": true
+              },
+              {
+                "op": "_subchain_begin",
+                "args": {
+                  "name": "ok",
+                  "id": null
+                },
+                "from": 0,
+                "temp": 1,
+                "builtin": true
+              },
+              {
+                "op": "synth.diagFilter",
+                "args": {},
+                "from": 1,
+                "temp": 2
+              },
+              {
+                "op": "_subchain_end",
+                "args": {
+                  "name": "ok",
+                  "id": null
+                },
+                "from": 2,
+                "temp": 3,
+                "builtin": true
+              },
+              {
+                "op": "_write",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o1"
+                  }
+                },
+                "from": 3,
+                "temp": 4,
+                "builtin": true
+              }
+            ],
+            "write": {
+              "kind": "output",
+              "name": "o1"
+            },
+            "write3d": null,
+            "final": 4,
+            "states": []
+          }
+        ],
+        "render": null,
+        "vars": [],
+        "searchNamespaces": [
+          "synth"
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "trailing-comma",
+      "source": "search synth\nread(o0).subchain(name: \"a\", id: \"b\",) { .diagFilter() }.write(o1)",
+      "threw": null,
+      "result": {
+        "plans": [
+          {
+            "chain": [
+              {
+                "op": "_read",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o0"
+                  }
+                },
+                "from": null,
+                "temp": 0,
+                "builtin": true
+              },
+              {
+                "op": "_subchain_begin",
+                "args": {
+                  "name": "a",
+                  "id": "b"
+                },
+                "from": 0,
+                "temp": 1,
+                "builtin": true
+              },
+              {
+                "op": "synth.diagFilter",
+                "args": {},
+                "from": 1,
+                "temp": 2
+              },
+              {
+                "op": "_subchain_end",
+                "args": {
+                  "name": "a",
+                  "id": "b"
+                },
+                "from": 2,
+                "temp": 3,
+                "builtin": true
+              },
+              {
+                "op": "_write",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o1"
+                  }
+                },
+                "from": 3,
+                "temp": 4,
+                "builtin": true
+              }
+            ],
+            "write": {
+              "kind": "output",
+              "name": "o1"
+            },
+            "write3d": null,
+            "final": 4,
+            "states": []
+          }
+        ],
+        "render": null,
+        "vars": [],
+        "searchNamespaces": [
+          "synth"
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "double-comma",
+      "source": "search synth\nread(o0).subchain(name: \"a\", id: \"b\",,) { .diagFilter() }.write(o1)",
+      "threw": "SyntaxError:Expect ')' after subchain arguments at line 2 col 38",
+      "result": null
+    },
+    {
+      "name": "repeated-keys",
+      "source": "search synth\nread(o0).subchain(name: \"a\" id: \"b\" id: \"c\" id: \"d\") { .diagFilter() }.write(o1)",
+      "threw": null,
+      "result": {
+        "plans": [
+          {
+            "chain": [
+              {
+                "op": "_read",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o0"
+                  }
+                },
+                "from": null,
+                "temp": 0,
+                "builtin": true
+              },
+              {
+                "op": "_subchain_begin",
+                "args": {
+                  "name": "a",
+                  "id": "d"
+                },
+                "from": 0,
+                "temp": 1,
+                "builtin": true
+              },
+              {
+                "op": "synth.diagFilter",
+                "args": {},
+                "from": 1,
+                "temp": 2
+              },
+              {
+                "op": "_subchain_end",
+                "args": {
+                  "name": "a",
+                  "id": "d"
+                },
+                "from": 2,
+                "temp": 3,
+                "builtin": true
+              },
+              {
+                "op": "_write",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o1"
+                  }
+                },
+                "from": 3,
+                "temp": 4,
+                "builtin": true
+              }
+            ],
+            "write": {
+              "kind": "output",
+              "name": "o1"
+            },
+            "write3d": null,
+            "final": 4,
+            "states": []
+          }
+        ],
+        "render": null,
+        "vars": [],
+        "searchNamespaces": [
+          "synth"
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "crlf-args",
+      "source": "search synth\r\nread(o0).subchain(name: \"a\", id: \"b\") { .diagFilter() }.write(o1)",
+      "threw": null,
+      "result": {
+        "plans": [
+          {
+            "chain": [
+              {
+                "op": "_read",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o0"
+                  }
+                },
+                "from": null,
+                "temp": 0,
+                "builtin": true
+              },
+              {
+                "op": "_subchain_begin",
+                "args": {
+                  "name": "a",
+                  "id": "b"
+                },
+                "from": 0,
+                "temp": 1,
+                "builtin": true
+              },
+              {
+                "op": "synth.diagFilter",
+                "args": {},
+                "from": 1,
+                "temp": 2
+              },
+              {
+                "op": "_subchain_end",
+                "args": {
+                  "name": "a",
+                  "id": "b"
+                },
+                "from": 2,
+                "temp": 3,
+                "builtin": true
+              },
+              {
+                "op": "_write",
+                "args": {
+                  "tex": {
+                    "kind": "output",
+                    "name": "o1"
+                  }
+                },
+                "from": 3,
+                "temp": 4,
+                "builtin": true
+              }
+            ],
+            "write": {
+              "kind": "output",
+              "name": "o1"
+            },
+            "write3d": null,
+            "final": 4,
+            "states": []
+          }
+        ],
+        "render": null,
+        "vars": [],
+        "searchNamespaces": [
+          "synth"
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "name": "comment-in-args",
+      "source": "search synth\nread(o0).subchain(name: \"a\" id: \"b\" // c) { .diagFilter() }.write(o1)",
+      "threw": "SyntaxError:Expect ')' after subchain arguments at line 2 col 37",
+      "result": null
+    },
+    {
+      "name": "missing-value",
+      "source": "search synth\nread(o0).subchain(name: \"a\", id) { .diagFilter() }.write(o1)",
+      "threw": "SyntaxError:Expect ')' after subchain arguments at line 2 col 30",
+      "result": null
+    },
+    {
+      "name": "numeric-key",
+      "source": "search synth\nread(o0).subchain(1: \"x\") { .diagFilter() }.write(o1)",
+      "threw": "SyntaxError:Expect ')' after subchain arguments at line 2 col 19",
+      "result": null
+    },
+    {
+      "name": "non-string-value",
+      "source": "search synth\nread(o0).subchain(name: o0) { .diagFilter() }.write(o1)",
+      "threw": "SyntaxError:Expected string value for subchain name at line 2 col 25",
+      "result": null
+    },
+    {
+      "name": "positional-then-keyword",
+      "source": "search synth\nread(o0).subchain(\"a\", id: \"b\") { .diagFilter() }.write(o1)",
+      "threw": "SyntaxError:Expect ')' after subchain arguments at line 2 col 22",
+      "result": null
+    },
+    {
+      "name": "string-not-key",
+      "source": "search synth\nread(o0).subchain(name: \"a\" \"b\") { .diagFilter() }.write(o1)",
+      "threw": "SyntaxError:Expect ')' after subchain arguments at line 2 col 29",
+      "result": null
+    }
+  ]
+}
