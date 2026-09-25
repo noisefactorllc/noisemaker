@@ -408,7 +408,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `bbdeb56c` (2026-09-24)
+- **Checkpoint:** noisemaker `240740dd` (2026-09-25)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -422,6 +422,20 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-25 — caught up through `240740dd`: audited range
+    `bbdeb56c..240740dd` (covering Tearoff #510 trigger `4891b995..60b90af3`
+    through HEAD). Gap detection confirmed zero missing `help.md` files across
+    all 210 effect definitions. Verified all 1,258 documented parameters across
+    200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
+    Invalidation audit updated `docs/shaders/language.rst` to document subchain argument
+    separator rules, strict-mode option (`subchainArguments: 'strict'`), and added
+    `P008` (Unknown subchain argument key), `P009` (Duplicate subchain argument key),
+    and `P010` (Missing ',' between subchain arguments) to the DSL diagnostics table.
+    Audited subchain-argument validation contract (`66b2c721`), registered differential
+    gate baseline (`240740dd`), and AI contract checkpoint (`3886ecfa`); confirmed zero
+    new narrative feature guides required under `docs/shaders/features.rst`. Verified
+    docs static paths (`node --test test/docs-static-paths.test.js`, 4/4 pass), ESLint
+    (`npm run lint`), and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-24 — caught up through `bbdeb56c`: audited range
     `aa96726d..bbdeb56c` (covering Tearoff #496 trigger `c9ee8a04..4891b995`
     through HEAD). Gap detection confirmed zero missing `help.md` files across

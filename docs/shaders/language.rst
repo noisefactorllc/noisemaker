@@ -239,7 +239,7 @@ Subchains group contiguous effects within a chain. Each group forms one unit tha
 * ``name`` (optional): A human-readable label for the subchain.
 * ``id`` (optional): A unique identifier for programmatic access.
 
-You can omit both arguments or pass ``name`` as a positional argument.
+You can omit both arguments or pass ``name`` as a positional argument. Keyword arguments must be comma-separated. Missing comma separators (``P010``) or unknown/duplicate keys (``P008``, ``P009``) produce parser warnings in standard mode or syntax errors when compiled with ``subchainArguments: 'strict'``.
 
 **Examples:**
 
@@ -843,6 +843,18 @@ Diagnostics
      - Parser
      - Error
      - Invalid call expression
+   * - P008
+     - Parser
+     - Warning
+     - Unknown subchain argument key
+   * - P009
+     - Parser
+     - Warning
+     - Duplicate subchain argument key
+   * - P010
+     - Parser
+     - Warning
+     - Missing ',' between subchain arguments
    * - S001
      - Semantic
      - Error
