@@ -408,7 +408,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `69d83b80` (2026-09-25)
+- **Checkpoint:** noisemaker `6c3f9a26` (2026-09-25)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -422,6 +422,28 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-25 — caught up through `6c3f9a26`: audited range
+    `69d83b80..6c3f9a26` (Tearoff item 557, covering `69d83b80..8eeb7b5a`
+    and publication evidence at `6c3f9a26`). Gap detection confirmed zero
+    missing `help.md` files across all 210 effect definitions and all 1,258
+    documented parameters across 200 effects match definitions
+    (`node shaders/tests/test_effect_help_params.mjs`). Shipped features:
+    GAP-004 texture policies (`mipmaps`, `persistent`, 3D `filter`) in
+    `docs/shaders/effects.rst` and `docs/shaders/pipeline.rst`; GAP-005 pass
+    fields (`name`, `type`, `clear`, `samplerTypes`, `viewport`) and dynamic
+    dimension viewport resolution (`viewportResolved`) documented in
+    `docs/shaders/effects.rst` (passSpec schema updated with `type`, `clear`,
+    `samplerTypes`, `viewport`, and `conditions`) and `docs/shaders/pipeline.rst`
+    (Section 9.2 added for pass-field propagation and viewport resolution).
+    No new standalone guide required under `docs/shaders/features.rst` as pass
+    execution controls belong to core pipeline/effect schemas. Invalidated
+    statements: corrected `docs/shaders/pipeline.rst` Section 9 to state that
+    the expander copies authored `conditions` for per-frame dynamic pass
+    skipping. Verified the Sphinx docs build locally
+    (`sphinx-build -b dirhtml docs docs/_build/dirhtml`: build succeeded, 0 errors),
+    docs static asset paths (`node --test test/docs-static-paths.test.js`, 4/4 pass),
+    ESLint (`npm run lint`), and non-parity JS test suite
+    (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-25 — caught up through `69d83b80`: audited range
     `fa4b2f02..69d83b80` (Tearoff item 538, delivered as the observed ranges
     `2f47612c..63349a7d` and `fa4b2f0..69d83b80`; the trigger end is a

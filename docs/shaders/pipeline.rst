@@ -412,10 +412,9 @@ bindings. A write updates those bindings so a later pass in the same frame sees
 the fresh result. At frame end, the Pipeline swaps or preserves the surface record.
 
 **Dynamic Pass Skipping:**
-The Pipeline can evaluate ``conditions`` with ``skipIf`` and/or ``runIf`` on a
-pass already present in a graph. The effect expander does not currently copy
-``conditions`` from effect pass definitions, so this mechanism is unavailable
-to ordinary DSL-compiled effects. For a graph pass with this field, the runtime compares each condition's named
+The Pipeline evaluates ``conditions`` with ``skipIf`` and/or ``runIf`` on a
+pass present in a graph. The effect expander copies ``conditions`` from authored
+effect pass definitions into expanded passes. For a graph pass with this field, the runtime compares each condition's named
 uniform with ``equals`` before dispatch. It skips the pass when the condition
 says not to run.
 
@@ -427,6 +426,29 @@ A number is clamped to an integer of at least one. A string names a global or
 pass uniform whose current value supplies that count. The Pipeline executes the same
 pass object that many times. After each repeated write to a global surface, it
 adopts the new frame-local read/write bindings before the next iteration.
+
+9.2 Pass-Field Propagation and Viewport Resolution
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The effect expander copies authored pass fields (``name``, ``type``, ``clear``,
+``viewport``, and ``samplerTypes``) onto each expanded pass:
+
+* ``name`` and ``type`` remain queryable pass labels on the expanded pass
+  (backend shader-kind dispatch remains source-derived).
+* ``clear`` reaches the WebGPU render-pass loadOp to clear attachments before
+  execution when true.
+* ``samplerTypes`` directs WebGPU per-binding sampler selection (e.g. nearest
+  vs. linear sampling).
+* ``viewport`` specifies an authored viewport box. The Pipeline evaluates
+  ``Pipeline.resolvePassViewport()`` per frame, resolving dimension expressions
+  (numbers, percentages, ``screen``, and ``{param}`` / ``{screenDivide}`` /
+  ``{scale, clamp}`` objects on ``width`` and ``height`` keys, alongside numeric
+  ``x``, ``y``, ``w``, and ``h`` offsets) against current pass uniforms and screen dimensions
+  into a cached ``viewportResolved`` ``{x, y, w, h}`` rectangle that tracks
+  uniform updates without per-frame allocations. The WebGPU and WebGL2
+  backends prefer ``viewportResolved`` in their fallback viewport paths, while
+  the authored specification remains queryable on ``pass.viewport`` and fully
+  numeric viewports pass through unchanged.
 
 ----
 

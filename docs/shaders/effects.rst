@@ -774,8 +774,9 @@ The following schema summarizes the consumed authoring shape. Regular expression
          "type": "object",
          "required": ["program"],
          "properties": {
-           "name": { "type": "string" },
+           "name": { "type": "string", "description": "Pass label; preserved verbatim on expanded passes" },
            "program": { "type": "string" },
+           "type": { "type": "string", "description": "Pass type label (e.g. render, compute). Backend shader-kind dispatch remains source-derived." },
            "inputs": { "type": "object", "additionalProperties": {"type":"string"} },
            "outputs": { "type": "object", "additionalProperties": {"type":"string"} },
            "entryPoint": { "type": "string" },
@@ -785,6 +786,28 @@ The following schema summarizes the consumed authoring shape. Regular expression
            "countUniform": { "type": "string" },
            "repeat": { "type": ["integer", "string"] },
            "blend": {},
+           "clear": { "type": "boolean", "description": "Whether to clear output attachments before pass execution (WebGPU render-pass loadOp)" },
+           "samplerTypes": { "type": "object", "additionalProperties": { "type": "string", "enum": ["nearest", "linear"] }, "description": "Per-binding sampler filtering selection (WebGPU)" },
+           "viewport": {
+             "type": "object",
+             "properties": {
+               "x": { "type": "number" },
+               "y": { "type": "number" },
+               "w": { "type": "number" },
+               "h": { "type": "number" },
+               "width": { "$ref": "#/definitions/dimensionSpec" },
+               "height": { "$ref": "#/definitions/dimensionSpec" }
+             },
+             "description": "Per-pass viewport box. Dimension specifications resolve against current uniforms and screen dimensions per frame."
+           },
+           "conditions": {
+             "type": "object",
+             "properties": {
+               "runIf": { "type": "array" },
+               "skipIf": { "type": "array" }
+             },
+             "description": "Conditional execution predicates evaluated per frame before dispatch"
+           },
            "uniforms": { 
              "type": "object", 
              "additionalProperties": { "type": "string" },
