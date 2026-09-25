@@ -215,10 +215,12 @@ The current implementation validates at these stages:
    diagnostics become ``ERR_COMPILATION_FAILED`` in ``compileGraph()``.
 #. **Expansion:** Missing registered effects or a program with no render/write
    target become ``ERR_EXPANSION_FAILED``.
-#. **Effect Harness Validation:** ``validateEffectDefinition()`` checks only the
-   required effect name, a non-empty pass list, each pass's program and object
-   inputs/outputs, and global parameter types. The structure harness uses its returned strings. This function is not a
-   complete JSON-schema validator.
+#. **Effect Harness and Runtime Validation:** ``validateEffectDefinition()``
+   in ``shaders/src/runtime/effect-validator.js`` enforces the full definition grammar
+   consumed by the runtime (metadata, tags, globals, textures, and pass contracts).
+   It returns an array of deterministic error strings (empty when valid) and is run
+   by test harnesses and loaders to catch specification violations before shader
+   compilation or pipeline setup.
 #. **Backend Validation:** The Pipeline detects failures when it compiles or
    executes programs. These include shader source, binding, program, texture,
    device-limit, and dispatch failures.

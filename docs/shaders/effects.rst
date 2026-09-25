@@ -650,13 +650,18 @@ fields that the current constructor copies.
      ]
    });
 
-7. Configuration Shape (Informative)
+7. Configuration Shape and Validation
 -------------------------------------
 
-The following pseudocode summarizes the authoring shape consumed by the current
-runtime. It is not an enforced JSON Schema: the structure harness's
-``validateEffectDefinition()`` performs only the limited checks described in
-the pipeline guide. Regular expressions use ``/.../`` form.
+Effect definitions are validated at development and load time by
+``validateEffectDefinition()`` in ``shaders/src/runtime/effect-validator.js``.
+The validator is a deterministic, side-effect-free function that returns an array of
+descriptive error strings (empty if valid) without throwing or mutating definitions.
+It validates the full definition grammar consumed across ``effect.js``, ``expander.js``,
+``compiler.js``, and ``pipeline.js``.
+
+The following schema summarizes the consumed authoring shape. Regular expressions use
+``/.../`` form.
 
 .. code-block:: javascript
 

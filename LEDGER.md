@@ -408,7 +408,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `cfccdf96` (2026-09-25)
+- **Checkpoint:** noisemaker `fa4b2f02` (2026-09-25)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -422,6 +422,18 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-25 — caught up through `fa4b2f02`: audited range
+    `cfccdf96..fa4b2f02` (covering Tearoff #534 trigger `60b90af3..9d3474df`
+    through HEAD). Gap detection confirmed zero missing `help.md` files across
+    all 210 effect definitions. Verified all 1,258 documented parameters across
+    200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
+    Updated Sphinx docs in `docs/shaders/pipeline.rst` and `docs/shaders/effects.rst`
+    to reflect GAP-003 runtime effect definition validation (`validateEffectDefinition`
+    in `shaders/src/runtime/effect-validator.js`), correcting earlier abridged descriptions.
+    Confirmed zero new narrative feature guides required under `docs/shaders/features.rst`.
+    Verified docs static paths (`node --test test/docs-static-paths.test.js`, 4/4 pass),
+    structure suite (`npm run test:shaders:structure`, 206/206 pass), ESLint
+    (`npm run lint`), and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-25 — caught up through `cfccdf96`: audited range
     `240740dd..cfccdf96` (covering Tearoff #522 trigger `60b90af3..5f4b7c43`
     through HEAD). Range consists entirely of documentation, ledger, and AI contract
