@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `13853dff08f583c14edd3536774b19e41eda8364`.
+- Noisemaker: `60b90af373bceaf62060346d873d4f66232c7173`.
 - Shade MCP: `00340b148e109464b1a87d89ff29fc7622d384c9`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.3`, protocol
   `2025-11-25`, with 18 tools returned by `tools/list`.
@@ -3324,13 +3324,12 @@ This instance is the repository's `synth/testPattern` effect. The three source
 blocks below are complete, not excerpts, and were last live-captured at
 Noisemaker commit `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424` and Shade MCP
 commit `0a92bd839adf89caa1641e90b201182a24f8fb25`. Re-audited at Noisemaker
-`e11f0767993ae77eab6f3e353c942cf721aa9c90` and Shade MCP
+`60b90af373bceaf62060346d873d4f66232c7173` and Shade MCP
 `00340b148e109464b1a87d89ff29fc7622d384c9` (v0.2.3 delivery at
 `cbcab33363851016f65391fbb9ef71d66729c07f`) by source inspection:
 `synth/testPattern`'s own definition.js and shader files are byte-unchanged in that
-range, none of the range's changes (structured parser diagnostics P003/P004, narrowing
-GAP-002; scoped texture size preservation on setUniform; zero-refract optimization and
-parity attestation for classicNoisedeck/noise; and ledger/docs updates)
+range, none of the range's changes (structured parser diagnostics P007/P001, closing
+GAP-002; source-derived coordinates and numeric coercion positions; and ledger/docs updates)
 affect runtime execution or reach this effect, and the full non-parity JS test suite
 (`node scripts/run-js-tests.js --skip-parity`) passes. The MCP evidence below was
 not re-captured live this pass — Shade MCP commit `00340b1` updated paired
