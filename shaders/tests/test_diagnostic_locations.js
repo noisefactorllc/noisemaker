@@ -556,8 +556,7 @@ test('subchain syntax preserves shared expectation diagnostic precedence', () =>
 test('valid subchains preserve permissive arguments, defaults, body and compiled indexes', () => {
     for (const [args, name, id] of [
         ['', null, null], ['"positional"', 'positional', null],
-        ['name: "named", id: "s"', 'named', 's'],
-        ['foo: "x" name: "a" name: "b" id: "s"', 'b', 's']
+        ['name: "named", id: "s"', 'named', 's']
     ]) {
         const source = `search synth\nread(o0).subchain(${args}) { .diagFilter() }.write(o1)`
         const ast = parse(lex(source))
@@ -577,6 +576,34 @@ test('valid subchains preserve permissive arguments, defaults, body and compiled
         assert.equal(result.render, null)
         assert.deepEqual(Object.keys(result).sort(), ['diagnostics', 'plans', 'render', 'searchNamespaces', 'vars'])
     }
+})
+
+// GAP-027: permissive subchain arguments keep their accepted parse and
+// compiled shape and now carry stable machine-readable reports (P008 unknown
+// key, P009 duplicate key, P010 missing separator). The unknown key is still
+// discarded and the last duplicate value still wins.
+test('permissive subchain arguments keep their compiled shape and gain stable reports', () => {
+    const source = 'search synth\nread(o0).subchain(foo: "x" name: "a" name: "b" id: "s") { .diagFilter() }.write(o1)'
+    const ast = parse(lex(source))
+    assert.deepEqual(ast.plans[0].chain[1].name, 'b')
+    assert.deepEqual(ast.plans[0].chain[1].id, 's')
+    assert.deepEqual(JSON.parse(JSON.stringify(ast.plans[0].chain[1])).name, 'b')
+    const result = compile(source)
+    assert.deepEqual(result.diagnostics.map(d => [d.code, d.severity, d.location]), [
+        ['P008', 'warning', { line: 2, column: 19 }],
+        ['P010', 'warning', { line: 2, column: 28 }],
+        ['P010', 'warning', { line: 2, column: 38 }],
+        ['P009', 'warning', { line: 2, column: 38 }],
+        ['P010', 'warning', { line: 2, column: 48 }]
+    ])
+    assert.match(result.diagnostics[0].message, /foo/)
+    assert.deepEqual(result.plans[0].chain, [
+        { op: '_read', args: { tex: { kind: 'output', name: 'o0' } }, from: null, temp: 0, builtin: true },
+        { op: '_subchain_begin', args: { name: 'b', id: 's' }, from: 0, temp: 1, builtin: true },
+        { op: 'synth.diagFilter', args: {}, from: 1, temp: 2 },
+        { op: '_subchain_end', args: { name: 'b', id: 's' }, from: 2, temp: 3, builtin: true },
+        { op: '_write', args: { tex: { kind: 'output', name: 'o1' } }, from: 3, temp: 4, builtin: true }
+    ])
 })
 
 const callFormFailures = [

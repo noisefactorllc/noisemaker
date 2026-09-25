@@ -857,6 +857,20 @@ export function validate(ast) {
 
                 // Handle Subchain node (first-class grouping of contiguous effects)
                 if (original.type === 'Subchain') {
+                    // Surface parser-attached subchain-argument reports
+                    // (GAP-027) once per subchain node, in source order.
+                    const argDiagnostics = original.subchainArgumentDiagnostics
+                    if (Array.isArray(argDiagnostics)) {
+                        for (const report of argDiagnostics) {
+                            diagnosticsList.push({
+                                code: report.code,
+                                message: report.message,
+                                severity: report.severity,
+                                nodeId: original?.id,
+                                ...(report.location && { location: report.location })
+                            })
+                        }
+                    }
                     if (current === null) {
                         pushDiag('S005', original, 'subchain() requires an input - cannot be first in chain')
                         continue

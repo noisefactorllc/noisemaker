@@ -44,6 +44,7 @@ const testEntries = [
   { file: 'shaders/tests/test_midi_audio_parser.js', parity: false },
   { file: 'shaders/tests/test_output_surface_range.js', parity: false },
   { file: 'shaders/tests/test_diagnostic_locations.js', parity: false },
+  { file: 'shaders/tests/test_subchain_arguments.js', parity: false },
   { file: 'shaders/tests/test_transform.js', parity: false },
   { file: 'shaders/tests/test_nested_automation.js', parity: false },
   { file: 'shaders/tests/test_compiler_phase2_exit.js', parity: false },

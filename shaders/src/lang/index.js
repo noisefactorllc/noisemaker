@@ -10,9 +10,9 @@ import {formatDslError, isDslSyntaxError} from './error-formatter.js'
  * @param {string} src
  * @returns {object} {plans, diagnostics, render}
  */
-export function compile(src) {
+export function compile(src, options = {}) {
     const tokens = lex(src)
-    const ast = parse(tokens)
+    const ast = parse(tokens, options)
     return validate(ast)
 }
 

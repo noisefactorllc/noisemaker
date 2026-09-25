@@ -441,11 +441,20 @@ Subchain parsing is more permissive than the legal authoring contract. Author
 only `name` and `id` string pairs, separated by commas, with no duplicates.
 
 The
-parser actually accepts either pair first, accepts pairs without commas,
-accepts a trailing comma, and accepts arbitrary identifier keys. Only `name`
-and `id` are copied to the AST. Unknown keys are silently discarded, and a
-duplicate key keeps its last value. No diagnostic reports either condition.
-See GAP-027.
+parser still accepts either pair first, pairs without commas, and a trailing
+comma for backward compatibility, and only `name` and `id` are copied to the
+AST. The enforced key set is `name` and `id`; a single leading positional
+string literal is shorthand for `name`. Unknown keys are discarded, and a
+duplicate key keeps its last value, but every such condition is now reported
+through `compile()`/`validate()` diagnostics with stable codes: `P008`
+(unknown/discarded key), `P009` (duplicate key), and `P010` (missing
+separator), each with parser-stage severity `warning` and a source line and
+column. `parse(tokens, { subchainArguments: 'strict' })` and
+`compile(src, { subchainArguments: 'strict' })` are the one explicit opt-in
+path that rejects the same conditions with `SyntaxError` diagnostics carrying
+the same codes, severity `error`, and source spans. Default parse acceptance
+is unchanged. GAP-027 documents this contract; closure of GAP-027 is pending
+publication and exact-source verification of the implementing revision.
 
 `Namespace` must already be registered and valid. Inline call namespaces such
 as `synth.noise()` are rejected. Put the namespace in `search`, or use
@@ -561,8 +570,9 @@ Disallowed forms include:
 - Unknown registered-effect arguments.
 
 Unknown
-subchain metadata keys are the silent exception described above and in
-GAP-027.
+subchain metadata keys are no longer a silent exception: they are discarded
+from the AST and reported with diagnostic code `P008` (see GAP-027 for the
+full contract).
 
 Sources: `shaders/src/lang/lexer.js` - `lex()`;
 `shaders/src/lang/parser.js` - `parseProgram()`, `parseCall()`,
@@ -623,9 +633,11 @@ messages. Every lexer and parser throw path now also exposes the non-enumerable
 `error.diagnostic` property described above. `compileGraph()` only wraps semantic
 diagnostics as `ERR_COMPILATION_FAILED`. Raw lex/parse exceptions escape.
 
-Subchain metadata typos and duplicates produce no failure at all: unknown keys
-are discarded and duplicates keep the last value. There is no diagnostic shape
-to consume for that condition. See GAP-027.
+Subchain metadata typos and duplicates no longer vanish silently: unknown keys
+are discarded from the AST, duplicates keep the last value, and both conditions
+plus missing separators are reported with stable diagnostic codes `P008`,
+`P009`, and `P010` through the `compile()`/`validate()` diagnostics list. See
+GAP-027 for the contract and the opt-in strict validation path.
 
 Expansion failures have shape `ExpansionFailure`. Current enumerated messages
 are `Effect '<name>' not found` with the failing step, and `No render surface
@@ -4079,7 +4091,7 @@ longer on the uncopied-field list below. `name`, `viewport`, `clear`,
 | GAP-021 | `renderEffectFrame` requested resolution can differ from returned canvas dimensions without a warning | Shade `src/tools/browser/render.ts` sets viewport but reads canvas dimensions; exact transcript requested `256x256` and returned `90x90` | thresholds run on an unexpected sample size unless the caller checks `frame.width/height` |
 | GAP-024 | Browser MCP readiness and backend switching are not bound to requested effect, compiled graph, and actual backend identity | Shade `src/tools/browser/compile.ts`, `render.ts`, `benchmark.ts`, `uniforms.ts`, `passthrough.ts`, and `dsl.ts` poll status text; `describe.ts` delegates to `renderEffectFrame`; `src/tools/browser/parity.ts` waits only for a noncompiling nonempty graph; `src/harness/browser-session.ts` dispatches selection without awaiting the Noisemaker asynchronous load and `setBackend()` silently exits after its poll timeout | any browser `ok` result, including parity, can describe a previously ready graph or unintended backend. Configured backend labels do not prove page state, and no current result field makes those identity mismatches uniformly diagnosable |
 | GAP-026 | `onInit`, `onUpdate`, and `onDestroy` are copied into `Effect` wrappers but are not invoked by the production renderer | `shaders/src/runtime/effect.js` defines the wrappers; only `shaders/tests/harness_effect.js` calls them; `shaders/src/runtime/pipeline.js` calls `asyncInit` only | an authored config callback can look valid but never run in production. Use only `asyncInit` as a production lifecycle hook until callers exist |
-| GAP-027 | Subchain arguments have no enforced key set, separator rule, duplicate-key diagnostic, or discarded-key report | `shaders/src/lang/parser.js` - `parseSubchainCall()` accepts arbitrary identifier/string pairs, makes commas optional, overwrites duplicates in `kwargs`, and projects only `name`/`id` into the AST | a typo or unknown subchain key can parse successfully and disappear. Retry logic receives no machine-readable failure |
+| GAP-027 | Subchain-argument validation now exists (pending publication/verification): enforced key set `name`/`id`, duplicate-key and missing-separator reports, and discarded-key reporting with stable codes P008/P009/P010 and source locations; opt-in strict rejection via `subchainArguments: 'strict'` | `shaders/src/lang/parser.js` - `parseSubchainCall()`; `shaders/src/lang/diagnostics.js`; `shaders/src/lang/validator.js` | closed once the implementing revision passes review, exact-source CI, and exact-revision site verification |
 | GAP-029 | Effect-index invalidation does not supersede an in-flight rebuild | Shade `src/knowledge/shared-instances.ts` leaves `building` intact in `invalidateSharedEffectIndex()` and shares it with the next reader | a list/search immediately after a library change or `generateManifest` can retain a pre-change index for the next five-second TTL. Retry after that TTL when freshness matters |
 | GAP-032 | The built-in browser audio manager cannot populate selected-device/default-channel state or any `rawReady` value | `shaders/src/runtime/external-input.js` - `AudioInputManager.enable()` opens one default stream and `_updateLoop()` updates only aggregate spectrum, waveform, bands, and volume; selected/raw setters exist only on `AudioState` | Channel-only, named-channel, and raw audio bindings evaluate to `min` under the shipped manager unless the host separately consumes `getAudioInputRequirements()` and populates `AudioState`. The runtime gives no warning when that integration is absent. |
 

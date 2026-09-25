@@ -45,8 +45,12 @@
 import { isValidNamespace, VALID_NAMESPACES } from '../runtime/tags.js'
 import diagnostics from './diagnostics.js'
 
-export function parse(tokens) {
+export function parse(tokens, options = {}) {
     let current = 0
+    // GAP-027: opt-in strict subchain-argument validation. Default parsing
+    // acceptance is unchanged; strict mode rejects unknown keys, duplicate
+    // keys, and missing separators with stable diagnostic codes.
+    const strictSubchainArguments = options.subchainArguments === 'strict'
 
     // Track the search order for the program (set by search directive - REQUIRED)
     let programSearchOrder = null
@@ -59,7 +63,7 @@ export function parse(tokens) {
 
     const peek = () => tokens[current]
     const advance = () => tokens[current++]
-    const parserError = (code, message, token) => {
+    const parserError = (code, message, token, severityOverride) => {
         const error = new SyntaxError(message)
         // Prefer the lexer's non-enumerable source-derived position when the
         // token came from lex(source). Caller-supplied tokens fall back to
@@ -76,7 +80,7 @@ export function parse(tokens) {
             value: {
                 code,
                 stage: diagnostics[code].stage,
-                severity: diagnostics[code].severity,
+                severity: severityOverride ?? diagnostics[code].severity,
                 message: error.message,
                 location: hasPosition
                     ? { line: position.line, column: position.column }
@@ -836,6 +840,11 @@ export function parse(tokens) {
      * The inner chain elements start with dots and are chained together.
      * The subchain as a whole is chainable - it takes input and produces output.
      */
+    // GAP-027: subchain arguments accept exactly these keyword keys. A single
+    // leading positional string literal is shorthand for `name`. Anything
+    // else is historically accepted but discarded, and is now reported.
+    const SUBCHAIN_KEYS = ['name', 'id']
+
     function parseSubchainCall() {
         const nameToken = peek()
         const tokenLine = nameToken.line
@@ -843,6 +852,36 @@ export function parse(tokens) {
 
         advance() // consume 'subchain'
         expect('LPAREN', "Expect '(' after subchain")
+
+        // Machine-readable subchain-argument reports. Order follows the
+        // offending token in the source. Default mode collects them onto the
+        // Subchain node as non-enumerable metadata (surfaced by validate());
+        // strict mode throws with the same codes.
+        const argDiagnostics = []
+        const reportArgIssue = (code, message, token) => {
+            if (strictSubchainArguments) {
+                throw parserError(code, message, token, 'error')
+            }
+            const position = token && typeof token === 'object' ? token.position : null
+            const hasPosition = position
+                && Number.isInteger(position.line) && position.line > 0
+                && Number.isInteger(position.column) && position.column > 0
+                && Number.isInteger(position.start) && position.start >= 0
+                && Number.isInteger(position.end) && position.end >= position.start
+            const hasLocation = Number.isInteger(token?.line) && token.line > 0
+                && Number.isInteger(token?.col) && token.col > 0
+            argDiagnostics.push({
+                code,
+                message,
+                severity: diagnostics[code].severity,
+                ...(hasPosition
+                    ? {
+                        location: { line: position.line, column: position.column },
+                        span: { start: position.start, end: position.end }
+                    }
+                    : (hasLocation ? { location: { line: token.line, column: token.col } } : {}))
+            })
+        }
 
         // Parse subchain arguments (name and optional id)
         const kwargs = {}
@@ -854,14 +893,23 @@ export function parse(tokens) {
             } else if (peek().type === 'IDENT' && tokens[current + 1]?.type === 'COLON') {
                 // Keyword arguments: subchain(name: "...", id: "...")
                 while (peek().type === 'IDENT' && tokens[current + 1]?.type === 'COLON') {
-                    const key = advance().lexeme
+                    const keyToken = advance()
+                    const key = keyToken.lexeme
                     advance() // consume ':'
                     if (peek().type !== 'STRING') {
                         throw parserError('P006', `Expected string value for subchain ${key} at line ${peek().line} col ${peek().col}`, peek())
                     }
-                    kwargs[key] = { type: 'String', value: advance().lexeme }
+                    const value = advance().lexeme
+                    if (!SUBCHAIN_KEYS.includes(key)) {
+                        reportArgIssue('P008', `Unknown subchain argument '${key}' at line ${keyToken.line} col ${keyToken.col}. Valid keys: name, id. The value is discarded.`, keyToken)
+                    } else if (Object.hasOwn(kwargs, key)) {
+                        reportArgIssue('P009', `Duplicate subchain argument '${key}' at line ${keyToken.line} col ${keyToken.col}. The last value wins.`, keyToken)
+                    }
+                    kwargs[key] = { type: 'String', value: value }
                     if (peek().type === 'COMMA') {
                         advance() // consume ','
+                    } else if (peek().type === 'IDENT' && tokens[current + 1]?.type === 'COLON') {
+                        reportArgIssue('P010', `Missing ',' between subchain arguments at line ${peek().line} col ${peek().col}`, peek())
                     }
                 }
             }
@@ -903,13 +951,22 @@ export function parse(tokens) {
             throw parserError('P006', `Subchain body cannot be empty at line ${tokenLine} col ${tokenCol}`, nameToken)
         }
 
-        return {
+        const node = {
             type: 'Subchain',
             name: kwargs.name?.value || null,
             id: kwargs.id?.value || null,
             body: body,
             loc: { line: tokenLine, col: tokenCol }
         }
+        if (argDiagnostics.length > 0) {
+            // Non-enumerable: keeps the public AST/serialized shape unchanged
+            // while validate() can surface the machine-readable reports.
+            Object.defineProperty(node, 'subchainArgumentDiagnostics', {
+                value: argDiagnostics,
+                enumerable: false
+            })
+        }
+        return node
     }
 
     function parseCall() {

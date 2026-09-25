@@ -1,3 +1,118 @@
+# Active Framework Gap: GAP-027
+
+Status: open (bounded implementation in progress; closure pending publication and verification)
+
+The prior active-target record for GAP-002 is preserved below, unchanged. It
+closed and published successfully; see its "Completed Evidence" section.
+
+## GAP-027
+
+Gap statement from `llms-full.txt`:
+
+> Subchain arguments have no enforced key set, separator rule, duplicate-key diagnostic, or discarded-key report
+
+Source evidence: `shaders/src/lang/parser.js` - `parseSubchainCall()` accepts
+arbitrary identifier/string pairs, makes commas optional, overwrites duplicates
+in `kwargs`, and projects only `name`/`id` into the AST. Consequence: a typo or
+unknown subchain key can parse successfully and disappear; retry logic
+receives no machine-readable failure.
+
+## Selected Contract (backward compatible)
+
+One contract, reported through the existing language API:
+
+- Enforced key set: keyword arguments accept exactly `name` and `id` with
+  quoted string values (existing P006 rejection for non-string values is
+  unchanged). A single leading positional string literal remains shorthand
+  for `name`. Mixing positional and keyword arguments keeps its legacy
+  rejection. Both `name` and `id` remain optional; `subchain()` with no
+  arguments is unchanged.
+- Separator rule: keyword arguments must be comma-separated. A missing comma
+  between keyword arguments is reported with code `P010`.
+- Duplicate rule: the last occurrence of a key wins (historical overwrite
+  behavior preserved); every occurrence after the first is reported with code
+  `P009` at the offending key token.
+- Discarded-key reporting: any key outside `{name, id}` is still discarded
+  (the AST projects only `name`/`id`) and reported with code `P008`, naming
+  the key and its location. Duplicate unknown keys report once per occurrence.
+- Diagnostic codes `P008`/`P009`/`P010` are registered in
+  `shaders/src/lang/diagnostics.js` with parser stage and `warning` severity.
+- Default path: reports ride on the Subchain AST node as non-enumerable
+  `subchainArgumentDiagnostics` metadata (public AST/serialized shape
+  unchanged) and are surfaced by `validate()`/`compile()` in the existing
+  `diagnostics` array with `{code, message, severity, nodeId?, location?}`
+  entries, in source order of the offending token. When a missing separator
+  and a duplicate land on the same key token, the separator report precedes
+  (the comma belongs to the gap before the key). Locations use the lexer's
+  source-derived position (line, column) with the token line/col fallback;
+  spans are carried on the node metadata.
+- One explicit opt-in validation path: `parse(tokens, { subchainArguments:
+  'strict' })` and `compile(src, { subchainArguments: 'strict' })` reject the
+  same conditions by throwing `SyntaxError` carrying the same codes with
+  severity `error`, location, and span. Default parsing acceptance is
+  unchanged for every historically accepted program.
+- Nesting: `subchain` inside a subchain body keeps its legacy rejection
+  (historically unparseable; covered by a regression test).
+
+## Compatibility Proofs
+
+- Differential gate against `git archive` of the recorded source revision
+  `3886ecfa41fdebdf2428f07fec05ab46602c07f2`: 19-program generated corpus
+  (valid forms, permissive legacy forms, historically rejected forms, CRLF,
+  comments, EOF variants) compared on acceptance, thrown error class/message,
+  plans, render, vars, and searchNamespaces: 0 mismatches. Current-code
+  diagnostics beyond the baseline are only P008/P009/P010 on the targeted
+  inputs.
+- Existing legacy errors preserved byte-identically: P006 non-string value
+  message, positional+keyword mixing rejection (P002), shared expectation
+  precedence (P001/P002), and subchain-in-subchain rejection (P001).
+- The pre-existing permissive-subchain coverage in
+  `shaders/tests/test_diagnostic_locations.js` kept its AST/compiled-index
+  assertions and moved the permissive form to a dedicated test asserting the
+  new stable reports; acceptance and compiled shape are unchanged there.
+
+## Required Tests and CI Checks
+
+- `node shaders/tests/test_subchain_arguments.js` (new suite, registered in
+  `test:shaders:lang` and the non-parity JavaScript runner): key set,
+  separator, duplicate precedence, discarded-key reporting, source-order and
+  tie-break conventions, strict opt-in throws with location/span, legacy
+  message compatibility, CRLF/comment/no-position fallback, unparse and
+  serialized-AST shape equality.
+- The job's seven declared checks plus `npm run test:shaders:lang`.
+- Exact-commit CI (Shaders, Docs site, Site, Downstream) and the
+  `noisemaker-site` exact-revision deployment verification before closure.
+
+## Bounded Work Items
+
+- [x] Confirm GAP-002 closed and GAP-027 open at the checked-out source.
+- [x] Red: focused suite fails before implementation (10 of 19 cases red).
+- [x] Implement the contract (parser report collection, diagnostics catalog
+  P008-P010, validator surfacing, strict opt-in on parse/compile).
+- [x] Differential gate: 0 mismatches over the 19-program corpus.
+- [x] Register the new suite in `test:shaders:lang` and
+  `scripts/run-js-tests.js`.
+- [ ] Run all seven declared checks plus the aggregate language suite.
+- [ ] Independent review of the exact commits, direct-main publication,
+      exact-commit CI, and exact-revision site verification.
+- [ ] Update the `llms-full.txt` GAP-027 row and open-gap register from
+      verified evidence; mark GAP-027 closed only after the full contract is
+      proven published.
+
+## Completed Evidence (this run)
+
+- Started on clean `main` at `3886ecfa41fdebdf2428f07fec05ab46602c07f2`,
+  tracking `origin/main`, no pending changes.
+- Confirmed GAP-002 closed (`llms-full.txt` closure record, line 4019) and
+  GAP-027 open in the 22-row open-gap matrix.
+- Red run: `node shaders/tests/test_subchain_arguments.js` exited 1 with the
+  10 contract cases failing before implementation; 19/19 green after.
+- Aggregate: `npm run test:shaders:lang` exited 0 including the registered
+  suite; `node --test test/docs-static-paths.test.js` exited 0 after the
+  record/`llms-full.txt` update; `git diff --check` exited 0.
+
+# Prior Active-Target Record: GAP-002 (closed, preserved)
+
 # Active Framework Gap: GAP-002
 
 Status: closed
