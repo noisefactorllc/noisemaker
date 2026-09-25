@@ -312,6 +312,130 @@ await test('mipmapped textures are regenerated after each frame', async () => {
 })
 
 // ---------------------------------------------------------------------------
+// Part 3: WebGL2 backend — mip chain allocation and generation (real backend
+// against a recording stub GL context, per the error-gating test pattern)
+// ---------------------------------------------------------------------------
+
+import { WebGL2Backend } from '../src/runtime/backends/webgl2.js'
+
+const mipLevelSize = (dim, level) => Math.max(1, dim >> level)
+const mipLevelCountOf = (w, h) => 1 + Math.floor(Math.log2(Math.max(w, h)))
+
+function createRecordingGL() {
+    const calls = {
+        texImage2D: [], texParameteri: [],
+        framebufferTexture2D: [], blitFramebuffer: []
+    }
+    const cache = new Map()
+    let nextConst = 1
+
+    const gl = new Proxy({}, {
+        get(_target, prop) {
+            if (cache.has(prop)) return cache.get(prop)
+            let value
+            if (prop === 'NO_ERROR') {
+                value = 0
+            } else if (prop === 'getError') {
+                value = () => 0
+            } else if (prop === 'texImage2D') {
+                value = (_target, level, _internal, width, height) =>
+                    calls.texImage2D.push({ level, width, height })
+            } else if (prop === 'texParameteri') {
+                value = (_target, pname, param) =>
+                    calls.texParameteri.push({ pname, param })
+            } else if (prop === 'framebufferTexture2D') {
+                value = (_target, _attach, _texTarget, _tex, level) =>
+                    calls.framebufferTexture2D.push({ level })
+            } else if (prop === 'blitFramebuffer') {
+                value = (_sx, _sy, sw, sh, _dx, _dy, dw, dh) =>
+                    calls.blitFramebuffer.push({ srcW: sw, srcH: sh, dstW: dw, dstH: dh })
+            } else if (prop === 'drawingBufferWidth' || prop === 'drawingBufferHeight') {
+                value = 8
+            } else if (typeof prop === 'string' && /^[A-Z][A-Z0-9_]*$/.test(prop)) {
+                value = nextConst++
+            } else {
+                value = () => undefined
+            }
+            cache.set(prop, value)
+            return value
+        }
+    })
+    return { gl, calls }
+}
+
+await test('WebGL2 allocates every mip level of an opt-in chain at creation', async () => {
+    const { gl, calls } = createRecordingGL()
+    const backend = new WebGL2Backend(gl, null)
+
+    backend.createTexture('mipped', { width: 64, height: 64, format: 'rgba16f', mipmaps: true })
+
+    const expected = mipLevelCountOf(64, 64)
+    const levels = calls.texImage2D.map(c => c.level).sort((a, b) => a - b)
+    assert.equal(calls.texImage2D.length, expected,
+        `mipmapped texture must allocate all ${expected} levels, got ${calls.texImage2D.length}`)
+    for (let level = 0; level < expected; level++) {
+        assert.ok(levels.includes(level), `level ${level} must be allocated`)
+        const call = calls.texImage2D.find(c => c.level === level)
+        assert.equal(call.width, mipLevelSize(64, level), `level ${level} width`)
+        assert.equal(call.height, mipLevelSize(64, level), `level ${level} height`)
+    }
+
+    // The chain must be flagged mipmap-min-filtered so sampling is complete
+    const params = calls.texParameteri
+    const nearestParam = gl.NEAREST
+    const minFilterCalls = params.filter(c => c.pname === gl.TEXTURE_MIN_FILTER)
+    assert.ok(minFilterCalls.some(c => c.param !== nearestParam),
+        'mipmapped texture must set a mipmap min filter')
+})
+
+await test('WebGL2 plain textures keep the single-level allocation', async () => {
+    const { gl, calls } = createRecordingGL()
+    const backend = new WebGL2Backend(gl, null)
+
+    backend.createTexture('plain', { width: 64, height: 64, format: 'rgba16f' })
+
+    assert.equal(calls.texImage2D.length, 1, 'plain texture must allocate exactly level 0')
+    assert.equal(calls.texImage2D[0].level, 0)
+    assert.equal(calls.texImage2D[0].width, 64)
+    assert.equal(calls.texImage2D[0].height, 64)
+})
+
+await test('WebGL2 generateMipmaps blits level N-1 into N for the whole chain', async () => {
+    const { gl, calls } = createRecordingGL()
+    const backend = new WebGL2Backend(gl, null)
+
+    backend.createTexture('mipped', { width: 64, height: 64, format: 'rgba16f', mipmaps: true })
+    calls.blitFramebuffer.length = 0
+    calls.framebufferTexture2D.length = 0
+
+    backend.generateMipmaps(['mipped'])
+
+    const expected = mipLevelCountOf(64, 64) - 1
+    assert.equal(calls.blitFramebuffer.length, expected,
+        `one blit per mip transition, expected ${expected}`)
+    for (let level = 1; level <= expected; level++) {
+        const blit = calls.blitFramebuffer[level - 1]
+        assert.equal(blit.srcW, mipLevelSize(64, level - 1), `blit ${level} source width`)
+        assert.equal(blit.dstW, mipLevelSize(64, level), `blit ${level} dest width`)
+    }
+    assert.equal(calls.framebufferTexture2D.length, expected * 2,
+        'each transition must attach the source and destination levels')
+    assert.deepEqual(calls.framebufferTexture2D.map(c => c.level),
+        [0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6].slice(0, expected * 2),
+        'blits must run level N-1 -> N in ascending order')
+})
+
+await test('WebGL2 generateMipmaps skips plain textures', async () => {
+    const { gl, calls } = createRecordingGL()
+    const backend = new WebGL2Backend(gl, null)
+
+    backend.createTexture('plain', { width: 64, height: 64, format: 'rgba16f' })
+    backend.generateMipmaps(['plain'])
+
+    assert.equal(calls.blitFramebuffer.length, 0, 'no blits for non-mipmapped textures')
+})
+
+// ---------------------------------------------------------------------------
 
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) process.exit(1)

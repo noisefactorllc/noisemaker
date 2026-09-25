@@ -779,12 +779,21 @@ export class WebGPUBackend extends Backend {
             const pipeline = this.getResamplePipeline(dstFormat, 'fsMip')
 
             for (let level = 1; level < tex.mipLevels; level++) {
-                const bindGroup = this.device.createBindGroup({
-                    layout: pipeline.getBindGroupLayout(0),
-                    entries: [
-                        { binding: 0, resource: tex.mipViews[level - 1] }
-                    ]
-                })
+                // Cache the per-level bind group on the texture record: the
+                // source view and layout are fixed for the texture lifetime,
+                // so recreating it every frame would be a per-frame
+                // allocation in the render loop.
+                if (!tex.mipBindGroups) tex.mipBindGroups = new Array(tex.mipLevels)
+                let bindGroup = tex.mipBindGroups[level]
+                if (!bindGroup) {
+                    bindGroup = this.device.createBindGroup({
+                        layout: pipeline.getBindGroupLayout(0),
+                        entries: [
+                            { binding: 0, resource: tex.mipViews[level - 1] }
+                        ]
+                    })
+                    tex.mipBindGroups[level] = bindGroup
+                }
 
                 const encoder = this.device.createCommandEncoder()
                 const renderPass = encoder.beginRenderPass({

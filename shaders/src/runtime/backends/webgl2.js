@@ -314,18 +314,38 @@ export class WebGL2Backend extends Backend {
         // Resolve format
         const glFormat = this.resolveFormat(spec.format)
 
-        // Allocate texture storage
-        gl.texImage2D(
-            gl.TEXTURE_2D,
-            0,
-            glFormat.internalFormat,
-            spec.width,
-            spec.height,
-            0,
-            glFormat.format,
-            glFormat.type,
-            null
-        )
+        // Allocate texture storage. With an opt-in mip chain, allocate every
+        // level up front: sampling an unallocated chain returns black and the
+        // per-level blits in generateMipmaps() would run against incomplete
+        // framebuffers, so the chain must exist before the first regeneration.
+        const mipLevels = spec.mipmaps ? mipLevelCount(spec.width, spec.height) : 1
+        if (mipLevels > 1) {
+            for (let level = 0; level < mipLevels; level++) {
+                gl.texImage2D(
+                    gl.TEXTURE_2D,
+                    level,
+                    glFormat.internalFormat,
+                    mipLevelSize(spec.width, level),
+                    mipLevelSize(spec.height, level),
+                    0,
+                    glFormat.format,
+                    glFormat.type,
+                    null
+                )
+            }
+        } else {
+            gl.texImage2D(
+                gl.TEXTURE_2D,
+                0,
+                glFormat.internalFormat,
+                spec.width,
+                spec.height,
+                0,
+                glFormat.format,
+                glFormat.type,
+                null
+            )
+        }
 
         // Set texture parameters
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
@@ -333,10 +353,9 @@ export class WebGL2Backend extends Backend {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 
-        // Opt-in mip chain: allocate the full chain up front and regenerate it
-        // from level 0 after each frame that renders to the texture (Pipeline
-        // calls generateMipmaps() with the mipmapped texture ids).
-        const mipLevels = spec.mipmaps ? mipLevelCount(spec.width, spec.height) : 1
+        // Opt-in mip chain: regenerate it from level 0 after each frame that
+        // renders to the texture (Pipeline calls generateMipmaps() with the
+        // mipmapped texture ids).
         if (mipLevels > 1) {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
         }
