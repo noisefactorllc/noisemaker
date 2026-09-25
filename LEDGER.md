@@ -408,7 +408,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `aa96726d` (2026-09-24)
+- **Checkpoint:** noisemaker `bbdeb56c` (2026-09-24)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -422,6 +422,19 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-24 — caught up through `bbdeb56c`: audited range
+    `aa96726d..bbdeb56c` (covering Tearoff #496 trigger `c9ee8a04..4891b995`
+    through HEAD). Gap detection confirmed zero missing `help.md` files across
+    all 210 effect definitions. Verified all 1,258 documented parameters across
+    200 effects match definitions (`node shaders/tests/test_effect_help_params.mjs`).
+    Invalidation audit updated `docs/shaders/language.rst` to add `P007` (Invalid
+    call expression) to the DSL diagnostics table. Audited structured call-form and
+    expectation diagnostics (`4891b995`), scanner source coordinate derivation (`9fa1a221`),
+    numeric coercion array coordinate derivation (`fca611fd`), and GAP-002 closure
+    provenance citations (`8a21c9ca`/`bbdeb56c`); confirmed zero new narrative feature
+    guides required under `docs/shaders/features.rst`. Verified docs static paths
+    (`node --test test/docs-static-paths.test.js`, 4/4 pass), ESLint (`npm run lint`),
+    and non-parity JS test suite (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-24 — caught up through `aa96726d`: audited range
     `30c47030..aa96726d` (covering Tearoff #482 trigger `c9ee8a04..13853dff`
     through HEAD). Gap detection confirmed zero missing `help.md` files across

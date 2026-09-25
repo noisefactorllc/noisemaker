@@ -839,6 +839,10 @@ Diagnostics
      - Parser
      - Error
      - Invalid subchain
+   * - P007
+     - Parser
+     - Error
+     - Invalid call expression
    * - S001
      - Semantic
      - Error
