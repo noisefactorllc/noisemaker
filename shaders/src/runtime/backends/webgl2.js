@@ -20,6 +20,27 @@ import { WebGL2FrameExportAdapter } from './webgl2-frame-export.js'
 // window after each compile/allocation and skipped in steady state.
 const GL_ERROR_CHECK_FRAMES = 3
 
+/**
+ * Full mip chain length for a 2D texture dimension pair.
+ * @param {number} width
+ * @param {number} height
+ * @returns {number} level count (>= 1)
+ */
+function mipLevelCount(width, height) {
+    const maxDim = Math.max(1, Math.floor(width), Math.floor(height))
+    return Math.max(1, Math.floor(Math.log2(maxDim)) + 1)
+}
+
+/**
+ * Size (>= 1) of one mip level for a dimension.
+ * @param {number} dim - Level-0 dimension
+ * @param {number} level
+ * @returns {number}
+ */
+function mipLevelSize(dim, level) {
+    return Math.max(1, Math.floor(dim / Math.pow(2, level)))
+}
+
 export class WebGL2Backend extends Backend {
     constructor(context, canvas) {
         super(context)
@@ -307,10 +328,18 @@ export class WebGL2Backend extends Backend {
         )
 
         // Set texture parameters
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+
+        // Opt-in mip chain: allocate the full chain up front and regenerate it
+        // from level 0 after each frame that renders to the texture (Pipeline
+        // calls generateMipmaps() with the mipmapped texture ids).
+        const mipLevels = spec.mipmaps ? mipLevelCount(spec.width, spec.height) : 1
+        if (mipLevels > 1) {
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+        }
 
         gl.bindTexture(gl.TEXTURE_2D, null)
 
@@ -319,7 +348,10 @@ export class WebGL2Backend extends Backend {
             width: spec.width,
             height: spec.height,
             format: spec.format,
-            glFormat
+            glFormat,
+            mipmaps: mipLevels > 1,
+            mipLevels,
+            persistent: !!spec.persistent
         })
 
         // Create FBO if this will be a render target
@@ -504,7 +536,8 @@ export class WebGL2Backend extends Backend {
             depth: spec.depth,
             format: spec.format,
             glFormat,
-            is3D: true
+            is3D: true,
+            filter: spec.filter || 'linear'
         })
 
         return texture
@@ -871,6 +904,45 @@ export class WebGL2Backend extends Backend {
         // Unbind
         gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null)
         gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null)
+    }
+
+    /**
+     * Regenerate the mip chain of mipmapped 2D textures from level 0.
+     * Called by the Pipeline after each frame's passes for every texture
+     * authored with `mipmaps: true`. Uses a NEAREST blit chain between mip
+     * levels so the operation works for every renderable format, including
+     * non-filterable float formats where gl.generateMipmap() is invalid.
+     * Textures without a mip chain are skipped.
+     * @param {string[]} ids - Texture ids to regenerate
+     */
+    generateMipmaps(ids) {
+        const gl = this.gl
+        if (!this._mipReadFbo) {
+            this._mipReadFbo = gl.createFramebuffer()
+            this._mipDrawFbo = gl.createFramebuffer()
+        }
+
+        for (const id of ids) {
+            const tex = this.textures.get(id)
+            if (!tex || !tex.mipmaps || tex.is3D) continue
+
+            const { handle, width, height, mipLevels } = tex
+            gl.bindFramebuffer(gl.READ_FRAMEBUFFER, this._mipReadFbo)
+            gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, this._mipDrawFbo)
+
+            for (let level = 1; level < mipLevels; level++) {
+                const srcW = mipLevelSize(width, level - 1)
+                const srcH = mipLevelSize(height, level - 1)
+                const dstW = mipLevelSize(width, level)
+                const dstH = mipLevelSize(height, level)
+                gl.framebufferTexture2D(gl.READ_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, handle, level - 1)
+                gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, handle, level)
+                gl.blitFramebuffer(0, 0, srcW, srcH, 0, 0, dstW, dstH, gl.COLOR_BUFFER_BIT, gl.NEAREST)
+            }
+
+            gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null)
+            gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null)
+        }
     }
 
     async compileProgram(id, spec) {

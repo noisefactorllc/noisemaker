@@ -104,6 +104,23 @@ function extractTextureSpecs(passes, options, textureSpecs = {}) {
             spec.depth = effectSpec.depth || effectSpec.width || 64
             spec.is3D = true
             spec.usage = ['storage', 'sample', 'copySrc', 'copyDst']
+            // Definition-level filtering policy for 3D textures ('nearest' or
+            // 'linear'). The backends read this when creating the 3D texture
+            // and when selecting the sampling mode.
+            if (effectSpec.filter) {
+                spec.filter = effectSpec.filter
+            }
+        } else {
+            // 2D-only allocation policies. `mipmaps` allocates a full mip chain
+            // that the pipeline regenerates after each frame that renders to the
+            // texture. `persistent` preserves contents when the texture is
+            // recreated at a new size (resize / parameter-driven recreation).
+            if (effectSpec.mipmaps !== undefined) {
+                spec.mipmaps = effectSpec.mipmaps
+            }
+            if (effectSpec.persistent !== undefined) {
+                spec.persistent = effectSpec.persistent
+            }
         }
         textures.set(texId, spec)
     }

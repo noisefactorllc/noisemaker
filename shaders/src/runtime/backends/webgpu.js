@@ -17,6 +17,76 @@ import {
 import { WebGPUFrameExportAdapter } from './webgpu-frame-export.js'
 
 /**
+ * Full mip chain length for a 2D texture dimension pair.
+ * @param {number} width
+ * @param {number} height
+ * @returns {number} level count (>= 1)
+ */
+function mipLevelCount(width, height) {
+    const maxDim = Math.max(1, Math.floor(width), Math.floor(height))
+    return Math.max(1, Math.floor(Math.log2(maxDim)) + 1)
+}
+
+/**
+ * Size (>= 1) of one mip level for a dimension. Matches the WebGPU mip
+ * level size rule (max(1, floor(dim / 2^level))).
+ * @param {number} dim - Level-0 dimension
+ * @param {number} level
+ * @returns {number}
+ */
+function mipLevelSize(dim, level) {
+    return Math.max(1, Math.floor(dim / Math.pow(2, level)))
+}
+
+// Shared resample shader: a fullscreen triangle that reads the source texture
+// with textureLoad (works for filterable and unfilterable float formats alike).
+// fsMip downsamples the bound single-mip source view by a 2x2 box average into
+// the destination mip level; fsScale resamples the source to the destination
+// size (used by the persistent-texture copy path when the destination has new
+// dimensions).
+const RESAMPLE_WGSL = /* wgsl */`
+struct VsOut {
+    @builtin(position) pos: vec4f,
+}
+
+@vertex
+fn vs(@builtin(vertex_index) vi: u32) -> VsOut {
+    var points = array<vec2f, 3>(vec2f(-1.0, -1.0), vec2f(3.0, -1.0), vec2f(-1.0, 3.0));
+    var out: VsOut;
+    out.pos = vec4f(points[vi], 0.0, 1.0);
+    return out;
+}
+
+@group(0) @binding(0) var src: texture_2d<f32>;
+@group(0) @binding(1) var<uniform> dims: vec4f;
+
+struct FsParams {
+    @builtin(position) frag: vec4f,
+}
+
+@fragment
+fn fsMip(f: FsParams) -> @location(0) vec4f {
+    let d = vec2u(f.frag.xy);
+    let base = d * 2u;
+    let a = textureLoad(src, base, 0u);
+    let b = textureLoad(src, base + vec2u(1u, 0u), 0u);
+    let c = textureLoad(src, base + vec2u(0u, 1u), 0u);
+    let e = textureLoad(src, base + vec2u(1u, 1u), 0u);
+    return (a + b + c + e) * 0.25;
+}
+
+@fragment
+fn fsScale(f: FsParams) -> @location(0) vec4f {
+    let d = vec2u(f.frag.xy);
+    let ratio = vec2f(dims.x, dims.y) / vec2f(dims.z, dims.w);
+    let scaled = vec2f(d) * ratio;
+    let maxCoord = vec2u(max(dims.x - 1.0, 0.0), max(dims.y - 1.0, 0.0));
+    let coord = min(vec2u(scaled), maxCoord);
+    return textureLoad(src, coord, 0u);
+}
+`
+
+/**
  * Convert a float16 value (stored as uint16) to float32
  */
 function float16ToFloat32(h) {
@@ -182,6 +252,15 @@ export class WebGPUBackend extends Backend {
             addressModeV: 'repeat'
         }))
 
+        // Sampler for mipmapped textures (opt-in via texture spec `mipmaps: true`)
+        this.samplers.set('mipmap', this.device.createSampler({
+            minFilter: 'linear',
+            magFilter: 'linear',
+            mipmapFilter: 'linear',
+            addressModeU: 'clamp-to-edge',
+            addressModeV: 'clamp-to-edge'
+        }))
+
         // Create a 1x1 black dummy texture for shaders that declare optional inputs
         const dummyTexture = this.device.createTexture({
             size: { width: 1, height: 1, depthOrArrayLayers: 1 },
@@ -209,6 +288,10 @@ export class WebGPUBackend extends Backend {
         // usage", which surfaces as a soft validation error per affected effect.
         const usage = this.resolveUsage(spec.usage || ['render', 'sample', 'copySrc', 'copyDst'])
 
+        // Opt-in mip chain: allocate the full chain up front; the Pipeline
+        // calls generateMipmaps() with mipmapped texture ids after each frame.
+        const mipLevels = spec.mipmaps ? mipLevelCount(spec.width, spec.height) : 1
+
         const texture = this.device.createTexture({
             size: {
                 width: spec.width,
@@ -216,19 +299,33 @@ export class WebGPUBackend extends Backend {
                 depthOrArrayLayers: 1
             },
             format,
+            mipLevelCount: mipLevels,
             usage
         })
 
         const view = texture.createView()
 
+        // Per-level single-mip views: level 0 is the render/compute write
+        // target (WebGPU render and storage bindings require exactly one mip
+        // level per view); the default view stays the full chain for sampling.
+        const mipViews = []
+        for (let level = 0; level < mipLevels; level++) {
+            mipViews.push(texture.createView({ baseMipLevel: level, mipLevelCount: 1 }))
+        }
+
         this.textures.set(id, {
             handle: texture,
             view,
+            renderView: mipViews[0],
+            mipViews,
             width: spec.width,
             height: spec.height,
             format: spec.format,
             gpuFormat: format,
-            usage  // Store the usage flags for later checks
+            usage,  // Store the usage flags for later checks
+            mipmaps: mipLevels > 1,
+            mipLevels,
+            persistent: !!spec.persistent
         })
 
         return texture
@@ -266,7 +363,8 @@ export class WebGPUBackend extends Backend {
             format: spec.format,
             gpuFormat: format,
             usage,
-            is3D: true
+            is3D: true,
+            filter: spec.filter
         })
 
         return texture
@@ -558,6 +656,15 @@ export class WebGPUBackend extends Backend {
             return
         }
 
+        // Dimension-changing copies (persistent textures recreated at a new
+        // size) need a resample pass; copyTextureToTexture requires identical
+        // dimensions.
+        if (srcTex.width !== dstTex.width || srcTex.height !== dstTex.height ||
+            srcTex.mipLevels > 1 || dstTex.mipLevels > 1) {
+            this.copyTextureScaled(srcId, dstId)
+            return
+        }
+
         // Create a command encoder for the copy operation
         const commandEncoder = this.device.createCommandEncoder()
 
@@ -569,6 +676,133 @@ export class WebGPUBackend extends Backend {
 
         // Submit immediately
         this.device.queue.submit([commandEncoder.finish()])
+    }
+
+    /**
+     * Get or create a render pipeline for the shared resample shader.
+     * Uses layout:'auto' so the fsMip variant (which ignores the dims uniform)
+     * only binds its texture. Cached per gpu format + entry point.
+     * @param {string} gpuFormat - Destination color attachment format
+     * @param {string} entryPoint - 'fsMip' or 'fsScale'
+     * @returns {GPURenderPipeline}
+     */
+    getResamplePipeline(gpuFormat, entryPoint) {
+        const key = `${gpuFormat}|${entryPoint}`
+        let pipeline = this.resamplePipelines?.get(key)
+        if (!pipeline) {
+            if (!this.resamplePipelines) {
+                this.resamplePipelines = new Map()
+                this.resampleModule = this.device.createShaderModule({ code: RESAMPLE_WGSL })
+            }
+            pipeline = this.device.createRenderPipeline({
+                layout: 'auto',
+                vertex: { module: this.resampleModule, entryPoint: 'vs' },
+                fragment: {
+                    module: this.resampleModule,
+                    entryPoint,
+                    targets: [{ format: gpuFormat }]
+                },
+                primitive: { topology: 'triangle-list' }
+            })
+            this.resamplePipelines.set(key, pipeline)
+        }
+        return pipeline
+    }
+
+    /**
+     * Copy one texture into another, resampling when the dimensions differ.
+     * The destination must be a 2D renderable texture. If the source has a mip
+     * chain, only level 0 is copied (chains are regenerated by generateMipmaps).
+     * @param {string} srcId - Source texture id
+     * @param {string} dstId - Destination texture id
+     */
+    copyTextureScaled(srcId, dstId) {
+        const srcTex = this.textures.get(srcId)
+        const dstTex = this.textures.get(dstId)
+        if (!srcTex || !dstTex || dstTex.is3D) {
+            console.warn(`[copyTextureScaled] Incompatible textures: src=${srcId}, dst=${dstId}`)
+            return
+        }
+
+        const srcView = srcTex.renderView || srcTex.view
+        const dstFormat = dstTex.gpuFormat || this.resolveFormat(dstTex.format || 'rgba16float')
+        const pipeline = this.getResamplePipeline(dstFormat, 'fsScale')
+
+        // dims = [srcWidth, srcHeight, dstWidth, dstHeight]
+        const dimsBuffer = this.device.createBuffer({
+            size: 16,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        })
+        this.device.queue.writeBuffer(dimsBuffer, 0, new Float32Array([
+            srcTex.width, srcTex.height, dstTex.width, dstTex.height
+        ]))
+
+        const entries = [
+            { binding: 0, resource: srcView },
+            { binding: 1, resource: { buffer: dimsBuffer } }
+        ]
+
+        const encoder = this.device.createCommandEncoder()
+        const renderPass = encoder.beginRenderPass({
+            colorAttachments: [{
+                view: dstTex.renderView || dstTex.view,
+                clearValue: { r: 0, g: 0, b: 0, a: 0 },
+                loadOp: 'clear',
+                storeOp: 'store'
+            }]
+        })
+        renderPass.setPipeline(pipeline)
+        renderPass.setBindGroup(0, this.device.createBindGroup({
+            layout: pipeline.getBindGroupLayout(0),
+            entries
+        }))
+        renderPass.draw(3)
+        renderPass.end()
+        this.device.queue.submit([encoder.finish()])
+        dimsBuffer.destroy()
+    }
+
+    /**
+     * Regenerate the mip chain of mipmapped 2D textures from level 0.
+     * Called by the Pipeline after each frame's passes for every texture
+     * authored with `mipmaps: true`. Each level renders a 2x2 box downsample
+     * of the previous level into that level's single-mip view. Textures
+     * without a mip chain are skipped.
+     * @param {string[]} ids - Texture ids to regenerate
+     */
+    generateMipmaps(ids) {
+        for (const id of ids) {
+            const tex = this.textures.get(id)
+            if (!tex || !tex.mipmaps || tex.is3D || !tex.mipViews) continue
+
+            const dstFormat = tex.gpuFormat || this.resolveFormat(tex.format || 'rgba16float')
+            const pipeline = this.getResamplePipeline(dstFormat, 'fsMip')
+
+            for (let level = 1; level < tex.mipLevels; level++) {
+                const bindGroup = this.device.createBindGroup({
+                    layout: pipeline.getBindGroupLayout(0),
+                    entries: [
+                        { binding: 0, resource: tex.mipViews[level - 1] }
+                    ]
+                })
+
+                const encoder = this.device.createCommandEncoder()
+                const renderPass = encoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: tex.mipViews[level],
+                        clearValue: { r: 0, g: 0, b: 0, a: 0 },
+                        loadOp: 'clear',
+                        storeOp: 'store'
+                    }]
+                })
+                renderPass.setPipeline(pipeline)
+                renderPass.setViewport(0, 0, mipLevelSize(tex.width, level), mipLevelSize(tex.height, level), 0, 1)
+                renderPass.setBindGroup(0, bindGroup)
+                renderPass.draw(3)
+                renderPass.end()
+                this.device.queue.submit([encoder.finish()])
+            }
+        }
     }
 
     /**
@@ -1633,7 +1867,9 @@ export class WebGPUBackend extends Backend {
         }
 
         let outputTex = this.textures.get(outputId) || state.surfaces?.[outputId]
-        let targetView = outputTex?.view
+        // Mipmapped textures render into level 0; the default view spans the
+        // whole chain (for sampling) and is not a valid render attachment.
+        let targetView = outputTex?.renderView || outputTex?.view
 
         // Handle screen output (direct to canvas)
         if (!outputTex && outputId === 'screen' && this.context) {
@@ -1771,7 +2007,7 @@ export class WebGPUBackend extends Backend {
             formats.push(resolvedFormat)
 
             colorAttachments.push({
-                view: tex.view,
+                view: tex.renderView || tex.view,
                 clearValue: { r: 0, g: 0, b: 0, a: 0 },
                 loadOp: pass.clear ? 'clear' : 'load',
                 storeOp: 'store'
@@ -2332,7 +2568,12 @@ export class WebGPUBackend extends Backend {
             const t = this.textures.get(texId) ||
                 (typeof texId === 'string' ? this.textures.get(texId.replace(/_chain_\d+$/, '')) : null)
             return t?.isExternal === true
-        })) ? 'default' : 'nearest'
+        })) ? 'default'
+            : (pass.inputs && Object.values(pass.inputs).some(texId => {
+                const t = this.textures.get(texId) ||
+                    (typeof texId === 'string' ? this.textures.get(texId.replace(/_chain_\d+$/, '')) : null)
+                return t?.mipmaps === true
+            })) ? 'mipmap' : 'nearest'
 
         // Create entries based on parsed shader bindings
         for (const binding of bindings) {
@@ -2716,7 +2957,10 @@ export class WebGPUBackend extends Backend {
             if (writeTex) {
                 const texture = this.textures.get(writeTex)
                 if (texture) {
-                    return texture.view
+                    // Mipmapped textures write into level 0 (single-mip view);
+                    // the default view spans the whole chain and is not a
+                    // valid storage binding.
+                    return texture.renderView || texture.view
                 }
             }
         }
@@ -2728,7 +2972,10 @@ export class WebGPUBackend extends Backend {
             if (writeTex) {
                 const texture = this.textures.get(writeTex)
                 if (texture) {
-                    return texture.view
+                    // Mipmapped textures write into level 0 (single-mip view);
+                    // the default view spans the whole chain and is not a
+                    // valid storage binding.
+                    return texture.renderView || texture.view
                 }
             }
         }
@@ -2736,7 +2983,7 @@ export class WebGPUBackend extends Backend {
         // Look up in textures map
         const texture = this.textures.get(textureId)
         if (texture) {
-            return texture.view
+            return texture.renderView || texture.view
         }
 
         console.warn(`Storage texture ${textureId} not found`)
@@ -2755,7 +3002,10 @@ export class WebGPUBackend extends Backend {
             if (writeTex) {
                 const texture = this.textures.get(writeTex)
                 if (texture) {
-                    return texture.view
+                    // Mipmapped textures write into level 0 (single-mip view);
+                    // the default view spans the whole chain and is not a
+                    // valid storage binding.
+                    return texture.renderView || texture.view
                 }
             }
         }
@@ -2831,9 +3081,13 @@ export class WebGPUBackend extends Backend {
 
                     // Match WebGL2 surface filtering (NEAREST) for surface inputs;
                     // external (video/image) uploads are LINEAR on WebGL2, keep LINEAR.
+                    // 3D textures honor their authored `filter` spec; mipmapped
+                    // 2D textures sample through the mipmap-capable sampler.
                     const texRec = this.textures.get(texId) ||
                         (typeof texId === 'string' ? this.textures.get(texId.replace(/_chain_\d+$/, '')) : null)
-                    const legacyDefault = texRec?.isExternal ? 'default' : 'nearest'
+                    const legacyDefault = texRec?.isExternal ? 'default'
+                        : texRec?.is3D ? (texRec.filter === 'linear' ? 'default' : 'nearest')
+                        : texRec?.mipmaps ? 'mipmap' : 'nearest'
                     const samplerType = pass.samplerTypes?.[samplerName] || legacyDefault
                     entries.push({
                         binding: binding++,

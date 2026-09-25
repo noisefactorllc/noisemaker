@@ -1837,9 +1837,41 @@ Unknown or zero-sized sources return zero dimensions. Canvas/media callers may
 therefore read the dimensions directly on either backend rather than awaiting a
 backend-specific promise.
 
-There is no 2D mip field, mip-level allocation, or mip generation path. There
-is no authorable `persistent`, `transient`, or 3D filter field. Do not emit
-them. See GAP-004.
+2D texture specs may author two opt-in allocation policies and 3D texture
+specs may author a filtering policy:
+
+- `mipmaps: true` (2D only) allocates a full mip chain
+  (`floor(log2(max(w,h))) + 1` levels) and the pipeline regenerates it from
+  the frame's level-0 writes after every render (`backend.generateMipmaps()`).
+  WebGL2 blits level-1..N with a NEAREST chain; WebGPU downsamples level
+  N-1 into N through cached fullscreen resample pipelines. Mipmapped
+  textures render/compute-write into level 0 (`renderView`/single-mip
+  views) and sample through the full-chain view with a linear mipmap
+  sampler. Backend texture records expose `mipmaps` and `mipLevels`.
+- `persistent: true` (2D only) preserves contents when the texture is
+  recreated at a new size (resize or parameter-driven recreation): the
+  pipeline copies the old texture into a temporary, recreates at the new
+  size, and resamples the temporary back through `backend.copyTexture()`
+  (WebGL2 blit; WebGPU `copyTextureToTexture` when dimensions match, a
+  fullscreen resample pass otherwise). Backend texture records expose
+  `persistent`.
+- `filter: 'nearest' | 'linear'` (3D only) selects the 3D sampling mode:
+  WebGL2 sets it at `createTexture3D()` (default linear, unchanged);
+  WebGPU maps it onto the shared sampler set only when authored
+  (`'linear'` -> the default linear sampler; unauthored 3D sampling keeps
+  the historical nearest default). Records expose `filter`.
+- Unknown texture spec fields (typos) are rejected by
+  `validateEffectDefinition()` with a `Texture 'x': unknown field 'y'`
+  diagnostic; `filter`/`mipmaps`/`persistent` on the wrong container are
+  rejected the same way. Previously accepted programs keep compiling: these
+  keys were never consumed before.
+- `transient` remains a non-authorable concept (absence of `persistent`).
+- Implementation and focused regression coverage (validator cases,
+  `extractTextureSpecs()` propagation through `compileGraph()`, pipeline
+  preservation-on-resize and per-frame regeneration against recording
+  backends) live in `shaders/tests/test_mip_controls.js`, wired into
+  `scripts/run-js-tests.js` and `npm run test:shaders:runtime`. The
+  register row below records the verification status of that candidate.
 
 Sources: `shaders/src/runtime/pipeline.js` - `resolveDimension()`,
 `clampVolumeSize()`, `clampGraphVolumeSizes()`, `applyMrtFormatBudget()`,
@@ -1884,9 +1916,11 @@ Frame lifetime is behavior, not an authoring flag:
   Names classified as state (`xyz`, `vel`, `rgba`, `trail`, suffix variants,
   names containing `state`, scoped particle state) preserve final frame-local
   bindings.
-- A node-local texture can therefore retain data across frames, but the engine
-  exposes no declaration, preservation-on-resize guarantee, or queryable
-  persistent/transient class.
+- A node-local texture can therefore retain data across frames. With the
+  opt-in `persistent` texture-spec policy (GAP-004), a recreated allocation
+  also preserves its previous contents across size changes, and backend
+  texture records expose the `persistent` and `mipmaps`/`mipLevels` class
+  flags for query.
 
 Sources: backend texture/FBO creation; `shaders/src/runtime/pipeline.js` -
 `swapBuffers()`, `resize()`, `dispose()`.
@@ -1909,8 +1943,9 @@ WebGPU uncaptured error: <device validation message>
 
 WebGL unknown formats silently become RGBA8. WebGPU unknown formats reach device
 validation. Unknown dimension forms silently become screen size. Neither path
-returns a structured authoring diagnostic. There is no mip/persistence
-rejection because those keys are not validated and are ignored. See GAP-004 and
+returns a structured authoring diagnostic. Unknown texture spec fields and
+misplaced `filter`/`mipmaps`/`persistent` keys are rejected by
+`validateEffectDefinition()`. See GAP-004 and
 GAP-007.
 
 After MRT adaptation, inspect the backend texture records. The pipeline
@@ -4093,7 +4128,7 @@ longer on the uncopied-field list below. `name`, `viewport`, `clear`,
 | ID | Missing instrumentation | Source evidence | Agent consequence |
 |---|---|---|---|
 | GAP-003 | Closed at noisemaker `9d3474dfdc6cb737ebb7b2f3598b16d940af1544` (verified 2026-09-25T15:39:55.746Z): `validateEffectDefinition()` covers the consumed definition grammar — metadata/tags/lifecycle hooks, globals (types incl. `string`, defaults, scalar-or-array min/max with componentwise checks, choices incl. string-typed globals, std-enum resolution), pass fields and binding references (numeric literals and supported dimension expressions preserved), texture specs, both uniform-layout forms (slot and byte) with duplicate/conflict detection, and param aliases — with an explicit-denominator corpus gate (expected=210 executed=210 pass=210 failure=0) in `shaders/tests/test_effect_definition_validation.js`, wired into `scripts/run-js-tests.js` and `npm run test:shaders:runtime`. Retained: `inputOverride` is accepted but unconsumed (GAP-005 ownership); `storageBuffers`/`storageTextures` validate as objects only; schema validation is distinct from compilation/GPU/runtime behavior. | `shaders/src/runtime/effect-validator.js`; consumers in `effect.js`, `expander.js`, `compiler.js`, backends, and the UI control layer | structure-level diagnostics for malformed/incomplete definitions |
-| GAP-004 | Mip and persistent-across-frames controls do not exist. Definition-level 3D `filter` and unknown texture fields are discarded | `shaders/src/runtime/compiler.js` - `extractTextureSpecs()`; backend texture creation methods | an agent cannot author/query mip policy, persistence, or 3D nearest filtering, and typos can be ignored |
+| GAP-004 | Narrowed at this candidate, closure pending exact-commit CI and site verification: 2D texture specs author `mipmaps` (full chain allocation, per-frame regeneration from level-0 writes, queryable `mipmaps`/`mipLevels` records) and `persistent` (contents resampled across recreation at a new size via `backend.copyTexture()`, queryable `persistent` record); `textures3d` specs author `filter: 'nearest' \| 'linear'` (honored by both backends, queryable `filter` record); unknown/misplaced texture spec fields are rejected by `validateEffectDefinition()`. Focused regressions in `shaders/tests/test_mip_controls.js` (registered in `scripts/run-js-tests.js` and `npm run test:shaders:runtime`), red-green demonstrated. Remaining before closure: exact-commit CI/deployment verification of this candidate. | `shaders/src/runtime/compiler.js` - `extractTextureSpecs()`; `shaders/src/runtime/effect-validator.js`; `shaders/src/runtime/pipeline.js` - `recreateTexturePreserving()`/`refreshMipTargets()`; backend texture creation and `generateMipmaps()` | agents can author/query mip policy, persistence, and 3D filtering; typos are rejected with diagnostics |
 | GAP-005 | `name`, `viewport`, `clear`, `samplerTypes`, and `type` are not copied into expanded effect passes. (Narrowed at noisemaker `ff1bfbc1`: `conditions` used to be on this list; `expand()` now copies it and `Pipeline.shouldSkipPass()` consumes it.) | `shaders/src/runtime/expander.js` - constructed pass object; `pipeline.js` - `shouldSkipPass()` | authoring these remaining fields has no runtime effect through `definition.js` and emits no diagnostic |
 | GAP-006 | Resource allocation/liveness output is analysis-only. Renderers do not consume its physical allocation plan | `shaders/src/runtime/resources.js` - `analyzeLiveness()`/`allocateResources()`; `compiler.js` stores `graph.allocations` with no pipeline/backend consumer | an agent cannot query the actual runtime allocation/reuse plan promised by the analyzer |
 | GAP-007 | Backend shader/compiler failures are not normalized to one structured diagnostic union | `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`; Shade browser tool wrappers | backend retry logic must parse browser/compiler strings |

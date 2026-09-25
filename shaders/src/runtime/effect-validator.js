@@ -42,7 +42,11 @@ const PASS_KEYS = [
     'defines', 'uniforms', 'inputs', 'outputs'
 ]
 
-const TEXTURE_SPEC_KEYS = ['width', 'height', 'depth', 'format', 'is3D']
+const TEXTURE_SPEC_KEYS = ['width', 'height', 'depth', 'format', 'is3D', 'filter', 'mipmaps', 'persistent']
+
+// Filtering policies are authorable on 3D textures only. 2D surfaces keep
+// the engine-wide nearest filtering for backend parity.
+const TEXTURE_FILTERS = ['nearest', 'linear']
 
 const CONDITION_CONTAINER_KEYS = ['runIf', 'skipIf']
 
@@ -721,6 +725,27 @@ function validateTextureMap(textures, errors, containerName) {
         }
         if (spec.is3D !== undefined && typeof spec.is3D !== 'boolean') {
             errors.push(`${label}: "is3D" must be a boolean`)
+        }
+        if (spec.filter !== undefined) {
+            if (containerName !== 'textures3d') {
+                errors.push(`${label}: "filter" is only supported on 3D texture specs ("textures3d")`)
+            } else if (!TEXTURE_FILTERS.includes(spec.filter)) {
+                errors.push(`${label}: unknown filter '${spec.filter}' (expected 'nearest' or 'linear')`)
+            }
+        }
+        if (spec.mipmaps !== undefined) {
+            if (containerName === 'textures3d') {
+                errors.push(`${label}: "mipmaps" is only supported on 2D texture specs ("textures")`)
+            } else if (typeof spec.mipmaps !== 'boolean') {
+                errors.push(`${label}: "mipmaps" must be a boolean`)
+            }
+        }
+        if (spec.persistent !== undefined) {
+            if (containerName === 'textures3d') {
+                errors.push(`${label}: "persistent" is only supported on 2D texture specs ("textures")`)
+            } else if (typeof spec.persistent !== 'boolean') {
+                errors.push(`${label}: "persistent" must be a boolean`)
+            }
         }
     }
 }

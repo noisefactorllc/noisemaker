@@ -516,6 +516,7 @@ export class Pipeline {
         this.frameIndex = 0
         this.lastTime = 0
         this.surfaces = new Map()        // Global surfaces (o0-o7)
+        this._mipTargets = []            // Texture ids whose mip chains regenerate each frame
         this.globalUniforms = {}
         this.width = 0
         this.height = 0
@@ -696,6 +697,7 @@ export class Pipeline {
 
         // Create/recreate global surfaces
         this.createSurfaces()
+        this.refreshMipTargets()
 
         // Recreate textures with screen-relative dimensions
         // Collect default uniforms from passes for parameter-based texture sizing
@@ -1043,6 +1045,57 @@ export class Pipeline {
         }
     }
 
+    /**
+     * Destroy and recreate a 2D texture. When the previous texture record was
+     * marked `persistent` (opt-in via the texture spec), its contents are
+     * resampled into the replacement through backend.copyTexture(), so the
+     * texture survives resize and parameter-driven recreation at its new size.
+     * @param {string} texId - Texture id to recreate
+     * @param {object} spec - New texture spec { width, height, format, usage, ... }
+     */
+    recreateTexturePreserving(texId, spec) {
+        const existingTex = this.backend.textures?.get?.(texId)
+        let preserveId = null
+        if (existingTex && !existingTex.is3D && existingTex.persistent) {
+            preserveId = `${texId}__preserve_tmp`
+            this.backend.createTexture(preserveId, {
+                width: existingTex.width,
+                height: existingTex.height,
+                format: existingTex.format,
+                usage: ['sample', 'copySrc', 'copyDst']
+            })
+            this.backend.copyTexture(texId, preserveId)
+        }
+        this.backend.destroyTexture(texId)
+        this.backend.createTexture(texId, spec)
+        if (preserveId) {
+            this.backend.copyTexture(preserveId, texId)
+            this.backend.destroyTexture(preserveId)
+        }
+    }
+
+    /**
+     * Recompute the list of texture ids whose mip chains must be regenerated
+     * after each frame. Global surfaces map their single graph spec to both
+     * halves of the double-buffered surface.
+     */
+    refreshMipTargets() {
+        this._mipTargets.length = 0
+        if (!this.graph || !this.graph.textures) return
+        for (const [texId, spec] of this.graph.textures) {
+            if (!spec.mipmaps) continue
+            if (texId.startsWith('global_')) {
+                const surfaceName = this.parseGlobalName(texId)
+                if (surfaceName && this.surfaces.has(surfaceName)) {
+                    const surface = this.surfaces.get(surfaceName)
+                    this._mipTargets.push(surface.read, surface.write)
+                }
+            } else {
+                this._mipTargets.push(texId)
+            }
+        }
+    }
+
     createSurfaces() {
         // Volume atlas sizing reads volumeSize out of pass uniforms — clamp
         // them to the device limit before any dimension is resolved.
@@ -1136,9 +1189,24 @@ export class Pipeline {
                     // Surface has a matching allocation, preserve it.
                     continue
                 }
-                // Allocation changed, destroy the old surface.
-                this.backend.destroyTexture(`global_${name}_read`)
-                this.backend.destroyTexture(`global_${name}_write`)
+                // Allocation changed, destroy the old surface (preserving contents of
+                // persistent surfaces across the resize).
+                this.recreateTexturePreserving(`global_${name}_read`, {
+                    width: surfaceWidth,
+                    height: surfaceHeight,
+                    format: surfaceFormat,
+                    usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage'],
+                    mipmaps: texSpec?.mipmaps === true,
+                    persistent: texSpec?.persistent === true
+                })
+                this.recreateTexturePreserving(`global_${name}_write`, {
+                    width: surfaceWidth,
+                    height: surfaceHeight,
+                    format: surfaceFormat,
+                    usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage'],
+                    mipmaps: texSpec?.mipmaps === true,
+                    persistent: texSpec?.persistent === true
+                })
             }
 
             // Create double-buffered surface
@@ -1147,14 +1215,18 @@ export class Pipeline {
                 width: surfaceWidth,
                 height: surfaceHeight,
                 format: surfaceFormat,
-                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
+                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage'],
+                mipmaps: texSpec?.mipmaps === true,
+                persistent: texSpec?.persistent === true
             })
 
             this.backend.createTexture(`global_${name}_write`, {
                 width: surfaceWidth,
                 height: surfaceHeight,
                 format: surfaceFormat,
-                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
+                usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage'],
+                mipmaps: texSpec?.mipmaps === true,
+                persistent: texSpec?.persistent === true
             })
 
             this.surfaces.set(name, {
@@ -1292,23 +1364,24 @@ export class Pipeline {
                     continue  // No change needed
                 }
 
-                // Destroy old textures
-                this.backend.destroyTexture(readTexId)
-                this.backend.destroyTexture(writeTexId)
-
-                // Recreate double-buffered surface with new dimensions
+                // Destroy old textures (preserving persistent surface contents across
+                // the resize)
                 const format = spec.format || 'rgba16f'
-                this.backend.createTexture(readTexId, {
+                this.recreateTexturePreserving(readTexId, {
                     width,
                     height,
                     format,
-                    usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
+                    usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage'],
+                    mipmaps: spec.mipmaps === true,
+                    persistent: spec.persistent === true
                 })
-                this.backend.createTexture(writeTexId, {
+                this.recreateTexturePreserving(writeTexId, {
                     width,
                     height,
                     format,
-                    usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage']
+                    usage: ['render', 'sample', 'copySrc', 'copyDst', 'storage'],
+                    mipmaps: spec.mipmaps === true,
+                    persistent: spec.persistent === true
                 })
             } else {
                 // Handle regular (non-global) texture
@@ -1324,12 +1397,11 @@ export class Pipeline {
                     }
                 }
 
-                // Destroy old texture
-                this.backend.destroyTexture(texId)
-
-                // Create texture (2D or 3D based on spec)
+                // Destroy old texture (persistent textures keep their contents through
+                // backend.copyTexture resampling)
                 if (spec.is3D) {
                     const depth = this.resolveDimension(spec.depth, width, uniforms)
+                    this.backend.destroyTexture(texId)
                     this.backend.createTexture3D(texId, {
                         ...spec,
                         width,
@@ -1337,7 +1409,7 @@ export class Pipeline {
                         depth
                     })
                 } else {
-                    this.backend.createTexture(texId, {
+                    this.recreateTexturePreserving(texId, {
                         ...spec,
                         width,
                         height
@@ -1345,6 +1417,7 @@ export class Pipeline {
                 }
             }
         }
+        this.refreshMipTargets()
     }
 
     /**
@@ -1354,6 +1427,7 @@ export class Pipeline {
      */
     updateParameterTextures(uniforms = {}) {
         this.recreateTextures(uniforms)
+        this.refreshMipTargets()
     }
 
     /**
@@ -1781,6 +1855,12 @@ export class Pipeline {
                 console.error(`[Pipeline.render] LOOP ERROR: ${loopErr.detail || loopErr.message || JSON.stringify(loopErr)}`)
                 throw loopErr
             }
+        }
+
+        // Regenerate mip chains of mipmapped textures from their level-0
+        // contents written by this frame's passes.
+        if (this._mipTargets.length > 0 && typeof this.backend.generateMipmaps === 'function') {
+            this.backend.generateMipmaps(this._mipTargets)
         }
 
         // End frame
