@@ -764,7 +764,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `60b90af3` / shade-mcp `00340b1`, 2026-09-24
+- **Checkpoint:** noisemaker `5f4b7c43` / shade-mcp `00340b1`, 2026-09-25
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -840,6 +840,31 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
+  - 2026-09-25 — caught up through noisemaker `5f4b7c43` / shade-mcp `00340b1`:
+    audited watched source roots across noisemaker range `60b90af3..5f4b7c43`
+    (covering Tearoff #516 trigger `4891b995..240740dd` through HEAD).
+    Commit `66b2c721` implemented GAP-027 subchain-argument validation contract
+    (P008 unknown/discarded key, P009 duplicate key, P010 missing comma separator,
+    and `subchainArguments: 'strict'` opt-in rejection). Commit `240740dd`
+    (v1.0.180) registered differential gate baseline against `3886ecfa` (0 regressions).
+    Commits `5a58a325` and `c85db3f0` recorded published contract and gap status.
+    Commit `5f4b7c43` advanced the Documentation checkpoint through `240740dd`.
+    Shade MCP source unchanged at `00340b1`. Verified four identities: Noisemaker source
+    `5f4b7c43a0201ab197cd1b27a66e6217b776bf57`, Shade MCP source
+    `00340b148e109464b1a87d89ff29fc7622d384c9`, `.mcp.json` pinned to
+    `cbcab33363851016f65391fbb9ef71d66729c07f`, and `vendor/shade-mcp/` delivered
+    from release `v0.2.3` (`cbcab33363851016f65391fbb9ef71d66729c07f`). Open gap
+    count stands at 22 entries (GAP-027 documented and active). Verified Noisemaker
+    non-parity JS tests (`node scripts/run-js-tests.js --skip-parity`, all suites pass)
+    and lint (`npm run lint`), Shade MCP typecheck (`npm run typecheck`, 0 errors)
+    and unit tests (`npm test`, 24 files / 157 tests pass), structure check via
+    vendored harness (`npm run test:shaders:structure`, 206/206 pass, 1258 parameters),
+    and live browser smoke test against Noisemaker viewer
+    (`NOISEMAKER=... node scripts/browser-smoke.mjs`, all 3 checks OK: `compileEffect`,
+    `renderEffectFrame`, module import from `setContent` page). Re-captured MCP
+    initialization, server info (`shade-mcp 0.2.3`), protocol (`2024-11-05`),
+    18 tools via `tools/list`, and worked tool call `checkEffectStructure` with `effect_id: "synth/noise"`.
+    Updated `llms-full.txt` snapshot block and advanced `LEDGER.md` checkpoint together.
   - 2026-09-24 — caught up through noisemaker `60b90af3` / shade-mcp `00340b1`:
     audited watched source roots across noisemaker range `13853dff..60b90af3`
     (covering Tearoff #497 triggers `5b81e04f..4891b995` through HEAD).
