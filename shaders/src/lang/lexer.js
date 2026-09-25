@@ -33,9 +33,32 @@ export function lex(src) {
     let i = 0
     let line = 1
     let col = 1
+    // Correct source coordinates for structured diagnostics. The scanner's
+    // legacy line/col bookkeeping drifts after some multiline tokens, so
+    // positions are recomputed from source offsets anchored at the previous
+    // token's end. Successful token fields are untouched.
+    let srcLine = 1
+    let srcCol = 1
+    let anchor = 0
 
-    function add(type, lexeme, line, col) {
-        tokens.push({type, lexeme, line, col})
+    function add(type, lexeme, line, col, end) {
+        for (let offset = anchor; offset < i; offset++) {
+            if (src[offset] === '\n') { srcLine++; srcCol = 1 }
+            else { srcCol++ }
+        }
+        const startLine = srcLine
+        const startColumn = srcCol
+        for (let offset = i; offset < end; offset++) {
+            if (src[offset] === '\n') { srcLine++; srcCol = 1 }
+            else { srcCol++ }
+        }
+        anchor = end
+        const token = {type, lexeme, line, col}
+        Object.defineProperty(token, 'position', {
+            value: { line: startLine, column: startColumn, start: i, end },
+            enumerable: false
+        })
+        tokens.push(token)
     }
 
     // Only scan source coordinates on failure. Successful tokens and legacy
@@ -79,7 +102,7 @@ export function lex(src) {
             let j = i + 2
             while (j < src.length && src[j] !== '\n') j++
             const text = src.slice(i, j)
-            add('COMMENT', text, startLine, startCol)
+            add('COMMENT', text, startLine, startCol, j)
             col += j - i
             i = j
             continue
@@ -98,7 +121,7 @@ export function lex(src) {
             if (j >= src.length) fail('L003', `Unterminated comment at line ${startLine} col ${startCol}`, i, src.length)
             j += 2
             const text = src.slice(i, j)
-            add('COMMENT', text, startLine, startCol)
+            add('COMMENT', text, startLine, startCol, j)
             line = endLine
             col = endCol + 2
             i = j
@@ -115,7 +138,7 @@ export function lex(src) {
             if (tokenType === 'OUTPUT_REF' && !isMemberSegment && !/^o[0-7]$/.test(lexeme)) {
                 fail('L004', `Output surface reference '${lexeme}' is out of range; expected o0-o7 at line ${startLine} col ${startCol}`, i, j)
             }
-            add(tokenType, lexeme, startLine, startCol)
+            add(tokenType, lexeme, startLine, startCol, j)
             col += j - i
             i = j
             continue
@@ -126,7 +149,7 @@ export function lex(src) {
             let j = i + 3
             while (j < src.length && isDigit(src[j])) j++
             const lexeme = src.slice(i, j)
-            add('VOL_REF', lexeme, startLine, startCol)
+            add('VOL_REF', lexeme, startLine, startCol, j)
             col += j - i
             i = j
             continue
@@ -137,7 +160,7 @@ export function lex(src) {
             let j = i + 3
             while (j < src.length && isDigit(src[j])) j++
             const lexeme = src.slice(i, j)
-            add('GEO_REF', lexeme, startLine, startCol)
+            add('GEO_REF', lexeme, startLine, startCol, j)
             col += j - i
             i = j
             continue
@@ -148,7 +171,7 @@ export function lex(src) {
             let j = i + 3
             while (j < src.length && isDigit(src[j])) j++
             const lexeme = src.slice(i, j)
-            add('XYZ_REF', lexeme, startLine, startCol)
+            add('XYZ_REF', lexeme, startLine, startCol, j)
             col += j - i
             i = j
             continue
@@ -159,7 +182,7 @@ export function lex(src) {
             let j = i + 3
             while (j < src.length && isDigit(src[j])) j++
             const lexeme = src.slice(i, j)
-            add('VEL_REF', lexeme, startLine, startCol)
+            add('VEL_REF', lexeme, startLine, startCol, j)
             col += j - i
             i = j
             continue
@@ -170,7 +193,7 @@ export function lex(src) {
             let j = i + 4
             while (j < src.length && isDigit(src[j])) j++
             const lexeme = src.slice(i, j)
-            add('RGBA_REF', lexeme, startLine, startCol)
+            add('RGBA_REF', lexeme, startLine, startCol, j)
             col += j - i
             i = j
             continue
@@ -181,7 +204,7 @@ export function lex(src) {
             let j = i + 4
             while (j < src.length && isDigit(src[j])) j++
             const lexeme = src.slice(i, j)
-            add('MESH_REF', lexeme, startLine, startCol)
+            add('MESH_REF', lexeme, startLine, startCol, j)
             col += j - i
             i = j
             continue
@@ -194,7 +217,7 @@ export function lex(src) {
             const len = j - i
             if (len === 4 || len === 7 || len === 9) {
                 const lexeme = src.slice(i, j)
-                add('HEX', lexeme, startLine, startCol)
+                add('HEX', lexeme, startLine, startCol, j)
                 col += len
                 i = j
                 continue
@@ -222,7 +245,7 @@ export function lex(src) {
                     j++
                 }
                 const expr = src.slice(exprStart, j).trim()
-                add('FUNC', expr, startLine, startCol)
+                add('FUNC', expr, startLine, startCol, j)
                 col += j - i
                 i = j
                 continue
@@ -233,26 +256,26 @@ export function lex(src) {
             let j = i + 1
             while (j < src.length && isDigit(src[j])) j++
             const lexeme = src.slice(i, j)
-            add('NUMBER', lexeme, startLine, startCol)
+            add('NUMBER', lexeme, startLine, startCol, j)
             col += j - i
             i = j
             continue
         }
-        if (ch === '.') { add('DOT', '.', startLine, startCol); i++; col++; continue }
-        if (ch === '(') { add('LPAREN', '(', startLine, startCol); i++; col++; continue }
-        if (ch === ')') { add('RPAREN', ')', startLine, startCol); i++; col++; continue }
-        if (ch === '{') { add('LBRACE', '{', startLine, startCol); i++; col++; continue }
-        if (ch === '}') { add('RBRACE', '}', startLine, startCol); i++; col++; continue }
-        if (ch === '[') { add('LBRACKET', '[', startLine, startCol); i++; col++; continue }
-        if (ch === ']') { add('RBRACKET', ']', startLine, startCol); i++; col++; continue }
-        if (ch === ',') { add('COMMA', ',', startLine, startCol); i++; col++; continue }
-        if (ch === ':') { add('COLON', ':', startLine, startCol); i++; col++; continue }
-        if (ch === '=') { add('EQUAL', '=', startLine, startCol); i++; col++; continue }
-        if (ch === ';') { add('SEMICOLON', ';', startLine, startCol); i++; col++; continue }
-        if (ch === '+') { add('PLUS', '+', startLine, startCol); i++; col++; continue }
-        if (ch === '-') { add('MINUS', '-', startLine, startCol); i++; col++; continue }
-        if (ch === '*') { add('STAR', '*', startLine, startCol); i++; col++; continue }
-        if (ch === '/') { add('SLASH', '/', startLine, startCol); i++; col++; continue }
+        if (ch === '.') { add('DOT', '.', startLine, startCol, i + 1); i++; col++; continue }
+        if (ch === '(') { add('LPAREN', '(', startLine, startCol, i + 1); i++; col++; continue }
+        if (ch === ')') { add('RPAREN', ')', startLine, startCol, i + 1); i++; col++; continue }
+        if (ch === '{') { add('LBRACE', '{', startLine, startCol, i + 1); i++; col++; continue }
+        if (ch === '}') { add('RBRACE', '}', startLine, startCol, i + 1); i++; col++; continue }
+        if (ch === '[') { add('LBRACKET', '[', startLine, startCol, i + 1); i++; col++; continue }
+        if (ch === ']') { add('RBRACKET', ']', startLine, startCol, i + 1); i++; col++; continue }
+        if (ch === ',') { add('COMMA', ',', startLine, startCol, i + 1); i++; col++; continue }
+        if (ch === ':') { add('COLON', ':', startLine, startCol, i + 1); i++; col++; continue }
+        if (ch === '=') { add('EQUAL', '=', startLine, startCol, i + 1); i++; col++; continue }
+        if (ch === ';') { add('SEMICOLON', ';', startLine, startCol, i + 1); i++; col++; continue }
+        if (ch === '+') { add('PLUS', '+', startLine, startCol, i + 1); i++; col++; continue }
+        if (ch === '-') { add('MINUS', '-', startLine, startCol, i + 1); i++; col++; continue }
+        if (ch === '*') { add('STAR', '*', startLine, startCol, i + 1); i++; col++; continue }
+        if (ch === '/') { add('SLASH', '/', startLine, startCol, i + 1); i++; col++; continue }
 
         // Triple-quoted strings (multi-line) - must check before single quotes
         if (ch === '"' && src[i + 1] === '"' && src[i + 2] === '"') {
@@ -273,7 +296,7 @@ export function lex(src) {
             }
             // Extract string content without the triple quotes
             const content = src.slice(i + 3, j)
-            add('STRING', content, startLine, startCol)
+            add('STRING', content, startLine, startCol, j + 3)
             // Update position past closing """
             const lines = content.split('\n')
             if (lines.length > 1) {
@@ -301,7 +324,7 @@ export function lex(src) {
             }
             // Extract string content without quotes
             const content = src.slice(i + 1, j)
-            add('STRING', content, startLine, startCol)
+            add('STRING', content, startLine, startCol, j + 1)
             col += j - i + 1
             i = j + 1
             continue
@@ -315,7 +338,7 @@ export function lex(src) {
                 while (j < src.length && isDigit(src[j])) j++
             }
             const lexeme = src.slice(i, j)
-            add('NUMBER', lexeme, startLine, startCol)
+            add('NUMBER', lexeme, startLine, startCol, j)
             col += j - i
             i = j
             continue
@@ -326,9 +349,9 @@ export function lex(src) {
             while (j < src.length && (isLetter(src[j]) || isDigit(src[j]) || src[j] === '_')) j++
             const lexeme = src.slice(i, j)
             if (keywords[lexeme]) {
-                add(keywords[lexeme], lexeme, startLine, startCol)
+                add(keywords[lexeme], lexeme, startLine, startCol, j)
             } else {
-                add('IDENT', lexeme, startLine, startCol)
+                add('IDENT', lexeme, startLine, startCol, j)
             }
             col += j - i
             i = j
@@ -338,6 +361,6 @@ export function lex(src) {
         fail('L001', `Unexpected character '${ch}' at line ${line} col ${col}`, i, i + 1)
     }
 
-    add('EOF', '', line, col)
+    add('EOF', '', line, col, src.length)
     return tokens
 }

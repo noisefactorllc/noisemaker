@@ -105,8 +105,8 @@ type ExpansionFailure = {
 `Diagnostic.location` preserves the parser's one-based line and column when
 the diagnostic node has `loc`: parser `loc.col` populates `location.column`,
 and an explicit `loc.column` on a caller-supplied AST retains precedence.
-Nodes without `loc` still omit `location`; complete AST source coverage and
-source-derived parser coordinates remain open under GAP-002.
+Nodes without `loc` still omit `location`; complete AST source coverage is not
+a public contract.
 
 Lexer failures from `lex(source)` or `compile(source)` throw the same native
 `SyntaxError` with the same message as before. Each carries a non-enumerable
@@ -120,6 +120,15 @@ type LexerDiagnostic = {
   message: string // identical to error.message
   location: { line: number, column: number }
   span: { start: number, end: number }
+}
+
+type ParserDiagnostic = {
+  code: "P001" | "P002" | "P003" | "P004" | "P005" | "P006" | "P007"
+  stage: "parser"
+  severity: "error"
+  message: string // identical to error.message
+  location: { line: number, column: number } | null
+  span: { start: number, end: number } | null
 }
 ```
 
@@ -137,16 +146,23 @@ position counters, so structured coordinates can correct historical multiline
 counter drift while the legacy error message and successful tokens stay intact.
 Ordinary error enumeration and `JSON.stringify(error)` are unchanged.
 
-Parser failures from the shared token-expectation path in `parse(tokens)` (also
-used by `compile(source)`) now carry the same non-enumerable property shape:
-`code` is P002 when a closing parenthesis is expected, otherwise P001;
-`stage` is `"parser"`, `severity` is `"error"`, and `message` is the unchanged
-legacy error message. `location` copies the unexpected token's one-based
-`line`/`col` as `line`/`column`, or is `null` if either is not a positive integer.
-These are token coordinates, retaining legacy lexer counter drift after some
-multiline constructs; they are not yet source-derived like lexer diagnostics.
-`span` is explicitly `null`: public tokens have no source offsets, and decoded
-lexemes cannot reliably determine source lengths. This covers required-token
+Parser failures from any explicit throw path in `parse(tokens)` (also used by
+`compile(source)`) carry the same non-enumerable diagnostic property shape.
+The legacy `SyntaxError` class and message are unchanged, including the
+historical token-counter text inside messages. Diagnostic coordinates are
+source-derived: the lexer attaches a non-enumerable `position` to every token
+it produces, recording the token's one-based source `line`/`column` and its
+zero-based half-open source span, computed independently of the legacy
+position counters with the same UTF-16/LF-only convention as lexer failures.
+Parser diagnostics copy that position: `location` is the offending token's
+source line/column and `span` is its source span. Tokens supplied by callers
+without a source position fall back to the token's own positive-integer
+`line`/`col` with an explicitly `null` span, and any token lacking valid
+coordinates produces a `null` location. Number-coercion failures have no
+token, so their location is `null` unless the offending AST node has
+parser-authored coordinates. Successful token arrays keep their public shape:
+`position` is non-enumerable, so enumeration, `deepEqual`-style structural
+comparison, and `JSON.stringify` are unchanged. This covers required-token
 mismatches such as missing parentheses, identifiers, assignment signs, and
 end of input. Argument-validation failures in the `osc()`, `midi()`, and
 `audio()` automation transformations expose P003 with the same contract;
@@ -156,19 +172,19 @@ conflicting selectors, and invalid device-name/id strings. Explicit search
 directive validation failures expose P004: missing or duplicate directives,
 invalid or missing namespaces, and misplaced top-level or nested directives.
 P004 locations identify the rejected token, or EOF for a missing required
-directive, with the same coordinate limitations and null spans. P005 covers
+directive, with the same source-derived coordinates and spans. P005 covers
 invalid render targets, write/write3d in expression context, invalid write
 surfaces, and invalid write3d texture/geometry arguments. Its location identifies
 the rejected argument token (EOF when missing), or the write/write3d keyword
-for expression-context failures; it uses the same null-location/span rules.
+for expression-context failures; it uses the same rules.
 P006 covers explicit subchain validation: non-string argument values, missing
 body dots (including EOF and comment-only scans), and empty bodies, locating
 the rejected or invocation token with the same rules. P007 covers invalid call
 forms: `from()` argument validation (named arguments, argument count, namespace
 identifier, and call-expression target), forbidden inline namespace syntax, and
 mixed positional/keyword arguments. P007 locations identify the invocation name
-token (the offending keyword token for mixed-argument failures), or are `null`
-when caller-supplied coordinates are unavailable. Beyond the shared expectation
+token (the offending keyword token for mixed-argument failures), or fall back
+or become `null` as described for caller-supplied tokens. Beyond the shared expectation
 path, P001 also covers missing expressions after `=` (in assignments and
 keyword arguments), missing array-closing brackets, non-identifier member
 segments after `.`, unexpected primary tokens, and number coercion. Number
@@ -178,8 +194,8 @@ are unreachable through public `parse`/`compile` (a duplicate `render()`
 directive and the write/write3d dispatch fallback) also carry P005 for
 contract completeness. Shared token-expectation failures retain P001/P002,
 including repeated render statements rejected at end of input. Every parser
-throw path now carries a structured diagnostic; source-derived parser
-coordinates and complete AST `loc` coverage remain open under GAP-002.
+throw path carries a structured diagnostic with source-derived coordinates
+where a lexer-produced token is available.
 
 ## Runtime overview
 
@@ -3932,7 +3948,7 @@ Every cell points to an executable contract or an explicitly identified gap.
 
 | Surface | Introspect | Act | Validate | Diagnose |
 |---|---|---|---|---|
-| DSL program | `Token`, `ParsedProgram`, `CompiledProgram`, registry keys, `CompiledGraph` | Complete EBNF plus call/read/write/render and nested-automation contracts | parse/unparse/compile and render metric predicates | `SyntaxError`, `Diagnostic`, `CompilationFailure`. GAP-002/027 |
+| DSL program | `Token`, `ParsedProgram`, `CompiledProgram`, registry keys, `CompiledGraph` | Complete EBNF plus call/read/write/render and nested-automation contracts | parse/unparse/compile and render metric predicates | `SyntaxError`, `Diagnostic`, `CompilationFailure`. GAP-027 |
 | Effect definition | `Effect` fields, registry/manifest, `checkEffectStructure` | `EffectDefinition` typed grammar | validator and structure scan. Browser backend identity is GAP-024 | exact validator messages, structural arrays, backend errors. GAP-003/007/024/026 |
 | Parameters and globals | `effect.globals`, transformed `uniforms`, registry params, MIDI/audio state and capture requirements | `GlobalSpec`, nested automation, and selected-input contracts | compile reflection, state-selection predicates, and numeric response deltas | transform errors, type/range/identity/capture blind spots. GAP-010/011/024/032 |
 | Passes and render graph | `Effect.passes`, `CompiledGraph.passes`, `CompiledGraph.textures`, `CompiledGraph.allocations` | `PassSpec` typed grammar, sampler/output binding rules, and MRT byte adaptation | graph analysis and per-pass compile | unresolved inputs and backend compile/resource failures. GAP-005/006 |
@@ -3999,27 +4015,26 @@ compatibility queries cannot resolve builtin indexes. Effect step and chain
 indexes, result shapes, and starter-position behavior remain unchanged. The
 focused regression runs in both the shader-language and non-parity suites.
 
-GAP-002 remains open. The semantic diagnostic column mismatch is fixed:
-parser-authored `loc.col` now populates the existing `location.column` field.
-Regression coverage checks exact multiline coordinates, JSON serialization,
-caller-supplied columns, unlocated nodes, and unchanged valid compiled plans.
-Lexer errors now expose a stable JSON-safe `error.diagnostic` contract with
-L001-L004 codes and source-derived locations/spans while retaining legacy
-`SyntaxError` classes/messages and successful result shapes. Regressions cover
-all five lexer failure branches through `lex()` and `compile()`, including
-CRLF, tabs, UTF-16 text, and multiline scanner-counter drift. Shared parser
-token-expectation failures now expose P001/P002 diagnostics with token locations
-and explicitly unavailable spans (`null`), retaining legacy errors and success
-shapes. Automation argument failures in `osc()`/`midi()`/`audio()` now expose
-P003 with invocation-token locations and null spans. Explicit search directive
-validation failures expose P004 with rejected-token locations (EOF for missing
-required search) and null spans. Five reachable output-validation sites expose
-P005 for invalid render targets, expression-context writes, and invalid
-write/write3d arguments, preserving legacy messages and shared-expectation
-precedence. Three explicit subchain validation sites expose P006 for non-string
-arguments, missing body dots, and empty bodies, preserving permissive argument
-keys/separators/duplicates and shared-expectation precedence. Other parser
-failure paths and source-derived parser coordinates/spans remain open.
+This checkout closes GAP-002. Every lexer and parser failure path now exposes
+a stable JSON-safe `error.diagnostic` on the unchanged legacy `SyntaxError`:
+lexer failures carry L001-L004 with source-derived locations and spans, and
+parser failures carry P001-P007 with source-derived one-based locations and
+zero-based half-open source spans for lexer-produced tokens, caller-token
+fallback to the token's own line/col with an explicitly null span, and
+explicit null locations where no token position exists. The public coordinate
+convention is documented: one-based line/column counting UTF-16 code units,
+LF-only line breaks, CR and tabs one column, and non-enumerable token
+`position` metadata that leaves the public token shape, enumeration, and
+`JSON.stringify` unchanged. Legacy error messages, including their historical
+token-counter text, are byte-for-byte preserved. Regressions (115 focused
+cases) prove every contract branch and legacy compatibility through public
+`lex()`, `parse()`, and `compile()` entry points, with red-green
+demonstration, an independent source-walk oracle, and differential
+verification against the pre-change baseline. Semantic diagnostics preserve
+parser-provided columns. The diagnostic schema, coordinate convention, source
+files, and evidence are recorded in `docs/plans/active-framework-gap.md`.
+Source-derived parser coordinates and spans are part of the implemented
+contract; complete AST `loc` coverage is not a public contract.
 
 GAP-005 is narrowed, not closed, at noisemaker `ff1bfbc1`: `conditions` is
 copied by `expand()` and reaches `Pipeline.shouldSkipPass()`, so it is no
@@ -4028,7 +4043,6 @@ longer on the uncopied-field list below. `name`, `viewport`, `clear`,
 
 | ID | Missing instrumentation | Source evidence | Agent consequence |
 |---|---|---|---|
-| GAP-002 | Parser errors outside shared token expectations, automation argument validation, search directive validation, reachable output validation, and explicit subchain validation lack a stable diagnostic schema; parser locations retain token-counter limitations and source spans are unavailable. Complete AST `loc` coverage is not a public contract | `shaders/src/lang/parser.js` (shared `expect()` exposes P001/P002, automation argument validation exposes P003, search directive validation exposes P004, reachable output validation exposes P005, explicit subchain validation exposes P006, and remaining call-form and expectation paths expose P007/P001/P005, including unreachable defense-in-depth sites; `lexer.js` implemented at `643b2be1`; source-derived parser coordinates remain open) | retry code must still parse human text for source-derived parser coordinates; token-counter parser locations and null spans are the public convention |
 | GAP-003 | `validateEffectDefinition()` validates only a subset of the consumed definition schema | `shaders/src/runtime/effect-validator.js` versus `effect.js` and `expander.js` | invalid globals/pass/texture fields can survive structure validation |
 | GAP-004 | Mip and persistent-across-frames controls do not exist. Definition-level 3D `filter` and unknown texture fields are discarded | `shaders/src/runtime/compiler.js` - `extractTextureSpecs()`; backend texture creation methods | an agent cannot author/query mip policy, persistence, or 3D nearest filtering, and typos can be ignored |
 | GAP-005 | `name`, `viewport`, `clear`, `samplerTypes`, and `type` are not copied into expanded effect passes. (Narrowed at noisemaker `ff1bfbc1`: `conditions` used to be on this list; `expand()` now copies it and `Pipeline.shouldSkipPass()` consumes it.) | `shaders/src/runtime/expander.js` - constructed pass object; `pipeline.js` - `shouldSkipPass()` | authoring these remaining fields has no runtime effect through `definition.js` and emits no diagnostic |
@@ -4053,5 +4067,5 @@ longer on the uncopied-field list below. `name`, `viewport`, `clear`,
 | GAP-032 | The built-in browser audio manager cannot populate selected-device/default-channel state or any `rawReady` value | `shaders/src/runtime/external-input.js` - `AudioInputManager.enable()` opens one default stream and `_updateLoop()` updates only aggregate spectrum, waveform, bands, and volume; selected/raw setters exist only on `AudioState` | Channel-only, named-channel, and raw audio bindings evaluate to `min` under the shipped manager unless the host separately consumes `getAudioInputRequirements()` and populates `AudioState`. The runtime gives no warning when that integration is absent. |
 
 The matrix has 9 surfaces x 4 capabilities = 36 filled cells. Cells that rely
-on behavior absent from code link to the 23 open gaps above rather than substituting
+on behavior absent from code link to the 22 open gaps above rather than substituting
 an invented contract.

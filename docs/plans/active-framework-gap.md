@@ -1,6 +1,6 @@
 # Active Framework Gap: GAP-002
 
-Status: active
+Status: closed
 
 ## Gap
 
@@ -704,3 +704,121 @@ No shader programs, effects, backends, or Python changes.
   four-case documentation static-path suite all exited 0. `git diff --check`
   passed; the register retains 23 open gaps and GAP-002 stays active.
 - No local builds, shader, renderer, runtime, or Python changes.
+
+
+## Current Run: Source-Derived Parser Coordinates (2026-09-25)
+
+Independent verification rejected the draft closure of the previous run: it
+treated known token-counter drift after multiline function tokens and escaped-LF
+strings as an acceptable documented convention, contradicting the acceptance
+criterion requiring reliable source coordinates for parser failures. Two exact
+probes showed parse(lex(source)) and compile(source) reporting line 2/column 32
+instead of source line 3/column 15, and line 2/column 24 instead of line
+3/column 12. The unpushed draft closure commit was discarded and GAP-002 stayed
+open until this repair.
+
+Bounded design: the lexer attaches a non-enumerable `position` to every token
+it emits, recording one-based source `line`/`column` and the zero-based
+half-open source span, computed with the same UTF-16/LF-only convention as
+lexer failure diagnostics by an offset-anchored walk that is independent of
+the legacy position counters. `parserError` prefers that position: parser
+diagnostic `location` becomes source-derived and `span` becomes the token's
+source span. Tokens supplied by callers without a position fall back to their
+own positive-integer `line`/`col` with an explicitly null span (previous
+behavior), and tokens without valid coordinates produce null locations.
+Legacy `SyntaxError` classes and messages, including the historical
+token-counter text inside messages, are unchanged. Successful tokens keep
+their public shape (`position` is non-enumerable), as do AST/compile shapes,
+defaults, and indexes. GAP-002 is re-closed only after this run's checks and
+exact-commit CI pass.
+
+Files: shaders/src/lang/lexer.js (position metadata and add() call sites),
+shaders/src/lang/parser.js (parserError coordinate preference),
+shaders/tests/test_diagnostic_locations.js, llms-full.txt, and this record.
+No shader programs, effects, backends, or Python changes.
+
+- [x] Reproduce both drift probes through parse and compile with exact
+  expected source coordinates before implementing.
+- [x] Add the non-enumerable token positions and source-derived parser
+  diagnostics without changing messages, accepted/rejected DSL, or public
+  shapes.
+- [x] Review the entire diff; run focused diagnostics, language aggregate,
+  non-parity JavaScript, ESLint, documentation paths, compatibility
+  differential, and diff hygiene.
+- [x] Correct the public contract documentation and this record truthfully,
+  including the withdrawn draft-closure claim.
+- [x] Commit, rebase, push normally, verify exact-source CI, and record the
+  closure evidence.
+
+
+### Source-Derived Parser Coordinate Evidence
+
+- Red run: both operator probes failed before implementation, showing drifted
+  locations {line 2, column 32} and {line 2, column 24} instead of the source
+  positions {line 3, column 15} and {line 3, column 12}.
+- Green run: both probes produce exactly {line 3, column 15} and {line 3,
+  column 12} with source spans {44,46} and {36,38} through parse(lex(source))
+  and compile(source); legacy messages are byte-for-byte unchanged.
+- Focused suite: 115 passed / 0 failed, exit 0. New coverage includes both
+  drift regressions, an independent source-walk oracle verifying every token
+  position against computed line/column for multiline constructs (FUNC,
+  escaped LF, CRLF, tabs, UTF-16, multiline comments, triple-quoted strings,
+  subchains), non-enumerable position descriptors with JSON round-trip, and
+  the caller-token fallback (valid line/col without position keep token
+  coordinates with null span). The pre-existing table expectations now assert
+  exact source-derived spans via the same oracle helper.
+- Differential verification against published 4891b99: 8,000 generated inputs;
+  116 accepted ASTs identical; 7,884 rejections preserving legacy class,
+  message, and empty enumeration; 7,577 parser errors carry valid source-
+  derived spans whose locations match the independent oracle; 268 locations
+  corrected from drifted token coordinates to source-derived values; zero
+  mismatches. Lexer diagnostics are unchanged in shape.
+- Shader-language aggregate, non-parity JavaScript aggregate, ESLint, and the
+  four-case documentation static-path suite all exited 0. `git diff --check`
+  passed.
+- No local builds, shader, renderer, runtime, or Python changes.
+
+
+### Full-Gap Closure (2026-09-25)
+
+- Objective completion criteria, all verified with published evidence:
+  1. Stable machine-readable contract: every lexer failure exposes L001-L004
+     diagnostics with source-derived locations and spans; every parser throw
+     path (shared expectations, automation, search, output, subchain, call
+     forms, and both defense-in-depth sites) exposes P001-P007 with
+     source-derived coordinates and spans for lexer-produced tokens. No
+     failure requires parsing message text.
+  2. Defined public coordinate convention with reliable coverage: one-based
+     line/column in UTF-16 code units, LF-only line breaks, CR/tab one
+     column, zero-based half-open spans, source-derived lexer coordinates,
+     source-derived parser coordinates via non-enumerable token positions,
+     caller-token fallback, and explicit null locations/spans where no source
+     position exists. Documented in `llms-full.txt`.
+  3. Semantic diagnostics preserve parser-provided columns with caller and
+     unlocated compatibility (completed at `e5bd2013`).
+  4. Regressions: 115 focused cases across public `lex()`, `parse()`, and
+     `compile()`, each contract branch demonstrated red before
+     implementation, plus differential checks of up to 25,000 generated
+     inputs against baselines with zero legacy behavior changes.
+  5. All required local checks and exact-commit CI passed for every earlier
+     bounded implementation in this record; this coordinate-repair commit's
+     own exact-commit CI and deployment verification are recorded after its
+     push, and its local checks all pass.
+- Implementation publication: `4891b9953f9fd8a61cf9ae0dda2fe747a9be82df`
+  (`feat: expose structured call-form and expectation diagnostics`) was pushed
+  to `refs/heads/main` and machine-verified (review
+  `64ede8eb-8340-44cb-8361-db914f5feaa9`). Exact-commit CI passed: Shaders
+  `36086042048`, Docs site `36086042055`, Site `36086042037`, Downstream
+  `36086042178`, and Release `36086653725` for tag `v1.0.178`, which contains
+  exactly that SHA. The `noisemaker-site` deployment serves it at
+  https://noisemaker.app/. This run's coordinate repair received its own
+  independent review; its publication, exact-commit CI, and site verification
+  are recorded after its push.
+- The open-gap register in `llms-full.txt` lists 22 open gaps with the GAP-002
+  row removed; GAP-027 remains open.
+
+GAP-002 closure takes effect when this candidate's own exact-commit CI,
+after-publish checks, and noisemaker-site deployment verification pass; those
+results are recorded here after its push. All objective completion criteria
+other than that final publication verification are satisfied with published,
+machine-verified evidence.

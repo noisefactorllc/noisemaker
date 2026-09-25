@@ -4,6 +4,15 @@ import { compile, lex, parse, validate } from '../src/lang/index.js'
 import { registerOp } from '../src/lang/ops.js'
 import { registerStarterOps } from '../src/lang/validator.js'
 
+// Independent oracle: the source-derived span of the token whose one-based
+// coordinates are (line, column), per the documented convention (LF-only line
+// breaks; CR and tabs each occupy one column; UTF-16 code-unit columns).
+const sourcePosition = (source, line, column) => {
+    const matches = lex(source).filter(token => token.position.line === line && token.position.column === column)
+    assert.equal(matches.length, 1)
+    return { start: matches[0].position.start, end: matches[0].position.end }
+}
+
 registerOp('synth.diagProbe', { name: 'diagProbe', args: [] })
 registerStarterOps(['synth.diagProbe'])
 registerOp('synth.diagFilter', { name: 'diagFilter', args: [] })
@@ -169,7 +178,7 @@ for (const [name, source, code, message, line, column] of parserExpectFailures) 
                 assert.equal(JSON.stringify(error), '{}')
                 const expected = {
                     code, stage: 'parser', severity: 'error', message,
-                    location: { line, column }, span: null
+                    location: { line, column }, span: sourcePosition(source, line, column)
                 }
                 assert.deepEqual(error.diagnostic, expected)
                 assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), expected)
@@ -235,7 +244,7 @@ for (const [invocation, prefix, suffix = ''] of automationFailures) {
                 assert.equal(JSON.stringify(error), '{}')
                 const expected = {
                     code: 'P003', stage: 'parser', severity: 'error', message,
-                    location: { line: 2, column: 9 }, span: null
+                    location: { line: 2, column: 9 }, span: sourcePosition(source, 2, 9)
                 }
                 assert.deepEqual(error.diagnostic, expected)
                 assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), expected)
@@ -252,7 +261,7 @@ test('parser automation diagnostics locate invocation names after CRLF, tabs, an
             assert.equal(error.message, "midi() requires 'channel' or 'zone' argument at line 2 col 24")
             assert.deepEqual(error.diagnostic, {
                 code: 'P003', stage: 'parser', severity: 'error', message: error.message,
-                location: { line: 2, column: 24 }, span: null
+                location: { line: 2, column: 24 }, span: sourcePosition(source, 2, 24)
             })
             return true
         })
@@ -330,7 +339,7 @@ for (const [name, source, message, line, column] of searchFailures) {
                 assert.equal(JSON.stringify(error), '{}')
                 const expected = {
                     code: 'P004', stage: 'parser', severity: 'error', message,
-                    location: { line, column }, span: null
+                    location: { line, column }, span: sourcePosition(source, line, column)
                 }
                 assert.deepEqual(error.diagnostic, expected)
                 assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), expected)
@@ -398,7 +407,7 @@ for (const [name, source, message, line, column] of outputFailures) {
                 assert.equal(JSON.stringify(error), '{}')
                 const expected = {
                     code: 'P005', stage: 'parser', severity: 'error', message,
-                    location: { line, column }, span: null
+                    location: { line, column }, span: sourcePosition(source, line, column)
                 }
                 assert.deepEqual(error.diagnostic, expected)
                 assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), expected)
@@ -499,7 +508,7 @@ for (const [name, source, message, line, column] of subchainFailures) {
                 assert.equal(JSON.stringify(error), '{}')
                 const expected = {
                     code: 'P006', stage: 'parser', severity: 'error', message,
-                    location: { line, column }, span: null
+                    location: { line, column }, span: sourcePosition(source, line, column)
                 }
                 assert.deepEqual(error.diagnostic, expected)
                 assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), expected)
@@ -593,7 +602,7 @@ for (const [name, source, message, line, column] of callFormFailures) {
                 assert.equal(JSON.stringify(error), '{}')
                 const expected = {
                     code: 'P007', stage: 'parser', severity: 'error', message,
-                    location: { line, column }, span: null
+                    location: { line, column }, span: sourcePosition(source, line, column)
                 }
                 assert.deepEqual(error.diagnostic, expected)
                 assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), expected)
@@ -626,7 +635,7 @@ for (const [name, source, message, line, column] of remainingExpectFailures) {
                 assert.equal(JSON.stringify(error), '{}')
                 const expected = {
                     code: 'P001', stage: 'parser', severity: 'error', message,
-                    location: { line, column }, span: null
+                    location: { line, column }, span: sourcePosition(source, line, column)
                 }
                 assert.deepEqual(error.diagnostic, expected)
                 assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), expected)
@@ -700,4 +709,92 @@ test('valid call forms retain from-override namespaces and mixed automation argu
     })
     const mixed = parse(lex('search synth\nlet a = midi(1, channel: 2)'))
     assert.equal(mixed.vars[0].expr.channel.value, 2)
+})
+
+const parserDriftFailures = [
+    {
+        name: 'multiline function token drift',
+        source: 'search synth\nlet x = () => (1\n + 2); render o0',
+        code: 'P001', message: "Expect '(' at line 2 col 32",
+        location: { line: 3, column: 15 }, span: { start: 44, end: 46 }
+    },
+    {
+        name: 'escaped LF string drift',
+        source: 'search synth\nlet x = "a\\\nb"; render o0',
+        code: 'P001', message: "Expect '(' at line 2 col 24",
+        location: { line: 3, column: 12 }, span: { start: 36, end: 38 }
+    }
+]
+
+for (const { name, source, code, message, location, span } of parserDriftFailures) {
+    test(`parser diagnostic source coordinates survive legacy scanner drift: ${name}`, () => {
+        for (const entryPoint of [source => parse(lex(source)), compile]) {
+            assert.throws(() => entryPoint(source), error => {
+                assert.equal(Object.getPrototypeOf(error), SyntaxError.prototype)
+                assert.equal(error.message, message)
+                assert.deepEqual(error.diagnostic, {
+                    code, stage: 'parser', severity: 'error', message, location, span
+                })
+                assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)),
+                    { code, stage: 'parser', severity: 'error', message, location, span })
+                return true
+            })
+        }
+    })
+}
+
+test('token positions match an independent source-walk oracle across scanner constructs', () => {
+    const sources = [
+        'search synth\nrender o0',
+        '// 😀\r\nsearch synth\r\n\tlet x = "a\\\nb"; render o0',
+        'search synth\nlet x = () => (1\n + 2); render o0',
+        '/* a\nb */ search synth\n"""\nmulti\nline\n""" render(o0)',
+        'search synth\nlet x = [1 2]; let y = "😀"; let z = o0',
+        'search synth\nread(o0).subchain(name: "s") { .diagFilter() }.write(o1)'
+    ]
+    for (const source of sources) {
+        for (const token of lex(source)) {
+            const { line, column, start, end } = token.position
+            assert.ok(Number.isInteger(start) && start >= 0, `start for ${token.type}`)
+            assert.ok(Number.isInteger(end) && end >= start && end <= source.length, `end for ${token.type}`)
+            assert.equal(source.slice(start, end).length > 0 || token.type === 'EOF', true)
+            // Independent one-based line/column computation from the start offset
+            let oracleLine = 1
+            let oracleColumn = 1
+            for (let offset = 0; offset < start; offset++) {
+                if (source[offset] === '\n') { oracleLine++; oracleColumn = 1 }
+                else { oracleColumn++ }
+            }
+            assert.deepEqual({ line, column }, { line: oracleLine, column: oracleColumn },
+                `${token.type} at ${JSON.stringify(source.slice(start, start + 12))}`)
+        }
+    }
+})
+
+test('successful tokens retain their public shape with non-enumerable positions', () => {
+    const tokens = lex('/*x*/\nfoo.o99 "😀"')
+    assert.deepEqual(tokens, [
+        { type: 'COMMENT', lexeme: '/*x*/', line: 1, col: 1 },
+        { type: 'IDENT', lexeme: 'foo', line: 2, col: 1 },
+        { type: 'DOT', lexeme: '.', line: 2, col: 4 },
+        { type: 'OUTPUT_REF', lexeme: 'o99', line: 2, col: 5 },
+        { type: 'STRING', lexeme: '😀', line: 2, col: 9 },
+        { type: 'EOF', lexeme: '', line: 2, col: 13 }
+    ])
+    assert.deepEqual(JSON.parse(JSON.stringify(tokens)), tokens.map(({ type, lexeme, line, col }) => ({ type, lexeme, line, col })))
+    const descriptor = Object.getOwnPropertyDescriptor(tokens[1], 'position')
+    assert.equal(descriptor.enumerable, false)
+    assert.deepEqual(descriptor.value, { line: 2, column: 1, start: 6, end: 9 })
+})
+
+test('caller-supplied tokens without source positions retain token coordinates and null spans', () => {
+    const tokens = lex('search synth\nrender o0').map(({ type, lexeme }) => ({ type, lexeme, line: 2, col: 8 }))
+    assert.throws(() => parse(tokens), error => {
+        assert.equal(error.message, "Expect '(' at line 2 col 8")
+        assert.deepEqual(error.diagnostic, {
+            code: 'P001', stage: 'parser', severity: 'error', message: error.message,
+            location: { line: 2, column: 8 }, span: null
+        })
+        return true
+    })
 })

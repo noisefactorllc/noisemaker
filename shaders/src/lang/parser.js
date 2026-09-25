@@ -61,17 +61,29 @@ export function parse(tokens) {
     const advance = () => tokens[current++]
     const parserError = (code, message, token) => {
         const error = new SyntaxError(message)
-        const hasLocation = Number.isInteger(token.line) && token.line > 0
-            && Number.isInteger(token.col) && token.col > 0
+        // Prefer the lexer's non-enumerable source-derived position when the
+        // token came from lex(source). Caller-supplied tokens fall back to
+        // their own positive-integer line/col with an explicitly null span.
+        const position = token && typeof token === 'object' ? token.position : null
+        const hasPosition = position
+            && Number.isInteger(position.line) && position.line > 0
+            && Number.isInteger(position.column) && position.column > 0
+            && Number.isInteger(position.start) && position.start >= 0
+            && Number.isInteger(position.end) && position.end >= position.start
+        const hasLocation = Number.isInteger(token?.line) && token.line > 0
+            && Number.isInteger(token?.col) && token.col > 0
         Object.defineProperty(error, 'diagnostic', {
             value: {
                 code,
                 stage: diagnostics[code].stage,
                 severity: diagnostics[code].severity,
                 message: error.message,
-                location: hasLocation ? { line: token.line, column: token.col } : null,
-                // Public tokens have no source offsets; do not infer a span from lexeme length.
-                span: null
+                location: hasPosition
+                    ? { line: position.line, column: position.column }
+                    : (hasLocation ? { line: token.line, column: token.col } : null),
+                span: hasPosition
+                    ? { start: position.start, end: position.end }
+                    : null
             }
         })
         return error
