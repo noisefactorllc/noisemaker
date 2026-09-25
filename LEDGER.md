@@ -445,7 +445,14 @@ work, verify it, then update the checkpoint and append a log line.
     build succeeded, 18 pre-existing warnings, 0 errors), docs static paths
     (`node --test test/docs-static-paths.test.js`, 4/4 pass), ESLint
     (`npm run lint`), and non-parity JS test suite
-    (`node scripts/run-js-tests.js --skip-parity`).
+    (`node scripts/run-js-tests.js --skip-parity`). Published-source CI and
+    deployment evidence observed via the GitHub API: `docs-site.yml`
+    succeeded at `69d83b80` (run 36164682935) and at `63349a7d` (run
+    36174749632), with `downstream.yml` also succeeding at both SHAs
+    (36164683019, 36174749672); the live docs.noisemaker.app deployment
+    serves `git_hash: 63349a7d6b95da1e97f35b8570872db82c55d7da` per
+    `deployment-meta.json` (the Sphinx HTML built from the exact SHA that
+    carries this pass's `.rst` edits).
   - 2026-09-25 — caught up through `fa4b2f02`: audited range
     `cfccdf96..fa4b2f02` (covering Tearoff #534 trigger `60b90af3..9d3474df`
     through HEAD). Gap detection confirmed zero missing `help.md` files across
