@@ -438,8 +438,13 @@ work, verify it, then update the checkpoint and append a log line.
     accurate); no invalidated narrative statements remained. The range's
     engine commits (`a021a28`, `62eb56f`, `2f47612`, GAP-004 texture
     policies and backend mip handling) and closure docs (`85ded3a`) were
-    audited under the AI development contract section; no new narrative
-    feature guides required under `docs/shaders/features.rst`. Verified the
+    audited under the AI development contract section. Invalidated-statement
+    audit of GAP-004 updated `docs/shaders/effects.rst` (textureSpec schema
+    now documents `mipmaps`, `persistent`, and 3D `filter`) and
+    `docs/shaders/pipeline.rst` (resize-behavior section documents both 2D
+    allocation policies, mip-chain regeneration, persistent resample, and
+    3D filtering; the blanket "does not blit old surface content" sentence
+    no longer holds for persistent textures). Verified the
     Sphinx docs build locally at the exact source
     (`sphinx-build -b dirhtml docs` with `docs/sphinx-requirements.txt`:
     build succeeded, 18 pre-existing warnings, 0 errors), docs static paths
@@ -451,8 +456,9 @@ work, verify it, then update the checkpoint and append a log line.
     36174749632), with `downstream.yml` also succeeding at both SHAs
     (36164683019, 36174749672); the live docs.noisemaker.app deployment
     serves `git_hash: 63349a7d6b95da1e97f35b8570872db82c55d7da` per
-    `deployment-meta.json` (the Sphinx HTML built from the exact SHA that
-    carries this pass's `.rst` edits).
+    `deployment-meta.json` — `63349a7d` descends from `69d83b80`
+    (verified with `git merge-base --is-ancestor`), so the deployed Sphinx
+    HTML includes this pass's `.rst` edits.
   - 2026-09-25 — caught up through `fa4b2f02`: audited range
     `cfccdf96..fa4b2f02` (covering Tearoff #534 trigger `60b90af3..9d3474df`
     through HEAD). Gap detection confirmed zero missing `help.md` files across

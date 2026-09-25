@@ -745,9 +745,12 @@ The following schema summarizes the consumed authoring shape. Regular expression
            "width": { "$ref": "#/definitions/dimensionSpec" },
            "height": { "$ref": "#/definitions/dimensionSpec" },
            "depth": { "$ref": "#/definitions/dimensionSpec" },
-           "format": { "type": "string" }
+           "format": { "type": "string" },
+           "mipmaps": { "type": "boolean", "description": "2D only: allocate a full mip chain and regenerate it from level-0 writes each frame" },
+           "persistent": { "type": "boolean", "description": "2D only: resample contents into the new texture when allocation size changes instead of starting empty" },
+           "filter": { "type": "string", "enum": ["nearest", "linear"], "description": "3D (\"textures3d\") only: sampler filtering; unauthored 3D textures keep the historical nearest default" }
          },
-         "description": "User-defined textures. Width and height default to screen; format defaults to rgba16f."
+         "description": "User-defined textures. Width and height default to screen; format defaults to rgba16f. Unknown or misplaced policy fields are rejected with per-field diagnostics."
        },
        "enableCondition": {
          "type": "object",

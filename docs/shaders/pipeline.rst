@@ -368,8 +368,31 @@ multiwrite validator.
 calls ``createSurfaces()`` and ``recreateTextures()``. The Pipeline resolves dimension specifications against the new screen size
 and current pass uniforms. It reuses a backend texture when its resolved
 dimensions still match. Otherwise, it destroys and recreates the texture. Resizing also restarts asynchronous effect
-initialization. The current resize path does not blit old surface content into
-newly sized textures or recompile shader programs.
+initialization.
+
+Two 2D allocation policies (opt-in via the texture spec) change this default
+behavior:
+
+- ``mipmaps: true`` allocates the full mip chain at creation
+  (``floor(log2(max(width, height))) + 1`` levels), with render/compute
+  passes writing into level 0 and sampling through the full-chain view. The
+  chain regenerates from level-0 writes each frame via the backend's
+  ``generateMipmaps()`` (WebGL2: level-to-level NEAREST blits; WebGPU:
+  cached fullscreen resample pipelines with per-level bind groups).
+- ``persistent: true`` preserves contents across recreation at a new size:
+  the pipeline copies the old texture into a temporary, recreates, and
+  resamples back through ``backend.copyTexture()`` (WebGPU uses
+  ``copyTextureToTexture`` when dimensions match and neither side is
+  mipmapped, a fullscreen resample pass otherwise). Global surface
+  recreation preserves persistent halves and recreates each half exactly
+  once per allocation change.
+
+3D texture specs (``textures3d``) may author ``filter: 'nearest' |
+'linear'``; it is honored by both backends, while unauthored 3D sampling
+keeps the historical nearest default. Unknown or misplaced texture spec
+fields are rejected by ``validateEffectDefinition()`` with per-field
+diagnostics. The current resize path otherwise does not blit old surface
+content into newly sized textures or recompile shader programs.
 
 ----
 
