@@ -798,9 +798,13 @@ writes that lane. Two- and three-character components write consecutive lanes
 starting at the first character. Four characters write the whole slot. Both
 backend packers consume the strings above by length and starting lane.
 
-No definition validator checks this field.
-An unknown, noncontiguous, or out-of-slot string can be ignored or mispacked.
-It can also cause buffer writes to fail instead of producing a definition diagnostic. This is covered by GAP-003.
+`validateEffectDefinition()` structurally checks uniform-layout slot/byte
+forms, including non-contiguous component strings and duplicate or
+overlapping slot/component claims (see GAP-003). Whether a string mispacks at
+runtime (lane count versus shader expectations) is a shader-compilation/
+runtime property, not a CPU structure check; buffer write failures from a
+string the shader does not expect are runtime errors, not definition
+diagnostics.
 
 When an `Effect` wrapper method invokes a config hook, it uses `.call(this)`
 with the live instance, not the definition object. `this.state` and
@@ -898,9 +902,13 @@ Could not load shader manifest - lazy loading requires manifest.json
 Backend compilation then reports missing shader source, shader compilation,
 linking, or program-spec failures enumerated under Cross-backend parity.
 
-Unknown fields, wrong tag values, wrong global defaults/ranges, wrong pass field
-values, texture shape, shader/declaration binding agreement, and lifecycle
-signatures are not checked by `validateEffectDefinition()`. See GAP-003.
+`validateEffectDefinition()` now checks unknown declarative fields, tag
+values, global defaults/ranges/choices, pass field values, and texture-spec
+shape (see GAP-003). Shader/declaration binding agreement — whether a pass
+uniform declared in a definition has a matching declaration in the shader
+source — and lifecycle signatures are not checked by
+`validateEffectDefinition()`; shader compilation and runtime behavior remain
+outside CPU structure validation.
 
 Sources: `shaders/src/runtime/effect-validator.js` -
 `validateEffectDefinition()`; `shaders/src/renderer/canvas.js` - load/import
