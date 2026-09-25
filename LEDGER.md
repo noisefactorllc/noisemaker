@@ -817,7 +817,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `69d83b80` / shade-mcp `00340b1`, 2026-09-25
+- **Checkpoint:** noisemaker `5e52a2a2` / shade-mcp `00340b1`, 2026-09-25
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -825,7 +825,7 @@ work, verify it, then update the checkpoint and append a log line.
   parameters/globals, passes/graph, textures, compatibility/mutation,
   rendered output, cross-backend parity, Shade MCP tool contracts), a fully
   worked validated effect, the surface × capability traceability matrix, and
-  the 20-entry open gap register (GAP-004..012, GAP-014..017, GAP-019..021,
+  the 19-entry open gap register (GAP-005..012, GAP-014..017, GAP-019..021,
   GAP-024, GAP-026, GAP-029, and GAP-032). The file pins its
   own audited SHAs in the "Source snapshots used for this contract" block at
   its head; that block and this checkpoint are the same two SHAs and must be
@@ -893,6 +893,35 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
+  - 2026-09-25 — caught up through noisemaker `5e52a2a2` / shade-mcp `00340b1`:
+    audited watched source roots across noisemaker range `69d83b80..5e52a2a2`
+    (covering Tearoff #551 trigger `4891b995..2f47612c` through HEAD).
+    Commits `a021a283`, `62eb56fa`, and `2f47612c` implemented GAP-004 authorable
+    mipmaps/persistent/3D filter texture policies across WebGL2 and WebGPU
+    backends, compiler, and pipeline. Commit `85ded3a6` closed GAP-004 with
+    verified publication evidence for `2f47612c` (review 55cfba6d-bd00-477d-9ee1-f19ddf6fade9;
+    Release v1.0.182 run 36173647198, Shaders 36172741063, Site 36172741094, Downstream
+    36172741064, Docs site 36172741147, JavaScript 36172741121). Commit `63349a7d`
+    retired per-push snapshot releases. Commits `c6bc8e17` and `5e52a2a2` advanced
+    Documentation checkpoints and recorded docs deployment. Shade MCP source
+    unchanged at `00340b1`. Verified four identities: Noisemaker source
+    `5e52a2a2fcaeb3cd540e7bdc0328a2a009116ff5`, Shade MCP source
+    `00340b148e109464b1a87d89ff29fc7622d384c9`, `.mcp.json` pinned to
+    `cbcab33363851016f65391fbb9ef71d66729c07f`, and `vendor/shade-mcp/` delivered
+    from release `v0.2.3` (`cbcab33363851016f65391fbb9ef71d66729c07f`). Open gap
+    count stands at 19 entries (GAP-004 closed). Verified Noisemaker non-parity JS
+    tests (`node scripts/run-js-tests.js --skip-parity`, all suites pass) and lint
+    (`npm run lint`), Shade MCP typecheck (`npm run typecheck`, 0 errors) and unit
+    tests (`npm test`, 24 files / 157 tests pass), structure check via vendored
+    harness (`npm run test:shaders:structure`, 206/206 pass, 1258 parameters), WebGL2
+    and WebGPU render checks (`npm run test:shaders:render:webgl2` and
+    `npm run test:shaders:render:webgpu`), and live browser smoke test against
+    Noisemaker viewer (`NOISEMAKER=... node scripts/browser-smoke.mjs`, all 3 checks OK:
+    `compileEffect`, `renderEffectFrame`, module import from `setContent` page).
+    Re-captured MCP initialization, server info (`shade-mcp 0.2.3`), protocol
+    (`2024-11-05`), 18 tools via `tools/list`, and worked tool call `checkEffectStructure`
+    with `effect_id: "synth/noise"`. Updated `llms-full.txt` snapshot block and
+    advanced `LEDGER.md` checkpoint together.
   - 2026-09-25 — caught up through noisemaker `69d83b80` / shade-mcp `00340b1`:
     audited watched source roots across noisemaker range `5f4b7c43..69d83b80`
     (covering Tearoff #535 trigger `4891b995..9d3474df` through HEAD).
