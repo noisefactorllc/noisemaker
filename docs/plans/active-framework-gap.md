@@ -1,14 +1,90 @@
-# Active Framework Gap: GAP-005
+# Active Framework Gap: GAP-006
 
-Status: closed (implemented at fa83eeabf278f1f4999c1d1fff43e2e5338b72ba and
-verified at the published record commit
-8eeb7b5ac14eb37a8d16037f607a88ce63924cd3). The prior GAP-004 record is
-preserved below, unchanged.
+Status: closed (implemented at 6113da0). Machine verification of the published
+revision is pending at the time of this record commit; the completed-evidence
+section below is finalized in a forward commit once exact-commit CI and the
+site deployment pass. The GAP-005 record is preserved below, unchanged.
 
-The prior active-target records for GAP-004, GAP-003, and GAP-027 are
+The prior active-target records for GAP-005, GAP-004, GAP-003, and GAP-027 are
 preserved below, unchanged. See their "Completed Evidence" sections.
 
-## GAP-005
+## GAP-006
+
+Gap statement from `llms-full.txt`:
+
+> Resource allocation/liveness output is analysis-only. Renderers do not
+> consume its physical allocation plan
+
+Source evidence: `shaders/src/runtime/resources.js` -
+`analyzeLiveness()`/`allocateResources()`; `compiler.js` stores
+`graph.allocations` with no pipeline/backend consumer. Consequence: an agent
+cannot query the actual runtime allocation/reuse plan promised by the
+analyzer.
+
+## Selected Contract (backward compatible)
+
+- `Pipeline.getResourcePlan()` reports the actual runtime texture
+  allocation/reuse plan: the analyzer's physical allocation map
+  (`graph.allocations`), the sharing the renderer actually materialized
+  (`sharedTextures` groups), and per-record entries (`textures` with
+  `virtualTextures`) for every non-global graph texture. Available on every
+  pipeline, pooling opt-in or not.
+- The renderer consumes the plan behind the explicit `texturePooling: true`
+  opt-in (`new Pipeline(graph, backend, { texturePooling: true })` or
+  `createRuntime(source, { texturePooling: true })`):
+  `Pipeline.buildTexturePoolingPlan()` groups `graph.allocations` members that
+  share a physical slot, `recreateTextures()` creates one backend texture per
+  group under the group's primary id, and every member's backend map entry is
+  aliased to that record so pass execution binds the shared texture through
+  either id. `releaseRegroupedTextures()`/`applyTextureAliases()` keep the
+  sharing correct across resize and recompile.
+- Pooling is refused for groups whose members' specs differ or carry
+  `persistent`/`mipmaps`/3D policy, for members whose first touch in the pass
+  list is a read or that are sampled by their own producing pass, and for
+  members written by partial/non-clearing passes (any explicit `drawMode` —
+  points/billboards/triangles scatter geometry without covering the surface —
+  or `blend`, whose result depends on the destination's previous contents), so
+  first-read and cross-frame accumulation semantics match standalone textures.
+- No new rejection of previously accepted input: the default (opt-out)
+  pipeline keeps one backend texture per virtual id, exactly as before.
+
+## Implementation-phase evidence (local, pre-verification)
+
+- Red run against the pre-change tree (base `6c3f9a2`, current suite):
+  `node shaders/tests/test_resource_pooling.js` exited 1 with 4 passed /
+  8 failed — every failure was missing plan consumption (shared records,
+  execution-time binding, query contract, default no-pooling parity of the
+  shared fields; the analyzer-presence and vacuous-refusal cases pass at
+  base).
+- Green run: 12 passed / 0 failed, exit 0.
+- Test wiring (functional): the suite is registered in
+  `scripts/run-js-tests.js` and inserted into the existing
+  `test:shaders:runtime` npm script; no workflow files changed.
+- Local checks at the candidate tree: `npm run test:shaders:runtime` (includes
+  the new suite), `npm run test:shaders:lang`, `node shaders/tests/test_harness.js`,
+  `node scripts/run-js-tests.js --skip-parity`, full eslint over
+  `js/ scripts/ test/ shaders/ demo/`, `node --test
+  test/docs-static-paths.test.js`, and `git diff --check` all exited 0.
+- Files: `shaders/src/runtime/pipeline.js`, `shaders/tests/test_resource_pooling.js`,
+  `scripts/run-js-tests.js`, `package.json`, `llms-full.txt`, and this record.
+
+## Retained criteria and ownership (explicitly not proven by this record)
+
+- Consumption is opt-in: the default render path still allocates one backend
+  texture per virtual texture id; the analyzer plan is consumed only when
+  `texturePooling: true` is set.
+- Real GPU-device pooling behavior rides the repository's existing GPU-test
+  job; the recording-backend suite cannot execute the WebGL2/WebGPU backends
+  headlessly.
+- Pooling is deliberately restricted to textures whose next use fully
+  overwrites their storage: a texture written by a partial/non-clearing pass
+  (`drawMode` scatter or `blend`) or depending on its own previous-frame
+  contents is never pooled, so the consumer never hands a group-mate's frame
+  content to an accumulating texture. The pipeline does not inject clears
+  between group members' passes within a frame; the analyzer's
+  disjoint-lifetime guarantee plus these exclusions are the safety contract.
+
+## GAP-005 (closed; preserved record unchanged)
 
 Gap statement from `llms-full.txt`:
 
