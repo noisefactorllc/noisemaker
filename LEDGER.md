@@ -444,7 +444,10 @@ work, verify it, then update the checkpoint and append a log line.
     `docs/shaders/pipeline.rst` (resize-behavior section documents both 2D
     allocation policies, mip-chain regeneration, persistent resample, and
     3D filtering; the blanket "does not blit old surface content" sentence
-    no longer holds for persistent textures). Verified the
+    no longer holds for persistent textures), with no new standalone
+    narrative guide: the policy documentation lives in the existing
+    `docs/shaders/effects.rst` and `docs/shaders/pipeline.rst` sections
+    rather than a new `docs/shaders/features.rst`-linked page. Verified the
     Sphinx docs build locally at the exact source
     (`sphinx-build -b dirhtml docs` with `docs/sphinx-requirements.txt`:
     build succeeded, 18 pre-existing warnings, 0 errors), docs static paths
@@ -458,7 +461,10 @@ work, verify it, then update the checkpoint and append a log line.
     serves `git_hash: 63349a7d6b95da1e97f35b8570872db82c55d7da` per
     `deployment-meta.json` — `63349a7d` descends from `69d83b80`
     (verified with `git merge-base --is-ancestor`), so the deployed Sphinx
-    HTML includes this pass's `.rst` edits.
+    HTML includes the `69d83b80` GAP-003 `.rst` edits. The GAP-004
+    texture-policy `.rst` documentation added later in this pass is not yet
+    in that deployment; it publishes with this documentation commit's own
+    `docs-site.yml` run.
   - 2026-09-25 — caught up through `fa4b2f02`: audited range
     `cfccdf96..fa4b2f02` (covering Tearoff #534 trigger `60b90af3..9d3474df`
     through HEAD). Gap detection confirmed zero missing `help.md` files across

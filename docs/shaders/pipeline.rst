@@ -389,7 +389,9 @@ behavior:
 
 3D texture specs (``textures3d``) may author ``filter: 'nearest' |
 'linear'``; it is honored by both backends, while unauthored 3D sampling
-keeps the historical nearest default. Unknown or misplaced texture spec
+defaults differ between backends (WebGL2 uses LINEAR, WebGPU keeps the
+historical nearest default), so cross-backend parity requires authoring
+``filter`` explicitly. Unknown or misplaced texture spec
 fields are rejected by ``validateEffectDefinition()`` with per-field
 diagnostics. The current resize path otherwise does not blit old surface
 content into newly sized textures or recompile shader programs.
