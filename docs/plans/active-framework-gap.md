@@ -1,11 +1,101 @@
-# Active Framework Gap: GAP-003
+# Active Framework Gap: GAP-004
 
-Status: closed (implemented and verified at 9d3474dfdc6cb737ebb7b2f3598b16d940af1544)
+Status: closed (implemented and verified at 2f47612c29045c1b91af94887a8ff20106e980ef)
 
-The prior active-target record for GAP-027 is preserved below, unchanged. It
-closed and published successfully; see its "Completed Evidence" section.
+The prior active-target records for GAP-003 and GAP-027 are preserved below,
+unchanged. Both closed and published successfully; see their "Completed
+Evidence" sections.
 
-## GAP-003
+## GAP-004
+
+Gap statement from `llms-full.txt`:
+
+> Mip and persistent-across-frames controls do not exist. Definition-level 3D
+> `filter` and unknown texture fields are discarded
+
+Source evidence: `shaders/src/runtime/compiler.js` - `extractTextureSpecs()`;
+backend texture creation methods. Consequence: an agent cannot author/query mip
+policy, persistence, or 3D nearest filtering, and typos can be ignored.
+
+## Selected Contract (backward compatible)
+
+- 2D texture specs may author `mipmaps: true`: full chain allocation
+  (`floor(log2(max(w,h))) + 1` levels — WebGL2 allocates every level with
+  per-level `texImage2D` calls at `createTexture()`, WebGPU allocates
+  `mipLevelCount` with per-level single-mip views), per-frame regeneration
+  from level-0 writes via `backend.generateMipmaps()` (WebGL2 level-to-level
+  NEAREST blits; WebGPU cached fullscreen resample pipelines with per-level
+  bind groups cached on the record), render/compute writes into level 0,
+  sampling through the full-chain view with a linear mipmap sampler, and
+  queryable `mipmaps`/`mipLevels` records.
+- 2D texture specs may author `persistent: true`: contents are resampled
+  across recreation at a new size (the pipeline copies the old texture into a
+  temporary, recreates, and resamples back through `backend.copyTexture()`;
+  WebGPU uses `copyTextureToTexture` when dimensions match and neither side
+  is mipmapped, a fullscreen resample pass otherwise), with a queryable
+  `persistent` record. Global surface recreation preserves persistent halves
+  and recreates each half exactly once per allocation change.
+- `textures3d` specs may author `filter: 'nearest' | 'linear'`: honored by
+  both backends (WebGL2 at `createTexture3D()`; WebGPU in sampler selection
+  only when authored — unauthored 3D sampling keeps the historical nearest
+  default), with a queryable `filter` record.
+- Unknown/misplaced texture spec fields are rejected by
+  `validateEffectDefinition()` with per-field diagnostics. These keys were
+  never consumed before, so no previously accepted input changes behavior.
+
+## Implementation-phase evidence (local, pre-verification)
+
+- Tests-first: `shaders/tests/test_mip_controls.js` — 15 focused tests
+  covering validator acceptance/rejection (including typo and misplaced-field
+  cases), `extractTextureSpecs()` propagation through `compileGraph()`,
+  pipeline policy plumbing/preservation/regeneration and the global-surface
+  single-recreate contract against recording backends, and the WebGL2 backend
+  itself against a recording stub GL (full-chain allocation with level dims,
+  mipmap min filter, level N-1 -> N blit sequence, plain-texture skip). Each
+  contract branch was demonstrated red before implementation.
+- Test wiring (functional): the suite is registered in
+  `scripts/run-js-tests.js` and prepended to the existing
+  `test:shaders:runtime` npm script; no workflow files changed.
+
+## Completed Evidence (this run)
+
+- Implementation commits: `a021a2834008315e34d86f78c430b62d77ec6775`
+  (policy plumbing + validator + backends + tests),
+  `62eb56fa2f1f1f11fefeb184ce665cb186d4b2e8` (WebGL2 mip-chain allocation,
+  cached WebGPU mip bind groups, backend-level tests), and
+  `2f47612c29045c1b91af94887a8ff20106e980ef` (global-surface
+  single-recreate leak fix), pushed to `refs/heads/main`. Independent review
+  approved the exact candidate SHA `2f47612c29045c1b91af94887a8ff20106e980ef`
+  (review `55cfba6d-bd00-477d-9ee1-f19ddf6fade9`).
+- All eight declared local checks passed at that SHA (dependencies,
+  shader-language, shader-runtime, effect-harness, javascript, lint,
+  docs-paths, diff-hygiene).
+- Exact-commit CI passed at that SHA: Release (tag `v1.0.182`, run
+  36173647198), Shaders (36172741063), Site (36172741094), Downstream
+  (36172741064), Docs site (36172741147), JavaScript (36172741121).
+- Machine verification receipt: `"verified": true` at
+  2026-09-25T18:30:05.670Z for candidate
+  `2f47612c29045c1b91af94887a8ff20106e980ef`; the `noisemaker-site`
+  deployment serves the same SHA at https://noisemaker.app/.
+- The `llms-full.txt` GAP-004 register row now reads "Closed at noisemaker
+  `2f47612c29045c1b91af94887a8ff20106e980ef` (verified
+  2026-09-25T18:30:05.670Z)" with the contract and evidence above; the
+  open-gap count dropped from 20 to 19.
+
+## Retained criteria and ownership (explicitly not proven by this record)
+
+- WebGPU mip generation, resample copies, and sampler selection were verified
+  at the contract/pipeline level and by review; no GPU-device test in this
+  repository executes the WebGPU backend headlessly, so device-level behavior
+  rides the repository's existing GPU-test job (Shaders workflow GPU tests
+  passed at the same SHA).
+- Unknown WebGL/WebGPU format and dimension-form fallbacks remain silent
+  authoring paths under GAP-007 (texture-spec fields themselves are now
+  validated).
+- `transient` remains a non-authorable concept (absence of `persistent`);
+  no new rejection of previously accepted input was introduced.
+
+## GAP-003 (closed; preserved record unchanged)
 
 Gap statement from `llms-full.txt`:
 
