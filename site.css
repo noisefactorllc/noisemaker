@@ -243,18 +243,10 @@ h3 {
   border-top: 1px solid var(--nm-line);
 }
 
-.nm-thesis {
-  display: grid;
-  grid-template-columns: 0.82fr 1.18fr;
-  gap: clamp(1.25rem, 3vw, 2.5rem);
-  align-items: start;
-}
-
 .nm-section-heading {
   max-width: 70ch;
 }
 
-.nm-thesis p:last-child,
 .nm-section-copy {
   color: var(--nm-muted);
   font-size: clamp(1.05rem, 1.6vw, 1.22rem);
@@ -376,10 +368,6 @@ h3 {
 }
 
 @media (max-width: 980px) {
-  .nm-thesis {
-    grid-template-columns: 1fr;
-  }
-
   h1,
   h2 {
     max-width: none;
