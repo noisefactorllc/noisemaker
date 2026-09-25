@@ -1101,6 +1101,7 @@ export function parse(tokens) {
                 // contains a literal `[`.
                 const startLine = token.line
                 const startCol = token.col
+                const bracketPosition = token.position
                 advance()
                 const elements = []
                 if (peek().type !== 'RBRACKET') {
@@ -1115,7 +1116,19 @@ export function parse(tokens) {
                     throw parserError('P001', `Expected ']' at line ${t.line} col ${t.col}`, t)
                 }
                 advance()
-                return {type: 'ArrayLiteral', elements, loc: { line: startLine, col: startCol }}
+                const arrayNode = {type: 'ArrayLiteral', elements, loc: { line: startLine, col: startCol }}
+                // Private source provenance for structured diagnostics; the public
+                // AST shape (loc line/col and enumeration) is unchanged.
+                if (bracketPosition) {
+                    Object.defineProperty(arrayNode, 'position', {
+                        value: {
+                            line: bracketPosition.line, column: bracketPosition.column,
+                            start: bracketPosition.start, end: bracketPosition.end
+                        },
+                        enumerable: false
+                    })
+                }
+                return arrayNode
             }
             case 'FUNC':
                 advance()
@@ -1198,9 +1211,14 @@ export function parse(tokens) {
 
     function toNumber(node) {
         if (node.type !== 'Number') {
-            // Number coercion failures locate the offending AST node when it has
-            // parser-authored coordinates; the location is otherwise explicitly null.
-            throw parserError('P001', 'Expected number', node.loc ?? {})
+            // Number coercion failures locate the offending AST node's private
+            // source position when present, its parser-authored loc otherwise,
+            // and are explicitly null when neither carries valid coordinates.
+            throw parserError('P001', 'Expected number', {
+                position: node.position,
+                line: node.loc?.line,
+                col: node.loc?.col
+            })
         }
         return node.value
     }

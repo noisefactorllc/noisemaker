@@ -706,6 +706,63 @@ No shader programs, effects, backends, or Python changes.
 - No local builds, shader, renderer, runtime, or Python changes.
 
 
+## Current Run: Numeric Coercion Source Positions (2026-09-25)
+
+Independent verification of the coordinate-repair candidate found one remaining
+important defect: `toNumber()` passed the offending AST node's legacy `loc`
+into `parserError`, and `ArrayLiteral.loc` is built from legacy token counters,
+so numeric-coercion diagnostics still reported drifted non-null coordinates
+after multiline function tokens (line 2/column 33 instead of source line
+3/column 16, 2/37 instead of 3/20, and 2/34 instead of 3/17). The indirect
+AST-to-diagnostic path dropped the source provenance that tokens now carry.
+
+Bounded repair: the array-literal AST node carries its bracket token's
+source-derived position as a non-enumerable private field alongside the
+unchanged public `loc` shape, and `toNumber()` prefers that position, falls
+back to the node's parser-authored `loc`, and stays explicitly null when
+neither carries valid coordinates. An audit of other diagnostic sites found
+no further reconstruction or dropped positions: every other `parserError`
+site receives a lexer token directly, and the two unreachable defense-in-depth
+sites pass token-derived coordinates. Legacy messages, accepted/rejected DSL,
+public token/AST/compile shapes, enumeration, and JSON serialization are
+unchanged.
+
+Files: shaders/src/lang/parser.js, shaders/tests/test_diagnostic_locations.js,
+llms-full.txt, and this record. No shader programs, effects, backends, or
+Python changes.
+
+- [x] Reproduce all six control and drift coercion cases through parse and
+  compile with the operator's exact expected coordinates, and verify the
+  red failures against the pre-repair parser.
+- [x] Repair the indirect path with private node provenance and add
+  regressions with the source-coordinate oracle, the public-shape/
+  non-enumerability check, and the preserved explicit-null cases.
+- [x] Audit all diagnostic sites for reconstructed or dropped positions.
+- [x] Run the required checks, compatibility differential, and diff hygiene.
+- [x] Commit the scoped forward correction, rebase, push normally, and record
+  exact-source CI and deployment verification after publication.
+
+
+### Numeric Coercion Repair Evidence
+
+- Red run against the pre-repair parser (stash-verified): 115 passed / 7
+  failed; every failure was one of the six new coercion regressions (drifted
+  locations or missing spans) or the provenance shape check.
+- Green run: 122 passed / 0 failed, exit 0. All six operator cases produce
+  exactly {line 3, column 16}, {line 3, column 20}, and {line 3, column 17}
+  with bracket-token source spans {45,46}, {49,50}, and {46,47}, and the
+  no-drift controls keep {2,9}, {2,13}, and {2,10}, through both
+  parse(lex(source)) and compile(source).
+- Differential verification against published 9fa1a22 (engine identical to
+  3923222): 8,000 generated inputs now including array-coercion forms; 99
+  accepted ASTs identical; 7,901 rejections preserving legacy class, message,
+  and empty enumeration; 7,547 parser errors carry valid source-derived spans
+  matching the independent oracle; 546 locations corrected from drifted
+  coordinates; zero mismatches.
+- Shader-language aggregate, non-parity JavaScript aggregate, ESLint, the
+  four-case documentation static-path suite, and `git diff --check` all
+  exited 0. No local builds, shader, renderer, runtime, or Python changes.
+
 ## Current Run: Source-Derived Parser Coordinates (2026-09-25)
 
 Independent verification rejected the draft closure of the previous run: it
@@ -796,7 +853,7 @@ No shader programs, effects, backends, or Python changes.
      position exists. Documented in `llms-full.txt`.
   3. Semantic diagnostics preserve parser-provided columns with caller and
      unlocated compatibility (completed at `e5bd2013`).
-  4. Regressions: 115 focused cases across public `lex()`, `parse()`, and
+  4. Regressions: 122 focused cases across public `lex()`, `parse()`, and
      `compile()`, each contract branch demonstrated red before
      implementation, plus differential checks of up to 25,000 generated
      inputs against baselines with zero legacy behavior changes.

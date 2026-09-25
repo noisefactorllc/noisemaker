@@ -664,6 +664,56 @@ test('number coercion diagnostics represent unavailable locations explicitly', (
     }
 })
 
+const coercionFailures = [
+    ['array addition without drift', 'search synth\nlet y = [1] + 1', 2, 9],
+    ['array multiplication without drift', 'search synth\nlet y = 1 * [1]', 2, 13],
+    ['array unary minus without drift', 'search synth\nlet y = -[1]', 2, 10],
+    ['array addition after multiline function', 'search synth\nlet f = () => (1\n + 2); let y = [1] + 1', 3, 16],
+    ['array multiplication after multiline function', 'search synth\nlet f = () => (1\n + 2); let y = 1 * [1]', 3, 20],
+    ['array unary minus after multiline function', 'search synth\nlet f = () => (1\n + 2); let y = -[1]', 3, 17]
+]
+
+for (const [name, source, line, column] of coercionFailures) {
+    test(`number coercion diagnostic: ${name}`, () => {
+        for (const entryPoint of [source => parse(lex(source)), compile]) {
+            assert.throws(() => entryPoint(source), error => {
+                assert.equal(Object.getPrototypeOf(error), SyntaxError.prototype)
+                assert.equal(error.message, 'Expected number')
+                assert.equal(String(error), 'SyntaxError: Expected number')
+                assert.deepEqual(Object.keys(error), [])
+                assert.equal(JSON.stringify(error), '{}')
+                assert.deepEqual(error.diagnostic, {
+                    code: 'P001', stage: 'parser', severity: 'error',
+                    message: 'Expected number',
+                    location: { line, column },
+                    span: sourcePosition(source, line, column)
+                })
+                assert.deepEqual(JSON.parse(JSON.stringify(error.diagnostic)), error.diagnostic)
+                return true
+            })
+        }
+    })
+}
+
+test('array literal ASTs keep their public shape with private source provenance', () => {
+    const source = 'search synth\nlet y = [1, 2]'
+    const array = parse(lex(source)).vars[0].expr
+    assert.deepEqual(array, {
+        type: 'ArrayLiteral',
+        elements: [{ type: 'Number', value: 1 }, { type: 'Number', value: 2 }],
+        loc: { line: 2, col: 9 }
+    })
+    assert.deepEqual(JSON.parse(JSON.stringify(array)), {
+        type: 'ArrayLiteral',
+        elements: [{ type: 'Number', value: 1 }, { type: 'Number', value: 2 }],
+        loc: { line: 2, col: 9 }
+    })
+    assert.deepEqual(Object.getOwnPropertyDescriptor(array, 'position'), {
+        value: { line: 2, column: 9, start: 21, end: 22 },
+        writable: false, enumerable: false, configurable: false
+    })
+})
+
 test('call form diagnostics preserve unavailable caller-token coordinates', () => {
     for (const [, source] of callFormFailures) {
         for (const coordinates of [{}, { line: 1 }, { line: 0, col: 1 }, { line: 1, col: NaN }]) {

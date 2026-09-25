@@ -188,8 +188,10 @@ or become `null` as described for caller-supplied tokens. Beyond the shared expe
 path, P001 also covers missing expressions after `=` (in assignments and
 keyword arguments), missing array-closing brackets, non-identifier member
 segments after `.`, unexpected primary tokens, and number coercion. Number
-coercion carries no token, so its location is `null` unless the offending AST
-node has parser-authored coordinates. The two defense-in-depth throw sites that
+coercion locates the offending AST node's private source position when the
+node was built from a lexer token (array literals carry the bracket token's
+source position non-enumerably), falls back to the node's parser-authored
+`loc`, and is explicitly `null` when neither carries valid coordinates. The two defense-in-depth throw sites that
 are unreachable through public `parse`/`compile` (a duplicate `render()`
 directive and the write/write3d dispatch fallback) also carry P005 for
 contract completeness. Shared token-expectation failures retain P001/P002,
