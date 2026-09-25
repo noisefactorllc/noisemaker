@@ -182,38 +182,6 @@ h2 {
   line-height: 1.06;
 }
 
-.nm-human-rainbow {
-  position: relative;
-  display: inline-block;
-  padding-inline: 0.08em;
-  color: oklch(0 0 0 / 0);
-  background:
-    linear-gradient(
-      90deg,
-      oklch(0.78 0.23 25) 0%,
-      oklch(0.84 0.21 65) 8.333%,
-      oklch(0.88 0.20 125) 16.666%,
-      oklch(0.84 0.20 190) 25%,
-      oklch(0.78 0.24 280) 33.333%,
-      oklch(0.82 0.25 330) 41.666%,
-      oklch(0.78 0.23 25) 50%,
-      oklch(0.84 0.21 65) 58.333%,
-      oklch(0.88 0.20 125) 66.666%,
-      oklch(0.84 0.20 190) 75%,
-      oklch(0.78 0.24 280) 83.333%,
-      oklch(0.82 0.25 330) 91.666%,
-      oklch(0.78 0.23 25) 100%
-    );
-  background-size: 200% 100%;
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: oklch(0 0 0 / 0);
-  text-shadow:
-    0 0 0.32em oklch(0.82 0.25 330 / 0.36),
-    0 0 0.72em oklch(0.88 0.20 125 / 0.18);
-  animation: nm-human-rainbow 7s linear infinite;
-}
-
 h3 {
   margin-bottom: 0.55rem;
   font-size: 1.08rem;
@@ -407,16 +375,6 @@ h3 {
   justify-content: flex-end;
 }
 
-@keyframes nm-human-rainbow {
-  from {
-    background-position: 0% 50%;
-  }
-
-  to {
-    background-position: 100% 50%;
-  }
-}
-
 @media (max-width: 980px) {
   .nm-thesis {
     grid-template-columns: 1fr;
@@ -493,9 +451,5 @@ h3 {
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
-  }
-
-  .nm-human-rainbow {
-    animation: none;
   }
 }
