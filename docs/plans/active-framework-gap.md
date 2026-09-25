@@ -858,9 +858,11 @@ No shader programs, effects, backends, or Python changes.
      implementation, plus differential checks of up to 25,000 generated
      inputs against baselines with zero legacy behavior changes.
   5. All required local checks and exact-commit CI passed for every earlier
-     bounded implementation in this record; this coordinate-repair commit's
-     own exact-commit CI and deployment verification are recorded after its
-     push, and its local checks all pass.
+     bounded implementation in this record; the coordinate-repair and numeric-
+     coercion repair commit
+     `fca611fd8f91424661d4e531d39313d24ea21134` passed all seven declared
+     local checks, its own exact-commit CI (below), and the site deployment
+     verification (below).
 - Implementation publication: `4891b9953f9fd8a61cf9ae0dda2fe747a9be82df`
   (`feat: expose structured call-form and expectation diagnostics`) was pushed
   to `refs/heads/main` and machine-verified (review
@@ -868,14 +870,21 @@ No shader programs, effects, backends, or Python changes.
   `36086042048`, Docs site `36086042055`, Site `36086042037`, Downstream
   `36086042178`, and Release `36086653725` for tag `v1.0.178`, which contains
   exactly that SHA. The `noisemaker-site` deployment serves it at
-  https://noisemaker.app/. This run's coordinate repair received its own
-  independent review; its publication, exact-commit CI, and site verification
-  are recorded after its push.
+  https://noisemaker.app/.
+- Publication of the coordinate repair and numeric-coercion repair:
+  `fca611fd8f91424661d4e531d39313d24ea21134` was pushed to `refs/heads/main`
+  and machine-verified (review `08c78d73-301c-4b38-8291-ec68f87c6d72`,
+  verified 2026-09-25T03:48:37.055Z). All seven declared checks passed
+  (dependencies, diagnostic-locations, shader-language, non-parity
+  JavaScript, lint, docs static paths, diff hygiene). Exact-commit CI passed:
+  Shaders `36091601774`, Docs site `36091601761`, Site `36091601784`, and
+  Downstream `36091601748`. The `noisemaker-site` deployment serves
+  `fca611fd8f91424661d4e531d39313d24ea21134` at https://noisemaker.app/.
 - The open-gap register in `llms-full.txt` lists 22 open gaps with the GAP-002
   row removed; GAP-027 remains open.
 
-GAP-002 closure takes effect when this candidate's own exact-commit CI,
-after-publish checks, and noisemaker-site deployment verification pass; those
-results are recorded here after its push. All objective completion criteria
-other than that final publication verification are satisfied with published,
-machine-verified evidence.
+GAP-002 is closed. The closure is published and machine-verified:
+`fca611fd8f91424661d4e531d39313d24ea21134` passed independent review, all
+required local checks, exact-commit CI, and the declared deployment
+verification, completing every objective completion criterion with published
+evidence.
