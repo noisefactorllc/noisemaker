@@ -2,7 +2,7 @@ import {lex} from './lexer.js'
 import {parse} from './parser.js'
 import {validate} from './validator.js'
 import {unparse, applyParameterUpdates, formatValue, unparseCall} from './unparser.js'
-import {replaceEffect, listSteps, getCompatibleReplacements} from './transform.js'
+import {replaceEffect, listSteps, getCompatibleReplacements, predictReplacement} from './transform.js'
 import {formatDslError, isDslSyntaxError} from './error-formatter.js'
 
 /**
@@ -16,4 +16,4 @@ export function compile(src, options = {}) {
     return validate(ast)
 }
 
-export { lex, parse, validate, unparse, applyParameterUpdates, formatValue, unparseCall, replaceEffect, listSteps, getCompatibleReplacements, formatDslError, isDslSyntaxError }
+export { lex, parse, validate, unparse, applyParameterUpdates, formatValue, unparseCall, replaceEffect, listSteps, getCompatibleReplacements, predictReplacement, formatDslError, isDslSyntaxError }

@@ -6,7 +6,7 @@
  */
 
 // Language & Compiler
-export { lex, parse, validate, compile, unparse, applyParameterUpdates, formatValue, unparseCall, replaceEffect, listSteps, getCompatibleReplacements } from './lang/index.js'
+export { lex, parse, validate, compile, unparse, applyParameterUpdates, formatValue, unparseCall, replaceEffect, listSteps, getCompatibleReplacements, predictReplacement } from './lang/index.js'
 export { registerOp } from './lang/ops.js'
 export { registerStarterOps, registerValidatorHook } from './lang/validator.js'
 export { mergeIntoEnums } from './lang/enums.js'

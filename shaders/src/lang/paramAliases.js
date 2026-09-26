@@ -29,6 +29,17 @@ export function registerParamAliases(opName, aliases) {
 }
 
 /**
+ * Read the alias map registered for an op (read-only; no mutation).
+ *
+ * @param {string} opName   Fully-qualified op name, e.g. 'synth.noise'
+ * @returns {Object<string, string>} { oldName: newName } (empty when none)
+ */
+export function getParamAliases(opName) {
+    const aliases = registry[opName]
+    return aliases ? { ...aliases } : {}
+}
+
+/**
  * Resolve any deprecated param names in `kwargs` for the given op,
  * mutating the object in place.
  *

@@ -432,4 +432,204 @@ test('replaceEffect - replace inline surface producer starter with non-starter (
     assertTrue(result.error.includes('starter'), 'Error should mention starter')
 })
 
+// ============================================================================
+// Replacement preflight prediction tests (GAP-008)
+// ============================================================================
+
+import { registerEffect } from '../src/runtime/registry.js'
+
+// Full effect instance for filter.grain, registered like the renderer does
+registerOp('filter.grain', {
+    name: 'grain',
+    args: [
+        { name: 'amount', type: 'float', default: 0.5, min: 0, max: 1 },
+        { name: 'mode', type: 'int', default: 0, choices: { fine: 0, coarse: 1 } }
+    ]
+})
+
+registerEffect('filter.grain', {
+    name: 'Grain',
+    namespace: 'filter',
+    func: 'grain',
+    globals: {
+        amount: { type: 'float', default: 0.5, min: 0, max: 1 },
+        mode: { type: 'int', default: 0, choices: { fine: 0, coarse: 1 } }
+    },
+    textures: {
+        scratch: { width: 'resolution', height: 'resolution' }
+    },
+    passes: [
+        {
+            name: 'grain',
+            program: 'grain',
+            inputs: {},
+            outputs: { color: 'outputTex' }
+        }
+    ]
+})
+
+const GRAIN_MANIFEST = {
+    'filter/grain': {
+        description: 'Grain',
+        glsl: { grain: 'combined' },
+        starter: false
+        // no wgsl entry: WebGPU unsupported
+    }
+}
+
+test('getCompatibleReplacements - predictions expose candidate dimensions', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = getCompatibleReplacements(compiled, steps[1].stepIndex)
+
+    assertTrue(result.success, 'Should succeed')
+    assertTrue(result.predictions, 'Should return a predictions map')
+
+    const grain = result.predictions['filter.grain']
+    assertTrue(grain, 'Should predict filter.grain')
+    assertEqual(grain.available, true, 'Registered instance should be available')
+    assertEqual(grain.arguments.unknown.length, 0, 'No unknown arguments without provided args')
+    assertEqual(grain.types.length, 0, 'No type mismatches without provided args')
+    assertEqual(grain.ranges.length, 0, 'No range violations without provided args')
+    assertEqual(grain.passes.passes[0].program, 'grain', 'Pass prediction should name the shader program')
+    assertEqual(grain.passes.passes[0].outputs.color, 'outputTex', 'Pass prediction should list outputs')
+    assertTrue(grain.samplerTopology.internalTextures.includes('scratch'), 'Sampler topology should list internal textures')
+    assertEqual(grain.backendSupport, undefined, 'Backend support is unknown without a manifest')
+})
+
+test('getCompatibleReplacements - manifest predicts backend support', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = getCompatibleReplacements(compiled, steps[1].stepIndex, { manifest: GRAIN_MANIFEST })
+    const grain = result.predictions['filter.grain']
+
+    assertEqual(grain.backendSupport.webgl2, true, 'GLSL-only manifest should mark WebGL2 supported')
+    assertEqual(grain.backendSupport.webgpu, false, 'Missing WGSL entry should mark WebGPU unsupported')
+
+    const missing = getCompatibleReplacements(compiled, steps[1].stepIndex, {
+        manifest: { 'filter/grain': { glsl: {}, wgsl: {} } }
+    })
+    assertEqual(missing.predictions['filter.grain'].backendSupport.webgl2, false, 'Missing manifest entry is unsupported')
+})
+
+test('getCompatibleReplacements - default classification is unchanged', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = getCompatibleReplacements(compiled, steps[1].stepIndex)
+
+    assertTrue(result.compatible.includes('filter.bloom'), 'Bloom stays compatible without preflight opt-in')
+    assertTrue(result.incompatible.includes('synth.noise'), 'Starters stay incompatible without preflight opt-in')
+})
+
+test('getCompatibleReplacements - preflight moves unavailable candidates to blocked', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    // The runtime registry is populated (filter.grain registered above), so
+    // ops without a registered definition are predicted unavailable.
+    const result = getCompatibleReplacements(compiled, steps[1].stepIndex, { preflight: true })
+
+    assertFalse(result.compatible.includes('filter.bloom'), 'Bloom should leave compatible under preflight')
+    assertTrue(result.compatible.includes('filter.grain'), 'Grain should stay compatible under preflight')
+    assertTrue(result.blocked, 'Preflight should return a blocked list')
+    const bloomBlock = result.blocked.find(b => b.effect === 'filter.bloom')
+    assertTrue(bloomBlock, 'Bloom should be blocked')
+    assertTrue(bloomBlock.issues.some(i => i.dimension === 'shader-availability'), 'Block reason should be shader availability')
+})
+
+test('replaceEffect - default behavior unchanged, prediction is attached', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    // Unknown argument, out-of-range value: previously accepted, must stay accepted
+    const result = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amnt: 9 })
+
+    assertTrue(result.success, 'Previously accepted input must still succeed without opt-in')
+    assertTrue(result.prediction, 'Success should carry the prediction')
+    assertTrue(result.prediction.arguments.unknown.includes('amnt'), 'Prediction should report the unknown argument')
+    assertEqual(result.prediction.ranges.length, 0, 'Unknown arguments have no declared range to check')
+})
+
+test('replaceEffect - preflight refuses unknown argument', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amnt: 0.9 }, { preflight: true })
+
+    assertFalse(result.success, 'Preflight should refuse unknown arguments')
+    assertTrue(result.error.includes('preflight'), 'Error should mention preflight')
+    assertTrue(result.error.includes('amnt'), 'Error should name the unknown argument')
+    assertEqual(result.program, undefined, 'No program should be produced on preflight failure')
+})
+
+test('replaceEffect - preflight refuses out-of-range value', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amount: 5 }, { preflight: true })
+
+    assertFalse(result.success, 'Preflight should refuse out-of-range values')
+    assertTrue(result.error.includes('outside range'), 'Error should mention the range')
+})
+
+test('replaceEffect - preflight refuses choice violation', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = replaceEffect(compiled, steps[1].stepIndex, 'grain', { mode: 7 }, { preflight: true })
+
+    assertFalse(result.success, 'Preflight should refuse invalid choice values')
+    assertTrue(result.error.includes('not one of'), 'Error should mention the choices')
+})
+
+test('replaceEffect - preflight refuses type mismatch', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amount: 'high' }, { preflight: true })
+
+    assertFalse(result.success, 'Preflight should refuse type mismatches')
+    assertTrue(result.error.includes('expects float'), 'Error should mention the expected type')
+})
+
+test('replaceEffect - preflight passes valid replacement through with prediction', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    const result = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amount: 0.75 }, { preflight: true })
+
+    assertTrue(result.success, 'Valid preflight replacement should succeed')
+    assertEqual(result.program.plans[0].chain[1].op, 'filter.grain', 'Effect should be replaced')
+    assertEqual(result.program.plans[0].chain[1].args.amount, 0.75, 'Args should be applied')
+    assertEqual(result.prediction.available, true, 'Prediction should mark the effect available')
+    assertTrue(result.prediction.samplerTopology.internalTextures.includes('scratch'), 'Prediction should carry sampler topology')
+})
+
+// Param-alias awareness: deprecated names must not be predicted unknown
+import { registerParamAliases } from '../src/lang/paramAliases.js'
+registerParamAliases('filter.grain', { amt: 'amount' })
+
+test('prediction - registered param alias is accepted with canonical checks', () => {
+    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
+    const steps = listSteps(compiled)
+
+    // Supplied via deprecated alias: not unknown, range/type checked canonically
+    const viaAlias = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amt: 0.9 })
+    assertTrue(viaAlias.success, 'Alias-supplied replacement should succeed without opt-in')
+    assertTrue(viaAlias.prediction.arguments.unknown.length === 0, 'Alias name should not be predicted unknown')
+    assertTrue(viaAlias.prediction.arguments.missing.length === 0, 'Canonical argument should count as provided via alias')
+
+    const viaAliasPreflight = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amt: 0.9 }, { preflight: true })
+    assertTrue(viaAliasPreflight.success, 'Alias-supplied replacement should pass preflight')
+    assertTrue(viaAliasPreflight.prediction.ranges.length === 0, 'Alias value within range should not be flagged')
+
+    // Range violation through the alias still fires canonically
+    const outOfRange = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amt: 5 }, { preflight: true })
+    assertFalse(outOfRange.success, 'Out-of-range value via alias should be refused under preflight')
+    assertTrue(outOfRange.error.includes('amount'), 'Range error should name the canonical argument')
+})
+
 console.log('\nAll transform tests completed!')

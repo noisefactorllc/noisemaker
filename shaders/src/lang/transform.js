@@ -7,6 +7,8 @@
 
 import { isStarterOp } from './validator.js'
 import { ops } from './ops.js'
+import { getEffect, getAllEffects } from '../runtime/registry.js'
+import { getParamAliases } from './paramAliases.js'
 
 /**
  * Deep clone a compiled program structure
@@ -91,6 +93,289 @@ function getEffectSpec(effectName, searchOrder = []) {
     return null
 }
 
+// ============================================================================
+// Replacement preflight prediction (GAP-008)
+// ============================================================================
+
+/**
+ * Look up the full effect instance for a resolved effect name.
+ * Returns null when the runtime registry has never been populated
+ * (lang-only usage) AND for names that were never registered.
+ * @param {string} resolvedName - Namespaced effect name
+ * @returns {object|null} Effect instance or null
+ */
+function getEffectInstance(resolvedName) {
+    return getEffect(resolvedName) || null
+}
+
+/**
+ * Check whether the runtime effect registry has been populated at all.
+ * When empty, per-effect availability is unknown (the lang layer may be
+ * used standalone, where only op specs are registered).
+ * @returns {boolean} True if at least one effect instance is registered
+ */
+function runtimeRegistryPopulated() {
+    return getAllEffects().size > 0
+}
+
+/**
+ * Check a provided value against an effect argument definition's declared type.
+ * Only clear mismatches are flagged; unknown/loose types pass.
+ * @param {*} value - Provided value
+ * @param {string} type - Declared type ('float', 'int', 'color', 'bool', 'surface', ...)
+ * @returns {boolean} True if the value is compatible with the type
+ */
+function typeMatches(value, type) {
+    if (value === null || value === undefined) return true
+    switch (type) {
+        case 'float':
+        case 'int':
+        case 'number':
+            return typeof value === 'number'
+        case 'color':
+            return typeof value === 'string' && value.startsWith('#')
+        case 'bool':
+        case 'boolean':
+            return typeof value === 'boolean'
+        case 'surface':
+        case 'tex':
+            return typeof value === 'string'
+        default:
+            return true
+    }
+}
+
+/**
+ * Collect the set of accepted argument names for an effect: spec args,
+ * instance globals, and their registered param aliases.
+ * @param {object} spec - Op spec (may be null)
+ * @param {object|null} instance - Effect instance (may be null)
+ * @param {object} aliases - Param alias map { oldName: newName }
+ * @returns {Set<string>} Accepted argument names
+ */
+function collectAcceptedArgNames(spec, instance, aliases) {
+    const accepted = new Set()
+    for (const def of (spec?.args || [])) {
+        if (def?.name) accepted.add(def.name)
+    }
+    if (instance?.globals) {
+        for (const key of Object.keys(instance.globals)) accepted.add(key)
+    }
+    for (const name of Object.keys(aliases)) accepted.add(name)
+    for (const name of Object.values(aliases)) accepted.add(name)
+    return accepted
+}
+
+/**
+ * Build the alias map for an op from the param-alias registry.
+ * @param {string} resolvedName - Namespaced effect name
+ * @returns {object} { oldName: newName } (possibly empty)
+ */
+function aliasMapFor(resolvedName) {
+    return getParamAliases(resolvedName)
+}
+
+/**
+ * Predict backend support for an effect instance from a shader manifest
+ * (the object served at effects/manifest.json).
+ * @param {object|null} instance - Effect instance
+ * @param {string} resolvedName - Namespaced effect name
+ * @param {object|null} manifest - Shader manifest (or null/undefined)
+ * @returns {object|undefined} { webgl2, webgpu } booleans, or undefined when unknown
+ */
+function predictBackendSupport(instance, resolvedName, manifest) {
+    if (!manifest || !instance || !instance.passes) return undefined
+    const namespace = instance.namespace || resolvedName.split('.')[0]
+    const candidates = [instance.name, instance.func, resolvedName.split('.').pop()]
+    let entry = null
+    for (const displayName of candidates) {
+        if (displayName && manifest[`${namespace}/${displayName}`]) {
+            entry = manifest[`${namespace}/${displayName}`]
+            break
+        }
+    }
+    if (!entry) return { webgl2: false, webgpu: false }
+    const programs = instance.passes.map(p => p?.program).filter(Boolean)
+    const cover = (table) => {
+        if (!table) return false
+        if (programs.length === 0) return undefined
+        const hits = programs.filter(p => p in table).length
+        if (hits === 0) return false
+        return hits === programs.length ? true : 'partial'
+    }
+    return { webgl2: cover(entry.glsl), webgpu: cover(entry.wgsl) }
+}
+
+/**
+ * Summarize the sampler topology of an effect instance.
+ * @param {object|null} instance - Effect instance
+ * @returns {object|undefined} { internalTextures, passInputs } or undefined
+ */
+function predictSamplerTopology(instance) {
+    if (!instance) return undefined
+    const internalTextures = instance.textures ? Object.keys(instance.textures) : []
+    const passInputs = []
+    for (const pass of (instance.passes || [])) {
+        for (const value of Object.values(pass?.inputs || {})) {
+            if (typeof value === 'string' && !passInputs.includes(value)) {
+                passInputs.push(value)
+            }
+        }
+    }
+    return { internalTextures, passInputs }
+}
+
+/**
+ * Summarize the pass/output shape of an effect instance.
+ * @param {object|null} instance - Effect instance
+ * @returns {object|undefined} { passes, outputs } or undefined
+ */
+function predictPassesAndOutputs(instance) {
+    if (!instance) return undefined
+    const passes = (instance.passes || []).map(pass => ({
+        name: pass?.name,
+        program: pass?.program,
+        inputs: pass?.inputs ? { ...pass.inputs } : {},
+        outputs: pass?.outputs ? { ...pass.outputs } : {},
+        drawBuffers: pass?.drawBuffers
+    }))
+    const outputs = {
+        geo: instance.outputGeo ?? null,
+        tex3d: instance.outputTex3d ?? null
+    }
+    return { passes, outputs }
+}
+
+/**
+ * Predict a candidate replacement's compatibility dimensions before mutation.
+ *
+ * Covered dimensions: shader availability, arguments (unknown/missing),
+ * types, ranges (min/max/choices), passes, outputs, sampler topology, and
+ * backend support (from an optional shader manifest). Dimensions whose data
+ * is unavailable are reported as `undefined` ("unknown"), never invented.
+ *
+ * @param {string} resolvedName - Namespaced effect name
+ * @param {object} spec - Op spec for the candidate (may be null)
+ * @param {object} newArgs - Caller-provided arguments
+ * @param {object|null} oldInstance - Effect instance of the replaced step (may be null)
+ * @param {object} [options={}] - { manifest }
+ * @returns {object} Prediction with `issues` (hard problems) and informative fields
+ */
+export function predictReplacement(resolvedName, spec, newArgs, oldInstance, options = {}) {
+    const instance = getEffectInstance(resolvedName)
+    const prediction = {
+        effect: resolvedName,
+        available: undefined,
+        arguments: { unknown: [], missing: [] },
+        types: [],
+        ranges: [],
+        passes: undefined,
+        outputs: undefined,
+        samplerTopology: undefined,
+        backendSupport: undefined,
+        issues: []
+    }
+
+    // Shader availability
+    if (instance) {
+        prediction.available = true
+    } else if (runtimeRegistryPopulated()) {
+        prediction.available = false
+        prediction.issues.push({
+            dimension: 'shader-availability',
+            message: `No registered effect definition for '${resolvedName}'`
+        })
+    }
+
+    const aliases = aliasMapFor(resolvedName)
+    const accepted = collectAcceptedArgNames(spec, instance, aliases)
+
+    const provided = newArgs || {}
+    const providedCanonical = new Set(Object.keys(provided).map(key => aliases[key] || key))
+    for (const key of Object.keys(provided)) {
+        const canonical = aliases[key] || key
+        if (!accepted.has(canonical)) {
+            prediction.arguments.unknown.push(key)
+        }
+    }
+    const knownDefs = new Map()
+    for (const def of (spec?.args || [])) knownDefs.set(def.name, def)
+    if (instance?.globals) {
+        for (const [key, def] of Object.entries(instance.globals)) {
+            if (!knownDefs.has(key)) knownDefs.set(key, def)
+        }
+    }
+    for (const [key, def] of knownDefs) {
+        if (def?.default === undefined && !providedCanonical.has(key)) {
+            prediction.arguments.missing.push(key)
+        }
+    }
+    if (prediction.arguments.unknown.length > 0) {
+        prediction.issues.push({
+            dimension: 'arguments',
+            message: `Unknown argument(s) for '${resolvedName}': ${prediction.arguments.unknown.join(', ')}`
+        })
+    }
+
+    // Type and range checks
+    for (const [key, value] of Object.entries(provided)) {
+        const canonical = aliases[key] || key
+        const def = knownDefs.get(canonical)
+        if (!def) continue
+        const declaredType = def.type === 'color' ? 'color' : def.type
+        if (!typeMatches(value, declaredType)) {
+            prediction.types.push({ arg: key, expected: declaredType, actual: typeof value })
+        }
+        if (typeof value === 'number') {
+            if (def.min !== undefined && value < def.min) {
+                prediction.ranges.push({ arg: canonical, value, min: def.min, max: def.max })
+            }
+            if (def.max !== undefined && value > def.max) {
+                prediction.ranges.push({ arg: canonical, value, min: def.min, max: def.max })
+            }
+        }
+        if (def.choices && typeof value === 'number') {
+            const allowed = Object.values(def.choices)
+            if (!allowed.includes(value)) {
+                prediction.ranges.push({ arg: canonical, value, choices: allowed })
+            }
+        }
+    }
+    if (prediction.types.length > 0) {
+        prediction.issues.push({
+            dimension: 'types',
+            message: prediction.types.map(t => `Argument '${t.arg}' for '${resolvedName}' expects ${t.expected}, got ${t.actual}`).join('; ')
+        })
+    }
+    if (prediction.ranges.length > 0) {
+        prediction.issues.push({
+            dimension: 'ranges',
+            message: prediction.ranges.map(r => {
+                if (r.choices) {
+                    return `Argument '${r.arg}' for '${resolvedName}' value ${r.value} is not one of ${r.choices.join(', ')}`
+                }
+                return `Argument '${r.arg}' for '${resolvedName}' value ${r.value} outside range [${r.min}, ${r.max}]`
+            }).join('; ')
+        })
+    }
+
+    // Structure predictions (informative when data is available)
+    prediction.passes = predictPassesAndOutputs(instance)
+    prediction.samplerTopology = predictSamplerTopology(instance)
+    if (prediction.samplerTopology && oldInstance) {
+        const oldTopology = predictSamplerTopology(oldInstance)
+        if (oldTopology) {
+            prediction.samplerTopology.changedFrom = {
+                internalTextures: oldTopology.internalTextures,
+                passInputs: oldTopology.passInputs
+            }
+        }
+    }
+    prediction.backendSupport = predictBackendSupport(instance, resolvedName, options.manifest)
+
+    return prediction
+}
+
 /**
  * Replace an effect at a specific step index in a compiled program.
  *
@@ -105,9 +390,15 @@ function getEffectSpec(effectName, searchOrder = []) {
  * @param {object} [newArgs={}] - Optional arguments for the replacement effect
  * @param {object} [options={}] - Options
  * @param {Array<string>} [options.searchOrder] - Namespace search order (defaults to compiled.searchNamespaces)
- * @returns {object} { success, program?, error? }
+ * @param {boolean} [options.preflight] - Opt-in: refuse mutation when the candidate's
+ *   prediction finds hard issues (shader availability, unknown arguments, type
+ *   mismatches, out-of-range values). Without it, behavior is unchanged and the
+ *   prediction is returned as `prediction`.
+ * @param {object} [options.manifest] - Shader manifest (effects/manifest.json shape) for backend-support prediction
+ * @returns {object} { success, program?, prediction?, error? }
  *   - success: boolean indicating if replacement succeeded
  *   - program: the new compiled program (only if success)
+ *   - prediction: preflight prediction of the candidate's compatibility dimensions
  *   - error: error message (only if !success)
  */
 export function replaceEffect(compiled, stepIndex, newEffectName, newArgs = {}, options = {}) {
@@ -220,6 +511,26 @@ export function replaceEffect(compiled, stepIndex, newEffectName, newArgs = {}, 
         }
     }
 
+    // Preflight prediction of the candidate's compatibility dimensions
+    // (availability, arguments, types, ranges, passes, outputs, sampler
+    // topology, backend support) BEFORE any mutation, using the resolved
+    // namespaced effect name.
+    const prediction = predictReplacement(
+        resolvedNewName,
+        newSpec,
+        newArgs,
+        getEffectInstance(oldEffectName),
+        options
+    )
+    if (options.preflight === true && prediction.issues.length > 0) {
+        const messages = prediction.issues.map(issue => issue.message)
+        return {
+            success: false,
+            error: `Replacement preflight failed: ${messages.join('; ')}`,
+            prediction
+        }
+    }
+
     // Ensure the namespace is in searchNamespaces so unparser can strip it
     if (effectNamespace && !newProgram.searchNamespaces.includes(effectNamespace)) {
         newProgram.searchNamespaces = [...newProgram.searchNamespaces, effectNamespace]
@@ -236,7 +547,7 @@ export function replaceEffect(compiled, stepIndex, newEffectName, newArgs = {}, 
         ? { resolved: effectNamespace }
         : null
 
-    return { success: true, program: newProgram }
+    return { success: true, program: newProgram, prediction }
 }
 
 /**
@@ -289,11 +600,22 @@ export function listSteps(compiled, options = {}) {
  *
  * Returns a list of effect names that can legally replace the effect at the given step.
  *
+ * Each result also carries a `predictions` map keyed by effect name, predicting
+ * the candidate's availability, arguments, types, ranges, passes, outputs,
+ * sampler topology, and backend support before mutation. Listing-time
+ * predictions use empty arguments, so "requires arguments" never blocks:
+ * missing no-default arguments are reported informatively and only
+ * availability/unknown-argument/type/range findings are hard issues. With the
+ * explicit `preflight: true` opt-in, candidates whose prediction found hard
+ * issues are moved out of `compatible` into `blocked` with the reasons attached.
+ *
  * @param {object} compiled - Compiled program from compile()
  * @param {number} stepIndex - The temp index of the step
  * @param {object} [options={}] - Options
  * @param {Array<string>} [options.searchOrder] - Namespace search order
- * @returns {object} { success, starters?, nonStarters?, error? }
+ * @param {boolean} [options.preflight] - Opt-in strict filtering of candidates with predicted issues
+ * @param {object} [options.manifest] - Shader manifest (effects/manifest.json shape) for backend-support prediction
+ * @returns {object} { success, compatible?, incompatible?, blocked?, predictions?, error? }
  */
 export function getCompatibleReplacements(compiled, stepIndex, options = {}) {
     if (!compiled?.plans) {
@@ -311,13 +633,22 @@ export function getCompatibleReplacements(compiled, stepIndex, options = {}) {
     const currentIsStarter = checkIsStarter(step.op, searchOrder)
     const isStarterPosition = chainIndex === 0
         || (currentIsStarter && (step.from === null || step.from === undefined))
+    const oldInstance = getEffectInstance(step.op)
 
     // Collect all registered ops
     const starters = []
     const nonStarters = []
+    const predictions = {}
 
     for (const opName of Object.keys(ops)) {
         const isStarter = checkIsStarter(opName, searchOrder)
+        predictions[opName] = predictReplacement(
+            opName,
+            ops[opName],
+            {},
+            oldInstance,
+            options
+        )
         if (isStarter) {
             starters.push(opName)
         } else {
@@ -325,9 +656,45 @@ export function getCompatibleReplacements(compiled, stepIndex, options = {}) {
         }
     }
 
+    if (options.preflight === true) {
+        // Opt-in: move candidates whose prediction found hard issues out of
+        // the compatible list, with the reason attached.
+        const blocked = []
+        const filterIssues = (names) => {
+            const ok = []
+            for (const name of names) {
+                if (predictions[name].issues.length > 0) {
+                    blocked.push({ effect: name, issues: predictions[name].issues })
+                } else {
+                    ok.push(name)
+                }
+            }
+            return ok
+        }
+        if (isStarterPosition) {
+            return {
+                success: true,
+                compatible: filterIssues(starters),
+                incompatible: nonStarters,
+                blocked,
+                predictions
+            }
+        }
+        return {
+            success: true,
+            compatible: filterIssues(nonStarters),
+            incompatible: starters,
+            blocked,
+            predictions
+        }
+    }
+
+    // Default (unchanged) classification, plus per-candidate predictions so
+    // callers can inspect availability, arguments, types, ranges, passes,
+    // outputs, sampler topology, and backend support before mutating.
     if (isStarterPosition) {
-        return { success: true, compatible: starters, incompatible: nonStarters }
+        return { success: true, compatible: starters, incompatible: nonStarters, predictions }
     } else {
-        return { success: true, compatible: nonStarters, incompatible: starters }
+        return { success: true, compatible: nonStarters, incompatible: starters, predictions }
     }
 }
