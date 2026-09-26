@@ -1291,10 +1291,11 @@ Important: the tool's overall status is `ok` when **any** tested uniform passes,
 even if other entries are `name:fail`. A strict effect gate must require every
 `tested_uniforms` entry to end in `:pass`. The repository's harness provides
 `aggregateUniformResponsiveness()` (`shaders/tests/uniform-status.js`), which
-reclassifies the result from every entry (`ok` only when all entries are
-`:pass`, `fail` when any is `:fail`, `error` on `:error`/malformed entries,
-`skipped` when upstream skipped) and passes it through `tested_uniforms` and
-`details` unchanged; the harness consumes it behind the explicit
+reclassifies the result from every entry (`ok` only when at least one entry
+exists and every entry ends `:pass`, `fail` when any is `:fail`, `error` on
+`:error`/malformed entries or an empty entry list, `skipped` when upstream
+skipped) and passes it through `tested_uniforms` and `details` unchanged; the
+harness consumes it behind the explicit
 `--strict-uniforms` opt-in flag. The upstream tool's own outer status is
 unchanged. See GAP-010.
 
