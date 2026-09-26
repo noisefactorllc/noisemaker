@@ -42,6 +42,7 @@
  *   --branching               Analyze shaders for unnecessary branching (requires --with-ai)
  *   --passthrough             Test that filter effects do NOT pass through input unchanged
  *   --pixel-parity            Test GLSL/WGSL pixel-for-pixel output parity at frame 0
+ *   --low-variety             OPT-IN: fail effects whose output is low variety and not exempt
  *   --with-ai                 Enable AI-based tests (alg-equiv, branching, vision)
  *   --no-vision               Skip AI vision validation (even with --with-ai)
  *
@@ -75,6 +76,11 @@ import {
     checkEffectStructure,
     matchEffects,
 } from '../../vendor/shade-mcp/harness/index.js'
+import {
+    computeTemporalDiff,
+    isLowVariety,
+    isNoAnimation,
+} from './frame-metrics.js'
 // AI-dependent imports are loaded dynamically to avoid requiring @anthropic-ai/sdk at module level
 let getAIProvider, checkAlgEquiv, analyzeBranching
 async function loadAIDeps() {
@@ -103,11 +109,9 @@ function gracePeriod(ms = 125) {
 }
 
 async function renderEffectFrame(session, effectId, options = {}) {
-    if (session.backend !== 'webgpu') {
-        return shadeRenderEffectFrame(session, effectId, options)
-    }
-
-    return session.runWithConsoleCapture(async () => {
+    const result = session.backend !== 'webgpu'
+        ? await shadeRenderEffectFrame(session, effectId, options)
+        : await session.runWithConsoleCapture(async () => {
         const page = session.page
         await session.setBackend(session.backend)
 
@@ -292,6 +296,114 @@ async function renderEffectFrame(session, effectId, options = {}) {
             }
         }, { globals: session.globals, captureImage: !!options.captureImage })
     })
+
+    return augmentFrameMetrics(session, result)
+}
+
+/**
+ * Extend a captured frame result with the temporal no-animation and
+ * low-variety metrics (GAP-009). The temporal metric is an external
+ * two-frame comparison: the probe re-renders the effect at two distinct
+ * normalized times (0 and 0.5, so loop-phase alignment cannot alias an
+ * animated effect into a false "no-animation") and diffs the sampled
+ * pixels with the same grounded boundary the filter modification check
+ * uses. The low-variety metric classifies the already-sampled unique
+ * color count. Metrics are additive; no existing field or threshold is
+ * changed.
+ */
+async function augmentFrameMetrics(session, result) {
+    if (!result || result.status !== 'ok' || !result.metrics) return result
+
+    const markProbeFailure = (error) => {
+        result.metrics.temporal_diff = null
+        result.metrics.is_no_animation = null
+        result.metrics.is_low_variety = null
+        result.metrics.temporal_probe_error = error
+    }
+
+    try {
+        const probe = await session.page.evaluate(async ({ globals }) => {
+            const renderer = window[globals.canvasRenderer]
+            const pipeline = window[globals.renderingPipeline]
+            const backend = pipeline?.backend
+            if (!renderer || !pipeline || !backend) {
+                return { status: 'error', error: 'No renderer' }
+            }
+
+            const samplePixels = (data, pixelCount) => {
+                const stride = Math.max(1, Math.floor(pixelCount / 1000))
+                const out = []
+                for (let i = 0; i < pixelCount; i += stride) {
+                    const idx = i * 4
+                    out.push(data[idx], data[idx + 1], data[idx + 2])
+                }
+                return out
+            }
+
+            const readSamples = async () => {
+                const gl = backend.gl
+                if (gl) {
+                    const canvas = renderer.canvas
+                    const width = canvas.width
+                    const height = canvas.height
+                    const pixels = new Uint8Array(width * height * 4)
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+                    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+                    return samplePixels(pixels, width * height)
+                }
+                const candidates = []
+                const surface = pipeline.graph?.renderSurface
+                const frameReadId = surface ? pipeline.frameReadTextures?.get(surface) : null
+                if (frameReadId) candidates.push(frameReadId)
+                if (surface) {
+                    candidates.push(`global_${surface}_read`)
+                    candidates.push(`global_${surface}_write`)
+                }
+                try {
+                    const nodeIds = []
+                    for (const key of backend.textures.keys()) {
+                        if (/node_\d+_out/.test(key)) nodeIds.push(key)
+                    }
+                    nodeIds.sort((a, b) => parseInt(a.match(/node_(\d+)/)[1], 10) - parseInt(b.match(/node_(\d+)/)[1], 10))
+                    if (nodeIds.length) candidates.push(nodeIds[nodeIds.length - 1])
+                } catch {
+                    // Some backends do not expose a texture map in harness mode.
+                }
+                for (const textureId of [...new Set(candidates)]) {
+                    try {
+                        const pixels = await backend.readPixels(textureId)
+                        if (pixels?.width && pixels?.height && pixels?.data) {
+                            return samplePixels(pixels.data, pixels.width * pixels.height)
+                        }
+                    } catch {
+                        // Try the next candidate texture.
+                    }
+                }
+                return null
+            }
+
+            renderer.render(0)
+            const samplesA = await readSamples()
+            if (!samplesA) return { status: 'error', error: 'Failed to read pixels (frame A)' }
+            renderer.render(0.5)
+            const samplesB = await readSamples()
+            if (!samplesB) return { status: 'error', error: 'Failed to read pixels (frame B)' }
+            return { status: 'ok', samplesA, samplesB }
+        }, { globals: session.globals })
+
+        if (probe?.status !== 'ok') {
+            markProbeFailure(probe?.error || 'temporal probe failed')
+            return result
+        }
+
+        const temporalDiff = computeTemporalDiff(probe.samplesA, probe.samplesB)
+        result.metrics.temporal_diff = temporalDiff
+        result.metrics.is_no_animation = isNoAnimation(temporalDiff)
+        result.metrics.is_low_variety = isLowVariety(result.metrics.unique_sampled_colors)
+    } catch (err) {
+        markProbeFailure(String(err?.message || err))
+    }
+    return result
 }
 
 // =========================================================================
@@ -324,6 +436,17 @@ const TRANSPARENT_EXEMPT_EFFECTS = new Set([
 ])
 
 /**
+ * Effects exempt from the OPT-IN low-variety gate (--low-variety).
+ * The metric itself is returned universally; the gate is never enabled by
+ * default. These effects are designed to output few colors.
+ */
+const LOW_VARIETY_EXEMPT_EFFECTS = new Set([
+    'filter/shape',       // Outputs a shape on solid background
+    'filter/solid',       // Outputs a solid fill color by design
+    'synth/solid',        // Outputs a solid fill color by design
+])
+
+/**
  * Effects exempt from passthrough check.
  */
 const PASSTHROUGH_EXEMPT_EFFECTS = new Set([
@@ -349,6 +472,7 @@ function parseArgs() {
         runBranching: false,
         runPassthrough: false,
         runPixelParity: false,
+        runLowVariety: false,
         withAi: false,
         skipVision: false,
         useBundles: false,
@@ -385,6 +509,8 @@ function parseArgs() {
             parsed.runPassthrough = true
         } else if (arg === '--pixel-parity') {
             parsed.runPixelParity = true
+        } else if (arg === '--low-variety') {
+            parsed.runLowVariety = true
         } else if (arg === '--with-ai') {
             parsed.withAi = true
         } else if (arg === '--no-vision') {
@@ -806,6 +932,19 @@ async function testEffect(session, effectId, options) {
     results.isBlankExempt = isBlankExempt && (renderResult.metrics?.is_essentially_blank || false)
     results.isAllTransparent = (renderResult.metrics?.is_all_transparent || false) && !isTransparentExempt
     results.isTransparentExempt = isTransparentExempt && (renderResult.metrics?.is_all_transparent || false)
+    results.temporalDiff = renderResult.metrics?.temporal_diff ?? null
+    results.isNoAnimation = renderResult.metrics?.is_no_animation ?? null
+    results.isLowVariety = renderResult.metrics?.is_low_variety ?? null
+
+    // OPT-IN low-variety gate (--low-variety). Never applied by default;
+    // rejections of previously accepted effects only happen behind this flag.
+    results.isLowVarietyFailed = false
+    if (options.runLowVariety && renderResult.status === 'ok') {
+        const isLowVarietyExempt = LOW_VARIETY_EXEMPT_EFFECTS.has(effectId)
+        if (results.isLowVariety && !isLowVarietyExempt) {
+            results.isLowVarietyFailed = true
+        }
+    }
 
     if (renderResult.status === 'error') {
         console.log(`  ❌ render: ${renderResult.error}`)
@@ -830,7 +969,20 @@ async function testEffect(session, effectId, options) {
     } else if (results.isMonochromeExempt) {
         console.log(`  ⊘ render: monochrome (exempt - expected for ${effectId})`)
     } else {
-        console.log(`  ✓ render (${renderResult.metrics?.unique_sampled_colors} colors)`)
+        const animationNote = results.isNoAnimation === null
+            ? 'animation: probe failed'
+            : (results.isNoAnimation ? 'static' : 'animating')
+        console.log(`  ✓ render (${renderResult.metrics?.unique_sampled_colors} colors, temporal_diff=${results.temporalDiff?.toFixed(6)}, ${animationNote})`)
+    }
+
+    if (results.isLowVarietyFailed) {
+        console.log(`  ❌ render: LOW VARIETY (${renderResult.metrics.unique_sampled_colors} unique colors, not exempt)`)
+    } else if (options.runLowVariety && renderResult.status === 'ok' && results.isLowVariety) {
+        console.log(`  ⊘ render: low variety (exempt - expected for ${effectId})`)
+    }
+
+    if (renderResult.status === 'ok') {
+        console.log(`  ℹ metrics: temporal_diff=${results.temporalDiff === null ? 'null' : results.temporalDiff.toFixed(6)}, is_no_animation=${results.isNoAnimation}, is_low_variety=${results.isLowVariety}`)
     }
 
     // Uniform responsiveness test
@@ -1087,6 +1239,7 @@ async function main() {
             if (r.isMonochrome) return false
             if (r.isEssentiallyBlank) return false
             if (r.isAllTransparent) return false
+            if (r.isLowVarietyFailed) return false
             if (r.consoleErrors?.length > 0) return false
             if (r.uniformsFailed) return false
             if (r.passthroughFailed) return false
@@ -1108,6 +1261,7 @@ async function main() {
             if (r.isMonochrome) return true
             if (r.isEssentiallyBlank) return true
             if (r.isAllTransparent) return true
+            if (r.isLowVarietyFailed) return true
             if (r.consoleErrors?.length > 0) return true
             if (r.uniformsFailed) return true
             if (r.passthroughFailed) return true
@@ -1134,6 +1288,7 @@ async function main() {
                 if (r.isMonochrome) reasons.push('monochrome output')
                 if (r.isEssentiallyBlank) reasons.push('blank output')
                 if (r.isAllTransparent) reasons.push('transparent output')
+                if (r.isLowVarietyFailed) reasons.push('low-variety output')
                 if (r.consoleErrors?.length > 0) reasons.push(`${r.consoleErrors.length} console error(s)`)
                 if (r.uniformsFailed) reasons.push('uniforms unresponsive')
                 if (r.passthroughFailed) reasons.push('passthrough (no-op)')

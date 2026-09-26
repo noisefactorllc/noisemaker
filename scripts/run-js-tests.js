@@ -59,6 +59,7 @@ const testEntries = [
   { file: 'shaders/tests/test_pass_fields.js', parity: false },
   { file: 'shaders/tests/test_resource_pooling.js', parity: false },
   { file: 'shaders/tests/test_backend_diagnostics.js', parity: false },
+  { file: 'shaders/tests/test_frame_metrics.js', parity: false },
   { file: 'test/generators.test.js', parity: false },
   { file: 'test/parser.test.js', parity: false },
   { file: 'test/evaluator.test.js', parity: false },
