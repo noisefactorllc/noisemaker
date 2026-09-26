@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `a651c075bb2848b584b2bf2484f5f8a0db754b0c`.
+- Noisemaker: `403c2a4bf2cb56307448ea2fc1d6fa3cd74b7d6e`.
 - Shade MCP: `00340b148e109464b1a87d89ff29fc7622d384c9`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.3`, protocol
   `2024-11-05`, with 18 tools returned by `tools/list`.
@@ -2045,7 +2045,8 @@ two entries while retaining the effects' original step and chain indexes.
 partitions them by starter state.
 
 Sources: `shaders/src/lang/transform.js` - `listSteps()`,
-`getCompatibleReplacements()`; `shaders/src/lang/ops.js` - `ops`;
+`getCompatibleReplacements()`, `predictReplacement()`; `shaders/src/lang/ops.js` - `ops`;
+`shaders/src/lang/paramAliases.js` - `getParamAliases()`;
 `shaders/tests/test_transform.js` - effect-only length, index, and builtin-target
 regressions.
 
@@ -2053,17 +2054,19 @@ regressions.
 
 ```ts
 type ReplacementQuery =
-  | { success: true, compatible: string[], incompatible: string[] }
+  | { success: true, compatible: string[], incompatible: string[],
+      predictions: Record<string, ReplacementPrediction>,
+      blocked?: { effect: string, issues: ReplacementPredictionIssue[] }[] }
   | { success: false, error: string }
 
 type ReplacementResult =
-  | { success: true, program: CompiledProgram }
-  | { success: false, error: string }
+  | { success: true, program: CompiledProgram, prediction: ReplacementPrediction }
+  | { success: false, error: string, prediction?: ReplacementPrediction }
 
 getCompatibleReplacements(
   compiled: CompiledProgram,
   stepIndex: number,
-  options?: { searchOrder?: string[] }
+  options?: { searchOrder?: string[], preflight?: boolean, manifest?: object }
 ): ReplacementQuery
 
 replaceEffect(
@@ -2071,9 +2074,32 @@ replaceEffect(
   stepIndex: number,
   newEffectName: string,
   newArgs?: Record<string, unknown>,
-  options?: { searchOrder?: string[] }
+  options?: { searchOrder?: string[], preflight?: boolean, manifest?: object }
 ): ReplacementResult
 ```
+
+Every successful listing attaches `predictions`: a per-candidate prediction
+(`predictReplacement()` in `shaders/src/lang/transform.js`) of the candidate's
+compatibility dimensions — shader availability (registered definition in the
+runtime registry; `available` is `unknown` when no definitions are registered
+at all), arguments (unknown names, with param-alias awareness via the read-only
+`getParamAliases()` in `shaders/src/lang/paramAliases.js`, and missing
+no-default arguments), types, ranges (min/max/choices, reported under the
+canonical argument name), passes, outputs, sampler topology (with the replaced
+effect's topology as `changedFrom`), and backend support from the optional
+`options.manifest` (`effects/manifest.json` shape). Dimensions without
+available data are reported as `unknown`, never invented. Listing-time
+predictions use empty arguments, so requires-arguments candidates are not
+blocked, and missing no-default arguments are informative rather than hard
+issues. With the explicit `preflight: true` opt-in, candidates whose
+prediction found hard issues (availability, unknown arguments, type
+mismatches, range/choice violations) move out of `compatible` into `blocked`
+with the reasons; the default classification is otherwise unchanged, so
+previously accepted input is only rejected behind the opt-in. `replaceEffect`
+attaches the same prediction to every success as `prediction`, and with
+`preflight: true` it refuses mutation when the prediction finds hard issues,
+returning `success: false` with `error: "Replacement preflight failed: ..."`
+plus the prediction.
 
 The checkable current definition of compatible is exactly:
 
@@ -2106,7 +2132,8 @@ No other shape participates. On success, `replaceEffect` performs these steps:
 6. Reset namespace metadata.
 7. Add the namespace to `searchNamespaces` if needed.
 
-Sources: `shaders/src/lang/transform.js` - `replaceEffect()`.
+Sources: `shaders/src/lang/transform.js` - `replaceEffect()`,
+`predictReplacement()`; `shaders/src/lang/paramAliases.js` - `getParamAliases()`.
 
 ### Validate
 
@@ -2125,7 +2152,10 @@ AND parity status is ok when required
 ```
 
 `getCompatibleReplacements().compatible` is therefore a candidate list, not a
-swappability guarantee. See GAP-008.
+swappability guarantee. The additive `predictions` field (and, behind the
+`preflight: true` opt-in, `blocked` with reasons) reports the predicted
+compatibility dimensions per candidate, but only a real compile/render/parity
+run proves an end-to-end replacement.
 
 Sources: `shaders/tests/test_transform.js`; compiler, render, and parity
 contracts in this document.
@@ -2140,13 +2170,18 @@ Step with index <stepIndex> not found
 Effect '<newEffectName>' not found
 Cannot replace starter effect '<old>' with non-starter effect '<new>'. The first effect in a chain must be a starting effect.
 Cannot replace non-starter effect '<old>' with starter effect '<new>'. Starting effects can only appear at the beginning of a chain.
+Replacement preflight failed: <predicted issue messages joined by '; '>
 ```
 
 After a successful replacement, all parse, semantic, expansion, backend, output,
 and parity failures use their respective surfaces' diagnostic channels.
-Parameter names/types/ranges, required textures, pass shape, shader availability,
-and backend support are absent from compatibility preflight. This missing
-queryable shape contract is GAP-008.
+Parameter names/types/ranges, pass shape, shader availability, and backend
+support are predicted before mutation by `predictReplacement()` — arguments
+(param-alias aware), types, ranges, passes, outputs, sampler topology, and
+availability are hard-checked; backend support is predicted only when the
+caller supplies `options.manifest`; dimensions without data are reported
+`unknown`, never invented. The `preflight: true` opt-in turns hard issues into
+rejection; without it the prediction is returned and mutation is unchanged.
 
 Builtin step indexes use the same `Step with index <stepIndex> not found`
 failure as other non-target indexes. Callers do not need to parse builtin names
@@ -3458,13 +3493,15 @@ commit `0a92bd839adf89caa1641e90b201182a24f8fb25`. Re-audited at Noisemaker
 `00340b148e109464b1a87d89ff29fc7622d384c9` (v0.2.3 delivery at
 `cbcab33363851016f65391fbb9ef71d66729c07f`) by source inspection, and
 re-audited with a live MCP re-capture at Noisemaker
-`a651c075bb2848b584b2bf2484f5f8a0db754b0c` and the same Shade MCP
+`403c2a4bf2cb56307448ea2fc1d6fa3cd74b7d6e` and the same Shade MCP
 `00340b148e109464b1a87d89ff29fc7622d384c9` / pin `cbcab33363851016f65391fbb9ef71d66729c07f`:
 `synth/testPattern`'s own definition.js and shader files are byte-unchanged in that
 range, none of the range's changes (GAP-004 authorable mipmaps, persistent texture
 policies, and 3D filter policies with verified publication closure; GAP-005 pass-field
 propagation; GAP-006 texture-pooling opt-in; GAP-007 structured backend diagnostic
-union; and documentation/release updates)
+union; GAP-008 replacement-preflight predictions confined to `shaders/src/lang/transform.js`
+and the read-only `shaders/src/lang/paramAliases.js`; GAP-009 additive frame
+metrics confined to the repository's test-harness wrapper; and documentation/release updates)
 affect runtime execution or reach this effect, and the full non-parity JS test suite
 (`node scripts/run-js-tests.js --skip-parity`) passes. The MCP evidence below was
 re-captured live on 2026-09-26 from one session at the tested immutable pin
@@ -4091,7 +4128,7 @@ Every cell points to an executable contract or an explicitly identified gap.
 | Parameters and globals | `effect.globals`, transformed `uniforms`, registry params, MIDI/audio state and capture requirements | `GlobalSpec`, nested automation, and selected-input contracts | compile reflection, state-selection predicates, and numeric response deltas | transform errors, type/range/identity/capture blind spots. GAP-010/011/024/032 |
 | Passes and render graph | `Effect.passes`, `CompiledGraph.passes`, `CompiledGraph.textures`, `CompiledGraph.allocations` | `PassSpec` typed grammar, sampler/output binding rules, and MRT byte adaptation | graph analysis and per-pass compile, plus the queryable runtime allocation/reuse plan | unresolved inputs and backend compile/resource failures |
 | Textures and surface resources | texture specs, `DeviceCapabilities`, and runtime surface dimensions/formats | `TextureSpec` typed grammar, exact accepted policies, and volume atlas clamp | allocation existence, size/format/limit inspection, render metrics | unsupported/missing surface failures and silent unknown-format/dimension fallbacks. GAP-007 |
-| Compatibility and mutation | compiled AST, `listSteps`, `getCompatibleReplacements` | typed `replaceEffect` contract | candidate precheck. Post-mutation browser identity is GAP-024 | compatibility and transform errors. GAP-008/024 |
+| Compatibility and mutation | compiled AST, `listSteps`, `getCompatibleReplacements` | typed `replaceEffect` contract | candidate precheck. Post-mutation browser identity is GAP-024 | compatibility and transform errors. GAP-024 |
 | Rendered output | frame dimensions, `ImageMetrics`, sink stats, and `PackedFrame` | `RenderEffectFrameInput`, `Sink`, and `FrameExportQueue` contracts | exact metric predicates plus bounded queue/accounting rules | metric, capture, sink, and export failures. GAP-014/015/021/024 |
 | Cross-backend parity | source-pair availability and parity report | GLSL ES 3.00/WGSL authoring contracts | buffer diff predicates. Requested-effect/backend proof is GAP-024 | compile/readback/divergence/identity reports. GAP-012/016/024 |
 | Shade MCP tool contracts | `tools/list`, effect scanners, all output types | Full signatures for all 18 verbs | verb-specific domain predicates | selector errors and tool-specific unions. GAP-017/019/020/024/029 |
@@ -4236,7 +4273,7 @@ the default pipeline keeps one backend texture per virtual id.
 | GAP-006 | Closed at noisemaker `6113da0` (machine-verified 2026-09-26: the published range tip `6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa`, which carries `6113da0` and `f83a427e` as ancestors, ran the full CI battery — Publish release, Build JS bundles, Build shader bundle, Bundle shaders, GPU tests, Shader tests, JS tests, JS lint, Verify docs asset paths, notify — all success; the https://noisemaker.app/ deployment serves this register): the renderer consumes the analyzer's physical allocation plan behind the explicit `texturePooling: true` opt-in — `Pipeline.buildTexturePoolingPlan()` groups `graph.allocations` members that share a physical slot, `recreateTextures()` creates one backend texture per group under the group's primary id and aliases every member's backend map entry to that record so pass execution binds the shared texture through either id, and `releaseRegroupedTextures()`/`applyTextureAliases()` keep the sharing correct across resize and recompile. Pooling is refused for groups whose members' specs differ or carry `persistent`/`mipmaps`/3D policy, and for members whose first touch in the pass list is a read, that are sampled by their own producing pass, or that are written by partial/non-clearing passes (any explicit `drawMode` scatter or `blend`) — first-read and cross-frame accumulation semantics match standalone textures); the default pipeline keeps one backend texture per virtual id. `Pipeline.getResourcePlan()` reports the analyzer's allocation map plus the sharing the renderer actually materialized (`pooling`, `allocations`, `sharedTextures`, `textures` with per-record `virtualTextures`). Focused regressions in `shaders/tests/test_resource_pooling.js` (registered in `scripts/run-js-tests.js` and `npm run test:shaders:runtime`) cover plan reuse, default no-pooling parity, opt-in shared records and execution-time bindings, policy/spec/read-before-write/self-sample/scatter-and-blend-write refusals, resize persistence, and recompile regrouping; the opt-in sharing, execution-time binding, and query contract were demonstrated red before implementation (8 failed / 4 passed on the pre-change tree with the current suite), and the refusal branches are exercised against the pooled consumer. | `shaders/src/runtime/resources.js` - `analyzeLiveness()`/`allocateResources()`; `shaders/src/runtime/pipeline.js` - `buildTexturePoolingPlan()`/`recreateTextures()`/`getResourcePlan()` | an agent can query the actual runtime allocation/reuse plan via `Pipeline.getResourcePlan()`, and the renderer materializes the analyzer's reuse behind the documented opt-in |
 | GAP-007 | Backend shader/compiler failures are only partially normalized to one structured diagnostic union. Resolved at noisemaker `f83a427e680ad2bb9a5fd67ccd850143bc820f76` (machine-verified 2026-09-26: the published range tip `6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa`, which carries `6113da0` and `f83a427e` as ancestors, ran the full CI battery — Publish release, Build JS bundles, Build shader bundle, Bundle shaders, GPU tests, Shader tests, JS tests, JS lint, Verify docs asset paths, notify — all success; the https://noisemaker.app/ deployment serves this register): shader compile, link, and missing-source failures on both backends throw one `ShaderDiagnostic` union (in `shaders/src/runtime/backends/diagnostics.js`) carrying the legacy machine `code` (`ERR_SHADER_COMPILE`/`ERR_SHADER_LINK`/`ERR_SHADER_MISSING`/`ERR_NO_WGSL_SOURCE`), `backend` (`webgl2`/`webgpu`), `stage` (`compile`/`link`/`missing-source`/`bind`), `program`, the byte-identical legacy `detail` string, the offending `source` for compile diagnostics, and `messages` parsed from the browser/compiler strings (`parseGLSLInfoLog()` for GLSL info logs, `parseWebGPUCompilationMessages()` for `getCompilationInfo()` entries); the WebGPU bind-group retry consumes the parsed `bindingIndex` through `toDiagnostic()`/`parseDiagnosticText()` instead of re-matching raw browser error strings; the legacy thrown surface (`code`, `detail`, `program`, `source` as enumerable fields) is preserved, so `formatError()`, the `err.detail || err.message` fallbacks, and the Shade browser tool wrappers receive the same text unchanged. Focused regressions in `shaders/tests/test_backend_diagnostics.js` (registered in `scripts/run-js-tests.js` and `npm run test:shaders:runtime`); red-before/pass-after holds (see the active-gap record for the exact red-run wording). Remaining unstructured paths still bypass the union: the WebGL2 `ERR_UNIFORM_BLOCK_TOO_LARGE` ad-hoc throw during program setup, WebGL2 missing-FBO/MRT console warnings and post-draw `gl.getError()` draining, WebGPU `uncapturederror` device validation, and the silent unknown WebGL format/dimension fallbacks. | `shaders/src/runtime/backends/webgl2.js` and `webgpu.js` compile/link/missing-source throw sites; browser error strings in the WebGPU bind-group retry | retry logic and wrappers consume one structured union for shader compile/link failures instead of parsing browser/compiler strings; runtime resource and device-validation failures remain unstructured |
 | GAP-009 | Closed at noisemaker `b35361e08fc17b1d7d6f5127aed0b8bfc2d3989d`: the repository's harness `renderEffectFrame` wrapper (`shaders/tests/test-harness.js`) returns three additive metrics on every successful frame on both backends — `temporal_diff` (normalized mean absolute RGB difference between two external frame renders at normalized times 0 and 0.5, so loop-phase alignment cannot alias an animated effect to "static"), `is_no_animation` = `temporal_diff <= 0.01`, and the universal `is_low_variety` = `unique_sampled_colors <= 5`. Both thresholds reuse the existing source-grounded filter-modification boundary (`temporalDiff > 0.01` OR `uniqueColors > 5` in `passthrough.ts`) rather than an invented one. Probe failure yields `null` metrics plus `metrics.temporal_probe_error`. The harness exposes an explicit opt-in `--low-variety` gate with exemptions `filter/shape`, `filter/solid`, `synth/solid`; default runs reject nothing new, and static output is deliberately never gated. Focused regressions in `shaders/tests/test_frame_metrics.js` (registered in `scripts/run-js-tests.js`); the suite fails before the change (module absent, wrapper returns no such fields) and passes after. Observed in-browser on this implementation commit: webgl2 and webgpu `synth/noise` → `temporal_diff≈0.216`, `is_no_animation=false`, `is_low_variety=false`; `synth/solid` → `temporal_diff=0.000000`, `is_no_animation=true`, `is_low_variety=true` with the opt-in gate passing via exemption. Retained: the upstream Shade MCP verb (`src/tools/browser/render.ts`) is unchanged — the metrics live in this repository's harness wrapper, and a fresh `pull-shade-mcp` vendor refresh will not remove them. | `shaders/tests/test-harness.js` - `augmentFrameMetrics()`; `shaders/tests/frame-metrics.js`; `scripts/run-js-tests.js` | agents can read no-animation and low-variety verdicts straight from `renderEffectFrame` metrics without an ad-hoc external two-frame comparison; the low-variety gate exists behind explicit opt-in with effect exemptions |
-| GAP-008 | Resolved by the publication commit carrying this row (the implementation and this record are one flattened candidate above `19fdcb56e22d`; machine verification of the exact published revision follows publication, and the pre-publication implementation revision `a429195a282d0dc0fdf9778497824ffe559c5265` was flattened away during review): `replaceEffect()` and `getCompatibleReplacements()` in `shaders/src/lang/transform.js` now predict the candidate's compatibility dimensions before mutation — shader availability (registered effect definition in the runtime registry; `unknown` when no definitions are registered at all), arguments (unknown names, with param-alias awareness via the new read-only `getParamAliases()` in `shaders/src/lang/paramAliases.js`, and missing no-default arguments), types, ranges (min/max/choices, reported under the canonical argument name), passes (per-pass name/program/inputs/outputs/drawBuffers), outputs (geo/3D), sampler topology (internal textures + pass inputs, with the replaced effect's topology as `changedFrom`), and backend support (per-program GLSL/WGSL coverage from an optional `options.manifest` in the `effects/manifest.json` shape); dimensions with no available data are reported as unknown, never invented. `replaceEffect()` attaches the prediction to every success; with the explicit `preflight: true` opt-in it refuses mutation when the prediction finds hard issues (availability, unknown arguments, type mismatches, range/choice violations), and `getCompatibleReplacements()` moves affected candidates from `compatible` into `blocked` with the reasons — listing-time predictions use empty arguments so "requires arguments" never blocks (missing no-default arguments are informative, not hard issues), and the default classification is unchanged, so previously accepted input is only rejected behind the opt-in. Focused regressions in `shaders/tests/test_transform.js` (registered in `scripts/run-js-tests.js` and `npm run test:shaders:lang`), including alias-supplied arguments accepted with canonical range checks; red-before holds (10 failed / 23 passed on the pre-change base `19fdcb56e22d`, 33/0 after). Retained: the MCP preflight verb and its browser call sites live in the Shade repository's `src/tools` layer, which this engine-side row does not cover — no MCP verb exposes the prediction yet. | `shaders/src/lang/transform.js` - `getCompatibleReplacements()` and `replaceEffect()` now return structured predictions (`prediction`/`preflight`); `shaders/src/lang/paramAliases.js` - read-only `getParamAliases()`; a Shade MCP preflight verb remains open in the Shade repository | engine-side replacement now predicts arguments, sampler topology, shader availability, types, ranges, passes, outputs, and backend support before mutation; no MCP preflight verb exists in the Shade repo |
+| GAP-008 | Resolved at noisemaker `403c2a4bf2cb56307448ea2fc1d6fa3cd74b7d6e` (machine-verified 2026-09-26: exact-commit CI at `403c2a4` passed Release 36263379194, Shaders 36263149990 with Shader tests/GPU tests/Bundle shaders, Downstream 36263149985, Site 36263150004, and Docs site 36263149987, and the https://noisemaker.app/ deployment serves `git_hash: 403c2a4bf2cb56307448ea2fc1d6fa3cd74b7d6e`; the implementation and this record were flattened into `403c2a4` during review, above `19fdcb56e22d`): `replaceEffect()` and `getCompatibleReplacements()` in `shaders/src/lang/transform.js` now predict the candidate's compatibility dimensions before mutation — shader availability (registered effect definition in the runtime registry; `unknown` when no definitions are registered at all), arguments (unknown names, with param-alias awareness via the new read-only `getParamAliases()` in `shaders/src/lang/paramAliases.js`, and missing no-default arguments), types, ranges (min/max/choices, reported under the canonical argument name), passes (per-pass name/program/inputs/outputs/drawBuffers), outputs (geo/3D), sampler topology (internal textures + pass inputs, with the replaced effect's topology as `changedFrom`), and backend support (per-program GLSL/WGSL coverage from an optional `options.manifest` in the `effects/manifest.json` shape); dimensions with no available data are reported as unknown, never invented. `replaceEffect()` attaches the prediction to every success; with the explicit `preflight: true` opt-in it refuses mutation when the prediction finds hard issues (availability, unknown arguments, type mismatches, range/choice violations), and `getCompatibleReplacements()` moves affected candidates from `compatible` into `blocked` with the reasons — listing-time predictions use empty arguments so "requires arguments" never blocks (missing no-default arguments are informative, not hard issues), and the default classification is unchanged, so previously accepted input is only rejected behind the opt-in. Focused regressions in `shaders/tests/test_transform.js` (registered in `scripts/run-js-tests.js` and `npm run test:shaders:lang`), including alias-supplied arguments accepted with canonical range checks; red-before holds (10 failed / 23 passed on the pre-change base `19fdcb56e22d`, 33/0 after). Retained: the MCP preflight verb and its browser call sites live in the Shade repository's `src/tools` layer, which this engine-side row does not cover — no MCP verb exposes the prediction yet. | `shaders/src/lang/transform.js` - `getCompatibleReplacements()` and `replaceEffect()` now return structured predictions (`prediction`/`preflight`); `shaders/src/lang/paramAliases.js` - read-only `getParamAliases()`; a Shade MCP preflight verb remains open in the Shade repository | engine-side replacement now predicts arguments, sampler topology, shader availability, types, ranges, passes, outputs, and backend support before mutation; no MCP preflight verb exists in the Shade repo |
 | GAP-010 | Uniform responsiveness returns overall `ok` when any tested uniform passes | Shade `src/tools/browser/uniforms.ts` - `testUniformResponsiveness()` | caller must inspect every `tested_uniforms` entry. Outer status is unsafe |
 | GAP-011 | Uniform responsiveness omits measured luma/channel deltas | Shade `src/tools/browser/uniforms.ts` - returned object | caller cannot audit the `>0.002` threshold from the report alone |
 | GAP-012 | Upstream `renderEffectFrame` does not implement WebGPU pixel readback | Shade `src/tools/browser/render.ts` reads only `pipeline.backend.gl` | authoring can compile on WebGPU but single-backend frame metrics are unavailable there |
