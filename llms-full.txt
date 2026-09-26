@@ -1614,8 +1614,10 @@ the other members' backend map entries to it, so every pass binds the shared
 record through either id. A group is pooled only when every member carries an
 identical plain 2D spec (no `persistent`, `mipmaps`, or 3D policy) and each
 member's first touch in the pass list is a producing write that does not
-sample the texture itself, or that are written by partial/non-clearing passes
-(any explicit `drawMode` scatter or `blend`) stay standalone — first-read and
+sample the texture itself, and no member is written by a partial/non-clearing
+pass (any explicit `drawMode` scatter or `blend`, or a `viewport` write without
+`clear: true`, which exposes a group-mate's content in the unwritten region) —
+first-read and
 cross-frame accumulation semantics match standalone textures; the default
 (opt-out) pipeline keeps one backend texture per virtual id.
 `Pipeline.getResourcePlan()` reports both the analyzer's physical allocation
@@ -4189,9 +4191,11 @@ physical allocation plan is consumed by the renderer behind the explicit
 analyzer allocation map plus the sharing the renderer actually materialized.
 Pooling shares one backend texture per physical group; members whose specs
 differ or carry `persistent`/`mipmaps`/3D policy, whose first touch in the
-pass list is a read, that are sampled by their own producing pass, or that
-are written by partial/non-clearing passes (any explicit `drawMode` scatter
-or `blend`) stay standalone — first-read and cross-frame accumulation
+pass list is a read, that are sampled by their own producing pass, or that are written by
+partial/non-clearing passes (any explicit `drawMode` scatter or `blend`, or a
+`viewport` write without `clear: true`, which would expose a group-mate's
+content in the unwritten region) stay standalone — first-read and
+cross-frame accumulation
 semantics match standalone textures. Focused regressions in
 `shaders/tests/test_resource_pooling.js`
 (registered in `scripts/run-js-tests.js` and `npm run test:shaders:runtime`);
