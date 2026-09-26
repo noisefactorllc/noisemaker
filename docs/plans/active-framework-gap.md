@@ -1,10 +1,14 @@
 # Active Framework Gap: GAP-007
 
-Status: closed (implemented at f83a427e680ad2bb9a5fd67ccd850143bc820f76).
-Machine verification of the published revision is pending at the time of this
-record commit; the completed-evidence section below is finalized in a forward
-commit once exact-commit CI and the site deployment pass. The GAP-006 record
-is preserved below, unchanged.
+Status: narrowed (shader compile/link/missing-source failures normalized at
+f83a427e680ad2bb9a5fd67ccd850143bc820f76). The `llms-full.txt` register row
+stays open and states exactly what remains: the WebGL2
+`ERR_UNIFORM_BLOCK_TOO_LARGE` ad-hoc throw during program setup, WebGL2
+missing-FBO/MRT console warnings and post-draw `gl.getError()` draining,
+WebGPU `uncapturederror` device validation, and the silent unknown WebGL
+format/dimension fallbacks. Machine verification of the published revision is
+pending at the time of this record commit. The GAP-006 record is preserved
+below, unchanged.
 
 The prior active-target records for GAP-006, GAP-005, GAP-004, GAP-003, and
 GAP-027 are preserved below, unchanged. See their "Completed Evidence"
@@ -25,10 +29,11 @@ logic must parse browser/compiler strings.
 
 ## Selected Contract (backward compatible)
 
-- Every backend shader/compiler failure is one structured union: a
-  `ShaderDiagnostic` `Error` (`shaders/src/runtime/backends/diagnostics.js`)
-  carrying the legacy machine `code` (`ERR_SHADER_COMPILE`,
-  `ERR_SHADER_LINK`, `ERR_SHADER_MISSING`, `ERR_NO_WGSL_SOURCE`), `backend`
+- Shader compile, link, and missing-source failures on both backends are one
+  structured union: a `ShaderDiagnostic` `Error`
+  (`shaders/src/runtime/backends/diagnostics.js`) carrying the legacy
+  machine `code` (`ERR_SHADER_COMPILE`, `ERR_SHADER_LINK`,
+  `ERR_SHADER_MISSING`, `ERR_NO_WGSL_SOURCE`), `backend`
   (`webgl2`/`webgpu`), `stage` (`compile`/`link`/`missing-source`/`bind`),
   `program` when known, the byte-identical legacy `detail` string, the
   offending `source` for compile diagnostics, and `messages` parsed from the
@@ -47,22 +52,34 @@ logic must parse browser/compiler strings.
   `err.detail || err.message` fallbacks in `pipeline.js`/`canvas.js`, and
   the Shade browser tool wrappers receive the same text unchanged.
 
+## Explicitly remaining under GAP-007 (register row stays open)
+
+- The WebGL2 `ERR_UNIFORM_BLOCK_TOO_LARGE` ad-hoc plain-object throw during
+  program setup (`shaders/src/runtime/backends/webgl2.js`).
+- WebGL2 missing-FBO/MRT console warnings and post-draw `gl.getError()`
+  draining (logged, not converted into the union).
+- WebGPU `uncapturederror` device validation (console message only).
+- Silent unknown WebGL format/dimension fallbacks (no structured authoring
+  diagnostic).
+
 ## Implementation-phase evidence (local, pre-verification)
 
 - Tests-first: `shaders/tests/test_backend_diagnostics.js` — 9 focused tests
   through the public backend entry points (`compileProgram()` on both
   backends against stub GL/device contexts, the GLSL info-log parser, the
-  bind-group retry contract, and legacy-field serialization). Red run
-  against the pre-change tree: 2 passed / 7 failed (every failure was the
-  missing structured union or retry helper). Green run: 9 passed / 0
-  failed.
+  bind-group retry contract, and legacy-field serialization). Red evidence:
+  against the unmodified base tree the suite fails at module load (the new
+  `diagnostics.js` does not exist there); with the diagnostics module present
+  and the backends unpatched, the run is 2 passed / 7 failed (every failure
+  was the missing structured union or retry helper). Green run: 9 passed /
+  0 failed.
 - Test wiring (functional): the suite is registered in
   `scripts/run-js-tests.js` and prepended to the existing
   `test:shaders:runtime` npm script; no workflow files changed.
 - All eight declared local checks passed at the implementation commit
   (dependencies, shader-language, shader-runtime, effect-harness,
   javascript, lint, docs-paths, diff-hygiene); the open-gap count in
-  `llms-full.txt` drops from 17 to 16.
+  `llms-full.txt` is unchanged (GAP-007 stays open, narrowed).
 
 ## GAP-006
 
