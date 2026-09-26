@@ -15,6 +15,11 @@ import {
     DEFAULT_VERTEX_SHADER_WGSL
 } from '../default-shaders.js'
 import { WebGPUFrameExportAdapter } from './webgpu-frame-export.js'
+import {
+    ShaderDiagnostic,
+    parseWebGPUCompilationMessages,
+    toDiagnostic
+} from './diagnostics.js'
 
 /**
  * Full mip chain length for a 2D texture dimension pair.
@@ -868,11 +873,13 @@ export class WebGPUBackend extends Backend {
         const source = this.resolveWGSLSource(spec)
 
         if (!source) {
-            throw {
+            throw new ShaderDiagnostic({
                 code: 'ERR_NO_WGSL_SOURCE',
-                detail: `No WGSL shader source found for program '${id}'. Available keys: ${Object.keys(spec).join(', ')}`,
-                program: id
-            }
+                backend: 'webgpu',
+                stage: 'missing-source',
+                program: id,
+                detail: `No WGSL shader source found for program '${id}'. Available keys: ${Object.keys(spec).join(', ')}`
+            })
         }
 
         // Inject defines
@@ -985,11 +992,15 @@ export class WebGPUBackend extends Backend {
         const errors = compilationInfo.messages.filter(m => m.type === 'error')
 
         if (errors.length > 0) {
-            throw {
+            throw new ShaderDiagnostic({
                 code: 'ERR_SHADER_COMPILE',
+                backend: 'webgpu',
+                stage: 'compile',
+                program: id,
                 detail: errors.map(e => `Line ${e.lineNum}: ${e.message}`).join('\n'),
-                program: id
-            }
+                messages: parseWebGPUCompilationMessages(errors),
+                source
+            })
         }
 
         // Parse binding declarations from the shader
@@ -1071,11 +1082,15 @@ export class WebGPUBackend extends Backend {
         const moduleErrors = moduleInfo.messages.filter(m => m.type === 'error')
 
         if (moduleErrors.length > 0) {
-            throw {
+            throw new ShaderDiagnostic({
                 code: 'ERR_SHADER_COMPILE',
+                backend: 'webgpu',
+                stage: 'compile',
+                program: id,
                 detail: moduleErrors.map(e => `Line ${e.lineNum}: ${e.message}`).join('\n'),
-                program: id
-            }
+                messages: parseWebGPUCompilationMessages(moduleErrors),
+                source
+            })
         }
 
         // Handle vertex module
@@ -1091,11 +1106,15 @@ export class WebGPUBackend extends Backend {
             const vertexErrors = vertexInfo.messages.filter(m => m.type === 'error')
 
             if (vertexErrors.length > 0) {
-                throw {
+                throw new ShaderDiagnostic({
                     code: 'ERR_SHADER_COMPILE',
+                    backend: 'webgpu',
+                    stage: 'compile',
+                    program: id,
                     detail: vertexErrors.map(e => `Line ${e.lineNum}: ${e.message}`).join('\n'),
-                    program: id
-                }
+                    messages: parseWebGPUCompilationMessages(vertexErrors),
+                    source: vertexSource
+                })
             }
 
             vertexEntryPoint = spec.vertexEntryPoint || DEFAULT_VERTEX_ENTRY_POINT
@@ -2728,16 +2747,25 @@ export class WebGPUBackend extends Backend {
 
         // Create bind group using the target pipeline's layout
         // Handle multi-entry-point shaders where some bindings may be optimized out
-        // Try direct creation first (most common case - no optimized-out bindings)
+        return this.createBindGroupFromEntries(targetPipeline.getBindGroupLayout(0), entries)
+    }
+
+    /**
+     * Create a bind group from explicit entries, retrying with progressively
+     * filtered entries when the browser reports optimized-out bindings.
+     * The retry decision is made from the structured diagnostic union
+     * (parsed `bindingIndex`), not by re-matching the raw browser string.
+     */
+    createBindGroupFromEntries(layout, entries) {
         try {
             return this.device.createBindGroup({
-                layout: targetPipeline.getBindGroupLayout(0),
+                layout,
                 entries
             })
         } catch (err) {
             // Fall back to retry loop only on binding errors
-            const errStr = err.message || String(err)
-            if (!errStr.includes('binding index')) {
+            const diagnostic = toDiagnostic(err, { backend: 'webgpu', stage: 'bind' })
+            if (diagnostic.bindingIndex === undefined) {
                 throw err
             }
 
@@ -2746,26 +2774,23 @@ export class WebGPUBackend extends Backend {
             const maxRetries = 10
 
             for (let attempt = 0; attempt < maxRetries; attempt++) {
-                const bindingMatch = /binding index (\d+) not present/.exec(errStr)
-                if (bindingMatch) {
-                    const problemBinding = parseInt(bindingMatch[1], 10)
-                    // Filter in place to avoid allocation on subsequent retries
-                    currentEntries = currentEntries.filter(e => e.binding !== problemBinding)
+                const problemBinding = diagnostic.bindingIndex
+                // Filter in place to avoid allocation on subsequent retries
+                currentEntries = currentEntries.filter(e => e.binding !== problemBinding)
 
-                    try {
-                        return this.device.createBindGroup({
-                            layout: targetPipeline.getBindGroupLayout(0),
-                            entries: currentEntries
-                        })
-                    } catch (retryErr) {
-                        const retryErrStr = retryErr.message || String(retryErr)
-                        if (!retryErrStr.includes('binding index')) {
-                            throw retryErr
-                        }
-                        continue
+                try {
+                    return this.device.createBindGroup({
+                        layout,
+                        entries: currentEntries
+                    })
+                } catch (retryErr) {
+                    const retryDiagnostic = toDiagnostic(retryErr, { backend: 'webgpu', stage: 'bind' })
+                    if (retryDiagnostic.bindingIndex === undefined) {
+                        throw retryErr
                     }
+                    diagnostic.bindingIndex = retryDiagnostic.bindingIndex
+                    continue
                 }
-                break
             }
 
             throw err

@@ -11,6 +11,8 @@ import {
 } from '../default-shaders.js'
 import { WebGL2FrameExportAdapter } from './webgl2-frame-export.js'
 
+import { ShaderDiagnostic, parseGLSLInfoLog } from './diagnostics.js'
+
 // How many frames after a program compile or render-target (re)allocation
 // keep per-pass gl.getError() checks enabled. gl.getError() forces a
 // synchronous CPU/GPU round trip, so calling it per pass on every frame turns
@@ -970,7 +972,13 @@ export class WebGL2Backend extends Backend {
         // Check for missing shader source
         const rawSource = spec.source || spec.glsl || spec.fragment
         if (!rawSource) {
-            throw new Error(`Shader source missing for program '${id}'. You may need to regenerate the shader manifest.`)
+            throw new ShaderDiagnostic({
+                code: 'ERR_SHADER_MISSING',
+                backend: 'webgl2',
+                stage: 'missing-source',
+                program: id,
+                detail: `Shader source missing for program '${id}'. You may need to regenerate the shader manifest.`
+            })
         }
 
         // Inject defines
@@ -999,11 +1007,14 @@ export class WebGL2Backend extends Backend {
 
         if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
             const log = gl.getProgramInfoLog(program)
-            throw {
+            throw new ShaderDiagnostic({
                 code: 'ERR_SHADER_LINK',
+                backend: 'webgl2',
+                stage: 'link',
+                program: id,
                 detail: log,
-                program: id
-            }
+                messages: parseGLSLInfoLog(log)
+            })
         }
 
         // Clean up shaders
@@ -1049,11 +1060,14 @@ export class WebGL2Backend extends Backend {
             console.error('[GLSL compile error]', log)
             console.error('[GLSL source]', source)
             gl.deleteShader(shader)
-            throw {
+            throw new ShaderDiagnostic({
                 code: 'ERR_SHADER_COMPILE',
+                backend: 'webgl2',
+                stage: 'compile',
                 detail: log,
+                messages: parseGLSLInfoLog(log),
                 source
-            }
+            })
         }
 
         return shader
@@ -1061,7 +1075,12 @@ export class WebGL2Backend extends Backend {
 
     injectDefines(source, defines) {
         if (!source) {
-            throw new Error('Shader source is missing. You may need to regenerate the shader manifest.')
+            throw new ShaderDiagnostic({
+                code: 'ERR_SHADER_MISSING',
+                backend: 'webgl2',
+                stage: 'missing-source',
+                detail: 'Shader source is missing. You may need to regenerate the shader manifest.'
+            })
         }
 
         let injected = '#version 300 es\nprecision highp float;\nprecision highp int;\n'
