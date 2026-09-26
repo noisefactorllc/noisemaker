@@ -43,6 +43,8 @@
  *   --passthrough             Test that filter effects do NOT pass through input unchanged
  *   --pixel-parity            Test GLSL/WGSL pixel-for-pixel output parity at frame 0
  *   --low-variety             OPT-IN: fail effects whose output is low variety and not exempt
+ *   --strict-uniforms         OPT-IN: fail when any tested uniform does not affect output
+ *                             (default keeps the upstream outer-status semantics)
  *   --with-ai                 Enable AI-based tests (alg-equiv, branching, vision)
  *   --no-vision               Skip AI vision validation (even with --with-ai)
  *
@@ -81,6 +83,7 @@ import {
     isLowVariety,
     isNoAnimation,
 } from './frame-metrics.js'
+import { aggregateUniformResponsiveness } from './uniform-status.js'
 // AI-dependent imports are loaded dynamically to avoid requiring @anthropic-ai/sdk at module level
 let getAIProvider, checkAlgEquiv, analyzeBranching
 async function loadAIDeps() {
@@ -496,6 +499,9 @@ function parseArgs() {
             parsed.runBenchmark = true
         } else if (arg === '--uniforms') {
             parsed.runUniforms = true
+        } else if (arg === '--strict-uniforms') {
+            parsed.runUniforms = true
+            parsed.strictUniforms = true
         } else if (arg === '--structure') {
             parsed.runStructure = true
         } else if (arg === '--structure-only') {
@@ -990,15 +996,25 @@ async function testEffect(session, effectId, options) {
         t0 = Date.now()
         const uniformResult = await testUniformResponsiveness(session, effectId)
         timings.push(`uniforms:${Date.now() - t0}ms`)
-        results.uniforms = uniformResult.status
+        const uniformAggregate = aggregateUniformResponsiveness(uniformResult)
+        // Default gate keeps the upstream outer-status semantics; the
+        // explicit `--strict-uniforms` opt-in uses the truthful
+        // per-entry aggregate (GAP-010), so previously accepted effects
+        // are only newly rejected behind the opt-in.
+        const uniformStatus = options.strictUniforms ? uniformAggregate.status : uniformResult.status
+        results.uniforms = uniformStatus
+        results.uniformsAggregate = uniformAggregate.status
 
-        if (uniformResult.status === 'skipped') {
+        if (uniformStatus === 'skipped') {
             console.log(`  ⊘ uniforms: ${uniformResult.details}`)
-        } else if (uniformResult.status === 'ok') {
+        } else if (uniformStatus === 'ok') {
             console.log(`  ✓ uniforms: ${uniformResult.tested_uniforms.join(', ')}`)
         } else {
             results.uniformsFailed = true
             console.log(`  ❌ uniforms: ${uniformResult.details} [${uniformResult.tested_uniforms.join(', ')}]`)
+        }
+        if (options.strictUniforms && uniformAggregate.status !== uniformStatus) {
+            console.log(`  ℹ uniforms aggregate: ${uniformAggregate.status}`)
         }
     }
 
