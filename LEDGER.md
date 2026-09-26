@@ -912,7 +912,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `5e52a2a2` / shade-mcp `00340b1`, 2026-09-25
+- **Checkpoint:** noisemaker `a651c075` / shade-mcp `00340b1`, 2026-09-26
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -920,7 +920,7 @@ work, verify it, then update the checkpoint and append a log line.
   parameters/globals, passes/graph, textures, compatibility/mutation,
   rendered output, cross-backend parity, Shade MCP tool contracts), a fully
   worked validated effect, the surface × capability traceability matrix, and
-  the 19-entry open gap register (GAP-005..012, GAP-014..017, GAP-019..021,
+  the 16-entry open gap register (GAP-008..012, GAP-014..017, GAP-019..021,
   GAP-024, GAP-026, GAP-029, and GAP-032). The file pins its
   own audited SHAs in the "Source snapshots used for this contract" block at
   its head; that block and this checkpoint are the same two SHAs and must be
@@ -988,6 +988,66 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
+  - 2026-09-26 — caught up through noisemaker `a651c075` / shade-mcp `00340b1`
+    (Tearoff #570, job `ledger-llms-contract`): audited watched source roots
+    across noisemaker range `5e52a2a2..a651c075`, which closes Tearoff #570's
+    three observed delivery ranges (`27590caa..8eeb7b5a`, `428ea29b..9574362`,
+    `9574362..6a0af04`) — the trigger's forced start `4891b995` is a linear
+    ancestor of `27590caa`, so trigger range `4891b995..8eeb7b5a` and this
+    checkpoint-to-HEAD audit together cover every delivered commit with no
+    gap. Engine drift in the range: `fa83eeab` (GAP-005 expanded pass-field
+    propagation and `Pipeline.resolvePassViewport()`), `6113da00` (GAP-006
+    `texturePooling` opt-in plus queryable `Pipeline.getResourcePlan()`),
+    `95743621` (viewport-write pooling guard), and `f83a427e` (GAP-007
+    structured `ShaderDiagnostic` union); the remaining commits are
+    documentation, ledger, and record updates only. Shade-side audit: upstream
+    `noisefactorllc/shade-mcp` and the local checkout are unchanged at
+    `00340b1` (upstream `main` == `00340b1`; no release newer than `v0.2.3` /
+    `cbcab33363851016f65391fbb9ef71d66729c07f`), Shade's parsers, analysis,
+    knowledge, and browser tools consume none of the new Noisemaker surfaces,
+    and `ShaderDiagnostic` passes the legacy raw detail string to
+    `super(detail)` so `err.message` and the `err.detail || err.message`
+    fallbacks reach the Shade browser tool wrappers byte-identical — no
+    integration-code change or new Shade regression was required, and the
+    public tool result shapes are unchanged. Verified four identities:
+    Noisemaker source `a651c075bb2848b584b2bf2484f5f8a0db754b0c`, Shade MCP
+    source `00340b148e109464b1a87d89ff29fc7622d384c9`, `.mcp.json` pinned to
+    `cbcab33363851016f65391fbb9ef71d66729c07f`, and `vendor/shade-mcp/` delivered
+    from release `v0.2.3` (`cbcab33363851016f65391fbb9ef71d66729c07f`). Validation
+    battery on the exact pair: Noisemaker non-parity JS tests
+    (`node scripts/run-js-tests.js --skip-parity`, all suites pass) and lint
+    (`npm run lint`), Shade MCP typecheck (`npm run typecheck`, 0 errors) and
+    unit tests (`npm test`, 24 files / 157 tests pass), structure check via the
+    vendored harness (`npm run test:shaders:structure`, all checks pass, 1258
+    documented parameters across 200 effects), WebGL2 render check
+    (`npm run test:shaders:render:webgl2`, pass) and WebGPU render check
+    (`npm run test:shaders:render:webgpu`, 1/1 pass — run with Chromium's
+    bundled SwiftShader Vulkan ICD selected via `SHADE_SWIFTSHADER=1` and
+    `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` pointing at the Playwright Chromium
+    bundle's `vk_swiftshader_icd.json`; `test_external_texture_upload` still
+    skips its WebGPU assertion in headless), and the live browser smoke test
+    (`NOISEMAKER=... node scripts/browser-smoke.mjs`, all 3 checks OK:
+    `compileEffect`, `renderEffectFrame`, module import from a `setContent`
+    page). Re-captured MCP initialization, server info (`shade-mcp 0.2.3`),
+    protocol (`2024-11-05`), 18 tools via `tools/list`, and a worked
+    `checkEffectStructure` call with `effect_id: "synth/noise"` (status `ok`,
+    passCount 1, no issues) from one session at the tested immutable pin
+    `cbcab33363851016f65391fbb9ef71d66729c07f`. CI evidence: exact-commit
+    check runs do not exist for `fa83eeab`, `6113da00`, or `f83a427e` (they
+    were pushed in one burst and CI ran at the tip); the published range tip
+    `6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa` ran the full battery — Publish
+    release, Build JS bundles, Build shader bundle, Bundle shaders, Build
+    standalone (Linux/Windows/macOS), GPU tests, Shader tests, JS tests, JS
+    lint, Dispatch scaffold static-site-release, Verify docs asset paths,
+    notify — all success; the docs pass `01e9d620` passed Dispatch scaffold
+    static-site-release, Verify docs asset paths, and notify; `a651c075` is a
+    LEDGER-only commit (auto-merge only, outside the site workflow's push
+    paths). Deployment: https://noisemaker.app/llms-full.txt serves the
+    contract including the GAP-005/006/007 closures. Updated `llms-full.txt`:
+    snapshot block advanced to `a651c075`/`00340b1`, the GAP-006 and GAP-007
+    "pending publication" wording replaced with the `6a0af04d` CI evidence,
+    the worked-instance note replaced with the live pin re-capture, and the
+    open-gap count corrected to 16; advanced this checkpoint together.
   - 2026-09-25 — caught up through noisemaker `5e52a2a2` / shade-mcp `00340b1`:
     audited watched source roots across noisemaker range `69d83b80..5e52a2a2`
     (covering Tearoff #551 trigger `4891b995..2f47612c` through HEAD).
