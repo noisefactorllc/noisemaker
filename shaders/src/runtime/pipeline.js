@@ -1487,6 +1487,15 @@ export class Pipeline {
             if (pass.drawMode || pass.blend) {
                 for (const texId of outputs) partiallyWritten.add(texId)
             }
+            // A `viewport` pass that does not declare `clear: true` renders
+            // into a sub-region: WebGPU uses loadOp 'load' by default and
+            // WebGL2 sets a gl.viewport without clearing, so unwritten
+            // regions expose whatever was there before (a group-mate's
+            // content under pooled storage). Full clears (`clear: true`,
+            // no viewport) overwrite the whole texture and stay poolable.
+            else if (pass.viewport && !pass.clear) {
+                for (const texId of outputs) partiallyWritten.add(texId)
+            }
             for (const texId of outputs) {
                 if (!firstTouchIsWrite.has(texId)) firstTouchIsWrite.set(texId, true)
                 if (inputs.has(texId)) selfSampled.add(texId)
