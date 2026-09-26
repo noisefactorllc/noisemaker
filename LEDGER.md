@@ -445,6 +445,18 @@ work, verify it, then update the checkpoint and append a log line.
     (`node --test test/docs-static-paths.test.js`, 4/4 pass), ESLint
     (`npm run lint`), and the non-parity JS test suite
     (`node scripts/run-js-tests.js --skip-parity`, 201 tests, 0 failures).
+    Published-source CI and deployment evidence observed via the GitHub API:
+    `docs-site.yml` succeeded at `01e9d62` (Verify docs asset paths and
+    Dispatch scaffold static-site-release jobs both success; run 36213112409),
+    `downstream.yml` succeeded at `01e9d62` (run 36213112296), and the live
+    docs.noisemaker.app deployment serves
+    `git_hash: 01e9d620d7ccc700cc8926a91145702dc69a8eeb` per
+    `deployment-meta.json` — the deployed Sphinx HTML includes this range's
+    `pipeline.rst`/`compiler.rst` edits. The follow-up checkpoint-advance
+    commit `3968f6c` touches only `LEDGER.md`, which is outside the
+    `docs-site.yml` push-trigger paths (`docs/**` with `*.md` excluded), so
+    no workflow run applies to it and the deployment at `01e9d62` already
+    serves all this pass's `.rst` content.
   - 2026-09-26 — caught up through `6a0af04d`: audited range
     `6c3f9a26..6a0af04d` (Tearoff item 571, covering trigger
     `8eeb7b5a..6a0af04d` delivered as `6c3f9a26..428ea29..9574362..6a0af04d`,
