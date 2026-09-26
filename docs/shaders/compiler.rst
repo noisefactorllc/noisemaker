@@ -272,3 +272,15 @@ error.
    * - ``ERR_SHADER_LINK``
      - WebGL backend
      - Compiled WebGL shaders failed to link into a program
+   * - ``ERR_SHADER_MISSING``
+     - WebGL backend
+     - A pass references a shader source the backend cannot resolve
+
+Backend shader compile, link, and missing-source failures are normalized to
+one structured ``ShaderDiagnostic`` union with the machine ``code``, the
+``backend`` and ``stage``, a parsed per-message ``messages`` array, and the
+byte-identical legacy ``detail`` string. See :ref:`the Pipeline error-code
+table <pipeline-error-codes>` for the full shape.
+
+The allocator itself still only computes the map. The runtime consumes it
+behind the ``texturePooling: true`` opt-in; see :doc:`pipeline`.

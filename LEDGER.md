@@ -408,7 +408,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `6c3f9a26` (2026-09-25)
+- **Checkpoint:** noisemaker `6a0af04d` (2026-09-26)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -422,6 +422,32 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-26 — caught up through `6a0af04d`: audited range
+    `6c3f9a26..6a0af04d` (Tearoff item 571, covering trigger
+    `8eeb7b5a..6a0af04d` delivered as `6c3f9a26..428ea29..9574362..6a0af04d`,
+    audited linearly in the local checkout). Gap detection confirmed zero
+    missing `help.md` files across all effect definitions. Shipped features
+    documented in the Sphinx docs: GAP-006 texture-pooling consumption (the
+    `texturePooling: true` opt-in, `Pipeline.buildTexturePoolingPlan()`
+    grouping/aliasing, the identical-plain-2D-spec / producing-write /
+    partial-and-non-clearing-write guard including the viewport-without-clear
+    case from `9574362`, and `Pipeline.getResourcePlan()`) in
+    `docs/shaders/pipeline.rst` Sections 2 and 7; GAP-007 structured
+    diagnostics (one `ShaderDiagnostic` union with `backend`/`stage`/parsed
+    `messages`, the added `ERR_SHADER_MISSING` code row, and the enumerated
+    still-unstructured paths) in `docs/shaders/pipeline.rst` Section 11 and
+    `docs/shaders/compiler.rst` Failures and Diagnostics (with a new
+    `pipeline-error-codes` anchor). No new standalone guide required under
+    `docs/shaders/features.rst` — both features are pipeline/runtime
+    internals, matching the prior pass's precedent. Invalidated statements:
+    corrected `docs/shaders/pipeline.rst` claims that the Pipeline creates
+    textures by virtual ID and never uses the allocation map as a pool.
+    Verified the Sphinx docs build locally
+    (`sphinx-build -b dirhtml docs docs/_build/dirhtml`: build succeeded;
+    only the pre-existing `pipeline-3d.rst` `dsl` lexer warning, unchanged),
+    docs static asset paths (`node --test test/docs-static-paths.test.js`,
+    4/4 pass), ESLint (`npm run lint`), and the non-parity JS test suite
+    (`node scripts/run-js-tests.js --skip-parity`).
   - 2026-09-25 — caught up through `6c3f9a26`: audited range
     `69d83b80..6c3f9a26` (Tearoff item 557, covering `69d83b80..8eeb7b5a`
     and publication evidence at `6c3f9a26`). Gap detection confirmed zero

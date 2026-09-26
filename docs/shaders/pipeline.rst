@@ -58,8 +58,10 @@ The Pipeline initializes before execution and revisits texture allocation when d
    Compile it with the selected backend.
 #. **Texture Creation:** Resolve graph texture dimensions.
    Create ordinary textures and double-buffered global surfaces.
-   The current Pipeline creates textures by virtual ID. It does not use the
-   compiler's allocation map as a backend texture pool.
+   By default the Pipeline creates textures by virtual ID. When the host
+   passes ``texturePooling: true``, the Pipeline instead groups the virtual
+   textures that share a physical slot in the compiler's allocation map and
+   creates one backend texture per group (see Section 7).
 
 Phase 3: Execution (GPU Driver)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -251,9 +253,31 @@ its first and last mention. The analysis excludes IDs beginning with ``global_``
 slots to previously unseen outputs and releases an input's slot after its last
 use. A released slot can be reused only by an output in a later pass. The compiled graph stores the resulting ``Map<virtualId, physicalId>``.
 
-The current Pipeline does not use that map to pool backend textures: it creates
-textures from ``graph.textures`` by virtual ID. Consequently the allocator does
-not group by dimensions or formats and has no runtime compaction cycle.
+By default the Pipeline keeps one backend texture per virtual ID. When the
+host passes ``texturePooling: true``, the Pipeline consumes the map:
+``Pipeline.buildTexturePoolingPlan()`` groups the virtual textures that share
+a physical slot, and ``recreateTextures()`` creates one backend texture per
+group under the group's primary ID and aliases the other members' backend map
+entries to it, so every pass binds the shared record through either ID. The
+sharing survives resize and recompile through
+``releaseRegroupedTextures()``/``applyTextureAliases()``.
+
+A group is pooled only when it is safe to share storage:
+
+- every member carries an identical plain 2D spec (no ``persistent``,
+  ``mipmaps``, or 3D ``filter`` policy);
+- each member's first touch in the pass list is a producing write, and its
+  own producing pass does not sample it;
+- no member is written by a partial/non-clearing pass — any explicit
+  ``drawMode`` scatter or ``blend`` pass, or a ``viewport`` write without
+  ``clear: true``, leaves previous contents observable in the unwritten
+  region, which under pooled storage would expose a group-mate's content.
+
+Groups that fail these checks stay standalone, so first-read and cross-frame
+accumulation semantics match the default pipeline. ``Pipeline.getResourcePlan()``
+reports both the analyzer's physical allocation map and the sharing the
+renderer actually materialized (``pooling``, ``allocations``,
+``sharedTextures``, and per-texture-record ``virtualTextures``).
 
 7.1 Binding Slot Assignment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -484,6 +508,8 @@ The corresponding volumetric references are ``inputTex3d`` and
 
 ----
 
+.. _pipeline-error-codes:
+
 11. Runtime Error Codes
 -----------------------
 
@@ -520,6 +546,28 @@ codes:
      - WebGL or WebGPU shader compilation failed
    * - ERR_SHADER_LINK
      - WebGL shader program linking failed
+   * - ERR_SHADER_MISSING
+     - A pass references a shader source the backend cannot resolve
+
+**Structured Shader Diagnostics:** Every backend shader compile, link, and
+missing-source failure throws one ``ShaderDiagnostic`` (a real ``Error`` in
+``shaders/src/runtime/backends/diagnostics.js``) instead of an ad-hoc object
+literal. It carries the legacy machine ``code`` from the table above, the
+``backend`` (``webgl2`` or ``webgpu``), a ``stage`` (``compile``, ``link``,
+``missing-source``, or ``bind``), the ``program``/pass id when known, the raw
+browser/compiler string as ``detail`` (byte-identical to the legacy thrown
+shape), the offending shader ``source`` for compile diagnostics, and a parsed
+``messages`` array (one entry per compiler message with ``severity``,
+``line``, ``column``, and ``message``) built from GLSL info logs
+(``parseGLSLInfoLog()``) or WebGPU ``getCompilationInfo()``
+(``parseWebGPUCompilationMessages()``). The legacy enumerable surface
+(``code``, ``detail``, ``program``, ``source``) is preserved, so
+``err.detail || err.message`` consumers keep their output. The WebGPU
+bind-group retry consumes the parsed ``bindingIndex`` through
+``toDiagnostic()``/``parseDiagnosticText()`` instead of re-matching raw
+browser error strings. Runtime resource failures (missing framebuffers,
+``gl.getError()`` draining, WebGPU ``uncapturederror``) and the silent
+unknown WebGL format/dimension fallbacks remain outside this union.
 
 ----
 
