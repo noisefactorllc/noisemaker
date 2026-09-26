@@ -408,7 +408,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `6a0af04d` (2026-09-26)
+- **Checkpoint:** noisemaker `01e9d62` (2026-09-26)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -422,6 +422,29 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-09-26 — caught up through `01e9d62`: audited range
+    `6a0af04d..01e9d62` (Tearoff item 586). The range contains exactly one
+    commit, `01e9d62`, which is the prior Documentation pass's own Sphinx
+    edits (GAP-006 texture-pooling opt-in and GAP-007 structured
+    `ShaderDiagnostic` union in `docs/shaders/pipeline.rst` and
+    `docs/shaders/compiler.rst`) — no engine changes. Gap detection
+    confirmed zero missing `help.md` files across all 210 effect
+    definitions and all 1,258 documented parameters across 200 effects
+    match definitions (`node shaders/tests/test_effect_help_params.mjs`).
+    No new features shipped in the range, so no `docs/shaders/features.rst`
+    guide required. Invalidated-statement audit: spot-checked the documented
+    symbols (`ShaderDiagnostic`/`ERR_SHADER_MISSING` in
+    `shaders/src/runtime/backends/diagnostics.js` and the backends,
+    `buildTexturePoolingPlan`/`getResourcePlan`/`releaseRegroupedTextures`/
+    `applyTextureAliases` in `shaders/src/runtime/pipeline.js`) and grepped
+    the affected terms in `docs/` — every remaining "virtual ID"/"allocation
+    map" statement is qualified by the `texturePooling: true` opt-in and
+    matches the source; nothing invalidated. Verified the Sphinx docs build
+    locally (`sphinx-build -b dirhtml docs docs/_build/dirhtml`: build
+    succeeded, 18 pre-existing warnings, 0 errors), docs static asset paths
+    (`node --test test/docs-static-paths.test.js`, 4/4 pass), ESLint
+    (`npm run lint`), and the non-parity JS test suite
+    (`node scripts/run-js-tests.js --skip-parity`, 201 tests, 0 failures).
   - 2026-09-26 — caught up through `6a0af04d`: audited range
     `6c3f9a26..6a0af04d` (Tearoff item 571, covering trigger
     `8eeb7b5a..6a0af04d` delivered as `6c3f9a26..428ea29..9574362..6a0af04d`,
