@@ -1,4 +1,70 @@
-# Active Framework Gap: GAP-006
+# Active Framework Gap: GAP-007
+
+Status: closed (implemented at f83a427e680ad2bb9a5fd67ccd850143bc820f76).
+Machine verification of the published revision is pending at the time of this
+record commit; the completed-evidence section below is finalized in a forward
+commit once exact-commit CI and the site deployment pass. The GAP-006 record
+is preserved below, unchanged.
+
+The prior active-target records for GAP-006, GAP-005, GAP-004, GAP-003, and
+GAP-027 are preserved below, unchanged. See their "Completed Evidence"
+sections.
+
+## GAP-007
+
+Gap statement from `llms-full.txt`:
+
+> Backend shader/compiler failures are not normalized to one structured
+> diagnostic union
+
+Source evidence: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`
+threw ad-hoc plain object literals (`{ code, detail, ... }`) from their
+compile/link/missing-source paths, and the WebGPU bind-group retry re-parsed
+raw browser error strings with inline regexes. Consequence: backend retry
+logic must parse browser/compiler strings.
+
+## Selected Contract (backward compatible)
+
+- Every backend shader/compiler failure is one structured union: a
+  `ShaderDiagnostic` `Error` (`shaders/src/runtime/backends/diagnostics.js`)
+  carrying the legacy machine `code` (`ERR_SHADER_COMPILE`,
+  `ERR_SHADER_LINK`, `ERR_SHADER_MISSING`, `ERR_NO_WGSL_SOURCE`), `backend`
+  (`webgl2`/`webgpu`), `stage` (`compile`/`link`/`missing-source`/`bind`),
+  `program` when known, the byte-identical legacy `detail` string, the
+  offending `source` for compile diagnostics, and `messages` parsed from the
+  browser/compiler strings (`parseGLSLInfoLog()` handles
+  `ERROR: 0:LINE: ...`/`WARNING: ...` info-log forms and preserves
+  unprefixed driver prose as info entries;
+  `parseWebGPUCompilationMessages()` maps `getCompilationInfo()` entries
+  with `lineNum`/`linePos`).
+- The WebGPU bind-group retry consumes the parsed `bindingIndex` via
+  `toDiagnostic()`/`parseDiagnosticText()` in the new
+  `createBindGroupFromEntries()` instead of re-matching raw browser strings;
+  retry gating stays limited to "binding index N not present" errors.
+- No new rejection of previously accepted input: the legacy thrown surface
+  (`code`, `detail`, `program`, `source` as enumerable fields on the thrown
+  value) is preserved, so `formatError()` in `compiler.js`, the
+  `err.detail || err.message` fallbacks in `pipeline.js`/`canvas.js`, and
+  the Shade browser tool wrappers receive the same text unchanged.
+
+## Implementation-phase evidence (local, pre-verification)
+
+- Tests-first: `shaders/tests/test_backend_diagnostics.js` — 9 focused tests
+  through the public backend entry points (`compileProgram()` on both
+  backends against stub GL/device contexts, the GLSL info-log parser, the
+  bind-group retry contract, and legacy-field serialization). Red run
+  against the pre-change tree: 2 passed / 7 failed (every failure was the
+  missing structured union or retry helper). Green run: 9 passed / 0
+  failed.
+- Test wiring (functional): the suite is registered in
+  `scripts/run-js-tests.js` and prepended to the existing
+  `test:shaders:runtime` npm script; no workflow files changed.
+- All eight declared local checks passed at the implementation commit
+  (dependencies, shader-language, shader-runtime, effect-harness,
+  javascript, lint, docs-paths, diff-hygiene); the open-gap count in
+  `llms-full.txt` drops from 17 to 16.
+
+## GAP-006
 
 Status: closed (implemented at 6113da0). Machine verification of the published
 revision is pending at the time of this record commit; the completed-evidence
