@@ -36,6 +36,7 @@
  *   --all                     Run ALL optional tests
  *   --benchmark               Run FPS test (~500ms per effect)
  *   --uniforms                Test that uniform controls affect output
+ *                             (also reports measured luma/channel deltas per uniform)
  *   --structure               Test for unused files, naming conventions, leaked uniforms
  *   --structure-only          Run ONLY structure tests (no browser, filesystem-based)
  *   --alg-equiv               Test GLSL/WGSL algorithmic equivalence (requires --with-ai)
@@ -84,6 +85,12 @@ import {
     isNoAnimation,
 } from './frame-metrics.js'
 import { aggregateUniformResponsiveness } from './uniform-status.js'
+import {
+    UNIFORM_RESPONSE_THRESHOLD,
+    auditUniformResponsiveness,
+    classifyMeasuredUniforms,
+    measureUniformDeltasForSession,
+} from './uniform-deltas.js'
 // AI-dependent imports are loaded dynamically to avoid requiring @anthropic-ai/sdk at module level
 let getAIProvider, checkAlgEquiv, analyzeBranching
 async function loadAIDeps() {
@@ -1015,6 +1022,43 @@ async function testEffect(session, effectId, options) {
         }
         if (options.strictUniforms && uniformAggregate.status !== uniformStatus) {
             console.log(`  ℹ uniforms aggregate: ${uniformAggregate.status}`)
+        }
+
+        // GAP-011: repository-side re-measurement reports the measured luma
+        // and per-channel deltas, so the >0.002 threshold is auditable from
+        // the report alone (the upstream tool reports only pass/fail strings).
+        // Informational only — this never changes the default gate.
+        let measuredUniforms = null
+        try {
+            measuredUniforms = await measureUniformDeltasForSession(session)
+            timings.push(`uniform-deltas:${Date.now() - t0}ms`)
+        } catch (err) {
+            console.log(`  ℹ uniform deltas: measurement failed (${err?.message || err})`)
+        }
+        if (measuredUniforms && Array.isArray(measuredUniforms.uniform_deltas)) {
+            const measuredStatus = classifyMeasuredUniforms(measuredUniforms)
+            results.uniformDeltas = measuredUniforms.uniform_deltas
+            results.uniformDeltasStatus = measuredStatus
+            if (measuredUniforms.uniform_deltas.length > 0) {
+                console.log(
+                    `  ℹ uniform deltas (threshold ${measuredUniforms.threshold ?? UNIFORM_RESPONSE_THRESHOLD}): ` +
+                    measuredUniforms.uniform_deltas
+                        .map((d) => d.responds === null
+                            ? `${d.name} capture-failed`
+                            : `${d.name} luma=${d.luma_diff.toFixed(6)} channel=${d.max_channel_diff.toFixed(6)} ${d.responds ? 'responds' : 'flat'}`)
+                        .join(', '),
+                )
+            } else {
+                console.log(`  ⊘ uniform deltas: ${measuredUniforms.details}`)
+            }
+            const audit = auditUniformResponsiveness(uniformResult, measuredUniforms)
+            results.uniformAuditMismatches = audit.mismatches
+            if (audit.mismatches.length > 0) {
+                console.log(
+                    `  ℹ uniforms audit: upstream verdict differs from measured deltas: ` +
+                    audit.mismatches.map((m) => `${m.name} upstream=${m.upstream} measured=${m.measured}`).join(', '),
+                )
+            }
         }
     }
 
