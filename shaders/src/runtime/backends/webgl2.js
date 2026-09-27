@@ -1421,6 +1421,8 @@ export class WebGL2Backend extends Backend {
             // Ensure FBO has depth buffer (null = default framebuffer, already has depth)
             if (fbo) {
                 this.ensureDepthBuffer(fbo, vpWidth, vpHeight)
+                // Initial depth allocation unbinds the framebuffer.
+                gl.bindFramebuffer(gl.FRAMEBUFFER, fbo)
             }
 
             // Enable depth testing (closer fragments win)
