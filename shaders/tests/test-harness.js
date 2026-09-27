@@ -39,6 +39,9 @@
  *                             (also reports measured luma/channel deltas per uniform)
  *   --structure               Test for unused files, naming conventions, leaked uniforms
  *   --structure-only          Run ONLY structure tests (no browser, filesystem-based)
+ *   --describe                Print the COMPLETE parsed definition schema per effect
+ *                             (no browser; includes an audit of what the upstream
+ *                             regex-based parser projection drops)
  *   --alg-equiv               Test GLSL/WGSL algorithmic equivalence (requires --with-ai)
  *   --branching               Analyze shaders for unnecessary branching (requires --with-ai)
  *   --passthrough             Test that filter effects do NOT pass through input unchanged
@@ -86,6 +89,7 @@ import {
 } from './frame-metrics.js'
 import { aggregateUniformResponsiveness } from './uniform-status.js'
 import { warmupPausePlan } from './frame-warmup.js'
+import { auditDefinitionLoss } from './definition-schema.js'
 import {
     UNIFORM_RESPONSE_THRESHOLD,
     auditUniformResponsiveness,
@@ -487,6 +491,7 @@ function parseArgs() {
         runBenchmark: false,
         runUniforms: false,
         runStructure: false,
+        runDescribe: false,
         runStructureOnly: false,
         runAlgEquiv: false,
         runBranching: false,
@@ -519,6 +524,8 @@ function parseArgs() {
         } else if (arg === '--strict-uniforms') {
             parsed.runUniforms = true
             parsed.strictUniforms = true
+        } else if (arg === '--describe') {
+            parsed.runDescribe = true
         } else if (arg === '--structure') {
             parsed.runStructure = true
         } else if (arg === '--structure-only') {
@@ -561,8 +568,8 @@ function parseArgs() {
 
     // Default effects
     if (parsed.effects.length === 0) {
-        // In structure-only mode, default to all effects
-        if (parsed.runStructureOnly) {
+        // In structure-only or describe mode, default to all effects
+        if (parsed.runStructureOnly || parsed.runDescribe) {
             parsed.effects = ['*/*']
         } else {
             parsed.effects = ['synth/noise']
@@ -1216,11 +1223,60 @@ async function testEffect(session, effectId, options) {
 // MAIN
 // =========================================================================
 
+// =========================================================================
+// DESCRIBE MODE (no browser): the complete definition schema per effect.
+// =========================================================================
+
+/**
+ * Print each matched effect's COMPLETE definition schema (imported live,
+ * both Effect-instance and Effect-subclass exports) alongside the upstream
+ * regex-based parser projection and an audit of exactly what that
+ * projection drops. Informational and opt-in: nothing previously accepted
+ * is rejected, and no browser is launched.
+ */
+async function runDescribeMode(args) {
+    const allEffects = discoverEffectsFromDisk()
+    const matchedEffectsSet = new Set()
+    for (const pattern of args.effects) {
+        for (const m of matchEffects(allEffects, pattern)) {
+            matchedEffectsSet.add(m)
+        }
+    }
+    const matchedEffects = Array.from(matchedEffectsSet).sort()
+    if (matchedEffects.length === 0) {
+        console.log('No effects matched. Exiting.')
+        process.exit(1)
+    }
+
+    console.log(`\n[DESCRIBE MODE] Complete definition schema, no browser.\n`)
+    let loadFailures = 0
+    for (const effectId of matchedEffects) {
+        try {
+            const audit = await auditDefinitionLoss(path.join('shaders', 'effects', ...effectId.split('/')))
+            console.log(`\n=== ${effectId} (${audit.format}) ===`)
+            console.log(JSON.stringify(audit, null, 2))
+        } catch (error) {
+            loadFailures++
+            console.log(`❌ ${effectId}: schema unavailable: ${error.message}`)
+        }
+    }
+    if (loadFailures > 0) {
+        process.exit(1)
+    }
+    process.exit(0)
+}
+
 async function main() {
     const nag = "⚠️ This is a long-running, expensive test suite. Don't run it multiple times unless you really need to. Capture the results in a log and review the log."
     console.log(nag)
 
     const args = parseArgs()
+
+    // Describe mode: complete definition schemas, no browser, no backend
+    if (args.runDescribe) {
+        await runDescribeMode(args)
+        return
+    }
 
     // Validate backend
     if (!args.backend) {

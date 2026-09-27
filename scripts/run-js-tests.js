@@ -65,6 +65,7 @@ const testEntries = [
   { file: 'shaders/tests/test_frame_readback.js', parity: false },
   { file: 'shaders/tests/test_image_metrics.js', parity: false },
   { file: 'shaders/tests/test_frame_warmup.js', parity: false },
+  { file: 'shaders/tests/test_definition_schema.js', parity: false },
   { file: 'test/generators.test.js', parity: false },
   { file: 'test/parser.test.js', parity: false },
   { file: 'test/evaluator.test.js', parity: false },
