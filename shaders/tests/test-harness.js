@@ -85,6 +85,7 @@ import {
     isNoAnimation,
 } from './frame-metrics.js'
 import { aggregateUniformResponsiveness } from './uniform-status.js'
+import { warmupPausePlan } from './frame-warmup.js'
 import {
     UNIFORM_RESPONSE_THRESHOLD,
     auditUniformResponsiveness,
@@ -119,7 +120,13 @@ function gracePeriod(ms = 125) {
 }
 
 async function renderEffectFrame(session, effectId, options = {}) {
-    const result = session.backend !== 'webgpu'
+    // GAP-014: the upstream verb pauses animation BEFORE awaiting its
+    // frame-count warmup promise, so a positive explicit `time` can stop the
+    // frame loop and hang the tool. Explicit-`time` requests take this
+    // repository's wrapper path instead, which warms up first and pauses
+    // only after the awaited frame count is reached.
+    const plan = warmupPausePlan(options)
+    const result = session.backend !== 'webgpu' && !plan.useRepositoryPath
         ? await shadeRenderEffectFrame(session, effectId, options)
         : await session.runWithConsoleCapture(async () => {
         const page = session.page
@@ -154,13 +161,9 @@ async function renderEffectFrame(session, effectId, options = {}) {
             }, { uniforms: options.uniforms, globals: session.globals })
         }
 
-        if (options.time !== undefined) {
-            await page.evaluate(({ time, globals }) => {
-                if (window[globals.setPaused]) window[globals.setPaused](true)
-                if (window[globals.setPausedTime]) window[globals.setPausedTime](time)
-            }, { time: options.time, globals: session.globals })
-        }
-
+        // GAP-014: warm up frames while the animation is still running, then
+        // pause. Pausing before the warmup can stop the frame loop and leave
+        // the frame-count promise unresolved (the upstream verb's hang).
         const warmupFrames = options.warmupFrames ?? 10
         await page.evaluate(({ frames, globals }) => {
             return new Promise((resolve) => {
@@ -173,6 +176,13 @@ async function renderEffectFrame(session, effectId, options = {}) {
                 poll()
             })
         }, { frames: warmupFrames, globals: session.globals })
+
+        if (options.time !== undefined) {
+            await page.evaluate(({ time, globals }) => {
+                if (window[globals.setPaused]) window[globals.setPaused](true)
+                if (window[globals.setPausedTime]) window[globals.setPausedTime](time)
+            }, { time: options.time, globals: session.globals })
+        }
 
         return page.evaluate(async ({ globals, captureImage }) => {
             const renderer = window[globals.canvasRenderer]
