@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `93229933b102ba82e713402be19db57207698850`.
+- Noisemaker: `296e0138c4744ed485b2e95de3eeb466c17629ee`.
 - Shade MCP: `00340b148e109464b1a87d89ff29fc7622d384c9`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.3`, protocol
   `2024-11-05`, with 18 tools returned by `tools/list`.
@@ -3568,7 +3568,18 @@ are a documentation-only post-publication-evidence record and GAP-017's
 test-harness addition — `shaders/tests/definition-schema.js`, the harness
 `--describe` mode in `shaders/tests/test-harness.js`, and the regressions in
 `shaders/tests/test_definition_schema.js`; none touch this effect, the
-compiler, or its engine runtime):
+compiler, or its engine runtime),
+then again across `9322993..296e0138c4744ed485b2e95de3eeb466c17629ee` at
+Noisemaker `296e0138c4744ed485b2e95de3eeb466c17629ee` (the range's four
+commits are the prior checkpoint-advance documentation commit `7c5f176`,
+GAP-019's test-harness passthrough probe `a912749` (`shaders/tests/passthrough-input.js`
+plus the `--passthrough-input` opt-in in `shaders/tests/test-harness.js`),
+a one-line GAP-020 documentation narrowing `11d7c69`, and GAP-021's
+requested-vs-returned frame-resolution annotation `296e013`
+(`shaders/tests/frame-resolution.js` plus the `--strict-resolution` opt-in
+in `shaders/tests/test-harness.js`); all are test-harness or documentation
+layer — no engine, effects, viewer, catalog, `.mcp.json`, or vendor changes,
+none touch this effect, the compiler, or its engine runtime):
 `synth/testPattern`'s own definition.js and shader files are byte-unchanged in that
 range, none of the range's changes (GAP-004 authorable mipmaps, persistent texture
 policies, and 3D filter policies with verified publication closure; GAP-005 pass-field
@@ -3591,7 +3602,14 @@ initialize (server `shade-mcp` version `0.2.3`, protocol `2024-11-05`) and
 call with `effect_id: "synth/noise"` returned the lossy regex projection without
 error (`effectId`/`name`/`description`/`namespace`/`tags`, projected scalar
 `globals`, and one projected pass), and a `checkEffectStructure` call with
-`effect_id: "synth/noise"` returned `status: "ok"` (passCount 1, no issues).
+`effect_id: "synth/noise"` returned `status: "ok"` (passCount 1, no issues); re-captured again on 2026-09-27 at
+the same pin for the GAP-019/GAP-021 audit: one stdio session captured
+initialize (server `shade-mcp` version `0.2.3`, protocol `2024-11-05`),
+`tools/list` (18 tools), and worked `analyzeEffect` and `checkEffectStructure`
+calls with `effect_id: "synth/noise"` — the `analyzeEffect` result is the
+lossy regex projection without error and the `checkEffectStructure` result
+is `status: "ok"` (passCount 1, no issues), the same public shapes as the
+prior capture.
 
 Noisemaker's watched source roots added lossless vector formatting, MIDI
 controller/expression modes, MPE routing, and default audio channels. They did
