@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `12b4d74fb4f28d5f00bb1dde107fa8673814d8b9`.
+- Noisemaker: `93229933b102ba82e713402be19db57207698850`.
 - Shade MCP: `00340b148e109464b1a87d89ff29fc7622d384c9`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.3`, protocol
   `2024-11-05`, with 18 tools returned by `tools/list`.
@@ -3554,7 +3554,14 @@ pinning the harness `renderEffectFrame` warmup-before-pause ordering — plus
 one engine addition, GAP-016's `shaders/src/runtime/preflight.js`
 `preflightEffect()` and the `Pipeline.preflight()`/`mrtFormatBytes()` delegation
 in `shaders/src/runtime/pipeline.js`; none touch this effect, the compiler, or
-its execution):
+its execution),
+and re-audited across `12b4d74..93229933b102ba82e713402be19db57207698850` at
+Noisemaker `93229933b102ba82e713402be19db57207698850` (the range's two commits
+are a documentation-only post-publication-evidence record and GAP-017's
+test-harness addition — `shaders/tests/definition-schema.js`, the harness
+`--describe` mode in `shaders/tests/test-harness.js`, and the regressions in
+`shaders/tests/test_definition_schema.js`; none touch this effect, the
+compiler, or its engine runtime):
 `synth/testPattern`'s own definition.js and shader files are byte-unchanged in that
 range, none of the range's changes (GAP-004 authorable mipmaps, persistent texture
 policies, and 3D filter policies with verified publication closure; GAP-005 pass-field
@@ -3570,7 +3577,14 @@ re-captured live on 2026-09-27 from one session at the tested immutable pin
 `cbcab33363851016f65391fbb9ef71d66729c07f`: initialize returned server `shade-mcp`
 version `0.2.3` on protocol `2024-11-05`, `tools/list` returned the 18 tools, and a
 worked `checkEffectStructure` call with `effect_id: "synth/noise"` returned
-`status: "ok"` (passCount 1, no issues reported).
+`status: "ok"` (passCount 1, no issues reported); re-captured again on 2026-09-27
+at the same pin for the GAP-017 audit, in two short stdio sessions: one captured
+initialize (server `shade-mcp` version `0.2.3`, protocol `2024-11-05`) and
+`tools/list` (18 tools), and one re-ran the worked calls — an `analyzeEffect`
+call with `effect_id: "synth/noise"` returned the lossy regex projection without
+error (`effectId`/`name`/`description`/`namespace`/`tags`, projected scalar
+`globals`, and one projected pass), and a `checkEffectStructure` call with
+`effect_id: "synth/noise"` returned `status: "ok"` (passCount 1, no issues).
 
 Noisemaker's watched source roots added lossless vector formatting, MIDI
 controller/expression modes, MPE routing, and default audio channels. They did
