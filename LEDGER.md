@@ -920,7 +920,7 @@ work, verify it, then update the checkpoint and append a log line.
   parameters/globals, passes/graph, textures, compatibility/mutation,
   rendered output, cross-backend parity, Shade MCP tool contracts), a fully
   worked validated effect, the surface × capability traceability matrix, and
-  the 14-entry open gap register (GAP-009..012, GAP-014, GAP-015, GAP-017,
+  the 13-entry open gap register (GAP-010..012, GAP-014, GAP-015, GAP-017,
   GAP-019..021, GAP-024, GAP-026, GAP-029, and GAP-032). The file pins its
   own audited SHAs in the "Source snapshots used for this contract" block at
   its head; that block and this checkpoint are the same two SHAs and must be
@@ -1061,14 +1061,21 @@ work, verify it, then update the checkpoint and append a log line.
     (Publish release, Build JS bundles, Build shader bundle, Build standalone
     Linux/Windows/macOS) — all success. Deployment:
     https://noisemaker.app/deployment-meta.json serves
-    `git_hash: 12b4d74fb4f28d5f00bb1dde107fa8673814d8b9`; the published contract
-    at that deployment still pins `7443f6e6` in its snapshot block because this
-    checkpoint-advance commit is documentation-only and not yet published. Open
-    gap count stands at 14 (GAP-016
-    closed repository-side; GAP-014 and GAP-015 narrowed repository-side, the
+    `git_hash: 12b4d74fb4f28d5f00bb1dde107fa8673814d8b9` at the time of the audit
+    (the deployment then still served this checkpoint-advance commit's
+    documentation predecessor, since the checkpoint commit itself was not yet
+    published). Post-publication delivery state, verified after the
+    checkpoint-advance commit was pushed: https://noisemaker.app/deployment-meta.json
+    serves `git_hash: ec457c2eec695427fdbf026bd5ce5db04456a151` and
+    https://noisemaker.app/llms-full.txt serves the advanced contract whose
+    snapshot block pins Noisemaker `12b4d74fb4f28d5f00bb1dde107fa8673814d8b9`.
+    Open gap count stands at 13 (GAP-009 closed at `b35361e` and GAP-016 closed
+    repository-side; GAP-014 and GAP-015 narrowed repository-side, the
     upstream Shade verbs remain Shade-repository items). Updated `llms-full.txt`
     (snapshot block, worked-instance note extended across `7443f6e..12b4d74`,
-    re-capture date, open-gap count 15→14) and advanced this checkpoint together.
+    re-capture date, open-gap enumeration corrected to the 13 register rows
+    still open — GAP-009's closed row was wrongly still enumerated — and the
+    post-publication deployed-contract evidence) and advanced this checkpoint together.
   - 2026-09-27 — caught up through noisemaker `7443f6e6` / shade-mcp `00340b1`
     (Tearoff item 610, job `ledger-llms-contract`): audited watched source roots
     across noisemaker range
