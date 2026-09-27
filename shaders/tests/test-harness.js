@@ -56,6 +56,10 @@
  *   --low-variety             OPT-IN: fail effects whose output is low variety and not exempt
  *   --strict-uniforms         OPT-IN: fail when any tested uniform does not affect output
  *                             (default keeps the upstream outer-status semantics)
+ *   --strict-resolution       OPT-IN: fail when the returned frame dimensions differ
+ *                             from the requested `resolution` (GAP-021). The
+ *                             requested-vs-returned check itself is reported on
+ *                             every resolution-bearing result without the flag
  *   --with-ai                 Enable AI-based tests (alg-equiv, branching, vision)
  *   --no-vision               Skip AI vision validation (even with --with-ai)
  *
@@ -96,6 +100,7 @@ import {
 } from './frame-metrics.js'
 import { aggregateUniformResponsiveness } from './uniform-status.js'
 import { warmupPausePlan } from './frame-warmup.js'
+import { annotateResolution } from './frame-resolution.js'
 import { auditDefinitionLoss } from './definition-schema.js'
 import {
     INPUT_PASSTHROUGH_DIFF_MAX,
@@ -332,7 +337,13 @@ async function renderEffectFrame(session, effectId, options = {}) {
         }, { globals: session.globals, captureImage: !!options.captureImage })
     })
 
-    return augmentFrameMetrics(session, result)
+    // GAP-021: requested-vs-returned frame resolution. Every result that
+    // carried a `resolution` request is annotated with the requested
+    // resolution and a `resolution_check` record (the upstream verb sets
+    // the viewport but reads canvas dimensions, so the request could
+    // silently differ from the returned frame). Reporting is universal;
+    // rejecting a mismatch happens only behind `--strict-resolution`.
+    return augmentFrameMetrics(session, annotateResolution(result, options))
 }
 
 /**
@@ -510,6 +521,7 @@ function parseArgs() {
         runPassthroughInput: false,
         runPixelParity: false,
         runLowVariety: false,
+        strictResolution: false,
         withAi: false,
         skipVision: false,
         useBundles: false,
@@ -536,6 +548,8 @@ function parseArgs() {
         } else if (arg === '--strict-uniforms') {
             parsed.runUniforms = true
             parsed.strictUniforms = true
+        } else if (arg === '--strict-resolution') {
+            parsed.strictResolution = true
         } else if (arg === '--describe') {
             parsed.runDescribe = true
         } else if (arg === '--structure') {
@@ -982,6 +996,21 @@ async function testEffect(session, effectId, options) {
     results.temporalDiff = renderResult.metrics?.temporal_diff ?? null
     results.isNoAnimation = renderResult.metrics?.is_no_animation ?? null
     results.isLowVariety = renderResult.metrics?.is_low_variety ?? null
+
+    // GAP-021: report the requested-vs-returned frame resolution whenever a
+    // `resolution` was requested. A mismatch is an informational warning by
+    // default (returned frame dimensions remain authoritative); it becomes a
+    // failure only behind the explicit `--strict-resolution` opt-in.
+    results.resolutionMismatch = false
+    const resolutionCheck = renderResult.resolution_check
+    if (renderResult.status === 'ok' && resolutionCheck) {
+        if (resolutionCheck.status === 'mismatch') {
+            console.log(`  ⚠ render: ${resolutionCheck.warning} (returned frame dimensions are authoritative)`)
+            if (options.strictResolution) results.resolutionMismatch = true
+        } else if (resolutionCheck.status === 'match') {
+            console.log(`  ℹ render: returned frame ${resolutionCheck.returned[0]}x${resolutionCheck.returned[1]} matches the requested resolution`)
+        }
+    }
 
     // OPT-IN low-variety gate (--low-variety). Never applied by default;
     // rejections of previously accepted effects only happen behind this flag.
@@ -1434,6 +1463,7 @@ async function main() {
             if (r.isEssentiallyBlank) return false
             if (r.isAllTransparent) return false
             if (r.isLowVarietyFailed) return false
+            if (r.resolutionMismatch) return false
             if (r.consoleErrors?.length > 0) return false
             if (r.uniformsFailed) return false
             if (r.passthroughFailed) return false
@@ -1456,6 +1486,7 @@ async function main() {
             if (r.isEssentiallyBlank) return true
             if (r.isAllTransparent) return true
             if (r.isLowVarietyFailed) return true
+            if (r.resolutionMismatch) return true
             if (r.consoleErrors?.length > 0) return true
             if (r.uniformsFailed) return true
             if (r.passthroughFailed) return true
@@ -1484,6 +1515,7 @@ async function main() {
                 if (r.isEssentiallyBlank) reasons.push('blank output')
                 if (r.isAllTransparent) reasons.push('transparent output')
                 if (r.isLowVarietyFailed) reasons.push('low-variety output')
+                if (r.resolutionMismatch) reasons.push('requested-vs-returned resolution mismatch')
                 if (r.consoleErrors?.length > 0) reasons.push(`${r.consoleErrors.length} console error(s)`)
                 if (r.uniformsFailed) reasons.push('uniforms unresponsive')
                 if (r.passthroughFailed) reasons.push('passthrough (no-op)')
