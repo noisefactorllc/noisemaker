@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `9f85687d1bafc445dcd38e28cf5f0c6dfba562f8`.
+- Noisemaker: `7443f6e6180300a45c5b97608459e5094504659d`.
 - Shade MCP: `00340b148e109464b1a87d89ff29fc7622d384c9`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.3`, protocol
   `2024-11-05`, with 18 tools returned by `tools/list`.
@@ -3511,7 +3511,14 @@ Noisemaker `9f85687d1bafc445dcd38e28cf5f0c6dfba562f8` (the range's GAP-010
 `aggregateUniformResponsiveness()` addition is confined to the repository's
 test-harness wrappers `shaders/tests/uniform-status.js` and
 `shaders/tests/test-harness.js` and does not touch this effect, the compiler,
-or the engine runtime; the only later change, `7730ea4`, is documentation):
+or the engine runtime; the only later change, `7730ea4`, is documentation),
+and re-audited across `9f85687d..7443f6e6180300a45c5b97608459e5094504659d` at
+Noisemaker `7443f6e6180300a45c5b97608459e5094504659d` (the range's two commits
+are confined to the repository's test-harness layer: GAP-011 adds
+`shaders/tests/uniform-deltas.js` — auditable measured uniform deltas behind
+the `--uniforms` harness run — and GAP-012 adds
+`shaders/tests/frame-readback.js`, pinning the harness WebGPU render-surface
+readback; neither touches this effect, the compiler, or the engine runtime):
 `synth/testPattern`'s own definition.js and shader files are byte-unchanged in that
 range, none of the range's changes (GAP-004 authorable mipmaps, persistent texture
 policies, and 3D filter policies with verified publication closure; GAP-005 pass-field

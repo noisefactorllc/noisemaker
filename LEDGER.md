@@ -912,7 +912,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `9f85687d` / shade-mcp `00340b1`, 2026-09-26
+- **Checkpoint:** noisemaker `7443f6e6` / shade-mcp `00340b1`, 2026-09-27
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -988,6 +988,87 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
+  - 2026-09-27 — caught up through noisemaker `7443f6e6` / shade-mcp `00340b1`
+    (Tearoff item 610, job `ledger-llms-contract`): audited watched source roots
+    across noisemaker range
+    `9f85687d1bafc445dcd38e28cf5f0c6dfba562f8..7443f6e6180300a45c5b97608459e5094504659d`.
+    The trigger's forced start `403c2a4` is the prior entry's source tip and
+    `407eb7a` is its documentation-only checkpoint advance, so the checkpoint-to-HEAD
+    audit plus the prior entry cover every delivered commit with no gap. The range
+    is two commits, both confined to the repository's test-harness layer:
+    `7dc0f56` (GAP-011 — `shaders/tests/uniform-deltas.js` exports
+    `UNIFORM_RESPONSE_THRESHOLD` (0.002) and re-measures every testable uniform in
+    the live pipeline with per-uniform `{name, default_value, test_value,
+    luma_diff, max_channel_diff, responds}` deltas; the harness `--uniforms` run
+    reports them and cross-checks the upstream verdicts via
+    `auditUniformResponsiveness()`, informationally only, keeping the upstream
+    outer-status semantics and the GAP-010 aggregate; regressions in
+    `shaders/tests/test_uniform_deltas.js` registered in
+    `scripts/run-js-tests.js`) and `7443f6e` (GAP-012 — the harness
+    `renderEffectFrame` WebGPU path reads the render surface through the backend's
+    async `readPixels(textureId)`, returning the full ImageMetrics shape plus the
+    GAP-009 additive metrics, pinned by the auditable mirror
+    `shaders/tests/frame-readback.js`
+    (`renderSurfaceCandidateIds()`/`isValidPixelRead()`/`readRenderSurfacePixels()`)
+    with regressions in `shaders/tests/test_frame_readback.js`). No engine,
+    effects, viewer, catalog, `.mcp.json`, or vendor changes: `git log` over the
+    watched roots shows exactly these two commits. Shade-side audit: upstream
+    `noisefactorllc/shade-mcp` and the local checkout are unchanged at `00340b1`
+    (`git ls-remote origin main` == `00340b1`; no release newer than `v0.2.3` /
+    `cbcab33363851016f65391fbb9ef71d66729c07f`). Shade's parsers, analysis,
+    knowledge, and browser tools consume none of the new modules — they are
+    repository-internal (`shaders/tests/`), referenced only by
+    `shaders/tests/test-harness.js` and `scripts/run-js-tests.js`, and neither the
+    vendored bundle nor the Shade `src/` tree references them — so no
+    integration-code change or new Shade regression was required, and the public
+    tool result shapes are unchanged. Verified four identities: Noisemaker source
+    `7443f6e6180300a45c5b97608459e5094504659d`, Shade MCP source
+    `00340b148e109464b1a87d89ff29fc7622d384c9`, `.mcp.json` pinned to
+    `cbcab33363851016f65391fbb9ef71d66729c07f`, and `vendor/shade-mcp/`
+    byte-identical to the release `v0.2.3` tarball (`shade-mcp-dist.tar.gz`,
+    re-downloaded in this pass and diffed for `harness/`, `ai/`, `formats/`,
+    `analysis/`; the vendor tree is unchanged across the audited range).
+    Validation battery on the exact pair: Noisemaker non-parity JS tests
+    (`node scripts/run-js-tests.js --skip-parity`, 200 tests, 0 failures, including
+    the GAP-011 `test_uniform_deltas.js` and GAP-012 `test_frame_readback.js`
+    suites) and lint (`npm run lint`, exit 0), Shade MCP typecheck (`npm run
+    typecheck`, 0 errors) and unit tests (`npm test`, 24 files / 157 tests pass),
+    structure check via the vendored harness (`npm run test:shaders:structure`,
+    exit 0, 1258 documented parameters across 200 effects), WebGL2 render check
+    (`npm run test:shaders:render:webgl2`, 1/1 pass, `temporal_diff=0.216246`),
+    WebGPU render check (`npm run test:shaders:render:webgpu`, 1/1 pass,
+    `temporal_diff=0.216246` — run with `SHADE_SWIFTSHADER=1` and
+    `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` at the Playwright Chromium bundle's
+    `vk_swiftshader_icd.json`), and the live browser smoke test
+    (`NOISEMAKER=/workspace/repos/noisemaker node scripts/browser-smoke.mjs` from
+    the Shade checkout, all 3 checks OK: `compileEffect`, `renderEffectFrame`,
+    module import from a `setContent` page). Playwright browsers were installed to
+    `PLAYWRIGHT_BROWSERS_PATH=/state/cache/pw-browsers` (noexec `$HOME` tmpfs;
+    chromium-1243 for noisemaker, chromium-1234 for shade-mcp) and the MCP
+    re-capture used `npm_config_cache=/state/cache/npm`. Re-captured MCP
+    initialization (server `shade-mcp` version `0.2.3`, protocol `2024-11-05`),
+    18 tools via `tools/list`, and a worked `checkEffectStructure` call with
+    `effect_id: "synth/noise"` (status `ok`, passCount 1, no issues) from one
+    stdio session at the tested immutable pin
+    `cbcab33363851016f65391fbb9ef71d66729c07f`. CI evidence for the published
+    source commits: `7dc0f56` ran Shaders (36281900855: Shader tests, GPU tests,
+    Bundle shaders, Dispatch scaffold static-site-release and library-release), JS
+    tests (36281900856: JS tests, JS lint), Verify docs asset paths (36281900804),
+    notify (36281900825), and Release (36282108985: Publish release, Build JS
+    bundles, Build shader bundle, Build standalone Linux/Windows/macOS) — all
+    success; `7443f6e` ran Shaders (36286368540: Shader tests, GPU tests, Bundle
+    shaders, Dispatch scaffold static-site-release and library-release), JS tests
+    (36286368505: JS tests, JS lint), Verify docs asset paths (36286368503),
+    notify (36286368515), and Release (36286557153: Publish release, Build JS
+    bundles, Build shader bundle, Build standalone Linux/Windows/macOS) — all
+    success. Deployment: https://noisemaker.app/deployment-meta.json serves
+    `git_hash: 7443f6e6180300a45c5b97608459e5094504659d`; the published contract
+    at that deployment still pins `9f85687d` in its snapshot block because this
+    checkpoint-advance commit is documentation-only and not yet published. Open
+    gap count stands at 15 (GAP-011 and GAP-012 narrowed repository-side; the
+    upstream Shade tools' returned objects remain Shade-repository items). Updated
+    `llms-full.txt` (snapshot block, worked-instance note extended across
+    `9f85687d..7443f6e`) and advanced this checkpoint together.
   - 2026-09-26 — caught up through noisemaker `9f85687d` / shade-mcp `00340b1`
     (Tearoff item 605, job `ledger-llms-contract`): audited watched source roots
     across noisemaker range `0ac5250052e2b2e683f086959451c3bad8369a68..9f85687d1bafc445dcd38e28cf5f0c6dfba562f8`,
