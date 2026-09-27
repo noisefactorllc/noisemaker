@@ -638,6 +638,7 @@
                 await renderer.compile(dsl);
 
                 window.__noisemakerRenderingPipeline = renderer.pipeline;
+                window.__noisemakerPipelineGeneration = (window.__noisemakerPipelineGeneration || 0) + 1;
 
                 renderer.buildUniformBindings(currentEffect);
                 renderer.applyParameterValues(currentEffect, ui.parameterValues);
@@ -693,6 +694,7 @@
                 await renderer.compile(dsl);
 
                 window.__noisemakerRenderingPipeline = renderer.pipeline;
+                window.__noisemakerPipelineGeneration = (window.__noisemakerPipelineGeneration || 0) + 1;
 
                 if (rebuildControls) {
                     // Try to sync values to existing controls first

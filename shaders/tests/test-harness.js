@@ -60,6 +60,11 @@
  *                             from the requested `resolution` (GAP-021). The
  *                             requested-vs-returned check itself is reported on
  *                             every resolution-bearing result without the flag
+ *   --strict-identity         OPT-IN: fail when the page-confirmed effect,
+ *                             compiled-graph, or actual-backend identity
+ *                             disagrees with the request (GAP-024). The
+ *                             identity_check record itself is reported on
+ *                             every browser result without the flag
  *   --with-ai                 Enable AI-based tests (alg-equiv, branching, vision)
  *   --no-vision               Skip AI vision validation (even with --with-ai)
  *
@@ -101,6 +106,14 @@ import {
 import { aggregateUniformResponsiveness } from './uniform-status.js'
 import { warmupPausePlan } from './frame-warmup.js'
 import { annotateResolution } from './frame-resolution.js'
+import {
+    annotateIdentity,
+    classifyIdentity,
+    collectPageIdentityInPage,
+    identityReadyInPage,
+    normalizeBackendName,
+    strictIdentityFailed,
+} from './session-identity.js'
 import { auditDefinitionLoss } from './definition-schema.js'
 import {
     INPUT_PASSTHROUGH_DIFF_MAX,
@@ -139,6 +152,96 @@ function gracePeriod(ms = 125) {
     return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+/**
+ * GAP-024: read the pipeline generation counter the viewer bumps whenever a
+ * new compiled pipeline is published, so a later identity check can tell
+ * whether the graph a result describes was compiled by this request or left
+ * over from a previously ready one. A failed read yields null (unknown).
+ */
+async function captureGeneration(session) {
+    try {
+        return await session.page.evaluate(() =>
+            typeof window.__noisemakerPipelineGeneration === 'number'
+                ? window.__noisemakerPipelineGeneration
+                : null)
+    } catch {
+        return null
+    }
+}
+
+/**
+ * GAP-024: read the page-confirmed identity snapshot (current effect id,
+ * renderer backend label, live pipeline backend `getName()`, compiled-graph
+ * pass count and compiling flag, pipeline generation). A failed read yields
+ * null, which the mirror classifies as `unknown` — never an invented match.
+ */
+async function collectPageIdentity(session) {
+    try {
+        return await session.page.evaluate(collectPageIdentityInPage, { globals: session.globals })
+    } catch {
+        return null
+    }
+}
+
+/**
+ * GAP-024: confirm a backend switch against the page instead of trusting the
+ * session's configured label — the upstream `setBackend()` exits silently
+ * when its internal poll times out. Resolves to a
+ * `{ requested, observed, status }` record: `match` when the page's current
+ * backend equals the requested one, `timeout` when the bounded wait expired
+ * (reported on the result, never silent), `unknown` when the request itself
+ * is not a recognizable backend label.
+ */
+async function confirmBackendSwitch(session) {
+    const requested = normalizeBackendName(session.backend)
+    if (requested == null) return { requested: null, observed: null, status: 'unknown' }
+    let status
+    try {
+        await session.page.waitForFunction(({ globals, target }) => {
+            const value = typeof window[globals.currentBackend] === 'function'
+                ? window[globals.currentBackend]()
+                : null
+            if (typeof value !== 'string') return false
+            const name = value.trim().toLowerCase()
+            if (target === 'webgl2') return name === 'webgl2' || name === 'glsl'
+            return name === 'webgpu' || name === 'wgsl'
+        }, { globals: session.globals, target: requested }, { timeout: 30000, polling: 50 })
+        status = 'match'
+    } catch {
+        status = 'timeout'
+    }
+    const snapshot = await collectPageIdentity(session)
+    return { requested, observed: snapshot?.backend ?? null, status }
+}
+
+/**
+ * GAP-024: annotate a browser result with the additive `identity_check`
+ * record built from the page-confirmed snapshot and the request (effect id,
+ * backend label, pre-request pipeline generation, backend-switch outcome).
+ */
+async function annotateResultIdentity(session, result, request) {
+    const page = await collectPageIdentity(session)
+    return annotateIdentity(result, classifyIdentity(request, page))
+}
+
+/**
+ * GAP-024: run one browser verb, then annotate its result with the
+ * page-confirmed identity record captured at result time — so an `ok` that
+ * describes a previously ready graph or an unintended backend is uniformly
+ * diagnosable from the result itself.
+ */
+async function annotateVerbIdentity(session, effectId, verbCall, requestOverrides = {}) {
+    const generationBefore = await captureGeneration(session)
+    const result = await verbCall()
+    return annotateResultIdentity(session, result, {
+        effect: effectId,
+        backend: session.backend,
+        generation_before: generationBefore,
+        ...requestOverrides,
+    })
+}
+
+
 async function renderEffectFrame(session, effectId, options = {}) {
     // GAP-014: the upstream verb pauses animation BEFORE awaiting its
     // frame-count warmup promise, so a positive explicit `time` can stop the
@@ -146,15 +249,35 @@ async function renderEffectFrame(session, effectId, options = {}) {
     // repository's wrapper path instead, which warms up first and pauses
     // only after the awaited frame count is reached.
     const plan = warmupPausePlan(options)
-    const result = session.backend !== 'webgpu' && !plan.useRepositoryPath
-        ? await shadeRenderEffectFrame(session, effectId, options)
-        : await session.runWithConsoleCapture(async () => {
+    let result = null
+    // GAP-024: the generation marker captured before the upstream verb's own
+    // selection lets the post-hoc identity check prove the graph was compiled
+    // by this request, not left over from a previously ready one.
+    if (session.backend !== 'webgpu' && !plan.useRepositoryPath) {
+        const generationBefore = await captureGeneration(session)
+        result = await shadeRenderEffectFrame(session, effectId, options)
+        result = await annotateResultIdentity(session, result, {
+            effect: effectId,
+            backend: session.backend,
+            generation_before: generationBefore,
+        })
+    } else {
+        let backendSwitch = null
+        let generationBefore = null
+        result = await session.runWithConsoleCapture(async () => {
         const page = session.page
         await session.setBackend(session.backend)
+
+        // GAP-024: confirm the switch against the page (the upstream
+        // setBackend() exits silently on its poll timeout).
+        backendSwitch = await confirmBackendSwitch(session)
 
         if (options.resolution) {
             await page.setViewportSize({ width: options.resolution[0], height: options.resolution[1] })
         }
+
+        // GAP-024: marker captured before this request's own selection.
+        generationBefore = await captureGeneration(session)
 
         await page.evaluate((id) => {
             const select = document.getElementById('effect-select')
@@ -164,10 +287,11 @@ async function renderEffectFrame(session, effectId, options = {}) {
             }
         }, effectId)
 
-        await page.waitForFunction(() => {
-            const status = document.getElementById('status')
-            const text = (status?.textContent || '').toLowerCase()
-            return text.includes('loaded') || text.includes('compiled') || text.includes('ready') || text.includes('error')
+        // GAP-024: identity-bound readiness — requested effect id, generation
+        // advance, noncompiling nonempty graph; status text never consulted.
+        await page.waitForFunction(identityReadyInPage, {
+            globals: session.globals,
+            target: { effect: effectId, generation: generationBefore },
         }, { timeout: 300000 })
 
         if (options.uniforms) {
@@ -336,6 +460,17 @@ async function renderEffectFrame(session, effectId, options = {}) {
             }
         }, { globals: session.globals, captureImage: !!options.captureImage })
     })
+
+        // GAP-024: annotate the wrapper-path result with the page-confirmed
+        // identity record (the readiness wait above already bound the
+        // selection to the requested effect and compiled graph).
+        result = await annotateResultIdentity(session, result, {
+            effect: effectId,
+            backend: session.backend,
+            generation_before: generationBefore,
+            backend_switch: backendSwitch,
+        })
+    }
 
     // GAP-021: requested-vs-returned frame resolution. Every result that
     // carried a `resolution` request is annotated with the requested
@@ -522,6 +657,7 @@ function parseArgs() {
         runPixelParity: false,
         runLowVariety: false,
         strictResolution: false,
+        strictIdentity: false,
         withAi: false,
         skipVision: false,
         useBundles: false,
@@ -550,6 +686,8 @@ function parseArgs() {
             parsed.strictUniforms = true
         } else if (arg === '--strict-resolution') {
             parsed.strictResolution = true
+        } else if (arg === '--strict-identity') {
+            parsed.strictIdentity = true
         } else if (arg === '--describe') {
             parsed.runDescribe = true
         } else if (arg === '--structure') {
@@ -784,6 +922,8 @@ async function testEffect(session, effectId, options) {
         pixelParityFailed: false,
         benchmark: null,
         benchmarkFailed: false,
+        identityMismatch: false,
+        compileIdentity: null,
         vision: null,
         visionFailed: false,
         consoleErrors: []
@@ -969,6 +1109,28 @@ async function testEffect(session, effectId, options) {
     }
     timings.push(`compile:${Date.now() - t0}ms`)
     t0 = Date.now()
+
+    // GAP-024: the upstream compileEffect() polls status text, which can
+    // still describe the previous effect when its `ok` arrives, and the
+    // status text says nothing about which backend compiled. Confirm the
+    // page-compiled identity instead: the identity_check record is reported
+    // on every run; acting on a mismatch happens only behind
+    // --strict-identity.
+    try {
+        const compileIdentity = await collectPageIdentity(session)
+        results.compileIdentity = classifyIdentity({ effect: effectId, backend: session.backend }, compileIdentity)
+        if (results.compileIdentity.status === 'mismatch') {
+            console.log(`  ⚠ compile: page identity disagrees with the request (effect=${results.compileIdentity.effect.observed}, backend=${results.compileIdentity.backend.observed}, graph=${results.compileIdentity.graph.status})`)
+            if (options.strictIdentity) results.identityMismatch = true
+        } else if (results.compileIdentity.status === 'match') {
+            console.log(`  ℹ compile: page identity confirmed (effect=${results.compileIdentity.effect.observed}, backend=${results.compileIdentity.backend_name.observed}, graph=${results.compileIdentity.graph.passes} passes)`)
+        } else if (options.verbose && results.compileIdentity) {
+            console.log(`  ℹ compile: identity_check=${JSON.stringify(results.compileIdentity)}`)
+        }
+    } catch (err) {
+        console.log(`  ℹ compile: identity check failed (${err?.message || err})`)
+    }
+
     results.compile = compileResult.status
 
     if (compileResult.status === 'error') {
@@ -1010,6 +1172,21 @@ async function testEffect(session, effectId, options) {
         } else if (resolutionCheck.status === 'match') {
             console.log(`  ℹ render: returned frame ${resolutionCheck.returned[0]}x${resolutionCheck.returned[1]} matches the requested resolution`)
         }
+    }
+
+    // GAP-024: report the page-confirmed identity on every render result.
+    // The wrapper binds its own readiness to the requested effect and
+    // compiled graph; on the upstream-verb path the post-hoc check is what
+    // exposes an `ok` that describes a previously ready graph or an
+    // unintended backend. A mismatch is informational by default and gates
+    // only behind the explicit `--strict-identity` opt-in.
+    results.renderIdentity = renderResult.identity_check ?? null
+    if (renderResult.identity_check?.status === 'mismatch') {
+        const check = renderResult.identity_check
+        console.log(`  ⚠ render: page identity disagrees with the request (effect=${check.effect.observed}, backend=${check.backend.observed}, graph=${check.graph.status}${check.backend_switch.status === 'timeout' ? ', backend switch timeout' : ''})`)
+        if (options.strictIdentity) results.identityMismatch = true
+    } else if (options.verbose && renderResult.identity_check) {
+        console.log(`  ℹ render: identity_check=${JSON.stringify(renderResult.identity_check)}`)
     }
 
     // OPT-IN low-variety gate (--low-variety). Never applied by default;
@@ -1064,7 +1241,8 @@ async function testEffect(session, effectId, options) {
     // Uniform responsiveness test
     if (options.runUniforms) {
         t0 = Date.now()
-        const uniformResult = await testUniformResponsiveness(session, effectId)
+        const uniformResult = await annotateVerbIdentity(session, effectId, () =>
+            testUniformResponsiveness(session, effectId))
         timings.push(`uniforms:${Date.now() - t0}ms`)
         const uniformAggregate = aggregateUniformResponsiveness(uniformResult)
         // Default gate keeps the upstream outer-status semantics; the
@@ -1074,6 +1252,7 @@ async function testEffect(session, effectId, options) {
         const uniformStatus = options.strictUniforms ? uniformAggregate.status : uniformResult.status
         results.uniforms = uniformStatus
         results.uniformsAggregate = uniformAggregate.status
+        results.uniformsIdentity = uniformResult.identity_check ?? null
 
         if (uniformStatus === 'skipped') {
             console.log(`  ⊘ uniforms: ${uniformResult.details}`)
@@ -1134,9 +1313,11 @@ async function testEffect(session, effectId, options) {
             results.passthrough = 'skipped'
             console.log(`  ⊘ passthrough: exempt (effect preserves average colors by design)`)
         } else {
-            const passthroughResult = await testNoPassthrough(session, effectId)
+            const passthroughResult = await annotateVerbIdentity(session, effectId, () =>
+                testNoPassthrough(session, effectId))
             timings.push(`passthrough:${Date.now() - t0}ms`)
             results.passthrough = passthroughResult.status
+            results.passthroughIdentity = passthroughResult.identity_check ?? null
 
             if (passthroughResult.status === 'skipped') {
                 console.log(`  ⊘ passthrough: ${passthroughResult.details}`)
@@ -1206,9 +1387,15 @@ async function testEffect(session, effectId, options) {
     // Pixel parity test (GLSL ↔ WGSL)
     if (options.runPixelParity) {
         t0 = Date.now()
-        const pixelParityResult = await testPixelParity(session, effectId, { epsilon: 1 })
+        // GAP-024: annotate the parity result with the page-confirmed
+        // effect/graph identity at result time. The upstream verb switches
+        // backends internally, so the request carries no backend label —
+        // backend identity stays `unknown` rather than a false mismatch.
+        const pixelParityResult = await annotateVerbIdentity(session, effectId, () =>
+            testPixelParity(session, effectId, { epsilon: 1 }), { backend: null })
         timings.push(`pixel-parity:${Date.now() - t0}ms`)
         results.pixelParity = pixelParityResult.status
+        results.pixelParityIdentity = pixelParityResult.identity_check ?? null
 
         if (pixelParityResult.status === 'skipped') {
             console.log(`  ⊘ pixel-parity: ${pixelParityResult.details}`)
@@ -1237,13 +1424,18 @@ async function testEffect(session, effectId, options) {
         // the MEDIAN frame time, which is unaffected by the rare stall outliers.
         // The 30 fps floor is unchanged; effects that genuinely sustain <30 fps
         // still fail. The vendored benchmark bundle is left untouched.
+        // GAP-024: the benchmark's own selection is bound to the requested
+        // effect and compiled graph (generation-advanced readiness), not to
+        // status text, and the measured frames are annotated with the
+        // page-confirmed identity record.
+        const benchGenerationBefore = await captureGeneration(session)
         await session.page.evaluate((id) => {
             const select = document.getElementById('effect-select')
             if (select) { select.value = id; select.dispatchEvent(new Event('change')) }
         }, effectId)
-        await session.page.waitForFunction(() => {
-            const t = (document.getElementById('status')?.textContent || '').toLowerCase()
-            return t.includes('loaded') || t.includes('compiled') || t.includes('ready') || t.includes('error')
+        await session.page.waitForFunction(identityReadyInPage, {
+            globals: session.globals,
+            target: { effect: effectId, generation: benchGenerationBefore },
         }, { timeout: 3e5 })
         const benchResult = await session.page.evaluate(({ warm, measure }) => new Promise((resolve) => {
             const frames = []
@@ -1268,6 +1460,20 @@ async function testEffect(session, effectId, options) {
             requestAnimationFrame(onFrame)
         }), { warm: 20, measure: 100 })
         timings.push(`benchmark:${Date.now() - t0}ms`)
+        // GAP-024: annotate the measured frames with the page-confirmed
+        // identity record; a mismatch gates only behind --strict-identity.
+        try {
+            benchResult.identity_check = classifyIdentity(
+                { effect: effectId, backend: session.backend, generation_before: benchGenerationBefore },
+                await collectPageIdentity(session),
+            )
+            if (strictIdentityFailed(benchResult.identity_check)) {
+                console.log(`  ⚠ benchmark: page identity disagrees with the request (effect=${benchResult.identity_check.effect.observed}, backend=${benchResult.identity_check.backend.observed}, graph=${benchResult.identity_check.graph.status})`)
+                if (options.strictIdentity) results.identityMismatch = true
+            }
+        } catch (err) {
+            console.log(`  ℹ benchmark: identity check failed (${err?.message || err})`)
+        }
         results.benchmark = benchResult.fps
         results.benchmarkStats = benchResult
         if (benchResult.fps < 30) {
@@ -1275,6 +1481,22 @@ async function testEffect(session, effectId, options) {
             console.log(`  ❌ benchmark: ${benchResult.fps} fps sustained (below 30 fps target) [mean ${benchResult.meanFps}, max frame ${benchResult.maxFrameMs}ms]`)
         } else {
             console.log(`  ✓ benchmark: ${benchResult.fps} fps sustained (mean ${benchResult.meanFps}, max frame ${benchResult.maxFrameMs}ms)`)
+        }
+    }
+
+    // GAP-024: consolidated strict gate. Every collected identity_check is
+    // informational by default; a classified mismatch fails the run only
+    // behind the explicit --strict-identity opt-in.
+    if (options.strictIdentity) {
+        const identityChecks = [
+            results.compileIdentity,
+            results.renderIdentity,
+            results.uniformsIdentity,
+            results.passthroughIdentity,
+            results.pixelParityIdentity,
+        ]
+        if (identityChecks.some((check) => strictIdentityFailed(check))) {
+            results.identityMismatch = true
         }
     }
 
@@ -1464,6 +1686,7 @@ async function main() {
             if (r.isAllTransparent) return false
             if (r.isLowVarietyFailed) return false
             if (r.resolutionMismatch) return false
+            if (r.identityMismatch) return false
             if (r.consoleErrors?.length > 0) return false
             if (r.uniformsFailed) return false
             if (r.passthroughFailed) return false
@@ -1487,6 +1710,7 @@ async function main() {
             if (r.isAllTransparent) return true
             if (r.isLowVarietyFailed) return true
             if (r.resolutionMismatch) return true
+            if (r.identityMismatch) return true
             if (r.consoleErrors?.length > 0) return true
             if (r.uniformsFailed) return true
             if (r.passthroughFailed) return true
@@ -1516,6 +1740,7 @@ async function main() {
                 if (r.isAllTransparent) reasons.push('transparent output')
                 if (r.isLowVarietyFailed) reasons.push('low-variety output')
                 if (r.resolutionMismatch) reasons.push('requested-vs-returned resolution mismatch')
+                if (r.identityMismatch) reasons.push('page identity disagrees with the request')
                 if (r.consoleErrors?.length > 0) reasons.push(`${r.consoleErrors.length} console error(s)`)
                 if (r.uniformsFailed) reasons.push('uniforms unresponsive')
                 if (r.passthroughFailed) reasons.push('passthrough (no-op)')
