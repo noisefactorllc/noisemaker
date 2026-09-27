@@ -10,6 +10,7 @@ import { getEffect } from './registry.js'
 import { Effect } from './effect.js'
 import { CUBE_FACE_BASES } from '../renderer/cubeCamera.js'
 import { CanvasSink, SinkManager } from './sink.js'
+import { preflightEffect, mrtFormatBytes } from './preflight.js'
 
 /**
  * Oscillator evaluation functions.
@@ -1002,21 +1003,40 @@ export class Pipeline {
     /**
      * Byte cost per sample of a color attachment format, for the MRT
      * attachment budget. Unlisted formats (including defaulted rgba16f
-     * surfaces) cost 8.
+     * surfaces) cost 8. Delegates to the shared preflight implementation so
+     * Pipeline.applyMrtFormatBudget() and preflightEffect() stay in lockstep.
      * @param {string|undefined} format - Texture format name
      * @returns {number} Bytes per sample
      */
     mrtFormatBytes(format) {
-        switch (format) {
-            case 'rgba32f':
-            case 'rgba32float':
-                return 16
-            case 'rgba8':
-            case 'rgba8unorm':
-                return 4
-            default:
-                return 8
+        return mrtFormatBytes(format)
+    }
+
+    /**
+     * Static preflight of this pipeline's effect graph against device
+     * capabilities (GAP-016). Runs the same analysis as
+     * preflightEffect() — per-backend authorability, predicted MRT
+     * format demotions, and predicted maxTextureSize clamps — before any
+     * program is compiled. Read-only; never mutates the graph.
+     * @param {object} [capabilities] - Defaults to the active backend's
+     *   capabilities (Pipeline.getCapabilities()).
+     * @returns {{ backends: {webgl2: {authorable: boolean, reasons: string[]}, webgpu: {authorable: boolean, reasons: string[]}}, formatChanges: Array, clamps: Array }}
+     */
+    preflight(capabilities) {
+        const caps = capabilities || this.getCapabilities()
+        const shaders = {}
+        for (const pass of this.graph?.passes || []) {
+            if (!pass.program) continue
+            const spec = this.resolveProgramSpec(pass)
+            if (spec) shaders[pass.program] = spec
         }
+        const definition = {
+            passes: this.graph?.passes || [],
+            textures: this.graph?.textures,
+            shaders
+        }
+        // Without program specs, source availability is unknown — don't judge it.
+        return preflightEffect(definition, caps, Object.keys(shaders).length ? shaders : undefined)
     }
 
     /**
