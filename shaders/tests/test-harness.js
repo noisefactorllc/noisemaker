@@ -45,6 +45,13 @@
  *   --alg-equiv               Test GLSL/WGSL algorithmic equivalence (requires --with-ai)
  *   --branching               Analyze shaders for unnecessary branching (requires --with-ai)
  *   --passthrough             Test that filter effects do NOT pass through input unchanged
+ *   --passthrough-input       OPT-IN: true input-passthrough probe (GAP-019). Reads back
+ *                             the input texture the effect's expanded graph actually
+ *                             consumes and compares the rendered output against it
+ *                             (plus an in-program write-blit positive control); fails
+ *                             effects whose output matches their input within the
+ *                             same 0.01 boundary. Implies --passthrough; the default
+ *                             gate keeps the upstream temporal semantics.
  *   --pixel-parity            Test GLSL/WGSL pixel-for-pixel output parity at frame 0
  *   --low-variety             OPT-IN: fail effects whose output is low variety and not exempt
  *   --strict-uniforms         OPT-IN: fail when any tested uniform does not affect output
@@ -90,6 +97,10 @@ import {
 import { aggregateUniformResponsiveness } from './uniform-status.js'
 import { warmupPausePlan } from './frame-warmup.js'
 import { auditDefinitionLoss } from './definition-schema.js'
+import {
+    INPUT_PASSTHROUGH_DIFF_MAX,
+    measureInputPassthroughForSession,
+} from './passthrough-input.js'
 import {
     UNIFORM_RESPONSE_THRESHOLD,
     auditUniformResponsiveness,
@@ -496,6 +507,7 @@ function parseArgs() {
         runAlgEquiv: false,
         runBranching: false,
         runPassthrough: false,
+        runPassthroughInput: false,
         runPixelParity: false,
         runLowVariety: false,
         withAi: false,
@@ -537,6 +549,9 @@ function parseArgs() {
             parsed.runBranching = true
         } else if (arg === '--passthrough') {
             parsed.runPassthrough = true
+        } else if (arg === '--passthrough-input') {
+            parsed.runPassthrough = true
+            parsed.runPassthroughInput = true
         } else if (arg === '--pixel-parity') {
             parsed.runPixelParity = true
         } else if (arg === '--low-variety') {
@@ -749,6 +764,8 @@ async function testEffect(session, effectId, options) {
         branchingWarning: false,
         passthrough: null,
         passthroughFailed: false,
+        passthroughInput: null,
+        passthroughInputFailed: false,
         pixelParity: null,
         pixelParityFailed: false,
         benchmark: null,
@@ -1106,6 +1123,57 @@ async function testEffect(session, effectId, options) {
         }
     }
 
+    // True input-passthrough probe (GAP-019, OPT-IN via --passthrough-input).
+    // The upstream verb varies time and counts colors; it never reads the
+    // input texture the effect consumes, and in noisemaker's expanded graphs
+    // its `input`-substring classification matches nothing (every pass input
+    // value is a concrete texture id like `node_0_out`), so the upstream
+    // check above reports `skipped` for every effect. This probe measures
+    // the real output-to-input difference instead. Its verdict only fails
+    // effects behind this explicit opt-in; the default gate is unchanged.
+    if (options.runPassthroughInput) {
+        t0 = Date.now()
+        try {
+            const probe = await measureInputPassthroughForSession(session)
+            timings.push(`passthrough-input:${Date.now() - t0}ms`)
+            results.passthroughInput = probe
+
+            if (probe.status === 'skipped') {
+                console.log(`  ⊘ passthrough-input: ${probe.details}`)
+            } else if (probe.status === 'error') {
+                results.passthroughInputFailed = true
+                console.log(`  ❌ passthrough-input: ${probe.details}`)
+            } else if (probe.is_input_passthrough) {
+                results.passthroughInputFailed = true
+                console.log(
+                    `  ❌ TRUE INPUT PASSTHROUGH: output matches consumed input ` +
+                    `(${probe.input_texture_id}, min diff ${probe.min?.toFixed(6)} <= ${probe.threshold})`,
+                )
+            } else {
+                console.log(
+                    `  ✓ passthrough-input: output differs from consumed input ` +
+                    `(${probe.input_texture_id}, diff ${probe.mean_abs_diff?.toFixed(6)}, ` +
+                    `flipped ${probe.mean_abs_diff_flipped?.toFixed(6)}, ${probe.samples} samples)`
+                )
+            }
+            if (typeof probe.control_is_passthrough === 'boolean') {
+                console.log(
+                    `  ℹ passthrough-input control (write blit): diff ` +
+                    `${probe.control_mean_abs_diff?.toFixed(6)} → ` +
+                    `${probe.control_is_passthrough ? 'passthrough detected (control healthy)' : 'control FAILED to detect a true passthrough'}`,
+                )
+                if (!probe.control_is_passthrough) {
+                    results.passthroughInputFailed = true
+                }
+            }
+        } catch (err) {
+            timings.push(`passthrough-input:${Date.now() - t0}ms`)
+            results.passthroughInput = { status: 'error', threshold: INPUT_PASSTHROUGH_DIFF_MAX, details: String(err?.message || err) }
+            results.passthroughInputFailed = true
+            console.log(`  ❌ passthrough-input: probe failed (${err?.message || err})`)
+        }
+    }
+
     // Pixel parity test (GLSL ↔ WGSL)
     if (options.runPixelParity) {
         t0 = Date.now()
@@ -1391,6 +1459,7 @@ async function main() {
             if (r.consoleErrors?.length > 0) return true
             if (r.uniformsFailed) return true
             if (r.passthroughFailed) return true
+            if (r.passthroughInputFailed) return true
             if (r.pixelParityFailed) return true
             if (r.benchmarkFailed) return true
             if (r.visionFailed) return true
@@ -1418,6 +1487,7 @@ async function main() {
                 if (r.consoleErrors?.length > 0) reasons.push(`${r.consoleErrors.length} console error(s)`)
                 if (r.uniformsFailed) reasons.push('uniforms unresponsive')
                 if (r.passthroughFailed) reasons.push('passthrough (no-op)')
+                if (r.passthroughInputFailed) reasons.push('true input passthrough')
                 if (r.pixelParityFailed) reasons.push('GLSL/WGSL pixel mismatch')
                 if (r.benchmarkFailed) reasons.push('below target FPS')
                 if (r.visionFailed) reasons.push('vision check failed')
