@@ -52,6 +52,18 @@ function oscSquare(t) {
     return (t - Math.floor(t)) >= 0.5 ? 1.0 : 0.0
 }
 
+// Lifecycle-hook detection (GAP-026): an effect carries a real hook when the
+// config constructor stored a config callback or a subclass (or a plain
+// registered object) defines a function for it. The base-class no-ops and
+// missing keys must never count — plain-object definitions registered via
+// registerEffect() may omit hooks entirely.
+function hasLifecycleHook(effectDef, hook) {
+    if (!effectDef) return false
+    const configKey = '_config' + hook.charAt(0).toUpperCase() + hook.slice(1)
+    if (typeof effectDef[configKey] === 'function') return true
+    return typeof effectDef[hook] === 'function' && effectDef[hook] !== Effect.prototype[hook]
+}
+
 // Simple hash for noise
 function hash21(px, py, s) {
     let x = (px * 234.34 + s) % 1
@@ -566,6 +578,20 @@ export class Pipeline {
 
         // Track effect instances for asyncInit lifecycle
         this._asyncRenders = new Map()  // nodeId → cancel function
+
+        // Production lifecycle hooks (GAP-026): effects in the current graph
+        // that carry onInit/onUpdate/onDestroy, keyed by effectKey. Rebuilt
+        // whenever the graph is (re)compiled; onInit fires once per pipeline.
+        this._lifecycleEffects = new Map()
+        this._initLifecycleDone = new Set()
+        // Per-frame uniforms returned by onUpdate hooks, bound only for keys
+        // the pass does not already resolve (shipped effects such as
+        // synth/media define onUpdate hooks; their returned defaults must
+        // never clobber DSL/step-provided pass values).
+        this._runtimeUniforms = new Map()
+        this._hasRuntimeUniforms = false
+        // Pre-allocated onUpdate context (avoids per-frame allocation)
+        this._updateContext = { time: 0, delta: 0, uniforms: null }
     }
 
     /**
@@ -712,6 +738,77 @@ export class Pipeline {
         const defaultUniforms = this.collectDefaultUniforms()
         this.recreateTextures(defaultUniforms)
         this.initAsyncEffects()
+        this.initLifecycleEffects()
+    }
+
+    /**
+     * Production lifecycle hooks (GAP-026).
+     * Called after texture allocation, on resize, and on hot recompile (the
+     * same sites as initAsyncEffects()). Rebuilds the managed-effect map from
+     * the current graph and calls onInit() once per effect instance per
+     * pipeline lifetime — effects are registry singletons shared by nodes,
+     * and recompiles must not re-run onInit.
+     */
+    initLifecycleEffects() {
+        if (!this.graph || !this.graph.passes) return
+
+        this._lifecycleEffects.clear()
+        const seen = new Set()
+        for (const pass of this.graph.passes) {
+            if (!pass.effectKey || seen.has(pass.effectKey)) continue
+            seen.add(pass.effectKey)
+
+            const effectDef = getEffect(pass.effectKey)
+            if (!effectDef) continue
+            if (!hasLifecycleHook(effectDef, 'onInit')
+                && !hasLifecycleHook(effectDef, 'onUpdate')
+                && !hasLifecycleHook(effectDef, 'onDestroy')) continue
+
+            this._lifecycleEffects.set(pass.effectKey, effectDef)
+
+            if (hasLifecycleHook(effectDef, 'onInit') && !this._initLifecycleDone.has(pass.effectKey)) {
+                this._initLifecycleDone.add(pass.effectKey)
+                effectDef.onInit()
+            }
+        }
+    }
+
+    /**
+     * Invoke the onUpdate hook of every managed effect once per frame and
+     * collect the uniforms each hook returns. Context mirrors the test
+     * harness: { time, delta, uniforms } with the pipeline's global uniforms.
+     */
+    _invokeUpdateHooks(time, deltaTime) {
+        this._hasRuntimeUniforms = false
+        if (this._runtimeUniforms.size > 0) this._runtimeUniforms.clear()
+
+        for (const [effectKey, effectDef] of this._lifecycleEffects) {
+            if (!hasLifecycleHook(effectDef, 'onUpdate')) continue
+            this._updateContext.time = time
+            this._updateContext.delta = deltaTime
+            this._updateContext.uniforms = this.globalUniforms
+            const runtimeUniforms = effectDef.onUpdate(this._updateContext)
+            if (runtimeUniforms && typeof runtimeUniforms === 'object') {
+                this._runtimeUniforms.set(effectKey, runtimeUniforms)
+                this._hasRuntimeUniforms = true
+            }
+        }
+    }
+
+    /**
+     * Overlay onUpdate-returned uniforms onto a pass's resolved uniforms.
+     * Fallback semantics: a hook's uniform binds only when the pass does not
+     * already resolve that key, so DSL/step-provided values — including
+     * shipped effects' authored defaults (synth/media's imageSize) — keep
+     * priority and existing behavior is preserved. Rare path: only taken
+     * when an effect's onUpdate hook returned uniforms.
+     */
+    _withRuntimeUniforms(pass, runtimeUniforms) {
+        const merged = Object.assign({}, pass.uniforms)
+        for (const key in runtimeUniforms) {
+            if (merged[key] === undefined) merged[key] = runtimeUniforms[key]
+        }
+        return Object.assign({}, pass, { uniforms: merged })
     }
 
     /**
@@ -2034,6 +2131,10 @@ export class Pipeline {
         // Update global uniforms
         this.updateGlobalUniforms(time, deltaTime)
 
+        // Production lifecycle hooks (GAP-026): per-effect onUpdate, and the
+        // uniforms each hook returns are bound over the pass uniforms below.
+        this._invokeUpdateHooks(time, deltaTime)
+
         // Initialize per-frame surface bindings so within-frame reads see fresh writes
         // Clear and reuse Maps to avoid per-frame allocation
         this.frameReadTextures.clear()
@@ -2062,9 +2163,20 @@ export class Pipeline {
                     if (originalPass.viewport !== undefined) {
                         this.resolvePassViewport(originalPass)
                     }
-                    const pass = this.resolvePassUniforms(originalPass, time)
+                    let pass = this.resolvePassUniforms(originalPass, time)
                     if (originalPass.viewport !== undefined) {
                         this.resolvePassViewport(pass, originalPass)
+                    }
+                    // Bind onUpdate-returned uniforms (GAP-026). Fallback
+                    // semantics: a returned uniform binds only when the pass
+                    // does not already resolve that key, so authored and
+                    // step-provided values keep priority. Rare: only effects
+                    // with an onUpdate hook that returned uniforms contribute.
+                    if (this._hasRuntimeUniforms && pass.effectKey !== undefined) {
+                        const runtimeUniforms = this._runtimeUniforms.get(pass.effectKey)
+                        if (runtimeUniforms) {
+                            pass = this._withRuntimeUniforms(pass, runtimeUniforms)
+                        }
                     }
                     // Check pass conditions
                     if (this.shouldSkipPass(pass)) {
@@ -2616,6 +2728,21 @@ export class Pipeline {
 
         const captureError = (error) => {
             if (!firstError) firstError = error
+        }
+
+        // Production lifecycle hooks (GAP-026): every managed effect's
+        // onDestroy runs before backend teardown; hook errors join the
+        // existing dispose error path instead of masking cleanup.
+        if (this._lifecycleEffects && this._lifecycleEffects.size > 0) {
+            for (const effectDef of this._lifecycleEffects.values()) {
+                if (!hasLifecycleHook(effectDef, 'onDestroy')) continue
+                try {
+                    effectDef.onDestroy()
+                } catch (error) {
+                    captureError(error)
+                }
+            }
+            this._lifecycleEffects.clear()
         }
 
         // Cancel all async renders

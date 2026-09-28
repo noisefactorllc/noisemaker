@@ -217,6 +217,9 @@ export function recompile(pipeline, newSource, options = {}) {
         // containing an asyncInit effect rendered a blank overlay (the effect
         // silently passed its input through unchanged).
         pipeline.initAsyncEffects()
+        // A stub pipeline in tests may implement initAsyncEffects without the
+        // production lifecycle hooks; skip them instead of failing recompile.
+        pipeline.initLifecycleEffects?.()
 
         return newGraph
     } catch (error) {
