@@ -920,8 +920,9 @@ work, verify it, then update the checkpoint and append a log line.
   parameters/globals, passes/graph, textures, compatibility/mutation,
   rendered output, cross-backend parity, Shade MCP tool contracts), a fully
   worked validated effect, the surface × capability traceability matrix, and
-  the 13-entry open gap register (GAP-010..012, GAP-014, GAP-015, GAP-017,
-  GAP-019..021, GAP-024, GAP-026, GAP-029, and GAP-032). The file pins its
+  the 12-entry open gap register (GAP-010..012, GAP-014, GAP-015, GAP-017,
+  GAP-019..021, GAP-024, GAP-029, and GAP-032; GAP-026 closed at noisemaker
+  `73c15be`). The file pins its
   own audited SHAs in the "Source snapshots used for this contract" block at
   its head; that block and this checkpoint are the same two SHAs and must be
   advanced together. There is no generator — every update is a hand edit
@@ -1022,10 +1023,11 @@ work, verify it, then update the checkpoint and append a log line.
     `src/__tests__/session-lifecycle.test.ts` is its browser-session lifecycle,
     unrelated) — so no integration-code change or new Shade regression was
     required, and the public tool result shapes are unchanged. Contract
-    re-audit found and fixed two narrative statements left stale by the range's
-    own GAP-026 row update (llms-full.txt lines 722/826-828 still claimed no
-    production caller exists): both now describe the verified production
-    invocation, and the worked-instance audit was extended across
+    re-audit found and fixed three stale statements the range's own GAP-026 row
+    update left behind (llms-full.txt lines 722/826-828 still claimed no
+    production caller exists, and this section's own Scope register still
+    listed GAP-026 among 13 open gaps): all now describe the verified state,
+    and the worked-instance audit was extended across
     `296e013..73c15be` (the range does touch engine runtime, but
     `synth/testPattern` is hook-less and byte-unchanged, and the webgl2 depth fix
     only affects mesh/depth paths it never enters). Verified four identities:
