@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `296e0138c4744ed485b2e95de3eeb466c17629ee`.
+- Noisemaker: `73c15be00d6888f4b5d2835d8e242ee9e840df45`.
 - Shade MCP: `00340b148e109464b1a87d89ff29fc7622d384c9`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.2.3`, protocol
   `2024-11-05`, with 18 tools returned by `tools/list`.
@@ -719,7 +719,7 @@ interface EffectDefinition {
   defaultProgram?: string
   hidden?: boolean
   deprecatedBy?: string
-  // Copied by Effect, but no production renderer caller exists (GAP-026).
+  // Copied by Effect and invoked by the production Pipeline (GAP-026 closed).
   onInit?: (this: EffectHookThis) => void
   onUpdate?: (this: EffectHookThis,
               context: { time: number, delta: number,
@@ -823,9 +823,20 @@ re-run for that node, while object-shaped values and internal keys are ignored.
 `isCancelled()` and the guarded `updateTexture()` callback let superseded work
 stop without uploading.
 
-No production code invokes `onInit()`, `onUpdate()`, or
-`onDestroy()`. Only the test harness does. Treat those three as copied
-callbacks, not working production lifecycle authoring points. This is GAP-026.
+The production pipeline also invokes the three lifecycle hooks (GAP-026
+closed): `initLifecycleEffects()` — called at the same sites as
+`initAsyncEffects()`, on resize and after a successful hot recompile —
+rebuilds the managed-effect set from the current graph and calls `onInit()`
+once per effect instance per pipeline lifetime (idempotent across
+recompiles; hook detection requires function-typed keys, so plain-object
+definitions registered via `registerEffect()` that omit hooks never
+misfire). `Pipeline.render()` calls `onUpdate({time, delta, uniforms:
+globalUniforms})` once per frame per managed effect, and each returned
+uniform binds under fallback semantics: only when the pass does not already
+resolve that key, so DSL/step-provided and authored values (including
+synth/media's returned `imageSize` defaults) keep priority.
+`Pipeline.dispose()` calls `onDestroy()` for every managed effect, with
+hook errors captured into the existing dispose error path.
 
 `func` is the DSL call name. The loader registers the same instance under
 `func`, `namespace.func`, `namespace/effectDirectory`, and
@@ -837,7 +848,8 @@ Sources: `shaders/src/runtime/effect.js` - `Effect.constructor`, lifecycle
 methods; `shaders/src/renderer/canvas.js` - `registerEffectWithRuntime()` and
 `applyStepParameterValues()`; `shaders/src/runtime/expander.js` - `expand()`;
 `shaders/src/runtime/compiler.js` - `recompile()`;
-`shaders/src/runtime/pipeline.js` - async initialization and regeneration;
+`shaders/src/runtime/pipeline.js` - async initialization and regeneration,
+lifecycle hooks (`initLifecycleEffects()`/`_invokeUpdateHooks()`/`_withRuntimeUniforms()`);
 `shaders/src/runtime/backends/webgl2.js` and `webgpu.js` -
 `packUniformsWithLayout()`.
 
@@ -3579,7 +3591,22 @@ requested-vs-returned frame-resolution annotation `296e013`
 (`shaders/tests/frame-resolution.js` plus the `--strict-resolution` opt-in
 in `shaders/tests/test-harness.js`); all are test-harness or documentation
 layer — no engine, effects, viewer, catalog, `.mcp.json`, or vendor changes,
-none touch this effect, the compiler, or its engine runtime):
+none touch this effect, the compiler, or its engine runtime),
+and again across `296e013..73c15be00d6888f4b5d2835d8e242ee9e840df45` at
+Noisemaker `73c15be00d6888f4b5d2835d8e242ee9e840df45` (the range's four
+commits are the prior checkpoint-advance documentation commit `04e8582`,
+the WebGL2 mesh-target depth-allocation fix `c28e8fd` — a two-line
+`shaders/src/runtime/backends/webgl2.js` change re-binding the framebuffer
+after `ensureDepthBuffer()` unbinds it, with a focused mesh first-frame
+regression, touching only mesh/depth render paths this hook-less
+flat-quad effect never enters — GAP-024's harness identity binding
+`7aff843` (`shaders/tests/session-identity.js`, `--strict-identity`, and
+`demo/shaders/index.html`'s `__noisemakerPipelineGeneration`), and
+GAP-026's production lifecycle hooks `73c15be`
+(`shaders/src/runtime/pipeline.js` `initLifecycleEffects()`/
+`_invokeUpdateHooks()`/`_withRuntimeUniforms()`: `synth/testPattern` is
+hook-less, so the lifecycle map never manages it, and its hook-less-parity
+regression plus the full non-parity suite pass):
 `synth/testPattern`'s own definition.js and shader files are byte-unchanged in that
 range, none of the range's changes (GAP-004 authorable mipmaps, persistent texture
 policies, and 3D filter policies with verified publication closure; GAP-005 pass-field
@@ -3609,6 +3636,13 @@ initialize (server `shade-mcp` version `0.2.3`, protocol `2024-11-05`),
 calls with `effect_id: "synth/noise"` — the `analyzeEffect` result is the
 lossy regex projection without error and the `checkEffectStructure` result
 is `status: "ok"` (passCount 1, no issues), the same public shapes as the
+prior capture; re-captured again on 2026-09-28 at the same pin for the
+GAP-024/GAP-026 verified-pair audit: one stdio session captured initialize
+(server `shade-mcp` version `0.2.3`, protocol `2024-11-05`), `tools/list`
+(18 tools), and worked `analyzeEffect` and `checkEffectStructure` calls
+with `effect_id: "synth/noise"` — the `analyzeEffect` result is the lossy
+regex projection without error and the `checkEffectStructure` result is
+`status: "ok"` (passCount 1, no issues), the same public shapes as the
 prior capture.
 
 Noisemaker's watched source roots added lossless vector formatting, MIDI
