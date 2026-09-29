@@ -1191,6 +1191,16 @@ work, verify it, then update the checkpoint and append a log line.
     0.450318/0.438138/0.453507, 1001 unique sampled colors — the pin's
     documented live-frame read, nondeterministic with the capture moment; the
     pin's timed-path GAP-014 hang stands as recorded above and was not re-run).
+    The affected TIMED path was then re-captured from two further one-session
+    stdio captures on the same GPU host (same evidence): through the corrected
+    `153eebd` build the timed request `renderEffectFrame {time: 0.5,
+    warmup_frames: 3}` completes — `status ok`, WebGL2, 1024×1024, `mean_rgb`
+    0.457276/0.443470/0.445504, 1001 unique sampled colors (deterministic per
+    requested time, matching the redraw-honors-requested-time behavior
+    recorded above) — while the identical timed request at the immutable pin
+    `cbcab33363851016f65391fbb9ef71d66729c07f` again produced no response
+    within 240000 ms (`tools/call NO RESPONSE within 240000 ms`), re-running
+    the recorded GAP-014 hang live at the pin this pass.
     Environment adaptations used on the host (all temporary run scaffolding,
     uncommitted and reverted; detailed in the evidence note): the sandbox
     binds only loopback ports 43117–43126, so `SHADE_VIEWER_PORT` was pinned
@@ -1204,6 +1214,19 @@ work, verify it, then update the checkpoint and append a log line.
     the public check-runs API: noisemaker `4f5e0d2` — 22 check runs, all
     success (Shaders, JS tests/lint, Release builds, Site, notify);
     shade-mcp `153eebd` — `quality`/`ci`/`browser`/`notify` all success.
+    Final-record verification at this documentation commit itself: the
+    Noisemaker battery was re-run green at `72b07e3` (receipts
+    `nm-tests-final.log` 8 suites / 200 tests / 0 failures,
+    `nm-lint-final.log` exit 0, `structure-final.log` 1258 parameters across
+    200 effects); `72b07e3` is a LEDGER.md-only commit and correctly has zero
+    check runs — no workflow's path filter watches `LEDGER.md` (the same
+    path-filtered behavior recorded for prior documentation-only commits,
+    which ran only the Site workflow because they touched `llms-full.txt`),
+    and the published source commits it documents carry the CI evidence
+    above. Deployment remains at the last source commit,
+    `git_hash: 4f5e0d28bdc155700393c314e9a5aafcc4da91fd` (a records-only
+    commit ships no site artifact; the deployment readback for the published
+    source commit stands as recorded).
     Deployment: `https://noisemaker.app/deployment-meta.json` serves
     `git_hash: 4f5e0d28bdc155700393c314e9a5aafcc4da91fd`. Delivery re-check:
     the newest Shade release is still `v0.2.3` =
