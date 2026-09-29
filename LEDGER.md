@@ -20,7 +20,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## I18n strings
 
-- **Checkpoint:** noisemaker `5b81e04f` / noisedeck `a5d448b2` (2026-09-23)
+- **Checkpoint:** noisemaker `6827390` / noisedeck `69eadc5` (2026-09-29)
 - **Scope:** two translation surfaces:
   - Noisemaker effect catalogs
     `shaders/effects/strings.{de,es,fr,it,ja,pt}.json`. The English catalog
@@ -57,6 +57,18 @@ work, verify it, then update the checkpoint and append a log line.
      non-empty string values plus every placeholder, plural leaf, and markup tag
      from the English catalog.
 - **Log:**
+  - 2026-09-29 — caught up through noisemaker `6827390` / noisedeck
+    `69eadc5`: audited noisemaker range `5b81e04f..6827390` (zero diffs in
+    `shaders/effects/`; all 3,677 keys remain in exact parity across all
+    seven catalogs) and noisedeck `9eabfb2..69eadc5` (the delivered trigger
+    `0a2a7012..69eadc5` was force-pushed and `0a2a7012` is unreachable; the
+    observed delivered range is the single commit `69eadc5`). Its only UI
+    string addition, `menus.giftNoisedeck`, was already translated across
+    all six UI locales in the same commit. Verified via Noisemaker gap
+    detection (0 missing keys across all 6 locales), `npm run
+    test:shaders:i18n` (5/5), Noisedeck `tests/i18n.node-test.js` (6/6),
+    and `tests/standalone-account-menu.node-test.js` (12/12). No catalog
+    edits were required.
   - 2026-09-23 — caught up through noisemaker `5b81e04f` / noisedeck
     `a5d448b2`: audited noisemaker range `dd38fdd2..5b81e04f` and noisedeck
     `697d2df9..a5d448b2` (covering Tearoff #425 trigger `0a2a7012..df632d0a`).
