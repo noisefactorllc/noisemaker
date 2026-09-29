@@ -67,13 +67,7 @@ work, verify it, then update the checkpoint and append a log line.
     all six UI locales in the same commit. Verified via Noisemaker gap
     detection (0 missing keys across all 6 locales), `npm run
     test:shaders:i18n` (5/5), Noisedeck `tests/i18n.node-test.js` (6/6),
-    and `tests/standalone-account-menu.node-test.js` (12/12). Evidence
-    archived with this job: `noisemaker-i18n-gap.txt` (gap check output),
-    `noisemaker-test-shaders-i18n.txt` (5/5 pass, exit 0),
-    `noisedeck-en-range.diff` (the range's full English locale diff — only
-    `giftNoisedeck` added), and `preview-deploy-readback.txt` (all seven
-    catalogs on the live preview deploy of `69eadc5`, deploy run 36493728014,
-    serve the key with the exact committed translations). No catalog
+    and `tests/standalone-account-menu.node-test.js` (12/12). No catalog
     edits were required.
   - 2026-09-23 — caught up through noisemaker `5b81e04f` / noisedeck
     `a5d448b2`: audited noisemaker range `dd38fdd2..5b81e04f` and noisedeck
