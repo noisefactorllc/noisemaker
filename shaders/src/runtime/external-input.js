@@ -1606,7 +1606,7 @@ export class AudioInputManager {
         for (const requirement of selected) {
             let capture = null
             if (requirement.id === null && requirement.name === null) {
-                capture = this._deviceId ? this._captures.get(this._deviceId) ?? null : null
+                capture = this._captures.get(this._deviceId) ?? null
             } else if (requirement.id) {
                 capture = this._captures.get(requirement.id) ?? null
             } else {

@@ -1408,6 +1408,45 @@ await asyncTest('AudioInputManager name-only binding without an enumerable devic
     })
 })
 
+await asyncTest('AudioInputManager warns when the deviceless selected capture lacks a requested default channel', async () => {
+    const audioState = new AudioState()
+    // The selected track reports no deviceId, so its capture is stored under
+    // the null key; a default-channel requirement beyond the capture's single
+    // channel must still warn rather than silently evaluate to `min`.
+    const requirements = {
+        needsLegacy: true,
+        needsLegacyRaw: false,
+        selected: [
+            { id: null, name: null, channel: 2, needsRaw: false },
+            { id: null, name: null, channel: 1, needsRaw: false }
+        ]
+    }
+    const manager = new AudioInputManager({
+        setAudioState: () => audioState,
+        pipeline: { getAudioInputRequirements: () => requirements }
+    })
+    const warnings = []
+    await withAudioManagerEnvironment({
+        warnings,
+        getUserMedia: async () => {
+            const track = { label: 'Fixture Microphone', getSettings: () => ({}), stop() {} }
+            const stream = { getAudioTracks: () => [track], getTracks: () => [track] }
+            return stream
+        }
+    }, async ({ rafCallbacks }) => {
+        assertEqual(await manager.enable(), true, 'manager should enable')
+        tick(rafCallbacks)
+        const shortfallText = warnings.join('\n')
+        assert(shortfallText.includes('default input channel 2 (captured device only exposes 1 channel(s))'),
+            'a default-channel requirement beyond the deviceless capture should warn')
+        assert(!shortfallText.includes('channel 1 (captured device'),
+            'the in-range default channel must not warn')
+        assert(audioState.getDefaultChannelState(1), 'the in-range default channel should resolve')
+        assertEqual(audioState.getDefaultChannelState(2), null,
+            'the beyond-range default channel must not resolve')
+    })
+})
+
 await asyncTest('AudioInputManager disable clears default channels, devices, and raw readiness', async () => {
     const audioState = new AudioState()
     const requirements = { needsLegacy: true, needsLegacyRaw: false, selected: [] }

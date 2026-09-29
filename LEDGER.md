@@ -1030,7 +1030,15 @@ work, verify it, then update the checkpoint and append a log line.
     every selected requirement — default-device, id-selected, and
     name-selected alike — whose captured device does not expose the requested
     channel, while requirements with no capture at all keep their existing
-    specific warnings. Focused regression in
+    specific warnings. Final acceptance surfaced one more hole in that pass:
+    the browser-selected capture is stored under the `null` key when the
+    track reports no deviceId, and the default-device branch's
+    `this._deviceId` guard skipped exactly that capture — fixed by dropping
+    the guard (`Map.get(null)` resolves the deviceless capture), with a
+    deviceless-fixture regression (default channel 2 against a 1-channel
+    deviceless capture warns, in-range channel 1 stays silent and resolves);
+    red-before holds (`audio-deviceless-red.log` 65/1 against the unpatched
+    source, `audio-channel-green.log` 66/0 after). Focused regression in
     `shaders/tests/test_external_input.js` (default/id/name channel-3
     requirements against 2-channel fixture captures warn, in-range channel-2
     requirements do not, the in-range channel resolves and the beyond-range
@@ -1117,9 +1125,19 @@ work, verify it, then update the checkpoint and append a log line.
     with noisemaker `c4606d1194c5fb0c6a3b27bdd542d54780da3919`; exact-commit
     CI at those SHAs all succeeded (shade-mcp `quality.yml` run 36538519097,
     `downstream.yml` run 36538519252, `ci.yml` run 36538519002; noisemaker
-    `site.yml` run 36538515092), and
-    `https://noisemaker.app/deployment-meta.json` now serves
-    `git_hash: c4606d1194c5fb0c6a3b27bdd542d54780da3919`. Required CI at the
+    `site.yml` run 36538515092). Required CI at this publication's own commit
+    (`4d47b3fd826288077a58a95da3597dba59007fd9`) likewise all succeeded —
+    js.yml (JS tests, JS lint), shaders.yml (Shader tests, GPU tests, Bundle
+    shaders, scaffold dispatches), site.yml (Verify docs asset paths, notify,
+    Dispatch scaffold static-site-release), docs-site.yml, downstream.yml, and
+    release.yml (Publish release at tag `v1.0.203`, all bundle/standalone
+    builds) — and the deployed artifact readback (archived as
+    `deployment-readback-4d47b3f.json`) shows
+    `https://noisemaker.app/deployment-meta.json` serving
+    `git_hash: 4d47b3fd826288077a58a95da3597dba59007fd9` (`date` 1790672256).
+    Earlier readbacks in this entry's history: the deployment served
+    `git_hash: c4606d1194c5fb0c6a3b27bdd542d54780da3919` between that
+    commit's publication and this one. Required CI at the
     noisemaker implementation commit `682739066d3b74962febbdcdae85b5aa4d2e19f3`
     (observed via the public check-runs API in this follow-up): 16 check runs,
     all success — Shaders (Shader tests, GPU tests, Bundle shaders, Dispatch

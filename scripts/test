@@ -1,8 +1,7 @@
 #!/bin/sh
-# The repository's JS test entrypoint, as run by the repo's own JS-tests CI
-# job (`npm run test:non-parity`, see .github/workflows/js.yml) and as
-# documented in AGENTS.md. Full-parity mode additionally needs the
-# TensorFlow-based Python implementation (requirements.txt) installed for
-# `python3`; run `node scripts/run-js-tests.js` where that environment
-# exists.
+# The repository's documented JS test entrypoint (AGENTS.md: "node
+# scripts/run-js-tests.js --skip-parity"). Full-parity mode additionally
+# needs the TensorFlow-based Python implementation (requirements.txt)
+# installed for `python3`; run `node scripts/run-js-tests.js` where that
+# environment exists.
 exec node scripts/run-js-tests.js --skip-parity "$@"
