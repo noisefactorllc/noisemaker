@@ -912,7 +912,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `73c15be` / shade-mcp `00340b1`, 2026-09-28
+- **Checkpoint:** noisemaker `73c15be` / shade-mcp `00340b1`, 2026-09-29
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -989,6 +989,71 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
+  - 2026-09-29 — gap-register pass at noisemaker
+    `73c15be00d6888f4b5d2835d8e242ee9e840df45` / shade-mcp
+    `00340b148e109464b1a87d89ff29fc7622d384c9` (Worker Elves job `67ecc03a`,
+    selected existing GAP-029): the watched-root drift range `73c15be..HEAD`
+    is empty (the range contains only this contract's own documentation
+    advances and eslint/ruff dependency bumps outside the watched roots), so
+    no behavior statement, typed grammar, validator message, catalog
+    reference, viewer bridge, harness API, or delivery path changed. The pass
+    narrowed the GAP-029 register row in `llms-full.txt`: the defect and its
+    fix live in the Shade repository's `src/knowledge/shared-instances.ts`
+    (`invalidateSharedEffectIndex()` leaves `building` intact and an in-flight
+    pre-change build repopulates the cache after invalidation, so a
+    list/search immediately after a library change or `generateManifest` can
+    retain a pre-change index for the next five-second TTL), which noisemaker
+    cannot write; nothing of the knowledge module is vendored here
+    (`vendor/shade-mcp/` ships only `ai`/`analysis`/`formats`/`harness`, and
+    `invalidateSharedEffectIndex` appears nowhere in `js/`, `scripts/`,
+    `shaders/`, `test/`, `demo/`), so there is no repository-side surface and
+    the row stays open, narrowed/blocked, with the existing retry-after-TTL
+    workaround. Shade-side audit by unauthenticated remote fetch:
+    `git ls-remote` puts both `noisefactorllc/shade-mcp` and
+    `noisedeck/shade-mcp` tips at `00340b1`; the content hash of
+    `src/knowledge/shared-instances.ts` — git blob
+    `c3081989adfbf4e568e31043c248d35d0ab74fbe`, unchanged since
+    `d6b8ab017bbf682055a1872e3fd86c273c28d5fc` (2026-08-12) — is byte-identical
+    at that tip, at the `.mcp.json` pin `cbcab33`, and at the newest release
+    tag `v0.2.3` (which points at that pin). Recorded limitation: no
+    Shade-side execution of the race itself was run in this pass — fixing it
+    is a Shade-repository commit, and Shade's own 157 passing unit tests do
+    not cover invalidation during an in-flight build — so the upstream
+    persistence claim rests on the content-addressed blob identity above,
+    re-derivable from any unauthenticated clone. Verified four identities:
+    Noisemaker source `73c15be00d6888f4b5d2835d8e242ee9e840df45`, Shade MCP
+    source `00340b148e109464b1a87d89ff29fc7622d384c9`, `.mcp.json` pinned to
+    `cbcab33363851016f65391fbb9ef71d66729c07f`, and `vendor/shade-mcp/`
+    unchanged in this pass's range (last vendor change `63349a7`, 2026-09-25;
+    release `v0.2.3` byte-verified against the `shade-mcp-dist.tar.gz` in the
+    2026-09-28 pass). Validation battery on the exact pair: noisemaker
+    non-parity JS tests (`node scripts/run-js-tests.js --skip-parity`,
+    0 failures) and lint (exit 0), Shade MCP typecheck (0 errors) and unit
+    tests (24 files / 157 tests pass on the `00340b1` checkout), structure
+    check via the vendored harness (`npm run test:shaders:structure`, 1258
+    documented parameters across 200 effects), WebGL2 render check
+    (`npm run test:shaders:render:webgl2`, all pass) and WebGPU render check
+    (`node shaders/tests/test-harness.js --effects synth/noise --backend
+    webgpu --verbose`, 1/1 pass, `temporal_diff=0.216246`, page-confirmed
+    `identity_check` `match`: backend observed `webgpu`, generation 2→4,
+    `backend_switch` `match`; `SHADE_SWIFTSHADER=1` with
+    `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` at the Playwright
+    `chromium_headless_shell-1243` bundle's `vk_swiftshader_icd.json` and
+    `PLAYWRIGHT_BROWSERS_PATH=/state/cache/pw-browsers` holding both pinned
+    Playwright browser builds — chromium-1243 for noisemaker, chromium-1234
+    for shade-mcp), and the live browser smoke test (`NOISEMAKER=<noisemaker
+    checkout> node scripts/browser-smoke.mjs` from the Shade checkout, all 3
+    checks OK: `compileEffect`, `renderEffectFrame`, module import from a
+    `setContent` page). Re-captured MCP initialization (server `shade-mcp`
+    version `0.2.3`, protocol `2024-11-05`), 18 tools via `tools/list`, and
+    the GAP-029 verbs' worked calls from one stdio session at the tested
+    immutable pin `cbcab33363851016f65391fbb9ef71d66729c07f`: `listEffects`
+    returns 210 effects and `searchEffects` `query:"noise"`, `limit:3` returns
+    scored hits (`classicNoisedeck/cellNoise` 96, `classicNoisedeck/noise` 96,
+    `classicNoisedeck/noise3d` 96). Gap count stands at 12 (GAP-029 narrowed/
+    blocked — a Shade-repository item; no newer Shade release exists). Updated
+    `llms-full.txt` (GAP-029 row narrowed with the upstream evidence and the
+    recorded limitation) and advanced this checkpoint together.
   - 2026-09-28 — caught up through noisemaker `73c15be00d6888f4b5d2835d8e242ee9e840df45`
     / shade-mcp `00340b148e109464b1a87d89ff29fc7622d384c9` (Tearoff item 658, job
     `ledger-llms-contract`): audited watched source roots across noisemaker range
