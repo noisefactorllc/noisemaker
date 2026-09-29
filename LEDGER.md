@@ -1020,7 +1020,25 @@ work, verify it, then update the checkpoint and append a log line.
     matching re-checked at enable and every 60 ticks, per-channel splitter
     analysis, aggregate and per-channel `rawReady` from the bipolar time-domain
     mean, uncapturable-binding warning with `min` fallback, and the register
-    shrinking to 11 open gaps). Shade's parsers, analysis, knowledge, and
+    shrinking to 11 open gaps; that re-verification itself then surfaced one
+    gap in the shipped warning claim — an already-captured device lacking the
+    requested channel (or a capture freshly opened by the sync whose track
+    delivered fewer channels than the graph selects) returned null from the
+    channel lookup and silently evaluated to `min` with no diagnostic. Fixed
+    in this pass's follow-up commit: `_syncCaptures()` now runs a post-open
+    validation pass (`AudioInputManager._channelShortfall()`) that warns for
+    every selected requirement — default-device, id-selected, and
+    name-selected alike — whose captured device does not expose the requested
+    channel, while requirements with no capture at all keep their existing
+    specific warnings. Focused regression in
+    `shaders/tests/test_external_input.js` (default/id/name channel-3
+    requirements against 2-channel fixture captures warn, in-range channel-2
+    requirements do not, the in-range channel resolves and the beyond-range
+    channel does not); red-before holds (the suite fails 64/1 against the
+    unpatched source, 65/0 after) — see the archived `audio-channel-red.log`
+    and `audio-channel-green.log`. The affected `llms-full.txt` prose now
+    includes the channel shortfall in the uncapturable-binding enumeration in
+    both the parameters/globals surface and the Diagnose section. Shade's parsers, analysis, knowledge, and
     browser tools reference none of the new surfaces (grep of Shade `src/`,
     `scripts/`, and the vendored `vendor/shade-mcp/` for
     `AudioInputManager`/`getAudioInputRequirements`/`registerDefaultChannels`/
@@ -1088,11 +1106,30 @@ work, verify it, then update the checkpoint and append a log line.
     with the explicit-provenance drivers archived beside the logs. Archived
     run evidence (Worker Elves archive `ledger-662`):
     `pin-capture-time0-run1.log`, `pin-capture-time0-run2.log`,
-    `pin-hang-time0.5.log`, `corrected-build-probe.log`, `nm-tests.log`,
+    `pin-hang-time0.5.log`, `corrected-build-probe.log`, `audio-channel-red.log`,
+    `audio-channel-green.log`, `nm-tests.log`,
     `nm-lint.log`, `shade-typecheck.log`, `shade-tests.log`, `structure.log`,
     `webgl2-render.log`, `webgpu-render.log`, `browser-smoke.log`,
     `vendor-diff.txt`, and the `pin-capture.mjs`/`corrected-build-probe.mjs`
-    drivers. Delivery is the open blocker: the newest
+    drivers. Publication and delivery-state record: the Shade redraw
+    correction is shade-mcp
+    `153eebd3b08c849a3fbf20d43527ae48a9dff746`, published to main together
+    with noisemaker `c4606d1194c5fb0c6a3b27bdd542d54780da3919`; exact-commit
+    CI at those SHAs all succeeded (shade-mcp `quality.yml` run 36538519097,
+    `downstream.yml` run 36538519252, `ci.yml` run 36538519002; noisemaker
+    `site.yml` run 36538515092), and
+    `https://noisemaker.app/deployment-meta.json` now serves
+    `git_hash: c4606d1194c5fb0c6a3b27bdd542d54780da3919`. Required CI at the
+    noisemaker implementation commit `682739066d3b74962febbdcdae85b5aa4d2e19f3`
+    (observed via the public check-runs API in this follow-up): 16 check runs,
+    all success — Shaders (Shader tests, GPU tests, Bundle shaders, Dispatch
+    scaffold static-site-release ×3, Dispatch scaffold library-release),
+    Release (Publish release, Build JS bundles, Build shader bundle, Build
+    standalone Linux/Windows/macOS), Site (Verify docs asset paths, notify),
+    plus the `auto-merge` skip; the `js.yml` workflow did not run there by
+    design, its path filter (js/**, scripts/**, package files) excludes a
+    commit touching only `shaders/**` and `llms-full.txt`. Delivery is the
+    open blocker: the newest
     Shade release remains `v0.2.3` = `cbcab33363851016f65391fbb9ef71d66729c07f`
     (`git ls-remote --tags`), so the `.mcp.json` pin, the vendored
     `vendor/shade-mcp/` bundle (re-verified this pass against the freshly

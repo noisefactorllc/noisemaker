@@ -1331,6 +1331,49 @@ await asyncTest('AudioInputManager warns instead of silently dropping uncapturab
     })
 })
 
+await asyncTest('AudioInputManager warns when an already-captured device lacks the requested channel', async () => {
+    const audioState = new AudioState()
+    // Every fixture capture exposes 2 channels, so channel-3 requirements
+    // against devices that are already captured would silently evaluate to
+    // `min` without a warning.
+    const requirements = {
+        needsLegacy: true,
+        needsLegacyRaw: false,
+        selected: [
+            { id: null, name: null, channel: 3, needsRaw: false },
+            { id: 'other-device', name: 'Other Interface', channel: 3, needsRaw: true },
+            { id: 'other-device', name: 'Other Interface', channel: 2, needsRaw: true },
+            { name: 'Fixture Microphone', channel: 3, needsRaw: false },
+            { name: 'Fixture Microphone', channel: 2, needsRaw: false }
+        ]
+    }
+    const manager = new AudioInputManager({
+        setAudioState: () => audioState,
+        pipeline: { getAudioInputRequirements: () => requirements }
+    })
+    const warnings = []
+    await withAudioManagerEnvironment({ warnings }, async ({ rafCallbacks }) => {
+        assertEqual(await manager.enable(), true, 'manager should enable')
+        tick(rafCallbacks)
+        assert(warnings.some(message => message.includes('default input channel 3') &&
+            message.includes('only exposes 2')),
+            'a default-channel requirement beyond the captured channel count should warn')
+        assert(warnings.some(message => message.includes('Other Interface channel 3') &&
+            message.includes('only exposes 2')),
+            'an id-selected requirement beyond the captured channel count should warn')
+        assert(warnings.some(message => message.includes('Fixture Microphone channel 3') &&
+            message.includes('only exposes 2')),
+            'a name-selected requirement beyond the captured channel count should warn')
+        const shortfallText = warnings.join('\n')
+        assertEqual((shortfallText.match(/only exposes 2/g) || []).length, 3,
+            'exactly the three beyond-range requirements should be named as unmet')
+        assert(audioState.getDeviceChannelState({ id: 'other-device', channel: 2 }),
+            'the in-range captured channel should still resolve')
+        assertEqual(audioState.getDeviceChannelState({ id: 'other-device', channel: 3 }), null,
+            'the beyond-range channel must not resolve')
+    })
+})
+
 await asyncTest('AudioInputManager name-only binding without an enumerable deviceId warns', async () => {
     const audioState = new AudioState()
     // The default track reports a label but no deviceId in its settings, so

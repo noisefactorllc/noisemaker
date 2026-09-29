@@ -1245,8 +1245,8 @@ device, re-checked at enable and every 60 update ticks), analyzes each captured
 channel independently through a channel splitter, and marks the aggregate and
 every captured channel `rawReady` from the time-domain mean each frame.
 Selected-device bindings that cannot be captured (unknown id, ambiguous name,
-open failure, no enumerable device id) emit a console warning and evaluate to
-`min`.
+open failure, no enumerable device id, or a captured device that does not
+expose the requested channel) emit a console warning and evaluate to `min`.
 
 `defaultFrom` exists in validator operator specs but is not copied by
 `registerEffectWithRuntime()` from `GlobalSpec`. Effect definitions cannot use it
@@ -1363,7 +1363,8 @@ Therefore, this tool alone cannot quantify the failure of a global. See GAP-011.
 All MIDI fixed-channel modes reject fractional or out-of-range channels with
 `S002` and return `min`. Invalid CC/NRPN/zone/member selection likewise
 produces an inert descriptor. Audio bindings the built-in manager cannot
-capture (unknown device id, ambiguous name, open failure) emit a console
+capture (unknown device id, ambiguous name, open failure, or a captured
+device that does not expose the requested channel) emit a console
 warning from `AudioInputManager` and evaluate to `min`; channel-only, named,
 id-selected, and raw bindings are populated by the manager itself.
 
