@@ -1240,8 +1240,11 @@ export class AudioInputManager {
         this._deviceId = null
         this._deviceName = ''
         this._channelCount = 1
-        this._channelCaptures = []
+        // deviceId -> capture (the browser-selected stream included).
+        this._captures = new Map()
         this._requirementsCheckTick = 0
+        this._syncToken = 0
+        this._lastUnmetWarning = ''
     }
 
     /**
@@ -1303,41 +1306,19 @@ export class AudioInputManager {
             // Set up audio state
             this._audioState = this._renderer.setAudioState()
 
-            // Register the captured device and its independent default-input
-            // channels so channel-only, named-channel, and raw bindings resolve.
-            this._audioState.registerDefaultChannels(this._channelCount)
-            if (this._deviceId) {
-                this._audioState.registerDevice({
-                    id: this._deviceId,
-                    name: this._deviceName,
-                    channelCount: this._channelCount
-                })
-            }
-
-            // Analyze each captured channel independently.
-            const splitter = this._audioContext.createChannelSplitter(this._channelCount)
-            this._source.connect(splitter)
-            this._channelCaptures = []
-            for (let channel = 0; channel < this._channelCount; channel++) {
-                const analyser = this._audioContext.createAnalyser()
-                analyser.fftSize = 256
-                analyser.smoothingTimeConstant = this._smoothing
-                splitter.connect(analyser, channel)
-                this._channelCaptures.push({
-                    analyser,
-                    fftData: new Uint8Array(analyser.frequencyBinCount),
-                    timeDomainData: new Uint8Array(analyser.fftSize),
-                    defaultState: this._audioState.getDefaultChannelState(channel + 1),
-                    deviceState: this._deviceId
-                        ? this._audioState.getDeviceChannelState({ id: this._deviceId, channel: channel + 1 })
-                        : null
-                })
-            }
+            // Register the browser-selected capture device and its independent
+            // default-input channels so channel-only, named-channel, and raw
+            // bindings resolve.
+            this._registerCapture(this._deviceId, this._deviceName, this._channelCount, {
+                source: this._source,
+                defaultChannels: true
+            })
 
             // Start update loop
             this._enabled = true
             this._requirementsCheckTick = 0
-            this._checkSelectedRequirements()
+            this._lastUnmetWarning = ''
+            await this._syncCaptures()
             this._updateLoop()
 
             this._notifyStatus('Audio input enabled')
@@ -1360,15 +1341,18 @@ export class AudioInputManager {
             cancelAnimationFrame(this._animationId)
             this._animationId = null
         }
+        this._syncToken++
 
-        // Disconnect and stop stream
-        if (this._source) {
-            this._source.disconnect()
-            this._source = null
-        }
+        // Disconnect and stop every capture stream
+        for (const capture of this._captures.values()) this._stopCapture(capture)
+
         if (this._stream) {
             this._stream.getTracks().forEach(track => track.stop())
             this._stream = null
+        }
+        if (this._source) {
+            this._source.disconnect()
+            this._source = null
         }
         if (this._audioContext) {
             this._audioContext.close()
@@ -1378,15 +1362,21 @@ export class AudioInputManager {
         this._analyser = null
         this._fftData = null
         this._timeDomainData = null
-        this._channelCaptures = []
         this._enabled = false
 
         // Reset audio state values
+        const capturedIds = this._capturedDeviceIds()
         if (this._audioState) {
             this._audioState.resetAggregate()
             this._audioState.disconnectDefaultInput()
-            if (this._deviceId) this._audioState.disconnectDevice(this._deviceId)
+            for (const deviceId of capturedIds) {
+                this._audioState.disconnectDevice(deviceId)
+            }
         }
+        this._captures.clear()
+        this._deviceId = null
+        this._deviceName = ''
+        this._channelCount = 1
 
         this._notifyStatus('Audio input disabled')
     }
@@ -1431,6 +1421,181 @@ export class AudioInputManager {
         this._onStatusChange = callback
     }
 
+    /** Device ids captured by this manager (the browser-selected one included). */
+    _capturedDeviceIds() {
+        const ids = []
+        for (const [deviceId, capture] of this._captures) {
+            if (capture.registeredDevice && deviceId) ids.push(deviceId)
+        }
+        return ids
+    }
+
+    /** Register one capture: splitter, per-channel analysers, and state wiring. */
+    _registerCapture(deviceId, deviceName, channelCount, { source, defaultChannels = false } = {}) {
+        if (defaultChannels) this._audioState.registerDefaultChannels(channelCount)
+        let registeredDevice = false
+        if (deviceId) {
+            registeredDevice = !!this._audioState.registerDevice({
+                id: deviceId,
+                name: deviceName,
+                channelCount
+            })
+        }
+        const splitter = this._audioContext.createChannelSplitter(channelCount)
+        source.connect(splitter)
+        const channels = []
+        for (let channel = 0; channel < channelCount; channel++) {
+            const analyser = this._audioContext.createAnalyser()
+            analyser.fftSize = 256
+            analyser.smoothingTimeConstant = this._smoothing
+            splitter.connect(analyser, channel)
+            channels.push({
+                analyser,
+                fftData: new Uint8Array(analyser.frequencyBinCount),
+                timeDomainData: new Uint8Array(analyser.fftSize),
+                defaultState: defaultChannels
+                    ? this._audioState.getDefaultChannelState(channel + 1)
+                    : null,
+                deviceState: deviceId
+                    ? this._audioState.getDeviceChannelState({ id: deviceId, channel: channel + 1 })
+                    : null
+            })
+        }
+        const capture = { deviceId, deviceName, source, splitter, channels, registeredDevice }
+        this._captures.set(deviceId, capture)
+        return capture
+    }
+
+    /** Open one additional capture for a selected requirement. */
+    _openDeviceCapture(stream, deviceId, deviceName) {
+        const track = stream.getAudioTracks()[0] ?? null
+        const settings = track?.getSettings?.() ?? {}
+        const channelCount = Number.isInteger(settings.channelCount) && settings.channelCount >= 1
+            ? Math.min(32, settings.channelCount)
+            : 1
+        const source = this._audioContext.createMediaStreamSource(stream)
+        const capture = this._registerCapture(
+            deviceId,
+            typeof track?.label === 'string' && track.label ? track.label : deviceName,
+            channelCount,
+            { source }
+        )
+        capture.stream = stream
+    }
+
+    _stopCapture(capture) {
+        capture.stream?.getTracks?.().forEach(track => track.stop())
+        capture.source?.disconnect()
+    }
+
+    /** Enumerate audio input devices (empty when enumeration is unavailable). */
+    async _enumerateInputDevices() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices?.()
+            const inventory = []
+            for (const device of devices || []) {
+                if (device.kind !== 'audioinput') continue
+                if (typeof device.deviceId !== 'string' || !device.deviceId ||
+                    device.deviceId === 'default' || device.deviceId === 'communications') continue
+                inventory.push({ id: device.deviceId, name: typeof device.label === 'string' ? device.label : '' })
+            }
+            return inventory
+        } catch {
+            return []
+        }
+    }
+
+    /**
+     * Open, keep, and tear down the per-device captures the compiled graph
+     * requires. The browser-selected stream already covers the default
+     * channels; every other selected requirement gets its own stream. Returns
+     * the requirements that remain unmet after the attempt.
+     */
+    async _syncCaptures() {
+        const token = ++this._syncToken
+        const requirements = this._renderer?.pipeline?.getAudioInputRequirements?.()
+        const selected = requirements?.selected ?? []
+        const inventory = await this._enumerateInputDevices()
+        const unmet = []
+        const wanted = new Map()
+
+        for (const requirement of selected) {
+            if (requirement.id === null && requirement.name === null) continue
+            let deviceId = null
+            let deviceName = ''
+            if (requirement.id) {
+                if (requirement.id === this._deviceId || this._captures.has(requirement.id)) continue
+                deviceId = requirement.id
+                deviceName = inventory.find(device => device.id === requirement.id)?.name || ''
+            } else if (this._deviceId && this._deviceName && requirement.name === this._deviceName &&
+                this._captures.has(this._deviceId)) {
+                // The named device is the browser-selected capture itself.
+                continue
+            } else {
+                const matches = inventory.filter(device => device.name === requirement.name)
+                if (matches.length === 1) {
+                    deviceId = matches[0].id
+                    deviceName = requirement.name
+                    if (deviceId === this._deviceId || this._captures.has(deviceId)) continue
+                } else {
+                    const captured = [...this._captures.values()]
+                        .filter(capture => capture.deviceName === requirement.name)
+                    if (matches.length > 1) {
+                        unmet.push(`${requirement.name} channel ${requirement.channel} (name matches multiple devices)`)
+                    } else if (captured.length === 1) {
+                        unmet.push(`${requirement.name} channel ${requirement.channel} (no deviceId available)`)
+                    } else {
+                        unmet.push(`${requirement.name} channel ${requirement.channel} (not found among input devices)`)
+                    }
+                    continue
+                }
+            }
+            wanted.set(deviceId, deviceName)
+        }
+
+        for (const [deviceId, capture] of this._captures) {
+            if (deviceId === this._deviceId) continue
+            if (!wanted.has(deviceId)) {
+                this._stopCapture(capture)
+                this._captures.delete(deviceId)
+                if (capture.registeredDevice) this._audioState.disconnectDevice(deviceId)
+            }
+        }
+
+        for (const [deviceId, deviceName] of wanted) {
+            if (token !== this._syncToken) return unmet
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        deviceId: { exact: deviceId },
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false
+                    }
+                })
+                if (token !== this._syncToken) {
+                    stream.getTracks().forEach(track => track.stop())
+                    return unmet
+                }
+                this._openDeviceCapture(stream, deviceId, deviceName)
+            } catch (err) {
+                console.warn(`[Noisemaker] failed to open audio input device ${deviceName || deviceId}:`, err)
+                unmet.push(`${deviceName || deviceId} (failed to open)`)
+            }
+        }
+
+        if (unmet.length) {
+            const message = `[Noisemaker] ${unmet.length} selected-device audio binding(s) could not be captured (${unmet.join(', ')}); they evaluate to min.`
+            if (message !== this._lastUnmetWarning) {
+                this._lastUnmetWarning = message
+                console.warn(message)
+            }
+        } else {
+            this._lastUnmetWarning = ''
+        }
+        return unmet
+    }
+
     _updateLoop() {
         if (!this._enabled) return
 
@@ -1463,60 +1628,39 @@ export class AudioInputManager {
         for (let i = 0; i < this._timeDomainData.length; i++) timeSum += this._timeDomainData[i]
         this._audioState.setRaw((timeSum / this._timeDomainData.length - 128) / 127.5)
 
-        // Update the independently analyzed default-device channels.
-        for (let channel = 0; channel < this._channelCaptures.length; channel++) {
-            const capture = this._channelCaptures[channel]
-            capture.analyser.getByteFrequencyData(capture.fftData)
-            capture.analyser.getByteTimeDomainData(capture.timeDomainData)
-            const channelLow = (capture.fftData[0] + capture.fftData[1] + capture.fftData[2] + capture.fftData[3]) / 4 / 255
-            const channelMid = (capture.fftData[4] + capture.fftData[6] + capture.fftData[8] + capture.fftData[10]) / 4 / 255
-            const channelHigh = (capture.fftData[16] + capture.fftData[20] + capture.fftData[24] + capture.fftData[28]) / 4 / 255
-            let channelTimeSum = 0
-            for (let i = 0; i < capture.timeDomainData.length; i++) channelTimeSum += capture.timeDomainData[i]
-            const channelRaw = (channelTimeSum / capture.timeDomainData.length - 128) / 127.5
-            if (capture.defaultState) {
-                capture.defaultState.setBands(channelLow, channelMid, channelHigh)
-                capture.defaultState.setRaw(channelRaw)
-            }
-            if (capture.deviceState) {
-                capture.deviceState.setBands(channelLow, channelMid, channelHigh)
-                capture.deviceState.setRaw(channelRaw)
+        // Update every captured device channel, including the browser-selected
+        // stream's default-input channels.
+        for (const capture of this._captures.values()) {
+            for (const channel of capture.channels) {
+                channel.analyser.getByteFrequencyData(channel.fftData)
+                channel.analyser.getByteTimeDomainData(channel.timeDomainData)
+                const channelLow = (channel.fftData[0] + channel.fftData[1] + channel.fftData[2] + channel.fftData[3]) / 4 / 255
+                const channelMid = (channel.fftData[4] + channel.fftData[6] + channel.fftData[8] + channel.fftData[10]) / 4 / 255
+                const channelHigh = (channel.fftData[16] + channel.fftData[20] + channel.fftData[24] + channel.fftData[28]) / 4 / 255
+                let channelTimeSum = 0
+                for (let i = 0; i < channel.timeDomainData.length; i++) channelTimeSum += channel.timeDomainData[i]
+                const channelRaw = (channelTimeSum / channel.timeDomainData.length - 128) / 127.5
+                if (channel.defaultState) {
+                    channel.defaultState.setBands(channelLow, channelMid, channelHigh)
+                    channel.defaultState.setRaw(channelRaw)
+                }
+                if (channel.deviceState) {
+                    channel.deviceState.setBands(channelLow, channelMid, channelHigh)
+                    channel.deviceState.setRaw(channelRaw)
+                }
             }
         }
 
         // Re-check integration requirements occasionally so graphs compiled
-        // after enable() also get the selected-device diagnostic.
+        // after enable() also get their captures and diagnostics.
         this._requirementsCheckTick++
         if (this._requirementsCheckTick >= 60) {
             this._requirementsCheckTick = 0
-            this._checkSelectedRequirements()
+            this._syncCaptures()
         }
 
         // Continue loop
         this._animationId = requestAnimationFrame(() => this._updateLoop())
-    }
-
-    /**
-     * Warn hosts when the graph requires selected-device audio bindings the
-     * shipped manager cannot supply (it captures only the browser-selected
-     * input device). Channel-only bindings and the captured device itself are
-     * populated directly by this manager.
-     */
-    _checkSelectedRequirements() {
-        const requirements = this._renderer?.pipeline?.getAudioInputRequirements?.()
-        if (!requirements?.selected?.length) return
-        const unmet = requirements.selected.filter(requirement => {
-            if (requirement.id === null && requirement.name === null) return false
-            if (this._deviceId && requirement.id === this._deviceId) return false
-            if (!requirement.id && requirement.name === this._deviceName) return false
-            return true
-        })
-        if (unmet.length) {
-            const described = unmet
-                .map(requirement => `${requirement.id ?? requirement.name} channel ${requirement.channel}`)
-                .join(', ')
-            console.warn(`[Noisemaker] ${unmet.length} selected-device audio binding(s) are not captured by the built-in audio input (${described}); they evaluate to min unless the host captures and registers those devices.`)
-        }
     }
 
     _notifyStatus(message) {

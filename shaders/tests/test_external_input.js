@@ -1078,19 +1078,26 @@ test('MidiState.updateNoteGrid handles multiple channels', () => {
     assertApprox(midi.noteGrid[offset6], 80 / 127, 0.01, 'Ch6 key 72 velocity')
 })
 
-// ============================================================================
 // AudioInputManager Tests
 // ============================================================================
 
 console.log('\n=== AudioInputManager Tests ===\n')
 
-function createAudioManagerFixtures({ channelCount = 2, withDeviceIdentity = true } = {}) {
-    // Distinct per-analyser frequency content: the main analyser, then one
-    // analyser per captured channel, each with its own band levels.
+const FIXTURE_DEVICES = [
+    { deviceId: 'fixture-device', label: 'Fixture Microphone' },
+    { deviceId: 'other-device', label: 'Other Interface' },
+    { deviceId: 'stack-a', label: 'Stacked Input' },
+    { deviceId: 'stack-b', label: 'Stacked Input' }
+]
+
+function createAudioManagerFixtures() {
+    // Distinct per-analyser frequency content: the main analyser of each
+    // capture, then one analyser per captured channel, each with its own
+    // band levels in a repeating pattern.
     let analyserOrdinal = 0
     const freqLevels = [64, 200, 10, 128]
     const timeLevels = [255, 128, 160, 96]
-    const createdAnalysers = []
+    const openedStreams = []
     class MockAudioContext {
         constructor() {
             this.closed = false
@@ -1100,15 +1107,13 @@ function createAudioManagerFixtures({ channelCount = 2, withDeviceIdentity = tru
             const index = analyserOrdinal++
             const frequencyData = new Uint8Array(128).fill(freqLevels[index % freqLevels.length])
             const timeData = new Uint8Array(256).fill(timeLevels[index % timeLevels.length])
-            const analyser = {
+            return {
                 fftSize: 256,
                 frequencyBinCount: 128,
                 smoothingTimeConstant: 0.8,
                 getByteFrequencyData: buf => buf.set(frequencyData.subarray(0, buf.length)),
                 getByteTimeDomainData: buf => buf.set(timeData.subarray(0, buf.length))
             }
-            createdAnalysers.push(analyser)
-            return analyser
         }
 
         createMediaStreamSource() {
@@ -1123,22 +1128,40 @@ function createAudioManagerFixtures({ channelCount = 2, withDeviceIdentity = tru
             this.closed = true
         }
     }
-    const track = {
-        label: withDeviceIdentity ? 'Fixture Microphone' : '',
-        getSettings: () => withDeviceIdentity
-            ? { deviceId: 'fixture-device', channelCount }
-            : {},
-        stop() {}
+    const getUserMedia = async constraints => {
+        const requestedId = constraints?.audio?.deviceId?.exact
+        const device = requestedId
+            ? FIXTURE_DEVICES.find(entry => entry.deviceId === requestedId)
+            : FIXTURE_DEVICES[0]
+        if (requestedId && !device) {
+            const error = new Error('device not found')
+            error.name = 'OverconstrainedError'
+            throw error
+        }
+        const track = {
+            label: device.label,
+            getSettings: () => ({ deviceId: device.deviceId, channelCount: 2 }),
+            stop: () => {}
+        }
+        const stream = {
+            getAudioTracks: () => [track],
+            getTracks: () => [track]
+        }
+        openedStreams.push(stream)
+        return stream
     }
-    const stream = {
-        getAudioTracks: () => [track],
-        getTracks: () => [track]
-    }
-    return { MockAudioContext, stream }
+    const enumerateDevices = async () => FIXTURE_DEVICES.map(device => ({
+        kind: 'audioinput',
+        deviceId: device.deviceId,
+        label: device.label
+    }))
+    return { MockAudioContext, getUserMedia, enumerateDevices, openedStreams }
 }
 
-async function withAudioManagerEnvironment({ channelCount = 2, withDeviceIdentity = true, warnings } = {}, fn) {
-    const { MockAudioContext, stream } = createAudioManagerFixtures({ channelCount, withDeviceIdentity })
+async function withAudioManagerEnvironment({ warnings, getUserMedia, enumerateDevices } = {}, fn) {
+    const fixtures = createAudioManagerFixtures()
+    const openStream = getUserMedia || fixtures.getUserMedia
+    const listDevices = enumerateDevices || fixtures.enumerateDevices
     const previousNavigator = globalThis.navigator
     const previousAudioContext = globalThis.AudioContext
     const rafCallbacks = []
@@ -1149,14 +1172,14 @@ async function withAudioManagerEnvironment({ channelCount = 2, withDeviceIdentit
     if (warnings) console.warn = message => warnings.push(message)
     Object.defineProperty(globalThis, 'navigator', {
         configurable: true,
-        value: { mediaDevices: { getUserMedia: async () => stream } }
+        value: { mediaDevices: { getUserMedia: openStream, enumerateDevices: listDevices } }
     })
-    globalThis.AudioContext = MockAudioContext
+    globalThis.AudioContext = fixtures.MockAudioContext
     globalThis.requestAnimationFrame = callback => rafCallbacks.push(callback)
     globalThis.cancelAnimationFrame = id => cancelled.push(id)
 
     try {
-        return await fn({ rafCallbacks, cancelled })
+        return await fn({ rafCallbacks, cancelled, openedStreams: fixtures.openedStreams })
     } finally {
         Object.defineProperty(globalThis, 'navigator', {
             configurable: true,
@@ -1170,18 +1193,22 @@ async function withAudioManagerEnvironment({ channelCount = 2, withDeviceIdentit
     }
 }
 
+function tick(rafCallbacks) {
+    const callback = rafCallbacks.shift()
+    rafCallbacks.length = 0
+    callback()
+}
+
 await asyncTest('AudioInputManager populates the captured device, default channels, and raw readiness', async () => {
     const audioState = new AudioState()
     const manager = new AudioInputManager({ setAudioState: () => audioState })
-    await withAudioManagerEnvironment({ channelCount: 2 }, async ({ rafCallbacks }) => {
+    await withAudioManagerEnvironment({}, async ({ rafCallbacks }) => {
         assertEqual(await manager.enable(), true, 'manager should enable')
         assertEqual(manager.enabled, true, 'manager should report enabled')
 
         // One update tick from the captured rAF callback chain.
         assertEqual(rafCallbacks.length, 1, 'enable should schedule exactly one update tick')
-        const tick = rafCallbacks.shift()
-        rafCallbacks.length = 0
-        tick()
+        tick(rafCallbacks)
         assertEqual(rafCallbacks.length, 1, 'the update loop should keep scheduling')
 
         // Default-channel state is populated per channel, not the aggregate.
@@ -1201,32 +1228,25 @@ await asyncTest('AudioInputManager populates the captured device, default channe
         assertApprox(deviceChannel.high, 10 / 255, 0.001, 'captured device channel 2 high band')
         assert(deviceChannel.rawReady, 'captured device channel raw sample should be ready')
 
+        // The named captured device resolves without host inventory work.
+        assert(audioState.getDeviceChannelState({ name: 'Fixture Microphone', channel: 1 }),
+            'the captured device should resolve by its unique name')
+
         // Aggregate raw readiness is populated from the main analyser.
         assert(audioState.rawReady, 'aggregate raw sample should be ready')
         assertApprox(audioState.raw, (255 - 128) / 127.5, 0.01, 'aggregate raw maps the time-domain mean')
     })
 })
 
-await asyncTest('AudioInputManager survives missing device identity settings', async () => {
-    const audioState = new AudioState()
-    const manager = new AudioInputManager({ setAudioState: () => audioState })
-    await withAudioManagerEnvironment({ withDeviceIdentity: false }, async ({ rafCallbacks }) => {
-        assertEqual(await manager.enable(), true, 'manager should enable without device settings')
-        rafCallbacks.shift()()
-        const channelOne = audioState.getDefaultChannelState(1)
-        assert(channelOne, 'default channels should still be registered')
-        assert(channelOne.rawReady, 'default channel raw should still be ready')
-    })
-})
-
-await asyncTest('AudioInputManager warns when the graph requires devices it cannot capture', async () => {
+await asyncTest('AudioInputManager opens and populates every selected-device requirement', async () => {
     const audioState = new AudioState()
     const requirements = {
         needsLegacy: true,
         needsLegacyRaw: false,
         selected: [
-            { id: null, name: null, channel: 2, needsRaw: false },
-            { id: 'other-device', name: 'Other Interface', channel: 1, needsRaw: true }
+            { id: null, name: null, channel: 1, needsRaw: false },
+            { id: 'other-device', name: 'Other Interface', channel: 2, needsRaw: true },
+            { name: 'Fixture Microphone', channel: 1, needsRaw: false }
         ]
     }
     const manager = new AudioInputManager({
@@ -1234,22 +1254,127 @@ await asyncTest('AudioInputManager warns when the graph requires devices it cann
         pipeline: { getAudioInputRequirements: () => requirements }
     })
     const warnings = []
-    await withAudioManagerEnvironment({ warnings }, async () => {
+    await withAudioManagerEnvironment({ warnings }, async ({ rafCallbacks, openedStreams }) => {
         assertEqual(await manager.enable(), true, 'manager should enable')
-        assert(warnings.some(message => message.includes('other-device')),
-            'the manager should warn about the un-captured selected device')
-        assert(warnings.every(message => !message.includes('channel-only') &&
-            !(message.includes('null') && message.includes('channel 2'))),
-            'channel-only requirements must not be warned about')
+        assertEqual(openedStreams.length, 2,
+            'the manager should open one stream per required device (default + selected)')
+        tick(rafCallbacks)
+
+        // The selected device is captured and populated per channel.
+        const selected = audioState.getDeviceChannelState({ id: 'other-device', channel: 2 })
+        assert(selected, 'the selected device should be registered and connected')
+        assertApprox(selected.low, 64 / 255, 0.001, 'selected device channel 2 low band')
+        assert(selected.rawReady, 'selected device raw sample should be ready')
+        assertApprox(selected.raw, (255 - 128) / 127.5, 0.01, 'selected device channel 2 raw value')
+
+        // No warning when every requirement is captured.
+        assertEqual(warnings.length, 0, 'a fully captured graph should not warn')
     })
 })
 
-await asyncTest('AudioInputManager disable clears default channels, device, and raw readiness', async () => {
+await asyncTest('AudioInputManager re-syncs captures when the compiled graph changes', async () => {
     const audioState = new AudioState()
-    const manager = new AudioInputManager({ setAudioState: () => audioState })
+    let selected = []
+    const manager = new AudioInputManager({
+        setAudioState: () => audioState,
+        pipeline: { getAudioInputRequirements: () => ({ needsLegacy: true, needsLegacyRaw: false, selected }) }
+    })
+    await withAudioManagerEnvironment({}, async ({ rafCallbacks, openedStreams }) => {
+        assertEqual(await manager.enable(), true, 'manager should enable')
+        assertEqual(openedStreams.length, 1, 'only the default stream should be open initially')
+
+        selected = [{ id: 'other-device', name: 'Other Interface', channel: 1, needsRaw: false }]
+        // 60 ticks trigger the periodic re-sync; it resolves asynchronously.
+        for (let i = 0; i < 60; i++) tick(rafCallbacks)
+        await new Promise(resolve => setTimeout(resolve, 0))
+        assertEqual(openedStreams.length, 2, 'the re-sync should open the newly required device')
+        assert(audioState.getDeviceChannelState({ id: 'other-device', channel: 1 }),
+            'the newly required device should be registered')
+
+        selected = []
+        for (let i = 0; i < 60; i++) tick(rafCallbacks)
+        await new Promise(resolve => setTimeout(resolve, 0))
+        assertEqual(audioState.getDeviceChannelState({ id: 'other-device', channel: 1 }), null,
+            'the released device should be disconnected')
+        assert(openedStreams[1].getTracks().every(track => track.stopped !== false),
+            'teardown should stop the released stream tracks')
+    })
+})
+
+await asyncTest('AudioInputManager warns instead of silently dropping uncapturable requirements', async () => {
+    const audioState = new AudioState()
+    const requirements = {
+        needsLegacy: true,
+        needsLegacyRaw: false,
+        selected: [
+            { id: 'missing-device', name: 'Ghost Interface', channel: 1, needsRaw: true },
+            { name: 'Stacked Input', channel: 1, needsRaw: true }
+        ]
+    }
+    const manager = new AudioInputManager({
+        setAudioState: () => audioState,
+        // An inventory with two devices of the same name makes the name-only
+        // requirement ambiguous.
+        pipeline: { getAudioInputRequirements: () => requirements }
+    })
+    const warnings = []
+    await withAudioManagerEnvironment({ warnings }, async ({ rafCallbacks }) => {
+        assertEqual(await manager.enable(), true, 'manager should enable even with unmet requirements')
+        tick(rafCallbacks)
+        assert(warnings.some(message => message.includes('missing-device (failed to open)')),
+            'an unknown device id should be attempted and its failure warned about')
+        assert(warnings.some(message => message.includes('Stacked Input') &&
+            message.includes('multiple devices')),
+            'an ambiguous name should be warned about, never silently captured')
+        assertEqual(audioState.getDeviceChannelState({ id: 'missing-device', channel: 1 }), null,
+            'an uncapturable device must not resolve')
+    })
+})
+
+await asyncTest('AudioInputManager name-only binding without an enumerable deviceId warns', async () => {
+    const audioState = new AudioState()
+    // The default track reports a label but no deviceId in its settings, so
+    // the manager cannot register it; a matching name-only requirement must
+    // warn rather than be treated as captured.
+    const warnings = []
+    await withAudioManagerEnvironment({
+        warnings,
+        enumerateDevices: async () => [],
+        getUserMedia: async () => {
+            const track = { label: 'Fixture Microphone', getSettings: () => ({}), stop() {} }
+            const stream = { getAudioTracks: () => [track], getTracks: () => [track] }
+            return stream
+        }
+    }, async ({ rafCallbacks }) => {
+        const requirements = { needsLegacy: true, needsLegacyRaw: false, selected: [] }
+        const piped = new AudioInputManager({
+            setAudioState: () => audioState,
+            pipeline: {
+                getAudioInputRequirements: () => ({
+                    ...requirements,
+                    selected: [{ id: null, name: 'Fixture Microphone', channel: 1, needsRaw: true }]
+                })
+            }
+        })
+        assertEqual(await piped.enable(), true, 'manager should enable')
+        tick(rafCallbacks)
+        assert(warnings.some(message => message.includes('Fixture Microphone')),
+            'a name-only requirement without a capturable deviceId should be warned about')
+        assertEqual(audioState.getDeviceChannelState({ name: 'Fixture Microphone', channel: 1 }), null,
+            'without a registered device the name-only binding must not resolve')
+    })
+})
+
+await asyncTest('AudioInputManager disable clears default channels, devices, and raw readiness', async () => {
+    const audioState = new AudioState()
+    const requirements = { needsLegacy: true, needsLegacyRaw: false, selected: [] }
+    const manager = new AudioInputManager({
+        setAudioState: () => audioState,
+        pipeline: { getAudioInputRequirements: () => requirements }
+    })
     await withAudioManagerEnvironment({}, async ({ rafCallbacks, cancelled }) => {
         assertEqual(await manager.enable(), true, 'manager should enable')
-        rafCallbacks.shift()()
+        tick(rafCallbacks)
         assert(audioState.getDefaultChannelState(1).rawReady, 'raw should be ready before disable')
 
         manager.disable()
