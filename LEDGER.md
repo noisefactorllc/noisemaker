@@ -1167,6 +1167,59 @@ work, verify it, then update the checkpoint and append a log line.
     before readback after `setPausedTime(time)`, so a nonzero requested time
     draws the time-0 frame there too; no caller currently requests a nonzero
     time through it.
+    Pass completion follow-up (Tearoff item 673): the entry's described ranges
+    were re-diffed locally and extend exactly through noisemaker
+    `4f5e0d28bdc155700393c314e9a5aafcc4da91fd` (`c4606d1`→`4d47b3f`→`4f5e0d2`,
+    linear) and shade-mcp `153eebd3b08c849a3fbf20d43527ae48a9dff746`; both
+    checkouts are in sync with their published mains. The validation battery
+    was completed on the exact pair on a real-GPU macOS host (Worker Elves
+    job `a88a5288`, evidence `ledger-673`, `host-run-note.md`): the full
+    WebGL2 render chain exits 0 (synth/noise 1/1 with page-confirmed identity,
+    `temporal_diff=0.216193`, plus the mesh first-frame, GLSL y-orientation
+    `directMean=0.000`/`yFlipRatio=1.000`, overlay-recompile, and
+    external-texture-upload sub-tests), the WebGPU chain exits 0 (synth/noise
+    `backend=webgpu` 1/1, same `temporal_diff=0.216193`; the chain's
+    external-texture sub-test self-reports its pre-existing "SKIP WebGPU:
+    backend resolved to WebGL2"), and Shade's real viewer smoke test passes
+    all 3 checks (`compileEffect`, `renderEffectFrame`, module import from a
+    `setContent` page) against the corrected `153eebd` build with
+    `NOISEMAKER` at the noisemaker checkout. Re-captured MCP initialization
+    (server `shade-mcp` version `0.2.3`, protocol `2024-11-05`), the 18-tool
+    `tools/list`, and the worked UNTIMED `renderEffectFrame` call from one
+    stdio session at the immutable pin `cbcab33363851016f65391fbb9ef71d66729c07f`
+    (`status ok`, WebGL2, 1024×1024, `mean_rgb`
+    0.450318/0.438138/0.453507, 1001 unique sampled colors — the pin's
+    documented live-frame read, nondeterministic with the capture moment; the
+    pin's timed-path GAP-014 hang stands as recorded above and was not re-run).
+    Environment adaptations used on the host (all temporary run scaffolding,
+    uncommitted and reverted; detailed in the evidence note): the sandbox
+    binds only loopback ports 43117–43126, so `SHADE_VIEWER_PORT` was pinned
+    and four scripts' hardcoded `acquireServer(0/undefined, …)` calls were
+    port-pinned for the run; sibling checkouts are EPERM-isolated per run, so
+    the smoke used a `git archive` copy of noisemaker `4f5e0d2`; and the host
+    proxy blocks `handfish.noisefactor.io`, so that copy's demo page imported
+    a locally vendored byte-copy of the CDN bundle (sha256
+    `003a8ab98a2367b852bce423a1edc4e93829676a87b47b3f1c4a268dbe717fea`) — no
+    repository file was changed for any of this. Exact-commit CI observed via
+    the public check-runs API: noisemaker `4f5e0d2` — 22 check runs, all
+    success (Shaders, JS tests/lint, Release builds, Site, notify);
+    shade-mcp `153eebd` — `quality`/`ci`/`browser`/`notify` all success.
+    Deployment: `https://noisemaker.app/deployment-meta.json` serves
+    `git_hash: 4f5e0d28bdc155700393c314e9a5aafcc4da91fd`. Delivery re-check:
+    the newest Shade release is still `v0.2.3` =
+    `cbcab33363851016f65391fbb9ef71d66729c07f`, so the `.mcp.json` pin, the
+    vendored bundle, and GAP-014's delivered state all remain on the
+    operator-authorized-release blocker recorded above; both checkpoints stay
+    deliberately unchanged at noisemaker `73c15be` / shade-mcp `00340b1`
+    (delivery pending), and the snapshot block is unchanged with them. The
+    container/host receipts for every battery leg are archived with the job
+    (evidence `ledger-673`: `nm-tests-green.log` 8 suites / 200 tests /
+    0 failures re-run at this documentation commit, `nm-lint-green.log`,
+    `structure-green.log`, `shade-typecheck-host.json`, `shade-tests.log`
+    25 files / 161 tests, the `host-*.json` run outputs, and the probe
+    receipts for the host adaptations); an earlier partial `nm-tests.log`
+    capture taken before that container's `npm ci` finished is superseded by
+    the green rerun and kept only as the record of the failed attempt.
     `73c15be00d6888f4b5d2835d8e242ee9e840df45` / shade-mcp
     `00340b148e109464b1a87d89ff29fc7622d384c9` (Worker Elves job `67ecc03a`,
     selected existing GAP-029): the watched-root drift range `73c15be..HEAD`
