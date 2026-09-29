@@ -1211,9 +1211,22 @@ work, verify it, then update the checkpoint and append a log line.
     a locally vendored byte-copy of the CDN bundle (sha256
     `003a8ab98a2367b852bce423a1edc4e93829676a87b47b3f1c4a268dbe717fea`) — no
     repository file was changed for any of this. Exact-commit CI observed via
-    the public check-runs API: noisemaker `4f5e0d2` — 22 check runs, all
-    success (Shaders, JS tests/lint, Release builds, Site, notify);
-    shade-mcp `153eebd` — `quality`/`ci`/`browser`/`notify` all success.
+    the public check-runs API, with the full API responses archived beside
+    the run logs for independent re-verification (evidence `ledger-673`):
+    `check-runs-4f5e0d2.json` — 22 check runs at head_sha
+    `4f5e0d28bdc155700393c314e9a5aafcc4da91fd`, every one `completed` with
+    conclusion `success` or `skipped` (Shaders, JS tests/lint, Release
+    builds, Site, notify); `check-runs-153eebd.json` — 6 check runs at
+    `153eebd3b08c849a3fbf20d43527ae48a9dff746` (`quality`/`ci`/`browser`/
+    `notify` success, two `auto-merge` skips). The re-diffed source ranges
+    and their exact commit lists are archived in `range-audit.txt` (the
+    noisemaker watched-roots drift is exactly the GAP-032 commits
+    `a505910`/`6827390`/`4d47b3f`/`4f5e0d2` and their `external-input.js` +
+    `test_external_input.js` files; shade-mcp `00340b1..153eebd` is the four
+    warmup/redraw commits). The live deployment readback is archived in
+    `deployment-readback-4f5e0d2.json`:
+    `https://noisemaker.app/deployment-meta.json` serving
+    `git_hash: 4f5e0d28bdc155700393c314e9a5aafcc4da91fd` (date 1790673091).
     Final-record verification at this documentation commit itself: the
     Noisemaker battery was re-run green at `72b07e3` (receipts
     `nm-tests-final.log` 8 suites / 200 tests / 0 failures,
