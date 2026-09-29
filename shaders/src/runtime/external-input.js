@@ -1237,6 +1237,11 @@ export class AudioInputManager {
         this._enabled = false
         this._onStatusChange = null
         this._smoothing = 0.8
+        this._deviceId = null
+        this._deviceName = ''
+        this._channelCount = 1
+        this._channelCaptures = []
+        this._requirementsCheckTick = 0
     }
 
     /**
@@ -1284,11 +1289,55 @@ export class AudioInputManager {
             this._fftData = new Uint8Array(this._analyser.frequencyBinCount)
             this._timeDomainData = new Uint8Array(this._analyser.fftSize)
 
+            // Identify the browser-selected input device and its channel count
+            const track = this._stream.getAudioTracks()[0] ?? null
+            const settings = track?.getSettings?.() ?? {}
+            this._channelCount = Number.isInteger(settings.channelCount) && settings.channelCount >= 1
+                ? Math.min(32, settings.channelCount)
+                : 1
+            this._deviceId = typeof settings.deviceId === 'string' && settings.deviceId
+                ? settings.deviceId
+                : null
+            this._deviceName = typeof track?.label === 'string' ? track.label : ''
+
             // Set up audio state
             this._audioState = this._renderer.setAudioState()
 
+            // Register the captured device and its independent default-input
+            // channels so channel-only, named-channel, and raw bindings resolve.
+            this._audioState.registerDefaultChannels(this._channelCount)
+            if (this._deviceId) {
+                this._audioState.registerDevice({
+                    id: this._deviceId,
+                    name: this._deviceName,
+                    channelCount: this._channelCount
+                })
+            }
+
+            // Analyze each captured channel independently.
+            const splitter = this._audioContext.createChannelSplitter(this._channelCount)
+            this._source.connect(splitter)
+            this._channelCaptures = []
+            for (let channel = 0; channel < this._channelCount; channel++) {
+                const analyser = this._audioContext.createAnalyser()
+                analyser.fftSize = 256
+                analyser.smoothingTimeConstant = this._smoothing
+                splitter.connect(analyser, channel)
+                this._channelCaptures.push({
+                    analyser,
+                    fftData: new Uint8Array(analyser.frequencyBinCount),
+                    timeDomainData: new Uint8Array(analyser.fftSize),
+                    defaultState: this._audioState.getDefaultChannelState(channel + 1),
+                    deviceState: this._deviceId
+                        ? this._audioState.getDeviceChannelState({ id: this._deviceId, channel: channel + 1 })
+                        : null
+                })
+            }
+
             // Start update loop
             this._enabled = true
+            this._requirementsCheckTick = 0
+            this._checkSelectedRequirements()
             this._updateLoop()
 
             this._notifyStatus('Audio input enabled')
@@ -1329,17 +1378,14 @@ export class AudioInputManager {
         this._analyser = null
         this._fftData = null
         this._timeDomainData = null
+        this._channelCaptures = []
         this._enabled = false
 
         // Reset audio state values
         if (this._audioState) {
-            this._audioState.low = 0
-            this._audioState.mid = 0
-            this._audioState.high = 0
-            this._audioState.vol = 0
-            this._audioState.raw = 0
-            this._audioState.spectrum.fill(0)
-            this._audioState.waveform.fill(0.5)
+            this._audioState.resetAggregate()
+            this._audioState.disconnectDefaultInput()
+            if (this._deviceId) this._audioState.disconnectDevice(this._deviceId)
         }
 
         this._notifyStatus('Audio input disabled')
@@ -1411,8 +1457,66 @@ export class AudioInputManager {
         this._audioState.high = high
         this._audioState.vol = vol
 
+        // Mark the aggregate raw capture ready with the bipolar time-domain
+        // mean; 128 is silence in the unsigned byte domain.
+        let timeSum = 0
+        for (let i = 0; i < this._timeDomainData.length; i++) timeSum += this._timeDomainData[i]
+        this._audioState.setRaw((timeSum / this._timeDomainData.length - 128) / 127.5)
+
+        // Update the independently analyzed default-device channels.
+        for (let channel = 0; channel < this._channelCaptures.length; channel++) {
+            const capture = this._channelCaptures[channel]
+            capture.analyser.getByteFrequencyData(capture.fftData)
+            capture.analyser.getByteTimeDomainData(capture.timeDomainData)
+            const channelLow = (capture.fftData[0] + capture.fftData[1] + capture.fftData[2] + capture.fftData[3]) / 4 / 255
+            const channelMid = (capture.fftData[4] + capture.fftData[6] + capture.fftData[8] + capture.fftData[10]) / 4 / 255
+            const channelHigh = (capture.fftData[16] + capture.fftData[20] + capture.fftData[24] + capture.fftData[28]) / 4 / 255
+            let channelTimeSum = 0
+            for (let i = 0; i < capture.timeDomainData.length; i++) channelTimeSum += capture.timeDomainData[i]
+            const channelRaw = (channelTimeSum / capture.timeDomainData.length - 128) / 127.5
+            if (capture.defaultState) {
+                capture.defaultState.setBands(channelLow, channelMid, channelHigh)
+                capture.defaultState.setRaw(channelRaw)
+            }
+            if (capture.deviceState) {
+                capture.deviceState.setBands(channelLow, channelMid, channelHigh)
+                capture.deviceState.setRaw(channelRaw)
+            }
+        }
+
+        // Re-check integration requirements occasionally so graphs compiled
+        // after enable() also get the selected-device diagnostic.
+        this._requirementsCheckTick++
+        if (this._requirementsCheckTick >= 60) {
+            this._requirementsCheckTick = 0
+            this._checkSelectedRequirements()
+        }
+
         // Continue loop
         this._animationId = requestAnimationFrame(() => this._updateLoop())
+    }
+
+    /**
+     * Warn hosts when the graph requires selected-device audio bindings the
+     * shipped manager cannot supply (it captures only the browser-selected
+     * input device). Channel-only bindings and the captured device itself are
+     * populated directly by this manager.
+     */
+    _checkSelectedRequirements() {
+        const requirements = this._renderer?.pipeline?.getAudioInputRequirements?.()
+        if (!requirements?.selected?.length) return
+        const unmet = requirements.selected.filter(requirement => {
+            if (requirement.id === null && requirement.name === null) return false
+            if (this._deviceId && requirement.id === this._deviceId) return false
+            if (!requirement.id && requirement.name === this._deviceName) return false
+            return true
+        })
+        if (unmet.length) {
+            const described = unmet
+                .map(requirement => `${requirement.id ?? requirement.name} channel ${requirement.channel}`)
+                .join(', ')
+            console.warn(`[Noisemaker] ${unmet.length} selected-device audio binding(s) are not captured by the built-in audio input (${described}); they evaluate to min unless the host captures and registers those devices.`)
+        }
     }
 
     _notifyStatus(message) {

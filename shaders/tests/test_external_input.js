@@ -5,7 +5,7 @@
  * that provide real-time input state for midi() and audio() functions.
  */
 
-import { MidiState, MidiChannelState, MidiInputManager, AudioState } from '../src/runtime/external-input.js'
+import { MidiState, MidiChannelState, MidiInputManager, AudioInputManager, AudioState } from '../src/runtime/external-input.js'
 import { Pipeline } from '../src/runtime/pipeline.js'
 
 let passCount = 0
@@ -1076,6 +1076,191 @@ test('MidiState.updateNoteGrid handles multiple channels', () => {
     // Ch6, key 72: row 5
     const offset6 = (5 * 128 + 72) * 4
     assertApprox(midi.noteGrid[offset6], 80 / 127, 0.01, 'Ch6 key 72 velocity')
+})
+
+// ============================================================================
+// AudioInputManager Tests
+// ============================================================================
+
+console.log('\n=== AudioInputManager Tests ===\n')
+
+function createAudioManagerFixtures({ channelCount = 2, withDeviceIdentity = true } = {}) {
+    // Distinct per-analyser frequency content: the main analyser, then one
+    // analyser per captured channel, each with its own band levels.
+    let analyserOrdinal = 0
+    const freqLevels = [64, 200, 10, 128]
+    const timeLevels = [255, 128, 160, 96]
+    const createdAnalysers = []
+    class MockAudioContext {
+        constructor() {
+            this.closed = false
+        }
+
+        createAnalyser() {
+            const index = analyserOrdinal++
+            const frequencyData = new Uint8Array(128).fill(freqLevels[index % freqLevels.length])
+            const timeData = new Uint8Array(256).fill(timeLevels[index % timeLevels.length])
+            const analyser = {
+                fftSize: 256,
+                frequencyBinCount: 128,
+                smoothingTimeConstant: 0.8,
+                getByteFrequencyData: buf => buf.set(frequencyData.subarray(0, buf.length)),
+                getByteTimeDomainData: buf => buf.set(timeData.subarray(0, buf.length))
+            }
+            createdAnalysers.push(analyser)
+            return analyser
+        }
+
+        createMediaStreamSource() {
+            return { connect() {}, disconnect() {} }
+        }
+
+        createChannelSplitter() {
+            return { connect() {} }
+        }
+
+        close() {
+            this.closed = true
+        }
+    }
+    const track = {
+        label: withDeviceIdentity ? 'Fixture Microphone' : '',
+        getSettings: () => withDeviceIdentity
+            ? { deviceId: 'fixture-device', channelCount }
+            : {},
+        stop() {}
+    }
+    const stream = {
+        getAudioTracks: () => [track],
+        getTracks: () => [track]
+    }
+    return { MockAudioContext, stream }
+}
+
+async function withAudioManagerEnvironment({ channelCount = 2, withDeviceIdentity = true, warnings } = {}, fn) {
+    const { MockAudioContext, stream } = createAudioManagerFixtures({ channelCount, withDeviceIdentity })
+    const previousNavigator = globalThis.navigator
+    const previousAudioContext = globalThis.AudioContext
+    const rafCallbacks = []
+    const cancelled = []
+    const previousRaf = globalThis.requestAnimationFrame
+    const previousCancel = globalThis.cancelAnimationFrame
+    const previousWarn = console.warn
+    if (warnings) console.warn = message => warnings.push(message)
+    Object.defineProperty(globalThis, 'navigator', {
+        configurable: true,
+        value: { mediaDevices: { getUserMedia: async () => stream } }
+    })
+    globalThis.AudioContext = MockAudioContext
+    globalThis.requestAnimationFrame = callback => rafCallbacks.push(callback)
+    globalThis.cancelAnimationFrame = id => cancelled.push(id)
+
+    try {
+        return await fn({ rafCallbacks, cancelled })
+    } finally {
+        Object.defineProperty(globalThis, 'navigator', {
+            configurable: true,
+            value: previousNavigator
+        })
+        if (previousAudioContext === undefined) delete globalThis.AudioContext
+        else globalThis.AudioContext = previousAudioContext
+        globalThis.requestAnimationFrame = previousRaf
+        globalThis.cancelAnimationFrame = previousCancel
+        console.warn = previousWarn
+    }
+}
+
+await asyncTest('AudioInputManager populates the captured device, default channels, and raw readiness', async () => {
+    const audioState = new AudioState()
+    const manager = new AudioInputManager({ setAudioState: () => audioState })
+    await withAudioManagerEnvironment({ channelCount: 2 }, async ({ rafCallbacks }) => {
+        assertEqual(await manager.enable(), true, 'manager should enable')
+        assertEqual(manager.enabled, true, 'manager should report enabled')
+
+        // One update tick from the captured rAF callback chain.
+        assertEqual(rafCallbacks.length, 1, 'enable should schedule exactly one update tick')
+        const tick = rafCallbacks.shift()
+        rafCallbacks.length = 0
+        tick()
+        assertEqual(rafCallbacks.length, 1, 'the update loop should keep scheduling')
+
+        // Default-channel state is populated per channel, not the aggregate.
+        const channelOne = audioState.getDefaultChannelState(1)
+        const channelTwo = audioState.getDefaultChannelState(2)
+        assert(channelOne, 'channel 1 default state should be registered')
+        assert(channelTwo, 'channel 2 default state should be registered')
+        assertApprox(channelOne.low, 200 / 255, 0.001, 'channel 1 low band')
+        assertApprox(channelTwo.low, 10 / 255, 0.001, 'channel 2 low band')
+        assert(channelOne.rawReady, 'channel 1 raw sample should be ready')
+        assertApprox(channelOne.raw, 0, 1e-9, 'channel 1 raw is a real zero sample, not unavailable')
+        assertApprox(channelTwo.raw, (160 - 128) / 127.5, 0.01, 'channel 2 raw maps the time-domain mean')
+
+        // The captured (browser-selected) device is registered and populated.
+        const deviceChannel = audioState.getDeviceChannelState({ id: 'fixture-device', channel: 2 })
+        assert(deviceChannel, 'the captured device channel should be registered')
+        assertApprox(deviceChannel.high, 10 / 255, 0.001, 'captured device channel 2 high band')
+        assert(deviceChannel.rawReady, 'captured device channel raw sample should be ready')
+
+        // Aggregate raw readiness is populated from the main analyser.
+        assert(audioState.rawReady, 'aggregate raw sample should be ready')
+        assertApprox(audioState.raw, (255 - 128) / 127.5, 0.01, 'aggregate raw maps the time-domain mean')
+    })
+})
+
+await asyncTest('AudioInputManager survives missing device identity settings', async () => {
+    const audioState = new AudioState()
+    const manager = new AudioInputManager({ setAudioState: () => audioState })
+    await withAudioManagerEnvironment({ withDeviceIdentity: false }, async ({ rafCallbacks }) => {
+        assertEqual(await manager.enable(), true, 'manager should enable without device settings')
+        rafCallbacks.shift()()
+        const channelOne = audioState.getDefaultChannelState(1)
+        assert(channelOne, 'default channels should still be registered')
+        assert(channelOne.rawReady, 'default channel raw should still be ready')
+    })
+})
+
+await asyncTest('AudioInputManager warns when the graph requires devices it cannot capture', async () => {
+    const audioState = new AudioState()
+    const requirements = {
+        needsLegacy: true,
+        needsLegacyRaw: false,
+        selected: [
+            { id: null, name: null, channel: 2, needsRaw: false },
+            { id: 'other-device', name: 'Other Interface', channel: 1, needsRaw: true }
+        ]
+    }
+    const manager = new AudioInputManager({
+        setAudioState: () => audioState,
+        pipeline: { getAudioInputRequirements: () => requirements }
+    })
+    const warnings = []
+    await withAudioManagerEnvironment({ warnings }, async () => {
+        assertEqual(await manager.enable(), true, 'manager should enable')
+        assert(warnings.some(message => message.includes('other-device')),
+            'the manager should warn about the un-captured selected device')
+        assert(warnings.every(message => !message.includes('channel-only') &&
+            !(message.includes('null') && message.includes('channel 2'))),
+            'channel-only requirements must not be warned about')
+    })
+})
+
+await asyncTest('AudioInputManager disable clears default channels, device, and raw readiness', async () => {
+    const audioState = new AudioState()
+    const manager = new AudioInputManager({ setAudioState: () => audioState })
+    await withAudioManagerEnvironment({}, async ({ rafCallbacks, cancelled }) => {
+        assertEqual(await manager.enable(), true, 'manager should enable')
+        rafCallbacks.shift()()
+        assert(audioState.getDefaultChannelState(1).rawReady, 'raw should be ready before disable')
+
+        manager.disable()
+        assertEqual(audioState.getDefaultChannelState(1), null,
+            'disable should clear default-channel availability')
+        assertEqual(audioState.getDeviceChannelState({ id: 'fixture-device', channel: 1 }), null,
+            'disable should mark the captured device unavailable')
+        assertEqual(audioState.rawReady, false, 'disable should clear aggregate raw readiness')
+        assertEqual(cancelled.length, 1, 'disable should cancel the update loop')
+        assertEqual(manager.enabled, false, 'manager should report disabled')
+    })
 })
 
 // ============================================================================
