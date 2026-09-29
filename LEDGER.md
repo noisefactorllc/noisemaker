@@ -1001,7 +1001,117 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
-  - 2026-09-29 — gap-register pass at noisemaker
+  - 2026-09-29 — compatibility pass auditing noisemaker
+    `73c15be00d6888f4b5d2835d8e242ee9e840df45..682739066d3b74962febbdcdae85b5aa4d2e19f3`
+    and shade-mcp `00340b148e109464b1a87d89ff29fc7622d384c9..07af4ffa392197748216f3a0beaebee365d44292`
+    (Tearoff item 662, job `ledger-llms-contract`; both triggers were
+    force-pushed/non-contiguous, so both ranges were diffed from the local
+    checkouts against this checkpoint rather than trusting the queue ranges —
+    noisemaker's observed deliveries `3e21906..a505910`, `a505910..6827390` plus
+    this ledger's own `bff453e`/`8fec3d0`/`4284359` documentation commits are
+    linear inside the checkpoint-to-HEAD audit; shade-mcp's
+    `00340b1..ed73367..ca94cfa..07af4ffa` is linear). Noisemaker→Shade: the
+    watched-roots diff is exactly `shaders/src/runtime/external-input.js` and
+    `shaders/tests/test_external_input.js` — the GAP-032 fix commits
+    `a505910`/`6827390` (whose own `llms-full.txt` prose updates were re-verified
+    statement-by-statement against the source: registration of the
+    browser-selected device and default channels, per-requirement
+    `enumerateDevices()` resolution with exact-id authority and unique-name
+    matching re-checked at enable and every 60 ticks, per-channel splitter
+    analysis, aggregate and per-channel `rawReady` from the bipolar time-domain
+    mean, uncapturable-binding warning with `min` fallback, and the register
+    shrinking to 11 open gaps). Shade's parsers, analysis, knowledge, and
+    browser tools reference none of the new surfaces (grep of Shade `src/`,
+    `scripts/`, and the vendored `vendor/shade-mcp/` for
+    `AudioInputManager`/`getAudioInputRequirements`/`registerDefaultChannels`/
+    `rawReady`/`enumerateDevices`: zero hits outside the noisemaker demo page
+    itself), so no integration-code change or new Shade regression was required
+    and no tool schema or result shape changed. Shade→Noisemaker: upstream
+    `ed73367`/`ca94cfa` fix the GAP-014 hang class in the upstream verb itself
+    (warmup while the loop is live, warmup waits bounded at `session.timeoutMs`
+    with a diagnostic, unpause in a `finally`) and `07af4ff` adds a pre-readback
+    redraw — the audit found that redraw issued unconditionally and as a
+    hardcoded `renderer.render(0)`, while noisemaker's viewer draws at the
+    `render()` argument (`CanvasRenderer.render(normalizedTime)` →
+    `Pipeline.render(time)` → `updateGlobalUniforms(time, …)`), so every timed
+    capture drew the time-0 frame instead of the requested paused time and every
+    untimed capture (historically a live-frame readback) was pinned to time 0 as
+    well; corrected in the owning Shade checkout to a timed-only redraw at the
+    requested time, with the regression extended to pin the redraw's time
+    argument and the untimed no-redraw. Validation battery on the pair:
+    Noisemaker non-parity JS tests (`node scripts/run-js-tests.js --skip-parity`,
+    8 suites, 200 tests, 0 failures) and lint (exit 0), Shade MCP typecheck
+    (0 errors) and unit tests (25 files / 161 tests pass, including the extended
+    timed-render regression), structure check via the vendored harness
+    (`npm run test:shaders:structure`, 1258 documented parameters across 200
+    effects), WebGL2 render check (`npm run test:shaders:render:webgl2`, all
+    pass), WebGPU render check (`node shaders/tests/test-harness.js --effects
+    synth/noise --backend webgpu --verbose`, 1/1 pass, `temporal_diff=0.216246`,
+    identity `match`, generation 2→4, `backend_switch` `match`; run with
+    `SHADE_SWIFTSHADER=1` and `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` at
+    `/state/cache/pw-browsers/chromium_headless_shell-1243/chrome-headless-shell-linux64/vk_swiftshader_icd.json`
+    — Playwright browsers reinstalled to `PLAYWRIGHT_BROWSERS_PATH=/state/cache/pw-browsers`
+    (chromium-1243 for noisemaker, chromium-1234 for shade-mcp) and npm cache at
+    `/state/cache/npm`), and the live browser smoke test against the corrected
+    Shade build (`NOISEMAKER=/workspace/repos/noisemaker node
+    scripts/browser-smoke.mjs` from the Shade checkout, all 3 checks OK).
+    Re-captured MCP initialization (server `shade-mcp` version `0.2.3`, protocol
+    `2024-11-05`), 18 tools via `tools/list`, and the worked timed
+    `renderEffectFrame` call from one stdio session at the immutable pin
+    `cbcab33363851016f65391fbb9ef71d66729c07f` (`time: 0, warmup_frames: 0` →
+    `status ok`, WebGL2, 1024×1024; the pinned verb performs no pre-readback
+    redraw, so this reads the loop's last live frame and is nondeterministic
+    with the capture moment — two archived runs of the identical request
+    returned `mean_rgb` 0.237010/0.408313/0.446757 with 917 sampled colors
+    and 0.245578/0.416137/0.453570 with 931; an earlier run returned
+    0.241492/0.412125/0.449711 with 928, and one of the discarded
+    pre-review captures returned values byte-identical to the corrected
+    build's controlled time-0 redraw frame — an uncontrolled live-frame read
+    can coincide with a time-0 render when the pause lands right after the
+    pipeline restart, which is exactly why pixel values alone cannot
+    attribute provenance and the archived per-session logs and drivers are
+    the provenance record). The timed
+    request `time: 0.5, warmup_frames: 3` at that pin produced no response
+    within 240000 ms (`Error: NO RESPONSE within 240000 ms waiting for
+    tools/call`) — the GAP-014 hang is live at the pin. Through the
+    corrected Shade build the same request completes, and a three-way probe
+    returned three distinct frames: time 0 `mean_rgb`
+    0.445390/0.433124/0.469914 and time 0.5
+    0.457433/0.443662/0.445664 (both reproduce byte-identically across
+    runs, deterministic per requested time), and untimed
+    0.446032/0.432419/0.475967 (the live loop frame; nondeterministic with
+    the capture moment — an earlier probe run observed
+    0.286384/0.461296/0.503775), confirming the redraw honors the requested
+    time. The pre-review capture log superseded here was discarded: leaked
+    environment made it run the corrected build at time 0.5, so its values
+    were mislabeled as a pin capture; every capture in this entry was re-run
+    with the explicit-provenance drivers archived beside the logs. Archived
+    run evidence (Worker Elves archive `ledger-662`):
+    `pin-capture-time0-run1.log`, `pin-capture-time0-run2.log`,
+    `pin-hang-time0.5.log`, `corrected-build-probe.log`, `nm-tests.log`,
+    `nm-lint.log`, `shade-typecheck.log`, `shade-tests.log`, `structure.log`,
+    `webgl2-render.log`, `webgpu-render.log`, `browser-smoke.log`,
+    `vendor-diff.txt`, and the `pin-capture.mjs`/`corrected-build-probe.mjs`
+    drivers. Delivery is the open blocker: the newest
+    Shade release remains `v0.2.3` = `cbcab33363851016f65391fbb9ef71d66729c07f`
+    (`git ls-remote --tags`), so the `.mcp.json` pin, the vendored
+    `vendor/shade-mcp/` bundle (re-verified this pass against the freshly
+    downloaded `v0.2.3` tarball `shade-mcp-dist.tar.gz`, sha256
+    `4256ea5c695f15b3eec292f599a1ae1aada03a2628e33db8b3c9864a6b11f93f`: the four
+    vendored module trees `ai`/`analysis`/`formats`/`harness` are byte-identical;
+    last vendor change `fa83eea`, 2026-09-25), and GAP-014's upstream-fixed
+    status all wait on an operator-authorized
+    Shade release carrying `ed73367`/`ca94cfa`/`07af4ffa` plus the redraw
+    correction, followed by the existing `pull-shade-mcp` vendor refresh and pin
+    bump. `llms-full.txt` GAP-014 row and its Act prose were updated to this
+    verified source state with the pending delivery stated; both checkpoints are
+    deliberately unchanged (delivery pending), so the snapshot block still pins
+    noisemaker `73c15be` / shade-mcp `00340b1`. Recorded observation left for the
+    gap owners, not changed here: the repository harness wrapper's own timed
+    capture (GAP-014's path, pre-existing) redraws `renderer.render(0)` twice
+    before readback after `setPausedTime(time)`, so a nonzero requested time
+    draws the time-0 frame there too; no caller currently requests a nonzero
+    time through it.
     `73c15be00d6888f4b5d2835d8e242ee9e840df45` / shade-mcp
     `00340b148e109464b1a87d89ff29fc7622d384c9` (Worker Elves job `67ecc03a`,
     selected existing GAP-029): the watched-root drift range `73c15be..HEAD`
