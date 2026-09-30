@@ -20,7 +20,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## I18n strings
 
-- **Checkpoint:** noisemaker `6827390` / noisedeck `69eadc5` (2026-09-29)
+- **Checkpoint:** noisemaker `f24b525` / noisedeck `de9c3ba` (2026-09-30)
 - **Scope:** two translation surfaces:
   - Noisemaker effect catalogs
     `shaders/effects/strings.{de,es,fr,it,ja,pt}.json`. The English catalog
@@ -57,6 +57,24 @@ work, verify it, then update the checkpoint and append a log line.
      non-empty string values plus every placeholder, plural leaf, and markup tag
      from the English catalog.
 - **Log:**
+  - 2026-09-30 — caught up through noisemaker `f24b525` / noisedeck
+    `de9c3ba`: audited noisemaker range `6827390..f24b525` (zero diffs in
+    `shaders/effects/`; all 3,677 keys remain in exact parity across all
+    seven catalogs) and noisedeck range `69eadc5..de9c3ba` (six commits:
+    `f48a5c5` "Group app menu actions into nested submenus" added six UI
+    string keys — `menus.app.help`, `menus.app.account`, `menus.file.export`,
+    `menus.file.customEffects`, `menus.program.editIn`,
+    `menus.program.importExport` — translated in all six locales in the same
+    commit; `9d5a61a` "Keep canvas-related dialogs within the controls
+    region" added `export.common.upgrade`, also translated in all six
+    locales in the same commit; the remaining four commits touched no
+    catalog strings). Verified via Noisemaker gap detection (0 missing keys
+    across all 6 locales), `npm run test:shaders:i18n` (5/5), the Noisemaker
+    JS test suite (200/200 passed across 9 files), Noisedeck
+    `tests/i18n.node-test.js`, `tests/export-dialog-i18n.node-test.js`,
+    `tests/menu-shortcuts-accelerators.node-test.js`, and
+    `tests/downstream-workflow.node-test.js` (19/19 combined). No catalog
+    edits were required.
   - 2026-09-29 — caught up through noisemaker `6827390` / noisedeck
     `69eadc5`: audited noisemaker range `5b81e04f..6827390` (zero diffs in
     `shaders/effects/`; all 3,677 keys remain in exact parity across all
