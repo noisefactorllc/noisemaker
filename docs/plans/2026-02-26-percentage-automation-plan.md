@@ -409,7 +409,7 @@ git commit -m "feat: change automation min/max sliders to percentage range (0-1)
 **Step 1: Run all noisemaker-shaders tests**
 
 ```bash
-cd /Users/aayars/source/py-noisemaker
+cd ../py-noisemaker
 node shaders/tests/test_oscillators.js
 node shaders/tests/test_audio.js
 node shaders/tests/test_midi_audio_parser.js
@@ -420,7 +420,7 @@ Expected: All PASS
 **Step 2: Run noisedeck tests if applicable**
 
 ```bash
-cd /Users/aayars/source/noisedeck
+cd ../noisedeck
 # Run relevant automation tests
 npx playwright test tests/automation-manager.spec.js tests/automation-panel-basic.spec.js
 ```
