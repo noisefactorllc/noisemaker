@@ -1,14 +1,18 @@
 # Active Framework Gap: GAP-007
 
-Status: narrowed (shader compile/link/missing-source failures normalized at
-f83a427e680ad2bb9a5fd67ccd850143bc820f76). The `llms-full.txt` register row
-stays open and states exactly what remains: the WebGL2
-`ERR_UNIFORM_BLOCK_TOO_LARGE` ad-hoc throw during program setup, WebGL2
-missing-FBO/MRT console warnings and post-draw `gl.getError()` draining,
-WebGPU `uncapturederror` device validation, and the silent unknown WebGL
-format/dimension fallbacks. Machine verification of the published revision is
-pending at the time of this record commit. The GAP-006 record is preserved
-below, unchanged.
+Status: closed (compile/link/missing-source leg implemented at
+f83a427e680ad2bb9a5fd67ccd850143bc820f76, machine-verified 2026-09-26 at the
+published range tip `6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa`, which carries
+`6113da0` and `f83a427e` as ancestors; closing leg — the WebGL2
+`ERR_UNIFORM_BLOCK_TOO_LARGE` ad-hoc throw and the silent WebGL
+unknown-format/dimension fallbacks — implemented at the publication commit
+carrying this record, above base `f24b52540af6a88d12daa05feba1a04ad61b22a2`).
+The WebGL2 missing-FBO/MRT console warnings and post-draw `gl.getError()`
+draining and the WebGPU `uncapturederror` device-validation path remain
+unstructured by the register row's own contract ("runtime resource and
+device-validation failures remain unstructured"). Machine verification of the
+closing commit's CI battery and the site deployment is pending at the time of
+this record commit. The GAP-006 record is preserved below, unchanged.
 
 The prior active-target records for GAP-006, GAP-005, GAP-004, GAP-003, and
 GAP-027 are preserved below, unchanged. See their "Completed Evidence"
@@ -52,15 +56,33 @@ logic must parse browser/compiler strings.
   `err.detail || err.message` fallbacks in `pipeline.js`/`canvas.js`, and
   the Shade browser tool wrappers receive the same text unchanged.
 
-## Explicitly remaining under GAP-007 (register row stays open)
+## Closing leg (publication commit carrying this record)
 
-- The WebGL2 `ERR_UNIFORM_BLOCK_TOO_LARGE` ad-hoc plain-object throw during
-  program setup (`shaders/src/runtime/backends/webgl2.js`).
-- WebGL2 missing-FBO/MRT console warnings and post-draw `gl.getError()`
-  draining (logged, not converted into the union).
-- WebGPU `uncapturederror` device validation (console message only).
-- Silent unknown WebGL format/dimension fallbacks (no structured authoring
-  diagnostic).
+- The WebGL2 `ERR_UNIFORM_BLOCK_TOO_LARGE` throw during program setup
+  (`extractUniformBlocks()` in `shaders/src/runtime/backends/webgl2.js`) is
+  now a `ShaderDiagnostic` (`code` `ERR_UNIFORM_BLOCK_TOO_LARGE`,
+  `backend` `webgl2`, `stage` `uniform-block`, byte-identical legacy `detail`,
+  and the legacy raw GL program-handle `program` surface preserved).
+- The silent WebGL unknown-format fallback (`resolveFormat()` → rgba8) and the
+  silent unknown-dimension-form fallback (`Pipeline.resolveDimension()` →
+  screen size) keep their historical behavior (no new rejection of previously
+  accepted input) but surface structured, deduplicated diagnostics: a
+  once-per-key console warning plus queryable records —
+  `ERR_UNKNOWN_FORMAT_FALLBACK` in `backend.diagnostics` and
+  `ERR_DIMENSION_FALLBACK` in `pipeline.diagnostics`, both capped
+  `DiagnosticCollector` lists (`shaders/src/runtime/backends/diagnostics.js`).
+- Contractually unstructured paths (unchanged): WebGL2 missing-FBO/MRT console
+  warnings and post-draw `gl.getError()` draining, and WebGPU
+  `uncapturederror` device validation.
+- Tests: `shaders/tests/test_backend_diagnostics.js` extended to 12 tests
+  (registered in `scripts/run-js-tests.js` and `npm run test:shaders:runtime`);
+  the three closing-leg tests fail on the pre-change tree (red: the
+  uniform-block throw was an ad-hoc plain object — `instanceof
+  ShaderDiagnostic` fails — and the fallbacks added no records) and pass
+  after (12 passed / 0 failed).
+- All eight declared local checks passed (dependencies, shader-language,
+  shader-runtime, effect-harness, javascript, lint, docs-paths,
+  diff-hygiene).
 
 ## Implementation-phase evidence (local, pre-verification)
 
@@ -79,7 +101,8 @@ logic must parse browser/compiler strings.
 - All eight declared local checks passed at the implementation commit
   (dependencies, shader-language, shader-runtime, effect-harness,
   javascript, lint, docs-paths, diff-hygiene); the open-gap count in
-  `llms-full.txt` is unchanged (GAP-007 stays open, narrowed).
+  `llms-full.txt` drops by one when the closing commit publishes
+  (GAP-007 closed, 10 open gaps remain).
 
 ## GAP-006
 

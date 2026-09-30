@@ -11,7 +11,7 @@ import {
 } from '../default-shaders.js'
 import { WebGL2FrameExportAdapter } from './webgl2-frame-export.js'
 
-import { ShaderDiagnostic, parseGLSLInfoLog } from './diagnostics.js'
+import { DIAGNOSTIC_CODES, DiagnosticCollector, ShaderDiagnostic, parseGLSLInfoLog } from './diagnostics.js'
 
 // How many frames after a program compile or render-target (re)allocation
 // keep per-pass gl.getError() checks enabled. gl.getError() forces a
@@ -63,6 +63,11 @@ export class WebGL2Backend extends Backend {
         // after endFrame()'s decrement in Pipeline.render(), and reading the
         // live counter there would silently skip the last armed frame.
         this._glCheckThisFrame = false
+        // Queryable structured diagnostics for the historically-silent
+        // unknown-format fallback (GAP-007); thrown failures use the
+        // ShaderDiagnostic union directly.
+        this.diagnostics = new DiagnosticCollector()
+        this._warnedFormatFallbacks = new Set()
 
         // Pre-allocated typed arrays for uniform setting (avoids per-frame allocations)
         this._vec2Buf = new Float32Array(2)
@@ -1135,11 +1140,14 @@ export class WebGL2Backend extends Backend {
             const layoutSize = this.getPackedUniformLayoutSize(spec.uniformLayout)
             const size = Math.max(declaredSize, layoutSize)
             if (size > maxBlockSize) {
-                throw {
-                    code: 'ERR_UNIFORM_BLOCK_TOO_LARGE',
+                throw new ShaderDiagnostic({
+                    code: DIAGNOSTIC_CODES.UNIFORM_BLOCK,
+                    backend: 'webgl2',
+                    stage: 'uniform-block',
                     detail: `Uniform block ${name} requires ${size} bytes; device limit is ${maxBlockSize}`,
+                    messages: parseGLSLInfoLog(`Uniform block ${name} requires ${size} bytes; device limit is ${maxBlockSize}`),
                     program
-                }
+                })
             }
 
             const bindingPoint = blocks.length
@@ -1973,7 +1981,29 @@ export class WebGL2Backend extends Backend {
             }
         }
 
-        return formats[format] || formats['rgba8']
+        const resolved = formats[format]
+        if (resolved) return resolved
+
+        // Unknown formats keep the historical silent rgba8 fallback (no new
+        // rejection of previously accepted input), but surface it as a
+        // structured diagnostic (GAP-007) instead of pure silence. An absent
+        // format is the default, not a fallback.
+        if (format !== undefined && format !== null) {
+            const key = String(format)
+            if (!this._warnedFormatFallbacks.has(key)) {
+                this._warnedFormatFallbacks.add(key)
+                console.warn(`[WebGL2] Unknown texture format '${key}'; falling back to rgba8`)
+                this.diagnostics.add({
+                    code: DIAGNOSTIC_CODES.UNKNOWN_FORMAT_FALLBACK,
+                    backend: 'webgl2',
+                    stage: 'texture-create',
+                    format: key,
+                    fallback: 'rgba8'
+                })
+            }
+        }
+
+        return formats['rgba8']
     }
 
     /**

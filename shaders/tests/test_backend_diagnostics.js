@@ -30,12 +30,13 @@ import {
     ShaderDiagnostic,
     parseGLSLInfoLog
 } from '../src/runtime/backends/diagnostics.js'
+import { Pipeline } from '../src/runtime/pipeline.js'
 
 // ---------------------------------------------------------------------------
 // WebGL2 stub GL context (Proxy-based, per the gl-error-gating test pattern)
 // ---------------------------------------------------------------------------
 
-function createStubGL({ shaderLog = '', linkLog = '', fragmentCompileOk = true, linkOk = true } = {}) {
+function createStubGL({ shaderLog = '', linkLog = '', fragmentCompileOk = true, linkOk = true, uniformBlocks = null } = {}) {
     const cache = new Map()
     let nextConst = 1
 
@@ -59,7 +60,21 @@ function createStubGL({ shaderLog = '', linkLog = '', fragmentCompileOk = true, 
             } else if (prop === 'getShaderInfoLog') {
                 value = () => shaderLog
             } else if (prop === 'getProgramParameter') {
-                value = (_program, pname) => (pname === gl.LINK_STATUS ? linkOk : 0)
+                value = (_program, pname) => {
+                    if (pname === gl.LINK_STATUS) return linkOk
+                    if (uniformBlocks && pname === gl.ACTIVE_UNIFORM_BLOCKS) return 1
+                    return 0
+                }
+            } else if (prop === 'getParameter') {
+                value = pname => (uniformBlocks && pname === gl.MAX_UNIFORM_BLOCK_SIZE
+                    ? uniformBlocks.maxBlockSize
+                    : undefined)
+            } else if (prop === 'getActiveUniformBlockName') {
+                value = () => (uniformBlocks ? uniformBlocks.name : null)
+            } else if (prop === 'getActiveUniformBlockParameter') {
+                value = (_program, _index, pname) => (uniformBlocks && pname === gl.UNIFORM_BLOCK_DATA_SIZE
+                    ? uniformBlocks.declaredSize
+                    : 0)
             } else if (prop === 'getProgramInfoLog') {
                 value = () => linkLog
             } else if (prop === 'getAttribLocation' || prop === 'getUniformLocation') {
@@ -318,6 +333,129 @@ test('bind-group creation without a binding-index diagnostic is not retried', as
         }
     )
     assert.equal(calls, 1, 'unrelated errors must not enter the retry loop')
+})
+
+// ---------------------------------------------------------------------------
+// Part 5: the remaining GAP-007 bypass paths — the WebGL2 uniform-block
+// device-limit throw and the silent WebGL format / dimension fallbacks
+// ---------------------------------------------------------------------------
+
+test('WebGL2 uniform-block device-limit failure surfaces the structured union', async () => {
+    const gl = createStubGL({
+        uniformBlocks: { name: 'Scene', declaredSize: 1048576, maxBlockSize: 16384 }
+    })
+    const backend = new WebGL2Backend(gl, null)
+
+    await assert.rejects(
+        () => backend.compileProgram('progUB', {
+            source: 'void main() {}',
+            vertex: 'void main() {}',
+            uniformLayout: { Scene: { slot: 0 } }
+        }),
+        err => {
+            assert.ok(err instanceof ShaderDiagnostic,
+                'expected a ShaderDiagnostic, got an ad-hoc plain-object throw')
+            assert.ok(err instanceof Error)
+            assert.equal(err.code, 'ERR_UNIFORM_BLOCK_TOO_LARGE')
+            assert.equal(err.backend, 'webgl2')
+            assert.equal(err.stage, 'uniform-block')
+            assert.ok(err.program !== undefined && typeof err.program === 'object',
+                'legacy throw passed the raw GL program handle; that surface is preserved')
+            assert.equal(
+                err.detail,
+                'Uniform block Scene requires 1048576 bytes; device limit is 16384',
+                'legacy detail text must stay byte-identical'
+            )
+            assert.deepEqual(err.messages, [
+                {
+                    severity: 'info',
+                    line: undefined,
+                    column: undefined,
+                    message: 'Uniform block Scene requires 1048576 bytes; device limit is 16384'
+                }
+            ])
+            // Legacy enumerable surface preserved for the err.detail/JSON
+            // serialization fallbacks in pipeline.js/canvas.js.
+            const json = JSON.parse(JSON.stringify(err))
+            assert.equal(json.code, 'ERR_UNIFORM_BLOCK_TOO_LARGE')
+            assert.equal(json.detail, err.detail)
+            assert.ok(json.program !== undefined, 'legacy program field stays enumerable')
+            return true
+        }
+    )
+})
+
+test('WebGL2 unknown texture format keeps the rgba8 fallback but records a structured diagnostic', () => {
+    const gl = createStubGL()
+    const backend = new WebGL2Backend(gl, null)
+
+    const warnings = []
+    const originalWarn = console.warn
+    console.warn = message => warnings.push(String(message))
+    try {
+        const resolved = backend.resolveFormat('banana')
+        assert.deepEqual(
+            resolved,
+            { internalFormat: gl.RGBA8, format: gl.RGBA, type: gl.UNSIGNED_BYTE },
+            'behavior unchanged: unknown formats still resolve to rgba8'
+        )
+
+        assert.equal(backend.diagnostics.records.length, 1)
+        const record = backend.diagnostics.records[0]
+        assert.equal(record.code, 'ERR_UNKNOWN_FORMAT_FALLBACK')
+        assert.equal(record.backend, 'webgl2')
+        assert.equal(record.stage, 'texture-create')
+        assert.equal(record.format, 'banana')
+        assert.equal(record.fallback, 'rgba8')
+
+        backend.resolveFormat('banana')
+        assert.equal(backend.diagnostics.records.length, 1, 'the same fallback is deduplicated')
+        assert.equal(warnings.length, 1, 'the warning is emitted once per unknown format')
+
+        backend.resolveFormat('rgba16f')
+        assert.equal(backend.diagnostics.records.length, 1, 'known formats add no diagnostic')
+
+        backend.resolveFormat(undefined)
+        assert.equal(backend.diagnostics.records.length, 1, 'an absent format is the default, not a fallback')
+    } finally {
+        console.warn = originalWarn
+    }
+})
+
+test('Pipeline unknown dimension form keeps the screen-size fallback but records a structured diagnostic', () => {
+    const pipeline = new Pipeline({ passes: [], textures: new Map() }, {})
+
+    const warnings = []
+    const originalWarn = console.warn
+    console.warn = message => warnings.push(String(message))
+    try {
+        assert.equal(
+            pipeline.resolveDimension('zoom', 1000),
+            1000,
+            'behavior unchanged: unknown forms resolve to screen size'
+        )
+        assert.equal(pipeline.diagnostics.records.length, 1)
+        const record = pipeline.diagnostics.records[0]
+        assert.equal(record.code, 'ERR_DIMENSION_FALLBACK')
+        assert.equal(record.stage, 'dimension')
+        assert.equal(record.spec, 'zoom')
+        assert.equal(record.fallback, 'screen')
+
+        pipeline.resolveDimension('zoom', 1000)
+        assert.equal(pipeline.diagnostics.records.length, 1, 'the same fallback is deduplicated')
+        assert.equal(warnings.length, 1, 'the warning is emitted once per unknown spec')
+
+        pipeline.resolveDimension({ bogus: true }, 1000)
+        assert.equal(pipeline.diagnostics.records.length, 2, 'each distinct unknown form is recorded once')
+
+        for (const spec of ['screen', 'auto', 64, '50%', { param: 'x' }, { screenDivide: 'z' }, { scale: 0.5 }, undefined]) {
+            pipeline.resolveDimension(spec, 1000)
+        }
+        assert.equal(pipeline.diagnostics.records.length, 2, 'recognized forms and absent specs add no diagnostic')
+        assert.equal(warnings.length, 2)
+    } finally {
+        console.warn = originalWarn
+    }
 })
 
 // ---------------------------------------------------------------------------

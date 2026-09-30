@@ -11,6 +11,7 @@ import { Effect } from './effect.js'
 import { CUBE_FACE_BASES } from '../renderer/cubeCamera.js'
 import { CanvasSink, SinkManager } from './sink.js'
 import { preflightEffect, mrtFormatBytes } from './preflight.js'
+import { DiagnosticCollector } from './backends/diagnostics.js'
 
 /**
  * Oscillator evaluation functions.
@@ -533,6 +534,10 @@ export class Pipeline {
             this.sinkManager.add(new CanvasSink(backend))
         }
         this._disposed = false
+        // Queryable structured diagnostics for the historically-silent
+        // unknown-dimension-form fallback (GAP-007).
+        this.diagnostics = new DiagnosticCollector()
+        this._warnedDimensionFallbacks = new Set()
         this.frameIndex = 0
         this.lastTime = 0
         this.surfaces = new Map()        // Global surfaces (o0-o7)
@@ -2091,6 +2096,34 @@ export class Pipeline {
                     }
                 }
                 return Math.max(1, computed)
+            }
+        }
+
+        // Unknown dimension forms keep the historical screen-size fallback
+        // (no new rejection of previously accepted input), but surface it as
+        // a structured diagnostic (GAP-007) instead of pure silence. An
+        // absent spec is a default, not an unknown form.
+        if (spec !== undefined && spec !== null) {
+            let key = typeof spec === 'object' ? null : String(spec)
+            if (key === null) {
+                try {
+                    key = JSON.stringify(spec)
+                } catch {
+                    key = '[unserializable]'
+                }
+            }
+            if (!this._warnedDimensionFallbacks.has(key)) {
+                this._warnedDimensionFallbacks.add(key)
+                console.warn(`[Pipeline] Unknown dimension spec ${key}; falling back to screen size (${screenSize})`)
+                this.diagnostics.add({
+                    code: 'ERR_DIMENSION_FALLBACK',
+                    backend: this.backend && typeof this.backend.getName === 'function'
+                        ? this.backend.getName()
+                        : 'unknown',
+                    stage: 'dimension',
+                    spec: key,
+                    fallback: 'screen'
+                })
             }
         }
 

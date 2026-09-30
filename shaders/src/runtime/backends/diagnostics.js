@@ -10,7 +10,8 @@
  *   - `code`     legacy machine code ('ERR_SHADER_COMPILE', 'ERR_SHADER_LINK',
  *                'ERR_SHADER_MISSING', 'ERR_NO_WGSL_SOURCE');
  *   - `backend`  'webgl2' | 'webgpu';
- *   - `stage`    'compile' | 'link' | 'missing-source' | 'bind';
+ *   - `stage`    'compile' | 'link' | 'missing-source' | 'bind' |
+ *                'uniform-block';
  *   - `program`  program/pass id, when known;
  *   - `detail`   the raw browser/compiler string, byte-identical to the
  *                legacy thrown shape so `err.detail || err.message`
@@ -34,8 +35,34 @@ export const DIAGNOSTIC_CODES = Object.freeze({
     COMPILE: 'ERR_SHADER_COMPILE',
     LINK: 'ERR_SHADER_LINK',
     MISSING_SOURCE: 'ERR_SHADER_MISSING',
-    NO_SOURCE: 'ERR_NO_WGSL_SOURCE'
+    NO_SOURCE: 'ERR_NO_WGSL_SOURCE',
+    UNIFORM_BLOCK: 'ERR_UNIFORM_BLOCK_TOO_LARGE',
+    UNKNOWN_FORMAT_FALLBACK: 'ERR_UNKNOWN_FORMAT_FALLBACK',
+    DIMENSION_FALLBACK: 'ERR_DIMENSION_FALLBACK'
 })
+
+/**
+ * A capped, queryable collector for structured diagnostics that are recorded
+ * rather than thrown — the silent WebGL format and dimension fallbacks
+ * (GAP-007) keep their historical behavior (no new rejection) but now surface
+ * structured records instead of silence.
+ */
+export class DiagnosticCollector {
+    constructor(cap = 64) {
+        this.cap = cap
+        this.records = []
+    }
+
+    add(record) {
+        this.records.push(record)
+        if (this.records.length > this.cap) this.records.shift()
+        return record
+    }
+
+    clear() {
+        this.records.length = 0
+    }
+}
 
 /**
  * A single normalized compiler message.
