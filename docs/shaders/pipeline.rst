@@ -567,7 +567,13 @@ bind-group retry consumes the parsed ``bindingIndex`` through
 ``toDiagnostic()``/``parseDiagnosticText()`` instead of re-matching raw
 browser error strings. Runtime resource failures (missing framebuffers,
 ``gl.getError()`` draining, WebGPU ``uncapturederror``) and the silent
-unknown WebGL format/dimension fallbacks remain outside this union.
+unknown WebGL format/dimension fallbacks do not throw the union; they record
+non-throwing structured diagnostics instead — ``ERR_MISSING_RENDER_TARGET``
+(missing FBO/MRT targets), ``ERR_GL_ERROR`` (post-draw drained GL errors) and
+``ERR_DEVICE_VALIDATION`` (WebGPU ``uncapturederror``) in
+``backend.diagnostics``, and ``ERR_UNKNOWN_FORMAT_FALLBACK`` /
+``ERR_DIMENSION_FALLBACK`` for the authoring fallbacks, via the capped
+``DiagnosticCollector`` — with console output unchanged.
 
 ----
 
