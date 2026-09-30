@@ -89,6 +89,20 @@ assert.equal(aggregateUniformResponsiveness(null).status, 'error')
 assert.equal(aggregateUniformResponsiveness(undefined).status, 'error')
 assert.equal(aggregateUniformResponsiveness({ status: 'ok', tested_uniforms: 'not-an-array' }).status, 'error')
 
+// The upstream schema emits only ok/error/skipped as the outer status
+// (vendor/shade-mcp/harness/index.js, testUniformResponsiveness); an
+// unrecognized outer status is an error even when every entry passes.
+assert.equal(
+    aggregateUniformResponsiveness({
+        status: 'unknown',
+        tested_uniforms: ['x:pass'],
+        details: 'Uniforms affect output',
+    }).status,
+    'error',
+)
+assert.equal(aggregateUniformResponsiveness({ tested_uniforms: ['x:pass'] }).status, 'error')
+assert.equal(aggregateUniformResponsiveness({ status: 7, tested_uniforms: ['x:pass'] }).status, 'error')
+
 // Unrecognized entry suffixes are errors, never silently accepted.
 assert.equal(
     aggregateUniformResponsiveness({

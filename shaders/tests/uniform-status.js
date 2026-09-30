@@ -67,6 +67,14 @@ export function aggregateUniformResponsiveness(result) {
         return { status: 'skipped', tested_uniforms: result.tested_uniforms, details: result.details ?? '' }
     }
 
+    // The upstream schema emits only `ok`, `error`, or `skipped` as the
+    // outer status (vendor/shade-mcp/harness/index.js,
+    // `testUniformResponsiveness()`); anything else — including a missing
+    // or non-string status — is an error entry set, never silently ok.
+    if (result.status !== 'ok' && result.status !== 'error') {
+        return { status: 'error', tested_uniforms: result.tested_uniforms, details: result.details ?? '' }
+    }
+
     let sawFail = false
     let sawError = false
     for (const entry of result.tested_uniforms) {
