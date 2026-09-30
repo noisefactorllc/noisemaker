@@ -24,6 +24,22 @@ const FAIL_SUFFIX = ':fail'
 const ERROR_SUFFIX = ':error'
 
 /**
+ * The harness's `--strict-uniforms` gate, mirrored so the opt-in contract is
+ * testable without a browser: the default gate keeps the upstream outer
+ * status, and only the explicit opt-in consumes the truthful per-entry
+ * aggregate — so previously accepted effects are only newly rejected behind
+ * the opt-in.
+ *
+ * @param {boolean} strictUniforms - `options.strictUniforms` opt-in.
+ * @param {string} upstreamStatus - The upstream result's outer `status`.
+ * @param {string} aggregateStatus - `aggregateUniformResponsiveness().status`.
+ * @returns {string} The gated uniform status.
+ */
+export function resolveUniformGateStatus(strictUniforms, upstreamStatus, aggregateStatus) {
+    return strictUniforms ? aggregateStatus : upstreamStatus
+}
+
+/**
  * Reclassify a `testUniformResponsiveness()` result so the outer status is
  * derived from every `tested_uniforms` entry instead of "any passed".
  *

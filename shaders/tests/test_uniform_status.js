@@ -10,6 +10,7 @@
  * `status` can be `ok` while other entries end in `:fail`/`:error`.
  */
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 
 import { aggregateUniformResponsiveness } from './uniform-status.js'
 
@@ -112,5 +113,61 @@ assert.equal(
 const passthrough = { status: 'ok', tested_uniforms: ['x:pass'], details: 'd' }
 assert.equal(aggregateUniformResponsiveness(passthrough).tested_uniforms, passthrough.tested_uniforms)
 assert.equal(aggregateUniformResponsiveness(passthrough).details, 'd')
+
+// ---------------------------------------------------------------------------
+// resolveUniformGateStatus: the harness's --strict-uniforms gate, mirrored
+// from shaders/tests/test-harness.js. The default gate keeps the upstream
+// outer-status semantics; the explicit opt-in consumes the truthful
+// per-entry aggregate, so previously accepted effects are only newly
+// rejected behind the opt-in.
+// ---------------------------------------------------------------------------
+
+import { resolveUniformGateStatus } from './uniform-status.js'
+
+// Default gate (opt-in off): the upstream outer status wins even when the
+// aggregate disagrees — the unchanged public behavior.
+assert.equal(resolveUniformGateStatus(false, 'ok', 'fail'), 'ok')
+assert.equal(resolveUniformGateStatus(false, 'ok', 'error'), 'ok')
+assert.equal(resolveUniformGateStatus(false, 'error', 'ok'), 'error')
+assert.equal(resolveUniformGateStatus(false, 'skipped', 'ok'), 'skipped')
+
+// Opt-in on: the aggregate is the truth.
+assert.equal(resolveUniformGateStatus(true, 'ok', 'fail'), 'fail')
+assert.equal(resolveUniformGateStatus(true, 'ok', 'error'), 'error')
+assert.equal(resolveUniformGateStatus(true, 'error', 'fail'), 'fail')
+assert.equal(resolveUniformGateStatus(true, 'skipped', 'skipped'), 'skipped')
+assert.equal(resolveUniformGateStatus(true, 'ok', 'ok'), 'ok')
+
+// ---------------------------------------------------------------------------
+// Source guards: the harness in shaders/tests/test-harness.js must keep the
+// gate wired — the mirror import present, the aggregate computed on every
+// --uniforms run, the gated status flowing into results.uniforms, and the
+// --strict-uniforms flag implying --uniforms.
+// ---------------------------------------------------------------------------
+
+const harnessSource = fs.readFileSync(
+    new URL('./test-harness.js', import.meta.url),
+    'utf8',
+)
+
+// The harness imports the gate mirror.
+assert.match(
+    harnessSource,
+    /import\s*\{[^}]*resolveUniformGateStatus[^}]*\}\s*from\s*'\.\/uniform-status\.js'/,
+)
+
+// The aggregate is computed on every --uniforms run, before gating.
+const gateIndex = harnessSource.indexOf('resolveUniformGateStatus(')
+assert.notEqual(gateIndex, -1, 'gate call must exist')
+const gateContext = harnessSource.slice(gateIndex - 1600, gateIndex + 400)
+assert.match(gateContext, /options\.runUniforms/, 'gate must live inside the --uniforms run')
+assert.match(gateContext, /aggregateUniformResponsiveness\(uniformResult\)/, 'the aggregate must be computed before the gate')
+assert.match(harnessSource.slice(gateIndex, gateIndex + 600), /results\.uniforms\s*=/, 'the gated status must flow into results.uniforms')
+
+// --strict-uniforms implies --uniforms and sets the opt-in flag.
+assert.match(
+    harnessSource,
+    /'--strict-uniforms'\)\s*\{\s*parsed\.runUniforms\s*=\s*true\s*parsed\.strictUniforms\s*=\s*true/,
+)
 
 console.log('test_uniform_status.js: all assertions passed')

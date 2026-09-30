@@ -103,7 +103,7 @@ import {
     isLowVariety,
     isNoAnimation,
 } from './frame-metrics.js'
-import { aggregateUniformResponsiveness } from './uniform-status.js'
+import { aggregateUniformResponsiveness, resolveUniformGateStatus } from './uniform-status.js'
 import { warmupPausePlan } from './frame-warmup.js'
 import { annotateResolution } from './frame-resolution.js'
 import {
@@ -1249,7 +1249,7 @@ async function testEffect(session, effectId, options) {
         // explicit `--strict-uniforms` opt-in uses the truthful
         // per-entry aggregate (GAP-010), so previously accepted effects
         // are only newly rejected behind the opt-in.
-        const uniformStatus = options.strictUniforms ? uniformAggregate.status : uniformResult.status
+        const uniformStatus = resolveUniformGateStatus(options.strictUniforms, uniformResult.status, uniformAggregate.status)
         results.uniforms = uniformStatus
         results.uniformsAggregate = uniformAggregate.status
         results.uniformsIdentity = uniformResult.identity_check ?? null
