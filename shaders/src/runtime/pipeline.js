@@ -2035,7 +2035,11 @@ export class Pipeline {
             return Math.max(1, Math.floor(spec))
         }
 
-        if (spec === 'screen' || spec === 'auto') {
+        // 'input' and 'resolution' are validator-accepted dimension keywords
+        // (DIM_KEYWORDS in effect-validator.js) whose historical resolution
+        // is the screen dimension; they are recognized forms, not unknown
+        // fallbacks, so they add no diagnostic (GAP-007).
+        if (spec === 'screen' || spec === 'auto' || spec === 'input' || spec === 'resolution') {
             return screenSize
         }
 

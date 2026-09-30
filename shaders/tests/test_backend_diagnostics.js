@@ -448,7 +448,7 @@ test('Pipeline unknown dimension form keeps the screen-size fallback but records
         pipeline.resolveDimension({ bogus: true }, 1000)
         assert.equal(pipeline.diagnostics.records.length, 2, 'each distinct unknown form is recorded once')
 
-        for (const spec of ['screen', 'auto', 64, '50%', { param: 'x' }, { screenDivide: 'z' }, { scale: 0.5 }, undefined]) {
+for (const spec of ['screen', 'auto', 'input', 'resolution', 64, '50%', { param: 'x' }, { screenDivide: 'z' }, { scale: 0.5 }, undefined]) {
             pipeline.resolveDimension(spec, 1000)
         }
         assert.equal(pipeline.diagnostics.records.length, 2, 'recognized forms and absent specs add no diagnostic')
