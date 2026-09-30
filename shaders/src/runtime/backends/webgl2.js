@@ -1125,6 +1125,27 @@ export class WebGL2Backend extends Backend {
         return uniforms
     }
 
+    /**
+     * Record a missing render target (FBO or MRT attachment) as a structured
+     * diagnostic (GAP-007). The legacy console warning is unchanged and still
+     * fires on every occurrence; the record is deduplicated per
+     * kind|output|pass so per-frame rendering cannot grow it unboundedly.
+     */
+    _recordMissingRenderTarget(kind, outputId, passId) {
+        if (!this._warnedMissingRenderTargets) this._warnedMissingRenderTargets = new Set()
+        const key = `${kind}|${outputId}|${passId}`
+        if (this._warnedMissingRenderTargets.has(key)) return
+        this._warnedMissingRenderTargets.add(key)
+        this.diagnostics.add({
+            code: DIAGNOSTIC_CODES.MISSING_RENDER_TARGET,
+            backend: 'webgl2',
+            stage: 'render',
+            kind,
+            pass: passId,
+            output: outputId
+        })
+    }
+
     extractUniformBlocks(program, spec) {
         const gl = this.gl
         const blocks = []
@@ -1263,6 +1284,7 @@ export class WebGL2Backend extends Backend {
                     if (!viewportTex) viewportTex = tex
                 } else {
                     console.warn(`[executePass MRT] Texture not found for ${currentOutputId} in pass ${effectivePass.id}`)
+                    this._recordMissingRenderTarget('mrt', currentOutputId, effectivePass.id)
                 }
             }
 
@@ -1287,6 +1309,7 @@ export class WebGL2Backend extends Backend {
             fbo = this.fbos.get(outputId)
             if (!fbo && outputId !== 'screen') {
                 console.warn(`[executePass] FBO not found for ${outputId} in pass ${effectivePass.id}`)
+                this._recordMissingRenderTarget('fbo', outputId, effectivePass.id)
             }
 
             viewportTex = this.textures.get(outputId)
@@ -1510,6 +1533,16 @@ export class WebGL2Backend extends Backend {
                 const outputId = effectivePass.outputs?.color || Object.values(effectivePass.outputs || {})[0] || 'unknown'
                 const inputIds = effectivePass.inputs ? Object.entries(effectivePass.inputs).map(([k,v]) => `${k}=${v}`).join(', ') : 'none'
                 console.error(`WebGL Error ${error} in pass ${effectivePass.id} (effect: ${effectivePass.effectKey || 'unknown'}, program: ${effectivePass.program}, output: ${outputId}, inputs: ${inputIds})`)
+                this.diagnostics.add({
+                    code: DIAGNOSTIC_CODES.GL_ERROR,
+                    backend: 'webgl2',
+                    stage: 'render',
+                    pass: effectivePass.id,
+                    effect: effectivePass.effectKey || 'unknown',
+                    program: effectivePass.program,
+                    output: outputId,
+                    error
+                })
                 error = gl.getError()
             }
         }

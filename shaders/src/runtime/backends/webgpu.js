@@ -16,6 +16,8 @@ import {
 } from '../default-shaders.js'
 import { WebGPUFrameExportAdapter } from './webgpu-frame-export.js'
 import {
+    DIAGNOSTIC_CODES,
+    DiagnosticCollector,
     ShaderDiagnostic,
     parseWebGPUCompilationMessages,
     toDiagnostic
@@ -156,9 +158,19 @@ export class WebGPUBackend extends Backend {
         this._uniformDataView = new DataView(this._uniformBufferData)
         this._uniformBufferSize = 512
 
+        // Structured diagnostics for device-validation failures (GAP-007)
+        this.diagnostics = new DiagnosticCollector()
+
         // Listen for uncaptured errors
         this.device.addEventListener('uncapturederror', (event) => {
-            console.error('WebGPU uncaptured error:', event.error?.message || event.error)
+            const detail = event.error?.message || String(event.error)
+            console.error('WebGPU uncaptured error:', detail)
+            this.diagnostics.add({
+                code: DIAGNOSTIC_CODES.DEVICE_VALIDATION,
+                backend: 'webgpu',
+                stage: 'device-validation',
+                detail
+            })
         })
     }
 

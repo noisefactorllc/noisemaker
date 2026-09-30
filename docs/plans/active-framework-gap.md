@@ -4,15 +4,19 @@ Status: closed (compile/link/missing-source leg implemented at
 f83a427e680ad2bb9a5fd67ccd850143bc820f76, machine-verified 2026-09-26 at the
 published range tip `6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa`, which carries
 `6113da0` and `f83a427e` as ancestors; closing leg — the WebGL2
-`ERR_UNIFORM_BLOCK_TOO_LARGE` ad-hoc throw and the silent WebGL
-unknown-format/dimension fallbacks — implemented at the publication commit
-carrying this record, above base `f24b52540af6a88d12daa05feba1a04ad61b22a2`).
-The WebGL2 missing-FBO/MRT console warnings and post-draw `gl.getError()`
-draining and the WebGPU `uncapturederror` device-validation path remain
-unstructured by the register row's own contract ("runtime resource and
-device-validation failures remain unstructured"). Machine verification of the
-closing commit's CI battery and the site deployment is pending at the time of
-this record commit. The GAP-006 record is preserved below, unchanged.
+`ERR_UNIFORM_BLOCK_TOO_LARGE` ad-hoc throw, the silent WebGL
+unknown-format/dimension fallbacks, AND the runtime resource /
+device-validation paths — implemented at the publication commits carrying
+this record, above base `f24b52540af6a88d12daa05feba1a04ad61b22a2`).
+Every path the narrowed register row listed now surfaces structured
+diagnostics: the four throw/record legs above plus the non-throwing
+`backend.diagnostics` records for WebGL2 missing-FBO/MRT render targets
+(`ERR_MISSING_RENDER_TARGET`), post-draw drained `gl.getError()` failures
+(`ERR_GL_ERROR`), and WebGPU `uncapturederror` device validation
+(`ERR_DEVICE_VALIDATION`), with all legacy console output unchanged.
+Machine verification of the final commit's CI battery and the site
+deployment is pending at the time of this record commit. The GAP-006 record
+is preserved below, unchanged.
 
 The prior active-target records for GAP-006, GAP-005, GAP-004, GAP-003, and
 GAP-027 are preserved below, unchanged. See their "Completed Evidence"
@@ -71,18 +75,31 @@ logic must parse browser/compiler strings.
   `ERR_UNKNOWN_FORMAT_FALLBACK` in `backend.diagnostics` and
   `ERR_DIMENSION_FALLBACK` in `pipeline.diagnostics`, both capped
   `DiagnosticCollector` lists (`shaders/src/runtime/backends/diagnostics.js`).
-- Contractually unstructured paths (unchanged): WebGL2 missing-FBO/MRT console
-  warnings and post-draw `gl.getError()` draining, and WebGPU
-  `uncapturederror` device validation.
-- Tests: `shaders/tests/test_backend_diagnostics.js` extended to 12 tests
+
+## Final leg (runtime resource and device-validation records)
+
+- WebGL2 missing-FBO/MRT render-target warnings
+  (`executePass()` in `shaders/src/runtime/backends/webgl2.js`) now also
+  record deduplicated `ERR_MISSING_RENDER_TARGET` entries (`stage` `render`,
+  `kind` `fbo`/`mrt`, `pass`, `output`) in `backend.diagnostics`; the legacy
+  per-occurrence console warnings are unchanged.
+- Post-draw drained `gl.getError()` failures record `ERR_GL_ERROR` entries
+  (`pass`, `effect`, `program`, `output`, `error`) alongside the unchanged
+  per-occurrence console error.
+- WebGPU `uncapturederror` device validation
+  (`shaders/src/runtime/backends/webgpu.js` constructor) records
+  `ERR_DEVICE_VALIDATION` entries (`detail`) in `backend.diagnostics`
+  alongside the unchanged console message.
+- Tests: `shaders/tests/test_backend_diagnostics.js` extended to 15 tests
   (registered in `scripts/run-js-tests.js` and `npm run test:shaders:runtime`);
-  the three closing-leg tests fail on the pre-change tree (red: the
-  uniform-block throw was an ad-hoc plain object — `instanceof
-  ShaderDiagnostic` fails — and the fallbacks added no records) and pass
-  after (12 passed / 0 failed).
-- All eight declared local checks passed (dependencies, shader-language,
-  shader-runtime, effect-harness, javascript, lint, docs-paths,
-  diff-hygiene).
+  the three final-leg tests fail on the pre-change tree (no records, no
+  collector on WebGPU) and pass after, and they pin the unchanged console
+  behavior (per-occurrence warnings/errors). The earlier closing-leg tests
+  (uniform-block ad-hoc plain-object throw, silent fallbacks) fail on the
+  pre-change trees and pass after as well (15 passed / 0 failed total).
+- All eight declared local checks passed at the final commit (dependencies,
+  shader-language, shader-runtime, effect-harness, javascript, lint,
+  docs-paths, diff-hygiene).
 
 ## Implementation-phase evidence (local, pre-verification)
 

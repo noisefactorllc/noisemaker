@@ -36,9 +36,10 @@ import { Pipeline } from '../src/runtime/pipeline.js'
 // WebGL2 stub GL context (Proxy-based, per the gl-error-gating test pattern)
 // ---------------------------------------------------------------------------
 
-function createStubGL({ shaderLog = '', linkLog = '', fragmentCompileOk = true, linkOk = true, uniformBlocks = null } = {}) {
+function createStubGL({ shaderLog = '', linkLog = '', fragmentCompileOk = true, linkOk = true, uniformBlocks = null, getErrorValues = null } = {}) {
     const cache = new Map()
     let nextConst = 1
+    const errorQueue = getErrorValues ? [...getErrorValues] : null
 
     const gl = new Proxy({}, {
         get(_target, prop) {
@@ -48,7 +49,9 @@ function createStubGL({ shaderLog = '', linkLog = '', fragmentCompileOk = true, 
             if (prop === 'NO_ERROR') {
                 value = 0
             } else if (prop === 'getError') {
-                value = () => 0
+                value = errorQueue
+                    ? () => (errorQueue.length > 0 ? errorQueue.shift() : 0)
+                    : () => 0
             } else if (prop === 'shaderSource') {
                 // The probe source contains 'void main()'; compiling it fails
                 // so compile failures surface through getShaderParameter.
@@ -125,6 +128,12 @@ function createStubGPUDevice({ messages = [] } = {}) {
         }
     }
     device.calls = calls
+    device.listeners = {}
+    const originalAddEventListener = device.addEventListener.bind(device)
+    device.addEventListener = (type, fn) => {
+        device.listeners[type] = fn
+        return originalAddEventListener(type, fn)
+    }
     return device
 }
 
@@ -448,13 +457,142 @@ test('Pipeline unknown dimension form keeps the screen-size fallback but records
         pipeline.resolveDimension({ bogus: true }, 1000)
         assert.equal(pipeline.diagnostics.records.length, 2, 'each distinct unknown form is recorded once')
 
-for (const spec of ['screen', 'auto', 'input', 'resolution', 64, '50%', { param: 'x' }, { screenDivide: 'z' }, { scale: 0.5 }, undefined]) {
+        for (const spec of ['screen', 'auto', 'input', 'resolution', 64, '50%', { param: 'x' }, { screenDivide: 'z' }, { scale: 0.5 }, undefined]) {
             pipeline.resolveDimension(spec, 1000)
         }
         assert.equal(pipeline.diagnostics.records.length, 2, 'recognized forms and absent specs add no diagnostic')
         assert.equal(warnings.length, 2)
     } finally {
         console.warn = originalWarn
+    }
+})
+
+// ---------------------------------------------------------------------------
+// Part 6: the runtime resource and device-validation bypass paths — WebGL2
+// missing-FBO/MRT warnings, post-draw gl.getError() draining, and WebGPU
+// `uncapturederror` — recorded (non-throwing) in backend.diagnostics
+// ---------------------------------------------------------------------------
+
+test('WebGL2 missing render-target paths record structured diagnostics without changing behavior', () => {
+    const gl = createStubGL()
+    const backend = new WebGL2Backend(gl, null)
+    backend.programs.set('prog', { handle: {} })
+    backend.textures.set('t1', { handle: {}, width: 8, height: 8 })
+    const state = {}
+
+    const warnings = []
+    const originalWarn = console.warn
+    console.warn = (...args) => warnings.push(args.map(String).join(' '))
+    try {
+        // Single-output pass whose FBO was never created
+        backend.executePass({ id: 'p1', program: 'prog', outputs: { color: 't1' } }, state)
+        // MRT pass whose output textures were never created
+        backend.executePass({ id: 'p2', program: 'prog', outputs: { a: 't9', b: 't10' }, drawBuffers: 2 }, state)
+
+        assert.equal(backend.diagnostics.records.length, 3)
+        assert.deepEqual(
+            { ...backend.diagnostics.records[0] },
+            {
+                code: 'ERR_MISSING_RENDER_TARGET',
+                backend: 'webgl2',
+                stage: 'render',
+                kind: 'fbo',
+                pass: 'p1',
+                output: 't1'
+            }
+        )
+        assert.deepEqual(
+            { ...backend.diagnostics.records[1] },
+            {
+                code: 'ERR_MISSING_RENDER_TARGET',
+                backend: 'webgl2',
+                stage: 'render',
+                kind: 'mrt',
+                pass: 'p2',
+                output: 't9'
+            }
+        )
+        assert.deepEqual(
+            { ...backend.diagnostics.records[2] },
+            {
+                code: 'ERR_MISSING_RENDER_TARGET',
+                backend: 'webgl2',
+                stage: 'render',
+                kind: 'mrt',
+                pass: 'p2',
+                output: 't10'
+            }
+        )
+
+        // Legacy console behavior unchanged: every occurrence still warns.
+        const firstRound = warnings.length
+        assert.equal(firstRound, 3, 'one warn per missing target (1 fbo + 2 mrt)')
+        backend.executePass({ id: 'p1', program: 'prog', outputs: { color: 't1' } }, state)
+        backend.executePass({ id: 'p2', program: 'prog', outputs: { a: 't9', b: 't10' }, drawBuffers: 2 }, state)
+        assert.equal(warnings.length, firstRound * 2, 'warnings still fire on every occurrence')
+        assert.equal(backend.diagnostics.records.length, 3, 'records are deduplicated per target')
+    } finally {
+        console.warn = originalWarn
+    }
+})
+
+test('WebGL2 post-draw GL errors record a structured diagnostic alongside the drained log', () => {
+    const gl = createStubGL({ getErrorValues: [0, 1284] })
+    const backend = new WebGL2Backend(gl, null)
+    backend.programs.set('prog', { handle: {} })
+    backend.textures.set('t1', { handle: {}, width: 8, height: 8 })
+    // Arm the error check through the public frame entry point
+    backend.glErrorCheckFrames = 1
+    backend.beginFrame()
+
+    const errors = []
+    const originalError = console.error
+    console.error = (...args) => errors.push(args.map(String).join(' '))
+    try {
+        backend.executePass({ id: 'p3', program: 'prog', outputs: { color: 't1' }, effectKey: 'synth/noise' }, {})
+
+        assert.equal(errors.filter(m => m.includes('WebGL Error 1284 in pass p3')).length, 1,
+            'the legacy per-pass console error is unchanged')
+        assert.equal(backend.diagnostics.records.length, 2,
+            'the missing-FBO record and the post-draw GL error record')
+        const record = backend.diagnostics.records[1]
+        assert.equal(record.code, 'ERR_GL_ERROR')
+        assert.equal(record.backend, 'webgl2')
+        assert.equal(record.stage, 'render')
+        assert.equal(record.pass, 'p3')
+        assert.equal(record.effect, 'synth/noise')
+        assert.equal(record.program, 'prog')
+        assert.equal(record.output, 't1')
+        assert.equal(record.error, 1284)
+    } finally {
+        console.error = originalError
+    }
+})
+
+test('WebGPU uncapturederror device validation records a structured diagnostic', () => {
+    const device = createStubGPUDevice()
+    const backend = new WebGPUBackend(device, {
+        configuration: { device },
+        getConfiguration() { return this.configuration }
+    })
+
+    const errors = []
+    const originalError = console.error
+    console.error = (...args) => errors.push(args.map(String).join(' '))
+    try {
+        assert.ok(device.listeners['uncapturederror'], 'the uncapturederror listener stays registered')
+        device.listeners['uncapturederror']({ error: { message: 'Validation failed: bind group mismatch' } })
+
+        assert.equal(errors.length, 1, 'the legacy console message is unchanged')
+        assert.equal(errors[0], 'WebGPU uncaptured error: Validation failed: bind group mismatch')
+        assert.equal(backend.diagnostics.records.length, 1)
+        const record = backend.diagnostics.records[0]
+        assert.equal(record.code, 'ERR_DEVICE_VALIDATION')
+        assert.equal(record.backend, 'webgpu')
+        assert.equal(record.stage, 'device-validation')
+        assert.equal(record.detail, 'Validation failed: bind group mismatch')
+    } finally {
+        console.error = originalError
     }
 })
 
