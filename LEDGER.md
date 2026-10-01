@@ -1193,11 +1193,52 @@ work, verify it, then update the checkpoint and append a log line.
     (`status ok`, WebGL2, `mean_rgb` 0.456897/0.443613/0.445983, 1013 unique
     sampled colors — the pin's documented live-frame read) and the pin's
     `runDslProgram` (`status ok`, old one-frame shape, `frame.image_uri: null`,
-    keys `backend`/`console_errors`/`frame`/`metrics`/`status`). Archived run
+    keys `backend`/`console_errors`/`frame`/`metrics`/`status`). Final-acceptance
+    evidence additions (Worker Elves archive `ledger-699`): exact-source CI at
+    the audited noisemaker source tip `ed47815` observed via the public
+    check-runs API (archived `check-runs-ed47815.json`) — 16 check runs, all
+    `completed` with conclusion `success` or `skipped`, including shaders.yml's
+    `Shader tests` and `GPU tests` at that SHA, release.yml's `Publish release`
+    and bundle/standalone builds, and site.yml's `Verify docs asset paths` and
+    `notify` (the `js.yml` workflow does not run at that SHA by design — its
+    path filter excludes commits touching only `shaders/**` and
+    `llms-full.txt`); source-SHA mapping for the local logs (archived
+    `source-sha-mapping.md`) — noisemaker's `shaders/`/`js/`/`scripts/`/`test/`/
+    `demo/` trees at capture time are byte-identical to `ed47815`
+    (`git diff --stat ed478159..58953caa -- shaders/ js/ scripts/ test/ demo/`
+    is empty; the intervening commits touch only documentation, ledgers, and
+    dependency bumps) and the shade-mcp logs ran at the checkout tip
+    `79c2e01` exactly; exact-commit CI at this documentation commit
+    `58953caa0abb2071f0493d0021bfe2c6b5e029ac` (archived
+    `check-runs-58953ca.json`) — `Dispatch scaffold static-site-release`
+    success, correctly the only check (a docs-only commit runs only the Site
+    workflow, with the source CI carried at `ed47815` above); and deployment
+    (archived `deployment-readback-58953ca.json` and `deployed-llms-full.txt`)
+    — `https://noisemaker.app/deployment-meta.json` serves
+    `git_hash: 58953caa0abb2071f0493d0021bfe2c6b5e029ac` and the deployed
+    `https://noisemaker.app/llms-full.txt` is byte-identical to this commit's
+    `llms-full.txt` (sha256 `90c5883dfddb3a51…` on both), containing both of
+    this pass's edits. Candidate-boundary clarifications from final acceptance:
+    this job's shade-mcp candidate is unchanged published source (`79c2e01`
+    entered this item as an already-published audited input, and no shade-mcp
+    commit belongs to this candidate) — the delivered pin keeps the old
+    one-frame `runDslProgram` semantics and the upstream batch reshape is
+    recorded above as pending delivery, so no shipped behavior changed through
+    this job; reversing the already-published upstream commits is outside this
+    pass, and their compatibility resolution is exactly the pending-delivery
+    record. Likewise the Portable CDN/viewer qualification that ships inside
+    upstream `79c2e01` (`scripts/portable-browser-smoke.mjs` and the README's
+    Portable configuration) is a Portable-product concern delivered in
+    upstream Shade before this item; this pass validated only the local
+    Noisemaker-runtime DSL path against this checkout (verified defaults, no
+    `SHADE_DSL_*` overrides) and makes no Portable claim. Archived run
     evidence (Worker Elves archive `ledger-699`): `nm-tests.log`, `nm-lint.log`,
     `shade-typecheck.log`, `shade-tests.log`, `structure.log`,
     `webgl2-render.log`, `webgpu-render.log`, `browser-smoke.log`,
-    `pin-capture.log`, `pin-capture.mjs`, and `vendor-check/`.
+    `pin-capture.log`, `pin-capture.mjs`, `vendor-check/`,
+    `check-runs-ed47815.json`, `check-runs-58953ca.json`,
+    `source-sha-mapping.md`, `deployment-readback-58953ca.json`, and
+    `deployed-llms-full.txt`.
   - 2026-09-29 — compatibility pass auditing noisemaker
     `73c15be00d6888f4b5d2835d8e242ee9e840df45..682739066d3b74962febbdcdae85b5aa4d2e19f3`
     and shade-mcp `00340b148e109464b1a87d89ff29fc7622d384c9..07af4ffa392197748216f3a0beaebee365d44292`
