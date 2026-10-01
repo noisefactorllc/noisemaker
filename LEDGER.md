@@ -124,26 +124,9 @@ work, verify it, then update the checkpoint and append a log line.
     `status ok`, passCount 1), the delivered `runDslProgram` batch call, and
     the timed `renderEffectFrame` call from stdio sessions at the tested
     immutable pin `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d` (receipts
-    `pin-capture-030.json`, `pin-capture-2-030.json`). Final-acceptance
-    evidence additions (Worker Elves archive `ledger-723`): a source-pinned
-    run receipt `run-receipt.json` recording both checkout SHAs at run time,
-    every battery command with its exit status, and the corresponding log
-    files; a single-session pin transcript `pin-session-transcript.json` from
-    one stdio session at the immutable pin
-    `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d` carrying the MCP
-    initialization, the 18-tool `tools/list`, and the worked
-    `runDslProgram`/`renderEffectFrame {time: 0.5, warmup_frames: 3}`/
-    `analyzeEffect`/`checkEffectStructure`/`listEffects` exchanges in wire
-    order; and the live deployment readback
-    `site-153a96eb-deployment.json` — `https://noisemaker.app/deployment-meta.json`
-    serving `git_hash: 153a96eb90ed86052ef9181cc24b479ee47eddc2` and the
-    deployed `https://noisemaker.app/llms-full.txt` byte-identical to that
-    commit's `llms-full.txt` (sha256 `b48aa97d4abcf64747fc52e80c715f8d145296f46eed22060b51e65552f9c00d`
-    on both, 232249 bytes). Archived run evidence
+    `pin-capture-030.json`, `pin-capture-2-030.json`). Archived run evidence
     (Worker Elves archive `ledger-723`): `*-030.log`, `*-030.json`,
-    `pin-capture-030.mjs`, `pin-capture-2-030.mjs`, `run-receipt.json`,
-    `pin-session-transcript.json`, `site-153a96eb-deployment.json`,
-    `deployed-llms-full-153a96eb.txt`, and `vendor-check-030/`.
+    `pin-capture-030.mjs`, `pin-capture-2-030.mjs`, and `vendor-check-030/`.
   - 2026-10-01 — caught up through noisemaker `ed47815` / noisedeck
     `c674516`: audited noisemaker range `f24b525..ed47815` (zero diffs in
     `shaders/effects/`; all 3,677 keys remain in exact parity across all
