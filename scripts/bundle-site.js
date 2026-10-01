@@ -350,6 +350,9 @@ function copyLogoImage() {
         console.log('  ✓ og-image.png')
     }
 
+    // Copy the raster favicon used by the site pages.
+    copyFile(path.join(repoRoot, 'favicon.png'), path.join(siteDir, 'favicon.png'))
+
     // Copy favicon
     const faviconSrc = path.join(repoRoot, 'favicon.ico')
     const faviconDest = path.join(siteDir, 'favicon.ico')
