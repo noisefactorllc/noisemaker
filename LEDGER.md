@@ -1114,6 +1114,22 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
+  - 2026-10-01 — Noise Factor AI authored-effect source step, above Noisemaker
+    `b30d506f` and Shade MCP `79c2e01`. The publication carrying this entry adds
+    `CanvasRenderer.registerPortableEffect` for initial registration of loaded
+    Portable definitions in a fresh JavaScript realm. It retains `Effect`
+    lifecycle identity, render metadata, aliases and enum behavior; protects
+    bare built-in names; rejects duplicate names, malformed registration inputs,
+    and prototype-control keys. Shade's paired candidate adds explicit package
+    selection to its fresh DSL batch renderer. Local registration regressions,
+    prescribed non-parity JS, shader language/runtime, lint, Shade typecheck,
+    175 unit tests and build passed. Real MCP browser checks covered two authored
+    effects on WebGL2 and genuine WebGPU, filter contribution, repeatable frames,
+    flat effect layout, isolated calls and malformed/missing shader failures;
+    the existing built-in browser smoke also passed. These are source checks,
+    not delivery qualification. Exact published-source CI, the released renderer,
+    a Shade release, immutable MCP pin and vendored harness reconciliation remain
+    pending. The last completed checkpoint and contract snapshot stay unchanged.
   - 2026-10-01 — compatibility pass auditing noisemaker
     `4f5e0d28bdc155700393c314e9a5aafcc4da91fd..ed478159e5a31870c318be05ff755e533c754126`
     and shade-mcp `153eebd3b08c849a3fbf20d43527ae48a9dff746..79c2e011a2a8088bf88462aae93ea7e2e135de10`

@@ -24,7 +24,8 @@ import { registerParamAliases } from '../lang/paramAliases.js'
 import { registerEffectAlias } from '../lang/effectAliases.js'
 import { registerStarterOps } from '../lang/validator.js'
 import { createRuntime, recompile } from '../runtime/compiler.js'
-import { registerEffect, getEffect } from '../runtime/registry.js'
+import { registerEffect, getEffect, unregisterEffect } from '../runtime/registry.js'
+import { Effect } from '../runtime/effect.js'
 import { mergeIntoEnums } from '../lang/enums.js'
 import { stdEnums } from '../lang/std_enums.js'
 import { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInputManager } from '../runtime/external-input.js'
@@ -1378,6 +1379,96 @@ export class CanvasRenderer {
         }
 
         await Promise.all(shaderPromises)
+    }
+
+    /**
+     * Register a Portable definition whose shader sources have already been loaded.
+     * Registries are shared within a JavaScript realm. Use a fresh realm when
+     * verifying a replacement; duplicate names must not change accepted effects.
+     * This checks registration inputs, not shader compilation or backend support.
+     * @param {object} definition - Raw Portable JSON plus shaders[program].glsl/wgsl
+     * @returns {Promise<object>} Cached user effect with an Effect instance
+     */
+    async registerPortableEffect(definition) {
+        const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value)
+        const fail = message => { throw new Error(`Portable effect: ${message}`) }
+        if (!isRecord(definition)) fail('expected a definition object')
+        const { namespace, passes, shaders, globals, starter } = definition
+        const func = definition.func ?? definition.name
+        if (typeof func !== 'string' || !isValidIdentifier(func)) fail('func must be a DSL identifier')
+        // The shared operator/enum registries use object trees. JSON keys that
+        // control their prototypes must never reach those registration paths.
+        const reserved = [...Object.getOwnPropertyNames(Object.prototype), 'prototype']
+        if (reserved.includes(func)) fail(`reserved func ${func}`)
+        const pending = [definition]
+        const visited = new Set()
+        while (pending.length) {
+            const value = pending.pop()
+            if (!value || typeof value !== 'object' || visited.has(value)) continue
+            visited.add(value)
+            for (const [key, child] of Object.entries(value)) {
+                if (reserved.includes(key)) fail(`reserved metadata key ${key}`)
+                if (child && typeof child === 'object') pending.push(child)
+            }
+        }
+        if (namespace !== undefined && namespace !== 'user') fail('namespace must be user')
+        if (starter !== undefined && typeof starter !== 'boolean') fail('starter must be boolean')
+        if (!Array.isArray(passes) || passes.length === 0) fail('passes must be a nonempty array')
+        if (!isRecord(shaders)) fail('loaded shaders are required')
+        const hasSource = source => typeof source === 'string' && source.trim().length > 0
+        for (const pass of passes) {
+            if (!isRecord(pass) || typeof pass.program !== 'string' || !pass.program) fail('each pass must name a program')
+            for (const field of ['inputs', 'outputs']) {
+                if (pass[field] !== undefined && (!isRecord(pass[field]) || Object.values(pass[field]).some(value => !hasSource(value)))) {
+                    fail(`pass ${field} must map names to nonempty texture references`)
+                }
+            }
+            const source = shaders[pass.program]
+            if (!isRecord(source) || ![source.glsl, source.wgsl].some(hasSource)) {
+                fail(`missing shader source for ${pass.program}`)
+            }
+        }
+        for (const language of ['glsl', 'wgsl']) {
+            if (passes.some(pass => hasSource(shaders[pass.program][language]))) {
+                for (const pass of passes) {
+                    if (!hasSource(shaders[pass.program][language])) fail(`missing ${language} shader source for ${pass.program}`)
+                }
+            }
+        }
+        if (globals !== undefined && (!isRecord(globals) || Object.values(globals).some(spec => !isRecord(spec)))) {
+            fail('globals must contain parameter objects')
+        }
+        for (const [key, spec] of Object.entries(globals || {})) {
+            if (spec.choices !== undefined && (!isRecord(spec.choices) || Object.values(spec.choices).some(value =>
+                value !== null && (spec.type === 'string' ? typeof value !== 'string' : !Number.isFinite(value))))) {
+                fail(`choices for ${key} must map names to ${spec.type === 'string' ? 'strings' : 'numbers'} or null`)
+            }
+        }
+        if (definition.paramAliases !== undefined && (!isRecord(definition.paramAliases) ||
+            Object.values(definition.paramAliases).some(target => typeof target !== 'string' || !Object.hasOwn(globals || {}, target)))) {
+            fail('paramAliases must map names to declared globals')
+        }
+        if (getEffect(`user.${func}`) || getEffect(`user/${func}`)) fail(`user.${func} is already registered`)
+
+        const instance = new Effect({ ...definition, func, namespace: 'user' })
+        instance.shaders = shaders
+        const pipelineInputs = ['inputTex', 'inputTex3d', 'inputGeo', 'inputXyz', 'inputVel', 'inputRgba', 'src', 'o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7']
+        instance.starter = starter ?? !passes.some(pass =>
+            Object.values(pass.inputs || {}).some(input => pipelineInputs.includes(input)))
+        const effect = { namespace: 'user', name: func, instance }
+        // Portable effects belong to user.*; preserve a built-in's bare lookup.
+        const previousBare = getEffect(func)
+        let choices
+        try {
+            choices = this.registerEffectWithRuntime(effect)
+        } finally {
+            if (previousBare === undefined) unregisterEffect(func)
+            else registerEffect(func, previousBare)
+        }
+        this._enums = await mergeIntoEnums(choices)
+        if (instance.starter) registerStarterOps([`user.${func}`])
+        this._loadedEffects.set(`user/${func}`, effect)
+        return effect
     }
 
     /**

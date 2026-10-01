@@ -55,6 +55,7 @@ const testEntries = [
   { file: 'shaders/tests/test_cube_texture.js', parity: false },
   { file: 'shaders/tests/test_remap_contract.js', parity: false },
   { file: 'shaders/tests/test_effect_definition_validation.js', parity: false },
+  { file: 'shaders/tests/test_portable_registration.js', parity: false },
   { file: 'shaders/tests/test_mip_controls.js', parity: false },
   { file: 'shaders/tests/test_pass_fields.js', parity: false },
   { file: 'shaders/tests/test_lifecycle_hooks.js', parity: false },
