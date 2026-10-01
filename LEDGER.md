@@ -458,7 +458,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `01e9d62` (2026-09-26)
+- **Checkpoint:** noisemaker `ed47815` (2026-09-30)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -472,6 +472,53 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-10-01 — caught up through `ed47815`: audited range
+    `01e9d62..dd4606e` (Tearoff item 698; the trigger's start `01e9d62` had
+    been force-pushed out of upstream main, so the objects were fetched
+    directly by SHA and the observed delivery ranges
+    `c2a19c70..dd4606e`, `a0e9bbffc..e24c844f`, `e24c844f..e105344` were
+    diffed locally; all of them plus the later test-only commits
+    `16c1997`/`ed47815` are ancestors of published main at `a02f73e`, 44
+    commits in the audited range). Gap detection: all effect definitions
+    still have their `help.md` (zero missing across
+    `shaders/effects/*/*/definition.js`), so no help.md writes were needed.
+    No new end-user feature shipped in the range that merits a
+    `docs/shaders/features.rst` guide: the range's substantive changes are
+    GAP-007..GAP-032 fixes (diagnostics union legs, audio capture, harness
+    and metric tooling) plus GAP-026, which makes the already-documented
+    lifecycle-hook authoring feature actually run in the production
+    renderer — its documentation home stays `docs/shaders/effects.rst`
+    (Lifecycle Method Contract) and `docs/shaders/pipeline.rst`, not a new
+    features page. Invalidated-statement audit edits: `docs/shaders/pipeline.rst`
+    §14.2 no longer claims the pipeline has no effect-lifecycle mechanism —
+    it now documents the managed-effect set `initLifecycleEffects()`
+    rebuilds (onInit once per pipeline lifetime, per-frame onUpdate with
+    fallback-bound returned uniforms, dispose-time onDestroy joining the
+    dispose error path), matching GAP-026's `initLifecycleEffects()`/
+    `_invokeUpdateHooks()`/`_withRuntimeUniforms()`/`dispose()` in
+    `shaders/src/runtime/pipeline.js`; `docs/shaders/effects.rst`'s
+    lifecycle contract now states the production invocation and the
+    fallback uniform-binding semantics (a returned key binds only when the
+    pass does not already resolve it, verified against
+    `_withRuntimeUniforms()`), and the dimension grammar now lists the
+    validator-accepted `'input'`/`'resolution'` keywords that resolve to
+    screen size without a fallback diagnostic (a0e9bbff), in both the
+    `dimensionSpec` JSON schema description and the `resolveDimension`
+    pseudocode. GAP-007's runtime-leg statements were already aligned
+    in-band by e105344 (pipeline.rst + llms-full.txt); the audio capture,
+    replaceEffect, preflight, and harness-metric changes invalidated no
+    narrative statements (the MCP tool descriptions in
+    `docs/coding-agents.rst` are unchanged by the range, and replaceEffect/
+    preflight remain engine-internal APIs with no Sphinx page to correct).
+    Verified the Sphinx docs build locally (`sphinx-build -b dirhtml docs
+    docs/_build/dirhtml`: build succeeded, 18 pre-existing warnings, 0
+    errors), docs static asset paths (`node --test
+    test/docs-static-paths.test.js`, 4/4 pass), ESLint (`npm run lint`,
+    clean), and the non-parity JS test suite (`node scripts/run-js-tests.js
+    --skip-parity`, 0 failures). The live `noisemaker-site` and
+    `noisemaker-docs-site` deployments serve `ed47815` per
+    `deployment-meta.json`, so the pipeline.rst/effects.rst corrections in
+    this commit reach the published docs with the next docs-site build.
   - 2026-09-26 — caught up through `01e9d62`: audited range
     `6a0af04d..01e9d62` (Tearoff item 586). The range contains exactly one
     commit, `01e9d62`, which is the prior Documentation pass's own Sphinx

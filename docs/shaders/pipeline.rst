@@ -650,9 +650,19 @@ The Pipeline holds these runtime resources and state:
 - Frame-local surface bindings
 - External MIDI/audio state
 - Async-effect cancellation handles
+- Managed effect lifecycle set (effects in the current graph that author
+  ``onInit``/``onUpdate``/``onDestroy`` hooks)
 
 The ``isCompiling`` flag prevents rendering while the backend rebuilds
-programs. There is no separate effect lifecycle state machine.
+programs. There is no separate effect lifecycle state machine; lifecycle
+hooks are managed through the lifecycle-effect set instead:
+``initLifecycleEffects()`` (called at the same sites as
+``initAsyncEffects()``) rebuilds the set from the current graph and runs
+``onInit()`` once per effect instance per pipeline lifetime,
+``render()`` calls ``onUpdate()`` once per frame with returned uniforms
+bound under fallback semantics, and ``dispose()`` runs ``onDestroy()`` for
+every managed effect with hook errors joining the existing dispose error
+path.
 
 14.3 Frame Execution State
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

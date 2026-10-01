@@ -545,6 +545,15 @@ The runtime invokes these methods at specific stages:
 - ``onUpdate({ time, delta, uniforms })``: The runtime calls this every frame before rendering. Return an object of computed uniforms.
 - ``onDestroy()``: The runtime calls this when it removes the effect. Release resources here.
 
+Uniforms returned from ``onUpdate`` bind under fallback semantics: a returned
+key binds only when the pass does not already resolve that uniform, so
+DSL-provided, step-provided, and authored values keep priority. The hooks run
+in the production ``Pipeline`` (not only the test harness): ``onInit()`` once
+per effect instance per pipeline lifetime (idempotent across resize and hot
+recompile), ``onUpdate()`` once per frame before pass execution, and
+``onDestroy()`` at dispose with hook errors joining the existing dispose
+error path.
+
 .. code-block:: javascript
 
    // Lifecycle methods can be defined in config or as class methods
@@ -733,7 +742,7 @@ The following schema summarizes the consumed authoring shape. Regular expression
        "dimensionSpec": {
          "oneOf": [
            {"type": "number"},
-           {"type": "string", "description": "screen, auto, or a percentage parsed with parseFloat"},
+           {"type": "string", "description": "screen, auto, input, resolution, or a percentage parsed with parseFloat (the string keywords all resolve to screen size)"},
            {"type": "object", "required": ["scale"], "properties": {"scale": {"type":"number"}, "clamp": {"type":"object", "properties": {"min": {"type":"number"}, "max": {"type":"number"}}}}},
            {"type": "object", "required": ["param"], "properties": {"param": {"type":"string"}, "paramDefault": {"type":"number"}, "default": {"type":"number"}, "multiply": {"type":"number"}, "power": {"type":"number"}}},
            {"type": "object", "required": ["screenDivide"], "properties": {"screenDivide": {"type":"string"}, "default": {"type":"number"}}}
@@ -868,7 +877,10 @@ For each texture dimension (``width`` or ``height``), resolve to integer pixels:
 
    function resolveDimension(spec, screenSize, uniforms = {}) {
      if (typeof spec === 'number') return Math.max(1, Math.floor(spec))
-     if (spec === 'screen' || spec === 'auto') return screenSize
+
+     // 'screen', 'auto', 'input', and 'resolution' are all validator-accepted
+     // keywords whose resolution is the screen dimension; no fallback diagnostic.
+     if (['screen', 'auto', 'input', 'resolution'].includes(spec)) return screenSize
 
      if (typeof spec === 'string' && spec.endsWith('%')) {
        const percent = parseFloat(spec)
