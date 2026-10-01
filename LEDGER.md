@@ -1154,18 +1154,23 @@ work, verify it, then update the checkpoint and append a log line.
     ledger's scope sentence now matches the register. Delivery remains the
     blocker exactly as recorded for the prior pass: the newest Shade release is
     still `v0.2.3` = `cbcab33363851016f65391fbb9ef71d66729c07f` (`git
-    ls-remote --tags`), the `.mcp.json` pin is unchanged, and the vendored
+    ls-remote --tags`, receipt `vendor-source-verification.json` — annotated
+    tag `a1faf90d` peels to that commit), the `.mcp.json` pin is unchanged, and
+    the vendored
     `vendor/shade-mcp/` bundle was re-verified byte-identical to the freshly
     downloaded `v0.2.3` tarball `shade-mcp-dist.tar.gz` (sha256
     `4256ea5c695f15b3eec292f599a1ae1aada03a2628e33db8b3c9864a6b11f93f`; all
-    four module trees identical) — the batch verb, GAP-014's upstream
+    four module trees identical, recorded per-tree in the same receipt) — the
+    batch verb, GAP-014's upstream
     timed-render fixes, and the upstream GAP-012 leg all wait on an
     operator-authorized Shade release, the existing `pull-shade-mcp` vendor
     refresh, and the `.mcp.json` pin bump. Both checkpoints and the snapshot
     block are deliberately unchanged at noisemaker `73c15be` / shade-mcp
     `00340b1`. Validation battery on the exact pair: noisemaker non-parity JS
     tests (`node scripts/run-js-tests.js --skip-parity`, 8 suites, 206 tests,
-    0 failures) and lint (exit 0); Shade MCP typecheck (0 errors) and unit
+    0 failures) and lint (exit 0, re-run at this candidate commit with the
+    receipt `nm-lint-result.json` recording the command, exit code, and
+    candidate SHA); Shade MCP typecheck (0 errors) and unit
     tests (26 files / 174 tests pass, including the new config, dsl-batch, and
     tool-result regressions); structure check via the vendored harness (`npm
     run test:shaders:structure`, 1258 documented parameters across 200
@@ -1199,10 +1204,12 @@ work, verify it, then update the checkpoint and append a log line.
     check-runs API (archived `check-runs-ed47815.json`) — 16 check runs, all
     `completed` with conclusion `success` or `skipped`, including shaders.yml's
     `Shader tests` and `GPU tests` at that SHA, release.yml's `Publish release`
-    and bundle/standalone builds, and site.yml's `Verify docs asset paths` and
-    `notify` (the `js.yml` workflow does not run at that SHA by design — its
-    path filter excludes commits touching only `shaders/**` and
-    `llms-full.txt`); source-SHA mapping for the local logs (archived
+    and bundle/standalone builds, docs-site.yml's `Verify docs asset paths`,
+    and downstream.yml's `notify` (site.yml's own check at that SHA is the
+    `Dispatch scaffold static-site-release` dispatch; the `js.yml` workflow does
+    not run there by design — its path filter excludes commits touching only
+    `shaders/**` and `llms-full.txt`); source-SHA mapping for the local logs
+    (archived
     `source-sha-mapping.md`) — noisemaker's `shaders/`/`js/`/`scripts/`/`test/`/
     `demo/` trees at capture time are byte-identical to `ed47815`
     (`git diff --stat ed478159..58953caa -- shaders/ js/ scripts/ test/ demo/`
@@ -1237,8 +1244,9 @@ work, verify it, then update the checkpoint and append a log line.
     `webgl2-render.log`, `webgpu-render.log`, `browser-smoke.log`,
     `pin-capture.log`, `pin-capture.mjs`, `vendor-check/`,
     `check-runs-ed47815.json`, `check-runs-58953ca.json`,
-    `source-sha-mapping.md`, `deployment-readback-58953ca.json`, and
-    `deployed-llms-full.txt`.
+    `source-sha-mapping.md`, `deployment-readback-58953ca.json`,
+    `deployed-llms-full.txt`, `nm-lint-result.json`, and
+    `vendor-source-verification.json` (with `shade-tags-remote.txt`).
   - 2026-09-29 — compatibility pass auditing noisemaker
     `73c15be00d6888f4b5d2835d8e242ee9e840df45..682739066d3b74962febbdcdae85b5aa4d2e19f3`
     and shade-mcp `00340b148e109464b1a87d89ff29fc7622d384c9..07af4ffa392197748216f3a0beaebee365d44292`
