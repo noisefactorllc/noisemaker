@@ -1043,12 +1043,15 @@ work, verify it, then update the checkpoint and append a log line.
   rendered output, cross-backend parity, Shade MCP tool contracts), a fully
   worked validated effect, the surface × capability traceability matrix, and
   the 11-row narrowed/blocked gap register (GAP-010..012, GAP-014, GAP-015,
-  GAP-017, GAP-019..021, GAP-024, and GAP-029; GAP-007 and GAP-026 closed in
-  the register, GAP-032 closed upstream with its register row removed). The file pins its
+  GAP-017, GAP-019..021, GAP-024, and GAP-029). The file pins its
   own audited SHAs in the "Source snapshots used for this contract" block at
   its head; that block and this checkpoint are the same two SHAs and must be
   advanced together. There is no generator — every update is a hand edit
   verified against live source.
+  `llms-full.txt` states current behavior and open gaps only. A closed gap's
+  row is deleted, and every reference to it goes with it. Never add closure
+  notes, audit or re-capture history, commit provenance, CI run IDs, or
+  verification timestamps to it; record those in this section's log.
   The short public index `llms.txt` carries no pinned snapshot and is kept
   current in-band with its links, so it is not part of this pass.
   Work spans both repositories even when only one changed. Noisemaker owns
