@@ -1114,6 +1114,28 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
+  - 2026-10-01 — Noise Factor AI delivery: Shade MCP `v0.3.0` is released
+    from `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`; exact-source
+    [quality CI](https://github.com/noisefactorllc/shade-mcp/actions/runs/36887002676)
+    and [release](https://github.com/noisefactorllc/shade-mcp/actions/runs/36887422465)
+    passed. The immutable `.mcp.json` pin now selects that source. The existing
+    vendor workflow delivered it in Noisemaker `deb4b413823d1ba79332337b29d53574f1b62e18`;
+    its [shader/GPU CI](https://github.com/noisefactorllc/noisemaker/actions/runs/36887657630)
+    passed. All 34 vendored files match the release asset (SHA-256
+    `f8c88ab90c297e1422663e527fb7ef9ec4528de2f8285dfcc0e23bafc57b89ea`).
+    Noisemaker source at `df62a434` passed non-parity JS, lint, structure,
+    WebGL2 rendering and page-confirmed WebGPU noise rendering. The separate
+    external-texture test skipped its WebGPU leg after fallback; it is not GPU
+    qualification. The configured Git pin negotiated `shade-mcp` / `0.3.0` /
+    `2025-06-18`, listed 18 tools, and completed timed captures with distinct
+    time-0/time-0.5/live images plus WebGL2/WebGPU DSL grids. The downloaded
+    release also passed built-in and two-effect authored browser smokes on both
+    hardware backends. Delivery is established; the shared checkpoint remains
+    `73c15be` / `00340b1` pending reconciliation of the contract's batch schemas,
+    MCP image transport, timed-render guidance, matrix and GAP-014/020/024/029.
+    GAP-012's direct effect-render WebGPU readback and the other browser verbs'
+    identity limitations remain open. This delivery does not advance the
+    `llms-full.txt` snapshots or certify those remaining paths.
   - 2026-10-01 — compatibility pass auditing noisemaker
     `e24c844f8dada85551ab084f41db8944fbc176c8..cb22a05eff9afed99fcf22a482b944c26f43e814`
     and shade-mcp `79c2e011a2a8088bf88462aae93ea7e2e135de10..687dbbd7d37a1220067ef08dacc350abfe62ebd5`
