@@ -458,7 +458,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `ed47815` (2026-09-30)
+- **Checkpoint:** noisemaker `63cfbb7` (2026-10-01)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -472,6 +472,31 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-10-01 — caught up through `63cfbb7`: audited the job's trigger
+    range `dd4606e..63cfbb7` (Tearoff item 704, delivered as
+    `a02f73e..63cfbb7`; the trigger's start `dd4606e` sits in the
+    non-contiguous history but is an ancestor of published main). The
+    range is already fully documented: the GAP-007 final leg
+    (`e24c844`, `a0e9bbf`), the in-band pipeline.rst alignment
+    (`e105344`), and the test-only GAP-010 commits (`16c1997`,
+    `ed47815`) were audited by the prior pass whose own checkpoint
+    advance is this range's end commit `63cfbb7`, and `a02f73e` touches
+    only LEDGER i18n checkpoints. Gap detection re-run: all 210
+    `shaders/effects/*/*/definition.js` have their `help.md` (zero
+    missing). No new end-user feature in the range, so no
+    `docs/shaders/features.rst` guide; no narrative statements
+    invalidated by `a02f73e`/`63cfbb7` (LEDGER-only + the prior pass's
+    own docs edits). Verified the Sphinx docs build locally
+    (`sphinx-build -b dirhtml docs docs/_build/dirhtml`: build
+    succeeded, 18 pre-existing warnings, 0 errors), docs static asset
+    paths (`node --test test/docs-static-paths.test.js`, 4/4 pass),
+    ESLint (`npm run lint`, clean), and the non-parity JS test suite
+    (`node scripts/run-js-tests.js --skip-parity`, 0 failures). Measured
+    results above are archived in the job's run evidence (Worker Elves
+    job `d441d8a4`, evidence `noisemaker-ledger-docs-704.txt`: clean
+    full Sphinx build after removing `docs/_build/dirhtml` — the
+    "1 warning" incremental re-run in that file predates the clean
+    rebuild and does not reflect a from-scratch build).
   - 2026-10-01 — caught up through `ed47815`: audited range
     `01e9d62..dd4606e` (Tearoff item 698; the trigger's start `01e9d62` had
     been force-pushed out of upstream main, so the objects were fetched
