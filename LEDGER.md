@@ -57,6 +57,76 @@ work, verify it, then update the checkpoint and append a log line.
      non-empty string values plus every placeholder, plural leaf, and markup tag
      from the English catalog.
 - **Log:**
+- **Log:**
+  - 2026-10-01 — delivery reconciliation: Shade MCP `v0.3.0` =
+    `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d` was released upstream
+    (`6a7e254`, one commit over the audited `687dbbd`: the version bump), the
+    `.mcp.json` pin was bumped to it (`df62a43`), and the existing vendor
+    workflow delivered the release bundle in Noisemaker `deb4b41` (recorded by
+    the operator in `f76c372`). This pass re-verified the delivery itself:
+    the freshly downloaded `v0.3.0` tarball `shade-mcp-dist.tar.gz` has sha256
+    `f8c88ab90c297e1422663e527fb7ef9ec4528de2f8285dfcc0e23bafc57b89ea` and the
+    vendored `vendor/shade-mcp/` trees (`harness`/`ai`/`formats`/`analysis`)
+    are byte-identical to it (receipt `vendor-check-030/tarball-sha256.txt`);
+    the immutable pin in `.mcp.json` selects exactly the released source
+    commit. Both checkpoints and the contract snapshot block now advance
+    together to noisemaker `e9a3574` / shade-mcp `6a7e254`: GAP-014's row is
+    deleted with every reference (the timed-capture hang and the pinned
+    time-0 redraw are fixed in the delivered verb — verified live at the pin:
+    `renderEffectFrame {time: 0.5, warmup_frames: 3}` returns `status ok`,
+    WebGL2, `mean_rgb` 0.457433/0.443662/0.445664 with 1001 unique sampled
+    colors, byte-identical to this viewer's deterministic per-time frame
+    recorded in the 2026-09-29 entry, so the redraw honors the requested
+    time); the `runDslProgram` section now documents the delivered batch verb
+    (fresh blank page, `SHADE_DSL_RENDERER_MODULE`/`SHADE_DSL_ASSETS_BASE`/
+    `SHADE_DSL_USE_BUNDLES`, `effects` Portable package selection, per-capture
+    full `ImageMetrics`, PNG contact sheet as MCP `image` content, live
+    re-capture `status ok` on WebGL2 with `surfaces ["o7"]`, frames
+    `[1,120,600]`, grid 1014x212, `content` types `["text","image"]`, and
+    `frame.image_uri` always null); the timed/untimed `renderEffectFrame`
+    capture semantics and the MCP image transport (`toolResult()` appends
+    `image` blocks after the JSON text block; the `isError` rule unchanged
+    from `98253a8c`) are documented; GAP-020/021/024/029 rows were
+    re-verified against the delivered release (`src/tools/tool-result.ts`
+    unchanged since `98253a8c`; `src/knowledge/shared-instances.ts` unchanged
+    since `d6b8ab0`; the GL-only readback and the unconfirmed
+    viewport-vs-canvas dimension handling unchanged in the released
+    `render.ts`); the open-gap count is corrected to 10; the matrix cell and
+    worked-instance audit were extended; and the register count sentence,
+    snapshot block, and this checkpoint were advanced together. The released
+    delta over the previously audited shade-mcp `687dbbd` is only the version
+    bump (`git diff 687dbbd..6a7e254`: package.json/package-lock.json), and
+    Noisemaker's watched-roots drift since `cb22a05` is only the inert
+    favicon-link commit `e9a3574` (demo/shaders/index.html + index.html icon
+    link, plus the vendor/pin/docs delivery commits). Validation battery on
+    the exact delivered pair: noisemaker non-parity JS tests
+    (`node scripts/run-js-tests.js --skip-parity`, 9 suites, 213 tests, 0
+    failures) and lint (exit 0); Shade typecheck (0 errors), unit tests (26
+    files / 175 tests pass), and build (`npm run build`, self-contained dist
+    advertising 0.3.0) at `6a7e254`; structure check via the delivered vendored
+    harness (`npm run test:shaders:structure`, 1258 documented parameters
+    across 200 effects); WebGL2 render check
+    (`npm run test:shaders:render:webgl2`, exit 0, 1/1 plus the
+    mesh/GLSL-orientation/overlay/external-texture sub-tests); WebGPU render
+    check (`node shaders/tests/test-harness.js --effects synth/noise --backend
+    webgpu --verbose`, 1/1 pass, `temporal_diff=0.216246`, page-confirmed
+    `identity_check` `match`, backend observed `webgpu`, generation 2→4,
+    `backend_switch` `match`; SwiftShader selected with `SHADE_SWIFTSHADER=1`
+    and `VK_DRIVER_FILES` at the Playwright `chromium_headless_shell-1243`
+    bundle's `vk_swiftshader_icd.json`); and Shade's real viewer smoke test
+    (`NOISEMAKER=<this checkout> node scripts/browser-smoke.mjs` from the
+    shade-mcp checkout at `6a7e254`, all available checks OK through the
+    genuine WebGPU DSL render and the virtual-route cleanup). Re-captured MCP
+    initialization (server `shade-mcp` version `0.3.0`, protocol `2025-06-18`
+    when requested, `2024-11-05` for the legacy client used in the session
+    captures), the 18-tool `tools/list`, `listEffects` (210 effects), worked
+    `analyzeEffect`/`checkEffectStructure` (`synth/noise`: lossy projection;
+    `status ok`, passCount 1), the delivered `runDslProgram` batch call, and
+    the timed `renderEffectFrame` call from stdio sessions at the tested
+    immutable pin `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d` (receipts
+    `pin-capture-030.json`, `pin-capture-2-030.json`). Archived run evidence
+    (Worker Elves archive `ledger-723`): `*-030.log`, `*-030.json`,
+    `pin-capture-030.mjs`, `pin-capture-2-030.mjs`, and `vendor-check-030/`.
   - 2026-10-01 — caught up through noisemaker `ed47815` / noisedeck
     `c674516`: audited noisemaker range `f24b525..ed47815` (zero diffs in
     `shaders/effects/`; all 3,677 keys remain in exact parity across all
@@ -1034,7 +1104,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `73c15be` / shade-mcp `00340b1`, 2026-09-29
+- **Checkpoint:** noisemaker `e9a3574` / shade-mcp `6a7e254`, 2026-10-01
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1042,7 +1112,7 @@ work, verify it, then update the checkpoint and append a log line.
   parameters/globals, passes/graph, textures, compatibility/mutation,
   rendered output, cross-backend parity, Shade MCP tool contracts), a fully
   worked validated effect, the surface × capability traceability matrix, and
-  the 11-row narrowed/blocked gap register (GAP-010..012, GAP-014, GAP-015,
+  the 10-row narrowed/blocked gap register (GAP-010..012, GAP-015,
   GAP-017, GAP-019..021, GAP-024, and GAP-029). The file pins its
   own audited SHAs in the "Source snapshots used for this contract" block at
   its head; that block and this checkpoint are the same two SHAs and must be
