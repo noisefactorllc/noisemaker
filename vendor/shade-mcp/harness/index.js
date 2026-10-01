@@ -278,6 +278,28 @@ function parseBackend(value) {
   }
   return "webgl2";
 }
+function parseDslUrl(value, fallback, key, module) {
+  const input = value ?? fallback;
+  const path = input.startsWith("https://") ? new URL(input).pathname : input;
+  const segments = path.split("/");
+  const validPath = /^\/[A-Za-z0-9._/-]+$/.test(path) && !path.includes("//") && segments.every((segment) => segment !== "." && segment !== "..");
+  const validModule = !module || path.endsWith(".js");
+  if (!validPath || !validModule) throw new Error(`${key} must be a root-relative path or HTTPS URL${module ? " ending in .js" : ""}`);
+  if (input.startsWith("https://")) {
+    const url2 = new URL(input);
+    if (url2.protocol !== "https:" || url2.username || url2.password || url2.search || url2.hash) {
+      throw new Error(`${key} must be an HTTPS URL without credentials, query, or fragment`);
+    }
+  } else if (!input.startsWith("/") || input.startsWith("//")) {
+    throw new Error(`${key} must be a root-relative path or HTTPS URL`);
+  }
+  return input.replace(/\/$/, "");
+}
+function parseDslBundles(value) {
+  if (value === void 0 || value === "false" || value === "0") return false;
+  if (value === "true" || value === "1") return true;
+  throw new Error("SHADE_DSL_USE_BUNDLES must be true or false");
+}
 function getConfig() {
   const projectRoot = process.env.SHADE_PROJECT_ROOT || process.cwd();
   return {
@@ -290,7 +312,10 @@ function getConfig() {
     maxBrowsers: parseCount(process.env.SHADE_MAX_BROWSERS, 1),
     timeoutMs: parseDuration(process.env.SHADE_TIMEOUT_MS, 12e4),
     aiTimeoutMs: parseDuration(process.env.SHADE_AI_TIMEOUT_MS, 12e4),
-    aiModel: process.env.SHADE_AI_MODEL || void 0
+    aiModel: process.env.SHADE_AI_MODEL || void 0,
+    dslRendererModule: parseDslUrl(process.env.SHADE_DSL_RENDERER_MODULE, "/shaders/src/index.js", "SHADE_DSL_RENDERER_MODULE", true),
+    dslAssetsBase: parseDslUrl(process.env.SHADE_DSL_ASSETS_BASE, "/shaders", "SHADE_DSL_ASSETS_BASE", false),
+    dslUseBundles: parseDslBundles(process.env.SHADE_DSL_USE_BUNDLES)
   };
 }
 
@@ -335,6 +360,7 @@ var BrowserSession = class {
     this.timeoutMs = opts.timeoutMs ?? config2.timeoutMs;
     this.options = {
       backend: opts.backend,
+      blankPage: opts.blankPage ?? false,
       // Headless by default: a visible window on every tool call is noise, and
       // launching headed fails outright wherever there is no display. Opt back
       // in with { headless: false } or SHADE_HEADLESS=0.
@@ -372,13 +398,28 @@ var BrowserSession = class {
       this.page.on("pageerror", (error51) => {
         this.consoleMessages.push({ type: "pageerror", text: error51.message });
       });
-      await this.page.goto(`${this.baseUrl}${this.viewerPath}`, { waitUntil: "networkidle" });
-      const rendererGlobal = this.globals.canvasRenderer;
-      await this.page.waitForFunction(
-        (name) => !!window[name],
-        rendererGlobal,
-        { timeout: this.timeoutMs }
-      );
+      if (this.options.blankPage) {
+        const blankUrl = `${this.baseUrl}/.shade-mcp-blank.html`;
+        const fulfillBlankPage = (route) => route.fulfill({
+          status: 200,
+          contentType: "text/html",
+          body: '<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>'
+        });
+        await this.page.route(blankUrl, fulfillBlankPage);
+        try {
+          await this.page.goto(blankUrl, { waitUntil: "domcontentloaded" });
+        } finally {
+          await this.page.unroute(blankUrl, fulfillBlankPage);
+        }
+      } else {
+        await this.page.goto(`${this.baseUrl}${this.viewerPath}`, { waitUntil: "networkidle" });
+        const rendererGlobal = this.globals.canvasRenderer;
+        await this.page.waitForFunction(
+          (name) => !!window[name],
+          rendererGlobal,
+          { timeout: this.timeoutMs }
+        );
+      }
       this._isSetup = true;
       trackSession(this);
     } catch (err) {
@@ -15250,118 +15291,137 @@ async function renderEffectFrame(session, effectId, options = {}) {
         }
       }, { unis: options.uniforms, globals: session.globals });
     }
+    const warmup = options.warmupFrames ?? 10;
+    await page.evaluate(({ frames: frames2, globals, timeout }) => {
+      return new Promise((resolve4, reject) => {
+        const start = window[globals.frameCount] || 0;
+        let settled = false;
+        const timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error(`Warmup timed out after ${timeout} ms waiting for ${frames2} frames (frame counter stuck at ${window[globals.frameCount] || 0})`));
+        }, timeout);
+        const poll = () => {
+          if (settled) return;
+          const current = window[globals.frameCount] || 0;
+          if (current - start >= frames2) {
+            settled = true;
+            clearTimeout(timer);
+            resolve4();
+          } else {
+            requestAnimationFrame(poll);
+          }
+        };
+        poll();
+      });
+    }, { frames: warmup, globals: session.globals, timeout: session.timeoutMs });
+    let paused = false;
     if (options.time !== void 0) {
       await page.evaluate(({ time: time3, globals }) => {
         const w = window;
         if (w[globals.setPaused]) w[globals.setPaused](true);
         if (w[globals.setPausedTime]) w[globals.setPausedTime](time3);
       }, { time: options.time, globals: session.globals });
+      paused = true;
     }
-    const warmup = options.warmupFrames ?? 10;
-    await page.evaluate(({ frames, globals }) => {
-      return new Promise((resolve4) => {
-        const start = window[globals.frameCount] || 0;
-        const poll = () => {
-          const current = window[globals.frameCount] || 0;
-          if (current - start >= frames) resolve4();
-          else requestAnimationFrame(poll);
-        };
-        poll();
-      });
-    }, { frames: warmup, globals: session.globals });
-    const result = await page.evaluate(({ captureImage, globals }) => {
-      const renderer = window[globals.canvasRenderer];
-      const pipeline = window[globals.renderingPipeline];
-      if (!renderer || !pipeline) return { status: "error", backend: "unknown", error: "No renderer" };
-      const canvas = renderer.canvas;
-      const gl = pipeline.backend?.gl;
-      let pixels = null;
-      let width = canvas.width, height = canvas.height;
-      if (gl) {
-        pixels = new Uint8Array(width * height * 4);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-      }
-      if (!pixels) return { status: "error", backend: "unknown", error: "Failed to read pixels" };
-      const pixelCount = width * height;
-      const stride = Math.max(1, Math.floor(pixelCount / 1e3));
-      let sumR = 0, sumG = 0, sumB = 0, sumA = 0;
-      let sumR2 = 0, sumG2 = 0, sumB2 = 0;
-      let samples = 0;
-      const colorSet = /* @__PURE__ */ new Set();
-      for (let i = 0; i < pixelCount; i += stride) {
-        const idx = i * 4;
-        const r = pixels[idx] / 255, g = pixels[idx + 1] / 255, b = pixels[idx + 2] / 255, a = pixels[idx + 3] / 255;
-        sumR += r;
-        sumG += g;
-        sumB += b;
-        sumA += a;
-        sumR2 += r * r;
-        sumG2 += g * g;
-        sumB2 += b * b;
-        colorSet.add(`${pixels[idx]},${pixels[idx + 1]},${pixels[idx + 2]}`);
-        samples++;
-      }
-      const meanR = sumR / samples, meanG = sumG / samples, meanB = sumB / samples;
-      const stdR = Math.sqrt(sumR2 / samples - meanR * meanR);
-      const stdG = Math.sqrt(sumG2 / samples - meanG * meanG);
-      const stdB = Math.sqrt(sumB2 / samples - meanB * meanB);
-      const luma = 0.299 * meanR + 0.587 * meanG + 0.114 * meanB;
-      let lumaVar = 0;
-      for (let i = 0; i < pixelCount; i += stride) {
-        const idx = i * 4;
-        const l = 0.299 * pixels[idx] / 255 + 0.587 * pixels[idx + 1] / 255 + 0.114 * pixels[idx + 2] / 255;
-        lumaVar += (l - luma) * (l - luma);
-      }
-      lumaVar /= samples;
-      const isAllZero = meanR === 0 && meanG === 0 && meanB === 0;
-      const isAllTransparent = sumA / samples < 0.01;
-      const isBlank = lumaVar < 1e-4;
-      const isMono = colorSet.size <= 1;
-      let imageUri = null;
-      if (captureImage) {
-        const tmpCanvas = document.createElement("canvas");
-        tmpCanvas.width = width;
-        tmpCanvas.height = height;
-        const ctx = tmpCanvas.getContext("2d");
-        const imgData = ctx.createImageData(width, height);
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const srcIdx = ((height - 1 - y) * width + x) * 4;
-            const dstIdx = (y * width + x) * 4;
-            imgData.data[dstIdx] = pixels[srcIdx];
-            imgData.data[dstIdx + 1] = pixels[srcIdx + 1];
-            imgData.data[dstIdx + 2] = pixels[srcIdx + 2];
-            imgData.data[dstIdx + 3] = pixels[srcIdx + 3];
+    try {
+      const result = await page.evaluate(({ captureImage, globals, time: time3 }) => {
+        const renderer = window[globals.canvasRenderer];
+        const pipeline = window[globals.renderingPipeline];
+        if (!renderer || !pipeline) return { status: "error", backend: "unknown", error: "No renderer" };
+        const canvas = renderer.canvas;
+        const gl = pipeline.backend?.gl;
+        if (time3 !== null && typeof renderer.render === "function") renderer.render(time3);
+        let pixels = null;
+        let width = canvas.width, height = canvas.height;
+        if (gl) {
+          pixels = new Uint8Array(width * height * 4);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        }
+        if (!pixels) return { status: "error", backend: "unknown", error: "Failed to read pixels" };
+        const pixelCount = width * height;
+        const stride = Math.max(1, Math.floor(pixelCount / 1e3));
+        let sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+        let sumR2 = 0, sumG2 = 0, sumB2 = 0;
+        let samples = 0;
+        const colorSet = /* @__PURE__ */ new Set();
+        for (let i = 0; i < pixelCount; i += stride) {
+          const idx = i * 4;
+          const r = pixels[idx] / 255, g = pixels[idx + 1] / 255, b = pixels[idx + 2] / 255, a = pixels[idx + 3] / 255;
+          sumR += r;
+          sumG += g;
+          sumB += b;
+          sumA += a;
+          sumR2 += r * r;
+          sumG2 += g * g;
+          sumB2 += b * b;
+          colorSet.add(`${pixels[idx]},${pixels[idx + 1]},${pixels[idx + 2]}`);
+          samples++;
+        }
+        const meanR = sumR / samples, meanG = sumG / samples, meanB = sumB / samples;
+        const stdR = Math.sqrt(sumR2 / samples - meanR * meanR);
+        const stdG = Math.sqrt(sumG2 / samples - meanG * meanG);
+        const stdB = Math.sqrt(sumB2 / samples - meanB * meanB);
+        const luma = 0.299 * meanR + 0.587 * meanG + 0.114 * meanB;
+        let lumaVar = 0;
+        for (let i = 0; i < pixelCount; i += stride) {
+          const idx = i * 4;
+          const l = 0.299 * pixels[idx] / 255 + 0.587 * pixels[idx + 1] / 255 + 0.114 * pixels[idx + 2] / 255;
+          lumaVar += (l - luma) * (l - luma);
+        }
+        lumaVar /= samples;
+        const isAllZero = meanR === 0 && meanG === 0 && meanB === 0;
+        const isAllTransparent = sumA / samples < 0.01;
+        const isBlank = lumaVar < 1e-4;
+        const isMono = colorSet.size <= 1;
+        let imageUri = null;
+        if (captureImage) {
+          const tmpCanvas = document.createElement("canvas");
+          tmpCanvas.width = width;
+          tmpCanvas.height = height;
+          const ctx = tmpCanvas.getContext("2d");
+          const imgData = ctx.createImageData(width, height);
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              const srcIdx = ((height - 1 - y) * width + x) * 4;
+              const dstIdx = (y * width + x) * 4;
+              imgData.data[dstIdx] = pixels[srcIdx];
+              imgData.data[dstIdx + 1] = pixels[srcIdx + 1];
+              imgData.data[dstIdx + 2] = pixels[srcIdx + 2];
+              imgData.data[dstIdx + 3] = pixels[srcIdx + 3];
+            }
           }
+          ctx.putImageData(imgData, 0, 0);
+          imageUri = tmpCanvas.toDataURL("image/png");
         }
-        ctx.putImageData(imgData, 0, 0);
-        imageUri = tmpCanvas.toDataURL("image/png");
+        return {
+          status: "ok",
+          backend: pipeline.backend?.getName?.() || "unknown",
+          frame: { image_uri: imageUri, width, height },
+          metrics: {
+            mean_rgb: [meanR, meanG, meanB],
+            mean_alpha: sumA / samples,
+            std_rgb: [stdR, stdG, stdB],
+            luma_variance: lumaVar,
+            unique_sampled_colors: colorSet.size,
+            is_all_zero: isAllZero,
+            is_all_transparent: isAllTransparent,
+            is_essentially_blank: isBlank,
+            is_monochrome: isMono
+          }
+        };
+      }, { captureImage: options.captureImage ?? false, globals: session.globals, time: options.time ?? null });
+      return result;
+    } finally {
+      if (paused) {
+        await page.evaluate((globals) => {
+          const w = window;
+          if (w[globals.setPaused]) w[globals.setPaused](false);
+        }, session.globals).catch(() => {
+        });
       }
-      return {
-        status: "ok",
-        backend: pipeline.backend?.getName?.() || "unknown",
-        frame: { image_uri: imageUri, width, height },
-        metrics: {
-          mean_rgb: [meanR, meanG, meanB],
-          mean_alpha: sumA / samples,
-          std_rgb: [stdR, stdG, stdB],
-          luma_variance: lumaVar,
-          unique_sampled_colors: colorSet.size,
-          is_all_zero: isAllZero,
-          is_all_transparent: isAllTransparent,
-          is_essentially_blank: isBlank,
-          is_monochrome: isMono
-        }
-      };
-    }, { captureImage: options.captureImage ?? false, globals: session.globals });
-    if (options.time !== void 0) {
-      await page.evaluate((globals) => {
-        const w = window;
-        if (w[globals.setPaused]) w[globals.setPaused](false);
-      }, session.globals);
     }
-    return result;
   });
 }
 
@@ -15536,7 +15596,7 @@ async function waitReady(session) {
     return !!(p.graph && p.graph.passes && p.graph.passes.length > 0);
   }, session.globals, { timeout: session.timeoutMs, polling: 50 });
 }
-async function warmUp(session, frames = 6) {
+async function warmUp(session, frames2 = 6) {
   const start = await session.page.evaluate((globals) => {
     const w = window;
     if (w[globals.setPaused]) w[globals.setPaused](false);
@@ -15544,7 +15604,7 @@ async function warmUp(session, frames = 6) {
   }, session.globals);
   await session.page.waitForFunction(
     ({ globals, target }) => (window[globals.frameCount] || 0) >= target,
-    { globals: session.globals, target: start + frames },
+    { globals: session.globals, target: start + frames2 },
     { timeout: 3e4, polling: 30 }
   );
 }
@@ -15824,140 +15884,251 @@ async function testUniformResponsiveness(session, effectId) {
 }
 
 // src/tools/browser/dsl.ts
+var resolution = external_exports.tuple([external_exports.number().int().min(1).max(1920), external_exports.number().int().min(1).max(1080)]);
+var frames = external_exports.array(external_exports.number().int().min(1).max(1200)).min(1).max(6).refine(
+  (values) => values.every((value, index) => index === 0 || value > values[index - 1]),
+  "Capture frames must be strictly increasing"
+);
 var runDslProgramSchema = {
-  dsl: external_exports.string().describe("DSL program string"),
+  dsl: external_exports.string().min(1).max(1e5).describe("Noisemaker DSL program"),
+  effects: external_exports.string().min(1).max(4096).refine((value) => value.split(",").every((id) => /^[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*$/.test(id.trim())), "Invalid authored effect ID").refine((value) => value.split(",").length <= 16, "Select at most 16 authored effects").optional().describe("Comma-separated Portable package IDs under SHADE_EFFECTS_DIR; omitted means built-in effects only"),
   backend: external_exports.enum(["webgl2", "webgpu"]).default("webgl2").describe("Rendering backend"),
-  warmup_frames: external_exports.number().optional().default(10).describe("Number of frames to wait before measuring output"),
-  capture_image: external_exports.boolean().optional().default(false).describe("Capture the frame as a PNG data URI"),
-  uniforms: external_exports.record(external_exports.string(), external_exports.number()).optional().describe("Values that override uniforms")
+  warmup_frames: external_exports.number().int().min(0).max(120).default(10).describe("Frames before the first capture frame"),
+  frames: frames.default([1, 120, 600]).describe("Frames to capture after warmup"),
+  resolution: resolution.default([960, 540]).describe("Full rendering resolution [width, height]"),
+  cell_resolution: resolution.default([320, 180]).describe("Contact-sheet cell resolution [width, height]"),
+  // Retained for callers of the old one-frame tool. The grid is always sent
+  // as MCP image content, regardless of this legacy flag.
+  capture_image: external_exports.boolean().optional().describe("Legacy option; the grid is always returned as an image"),
+  uniforms: external_exports.record(external_exports.string(), external_exports.number().finite()).optional().describe("Values that override uniforms")
 };
 async function runDslProgram(session, dsl, options = {}) {
+  const input = external_exports.object(runDslProgramSchema).parse({
+    dsl,
+    effects: options.effects,
+    backend: session.backend,
+    warmup_frames: options.warmupFrames,
+    frames: options.frames,
+    resolution: options.resolution,
+    cell_resolution: options.cellResolution,
+    uniforms: options.uniforms
+  });
+  const captureFrames = input.frames;
+  const [width, height] = input.resolution;
+  const [cellWidth, cellHeight] = input.cell_resolution;
+  const warmupFrames = input.warmup_frames;
+  const config2 = getConfig();
+  const effectIds = input.effects ? [...new Set(resolveEffectIds({ effects: input.effects }, config2.effectsDir))] : [];
+  if (width * height * captureFrames.length > 16e6) {
+    throw new Error("Requested captures exceed the 16 million pixel batch limit");
+  }
+  if (cellWidth * cellHeight * captureFrames.length > 4e6) {
+    throw new Error("Contact sheet exceeds the 4 million pixel limit");
+  }
   return session.runWithConsoleCapture(async () => {
     const page = session.page;
-    await session.setBackend(session.backend);
-    const compileResult = await page.evaluate(({ dsl: dsl2, timeout, globals }) => {
-      return new Promise((resolve4) => {
-        const editor = document.getElementById("dsl-editor");
-        const runBtn = document.getElementById("dsl-run-btn");
-        if (editor && runBtn) {
-          editor.value = dsl2;
-          editor.dispatchEvent(new Event("input"));
-          runBtn.click();
-        } else {
-          const renderer = window[globals.canvasRenderer];
-          if (renderer?.compile) {
-            renderer.compile(dsl2).then(() => {
-              resolve4({ status: "ok", message: "Compiled via renderer" });
-            }).catch((err) => {
-              resolve4({ status: "error", message: err?.message || String(err) });
+    let timer;
+    try {
+      const batch = await Promise.race([
+        page.evaluate(async ({ rendererModule, assetsBase, useBundles, effectUrls, dsl: dsl2, backend, width: width2, height: height2, cellWidth: cellWidth2, cellHeight: cellHeight2, captureFrames: captureFrames2, warmupFrames: warmupFrames2, uniforms }) => {
+          const { CanvasRenderer, compile } = await import(rendererModule);
+          const canvas = document.createElement("canvas");
+          canvas.width = width2;
+          canvas.height = height2;
+          document.body.appendChild(canvas);
+          let renderFailure = null;
+          const renderer = new CanvasRenderer({
+            canvas,
+            width: width2,
+            height: height2,
+            basePath: assetsBase,
+            bundlePath: `${assetsBase}/effects`,
+            useBundles,
+            preferWebGPU: backend === "webgpu",
+            onError: (error51) => {
+              renderFailure = error51?.message || String(error51);
+            }
+          });
+          try {
+            const manifest = await renderer.loadManifest();
+            await renderer.loadEffects(Object.keys(manifest));
+            if (effectUrls.length && typeof renderer.registerPortableEffect !== "function") {
+              throw new Error("Configured Noisemaker renderer does not support registerPortableEffect; use a qualified renderer with authored-effect registration");
+            }
+            for (const baseUrl of effectUrls) {
+              const definitionUrl = `${baseUrl}/definition.json`;
+              const response = await fetch(definitionUrl);
+              if (!response.ok) throw new Error(`${definitionUrl}: HTTP ${response.status}`);
+              const definition = await response.json();
+              if (!Array.isArray(definition?.passes) || definition.passes.length === 0) {
+                throw new Error(`Portable effect ${baseUrl}: passes must be a nonempty array`);
+              }
+              definition.shaders = /* @__PURE__ */ Object.create(null);
+              const language = backend === "webgpu" ? "wgsl" : "glsl";
+              for (const pass of definition.passes) {
+                const program = pass?.program;
+                if (typeof program !== "string" || !/^[A-Za-z0-9_-]+$/.test(program)) {
+                  throw new Error(`Portable effect ${baseUrl}: invalid pass program`);
+                }
+                if (definition.shaders[program]) continue;
+                const url2 = `${baseUrl}/${language}/${program}.${language}`;
+                const source = await fetch(url2);
+                if (!source.ok) throw new Error(`${url2}: HTTP ${source.status}`);
+                definition.shaders[program] = { [language]: await source.text() };
+              }
+              await renderer.registerPortableEffect(definition);
+            }
+            await renderer.compile(dsl2);
+            renderer.stop();
+            const pipeline = renderer.pipeline;
+            const actualBackend = pipeline.backend.getName?.() || "unknown";
+            if (actualBackend.toLowerCase() !== backend) {
+              throw new Error(`Requested backend ${backend}, renderer used ${actualBackend}`);
+            }
+            const compiled = compile(dsl2);
+            const written = /* @__PURE__ */ new Set();
+            const visit = (value) => {
+              if (!value || typeof value !== "object") return;
+              if (value.write?.kind === "output" && typeof value.write.name === "string") written.add(value.write.name);
+              for (const [key, child] of Object.entries(value)) {
+                if (key !== "write") {
+                  if (Array.isArray(child)) child.forEach(visit);
+                  else if (typeof child === "object") visit(child);
+                }
+              }
+            };
+            visit(compiled.plans);
+            const renderTarget = pipeline.graph?.renderSurface || compiled.render;
+            if (renderTarget) written.add(renderTarget);
+            const surfaces = [...written].sort();
+            if (surfaces.length === 0) throw new Error("Program writes no output surfaces");
+            if (width2 * height2 * captureFrames2.length * surfaces.length > 16e6) {
+              throw new Error("Requested captures exceed the 16 million pixel batch limit");
+            }
+            for (const surface of surfaces) {
+              if (!pipeline.surfaces.has(surface)) throw new Error(`Written surface ${surface} is missing from the renderer`);
+            }
+            if (uniforms) {
+              for (const [name, value] of Object.entries(uniforms)) {
+                if (pipeline.setUniform) pipeline.setUniform(name, value);
+                else if (pipeline.globalUniforms) pipeline.globalUniforms[name] = value;
+              }
+            }
+            const cols = captureFrames2.length;
+            const gap = 4, top = 24, left = 38;
+            const grid = document.createElement("canvas");
+            grid.width = left + cols * (cellWidth2 + gap) + gap;
+            grid.height = top + surfaces.length * (cellHeight2 + gap) + gap;
+            if (grid.width * grid.height > 4e6) {
+              throw new Error("Contact sheet exceeds the 4 million pixel limit");
+            }
+            const ctx = grid.getContext("2d");
+            ctx.fillStyle = "#202020";
+            ctx.fillRect(0, 0, grid.width, grid.height);
+            ctx.font = "14px sans-serif";
+            ctx.fillStyle = "white";
+            captureFrames2.forEach((frame, col) => ctx.fillText(`f${frame}`, left + gap + col * (cellWidth2 + gap), 17));
+            surfaces.forEach((surface, row) => ctx.fillText(surface, 4, top + 18 + row * (cellHeight2 + gap)));
+            const scratch = document.createElement("canvas");
+            const scratchCtx = scratch.getContext("2d");
+            const captures2 = [];
+            const selectedFrames = new Set(captureFrames2);
+            const lastFrame = warmupFrames2 + captureFrames2.at(-1);
+            for (let absoluteFrame = 1; absoluteFrame <= lastFrame; absoluteFrame++) {
+              const previousFrame = renderer.frameCount;
+              renderer.render(absoluteFrame / 60 % 10 / 10);
+              if (renderFailure) throw new Error(`Render failed at frame ${absoluteFrame}: ${renderFailure}`);
+              if (renderer.frameCount !== previousFrame + 1) {
+                throw new Error(`Renderer did not advance at frame ${absoluteFrame}`);
+              }
+              const relativeFrame = absoluteFrame - warmupFrames2;
+              if (!selectedFrames.has(relativeFrame)) continue;
+              await pipeline.backend.device?.queue.onSubmittedWorkDone();
+              const col = captureFrames2.indexOf(relativeFrame);
+              for (let row = 0; row < surfaces.length; row++) {
+                const surface = surfaces[row];
+                const texture = pipeline.surfaces.get(surface)?.read;
+                if (!texture) throw new Error(`Written surface ${surface} has no readable texture`);
+                const raw = await pipeline.backend.readPixels(texture);
+                if (!raw || !raw.width || !raw.height || raw.data.length !== raw.width * raw.height * 4) {
+                  throw new Error(`Invalid pixels for surface ${surface}`);
+                }
+                const pixels = raw.data instanceof Float32Array ? Uint8Array.from(raw.data, (value) => Math.round(Math.max(0, Math.min(1, value)) * 255)) : raw.data;
+                if (!(pixels instanceof Uint8Array)) throw new Error(`Unsupported pixel type for surface ${surface}`);
+                const image = new ImageData(new Uint8ClampedArray(pixels), raw.width, raw.height);
+                scratch.width = raw.width;
+                scratch.height = raw.height;
+                scratchCtx.putImageData(image, 0, 0);
+                const x = left + gap + col * (cellWidth2 + gap);
+                const y = top + gap + row * (cellHeight2 + gap);
+                ctx.fillStyle = "#555";
+                ctx.fillRect(x, y, cellWidth2, cellHeight2);
+                ctx.drawImage(scratch, x, y, cellWidth2, cellHeight2);
+                let binary = "";
+                for (let offset = 0; offset < pixels.length; offset += 32768) {
+                  binary += String.fromCharCode(...pixels.subarray(offset, offset + 32768));
+                }
+                captures2.push({ surface, frame: relativeFrame, width: raw.width, height: raw.height, pixels: btoa(binary) });
+              }
+            }
+            return {
+              status: "ok",
+              backend: actualBackend,
+              surfaces,
+              render_target: renderTarget,
+              captures: captures2,
+              image_data: grid.toDataURL("image/png").split(",")[1],
+              grid: { width: grid.width, height: grid.height, cell_width: cellWidth2, cell_height: cellHeight2, rows: surfaces, columns: captureFrames2 }
+            };
+          } catch (error51) {
+            return { status: "error", error: error51?.message || error51?.detail || JSON.stringify(error51) || String(error51) };
+          } finally {
+            await renderer.dispose().catch(() => {
             });
-            return;
+            canvas.remove();
           }
-          resolve4({ status: "error", message: "No DSL editor or renderer found" });
-          return;
-        }
-        const start = Date.now();
-        const poll = () => {
-          const status = document.getElementById("status");
-          const text = (status?.textContent || "").toLowerCase();
-          if (text.includes("error") || text.includes("failed")) {
-            resolve4({ status: "error", message: status?.textContent });
-            return;
-          }
-          if (text.includes("loaded") || text.includes("compiled") || text.includes("ready")) {
-            resolve4({ status: "ok", message: "Compiled" });
-            return;
-          }
-          if (Date.now() - start > timeout) {
-            resolve4({ status: "error", message: "Compile timeout" });
-            return;
-          }
-          setTimeout(poll, 50);
-        };
-        poll();
-      });
-    }, { dsl, timeout: session.timeoutMs, globals: session.globals });
-    if (compileResult.status === "error") {
-      return { status: "error", error: compileResult.message };
-    }
-    if (options.uniforms) {
-      await page.evaluate(({ unis, globals }) => {
-        const pipeline = window[globals.renderingPipeline];
-        if (!pipeline) return;
-        for (const [k, v] of Object.entries(unis)) {
-          if (pipeline.setUniform) pipeline.setUniform(k, v);
-          else if (pipeline.globalUniforms) pipeline.globalUniforms[k] = v;
-        }
-      }, { unis: options.uniforms, globals: session.globals });
-    }
-    const warmup = options.warmupFrames ?? 10;
-    await page.evaluate(({ frames, globals }) => {
-      return new Promise((resolve4) => {
-        const start = window[globals.frameCount] || 0;
-        const poll = () => {
-          if ((window[globals.frameCount] || 0) - start >= frames) resolve4();
-          else requestAnimationFrame(poll);
-        };
-        poll();
-      });
-    }, { frames: warmup, globals: session.globals });
-    const result = await page.evaluate(({ captureImage, globals }) => {
-      const renderer = window[globals.canvasRenderer];
-      const pipeline = window[globals.renderingPipeline];
-      if (!renderer || !pipeline) return { status: "error", error: "No renderer" };
-      const canvas = renderer.canvas;
-      const gl = pipeline.backend?.gl;
-      if (!gl) return { status: "error", error: "No GL context" };
-      const width = canvas.width, height = canvas.height;
-      const pixels = new Uint8Array(width * height * 4);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-      const count = width * height;
-      const stride = Math.max(1, Math.floor(count / 1e3));
-      let sumR = 0, sumG = 0, sumB = 0, samples = 0;
-      const colors = /* @__PURE__ */ new Set();
-      for (let i = 0; i < count; i += stride) {
-        const idx = i * 4;
-        sumR += pixels[idx] / 255;
-        sumG += pixels[idx + 1] / 255;
-        sumB += pixels[idx + 2] / 255;
-        colors.add(`${pixels[idx]},${pixels[idx + 1]},${pixels[idx + 2]}`);
-        samples++;
-      }
-      const meanR = sumR / samples, meanG = sumG / samples, meanB = sumB / samples;
-      let imageUri = null;
-      if (captureImage) {
-        const tmp = document.createElement("canvas");
-        tmp.width = width;
-        tmp.height = height;
-        const ctx = tmp.getContext("2d");
-        const imgData = ctx.createImageData(width, height);
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const src = ((height - 1 - y) * width + x) * 4;
-            const dst = (y * width + x) * 4;
-            imgData.data[dst] = pixels[src];
-            imgData.data[dst + 1] = pixels[src + 1];
-            imgData.data[dst + 2] = pixels[src + 2];
-            imgData.data[dst + 3] = pixels[src + 3];
-          }
-        }
-        ctx.putImageData(imgData, 0, 0);
-        imageUri = tmp.toDataURL("image/png");
-      }
+        }, {
+          rendererModule: config2.dslRendererModule.startsWith("/") ? `${getServerUrl()}${config2.dslRendererModule}` : config2.dslRendererModule,
+          assetsBase: config2.dslAssetsBase.startsWith("/") ? `${getServerUrl()}${config2.dslAssetsBase}` : config2.dslAssetsBase,
+          useBundles: config2.dslUseBundles,
+          effectUrls: effectIds.map((id) => `${getServerUrl()}/effects/${id}`),
+          dsl,
+          backend: session.backend,
+          width,
+          height,
+          cellWidth,
+          cellHeight,
+          captureFrames,
+          warmupFrames,
+          uniforms: options.uniforms
+        }),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error(`DSL batch timed out after ${session.timeoutMs} ms`)), session.timeoutMs);
+        })
+      ]);
+      if (batch.status === "error") return batch;
+      const captures = (batch.captures || []).map(({ pixels, ...capture }) => ({
+        ...capture,
+        metrics: computeImageMetrics(Buffer.from(pixels, "base64"), capture.width, capture.height)
+      }));
+      const finalCapture = captures.find((capture) => capture.surface === batch.render_target && capture.frame === captureFrames.at(-1)) || captures.at(-1);
       return {
         status: "ok",
-        backend: pipeline.backend?.getName?.() || "unknown",
-        frame: { width, height, image_uri: imageUri },
-        metrics: {
-          mean_rgb: [meanR, meanG, meanB],
-          unique_sampled_colors: colors.size,
-          is_all_zero: meanR === 0 && meanG === 0 && meanB === 0,
-          is_monochrome: colors.size <= 1
-        }
+        backend: batch.backend,
+        resolution: { width, height },
+        warmup_frames: warmupFrames,
+        frames: captureFrames,
+        surfaces: batch.surfaces,
+        render_target: batch.render_target,
+        captures,
+        grid: batch.grid,
+        frame: finalCapture ? { width: finalCapture.width, height: finalCapture.height, image_uri: null } : void 0,
+        metrics: finalCapture?.metrics,
+        image_data: batch.image_data
       };
-    }, { captureImage: options.captureImage ?? false, globals: session.globals });
-    return result;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   });
 }
 

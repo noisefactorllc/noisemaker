@@ -12,6 +12,7 @@ export declare const DEFAULT_GLOBALS: ViewerGlobals;
 export declare function globalsFromPrefix(prefix: string): ViewerGlobals;
 export interface BrowserSessionOptions {
     backend: Backend;
+    blankPage?: boolean;
     headless?: boolean;
     viewerPort?: number;
     viewerRoot?: string;

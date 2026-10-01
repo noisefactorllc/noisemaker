@@ -21,6 +21,28 @@ function parseBackend(value) {
   }
   return "webgl2";
 }
+function parseDslUrl(value, fallback, key, module) {
+  const input = value ?? fallback;
+  const path = input.startsWith("https://") ? new URL(input).pathname : input;
+  const segments = path.split("/");
+  const validPath = /^\/[A-Za-z0-9._/-]+$/.test(path) && !path.includes("//") && segments.every((segment) => segment !== "." && segment !== "..");
+  const validModule = !module || path.endsWith(".js");
+  if (!validPath || !validModule) throw new Error(`${key} must be a root-relative path or HTTPS URL${module ? " ending in .js" : ""}`);
+  if (input.startsWith("https://")) {
+    const url = new URL(input);
+    if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) {
+      throw new Error(`${key} must be an HTTPS URL without credentials, query, or fragment`);
+    }
+  } else if (!input.startsWith("/") || input.startsWith("//")) {
+    throw new Error(`${key} must be a root-relative path or HTTPS URL`);
+  }
+  return input.replace(/\/$/, "");
+}
+function parseDslBundles(value) {
+  if (value === void 0 || value === "false" || value === "0") return false;
+  if (value === "true" || value === "1") return true;
+  throw new Error("SHADE_DSL_USE_BUNDLES must be true or false");
+}
 function getConfig() {
   const projectRoot = process.env.SHADE_PROJECT_ROOT || process.cwd();
   return {
@@ -33,7 +55,10 @@ function getConfig() {
     maxBrowsers: parseCount(process.env.SHADE_MAX_BROWSERS, 1),
     timeoutMs: parseDuration(process.env.SHADE_TIMEOUT_MS, 12e4),
     aiTimeoutMs: parseDuration(process.env.SHADE_AI_TIMEOUT_MS, 12e4),
-    aiModel: process.env.SHADE_AI_MODEL || void 0
+    aiModel: process.env.SHADE_AI_MODEL || void 0,
+    dslRendererModule: parseDslUrl(process.env.SHADE_DSL_RENDERER_MODULE, "/shaders/src/index.js", "SHADE_DSL_RENDERER_MODULE", true),
+    dslAssetsBase: parseDslUrl(process.env.SHADE_DSL_ASSETS_BASE, "/shaders", "SHADE_DSL_ASSETS_BASE", false),
+    dslUseBundles: parseDslBundles(process.env.SHADE_DSL_USE_BUNDLES)
   };
 }
 

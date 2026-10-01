@@ -14545,6 +14545,28 @@ function parseBackend(value) {
   }
   return "webgl2";
 }
+function parseDslUrl(value, fallback, key, module) {
+  const input = value ?? fallback;
+  const path = input.startsWith("https://") ? new URL(input).pathname : input;
+  const segments = path.split("/");
+  const validPath = /^\/[A-Za-z0-9._/-]+$/.test(path) && !path.includes("//") && segments.every((segment) => segment !== "." && segment !== "..");
+  const validModule = !module || path.endsWith(".js");
+  if (!validPath || !validModule) throw new Error(`${key} must be a root-relative path or HTTPS URL${module ? " ending in .js" : ""}`);
+  if (input.startsWith("https://")) {
+    const url2 = new URL(input);
+    if (url2.protocol !== "https:" || url2.username || url2.password || url2.search || url2.hash) {
+      throw new Error(`${key} must be an HTTPS URL without credentials, query, or fragment`);
+    }
+  } else if (!input.startsWith("/") || input.startsWith("//")) {
+    throw new Error(`${key} must be a root-relative path or HTTPS URL`);
+  }
+  return input.replace(/\/$/, "");
+}
+function parseDslBundles(value) {
+  if (value === void 0 || value === "false" || value === "0") return false;
+  if (value === "true" || value === "1") return true;
+  throw new Error("SHADE_DSL_USE_BUNDLES must be true or false");
+}
 function getConfig() {
   const projectRoot = process.env.SHADE_PROJECT_ROOT || process.cwd();
   return {
@@ -14557,7 +14579,10 @@ function getConfig() {
     maxBrowsers: parseCount(process.env.SHADE_MAX_BROWSERS, 1),
     timeoutMs: parseDuration(process.env.SHADE_TIMEOUT_MS, 12e4),
     aiTimeoutMs: parseDuration(process.env.SHADE_AI_TIMEOUT_MS, 12e4),
-    aiModel: process.env.SHADE_AI_MODEL || void 0
+    aiModel: process.env.SHADE_AI_MODEL || void 0,
+    dslRendererModule: parseDslUrl(process.env.SHADE_DSL_RENDERER_MODULE, "/shaders/src/index.js", "SHADE_DSL_RENDERER_MODULE", true),
+    dslAssetsBase: parseDslUrl(process.env.SHADE_DSL_ASSETS_BASE, "/shaders", "SHADE_DSL_ASSETS_BASE", false),
+    dslUseBundles: parseDslBundles(process.env.SHADE_DSL_USE_BUNDLES)
   };
 }
 
@@ -14875,118 +14900,137 @@ async function renderEffectFrame(session, effectId, options = {}) {
         }
       }, { unis: options.uniforms, globals: session.globals });
     }
+    const warmup = options.warmupFrames ?? 10;
+    await page.evaluate(({ frames, globals, timeout }) => {
+      return new Promise((resolve4, reject) => {
+        const start = window[globals.frameCount] || 0;
+        let settled = false;
+        const timer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          reject(new Error(`Warmup timed out after ${timeout} ms waiting for ${frames} frames (frame counter stuck at ${window[globals.frameCount] || 0})`));
+        }, timeout);
+        const poll = () => {
+          if (settled) return;
+          const current = window[globals.frameCount] || 0;
+          if (current - start >= frames) {
+            settled = true;
+            clearTimeout(timer);
+            resolve4();
+          } else {
+            requestAnimationFrame(poll);
+          }
+        };
+        poll();
+      });
+    }, { frames: warmup, globals: session.globals, timeout: session.timeoutMs });
+    let paused = false;
     if (options.time !== void 0) {
       await page.evaluate(({ time: time3, globals }) => {
         const w = window;
         if (w[globals.setPaused]) w[globals.setPaused](true);
         if (w[globals.setPausedTime]) w[globals.setPausedTime](time3);
       }, { time: options.time, globals: session.globals });
+      paused = true;
     }
-    const warmup = options.warmupFrames ?? 10;
-    await page.evaluate(({ frames, globals }) => {
-      return new Promise((resolve4) => {
-        const start = window[globals.frameCount] || 0;
-        const poll = () => {
-          const current = window[globals.frameCount] || 0;
-          if (current - start >= frames) resolve4();
-          else requestAnimationFrame(poll);
-        };
-        poll();
-      });
-    }, { frames: warmup, globals: session.globals });
-    const result = await page.evaluate(({ captureImage, globals }) => {
-      const renderer = window[globals.canvasRenderer];
-      const pipeline = window[globals.renderingPipeline];
-      if (!renderer || !pipeline) return { status: "error", backend: "unknown", error: "No renderer" };
-      const canvas = renderer.canvas;
-      const gl = pipeline.backend?.gl;
-      let pixels = null;
-      let width = canvas.width, height = canvas.height;
-      if (gl) {
-        pixels = new Uint8Array(width * height * 4);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-      }
-      if (!pixels) return { status: "error", backend: "unknown", error: "Failed to read pixels" };
-      const pixelCount = width * height;
-      const stride = Math.max(1, Math.floor(pixelCount / 1e3));
-      let sumR = 0, sumG = 0, sumB = 0, sumA = 0;
-      let sumR2 = 0, sumG2 = 0, sumB2 = 0;
-      let samples = 0;
-      const colorSet = /* @__PURE__ */ new Set();
-      for (let i = 0; i < pixelCount; i += stride) {
-        const idx = i * 4;
-        const r = pixels[idx] / 255, g = pixels[idx + 1] / 255, b = pixels[idx + 2] / 255, a = pixels[idx + 3] / 255;
-        sumR += r;
-        sumG += g;
-        sumB += b;
-        sumA += a;
-        sumR2 += r * r;
-        sumG2 += g * g;
-        sumB2 += b * b;
-        colorSet.add(`${pixels[idx]},${pixels[idx + 1]},${pixels[idx + 2]}`);
-        samples++;
-      }
-      const meanR = sumR / samples, meanG = sumG / samples, meanB = sumB / samples;
-      const stdR = Math.sqrt(sumR2 / samples - meanR * meanR);
-      const stdG = Math.sqrt(sumG2 / samples - meanG * meanG);
-      const stdB = Math.sqrt(sumB2 / samples - meanB * meanB);
-      const luma = 0.299 * meanR + 0.587 * meanG + 0.114 * meanB;
-      let lumaVar = 0;
-      for (let i = 0; i < pixelCount; i += stride) {
-        const idx = i * 4;
-        const l = 0.299 * pixels[idx] / 255 + 0.587 * pixels[idx + 1] / 255 + 0.114 * pixels[idx + 2] / 255;
-        lumaVar += (l - luma) * (l - luma);
-      }
-      lumaVar /= samples;
-      const isAllZero = meanR === 0 && meanG === 0 && meanB === 0;
-      const isAllTransparent = sumA / samples < 0.01;
-      const isBlank = lumaVar < 1e-4;
-      const isMono = colorSet.size <= 1;
-      let imageUri = null;
-      if (captureImage) {
-        const tmpCanvas = document.createElement("canvas");
-        tmpCanvas.width = width;
-        tmpCanvas.height = height;
-        const ctx = tmpCanvas.getContext("2d");
-        const imgData = ctx.createImageData(width, height);
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const srcIdx = ((height - 1 - y) * width + x) * 4;
-            const dstIdx = (y * width + x) * 4;
-            imgData.data[dstIdx] = pixels[srcIdx];
-            imgData.data[dstIdx + 1] = pixels[srcIdx + 1];
-            imgData.data[dstIdx + 2] = pixels[srcIdx + 2];
-            imgData.data[dstIdx + 3] = pixels[srcIdx + 3];
+    try {
+      const result = await page.evaluate(({ captureImage, globals, time: time3 }) => {
+        const renderer = window[globals.canvasRenderer];
+        const pipeline = window[globals.renderingPipeline];
+        if (!renderer || !pipeline) return { status: "error", backend: "unknown", error: "No renderer" };
+        const canvas = renderer.canvas;
+        const gl = pipeline.backend?.gl;
+        if (time3 !== null && typeof renderer.render === "function") renderer.render(time3);
+        let pixels = null;
+        let width = canvas.width, height = canvas.height;
+        if (gl) {
+          pixels = new Uint8Array(width * height * 4);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+        }
+        if (!pixels) return { status: "error", backend: "unknown", error: "Failed to read pixels" };
+        const pixelCount = width * height;
+        const stride = Math.max(1, Math.floor(pixelCount / 1e3));
+        let sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+        let sumR2 = 0, sumG2 = 0, sumB2 = 0;
+        let samples = 0;
+        const colorSet = /* @__PURE__ */ new Set();
+        for (let i = 0; i < pixelCount; i += stride) {
+          const idx = i * 4;
+          const r = pixels[idx] / 255, g = pixels[idx + 1] / 255, b = pixels[idx + 2] / 255, a = pixels[idx + 3] / 255;
+          sumR += r;
+          sumG += g;
+          sumB += b;
+          sumA += a;
+          sumR2 += r * r;
+          sumG2 += g * g;
+          sumB2 += b * b;
+          colorSet.add(`${pixels[idx]},${pixels[idx + 1]},${pixels[idx + 2]}`);
+          samples++;
+        }
+        const meanR = sumR / samples, meanG = sumG / samples, meanB = sumB / samples;
+        const stdR = Math.sqrt(sumR2 / samples - meanR * meanR);
+        const stdG = Math.sqrt(sumG2 / samples - meanG * meanG);
+        const stdB = Math.sqrt(sumB2 / samples - meanB * meanB);
+        const luma = 0.299 * meanR + 0.587 * meanG + 0.114 * meanB;
+        let lumaVar = 0;
+        for (let i = 0; i < pixelCount; i += stride) {
+          const idx = i * 4;
+          const l = 0.299 * pixels[idx] / 255 + 0.587 * pixels[idx + 1] / 255 + 0.114 * pixels[idx + 2] / 255;
+          lumaVar += (l - luma) * (l - luma);
+        }
+        lumaVar /= samples;
+        const isAllZero = meanR === 0 && meanG === 0 && meanB === 0;
+        const isAllTransparent = sumA / samples < 0.01;
+        const isBlank = lumaVar < 1e-4;
+        const isMono = colorSet.size <= 1;
+        let imageUri = null;
+        if (captureImage) {
+          const tmpCanvas = document.createElement("canvas");
+          tmpCanvas.width = width;
+          tmpCanvas.height = height;
+          const ctx = tmpCanvas.getContext("2d");
+          const imgData = ctx.createImageData(width, height);
+          for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+              const srcIdx = ((height - 1 - y) * width + x) * 4;
+              const dstIdx = (y * width + x) * 4;
+              imgData.data[dstIdx] = pixels[srcIdx];
+              imgData.data[dstIdx + 1] = pixels[srcIdx + 1];
+              imgData.data[dstIdx + 2] = pixels[srcIdx + 2];
+              imgData.data[dstIdx + 3] = pixels[srcIdx + 3];
+            }
           }
+          ctx.putImageData(imgData, 0, 0);
+          imageUri = tmpCanvas.toDataURL("image/png");
         }
-        ctx.putImageData(imgData, 0, 0);
-        imageUri = tmpCanvas.toDataURL("image/png");
+        return {
+          status: "ok",
+          backend: pipeline.backend?.getName?.() || "unknown",
+          frame: { image_uri: imageUri, width, height },
+          metrics: {
+            mean_rgb: [meanR, meanG, meanB],
+            mean_alpha: sumA / samples,
+            std_rgb: [stdR, stdG, stdB],
+            luma_variance: lumaVar,
+            unique_sampled_colors: colorSet.size,
+            is_all_zero: isAllZero,
+            is_all_transparent: isAllTransparent,
+            is_essentially_blank: isBlank,
+            is_monochrome: isMono
+          }
+        };
+      }, { captureImage: options.captureImage ?? false, globals: session.globals, time: options.time ?? null });
+      return result;
+    } finally {
+      if (paused) {
+        await page.evaluate((globals) => {
+          const w = window;
+          if (w[globals.setPaused]) w[globals.setPaused](false);
+        }, session.globals).catch(() => {
+        });
       }
-      return {
-        status: "ok",
-        backend: pipeline.backend?.getName?.() || "unknown",
-        frame: { image_uri: imageUri, width, height },
-        metrics: {
-          mean_rgb: [meanR, meanG, meanB],
-          mean_alpha: sumA / samples,
-          std_rgb: [stdR, stdG, stdB],
-          luma_variance: lumaVar,
-          unique_sampled_colors: colorSet.size,
-          is_all_zero: isAllZero,
-          is_all_transparent: isAllTransparent,
-          is_essentially_blank: isBlank,
-          is_monochrome: isMono
-        }
-      };
-    }, { captureImage: options.captureImage ?? false, globals: session.globals });
-    if (options.time !== void 0) {
-      await page.evaluate((globals) => {
-        const w = window;
-        if (w[globals.setPaused]) w[globals.setPaused](false);
-      }, session.globals);
     }
-    return result;
   });
 }
 
