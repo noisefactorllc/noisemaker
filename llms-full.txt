@@ -3175,7 +3175,7 @@ deviation, luma variance, transparency, or low-luma-variance metrics.
 Source: Shade MCP `src/tools/browser/dsl.ts` - schema and `runDslProgram()`.
 
 Pending delivery (recorded 2026-10-01 against unreleased Shade source
-`153eebd3b08c849a3fbf20d43527ae48a9dff746..79c2e011a2a8088bf88462aae93ea7e2e135de10`):
+`153eebd3b08c849a3fbf20d43527ae48a9dff746..687dbbd7d37a1220067ef08dacc350abfe62ebd5`):
 upstream `7b7f6cb`/`79c2e01` reshape this verb into a fresh-blank-page batch
 renderer — the page is an isolated route-served blank document on the same
 loopback origin (no viewer globals required), `CanvasRenderer` is imported from
@@ -3188,8 +3188,14 @@ captures: [{surface, frame, width, height, metrics}], grid, frame: {width,
 height, image_uri: null}, metrics, image_data}` where `captures` carries one
 `ImageMetrics` record per written surface per capture frame, `image_data` is the
 per-surface PNG contact sheet sent as MCP `image` content (text block first),
-and the input schema gains `frames` (default `[1, 120, 600]`), `resolution`
-(default `[960, 540]`), and `cell_resolution` (default `[320, 180]`) with
+and the input schema gains `effects` (optional comma-separated Portable
+package IDs under `SHADE_EFFECTS_DIR`, at most 16: each is served at
+`/effects/<id>`, its `definition.json` fetched, `definition.shaders` rebuilt
+from the per-pass `glsl/`/`wgsl` program sources, and the raw Portable
+definition registered live — this requires a Noisemaker renderer that
+supports `registerPortableEffect`), `frames` (default
+`[1, 120, 600]`), `resolution` (default `[960, 540]`), and `cell_resolution`
+(default `[320, 180]`) with
 `capture_image` retained as a no-op legacy flag. The newest release remains
 `v0.2.3` = `cbcab33363851016f65391fbb9ef71d66729c07f`, so this contract section
 above still documents the delivered pin (re-verified live at that pin 2026-10-01:

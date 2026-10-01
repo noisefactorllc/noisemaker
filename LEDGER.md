@@ -1114,6 +1114,66 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
+  - 2026-10-01 — compatibility pass auditing noisemaker
+    `e24c844f8dada85551ab084f41db8944fbc176c8..cb22a05eff9afed99fcf22a482b944c26f43e814`
+    and shade-mcp `79c2e011a2a8088bf88462aae93ea7e2e135de10..687dbbd7d37a1220067ef08dacc350abfe62ebd5`
+    (Tearoff item 723, job `ledger-llms-contract`; both trigger ranges were diffed from the
+    local checkouts against this checkpoint rather than trusted. Noisemaker's forced start
+    `e24c844` is a linear ancestor: its watched-root commits `dd4606e`/`a0e9bbf`/`e24c844`
+    (GAP-007) and `ed47815` (GAP-010), the ledger's own documentation commits through
+    `f5ca07c`, and the Portable-registration source step `cb22a05` are already audited in the
+    entries above; since `cb22a05` the watched-roots drift is empty — only the dependabot
+    brace-expansion bump `1b088ad`, outside the watched roots. shade-mcp's range extends the
+    already-audited paired candidate `c641503` by one commit, `687dbbd`, which touches only
+    `scripts/authored-dsl-smoke.mjs` — not a vendored module, tool schema, result shape,
+    exported harness surface, or release artifact — so no integration-code change or new
+    regression was required on either side; no public tool schema or result shape changed.
+    `llms-full.txt`'s `runDslProgram` pending-delivery note was refreshed to the extended
+    unreleased range and now records `c641503`'s optional `effects` input (Portable package
+    selection, at most 16, registered live through `registerPortableEffect`, matching the
+    `cb22a05` renderer registration audited above). Delivery remains the blocker exactly as
+    recorded for the prior entries: the newest Shade release is still `v0.2.3` =
+    `cbcab33363851016f65391fbb9ef71d66729c07f` (`git ls-remote --tags`, receipt
+    `vendor-check/shade-tags-remote.txt`), the `.mcp.json` pin is unchanged, and the vendored
+    `vendor/shade-mcp/` bundle was re-verified byte-identical to the freshly downloaded
+    `v0.2.3` tarball `shade-mcp-dist.tar.gz` (sha256
+    `4256ea5c695f15b3eec292f599a1ae1aada03a2628e33db8b3c9864a6b11f93f`; all four module
+    trees identical, `vendor-check/tarball-sha256.txt`). The batch verb, `c641503`'s
+    Portable effects input, and `687dbbd`'s smoke-script hardening all wait on an
+    operator-authorized Shade release, the existing `pull-shade-mcp` vendor refresh, and the
+    `.mcp.json` pin bump. Both checkpoints and the contract snapshot block remain unchanged
+    at noisemaker `73c15be` / shade-mcp `00340b1`. Validation battery on the exact pair:
+    noisemaker non-parity JS tests (`node scripts/run-js-tests.js --skip-parity`, 9 suites,
+    213 tests, 0 failures, including the `cb22a05` portable-registration suite) and lint
+    (exit 0); Shade typecheck (0 errors), unit tests (26 files / 175 tests pass), and build
+    (`npm run build`, self-contained dist advertising 0.2.3); structure check via the
+    vendored harness (`npm run test:shaders:structure`, 1258 documented parameters across
+    200 effects); WebGL2 render check (`npm run test:shaders:render:webgl2`, exit 0, 1/1,
+    `temporal_diff=0.216246`, mesh/GLSL-orientation/overlay/external-texture sub-tests
+    pass); WebGPU render check (`node shaders/tests/test-harness.js --effects synth/noise
+    --backend webgpu --verbose`, 1/1 pass, `temporal_diff=0.216246`, page-confirmed
+    `identity_check` `match`, backend observed `webgpu`, generation 2→4, `backend_switch`
+    `match`; SwiftShader selected via `SHADE_SWIFTSHADER=1` and `VK_DRIVER_FILES` at the
+    Playwright `chromium_headless_shell-1243` bundle's `vk_swiftshader_icd.json` — this
+    container's Vulkan loader 1.4.360 ignores the legacy `VK_ICD_FILENAMES` variable, and
+    without `VK_DRIVER_FILES` the SwANGLE init fails with `VK_KHR_surface` unsupported);
+    and Shade's real viewer smoke test (`NOISEMAKER=<this checkout> node
+    scripts/browser-smoke.mjs` from the shade-mcp checkout at `687dbbd`, all 14 checks OK:
+    `compileEffect`, `renderEffectFrame`, the DSL grid, invalid-DSL cleanup,
+    defaults-after-failure, concurrency isolation, `setContent` module import, contact-sheet
+    pixels, swallowed-renderer-error and backend-fallback detection, isolated secure
+    loopback DSL page, a genuine WebGPU DSL render, and the virtual-route cleanup).
+    Re-captured MCP initialization (server `shade-mcp` version `0.2.3`, protocol
+    `2024-11-05`), the 18-tool `tools/list`, and the worked untimed `runDslProgram`
+    (`search synth`/`read(o0).write(o7)`/`render(o7)`) from one stdio session at the
+    immutable pin `cbcab33363851016f65391fbb9ef71d66729c07f`: `status ok`, the pin's old
+    one-frame shape with `frame.image_uri: null`, keys `backend`/`console_errors`/`frame`/
+    `metrics`/`status`, WebGL2, `mean_rgb` 0.232998/0.407600/0.448649, 929 unique sampled
+    colors — the pin's documented live-frame read, nondeterministic with the capture moment.
+    Archived run evidence (Worker Elves archive `ledger-723`): `nm-tests.log`,
+    `nm-lint.log`, `shade-typecheck.log`, `shade-tests.log`, `shade-build.log`,
+    `structure.log`, `webgl2-render.log`, `webgpu-render.log`, `browser-smoke.log`,
+    `pin-capture.log`, `pin-capture.mjs`, `pin-capture.json`, and `vendor-check/`.
   - 2026-10-01 — Noise Factor AI authored-effect source step, above Noisemaker
     `b30d506f` and Shade MCP `79c2e01`. The publication carrying this entry adds
     `CanvasRenderer.registerPortableEffect` for initial registration of loaded
