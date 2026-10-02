@@ -213,6 +213,18 @@ export function validate(ast) {
         return cur
     }
 
+    // A bare name the parameter defines itself, as an inline choice or a
+    // member of its enum, means that value even where it shadows a state
+    // value such as `seed` or `a`. The unparser writes choices by bare name,
+    // so `geometry: seed` and `channel: a` must read back as written.
+    function isOwnChoice(def, name) {
+        if (def.choices && typeof def.choices[name] === 'number') return true
+        const enumPath = def.enumPath || def.enum
+        if (!enumPath) return false
+        const resolved = resolveEnum(applyEnumPrefix([name], normalizeMemberPath(enumPath)))
+        return typeof resolved === 'number'
+    }
+
     function clone(node) {
         return node && typeof node === 'object' ? JSON.parse(JSON.stringify(node)) : node
     }
@@ -1192,7 +1204,7 @@ export function validate(ast) {
                         } else if (node && (node.type === 'Number' || node.type === 'Boolean')) {
                             args[argKey] = node.type === 'Boolean' ? (node.value ? 1 : 0) : node.value
                             continue
-                        } else if (node && node.type === 'Ident' && stateValues.has(node.name)) {
+                        } else if (node && node.type === 'Ident' && stateValues.has(node.name) && !isOwnChoice(def, node.name)) {
                             const key = node.name
                             args[argKey] = {fn: (state) => state[key]}
                             continue
@@ -1379,7 +1391,7 @@ export function validate(ast) {
                                 pushDiag('S001', node, `Cannot resolve enum value for '${def.name}': '${node?.path?.join('.') || node?.name || 'unknown'}'`)
                                 value = def.default
                             }
-                        } else if (node && node.type === 'Ident' && stateValues.has(node.name)) {
+                        } else if (node && node.type === 'Ident' && stateValues.has(node.name) && !isOwnChoice(def, node.name)) {
                             const key = node.name
                             value = {fn: (state) => state[key], min:def.min, max:def.max, _ast: node}
                         } else if (node && node.type === 'Ident' && def.enum) {
