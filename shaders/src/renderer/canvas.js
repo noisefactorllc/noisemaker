@@ -30,6 +30,7 @@ import { mergeIntoEnums } from '../lang/enums.js'
 import { stdEnums } from '../lang/std_enums.js'
 import { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInputManager } from '../runtime/external-input.js'
 import { expandPalette } from '../runtime/palette-expansion.js'
+import { writeUniformAliases } from '../runtime/uniform-aliases.js'
 
 // Re-export for convenience
 export { MidiState, AudioState, MidiInputManager, AudioInputManager, ExternalInputManager }
@@ -2170,6 +2171,10 @@ export class CanvasRenderer {
 
             const converted = this.convertParameterForUniform(currentValue, spec)
 
+            for (const pass of this._pipeline.graph.passes) {
+                writeUniformAliases(pass, paramName, spec.uniform || paramName, converted)
+            }
+
             for (const binding of bindings) {
                 const pass = this._pipeline.graph.passes[binding.passIndex]
                 if (!pass || !pass.uniforms) {
@@ -2254,7 +2259,11 @@ export class CanvasRenderer {
                 // Skip uniforms controlled by colorModeUniform (they're set by expander based on surface)
                 if (colorModeControlledUniforms.has(uniformName)) continue
 
-                if (!pass.uniforms || !(uniformName in pass.uniforms)) continue
+                if (!pass.uniforms) continue
+                if (!(uniformName in pass.uniforms)) {
+                    writeUniformAliases(pass, paramName, uniformName, this.convertParameterForUniform(value, spec))
+                    continue
+                }
 
                 // Consumer passes inherit volumeSize from the upstream source
                 // emitter — their own step-state default is stale. Writing it
@@ -2264,6 +2273,7 @@ export class CanvasRenderer {
 
                 const converted = this.convertParameterForUniform(value, spec)
                 pass.uniforms[uniformName] = Array.isArray(converted) ? converted.slice() : converted
+                writeUniformAliases(pass, paramName, uniformName, converted)
 
                 // Propagate to chain-scoped variant so resolveDimension() sees the update,
                 // and broadcast to other chain members so collectDefaultUniforms() merges

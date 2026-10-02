@@ -840,7 +840,14 @@ export function expand(compilationResult, options = {}) {
                             pass.uniforms[uniformName] = globalRef
                             continue
                         }
-                        // globalRef is the name of the global parameter
+                        // globalRef is the name of the global parameter.
+                        // Record a renamed mapping so runtime parameter
+                        // updates reach this shader uniform too
+                        // (runtime/uniform-aliases.js).
+                        if (globalRef !== uniformName) {
+                            if (!pass.uniformAliases) pass.uniformAliases = {}
+                            pass.uniformAliases[uniformName] = globalRef
+                        }
                         // Look up the value from pipelineUniforms (includes defaults and DSL args)
                         if (pipelineUniforms[uniformName] !== undefined) {
                             pass.uniforms[uniformName] = pipelineUniforms[uniformName]

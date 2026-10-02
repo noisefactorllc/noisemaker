@@ -9,6 +9,7 @@
 
 import { Emitter } from './emitter.js'
 import { expandPalette } from '../../../shaders/src/runtime/palette-expansion.js'
+import { writeUniformAliases } from '../../../shaders/src/runtime/uniform-aliases.js'
 import { extractEffectsFromDsl } from './dsl-utils.js'
 import { compile, unparse, formatValue } from '../../../shaders/src/lang/index.js'
 import { getEffect, isStarterEffect } from '../../../shaders/src/renderer/canvas.js'
@@ -1065,6 +1066,10 @@ export class ProgramState extends Emitter {
                     if (this._renderer.convertParameterForUniform) {
                         converted = this._renderer.convertParameterForUniform(value, spec)
                     }
+
+                    // A pass may feed a renamed shader uniform from this
+                    // param (runtime/uniform-aliases.js).
+                    writeUniformAliases(pass, paramName, uniformName, converted)
 
                     if (uniformName in pass.uniforms) {
                         // Consumer passes inherit volumeSize from the upstream
