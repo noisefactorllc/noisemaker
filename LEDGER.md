@@ -1114,6 +1114,85 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
+  - 2026-10-02 — compatibility pass auditing noisemaker
+    `e9a357401f281405b5bf46e324238a3e160f1cd9..1fd893483c83f7602416cf8e9c48c9605a8f202c`
+    and shade-mcp `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d..bdf186638b26fad4811b7d21aec25b3571f15040`
+    (Tearoff item 743; both ranges diffed from the local checkouts against this
+    checkpoint rather than trusted). The noisemaker range's watched-roots drift
+    is empty — its commits are this ledger's and the gap register's own
+    documentation (`f8d5940`..`1fd8934`, including the register's rework into
+    the "Upstream Shade MCP defects" list mapping the ten former gap ids onto
+    shade-mcp issues 27-35). The shade range is five commits: `bc4a7fa`
+    (testUniformResponsiveness now reports overall `ok` only when every tested
+    uniform affected output, `error`/`skipped` otherwise, with measured
+    per-uniform default/test values and luma/max-channel deltas against the
+    stated 0.002 threshold — the upstream fix for issues #27, the source of the
+    former GAP-010/011), `2d85160` (regression-test isolation only),
+    `76d8d79` (version bump 0.3.1), `1aea08a` (renderEffectFrame,
+    testUniformResponsiveness and testNoPassthrough read pixels through the
+    backend's async `readPixels(textureId)` with Float32 conversion and
+    WebGPU row flip when there is no GL context, instead of failing — the
+    upstream fix for issue #28, the source of the former GAP-012), and
+    `987b14d` (the three verbs drain `queue.onSubmittedWorkDone()` before
+    reading the surface and missing-renderer errors now name the pipeline
+    backend instead of `unknown`). One further commit, `bdf1866`, is the
+    dependabot npm-minor-major dependency bump alone (`package.json` +
+    `package-lock.json`, no source change); the battery below was re-run at
+    `bdf1866`. None of this is delivered: `git
+    ls-remote --tags` shows the newest tag is still `v0.3.0` =
+    `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d` (no `v0.3.1` tag or release
+    exists; receipt `shade-tags-remote.txt`), the `.mcp.json` pin is unchanged,
+    and the vendored `vendor/shade-mcp/` bundle therefore still matches the
+    `v0.3.0` release — so no vendored module, tool schema, or public result
+    shape changed for the delivered pair, and `llms-full.txt` stays accurate
+    for it. Four identities of this pass: noisemaker source `1fd8934`, shade
+    source `bdf1866`, MCP pin `github:noisedeck/shade-mcp#6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`
+    (= release `v0.3.0`), vendor delivery `v0.3.0` (unchanged). No integration
+    code change was required on either side: noisemaker's harness mirrors and
+    wrappers (`uniform-status.js` aggregate over the unchanged
+    `tested_uniforms` strings, `frame-readback.js` wrapper path, and the
+    additive `backend` field on error results) remain valid at the delivered
+    pin. The audited shade refactor is reconciled in this repository's own
+    test guard: `shaders/tests/test_passthrough_input.js` pinned the vendored
+    `testNoPassthrough`'s literal `renderer.render(0)`/`renderer.render(1)`
+    calls, and `987b14d`'s verb renders inside a `readFrame(t)` helper; the
+    guard now accepts both eras while still requiring two distinct compared
+    render times, so the vendor refresh that delivers the issue-#28 fix does
+    not turn the suite red. Both checkpoints and
+    the contract snapshot block remain unchanged at noisemaker `e9a3574` /
+    shade-mcp `6a7e254`: the `v0.3.1` release (tag push), the `pull-shade-mcp`
+    vendor refresh, and the `.mcp.json` pin bump are operator-authorized
+    publication actions and stay recorded as the pending blocker. Validation
+    battery on the exact pair: noisemaker non-parity JS tests
+    (`node scripts/run-js-tests.js --skip-parity`, 9 suites, 213 tests, 0
+    failures) and lint (exit 0); Shade typecheck (0 errors), unit tests
+    (28 files / 187 tests pass) and build (`npm run build`, self-contained
+    dist advertising 0.3.1) at `bdf1866`; structure check via the vendored
+    harness (`npm run test:shaders:structure`, 1258 documented parameters
+    across 200 effects); WebGL2 render check
+    (`npm run test:shaders:render:webgl2`, exit 0, 1/1,
+    `temporal_diff=0.216246`, mesh/GLSL-orientation/overlay sub-tests;
+    the external-texture test's WebGPU leg skipped after backend fallback —
+    not GPU qualification); WebGPU render check
+    (`node shaders/tests/test-harness.js --effects synth/noise --backend
+    webgpu --verbose`, 1/1 pass, `temporal_diff=0.216246`, page-confirmed
+    `identity_check` `match`, backend observed `webgpu`, generation 2→4,
+    `backend_switch` `match`; SwiftShader selected with `SHADE_SWIFTSHADER=1`
+    and `VK_ICD_FILENAMES`/`VK_DRIVER_FILES` at the Playwright
+    `chromium_headless_shell-1243` bundle's `vk_swiftshader_icd.json`); and
+    Shade's real viewer smoke test (`NOISEMAKER=<this checkout> node
+    scripts/browser-smoke.mjs` from the shade-mcp checkout at `bdf1866`,
+    all available checks OK; the genuine WebGPU DSL render was skipped with a
+    sandbox device error, not GPU qualification). MCP session re-captured from
+    one stdio session at the tested immutable pin `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`:
+    server `shade-mcp` version `0.3.0`, protocol `2025-06-18` when requested,
+    the 18-tool `tools/list`, and a worked timed `renderEffectFrame`
+    `{effect_id: "synth/noise", time: 0.5, warmup_frames: 3}` returning
+    `status ok`, WebGL2, 1024x1024, `mean_rgb`
+    0.457433/0.443662/0.445664 with 1001 unique sampled colors — the same
+    values as the 2026-10-01 pin capture, so the pinned verb is deterministic
+    across sessions (receipts in the Worker Elves archive `ledger-743`:
+    `mcp-recapture-v030.json`, `mcp-recapture.mjs`, test and smoke logs).
   - 2026-10-01 — delivery reconciliation: Shade MCP `v0.3.0` =
     `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d` was released upstream
     (`6a7e254`, one commit over the audited `687dbbd`: the version bump), the
