@@ -1141,7 +1141,10 @@ work, verify it, then update the checkpoint and append a log line.
     `bdf1866`. None of this is delivered: `git
     ls-remote --tags` shows the newest tag is still `v0.3.0` =
     `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d` (no `v0.3.1` tag or release
-    exists; receipt `shade-tags-remote.txt`), the `.mcp.json` pin is unchanged,
+    exists — corroborated by an independent unauthenticated GitHub API lookup:
+    `refs/tags/v0.3.1` returns 404, the releases list ends at `v0.3.0`, and
+    `releases/latest` reports `tag_name v0.3.0`; receipt
+    `shade-tags-public-api.txt`), the `.mcp.json` pin is unchanged,
     and the vendored `vendor/shade-mcp/` bundle therefore still matches the
     `v0.3.0` release — so no vendored module, tool schema, or public result
     shape changed for the delivered pair, and `llms-full.txt` stays accurate
@@ -1182,17 +1185,41 @@ work, verify it, then update the checkpoint and append a log line.
     `chromium_headless_shell-1243` bundle's `vk_swiftshader_icd.json`); and
     Shade's real viewer smoke test (`NOISEMAKER=<this checkout> node
     scripts/browser-smoke.mjs` from the shade-mcp checkout at `bdf1866`,
-    all available checks OK; the genuine WebGPU DSL render was skipped with a
-    sandbox device error, not GPU qualification). MCP session re-captured from
-    one stdio session at the tested immutable pin `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`:
+    all available checks OK including the genuine WebGPU DSL render — source-
+    stamped re-run against the exact candidates (noisemaker `41d1ead`, 0 dirty
+    files; shade-mcp `bdf1866`, 0 dirty files; dist advertising 0.3.1 built at
+    shade HEAD) with `SHADE_SWIFTSHADER=1` and `VK_ICD_FILENAMES`/
+    `VK_DRIVER_FILES` at the `chromium_headless_shell-1243` bundle's
+    `vk_swiftshader_icd.json`; this is software-WebGPU (SwiftShader) evidence,
+    not physical-GPU qualification; receipt `shade-smoke-stamped.log`). MCP
+    session re-captured from one stdio session at the tested immutable pin
+    `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`:
     server `shade-mcp` version `0.3.0`, protocol `2025-06-18` when requested,
     the 18-tool `tools/list`, and a worked timed `renderEffectFrame`
     `{effect_id: "synth/noise", time: 0.5, warmup_frames: 3}` returning
     `status ok`, WebGL2, 1024x1024, `mean_rgb`
     0.457433/0.443662/0.445664 with 1001 unique sampled colors — the same
     values as the 2026-10-01 pin capture, so the pinned verb is deterministic
-    across sessions (receipts in the Worker Elves archive `ledger-743`:
-    `mcp-recapture-v030.json`, `mcp-recapture.mjs`, test and smoke logs).
+    across sessions. The same session's WebGPU captures at that pin
+    (`mcp-recapture-v030-webgpu.json`, driver `mcp-recapture-webgpu.mjs`,
+    SwiftShader env): `runDslProgram`
+    `{backend: "webgpu", dsl: "search synth\nnoise(10).write(o0)"}` returns
+    `status ok`, backend observed `WebGPU`, 960x540, frame 1 `mean_rgb`
+    0.416145/0.437018/0.469605 with 1000 unique sampled colors — WebGPU
+    rendering works through the configured pin's batch verb; but the pinned
+    `renderEffectFrame` with `backend: "webgpu"` still returns
+    `{"status": "error", "backend": "unknown", "error": "Failed to read
+    pixels"}` — the delivered pin's GAP-012 defect (issue #28) reproduced
+    live, exactly as `llms-full.txt` states for the delivered pair. That
+    failed configured-pin check is an outstanding blocker recorded here: the
+    item stays pending on it until the delivered pin's `renderEffectFrame`
+    passes a WebGPU render (which the unreleased `987b14d` fix provides once
+    released, vendored and pinned); `shaders/tests/test_frame_readback.js` now
+    source-guards the vendored verb's GL-only failure path, so the suite turns
+    red exactly when a vendor refresh delivers the upstream fix and the
+    wrapper's WebGPU path must be re-derived. Receipts in the Worker Elves archive
+    `ledger-743`: `mcp-recapture-v030.json`, `mcp-recapture-v030-webgpu.json`,
+    `mcp-recapture.mjs`, `mcp-recapture-webgpu.mjs`, test and smoke logs).
   - 2026-10-01 — delivery reconciliation: Shade MCP `v0.3.0` =
     `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d` was released upstream
     (`6a7e254`, one commit over the audited `687dbbd`: the version bump), the

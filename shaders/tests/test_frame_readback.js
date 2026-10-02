@@ -180,4 +180,25 @@ for (const field of [
 // The backend identity comes from the live pipeline backend.
 assert.ok(harnessSource.includes('backend.getName'))
 
+// ---------------------------------------------------------------------------
+// Source guard against the vendored upstream bundle: the delivered pin
+// (github:noisedeck/shade-mcp#6a7e2540, release v0.3.0) still ships the
+// GL-only render verb whose WebGPU failure this repository reproduced live
+// through the configured MCP (status error, backend unknown, "Failed to read
+// pixels"). The backend-neutral WebGPU readback exists only in the unreleased
+// upstream fix (shade-mcp 987b14d, issue #28); when a vendor refresh delivers
+// it, this guard turns red so the wrapper's WebGPU path is re-derived against
+// the fixed verb instead of silently coexisting with it.
+// ---------------------------------------------------------------------------
+
+const vendorSource = (await import('node:fs')).readFileSync(
+    new URL('../../vendor/shade-mcp/harness/index.js', import.meta.url), 'utf-8')
+
+assert.ok(vendorSource.includes('error: "Failed to read pixels"'),
+    'vendored renderEffectFrame should keep its GL-only readback failure path (GAP-012)')
+assert.ok(vendorSource.includes('pipeline.backend?.gl'),
+    'vendored renderEffectFrame should still read through pipeline.backend.gl')
+assert.ok(!vendorSource.includes('no readable render surface'),
+    'vendored renderEffectFrame should not yet carry the backend-neutral WebGPU readback (GAP-012; a refresh delivering shade-mcp#28 changes this)')
+
 console.log('GAP-012 frame-readback regressions: PASS')
