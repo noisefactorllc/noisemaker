@@ -2172,6 +2172,7 @@ export class CanvasRenderer {
             const converted = this.convertParameterForUniform(currentValue, spec)
 
             for (const pass of this._pipeline.graph.passes) {
+                if (pass.effectFunc !== effect.instance.func) continue
                 writeUniformAliases(pass, paramName, spec.uniform || paramName, converted)
             }
 

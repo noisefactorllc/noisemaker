@@ -66,6 +66,18 @@ describe('pass-level uniform aliases', () => {
         assert.equal(init.uniforms.layoutMode, 3)
     })
 
+    test('applyParameterValues writes the aliased uniform on its own effect only', () => {
+        const { renderer, graph, init } = build()
+        const other = graph.passes.find(p => p.effectKey === 'render.pointsRender')
+        other.uniformAliases = { otherLayout: 'layout' }
+        other.uniforms.otherLayout = 0
+        const effect = { instance: init && { func: 'pointsEmit', globals: { layout: { type: 'int', uniform: 'layout' } } } }
+        renderer._uniformBindings = new Map()
+        renderer.applyParameterValues(effect, { layout: 2 })
+        assert.equal(init.uniforms.layoutMode, 2)
+        assert.equal(other.uniforms.otherLayout, 0)
+    })
+
     test('a ProgramState change writes the aliased shader uniform', () => {
         const { renderer, init } = build()
         const state = new ProgramState({ renderer })
