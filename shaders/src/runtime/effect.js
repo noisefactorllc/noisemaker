@@ -28,6 +28,9 @@
  *       the param retains its control type for use by automation and serialization.
  *       Prefer control: false for new effects. hidden: true exists to support
  *       legacy classicNoisedeck params that are driven by palette expansion.
+ *     - resetOnChange: true — The param only takes effect when the effect's
+ *       state is reseeded (a spawn layout, a seed), so a control that changes
+ *       it should pulse the effect's resetState button.
  *
  * Example with categories:
  *   globals: {

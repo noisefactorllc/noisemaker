@@ -25,7 +25,7 @@ const GLOBAL_TYPES = [
 
 const UI_CONTROLS = ['slider', 'checkbox', 'dropdown', 'color', 'button', 'vector3', 'vec3']
 
-const UI_KEYS = ['label', 'control', 'category', 'hidden', 'hint', 'format', 'buttonLabel', 'enabledBy', 'multiline']
+const UI_KEYS = ['label', 'control', 'category', 'hidden', 'hint', 'format', 'buttonLabel', 'enabledBy', 'multiline', 'resetOnChange']
 
 const ENABLED_BY_OPS = ['eq', 'neq', 'lt', 'gt', 'gte', 'lte', 'in', 'notIn']
 
@@ -433,6 +433,9 @@ function validateUi(ui, errors, label, context) {
     }
     if (ui.multiline !== undefined && typeof ui.multiline !== 'boolean') {
         errors.push(`${label}: "multiline" must be a boolean`)
+    }
+    if (ui.resetOnChange !== undefined && typeof ui.resetOnChange !== 'boolean') {
+        errors.push(`${label}: "resetOnChange" must be a boolean`)
     }
     for (const key of ['hint', 'format', 'buttonLabel']) {
         if (ui[key] !== undefined && (typeof ui[key] !== 'string' || !ui[key])) {

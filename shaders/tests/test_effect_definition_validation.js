@@ -160,6 +160,14 @@ test('unknown global-spec, ui, pass, and texture-spec fields are diagnosed (incl
     assert.equal(validate(inst).filter(e => /unkown/.test(e)).length, 1)
 })
 
+test('ui.resetOnChange is accepted as a boolean and diagnosed otherwise', () => {
+    const def = validDefinition()
+    def.globals.mode.ui.resetOnChange = true
+    assert.deepEqual(validate(def), [])
+    def.globals.mode.ui.resetOnChange = 'yes'
+    assert.equal(validate(def).filter(e => /resetOnChange/.test(e)).length, 1)
+})
+
 test('malformed containers are reported without throwing', () => {
     const cases = [
         def => { def.globals = ['nope'] },

@@ -40,7 +40,9 @@ export default new Effect({
             uniform: "layout",
             ui: {
                 label: "layout",
-                control: "dropdown"
+                control: "dropdown",
+                // Read only when an agent respawns.
+                resetOnChange: true
             },
             choices: {
                 random: 0,
@@ -61,7 +63,9 @@ export default new Effect({
             uniform: "seed",
             ui: {
                 label: "seed",
-                control: "slider"
+                control: "slider",
+                // Read only when an agent respawns.
+                resetOnChange: true
             }
         },
 
