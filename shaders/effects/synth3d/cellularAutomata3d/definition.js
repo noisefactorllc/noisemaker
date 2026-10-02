@@ -121,7 +121,9 @@ export default new Effect({
         "uniform": "density",
         "ui": {
             "label": "density",
-            "control": "slider"
+            "control": "slider",
+            // Read only when the volume is seeded.
+            "resetOnChange": true
         }
     },
     "colorMode": {

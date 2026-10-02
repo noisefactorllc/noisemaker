@@ -2050,6 +2050,20 @@ export class CanvasRenderer {
     }
 
     /**
+     * Whether a graph pass belongs to `effect` (same func, and same namespace
+     * when both are known).
+     * @private
+     */
+    _isEffectPass(pass, effect) {
+        if (!pass) return false
+        const passFunc = pass.effectFunc || pass.effectKey || null
+        if (!passFunc || passFunc !== effect.instance.func) return false
+        const targetNamespace = effect.instance.namespace || effect.namespace || null
+        const passNamespace = pass.effectNamespace || null
+        return !(targetNamespace && passNamespace && passNamespace !== targetNamespace)
+    }
+
+    /**
      * Build uniform bindings for the current effect
      * @param {object} effect - Effect object
      */
@@ -2079,17 +2093,8 @@ export class CanvasRenderer {
             }
         }
 
-        const targetFunc = effect.instance.func
-        const targetNamespace = effect.instance.namespace || effect.namespace || null
-
         this._pipeline.graph.passes.forEach((pass, index) => {
-            if (!pass) return
-
-            const passFunc = pass.effectFunc || pass.effectKey || null
-            const passNamespace = pass.effectNamespace || null
-
-            if (!passFunc || passFunc !== targetFunc) return
-            if (targetNamespace && passNamespace && passNamespace !== targetNamespace) return
+            if (!this._isEffectPass(pass, effect)) return
 
             for (const [paramName, spec] of Object.entries(effect.instance.globals)) {
                 if (spec.type === 'surface') continue
@@ -2171,8 +2176,11 @@ export class CanvasRenderer {
 
             const converted = this.convertParameterForUniform(currentValue, spec)
 
+            // A pass that carries the param under its own name gets a direct
+            // binding and no bridge, so its renamed shader uniform is written
+            // here, on this effect's passes only.
             for (const pass of this._pipeline.graph.passes) {
-                if (pass.effectFunc !== effect.instance.func) continue
+                if (!this._isEffectPass(pass, effect)) continue
                 writeUniformAliases(pass, paramName, spec.uniform || paramName, converted)
             }
 

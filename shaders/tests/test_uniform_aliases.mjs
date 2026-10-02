@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 
 import { CanvasRenderer } from '../src/renderer/canvas.js'
-import { compile, registerEffect, registerOp, registerStarterOps, mergeIntoEnums, stdEnums } from '../src/index.js'
+import { compile, getEffect, registerEffect, registerOp, registerStarterOps, mergeIntoEnums, stdEnums } from '../src/index.js'
 import { expand } from '../src/runtime/expander.js'
 import { ProgramState } from '../../demo/shaders/lib/program-state.js'
 
@@ -71,7 +71,7 @@ describe('pass-level uniform aliases', () => {
         const other = graph.passes.find(p => p.effectKey === 'render.pointsRender')
         other.uniformAliases = { otherLayout: 'layout' }
         other.uniforms.otherLayout = 0
-        const effect = { instance: init && { func: 'pointsEmit', globals: { layout: { type: 'int', uniform: 'layout' } } } }
+        const effect = { namespace: 'render', instance: getEffect('render.pointsEmit') }
         renderer._uniformBindings = new Map()
         renderer.applyParameterValues(effect, { layout: 2 })
         assert.equal(init.uniforms.layoutMode, 2)

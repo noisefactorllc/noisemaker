@@ -991,6 +991,7 @@ interface GlobalSpec {
     hint?: string
     multiline?: boolean
     buttonLabel?: string
+    resetOnChange?: boolean // read only when state is reseeded; pulse resetState on change
   }
 }
 
