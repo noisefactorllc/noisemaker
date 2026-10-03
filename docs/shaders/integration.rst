@@ -703,8 +703,9 @@ into the shared enum registry under the effect's own path.
 
 - ``func`` (or ``name``) must be a DSL identifier; the namespace, when
   present, must be ``user``.
-- ``passes`` must be a nonempty array of passes that each name a program
-  and map ``inputs``/``outputs`` to nonempty texture references.
+- ``passes`` must be a nonempty array of passes that each name a program;
+  any supplied ``inputs``/``outputs`` mapping must map names to nonempty
+  texture references.
 - Every referenced program needs nonempty shader source. If any pass
   carries a GLSL (or WGSL) source, every pass must carry that language's
   source, so a backend never encounters a missing shader mid-pipeline.
