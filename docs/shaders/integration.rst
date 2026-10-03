@@ -660,6 +660,74 @@ After registration, the DSL parser accepts the new namespace in the ``search`` d
 
 Integrations sharing an engine instance must choose distinct namespace ids. The ``registerNamespace`` function throws an error on collision, making the conflict visible.
 
+Registering Portable Effect Packages
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Portable Effects Format ships an effect as a plain ``definition.json``
+plus its GLSL and WGSL program sources — the same package the demo editor
+imports from a zip (see :doc:`../coding-agents`). Hosts that load effects
+programmatically register a loaded package through
+``CanvasRenderer.registerPortableEffect()`` and then compile DSL that calls
+it, without touching the built-in effect catalogs.
+
+The definition is the raw Portable JSON. Its shader sources must already be
+loaded as strings under ``shaders``, keyed by the ``program`` name each pass
+references:
+
+.. code-block:: javascript
+
+    definition.shaders = {
+      main: { glsl: glslSource, wgsl: wgslSource }
+    };
+
+    const effect = await renderer.registerPortableEffect(definition);
+    await renderer.compile('search user\nmyEffect().write(o0)');
+
+Registration returns the cached user effect with a live ``Effect``
+instance. ``renderer.loadEffect('user/<func>')`` returns that effect again
+afterwards.
+
+Registration belongs to the ``user`` namespace: the effect is reachable as
+``user.<func>`` and ``user/<func>`` in ``search`` directives and effect
+lookups. Whether it may start a program follows the usual rule: an explicit
+``starter`` value on the definition wins, and otherwise the effect is a
+starter when no pass consumes a pipeline input (``inputTex``,
+``inputTex3d``, ``inputGeo``, ``inputXyz``, ``inputVel``, ``inputRgba``,
+``src``, ``o0``..``o7``). Starter effects register their operation under
+``user.<func>``. The definition's ``paramAliases``, enum ``choices``, and
+uniform layout behave exactly as for built-in effects, and choices merge
+into the shared enum registry under the effect's own path.
+
+``registerPortableEffect`` checks registration inputs and fails with a
+``Portable effect: ...`` error before anything is registered:
+
+- ``func`` (or ``name``) must be a DSL identifier; the namespace, when
+  present, must be ``user``.
+- ``passes`` must be a nonempty array of passes that each name a program
+  and map ``inputs``/``outputs`` to nonempty texture references.
+- Every referenced program needs nonempty shader source. If any pass
+  carries a GLSL (or WGSL) source, every pass must carry that language's
+  source, so a backend never encounters a missing shader mid-pipeline.
+- ``globals`` must contain parameter objects. ``choices`` must map names to
+  numbers — or strings for string-typed parameters — or null.
+  ``paramAliases`` must point at declared globals.
+
+Registration does not compile shaders or verify backend support: a package
+that passes registration can still fail at ``compile()`` time like any
+other effect.
+
+Effect registries are shared within a JavaScript realm, so registration:
+
+- rejects a name that is already registered as ``user.<func>`` — a
+  duplicate package can never replace an accepted effect;
+- never displaces a built-in that owns the same bare name: a portable
+  effect called ``noise`` does not change what bare ``noise()`` resolves to;
+- rejects metadata keys that could reach object prototypes (``prototype``
+  and every own key of ``Object.prototype``) anywhere in the definition.
+
+Hosts that verify a replacement effect should do so in a fresh realm, so
+the accepted effect set cannot change underneath them.
+
 Bundle Exports Reference
 -------------------------
 
