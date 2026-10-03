@@ -1114,6 +1114,30 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
+  - 2026-10-03 — delivery-blocked compatibility pass (Tearoff item 744):
+    audited noisemaker `e9a357401f281405b5bf46e324238a3e160f1cd9..378c8bf80e5f61efeeaa479b0187ef92a242ff03`
+    and shade-mcp `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d..0d7c071a0cd03adece1e5c3b7e19e15de3db30b8`.
+    The Noisemaker changes include own-choice validation, uniform aliases,
+    renderer registration, and reseed-only UI metadata; Shade's newer browser
+    tools bind requested effect, backend, and resolution to the rendered page
+    and repair WebGPU readback. The tested source pair is noisemaker `378c8bf8`
+    and shade-mcp `0d7c071`; Shade's lifecycle-test mock isolation was the
+    only edit needed in this pass. Noisemaker JS tests (`--skip-parity`), lint,
+    and both 206-effect structure gates passed; Shade typecheck, 255 tests,
+    build/drop checks, and the real viewer smoke (including WebGPU rendering)
+    passed. Shade [CI](https://github.com/noisefactorllc/shade-mcp/actions/runs/37113955254)
+    and [browser quality](https://github.com/noisefactorllc/shade-mcp/actions/runs/37113955256)
+    passed at `0d7c071`. The configured MCP pin remains
+    `github:noisedeck/shade-mcp#6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`:
+    one fresh session negotiated `shade-mcp` / `0.3.0` / `2025-06-18`, listed
+    18 tools, and compiled `synth/cell` on WebGL2. The vendored
+    `vendor/shade-mcp/` subtrees are byte-identical to the `v0.3.0` release
+    asset (tarball SHA-256 `f8c88ab90c297e1422663e527fb7ef9ec4528de2f8285dfcc0e23bafc57b89ea`),
+    whose source is `6a7e254`. Shade source `0d7c071` has package version
+    `0.3.1` but no `v0.3.1` release; the newer source is therefore absent from
+    both configured and vendored delivery. The `llms-full.txt` source snapshots
+    and this section's checkpoints remain at the last completed pair pending
+    release, vendor refresh, immutable pin update, and delivery qualification.
   - 2026-10-02 — compatibility pass auditing noisemaker
     `e9a357401f281405b5bf46e324238a3e160f1cd9..1fd893483c83f7602416cf8e9c48c9605a8f202c`
     and shade-mcp `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d..bdf186638b26fad4811b7d21aec25b3571f15040`
