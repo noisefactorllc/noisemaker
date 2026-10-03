@@ -483,6 +483,12 @@ The effect expander copies authored pass fields (``name``, ``type``, ``clear``,
 * An effect global's ``uniform`` field names the shader value populated by the
   expander. A pass's resolved uniforms take precedence over same-named runtime
   globals.
+* When a pass feeds a shader uniform from a differently named global
+  (``uniforms: { layoutMode: "layout" }``), the expander records the mapping
+  on the pass as ``uniformAliases`` (``{ shaderUniform: globalName }``). The
+  runtime parameter paths write a changed parameter under its own uniform
+  name and write the aliased shader uniforms too, so a live change reaches
+  the shader exactly as a recompile would.
 * Semantic validation resolves enum members to their registered numeric values.
 * Ordinary uniforms, uniform blocks, samplers, storage buffers, and storage
   textures follow the backend-specific reflection paths described in Section

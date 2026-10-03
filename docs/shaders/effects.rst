@@ -461,6 +461,34 @@ For complex conditions, use ``or``, ``and``, and ``not``:
 - ``category: "HSL Secondary"`` — spaces forbidden
 - ``category: "hsl_secondary"`` — underscores forbidden
 
+4d. Reseed-Gated Parameters (resetOnChange)
+--------------------------------------------
+
+Some parameters are only read when an effect reseeds its state: a spawn
+layout or seed read when an agent respawns, a density read while a volume
+is seeded. Changing such a parameter live has no visible effect until the
+effect's ``resetState`` fires. Mark
+those parameters with ``ui.resetOnChange: true`` so hosts can distinguish
+them and pulse the effect's ``resetState`` when one changes, instead of
+restarting the effect on every choice.
+
+.. code-block:: javascript
+
+   layout: {
+     type: 'int',
+     default: 0,
+     uniform: 'layout',
+     ui: {
+       label: 'layout',
+       control: 'dropdown',
+       resetOnChange: true   // read only when an agent respawns
+     }
+   }
+
+The value must be a boolean; the definition validator diagnoses any other
+type. The flag is a UI hint only: it does not change the parameter's shader
+type or its uniform name.
+
 5. Lifecycle Methods (Class-Based Effects)
 -------------------------------------------
 

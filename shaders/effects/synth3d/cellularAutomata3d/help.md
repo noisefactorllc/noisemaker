@@ -17,3 +17,5 @@
 | source | volume | vol0 | - | Source volume |
 | geoSource | geometry | geo0 | - | Source geometry |
 | weight | float | 0 | 0-100 | Input weight |
+
+`density` is read only when the volume is seeded (marked `resetOnChange` in its definition): after changing it, fire `resetState` to reseed.

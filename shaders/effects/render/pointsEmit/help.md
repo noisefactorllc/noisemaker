@@ -28,3 +28,5 @@ Agent count by stateSize:
 - 512 × 512 = 262,144 agents
 - 1024 × 1024 = 1,048,576 agents
 - 2048 × 2048 = 4,194,304 agents
+
+`layout` and `seed` are read only when an agent respawns (marked `resetOnChange` in their definitions): after changing either, fire `resetState` to apply it.
