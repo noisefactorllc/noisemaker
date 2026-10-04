@@ -474,7 +474,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `63cfbb7` (2026-10-01)
+- **Checkpoint:** noisemaker `a1329096` (2026-10-04)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -488,6 +488,22 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-10-04 — caught up through `a1329096`: audited
+    `63cfbb7..a1329096`, including Tearoff item 804's observed
+    `378c8bf8..058d15dc` delivery. Both range endpoints are ancestors of
+    the audited mainline tip. The shipped changes are portable-effect
+    registration, live parameter aliases and reseed hints, degauss tile
+    coordinates, and octaveWarp hash conversion; the latter two are filter
+    fixes, not new authoring features. The portable registration path and
+    live-parameter behavior were documented in-band in
+    `docs/shaders/integration.rst`, `effects.rst`, and `pipeline.rst`.
+    Effect coverage is unchanged: all 210 definitions have `help.md`, and
+    all 1,258 documented parameters across 200 effects match their
+    definitions (`test_effect_help_params.mjs`). The degauss and octaveWarp
+    help files remain consistent with their definitions; no new feature
+    guide or Sphinx narrative correction is needed. A fresh Sphinx
+    `dirhtml` build succeeded with 18 existing warnings; docs static-path
+    tests passed 4/4, ESLint passed, and the non-parity JS suite passed.
   - 2026-10-01 — caught up through `63cfbb7`: audited the job's trigger
     range `dd4606e..63cfbb7` (Tearoff item 704, delivered as
     `a02f73e..63cfbb7`; the trigger's start `dd4606e` sits in the
