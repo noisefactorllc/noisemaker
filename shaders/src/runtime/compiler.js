@@ -34,7 +34,7 @@ export function compileGraph(source, options = {}) {
     }
 
     // Stage 2: Expand logical graph into render passes
-    const { passes, errors: expandErrors, programs, textureSpecs, renderSurface } = expand(
+    const { passes, errors: expandErrors, programs, textureSpecs, renderSurface, mediaSteps } = expand(
         compilationResult,
         { shaderOverrides: options.shaderOverrides }
     )
@@ -58,6 +58,7 @@ export function compileGraph(source, options = {}) {
         allocations,
         textures: extractTextureSpecs(passes, options, textureSpecs),
         renderSurface, // Which surface to present to screen (e.g., 'o0', 'o2')
+        mediaSteps, // Per-step external texture bindings (e.g. imageTex_step_0)
         compiledAt: Date.now()
     }
 

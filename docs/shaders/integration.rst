@@ -279,6 +279,7 @@ Creates and manages the GPU rendering pipeline.
 
     // Textures
     renderer.updateTextureFromSource(id, source)  // Update texture from image/video/canvas/VideoFrame
+    renderer.getMediaSteps()               // List per-step media texture ids (imageTex_step_N)
 
     // Backend
     await renderer.switchBackend('wgsl')   // Switch to WebGPU
@@ -473,17 +474,42 @@ Some effects accept external textures (images, video, camera). Check for this vi
         // This effect expects a texture source
     }
 
+Each program step that uses a media effect binds its own texture, named
+``imageTex_step_N`` where ``N`` is the step's node index in the compiled
+program (every step counts, including ``.write()``). A bare ``'imageTex'``
+id binds nothing. List the current program's media textures with
+``renderer.getMediaSteps()``, and call it again after each ``compile()``
+since the ids follow the compiled program:
+
+.. code-block:: javascript
+
+    // [{ textureId: 'imageTex_step_0', uniform: 'imageTex', stepIndex: 0, effect: 'synth.media' }, ...]
+    const mediaSteps = renderer.getMediaSteps()
+
+Upload each step's source to its own texture id, then publish the returned
+dimensions into that step's ``imageSize`` uniform — the media shader places
+the image from ``imageSize``:
+
+.. code-block:: javascript
+
+    function uploadMediaStep(step, source) {
+        const { width, height } = renderer.updateTextureFromSource(step.textureId, source)
+        renderer.applyStepParameterValues({
+            [`step_${step.stepIndex}`]: { imageSize: [width, height] }
+        })
+    }
+
     // Image
     const img = new Image()
     img.src = 'photo.jpg'
-    img.onload = () => renderer.updateTextureFromSource('imageTex', img)
+    img.onload = () => uploadMediaStep(renderer.getMediaSteps()[0], img)
 
     // Video
     const video = document.createElement('video')
     video.src = 'clip.mp4'
     video.play()
     function tick() {
-        renderer.updateTextureFromSource('imageTex', video)
+        uploadMediaStep(renderer.getMediaSteps()[0], video)
         requestAnimationFrame(tick)
     }
     tick()
@@ -497,7 +523,7 @@ Some effects accept external textures (images, video, camera). Check for this vi
 
     // VideoFrame (e.g. from MediaStreamTrackProcessor or WebCodecs)
     // Synchronously uploaded; callers retain ownership and may close the frame immediately
-    renderer.updateTextureFromSource('imageTex', frame)
+    uploadMediaStep(renderer.getMediaSteps()[0], frame)
     frame.close()
 
 Undo/Redo

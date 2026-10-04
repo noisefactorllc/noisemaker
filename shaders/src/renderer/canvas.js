@@ -1857,6 +1857,7 @@ export class CanvasRenderer {
      * Update a texture from an external source (video, image, canvas).
      * This is used for media input effects that need to display camera/video content.
      * @param {string} texId - Texture ID from effect's externalTexture property
+     *   (per-step: 'imageTex_step_N'; list them with getMediaSteps())
      * @param {HTMLVideoElement|HTMLImageElement|HTMLCanvasElement|ImageBitmap} source - Media source
      * @param {object} [options] - Update options
      * @param {boolean} [options.flipY=true] - Whether to flip the Y axis
@@ -1869,6 +1870,20 @@ export class CanvasRenderer {
         }
 
         return this._pipeline.backend.updateTextureFromSource(texId, source, options)
+    }
+
+    /**
+     * List the current program's media texture bindings.
+     *
+     * Each step that uses an external-texture effect (e.g. synth/media) binds
+     * its own texture, named '<externalTexture>_step_N' where N is the step's
+     * node index in the compiled program. Returns one entry per distinct
+     * texture id, in program order.
+     *
+     * @returns {Array<{textureId: string, uniform: string, stepIndex: number, effect: string}>}
+     */
+    getMediaSteps() {
+        return this._pipeline?.graph?.mediaSteps || []
     }
 
     // =========================================================================

@@ -105,7 +105,7 @@ function resolveGlobalSurfaceRef(name) {
  * @param {object} [options] - Expansion options
  * @param {object} [options.shaderOverrides] - Per-step shader overrides, keyed by step index
  *   Example: { 0: { main: { glsl: '...', wgsl: '...' } } }
- * @returns {object} { passes, errors, programs, textureSpecs, renderSurface }
+ * @returns {object} { passes, errors, programs, textureSpecs, renderSurface, mediaSteps }
  */
 export function expand(compilationResult, options = {}) {
     const shaderOverrides = options.shaderOverrides || {}
@@ -117,6 +117,12 @@ export function expand(compilationResult, options = {}) {
     const writtenVolumes = new Map() // exported volume -> source sizing uniform
     const readVolumes = new Map() // reader sizing scope -> volume and preceding writer
     const exportedTextures = new Map() // exported atlas -> source texture
+    // Media steps bound to per-step external textures (imageTex_step_N, where
+    // N is the step's node index). One entry per distinct texture id so hosts
+    // can upload sources and publish imageSize without reproducing the
+    // numbering themselves (issue #308).
+    const mediaSteps = []
+    const mediaStepIds = new Set()
     let lastWrittenSurface = null // Track the last surface written to
 
     // Helper to resolve enum paths
@@ -948,7 +954,19 @@ export function expand(compilationResult, options = {}) {
                             // External texture input (e.g., camera/video) - use per-step texture ID
                             // Each media effect instance gets its own texture (imageTex_step_0, imageTex_step_1, etc.)
                             // The texture will be created/updated via updateTextureFromSource()
-                            pass.inputs[uniformName] = `${texRef}_step_${step.temp}`
+                            const texId = `${texRef}_step_${step.temp}`
+                            pass.inputs[uniformName] = texId
+                            // Record the binding so hosts can enumerate media
+                            // texture ids via renderer.getMediaSteps().
+                            if (!mediaStepIds.has(texId)) {
+                                mediaStepIds.add(texId)
+                                mediaSteps.push({
+                                    textureId: texId,
+                                    uniform: uniformName,
+                                    stepIndex: step.temp,
+                                    effect: effectName
+                                })
+                            }
                         } else if (step.args && Object.prototype.hasOwnProperty.call(step.args, texRef)) {
                             // Reference to an argument (e.g. blend(tex: ...))
                             const arg = step.args[texRef]
@@ -1309,5 +1327,5 @@ export function expand(compilationResult, options = {}) {
         renderSurface = null
     }
 
-    return { passes, errors, programs, textureSpecs, renderSurface }
+    return { passes, errors, programs, textureSpecs, renderSurface, mediaSteps }
 }
