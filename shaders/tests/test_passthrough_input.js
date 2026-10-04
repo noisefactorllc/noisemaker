@@ -230,26 +230,16 @@ const vendorSource = fs.readFileSync(
     'utf8',
 )
 
-// The upstream verb's predicate is still the time/color one the gap row
-// describes — the repository-side probe exists because of exactly this.
+// The delivered verb compares the output with the consumed input texture.
 assert.ok(
-    vendorSource.includes('temporalDiff > 0.01 || uniqueColors > 5'),
-    'vendored testNoPassthrough should keep its temporalDiff/uniqueColors predicate',
+    vendorSource.includes('inputFrame = await readTexture(consumedInput.id)') &&
+    vendorSource.includes('outputFrame = await readOutput()') &&
+    vendorSource.includes('const meanDiff = diffSum / (samples * 3 * 255)') &&
+    vendorSource.includes('const isPassthrough = meanDiff <= threshold'),
+    'vendored testNoPassthrough should compare the output with consumed input pixels',
 )
-// The audited upstream source (shade-mcp 1aea08a/987b14d, pending release)
-// renders through a readFrame(t) helper instead of the pre-fix literal
-// renderer.render(0)/renderer.render(1) calls, and a vendor refresh will
-// deliver that refactor together with the issue-#28 readback fix. Accept both
-// eras — but either way the verb must still render and compare two distinct
-// times (the temporalDiff/uniqueColors predicate above stays pinned verbatim).
-const rendersBothTimes =
-    (vendorSource.includes('renderer.render(0)') && vendorSource.includes('renderer.render(1)')) ||
-    (vendorSource.includes('readFrame(0)') && vendorSource.includes('readFrame(1.0)'))
-assert.ok(rendersBothTimes, 'vendored testNoPassthrough should still compare two render times')
-assert.ok(
-    !vendorSource.includes('updateTextureFromSource'),
-    'vendored testNoPassthrough should not inject an input texture (GAP-019)',
-)
+assert.ok(vendorSource.includes('renderer.render(0)'),
+    'vendored testNoPassthrough should render before reading the compared textures')
 
 // The probe's in-page body must keep reading the consumed input texture and
 // the render surface through the backend's async readPixels (the GAP-012

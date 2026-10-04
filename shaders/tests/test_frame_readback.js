@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * GAP-012 focused regressions: the render-surface pixel readback contract
+ * Render-surface pixel readback regressions: the contract
  * that gives the harness `renderEffectFrame` wrapper its single-backend
  * frame metrics on WebGPU (shaders/tests/frame-readback.js, mirrored from
  * the in-page wrapper in shaders/tests/test-harness.js).
  *
- * The upstream Shade MCP verb reads only `pipeline.backend.gl` and fails on
- * WebGPU; this repository's wrapper reads through the backend's async
- * `readPixels(textureId)`. These regressions pin the candidate ordering,
+ * The delivered Shade MCP verb and this repository's wrapper read WebGPU
+ * surfaces through the backend's async `readPixels(textureId)`. These
+ * regressions pin the wrapper's candidate ordering,
  * the validity rule, and the never-throw readback so the WebGPU path cannot
  * silently regress to a GL-only readback.
  */
@@ -181,24 +181,19 @@ for (const field of [
 assert.ok(harnessSource.includes('backend.getName'))
 
 // ---------------------------------------------------------------------------
-// Source guard against the vendored upstream bundle: the delivered pin
-// (github:noisedeck/shade-mcp#6a7e2540, release v0.3.0) still ships the
-// GL-only render verb whose WebGPU failure this repository reproduced live
-// through the configured MCP (status error, backend unknown, "Failed to read
-// pixels"). The backend-neutral WebGPU readback exists only in the unreleased
-// upstream fix (shade-mcp 987b14d, issue #28); when a vendor refresh delivers
-// it, this guard turns red so the wrapper's WebGPU path is re-derived against
-// the fixed verb instead of silently coexisting with it.
+// The vendored Shade 0.3.1 verb must retain its backend-neutral WebGPU
+// readback. The repository wrapper still provides its own render-surface
+// selection and additive metrics, so both paths need a real pixel reader.
 // ---------------------------------------------------------------------------
 
 const vendorSource = (await import('node:fs')).readFileSync(
     new URL('../../vendor/shade-mcp/harness/index.js', import.meta.url), 'utf-8')
 
-assert.ok(vendorSource.includes('error: "Failed to read pixels"'),
-    'vendored renderEffectFrame should keep its GL-only readback failure path (GAP-012)')
-assert.ok(vendorSource.includes('pipeline.backend?.gl'),
-    'vendored renderEffectFrame should still read through pipeline.backend.gl')
-assert.ok(!vendorSource.includes('no readable render surface'),
-    'vendored renderEffectFrame should not yet carry the backend-neutral WebGPU readback (GAP-012; a refresh delivering shade-mcp#28 changes this)')
+assert.ok(vendorSource.includes('await backend.readPixels(id)'),
+    'vendored renderEffectFrame should read WebGPU render surfaces')
+assert.ok(vendorSource.includes('await backend.device?.queue?.onSubmittedWorkDone?.()'),
+    'vendored renderEffectFrame should drain WebGPU work before readback')
+assert.ok(vendorSource.includes('no readable render surface'),
+    'vendored renderEffectFrame should report a failed backend-neutral readback')
 
-console.log('GAP-012 frame-readback regressions: PASS')
+console.log('Frame-readback regressions: PASS')
