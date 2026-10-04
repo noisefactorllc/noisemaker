@@ -178,9 +178,9 @@ Minimal (render only)
 
     renderer.start()
 
-    The renderer sizes an unsized ``<canvas>`` element from ``width`` and
-    ``height`` at construction. A canvas that already has a size (attribute or
-    property) keeps it.
+The renderer sizes an unsized ``<canvas>`` element from ``width`` and
+``height`` at construction. A canvas that already has a size (attribute or
+property) keeps it.
 
 With State Management
 ^^^^^^^^^^^^^^^^^^^^^
