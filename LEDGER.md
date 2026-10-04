@@ -1050,7 +1050,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `5ff04459` / shade-mcp `8e0c80a`, 2026-10-03
+- **Checkpoint:** noisemaker `bed7da28` / shade-mcp `8e0c80a`, 2026-10-03
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1129,6 +1129,32 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
+  - 2026-10-03 — completed compatibility pass (Tearoff item 794): audited
+    Noisemaker `5ff0445939d0238c51f0ab93a30baa238a6509ec..bed7da28c32063b5837d4050843fed60847b602a`
+    and the trigger range `d143cb51..058d15dc`; Shade MCP remained at
+    `8e0c80a436fbe1ead57bdde3ff3b9f605d34f342`. The changed browser
+    shader is `filter/octaveWarp`: its GLSL and WGSL coordinate/seed hash
+    conversion changed, and its 64x48 parity attestation was added. The
+    other watched changes only correct Shade-harness provenance comments
+    and regression guards. No DSL, effect definition, viewer, or tool schema
+    changed, so the contract's behavior statements, traceability matrix,
+    and three open gaps remain valid. The configured immutable MCP pin is
+    `github:noisedeck/shade-mcp#8e0c80a436fbe1ead57bdde3ff3b9f605d34f342`.
+    Shade release `v0.3.1` points to that source and publishes
+    `shade-mcp-dist.tar.gz` with SHA-256
+    `e6a29674f356350b13c2fc009c02b5fa4e6e53d7b42aa18642028a2386cfbeb7`;
+    all 34 vendored files imported at Noisemaker `10386a1e` remain unchanged.
+    Noisemaker JS tests and lint passed, as did the 206-effect structure scan.
+    The delivered vendor compiled and rendered octaveWarp with confirmed
+    effect/backend identity on WebGL2 and WebGPU; its pixel parity had
+    `maxDiff=0`. Shade typecheck, 257 tests, build/drop checks, and real viewer
+    smoke (including WebGPU DSL) passed. One configured-pin MCP session
+    negotiated `shade-mcp` / `0.3.1` / `2025-06-18`, listed 18 tools, and
+    repeated the eight worked `synth/testPattern` calls in `llms-full.txt`;
+    it also checked octaveWarp structure and compiled/rendered it on both
+    backends with nonblank frames. The worked render returned 90x90 and
+    warned that the requested 256x256 resolution was not honored. The
+    worked benchmark reached 60.76 FPS at the measured 90x90 resolution.
   - 2026-10-03 — completed compatibility pass (Tearoff item 774):
     audited both complete checkpoint ranges and the trigger ranges through
     Noisemaker source `5ff0445939d0238c51f0ab93a30baa238a6509ec` and

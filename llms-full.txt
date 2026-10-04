@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `5ff0445939d0238c51f0ab93a30baa238a6509ec`.
+- Noisemaker: `bed7da28c32063b5837d4050843fed60847b602a`.
 - Shade MCP: `8e0c80a436fbe1ead57bdde3ff3b9f605d34f342`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.3.1`, protocol
   `2025-06-18` (negotiated down to `2024-11-05` for clients that request it),
@@ -4119,7 +4119,7 @@ capture; these are the values from this session):
 {"effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"uniforms":[{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":5,"luma_diff":0.009534835815429688,"max_channel_diff":0.009534835815429688,"responds":true}],"threshold":0.002,"details":"Uniforms affect output","backend":"WebGL2"}
 {"effect_id":"synth/testPattern","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2"}
 {"effect_id":"synth/testPattern","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":90,"height":90},"warning":"Requested resolution 256x256 but measured 90x90; the viewer did not honor the requested resolution","achieved_fps":60.3,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.58,"jitter_ms":1.2,"min_frame_time_ms":12.4,"max_frame_time_ms":18.7}}
+{"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":90,"height":90},"warning":"Requested resolution 256x256 but measured 90x90; the viewer did not honor the requested resolution","achieved_fps":60.76,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.46,"jitter_ms":1.75,"min_frame_time_ms":5.3,"max_frame_time_ms":18.8}}
 ```
 
 The structure scan has no issues and reports the one declared effect pass.
