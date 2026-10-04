@@ -8,9 +8,10 @@
 import { lex } from '../src/lang/lexer.js'
 import { parse } from '../src/lang/parser.js'
 import { registerStarterOps } from '../src/lang/validator.js'
-import { compile } from '../src/lang/index.js'
+import { compile, unparse } from '../src/lang/index.js'
 import { formatValue } from '../src/lang/unparser.js'
 import { registerOp } from '../src/lang/ops.js'
+import { Pipeline } from '../src/runtime/pipeline.js'
 
 // Register test ops
 registerOp('synth.noise', {
@@ -177,6 +178,20 @@ test('Validator: Oscillator min/max within [0, 1] pass through unchanged', () =>
     assertEqual(scaleArg.max, 0.75, 'max should be 0.75')
 })
 
+test('Validator: oscKind.noise2d resolves to kind 6 without diagnostics', () => {
+    const result = compile('search synth, filter\nnoise(scale: osc(type: oscKind.noise2d, seed: 42)).write(o0)')
+    assertEqual(result.diagnostics.length, 0, 'noise2d should not produce an S002 fallback')
+    const scaleArg = result.plans[0].chain[0].args.scale
+    assertEqual(scaleArg.oscType, 6, 'Expected oscType 6 (noise2d)')
+    assertEqual(scaleArg.seed, 42, 'Expected seed 42')
+})
+
+test('Validator: numeric osc type 6 is accepted', () => {
+    const result = compile('search synth, filter\nnoise(scale: osc(type: 6, seed: 7)).write(o0)')
+    assertEqual(result.diagnostics.length, 0, 'numeric kind 6 should not produce diagnostics')
+    assertEqual(result.plans[0].chain[0].args.scale.oscType, 6, 'Expected oscType 6')
+})
+
 // ============================================================================
 // Unparser Tests (Round-trip)
 // ============================================================================
@@ -234,6 +249,110 @@ test('Unparser: All oscillator types format correctly', () => {
 
         const formatted = formatValue(oscConfig)
         assert(formatted.includes(`oscKind.${types[i]}`), `Expected oscKind.${types[i]} in ${formatted}`)
+    }
+})
+
+test('Unparser: round trip keeps oscKind.noise2d', () => {
+    const source = `search synth, filter
+noise(scale: osc(type: oscKind.noise2d, min: 0.2, max: 0.8, seed: 42)).write(o0)`
+    const compiled = compile(source)
+    assertEqual(compiled.diagnostics.length, 0, 'compile should succeed')
+    const unparsed = unparse(compiled)
+    assert(unparsed.includes('oscKind.noise2d'), `Expected oscKind.noise2d in ${unparsed}`)
+    const recompiled = compile(unparsed)
+    assertEqual(recompiled.diagnostics.length, 0, 'recompile should succeed')
+    assertEqual(recompiled.plans[0].chain[0].args.scale.oscType, 6, 'oscType survives the round trip')
+})
+
+// ============================================================================
+// Runtime Tests (evaluateOscillator via Pipeline)
+// ============================================================================
+
+function assertApprox(actual, expected, tolerance, message) {
+    if (!Number.isFinite(actual) || Math.abs(actual - expected) > tolerance) {
+        throw new Error(`${message || 'Assertion failed'}: expected ${expected} +/- ${tolerance}, got ${actual}`)
+    }
+}
+
+const pipeline = new Pipeline(null, null)
+
+function sampleCurve(config, samples) {
+    return samples.map((time) => pipeline.resolveUniformValue(config, time))
+}
+
+function compiledOsc(source) {
+    const result = compile(source)
+    assertEqual(result.diagnostics.length, 0, 'osc() should compile without diagnostics')
+    return result.plans[0].chain[0].args.scale
+}
+
+// Pins the pre-existing oscillator kinds so the noise2d work cannot drift them.
+// Values recorded from the implementation before noise2d support was added.
+const PIN_TIMES = [0, 0.25, 0.5, 0.75]
+const PINS = [
+    { seed: 7, kind: 0, values: [0, 0.5, 1, 0.5] },
+    { seed: 7, kind: 1, values: [0, 0.5, 1, 0.5] },
+    { seed: 7, kind: 2, values: [0, 0.25, 0.5, 0.75] },
+    { seed: 7, kind: 3, values: [1, 0.75, 0.5, 0.25] },
+    { seed: 7, kind: 4, values: [0, 0, 1, 1] },
+    { seed: 7, kind: 5, values: [0.378248872499931, 0.7515301125166395, 0.269999372498686, 0.549302812511977] },
+    { seed: 42, kind: 5, values: [0.06935776014230743, 0.5376382001337624, 0.40049026022115086, 0.6929954000587877] }
+]
+
+test('Runtime: kinds 0-5 keep their pinned outputs', () => {
+    for (const { seed, kind, values } of PINS) {
+        const config = { type: 'Oscillator', oscType: kind, min: 0, max: 1, speed: 1, offset: 0, seed }
+        const actual = sampleCurve(config, PIN_TIMES)
+        for (let i = 0; i < values.length; i++) {
+            assertApprox(actual[i], values[i], 1e-9, `kind ${kind} seed ${seed} at t=${PIN_TIMES[i]}`)
+        }
+    }
+})
+
+test('Runtime: noise2d stays in 0..1 and is deterministic', () => {
+    const config = compiledOsc(`search synth, filter
+noise(scale: osc(type: oscKind.noise2d, speed: 2, seed: 42)).write(o0)`)
+    const times = []
+    for (let i = 0; i <= 64; i++) times.push(i / 64)
+    for (const seed of [7, 42, 123]) for (const speed of [1, 2, 3]) {
+        const probe = { ...config, seed, speed }
+        const curve = sampleCurve(probe, times)
+        for (let i = 0; i < curve.length; i++) {
+            assert(curve[i] >= 0 && curve[i] <= 1, `noise2d out of range at t=${times[i]} (seed ${seed}, speed ${speed}): ${curve[i]}`)
+        }
+        const again = sampleCurve(probe, times)
+        for (let i = 0; i < curve.length; i++) {
+            assertEqual(again[i], curve[i], `noise2d must be deterministic (seed ${seed}, speed ${speed})`)
+        }
+    }
+})
+
+test('Runtime: noise2d differs from sine and noise1d', () => {
+    const times = []
+    for (let i = 0; i <= 32; i++) times.push(i / 32)
+    const noise2d = sampleCurve({ type: 'Oscillator', oscType: 6, min: 0, max: 1, speed: 1, offset: 0, seed: 42 }, times)
+    const sine = sampleCurve({ type: 'Oscillator', oscType: 0, min: 0, max: 1, speed: 1, offset: 0, seed: 42 }, times)
+    const noise1d = sampleCurve({ type: 'Oscillator', oscType: 5, min: 0, max: 1, speed: 1, offset: 0, seed: 42 }, times)
+    const maxDiff = (a, b) => Math.max(...times.map((_, i) => Math.abs(a[i] - b[i])))
+    assert(maxDiff(noise2d, sine) > 0.01, 'noise2d should not animate as a sine')
+    assert(maxDiff(noise2d, noise1d) > 0.01, 'noise2d should differ from noise1d')
+})
+
+test('Runtime: noise2d varies with seed', () => {
+    const times = []
+    for (let i = 0; i <= 32; i++) times.push(i / 32)
+    const curveA = sampleCurve({ type: 'Oscillator', oscType: 6, min: 0, max: 1, speed: 1, offset: 0, seed: 42 }, times)
+    const curveB = sampleCurve({ type: 'Oscillator', oscType: 6, min: 0, max: 1, speed: 1, offset: 0, seed: 7 }, times)
+    const maxDiff = Math.max(...times.map((_, i) => Math.abs(curveA[i] - curveB[i])))
+    assert(maxDiff > 0.01, 'a different seed should give a different curve')
+})
+
+test('Runtime: noise2d loops seamlessly at whole-number speeds', () => {
+    for (const speed of [1, 2, 3]) for (const offset of [0, 0.25]) for (const seed of [7, 42]) {
+        const config = { type: 'Oscillator', oscType: 6, min: 0, max: 1, speed, offset, seed }
+        const start = pipeline.resolveUniformValue(config, 0)
+        const end = pipeline.resolveUniformValue(config, 1)
+        assertApprox(end, start, 1e-9, `loop at speed ${speed}, offset ${offset}, seed ${seed}`)
     }
 })
 

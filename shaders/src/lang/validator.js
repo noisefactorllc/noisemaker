@@ -521,7 +521,7 @@ export function validate(ast) {
             const value = {
                 type: 'Oscillator',
                 oscType: resolveAutomationEnum(
-                    node.oscType, 'oscKind', 0, new Set([0, 1, 2, 3, 4, 5]), 'osc', 'type'),
+                    node.oscType, 'oscKind', 0, new Set([0, 1, 2, 3, 4, 5, 6]), 'osc', 'type'),
                 min: resolveAutomationNumber(node.min, 'osc', 'min', 0,
                     {allowBoolean:true, allowAutomation:true, clamp01:true}, depth),
                 max: resolveAutomationNumber(node.max, 'osc', 'max', 1,

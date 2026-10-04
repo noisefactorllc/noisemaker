@@ -24,6 +24,7 @@ import { DiagnosticCollector } from './backends/diagnostics.js'
  * 3: sawInv  - 1 → 0
  * 4: square  - 0 or 1
  * 5: noise   - periodic 2D noise
+ * 6: noise2d - two-stage periodic noise
  */
 const TAU = Math.PI * 2
 
@@ -102,6 +103,23 @@ function oscNoise(t, seed) {
     const n1 = noise2D(loopX + seed, loopY + seed, seed)
     const n2 = noise2D(loopX + seed * 2, loopY + seed * 2, seed)
     return (n1 + n2) / 2
+}
+
+// Two-stage periodic noise (noise2d, kind 6) - mirrors the osc2d effect:
+//   scaledTime = periodicValue(time, timeNoise) * speed
+//   value      = periodicValue(scaledTime, valueNoise)
+// osc() has no spatial position, so both noise stages are sampled at a fixed
+// position derived from the seed (the osc2d shader salts the second stage with
+// +12345). periodicValue() has period 1 in time, so whole-number speeds loop
+// seamlessly.
+function oscNoise2d(t, speed, seed) {
+    const periodicValue = (x, v) => (Math.sin((x - v) * TAU) + 1) * 0.5
+    const px = (Math.abs(seed % 16) + 0.5) / 16
+    const py = (Math.abs(Math.floor(seed / 16) % 16) + 0.5) / 16
+    const timeNoise = noise2D(px, py, seed + 12345)
+    const valueNoise = noise2D(px, py, seed)
+    const scaledTime = periodicValue(t, timeNoise) * speed
+    return periodicValue(scaledTime, valueNoise)
 }
 
 const AUTOMATION_FIELD_RANGES = {
@@ -327,6 +345,13 @@ function evaluateOscillator(osc, normalizedTime, externalState, depth = 0, stack
         case 3: value = oscSawInv(t); break
         case 4: value = oscSquare(t); break
         case 5: value = oscNoise(t, seed); break
+        case 6: {
+            const speed = resolveAutomationField(
+                osc.speed, normalizedTime, AUTOMATION_FIELD_RANGES.oscillatorSpeed,
+                externalState, depth, stack, 1, context)
+            value = oscNoise2d(t, Number.isFinite(speed) ? speed : 1, seed)
+            break
+        }
         default: value = 0
     }
 

@@ -547,10 +547,11 @@ accept only numbers or automation, and audio `channel` accepts a resolved
 numeric integer from 1 to 32. The enum selectors accept their named members
 or the implemented numeric values listed above.
 
-`oscKind` accepts `sine=0`, `tri=1`, `saw=2`, `sawInv=3`, `square=4`, and
-`noise`/`noise1d=5`, or numeric values 0 through 5. Although the shared enum
-also declares `noise2d=6`, automation validation emits `S002` and falls back to
-`sine=0` for that member.
+`oscKind` accepts `sine=0`, `tri=1`, `saw=2`, `sawInv=3`, `square=4`,
+`noise`/`noise1d=5`, and `noise2d=6`, or numeric values 0 through 6. `noise2d`
+is the two-stage periodic noise of the `osc2d` effect with both noise stages
+sampled at a fixed seed-derived position, so it stays within `[0,1]` and loops
+seamlessly at whole-number speeds.
 
 Disallowed forms include:
 
