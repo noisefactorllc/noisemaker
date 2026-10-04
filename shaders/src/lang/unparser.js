@@ -7,6 +7,7 @@
 
 import { stdEnums } from './std_enums.js'
 import { decodeJsonStringLiteralContent } from './stringLiterals.js'
+import { ops } from './ops.js'
 
 /**
  * Map oscillator type number to oscKind enum name
@@ -374,13 +375,11 @@ function formatValue(value, spec, options = {}, sourceForm) {
     }
 
     if (typeof value === 'number') {
-        // Format numbers nicely - limit to 3 decimal places
-        if (Number.isInteger(value)) {
-            return String(value)
-        }
-        // Round to 3 decimal places
-        const rounded = Math.round(value * 1000) / 1000
-        return String(rounded)
+        // Emit the shortest representation that reparses to the same
+        // value. Rounding here changed programs on every save/regenerate
+        // round trip (noisemaker issue #304) — literals must survive
+        // compile → unparse → compile exactly.
+        return formatLosslessNumber(value)
     }
 
     if (typeof value === 'string') {
@@ -682,6 +681,13 @@ function unparseCall(call, options = {}) {
 
             // Get spec from options if available
             const spec = specs[key] || null
+            // When no effect definition is available (playground-style
+            // `unparse(compile(src))` calls), fall back to the op schema the
+            // validator itself used to fill defaults. This only feeds the
+            // default-equality check below — formatting stays spec-less — so
+            // kwargs that merely repeat an effect default stay suppressed and
+            // inherited values don't leak into emitted text.
+            const defaultSpec = spec || options.schemaSpecs?.[key] || null
             // Round-trip the source form for this key when the compiled
             // step carries a sidecar `argSources` (added when the source
             // contained a literal `[…]`). Absent for every existing
@@ -689,13 +695,13 @@ function unparseCall(call, options = {}) {
             const sourceForm = call.argSources?.[key]
 
             // Check against default value
-            if (spec && spec.default !== undefined) {
+            if (defaultSpec && defaultSpec.default !== undefined) {
                 const formattedValue = formatValue(value, spec, options, sourceForm)
-                const formattedDefault = formatValue(spec.default, spec, options)
+                const formattedDefault = formatValue(defaultSpec.default, spec, options)
 
                 // For surface params, 'none' must always be explicit when set
                 // (so the expander binds the blank texture) — unless the default IS 'none'
-                const isExplicitNone = spec.type === 'surface' && formattedValue === 'none' && formattedDefault !== 'none'
+                const isExplicitNone = spec?.type === 'surface' && formattedValue === 'none' && formattedDefault !== 'none'
 
                 if (formattedValue === formattedDefault && !isExplicitNone) {
                     continue
@@ -1122,6 +1128,21 @@ export function unparse(compiled, overrides = {}, options = {}) {
 
             // Build specs map from effect definition
             const specs = effectDef?.globals || {}
+            // Without an effect definition, recover the op schema the
+            // validator used to fill default values into step args, so the
+            // unparser can still suppress kwargs that merely repeat a
+            // default (including the consumer's inherited volumeSize).
+            const schemaSpecs = {}
+            if (!effectDef) {
+                const opSpec = ops[step.op]
+                if (opSpec?.args) {
+                    for (const arg of opSpec.args) {
+                        if (arg?.name && specs[arg.name] === undefined) {
+                            schemaSpecs[arg.name] = arg
+                        }
+                    }
+                }
+            }
 
             // Apply overrides - filter to only include valid DSL parameters
             // When we have an effect definition, only include keys defined in globals
@@ -1144,9 +1165,18 @@ export function unparse(compiled, overrides = {}, options = {}) {
                 }
             }
 
+            // volumeSize on render*3d consumers is inherited from the
+            // upstream 3D producer and the runtime ignores an explicit value
+            // there (1.x contract). Writing the consumer's own copy misstates
+            // the effective volume size, so never emit it.
+            if (call.kwargs.volumeSize !== undefined &&
+                specs.volumeSize?.ui?.control === false) {
+                delete call.kwargs.volumeSize
+            }
+
             // Calculate indent: 4 spaces inside subchain, 2 outside; 0 for first element
             const callIndent = currentChain.length === 0 ? 0 : (inSubchain ? 4 : 2)
-            let callCode = unparseCall(call, { ...planOptions, specs, indent: callIndent })
+            let callCode = unparseCall(call, { ...planOptions, specs, schemaSpecs, indent: callIndent })
             // Wrap in from(namespace, call) for cross-namespace references
             if (isFromOverride && fromNamespace) {
                 callCode = `from(${fromNamespace}, ${callCode})`

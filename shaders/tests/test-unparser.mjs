@@ -10,6 +10,8 @@ import { registerOp } from '../src/lang/ops.js';
 import { registerStarterOps } from '../src/lang/validator.js';
 import solid from '../effects/synth/solid/definition.js';
 import invert from '../effects/filter/invert/definition.js';
+import noise from '../effects/synth/noise/definition.js';
+import scale from '../effects/filter/scale/definition.js';
 import heightmap from '../effects/synth3d/heightmap3d/definition.js';
 import landscape from '../effects/render/renderLandscape3d/definition.js';
 
@@ -506,11 +508,11 @@ test('Strings starting with digits must be quoted', () => {
 
 // Compile real effect chains so the test detects dropped or misplaced inputs,
 // including edits to producers that the compiler flattened into temporary steps.
-const inlineDefinitions = new Map([solid, invert, heightmap, landscape].map(def => [`${def.namespace}.${def.func}`, def]));
+const inlineDefinitions = new Map([solid, invert, noise, scale, heightmap, landscape].map(def => [`${def.namespace}.${def.func}`, def]));
 for (const [name, def] of inlineDefinitions) {
     registerOp(name, { name: def.func, args: Object.entries(def.globals).map(([key, spec]) => ({ name: key, ...spec })) });
 }
-registerStarterOps(['synth.solid', 'synth3d.heightmap3d']);
+registerStarterOps(['synth.solid', 'synth.noise', 'synth3d.heightmap3d']);
 const inlineOptions = { getEffectDef: name => inlineDefinitions.get(name) };
 const surfaceProgram = 'search synth, filter, synth3d, render\nheightmap3d(heightTex: solid(color: #00ff00).invert(), tex: solid(color: #ff0000)).renderLandscape3d().write(o0)\nrender(o0)';
 const semantics = dsl => compile(dsl).plans.map(plan => plan.chain.map(({ op, args, from, temp }) => ({ op, args, from, temp })));
@@ -527,6 +529,61 @@ test('Replacing an inline surface removes its unused producer chain', () => {
     const result = unparse(compile(surfaceProgram), { 3: { heightTex: 'none' } }, inlineOptions);
     const expected = surfaceProgram.replace('heightTex: solid(color: #00ff00).invert(), ', '');
     assert.deepEqual(semantics(result), semantics(expected));
+});
+
+// Refs #304: unparse() used to round non-integer numeric literals to 3
+// decimals, changing a program's parameter values on every regenerate/save.
+test('Numeric literal parameters survive compile → unparse → compile exactly', () => {
+    const source = `search synth, filter
+noise(seed: 1).scale(x: 1.7778, y: 0.33333, centerY: 0.0004, centerX: osc(type: oscKind.sine, min: 0.1234, max: 0.5678)).write(o0)
+render(o0)`;
+
+    const first = unparse(compile(source), {}, inlineOptions);
+
+    // Shortest round-trip representation, same precision as osc() bounds.
+    assertIncludes(first, 'x: 1.7778', 'Literal with 4 decimals keeps full precision');
+    assertIncludes(first, 'y: 0.33333', 'Literal with 5 decimals keeps full precision');
+    assertIncludes(first, 'centerY: 0.0004', 'Literal below 0.0005 must not round to 0');
+    assertIncludes(first, 'min: 0.1234, max: 0.5678', 'Oscillator bounds keep full precision');
+
+    const second = compile(first);
+    assert.deepEqual(second.diagnostics, []);
+    const scaleArgs = second.plans[0].chain[1].args;
+    assert.equal(scaleArgs.x, 1.7778, 'x reparses to the same value');
+    assert.equal(scaleArgs.y, 0.33333, 'y reparses to the same value');
+    assert.equal(scaleArgs.centerY, 0.0004, 'centerY reparses to the same value');
+    const osc = scaleArgs.centerX;
+    const oscMin = osc?.min ?? osc?.min?.value;
+    const oscMax = osc?.max ?? osc?.max?.value;
+    assert.equal(oscMin, 0.1234, 'osc min reparses to the same value');
+    assert.equal(oscMax, 0.5678, 'osc max reparses to the same value');
+
+    assert.equal(unparse(second, {}, inlineOptions), first, 'Round trip is stable');
+});
+
+test('renderLandscape3d never emits its inherited volumeSize', () => {
+    const source = `search synth3d, render
+heightmap3d(volumeSize: x128).renderLandscape3d(viewMode: perspective, rotateX: 1.5708).write(o0)
+render(o0)`;
+
+    const extractCall = (text) => {
+        const match = text.match(/renderLandscape3d\([\s\S]*?\)/);
+        assert.ok(match, 'renderLandscape3d call must be emitted');
+        return match[0];
+    };
+
+    const rendered = unparse(compile(source), {}, inlineOptions);
+    assertIncludes(rendered, 'heightmap3d(volumeSize: x128)', 'Producer volumeSize is kept');
+    assertNotIncludes(extractCall(rendered), 'volumeSize', 'Consumer volumeSize must not be written');
+
+    // State overrides that still carry the consumer's own copy are dropped too.
+    const withOverrides = unparse(compile(source), { 1: { volumeSize: 128, rotateX: 1.5708 } }, inlineOptions);
+    assertNotIncludes(extractCall(withOverrides), 'volumeSize', 'Override volumeSize on the consumer must not be written');
+
+    // Playground-style unparse without effect definitions: the op schema the
+    // validator filled defaults from suppresses the inherited default there.
+    const playground = unparse(compile(source), {}, {});
+    assertNotIncludes(extractCall(playground), 'volumeSize', 'Inherited default volumeSize must not leak into playground-style unparse');
 });
 
 test('Bare state arguments preserve their runtime values after unparsing', () => {

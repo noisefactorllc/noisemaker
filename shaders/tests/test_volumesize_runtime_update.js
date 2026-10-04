@@ -27,7 +27,7 @@
 import { CanvasRenderer } from '../src/renderer/canvas.js'
 import {
     registerEffect, registerOp, registerStarterOps,
-    mergeIntoEnums, stdEnums
+    mergeIntoEnums, stdEnums, getEffect, compile, unparse
 } from '../src/index.js'
 import { compileGraph } from '../src/runtime/compiler.js'
 import { Pipeline } from '../src/runtime/pipeline.js'
@@ -509,6 +509,50 @@ render(o0)`)
     assert.equal(pipeline.backend.textures.get('node_0_volumeCache'), atlas, 'unchanged atlas must not be destroyed')
     assert.equal(findPassByStepIndex(graph, 0).uniforms.volumeSize, 128, 'shader must match atlas')
     assertSize(pipeline, 'global_flow3d_trail_chain_1_read', '16x256', 'target chain still resizes')
+})
+
+await test('explicit volumeSize on renderLandscape3d never changes the result', () => {
+    // 1.x contract: the runtime must keep ignoring an explicit volumeSize on
+    // renderLandscape3d (it always inherits from the upstream producer), and
+    // the unparser must not write the inherited value into regenerated DSL.
+    for (const explicit of [true, false]) {
+        const dsl = `search synth3d, render
+heightmap3d(volumeSize: x128).renderLandscape3d(${explicit ? 'volumeSize: 64, ' : ''}viewMode: perspective).write(o0)
+render(o0)`
+        const { graph, pipeline } = buildPipeline(dsl)
+        assertSize(pipeline, 'node_0_volumeCache', '128x16384', `color atlas (explicit=${explicit})`)
+        assertSize(pipeline, 'node_0_geoBuffer', '128x16384', `geometry atlas (explicit=${explicit})`)
+        for (const pass of graph.passes) {
+            if (pass.uniforms && 'volumeSize' in pass.uniforms) {
+                if (pass.uniforms.volumeSize !== 128) {
+                    throw new Error(`pass ${pass.id} (${pass.effectFunc}): volumeSize expected 128, got ${pass.uniforms.volumeSize}`)
+                }
+            }
+        }
+    }
+
+    // The unparser drops the inherited copy, so the regenerated program is
+    // identical to the never-explicit one and renders identically.
+    const explicitDsl = `search synth3d, render
+heightmap3d(volumeSize: x128).renderLandscape3d(volumeSize: 64, viewMode: perspective).write(o0)
+render(o0)`
+    const regenerated = unparse(compile(explicitDsl), {}, {
+        getEffectDef: (name, ns) => getEffect(name) ||
+            (ns ? getEffect(`${ns}/${name}`) || getEffect(`${ns}.${name}`) : null)
+    })
+    if (regenerated.match(/renderLandscape3d\([^)]*volumeSize/)) {
+        throw new Error(`unparse must not write the inherited volumeSize: ${regenerated}`)
+    }
+    const { graph: rtGraph, pipeline: roundTripped } = buildPipeline(regenerated)
+    assertSize(roundTripped, 'node_0_volumeCache', '128x16384', 'color atlas after round trip')
+    assertSize(roundTripped, 'node_0_geoBuffer', '128x16384', 'geometry atlas after round trip')
+    for (const pass of rtGraph.passes) {
+        if (pass.uniforms && 'volumeSize' in pass.uniforms) {
+            if (pass.uniforms.volumeSize !== 128) {
+                throw new Error(`pass ${pass.id} (${pass.effectFunc}): volumeSize expected 128, got ${pass.uniforms.volumeSize}`)
+            }
+        }
+    }
 })
 
 console.log()
