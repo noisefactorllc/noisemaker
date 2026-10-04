@@ -108,17 +108,19 @@ function oscNoise(t, seed) {
 // Two-stage periodic noise (noise2d, kind 6) - mirrors the osc2d effect:
 //   scaledTime = periodicValue(time, timeNoise) * speed
 //   value      = periodicValue(scaledTime, valueNoise)
+// `time` is the normalized loop time plus the phase offset; speed is applied
+// once, after the first periodic wrap, exactly as in the osc2d shader.
 // osc() has no spatial position, so both noise stages are sampled at a fixed
 // position derived from the seed (the osc2d shader salts the second stage with
 // +12345). periodicValue() has period 1 in time, so whole-number speeds loop
 // seamlessly.
-function oscNoise2d(t, speed, seed) {
+function oscNoise2d(time, speed, seed) {
     const periodicValue = (x, v) => (Math.sin((x - v) * TAU) + 1) * 0.5
     const px = (Math.abs(seed % 16) + 0.5) / 16
     const py = (Math.abs(Math.floor(seed / 16) % 16) + 0.5) / 16
     const timeNoise = noise2D(px, py, seed + 12345)
     const valueNoise = noise2D(px, py, seed)
-    const scaledTime = periodicValue(t, timeNoise) * speed
+    const scaledTime = periodicValue(time, timeNoise) * speed
     return periodicValue(scaledTime, valueNoise)
 }
 
@@ -349,7 +351,7 @@ function evaluateOscillator(osc, normalizedTime, externalState, depth = 0, stack
             const speed = resolveAutomationField(
                 osc.speed, normalizedTime, AUTOMATION_FIELD_RANGES.oscillatorSpeed,
                 externalState, depth, stack, 1, context)
-            value = oscNoise2d(t, Number.isFinite(speed) ? speed : 1, seed)
+            value = oscNoise2d(normalizedTime + offset, Number.isFinite(speed) ? speed : 1, seed)
             break
         }
         default: value = 0

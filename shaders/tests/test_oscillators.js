@@ -356,6 +356,49 @@ test('Runtime: noise2d loops seamlessly at whole-number speeds', () => {
     }
 })
 
+test('Runtime: noise2d matches the osc2d reference formula at non-unit speeds', () => {
+    // Independent re-implementation of the osc2d effect's formula, including
+    // the runtime's fixed seed-derived sampling position, so the expected
+    // values pin that speed is applied exactly once (after the first
+    // periodic wrap), not again on top of the phase.
+    const TAU = Math.PI * 2
+    const periodicValue = (x, v) => (Math.sin((x - v) * TAU) + 1) * 0.5
+    const hash21 = (px, py, s) => {
+        let x = (px * 234.34 + s) % 1
+        let y = (py * 435.345 + s) % 1
+        if (x < 0) x += 1
+        if (y < 0) y += 1
+        const p = x + y + (x + y) * 34.23
+        return (x * y * p) % 1
+    }
+    const noise2D = (px, py, s) => {
+        const ix = Math.floor(px)
+        const iy = Math.floor(py)
+        let fx = px - ix
+        let fy = py - iy
+        fx = fx * fx * (3 - 2 * fx)
+        fy = fy * fy * (3 - 2 * fy)
+        const a = hash21(ix, iy, s)
+        const b = hash21(ix + 1, iy, s)
+        const c = hash21(ix, iy + 1, s)
+        const d = hash21(ix + 1, iy + 1, s)
+        return a * (1 - fx) * (1 - fy) + b * fx * (1 - fy) + c * (1 - fx) * fy + d * fx * fy
+    }
+    for (const [seed, speed] of [[42, 2], [7, 3.5], [123, 1]]) {
+        const px = (Math.abs(seed % 16) + 0.5) / 16
+        const py = (Math.abs(Math.floor(seed / 16) % 16) + 0.5) / 16
+        const timeNoise = noise2D(px, py, seed + 12345)
+        const valueNoise = noise2D(px, py, seed)
+        const config = { type: 'Oscillator', oscType: 6, min: 0, max: 1, speed, offset: 0.25, seed }
+        for (const normalizedTime of [0, 0.3, 0.5, 0.77, 1]) {
+            const expected = periodicValue(
+                periodicValue(normalizedTime + 0.25, timeNoise) * speed, valueNoise)
+            const actual = pipeline.resolveUniformValue(config, normalizedTime)
+            assertApprox(actual, expected, 1e-12, `noise2d speed ${speed} seed ${seed} at t=${normalizedTime}`)
+        }
+    }
+})
+
 // ============================================================================
 // Integration Tests
 // ============================================================================
