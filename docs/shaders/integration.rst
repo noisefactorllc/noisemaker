@@ -178,6 +178,10 @@ Minimal (render only)
 
     renderer.start()
 
+    The renderer sizes an unsized ``<canvas>`` element from ``width`` and
+    ``height`` at construction. A canvas that already has a size (attribute or
+    property) keeps it.
+
 With State Management
 ^^^^^^^^^^^^^^^^^^^^^
 
@@ -242,6 +246,14 @@ Creates and manages the GPU rendering pipeline.
         onLoadingStart: () => {},          // Called when effect loading begins
         onLoadingEnd: () => {}             // Called when effect loading finishes
     })
+
+**Canvas sizing:**
+
+``width`` and ``height`` set the render resolution. When the canvas element
+has no ``width``/``height`` attributes, the renderer sizes the element from
+these options at construction, so ``toDataURL`` and captures match the render
+resolution. When the element is already sized (attribute or property), the
+element's size wins; a diagnostic warns when it differs from the options.
 
 **Path configuration:**
 

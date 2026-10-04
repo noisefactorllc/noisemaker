@@ -14,6 +14,59 @@ import { CanvasSink as DirectCanvasSink, SinkManager as DirectSinkManager } from
 import { FrameExportQueue as DirectFrameExportQueue } from '../src/runtime/frame-export.js'
 import { Pipeline } from '../src/runtime/pipeline.js'
 
+/**
+ * Minimal stand-in for HTMLCanvasElement, mirroring the DOM's width/height
+ * attribute reflection: the properties read the attributes (with the 300x150
+ * default) and writing a property updates the attribute.
+ */
+class FakeCanvasElement {
+    constructor() {
+        this._attributes = new Map()
+        this._width = 300
+        this._height = 150
+        this._listeners = new Map()
+    }
+
+    getAttribute(name) {
+        return this._attributes.has(name) ? this._attributes.get(name) : null
+    }
+
+    setAttribute(name, value) {
+        const text = String(value)
+        this._attributes.set(String(name), text)
+        if (name === 'width') this._width = Number(text)
+        if (name === 'height') this._height = Number(text)
+    }
+
+    addEventListener(type, listener) {
+        if (!this._listeners.has(type)) this._listeners.set(type, new Set())
+        this._listeners.get(type).add(listener)
+    }
+
+    removeEventListener(type, listener) {
+        this._listeners.get(type)?.delete(listener)
+    }
+
+    getContext() { return null }
+}
+
+for (const dimension of ['width', 'height']) {
+    Object.defineProperty(FakeCanvasElement.prototype, dimension, {
+        get() { return this[`_${dimension}`] },
+        set(value) {
+            const next = Number(value)
+            this[`_${dimension}`] = next
+            this._attributes.set(dimension, String(next))
+        },
+        configurable: true,
+        enumerable: true
+    })
+}
+
+// CanvasRenderer's constructor consults HTMLCanvasElement.prototype to
+// install its dimension observer.
+globalThis.HTMLCanvasElement = FakeCanvasElement
+
 const tests = []
 
 function test(name, fn) {
@@ -49,6 +102,18 @@ function deferred() {
 
 async function flushMicrotasks(turns = 3) {
     for (let turn = 0; turn < turns; turn++) await Promise.resolve()
+}
+
+function captureWarnings(fn) {
+    const warnings = []
+    const previousWarn = console.warn
+    console.warn = (...args) => warnings.push(args.join(' '))
+    try {
+        fn()
+    } finally {
+        console.warn = previousWarn
+    }
+    return warnings
 }
 
 function stalePipeline(events, name) {
@@ -571,6 +636,64 @@ test('render loop skips the draw while a sink defers and resumes afterward', () 
     } finally {
         globalThis.requestAnimationFrame = previousRaf
     }
+})
+
+test('constructor sizes an unsized canvas element from the render options', async () => {
+    const canvas = new FakeCanvasElement()
+    new CanvasRenderer({ canvas, width: 640, height: 360 })
+    await flushMicrotasks()
+    assert.equal(canvas.width, 640)
+    assert.equal(canvas.height, 360)
+    assert.equal(canvas.getAttribute('width'), '640')
+    assert.equal(canvas.getAttribute('height'), '360')
+})
+
+test('constructor applies the default render size to an unsized canvas element', async () => {
+    const canvas = new FakeCanvasElement()
+    new CanvasRenderer({ canvas })
+    await flushMicrotasks()
+    assert.equal(canvas.width, 1024)
+    assert.equal(canvas.height, 1024)
+})
+
+test('constructor keeps a canvas element sized by attribute and reports the disagreement', async () => {
+    const canvas = new FakeCanvasElement()
+    canvas.setAttribute('width', '320')
+    canvas.setAttribute('height', '240')
+    const warnings = captureWarnings(() => {
+        new CanvasRenderer({ canvas, width: 640, height: 360 })
+    })
+    await flushMicrotasks()
+    assert.equal(canvas.width, 320)
+    assert.equal(canvas.height, 240)
+    assert.equal(warnings.length, 1)
+    assert.ok(warnings[0].includes('320x240'), `diagnostic names the canvas size: ${warnings[0]}`)
+    assert.ok(warnings[0].includes('640x360'), `diagnostic names the option size: ${warnings[0]}`)
+})
+
+test('constructor keeps a canvas element sized by property before construction', async () => {
+    const canvas = new FakeCanvasElement()
+    canvas.width = 320
+    canvas.height = 240
+    const warnings = captureWarnings(() => {
+        new CanvasRenderer({ canvas, width: 640, height: 360 })
+    })
+    await flushMicrotasks()
+    assert.equal(canvas.width, 320)
+    assert.equal(canvas.height, 240)
+    assert.equal(warnings.length, 1)
+})
+
+test('constructor stays silent when the host-sized canvas matches the options', () => {
+    const canvas = new FakeCanvasElement()
+    canvas.setAttribute('width', '640')
+    canvas.setAttribute('height', '360')
+    const warnings = captureWarnings(() => {
+        new CanvasRenderer({ canvas, width: 640, height: 360 })
+    })
+    assert.equal(canvas.width, 640)
+    assert.equal(canvas.height, 360)
+    assert.equal(warnings.length, 0)
 })
 
 for (const { name, fn } of tests) {

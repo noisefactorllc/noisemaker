@@ -205,8 +205,8 @@ export class CanvasRenderer {
      * @param {object} options - Configuration options
      * @param {HTMLCanvasElement} options.canvas - Target canvas element
      * @param {HTMLElement} [options.canvasContainer] - Container element for canvas reset
-     * @param {number} [options.width=1024] - Render width
-     * @param {number} [options.height=1024] - Render height
+     * @param {number} [options.width=1024] - Render resolution width; sizes an unsized canvas element
+     * @param {number} [options.height=1024] - Render resolution height; sizes an unsized canvas element
      * @param {string} [options.basePath='../../shaders'] - Base path for shader assets
      * @param {boolean} [options.preferWebGPU=false] - Use WebGPU backend
      * @param {boolean} [options.useBundles=false] - Load effects from pre-built bundles
@@ -304,6 +304,10 @@ export class CanvasRenderer {
 
         // Set up WebGL context loss/restore listeners
         this._setupContextLossHandlers()
+
+        // Size an unsized canvas element from the render options so the
+        // drawing buffer (and pixel readback) matches the render resolution.
+        this._applyInitialCanvasSize()
     }
 
     /**
@@ -352,6 +356,39 @@ export class CanvasRenderer {
 
         interceptDimension('width', widthDesc)
         interceptDimension('height', heightDesc)
+    }
+
+    /**
+     * Size the canvas element from the render options when the host has not
+     * sized it. A canvas element's drawing buffer is its width/height, so an
+     * element left at the browser default (300x150) exports 300x150 pixels
+     * even though the pipeline renders internally at options.width x
+     * options.height. When the element already carries a size (attribute or
+     * property), the host's size wins and a disagreement is reported as a
+     * diagnostic naming both sizes.
+     * @private
+     */
+    _applyInitialCanvasSize() {
+        const canvas = this._canvas
+        if (!canvas || typeof canvas.getAttribute !== 'function') return
+
+        const hostSized =
+            canvas.getAttribute('width') !== null ||
+            canvas.getAttribute('height') !== null
+
+        if (!hostSized) {
+            canvas.width = this._width
+            canvas.height = this._height
+            return
+        }
+
+        if (canvas.width !== this._width || canvas.height !== this._height) {
+            console.warn(
+                `[Canvas] Canvas element is ${canvas.width}x${canvas.height} ` +
+                `but the renderer options specify ${this._width}x${this._height}; ` +
+                `the element size governs the output buffer.`
+            )
+        }
     }
 
     /**
