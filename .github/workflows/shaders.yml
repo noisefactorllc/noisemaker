@@ -30,6 +30,9 @@ on:
       - 'package-lock.json'
       - '.github/workflows/shaders.yml'
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Shader tests
@@ -155,6 +158,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: bundle
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions: {}
 
     # The site showcases the shaders, so a shader change rebuilds it.
     # This dispatches the same `noisemaker-site` release that site.yml
@@ -188,6 +192,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: bundle
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions: {}
 
     # Under the tag-on-commit scheme, scaffold is the sole authority
     # for shader library releases: it builds, computes next patch,

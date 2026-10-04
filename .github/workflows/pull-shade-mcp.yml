@@ -10,6 +10,9 @@ on:
         description: 'Release tag to download (e.g. v0.1.0)'
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   pull-shade-mcp:
     runs-on: ubuntu-latest

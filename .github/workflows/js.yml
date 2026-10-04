@@ -27,6 +27,9 @@ on:
       - '.github/workflows/js.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: JS tests

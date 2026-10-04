@@ -35,6 +35,8 @@ concurrency:
   group: site-${{ github.ref }}
   cancel-in-progress: false
 
+permissions: {}
+
 jobs:
   trigger-scaffold-release:
     name: Dispatch scaffold static-site-release

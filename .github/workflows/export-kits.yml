@@ -20,6 +20,8 @@ concurrency:
   group: export-kit-${{ github.ref }}
   cancel-in-progress: false
 
+permissions: {}
+
 jobs:
   dispatch:
     if: github.ref == 'refs/heads/main'

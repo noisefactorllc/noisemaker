@@ -18,6 +18,8 @@ on:
       - '.github/workflows/pull-shade-mcp.yml'
       - 'test/mcp-config.test.js'
 
+permissions: {}
+
 jobs:
   notify:
     runs-on: ubuntu-latest
