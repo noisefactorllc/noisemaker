@@ -1377,6 +1377,7 @@ type CompiledGraph = {
   allocations: Map<string, `phys_${number}`>
   textures: Map<string, RuntimeTextureSpec>
   renderSurface: string | null
+  mediaSteps: Array<{textureId: string, uniform: string, stepIndex: number, effect: string}> // per-step external texture bindings, one entry per distinct texture id in program order
   compiledAt: number                 // Date.now(), milliseconds since epoch
 }
 
@@ -1900,6 +1901,18 @@ Unknown or zero-sized sources return zero dimensions. Canvas/media callers may
 therefore read the dimensions directly on either backend rather than awaiting a
 backend-specific promise.
 
+Effects that declare an `externalTexture` (e.g. `synth/media`) bind one texture
+per expanded step that consumes it, named `<externalTexture>_step_N` where `N`
+is the step's node index in the compiled program (a trailing `.write()` is its
+own node, so it consumes a step too). No pass ever binds the bare
+`<externalTexture>` id, so hosts must upload into each step's texture and
+publish the source dimensions into each step's `imageSize` uniform for the
+image to render. `CanvasRenderer.getMediaSteps()` lists each media step's
+texture id, pass uniform, step index, and effect from the compiled graph — the
+same bindings `compileGraph()` carries as `graph.mediaSteps` — so hosts no
+longer reproduce the numbering themselves; texture ids and step numbering are
+unchanged for hosts that already bind `<externalTexture>_step_N`.
+
 2D texture specs may author two opt-in allocation policies and 3D texture
 specs may author a filtering policy:
 
@@ -1949,7 +1962,8 @@ Sources: `shaders/src/runtime/pipeline.js` - `resolveDimension()`,
 `setUniform()`, `broadcastChainScopedParam()`;
 `shaders/src/runtime/expander.js` - `write3d`/`read3d` volume/geometry
 dimension-handoff resolution (`writtenVolumes`, `readVolumes`,
-`exportedTextures`, `resolveVolume()`, `resolveExport()`);
+`exportedTextures`, `resolveVolume()`, `resolveExport()`) and per-step
+external-texture binding recording (`mediaSteps`);
 `shaders/src/renderer/canvas.js` - `applyStepParameterValues()`;
 `shaders/src/runtime/backends/webgl2.js` - `createTexture()`,
 `createTexture3D()`, `resolveFormat()`, `probeColorBytesPerSample()`,
@@ -2351,9 +2365,17 @@ Uniform override keys are shader uniform names as consumed by
 `pipeline.setUniform`, not necessarily DSL global names. `resolution` changes
 the browser viewport. It does not guarantee the internal canvas dimensions,
 as shown by the worked call requesting 256x256 and capturing 90x90.
+`CanvasRenderer` sizes an unsized canvas element (no width/height attributes)
+from its `width`/`height` options at construction; an element sized by
+attribute or property keeps that size, and a disagreement with the renderer
+options emits exactly one diagnostic naming both sizes. `resize()` changes the
+render resolution but not the canvas element, so a host that requests a
+different capture resolution must resize the element itself.
 
 Sources: Shade MCP `src/tools/browser/render.ts` - request handling;
-Noisemaker `shaders/src/runtime/pipeline.js` - `setUniform()`, `getOutput()`.
+Noisemaker `shaders/src/renderer/canvas.js` - construction-time element
+sizing, `resize()`; Noisemaker `shaders/src/runtime/pipeline.js` -
+`setUniform()`, `getOutput()`.
 
 For engine-native delivery, compile first.
 Then register a sink on that concrete pipeline:
