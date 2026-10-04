@@ -2,12 +2,16 @@
  * Repository-side true input-passthrough measurement (GAP-019).
  *
  * The upstream Shade MCP verb (vendor/shade-mcp/harness/index.js, originally
- * `src/tools/browser/passthrough.ts` - `testNoPassthrough()`) never injects
- * or reads an input texture: it renders the effect at times 0 and 1, compares
- * the two frames (`temporalDiff > 0.01`), and counts unique colors
- * (`uniqueColors > 5`). Its name overstates what is measured - a static
- * varied passthrough passes, and true input passthrough is not tested. Its
- * source lives in the Shade repository, which noisemaker cannot write (a
+ * `src/tools/browser/passthrough.ts` - `testNoPassthrough()`) shipped a
+ * temporal-variation heuristic: it rendered the effect at times 0 and 1,
+ * compared the two frames (`temporalDiff > 0.01`), and counted unique colors
+ * (`uniqueColors > 5`) - a static varied passthrough passed, and true input
+ * passthrough was not tested. The vendor refresh (noisemaker 10386a1,
+ * delivering the shade-mcp#28-era verb) reads the consumed input texture and
+ * the rendered output surface directly and classifies with the mean absolute
+ * per-channel difference at the same source-grounded `0.01` boundary, so the
+ * upstream check is no longer vacuous. Its source lives in the Shade
+ * repository, which noisemaker cannot write (a
  * `pull-shade-mcp` vendor refresh replaces the vendored bundle wholesale, so
  * hand edits there are not a resolution).
  *
@@ -26,11 +30,11 @@
  * passthrough rather than always reporting "effect modifies input".
  *
  * The passthrough boundary is not invented: it is the same source-grounded
- * `0.01` the upstream tool already uses for its temporal metric (reused by
- * GAP-009 as `NO_ANIMATION_TEMPORAL_DIFF_MAX` in `frame-metrics.js`). An
- * effect is a true input passthrough only when its output-to-input mean
- * absolute per-channel difference is at or below that boundary under the
- * better-matching orientation.
+ * `0.01` the upstream tool uses for its output-to-input mean-diff threshold
+ * (also reused by GAP-009 as `NO_ANIMATION_TEMPORAL_DIFF_MAX` in
+ * `frame-metrics.js`). An effect is a true input passthrough only when its
+ * output-to-input mean absolute per-channel difference is at or below that
+ * boundary under the better-matching orientation.
  */
 
 import { NO_ANIMATION_TEMPORAL_DIFF_MAX } from './frame-metrics.js'
@@ -38,7 +42,7 @@ import { NO_ANIMATION_TEMPORAL_DIFF_MAX } from './frame-metrics.js'
 /**
  * Output-to-input mean absolute per-channel difference at or below this
  * value classifies the effect as a true input passthrough. Same source
- * boundary as the upstream temporal metric (`temporalDiff > 0.01`).
+ * boundary as the upstream mean-diff threshold (`meanDiff <= threshold`).
  */
 export const INPUT_PASSTHROUGH_DIFF_MAX = NO_ANIMATION_TEMPORAL_DIFF_MAX
 
@@ -47,8 +51,9 @@ export const INPUT_PASSTHROUGH_DIFF_MAX = NO_ANIMATION_TEMPORAL_DIFF_MAX
  * the same set the renderer's `isStarterEffect()` (shaders/src/renderer/
  * canvas.js) treats as "needs pipeline input". An effect is a filter-type
  * consumer when its definition-level passes reference one of these; this is
- * the repository's own classification, not the upstream substring rule,
- * which matches nothing in noisemaker's expanded graphs.
+ * the repository's own classification. The delivered upstream verb applies
+ * the same name set (plus `isStarterEffect()`) to the expanded graph's pass
+ * input keys and values.
  */
 const PIPELINE_INPUT_NAMES = new Set([
     'inputTex', 'inputTex3d',
@@ -59,10 +64,9 @@ const PIPELINE_INPUT_NAMES = new Set([
  * Repository-side filter classification, mirroring the renderer's
  * `isStarterEffect()` rule over the effect's definition-level passes: an
  * effect consumes pipeline input when any pass input value is one of the
- * pipeline input names. (The upstream verb instead tests EXPANDED pass
- * input values for the substring `input`; in noisemaker those values are
- * concrete texture ids like `node_0_out`, so the upstream rule matches
- * nothing and its check reports `skipped` for every effect.)
+ * pipeline input names. (The delivered upstream verb applies the pipeline
+ * input name set — plus the renderer's `isStarterEffect()` — to the expanded
+ * graph's pass input keys and values.)
  *
  * @param {Array<{inputs?: object}>|null|undefined} definitionPasses
  * @returns {boolean} True when the definition consumes pipeline input.
@@ -189,8 +193,9 @@ export function compareOutputToInput(inputPixels, outputPixels) {
 
 /**
  * Classify a measured comparison against `INPUT_PASSTHROUGH_DIFF_MAX`.
- * At-or-below the boundary is a true input passthrough (the upstream
- * boundary is exclusive for "modifies": `temporalDiff > 0.01`).
+ * At-or-below the boundary is a true input passthrough (the delivered
+ * upstream verb classifies the same way: `isPassthrough = meanDiff <=
+ * threshold`).
  *
  * @param {{min: number}|null} comparison - `compareOutputToInput()` result.
  * @returns {boolean|null} Null when there is no usable comparison.

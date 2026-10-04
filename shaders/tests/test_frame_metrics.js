@@ -4,10 +4,11 @@
  * low-variety metric predicates returned by the harness's
  * `renderEffectFrame` wrapper (shaders/tests/test-harness.js).
  *
- * The thresholds must stay identical to the existing shade-mcp filter
- * modification predicate (vendor/shade-mcp/harness/index.js,
- * `testNoPassthrough()`: temporalDiff > 0.01 OR uniqueColors > 5), which is
- * the only source-grounded temporal/color boundary in the repository.
+ * The thresholds must stay identical to the shade-mcp filter modification
+ * boundaries (vendor/shade-mcp/harness/index.js, `testNoPassthrough()`):
+ * the original pin's temporalDiff > 0.01 OR uniqueColors > 5, now the
+ * refresh's output-to-input mean-diff threshold of 0.01 — the only
+ * source-grounded temporal/color boundary in the repository.
  */
 import assert from 'node:assert/strict'
 

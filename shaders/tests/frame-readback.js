@@ -5,12 +5,15 @@
  * performs on WebGPU, expressed as an auditable node-side mirror.
  *
  * The upstream Shade MCP verb (vendor/shade-mcp/harness/index.js, originally
- * `src/tools/browser/render.ts`) reads only `pipeline.backend.gl` and
- * therefore returns `Failed to read pixels` on WebGPU. This repository's
- * wrapper instead reads the render surface through the backend's async
- * `readPixels(textureId)` on both backends. This module mirrors that
- * readback contract so it is testable outside the browser and guarded
- * against silent regression to a GL-only readback.
+ * `src/tools/browser/render.ts`) shipped a GL-only readback that returned
+ * `Failed to read pixels` on WebGPU; the vendor refresh (noisemaker 10386a1)
+ * delivers the backend-neutral readback (shade-mcp#28), which reads the
+ * render surface through the backend's async `readPixels(textureId)` on both
+ * backends. The wrapper predates the fix and stays the repository readback
+ * path because the delivered verb does not consult the pipeline's frame-read
+ * textures. This module mirrors the wrapper's readback contract so it is
+ * testable outside the browser and guarded against silent regression to a
+ * GL-only readback.
  */
 
 /**

@@ -2,10 +2,12 @@
  * Grounded frame-metric predicates shared by the test harness's
  * `renderEffectFrame` wrapper (test-harness.js) and its regression tests.
  *
- * The thresholds are not invented: both are the existing shade-mcp filter
- * modification predicate (vendor/shade-mcp/harness/index.js,
- * `testNoPassthrough()`), which classifies an effect as "modifies input"
- * when `temporalDiff > 0.01` OR `uniqueColors > 5`. Reusing the same
+ * The thresholds are not invented: both are the shade-mcp filter
+ * modification boundaries (vendor/shade-mcp/harness/index.js,
+ * `testNoPassthrough()`). The original vendor pin classified "modifies
+ * input" when `temporalDiff > 0.01` OR `uniqueColors > 5`; the vendor
+ * refresh (noisemaker 10386a1) reclassified with the output-to-input
+ * mean-diff threshold `0.01` (`meanDiff <= threshold`). Reusing the same
  * constants keeps the no-animation and low-variety predicates on the one
  * source-grounded boundary already consumed by the repository.
  */
@@ -30,7 +32,7 @@ export const LOW_VARIETY_MAX_UNIQUE_COLORS = 5
  * @param {number[]} samplesB - Flat RGB byte triples from frame B, sampled
  *   at the same indices and in the same order as `samplesA`.
  * @returns {number} Mean absolute per-channel difference normalized to
- *   0..1 (identical semantics to `testNoPassthrough()`'s `temporalDiff`).
+ *   0..1 (the boundary shared with `testNoPassthrough()`'s `threshold`).
  * @throws {Error} When either sample list is empty or the lengths differ.
  */
 export function computeTemporalDiff(samplesA, samplesB) {
