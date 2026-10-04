@@ -10,6 +10,8 @@ function deepMerge(target, source) {
   if (!source || typeof source !== 'object') return target
 
   for (const key of Object.keys(source)) {
+    // Never walk or assign through the prototype chain
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue
     const sourceVal = source[key]
     const targetVal = target[key]
 

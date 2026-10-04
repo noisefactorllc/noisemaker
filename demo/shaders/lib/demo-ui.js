@@ -76,7 +76,7 @@ export function formatEnumName(name) {
         return sanitized
     }
     // Can't be an identifier - quote it as a string
-    return `"${name.replace(/"/g, '\\"')}"`
+    return `"${name.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
 }
 
 /**
