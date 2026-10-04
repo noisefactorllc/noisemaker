@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "surface": "o0",
+  "resolution": [64, 48],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "effects": ["synth/noise", "filter/octaveWarp"],
+  "dsl": "search synth, filter\n\nnoise(seed: 1, ridges: true).octaveWarp(octaves: 1, antialias: false, displacement: 0.05, freq: 2).write(o0)\nrender(o0)"
+}
