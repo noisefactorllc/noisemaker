@@ -4,4 +4,13 @@
 # needs the TensorFlow-based Python implementation (requirements.txt)
 # installed for `python3`; run `node scripts/run-js-tests.js` where that
 # environment exists.
+#
+# Fresh checkouts and sandbox restores may lack node_modules entirely (it is
+# gitignored); install the dev dependencies from package-lock.json so the
+# suite's dependency-importing modules (e.g. the vendored shade-mcp harness
+# used by shaders/tests/test_image_metrics.js) can resolve. This never skips
+# a test: it only installs the deps the entrypoint already requires.
+if ! test -d node_modules/@playwright/test; then
+    npm install --no-audit --no-fund >&2 || exit $?
+fi
 exec node scripts/run-js-tests.js --skip-parity "$@"

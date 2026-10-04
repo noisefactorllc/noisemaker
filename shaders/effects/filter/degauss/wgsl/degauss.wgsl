@@ -8,6 +8,7 @@ const TAU : f32 = 6.28318530717958647692;
 struct DegaussParams {
     dims0 : vec4<f32>, // (width, height, displacement, time)
     dims1 : vec4<f32>, // (speed, seed, direction, _pad)
+    dims2 : vec4<f32>, // (tileOffset.x, tileOffset.y, fullRes.x, fullRes.y)
 };
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
@@ -289,6 +290,8 @@ fn warped_channel_value(
     base_pos : vec2<f32>,
     width : f32,
     height : f32,
+    tile_width : f32,
+    tile_height : f32,
     freq : vec2<f32>,
     displacement : f32,
     mask : f32,
@@ -298,6 +301,9 @@ fn warped_channel_value(
     let noise_value : f32 = compute_noise_value(coord, width, height, freq, time, speed, channel);
     let centered : f32 = (noise_value * 2.0 - 1.0) * mask;
     let angle : f32 = centered * TAU;
+    // Offset in GLOBAL pixel space (width/height are fullResolution dims):
+    // every tile and the untiled reference must displace by the same
+    // absolute print-pixel amount.
     var offset : vec2<f32> = vec2<f32>(cos(angle), sin(angle)) * displacement * vec2<f32>(width, height);
 
     // Rotate offset by direction
@@ -305,7 +311,8 @@ fn warped_channel_value(
     let dc : f32 = cos(dirRad);
     let ds : f32 = sin(dirRad);
     offset = vec2<f32>(offset.x * dc - offset.y * ds, offset.x * ds + offset.y * dc);
-    let sample : vec4<f32> = sample_bilinear(base_pos + offset, width, height);
+    // Sample the tile-local input texture with tile dims.
+    let sample : vec4<f32> = sample_bilinear(base_pos + offset, tile_width, tile_height);
 
     switch channel {
         case 0u: {
@@ -329,13 +336,13 @@ fn store_pixel(base_index : u32, value : vec4<f32>) {
 
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
-    let width : u32 = as_u32(params.dims0.x);
-    let height : u32 = as_u32(params.dims0.y);
-    if (gid.x >= width || gid.y >= height) {
+    let tile_w : u32 = as_u32(params.dims0.x);
+    let tile_h : u32 = as_u32(params.dims0.y);
+    if (gid.x >= tile_w || gid.y >= tile_h) {
         return;
     }
 
-    let pixel_index : u32 = gid.y * width + gid.x;
+    let pixel_index : u32 = gid.y * tile_w + gid.x;
     let base_index : u32 = pixel_index * 4u;
     let coords : vec2<i32> = vec2<i32>(i32(gid.x), i32(gid.y));
     let original : vec4<f32> = textureLoad(inputTex, coords, 0);
@@ -346,19 +353,44 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         return;
     }
 
-    let width_f : f32 = params.dims0.x;
-    let height_f : f32 = params.dims0.y;
-    let uv : vec2<f32> = (vec2<f32>(f32(gid.x), f32(gid.y)) + vec2<f32>(0.5, 0.5))
-        / vec2<f32>(max(width_f, 1.0), max(height_f, 1.0));
-    let mask : f32 = singularity_mask(uv, width_f, height_f);
+    let tile_w_f : f32 = params.dims0.x;
+    let tile_h_f : f32 = params.dims0.y;
+    let tile_offset : vec2<f32> = params.dims2.xy;
+    // fullResolution defaults to the tile size when not tiling (unity
+    // invariant: tileOffset = 0 and fullRes == tile dims).
+    let full_res : vec2<f32> = select(
+        vec2<f32>(tile_w_f, tile_h_f),
+        params.dims2.zw,
+        params.dims2.z > 0.0
+    );
+    // Global pixel coords keep the noise field, mask and offset identical
+    // in every tile and in the untiled reference.
+    let global_px : vec2<f32> = vec2<f32>(f32(gid.x), f32(gid.y)) + tile_offset;
+    let uv : vec2<f32> = (global_px + vec2<f32>(0.5, 0.5))
+        / vec2<f32>(max(full_res.x, 1.0), max(full_res.y, 1.0));
+    let mask : f32 = singularity_mask(uv, full_res.x, full_res.y);
     if (mask <= 0.0) {
         store_pixel(base_index, original);
         return;
     }
 
-    let freq : vec2<f32> = freq_for_shape(2.0, width_f, height_f);
+    let render_scale : f32 = full_res.x / max(tile_w_f, 1.0);
+    let is_tiling : bool = render_scale > 1.01;
+    // Tiling: bound the (global-pixel) offset to the 256px tile-overlap
+    // budget, measured against the full-resolution dims the offset scales
+    // with. Untiled: keep the historical clamp exactly (full_res == tile
+    // dims there, so this is the same formula it always was).
+    let max_offset_pixels : f32 = select(max(tile_w_f, tile_h_f), 256.0, is_tiling);
+    let max_allowed_displacement : f32 = select(
+        max_offset_pixels / max(tile_w_f, 1.0),
+        max_offset_pixels / max(full_res.x, full_res.y),
+        is_tiling
+    );
+    let clamped_displacement : f32 = min(displacement, max_allowed_displacement);
+
+    let freq : vec2<f32> = freq_for_shape(2.0, full_res.x, full_res.y);
     let base_pos : vec2<f32> = vec2<f32>(f32(gid.x), f32(gid.y));
-    let coord : vec2<u32> = gid.xy;
+    let coord : vec2<u32> = vec2<u32>(global_px);
 
     let time : f32 = params.dims0.w;
     let speed : f32 = params.dims1.x;
@@ -367,10 +399,12 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         0u,
         coord,
         base_pos,
-        width_f,
-        height_f,
+        full_res.x,
+        full_res.y,
+        tile_w_f,
+        tile_h_f,
         freq,
-        displacement,
+        clamped_displacement,
         mask,
         time,
         speed,
@@ -379,10 +413,12 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         1u,
         coord,
         base_pos,
-        width_f,
-        height_f,
+        full_res.x,
+        full_res.y,
+        tile_w_f,
+        tile_h_f,
         freq,
-        displacement,
+        clamped_displacement,
         mask,
         time,
         speed,
@@ -391,10 +427,12 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         2u,
         coord,
         base_pos,
-        width_f,
-        height_f,
+        full_res.x,
+        full_res.y,
+        tile_w_f,
+        tile_h_f,
         freq,
-        displacement,
+        clamped_displacement,
         mask,
         time,
         speed,
