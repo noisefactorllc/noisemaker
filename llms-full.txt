@@ -14,14 +14,14 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `e9a357401f281405b5bf46e324238a3e160f1cd9`.
-- Shade MCP: `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.3.0`, protocol
+- Noisemaker: `5ff0445939d0238c51f0ab93a30baa238a6509ec`.
+- Shade MCP: `8e0c80a436fbe1ead57bdde3ff3b9f605d34f342`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.3.1`, protocol
   `2025-06-18` (negotiated down to `2024-11-05` for clients that request it),
   with 18 tools returned by `tools/list`.
 - The repository config runs
-  `npx -y github:noisedeck/shade-mcp#6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`,
-  matching release v0.3.0 delivered to `vendor/shade-mcp/`.
+  `npx -y github:noisedeck/shade-mcp#8e0c80a436fbe1ead57bdde3ff3b9f605d34f342`,
+  matching release v0.3.1 delivered to `vendor/shade-mcp/`.
 
 Primary source roots:
 
@@ -31,7 +31,7 @@ Primary source roots:
 - backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
 - repository validation policy: `shaders/tests/test-harness.js`.
 - Shade MCP source for the pinned snapshot:
-  `https://github.com/noisefactorllc/shade-mcp/tree/6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d/src`.
+  `https://github.com/noisefactorllc/shade-mcp/tree/8e0c80a436fbe1ead57bdde3ff3b9f605d34f342/src`.
 
 ## Freshness and maintenance
 
@@ -47,7 +47,7 @@ Before updating this contract to a different Noisemaker or Shade MCP revision:
 3. Re-capture MCP initialization, `tools/list`, and the worked request/response
    transcript from one server session at the new Shade MCP commit.
 4. Re-run the source-level worked-example graph expansion and the backend
-   validation calls. Reject stale-status results under GAP-024.
+   validation calls. Confirm each returned effect and backend identity.
 5. Check the source evidence again before updating the traceability matrix and gap register.
 
 Until all five steps are complete, unchanged sections remain authoritative only
@@ -861,10 +861,9 @@ also require:
    Rendered output section pass.
 5. `testPixelParity.status === "ok"` for parity-authorable effects.
 
-Items 2-5 are necessary domain predicates, not sufficient freshness evidence.
-Every browser result must also identify the selected effect and compiled graph.
-The current MCP browser verbs return no such identity, so this gate cannot be
-completed from their result payloads alone. See GAP-024.
+Items 2-5 are necessary domain predicates. The browser verbs now wait for a
+page-confirmed requested effect and backend before reporting success. Check
+the returned identity and reject selection or backend-switch errors.
 
 `checkEffectStructure.status === "warning"` when any implemented structural
 issue is present. The precise issue arrays are in its MCP contract.
@@ -1294,17 +1293,12 @@ A tested uniform passes when `luma_delta > 0.002` OR
 The test value is `min + 0.75*(max-min)` when default equals min, otherwise
 `min + 0.25*(max-min)`. `int` is rounded.
 
-Important: the tool's overall status is `ok` when **any** tested uniform passes,
-even if other entries are `name:fail`. A strict effect gate must require every
-`tested_uniforms` entry to end in `:pass`. The repository's harness provides
-`aggregateUniformResponsiveness()` (`shaders/tests/uniform-status.js`), which
-reclassifies the result from every entry (`ok` only when at least one entry
-exists and every entry ends `:pass`, `fail` when any is `:fail`, `error` on
-`:error`/malformed entries or an empty entry list, `skipped` when upstream
-skipped) and passes it through `tested_uniforms` and `details` unchanged; the
-harness consumes it behind the explicit
-`--strict-uniforms` opt-in flag. The upstream tool's own outer status is
-unchanged. See GAP-010.
+The tool's overall status is `ok` only when at least one uniform was tested
+and every tested uniform responded. It is `skipped` when none is testable and
+`error` when any uniform failed or could not be measured. The repository's
+`aggregateUniformResponsiveness()` (`shaders/tests/uniform-status.js`) still
+checks every `tested_uniforms` entry; the harness gates a run on that aggregate
+behind `--strict-uniforms` and records independent per-uniform deltas.
 
 Sources: `shaders/src/lang/validator.js` - `clamp()`, numeric arguments, and
 automation compilation; `shaders/src/runtime/external-input.js` - selected
@@ -1334,18 +1328,25 @@ capture.
 
 ```ts
 type UniformResponsiveness =
-  | { status: "ok" | "skipped" | "error",
+  | { status: "ok" | "skipped" | "error", backend: string,
       tested_uniforms: Array<`${string}:pass` | `${string}:fail` |
                              `${string}:error`>,
+      uniforms: Array<{ name: string, uniform: string,
+        default_value: number, test_value: number,
+        luma_diff: number | null, max_channel_diff: number | null,
+        responds: boolean, error?: string }>,
+      threshold: 0.002,
       details: string,
       console_errors?: string[] }
   | { status: "error", error: string }
 ```
 
-Enumerated in-page failures are `No effect loaded` and `Failed to capture
-baseline`. Outer browser/session failures use `{status:"error",error:string}`.
-The output does not report the selected test value, baseline means, test means, or deltas.
-Therefore, this tool alone cannot quantify the failure of a global. See GAP-011.
+Enumerated in-page failures include `No effect loaded` and `Failed to capture
+baseline on <backend>`. Outer browser/session failures use
+`{status:"error",error:string}`. Each tested uniform reports its default and
+selected test value and measured luma and maximum-channel deltas, or a
+measurement error with null deltas. The tool does not return baseline and
+test frame means separately.
 
 All MIDI fixed-channel modes reject fractional or out-of-range channels with
 `S002` and return `min`. Invalid CC/NRPN/zone/member selection likewise
@@ -2226,10 +2227,10 @@ Sources: `shaders/src/lang/transform.js` - all `success:false` paths.
 
 ### Introspect
 
-`renderEffectFrame` samples the WebGL default framebuffer after warmup — for a
-timed capture, after redrawing at the requested paused time (verified live at
-the pinned snapshot; see the verb's section). The
-decoded success payload is:
+`renderEffectFrame` samples the WebGL default framebuffer or reads the WebGPU
+render surface through `backend.readPixels()` after draining submitted work.
+For a timed capture it redraws at the requested paused time. The decoded
+success payload is:
 
 ```ts
 type ImageMetrics = {
@@ -2248,6 +2249,8 @@ type RenderSuccess = {
   effect_id: string
   status: "ok"
   backend: string
+  requested_resolution?: [number, number]
+  warning?: string              // present when frame size differs from request
   frame: { image_uri: string | null, width: number, height: number }
   metrics: ImageMetrics
   console_errors?: string[]
@@ -2257,6 +2260,7 @@ type RenderFailure = {
   effect_id?: string
   status: "error"
   backend?: "unknown" | string
+  requested_resolution?: [number, number]
   error: string
   console_errors?: string[]
 }
@@ -2324,8 +2328,8 @@ Sources: `shaders/src/runtime/sink.js`; `shaders/src/runtime/frame-export.js`;
 ### Act
 
 Call the MCP verb documented in the tool section. For deterministic MCP
-captures, omit `time`. With an explicit `time`, the released verb
-(verified live against `vendor/shade-mcp/` release `v0.3.0` and upstream
+captures, supply `time`. With an explicit `time`, the released verb
+(verified live against `vendor/shade-mcp/` release `v0.3.1` and upstream
 `src/tools/browser/render.ts` at the pinned snapshot) awaits its frame-count
 warmup while the render loop is still live, bounds both render and DSL warmup
 waits at `session.timeoutMs` with a diagnostic, unpauses in a `finally`, and
@@ -2460,10 +2464,10 @@ metrics on every successful frame: `temporal_diff` (normalized mean
 absolute RGB difference between two renders at normalized times 0 and 0.5,
 so a looping effect cannot alias to "static" through phase alignment),
 `is_no_animation` = `temporal_diff <= 0.01`, and `is_low_variety` =
-`unique_sampled_colors <= 5`. Both thresholds reuse the one source-grounded
-temporal/color boundary already consumed by the filter modification check
-(`temporalDiff > 0.01` OR `uniqueColors > 5`); no made-up boundary was
-introduced. The probe is an external two-frame comparison; if pixel readback
+`unique_sampled_colors <= 5`. These are repository-local diagnostic
+thresholds; Shade MCP's filter modification tool now uses a different
+output-to-input pixel comparison. The probe is an external two-frame
+comparison; if pixel readback
 fails, the three metrics are `null` and `metrics.temporal_probe_error`
 names the failure. The harness exposes an explicit opt-in `--low-variety`
 gate with exemptions `filter/shape`, `filter/solid`, and `synth/solid`; the
@@ -2473,9 +2477,10 @@ Regressions: `shaders/tests/test_frame_metrics.js`, registered in
 `scripts/run-js-tests.js`. These metrics are returned by this repository's
 harness wrapper, not by the upstream Shade MCP verb.
 
-The separate filter modification tool uses `temporalDiff > 0.01` OR
-`uniqueColors > 5`, but that predicate says "modifies input" and cannot
-serve as a general animation/variety validator.
+The separate filter modification tool compares the rendered output with its
+consumed input at one paused time. It passes only when normalized mean
+absolute RGB difference exceeds `0.01`; this is not an animation or color-
+variety validator.
 
 The repository sustained benchmark gate uses median frame time after 20 warmup
 frames and 100 measured frames and fails when `fps < 30`. Equivalently it passes
@@ -2514,24 +2519,25 @@ sustained benchmark; `shaders/src/runtime/sink.js`;
 
 ### Diagnose
 
-In-page render failures are:
+In-page render failures include:
 
 ```text
 No renderer
-Failed to read pixels
+No renderer on <backend>
+Failed to read pixels on <backend>: no readable render surface
 ```
 
 Outer browser/session failures use `{effect_id,status:"error",error:string}`.
 Captured console messages can appear as `console_errors`, but backend console
 diagnostics are strings rather than typed error objects.
 
-The current upstream `renderEffectFrame` reads only `pipeline.backend.gl` and
-therefore returns `Failed to read pixels` on WebGPU. Noisemaker's vendored test
-harness supplies its own WebGPU `backend.readPixels()` wrapper — the
-repository-side resolution recorded in GAP-012, with the readback contract
-pinned by `shaders/tests/frame-readback.js`. That wrapper is not the MCP verb
-contract: direct callers of the upstream verb still get `Failed to read
-pixels` on WebGPU. See GAP-012.
+The delivered `renderEffectFrame` reads WebGPU pixels through
+`backend.readPixels()` and drains its command queue before reading. Direct MCP
+WebGPU calls and Noisemaker's vendored test harness both have a readback path;
+the latter retains its own surface candidate order and additive metrics.
+When `resolution` is requested, the verb echoes `requested_resolution` and
+includes a `warning` with requested and actual dimensions if the viewer did
+not honor it. The returned frame dimensions are authoritative.
 
 The shared/vendored image-metric helper uses a different "essentially blank"
 definition (dark mean plus quantized color cardinality) than the current MCP
@@ -2663,7 +2669,7 @@ testPixelParity({
 The tool performs these steps:
 
 1. Select WebGL2.
-2. Wait for a noncompiling, nonempty graph.
+2. Wait for a post-selection graph for the requested effect and backend.
 3. Render six live frames for warmup.
 4. Capture the offscreen render surface at time zero.
 5. Select WebGPU.
@@ -2672,18 +2678,11 @@ The tool performs these steps:
 The tool writes the seed to pipeline/pass uniforms. WebGPU rows are vertically
 flipped to the same top-down orientation as WebGL before comparison.
 
-`setBackend()` requests each backend and polls `currentBackend()`, but reaching
-the poll timeout does not throw or return a failure. The parity tool can
-therefore continue after an unsuccessful switch and compare two buffers from
-the same residual backend. Neither buffer is labeled with a page-confirmed
-backend identity. See GAP-024.
-
-`selectEffect()` returns after dispatching the UI change event. It does not
-await the asynchronous effect load. `waitReady()` checks only that some
-pipeline graph is noncompiling and nonempty, not that `currentEffect` or the
-graph belongs to the requested effect. The previous graph can therefore pass
-the readiness check before the new load marks the pipeline compiling. See
-GAP-024.
+`setBackend()` rejects a switch that fails to reach the requested backend.
+Each parity leg selects the effect and waits for a graph built after that
+selection, with the page-confirmed effect identity and backend checked before
+capture. A failed leg returns an error identifying the leg and observed page
+state. The result reports the confirmed identity of the final WebGPU leg.
 
 Sources: Shade MCP `src/tools/browser/parity.ts` - `testPixelParity()`,
 `waitReady()`, `captureSurface()`; Shade MCP
@@ -2725,10 +2724,10 @@ y_flip_clean_flip = mean_diff > 2 && y_flip_ratio < 0.25
 `epsilon` is described as 0-255 but Zod does not enforce that range. A strict
 caller must require `0 <= epsilon <= 255` and a finite value before calling.
 
-These predicates validate the two captured buffers only. They do not establish that either buffer belongs to the requested effect or backend.
-The result provides no effect/graph/backend identity proof. The selection wait can finish before effect selection completes. A backend-switch timeout produces no error. Until independent effect,
-graph, and backend identity checks agree, even `status:"ok"` is freshness-
-indeterminate under GAP-024.
+These predicates validate the two captured buffers. Successful captures also
+require a confirmed backend switch and requested-effect graph for each leg;
+check the returned final-leg `effect_id` and `backend` before accepting the
+numeric verdict.
 
 Sources: Shade MCP `src/tools/browser/parity.ts` - comparison, solid, and
 Y-flip predicates.
@@ -2738,6 +2737,7 @@ Y-flip predicates.
 ```ts
 type ParitySuccessOrMismatch = {
   effect_id: string
+  backend?: string
   status: "ok" | "mismatch"
   maxDiff: number
   meanDiff: number
@@ -2783,11 +2783,9 @@ change `status`. Status depends only on mismatch percentage. A strict gate must
 also assert both solid flags false and `yFlipDetected === false` unless the
 effect is intentionally solid.
 
-There is no returned stale-selection, backend-switch, or identity-mismatch
-failure shape. A parity result can name the requested `effect_id` while its
-pixel buffers came from a previously ready graph or the same residual backend.
-Diagnose that result as indeterminate outside the returned contract. The
-missing machine-readable signal is GAP-024.
+Selection failures, backend-switch failures, and identity mismatches return
+`status:"error"` with the failed leg in `details` and the page-confirmed
+effect/backend when available. They do not produce a numeric parity success.
 
 Backend compilation failures:
 
@@ -2939,14 +2937,11 @@ positive-resolution refinement unless explicitly stated. Descriptive ranges
 are not validation.
 
 Browser verbs call `BrowserSession.setBackend()` before capture/compile work.
-That helper polls the page's current backend but exits silently when its timeout
-expires, so the call is an attempt, not a verified switch.
-
-`compileEffect` and
-`benchmarkEffectFPS` report the session's configured/requested backend string.
-`renderEffectFrame` reports `pipeline.backend.getName()`. Other browser results
-often omit backend identity. Independently confirm the page backend before
-accepting any requested-backend claim. See GAP-024.
+It now rejects a switch that does not reach the requested page backend.
+`selectEffect()` waits for a post-selection graph and checks the page's current
+effect identity; a missing or different identity fails closed. Browser results
+report the page-confirmed backend and effect where available, including on
+selection and switch failures.
 
 #### compileEffect
 
@@ -2964,18 +2959,11 @@ type CompileEffectResult = Batched<
 >
 ```
 
-The tool selects the effect and polls status text for up to the configured
-`SHADE_TIMEOUT_MS` (default `120000` ms). On success it projects expanded passes
-to `{id:p.name || "pass_<index>",status}`.
-Expanded passes normally have no `name`, so `pass_<index>` is expected. Success
-message is `Compiled successfully`. Timeout message is `Compile timeout`.
-
-The status text can still describe the previous effect immediately after the
-selection event. Its returned passes can therefore belong to the previous
-graph while status is `ok`. Do not accept the pass list unless an independent
-current-effect/graph identity check agrees. `testPixelParity` waits for a
-noncompiling nonempty graph but has the same missing identity guarantee. This
-is GAP-024.
+The tool waits for the selected effect's post-selection graph rather than
+viewer status text, then reports its expanded passes. Passes without authored
+names use `pass_<index>`; success message is `Compiled successfully`.
+Backend-switch, selection, compile, and missing page-identity failures return
+`status:"error"`, with the page-confirmed effect/backend when available.
 
 Source: Shade MCP `src/tools/browser/compile.ts` - `compileEffectSchema`,
 `compileEffect()`.
@@ -3047,6 +3035,9 @@ type BenchmarkEffectFPSInput = BrowserSelector & {
 
 type BenchmarkEffectFPSResult = Batched<
   | { effect_id: string, status: "ok", backend: string,
+      requested_resolution?: [number, number],
+      frame?: { width: number, height: number },
+      warning?: string,
       achieved_fps: number,
       meets_target: boolean,
       stats: {
@@ -3067,9 +3058,8 @@ type BenchmarkEffectFPSResult = Batched<
 two decimals. Tool status remains `ok` when `meets_target` is false. Callers
 must inspect the boolean.
 
-The tool now attempts `setBackend()` before selecting
-the effect and measuring frames, but its returned `backend` is the configured
-session/request value, not page-confirmed identity. See GAP-024.
+The tool confirms the requested backend and effect before measurement and
+reports the page-confirmed backend in its result.
 
 Source: Shade MCP `src/tools/browser/benchmark.ts` - schema and
 `benchmarkEffectFPS()`.
@@ -3084,13 +3074,11 @@ type TestUniformResponsivenessResult = Batched<
 >
 ```
 
-The test set, perturbation rule, `luma_delta > 0.002` and
-`max_channel_delta > 0.002` thresholds, and overall-status weakness are in
-Parameters and globals. The tool switches to the requested backend before
-selection, but the switch is not confirmed and capture still requires
-`pipeline.backend.gl`. A WebGPU request returns the in-page baseline failure if
-the switch succeeds, but can test residual WebGL output if the switch silently
-times out. See GAP-024.
+The test set, perturbation rule, `luma_diff > 0.002` and
+`max_channel_diff > 0.002` thresholds, per-uniform measurements, and aggregate
+status are in Parameters and globals. The tool confirms the requested backend
+and effect before capture. WebGPU reads its offscreen surface through the
+backend's async pixel reader after submitted work completes.
 
 Source: Shade MCP `src/tools/browser/uniforms.ts` - schema and
 `testUniformResponsiveness()`.
@@ -3102,43 +3090,27 @@ type TestNoPassthroughInput = BrowserSelector
 
 type TestNoPassthroughResult = Batched<
   | { effect_id: string, status: "ok" | "passthrough",
-      isFilterEffect: true,
-      temporalDiff: number,       // normalized [0,1]
-      uniqueColors: number,
-      details: "Effect modifies input" |
-               "Effect may be passing through unchanged",
+      backend: string, isFilterEffect: true,
+      similarity: number, threshold: 0.01, inputTexture: string,
+      details: string,
       console_errors?: string[] }
   | { effect_id: string, status: "skipped" | "error",
-      isFilterEffect: false, similarity: null, details: string,
+      backend?: string, isFilterEffect: false, similarity: null, details: string,
       console_errors?: string[] }
   | OuterEffectError
 >
 ```
 
-The tool classifies an effect as a filter only when an expanded pass input value
-contains the substring `input`. It captures WebGL frames at render times 0 and 1.
-It uses the same stride to sample approximately 1000 pixels.
-It computes the average absolute RGB channel difference divided by 255.
-
-It returns `ok` when
-`temporalDiff > 0.01` OR `uniqueColors > 5`. These are the literal returned
-metric names. Nonfilters return `Not a filter effect`.
-In-page failures include `No effect loaded` and `No GL context`.
-
-The tool attempts to switch to the requested backend before selection. Because
-its pixel capture requires `pipeline.backend.gl`, a confirmed WebGPU switch
-returns `No GL context`. A silently failed switch can instead test residual
-WebGL output. See GAP-024.
-
-This test does not compare output to input. It compares output at two times and
-color cardinality. A static varied passthrough can pass. See GAP-019.
-
-In noisemaker's expanded graphs the check is additionally vacuous: its
-`input`-substring rule tests expanded pass input values, which are concrete
-texture ids, so it reports `skipped` for every effect. The repository harness
-measures true input passthrough (output compared against the consumed input
-texture, with a live write-blit positive control) behind the explicit
-`--passthrough-input` opt-in; see the GAP-019 row.
+The tool classifies a filter by an expanded pass input key or value naming
+`inputTex`, `inputTex3d`, or a user surface, including starter effects. It
+renders at paused time zero, reads the consumed input texture and output
+surface through the backend's async reader, and samples about 1000 pixels.
+`similarity` is the normalized mean absolute RGB difference, despite its name:
+the output modifies its input and returns `ok` only when `similarity > 0.01`.
+Otherwise the status is `passthrough`. Nonfilters return `skipped` with `Not a
+filter effect`. The comparison works on WebGL2 and WebGPU. Noisemaker's
+`--passthrough-input` opt-in remains an independent probe with a write-blit
+positive control.
 
 Source: Shade MCP `src/tools/browser/passthrough.ts` - schema and
 `testNoPassthrough()`.
@@ -3218,12 +3190,12 @@ rejected).
 
 Source: Shade MCP `src/tools/browser/dsl.ts` - schema and `runDslProgram()`.
 
-Live re-capture at the pinned snapshot (2026-10-01, one stdio session at
-`6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`): `search synth` /
-`read(o0).write(o7)` / `render(o7)` → `status ok`, WebGL2, `resolution
-{960,540}`, `frames [1,120,600]`, `surfaces ["o7"]`, `render_target "o7"`,
-grid 1014x212, three captures with full 9-field `ImageMetrics`, `frame
-{960,540,image_uri:null}`, and `content` types `["text","image"]`.
+At the pinned 0.3.1 source, a direct `renderEffectFrame` call for
+`filter/degauss` on WebGPU at `time:0.5` and resolution `[128,128]` returned
+`status:"ok"`, page-confirmed `effect_id:"filter/degauss"` and
+`backend:"WebGPU"`, `requested_resolution:[128,128]`, a 128×128 frame, and
+nonblank metrics. The worked example below records the complete paired
+source validation exchange.
 
 #### checkEffectStructure
 
@@ -3368,9 +3340,10 @@ The query is lowercased, synonym-expanded, and whitespace-tokenized. Score is an
 
 Only positive scores are
 returned, descending, sliced to `limit`. The shared effect index is rebuilt
-after five seconds. Concurrent readers share one rebuild. An unparseable effect
-is skipped with a server warning rather than represented in results. A rebuild
-already in flight can survive explicit invalidation. See GAP-029.
+after five seconds. Concurrent readers share one rebuild within the current
+invalidation epoch. An unparseable effect is skipped with a server warning
+rather than represented in results. A build begun before explicit invalidation
+cannot publish its stale index into the cache.
 
 Source: Shade MCP `src/tools/knowledge/search-effects.ts`;
 `src/knowledge/effect-index.ts` - initialization and `search()`;
@@ -3478,7 +3451,7 @@ type ListEffectsResult = {
 Without a filter, `namespace` in output is `all`. The list uses Shade's lossy
 definition projection. Pass counts and names reflect that parser, not imported
 Noisemaker class instances. It shares the five-second refreshable effect index
-with `searchEffects` and its read-after-write caveat under GAP-029.
+with `searchEffects` and its invalidation-epoch behavior.
 
 Source: Shade MCP `src/tools/utility/list-effects.ts`;
 `src/knowledge/effect-index.ts` - `list()`;
@@ -3498,10 +3471,10 @@ sorted JSON. It scans definition source with regexes for description, external
 texture/mesh, tags, surface globals, and starter heuristics, and scans shader
 files.
 
-A successful write clears the cached effect index. When no rebuild is
-already in flight, the next list or search rescans immediately. An in-flight
-rebuild remains shared and can repopulate the cache from a pre-write scan for
-another five-second TTL. See GAP-029.
+A successful write invalidates the cached effect index. A build already in
+flight may return its own result to a caller waiting on that build, but it
+cannot repopulate the shared cache after invalidation; the next list or search
+starts a build for the new epoch.
 
 This verb changes state. Do not call it during read-only introspection. The only explicit error is
 `Effects directory not found: <path>`. Filesystem write exceptions escape the
@@ -3536,10 +3509,9 @@ error text. Otherwise, parse the JSON text. Apply the predicate for that verb:
 
 Batch callers must validate every array member. Never treat transport success,
 outer `status:"ok"`, or a nonempty result as universal validation.
-For every browser verb, including `testPixelParity`, the listed predicate is
-only meaningful after independent selected-effect, graph, and actual-backend
-identity checks. The current returned payloads do not provide all three. See
-GAP-024.
+For every browser verb, including `testPixelParity`, check the page-confirmed
+effect/backend fields and require domain success. The session now rejects a
+failed backend switch or an effect selection without a confirmed new graph.
 
 ### Diagnose
 
@@ -3582,20 +3554,12 @@ the messages are not categorized. Tool-specific failures are enumerated under
 each verb above.
 
 For `compileEffect`, `renderEffectFrame`, `describeEffectFrame`,
-`benchmarkEffectFPS`, `testUniformResponsiveness`, `testNoPassthrough`,
-`testPixelParity`, and `runDslProgram`, a domain-shaped `ok` response can still
-be stale. Six wait on status text directly. `describeEffectFrame` delegates to
-`renderEffectFrame`. `testPixelParity` instead waits for a noncompiling, nonempty graph.
-
-Effect selection only dispatches an asynchronous UI event.
-The wait does not bind the graph to the requested effect. No returned field
-identifies that failure.
-
-`setBackend()` also returns without error if its
-current-backend poll expires, and several results label only the requested
-session backend or omit backend identity. Graph/effect/backend identity
-disagreement must therefore be diagnosed outside the returned contract. This
-is GAP-024.
+`benchmarkEffectFPS`, `testUniformResponsiveness`, `testNoPassthrough`, and
+`testPixelParity`, the browser session waits for a graph built for the
+requested effect and rejects an unconfirmed effect or backend. `runDslProgram`
+uses a fresh renderer and reports its own backend. A tool call can still fail
+through an outer browser/session error; inspect the returned status and
+identity rather than treating transport success as validation.
 
 Sources: Shade MCP `src/tools/resolve-effects.ts`; all tool registration files;
 `src/ai/provider.ts` - `NO_AI_KEY_MESSAGE`;
@@ -3603,139 +3567,15 @@ Sources: Shade MCP `src/tools/resolve-effects.ts`; all tool registration files;
 
 ## Fully worked, source-complete effect and validation finding
 
-This instance is the repository's `synth/testPattern` effect. The three source
-blocks below are complete, not excerpts, and were last live-captured at
-Noisemaker commit `246ff57f43ccb4c9ebb377ef383ed9f9dff1b424` and Shade MCP
-commit `0a92bd839adf89caa1641e90b201182a24f8fb25`. Re-audited at Noisemaker
-`5e52a2a2fcaeb3cd540e7bdc0328a2a009116ff5` and Shade MCP
-`00340b148e109464b1a87d89ff29fc7622d384c9` (v0.2.3 delivery at
-`cbcab33363851016f65391fbb9ef71d66729c07f`) by source inspection, and
-re-audited with a live MCP re-capture at Noisemaker
-`403c2a4bf2cb56307448ea2fc1d6fa3cd74b7d6e` and the same Shade MCP
-`00340b148e109464b1a87d89ff29fc7622d384c9` / pin `cbcab33363851016f65391fbb9ef71d66729c07f`,
-then re-audited across `403c2a4..9f85687d1bafc445dcd38e28cf5f0c6dfba562f8` at
-Noisemaker `9f85687d1bafc445dcd38e28cf5f0c6dfba562f8` (the range's GAP-010
-`aggregateUniformResponsiveness()` addition is confined to the repository's
-test-harness wrappers `shaders/tests/uniform-status.js` and
-`shaders/tests/test-harness.js` and does not touch this effect, the compiler,
-or the engine runtime; the only later change, `7730ea4`, is documentation),
-and re-audited across `9f85687d..7443f6e6180300a45c5b97608459e5094504659d` at
-Noisemaker `7443f6e6180300a45c5b97608459e5094504659d` (the range's two commits
-are confined to the repository's test-harness layer: GAP-011 adds
-`shaders/tests/uniform-deltas.js` — auditable measured uniform deltas behind
-the `--uniforms` harness run — and GAP-012 adds
-`shaders/tests/frame-readback.js`, pinning the harness WebGPU render-surface
-readback; neither touches this effect, the compiler, or the engine runtime),
-and re-audited across `7443f6e..12b4d74fb4f28d5f00bb1dde107fa8673814d8b9` at
-Noisemaker `12b4d74fb4f28d5f00bb1dde107fa8673814d8b9` (the range's three
-commits are two test-harness additions — GAP-015 adds
-`shaders/tests/image-metrics.js`, an auditable metric mirror and per-field
-interchangeability audit, and the harness `renderEffectFrame` warmup-before-pause
-ordering mirror `shaders/tests/frame-warmup.js` — plus
-one engine addition, GAP-016's `shaders/src/runtime/preflight.js`
-`preflightEffect()` and the `Pipeline.preflight()`/`mrtFormatBytes()` delegation
-in `shaders/src/runtime/pipeline.js`; none touch this effect, the compiler, or
-its execution),
-and re-audited across `12b4d74..93229933b102ba82e713402be19db57207698850` at
-Noisemaker `93229933b102ba82e713402be19db57207698850` (the range's two commits
-are a documentation-only post-publication-evidence record and GAP-017's
-test-harness addition — `shaders/tests/definition-schema.js`, the harness
-`--describe` mode in `shaders/tests/test-harness.js`, and the regressions in
-`shaders/tests/test_definition_schema.js`; none touch this effect, the
-compiler, or its engine runtime),
-then again across `9322993..296e0138c4744ed485b2e95de3eeb466c17629ee` at
-Noisemaker `296e0138c4744ed485b2e95de3eeb466c17629ee` (the range's four
-commits are the prior checkpoint-advance documentation commit `7c5f176`,
-GAP-019's test-harness passthrough probe `a912749` (`shaders/tests/passthrough-input.js`
-plus the `--passthrough-input` opt-in in `shaders/tests/test-harness.js`),
-a one-line GAP-020 documentation narrowing `11d7c69`, and GAP-021's
-requested-vs-returned frame-resolution annotation `296e013`
-(`shaders/tests/frame-resolution.js` plus the `--strict-resolution` opt-in
-in `shaders/tests/test-harness.js`); all are test-harness or documentation
-layer — no engine, effects, viewer, catalog, `.mcp.json`, or vendor changes,
-none touch this effect, the compiler, or its engine runtime),
-and again across `296e013..73c15be00d6888f4b5d2835d8e242ee9e840df45` at
-Noisemaker `73c15be00d6888f4b5d2835d8e242ee9e840df45` (the range's four
-commits are the prior checkpoint-advance documentation commit `04e8582`,
-the WebGL2 mesh-target depth-allocation fix `c28e8fd` — a two-line
-`shaders/src/runtime/backends/webgl2.js` change re-binding the framebuffer
-after `ensureDepthBuffer()` unbinds it, with a focused mesh first-frame
-regression, touching only mesh/depth render paths this hook-less
-flat-quad effect never enters — GAP-024's harness identity binding
-`7aff843` (`shaders/tests/session-identity.js`, `--strict-identity`, and
-`demo/shaders/index.html`'s `__noisemakerPipelineGeneration`), and
-GAP-026's production lifecycle hooks `73c15be`
-(`shaders/src/runtime/pipeline.js` `initLifecycleEffects()`/
-`_invokeUpdateHooks()`/`_withRuntimeUniforms()`: `synth/testPattern` is
-hook-less, so the lifecycle map never manages it, and its hook-less-parity
-regression plus the full non-parity suite pass),
-and again across `73c15be00d6888f4b5d2835d8e242ee9e840df45..e9a357401f281405b5bf46e324238a3e160f1cd9`
-at Noisemaker `e9a357401f281405b5bf46e324238a3e160f1cd9` (the watched-root
-drift is GAP-007's structured backend diagnostics `dd4606e`/`a0e9bbf`/`e24c844`,
-GAP-010's harness uniform-gate mirror `16c1997`/`ed47815`, the Portable
-registration `cb22a05` confined to `shaders/src/renderer/canvas.js` initial
-registration of loaded Portable definitions — built-in effects are unaffected —
-and the inert favicon-link commit `e9a3574`; none touch this effect, the
-compiler, or its execution):
-`synth/testPattern`'s own definition.js and shader files are byte-unchanged in the
-audited range, none of the range's changes (GAP-004 authorable mipmaps, persistent texture
-policies, and 3D filter policies with verified publication closure; GAP-005 pass-field
-propagation; GAP-006 texture-pooling opt-in; GAP-007 structured backend diagnostic
-union; GAP-008 replacement-preflight predictions confined to `shaders/src/lang/transform.js`
-and the read-only `shaders/src/lang/paramAliases.js`; GAP-009 additive frame
-metrics confined to the repository's test-harness wrapper; GAP-010 repository-side
-uniform-responsiveness aggregation confined to the test-harness wrappers; and
-documentation/release updates)
-affect runtime execution or reach this effect, and the full non-parity JS test suite
-(`node scripts/run-js-tests.js --skip-parity`) passes. The MCP evidence below was
-re-captured live on 2026-09-27 from one session at the tested immutable pin
-`cbcab33363851016f65391fbb9ef71d66729c07f`: initialize returned server `shade-mcp`
-version `0.2.3` on protocol `2024-11-05`, `tools/list` returned the 18 tools, and a
-worked `checkEffectStructure` call with `effect_id: "synth/noise"` returned
-`status: "ok"` (passCount 1, no issues reported); re-captured again on 2026-09-27
-at the same pin for the GAP-017 audit, in two short stdio sessions: one captured
-initialize (server `shade-mcp` version `0.2.3`, protocol `2024-11-05`) and
-`tools/list` (18 tools), and one re-ran the worked calls — an `analyzeEffect`
-call with `effect_id: "synth/noise"` returned the lossy regex projection without
-error (`effectId`/`name`/`description`/`namespace`/`tags`, projected scalar
-`globals`, and one projected pass), and a `checkEffectStructure` call with
-`effect_id: "synth/noise"` returned `status: "ok"` (passCount 1, no issues); re-captured again on 2026-09-27 at
-the same pin for the GAP-019/GAP-021 audit: one stdio session captured
-initialize (server `shade-mcp` version `0.2.3`, protocol `2024-11-05`),
-`tools/list` (18 tools), and worked `analyzeEffect` and `checkEffectStructure`
-calls with `effect_id: "synth/noise"` — the `analyzeEffect` result is the
-lossy regex projection without error and the `checkEffectStructure` result
-is `status: "ok"` (passCount 1, no issues), the same public shapes as the
-prior capture; re-captured again on 2026-09-28 at the same pin for the
-GAP-024/GAP-026 verified-pair audit: one stdio session captured initialize
-(server `shade-mcp` version `0.2.3`, protocol `2024-11-05`), `tools/list`
-(18 tools), and worked `analyzeEffect` and `checkEffectStructure` calls
-with `effect_id: "synth/noise"` — the `analyzeEffect` result is the lossy
-regex projection without error and the `checkEffectStructure` result is
-`status: "ok"` (passCount 1, no issues), the same public shapes as the
-prior capture; re-captured again on 2026-10-01 at the delivered release pin
-`6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d` (v0.3.0): one stdio session captured
-initialize (server `shade-mcp` version `0.3.0`, protocol `2024-11-05` — the
-server also negotiates `2025-06-18` when requested), `tools/list` (18 tools),
-`listEffects` (210 effects), and worked `analyzeEffect` and
-`checkEffectStructure` calls with `effect_id: "synth/noise"` — the
-`analyzeEffect` result is the lossy regex projection without error and the
-`checkEffectStructure` result is `status: "ok"` (passCount 1, no issues), the
-same public shapes as the prior capture. A separate session at the same pin
-captured the delivered `runDslProgram` batch verb and a timed
-`renderEffectFrame {time: 0.5, warmup_frames: 3}` (the formerly hanging
-timed path: the request completes and the timed frame is deterministic per
-requested time), documented under those verbs' sections.
-
-Noisemaker's watched source roots added lossless vector formatting, MIDI
-controller/expression modes, MPE routing, and default audio channels. They did
-not change this effect, its shaders, compiler, or expander. Shade MCP revised
-tool descriptions, prompts, knowledge, and error strings; the browser readiness
-logic remains unchanged (re-verified through the delivered release `v0.3.0` =
-`6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`, whose only source delta over
-`79c2e01` is the version bump; the batch-verb and timed-redraw changes landed
-in `79c2e01..687dbbd` and are documented under their verbs). Those changes do
-not resolve GAP-024.
+This instance is the repository's `synth/testPattern` effect. The source
+blocks below are complete, not excerpts. Its definition and shader files are
+unchanged at the Noisemaker source snapshot named above. The current Shade MCP
+release is the source commit and immutable pin named there. The effect declares
+one pass; the DSL write to `o0` adds a terminal blit, yielding the two-pass
+expanded graph shown below. The configured MCP session validates the requested
+effect on both WebGL2 and WebGPU. Returned frame dimensions are authoritative:
+the viewer currently renders 90×90 for this effect despite the 256×256 request,
+and the tool returns that mismatch as a warning.
 
 MCP request JSON is shown in wire order. Each response is the JSON value decoded
 from the server's `content[0].text` field.
@@ -4246,17 +4086,14 @@ GLSL/WGSL program files; `shaders/src/renderer/canvas.js` -
 `registerEffectWithRuntime()` enum export; `shaders/src/runtime/expander.js` -
 program expansion.
 
-### Exact MCP validation-attempt transcript
+### Exact MCP validation transcript
 
 <!-- WORKED:MCP-REQUESTS -->
 
-Initialization negotiated protocol `2025-11-25`. The following eight calls
-then ran in a single server session. The response block is preserved literally.
-
-The two `compileEffect` responses are evidence of GAP-024 and do not establish validation.
-WebGL2 returned three passes with fallback names. WebGPU returned one pass named `main`.
-The exact DSL above compiles to two passes. None of these eight
-successful MCP results set `isError`.
+One configured-pin session negotiated protocol `2025-06-18`, returned server
+`shade-mcp` version `0.3.1`, and listed 18 tools. The following eight calls
+ran in that session. None returned MCP `isError`; the passthrough call returned
+the expected domain status `skipped` because this is a source effect.
 
 ```json
 {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"checkEffectStructure","arguments":{"effect_id":"synth/testPattern"}}}
@@ -4271,72 +4108,32 @@ successful MCP results set `isError`.
 
 <!-- WORKED:MCP-RESPONSES -->
 
-Responses, in the same order:
+Responses, in the same order (the frame metrics and benchmark times vary by
+capture; these are the values from this session):
 
 ```json
 {"unusedFiles":[],"namingIssues":[],"nameCollisions":[],"leakedInternalUniforms":[],"missingDescription":false,"structuralParityIssues":[],"requiredUniformIssues":[],"multiPass":false,"passCount":1,"status":"ok"}
-{"effect_id":"synth/testPattern","status":"ok","passes":[{"id":"pass_0","status":"ok"},{"id":"pass_1","status":"ok"},{"id":"pass_2","status":"ok"}],"message":"Compiled successfully","backend":"webgl2"}
-{"effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"}],"message":"Compiled successfully","backend":"webgpu"}
-{"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","frame":{"image_uri":null,"width":90,"height":90},"metrics":{"mean_rgb":[0.49851924975320827,0.49851924975320827,0.49851924975320827],"mean_alpha":1,"std_rgb":[0.49999780737389904,0.49999780737389904,0.49999780737389904],"luma_variance":0.2499978073787063,"unique_sampled_colors":2,"is_all_zero":false,"is_all_transparent":false,"is_essentially_blank":false,"is_monochrome":false}}
-{"effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"details":"Uniforms affect output"}
-{"effect_id":"synth/testPattern","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect"}
-{"effect_id":"synth/testPattern","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"effect_id":"synth/testPattern","status":"ok","backend":"webgl2","achieved_fps":59.88,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.7,"jitter_ms":4.07,"min_frame_time_ms":5,"max_frame_time_ms":42.8}}
+{"effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGL2"}
+{"effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGPU"}
+{"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"warning":"Requested resolution 256x256 but rendered 90x90; the viewer did not honor the requested resolution","frame":{"image_uri":null,"width":90,"height":90},"metrics":{"mean_rgb":[0.5012329907283742,0.5012329907283742,0.5012329907283742],"mean_alpha":1,"std_rgb":[0.49981286797814567,0.49981286797814567,0.49981286797814567],"luma_variance":0.24981290299653927,"unique_sampled_colors":3,"is_all_zero":false,"is_all_transparent":false,"is_essentially_blank":false,"is_monochrome":false}}
+{"effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"uniforms":[{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":5,"luma_diff":0.009534835815429688,"max_channel_diff":0.009534835815429688,"responds":true}],"threshold":0.002,"details":"Uniforms affect output","backend":"WebGL2"}
+{"effect_id":"synth/testPattern","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2"}
+{"effect_id":"synth/testPattern","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
+{"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":90,"height":90},"warning":"Requested resolution 256x256 but measured 90x90; the viewer did not honor the requested resolution","achieved_fps":60.3,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.58,"jitter_ms":1.2,"min_frame_time_ms":12.4,"max_frame_time_ms":18.7}}
 ```
 
-Falsifiable interpretation:
+The structure scan has no issues and reports the one declared effect pass.
+Both compile results report the two expanded passes and the page-confirmed
+backend. The rendered frame is nonblank (`mean_alpha = 1`,
+`luma_variance = 0.24981290299653927`) at the returned 90×90 resolution.
+`gridSize` responds to the tested change (`luma_diff = 0.009534835815429688`,
+above the `0.002` threshold). The parity comparison reports zero mismatches;
+the benchmark meets 30 FPS at the measured 90×90 resolution. These results
+apply to the identified effect and backends, with the requested-resolution
+warning retained rather than treating the request as the measured size.
 
-- Structure: pass because all issue arrays are empty and description exists.
-- Compilation tool: **indeterminate**. WebGL2's three fallback-named passes and
-  WebGPU's single `main` pass both conflict with the source-derived two-pass
-  graph and are rejected under GAP-024. Their `backend` fields repeat configured
-  session values and do not independently prove the page backend.
-- Frame metrics: threshold pass because alpha `1 >= 0.01`, luma variance
-  `0.2499978073787063 >= 0.0001`, sampled color count `2 > 1`, and no blank,
-  transparent, or monochrome flag is set. Freshness is not proved by this verb
-  because it shares GAP-024. The checkerboard metrics corroborate, but cannot
-  machine-identify, the selected effect. There is no generic `>5` rendered-
-  output requirement. That separate predicate belongs only to the filter
-  modification tool.
-- Uniform report: `gridSize:pass` matches the worked effect's numeric uniform.
-  The response still provides neither numeric deltas nor effect/graph/backend
-  identity. The result is consistent with the definition, but freshness remains
-  indeterminate under GAP-024. The prior snapshot returned unrelated uniforms;
-  this run does not establish that the readiness race has been repaired.
-- Passthrough report: expected skip because the definition has no `inputTex`
-  input and therefore is not a filter. Effect and backend freshness remain
-  indeterminate under GAP-024.
-- Parity metric predicate: pass for the two captured buffers because
-  `mismatchPercent = 0 < 1`, both solid flags are false, and no Y flip is
-  detected. Effect freshness and requested-effect/backend identity are
-  indeterminate:
-  `waitReady()` can accept the previous noncompiling graph before asynchronous
-  selection loads `synth/testPattern`, and `setBackend()` can time out silently.
-  This call does not establish that either buffer came from the worked effect or
-  its named backend. See GAP-024.
-- Performance report: threshold pass because
-  `achieved_fps = 59.88 >= target_fps = 30` and the returned `meets_target`
-  agrees. The `backend` field is the configured session value. Effect and
-  actual-backend freshness remain indeterminate under GAP-024.
-
-Thus the checked-in definition and shaders, structure report, and reproduced
-two-pass source graph validate the authoring and expansion portions of this
-worked effect. The recorded browser reports satisfy their numeric predicates for whichever graph they captured.
-None proves that the graph was `synth/testPattern`.
-The cross-backend reports do not prove each page backend.
-
-End-to-end backend validation therefore remains incomplete until Shade MCP exposes and waits for effect, graph, and backend identity signals.
-This is GAP-024. Do not invent a documentation value to fill this gap.
-
-The requested frame resolution was `[256,256]`, but the captured canvas was
-`90x90`. Treat returned frame dimensions as authoritative; this repository's
-harness `renderEffectFrame` wrapper now reports every requested-vs-returned
-resolution mismatch on the result itself (see the narrowed GAP-021 row).
-
-Sources: Shade MCP tool implementations and harness helpers cited in the tool
-contract surface; the literal transcript above was produced by that server
-against the pinned pair Noisemaker `246ff57f` and Shade MCP `0a92bd83` named at
-the start of this section.
+Sources: the checked-in effect definition, shader programs, and graph expander;
+Shade MCP browser tools and harness helpers at the pinned source commit.
 
 ## Surfaces x capabilities traceability matrix
 
@@ -4347,14 +4144,14 @@ Every cell points to an executable contract or an explicitly identified gap.
 | Surface | Introspect | Act | Validate | Diagnose |
 |---|---|---|---|---|
 | DSL program | `Token`, `ParsedProgram`, `CompiledProgram`, registry keys, `CompiledGraph` | Complete EBNF plus call/read/write/render and nested-automation contracts | parse/unparse/compile and render metric predicates | `SyntaxError`, `Diagnostic`, `CompilationFailure` |
-| Effect definition | `Effect` fields, registry/manifest, `checkEffectStructure` | `EffectDefinition` typed grammar | validator and structure scan. Browser backend identity is GAP-024 | exact validator messages, structural arrays, backend errors. GAP-024 |
-| Parameters and globals | `effect.globals`, transformed `uniforms`, registry params, MIDI/audio state and capture requirements | `GlobalSpec`, nested automation, and selected-input contracts | compile reflection, state-selection predicates, and numeric response deltas | transform errors, type/range/identity/capture blind spots. GAP-010/011/024 |
+| Effect definition | `Effect` fields, registry/manifest, `checkEffectStructure` | `EffectDefinition` typed grammar | validator, structure scan, and page-confirmed browser selection | exact validator messages, structural arrays, backend and selection errors |
+| Parameters and globals | `effect.globals`, transformed `uniforms`, registry params, MIDI/audio state and capture requirements | `GlobalSpec`, nested automation, and selected-input contracts | compile reflection, state-selection predicates, per-uniform numeric deltas | transform errors, type/range and capture failures |
 | Passes and render graph | `Effect.passes`, `CompiledGraph.passes`, `CompiledGraph.textures`, `CompiledGraph.allocations` | `PassSpec` typed grammar, sampler/output binding rules, and MRT byte adaptation | graph analysis and per-pass compile, plus the queryable runtime allocation/reuse plan | unresolved inputs and backend compile/resource failures |
 | Textures and surface resources | texture specs, `DeviceCapabilities`, and runtime surface dimensions/formats | `TextureSpec` typed grammar, exact accepted policies, and volume atlas clamp | allocation existence, size/format/limit inspection, render metrics | unsupported/missing surface failures and GL/device failures record structured `backend.diagnostics` entries (`ERR_MISSING_RENDER_TARGET`/`ERR_GL_ERROR`/`ERR_DEVICE_VALIDATION`); unknown-format/dimension fallbacks record `ERR_UNKNOWN_FORMAT_FALLBACK`/`ERR_DIMENSION_FALLBACK` |
-| Compatibility and mutation | compiled AST, `listSteps`, `getCompatibleReplacements` | typed `replaceEffect` contract | candidate precheck. Post-mutation browser identity is GAP-024 | compatibility and transform errors. GAP-024 |
-| Rendered output | frame dimensions, `ImageMetrics`, sink stats, and `PackedFrame` | `RenderEffectFrameInput`, `Sink`, and `FrameExportQueue` contracts | exact metric predicates plus bounded queue/accounting rules | metric, capture, sink, and export failures. GAP-015/021/024 |
-| Cross-backend parity | source-pair availability and parity report | GLSL ES 3.00/WGSL authoring contracts | buffer diff predicates. Requested-effect/backend proof is GAP-024 | compile/readback/divergence/identity reports. GAP-012/016/024 |
-| Shade MCP tool contracts | `tools/list`, effect scanners, all output types | Full signatures for all 18 verbs | verb-specific domain predicates | selector errors and tool-specific unions. GAP-017/019/020/024/029 |
+| Compatibility and mutation | compiled AST, `listSteps`, `getCompatibleReplacements` | typed `replaceEffect` contract | candidate precheck and post-selection browser identity | compatibility and transform errors |
+| Rendered output | frame dimensions, `ImageMetrics`, sink stats, and `PackedFrame` | `RenderEffectFrameInput`, `Sink`, and `FrameExportQueue` contracts | exact metric predicates plus bounded queue/accounting rules | metric, capture, sink, and export failures. GAP-015 |
+| Cross-backend parity | source-pair availability and parity report | GLSL ES 3.00/WGSL authoring contracts | buffer diff predicates with confirmed effect/backend on both legs | compile/readback/divergence reports |
+| Shade MCP tool contracts | `tools/list`, effect scanners, all output types | Full signatures for all 18 verbs | verb-specific domain predicates | selector errors and tool-specific unions. GAP-017/020 |
 
 External ports are deliberately outside this matrix. Their repositories define
 separate candidate renderers, golden-image comparators, tolerance policies, and
@@ -4368,15 +4165,9 @@ These are defects in Shade MCP, which noisemaker vendors under `vendor/shade-mcp
 file. References elsewhere in this file use their former noisemaker ids, listed here with each
 issue. Where noisemaker works around a defect, the workaround is current behavior.
 
-- GAP-010 and GAP-011: [shade-mcp#27](https://github.com/noisefactorllc/shade-mcp/issues/27), testUniformResponsiveness reports ok when any uniform passes and omits measured deltas. Noisemaker's test harness (`shaders/tests/test-harness.js --uniforms`) reclassifies this verb's result from every `tested_uniforms` entry with `aggregateUniformResponsiveness()` (`shaders/tests/uniform-status.js`) and re-measures per-uniform luma and channel deltas against the 0.002 threshold with `shaders/tests/uniform-deltas.js`. The aggregate gates a run only behind the explicit `--strict-uniforms` opt-in; by default the upstream outer status still decides and the measured deltas are reported for information.
-- GAP-012: [shade-mcp#28](https://github.com/noisefactorllc/shade-mcp/issues/28), renderEffectFrame returns 'Failed to read pixels' on the WebGPU backend. Noisemaker's harness `renderEffectFrame` wrapper (`shaders/tests/test-harness.js`) does not call the upstream verb on WebGPU; it reads the render surface itself through the backend's async `readPixels(textureId)`, with the candidate-texture order pinned by `shaders/tests/frame-readback.js`. This is the default for every WebGPU harness render; direct MCP calls to the verb still fail.
 - GAP-015: [shade-mcp#29](https://github.com/noisefactorllc/shade-mcp/issues/29), renderEffectFrame and runDslProgram report ImageMetrics fields with different meanings. Noisemaker's `shaders/tests/image-metrics.js` mirrors the render-verb and DSL-verb metric formulas and audits each field against the vendored `computeImageMetrics` over real bytes in its JS test suite. It changes no harness result; callers consult that audit instead of assuming the fields are interchangeable across verbs.
 - GAP-017: [shade-mcp#30](https://github.com/noisefactorllc/shade-mcp/issues/30), parseDefinitionJs drops uniform-less globals and miscounts computed passes. Noisemaker's harness `--describe` mode (`shaders/tests/test-harness.js`, no browser, informational) imports each `definition.js` live through `shaders/tests/definition-schema.js` and prints the complete schema next to an audit of what the vendored Shade parser drops. The Shade list, search and analysis verbs still return the lossy projection.
-- GAP-019: [shade-mcp#31](https://github.com/noisefactorllc/shade-mcp/issues/31), testNoPassthrough never compares output with input and skips compiled-graph filters. Noisemaker's harness measures true input passthrough with `shaders/tests/passthrough-input.js` (output compared against the input texture the expanded graph consumes, with an in-program write-blit positive control) only behind the explicit `--passthrough-input` opt-in. The default `--passthrough` gate still uses this upstream verb's time and color test.
 - GAP-020: [shade-mcp#32](https://github.com/noisefactorllc/shade-mcp/issues/32), toolResult leaves all-failed batches and verb-specific failures unmarked. Noisemaker has no workaround.
-- GAP-021: [shade-mcp#33](https://github.com/noisefactorllc/shade-mcp/issues/33), renderEffectFrame silently returns a frame size other than the requested resolution. Noisemaker's harness `renderEffectFrame` wrapper adds `requested_resolution` and a `resolution_check` of `unchecked`, `unknown`, `match` or `mismatch` to every result that carried a `resolution` request (`shaders/tests/frame-resolution.js`). A mismatch fails a run only behind the explicit `--strict-resolution` opt-in.
-- GAP-024: [shade-mcp#34](https://github.com/noisefactorllc/shade-mcp/issues/34), Browser verbs can report the previous effect or wrong backend without any signal. Noisemaker's harness adds an `identity_check` record (page-confirmed effect id, actual backend, and a `__noisemakerPipelineGeneration` counter that its demo viewer bumps on every compiled pipeline; `shaders/tests/session-identity.js`) to every browser result it produces, and its own render path waits on that identity and records `backend_switch: timeout` instead of continuing silently. A mismatch is informational by default and fails a run only behind the explicit `--strict-identity` opt-in.
-- GAP-029: [shade-mcp#35](https://github.com/noisefactorllc/shade-mcp/issues/35), invalidateSharedEffectIndex leaves an in-flight build that repopulates a stale index. Noisemaker has no workaround.
 
 The matrix has 9 surfaces x 4 capabilities = 36 filled cells. Cells that rely
 on behavior absent from code link to the upstream Shade MCP defects above rather than
