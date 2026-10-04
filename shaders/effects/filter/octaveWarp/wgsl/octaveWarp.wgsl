@@ -34,9 +34,9 @@ fn pcg(seed: vec3<u32>) -> vec3<u32> {
 
 fn hash21(p: vec2<f32>) -> f32 {
     let v = pcg(vec3<u32>(
-        u32(select(-p.x * 2.0 + 1.0, p.x * 2.0, p.x >= 0.0)),
-        u32(select(-p.y * 2.0 + 1.0, p.y * 2.0, p.y >= 0.0)),
-        u32(uniforms.seed),
+        u32(abs(p.x) * 2.0) + select(1u, 0u, p.x >= 0.0),
+        u32(abs(p.y) * 2.0) + select(1u, 0u, p.y >= 0.0),
+        u32(abs(uniforms.seed)),
     ));
     return f32(v.x) / f32(0xffffffffu);
 }
