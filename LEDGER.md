@@ -1114,6 +1114,38 @@ work, verify it, then update the checkpoint and append a log line.
   here. Historical entries below do not retroactively certify these added
   delivery checks.
 - **Log:**
+  - 2026-10-03 — delivery-blocked compatibility pass (Tearoff item 774):
+    audited the complete checkpoint ranges through noisemaker
+    `48d25116def5e59aa729c68015aa7971bf437a1f` and shade-mcp
+    `8e0c80a436fbe1ead57bdde3ff3b9f605d34f342`; both checkpoint and
+    trigger starts are ancestors of these source commits. Since the prior
+    audit, Noisemaker changed `filter/degauss` to use global pixel coordinates
+    and an explicit WGSL uniform layout; Shade fixed stale in-flight effect
+    index publication after invalidation and then patched dependency lockfile
+    versions. The new definition remains compatible with Shade's effect parser
+    and the Noisemaker runtime; the index fix changes no public tool shape.
+    No integration code change was needed.
+    Noisemaker's non-parity JS suite, lint, 206-effect vendored structure gate,
+    and degauss WebGL2/WebGPU compile and render checks passed. The degauss
+    parity case matched at epsilon 0 on both backends. Shade typecheck, 257
+    tests, build/drop checks, and its real Noisemaker viewer smoke (including
+    genuine WebGPU DSL rendering) passed. Noisemaker's exact-source
+    [JavaScript](https://github.com/noisefactorllc/noisemaker/actions/runs/37167016343)
+    and [Shaders](https://github.com/noisefactorllc/noisemaker/actions/runs/37167016338)
+    CI passed; Shade's exact-source
+    [CI](https://github.com/noisefactorllc/shade-mcp/actions/runs/37141234801)
+    and [quality](https://github.com/noisefactorllc/shade-mcp/actions/runs/37141234885)
+    CI passed. One fresh configured-pin MCP session negotiated `shade-mcp` /
+    `0.3.0` / `2025-06-18`, listed 18 tools, compiled `filter/degauss` on
+    WebGL2 and WebGPU, and rendered its worked DSL on WebGPU with one nonblank
+    `o0` capture. The immutable `.mcp.json` pin remains
+    `github:noisedeck/shade-mcp#6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d`;
+    `vendor/shade-mcp/` remains the verified `v0.3.0` release from that same
+    source commit. The newest Shade source has package version `0.3.1`, but
+    neither its tag nor release asset exists. Release, automatic vendor
+    delivery, immutable pin update, and exact delivered-pair qualification
+    remain required. The `llms-full.txt` source snapshots and both checkpoints
+    remain at the last completed pair until those delivery checks pass.
   - 2026-10-03 — delivery-blocked compatibility pass (Tearoff item 744):
     audited noisemaker `e9a357401f281405b5bf46e324238a3e160f1cd9..378c8bf80e5f61efeeaa479b0187ef92a242ff03`
     and shade-mcp `6a7e2540b211efd2bd2f5be40aa8c2f1c0b0476d..0d7c071a0cd03adece1e5c3b7e19e15de3db30b8`.
