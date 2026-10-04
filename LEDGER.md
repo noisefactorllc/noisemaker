@@ -327,8 +327,8 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Large-format tiling
 
-- **Checkpoint:** noisemaker `1d581ffa` / noisedeck `697d2df9` (preview
-  branch), 2026-09-22
+- **Checkpoint:** noisemaker `058d15dc` / noisedeck `7cac7e92` (preview
+  branch), 2026-10-03
 - **Scope:** every effect must be classified for Noisedeck's large-format
   (tiled print) export. Tile-aware effects consume the global `tileOffset`
   and `fullResolution` uniforms in both GLSL and WGSL when their coordinates
@@ -346,6 +346,22 @@ work, verify it, then update the checkpoint and append a log line.
   deny-list. Verify tile-aware claims with noisedeck's seam harness
   (`tests/large-format-seams/`).
 - **Log:**
+  - 2026-10-03 — caught up through noisemaker `058d15dc` / noisedeck
+    `7cac7e92`: gap detection from `1d581ffa` found zero added effects.
+    Changed definitions were `filter/degauss`, `render/pointsEmit`, and
+    `synth3d/cellularAutomata3d`. Degauss now binds `tileOffset` and
+    `fullResolution` in its packed WGSL layout; both shader backends use
+    global coordinates and clamp the tiled displacement against a 256-pixel
+    budget. The Noisedeck seam harness passed `filter/degauss` on both
+    GLSL and WGSL against the published Noisemaker 1.0.221 bundle. The two
+    simulation definitions changed only `resetOnChange` UI metadata; both
+    remain in `hasStatefulEffects.js`. The subsequent `filter/octaveWarp` hash rewrite
+    did not change its spatial sampling, and it remains in
+    `hasUpscaleOnlyEffects.js`. No Noisedeck classifier edit was needed.
+    Verified 84/84 Noisedeck classifier and seam enumerator tests and the
+    Noisemaker JS suite. The checkout's older ignored `dist/` gave a false
+    WGSL seam result because it lacked degauss's new uniform layout; live
+    1.0.221 bundles passed, and `dist/` was restored after the check.
   - 2026-09-22 — caught up through noisemaker `1d581ffa` / noisedeck
     `697d2df9`: gap detection (`git log --diff-filter=A`) identified zero
     new effects in range `eef25e91..1d581ffa` (covering Tearoff #393 trigger
