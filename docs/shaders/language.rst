@@ -539,7 +539,7 @@ Use the ``osc()`` function to create an oscillator:
    * - seed
      - number or automation
      - 1
-     - Random seed (noise type only)
+     - Random seed (``noise`` and ``noise2d`` types)
 
 **Oscillator Types (oscKind):**
 
@@ -549,6 +549,7 @@ Use the ``osc()`` function to create an oscillator:
 * ``oscKind.sawInv`` - Inverted sawtooth: 1 → 0
 * ``oscKind.square`` - Square wave: 0 or 1
 * ``oscKind.noise`` - Periodic noise (seamlessly looping)
+* ``oscKind.noise2d`` - Two-stage periodic noise: the ``osc2d`` effect's waveform, with both noise stages sampled at a fixed seed-derived position. Stays within 0 → 1 and loops seamlessly at whole-number speeds.
 
 Usage Examples
 ^^^^^^^^^^^^^^
