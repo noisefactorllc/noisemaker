@@ -14,14 +14,14 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `bed7da28c32063b5837d4050843fed60847b602a`.
-- Shade MCP: `8e0c80a436fbe1ead57bdde3ff3b9f605d34f342`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.3.1`, protocol
+- Noisemaker: `4b4a1ed968cf179298c42927be5e17f604201745`.
+- Shade MCP: `4005ae91ef83adcd7331b05f31ac128153594ea7`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.3.2`, protocol
   `2025-06-18` (negotiated down to `2024-11-05` for clients that request it),
   with 18 tools returned by `tools/list`.
 - The repository config runs
-  `npx -y github:noisedeck/shade-mcp#8e0c80a436fbe1ead57bdde3ff3b9f605d34f342`,
-  matching release v0.3.1 delivered to `vendor/shade-mcp/`.
+  `npx -y github:noisedeck/shade-mcp#4005ae91ef83adcd7331b05f31ac128153594ea7`,
+  matching release v0.3.2 delivered to `vendor/shade-mcp/`.
 
 Primary source roots:
 
@@ -31,7 +31,7 @@ Primary source roots:
 - backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
 - repository validation policy: `shaders/tests/test-harness.js`.
 - Shade MCP source for the pinned snapshot:
-  `https://github.com/noisefactorllc/shade-mcp/tree/8e0c80a436fbe1ead57bdde3ff3b9f605d34f342/src`.
+  `https://github.com/noisefactorllc/shade-mcp/tree/4005ae91ef83adcd7331b05f31ac128153594ea7/src`.
 
 ## Freshness and maintenance
 
@@ -2344,7 +2344,7 @@ Sources: `shaders/src/runtime/sink.js`; `shaders/src/runtime/frame-export.js`;
 
 Call the MCP verb documented in the tool section. For deterministic MCP
 captures, supply `time`. With an explicit `time`, the released verb
-(verified live against `vendor/shade-mcp/` release `v0.3.1` and upstream
+(verified live against `vendor/shade-mcp/` release `v0.3.2` and upstream
 `src/tools/browser/render.ts` at the pinned snapshot) awaits its frame-count
 warmup while the render loop is still live, bounds both render and DSL warmup
 waits at `session.timeoutMs` with a diagnostic, unpauses in a `finally`, and
@@ -2706,6 +2706,13 @@ Each parity leg selects the effect and waits for a graph built after that
 selection, with the page-confirmed effect identity and backend checked before
 capture. A failed leg returns an error identifying the leg and observed page
 state. The result reports the confirmed identity of the final WebGPU leg.
+The tool's browser session launches on the WebGL2 launch path, so where that
+browser cannot obtain a Vulkan-backed WebGPU adapter — a GPU-less container
+without a system Vulkan driver, for instance — the WebGPU leg's rebuild falls
+back to WebGL2 and the leg fails closed with the page-confirmed mismatch
+(`WebGPU leg: The viewer is rendering on WebGL2, not the requested webgpu`)
+instead of comparing a fallback frame; the comparison itself is unchanged
+where a WebGPU-flagged browser session runs the same legs.
 
 Sources: Shade MCP `src/tools/browser/parity.ts` - `testPixelParity()`,
 `waitReady()`, `captureSurface()`; Shade MCP
@@ -3213,7 +3220,7 @@ rejected).
 
 Source: Shade MCP `src/tools/browser/dsl.ts` - schema and `runDslProgram()`.
 
-At the pinned 0.3.1 source, a direct `renderEffectFrame` call for
+At the pinned 0.3.2 source, a direct `renderEffectFrame` call for
 `filter/degauss` on WebGPU at `time:0.5` and resolution `[128,128]` returned
 `status:"ok"`, page-confirmed `effect_id:"filter/degauss"` and
 `backend:"WebGPU"`, `requested_resolution:[128,128]`, a 128×128 frame, and
@@ -4114,9 +4121,16 @@ program expansion.
 <!-- WORKED:MCP-REQUESTS -->
 
 One configured-pin session negotiated protocol `2025-06-18`, returned server
-`shade-mcp` version `0.3.1`, and listed 18 tools. The following eight calls
-ran in that session. None returned MCP `isError`; the passthrough call returned
-the expected domain status `skipped` because this is a source effect.
+`shade-mcp` version `0.3.2`, and listed 18 tools. The seven calls other than
+`testPixelParity` ran in that session, none returning MCP `isError`; the
+passthrough call returned the expected domain status `skipped` because this is
+a source effect. The `testPixelParity` comparison is captured through the
+vendored harness at the same pinned source, whose WebGPU leg runs on a
+WebGPU-flagged browser session — the parity verb's own session launches on the
+WebGL2 path and fails closed on hosts where that browser cannot obtain a
+Vulkan-backed adapter (see the parity tool contract). Page console-message
+arrays are omitted from the transcript responses; in a software-rendering
+container they carry SwiftShader GL driver messages.
 
 ```json
 {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"checkEffectStructure","arguments":{"effect_id":"synth/testPattern"}}}
@@ -4138,17 +4152,17 @@ capture; these are the values from this session):
 {"unusedFiles":[],"namingIssues":[],"nameCollisions":[],"leakedInternalUniforms":[],"missingDescription":false,"structuralParityIssues":[],"requiredUniformIssues":[],"multiPass":false,"passCount":1,"status":"ok"}
 {"effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGL2"}
 {"effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGPU"}
-{"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"warning":"Requested resolution 256x256 but rendered 90x90; the viewer did not honor the requested resolution","frame":{"image_uri":null,"width":90,"height":90},"metrics":{"mean_rgb":[0.5012329907283742,0.5012329907283742,0.5012329907283742],"mean_alpha":1,"std_rgb":[0.49981286797814567,0.49981286797814567,0.49981286797814567],"luma_variance":0.24981290299653927,"unique_sampled_colors":3,"is_all_zero":false,"is_all_transparent":false,"is_essentially_blank":false,"is_monochrome":false}}
+{"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"warning":"Requested resolution 256x256 but rendered 90x90; the viewer did not honor the requested resolution","frame":{"image_uri":null,"width":90,"height":90},"metrics":{"mean_rgb":[0.5014807502467917,0.5014807502467917,0.5014807502467917],"mean_alpha":1,"std_rgb":[0.49999780737389904,0.49999780737389904,0.49999780737389904],"luma_variance":0.24999780737870633,"unique_sampled_colors":2,"is_all_zero":false,"is_all_transparent":false,"is_essentially_blank":false,"is_monochrome":false}}
 {"effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"uniforms":[{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":5,"luma_diff":0.009534835815429688,"max_channel_diff":0.009534835815429688,"responds":true}],"threshold":0.002,"details":"Uniforms affect output","backend":"WebGL2"}
 {"effect_id":"synth/testPattern","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2"}
 {"effect_id":"synth/testPattern","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":90,"height":90},"warning":"Requested resolution 256x256 but measured 90x90; the viewer did not honor the requested resolution","achieved_fps":60.76,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.46,"jitter_ms":1.75,"min_frame_time_ms":5.3,"max_frame_time_ms":18.8}}
+{"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":90,"height":90},"warning":"Requested resolution 256x256 but measured 90x90; the viewer did not honor the requested resolution","achieved_fps":61.64,"meets_target":true,"stats":{"frame_count":61,"avg_frame_time_ms":16.22,"jitter_ms":2.71,"min_frame_time_ms":1.2,"max_frame_time_ms":20.9}}
 ```
 
 The structure scan has no issues and reports the one declared effect pass.
 Both compile results report the two expanded passes and the page-confirmed
 backend. The rendered frame is nonblank (`mean_alpha = 1`,
-`luma_variance = 0.24981290299653927`) at the returned 90×90 resolution.
+`luma_variance = 0.24999780737870633`) at the returned 90×90 resolution.
 `gridSize` responds to the tested change (`luma_diff = 0.009534835815429688`,
 above the `0.002` threshold). The parity comparison reports zero mismatches;
 the benchmark meets 30 FPS at the measured 90×90 resolution. These results
