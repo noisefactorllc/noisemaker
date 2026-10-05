@@ -50,6 +50,7 @@ const testEntries = [
   { file: 'shaders/tests/test_nested_automation.js', parity: false },
   { file: 'shaders/tests/test_oscillators.js', parity: false },
   { file: 'shaders/tests/test_contract_graph_shape.mjs', parity: false },
+  { file: 'shaders/tests/test_contract_parity_session.mjs', parity: false },
   { file: 'shaders/tests/test_compiler_phase2_exit.js', parity: false },
   { file: 'shaders/tests/test-let-roundtrip.mjs', parity: false },
   { file: 'shaders/tests/test_gl_error_gating.js', parity: false },
