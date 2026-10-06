@@ -610,6 +610,7 @@ export class Pipeline {
 
         // Track effect instances for asyncInit lifecycle
         this._asyncRenders = new Map()  // nodeId → cancel function
+        this._asyncInitPromises = new Map()  // nodeId → in-flight asyncInit promise
 
         // Production lifecycle hooks: effects in the current graph
         // that carry onInit/onUpdate/onDestroy, keyed by effectKey. Rebuilt
@@ -950,9 +951,32 @@ export class Pipeline {
             isCancelled: () => cancelled
         }
 
-        effectDef.asyncInit(context).catch(err => {
-            console.error(`[Pipeline] asyncInit error for ${nodeId}:`, err)
-        })
+        const run = Promise.resolve(effectDef.asyncInit(context))
+            .catch(err => {
+                console.error(`[Pipeline] asyncInit error for ${nodeId}:`, err)
+            })
+            .finally(() => {
+                if (this._asyncInitPromises.get(nodeId) === run) this._asyncInitPromises.delete(nodeId)
+            })
+        this._asyncInitPromises.set(nodeId, run)
+    }
+
+    /**
+     * Resolve once every asyncInit started so far has settled, including a
+     * debounced regeneration that is already scheduled. Async CPU effects
+     * (fibers, scratches, strayHair, ...) draw their overlay over several
+     * frames; a host or test that captures a frame awaits this instead of
+     * counting frames. Errors are logged by the pipeline and do not reject.
+     * @returns {Promise<void>}
+     */
+    async whenAsyncInitsSettled() {
+        while (this._asyncInitPromises.size > 0 || (this._asyncDebounceTimers?.size ?? 0) > 0) {
+            if (this._asyncInitPromises.size > 0) {
+                await Promise.all([...this._asyncInitPromises.values()])
+            } else {
+                await new Promise(resolve => setTimeout(resolve, 50))
+            }
+        }
     }
 
     /**
