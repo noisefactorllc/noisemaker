@@ -20991,7 +20991,12 @@ async function benchmarkEffectFPS(session, effectId, options = {}) {
       });
     }, { duration: duration3 });
     const frame = await page.evaluate((globals) => {
-      const canvas = window[globals.canvasRenderer]?.canvas;
+      const w = window;
+      const pipeline = w[globals.renderingPipeline];
+      if (Number.isFinite(pipeline?.width) && Number.isFinite(pipeline?.height) && pipeline.width > 0 && pipeline.height > 0) {
+        return { width: pipeline.width, height: pipeline.height };
+      }
+      const canvas = w[globals.canvasRenderer]?.canvas;
       return canvas ? { width: canvas.width, height: canvas.height } : null;
     }, session.globals);
     const resolutionMismatch = options.resolution !== void 0 && frame !== null && (frame.width !== options.resolution[0] || frame.height !== options.resolution[1]);
