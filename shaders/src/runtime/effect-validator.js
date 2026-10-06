@@ -39,8 +39,12 @@ const PASS_KEYS = [
     'name', 'program', 'type', 'entryPoint', 'drawMode', 'drawBuffers',
     'count', 'countUniform', 'repeat', 'blend', 'workgroups',
     'storageBuffers', 'storageTextures', 'viewport', 'conditions',
-    'defines', 'uniforms', 'inputs', 'outputs'
+    'defines', 'uniforms', 'inputs', 'outputs', 'clear', 'samplerTypes'
 ]
+
+// Sampler names the WebGPU backend creates; pass.samplerTypes picks one per
+// sampled input. WebGL2 ignores the field.
+const SAMPLER_TYPES = ['default', 'nearest', 'repeat', 'mipmap']
 
 const TEXTURE_SPEC_KEYS = ['width', 'height', 'depth', 'format', 'is3D', 'filter', 'mipmaps', 'persistent']
 
@@ -52,7 +56,11 @@ const CONDITION_CONTAINER_KEYS = ['runIf', 'skipIf']
 
 const DIM_KEYWORDS = ['screen', 'auto', 'input', 'resolution']
 
-const FORMATS = ['rgba16f', 'rgba16float', 'rgba8', 'rgba8unorm', 'rgba32f', 'rgba32float']
+// Formats both backends resolve, in their two spellings.
+const FORMATS = [
+    'rgba16f', 'rgba16float', 'rgba8', 'rgba8unorm', 'rgba32f', 'rgba32float',
+    'r8', 'r8unorm', 'r16f', 'r16float', 'r32f', 'r32float'
+]
 
 const DRAW_MODES = ['points', 'triangles', 'billboards']
 
@@ -354,7 +362,8 @@ function checkLayoutConflicts(entries, errors, label) {
 
 /**
  * Validate an enabledBy condition: global name string, {param, op} condition,
- * or {and: [...]}/{or: [...]} groups. References must name declared globals.
+ * {and: [...]}/{or: [...]} groups, or {not: condition}. References must name
+ * declared globals.
  */
 function validateEnabledBy(cond, errors, label, context) {
     if (typeof cond === 'string') {
@@ -365,6 +374,13 @@ function validateEnabledBy(cond, errors, label, context) {
     }
     if (!isObj(cond)) {
         errors.push(`${label}: "enabledBy" must be a global name or condition object`)
+        return
+    }
+    if (cond.not !== undefined) {
+        for (const key of Object.keys(cond)) {
+            if (key !== 'not') errors.push(`${label}: unknown enabledBy field '${key}'`)
+        }
+        validateEnabledBy(cond.not, errors, label, context)
         return
     }
     if (cond.and !== undefined || cond.or !== undefined) {
@@ -820,6 +836,20 @@ function validatePass(source, pass, index, errors, context) {
             (!Array.isArray(pass.blend) || pass.blend.length !== 2 ||
                 !pass.blend.every(v => typeof v === 'string' && v))) {
             errors.push(`${label}: "blend" must be a boolean or [src, dst] factor strings`)
+        }
+    }
+    if (pass.clear !== undefined && typeof pass.clear !== 'boolean') {
+        errors.push(`${label}: "clear" must be a boolean`)
+    }
+    if (pass.samplerTypes !== undefined) {
+        if (!isObj(pass.samplerTypes)) {
+            errors.push(`${label}: "samplerTypes" must be an object mapping sampler names to sampler types`)
+        } else {
+            for (const [name, type] of Object.entries(pass.samplerTypes)) {
+                if (!SAMPLER_TYPES.includes(type)) {
+                    errors.push(`${label}: samplerTypes '${name}' must be one of ${SAMPLER_TYPES.join(', ')}`)
+                }
+            }
         }
     }
     if (pass.workgroups !== undefined) {

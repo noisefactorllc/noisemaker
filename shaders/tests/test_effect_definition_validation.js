@@ -168,6 +168,39 @@ test('ui.resetOnChange is accepted as a boolean and diagnosed otherwise', () => 
     assert.equal(validate(def).filter(e => /resetOnChange/.test(e)).length, 1)
 })
 
+test('pass clear and samplerTypes, consumed by the runtime, are validated', () => {
+    const def = validDefinition()
+    def.passes[0].clear = true
+    def.passes[0].samplerTypes = { srcTex: 'nearest', scratchTex: 'mipmap' }
+    assert.deepEqual(validate(def), [])
+    def.passes[0].clear = 'yes'
+    def.passes[0].samplerTypes = { srcTex: 'bilinear' }
+    const errors = validate(def)
+    assert.equal(errors.filter(e => /"clear" must be a boolean/.test(e)).length, 1)
+    assert.equal(errors.filter(e => /samplerTypes 'srcTex'/.test(e)).length, 1)
+})
+
+test('enabledBy accepts a not condition and validates what it wraps', () => {
+    const def = validDefinition()
+    def.globals.mode.ui.enabledBy = { not: { param: 'amount', gt: 0.5 } }
+    assert.deepEqual(validate(def), [])
+    def.globals.mode.ui.enabledBy = { not: { param: 'nope', gt: 0.5 } }
+    assert.equal(validate(def).filter(e => /unknown global 'nope'/.test(e)).length, 1)
+    def.globals.mode.ui.enabledBy = { not: 'amount', param: 'amount' }
+    assert.equal(validate(def).filter(e => /unknown enabledBy field 'param'/.test(e)).length, 1)
+})
+
+test('single-channel formats both backends resolve are accepted', () => {
+    for (const format of ['r8', 'r8unorm', 'r16f', 'r16float', 'r32f', 'r32float']) {
+        const def = validDefinition()
+        def.textures.scratch.format = format
+        assert.deepEqual(validate(def), [], format)
+    }
+    const def = validDefinition()
+    def.textures.scratch.format = 'rg8'
+    assert.equal(validate(def).filter(e => /unknown format 'rg8'/.test(e)).length, 1)
+})
+
 test('malformed containers are reported without throwing', () => {
     const cases = [
         def => { def.globals = ['nope'] },
