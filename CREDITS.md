@@ -14,3 +14,7 @@ Noisemaker's shader effects build on work generously shared by the creative codi
 - [Simplex, cell noise](https://github.com/ashima/webgl-noise/) by Ian McEwan, Ashima Arts (maintained by Stefan Gustavson)
 - [Smooth minimum, 3D SDFs](https://www.iquilezles.org/www/index.htm) by Inigo Quilez
 - [Tunnel shader](https://www.shadertoy.com/view/Ms2SWW) by Inigo Quilez
+
+## Media
+
+- [Philips PM5544 test card](https://commons.wikimedia.org/wiki/File:Philips_PM5544.svg) by Ebnz, modified by Tucvbif, licensed under [CC BY 2.5](https://creativecommons.org/licenses/by/2.5/) — rasterized to 768×576 as the demo's default media image (`demo/shaders/img/testcard.png`)
