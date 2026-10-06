@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "effect": "synth/mandelbrot",
-  "sourceHash": "84741bc166106a92723a25fd37b37453d0468d6190740cedddaee851b6f82f66",
-  "caseHash": "8206e0f3a807c1e95fa0b392c8e0c3b4f74d5d4d5fbfafb2177fc00b8cf0586c",
+  "effect": "filter/feedback",
+  "sourceHash": "46b48ee523bf17f6cc4edb5762a751d93a4fcaef2b8f1d5e83f147728cc5f228",
+  "caseHash": "d10be724d73f4f3fb179c039c1b8567d1688650311280e1825da4e023aaad600",
   "resolution": [
     64,
     64
@@ -11,21 +11,21 @@
     "webgl2": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 3064,
+      "nonzeroRgbPixels": 3456,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 125
+      "uniqueColors": 8
     },
     "webgpu": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 3064,
+      "nonzeroRgbPixels": 3456,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 125
+      "uniqueColors": 8
     }
   },
   "execution": {
-    "webgl2TargetPasses": 1,
-    "webgpuTargetPasses": 1
+    "webgl2TargetPasses": 2,
+    "webgpuTargetPasses": 2
   },
   "parity": {
     "epsilon": 0,

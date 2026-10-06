@@ -52,7 +52,8 @@ export default new Effect({
       max: 20,
       ui: {
         label: "effect amt",
-        control: "slider"
+        control: "slider",
+        enabledBy: { param: "effect", neq: 0 }
       }
     },
     scaleAmt: {

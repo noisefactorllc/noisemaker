@@ -96,7 +96,8 @@ export default new Effect({
       ui: {
         label: "refract dir a",
         control: "slider",
-        category: "refract"
+        category: "refract",
+        enabledBy: { and: [{ param: "refractAAmt", gt: 0 }, { param: "blendMode", neq: 100 }] }
       }
     },
     refractBDir: {
@@ -108,7 +109,8 @@ export default new Effect({
       ui: {
         label: "refract dir b",
         control: "slider",
-        category: "refract"
+        category: "refract",
+        enabledBy: { and: [{ param: "refractBAmt", gt: 0 }, { param: "blendMode", neq: 100 }] }
       }
     }
   },

@@ -38,7 +38,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "width",
-        control: "slider"
+        control: "slider",
+        enabledBy: { param: "glitchiness", gt: 0 }
       }
     },
     yChonk: {
@@ -49,7 +50,8 @@ export default new Effect({
       max: 100,
       ui: {
         label: "height",
-        control: "slider"
+        control: "slider",
+        enabledBy: { param: "glitchiness", gt: 0 }
       }
     },
     seed: {

@@ -390,7 +390,7 @@ export default new Effect({
                 label: "focal dist",
                 control: "slider",
                 category: "focus",
-                enabledBy: "viewMode"
+                enabledBy: { and: ["viewMode", { param: "aperture", gt: 0 }] }
             }
         }
     },

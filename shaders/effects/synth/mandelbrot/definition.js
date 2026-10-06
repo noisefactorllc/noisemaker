@@ -125,7 +125,8 @@ export default new Effect({
       ui: {
         label: "zoom speed",
         control: "slider",
-        category: "animation"
+        category: "animation",
+        enabledBy: { param: "zoomDepth", gt: 0 }
       }
     },
     zoomDepth: {
