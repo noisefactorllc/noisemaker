@@ -21135,8 +21135,11 @@ async function testNoPassthrough(session, effectId) {
       if (w[globals.setPaused]) w[globals.setPaused](true);
       if (w[globals.setPausedTime]) w[globals.setPausedTime](0);
       const COMPARE_TIMES = [0, 0.37];
-      let worst = null;
-      try {
+      const threshold = 0.01;
+      const unchanged = (m) => m.meanDiff <= threshold && m.changedFraction <= threshold;
+      const inputId = consumedInput.id;
+      async function measure() {
+        let worst = null;
         for (const t of COMPARE_TIMES) {
           if (w[globals.setPausedTime]) w[globals.setPausedTime](t);
           let inputFrame = null;
@@ -21144,15 +21147,15 @@ async function testNoPassthrough(session, effectId) {
           for (let attempt = 0; attempt < 6 && (!inputFrame || !outputFrame); attempt++) {
             renderer.render(t);
             renderer.render(t);
-            inputFrame = await readInput(consumedInput.id);
+            inputFrame = await readInput(inputId);
             outputFrame = await readOutput();
             if ((!inputFrame || !outputFrame) && attempt < 5) await new Promise((res) => setTimeout(res, 80));
           }
           if (!inputFrame) {
-            return { status: "error", isFilterEffect: true, similarity: null, backend: backendName, inputTexture: consumedInput.id, details: `Failed to read input texture ${consumedInput.id} on ${backendName}` };
+            return { error: { status: "error", isFilterEffect: true, similarity: null, backend: backendName, inputTexture: inputId, details: `Failed to read input texture ${inputId} on ${backendName}` } };
           }
           if (!outputFrame) {
-            return { status: "error", isFilterEffect: true, similarity: null, backend: backendName, details: `Failed to read pixels on ${backendName}` };
+            return { error: { status: "error", isFilterEffect: true, similarity: null, backend: backendName, details: `Failed to read pixels on ${backendName}` } };
           }
           const count = Math.min(inputFrame.width * inputFrame.height, outputFrame.width * outputFrame.height);
           const stride = Math.max(1, Math.floor(count / 4096));
@@ -21172,14 +21175,54 @@ async function testNoPassthrough(session, effectId) {
             worst = { meanDiff: meanDiff2, changedFraction: changedFraction2 };
           }
         }
+        return worst;
+      }
+      const specs = effect.instance?.globals ?? {};
+      const varied = {};
+      const start = {};
+      for (const [name, spec] of Object.entries(specs)) {
+        if (!spec.uniform || spec.define !== void 0 || spec.ui?.enabledBy !== void 0) continue;
+        if (spec.type === "boolean" || spec.type === "button") continue;
+        if (typeof spec.min !== "number" || typeof spec.max !== "number" || spec.min === spec.max) continue;
+        const current2 = pipeline.globalUniforms?.[spec.uniform];
+        start[name] = typeof current2 === "number" ? current2 : spec.default ?? spec.min;
+        const d = start[name];
+        const range = spec.max - spec.min;
+        const round = (v) => spec.type === "int" ? Math.round(v) : v;
+        const quarter = round(spec.min + range * 0.25), threeQuarter = round(spec.min + range * 0.75);
+        varied[name] = Math.abs(threeQuarter - d) > Math.abs(quarter - d) ? threeQuarter : quarter;
+      }
+      const setAll = async (values) => {
+        for (const name of Object.keys(varied)) {
+          pipeline.setUniform?.(specs[name].uniform, values ? values[name] : start[name]);
+        }
+        if (typeof pipeline.whenAsyncInitsSettled === "function") await pipeline.whenAsyncInitsSettled();
+      };
+      let atDefaults;
+      let withVaried = null;
+      try {
+        const first = await measure();
+        if ("error" in first) return first.error;
+        atDefaults = first;
+        if (unchanged(atDefaults) && Object.keys(varied).length > 0) {
+          await setAll(varied);
+          try {
+            const second = await measure();
+            if ("error" in second) return second.error;
+            withVaried = second;
+          } finally {
+            await setAll(null);
+          }
+        }
       } finally {
         if (w[globals.setPausedTime]) w[globals.setPausedTime](0);
         if (w[globals.setPaused]) w[globals.setPaused](false);
       }
-      const meanDiff = worst.meanDiff;
-      const changedFraction = worst.changedFraction;
-      const threshold = 0.01;
-      const isPassthrough = meanDiff <= threshold && changedFraction <= threshold;
+      const identityAtDefaults = unchanged(atDefaults);
+      const reported = withVaried && !unchanged(withVaried) ? withVaried : atDefaults;
+      const meanDiff = reported.meanDiff;
+      const changedFraction = reported.changedFraction;
+      const isPassthrough = unchanged(reported);
       return {
         status: isPassthrough ? "passthrough" : "ok",
         isFilterEffect: true,
@@ -21187,7 +21230,8 @@ async function testNoPassthrough(session, effectId) {
         changed_fraction: changedFraction,
         threshold,
         inputTexture: consumedInput.id,
-        details: isPassthrough ? `Output matches input (mean diff ${meanDiff.toFixed(4)}, ${(changedFraction * 100).toFixed(1)}% of pixels changed)` : `Effect modifies input (mean diff ${meanDiff.toFixed(4)}, ${(changedFraction * 100).toFixed(1)}% of pixels changed)`
+        ...identityAtDefaults && !isPassthrough ? { identity_at_defaults: true, varied } : {},
+        details: isPassthrough ? `Output matches input (mean diff ${meanDiff.toFixed(4)}, ${(changedFraction * 100).toFixed(1)}% of pixels changed${withVaried ? ", also with its controls moved" : ""})` : `Effect modifies input (mean diff ${meanDiff.toFixed(4)}, ${(changedFraction * 100).toFixed(1)}% of pixels changed${identityAtDefaults ? "; identity at its defaults" : ""})`
       };
     }, session.globals);
     return {
@@ -21552,6 +21596,12 @@ async function testUniformResponsiveness(session, effectId) {
         else if (pipeline.globalUniforms) pipeline.globalUniforms[uniformName] = value;
       };
       const defaultOf = (spec) => spec.default ?? spec.min;
+      const initial = {};
+      for (const [param, spec] of Object.entries(effectGlobals)) {
+        const current2 = spec.uniform ? pipeline.globalUniforms?.[spec.uniform] : void 0;
+        initial[param] = typeof current2 === "number" || Array.isArray(current2) ? current2 : defaultOf(spec);
+      }
+      const startOf = (param) => initial[param];
       const same = (a, b) => {
         if (a === b) return true;
         if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((v, i2) => Math.abs(v - b[i2]) < 1e-4);
@@ -21586,7 +21636,7 @@ async function testUniformResponsiveness(session, effectId) {
         if (cond.lte !== void 0) candidates.push(halfway(cond.lte, lo), cond.lte);
         if (cond.neq !== void 0 || Array.isArray(cond.notIn)) {
           const banned = [...cond.neq !== void 0 ? [cond.neq] : [], ...cond.notIn || []];
-          const base = defaultOf(gate);
+          const base = startOf(cond.param);
           const options = Array.isArray(base) ? [base.map((c) => c + (c <= (lo + hi) / 2 ? 1 : -1) * (hi - lo) / 4)] : choices ?? [base, lo, hi];
           for (const v of options) if (!banned.some((b) => same(v, b))) {
             candidates.push(v);
@@ -21607,17 +21657,81 @@ async function testUniformResponsiveness(session, effectId) {
       const gatedNames = [];
       const baseline = await captureAll();
       if (!baseline) return { status: "error", tested_uniforms: [], backend: backendName, details: `Failed to capture baseline on ${backendName}` };
+      const settle2 = async () => {
+        if (typeof pipeline.whenAsyncInitsSettled === "function") await pipeline.whenAsyncInitsSettled();
+      };
+      const measurable = (spec) => spec.uniform && spec.define === void 0 && spec.type !== "boolean" && spec.type !== "button" && typeof spec.min === "number" && typeof spec.max === "number" && spec.min !== spec.max;
+      const round = (spec, v) => spec.type === "int" ? Math.round(v) : v;
+      const testValuesOf = (param, spec) => {
+        const defaultVal = startOf(param);
+        const range = spec.max - spec.min;
+        const quarter = round(spec, spec.min + range * 0.25), threeQuarter = round(spec, spec.min + range * 0.75);
+        const far = Math.abs(threeQuarter - defaultVal) > Math.abs(quarter - defaultVal) ? threeQuarter : quarter;
+        const values = [far, round(spec, spec.min + range * 0.381966)].filter((v, i2, all) => v !== defaultVal && all.indexOf(v) === i2);
+        return values.length > 0 ? values : [far];
+      };
+      const compare = (reference, test) => {
+        let luma = 0, channel = 0, pixel = 0;
+        for (let i2 = 0; i2 < CAPTURE_TIMES.length; i2++) {
+          const a = reference[i2].mean, b = test[i2].mean;
+          luma = Math.max(luma, Math.abs((b[0] + b[1] + b[2]) / 3 - (a[0] + a[1] + a[2]) / 3));
+          channel = Math.max(channel, Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), Math.abs(b[2] - a[2]), Math.abs(b[3] - a[3]));
+          const sa = reference[i2].samples, sb = test[i2].samples;
+          if (sa.length === sb.length && sa.length > 0) {
+            let sum = 0;
+            for (let k = 0; k < sa.length; k++) sum += Math.abs(sb[k] - sa[k]);
+            pixel = Math.max(pixel, sum / sa.length);
+          }
+        }
+        return { luma, channel, pixel };
+      };
+      const responds = (d) => d.luma > 2e-3 || d.channel > 2e-3 || d.pixel > 2e-3;
+      async function measure(spec, setup, testValues) {
+        for (const [param, value] of Object.entries(setup)) setValue(effectGlobals[param].uniform, toUniform(effectGlobals[param], value));
+        await settle2();
+        const reference = Object.keys(setup).length > 0 ? await captureAll() : baseline;
+        let best = null;
+        let bestValue = testValues[0];
+        for (const value of testValues) {
+          setValue(spec.uniform, value);
+          await settle2();
+          const test = reference ? await captureAll() : null;
+          if (!test || !reference) return null;
+          const d = compare(reference, test);
+          if (!best || d.pixel + d.channel > best.pixel + best.channel) {
+            best = d;
+            bestValue = value;
+          }
+          if (responds(d)) break;
+        }
+        return best ? { ...best, value: bestValue } : null;
+      }
+      async function restore(names) {
+        for (const param of names) setValue(effectGlobals[param].uniform, toUniform(effectGlobals[param], startOf(param)));
+        await settle2();
+      }
       for (const [name, spec] of Object.entries(effectGlobals)) {
         if (!spec.uniform) continue;
         if (spec.type === "boolean" || spec.type === "button") continue;
         if (typeof spec.min !== "number" || typeof spec.max !== "number" || spec.min === spec.max) continue;
-        const defaultVal = defaultOf(spec);
-        const range = spec.max - spec.min;
-        const round = (v) => spec.type === "int" ? Math.round(v) : v;
-        const quarter = round(spec.min + range * 0.25), threeQuarter = round(spec.min + range * 0.75);
-        const far = Math.abs(threeQuarter - defaultVal) > Math.abs(quarter - defaultVal) ? threeQuarter : quarter;
-        const testValues = [far, round(spec.min + range * 0.381966)].filter((v, i2, all) => v !== defaultVal && all.indexOf(v) === i2);
-        let testVal = testValues[0] ?? far;
+        const defaultVal = startOf(name);
+        const testValues = testValuesOf(name, spec);
+        if (spec.define !== void 0) {
+          gatedNames.push(name);
+          tested.push(`${name}:gated`);
+          uniforms.push({
+            name,
+            uniform: spec.uniform,
+            default_value: defaultVal,
+            test_value: testValues[0],
+            luma_diff: null,
+            max_channel_diff: null,
+            responds: null,
+            gated: true,
+            define: spec.define
+          });
+          continue;
+        }
         const gate = spec.ui?.enabledBy;
         const assign = {};
         if (gate !== void 0 && !satisfy(gate, assign)) {
@@ -21627,7 +21741,7 @@ async function testUniformResponsiveness(session, effectId) {
             name,
             uniform: spec.uniform,
             default_value: defaultVal,
-            test_value: testVal,
+            test_value: testValues[0],
             luma_diff: null,
             max_channel_diff: null,
             responds: null,
@@ -21636,61 +21750,53 @@ async function testUniformResponsiveness(session, effectId) {
           });
           continue;
         }
-        for (const [param, value] of Object.entries(assign)) setValue(effectGlobals[param].uniform, toUniform(effectGlobals[param], value));
-        const gateValues = Object.keys(assign).length > 0 ? assign : null;
-        const compare = (reference2, test) => {
-          let luma = 0, channel = 0, pixel = 0;
-          for (let i2 = 0; i2 < CAPTURE_TIMES.length; i2++) {
-            const a = reference2[i2].mean, b = test[i2].mean;
-            luma = Math.max(luma, Math.abs((b[0] + b[1] + b[2]) / 3 - (a[0] + a[1] + a[2]) / 3));
-            channel = Math.max(channel, Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), Math.abs(b[2] - a[2]), Math.abs(b[3] - a[3]));
-            const sa = reference2[i2].samples, sb = test[i2].samples;
-            if (sa.length === sb.length && sa.length > 0) {
-              let sum = 0;
-              for (let k = 0; k < sa.length; k++) sum += Math.abs(sb[k] - sa[k]);
-              pixel = Math.max(pixel, sum / sa.length);
-            }
-          }
-          return { luma, channel, pixel };
-        };
-        let reference = baseline;
         let measured2 = null;
+        let context = null;
         let measureError = null;
         try {
-          if (gateValues) reference = await captureAll();
-          for (const value of testValues) {
-            setValue(spec.uniform, value);
-            const test = reference ? await captureAll() : null;
-            if (!test || !reference) {
-              measured2 = null;
-              break;
+          measured2 = await measure(spec, assign, testValues);
+          await restore([name, ...Object.keys(assign)]);
+          if (measured2 && !responds(measured2)) {
+            const varied = {};
+            for (const [other, otherSpec] of Object.entries(effectGlobals)) {
+              if (other === name || !measurable(otherSpec)) continue;
+              if (otherSpec.ui?.enabledBy !== void 0) {
+                const trial = { ...varied };
+                if (!satisfy(otherSpec.ui.enabledBy, trial)) continue;
+                Object.assign(varied, trial);
+              }
+              if (!(other in varied)) varied[other] = testValuesOf(other, otherSpec)[0];
             }
-            const d = compare(reference, test);
-            if (!measured2 || d.pixel + d.channel > measured2.pixel + measured2.channel) {
-              measured2 = d;
-              testVal = value;
+            Object.assign(varied, assign);
+            if (Object.keys(varied).length > Object.keys(assign).length) {
+              const retry = await measure(spec, varied, testValues);
+              await restore([name, ...Object.keys(varied)]);
+              if (retry && responds(retry)) {
+                measured2 = retry;
+                context = varied;
+              }
             }
-            if (d.luma > 2e-3 || d.channel > 2e-3 || d.pixel > 2e-3) break;
           }
         } catch (err) {
           measureError = err instanceof Error ? err.message : String(err);
           measured2 = null;
+          await restore([name, ...Object.keys(assign)]);
         }
         if (measured2) {
-          const lumaDiff = measured2.luma, maxChannelDiff = measured2.channel, pixelDiff = measured2.pixel;
-          const responds = lumaDiff > 2e-3 || maxChannelDiff > 2e-3 || pixelDiff > 2e-3;
+          const ok = responds(measured2);
           uniforms.push({
             name,
             uniform: spec.uniform,
             default_value: defaultVal,
-            test_value: testVal,
-            luma_diff: lumaDiff,
-            max_channel_diff: maxChannelDiff,
-            pixel_diff: pixelDiff,
-            responds,
-            ...gateValues ? { enabled_with: gateValues } : {}
+            test_value: measured2.value,
+            luma_diff: measured2.luma,
+            max_channel_diff: measured2.channel,
+            pixel_diff: measured2.pixel,
+            responds: ok,
+            ...Object.keys(assign).length > 0 ? { enabled_with: assign } : {},
+            ...context ? { context } : {}
           });
-          if (responds) {
+          if (ok) {
             tested.push(`${name}:pass`);
           } else {
             failedNames.push(name);
@@ -21703,15 +21809,13 @@ async function testUniformResponsiveness(session, effectId) {
             name,
             uniform: spec.uniform,
             default_value: defaultVal,
-            test_value: testVal,
+            test_value: testValues[0],
             luma_diff: null,
             max_channel_diff: null,
             responds: false,
             error: measureError ?? "Failed to capture test render"
           });
         }
-        setValue(spec.uniform, defaultVal);
-        for (const param of Object.keys(assign)) setValue(effectGlobals[param].uniform, toUniform(effectGlobals[param], defaultOf(effectGlobals[param])));
       }
       let status;
       let details;
