@@ -15,15 +15,15 @@ and WebGPU backends and must not be cited as evidence for an external port.
 Source snapshots used for this contract:
 
 - Noisemaker: `34b4db0c4f3d79be647b4bdc55fa6e6a0f15be44`.
-- Shade MCP: `fa222722163de362fd2302a4ba1c2761b44cb038`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.4.6`, built on
+- Shade MCP: `7cfd40547bb3075e19459ead526ab938be4b5c25`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.4.7`, built on
   `@modelcontextprotocol/sdk` 1.31.0, which accepts the protocol versions
   `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05` and `2024-10-07`,
   echoes the version the client requests, and answers `2025-11-25` to any other
   request; 18 tools are returned by `tools/list`.
 - The repository config runs
-  `npx -y github:noisedeck/shade-mcp#fa222722163de362fd2302a4ba1c2761b44cb038`,
-  matching release v0.4.6 delivered to `vendor/shade-mcp/`.
+  `npx -y github:noisedeck/shade-mcp#7cfd40547bb3075e19459ead526ab938be4b5c25`,
+  matching release v0.4.7 delivered to `vendor/shade-mcp/`.
 
 Primary source roots:
 
@@ -33,7 +33,7 @@ Primary source roots:
 - backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
 - repository validation policy: `shaders/tests/test-harness.js`.
 - Shade MCP source for the pinned snapshot:
-  `https://github.com/noisefactorllc/shade-mcp/tree/fa222722163de362fd2302a4ba1c2761b44cb038/src`.
+  `https://github.com/noisefactorllc/shade-mcp/tree/7cfd40547bb3075e19459ead526ab938be4b5c25/src`.
 
 ## Freshness and maintenance
 
@@ -1347,7 +1347,10 @@ reported as `test_value`. Before measuring a uniform whose
 `ui.enabledBy` condition is false at defaults, the tool sets the condition's
 params to values that satisfy it (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`,
 `notIn`, `and`/`or`) and reports them as `enabled_with`; it restores them
-afterwards. A uniform whose gate cannot be opened at run time (the gate is a
+afterwards. A threshold gate (`gt`, `gte`, `lt`, `lte`) opens halfway into its
+open range first, so a control whose effect scales with its gate is measured
+at a visible strength; a member-enum gate sets the enum's value, and values
+compare per component and within 1e-4, as the UI compares them. A uniform whose gate cannot be opened at run time (the gate is a
 compile-time `define`, an unknown param, or a `not`) is reported `gated`
 (`name:gated`, `responds: null`) and is not measured.
 
@@ -4253,7 +4256,7 @@ program expansion.
 
 <!-- WORKED:MCP-REQUESTS -->
 
-One configured-pin session returned server `shade-mcp` version `0.4.6` and
+One configured-pin session returned server `shade-mcp` version `0.4.7` and
 listed 18 tools. All eight calls ran in that session, none returning MCP
 `isError`; the passthrough call returned the expected domain status `skipped`
 (`outcome:"skipped"`) because this is a source effect. On hosts where the
