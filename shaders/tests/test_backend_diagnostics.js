@@ -621,6 +621,40 @@ test('WebGPU uncapturederror device validation records a structured diagnostic',
 
 // ---------------------------------------------------------------------------
 
+test('WebGPU missing render targets record the same structured diagnostic as WebGL2', () => {
+    const device = createStubGPUDevice()
+    const backend = new WebGPUBackend(device, {
+        configuration: { device },
+        getConfiguration() { return this.configuration }
+    })
+    const warnings = []
+    const originalWarn = console.warn
+    console.warn = message => warnings.push(String(message))
+    try {
+        // Render surface write texture missing: the storage fallback is used.
+        backend.storageTextures = new Map([['outputStorage_1280x720', { view: 'fallback-view' }]])
+        const state = { graph: { renderSurface: 'o0' }, writeSurfaces: {} }
+        assert.equal(backend.getOutputStorageView(state), 'fallback-view', 'fallback behavior unchanged')
+        backend.getOutputStorageView(state)
+
+        // Buffer-copy output texture missing.
+        backend.storageBuffers.set('output_buffer', { buffer: {} })
+        backend.copyBufferToTexture({ writeSurfaces: {} }, 'nope')
+
+        assert.equal(warnings.length, 3, 'the legacy console warnings still fire on every occurrence')
+        assert.deepEqual(
+            backend.diagnostics.records.map(r => [r.code, r.backend, r.stage, r.kind, r.output, r.pass]),
+            [
+                ['ERR_MISSING_RENDER_TARGET', 'webgpu', 'render', 'storage-surface', 'o0', null],
+                ['ERR_MISSING_RENDER_TARGET', 'webgpu', 'render', 'copy-output', 'nope', null],
+            ],
+            'one deduplicated record per missing target'
+        )
+    } finally {
+        console.warn = originalWarn
+    }
+})
+
 test('structured diagnostics serialize their legacy fields', () => {
     const diagnostic = new ShaderDiagnostic({
         code: 'ERR_SHADER_COMPILE',

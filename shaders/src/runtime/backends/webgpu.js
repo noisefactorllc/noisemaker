@@ -863,6 +863,30 @@ export class WebGPUBackend extends Backend {
     }
 
     /**
+     * Record a missing render target as a structured diagnostic, matching the
+     * WebGL2 backend. The console warning at each call site is unchanged; the
+     * record is deduplicated per kind|output|pass so per-frame rendering
+     * cannot grow it unboundedly.
+     * @param {'mrt'|'storage-surface'|'copy-output'} kind
+     * @param {string|null} outputId
+     * @param {string|null} passId
+     */
+    _recordMissingRenderTarget(kind, outputId, passId) {
+        if (!this._warnedMissingRenderTargets) this._warnedMissingRenderTargets = new Set()
+        const key = `${kind}|${outputId}|${passId}`
+        if (this._warnedMissingRenderTargets.has(key)) return
+        this._warnedMissingRenderTargets.add(key)
+        this.diagnostics.add({
+            code: DIAGNOSTIC_CODES.MISSING_RENDER_TARGET,
+            backend: 'webgpu',
+            stage: 'render',
+            kind,
+            pass: passId,
+            output: outputId
+        })
+    }
+
+    /**
      * Resolve the WGSL shader source from a program spec.
      * Looks for sources in order: wgsl, source, fragment (for render shaders)
      */
@@ -2038,6 +2062,7 @@ export class WebGPUBackend extends Backend {
             const tex = this.textures.get(outputId) || state.surfaces?.[outputId]
             if (!tex) {
                 console.warn(`[executeMRTRenderPass] Texture not found for ${outputId} in pass ${pass.id}`)
+                this._recordMissingRenderTarget('mrt', outputId, pass.id ?? null)
                 continue
             }
 
@@ -3062,6 +3087,7 @@ export class WebGPUBackend extends Backend {
 
         // Fallback: create a temporary storage texture if surface not available
         console.warn('Render surface write texture not found, using fallback storage texture')
+        this._recordMissingRenderTarget('storage-surface', renderSurfaceName ?? null, null)
         const width = state?.screenWidth || 1280
         const height = state?.screenHeight || 720
         const key = `outputStorage_${width}x${height}`
@@ -3885,6 +3911,7 @@ export class WebGPUBackend extends Backend {
 
         if (!outputTex) {
             console.warn(`[copyBufferToTexture] Output texture not found: ${outputId}`)
+            this._recordMissingRenderTarget('copy-output', outputId, null)
             return
         }
 
