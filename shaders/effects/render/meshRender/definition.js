@@ -369,9 +369,9 @@ export default new Effect({
 
             uniforms: {
                 meshScale: "meshScale",
-                meshOffsetX: "offsetX",
-                meshOffsetY: "offsetY",
-                meshOffsetZ: "offsetZ",
+                offsetX: "offsetX",
+                offsetY: "offsetY",
+                offsetZ: "offsetZ",
                 rotateX: "rotateX",
                 rotateY: "rotateY",
                 rotateZ: "rotateZ",
