@@ -21552,6 +21552,12 @@ async function testUniformResponsiveness(session, effectId) {
         else if (pipeline.globalUniforms) pipeline.globalUniforms[uniformName] = value;
       };
       const defaultOf = (spec) => spec.default ?? spec.min;
+      const same = (a, b) => {
+        if (a === b) return true;
+        if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((v, i2) => Math.abs(v - b[i2]) < 1e-4);
+        return typeof a === "number" && typeof b === "number" && Math.abs(a - b) < 1e-4;
+      };
+      const toUniform = (spec, value) => typeof value === "string" && typeof renderer?.convertParameterForUniform === "function" ? renderer.convertParameterForUniform(value, spec) : value;
       function satisfy(cond, assign) {
         if (cond == null) return true;
         if (typeof cond === "string") return satisfy({ param: cond }, assign);
@@ -21569,22 +21575,26 @@ async function testUniformResponsiveness(session, effectId) {
         const lo = typeof gate.min === "number" ? gate.min : choices ? Math.min(...choices) : 0;
         const hi = typeof gate.max === "number" ? gate.max : choices ? Math.max(...choices) : 1;
         const step = gate.type === "int" || choices ? 1 : (hi - lo) / 100;
+        const halfway = (from, to) => gate.type === "int" ? Math.round((from + to) / 2) : (from + to) / 2;
         const candidates = [];
         if (cond.eq !== void 0) candidates.push(cond.eq);
         if (Array.isArray(cond.in)) candidates.push(...cond.in);
-        if (cond.gt !== void 0) candidates.push(cond.gt + step);
-        if (cond.gte !== void 0) candidates.push(cond.gte);
-        if (cond.lt !== void 0) candidates.push(cond.lt - step);
-        if (cond.lte !== void 0) candidates.push(cond.lte);
+        if (choices && [cond.gt, cond.gte, cond.lt, cond.lte].some((v) => v !== void 0)) candidates.push(...choices);
+        if (cond.gt !== void 0) candidates.push(halfway(cond.gt, hi), cond.gt + step);
+        if (cond.gte !== void 0) candidates.push(halfway(cond.gte, hi), cond.gte);
+        if (cond.lt !== void 0) candidates.push(halfway(cond.lt, lo), cond.lt - step);
+        if (cond.lte !== void 0) candidates.push(halfway(cond.lte, lo), cond.lte);
         if (cond.neq !== void 0 || Array.isArray(cond.notIn)) {
-          const banned = /* @__PURE__ */ new Set([...cond.neq !== void 0 ? [cond.neq] : [], ...cond.notIn || []]);
-          for (const v of choices ?? [defaultOf(gate), lo, hi]) if (!banned.has(v)) {
+          const banned = [...cond.neq !== void 0 ? [cond.neq] : [], ...cond.notIn || []];
+          const base = defaultOf(gate);
+          const options = Array.isArray(base) ? [base.map((c) => c + (c <= (lo + hi) / 2 ? 1 : -1) * (hi - lo) / 4)] : choices ?? [base, lo, hi];
+          for (const v of options) if (!banned.some((b) => same(v, b))) {
             candidates.push(v);
             break;
           }
         }
         if (candidates.length === 0) candidates.push(gate.type === "boolean" ? true : hi);
-        const holds = (v) => (cond.eq === void 0 || v === cond.eq) && (cond.neq === void 0 || v !== cond.neq) && (cond.gt === void 0 || v > cond.gt) && (cond.gte === void 0 || v >= cond.gte) && (cond.lt === void 0 || v < cond.lt) && (cond.lte === void 0 || v <= cond.lte) && (!Array.isArray(cond.in) || cond.in.includes(v)) && (!Array.isArray(cond.notIn) || !cond.notIn.includes(v)) && (Object.keys(cond).some((k) => k !== "param") || Boolean(v));
+        const holds = (v) => (cond.eq === void 0 || same(v, cond.eq)) && (cond.neq === void 0 || !same(v, cond.neq)) && (cond.gt === void 0 || v > cond.gt) && (cond.gte === void 0 || v >= cond.gte) && (cond.lt === void 0 || v < cond.lt) && (cond.lte === void 0 || v <= cond.lte) && (!Array.isArray(cond.in) || cond.in.some((c) => same(v, c))) && (!Array.isArray(cond.notIn) || !cond.notIn.some((c) => same(v, c))) && (Object.keys(cond).some((k) => k !== "param") || Boolean(v));
         const value = candidates.find(holds);
         if (value === void 0) return false;
         assign[cond.param] = value;
@@ -21626,7 +21636,7 @@ async function testUniformResponsiveness(session, effectId) {
           });
           continue;
         }
-        for (const [param, value] of Object.entries(assign)) setValue(effectGlobals[param].uniform, value);
+        for (const [param, value] of Object.entries(assign)) setValue(effectGlobals[param].uniform, toUniform(effectGlobals[param], value));
         const gateValues = Object.keys(assign).length > 0 ? assign : null;
         const compare = (reference2, test) => {
           let luma = 0, channel = 0, pixel = 0;
@@ -21701,7 +21711,7 @@ async function testUniformResponsiveness(session, effectId) {
           });
         }
         setValue(spec.uniform, defaultVal);
-        for (const param of Object.keys(assign)) setValue(effectGlobals[param].uniform, defaultOf(effectGlobals[param]));
+        for (const param of Object.keys(assign)) setValue(effectGlobals[param].uniform, toUniform(effectGlobals[param], defaultOf(effectGlobals[param])));
       }
       let status;
       let details;
