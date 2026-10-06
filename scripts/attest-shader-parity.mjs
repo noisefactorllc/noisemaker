@@ -93,6 +93,10 @@ for (const texture of ${JSON.stringify(parityCase.textureInputs || [])}) {
         }
     }
 }
+for (const mesh of ${JSON.stringify(parityCase.meshInputs || [])}) {
+    const loaded = await renderer.loadOBJFromURL('${baseUrl}/' + mesh.path, mesh.mesh);
+    if (!loaded.success || !loaded.vertexCount) throw new Error('Mesh fixture did not load: ' + mesh.path + ' ' + (loaded.error || ''));
+}
 const settleMs = ${JSON.stringify(parityCase.settleMs || 0)};
 const surface = renderer.pipeline.surfaces.get(${JSON.stringify(parityCase.surface || 'o0')});
 const candidates = [surface?.read, surface?.write].filter(Boolean);

@@ -91,6 +91,12 @@ try {
         assert.ok(validateParityCase({ ...completeParityCase, textureInputs: [{ ...textureInput, ...change }] },
             'filter/example').some(error => error.includes('texture')), 'invalid texture evidence must be rejected')
     }
+    const meshInput = { mesh: 'mesh0', path: 'share/meshes/cube.obj' }
+    assert.deepEqual(validateParityCase({ ...completeParityCase, meshInputs: [meshInput] }, 'filter/example'), [])
+    for (const change of [{ mesh: 'mesh8' }, { path: '../secret.obj' }, { path: 'share/meshes/cube.png' }]) {
+        assert.ok(validateParityCase({ ...completeParityCase, meshInputs: [{ ...meshInput, ...change }] },
+            'filter/example').some(error => error.includes('mesh input')), 'invalid mesh evidence must be rejected')
+    }
     assert.equal(matchesTargetEffectPass({
         effectKey: 'example',
         effectFunc: 'example',

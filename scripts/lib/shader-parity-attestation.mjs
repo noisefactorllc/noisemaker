@@ -205,6 +205,18 @@ export function validateParityCase(parityCase, effectId) {
             }
         }
     }
+    if (parityCase?.meshInputs !== undefined) {
+        if (!Array.isArray(parityCase.meshInputs)) {
+            errors.push('parity case mesh inputs must be an array')
+        } else {
+            for (const mesh of parityCase.meshInputs) {
+                if (!mesh || typeof mesh.mesh !== 'string' || !/^mesh[0-7]$/.test(mesh.mesh) ||
+                    typeof mesh.path !== 'string' || !/^share\/meshes\/[A-Za-z0-9_-]+\.obj$/.test(mesh.path)) {
+                    errors.push('parity case mesh input must name mesh0-mesh7 and a share/meshes OBJ file')
+                }
+            }
+        }
+    }
     return errors
 }
 
