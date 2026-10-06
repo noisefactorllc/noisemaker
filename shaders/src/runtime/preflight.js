@@ -57,20 +57,24 @@ function isGLSLSource(text) {
     return typeof text === 'string' && text.includes(GLSL_ONLY_HINT)
 }
 
+// Each predicate selects the source exactly as its backend's compileProgram
+// does, then asks whether that source is in the backend's language: a
+// backend that selects source in the other language fails to compile it.
+
 function isWGSLBucket(bucket) {
     if (!bucket) return false
+    // WebGPU resolveWGSLSource(): wgsl, then source, then a non-GLSL fragment.
     if (bucket.wgsl) return true
-    // WebGPU falls back to generic source/fragment when they are not GLSL.
-    if (bucket.source && !isGLSLSource(bucket.source)) return true
-    if (bucket.fragment && !isGLSLSource(bucket.fragment)) return true
-    return false
+    if (bucket.source) return !isGLSLSource(bucket.source)
+    return !!bucket.fragment && !isGLSLSource(bucket.fragment)
 }
 
 function isGLSLBucket(bucket) {
     if (!bucket) return false
-    if (bucket.glsl || bucket.fragment || bucket.vertex) return true
-    if (bucket.source && !isWGSLBucket(bucket)) return true
-    return false
+    // WebGL2 compileProgram(): source, then glsl, then fragment. A vertex
+    // shader alone is not a program source.
+    if (bucket.source) return isGLSLSource(bucket.source)
+    return !!(bucket.glsl || bucket.fragment)
 }
 
 function definitionPasses(definition) {

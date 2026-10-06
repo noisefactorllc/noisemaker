@@ -98,6 +98,29 @@ await test('non-GLSL generic source/fragment counts as WGSL for WebGPU', () => {
     assert.equal(report.backends.webgl2.authorable, false, 'webgl2')
 })
 
+await test('a vertex shader alone is not a WebGL2 program source', () => {
+    // WebGL2 compileProgram() reads source, then glsl, then fragment, and
+    // throws ERR_SHADER_MISSING when none is present.
+    const report = preflightEffect(
+        { passes: [{ program: 'p' }] },
+        {},
+        { p: { vertex: '#version 300 es\nvoid main() {}', wgsl: '@fragment fn f() {}' } }
+    )
+    assert.equal(report.backends.webgl2.authorable, false, 'webgl2')
+    assert.equal(report.backends.webgpu.authorable, true, 'webgpu')
+})
+
+await test('a GLSL generic source beside WGSL is authorable on both backends', () => {
+    // WebGL2 selects source first; WebGPU selects wgsl first.
+    const report = preflightEffect(
+        { passes: [{ program: 'p' }] },
+        {},
+        { p: { source: '#version 300 es\nvoid main() {}', wgsl: '@fragment fn f() {}' } }
+    )
+    assert.equal(report.backends.webgl2.authorable, true, 'webgl2')
+    assert.equal(report.backends.webgpu.authorable, true, 'webgpu')
+})
+
 await test('without shader info, source availability is not judged', () => {
     const report = preflightEffect({ passes: [{ program: 'p' }] }, {})
     assert.equal(report.backends.webgl2.authorable, true, 'webgl2')
