@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "effect": "filter/scratches",
   "sourceHash": "8862f6504407c1e55317301420c681f69caf825aeef8935d2d578b177b1b4291",
-  "caseHash": "96cb1c65b34a718b654ced657cfa38c175e6ee9e89cab1054db87096a2a85792",
+  "caseHash": "e0b5f9c2de7c741055d427be4ddf32cebba11ab3d68812b0203a2147221182e3",
   "resolution": [
     64,
     64
@@ -11,16 +11,16 @@
     "webgl2": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 3584,
+      "nonzeroRgbPixels": 3643,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 8
+      "uniqueColors": 217
     },
     "webgpu": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 3584,
+      "nonzeroRgbPixels": 3643,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 8
+      "uniqueColors": 217
     }
   },
   "execution": {

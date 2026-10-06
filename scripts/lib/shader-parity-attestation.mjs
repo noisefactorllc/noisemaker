@@ -186,6 +186,10 @@ export function validateParityCase(parityCase, effectId) {
     if (parityCase?.requireColorVariation !== true) {
         errors.push('parity case must require color variation')
     }
+    if (parityCase?.settleMs !== undefined &&
+        (!Number.isInteger(parityCase.settleMs) || !integerInRange(parityCase.settleMs, 0, 60000))) {
+        errors.push('parity case settleMs must be an integer between 0 and 60000')
+    }
     if (parityCase?.textureInputs !== undefined) {
         if (!Array.isArray(parityCase.textureInputs)) {
             errors.push('parity case texture inputs must be an array')

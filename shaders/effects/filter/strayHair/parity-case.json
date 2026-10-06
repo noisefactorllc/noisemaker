@@ -4,12 +4,13 @@
         "synth/testPattern",
         "filter/strayHair"
     ],
-    "dsl": "search synth, filter\n\ntestPattern(pattern: colorBars).strayHair(alpha: 0, seed: 1).write(o0)\nrender(o0)",
+    "dsl": "search synth, filter\n\ntestPattern(pattern: colorBars).strayHair(alpha: 1, seed: 1).write(o0)\nrender(o0)",
     "surface": "o0",
     "resolution": [
         64,
         64
     ],
+    "settleMs": 8000,
     "epsilon": 0,
     "requireColorVariation": true
 }

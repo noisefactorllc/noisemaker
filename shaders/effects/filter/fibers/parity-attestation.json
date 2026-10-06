@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "effect": "filter/fibers",
   "sourceHash": "7c15ed3139df82b7de7f6d150a6a02f118590e24b26ed968e758bef285474de6",
-  "caseHash": "3b53c9792b69ecca9e8c87d9f02b703b4589cf64a684a063b27210c60924e63c",
+  "caseHash": "cac4c67ec5186aed3e796121103ec17e3601863ae2e10a0398233617d8680401",
   "resolution": [
     64,
     64
@@ -11,16 +11,16 @@
     "webgl2": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 3584,
+      "nonzeroRgbPixels": 3766,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 8
+      "uniqueColors": 1628
     },
     "webgpu": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 3584,
+      "nonzeroRgbPixels": 3766,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 8
+      "uniqueColors": 1628
     }
   },
   "execution": {

@@ -93,42 +93,65 @@ for (const texture of ${JSON.stringify(parityCase.textureInputs || [])}) {
         }
     }
 }
-renderer.render(0);
-renderer.render(0);
-await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone?.();
+const settleMs = ${JSON.stringify(parityCase.settleMs || 0)};
 const surface = renderer.pipeline.surfaces.get(${JSON.stringify(parityCase.surface || 'o0')});
 const candidates = [surface?.read, surface?.write].filter(Boolean);
-let capture = null;
-for (const id of candidates) {
-    try {
-        const pixels = await renderer.pipeline.backend.readPixels(id);
-        if (!pixels?.data) continue;
-        let nonzeroRgbPixels = 0;
-        let nonzeroAlphaPixels = 0;
-        const colors = new Set();
-        for (let i = 0; i < pixels.data.length; i += 4) {
-            if (pixels.data[i] || pixels.data[i + 1] || pixels.data[i + 2]) nonzeroRgbPixels++;
-            if (pixels.data[i + 3]) nonzeroAlphaPixels++;
-            colors.add(pixels.data[i] + ',' + pixels.data[i + 1] + ',' + pixels.data[i + 2]);
-        }
-        if (!capture || nonzeroRgbPixels > capture.nonzeroRgbPixels) {
-            capture = {
-                id,
-                width: pixels.width,
-                height: pixels.height,
-                nonzeroRgbPixels,
-                nonzeroAlphaPixels,
-                uniqueColors: colors.size,
-                data: Array.from(pixels.data)
-            };
-        }
-    } catch {}
+async function readBest() {
+    renderer.render(0);
+    renderer.render(0);
+    await renderer.pipeline.backend.device?.queue?.onSubmittedWorkDone?.();
+    let capture = null;
+    for (const id of candidates) {
+        try {
+            const pixels = await renderer.pipeline.backend.readPixels(id);
+            if (!pixels?.data) continue;
+            let nonzeroRgbPixels = 0;
+            let nonzeroAlphaPixels = 0;
+            const colors = new Set();
+            for (let i = 0; i < pixels.data.length; i += 4) {
+                if (pixels.data[i] || pixels.data[i + 1] || pixels.data[i + 2]) nonzeroRgbPixels++;
+                if (pixels.data[i + 3]) nonzeroAlphaPixels++;
+                colors.add(pixels.data[i] + ',' + pixels.data[i + 1] + ',' + pixels.data[i + 2]);
+            }
+            if (!capture || nonzeroRgbPixels > capture.nonzeroRgbPixels) {
+                capture = {
+                    id,
+                    width: pixels.width,
+                    height: pixels.height,
+                    nonzeroRgbPixels,
+                    nonzeroAlphaPixels,
+                    uniqueColors: colors.size,
+                    data: Array.from(pixels.data)
+                };
+            }
+        } catch {}
+    }
+    return capture;
+}
+function sameBytes(a, b) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+}
+let capture = await readBest();
+const settleDeadline = Date.now() + settleMs;
+let settled = settleMs === 0;
+while (Date.now() < settleDeadline) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    const next = await readBest();
+    if (next && capture && sameBytes(next.data, capture.data)) {
+        capture = next;
+        settled = true;
+        break;
+    }
+    if (next) capture = next;
 }
 window.parityResult = {
     backend: renderer.pipeline.backend.getName(),
     targetPassCount: renderer.pipeline.graph.passes.filter((pass) =>
         matchesTargetEffectPass(pass, ${JSON.stringify(effectId)})
     ).length,
+    settled,
     capture
 };
 </script>`, { waitUntil: 'load' })
@@ -138,6 +161,9 @@ window.parityResult = {
         assert.equal(result.backend, expectedBackend, `expected ${expectedBackend}, got ${result.backend}`)
         assert.ok(result.targetPassCount > 0, `${expectedBackend} graph did not execute ${effectId}`)
         assert.ok(result.capture, `${expectedBackend} produced no readable output`)
+        if ((parityCase.settleMs || 0) > 0) {
+            assert.ok(result.settled, `${expectedBackend} capture did not settle within ${parityCase.settleMs} ms`)
+        }
         assert.deepEqual(consoleMessages, [], `${expectedBackend} console errors:\n${consoleMessages.join('\n')}`)
         return result
     } finally {
