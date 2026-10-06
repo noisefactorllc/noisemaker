@@ -15,15 +15,15 @@ and WebGPU backends and must not be cited as evidence for an external port.
 Source snapshots used for this contract:
 
 - Noisemaker: `34b4db0c4f3d79be647b4bdc55fa6e6a0f15be44`.
-- Shade MCP: `bb82b7e43b099c8dc87a0fb440d0de30667579e9`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.4.4`, built on
+- Shade MCP: `fa222722163de362fd2302a4ba1c2761b44cb038`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.4.6`, built on
   `@modelcontextprotocol/sdk` 1.31.0, which accepts the protocol versions
   `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05` and `2024-10-07`,
   echoes the version the client requests, and answers `2025-11-25` to any other
   request; 18 tools are returned by `tools/list`.
 - The repository config runs
-  `npx -y github:noisedeck/shade-mcp#bb82b7e43b099c8dc87a0fb440d0de30667579e9`,
-  matching release v0.4.4 delivered to `vendor/shade-mcp/`.
+  `npx -y github:noisedeck/shade-mcp#fa222722163de362fd2302a4ba1c2761b44cb038`,
+  matching release v0.4.6 delivered to `vendor/shade-mcp/`.
 
 Primary source roots:
 
@@ -33,7 +33,7 @@ Primary source roots:
 - backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
 - repository validation policy: `shaders/tests/test-harness.js`.
 - Shade MCP source for the pinned snapshot:
-  `https://github.com/noisefactorllc/shade-mcp/tree/bb82b7e43b099c8dc87a0fb440d0de30667579e9/src`.
+  `https://github.com/noisefactorllc/shade-mcp/tree/fa222722163de362fd2302a4ba1c2761b44cb038/src`.
 
 ## Freshness and maintenance
 
@@ -1318,9 +1318,10 @@ Both store `raw=0`. Only the real zero sample has `rawReady===true` and therefor
 level, a variable cycle, deterministic repeated seeks, and recursive audio
 capture requirements.
 
-Runtime responsiveness compares rendered mean-RGB vectors at two paused
-times, t=0 and t=0.37; a uniform responds when it moves the output at either
-time (the deltas below are the maximum over both). Define:
+Runtime responsiveness compares rendered frames at two paused times, t=0 and
+t=0.37: their mean-RGB vectors and a strided sample of about 4096 pixels. A
+uniform responds when any delta exceeds the threshold at either time (the
+deltas below are the maximum over both). Define:
 
 ```text
 baseline_luma = (baseline_r + baseline_g + baseline_b) / 3
@@ -1329,13 +1330,20 @@ luma_delta    = abs(test_luma - baseline_luma)
 max_channel_delta = max(abs(test_r-baseline_r),
                         abs(test_g-baseline_g),
                         abs(test_b-baseline_b))
+pixel_delta       = mean over sampled pixels and channels of
+                    abs(test_pixel - baseline_pixel)
 ```
 
-A tested uniform passes when `luma_delta > 0.002` OR
-`max_channel_delta > 0.002`. Only globals with `uniform`, numeric `min` and
+A tested uniform passes when `luma_delta > 0.002`, `max_channel_delta > 0.002`
+or `pixel_delta > 0.002` (reported as `pixel_diff`); the per-pixel delta sees
+blur, scale, rotation and offset controls that leave the mean color
+unchanged. Only globals with `uniform`, numeric `min` and
 `max`, unequal bounds, and a type other than `boolean`/`button` are tested.
-The test value is `min + 0.75*(max-min)` when default equals min, otherwise
-`min + 0.25*(max-min)`. `int` is rounded. Before measuring a uniform whose
+Up to two test values are tried, never the default: the farther from the
+default of the 25% and 75% points of the range, then the 38.2% point, which
+does not line up with right angles or halves a symmetric input is invariant
+to; `int` values are rounded, and the first value that moves the output is
+reported as `test_value`. Before measuring a uniform whose
 `ui.enabledBy` condition is false at defaults, the tool sets the condition's
 params to values that satisfy it (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`,
 `notIn`, `and`/`or`) and reports them as `enabled_with`; it restores them
@@ -1386,6 +1394,7 @@ type UniformResponsiveness = { effect_id: string, outcome: Outcome } & (
       uniforms: Array<{ name: string, uniform: string,
         default_value: number, test_value: number,
         luma_diff: number | null, max_channel_diff: number | null,
+        pixel_diff?: number,               // mean per-pixel delta, when measured
         responds: boolean | null,          // null when gated
         enabled_with?: Record<string, unknown>, // gate params set to open ui.enabledBy
         gated?: true, enabled_by?: unknown, error?: string }>,
