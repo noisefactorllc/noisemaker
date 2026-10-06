@@ -14,14 +14,14 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `4b4a1ed968cf179298c42927be5e17f604201745`.
-- Shade MCP: `4005ae91ef83adcd7331b05f31ac128153594ea7`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.3.2`, protocol
+- Noisemaker: `080dec543b3c1e6a02472f671d7295ed638e45c2`.
+- Shade MCP: `acda1c77a5f0d172d5d54ca6ca4ee29ec8b548f6`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.3.3`, protocol
   `2025-06-18` (negotiated down to `2024-11-05` for clients that request it),
   with 18 tools returned by `tools/list`.
 - The repository config runs
-  `npx -y github:noisedeck/shade-mcp#4005ae91ef83adcd7331b05f31ac128153594ea7`,
-  matching release v0.3.2 delivered to `vendor/shade-mcp/`.
+  `npx -y github:noisedeck/shade-mcp#1862c1390c0b535c856b3cd9b54114e540c0fec8`,
+  matching release v0.3.3 delivered to `vendor/shade-mcp/`.
 
 Primary source roots:
 
@@ -31,7 +31,7 @@ Primary source roots:
 - backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
 - repository validation policy: `shaders/tests/test-harness.js`.
 - Shade MCP source for the pinned snapshot:
-  `https://github.com/noisefactorllc/shade-mcp/tree/4005ae91ef83adcd7331b05f31ac128153594ea7/src`.
+  `https://github.com/noisefactorllc/shade-mcp/tree/acda1c77a5f0d172d5d54ca6ca4ee29ec8b548f6/src`.
 
 ## Freshness and maintenance
 
@@ -2344,7 +2344,7 @@ Sources: `shaders/src/runtime/sink.js`; `shaders/src/runtime/frame-export.js`;
 
 Call the MCP verb documented in the tool section. For deterministic MCP
 captures, supply `time`. With an explicit `time`, the released verb
-(verified live against `vendor/shade-mcp/` release `v0.3.2` and upstream
+(verified live against `vendor/shade-mcp/` release `v0.3.3` and upstream
 `src/tools/browser/render.ts` at the pinned snapshot) awaits its frame-count
 warmup while the render loop is still live, bounds both render and DSL warmup
 waits at `session.timeoutMs` with a diagnostic, unpauses in a `finally`, and
@@ -3220,7 +3220,7 @@ rejected).
 
 Source: Shade MCP `src/tools/browser/dsl.ts` - schema and `runDslProgram()`.
 
-At the pinned 0.3.2 source, a direct `renderEffectFrame` call for
+At the pinned 0.3.3 source, a direct `renderEffectFrame` call for
 `filter/degauss` on WebGPU at `time:0.5` and resolution `[128,128]` returned
 `status:"ok"`, page-confirmed `effect_id:"filter/degauss"` and
 `backend:"WebGPU"`, `requested_resolution:[128,128]`, a 128×128 frame, and
@@ -4121,7 +4121,7 @@ program expansion.
 <!-- WORKED:MCP-REQUESTS -->
 
 One configured-pin session negotiated protocol `2025-06-18`, returned server
-`shade-mcp` version `0.3.2`, and listed 18 tools. The seven calls other than
+`shade-mcp` version `0.3.3`, and listed 18 tools. The seven calls other than
 `testPixelParity` ran in that session, none returning MCP `isError`; the
 passthrough call returned the expected domain status `skipped` because this is
 a source effect. The `testPixelParity` comparison is captured through the
@@ -4156,7 +4156,7 @@ capture; these are the values from this session):
 {"effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"uniforms":[{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":5,"luma_diff":0.009534835815429688,"max_channel_diff":0.009534835815429688,"responds":true}],"threshold":0.002,"details":"Uniforms affect output","backend":"WebGL2"}
 {"effect_id":"synth/testPattern","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2"}
 {"effect_id":"synth/testPattern","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":90,"height":90},"warning":"Requested resolution 256x256 but measured 90x90; the viewer did not honor the requested resolution","achieved_fps":61.64,"meets_target":true,"stats":{"frame_count":61,"avg_frame_time_ms":16.22,"jitter_ms":2.71,"min_frame_time_ms":1.2,"max_frame_time_ms":20.9}}
+{"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":90,"height":90},"warning":"Requested resolution 256x256 but measured 90x90; the viewer did not honor the requested resolution","achieved_fps":55.18,"meets_target":true,"stats":{"frame_count":54,"avg_frame_time_ms":18.12,"jitter_ms":8.31,"min_frame_time_ms":3.3,"max_frame_time_ms":42.9}}
 ```
 
 The structure scan has no issues and reports the one declared effect pass.
