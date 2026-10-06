@@ -918,6 +918,33 @@ export class Pipeline {
         }
     }
 
+    /**
+     * Run checkAsyncRegen for every asyncInit node whose effect reads this
+     * uniform, with the node's current param values.
+     * @param {string} uniformName - The uniform setUniform just changed
+     * @private
+     */
+    _regenAsyncForUniform(uniformName) {
+        const seen = new Set()
+        for (const pass of this.graph.passes) {
+            if (!pass.nodeId || !pass.effectKey || seen.has(pass.nodeId)) continue
+            const effectDef = getEffect(pass.effectKey)
+            if (!effectDef?.globals) continue
+            if (!effectDef._configAsyncInit && effectDef.asyncInit === Effect.prototype.asyncInit) continue
+            const params = {}
+            let reads = false
+            for (const [paramName, spec] of Object.entries(effectDef.globals)) {
+                const uniform = spec.uniform || paramName
+                if (uniform === uniformName) reads = true
+                const value = pass.uniforms?.[uniform] ?? this.globalUniforms[uniform]
+                if (value !== undefined) params[paramName] = value
+            }
+            if (!reads) continue
+            seen.add(pass.nodeId)
+            this.checkAsyncRegen(pass.nodeId, pass.effectKey, params)
+        }
+    }
+
     _startAsyncInit(nodeId, effectDef, { debounce = false, params = null } = {}) {
         if (debounce) {
             // Debounce: wait for slider to settle before regenerating
@@ -1979,6 +2006,13 @@ export class Pipeline {
                     }
                 }
             }
+        }
+
+        // An asyncInit effect (the fibers, scratches and strayHair CPU
+        // overlays) draws its overlay from its params: re-run it when one of
+        // them changes, as the UI parameter paths do through checkAsyncRegen.
+        if (oldValue !== value && this.graph && this.graph.passes) {
+            this._regenAsyncForUniform(name)
         }
 
         // Check if this uniform affects any texture dimensions

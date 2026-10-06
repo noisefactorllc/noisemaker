@@ -1,6 +1,7 @@
 import assert from 'assert'
 import { Effect } from '../shaders/src/runtime/effect.js'
 import { Pipeline } from '../shaders/src/runtime/pipeline.js'
+import { registerEffect, unregisterEffect } from '../shaders/src/runtime/registry.js'
 
 // Base class asyncInit must return a Promise (not undefined)
 {
@@ -108,3 +109,33 @@ console.log('asyncInit tests passed')
         console.error = originalError
     }
 }
+
+// Pipeline.setUniform re-runs an asyncInit overlay when one of its params
+// changes, as the UI parameter paths do, and leaves other effects alone.
+{
+    const drawn = []
+    const overlay = new Effect({
+        globals: {
+            density: { type: 'float', default: 0.5, uniform: 'density' },
+            alpha: { type: 'float', default: 1, uniform: 'alpha' }
+        },
+        asyncInit: async ({ params }) => { drawn.push(params.density) }
+    })
+    registerEffect('test/overlay', overlay)
+    try {
+        const pass = { nodeId: 'node_3', effectKey: 'test/overlay', uniforms: { density: 0.5, alpha: 1 } }
+        const other = { nodeId: 'node_4', effectKey: 'test/missing', uniforms: { density: 0.5 } }
+        const pipeline = new Pipeline({ passes: [pass, other], textures: new Map() }, { updateTextureFromSource: () => {} })
+        pipeline.globalUniforms = {}
+        pipeline.setUniform('density', 0.9)
+        await pipeline.whenAsyncInitsSettled()
+        assert.deepStrictEqual(drawn, [0.9], 'a changed overlay param must regenerate the overlay once')
+        pipeline.setUniform('density', 0.9)
+        await pipeline.whenAsyncInitsSettled()
+        assert.deepStrictEqual(drawn, [0.9], 'an unchanged value must not regenerate')
+    } finally {
+        unregisterEffect('test/overlay')
+    }
+}
+
+console.log('setUniform asyncInit regeneration tests passed')
