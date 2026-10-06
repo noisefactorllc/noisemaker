@@ -4,7 +4,7 @@
         "classicNoisedeck/noise",
         "classicNoisedeck/effects"
     ],
-    "dsl": "search classicNoisedeck\n\nnoise(seed: 1).effects().write(o0)\nrender(o0)",
+    "dsl": "search classicNoisedeck\n\nnoise(seed: 1).effects(scaleAmt: 150, rotation: 30, offsetX: 20, offsetY: -15, flip: upToDown).write(o0)\nrender(o0)",
     "surface": "o0",
     "resolution": [
         64,
