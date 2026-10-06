@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * GAP-017 focused regressions: complete, lossless Noisemaker definition
+ * Regression tests for complete, lossless Noisemaker definition
  * introspection (shaders/tests/definition-schema.js).
  *
  * The upstream Shade MCP definition parser (`vendor/shade-mcp/formats/*`,

@@ -2,7 +2,7 @@
   "mcpServers": {
     "shade": {
       "command": "npx",
-      "args": ["-y", "github:noisedeck/shade-mcp#5ff3dcf36385c2ad4d7708e90d52f5ce270708df"],
+      "args": ["-y", "github:noisedeck/shade-mcp#2e9deeca806c25984a36f06f90cbf124ee4f7839"],
       "env": {
         "SHADE_EFFECTS_DIR": "./shaders/effects",
         "SHADE_VIEWER_ROOT": ".",

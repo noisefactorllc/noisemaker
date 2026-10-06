@@ -64,7 +64,7 @@ export class WebGL2Backend extends Backend {
         // live counter there would silently skip the last armed frame.
         this._glCheckThisFrame = false
         // Queryable structured diagnostics for the historically-silent
-        // unknown-format fallback (GAP-007); thrown failures use the
+        // unknown-format fallback; thrown failures use the
         // ShaderDiagnostic union directly.
         this.diagnostics = new DiagnosticCollector()
         this._warnedFormatFallbacks = new Set()
@@ -1127,7 +1127,7 @@ export class WebGL2Backend extends Backend {
 
     /**
      * Record a missing render target (FBO or MRT attachment) as a structured
-     * diagnostic (GAP-007). The legacy console warning is unchanged and still
+     * diagnostic. The legacy console warning is unchanged and still
      * fires on every occurrence; the record is deduplicated per
      * kind|output|pass so per-frame rendering cannot grow it unboundedly.
      */
@@ -1331,7 +1331,7 @@ export class WebGL2Backend extends Backend {
         if (viewportTex) {
             gl.viewport(0, 0, viewportTex.width, viewportTex.height)
         } else {
-            // Authored viewport resolution (GAP-005): the pipeline-resolved
+            // Authored viewport resolution: the pipeline-resolved
             // numbers take precedence over a raw spec; a manually supplied
             // numeric viewport keeps its legacy direct read.
             const viewport = effectivePass.viewportResolved || effectivePass.viewport
@@ -2030,7 +2030,7 @@ export class WebGL2Backend extends Backend {
 
         // Unknown formats keep the historical silent rgba8 fallback (no new
         // rejection of previously accepted input), but surface it as a
-        // structured diagnostic (GAP-007) instead of pure silence. An absent
+        // structured diagnostic instead of pure silence. An absent
         // format is the default, not a fallback.
         if (format !== undefined && format !== null) {
             const key = String(format)

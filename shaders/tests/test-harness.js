@@ -40,31 +40,13 @@
  *   --structure               Test for unused files, naming conventions, leaked uniforms
  *   --structure-only          Run ONLY structure tests (no browser, filesystem-based)
  *   --describe                Print the COMPLETE parsed definition schema per effect
- *                             (no browser; includes an audit of what the upstream
- *                             regex-based parser projection drops)
+ *                             (no browser; includes an audit of what the Shade MCP
+ *                             definition projection leaves out)
  *   --alg-equiv               Test GLSL/WGSL algorithmic equivalence (requires --with-ai)
  *   --branching               Analyze shaders for unnecessary branching (requires --with-ai)
  *   --passthrough             Test that filter effects do NOT pass through input unchanged
- *   --passthrough-input       OPT-IN: true input-passthrough probe (GAP-019). Reads back
- *                             the input texture the effect's expanded graph actually
- *                             consumes and compares the rendered output against it
- *                             (plus an in-program write-blit positive control); fails
- *                             effects whose output matches their input within the
- *                             same 0.01 boundary. Implies --passthrough; the default
- *                             gate keeps the upstream temporal semantics.
  *   --pixel-parity            Test GLSL/WGSL pixel-for-pixel output parity at frame 0
  *   --low-variety             OPT-IN: fail effects whose output is low variety and not exempt
- *   --strict-uniforms         OPT-IN: fail when any tested uniform does not affect output
- *                             (default keeps the upstream outer-status semantics)
- *   --strict-resolution       OPT-IN: fail when the returned frame dimensions differ
- *                             from the requested `resolution` (GAP-021). The
- *                             requested-vs-returned check itself is reported on
- *                             every resolution-bearing result without the flag
- *   --strict-identity         OPT-IN: fail when the page-confirmed effect,
- *                             compiled-graph, or actual-backend identity
- *                             disagrees with the request (GAP-024). The
- *                             identity_check record itself is reported on
- *                             every browser result without the flag
  *   --with-ai                 Enable AI-based tests (alg-equiv, branching, vision)
  *   --no-vision               Skip AI vision validation (even with --with-ai)
  *
@@ -96,6 +78,7 @@ import {
     compileEffect, renderEffectFrame as shadeRenderEffectFrame,
     testNoPassthrough, testPixelParity, testUniformResponsiveness,
     checkEffectStructure,
+    globalsFromPrefix,
     matchEffects,
 } from '../../vendor/shade-mcp/harness/index.js'
 import {
@@ -103,28 +86,7 @@ import {
     isLowVariety,
     isNoAnimation,
 } from './frame-metrics.js'
-import { aggregateUniformResponsiveness, resolveUniformGateStatus } from './uniform-status.js'
-import { warmupPausePlan } from './frame-warmup.js'
-import { annotateResolution } from './frame-resolution.js'
-import {
-    annotateIdentity,
-    classifyIdentity,
-    collectPageIdentityInPage,
-    identityReadyInPage,
-    normalizeBackendName,
-    strictIdentityFailed,
-} from './session-identity.js'
 import { auditDefinitionLoss } from './definition-schema.js'
-import {
-    INPUT_PASSTHROUGH_DIFF_MAX,
-    measureInputPassthroughForSession,
-} from './passthrough-input.js'
-import {
-    UNIFORM_RESPONSE_THRESHOLD,
-    auditUniformResponsiveness,
-    classifyMeasuredUniforms,
-    measureUniformDeltasForSession,
-} from './uniform-deltas.js'
 // AI-dependent imports are loaded dynamically to avoid requiring @anthropic-ai/sdk at module level
 let getAIProvider, checkAlgEquiv, analyzeBranching
 async function loadAIDeps() {
@@ -137,353 +99,28 @@ async function loadAIDeps() {
     }
 }
 
-// Noisemaker-specific window globals (different from shade-mcp defaults)
-const NOISEMAKER_GLOBALS = {
-    canvasRenderer: '__noisemakerCanvasRenderer',
-    renderingPipeline: '__noisemakerRenderingPipeline',
-    currentBackend: '__noisemakerCurrentBackend',
-    currentEffect: '__noisemakerCurrentEffect',
-    setPaused: '__noisemakerSetPaused',
-    setPausedTime: '__noisemakerSetPausedTime',
-    frameCount: '__noisemakerFrameCount',
-}
+// Noisemaker's viewer globals: the __noisemaker-prefixed names Shade MCP
+// derives (the same SHADE_GLOBALS_PREFIX the repository's .mcp.json sets).
+const NOISEMAKER_GLOBALS = globalsFromPrefix('__noisemaker')
 
 function gracePeriod(ms = 125) {
     return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 /**
- * GAP-024: read the pipeline generation counter the viewer bumps whenever a
- * new compiled pipeline is published, so a later identity check can tell
- * whether the graph a result describes was compiled by this request or left
- * over from a previously ready one. A failed read yields null (unknown).
+ * Render one frame through the Shade MCP verb (which binds the result to the
+ * requested effect and backend, reads the presented render surface on both
+ * backends, and computes the shared ImageMetrics), then add this harness's
+ * temporal metrics.
  */
-async function captureGeneration(session) {
-    try {
-        return await session.page.evaluate(() =>
-            typeof window.__noisemakerPipelineGeneration === 'number'
-                ? window.__noisemakerPipelineGeneration
-                : null)
-    } catch {
-        return null
-    }
-}
-
-/**
- * GAP-024: read the page-confirmed identity snapshot (current effect id,
- * renderer backend label, live pipeline backend `getName()`, compiled-graph
- * pass count and compiling flag, pipeline generation). A failed read yields
- * null, which the mirror classifies as `unknown` — never an invented match.
- */
-async function collectPageIdentity(session) {
-    try {
-        return await session.page.evaluate(collectPageIdentityInPage, { globals: session.globals })
-    } catch {
-        return null
-    }
-}
-
-/**
- * GAP-024: confirm a backend switch against the page instead of trusting the
- * session's configured label — the upstream `setBackend()` exits silently
- * when its internal poll times out. Resolves to a
- * `{ requested, observed, status }` record: `match` when the page's current
- * backend equals the requested one, `timeout` when the bounded wait expired
- * (reported on the result, never silent), `unknown` when the request itself
- * is not a recognizable backend label.
- */
-async function confirmBackendSwitch(session) {
-    const requested = normalizeBackendName(session.backend)
-    if (requested == null) return { requested: null, observed: null, status: 'unknown' }
-    let status
-    try {
-        await session.page.waitForFunction(({ globals, target }) => {
-            const value = typeof window[globals.currentBackend] === 'function'
-                ? window[globals.currentBackend]()
-                : null
-            if (typeof value !== 'string') return false
-            const name = value.trim().toLowerCase()
-            if (target === 'webgl2') return name === 'webgl2' || name === 'glsl'
-            return name === 'webgpu' || name === 'wgsl'
-        }, { globals: session.globals, target: requested }, { timeout: 30000, polling: 50 })
-        status = 'match'
-    } catch {
-        status = 'timeout'
-    }
-    const snapshot = await collectPageIdentity(session)
-    return { requested, observed: snapshot?.backend ?? null, status }
-}
-
-/**
- * GAP-024: annotate a browser result with the additive `identity_check`
- * record built from the page-confirmed snapshot and the request (effect id,
- * backend label, pre-request pipeline generation, backend-switch outcome).
- */
-async function annotateResultIdentity(session, result, request) {
-    const page = await collectPageIdentity(session)
-    return annotateIdentity(result, classifyIdentity(request, page))
-}
-
-/**
- * GAP-024: run one browser verb, then annotate its result with the
- * page-confirmed identity record captured at result time — so an `ok` that
- * describes a previously ready graph or an unintended backend is uniformly
- * diagnosable from the result itself.
- */
-async function annotateVerbIdentity(session, effectId, verbCall, requestOverrides = {}) {
-    const generationBefore = await captureGeneration(session)
-    const result = await verbCall()
-    return annotateResultIdentity(session, result, {
-        effect: effectId,
-        backend: session.backend,
-        generation_before: generationBefore,
-        ...requestOverrides,
-    })
-}
-
-
 async function renderEffectFrame(session, effectId, options = {}) {
-    // GAP-014: the upstream verb pauses animation BEFORE awaiting its
-    // frame-count warmup promise, so a positive explicit `time` can stop the
-    // frame loop and hang the tool. Explicit-`time` requests take this
-    // repository's wrapper path instead, which warms up first and pauses
-    // only after the awaited frame count is reached.
-    const plan = warmupPausePlan(options)
-    let result = null
-    // GAP-024: the generation marker captured before the upstream verb's own
-    // selection lets the post-hoc identity check prove the graph was compiled
-    // by this request, not left over from a previously ready one.
-    if (session.backend !== 'webgpu' && !plan.useRepositoryPath) {
-        const generationBefore = await captureGeneration(session)
-        result = await shadeRenderEffectFrame(session, effectId, options)
-        result = await annotateResultIdentity(session, result, {
-            effect: effectId,
-            backend: session.backend,
-            generation_before: generationBefore,
-        })
-    } else {
-        let backendSwitch = null
-        let generationBefore = null
-        result = await session.runWithConsoleCapture(async () => {
-        const page = session.page
-        await session.setBackend(session.backend)
-
-        // GAP-024: confirm the switch against the page (the upstream
-        // setBackend() exits silently on its poll timeout).
-        backendSwitch = await confirmBackendSwitch(session)
-
-        if (options.resolution) {
-            await page.setViewportSize({ width: options.resolution[0], height: options.resolution[1] })
-        }
-
-        // GAP-024: marker captured before this request's own selection.
-        generationBefore = await captureGeneration(session)
-
-        await page.evaluate((id) => {
-            const select = document.getElementById('effect-select')
-            if (select) {
-                select.value = id
-                select.dispatchEvent(new Event('change'))
-            }
-        }, effectId)
-
-        // GAP-024: identity-bound readiness — requested effect id, generation
-        // advance, noncompiling nonempty graph; status text never consulted.
-        await page.waitForFunction(identityReadyInPage, {
-            globals: session.globals,
-            target: { effect: effectId, generation: generationBefore },
-        }, { timeout: 300000 })
-
-        if (options.uniforms) {
-            await page.evaluate(({ uniforms, globals }) => {
-                const pipeline = window[globals.renderingPipeline]
-                if (!pipeline) return
-                for (const [key, value] of Object.entries(uniforms)) {
-                    if (pipeline.setUniform) pipeline.setUniform(key, value)
-                    else if (pipeline.globalUniforms) pipeline.globalUniforms[key] = value
-                }
-            }, { uniforms: options.uniforms, globals: session.globals })
-        }
-
-        // GAP-014: warm up frames while the animation is still running, then
-        // pause. Pausing before the warmup can stop the frame loop and leave
-        // the frame-count promise unresolved (the upstream verb's hang).
-        const warmupFrames = options.warmupFrames ?? 10
-        await page.evaluate(({ frames, globals }) => {
-            return new Promise((resolve) => {
-                const start = window[globals.frameCount] || 0
-                const poll = () => {
-                    const current = window[globals.frameCount] || 0
-                    if (current - start >= frames) resolve()
-                    else requestAnimationFrame(poll)
-                }
-                poll()
-            })
-        }, { frames: warmupFrames, globals: session.globals })
-
-        if (options.time !== undefined) {
-            await page.evaluate(({ time, globals }) => {
-                if (window[globals.setPaused]) window[globals.setPaused](true)
-                if (window[globals.setPausedTime]) window[globals.setPausedTime](time)
-            }, { time: options.time, globals: session.globals })
-        }
-
-        return page.evaluate(async ({ globals, captureImage }) => {
-            const renderer = window[globals.canvasRenderer]
-            const pipeline = window[globals.renderingPipeline]
-            const backend = pipeline?.backend
-            if (!renderer || !pipeline || !backend) {
-                return { status: 'error', backend: 'unknown', error: 'No renderer' }
-            }
-            if (typeof backend.readPixels !== 'function') {
-                return { status: 'error', backend: backend.getName?.() || 'unknown', error: 'Backend cannot read pixels' }
-            }
-
-            const readSurface = async () => {
-                const candidates = []
-                const surface = pipeline.graph?.renderSurface
-                const frameReadId = surface ? pipeline.frameReadTextures?.get(surface) : null
-                if (frameReadId) candidates.push(frameReadId)
-                if (surface) {
-                    candidates.push(`global_${surface}_read`)
-                    candidates.push(`global_${surface}_write`)
-                }
-                try {
-                    const nodeIds = []
-                    for (const key of backend.textures.keys()) {
-                        if (/node_\d+_out/.test(key)) nodeIds.push(key)
-                    }
-                    nodeIds.sort((a, b) => parseInt(a.match(/node_(\d+)/)[1], 10) - parseInt(b.match(/node_(\d+)/)[1], 10))
-                    if (nodeIds.length) candidates.push(nodeIds[nodeIds.length - 1])
-                } catch {
-                    // Some backends do not expose a texture map in harness mode.
-                }
-
-                for (const textureId of [...new Set(candidates)]) {
-                    try {
-                        const pixels = await backend.readPixels(textureId)
-                        if (pixels?.width && pixels?.height && pixels?.data) {
-                            return pixels
-                        }
-                    } catch {
-                        // Try the next candidate texture.
-                    }
-                }
-                return null
-            }
-
-            let pixels = null
-            for (let attempt = 0; attempt < 6 && !pixels; attempt++) {
-                renderer.render(0)
-                renderer.render(0)
-                pixels = await readSurface()
-                if (!pixels) await new Promise(resolve => setTimeout(resolve, 80))
-            }
-
-            if (!pixels) {
-                return { status: 'error', backend: backend.getName?.() || 'unknown', error: 'Failed to read pixels' }
-            }
-
-            const { data, width, height } = pixels
-            const pixelCount = width * height
-            const stride = Math.max(1, Math.floor(pixelCount / 1000))
-            let sumR = 0
-            let sumG = 0
-            let sumB = 0
-            let sumA = 0
-            let sumR2 = 0
-            let sumG2 = 0
-            let sumB2 = 0
-            let samples = 0
-            const colorSet = new Set()
-
-            for (let i = 0; i < pixelCount; i += stride) {
-                const idx = i * 4
-                const r = data[idx] / 255
-                const g = data[idx + 1] / 255
-                const b = data[idx + 2] / 255
-                const a = data[idx + 3] / 255
-                sumR += r
-                sumG += g
-                sumB += b
-                sumA += a
-                sumR2 += r * r
-                sumG2 += g * g
-                sumB2 += b * b
-                colorSet.add(`${data[idx]},${data[idx + 1]},${data[idx + 2]}`)
-                samples++
-            }
-
-            const meanR = sumR / samples
-            const meanG = sumG / samples
-            const meanB = sumB / samples
-            const stdR = Math.sqrt(sumR2 / samples - meanR * meanR)
-            const stdG = Math.sqrt(sumG2 / samples - meanG * meanG)
-            const stdB = Math.sqrt(sumB2 / samples - meanB * meanB)
-            const luma = 0.299 * meanR + 0.587 * meanG + 0.114 * meanB
-            let lumaVar = 0
-
-            for (let i = 0; i < pixelCount; i += stride) {
-                const idx = i * 4
-                const sampleLuma = 0.299 * data[idx] / 255 + 0.587 * data[idx + 1] / 255 + 0.114 * data[idx + 2] / 255
-                lumaVar += (sampleLuma - luma) * (sampleLuma - luma)
-            }
-            lumaVar /= samples
-
-            let imageUri = null
-            if (captureImage) {
-                const tmpCanvas = document.createElement('canvas')
-                tmpCanvas.width = width
-                tmpCanvas.height = height
-                const ctx = tmpCanvas.getContext('2d')
-                const imageData = ctx.createImageData(width, height)
-                imageData.data.set(data)
-                ctx.putImageData(imageData, 0, 0)
-                imageUri = tmpCanvas.toDataURL('image/png')
-            }
-
-            return {
-                status: 'ok',
-                backend: backend.getName?.() || 'WebGPU',
-                frame: { image_uri: imageUri, width, height },
-                metrics: {
-                    mean_rgb: [meanR, meanG, meanB],
-                    mean_alpha: sumA / samples,
-                    std_rgb: [stdR, stdG, stdB],
-                    luma_variance: lumaVar,
-                    unique_sampled_colors: colorSet.size,
-                    is_all_zero: meanR === 0 && meanG === 0 && meanB === 0,
-                    is_all_transparent: sumA / samples < 0.01,
-                    is_essentially_blank: lumaVar < 1e-4,
-                    is_monochrome: colorSet.size <= 1,
-                }
-            }
-        }, { globals: session.globals, captureImage: !!options.captureImage })
-    })
-
-        // GAP-024: annotate the wrapper-path result with the page-confirmed
-        // identity record (the readiness wait above already bound the
-        // selection to the requested effect and compiled graph).
-        result = await annotateResultIdentity(session, result, {
-            effect: effectId,
-            backend: session.backend,
-            generation_before: generationBefore,
-            backend_switch: backendSwitch,
-        })
-    }
-
-    // GAP-021: requested-vs-returned frame resolution. Every result that
-    // carried a `resolution` request is annotated with the requested
-    // resolution and a `resolution_check` record (the upstream verb sets
-    // the viewport but reads canvas dimensions, so the request could
-    // silently differ from the returned frame). Reporting is universal;
-    // rejecting a mismatch happens only behind `--strict-resolution`.
-    return augmentFrameMetrics(session, annotateResolution(result, options))
+    const result = await shadeRenderEffectFrame(session, effectId, options)
+    return augmentFrameMetrics(session, result)
 }
 
 /**
  * Extend a captured frame result with the temporal no-animation and
- * low-variety metrics (GAP-009). The temporal metric is an external
+ * low-variety metrics. The temporal metric is an external
  * two-frame comparison: the probe re-renders the effect at two distinct
  * normalized times (0 and 0.5, so loop-phase alignment cannot alias an
  * animated effect into a false "no-animation") and diffs the sampled
@@ -653,11 +290,8 @@ function parseArgs() {
         runAlgEquiv: false,
         runBranching: false,
         runPassthrough: false,
-        runPassthroughInput: false,
         runPixelParity: false,
         runLowVariety: false,
-        strictResolution: false,
-        strictIdentity: false,
         withAi: false,
         skipVision: false,
         useBundles: false,
@@ -681,13 +315,6 @@ function parseArgs() {
             parsed.runBenchmark = true
         } else if (arg === '--uniforms') {
             parsed.runUniforms = true
-        } else if (arg === '--strict-uniforms') {
-            parsed.runUniforms = true
-            parsed.strictUniforms = true
-        } else if (arg === '--strict-resolution') {
-            parsed.strictResolution = true
-        } else if (arg === '--strict-identity') {
-            parsed.strictIdentity = true
         } else if (arg === '--describe') {
             parsed.runDescribe = true
         } else if (arg === '--structure') {
@@ -701,9 +328,6 @@ function parseArgs() {
             parsed.runBranching = true
         } else if (arg === '--passthrough') {
             parsed.runPassthrough = true
-        } else if (arg === '--passthrough-input') {
-            parsed.runPassthrough = true
-            parsed.runPassthroughInput = true
         } else if (arg === '--pixel-parity') {
             parsed.runPixelParity = true
         } else if (arg === '--low-variety') {
@@ -916,14 +540,10 @@ async function testEffect(session, effectId, options) {
         branchingWarning: false,
         passthrough: null,
         passthroughFailed: false,
-        passthroughInput: null,
-        passthroughInputFailed: false,
         pixelParity: null,
         pixelParityFailed: false,
         benchmark: null,
         benchmarkFailed: false,
-        identityMismatch: false,
-        compileIdentity: null,
         vision: null,
         visionFailed: false,
         consoleErrors: []
@@ -1110,27 +730,6 @@ async function testEffect(session, effectId, options) {
     timings.push(`compile:${Date.now() - t0}ms`)
     t0 = Date.now()
 
-    // GAP-024: the upstream compileEffect() polls status text, which can
-    // still describe the previous effect when its `ok` arrives, and the
-    // status text says nothing about which backend compiled. Confirm the
-    // page-compiled identity instead: the identity_check record is reported
-    // on every run; acting on a mismatch happens only behind
-    // --strict-identity.
-    try {
-        const compileIdentity = await collectPageIdentity(session)
-        results.compileIdentity = classifyIdentity({ effect: effectId, backend: session.backend }, compileIdentity)
-        if (results.compileIdentity.status === 'mismatch') {
-            console.log(`  ⚠ compile: page identity disagrees with the request (effect=${results.compileIdentity.effect.observed}, backend=${results.compileIdentity.backend.observed}, graph=${results.compileIdentity.graph.status})`)
-            if (options.strictIdentity) results.identityMismatch = true
-        } else if (results.compileIdentity.status === 'match') {
-            console.log(`  ℹ compile: page identity confirmed (effect=${results.compileIdentity.effect.observed}, backend=${results.compileIdentity.backend_name.observed}, graph=${results.compileIdentity.graph.passes} passes)`)
-        } else if (options.verbose && results.compileIdentity) {
-            console.log(`  ℹ compile: identity_check=${JSON.stringify(results.compileIdentity)}`)
-        }
-    } catch (err) {
-        console.log(`  ℹ compile: identity check failed (${err?.message || err})`)
-    }
-
     results.compile = compileResult.status
 
     if (compileResult.status === 'error') {
@@ -1159,34 +758,8 @@ async function testEffect(session, effectId, options) {
     results.isNoAnimation = renderResult.metrics?.is_no_animation ?? null
     results.isLowVariety = renderResult.metrics?.is_low_variety ?? null
 
-    // GAP-021: report the requested-vs-returned frame resolution whenever a
-    // `resolution` was requested. A mismatch is an informational warning by
-    // default (returned frame dimensions remain authoritative); it becomes a
-    // failure only behind the explicit `--strict-resolution` opt-in.
-    results.resolutionMismatch = false
-    const resolutionCheck = renderResult.resolution_check
-    if (renderResult.status === 'ok' && resolutionCheck) {
-        if (resolutionCheck.status === 'mismatch') {
-            console.log(`  ⚠ render: ${resolutionCheck.warning} (returned frame dimensions are authoritative)`)
-            if (options.strictResolution) results.resolutionMismatch = true
-        } else if (resolutionCheck.status === 'match') {
-            console.log(`  ℹ render: returned frame ${resolutionCheck.returned[0]}x${resolutionCheck.returned[1]} matches the requested resolution`)
-        }
-    }
-
-    // GAP-024: report the page-confirmed identity on every render result.
-    // The wrapper binds its own readiness to the requested effect and
-    // compiled graph; on the upstream-verb path the post-hoc check is what
-    // exposes an `ok` that describes a previously ready graph or an
-    // unintended backend. A mismatch is informational by default and gates
-    // only behind the explicit `--strict-identity` opt-in.
-    results.renderIdentity = renderResult.identity_check ?? null
-    if (renderResult.identity_check?.status === 'mismatch') {
-        const check = renderResult.identity_check
-        console.log(`  ⚠ render: page identity disagrees with the request (effect=${check.effect.observed}, backend=${check.backend.observed}, graph=${check.graph.status}${check.backend_switch.status === 'timeout' ? ', backend switch timeout' : ''})`)
-        if (options.strictIdentity) results.identityMismatch = true
-    } else if (options.verbose && renderResult.identity_check) {
-        console.log(`  ℹ render: identity_check=${JSON.stringify(renderResult.identity_check)}`)
+    if (renderResult.warning) {
+        console.log(`  ⚠ render: ${renderResult.warning} (returned frame dimensions are authoritative)`)
     }
 
     // OPT-IN low-variety gate (--low-variety). Never applied by default;
@@ -1241,66 +814,29 @@ async function testEffect(session, effectId, options) {
     // Uniform responsiveness test
     if (options.runUniforms) {
         t0 = Date.now()
-        const uniformResult = await annotateVerbIdentity(session, effectId, () =>
-            testUniformResponsiveness(session, effectId))
+        const uniformResult = await testUniformResponsiveness(session, effectId)
         timings.push(`uniforms:${Date.now() - t0}ms`)
-        const uniformAggregate = aggregateUniformResponsiveness(uniformResult)
-        // Default gate keeps the upstream outer-status semantics; the
-        // explicit `--strict-uniforms` opt-in uses the truthful
-        // per-entry aggregate (GAP-010), so previously accepted effects
-        // are only newly rejected behind the opt-in.
-        const uniformStatus = resolveUniformGateStatus(options.strictUniforms, uniformResult.status, uniformAggregate.status)
-        results.uniforms = uniformStatus
-        results.uniformsAggregate = uniformAggregate.status
-        results.uniformsIdentity = uniformResult.identity_check ?? null
+        results.uniforms = uniformResult.status
+        const tested = uniformResult.tested_uniforms || []
 
-        if (uniformStatus === 'skipped') {
+        if (uniformResult.status === 'skipped') {
             console.log(`  ⊘ uniforms: ${uniformResult.details}`)
-        } else if (uniformStatus === 'ok') {
-            console.log(`  ✓ uniforms: ${uniformResult.tested_uniforms.join(', ')}`)
+        } else if (uniformResult.status === 'ok') {
+            console.log(`  ✓ uniforms: ${tested.join(', ')}`)
         } else {
             results.uniformsFailed = true
-            console.log(`  ❌ uniforms: ${uniformResult.details} [${uniformResult.tested_uniforms.join(', ')}]`)
-        }
-        if (options.strictUniforms && uniformAggregate.status !== uniformStatus) {
-            console.log(`  ℹ uniforms aggregate: ${uniformAggregate.status}`)
+            console.log(`  ❌ uniforms: ${uniformResult.details ?? uniformResult.error} [${tested.join(', ')}]`)
         }
 
-        // GAP-011: repository-side re-measurement reports the measured luma
-        // and per-channel deltas, so the >0.002 threshold is auditable from
-        // the report alone (the upstream tool reports only pass/fail strings).
-        // Informational only — this never changes the default gate.
-        let measuredUniforms = null
-        try {
-            measuredUniforms = await measureUniformDeltasForSession(session)
-            timings.push(`uniform-deltas:${Date.now() - t0}ms`)
-        } catch (err) {
-            console.log(`  ℹ uniform deltas: measurement failed (${err?.message || err})`)
-        }
-        if (measuredUniforms && Array.isArray(measuredUniforms.uniform_deltas)) {
-            const measuredStatus = classifyMeasuredUniforms(measuredUniforms)
-            results.uniformDeltas = measuredUniforms.uniform_deltas
-            results.uniformDeltasStatus = measuredStatus
-            if (measuredUniforms.uniform_deltas.length > 0) {
-                console.log(
-                    `  ℹ uniform deltas (threshold ${measuredUniforms.threshold ?? UNIFORM_RESPONSE_THRESHOLD}): ` +
-                    measuredUniforms.uniform_deltas
-                        .map((d) => d.responds === null
-                            ? `${d.name} capture-failed`
-                            : `${d.name} luma=${d.luma_diff.toFixed(6)} channel=${d.max_channel_diff.toFixed(6)} ${d.responds ? 'responds' : 'flat'}`)
-                        .join(', '),
-                )
-            } else {
-                console.log(`  ⊘ uniform deltas: ${measuredUniforms.details}`)
-            }
-            const audit = auditUniformResponsiveness(uniformResult, measuredUniforms)
-            results.uniformAuditMismatches = audit.mismatches
-            if (audit.mismatches.length > 0) {
-                console.log(
-                    `  ℹ uniforms audit: upstream verdict differs from measured deltas: ` +
-                    audit.mismatches.map((m) => `${m.name} upstream=${m.upstream} measured=${m.measured}`).join(', '),
-                )
-            }
+        // Measured deltas against the verb's threshold, from its own result.
+        const measured = (uniformResult.uniforms || []).filter((u) => typeof u.luma_diff === 'number')
+        if (measured.length > 0) {
+            console.log(
+                `  ℹ uniform deltas (threshold ${uniformResult.threshold}): ` +
+                measured
+                    .map((u) => `${u.name} luma=${u.luma_diff.toFixed(6)} channel=${u.max_channel_diff.toFixed(6)} ${u.responds ? 'responds' : 'flat'}`)
+                    .join(', '),
+            )
         }
     }
 
@@ -1313,11 +849,9 @@ async function testEffect(session, effectId, options) {
             results.passthrough = 'skipped'
             console.log(`  ⊘ passthrough: exempt (effect preserves average colors by design)`)
         } else {
-            const passthroughResult = await annotateVerbIdentity(session, effectId, () =>
-                testNoPassthrough(session, effectId))
+            const passthroughResult = await testNoPassthrough(session, effectId)
             timings.push(`passthrough:${Date.now() - t0}ms`)
             results.passthrough = passthroughResult.status
-            results.passthroughIdentity = passthroughResult.identity_check ?? null
 
             if (passthroughResult.status === 'skipped') {
                 console.log(`  ⊘ passthrough: ${passthroughResult.details}`)
@@ -1333,69 +867,12 @@ async function testEffect(session, effectId, options) {
         }
     }
 
-    // True input-passthrough probe (GAP-019, OPT-IN via --passthrough-input).
-    // The upstream verb varies time and counts colors; it never reads the
-    // input texture the effect consumes, and in noisemaker's expanded graphs
-    // its `input`-substring classification matches nothing (every pass input
-    // value is a concrete texture id like `node_0_out`), so the upstream
-    // check above reports `skipped` for every effect. This probe measures
-    // the real output-to-input difference instead. Its verdict only fails
-    // effects behind this explicit opt-in; the default gate is unchanged.
-    if (options.runPassthroughInput) {
-        t0 = Date.now()
-        try {
-            const probe = await measureInputPassthroughForSession(session)
-            timings.push(`passthrough-input:${Date.now() - t0}ms`)
-            results.passthroughInput = probe
-
-            if (probe.status === 'skipped') {
-                console.log(`  ⊘ passthrough-input: ${probe.details}`)
-            } else if (probe.status === 'error') {
-                results.passthroughInputFailed = true
-                console.log(`  ❌ passthrough-input: ${probe.details}`)
-            } else if (probe.is_input_passthrough) {
-                results.passthroughInputFailed = true
-                console.log(
-                    `  ❌ TRUE INPUT PASSTHROUGH: output matches consumed input ` +
-                    `(${probe.input_texture_id}, min diff ${probe.min?.toFixed(6)} <= ${probe.threshold})`,
-                )
-            } else {
-                console.log(
-                    `  ✓ passthrough-input: output differs from consumed input ` +
-                    `(${probe.input_texture_id}, diff ${probe.mean_abs_diff?.toFixed(6)}, ` +
-                    `flipped ${probe.mean_abs_diff_flipped?.toFixed(6)}, ${probe.samples} samples)`
-                )
-            }
-            if (typeof probe.control_is_passthrough === 'boolean') {
-                console.log(
-                    `  ℹ passthrough-input control (write blit): diff ` +
-                    `${probe.control_mean_abs_diff?.toFixed(6)} → ` +
-                    `${probe.control_is_passthrough ? 'passthrough detected (control healthy)' : 'control FAILED to detect a true passthrough'}`,
-                )
-                if (!probe.control_is_passthrough) {
-                    results.passthroughInputFailed = true
-                }
-            }
-        } catch (err) {
-            timings.push(`passthrough-input:${Date.now() - t0}ms`)
-            results.passthroughInput = { status: 'error', threshold: INPUT_PASSTHROUGH_DIFF_MAX, details: String(err?.message || err) }
-            results.passthroughInputFailed = true
-            console.log(`  ❌ passthrough-input: probe failed (${err?.message || err})`)
-        }
-    }
-
     // Pixel parity test (GLSL ↔ WGSL)
     if (options.runPixelParity) {
         t0 = Date.now()
-        // GAP-024: annotate the parity result with the page-confirmed
-        // effect/graph identity at result time. The upstream verb switches
-        // backends internally, so the request carries no backend label —
-        // backend identity stays `unknown` rather than a false mismatch.
-        const pixelParityResult = await annotateVerbIdentity(session, effectId, () =>
-            testPixelParity(session, effectId, { epsilon: 1 }), { backend: null })
+        const pixelParityResult = await testPixelParity(session, effectId, { epsilon: 1 })
         timings.push(`pixel-parity:${Date.now() - t0}ms`)
         results.pixelParity = pixelParityResult.status
-        results.pixelParityIdentity = pixelParityResult.identity_check ?? null
 
         if (pixelParityResult.status === 'skipped') {
             console.log(`  ⊘ pixel-parity: ${pixelParityResult.details}`)
@@ -1423,80 +900,45 @@ async function testEffect(session, effectId, options) {
         // then time a fixed number of steady-state frames and report FPS from
         // the MEDIAN frame time, which is unaffected by the rare stall outliers.
         // The 30 fps floor is unchanged; effects that genuinely sustain <30 fps
-        // still fail. The vendored benchmark bundle is left untouched.
-        // GAP-024: the benchmark's own selection is bound to the requested
-        // effect and compiled graph (generation-advanced readiness), not to
-        // status text, and the measured frames are annotated with the
-        // page-confirmed identity record.
-        const benchGenerationBefore = await captureGeneration(session)
-        await session.page.evaluate((id) => {
-            const select = document.getElementById('effect-select')
-            if (select) { select.value = id; select.dispatchEvent(new Event('change')) }
-        }, effectId)
-        await session.page.waitForFunction(identityReadyInPage, {
-            globals: session.globals,
-            target: { effect: effectId, generation: benchGenerationBefore },
-        }, { timeout: 3e5 })
-        const benchResult = await session.page.evaluate(({ warm, measure }) => new Promise((resolve) => {
-            const frames = []
-            let last = performance.now(), seen = 0
-            function onFrame() {
-                const now = performance.now(); const dt = now - last; last = now; seen++
-                if (seen > warm) frames.push(dt)           // drop startup/compile transient
-                if (frames.length >= measure) {
-                    const sorted = frames.slice().sort((a, b) => a - b)
-                    const median = sorted[Math.floor(sorted.length / 2)] || 1
-                    const mean = frames.reduce((a, b) => a + b, 0) / frames.length
-                    let mx = 0; for (const f of frames) if (f > mx) mx = f
-                    resolve({
-                        fps: Math.round(1e5 / median) / 100,       // median frame time -> robust FPS
-                        meanFps: Math.round(1e5 / mean) / 100,
-                        maxFrameMs: Math.round(mx * 100) / 100,
-                    })
-                    return
+        // still fail. The session's selectEffect() waits for a graph built
+        // after this selection and confirms the page shows the effect.
+        const selection = await session.selectEffect(effectId)
+        if (selection.status !== 'ok') {
+            timings.push(`benchmark:${Date.now() - t0}ms`)
+            results.benchmarkFailed = true
+            console.log(`  ❌ benchmark: ${selection.message}`)
+        } else {
+            const benchResult = await session.page.evaluate(({ warm, measure }) => new Promise((resolve) => {
+                const frames = []
+                let last = performance.now(), seen = 0
+                function onFrame() {
+                    const now = performance.now(); const dt = now - last; last = now; seen++
+                    if (seen > warm) frames.push(dt)           // drop startup/compile transient
+                    if (frames.length >= measure) {
+                        const sorted = frames.slice().sort((a, b) => a - b)
+                        const median = sorted[Math.floor(sorted.length / 2)] || 1
+                        const mean = frames.reduce((a, b) => a + b, 0) / frames.length
+                        let mx = 0; for (const f of frames) if (f > mx) mx = f
+                        resolve({
+                            fps: Math.round(1e5 / median) / 100,       // median frame time -> robust FPS
+                            meanFps: Math.round(1e5 / mean) / 100,
+                            maxFrameMs: Math.round(mx * 100) / 100,
+                        })
+                        return
+                    }
+                    requestAnimationFrame(onFrame)
                 }
                 requestAnimationFrame(onFrame)
+            }), { warm: 20, measure: 100 })
+            timings.push(`benchmark:${Date.now() - t0}ms`)
+            results.benchmark = benchResult.fps
+            results.benchmarkStats = benchResult
+            if (benchResult.fps < 30) {
+                results.benchmarkFailed = true
+                console.log(`  ❌ benchmark: ${benchResult.fps} fps sustained (below 30 fps target) [mean ${benchResult.meanFps}, max frame ${benchResult.maxFrameMs}ms]`)
+            } else {
+                console.log(`  ✓ benchmark: ${benchResult.fps} fps sustained (mean ${benchResult.meanFps}, max frame ${benchResult.maxFrameMs}ms)`)
             }
-            requestAnimationFrame(onFrame)
-        }), { warm: 20, measure: 100 })
-        timings.push(`benchmark:${Date.now() - t0}ms`)
-        // GAP-024: annotate the measured frames with the page-confirmed
-        // identity record; a mismatch gates only behind --strict-identity.
-        try {
-            benchResult.identity_check = classifyIdentity(
-                { effect: effectId, backend: session.backend, generation_before: benchGenerationBefore },
-                await collectPageIdentity(session),
-            )
-            if (strictIdentityFailed(benchResult.identity_check)) {
-                console.log(`  ⚠ benchmark: page identity disagrees with the request (effect=${benchResult.identity_check.effect.observed}, backend=${benchResult.identity_check.backend.observed}, graph=${benchResult.identity_check.graph.status})`)
-                if (options.strictIdentity) results.identityMismatch = true
-            }
-        } catch (err) {
-            console.log(`  ℹ benchmark: identity check failed (${err?.message || err})`)
-        }
-        results.benchmark = benchResult.fps
-        results.benchmarkStats = benchResult
-        if (benchResult.fps < 30) {
-            results.benchmarkFailed = true
-            console.log(`  ❌ benchmark: ${benchResult.fps} fps sustained (below 30 fps target) [mean ${benchResult.meanFps}, max frame ${benchResult.maxFrameMs}ms]`)
-        } else {
-            console.log(`  ✓ benchmark: ${benchResult.fps} fps sustained (mean ${benchResult.meanFps}, max frame ${benchResult.maxFrameMs}ms)`)
-        }
-    }
-
-    // GAP-024: consolidated strict gate. Every collected identity_check is
-    // informational by default; a classified mismatch fails the run only
-    // behind the explicit --strict-identity opt-in.
-    if (options.strictIdentity) {
-        const identityChecks = [
-            results.compileIdentity,
-            results.renderIdentity,
-            results.uniformsIdentity,
-            results.passthroughIdentity,
-            results.pixelParityIdentity,
-        ]
-        if (identityChecks.some((check) => strictIdentityFailed(check))) {
-            results.identityMismatch = true
         }
     }
 
@@ -1685,8 +1127,6 @@ async function main() {
             if (r.isEssentiallyBlank) return false
             if (r.isAllTransparent) return false
             if (r.isLowVarietyFailed) return false
-            if (r.resolutionMismatch) return false
-            if (r.identityMismatch) return false
             if (r.consoleErrors?.length > 0) return false
             if (r.uniformsFailed) return false
             if (r.passthroughFailed) return false
@@ -1709,12 +1149,9 @@ async function main() {
             if (r.isEssentiallyBlank) return true
             if (r.isAllTransparent) return true
             if (r.isLowVarietyFailed) return true
-            if (r.resolutionMismatch) return true
-            if (r.identityMismatch) return true
             if (r.consoleErrors?.length > 0) return true
             if (r.uniformsFailed) return true
             if (r.passthroughFailed) return true
-            if (r.passthroughInputFailed) return true
             if (r.pixelParityFailed) return true
             if (r.benchmarkFailed) return true
             if (r.visionFailed) return true
@@ -1739,12 +1176,9 @@ async function main() {
                 if (r.isEssentiallyBlank) reasons.push('blank output')
                 if (r.isAllTransparent) reasons.push('transparent output')
                 if (r.isLowVarietyFailed) reasons.push('low-variety output')
-                if (r.resolutionMismatch) reasons.push('requested-vs-returned resolution mismatch')
-                if (r.identityMismatch) reasons.push('page identity disagrees with the request')
                 if (r.consoleErrors?.length > 0) reasons.push(`${r.consoleErrors.length} console error(s)`)
                 if (r.uniformsFailed) reasons.push('uniforms unresponsive')
                 if (r.passthroughFailed) reasons.push('passthrough (no-op)')
-                if (r.passthroughInputFailed) reasons.push('true input passthrough')
                 if (r.pixelParityFailed) reasons.push('GLSL/WGSL pixel mismatch')
                 if (r.benchmarkFailed) reasons.push('below target FPS')
                 if (r.visionFailed) reasons.push('vision check failed')

@@ -870,7 +870,7 @@ export function validate(ast) {
                 // Handle Subchain node (first-class grouping of contiguous effects)
                 if (original.type === 'Subchain') {
                     // Surface parser-attached subchain-argument reports
-                    // (GAP-027) once per subchain node, in source order.
+                    // once per subchain node, in source order.
                     const argDiagnostics = original.subchainArgumentDiagnostics
                     if (Array.isArray(argDiagnostics)) {
                         for (const report of argDiagnostics) {

@@ -433,7 +433,7 @@ test('replaceEffect - replace inline surface producer starter with non-starter (
 })
 
 // ============================================================================
-// Replacement preflight prediction tests (GAP-008)
+// Replacement preflight prediction tests
 // ============================================================================
 
 import { registerEffect } from '../src/runtime/registry.js'

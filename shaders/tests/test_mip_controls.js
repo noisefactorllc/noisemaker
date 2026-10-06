@@ -1,8 +1,7 @@
 /**
- * Regression tests for the mip and persistent-across-frames texture controls
- * (GAP-004).
+ * Regression tests for the mip and persistent-across-frames texture controls.
  *
- * The register row describes three missing authoring/query controls:
+ * These pin the texture authoring and query controls:
  *   - mip policy: definition-level 2D `mipmaps` (full mip chain allocation +
  *     per-frame regeneration from the frame's level-0 writes);
  *   - persistence: definition-level `persistent` (contents preserved through

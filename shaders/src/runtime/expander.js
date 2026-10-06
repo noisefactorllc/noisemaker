@@ -700,7 +700,7 @@ export function expand(compilationResult, options = {}) {
                     workgroups: passDef.workgroups,
                     storageBuffers: passDef.storageBuffers,
                     storageTextures: passDef.storageTextures,
-                    // GAP-005: pass labels and per-pass execution controls are
+                    // Pass labels and per-pass execution controls are
                     // copied verbatim. `name`/`type` stay queryable metadata
                     // (backend shader-kind dispatch remains source-derived);
                     // `viewport` is resolved to backend x/y/w/h numbers by

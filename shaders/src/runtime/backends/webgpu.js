@@ -158,7 +158,7 @@ export class WebGPUBackend extends Backend {
         this._uniformDataView = new DataView(this._uniformBufferData)
         this._uniformBufferSize = 512
 
-        // Structured diagnostics for device-validation failures (GAP-007)
+        // Structured diagnostics for device-validation failures
         this.diagnostics = new DiagnosticCollector()
 
         // Listen for uncaptured errors
@@ -2298,7 +2298,7 @@ export class WebGPUBackend extends Backend {
             return { x: 0, y: 0, w: tex.width, h: tex.height }
         }
 
-        // Authored viewport resolution (GAP-005): the pipeline-resolved
+        // Authored viewport resolution: the pipeline-resolved
         // numbers take precedence over a raw spec; a manually supplied
         // numeric viewport keeps its legacy direct read.
         const viewport = pass.viewportResolved || pass.viewport

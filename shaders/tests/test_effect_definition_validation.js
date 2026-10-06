@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { validateEffectDefinition } from '../src/runtime/effect-validator.js'
 import { Effect } from '../src/runtime/effect.js'
 
-// GAP-003: full definition-grammar validation contract.
+// Full definition-grammar validation contract.
 //
 // validateEffectDefinition(def) is a deterministic, side-effect-free structure
 // check over the definition schema actually consumed by effect.js, expander.js,

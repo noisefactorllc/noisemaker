@@ -1,8 +1,8 @@
 /**
- * Regression tests for the production lifecycle hooks (GAP-026).
+ * Regression tests for the production lifecycle hooks.
  *
- * The register row describes onInit/onUpdate/onDestroy being copied into the
- * Effect wrappers but never invoked by the production renderer — only the
+ * onInit/onUpdate/onDestroy used to be copied into the Effect wrappers but
+ * never invoked by the production renderer — only the
  * test harness (shaders/tests/harness_effect.js) called them, so an authored
  * config callback could look valid but never run in production.
  *
@@ -109,8 +109,8 @@ function registerProbe(instance) {
     if (isStarter) registerStarterOps([`synth.${instance.func}`])
 }
 
-// Config-authored hooks: exactly the shape the register row describes —
-// callbacks in the effect definition config, copied into the Effect wrapper.
+// Config-authored hooks: callbacks in the effect definition config, copied
+// into the Effect wrapper.
 const configCalls = { init: 0, update: [], destroy: 0 }
 const configProbeDef = probeSource()
 configProbeDef.func = 'lifecycleProbeConfig'

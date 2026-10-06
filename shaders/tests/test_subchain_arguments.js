@@ -4,7 +4,7 @@ import { compile, lex, parse, unparse, validate } from '../src/lang/index.js'
 import { registerOp } from '../src/lang/ops.js'
 import { registerStarterOps } from '../src/lang/validator.js'
 
-// GAP-027: subchain-argument validation contract.
+// Subchain-argument validation contract.
 //
 // Enforced key set: `name` and `id` (string-literal values). A single leading
 // positional string literal is shorthand for `name`. Unknown keys are

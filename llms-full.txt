@@ -15,13 +15,13 @@ and WebGPU backends and must not be cited as evidence for an external port.
 Source snapshots used for this contract:
 
 - Noisemaker: `e2144d206b209ee0c241ef3b604bf1832f2c33ab`.
-- Shade MCP: `5ff3dcf36385c2ad4d7708e90d52f5ce270708df`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.4.1`, protocol
+- Shade MCP: `2e9deeca806c25984a36f06f90cbf124ee4f7839`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.4.2`, protocol
   `2025-06-18` (negotiated down to `2024-11-05` for clients that request it),
   with 18 tools returned by `tools/list`.
 - The repository config runs
-  `npx -y github:noisedeck/shade-mcp#5ff3dcf36385c2ad4d7708e90d52f5ce270708df`,
-  matching release v0.4.1 delivered to `vendor/shade-mcp/`.
+  `npx -y github:noisedeck/shade-mcp#2e9deeca806c25984a36f06f90cbf124ee4f7839`,
+  matching release v0.4.2 delivered to `vendor/shade-mcp/`.
 
 Primary source roots:
 
@@ -1295,11 +1295,12 @@ The test value is `min + 0.75*(max-min)` when default equals min, otherwise
 `min + 0.25*(max-min)`. `int` is rounded.
 
 The tool's overall status is `ok` only when at least one uniform was tested
-and every tested uniform responded. It is `skipped` when none is testable and
-`error` when any uniform failed or could not be measured. The repository's
-`aggregateUniformResponsiveness()` (`shaders/tests/uniform-status.js`) still
-checks every `tested_uniforms` entry; the harness gates a run on that aggregate
-behind `--strict-uniforms` and records independent per-uniform deltas.
+and every tested uniform responded. It is `skipped` when none is testable,
+`error` when any tested uniform could not be measured, and otherwise `fail`
+when a measured uniform did not affect output. Each tested uniform is also
+reported in `uniforms` with its test value and measured deltas, and the
+result carries the `threshold`. The repository harness gates `--uniforms` on
+this status and prints the measured deltas.
 
 Sources: `shaders/src/lang/validator.js` - `clamp()`, numeric arguments, and
 automation compilation; `shaders/src/runtime/external-input.js` - selected
@@ -2353,10 +2354,9 @@ readback — the same value handed to `setPausedTime`, which is what a paused
 single-frame render draws. A time-less request keeps the historical
 live-frame readback (the last frame the running loop drew), which is
 nondeterministic with the capture moment; a timed request reproduces
-byte-identically per requested time. The repository's harness
-`renderEffectFrame` wrapper (`shaders/tests/test-harness.js`) still routes
-every explicit-`time` request through its own page path with the same
-warmup-before-pause ordering, pinned by `shaders/tests/frame-warmup.js`.
+byte-identically per requested time. The repository harness
+(`shaders/tests/test-harness.js`) renders through this verb on both backends
+and adds its temporal metrics to the result.
 
 For direct rendering, use `CanvasRenderer`/`Pipeline`.
 Then read `pipeline.getOutput()` with backend readback.
@@ -2555,9 +2555,10 @@ Captured console messages can appear as `console_errors`, but backend console
 diagnostics are strings rather than typed error objects.
 
 The delivered `renderEffectFrame` reads WebGPU pixels through
-`backend.readPixels()` and drains its command queue before reading. Direct MCP
-WebGPU calls and Noisemaker's vendored test harness both have a readback path;
-the latter retains its own surface candidate order and additive metrics.
+`backend.readPixels()` and drains its command queue before reading. It reads
+the half of the render surface's ping-pong pair that the last frame presented
+(`pipeline.frameReadTextures`), then `global_<surface>_read`, then the last
+node output. The repository harness uses this verb on both backends.
 When `resolution` is requested, the verb echoes `requested_resolution` and
 includes a `warning` with requested and actual dimensions if the viewer did
 not honor it. The returned frame dimensions are authoritative.
@@ -3144,9 +3145,7 @@ surface through the backend's async reader, and samples about 1000 pixels.
 `similarity` is the normalized mean absolute RGB difference, despite its name:
 the output modifies its input and returns `ok` only when `similarity > 0.01`.
 Otherwise the status is `passthrough`. Nonfilters return `skipped` with `Not a
-filter effect`. The comparison works on WebGL2 and WebGPU. Noisemaker's
-`--passthrough-input` opt-in remains an independent probe with a write-blit
-positive control.
+filter effect`. The comparison works on WebGL2 and WebGPU.
 
 Source: Shade MCP `src/tools/browser/passthrough.ts` - schema and
 `testNoPassthrough()`.
@@ -4127,7 +4126,7 @@ program expansion.
 
 <!-- WORKED:MCP-REQUESTS -->
 
-One configured-pin session returned server `shade-mcp` version `0.4.1` and
+One configured-pin session returned server `shade-mcp` version `0.4.2` and
 listed 18 tools. All eight calls ran in that session, none returning MCP
 `isError`; the passthrough call returned the expected domain status `skipped`
 (`outcome:"skipped"`) because this is a source effect. On hosts where the
@@ -4159,7 +4158,7 @@ capture; these are the values from this session):
 {"outcome":"ok","effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"uniforms":[{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":5,"luma_diff":0.009534835815429688,"max_channel_diff":0.009534835815429688,"responds":true}],"threshold":0.002,"details":"Uniforms affect output","backend":"WebGL2"}
 {"outcome":"skipped","effect_id":"synth/testPattern","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2"}
 {"outcome":"ok","effect_id":"synth/testPattern","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":90,"height":90},"warning":"Requested resolution 256x256 but measured 90x90; the viewer did not honor the requested resolution","achieved_fps":60.45,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.54,"jitter_ms":0.94,"min_frame_time_ms":11.5,"max_frame_time_ms":17.7}}
+{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":90,"height":90},"warning":"Requested resolution 256x256 but measured 90x90; the viewer did not honor the requested resolution","achieved_fps":60.5,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.53,"jitter_ms":0.88,"min_frame_time_ms":10,"max_frame_time_ms":17.1}}
 ```
 
 The structure scan has no issues and reports the one declared effect pass.

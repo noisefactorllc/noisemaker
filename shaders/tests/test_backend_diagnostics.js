@@ -1,9 +1,5 @@
 /**
- * Regression tests for the unified backend diagnostic union (GAP-007).
- *
- * The register row: "Backend shader/compiler failures are not normalized to
- * one structured diagnostic union — backend retry logic must parse
- * browser/compiler strings."
+ * Regression tests for the unified backend diagnostic union.
  *
  * Before the fix the WebGL2 and WebGPU backends threw ad-hoc plain object
  * literals (`{ code, detail, ... }`) from their compile/link paths and the
@@ -345,7 +341,7 @@ test('bind-group creation without a binding-index diagnostic is not retried', as
 })
 
 // ---------------------------------------------------------------------------
-// Part 5: the remaining GAP-007 bypass paths — the WebGL2 uniform-block
+// Part 5: the WebGL2 uniform-block
 // device-limit throw and the silent WebGL format / dimension fallbacks
 // ---------------------------------------------------------------------------
 

@@ -54,7 +54,7 @@ function oscSquare(t) {
     return (t - Math.floor(t)) >= 0.5 ? 1.0 : 0.0
 }
 
-// Lifecycle-hook detection (GAP-026): an effect carries a real hook when the
+// Lifecycle-hook detection: an effect carries a real hook when the
 // config constructor stored a config callback or a subclass (or a plain
 // registered object) defines a function for it. The base-class no-ops and
 // missing keys must never count — plain-object definitions registered via
@@ -562,7 +562,7 @@ export class Pipeline {
         }
         this._disposed = false
         // Queryable structured diagnostics for the historically-silent
-        // unknown-dimension-form fallback (GAP-007).
+        // unknown-dimension-form fallback.
         this.diagnostics = new DiagnosticCollector()
         this._warnedDimensionFallbacks = new Set()
         this.frameIndex = 0
@@ -611,7 +611,7 @@ export class Pipeline {
         // Track effect instances for asyncInit lifecycle
         this._asyncRenders = new Map()  // nodeId → cancel function
 
-        // Production lifecycle hooks (GAP-026): effects in the current graph
+        // Production lifecycle hooks: effects in the current graph
         // that carry onInit/onUpdate/onDestroy, keyed by effectKey. Rebuilt
         // whenever the graph is (re)compiled; onInit fires once per pipeline.
         this._lifecycleEffects = new Map()
@@ -774,7 +774,7 @@ export class Pipeline {
     }
 
     /**
-     * Production lifecycle hooks (GAP-026).
+     * Production lifecycle hooks.
      * Called after texture allocation, on resize, and on hot recompile (the
      * same sites as initAsyncEffects()). Rebuilds the managed-effect map from
      * the current graph and calls onInit() once per effect instance per
@@ -1143,7 +1143,7 @@ export class Pipeline {
 
     /**
      * Static preflight of this pipeline's effect graph against device
-     * capabilities (GAP-016). Runs the same analysis as
+     * capabilities. Runs the same analysis as
      * preflightEffect() — per-backend authorability, predicted MRT
      * format demotions, and predicted maxTextureSize clamps — before any
      * program is compiled. Read-only; never mutates the graph.
@@ -2065,7 +2065,7 @@ export class Pipeline {
         // 'input' and 'resolution' are validator-accepted dimension keywords
         // (DIM_KEYWORDS in effect-validator.js) whose historical resolution
         // is the screen dimension; they are recognized forms, not unknown
-        // fallbacks, so they add no diagnostic (GAP-007).
+        // fallbacks, so they add no diagnostic.
         if (spec === 'screen' || spec === 'auto' || spec === 'input' || spec === 'resolution') {
             return screenSize
         }
@@ -2132,7 +2132,7 @@ export class Pipeline {
 
         // Unknown dimension forms keep the historical screen-size fallback
         // (no new rejection of previously accepted input), but surface it as
-        // a structured diagnostic (GAP-007) instead of pure silence. An
+        // a structured diagnostic instead of pure silence. An
         // absent spec is a default, not an unknown form.
         if (spec !== undefined && spec !== null) {
             let key = typeof spec === 'object' ? null : String(spec)
@@ -2195,7 +2195,7 @@ export class Pipeline {
         // Update global uniforms
         this.updateGlobalUniforms(time, deltaTime)
 
-        // Production lifecycle hooks (GAP-026): per-effect onUpdate, and the
+        // Production lifecycle hooks: per-effect onUpdate, and the
         // uniforms each hook returns are bound over the pass uniforms below.
         this._invokeUpdateHooks(time, deltaTime)
 
@@ -2219,7 +2219,7 @@ export class Pipeline {
             try {
                 for (let i = 0; i < this.graph.passes.length; i++) {
                     const originalPass = this.graph.passes[i]
-                    // Resolve authored viewport specs (GAP-005) before the
+                    // Resolve authored viewport specs before the
                     // oscillator proxy is built so the proxy can carry the
                     // cached resolved box; re-resolve after uniform
                     // resolution so param-driven viewports track the
@@ -2231,7 +2231,7 @@ export class Pipeline {
                     if (originalPass.viewport !== undefined) {
                         this.resolvePassViewport(pass, originalPass)
                     }
-                    // Bind onUpdate-returned uniforms (GAP-026). Fallback
+                    // Bind onUpdate-returned uniforms. Fallback
                     // semantics: a returned uniform binds only when the pass
                     // does not already resolve that key, so authored and
                     // step-provided values keep priority. Rare: only effects
@@ -2518,8 +2518,8 @@ export class Pipeline {
     }
 
     /**
-     * Resolve an authored pass viewport spec to backend {x, y, w, h} numbers
-     * (GAP-005). The authored spec accepts the same dimension grammar as
+     * Resolve an authored pass viewport spec to backend {x, y, w, h} numbers.
+     * The authored spec accepts the same dimension grammar as
      * texture sizes (numbers, 'screen', percentages, {param}/{screenDivide}/
      * {scale, clamp} forms) on the x/y/w/h/width/height keys. Resolution is
      * cached per pass: the reusable box is mutated in place each frame so
@@ -2794,7 +2794,7 @@ export class Pipeline {
             if (!firstError) firstError = error
         }
 
-        // Production lifecycle hooks (GAP-026): every managed effect's
+        // Production lifecycle hooks: every managed effect's
         // onDestroy runs before backend teardown; hook errors join the
         // existing dispose error path instead of masking cleanup.
         if (this._lifecycleEffects && this._lifecycleEffects.size > 0) {

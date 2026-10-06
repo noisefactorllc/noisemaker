@@ -1,5 +1,5 @@
 /**
- * Regression test for effect preflight (GAP-016).
+ * Regression test for effect preflight.
  *
  * preflightEffect(definition, capabilities, shaders) statically reports,
  * before any pipeline initialization or compilation:

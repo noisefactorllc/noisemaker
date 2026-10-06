@@ -578,7 +578,7 @@ test('valid subchains preserve permissive arguments, defaults, body and compiled
     }
 })
 
-// GAP-027: permissive subchain arguments keep their accepted parse and
+// Permissive subchain arguments keep their accepted parse and
 // compiled shape and now carry stable machine-readable reports (P008 unknown
 // key, P009 duplicate key, P010 missing separator). The unknown key is still
 // discarded and the last duplicate value still wins.

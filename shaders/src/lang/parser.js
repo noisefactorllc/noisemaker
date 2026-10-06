@@ -47,7 +47,7 @@ import diagnostics from './diagnostics.js'
 
 export function parse(tokens, options = {}) {
     let current = 0
-    // GAP-027: opt-in strict subchain-argument validation. Default parsing
+    // Opt-in strict subchain-argument validation. Default parsing
     // acceptance is unchanged; strict mode rejects unknown keys, duplicate
     // keys, and missing separators with stable diagnostic codes.
     const strictSubchainArguments = options.subchainArguments === 'strict'
@@ -840,7 +840,7 @@ export function parse(tokens, options = {}) {
      * The inner chain elements start with dots and are chained together.
      * The subchain as a whole is chainable - it takes input and produces output.
      */
-    // GAP-027: subchain arguments accept exactly these keyword keys. A single
+    // Subchain arguments accept exactly these keyword keys. A single
     // leading positional string literal is shorthand for `name`. Anything
     // else is historically accepted but discarded, and is now reported.
     const SUBCHAIN_KEYS = ['name', 'id']

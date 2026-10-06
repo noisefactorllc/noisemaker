@@ -1,8 +1,8 @@
 /**
- * Regression tests for the uncopied pass-field propagation (GAP-005).
+ * Regression tests for the uncopied pass-field propagation.
  *
- * The register row describes five pass fields that `expand()` dropped from the
- * constructed pass object:
+ * These pin five pass fields that `expand()` copies onto the constructed pass
+ * object:
  *   - `name` and `type`: queryable pass labels (backend shader-kind dispatch
  *     stays source-derived);
  *   - `viewport`: per-pass viewport spec (numbers or dimension expressions),

@@ -49,7 +49,7 @@ for (const entry of fixture.corpus) {
     })
 }
 
-test('the recorded baseline is the revision GAP-027 was selected at', () => {
+test('the corpus is recorded against its pinned baseline revision', () => {
     assert.equal(fixture.baselineRevision, '3886ecfa41fdebdf2428f07fec05ab46602c07f2')
     assert.equal(fixture.corpus.length, 18)
 })

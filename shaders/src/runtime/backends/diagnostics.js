@@ -47,7 +47,7 @@ export const DIAGNOSTIC_CODES = Object.freeze({
 /**
  * A capped, queryable collector for structured diagnostics that are recorded
  * rather than thrown — the silent WebGL format and dimension fallbacks
- * (GAP-007) keep their historical behavior (no new rejection) but now surface
+ * keep their historical behavior (no new rejection) but now surface
  * structured records instead of silence.
  */
 export class DiagnosticCollector {

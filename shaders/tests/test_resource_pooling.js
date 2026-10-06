@@ -1,14 +1,9 @@
 /**
- * Regression tests for runtime consumption of the resource allocation plan
- * (GAP-006).
+ * Regression tests for runtime consumption of the resource allocation plan.
  *
- * The register row describes two missing pieces:
- *   - the analyzer's physical allocation plan (graph.allocations, produced by
- *     allocateResources()) was analysis-only: no pipeline/backend consumer
- *     materialized its texture reuse;
- *   - an agent could not query the actual runtime allocation/reuse plan.
- *
- * Closure: Pipeline.getResourcePlan() reports the analyzer plan plus the
+ * The analyzer's physical allocation plan (graph.allocations, produced by
+ * allocateResources()) is consumed at run time and queryable:
+ * Pipeline.getResourcePlan() reports the analyzer plan plus the
  * sharing the renderer actually materialized, and the explicit opt-in
  * `texturePooling: true` makes the pipeline consume the plan — virtual
  * textures with disjoint lifetimes share one backend texture record.

@@ -94,7 +94,7 @@ function getEffectSpec(effectName, searchOrder = []) {
 }
 
 // ============================================================================
-// Replacement preflight prediction (GAP-008)
+// Replacement preflight prediction
 // ============================================================================
 
 /**

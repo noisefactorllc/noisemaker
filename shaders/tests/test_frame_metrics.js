@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * GAP-009 focused regressions: the temporal no-animation and universal
+ * Regression tests for the temporal no-animation and universal
  * low-variety metric predicates returned by the harness's
  * `renderEffectFrame` wrapper (shaders/tests/test-harness.js).
  *
@@ -69,4 +69,4 @@ assert.ok(harnessSource.includes('metrics.is_low_variety'))
 assert.ok(harnessSource.includes("arg === '--low-variety'"))
 assert.ok(!/runLowVariety:\s*true/.test(harnessSource.replace("parsed.runLowVariety = true", '')))
 
-console.log('GAP-009 frame-metric regressions: PASS')
+console.log('frame-metric regressions: PASS')

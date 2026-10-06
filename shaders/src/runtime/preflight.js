@@ -2,13 +2,13 @@
  * Effect preflight — static, side-effect-free analysis of an effect definition
  * against device capabilities.
  *
- * GAP-016: previously, impossible cases (a program with no GLSL source on
- * WebGL2, no WGSL on WebGPU) and device-specific format changes (MRT
- * attachments demoted by the color-attachment byte budget, textures clamped
- * by MAX_TEXTURE_SIZE) were only discovered during pipeline initialization
- * and compilation. preflightEffect() consumes a definition plus a
- * capabilities object — the same shape Pipeline.getCapabilities() returns —
- * and predicts both before anything is compiled:
+ * Impossible cases (a program with no GLSL source on WebGL2, no WGSL on
+ * WebGPU) and device-specific format changes (MRT attachments demoted by the
+ * color-attachment byte budget, textures clamped by MAX_TEXTURE_SIZE) would
+ * otherwise surface only during pipeline initialization and compilation.
+ * preflightEffect() consumes a definition plus a capabilities object — the
+ * same shape Pipeline.getCapabilities() returns — and predicts both before
+ * anything is compiled:
  *
  *   {
  *     backends: {
