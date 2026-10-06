@@ -4,7 +4,7 @@
         "synth/testPattern",
         "classicNoisedeck/coalesce"
     ],
-    "dsl": "search synth, classicNoisedeck\n\ntestPattern(pattern: colorBars).write(o1)\ntestPattern(pattern: gradient).write(o2)\nread(o1).coalesce(tex: read(o2), mix: 0).write(o0)\nrender(o0)",
+    "dsl": "search synth, classicNoisedeck\n\ntestPattern(pattern: colorBars).write(o1)\ntestPattern(pattern: gradient).write(o2)\nread(o1).coalesce(tex: read(o2), mix: 0, refractAAmt: 40, refractADir: 30, refractBAmt: 20, refractBDir: -45).write(o0)\nrender(o0)",
     "surface": "o0",
     "resolution": [
         64,
