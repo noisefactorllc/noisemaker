@@ -1,0 +1,15 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/testPattern",
+        "filter/fibers"
+    ],
+    "dsl": "search synth, filter\n\ntestPattern(pattern: colorBars).fibers(density: 1, alpha: 0, seed: 1).write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}

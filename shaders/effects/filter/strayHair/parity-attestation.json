@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "filter/strayHair",
+  "sourceHash": "ee7ead49d1e1520042c513ad92bc2c1b9e56e1b65b641f0e274ac7ac5c13b50f",
+  "caseHash": "3ac9e8764cf2bce7e0a044a57c05bfcb22708d9df5d6e3bba922af620cda6d77",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 3584,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 8
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 3584,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 8
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}
