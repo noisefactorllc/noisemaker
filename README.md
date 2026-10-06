@@ -32,7 +32,7 @@ Coding agents can read the documentation in machine-readable form: [llms.txt](ht
 
 ## Contributing
 
-Issues and pull requests are welcome! Review the [Code of Conduct](CODE_OF_CONDUCT.md). Follow the contribution guidelines in the docs before opening changes.
+Contributions follow the Noise Factor [contributing policy](https://github.com/noisefactorllc/.github/blob/main/CONTRIBUTING.md) and [Code of Conduct](https://github.com/noisefactorllc/.github/blob/main/CODE_OF_CONDUCT.md).
 
 ## Ports
 
