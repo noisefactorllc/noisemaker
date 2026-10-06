@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "synth3d/fractal3d",
+  "sourceHash": "c840cecc5c2673062ef3ee3863d4218e394e743a418137b21d6f1498a4d57b6c",
+  "caseHash": "3f9c284b76d623d0c0750d870220f3732dc1437888f2c615b8357376c1e79d8f",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 467,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 127
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 467,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 127
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

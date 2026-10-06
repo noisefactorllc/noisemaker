@@ -8,6 +8,7 @@
 @group(0) @binding(5) var<uniform> juliaX: f32;
 @group(0) @binding(6) var<uniform> juliaY: f32;
 @group(0) @binding(7) var<uniform> juliaZ: f32;
+@group(0) @binding(8) var<uniform> colorMode: i32;
 
 const PI: f32 = 3.141592653589793;
 
@@ -293,9 +294,14 @@ fn main(@builtin(position) position: vec4<f32>) -> FragOutput {
     }
     
     let gradient = vec3<f32>(dx.x - dist, dy.x - dist, dz.x - dist) / eps;
-    let normal = normalize(-gradient + vec3<f32>(0.000001));
+    let normal = normalize(gradient + vec3<f32>(0.000001));  // SDF gradient points outward
     
-    let color = vec4<f32>(normalizedDist, trap, iterRatio, 1.0);
+    // Output volume data based on colorMode
+    // colorMode 0 = mono (grayscale), 1 = rgb (distance, trap, iteration)
+    var color = vec4<f32>(normalizedDist, trap, iterRatio, 1.0);
+    if (colorMode == 0) {
+        color = vec4<f32>(normalizedDist, normalizedDist, normalizedDist, 1.0);
+    }
     let geoOut = vec4<f32>(normal * 0.5 + 0.5, normalizedDist);
     
     return FragOutput(color, geoOut);
