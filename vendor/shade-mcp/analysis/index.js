@@ -20224,7 +20224,10 @@ async function renderEffectFrame(session, effectId, options = {}) {
         } else if (backend?.readPixels && backend?.textures) {
           const surf = pipeline.graph?.renderSurface;
           if (surf) {
-            const candidates = ["global_" + surf + "_read"];
+            const candidates = [];
+            const frameRead = pipeline.frameReadTextures?.get?.(surf);
+            if (frameRead) candidates.push(frameRead);
+            candidates.push("global_" + surf + "_read");
             try {
               const nodes = [];
               for (const k of backend.textures.keys()) if (/node_\d+_out/.test(k)) nodes.push(k);

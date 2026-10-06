@@ -20778,7 +20778,10 @@ async function renderEffectFrame(session, effectId, options = {}) {
         } else if (backend?.readPixels && backend?.textures) {
           const surf = pipeline.graph?.renderSurface;
           if (surf) {
-            const candidates = ["global_" + surf + "_read"];
+            const candidates = [];
+            const frameRead = pipeline.frameReadTextures?.get?.(surf);
+            if (frameRead) candidates.push(frameRead);
+            candidates.push("global_" + surf + "_read");
             try {
               const nodes = [];
               for (const k of backend.textures.keys()) if (/node_\d+_out/.test(k)) nodes.push(k);
@@ -21180,7 +21183,10 @@ async function captureSurface(session, seed) {
     const surf = p.graph?.renderSurface;
     if (!surf) return null;
     const readSurface = async () => {
-      const candidates = ["global_" + surf + "_read"];
+      const candidates = [];
+      const frameRead = p.frameReadTextures?.get?.(surf);
+      if (frameRead) candidates.push(frameRead);
+      candidates.push("global_" + surf + "_read");
       try {
         const nodes = [];
         for (const k of b.textures.keys()) if (/node_\d+_out/.test(k)) nodes.push(k);
@@ -21431,7 +21437,10 @@ async function testUniformResponsiveness(session, effectId) {
           await backend.device?.queue?.onSubmittedWorkDone?.();
           const surf = pipeline.graph?.renderSurface;
           if (!surf) return null;
-          const candidates = ["global_" + surf + "_read"];
+          const candidates = [];
+          const frameRead = pipeline.frameReadTextures?.get?.(surf);
+          if (frameRead) candidates.push(frameRead);
+          candidates.push("global_" + surf + "_read");
           try {
             const nodes = [];
             for (const k of backend.textures.keys()) if (/node_\d+_out/.test(k)) nodes.push(k);
@@ -21544,7 +21553,7 @@ async function testUniformResponsiveness(session, effectId) {
         if (errorNames.length > 0) problems.push(`could not be measured: ${errorNames.join(", ")}`);
         if (failedNames.length > 0) problems.push(`did not affect output: ${failedNames.join(", ")}`);
         if (problems.length > 0) {
-          status = "error";
+          status = errorNames.length > 0 ? "error" : "fail";
           details = `Uniforms ${problems.join("; ")}`;
         } else {
           status = "ok";
