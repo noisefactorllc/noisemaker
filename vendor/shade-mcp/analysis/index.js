@@ -20032,6 +20032,68 @@ function effectSelectionProblem(selection, effectId, requestedBackend) {
   return null;
 }
 
+// src/harness/pixel-reader.ts
+function computeImageMetrics(data, width, height) {
+  const pixelCount = width * height;
+  const isFloat = data instanceof Float32Array;
+  const scale = isFloat ? 1 : 1 / 255;
+  const sampleStride = Math.max(1, Math.floor(pixelCount / 1e3));
+  let sampleCount = 0;
+  let sumR = 0, sumG = 0, sumB = 0, sumA = 0;
+  let sumR2 = 0, sumG2 = 0, sumB2 = 0;
+  let sumLuma = 0, sumLuma2 = 0;
+  let allZero = true;
+  let allTransparent = true;
+  const colorSet = /* @__PURE__ */ new Set();
+  for (let p = 0; p < pixelCount; p += sampleStride) {
+    const i = p * 4;
+    const r = data[i] * scale;
+    const g = data[i + 1] * scale;
+    const b = data[i + 2] * scale;
+    const a = data[i + 3] * scale;
+    sumR += r;
+    sumG += g;
+    sumB += b;
+    sumA += a;
+    sumR2 += r * r;
+    sumG2 += g * g;
+    sumB2 += b * b;
+    const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+    sumLuma += luma;
+    sumLuma2 += luma * luma;
+    if (r > 1e-3 || g > 1e-3 || b > 1e-3) allZero = false;
+    if (a > 1e-3) allTransparent = false;
+    const qr = Math.round(Math.max(0, Math.min(1, r)) * 255);
+    const qg = Math.round(Math.max(0, Math.min(1, g)) * 255);
+    const qb = Math.round(Math.max(0, Math.min(1, b)) * 255);
+    colorSet.add(qr << 16 | qg << 8 | qb);
+    sampleCount++;
+  }
+  const n = sampleCount || 1;
+  const meanR = sumR / n;
+  const meanG = sumG / n;
+  const meanB = sumB / n;
+  const meanA = sumA / n;
+  const meanLuma = sumLuma / n;
+  const stdR = Math.sqrt(Math.max(0, sumR2 / n - meanR * meanR));
+  const stdG = Math.sqrt(Math.max(0, sumG2 / n - meanG * meanG));
+  const stdB = Math.sqrt(Math.max(0, sumB2 / n - meanB * meanB));
+  const lumaVariance = Math.max(0, sumLuma2 / n - meanLuma * meanLuma);
+  const uniqueColors = colorSet.size;
+  const isBlank = lumaVariance < 1e-4;
+  return {
+    mean_rgb: [meanR, meanG, meanB],
+    mean_alpha: meanA,
+    std_rgb: [stdR, stdG, stdB],
+    luma_variance: lumaVariance,
+    unique_sampled_colors: uniqueColors,
+    is_all_zero: allZero,
+    is_all_transparent: allTransparent,
+    is_essentially_blank: isBlank,
+    is_monochrome: uniqueColors <= 1
+  };
+}
+
 // src/tools/browser/render.ts
 function errorMessage(err) {
   return err instanceof Error ? err.message : String(err);
@@ -20135,6 +20197,13 @@ async function renderEffectFrame(session, effectId, options = {}) {
     }
     try {
       const result = await page.evaluate(async ({ captureImage, globals, time: time3, requested }) => {
+        const toBase64 = (bytes) => {
+          let binary = "";
+          for (let offset = 0; offset < bytes.length; offset += 32768) {
+            binary += String.fromCharCode(...bytes.subarray(offset, offset + 32768));
+          }
+          return btoa(binary);
+        };
         const pipeline = window[globals.renderingPipeline];
         const withRequested = (base) => requested ? { ...base, requested_resolution: requested } : base;
         if (!pipeline) return withRequested({ status: "error", backend: "unknown", error: "No renderer" });
@@ -20144,14 +20213,14 @@ async function renderEffectFrame(session, effectId, options = {}) {
         if (!renderer) return withRequested({ status: "error", backend: backendName, error: `No renderer on ${backendName}` });
         const canvas = renderer.canvas;
         if (time3 !== null && typeof renderer.render === "function") renderer.render(time3);
-        let pixels = null;
+        let pixels2 = null;
         let width = canvas.width, height = canvas.height;
         let topDown = false;
         const gl = backend?.gl;
         if (gl) {
-          pixels = new Uint8Array(width * height * 4);
+          pixels2 = new Uint8Array(width * height * 4);
           gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-          gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+          gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels2);
         } else if (backend?.readPixels && backend?.textures) {
           const surf = pipeline.graph?.renderSurface;
           if (surf) {
@@ -20164,7 +20233,7 @@ async function renderEffectFrame(session, effectId, options = {}) {
             } catch (e) {
             }
             if (time3 !== null && typeof renderer.render === "function") renderer.render(time3);
-            for (let attempt = 0; attempt < 6 && !pixels; attempt++) {
+            for (let attempt = 0; attempt < 6 && !pixels2; attempt++) {
               if (attempt > 0 && time3 !== null && typeof renderer.render === "function") renderer.render(time3);
               await backend.device?.queue?.onSubmittedWorkDone?.();
               for (const id of candidates) {
@@ -20174,10 +20243,10 @@ async function renderEffectFrame(session, effectId, options = {}) {
                     width = px.width;
                     height = px.height;
                     const raw = px.data instanceof Float32Array ? Uint8Array.from(px.data, (v) => Math.round(Math.max(0, Math.min(1, v)) * 255)) : new Uint8Array(px.data);
-                    pixels = new Uint8Array(width * height * 4);
+                    pixels2 = new Uint8Array(width * height * 4);
                     const rowBytes = width * 4;
                     for (let y = 0; y < height; y++) {
-                      pixels.set(raw.subarray((height - 1 - y) * rowBytes, (height - y) * rowBytes), y * rowBytes);
+                      pixels2.set(raw.subarray((height - 1 - y) * rowBytes, (height - y) * rowBytes), y * rowBytes);
                     }
                     topDown = true;
                     break;
@@ -20185,52 +20254,25 @@ async function renderEffectFrame(session, effectId, options = {}) {
                 } catch (e) {
                 }
               }
-              if (!pixels) await new Promise((res) => setTimeout(res, 80));
+              if (!pixels2) await new Promise((res) => setTimeout(res, 80));
             }
           }
         }
-        if (!pixels) {
+        if (!pixels2) {
           return withRequested({
             status: "error",
             backend: backendName,
             error: `Failed to read pixels on ${backendName}: no readable render surface`
           });
         }
-        const pixelCount = width * height;
-        const stride = Math.max(1, Math.floor(pixelCount / 1e3));
-        let sumR = 0, sumG = 0, sumB = 0, sumA = 0;
-        let sumR2 = 0, sumG2 = 0, sumB2 = 0;
-        let samples = 0;
-        const colorSet = /* @__PURE__ */ new Set();
-        for (let i = 0; i < pixelCount; i += stride) {
-          const idx = i * 4;
-          const r = pixels[idx] / 255, g = pixels[idx + 1] / 255, b = pixels[idx + 2] / 255, a = pixels[idx + 3] / 255;
-          sumR += r;
-          sumG += g;
-          sumB += b;
-          sumA += a;
-          sumR2 += r * r;
-          sumG2 += g * g;
-          sumB2 += b * b;
-          colorSet.add(`${pixels[idx]},${pixels[idx + 1]},${pixels[idx + 2]}`);
-          samples++;
+        let screen = pixels2;
+        if (!topDown) {
+          screen = new Uint8Array(width * height * 4);
+          const rowBytes = width * 4;
+          for (let y = 0; y < height; y++) {
+            screen.set(pixels2.subarray((height - 1 - y) * rowBytes, (height - y) * rowBytes), y * rowBytes);
+          }
         }
-        const meanR = sumR / samples, meanG = sumG / samples, meanB = sumB / samples;
-        const stdR = Math.sqrt(sumR2 / samples - meanR * meanR);
-        const stdG = Math.sqrt(sumG2 / samples - meanG * meanG);
-        const stdB = Math.sqrt(sumB2 / samples - meanB * meanB);
-        const luma = 0.299 * meanR + 0.587 * meanG + 0.114 * meanB;
-        let lumaVar = 0;
-        for (let i = 0; i < pixelCount; i += stride) {
-          const idx = i * 4;
-          const l = 0.299 * pixels[idx] / 255 + 0.587 * pixels[idx + 1] / 255 + 0.114 * pixels[idx + 2] / 255;
-          lumaVar += (l - luma) * (l - luma);
-        }
-        lumaVar /= samples;
-        const isAllZero = meanR === 0 && meanG === 0 && meanB === 0;
-        const isAllTransparent = sumA / samples < 0.01;
-        const isBlank = lumaVar < 1e-4;
-        const isMono = colorSet.size <= 1;
         let imageUri = null;
         if (captureImage) {
           const tmpCanvas = document.createElement("canvas");
@@ -20238,17 +20280,7 @@ async function renderEffectFrame(session, effectId, options = {}) {
           tmpCanvas.height = height;
           const ctx = tmpCanvas.getContext("2d");
           const imgData = ctx.createImageData(width, height);
-          for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-              const srcRow = topDown ? y : height - 1 - y;
-              const srcIdx = (srcRow * width + x) * 4;
-              const dstIdx = (y * width + x) * 4;
-              imgData.data[dstIdx] = pixels[srcIdx];
-              imgData.data[dstIdx + 1] = pixels[srcIdx + 1];
-              imgData.data[dstIdx + 2] = pixels[srcIdx + 2];
-              imgData.data[dstIdx + 3] = pixels[srcIdx + 3];
-            }
-          }
+          imgData.data.set(screen);
           ctx.putImageData(imgData, 0, 0);
           imageUri = tmpCanvas.toDataURL("image/png");
         }
@@ -20261,21 +20293,18 @@ async function renderEffectFrame(session, effectId, options = {}) {
             warning: `Requested resolution ${requested[0]}x${requested[1]} but rendered ${width}x${height}; the viewer did not honor the requested resolution`
           } : {},
           frame: { image_uri: imageUri, width, height },
-          metrics: {
-            mean_rgb: [meanR, meanG, meanB],
-            mean_alpha: sumA / samples,
-            std_rgb: [stdR, stdG, stdB],
-            luma_variance: lumaVar,
-            unique_sampled_colors: colorSet.size,
-            is_all_zero: isAllZero,
-            is_all_transparent: isAllTransparent,
-            is_essentially_blank: isBlank,
-            is_monochrome: isMono
-          }
+          // The metrics are computed in Node by computeImageMetrics, the one
+          // definition every verb and the library export share (issue #29).
+          // page.evaluate cannot call a Node import, so the bytes travel back.
+          pixels: toBase64(screen)
         };
       }, { captureImage: options.captureImage ?? false, globals: session.globals, time: options.time ?? null, requested: options.resolution ?? null });
+      const { pixels, ...captured } = result;
+      if (pixels !== void 0 && captured.frame) {
+        captured.metrics = computeImageMetrics(Buffer.from(pixels, "base64"), captured.frame.width, captured.frame.height);
+      }
       return {
-        ...result,
+        ...captured,
         ...selection.effectId ? { effect_id: selection.effectId } : {}
       };
     } finally {

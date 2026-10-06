@@ -1,3 +1,4 @@
+import type { ImageMetrics } from './pixel-reader.js';
 import type { Backend } from '../config.js';
 export interface ViewerGlobals {
     canvasRenderer: string;
@@ -28,17 +29,7 @@ export interface BrowserSessionOptions {
     globals?: ViewerGlobals;
     timeoutMs?: number;
 }
-export interface ImageMetrics {
-    mean_rgb: [number, number, number];
-    mean_alpha: number;
-    std_rgb: [number, number, number];
-    luma_variance: number;
-    unique_sampled_colors: number;
-    is_all_zero: boolean;
-    is_all_transparent: boolean;
-    is_essentially_blank: boolean;
-    is_monochrome: boolean;
-}
+export type { ImageMetrics } from './pixel-reader.js';
 export interface CompileResult {
     status: 'ok' | 'error';
     backend: string;

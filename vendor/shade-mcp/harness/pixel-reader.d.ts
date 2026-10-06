@@ -1,31 +1,36 @@
+/**
+ * Image statistics shared by every verb (`renderEffectFrame`,
+ * `runDslProgram`) and the library export. Each field has one definition.
+ * About 1000 pixels are sampled with a fixed stride over the RGBA buffer in
+ * screen order; all values are over those samples, with channels in 0..1.
+ */
 export interface ImageMetrics {
+    /** Mean R, G, B. */
     mean_rgb: [number, number, number];
+    /** Mean alpha. */
     mean_alpha: number;
+    /** Standard deviation of R, G, B. */
     std_rgb: [number, number, number];
+    /** Variance of Rec. 601 luma (0.299 R + 0.587 G + 0.114 B). */
     luma_variance: number;
+    /** Distinct exact 8-bit RGB triples among the samples. */
     unique_sampled_colors: number;
+    /** Every sample has R, G and B at or below 0.001. */
     is_all_zero: boolean;
+    /** Every sample has alpha at or below 0.001. */
     is_all_transparent: boolean;
+    /** The frame is flat: luma variance below 1e-4, at any brightness. */
     is_essentially_blank: boolean;
+    /** At most one distinct exact RGB triple. */
     is_monochrome: boolean;
 }
 /**
  * Compute statistical metrics from RGBA pixel data.
  * Handles both Uint8Array (0-255) and Float32Array (0-1) input.
- * Samples ~1000 pixels via strided iteration for performance.
  *
- * This is the library-mode entry point — consumers that read pixels in Node
- * (see the harness barrel) call it directly. The browser tools do NOT: their
- * metrics run inside `page.evaluate`, whose body is serialized to the browser
- * and cannot reference a Node import. The near-duplicate loops in
- * `tools/browser/render.ts` and `tools/browser/dsl.ts` exist for that reason
- * and cannot be collapsed into this function.
- *
- * They are not interchangeable, and the difference is deliberate to preserve:
- * this function calls a frame blank when it is dark with few distinct colors,
- * while the in-page version calls it blank when luma variance is near zero
- * (flat, at any brightness). Verifying a change to the in-page rule needs a
- * real browser and viewer, so it is left as shipped.
+ * This is the only implementation of `ImageMetrics`. The browser verbs read
+ * the frame back to Node and call it, so a field means the same thing for
+ * every verb and for library callers (issue #29).
  */
 export declare function computeImageMetrics(data: Uint8Array | Float32Array, width: number, height: number): ImageMetrics;
 //# sourceMappingURL=pixel-reader.d.ts.map
