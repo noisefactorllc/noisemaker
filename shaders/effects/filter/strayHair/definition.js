@@ -55,7 +55,11 @@ class StrayHair extends Effect {
         const canvas = document.createElement('canvas')
         canvas.width = width
         canvas.height = height
-        const ctx = canvas.getContext('2d')
+        // willReadFrequently pins the overlay to the software rasterizer:
+        // GPU-accelerated 2D canvases (Skia Graphite on Metal, Skia Ganesh on
+        // GL) rasterize the same strokes differently, so the overlay pixels
+        // would depend on the host. Refs #313.
+        const ctx = canvas.getContext('2d', { willReadFrequently: true })
         ctx.clearRect(0, 0, width, height)
         updateTexture('overlayTex', canvas)
 
