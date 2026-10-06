@@ -21134,43 +21134,60 @@ async function testNoPassthrough(session, effectId) {
       }
       if (w[globals.setPaused]) w[globals.setPaused](true);
       if (w[globals.setPausedTime]) w[globals.setPausedTime](0);
-      let inputFrame = null;
-      let outputFrame = null;
+      const COMPARE_TIMES = [0, 0.37];
+      let worst = null;
       try {
-        for (let attempt = 0; attempt < 6 && (!inputFrame || !outputFrame); attempt++) {
-          renderer.render(0);
-          renderer.render(0);
-          inputFrame = await readInput(consumedInput.id);
-          outputFrame = await readOutput();
-          if ((!inputFrame || !outputFrame) && attempt < 5) await new Promise((res) => setTimeout(res, 80));
+        for (const t of COMPARE_TIMES) {
+          if (w[globals.setPausedTime]) w[globals.setPausedTime](t);
+          let inputFrame = null;
+          let outputFrame = null;
+          for (let attempt = 0; attempt < 6 && (!inputFrame || !outputFrame); attempt++) {
+            renderer.render(t);
+            renderer.render(t);
+            inputFrame = await readInput(consumedInput.id);
+            outputFrame = await readOutput();
+            if ((!inputFrame || !outputFrame) && attempt < 5) await new Promise((res) => setTimeout(res, 80));
+          }
+          if (!inputFrame) {
+            return { status: "error", isFilterEffect: true, similarity: null, backend: backendName, inputTexture: consumedInput.id, details: `Failed to read input texture ${consumedInput.id} on ${backendName}` };
+          }
+          if (!outputFrame) {
+            return { status: "error", isFilterEffect: true, similarity: null, backend: backendName, details: `Failed to read pixels on ${backendName}` };
+          }
+          const count = Math.min(inputFrame.width * inputFrame.height, outputFrame.width * outputFrame.height);
+          const stride = Math.max(1, Math.floor(count / 4096));
+          let diffSum = 0, changed = 0, samples = 0;
+          for (let i2 = 0; i2 < count; i2 += stride) {
+            const idx = i2 * 4;
+            const dr = Math.abs(outputFrame.pixels[idx] - inputFrame.pixels[idx]);
+            const dg = Math.abs(outputFrame.pixels[idx + 1] - inputFrame.pixels[idx + 1]);
+            const db = Math.abs(outputFrame.pixels[idx + 2] - inputFrame.pixels[idx + 2]);
+            diffSum += dr + dg + db;
+            if (dr > 2 || dg > 2 || db > 2) changed++;
+            samples++;
+          }
+          const meanDiff2 = diffSum / (samples * 3 * 255);
+          const changedFraction2 = changed / samples;
+          if (!worst || changedFraction2 > worst.changedFraction || changedFraction2 === worst.changedFraction && meanDiff2 > worst.meanDiff) {
+            worst = { meanDiff: meanDiff2, changedFraction: changedFraction2 };
+          }
         }
       } finally {
+        if (w[globals.setPausedTime]) w[globals.setPausedTime](0);
         if (w[globals.setPaused]) w[globals.setPaused](false);
       }
-      if (!inputFrame) {
-        return { status: "error", isFilterEffect: true, similarity: null, backend: backendName, inputTexture: consumedInput.id, details: `Failed to read input texture ${consumedInput.id} on ${backendName}` };
-      }
-      if (!outputFrame) {
-        return { status: "error", isFilterEffect: true, similarity: null, backend: backendName, details: `Failed to read pixels on ${backendName}` };
-      }
-      const count = Math.min(inputFrame.width * inputFrame.height, outputFrame.width * outputFrame.height);
-      const stride = Math.max(1, Math.floor(count / 1e3));
-      let diffSum = 0, samples = 0;
-      for (let i2 = 0; i2 < count; i2 += stride) {
-        const idx = i2 * 4;
-        diffSum += Math.abs(outputFrame.pixels[idx] - inputFrame.pixels[idx]) + Math.abs(outputFrame.pixels[idx + 1] - inputFrame.pixels[idx + 1]) + Math.abs(outputFrame.pixels[idx + 2] - inputFrame.pixels[idx + 2]);
-        samples++;
-      }
-      const meanDiff = diffSum / (samples * 3 * 255);
+      const meanDiff = worst.meanDiff;
+      const changedFraction = worst.changedFraction;
       const threshold = 0.01;
-      const isPassthrough = meanDiff <= threshold;
+      const isPassthrough = meanDiff <= threshold && changedFraction <= threshold;
       return {
         status: isPassthrough ? "passthrough" : "ok",
         isFilterEffect: true,
         similarity: meanDiff,
+        changed_fraction: changedFraction,
         threshold,
         inputTexture: consumedInput.id,
-        details: isPassthrough ? `Output matches input (mean diff ${meanDiff.toFixed(4)} <= ${threshold})` : `Effect modifies input (mean diff ${meanDiff.toFixed(4)} > ${threshold})`
+        details: isPassthrough ? `Output matches input (mean diff ${meanDiff.toFixed(4)}, ${(changedFraction * 100).toFixed(1)}% of pixels changed)` : `Effect modifies input (mean diff ${meanDiff.toFixed(4)}, ${(changedFraction * 100).toFixed(1)}% of pixels changed)`
       };
     }, session.globals);
     return {
@@ -21505,19 +21522,20 @@ async function testUniformResponsiveness(session, effectId) {
         if (!read) return null;
         const { pixels, width, height } = read;
         const count = width * height;
-        let sumR = 0, sumG = 0, sumB = 0;
+        let sumR = 0, sumG = 0, sumB = 0, sumA = 0;
         for (let i2 = 0; i2 < pixels.length; i2 += 4) {
           sumR += pixels[i2] / 255;
           sumG += pixels[i2 + 1] / 255;
           sumB += pixels[i2 + 2] / 255;
+          sumA += pixels[i2 + 3] / 255;
         }
         const stride = Math.max(1, Math.floor(count / 4096));
         const samples = [];
         for (let p = 0; p < count; p += stride) {
           const i2 = p * 4;
-          samples.push(pixels[i2] / 255, pixels[i2 + 1] / 255, pixels[i2 + 2] / 255);
+          samples.push(pixels[i2] / 255, pixels[i2 + 1] / 255, pixels[i2 + 2] / 255, pixels[i2 + 3] / 255);
         }
-        return { mean: [sumR / count, sumG / count, sumB / count], samples };
+        return { mean: [sumR / count, sumG / count, sumB / count, sumA / count], samples };
       }
       async function captureAll() {
         const out = [];
@@ -21615,7 +21633,7 @@ async function testUniformResponsiveness(session, effectId) {
           for (let i2 = 0; i2 < CAPTURE_TIMES.length; i2++) {
             const a = reference2[i2].mean, b = test[i2].mean;
             luma = Math.max(luma, Math.abs((b[0] + b[1] + b[2]) / 3 - (a[0] + a[1] + a[2]) / 3));
-            channel = Math.max(channel, Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), Math.abs(b[2] - a[2]));
+            channel = Math.max(channel, Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), Math.abs(b[2] - a[2]), Math.abs(b[3] - a[3]));
             const sa = reference2[i2].samples, sb = test[i2].samples;
             if (sa.length === sb.length && sa.length > 0) {
               let sum = 0;
