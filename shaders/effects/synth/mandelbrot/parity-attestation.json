@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "synth/mandelbrot",
+  "sourceHash": "989b3f61e9ab9fdc598e7301808791af76f9b9fe4a11f233a288f8ff8c30331f",
+  "caseHash": "8206e0f3a807c1e95fa0b392c8e0c3b4f74d5d4d5fbfafb2177fc00b8cf0586c",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 3064,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 125
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 3064,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 125
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

@@ -41,7 +41,8 @@ const float PI = 3.14159265359;
 const float TAU = 6.28318530718;
 const float BAILOUT = 256.0;  // Large bailout for smooth coloring
 const float LOG2 = 0.6931471805599453;
-const int MAX_ITER = 500;
+// Matches the WGSL cap: iterations above it are clamped on both backends.
+const int MAX_ITER = 2048;
 
 // ============================================================================
 // Double-float (df64) arithmetic

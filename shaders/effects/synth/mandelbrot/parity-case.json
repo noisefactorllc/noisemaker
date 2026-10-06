@@ -1,0 +1,15 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/mandelbrot"
+    ],
+    "dsl": "search synth\n\nmandelbrot(iterations: 50).write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "settleMs": 2000,
+    "epsilon": 0,
+    "requireColorVariation": true
+}
