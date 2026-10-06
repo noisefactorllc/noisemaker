@@ -54,6 +54,11 @@ export class Effect {
      * @param {object} [config.globals] - Effect parameters/uniforms
      * @param {Array} [config.passes] - Render passes
      * @param {object} [config.textures] - Internal texture allocations
+     * @param {object} [config.textures3d] - Internal 3D texture allocations
+     * @param {object} [config.shaders] - Inline shader sources by program name
+     * @param {string} [config.externalTexture] - Texture id the host fills (media, text)
+     * @param {string} [config.externalMesh] - Mesh id the host fills
+     * @param {object} [config.builtinMeshes] - Built-in mesh paths by name
      * @param {string[]} [config.openCategories] - Categories to show expanded by default (e.g. ['general', 'julia'])
      * @param {string} [config.defaultProgram] - Optional default DSL program for the demo UI
      * @param {Function} [config.onInit] - Lifecycle hook: called once on init
@@ -73,6 +78,11 @@ export class Effect {
         if (config.globals) this.globals = config.globals
         if (config.passes) this.passes = config.passes
         if (config.textures) this.textures = config.textures
+        if (config.textures3d) this.textures3d = config.textures3d
+        if (config.shaders) this.shaders = config.shaders
+        if (config.externalTexture) this.externalTexture = config.externalTexture
+        if (config.externalMesh) this.externalMesh = config.externalMesh
+        if (config.builtinMeshes) this.builtinMeshes = config.builtinMeshes
         if (config.outputTex3d) this.outputTex3d = config.outputTex3d
         if (config.outputGeo) this.outputGeo = config.outputGeo
         if (config.uniformLayout) this.uniformLayout = config.uniformLayout

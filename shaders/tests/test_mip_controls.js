@@ -143,10 +143,9 @@ function registerProbeEffects() {
         ]
     }
     for (const def of [probeDef, plainDef]) {
+        // The config constructor carries textures3d through, so the 3D
+        // filter assertion below covers it.
         const instance = new Effect(def)
-        // Effect's config constructor copies `textures` but not `textures3d`;
-        // shipped definitions that need it set it as an instance field.
-        if (def.textures3d) instance.textures3d = def.textures3d
         registerEffect(instance.func, instance)
         registerEffect(`synth.${instance.func}`, instance)
         registerOp(`synth.${instance.func}`, {
