@@ -4253,7 +4253,7 @@ program expansion.
 
 <!-- WORKED:MCP-REQUESTS -->
 
-One configured-pin session returned server `shade-mcp` version `0.4.4` and
+One configured-pin session returned server `shade-mcp` version `0.4.6` and
 listed 18 tools. All eight calls ran in that session, none returning MCP
 `isError`; the passthrough call returned the expected domain status `skipped`
 (`outcome:"skipped"`) because this is a source effect. On hosts where the
@@ -4282,10 +4282,10 @@ capture; these are the values from this session):
 {"outcome":"ok","effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGL2"}
 {"outcome":"ok","effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGPU"}
 {"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"image_uri":null,"width":256,"height":256},"metrics":{"mean_rgb":[0.5034687809712587,0.5034687809712587,0.5034687809712587],"mean_alpha":1,"std_rgb":[0.4999879674137903,0.4999879674137903,0.4999879674137903],"luma_variance":0.24998796755857344,"unique_sampled_colors":2,"is_all_zero":false,"is_all_transparent":false,"is_essentially_blank":false,"is_monochrome":false}}
-{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"uniforms":[{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":5,"luma_diff":0.009534835815429688,"max_channel_diff":0.009534835815429688,"responds":true,"enabled_with":{"pattern":0}}],"threshold":0.002,"details":"Uniforms affect output","backend":"WebGL2"}
+{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"uniforms":[{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":12,"luma_diff":0.0029811859130859375,"max_channel_diff":0.0029811859130859375,"pixel_diff":0.251953125,"responds":true,"enabled_with":{"pattern":0}}],"threshold":0.002,"details":"Uniforms affect output","backend":"WebGL2"}
 {"outcome":"skipped","effect_id":"synth/testPattern","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2"}
 {"outcome":"ok","effect_id":"synth/testPattern","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.33,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.58,"jitter_ms":0.92,"min_frame_time_ms":11.6,"max_frame_time_ms":18.2}}
+{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.24,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.6,"jitter_ms":0.62,"min_frame_time_ms":13.3,"max_frame_time_ms":17.6}}
 ```
 
 The structure scan has no issues and reports the one declared effect pass.
