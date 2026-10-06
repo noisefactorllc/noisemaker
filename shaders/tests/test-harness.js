@@ -713,20 +713,8 @@ async function testEffect(session, effectId, options) {
     })
 
     // Compile
-    let compileResult = await compileEffect(session, effectId)
+    const compileResult = await compileEffect(session, effectId)
 
-    // Work around shade-mcp substring match: if the effect name contains "error"
-    // (e.g. "scanlineError"), the harness falsely detects a compile failure.
-    // Re-check by verifying the pipeline actually has compiled passes.
-    if (compileResult.status === 'error' && effectId.toLowerCase().includes('error')) {
-        const hasCompiledPasses = await session.page.evaluate(({ globals }) => {
-            const pipeline = window[globals.renderingPipeline]
-            return pipeline?.graph?.passes?.length > 0
-        }, { globals: session.globals })
-        if (hasCompiledPasses) {
-            compileResult = { ...compileResult, status: 'ok', message: 'Compiled successfully (name contains "error")' }
-        }
-    }
     timings.push(`compile:${Date.now() - t0}ms`)
     t0 = Date.now()
 
