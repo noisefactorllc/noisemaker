@@ -2014,7 +2014,18 @@ export class WebGL2Backend extends Backend {
             }
         }
 
-        const resolved = formats[format]
+        // WebGPU spellings of the same formats, which definitions may use and
+        // the definition validator accepts.
+        const aliases = {
+            'rgba8unorm': 'rgba8',
+            'rgba16float': 'rgba16f',
+            'rgba32float': 'rgba32f',
+            'r8unorm': 'r8',
+            'r16float': 'r16f',
+            'r32float': 'r32f'
+        }
+
+        const resolved = formats[aliases[format] ?? format]
         if (resolved) return resolved
 
         // Unknown formats keep the historical silent rgba8 fallback (no new

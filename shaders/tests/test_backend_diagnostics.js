@@ -431,6 +431,29 @@ test('WebGL2 unknown texture format keeps the rgba8 fallback but records a struc
     }
 })
 
+test('WebGL2 resolves the WebGPU spellings of supported formats without a fallback', () => {
+    // filter/bloom (rgba16float) and points/buddhabrot (rgba32float) used to
+    // fall back to rgba8 on WebGL2 only.
+    const gl = createStubGL()
+    const backend = new WebGL2Backend(gl, null)
+    const originalWarn = console.warn
+    const warnings = []
+    console.warn = message => warnings.push(String(message))
+    try {
+        const pairs = [
+            ['rgba8unorm', 'rgba8'], ['rgba16float', 'rgba16f'], ['rgba32float', 'rgba32f'],
+            ['r8unorm', 'r8'], ['r16float', 'r16f'], ['r32float', 'r32f'],
+        ]
+        for (const [alias, canonical] of pairs) {
+            assert.deepEqual(backend.resolveFormat(alias), backend.resolveFormat(canonical), alias)
+        }
+        assert.equal(backend.diagnostics.records.length, 0, 'no fallback diagnostic')
+        assert.deepEqual(warnings, [], 'no fallback warning')
+    } finally {
+        console.warn = originalWarn
+    }
+})
+
 test('Pipeline unknown dimension form keeps the screen-size fallback but records a structured diagnostic', () => {
     const pipeline = new Pipeline({ passes: [], textures: new Map() }, {})
 
