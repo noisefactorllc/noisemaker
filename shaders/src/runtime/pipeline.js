@@ -1958,6 +1958,15 @@ export class Pipeline {
                         pass.uniforms[name] = value
                     }
                 }
+                // Shader uniforms the pass feeds from this parameter under
+                // another name (uniforms: { mixAmt: "mix" }), as the UI
+                // parameter paths do.
+                if (pass.uniformAliases && pass.uniforms) {
+                    for (const [shaderName, globalName] of Object.entries(pass.uniformAliases)) {
+                        if (globalName !== name || this.isAutomationConfig(pass.uniforms[shaderName])) continue
+                        pass.uniforms[shaderName] = Array.isArray(value) ? value.slice() : value
+                    }
+                }
                 if (!isScopedUniform && pass.uniforms) {
                     for (const key of Object.keys(pass.uniforms)) {
                         if (key.startsWith(name + '_node_') || key.startsWith(name + '_chain_')) {

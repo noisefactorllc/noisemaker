@@ -25,6 +25,7 @@ const testEntries = [
   { file: 'test/palettes.test.js', parity: false },
   { file: 'test/palettes-parity.test.js', parity: true },
   { file: 'test/asyncInit.test.js', parity: false },
+  { file: 'test/setUniformAliases.test.js', parity: false },
   { file: 'test/effectsRegistry.test.js', parity: false },
   { file: 'test/effects-parity.test.js', parity: true },
   { file: 'test/effects.test.js', parity: true }, // Most tests use Python-generated fixtures
