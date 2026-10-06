@@ -122,18 +122,17 @@ assert.deepEqual(sameSchema.contradictions, [])
 // Shared fields agree; lost fields are reported as drops, not alterations.
 const noiseAudit = await auditDefinitionLoss('shaders/effects/synth/noise')
 assert.equal(noiseAudit.format, 'js')
-assert.ok(noiseAudit.loss.lossy, 'the regex-based projection is lossy')
+// The projection does not model Noisemaker-specific top-level fields.
 assert.ok(noiseAudit.loss.droppedTopLevelFields.includes('uniformLayout'))
 assert.ok(noiseAudit.loss.droppedTopLevelFields.includes('paramAliases'))
-assert.ok(noiseAudit.loss.droppedGlobals.includes('type'), 'the define global is dropped')
+// It keeps every global, including define-only globals, with ui, and every
+// pass with its name, inputs and outputs (shade-mcp#30).
+assert.deepEqual(noiseAudit.loss.droppedGlobals, [], 'no global is dropped')
 assert.ok(
-    noiseAudit.loss.droppedGlobalFields.some(e => e.global === 'octaves' && e.field === 'ui'),
-    'per-global ui configuration is dropped',
+    !noiseAudit.loss.droppedGlobalFields.some(e => e.field === 'ui' || e.field === 'define'),
+    'per-global ui and define are kept',
 )
-assert.ok(
-    noiseAudit.loss.truncatedPasses.some(t => t.droppedFields.includes('name')),
-    'per-pass name/inputs/outputs are dropped',
-)
+assert.deepEqual(noiseAudit.loss.truncatedPasses, [], 'pass name/inputs/outputs are kept')
 assert.deepEqual(noiseAudit.loss.contradictions, [])
 
 // ---------------------------------------------------------------------------
@@ -156,6 +155,6 @@ for (const effectId of allEffects) {
 }
 console.log(`corpus: ${allEffects.length} effects, lossy upstream projection on ${lossyCount}, contradictions ${contradictionCount}`)
 assert.equal(contradictionCount, 0, 'the upstream projection must never disagree with the live definition')
-assert.ok(lossyCount > 0, 'the corpus must exercise the loss the register row describes')
+assert.ok(lossyCount > 0, 'the corpus must exercise the fields the projection does not model')
 
 console.log('PASS: definition-schema regressions')

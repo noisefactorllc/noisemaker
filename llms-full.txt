@@ -14,14 +14,14 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `080dec543b3c1e6a02472f671d7295ed638e45c2`.
-- Shade MCP: `acda1c77a5f0d172d5d54ca6ca4ee29ec8b548f6`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.3.3`, protocol
+- Noisemaker: `e2144d206b209ee0c241ef3b604bf1832f2c33ab`.
+- Shade MCP: `eb49b9233aee571388dfc28dee1957210c852cc1`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.4.0`, protocol
   `2025-06-18` (negotiated down to `2024-11-05` for clients that request it),
   with 18 tools returned by `tools/list`.
 - The repository config runs
-  `npx -y github:noisedeck/shade-mcp#1862c1390c0b535c856b3cd9b54114e540c0fec8`,
-  matching release v0.3.3 delivered to `vendor/shade-mcp/`.
+  `npx -y github:noisedeck/shade-mcp#eb49b9233aee571388dfc28dee1957210c852cc1`,
+  matching release v0.4.0 delivered to `vendor/shade-mcp/`.
 
 Primary source roots:
 
@@ -2457,10 +2457,10 @@ Sources: `shaders/src/renderer/canvas.js` - `addSink()`, `deferredFrameCount`,
 The implemented predicates are exactly:
 
 ```text
-is_all_zero         = mean_r === 0 && mean_g === 0 && mean_b === 0
-is_all_transparent  = mean_alpha < 0.01
+is_all_zero         = every sample has r, g and b <= 0.001
+is_all_transparent  = every sample has alpha <= 0.001
 is_essentially_blank= luma_variance < 0.0001
-is_monochrome       = unique_sampled_colors <= 1
+is_monochrome       = unique_sampled_colors <= 1   // exact 8-bit RGB triples
 ```
 
 For an ordinary non-exempt effect, the repository harness requires:
@@ -2562,17 +2562,11 @@ When `resolution` is requested, the verb echoes `requested_resolution` and
 includes a `warning` with requested and actual dimensions if the viewer did
 not honor it. The returned frame dimensions are authoritative.
 
-The shared/vendored image-metric helper uses a different "essentially blank"
-definition (dark mean plus quantized color cardinality) than the current MCP
-verb's luma-variance predicate, and the two also differ in float scaling
-(`data / 255` versus `data * (1 / 255)`), color cardinalization (exact byte
-triples versus 6-bit quantization), and alpha semantics. Consumers must use
-the verb implementation for the fields documented here. This implementation
-drift is GAP-015, narrowed repository-side: `shaders/tests/image-metrics.js`
-mirrors the verb and dsl metric contracts and audits each shared field
-against the vendored library helper over real bytes, so repository-side
-callers can check which fields are numerically interchangeable instead of
-assuming it. See the GAP-015 register row.
+`renderEffectFrame`, `runDslProgram`, and the vendored library helper
+`computeImageMetrics` share one implementation: the verb reads the frame back
+in screen order and computes its metrics in Node with `computeImageMetrics`.
+Each `ImageMetrics` field therefore has one definition across verbs and the
+library export.
 
 Sink validation rejects anything without callable `configure`, `submit`, and
 `close` methods. A closed manager rejects new sinks, duplicate registration is
@@ -2608,10 +2602,8 @@ receives those objects but no texture ID, timestamp, slot index, or normalized
 phase field. On reconfigure/close, accepted pending frames suppress their
 callbacks and increment `dropped` once before their records are released.
 
-Sources: Shade MCP `src/tools/browser/render.ts`; vendored
-`vendor/shade-mcp/harness/pixel-reader.js`;
-`shaders/tests/image-metrics.js` - auditable metric mirror and per-field
-interchangeability audit; `shaders/tests/test-harness.js` -
+Sources: Shade MCP `src/tools/browser/render.ts`; `src/harness/pixel-reader.ts` -
+`computeImageMetrics()`; `shaders/tests/test-harness.js` -
 WebGPU render wrapper; `shaders/src/runtime/sink.js`;
 `shaders/src/runtime/frame-export.js`; backend frame-export adapters.
 
@@ -2870,17 +2862,24 @@ The transport result for every verb is:
 
 ```ts
 type McpTextResult = {
-  content: Array<{ type: "text", text: string /* JSON payload or plain error */ }>
+  content: Array<{ type: "text", text: string /* JSON envelope */ }>
   isError?: true
 }
+
+type Outcome = "ok" | "fail" | "warning" | "skipped" | "error"
 ```
 
-For normal handler returns, decode
-`JSON.parse(result.content.find(x => x.type === "text").text)` before applying
-the payload types below. Whole-call failures can instead carry plain error text
-with `isError:true`. Do not JSON-parse that path blindly. These tools do not
-declare MCP structured content/output schemas. Normal payload JSON is carried
-as text.
+Decode `JSON.parse(result.content.find(x => x.type === "text").text)` before
+applying the payload types below. Every text payload is JSON, including errors
+thrown before a handler's own error handling, which arrive as
+`{ outcome: "error", status: "error", error: string }`. Every single result
+carries a top-level `outcome`: `fail` for a negative verdict (parity
+`mismatch`, `passthrough`, `divergent`, `meets_target: false`), `warning` for
+findings to review, `skipped` when nothing was testable, `error` when no
+verdict was produced, otherwise `ok`. Verb-specific fields stay beside it.
+`isError:true` marks a whole-call failure: a single `error` result, or a batch
+in which every entry is an `error`. These tools do not declare MCP structured
+content/output schemas.
 
 The repository config supplies:
 
@@ -2950,7 +2949,14 @@ type BrowserSelector = EffectSelector & {
   backend?: "webgl2" | "webgpu" // defaults to webgl2 where present
 }
 
-type Batched<T> = T | T[] // object for exactly one selected ID, array otherwise
+// Exactly one selected ID returns T; several return the batch envelope.
+// Every T and every entry also carries `outcome: Outcome`.
+type Batched<T> = T | {
+  outcome: Outcome // "error" when every entry is an error, else the worst entry outcome
+  summary: { total: number, ok: number, fail: number, warning: number,
+             skipped: number, error: number }
+  results: T[]
+}
 type OuterEffectError = { effect_id: string, status: "error", error: string }
 ```
 
@@ -3220,7 +3226,7 @@ rejected).
 
 Source: Shade MCP `src/tools/browser/dsl.ts` - schema and `runDslProgram()`.
 
-At the pinned 0.3.3 source, a direct `renderEffectFrame` call for
+At the 0.3.3 source, a direct `renderEffectFrame` call for
 `filter/degauss` on WebGPU at `time:0.5` and resolution `[128,128]` returned
 `status:"ok"`, page-confirmed `effect_id:"filter/degauss"` and
 `backend:"WebGPU"`, `requested_resolution:[128,128]`, a 128×128 frame, and
@@ -3387,23 +3393,27 @@ type AnalyzeEffectResult =
   | { effectId: string, name?: string, description?: string,
       namespace?: string, tags: string[],
       globals: Record<string, unknown>, passes: Array<Record<string, unknown>>,
-      format: "js" | "json",
+      format: "js" | "json", partial?: true, partialReasons?: string[],
       shaders: Record<`glsl/${string}.glsl` | `wgsl/${string}.wgsl`, string> }
   | { error: string }
 ```
 
-For `definition.js`, Shade uses a regex/balanced-brace projection rather than
-importing the live class. It extracts only globals that contain a `uniform`, a
-limited set of scalar fields, and pass `program` names. It does not reproduce
-the full Noisemaker definition. Shader reads ignore split `.vert`/`.frag` files.
-Use this tool for discovery, not full definition introspection. See GAP-017.
-The repository's harness exposes the complete, lossless schema instead:
+For `definition.js`, Shade parses the module without running it and reads the
+effect config as literal values, whether it is passed to `new Effect(...)` or
+`super(...)` or written as class fields. Every global is returned, including
+define-only globals, with `type`, `uniform` (defaulting to the global's key),
+`default`, `min`, `max`, `step`, `choices`, `control`, `define` and `ui`, and
+every pass with `name`, `program`, `type`, `inputs` and `outputs`. A value
+computed at run time (a spread, `flatMap`, a reference to another binding) is
+left out, and the result carries `partial: true` with `partialReasons` naming
+each path. The projection does not carry Noisemaker-specific top-level fields
+(`uniformLayout`, `paramAliases`, `textures`, ...) or global and pass fields
+outside that set. Shader reads ignore split `.vert`/`.frag` files.
+The repository's harness exposes the complete live schema:
 `node shaders/tests/test-harness.js --describe <patterns>` (see below) returns
-every authored definition field per effect — including uniform-less define
-globals, `choices`/`ui` objects, `uniformLayout`, `paramAliases`, and full pass
-objects — imported live, plus an audit of exactly what the upstream projection
-drops, with a corpus gate pinning that the projection never contradicts the
-live definition (it only loses information).
+every authored definition field per effect, imported live, plus an audit of
+what the Shade projection leaves out, with a corpus gate pinning that the
+projection never contradicts the live definition.
 
 Source: Shade MCP `src/tools/knowledge/analyze-effect.ts`;
 `src/formats/definition-js.ts` - `parseDefinitionJs()`.
@@ -3473,7 +3483,7 @@ type ListEffectsResult = {
   count: number
   effects: Array<{
     id: string, name: string | undefined, description: string,
-    tags: string[], passes: number
+    tags: string[], passes: number, partial?: true
   }>
 }
 ```
@@ -3517,8 +3527,9 @@ Source: Shade MCP `src/tools/utility/generate-manifest.ts` -
 
 A tool exchange is protocol-valid when it returns an MCP result rather than a
 JSON-RPC/MCP `error`. That is not tool or domain success. Treat
-`result.isError === true` as a tool-call failure first. Its text can be plain
-error text. Otherwise, parse the JSON text. Apply the predicate for that verb:
+`result.isError === true` as a tool-call failure first. Its text is the JSON
+error envelope. Otherwise, parse the JSON text; `outcome === "ok"` is the
+common pass gate. Apply the predicate for that verb:
 
 | Verb | Domain pass predicate |
 |---|---|
@@ -3537,7 +3548,8 @@ error text. Otherwise, parse the JSON text. Apply the predicate for that verb:
 | search/list/analyze | The requested record is present. These tools have no success status. |
 | `generateManifest` | status `ok`, then independently inspect the written diff |
 
-Batch callers must validate every array member. Never treat transport success,
+Batch callers must validate every `results` member; the batch `summary`
+counts them by outcome. Never treat transport success,
 outer `status:"ok"`, or a nonempty result as universal validation.
 For every browser verb, including `testPixelParity`, check the page-confirmed
 effect/backend fields and require domain success. The session now rejects a
@@ -3554,18 +3566,13 @@ No effects found in <dir>. Specify effect_id.
 Multiple effects found (<n>). Please specify effect_id or effects parameter. Available: ...
 ```
 
-Browser tools usually catch per-effect exceptions as `OuterEffectError`.
-Analysis/knowledge tools still use several incompatible payload forms:
-`{status:"error",error}`, `{error}`, or unconditional `status:"ok"` plus notes.
-The shared `toolResult()` wrapper marks a non-array top-level payload whose
-status is `error` or whose `error` is a string with MCP `isError:true`. SDK-
-caught thrown handler errors are also marked and may carry plain text. It does
-not normalize the JSON payload, mark partial failures inside batch arrays, or
-normalize verb-specific failures.
-
-All 18 ordinary handler return paths now use
-the wrapper, but there is still no shared machine-readable domain failure
-union. See GAP-020.
+Browser tools catch per-effect exceptions as `OuterEffectError`.
+Analysis/knowledge tools keep their own error payload forms
+(`{status:"error",error}` or `{error}`), and every payload carries the common
+`outcome` beside them. All 18 tools return through the shared `toolResult()`
+envelope, and the server routes every handler through `guardToolErrors()`, so
+an exception thrown before a handler's own error handling also returns the
+JSON error envelope with `isError:true`.
 
 AI-dependent tools use this exact no-key message:
 
@@ -4120,17 +4127,13 @@ program expansion.
 
 <!-- WORKED:MCP-REQUESTS -->
 
-One configured-pin session negotiated protocol `2025-06-18`, returned server
-`shade-mcp` version `0.3.3`, and listed 18 tools. The seven calls other than
-`testPixelParity` ran in that session, none returning MCP `isError`; the
-passthrough call returned the expected domain status `skipped` because this is
-a source effect. The `testPixelParity` comparison is captured through the
-vendored harness at the same pinned source, whose WebGPU leg runs on a
-WebGPU-flagged browser session — the parity verb's own session launches on the
-WebGL2 path and fails closed on hosts where that browser cannot obtain a
-Vulkan-backed adapter (see the parity tool contract). Page console-message
-arrays are omitted from the transcript responses; in a software-rendering
-container they carry SwiftShader GL driver messages.
+One configured-pin session returned server `shade-mcp` version `0.4.0` and
+listed 18 tools. All eight calls ran in that session, none returning MCP
+`isError`; the passthrough call returned the expected domain status `skipped`
+(`outcome:"skipped"`) because this is a source effect. On hosts where the
+parity verb's browser cannot obtain a WebGPU adapter, its WebGPU leg fails
+closed (see the parity tool contract). Page console-message arrays are omitted
+from the transcript responses.
 
 ```json
 {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"checkEffectStructure","arguments":{"effect_id":"synth/testPattern"}}}
@@ -4149,20 +4152,20 @@ Responses, in the same order (the frame metrics and benchmark times vary by
 capture; these are the values from this session):
 
 ```json
-{"unusedFiles":[],"namingIssues":[],"nameCollisions":[],"leakedInternalUniforms":[],"missingDescription":false,"structuralParityIssues":[],"requiredUniformIssues":[],"multiPass":false,"passCount":1,"status":"ok"}
-{"effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGL2"}
-{"effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGPU"}
-{"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"warning":"Requested resolution 256x256 but rendered 90x90; the viewer did not honor the requested resolution","frame":{"image_uri":null,"width":90,"height":90},"metrics":{"mean_rgb":[0.5014807502467917,0.5014807502467917,0.5014807502467917],"mean_alpha":1,"std_rgb":[0.49999780737389904,0.49999780737389904,0.49999780737389904],"luma_variance":0.24999780737870633,"unique_sampled_colors":2,"is_all_zero":false,"is_all_transparent":false,"is_essentially_blank":false,"is_monochrome":false}}
-{"effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"uniforms":[{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":5,"luma_diff":0.009534835815429688,"max_channel_diff":0.009534835815429688,"responds":true}],"threshold":0.002,"details":"Uniforms affect output","backend":"WebGL2"}
-{"effect_id":"synth/testPattern","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2"}
-{"effect_id":"synth/testPattern","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":90,"height":90},"warning":"Requested resolution 256x256 but measured 90x90; the viewer did not honor the requested resolution","achieved_fps":55.18,"meets_target":true,"stats":{"frame_count":54,"avg_frame_time_ms":18.12,"jitter_ms":8.31,"min_frame_time_ms":3.3,"max_frame_time_ms":42.9}}
+{"outcome":"ok","unusedFiles":[],"namingIssues":[],"nameCollisions":[],"leakedInternalUniforms":[],"missingDescription":false,"structuralParityIssues":[],"requiredUniformIssues":[],"multiPass":false,"passCount":1,"status":"ok"}
+{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGL2"}
+{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGPU"}
+{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"warning":"Requested resolution 256x256 but rendered 90x90; the viewer did not honor the requested resolution","frame":{"image_uri":null,"width":90,"height":90},"metrics":{"mean_rgb":[0.5054294175715696,0.5054294175715696,0.5054294175715696],"mean_alpha":1,"std_rgb":[0.49997052055579594,0.49997052055579594,0.49997052055579594],"luma_variance":0.24997052142483356,"unique_sampled_colors":2,"is_all_zero":false,"is_all_transparent":false,"is_essentially_blank":false,"is_monochrome":false}}
+{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"uniforms":[{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":5,"luma_diff":0.009534835815429688,"max_channel_diff":0.009534835815429688,"responds":true}],"threshold":0.002,"details":"Uniforms affect output","backend":"WebGL2"}
+{"outcome":"skipped","effect_id":"synth/testPattern","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2"}
+{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
+{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":90,"height":90},"warning":"Requested resolution 256x256 but measured 90x90; the viewer did not honor the requested resolution","achieved_fps":60.3,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.59,"jitter_ms":0.68,"min_frame_time_ms":12.7,"max_frame_time_ms":17.9}}
 ```
 
 The structure scan has no issues and reports the one declared effect pass.
 Both compile results report the two expanded passes and the page-confirmed
 backend. The rendered frame is nonblank (`mean_alpha = 1`,
-`luma_variance = 0.24999780737870633`) at the returned 90×90 resolution.
+`luma_variance = 0.24997052142483356`) at the returned 90×90 resolution.
 `gridSize` responds to the tested change (`luma_diff = 0.009534835815429688`,
 above the `0.002` threshold). The parity comparison reports zero mismatches;
 the benchmark meets 30 FPS at the measured 90×90 resolution. These results
@@ -4186,26 +4189,13 @@ Every cell points to an executable contract or an explicitly identified gap.
 | Passes and render graph | `Effect.passes`, `CompiledGraph.passes`, `CompiledGraph.textures`, `CompiledGraph.allocations` | `PassSpec` typed grammar, sampler/output binding rules, and MRT byte adaptation | graph analysis and per-pass compile, plus the queryable runtime allocation/reuse plan | unresolved inputs and backend compile/resource failures |
 | Textures and surface resources | texture specs, `DeviceCapabilities`, and runtime surface dimensions/formats | `TextureSpec` typed grammar, exact accepted policies, and volume atlas clamp | allocation existence, size/format/limit inspection, render metrics | unsupported/missing surface failures and GL/device failures record structured `backend.diagnostics` entries (`ERR_MISSING_RENDER_TARGET`/`ERR_GL_ERROR`/`ERR_DEVICE_VALIDATION`); unknown-format/dimension fallbacks record `ERR_UNKNOWN_FORMAT_FALLBACK`/`ERR_DIMENSION_FALLBACK` |
 | Compatibility and mutation | compiled AST, `listSteps`, `getCompatibleReplacements` | typed `replaceEffect` contract | candidate precheck and post-selection browser identity | compatibility and transform errors |
-| Rendered output | frame dimensions, `ImageMetrics`, sink stats, and `PackedFrame` | `RenderEffectFrameInput`, `Sink`, and `FrameExportQueue` contracts | exact metric predicates plus bounded queue/accounting rules | metric, capture, sink, and export failures. GAP-015 |
+| Rendered output | frame dimensions, `ImageMetrics`, sink stats, and `PackedFrame` | `RenderEffectFrameInput`, `Sink`, and `FrameExportQueue` contracts | exact metric predicates plus bounded queue/accounting rules | metric, capture, sink, and export failures |
 | Cross-backend parity | source-pair availability and parity report | GLSL ES 3.00/WGSL authoring contracts | buffer diff predicates with confirmed effect/backend on both legs | compile/readback/divergence reports |
-| Shade MCP tool contracts | `tools/list`, effect scanners, all output types | Full signatures for all 18 verbs | verb-specific domain predicates | selector errors and tool-specific unions. GAP-017/020 |
+| Shade MCP tool contracts | `tools/list`, effect scanners, all output types | Full signatures for all 18 verbs | verb-specific domain predicates | the common `outcome` envelope, selector errors and tool-specific fields |
 
 External ports are deliberately outside this matrix. Their repositories define
 separate candidate renderers, golden-image comparators, tolerance policies, and
 failure reports. This document makes no cross-runtime validation claim for
 those ports.
 
-## Upstream Shade MCP defects
-
-These are defects in Shade MCP, which noisemaker vendors under `vendor/shade-mcp/` and pins in
-`.mcp.json`. They are tracked as issues in the noisefactorllc/shade-mcp repository, not in this
-file. References elsewhere in this file use their former noisemaker ids, listed here with each
-issue. Where noisemaker works around a defect, the workaround is current behavior.
-
-- GAP-015: [shade-mcp#29](https://github.com/noisefactorllc/shade-mcp/issues/29), renderEffectFrame and runDslProgram report ImageMetrics fields with different meanings. Noisemaker's `shaders/tests/image-metrics.js` mirrors the render-verb and DSL-verb metric formulas and audits each field against the vendored `computeImageMetrics` over real bytes in its JS test suite. It changes no harness result; callers consult that audit instead of assuming the fields are interchangeable across verbs.
-- GAP-017: [shade-mcp#30](https://github.com/noisefactorllc/shade-mcp/issues/30), parseDefinitionJs drops uniform-less globals and miscounts computed passes. Noisemaker's harness `--describe` mode (`shaders/tests/test-harness.js`, no browser, informational) imports each `definition.js` live through `shaders/tests/definition-schema.js` and prints the complete schema next to an audit of what the vendored Shade parser drops. The Shade list, search and analysis verbs still return the lossy projection.
-- GAP-020: [shade-mcp#32](https://github.com/noisefactorllc/shade-mcp/issues/32), toolResult leaves all-failed batches and verb-specific failures unmarked. Noisemaker has no workaround.
-
-The matrix has 9 surfaces x 4 capabilities = 36 filled cells. Cells that rely
-on behavior absent from code link to the upstream Shade MCP defects above rather than
-substituting an invented contract.
+The matrix has 9 surfaces x 4 capabilities = 36 filled cells.

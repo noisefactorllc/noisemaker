@@ -1,21 +1,17 @@
 #!/usr/bin/env node
 /**
- * GAP-017 auditable mirror: complete, lossless Noisemaker definition-schema
- * introspection, plus an auditable report of exactly what the upstream
- * Shade MCP regex-based `parseDefinitionJs()` projection drops.
+ * Complete Noisemaker definition-schema introspection, plus an auditable
+ * report of what the Shade MCP definition projection leaves out.
  *
- * The upstream Shade MCP definition parser (`vendor/shade-mcp/formats/*.js`,
- * built from `src/formats/definition-js.ts` - `parseDefinitionJs()`) reads
- * effect sources with regexes and a balanced-brace projection instead of
- * importing the live definition. It extracts only globals that carry a
- * `uniform`, a limited scalar-field set, and pass `program` names — so the
- * MCP list/analysis verbs cannot expose the complete Noisemaker definition
- * schema. This module resolves the loss repository-side: it loads the LIVE
- * `definition.js` module (the same source the browser runtime executes) and
- * exposes its complete schema as plain JSON, then audits the real vendored
- * parser's projection against it, reporting exactly which schema
- * information the upstream verb drops (a vendor refresh re-audits
- * automatically instead of pinning a stale snapshot).
+ * Shade MCP's `parseDefinitionJs()` (`vendor/shade-mcp/formats/*.js`) reads
+ * a `definition.js` statically: every global and pass, with the fields its
+ * `EffectDefinition` type models, and it marks the result `partial` where a
+ * value is computed at run time. It does not model Noisemaker-specific
+ * top-level fields (`uniformLayout`, `paramAliases`, `textures`, ...) or
+ * global and pass fields outside that type. This module loads the LIVE
+ * `definition.js` module (the same source the browser runtime executes),
+ * exposes its complete schema as plain JSON, and audits the vendored
+ * projection against it (a vendor refresh re-audits automatically).
  */
 
 import { existsSync } from 'node:fs'
@@ -130,6 +126,9 @@ const UPSTREAM_META_KEYS = new Set(['format', 'effectDir'])
  *   (if lossy) subset of the schema.
  */
 export function auditSchemaLoss(schema, upstream) {
+    // A key the projection carries as undefined is a value it could not read
+    // (Shade marks the definition partial), so it counts as dropped.
+    const has = (obj, key) => obj[key] !== undefined
     const droppedTopLevelFields = []
     const droppedGlobals = []
     const droppedGlobalFields = []
@@ -142,7 +141,7 @@ export function auditSchemaLoss(schema, upstream) {
         // below; a wholesale comparison there would misreport the upstream
         // projection's own dropped subfields as contradictions.
         if (key === 'globals' || key === 'passes') continue
-        if (!(key in upstream)) {
+        if (!has(upstream, key)) {
             droppedTopLevelFields.push(key)
         } else if (!deepEqual(schema[key], upstream[key])) {
             contradictions.push({ where: `top-level ${key}` })
@@ -151,12 +150,12 @@ export function auditSchemaLoss(schema, upstream) {
 
     const upGlobals = upstream.globals || {}
     for (const [name, spec] of Object.entries(schema.globals || {})) {
-        if (!(name in upGlobals)) {
+        if (!has(upGlobals, name)) {
             droppedGlobals.push(name)
             continue
         }
         for (const field of Object.keys(spec)) {
-            if (!(field in upGlobals[name])) {
+            if (!has(upGlobals[name], field)) {
                 droppedGlobalFields.push({ global: name, field, kind: 'dropped' })
             } else if (!deepEqual(spec[field], upGlobals[name][field])) {
                 contradictions.push({ where: `globals.${name}.${field}` })
@@ -166,9 +165,8 @@ export function auditSchemaLoss(schema, upstream) {
 
     const upPasses = upstream.passes || []
     const schemaPasses = schema.passes || []
-    // The upstream regex projects one pass per `program:` literal found in the
-    // source; definitions that build passes programmatically (loops, spreads)
-    // live-project more passes than the source text shows, so the counts can
+    // Definitions that build passes at run time (spreads, flatMap) have more
+    // live passes than the static projection can read, so the counts can
     // disagree. Report that as a count mismatch and compare only the aligned
     // prefix.
     const aligned = schemaPasses.length === upPasses.length
@@ -180,7 +178,7 @@ export function auditSchemaLoss(schema, upstream) {
         }
         const dropped = []
         for (const field of Object.keys(pass)) {
-            if (!(field in up)) dropped.push(field)
+            if (!has(up, field)) dropped.push(field)
             else if (!deepEqual(pass[field], up[field])) {
                 contradictions.push({ where: `passes[${index}].${field}` })
             }
