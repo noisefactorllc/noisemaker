@@ -466,7 +466,7 @@ function selectAndAwaitEffect({ effectId, globals, timeout }) {
       const rebuilt = before.compiling ? ready && (newBuildObserved || generationDelta !== null && generationDelta >= 2) : ready && (graphChanged || newBuildObserved);
       const idMatches = idNow !== null && idNow === effectId;
       const statusChanged = statusText !== before.statusText;
-      const failing = /error|failed/.test(statusText.toLowerCase());
+      const failing = /\b(error|failed)\b/i.test(statusText);
       const hasRebuildSignal = generation !== null || "isCompiling" in p;
       if (ready && rebuilt && idNow !== null && idNow !== effectId) {
         resolve4({
@@ -764,6 +764,16 @@ var BrowserSession = class {
         status: "error",
         message: `The viewer does not report which effect it is showing; cannot confirm ${effectId}`
       };
+    }
+    if (outcome.status === "ok") {
+      await page.evaluate(({ globals, timeout }) => {
+        const pipeline = window[globals.renderingPipeline];
+        if (typeof pipeline?.whenAsyncInitsSettled !== "function") return;
+        return Promise.race([
+          pipeline.whenAsyncInitsSettled(),
+          new Promise((resolve4) => setTimeout(resolve4, timeout))
+        ]);
+      }, { globals: this.globals, timeout: this.timeoutMs });
     }
     return outcome;
   }
@@ -20771,49 +20781,54 @@ async function renderEffectFrame(session, effectId, options = {}) {
         let width = canvas.width, height = canvas.height;
         let topDown = false;
         const gl = backend?.gl;
-        if (gl) {
-          pixels2 = new Uint8Array(width * height * 4);
-          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-          gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels2);
-        } else if (backend?.readPixels && backend?.textures) {
-          const surf = pipeline.graph?.renderSurface;
-          if (surf) {
-            const candidates = [];
-            const frameRead = pipeline.frameReadTextures?.get?.(surf);
-            if (frameRead) candidates.push(frameRead);
-            candidates.push("global_" + surf + "_read");
-            try {
-              const nodes = [];
-              for (const k of backend.textures.keys()) if (/node_\d+_out/.test(k)) nodes.push(k);
-              nodes.sort((a, c) => parseInt(a.match(/node_(\d+)/)[1], 10) - parseInt(c.match(/node_(\d+)/)[1], 10));
-              if (nodes.length) candidates.push(nodes[nodes.length - 1]);
-            } catch (e) {
-            }
-            if (time3 !== null && typeof renderer.render === "function") renderer.render(time3);
-            for (let attempt = 0; attempt < 6 && !pixels2; attempt++) {
-              if (attempt > 0 && time3 !== null && typeof renderer.render === "function") renderer.render(time3);
-              await backend.device?.queue?.onSubmittedWorkDone?.();
-              for (const id of candidates) {
-                try {
-                  const px = await backend.readPixels(id);
-                  if (px && px.width && px.height && px.data) {
-                    width = px.width;
-                    height = px.height;
-                    const raw = px.data instanceof Float32Array ? Uint8Array.from(px.data, (v) => Math.round(Math.max(0, Math.min(1, v)) * 255)) : new Uint8Array(px.data);
+        const surf = pipeline.graph?.renderSurface;
+        if (surf && backend?.readPixels && backend?.textures) {
+          const candidates = [];
+          const frameRead = pipeline.frameReadTextures?.get?.(surf);
+          if (frameRead) candidates.push(frameRead);
+          candidates.push("global_" + surf + "_read");
+          try {
+            const nodes = [];
+            for (const k of backend.textures.keys()) if (/node_\d+_out/.test(k)) nodes.push(k);
+            nodes.sort((a, c) => parseInt(a.match(/node_(\d+)/)[1], 10) - parseInt(c.match(/node_(\d+)/)[1], 10));
+            if (nodes.length) candidates.push(nodes[nodes.length - 1]);
+          } catch (e) {
+          }
+          if (time3 !== null && typeof renderer.render === "function") renderer.render(time3);
+          for (let attempt = 0; attempt < 6 && !pixels2; attempt++) {
+            if (attempt > 0 && time3 !== null && typeof renderer.render === "function") renderer.render(time3);
+            await backend.device?.queue?.onSubmittedWorkDone?.();
+            for (const id of candidates) {
+              try {
+                const px = await backend.readPixels(id);
+                if (px && px.width && px.height && px.data) {
+                  width = px.width;
+                  height = px.height;
+                  const raw = px.data instanceof Float32Array ? Uint8Array.from(px.data, (v) => Math.round(Math.max(0, Math.min(1, v)) * 255)) : new Uint8Array(px.data);
+                  if (gl) {
+                    pixels2 = raw;
+                  } else {
                     pixels2 = new Uint8Array(width * height * 4);
                     const rowBytes = width * 4;
                     for (let y = 0; y < height; y++) {
                       pixels2.set(raw.subarray((height - 1 - y) * rowBytes, (height - y) * rowBytes), y * rowBytes);
                     }
-                    topDown = true;
-                    break;
                   }
-                } catch (e) {
+                  topDown = true;
+                  break;
                 }
+              } catch (e) {
               }
-              if (!pixels2) await new Promise((res) => setTimeout(res, 80));
             }
+            if (!pixels2) await new Promise((res) => setTimeout(res, 80));
           }
+        }
+        if (!pixels2 && gl) {
+          width = canvas.width;
+          height = canvas.height;
+          pixels2 = new Uint8Array(width * height * 4);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels2);
         }
         if (!pixels2) {
           return withRequested({
@@ -21078,6 +21093,21 @@ async function testNoPassthrough(session, effectId) {
           return null;
         }
       }
+      async function readInput(id) {
+        const candidates = [];
+        const surface = id.startsWith("global_") ? id.slice("global_".length) : null;
+        if (surface) {
+          const frameRead = pipeline.frameReadTextures?.get?.(surface);
+          if (frameRead) candidates.push(frameRead);
+          candidates.push(`global_${surface}_read`);
+        }
+        candidates.push(id);
+        for (const candidate of candidates) {
+          const frame = await readTexture(candidate);
+          if (frame) return frame;
+        }
+        return null;
+      }
       async function readOutput() {
         const surf = pipeline.graph?.renderSurface;
         const candidates = [];
@@ -21105,7 +21135,7 @@ async function testNoPassthrough(session, effectId) {
         for (let attempt = 0; attempt < 6 && (!inputFrame || !outputFrame); attempt++) {
           renderer.render(0);
           renderer.render(0);
-          inputFrame = await readTexture(consumedInput.id);
+          inputFrame = await readInput(consumedInput.id);
           outputFrame = await readOutput();
           if ((!inputFrame || !outputFrame) && attempt < 5) await new Promise((res) => setTimeout(res, 80));
         }
@@ -21462,9 +21492,10 @@ async function testUniformResponsiveness(session, effectId) {
         }
         return null;
       }
-      async function captureMetrics() {
+      const CAPTURE_TIMES = [0, 0.37];
+      async function captureMetrics(time3) {
         if (!renderer) return null;
-        renderer.render(0);
+        renderer.render(time3);
         const read = await readFrame();
         if (!read) return null;
         const { pixels, width, height } = read;
@@ -21477,39 +21508,111 @@ async function testUniformResponsiveness(session, effectId) {
         }
         return [sumR / count, sumG / count, sumB / count];
       }
-      const baseline = await captureMetrics();
-      if (!baseline) return { status: "error", tested_uniforms: [], backend: backendName, details: `Failed to capture baseline on ${backendName}` };
+      async function captureAll() {
+        const out = [];
+        for (const t of CAPTURE_TIMES) {
+          const m = await captureMetrics(t);
+          if (!m) return null;
+          out.push(m);
+        }
+        return out;
+      }
       const effectGlobals = effect.instance.globals;
+      const setValue = (uniformName, value) => {
+        if (pipeline.setUniform) pipeline.setUniform(uniformName, value);
+        else if (pipeline.globalUniforms) pipeline.globalUniforms[uniformName] = value;
+      };
+      const defaultOf = (spec) => spec.default ?? spec.min;
+      function satisfy(cond, assign) {
+        if (cond == null) return true;
+        if (typeof cond === "string") return satisfy({ param: cond }, assign);
+        if (Array.isArray(cond.and)) return cond.and.every((c) => satisfy(c, assign));
+        if (Array.isArray(cond.or)) return cond.or.some((c) => {
+          const trial = { ...assign };
+          if (!satisfy(c, trial)) return false;
+          Object.assign(assign, trial);
+          return true;
+        });
+        if (cond.not !== void 0) return false;
+        const gate = effectGlobals[cond.param];
+        if (!gate || !gate.uniform) return false;
+        const choices = gate.choices ? Object.values(gate.choices).filter((v) => typeof v === "number") : null;
+        const lo = typeof gate.min === "number" ? gate.min : choices ? Math.min(...choices) : 0;
+        const hi = typeof gate.max === "number" ? gate.max : choices ? Math.max(...choices) : 1;
+        const step = gate.type === "int" || choices ? 1 : (hi - lo) / 100;
+        const candidates = [];
+        if (cond.eq !== void 0) candidates.push(cond.eq);
+        if (Array.isArray(cond.in)) candidates.push(...cond.in);
+        if (cond.gt !== void 0) candidates.push(cond.gt + step);
+        if (cond.gte !== void 0) candidates.push(cond.gte);
+        if (cond.lt !== void 0) candidates.push(cond.lt - step);
+        if (cond.lte !== void 0) candidates.push(cond.lte);
+        if (cond.neq !== void 0 || Array.isArray(cond.notIn)) {
+          const banned = /* @__PURE__ */ new Set([...cond.neq !== void 0 ? [cond.neq] : [], ...cond.notIn || []]);
+          for (const v of choices ?? [defaultOf(gate), lo, hi]) if (!banned.has(v)) {
+            candidates.push(v);
+            break;
+          }
+        }
+        if (candidates.length === 0) candidates.push(gate.type === "boolean" ? true : hi);
+        const holds = (v) => (cond.eq === void 0 || v === cond.eq) && (cond.neq === void 0 || v !== cond.neq) && (cond.gt === void 0 || v > cond.gt) && (cond.gte === void 0 || v >= cond.gte) && (cond.lt === void 0 || v < cond.lt) && (cond.lte === void 0 || v <= cond.lte) && (!Array.isArray(cond.in) || cond.in.includes(v)) && (!Array.isArray(cond.notIn) || !cond.notIn.includes(v)) && (Object.keys(cond).some((k) => k !== "param") || Boolean(v));
+        const value = candidates.find(holds);
+        if (value === void 0) return false;
+        assign[cond.param] = value;
+        return true;
+      }
       const tested = [];
       const uniforms = [];
       const failedNames = [];
       const errorNames = [];
+      const gatedNames = [];
+      const baseline = await captureAll();
+      if (!baseline) return { status: "error", tested_uniforms: [], backend: backendName, details: `Failed to capture baseline on ${backendName}` };
       for (const [name, spec] of Object.entries(effectGlobals)) {
         if (!spec.uniform) continue;
         if (spec.type === "boolean" || spec.type === "button") continue;
         if (typeof spec.min !== "number" || typeof spec.max !== "number" || spec.min === spec.max) continue;
-        const defaultVal = spec.default ?? spec.min;
+        const defaultVal = defaultOf(spec);
         const range = spec.max - spec.min;
         let testVal = defaultVal === spec.min ? spec.min + range * 0.75 : spec.min + range * 0.25;
         if (spec.type === "int") testVal = Math.round(testVal);
-        if (pipeline.setUniform) pipeline.setUniform(spec.uniform, testVal);
-        else if (pipeline.globalUniforms) pipeline.globalUniforms[spec.uniform] = testVal;
+        const gate = spec.ui?.enabledBy;
+        const assign = {};
+        if (gate !== void 0 && !satisfy(gate, assign)) {
+          gatedNames.push(name);
+          tested.push(`${name}:gated`);
+          uniforms.push({
+            name,
+            uniform: spec.uniform,
+            default_value: defaultVal,
+            test_value: testVal,
+            luma_diff: null,
+            max_channel_diff: null,
+            responds: null,
+            gated: true,
+            enabled_by: gate
+          });
+          continue;
+        }
+        for (const [param, value] of Object.entries(assign)) setValue(effectGlobals[param].uniform, value);
+        const gateValues = Object.keys(assign).length > 0 ? assign : null;
+        let reference = baseline;
         let testMetrics = null;
         let measureError = null;
         try {
-          testMetrics = await captureMetrics();
+          if (gateValues) reference = await captureAll();
+          setValue(spec.uniform, testVal);
+          testMetrics = reference ? await captureAll() : null;
         } catch (err) {
           measureError = err instanceof Error ? err.message : String(err);
         }
-        if (testMetrics) {
-          const lumaDiff = Math.abs(
-            (testMetrics[0] + testMetrics[1] + testMetrics[2]) / 3 - (baseline[0] + baseline[1] + baseline[2]) / 3
-          );
-          const maxChannelDiff = Math.max(
-            Math.abs(testMetrics[0] - baseline[0]),
-            Math.abs(testMetrics[1] - baseline[1]),
-            Math.abs(testMetrics[2] - baseline[2])
-          );
+        if (testMetrics && reference) {
+          let lumaDiff = 0, maxChannelDiff = 0;
+          for (let i2 = 0; i2 < CAPTURE_TIMES.length; i2++) {
+            const a = reference[i2], b = testMetrics[i2];
+            lumaDiff = Math.max(lumaDiff, Math.abs((b[0] + b[1] + b[2]) / 3 - (a[0] + a[1] + a[2]) / 3));
+            maxChannelDiff = Math.max(maxChannelDiff, Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), Math.abs(b[2] - a[2]));
+          }
           const responds = lumaDiff > 2e-3 || maxChannelDiff > 2e-3;
           uniforms.push({
             name,
@@ -21518,7 +21621,8 @@ async function testUniformResponsiveness(session, effectId) {
             test_value: testVal,
             luma_diff: lumaDiff,
             max_channel_diff: maxChannelDiff,
-            responds
+            responds,
+            ...gateValues ? { enabled_with: gateValues } : {}
           });
           if (responds) {
             tested.push(`${name}:pass`);
@@ -21540,14 +21644,15 @@ async function testUniformResponsiveness(session, effectId) {
             error: measureError ?? "Failed to capture test render"
           });
         }
-        if (pipeline.setUniform) pipeline.setUniform(spec.uniform, defaultVal);
-        else if (pipeline.globalUniforms) pipeline.globalUniforms[spec.uniform] = defaultVal;
+        setValue(spec.uniform, defaultVal);
+        for (const param of Object.keys(assign)) setValue(effectGlobals[param].uniform, defaultOf(effectGlobals[param]));
       }
       let status;
       let details;
-      if (tested.length === 0) {
+      const measured = tested.length - gatedNames.length;
+      if (measured === 0) {
         status = "skipped";
-        details = "No testable uniforms";
+        details = gatedNames.length > 0 ? `No testable uniforms; gated: ${gatedNames.join(", ")}` : "No testable uniforms";
       } else {
         const problems = [];
         if (errorNames.length > 0) problems.push(`could not be measured: ${errorNames.join(", ")}`);
@@ -21559,6 +21664,7 @@ async function testUniformResponsiveness(session, effectId) {
           status = "ok";
           details = "Uniforms affect output";
         }
+        if (gatedNames.length > 0) details += `; gated (not testable at run time): ${gatedNames.join(", ")}`;
       }
       return {
         status,

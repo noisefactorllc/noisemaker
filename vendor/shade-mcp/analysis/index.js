@@ -20217,49 +20217,54 @@ async function renderEffectFrame(session, effectId, options = {}) {
         let width = canvas.width, height = canvas.height;
         let topDown = false;
         const gl = backend?.gl;
-        if (gl) {
-          pixels2 = new Uint8Array(width * height * 4);
-          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-          gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels2);
-        } else if (backend?.readPixels && backend?.textures) {
-          const surf = pipeline.graph?.renderSurface;
-          if (surf) {
-            const candidates = [];
-            const frameRead = pipeline.frameReadTextures?.get?.(surf);
-            if (frameRead) candidates.push(frameRead);
-            candidates.push("global_" + surf + "_read");
-            try {
-              const nodes = [];
-              for (const k of backend.textures.keys()) if (/node_\d+_out/.test(k)) nodes.push(k);
-              nodes.sort((a, c) => parseInt(a.match(/node_(\d+)/)[1], 10) - parseInt(c.match(/node_(\d+)/)[1], 10));
-              if (nodes.length) candidates.push(nodes[nodes.length - 1]);
-            } catch (e) {
-            }
-            if (time3 !== null && typeof renderer.render === "function") renderer.render(time3);
-            for (let attempt = 0; attempt < 6 && !pixels2; attempt++) {
-              if (attempt > 0 && time3 !== null && typeof renderer.render === "function") renderer.render(time3);
-              await backend.device?.queue?.onSubmittedWorkDone?.();
-              for (const id of candidates) {
-                try {
-                  const px = await backend.readPixels(id);
-                  if (px && px.width && px.height && px.data) {
-                    width = px.width;
-                    height = px.height;
-                    const raw = px.data instanceof Float32Array ? Uint8Array.from(px.data, (v) => Math.round(Math.max(0, Math.min(1, v)) * 255)) : new Uint8Array(px.data);
+        const surf = pipeline.graph?.renderSurface;
+        if (surf && backend?.readPixels && backend?.textures) {
+          const candidates = [];
+          const frameRead = pipeline.frameReadTextures?.get?.(surf);
+          if (frameRead) candidates.push(frameRead);
+          candidates.push("global_" + surf + "_read");
+          try {
+            const nodes = [];
+            for (const k of backend.textures.keys()) if (/node_\d+_out/.test(k)) nodes.push(k);
+            nodes.sort((a, c) => parseInt(a.match(/node_(\d+)/)[1], 10) - parseInt(c.match(/node_(\d+)/)[1], 10));
+            if (nodes.length) candidates.push(nodes[nodes.length - 1]);
+          } catch (e) {
+          }
+          if (time3 !== null && typeof renderer.render === "function") renderer.render(time3);
+          for (let attempt = 0; attempt < 6 && !pixels2; attempt++) {
+            if (attempt > 0 && time3 !== null && typeof renderer.render === "function") renderer.render(time3);
+            await backend.device?.queue?.onSubmittedWorkDone?.();
+            for (const id of candidates) {
+              try {
+                const px = await backend.readPixels(id);
+                if (px && px.width && px.height && px.data) {
+                  width = px.width;
+                  height = px.height;
+                  const raw = px.data instanceof Float32Array ? Uint8Array.from(px.data, (v) => Math.round(Math.max(0, Math.min(1, v)) * 255)) : new Uint8Array(px.data);
+                  if (gl) {
+                    pixels2 = raw;
+                  } else {
                     pixels2 = new Uint8Array(width * height * 4);
                     const rowBytes = width * 4;
                     for (let y = 0; y < height; y++) {
                       pixels2.set(raw.subarray((height - 1 - y) * rowBytes, (height - y) * rowBytes), y * rowBytes);
                     }
-                    topDown = true;
-                    break;
                   }
-                } catch (e) {
+                  topDown = true;
+                  break;
                 }
+              } catch (e) {
               }
-              if (!pixels2) await new Promise((res) => setTimeout(res, 80));
             }
+            if (!pixels2) await new Promise((res) => setTimeout(res, 80));
           }
+        }
+        if (!pixels2 && gl) {
+          width = canvas.width;
+          height = canvas.height;
+          pixels2 = new Uint8Array(width * height * 4);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels2);
         }
         if (!pixels2) {
           return withRequested({
