@@ -21511,7 +21511,13 @@ async function testUniformResponsiveness(session, effectId) {
           sumG += pixels[i2 + 1] / 255;
           sumB += pixels[i2 + 2] / 255;
         }
-        return [sumR / count, sumG / count, sumB / count];
+        const stride = Math.max(1, Math.floor(count / 4096));
+        const samples = [];
+        for (let p = 0; p < count; p += stride) {
+          const i2 = p * 4;
+          samples.push(pixels[i2] / 255, pixels[i2 + 1] / 255, pixels[i2 + 2] / 255);
+        }
+        return { mean: [sumR / count, sumG / count, sumB / count], samples };
       }
       async function captureAll() {
         const out = [];
@@ -21579,8 +21585,11 @@ async function testUniformResponsiveness(session, effectId) {
         if (typeof spec.min !== "number" || typeof spec.max !== "number" || spec.min === spec.max) continue;
         const defaultVal = defaultOf(spec);
         const range = spec.max - spec.min;
-        let testVal = defaultVal === spec.min ? spec.min + range * 0.75 : spec.min + range * 0.25;
-        if (spec.type === "int") testVal = Math.round(testVal);
+        const round = (v) => spec.type === "int" ? Math.round(v) : v;
+        const quarter = round(spec.min + range * 0.25), threeQuarter = round(spec.min + range * 0.75);
+        const far = Math.abs(threeQuarter - defaultVal) > Math.abs(quarter - defaultVal) ? threeQuarter : quarter;
+        const testValues = [far, round(spec.min + range * 0.381966)].filter((v, i2, all) => v !== defaultVal && all.indexOf(v) === i2);
+        let testVal = testValues[0] ?? far;
         const gate = spec.ui?.enabledBy;
         const assign = {};
         if (gate !== void 0 && !satisfy(gate, assign)) {
@@ -21601,24 +21610,47 @@ async function testUniformResponsiveness(session, effectId) {
         }
         for (const [param, value] of Object.entries(assign)) setValue(effectGlobals[param].uniform, value);
         const gateValues = Object.keys(assign).length > 0 ? assign : null;
+        const compare = (reference2, test) => {
+          let luma = 0, channel = 0, pixel = 0;
+          for (let i2 = 0; i2 < CAPTURE_TIMES.length; i2++) {
+            const a = reference2[i2].mean, b = test[i2].mean;
+            luma = Math.max(luma, Math.abs((b[0] + b[1] + b[2]) / 3 - (a[0] + a[1] + a[2]) / 3));
+            channel = Math.max(channel, Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), Math.abs(b[2] - a[2]));
+            const sa = reference2[i2].samples, sb = test[i2].samples;
+            if (sa.length === sb.length && sa.length > 0) {
+              let sum = 0;
+              for (let k = 0; k < sa.length; k++) sum += Math.abs(sb[k] - sa[k]);
+              pixel = Math.max(pixel, sum / sa.length);
+            }
+          }
+          return { luma, channel, pixel };
+        };
         let reference = baseline;
-        let testMetrics = null;
+        let measured2 = null;
         let measureError = null;
         try {
           if (gateValues) reference = await captureAll();
-          setValue(spec.uniform, testVal);
-          testMetrics = reference ? await captureAll() : null;
+          for (const value of testValues) {
+            setValue(spec.uniform, value);
+            const test = reference ? await captureAll() : null;
+            if (!test || !reference) {
+              measured2 = null;
+              break;
+            }
+            const d = compare(reference, test);
+            if (!measured2 || d.pixel + d.channel > measured2.pixel + measured2.channel) {
+              measured2 = d;
+              testVal = value;
+            }
+            if (d.luma > 2e-3 || d.channel > 2e-3 || d.pixel > 2e-3) break;
+          }
         } catch (err) {
           measureError = err instanceof Error ? err.message : String(err);
+          measured2 = null;
         }
-        if (testMetrics && reference) {
-          let lumaDiff = 0, maxChannelDiff = 0;
-          for (let i2 = 0; i2 < CAPTURE_TIMES.length; i2++) {
-            const a = reference[i2], b = testMetrics[i2];
-            lumaDiff = Math.max(lumaDiff, Math.abs((b[0] + b[1] + b[2]) / 3 - (a[0] + a[1] + a[2]) / 3));
-            maxChannelDiff = Math.max(maxChannelDiff, Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), Math.abs(b[2] - a[2]));
-          }
-          const responds = lumaDiff > 2e-3 || maxChannelDiff > 2e-3;
+        if (measured2) {
+          const lumaDiff = measured2.luma, maxChannelDiff = measured2.channel, pixelDiff = measured2.pixel;
+          const responds = lumaDiff > 2e-3 || maxChannelDiff > 2e-3 || pixelDiff > 2e-3;
           uniforms.push({
             name,
             uniform: spec.uniform,
@@ -21626,6 +21658,7 @@ async function testUniformResponsiveness(session, effectId) {
             test_value: testVal,
             luma_diff: lumaDiff,
             max_channel_diff: maxChannelDiff,
+            pixel_diff: pixelDiff,
             responds,
             ...gateValues ? { enabled_with: gateValues } : {}
           });
