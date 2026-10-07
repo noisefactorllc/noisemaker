@@ -14,16 +14,16 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `34b4db0c4f3d79be647b4bdc55fa6e6a0f15be44`.
-- Shade MCP: `30a100e3ada447ac075afd457318359f9237cf00`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.4.9`, built on
+- Noisemaker: `0b0f4560b8420b0b8d74f4542ae254dfc2ea1692`.
+- Shade MCP: `d66ee676daecd9bfce52cc6fca0b13efd4fbf72f`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.4.10`, built on
   `@modelcontextprotocol/sdk` 1.31.0, which accepts the protocol versions
   `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05` and `2024-10-07`,
   echoes the version the client requests, and answers `2025-11-25` to any other
   request; 18 tools are returned by `tools/list`.
 - The repository config runs
-  `npx -y github:noisedeck/shade-mcp#30a100e3ada447ac075afd457318359f9237cf00`,
-  matching release v0.4.9 delivered to `vendor/shade-mcp/`.
+  `npx -y github:noisedeck/shade-mcp#d66ee676daecd9bfce52cc6fca0b13efd4fbf72f`,
+  matching release v0.4.10 delivered to `vendor/shade-mcp/`.
 
 Primary source roots:
 
@@ -33,7 +33,7 @@ Primary source roots:
 - backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
 - repository validation policy: `shaders/tests/test-harness.js`.
 - Shade MCP source for the pinned snapshot:
-  `https://github.com/noisefactorllc/shade-mcp/tree/30a100e3ada447ac075afd457318359f9237cf00/src`.
+  `https://github.com/noisefactorllc/shade-mcp/tree/d66ee676daecd9bfce52cc6fca0b13efd4fbf72f/src`.
 
 ## Freshness and maintenance
 
@@ -553,9 +553,11 @@ retains named nested references so parse/compile/unparse preserves `let` uses.
 For the remaining scalar forms, oscillator numeric fields and MIDI
 `min/max/sensitivity` also normalize booleans and resolvable numeric enum
 members. The MIDI `channel` is resolved the same way in every mode: an
-integer from 1 to 16, with no boolean or enum-member normalization; any
-other value produces S002 (`midi() channel must be a number`) and an inert
-descriptor. Strict MIDI selectors reject booleans and live automation. Audio `min/max`
+integer from 1 to 16, with no boolean or enum-member normalization. Any other
+value makes the descriptor inert: a string produces S001, an undefined
+identifier S003, a boolean or enum member S002 (`midi() channel must be a
+number`), a non-integer S002 (`must be an integer`), and a number outside 1-16
+S002 (`must be at least 1` or `must be at most 16`). Strict MIDI selectors reject booleans and live automation. Audio `min/max`
 accept only numbers or automation, and audio `channel` accepts a resolved
 numeric integer from 1 to 32. The enum selectors accept their named members
 or the implemented numeric values listed above.
@@ -831,6 +833,13 @@ current async node.
 Step-parameter writes also call `checkAsyncRegen()`. A
 changed, declared, scalar parameter other than `alpha` triggers a debounced
 re-run for that node, while object-shaped values and internal keys are ignored.
+"Changed" means different from the value that node's overlay was last drawn
+from, which each run records. `Pipeline.setUniform(name, value)` does the same
+for every async node whose effect reads that uniform, with the node's current
+values, so a host that sets `density` or `seed` directly (the docs viewer, the
+Shade MCP harness) gets a redrawn overlay. An automated parameter (an
+oscillator, MIDI or audio config) reaches `asyncInit` as its default: an overlay
+drawn once cannot follow it.
 `isCancelled()` and the guarded `updateTexture()` callback let superseded work
 stop without uploading. `Pipeline.whenAsyncInitsSettled()` resolves once every
 started `asyncInit` has settled, including a debounced re-run that is already
@@ -1073,7 +1082,7 @@ Formal value contracts:
 
 | Type | DSL form and resolution |
 |---|---|
-| numeric/general | number, enum member, matching bare enum/choice identifier, state identifier, automation, or default. The validator clamps to present `min/max`. |
+| numeric/general | number, boolean->`0/1`, enum member, matching bare enum/choice identifier, state identifier, automation, or default. The validator clamps to present `min/max`. |
 | `member` | Normally an enum member/bare enum identifier. The validator stores a numeric value after enum resolution. |
 | `surface` | `oN`, `sN`, `xyzN`, `velN`, `rgbaN`, `meshN`, `none`, `read(surface)`, or nested call/chain producing a temp. The validator rejects quoted strings. |
 | `volume` | `vol0`-`vol7`, `none`, or single-argument `read3d(volN)` |
@@ -1318,61 +1327,82 @@ Both store `raw=0`. Only the real zero sample has `rawReady===true` and therefor
 level, a variable cycle, deterministic repeated seeks, and recursive audio
 capture requirements.
 
-Runtime responsiveness compares rendered frames at two paused times, t=0 and
-t=0.37: their mean RGBA vectors, a 64x64 grid of pixels at cell centers, and
-every pixel of the frame. After each change it waits for async CPU overlays to
-redraw (`Pipeline.whenAsyncInitsSettled()`). A uniform responds when any
-measure exceeds its threshold at either time (the values below are the maximum
-over both). Define:
+Runtime responsiveness measures each visible uniform control (not
+`ui.control: false`, not `ui.hidden`) on the render surface, at paused times
+t=0 and t=0.37, comparing mean RGBA vectors, a 64x64 grid of pixels at cell
+centers, and every pixel of the frame. A square render is measured at a
+1:0.625 size (reported as `measured_size`) and restored afterwards, so
+aspect-ratio controls can respond. After each change it waits for async CPU
+overlays to redraw (`Pipeline.whenAsyncInitsSettled()`), up to the session
+timeout (`settle_timed_out`). Define, with each value the maximum over both
+times:
 
 ```text
-baseline_luma = (baseline_r + baseline_g + baseline_b) / 3
-test_luma     = (test_r + test_g + test_b) / 3
-luma_delta    = abs(test_luma - baseline_luma)
-max_channel_delta = max(abs(test_c - baseline_c)) over r, g, b, a
+luma_delta        = abs(mean RGB luma of test - mean RGB luma of reference)
+max_channel_delta = max(abs(test_c - reference_c)) over r, g, b, a means
 pixel_delta       = mean over grid pixels and RGBA channels of
-                    abs(test_pixel - baseline_pixel)
+                    abs(test_pixel - reference_pixel)
 strong_fraction   = share of all pixels with any channel changed by > 16/255
 ```
 
-A tested uniform passes when `luma_delta > 0.002`, `max_channel_delta > 0.002`,
+A control responds when `luma_delta > 0.002`, `max_channel_delta > 0.002`,
 `pixel_delta > 0.002` (reported as `pixel_diff`) or `strong_fraction > 0.0005`;
 the per-pixel delta sees blur, scale, rotation and offset controls that leave
 the mean color unchanged, and `strong_fraction` sees a sparse overlay (a few
-stray hairs) that falls between the grid pixels. Only globals with `uniform`,
-numeric `min` and `max`, unequal bounds, a type other than `boolean`/`button`
-and a visible control (not `ui.control: false`) are tested. A compile-time
-`define` param cannot change through `setUniform`; it is reported `gated` with
-`define`. Up to two test values are tried, never the starting value (the value
-the loaded program set, to which every control is restored afterwards): the
-farther of the 25% and 75% points of the range, then the 38.2% point, which
-does not line up with right angles or halves a symmetric input is invariant
-to; `int` values are rounded, and the first value that moves the output is
-reported as `test_value`. A uniform that does not respond is retried with one
-other control at a time moved to its first test value (a vector control, such
-as a tint, a quarter of its range off its start; a gated control with its gate
-opened, except that a toggle gating that control stays where it started in
-the reference), and passes when one makes it respond; the result reports that
-`context`. A range that selects what an adjustment changes, or a transform of
-a feedback that is mixed out at defaults, passes this way. Before measuring a uniform whose
-`ui.enabledBy` condition is false at defaults, the tool sets the condition's
-params to values that satisfy it (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`,
-`notIn`, `and`/`or`) and reports them as `enabled_with`; it restores them
-afterwards. A threshold gate (`gt`, `gte`, `lt`, `lte`) opens halfway into its
-open range first, so a control whose effect scales with its gate is measured
-at a visible strength; a member-enum gate sets the enum's value, and values
-compare per component and within 1e-4, as the UI compares them. A uniform whose gate cannot be opened at run time (the gate is a
-compile-time `define`, an unknown param, or a `not`) is reported `gated`
-(`name:gated`, `responds: null`) and is not measured.
+stray hairs) that falls between the grid pixels.
+
+For each control the tool captures a fresh reference twice; the second capture
+against the first is the output's own change between renders. When that
+change itself exceeds the thresholds (a simulation steps on every render), the
+control responds only when one measure exceeds twice that change plus its
+threshold; otherwise it gets no verdict (`name:unstable`, `responds: null`,
+with the reference change as `noise`).
+
+Up to two test values are tried, never the starting value (the value the
+loaded program set, read from the effect's pass uniforms, to which every
+control is restored afterwards): for a range, the farther of the 25% and 75%
+points, then the 38.2% point, which does not line up with right angles or
+halves a symmetric input is invariant to (`int` values rounded); for a
+dropdown, its first two other choices (a member enum's members come from the
+renderer's enum registry); for a boolean, its opposite; for a vector (a tint, a
+light direction), each component moved a quarter of its range. The first value
+that moves the output is reported as `test_value`. A control with no other
+value to set at run time (a surface input, an int with neither range nor
+choices) is reported `name:untested` with the reason.
+
+Before measuring a uniform whose `ui.enabledBy` condition is false at
+defaults, the tool sets the condition's params to values that satisfy it
+(`eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`, `notIn`, `and`/`or`) and reports
+them as `enabled_with`; it restores them afterwards. A threshold gate opens
+halfway into its open range first, so a control whose effect scales with its
+gate is measured at a visible strength; a member-enum gate sets the enum's
+value, and values compare per component and within 1e-4, as the UI compares
+them. A uniform whose gate cannot be opened at run time (the gate is a
+compile-time `define`, an unknown param, or a `not`), and a compile-time
+`define` param itself, are reported `gated` (`name:gated`, `responds: null`)
+and are not measured.
+
+A uniform that does not respond is retried with one other control at a time
+moved (its first test value, and a range's maximum and minimum; a gated
+control with its gate opened, except that a toggle gating that control stays
+where it started in the reference): first controls in the same UI category,
+then controls whose names share a prefix (`zone1_count` for `zone1_v24`,
+`hslEnable` for `hslHueCenter`), then toggles and dropdowns, then the rest, at
+most 24 retries. It passes when one makes it respond, and the result reports
+that `context`; a range that selects what an adjustment changes, or a
+transform of a feedback that is mixed out at defaults, passes this way. When
+no retry makes it respond and one of them left the output changing between
+renders on its own, the control gets no verdict (`unstable`) instead of a fail.
 
 The tool's overall status is `ok` only when at least one uniform was measured
-and every measured uniform responded. It is `skipped` when none is
-measurable, `error` when any tested uniform could not be measured, and
+and every measured uniform responded. It is `skipped` when none could be
+measured, `error` when any measured uniform could not be captured, and
 otherwise `fail` when a measured uniform did not affect output; `details`
-names gated uniforms. Each tested uniform is also
-reported in `uniforms` with its test value and measured deltas, and the
-result carries the `threshold`. The repository harness gates `--uniforms` on
-this status and prints the measured deltas.
+names gated, unstable and untested uniforms. Every uniform is also reported in
+`uniforms` with its test value and measured deltas, and the result carries the
+`threshold` (0.002) and `strong_threshold` (0.0005). The repository harness
+gates `--uniforms` on this status (`ok` and `skipped` pass) and prints the
+measured deltas.
 
 Sources: `shaders/src/lang/validator.js` - `clamp()`, numeric arguments, and
 automation compilation; `shaders/src/runtime/external-input.js` - selected
@@ -1404,18 +1434,22 @@ capture.
 type UniformResponsiveness = { effect_id: string, outcome: Outcome } & (
   | { status: "ok" | "skipped" | "fail" | "error", backend: string,
       tested_uniforms: Array<`${string}:pass` | `${string}:fail` |
-                             `${string}:error` | `${string}:gated`>,
+                             `${string}:error` | `${string}:gated` |
+                             `${string}:unstable` | `${string}:untested`>,
       uniforms: Array<{ name: string, uniform: string,
-        default_value: number, test_value: number,
+        default_value: unknown, test_value: unknown,
         luma_diff: number | null, max_channel_diff: number | null,
         pixel_diff?: number,               // mean per-pixel delta, when measured
         strong_fraction?: number,          // share of pixels changed by > 16/255
-        responds: boolean | null,          // null when gated
+        responds: boolean | null,          // null when gated, unstable or untested
         enabled_with?: Record<string, unknown>, // gate params set to open ui.enabledBy
         context?: Record<string, unknown>, // the other control a retry moved
+        unstable?: true, noise?: object,   // output changes between renders on its own
+        untested?: string,                 // why no value could be set at run time
         gated?: true, enabled_by?: unknown, define?: string,
         error?: string }>,
-      threshold: 0.002,
+      threshold: 0.002, strong_threshold: 0.0005,
+      measured_size?: [number, number], settle_timed_out?: true,
       details: string,
       console_errors?: string[] }
   // backend-switch or selection failure
@@ -2464,7 +2498,10 @@ For direct rendering, use `CanvasRenderer`/`Pipeline`.
 Then read `pipeline.getOutput()` with backend readback.
 
 Uniform override keys are shader uniform names as consumed by
-`pipeline.setUniform`, not necessarily DSL global names. `resolution` sets the
+`pipeline.setUniform`, not necessarily DSL global names. `setUniform` also
+writes a pass-level uniform that the pass feeds from that name under another
+name (`uniforms: { mixAmt: "mix" }`, recorded as `pass.uniformAliases`), as the
+UI parameter paths do, so `setUniform("mix", v)` reaches `mixAmt`. `resolution` sets the
 browser viewport and calls the renderer's `resize(width, height)`, which sets
 the pipeline's render size; the viewer's layout still sizes the presented
 canvas. The returned frame is read from the render surface, so the worked call
@@ -3265,7 +3302,8 @@ type TestNoPassthroughResult = Batched<
   | { effect_id: string, status: "skipped" | "error",
       backend?: string, isFilterEffect: false, similarity: null, details: string,
       console_errors?: string[] }
-  // a filter whose input or output texture could not be read
+  // a filter whose input or output texture could not be read, or whose
+  // input and output differ in size
   | { effect_id: string, status: "error", backend: string,
       isFilterEffect: true, similarity: null, inputTexture?: string,
       details: string }
@@ -3276,7 +3314,9 @@ type TestNoPassthroughResult = Batched<
 The tool classifies a filter by an expanded pass input key or value naming
 `inputTex`, `inputTex3d`, or a user surface, including starter effects. An
 input that the same or a later pass writes is the effect's own previous output
-(a feedback loop), not its input, and is skipped. It renders at paused times
+(a feedback loop), not its input, and is skipped. A volume filter consuming
+`inputTex3d` is compared with the last texture its own node writes (its output
+volume), not with the 2D render surface. It renders at paused times
 t=0 and t=0.37, reads the consumed input texture (a `global_<name>` input
 through the half the frame presented, then `global_<name>_read`) and the
 output surface through the backend's async reader, and compares RGB on a 64x64
@@ -3287,7 +3327,8 @@ share of all pixels changed by more than 16/255. Output is unchanged when
 `similarity <= 0.01`, `changed_fraction <= 0.01` and `strong_fraction <=
 0.0005` at both times. Many filters are the identity at their defaults (zero
 glitchiness, a zero mix): an unchanged filter is measured again with each
-ungated runtime control at the farther of its 25% and 75% points, restored
+ungated, visible runtime range control at the farther of its 25% and 75% points
+from the value the program set (read from the pass uniforms), restored
 afterwards, and reports `identity_at_defaults` with those `varied` values when
 that changes its input. Only a filter unchanged both ways is a `passthrough`.
 Nonfilters return `skipped` with `Not a filter effect`. The comparison works
@@ -4282,7 +4323,7 @@ program expansion.
 
 <!-- WORKED:MCP-REQUESTS -->
 
-One configured-pin session returned server `shade-mcp` version `0.4.9` and
+One configured-pin session returned server `shade-mcp` version `0.4.10` and
 listed 18 tools. All eight calls ran in that session, none returning MCP
 `isError`; the passthrough call returned the expected domain status `skipped`
 (`outcome:"skipped"`) because this is a source effect. On hosts where the
@@ -4311,10 +4352,10 @@ capture; these are the values from this session):
 {"outcome":"ok","effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGL2"}
 {"outcome":"ok","effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGPU"}
 {"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"image_uri":null,"width":256,"height":256},"metrics":{"mean_rgb":[0.5034687809712587,0.5034687809712587,0.5034687809712587],"mean_alpha":1,"std_rgb":[0.4999879674137903,0.4999879674137903,0.4999879674137903],"luma_variance":0.24998796755857344,"unique_sampled_colors":2,"is_all_zero":false,"is_all_transparent":false,"is_essentially_blank":false,"is_monochrome":false}}
-{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"uniforms":[{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":12,"luma_diff":0.0029811859130859375,"max_channel_diff":0.0029811859130859375,"pixel_diff":0.400634765625,"strong_fraction":0.4821910858154297,"responds":true,"enabled_with":{"pattern":0}}],"threshold":0.002,"details":"Uniforms affect output","backend":"WebGL2"}
+{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","tested_uniforms":["pattern:pass","gridSize:pass"],"uniforms":[{"name":"pattern","uniform":"pattern","default_value":0,"test_value":1,"luma_diff":0.0031082153320312056,"max_channel_diff":0.0031082153320312056,"pixel_diff":0.37701416015625,"strong_fraction":0.875299072265625,"responds":true},{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":12,"luma_diff":0.002946472167968728,"max_channel_diff":0.002946472167968728,"pixel_diff":0.39990234375,"strong_fraction":0.48483123779296877,"responds":true,"enabled_with":{"pattern":0}}],"threshold":0.002,"strong_threshold":0.0005,"details":"Uniforms affect output","measured_size":[1024,640],"backend":"WebGL2"}
 {"outcome":"skipped","effect_id":"synth/testPattern","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2"}
 {"outcome":"ok","effect_id":"synth/testPattern","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.28,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.59,"jitter_ms":0.96,"min_frame_time_ms":13.3,"max_frame_time_ms":19.1}}
+{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.71,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.47,"jitter_ms":1.5,"min_frame_time_ms":5.4,"max_frame_time_ms":17.5}}
 ```
 
 The structure scan has no issues and reports the one declared effect pass.
