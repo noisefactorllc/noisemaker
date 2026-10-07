@@ -2842,7 +2842,14 @@ export class WebGPUBackend extends Backend {
         let data
         let byteLength
 
-        if (typeof value === 'boolean') {
+        if (typeof value === 'boolean' && typeDecl !== 'i32' && typeDecl !== 'u32') {
+            // A boolean bound to an f32 uniform: write 1.0 or 0.0. The int
+            // bits of 1 read as an f32 are a denormal the GPU flushes to
+            // zero, so `x != 0.0` never held (filter/pixelSort's darkest).
+            this._singleUniformFloat32[0] = value ? 1 : 0
+            data = this._singleUniformFloat32
+            byteLength = 4
+        } else if (typeof value === 'boolean') {
             // Reuse pre-allocated int32 array
             this._singleUniformInt32[0] = value ? 1 : 0
             data = this._singleUniformInt32
