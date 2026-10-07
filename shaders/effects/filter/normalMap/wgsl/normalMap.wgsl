@@ -1,5 +1,6 @@
-// Normal map generation. Mirrors noisemaker.effects.normal_map by computing a
-// grayscale reference map, Sobel derivatives, and a stylized Z component.
+// Normal map generation, as the GLSL: Sobel derivatives of a reference value
+// and a Z component from their magnitude. Neither backend's size uniform is
+// set, so the reference is the input's red channel (channel count 1).
 
 const CHANNEL_COUNT : u32 = 4u;
 const CHANNEL_CAP : u32 = 4u;
