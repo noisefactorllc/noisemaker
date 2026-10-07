@@ -21060,7 +21060,7 @@ async function testNoPassthrough(session, effectId) {
         ...selection.effectId ? { effect_id: selection.effectId } : {}
       };
     }
-    const result = await page.evaluate(async (globals) => {
+    const result = await page.evaluate(async ({ globals, settleMs }) => {
       const w = window;
       const pipeline = w[globals.renderingPipeline];
       const effect = w[globals.currentEffect];
@@ -21080,6 +21080,7 @@ async function testNoPassthrough(session, effectId) {
         for (const id of Object.values(pass.outputs || {})) if (!writtenAt.has(String(id))) writtenAt.set(String(id), index);
       });
       let consumedInput = null;
+      let consumingPass = null;
       for (const [index, pass] of passes.entries()) {
         const inputs = pass.inputs || {};
         for (const key of Object.keys(inputs)) {
@@ -21087,10 +21088,19 @@ async function testNoPassthrough(session, effectId) {
           if ((writtenAt.get(id) ?? -1) >= index) continue;
           if (isPipelineInput(key) || isPipelineInput(id)) {
             consumedInput = { key, id };
+            consumingPass = pass;
             break;
           }
         }
         if (consumedInput) break;
+      }
+      let volumeOutput = null;
+      if (consumedInput?.key === "inputTex3d" && consumingPass?.nodeId != null) {
+        for (const pass of passes) {
+          if (pass.nodeId !== consumingPass.nodeId) continue;
+          const written = Object.values(pass.outputs || {}).map(String);
+          if (written.length > 0) volumeOutput = written[written.length - 1];
+        }
       }
       if (!consumedInput) return { status: "skipped", isFilterEffect: false, similarity: null, details: "Not a filter effect" };
       async function readTexture(id) {
@@ -21120,6 +21130,7 @@ async function testNoPassthrough(session, effectId) {
         return null;
       }
       async function readOutput() {
+        if (volumeOutput) return readTexture(volumeOutput);
         const surf = pipeline.graph?.renderSurface;
         const candidates = [];
         const frameRead = surf != null ? pipeline.frameReadTextures?.get?.(surf) : null;
@@ -21172,9 +21183,19 @@ async function testNoPassthrough(session, effectId) {
           if (!outputFrame) {
             return { error: { status: "error", isFilterEffect: true, similarity: null, backend: backendName, details: `Failed to read pixels on ${backendName}` } };
           }
-          const count = Math.min(inputFrame.width * inputFrame.height, outputFrame.width * outputFrame.height);
+          if (inputFrame.width !== outputFrame.width || inputFrame.height !== outputFrame.height) {
+            return { error: {
+              status: "error",
+              isFilterEffect: true,
+              similarity: null,
+              backend: backendName,
+              inputTexture: inputId,
+              details: `Input ${inputFrame.width}x${inputFrame.height} and output ${outputFrame.width}x${outputFrame.height} differ in size on ${backendName}`
+            } };
+          }
+          const count = inputFrame.width * inputFrame.height;
           let diffSum = 0, changed = 0, samples = 0;
-          for (const i2 of sampleGrid(Math.min(inputFrame.width, outputFrame.width), Math.min(inputFrame.height, outputFrame.height))) {
+          for (const i2 of sampleGrid(inputFrame.width, inputFrame.height)) {
             const idx = i2 * 4;
             const dr = Math.abs(outputFrame.pixels[idx] - inputFrame.pixels[idx]);
             const dg = Math.abs(outputFrame.pixels[idx + 1] - inputFrame.pixels[idx + 1]);
@@ -21191,23 +21212,32 @@ async function testNoPassthrough(session, effectId) {
           const meanDiff2 = diffSum / (samples * 3 * 255);
           const changedFraction2 = changed / samples;
           const strongFraction = strong / count;
-          const strongest = Math.max(strongFraction, worst ? worst.strongFraction : 0);
-          if (!worst || changedFraction2 > worst.changedFraction || changedFraction2 === worst.changedFraction && meanDiff2 > worst.meanDiff) {
-            worst = { meanDiff: meanDiff2, changedFraction: changedFraction2, strongFraction: strongest };
-          } else {
-            worst.strongFraction = strongest;
-          }
+          worst = worst ? {
+            meanDiff: Math.max(worst.meanDiff, meanDiff2),
+            changedFraction: Math.max(worst.changedFraction, changedFraction2),
+            strongFraction: Math.max(worst.strongFraction, strongFraction)
+          } : { meanDiff: meanDiff2, changedFraction: changedFraction2, strongFraction };
         }
         return worst;
       }
       const specs = effect.instance?.globals ?? {};
+      const effectFunc = effect.instance?.func ?? effect.name;
+      const ownPasses = passes.filter((pass) => pass.effectFunc === effectFunc && (pass.effectNamespace == null || pass.effectNamespace === effect.namespace));
+      const programValue = (uniform) => {
+        for (const pass of [...ownPasses, ...passes]) {
+          const v = pass.uniforms?.[uniform];
+          if (typeof v === "number") return v;
+        }
+        return pipeline.globalUniforms?.[uniform];
+      };
       const varied = {};
       const start = {};
       for (const [name, spec] of Object.entries(specs)) {
         if (!spec.uniform || spec.define !== void 0 || spec.ui?.enabledBy !== void 0) continue;
+        if (spec.ui?.control === false || spec.ui?.hidden === true) continue;
         if (spec.type === "boolean" || spec.type === "button") continue;
         if (typeof spec.min !== "number" || typeof spec.max !== "number" || spec.min === spec.max) continue;
-        const current2 = pipeline.globalUniforms?.[spec.uniform];
+        const current2 = programValue(spec.uniform);
         start[name] = typeof current2 === "number" ? current2 : spec.default ?? spec.min;
         const d = start[name];
         const range = spec.max - spec.min;
@@ -21219,7 +21249,16 @@ async function testNoPassthrough(session, effectId) {
         for (const name of Object.keys(varied)) {
           pipeline.setUniform?.(specs[name].uniform, values ? values[name] : start[name]);
         }
-        if (typeof pipeline.whenAsyncInitsSettled === "function") await pipeline.whenAsyncInitsSettled();
+        if (typeof pipeline.whenAsyncInitsSettled === "function") {
+          let timer;
+          await Promise.race([
+            pipeline.whenAsyncInitsSettled(),
+            new Promise((resolve4) => {
+              timer = setTimeout(resolve4, settleMs);
+            })
+          ]);
+          clearTimeout(timer);
+        }
       };
       let atDefaults;
       let withVaried = null;
@@ -21257,7 +21296,7 @@ async function testNoPassthrough(session, effectId) {
         ...identityAtDefaults && !isPassthrough ? { identity_at_defaults: true, varied } : {},
         details: isPassthrough ? `Output matches input (mean diff ${meanDiff.toFixed(4)}, ${(changedFraction * 100).toFixed(1)}% of pixels changed${withVaried ? ", also with its controls moved" : ""})` : `Effect modifies input (mean diff ${meanDiff.toFixed(4)}, ${(changedFraction * 100).toFixed(1)}% of pixels changed${identityAtDefaults ? "; identity at its defaults" : ""})`
       };
-    }, session.globals);
+    }, { globals: session.globals, settleMs: session.timeoutMs });
     return {
       ...result,
       backend: selection.backend,
@@ -21533,7 +21572,7 @@ async function testUniformResponsiveness(session, effectId) {
       if (w[globals.setPaused]) w[globals.setPaused](true);
       if (w[globals.setPausedTime]) w[globals.setPausedTime](0);
     }, session.globals);
-    const result = await page.evaluate(async (globals) => {
+    const result = await page.evaluate(async ({ globals, settleMs }) => {
       const w = window;
       const pipeline = w[globals.renderingPipeline];
       const effect = w[globals.currentEffect];
@@ -21544,6 +21583,8 @@ async function testUniformResponsiveness(session, effectId) {
       const backend = pipeline.backend;
       const backendName = backend?.getName?.() || "unknown";
       async function readFrame() {
+        const surfaceFrame = await readSurface();
+        if (surfaceFrame) return surfaceFrame;
         const gl = backend?.gl;
         if (gl) {
           const canvas = renderer.canvas;
@@ -21553,6 +21594,9 @@ async function testUniformResponsiveness(session, effectId) {
           gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
           return { pixels, width, height };
         }
+        return null;
+      }
+      async function readSurface() {
         if (backend?.readPixels && backend?.textures) {
           await backend.device?.queue?.onSubmittedWorkDone?.();
           const surf = pipeline.graph?.renderSurface;
@@ -21616,23 +21660,38 @@ async function testUniformResponsiveness(session, effectId) {
         return out;
       }
       const effectGlobals = effect.instance.globals;
-      const setValue = (uniformName, value) => {
-        if (pipeline.setUniform) pipeline.setUniform(uniformName, value);
-        else if (pipeline.globalUniforms) pipeline.globalUniforms[uniformName] = value;
+      const passes = pipeline.graph?.passes || [];
+      const effectFunc = effect.instance?.func ?? effect.name;
+      const ownPass = (pass) => pass.effectFunc === effectFunc && (pass.effectNamespace == null || pass.effectNamespace === effect.namespace);
+      const toUniform = (spec, value) => (typeof value === "string" || typeof value === "boolean") && typeof renderer?.convertParameterForUniform === "function" ? renderer.convertParameterForUniform(value, spec) : value;
+      const setValue = (spec, value) => {
+        const converted = toUniform(spec, value);
+        if (pipeline.setUniform) pipeline.setUniform(spec.uniform, converted);
+        else if (pipeline.globalUniforms) pipeline.globalUniforms[spec.uniform] = converted;
       };
       const defaultOf = (spec) => spec.default ?? spec.min;
-      const initial = {};
-      for (const [param, spec] of Object.entries(effectGlobals)) {
-        const current2 = spec.uniform ? pipeline.globalUniforms?.[spec.uniform] : void 0;
-        initial[param] = typeof current2 === "number" || Array.isArray(current2) ? current2 : defaultOf(spec);
-      }
-      const startOf = (param) => initial[param];
       const same = (a, b) => {
         if (a === b) return true;
         if (Array.isArray(a) && Array.isArray(b)) return a.length === b.length && a.every((v, i2) => Math.abs(v - b[i2]) < 1e-4);
         return typeof a === "number" && typeof b === "number" && Math.abs(a - b) < 1e-4;
       };
-      const toUniform = (spec, value) => typeof value === "string" && typeof renderer?.convertParameterForUniform === "function" ? renderer.convertParameterForUniform(value, spec) : value;
+      const isValue = (v) => typeof v === "number" || typeof v === "boolean" || Array.isArray(v);
+      const initial = {};
+      for (const [param, spec] of Object.entries(effectGlobals)) {
+        let current2;
+        if (spec.uniform) {
+          for (const pass of [...passes.filter(ownPass), ...passes]) {
+            const v = pass.uniforms?.[spec.uniform];
+            if (isValue(v)) {
+              current2 = v;
+              break;
+            }
+          }
+          if (current2 === void 0 && isValue(pipeline.globalUniforms?.[spec.uniform])) current2 = pipeline.globalUniforms[spec.uniform];
+        }
+        initial[param] = current2 !== void 0 ? current2 : defaultOf(spec);
+      }
+      const startOf = (param) => initial[param];
       function satisfy(cond, assign) {
         if (cond == null) return true;
         if (typeof cond === "string") return satisfy({ param: cond }, assign);
@@ -21645,7 +21704,7 @@ async function testUniformResponsiveness(session, effectId) {
         });
         if (cond.not !== void 0) return false;
         const gate = effectGlobals[cond.param];
-        if (!gate || !gate.uniform) return false;
+        if (!gate || !gate.uniform || gate.define !== void 0) return false;
         const choices = gate.choices ? Object.values(gate.choices).filter((v) => typeof v === "number") : null;
         const lo = typeof gate.min === "number" ? gate.min : choices ? Math.min(...choices) : 0;
         const hi = typeof gate.max === "number" ? gate.max : choices ? Math.max(...choices) : 1;
@@ -21675,36 +21734,77 @@ async function testUniformResponsiveness(session, effectId) {
         assign[cond.param] = value;
         return true;
       }
-      const tested = [];
-      const uniforms = [];
-      const failedNames = [];
-      const errorNames = [];
-      const gatedNames = [];
-      const baseline = await captureAll();
-      if (!baseline) return { status: "error", tested_uniforms: [], backend: backendName, details: `Failed to capture baseline on ${backendName}` };
+      let settleTimedOut = false;
       const settle2 = async () => {
-        if (typeof pipeline.whenAsyncInitsSettled === "function") await pipeline.whenAsyncInitsSettled();
+        if (typeof pipeline.whenAsyncInitsSettled !== "function") return;
+        let timer;
+        const timedOut = await Promise.race([
+          pipeline.whenAsyncInitsSettled().then(() => false),
+          new Promise((resolve4) => {
+            timer = setTimeout(() => resolve4(true), settleMs);
+          })
+        ]);
+        clearTimeout(timer);
+        if (timedOut) settleTimedOut = true;
       };
-      const measurable = (spec) => spec.uniform && spec.define === void 0 && spec.type !== "boolean" && spec.type !== "button" && typeof spec.min === "number" && typeof spec.max === "number" && spec.min !== spec.max;
+      const visible = (spec) => spec.ui?.control !== false && spec.ui?.hidden !== true;
       const round = (spec, v) => spec.type === "int" ? Math.round(v) : v;
       const testValuesOf = (param, spec) => {
-        const defaultVal = startOf(param);
-        const range = spec.max - spec.min;
-        const quarter = round(spec, spec.min + range * 0.25), threeQuarter = round(spec, spec.min + range * 0.75);
-        const far = Math.abs(threeQuarter - defaultVal) > Math.abs(quarter - defaultVal) ? threeQuarter : quarter;
-        const values = [far, round(spec, spec.min + range * 0.381966)].filter((v, i2, all) => v !== defaultVal && all.indexOf(v) === i2);
-        return values.length > 0 ? values : [far];
-      };
-      const contextValueOf = (param, spec) => {
-        if (!spec.uniform || spec.define !== void 0) return void 0;
         const start = startOf(param);
+        if (spec.type === "boolean") return [!start];
         if (Array.isArray(start)) {
           const lo = typeof spec.min === "number" ? spec.min : 0;
           const hi = typeof spec.max === "number" ? spec.max : 1;
-          return start.map((c) => c + (c <= (lo + hi) / 2 ? 1 : -1) * (hi - lo) / 4);
+          return [start.map((c) => c + (c <= (lo + hi) / 2 ? 1 : -1) * (hi - lo) / 4)];
         }
-        return measurable(spec) ? testValuesOf(param, spec)[0] : void 0;
+        if (spec.choices) {
+          const others = Object.values(spec.choices).filter((v) => v !== null && v !== void 0 && !same(toUniform(spec, v), toUniform(spec, start)));
+          return others.length > 0 ? others.slice(0, 2) : null;
+        }
+        const members2 = spec.type === "member" && spec.enum ? renderer?.enums?.[spec.enum] : null;
+        if (members2 && typeof members2 === "object") {
+          const others = Object.entries(members2).filter(([, entry]) => typeof entry === "number" || typeof entry?.value === "number").map(([member]) => `${spec.enum}.${member}`).filter((path) => !same(toUniform(spec, path), toUniform(spec, start)));
+          return others.length > 0 ? others.slice(0, 2) : null;
+        }
+        if (typeof spec.min !== "number" || typeof spec.max !== "number" || spec.min === spec.max) return null;
+        const startNumber = start;
+        const range = spec.max - spec.min;
+        const quarter = round(spec, spec.min + range * 0.25), threeQuarter = round(spec, spec.min + range * 0.75);
+        const far = Math.abs(threeQuarter - startNumber) > Math.abs(quarter - startNumber) ? threeQuarter : quarter;
+        const values = [far, round(spec, spec.min + range * 0.381966)].filter((v, i2, all) => v !== startNumber && all.indexOf(v) === i2);
+        return values.length > 0 ? values : [far];
       };
+      const untestedReason = (param, spec) => {
+        if (spec.type === "button") return "a button triggers an action rather than holding a value";
+        if (testValuesOf(param, spec) === null) {
+          if (spec.type === "surface") return "a surface input, set by the program rather than a value";
+          return spec.type === "member" ? "an enum whose members are not available" : "no range, choices or other value to set at run time";
+        }
+        return null;
+      };
+      const contextValuesOf = (param, spec) => {
+        if (!spec.uniform || spec.define !== void 0 || spec.type === "button" || !visible(spec)) return [];
+        const first = testValuesOf(param, spec)?.[0];
+        if (first === void 0) return [];
+        const values = [first];
+        const isRange = !spec.choices && spec.type !== "boolean" && !Array.isArray(startOf(param)) && typeof spec.min === "number" && typeof spec.max === "number";
+        if (isRange) {
+          for (const extreme of [spec.max, spec.min]) {
+            if (!same(extreme, startOf(param)) && !values.some((v) => same(v, extreme))) values.push(extreme);
+          }
+        }
+        return values;
+      };
+      const prefixOf = (param) => param.includes("_") ? param.split("_")[0] : param.match(/^[a-z]+/)?.[0] ?? param;
+      const retryRank = (param, spec, other, otherSpec) => {
+        const category = spec.ui?.category;
+        if (category !== void 0 && otherSpec.ui?.category === category) return 0;
+        const prefix = prefixOf(param);
+        if (prefix.length >= 3 && prefixOf(other) === prefix) return 1;
+        if (otherSpec.type === "boolean" || otherSpec.choices) return 2;
+        return 3;
+      };
+      const MAX_CONTEXT_RETRIES = 24;
       const compare = (reference, test) => {
         let luma = 0, channel = 0, pixel = 0, strong = 0;
         for (let i2 = 0; i2 < CAPTURE_TIMES.length; i2++) {
@@ -21729,164 +21829,247 @@ async function testUniformResponsiveness(session, effectId) {
         return { luma, channel, pixel, strong };
       };
       const responds = (d) => d.luma > 2e-3 || d.channel > 2e-3 || d.pixel > 2e-3 || d.strong > 5e-4;
+      const respondsBeyond = (d, noise) => d.luma > 2 * noise.luma + 2e-3 || d.channel > 2 * noise.channel + 2e-3 || d.pixel > 2 * noise.pixel + 2e-3 || d.strong > 2 * noise.strong + 5e-4;
       async function measure(spec, setup, testValues) {
-        for (const [param, value] of Object.entries(setup)) setValue(effectGlobals[param].uniform, toUniform(effectGlobals[param], value));
+        for (const [param, value] of Object.entries(setup)) setValue(effectGlobals[param], value);
         await settle2();
-        const reference = Object.keys(setup).length > 0 ? await captureAll() : baseline;
+        const first = await captureAll();
+        const reference = first ? await captureAll() : null;
+        if (!first || !reference) return null;
+        const noise = compare(first, reference);
+        const unstable = responds(noise);
         let best = null;
         let bestValue = testValues[0];
+        let hit = false;
         for (const value of testValues) {
-          setValue(spec.uniform, value);
+          setValue(spec, value);
           await settle2();
-          const test = reference ? await captureAll() : null;
-          if (!test || !reference) return null;
+          const test = await captureAll();
+          if (!test) return null;
           const d = compare(reference, test);
+          if (unstable ? respondsBeyond(d, noise) : responds(d)) {
+            best = d;
+            bestValue = value;
+            hit = true;
+            break;
+          }
           if (!best || d.pixel + d.channel > best.pixel + best.channel) {
             best = d;
             bestValue = value;
           }
-          if (responds(d)) break;
         }
-        return best ? { ...best, value: bestValue } : null;
+        return best ? { ...best, value: bestValue, responds: hit, unstable, noise } : null;
       }
       async function restore(names) {
-        for (const param of names) setValue(effectGlobals[param].uniform, toUniform(effectGlobals[param], startOf(param)));
+        for (const param of names) setValue(effectGlobals[param], startOf(param));
         await settle2();
       }
-      for (const [name, spec] of Object.entries(effectGlobals)) {
-        if (!spec.uniform) continue;
-        if (spec.ui?.control === false) continue;
-        if (spec.type === "boolean" || spec.type === "button") continue;
-        if (typeof spec.min !== "number" || typeof spec.max !== "number" || spec.min === spec.max) continue;
-        const defaultVal = startOf(name);
-        const testValues = testValuesOf(name, spec);
-        if (spec.define !== void 0) {
-          gatedNames.push(name);
-          tested.push(`${name}:gated`);
-          uniforms.push({
-            name,
-            uniform: spec.uniform,
-            default_value: defaultVal,
-            test_value: testValues[0],
-            luma_diff: null,
-            max_channel_diff: null,
-            responds: null,
-            gated: true,
-            define: spec.define
-          });
-          continue;
-        }
-        const gate = spec.ui?.enabledBy;
-        const assign = {};
-        if (gate !== void 0 && !satisfy(gate, assign)) {
-          gatedNames.push(name);
-          tested.push(`${name}:gated`);
-          uniforms.push({
-            name,
-            uniform: spec.uniform,
-            default_value: defaultVal,
-            test_value: testValues[0],
-            luma_diff: null,
-            max_channel_diff: null,
-            responds: null,
-            gated: true,
-            enabled_by: gate
-          });
-          continue;
-        }
-        let measured2 = null;
-        let context = null;
-        let measureError = null;
-        try {
-          measured2 = await measure(spec, assign, testValues);
-          await restore([name, ...Object.keys(assign)]);
-          if (measured2 && !responds(measured2)) {
-            for (const [other, otherSpec] of Object.entries(effectGlobals)) {
-              if (other === name || other in assign || otherSpec.ui?.control === false) continue;
-              const value = contextValueOf(other, otherSpec);
-              if (value === void 0) continue;
-              const varied = {};
-              if (otherSpec.ui?.enabledBy !== void 0 && !satisfy(otherSpec.ui.enabledBy, varied)) continue;
-              delete varied[name];
-              varied[other] = value;
-              Object.assign(varied, assign);
-              const retry = await measure(spec, varied, testValues);
-              await restore([name, ...Object.keys(varied)]);
-              if (retry && responds(retry)) {
-                measured2 = retry;
-                context = varied;
-                break;
-              }
-            }
-          }
-        } catch (err) {
-          measureError = err instanceof Error ? err.message : String(err);
-          measured2 = null;
-          await restore([name, ...Object.keys(assign)]);
-        }
-        if (measured2) {
-          const ok = responds(measured2);
-          uniforms.push({
-            name,
-            uniform: spec.uniform,
-            default_value: defaultVal,
-            test_value: measured2.value,
-            luma_diff: measured2.luma,
-            max_channel_diff: measured2.channel,
-            pixel_diff: measured2.pixel,
-            strong_fraction: measured2.strong,
-            responds: ok,
-            ...Object.keys(assign).length > 0 ? { enabled_with: assign } : {},
-            ...context ? { context } : {}
-          });
-          if (ok) {
-            tested.push(`${name}:pass`);
-          } else {
-            failedNames.push(name);
-            tested.push(`${name}:fail`);
-          }
-        } else {
-          errorNames.push(name);
-          tested.push(`${name}:error`);
-          uniforms.push({
-            name,
-            uniform: spec.uniform,
-            default_value: defaultVal,
-            test_value: testValues[0],
-            luma_diff: null,
-            max_channel_diff: null,
-            responds: false,
-            error: measureError ?? "Failed to capture test render"
-          });
-        }
+      const sizeBefore = { width: pipeline.width, height: pipeline.height };
+      const reshape = typeof renderer?.resize === "function" && sizeBefore.width > 0 && sizeBefore.width === sizeBefore.height;
+      if (reshape) {
+        renderer.resize(sizeBefore.width, Math.max(1, Math.round(sizeBefore.height * 0.625)));
+        await settle2();
       }
-      let status;
-      let details;
-      const measured = tested.length - gatedNames.length;
-      if (measured === 0) {
-        status = "skipped";
-        details = gatedNames.length > 0 ? `No testable uniforms; gated: ${gatedNames.join(", ")}` : "No testable uniforms";
-      } else {
-        const problems = [];
-        if (errorNames.length > 0) problems.push(`could not be measured: ${errorNames.join(", ")}`);
-        if (failedNames.length > 0) problems.push(`did not affect output: ${failedNames.join(", ")}`);
-        if (problems.length > 0) {
-          status = errorNames.length > 0 ? "error" : "fail";
-          details = `Uniforms ${problems.join("; ")}`;
+      try {
+        if (!await captureAll()) {
+          return { status: "error", tested_uniforms: [], uniforms: [], backend: backendName, details: `Failed to capture a frame on ${backendName}` };
+        }
+        const tested = [];
+        const uniforms = [];
+        const failedNames = [];
+        const errorNames = [];
+        const gatedNames = [];
+        const unstableNames = [];
+        const untestedNames = [];
+        for (const [name, spec] of Object.entries(effectGlobals)) {
+          if (!spec.uniform) continue;
+          if (!visible(spec)) continue;
+          const defaultVal = startOf(name);
+          if (spec.define !== void 0) {
+            gatedNames.push(name);
+            tested.push(`${name}:gated`);
+            uniforms.push({
+              name,
+              uniform: spec.uniform,
+              default_value: defaultVal,
+              test_value: null,
+              luma_diff: null,
+              max_channel_diff: null,
+              responds: null,
+              gated: true,
+              define: spec.define
+            });
+            continue;
+          }
+          const reason = untestedReason(name, spec);
+          if (reason) {
+            untestedNames.push(name);
+            tested.push(`${name}:untested`);
+            uniforms.push({
+              name,
+              uniform: spec.uniform,
+              default_value: defaultVal,
+              test_value: null,
+              luma_diff: null,
+              max_channel_diff: null,
+              responds: null,
+              untested: reason
+            });
+            continue;
+          }
+          const testValues = testValuesOf(name, spec);
+          const gate = spec.ui?.enabledBy;
+          const assign = {};
+          if (gate !== void 0 && !satisfy(gate, assign)) {
+            gatedNames.push(name);
+            tested.push(`${name}:gated`);
+            uniforms.push({
+              name,
+              uniform: spec.uniform,
+              default_value: defaultVal,
+              test_value: testValues[0],
+              luma_diff: null,
+              max_channel_diff: null,
+              responds: null,
+              gated: true,
+              enabled_by: gate
+            });
+            continue;
+          }
+          let measured = null;
+          let context = null;
+          let measureError = null;
+          try {
+            try {
+              measured = await measure(spec, assign, testValues);
+            } finally {
+              await restore([name, ...Object.keys(assign)]);
+            }
+            if (measured && !measured.responds && !measured.unstable) {
+              const others = Object.entries(effectGlobals).map(([other, otherSpec], index) => ({ other, otherSpec, index, rank: retryRank(name, spec, other, otherSpec) })).filter(({ other }) => other !== name && !(other in assign)).sort((a, b) => a.rank - b.rank || a.index - b.index);
+              let retries = 0;
+              let unstableRetry = null;
+              retrying: for (const { other, otherSpec } of others) {
+                for (const value of contextValuesOf(other, otherSpec)) {
+                  if (retries >= MAX_CONTEXT_RETRIES) break retrying;
+                  const varied = {};
+                  if (otherSpec.ui?.enabledBy !== void 0 && !satisfy(otherSpec.ui.enabledBy, varied)) continue retrying;
+                  delete varied[name];
+                  varied[other] = value;
+                  Object.assign(varied, assign);
+                  retries++;
+                  let retry = null;
+                  try {
+                    retry = await measure(spec, varied, testValues);
+                  } finally {
+                    await restore([name, ...Object.keys(varied)]);
+                  }
+                  if (retry?.responds) {
+                    measured = retry;
+                    context = varied;
+                    break retrying;
+                  }
+                  if (retry?.unstable && !unstableRetry) unstableRetry = retry;
+                }
+              }
+              if (!measured.responds && unstableRetry) measured = { ...measured, unstable: true, noise: unstableRetry.noise };
+            }
+          } catch (err) {
+            measureError = err instanceof Error ? err.message : String(err);
+            measured = null;
+          }
+          if (measured && !measured.responds && measured.unstable) {
+            unstableNames.push(name);
+            tested.push(`${name}:unstable`);
+            uniforms.push({
+              name,
+              uniform: spec.uniform,
+              default_value: defaultVal,
+              test_value: measured.value,
+              luma_diff: measured.luma,
+              max_channel_diff: measured.channel,
+              pixel_diff: measured.pixel,
+              strong_fraction: measured.strong,
+              responds: null,
+              unstable: true,
+              noise: measured.noise,
+              ...Object.keys(assign).length > 0 ? { enabled_with: assign } : {}
+            });
+          } else if (measured) {
+            uniforms.push({
+              name,
+              uniform: spec.uniform,
+              default_value: defaultVal,
+              test_value: measured.value,
+              luma_diff: measured.luma,
+              max_channel_diff: measured.channel,
+              pixel_diff: measured.pixel,
+              strong_fraction: measured.strong,
+              responds: measured.responds,
+              ...measured.unstable ? { unstable: true, noise: measured.noise } : {},
+              ...Object.keys(assign).length > 0 ? { enabled_with: assign } : {},
+              ...context ? { context } : {}
+            });
+            if (measured.responds) {
+              tested.push(`${name}:pass`);
+            } else {
+              failedNames.push(name);
+              tested.push(`${name}:fail`);
+            }
+          } else {
+            errorNames.push(name);
+            tested.push(`${name}:error`);
+            uniforms.push({
+              name,
+              uniform: spec.uniform,
+              default_value: defaultVal,
+              test_value: testValues[0],
+              luma_diff: null,
+              max_channel_diff: null,
+              responds: false,
+              error: measureError ?? "Failed to capture test render"
+            });
+          }
+        }
+        let status;
+        let details;
+        const measuredCount = tested.length - gatedNames.length - unstableNames.length - untestedNames.length;
+        if (measuredCount === 0) {
+          status = "skipped";
+          details = "No uniform could be measured";
         } else {
-          status = "ok";
-          details = "Uniforms affect output";
+          const problems = [];
+          if (errorNames.length > 0) problems.push(`could not be measured: ${errorNames.join(", ")}`);
+          if (failedNames.length > 0) problems.push(`did not affect output: ${failedNames.join(", ")}`);
+          if (problems.length > 0) {
+            status = errorNames.length > 0 ? "error" : "fail";
+            details = `Uniforms ${problems.join("; ")}`;
+          } else {
+            status = "ok";
+            details = "Uniforms affect output";
+          }
         }
         if (gatedNames.length > 0) details += `; gated (not testable at run time): ${gatedNames.join(", ")}`;
+        if (unstableNames.length > 0) details += `; no verdict, output changes between renders on its own: ${unstableNames.join(", ")}`;
+        if (untestedNames.length > 0) details += `; untested: ${untestedNames.join(", ")}`;
+        if (settleTimedOut) details += `; an async overlay did not settle within ${settleMs} ms`;
+        return {
+          status,
+          tested_uniforms: tested,
+          uniforms,
+          threshold: 2e-3,
+          strong_threshold: 5e-4,
+          details,
+          ...settleTimedOut ? { settle_timed_out: true } : {},
+          ...reshape ? { measured_size: [sizeBefore.width, Math.max(1, Math.round(sizeBefore.height * 0.625))] } : {}
+        };
+      } finally {
+        if (reshape) {
+          renderer.resize(sizeBefore.width, sizeBefore.height);
+          await settle2();
+        }
       }
-      return {
-        status,
-        tested_uniforms: tested,
-        uniforms,
-        threshold: 2e-3,
-        details
-      };
-    }, session.globals);
+    }, { globals: session.globals, settleMs: session.timeoutMs });
     await page.evaluate((globals) => {
       const w = window;
       if (w[globals.setPaused]) w[globals.setPaused](false);
