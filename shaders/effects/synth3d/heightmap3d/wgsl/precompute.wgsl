@@ -13,8 +13,11 @@ struct FragmentOutput {
 }
 
 // Native atlases and 2D surfaces use the same logical texel coordinates on both backends.
+// Volume z = 0 holds the image's top row, so a view from above along -Y,
+// screen right on +X, shows the image as authored rather than mirrored.
 fn imageTexel(column: vec2i, size: vec2i) -> vec2i {
-    return clamp(((column * 2 + 1) * size) / (u.volumeSize * 2), vec2i(0), size - 1);
+    let image = vec2i(column.x, u.volumeSize - 1 - column.y);
+    return clamp(((image * 2 + 1) * size) / (u.volumeSize * 2), vec2i(0), size - 1);
 }
 
 fn columnHeight(column: vec2i) -> f32 {

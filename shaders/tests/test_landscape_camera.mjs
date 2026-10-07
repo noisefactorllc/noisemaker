@@ -83,8 +83,9 @@ try {
                 const r = cameraRenderer
                 await r.compile(dsl); r.stop(); r.render(0)
                 if (singleVoxel) {
+                    // Texture row 9 counts from the image's bottom row; heightmap3d stores it at z = 6.
                     const source = document.createElement('canvas'); source.width = 16; source.height = 16
-                    const ctx = source.getContext('2d'); ctx.fillStyle = 'white'; ctx.fillRect(10, 6, 1, 1)
+                    const ctx = source.getContext('2d'); ctx.fillStyle = 'white'; ctx.fillRect(10, 9, 1, 1)
                     const surface = r.pipeline.surfaces.get('o1')
                     for (const id of [surface.read, surface.write]) r.updateTextureFromSource(id, source, { flipY: false })
                 }

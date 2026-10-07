@@ -10,4 +10,4 @@ Bake a height map and a diffuse color image into a voxel volume: for each `(x, z
 | heightScale | float | 0.35 | 0-1 | Height-map luminance multiplier before it is quantized into voxel columns |
 | baseHeight | float | 0 | 0-1 | Minimum column height added before scaling, so black pixels still fill some voxels |
 
-Height uses Rec. 709 luminance weights (0.2126 red, 0.7152 green, 0.0722 blue) applied to `heightTex`'s sampled RGB. `heightScale` and `baseHeight` combine as `clamp(luminance * heightScale + baseHeight, 0, 1) * volumeSize` voxels tall. Chain into `renderLandscape3d()` to view the result; see that effect's help for camera controls.
+Height uses Rec. 709 luminance weights (0.2126 red, 0.7152 green, 0.0722 blue) applied to `heightTex`'s sampled RGB. `heightScale` and `baseHeight` combine as `clamp(luminance * heightScale + baseHeight, 0, 1) * volumeSize` voxels tall. Image x runs along volume x and the image's top row lies at z = 0, so a view from directly above (`renderLandscape3d(viewMode: perspective, rotateX: 1.571)`) shows both images as authored. Chain into `renderLandscape3d()` to view the result; see that effect's help for camera controls.

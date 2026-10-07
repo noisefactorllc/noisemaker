@@ -12,8 +12,11 @@ layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec4 geoOut;
 
 // Sample each image independently at the center of the XZ voxel column.
+// Volume z = 0 holds the image's top row, so a view from above along -Y,
+// screen right on +X, shows the image as authored rather than mirrored.
 ivec2 imageTexel(ivec2 column, ivec2 size) {
-    return clamp(((column * 2 + 1) * size) / (volumeSize * 2), ivec2(0), size - 1);
+    ivec2 image = ivec2(column.x, volumeSize - 1 - column.y);
+    return clamp(((image * 2 + 1) * size) / (volumeSize * 2), ivec2(0), size - 1);
 }
 
 float columnHeight(ivec2 column) {

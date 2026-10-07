@@ -46,7 +46,7 @@ async function runBackend(preferWebGPU) {
             window.renderer = new CanvasRenderer({ canvas: document.querySelector('canvas'), width: 128, height: 128,
                 basePath: `${baseUrl}/shaders`, preferWebGPU })
             await renderer.loadManifest()
-            await renderer.loadEffects(['synth3d/heightmap3d', 'render/renderLandscape3d', 'synth3d/shape3d', 'synth3d/noise3d', 'filter3d/palette3d', 'synth/solid', 'render/pointsEmit'])
+            await renderer.loadEffects(['synth3d/heightmap3d', 'render/renderLandscape3d', 'synth3d/shape3d', 'synth3d/noise3d', 'filter3d/palette3d', 'synth/solid', 'synth/testPattern', 'render/pointsEmit'])
         }, { baseUrl, preferWebGPU })
         async function compile(program, inputs = {}) {
             return page.evaluate(async ({ program, inputs }) => {
@@ -91,7 +91,8 @@ async function runBackend(preferWebGPU) {
             return frame.data.slice((row * 16 + x) * 4, (row * 16 + x) * 4 + 4)
         }
         // Hand-derived column heights, including RGB luminance rather than red-channel height.
-        const expectedHeights = [[0, 4, 8, 16], [3, 11, 1, 16]]
+        // Fixture row 0 is texture row 0, the image's bottom row, so it fills the far half of z.
+        const expectedHeights = [[3, 11, 1, 16], [0, 4, 8, 16]]
         for (const [zi, z] of [1, 9].entries()) for (const [xi, x] of [1, 5, 9, 13].entries()) {
             const expectedHeight = expectedHeights[zi][xi]
             for (let y = 0; y < 16; y++) {
@@ -140,10 +141,10 @@ render(o0)`)
             renderer.render(0)
         })
         const adjusted = await readOutput('heightmap3d', 'color')
-        assert.equal(voxel(adjusted, 1, 3, 1)[3], 255, 'base height must fill four voxels in a black height column')
-        assert.equal(voxel(adjusted, 1, 4, 1)[3], 0, 'base height must stop at the configured height')
-        assert.equal(voxel(adjusted, 13, 11, 1)[3], 255, 'height scale and base height must combine')
-        assert.equal(voxel(adjusted, 13, 12, 1)[3], 0, 'height scale must update live')
+        assert.equal(voxel(adjusted, 1, 3, 9)[3], 255, 'base height must fill four voxels in a black height column')
+        assert.equal(voxel(adjusted, 1, 4, 9)[3], 0, 'base height must stop at the configured height')
+        assert.equal(voxel(adjusted, 13, 11, 9)[3], 255, 'height scale and base height must combine')
+        assert.equal(voxel(adjusted, 13, 12, 9)[3], 0, 'height scale must update live')
 
         await compile(dsl, { o1: height, o2: { width: 1, height: 1, data: [255, 0, 255, 255] } })
         assertPixelsEqual((await readOutput('heightmap3d', 'geoOut')).data, geometry.data, 'changing only diffuse color must preserve all geometry')
@@ -201,6 +202,32 @@ render(o0)`, { o1: height, o2: texel })
         assert.ok(empty.data.every(v => v === 0), 'zero height must leave every voxel empty')
         const emptyScreen = PNG.sync.read(await page.locator('canvas').screenshot())
         assert.ok(emptyScreen.data.every(v => v === 255), 'empty heightfield must render the exact background')
+
+        // Seen from directly above, the volume shows its images as authored: image
+        // right is screen right and image top is screen top, with no mirror. A uvMap
+        // color image carries u in red and v in green, so each axis reads directly.
+        await compile('search synth\ntestPattern(pattern: uvMap).write(o0)\nrender(o0)')
+        const authored = PNG.sync.read(await page.locator('canvas').screenshot())
+        await compile(`search synth, synth3d, render
+heightmap3d(heightTex: solid(color: #ffffff), tex: testPattern(pattern: uvMap), volumeSize: x16, heightScale: 1)
+  .renderLandscape3d(viewMode: perspective, rotateX: 1.5708, posZ: -40, ambient: 1, diffuseIntensity: 0, specularIntensity: 0).write(o0)
+render(o0)`)
+        const topDown = PNG.sync.read(await page.locator('canvas').screenshot())
+        // The cube's top face covers pixels 20-108 of the 128-pixel frame.
+        const corners = { topLeft: [34, 34], topRight: [94, 34], bottomLeft: [34, 94], bottomRight: [94, 94] }
+        const sample = png => Object.fromEntries(Object.entries(corners).map(([name, [x, y]]) =>
+            [name, Array.from(png.data.slice((y * 128 + x) * 4, (y * 128 + x) * 4 + 3))]))
+        const image = sample(authored), view = sample(topDown)
+        for (const [name, rgb] of Object.entries(view)) assert.equal(rgb[2], 0, `${backend}: top-down ${name} must show the top face, not the background`)
+        const across = rgb => rgb.topRight[0] - rgb.topLeft[0]
+        const down = rgb => rgb.bottomLeft[1] - rgb.topLeft[1]
+        assert.ok(Math.abs(across(image)) > 64 && Math.abs(down(image)) > 64, 'the uvMap reference must vary along both axes')
+        assert.ok(Math.sign(across(view)) === Math.sign(across(image)) && Math.abs(across(view)) > 64,
+            `${backend}: seen from above, image right must be screen right (red ${view.topLeft[0]} -> ${view.topRight[0]})`)
+        assert.ok(Math.sign(down(view)) === Math.sign(down(image)) && Math.abs(down(view)) > 64,
+            `${backend}: seen from above, image top must be screen top (green ${view.topLeft[1]} -> ${view.bottomLeft[1]}, authored ${image.topLeft[1]} -> ${image.bottomLeft[1]})`)
+        assert.ok(Math.abs(view.bottomLeft[0] - view.topLeft[0]) <= 16 && Math.abs(view.topRight[1] - view.topLeft[1]) <= 16,
+            `${backend}: seen from above, the image must not be rotated`)
 
         await compile(`search synth3d, filter3d, render
 shape3d(volumeSize: x32).palette3d().renderLandscape3d().write(o0)
