@@ -1969,14 +1969,16 @@ export class Pipeline {
 
         // Legacy classicNoisedeck palette expansion:
         // When the 'palette' uniform is set with an integer, expand the preset
-        // into the dependent vec3/int uniforms the shaders expect.
+        // into the dependent vec3/int uniforms the shaders expect. The palette
+        // uniform itself is written too, as the UI parameter paths write it:
+        // an effect whose `palette` is an ordinary choice (filter/dither)
+        // reads only that.
         if (name === 'palette' && typeof value === 'number') {
             const expanded = expandPalette(value)
             if (expanded) {
                 for (const [uName, uValue] of Object.entries(expanded)) {
                     this.setUniform(uName, uValue)
                 }
-                return  // dependent calls handle pass propagation
             }
         }
 

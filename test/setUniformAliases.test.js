@@ -27,4 +27,16 @@ import { Pipeline } from '../shaders/src/runtime/pipeline.js'
     assert.equal(pass.uniforms.held, automation, 'automation configs must not be overwritten')
 }
 
+// setUniform('palette', n) writes the palette uniform itself as well as the
+// classic palette expansion: filter/dither's palette is an ordinary choice.
+{
+    const dither = { uniforms: { palette: 0 } }
+    const classic = { uniforms: { palette: 0, paletteOffset: [0, 0, 0] } }
+    const pipeline = new Pipeline({ passes: [dither, classic], textures: new Map() }, { updateTextureFromSource: () => {} })
+    pipeline.setUniform('palette', 2)
+    assert.equal(dither.uniforms.palette, 2, 'the palette uniform must be written')
+    assert.equal(classic.uniforms.palette, 2)
+    assert.notDeepStrictEqual(classic.uniforms.paletteOffset, [0, 0, 0], 'the classic expansion must still apply')
+}
+
 console.log('setUniform alias tests passed')
