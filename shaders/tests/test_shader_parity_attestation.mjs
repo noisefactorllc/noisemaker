@@ -73,6 +73,26 @@ try {
     assert.deepEqual(registeredParityEffectIds(tempRoot), ['filter/example'],
         'full verification must select every effect with a registered parity case')
 
+    // A mesh fixture is part of the evidence: editing it invalidates the
+    // hash and selects the case that loads it.
+    fs.mkdirSync(path.join(tempRoot, 'share/meshes'), { recursive: true })
+    const meshFile = path.join(tempRoot, 'share/meshes/fixture.obj')
+    fs.writeFileSync(meshFile, 'v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n')
+    const meshCase = { effects: ['filter/example'], meshInputs: [{ mesh: 'mesh0', path: 'share/meshes/fixture.obj' }] }
+    const meshHash = computeParitySourceHash(tempRoot, meshCase)
+    assert.notEqual(meshHash, computeParitySourceHash(tempRoot, { effects: ['filter/example'] }),
+        'a mesh fixture must contribute to the evidence hash')
+    fs.writeFileSync(meshFile, 'v 0 0 0\nv 2 0 0\nv 0 1 0\nf 1 2 3\n')
+    assert.notEqual(computeParitySourceHash(tempRoot, meshCase), meshHash,
+        'editing a mesh fixture must invalidate its evidence')
+    const meshCasePath = path.join(effectDir, 'parity-case.json')
+    const exampleCase = fs.readFileSync(meshCasePath, 'utf8')
+    fs.writeFileSync(meshCasePath, `${JSON.stringify(meshCase)}\n`)
+    assert.deepEqual(affectedParityEffectIds(tempRoot, ['share/meshes/fixture.obj']), ['filter/example'],
+        'a changed mesh fixture must select the parity cases that load it')
+    fs.writeFileSync(meshCasePath, exampleCase)
+    fs.unlinkSync(meshFile)
+
     const completeParityCase = {
         schemaVersion: 1,
         effects: ['synth/dependency', 'filter/example'],

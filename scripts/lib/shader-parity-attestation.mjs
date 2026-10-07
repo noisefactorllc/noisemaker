@@ -73,6 +73,14 @@ export function computeParitySourceHash(repoRoot, parityCase) {
         hash.update(computeEffectSourceHash(repoRoot, effectId))
         hash.update('\0')
     }
+    // A mesh fixture is rendered input like the effect sources: editing the
+    // OBJ must make the evidence stale. Cases without meshes hash as before.
+    for (const mesh of parityCase.meshInputs || []) {
+        hash.update(`mesh:${mesh.path}`)
+        hash.update('\0')
+        hash.update(computeFileHash(path.join(repoRoot, mesh.path)))
+        hash.update('\0')
+    }
     return hash.digest('hex')
 }
 
@@ -134,13 +142,16 @@ export function changedEffectIds(files) {
 export function affectedParityEffectIds(repoRoot, files) {
     const changed = changedEffectIds(files)
     const affected = new Set(changed)
-    if (changed.length === 0) return []
+    const changedMeshes = new Set(files.map((file) => file.split(path.sep).join('/'))
+        .filter((file) => /^share\/meshes\/[^/]+\.obj$/.test(file)))
+    if (changed.length === 0 && changedMeshes.size === 0) return []
 
     const effectsRoot = path.join(repoRoot, 'shaders/effects')
     for (const casePath of filesRecursively(effectsRoot).filter((file) => path.basename(file) === 'parity-case.json')) {
         const parityCase = JSON.parse(fs.readFileSync(casePath, 'utf8'))
-        if (!Array.isArray(parityCase.effects) ||
-            !parityCase.effects.some((effectId) => affected.has(effectId))) continue
+        const usesChangedMesh = (parityCase.meshInputs || []).some((mesh) => changedMeshes.has(mesh.path))
+        if (!usesChangedMesh && (!Array.isArray(parityCase.effects) ||
+            !parityCase.effects.some((effectId) => affected.has(effectId)))) continue
 
         const relative = path.relative(effectsRoot, casePath).split(path.sep)
         if (relative.length === 3) affected.add(`${relative[0]}/${relative[1]}`)
