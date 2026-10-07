@@ -1,0 +1,15 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth3d/shape3d",
+        "render/render3d"
+    ],
+    "dsl": "search synth3d, render\n\nshape3d(volumeSize: x32).render3d(threshold: 0.75).write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}
