@@ -11,9 +11,9 @@ uniform float aspect;
 
 // Mesh model transform uniforms
 uniform float meshScale;
-uniform float offsetX;
-uniform float offsetY;
-uniform float offsetZ;
+uniform float meshOffsetX;
+uniform float meshOffsetY;
+uniform float meshOffsetZ;
 
 // View/camera uniforms
 uniform float rotateX;
@@ -77,9 +77,9 @@ void main() {
     
     // Apply mesh model transforms (scale then offset)
     position = position * meshScale;
-    position.x += offsetX;
-    position.y += offsetY;
-    position.z += offsetZ;
+    position.x += meshOffsetX;
+    position.y += meshOffsetY;
+    position.z += meshOffsetZ;
     
     // Build rotation matrix (uniforms are in degrees)
     float deg2rad = 3.14159265 / 180.0;
