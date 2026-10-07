@@ -71,7 +71,8 @@ fn cloak(st : vec2<f32>) -> vec4<f32> {
         right = rightReflected;
     } else {
         left = leftReflected;
-        right = mix(rightReflected, rightRefracted, map_range(mixAmt, 0.0, 100.0, 0.0, 1.0));
+        // As the GLSL, the reference: right stays the refracted right input.
+        right = mix(rightRefracted, rightRefracted, map_range(mixAmt, 0.0, 100.0, 0.0, 1.0));
     }
 
     return mix(left, right, m);
