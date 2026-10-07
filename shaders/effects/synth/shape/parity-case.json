@@ -1,0 +1,14 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/shape"
+    ],
+    "dsl": "search synth\n\nshape(loopAOffset: noiseBSpline3x3, loopBOffset: noiseSine, loopAScale: 3, loopBScale: 2).write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}
