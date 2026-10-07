@@ -102,11 +102,9 @@ export default new Effect({
       min: 1,
       max: 16,
       uniform: "bailout",
-      // The distance estimator is built to ignore bailout: above about 1.5 it
-      // changes nothing visible, so it stays a DSL argument without a slider.
       ui: {
         label: "bailout",
-        control: false,
+        control: "slider",
         category: "fractal"
       }
     },
