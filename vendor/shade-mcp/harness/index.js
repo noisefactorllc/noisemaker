@@ -21074,11 +21074,17 @@ async function testNoPassthrough(session, effectId) {
       }
       const PIPELINE_INPUTS = ["inputTex", "inputTex3d", "o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7"];
       const isPipelineInput = (name) => PIPELINE_INPUTS.includes(name) || renderer.isStarterEffect?.(name) === true;
+      const passes = pipeline.graph?.passes || [];
+      const writtenAt = /* @__PURE__ */ new Map();
+      passes.forEach((pass, index) => {
+        for (const id of Object.values(pass.outputs || {})) if (!writtenAt.has(String(id))) writtenAt.set(String(id), index);
+      });
       let consumedInput = null;
-      for (const pass of pipeline.graph?.passes || []) {
+      for (const [index, pass] of passes.entries()) {
         const inputs = pass.inputs || {};
         for (const key of Object.keys(inputs)) {
           const id = String(inputs[key]);
+          if ((writtenAt.get(id) ?? -1) >= index) continue;
           if (isPipelineInput(key) || isPipelineInput(id)) {
             consumedInput = { key, id };
             break;
@@ -21135,8 +21141,17 @@ async function testNoPassthrough(session, effectId) {
       if (w[globals.setPaused]) w[globals.setPaused](true);
       if (w[globals.setPausedTime]) w[globals.setPausedTime](0);
       const COMPARE_TIMES = [0, 0.37];
+      const sampleGrid = (width, height) => {
+        const nx = Math.min(64, width), ny = Math.min(64, height), out = [];
+        for (let gy = 0; gy < ny; gy++) {
+          for (let gx = 0; gx < nx; gx++) {
+            out.push(Math.floor((gy + 0.5) * height / ny) * width + Math.floor((gx + 0.5) * width / nx));
+          }
+        }
+        return out;
+      };
       const threshold = 0.01;
-      const unchanged = (m) => m.meanDiff <= threshold && m.changedFraction <= threshold;
+      const unchanged = (m) => m.meanDiff <= threshold && m.changedFraction <= threshold && m.strongFraction <= 5e-4;
       const inputId = consumedInput.id;
       async function measure() {
         let worst = null;
@@ -21158,9 +21173,8 @@ async function testNoPassthrough(session, effectId) {
             return { error: { status: "error", isFilterEffect: true, similarity: null, backend: backendName, details: `Failed to read pixels on ${backendName}` } };
           }
           const count = Math.min(inputFrame.width * inputFrame.height, outputFrame.width * outputFrame.height);
-          const stride = Math.max(1, Math.floor(count / 4096));
           let diffSum = 0, changed = 0, samples = 0;
-          for (let i2 = 0; i2 < count; i2 += stride) {
+          for (const i2 of sampleGrid(Math.min(inputFrame.width, outputFrame.width), Math.min(inputFrame.height, outputFrame.height))) {
             const idx = i2 * 4;
             const dr = Math.abs(outputFrame.pixels[idx] - inputFrame.pixels[idx]);
             const dg = Math.abs(outputFrame.pixels[idx + 1] - inputFrame.pixels[idx + 1]);
@@ -21169,10 +21183,19 @@ async function testNoPassthrough(session, effectId) {
             if (dr > 2 || dg > 2 || db > 2) changed++;
             samples++;
           }
+          let strong = 0;
+          for (let i2 = 0; i2 < count; i2++) {
+            const idx = i2 * 4;
+            if (Math.abs(outputFrame.pixels[idx] - inputFrame.pixels[idx]) > 16 || Math.abs(outputFrame.pixels[idx + 1] - inputFrame.pixels[idx + 1]) > 16 || Math.abs(outputFrame.pixels[idx + 2] - inputFrame.pixels[idx + 2]) > 16) strong++;
+          }
           const meanDiff2 = diffSum / (samples * 3 * 255);
           const changedFraction2 = changed / samples;
+          const strongFraction = strong / count;
+          const strongest = Math.max(strongFraction, worst ? worst.strongFraction : 0);
           if (!worst || changedFraction2 > worst.changedFraction || changedFraction2 === worst.changedFraction && meanDiff2 > worst.meanDiff) {
-            worst = { meanDiff: meanDiff2, changedFraction: changedFraction2 };
+            worst = { meanDiff: meanDiff2, changedFraction: changedFraction2, strongFraction: strongest };
+          } else {
+            worst.strongFraction = strongest;
           }
         }
         return worst;
@@ -21228,6 +21251,7 @@ async function testNoPassthrough(session, effectId) {
         isFilterEffect: true,
         similarity: meanDiff,
         changed_fraction: changedFraction,
+        strong_fraction: reported.strongFraction,
         threshold,
         inputTexture: consumedInput.id,
         ...identityAtDefaults && !isPassthrough ? { identity_at_defaults: true, varied } : {},
@@ -21573,13 +21597,14 @@ async function testUniformResponsiveness(session, effectId) {
           sumB += pixels[i2 + 2] / 255;
           sumA += pixels[i2 + 3] / 255;
         }
-        const stride = Math.max(1, Math.floor(count / 4096));
+        const nx = Math.min(64, width), ny = Math.min(64, height);
         const samples = [];
-        for (let p = 0; p < count; p += stride) {
+        for (let g = 0; g < nx * ny; g++) {
+          const p = Math.floor((Math.floor(g / nx) + 0.5) * height / ny) * width + Math.floor((g % nx + 0.5) * width / nx);
           const i2 = p * 4;
           samples.push(pixels[i2] / 255, pixels[i2 + 1] / 255, pixels[i2 + 2] / 255, pixels[i2 + 3] / 255);
         }
-        return { mean: [sumR / count, sumG / count, sumB / count, sumA / count], samples };
+        return { mean: [sumR / count, sumG / count, sumB / count, sumA / count], samples, pixels: new Uint8Array(pixels) };
       }
       async function captureAll() {
         const out = [];
@@ -21670,8 +21695,18 @@ async function testUniformResponsiveness(session, effectId) {
         const values = [far, round(spec, spec.min + range * 0.381966)].filter((v, i2, all) => v !== defaultVal && all.indexOf(v) === i2);
         return values.length > 0 ? values : [far];
       };
+      const contextValueOf = (param, spec) => {
+        if (!spec.uniform || spec.define !== void 0) return void 0;
+        const start = startOf(param);
+        if (Array.isArray(start)) {
+          const lo = typeof spec.min === "number" ? spec.min : 0;
+          const hi = typeof spec.max === "number" ? spec.max : 1;
+          return start.map((c) => c + (c <= (lo + hi) / 2 ? 1 : -1) * (hi - lo) / 4);
+        }
+        return measurable(spec) ? testValuesOf(param, spec)[0] : void 0;
+      };
       const compare = (reference, test) => {
-        let luma = 0, channel = 0, pixel = 0;
+        let luma = 0, channel = 0, pixel = 0, strong = 0;
         for (let i2 = 0; i2 < CAPTURE_TIMES.length; i2++) {
           const a = reference[i2].mean, b = test[i2].mean;
           luma = Math.max(luma, Math.abs((b[0] + b[1] + b[2]) / 3 - (a[0] + a[1] + a[2]) / 3));
@@ -21682,10 +21717,18 @@ async function testUniformResponsiveness(session, effectId) {
             for (let k = 0; k < sa.length; k++) sum += Math.abs(sb[k] - sa[k]);
             pixel = Math.max(pixel, sum / sa.length);
           }
+          const pa = reference[i2].pixels, pb = test[i2].pixels;
+          if (pa.length === pb.length && pa.length > 0) {
+            let n = 0;
+            for (let k = 0; k < pa.length; k += 4) {
+              if (Math.abs(pb[k] - pa[k]) > 16 || Math.abs(pb[k + 1] - pa[k + 1]) > 16 || Math.abs(pb[k + 2] - pa[k + 2]) > 16 || Math.abs(pb[k + 3] - pa[k + 3]) > 16) n++;
+            }
+            strong = Math.max(strong, n / (pa.length / 4));
+          }
         }
-        return { luma, channel, pixel };
+        return { luma, channel, pixel, strong };
       };
-      const responds = (d) => d.luma > 2e-3 || d.channel > 2e-3 || d.pixel > 2e-3;
+      const responds = (d) => d.luma > 2e-3 || d.channel > 2e-3 || d.pixel > 2e-3 || d.strong > 5e-4;
       async function measure(spec, setup, testValues) {
         for (const [param, value] of Object.entries(setup)) setValue(effectGlobals[param].uniform, toUniform(effectGlobals[param], value));
         await settle2();
@@ -21712,6 +21755,7 @@ async function testUniformResponsiveness(session, effectId) {
       }
       for (const [name, spec] of Object.entries(effectGlobals)) {
         if (!spec.uniform) continue;
+        if (spec.ui?.control === false) continue;
         if (spec.type === "boolean" || spec.type === "button") continue;
         if (typeof spec.min !== "number" || typeof spec.max !== "number" || spec.min === spec.max) continue;
         const defaultVal = startOf(name);
@@ -21757,23 +21801,21 @@ async function testUniformResponsiveness(session, effectId) {
           measured2 = await measure(spec, assign, testValues);
           await restore([name, ...Object.keys(assign)]);
           if (measured2 && !responds(measured2)) {
-            const varied = {};
             for (const [other, otherSpec] of Object.entries(effectGlobals)) {
-              if (other === name || !measurable(otherSpec)) continue;
-              if (otherSpec.ui?.enabledBy !== void 0) {
-                const trial = { ...varied };
-                if (!satisfy(otherSpec.ui.enabledBy, trial)) continue;
-                Object.assign(varied, trial);
-              }
-              if (!(other in varied)) varied[other] = testValuesOf(other, otherSpec)[0];
-            }
-            Object.assign(varied, assign);
-            if (Object.keys(varied).length > Object.keys(assign).length) {
+              if (other === name || other in assign || otherSpec.ui?.control === false) continue;
+              const value = contextValueOf(other, otherSpec);
+              if (value === void 0) continue;
+              const varied = {};
+              if (otherSpec.ui?.enabledBy !== void 0 && !satisfy(otherSpec.ui.enabledBy, varied)) continue;
+              delete varied[name];
+              varied[other] = value;
+              Object.assign(varied, assign);
               const retry = await measure(spec, varied, testValues);
               await restore([name, ...Object.keys(varied)]);
               if (retry && responds(retry)) {
                 measured2 = retry;
                 context = varied;
+                break;
               }
             }
           }
@@ -21792,6 +21834,7 @@ async function testUniformResponsiveness(session, effectId) {
             luma_diff: measured2.luma,
             max_channel_diff: measured2.channel,
             pixel_diff: measured2.pixel,
+            strong_fraction: measured2.strong,
             responds: ok,
             ...Object.keys(assign).length > 0 ? { enabled_with: assign } : {},
             ...context ? { context } : {}
