@@ -99,7 +99,9 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     let offset = (vec2<f32>(xRandom, yRandom) - 0.5) * offsetScale;
 
     // Apply offset to texture coordinate
-    var sampleCoord = in.uv + offset;
+    // Frame coordinates, as the GLSL's gl_FragCoord / resolution; the default
+    // vertex uv has a bottom-left origin, which flipped the image.
+    var sampleCoord = in.position.xy / vec2<f32>(textureDimensions(inputTex, 0)) + offset;
     sampleCoord = applyWrap(sampleCoord);
 
     let sampled = textureSample(inputTex, u_sampler, sampleCoord);

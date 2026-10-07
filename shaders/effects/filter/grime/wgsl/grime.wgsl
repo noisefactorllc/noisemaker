@@ -136,7 +136,9 @@ fn refracted_exponential(uv: vec2<f32>, freq: vec2<f32>, px: vec2<f32>, disp: f3
 fn main(input: VertexOutput) -> @location(0) vec4<f32> {
     let dims = max(resolution, vec2<f32>(1.0, 1.0));
     let px = vec2<f32>(1.0 / dims.x, 1.0 / dims.y);
-    let uv = input.uv;
+    // Frame coordinates as the GLSL's gl_FragCoord / resolution; the default
+    // vertex uv has a bottom-left origin, which flipped the output.
+    let uv = input.position.xy / dims;
     let base_color = textureSample(inputTex, u_sampler, uv);
 
     let str = max(strength, 0.0);

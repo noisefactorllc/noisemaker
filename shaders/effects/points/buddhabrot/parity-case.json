@@ -1,0 +1,17 @@
+{
+    "schemaVersion": 1,
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true,
+    "effects": [
+        "synth/noise",
+        "render/pointsEmit",
+        "points/buddhabrot",
+        "render/pointsRender"
+    ],
+    "dsl": "search synth, points, render\n\nnoise(seed: 1, speed: 0).pointsEmit(stateSize: x64).buddhabrot().pointsRender(density: 0, inputIntensity: 100, intensity: 0).write(o0)\nrender(o0)"
+}
