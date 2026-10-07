@@ -965,6 +965,25 @@ export class Pipeline {
         let cancelled = false
         this._asyncRenders.set(nodeId, () => { cancelled = true })
 
+        // An automated param (oscillator, MIDI, audio) is a config object, not
+        // a number; an overlay drawn once cannot follow it, so it is drawn at
+        // the param's default rather than from NaN.
+        const drawParams = params ? { ...params } : { ...this.globalUniforms }
+        for (const [paramName, spec] of Object.entries(effectDef.globals || {})) {
+            if (isAutomationValue(drawParams[paramName])) drawParams[paramName] = spec.default
+        }
+
+        // Remember the scalar values this overlay is drawn from: a later
+        // checkAsyncRegen with the same values leaves it alone, and one with
+        // other values (a step value, a stale host value) redraws it.
+        if (!this._asyncParamCache) this._asyncParamCache = new Map()
+        const drawn = {}
+        for (const [paramName, spec] of Object.entries(effectDef.globals || {})) {
+            const value = drawParams[paramName] ?? drawParams[spec.uniform]
+            if (value !== undefined && value !== null && typeof value !== 'object') drawn[paramName] = value
+        }
+        this._asyncParamCache.set(nodeId, drawn)
+
         const context = {
             updateTexture: (texName, canvas) => {
                 if (cancelled) return
@@ -974,7 +993,7 @@ export class Pipeline {
             },
             width: this.width,
             height: this.height,
-            params: params ? { ...params } : { ...this.globalUniforms },
+            params: drawParams,
             isCancelled: () => cancelled
         }
 
@@ -2011,7 +2030,9 @@ export class Pipeline {
         // An asyncInit effect (the fibers, scratches and strayHair CPU
         // overlays) draws its overlay from its params: re-run it when one of
         // them changes, as the UI parameter paths do through checkAsyncRegen.
-        if (oldValue !== value && this.graph && this.graph.passes) {
+        // checkAsyncRegen compares with the values each node's overlay was
+        // drawn from, so this needs no comparison with the global value.
+        if (this.graph && this.graph.passes) {
             this._regenAsyncForUniform(name)
         }
 

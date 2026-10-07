@@ -138,4 +138,53 @@ console.log('asyncInit tests passed')
     }
 }
 
+// The cache holds the values each overlay was drawn from: setting the drawn
+// value again does not redraw (fibers clears its overlay first, so a needless
+// redraw flashes), while setting a value that differs from the drawn one
+// redraws even when it equals the stale global uniform.
+{
+    const drawn = []
+    const overlay = new Effect({
+        globals: {
+            density: { type: 'float', default: 0.5, uniform: 'density' },
+            alpha: { type: 'float', default: 1, uniform: 'alpha' }
+        },
+        asyncInit: async ({ params }) => { drawn.push(params.density) }
+    })
+    registerEffect('test/overlay2', overlay)
+    try {
+        const pass = { nodeId: 'node_5', effectKey: 'test/overlay2', uniforms: { density: 0.5, alpha: 1 } }
+        const pipeline = new Pipeline({ passes: [pass], textures: new Map() }, { updateTextureFromSource: () => {} })
+        pipeline.globalUniforms = { density: 0.5, alpha: 1 }
+        pipeline.initAsyncEffects()
+        await pipeline.whenAsyncInitsSettled()
+        assert.deepStrictEqual(drawn, [0.5])
+        pipeline.setUniform('density', 0.5)
+        await pipeline.whenAsyncInitsSettled()
+        assert.deepStrictEqual(drawn, [0.5], 'setting the drawn value must not redraw')
+        // The UI path redraws this node at 0.8; the global stays 0.5.
+        pipeline.checkAsyncRegen('node_5', 'test/overlay2', { density: 0.8, alpha: 1 })
+        await pipeline.whenAsyncInitsSettled()
+        assert.deepStrictEqual(drawn, [0.5, 0.8])
+        pipeline.setUniform('density', 0.5)
+        await pipeline.whenAsyncInitsSettled()
+        assert.deepStrictEqual(drawn, [0.5, 0.8, 0.5], 'a value that differs from the drawn one must redraw')
+    } finally {
+        unregisterEffect('test/overlay2')
+    }
+}
+
+// An automated param reaches asyncInit as its default, not as a config object.
+{
+    let received
+    const overlay = new Effect({
+        globals: { density: { type: 'float', default: 0.5, uniform: 'density' } },
+        asyncInit: async ({ params }) => { received = params.density }
+    })
+    const pipeline = new Pipeline({ passes: [], textures: new Map() }, { updateTextureFromSource: () => {} })
+    pipeline._startAsyncInit('node_6', overlay, { params: { density: { type: 'Oscillator', speed: 1 } } })
+    await pipeline.whenAsyncInitsSettled()
+    assert.strictEqual(received, 0.5)
+}
+
 console.log('setUniform asyncInit regeneration tests passed')
