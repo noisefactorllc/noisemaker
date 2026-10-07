@@ -20,7 +20,7 @@ void main(){
   vec2 st = globalCoord / fullResolution;
   
   // Apply scale transform in global UV space (centered and aspect-corrected)
-  vec2 c = vec2(-centerX, centerY);
+  vec2 c = vec2(centerX, centerY);
   st -= c;
   st.x *= aspect;
   st = st / vec2(scaleX, scaleY);

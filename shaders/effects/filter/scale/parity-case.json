@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "surface": "o0",
+  "resolution": [
+    80,
+    64
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "effects": [
+    "synth/testPattern",
+    "filter/scale"
+  ],
+  "dsl": "search synth, filter\n\ntestPattern(pattern: uvMap).scale(x: 2, y: 1.5, centerX: 0.25, centerY: 0.7, wrap: clamp).write(o0)\nrender(o0)"
+}
