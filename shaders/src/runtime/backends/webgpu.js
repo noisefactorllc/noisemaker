@@ -2628,7 +2628,7 @@ export class WebGPUBackend extends Backend {
 
         // WebGL2 createTexture sets NEAREST min/mag on every surface render target;
         // WebGPU historically bound the LINEAR 'default' sampler for all inputs
-        // (pass.samplerTypes is never populated), so filter effects sampled their
+        // when a pass declared no samplerTypes, so filter effects sampled their
         // intermediate surface input LINEAR on WebGPU vs NEAREST on WebGL2 — a parity
         // gap. Mirror WebGL2: surface inputs sample NEAREST. External (video/image)
         // uploads are LINEAR in WebGL2, so a pass sampling one of those (isExternal)

@@ -48,6 +48,15 @@ export function mrtFormatBytes(format) {
         case 'rgba8':
         case 'rgba8unorm':
             return 4
+        case 'r32f':
+        case 'r32float':
+            return 4
+        case 'r16f':
+        case 'r16float':
+            return 2
+        case 'r8':
+        case 'r8unorm':
+            return 1
         default:
             return 8
     }

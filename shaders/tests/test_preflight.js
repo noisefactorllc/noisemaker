@@ -173,6 +173,10 @@ await test('over-budget MRT predicts the trailing rgba32f -> rgba16f demotion', 
     assert.equal(mrtFormatBytes('rgba16f'), 8)
     assert.equal(mrtFormatBytes('rgba8'), 4)
     assert.equal(mrtFormatBytes(undefined), 8)
+    // Single-channel formats cost their own size, in both spellings.
+    for (const [formats, bytes] of [[['r32f', 'r32float'], 4], [['r16f', 'r16float'], 2], [['r8', 'r8unorm'], 1]]) {
+        for (const format of formats) assert.equal(mrtFormatBytes(format), bytes, format)
+    }
 })
 
 await test('within-budget MRT predicts no format changes', () => {
