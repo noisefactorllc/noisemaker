@@ -13,7 +13,7 @@ struct VertexOutput {
 @group(0) @binding(1) var<uniform> speed: f32;
 @group(0) @binding(2) var<uniform> timeOffset: f32;
 @group(0) @binding(3) var<uniform> distortion: f32;
-@group(0) @binding(4) var<uniform> noise_amount: f32;
+@group(0) @binding(4) var<uniform> noise: f32;
 @group(0) @binding(5) var<uniform> mode: f32;
 @group(0) @binding(6) var<uniform> time: f32;
 
@@ -298,7 +298,7 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
         let gradSource = vhs_gradValue(yNorm, 5.0, time_value, speed_value);
 
         let noiseColor = vec3<f32>(scanSource);
-        let blended = mix(srcTexel.rgb, noiseColor, gradSource * noise_amount);
+        let blended = mix(srcTexel.rgb, noiseColor, gradSource * noise);
 
         return vec4<f32>(blended, srcTexel.a);
     } else {
@@ -330,7 +330,7 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
 
         let texel = textureLoad(inputTex, vec2<i32>(sample_x, coord.y), 0);
 
-        let additive = clamp(line_weighted * white_weighted * 4.0 * noise_amount, 0.0, 4.0);
+        let additive = clamp(line_weighted * white_weighted * 4.0 * noise, 0.0, 4.0);
         let boosted = clamp(texel.rgb + vec3<f32>(additive), vec3<f32>(0.0), vec3<f32>(1.0));
 
         return vec4<f32>(boosted, texel.a);

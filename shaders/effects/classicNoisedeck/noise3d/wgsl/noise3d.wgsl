@@ -19,7 +19,7 @@
 @group(0) @binding(0) var<uniform> time: f32;
 @group(0) @binding(1) var<uniform> seed: i32;
 @group(0) @binding(2) var<uniform> resolution: vec2<f32>;
-@group(0) @binding(3) var<uniform> noiseScale: f32;
+@group(0) @binding(3) var<uniform> scale: f32;
 @group(0) @binding(5) var<uniform> ridges: i32;
 @group(0) @binding(6) var<uniform> offsetX: f32;
 @group(0) @binding(7) var<uniform> offsetY: f32;
@@ -388,7 +388,7 @@ fn spheres(p: vec3<f32>) -> f32 {
     let ip = floor(q);
     let fp = fract(pr);
     let r1 = prng(ip + f32(seed)) * 0.5 + 0.25;
-    return length(fp - 0.5) - map_value(noiseScale, 1.0, 100.0, 0.025, 0.55) * r1.x;
+    return length(fp - 0.5) - map_value(scale, 1.0, 100.0, 0.025, 0.55) * r1.x;
 }
 
 fn cubes(p_in: vec3<f32>) -> f32 {
@@ -396,7 +396,7 @@ fn cubes(p_in: vec3<f32>) -> f32 {
     let s = 4.0;
     p.x = p.x - s * 0.5;
     p = p - s * round(p / s);
-    let b = vec3<f32>(map_value(noiseScale, 1.0, 100.0, 0.1, 0.95));
+    let b = vec3<f32>(map_value(scale, 1.0, 100.0, 0.1, 0.95));
     let q = abs(p) - b;
     return length(max(q, vec3<f32>(0.0))) + min(max(q.x, max(q.y, q.z)), 0.0);
 }
@@ -407,43 +407,43 @@ fn getDist(p: vec3<f32>) -> f32 {
     
     if (NOISE_TYPE == 12) {
         // simplex
-        let scale = map_value(noiseScale, 1.0, 100.0, 0.25, 0.025);
-        d = snoise(p * scale + f32(seed)) * 0.5 + 0.5;
+        let scaleN = map_value(scale, 1.0, 100.0, 0.25, 0.025);
+        d = snoise(p * scaleN + f32(seed)) * 0.5 + 0.5;
         d = smootherstep(d);
     } else if (NOISE_TYPE == 20) {
         // cell
-        let scale = map_value(noiseScale, 1.0, 100.0, 0.1, 0.35);
+        let scaleN = map_value(scale, 1.0, 100.0, 0.1, 0.35);
         d = cellular(p * 0.1 + f32(seed)).x;
-        d = smoothstep(scale, 0.5, d);
+        d = smoothstep(scaleN, 0.5, d);
     } else if (NOISE_TYPE == 21) {
         // cell v2
         d = voronoi3d(p * 0.1 + f32(seed)).x;
-        let scale = map_value(noiseScale, 1.0, 100.0, 0.1, 0.35);
-        d = smoothstep(scale, 0.5, d);
+        let scaleN = map_value(scale, 1.0, 100.0, 0.1, 0.35);
+        d = smoothstep(scaleN, 0.5, d);
     } else if (NOISE_TYPE == 30) {
         // sine
-        let scale = map_value(noiseScale, 1.0, 100.0, 1.0, 0.1);
-        d = sine3D(p * scale);
+        let scaleN = map_value(scale, 1.0, 100.0, 1.0, 0.1);
+        d = sine3D(p * scaleN);
     } else if (NOISE_TYPE == 40) {
         d = spheres(p);
     } else if (NOISE_TYPE == 50) {
         d = cubes(p);
     } else if (NOISE_TYPE == 60) {
         // wavy planes both
-        let scale = map_value(noiseScale, 1.0, 100.0, 0.25, 0.025);
-        d = -abs(p.y) + 4.0 + snoise(p * scale + f32(seed)) * 0.75;
+        let scaleN = map_value(scale, 1.0, 100.0, 0.25, 0.025);
+        d = -abs(p.y) + 4.0 + snoise(p * scaleN + f32(seed)) * 0.75;
     } else if (NOISE_TYPE == 61) {
         // wavy plane lower
-        let scale = map_value(noiseScale, 1.0, 100.0, 0.25, 0.025);
-        d = p.y + 4.0 + snoise(p * scale + f32(seed)) * 0.75;
+        let scaleN = map_value(scale, 1.0, 100.0, 0.25, 0.025);
+        d = p.y + 4.0 + snoise(p * scaleN + f32(seed)) * 0.75;
     } else if (NOISE_TYPE == 62) {
         // wavy plane upper
-        let scale = map_value(noiseScale, 1.0, 100.0, 0.25, 0.025);
-        d = -p.y + 2.0 + snoise(p * scale + f32(seed)) * 0.75;
+        let scaleN = map_value(scale, 1.0, 100.0, 0.25, 0.025);
+        d = -p.y + 2.0 + snoise(p * scaleN + f32(seed)) * 0.75;
     } else {
         // default to simplex
-        let scale = map_value(noiseScale, 1.0, 100.0, 0.25, 0.025);
-        d = snoise(p * scale + f32(seed)) * 0.5 + 0.5;
+        let scaleN = map_value(scale, 1.0, 100.0, 0.25, 0.025);
+        d = snoise(p * scaleN + f32(seed)) * 0.5 + 0.5;
         d = smootherstep(d);
     }
 
