@@ -224,7 +224,8 @@ try {
                 })
                 await editor.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))
             }
-            await waitForMode(1)
+            // The effect's example program opens in the perspective view.
+            await waitForMode(2)
             const editorFrame = async name => {
                 // Read the rendered surface directly: UI notification overlays
                 // can cover the canvas in an element screenshot.
@@ -254,7 +255,7 @@ try {
                     `${key}: ineffective or duplicate controls must not appear in the renderer UI`)
             }
             const checkFramingControls = async (mode, original) => {
-                for (const [key, value, initial] of [['zoom', 1.2, 1], ['panX', 0.08, 0], ['panY', -0.1, -0.18]]) {
+                for (const [key, value, initial] of [['zoom', 1.2, 1.4], ['panX', 0.08, 0], ['panY', -0.1, -0.31]]) {
                     const group = rendererPanel.locator(`[data-param-key="${key}"]`)
                     assert.equal(await group.evaluate(el => el.classList.contains('disabled')), false,
                         `${mode} ${key}: the visible control must be usable`)
@@ -267,30 +268,30 @@ try {
                         `${mode} ${key}: restoring the control must restore the exact rendered frame`)
                 }
             }
-            const original = await editorFrame('ortho')
-            await checkFramingControls('ortho', original)
+            const original = await editorFrame('perspective')
+            await checkFramingControls('perspective', original)
             await editor.getByText('view…', { exact: true }).click()
-            await editor.getByRole('button', { name: 'ortho ▼', exact: true }).click()
-            await editor.getByRole('option', { name: 'perspective', exact: true }).click()
-            await waitForMode(2)
-            const perspective = await editorFrame('perspective')
-            assert.equal(perspective.equals(original), false, `${backend}: the mode dropdown must change the rendered projection`)
-            await checkFramingControls('perspective', perspective)
             await editor.getByRole('button', { name: 'perspective ▼', exact: true }).click()
             await editor.getByRole('option', { name: 'ortho', exact: true }).click()
             await waitForMode(1)
+            const ortho = await editorFrame('ortho')
+            assert.equal(ortho.equals(original), false, `${backend}: the mode dropdown must change the rendered projection`)
+            await checkFramingControls('ortho', ortho)
+            await editor.getByRole('button', { name: 'ortho ▼', exact: true }).click()
+            await editor.getByRole('option', { name: 'perspective', exact: true }).click()
+            await waitForMode(2)
             const restored = await editorFrame('restored')
             assert.equal(restored.equals(original), true, `${backend}: mode recompilation must preserve height and color inputs`)
-            await editor.getByRole('button', { name: 'ortho ▼', exact: true }).click()
-            await editor.getByRole('option', { name: 'perspective', exact: true }).click()
-            await waitForMode(2)
-            const repeated = await editorFrame('perspective-repeated')
-            assert.equal(repeated.equals(perspective), true, `${backend}: repeated mode changes must preserve the perspective render`)
             await editor.getByRole('button', { name: 'perspective ▼', exact: true }).click()
             await editor.getByRole('option', { name: 'ortho', exact: true }).click()
             await waitForMode(1)
-            assert.equal((await editorFrame('ortho-repeated')).equals(original), true,
-                `${backend}: repeated mode changes must preserve the orthographic render`)
+            const repeated = await editorFrame('ortho-repeated')
+            assert.equal(repeated.equals(ortho), true, `${backend}: repeated mode changes must preserve the orthographic render`)
+            await editor.getByRole('button', { name: 'ortho ▼', exact: true }).click()
+            await editor.getByRole('option', { name: 'perspective', exact: true }).click()
+            await waitForMode(2)
+            assert.equal((await editorFrame('perspective-repeated')).equals(original), true,
+                `${backend}: repeated mode changes must preserve the perspective render`)
             assert.deepEqual(editorErrors, [], `${backend} editor errors`)
             await editor.close()
         }
