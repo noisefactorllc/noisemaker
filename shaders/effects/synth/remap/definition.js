@@ -133,7 +133,7 @@ export default new Effect({
 
   // Demo program — proves the effect compiles. Users populate real
   // zones via canvas editing or portable map import in Noisedeck.
-  defaultProgram: "search synth\n\nremap(bgColor: #336699, bgAlpha: 1)\n  .write(o0)",
+  defaultProgram: "search synth\n\nnoise(ridges: true).write(o1)\nperlin(scale: 50).write(o2)\n\nremap(bgColor: #336699, bgAlpha: 1, zoneCount: 8, smoothEdge: 0.1,\n  zone0_tex: read(o1), zone0_count: 4, zone0_v0: [0.2, 0.44, 0.04, 0.46], zone0_v1: [0.06, 0.06, 0.22, 0.04],\n  zone1_tex: read(o2), zone1_count: 4, zone1_v0: [0.46, 0.44, 0.28, 0.44], zone1_v1: [0.28, 0.06, 0.46, 0.06],\n  zone2_tex: read(o1), zone2_count: 4, zone2_v0: [0.72, 0.44, 0.52, 0.42], zone2_v1: [0.5, 0.06, 0.7, 0.08],\n  zone3_tex: read(o2), zone3_count: 4, zone3_v0: [0.92, 0.44, 0.76, 0.46], zone3_v1: [0.78, 0.06, 0.94, 0.04],\n  zone4_tex: read(o1), zone4_count: 4, zone4_v0: [0.22, 0.94, 0.04, 0.94], zone4_v1: [0.04, 0.56, 0.22, 0.56],\n  zone5_tex: read(o2), zone5_count: 4, zone5_v0: [0.48, 0.94, 0.28, 0.92], zone5_v1: [0.26, 0.56, 0.46, 0.58],\n  zone6_tex: read(o1), zone6_count: 4, zone6_v0: [0.68, 0.94, 0.52, 0.96], zone6_v1: [0.54, 0.56, 0.7, 0.54],\n  zone7_tex: read(o2), zone7_count: 4, zone7_v0: [0.94, 0.94, 0.76, 0.94], zone7_v1: [0.76, 0.56, 0.94, 0.56]\n).write(o0)\nrender(o0)",
 
   passes: [
     {

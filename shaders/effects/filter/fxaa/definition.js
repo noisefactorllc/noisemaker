@@ -11,6 +11,7 @@ export default new Effect({
   tags: ["antialiasing"],
 
   description: "Fast approximate anti-aliasing",
+  defaultProgram: "search filter, synth\n\npattern(type: stripes, scale: 10, rotation: 30, smoothness: 0.001, bgColor: #666666)\n  .fxaa()\n  .write(o0)",
   globals: {
     strength: {
       type: "float",

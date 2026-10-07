@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "effect": "render/meshRender",
-  "sourceHash": "ed3482c296e4f5d4d440cdb1e6ffaac1aaf9a4cdcd09a69b9ecb64ca155ffa64",
-  "caseHash": "0e9336facb94c72d7625bd6d1e8e2773f57db0ea7f67202f90a605e7c73e3bf6",
+  "effect": "render/renderLit3d",
+  "sourceHash": "7f888ae03d75182b94f34cc206240682ba979bb3f94d81b88d3172e9154adeb8",
+  "caseHash": "5d178659a5d786d796d0aa652e9b3113154979770a8cbaa95fac3074965fb8b0",
   "resolution": [
     64,
     64
@@ -11,21 +11,21 @@
     "webgl2": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 4096,
+      "nonzeroRgbPixels": 2342,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3
+      "uniqueColors": 176
     },
     "webgpu": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 4096,
+      "nonzeroRgbPixels": 2342,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3
+      "uniqueColors": 176
     }
   },
   "execution": {
-    "webgl2TargetPasses": 2,
-    "webgpuTargetPasses": 2
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
   },
   "parity": {
     "epsilon": 0,

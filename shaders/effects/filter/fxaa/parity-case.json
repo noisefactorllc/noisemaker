@@ -1,0 +1,16 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/pattern",
+        "filter/fxaa"
+    ],
+    "dsl": "search filter, synth\n\npattern(type: stripes, scale: 10, rotation: 30, smoothness: 0.001, bgColor: #666666).fxaa().write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "settleMs": 2000,
+    "epsilon": 0,
+    "requireColorVariation": true
+}

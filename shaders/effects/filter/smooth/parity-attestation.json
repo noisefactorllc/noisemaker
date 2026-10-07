@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "effect": "render/meshRender",
-  "sourceHash": "ed3482c296e4f5d4d440cdb1e6ffaac1aaf9a4cdcd09a69b9ecb64ca155ffa64",
-  "caseHash": "0e9336facb94c72d7625bd6d1e8e2773f57db0ea7f67202f90a605e7c73e3bf6",
+  "effect": "filter/smooth",
+  "sourceHash": "2fd8e2948ad7867f6f4c810ae97148d777f90c48406097bca6c26f2168716292",
+  "caseHash": "3837f207c70aff74ad581a534aa1fc3ca3ec25b453bf736ea3bbdb93eecb949c",
   "resolution": [
     64,
     64
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3
+      "uniqueColors": 34
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3
+      "uniqueColors": 34
     }
   },
   "execution": {

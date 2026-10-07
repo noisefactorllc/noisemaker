@@ -1,0 +1,16 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth3d/noise3d",
+        "render/renderLit3d"
+    ],
+    "dsl": "search synth3d, render\n\nnoise3d(volumeSize: x32).renderLit3d(specularIntensity: 2, shininess: 64).write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "settleMs": 2000,
+    "epsilon": 0,
+    "requireColorVariation": true
+}

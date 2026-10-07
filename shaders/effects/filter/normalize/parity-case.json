@@ -1,0 +1,16 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/pattern",
+        "filter/normalize"
+    ],
+    "dsl": "search filter, synth\n\npattern(type: dots, smoothness: 0.2, fgColor: #c08060, bgColor: #304050).normalize().write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "settleMs": 2000,
+    "epsilon": 0,
+    "requireColorVariation": true
+}

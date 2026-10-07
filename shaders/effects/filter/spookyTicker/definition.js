@@ -63,7 +63,7 @@ export default new Effect({
       }
     }
   },
-  defaultProgram: "search filter, synth\n\nperlin()\n  .spookyTicker()\n  .write(o0)",
+  defaultProgram: "search filter, synth\n\nsolid(color: #101820)\n  .spookyTicker()\n  .write(o0)",
   passes: [
     {
       name: "main",

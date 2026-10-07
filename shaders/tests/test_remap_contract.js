@@ -32,7 +32,14 @@ await test('synth/remap definition imports and exposes a valid default program',
 
     assert.equal(effect.namespace, 'synth')
     assert.equal(effect.func, 'remap')
-    assert.equal(effect.defaultProgram, 'search synth\n\nremap(bgColor: #336699, bgAlpha: 1)\n  .write(o0)')
+    // The example wires all eight zones so every zone control has something
+    // to change.
+    assert.match(effect.defaultProgram, /^search synth\n/)
+    assert.match(effect.defaultProgram, /remap\(bgColor: #336699, bgAlpha: 1, zoneCount: 8,/)
+    for (let zone = 0; zone < 8; zone++) {
+        assert.match(effect.defaultProgram, new RegExp(`zone${zone}_tex: read\\(o[12]\\), zone${zone}_count: 4,`))
+    }
+    assert.match(effect.defaultProgram, /\)\.write\(o0\)\nrender\(o0\)$/)
 })
 
 await test('synth/remap GLSL packs zone data in a uniform block', () => {

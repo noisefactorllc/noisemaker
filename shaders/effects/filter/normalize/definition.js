@@ -18,6 +18,7 @@ export default new Effect({
   tags: ["color"],
 
   description: "Value normalization",
+  defaultProgram: "search filter, synth\n\npattern(type: dots, smoothness: 0.2, fgColor: #c08060, bgColor: #304050)\n  .normalize()\n  .write(o0)",
   globals: {},
   textures: {
     // Pyramid reduction textures

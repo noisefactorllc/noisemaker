@@ -7,6 +7,7 @@ export default new Effect({
     tags: ["mesh", "geometry"],
 
     description: "Render meshes with Blinn-Phong lighting",
+    defaultProgram: "search render\n\nmeshLoader()\n  .meshRender(rotateX: 20, rotateY: -30, offsetX: 0.35, offsetY: 0.2, specularIntensity: 0.5, shininess: 16)\n  .write(o0)",
 
     textures: {},
 

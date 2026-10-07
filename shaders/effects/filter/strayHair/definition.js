@@ -32,7 +32,7 @@ class StrayHair extends Effect {
                     ui: { label: "alpha", control: "slider" }
                 }
             },
-            defaultProgram: "search filter, synth\n\nperlin(scale: 100)\n  .strayHair()\n  .write(o0)",
+            defaultProgram: "search filter, synth\n\nperlin(scale: 100)\n  .strayHair(density: 1, alpha: 1)\n  .write(o0)",
             textures: {
                 overlayTex: { width: 'screen', height: 'screen', format: 'rgba8' }
             },
