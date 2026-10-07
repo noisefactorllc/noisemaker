@@ -19,6 +19,7 @@ import { compileGraph } from '../src/runtime/compiler.js'
 import { Pipeline } from '../src/runtime/pipeline.js'
 import { Backend } from '../src/runtime/backend.js'
 import { Effect, registerEffect, registerOp, registerStarterOps } from '../src/index.js'
+import { allocateResources } from '../src/runtime/resources.js'
 
 let passed = 0
 let failed = 0
@@ -470,6 +471,22 @@ await test('recompile to a non-reusing graph releases the pooled sharing', async
     assert.equal(sharers, 1, 'the new graph has no reuse, so no shared group')
     assert.equal(plan.sharedTextures.length, 0,
         'a graph without reuse must report no shared textures')
+})
+
+await test('a texture read under two names in one pass is released once', () => {
+    // lighting reads the same texture as inputTex and heightMap. Releasing it
+    // once per name put its slot on the free list twice, so two textures that
+    // are live at the same time (C and D, both read by the last pass) were
+    // both given that slot.
+    const allocations = allocateResources([
+        { outputs: { out: 'A' } },
+        { inputs: { inputTex: 'A', heightMap: 'A' }, outputs: { out: 'B' } },
+        { inputs: { inputTex: 'B' }, outputs: { out: 'C' } },
+        { inputs: { inputTex: 'B' }, outputs: { out: 'D' } },
+        { inputs: { a: 'C', b: 'D' }, outputs: { out: 'E' } }
+    ])
+    assert.equal(allocations.get('C'), allocations.get('A'), 'C reuses the slot A released')
+    assert.notEqual(allocations.get('D'), allocations.get('C'), 'C and D are live together and must not share a slot')
 })
 
 // ---------------------------------------------------------------------------

@@ -79,9 +79,11 @@ export function allocateResources(passes) {
             })
         }
 
-        // 2. Release Inputs (Last Uses)
+        // 2. Release Inputs (Last Uses). A pass may read one texture under
+        // several names (lighting's inputTex and heightMap); release it once,
+        // or its slot is handed to two textures that are live together.
         if (pass.inputs) {
-            Object.values(pass.inputs).forEach(texId => {
+            new Set(Object.values(pass.inputs)).forEach(texId => {
                 if (texId.startsWith('global_')) return
 
                 const l = lifetime.get(texId)
