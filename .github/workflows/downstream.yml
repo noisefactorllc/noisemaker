@@ -6,17 +6,13 @@ on:
     branches: [main]
     paths:
       - 'shaders/**'
-      - '!shaders/README-SHADERS.md'
-      - '!shaders/AGENTS.md'
-      - '!shaders/effects/HELP_TEMPLATE.md'
-      - 'docs/**'
-      - '!docs/**/*.md'
       - 'demo/shaders/**'
       - '.mcp.json'
       - 'vendor/shade-mcp/**'
       - 'pull-shade-mcp'
       - '.github/workflows/pull-shade-mcp.yml'
       - 'test/mcp-config.test.js'
+      - '!**.md'
 
 permissions: {}
 
