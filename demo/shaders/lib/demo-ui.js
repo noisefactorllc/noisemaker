@@ -432,7 +432,8 @@ export class UIController {
         const applySize = (result) => {
             if (result.width > 0 && result.height > 0) {
                 const effectKey = `step_${stepIndex}`
-                this._programState.setValue(effectKey, 'imageSize', [result.width, result.height])
+                media.size = [result.width, result.height]
+                this._programState.setValue(effectKey, 'imageSize', media.size)
             }
         }
 
@@ -2365,11 +2366,31 @@ render(o1)`
         // This is critical for automation bindings (oscillator, midi, audio) which may have changed
         this._programState.fromDsl(dsl)
 
+        // fromDsl resets imageSize to its default (programs never carry it),
+        // and a still image is not uploaded again, so put back each media
+        // step's uploaded size or the image stretches across the frame
+        this._restoreMediaSizes()
+
         // Sync UI controls from the updated state
         // This ensures controls reflect new DSL values for effects that existed before paste
         this._syncControlValuesFromState()
 
         return true
+    }
+
+    /**
+     * Put each loaded media source's uploaded size back into its step's imageSize
+     * @private
+     */
+    _restoreMediaSizes() {
+        this._programState.batch(() => {
+            for (const [stepIndex, media] of this._mediaInputs) {
+                if (!media.source || !media.size) continue
+                const effectKey = `step_${stepIndex}`
+                if (!this._programState.getEffectDef(effectKey)?.globals?.imageSize) continue
+                this._programState.setValue(effectKey, 'imageSize', media.size)
+            }
+        })
     }
 
     /**
