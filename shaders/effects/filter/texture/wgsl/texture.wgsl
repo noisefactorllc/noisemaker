@@ -327,10 +327,11 @@ fn shape_material(raw: f32) -> f32 {
 
 @fragment
 fn main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // Frame coordinates, as the GLSL's v_texCoord against its textures. The
-    // default vertex uv has a bottom-left origin, which flipped the image.
+    // The output-normalized coordinate, as the GLSL's v_texCoord against its
+    // textures; the default vertex uv has a bottom-left origin, so it is
+    // flipped vertically.
     let dims: vec2<f32> = vec2<f32>(textureDimensions(inputTex, 0));
-    let uv: vec2<f32> = in.position.xy / dims;
+    let uv: vec2<f32> = vec2<f32>(in.uv.x, 1.0 - in.uv.y);
     let base_color: vec4<f32> = textureSample(inputTex, u_sampler, uv);
     let pixel_step: vec2<f32> = 1.0 / dims;
 

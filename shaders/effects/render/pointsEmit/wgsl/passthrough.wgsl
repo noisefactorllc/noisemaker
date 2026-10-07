@@ -8,7 +8,8 @@ struct VertexOutput {
 
 @fragment
 fn main(in: VertexOutput) -> @location(0) vec4f {
-    // Copy the input as the GLSL does (gl_FragCoord / resolution). The default
-    // vertex uv has a bottom-left origin, so sampling at it flipped the copy.
-    return textureSample(inputTex, inputTexSampler, in.position.xy / vec2f(textureDimensions(inputTex, 0)));
+    // Copy the input as the GLSL does, at gl_FragCoord / resolution: the
+    // output-normalized coordinate with a top-left origin. The default vertex
+    // uv has a bottom-left origin, so it is flipped vertically.
+    return textureSample(inputTex, inputTexSampler, vec2f(in.uv.x, 1.0 - in.uv.y));
 }
