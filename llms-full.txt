@@ -15,15 +15,15 @@ and WebGPU backends and must not be cited as evidence for an external port.
 Source snapshots used for this contract:
 
 - Noisemaker: `34b4db0c4f3d79be647b4bdc55fa6e6a0f15be44`.
-- Shade MCP: `7cfd40547bb3075e19459ead526ab938be4b5c25`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.4.7`, built on
+- Shade MCP: `30a100e3ada447ac075afd457318359f9237cf00`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.4.9`, built on
   `@modelcontextprotocol/sdk` 1.31.0, which accepts the protocol versions
   `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05` and `2024-10-07`,
   echoes the version the client requests, and answers `2025-11-25` to any other
   request; 18 tools are returned by `tools/list`.
 - The repository config runs
-  `npx -y github:noisedeck/shade-mcp#7cfd40547bb3075e19459ead526ab938be4b5c25`,
-  matching release v0.4.7 delivered to `vendor/shade-mcp/`.
+  `npx -y github:noisedeck/shade-mcp#30a100e3ada447ac075afd457318359f9237cf00`,
+  matching release v0.4.9 delivered to `vendor/shade-mcp/`.
 
 Primary source roots:
 
@@ -33,7 +33,7 @@ Primary source roots:
 - backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
 - repository validation policy: `shaders/tests/test-harness.js`.
 - Shade MCP source for the pinned snapshot:
-  `https://github.com/noisefactorllc/shade-mcp/tree/7cfd40547bb3075e19459ead526ab938be4b5c25/src`.
+  `https://github.com/noisefactorllc/shade-mcp/tree/30a100e3ada447ac075afd457318359f9237cf00/src`.
 
 ## Freshness and maintenance
 
@@ -1319,31 +1319,42 @@ level, a variable cycle, deterministic repeated seeks, and recursive audio
 capture requirements.
 
 Runtime responsiveness compares rendered frames at two paused times, t=0 and
-t=0.37: their mean-RGB vectors and a strided sample of about 4096 pixels. A
-uniform responds when any delta exceeds the threshold at either time (the
-deltas below are the maximum over both). Define:
+t=0.37: their mean RGBA vectors, a 64x64 grid of pixels at cell centers, and
+every pixel of the frame. After each change it waits for async CPU overlays to
+redraw (`Pipeline.whenAsyncInitsSettled()`). A uniform responds when any
+measure exceeds its threshold at either time (the values below are the maximum
+over both). Define:
 
 ```text
 baseline_luma = (baseline_r + baseline_g + baseline_b) / 3
 test_luma     = (test_r + test_g + test_b) / 3
 luma_delta    = abs(test_luma - baseline_luma)
-max_channel_delta = max(abs(test_r-baseline_r),
-                        abs(test_g-baseline_g),
-                        abs(test_b-baseline_b))
-pixel_delta       = mean over sampled pixels and channels of
+max_channel_delta = max(abs(test_c - baseline_c)) over r, g, b, a
+pixel_delta       = mean over grid pixels and RGBA channels of
                     abs(test_pixel - baseline_pixel)
+strong_fraction   = share of all pixels with any channel changed by > 16/255
 ```
 
-A tested uniform passes when `luma_delta > 0.002`, `max_channel_delta > 0.002`
-or `pixel_delta > 0.002` (reported as `pixel_diff`); the per-pixel delta sees
-blur, scale, rotation and offset controls that leave the mean color
-unchanged. Only globals with `uniform`, numeric `min` and
-`max`, unequal bounds, and a type other than `boolean`/`button` are tested.
-Up to two test values are tried, never the default: the farther from the
-default of the 25% and 75% points of the range, then the 38.2% point, which
+A tested uniform passes when `luma_delta > 0.002`, `max_channel_delta > 0.002`,
+`pixel_delta > 0.002` (reported as `pixel_diff`) or `strong_fraction > 0.0005`;
+the per-pixel delta sees blur, scale, rotation and offset controls that leave
+the mean color unchanged, and `strong_fraction` sees a sparse overlay (a few
+stray hairs) that falls between the grid pixels. Only globals with `uniform`,
+numeric `min` and `max`, unequal bounds, a type other than `boolean`/`button`
+and a visible control (not `ui.control: false`) are tested. A compile-time
+`define` param cannot change through `setUniform`; it is reported `gated` with
+`define`. Up to two test values are tried, never the starting value (the value
+the loaded program set, to which every control is restored afterwards): the
+farther of the 25% and 75% points of the range, then the 38.2% point, which
 does not line up with right angles or halves a symmetric input is invariant
 to; `int` values are rounded, and the first value that moves the output is
-reported as `test_value`. Before measuring a uniform whose
+reported as `test_value`. A uniform that does not respond is retried with one
+other control at a time moved to its first test value (a vector control, such
+as a tint, a quarter of its range off its start; a gated control with its gate
+opened, except that a toggle gating that control stays where it started in
+the reference), and passes when one makes it respond; the result reports that
+`context`. A range that selects what an adjustment changes, or a transform of
+a feedback that is mixed out at defaults, passes this way. Before measuring a uniform whose
 `ui.enabledBy` condition is false at defaults, the tool sets the condition's
 params to values that satisfy it (`eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `in`,
 `notIn`, `and`/`or`) and reports them as `enabled_with`; it restores them
@@ -1398,9 +1409,12 @@ type UniformResponsiveness = { effect_id: string, outcome: Outcome } & (
         default_value: number, test_value: number,
         luma_diff: number | null, max_channel_diff: number | null,
         pixel_diff?: number,               // mean per-pixel delta, when measured
+        strong_fraction?: number,          // share of pixels changed by > 16/255
         responds: boolean | null,          // null when gated
         enabled_with?: Record<string, unknown>, // gate params set to open ui.enabledBy
-        gated?: true, enabled_by?: unknown, error?: string }>,
+        context?: Record<string, unknown>, // the other control a retry moved
+        gated?: true, enabled_by?: unknown, define?: string,
+        error?: string }>,
       threshold: 0.002,
       details: string,
       console_errors?: string[] }
@@ -3243,7 +3257,9 @@ type TestNoPassthroughInput = BrowserSelector
 type TestNoPassthroughResult = Batched<
   | { effect_id: string, status: "ok" | "passthrough",
       backend: string, isFilterEffect: true,
-      similarity: number, threshold: 0.01, inputTexture: string,
+      similarity: number, changed_fraction: number, strong_fraction: number,
+      threshold: 0.01, inputTexture: string,
+      identity_at_defaults?: true, varied?: Record<string, number>,
       details: string,
       console_errors?: string[] }
   | { effect_id: string, status: "skipped" | "error",
@@ -3258,14 +3274,24 @@ type TestNoPassthroughResult = Batched<
 ```
 
 The tool classifies a filter by an expanded pass input key or value naming
-`inputTex`, `inputTex3d`, or a user surface, including starter effects. It
-renders at paused time zero, reads the consumed input texture (a `global_<name>` input through the half the
-frame presented, then `global_<name>_read`) and the output surface through the
-backend's async reader, and samples about 1000 pixels.
-`similarity` is the normalized mean absolute RGB difference, despite its name:
-the output modifies its input and returns `ok` only when `similarity > 0.01`.
-Otherwise the status is `passthrough`. Nonfilters return `skipped` with `Not a
-filter effect`. The comparison works on WebGL2 and WebGPU.
+`inputTex`, `inputTex3d`, or a user surface, including starter effects. An
+input that the same or a later pass writes is the effect's own previous output
+(a feedback loop), not its input, and is skipped. It renders at paused times
+t=0 and t=0.37, reads the consumed input texture (a `global_<name>` input
+through the half the frame presented, then `global_<name>_read`) and the
+output surface through the backend's async reader, and compares RGB on a 64x64
+grid of pixels and on every pixel. `similarity` is the normalized mean
+absolute RGB difference on the grid, despite its name; `changed_fraction` is
+the share of grid pixels changed by more than 2/255; `strong_fraction` is the
+share of all pixels changed by more than 16/255. Output is unchanged when
+`similarity <= 0.01`, `changed_fraction <= 0.01` and `strong_fraction <=
+0.0005` at both times. Many filters are the identity at their defaults (zero
+glitchiness, a zero mix): an unchanged filter is measured again with each
+ungated runtime control at the farther of its 25% and 75% points, restored
+afterwards, and reports `identity_at_defaults` with those `varied` values when
+that changes its input. Only a filter unchanged both ways is a `passthrough`.
+Nonfilters return `skipped` with `Not a filter effect`. The comparison works
+on WebGL2 and WebGPU.
 
 Source: Shade MCP `src/tools/browser/passthrough.ts` - schema and
 `testNoPassthrough()`.
@@ -4256,7 +4282,7 @@ program expansion.
 
 <!-- WORKED:MCP-REQUESTS -->
 
-One configured-pin session returned server `shade-mcp` version `0.4.7` and
+One configured-pin session returned server `shade-mcp` version `0.4.9` and
 listed 18 tools. All eight calls ran in that session, none returning MCP
 `isError`; the passthrough call returned the expected domain status `skipped`
 (`outcome:"skipped"`) because this is a source effect. On hosts where the
@@ -4285,10 +4311,10 @@ capture; these are the values from this session):
 {"outcome":"ok","effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGL2"}
 {"outcome":"ok","effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGPU"}
 {"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"image_uri":null,"width":256,"height":256},"metrics":{"mean_rgb":[0.5034687809712587,0.5034687809712587,0.5034687809712587],"mean_alpha":1,"std_rgb":[0.4999879674137903,0.4999879674137903,0.4999879674137903],"luma_variance":0.24998796755857344,"unique_sampled_colors":2,"is_all_zero":false,"is_all_transparent":false,"is_essentially_blank":false,"is_monochrome":false}}
-{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"uniforms":[{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":12,"luma_diff":0.0029811859130859375,"max_channel_diff":0.0029811859130859375,"pixel_diff":0.251953125,"responds":true,"enabled_with":{"pattern":0}}],"threshold":0.002,"details":"Uniforms affect output","backend":"WebGL2"}
+{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","tested_uniforms":["gridSize:pass"],"uniforms":[{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":12,"luma_diff":0.0029811859130859375,"max_channel_diff":0.0029811859130859375,"pixel_diff":0.400634765625,"strong_fraction":0.4821910858154297,"responds":true,"enabled_with":{"pattern":0}}],"threshold":0.002,"details":"Uniforms affect output","backend":"WebGL2"}
 {"outcome":"skipped","effect_id":"synth/testPattern","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2"}
 {"outcome":"ok","effect_id":"synth/testPattern","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.24,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.6,"jitter_ms":0.62,"min_frame_time_ms":13.3,"max_frame_time_ms":17.6}}
+{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.28,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.59,"jitter_ms":0.96,"min_frame_time_ms":13.3,"max_frame_time_ms":19.1}}
 ```
 
 The structure scan has no issues and reports the one declared effect pass.
