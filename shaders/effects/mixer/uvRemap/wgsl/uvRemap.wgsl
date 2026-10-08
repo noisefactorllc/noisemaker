@@ -6,6 +6,9 @@
 @group(0) @binding(5) var<uniform> scale : f32;
 @group(0) @binding(6) var<uniform> offset : f32;
 @group(0) @binding(7) var<uniform> wrap : i32;
+@group(0) @binding(8) var<uniform> resolution : vec2<f32>;
+@group(0) @binding(9) var<uniform> tileOffset : vec2<f32>;
+@group(0) @binding(10) var<uniform> fullResolution : vec2<f32>;
 
 
 fn modulo(a: f32, b: f32) -> f32 {
@@ -35,23 +38,13 @@ fn applyWrap(uv: vec2<f32>, wrapMode: i32) -> vec2<f32> {
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let dims = vec2<f32>(textureDimensions(inputTex, 0));
-    let st = pos.xy / dims;
+    let localUV = pos.xy / resolution;
+    let colorA = textureSample(inputTex, samp, localUV);
+    let colorB = textureSample(tex, samp, localUV);
 
-    let colorA = textureSample(inputTex, samp, st);
-    let colorB = textureSample(tex, samp, st);
-
-    // Choose map and sample sources
-    var mapColor: vec4<f32>;
-    var sampleFromB: i32;
-
-    if (mapSource == 0) {
-        mapColor = colorB;
-        sampleFromB = 0;
-    } else {
-        mapColor = colorA;
-        sampleFromB = 1;
-    }
+    // mapSource 0 reads the map from inputTex and samples tex
+    let mapColor = select(colorB, colorA, mapSource == 0);
+    let sampleFromB = select(0, 1, mapSource == 0);
 
     // Extract UV channels
     var rawUV: vec2<f32>;
@@ -70,12 +63,15 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Apply wrap mode
     remappedUV = applyWrap(remappedUV, wrap);
 
+    var sampleUV = (remappedUV * fullResolution - tileOffset) / resolution;
+    sampleUV = fract(sampleUV);
+
     // Sample the other texture at remapped UVs
     var result: vec4<f32>;
     if (sampleFromB == 1) {
-        result = textureSample(tex, samp, remappedUV);
+        result = textureSample(tex, samp, sampleUV);
     } else {
-        result = textureSample(inputTex, samp, remappedUV);
+        result = textureSample(inputTex, samp, sampleUV);
     }
 
     return result;
