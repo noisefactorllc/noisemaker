@@ -17,7 +17,9 @@ export default new Effect({
     loopAScale: { slot: 1, components: 'w' },
     loopBScale: { slot: 2, components: 'x' },
     speedA: { slot: 2, components: 'y' },
-    speedB: { slot: 2, components: 'z' }
+    speedB: { slot: 2, components: 'z' },
+    tileOffset: { slot: 3, components: 'xy' },
+    fullResolution: { slot: 3, components: 'zw' }
   },
   globals: {
     loopAOffset: {

@@ -5,7 +5,7 @@
  */
 
 struct Uniforms {
-    data : array<vec4<f32>, 3>,
+    data : array<vec4<f32>, 4>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -23,6 +23,9 @@ var<private> loopBScale : f32;
 var<private> speedA : f32;
 var<private> speedB : f32;
 var<private> aspectRatio : f32;
+var<private> tileOffset : vec2<f32>;
+var<private> fullResolution : vec2<f32>;
+var<private> globalCoord : vec2<f32>;
 
 const PI : f32 = 3.14159265359;
 const TAU : f32 = 6.28318530718;
@@ -421,7 +424,7 @@ fn rings(st: vec2<f32>, freq: f32) -> f32 {
 }
 
 fn diamonds(pos: vec4<f32>, freq: f32) -> f32 {
-    var stLocal = pos.xy / resolution.y;
+    var stLocal = globalCoord / fullResolution.y;
     stLocal = stLocal - vec2<f32>(0.5 * aspectRatio, 0.5);
     stLocal = stLocal * freq;
     return (cos(stLocal.x * PI) + cos(stLocal.y * PI));
@@ -475,12 +478,14 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     speedB = uniforms.data[2].z;
     // Slot [2].w unused (was paletteMode)
 
-    // Slots [3] and [4] unused (were palette parameters)
-
-    aspectRatio = resolution.x / resolution.y;
+    // Slot [3] = (tileOffset.x, tileOffset.y, fullResolution.x, fullResolution.y)
+    tileOffset = uniforms.data[3].xy;
+    fullResolution = uniforms.data[3].zw;
 
     var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
-    var st = pos.xy / resolution.y;
+    globalCoord = pos.xy + tileOffset;
+    var st = globalCoord / fullResolution.y;
+    aspectRatio = fullResolution.x / fullResolution.y;
 
     var lf1 = map(loopAScale, 1.0, 100.0, 6.0, 1.0);
     if (wrap) {
