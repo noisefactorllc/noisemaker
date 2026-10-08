@@ -75,7 +75,7 @@ fn hsv2rgb(hsv: vec3f) -> vec3f {
     let s = hsv.y;
     let v = hsv.z;
     let c = v * s;
-    let x = c * (1.0 - abs(fract(h * 6.0) * 2.0 - 1.0));
+    let x = c * (1.0 - abs((h * 6.0) - 2.0 * floor((h * 6.0) / 2.0) - 1.0));
     let m = v - c;
     var rgb: vec3f;
     if (h < 1.0/6.0) { rgb = vec3f(c, x, 0.0); }
