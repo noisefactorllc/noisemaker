@@ -15,6 +15,8 @@ struct VertexOutput {
 @group(0) @binding(2) var<uniform> strength: f32;
 @group(0) @binding(3) var<uniform> seed: f32;
 @group(0) @binding(4) var<uniform> resolution: vec2<f32>;
+@group(0) @binding(5) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(6) var<uniform> fullResolution: vec2<f32>;
 
 fn clamp01(v: f32) -> f32 {
     return clamp(v, 0.0, 1.0);
@@ -135,19 +137,22 @@ fn refracted_exponential(uv: vec2<f32>, freq: vec2<f32>, px: vec2<f32>, disp: f3
 @fragment
 fn main(input: VertexOutput) -> @location(0) vec4<f32> {
     let dims = max(resolution, vec2<f32>(1.0, 1.0));
-    let px = vec2<f32>(1.0 / dims.x, 1.0 / dims.y);
     // Frame coordinates as the GLSL's gl_FragCoord / resolution; the default
     // vertex uv has a bottom-left origin, which flipped the output.
     let uv = input.position.xy / dims;
+    let tileSize = vec2<f32>(textureDimensions(inputTex, 0));
+    let globalCoord = uv * tileSize + tileOffset;
+    let globalUV = globalCoord / fullResolution;
+    let px = 1.0 / fullResolution;
     let base_color = textureSample(inputTex, u_sampler, uv);
 
     let str = max(strength, 0.0);
     let s = seed;
 
     // Multi-octave noise mask, self-refracted
-    let freq_mask = freq_for_shape(5.0, dims.x, dims.y);
-    let mask_refracted = refracted_field(uv, freq_mask, px, 1.0, s + 11.0);
-    let mask_gradient = chebyshev_gradient(uv, freq_mask, px, 1.0, s + 11.0);
+    let freq_mask = freq_for_shape(5.0, fullResolution.x, fullResolution.y);
+    let mask_refracted = refracted_field(globalUV, freq_mask, px, 1.0, s + 11.0);
+    let mask_gradient = chebyshev_gradient(globalUV, freq_mask, px, 1.0, s + 11.0);
     let mask_value = clamp01(mix(mask_refracted, mask_gradient, 0.125));
 
     // Blend input with dark dust using squared mask
@@ -155,15 +160,15 @@ fn main(input: VertexOutput) -> @location(0) vec4<f32> {
     var dusty = mix(base_color.rgb, vec3<f32>(0.15), mask_power);
 
     // Speck overlay: dropout + exponential noise, refracted
-    let freq_specks = dims * 0.1;
-    let dropout = select(0.0, 1.0, hash21(uv * dims + vec2<f32>(s + 37.0, s * 1.37)) < 0.4);
-    let specks_field = refracted_exponential(uv, freq_specks, px, 0.25, s + 71.0) * dropout;
+    let freq_specks = fullResolution * 0.1;
+    let dropout = select(0.0, 1.0, hash21(globalUV * fullResolution + vec2<f32>(s + 37.0, s * 1.37)) < 0.4);
+    let specks_field = refracted_exponential(globalUV, freq_specks, px, 0.25, s + 71.0) * dropout;
     let trimmed = clamp01((specks_field - 0.3) / 0.7);
     let specks = 1.0 - sqrt(trimmed);
 
     // Sparse noise
-    let sparse_mask = select(0.0, 1.0, hash21(uv * dims + vec2<f32>(s + 113.0, s + 171.0)) < 0.25);
-    let sparse_noise = exponential_noise(uv, dims, s + 131.0) * sparse_mask;
+    let sparse_mask = select(0.0, 1.0, hash21(globalUV * fullResolution + vec2<f32>(s + 113.0, s + 171.0)) < 0.25);
+    let sparse_noise = exponential_noise(globalUV, fullResolution, s + 131.0) * sparse_mask;
 
     // Combine
     dusty = mix(dusty, vec3<f32>(sparse_noise), 0.15);
