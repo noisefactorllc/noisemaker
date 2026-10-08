@@ -98,3 +98,43 @@ for (const [filter, expected] of [['linear', 'linear'], ['nearest', 'nearest']])
 }
 
 console.log('PASS: typed audio uniform and declared 3D sampler bindings')
+
+{
+    const backend = Object.create(WebGPUBackend.prototype)
+    const created = []
+    backend.storageBuffers = new Map()
+    backend.retiredStorageBuffers = []
+    backend.device = { createBuffer: ({ size }) => {
+        const buffer = { size, destroyed: false, destroy() { this.destroyed = true } }
+        created.push(buffer)
+        return buffer
+    } }
+    const previousUsage = globalThis.GPUBufferUsage
+    globalThis.GPUBufferUsage = { STORAGE: 1, COPY_SRC: 2, COPY_DST: 4 }
+    try {
+        const binding = { name: 'output_buffer' }
+        const small = backend.createStorageBuffer(binding, {}, { screenWidth: 64, screenHeight: 64 })
+        assert.equal(small.size, 64 * 64 * 16)
+        const large = backend.createStorageBuffer(binding, {}, { screenWidth: 160, screenHeight: 128 })
+        assert.ok(large.size >= 160 * 128 * 16,
+            'a later larger compute output must have enough storage for every pixel')
+        assert.notEqual(large, small)
+        assert.equal(small.destroyed, false,
+            'an earlier dispatch may still use the old buffer until submission completes')
+        assert.deepEqual(backend.retiredStorageBuffers, [small])
+        assert.equal(backend.createStorageBuffer(binding, {}, { screenWidth: 64, screenHeight: 64 }), large,
+            'a later smaller output may reuse the larger allocation')
+        assert.equal(created.length, 2)
+        let submittedDone
+        backend.commandEncoder = { finish: () => ({}) }
+        backend.queue = { submit() {}, onSubmittedWorkDone: () => new Promise(resolve => { submittedDone = resolve }) }
+        backend.endFrame()
+        assert.equal(small.destroyed, false, 'retired storage must survive until GPU work finishes')
+        submittedDone()
+        await Promise.resolve()
+        assert.equal(small.destroyed, true)
+        assert.deepEqual(backend.retiredStorageBuffers, [])
+    } finally {
+        globalThis.GPUBufferUsage = previousUsage
+    }
+}

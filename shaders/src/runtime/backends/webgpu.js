@@ -130,6 +130,7 @@ export class WebGPUBackend extends Backend {
         this.bindGroups = new Map() // passId -> bind group
         this.samplers = new Map() // config -> sampler
         this.storageBuffers = new Map() // bufferId -> GPUBuffer
+        this.retiredStorageBuffers = [] // Replaced buffers awaiting submission completion
         this.commandEncoder = null
         this.defaultVertexModule = null
         this.canvasFormat = (typeof navigator !== 'undefined' && navigator.gpu?.getPreferredCanvasFormat)
@@ -3015,11 +3016,6 @@ export class WebGPUBackend extends Backend {
     createStorageBuffer(binding, pass, state) {
         const bufferName = binding.name
 
-        // Check if buffer already exists
-        if (this.storageBuffers.has(bufferName)) {
-            return this.storageBuffers.get(bufferName)
-        }
-
         // Determine buffer size based on binding type and context
         let byteSize = 0
 
@@ -3059,11 +3055,15 @@ export class WebGPUBackend extends Backend {
         byteSize = Math.max(256, byteSize)
         byteSize = Math.ceil(byteSize / 256) * 256 // Align to 256 bytes
 
+        const existing = this.storageBuffers.get(bufferName)
+        if (existing?.size >= byteSize) return existing
+
         const buffer = this.device.createBuffer({
             size: byteSize,
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
         })
 
+        if (existing) this.retiredStorageBuffers.push(existing)
         this.storageBuffers.set(bufferName, buffer)
         return buffer
     }
@@ -3688,6 +3688,15 @@ export class WebGPUBackend extends Backend {
             const commandBuffer = this.commandEncoder.finish()
             this.queue.submit([commandBuffer])
             this.commandEncoder = null
+            // A resized storage buffer may still be referenced by commands
+            // encoded earlier in this frame. Release it only after submission.
+            if (this.retiredStorageBuffers.length > 0) {
+                const retired = this.retiredStorageBuffers.splice(0)
+                this.queue.onSubmittedWorkDone().then(
+                    () => retired.forEach(buffer => buffer.destroy()),
+                    () => retired.forEach(buffer => buffer.destroy())
+                )
+            }
         }
     }
 
@@ -3746,6 +3755,11 @@ export class WebGPUBackend extends Backend {
         this.pipelines.clear()
         this.bindGroups.clear()
         this.samplers.clear()
+
+        for (const buffer of this.storageBuffers.values()) buffer.destroy()
+        this.storageBuffers.clear()
+        for (const buffer of this.retiredStorageBuffers) buffer.destroy()
+        this.retiredStorageBuffers = []
 
         for (const buffer of this.uniformBufferPool) {
             buffer?.destroy?.()
