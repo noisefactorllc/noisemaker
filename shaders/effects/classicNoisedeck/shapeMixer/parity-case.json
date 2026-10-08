@@ -5,7 +5,7 @@
         "synth/gradient",
         "classicNoisedeck/shapeMixer"
     ],
-    "dsl": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\ngradient(seed: 1).shapeMixer(tex: o0, blendMode: refract, loopOffset: 300, seed: 3).write(o1)\nrender(o1)",
+    "dsl": "search synth, classicNoisedeck\n\nnoise(seed: 1, scaleX: 50, scaleY: 50).write(o0)\ngradient(seed: 1).shapeMixer(tex: o0, palette: ghostly, blendMode: refract, loopOffset: 300, seed: 3).write(o1)\nrender(o1)",
     "surface": "o1",
     "resolution": [
         64,
