@@ -1,0 +1,15 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/noise",
+        "mixer/patternMix"
+    ],
+    "dsl": "search synth, mixer\n\nnoise(seed: 1, ridges: true, colorMode: mono).write(o0)\nnoise(seed: 2, ridges: true).patternMix(tex: o0).write(o1)\nrender(o1)",
+    "surface": "o1",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}

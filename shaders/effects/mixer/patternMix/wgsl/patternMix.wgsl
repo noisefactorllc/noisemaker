@@ -39,7 +39,7 @@ fn checkerboard(p: vec2<f32>, sm: f32) -> f32 {
     let f = fract(p);
     let d = min(min(f.x, 1.0 - f.x), min(f.y, 1.0 - f.y));
     let cell = floor(p);
-    let check = ((cell.x + cell.y) % 2.0 + 2.0) % 2.0;
+    let check = (cell.x + cell.y) - 2.0 * floor((cell.x + cell.y) / 2.0);
     let edge = smoothstep(0.0, sm * 0.5, d);
     return mix(1.0 - check, check, edge);
 }
