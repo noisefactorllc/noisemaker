@@ -287,7 +287,7 @@ fn value(st_in: vec2f, freq: f32, interp: i32) -> f32 {
 
 fn hsv2rgb(hsv: vec3f) -> vec3f {
     let h = fract(hsv.x); let s = hsv.y; let v = hsv.z;
-    let c = v * s; let x = c * (1.0 - abs(fract(h * 6.0) * 2.0 - 1.0)); let m = v - c;
+    let c = v * s; let x = c * (1.0 - abs((h * 6.0) - 2.0 * floor((h * 6.0) / 2.0) - 1.0)); let m = v - c;
     var rgb: vec3f;
     if (h < 1.0/6.0) { rgb = vec3f(c, x, 0.0); }
     else if (h < 2.0/6.0) { rgb = vec3f(x, c, 0.0); }
