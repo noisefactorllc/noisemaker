@@ -31,7 +31,10 @@ export default new Effect({
     n2r1: { slot: 4, components: 'z' },
     n2v2: { slot: 4, components: 'w' },
 
-    n2r2: { slot: 5, components: 'x' }
+    n2r2: { slot: 5, components: 'x' },
+
+    tileOffset: { slot: 6, components: 'xy' },
+    fullResolution: { slot: 6, components: 'zw' }
   },
   textures: {
     global_mnca_state: {

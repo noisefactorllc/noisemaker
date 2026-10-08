@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "synth/mnca",
-  "sourceHash": "7843027880cce68cdad3795a3fadaaa547719426e5ad90a69a6b3b7465d4fae9",
-  "caseHash": "6f0aed6e3c7c8ed788860a0e66a612442960f3bc73032149bb30496bd177ad5a",
+  "sourceHash": "7986d02064850fafebee56c032b7f77fc01b4de5995d811fd5fee2c8ef442d6b",
+  "caseHash": "c5a4b46c5d5d5f6555527e74cf10b5391fa5ea95e3a524f55a782697cb34ac9c",
   "resolution": [
     64,
     64
@@ -11,16 +11,16 @@
     "webgl2": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 3480,
+      "nonzeroRgbPixels": 3353,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 254
+      "uniqueColors": 250
     },
     "webgpu": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 3480,
+      "nonzeroRgbPixels": 3353,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 254
+      "uniqueColors": 250
     }
   },
   "execution": {
