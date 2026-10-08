@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "classicNoisedeck/fractal",
+  "sourceHash": "241e2c66ab493194a2bfb82b25ff10c1a333c0fed5c5390a046bb38939ec2aa1",
+  "caseHash": "2b96fe797ad83975fc3da23129858ca6655de36f17182dfc45e83869c206bdaf",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 2134,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 17
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 2134,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 17
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

@@ -39,7 +39,7 @@ fn rotate2D(st0: vec2<f32>, rot: f32, aspect: f32) -> vec2<f32> {
     st = st - vec2<f32>(0.5 * aspect, 0.5);
     let s = sin(angle);
     let c = cos(angle);
-    st = mat2x2<f32>(c, s, -s, c) * st;
+    st = mat2x2<f32>(c, -s, s, c) * st;
     st = st + vec2<f32>(0.5 * aspect, 0.5);
     return st;
 }
@@ -117,7 +117,7 @@ fn linear_srgb_from_oklab(c: vec3<f32>) -> vec3<f32> {
 // end oklab
 
 fn pal(t0: f32, paletteOffset: vec3<f32>, paletteAmp: vec3<f32>, paletteFreq: vec3<f32>, palettePhase: vec3<f32>, paletteMode: i32) -> vec3<f32> {
-    let color = paletteOffset + paletteAmp * cos(TAU * (paletteFreq * t0 + palettePhase));
+    let color = paletteOffset + paletteAmp * cos(6.28318 * (paletteFreq * t0 + palettePhase));
     var col = color;
     if (paletteMode == 1) {
         col = hsv2rgb(col);
