@@ -12,6 +12,9 @@ struct Uniforms {
     matrixScale: f32,
     time: f32,
     mixAmount: f32,
+    renderScale: f32,
+    _pad1: f32,
+    tileOffset: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -412,14 +415,15 @@ fn fsSeedNoise(blockOrigin: vec2<i32>, lane: i32) -> vec3<f32> {
     return vec3<f32>(v) / f32(0xffffffffu) - 0.5;
 }
 
-// Source color for a diffusion cell: its center pixel, clamped to the texture.
+// Source color for a diffusion cell: its center pixel, clamped to the tile.
 fn fsFetchCell(cell: vec2<i32>, cellSize: f32, texSize: vec2<i32>) -> vec3<f32> {
     let pGlobal = (vec2<f32>(cell) + 0.5) * cellSize;
-    let p = clamp(vec2<i32>(floor(pGlobal)), vec2<i32>(0), texSize - 1);
-    return textureLoad(inputTex, p, 0).rgb;
+    var pLocal = vec2<i32>(floor(pGlobal)) - vec2<i32>(uniforms.tileOffset);
+    pLocal = clamp(pLocal, vec2<i32>(0), texSize - 1);
+    return textureLoad(inputTex, pLocal, 0).rgb;
 }
 
-fn errorDiffusion(pixelCoord: vec2<f32>, cellSize: f32, paletteType: i32, levelsInt: i32, thresh: f32) -> vec3<f32> {
+fn errorDiffusion(pixelCoord: vec2<f32>, fragCoord: vec2<f32>, cellSize: f32, paletteType: i32, levelsInt: i32, thresh: f32) -> vec3<f32> {
     let texSize = vec2<i32>(textureDimensions(inputTex));
     let levels = f32(levelsInt);
     let cell = vec2<i32>(floor(pixelCoord / cellSize));
@@ -476,7 +480,7 @@ fn errorDiffusion(pixelCoord: vec2<f32>, cellSize: f32, paletteType: i32, levels
 
     // This fragment's own pixel, carrying the diffused error so per-pixel
     // detail survives when a cell spans multiple pixels
-    let own = clamp(vec2<i32>(pixelCoord), vec2<i32>(0), texSize - 1);
+    let own = clamp(vec2<i32>(fragCoord), vec2<i32>(0), texSize - 1);
     let src = textureLoad(inputTex, own, 0).rgb;
     let v = clamp(src + carried + bias, vec3<f32>(0.0), vec3<f32>(1.0));
     return fsQuantize(v, paletteType, levels);
@@ -489,13 +493,16 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     
     var color = textureSample(inputTex, inputSampler, uv);
     
+    // Use global pixel coordinate for dither pattern so it aligns across tiles
+    let globalCoord = pos.xy + uniforms.tileOffset;
+
     var result: vec3<f32>;
 
     if (uniforms.ditherType == DITHER_ERROR_DIFFUSION) {
-        result = errorDiffusion(pos.xy, uniforms.matrixScale, uniforms.palette, uniforms.levels, uniforms.threshold);
+        result = errorDiffusion(globalCoord, pos.xy, uniforms.matrixScale * uniforms.renderScale, uniforms.palette, uniforms.levels, uniforms.threshold);
     } else {
         // Get dither threshold for current pixel
-        let ditherValue = getDitherThreshold(pos.xy, uniforms.ditherType, uniforms.matrixScale, uniforms.time);
+        let ditherValue = getDitherThreshold(globalCoord, uniforms.ditherType, uniforms.matrixScale * uniforms.renderScale, uniforms.time);
 
         if (uniforms.palette == PALETTE_INPUT) {
             // Per-channel quantization to the chosen number of levels
