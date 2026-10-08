@@ -88,7 +88,7 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
         st = rotationalFold(local_scaled + 0.5, 6);
     } else {
         // Square tiling
-        st = fract2(st * rep);
+        st = fract(st * rep);
 
         // Apply source region transforms (before fold — fold handles any input range)
         // mirrorXY needs half the range so edges match at default scale
@@ -104,15 +104,15 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
             st.y = mirrorFold(st.y);
         } else if (symmetry == 1) {
             // rotate2
-            st = rotationalFold(fract2(st), 2);
+            st = rotationalFold(fract(st), 2);
         } else {
             // rotate4
-            st = rotationalFold(fract2(st), 4);
+            st = rotationalFold(fract(st), 4);
         }
     }
 
-    // Clamp to valid texture range
-    st = clamp(st, vec2<f32>(0.0), vec2<f32>(1.0));
+    // Wrap for seamless tiling across tile boundaries
+    let localUV = fract(st);
 
-    return vec4<f32>(textureSampleLevel(inputTex, samp, st, 0.0).rgb, 1.0);
+    return vec4<f32>(textureSampleLevel(inputTex, samp, localUV, 0.0).rgb, 1.0);
 }
