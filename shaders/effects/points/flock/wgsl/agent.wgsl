@@ -62,7 +62,7 @@ fn noise2D(p: vec2f) -> f32 {
 }
 
 fn wrapPosition(position: vec2f, bounds: vec2f) -> vec2f {
-    return (position % bounds + bounds) % bounds;
+    return (position + bounds) - bounds * floor((position + bounds) / bounds);
 }
 
 fn limitVec(v: vec2f, maxLen: f32) -> vec2f {
