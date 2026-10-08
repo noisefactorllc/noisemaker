@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "mixer/shapeMask",
-  "sourceHash": "905fb3478b22bebf3857a72300408d428e9f5b2538ff0e935a5ecd42a6e038bd",
-  "caseHash": "cf9a73f5dff87934edcd493276757141ccec0915363b93bcdaae0993491fe004",
+  "sourceHash": "32394396254f1f3154872d61c6d7c4e7114218f34cc6ecce3e7f71c47be62ed3",
+  "caseHash": "a0d68cfde60e4a9725484321102ce677e7f77742a04b7e8cf340bf76f3b0c721",
   "resolution": [
     64,
     64
