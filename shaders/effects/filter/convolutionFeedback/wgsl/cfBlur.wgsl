@@ -9,7 +9,7 @@ struct Uniforms {
     sharpenAmount: f32,
     blurAmount: f32,
     intensity: f32,
-    _pad1: f32,
+    renderScale: f32,
     _pad2: f32,
     _pad3: f32,
 }
@@ -28,7 +28,7 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
     let coord = vec2<i32>(in.position.xy);
     
     let center = textureLoad(inputTex, coord, 0);
-    let radius = uniforms.blurRadius;
+    let radius = i32(f32(uniforms.blurRadius) * uniforms.renderScale);
     let amount = uniforms.blurAmount;
     
     if (radius <= 0 || amount <= 0.0) {
