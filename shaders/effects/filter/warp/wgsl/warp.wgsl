@@ -9,6 +9,9 @@ struct Uniforms {
     speed: i32,
     wrap: i32,
     antialias: i32,
+    resolution: vec2<f32>,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -69,9 +72,9 @@ fn perlinNoise(st_in: vec2<f32>, noiseScale: vec2<f32>, t: f32) -> f32 {
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let texSize = vec2<f32>(textureDimensions(inputTex));
-    let aspectRatio = texSize.x / texSize.y;
-    var uv = pos.xy / texSize;
+    let fullRes = select(uniforms.resolution, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
+    let aspectRatio = fullRes.x / fullRes.y;
+    var uv = (pos.xy + uniforms.tileOffset) / fullRes;
 
     let strength = uniforms.strength;
     let scale = uniforms.scale;
