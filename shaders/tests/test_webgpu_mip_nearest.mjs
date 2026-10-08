@@ -28,6 +28,7 @@ try {
     }, null, { timeout: 120000 })
 
     const cases = await page.evaluate(async () => {
+        const pipeline = window.__noisemakerRenderingPipeline
         const backend = window.__noisemakerRenderingPipeline.backend
         const device = backend.device
         const results = []
@@ -110,8 +111,48 @@ try {
         buffer.destroy()
         backend.destroyTexture(sourceId)
         backend.destroyTexture(targetId)
+        const persistentId = '__persistent_mip_resize'
+        const persistentWidth = 5, persistentHeight = 3
+        const resizedWidth = 7, resizedHeight = 5
+        const persistentUsage = ['render', 'sample', 'copySrc', 'copyDst']
+        backend.createTexture(persistentId, { width: persistentWidth, height: persistentHeight,
+            format: 'rgba8unorm', mipmaps: true, persistent: true, usage: persistentUsage })
+        const persistentSource = new Uint8Array(persistentWidth * persistentHeight * 4)
+        for (let y = 0; y < persistentHeight; y++) for (let x = 0; x < persistentWidth; x++) {
+            const offset = (y * persistentWidth + x) * 4
+            persistentSource[offset] = x * 43
+            persistentSource[offset + 1] = y * 67
+            persistentSource[offset + 2] = 19
+            persistentSource[offset + 3] = 255
+        }
+        device.queue.writeTexture({ texture: backend.textures.get(persistentId).handle }, persistentSource,
+            { bytesPerRow: persistentWidth * 4, rowsPerImage: persistentHeight },
+            [persistentWidth, persistentHeight, 1])
+        backend.generateMipmaps([persistentId])
+        pipeline.recreateTexturePreserving(persistentId, { width: resizedWidth, height: resizedHeight,
+            format: 'rgba8unorm', mipmaps: true, persistent: true, usage: persistentUsage })
+        await device.queue.onSubmittedWorkDone()
+        const persistentStride = 256
+        const persistentReadback = device.createBuffer({ size: persistentStride * resizedHeight,
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ })
+        const persistentEncoder = device.createCommandEncoder()
+        persistentEncoder.copyTextureToBuffer({ texture: backend.textures.get(persistentId).handle },
+            { buffer: persistentReadback, bytesPerRow: persistentStride, rowsPerImage: resizedHeight },
+            [resizedWidth, resizedHeight, 1])
+        device.queue.submit([persistentEncoder.finish()])
+        await persistentReadback.mapAsync(GPUMapMode.READ)
+        const persistentMapped = new Uint8Array(persistentReadback.getMappedRange())
+        const persistentResized = new Uint8Array(resizedWidth * resizedHeight * 4)
+        for (let y = 0; y < resizedHeight; y++) {
+            persistentResized.set(persistentMapped.subarray(y * persistentStride,
+                y * persistentStride + resizedWidth * 4), y * resizedWidth * 4)
+        }
+        persistentReadback.unmap()
+        persistentReadback.destroy()
+        backend.destroyTexture(persistentId)
         const error = await device.popErrorScope()
-        return { results, scaled: Array.from(scaled), error: error?.message || null }
+        return { results, scaled: Array.from(scaled),
+            persistentResized: Array.from(persistentResized), error: error?.message || null }
     })
     assert.equal(cases.error, null)
     for (const { levels } of cases.results) {
@@ -140,7 +181,14 @@ try {
             (sourceX + sourceY) % 2 ? 31 : 207, 255],
         `scaled pixel (${x}, ${y})`)
     }
-    console.log('PASS: WebGPU odd-size mip levels and persistent resize use center-nearest pixels')
+    for (let y = 0; y < 5; y++) for (let x = 0; x < 7; x++) {
+        const sourceX = Math.min(4, Math.floor((x + 0.5) * 5 / 7))
+        const sourceY = Math.min(2, Math.floor((y + 0.5) * 3 / 5))
+        const actual = cases.persistentResized.slice((y * 7 + x) * 4, (y * 7 + x + 1) * 4)
+        assert.deepEqual(actual, [sourceX * 43, sourceY * 67, 19, 255],
+            `persistent mipmapped resize pixel (${x}, ${y})`)
+    }
+    console.log('PASS: WebGPU odd-size mip levels and persistent mipmapped resize use center-nearest pixels')
 } finally {
     await session.teardown()
 }

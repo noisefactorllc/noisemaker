@@ -1288,7 +1288,9 @@ export class Pipeline {
                 width: existingTex.width,
                 height: existingTex.height,
                 format: existingTex.format,
-                usage: ['sample', 'copySrc', 'copyDst']
+                // A mipmapped source is copied through the WebGPU resample
+                // path even when this temporary has the same dimensions.
+                usage: ['render', 'sample', 'copySrc', 'copyDst']
             })
             this.backend.copyTexture(texId, preserveId)
         }
