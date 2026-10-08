@@ -1336,6 +1336,8 @@ export class Pipeline {
         const surfaceNames = new Set(['o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7',
             'geo0', 'geo1', 'geo2', 'geo3', 'geo4', 'geo5', 'geo6', 'geo7',
             'vol0', 'vol1', 'vol2', 'vol3', 'vol4', 'vol5', 'vol6', 'vol7'])
+        const readSurfaces = new Set()
+        const writtenSurfaces = new Set()
 
         // Global mesh surfaces (mesh0-mesh7) - each mesh has 3 linked textures
         const meshNames = new Set(['mesh0', 'mesh1', 'mesh2', 'mesh3', 'mesh4', 'mesh5', 'mesh6', 'mesh7'])
@@ -1354,19 +1356,24 @@ export class Pipeline {
                         const globalName = this.parseGlobalName(texId)
                         if (globalName && !meshTexturePattern.test(globalName)) {
                             surfaceNames.add(globalName)
+                            readSurfaces.add(globalName)
                         }
                     }
                 }
-                if (pass.outputs) {
-                    for (const texId of Object.values(pass.outputs)) {
+                if (pass.outputs || pass.storageTextures) {
+                    // WebGL2's compute fallback uses storageTextures only when
+                    // the pass has no explicit outputs.
+                    for (const texId of Object.values(pass.outputs || pass.storageTextures)) {
                         const globalName = this.parseGlobalName(texId)
                         if (globalName && !meshTexturePattern.test(globalName)) {
                             surfaceNames.add(globalName)
+                            writtenSurfaces.add(globalName)
                         }
                     }
                 }
             }
         }
+        this._feedbackSurfaces = new Set([...readSurfaces].filter(name => writtenSurfaces.has(name)))
 
         // Check if any pass references midiNoteGrid texture
         this._needsMidiNoteGrid = false
@@ -2689,9 +2696,10 @@ export class Pipeline {
      * @param {Object} pass - The pass that just executed
      */
     adoptIterationBindings(pass) {
-        if (!pass.outputs) return
+        const outputs = pass.outputs || pass.storageTextures
+        if (!outputs) return
 
-        for (const outputName of Object.values(pass.outputs)) {
+        for (const outputName of Object.values(outputs)) {
             if (typeof outputName !== 'string') continue
 
             // Only affects global surfaces (not feedback surfaces)
@@ -2720,8 +2728,9 @@ export class Pipeline {
     /**
      * Swap double-buffered surfaces at end of frame.
      *
-     * For state surfaces (xyz, vel, rgba, trail), we DON'T swap - we persist
-     * the frame's final read/write bindings so particles continue from where they left off.
+     * For state surfaces (xyz, vel, rgba, trail) and graph feedback surfaces,
+     * persist the frame's final read/write bindings so the next frame reads
+     * the latest write even when an intervening update pass was skipped.
      *
      * For display surfaces (o0-o7), we swap so the next frame renders fresh.
      */
@@ -2752,7 +2761,7 @@ export class Pipeline {
         for (const [name, surface] of this.surfaces.entries()) {
             surface.currentFrame = this.frameIndex
 
-            if (isStateSurface(name)) {
+            if (isStateSurface(name) || this._feedbackSurfaces?.has(name)) {
                 // State surfaces: persist the frame's final bindings
                 const finalRead = this.frameReadTextures?.get(name)
                 const finalWrite = this.frameWriteTextures?.get(name)
@@ -2856,9 +2865,10 @@ export class Pipeline {
      * subsequent passes will read from that write buffer, and write to the other buffer.
      */
     updateFrameSurfaceBindings(pass, state) {
-        if (!pass.outputs) return
+        const outputs = pass.outputs || pass.storageTextures
+        if (!outputs) return
 
-        for (const outputName of Object.values(pass.outputs)) {
+        for (const outputName of Object.values(outputs)) {
             if (typeof outputName !== 'string') continue
 
             // Handle global surface writes (both global_ and globalName patterns)

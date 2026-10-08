@@ -66,13 +66,14 @@ class MockBackend extends Backend {
 
     executePass(pass, state) {
         // Record the resolved read/write physical texture IDs for every
-        // global_ (ping-pong) surface this pass declares in inputs/outputs,
+        // global_ (ping-pong) surface this pass declares in inputs, outputs,
+        // or storageTextures,
         // so tests can pin the exact per-iteration binding sequence instead
         // of only observing which passes ran. state.surfaces/writeSurfaces
         // are reused/mutated objects (see Pipeline.getFrameState), so only
         // primitive string IDs are copied out here -- never a reference.
         const surfaceBindings = {}
-        for (const ioMap of [pass.inputs, pass.outputs]) {
+        for (const ioMap of [pass.inputs, pass.outputs, pass.storageTextures]) {
             if (!ioMap) continue
             for (const texId of Object.values(ioMap)) {
                 if (typeof texId !== 'string' || !texId.startsWith('global_')) continue
@@ -591,6 +592,76 @@ test('Pipeline - Repeat Pass Binding Sequence (self-seeding, persists across fra
 
     if (f2iter1.surfaceBindings.rd_state.read !== f2iter0.surfaceBindings.rd_state.write) {
         throw new Error(`Expected frame 2 iteration 1 to read iteration 0's write (${f2iter0.surfaceBindings.rd_state.write}), read ${f2iter1.surfaceBindings.rd_state.read} instead`)
+    }
+})
+
+test('Pipeline - Custom feedback surface survives a skipped pass', async () => {
+    const backend = new MockBackend()
+    const graph = {
+        passes: [{
+            id: 'update_memory',
+            program: 'feedback',
+            inputs: { previous: 'global_memory' },
+            outputs: { color: 'global_memory' },
+            conditions: { skipIf: [{ uniform: 'frame', equals: 1 }] }
+        }],
+        textures: new Map([['global_memory', {
+            width: 'screen', height: 'screen', format: 'rgba16f', persistent: true
+        }]]),
+        programs: { feedback: { fragment: 'void main() {}' } }
+    }
+
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(16, 16)
+
+    pipeline.render(0)
+    const firstWrite = backend.passes[0].surfaceBindings.memory.write
+
+    backend.passes = []
+    pipeline.render(0.016)
+    if (backend.passes.length !== 0) {
+        throw new Error('Feedback pass should be skipped on frame 1')
+    }
+
+    pipeline.render(0.032)
+    const resumedRead = backend.passes[0].surfaceBindings.memory.read
+    if (resumedRead !== firstWrite) {
+        throw new Error(`Expected resumed feedback to read ${firstWrite}, got ${resumedRead}`)
+    }
+})
+
+test('Pipeline - Storage-only feedback surface survives a skipped pass', async () => {
+    const backend = new MockBackend()
+    const graph = {
+        passes: [{
+            id: 'update_storage_memory',
+            program: 'storageFeedback',
+            inputs: { previous: 'global_storage_memory' },
+            storageTextures: { result: 'global_storage_memory' },
+            conditions: { skipIf: [{ uniform: 'frame', equals: 1 }] }
+        }],
+        textures: new Map([['global_storage_memory', {
+            width: 'screen', height: 'screen', format: 'rgba16f', persistent: true
+        }]]),
+        programs: { storageFeedback: { fragment: 'void main() {}' } }
+    }
+
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(16, 16)
+
+    pipeline.render(0)
+    const firstWrite = backend.passes[0].surfaceBindings.storage_memory.write
+
+    backend.passes = []
+    pipeline.render(0.016)
+    if (backend.passes.length !== 0) {
+        throw new Error('Storage feedback pass should be skipped on frame 1')
+    }
+
+    pipeline.render(0.032)
+    const resumedRead = backend.passes[0].surfaceBindings.storage_memory.read
+    if (resumedRead !== firstWrite) {
+        throw new Error(`Expected resumed storage feedback to read ${firstWrite}, got ${resumedRead}`)
     }
 })
 
