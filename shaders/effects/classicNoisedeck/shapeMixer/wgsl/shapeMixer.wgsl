@@ -139,9 +139,23 @@ fn linear_srgb_from_oklab(c: vec3f) -> vec3f {
     return fwdB * (lms * lms * lms);
 }
 
+fn isNan(val: f32) -> bool {
+    return !(val <= 0.0 || 0.0 <= val);
+}
+
+fn isInf(val: f32) -> bool {
+    return val != 0.0 && val * 2.0 == val;
+}
+
 fn pal(t_in: f32) -> vec3f {
+    if (isNan(t_in)) {
+        return vec3f(0.0);
+    } else if (isInf(t_in)) {
+        return vec3f(0.0);
+    }
+
     var t = t_in * f32(u.repeatPalette) + u.rotatePalette * 0.01;
-    var color = u.paletteOffset + u.paletteAmp * cos(TAU * (u.paletteFreq * t + u.palettePhase));
+    var color = u.paletteOffset + u.paletteAmp * cos(6.28318 * (u.paletteFreq * t + u.palettePhase));
     if (u.paletteMode == 1) { color = hsv2rgb(color); }
     else if (u.paletteMode == 2) {
         color.g = color.g * -0.509 + 0.276;
@@ -212,8 +226,8 @@ fn randomFromLatticeWithOffset(st: vec2f, freq: f32, offset: vec2i) -> vec3f {
     let baseFloor = floor(lattice);
     var base = vec2i(baseFloor) + offset;
     let frac = lattice - baseFloor;
-    let seedInt = i32(floor(f32(u.seed)));
-    let seedFrac = fract(f32(u.seed));
+    let seedInt = u.seed;
+    let seedFrac = 0.0;
     let xCombined = frac.x + seedFrac;
     var xi = base.x + seedInt + i32(floor(xCombined));
     var yi = base.y;
@@ -224,9 +238,9 @@ fn randomFromLatticeWithOffset(st: vec2f, freq: f32, offset: vec2i) -> vec3f {
             yi = positiveModulo(yi, freqInt);
         }
     }
-    let xBits = u32(xi);
-    let yBits = u32(yi);
-    let seedBits = bitcast<u32>(f32(u.seed));
+    let xBits = bitcast<u32>(xi);
+    let yBits = bitcast<u32>(yi);
+    let seedBits = bitcast<u32>(u.seed);
     let fracBits = bitcast<u32>(seedFrac);
     let jitter = vec3u(
         (fracBits * 374761393u) ^ 0x9E3779B9u,
@@ -377,7 +391,7 @@ fn blendFloat(color1: f32, color2: f32, mode: i32, factorIn: f32) -> f32 {
     else if (mode == 2) { return max(color1, color2 * factor); }
     else if (mode == 3) { return min(color1, color2 * factor); }
     else if (mode == 4) { return mix(color1, color2, clamp(factor, 0.0, 1.0)); }
-    else if (mode == 5) { let c2 = max(0.1, color2 * factor); return color1 % c2; }
+    else if (mode == 5) { let c2 = max(0.1, color2 * factor); return color1 - c2 * floor(color1 / c2); }
     else if (mode == 6) { return color1 * color2 * factor; }
     else if (mode == 7) {
         // reflect for scalar: r = i - 2*dot(n,i)*n = i - 2*n*i*n = i*(1 - 2*n^2)
@@ -385,12 +399,11 @@ fn blendFloat(color1: f32, color2: f32, mode: i32, factorIn: f32) -> f32 {
         return color1 - 2.0 * n * color1 * n;
     }
     else if (mode == 8) {
-        // refract for scalar approximation
-        let eta = factor;
-        let cosi = color1;
-        let k = 1.0 - eta * eta * (1.0 - cosi * cosi);
+        // GLSL refract(float I, float N, float eta)
+        let d = color2 * color1;
+        let k = 1.0 - factor * factor * (1.0 - d * d);
         if (k < 0.0) { return 0.0; }
-        return eta * color1 + (eta * cosi - sqrt(k)) * color2;
+        return factor * color1 - (factor * d + sqrt(k)) * color2;
     }
     else if (mode == 9) { return color1 - color2 * factor; }
     return mix(color1, color2, clamp(factor, 0.0, 1.0));
@@ -399,11 +412,11 @@ fn blendFloat(color1: f32, color2: f32, mode: i32, factorIn: f32) -> f32 {
 fn blendVec3(color1: vec3f, color2: vec3f, mode: i32, factorIn: f32) -> vec3f {
     let factor = 1.0 - factorIn;
     if (mode == 0) { return color1 + color2 * factor; }
-    else if (mode == 1) { return color1 / (color2 * factor); }
+    else if (mode == 1) { return color1 / color2 * factor; }
     else if (mode == 2) { return max(color1, color2 * factor); }
     else if (mode == 3) { return min(color1, color2 * factor); }
     else if (mode == 4) { return mix(color1, color2, clamp(factor, 0.0, 1.0)); }
-    else if (mode == 5) { return color1 % (color2 * factor); }
+    else if (mode == 5) { let c2 = color2 * factor; return color1 - c2 * floor(color1 / c2); }
     else if (mode == 6) { return color1 * color2 * factor; }
     else if (mode == 7) { return reflect(color1, color2 * factor); }
     else if (mode == 8) { return refract(color1, color2, factor); }
@@ -447,8 +460,8 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         var c = blendVec3(color1.rgb, color2.rgb, u.blendMode, blendy * 0.5);
         c = rgb2hsv(c);
         var hue = c.r + u.rotatePalette * 0.01;
-        if (u.cyclePalette == -1) { hue = (hue + u.time) % 1.0; }
-        else if (u.cyclePalette == 1) { hue = (hue - u.time) % 1.0; }
+        if (u.cyclePalette == -1) { hue = (hue + u.time) - floor(hue + u.time); }
+        else if (u.cyclePalette == 1) { hue = (hue - u.time) - floor(hue - u.time); }
         c = hsv2rgb(vec3f(hue, c.g, c.b));
         c = posterize2_vec3(c, f32(u.levels));
         color = vec4f(c, max(color1.a, color2.a));
