@@ -4,20 +4,13 @@
         "synth/noise",
         "filter/scanlineError"
     ],
-    "dsl": "search filter, synth\n\nnoise(seed: 1).scanlineError(noise: 1.5).write(o0)\nrender(o0)",
+    "dsl": "search filter, synth\n\nnoise(seed: 1).scanlineError(noise: 1.5, mode: vhs).write(o0)\nrender(o0)",
     "surface": "o0",
     "resolution": [
-        64,
+        96,
         64
     ],
     "settleMs": 2000,
     "epsilon": 0,
-    "requireColorVariation": true,
-    "tiles": {
-        "size": [
-            32,
-            32
-        ],
-        "renderScale": 2
-    }
+    "requireColorVariation": true
 }

@@ -291,8 +291,8 @@ fn main(in: VertexOutput) -> @location(0) vec4<f32> {
 
         let scanBase = floor(height_f * 0.5) + 1.0;
         let scanFreq = select(
-            vec2<f32>(scanBase * (height_f / width_f), scanBase),
             vec2<f32>(scanBase, scanBase * (width_f / height_f)),
+            vec2<f32>(scanBase * (height_f / width_f), scanBase),
             height_f < width_f
         );
 
