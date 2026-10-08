@@ -213,10 +213,10 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
 
     if (wrap == 0) {
         // mirror (default)
-        uv = abs(((uv + 1.0) % 2.0 + 2.0) % 2.0 - 1.0);
+        uv = abs((uv + 1.0) - 2.0 * floor((uv + 1.0) / 2.0) - 1.0);
     } else if (wrap == 1) {
         // repeat
-        uv = fract(uv);
+        uv = uv - 1.0 * floor(uv / 1.0);
     } else if (wrap == 2) {
         // clamp
         uv = clamp(uv, vec2<f32>(0.0), vec2<f32>(1.0));
