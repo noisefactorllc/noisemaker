@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "synth/navierStokes",
+  "sourceHash": "fb6d159634c78aed015e8dfa5b4c51ace673e4f2ba45d682555f72425fc389af",
+  "caseHash": "f2cdde5a563eae4a943466799b37bdb6371d0ccfb42442819bfbdb114cb6a183",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 224
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 224
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 7,
+    "webgpuTargetPasses": 7
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

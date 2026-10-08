@@ -57,7 +57,9 @@ render(o1)`,
     },
     ns: {
       resolution: { slot: 0, components: 'xy' },
-      inputIntensity: { slot: 1, components: 'x' }
+      inputIntensity: { slot: 1, components: 'x' },
+      tileOffset: { slot: 2, components: 'xy' },
+      fullResolution: { slot: 2, components: 'zw' }
     }
   },
 
