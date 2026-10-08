@@ -2,7 +2,7 @@
 const F32_EPSILON : f32 = 0.0001;
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
-@group(0) @binding(1) var stats_texture : texture_2d<f32>;
+@group(0) @binding(1) var statsTex : texture_2d<f32>;
 @group(0) @binding(2) var<uniform> uDisplacement : f32;
 
 fn clamp01(value : f32) -> f32 {
@@ -45,23 +45,6 @@ fn value_map_component(texel : vec4<f32>) -> f32 {
     return oklab_l_component(texel.xyz);
 }
 
-fn wrap_float(value : f32, range : f32) -> f32 {
-    if (range <= 0.0) {
-        return 0.0;
-    }
-    return value - range * floor(value / range);
-}
-
-fn wrap_index(value : f32, dimension : i32) -> i32 {
-    if (dimension <= 0) {
-        return 0;
-    }
-    let dimension_f : f32 = f32(dimension);
-    let wrapped : f32 = wrap_float(value, dimension_f);
-    let max_index : f32 = f32(dimension - 1);
-    return i32(clamp(floor(wrapped), 0.0, max_index));
-}
-
 @fragment
 fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let dims : vec2<u32> = textureDimensions(inputTex, 0);
@@ -77,7 +60,7 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
     let texel : vec4<f32> = textureLoad(inputTex, coord, 0);
     let reference_value : f32 = value_map_component(texel);
 
-    let min_max : vec2<f32> = textureLoad(stats_texture, vec2<i32>(0, 0), 0).xy;
+    let min_max : vec2<f32> = textureLoad(statsTex, vec2<i32>(0, 0), 0).xy;
     let range : f32 = min_max.y - min_max.x;
 
     var normalized : f32 = reference_value;
@@ -87,8 +70,13 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
 
     let mod_range : f32 = f32(min(dims.x, dims.y));
     let offset_value : f32 = normalized * uDisplacement * mod_range + normalized;
-    let sample_x : i32 = wrap_index(offset_value, i32(dims.x));
-    let sample_y : i32 = wrap_index(offset_value, i32(dims.y));
+    // Use fract() for smooth wrapping to avoid seams at tile boundaries
+    var sample_x : i32 = i32(fract(offset_value / f32(dims.x)) * f32(dims.x));
+    var sample_y : i32 = i32(fract(offset_value / f32(dims.y)) * f32(dims.y));
+
+    // Clamp to valid texture coordinates
+    sample_x = min(sample_x, i32(dims.x) - 1);
+    sample_y = min(sample_y, i32(dims.y) - 1);
 
     return textureLoad(inputTex, vec2<i32>(sample_x, sample_y), 0);
 }
