@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "filter/spinBlur",
-  "sourceHash": "a0a530b5cf57e81b02ddc583581ccfd9e62170bbd48e2039e19f64f741b50037",
+  "sourceHash": "28f0eb904a71d70bc2c72c292a847f9778104288a38e3c5e553337e23628b56d",
   "caseHash": "4201e77a2968be84b85cfa4784c4e83f76f9dbb49c00726470044c39375c8f05",
   "resolution": [
     64,
