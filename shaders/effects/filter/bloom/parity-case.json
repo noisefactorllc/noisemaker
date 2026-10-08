@@ -1,0 +1,22 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "filter/bloom",
+        "synth/noise"
+    ],
+    "dsl": "search synth, filter\nnoise(seed: 1, scaleX: 50, scaleY: 50).bloom().write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true,
+    "tiles": {
+        "size": [
+            32,
+            32
+        ],
+        "renderScale": 2
+    }
+}
