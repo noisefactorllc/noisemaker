@@ -13,6 +13,9 @@ struct Uniforms {
     wrap: f32,
     seed: f32,
     antialias: i32,
+    resolution: vec2<f32>,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -87,9 +90,10 @@ fn wrapFloat(value: f32, limit: f32, mode: i32) -> f32 {
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let texSize = vec2<f32>(textureDimensions(inputTex));
-    let width = texSize.x;
-    let height = texSize.y;
+    let fullRes = select(uniforms.resolution, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
+    let dims = fullRes;
+    let width = dims.x;
+    let height = dims.y;
 
     // Adjust frequency for aspect ratio
     let baseFreq = 11.0 - uniforms.frequency;
@@ -101,8 +105,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         freq.x = freq.x / aspect;
     }
 
-    let uv = pos.xy / texSize;
-    var sampleCoord = uv * texSize;
+    let uv = (pos.xy + uniforms.tileOffset) / fullRes;
+    var sampleCoord = uv * dims;
 
     let numOctaves = max(i32(uniforms.octaves), 1);
     let displaceBase = uniforms.displacement;
@@ -125,7 +129,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
         let radius = 0.5 / sqrt(multiplier);
 
         // Compute reference angles from noise
-        let noiseCoord = (sampleCoord / texSize) * freqScaled;
+        let noiseCoord = (sampleCoord / dims) * freqScaled;
         let refX = simplexNoise(noiseCoord + vec2<f32>(17.0, 29.0), time * uniforms.speed, phase, radius) * 2.0 - 1.0;
         let refY = simplexNoise(noiseCoord + vec2<f32>(23.0, 31.0), time * uniforms.speed, phase, radius) * 2.0 - 1.0;
 
@@ -143,7 +147,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let finalUV = vec2<f32>(
         wrapFloat(sampleCoord.x, width, i32(uniforms.wrap)),
         wrapFloat(sampleCoord.y, height, i32(uniforms.wrap)),
-    ) / texSize;
+    ) / dims;
     if (uniforms.antialias != 0) {
         let dx = dpdx(finalUV);
         let dy = dpdy(finalUV);

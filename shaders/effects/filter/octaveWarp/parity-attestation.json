@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "filter/octaveWarp",
-  "sourceHash": "9bc9b5d7baf82f340a1ecb84442a9185b8061fbc476639781fab61901a376f9c",
-  "caseHash": "d42bf3fa9aff8368169731a1f5ae670b203492bae9fc3fcaa71b29a4ebd81aed",
+  "sourceHash": "2a91901e255fdd63274bd83f47fa30242c006488b76f379d92ec2106fe589928",
+  "caseHash": "f45beee336d3db80cf866f434e3c43b28dafecbfcd20ec01b81f74d5d8dd71b9",
   "resolution": [
     64,
     48
@@ -13,14 +13,14 @@
       "height": 48,
       "nonzeroRgbPixels": 3072,
       "nonzeroAlphaPixels": 3072,
-      "uniqueColors": 2639
+      "uniqueColors": 787
     },
     "webgpu": {
       "width": 64,
       "height": 48,
       "nonzeroRgbPixels": 3072,
       "nonzeroAlphaPixels": 3072,
-      "uniqueColors": 2639
+      "uniqueColors": 787
     }
   },
   "execution": {
