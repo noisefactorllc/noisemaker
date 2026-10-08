@@ -239,15 +239,13 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
 
     // vignette
     if (u.vignetteAmt < 0.0) {
-        let vigFactor = 1.0 - pow(length(vec2f(0.5) - uv) * 1.125, 2.0);
         color = vec4f(
-            mix(color.rgb * vigFactor, color.rgb, mapVal(u.vignetteAmt, -100.0, 0.0, 0.0, 1.0)),
+            mix(color.rgb * 1.0 - pow(length(vec2f(0.5) - uv) * 1.125, 2.0), color.rgb, mapVal(u.vignetteAmt, -100.0, 0.0, 0.0, 1.0)),
             max(color.a, length(vec2f(0.5) - uv) * mapVal(u.vignetteAmt, -100.0, 0.0, 1.0, 0.0))
         );
     } else {
-        let vigFactor = 1.0 - pow(length(vec2f(0.5) - uv) * 1.125, 2.0);
         color = vec4f(
-            mix(color.rgb, vec3f(1.0) - (vec3f(1.0) - color.rgb * vigFactor), mapVal(u.vignetteAmt, 0.0, 100.0, 0.0, 1.0)),
+            mix(color.rgb, 1.0 - (1.0 - color.rgb * 1.0 - pow(length(vec2f(0.5) - uv) * 1.125, 2.0)), mapVal(u.vignetteAmt, 0.0, 100.0, 0.0, 1.0)),
             max(color.a, length(vec2f(0.5) - uv) * mapVal(u.vignetteAmt, -100.0, 0.0, 1.0, 0.0))
         );
     }
