@@ -29,7 +29,7 @@ const cases = [
     { id: 'parity-case.json', dsl: program(`effect: shadow, ${transforms}, flip: upToDown`) },
     ...['offsetY: -15', 'scaleAmt: 150', 'rotation: 30', 'offsetX: 20'].map((t) => (
         { id: `cga, ${t}`, dsl: program(`effect: cga, ${t}`) })),
-    { id: 'cga effectAmt 4, transforms, upToDown', dsl: program(`effect: cga, effectAmt: 4, ${transforms}, flip: upToDown`) },
+    { id: 'cga effectAmt 4, transforms, flip all', dsl: program(`effect: cga, effectAmt: 4, ${transforms}, flip: all`) },
     ...[4, 20].map((amount) => ({ id: `subpixel effectAmt ${amount}`, dsl: program(`effect: subpixel, effectAmt: ${amount}`) })),
     { id: 'subpixel effectAmt 4, transforms', dsl: program(`effect: subpixel, effectAmt: 4, ${transforms}`) },
     ...effectModes.flatMap((mode) => [1, 4].map((amount) => ({
