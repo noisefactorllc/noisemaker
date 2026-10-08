@@ -1,0 +1,15 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/noise",
+        "mixer/shadow"
+    ],
+    "dsl": "search synth, mixer\n\nnoise(seed: 1, scaleX: 100, scaleY: 100).write(o0)\nnoise(seed: 2, ridges: true, colorMode: mono).shadow(tex: o0).write(o1)\nrender(o1)",
+    "surface": "o1",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}

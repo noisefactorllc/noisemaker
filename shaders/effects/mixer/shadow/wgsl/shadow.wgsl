@@ -75,10 +75,10 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
                 var wrappedUV = sampleUV;
                 if (wrap == 1) {
                     // mirror
-                    wrappedUV = abs(((sampleUV + 1.0) % 2.0 + 2.0) % 2.0 - 1.0);
+                    wrappedUV = abs((sampleUV + 1.0) - 2.0 * floor((sampleUV + 1.0) / 2.0) - 1.0);
                 } else if (wrap == 2) {
                     // repeat
-                    wrappedUV = (sampleUV % 1.0 + 1.0) % 1.0;
+                    wrappedUV = fract(sampleUV);
                 } else {
                     // clamp
                     wrappedUV = clamp(sampleUV, vec2<f32>(0.0), vec2<f32>(1.0));
