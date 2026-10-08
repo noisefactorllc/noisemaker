@@ -278,11 +278,10 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     let texInfluence = i32(uniforms.data[7].x);
     let texIntensity = uniforms.data[7].y;
 
-    let aspect = resolution.x / resolution.y;
-
     var color = vec4<f32>(0.0, 0.0, 1.0, 1.0);
     let tileOffset = uniforms.data[8].xy;
     let fullResolution = uniforms.data[8].zw;
+    let aspect = fullResolution.x / fullResolution.y;
     var st = (pos.xy + tileOffset) / fullResolution.y;
 
     var freq = map(scale, 1.0, 100.0, 20.0, 1.0);
@@ -293,7 +292,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
     var texCoord = (pos.xy + tileOffset) / fullResolution;
 
     if (texInfluence > 0) {
-        let texRGB = textureSample(tex, samp, texCoord).rgb;
+        let texRGB = textureSample(tex, samp, pos.xy / vec2<f32>(textureDimensions(tex, 0))).rgb;
 
         texLuminosity = luminance(texRGB);
 
