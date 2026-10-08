@@ -5,6 +5,9 @@ struct Params {
     resolution: vec2f,
     alpha: f32,
     _pad0: f32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
+    renderScale: f32,
 }
 
 @group(0) @binding(0) var inputTex: texture_2d<f32>;
@@ -28,8 +31,10 @@ fn chebyshev_mask(uv: vec2f) -> f32 {
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     let coord = vec2i(fragCoord.xy);
-    let fullSize = params.resolution;
-    let uv = (vec2f(coord) + 0.5) / fullSize;
+    let globalCoord = fragCoord.xy + params.tileOffset;
+    let uv = globalCoord / params.fullResolution;
+    let fullRes = select(params.resolution, params.fullResolution, params.fullResolution.x > 0.0);
+    let globalUV = (fragCoord.xy + params.tileOffset) / fullRes;
 
     let original = textureLoad(inputTex, coord, 0);
     let a = clamp(params.alpha, 0.0, 1.0);
@@ -38,8 +43,8 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         return vec4f(clamp01v(original.rgb), original.a);
     }
 
-    let texelSize = 1.0 / fullSize;
-    let radiusUV = RADIUS * texelSize;
+    let texelSize = 1.0 / params.fullResolution;
+    let radiusUV = RADIUS * params.renderScale * texelSize;
 
     // N-tap gather using golden angle spiral
     var blurAccum = vec3f(0.0);
@@ -54,16 +59,17 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
         let sigma: f32 = 0.4;
         let weight = exp(-0.5 * (r * r) / (sigma * sigma));
 
-        let sampleUV = clamp(uv + offset * radiusUV, vec2f(0.0), vec2f(1.0));
-        blurAccum = blurAccum + textureSample(inputTex, inputSampler, sampleUV).rgb * weight;
+        let sampleGlobalUV = clamp(uv + offset * radiusUV, vec2f(0.0), vec2f(1.0));
+        let sampleLocalUV = (sampleGlobalUV * params.fullResolution - params.tileOffset) / vec2f(textureDimensions(inputTex, 0));
+        blurAccum = blurAccum + textureSample(inputTex, inputSampler, sampleLocalUV).rgb * weight;
         weightSum = weightSum + weight;
     }
 
     let blurred = blurAccum / weightSum;
     let boosted = clamp01v(blurred + vec3f(BRIGHTNESS_ADJUST));
 
-    // Edge mask - more effect at edges
-    var edgeMask = chebyshev_mask(uv);
+    // Edge mask - more effect at edges, using global UV so center is full-image center
+    var edgeMask = chebyshev_mask(globalUV);
     edgeMask = smoothstep(0.0, 0.8, edgeMask);
 
     let sourceClamped = clamp01v(original.rgb);
