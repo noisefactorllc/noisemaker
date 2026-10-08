@@ -13,7 +13,9 @@ struct Uniforms {
     center: f32,
     antialias: i32,
     _pad2: f32,
-    aspectLens: i32
+    aspectLens: i32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -35,14 +37,15 @@ fn smod2(v: vec2<f32>, m: f32) -> vec2<f32> {
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let texSize = vec2<f32>(textureDimensions(inputTex));
-    let uv = pos.xy / texSize;
+    let tileDims = vec2<f32>(textureDimensions(inputTex));
+    let fullRes = select(tileDims, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
+    let uv = (pos.xy + uniforms.tileOffset) / fullRes;
     
     // Center the coordinates
     var centered = uv - 0.5;
 
     // Optional aspect ratio correction
-    let aspectRatio = texSize.x / texSize.y;
+    let aspectRatio = fullRes.x / fullRes.y;
     if (uniforms.aspectLens != 0) { 
         centered.x = centered.x * aspectRatio; 
     }
