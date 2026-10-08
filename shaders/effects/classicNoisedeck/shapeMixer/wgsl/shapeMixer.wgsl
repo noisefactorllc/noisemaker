@@ -35,13 +35,18 @@ struct Uniforms {
     rotatePalette: f32,
     repeatPalette: i32,
     levels: i32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
 }
+
+// Fragment position, so diamonds() can read it like GLSL's gl_FragCoord.
+var<private> fragCoordXY: vec2f;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
 
 fn aspectRatio() -> f32 {
-    return u.resolution.x / u.resolution.y;
+    return u.fullResolution.x / u.fullResolution.y;
 }
 
 fn mapRange(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
@@ -200,7 +205,7 @@ fn circles(st: vec2f, freq: f32) -> f32 {
 }
 
 fn diamonds(st_in: vec2f, freq: f32) -> f32 {
-    var st = st_in;
+    var st = (fragCoordXY + u.tileOffset) / u.fullResolution.y;
     st -= vec2f(0.5 * aspectRatio(), 0.5);
     st *= freq;
     return cos(st.x * PI) + cos(st.y * PI);
@@ -426,10 +431,12 @@ fn blendVec3(color1: vec3f, color2: vec3f, mode: i32, factorIn: f32) -> vec3f {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    var st = fragCoord.xy / u.resolution;
+    fragCoordXY = fragCoord.xy;
+    let globalCoord = fragCoord.xy + u.tileOffset;
+    var st = globalCoord / u.fullResolution;
 
-    let color1 = textureSample(inputTex, samp, st);
-    let color2 = textureSample(tex, samp, st);
+    let color1 = textureSample(inputTex, samp, fragCoord.xy / vec2f(textureDimensions(inputTex, 0)));
+    let color2 = textureSample(tex, samp, fragCoord.xy / vec2f(textureDimensions(tex, 0)));
 
     var freq = 1.0;
     if (LOOP_OFFSET == 350) {
