@@ -1,0 +1,23 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "classicNoisedeck/noise",
+        "classicNoisedeck/splat",
+        "synth/noise"
+    ],
+    "dsl": "search synth, classicNoisedeck\nnoise(seed: 1, scaleX: 50, scaleY: 50).splat().write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true,
+    "tiles": {
+        "size": [
+            32,
+            32
+        ],
+        "renderScale": 2
+    }
+}
