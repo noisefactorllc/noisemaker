@@ -221,10 +221,8 @@ fn vertexMain(@builtin(vertex_index) vertexIndex: u32) -> VertexOutput {
     );
     
     // Scale offset and add to center position
-    var finalPos = clipPos + rotatedOffset * sizeClip;
-    // Perspective world positions and local sprite geometry share the same
-    // presentation Y convention. Preserve the legacy flat/ortho convention.
-    if (VIEW_MODE == 2) { finalPos.y = clipPos.y - rotatedOffset.y * sizeClip.y; }
+    // WebGPU clip y runs opposite to GL's, as clipPos.y already does
+    let finalPos = clipPos + vec2<f32>(rotatedOffset.x, -rotatedOffset.y) * sizeClip;
     
     out.position = vec4<f32>(finalPos, 0.0, 1.0);
     out.color = col * brightnessFade * layerWeight;
