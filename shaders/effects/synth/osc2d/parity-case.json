@@ -1,0 +1,14 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/osc2d"
+    ],
+    "dsl": "search synth\n\nosc2d(freq: 8, rotation: 30).write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}
