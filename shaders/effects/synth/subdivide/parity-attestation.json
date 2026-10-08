@@ -1,25 +1,25 @@
 {
   "schemaVersion": 1,
   "effect": "synth/subdivide",
-  "sourceHash": "87e23c90ff1f092a7af2fddf0a012778f4b2cc097b11c1249806008696771b00",
-  "caseHash": "f29ff8a75f521c80cb32f1d50a701d4cca180ce4751f5cd2bb085b495345f920",
+  "sourceHash": "8b7c74dce435464d0b02b57fec216e0df994c59ccc62b44ac5446cbf143ebb66",
+  "caseHash": "1fc990d244657d499047dcf5ca50047d7bbabf83e3cb10d429b703304b4b23fe",
   "resolution": [
-    64,
-    64
+    128,
+    128
   ],
   "frames": {
     "webgl2": {
-      "width": 64,
-      "height": 64,
-      "nonzeroRgbPixels": 57,
-      "nonzeroAlphaPixels": 4096,
+      "width": 128,
+      "height": 128,
+      "nonzeroRgbPixels": 228,
+      "nonzeroAlphaPixels": 16384,
       "uniqueColors": 11
     },
     "webgpu": {
-      "width": 64,
-      "height": 64,
-      "nonzeroRgbPixels": 57,
-      "nonzeroAlphaPixels": 4096,
+      "width": 128,
+      "height": 128,
+      "nonzeroRgbPixels": 228,
+      "nonzeroAlphaPixels": 16384,
       "uniqueColors": 11
     }
   },

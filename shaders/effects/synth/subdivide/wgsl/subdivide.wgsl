@@ -6,7 +6,9 @@ struct Uniforms {
     // data[0] = (resolution.x, resolution.y, mode, depth)
     // data[1] = (density, seed, fill, outline)
     // data[2] = (inputMix, wrap, time, speed)
-    data: array<vec4<f32>, 3>,
+    // data[3] = (tileOffset.x, tileOffset.y, fullResolution.x, fullResolution.y)
+    // data[4] = (renderScale, _, _, _)
+    data: array<vec4<f32>, 5>,
 }
 
 @group(0) @binding(0) var<uniform> u: Uniforms;
@@ -87,17 +89,21 @@ fn shadeFromHash(h: f32) -> f32 {
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let resolution = u.data[0].xy;
+    let tileOffset = u.data[3].xy;
+    let fullResolution = u.data[3].zw;
+    let renderScale = u.data[4].x;
+    let globalCoord = pos.xy + tileOffset;
     let modeType = i32(u.data[0].z);
     let maxDepth = i32(u.data[0].w);
     let dens = u.data[1].x / 100.0;
     let fillType = i32(u.data[1].z);
-    let outlineWidthX = u.data[1].w / resolution.x;
-    let outlineWidthY = u.data[1].w / resolution.y;
+    let outlineWidthX = u.data[1].w * renderScale / fullResolution.x;
+    let outlineWidthY = u.data[1].w * renderScale / fullResolution.y;
 
     let time = u.data[2].z;
     let spd = floor(u.data[2].w) * 2.0;
 
-    let st = pos.xy / resolution;
+    let st = globalCoord / fullResolution;
 
     // Subdivision loop
     var cellMin = vec2<f32>(0.0);
@@ -113,8 +119,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
         if (h < dens) {
             // Skip splits that would create too-narrow cells (max 5:1 aspect)
-            let cellW = (cellMax.x - cellMin.x) * resolution.x;
-            let cellH = (cellMax.y - cellMin.y) * resolution.y;
+            let cellW = (cellMax.x - cellMin.x) * fullResolution.x;
+            let cellH = (cellMax.y - cellMin.y) * fullResolution.y;
             let canSplitH = min(cellW, cellH * 0.5) / max(cellW, cellH * 0.5) >= 0.2;
             let canSplitV = min(cellW * 0.5, cellH) / max(cellW * 0.5, cellH) >= 0.2;
 
@@ -159,8 +165,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let cellUv = (st - cellMin) / cellSize;
 
     // 1:1 aspect-corrected coords, scaled to fit shorter side
-    let cellPixelW = cellSize.x * resolution.x;
-    let cellPixelH = cellSize.y * resolution.y;
+    let cellPixelW = cellSize.x * fullResolution.x;
+    let cellPixelH = cellSize.y * fullResolution.y;
     let minDim = min(cellPixelW, cellPixelH);
     var centered = cellUv - 0.5;
     centered.x = centered.x * (cellPixelW / minDim);
@@ -212,8 +218,8 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
         var texUv = cellUv;
         // Correct for aspect ratio difference between cell and texture
-        let cellAspect = (cellSize.x * resolution.x) / (cellSize.y * resolution.y);
-        let texAspect = resolution.x / resolution.y;
+        let cellAspect = (cellSize.x * fullResolution.x) / (cellSize.y * fullResolution.y);
+        let texAspect = fullResolution.x / fullResolution.y;
         let ratio = cellAspect / texAspect;
         if (ratio > 1.0) {
             texUv.x = 0.5 + (texUv.x - 0.5) * ratio;

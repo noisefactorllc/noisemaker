@@ -6,9 +6,16 @@
     "dsl": "search synth\n\nsubdivide().write(o0)\nrender(o0)",
     "surface": "o0",
     "resolution": [
-        64,
-        64
+        128,
+        128
     ],
     "epsilon": 0,
-    "requireColorVariation": true
+    "requireColorVariation": true,
+    "tiles": {
+        "size": [
+            64,
+            64
+        ],
+        "renderScale": 2
+    }
 }
