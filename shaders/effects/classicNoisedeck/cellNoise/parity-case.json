@@ -1,0 +1,14 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "classicNoisedeck/cellNoise"
+    ],
+    "dsl": "search classicNoisedeck\n\ncellNoise(colorMode: palette).write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        256,
+        256
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}

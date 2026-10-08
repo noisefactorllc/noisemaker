@@ -151,7 +151,7 @@ fn linear_srgb_from_oklab(c: vec3<f32>) -> vec3<f32> {
 
 fn pal(t0: f32, paletteOffset: vec3<f32>, paletteAmp: vec3<f32>, paletteFreq: vec3<f32>, palettePhase: vec3<f32>, paletteMode: i32, rotatePalette: f32, repeatPalette: f32) -> vec3<f32> {
     var t = t0 * repeatPalette + rotatePalette * 0.01;
-    var color = paletteOffset + paletteAmp * cos(TAU * (paletteFreq * t + palettePhase));
+    var color = paletteOffset + paletteAmp * cos(6.28318 * (paletteFreq * t + palettePhase));
 
     if (paletteMode == 1) {
         color = hsv2rgb(color);
