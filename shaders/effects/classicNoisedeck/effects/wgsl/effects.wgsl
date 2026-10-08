@@ -42,6 +42,12 @@ fn mapRange(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
 }
 
+// GLSL mod(): x - y * floor(x / y). WGSL % truncates instead, and its exact
+// remainder differs from this expression when y is not exactly representable.
+fn glslMod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
+}
+
 // PCG PRNG
 fn pcg(v_in: vec3u) -> vec3u {
     var v = v_in * 1664525u + 1013904223u;
@@ -140,8 +146,8 @@ fn pixellate(uv_in: vec2f, sizeIn: f32) -> vec3f {
     var size = sizeIn;
     if (size < 1.0) { return textureSample(inputTex, samp, uv_in).rgb; }
     size *= 4.0;
-    let dx = size / u.resolution.x;
-    let dy = size / u.resolution.y;
+    let dx = size * (1.0 / u.resolution.x);
+    let dy = size * (1.0 / u.resolution.y);
     var uv = uv_in - 0.5;
     let coord = vec2f(dx * floor(uv.x / dx), dy * floor(uv.y / dy)) + 0.5;
     return textureSample(inputTex, samp, coord).rgb;
@@ -166,7 +172,17 @@ fn convolve(uv: vec2f, kernel: array<f32, 9>, divide: bool) -> vec3f {
         conv += color * kernel[i];
         kernelWeight += kernel[i];
     }
-    if (divide && kernelWeight != 0.0) { conv /= kernelWeight; }
+    if (divide) {
+        if (kernelWeight != 0.0) {
+            conv /= kernelWeight;
+        } else {
+            // The edge and derivative kernels sum to zero. The GLSL divides
+            // by that zero weight anyway, and clamp() takes the result to 1
+            // where conv > 0 and to 0 elsewhere. Give that result directly;
+            // WGSL leaves a division by zero indeterminate.
+            conv = select(vec3f(0.0), vec3f(1.0), conv > vec3f(0.0));
+        }
+    }
     return clamp(conv, vec3f(0.0), vec3f(1.0));
 }
 
@@ -230,7 +246,10 @@ fn convolutionEffect(color: vec3f, uv: vec2f) -> vec3f {
     return color;
 }
 
-fn cga(color: vec4f, st: vec2f) -> vec3f {
+// fragCoord is the output pixel. The dither pattern is fixed to the screen,
+// as gl_FragCoord fixes it in the GLSL, while st (the transformed coordinate)
+// picks the sampled block.
+fn cga(color: vec4f, st: vec2f, fragCoord: vec2f) -> vec3f {
     let amt = mapRange(u.effectAmt, 0.0, 20.0, 0.0, 5.0);
     if (amt < 0.01) { return color.rgb; }
     let pixelDensity = amt;
@@ -249,6 +268,8 @@ fn cga(color: vec4f, st: vec2f) -> vec3f {
     let light = vec3f(85.0, 255.0, 255.0) / 255.0;
     let dark = vec3f(254.0, 84.0, 255.0) / 255.0;
     let white = vec3f(1.0);
+    // Levels outside 0..6 (input outside 0..1) keep both colors black, as
+    // the GLSL's zero-initialized c1 and c2 do.
     var c1 = black;
     var c2 = black;
     if (o == 0.0) { c1 = black; c2 = black; }
@@ -257,25 +278,23 @@ fn cga(color: vec4f, st: vec2f) -> vec3f {
     else if (o == 3.0) { c1 = dark; c2 = light; }
     else if (o == 4.0) { c1 = light; c2 = light; }
     else if (o == 5.0) { c1 = light; c2 = white; }
-    else { c1 = white; c2 = white; }
-    let fx = st.x * u.resolution.x;
-    let fy = st.y * u.resolution.y;
+    else if (o == 6.0) { c1 = white; c2 = white; }
     var result = c1;
-    if ((fx % dSize) > size) {
-        if ((fy % dSize) > size) { result = c1; } else { result = c2; }
+    if (glslMod(fragCoord.x, dSize) > size) {
+        if (glslMod(fragCoord.y, dSize) > size) { result = c1; } else { result = c2; }
     } else {
-        if ((fy % dSize) > size) { result = c2; } else { result = c1; }
+        if (glslMod(fragCoord.y, dSize) > size) { result = c2; } else { result = c1; }
     }
     return result;
 }
 
 fn subpixel(st: vec2f, scaleIn: f32) -> vec3f {
     let scale = mapRange(scaleIn, 0.0, 100.0, 0.0, 10.0);
-    let orig = pixellate(st, scale);
+    let orig = pixellate(st, 4.0 * scale);
     var color = orig;
     let coord = floor(st * u.resolution);
-    let m = coord.x % (4.0 * scale);
-    if ((coord.y % (4.0 * scale)) <= scale) {
+    let m = glslMod(coord.x, 4.0 * scale);
+    if (glslMod(coord.y, 4.0 * scale) <= scale) {
         color *= vec3f(0.0);
     } else if (m <= scale) {
         color *= vec3f(1.0, 0.0, 0.0);
@@ -367,7 +386,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     if (u.effectAmt != 0.0 && EFFECT != 0) {
         if (EFFECT == 100) { color = vec4f(pixellate(uv, u.effectAmt), color.a); }
         else if (EFFECT == 110) { color = vec4f(posterize(color.rgb, u.effectAmt), color.a); }
-        else if (EFFECT == 200) { color = vec4f(cga(color, uv), color.a); }
+        else if (EFFECT == 200) { color = vec4f(cga(color, uv, fragCoord.xy), color.a); }
         else if (EFFECT == 210) { color = vec4f(subpixel(uv, u.effectAmt), color.a); }
         else if (EFFECT == 220) { color = vec4f(bloom(uv), color.a); }
         else if (EFFECT == 230) { color = vec4f(zoomBlur(uv), color.a); }

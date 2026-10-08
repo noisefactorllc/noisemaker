@@ -120,6 +120,9 @@ jobs:
     - name: Verify particle heightmaps and focus on both GPU backends
       run: npm run test:shaders:particles
 
+    - name: Verify classicNoisedeck/effects matches WebGL2 on WebGPU
+      run: npm run test:shaders:classic-effects
+
   bundle:
     name: Bundle shaders
     runs-on: ubuntu-latest
