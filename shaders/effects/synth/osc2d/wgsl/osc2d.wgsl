@@ -29,8 +29,8 @@ fn tilingNoise1D(x: f32, freq: f32, s: f32) -> f32 {
     f = f * f * (3.0 - 2.0 * f);  // smoothstep
     
     // Wrap indices for seamless tiling
-    let i0 = (i % freq + freq) % freq;
-    let i1 = ((i + 1.0) % freq + freq) % freq;
+    let i0 = i - freq * floor(i / freq);
+    let i1 = (i + 1.0) - freq * floor((i + 1.0) / freq);
     
     let a = hash11(i0, s);
     let b = hash11(i1, s);
