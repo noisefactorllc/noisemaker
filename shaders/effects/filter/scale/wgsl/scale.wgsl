@@ -8,11 +8,15 @@
 @group(0) @binding(6) var<uniform> centerX: f32;
 @group(0) @binding(7) var<uniform> centerY: f32;
 @group(0) @binding(8) var<uniform> wrap: i32;
+@group(0) @binding(9) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(10) var<uniform> fullResolution: vec2<f32>;
 
 /* Scales UVs around an arbitrary center point. */
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-  var st = position.xy / resolution;
+  // Compute global UV from tile-local coordinates
+  let globalCoord = position.xy + tileOffset;
+  var st = globalCoord / fullResolution;
   let center = vec2<f32>(centerX, centerY);
   st -= center;
   st.x *= aspect;
@@ -20,18 +24,21 @@ fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
   st.x /= aspect;
   st += center;
   
-  // Apply wrap mode
+  // Convert global UV to local UV for sampling inputTex
+  var localUV = (st * fullResolution - tileOffset) / resolution;
+  
+  // Apply wrap mode to local UV
   if (wrap == 0) {
       // mirror
-      st = abs((st + 1.0) - 2.0 * floor((st + 1.0) / 2.0) - 1.0);
+      localUV = abs((localUV + 1.0) - 2.0 * floor((localUV + 1.0) / 2.0) - 1.0);
   } else if (wrap == 1) {
       // repeat
-      st = fract(st);
+      localUV = fract(localUV);
   } else {
       // clamp
-      st = clamp(st, vec2<f32>(0.0), vec2<f32>(1.0));
+      localUV = clamp(localUV, vec2<f32>(0.0), vec2<f32>(1.0));
   }
   
-  let color = textureSample(inputTex, samp, st).rgb;
+  let color = textureSample(inputTex, samp, localUV).rgb;
   return vec4<f32>(color, 1.0);
 }
