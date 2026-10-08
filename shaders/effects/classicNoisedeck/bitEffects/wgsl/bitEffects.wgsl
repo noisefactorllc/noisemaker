@@ -12,6 +12,7 @@ struct Uniforms {
 var<private> time : f32;
 var<private> seed : f32;
 var<private> resolution : vec2<f32>;
+var<private> fullResolution : vec2<f32>;
 var<private> n : f32;
 var<private> scale : f32;
 var<private> rotation : f32;
@@ -59,12 +60,12 @@ fn prng(p: vec3<f32>) -> vec3<f32> {
 fn rotate2D(st: vec2<f32>, rot: f32) -> vec2<f32> {
     var st2 = st;
     let angle = map(rot, 0.0, 360.0, 0.0, 1.0) * TAU;
-    st2 = st2 - resolution * 0.5;
+    st2 = st2 - fullResolution * 0.5;
     let c = cos(angle);
     let s = sin(angle);
     let m = mat2x2<f32>(c, -s, s, c);
     st2 = m * st2;
-    st2 = st2 + resolution * 0.5;
+    st2 = st2 + fullResolution * 0.5;
     return st2;
 }
 
@@ -72,17 +73,48 @@ fn periodicFunction(p: f32) -> f32 {
     return map(sin(p * TAU), -1.0, 1.0, 0.0, 1.0);
 }
 
+// Noisemaker value noise - MIT License
+// https://github.com/noisefactorllc/noisemaker/blob/main/noisemaker/value.py
+fn randomFromLatticeWithOffset(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32, offset: vec2<i32>) -> vec3<f32> {
+    let lattice = vec2<f32>(st.x * xFreq, st.y * yFreq);
+    let baseFloor = floor(lattice);
+    let base = vec2<i32>(baseFloor) + offset;
+    let frac = lattice - baseFloor;
+
+    let seedInt = i32(floor(s));
+    let seedFrac = fract(s);
+
+    let xCombined = frac.x + seedFrac;
+    let xi = base.x + seedInt + i32(floor(xCombined));
+    let yi = base.y;
+
+    let xBits = bitcast<u32>(xi);
+    let yBits = bitcast<u32>(yi);
+    let seedBits = bitcast<u32>(s);
+    let fracBits = bitcast<u32>(seedFrac);
+
+    let jitter = vec3<u32>(
+        (fracBits * 374761393u) ^ 0x9E3779B9u,
+        (fracBits * 668265263u) ^ 0x7F4A7C15u,
+        (fracBits * 2246822519u) ^ 0x94D049B4u
+    );
+
+    let state = vec3<u32>(xBits, yBits, seedBits) ^ jitter;
+    let prngState = pcg(state);
+    let denom = f32(0xffffffffu);
+    return vec3<f32>(
+        f32(prngState.x) / denom,
+        f32(prngState.y) / denom,
+        f32(prngState.z) / denom
+    );
+}
+
 fn constant(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
-    var x = st.x * xFreq;
-    var y = st.y * yFreq;
+    let randTime = randomFromLatticeWithOffset(st, xFreq, yFreq, s, vec2<i32>(40, 0));
+    let scaledTime = periodicFunction(randTime.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.333);
 
-    x = x + s;
-
-    let scaledTime = periodicFunction(
-            prng(vec3<f32>(floor(vec2<f32>(x + 40.0, y)), 0.0)).x - time
-        ) * map(abs(speed), 0.0, 100.0, 0.0, 0.333);
-
-    return periodicFunction(prng(vec3<f32>(floor(vec2<f32>(x, y)), 0.0)).x - scaledTime);
+    let rand = randomFromLatticeWithOffset(st, xFreq, yFreq, s, vec2<i32>(0, 0));
+    return periodicFunction(rand.x - scaledTime);
 }
 
 fn value(st: vec2<f32>, xFreq: f32, yFreq: f32, s: f32) -> f32 {
@@ -370,12 +402,11 @@ fn bitMask(st: vec2<f32>) -> vec3<f32> {
     var color = vec3<f32>(0.0);
 
     var st2 = st;
-    let aspectRatio = resolution.x / resolution.y;
-    st2 = st2 - vec2<f32>(0.5 * aspectRatio, 0.5);
+    st2 = st2 - vec2<f32>(0.5 * fullResolution.x / fullResolution.y, 0.5);
     st2 = st2 * tiles;
-    st2 = st2 + vec2<f32>(0.5 * aspectRatio, 0.5);
+    st2 = st2 + vec2<f32>(0.5 * fullResolution.x / fullResolution.y, 0.5);
 
-    st2.x = st2.x - 0.5 * aspectRatio;
+    st2.x = st2.x - 0.5 * fullResolution.x / fullResolution.y;
 
     if (MASK_FORMULA == 11) {
         st2.y = st2.y * 2.0;
@@ -436,7 +467,7 @@ fn main(@builtin(position) pos : vec4<f32>) -> @location(0) vec4<f32> {
 
     var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
     let tileOffset = uniforms.data[5].xy;
-    let fullResolution = uniforms.data[5].zw;
+    fullResolution = uniforms.data[5].zw;
     var st = pos.xy + tileOffset;
 
     if (MODE == 0) {
