@@ -4179,10 +4179,13 @@ render(o1)`
      * @private
      */
     _updateDependentControls() {
+        // getStepValues unwraps a let-variable binding to its sampled value,
+        // which reads as a fixed number; the stored { _varRef } binding is what
+        // tells a condition the parameter is automated.
+        const allValues = this._programState.getAllStepValues()
         for (const dep of this._dependentControls) {
             const { element, effectKey, enabledBy } = dep
-            const params = this._programState.getStepValues(effectKey)
-            if (!params) continue
+            const params = allValues[effectKey] || {}
 
             const isEnabled = this._evaluateEnableCondition(enabledBy, params)
             element.inert = !isEnabled
@@ -4215,15 +4218,28 @@ render(o1)`
      * - { and: [condition1, condition2, ...] } - AND multiple conditions (explicit)
      * - { not: condition } - negate a condition
      *
+     * A parameter driven by an oscillator, MIDI, audio or a variable has no
+     * single value to test: a condition on it is unknown, and only a condition
+     * that is false whatever the source does disables the control.
+     *
      * @param {string|object} condition - The enabledBy condition
      * @param {object} params - Current parameter values
      * @returns {boolean} Whether the control should be enabled
      * @private
      */
     _evaluateEnableCondition(condition, params) {
+        return this._evaluateCondition(condition, params) !== false
+    }
+
+    /**
+     * @returns {boolean|null} null when the result depends on an automated value
+     * @private
+     */
+    _evaluateCondition(condition, params) {
         // Legacy string format: just a param name
         if (typeof condition === 'string') {
             const value = params[condition]
+            if (this._isAutomationValue(value)) return null
             return this._isControlEnabled(value)
         }
 
@@ -4234,17 +4250,22 @@ render(o1)`
 
         // Handle OR conditions
         if (Array.isArray(condition.or)) {
-            return condition.or.some(c => this._evaluateEnableCondition(c, params))
+            const results = condition.or.map(c => this._evaluateCondition(c, params))
+            if (results.includes(true)) return true
+            return results.includes(null) ? null : false
         }
 
         // Handle AND conditions (explicit)
         if (Array.isArray(condition.and)) {
-            return condition.and.every(c => this._evaluateEnableCondition(c, params))
+            const results = condition.and.map(c => this._evaluateCondition(c, params))
+            if (results.includes(false)) return false
+            return results.includes(null) ? null : true
         }
 
         // Handle NOT condition
         if (condition.not !== undefined) {
-            return !this._evaluateEnableCondition(condition.not, params)
+            const result = this._evaluateCondition(condition.not, params)
+            return result === null ? null : !result
         }
 
         // Standard condition object with param and operators
@@ -4254,6 +4275,7 @@ render(o1)`
         }
 
         const value = params[paramName]
+        if (this._isAutomationValue(value)) return null
 
         // If no operators specified, use legacy truthy check
         const operators = ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'notIn']
@@ -4323,6 +4345,19 @@ render(o1)`
 
         // Default equality
         return a === b
+    }
+
+    /**
+     * Whether an oscillator, MIDI, audio source or let-variable binding drives a value
+     * @private
+     */
+    _isAutomationValue(value) {
+        return !!(value && typeof value === 'object' && (
+            value._varRef ||
+            value.type === 'Oscillator' || value._ast?.type === 'Oscillator' ||
+            value.type === 'Midi' || value._ast?.type === 'Midi' ||
+            value.type === 'Audio' || value._ast?.type === 'Audio'
+        ))
     }
 
     /**
