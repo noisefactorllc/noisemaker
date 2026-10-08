@@ -66,13 +66,8 @@ fn pcg(v_in: vec3<u32>) -> vec3<u32> {
     return v;
 }
 
-fn prng(p0: vec3<f32>) -> vec3<f32> {
-    var p = p0;
-    if (p.x >= 0.0) { p.x = p.x * 2.0; } else { p.x = -p.x * 2.0 + 1.0; }
-    if (p.y >= 0.0) { p.y = p.y * 2.0; } else { p.y = -p.y * 2.0 + 1.0; }
-    if (p.z >= 0.0) { p.z = p.z * 2.0; } else { p.z = -p.z * 2.0 + 1.0; }
-    let u = pcg(vec3<u32>(p));
-    return vec3<f32>(u) / f32(0xffffffffu);
+fn prng(p: vec3<f32>) -> vec3<f32> {
+    return vec3<f32>(pcg(vec3<u32>(p))) / f32(0xffffffffu);
 }
 
 fn random(st: vec2<f32>) -> f32 {
@@ -84,16 +79,65 @@ fn periodicFunction(p: f32) -> f32 {
     return map(sin(x), -1.0, 1.0, 0.0, 1.0);
 }
 
-fn constant(st_in: vec2<f32>, freq: f32, speed: f32) -> f32 {
-    var x = st_in.x * freq;
-    var y = st_in.y * freq;
-    if (wrap) {
-        x = modulo(x, freq);
-        y = modulo(y, freq);
+// Noisemaker value noise - MIT License
+// https://github.com/noisefactorllc/noisemaker/blob/main/noisemaker/value.py
+fn positiveModulo(value: i32, modulus: i32) -> i32 {
+    if (modulus == 0) {
+        return 0;
     }
-    x = x + seed;
-    let rand = prng(vec3<f32>(floor(vec2<f32>(x, y)), seed));
-    let scaledTime = periodicFunction(rand.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.33);
+
+    let r = value % modulus;
+    return select(r, r + modulus, r < 0);
+}
+
+fn randomFromLatticeWithOffset(st: vec2<f32>, freq: f32, offset: vec2<i32>) -> vec3<f32> {
+    let lattice = st * freq;
+    let baseFloor = floor(lattice);
+    let base = vec2<i32>(baseFloor) + offset;
+    let frac = lattice - baseFloor;
+
+    let seedInt = i32(seed);
+    let seedFrac = 0.0;
+
+    let xCombined = frac.x + seedFrac;
+    var xi = base.x + seedInt + i32(floor(xCombined));
+    var yi = base.y;
+
+    if (wrap) {
+        let freqInt = i32(freq + 0.5);
+
+        if (freqInt > 0) {
+            xi = positiveModulo(xi, freqInt);
+            yi = positiveModulo(yi, freqInt);
+        }
+    }
+
+    let xBits = bitcast<u32>(xi);
+    let yBits = bitcast<u32>(yi);
+    let seedBits = bitcast<u32>(seedInt);
+    let fracBits = bitcast<u32>(seedFrac);
+
+    let jitter = vec3<u32>(
+        (fracBits * 374761393u) ^ 0x9E3779B9u,
+        (fracBits * 668265263u) ^ 0x7F4A7C15u,
+        (fracBits * 2246822519u) ^ 0x94D049B4u
+    );
+
+    let state = vec3<u32>(xBits, yBits, seedBits) ^ jitter;
+    let prngState = pcg(state);
+    let denom = f32(0xffffffffu);
+    return vec3<f32>(
+        f32(prngState.x) / denom,
+        f32(prngState.y) / denom,
+        f32(prngState.z) / denom
+    );
+}
+
+fn constant(st: vec2<f32>, freq: f32, speed: f32) -> f32 {
+    let randTime = randomFromLatticeWithOffset(st, freq, vec2<i32>(40, 0));
+    let scaledTime = periodicFunction(randTime.x - time) * map(abs(speed), 0.0, 100.0, 0.0, 0.33);
+
+    let rand = randomFromLatticeWithOffset(st, freq, vec2<i32>(0, 0));
     return periodicFunction(rand.y - scaledTime);
 }
 
