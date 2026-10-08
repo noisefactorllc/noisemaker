@@ -1,0 +1,22 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/noise",
+        "synth/reactionDiffusion"
+    ],
+    "dsl": "search synth\nnoise(seed: 3, scaleX: 30, scaleY: 30).write(o1)\nreactionDiffusion(tex: read(o1)).write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true,
+    "tiles": {
+        "size": [
+            32,
+            32
+        ],
+        "renderScale": 2
+    }
+}
