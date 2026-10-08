@@ -5,7 +5,7 @@
 
 struct Uniforms {
     amount: f32,
-    _pad1: f32,
+    renderScale: f32,
     _pad2: f32,
     _pad3: f32,
 }
@@ -25,12 +25,15 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let uv = pos.xy / texSize;
     let texelSize = 1.0 / texSize;
     
+    var radiusPixels = uniforms.amount * uniforms.renderScale;
+    radiusPixels = min(radiusPixels, 256.0);
+    
     let color = textureSample(inputTex, inputSampler, uv);
     
     // Sample neighbors for derivative calculation
     let center = desaturate(color.rgb);
-    let right = desaturate(textureSample(inputTex, inputSampler, uv + vec2<f32>(texelSize.x * uniforms.amount, 0.0)).rgb);
-    let bottom = desaturate(textureSample(inputTex, inputSampler, uv + vec2<f32>(0.0, texelSize.y * uniforms.amount)).rgb);
+    let right = desaturate(textureSample(inputTex, inputSampler, uv + vec2<f32>(radiusPixels, 0.0) * texelSize).rgb);
+    let bottom = desaturate(textureSample(inputTex, inputSampler, uv + vec2<f32>(0.0, radiusPixels) * texelSize).rgb);
     
     // Compute derivatives
     let dx = center - right;
