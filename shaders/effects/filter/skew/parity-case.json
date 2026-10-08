@@ -1,0 +1,15 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/testPattern",
+        "filter/skew"
+    ],
+    "dsl": "search synth, filter\n\ntestPattern(pattern: colorBars).skew(rotate: 30).write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}

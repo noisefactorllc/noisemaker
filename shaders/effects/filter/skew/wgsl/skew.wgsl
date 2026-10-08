@@ -28,7 +28,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let angle = u.rotation * PI / 180.0;
     let c = cos(angle);
     let s = sin(angle);
-    st = vec2<f32>(c * st.x - s * st.y, s * st.x + c * st.y);
+    st = mat2x2<f32>(c, -s, s, c) * st;
 
     st.x = st.x + st.y * -u.skewAmt;
 
