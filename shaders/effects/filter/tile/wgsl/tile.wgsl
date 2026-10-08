@@ -9,6 +9,8 @@
 @group(0) @binding(8) var<uniform> angle: f32;
 @group(0) @binding(9) var<uniform> repeat: f32;
 @group(0) @binding(10) var<uniform> aspectLens: i32;
+@group(0) @binding(11) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(12) var<uniform> fullResolution: vec2<f32>;
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
@@ -63,13 +65,13 @@ fn rotationalFold(uv: vec2<f32>, n: i32) -> vec2<f32> {
 
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> @location(0) vec4<f32> {
-    let texSize = vec2<f32>(textureDimensions(inputTex));
-    let uv = position.xy / texSize;
-    let asp = texSize.x / texSize.y;
+    let globalCoord = position.xy + tileOffset;
+    let globalUV = globalCoord / fullResolution;
+    let asp = fullResolution.x / fullResolution.y;
     let doAspect = aspectLens != 0;
 
     // Rotate in aspect-corrected space to avoid shearing on non-square canvases
-    var st = uv - 0.5;
+    var st = globalUV - 0.5;
     if (doAspect) { st.x *= asp; }
     st = rot(st, angle * PI / 180.0);
     if (doAspect) { st.x /= asp; }
