@@ -327,8 +327,8 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Large-format tiling
 
-- **Checkpoint:** noisemaker `058d15dc` / noisedeck `7cac7e92` (preview
-  branch), 2026-10-03
+- **Checkpoint:** noisemaker `e1fbfd0d` / noisedeck `ec401c94` (preview
+  branch), 2026-10-08
 - **Scope:** every effect must be classified for Noisedeck's large-format
   (tiled print) export. Tile-aware effects consume the global `tileOffset`
   and `fullResolution` uniforms in both GLSL and WGSL when their coordinates
@@ -346,6 +346,20 @@ work, verify it, then update the checkpoint and append a log line.
   deny-list. Verify tile-aware claims with noisedeck's seam harness
   (`tests/large-format-seams/`).
 - **Log:**
+  - 2026-10-08 — caught up through noisemaker `e1fbfd0d` / noisedeck
+    `ec401c94`: gap detection from `058d15dc` found zero added effects.
+    The range (the WebGPU-matches-WebGL2 campaign through 1.0.271) changed
+    34 definitions and the shaders of 98 effects; 58 of the 111 are in the
+    harness scope and 53 are in a deny-list. Noisedeck's seam harness,
+    run against bundles built at `e1fbfd0d`, gave 56/58 seam-pass on GLSL
+    and the same on WGSL. `render/meshRender` passes only trivially (its
+    default program has no mesh). `filter/spookyTicker` was in neither
+    deny-list and is not tile-aware: its ticker rows are measured from the
+    input texture's edge in tile-local coordinates, so the harness reports
+    it cannot-test and every tile would draw its own band. Noisedeck
+    `ec401c94` routes it to `hasUpscaleOnlyEffects.js` and the harness's
+    `UPSCALE_ONLY_FUNCS`; its deny-list test pins it (113/113 classifier
+    and harness tests, 1385 Node tests).
   - 2026-10-03 — caught up through noisemaker `058d15dc` / noisedeck
     `7cac7e92`: gap detection from `1d581ffa` found zero added effects.
     Changed definitions were `filter/degauss`, `render/pointsEmit`, and
