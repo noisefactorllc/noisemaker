@@ -648,6 +648,32 @@ export class WebGPUBackend extends Backend {
             this.textures.set(id, tex)
         }
 
+        // A 2D canvas keeps premultiplied pixels. WebGL2's texImage2D uploads
+        // them unpremultiplied byte-for-byte as getImageData returns them,
+        // while copyExternalImageToTexture unpremultiplies on the GPU and
+        // rounds low-alpha texels differently. Upload 2D canvases from
+        // getImageData so both backends sample the same bytes.
+        const context2d = source instanceof HTMLCanvasElement ? source.getContext('2d') : null
+        if (context2d) {
+            const pixels = context2d.getImageData(0, 0, width, height).data
+            const rowBytes = width * 4
+            let data = pixels
+            if (flipY) {
+                data = new Uint8Array(pixels.length)
+                for (let row = 0; row < height; row++) {
+                    const from = (height - 1 - row) * rowBytes
+                    data.set(pixels.subarray(from, from + rowBytes), row * rowBytes)
+                }
+            }
+            this.device.queue.writeTexture(
+                { texture: tex.handle },
+                data,
+                { bytesPerRow: rowBytes, rowsPerImage: height },
+                { width, height }
+            )
+            return { width, height }
+        }
+
         // Use copyExternalImageToTexture for efficient video/image upload
         this.device.queue.copyExternalImageToTexture(
             { source, flipY },
