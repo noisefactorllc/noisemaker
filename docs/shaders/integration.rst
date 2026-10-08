@@ -300,6 +300,7 @@ element's size wins; a diagnostic warns when it differs from the options.
     // Output (after compile)
     const removeSink = renderer.addSink(sink)
     const exportQueue = renderer.createFrameExportQueue({ slots: 3 })
+    await renderer.pipeline.whenAsyncInitsSettled()  // Before a one-off capture: wait for async CPU effects (fibers, scratches, strayHair, ...) to finish drawing
 
     // Effect loading
     await renderer.loadEffects(['synth/noise', 'filter/bloom'])

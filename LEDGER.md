@@ -474,7 +474,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## Documentation
 
-- **Checkpoint:** noisemaker `a1329096` (2026-10-04)
+- **Checkpoint:** noisemaker `badf1f9e` (2026-10-08)
 - **Scope:** the Sphinx docs under `docs/` (published to docs.noisemaker.app
   by `.github/workflows/docs-site.yml`) and the per-effect
   `shaders/effects/*/*/help.md` files rendered by the live Effect Reference.
@@ -488,6 +488,23 @@ work, verify it, then update the checkpoint and append a log line.
   3. Narrative statements invalidated by recent commits (grep the affected
      terms in `docs/`).
 - **Log:**
+  - 2026-10-08 — caught up through `badf1f9e`: audited
+    `a1329096..badf1f9e` (212 commits, including the WebGPU-matches-WebGL2
+    campaign through 1.0.271). All 210 definitions have `help.md`, and all
+    1,258 documented parameters across 200 effects match their definitions
+    (`node shaders/tests/test_effect_help_params.mjs`). No shipped feature
+    needs a narrative guide: the engine changes are parity fixes, WebGPU
+    device limits and canvas uploads, and host APIs. Two host-facing gaps
+    were closed: `docs/shaders/integration.rst` now lists
+    `renderer.pipeline.whenAsyncInitsSettled()` (`cabe6ee3`) for one-off
+    captures of async CPU effects, and `docs/shaders/pipeline.rst` now says
+    that WebGPU also records `ERR_MISSING_RENDER_TARGET` for MRT,
+    storage-surface and copy-output targets (`5578cf7c`). Canvas sizing from
+    `width`/`height` (`b805b365`), `getMediaSteps()` (`632820a8`) and
+    `oscKind.noise2d` (`4e046a2d`) were documented in-band; the 128³ volume
+    ceiling now holds on WebGPU too (`6a772479`), so no statement changed.
+    `sphinx-build -b dirhtml docs` passes; its 19 warnings are the existing
+    unregistered `dsl` lexer.
   - 2026-10-04 — caught up through `a1329096`: audited
     `63cfbb7..a1329096`, including Tearoff item 804's observed
     `378c8bf8..058d15dc` delivery. Both range endpoints are ancestors of
