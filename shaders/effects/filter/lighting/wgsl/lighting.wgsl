@@ -17,6 +17,10 @@ struct Uniforms {
     reflection: f32,
     refraction: f32,
     aberration: f32,
+    renderScale: f32,
+    _pad2: f32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -30,13 +34,15 @@ fn getLuminosity(color: vec3f) -> f32 {
 }
 
 fn getHeight(uv: vec2f) -> f32 {
-    return getLuminosity(textureSample(heightMap, inputSampler, uv).rgb);
+    let mapSize = vec2f(textureDimensions(heightMap, 0));
+    let localUV = (uv * uniforms.fullResolution - uniforms.tileOffset) / mapSize;
+    return getLuminosity(textureSample(heightMap, inputSampler, localUV).rgb);
 }
 
 // Calculate surface normal from height map using Sobel convolution
 fn calculateNormal(uv: vec2f, texelSize: vec2f) -> vec3f {
     // Apply smoothing to texel size for smoother normals
-    let sampleSize = texelSize * uniforms.smoothing;
+    let sampleSize = texelSize * uniforms.smoothing * uniforms.renderScale;
     
     // Sobel X kernel
     var sobel_x = array<f32, 9>(
@@ -86,13 +92,13 @@ fn calculateNormal(uv: vec2f, texelSize: vec2f) -> vec3f {
 // Apply refraction effect based on surface normal
 fn applyRefraction(uv: vec2f, normal: vec3f) -> vec4f {
     let refractionOffset = normal.xy * (uniforms.refraction * 0.0125);
-    return textureSample(inputTex, inputSampler, uv + refractionOffset);
+    return textureSample(inputTex, inputSampler, ((uv + refractionOffset) * uniforms.fullResolution - uniforms.tileOffset) / vec2f(textureDimensions(inputTex, 0)));
 }
 
 // Apply reflection effect with chromatic aberration
-fn applyReflection(uv: vec2f, normal: vec3f) -> vec4f {
+fn applyReflection(uv: vec2f, globalUV: vec2f, normal: vec3f) -> vec4f {
     // Calculate incident vector for reflection, from center of image
-    let incident = vec3f(normalize(uv - 0.5), 100.0);
+    let incident = vec3f(normalize(globalUV - 0.5), 100.0);
     
     // Calculate reflection vector
     let reflectionVec = reflect(incident, normal);
@@ -105,22 +111,26 @@ fn applyReflection(uv: vec2f, normal: vec3f) -> vec4f {
     let greenOffset = reflectionOffset;
     let blueOffset = reflectionOffset * (1.0 - uniforms.aberration * 0.0075);
     
-    let redChannel = textureSample(inputTex, inputSampler, uv + redOffset).r;
-    let greenChannel = textureSample(inputTex, inputSampler, uv + greenOffset).g;
-    let blueChannel = textureSample(inputTex, inputSampler, uv + blueOffset).b;
-    let alphaChannel = textureSample(inputTex, inputSampler, uv + reflectionOffset).a;
+    let redChannel = textureSample(inputTex, inputSampler, ((uv + redOffset) * uniforms.fullResolution - uniforms.tileOffset) / vec2f(textureDimensions(inputTex, 0))).r;
+    let greenChannel = textureSample(inputTex, inputSampler, ((uv + greenOffset) * uniforms.fullResolution - uniforms.tileOffset) / vec2f(textureDimensions(inputTex, 0))).g;
+    let blueChannel = textureSample(inputTex, inputSampler, ((uv + blueOffset) * uniforms.fullResolution - uniforms.tileOffset) / vec2f(textureDimensions(inputTex, 0))).b;
+    let alphaChannel = textureSample(inputTex, inputSampler, ((uv + reflectionOffset) * uniforms.fullResolution - uniforms.tileOffset) / vec2f(textureDimensions(inputTex, 0))).a;
     
     return vec4f(redChannel, greenChannel, blueChannel, alphaChannel);
 }
 
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
+    let globalCoord = pos.xy + uniforms.tileOffset;
     let texSize = vec2<f32>(textureDimensions(inputTex));
-    let uv = pos.xy / texSize;
-    let texelSize = 1.0 / texSize;
+    let resolution = texSize;
+    let fullRes = select(resolution, uniforms.fullResolution, uniforms.fullResolution.x > 0.0);
+    let uv = globalCoord / uniforms.fullResolution;
+    let globalUV = (pos.xy + uniforms.tileOffset) / fullRes;
+    let texelSize = 1.0 / resolution;
     
     // Get original color
-    let origColor = textureSample(inputTex, inputSampler, uv);
+    let origColor = textureSample(inputTex, inputSampler, pos.xy / vec2f(textureDimensions(inputTex, 0)));
     
     // Calculate surface normal
     let normal = calculateNormal(uv, texelSize);
@@ -156,7 +166,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     
     // Apply reflection (with chromatic aberration) if enabled
     if (uniforms.reflection > 0.0 || uniforms.aberration > 0.0) {
-        let reflectedColor = applyReflection(uv, normal);
+        let reflectedColor = applyReflection(uv, globalUV, normal);
         workingColor = mix(workingColor, reflectedColor, uniforms.reflection / 100.0);
     }
     
