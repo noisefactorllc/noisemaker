@@ -47,7 +47,7 @@ function mipLevelSize(dim, level) {
 
 // Shared resample shader: a fullscreen triangle that reads the source texture
 // with textureLoad (works for filterable and unfilterable float formats alike).
-// fsMip downsamples the bound single-mip source view by a 2x2 box average into
+// fsMip downsamples the bound single-mip source view with a nearest blit into
 // the destination mip level; fsScale resamples the source to the destination
 // size (used by the persistent-texture copy path when the destination has new
 // dimensions).
@@ -74,20 +74,18 @@ struct FsParams {
 @fragment
 fn fsMip(f: FsParams) -> @location(0) vec4f {
     let d = vec2u(f.frag.xy);
-    let base = d * 2u;
-    let a = textureLoad(src, base, 0u);
-    let b = textureLoad(src, base + vec2u(1u, 0u), 0u);
-    let c = textureLoad(src, base + vec2u(0u, 1u), 0u);
-    let e = textureLoad(src, base + vec2u(1u, 1u), 0u);
-    return (a + b + c + e) * 0.25;
+    let sourceSize = textureDimensions(src);
+    let targetSize = max(sourceSize / 2u, vec2u(1u));
+    let sourceCoord = min(vec2u((vec2f(d) + vec2f(0.5)) * vec2f(sourceSize) / vec2f(targetSize)), sourceSize - vec2u(1u));
+    return textureLoad(src, sourceCoord, 0u);
 }
 
 @fragment
 fn fsScale(f: FsParams) -> @location(0) vec4f {
     let d = vec2u(f.frag.xy);
     let ratio = vec2f(dims.x, dims.y) / vec2f(dims.z, dims.w);
-    let scaled = vec2f(d) * ratio;
-    let maxCoord = vec2u(max(dims.x - 1.0, 0.0), max(dims.y - 1.0, 0.0));
+    let scaled = (vec2f(d) + vec2f(0.5)) * ratio;
+    let maxCoord = vec2u(vec2f(max(dims.x - 1.0, 0.0), max(dims.y - 1.0, 0.0)));
     let coord = min(vec2u(scaled), maxCoord);
     return textureLoad(src, coord, 0u);
 }
@@ -381,7 +379,7 @@ export class WebGPUBackend extends Backend {
             gpuFormat: format,
             usage,
             is3D: true,
-            filter: spec.filter
+            filter: spec.filter || 'linear'
         })
 
         return texture
@@ -811,7 +809,7 @@ export class WebGPUBackend extends Backend {
     /**
      * Regenerate the mip chain of mipmapped 2D textures from level 0.
      * Called by the Pipeline after each frame's passes for every texture
-     * authored with `mipmaps: true`. Each level renders a 2x2 box downsample
+     * authored with `mipmaps: true`. Each level renders a nearest blit
      * of the previous level into that level's single-mip view. Textures
      * without a mip chain are skipped.
      * @param {string[]} ids - Texture ids to regenerate
@@ -878,7 +876,7 @@ export class WebGPUBackend extends Backend {
         // Begin a render pass that clears to transparent black
         const renderPass = commandEncoder.beginRenderPass({
             colorAttachments: [{
-                view: tex.view,
+                view: tex.renderView || tex.view,
                 clearValue: { r: 0, g: 0, b: 0, a: 0 },
                 loadOp: 'clear',
                 storeOp: 'store'
@@ -1110,6 +1108,7 @@ export class WebGPUBackend extends Backend {
             entryPoints,  // All available entry points
             entryPointBindings,  // Map of entry point -> Set of used binding indices
             bindings,  // Store parsed bindings for bind group creation
+            samplerTextureNames: this.parseSamplerTextureUses(source),
             // True if the source contains any `@binding` declarations at all,
             // even ones we filtered out as dead. Used by createBindGroup to
             // distinguish "modern shader, all bindings filtered as dead" (use
@@ -1161,11 +1160,12 @@ export class WebGPUBackend extends Backend {
         // Handle vertex module
         let vertexModule
         let vertexEntryPoint
+        let vertexSource = ''
         let fragmentModule = mainModule
 
         if (spec.vertexWGSL || spec.vertexWgsl) {
             // Separate vertex shader source provided
-            const vertexSource = spec.vertexWGSL || spec.vertexWgsl
+            vertexSource = spec.vertexWGSL || spec.vertexWgsl
             vertexModule = this.device.createShaderModule({ code: vertexSource })
             const vertexInfo = await vertexModule.getCompilationInfo()
             const vertexErrors = vertexInfo.messages.filter(m => m.type === 'error')
@@ -1260,6 +1260,7 @@ export class WebGPUBackend extends Backend {
             outputFormat,
             pipelineCache,
             bindings, // Store parsed bindings for bind group creation
+            samplerTextureNames: this.parseSamplerTextureUses(source + '\n' + (vertexSource || '')),
             // See compileComputeProgram for what this flag is for.
             _sourceHasBindings: sourceHasBindings,
             // Use definition-provided uniformLayout if available, fall back to shader parsing
@@ -1787,7 +1788,7 @@ export class WebGPUBackend extends Backend {
 
             // Determine binding type
             let bindingType = 'unknown'
-            if (typeDecl.includes('texture_storage_2d')) {
+            if (typeDecl.includes('texture_storage_2d') || typeDecl.includes('texture_storage_3d')) {
                 bindingType = 'storage_texture'
             } else if (typeDecl.includes('texture_2d') || typeDecl.includes('texture_3d')) {
                 bindingType = 'texture'
@@ -1838,6 +1839,27 @@ export class WebGPUBackend extends Backend {
         })
 
         return filtered
+    }
+
+    /**
+     * Cache the texture associated with each sampler at compile time. WGSL
+     * binding declarations have no required order, so the actual sampling
+     * calls determine which texture's authored filter applies. A sampler used
+     * with multiple textures has no single inferred filter; callers retain
+     * their existing default or provide an explicit samplerTypes override.
+     */
+    parseSamplerTextureUses(source) {
+        const clean = this.stripWGSLComments(source)
+        const names = new Map()
+        const samples = /\btextureSample\w*\s*\(\s*(\w+)\s*,\s*(\w+)\s*,/g
+        let match
+        while ((match = samples.exec(clean)) !== null) {
+            const textureName = match[1]
+            const samplerName = match[2]
+            if (!names.has(samplerName)) names.set(samplerName, textureName)
+            else if (names.get(samplerName) !== textureName) names.set(samplerName, null)
+        }
+        return names
     }
 
     hasShaderBindings(source) {
@@ -2706,7 +2728,16 @@ export class WebGPUBackend extends Backend {
                     entries.push(entry)
                 }
             } else if (binding.type === 'sampler') {
-                const samplerType = pass.samplerTypes?.[binding.name] || inputSamplerDefault
+                let samplerType = pass.samplerTypes?.[binding.name]
+                if (!samplerType) {
+                    const sampledName = program.samplerTextureNames?.get(binding.name)
+                    const texId = pass.inputs?.[sampledName]
+                    const sampledTexture = this.textures.get(texId) ||
+                        (typeof texId === 'string' ? this.textures.get(texId.replace(/_chain_\d+$/, '')) : null)
+                    samplerType = sampledTexture?.is3D
+                        ? (sampledTexture.filter === 'nearest' ? 'nearest' : 'default')
+                        : inputSamplerDefault
+                }
                 entry.resource = this.samplers.get(samplerType) || this.samplers.get('default')
                 entries.push(entry)
             } else if (binding.type === 'uniform') {
@@ -2732,7 +2763,8 @@ export class WebGPUBackend extends Backend {
 
                     // Handle missing, null, or invalid values by providing sensible defaults
                     if (value === undefined || value === null ||
-                        (typeof value !== 'number' && typeof value !== 'boolean' && !Array.isArray(value))) {
+                        (typeof value !== 'number' && typeof value !== 'boolean' &&
+                         !Array.isArray(value) && !(value instanceof Float32Array))) {
                         // Provide sensible defaults based on type
                         if (binding.typeDecl === 'i32' || binding.typeDecl === 'u32') {
                             value = 0
@@ -2893,7 +2925,7 @@ export class WebGPUBackend extends Backend {
                 data = this._singleUniformFloat32
                 byteLength = 4
             }
-        } else if (Array.isArray(value)) {
+        } else if (Array.isArray(value) || value instanceof Float32Array) {
             // Reuse pre-allocated float32 array for vectors
             const arr = this._singleUniformFloat32
             if (value.length === 2) {
@@ -2935,13 +2967,18 @@ export class WebGPUBackend extends Backend {
                     const count = m ? parseInt(m[1], 10) : Math.ceil(value.length / 4)
                     // Build a flat buffer of count * 4 floats. Treat the input as a
                     // flat sequence — every 4 input values become one vec4 entry.
-                    const flat = new Float32Array(count * 4)
-                    const copyLen = Math.min(value.length, flat.length)
-                    for (let i = 0; i < copyLen; i++) flat[i] = value[i]
-                    data = flat
-                    byteLength = flat.byteLength
+                    if (value instanceof Float32Array && value.length === count * 4) {
+                        data = value
+                        byteLength = value.byteLength
+                    } else {
+                        const flat = new Float32Array(count * 4)
+                        const copyLen = Math.min(value.length, flat.length)
+                        for (let i = 0; i < copyLen; i++) flat[i] = value[i]
+                        data = flat
+                        byteLength = flat.byteLength
+                    }
                 } else {
-                    data = new Float32Array(value)
+                    data = value instanceof Float32Array ? value : new Float32Array(value)
                     byteLength = data.byteLength
                 }
             }
@@ -3978,7 +4015,7 @@ export class WebGPUBackend extends Backend {
         // Execute the render pass
         const passEncoder = this.commandEncoder.beginRenderPass({
             colorAttachments: [{
-                view: outputTex.view,
+                view: outputTex.renderView || outputTex.view,
                 loadOp: 'clear',
                 storeOp: 'store',
                 clearValue: { r: 0, g: 0, b: 0, a: 1 }

@@ -2195,13 +2195,27 @@ export class Pipeline {
                     value = spec.default
                 }
 
+                // Func wrappers and other nonnumeric authored values are not
+                // evaluated by the runtime. Use the texture spec's existing
+                // numeric default so backends never allocate a NaN size.
+                if (!Number.isFinite(Number(value))) {
+                    if (spec.default !== undefined) {
+                        value = spec.default
+                    } else {
+                        value = paramDefault
+                        if (spec.multiply !== undefined) value *= spec.multiply
+                        if (spec.power !== undefined) value = Math.pow(value, spec.power)
+                    }
+                }
+
                 return Math.max(1, Math.floor(value))
             }
 
             // Handle screen-divide spec: { screenDivide: 'zoom' }
             // Resolves to screenSize / uniforms[param], for per-effect zoom scaling
             if (spec.screenDivide !== undefined) {
-                const divisor = uniforms[spec.screenDivide] ?? spec.default ?? 1
+                let divisor = uniforms[spec.screenDivide] ?? spec.default ?? 1
+                if (!Number.isFinite(Number(divisor))) divisor = spec.default ?? 1
                 return Math.max(1, Math.round(screenSize / divisor))
             }
 

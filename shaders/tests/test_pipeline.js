@@ -310,6 +310,79 @@ test('Pipeline - Dimension Resolution', async () => {
     }
 })
 
+test('Pipeline - Func texture dimensions use authored numeric defaults before UI updates', () => {
+    const pipeline = new Pipeline({ passes: [], textures: new Map() }, new MockBackend())
+    const wrapper = { fn() { throw new Error('Texture allocation must not execute Func callbacks') }, min: 1, max: 64 }
+    const cases = [
+        [{ screenDivide: 'zoom_chain_0', default: 32 }, { zoom_chain_0: wrapper }, 8],
+        [{ param: 'stateSize_node_1', default: 256 }, { stateSize_node_1: wrapper }, 256],
+        [{ param: 'volumeSize_chain_0', default: 64 }, { volumeSize_chain_0: wrapper }, 64],
+        [{ param: 'volumeSize_chain_0', power: 2, default: 4096 }, { volumeSize_chain_0: wrapper }, 4096],
+        [{ param: 'size', paramDefault: 3, multiply: 2, power: 2 }, { size: wrapper }, 36],
+        [{ screenDivide: 'zoom_chain_0', default: 32 }, { zoom_chain_0: 16 }, 16],
+        [{ param: 'stateSize_node_1', default: 256 }, { stateSize_node_1: 128 }, 128],
+        [{ param: 'volumeSize_chain_0', power: 2, default: 4096 }, { volumeSize_chain_0: 16 }, 256]
+    ]
+    for (const [spec, uniforms, expected] of cases) {
+        const actual = pipeline.resolveDimension(spec, 256, uniforms)
+        if (actual !== expected) {
+            throw new Error(`Texture dimension ${JSON.stringify(spec)}: expected ${expected}, got ${actual}`)
+        }
+    }
+})
+
+test('Pipeline - Func sizing allocates scoped textures and resizes after host values arrive', async () => {
+    const backend = new MockBackend()
+    const fnValue = { fn: () => 8 }
+    const graph = {
+        passes: [{ id: 'func_sizing', program: 'test_program', inputs: {}, outputs: {
+            state: 'global_ca_state_chain_0', positions: 'global_xyz_node_1'
+        }, uniforms: {
+            zoom_chain_0: fnValue,
+            stateSize_node_1: fnValue,
+            volumeSize_chain_0: fnValue
+        } }],
+        programs: { test_program: { fragment: 'void main() {}' } },
+        textures: new Map([
+            ['global_ca_state_chain_0', {
+                width: { screenDivide: 'zoom_chain_0', default: 32 },
+                height: { screenDivide: 'zoom_chain_0', default: 32 }
+            }],
+            ['global_xyz_node_1', {
+                width: { param: 'stateSize_node_1', default: 256 },
+                height: { param: 'stateSize_node_1', default: 256 }
+            }],
+            ['node_0_volumeCache', {
+                width: { param: 'volumeSize_chain_0', default: 64 },
+                height: { param: 'volumeSize_chain_0', power: 2, default: 4096 }
+            }]
+        ])
+    }
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(256, 256)
+
+    const expectSize = (id, width, height) => {
+        const texture = backend.textures.get(id)
+        if (texture?.width !== width || texture?.height !== height) {
+            throw new Error(`${id}: expected ${width}x${height}, got ${texture?.width}x${texture?.height}`)
+        }
+    }
+    expectSize('global_ca_state_chain_0_read', 8, 8)
+    expectSize('global_ca_state_chain_0_write', 8, 8)
+    expectSize('global_xyz_node_1_read', 256, 256)
+    expectSize('global_xyz_node_1_write', 256, 256)
+    expectSize('node_0_volumeCache', 64, 4096)
+
+    pipeline.setUniform('zoom_chain_0', 8)
+    pipeline.setUniform('stateSize_node_1', 128)
+    pipeline.setUniform('volumeSize_chain_0', 16)
+    expectSize('global_ca_state_chain_0_read', 32, 32)
+    expectSize('global_ca_state_chain_0_write', 32, 32)
+    expectSize('global_xyz_node_1_read', 128, 128)
+    expectSize('global_xyz_node_1_write', 128, 128)
+    expectSize('node_0_volumeCache', 16, 256)
+})
+
 test('Pipeline - Surface Double Buffering', async () => {
     const backend = new MockBackend()
     const graph = { passes: [], textures: new Map(), renderSurface: 'o0' }

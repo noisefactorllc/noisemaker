@@ -120,3 +120,17 @@ fn main(@builtin(global_invocation_id) id: vec3<u32>) {
         throw new Error(`live compute bindings were not preserved: ${names.join(', ')}`)
     }
 })
+
+test('WebGPU binding parser classifies writable 3D storage textures', () => {
+    const source = `
+@group(0) @binding(0) var volumeOut: texture_storage_3d<rgba8unorm, write>;
+@compute @workgroup_size(4, 4, 4)
+fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+    textureStore(volumeOut, vec3<i32>(gid), vec4<f32>(1.0));
+}
+`
+    const [binding] = parseBindings(source)
+    if (binding?.type !== 'storage_texture' || binding?.name !== 'volumeOut') {
+        throw new Error(`3D storage texture was not classified: ${JSON.stringify(binding)}`)
+    }
+})
