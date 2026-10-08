@@ -3,7 +3,7 @@
 struct Params {
     sobelMetric : f32,
     thickness : f32,
-    _pad1 : f32,
+    renderScale : f32,
     _pad2 : f32,
 }
 
@@ -57,7 +57,7 @@ fn main(input : VertexOutput) -> @location(0) vec4<f32> {
     let metric = i32(params.sobelMetric);
 
     // Sample 3x3 neighborhood with thickness scaling
-    let offset = max(1, i32(params.thickness));
+    let offset = max(1, i32(params.thickness * params.renderScale));
     var samples : array<f32, 9>;
     var idx = 0;
     for (var ky = -1; ky <= 1; ky = ky + 1) {

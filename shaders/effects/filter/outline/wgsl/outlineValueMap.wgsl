@@ -47,7 +47,9 @@ struct VertexOutput {
 
 @fragment
 fn main(input : VertexOutput) -> @location(0) vec4<f32> {
-    let texel = textureSample(inputTex, inputSampler, input.texCoord);
+    let dimensions = vec2<i32>(textureDimensions(inputTex, 0));
+    let uv = (input.position.xy - vec2<f32>(0.5)) / vec2<f32>(f32(max(dimensions.x, 1)), f32(max(dimensions.y, 1)));
+    let texel = textureSample(inputTex, inputSampler, uv);
     let value = valueMapComponent(texel);
     return vec4<f32>(value, value, value, texel.a);
 }
