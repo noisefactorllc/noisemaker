@@ -117,7 +117,7 @@ fn radialForce(dist: f32, strength: f32, prefDist: f32, curveShape: f32) -> f32 
 // === VECTOR HELPERS ===
 
 fn wrapPosition(pos: vec2f) -> vec2f {
-    return (pos % 1.0 + 1.0) % 1.0;
+    return (pos + 1.0) - 1.0 * floor((pos + 1.0) / 1.0);
 }
 
 fn limitVec(v: vec2f, maxLen: f32) -> vec2f {

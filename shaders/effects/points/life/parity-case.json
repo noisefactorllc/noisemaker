@@ -1,0 +1,17 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/solid",
+        "render/pointsEmit",
+        "points/life",
+        "render/pointsRender"
+    ],
+    "dsl": "search synth, points, render\n\nsolid().pointsEmit(stateSize: x64).life().pointsRender().write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}
