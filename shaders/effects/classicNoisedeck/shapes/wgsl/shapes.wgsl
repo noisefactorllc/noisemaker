@@ -5,7 +5,7 @@
  */
 
 struct Uniforms {
-    data : array<vec4<f32>, 7>,
+    data : array<vec4<f32>, 8>,
 };
 
 @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -31,6 +31,10 @@ var<private> cyclePalette : i32;
 var<private> rotatePalette : f32;
 var<private> repeatPalette : f32;
 var<private> aspectRatio : f32;
+var<private> tileOffset : vec2<f32>;
+var<private> fullResolution : vec2<f32>;
+// Fragment position, so diamonds() can read it like GLSL's gl_FragCoord.
+var<private> fragCoordXY : vec2<f32>;
 
 const PI : f32 = 3.14159265359;
 const TAU : f32 = 6.28318530718;
@@ -454,7 +458,7 @@ fn rings(st: vec2<f32>, freq: f32) -> f32 {
 }
 
 fn diamonds(st: vec2<f32>, freq: f32) -> f32 {
-    var st2 = st;
+    var st2 = (fragCoordXY + tileOffset) / fullResolution.y;
     st2 = st2 - vec2<f32>(0.5 * aspectRatio, 0.5);
     st2 = st2 * freq;
     return cos(st2.x * PI) + cos(st2.y * PI);
@@ -635,10 +639,15 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     palettePhase = uniforms.data[6].xyz;
 
-    aspectRatio = resolution.x / resolution.y;
+    tileOffset = uniforms.data[7].xy;
+    fullResolution = uniforms.data[7].zw;
 
+    aspectRatio = fullResolution.x / fullResolution.y;
+
+    fragCoordXY = pos.xy;
+    let globalCoord = pos.xy + tileOffset;
     var color = vec4<f32>(0.0, 0.0, 1.0, 1.0);
-    var st = pos.xy / resolution.y;
+    var st = globalCoord / fullResolution.y;
 
     var lf1 = map(loopAScale, 1.0, 100.0, 6.0, 1.0);
     if (wrap) {
@@ -681,7 +690,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
     color = vec4<f32>(pal(d), color.a);
 
-    var st2 = pos.xy / resolution;
+    var st2 = globalCoord / fullResolution;
 
     return color;
 }
