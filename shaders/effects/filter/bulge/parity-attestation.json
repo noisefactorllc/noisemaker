@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "filter/bulge",
-  "sourceHash": "8de0dd31f5b19498b663302246c2625a54c982f820a5b6194a44c1b33206bc88",
-  "caseHash": "69b262528f9109880a186ae8cd9e7e4bf07bd0781062cd1c6c05079102ed5597",
+  "sourceHash": "31270fdc782375424dc1cf01a35a5da4860a96d64d9157d2d3303793d21eca93",
+  "caseHash": "3d1110401d3bc061810deee24dec281674707021ffa94de8e80d007709212c26",
   "resolution": [
     64,
     64
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 3939,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 28
+      "uniqueColors": 26
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 3939,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 28
+      "uniqueColors": 26
     }
   },
   "execution": {
