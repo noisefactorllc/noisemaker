@@ -9,6 +9,8 @@
 @group(0) @binding(6) var<uniform> juliaY: f32;
 @group(0) @binding(7) var<uniform> juliaZ: f32;
 @group(0) @binding(8) var<uniform> colorMode: i32;
+@group(0) @binding(9) var<uniform> tileOffset: vec2<f32>;
+@group(0) @binding(10) var<uniform> renderScale: f32;
 
 const PI: f32 = 3.141592653589793;
 
@@ -211,24 +213,28 @@ struct FragOutput {
 @fragment
 fn main(@builtin(position) position: vec4<f32>) -> FragOutput {
     let volSize = volumeSize;
-    let volSizeF = f32(volSize);
+    let scaledVolSize = i32(f32(volSize) * renderScale);
+    let scaledVolSizeF = f32(scaledVolSize);
     
-    // Atlas is volSize x (volSize * volSize)
-    // Pixel (x, y) maps to 3D coordinate (x, y % volSize, y / volSize)
-    let pixelCoord = vec2<i32>(position.xy);
+    // Atlas is scaledVolSize x (scaledVolSize * scaledVolSize)
+    // Pixel (x, y) maps to 3D coordinate (x, y % scaledVolSize, y / scaledVolSize)
+    let globalPixelCoord = position.xy + tileOffset;
+    let pixelCoord = vec2<i32>(globalPixelCoord);
     
-    let x = pixelCoord.x;
-    let y = pixelCoord.y % volSize;
-    let z = pixelCoord.y / volSize;
+    // GLSL mod(x, y) = x - y * floor(x / y)
+    let xF = f32(pixelCoord.x);
+    let x = i32(xF - scaledVolSizeF * floor(xF / scaledVolSizeF));
+    let y = pixelCoord.y % scaledVolSize;
+    let z = pixelCoord.y / scaledVolSize;
     
     // Bounds check
-    if (x >= volSize || y >= volSize || z >= volSize) {
+    if (x >= scaledVolSize || y >= scaledVolSize || z >= scaledVolSize) {
         return FragOutput(vec4<f32>(0.0), vec4<f32>(0.5, 0.5, 0.5, 0.0));
     }
     
     // Convert to normalized 3D coordinates in [-1.5, 1.5] world space
     // Slightly larger than [-1,1] to capture the full fractal
-    let p = (vec3<f32>(f32(x), f32(y), f32(z)) / (volSizeF - 1.0) * 2.0 - 1.0) * 1.5;
+    let p = (vec3<f32>(f32(x), f32(y), f32(z)) / (scaledVolSizeF - 1.0) * 2.0 - 1.0) * 1.5;
     
     // Julia constant from uniforms (normalized from -100..100 to -1..1)
     let juliaC = vec3<f32>(juliaX, juliaY, juliaZ) * 0.01;
