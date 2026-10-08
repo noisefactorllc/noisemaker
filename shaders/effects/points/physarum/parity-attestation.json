@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "points/physarum",
+  "sourceHash": "d8c60f175e8323112fcc1da9425b1f0ad0962fb69a14303a39aea9a3c7dbbb34",
+  "caseHash": "c50d74886a70cdbdebc4b40f945cfc918056ba9fee0a61a08169c834ab2bc6e7",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 3328
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 3328
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 5,
+    "webgpuTargetPasses": 5
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}
