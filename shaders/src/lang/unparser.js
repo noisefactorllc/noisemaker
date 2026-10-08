@@ -80,7 +80,7 @@ function formatOscillator(osc) {
     if (osc.offset !== 0) {
         parts.push(`offset: ${osc.offset}`)
     }
-    if (osc.seed !== 1 && osc.oscType === 5) {  // Only include seed for noise type
+    if (osc.seed !== 1 && (osc.oscType === 5 || osc.oscType === 6)) {  // Only the noise kinds read the seed
         parts.push(`seed: ${osc.seed}`)
     }
 
@@ -770,11 +770,18 @@ function formatLetExpr(expr, options = {}) {
             // Raw AST Oscillator: sub-fields are AST nodes
             let typeStr = 'oscKind.sine'
             if (expr.oscType?.type === 'Member' && expr.oscType.path) {
-                typeStr = `oscKind.${expr.oscType.path[expr.oscType.path.length - 1]}`
+                // Rewrite the namespace to oscKind only where oscKind has the
+                // same name (oscType.linear has no oscKind.linear); otherwise
+                // keep the path as written so it resolves to the same kind.
+                const name = expr.oscType.path[expr.oscType.path.length - 1]
+                typeStr = Object.prototype.hasOwnProperty.call(stdEnums.oscKind, name)
+                    ? `oscKind.${name}`
+                    : expr.oscType.path.join('.')
             } else if (expr.oscType?.type === 'Ident') {
                 typeStr = expr.oscType.name  // variable reference, no prefix
             } else if (expr.oscType?.type === 'Number' &&
-                Number.isInteger(expr.oscType.value) && expr.oscType.value >= 0 && expr.oscType.value <= 5) {
+                Number.isInteger(expr.oscType.value) && expr.oscType.value >= 0 &&
+                expr.oscType.value < oscKindNames.length) {
                 typeStr = `oscKind.${oscKindNames[expr.oscType.value]}`
             }
             const parts = [`type: ${typeStr}`]

@@ -264,6 +264,111 @@ noise(scale: osc(type: oscKind.noise2d, min: 0.2, max: 0.8, seed: 42)).write(o0)
     assertEqual(recompiled.plans[0].chain[0].args.scale.oscType, 6, 'oscType survives the round trip')
 })
 
+// Unparse one osc() type spelling inline and through a let, recompile, and
+// return each form's osc() line with the kinds and seeds on both sides.
+function roundTripOscType(typeSource) {
+    const forms = {
+        inline: `search synth, filter\nnoise(scale: osc(type: ${typeSource}, speed: 2, seed: 42)).write(o0)`,
+        let: `search synth, filter\nlet o = osc(type: ${typeSource}, speed: 2, seed: 42)\nnoise(scale: o).write(o0)`
+    }
+    return Object.entries(forms).map(([form, source]) => {
+        const compiled = compile(source)
+        const unparsed = unparse(compiled)
+        const recompiled = compile(unparsed)
+        const before = compiled.plans[0].chain[0].args.scale
+        const after = recompiled.plans[0].chain[0].args.scale
+        return {
+            form,
+            diagnostics: compiled.diagnostics.length,
+            recompileDiagnostics: recompiled.diagnostics.length,
+            line: unparsed.split('\n').find((l) => l.includes('osc(')).trim(),
+            kind: before.oscType,
+            seed: before.seed,
+            recompiledKind: after.oscType,
+            recompiledSeed: after.seed
+        }
+    })
+}
+
+test('Unparser: numeric type 6 round-trips as oscKind.noise2d', () => {
+    for (const r of roundTripOscType('6')) {
+        assertEqual(r.diagnostics, 0, `${r.form}: type 6 compiles without diagnostics`)
+        assertEqual(r.kind, 6, `${r.form}: type 6 compiles to kind 6`)
+        assert(r.line.includes('osc(type: oscKind.noise2d, speed: 2, seed: 42)'),
+            `${r.form}: expected oscKind.noise2d in ${r.line}`)
+        assertEqual(r.recompileDiagnostics, 0, `${r.form}: unparsed type 6 recompiles without diagnostics`)
+        assertEqual(r.recompiledKind, 6, `${r.form}: type 6 survives the round trip`)
+        assertEqual(r.recompiledSeed, 42, `${r.form}: seed survives the round trip`)
+    }
+})
+
+test('Unparser: oscKind.noise2d round-trips with its speed and seed', () => {
+    for (const r of roundTripOscType('oscKind.noise2d')) {
+        assert(r.line.includes('osc(type: oscKind.noise2d, speed: 2, seed: 42)'),
+            `${r.form}: expected oscKind.noise2d with speed and seed in ${r.line}`)
+        assertEqual(r.recompileDiagnostics, 0, `${r.form}: recompiles without diagnostics`)
+        assertEqual(r.recompiledKind, 6, `${r.form}: kind survives the round trip`)
+        assertEqual(r.recompiledSeed, 42, `${r.form}: seed survives the round trip`)
+    }
+})
+
+test('Unparser: noise2d config without an AST keeps its seed', () => {
+    const formatted = formatValue({ type: 'Oscillator', oscType: 6, min: 0, max: 1, speed: 2, offset: 0, seed: 42 })
+    assertEqual(formatted, 'osc(type: oscKind.noise2d, speed: 2, seed: 42)', 'noise2d config output')
+    const recompiled = compile(`search synth, filter\nnoise(scale: ${formatted}).write(o0)`)
+    assertEqual(recompiled.diagnostics.length, 0, 'formatted noise2d recompiles without diagnostics')
+    assertEqual(recompiled.plans[0].chain[0].args.scale.oscType, 6, 'kind survives the round trip')
+    assertEqual(recompiled.plans[0].chain[0].args.scale.seed, 42, 'seed survives the round trip')
+})
+
+test('Unparser: every type spelling the validator accepts round-trips', () => {
+    const spellings = [
+        '0', '1', '2', '3', '4', '5', '6',
+        'oscKind.sine', 'oscKind.tri', 'oscKind.saw', 'oscKind.sawInv', 'oscKind.square',
+        'oscKind.noise', 'oscKind.noise1d', 'oscKind.noise2d',
+        'oscType.sine', 'oscType.linear', 'oscType.sawtooth', 'oscType.sawtoothInv',
+        'oscType.square', 'oscType.noise1d', 'oscType.noise2d',
+        'sine', 'tri', 'saw', 'sawInv', 'square', 'noise', 'noise1d', 'noise2d'
+    ]
+    for (const spelling of spellings) {
+        for (const r of roundTripOscType(spelling)) {
+            assertEqual(r.diagnostics, 0, `${r.form} ${spelling}: the validator accepts it`)
+            assertEqual(r.recompileDiagnostics, 0, `${r.form} ${spelling}: unparsed as ${r.line}, recompiles without diagnostics`)
+            assertEqual(r.recompiledKind, r.kind, `${r.form} ${spelling}: unparsed as ${r.line}, kind survives`)
+            assertEqual(r.recompiledSeed, r.seed, `${r.form} ${spelling}: unparsed as ${r.line}, seed survives`)
+        }
+    }
+})
+
+// Unparse output for kinds 0-5, recorded before kind 6 joined the numeric
+// mapping. These strings must not change.
+test('Unparser: kinds 0-5 keep their unparse output byte for byte', () => {
+    const pinned = {
+        '0': 'oscKind.sine', '1': 'oscKind.tri', '2': 'oscKind.saw', '3': 'oscKind.sawInv',
+        '4': 'oscKind.square', '5': 'oscKind.noise1d',
+        'oscKind.sine': 'oscKind.sine', 'oscKind.tri': 'oscKind.tri', 'oscKind.saw': 'oscKind.saw',
+        'oscKind.sawInv': 'oscKind.sawInv', 'oscKind.square': 'oscKind.square',
+        'oscKind.noise': 'oscKind.noise', 'oscKind.noise1d': 'oscKind.noise1d',
+        'oscType.sine': 'oscKind.sine', 'oscType.square': 'oscKind.square', 'oscType.noise1d': 'oscKind.noise1d',
+        'sine': 'sine', 'tri': 'tri'
+    }
+    for (const [spelling, typeText] of Object.entries(pinned)) {
+        const [inline, viaLet] = roundTripOscType(spelling)
+        assertEqual(inline.line, `noise(scale: osc(type: ${typeText}, speed: 2, seed: 42))`, `inline ${spelling}`)
+        assertEqual(viaLet.line, `let o = osc(type: ${typeText}, speed: 2, seed: 42)`, `let ${spelling}`)
+    }
+    const names = ['sine', 'tri', 'saw', 'sawInv', 'square', 'noise1d']
+    for (let kind = 0; kind <= 5; kind++) {
+        for (const seed of [1, 42]) {
+            const seedText = kind === 5 && seed !== 1 ? `, seed: ${seed}` : ''
+            assertEqual(
+                formatValue({ type: 'Oscillator', oscType: kind, min: 0, max: 1, speed: 2, offset: 0, seed }),
+                `osc(type: oscKind.${names[kind]}, speed: 2${seedText})`,
+                `config kind ${kind} seed ${seed}`)
+        }
+    }
+})
+
 // ============================================================================
 // Runtime Tests (evaluateOscillator via Pipeline)
 // ============================================================================
