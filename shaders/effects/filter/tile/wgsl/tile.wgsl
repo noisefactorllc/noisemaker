@@ -55,7 +55,9 @@ fn rotationalFold(uv: vec2<f32>, n: i32) -> vec2<f32> {
     var a = atan2(p.y, p.x);
     let r = length(p);
 
-    a = ((a + TAU) % TAU) % sectorAngle;
+    // GLSL mod(mod(a + TAU, TAU), sectorAngle), with mod(x, y) = x - y * floor(x / y)
+    let wrapped = (a + TAU) - TAU * floor((a + TAU) / TAU);
+    a = wrapped - sectorAngle * floor(wrapped / sectorAngle);
     if (a > sectorAngle * 0.5) {
         a = sectorAngle - a;
     }
