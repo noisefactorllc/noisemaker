@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "classicNoisedeck/refract",
-  "sourceHash": "c8234ad8805d388d5533c88ede21184fadd21bb623d8253c61d615b36b5c3f68",
-  "caseHash": "c51a639f99a79acfad1e48589362165d2c2f3d1cd3b2898b216f949911aa5374",
+  "sourceHash": "1cc4d430fe41b721e0fe766e69b2dd69eec45f21081c8926acfc1672cf01400a",
+  "caseHash": "a8bbb5315b23d0114a11082d6214374c792685b5e51e5282d2f9a7dd16fb5ff8",
   "resolution": [
     64,
     64
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 4083
+      "uniqueColors": 4085
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 4083
+      "uniqueColors": 4085
     }
   },
   "execution": {

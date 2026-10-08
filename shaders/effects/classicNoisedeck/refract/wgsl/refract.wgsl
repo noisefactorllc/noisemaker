@@ -15,6 +15,9 @@ const TAU : f32 = 6.28318530718;
 @group(0) @binding(5) var<uniform> blendMode : i32;
 @group(0) @binding(6) var<uniform> mixAmt : f32;
 @group(0) @binding(7) var<uniform> wrap : i32;
+@group(0) @binding(8) var<uniform> resolution : vec2<f32>;
+@group(0) @binding(9) var<uniform> tileOffset : vec2<f32>;
+@group(0) @binding(10) var<uniform> fullResolution : vec2<f32>;
 
 fn map_range(value : f32, inMin : f32, inMax : f32, outMin : f32, outMax : f32) -> f32 {
     return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
@@ -25,6 +28,9 @@ fn desaturate(color : vec3<f32>) -> f32 {
 }
 
 fn convolve_kernel(uv : vec2<f32>, kernel : array<f32, 9>, divide : bool) -> vec3<f32> {
+    // Convert global UV to local UV for sampling inputTex
+    let localUV = (uv * fullResolution - tileOffset) / vec2<f32>(textureDimensions(inputTex, 0));
+
     let dims = vec2<f32>(textureDimensions(inputTex, 0));
     let steps = 1.0 / dims;
     var offsets : array<vec2<f32>, 9>;
@@ -43,7 +49,7 @@ fn convolve_kernel(uv : vec2<f32>, kernel : array<f32, 9>, divide : bool) -> vec
     let scale = floor(map_range(amount, 0.0, 100.0, 0.0, 20.0));
 
     for (var i : i32 = 0; i < 9; i = i + 1) {
-        let color = textureSample(inputTex, samp, uv + offsets[i] * scale).rgb;
+        let color = textureSample(inputTex, samp, localUV + offsets[i] * scale).rgb;
         conv = conv + color * kernel[i];
         kernelWeight = kernelWeight + kernel[i];
     }
@@ -196,19 +202,29 @@ fn blend_colors(color1 : vec4<f32>, color2 : vec4<f32>) -> vec3<f32> {
 
 @fragment
 fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
-    let dims = vec2<f32>(textureDimensions(inputTex, 0));
-    var uv = position.xy / dims;
+    let globalCoord = position.xy + tileOffset;
+    var uv = globalCoord / fullResolution;
 
     var color = vec4<f32>(0.0);
-    let inputColor = textureSample(inputTex, samp, uv);
+
+    // Convert global UV to local UV for sampling inputTex
+    let localUV = (uv * fullResolution - tileOffset) / vec2<f32>(textureDimensions(inputTex, 0));
+    let inputColor = textureSample(inputTex, samp, localUV);
     let brightness = desaturate(inputColor.rgb) + direction / 360.0;
 
+    // In tiling mode, clamp displacement to overlap budget
+    var displacement = amount * 0.01;
+    if (fullResolution.x > resolution.x || fullResolution.y > resolution.y) {
+        let maxDisplacement = 256.0 / max(fullResolution.x, fullResolution.y);
+        displacement = min(displacement, maxDisplacement);
+    }
+
     if (mode == 0) {
-        uv.x = uv.x + cos(brightness * TAU) * amount * 0.01;
-        uv.y = uv.y + sin(brightness * TAU) * amount * 0.01;
+        uv.x = uv.x + cos(brightness * TAU) * displacement;
+        uv.y = uv.y + sin(brightness * TAU) * displacement;
     } else if (mode == 1) {
-        uv.y = uv.y + desaturate(derivX(uv, false)) * amount * 0.01;
-        uv.x = uv.x + desaturate(derivY(uv, false)) * amount * 0.01;
+        uv.y = uv.y + desaturate(derivX(uv, false)) * displacement;
+        uv.x = uv.x + desaturate(derivY(uv, false)) * displacement;
     }
 
     if (wrap == 0) {
@@ -222,7 +238,9 @@ fn main(@builtin(position) position : vec4<f32>) -> @location(0) vec4<f32> {
         uv = clamp(uv, vec2<f32>(0.0), vec2<f32>(1.0));
     }
 
-    color = textureSample(inputTex, samp, uv);
+    // Convert warped global UV to local UV for sampling
+    let warpedLocalUV = (uv * fullResolution - tileOffset) / vec2<f32>(textureDimensions(inputTex, 0));
+    color = textureSample(inputTex, samp, warpedLocalUV);
     color = vec4<f32>(blend_colors(inputColor, color), color.a);
 
     return color;
