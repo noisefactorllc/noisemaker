@@ -1,0 +1,15 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/testPattern",
+        "filter/spinBlur"
+    ],
+    "dsl": "search synth, filter\n\ntestPattern(pattern: colorBars).spinBlur(amount: 40, centerX: 0.3, centerY: 0.7).write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}

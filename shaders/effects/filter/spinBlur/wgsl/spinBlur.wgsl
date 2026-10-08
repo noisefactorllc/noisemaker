@@ -28,9 +28,8 @@ fn hash12(p: vec2<f32>) -> f32 {
     return fract((p3.x + p3.y) * p3.z);
 }
 
-// The symmetric tap arc is invariant to the backend coordinate
-// handedness. Its per-pixel jitter is normalized separately below so
-// corresponding presented pixels use the same angular offset.
+// Rotate uv around center by angle, aspect-corrected exactly as
+// filter/pinch's rotate2D corrects its own distortion.
 fn rotateAround(uv: vec2<f32>, center: vec2<f32>, angle: f32, aspectRatio: f32) -> vec2<f32> {
     var p = uv;
     p.x = p.x * aspectRatio;
@@ -39,7 +38,7 @@ fn rotateAround(uv: vec2<f32>, center: vec2<f32>, angle: f32, aspectRatio: f32) 
     p = p - c;
     let s = sin(angle);
     let co = cos(angle);
-    p = vec2<f32>(co * p.x - s * p.y, s * p.x + co * p.y);
+    p = mat2x2<f32>(co, -s, s, co) * p;
     p = p + c;
     p.x = p.x / aspectRatio;
     return p;
@@ -59,13 +58,11 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
 
     let arc = radians(uniforms.amount);
     let angularStep = arc / f32(N - 1);
-    // Mirror-invariant global coordinates match glsl/spinBlur.glsl and
-    // remain continuous across tiles. The sign is reversed because
-    // reflecting the symmetric tap arc maps theta to -theta, including
-    // the sub-step offset.
+    // Mirror-invariant global coordinates, as glsl/spinBlur.glsl computes
+    // them, continuous across tiles.
     let jitterCoord = vec2<f32>(globalCoord.x,
         abs(globalCoord.y - fullDims.y * 0.5));
-    let jitter = -(hash12(jitterCoord) - 0.5) * angularStep;
+    let jitter = (hash12(jitterCoord) - 0.5) * angularStep;
 
     var sum = vec4<f32>(0.0);
     for (var i: i32 = 0; i < N; i++) {
