@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "filter/pinch",
-  "sourceHash": "187e2e4083f0468e95996b5721f103f3968602fa47fbaed576df4ad79984af54",
-  "caseHash": "1d2db479423eac7076874e7a4ba0db6b6598216c4a9a508a32ff6e23a17c2d33",
+  "sourceHash": "04f1c4fc12e237413ab635269ff4d05afb4a26c1cf27018a31d878f9b15ca119",
+  "caseHash": "1c23b4e294f8102aa259f124e8495afe49878f71bf3d3bb3e01c9f189fb3d0bf",
   "resolution": [
     64,
     64
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 3606,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 31
+      "uniqueColors": 28
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 3606,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 31
+      "uniqueColors": 28
     }
   },
   "execution": {
