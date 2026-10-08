@@ -6,7 +6,7 @@
  */
 
 struct Uniforms {
-    data: array<vec4<f32>, 3>,
+    data: array<vec4<f32>, 4>,
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -113,14 +113,15 @@ fn meltDisplace(uv_in: vec2<f32>, meltAmt: f32, t: f32, sd: f32, resX: f32) -> v
     return uv;
 }
 
-fn scatterDisplace(uv_in: vec2<f32>, scatterAmt: f32, t: f32, sd: f32, fragCoord: vec2<f32>) -> vec2<f32> {
+fn scatterDisplace(uv_in: vec2<f32>, scatterAmt: f32, t: f32, sd: f32, rs: f32, tileOff: vec2<f32>, fragCoord: vec2<f32>) -> vec2<f32> {
     var uv = uv_in;
-    let phaseHash = prng(vec3<f32>(floor(fragCoord), sd + 700.0));
+    let scaledCoord = floor((fragCoord + tileOff) / rs);
+    let phaseHash = prng(vec3<f32>(scaledCoord, sd + 700.0));
     let pixTime = floor((t + phaseHash.x) * 8.0);
-    let pixHash = prng(vec3<f32>(floor(fragCoord), pixTime + sd));
+    let pixHash = prng(vec3<f32>(scaledCoord, pixTime + sd));
     let threshold = mix(0.98, 0.1, scatterAmt * scatterAmt);
     if (pixHash.x > threshold) {
-        let dirHash = prng(vec3<f32>(floor(fragCoord) + vec2<f32>(1000.0), pixTime + sd));
+        let dirHash = prng(vec3<f32>(scaledCoord + vec2<f32>(1000.0), pixTime + sd));
         let dist = scatterAmt * 0.15 * (0.5 + pixHash.y * 0.5);
         uv.x = fract(uv.x + (dirHash.x - 0.5) * dist);
         uv.y = clamp(uv.y + (dirHash.y - 0.5) * dist, 0.0, 1.0);
@@ -143,15 +144,24 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let melt = uniforms.data[2].x;
     let scatter = uniforms.data[2].y;
     let bandHeight = uniforms.data[2].z;
+    let renderScale = uniforms.data[2].w;
 
-    let resolution = vec2<f32>(textureDimensions(inputTex));
-    let resX = resolution.x;
-    let uv = pos.xy / resolution;
+    let tileOffset = uniforms.data[3].xy;
+    let fullResolution = uniforms.data[3].zw;
+
+    let tileDims = vec2<f32>(textureDimensions(inputTex));
+    let resolution = select(tileDims, fullResolution, fullResolution.x > 0.0);
+    let globalCoord = pos.xy + tileOffset;
+    let uv = globalCoord / resolution;
+    // Scale pixel-space coordinates so corruption patterns maintain their
+    // visual size regardless of export resolution
+    let rs = max(renderScale, 1.0);
+    let resX = resolution.x / rs;
     let spd = floor(speed);
     let t = time * TAU * spd;
 
-    // Scanline grouping
-    let rawRow = pos.y;
+    // Scanline grouping - scale band height so rows stay visually consistent
+    let rawRow = globalCoord.y / rs;
     let bh = max(1.0, floor(bandHeight * 0.32));
     let row = floor(rawRow / bh);
 
@@ -172,7 +182,7 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     }
     let scatterAmt = scatter / 100.0;
     if (scatterAmt > 0.0) {
-        sampleUv = scatterDisplace(sampleUv, scatterAmt, t, seed, pos.xy);
+        sampleUv = scatterDisplace(sampleUv, scatterAmt, t, seed, rs, tileOffset, pos.xy);
     }
 
     // Band-based corruption to UV
