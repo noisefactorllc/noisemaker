@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "filter/osd",
+  "sourceHash": "fa9ccfd08aef5e6e2b0cabc9eaa609a1479792fe15cf685ccfff69c208dfc8dc",
+  "caseHash": "07fecf681cad3cfc6efa041151cd1a27e8b1f6de6bb79e26077d503793e38085",
+  "resolution": [
+    160,
+    128
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 160,
+      "height": 128,
+      "nonzeroRgbPixels": 17920,
+      "nonzeroAlphaPixels": 20480,
+      "uniqueColors": 43
+    },
+    "webgpu": {
+      "width": 160,
+      "height": 128,
+      "nonzeroRgbPixels": 17920,
+      "nonzeroAlphaPixels": 20480,
+      "uniqueColors": 43
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}
