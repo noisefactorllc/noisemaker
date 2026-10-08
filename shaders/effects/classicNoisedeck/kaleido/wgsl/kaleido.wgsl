@@ -77,8 +77,8 @@ fn randomFromLatticeWithOffset(st: vec2f, freq: f32, offset: vec2i) -> vec3f {
     let baseFloor = floor(lattice);
     var base = vec2i(baseFloor) + offset;
     let frac = lattice - baseFloor;
-    let seedInt = i32(floor(f32(u.seed)));
-    let seedFrac = fract(f32(u.seed));
+    let seedInt = u.seed;
+    let seedFrac = 0.0;
     let xCombined = frac.x + seedFrac;
     var xi = base.x + seedInt + i32(floor(xCombined));
     var yi = base.y;
@@ -89,9 +89,9 @@ fn randomFromLatticeWithOffset(st: vec2f, freq: f32, offset: vec2i) -> vec3f {
             yi = positiveModulo(yi, freqInt);
         }
     }
-    let xBits = u32(xi);
-    let yBits = u32(yi);
-    let seedBits = bitcast<u32>(f32(u.seed));
+    let xBits = bitcast<u32>(xi);
+    let yBits = bitcast<u32>(yi);
+    let seedBits = bitcast<u32>(u.seed);
     let fracBits = bitcast<u32>(seedFrac);
     let jitter = vec3u(
         (fracBits * 374761393u) ^ 0x9E3779B9u,
