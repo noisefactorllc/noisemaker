@@ -1336,7 +1336,7 @@ export class Pipeline {
         const surfaceNames = new Set(['o0', 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7',
             'geo0', 'geo1', 'geo2', 'geo3', 'geo4', 'geo5', 'geo6', 'geo7',
             'vol0', 'vol1', 'vol2', 'vol3', 'vol4', 'vol5', 'vol6', 'vol7'])
-        const readSurfaces = new Set()
+        const readBeforeWriteSurfaces = new Set()
         const writtenSurfaces = new Set()
 
         // Global mesh surfaces (mesh0-mesh7) - each mesh has 3 linked textures
@@ -1356,7 +1356,9 @@ export class Pipeline {
                         const globalName = this.parseGlobalName(texId)
                         if (globalName && !meshTexturePattern.test(globalName)) {
                             surfaceNames.add(globalName)
-                            readSurfaces.add(globalName)
+                            if (!writtenSurfaces.has(globalName)) {
+                                readBeforeWriteSurfaces.add(globalName)
+                            }
                         }
                     }
                 }
@@ -1373,7 +1375,10 @@ export class Pipeline {
                 }
             }
         }
-        this._feedbackSurfaces = new Set([...readSurfaces].filter(name => writtenSurfaces.has(name)))
+        // A surface first written and then read is frame-local scratch (such
+        // as Lenia's clear/deposit density target), not cross-frame feedback.
+        this._feedbackSurfaces = new Set(
+            [...readBeforeWriteSurfaces].filter(name => writtenSurfaces.has(name)))
 
         // Check if any pass references midiNoteGrid texture
         this._needsMidiNoteGrid = false

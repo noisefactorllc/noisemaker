@@ -665,6 +665,41 @@ test('Pipeline - Storage-only feedback surface survives a skipped pass', async (
     }
 })
 
+test('Pipeline - Scratch surface written before read keeps display-style swap', async () => {
+    const backend = new MockBackend()
+    const graph = {
+        passes: [
+            { id: 'clear', program: 'clear', inputs: {}, outputs: { color: 'global_scratch' } },
+            { id: 'deposit', program: 'deposit', blend: true,
+              inputs: {}, outputs: { color: 'global_scratch' } },
+            { id: 'consume', program: 'consume',
+              inputs: { source: 'global_scratch' }, outputs: { color: 'result' } }
+        ],
+        textures: new Map(),
+        programs: {
+            clear: { fragment: 'void main() {}' },
+            deposit: { fragment: 'void main() {}' },
+            consume: { fragment: 'void main() {}' }
+        }
+    }
+
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(16, 16)
+
+    pipeline.render(0)
+    const firstDepositWrite = backend.passes[1].surfaceBindings.scratch.write
+    if (backend.passes[2].surfaceBindings.scratch.read !== firstDepositWrite) {
+        throw new Error('Consumer should sample the deposit pass within the same frame')
+    }
+
+    backend.passes = []
+    pipeline.render(0.016)
+    const nextClearWrite = backend.passes[0].surfaceBindings.scratch.write
+    if (nextClearWrite !== firstDepositWrite) {
+        throw new Error(`Expected next clear to overwrite prior deposit target ${firstDepositWrite}, got ${nextClearWrite}`)
+    }
+})
+
 test('Pipeline - Pass Condition Skip', async () => {
     const backend = new MockBackend()
     const graph = {
