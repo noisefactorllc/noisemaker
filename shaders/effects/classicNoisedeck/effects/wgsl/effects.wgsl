@@ -372,17 +372,10 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     uv += 0.5;
 
     let imageSize = u.resolution;
-    // The GLSL scales these terms by resolution / imageSize, and imageSize is
-    // resolution. WebGL2 computes that ratio as exactly 1.0 at every size.
-    // Dawn compiles WGSL in Metal's relaxed math mode on macOS 15 and later,
-    // where the same division becomes x * rcp(x) and can miss 1 by an ulp.
-    // This select gives exactly 1.0 as a runtime value, which the compiler
-    // can neither fold nor reassociate, as WebGL2's ratio behaves.
-    let unitRatio = select(vec2f(1.0), vec2f(-1.0), u.resolution < vec2f(0.0));
-    uv.x -= ceil((unitRatio.x * scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
-    uv.y += ceil((unitRatio.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale);
-    uv.x -= mapRange(u.offsetX, -100.0, 100.0, -unitRatio.x * scale, unitRatio.x * scale) * 1.5;
-    uv.y -= mapRange(u.offsetY, -100.0, 100.0, -unitRatio.y * scale, unitRatio.y * scale) * 1.5;
+    uv.x -= ceil((u.resolution.x / imageSize.x * scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
+    uv.y += ceil((u.resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale);
+    uv.x -= mapRange(u.offsetX, -100.0, 100.0, -u.resolution.x / imageSize.x * scale, u.resolution.x / imageSize.x * scale) * 1.5;
+    uv.y -= mapRange(u.offsetY, -100.0, 100.0, -u.resolution.y / imageSize.y * scale, u.resolution.y / imageSize.y * scale) * 1.5;
     uv = fract(uv);
 
     // flip/mirror

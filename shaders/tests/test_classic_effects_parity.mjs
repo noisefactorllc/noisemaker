@@ -22,6 +22,18 @@ const flipModes = Object.entries(definition.globals.flip.choices)
     .filter(([name, value]) => value !== null && name !== 'none').map(([name]) => name)
 
 const transforms = 'scaleAmt: 150, rotation: 30, offsetX: 20, offsetY: -15'
+// Every case must match exactly, except these three (operator decision,
+// 2026-10-08). On macOS 15 and later, Chrome compiles WGSL in Metal's relaxed
+// math mode while WebGL2 compiles in fast mode. Bit dumps on an Apple M4 under
+// macOS 26.5 show the rotated, scaled and offset sampling coordinate differing
+// by 1-4 ulps between the backends, and WGSL cannot pin the evaluation order.
+// zoomBlur's 41 taps and bloom's 48 taps turn that into these measured
+// residuals. Under macOS 14, where both backends use fast mode, they are exact.
+const measuredTolerance = {
+    'zoomBlur 120x72': { tolerance: { pixels: 2, maxDiff: 1 } },
+    'bloom 121x41': { tolerance: { pixels: 1, maxDiff: 1 } },
+    'zoomBlur 121x41': { tolerance: { pixels: 4, maxDiff: 2 } },
+}
 const program = (args, pre = '') =>
     `search classicNoisedeck\n\nnoise(seed: 1)${pre}.effects(${args}).write(o0)\nrender(o0)`
 const cases = [
@@ -44,6 +56,7 @@ const cases = [
         id: `${mode} effectAmt 7, other transforms, rlDu, ${size.join('x')}`,
         size,
         dsl: program(`effect: ${mode}, effectAmt: 7, scaleAmt: 85, rotation: -47, offsetX: 33, offsetY: 61, flip: rlDu`),
+        ...measuredTolerance[`${mode} ${size.join('x')}`],
     }))),
     // A first pass pushes the input above 1 and below 0.
     ...['cga', 'edge', 'litEdge', 'derivDivide'].flatMap((mode) => [100, -100].map((intensity) => ({
@@ -127,11 +140,12 @@ try {
     for (const c of cases) {
         const result = compare(await present(webgl2, c), await present(webgpu, c))
         const summary = `${c.id}: ${result.mismatched}/${result.pixels} pixels differ, maxDiff ${result.maxDiff}`
-        if (result.mismatched > 0 || result.colors < 2) {
+        const allowed = c.tolerance ?? { pixels: 0, maxDiff: 0 }
+        if (result.mismatched > allowed.pixels || result.maxDiff > allowed.maxDiff || result.colors < 2) {
             failures.push(result.colors < 2 ? `${c.id}: the WebGL2 frame is flat` : summary)
             console.log(`FAIL ${summary}`)
         } else {
-            console.log(`PASS ${summary}`)
+            console.log(`PASS ${summary}${c.tolerance ? ` (measured tolerance: ${allowed.pixels} pixels, maxDiff ${allowed.maxDiff})` : ''}`)
         }
     }
     for (const { backend, errors } of [webgl2, webgpu]) {
@@ -142,5 +156,5 @@ try {
     releaseServer()
 }
 
-assert.deepEqual(failures, [], `classicNoisedeck/effects WebGPU must match WebGL2 exactly:\n${failures.join('\n')}`)
-console.log(`PASS classicNoisedeck/effects: ${cases.length} cases match exactly on WebGL2 and WebGPU`)
+assert.deepEqual(failures, [], `classicNoisedeck/effects WebGPU must match WebGL2:\n${failures.join('\n')}`)
+console.log(`PASS classicNoisedeck/effects: ${cases.length} cases match on WebGL2 and WebGPU (${Object.keys(measuredTolerance).length} within measured tolerance, the rest exact)`)
