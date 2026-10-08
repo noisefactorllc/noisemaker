@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "classicNoisedeck/noise",
-  "sourceHash": "98368be857dbc4d75fa886cad68a99cb022b136f55d5f630ff3bb7d0346aa72e",
-  "caseHash": "b1c1bbd7211649d491e08f6ddc88a94cb6d675c902796032fc1b3d89b644cc1d",
+  "sourceHash": "345fbfe7eaf89f8bdc5df317e30d902bd79cadf3c70590623c611740a71bc27e",
+  "caseHash": "1629373831db15fcc74d50d3f37cb46617cc8e28cc85f2fbd4daa202574b8f72",
   "resolution": [
     160,
     144
@@ -13,14 +13,14 @@
       "height": 144,
       "nonzeroRgbPixels": 23040,
       "nonzeroAlphaPixels": 23040,
-      "uniqueColors": 22218
+      "uniqueColors": 21635
     },
     "webgpu": {
       "width": 160,
       "height": 144,
       "nonzeroRgbPixels": 23040,
       "nonzeroAlphaPixels": 23040,
-      "uniqueColors": 22218
+      "uniqueColors": 21635
     }
   },
   "execution": {

@@ -7,5 +7,5 @@
   "effects": [
     "classicNoisedeck/noise"
   ],
-  "dsl": "search classicNoisedeck\nnoise(seed: 1, refractAmt: 35).write(o0)\nrender(o0)"
+  "dsl": "search classicNoisedeck\nnoise(seed: 1, refractAmt: 35, type: catmullRom3x3).write(o0)\nrender(o0)"
 }
