@@ -25,6 +25,8 @@ export default new Effect({
     trapShape:   { slot: 4, components: 'x' },
     lightAngle:  { slot: 4, components: 'y' },
     rotation:    { slot: 4, components: 'z' },
+    tileOffset:     { slot: 5, components: 'xy' },
+    fullResolution: { slot: 5, components: 'zw' },
   },
 
   globals: {

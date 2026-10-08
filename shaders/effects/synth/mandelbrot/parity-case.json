@@ -11,5 +11,12 @@
     ],
     "settleMs": 2000,
     "epsilon": 0,
-    "requireColorVariation": true
+    "requireColorVariation": true,
+    "tiles": {
+        "size": [
+            32,
+            32
+        ],
+        "renderScale": 2
+    }
 }

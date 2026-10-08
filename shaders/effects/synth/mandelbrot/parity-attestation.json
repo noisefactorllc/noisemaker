@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "synth/mandelbrot",
-  "sourceHash": "84741bc166106a92723a25fd37b37453d0468d6190740cedddaee851b6f82f66",
-  "caseHash": "8206e0f3a807c1e95fa0b392c8e0c3b4f74d5d4d5fbfafb2177fc00b8cf0586c",
+  "sourceHash": "d3b6b074e4559738c578a2fb8b50639813bd888d7aa24d2f9798057013176fa5",
+  "caseHash": "b163ff7ee4d844459f60863211d759a8112b313498ea9f98a1bffccef052f38c",
   "resolution": [
     64,
     64

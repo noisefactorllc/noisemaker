@@ -11,7 +11,8 @@ struct Uniforms {
     // Slot 2: centerHiX, centerHiY, centerLoX, centerLoY
     // Slot 3: zoom, zoomSpeed, zoomDepth, invert
     // Slot 4: stripeFreq, trapShape, lightAngle, rotation
-    data: array<vec4<f32>, 5>,
+    // Slot 5: tileOffset.xy, fullResolution.xy
+    data: array<vec4<f32>, 6>,
 }
 
 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -345,6 +346,10 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let lightAngle = uniforms.data[4].y;
     let rotation = uniforms.data[4].z;
 
+    let tileOffset = uniforms.data[5].xy;
+    let fullResolution = uniforms.data[5].zw;
+    let globalCoord = pos.xy + tileOffset;
+
     let maxIter = min(iterations, MAX_ITER);
 
     // Clamp zoom depth to POI coordinate precision
@@ -369,11 +374,11 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     var value: f32;
 
     if (outputMode == 4) {
-        value = outputNormalMap(pos.xy, resolution, cX_df, cY_df,
+        value = outputNormalMap(globalCoord, fullResolution, cX_df, cY_df,
                                effZoom, rot, maxIter, lightAngle,
                                stripeFreq, trapShape);
     } else {
-        let coords = transformCoords_df64(pos.xy, resolution, cX_df, cY_df, effZoom, rot);
+        let coords = transformCoords_df64(globalCoord, fullResolution, cX_df, cY_df, effZoom, rot);
         let r = mandelbrot_df64(coords.re, coords.im, maxIter, stripeFreq, trapShape);
 
         if (outputMode == 0) {
