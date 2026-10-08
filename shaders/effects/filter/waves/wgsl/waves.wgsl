@@ -26,7 +26,7 @@ fn rotate2D(st_in: vec2<f32>, rot: f32, aspectRatio: f32) -> vec2<f32> {
     st = st - vec2<f32>(0.5 * aspectRatio, 0.5);
     let c = cos(angle);
     let s = sin(angle);
-    st = vec2<f32>(c * st.x - s * st.y, s * st.x + c * st.y);
+    st = mat2x2<f32>(c, -s, s, c) * st;
     st = st + vec2<f32>(0.5 * aspectRatio, 0.5);
     st.x = st.x / aspectRatio;
     return st;
