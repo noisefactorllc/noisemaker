@@ -8,5 +8,5 @@
     "classicNoisedeck/noise",
     "classicNoisedeck/glitch"
   ],
-  "dsl": "search classicNoisedeck\nnoise(seed: 1).glitch(glitchiness: 40, scanlinesAmt: 50, snowAmt: 30).write(o0)\nrender(o0)"
+  "dsl": "search classicNoisedeck\nnoise(seed: 1).glitch(glitchiness: 40, scanlinesAmt: 50, snowAmt: 30, vignetteAmt: 75).write(o0)\nrender(o0)"
 }

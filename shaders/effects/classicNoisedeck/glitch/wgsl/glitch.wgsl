@@ -220,12 +220,12 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     // vignette
     if (u.vignetteAmt < 0.0) {
         color = vec4<f32>(
-            mix(color.rgb * (1.0 - pow(length(vec2<f32>(0.5) - uv) * 1.125, 2.0)), color.rgb, map(u.vignetteAmt, -100.0, 0.0, 0.0, 1.0)),
+            mix(color.rgb * 1.0 - pow(length(vec2<f32>(0.5) - uv) * 1.125, 2.0), color.rgb, map(u.vignetteAmt, -100.0, 0.0, 0.0, 1.0)),
             max(color.a, length(vec2<f32>(0.5) - uv) * map(u.vignetteAmt, -100.0, 0.0, 1.0, 0.0))
         );
     } else {
         color = vec4<f32>(
-            mix(color.rgb, 1.0 - (1.0 - color.rgb * (1.0 - pow(length(vec2<f32>(0.5) - uv) * 1.125, 2.0))), map(u.vignetteAmt, 0.0, 100.0, 0.0, 1.0)),
+            mix(color.rgb, 1.0 - (1.0 - color.rgb * 1.0 - pow(length(vec2<f32>(0.5) - uv) * 1.125, 2.0)), map(u.vignetteAmt, 0.0, 100.0, 0.0, 1.0)),
             max(color.a, length(vec2<f32>(0.5) - uv) * map(u.vignetteAmt, -100.0, 0.0, 1.0, 0.0))
         );
     }
