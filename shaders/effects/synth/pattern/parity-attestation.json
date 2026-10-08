@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "synth/pattern",
-  "sourceHash": "8a9e6b677e16d996a6fa70b502546fb37ea5cebae5783d6f8a99b6a5b78da4fb",
-  "caseHash": "3d091379f06be9dea98a079dbd8088c125f76c6f15a8c75a289736c24e724b02",
+  "sourceHash": "de3ae5e669b69a9fe202c5e456725349511aa53b402a63613057d82d36ac655d",
+  "caseHash": "641c40e770f0b306f73f7df589f4964af8831a67d569b289121c25c80fe919ee",
   "resolution": [
     64,
     64
