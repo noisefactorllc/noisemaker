@@ -44,8 +44,22 @@ if (caseErrors.length > 0) throw new Error(`Invalid parity case: ${caseErrors.jo
 const resolution = parityCase.resolution
 const initialSourceHash = computeParitySourceHash(repoRoot, parityCase)
 
+// A tiled case renders the full image as a grid of tiles through the same
+// setTileRegion() call the host's large-format export uses: each tile renders
+// at tile size with its offset (bottom-origin, as the host passes it), the full
+// resolution and the case's renderScale, and the tiles are stitched back into
+// one full-resolution frame per backend.
+const tilePlan = parityCase.tiles ? {
+    fullResolution: resolution,
+    renderScale: parityCase.tiles.renderScale ?? 1,
+    tiles: Array.from({ length: (resolution[1] / parityCase.tiles.size[1]) * (resolution[0] / parityCase.tiles.size[0]) }, (_, index) => {
+        const columns = resolution[0] / parityCase.tiles.size[0]
+        return { offset: [(index % columns) * parityCase.tiles.size[0], Math.floor(index / columns) * parityCase.tiles.size[1]] }
+    }),
+} : null
+
 async function renderBackend(browser, baseUrl, preferWebGPU) {
-    const [width, height] = resolution
+    const [width, height] = tilePlan ? parityCase.tiles.size : resolution
     const page = await browser.newPage({ viewport: { width, height } })
     const consoleMessages = []
     page.on('console', (message) => {
@@ -137,18 +151,61 @@ function sameBytes(a, b) {
     for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
     return true;
 }
-let capture = await readBest();
-const settleDeadline = Date.now() + settleMs;
-let settled = settleMs === 0;
-while (Date.now() < settleDeadline) {
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    const next = await readBest();
-    if (next && capture && sameBytes(next.data, capture.data)) {
-        capture = next;
-        settled = true;
-        break;
+async function captureSettled() {
+    let capture = await readBest();
+    const settleDeadline = Date.now() + settleMs;
+    let settled = settleMs === 0;
+    while (Date.now() < settleDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        const next = await readBest();
+        if (next && capture && sameBytes(next.data, capture.data)) {
+            capture = next;
+            settled = true;
+            break;
+        }
+        if (next) capture = next;
     }
-    if (next) capture = next;
+    return { capture, settled };
+}
+const tilePlan = ${JSON.stringify(tilePlan)};
+let capture = null;
+let settled = true;
+if (!tilePlan) {
+    ({ capture, settled } = await captureSettled());
+} else {
+    // WebGL2 readback rows run top-first and WebGPU readback rows bottom-first;
+    // each stitched frame keeps its backend's row order, as an untiled capture does.
+    const [fullWidth, fullHeight] = tilePlan.fullResolution;
+    const topFirst = renderer.pipeline.backend.getName() === 'WebGL2';
+    const data = new Array(fullWidth * fullHeight * 4).fill(0);
+    let id = null;
+    for (const tile of tilePlan.tiles) {
+        renderer.setTileRegion({ offset: tile.offset, fullResolution: tilePlan.fullResolution, renderScale: tilePlan.renderScale });
+        const part = await captureSettled();
+        if (!part.capture) { id = null; break; }
+        settled = settled && part.settled;
+        id = part.capture.id;
+        const tileWidth = part.capture.width;
+        const tileHeight = part.capture.height;
+        for (let row = 0; row < tileHeight; row++) {
+            const fullRow = topFirst ? fullHeight - tile.offset[1] - tileHeight + row : tile.offset[1] + row;
+            const from = row * tileWidth * 4;
+            const to = (fullRow * fullWidth + tile.offset[0]) * 4;
+            for (let i = 0; i < tileWidth * 4; i++) data[to + i] = part.capture.data[from + i];
+        }
+    }
+    renderer.clearTileRegion();
+    if (id) {
+        let nonzeroRgbPixels = 0;
+        let nonzeroAlphaPixels = 0;
+        const colors = new Set();
+        for (let i = 0; i < data.length; i += 4) {
+            if (data[i] || data[i + 1] || data[i + 2]) nonzeroRgbPixels++;
+            if (data[i + 3]) nonzeroAlphaPixels++;
+            colors.add(data[i] + ',' + data[i + 1] + ',' + data[i + 2]);
+        }
+        capture = { id, width: fullWidth, height: fullHeight, nonzeroRgbPixels, nonzeroAlphaPixels, uniqueColors: colors.size, data };
+    }
 }
 window.parityResult = {
     backend: renderer.pipeline.backend.getName(),
@@ -159,7 +216,7 @@ window.parityResult = {
     capture
 };
 </script>`, { waitUntil: 'load' })
-        await page.waitForFunction(() => window.parityResult, null, { timeout: 30000 })
+        await page.waitForFunction(() => window.parityResult, null, { timeout: 30000 * (tilePlan ? tilePlan.tiles.length : 1) })
         const result = await page.evaluate(() => window.parityResult)
         const expectedBackend = preferWebGPU ? 'WebGPU' : 'WebGL2'
         assert.equal(result.backend, expectedBackend, `expected ${expectedBackend}, got ${result.backend}`)

@@ -228,6 +228,22 @@ export function validateParityCase(parityCase, effectId) {
             }
         }
     }
+    if (parityCase?.tiles !== undefined) {
+        const tiles = parityCase.tiles
+        const size = tiles?.size
+        const resolution = parityCase?.resolution
+        if (!tiles || typeof tiles !== 'object' || !Array.isArray(size) || size.length !== 2 ||
+            !size.every((value) => integerInRange(value, 1, Number.MAX_SAFE_INTEGER)) ||
+            !Array.isArray(resolution) || resolution.length !== 2 ||
+            resolution[0] % size[0] !== 0 || resolution[1] % size[1] !== 0 ||
+            (resolution[0] / size[0]) * (resolution[1] / size[1]) < 2) {
+            errors.push('parity case tiles must give a tile size that divides the resolution into at least two tiles')
+        }
+        if (tiles?.renderScale !== undefined &&
+            (typeof tiles.renderScale !== 'number' || !Number.isFinite(tiles.renderScale) || tiles.renderScale <= 0)) {
+            errors.push('parity case tiles renderScale must be a positive number')
+        }
+    }
     return errors
 }
 

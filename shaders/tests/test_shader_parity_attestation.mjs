@@ -117,6 +117,12 @@ try {
         assert.ok(validateParityCase({ ...completeParityCase, meshInputs: [{ ...meshInput, ...change }] },
             'filter/example').some(error => error.includes('mesh input')), 'invalid mesh evidence must be rejected')
     }
+    assert.deepEqual(validateParityCase({ ...completeParityCase, tiles: { size: [4, 8], renderScale: 2 } }, 'filter/example'), [])
+    for (const tiles of [{ size: [3, 8] }, { size: [8, 8] }, { size: [4] }, { size: [0, 8] }, { size: [4, 4], renderScale: 0 },
+        { size: [4, 4], renderScale: 'x' }, null]) {
+        assert.ok(validateParityCase({ ...completeParityCase, tiles }, 'filter/example').some(error => error.includes('tiles')),
+            'invalid tile plans must be rejected')
+    }
     assert.equal(matchesTargetEffectPass({
         effectKey: 'example',
         effectFunc: 'example',
