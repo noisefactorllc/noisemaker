@@ -14,6 +14,9 @@ struct CRTParams {
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
 @group(0) @binding(1) var<storage, read_write> output_buffer : array<f32>;
 @group(0) @binding(2) var<uniform> params : CRTParams;
+@group(0) @binding(3) var<uniform> tileOffset : vec2<f32>;
+@group(0) @binding(4) var<uniform> fullResolution : vec2<f32>;
+@group(0) @binding(5) var<uniform> renderScale : f32;
 
 fn as_u32(value : f32) -> u32 {
     return u32(max(value, 0.0));
@@ -474,12 +477,15 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         return;
     }
 
-    let width_f : f32 = max(params.size.x, 1.0);
-    let height_f : f32 = max(params.size.y, 1.0);
+    // Scale pixel-space dimensions so CRT patterns maintain visual size
+    let rs : f32 = max(renderScale, 1.0);
+    let fullRes : vec2<f32> = select(params.size.xy, fullResolution, fullResolution.x > 0.0);
+    let width_f : f32 = max(fullRes.x / rs, 1.0);
+    let height_f : f32 = max(fullRes.y / rs, 1.0);
     let time : f32 = params.motion.x;
     let speed : f32 = params.motion.y;
-    let x : f32 = f32(gid.x);
-    let y : f32 = f32(gid.y);
+    let x : f32 = (f32(gid.x) + tileOffset.x) / rs;
+    let y : f32 = (f32(gid.y) + tileOffset.y) / rs;
 
     let displacement : f32 = 0.0625;
     let freq : vec2<f32> = freq_for_shape(2.0, width_f, height_f);
@@ -499,7 +505,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     let scan_value : f32 = sample_scanline_bilinear(x + base_offsets.x, y + base_offsets.y, width_f, height_f, scanline_base);
 
     // Step 3: Sample the input texture at the ORIGINAL, un-warped coordinates.
-    let base_sample : vec4<f32> = textureLoad(inputTex, vec2<i32>(i32(x), i32(y)), 0);
+    let base_sample : vec4<f32> = textureLoad(inputTex, vec2<i32>(i32(gid.x), i32(gid.y)), 0);
     let base_color : vec3<f32> = base_sample.xyz;
     let alpha : f32 = base_sample.w;
 
@@ -529,7 +535,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         red_x = blend_linear(red_x, x, gradient);
         let red_sample_x : f32 = blend_cosine(x, red_x, aber_mask);
         
-        let red_base_col : vec3<f32> = textureLoad(inputTex, vec2<i32>(i32(red_sample_x), i32(y)), 0).xyz;
+        let red_sample_global_x : f32 = red_sample_x * renderScale;
+        let red_sample_local_x : f32 = red_sample_global_x - tileOffset.x;
+        let red_base_col : vec3<f32> = textureLoad(inputTex, vec2<i32>(i32(red_sample_local_x), i32(gid.y)), 0).xyz;
         let red_offsets : vec2<f32> = compute_lens_offsets(
             vec2<f32>(red_sample_x, y),
             width_f,
@@ -550,7 +558,9 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         blue_x = blend_linear(x, blue_x, gradient);
         let blue_sample_x : f32 = blend_cosine(x, blue_x, aber_mask);
 
-        let blue_base_col : vec3<f32> = textureLoad(inputTex, vec2<i32>(i32(blue_sample_x), i32(y)), 0).xyz;
+        let blue_sample_global_x : f32 = blue_sample_x * renderScale;
+        let blue_sample_local_x : f32 = blue_sample_global_x - tileOffset.x;
+        let blue_base_col : vec3<f32> = textureLoad(inputTex, vec2<i32>(i32(blue_sample_local_x), i32(gid.y)), 0).xyz;
         let blue_offsets : vec2<f32> = compute_lens_offsets(
             vec2<f32>(blue_sample_x, y),
             width_f,
