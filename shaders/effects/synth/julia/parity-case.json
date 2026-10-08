@@ -3,7 +3,7 @@
     "effects": [
         "synth/julia"
     ],
-    "dsl": "search synth\n\njulia(iterations: 50).write(o0)\nrender(o0)",
+    "dsl": "search synth\n\njulia(iterations: 50, rotation: 30).write(o0)\nrender(o0)",
     "surface": "o0",
     "resolution": [
         64,

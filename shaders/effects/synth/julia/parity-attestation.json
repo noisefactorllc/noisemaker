@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "synth/julia",
-  "sourceHash": "2c3bf32663f302bdd29d52cab2a6f7b18eeeb9e8d0ac92d0884254b3d6b5737d",
-  "caseHash": "af66fffad70b912b8cae72cfd529f1ff933523789de5946b3658b3abe7b7e91f",
+  "sourceHash": "a3bc0ec1e39a89d7baf39791b2cc980ce6557c9262854ad344b59bc2a6bc7a86",
+  "caseHash": "a3e9c9c24e126c8bc1e50e13bce89f88be91c8b9d131d4a260443880cd339d9d",
   "resolution": [
     64,
     64
@@ -11,16 +11,16 @@
     "webgl2": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 1534,
+      "nonzeroRgbPixels": 1528,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 176
+      "uniqueColors": 202
     },
     "webgpu": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 1534,
+      "nonzeroRgbPixels": 1528,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 176
+      "uniqueColors": 202
     }
   },
   "execution": {
