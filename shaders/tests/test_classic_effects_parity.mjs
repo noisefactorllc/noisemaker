@@ -37,12 +37,14 @@ const cases = [
         dsl: program(`effect: ${mode}, effectAmt: ${amount}, ${transforms}, flip: upToDown`),
     }))),
     ...flipModes.map((flip) => ({ id: `flip ${flip}, transforms`, dsl: program(`${transforms}, flip: ${flip}`) })),
-    // A size that is neither square nor a power of two.
-    ...effectModes.map((mode) => ({
-        id: `${mode} effectAmt 7, other transforms, rlDu, 120x72`,
-        size: [120, 72],
+    // Sizes that are neither square nor powers of two. At 121x41, n * (1 / n)
+    // is not exactly 1, so the GLSL's (uv * fullResolution) / textureSize
+    // sampling coordinate is not exactly uv.
+    ...[[120, 72], [121, 41]].flatMap((size) => effectModes.map((mode) => ({
+        id: `${mode} effectAmt 7, other transforms, rlDu, ${size.join('x')}`,
+        size,
         dsl: program(`effect: ${mode}, effectAmt: 7, scaleAmt: 85, rotation: -47, offsetX: 33, offsetY: 61, flip: rlDu`),
-    })),
+    }))),
     // A first pass pushes the input above 1 and below 0.
     ...['cga', 'edge', 'litEdge', 'derivDivide'].flatMap((mode) => [100, -100].map((intensity) => ({
         id: `${mode} effectAmt 4 after intensity ${intensity}`,

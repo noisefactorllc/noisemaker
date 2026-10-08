@@ -48,6 +48,14 @@ fn glslMod(x: f32, y: f32) -> f32 {
     return x - y * floor(x / y);
 }
 
+// The GLSL maps a full-image coordinate into the input texture as
+// (uv * fullResolution - tileOffset) / textureSize. Untiled, tileOffset is 0
+// and fullResolution is the frame size. The division by the texture size is
+// x * rcp(size), which need not return uv exactly; compute it the same way.
+fn inputCoord(uv: vec2f) -> vec2f {
+    return (uv * u.resolution) / vec2f(textureDimensions(inputTex, 0));
+}
+
 // PCG PRNG
 fn pcg(v_in: vec3u) -> vec3u {
     var v = v_in * 1664525u + 1013904223u;
@@ -109,12 +117,14 @@ fn hsv2rgb(hsv: vec3f) -> vec3f {
     let x = c * (1.0 - abs((h * 6.0) - 2.0 * floor((h * 6.0) / 2.0) - 1.0));
     let m = v - c;
     var rgb: vec3f;
-    if (h < 1.0/6.0) { rgb = vec3f(c, x, 0.0); }
-    else if (h < 2.0/6.0) { rgb = vec3f(x, c, 0.0); }
-    else if (h < 3.0/6.0) { rgb = vec3f(0.0, c, x); }
-    else if (h < 4.0/6.0) { rgb = vec3f(0.0, x, c); }
-    else if (h < 5.0/6.0) { rgb = vec3f(x, 0.0, c); }
-    else { rgb = vec3f(c, 0.0, x); }
+    // The GLSL's ranges, including black for a hue outside [0, 1).
+    if (0.0 <= h && h < 1.0/6.0) { rgb = vec3f(c, x, 0.0); }
+    else if (1.0/6.0 <= h && h < 2.0/6.0) { rgb = vec3f(x, c, 0.0); }
+    else if (2.0/6.0 <= h && h < 3.0/6.0) { rgb = vec3f(0.0, c, x); }
+    else if (3.0/6.0 <= h && h < 4.0/6.0) { rgb = vec3f(0.0, x, c); }
+    else if (4.0/6.0 <= h && h < 5.0/6.0) { rgb = vec3f(x, 0.0, c); }
+    else if (5.0/6.0 <= h && h < 1.0) { rgb = vec3f(c, 0.0, x); }
+    else { rgb = vec3f(0.0, 0.0, 0.0); }
     return rgb + vec3f(m);
 }
 
@@ -124,7 +134,7 @@ fn rgb2hsv(rgb: vec3f) -> vec3f {
     let delta = maxC - minC;
     var h = 0.0;
     if (delta != 0.0) {
-        if (maxC == rgb.r) { h = ((rgb.g - rgb.b) / delta) % 6.0 / 6.0; }
+        if (maxC == rgb.r) { h = glslMod((rgb.g - rgb.b) / delta, 6.0) / 6.0; }
         else if (maxC == rgb.g) { h = ((rgb.b - rgb.r) / delta + 2.0) / 6.0; }
         else { h = ((rgb.r - rgb.g) / delta + 4.0) / 6.0; }
     }
@@ -144,7 +154,7 @@ fn posterize(color: vec3f, levIn: f32) -> vec3f {
 
 fn pixellate(uv_in: vec2f, sizeIn: f32) -> vec3f {
     var size = sizeIn;
-    if (size < 1.0) { return textureSample(inputTex, samp, uv_in).rgb; }
+    if (size < 1.0) { return textureSample(inputTex, samp, inputCoord(uv_in)).rgb; }
     size *= 4.0;
     let dx = size * (1.0 / u.resolution.x);
     let dy = size * (1.0 / u.resolution.y);
@@ -168,7 +178,7 @@ fn convolve(uv: vec2f, kernel: array<f32, 9>, divide: bool) -> vec3f {
     var kernelWeight = 0.0;
     var conv = vec3f(0.0);
     for (var i = 0; i < 9; i++) {
-        let color = textureSample(inputTex, samp, uv + offsets[i] * u.effectAmt).rgb;
+        let color = textureSample(inputTex, samp, inputCoord(uv + offsets[i] * u.effectAmt)).rgb;
         conv += color * kernel[i];
         kernelWeight += kernel[i];
     }
@@ -362,10 +372,17 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     uv += 0.5;
 
     let imageSize = u.resolution;
-    uv.x -= ceil((u.resolution.x / imageSize.x * scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
-    uv.y += ceil((u.resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale);
-    uv.x -= mapRange(u.offsetX, -100.0, 100.0, -u.resolution.x / imageSize.x * scale, u.resolution.x / imageSize.x * scale) * 1.5;
-    uv.y -= mapRange(u.offsetY, -100.0, 100.0, -u.resolution.y / imageSize.y * scale, u.resolution.y / imageSize.y * scale) * 1.5;
+    // The GLSL scales these terms by resolution / imageSize, and imageSize is
+    // resolution. WebGL2 computes that ratio as exactly 1.0 at every size.
+    // Dawn compiles WGSL in Metal's relaxed math mode on macOS 15 and later,
+    // where the same division becomes x * rcp(x) and can miss 1 by an ulp.
+    // This select gives exactly 1.0 as a runtime value, which the compiler
+    // can neither fold nor reassociate, as WebGL2's ratio behaves.
+    let unitRatio = select(vec2f(1.0), vec2f(-1.0), u.resolution < vec2f(0.0));
+    uv.x -= ceil((unitRatio.x * scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
+    uv.y += ceil((unitRatio.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale);
+    uv.x -= mapRange(u.offsetX, -100.0, 100.0, -unitRatio.x * scale, unitRatio.x * scale) * 1.5;
+    uv.y -= mapRange(u.offsetY, -100.0, 100.0, -unitRatio.y * scale, unitRatio.y * scale) * 1.5;
     uv = fract(uv);
 
     // flip/mirror
@@ -381,7 +398,7 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     else if (FLIP == 17) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y > 0.5) { uv.y = 1.0 - uv.y; } }
     else if (FLIP == 18) { if (uv.x < 0.5) { uv.x = 1.0 - uv.x; } if (uv.y < 0.5) { uv.y = 1.0 - uv.y; } }
 
-    var color = textureSample(inputTex, samp, uv);
+    var color = textureSample(inputTex, samp, inputCoord(uv));
 
     if (u.effectAmt != 0.0 && EFFECT != 0) {
         if (EFFECT == 100) { color = vec4f(pixellate(uv, u.effectAmt), color.a); }
