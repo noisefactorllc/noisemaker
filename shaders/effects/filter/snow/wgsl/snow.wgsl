@@ -15,6 +15,7 @@ struct SnowParams {
     pause : f32,
     density : f32,
     _pad0 : f32,
+    tileOffset : vec2<f32>,
 };
 
 @group(0) @binding(0) var inputTex : texture_2d<f32>;
@@ -30,10 +31,10 @@ fn clamp_01(value : f32) -> f32 {
 }
 
 fn write_pixel(base_index : u32, rgb : vec3<f32>, alpha : f32) {
-    output_buffer[base_index + 0u] = clamp_01(rgb.x);
-    output_buffer[base_index + 1u] = clamp_01(rgb.y);
-    output_buffer[base_index + 2u] = clamp_01(rgb.z);
-    output_buffer[base_index + 3u] = clamp_01(alpha);
+    output_buffer[base_index + 0u] = rgb.x;
+    output_buffer[base_index + 1u] = rgb.y;
+    output_buffer[base_index + 2u] = rgb.z;
+    output_buffer[base_index + 3u] = alpha;
 }
 
 fn normalized_sine(value : f32) -> f32 {
@@ -97,7 +98,7 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
         return;
     }
 
-    let coord : vec2<f32> = vec2<f32>(f32(gid.x), f32(gid.y));
+    let coord : vec2<f32> = vec2<f32>(f32(gid.x) + 0.5 + params.tileOffset.x, f32(gid.y) + 0.5 + params.tileOffset.y);
     let time : f32 = select(params.time, 0.0, params.pause > 0.5);
     let speed : f32 = 100.0;
 
