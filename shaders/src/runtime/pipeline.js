@@ -2981,6 +2981,9 @@ export async function createPipeline(graph, options = {}) {
         // Request higher limits for MRT with high-precision textures
         // Default maxColorAttachmentBytesPerSample is 32, but we need 40+
         // for 2x RGBA32Float (16 bytes each) + RGBA8Unorm (4 bytes) = 40 bytes
+        // Request the adapter's full 2D texture size: the default 8192 would
+        // cap a 128^3 volume atlas (128 x 16384) to 64^3, which WebGL2 keeps
+        // at 128^3 wherever MAX_TEXTURE_SIZE allows it.
         // Also request float32-filterable for mesh data textures (rgba32float)
         const requiredFeatures = []
         if (adapter.features.has('float32-filterable')) {
@@ -2992,7 +2995,8 @@ export async function createPipeline(graph, options = {}) {
                 maxColorAttachmentBytesPerSample: Math.min(
                     adapter.limits.maxColorAttachmentBytesPerSample,
                     128  // Request up to 128 bytes for flexibility
-                )
+                ),
+                maxTextureDimension2D: adapter.limits.maxTextureDimension2D
             }
         })
         let context = null
