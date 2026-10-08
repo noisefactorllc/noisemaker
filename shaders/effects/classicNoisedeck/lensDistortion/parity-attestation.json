@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "classicNoisedeck/lensDistortion",
-  "sourceHash": "9f8e0b42ccc0f5a9922c0b51f1773a65a022478e1e4d8ef6fe2fd1a598cb0c2a",
-  "caseHash": "dab2523148b9c28be88057a00b84afa9d89a8c4a158af4d73467a5cef6d442ca",
+  "sourceHash": "9d07fd98fbc9e3b7d11bb6935541fae7b0637055569368267b36771e83339f6b",
+  "caseHash": "843c3fe83cb3fe86b1410c448a6297f205ca759a6df63db599432e5069183144",
   "resolution": [
     64,
     64
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3940
+      "uniqueColors": 3623
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 3940
+      "uniqueColors": 3623
     }
   },
   "execution": {

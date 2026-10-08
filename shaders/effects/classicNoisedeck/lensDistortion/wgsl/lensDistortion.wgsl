@@ -37,6 +37,8 @@ struct Uniforms {
     saturation: f32,
     passthru: f32,
     vignetteAmt: f32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
 }
 
 @group(0) @binding(2) var<uniform> u: Uniforms;
@@ -113,7 +115,7 @@ fn saturateColor(color: vec3f) -> vec3f {
 }
 
 fn _distance(diff: vec2f, uv: vec2f) -> f32 {
-    let aspectRatio = u.resolution.x / u.resolution.y;
+    let aspectRatio = u.fullResolution.x / u.fullResolution.y;
     let uvx = uv.x * aspectRatio;
     var dist: f32 = 1.0;
 
@@ -155,8 +157,9 @@ fn _distance(diff: vec2f, uv: vec2f) -> f32 {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    let aspectRatio = u.resolution.x / u.resolution.y;
-    var uv = fragCoord.xy / u.resolution;
+    let aspectRatio = u.fullResolution.x / u.fullResolution.y;
+    let globalCoord = fragCoord.xy + u.tileOffset;
+    var uv = globalCoord / u.fullResolution;
 
     var color = vec4f(0.0, 0.0, 0.0, 1.0);
 
