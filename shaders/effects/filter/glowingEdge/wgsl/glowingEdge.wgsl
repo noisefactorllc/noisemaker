@@ -7,6 +7,8 @@ struct Uniforms {
     alpha: f32,
     width: f32,
     _pad3: f32,
+    tileOffset: vec2<f32>,
+    fullResolution: vec2<f32>,
 }
 
 @group(0) @binding(0) var inputSampler: sampler;
@@ -35,7 +37,8 @@ fn distance_metric(gx: f32, gy: f32, metric: i32) -> f32 {
 @fragment
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
-    let uv = pos.xy / texSize;
+    let globalCoord = pos.xy + uniforms.tileOffset;
+    let uv = globalCoord / uniforms.fullResolution;
     let texel = uniforms.width / texSize;
 
     // Use textureSampleLevel because noisemaker textures are rgba16float —
@@ -45,17 +48,17 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // filtering are needed.
 
     // Sample base color
-    let base = textureSampleLevel(inputTex, inputSampler, uv, 0.0);
+    let base = textureSampleLevel(inputTex, inputSampler, pos.xy / texSize, 0.0);
 
     // Sample 3x3 neighborhood for Sobel
-    let tl = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(-texel.x, -texel.y), 0.0).rgb);
-    let tc = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(0.0, -texel.y), 0.0).rgb);
-    let tr = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(texel.x, -texel.y), 0.0).rgb);
-    let ml = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(-texel.x, 0.0), 0.0).rgb);
-    let mr = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(texel.x, 0.0), 0.0).rgb);
-    let bl = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(-texel.x, texel.y), 0.0).rgb);
-    let bc = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(0.0, texel.y), 0.0).rgb);
-    let br = luminance(textureSampleLevel(inputTex, inputSampler, uv + vec2<f32>(texel.x, texel.y), 0.0).rgb);
+    let tl = luminance(textureSampleLevel(inputTex, inputSampler, ((uv + vec2<f32>(-texel.x, -texel.y)) * uniforms.fullResolution - uniforms.tileOffset) / texSize, 0.0).rgb);
+    let tc = luminance(textureSampleLevel(inputTex, inputSampler, ((uv + vec2<f32>(0.0, -texel.y)) * uniforms.fullResolution - uniforms.tileOffset) / texSize, 0.0).rgb);
+    let tr = luminance(textureSampleLevel(inputTex, inputSampler, ((uv + vec2<f32>(texel.x, -texel.y)) * uniforms.fullResolution - uniforms.tileOffset) / texSize, 0.0).rgb);
+    let ml = luminance(textureSampleLevel(inputTex, inputSampler, ((uv + vec2<f32>(-texel.x, 0.0)) * uniforms.fullResolution - uniforms.tileOffset) / texSize, 0.0).rgb);
+    let mr = luminance(textureSampleLevel(inputTex, inputSampler, ((uv + vec2<f32>(texel.x, 0.0)) * uniforms.fullResolution - uniforms.tileOffset) / texSize, 0.0).rgb);
+    let bl = luminance(textureSampleLevel(inputTex, inputSampler, ((uv + vec2<f32>(-texel.x, texel.y)) * uniforms.fullResolution - uniforms.tileOffset) / texSize, 0.0).rgb);
+    let bc = luminance(textureSampleLevel(inputTex, inputSampler, ((uv + vec2<f32>(0.0, texel.y)) * uniforms.fullResolution - uniforms.tileOffset) / texSize, 0.0).rgb);
+    let br = luminance(textureSampleLevel(inputTex, inputSampler, ((uv + vec2<f32>(texel.x, texel.y)) * uniforms.fullResolution - uniforms.tileOffset) / texSize, 0.0).rgb);
 
     // Sobel kernels
     let gx = -tl - 2.0 * ml - bl + tr + 2.0 * mr + br;

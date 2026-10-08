@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "filter/glowingEdge",
+  "sourceHash": "ba5d2789d7c2b26365924938c9a4a87f7cf0d284aafc1fbbb9b3d5b5fe30bb2b",
+  "caseHash": "1f9c5b0253ed46ed773e009545602239d1c7de09c5b31d540cbc54adae3fedf8",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 3218
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 4096,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 3218
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}
