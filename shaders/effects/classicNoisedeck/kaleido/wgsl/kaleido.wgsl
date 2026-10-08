@@ -31,13 +31,15 @@ struct Uniforms {
     wrap: i32,
     // kernel was here — now compile-time KERNEL
     effectWidth: f32,
+    tileOffset: vec2f,
+    fullResolution: vec2f,
 }
 
 const PI: f32 = 3.14159265359;
 const TAU: f32 = 6.28318530718;
 
 fn aspectRatio() -> f32 {
-    return u.resolution.x / u.resolution.y;
+    return u.fullResolution.x / u.fullResolution.y;
 }
 
 fn mapRange(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
@@ -473,11 +475,10 @@ fn kaleidoscope(st_in: vec2f, sides: f32, blendy: f32) -> vec2f {
 
 @fragment
 fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
-    // Aspect-preserving UV from resolution (uv.x in [0, aspect], uv.y in
-    // [0, 1]), matching glsl/kaleido.glsl `gl_FragCoord.xy / fullResolution.y`
-    // for the non-tiled case. Uses u.resolution like working sibling
-    // classicNoisedeck WGSL effects; the runtime always populates it.
-    var uv = fragCoord.xy / u.resolution.y;
+    // Aspect-preserving global UV (uv.x in [0, aspect], uv.y in [0, 1]),
+    // matching glsl/kaleido.glsl `(gl_FragCoord.xy + tileOffset) / fullResolution.y`.
+    let globalCoord = fragCoord.xy + u.tileOffset;
+    var uv = globalCoord / u.fullResolution.y;
 
     var lf = mapRange(u.loopScale, 1.0, 100.0, 6.0, 1.0);
     if (u.wrap != 0) { lf = floor(lf); }

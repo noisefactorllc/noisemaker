@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "effect": "classicNoisedeck/kaleido",
-  "sourceHash": "3e52a54ab553ee5835afee8ecf59ec007c5c4fdae2988cd770dc875843fd8ad6",
-  "caseHash": "3e73bf89fce5b6ab3c2e393b8d22019bf35aa959740f3d0573fe5e4506945eb5",
+  "sourceHash": "01257a0e522e2cc6f710cc0ab91583f826e3eaf3e80f3e09cb8d7b1fe4af7602",
+  "caseHash": "40c9ae5b50d2fd2e0d875f730d4023595cfd8caa1788171e8760c384d83b8750",
   "resolution": [
     64,
     64
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 387
+      "uniqueColors": 420
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 387
+      "uniqueColors": 420
     }
   },
   "execution": {
