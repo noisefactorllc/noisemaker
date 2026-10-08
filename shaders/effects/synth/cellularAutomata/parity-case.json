@@ -1,0 +1,14 @@
+{
+    "schemaVersion": 1,
+    "effects": [
+        "synth/cellularAutomata"
+    ],
+    "dsl": "search synth\n\ncellularAutomata(smoothing: catmullRom3x3).write(o0)\nrender(o0)",
+    "surface": "o0",
+    "resolution": [
+        64,
+        64
+    ],
+    "epsilon": 0,
+    "requireColorVariation": true
+}

@@ -30,15 +30,14 @@ fn bicubic4(p0: vec4<f32>, p1: vec4<f32>, p2: vec4<f32>, p3: vec4<f32>, t: f32) 
 }
 
 fn catmullRom3(p0: vec4<f32>, p1: vec4<f32>, p2: vec4<f32>, t: f32) -> vec4<f32> {
+    // Catmull-Rom-esque cubic through 3 points
+    // Interpolating (passes through control points)
     let t2 = t * t;
     let t3 = t2 * t;
 
-    let m = 0.5 * (p2 - p0);
-
-    return (2.0*t3 - 3.0*t2 + 1.0) * p1 +
-           (t3 - 2.0*t2 + t) * m +
-           (-2.0*t3 + 3.0*t2) * p2 +
-           (t3 - t2) * m;
+    return p1 + 0.5 * t * (p2 - p0) +
+           0.5 * t2 * (2.0*p0 - 5.0*p1 + 4.0*p2 - p0) +
+           0.5 * t3 * (-p0 + 3.0*p1 - 3.0*p2 + p0);
 }
 
 fn catmullRom4(p0: vec4<f32>, p1: vec4<f32>, p2: vec4<f32>, p3: vec4<f32>, t: f32) -> vec4<f32> {
