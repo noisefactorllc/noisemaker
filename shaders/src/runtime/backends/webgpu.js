@@ -651,10 +651,13 @@ export class WebGPUBackend extends Backend {
         // A 2D canvas keeps premultiplied pixels. WebGL2's texImage2D uploads
         // them unpremultiplied byte-for-byte as getImageData returns them,
         // while copyExternalImageToTexture unpremultiplies on the GPU and
-        // rounds low-alpha texels differently. Upload 2D canvases from
-        // getImageData so both backends sample the same bytes.
+        // rounds low-alpha texels differently. A canvas created with
+        // willReadFrequently keeps its pixels in CPU memory, so upload it from
+        // getImageData and both backends sample the same bytes. GPU-backed
+        // canvases stay on copyExternalImageToTexture, which avoids a GPU
+        // readback on every upload.
         const context2d = source instanceof HTMLCanvasElement ? source.getContext('2d') : null
-        if (context2d) {
+        if (context2d?.getContextAttributes?.().willReadFrequently) {
             const pixels = context2d.getImageData(0, 0, width, height).data
             const rowBytes = width * 4
             let data = pixels
