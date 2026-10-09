@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "filter/glyphMap",
+  "sourceHash": "1c1eb5822d4101229b60e8f27a00df7edc3e50988a20abd814515c8e129578f4",
+  "caseHash": "63027bb8cdadbf5f2e932d3c993be2ddf27ed2dc17b32221beee1559c095f987",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 1018,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 17
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 1018,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 17
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 1,
+    "webgpuTargetPasses": 1
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

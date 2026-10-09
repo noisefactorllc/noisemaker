@@ -89,6 +89,29 @@ render(o0)`,
             assert.ok(across > 64, `${label}: particles at the right must carry the right of the input (red minus green, right minus left: ${across.toFixed(0)})`)
         },
     },
+    // glyphMap draws each glyph from its bitmap, whose row 0 is the top row.
+    // With 32-pixel cells on the 128-pixel frame, each cell is one glyph:
+    // decoding the 5x7 grid at the centre of each glyph pixel must read the
+    // bitmap top row first. A dim grey input selects the period, which sits
+    // on row 5, near the bottom of its cell. A light grey input selects '@'
+    // or, for some cells, 'M'.
+    ...[['period', '#181818', [['.....', '.....', '.....', '.....', '.....', '..#..', '.....']]],
+        ['@ and M', '#e6e6e6', [['.###.', '#...#', '#.###', '#.#.#', '#.##.', '#....', '.###.'],
+            ['#...#', '##.##', '#.#.#', '#.#.#', '#...#', '#...#', '.....']]]].map(([glyph, color, bitmaps]) => ({
+        name: `filter/glyphMap draws the ${glyph} glyph upright`,
+        effects: ['filter/glyphMap', 'synth/solid'],
+        dsl: `search filter, synth
+solid(color: ${color}).glyphMap(cellSize: 32, colorMode: mono).write(o0)
+render(o0)`,
+        check(view, authored, label) {
+            for (let cy = 0; cy < 4; cy++) for (let cx = 0; cx < 4; cx++) {
+                const rows = Array.from({ length: 7 }, (_, r) => Array.from({ length: 5 }, (_, c) =>
+                    at(view, Math.floor(cx * 32 + (c + 0.5) * 32 / 5), Math.floor(cy * 32 + (r + 0.5) * 32 / 7))[0] > 128 ? '#' : '.').join(''))
+                assert.ok(bitmaps.some(bitmap => bitmap.every((row, r) => row === rows[r])),
+                    `${label}: cell ${cx},${cy} must read the bitmap top row first (read ${rows.join(' ')})`)
+            }
+        },
+    })),
 ]
 
 const failures = []

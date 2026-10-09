@@ -179,9 +179,9 @@ fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     // Local position within the cell, mapped to 5x7 glyph grid
     let localPos = fract(pixelCoord / csf);
     var gx = i32(floor(localPos.x * 5.0));
-    var gy = i32(floor(localPos.y * 7.0));
+    // Glyph row 0 is the top row, while localPos.y runs up the cell.
+    let gy = 6 - clamp(i32(floor(localPos.y * 7.0)), 0, 6);
     gx = clamp(gx, 0, 4);
-    gy = clamp(gy, 0, 6);
 
     // Sample the center of the cell for brightness
     let cellCenter = (cellIndex + 0.5) * csf;
