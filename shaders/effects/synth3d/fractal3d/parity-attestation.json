@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "synth3d/fractal3d",
-  "sourceHash": "3c6c7de08de4b545873d0881b8dcc9870be8531dd7043ec2a4d778bf07fbc0ac",
+  "sourceHash": "d3e23a08f9257e326d54bbde4f6c28fb142d12b65880cbffe9c671b60f3b062c",
   "caseHash": "94a9d1d9ba827561600e2d7476300b5491662ebe0b456cf86017ee5f92f2b24b",
   "resolution": [
     64,
@@ -11,16 +11,16 @@
     "webgl2": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 386,
+      "nonzeroRgbPixels": 467,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 40
+      "uniqueColors": 130
     },
     "webgpu": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 386,
+      "nonzeroRgbPixels": 467,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 40
+      "uniqueColors": 130
     }
   },
   "execution": {
