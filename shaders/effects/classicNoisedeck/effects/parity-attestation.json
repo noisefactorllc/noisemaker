@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "classicNoisedeck/effects",
-  "sourceHash": "64928ea10788dd40ed8843cb091fcac0c809308fa081d065888ef2230cd6432c",
+  "sourceHash": "cdc4646f5a7e2b1be3e8e0d2da749907150ab6232349e4a0b9ed67673fa1e689",
   "caseHash": "58764a413e71a860546c481d02f84dbb8c380934c3079c2e935561d6581e8093",
   "resolution": [
     64,
@@ -11,16 +11,16 @@
     "webgl2": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 4095,
+      "nonzeroRgbPixels": 4072,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 1141
+      "uniqueColors": 1176
     },
     "webgpu": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 4095,
+      "nonzeroRgbPixels": 4072,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 1141
+      "uniqueColors": 1176
     }
   },
   "execution": {

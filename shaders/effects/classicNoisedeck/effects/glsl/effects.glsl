@@ -648,13 +648,14 @@ void main() {
         uv.x = 1.0 - uv.x;
     }
 #elif FLIP == 13
-    // mirror ud
-    if (uv.y > 0.5) {
+    // mirror ud. uv.y runs up the frame, so the top half is uv.y > 0.5 and
+    // the bottom half samples its reflection.
+    if (uv.y < 0.5) {
         uv.y = 1.0 - uv.y;
     }
 #elif FLIP == 14
     // mirror du
-    if (uv.y < 0.5) {
+    if (uv.y > 0.5) {
         uv.y = 1.0 - uv.y;
     }
 #elif FLIP == 15
@@ -662,7 +663,7 @@ void main() {
     if (uv.x > 0.5) {
         uv.x = 1.0 - uv.x;
     }
-    if (uv.y > 0.5) {
+    if (uv.y < 0.5) {
         uv.y = 1.0 - uv.y;
     }
 #elif FLIP == 16
@@ -670,7 +671,7 @@ void main() {
     if (uv.x > 0.5) {
         uv.x = 1.0 - uv.x;
     }
-    if (uv.y < 0.5) {
+    if (uv.y > 0.5) {
         uv.y = 1.0 - uv.y;
     }
 #elif FLIP == 17
@@ -678,7 +679,7 @@ void main() {
     if (uv.x < 0.5) {
         uv.x = 1.0 - uv.x;
     }
-    if (uv.y > 0.5) {
+    if (uv.y < 0.5) {
         uv.y = 1.0 - uv.y;
     }
 #elif FLIP == 18
@@ -686,7 +687,7 @@ void main() {
     if (uv.x < 0.5) {
         uv.x = 1.0 - uv.x;
     }
-    if (uv.y < 0.5) {
+    if (uv.y > 0.5) {
         uv.y = 1.0 - uv.y;
     }
 #endif

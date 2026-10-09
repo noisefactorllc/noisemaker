@@ -130,17 +130,21 @@ render(o0)`,
     // the named half as authored and reflects it onto the other half:
     // "up to down" keeps the top half, "left to right" the left half. The
     // presented rows run top first, so the top half is rows 0-63. synth/media
-    // takes a canvas copy of the uvMap; flipMirror takes the uvMap itself.
+    // takes a canvas copy of the uvMap; flipMirror and classicNoisedeck's
+    // effects take the uvMap itself.
     ...[
-        ['none', keep, keep], ['all', reverse, reverse], ['horizontal', reverse, keep], ['vertical', keep, reverse],
-        ['mirrorLtoR', keepLow, keep], ['mirrorRtoL', keepHigh, keep], ['mirrorUtoD', keep, keepLow],
-        ['mirrorDtoU', keep, keepHigh], ['mirrorLtoRUtoD', keepLow, keepLow], ['mirrorLtoRDtoU', keepLow, keepHigh],
-        ['mirrorRtoLUtoD', keepHigh, keepLow], ['mirrorRtoLDtoU', keepHigh, keepHigh],
-    ].flatMap(([mode, sx, sy]) => [
-        ['synth/media', `search synth\nmedia(imageSize: [${size}, ${size}], flip: ${mode})`],
-        ['filter/flipMirror', `search filter, synth\n${uvMap}.flipMirror(mode: ${mode})`],
-    ].map(([effect, chain]) => ({
-        name: `${effect} ${mode} keeps the named half`,
+        ['none', 'none', keep, keep], ['all', 'all', reverse, reverse], ['horizontal', 'horizontal', reverse, keep],
+        ['vertical', 'vertical', keep, reverse], ['mirrorLtoR', 'leftToRight', keepLow, keep],
+        ['mirrorRtoL', 'rightToLeft', keepHigh, keep], ['mirrorUtoD', 'upToDown', keep, keepLow],
+        ['mirrorDtoU', 'downToUp', keep, keepHigh], ['mirrorLtoRUtoD', 'lrUd', keepLow, keepLow],
+        ['mirrorLtoRDtoU', 'lrDu', keepLow, keepHigh], ['mirrorRtoLUtoD', 'rlUd', keepHigh, keepLow],
+        ['mirrorRtoLDtoU', 'rlDu', keepHigh, keepHigh],
+    ].flatMap(([mode, classicMode, sx, sy]) => [
+        ['synth/media', mode, `search synth\nmedia(imageSize: [${size}, ${size}], flip: ${mode})`],
+        ['filter/flipMirror', mode, `search filter, synth\n${uvMap}.flipMirror(mode: ${mode})`],
+        ['classicNoisedeck/effects', classicMode, `search classicNoisedeck, synth\n${uvMap}.effects(flip: ${classicMode})`],
+    ].map(([effect, name, chain]) => ({
+        name: `${effect} ${name} keeps the named half`,
         effects: [effect],
         dsl: `${chain}.write(o0)\nrender(o0)`,
         check(view, authored, label) {
