@@ -22,24 +22,26 @@ const flipModes = Object.entries(definition.globals.flip.choices)
     .filter(([name, value]) => value !== null && name !== 'none').map(([name]) => name)
 
 const transforms = 'scaleAmt: 150, rotation: 30, offsetX: 20, offsetY: -15'
-// Every case must match exactly, except these four (operator decision,
-// 2026-10-08). On macOS 15 and later, Chrome compiles WGSL in Metal's relaxed
-// math mode while WebGL2 compiles in fast mode. Bit dumps on an Apple M4 under
-// macOS 26.5 show the rotated, scaled and offset sampling coordinate differing
-// by 1-4 ulps between the backends, and WGSL cannot pin the evaluation order.
-// zoomBlur's 41 taps and bloom's 48 taps turn that into these measured
-// residuals. Under macOS 14, where both backends use fast mode, they are exact.
-// The sharpen case differs even under macOS 14: on an Apple M2 under macOS
-// 14.8.3, presented pixels (47, 6) and (90, 71) read red 158 on WebGL2 and
-// 157 on WebGPU. rlDu now keeps the bottom half of the rotated, scaled input,
-// as its name says; the previous rlDu sampled the top half and was exact.
-// Sharpen at effectAmt 7 weights its taps by 5 and -1, and these two pixels
-// land on an 8-bit rounding boundary.
+// With one measured exception every case must match exactly: bit-exactness is
+// achieved by mirroring every floating-point evaluation between GLSL ES 3.0
+// (ANGLE on Metal, fast math) and WGSL (Dawn on Metal, relaxed math). The uv
+// chain multiplies CPU-computed reciprocals (invFullResolution, aspect,
+// aspectInv) instead of dividing, because Dawn lowers a runtime division to an
+// approximate reciprocal multiply; rotate2D's products, the offset shifts, the
+// scale rescale and zoomBlur's tap chain carry min/max barriers so relaxed
+// math cannot contract multiply-add pairs the way ANGLE's fast math does; and
+// zoomBlur's final weighted average divides by a Newton-refined reciprocal.
+// On the qualification host (Apple M4, macOS 26.5, Chrome stable) that leaves
+// exactly one residual: zoomBlur at 120x72 with effectAmt 7 under the other
+// transforms with flip rlDu renders pixel (97, 11) blue 81 on WebGL2 and 82 on
+// WebGPU. The exact accumulated blue ties on the 81.5/255 8-bit rounding
+// midpoint, so either backend's last-ulp rounding difference decides the
+// presented byte; every evaluation-order pinning tried (clamp barriers at six
+// sites, a two-pass product array, the Newton reciprocal, tap and scale
+// rescale barriers) moves the residual but does not remove it. The tolerance
+// admits exactly this one pixel at its measured magnitude and nothing more.
 const measuredTolerance = {
-    'zoomBlur 120x72': { tolerance: { pixels: 2, maxDiff: 1 } },
-    'bloom 121x41': { tolerance: { pixels: 1, maxDiff: 1 } },
-    'zoomBlur 121x41': { tolerance: { pixels: 4, maxDiff: 2 } },
-    'sharpen 120x72': { tolerance: { pixels: 2, maxDiff: 1 } },
+    'zoomBlur 120x72': { tolerance: { pixels: 1, maxDiff: 1 } },
 }
 const program = (args, pre = '') =>
     `search classicNoisedeck\n\nnoise(seed: 1)${pre}.effects(${args}).write(o0)\nrender(o0)`

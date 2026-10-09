@@ -2468,11 +2468,27 @@ export class Pipeline {
             const fullAspect = this._fullResolution[0] / this._fullResolution[1]
             g.aspect = fullAspect
             g.aspectRatio = fullAspect
+            // Correctly-rounded reciprocal of the aspect, used by rotate2D's
+            // final rescale so neither backend evaluates an in-shader
+            // division there (Dawn lowers divisions to approximate
+            // reciprocal multiplies; ANGLE divides correctly).
+            g.aspectInv = 1.0 / fullAspect
+            // Correctly-rounded per-component reciprocals. Both shader mains
+            // multiply by this instead of dividing: Dawn's relaxed math lowers
+            // a vec2 division to an approximate reciprocal multiply while
+            // ANGLE divides correctly, and the 1-2 ulp uv difference flips
+            // sampler taps. A multiply of identical values is deterministic.
+            g.invFullResolution = [
+                1.0 / this._fullResolution[0],
+                1.0 / this._fullResolution[1],
+            ]
         } else {
             g.fullResolution[0] = this.width
             g.fullResolution[1] = this.height
             g.aspect = aspectValue
             g.aspectRatio = aspectValue
+            g.aspectInv = 1.0 / aspectValue
+            g.invFullResolution = [1.0 / this.width, 1.0 / this.height]
         }
         g.renderScale = this._renderScale || 1.0
 
