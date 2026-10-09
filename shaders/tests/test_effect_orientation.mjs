@@ -27,14 +27,14 @@ function meanAbsDiff(a, b) {
     for (let i = 0; i < a.data.length; i += 4) for (let c = 0; c < 3; c++) sum += Math.abs(a.data[i + c] - b.data[i + c])
     return sum / (size * size * 3)
 }
-// Mean of f(red, green) over the lit pixels in a band of the frame.
+// Mean of f(red, green, blue) over the lit pixels in a band of the frame.
 function litMean(png, x0, y0, x1, y1, f) {
     let sum = 0
     let lit = 0
     for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
         const rgb = at(png, x, y)
         if (rgb[0] + rgb[1] + rgb[2] < 24) continue
-        sum += f(rgb[0], rgb[1])
+        sum += f(rgb[0], rgb[1], rgb[2])
         lit++
     }
     assert.ok(lit > 16, `band ${x0},${y0}-${x1},${y1} must contain lit pixels`)
@@ -148,6 +148,33 @@ render(o0)`,
             assert.ok(diff <= 2, `${label}: the frame must be the authored image under the named flip (mean difference ${diff.toFixed(2)})`)
         },
     }))),
+    // The volume renderers show a volume as authored. heightmap3d builds a
+    // full cube from a media image whose red is 255 everywhere (so render3d,
+    // which reads density from red, sees a solid cube), whose green is 255 on
+    // the image's right half and whose blue is 255 on its top half. Image
+    // right is +X and the image's top row is the far side, -Z. Seen from the
+    // front, the camera's default, the cube's right side is the green half;
+    // seen from directly above, the image reads as authored.
+    ...[['render/render3d', 'render3d()', 'from the front']].map(([effect, call, view]) => ({
+        name: `${effect} shows the volume as authored ${view}`,
+        effects: [effect, 'synth3d/heightmap3d', 'synth/solid', 'synth/media'],
+        media: 'cube',
+        matchWebGL2: true,
+        dsl: `search synth3d, render, synth
+heightmap3d(heightTex: solid(color: #ffffff), tex: media(imageSize: [${size}, ${size}]), volumeSize: x64, heightScale: 1)
+  .${call}.write(o0)
+render(o0)`,
+        check(rendered, authored, label) {
+            const greener = (r, g) => g - r
+            const across = litMean(rendered, size * 5 / 8, 0, size, size, greener) - litMean(rendered, 0, 0, size * 3 / 8, size, greener)
+            assert.ok(across > 32, `${label}: image right must be screen right (green minus red, right minus left: ${across.toFixed(0)})`)
+            if (view === 'from directly above') {
+                const bluer = (r, g, b) => b - r
+                const down = litMean(rendered, 0, 0, size, size * 3 / 8, bluer) - litMean(rendered, 0, size * 5 / 8, size, size, bluer)
+                assert.ok(down > 32, `${label}: image top must be screen top (blue minus red, top minus bottom: ${down.toFixed(0)})`)
+            }
+        },
+    })),
 ]
 
 const failures = []
@@ -170,33 +197,40 @@ try {
                     basePath: `${baseUrl}/shaders`, preferWebGPU: backend === 'webgpu' })
                 await renderer.loadManifest()
                 await renderer.loadEffects(['synth/testPattern'])
-                // A canvas copy of the uvMap for synth/media, uploaded as hosts
-                // upload media: top row first, without flipping.
-                window.uvCanvas = document.createElement('canvas')
-                uvCanvas.width = size
-                uvCanvas.height = size
-                const image = new ImageData(size, size)
-                for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-                    image.data.set([Math.round(255 * (x + 0.5) / size), Math.round(255 * (1 - (y + 0.5) / size)), 0, 255], (y * size + x) * 4)
+                // Images for synth/media, uploaded as hosts upload media: top row
+                // first, without flipping. 'uv' is a canvas copy of the uvMap;
+                // 'cube' is red everywhere, green on its right half and blue on
+                // its top half.
+                const canvasOf = pixel => {
+                    const canvas = document.createElement('canvas')
+                    canvas.width = size
+                    canvas.height = size
+                    const image = new ImageData(size, size)
+                    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) image.data.set(pixel(x, y), (y * size + x) * 4)
+                    canvas.getContext('2d').putImageData(image, 0, 0)
+                    return canvas
                 }
-                uvCanvas.getContext('2d').putImageData(image, 0, 0)
+                window.mediaCanvases = {
+                    uv: canvasOf((x, y) => [Math.round(255 * (x + 0.5) / size), Math.round(255 * (1 - (y + 0.5) / size)), 0, 255]),
+                    cube: canvasOf((x, y) => [255, x < size / 2 ? 0 : 255, y < size / 2 ? 255 : 0, 255]),
+                }
             }, { baseUrl, backend, size })
             // Each case starts from a fresh pipeline, so particle state
             // never carries over from the previous case.
-            async function frame(dsl, effects = [], frames = 2) {
-                const name = await page.evaluate(async ({ dsl, effects, frames }) => {
+            async function frame(dsl, effects = [], frames = 2, media = 'uv') {
+                const name = await page.evaluate(async ({ dsl, effects, frames, media }) => {
                     await renderer.loadEffects(effects)
                     await renderer.dispose()
                     await renderer.compile(dsl)
                     renderer.stop()
                     renderer.render(0)
                     for (const pass of renderer.pipeline.graph.passes.filter(p => p.effectFunc === 'media')) {
-                        renderer.updateTextureFromSource('imageTex_step_' + pass.stepIndex, window.uvCanvas, { flipY: false })
+                        renderer.updateTextureFromSource('imageTex_step_' + pass.stepIndex, window.mediaCanvases[media], { flipY: false })
                     }
                     for (let i = 0; i < frames; i++) renderer.render(0)
                     await renderer.pipeline.backend.device?.queue.onSubmittedWorkDone()
                     return renderer.pipeline.backend.getName().toLowerCase()
-                }, { dsl, effects, frames })
+                }, { dsl, effects, frames, media })
                 assert.equal(name, backend, 'requested backend must execute')
                 return PNG.sync.read(await page.locator('canvas').screenshot())
             }
@@ -204,7 +238,7 @@ try {
             for (const c of cases) {
                 const label = `${backend} ${c.name}`
                 try {
-                    const view = await frame(c.dsl, c.effects, c.frames)
+                    const view = await frame(c.dsl, c.effects, c.frames, c.media)
                     if (c.check) c.check(view, authored, label)
                     if (c.matchWebGL2 && backend === 'webgl2') webgl2Frames.set(c.name, view)
                     if (c.matchWebGL2 && backend === 'webgpu') {

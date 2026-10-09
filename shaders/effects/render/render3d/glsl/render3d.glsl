@@ -328,7 +328,7 @@ IsoHit isosurfaceTrace(vec3 ro, vec3 rd) {
 // Shading for smooth isosurface - uses RGB from volume for coloring
 vec3 shade(vec3 p, vec3 rd) {
     vec3 n = calcNormal(p);
-    vec3 lightDir = normalize(vec3(1.0, 1.0, -1.0));
+    vec3 lightDir = normalize(vec3(-1.0, 1.0, -1.0));
     
     // Diffuse lighting
     float diff = max(dot(n, lightDir), 0.0);
@@ -356,7 +356,7 @@ vec3 shade(vec3 p, vec3 rd) {
 
 // Voxel shading with flat face normals
 vec3 shadeVoxel(vec3 p, vec3 rd, vec3 n, ivec3 voxel) {
-    vec3 lightDir = normalize(vec3(1.0, 1.0, -1.0));
+    vec3 lightDir = normalize(vec3(-1.0, 1.0, -1.0));
     
     float diff = max(dot(n, lightDir), 0.0);
     float amb = 0.3;  // Higher ambient for voxel look
@@ -383,15 +383,18 @@ void main() {
     vec2 globalCoord = gl_FragCoord.xy + tileOffset;
     vec2 uv = (globalCoord - 0.5 * fullRes) / fullRes.y;
     
-    // Camera setup - orbiting view
+    // Camera setup - orbiting view. (right, up, -forward) is right-handed,
+    // so screen right is world +X seen from the front and the volume is
+    // never mirrored. The orbit runs toward -X, which keeps the on-screen
+    // spin of earlier releases.
     float camDist = 3.5;
-    float angle = time * TAU * float(orbitSpeed);
+    float angle = -time * TAU * float(orbitSpeed);
     vec3 ro = vec3(sin(angle) * camDist, 0.5, cos(angle) * camDist);
     vec3 lookAt = vec3(0.0);
     
     vec3 forward = normalize(lookAt - ro);
-    vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), forward));
-    vec3 up = cross(forward, right);
+    vec3 right = normalize(cross(forward, vec3(0.0, 1.0, 0.0)));
+    vec3 up = cross(right, forward);
     
     vec3 rd = normalize(forward + uv.x * right + uv.y * up);
     
