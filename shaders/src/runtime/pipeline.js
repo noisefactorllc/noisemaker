@@ -2733,7 +2733,8 @@ export class Pipeline {
     /**
      * Swap double-buffered surfaces at end of frame.
      *
-     * For state surfaces (xyz, vel, rgba, trail) and graph feedback surfaces,
+     * For state surfaces (xyz, vel, rgba, trail), graph feedback surfaces, and
+     * surfaces explicitly marked persistent,
      * persist the frame's final read/write bindings so the next frame reads
      * the latest write even when an intervening update pass was skipped.
      *
@@ -2766,7 +2767,8 @@ export class Pipeline {
         for (const [name, surface] of this.surfaces.entries()) {
             surface.currentFrame = this.frameIndex
 
-            if (isStateSurface(name) || this._feedbackSurfaces?.has(name)) {
+            if (isStateSurface(name) || this._feedbackSurfaces?.has(name) ||
+                this.graph?.textures?.get?.(`global_${name}`)?.persistent === true) {
                 // State surfaces: persist the frame's final bindings
                 const finalRead = this.frameReadTextures?.get(name)
                 const finalWrite = this.frameWriteTextures?.get(name)

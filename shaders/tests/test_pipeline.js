@@ -630,6 +630,41 @@ test('Pipeline - Custom feedback surface survives a skipped pass', async () => {
     }
 })
 
+test('Pipeline - Write-first persistent surface survives consecutive skipped passes', async () => {
+    const backend = new MockBackend()
+    const graph = {
+        passes: [
+            { id: 'update_memory', program: 'update', inputs: {},
+              outputs: { color: 'global_memory' },
+              conditions: { runIf: [{ uniform: 'frame', equals: 0 }] } },
+            { id: 'show_memory', program: 'show',
+              inputs: { source: 'global_memory' }, outputs: { color: 'result' } }
+        ],
+        textures: new Map([
+            ['global_memory', { width: 'screen', height: 'screen', format: 'rgba16f', persistent: true }],
+            ['result', { width: 'screen', height: 'screen', format: 'rgba16f', usage: ['render', 'sample'] }]
+        ]),
+        programs: { update: { fragment: 'void main() {}' }, show: { fragment: 'void main() {}' } }
+    }
+
+    const pipeline = new Pipeline(graph, backend)
+    await pipeline.init(16, 16)
+    pipeline.render(0)
+    const firstWrite = backend.passes[0].surfaceBindings.memory.write
+
+    for (const time of [0.016, 0.032, 0.048]) {
+        backend.passes = []
+        pipeline.render(time)
+        if (backend.passes.length !== 1 || backend.passes[0].passId !== 'show_memory') {
+            throw new Error('Expected only the show pass after the initial write')
+        }
+        const observedRead = backend.passes[0].surfaceBindings.memory.read
+        if (observedRead !== firstWrite) {
+            throw new Error(`Expected persistent read ${firstWrite} after skipped update, got ${observedRead}`)
+        }
+    }
+})
+
 test('Pipeline - Storage-only feedback surface survives a skipped pass', async () => {
     const backend = new MockBackend()
     const graph = {
