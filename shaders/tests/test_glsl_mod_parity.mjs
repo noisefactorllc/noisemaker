@@ -185,8 +185,12 @@ try {
         if (!passesComparison(result, allowed)) {
             failures.push(result.colors < 2 ? `${c.id}: the WebGL2 frame is flat` : summary)
             console.log(`FAIL ${summary}`)
+        } else if (allowed !== strictTolerance) {
+            // Not a parity pass: this case exceeds exact parity and only fits
+            // the measured Metal tolerance, so it gets its own verdict.
+            console.log(`TOLERATED ${summary} (within measured tolerance: ${allowed.pixels} pixels, maxDiff ${allowed.maxDiff}; not exact parity)`)
         } else {
-            console.log(`PASS ${summary}${allowed !== strictTolerance ? ` (measured tolerance: ${allowed.pixels} pixels, maxDiff ${allowed.maxDiff})` : ''}`)
+            console.log(`PASS ${summary}`)
         }
     }
     for (const { backend, errors } of [webgl2, webgpu]) {
