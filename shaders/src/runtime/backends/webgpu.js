@@ -1011,6 +1011,108 @@ export class WebGPUBackend extends Backend {
      */
     parseEntryPointBindings(source, bindings) {
         const entryPointBindings = new Map()
+        // Resources used in helper functions are part of the selected entry's
+        // auto layout too. Comments must not introduce a resource or call edge.
+        source = this.stripWGSLComments(source)
+        const functionBodies = new Map()
+        const functionRegex = /\bfn\s+(\w+)\s*\(/g
+        let functionMatch
+        while ((functionMatch = functionRegex.exec(source)) !== null) {
+            const parametersStart = functionRegex.lastIndex
+            let parametersEnd = parametersStart
+            let parentheses = 1
+            for (; parametersEnd < source.length && parentheses > 0; parametersEnd++) {
+                if (source[parametersEnd] === '(') parentheses++
+                else if (source[parametersEnd] === ')') parentheses--
+            }
+            if (parentheses !== 0) continue
+            const parameters = new Set()
+            const parameterSource = source.slice(parametersStart, parametersEnd - 1)
+            const parameterRegex = /(?:^|,)\s*(?:@\w+\s*\([^)]*\)\s*)*([A-Za-z_]\w*)\s*:/g
+            for (const parameter of parameterSource.matchAll(parameterRegex)) parameters.add(parameter[1])
+            const openingBrace = source.indexOf('{', parametersEnd)
+            if (openingBrace < 0) continue
+            const start = openingBrace + 1
+            let depth = 1
+            let end = start
+            for (; end < source.length && depth > 0; end++) {
+                if (source[end] === '{') depth++
+                else if (source[end] === '}') depth--
+            }
+            functionBodies.set(functionMatch[1], { body: source.slice(start, end - 1), parameters })
+            functionRegex.lastIndex = end
+        }
+
+        const bindingByName = new Map(bindings.map(binding => [binding.name, binding.binding]))
+        const analyzeBody = ({ body, parameters }) => {
+            const tokens = body.match(/[A-Za-z_]\w*|\d+\w*|[{}().,:;<>]/g) || []
+            const scopes = [new Set(parameters)]
+            const used = new Set()
+            const calls = new Set()
+            const forBodyOpens = new Set()
+            const forBodyDepths = []
+            const declarations = new Set()
+            const pendingDeclarations = []
+            for (let i = 0; i < tokens.length; i++) {
+                const token = tokens[i]
+                if (token === ';') {
+                    // WGSL local names enter scope after their declaration,
+                    // so an initializer can still refer to a global of that name.
+                    for (const declaration of pendingDeclarations) declaration.scope.add(declaration.name)
+                    pendingDeclarations.length = 0
+                    continue
+                }
+                if (token === 'for' && tokens[i + 1] === '(') {
+                    let parentheses = 0
+                    let end = i + 1
+                    for (; end < tokens.length; end++) {
+                        if (tokens[end] === '(') parentheses++
+                        else if (tokens[end] === ')' && --parentheses === 0) break
+                    }
+                    if (tokens[end + 1] === '{') {
+                        scopes.push(new Set())
+                        forBodyOpens.add(end + 1)
+                    }
+                    continue
+                }
+                if (token === '{') {
+                    scopes.push(new Set())
+                    if (forBodyOpens.has(i)) forBodyDepths.push(scopes.length)
+                    continue
+                }
+                if (token === '}') {
+                    const closingDepth = scopes.length
+                    if (closingDepth > 1) scopes.pop()
+                    if (forBodyDepths.at(-1) === closingDepth) {
+                        scopes.pop()
+                        forBodyDepths.pop()
+                    }
+                    continue
+                }
+                if (token === 'let' || token === 'var' || token === 'const') {
+                    let nameIndex = i + 1
+                    if (token === 'var' && tokens[nameIndex] === '<') {
+                        let brackets = 1
+                        for (nameIndex++; nameIndex < tokens.length && brackets > 0; nameIndex++) {
+                            if (tokens[nameIndex] === '<') brackets++
+                            else if (tokens[nameIndex] === '>') brackets--
+                        }
+                    }
+                    const localName = tokens[nameIndex]
+                    if (localName && /^[A-Za-z_]\w*$/.test(localName)) {
+                        declarations.add(nameIndex)
+                        pendingDeclarations.push({ name: localName, scope: scopes.at(-1) })
+                    }
+                }
+                if (declarations.has(i)) continue
+                if (bindingByName.has(token) && tokens[i - 1] !== '.' &&
+                    !scopes.some(scope => scope.has(token))) used.add(bindingByName.get(token))
+                if (functionBodies.has(token) && tokens[i + 1] === '(' && tokens[i - 1] !== '.') {
+                    calls.add(token)
+                }
+            }
+            return { used, calls }
+        }
 
         // Find all entry points with their function bodies
         const entryPointRegex = /@(?:compute|vertex|fragment)[^f]*fn\s+(\w+)\s*\([^)]*\)[^{]*\{/g
@@ -1029,15 +1131,17 @@ export class WebGPUBackend extends Backend {
                 endIdx = i
             }
 
-            const functionBody = source.slice(startIdx, endIdx)
+            const reachable = [{ body: source.slice(startIdx, endIdx),
+                parameters: functionBodies.get(entryPoint)?.parameters || new Set() }]
+            const visited = new Set([entryPoint])
             const usedBindings = new Set()
-
-            // Check which binding names are referenced in this function body
-            for (const binding of bindings) {
-                // Look for the binding name as a word (not part of another identifier)
-                const nameRegex = new RegExp(`\\b${binding.name}\\b`)
-                if (nameRegex.test(functionBody)) {
-                    usedBindings.add(binding.binding)
+            for (let index = 0; index < reachable.length; index++) {
+                const { used, calls } = analyzeBody(reachable[index])
+                for (const binding of used) usedBindings.add(binding)
+                for (const name of calls) {
+                    if (visited.has(name)) continue
+                    visited.add(name)
+                    reachable.push(functionBodies.get(name))
                 }
             }
 
@@ -2574,7 +2678,7 @@ export class WebGPUBackend extends Backend {
         const targetPipeline = pipeline || program.pipeline
 
 
-        // For multi-entry-point compute shaders, filter bindings based on pass inputs/outputs
+        // For multi-entry-point compute shaders, filter bindings based on pass resources
         // This prevents including bindings that are optimized out by WebGPU for this entry point
         if (pass.entryPoint && program.isCompute) {
             const neededBindingNames = new Set()
@@ -2590,6 +2694,19 @@ export class WebGPUBackend extends Backend {
             if (pass.outputs) {
                 for (const outputName of Object.keys(pass.outputs)) {
                     neededBindingNames.add(outputName)
+                }
+            }
+
+            // A storage texture is mapped separately from ordinary pass outputs.
+            // Keep only storage declarations used by the selected entry point;
+            // auto layouts omit declarations used exclusively by another entry.
+            const usedBindings = program.entryPointBindings?.get(pass.entryPoint)
+            if (pass.storageTextures) {
+                for (const storageName of Object.keys(pass.storageTextures)) {
+                    const binding = bindings.find(b => b.name === storageName && b.type === 'storage_texture')
+                    if (binding && (!usedBindings || usedBindings.has(binding.binding))) {
+                        neededBindingNames.add(storageName)
+                    }
                 }
             }
 

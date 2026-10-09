@@ -108,6 +108,9 @@ jobs:
     - name: Install Playwright browsers
       run: npx playwright install chromium
 
+    - name: Verify WebGPU uploads, resampling, and storage execution
+      run: npm run test:shaders:render:webgpu
+
     - name: Verify alpha compositing on both GPU backends
       run: npm run test:shaders:alpha
 
