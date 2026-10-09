@@ -41,6 +41,20 @@ function litMean(png, x0, y0, x1, y1, f) {
     return sum / lit
 }
 
+// The authored image with its pixels taken from (sx(x), sy(y)), rows top first.
+function remapped(png, sx, sy) {
+    const out = { data: new Uint8Array(png.data.length) }
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+        const from = (sy(y) * size + sx(x)) * 4
+        out.data.set(png.data.subarray(from, from + 4), (y * size + x) * 4)
+    }
+    return out
+}
+const keep = n => n
+const reverse = n => size - 1 - n
+const keepLow = n => (n < size / 2 ? n : size - 1 - n)
+const keepHigh = n => (n >= size / 2 ? n : size - 1 - n)
+
 const particleSims = ['attractor', 'buddhabrot', 'dla', 'flock', 'flow', 'hydraulic', 'lenia', 'life', 'physarum', 'physical']
 const cases = [
     // Each particle effect passes its input through for pointsRender to draw
@@ -112,6 +126,28 @@ render(o0)`,
             }
         },
     })),
+    // Flip and mirror modes do only what their names say. A mirror mode keeps
+    // the named half as authored and reflects it onto the other half:
+    // "up to down" keeps the top half, "left to right" the left half. The
+    // presented rows run top first, so the top half is rows 0-63. synth/media
+    // takes a canvas copy of the uvMap; flipMirror takes the uvMap itself.
+    ...[
+        ['none', keep, keep], ['all', reverse, reverse], ['horizontal', reverse, keep], ['vertical', keep, reverse],
+        ['mirrorLtoR', keepLow, keep], ['mirrorRtoL', keepHigh, keep], ['mirrorUtoD', keep, keepLow],
+        ['mirrorDtoU', keep, keepHigh], ['mirrorLtoRUtoD', keepLow, keepLow], ['mirrorLtoRDtoU', keepLow, keepHigh],
+        ['mirrorRtoLUtoD', keepHigh, keepLow], ['mirrorRtoLDtoU', keepHigh, keepHigh],
+    ].flatMap(([mode, sx, sy]) => [
+        ['synth/media', `search synth\nmedia(imageSize: [${size}, ${size}], flip: ${mode})`],
+        ['filter/flipMirror', `search filter, synth\n${uvMap}.flipMirror(mode: ${mode})`],
+    ].map(([effect, chain]) => ({
+        name: `${effect} ${mode} keeps the named half`,
+        effects: [effect],
+        dsl: `${chain}.write(o0)\nrender(o0)`,
+        check(view, authored, label) {
+            const diff = meanAbsDiff(view, remapped(authored, sx, sy))
+            assert.ok(diff <= 2, `${label}: the frame must be the authored image under the named flip (mean difference ${diff.toFixed(2)})`)
+        },
+    }))),
 ]
 
 const failures = []
@@ -134,6 +170,16 @@ try {
                     basePath: `${baseUrl}/shaders`, preferWebGPU: backend === 'webgpu' })
                 await renderer.loadManifest()
                 await renderer.loadEffects(['synth/testPattern'])
+                // A canvas copy of the uvMap for synth/media, uploaded as hosts
+                // upload media: top row first, without flipping.
+                window.uvCanvas = document.createElement('canvas')
+                uvCanvas.width = size
+                uvCanvas.height = size
+                const image = new ImageData(size, size)
+                for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+                    image.data.set([Math.round(255 * (x + 0.5) / size), Math.round(255 * (1 - (y + 0.5) / size)), 0, 255], (y * size + x) * 4)
+                }
+                uvCanvas.getContext('2d').putImageData(image, 0, 0)
             }, { baseUrl, backend, size })
             // Each case starts from a fresh pipeline, so particle state
             // never carries over from the previous case.
@@ -143,6 +189,10 @@ try {
                     await renderer.dispose()
                     await renderer.compile(dsl)
                     renderer.stop()
+                    renderer.render(0)
+                    for (const pass of renderer.pipeline.graph.passes.filter(p => p.effectFunc === 'media')) {
+                        renderer.updateTextureFromSource('imageTex_step_' + pass.stepIndex, window.uvCanvas, { flipY: false })
+                    }
                     for (let i = 0; i < frames; i++) renderer.render(0)
                     await renderer.pipeline.backend.device?.queue.onSubmittedWorkDone()
                     return renderer.pipeline.backend.getName().toLowerCase()
