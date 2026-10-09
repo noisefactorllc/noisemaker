@@ -127,7 +127,16 @@ float random(vec2 p) {
 
 
 float map(float value, float inMin, float inMax, float outMin, float outMax) {
-    return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
+    // The final division lowers differently: Dawn computes x * rcp(span)
+    // (approximate reciprocal), ANGLE a correctly-rounded divide, so mapped
+    // values differ by ~1 ulp and knife-edge taps flip. One Newton-Raphson
+    // step pins the reciprocal to the same value on both backends (multiply
+    // and subtract are correctly rounded in both Metal math modes). The clamp
+    // keeps the span*rmul product from fusing into the (2.0 - ...) subtract.
+    float span = inMax - inMin;
+    float rmul = 1.0 / span;
+    float mc = min(max(span * rmul, -1e38), 1e38);
+    return outMin + (outMax - outMin) * ((value - inMin) * (rmul * (2.0 - mc)));
 }
 
 vec2 rotate2D(vec2 st, float rot) {
@@ -654,7 +663,14 @@ void main() {
 
     vec4 color = vec4(0.0);
 
-    float scale = 100.0 / scaleAmt; // 25 - 400 maps to 100 / 25 (4) to 100 / 400 (0.25)
+    // The division by a runtime uniform lowers differently (Dawn: x * rcp(y),
+    // ANGLE: correctly-rounded divide) — a ~1 ulp difference rescales every uv
+    // and flips knife-edge taps. One Newton-Raphson step pins the reciprocal
+    // on both backends; the clamp keeps the scaleAmt*sR product from fusing
+    // into the (2.0 - ...) subtract.
+    float sR = 1.0 / scaleAmt;
+    float sC = min(max(scaleAmt * sR, -1e38), 1e38);
+    float scale = 100.0 * (sR * (2.0 - sC)); // 25 - 400 maps to 100 / 25 (4) to 100 / 400 (0.25)
 
     if (scale == 0.0) {
         scale = 1.0;
@@ -675,15 +691,19 @@ void main() {
 
     // need to subtract 50% of image width and height
     // mid center
-    uv.x -= ceil((resolution.x / imageSize.x * scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
-    uv.y += ceil((resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - (scale));
+    // imageSize is a copy of resolution, so resolution/imageSize is a value
+    // divided by itself: ANGLE computes exactly 1.0 while Dawn lowers the
+    // division to x * rcp(x) (~1 ulp off), which shifted the offset map's
+    // arguments and flipped knife-edge sampler taps. Use the exact 1.0.
+    uv.x -= ceil((scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
+    uv.y += ceil((scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - (scale));
 
     // Pin the offset-shift evaluation order with scalar clamps: the map
     // result feeds a multiply then a subtract, and relaxed math contracts
     // that pair into an fma while standard math double-rounds. The clamps
     // are value-exact for finite values.
-    float shiftXv = min(max(map(offsetX, -100.0, 100.0, -resolution.x / imageSize.x * scale, resolution.x / imageSize.x * scale) * 1.5, -1e38), 1e38);
-    float shiftYv = min(max(map(offsetY, -100.0, 100.0, -resolution.y / imageSize.y * scale, resolution.y / imageSize.y * scale) * 1.5, -1e38), 1e38);
+    float shiftXv = min(max(map(offsetX, -100.0, 100.0, -scale, scale) * 1.5, -1e38), 1e38);
+    float shiftYv = min(max(map(offsetY, -100.0, 100.0, -scale, scale) * 1.5, -1e38), 1e38);
     uv -= vec2(shiftXv, shiftYv);
 
     uv = fract(uv);

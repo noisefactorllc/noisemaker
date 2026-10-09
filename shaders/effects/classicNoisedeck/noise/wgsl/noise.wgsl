@@ -351,17 +351,20 @@ fn simplexValue(st_in: vec2<f32>, freq: vec2<f32>, s: f32, blend: f32) -> f32 {
     var uv = vec2<f32>(st_in.x * freq.x, st_in.y * freq.y);
     uv.x = uv.x + s;
 
-    var i = floor(uv + dot(uv, C.yy));
-    var x0 = uv - i + dot(i, C.xx);
+    var i = floor(uv + min(max(dot(uv, C.yy), -1e38), 1e38));
+    var x0 = uv - i + min(max(dot(i, C.xx), -1e38), 1e38);
 
     let i1 = select(vec2<f32>(0.0, 1.0), vec2<f32>(1.0, 0.0), x0.x > x0.y);
-    let x1 = x0 - i1 + vec2<f32>(C.x, C.x);
-    let x2 = x0 - vec2<f32>(1.0, 1.0) + vec2<f32>(2.0 * C.x, 2.0 * C.x);
+    // Match the GLSL's expression shapes: x1 = (x0 + C.x) - i1, and x2 uses
+    // the single C.z literal rather than -1 + 2*C.x (equal in exact math,
+    // ~1 ulp apart in f32 — the third simplex corner shifts otherwise).
+    let x1 = x0 + vec2<f32>(C.x, C.x) - i1;
+    let x2 = x0 + vec2<f32>(C.z, C.z);
 
     i = mod289_2(i);
     var p = permute3(permute3(i.y + vec3<f32>(0.0, i1.y, 1.0)) + i.x + vec3<f32>(0.0, i1.x, 1.0));
 
-    var m = max(vec3<f32>(0.5) - vec3<f32>(dot(x0, x0), dot(x1, x1), dot(x2, x2)), vec3<f32>(0.0));
+    var m = max(vec3<f32>(0.5) - min(max(vec3<f32>(dot(x0, x0), dot(x1, x1), dot(x2, x2)), vec3<f32>(-1e38)), vec3<f32>(1e38)), vec3<f32>(0.0));
     m = m * m;
     m = m * m;
 
@@ -370,11 +373,11 @@ fn simplexValue(st_in: vec2<f32>, freq: vec2<f32>, s: f32, blend: f32) -> f32 {
     var ox = floor(x + 0.5);
     var a0 = x - ox;
 
-    m = m * (1.79284291400159 - 0.85373472095314 * (a0 * a0 + h * h));
+    m = m * (1.79284291400159 - min(max(0.85373472095314 * (min(max(a0 * a0, vec3<f32>(-1e38)), vec3<f32>(1e38)) + min(max(h * h, vec3<f32>(-1e38)), vec3<f32>(1e38))), vec3<f32>(-1e38)), vec3<f32>(1e38)));
 
     var g = vec3<f32>(0.0);
-    g.x = a0.x * x0.x + h.x * x0.y;
-    let gyz = a0.yz * vec2<f32>(x1.x, x2.x) + h.yz * vec2<f32>(x1.y, x2.y);
+    g.x = min(max(a0.x * x0.x, -1e38), 1e38) + min(max(h.x * x0.y, -1e38), 1e38);
+    let gyz = min(max(a0.yz * vec2<f32>(x1.x, x2.x), vec2<f32>(-1e38)), vec2<f32>(1e38)) + min(max(h.yz * vec2<f32>(x1.y, x2.y), vec2<f32>(-1e38)), vec2<f32>(1e38));
     g.y = gyz.x;
     g.z = gyz.y;
 
@@ -682,7 +685,16 @@ fn multires(st_in: vec2<f32>, freq: vec2<f32>, oct: i32, s: f32, blend: f32) -> 
         color = color + layer / multiplier;
     }
 
-    color = color / multiplicand;
+    // The normalization divides by a runtime-accumulated value (e.g. 1.25 for
+    // two octaves). Dawn lowers the division to an approximate reciprocal
+    // multiply while ANGLE divides, so the two differ by ~1 ulp at knife-edge
+    // texels and the noise field is not bit-identical across backends. One
+    // Newton-Raphson step pins the reciprocal: both backends then compute the
+    // identical refined reciprocal and the identical quotient. The clamp keeps
+    // the multiplicand*rmul multiply from fusing into the (2.0 - ...) subtract.
+    let rmul = 1.0 / multiplicand;
+    let mc = min(max(multiplicand * rmul, -1e38), 1e38);
+    color = color * (rmul * (2.0 - mc));
 
     var result = color;
     if (COLOR_MODE == 0) {

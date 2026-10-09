@@ -22,27 +22,20 @@ const flipModes = Object.entries(definition.globals.flip.choices)
     .filter(([name, value]) => value !== null && name !== 'none').map(([name]) => name)
 
 const transforms = 'scaleAmt: 150, rotation: 30, offsetX: 20, offsetY: -15'
-// With one measured exception every case must match exactly: bit-exactness is
-// achieved by mirroring every floating-point evaluation between GLSL ES 3.0
-// (ANGLE on Metal, fast math) and WGSL (Dawn on Metal, relaxed math). The uv
-// chain multiplies CPU-computed reciprocals (invFullResolution, aspect,
-// aspectInv) instead of dividing, because Dawn lowers a runtime division to an
-// approximate reciprocal multiply; rotate2D's products, the offset shifts, the
-// scale rescale and zoomBlur's tap chain carry min/max barriers so relaxed
-// math cannot contract multiply-add pairs the way ANGLE's fast math does; and
-// zoomBlur's final weighted average divides by a Newton-refined reciprocal.
-// On the qualification host (Apple M4, macOS 26.5, Chrome stable) that leaves
-// exactly one residual: zoomBlur at 120x72 with effectAmt 7 under the other
-// transforms with flip rlDu renders pixel (97, 11) blue 81 on WebGL2 and 82 on
-// WebGPU. The exact accumulated blue ties on the 81.5/255 8-bit rounding
-// midpoint, so either backend's last-ulp rounding difference decides the
-// presented byte; every evaluation-order pinning tried (clamp barriers at six
-// sites, a two-pass product array, the Newton reciprocal, tap and scale
-// rescale barriers) moves the residual but does not remove it. The tolerance
-// admits exactly this one pixel at its measured magnitude and nothing more.
-const measuredTolerance = {
-    'zoomBlur 120x72': { tolerance: { pixels: 1, maxDiff: 1 } },
-}
+// Bit-exactness is achieved by mirroring every floating-point evaluation
+// between GLSL ES 3.0 (ANGLE on Metal, fast math) and WGSL (Dawn on Metal,
+// relaxed math). The uv chain multiplies CPU-computed reciprocals
+// (invFullResolution, aspect, aspectInv) instead of dividing, because Dawn
+// lowers a runtime division to an approximate reciprocal multiply; rotate2D's
+// products, the offset shifts, the scale rescale and zoomBlur's tap chain
+// carry min/max barriers so relaxed math cannot contract multiply-add pairs
+// the way ANGLE's fast math does; zoomBlur's final weighted average divides
+// by a Newton-refined reciprocal; the shared map's division and the scale
+// division are Newton-refined too; zoomBlur's taps sample computed texel
+// centers so no nearest-sampler tie can differ; and the final color carries a
+// small deterministic downward pull (a single same-constant multiply) that
+// lands any boundary-adjacent pair whose residual divergence is smaller than
+// the bias on the same side of every 8-bit boundary.
 const program = (args, pre = '') =>
     `search classicNoisedeck\n\nnoise(seed: 1)${pre}.effects(${args}).write(o0)\nrender(o0)`
 const cases = [
@@ -65,7 +58,6 @@ const cases = [
         id: `${mode} effectAmt 7, other transforms, rlDu, ${size.join('x')}`,
         size,
         dsl: program(`effect: ${mode}, effectAmt: 7, scaleAmt: 85, rotation: -47, offsetX: 33, offsetY: 61, flip: rlDu`),
-        ...measuredTolerance[`${mode} ${size.join('x')}`],
     }))),
     // A first pass pushes the input above 1 and below 0.
     ...['cga', 'edge', 'litEdge', 'derivDivide'].flatMap((mode) => [100, -100].map((intensity) => ({
@@ -149,12 +141,11 @@ try {
     for (const c of cases) {
         const result = compare(await present(webgl2, c), await present(webgpu, c))
         const summary = `${c.id}: ${result.mismatched}/${result.pixels} pixels differ, maxDiff ${result.maxDiff}`
-        const allowed = c.tolerance ?? { pixels: 0, maxDiff: 0 }
-        if (result.mismatched > allowed.pixels || result.maxDiff > allowed.maxDiff || result.colors < 2) {
+        if (result.mismatched > 0 || result.colors < 2) {
             failures.push(result.colors < 2 ? `${c.id}: the WebGL2 frame is flat` : summary)
             console.log(`FAIL ${summary}`)
         } else {
-            console.log(`PASS ${summary}${c.tolerance ? ` (measured tolerance: ${allowed.pixels} pixels, maxDiff ${allowed.maxDiff})` : ''}`)
+            console.log(`PASS ${summary}`)
         }
     }
     for (const { backend, errors } of [webgl2, webgpu]) {
@@ -165,5 +156,5 @@ try {
     releaseServer()
 }
 
-assert.deepEqual(failures, [], `classicNoisedeck/effects WebGPU must match WebGL2:\n${failures.join('\n')}`)
-console.log(`PASS classicNoisedeck/effects: ${cases.length} cases match on WebGL2 and WebGPU (${Object.keys(measuredTolerance).length} within measured tolerance, the rest exact)`)
+assert.deepEqual(failures, [], `classicNoisedeck/effects WebGPU must match WebGL2 exactly:\n${failures.join('\n')}`)
+console.log(`PASS classicNoisedeck/effects: ${cases.length} cases match WebGL2 exactly on WebGPU`)

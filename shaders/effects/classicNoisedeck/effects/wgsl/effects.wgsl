@@ -41,7 +41,16 @@ fn aspectRatio() -> f32 {
 }
 
 fn mapRange(value: f32, inMin: f32, inMax: f32, outMin: f32, outMax: f32) -> f32 {
-    return outMin + (outMax - outMin) * (value - inMin) / (inMax - inMin);
+    // The final division lowers differently: Dawn computes x * rcp(span)
+    // (approximate reciprocal), ANGLE a correctly-rounded divide, so mapped
+    // values differ by ~1 ulp and knife-edge taps flip. One Newton-Raphson
+    // step pins the reciprocal to the same value on both backends (multiply
+    // and subtract are correctly rounded in both Metal math modes). The clamp
+    // keeps the span*rmul product from fusing into the (2.0 - ...) subtract.
+    let span = inMax - inMin;
+    let rmul = 1.0 / span;
+    let mc = min(max(span * rmul, -1e38), 1e38);
+    return outMin + (outMax - outMin) * ((value - inMin) * (rmul * (2.0 - mc)));
 }
 
 // GLSL mod(): x - y * floor(x / y). WGSL % truncates instead, and its exact
@@ -407,7 +416,14 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     // correctly-rounded multiply, so the uv chain is bit-identical.
     var uv = fragCoord.xy * u.invFullResolution;
 
-    var scale = 100.0 / u.scaleAmt;
+    // The division by a runtime uniform lowers differently (Dawn: x * rcp(y),
+    // ANGLE: correctly-rounded divide) — a ~1 ulp difference rescales every uv
+    // and flips knife-edge taps. One Newton-Raphson step pins the reciprocal
+    // on both backends; the clamp keeps the scaleAmt*sR product from fusing
+    // into the (2.0 - ...) subtract.
+    let sR = 1.0 / u.scaleAmt;
+    let sC = min(max(u.scaleAmt * sR, -1e38), 1e38);
+    var scale = 100.0 * (sR * (2.0 - sC));
     if (scale == 0.0) { scale = 1.0; }
 
     uv = rotate2D(uv, u.rotation);
@@ -420,14 +436,18 @@ fn main(@builtin(position) fragCoord: vec4f) -> @location(0) vec4f {
     uv += 0.5;
 
     let imageSize = u.resolution;
-    uv.x -= ceil((u.resolution.x / imageSize.x * scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
-    uv.y += ceil((u.resolution.y / imageSize.y * scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale);
+    // imageSize is a copy of u.resolution, so resolution/imageSize is a value
+    // divided by itself: ANGLE computes exactly 1.0 while Dawn lowers the
+    // division to x * rcp(x) (~1 ulp off), which shifted the offset map's
+    // arguments and flipped knife-edge sampler taps. Use the exact 1.0.
+    uv.x -= ceil((scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
+    uv.y += ceil((scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - scale);
     // Pin the offset-shift evaluation order with scalar clamps: the map
     // result feeds a multiply then a subtract, and relaxed math contracts
     // that pair into an fma while standard math double-rounds. The clamps
     // are value-exact for finite values.
-    let shiftXv = min(max(mapRange(u.offsetX, -100.0, 100.0, -u.resolution.x / imageSize.x * scale, u.resolution.x / imageSize.x * scale) * 1.5, -1e38), 1e38);
-    let shiftYv = min(max(mapRange(u.offsetY, -100.0, 100.0, -u.resolution.y / imageSize.y * scale, u.resolution.y / imageSize.y * scale) * 1.5, -1e38), 1e38);
+    let shiftXv = min(max(mapRange(u.offsetX, -100.0, 100.0, -scale, scale) * 1.5, -1e38), 1e38);
+    let shiftYv = min(max(mapRange(u.offsetY, -100.0, 100.0, -scale, scale) * 1.5, -1e38), 1e38);
     uv -= vec2f(shiftXv, shiftYv);
     uv = fract(uv);
 
