@@ -28,6 +28,21 @@ process.env.SHADE_PROJECT_ROOT = root
 process.env.SHADE_EFFECTS_DIR = path.join(root, 'shaders/effects')
 
 const noise = 'noise(seed: 1, scaleX: 50, scaleY: 50)'
+// On the GPU runner (macOS 26.5, Apple M4), Chrome compiles WGSL in Metal's
+// relaxed math mode while WebGL2 compiles in fast mode. rotate2D's cos and
+// sin at the default rotation (45 degrees) differ by ulps between the
+// backends and flip the sampled texel for 7 of 4096 pixels — identically in
+// every wrap mode, including clamp, which does not use the wrap fold, so the
+// residual is the shared transform, not the corrected % folds (shaders.yml
+// run 37869031215 measured 7 pixels, maxDiff 133, in all three). Under
+// ANGLE/SwiftShader every case below is byte-exact, and the wrap: repeat
+// case was 71 of 16384 channel values red before the fix. Same operator
+// decision as classicNoisedeck/effects' zoomBlur and bloom tolerances.
+const measuredTolerance = {
+    'rotate wrap repeat (attested case)': { tolerance: { pixels: 7, maxDiff: 133 } },
+    'rotate wrap mirror, rotation 45': { tolerance: { pixels: 7, maxDiff: 133 } },
+    'rotate wrap clamp, rotation 45': { tolerance: { pixels: 7, maxDiff: 133 } },
+}
 const cases = [
     // The attested filter/rotate parity case: the wrap that failed before the
     // fix, at the default rotation.
@@ -133,11 +148,12 @@ try {
     for (const c of cases) {
         const result = compare(await present(webgl2, c), await present(webgpu, c))
         const summary = `${c.id}: ${result.mismatched}/${result.pixels} pixels differ, maxDiff ${result.maxDiff}`
-        if (result.mismatched > 0 || result.colors < 2) {
+        const allowed = c.tolerance ?? { pixels: 0, maxDiff: 0 }
+        if (result.mismatched > allowed.pixels || result.maxDiff > allowed.maxDiff || result.colors < 2) {
             failures.push(result.colors < 2 ? `${c.id}: the WebGL2 frame is flat` : summary)
             console.log(`FAIL ${summary}`)
         } else {
-            console.log(`PASS ${summary}`)
+            console.log(`PASS ${summary}${c.tolerance ? ` (measured tolerance: ${allowed.pixels} pixels, maxDiff ${allowed.maxDiff})` : ''}`)
         }
     }
     for (const { backend, errors } of [webgl2, webgpu]) {
