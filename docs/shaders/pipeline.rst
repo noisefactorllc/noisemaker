@@ -373,8 +373,13 @@ and ``_temp0``.
 
 
 * ``doubleBuffered``: The surface has read and write texture IDs. Frame-local
-  bindings advance after writes. Display surfaces swap at frame end, while
-  recognized state surfaces retain their final bindings.
+  bindings advance after writes. At frame end, display surfaces swap, while
+  recognized state surfaces and graph feedback surfaces (global surfaces that
+  a pass reads before any pass writes them in the same frame, and that are
+  also written) retain their frame-final bindings. A surface written before
+  it is read is frame-local scratch and swaps normally. Persisting feedback
+  bindings lets the next frame read the latest write even when an intervening
+  update pass was skipped.
 
 8.0.1 Global Surface Behavior
 """""""""""""""""""""""""""""
@@ -412,10 +417,10 @@ behavior:
   once per allocation change.
 
 3D texture specs (``textures3d``) may author ``filter: 'nearest' |
-'linear'``; it is honored by both backends, while unauthored 3D sampling
-defaults differ between backends (WebGL2 uses LINEAR, WebGPU keeps the
-historical nearest default), so cross-backend parity requires authoring
-``filter`` explicitly. Unknown or misplaced texture spec
+'linear'``; it is honored by both backends. Unauthored 3D sampling defaults
+to linear on both backends, so cross-backend parity holds without authoring
+``filter``; author ``filter: 'nearest'`` for nearest sampling. Unknown or
+misplaced texture spec
 fields are rejected by ``validateEffectDefinition()`` with per-field
 diagnostics. The current resize path otherwise does not blit old surface
 content into newly sized textures or recompile shader programs.
