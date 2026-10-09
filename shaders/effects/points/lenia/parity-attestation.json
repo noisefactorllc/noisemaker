@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "effect": "points/life",
-  "sourceHash": "952e9e4287c02f75cb50091c319688dcf73c6d215f10e617b78355f6d95fc422",
-  "caseHash": "72a3dac8e5d6b086791edd66a0f9f067d3bd9446811c2b19539014db18983057",
+  "effect": "points/lenia",
+  "sourceHash": "b4b1f4d2a6fdcb238e074e3ab3267d06c3074ccaf1437190e27e6ae918db1934",
+  "caseHash": "d5226ec35c0af9acb1436700983b698b774eb88c8f27c6c7b5439e39c4336143",
   "resolution": [
     64,
     64
@@ -11,21 +11,21 @@
     "webgl2": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 4096,
+      "nonzeroRgbPixels": 4095,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 578
+      "uniqueColors": 3327
     },
     "webgpu": {
       "width": 64,
       "height": 64,
-      "nonzeroRgbPixels": 4096,
+      "nonzeroRgbPixels": 4095,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 578
+      "uniqueColors": 3327
     }
   },
   "execution": {
-    "webgl2TargetPasses": 3,
-    "webgpuTargetPasses": 3
+    "webgl2TargetPasses": 5,
+    "webgpuTargetPasses": 5
   },
   "parity": {
     "epsilon": 0,

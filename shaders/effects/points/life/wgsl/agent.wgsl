@@ -299,7 +299,7 @@ fn main(@builtin(position) position: vec4f) -> Outputs {
         outColor = vec4f(typeColor(i32(typeId), u.typeCount), 1.0);
     } else {
         // Sample from input texture based on position
-        outColor = textureSampleLevel(inputTex, inputSampler, vec2f(pos.x, 1.0 - pos.y), 0.0);
+        outColor = textureSampleLevel(inputTex, inputSampler, pos, 0.0);
     }
 
     // Output updated state

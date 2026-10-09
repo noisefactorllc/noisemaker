@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "effect": "points/life",
-  "sourceHash": "952e9e4287c02f75cb50091c319688dcf73c6d215f10e617b78355f6d95fc422",
-  "caseHash": "72a3dac8e5d6b086791edd66a0f9f067d3bd9446811c2b19539014db18983057",
+  "effect": "points/hydraulic",
+  "sourceHash": "fe6ff29ccf2ceaaaa8ca336483f4f8f304a47cbd2d6b8e0a599739705d6b1e5f",
+  "caseHash": "6b048fd5b353ee7988330cef5cbd71b04e9678deb0ffdc4ea53dd7fbfdd403f8",
   "resolution": [
     64,
     64
@@ -13,19 +13,19 @@
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 578
+      "uniqueColors": 3509
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 4096,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 578
+      "uniqueColors": 3509
     }
   },
   "execution": {
-    "webgl2TargetPasses": 3,
-    "webgpuTargetPasses": 3
+    "webgl2TargetPasses": 2,
+    "webgpuTargetPasses": 2
   },
   "parity": {
     "epsilon": 0,

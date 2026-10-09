@@ -3,10 +3,10 @@
     "effects": [
         "synth/noise",
         "render/pointsEmit",
-        "points/life",
+        "points/hydraulic",
         "render/pointsRender"
     ],
-    "dsl": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).life().pointsRender().write(o0)\nrender(o0)",
+    "dsl": "search synth, points, render\n\nnoise(seed: 1).pointsEmit(stateSize: x64).hydraulic().pointsRender().write(o0)\nrender(o0)",
     "surface": "o0",
     "resolution": [
         64,

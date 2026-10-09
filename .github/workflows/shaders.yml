@@ -123,6 +123,9 @@ jobs:
     - name: Verify classicNoisedeck/effects matches WebGL2 on WebGPU
       run: npm run test:shaders:classic-effects
 
+    - name: Verify effects show their input unmirrored on both GPU backends
+      run: npm run test:shaders:orientation
+
   bundle:
     name: Bundle shaders
     runs-on: ubuntu-latest
