@@ -64,16 +64,21 @@ const cases = [
 // rgb2hsv's red-dominant hue must be the GLSL's floored mod. glsl/kaleido.glsl
 // writes mod((g - b) / delta, 6.0) / 6.0; the WGSL wrote the truncating % and
 // now writes the same remainder through the file's glslMod helper, as
-// classicNoisedeck/effects' WGSL does.
-const wgsl = fs.readFileSync(path.join(root, 'shaders/effects/classicNoisedeck/kaleido/wgsl/kaleido.wgsl'), 'utf8')
-const glsl = fs.readFileSync(path.join(root, 'shaders/effects/classicNoisedeck/kaleido/glsl/kaleido.glsl'), 'utf8')
-assert.match(glsl, /mod\(\(g - b\) \/ delta, 6\.0\) \/ 6\.0/,
-    'gl/kaleido.glsl rgb2hsv must keep the floored-mod hue this contract mirrors')
-assert.match(wgsl, /glslMod\(\(rgb\.g - rgb\.b\) \/ delta, 6\.0\) \/ 6\.0/,
-    'kaleido.wgsl rgb2hsv must compute the red-dominant hue with the GLSL\'s floored mod')
-assert.doesNotMatch(wgsl, /% 6\.0/,
-    'kaleido.wgsl must not take the red-dominant hue with the truncating %')
-
+// classicNoisedeck/effects' WGSL does. classicNoisedeck/effects carries the
+// same contract: its rgb2hsv was fixed the same way (glslMod since
+// 1fa5942), and its shadow() consumer re-wraps the hue through hsv2rgb's
+// fract() too, so a revert to the truncating % would be invisible in renders.
+const contractEffects = ['classicNoisedeck/kaleido', 'classicNoisedeck/effects']
+for (const effect of contractEffects) {
+    const wgslSource = fs.readFileSync(path.join(root, `shaders/effects/${effect}/wgsl/${effect.split('/')[1]}.wgsl`), 'utf8')
+    const glslSource = fs.readFileSync(path.join(root, `shaders/effects/${effect}/glsl/${effect.split('/')[1]}.glsl`), 'utf8')
+    assert.match(glslSource, /mod\(\(g - b\) \/ delta, 6\.0\) \/ 6\.0/,
+        `${effect}/glsl rgb2hsv must keep the floored-mod hue this contract mirrors`)
+    assert.match(wgslSource, /glslMod\(\(rgb\.g - rgb\.b\) \/ delta, 6\.0\) \/ 6\.0/,
+        `${effect} wgsl rgb2hsv must compute the red-dominant hue with the GLSL's floored mod`)
+    assert.doesNotMatch(wgslSource, /% 6\.0/,
+        `${effect} wgsl must not take the red-dominant hue with the truncating %`)
+}
 const strictTolerance = { pixels: 0, maxDiff: 0 }
 function toleranceForCase(id) {
     return measuredTolerance[id]?.tolerance ?? strictTolerance
@@ -193,4 +198,5 @@ try {
 }
 
 assert.deepEqual(failures, [], `filter/rotate and classicNoisedeck/kaleido WebGPU must match WebGL2:\n${failures.join('\n')}`)
-console.log(`PASS filter/rotate wrap and classicNoisedeck/kaleido shadow: ${cases.length} cases match on WebGL2 and WebGPU`)
+const tolerated = cases.filter((c) => c.id in measuredTolerance).length
+console.log(`PASS filter/rotate wrap and classicNoisedeck/kaleido shadow: ${cases.length - tolerated} cases byte-exact, ${tolerated} within measured tolerance (not exact parity), on WebGL2 and WebGPU`)
