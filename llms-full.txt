@@ -14,7 +14,7 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `0b0f4560b8420b0b8d74f4542ae254dfc2ea1692`.
+- Noisemaker: `00fb941c7371eed123a23d9e9262567d6cbcd1a3`.
 - Shade MCP: `d66ee676daecd9bfce52cc6fca0b13efd4fbf72f`.
 - Shade MCP protocol: server name `shade-mcp`, server version `0.4.10`, built on
   `@modelcontextprotocol/sdk` 1.31.0, which accepts the protocol versions
@@ -42,9 +42,13 @@ contract tests, run by `scripts/run-js-tests.js`, check parts of it against
 source: `shaders/tests/test_contract_graph_shape.mjs` (the `CompiledGraph`
 type block against `compileGraph()` output),
 `shaders/tests/test_contract_delivery_pair.mjs` (the snapshot block and pin
-against `.mcp.json` and `vendor/`), and
+against `.mcp.json` and `vendor/`),
 `shaders/tests/test_contract_parity_session.mjs` (the parity statement
-against the vendored harness). Everything else is checked only by review.
+against the vendored harness), and
+`shaders/tests/test_contract_frame_lifetime.mjs` (the frame-lifetime
+binding-persistence, persistent-resize, canvas-upload, and 3D-sampler
+statements against `pipeline.js` and `webgpu.js`). Everything else is checked
+only by review.
 The two source commits above define which source revisions this contract covers.
 
 Before updating this contract to a different Noisemaker or Shade MCP revision:
@@ -2029,8 +2033,14 @@ conversion; callers retain ownership and may close their frame synchronously imm
 after the method returns without waiting for GPU execution. WebGL2 uploads visible
 pixels via `texImage2D` and rejects anamorphic display scaling (`displayWidth !== rect.width`
 or `displayHeight !== rect.height`, accounting for 90°/270° rotation) returning `{width: 0, height: 0}`.
-WebGPU submits `copyExternalImageToTexture()` without an awaitable completion step, handling
+WebGPU submits `copyExternalImageToTexture()` without an awaitable completion step for
+video, images, `ImageBitmap`, borrowed `VideoFrame`, and GPU-backed canvases, handling
 display scaling, rotation, crop, color, and alpha via external image copy semantics.
+A 2D canvas created with `willReadFrequently` keeps its pixels in CPU memory, so WebGPU
+uploads it from `getImageData()` through `queue.writeTexture()` (rows reversed for
+`flipY`), the same unpremultiplied bytes WebGL2's `texImage2D` stores;
+`copyExternalImageToTexture` would unpremultiply on the GPU and round low-alpha texels
+differently.
 Unknown or zero-sized sources return zero dimensions. Canvas/media callers may
 therefore read the dimensions directly on either backend rather than awaiting a
 backend-specific promise.
@@ -2070,14 +2080,21 @@ specs may author a filtering policy:
   recreated at a new size (resize or parameter-driven recreation): the
   pipeline copies the old texture into a temporary, recreates at the new
   size, and resamples the temporary back through `backend.copyTexture()`
-  (WebGL2 blit; WebGPU `copyTextureToTexture` when dimensions match, a
-  fullscreen resample pass otherwise). Backend texture records expose
+  (WebGL2 blit; WebGPU `copyTextureToTexture` when dimensions match and
+  neither side has a mip chain, the fullscreen resample pass otherwise —
+  a mipmapped source always takes the resample path, even at matching
+  dimensions, so level 0 is resampled and the chain is regenerated at the
+  new size). Backend texture records expose
   `persistent`.
 - `filter: 'nearest' | 'linear'` (3D only) selects the 3D sampling mode:
-  WebGL2 sets it at `createTexture3D()` (default linear, unchanged);
-  WebGPU maps it onto the shared sampler set only when authored
-  (`'linear'` -> the default linear sampler; unauthored 3D sampling keeps
-  the historical nearest default). Records expose `filter`.
+  WebGL2 sets it at `createTexture3D()` (default linear, unchanged); WebGPU
+  records the authored filter on the 3D texture (default linear) and resolves
+  the sampler per binding from the texture the binding's sampling call reads:
+  an authored `'nearest'` filter binds the nearest sampler, and everything
+  else — including unauthored 3D — binds the default linear sampler, matching
+  WebGL2's default. A sampler whose sampling calls read several textures has
+  no single inference and keeps the `samplerTypes` override or the surface
+  default. Records expose `filter`.
 - Unknown texture spec fields (typos) are rejected by
   `validateEffectDefinition()` with a `Texture 'x': unknown field 'y'`
   diagnostic; `filter`/`mipmaps`/`persistent` on the wrong container are
@@ -2137,7 +2154,12 @@ Frame lifetime is behavior, not an authoring flag:
 - Global surfaces are double-buffered. Display surfaces swap at frame end.
   Names classified as state (`xyz`, `vel`, `rgba`, `trail`, suffix variants,
   names containing `state`, scoped particle state) preserve final frame-local
-  bindings.
+  bindings. Graph feedback surfaces — a surface that a pass reads before any
+  pass writes it and that a later pass writes — and surfaces whose global
+  texture spec sets `persistent: true` preserve their final frame-local
+  bindings too, so the next frame reads the latest write even when an
+  intervening update pass was skipped. A surface written before it is first
+  read is frame-local scratch and still swaps.
 - A node-local texture can therefore retain data across frames. With the
   opt-in `persistent` texture-spec policy, a recreated
   allocation also preserves its previous contents across size changes, and
@@ -4362,7 +4384,7 @@ The structure scan has no issues and reports the one declared effect pass.
 Both compile results report the two expanded passes and the page-confirmed
 backend. The rendered frame is nonblank (`mean_alpha = 1`,
 `luma_variance = 0.24998796755857344`) at the returned 256×256 resolution.
-`gridSize` responds to the tested change (`luma_diff = 0.009534835815429688`,
+`gridSize` responds to the tested change (`luma_diff = 0.002946472167968728`,
 above the `0.002` threshold). The parity comparison reports zero mismatches;
 the benchmark meets 30 FPS at the 256×256 render size. These results apply to
 the identified effect and backends.
