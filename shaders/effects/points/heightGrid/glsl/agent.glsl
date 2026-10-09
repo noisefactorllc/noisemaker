@@ -22,9 +22,11 @@ void main() {
     vec3 heightColor = texture(heightTex, uv).rgb;
     float elevation = dot(heightColor, vec3(0.2126, 0.7152, 0.0722));
     // XZ ground plane, Y elevation. These are world coordinates, not UVs.
+    // The image's top row lies at -Z, so a view from above along -Y with
+    // screen right on +X shows the image as authored, not mirrored.
     outXYZ = vec4((uv.x - 0.5) * gridScale,
         elevation * heightScale + heightOffset,
-        (uv.y - 0.5) * gridScale, 1.0);
+        (0.5 - uv.y) * gridScale, 1.0);
     outVel = vec4(0.0, 0.0, 0.0, texelFetch(velTex, coord, 0).w);
     outRGBA = texture(diffuseTex, uv);
 }

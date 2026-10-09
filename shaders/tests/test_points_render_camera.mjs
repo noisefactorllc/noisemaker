@@ -92,22 +92,23 @@ try {
                 const renderArgs = renderer === 'pointsRender' ? 'matteOpacity: 0' : 'shapeMode: square, pointSize: 8, depositOpacity: 100'
                 return `search synth, points, render\nsolid(color: #ffffff).pointsEmit(stateSize: x64, layout: center, resetState: true)${grid ? '.heightGrid(gridScale: 64, heightScale: 0, heightOffset: 12)' : ''}.${renderer}(viewMode: perspective, density: 0.001, intensity: 0, inputIntensity: 0, ${renderArgs}${Object.entries(params).map(([key, value]) => `, ${key}: ${value}`).join('')}).write(o0)\nrender(o0)`
             }
-            // The first grid slot is (-31.5, 12, -31.5). These pixel locations
+            // The first grid slot is (-31.5, 12, 31.5): heightGrid puts the image's
+            // top row at -Z and its bottom row, where slot 0 samples, at +Z. These pixel locations
             // are hand-derived for the camera at Z=80 and a 160 by 144 viewport.
             // Each projected center stays at least 1/16 pixel from a pixel edge,
             // where rasterizers snap to subpixel grids and break ties differently.
             for (const [name, values, position] of [
-                ['perspective', {}, [59, 64]],
-                ['fov-60', { fieldOfView: 60 }, [44, 58]],
-                ['fov-120', { fieldOfView: 120 }, [68, 67]],
-                ['forward', { posZ: 40 }, [48, 59]],
-                ['backward', { posZ: -45 }, [65, 66]],
-                ['pan-x', { posX: 20 }, [72, 64]],
-                ['pan-y', { posY: -10 }, [59, 70]],
-                ['zoom', { viewScale: 2 }, [39, 56]],
-                ['rotate-x', { rotateX: 1.57079632679 }, [46, 38]],
-                ['rotate-y', { rotateY: 1.57079632679 }, [33, 54]],
-                ['rotate-z', { rotateZ: 1.57079632679 }, [72, 92]]
+                ['perspective', {}, [33, 54]],
+                ['fov-70', { fieldOfView: 70 }, [13, 46]],
+                ['fov-115', { fieldOfView: 115 }, [50, 60]],
+                ['forward', { posZ: 15 }, [12, 46]],
+                ['backward', { posZ: -45 }, [55, 62]],
+                ['pan-x', { posX: 20 }, [62, 54]],
+                ['pan-y', { posY: -9 }, [33, 67]],
+                ['zoom', { viewScale: 1.5 }, [9, 45]],
+                ['rotate-x', { rotateX: 1.57079632679 }, [46, 105]],
+                ['rotate-y', { rotateY: 1.57079632679 }, [126, 54]],
+                ['rotate-z', { rotateZ: 1.57079632679 }, [62, 118]]
             ]) {
                 const pixels = await capture(name, makeDsl(values))
                 assert.deepEqual(occupied(pixels), [position], `${backend} ${name}: incorrect camera projection`)
@@ -115,13 +116,13 @@ try {
             const centered = await capture('world-coordinates', makeDsl({}, false))
             assert.deepEqual(occupied(centered), [[80, 71]], 'perspective must not recenter normalized coordinates')
             await capture('live-initial', makeDsl())
-            const live = await capture('live-camera', null, { posZ: 45, fieldOfView: 120 })
-            assert.deepEqual(occupied(live), [[60, 64]], 'camera controls must update without recompiling')
-            for (const [name, posZ] of [['near-plane', 111.45], ['behind-camera', 120]]) {
+            const live = await capture('live-camera', null, { posZ: -40, fieldOfView: 120 })
+            assert.deepEqual(occupied(live), [[65, 66]], 'camera controls must update without recompiling')
+            for (const [name, posZ] of [['near-plane', 48.45], ['behind-camera', 60]]) {
                 const pixels = await capture(name, makeDsl({ posX: 31.5, posY: -12, posZ }))
                 assert.deepEqual(occupied(pixels), [], `${name}: particles must be clipped before projection`)
             }
-            const visible = await capture('before-near-plane', makeDsl({ posX: 31.5, posY: -12, posZ: 111.3 }))
+            const visible = await capture('before-near-plane', makeDsl({ posX: 31.5, posY: -12, posZ: 48.3 }))
             assert.equal(occupied(visible).length, 1, 'a point in front of the near plane must remain visible')
             const combined = { rotateX: 0.4, rotateY: 0.6, rotateZ: 0.2, posX: 8, posY: -3, posZ: 12, fieldOfView: 75 }
             const point = occupied(await capture('combined', makeDsl(combined)))[0]

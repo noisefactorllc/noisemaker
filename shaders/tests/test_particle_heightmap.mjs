@@ -212,7 +212,9 @@ solid(color: #ffffff).pointsEmit(stateSize: x64).heightGrid(gridScale: 1, height
 .pointsBillboardRender(viewMode: perspective, rotateX: 0, density: 0.001, pointSize: 3, intensity: 0, inputIntensity: 0, aperture: ${aperture}, focalDistance: 20).write(o0)
 render(o0)`
             const sharpPoint = await frame('isolated-sharp', isolated(0))
-            const focusedPoint = await frame('isolated-focused', isolated(10).replace('focalDistance: 20', 'focalDistance: 80.4921875'))
+            // Slot 0 samples the image's bottom row, which heightGrid places at
+            // Z = +0.4921875 for gridScale 1, so it is 79.5078125 from the camera at Z = 80.
+            const focusedPoint = await frame('isolated-focused', isolated(10).replace('focalDistance: 20', 'focalDistance: 79.5078125'))
             assert.deepEqual(focusedPoint, sharpPoint, 'particles on the focal plane must remain sharp at any aperture')
             const largeSharp = await frame('isolated-large-sharp', isolated(0).replace('pointSize: 3', 'pointSize: 64'))
             const partialFocus = await frame('isolated-partial-focus', isolated(17).replace('pointSize: 3', 'pointSize: 64'))

@@ -26,10 +26,12 @@ fn main(@builtin(position) fragCoord: vec4f) -> Outputs {
     let imageUV = uv;
     let heightColor = textureSampleLevel(heightTex, heightSampler, imageUV, 0.0).rgb;
     let elevation = dot(heightColor, vec3f(0.2126, 0.7152, 0.0722));
+    // The image's top row lies at -Z, so a view from above along -Y with
+    // screen right on +X shows the image as authored, not mirrored.
     return Outputs(
         vec4f((uv.x - 0.5) * u.gridScale,
             elevation * u.heightScale + u.heightOffset,
-            (uv.y - 0.5) * u.gridScale, 1.0),
+            (0.5 - uv.y) * u.gridScale, 1.0),
         vec4f(0.0, 0.0, 0.0, textureLoad(velTex, coord, 0).w),
         textureSampleLevel(diffuseTex, diffuseSampler, imageUV, 0.0)
     );
