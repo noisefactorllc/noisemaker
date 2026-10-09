@@ -40,7 +40,7 @@
     "test:shaders:alpha": "node shaders/tests/test_webgpu_present.mjs && node shaders/tests/test_blend_mode_alpha.mjs && node shaders/tests/test_media_alpha.mjs && node shaders/tests/test_alpha_mask.mjs && node shaders/tests/test_adjustment_alpha.mjs && node shaders/tests/test_remap_render.mjs && node scripts/attest-shader-parity.mjs mixer/blendMode && node scripts/attest-shader-parity.mjs synth/media && node scripts/attest-shader-parity.mjs mixer/alphaMask && node scripts/attest-shader-parity.mjs filter/invert && node scripts/attest-shader-parity.mjs filter/tint && node scripts/attest-shader-parity.mjs filter/adjust && node scripts/attest-shader-parity.mjs filter/grade",
     "test:shaders:frame-export-orientation": "playwright test --project=shaders-chromium-webgpu shaders/tests/playwright/frame-export-orientation.spec.js",
     "test:shaders:canvas-sizing": "playwright test --project=shaders-chromium shaders/tests/playwright/canvas-sizing.spec.js",
-    "test:shaders:classic-effects": "node shaders/tests/test_classic_effects_parity.mjs && node scripts/attest-shader-parity.mjs classicNoisedeck/effects",
+    "test:shaders:classic-effects": "node shaders/tests/test_classic_effects_parity.mjs && node scripts/attest-shader-parity.mjs classicNoisedeck/effects && node shaders/tests/test_glsl_mod_parity.mjs",
     "test:shaders:particles:fps": "node shaders/tests/test_particle_heightmap_fps.mjs && node shaders/tests/test_particle_heightmap_fps.mjs --alpha-depth"
   },
   "devDependencies": {

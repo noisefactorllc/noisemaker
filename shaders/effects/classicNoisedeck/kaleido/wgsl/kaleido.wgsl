@@ -298,13 +298,21 @@ fn hsv2rgb(hsv: vec3f) -> vec3f {
     return rgb + vec3f(m);
 }
 
+// GLSL mod(x,y) = x - y*floor(x/y) (sign of y). WGSL `%` = x - y*trunc(x/y)
+// (sign of x); they diverge for negative x. kaleidoscope() folds a signed
+// angle and rgb2hsv computes a red-dominant hue's sector, so both use the
+// GLSL definition to match glsl/kaleido.glsl.
+fn glslMod(x: f32, y: f32) -> f32 {
+    return x - y * floor(x / y);
+}
+
 fn rgb2hsv(rgb: vec3f) -> vec3f {
     let maxC = max(rgb.r, max(rgb.g, rgb.b));
     let minC = min(rgb.r, min(rgb.g, rgb.b));
     let delta = maxC - minC;
     var h = 0.0;
     if (delta != 0.0) {
-        if (maxC == rgb.r) { h = ((rgb.g - rgb.b) / delta) % 6.0 / 6.0; }
+        if (maxC == rgb.r) { h = glslMod((rgb.g - rgb.b) / delta, 6.0) / 6.0; }
         else if (maxC == rgb.g) { h = ((rgb.b - rgb.r) / delta + 2.0) / 6.0; }
         else { h = ((rgb.r - rgb.g) / delta + 4.0) / 6.0; }
     }
@@ -451,13 +459,6 @@ fn offset(st: vec2f, freq: f32) -> f32 {
     else if (LOOP_OFFSET == 400) { return 1.0 - rings(st, freq); }
     else if (LOOP_OFFSET == 410) { return 1.0 - diamonds(st, freq); }
     return 0.0;
-}
-
-// GLSL mod(x,y) = x - y*floor(x/y) (sign of y). WGSL `%` = x - y*trunc(x/y)
-// (sign of x); they diverge for negative x. kaleidoscope() folds a signed
-// angle, so it must use the GLSL definition to match glsl/kaleido.glsl.
-fn glslMod(x: f32, y: f32) -> f32 {
-    return x - y * floor(x / y);
 }
 
 fn kaleidoscope(st_in: vec2f, sides: f32, blendy: f32) -> vec2f {
