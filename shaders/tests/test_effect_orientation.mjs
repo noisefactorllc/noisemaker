@@ -155,7 +155,9 @@ render(o0)`,
     // right is +X and the image's top row is the far side, -Z. Seen from the
     // front, the camera's default, the cube's right side is the green half;
     // seen from directly above, the image reads as authored.
-    ...[['render/render3d', 'render3d()', 'from the front']].map(([effect, call, view]) => ({
+    ...[['render/render3d', 'render3d()', 'from the front'],
+        ['render/renderLit3d', 'renderLit3d()', 'from the front'],
+        ['render/renderLit3d', 'renderLit3d(cameraPosition: [0, 1, 0])', 'from directly above']].map(([effect, call, view]) => ({
         name: `${effect} shows the volume as authored ${view}`,
         effects: [effect, 'synth3d/heightmap3d', 'synth/solid', 'synth/media'],
         media: 'cube',

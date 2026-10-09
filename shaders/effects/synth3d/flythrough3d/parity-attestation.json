@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "synth3d/flythrough3d",
-  "sourceHash": "cf31f2694d84868876f7a5fed8675861f06d8752a5a154c55b3ab7038aedaf4d",
+  "sourceHash": "08f4b385a334c64d636b0fa18613a15174db290cb86ea5cea8c7926cdf015b1b",
   "caseHash": "b76693cac2cdc17168e5893ac8831c169cd5fa416c6a2e41d5c63573cf32af00",
   "resolution": [
     64,
@@ -13,14 +13,14 @@
       "height": 64,
       "nonzeroRgbPixels": 1355,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 1308
+      "uniqueColors": 1217
     },
     "webgpu": {
       "width": 64,
       "height": 64,
       "nonzeroRgbPixels": 1355,
       "nonzeroAlphaPixels": 4096,
-      "uniqueColors": 1308
+      "uniqueColors": 1217
     }
   },
   "execution": {
