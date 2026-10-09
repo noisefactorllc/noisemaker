@@ -203,4 +203,10 @@ try {
 
 assert.deepEqual(failures, [], `filter/rotate and classicNoisedeck/kaleido WebGPU must match WebGL2:\n${failures.join('\n')}`)
 const tolerated = cases.filter((c) => c.id in measuredTolerance).length
-console.log(`PASS filter/rotate wrap and classicNoisedeck/kaleido shadow: ${cases.length - tolerated} cases byte-exact, ${tolerated} within measured tolerance (not exact parity), on WebGL2 and WebGPU`)
+// Tolerance-widened cases are near results, not passing parity: PASS only
+// describes a fully byte-exact run.
+if (tolerated === 0) {
+    console.log(`PASS filter/rotate wrap and classicNoisedeck/kaleido shadow: ${cases.length} cases byte-exact, on WebGL2 and WebGPU`)
+} else {
+    console.log(`NEAR filter/rotate wrap and classicNoisedeck/kaleido shadow: ${cases.length - tolerated} cases byte-exact, ${tolerated} near (within measured tolerance, not parity), on WebGL2 and WebGPU`)
+}
