@@ -1,0 +1,17 @@
+#!/bin/sh
+# The checks a shade-mcp release must pass before it lands in vendor/shade-mcp/.
+#
+# pull-shade-mcp.yml runs them on every release drop before committing it, and
+# shade-mcp's quality workflow runs them against this repository's main before
+# a release can be tagged. They are the hosted test jobs of shaders.yml and
+# js.yml, which import the vendored harness. The GPU suites in shaders.yml
+# still run after a drop lands: the noisemaker-gpu runner group accepts only
+# shaders.yml from main.
+#
+# Expects dev dependencies and Playwright Chromium to be installed.
+set -e
+npm run test:shaders:lang
+npm run test:shaders:runtime
+npm run test:shaders:render:webgl2
+npm run test:shaders:structure
+npm run test:non-parity -- --skip-docs

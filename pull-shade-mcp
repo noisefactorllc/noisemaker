@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
 Download pre-built shade-mcp from GitHub Releases and vendor selected modules.
+
+SHADE_MCP_TAG names the release to vendor. SHADE_MCP_TARBALL instead names a
+local shade-mcp-dist.tar.gz, so shade-mcp's own CI can vendor an unreleased
+build and run scripts/test-shade-mcp against it before tagging.
 """
 import os
 import shutil
@@ -38,13 +42,18 @@ def download_release(tag, dest_dir):
 
 def main():
     tag = os.environ.get("SHADE_MCP_TAG")
-    if not tag:
-        print("SHADE_MCP_TAG is required (e.g. v0.1.0)")
+    tarball = os.environ.get("SHADE_MCP_TARBALL")
+    if not tag and not tarball:
+        print("SHADE_MCP_TAG (e.g. v0.1.0) or SHADE_MCP_TARBALL is required")
         return 1
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        print(f"Downloading shade-mcp {tag}...")
-        download_release(tag, tmpdir)
+        if tarball:
+            print(f"Extracting local shade-mcp build {tarball}...")
+            subprocess.run(["tar", "-xzf", tarball, "-C", tmpdir], check=True)
+        else:
+            print(f"Downloading shade-mcp {tag}...")
+            download_release(tag, tmpdir)
 
         print(f"Copying dist to {VENDOR_DIR}...")
 
