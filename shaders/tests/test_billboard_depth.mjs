@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright'
@@ -6,6 +7,12 @@ import { PNG } from 'pngjs'
 import { shaderTestBrowserOptions } from '../../scripts/lib/shader-test-browser.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+// WebGL's default sampler2D precision is lowp even with highp float. These
+// passes carry 65,536 particle IDs and camera depths through float textures.
+for (const shader of ['depthKeys.glsl', 'depthMerge.glsl', 'deposit.vert']) {
+    const source = fs.readFileSync(path.join(root, 'shaders/effects/render/pointsBillboardRender/glsl', shader), 'utf8')
+    assert.match(source, /precision highp sampler2D\s*;/, `${shader}: sort inputs require highp sampler2D`)
+}
 process.env.SHADE_PROJECT_ROOT = root
 process.env.SHADE_EFFECTS_DIR = path.join(root, 'shaders/effects')
 const { acquireServer, releaseServer } = await import('../../vendor/shade-mcp/harness/index.js')
