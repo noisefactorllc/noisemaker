@@ -14,16 +14,16 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `00fb941c7371eed123a23d9e9262567d6cbcd1a3`.
-- Shade MCP: `d66ee676daecd9bfce52cc6fca0b13efd4fbf72f`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.4.10`, built on
+- Noisemaker: `b319e794aabed9d08e98f2747c5a68ea651f8147`.
+- Shade MCP: `f36a5f627648b7162f684ba7670c22ef4163f166`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.4.11`, built on
   `@modelcontextprotocol/sdk` 1.31.0, which accepts the protocol versions
   `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05` and `2024-10-07`,
   echoes the version the client requests, and answers `2025-11-25` to any other
   request; 18 tools are returned by `tools/list`.
 - The repository config runs
-  `npx -y github:noisedeck/shade-mcp#d66ee676daecd9bfce52cc6fca0b13efd4fbf72f`,
-  matching release v0.4.10 delivered to `vendor/shade-mcp/`.
+  `npx -y github:noisedeck/shade-mcp#f36a5f627648b7162f684ba7670c22ef4163f166`,
+  matching release v0.4.11 delivered to `vendor/shade-mcp/`.
 
 Primary source roots:
 
@@ -33,7 +33,7 @@ Primary source roots:
 - backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
 - repository validation policy: `shaders/tests/test-harness.js`.
 - Shade MCP source for the pinned snapshot:
-  `https://github.com/noisefactorllc/shade-mcp/tree/d66ee676daecd9bfce52cc6fca0b13efd4fbf72f/src`.
+  `https://github.com/noisefactorllc/shade-mcp/tree/f36a5f627648b7162f684ba7670c22ef4163f166/src`.
 
 ## Freshness and maintenance
 
@@ -1399,10 +1399,11 @@ no retry makes it respond and one of them left the output changing between
 renders on its own, the control gets no verdict (`unstable`) instead of a fail.
 
 The tool's overall status is `ok` only when at least one uniform was measured
-and every measured uniform responded. It is `skipped` when none could be
-measured, `error` when any measured uniform could not be captured, and
-otherwise `fail` when a measured uniform did not affect output; `details`
-names gated, unstable and untested uniforms. Every uniform is also reported in
+and every measured uniform responded. It is `skipped` when no control could be
+set at run time (all are gated or untested), `error` when any measured uniform
+could not be captured or got no verdict (`unstable`), and otherwise `fail` when
+a measured uniform did not affect output; `details` names gated, unstable and
+untested uniforms. Every uniform is also reported in
 `uniforms` with its test value and measured deltas, and the result carries the
 `threshold` (0.002) and `strong_threshold` (0.0005). The repository harness
 gates `--uniforms` on this status (`ok` and `skipped` pass) and prints the
@@ -1437,6 +1438,7 @@ capture.
 ```ts
 type UniformResponsiveness = { effect_id: string, outcome: Outcome } & (
   | { status: "ok" | "skipped" | "fail" | "error", backend: string,
+      page_effect_id: string | null,
       tested_uniforms: Array<`${string}:pass` | `${string}:fail` |
                              `${string}:error` | `${string}:gated` |
                              `${string}:unstable` | `${string}:untested`>,
@@ -1458,10 +1460,11 @@ type UniformResponsiveness = { effect_id: string, outcome: Outcome } & (
       console_errors?: string[] }
   // backend-switch or selection failure
   | { status: "error", tested_uniforms: [], uniforms: [], backend: string,
-      details: string }
+      page_effect_id: string | null, details: string }
   // in-page failures: "No effect loaded" (no backend field) and
   // "Failed to capture baseline on <backend>"
-  | { status: "error", tested_uniforms: [], backend?: string, details: string }
+  | { status: "error", tested_uniforms: [], backend?: string,
+      page_effect_id: string | null, details: string }
   | { status: "error", error: string })
 ```
 
@@ -2421,7 +2424,8 @@ type ImageMetrics = {
 }
 
 type RenderSuccess = {
-  effect_id: string
+  effect_id: string               // requested id
+  page_effect_id: string | null    // viewer's current id
   status: "ok"
   backend: string
   requested_resolution?: [number, number]
@@ -2432,13 +2436,14 @@ type RenderSuccess = {
 }
 
 type RenderFailure = {
-  effect_id?: string
+  effect_id: string
+  page_effect_id: string | null
   status: "error"
   backend?: "unknown" | string
   requested_resolution?: [number, number]
   error: string
   console_errors?: string[]
-}
+} | OuterEffectError
 ```
 
 The sample stride is
@@ -2867,7 +2872,8 @@ flipped to the same top-down orientation as WebGL before comparison.
 Each parity leg selects the effect and waits for a graph built after that
 selection, with the page-confirmed effect identity and backend checked before
 capture. A failed leg returns an error identifying the leg and observed page
-state. The result reports the confirmed identity of the final WebGPU leg.
+state. `effect_id` is the requested ID and `page_effect_id` is the page's ID
+from the last leg that ran, or null if unavailable.
 The tool's browser session launches on the WebGL2 launch path, so where that
 browser cannot obtain a Vulkan-backed WebGPU adapter — a GPU-less container
 without a system Vulkan driver, for instance — the WebGPU leg's rebuild falls
@@ -2918,8 +2924,8 @@ caller must require `0 <= epsilon <= 255` and a finite value before calling.
 
 These predicates validate the two captured buffers. Successful captures also
 require a confirmed backend switch and requested-effect graph for each leg;
-check the returned final-leg `effect_id` and `backend` before accepting the
-numeric verdict.
+check the returned `effect_id`, final-leg `page_effect_id`, and `backend` before
+accepting the numeric verdict.
 
 Sources: Shade MCP `src/tools/browser/parity.ts` - comparison, solid, and
 Y-flip predicates.
@@ -2928,7 +2934,8 @@ Y-flip predicates.
 
 ```ts
 type ParitySuccessOrMismatch = {
-  effect_id: string
+  effect_id: string               // requested id
+  page_effect_id: string | null   // final WebGPU leg
   backend?: string
   status: "ok" | "mismatch"
   maxDiff: number
@@ -2951,7 +2958,8 @@ type ParitySuccessOrMismatch = {
 }
 
 type ParityFailure = {
-  effect_id?: string
+  effect_id: string
+  page_effect_id: string | null   // last leg that ran
   status: "error"
   maxDiff?: 0
   meanDiff?: 0
@@ -2961,7 +2969,7 @@ type ParityFailure = {
   details?: string
   error?: string
   console_errors?: string[]
-}
+} | OuterEffectError
 ```
 
 Enumerated in-tool error details are `WebGL2 leg: Failed to capture WebGL2`,
@@ -3028,9 +3036,11 @@ schemas: every result carries `outcome` and multi-effect results use the
 batch envelope (below); `definition.js` projections can carry `partial` and
 `partialReasons`; `checkEffectStructure` can report `unusedFilesUnchecked`;
 `ImageMetrics` has one definition for every verb; `testUniformResponsiveness`
-reports an unresponsive uniform as `fail`; and the capture verbs read the
-presented half of the render surface. Knowledge-search results are source
-guidance, not a rendered-loop validation result.
+reports an unresponsive uniform as `fail` and an unstable uniform without a
+verdict as `error`; the six direct browser check/capture verbs separate the
+requested `effect_id` from the viewer's `page_effect_id`; and the capture
+verbs read the presented half of the render surface. Knowledge-search results
+are source guidance, not a rendered-loop validation result.
 
 The transport result for every verb is:
 
@@ -3047,10 +3057,10 @@ type Outcome = "ok" | "fail" | "warning" | "skipped" | "error"
 Decode `JSON.parse(result.content.find(x => x.type === "text").text)` before
 applying the payload types below. Every text payload is JSON, including errors
 thrown before a handler's own error handling, which arrive as
-`{ outcome: "error", status: "error", error: string }`. The exception is an
-argument that fails a tool's input schema: the MCP SDK rejects it before the
-tool runs, as plain text (`MCP error -32602: Input validation error: ...`)
-with `isError:true`. Every single result carries a top-level `outcome`,
+`{ outcome: "error", status: "error", error: string }`. The same envelope
+wraps MCP SDK `tools/call` errors for invalid arguments and unknown or disabled
+tools; their SDK message remains in `error` and the result has `isError:true`.
+Every single result carries a top-level `outcome`,
 computed from the tool's own `status`: `fail` for a negative verdict (parity
 `mismatch`, `passthrough`, `divergent`, a uniform `fail`, `meets_target:
 false`), `warning` for findings to review, `skipped` when nothing was
@@ -3156,12 +3166,17 @@ positive-resolution refinement unless explicitly stated. Descriptive ranges
 are not validation, except in `runDslProgram`, whose bounds are enforced (see
 its schema).
 
-Browser verbs call `BrowserSession.setBackend()` before capture/compile work.
+The direct browser check/capture verbs call `BrowserSession.setBackend()` before
+capture/compile work.
 It now rejects a switch that does not reach the requested page backend.
 `selectEffect()` waits for a post-selection graph and checks the page's current
-effect identity; a missing or different identity fails closed. Browser results
-report the page-confirmed backend and effect where available, including on
-selection and switch failures.
+effect identity; a missing or different identity fails closed. These results
+report the page-confirmed backend and keep the requested ID in `effect_id`.
+The viewer-result branches of `compileEffect`, `renderEffectFrame`,
+`benchmarkEffectFPS`, `testUniformResponsiveness`, `testNoPassthrough`, and
+`testPixelParity` include `page_effect_id` with the page-confirmed ID, or null
+when unavailable; the IDs can differ only on `status:"error"`.
+Per-effect outer exceptions use `OuterEffectError` without page identity.
 
 #### compileEffect
 
@@ -3172,6 +3187,7 @@ type CompileEffectInput = EffectSelector & {
 
 type CompileEffectResult = Batched<
   | { effect_id: string, status: "ok" | "error", backend: string,
+      page_effect_id: string | null,
       passes: Array<{ id: string, status: "ok" | "error",
                       errors?: string[] }>,
       message: string, console_errors?: string[] }
@@ -3186,7 +3202,7 @@ A compile failure is read from viewer status text containing the whole word
 `error` or `failed`, so a success message naming an effect such as
 `scanlineError` is not a failure. Backend-switch, selection, compile, and
 missing page-identity failures return `status:"error"`, with the
-page-confirmed effect/backend when available.
+page-confirmed effect in `page_effect_id` and backend when available.
 
 Source: Shade MCP `src/tools/browser/compile.ts` - `compileEffectSchema`,
 `compileEffect()`.
@@ -3256,6 +3272,7 @@ type BenchmarkEffectFPSInput = BrowserSelector & {
 
 type BenchmarkEffectFPSResult = Batched<
   | { effect_id: string, status: "ok", backend: string,
+      page_effect_id: string | null,
       requested_resolution?: [number, number],
       frame?: { width: number, height: number },
       warning?: string,
@@ -3269,7 +3286,8 @@ type BenchmarkEffectFPSResult = Batched<
         max_frame_time_ms: number
       }, console_errors?: string[] }
   // backend-switch or selection failure: zeroed measurement
-  | { effect_id?: string, status: "error", backend: string, achieved_fps: 0,
+  | { effect_id: string, page_effect_id: string | null,
+      status: "error", backend: string, achieved_fps: 0,
       meets_target: false, stats: { frame_count: 0, avg_frame_time_ms: 0,
       jitter_ms: 0, min_frame_time_ms: 0, max_frame_time_ms: 0 }, error: string }
   | OuterEffectError
@@ -3284,7 +3302,7 @@ two decimals. Tool status remains `ok` when `meets_target` is false. Callers
 must inspect the boolean.
 
 The tool confirms the requested backend and effect before measurement and
-reports the page-confirmed backend in its result.
+reports the page-confirmed backend and effect ID in its result.
 
 Source: Shade MCP `src/tools/browser/benchmark.ts` - schema and
 `benchmarkEffectFPS()`.
@@ -3315,6 +3333,7 @@ type TestNoPassthroughInput = BrowserSelector
 
 type TestNoPassthroughResult = Batched<
   | { effect_id: string, status: "ok" | "passthrough",
+      page_effect_id: string | null,
       backend: string, isFilterEffect: true,
       similarity: number, changed_fraction: number, strong_fraction: number,
       threshold: 0.01, inputTexture: string,
@@ -3322,11 +3341,13 @@ type TestNoPassthroughResult = Batched<
       details: string,
       console_errors?: string[] }
   | { effect_id: string, status: "skipped" | "error",
+      page_effect_id: string | null,
       backend?: string, isFilterEffect: false, similarity: null, details: string,
       console_errors?: string[] }
   // a filter whose input or output texture could not be read, or whose
   // input and output differ in size
   | { effect_id: string, status: "error", backend: string,
+      page_effect_id: string | null,
       isFilterEffect: true, similarity: null, inputTexture?: string,
       details: string }
   | OuterEffectError
@@ -3766,8 +3787,9 @@ common pass gate. Apply the predicate for that verb:
 Batch callers must validate every `results` member; the batch `summary`
 counts them by outcome. Never treat transport success,
 outer `status:"ok"`, or a nonempty result as universal validation.
-For every browser verb, including `testPixelParity`, check the page-confirmed
-effect/backend fields and require domain success. The session now rejects a
+For the six direct browser check/capture verbs named above, check the
+page-confirmed `page_effect_id` against the requested `effect_id`, check the
+reported backend, and require domain success. The session now rejects a
 failed backend switch or an effect selection without a confirmed new graph.
 
 ### Diagnose
@@ -3787,7 +3809,8 @@ Analysis/knowledge tools keep their own error payload forms
 `outcome` beside them. All 18 tools return through the shared `toolResult()`
 envelope, and the server routes every handler through `guardToolErrors()`, so
 an exception thrown before a handler's own error handling also returns the
-JSON error envelope with `isError:true`.
+JSON error envelope with `isError:true`. SDK-generated `tools/call` errors for
+schema rejection and unknown or disabled tools use the same envelope.
 
 AI-dependent tools use this exact no-key message:
 
@@ -4345,7 +4368,7 @@ program expansion.
 
 <!-- WORKED:MCP-REQUESTS -->
 
-One configured-pin session returned server `shade-mcp` version `0.4.10` and
+One configured-pin session returned server `shade-mcp` version `0.4.11` and
 listed 18 tools. All eight calls ran in that session, none returning MCP
 `isError`; the passthrough call returned the expected domain status `skipped`
 (`outcome:"skipped"`) because this is a source effect. On hosts where the
@@ -4354,14 +4377,14 @@ closed (see the parity tool contract). Page console-message arrays are omitted
 from the transcript responses.
 
 ```json
-{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"checkEffectStructure","arguments":{"effect_id":"synth/testPattern"}}}
-{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"compileEffect","arguments":{"effect_id":"synth/testPattern","backend":"webgl2"}}}
-{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"compileEffect","arguments":{"effect_id":"synth/testPattern","backend":"webgpu"}}}
-{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"renderEffectFrame","arguments":{"effect_id":"synth/testPattern","backend":"webgl2","warmup_frames":10,"capture_image":false,"resolution":[256,256]}}}
-{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"testUniformResponsiveness","arguments":{"effect_id":"synth/testPattern","backend":"webgl2"}}}
-{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"testNoPassthrough","arguments":{"effect_id":"synth/testPattern","backend":"webgl2"}}}
-{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"testPixelParity","arguments":{"effect_id":"synth/testPattern","epsilon":1,"seed":42}}}
-{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"benchmarkEffectFPS","arguments":{"effect_id":"synth/testPattern","backend":"webgl2","duration_seconds":1,"target_fps":30,"resolution":[256,256]}}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"checkEffectStructure","arguments":{"effect_id":"synth/testPattern"}}}
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"compileEffect","arguments":{"effect_id":"synth/testPattern","backend":"webgl2"}}}
+{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"compileEffect","arguments":{"effect_id":"synth/testPattern","backend":"webgpu"}}}
+{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"renderEffectFrame","arguments":{"effect_id":"synth/testPattern","backend":"webgl2","warmup_frames":10,"capture_image":false,"resolution":[256,256]}}}
+{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"testUniformResponsiveness","arguments":{"effect_id":"synth/testPattern","backend":"webgl2"}}}
+{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":"testNoPassthrough","arguments":{"effect_id":"synth/testPattern","backend":"webgl2"}}}
+{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":"testPixelParity","arguments":{"effect_id":"synth/testPattern","epsilon":1,"seed":42}}}
+{"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":"benchmarkEffectFPS","arguments":{"effect_id":"synth/testPattern","backend":"webgl2","duration_seconds":1,"target_fps":30,"resolution":[256,256]}}}
 ```
 
 <!-- WORKED:MCP-RESPONSES -->
@@ -4371,13 +4394,13 @@ capture; these are the values from this session):
 
 ```json
 {"outcome":"ok","unusedFiles":[],"namingIssues":[],"nameCollisions":[],"leakedInternalUniforms":[],"missingDescription":false,"structuralParityIssues":[],"requiredUniformIssues":[],"multiPass":false,"passCount":1,"status":"ok"}
-{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGL2"}
-{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGPU"}
-{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"image_uri":null,"width":256,"height":256},"metrics":{"mean_rgb":[0.5034687809712587,0.5034687809712587,0.5034687809712587],"mean_alpha":1,"std_rgb":[0.4999879674137903,0.4999879674137903,0.4999879674137903],"luma_variance":0.24998796755857344,"unique_sampled_colors":2,"is_all_zero":false,"is_all_transparent":false,"is_essentially_blank":false,"is_monochrome":false}}
-{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","tested_uniforms":["pattern:pass","gridSize:pass"],"uniforms":[{"name":"pattern","uniform":"pattern","default_value":0,"test_value":1,"luma_diff":0.0031082153320312056,"max_channel_diff":0.0031082153320312056,"pixel_diff":0.37701416015625,"strong_fraction":0.875299072265625,"responds":true},{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":12,"luma_diff":0.002946472167968728,"max_channel_diff":0.002946472167968728,"pixel_diff":0.39990234375,"strong_fraction":0.48483123779296877,"responds":true,"enabled_with":{"pattern":0}}],"threshold":0.002,"strong_threshold":0.0005,"details":"Uniforms affect output","measured_size":[1024,640],"backend":"WebGL2"}
-{"outcome":"skipped","effect_id":"synth/testPattern","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2"}
-{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"outcome":"ok","effect_id":"synth/testPattern","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.71,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.47,"jitter_ms":1.5,"min_frame_time_ms":5.4,"max_frame_time_ms":17.5}}
+{"outcome":"ok","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
+{"outcome":"ok","status":"ok","passes":[{"id":"main","status":"ok"},{"id":"pass_1","status":"ok"}],"message":"Compiled successfully","backend":"WebGPU","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
+{"outcome":"ok","status":"ok","backend":"WebGL2","requested_resolution":[256,256],"frame":{"image_uri":null,"width":256,"height":256},"metrics":{"mean_rgb":[0.5034687809712587,0.5034687809712587,0.5034687809712587],"mean_alpha":1,"std_rgb":[0.4999879674137903,0.4999879674137903,0.4999879674137903],"luma_variance":0.24998796755857344,"unique_sampled_colors":2,"is_all_zero":false,"is_all_transparent":false,"is_essentially_blank":false,"is_monochrome":false},"effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
+{"outcome":"ok","status":"ok","tested_uniforms":["pattern:pass","gridSize:pass"],"uniforms":[{"name":"pattern","uniform":"pattern","default_value":0,"test_value":1,"luma_diff":0.0031082153320312056,"max_channel_diff":0.0031082153320312056,"pixel_diff":0.37701416015625,"strong_fraction":0.875299072265625,"responds":true},{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":12,"luma_diff":0.002946472167968728,"max_channel_diff":0.002946472167968728,"pixel_diff":0.39990234375,"strong_fraction":0.48483123779296877,"responds":true,"enabled_with":{"pattern":0}}],"threshold":0.002,"strong_threshold":0.0005,"details":"Uniforms affect output","measured_size":[1024,640],"backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
+{"outcome":"skipped","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
+{"outcome":"ok","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
+{"outcome":"ok","status":"ok","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.59,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.5,"jitter_ms":1.3,"min_frame_time_ms":7.3,"max_frame_time_ms":18.6}}
 ```
 
 The structure scan has no issues and reports the one declared effect pass.

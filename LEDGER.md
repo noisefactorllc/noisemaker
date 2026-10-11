@@ -1097,15 +1097,15 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `bed7da28` / shade-mcp `8e0c80a`, 2026-10-03
+- **Checkpoint:** noisemaker `b319e794aabed9d08e98f2747c5a68ea651f8147` / shade-mcp `f36a5f627648b7162f684ba7670c22ef4163f166`, 2026-10-11
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
   *current* runtime behavior across nine surfaces (DSL, effect definition,
   parameters/globals, passes/graph, textures, compatibility/mutation,
   rendered output, cross-backend parity, Shade MCP tool contracts), a fully
-  worked validated effect, the surface × capability traceability matrix, and
-  the three-row open gap register (GAP-015, GAP-017, GAP-020). The file pins its
+  worked validated effect and the surface × capability traceability matrix.
+  Gap records live in repository issues. The file pins its
   own audited SHAs in the "Source snapshots used for this contract" block at
   its head; that block and this checkpoint are the same two SHAs and must be
   advanced together. There is no generator — every update is a hand edit
