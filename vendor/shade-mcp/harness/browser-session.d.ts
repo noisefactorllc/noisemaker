@@ -20,6 +20,19 @@ export declare function swiftshaderVulkanEnv(): Record<string, string>;
  */
 export declare function backendNameMatches(actual: string | null | undefined, requested: Backend): boolean;
 /**
+ * Identity fields of a viewer verb's result (issue #34). `effect_id` is the
+ * requested id, always, so a client matches each batch entry to its request.
+ * `page_effect_id` is the id the page reports as its current effect, or null
+ * when the viewer does not expose one. The verb's `backend` field beside
+ * them is the backend the page reports. A page that shows another effect or
+ * renders on another backend makes the result `status: 'error'`
+ * (effectSelectionProblem), so the two ids differ only on an error result.
+ */
+export declare function requestIdentity(requestedEffectId: string, pageEffectId: string | null | undefined): {
+    effect_id: string;
+    page_effect_id: string | null;
+};
+/**
  * Returns a human-readable problem when a selection outcome does not match
  * the request — selection failure, wrong effect, wrong backend — or null
  * when the page confirmed the requested effect on the requested backend.

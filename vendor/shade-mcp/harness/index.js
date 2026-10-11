@@ -525,6 +525,9 @@ function backendNameMatches(actual, requested) {
   const name = actual.toLowerCase();
   return requested === "webgpu" ? name === "webgpu" || name === "wgsl" : name === "webgl2" || name === "webgl" || name === "glsl";
 }
+function requestIdentity(requestedEffectId, pageEffectId) {
+  return { effect_id: requestedEffectId, page_effect_id: pageEffectId ?? null };
+}
 function effectSelectionProblem(selection, effectId, requestedBackend) {
   if (selection.status === "error") return selection.message || `Failed to select ${effectId}`;
   if (selection.effectId !== null && selection.effectId !== effectId) {
@@ -20633,7 +20636,7 @@ async function compileEffect(session, effectId) {
         passes: [],
         message: `Backend switch failed: ${errorMessage(err)}`,
         backend: page.backend ?? "unknown",
-        ...page.effectId ? { effect_id: page.effectId } : {}
+        ...requestIdentity(effectId, page.effectId)
       };
     }
     const selection = await session.selectEffect(effectId);
@@ -20644,7 +20647,7 @@ async function compileEffect(session, effectId) {
         passes: selection.passes ?? [],
         message: problem,
         backend: selection.backend,
-        ...selection.effectId ? { effect_id: selection.effectId } : {}
+        ...requestIdentity(effectId, selection.effectId)
       };
     }
     return {
@@ -20653,7 +20656,7 @@ async function compileEffect(session, effectId) {
       message: "Compiled successfully",
       // The backend the page reported, not the requested value.
       backend: selection.backend,
-      ...selection.effectId ? { effect_id: selection.effectId } : {}
+      ...requestIdentity(effectId, selection.effectId)
     };
   });
 }
@@ -20684,7 +20687,7 @@ async function renderEffectFrame(session, effectId, options = {}) {
         status: "error",
         backend: failed.backend ?? "unknown",
         error: `Backend switch failed: ${errorMessage2(err)}`,
-        ...failed.effectId ? { effect_id: failed.effectId } : {},
+        ...requestIdentity(effectId, failed.effectId),
         ...options.resolution ? { requested_resolution: options.resolution } : {}
       };
     }
@@ -20698,7 +20701,7 @@ async function renderEffectFrame(session, effectId, options = {}) {
         status: "error",
         backend: selection.backend,
         error: problem,
-        ...selection.effectId ? { effect_id: selection.effectId } : {},
+        ...requestIdentity(effectId, selection.effectId),
         ...options.resolution ? { requested_resolution: options.resolution } : {}
       };
     }
@@ -20877,7 +20880,7 @@ async function renderEffectFrame(session, effectId, options = {}) {
       }
       return {
         ...captured,
-        ...selection.effectId ? { effect_id: selection.effectId } : {}
+        ...requestIdentity(effectId, selection.effectId)
       };
     } finally {
       if (paused) {
@@ -20919,7 +20922,7 @@ async function benchmarkEffectFPS(session, effectId, options = {}) {
         meets_target: false,
         stats: { frame_count: 0, avg_frame_time_ms: 0, jitter_ms: 0, min_frame_time_ms: 0, max_frame_time_ms: 0 },
         error: `Backend switch failed: ${errorMessage3(err)}`,
-        ...failed.effectId ? { effect_id: failed.effectId } : {}
+        ...requestIdentity(effectId, failed.effectId)
       };
     }
     if (options.resolution) {
@@ -20935,7 +20938,7 @@ async function benchmarkEffectFPS(session, effectId, options = {}) {
         meets_target: false,
         stats: { frame_count: 0, avg_frame_time_ms: 0, jitter_ms: 0, min_frame_time_ms: 0, max_frame_time_ms: 0 },
         error: problem,
-        ...selection.effectId ? { effect_id: selection.effectId } : {}
+        ...requestIdentity(effectId, selection.effectId)
       };
     }
     if (options.resolution) {
@@ -21004,7 +21007,7 @@ async function benchmarkEffectFPS(session, effectId, options = {}) {
       status: "ok",
       // The backend the page reported, not the requested value (issue #34).
       backend: selection.backend,
-      ...selection.effectId ? { effect_id: selection.effectId } : {},
+      ...requestIdentity(effectId, selection.effectId),
       ...options.resolution ? { requested_resolution: options.resolution } : {},
       ...frame ? { frame } : {},
       ...resolutionMismatch ? {
@@ -21045,7 +21048,7 @@ async function testNoPassthrough(session, effectId) {
         similarity: null,
         backend: failed.backend ?? "unknown",
         details: `Backend switch failed: ${errorMessage4(err)}`,
-        ...failed.effectId ? { effect_id: failed.effectId } : {}
+        ...requestIdentity(effectId, failed.effectId)
       };
     }
     const selection = await session.selectEffect(effectId);
@@ -21057,7 +21060,7 @@ async function testNoPassthrough(session, effectId) {
         similarity: null,
         backend: selection.backend,
         details: problem,
-        ...selection.effectId ? { effect_id: selection.effectId } : {}
+        ...requestIdentity(effectId, selection.effectId)
       };
     }
     const result = await page.evaluate(async ({ globals, settleMs }) => {
@@ -21300,7 +21303,7 @@ async function testNoPassthrough(session, effectId) {
     return {
       ...result,
       backend: selection.backend,
-      ...selection.effectId ? { effect_id: selection.effectId } : {}
+      ...requestIdentity(effectId, selection.effectId)
     };
   });
 }
@@ -21385,7 +21388,7 @@ async function captureSurface(session, seed) {
 async function testPixelParity(session, effectId, options = {}) {
   const epsilon = options.epsilon ?? 1;
   const seed = options.seed ?? 42;
-  const parityError = (leg2, problem2, backend, effectId2, resolution2) => ({
+  const parityError = (leg2, problem2, backend, pageEffectId, resolution2) => ({
     status: "error",
     maxDiff: 0,
     meanDiff: 0,
@@ -21393,7 +21396,7 @@ async function testPixelParity(session, effectId, options = {}) {
     mismatchPercent: 0,
     resolution: resolution2,
     details: `${leg2}: ${problem2}`,
-    ...effectId2 ? { effect_id: effectId2 } : {},
+    ...requestIdentity(effectId, pageEffectId),
     ...backend !== "unknown" ? { backend } : {}
   });
   const legProblem = (selection, requestedBackend) => effectSelectionProblem(selection, effectId, requestedBackend);
@@ -21437,7 +21440,7 @@ async function testPixelParity(session, effectId, options = {}) {
       mismatchCount: 0,
       mismatchPercent: 0,
       resolution: [glslPixels.width, glslPixels.height],
-      ...leg.effectId ? { effect_id: leg.effectId } : {},
+      ...requestIdentity(effectId, leg.effectId),
       ...leg.backend !== "unknown" ? { backend: leg.backend } : {},
       details: `Capture size mismatch: glsl ${glslPixels.width}x${glslPixels.height} vs wgsl ${wgslPixels.width}x${wgslPixels.height}`
     };
@@ -21514,7 +21517,7 @@ async function testPixelParity(session, effectId, options = {}) {
     mismatchPercent: Math.round(mismatchPercent * 100) / 100,
     resolution: [w, h],
     // Page-confirmed identity of the final (WebGPU) leg (issue #34).
-    ...leg.effectId ? { effect_id: leg.effectId } : {},
+    ...requestIdentity(effectId, leg.effectId),
     ...leg.backend !== "unknown" ? { backend: leg.backend } : {},
     glslSolid: glslSolid.isSolid,
     wgslSolid: wgslSolid.isSolid,
@@ -21552,7 +21555,7 @@ async function testUniformResponsiveness(session, effectId) {
         uniforms: [],
         backend: failed.backend ?? "unknown",
         details: `Backend switch failed: ${errorMessage6(err)}`,
-        ...failed.effectId ? { effect_id: failed.effectId } : {}
+        ...requestIdentity(effectId, failed.effectId)
       };
     }
     const selection = await session.selectEffect(effectId);
@@ -21564,7 +21567,7 @@ async function testUniformResponsiveness(session, effectId) {
         uniforms: [],
         backend: selection.backend,
         details: problem,
-        ...selection.effectId ? { effect_id: selection.effectId } : {}
+        ...requestIdentity(effectId, selection.effectId)
       };
     }
     await page.evaluate((globals) => {
@@ -22033,16 +22036,17 @@ async function testUniformResponsiveness(session, effectId) {
         }
         let status;
         let details;
-        const measuredCount = tested.length - gatedNames.length - unstableNames.length - untestedNames.length;
+        const measuredCount = tested.length - gatedNames.length - untestedNames.length;
         if (measuredCount === 0) {
           status = "skipped";
           details = "No uniform could be measured";
         } else {
           const problems = [];
           if (errorNames.length > 0) problems.push(`could not be measured: ${errorNames.join(", ")}`);
+          if (unstableNames.length > 0) problems.push(`gave no verdict (the output changes between renders on its own): ${unstableNames.join(", ")}`);
           if (failedNames.length > 0) problems.push(`did not affect output: ${failedNames.join(", ")}`);
           if (problems.length > 0) {
-            status = errorNames.length > 0 ? "error" : "fail";
+            status = errorNames.length > 0 || unstableNames.length > 0 ? "error" : "fail";
             details = `Uniforms ${problems.join("; ")}`;
           } else {
             status = "ok";
@@ -22050,7 +22054,6 @@ async function testUniformResponsiveness(session, effectId) {
           }
         }
         if (gatedNames.length > 0) details += `; gated (not testable at run time): ${gatedNames.join(", ")}`;
-        if (unstableNames.length > 0) details += `; no verdict, output changes between renders on its own: ${unstableNames.join(", ")}`;
         if (untestedNames.length > 0) details += `; untested: ${untestedNames.join(", ")}`;
         if (settleTimedOut) details += `; an async overlay did not settle within ${settleMs} ms`;
         return {
@@ -22077,7 +22080,7 @@ async function testUniformResponsiveness(session, effectId) {
     return {
       ...result,
       backend: selection.backend,
-      ...selection.effectId ? { effect_id: selection.effectId } : {}
+      ...requestIdentity(effectId, selection.effectId)
     };
   });
 }

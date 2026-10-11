@@ -40,13 +40,15 @@ export interface CompileResult {
     }>;
     message: string;
     console_errors?: string[];
-    effect_id?: string;
+    effect_id: string;
+    page_effect_id: string | null;
 }
 export interface RenderResult {
     status: 'ok' | 'error';
     backend: string;
     error?: string;
-    effect_id?: string;
+    effect_id: string;
+    page_effect_id: string | null;
     requested_resolution?: [number, number];
     warning?: string;
     frame?: {
@@ -61,7 +63,8 @@ export interface BenchmarkResult {
     status: 'ok' | 'error';
     backend: string;
     achieved_fps: number;
-    effect_id?: string;
+    effect_id: string;
+    page_effect_id: string | null;
     meets_target: boolean;
     requested_resolution?: [number, number];
     warning?: string;
@@ -88,7 +91,8 @@ export interface ParityResult {
     resolution: [number, number];
     details: string;
     console_errors?: string[];
-    effect_id?: string;
+    effect_id: string;
+    page_effect_id: string | null;
     backend?: string;
     glslSolid?: boolean;
     wgslSolid?: boolean;

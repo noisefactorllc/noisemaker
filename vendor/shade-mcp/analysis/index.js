@@ -20021,6 +20021,9 @@ function backendNameMatches(actual, requested) {
   const name = actual.toLowerCase();
   return requested === "webgpu" ? name === "webgpu" || name === "wgsl" : name === "webgl2" || name === "webgl" || name === "glsl";
 }
+function requestIdentity(requestedEffectId, pageEffectId) {
+  return { effect_id: requestedEffectId, page_effect_id: pageEffectId ?? null };
+}
 function effectSelectionProblem(selection, effectId, requestedBackend) {
   if (selection.status === "error") return selection.message || `Failed to select ${effectId}`;
   if (selection.effectId !== null && selection.effectId !== effectId) {
@@ -20120,7 +20123,7 @@ async function renderEffectFrame(session, effectId, options = {}) {
         status: "error",
         backend: failed.backend ?? "unknown",
         error: `Backend switch failed: ${errorMessage(err)}`,
-        ...failed.effectId ? { effect_id: failed.effectId } : {},
+        ...requestIdentity(effectId, failed.effectId),
         ...options.resolution ? { requested_resolution: options.resolution } : {}
       };
     }
@@ -20134,7 +20137,7 @@ async function renderEffectFrame(session, effectId, options = {}) {
         status: "error",
         backend: selection.backend,
         error: problem,
-        ...selection.effectId ? { effect_id: selection.effectId } : {},
+        ...requestIdentity(effectId, selection.effectId),
         ...options.resolution ? { requested_resolution: options.resolution } : {}
       };
     }
@@ -20313,7 +20316,7 @@ async function renderEffectFrame(session, effectId, options = {}) {
       }
       return {
         ...captured,
-        ...selection.effectId ? { effect_id: selection.effectId } : {}
+        ...requestIdentity(effectId, selection.effectId)
       };
     } finally {
       if (paused) {
