@@ -188,17 +188,45 @@ jobs:
         GH_TOKEN: ${{ github.token }}
         TAG: ${{ github.ref_name }}
       run: |
+        set -euo pipefail
+        sources=(
+          dist/artifacts/noisemaker-js-bundles/noisemaker.bundle.js
+          dist/artifacts/noisemaker-js-bundles/noisemaker.min.js
+          dist/artifacts/noisemaker-js-bundles/noisemaker.esm.js
+          dist/artifacts/noisemaker-js-bundles/noisemaker.cjs
+          dist/artifacts/noisemaker-cli-linux-x64/noisemaker-cli-linux-x64.tar.gz
+          dist/artifacts/noisemaker-cli-macos-arm64/noisemaker-cli-macos-arm64.tar.gz
+          dist/artifacts/noisemaker-cli-windows-x64/noisemaker-cli-windows-x64.zip
+          dist/artifacts/noisemaker-shaders/noisemaker-shaders.tar.gz
+        )
+        release_dir=dist/release-assets
+        mkdir -p "$release_dir"
+        names=()
+        release_assets=()
+        for source in "${sources[@]}"; do
+          if [ ! -f "$source" ]; then
+            echo "::error::Missing release asset: $source"
+            exit 1
+          fi
+          name="${source##*/}"
+          if [ -e "$release_dir/$name" ]; then
+            echo "::error::Duplicate release asset name: $name"
+            exit 1
+          fi
+          cp "$source" "$release_dir/$name"
+          names+=("$name")
+          release_assets+=("$release_dir/$name")
+        done
+        (
+          cd "$release_dir"
+          sha256sum "${names[@]}" > SHA256SUMS
+          sha256sum --check SHA256SUMS
+        )
         gh release create "$TAG" \
           --title "Noisemaker $TAG" \
           --generate-notes \
-          dist/artifacts/noisemaker-js-bundles/noisemaker.bundle.js \
-          dist/artifacts/noisemaker-js-bundles/noisemaker.min.js \
-          dist/artifacts/noisemaker-js-bundles/noisemaker.esm.js \
-          dist/artifacts/noisemaker-js-bundles/noisemaker.cjs \
-          dist/artifacts/noisemaker-cli-linux-x64/noisemaker-cli-linux-x64.tar.gz \
-          dist/artifacts/noisemaker-cli-macos-arm64/noisemaker-cli-macos-arm64.tar.gz \
-          dist/artifacts/noisemaker-cli-windows-x64/noisemaker-cli-windows-x64.zip \
-          dist/artifacts/noisemaker-shaders/noisemaker-shaders.tar.gz
+          "${release_assets[@]}" \
+          "$release_dir/SHA256SUMS"
 
     - name: Prune old releases
       env:
