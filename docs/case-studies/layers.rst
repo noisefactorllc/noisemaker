@@ -21,12 +21,12 @@ Layers generates this program:
 
     solid(color: #000000, alpha: 0).write(o0)    // hidden transparent base
     media().write(o1)
-    read(o0).blendMode(tex: read(o1), mode: normal, mixAmt: 1.0).write(o2)
+    read(o0).blendMode(tex: read(o1), mode: normal, mix: 1.0).write(o2)
 
     read(o2).blur(radius: 0.3).write(o3)
 
     noise(scale: 4).write(o4)
-    read(o3).blendMode(tex: read(o4), mode: overlay, mixAmt: 0.6).write(o5)
+    read(o3).blendMode(tex: read(o4), mode: overlay, mix: 0.6).write(o5)
 
     render(o5)
 
