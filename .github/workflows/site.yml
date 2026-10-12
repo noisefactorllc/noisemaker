@@ -26,6 +26,7 @@ on:
       - 'llms.txt'
       - 'llms-full.txt'
       - 'noisemaker.png'
+      - 'noisemaker.svg'
       - 'og-image.png'
       - 'favicon.ico'
       - 'scripts/bundle-site.js'

@@ -335,11 +335,13 @@ function copyShaderDemoImages() {
  * Copy logo image for landing page
  */
 function copyLogoImage() {
-    const src = path.join(repoRoot, 'noisemaker.png')
-    const dest = path.join(siteDir, 'noisemaker.png')
-    if (fs.existsSync(src)) {
-        copyFile(src, dest)
-        console.log('  ✓ noisemaker.png')
+    for (const logo of ['noisemaker.png', 'noisemaker.svg']) {
+        const src = path.join(repoRoot, logo)
+        const dest = path.join(siteDir, logo)
+        if (fs.existsSync(src)) {
+            copyFile(src, dest)
+            console.log(`  ✓ ${logo}`)
+        }
     }
 
     // Copy OG image

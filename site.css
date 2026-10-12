@@ -1,21 +1,23 @@
 :root {
-  color-scheme: dark;
-  --nm-bg: #141b2b;
-  --nm-panel: #1b243a;
-  --nm-panel-2: #222e49;
-  --nm-line: #33425f;
-  --nm-text: #f5f9ff;
-  --nm-muted: #b3c0db;
+  color-scheme: light;
+  /* Handfish's corporate theme (hue 240 neutrals, hue 220 accent), in its own role mapping:
+     page = base, cards = surface, card hover = elevated, borders = its 40% border mix,
+     headings = bright text, copy = normal text, accent and accent hover. */
+  --nm-bg: #f3f5f7;
+  --nm-panel: #e7eaec;
+  --nm-panel-2: #d3d8dc;
+  --nm-line: color-mix(in srgb, #a8afb4 40%, transparent);
+  --nm-text: #080c0e;
+  --nm-muted: #363b3f;
   /* Fill for the header strip, primary button and card hover borders. site.js passes it to the
      strip's DSL program as its solid() color, so it must stay a hex value. */
-  --nm-accent: #3355d6;
-  /* White on --nm-accent measures 6.16:1. The header still gives it a dark text-shadow, because
+  --nm-accent: #007192;
+  /* White on --nm-accent measures 5.56:1. The header still gives it a dark text-shadow, because
      the strip's lighting puts bright highlights behind the text. */
   --nm-on-accent: #ffffff;
-  /* The accent as text on --nm-bg and the panels (links, section labels), where the fill is too
-     dark to read. */
-  --nm-accent-text: #9abcff;
-  --nm-hover: #dae7ff;
+  /* The accent as text (links, section labels): 5.09:1 on the page, 4.60:1 on cards. */
+  --nm-accent-text: #007192;
+  --nm-hover: #00455e;
   --nm-font: var(--hf-font-family);
   --nm-mono: var(--hf-font-family-mono);
   --nm-radius: 8px;
@@ -102,13 +104,15 @@ pre {
   color: var(--nm-on-accent);
 }
 
+/* The one-color nm mark, drawn as a mask the way noisefactor.io draws it. Its glyph fills the
+   middle 65% of the SVG's square, so 154% makes it the box's full width. */
 .nm-brand-mark {
   width: 56px;
   height: 56px;
   margin: -8px 0;
-  object-fit: contain;
-  object-position: center;
-  border-radius: 2px;
+  background: var(--nm-on-accent);
+  -webkit-mask: url(./noisemaker.svg) center / 154% no-repeat;
+  mask: url(./noisemaker.svg) center / 154% no-repeat;
 }
 
 .nm-nav {
