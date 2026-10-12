@@ -1,6 +1,6 @@
 # heightGrid
 
-Arrange every slot allocated by `pointsEmit()` in a square XZ grid and set its Y elevation from height-map luminance. Sample the diffuse surface at the same grid coordinates for each particle's RGBA color. Both surfaces update every frame, independent of the emitter's layout and attrition. Velocities are reset to zero; per-particle seeds are retained.
+Arrange every slot allocated by `pointsEmit()` in a square XZ grid and set its Y elevation from height-map luminance. Sample the diffuse surface at the same grid coordinates for each particle's RGBA color. Both surfaces update every frame, independent of the emitter's layout and attrition. The height map's top row maps to the `-Z` edge. From above, a view along `-Y` with `+X` to screen-right matches the source image orientation. Velocities are reset to zero; per-particle seeds are retained.
 
 | Parameter | Type | Default | Range | Description |
 |-----------|------|---------|-------|-------------|
