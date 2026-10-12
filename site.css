@@ -1,23 +1,21 @@
 :root {
   color-scheme: dark;
-  --nm-bg: #444444;
-  --nm-panel: #363638;
-  --nm-panel-2: #3f3f42;
-  --nm-line: #5b565b;
-  --nm-line-hot: #ff6fbc;
-  --nm-text: #f3f1f3;
-  --nm-muted: #b6adb5;
-  --nm-dim: oklch(78.1% 0.017 325.8);
-  --nm-magenta: #ff6fbc;
-  /* Ink for text sitting on --nm-magenta surfaces (header bar, primary button). White per
-     operator preference: the previous AA-tuned dark ink (4.74:1) read as too dark over the
-     bright header strip. White measures 2.54:1 on the pink — below WCAG AA — so the header
-     pairs it with a dark text-shadow for legibility. */
-  --nm-on-magenta: #ffffff;
-  --nm-pink: #ffaad6;
-  --nm-lime: #33ff00;
-  --nm-cyan: #6ae8ff;
-  --nm-amber: #ffc44d;
+  --nm-bg: #141b2b;
+  --nm-panel: #1b243a;
+  --nm-panel-2: #222e49;
+  --nm-line: #33425f;
+  --nm-text: #f5f9ff;
+  --nm-muted: #b3c0db;
+  /* Fill for the header strip, primary button and card hover borders. site.js passes it to the
+     strip's DSL program as its solid() color, so it must stay a hex value. */
+  --nm-accent: #3355d6;
+  /* White on --nm-accent measures 6.16:1. The header still gives it a dark text-shadow, because
+     the strip's lighting puts bright highlights behind the text. */
+  --nm-on-accent: #ffffff;
+  /* The accent as text on --nm-bg and the panels (links, section labels), where the fill is too
+     dark to read. */
+  --nm-accent-text: #9abcff;
+  --nm-hover: #dae7ff;
   --nm-font: var(--hf-font-family);
   --nm-mono: var(--hf-font-family-mono);
   --nm-radius: 8px;
@@ -48,12 +46,12 @@ body {
 }
 
 a {
-  color: var(--nm-pink);
+  color: var(--nm-accent-text);
   text-decoration: none;
 }
 
 a:hover {
-  color: var(--nm-lime);
+  color: var(--nm-hover);
 }
 
 code,
@@ -72,7 +70,7 @@ pre {
   min-height: 72px;
   padding: 0.85rem clamp(1rem, 3vw, 2rem);
   overflow: hidden;
-  background: var(--nm-magenta);
+  background: var(--nm-accent);
   border-bottom: 1px solid color-mix(in srgb, var(--nm-bg) 40%, transparent);
 }
 
@@ -93,7 +91,7 @@ pre {
   align-items: center;
   gap: 0.7rem;
   flex-shrink: 0;
-  color: var(--nm-on-magenta);
+  color: var(--nm-on-accent);
   font-weight: 900;
   font-size: 1.05rem;
   line-height: 1;
@@ -101,7 +99,7 @@ pre {
 }
 
 .nm-brand:hover {
-  color: var(--nm-on-magenta);
+  color: var(--nm-on-accent);
 }
 
 .nm-brand-mark {
@@ -124,14 +122,14 @@ pre {
 }
 
 .nm-nav a {
-  color: var(--nm-on-magenta);
+  color: var(--nm-on-accent);
   opacity: 1;
   font-weight: 750;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85), 0 0 10px rgba(0, 0, 0, 0.45);
 }
 
 .nm-nav a:hover {
-  color: var(--nm-on-magenta);
+  color: var(--nm-on-accent);
 }
 
 main {
@@ -151,7 +149,7 @@ main {
 
 .nm-kicker {
   margin: 0 0 0.75rem;
-  color: var(--nm-magenta);
+  color: var(--nm-accent-text);
   font-size: 0.75rem;
   font-weight: 900;
   text-transform: uppercase;
@@ -218,15 +216,15 @@ h3 {
 .nm-button:hover,
 .nm-button:focus-visible {
   color: var(--nm-bg);
-  border-color: var(--nm-lime);
-  background: var(--nm-lime);
+  border-color: var(--nm-hover);
+  background: var(--nm-hover);
   outline: none;
 }
 
 .nm-button-primary {
-  border-color: var(--nm-magenta);
-  background: var(--nm-magenta);
-  color: var(--nm-on-magenta);
+  border-color: var(--nm-accent);
+  background: var(--nm-accent);
+  color: var(--nm-on-accent);
 }
 
 .nm-feature,
@@ -284,7 +282,7 @@ h3 {
 }
 
 .nm-feature code {
-  color: var(--nm-cyan);
+  color: var(--nm-accent-text);
 }
 
 .nm-agent-grid {
@@ -309,7 +307,7 @@ h3 {
 .nm-adapter-list a:hover,
 .nm-adapter-list a:focus-visible {
   color: var(--nm-text);
-  border-color: var(--nm-magenta);
+  border-color: var(--nm-accent);
   background: var(--nm-panel-2);
   outline: none;
 }
@@ -333,7 +331,7 @@ h3 {
 
 .nm-product-list a:hover,
 .nm-product-list a:focus-visible {
-  border-color: var(--nm-magenta);
+  border-color: var(--nm-accent);
   background: var(--nm-panel-2);
   outline: none;
 }

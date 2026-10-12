@@ -1,12 +1,12 @@
 const SHADER_CDN = 'https://shaders.noisedeck.app/1';
 
-// The strip's solid color IS the site's primary-button pink: the --nm-magenta token defined in
-// site.css. Read the token instead of hardcoding a second copy that drifts when the theme changes.
-function stripPink() {
-  return getComputedStyle(document.documentElement).getPropertyValue('--nm-magenta').trim();
+// The strip's solid color IS the site's accent fill: the --nm-accent token defined in site.css.
+// Read the token instead of hardcoding a second copy that drifts when the theme changes.
+function stripAccent() {
+  return getComputedStyle(document.documentElement).getPropertyValue('--nm-accent').trim();
 }
 
-function stripDsl(pink) {
+function stripDsl(accent) {
   return `search synth, filter, mixer
 
 cell(
@@ -17,7 +17,7 @@ cell(
 )
   .write(o0)
 
-solid(color: ${pink})
+solid(color: ${accent})
   .blendMode(
     tex: read(o0),
     mode: overlay,
@@ -53,12 +53,12 @@ async function startStripShader() {
   const canvas = document.getElementById('nm-strip-canvas');
   if (!canvas) return;
 
-  const pink = stripPink();
-  if (!/^#[0-9a-fA-F]{3,8}$/.test(pink)) {
-    console.error('Noisemaker strip: --nm-magenta did not resolve to a hex color:', JSON.stringify(pink));
+  const accent = stripAccent();
+  if (!/^#[0-9a-fA-F]{3,8}$/.test(accent)) {
+    console.error('Noisemaker strip: --nm-accent did not resolve to a hex color:', JSON.stringify(accent));
     return;
   }
-  const STRIP_DSL = stripDsl(pink);
+  const STRIP_DSL = stripDsl(accent);
 
   try {
     const size = sizeStripCanvas(canvas);
