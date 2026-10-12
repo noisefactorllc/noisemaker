@@ -286,7 +286,6 @@ export default class CellNoise extends Effect {
     }
   }
 
-  paramAliases = { cellSmooth: 'smooth', cellVariation: 'variation', loopAmp: 'speed' }
 
 
   passes = [

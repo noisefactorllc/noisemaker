@@ -95,7 +95,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { frequency: 'freq' },
   passes: [
     {
       name: "render",

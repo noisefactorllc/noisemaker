@@ -212,6 +212,7 @@ void main() {
 	float blendy = periodicFunction(time - offsets(uv));
 
 	color = glitch(uv);
+    color.rgb = floor(clamp(color.rgb, 0.0, 1.0) * 255.0 + 0.5) / 255.0;
 	// Zero amounts mix the effect in with weight 0; skip the noise work.
 	if (scanlinesAmt != 0.0) color = scanlines(color, uv);
     if (snowAmt != 0.0) color = snow(color, uv);

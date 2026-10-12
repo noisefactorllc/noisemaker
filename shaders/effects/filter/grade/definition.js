@@ -595,7 +595,6 @@ export default new Effect({
     }
   },
 
-  paramAliases: { vignetteHighlightProtect: 'vigHiProtect' },
 
   passes: [
     {

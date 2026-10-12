@@ -37,7 +37,6 @@ export default new Effect({
     }
   },
   defaultProgram: "search mixer, synth\n\nnoise(seed: 1, ridges: true)\n.write(o0)\n\nperlin()\n.applyMode(tex: read(o0))\n.write(o1)",
-  paramAliases: { mixAmt: 'mix' },
   passes: [
     {
       name: "render",

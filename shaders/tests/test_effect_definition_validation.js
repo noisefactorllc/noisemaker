@@ -38,7 +38,6 @@ const validDefinition = () => ({
     uniformLayouts: {
         alt: { amount: { slot: 0, components: 'x' } }
     },
-    paramAliases: { amt: 'amount' },
     textures: {
         scratch: { width: 64, height: '100%', format: 'rgba16f' },
         scaled: { width: { param: 'volumeSize', power: 2, default: 1024 }, height: { screenDivide: 'zoom', default: 8 } }
@@ -231,6 +230,7 @@ test('malformed containers are reported without throwing', () => {
         def => { def.uniformLayout = { u: { slot: 0.5, components: 'x' } } },
         def => { def.uniformLayout = { u: { slot: 0, components: 'x' }, v: { slot: 0, components: 'y' }, w: { slot: 0, components: 'x' } } },
         def => { def.uniformLayouts = { p: 'layout' } },
+        def => { def.paramAliases = { amt: 'amount' } },
         def => { def.paramAliases = 'aliases' },
         def => { def.paramAliases = { amt: 'nosuchglobal' } },
         def => { def.tags = 'noise' },

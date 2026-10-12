@@ -395,7 +395,6 @@ export default new Effect({
         }
     },
 
-    paramAliases: { rotationVariation: 'rotationVar' },
 
     passes: [
         {

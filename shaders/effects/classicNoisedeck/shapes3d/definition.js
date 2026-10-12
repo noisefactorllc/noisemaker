@@ -457,7 +457,6 @@ export default class Shapes3D extends Effect {
     }
   }
 
-  paramAliases = { backgroundColor: 'bgColor', backgroundOpacity: 'bgAlpha' }
 
 
   passes = [

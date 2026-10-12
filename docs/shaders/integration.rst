@@ -733,9 +733,9 @@ lookups. Whether it may start a program follows the usual rule: an explicit
 starter when no pass consumes a pipeline input (``inputTex``,
 ``inputTex3d``, ``inputGeo``, ``inputXyz``, ``inputVel``, ``inputRgba``,
 ``src``, ``o0``..``o7``). Starter effects register their operation under
-``user.<func>``. The definition's ``paramAliases``, enum ``choices``, and
-uniform layout behave exactly as for built-in effects, and choices merge
-into the shared enum registry under the effect's own path.
+``user.<func>``. The definition's enum ``choices`` and uniform layout behave exactly
+as for built-in effects, and choices merge into the shared enum registry
+under the effect's own path.
 
 ``registerPortableEffect`` checks registration inputs and fails with a
 ``Portable effect: ...`` error before anything is registered:
@@ -750,7 +750,7 @@ into the shared enum registry under the effect's own path.
   source, so a backend never encounters a missing shader mid-pipeline.
 - ``globals`` must contain parameter objects. ``choices`` must map names to
   numbers — or strings for string-typed parameters — or null.
-  ``paramAliases`` must point at declared globals.
+- ``paramAliases`` is retired and causes registration to fail.
 
 Registration does not compile shaders or verify backend support: a package
 that passes registration can still fail at ``compile()`` time like any

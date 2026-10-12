@@ -48,6 +48,7 @@ const testEntries = [
   { file: 'shaders/tests/test_diagnostic_locations.js', parity: false },
   { file: 'shaders/tests/test_subchain_arguments.js', parity: false },
   { file: 'shaders/tests/test_subchain_argument_differential.js', parity: false },
+  { file: 'shaders/tests/test_param_aliases.js', parity: false },
   { file: 'shaders/tests/test_transform.js', parity: false },
   { file: 'shaders/tests/test_nested_automation.js', parity: false },
   { file: 'shaders/tests/test_oscillators.js', parity: false },

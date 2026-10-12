@@ -182,7 +182,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { cellSmooth: 'smooth', cellVariation: 'variation', refractAmt: 'amount', refractDir: 'direction', loopAmp: 'speed' },
   passes: [
     {
       name: "render",

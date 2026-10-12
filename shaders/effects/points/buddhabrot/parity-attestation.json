@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "points/buddhabrot",
-  "sourceHash": "1c48842e368c3ecc5ad7010dd238abccce9b59d91dc44949310c27d5de4f5503",
+  "sourceHash": "2617b35193d1e18def8580604c7b88c39ad0d945297648e99f9ffc5652f2f22f",
   "caseHash": "ae8e124b86fee60fb8b0e74b8d2787eda05e9c846d0bf555f9fcf8ab3068c3ac",
   "resolution": [
     64,

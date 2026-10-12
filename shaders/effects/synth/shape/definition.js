@@ -185,10 +185,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: {
-    loopAAmp: 'speedA',
-    loopBAmp: 'speedB'
-  },
   passes: [
     {
       name: "render",

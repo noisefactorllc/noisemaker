@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "effect": "synth/reactionDiffusion",
-  "sourceHash": "d9e108e05447c9fde8783bb5fb388d6d80c72b99caf6dbafde1665da08a313b0",
+  "sourceHash": "bb583b18c5c7be58a88553832e57ab51c0a07354b760221e52ddb69a877f865a",
   "caseHash": "1bae224b87a772b6d2cd5b29fc0de7287a37099c585ed2462b4d475f903364e0",
   "resolution": [
     64,

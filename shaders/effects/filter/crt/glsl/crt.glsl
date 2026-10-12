@@ -600,6 +600,7 @@ void main() {
     color = clamp((color - local_mean) * 1.25 + local_mean, vec3(0.0), vec3(1.0));
     
     // Write output
-    color = mix(base_color, color, alphaVal);
+    vec3 effectColor8 = floor(clamp(color, 0.0, 1.0) * 255.0 + 0.5) / 255.0;
+    color = mix(base_color, effectColor8, alphaVal);
     fragColor = vec4(color, base_sample.w);
 }

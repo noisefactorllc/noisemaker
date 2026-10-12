@@ -303,7 +303,6 @@ export default class Shapes extends Effect {
     }
   }
 
-  paramAliases = { loopAAmp: 'speedA', loopBAmp: 'speedB' }
 
   passes = [
     {

@@ -8,7 +8,6 @@
 import { isStarterOp } from './validator.js'
 import { ops } from './ops.js'
 import { getEffect, getAllEffects } from '../runtime/registry.js'
-import { getParamAliases } from './paramAliases.js'
 
 /**
  * Deep clone a compiled program structure
@@ -147,13 +146,12 @@ function typeMatches(value, type) {
 
 /**
  * Collect the set of accepted argument names for an effect: spec args,
- * instance globals, and their registered param aliases.
+ * instance globals.
  * @param {object} spec - Op spec (may be null)
  * @param {object|null} instance - Effect instance (may be null)
- * @param {object} aliases - Param alias map { oldName: newName }
  * @returns {Set<string>} Accepted argument names
  */
-function collectAcceptedArgNames(spec, instance, aliases) {
+function collectAcceptedArgNames(spec, instance) {
     const accepted = new Set()
     for (const def of (spec?.args || [])) {
         if (def?.name) accepted.add(def.name)
@@ -161,18 +159,7 @@ function collectAcceptedArgNames(spec, instance, aliases) {
     if (instance?.globals) {
         for (const key of Object.keys(instance.globals)) accepted.add(key)
     }
-    for (const name of Object.keys(aliases)) accepted.add(name)
-    for (const name of Object.values(aliases)) accepted.add(name)
     return accepted
-}
-
-/**
- * Build the alias map for an op from the param-alias registry.
- * @param {string} resolvedName - Namespaced effect name
- * @returns {object} { oldName: newName } (possibly empty)
- */
-function aliasMapFor(resolvedName) {
-    return getParamAliases(resolvedName)
 }
 
 /**
@@ -287,13 +274,12 @@ export function predictReplacement(resolvedName, spec, newArgs, oldInstance, opt
         })
     }
 
-    const aliases = aliasMapFor(resolvedName)
-    const accepted = collectAcceptedArgNames(spec, instance, aliases)
+    const accepted = collectAcceptedArgNames(spec, instance)
 
     const provided = newArgs || {}
-    const providedCanonical = new Set(Object.keys(provided).map(key => aliases[key] || key))
+    const providedCanonical = new Set(Object.keys(provided))
     for (const key of Object.keys(provided)) {
-        const canonical = aliases[key] || key
+        const canonical = key
         if (!accepted.has(canonical)) {
             prediction.arguments.unknown.push(key)
         }
@@ -319,7 +305,7 @@ export function predictReplacement(resolvedName, spec, newArgs, oldInstance, opt
 
     // Type and range checks
     for (const [key, value] of Object.entries(provided)) {
-        const canonical = aliases[key] || key
+        const canonical = key
         const def = knownDefs.get(canonical)
         if (!def) continue
         const declaredType = def.type === 'color' ? 'color' : def.type

@@ -89,12 +89,11 @@ assert.throws(() => definitionSchema(42), /Effect instance/)
 // ---------------------------------------------------------------------------
 
 // synth/noise: carries a uniform-less compile-time define global (`type` with
-// `define`, `choices`, `ui`), plus uniformLayout and paramAliases.
+// `define`, `choices`, `ui`), plus uniformLayout.
 const noiseSchema = await loadCompleteDefinition('shaders/effects/synth/noise')
 assert.equal(noiseSchema.namespace, 'synth')
 assert.equal(noiseSchema.func, 'noise')
 assert.ok(noiseSchema.uniformLayout, 'uniformLayout is exposed')
-assert.ok(noiseSchema.paramAliases, 'paramAliases are exposed')
 assert.ok(noiseSchema.globals.type, 'the uniform-less define global is exposed')
 assert.equal(noiseSchema.globals.type.define, 'NOISE_TYPE')
 assert.equal(noiseSchema.globals.type.choices.simplex, 10)
@@ -124,7 +123,6 @@ const noiseAudit = await auditDefinitionLoss('shaders/effects/synth/noise')
 assert.equal(noiseAudit.format, 'js')
 // The projection does not model Noisemaker-specific top-level fields.
 assert.ok(noiseAudit.loss.droppedTopLevelFields.includes('uniformLayout'))
-assert.ok(noiseAudit.loss.droppedTopLevelFields.includes('paramAliases'))
 // It keeps every global, including define-only globals, with ui, and every
 // pass with its name, inputs and outputs (shade-mcp#30).
 assert.deepEqual(noiseAudit.loss.droppedGlobals, [], 'no global is dropped')

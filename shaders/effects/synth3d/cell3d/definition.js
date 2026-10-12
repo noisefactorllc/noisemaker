@@ -106,7 +106,6 @@ export default new Effect({
         }
     }
   },
-  paramAliases: { cellVariation: 'variation' },
   passes: [
     {
       name: "precompute",

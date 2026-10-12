@@ -75,7 +75,7 @@ const DIM_SPEC_KEYS = new Set(['param', 'power', 'multiply', 'default', 'paramDe
 const TOP_LEVEL_KEYS = new Set([
     'name', 'namespace', 'func', 'description', 'tags', 'globals', 'passes',
     'textures', 'textures3d', 'shaders', 'uniformLayout', 'uniformLayouts',
-    'paramAliases', 'openCategories', 'defaultProgram', 'hidden', 'deprecatedBy',
+    'openCategories', 'defaultProgram', 'hidden', 'deprecatedBy',
     'externalTexture', 'externalMesh', 'builtinMeshes', 'outputTex3d', 'outputGeo',
     'state', 'uniforms', 'onInit', 'onUpdate', 'onDestroy', 'asyncInit'
 ])
@@ -1152,21 +1152,6 @@ export function validateEffectDefinition(def) {
         } else {
             for (const [prog, layout] of Object.entries(source.uniformLayouts)) {
                 validateUniformLayout(layout, errors, `uniformLayouts['${prog}']`)
-            }
-        }
-    }
-
-    // --- param aliases ---
-    if (source.paramAliases !== undefined) {
-        if (!isObj(source.paramAliases)) {
-            errors.push('"paramAliases" must be an object mapping aliases to global names')
-        } else {
-            for (const [alias, target] of Object.entries(source.paramAliases)) {
-                if (typeof target !== 'string' || !target) {
-                    errors.push(`paramAliases['${alias}'] must be a non-empty string`)
-                } else if (!context.globalKeys.has(target)) {
-                    errors.push(`paramAliases['${alias}'] references unknown global '${target}'`)
-                }
             }
         }
     }

@@ -599,7 +599,8 @@ fn main(@builtin(global_invocation_id) gid : vec3<u32>) {
     color = clamp((color - local_mean) * 1.25 + local_mean, vec3<f32>(0.0), vec3<f32>(1.0));
     
     // Write output
-    color = mix(base_color, color, alphaVal);
+    let effectColor8 = floor(clamp(color, vec3<f32>(0.0), vec3<f32>(1.0)) * 255.0 + vec3<f32>(0.5)) / 255.0;
+    color = mix(base_color, effectColor8, alphaVal);
     let pixel_index : u32 = gid.y * width + gid.x;
     let base_index : u32 = pixel_index * 4u;
     output_buffer[base_index + 0u] = color.x;

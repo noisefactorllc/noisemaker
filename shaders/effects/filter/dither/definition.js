@@ -102,7 +102,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { ditherType: 'type', mixAmount: 'mix' },
   passes: [
     {
       name: "render",

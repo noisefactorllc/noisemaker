@@ -7,7 +7,7 @@
  * a `definition.js` statically: every global and pass, with the fields its
  * `EffectDefinition` type models, and it marks the result `partial` where a
  * value is computed at run time. It does not model Noisemaker-specific
- * top-level fields (`uniformLayout`, `paramAliases`, `textures`, ...) or
+ * top-level fields (`uniformLayout`, `textures`, ...) or
  * global and pass fields outside that type. This module loads the LIVE
  * `definition.js` module (the same source the browser runtime executes),
  * exposes its complete schema as plain JSON, and audits the vendored

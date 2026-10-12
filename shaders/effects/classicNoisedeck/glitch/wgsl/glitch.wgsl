@@ -209,6 +209,7 @@ fn main(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
     var uv = fragCoord.xy / resolution;
     
     var color = glitch(uv, aspectRatio, u.time, u.xChonk, u.yChonk, u.glitchiness, u.aspectLens, u.distortion, u.aberration);
+    color = vec4<f32>(floor(clamp(color.rgb, vec3<f32>(0.0), vec3<f32>(1.0)) * 255.0 + vec3<f32>(0.5)) / 255.0, color.a);
     // Zero amounts mix the effect in with weight 0; skip the noise work.
     if (u.scanlinesAmt != 0.0) {
         color = scanlines(color, uv, resolution, u.scanlinesAmt, u.time, u.seed);

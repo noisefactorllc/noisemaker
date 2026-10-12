@@ -74,7 +74,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { paletteIndex: 'index', paletteOffset: 'offset', paletteRepeat: 'repeat', paletteRotation: 'rotation' },
   passes: [
     {
       name: "render",

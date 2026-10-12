@@ -104,7 +104,6 @@ export default new Effect({
     }
   },
   defaultProgram: "search filter, synth\n\nnoise(ridges: true, colorMode: mono)\n.historicPalette()\n.write(o0)",
-  paramAliases: { paletteIndex: 'index' },
   passes: [
     {
       name: "render",

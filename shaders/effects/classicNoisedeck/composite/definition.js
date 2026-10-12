@@ -75,7 +75,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { mixAmt: 'mix' },
   passes: [
     {
       name: "render",

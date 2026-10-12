@@ -3,7 +3,6 @@ import enums from './enums.js'
 import { stdEnums } from './std_enums.js'
 import { ops } from './ops.js'
 import { normalizeMemberPath, pathStartsWith, applyEnumPrefix } from './enumPaths.js'
-import { resolveParamAliases } from './paramAliases.js'
 import { checkEffectAlias } from './effectAliases.js'
 import { decodeJsonStringLiteralContent } from './stringLiterals.js'
 
@@ -986,13 +985,6 @@ export function validate(ast) {
                 // programs add no new keys to the compiled step.
                 let argSources = null
                 const kw = call.kwargs
-                // Resolve deprecated param aliases
-                if (kw) {
-                    const aliasWarnings = resolveParamAliases(opName, kw)
-                    for (const w of aliasWarnings) {
-                        pushDiag('S007', call, w)
-                    }
-                }
                 const seen = new Set()
                 const specArgs = spec.args || []
                 for (let i = 0; i < specArgs.length; i++) {

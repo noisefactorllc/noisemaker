@@ -37,7 +37,7 @@ test('Portable registration preserves the Effect lifecycle and render definition
     }
 })
 
-test('Portable aliases, choice names and explicit enum paths compile to shader uniforms', async () => {
+test('Portable choice names and explicit enum paths compile to shader uniforms', async () => {
     await mergeIntoEnums({ portableExplicit: { Keep: { type: 'Number', value: 7 } } })
     const renderer = new CanvasRenderer()
     await renderer.registerPortableEffect(definition('portableParams', {
@@ -45,10 +45,9 @@ test('Portable aliases, choice names and explicit enum paths compile to shader u
             mode: { type: 'int', default: 0, uniform: 'modeUniform', choices: { 'Modes:': -1, 'Soft Light': 3 } },
             pinned: { type: 'int', default: 0, uniform: 'pinnedUniform', enumPath: 'portableExplicit', choices: { Keep: 99 } },
             primary: { type: 'int', default: 0, uniform: 'primaryUniform', enum: 'portableExplicit', enumPath: 'missing', choices: { Keep: 99 } }
-        },
-        paramAliases: { oldMode: 'mode' }
+        }
     }))
-    const compiled = compile('search user\nportableParams(oldMode: SoftLight, pinned: Keep, primary: Keep).write(o0)\nrender(o0)')
+    const compiled = compile('search user\nportableParams(mode: SoftLight, pinned: Keep, primary: Keep).write(o0)\nrender(o0)')
     const graph = expand(compiled)
     const pass = graph.passes.find(p => p.effectKey === 'user.portableParams')
     assert.ok(pass, JSON.stringify(compiled.diagnostics))
@@ -90,7 +89,8 @@ test('Invalid Portable packages fail before registration and leave a valid name 
         definition('portableInvalid', { passes: [{ program: 'a' }, { program: 'b' }],
             shaders: { a: { glsl: 'source' }, b: { wgsl: 'source' } } }),
         definition('portableInvalid', { globals: { amount: null } }), definition('portableInvalid', { starter: 'false' })]
-    invalid.push(definition('portableInvalid', { paramAliases: 'bad' }),
+    invalid.push(definition('portableInvalid', { paramAliases: { old: 'mode' }, globals: { mode: { type: 'int' } } }),
+        definition('portableInvalid', { paramAliases: 'bad' }),
         definition('portableInvalid', { paramAliases: { old: 42 } }),
         definition('portableInvalid', { paramAliases: { old: 'absent' } }),
         definition('portableInvalid', { globals: { mode: { type: 'int', choices: 'abc' } } }),

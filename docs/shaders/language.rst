@@ -368,7 +368,7 @@ The ``palette`` enum provides named color palettes for effects like ``palette()`
 .. code-block:: none
 
    search filter
-   read(o0).palette(paletteIndex: vaporwave).write(o1)
+   read(o0).palette(index: vaporwave).write(o1)
 
 **Available Palettes:**
 
@@ -880,10 +880,6 @@ Diagnostics
      - Semantic
      - Error
      - Starter chain missing write() call
-   * - S007
-     - Semantic
-     - Warning
-     - Deprecated parameter alias
    * - S008
      - Semantic
      - Warning
@@ -900,5 +896,4 @@ Common Errors
 
 * **S005 (Illegal chain structure):** Generator functions (like ``noise`` and ``solid``) must appear at the start of a chain. They cannot consume an existing chain output.
 * **S006 (Starter chain missing write):** Generator-driven chains must end with ``.write()`` to produce a reusable surface.
-* **S007 (Deprecated parameter alias):** The parameter has a new name. The previous name still works. Use the current name.
 * **S008 (Deprecated effect):** A newer effect replaces this effect, but the previous effect still works. Use the current name.

@@ -34,7 +34,6 @@ export default new Effect({
     }
   },
   defaultProgram: "search mixer, synth\n\npolygon(smooth: 0, bgAlpha: 0)\n  .write(o0)\n\n noise(scaleX: 100, scaleY: 100)\n  .alphaMask(tex: read(o0))\n  .write(o1)\n",
-  paramAliases: { mixAmt: 'mix' },
   passes: [
     {
       name: "render",

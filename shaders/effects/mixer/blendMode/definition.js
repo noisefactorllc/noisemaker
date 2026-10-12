@@ -50,7 +50,6 @@ export default new Effect({
     }
   },
   defaultProgram: "search mixer, synth\n\nnoise(ridges: true, colorMode: mono)\n.write(o0)\n\nperlin()\n.blendMode(tex: read(o0), mode: phoenix)\n.write(o1)",
-  paramAliases: { mixAmt: 'mix' },
   passes: [
     {
       name: "render",

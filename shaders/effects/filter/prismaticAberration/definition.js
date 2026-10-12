@@ -77,7 +77,6 @@ export default new Effect({
     }
   },
   defaultProgram: "search filter, synth\n\nnoise(ridges: true)\n.prismaticAberration(modulate: true)\n.write(o0)",
-  paramAliases: { aberrationAmt: 'aberration' },
   passes: [
     {
       name: "render",

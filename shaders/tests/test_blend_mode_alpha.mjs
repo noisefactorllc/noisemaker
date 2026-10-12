@@ -105,7 +105,7 @@ try {
         const pixels = []
         for (const c of cases) {
             const dsl = `search synth, mixer
-solid(color: ${c.baseColor || '#0000ff'}, alpha: ${c.baseAlpha}).write(o0); solid(color: ${c.sourceColor || '#ff0000'}, alpha: ${c.sourceAlpha}).write(o1); read(o0).blendMode(tex: read(o1), mode: ${c.mode}, mixAmt: ${c.mixAmt}).write(o2); render(o2)`
+solid(color: ${c.baseColor || '#0000ff'}, alpha: ${c.baseAlpha}).write(o0); solid(color: ${c.sourceColor || '#ff0000'}, alpha: ${c.sourceAlpha}).write(o1); read(o0).blendMode(tex: read(o1), mode: ${c.mode}, mix: ${c.mixAmt}).write(o2); render(o2)`
             const result = await page.evaluate(dsl => window.renderDsl(dsl), dsl)
             assert.equal(result.backend, backend, 'Backend fallback must not masquerade as parity')
             const png = PNG.sync.read(Buffer.from(result.png.split(',')[1], 'base64'))

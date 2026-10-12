@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "effects": [
+    "synth/noise"
+  ],
+  "dsl": "search synth\nnoise(seed: 1).write(o0)\nrender(o0)"
+}

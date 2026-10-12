@@ -20,7 +20,6 @@
  */
 
 import { registerOp } from '../lang/ops.js'
-import { registerParamAliases } from '../lang/paramAliases.js'
 import { registerEffectAlias } from '../lang/effectAliases.js'
 import { registerStarterOps } from '../lang/validator.js'
 import { createRuntime, recompile } from '../runtime/compiler.js'
@@ -1482,10 +1481,7 @@ export class CanvasRenderer {
                 fail(`choices for ${key} must map names to ${spec.type === 'string' ? 'strings' : 'numbers'} or null`)
             }
         }
-        if (definition.paramAliases !== undefined && (!isRecord(definition.paramAliases) ||
-            Object.values(definition.paramAliases).some(target => typeof target !== 'string' || !Object.hasOwn(globals || {}, target)))) {
-            fail('paramAliases must map names to declared globals')
-        }
+        if (definition.paramAliases !== undefined) fail('paramAliases is no longer supported')
         if (getEffect(`user.${func}`) || getEffect(`user/${func}`)) fail(`user.${func} is already registered`)
 
         const instance = new Effect({ ...definition, func, namespace: 'user' })
@@ -1567,10 +1563,6 @@ export class CanvasRenderer {
                 args: args
             }
             registerOp(`${namespace}.${instance.func}`, opSpec)
-
-            if (instance.paramAliases) {
-                registerParamAliases(`${namespace}.${instance.func}`, instance.paramAliases)
-            }
 
             if (instance.hidden && instance.deprecatedBy) {
                 registerEffectAlias(`${namespace}.${instance.func}`, instance.deprecatedBy)

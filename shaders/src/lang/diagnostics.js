@@ -23,7 +23,6 @@ const diagnostics = {
   S004: { stage: 'semantic', severity: 'error', message: 'Cannot assign null or undefined' },
   S005: { stage: 'semantic', severity: 'error', message: 'Illegal chain structure' },
   S006: { stage: 'semantic', severity: 'error', message: 'Starter chain missing write() call' },
-  S007: { stage: 'semantic', severity: 'warning', message: 'Deprecated parameter alias' },
   S008: { stage: 'semantic', severity: 'warning', message: 'Deprecated effect' },
   R001: { stage: 'runtime', severity: 'error', message: 'Runtime error' }
 }

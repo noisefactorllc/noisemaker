@@ -6,8 +6,6 @@
  * The old effects still work — they just warn.
  */
 
-import { ALIAS_EOL_DATE } from './paramAliases.js'
-
 /**
  * Internal registry.  Shape: { [oldOpName]: newEffectName }
  * @type {Object<string, string>}
@@ -34,5 +32,5 @@ export function checkEffectAlias(opName) {
     const newName = registry[opName]
     if (!newName) return null
     const oldName = opName.includes('.') ? opName.split('.').pop() : opName
-    return `effect '${oldName}' is deprecated, use '${newName}' instead. Aliases will be removed on ${ALIAS_EOL_DATE}.`
+    return `effect '${oldName}' is deprecated, use '${newName}' instead.`
 }

@@ -142,7 +142,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { patternType: 'type' },
   passes: [
     {
       name: "main",

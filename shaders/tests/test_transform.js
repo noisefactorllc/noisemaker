@@ -608,28 +608,4 @@ test('replaceEffect - preflight passes valid replacement through with prediction
     assertTrue(result.prediction.samplerTopology.internalTextures.includes('scratch'), 'Prediction should carry sampler topology')
 })
 
-// Param-alias awareness: deprecated names must not be predicted unknown
-import { registerParamAliases } from '../src/lang/paramAliases.js'
-registerParamAliases('filter.grain', { amt: 'amount' })
-
-test('prediction - registered param alias is accepted with canonical checks', () => {
-    const compiled = compile('search synth, filter\nnoise(10).kaleid(6).write(o0)')
-    const steps = listSteps(compiled)
-
-    // Supplied via deprecated alias: not unknown, range/type checked canonically
-    const viaAlias = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amt: 0.9 })
-    assertTrue(viaAlias.success, 'Alias-supplied replacement should succeed without opt-in')
-    assertTrue(viaAlias.prediction.arguments.unknown.length === 0, 'Alias name should not be predicted unknown')
-    assertTrue(viaAlias.prediction.arguments.missing.length === 0, 'Canonical argument should count as provided via alias')
-
-    const viaAliasPreflight = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amt: 0.9 }, { preflight: true })
-    assertTrue(viaAliasPreflight.success, 'Alias-supplied replacement should pass preflight')
-    assertTrue(viaAliasPreflight.prediction.ranges.length === 0, 'Alias value within range should not be flagged')
-
-    // Range violation through the alias still fires canonically
-    const outOfRange = replaceEffect(compiled, steps[1].stepIndex, 'grain', { amt: 5 }, { preflight: true })
-    assertFalse(outOfRange.success, 'Out-of-range value via alias should be refused under preflight')
-    assertTrue(outOfRange.error.includes('amount'), 'Range error should name the canonical argument')
-})
-
 console.log('\nAll transform tests completed!')

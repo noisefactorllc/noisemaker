@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "surface": "o0",
+  "resolution": [
+    64,
+    64
+  ],
+  "epsilon": 0,
+  "requireColorVariation": true,
+  "effects": [
+    "synth/testPattern",
+    "synth/solid",
+    "mixer/applyMode"
+  ],
+  "dsl": "search synth, mixer\ntestPattern(pattern: colorBars).applyMode(tex: solid(color: #804020)).write(o0)\nrender(o0)"
+}

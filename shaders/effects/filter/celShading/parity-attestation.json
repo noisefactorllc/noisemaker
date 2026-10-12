@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "effect": "filter/celShading",
+  "sourceHash": "72659d9b9ad0e0c3ee36d74b29afad47a5701f10f6003f17bba313c3efd4a4d7",
+  "caseHash": "0a6eb1c6eecbd4a9a4adbce24613fce4f8867933cca751600e491b4773225398",
+  "resolution": [
+    64,
+    64
+  ],
+  "frames": {
+    "webgl2": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 618,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 372
+    },
+    "webgpu": {
+      "width": 64,
+      "height": 64,
+      "nonzeroRgbPixels": 618,
+      "nonzeroAlphaPixels": 4096,
+      "uniqueColors": 372
+    }
+  },
+  "execution": {
+    "webgl2TargetPasses": 3,
+    "webgpuTargetPasses": 3
+  },
+  "parity": {
+    "epsilon": 0,
+    "maxDiff": 0,
+    "meanDiff": 0,
+    "mismatchCount": 0,
+    "mismatchPercent": 0
+  }
+}

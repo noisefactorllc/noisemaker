@@ -190,7 +190,6 @@ export default new Effect({
       }
     },
   },
-  paramAliases: { mixAmt: 'mix', aberrationAmt: 'aberration' },
   textures: {
     _selfTex: {
       width: "input",

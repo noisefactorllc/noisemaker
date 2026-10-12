@@ -175,7 +175,6 @@ export default class Media extends Effect {
     }
   }
 
-  paramAliases = { backgroundColor: 'bgColor', backgroundOpacity: 'bgAlpha' }
 
 
   passes = [

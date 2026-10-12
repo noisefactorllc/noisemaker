@@ -426,7 +426,6 @@ export default class Noise extends Effect {
     }
   }
 
-  paramAliases = { noiseType: 'type', loopAmp: 'speed' }
 
 
   passes = [

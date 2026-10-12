@@ -203,7 +203,6 @@ export default new Effect({
 
   openCategories: ["fractal", "animation"],
 
-  paramAliases: { poiMode: 'poi' },
 
   passes: [
     {

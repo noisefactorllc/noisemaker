@@ -189,7 +189,6 @@ export default new Effect({
       }
     }
   },
-  paramAliases: { noiseType: 'type', loopAmp: 'speed', xScale: 'scaleX', yScale: 'scaleY' },
   passes: [
     {
       name: "render",

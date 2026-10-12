@@ -167,7 +167,6 @@ export default class Text extends Effect {
     }
     defaultProgram = "search filter, synth\n\nperlin(scale: 100)\n  .text()\n  .write(o0)"
 
-    paramAliases = { bgOpacity: 'matteOpacity', bgAlpha: 'matteOpacity', bgColor: 'matteColor' }
 
     passes = [
         {

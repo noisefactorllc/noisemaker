@@ -124,7 +124,6 @@ export default new Effect({
       }
     },
   },
-  paramAliases: { aberrationAmt: 'aberration' },
   passes: [
     {
       name: "render",
