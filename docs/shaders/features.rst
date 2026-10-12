@@ -6,6 +6,7 @@ Features
 
    cubemaps
    pipeline-3d
+   persistent-surfaces
    smrticles
    midi-audio
    renderer-output

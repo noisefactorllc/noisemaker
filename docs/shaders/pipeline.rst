@@ -372,14 +372,18 @@ and ``_temp0``.
 **Terminology:**
 
 
-* ``doubleBuffered``: The surface has read and write texture IDs. Frame-local
-  bindings advance after writes. At frame end, display surfaces swap, while
-  recognized state surfaces and graph feedback surfaces (global surfaces that
-  a pass reads before any pass writes them in the same frame, and that are
-  also written) retain their frame-final bindings. A surface written before
-  it is read is frame-local scratch and swaps normally. Persisting feedback
-  bindings lets the next frame read the latest write even when an intervening
-  update pass was skipped.
+* ``doubleBuffered``: The surface has read and write texture IDs, and
+  frame-local bindings advance after writes. At frame end, display surfaces
+  swap, while recognized state surfaces, graph feedback surfaces, and global
+  surfaces with ``persistent: true`` retain their frame-final bindings.
+
+  A graph feedback surface is a global surface that a pass reads before any
+  pass writes it in the same frame. A pass in that frame also writes the
+  surface. A non-state surface uses frame-local scratch behavior if a pass
+  writes it before any pass reads it in that frame. The pipeline swaps it at
+  frame end unless its texture spec sets ``persistent: true``. This retention
+  lets the next frame read the latest write even when an update pass does not
+  run.
 
 8.0.1 Global Surface Behavior
 """""""""""""""""""""""""""""
