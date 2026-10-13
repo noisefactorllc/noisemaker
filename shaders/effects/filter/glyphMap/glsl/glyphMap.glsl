@@ -304,7 +304,10 @@ void main() {
     // Cell-size cap and the edge clamp below apply only when tiling, so
     // normal-size output is byte-identical to the pre-tile-aware shader
     // (zero baseline regression for all parameters).
-    bool isTileRendering = length(tileOffset) > 0.0;
+    // Tiling is detected from the full-image size differing from the local
+    // render size. tileOffset alone cannot detect tiling: the origin tile's
+    // offset is (0, 0), the same value the runtime writes when not tiling.
+    bool isTileRendering = any(notEqual(fullResolution, resolution));
     if (isTileRendering) { cs = min(cs, 512); }
     float csf = float(cs);
 

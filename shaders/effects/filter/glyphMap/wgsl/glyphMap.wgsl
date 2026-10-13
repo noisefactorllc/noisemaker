@@ -161,15 +161,19 @@ fn glyphPixel(g: i32, x: i32, y: i32) -> f32 {
 fn main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let texSize = vec2<f32>(textureDimensions(inputTex));
     let tileOffset = uniforms.tileOffset;
-    let isTile = length(tileOffset) > 0.0;
+    // Tiling is detected from the full-image size differing from the local
+    // render size. tileOffset alone cannot detect tiling: the origin tile's
+    // offset is (0, 0), the same value the runtime writes when not tiling.
+    let isTile = any(uniforms.fullResolution != texSize);
     // Non-tiling path is byte-identical to the previous shader. When tiling,
     // mirror glsl/glyphMap.glsl: global pixel grid + renderScale-scaled cell
-    // (clamped to 512) so cells align across tiles.
+    // (clamped to 512) so cells align across tiles. The renderScale multiply
+    // is unconditional, matching the GLSL at every tile including the origin.
     var pixelCoord = pos.xy;
-    var cs = max(uniforms.cellSize, 1);
+    var cs = max(i32(f32(uniforms.cellSize) * uniforms.renderScale), 1);
     if (isTile) {
         pixelCoord = pos.xy + tileOffset;
-        cs = clamp(i32(f32(uniforms.cellSize) * uniforms.renderScale), 1, 512);
+        cs = min(cs, 512);
     }
     let csf = f32(cs);
 
