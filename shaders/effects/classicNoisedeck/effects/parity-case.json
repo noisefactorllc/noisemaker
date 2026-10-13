@@ -10,6 +10,13 @@
         64,
         64
     ],
+    "tiles": {
+        "size": [
+            32,
+            32
+        ],
+        "renderScale": 3
+    },
     "settleMs": 2000,
     "epsilon": 0,
     "requireColorVariation": true

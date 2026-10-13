@@ -264,12 +264,16 @@ vec3 pixellate(vec2 uv, float size) {
 
     size *= 4.0;
 
-    float dx = size * (1.0 / resolution.x);
-    float dy = size * (1.0 / resolution.y);
+    // The block grid is anchored to the full image, so its cell size is a
+    // fraction of fullResolution (the tile size under tiling). Untiled the
+    // two resolutions are equal, so this is byte-identical to the previous
+    // resolution-based grid.
+    float dx = size * (1.0 / fullResolution.x);
+    float dy = size * (1.0 / fullResolution.y);
     uv -= 0.5;
     vec2 coord = vec2(dx * floor(uv.x / dx), dy * floor(uv.y / dy));
     coord += 0.5;
-    return texture(inputTex, coord).rgb;
+    return texture(inputTex, (coord * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).rgb;
 }
 
 vec3 desaturate(vec3 color) {
@@ -278,7 +282,10 @@ vec3 desaturate(vec3 color) {
 }
 
 vec3 convolve(vec2 uv, float kernel[9], bool divide) {
-    vec2 steps = 1.0 / resolution; // 1.0 / width = 1 texel
+    // One kernel step is one full-image pixel. Untiled the full resolution
+    // equals the canvas resolution; under tiling the canvas is the tile, so
+    // the tile resolution would double every kernel step.
+    vec2 steps = 1.0 / fullResolution;
     vec2 offset[9];
     offset[0] = vec2(-steps.x, -steps.y);     // top left
     offset[1] = vec2(0.0, -steps.y);         // top middle
@@ -491,14 +498,18 @@ vec3 cga(vec4 color, vec2 st) {
 	float size = 2. * pixelDensity;
 	float dSize = 2. * size;
 
-	float amount = resolution.x / size;
+	// The block grid is anchored to the full image, so the block count uses
+	// the full resolution (the tile resolution under tiling).
+	float amount = fullResolution.x / size;
 	float d = 1.0 / amount;
 	float ar = fullResolution.x / fullResolution.y;
 	float sx = floor( st.x / d ) * d;
 	d = ar / amount;
 	float sy = floor( st.y / d ) * d;
 
-	vec4 base = texture( inputTex, vec2( sx, sy ) );
+	// The block grid is globally anchored, so the snapped block center is a
+	// full-image coordinate; map it into this tile's input texture.
+	vec4 base = texture( inputTex, (vec2( sx, sy ) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0)) );
 
 	float lum = .2126 * base.r + .7152 * base.g + .0722 * base.b;
 	float o = floor( 6. * lum );
@@ -526,14 +537,16 @@ vec3 cga(vec4 color, vec2 st) {
 	if( o == 5. ) { c1 = light; c2 = white; }
 	if( o == 6. ) { c1 = white; c2 = c1; }
 
-	if( mod( gl_FragCoord.x, dSize ) > size ) {
-		if( mod( gl_FragCoord.y, dSize ) > size ) {
+	// The checker phase is anchored to the full image (tileOffset is 0
+	// untiled), so the pattern does not restart at every tile boundary.
+	if( mod( gl_FragCoord.x + tileOffset.x, dSize ) > size ) {
+		if( mod( gl_FragCoord.y + tileOffset.y, dSize ) > size ) {
 			base.rgb = c1;
 		} else {
 			base.rgb = c2;	
 		}
 	} else {
-		if( mod( gl_FragCoord.y, dSize ) > size ) {
+		if( mod( gl_FragCoord.y + tileOffset.y, dSize ) > size ) {
 			base.rgb = c2;
 		} else {
 			base.rgb = c1;		
@@ -551,7 +564,10 @@ vec3 subpixel(vec2 st, float scale) {
 	vec3 orig = pixellate(st, 4.0 * scale);
     vec3 color = orig;
 
-    st *= resolution;
+    // The stripe mask is anchored to the full image in full-image pixels
+    // (equal to tile pixels untiled), so the stripes do not shift or
+    // rescale at tile boundaries.
+    st *= fullResolution;
     st = floor(st);
 
     float m = mod(st.x, 4.0 * scale);
@@ -574,15 +590,17 @@ vec3 subpixel(vec2 st, float scale) {
 
 // Bloom - MIT License
 // Modified from https://github.com/spite/Wagner/blob/master/fragment-shaders/bloom-fs.glsl
+// Bloom samples a small neighborhood of the full-image coordinate st, so
+// every tap maps through the tile mapping (identity untiled).
 vec3 bloom(vec2 st) {
     vec3 sum = vec3(0.0);
     vec3 color = vec3(0.0);
-    vec3 orig = texture(inputTex, st).rgb;
+    vec3 orig = texture(inputTex, (st * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).rgb;
     float strength = map(effectAmt, 0.0, 20.0, 0.0, 0.25);
 
     for (int i = -4; i < 4; i++) {
         for (int j = -3; j < 3; j++) {
-            sum += texture(inputTex, st + vec2(j, i) * 0.004).rgb * strength;
+            sum += texture(inputTex, ((st + vec2(j, i) * 0.004) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0))).rgb * strength;
         }
     }
 
@@ -625,7 +643,16 @@ vec3 zoomBlur(vec2 st) {
         vec2 tapA = toCenter * percent;
         vec2 tap = min(max(tapA, vec2(-1e38)), vec2(1e38)) * strength;
         vec2 tapB = min(max(tap, vec2(-1e38)), vec2(1e38));
-        vec4 tex = texture(inputTex, st + tapB);
+        // Under tiling, clamp each tap component to an absolute 256 px
+        // budget (as filter/lens and filter/parallax do): the raw
+        // displacement is a fraction of fullResolution, so an unclamped tap
+        // would reach past the fixed 1024 px tile overlap on large prints.
+        // Untiled the clamp is off and the output is byte-identical.
+        if (tileOffset.x != 0.0 || tileOffset.y != 0.0) {
+            vec2 tapBudget = vec2(256.0) * invFullResolution;
+            tapB = min(max(tapB, -tapBudget), tapBudget);
+        }
+        vec4 tex = texture(inputTex, ((st + tapB) * fullResolution - tileOffset) / vec2(textureSize(inputTex, 0)));
         products[int(t)] = min(max(tex.rgb * weight, vec3(-1e38)), vec3(1e38));
         total += min(max(weight, -1e38), 1e38);
     }
@@ -687,14 +714,17 @@ void main() {
     uv += 0.5;
 
     // no
-    vec2 imageSize = resolution;
+    // The zoom center is anchored to the full image; the tile resolution
+    // would shift it under tiling. Untiled the two are equal.
+    vec2 imageSize = fullResolution;
 
     // need to subtract 50% of image width and height
     // mid center
-    // imageSize is a copy of resolution, so resolution/imageSize is a value
-    // divided by itself: ANGLE computes exactly 1.0 while Dawn lowers the
-    // division to x * rcp(x) (~1 ulp off), which shifted the offset map's
-    // arguments and flipped knife-edge sampler taps. Use the exact 1.0.
+    // imageSize is a copy of fullResolution, so a resolution/imageSize style
+    // self-division would be a value divided by itself: ANGLE computes exactly
+    // 1.0 while Dawn lowers the division to x * rcp(x) (~1 ulp off), which
+    // shifted the offset map's arguments and flipped knife-edge sampler taps.
+    // Use the exact 1.0.
     uv.x -= ceil((scale * 0.5) - (0.5 - (1.0 / imageSize.x * scale)));
     uv.y += ceil((scale * 0.5) + (0.5 - (1.0 / imageSize.y * scale)) - (scale));
 
