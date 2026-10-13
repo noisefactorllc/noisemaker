@@ -1,48 +1,74 @@
-Shuffleset
-==========
+Shuffleset: audio visualization within a media player
+=====================================================
 
-`shuffleset.stream <https://shuffleset.stream/>`_
+`Open Shuffleset <https://shuffleset.stream/>`_
 
-Shuffleset is a self-hosted media streaming platform. We added an audio-reactive shader visualizer to it by wiring the Web Audio API into Noisemaker's audio state system. The integration is 120 lines.
+Abstract
+--------
 
-The browser's ``AnalyserNode`` extracts frequency and waveform data from whatever's playing. Each frame, the integration sends that data to Noisemaker's ``AudioState`` object. ``AudioState`` exposes it as shader uniforms:
+Shuffleset adds a Noisemaker visualizer to a media player through the browser's audio analysis interface. The existing audio element supplies the sound. An analyzer provides frequency and waveform data to the engine, which renders a scope with feedback and lens effects. Playlist selection, playback controls, and cover art remain application features. This case demonstrates a contained graphics integration within an existing media workflow. [S1]_ [S2]_
+
+1. Use case and requirements
+----------------------------
+
+A listener selects a set or shuffled playback and uses the player's normal transport controls. The visualizer responds to the track already playing. It shares the audio view with cover art and the track list, so visual output complements the playback workflow. [S1]_
+
+The integration must:
+
+* Analyze the same audio element that plays the selected track.
+* Supply waveform and frequency data to effects that need them.
+* Retain the player's track selection and transport behavior.
+* Handle browser restrictions on starting an audio context.
+* Release analysis and graphics resources when the view closes. [S1]_ [S2]_
+
+These requirements favor an adapter around the existing player. The graphics engine needs audio data and a canvas. It does not need to own the playlist, media catalog, or playback controls. [S1]_ [S2]_
+
+2. Integration surface
+----------------------
+
+``NoisemakerRenderer`` wraps ``CanvasRenderer``. It loads the effect manifest, resolves the effects referenced by the visual program, and compiles that program. Its audio adapter creates an ``AudioContext`` and an ``AnalyserNode``. The existing media element connects through the analyzer to the audio destination. [S2]_
+
+The analyzer uses a 256-sample transform. The wrapper allocates arrays for 128 frequency bins and 256 waveform samples, then reuses them during analysis. The following excerpt shows the complete frame-update method after audio setup. [S2]_
 
 .. code-block:: javascript
+   :caption: Feed browser audio analysis into the engine
 
-    connectAudio(audioElement) {
-        const ctx = new AudioContext()
-        const analyser = ctx.createAnalyser()
-        analyser.fftSize = 256
+   _audioUpdate() {
+       if (!this._audioEnabled) return
+       this._audioState.updateFromAnalyser(this._audioAnalyser, 8)
+       this._audioAnalyser.getByteFrequencyData(this._fftData)
+       this._audioState.setSpectrum(this._fftData)
+       this._audioAnalyser.getByteTimeDomainData(this._timeDomainData)
+       this._audioState.setWaveform(this._timeDomainData)
+       this._audioAnimId = requestAnimationFrame(() => this._audioUpdate())
+   }
 
-        const source = ctx.createMediaElementSource(audioElement)
-        source.connect(analyser)
-        analyser.connect(ctx.destination)
+This method connects standard browser audio analysis to the engine's audio state. The visual program decides how to use that state. A change to the visual treatment can therefore remain a composition change rather than a change to the player's transport code. [S1]_ [S2]_
 
-        this._audioState = this.setAudioState()
-        this._audioUpdate()  // start the RAF loop
-    }
+3. Implementation decisions
+---------------------------
 
-    _audioUpdate() {
-        this._audioState.updateFromAnalyser(this._audioAnalyser, 8)
-        this._audioAnalyser.getByteFrequencyData(this._fftData)
-        this._audioState.setSpectrum(this._fftData)
-        this._audioAnalyser.getByteTimeDomainData(this._timeDomainData)
-        this._audioState.setWaveform(this._timeDomainData)
-        requestAnimationFrame(() => this._audioUpdate())
-    }
+The current composition combines a scope with a feedback subchain, warp, and lens processing. Grouped effects let the application describe the treatment as one program. The player does not draw the scope or implement those image effects itself. [S1]_
 
-That's the entire bridge. Audio flows through the analyser without interrupting playback. The per-frame update pushes 128 frequency bins and 256 time-domain samples into the pipeline, where any DSL program can reference them.
+Audio connection waits until playback starts. If the browser suspends the audio context, the wrapper attempts to resume it and installs a user-gesture fallback. This matters because audible playback passes through the connected context. Audio initialization is part of the media workflow, not merely an optional graphics detail. [S1]_ [S2]_
 
-The visualizer itself is a hardcoded DSL string:
+Visualizer initialization is optional at the view level. If setup fails, the player disposes the renderer and continues with the audio layout. Teardown stops the analysis loop, disconnects the source, closes the audio context, resets audio state, and disposes the rendering pipeline. The adapter owns the resources that the visualizer adds. [S1]_ [S2]_
 
-.. code-block:: text
+4. Result and product implications
+----------------------------------
 
-    scope(color: #ffffffff, thickness: 3, gain: 1)
-      .feedback(blendMode: lighten, mix: 42.31, scaleAmt: 112.6)
-      .chromaticAberration(aberration: 25)
-      .bloom(taps: 15)
-      .vignette()
-      .write(o0)
-    render(o0)
+The implementation combines reactive visuals with cover art, track lists, sequential playback, and shuffled playback. The visual composition can evolve while the existing player retains its controls and content model. [S1]_
 
-The ``scope()`` effect reads audio state internally. Everything after it is standard filter chaining. Changing the visualizer requires changing one string.
+For a developer, the reusable pattern is a small audio-to-engine adapter with a defined lifecycle. A product team can add a visual treatment to an audio experience without making the rendering engine responsible for media management. The separation also supports different compositions for the same player: the sound supplies analysis data, and the selected program determines the image. [S1]_ [S2]_
+
+5. Operating limits
+-------------------
+
+A suspended audio context can interrupt audible playback after the source connects through it. Browser evaluation must therefore cover playback, seeking, track changes, and context resume as well as visual output. Shader complexity and canvas dimensions impose a separate rendering workload. The integration's fallback behavior does not replace these playback checks. [S1]_ [S2]_
+
+6. References
+-------------
+
+.. [S1] `Audio player and current visualizer composition <https://shuffleset.stream/js/audio-view.js>`_.
+
+.. [S2] `Audio-to-engine integration <https://shuffleset.stream/js/noisemaker/renderer.js>`_.
