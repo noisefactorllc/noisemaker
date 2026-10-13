@@ -1,82 +1,106 @@
-Layers: non-destructive media composition
-=========================================
+Layers: a non-destructive image and video editor
+================================================
 
 `Open Layers <https://layers.noisefactor.io/>`_
 
-Abstract
---------
+Layers is an image and video editor that runs in the browser.
+Users import images and video clips, stack layers with effects and blend modes, and export an image or a video.
+Layers keeps the source media and the settings of each layer, so users can change any layer at any time. [L1]_ [L4]_
 
-Layers converts an editable document into a Noisemaker program. The document retains layer order, media, effects, and composition settings. Noisemaker supplies the rendering pipeline, while Layers supplies selections, masks, project storage, recovery, and export. The integration centers on a document-to-program translation rather than a separate graphics implementation for every editing tool. [L1]_ [L2]_
-
-1. Use case and requirements
-----------------------------
-
-A user imports an image, adds layers and effects, adjusts the composition, and exports the result. The user must remain able to revise earlier choices without replacing the original media. A working preview must also remain useful when the final image requires a larger resolution. [L1]_
-
-The current editor addresses these requirements:
-
-* Retain source media and editable layer properties separately from rendered pixels.
-* Preserve layer order, visibility, opacity, blend modes, and effect parameters.
-* Apply selections and masks within the document workflow.
-* Restore saved projects and retain recent edits through recovery checkpoints.
-* Produce output under an explicit resolution and memory policy. [L1]_ [L2]_ [L3]_
-
-These requirements distinguish an editor from a filter demonstration. The application must preserve editing intent as well as produce an image. The layer model provides that retained intent. [L1]_ [L2]_
-
-2. Integration surface
+How it uses Noisemaker
 ----------------------
 
-The renderer translates the layer model into DSL. It creates media and effect chains, then combines their outputs through Noisemaker mixer effects. Layer-to-step mappings connect document controls to the compiled graph. The document remains the application model, and the generated program becomes the rendering instruction. [L2]_
+Layers keeps the layer stack as plain data.
+When the structure of the stack changes, Layers converts the stack into a DSL program, and Noisemaker compiles it. [L2]_
+The Layers repository contains no GLSL or WGSL files.
 
-.. list-table:: Document operations and engine updates
+This program is the output of ``LayersRenderer._buildDsl()`` for three layers.
+The bottom layer is a photo.
+The middle layer is a blur.
+The top layer is noise in overlay mode at 60% opacity: [L2]_
+
+.. code-block:: text
+
+   search synth, mixer, filter
+
+   solid(color: #000000, alpha: 0).write(o1)
+   media().write(o2)
+   read(o1).blendMode(tex: read(o2), mode: mix, mix: 100).write(o3)
+
+   read(o3).blur(radiusX: 8, radiusY: 8).write(o1)
+   read(o3).blendMode(tex: read(o1), mode: mix, mix: 100).write(o2)
+
+   noise(scaleX: 4, scaleY: 4).write(o3)
+   read(o2).blendMode(tex: read(o3), mode: overlay, mix: -40).write(o1)
+
+   render(o1)
+
+Each layer blends onto the result below it with the ``blendMode`` mixer effect.
+Layer masks use the ``alphaMask`` mixer effect.
+The engine has eight surfaces, ``o0`` to ``o7``, so Layers reuses a surface after the last instruction that reads it.
+If a stack needs more than eight surfaces, Layers stops with an error. [L2]_
+
+``LayersRenderer`` wraps one ``CanvasRenderer`` and updates it in four ways: [L2]_
+
+.. list-table::
    :header-rows: 1
-   :widths: 35 65
+   :widths: 40 60
 
-   * - Document operation
-     - Rendering response
-   * - Change layer structure
-     - Generate and compile the corresponding DSL.
-   * - Change eligible runtime parameters
-     - Apply values to mapped steps without rebuilding the graph.
-   * - Change a compile-time parameter
-     - Recompile using the new value in the program.
-   * - Supply image or video pixels
-     - Bind media to the corresponding texture inputs.
-   * - Export at another size
-     - Render under the export path's resolution policy.
+   * - Change
+     - What Layers does
+   * - The layer structure changes
+     - Builds a new program and compiles it. Compiles run one at a time.
+   * - A runtime parameter changes
+     - Calls ``applyStepParameterValues({ step_N: params })`` on the step for that layer. No compile.
+   * - A parameter declared with ``define`` changes
+     - Compiles again, because the engine writes this value into the shader source.
+   * - The user adds media
+     - Calls ``updateTextureFromSource('imageTex_step_N', source, { flipY: false })`` and sets ``imageSize``.
 
-This distinction keeps routine control changes focused. The wrapper examines effect metadata to identify parameters that the engine embeds during compilation. Such parameters require a rebuild even when the visible action resembles an ordinary slider change. [L2]_
+After each compile, Layers reads ``pipeline.graph.passes`` to map each layer to its steps.
+Then it uploads the media, mask, and text textures again. [L2]_
 
-3. Implementation decisions
----------------------------
+Preview and export
+------------------
 
-Layers serializes compilation and reconnects media to the resulting pipeline. It retains mappings between application layer identifiers and rendering steps. Some operations inspect the compiled graph to locate the correct passes. The adapter therefore includes document-specific coordination beyond a basic canvas wrapper. The engine still supplies the effect implementations and their execution. [L2]_
+``LayersRenderer`` creates its ``CanvasRenderer`` with ``preferWebGPU: false``, so Layers renders only with WebGL2. [L2]_
 
-The application manages the editing tools around this boundary. Rectangle, oval, lasso, polygon, and color-based selections support different source material. Feathering and expansion refine selections. Projects use IndexedDB, and asynchronous recovery checkpoints retain recent state. A checkpoint can lag an edit, so explicit saving remains part of the workflow. [L1]_
+The preview does not render at full size.
+Layers first limits square media to 2048 × 2048.
+It limits other media to a long side of 1920 and a short side of 1080.
+The aspect ratio does not change.
+Then it scales the preview to an area of no more than 1024 × 1024 pixels.
+Layers keeps the original files and dimensions for export. [L1]_ [L2]_
 
-Original image files and dimensions remain available while the editor uses a bounded preview. During export, supported layer combinations render in tiles. Effects that need the whole frame must fit the available GPU resources. This policy separates interactive work from final output without treating every shader as tile-compatible. [L1]_ [L3]_
+Export decodes the original sources and uses a separate renderer: [L3]_
 
-4. Result and product implications
-----------------------------------
+* Each side can be up to 8192 pixels, and the image can be up to 33,554,432 pixels (32 × 1024 × 1024).
+* Layers estimates the GPU memory for the export and refuses the export when the estimate is above 384 MiB.
+* Layers can render the export in tiles of up to 512 × 512 pixels. It does this only when each visible layer is media, a drawing, or a solid color, with no visible child effects.
+* Any other effect makes Layers render the whole frame at once, which must fit the memory limit.
 
-The current implementation supports a complete document workflow: import, non-destructive composition, local storage, recovery, and image or video export. The rendering integration serves that workflow through generated programs, texture inputs, and parameter updates. [L1]_ [L2]_
+Work outside the engine
+-----------------------
 
-For a developer, the reusable idea is the translation from domain data to an executable composition. A specialized editor can expose only the layer types and controls its audience needs. For a product team, this places product-specific editing rules in the application and shader behavior in the engine. Preview and export can use the same document while applying different resource policies. [L2]_ [L3]_
+* Selection tools: rectangle, oval, lasso, polygon, and magic wand. Selection operations include expand, contract, feather, smooth, border, and color range. [L1]_
+* Layers saves projects in IndexedDB. It also writes recovery checkpoints, which can be older than the latest edit. [L1]_
+* Undo keeps up to 50 states within an estimated 128 MiB. [L1]_
 
-5. Operating limits
--------------------
+Limits
+------
 
-Documented exports permit up to 8192 pixels per side and 33,554,432 pixels total, subject to GPU limits. The undo history has a separate estimated memory budget. Neither limit defines total application memory. Tile compatibility and full-frame effects need evaluation with representative documents. [L1]_ [L3]_
+* An online session connects only to other Layers sessions, and it does not support image or video layers. [L1]_
+* Video clip layers use best-effort frame seeking, so exported frames can be slightly different from the live preview. [L4]_
 
-Online collaboration currently excludes image and video layers and supports Layers sessions only. Video export uses best-effort frame seeking, so output can differ slightly from the live preview. These constraints matter when selecting shared editing or frame-accurate video workflows. [L1]_ [L4]_
+Sources
+-------
 
-6. References
--------------
+L1 to L3 point to layers revision ``a4ab4e7``.
 
-.. [L1] `Current editor features and limits <https://github.com/noisefactorllc/layers/blob/a4ab4e7e2b45e9ebd8a75ee5c9113d1049795853/README.md>`_.
+.. [L1] `README <https://github.com/noisefactorllc/layers/blob/a4ab4e7e2b45e9ebd8a75ee5c9113d1049795853/README.md>`_.
 
-.. [L2] `Layer-to-DSL renderer <https://github.com/noisefactorllc/layers/blob/a4ab4e7e2b45e9ebd8a75ee5c9113d1049795853/public/js/noisemaker/renderer.js>`_.
+.. [L2] `Layer renderer (renderer.js) <https://github.com/noisefactorllc/layers/blob/a4ab4e7e2b45e9ebd8a75ee5c9113d1049795853/public/js/noisemaker/renderer.js>`_.
 
-.. [L3] `Full-resolution export implementation <https://github.com/noisefactorllc/layers/blob/a4ab4e7e2b45e9ebd8a75ee5c9113d1049795853/public/js/noisemaker/full-resolution.js>`_.
+.. [L3] `Full-resolution export (full-resolution.js) <https://github.com/noisefactorllc/layers/blob/a4ab4e7e2b45e9ebd8a75ee5c9113d1049795853/public/js/noisemaker/full-resolution.js>`_.
 
-.. [L4] `Live export interface <https://layers.noisefactor.io/>`_.
+.. [L4] `Layers application page <https://layers.noisefactor.io/>`_ (export dialog text).

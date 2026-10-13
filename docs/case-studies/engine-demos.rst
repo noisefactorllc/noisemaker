@@ -1,83 +1,75 @@
-Engine demos: GPU composition and CPU generation
-================================================
+Engine demos: the shader demo and the Classic Composer
+======================================================
 
 `Open the shader demo <https://noisemaker.app/demo/shaders/>`_ | `Open the Classic Composer <https://noisemaker.app/demo/js/>`_
 
-Abstract
---------
+noisemaker.app has two engine demos.
+They use different engines and different program formats:
 
-Noisemaker's engine demos expose two different authoring models. The shader demo connects effect selection, parameter controls, and DSL to a GPU renderer. The Classic Composer evaluates procedural presets on the CPU. Both provide an inspectable starting point for a technical evaluation. Their value lies in showing the program-to-output boundary before a team designs a larger application. [D1]_ [D2]_ [D3]_
+* The **shader demo** is an effect browser and DSL editor. It compiles DSL programs and renders them on the GPU.
+* The **Classic Composer** renders the classic Noisemaker presets on the CPU, with the JavaScript port of the Python Composer.
 
-1. Use case and requirements
-----------------------------
+Shader programs use the Polymorphic DSL.
+Classic presets come from ``presets.dsl``, which the Python and JavaScript Composers share.
+A program for one demo does not run in the other. [D1]_ [D2]_ [D3]_
 
-A developer evaluating a rendering engine needs to inspect representative output and understand the inputs that produce it. A decision maker needs a bounded experiment before committing to an application workflow. The demos support that first experiment through editable programs or presets, visible controls, and rendered output. [D2]_ [D3]_
+The shader demo
+---------------
 
-The evaluation workflow requires:
+The demo uses ``CanvasRenderer`` to compile and render programs.
+Its ``UIController`` uses ``ProgramState`` to connect the parsed program to the controls. [D2]_
 
-* Select a known program or preset and inspect its output.
-* Change parameters without replacing the surrounding demonstration interface.
-* Inspect the composition or formula behind the result.
-* Identify output dimensions and other inputs needed to repeat the experiment.
-* Distinguish GPU composition from CPU preset generation. [D2]_ [D3]_
+The demo makes the controls from each effect's parameter definitions, so no effect needs a hand-written control panel.
+When a control changes, the demo sends all step values to the renderer with ``applyStepParameterValues(programState.getAllStepValues())``. [D2]_
 
-These demos serve as integration references as well as effect browsers. Their source connects user controls to engine calls that a developer can trace. [D2]_ [D3]_
+Some parameters are compile-time defines, which the engine writes into the shader source.
+When one of them changes, ``ProgramState`` emits ``recompileNeeded``.
+The demo then updates the DSL and compiles again, at most once for each user action. [D2]_
 
-2. Integration surface
-----------------------
+The demo starts on WebGL2.
+The ``glsl`` and ``wgsl`` tabs switch between the WebGL2 and WebGPU backends.
+An FPS counter shows the frame rate. [D4]_
 
-The shader demo uses ``CanvasRenderer`` for compilation and rendering. Its UI controller uses ``ProgramState`` to connect parsed programs with controls. Effect definitions supply the parameter metadata, and state changes determine which values reach the renderer. [D2]_
+The Classic Composer
+--------------------
 
-The Classic Composer imports ``Preset`` and ``render`` from the JavaScript Composer. A render call receives the preset, seed, dimensions, output context, and time-related inputs. A progress callback connects generation work to the interface. The browser page owns preset selection, output sizing, progress feedback, and errors. [D3]_
+The Composer imports ``Preset`` and ``render`` from the JavaScript Composer. [D3]_
+For each render, it builds a ``Preset`` from the selected name and seed.
+It calls ``render()`` with the preset and the seed.
+The options give the canvas size, a drawing context, a time value, a frame index, and a progress callback. [D3]_
 
-.. list-table:: Two engine entry points
-   :header-rows: 1
-   :widths: 25 38 37
+If the selected preset is an effect and not a generator, the Composer adds it to the ``basic`` generator preset.
+This gives the effect an image to change. [D3]_
 
-   * - Boundary
-     - Shader demo
-     - Classic Composer
-   * - Composition input
-     - DSL program and effect parameters
-     - Procedural preset and seed
-   * - Execution
-     - Compiled GPU effect graph
-     - CPU preset evaluation and rendering
-   * - Interface state
-     - ProgramState and generated controls
-     - Preset, seed, dimensions, and render options
-   * - Useful measurement
-     - Frame time for a specified program
-     - Generation time for a specified preset
+After each render, the page shows:
 
-The similar browser presentation does not imply interchangeable program formats. Each demo exposes the contract of its own engine. [D2]_ [D3]_
+* the preset's source text from ``presets.dsl``, in the Formula tab,
+* the evaluated preset, in the Evaluated tab,
+* the mode, the preset evaluation time, the render time, and the seed, in the status line. [D3]_
 
-3. Implementation decisions
----------------------------
+Other CPU options
+-----------------
 
-The shader UI generates controls from parsed effect structure. It applies current step values to the renderer and listens for changes that require compilation. Parameters embedded at compile time trigger a rebuilt program. This separation lets the interface use effect metadata instead of a separate hand-written control panel for every effect. [D2]_
+The demo index also lists Noisemaker for CPU.
+That port runs shader programs without a GPU, in JavaScript, Python, Ruby, or Rust.
+It is a different engine from the Classic Composer. [D1]_
 
-The Composer constructs a preset from the selected name and preset library. When a selected preset is an effect rather than a generator, the demo combines it with a basic generator. This gives the effect an image to process. The page also exposes the evaluated formula and seed, which help explain how the result arose. [D3]_
+Limits
+------
 
-The demo index separately lists a CPU port for shader programs. That port is distinct from the Classic Composer described here. A team choosing CPU execution must first identify which program model its application needs. The linked port documentation covers shader-program execution outside this classic preset workflow. [D1]_
+* The Composer renders into a 1024 × 1024 canvas. Its script reads size, frame-rate, duration, and animation inputs that the page does not contain. [D3]_
+* The Composer hides presets whose names start with ``maybe-``. [D3]_
+* Neither demo exports images or video. [D2]_ [D3]_ [D4]_
 
-4. Result and product implications
-----------------------------------
+Sources
+-------
 
-The shader demo makes the connection between effect metadata, controls, and rendering inspectable. The Composer makes the connection between presets, seeded generation, and output inspectable. Both reduce the amount of surrounding application behavior that a team must understand during an initial engine evaluation. [D2]_ [D3]_
+D2 and D3 point to noisemaker revision ``135688f``.
 
-For a developer, these are starting points for effect selectors, parameter panels, or procedural image tools. For a product team, they support a defined feasibility exercise: choose representative content, specify output dimensions, and measure the relevant execution path. The engine interface can then inform the application's design instead of remaining an unknown dependency. [D2]_ [D3]_
+.. [D1] `Noisemaker demo index <https://demos.noisemaker.app/>`_.
 
-5. Operating limits
--------------------
+.. [D2] `Shader demo UI controller (demo-ui.js) <https://github.com/noisefactorllc/noisemaker/blob/135688f4cba948305ac169c60645626719dc52b8/demo/shaders/lib/demo-ui.js>`_.
 
-The shader demo requires a supported GPU backend. The Classic Composer uses a different preset model and CPU execution path. Evaluation must record the engine, program or preset, dimensions, and device. Preset tests also need the seed and time-related inputs. Product requirements for media capture, storage, recovery, and export remain separate from these engine demonstrations. [D2]_ [D3]_
+.. [D3] `Classic Composer page (index.html) <https://github.com/noisefactorllc/noisemaker/blob/135688f4cba948305ac169c60645626719dc52b8/demo/js/index.html>`_.
 
-6. References
--------------
-
-.. [D1] `Current demo index <https://demos.noisemaker.app/>`_.
-
-.. [D2] `Shader demo UI controller <https://github.com/noisefactorllc/noisemaker/blob/135688f4cba948305ac169c60645626719dc52b8/demo/shaders/lib/demo-ui.js>`_.
-
-.. [D3] `Classic Composer demo <https://github.com/noisefactorllc/noisemaker/blob/135688f4cba948305ac169c60645626719dc52b8/demo/js/index.html>`_.
+.. [D4] `Live shader demo page <https://noisemaker.app/demo/shaders/>`_.

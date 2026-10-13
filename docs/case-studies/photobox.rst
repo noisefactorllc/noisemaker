@@ -1,76 +1,92 @@
-Photobox: parallel camera effect previews
-=========================================
+Photobox: nine live camera previews
+===================================
 
 `Open Photobox <https://photobox.noisefactor.io/>`_
 
-Abstract
---------
+Photobox is a photo booth that runs in the browser.
+It shows the camera feed in a 3 × 3 grid of live previews.
+The Effects and Distortions tabs each hold 8 effects around a center tile that shows the camera with no effect.
+When the user selects a tile, Photobox opens a full-size view of that effect.
+In that view, the user takes a photo or records a video. [P1]_ [P2]_ [P5]_
 
-Photobox uses one camera source to show nine different effect previews. A user compares the previews, selects an effect, and captures a photo or video in a larger view. The integration repeats a small renderer contract across the preview grid. Noisemaker supplies effect processing, while the application manages camera access, view transitions, capture, and a local gallery. [P1]_ [P2]_ [P3]_
-
-1. Use case and requirements
-----------------------------
-
-The user chooses an appearance by looking at the current camera image. The Effects and Distortions tabs provide groups of alternatives. Selecting a tile opens the capture view. Returning to the grid restores visual comparison without requiring another camera session. [P1]_ [P2]_
-
-The workflow requires:
-
-* Show several effects against the same live source.
-* Preserve the camera's aspect ratio in small previews.
-* Allocate preview work according to the visible interface.
-* Capture the selected result in a browser-supported format.
-* Retain captured media after the current camera session ends. [P1]_ [P2]_ [P4]_
-
-The main integration decision follows from the first requirement. Photobox shares one camera video element across its renderers. Each renderer receives the same source but compiles a different effect program. [P2]_
-
-2. Integration surface
+How it uses Noisemaker
 ----------------------
 
-``EffectGrid`` creates nine canvases and initializes their renderers concurrently. Each effect entry supplies a visible name and DSL program. The wrapper resolves the program's effect names, loads missing bundles, and compiles the program. Switching tabs changes the programs attached to the existing tiles. [P2]_ [P3]_
+Each effect is a short DSL program that reads the camera through ``media()``: [P5]_
 
-The browser's video element becomes an engine texture through one upload call. This excerpt comes from the camera upload method. The surrounding method also applies image dimensions when compilation or resizing makes them change. [P3]_
+.. code-block:: text
+   :caption: Three of the 16 effect programs in effects.js
+
+   media().grade(saturation: 0.3, exposure: 0.1).write(o0)
+   media().celShading(mix: 0.75, edgeThreshold: 0.25).write(o0)
+   media().grade(preset: noir).write(o0)
+
+Each program also has a ``search`` line and ends with ``render(o0)``.
+
+The grid creates nine ``PhotoboxRenderer`` objects, and each one wraps its own ``CanvasRenderer``.
+All nine read the same ``<video>`` element.
+A tenth renderer draws the full-size view at the camera's resolution. [P2]_ [P6]_
+
+Each renderer uploads the current video frame on every animation frame:
 
 .. code-block:: javascript
-   :caption: Send an available camera frame to the media input
+   :caption: PhotoboxRenderer._uploadVideoTexture() in renderer.js
 
-   if (!this._videoSource) return
-   if (this._videoSource.readyState < 2) return
-   this._renderer.updateTextureFromSource?.(
-       'imageTex_step_0',
-       this._videoSource,
-       FLIP_Y_FALSE
-   )
+   _uploadVideoTexture() {
+       if (!this._videoSource) return
+       if (this._videoSource.readyState < 2) return // HAVE_CURRENT_DATA
+       // Texture ID must match compiled step: media() is always step 0
+       this._renderer.updateTextureFromSource?.('imageTex_step_0', this._videoSource, FLIP_Y_FALSE)
+       // imageSize must match canvas resolution (shader maps gl_FragCoord.xy /
+       // imageSize). It's constant between resize/compile, and applying it walks
+       // every pipeline pass, so apply only when it actually changed.
+       if (this._imageSizeDirty) {
+           this._renderer.applyStepParameterValues?.({ step_0: { imageSize: [this.width, this.height] } })
+           this._imageSizeDirty = false
+       }
+   }
 
-The method requires an available video frame. In these programs, ``media()`` occupies step zero. ``FLIP_Y_FALSE`` supplies the texture orientation option. The application retains the camera element, while the engine receives its pixels. The excerpt is part of the renderer class, not a complete camera setup. [P3]_
+``FLIP_Y_FALSE`` is one shared ``{ flipY: false }`` object, so the loop does not make a new object on each frame.
+The renderer sets the dirty flag after each compile and each ``resize()``.
+``imageSize`` is the canvas resolution, not the camera resolution. [P3]_
 
-3. Implementation decisions
----------------------------
+Grid tiles render at 320 pixels wide.
+The tile height is 320 × camera height ÷ camera width, rounded.
+For a 1280 × 720 camera, each tile renders at 320 × 180. [P2]_
 
-Grid tiles start at 320 pixels wide, with height derived from the camera's aspect ratio. This bounds each preview's rendering dimensions independently of the larger capture view. The nine effects still require nine rendering pipelines, but they share camera acquisition and decoding through the same video element. [P2]_
+A tab change stops all nine renderers and compiles the nine new programs in parallel. [P2]_
+When the user opens the full-size view, the grid stops its renderers.
+When the user returns, the grid starts them again without a new compile. [P2]_ [P6]_
 
-The grid stops its renderers when the user opens the selected effect. Returning to the grid resumes them without recompiling their existing programs. The application therefore avoids normal grid rendering behind the capture view. Lifecycle control becomes part of the interface logic instead of a decision inside each effect. [P2]_ [P3]_
+Work outside the engine
+-----------------------
 
-The wrapper updates the media step's ``imageSize`` after compilation or resizing. It avoids repeating that parameter update for every camera frame. The capture module selects a recording format through ``MediaRecorder.isTypeSupported()``. Captured media enters an IndexedDB gallery, separate from the active rendering state. [P1]_ [P3]_ [P4]_
+* A photo is a PNG from ``canvas.toBlob()``, after a 3-2-1 countdown. [P4]_
+* A video uses ``canvas.captureStream(30)`` and ``MediaRecorder``, with the first supported format from WebM with VP9, WebM with VP8, WebM, and MP4. [P4]_
+* Photobox stores each capture in an IndexedDB gallery and also downloads it. [P1]_ [P6]_
+* Users can switch between the front and rear cameras. [P1]_
 
-4. Result and product implications
-----------------------------------
+Limits
+------
 
-Photobox combines visual comparison, focused capture, camera switching, and retained output. The user works through visible previews rather than shader code or a parameter list. The same effect engine serves both the comparison and capture stages. [P1]_ [P2]_
+* The renderer sets ``preferWebGPU: false``, so Photobox renders only with WebGL2. [P3]_
+* In the grid view, nine renderers each upload the video frame on every animation frame. The shared ``<video>`` element does not remove that cost. [P2]_ [P3]_
+* Photobox calculates the tile size once. A camera switch does not change the tile size, even when the new camera has a different aspect ratio. [P2]_ [P6]_
+* Camera access needs browser permission. [P6]_
 
-For a developer, a new effect choice primarily adds a program and its presentation data. The camera and capture workflow can remain the same. For a product team, the pattern suits a capture experience where users must see alternatives before committing to an output. A curated catalog and simple selection interface can define the product without changing how the engine processes media. [P2]_ [P3]_
+Sources
+-------
 
-5. Operating limits
--------------------
+All links point to photobox revision ``685ea04``.
 
-Sharing a camera source does not remove the cost of nine shader pipelines and texture uploads. The renderer requests WebGL2, and device capacity depends on effect complexity and preview dimensions. Browser permissions and recording support constrain capture. Evaluation should cover the grid, full-size view, camera switching, and recorded playback on the intended devices. [P2]_ [P3]_ [P4]_
+.. [P1] `README <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/README.md>`_.
 
-6. References
--------------
+.. [P2] `Preview grid (grid.js) <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/public/js/grid.js>`_.
 
-.. [P1] `Application features <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/README.md>`_.
+.. [P3] `Renderer wrapper (renderer.js) <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/public/js/noisemaker/renderer.js>`_.
 
-.. [P2] `Parallel preview grid <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/public/js/grid.js>`_.
+.. [P4] `Capture (capture.js) <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/public/js/capture.js>`_.
 
-.. [P3] `Camera renderer integration <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/public/js/noisemaker/renderer.js>`_.
+.. [P5] `Effect programs (effects.js) <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/public/js/effects.js>`_.
 
-.. [P4] `Capture implementation <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/public/js/capture.js>`_.
+.. [P6] `Application controller (app.js) <https://github.com/noisefactorllc/photobox/blob/685ea04e6a91c65033ce22f1010914891ed48f03/public/js/app.js>`_.

@@ -1,75 +1,116 @@
-Visualize: independent decks with shader-based mixing
-=====================================================
+Visualize: two decks and a shader mixer
+=======================================
 
 `Open Visualize <https://visualize.noisedeck.app/>`_
 
-Abstract
---------
+Visualize is a music visualizer and VJ player that runs in the browser.
+It has two decks, and each deck plays its own shader program at its own speed.
+A crossfader mixes the decks.
+Visualize also has audio reactivity, MIDI control, scenes, an automatic VJ mode, recording, and a projector window. [V1]_
 
-Visualize combines two independently rendered compositions through a third Noisemaker pipeline. Each deck retains its own program and speed. A shader mixer receives the deck canvases, and a final canvas supplies recording and projection. Audio analysis, MIDI control, scenes, and automatic transitions surround this rendering structure. The case demonstrates composition through ordinary canvas inputs and a small parameter-update contract. [V1]_ [V2]_ [V3]_
-
-1. Use case and requirements
-----------------------------
-
-A performer selects the next visual on the inactive deck while the current deck remains visible. The crossfader transfers the output between them. Audio or MIDI can control the composition, and Auto-VJ can prepare and transition between programs automatically. A separate window supplies projector output. [V1]_
-
-This workflow requires:
-
-* Keep the two programs independent during preparation and playback.
-* Change the crossfade without rebuilding both deck programs.
-* Use a common audio analysis source for reactive parameters.
-* Give manual controls predictable behavior after scene recall or automatic changes.
-* Supply recording and projection from the same final composition. [V1]_ [V2]_ [V3]_
-
-The deck, mixer, and output stages address these requirements separately. A change in one deck does not require the application to describe the other deck's internal effect chain to the mixer. [V2]_
-
-2. Integration surface
+How it uses Noisemaker
 ----------------------
 
-Each deck owns a ``CanvasRenderer``. ``MixerRenderer`` owns another renderer and binds the deck canvases as two media inputs. Its generated program reads those inputs and applies the selected mixer effect. After compilation, it locates the media and mixer steps in the compiled graph. [V1]_ [V2]_
+Visualize runs three Noisemaker pipelines.
+Each deck owns a ``CanvasRenderer``.
+``MixerRenderer`` owns a third ``CanvasRenderer``, which takes the two deck canvases as media inputs. [V1]_ [V2]_ [V4]_
 
-Crossfader movement normally updates one parameter on the mixer step. The following excerpt shows the successful update path after the wrapper checks the renderer and step mapping. [V2]_
+The mixer program is five lines: [V2]_
 
 .. code-block:: javascript
-   :caption: Update the mixer without recompiling the decks
+   :caption: Mixer program in MixerRenderer._recompile(), mixer.js
 
-   const stepKey = `step_${this._mixerStep}`
-   const driver = mixer.driver
-   const value = this._driverValue(mixer, xfade)
-   renderer.applyStepParameterValues({
-       [stepKey]: { [driver]: value }
-   })
+   const dsl = [
+       `search synth, mixer, render`,
+       `media().write(o0)`,
+       `media().write(o1)`,
+       `read(o0).${effectShortName(mixer.id)}(${args}).write(o2)`,
+       `render(o2)`,
+   ].join('\n')
 
-Each mixer defines the parameter that drives its transition and the formula that maps the crossfader into that parameter. The compilation path uses the same formula. If the direct update path is unavailable, the wrapper schedules a new mixer compilation. The two deck programs remain separate in either path. [V2]_
+The mixer pipeline does not know the deck programs.
+On each mixer frame, it uploads the current deck canvases with ``updateTextureFromSource()``.
+It sets ``imageSize`` on both media steps to the mixer's output size, not to the deck buffer size. [V2]_
 
-3. Implementation decisions
----------------------------
+After each compile, the wrapper finds the step numbers in ``renderer._pipeline.graph.passes``.
+A pass with an ``imageTex`` input is a media step.
+The pass with both ``inputTex`` and ``tex`` inputs is the mixer step.
+``_pipeline`` is not a public engine property. [V2]_
 
-The mixer samples deck canvases as textures. Its readiness check requires an uploaded frame before the final compositor uses its output. Before that point, ``MainCompositor`` blends the deck canvases directly through a 2D canvas. It also uses this fallback when the shader mixer fails. Recording and projection consume the final canvas through either path. [V2]_ [V3]_
+Crossfader moves do not compile anything.
+Each of the six mixers names one driver parameter and a formula that maps the crossfader to it.
+For example, ``mixer/blendMode`` drives ``mix`` with ``x * 200 - 100``. [V5]_
+The fast path writes that one value: [V2]_
 
-A shared audio analyzer supplies frequency information to deck audio states. Programs map audio bands to parameters through DSL automation. MIDI soft takeover waits for a physical control to reach the software value before changing it. This prevents a stale hardware position from immediately replacing a value selected by a scene or automatic transition. [V1]_
+.. code-block:: javascript
+   :caption: MixerRenderer._tryFastPathSetMix() in mixer.js
 
-Auto-VJ loads a new program into the inactive deck and fades to it according to the selected timing and curve. Named scenes retain performance settings, while session recovery restores the live set after a reload. The deck wrapper also permits a lower internal rendering resolution through its pixel-density setting. These policies belong to the application around the common renderer. [V1]_ [V4]_
+   _tryFastPathSetMix(xfade) {
+       const mixer = this.currentMixer
+       const renderer = this.renderer
+       if (!renderer || !mixer) return false
+       if (this._mixerStep == null) return false
+       if (typeof renderer.applyStepParameterValues !== 'function') return false
+       try {
+           const stepKey = `step_${this._mixerStep}`
+           const driver = mixer.driver
+           const value = this._driverValue(mixer, xfade)
+           renderer.applyStepParameterValues({ [stepKey]: { [driver]: value } })
+           return true
+       } catch (err) {
+           console.warn('[mixer] fast-path setMix failed:', err?.message || err)
+           return false
+       }
+   }
 
-4. Result and product implications
-----------------------------------
+If the fast path returns ``false``, the wrapper compiles the mixer program again after 60 ms.
+The compile path uses the same driver formula, so the output does not jump. [V2]_ [V5]_
 
-The result supports both direct performance and scheduled visual changes. Programs, mixer effects, input mappings, and output features remain separate parts of the application. A new mixer can change the transition without replacing either source composition. [V1]_ [V2]_
+Work outside the engine
+-----------------------
 
-For a developer, the key reuse is recursive: a rendered composition can become media input to another composition. A product team can use this structure for installations or visual playback with a curated program library. Selection rules, schedules, and controls can specialize the experience while the same engine renders and combines the visuals. [V1]_ [V2]_
+``MainCompositor`` draws the final output on a 2D canvas.
+It draws the mixer canvas after the mixer receives one frame from each deck.
+Before that, it crossfades the two deck canvases with the 2D canvas API.
+It also stays on this 2D crossfade when the mixer fails to start. [V2]_ [V3]_ [V6]_
+Recording and the projector window both read the final canvas. [V1]_
 
-5. Operating limits
--------------------
+One audio analyzer feeds the low, mid, and high bands to both decks.
+Programs read the bands with the ``audio()`` automation in the DSL. [V1]_
 
-The normal path runs three pipelines and uploads both deck outputs to the mixer. Independent loops do not guarantee identical input timestamps. The 2D fallback does not reproduce every shader mixer. Workload evaluation must include the chosen deck programs, transition, and output dimensions. Recording warns at 15 minutes and stops at 60 minutes to constrain browser memory. [V1]_ [V2]_ [V3]_
+MIDI faders use soft takeover.
+A fader takes control only when its position comes within 0.02 of the software value, or crosses it.
+This stops a jump after a scene recall or an automatic crossfade. [V1]_ [V7]_
 
-6. References
--------------
+Each deck has a pixel density setting from 0.1 to 1.0.
+In automatic mode, Visualize uses 0.5 for programs that contain a ``points/`` effect or an effect tagged ``sim``.
+The speed control sets the loop duration to the base duration divided by the speed. [V4]_ [V6]_
 
-.. [V1] `Features and architecture <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/README.md>`_.
+Limits
+------
 
-.. [V2] `Shader mixer pipeline <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/mixer.js>`_.
+* The three render loops run independently, so the mixer can combine deck frames from different moments. [V2]_
+* The 2D fallback has only the crossfade curves. It does not draw the shader mixers. [V3]_
+* After the mixer receives its first frames, a failed mixer compile does not bring back the 2D fallback. [V2]_
+* Recording keeps the video in memory. It warns at 15 minutes and stops at 60 minutes. [V1]_ [V8]_
 
-.. [V3] `Final output compositor <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/compositor.js>`_.
+Sources
+-------
 
-.. [V4] `Deck lifecycle and rendering dimensions <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/noisemaker/deck.js>`_.
+All links point to visualize revision ``1c1bfed``.
+
+.. [V1] `README <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/README.md>`_.
+
+.. [V2] `Shader mixer (mixer.js) <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/mixer.js>`_.
+
+.. [V3] `Final compositor (compositor.js) <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/compositor.js>`_.
+
+.. [V4] `Deck renderer (deck.js) <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/noisemaker/deck.js>`_.
+
+.. [V5] `Mixer definitions (mixers.js) <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/mixers.js>`_.
+
+.. [V6] `Application setup (app.js) <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/app.js>`_.
+
+.. [V7] `MIDI soft takeover (midi.js) <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/midi.js>`_.
+
+.. [V8] `Recorder (recorder.js) <https://github.com/noisefactorllc/visualize/blob/1c1bfedb56f86ced0220b8254bb93e0f903a05ae/js/recorder.js>`_.

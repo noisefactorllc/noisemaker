@@ -1,38 +1,44 @@
-glitchin' out: a configurable media effect stack
-================================================
+glitchin' out: a stack of glitch effects
+========================================
 
 `Open glitchin' out <https://glitcher.noisefactor.io/>`_
 
-Abstract
---------
+glitchin' out applies a stack of glitch effects to a camera feed or an image.
+Users add, remove, and reorder effects, and set an intensity for each effect.
+The GLITCHIFY button makes a random stack of 2 to 4 effects.
+Users can save a photo or a video to a gallery in the browser. [G1]_
 
-glitchin' out turns a camera or image into an editable sequence of glitch effects. Its central design decision separates effect selection from effect implementation. The application describes a composition through Noisemaker's domain-specific language, or DSL. Noisemaker compiles and renders that composition. An ordered stack, intensity controls, randomization, capture, and a local gallery turn this engine interface into a focused creative tool. [G1]_ [G2]_ [G3]_
-
-1. Use case and requirements
-----------------------------
-
-The workflow starts with a source and a visual experiment. A user selects the camera or an image, adds effects, changes their order, and adjusts their intensity. A useful result can become a photo or video in the local gallery. The user can also explore starter chains or generate a new combination with GLITCHIFY. [G1]_
-
-This workflow places four requirements on the integration:
-
-* Preserve the order of effects, because each effect changes the input to the next.
-* Let an intensity control change the current appearance without selecting a new random result.
-* Use the same effect controls for camera frames and still images.
-* Keep capture and saved media independent of the current stack. [G1]_ [G2]_
-
-The distinction between intensity and randomization matters. Each slot retains a randomized parameter snapshot. Intensity interpolates between the effect's defaults and that snapshot. A separate action generates another snapshot. This gives a simple control a repeatable meaning during an editing session. [G2]_
-
-2. Integration surface
+How it uses Noisemaker
 ----------------------
 
-The stack model contains an effect identifier, intensity, and randomized values for each slot. It emits a DSL chain that starts with ``media()`` and ends at a named output. Adding, removing, replacing, or reordering a slot changes this chain. The renderer resolves effect names through the manifest, loads missing effect bundles, and compiles the program. [G2]_ [G3]_
+The effect stack writes one DSL program.
+The program starts with ``media()``, adds one call for each effect, and writes the result to ``o0``.
+An empty stack renders the source with no effects. [G2]_
 
-Intensity changes take a narrower path. The stack builds a map of parameter values, and the renderer passes it to ``applyStepParameterValues()``. The application does not need to generate shader source for each slider movement. In this application's linear program, the media source occupies step zero and effect slots follow it. [G2]_ [G3]_
+.. code-block:: text
+   :caption: Program for the Datamosh starter chain, with line breaks added
 
-The following JavaScript excerpt shows the complete mapping method. It runs inside ``EffectStack`` and uses the existing interpolation helper. [G2]_
+   search synth, filter, classicNoisedeck
+
+   media().corrupt(intensity: 41.0, bandHeight: 6.0, sort: 0.0, shift: 0.0, channelShift: 0.0, melt: 0.0, scatter: 7.0, bits: 0.0, speed: 3)
+     .lensDistortion(shape: cosine, distortion: 0.0, mode: chromaticRgb, aberration: 28.15, hueRotation: 85.079, hueRange: 36.85, saturation: 10.45, passthru: 53.6, vignetteAmt: 0.0, speed: 0.0)
+     .write(o0)
+
+   render(o0)
+
+The parameter values come from a random snapshot, so they change each time.
+
+``GlitcherRenderer`` wraps one ``CanvasRenderer``.
+To compile a program, it finds the effect names, loads the effects that are not yet registered, and calls ``compile()``.
+When the user adds, removes, or moves an effect, the app builds a new program and compiles it. [G3]_ [G7]_
+
+An intensity change does not compile anything.
+Each slot keeps a random parameter snapshot.
+Intensity moves each parameter between the effect's default value and the snapshot value.
+``EffectStack.buildLiveParams()`` collects these values into one map, with one entry for each step: [G2]_
 
 .. code-block:: javascript
-   :caption: Map stack controls to rendering steps
+   :caption: EffectStack.buildLiveParams() in stack.js
 
    buildLiveParams() {
        const out = {}
@@ -44,34 +50,51 @@ The following JavaScript excerpt shows the complete mapping method. It runs insi
        return out
    }
 
-This step rule belongs to the generated stack format. An application with branches or multiple media inputs must derive the corresponding mappings for its own program.
+``media()`` is step 0, so slot ``i`` is step ``i + 1``.
+The renderer merges the map into its stored values and passes them to ``applyStepParameterValues()``.
+It applies the stored values again after each compile. [G3]_
 
-3. Implementation decisions
----------------------------
+Numeric and vector parameters move in a straight line and stay between the parameter's minimum and maximum.
+The app rounds integer parameters.
+A choice parameter keeps its default value at intensity 0 and changes to the snapshot value at any intensity above 0. [G4]_
 
-``GlitcherRenderer`` accepts an image, video, or canvas as its source. It uploads that source through ``updateTextureFromSource()``. The wrapper updates ``imageSize`` when dimensions change and reapplies it after compilation. It starts and stops the upload loop alongside rendering. Source handling therefore remains separate from effect selection. [G3]_
+The source can be an image, a video, or a canvas.
+On every animation frame, the renderer uploads the source with ``updateTextureFromSource('imageTex_step_0', source, { flipY: false })``.
+It uploads still images on every frame too.
+It sets ``imageSize`` on step 0 only when the canvas size changes or after a compile. [G3]_
 
-Randomization uses the same model as manual editing. A slot can receive a new snapshot while retaining its position and effect. GLITCHIFY replaces the stack with a short random combination. Starter chains provide an initial composition that users can edit through the same controls. These paths share the renderer instead of requiring separate graphics implementations. [G1]_ [G2]_
+Work outside the engine
+-----------------------
 
-The application supplies the surrounding media workflow. It selects the camera, accepts an uploaded image, captures output, and stores gallery media in IndexedDB. These responsibilities use browser media and storage facilities. They do not change the engine's effect contract. [G1]_
+The app selects the camera, accepts image uploads, and records photos and videos.
+For video, it uses the first format that ``MediaRecorder.isTypeSupported()`` accepts, in this order: WebM with VP9, WebM with VP8, WebM, MP4. [G5]_
+The gallery keeps captures in IndexedDB. [G1]_
 
-4. Result and product implications
-----------------------------------
+The app saves the current stack in ``localStorage``, so a reload restores it.
+A share link carries the stack in the URL hash as ``#s=`` followed by URL-safe base64. [G6]_
 
-The result is a media tool with both guided and exploratory use. A user can adjust a known chain or search for another appearance through controlled randomization. The gallery gives this exploration a retained output. [G1]_
+Limits
+------
 
-The integration concentrates product decisions in the stack model and interface. A developer can curate another effect selection or change the controls while retaining the renderer. A product team can use this pattern for a focused image tool or branded capture experience. Its distinctive behavior comes from the chosen controls and workflow, while Noisemaker supplies the underlying effects. [G2]_ [G3]_
+* The renderer sets ``preferWebGPU: false``, so the app renders only with WebGL2. [G3]_
+* Camera access needs browser permission. [G1]_
+* Gallery captures stay in the browser. [G1]_
 
-5. Operating limits
--------------------
+Sources
+-------
 
-The renderer requests WebGL2. Camera access requires permission, and video formats depend on browser recording support. Increasing stack depth adds rendering work even when parameter updates avoid compilation. Device evaluation should use the intended source dimensions and representative stacks. Gallery media remains local to the browser. [G1]_ [G3]_
+All links point to glitcher revision ``cc59756``.
 
-6. References
--------------
+.. [G1] `README <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/README.md>`_.
 
-.. [G1] `Application features <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/README.md>`_.
+.. [G2] `Effect stack (stack.js) <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/public/js/stack.js>`_.
 
-.. [G2] `Effect stack model <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/public/js/stack.js>`_.
+.. [G3] `Renderer wrapper (renderer.js) <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/public/js/noisemaker/renderer.js>`_.
 
-.. [G3] `Renderer integration <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/public/js/noisemaker/renderer.js>`_.
+.. [G4] `Parameter interpolation (effects.js) <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/public/js/effects.js>`_.
+
+.. [G5] `Capture (capture.js) <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/public/js/capture.js>`_.
+
+.. [G6] `Stack persistence (persistence.js) <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/public/js/persistence.js>`_.
+
+.. [G7] `Application controller (app.js) <https://github.com/noisefactorllc/glitcher/blob/cc59756708e9693bfb377c9d99809411c22e9e48/public/js/app.js>`_.

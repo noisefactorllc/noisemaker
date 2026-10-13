@@ -1,81 +1,97 @@
-HD4: four-channel video and audio control
-=========================================
+HD4: a four-channel video mixer
+===============================
 
 `Open HD4 <https://hd4.noisefactor.io/>`_
 
-Abstract
---------
+HD4 is a four-channel video and audio mixer that runs in the browser.
+Each channel can show a camera, a video file, an image, or a Noisemaker shader.
+The operator prepares a channel on the preview monitor and takes it to the program output with CUT, MIX, or WIPE.
+HD4 also has PinP, SPLIT, QUAD, and KEY compositions, an audio mixer, MIDI control, and recording. [H1]_
 
-HD4 uses Noisemaker to give four video channels a common rendering interface. A channel can contain a camera, clip, image, or generated shader composition. The application combines these channels with preview and program controls, composite layouts, an audio mixer, and recording. This case demonstrates a compact engine boundary inside a larger media system. [H1]_ [H2]_
-
-1. Use case and requirements
-----------------------------
-
-An operator prepares a source in preview while another source remains on the program output. The operator then selects CUT, MIX, or WIPE and transfers the prepared source to the program. Picture-in-picture, split, and quad layouts combine sources within the same output. Separate audio controls manage what the audience hears. [H1]_
-
-The implemented workflow requires:
-
-* A common channel interface for generated visuals and captured media.
-* Independent preview and program selection.
-* Consistent source proportions when cameras, images, and clips have different dimensions.
-* Audio routing that can follow video selection or remain independent.
-* A final output that the recorder can capture without understanding each source type. [H1]_ [H2]_ [H3]_
-
-These requirements put source rendering below the switcher. Once a channel supplies a canvas, the switcher can work with its output without knowing how the channel produced it. [H2]_ [H3]_
-
-2. Integration surface
+How it uses Noisemaker
 ----------------------
 
-Each ``ChannelRenderer`` owns one Noisemaker ``CanvasRenderer``. Shader sources provide DSL directly. Camera, video, and image sources use a program with a ``media()`` input. The wrapper loads the required effects, compiles the program, and starts rendering. It reports compilation success or an error to its caller. [H2]_
+Each channel has a ``ChannelRenderer``, and each ``ChannelRenderer`` owns one ``CanvasRenderer``.
+No other HD4 module creates a ``CanvasRenderer``. [H2]_
 
-.. list-table:: Channel boundary
-   :header-rows: 1
-   :widths: 25 40 35
+A shader channel compiles its own DSL program.
+A camera, video, or image channel compiles this program: [H5]_
 
-   * - Input or action
-     - Engine connection
-     - Application responsibility
-   * - Shader source
-     - ``loadEffects()`` and ``compile()``
-     - Select and retain the program.
-   * - Camera, clip, or image
-     - ``updateTextureFromSource()``
-     - Acquire, decode, and fit the media.
-   * - Changed dimensions
-     - ``resize()`` and step parameters
-     - Choose channel dimensions and fit mode.
-   * - Channel output
-     - An ordinary canvas
-     - Select, compose, and record the program.
+.. code-block:: text
 
-The wrapper discovers the media step from the program. It does not assume that every source uses the same texture index. This keeps source upload aligned with the compiled composition. [H2]_
+   search synth
+   media().write(o0)
+   render(o0)
 
-3. Implementation decisions
----------------------------
+``ChannelRenderer.compile()`` shows the load order.
+It loads the effect manifest once, loads the effects that the program names, and then compiles: [H2]_
 
-Media sources first pass through an aspect-preserving fit operation. The application uses a canvas buffer to implement cover or contain behavior. It uploads that fitted image to the media step and updates ``imageSize`` when dimensions change. This gives the program compositor consistently sized channel frames without requiring a separate shader for each source format. [H2]_
+.. code-block:: javascript
+   :caption: ChannelRenderer.compile() in channelRenderer.js
 
-``ProgramCompositor`` owns a 2D canvas for the final output. It draws channel frames, applies transitions or layouts, adds an optional key overlay, and applies output effects and fade. Noisemaker handles each channel's visual program. The application retains explicit control over the final composition and operator semantics. [H3]_
+   async compile(dsl) {
+       if (!this._initialized) await this.init()
+       try {
+           const ids = extractEffectNamesFromDsl(dsl, this._renderer.manifest || {})
+               .map((e) => e.effectId)
+           if (ids.length) await this._renderer.loadEffects(ids)
+           await this._renderer.compile(dsl)
+           this._currentDsl = dsl
+           this._mediaStep = this._discoverMediaStep(dsl)
+           this._lastSize = null
+           if (!this._renderer.isRunning) this._renderer.start()
+           return { success: true }
+       } catch (err) {
+           const msg = typeof err === 'string' ? err : err?.message || err?.error || 'compile error'
+           this.onError(msg)
+           return { success: false, error: msg }
+       }
+   }
 
-The audio mixer remains a separate subsystem. It supplies channel faders, equalization, dynamics, pan, delay, and effect sends. Audio-follow-video, gain sharing, and video-follow-audio provide different automatic behaviors. MIDI mappings, assignable buttons, and memory slots support repeatable operations. MediaRecorder captures the program with audio. [H1]_
+If the compile fails, the wrapper passes the message to ``onError`` and returns it to the caller. [H2]_
 
-4. Result and product implications
-----------------------------------
+The wrapper finds the ``media()`` step in the program text.
+It does not assume that ``media()`` is step 0. [H2]_
 
-The implemented console combines source preparation, switching, layouts, sound, and recording. Generated visuals participate as regular channels alongside cameras and clips. They do not require a separate output workflow. [H1]_ [H2]_
+For each media frame, the wrapper first fits the source into a buffer with the channel's aspect ratio.
+The ``cover`` fit fills the frame and crops the overflow.
+The ``contain`` fit shows the whole source on a black background.
+The wrapper then uploads the buffer with ``updateTextureFromSource('imageTex_step_N', buffer, { flipY: false })``.
+It sets ``imageSize`` only when the buffer size changes. [H2]_
 
-For a developer, the useful boundary is the rendered channel canvas. It allows a custom switcher to use procedural visuals while retaining its own controls and composition rules. For a product team, this supports tools with specialized operator workflows, such as event consoles or demonstration systems. The reusable engine surface stays concentrated in the channel wrapper, while audio and switching remain independently configurable. [H2]_ [H3]_
+Work outside the engine
+-----------------------
 
-5. Operating limits
--------------------
+``ProgramCompositor`` owns the program output, which is a 2D canvas.
+It reads each channel canvas with ``drawImage()``.
+It draws the transitions, the PinP, SPLIT, and QUAD layouts, the KEY overlay, the output effects, and the output fade. [H3]_
 
-Four channels can require concurrent media decoding, texture uploads, and shader execution. Final composition adds further work. Capacity depends on source types, effect programs, and output dimensions. Qualification for live use should measure switching latency, audio continuity, and synchronization in recorded output with all required channels active. [H2]_ [H3]_
+The audio mixer does not use Noisemaker.
+It has per-channel EQ, gate, compressor, pan, delay, and AUX and reverb sends.
+It can switch audio when the video changes, or switch video when the audio changes. [H1]_
 
-6. References
--------------
+Recording captures the program canvas at 30 frames per second with ``captureStream(30)``.
+It adds the audio tracks from the main bus or the AUX bus, and ``MediaRecorder`` writes the file. [H1]_ [H4]_
 
-.. [H1] `HD4 features and architecture <https://github.com/noisefactorllc/hd4/blob/90afc9759d34bf11c762f9b383514350d6830f6a/README.md>`_.
+Sizes and limits
+----------------
 
-.. [H2] `Channel renderer <https://github.com/noisefactorllc/hd4/blob/90afc9759d34bf11c762f9b383514350d6830f6a/js/channelRenderer.js>`_.
+* Each channel renders at 960 × 540. The program output is 1280 × 720 by default. [H4]_
+* The output resolution setting resizes only the program canvas. No code calls ``ChannelRenderer.resize()``. [H4]_
+* Four ``CanvasRenderer`` objects run at the same time, one for each channel. [H4]_
+* The KEY overlay reads and writes every output pixel on the CPU in each frame, with ``getImageData()`` and ``putImageData()``. [H3]_
 
-.. [H3] `Program compositor <https://github.com/noisefactorllc/hd4/blob/90afc9759d34bf11c762f9b383514350d6830f6a/js/programCompositor.js>`_.
+Sources
+-------
+
+All links point to hd4 revision ``90afc97``.
+
+.. [H1] `README <https://github.com/noisefactorllc/hd4/blob/90afc9759d34bf11c762f9b383514350d6830f6a/README.md>`_.
+
+.. [H2] `Channel renderer (channelRenderer.js) <https://github.com/noisefactorllc/hd4/blob/90afc9759d34bf11c762f9b383514350d6830f6a/js/channelRenderer.js>`_.
+
+.. [H3] `Program compositor (programCompositor.js) <https://github.com/noisefactorllc/hd4/blob/90afc9759d34bf11c762f9b383514350d6830f6a/js/programCompositor.js>`_.
+
+.. [H4] `Application setup (app.js) <https://github.com/noisefactorllc/hd4/blob/90afc9759d34bf11c762f9b383514350d6830f6a/js/app.js>`_.
+
+.. [H5] `Media source driver (mediaSource.js) <https://github.com/noisefactorllc/hd4/blob/90afc9759d34bf11c762f9b383514350d6830f6a/js/sources/mediaSource.js>`_.

@@ -1,78 +1,132 @@
-Web Design: procedural graphics in content pages
-================================================
+Web Design: shader canvases in web pages
+========================================
 
 `Open Noise Factor <https://noisefactor.io/>`_ | `Open alex.ayars.info <https://alex.ayars.info/>`_
 
-Abstract
---------
+Two websites use Noisemaker canvases as page graphics.
+The Noise Factor site header has a shader background.
+alex.ayars.info has a shader panel with a code editor, where visitors can change the program.
+Both sites use a helper module, ``shader-renderer.js``, that exports ``createBackgroundShader()``. [W1]_ [W2]_
 
-The Noise Factor website and alex.ayars.info place Noisemaker canvases within conventional content pages. Noise Factor uses a procedural composition in its shared header. The personal site exposes an editable shader panel. Both connect a canvas, dimensions, and a program to a renderer wrapper. Their integration shows how a visual feature can evolve without replacing the page's content and navigation structure. [W1]_ [W2]_ [W3]_ [W4]_
+The helper
+----------
 
-1. Use case and requirements
-----------------------------
+``createBackgroundShader(canvas, program, size)`` runs these steps: [W1]_
 
-The two sites use procedural graphics for different interactions. Noise Factor presents a selected visual treatment within a reusable header. The personal site lets visitors inspect and edit the program behind its shader panel. In both cases, links and text remain ordinary HTML elements. [W3]_ [W4]_
+#. Import ``CanvasRenderer`` from ``https://shaders.noisedeck.app/1/noisemaker-shaders-core.esm.js``.
+#. Create a ``CanvasRenderer`` with ``preferWebGPU: false``.
+#. Load the effect manifest.
+#. Load the effects that the program names.
+#. Compile the program and start rendering.
 
-The shared requirements are:
+It returns the renderer, or ``null`` if a step fails.
+Each site has its own copy of ``shader-renderer.js``, and the two copies are different. [W1]_ [W2]_
 
-* Attach a visual program to a specific region of the page.
-* Keep text and navigation independent of canvas pixels.
-* Match rendering dimensions to the page component as it changes size.
-* Load the effects that the selected program requires.
-* Report invalid edits when the page exposes a program editor. [W1]_ [W2]_ [W3]_ [W4]_
+The Noise Factor header
+-----------------------
 
-These requirements define a component-level integration. The host page controls where the canvas appears and how visitors interact with it. Noisemaker supplies the changing image inside that surface. [W1]_ [W4]_
+``<nf-header>`` is a custom element that noisefactor.io, downloads.noisefactor.io, and forum.noisefactor.io use.
+It contains a canvas, a logo link, and a ``<nav aria-label="Site">`` element.
+The canvas has ``aria-hidden="true"`` and ``pointer-events: none``, so it does not affect the links. [W4]_ [W5]_
 
-2. Integration surface
-----------------------
+This is the header program: [W4]_
 
-The renderer wrapper imports the engine, creates ``CanvasRenderer``, and loads the effect manifest. It resolves the program's effect identifiers, loads their bundles, and compiles the program. A helper starts rendering after successful initialization. Resize calls update the output dimensions. [W1]_ [W2]_
+.. code-block:: text
+   :caption: HEADER_SHADER_PROGRAM in nf-header.js
 
-The header component uses that helper through a short call sequence. This excerpt shows the successful initialization and resize path. The surrounding method handles initialization errors, and the component retains a CSS background as its fallback. [W4]_
+   search synth, filter, mixer
+
+   cell(
+     shape: triangle,
+     scale: 100,
+     cellScale: 100,
+     variation: 100,
+     speed: 1
+   )
+     .write(o0)
+
+   solid(color: #aad604ff)
+     .blendMode(
+       tex: read(o0),
+       mode: overlay,
+       mix: -10.59
+     )
+     .lighting(
+       normalStrength: 5,
+       smoothing: 1.6,
+       specularIntensity: 1.68,
+       shininess: 94,
+       ambientColor: #000000ff,
+       lightDirection: vec3(0.733, 0.367, 0.573),
+       reflection: 27,
+       refraction: 37,
+       aberration: 27.8
+     )
+     .write(o1)
+
+   render(o1)
+
+The header starts the shader like this: [W4]_
 
 .. code-block:: javascript
-   :caption: Attach a program to the shared header
+   :caption: NFHeader.startHeaderShader() in nf-header.js
 
-   const size = sizeCanvasToHeader(canvas);
-   const renderer = await createBackgroundShader(
-     canvas, HEADER_SHADER_PROGRAM, size
-   );
-   if (!renderer) return;
-   window.addEventListener('resize', () => {
-     const next = sizeCanvasToHeader(canvas);
-     renderer.resize(next.width, next.height);
-   });
+   async startHeaderShader(canvas) {
+     try {
+       const size = sizeCanvasToHeader(canvas);
+       const renderer = await createBackgroundShader(canvas, HEADER_SHADER_PROGRAM, size);
+       // The lime .nf-header background is the no-WebGL fallback; if the
+       // shader failed to compile there is nothing to keep in resize step.
+       if (!renderer) return;
+       window.addEventListener('resize', () => {
+         const next = sizeCanvasToHeader(canvas);
+         renderer.resize(next.width, next.height);
+       });
+     } catch (e) {
+       console.error('Shader init failed:', e);
+     }
+   }
 
-``sizeCanvasToHeader()`` measures the header and accounts for device pixel ratio. ``HEADER_SHADER_PROGRAM`` contains the visual composition. The helper encapsulates engine setup, so the component handles layout through canvas dimensions and renderer resize calls. [W4]_
+``sizeCanvasToHeader()`` multiplies the header size by the device pixel ratio.
+The canvas is at least 160 × 30 pixels. [W4]_
+If the shader does not start, the header shows its CSS background, a lime color close to the shader output. [W5]_
 
-3. Implementation decisions
----------------------------
+The alex.ayars.info shader panel
+--------------------------------
 
-The shared header creates a decorative canvas, a logo link, and navigation elements. It marks the canvas as hidden from accessibility APIs because the image carries no navigation information. The links retain their HTML semantics. This separates the visual treatment from the controls that visitors use to move through the site. [W4]_
+The page shows the program in a code editor on top of the canvas.
+The canvas renders at half the device pixel ratio. [W3]_
 
-The personal site extends the same rendering pattern with a code editor. ``BackgroundShaderRenderer.apply()`` resolves effects for the new program and attempts compilation. It returns a success or error result to the caller. The wrapper updates its stored program only after successful compilation, so incomplete text does not become the accepted program state. [W2]_ [W3]_
+The editor uses the personal site's ``BackgroundShaderRenderer.apply(program)``.
+This method loads the effects that the program names and compiles it.
+It returns ``{ ok, error }`` and keeps the new program only after a successful compile. [W2]_
 
-The two uses demonstrate different amounts of application behavior around the same core contract. A fixed header needs initialization and resizing. An editable panel adds text input, evaluation timing, and error feedback. Neither use requires a separate graphics implementation for each visual composition. [W1]_ [W2]_ [W3]_ [W4]_
+The page adds these rules around ``apply()``: [W3]_
 
-4. Result and product implications
-----------------------------------
+* It waits until 500 ms pass with no typing, and then compiles.
+* Cmd+Enter or Ctrl+Enter compiles at once.
+* It ignores the result of a compile if the user made a newer edit during that compile.
+* It shows a compile error only when the program still fails 1500 ms later. The error stays until the program compiles again.
 
-The current integration supports a shared visual component and an interactive authoring surface. Page content remains in HTML, while the DSL program acts as an editable visual asset. Changes to that program can change appearance without changing the navigation model. [W3]_ [W4]_
+Limits
+------
 
-For an individual developer, the pattern suits a portfolio or technical demonstration with programmable visuals. For a product team, it provides a component that can carry a selected visual treatment across content pages. Exposing the program is an additional interface decision, as the personal site demonstrates. The renderer contract remains canvas, program, dimensions, and lifecycle. [W1]_ [W2]_ [W4]_
+* Both sites resize the canvas only on the window ``resize`` event. [W3]_ [W4]_
+* The header element is hidden until its script defines it, so a page without JavaScript has no header. [W5]_
+* On alex.ayars.info, the editor is hidden on screens 768 pixels wide or less. Edits are not saved. [W3]_
+* Neither the header nor the alex.ayars.info page checks ``prefers-reduced-motion``. [W3]_ [W4]_ [W5]_
 
-5. Operating limits
--------------------
+Sources
+-------
 
-The visual layer depends on engine assets and browser graphics support. Device pixel ratio can increase rendering dimensions and workload. A page must define suitable motion, loading, and failure behavior for its audience. The header's semantic links and CSS fallback address specific concerns, but complete accessibility and mobile performance still require page-level evaluation. [W1]_ [W4]_
+These are the files that the two sites serve. The source repositories are private.
 
-6. References
--------------
+.. [W1] `Noise Factor helper (shader-renderer.js) <https://noisefactor.io/js/shader-renderer.js>`_.
 
-.. [W1] `Noise Factor public renderer module <https://noisefactor.io/js/shader-renderer.js>`_.
+.. [W2] `alex.ayars.info helper (shader-renderer.js) <https://alex.ayars.info/js/shader-renderer.js>`_.
 
-.. [W2] `Personal-site public renderer module <https://alex.ayars.info/js/shader-renderer.js>`_.
+.. [W3] `alex.ayars.info page <https://alex.ayars.info/>`_.
 
-.. [W3] `Personal site and editable shader panel <https://alex.ayars.info/>`_.
+.. [W4] `Header component (nf-header.js) <https://noisefactor.io/js/nf-header.js>`_.
 
-.. [W4] `Shared header and canvas integration <https://noisefactor.io/js/nf-header.js>`_.
+.. [W5] `Header styles (nf-header.css) <https://noisefactor.io/css/nf-header.css>`_.
