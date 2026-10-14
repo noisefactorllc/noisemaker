@@ -11,3 +11,4 @@ Features
    midi-audio
    renderer-output
    demo-ui
+   tile-rendering
