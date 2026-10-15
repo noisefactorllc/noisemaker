@@ -1107,9 +1107,13 @@ work, verify it, then update the checkpoint and append a log line.
   worked validated effect and the surface × capability traceability matrix.
   Gap records live in repository issues. The file pins its
   own audited SHAs in the "Source snapshots used for this contract" block at
-  its head; that block and this checkpoint are the same two SHAs and must be
-  advanced together. There is no generator — every update is a hand edit
-  verified against live source.
+  its head. For a completed pass, that block and this checkpoint contain the
+  same two SHAs. Exact-source CI requires a published candidate. During that
+  CI and live readback, the candidate snapshot can lead this checkpoint.
+  Record the candidate SHAs and pending checks in the log. Do not call the
+  pass complete. Keep the last completed checkpoint until all checks pass.
+  Then make the checkpoint and snapshot equal again. There is no generator.
+  Verify every hand edit against live source.
   `llms-full.txt` states current behavior and open gaps only. A closed gap's
   row is deleted, and every reference to it goes with it. Never add closure
   notes, audit or re-capture history, commit provenance, CI run IDs, or
@@ -1170,12 +1174,42 @@ work, verify it, then update the checkpoint and append a log line.
   Verify required CI for each changed repository's exact published commit
   and verify the resulting delivery state. Then update affected contract
   sections, the traceability matrix, and source-evidence gaps, and advance
-  both checkpoints together with the contract's snapshot block. Include all
-  four identities and validation evidence in the log. If any part remains
-  unverified, keep the last completed checkpoints and record remaining work
-  here. Historical entries below do not retroactively certify these added
-  delivery checks.
+  both checkpoints together with the contract's snapshot block, or advance
+  the checkpoint to an already published candidate after its exact-source CI
+  and live readback pass. Include all four identities and validation evidence
+  in the log. If any part remains unverified, keep the last completed
+  checkpoints and record remaining work here. Historical entries below do
+  not retroactively certify these added delivery checks.
 - **Log:**
+  - 2026-10-15 — delivery candidate for Tearoff item 1116. Audited the
+    complete Noisemaker range `b319e794..7e6c6130` and Shade MCP range
+    `f36a5f62..830603b5`. The source identities are Noisemaker
+    `7e6c613079b8074a7f9b0f0f7b3c7d8d87123f17` and Shade MCP
+    `830603b5bc112460eb3cf0b22f28e7dd51f84895`. The configured MCP pin
+    in `.mcp.json` is `830603b5bc112460eb3cf0b22f28e7dd51f84895`.
+    Release `v0.4.13` points to that Shade source. Its downloaded
+    `shade-mcp-dist.tar.gz` has SHA-256
+    `e4b3069409fd62da96a0ca74f33d0861de4d5e21b424afb9ff120a0c5f067ffe`.
+    The automatic Noisemaker import at `05793839` matches the extracted
+    release in all four vendored directories. The Noisemaker range retired
+    parameter aliases, corrected shader tile behavior, and updated both
+    delivery paths. Shade corrected DSL exemplars and enabled WebGPU browser
+    capability for `testPixelParity`. The contract now states this parity
+    launch behavior and records the current configured-pin worked session.
+    Shade build, typecheck, 345 unit tests, standalone-drop check, and real
+    Noisemaker viewer smoke passed, including a WebGPU DSL render. Shade
+    quality and release CI passed. Noisemaker non-parity JS tests and lint
+    passed. The delivered vendor passed the WebGL2 and WebGPU render gates.
+    The configured-pin MCP initialization negotiated `shade-mcp` / `0.4.13` /
+    `2025-11-25` and listed 18 tools. One configured-pin session ran all eight
+    worked calls. Both compilers succeeded. The
+    WebGL2 render was nonblank. WebGPU parity returned `maxDiff=0` with two
+    non-solid frames. The benchmark measured 60.35 FPS against a 30 FPS
+    target. Exact-source Noisemaker CI and deployed contract readback remain
+    unverified. This checkpoint stays at the last completed pair. The
+    `llms-full.txt` snapshot block names the candidate pair for the published
+    delivery tests. Advance this ledger checkpoint only after those final
+    checks pass.
   - 2026-10-03 — completed compatibility pass (Tearoff item 794): audited
     Noisemaker `5ff0445939d0238c51f0ab93a30baa238a6509ec..bed7da28c32063b5837d4050843fed60847b602a`
     and the trigger range `d143cb51..058d15dc`; Shade MCP remained at

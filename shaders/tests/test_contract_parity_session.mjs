@@ -1,15 +1,10 @@
 #!/usr/bin/env node
 //
 // The AI development contract's testPixelParity section documents the
-// browser-session launch path behind the verb's fail-closed WebGPU leg: the
-// tool launches its session on the WebGL2 path, and a WebGL2-launched browser
-// gets none of the WebGPU launch args, so on a host without a usable
-// Vulkan-backed WebGPU adapter the WebGPU leg's rebuild falls back to WebGL2
-// and the selection check fails closed. This guard pins that statement to the
-// delivered vendor harness in both directions: the statement must be present,
-// and the vendored launch-options code must still gate the WebGPU args behind
-// the webgpu backend. Removing either side turns the JS suite red instead of
-// waiting for an audit.
+// browser-session launch path behind the verb's fail-closed WebGPU leg. The
+// tool starts on WebGL2 but requests WebGPU browser capability for its later
+// WebGPU leg. If the browser has no adapter, the tool returns an error before
+// comparison. This guard checks the contract and delivered harness together.
 //
 // Run: node shaders/tests/test_contract_parity_session.mjs
 
@@ -30,17 +25,23 @@ function launchOptionsSource() {
 }
 
 describe('AI development contract tracks the parity session launch path', () => {
-    test('the contract documents the WebGL2-path session and fail-closed WebGPU leg', () => {
-        assert.match(contract, /launches on the WebGL2 launch path/,
-            'llms-full.txt no longer documents the parity verb\'s WebGL2-path browser session')
+    test('the contract documents the WebGPU-capable session and fail-closed WebGPU leg', () => {
+        assert.match(contract, /starts a WebGL2 viewer in a WebGPU-capable browser session/,
+            'llms-full.txt no longer documents the parity verb\'s WebGPU-capable browser session')
+        assert.match(contract, /failed backend switch reports `WebGPU leg: Backend switch\s+failed:/,
+            'llms-full.txt no longer documents the earlier backend-switch failure')
         assert.match(contract, /WebGPU leg: The viewer is rendering on WebGL2, not the requested webgpu/,
             'llms-full.txt no longer documents the fail-closed WebGPU-leg mismatch message')
-        assert.match(contract, /instead of comparing a fallback frame/,
-            'llms-full.txt no longer states that the leg fails closed instead of comparing a fallback frame')
+        assert.match(contract, /does not compare a fallback frame/,
+            'llms-full.txt no longer states that the leg rejects fallback frames')
     })
 
-    test('the delivered vendor harness gates the WebGPU launch args behind the webgpu backend', () => {
+    test('the delivered vendor harness launches a WebGPU-capable browser when requested', () => {
         const { block, outside } = launchOptionsSource()
+        assert.match(harness, /this\.options\.webgpuCapable && this\.options\.backend !== "webgpu"/,
+            'vendored harness no longer selects WebGPU launch options for capable WebGL2 sessions')
+        assert.match(harness, /getBrowserLaunchOptions\(this\.options\.headless, launchBackend\)/,
+            'vendored harness no longer passes the capable backend to browser launch options')
         assert.match(block, /backend === "webgpu"/,
             'vendored getBrowserLaunchOptions no longer branches on the webgpu backend')
         assert.match(block, /--enable-unsafe-webgpu/,

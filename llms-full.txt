@@ -14,16 +14,16 @@ and WebGPU backends and must not be cited as evidence for an external port.
 
 Source snapshots used for this contract:
 
-- Noisemaker: `b319e794aabed9d08e98f2747c5a68ea651f8147`.
-- Shade MCP: `f36a5f627648b7162f684ba7670c22ef4163f166`.
-- Shade MCP protocol: server name `shade-mcp`, server version `0.4.11`, built on
-  `@modelcontextprotocol/sdk` 1.31.0, which accepts the protocol versions
+- Noisemaker: `7e6c613079b8074a7f9b0f0f7b3c7d8d87123f17`.
+- Shade MCP: `830603b5bc112460eb3cf0b22f28e7dd51f84895`.
+- Shade MCP protocol: server name `shade-mcp`, server version `0.4.13`, built on
+  `@modelcontextprotocol/sdk` 1.32.1, which accepts the protocol versions
   `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05` and `2024-10-07`,
   echoes the version the client requests, and answers `2025-11-25` to any other
   request; 18 tools are returned by `tools/list`.
 - The repository config runs
-  `npx -y github:noisedeck/shade-mcp#f36a5f627648b7162f684ba7670c22ef4163f166`,
-  matching release v0.4.11 delivered to `vendor/shade-mcp/`.
+  `npx -y github:noisedeck/shade-mcp#830603b5bc112460eb3cf0b22f28e7dd51f84895`,
+  matching release v0.4.13 delivered to `vendor/shade-mcp/`.
 
 Primary source roots:
 
@@ -33,7 +33,7 @@ Primary source roots:
 - backend behavior: `shaders/src/runtime/backends/webgl2.js` and `webgpu.js`.
 - repository validation policy: `shaders/tests/test-harness.js`.
 - Shade MCP source for the pinned snapshot:
-  `https://github.com/noisefactorllc/shade-mcp/tree/f36a5f627648b7162f684ba7670c22ef4163f166/src`.
+  `https://github.com/noisefactorllc/shade-mcp/tree/830603b5bc112460eb3cf0b22f28e7dd51f84895/src`.
 
 ## Freshness and maintenance
 
@@ -2869,13 +2869,15 @@ selection, with the page-confirmed effect identity and backend checked before
 capture. A failed leg returns an error identifying the leg and observed page
 state. `effect_id` is the requested ID and `page_effect_id` is the page's ID
 from the last leg that ran, or null if unavailable.
-The tool's browser session launches on the WebGL2 launch path, so where that
-browser cannot obtain a Vulkan-backed WebGPU adapter — a GPU-less container
-without a system Vulkan driver, for instance — the WebGPU leg's rebuild falls
-back to WebGL2 and the leg fails closed with the page-confirmed mismatch
-(`WebGPU leg: The viewer is rendering on WebGL2, not the requested webgpu`)
-instead of comparing a fallback frame; the comparison itself is unchanged
-where a WebGPU-flagged browser session runs the same legs.
+The tool starts a WebGL2 viewer in a WebGPU-capable browser session.
+The browser launch options enable WebGPU before the tool runs either leg.
+If the browser cannot obtain a WebGPU adapter, the WebGPU leg returns an error
+before comparison. A failed backend switch reports `WebGPU leg: Backend switch
+failed: ...` with the page's observed backend. If the switch succeeds but the
+page still reports WebGL2, the result reports the page-confirmed mismatch
+(`WebGPU leg: The viewer is rendering on WebGL2, not the requested webgpu`).
+The tool does not compare a fallback frame.
+If the browser obtains an adapter, both legs use the same comparison method.
 
 Sources: Shade MCP `src/tools/browser/parity.ts` - `testPixelParity()`,
 `warmUp()`, `captureSurface()`; Shade MCP
@@ -4363,7 +4365,7 @@ program expansion.
 
 <!-- WORKED:MCP-REQUESTS -->
 
-One configured-pin session returned server `shade-mcp` version `0.4.11` and
+One configured-pin session returned server `shade-mcp` version `0.4.13` and
 listed 18 tools. All eight calls ran in that session, none returning MCP
 `isError`; the passthrough call returned the expected domain status `skipped`
 (`outcome:"skipped"`) because this is a source effect. On hosts where the
@@ -4395,7 +4397,7 @@ capture; these are the values from this session):
 {"outcome":"ok","status":"ok","tested_uniforms":["pattern:pass","gridSize:pass"],"uniforms":[{"name":"pattern","uniform":"pattern","default_value":0,"test_value":1,"luma_diff":0.0031082153320312056,"max_channel_diff":0.0031082153320312056,"pixel_diff":0.37701416015625,"strong_fraction":0.875299072265625,"responds":true},{"name":"gridSize","uniform":"gridSize","default_value":4,"test_value":12,"luma_diff":0.002946472167968728,"max_channel_diff":0.002946472167968728,"pixel_diff":0.39990234375,"strong_fraction":0.48483123779296877,"responds":true,"enabled_with":{"pattern":0}}],"threshold":0.002,"strong_threshold":0.0005,"details":"Uniforms affect output","measured_size":[1024,640],"backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
 {"outcome":"skipped","status":"skipped","isFilterEffect":false,"similarity":null,"details":"Not a filter effect","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern"}
 {"outcome":"ok","status":"ok","maxDiff":0,"meanDiff":0,"mismatchCount":0,"mismatchPercent":0,"resolution":[1024,1024],"effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","backend":"WebGPU","glslSolid":false,"wgslSolid":false,"glslVariance":[16256,16256,16256],"wgslVariance":[16256,16256,16256],"yFlipDetected":false,"yFlipCleanFlip":false,"yFlipMismatchPercent":70.9,"yFlipMeanDiff":180.79,"yFlipRatio":1,"issues":[],"details":"Pixel parity OK (maxDiff=0, meanDiff=0.00)"}
-{"outcome":"ok","status":"ok","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.59,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.5,"jitter_ms":1.3,"min_frame_time_ms":7.3,"max_frame_time_ms":18.6}}
+{"outcome":"ok","status":"ok","backend":"WebGL2","effect_id":"synth/testPattern","page_effect_id":"synth/testPattern","requested_resolution":[256,256],"frame":{"width":256,"height":256},"achieved_fps":60.35,"meets_target":true,"stats":{"frame_count":60,"avg_frame_time_ms":16.57,"jitter_ms":0.9,"min_frame_time_ms":14.3,"max_frame_time_ms":18.7}}
 ```
 
 The structure scan has no issues and reports the one declared effect pass.
