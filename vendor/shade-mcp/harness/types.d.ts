@@ -20,6 +20,11 @@ export declare const DEFAULT_GLOBALS: ViewerGlobals;
 export declare function globalsFromPrefix(prefix: string): ViewerGlobals;
 export interface BrowserSessionOptions {
     backend: Backend;
+    /** Launch the browser with the WebGPU flags even though `backend` is
+     *  `webgl2`. Verbs that switch backends mid-session (pixel parity) need a
+     *  browser that can obtain a WebGPU adapter; the flags decide capability,
+     *  the backend option still decides what the viewer renders first. */
+    webgpuCapable?: boolean;
     blankPage?: boolean;
     headless?: boolean;
     viewerPort?: number;
