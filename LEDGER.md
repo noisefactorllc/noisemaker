@@ -1097,7 +1097,7 @@ work, verify it, then update the checkpoint and append a log line.
 
 ## AI development contract (llms-full.txt)
 
-- **Checkpoint:** noisemaker `b319e794aabed9d08e98f2747c5a68ea651f8147` / shade-mcp `f36a5f627648b7162f684ba7670c22ef4163f166`, 2026-10-11
+- **Checkpoint:** noisemaker `7e6c613079b8074a7f9b0f0f7b3c7d8d87123f17` / shade-mcp `830603b5bc112460eb3cf0b22f28e7dd51f84895`, 2026-10-15
 - **Scope:** compatibility between Noisemaker and Shade MCP, recorded in
   this shared ledger and the hand-authored agent contract `llms-full.txt` — the
   executable-source companion served at the site root that describes
@@ -1181,7 +1181,7 @@ work, verify it, then update the checkpoint and append a log line.
   checkpoints and record remaining work here. Historical entries below do
   not retroactively certify these added delivery checks.
 - **Log:**
-  - 2026-10-15 — delivery candidate for Tearoff item 1116. Audited the
+  - 2026-10-15 — completed delivery pair for Tearoff item 1116. Audited the
     complete Noisemaker range `b319e794..7e6c6130` and Shade MCP range
     `f36a5f62..830603b5`. The source identities are Noisemaker
     `7e6c613079b8074a7f9b0f0f7b3c7d8d87123f17` and Shade MCP
@@ -1198,18 +1198,38 @@ work, verify it, then update the checkpoint and append a log line.
     launch behavior and records the current configured-pin worked session.
     Shade build, typecheck, 345 unit tests, standalone-drop check, and real
     Noisemaker viewer smoke passed, including a WebGPU DSL render. Shade
-    quality and release CI passed. Noisemaker non-parity JS tests and lint
+    [quality CI](https://github.com/noisefactorllc/shade-mcp/actions/runs/38804687270),
+    [release CI](https://github.com/noisefactorllc/shade-mcp/actions/runs/38805227563),
+    and the Noisemaker [vendor import](https://github.com/noisefactorllc/noisemaker/actions/runs/38805451775)
+    passed. Noisemaker non-parity JS tests and lint
     passed. The delivered vendor passed the WebGL2 and WebGPU render gates.
     The configured-pin MCP initialization negotiated `shade-mcp` / `0.4.13` /
     `2025-11-25` and listed 18 tools. One configured-pin session ran all eight
     worked calls. Both compilers succeeded. The
     WebGL2 render was nonblank. WebGPU parity returned `maxDiff=0` with two
     non-solid frames. The benchmark measured 60.35 FPS against a 30 FPS
-    target. Exact-source Noisemaker CI and deployed contract readback remain
-    unverified. This checkpoint stays at the last completed pair. The
-    `llms-full.txt` snapshot block names the candidate pair for the published
-    delivery tests. Advance this ledger checkpoint only after those final
-    checks pass.
+    target. Noisemaker publication commit `13eb5fb6` adds this contract and
+    its regression guard to the source pair. Its exact-source
+    [JavaScript](https://github.com/noisefactorllc/noisemaker/actions/runs/38807353225),
+    [Shaders](https://github.com/noisefactorllc/noisemaker/actions/runs/38807352540),
+    [Site](https://github.com/noisefactorllc/noisemaker/actions/runs/38807352625),
+    [Docs site](https://github.com/noisefactorllc/noisemaker/actions/runs/38807352608),
+    [Downstream](https://github.com/noisefactorllc/noisemaker/actions/runs/38807352648),
+    and [code analysis](https://github.com/noisefactorllc/noisemaker/actions/runs/38807351428)
+    workflows passed. Scaffold's
+    [site](https://github.com/noisefactorllc/scaffold/actions/runs/38807400753),
+    [docs site](https://github.com/noisefactorllc/scaffold/actions/runs/38807394781),
+    and [shader library](https://github.com/noisefactorllc/scaffold/actions/runs/38808888428)
+    release workflows passed for that commit. `noisemaker.app` and
+    `docs.noisemaker.app` both serve deployment
+    metadata naming `13eb5fb6`. The live `/llms-full.txt` response is HTTP
+    200 and byte-identical to the published contract (SHA-256
+    `19152bbcf58db3be6a5cbd15267679128d004d656626877ab1919717ba43cd33`).
+    Shader library version `1.0.295` serves metadata naming `13eb5fb6`.
+    Every one of its 229 manifest files returned HTTP 200 with the listed
+    SHA-256 from `/1.0.295/`, `/1.0/`, and `/1/`. The complete pair is now
+    delivered. This ledger-only commit advances the checkpoint to the two
+    source SHAs in the contract snapshot block.
   - 2026-10-03 — completed compatibility pass (Tearoff item 794): audited
     Noisemaker `5ff0445939d0238c51f0ab93a30baa238a6509ec..bed7da28c32063b5837d4050843fed60847b602a`
     and the trigger range `d143cb51..058d15dc`; Shade MCP remained at
