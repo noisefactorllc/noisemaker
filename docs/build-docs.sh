@@ -59,7 +59,7 @@ fi
 
 # Build the documentation.
 #
-# Must stay -b dirhtml: that is what scaffold's static-site-release
+# Must stay -b dirhtml: that is what the static-site release
 # builds for docs.noisemaker.app. dirhtml serves composer-api.rst as
 # /composer-api/ rather than /composer-api.html, which changes how
 # every relative asset path in a `.. raw:: html` block resolves. A

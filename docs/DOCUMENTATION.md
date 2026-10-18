@@ -26,7 +26,7 @@ make clean
 make dirhtml
 ```
 
-Use `dirhtml`, not `html`. Scaffold's `static-site-release` uses `dirhtml`
+Use `dirhtml`, not `html`. The static-site release uses `dirhtml`
 for docs.noisemaker.app. Only this builder reproduces production URLs.
 It serves `composer-api.rst` as `/composer-api/`, not `/composer-api.html`.
 

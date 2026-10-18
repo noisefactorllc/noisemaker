@@ -632,7 +632,7 @@ work, verify it, then update the checkpoint and append a log line.
     (`node scripts/run-js-tests.js --skip-parity`, 201 tests, 0 failures).
     Published-source CI and deployment evidence observed via the GitHub API:
     `docs-site.yml` succeeded at `01e9d62` (Verify docs asset paths and
-    Dispatch scaffold static-site-release jobs both success; run 36213112409),
+    Dispatch static-site-release jobs both success; run 36213112409),
     `downstream.yml` succeeded at `01e9d62` (run 36213112296), and the live
     docs.noisemaker.app deployment serves
     `git_hash: 01e9d620d7ccc700cc8926a91145702dc69a8eeb` per
@@ -1216,7 +1216,7 @@ work, verify it, then update the checkpoint and append a log line.
     [Docs site](https://github.com/noisefactorllc/noisemaker/actions/runs/38807352608),
     [Downstream](https://github.com/noisefactorllc/noisemaker/actions/runs/38807352648),
     and [code analysis](https://github.com/noisefactorllc/noisemaker/actions/runs/38807351428)
-    workflows passed. Scaffold's
+    workflows passed. The
     site,
     docs site,
     and shader library
@@ -1289,7 +1289,7 @@ work, verify it, then update the checkpoint and append a log line.
     Noisemaker [vendor CI](https://github.com/noisefactorllc/noisemaker/actions/runs/37168601034),
     [Shaders CI](https://github.com/noisefactorllc/noisemaker/actions/runs/37168613116),
     Portable [CI](https://github.com/noisefactorllc/portable/actions/runs/37168610169),
-    and Shade [deployment](https://github.com/noisefactorllc/shade/actions/runs/37168607645)
+    and the Shade deployment
     passed. The final Noisemaker commit's CI and noisemaker.app delivery are
     checked separately after publication. The contract removes resolved
     GAP-010, GAP-011, GAP-012, GAP-019, GAP-021, GAP-024, and GAP-029;
@@ -1686,7 +1686,7 @@ work, verify it, then update the checkpoint and append a log line.
     `Shader tests` and `GPU tests` at that SHA, release.yml's `Publish release`
     and bundle/standalone builds, docs-site.yml's `Verify docs asset paths`,
     and downstream.yml's `notify` (site.yml's own check at that SHA is the
-    `Dispatch scaffold static-site-release` dispatch; the `js.yml` workflow does
+    `Dispatch static-site-release` dispatch; the `js.yml` workflow does
     not run there by design — its path filter excludes commits touching only
     `shaders/**` and `llms-full.txt`); source-SHA mapping for the local logs
     (archived
@@ -1697,7 +1697,7 @@ work, verify it, then update the checkpoint and append a log line.
     dependency bumps) and the shade-mcp logs ran at the checkout tip
     `79c2e01` exactly; exact-commit CI at this documentation commit
     `58953caa0abb2071f0493d0021bfe2c6b5e029ac` (archived
-    `check-runs-58953ca.json`) — `Dispatch scaffold static-site-release`
+    `check-runs-58953ca.json`) — `Dispatch static-site-release`
     success, correctly the only check (a docs-only commit runs only the Site
     workflow, with the source CI carried at `ed47815` above); and deployment
     (archived `deployment-readback-58953ca.json` and `deployed-llms-full.txt`)
@@ -1854,8 +1854,8 @@ work, verify it, then update the checkpoint and append a log line.
     `site.yml` run 36538515092). Required CI at this publication's own commit
     (`4d47b3fd826288077a58a95da3597dba59007fd9`) likewise all succeeded —
     js.yml (JS tests, JS lint), shaders.yml (Shader tests, GPU tests, Bundle
-    shaders, scaffold dispatches), site.yml (Verify docs asset paths, notify,
-    Dispatch scaffold static-site-release), docs-site.yml, downstream.yml, and
+    shaders, release dispatches), site.yml (Verify docs asset paths, notify,
+    Dispatch static-site-release), docs-site.yml, downstream.yml, and
     release.yml (Publish release at tag `v1.0.203`, all bundle/standalone
     builds) — and the deployed artifact readback (archived as
     `deployment-readback-4d47b3f.json`) shows
@@ -1867,7 +1867,7 @@ work, verify it, then update the checkpoint and append a log line.
     noisemaker implementation commit `682739066d3b74962febbdcdae85b5aa4d2e19f3`
     (observed via the public check-runs API in this follow-up): 16 check runs,
     all success — Shaders (Shader tests, GPU tests, Bundle shaders, Dispatch
-    scaffold static-site-release ×3, Dispatch scaffold library-release),
+    static-site-release ×3, Dispatch library-release),
     Release (Publish release, Build JS bundles, Build shader bundle, Build
     standalone Linux/Windows/macOS), Site (Verify docs asset paths, notify),
     plus the `auto-merge` skip; the `js.yml` workflow did not run there by
@@ -2125,11 +2125,11 @@ work, verify it, then update the checkpoint and append a log line.
     `status: "ok"`, passCount 1, no issues). CI evidence for the published source
     commits (observed via the public GitHub check-runs API in this pass): each of
     `c28e8fd`, `7aff843`, and `73c15be` ran Shaders (Shader tests, GPU tests,
-    Bundle shaders, Dispatch scaffold static-site-release and library-release),
+    Bundle shaders, Dispatch static-site-release and library-release),
     JS tests (JS tests, JS lint), Verify docs asset paths, notify, and Release
     (Publish release, Build JS bundles, Build shader bundle, Build standalone
     Linux/Windows/macOS) — all success; the documentation-only `04e8582` correctly
-    ran only the path-filtered Site workflow (Dispatch scaffold
+    ran only the path-filtered Site workflow (Dispatch
     static-site-release, success). Deployment:
     https://noisemaker.app/deployment-meta.json serves
     `git_hash: 73c15be00d6888f4b5d2835d8e242ee9e840df45`; the published contract
@@ -2211,12 +2211,12 @@ work, verify it, then update the checkpoint and append a log line.
     regex projection without error; `checkEffectStructure` returns `status: "ok"`,
     passCount 1, no issues). CI evidence for the published commits (observed via
     the public GitHub check-runs API in this pass): each of `a912749` and `296e013`
-    ran Shaders (Shader tests, GPU tests, Bundle shaders, Dispatch scaffold
+    ran Shaders (Shader tests, GPU tests, Bundle shaders, Dispatch
     static-site-release and library-release), JS tests (JS tests, JS lint), Verify
     docs asset paths, notify, and Release (Publish release, Build JS bundles, Build
     shader bundle, Build standalone Linux/Windows/macOS) — all success; the
     documentation-only `7c5f176` and `11d7c69` correctly ran only the path-filtered
-    Site workflow (Dispatch scaffold static-site-release, success). Updated
+    Site workflow (Dispatch static-site-release, success). Updated
     `llms-full.txt` (snapshot block advanced to Noisemaker
     `296e0138c4744ed485b2e95de3eeb466c17629ee`, worked-instance audit extended
     across `9322993..296e013`, and the GAP-019/GAP-021 re-capture evidence) and
@@ -2284,7 +2284,7 @@ work, verify it, then update the checkpoint and append a log line.
     regex projection without error; `checkEffectStructure` returns `status: "ok"`,
     passCount 1, no issues). CI evidence for the published source commit
     `9322993` (observed via the GitHub check-runs API in this pass): Shaders
-    (Shader tests, GPU tests, Bundle shaders, Dispatch scaffold
+    (Shader tests, GPU tests, Bundle shaders, Dispatch
     static-site-release and library-release), JS tests (JS tests, JS lint),
     Verify docs asset paths, notify, and Release (Publish release, Build JS
     bundles, Build shader bundle, Build standalone Linux/Windows/macOS) — all
@@ -2365,7 +2365,7 @@ work, verify it, then update the checkpoint and append a log line.
     `cbcab33363851016f65391fbb9ef71d66729c07f`. CI evidence for the published
     source commits (observed via the GitHub check-runs API in this pass): each of
     `c2252f0`, `e73a44a`, and `12b4d74` ran Shaders (Shader tests, GPU tests,
-    Bundle shaders, Dispatch scaffold static-site-release and library-release),
+    Bundle shaders, Dispatch static-site-release and library-release),
     JS tests (JS tests, JS lint), Verify docs asset paths, notify, and Release
     (Publish release, Build JS bundles, Build shader bundle, Build standalone
     Linux/Windows/macOS) — all success. Deployment:
@@ -2449,12 +2449,12 @@ work, verify it, then update the checkpoint and append a log line.
     stdio session at the tested immutable pin
     `cbcab33363851016f65391fbb9ef71d66729c07f`. CI evidence for the published
     source commits: `7dc0f56` ran Shaders (36281900855: Shader tests, GPU tests,
-    Bundle shaders, Dispatch scaffold static-site-release and library-release), JS
+    Bundle shaders, Dispatch static-site-release and library-release), JS
     tests (36281900856: JS tests, JS lint), Verify docs asset paths (36281900804),
     notify (36281900825), and Release (36282108985: Publish release, Build JS
     bundles, Build shader bundle, Build standalone Linux/Windows/macOS) — all
     success; `7443f6e` ran Shaders (36286368540: Shader tests, GPU tests, Bundle
-    shaders, Dispatch scaffold static-site-release and library-release), JS tests
+    shaders, Dispatch static-site-release and library-release), JS tests
     (36286368505: JS tests, JS lint), Verify docs asset paths (36286368503),
     notify (36286368515), and Release (36286557153: Publish release, Build JS
     bundles, Build shader bundle, Build standalone Linux/Windows/macOS) — all
@@ -2594,7 +2594,7 @@ work, verify it, then update the checkpoint and append a log line.
     `cbcab33363851016f65391fbb9ef71d66729c07f`. CI evidence for the published
     source commits: the range tip `403c2a4` ran Release (36263379194),
     Shaders (36263149990: Shader tests, GPU tests, Bundle shaders, Dispatch
-    scaffold static-site-release and library-release), Downstream
+    static-site-release and library-release), Downstream
     (36263149985), Site (36263150004), and Docs site (36263149987) — all
     success; `b35361e` has no exact-commit runs (pushed inside the burst whose
     tip `19fdcb5` ran Release 36261105261, Downstream 36260869750, Docs site
@@ -2659,8 +2659,8 @@ work, verify it, then update the checkpoint and append a log line.
     `6a0af04d3c4f345ffab5e9f8e54e532216b4cdaa` ran the full battery — Publish
     release, Build JS bundles, Build shader bundle, Bundle shaders, Build
     standalone (Linux/Windows/macOS), GPU tests, Shader tests, JS tests, JS
-    lint, Dispatch scaffold static-site-release, Verify docs asset paths,
-    notify — all success; the docs pass `01e9d620` passed Dispatch scaffold
+    lint, Dispatch static-site-release, Verify docs asset paths,
+    notify — all success; the docs pass `01e9d620` passed Dispatch
     static-site-release, Verify docs asset paths, and notify; `a651c075` is a
     LEDGER-only commit (auto-merge only, outside the site workflow's push
     paths). Deployment: https://noisemaker.app/llms-full.txt serves the
