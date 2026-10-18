@@ -17,6 +17,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel build
 # Copy only files needed for installation
 COPY pyproject.toml README.md LICENSE ./
 COPY noisemaker ./noisemaker
+COPY share/__init__.py share/*.json ./share/
 COPY share/dsl ./share/dsl
 
 # Build and install the package
