@@ -203,6 +203,12 @@ function resolveSettingValue(value, settings) {
   return value
 }
 
+function hasFunction(value) {
+  if (typeof value === 'function') return true
+  if (Array.isArray(value)) return value.some(hasFunction)
+  return false
+}
+
 function evaluateSettings(template) {
   const resolved = {}
   for (const [key, value] of Object.entries(template)) {
@@ -363,6 +369,9 @@ function buildPresets(names) {
   setSeed(0)
   const parsed = parsePresetDSL(_SOURCE)
   const presets = {}
+  // A random layer list names its ancestors only when it is resolved, so a
+  // table that contains one must hold every preset it can select.
+  let buildAll = false
 
   function build(name) {
     if (presets[name]) return presets[name]
@@ -370,7 +379,12 @@ function buildPresets(names) {
     if (!preset) return
 
     let resolvedLayers = null
-    if (preset.layers !== undefined) {
+    if (hasFunction(preset.layers)) {
+      // The reference Python implementation resolves a random layer list each
+      // time a Preset is constructed, from the caller's RNG sequence. Keep the
+      // expression unresolved so the Preset constructor does the same.
+      buildAll = true
+    } else if (preset.layers !== undefined) {
       resolvedLayers = resolveSettingValue(preset.layers, Object.create(null))
       if (Array.isArray(resolvedLayers)) {
         // Recursively build any layer references that are also presets.
@@ -384,20 +398,13 @@ function buildPresets(names) {
 
     const p = { ...preset }
     if (resolvedLayers !== null) {
-      // Ensure downstream consumers always see a concrete array of layer names,
-      // matching the behaviour of the reference Python implementation where
-      // dynamic layer expressions are resolved during preset table
-      // construction.
+      // Static layer lists are copied so consumers cannot mutate the parsed
+      // table.
       if (Array.isArray(resolvedLayers)) {
         p.layers = resolvedLayers.slice()
       } else {
         p.layers = resolvedLayers
       }
-    } else if (typeof p.layers === 'function') {
-      // Allow layers to be specified as a function in the DSL. Evaluate the
-      // function once when building the preset so downstream consumers always
-      // see a concrete array of layer names, matching the Python behaviour.
-      p.layers = p.layers()
     }
     if (p.settings && typeof p.settings === 'object') {
       const s = p.settings
@@ -457,11 +464,15 @@ function buildPresets(names) {
   for (const name of names) {
     build(name)
   }
+  if (buildAll) {
+    for (const name of Object.keys(parsed)) {
+      build(name)
+    }
+  }
 
   setSeed(seedBefore)
-  // The Python preset table construction advances RNG three times for dynamic
-  // layer expressions even though the resulting values are unused when only a
-  // single preset is requested. Advance the RNG here to keep sequences aligned.
+  // The Python PRESETS() advances the RNG three times after it copies the
+  // preset table. Advance the RNG here to keep sequences aligned.
   random()
   random()
   random()
