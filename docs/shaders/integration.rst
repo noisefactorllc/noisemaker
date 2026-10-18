@@ -384,9 +384,14 @@ Direct access to parsing and code generation, independent of state or rendering.
     // Generate DSL text from a compiled structure
     const dsl = unparse(compiled)
 
-    // Validate before compiling
+    // Check user input. compile() throws for lexer and parser errors
+    // (L and P codes). It returns semantic errors (S codes) in
+    // diagnostics and does not throw for them.
     try {
-        compile(userInput)
+        const { diagnostics } = compile(userInput)
+        for (const d of diagnostics.filter(d => d.severity === 'error')) {
+            console.error(`${d.code}: ${d.message}`)
+        }
     } catch (err) {
         console.error(err.message)
     }

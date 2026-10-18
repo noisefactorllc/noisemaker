@@ -1,38 +1,61 @@
 /**
  * Recursive-descent parser for the Polymorphic DSL.
  *
- * Grammar (EBNF):
- * Program        ::= SearchDirective? Statement* RenderDirective?
- * SearchDirective::= 'search' Ident (',' Ident)*
+ * Grammar (EBNF). docs/shaders/language.rst states the same grammar.
+ * Program        ::= Ignored SearchDirective ( Ignored Statement )* ( Ignored RenderDirective )? Ignored
+ * SearchDirective::= 'search' Namespace ( ',' Namespace )*    // Required (P004)
+ * Namespace      ::= Ident | Keyword                          // A registered namespace (P004)
  * Statement      ::= VarAssign | ChainStmt | IfStmt | Break | Continue | Return
  * RenderDirective::= 'render' '(' OutputRef ')'
- * Block          ::= '{' Statement* '}'
+ * Block          ::= '{' ( Statement ';'* )* '}'
  * IfStmt         ::= 'if' '(' Expr ')' Block ('elif' '(' Expr ')' Block)* ('else' Block)?
  * Break          ::= 'break'
  * Continue       ::= 'continue'
  * Return         ::= 'return' Expr?
  * VarAssign      ::= 'let' Ident '=' Expr
  * ChainStmt      ::= Chain
- * Chain          ::= ChainElement ('.' ChainElement)*
- * ChainElement   ::= Call | WriteNode | Write3DNode
- * WriteNode      ::= 'write' '(' OutputRef ')'     // Chainable - writes to surface & passes through
- * Write3DNode    ::= 'write3d' '(' Ident ',' Ident ')'
- * Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | Func | '(' Expr ')'
+ * Chain          ::= Call ( Comment* '.' Comment* ChainElement )*
+ * ChainElement   ::= Call | WriteCall | Write3DCall | SubchainCall
+ * SubchainCall   ::= 'subchain' '(' SubchainArgs? ')' '{' ( Comment* '.' Comment* Call )+ Comment* '}'
+ * SubchainArgs   ::= String | SubchainPair ( ','? SubchainPair )* ','?
+ * SubchainPair   ::= Ident ':' String
+ * WriteCall      ::= 'write' '(' WriteTarget ')'       // Chainable - writes to surface & passes through
+ * WriteTarget    ::= OutputRef | XyzRef | VelRef | RgbaRef | MeshRef | 'none'
+ * Write3DCall    ::= 'write3d' '(' ( VolRef | OutputRef | Ident ) ',' ( GeoRef | OutputRef | Ident ) ')'
  * Call           ::= Ident '(' ArgList? ')'
- * ArgList        ::= Arg (',' Arg)* ','?
- * Arg            ::= NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | Func
- * NumberExpr     ::= Number | 'Math.PI' | '(' NumberExpr ')' | NumberExpr ( '+' | '-' | '*' | '/' ) NumberExpr
- * Member         ::= Ident ('.' Ident)+
+ * ArgList        ::= Expr ( ',' Expr )* ','? | Kwarg ( ',' Kwarg )* ','?   // midi() and audio() may mix (P007)
+ * Kwarg          ::= Ident ':' Expr
+ * Expr           ::= Term ( ( '+' | '-' ) Term )*      // Operands must be numbers (P001)
+ * Term           ::= Unary ( ( '*' | '/' ) Unary )*
+ * Unary          ::= ( '+' | '-' )* Primary
+ * Primary        ::= Number | 'Math.PI' | String | Boolean | Color | Array | Func | Ident | Member
+ *                  | Chain | SurfaceRef | '(' Expr ')'   // A Chain here has no write (P005)
+ * Array          ::= '[' ( Expr ( ',' Expr )* )? ']'
+ * Member         ::= Ident ( '.' Segment )+
  * Func           ::= '(' ')' '=>' Expr
- * OutputRef      ::= 'o' Digit         // Global surface (o0-o7)
- * Ident          ::= Letter ( Letter | Digit | '_' )*
- * Number         ::= Digit+ ( '.' Digit+ )?
- * String         ::= '"' [^"\n]* '"'
+ * SurfaceRef     ::= OutputRef | SourceRef | VolRef | GeoRef | XyzRef | VelRef | RgbaRef | MeshRef
+ * OutputRef      ::= 'o' OutputDigit      // Global surface (o0-o7)
+ * VolRef         ::= 'vol' Digit+
+ * GeoRef         ::= 'geo' Digit+
+ * XyzRef         ::= 'xyz' Digit+
+ * VelRef         ::= 'vel' Digit+
+ * RgbaRef        ::= 'rgba' Digit+
+ * MeshRef        ::= 'mesh' Digit+
+ * SourceRef      ::= 's' Digit+
+ * Ident          ::= ( Letter | '_' ) ( Letter | Digit | '_' )*   // Never a Keyword
+ * Keyword        ::= 'let' | 'render' | 'write' | 'write3d' | 'true' | 'false' | 'if' | 'elif' | 'else'
+ *                  | 'break' | 'continue' | 'return' | 'search' | 'subchain'
+ * Segment        ::= Ident | SurfaceRef | ( Keyword - 'search' )
+ * Number         ::= Digit+ ( '.' Digit+ )? | '.' Digit+
+ * String         ::= '"' ( '\' AnyChar | [^"\\\n] )* '"' | "'" ( '\' AnyChar | [^'\\\n] )* "'" | '"""' .* '"""'
  * Digit          ::= '0'…'9'
+ * OutputDigit    ::= '0'…'7'
  * Letter         ::= 'A'…'Z' | 'a'…'z'
  * Boolean        ::= 'true' | 'false'
- * Color          ::= '#' HexDigit HexDigit HexDigit ( HexDigit HexDigit HexDigit )?
+ * Color          ::= '#' HexDigit{3} | '#' HexDigit{6} | '#' HexDigit{8}
  * HexDigit       ::= Digit | 'A'…'F' | 'a'…'f'
+ * Comment        ::= '//' [^\n]* | BlockComment    // A block comment runs to the first closing star-slash
+ * Ignored        ::= ( Comment | ';' )*
  *
  * Special Call Transformations:
  * - read(surface) → Read node for surface textures

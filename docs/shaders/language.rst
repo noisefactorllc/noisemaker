@@ -15,29 +15,38 @@ Grammar
 
 .. code-block:: none
 
-   Program        ::= SearchDirective Statement* RenderDirective?
-   SearchDirective::= 'search' Ident ( ',' Ident )*
+   Program        ::= Ignored SearchDirective ( Ignored Statement )* ( Ignored RenderDirective )? Ignored
+   SearchDirective::= 'search' Namespace ( ',' Namespace )*
+   Namespace      ::= Ident | Keyword
    Statement      ::= VarAssign | ChainStmt | IfStmt | Break | Continue | Return
    RenderDirective::= 'render' '(' OutputRef ')'
-   Block          ::= '{' Statement* '}'
+   Block          ::= '{' ( Statement ';'* )* '}'
    IfStmt         ::= 'if' '(' Expr ')' Block ('elif' '(' Expr ')' Block)* ('else' Block)?
    Break          ::= 'break'
    Continue       ::= 'continue'
    Return         ::= 'return' Expr?
    VarAssign      ::= 'let' Ident '=' Expr
    ChainStmt      ::= Chain
-   Chain          ::= ChainElement ( '.' ChainElement )*
+   Chain          ::= Call ( Comment* '.' Comment* ChainElement )*
    ChainElement   ::= Call | WriteCall | Write3DCall | SubchainCall
-   SubchainCall   ::= 'subchain' '(' ArgList? ')' '{' ( '.' Call )+ '}'
-   WriteCall      ::= 'write' '(' OutputRef ')'
-   Write3DCall    ::= 'write3d' '(' ( VolRef | Ident ) ',' ( GeoRef | Ident ) ')'
-   Expr           ::= Chain | NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | SourceRef | VolRef | GeoRef | XyzRef | VelRef | RgbaRef | MeshRef | Func | '(' Expr ')'
+   SubchainCall   ::= 'subchain' '(' SubchainArgs? ')' '{' ( Comment* '.' Comment* Call )+ Comment* '}'
+   SubchainArgs   ::= String | SubchainPair ( ','? SubchainPair )* ','?
+   SubchainPair   ::= Ident ':' String
+   WriteCall      ::= 'write' '(' WriteTarget ')'
+   WriteTarget    ::= OutputRef | XyzRef | VelRef | RgbaRef | MeshRef | 'none'
+   Write3DCall    ::= 'write3d' '(' ( VolRef | OutputRef | Ident ) ',' ( GeoRef | OutputRef | Ident ) ')'
    Call           ::= Ident '(' ArgList? ')'
-   ArgList        ::= Arg ( ',' Arg )* ','?
-   Arg            ::= NumberExpr | String | Boolean | Color | Ident | Member | OutputRef | VolRef | GeoRef | XyzRef | VelRef | RgbaRef | MeshRef | Func
-   NumberExpr     ::= Number | 'Math.PI' | '(' NumberExpr ')' | NumberExpr ( '+' | '-' | '*' | '/' ) NumberExpr
-   Member         ::= Ident ( '.' Ident )+
+   ArgList        ::= Expr ( ',' Expr )* ','? | Kwarg ( ',' Kwarg )* ','?
+   Kwarg          ::= Ident ':' Expr
+   Expr           ::= Term ( ( '+' | '-' ) Term )*
+   Term           ::= Unary ( ( '*' | '/' ) Unary )*
+   Unary          ::= ( '+' | '-' )* Primary
+   Primary        ::= Number | 'Math.PI' | String | Boolean | Color | Array | Func | Ident | Member
+                    | Chain | SurfaceRef | '(' Expr ')'
+   Array          ::= '[' ( Expr ( ',' Expr )* )? ']'
+   Member         ::= Ident ( '.' Segment )+
    Func           ::= '(' ')' '=>' Expr
+   SurfaceRef     ::= OutputRef | SourceRef | VolRef | GeoRef | XyzRef | VelRef | RgbaRef | MeshRef
    OutputRef      ::= 'o' OutputDigit
    VolRef         ::= 'vol' Digit+
    GeoRef         ::= 'geo' Digit+
@@ -46,15 +55,26 @@ Grammar
    RgbaRef        ::= 'rgba' Digit+
    MeshRef        ::= 'mesh' Digit+
    SourceRef      ::= 's' Digit+
-   Ident          ::= Letter ( Letter | Digit | '_' )*
-   Number         ::= Digit+ ( '.' Digit+ )?
-   String         ::= '"' [^"\n]* '"' | '"""' .* '"""'
+   Ident          ::= ( Letter | '_' ) ( Letter | Digit | '_' )*
+   Keyword        ::= 'let' | 'render' | 'write' | 'write3d' | 'true' | 'false' | 'if' | 'elif' | 'else'
+                    | 'break' | 'continue' | 'return' | 'search' | 'subchain'
+   Segment        ::= Ident | SurfaceRef | ( Keyword - 'search' )
+   Number         ::= Digit+ ( '.' Digit+ )? | '.' Digit+
+   String         ::= '"' ( '\' AnyChar | [^"\\\n] )* '"' | "'" ( '\' AnyChar | [^'\\\n] )* "'" | '"""' .* '"""'
    Digit          ::= '0'…'9'
    OutputDigit    ::= '0'…'7'
    Letter         ::= 'A'…'Z' | 'a'…'z'
    Boolean        ::= 'true' | 'false'
-   Color          ::= '#' HexDigit HexDigit HexDigit ( HexDigit HexDigit HexDigit )? ( HexDigit HexDigit )?
+   Color          ::= '#' HexDigit{3} | '#' HexDigit{6} | '#' HexDigit{8}
    HexDigit       ::= Digit | 'A'…'F' | 'a'…'f'
+   Comment        ::= '//' [^\n]* | '/*' .* '*/'
+   Ignored        ::= ( Comment | ';' )*
+
+An ``Ident`` is never a ``Keyword``. A ``Namespace`` must name a registered
+namespace. Otherwise the parser reports ``P004``.
+``Chain`` in ``Primary`` cannot contain ``WriteCall`` or ``Write3DCall``
+(``P005``). Positional and keyword arguments cannot be mixed in one call
+(``P007``), except in ``midi()`` and ``audio()``.
 
 **Precedence & Associativity:**
 
@@ -100,7 +120,7 @@ built-in ways to start from existing surfaces.
 Hex colors support 3, 6, or 8 digits: ``#RGB``, ``#RRGGBB``, ``#RRGGBBAA``. Alpha defaults to ``FF`` (1.0) if omitted.
 
 **Strings:**
-Strings use double quotes: ``"hello"``. For multi-line strings, use triple quotes: ``"""line1\nline2\nline3"""``. Triple-quoted strings preserve embedded newlines. This is useful for the ``text`` effect:
+Strings use double or single quotes: ``"hello"`` or ``'hello'``. A backslash and the character after it do not end the string, so ``"say \"hi\""`` is one string. A quoted string cannot contain a newline. For multi-line strings, use triple quotes: ``"""line1\nline2\nline3"""``. Triple-quoted strings preserve embedded newlines. This is useful for the ``text`` effect:
 
 .. code-block:: none
 
@@ -109,6 +129,9 @@ Strings use double quotes: ``"hello"``. For multi-line strings, use triple quote
 
 **Arrow Functions:**
 Arrow functions currently support only zero-argument expression lambdas: ``() => expr``. Their primary use is deferred evaluation in control structures or future callbacks.
+
+**Comments and separators:**
+``//`` starts a line comment. ``/* ... */`` is a block comment, and block comments do not nest. Comments can go before ``search``, between statements, after ``render()``, and before or after the ``.`` in a chain. A comment inside an argument list or an ``if`` block is a parser error (``P001``). A ``;`` can come before ``search`` and after ``search``, a statement or ``render()``. It is optional.
 
 Language Features
 -----------------
@@ -132,7 +155,7 @@ forms are mutually exclusive within a single call, except for the special
 
   noise(type: 10, octaves: 2, scaleX: 50)
 
-Numeric arguments support inline arithmetic (``+``, ``-``, ``*``, ``/``) and constants like ``Math.PI``. Color arguments accept unquoted ``#RGB`` or ``#RRGGBB`` hex codes.
+Numeric arguments support inline arithmetic (``+``, ``-``, ``*``, ``/``), a leading ``+`` or ``-``, and the constant ``Math.PI``. The parser folds arithmetic to one number, so every operand must be a number: ``time * 0.5`` is a parser error (``P001``, "Expected number"). Color arguments accept unquoted ``#RGB``, ``#RRGGBB`` or ``#RRGGBBAA`` hex codes.
 
 **Vector parameters:**
 
@@ -347,7 +370,7 @@ For a call such as ``noise()``, the compiler searches namespaces in order
 Enums
 -----
 
-Many function arguments accept enumerated options defined in a global registry. The ``std_enums.js`` file defines enums at the top level as global categories (e.g., ``color``, ``blend``, ``wrap``).
+Many function arguments accept enumerated options defined in a global registry. The ``std_enums.js`` file defines these top-level categories: ``channel``, ``color``, ``oscType``, ``oscKind``, ``midiMode``, ``midiZone``, ``audioBand`` and ``palette``. Effect definitions add the ``choices`` of their parameters to the registry when they load.
 
 For example, the ``noise`` effect accepts a ``colorMode`` parameter with values from the global ``color`` enum. You can reference enum values in three ways:
 
@@ -778,7 +801,7 @@ The ``pointsEmit`` and ``pointsRender`` wrappers manage these surfaces. Behavior
 * **Mesh Geometry Textures:** ``mesh0``-``mesh7`` are texture pairs storing mesh geometry data from loaded OBJ files.
 * Each mesh surface consists of a positions texture (vertex XYZ + W) and a normals texture (normal XYZ + UV).
 * **Loading:** Use ``meshLoader()`` in the pipeline and load OBJ files via the API (``canvas.loadOBJFromURL()`` or ``canvas.loadOBJFromString()``).
-* **Rendering:** Use ``meshRender(mesh: mesh0)`` to render mesh geometry with lighting and transforms.
+* **Rendering:** Chain ``meshRender()`` after ``meshLoader()``: ``meshLoader().meshRender().write(o0)``. ``meshRender()`` reads ``mesh0`` and renders it with lighting and transforms. It has no ``mesh`` parameter, and it cannot start a chain.
 
 Feedback Loops
 ^^^^^^^^^^^^^^
@@ -887,7 +910,7 @@ Diagnostics
    * - R001
      - Runtime
      - Error
-     - Runtime error
+     - Runtime error. Declared in ``diagnostics.js``. No code emits it.
 
 
 Common Errors

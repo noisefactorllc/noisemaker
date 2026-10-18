@@ -346,8 +346,7 @@ Sources: `shaders/src/lang/lexer.js` - `lex()`;
 ### Act
 
 The parser-recognized grammar is below. Semantic validation narrows this syntax
-as described after the grammar. It supersedes the optional-search grammar in
-the comment at the top of `parser.js`. `search` is mandatory in code.
+as described after the grammar. `search` is mandatory in code.
 
 ```ebnf
 Program          ::= Ignored SearchDirective
