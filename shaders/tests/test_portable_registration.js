@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import { CanvasRenderer, Effect, compile, getEffect, registerEffect, mergeIntoEnums } from '../src/index.js'
 import { expand } from '../src/runtime/expander.js'
 import { isStarterOp } from '../src/lang/validator.js'
+import { lex, RESERVED_KEYWORDS } from '../src/lang/lexer.js'
 
 function definition(func, overrides = {}) {
     return {
@@ -102,6 +103,34 @@ test('Invalid Portable packages fail before registration and leave a valid name 
     }
     await renderer.registerPortableEffect(definition('portableInvalid'))
     assert.ok(getEffect('user.portableInvalid') instanceof Effect)
+})
+
+test('Portable func names that a search user program cannot call fail before registration', async () => {
+    const renderer = new CanvasRenderer()
+    const referenceTypes = ['OUTPUT_REF', 'SOURCE_REF', 'VOL_REF', 'GEO_REF', 'XYZ_REF', 'VEL_REF', 'RGBA_REF', 'MESH_REF']
+    const surfaceReferences = ['s1', 'o1', 'o9', 'vol2', 'geo3', 'xyz1', 'vel1', 'rgba1', 'mesh1']
+    for (const prefix of ['o', 's', 'vol', 'geo', 'xyz', 'vel', 'rgba', 'mesh']) {
+        for (const suffix of ['0', '7', '12', '3Fx']) surfaceReferences.push(`${prefix}${suffix}`)
+    }
+    for (const func of surfaceReferences) {
+        // Output references above o7 fail with L004 before a token is made.
+        let first
+        try { first = lex(func)[0].type } catch (e) { first = e.diagnostic?.code }
+        assert.ok(referenceTypes.includes(first) || first === 'L004', `${func} must lex as a surface reference, got ${first}`)
+    }
+    const parserCalls = ['osc', 'midi', 'audio', 'read', 'read3d', 'from']
+    for (const func of [...Object.keys(RESERVED_KEYWORDS), ...parserCalls, ...surfaceReferences]) {
+        await assert.rejects(() => renderer.registerPortableEffect(definition(func)), /^Error: Portable effect: /, func)
+        assert.equal(getEffect(`user.${func}`), undefined, func)
+        assert.equal(getEffect(`user/${func}`), undefined, func)
+        assert.equal(isStarterOp(`user.${func}`), false, func)
+        assert.equal(renderer.loadedEffects.size, 0, func)
+    }
+    const effect = await renderer.registerPortableEffect(definition('portableOk'))
+    assert.equal(getEffect('user.portableOk'), effect.instance)
+    const compiled = compile('search user\nportableOk().write(o0)\nrender(o0)')
+    assert.deepEqual(compiled.diagnostics, [])
+    assert.equal(compiled.plans[0].chain[0].op, 'user.portableOk')
 })
 
 test('A name-only Portable effect preserves an existing bare built-in name', async () => {

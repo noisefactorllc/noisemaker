@@ -740,8 +740,11 @@ under the effect's own path.
 ``registerPortableEffect`` checks registration inputs and fails with a
 ``Portable effect: ...`` error before anything is registered:
 
-- ``func`` (or ``name``) must be a DSL identifier; the namespace, when
-  present, must be ``user``.
+- ``func`` (or ``name``) must be a DSL identifier that ``search user`` +
+  ``func()`` calls: not a reserved keyword, not a surface reference
+  (``o1``, ``s1``, ``vol2``, ...) and not a call that the parser handles
+  itself (``osc``, ``midi``, ``audio``, ``read``, ``read3d``, ``from``).
+  The namespace, when present, must be ``user``.
 - ``passes`` must be a nonempty array of passes that each name a program;
   any supplied ``inputs``/``outputs`` mapping must map names to nonempty
   texture references.

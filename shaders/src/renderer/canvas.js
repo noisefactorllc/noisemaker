@@ -20,6 +20,8 @@
  */
 
 import { registerOp } from '../lang/ops.js'
+import { lex } from '../lang/lexer.js'
+import { parse } from '../lang/parser.js'
 import { registerEffectAlias } from '../lang/effectAliases.js'
 import { registerStarterOps } from '../lang/validator.js'
 import { createRuntime, recompile } from '../runtime/compiler.js'
@@ -77,6 +79,23 @@ export function cloneParamValue(value) {
  */
 export function isValidIdentifier(name) {
     return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)
+}
+
+/**
+ * Check if a `search user` program can call `name()` as an effect. Keywords,
+ * surface references (o1, s1, vol2, ...) and the calls that the parser turns
+ * into other nodes (osc, midi, audio, read, read3d, from) cannot be called.
+ * @param {string} name - Identifier to check
+ * @returns {boolean}
+ */
+function parsesAsUserEffectCall(name) {
+    let chain
+    try {
+        chain = parse(lex(`search user\n${name}()`)).plans?.[0]?.chain
+    } catch {
+        return false
+    }
+    return chain?.length === 1 && chain[0].type === 'Call' && chain[0].name === name
 }
 
 /**
@@ -1433,6 +1452,7 @@ export class CanvasRenderer {
         const { namespace, passes, shaders, globals, starter } = definition
         const func = definition.func ?? definition.name
         if (typeof func !== 'string' || !isValidIdentifier(func)) fail('func must be a DSL identifier')
+        if (!parsesAsUserEffectCall(func)) fail(`reserved func ${func}`)
         // The shared operator/enum registries use object trees. JSON keys that
         // control their prototypes must never reach those registration paths.
         const reserved = [...Object.getOwnPropertyNames(Object.prototype), 'prototype']
