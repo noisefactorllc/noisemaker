@@ -1,1 +1,1 @@
-See [agents.md](agents.md)
+See [AGENTS.md](AGENTS.md)
